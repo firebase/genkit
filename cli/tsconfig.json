@@ -1,0 +1,12 @@
+{
+    "compilerOptions": {
+      "module": "commonjs",
+      "strict": true,
+      "outDir": "dist",
+      "removeComments": true,
+      "target": "es2017",
+      "sourceMap": true,
+    },
+    "include": ["src/**/*"],
+    "lib": ["es2015"],
+  }

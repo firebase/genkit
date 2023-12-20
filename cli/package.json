@@ -1,0 +1,29 @@
+{
+  "name": "genkit-cli",
+  "version": "0.0.1",
+  "description": "CLI for interacting with the Google GenKit AI framework",
+  "bin": {
+    "genkit": "dist/bin/genkit.js"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "lint": "eslint --config .eslintrc.js --ext .ts,.js .",
+    "lint:fix": "npm run lint -- --fix --quiet",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Firebase (https://firebase.google.com)",
+  "license": "MIT",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "eslint": "^8.56.0",
+    "eslint-config-google": "^0.14.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-jsdoc": "^46.9.1",
+    "eslint-plugin-prettier": "^5.1.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "commander": "^11.1.0"
+  }
+}
