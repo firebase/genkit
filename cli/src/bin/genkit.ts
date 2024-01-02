@@ -2,6 +2,6 @@
 
 /** Shim wrapper for genkit CLI */
 
-import { startCLI } from "../cli";
+import { startCLI } from '../cli';
 
 startCLI();

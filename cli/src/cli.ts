@@ -1,5 +1,7 @@
-import { program, Command } from "commander";
-import { example } from "./commands/example";
+import { program, Command } from 'commander';
+import { example } from './commands/example';
+import { logger } from './utils/logger';
+import * as clc from 'colorette';
 
 /**
  * All commands need to be directly registered in this list.
@@ -11,9 +13,14 @@ const commands: Command[] = [example];
 
 /** Main entry point for CLI. */
 export function startCLI(): void {
-  program.name("genkit").description("Google GenKit CLI").version("0.0.1");
+  program.name('genkit').description('Google GenKit CLI').version('0.0.1');
 
   for (const command of commands) program.addCommand(command);
+
+  // Default action to catch unknown commands.
+  program.action((_, { args }: { args: string[] }) => {
+    logger.error(`"${clc.bold(args[0])}" is not a known Gen Kit command.`);
+  });
 
   program.parse();
 }
