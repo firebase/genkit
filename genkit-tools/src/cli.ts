@@ -1,5 +1,6 @@
 import { program, Command } from 'commander';
 import { example } from './commands/example';
+import { start } from './commands/start';
 import { logger } from './utils/logger';
 import * as clc from 'colorette';
 
@@ -9,7 +10,7 @@ import * as clc from 'colorette';
  * To add a new command to the CLI, create a file under src/commands that
  * exports a Command constant, then add it to the list below
  */
-const commands: Command[] = [example];
+const commands: Command[] = [example, start];
 
 /** Main entry point for CLI. */
 export function startCLI(): void {

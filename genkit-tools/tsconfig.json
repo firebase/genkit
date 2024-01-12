@@ -8,5 +8,6 @@
       "sourceMap": true,
     },
     "include": ["src/**/*"],
+    "exclude": ["ui/**/*"],
     "lib": ["es2015"],
   }

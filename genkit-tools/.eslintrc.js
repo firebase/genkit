@@ -13,6 +13,7 @@ module.exports = {
     ],
     rules: {
       "jsdoc/newline-after-description": "off",
+      "new-cap": "off",  // Function components in Angular use this
       "jsdoc/require-jsdoc": ["warn", { publicOnly: true }],
       "no-restricted-globals": ["error", "name", "length"],
       "prefer-arrow-callback": "error",
@@ -48,7 +49,7 @@ module.exports = {
     globals: {},
     parserOptions: {
       ecmaVersion: "2017",
-      project: ["tsconfig.json"],
+      project: ["tsconfig.json", "ui/tsconfig.json"],
       sourceType: "module",
       warnOnUnsupportedTypeScriptVersion: false,
     },
