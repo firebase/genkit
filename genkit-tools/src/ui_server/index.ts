@@ -16,7 +16,10 @@ const UI_DEVELOPMENT_FILES_DIR = path.resolve(__dirname, '../../ui/src');
  */
 function generateDiscoverabilityFile(headless: boolean, port: number): void {
   const basePath = headless ? UI_DEVELOPMENT_FILES_DIR : UI_STATIC_FILES_DIR;
-  writeFileSync(path.join(basePath, 'discovery.js'), `(() => window._cli_port_ = ${port})();`);
+  writeFileSync(
+    path.join(basePath, 'discovery.js'),
+    `(() => window._cli_port_ = ${port})();`,
+  );
 }
 
 function apiPath(endpoint: string): string {
@@ -41,10 +44,7 @@ export function startServer(headless: boolean, port: number): void {
         unknown,
         EchoExample.RequestQueryParams
       >,
-      res: express.Response<
-        EchoExample.ResponseBody,
-        Record<string, unknown>
-      >,
+      res: express.Response<EchoExample.ResponseBody, Record<string, unknown>>,
     ) => {
       res.setHeader('Access-Control-Allow-Origin', '*');
       res.send({ echoedValue: req.query.value.toUpperCase() });
