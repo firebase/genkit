@@ -7,8 +7,10 @@
   },
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc && cd ui && npm run build && cp -r dist ../dist/client",
+    "build": "(npm run build:cli) && (npm run build:ui) && (npm run copy-ui-build)",
     "build:cli": "tsc",
+    "build:ui": "cd ui && npm run build",
+    "copy-ui-build": "rm -r dist/client && cd ui && cp -r dist ../dist/client",
     "lint": "eslint --config .eslintrc.js --ext .ts,.js .",
     "lint:fix": "npm run lint -- --fix --quiet",
     "test": "echo \"Error: no test specified\" && exit 1"
