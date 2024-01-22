@@ -40,9 +40,4 @@ jobs:
       run: npm install
     - name: Run formatting script
       working-directory: ./genkit-tools
-      run: npm run lint:fix
-    - name: Check for changes (fail if so)
-      run: git diff --exit-code
-    - name: Formatting needs to be updated. See message below.
-      if: ${{ failure() }}
-      run: echo "Something was changed by formatting. Run \`npm run lint:fix\` locally to do a lint pass."
+      run: npm run lint
