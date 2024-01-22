@@ -1,0 +1,48 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Formatting Check (Run npm run lint:fix locally if this fails)
+
+on: pull_request
+
+env:
+  GITHUB_PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+  GITHUB_PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+
+jobs:
+  format:
+    name: Run formatting/linting tasks
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repo
+      uses: actions/checkout@main
+      with:
+        # get all history for the diff
+        fetch-depth: 0
+    - name: Set up node (16)
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+    - name: NPM install
+      working-directory: ./genkit-tools
+      run: npm install
+    - name: Run formatting script
+      working-directory: ./genkit-tools
+      run: npm run lint:fix
+    - name: Check for changes (fail if so)
+      run: git diff --exit-code
+    - name: Formatting needs to be updated. See message below.
+      if: ${{ failure() }}
+      run: echo "Something was changed by formatting. Run \`npm run lint:fix\` locally to do a lint pass."
