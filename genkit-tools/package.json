@@ -13,7 +13,8 @@
     "copy-ui-build": "rm -r dist/client && cd ui && cp -r dist ../dist/client",
     "lint": "eslint --config .eslintrc.js --ext .ts,.js .",
     "lint:fix": "npm run lint -- --fix --quiet",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "preinstall": "cd ui && npm install"
   },
   "author": "Firebase (https://firebase.google.com)",
   "license": "MIT",
