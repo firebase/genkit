@@ -11,8 +11,12 @@ export const uiEndpointsRouter = t.router({
     .input(z.string())
     .query((opts) => opts.input.toUpperCase()),
   listFlowRuns: t.procedure.query(() => FIRESTORE_STUB.listFlowRuns()),
-  getFlowRun: t.procedure.input(z.string()).query(({input}) => FIRESTORE_STUB.getFlowRun(input)),
-  getTrace: t.procedure.input(z.string()).query(({input}) => FIRESTORE_STUB.fetchTrace(input)),
+  getFlowRun: t.procedure
+    .input(z.string())
+    .query(({ input }) => FIRESTORE_STUB.getFlowRun(input)),
+  getTrace: t.procedure
+    .input(z.string())
+    .query(({ input }) => FIRESTORE_STUB.fetchTrace(input)),
 });
 
 export type UiApi = typeof uiEndpointsRouter;
