@@ -16,7 +16,7 @@ export const uiEndpointsRouter = t.router({
     .query(({ input }) => FIRESTORE_STUB.getFlowRun(input)),
   getTrace: t.procedure
     .input(z.string())
-    .query(({ input }) => FIRESTORE_STUB.fetchTrace(input)),
+    .query(({ input }) => FIRESTORE_STUB.getTrace(input)),
 });
 
 export type UiApi = typeof uiEndpointsRouter;

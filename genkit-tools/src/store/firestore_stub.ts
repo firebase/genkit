@@ -51,13 +51,13 @@ export class FirestoreStub implements StateRetriever {
     }
     flowData.executions = await Promise.all(
       flowData.executions.map((e: { traceIds: string[] }) =>
-        this.fetchTrace(e.traceIds[0]),
+        this.getTrace(e.traceIds[0]),
       ),
     );
     return flowData;
   }
 
-  async fetchTrace(traceId: string): Promise<unknown> {
+  async getTrace(traceId: string): Promise<unknown> {
     // TODO: use trace reader
     const traceQuery = await this.db
       .collection('ai-traces-test')

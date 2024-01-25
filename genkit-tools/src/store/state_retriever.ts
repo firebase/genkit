@@ -3,5 +3,5 @@
 export interface StateRetriever {
   listFlowRuns(): Promise<Array<unknown>>;
   getFlowRun(flowId: string): Promise<unknown>;
-  fetchTrace(traceId: string): Promise<unknown>;
+  getTrace(traceId: string): Promise<unknown>;
 }
