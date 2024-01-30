@@ -1,0 +1,89 @@
+{
+  "name": "@google-genkit/common",
+  "version": "0.0.1",
+  "type": "commonjs",
+  "scripts": {
+    "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
+    "build:clean": "rm -rf ./lib",
+    "build": "npm-run-all build:clean compile",
+    "build:watch": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json --watch"
+  },
+  "dependencies": {
+    "@google-cloud/monitoring": "^4.0.0",
+    "@google-cloud/opentelemetry-cloud-monitoring-exporter": "^0.17.0",
+    "@google-cloud/trace-agent": "^7.1.2",
+    "@opentelemetry/api": "^1.7.0",
+    "@opentelemetry/context-async-hooks": "^1.20.0",
+    "@opentelemetry/sdk-metrics": "^1.20.0",
+    "@opentelemetry/sdk-node": "^0.47.0",
+    "@opentelemetry/sdk-trace-base": "^1.20.0",
+    "pino": "^8.17.2",
+    "pino-pretty": "^10.3.1",
+    "uuid": "^9.0.1",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/uuid": "^9.0.6",
+    "firebase-functions-test": "^3.1.0",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^4.9.0"
+  },
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "require": "./lib/cjs/index.js",
+      "import": "./lib/esm/index.js",
+      "default": "./lib/esm/index.js"
+    },
+    "./metrics": {
+      "types": "./lib/types/metrics.d.ts",
+      "require": "./lib/cjs/metrics.js",
+      "import": "./lib/esm/metrics.js",
+      "default": "./lib/esm/metrics.js"
+    },
+    "./registry": {
+      "types": "./lib/types/registry.d.ts",
+      "require": "./lib/cjs/registry.js",
+      "import": "./lib/esm/registry.js",
+      "default": "./lib/esm/registry.js"
+    },
+    "./tracing": {
+      "types": "./lib/types/tracing.d.ts",
+      "require": "./lib/cjs/tracing.js",
+      "import": "./lib/esm/tracing.js",
+      "default": "./lib/esm/tracing.js"
+    },
+    "./logging": {
+      "types": "./lib/types/logging.d.ts",
+      "require": "./lib/cjs/logging.js",
+      "import": "./lib/esm/logging.js",
+      "default": "./lib/esm/logging.js"
+    },
+    "./runtime": {
+      "types": "./lib/types/runtime.d.ts",
+      "require": "./lib/cjs/runtime.js",
+      "import": "./lib/esm/runtime.js",
+      "default": "./lib/esm/runtime.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "metrics": [
+        "lib/types/metrics"
+      ],
+      "runtime": [
+        "lib/types/runtime"
+      ],
+      "tracing": [
+        "lib/types/tracing"
+      ],
+      "logging": [
+        "lib/types/logging"
+      ],
+      "registry": [
+        "lib/types/registry"
+      ]
+    }
+  }
+}

@@ -1,5 +1,6 @@
 import { Command } from 'commander';
 import { startServer } from '../ui_server';
+import { Runner } from '../runner/runner';
 import { logger } from '../utils/logger';
 
 interface StartOptions {
@@ -23,4 +24,6 @@ export const start = new Command('start')
     }
 
     startServer(options.headless ?? false, port);
+    const runner = new Runner();
+    runner.start();
   });
