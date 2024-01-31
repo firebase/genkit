@@ -36,11 +36,11 @@ module.exports = {
     "no-useless-escape": "warn",
     "prefer-promise-reject-errors": "warn",
 
-    "quotes": ["error", "double"],
+    "quotes": ["error", "single", { "avoidEscape": true }],
     "import/no-unresolved": 0,
     "import/no-named-as-default": 0,
     "indent": ["error", 2],
-    "max-len": ["error", { "code": 100 }]
+    "max-len": ["error", { "code": 100, "ignoreComments": true }]
   },
   overrides: [
     {
@@ -68,6 +68,7 @@ module.exports = {
         "@typescript-eslint/no-unsafe-member-access": "warn",
         "@typescript-eslint/no-unsafe-return": "warn",
         "@typescript-eslint/restrict-template-expressions": "warn",
+        "@typescript-eslint/require-await": "warn",
       },
     },
   ]

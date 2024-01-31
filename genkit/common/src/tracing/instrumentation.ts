@@ -88,9 +88,9 @@ function metadataToAttributes(metadata: SpanMetadata): Record<string, string> {
 }
 
 /**
- *
+ * Sets provided attribute value in the current span.
  */
-export function setCustomMetadataAttribute(key: string, value: any) {
+export function setCustomMetadataAttribute(key: string, value: string) {
   const currentStep = getCurrentSpan();
   if (!currentStep) {
     return;
@@ -99,6 +99,22 @@ export function setCustomMetadataAttribute(key: string, value: any) {
     currentStep.metadata = {};
   }
   currentStep.metadata[key] = value;
+}
+
+/**
+ * Sets provided attribute values in the current span.
+ */
+export function setCustomMetadataAttributes(values: Record<string, string>) {
+  const currentStep = getCurrentSpan();
+  if (!currentStep) {
+    return;
+  }
+  if (!currentStep.metadata) {
+    currentStep.metadata = {};
+  }
+  for (const [key, value] of Object.entries(values)) {
+    currentStep.metadata[key] = value;
+  }
 }
 
 function getCurrentSpan(): SpanMetadata {
