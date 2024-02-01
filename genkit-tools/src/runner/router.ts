@@ -1,6 +1,6 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { ActionMetadata } from '@google-genkit/common';
+import { ActionMetadata } from './types';
 import axios from 'axios';
 
 const t = initTRPC.create();
@@ -43,6 +43,8 @@ export const RUNNER_ROUTER = t.router({
           `${REFLECTION_API_URL}/runAction`,
           {
             key: input.actionName,
+            // TODO: This will be cleaned up when there is a strongly typed interface (e.g. OpenAPI).
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             input: input.input,
           },
           {
@@ -57,6 +59,8 @@ export const RUNNER_ROUTER = t.router({
             message: 'Failed to run action',
           });
         }
+        // TODO: This will be cleaned up when there is a strongly typed interface (e.g. OpenAPI).
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
         return response.data;
       } catch (error) {
         console.error('Error running action:', error);
