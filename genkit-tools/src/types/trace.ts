@@ -1,5 +1,9 @@
 import * as z from 'zod';
 
+// NOTE: Keep this file in sync with genkit/common/src/tracing/types.ts!
+// Eventually tools will be source of truth for these types (by generating a
+// JSON schema) but until then this file must be manually kept in sync
+
 export const SpanMetadataSchema = z.object({
   name: z.string(),
   state: z.enum(['success', 'error']).optional(),

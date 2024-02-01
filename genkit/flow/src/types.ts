@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import { FlowRunner } from './runner';
 
+// NOTE: Keep this file in sync with genkit-tools/src/types/flow.ts!
+// Eventually tools will be source of truth for these types (by generating a
+// JSON schema) but until then this file must be manually kept in sync
+
 /**
  * Flow state store persistence interface.
  */

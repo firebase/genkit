@@ -1,5 +1,9 @@
 import * as z from 'zod';
 
+// NOTE: Keep this file in sync with genkit/flow/src/types.ts!
+// Eventually tools will be source of truth for these types (by generating a
+// JSON schema) but until then this file must be manually kept in sync
+
 /**
  * The message format used by the flow task queue and control interface.
  */
