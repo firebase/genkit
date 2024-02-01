@@ -1,15 +1,18 @@
 {
   "private": true,
   "version": "0.0.1",
+  "workspaces": [
+    "./*"
+  ],
   "scripts": {
     "lint": "eslint --ext .ts .",
     "lint:fix": "eslint --fix --ext .ts .",
     "install-parent-deps": "npm i",
-    "build-all": "npm run build-common && npm run build-flow && npm run build-ai && npm run build-providers",
-    "build-common": "cd genkit/common && npm install && npm run build",
-    "build-flow": "cd genkit/flow && npm install && npm run build",
-    "build-ai": "cd genkit/ai && npm install && npm run build",
-    "build-providers": "cd genkit/providers && npm install && npm run build"
+    "build:all": "npm run build:common && npm run build:flow && npm run build:ai && npm run build:providers",
+    "build:common": "cd common && npm install && npm run build",
+    "build:flow": "cd flow && npm install && npm run build",
+    "build:ai": "cd ai && npm install && npm run build",
+    "build:providers": "cd providers && npm install && npm run build"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.12.0",

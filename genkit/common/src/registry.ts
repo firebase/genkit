@@ -15,7 +15,11 @@ export type ActionType =
 /**
  * Looks up a registry key (action type and key) in the registry.
  */
-export function lookupAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(key: string): Action<I, O> {
+export function lookupAction<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  R extends Action<I, O>
+>(key: string): R {
   return __actionRegistry[key];
 }
 

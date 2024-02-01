@@ -143,7 +143,7 @@ function resolveModel<
 }
 
 function getTextModelFromRegistry(id: ModelId): TextLlmAction<any, any, any> {
-  return registry.lookup(`/text-llm/${id.modelProvider}/${id.modelName}`);
+  return registry.lookupAction(`/text-llm/${id.modelProvider}/${id.modelName}`);
 }
 
 /**
