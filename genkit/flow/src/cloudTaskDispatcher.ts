@@ -1,6 +1,10 @@
 import { getFunctions } from 'firebase-admin/functions';
 import { GoogleAuth } from 'google-auth-library';
 import { FlowInvokeEnvelopeMessage } from './types';
+import logging from '@google-genkit/common/logging';
+
+// cached `GoogleAuth` client.
+let auth;
 
 /**
  * Sends the flow invocation envelope to the flow via a task queue.
@@ -12,7 +16,7 @@ export async function dispatchCloudTask(
 ) {
   const queue = getFunctions().taskQueue(flowName);
   const targetUri = await getFunctionUrl(flowName);
-  console.log('targetUri', targetUri);
+  logging.debug('dispatchCloudTask targetUri', targetUri);
   await queue.enqueue(payload, {
     scheduleDelaySeconds,
     dispatchDeadlineSeconds: 60 * 5, // 5 minutes
@@ -20,7 +24,6 @@ export async function dispatchCloudTask(
   });
 }
 
-let auth;
 async function getFunctionUrl(name, location = 'us-central1') {
   if (!auth) {
     auth = new GoogleAuth({

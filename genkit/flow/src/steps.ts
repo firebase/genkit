@@ -4,7 +4,7 @@ import { RunStepConfig } from './flow';
 import { getActiveContext } from './utils';
 
 /**
- *
+ * A flow steap that executes an action with provided input and memoizes the output.
  */
 export function runAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   action: Action<I, O>,
@@ -18,6 +18,9 @@ export function runAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   return run(config, input, () => action(input));
 }
 
+/**
+ * A flow steap that executes the provided function and memoizes the output.
+ */
 export function run<T>(
   config: RunStepConfig,
   func: () => Promise<T>
@@ -28,9 +31,6 @@ export function run<T>(
   func: () => Promise<T>
 ): Promise<T>;
 export function run<T>(name: string, func: () => Promise<T>): Promise<T>;
-/**
- *
- */
 export function run<T>(
   nameOrConfig: string | RunStepConfig,
   funcOrInput: () => Promise<T>,
@@ -55,7 +55,7 @@ export function run<T>(
 }
 
 /**
- *
+ * Interrupts the flow execution until the flow is resumed with input defined by `responseSchema`.
  */
 export function interrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   actionId: string,
@@ -72,7 +72,7 @@ export function interrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 }
 
 /**
- *
+ * Interrupts flow execution and resumes it when specified amount if time elapses.
  */
 export function sleep(actionId: string, durationMs: number) {
   const ctx = getActiveContext();
@@ -81,7 +81,7 @@ export function sleep(actionId: string, durationMs: number) {
 }
 
 /**
- *
+ * Interrupts the flow and periodically check for the flow ID to complete.
  */
 export function waitFor<O extends z.ZodTypeAny>(
   actionId: string,

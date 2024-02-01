@@ -2,7 +2,7 @@ import { App, initializeApp, getApp, AppOptions } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import * as registry from '@google-genkit/common/registry';
 import { FlowState, FlowStateSchema, FlowStateStore } from './types';
-import { logger } from 'firebase-functions/v1';
+import logging from '@google-genkit/common/logging';
 
 /**
  * Configures default state store to use {@link FirestoreStateStore}.
@@ -66,7 +66,7 @@ export class FirestoreStateStore implements FlowStateStore {
   }
 
   async save(id: string, state: FlowState): Promise<void> {
-    logger.debug(state, 'save state');
+    logging.debug(state, 'save state');
     await this.db.collection(this.collection).doc(id).set(state);
   }
 }

@@ -20,7 +20,7 @@ type StepsFunction<I extends z.ZodTypeAny, O extends z.ZodTypeAny> = (
 ) => Promise<z.infer<O>>;
 
 /**
- *
+ * Runs the flow, manages execution context and state.
  */
 export class FlowRunner<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
   readonly name: string;
