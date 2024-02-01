@@ -1,0 +1,118 @@
+{
+  "name": "@google-genkit/ai",
+  "version": "0.0.1",
+  "type": "commonjs",
+  "scripts": {
+    "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
+    "build:clean": "rm -rf ./lib",
+    "build": "npm-run-all build:clean compile",
+    "build:watch": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json --watch",
+    "lint": "eslint --config ../.eslintrc.js --ext .ts src",
+    "lint:fix": "npm run lint -- --fix --quiet"
+  },
+  "dependencies": {
+    "@google-ai/generativelanguage": "^2.0.0",
+    "@google-cloud/aiplatform": "^3.4.0",
+    "@google-cloud/monitoring": "^4.0.0",
+    "@google-cloud/trace-agent": "^7.1.2",
+    "@google-cloud/vertexai": "^0.1.3",
+    "@google-genkit/common": "*",
+    "@google-genkit/flow": "*",
+    "@google/generative-ai": "^0.1.3",
+    "handlebars": "^4.7.8",
+    "uuid": "^9.0.1",
+    "zod": "^3.22.4",
+    "zod-to-json-schema": "^3.21.4",
+    "front-matter": "^4.0.2"
+  },
+  "devDependencies": {
+    "@types/uuid": "^9.0.6",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^4.9.0"
+  },
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "require": "./lib/cjs/index.js",
+      "import": "./lib/esm/index.js",
+      "default": "./lib/esm/index.js"
+    },
+    "./agents": {
+      "types": "./lib/types/agents.d.ts",
+      "require": "./lib/cjs/agents.js",
+      "import": "./lib/esm/agents.js",
+      "default": "./lib/esm/agents.js"
+    },
+    "./memory": {
+      "types": "./lib/types/memory.d.ts",
+      "require": "./lib/cjs/memory.js",
+      "import": "./lib/esm/memory.js",
+      "default": "./lib/esm/memory.js"
+    },
+    "./recipes": {
+      "types": "./lib/types/recipes.d.ts",
+      "require": "./lib/cjs/recipes.js",
+      "import": "./lib/esm/recipes.js",
+      "default": "./lib/esm/recipes.js"
+    },
+    "./retrievers": {
+      "types": "./lib/types/retrievers.d.ts",
+      "require": "./lib/cjs/retrievers.js",
+      "import": "./lib/esm/retrievers.js",
+      "default": "./lib/esm/retrievers.js"
+    },
+    "./embedders": {
+      "types": "./lib/types/embedders.d.ts",
+      "require": "./lib/cjs/embedders.js",
+      "import": "./lib/esm/embedders.js",
+      "default": "./lib/esm/embedders.js"
+    },
+    "./eval": {
+      "types": "./lib/types/eval.d.ts",
+      "require": "./lib/cjs/eval.js",
+      "import": "./lib/esm/eval.js",
+      "default": "./lib/esm/eval.js"
+    },
+    "./chat": {
+      "types": "./lib/types/chatModel.d.ts",
+      "require": "./lib/cjs/chatModel.js",
+      "import": "./lib/esm/chatModel.js",
+      "default": "./lib/esm/chatModel.js"
+    },
+    "./text": {
+      "types": "./lib/types/textModel.d.ts",
+      "require": "./lib/cjs/textModel.js",
+      "import": "./lib/esm/textModel.js",
+      "default": "./lib/esm/textModel.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "agents": [
+        "lib/types/agents"
+      ],
+      "memory": [
+        "lib/types/memory"
+      ],
+      "recipes": [
+        "lib/types/recipes"
+      ],
+      "retrievers": [
+        "lib/types/retrievers"
+      ],
+      "embedders": [
+        "lib/types/embedders"
+      ],
+      "text": [
+        "lib/types/textModel"
+      ], 
+      "chat": [
+        "lib/types/chatModel"
+      ], 
+      "eval": [
+        "lib/types/eval"
+      ]
+    }
+  }
+}

@@ -39,7 +39,7 @@ module.exports = {
     "quotes": ["error", "single", { "avoidEscape": true }],
     "import/no-unresolved": 0,
     "import/no-named-as-default": 0,
-    "indent": ["error", 2],
+    "indent": ["error", 2, { "SwitchCase": 1 }],
     "max-len": ["error", { "code": 100, "ignoreComments": true }]
   },
   overrides: [

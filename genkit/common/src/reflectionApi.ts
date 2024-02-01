@@ -25,7 +25,7 @@ export function startReflectionApi(port?: number | string | undefined) {
     });
   });
 
-  // Returns a list of action keys including their type (e.g. text-llms, retrievers, flows, etc).
+  // Returns a list of action keys including their type (e.g. text-llm, retriever, flow, etc).
   api.get('/api/actions', (_, response) => {
     response.send(registry.listActions());
   });

@@ -6,11 +6,11 @@ const __actionRegistry = {};
 const __registry = {};
 
 export type ActionType =
-  | 'chat-llms'
-  | 'text-llms'
-  | 'retrievers'
-  | 'embedders'
-  | 'flows';
+  | 'chat-llm'
+  | 'text-llm'
+  | 'retriever'
+  | 'embedder'
+  | 'flow';
 
 /**
  * Looks up a registry key (action type and key) in the registry.
