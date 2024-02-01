@@ -1,27 +1,8 @@
-import { z } from 'zod';
-import { FlowRunner } from './runner';
+import * as z from 'zod';
 
-// NOTE: Keep this file in sync with genkit-tools/src/types/flow.ts!
+// NOTE: Keep this file in sync with genkit/flow/src/types.ts!
 // Eventually tools will be source of truth for these types (by generating a
 // JSON schema) but until then this file must be manually kept in sync
-
-/**
- * Flow state store persistence interface.
- */
-export interface FlowStateStore {
-  save: (id: string, state: FlowState) => Promise<void>;
-  load: (id: string) => Promise<FlowState | undefined>;
-}
-
-export interface WorkflowDispatcher<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny
-> {
-  dispatch(
-    flow: FlowRunner<I, O>,
-    msg: FlowInvokeEnvelopeMessage
-  ): Promise<void>;
-}
 
 /**
  * The message format used by the flow task queue and control interface.
@@ -66,14 +47,14 @@ export const OperationSchema = z.object({
     .string()
     .describe(
       'server-assigned name, which is only unique within the same service that originally ' +
-        'returns it.'
+        'returns it.',
     ),
   metadata: z
-    .any()
+    .unknown()
     .optional()
     .describe(
       'Service-specific metadata associated with the operation. It typically contains progress ' +
-        'information and common metadata such as create time.'
+        'information and common metadata such as create time.',
     ),
   done: z
     .boolean()
@@ -81,7 +62,7 @@ export const OperationSchema = z.object({
     .default(false)
     .describe(
       'If the value is false, it means the operation is still in progress. If true, the ' +
-        'operation is completed, and either error or response is available.'
+        'operation is completed, and either error or response is available.',
     ),
   result: FlowResultSchema.optional(),
 });
@@ -90,7 +71,7 @@ export type Operation = z.infer<typeof OperationSchema>;
 
 /**
  * Defines the format for flow state. This is the format used for persisting the state in
- * the {@link FlowStateStore}.
+ * the Flow state store.
  */
 export const FlowStateSchema = z.object({
   name: z.string().optional(),
@@ -100,11 +81,11 @@ export const FlowStateSchema = z.object({
   cache: z.record(
     z.string(),
     z.object({
-      value: z.any().optional(),
+      value: z.unknown().optional(),
       empty: z.literal(true).optional(),
-    })
+    }),
   ),
-  eventsTriggered: z.record(z.string(), z.any()),
+  eventsTriggered: z.record(z.string(), z.unknown()),
   blockedOnStep: z
     .object({
       name: z.string(),
@@ -116,34 +97,3 @@ export const FlowStateSchema = z.object({
   executions: z.array(FlowStateExecutionSchema),
 });
 export type FlowState = z.infer<typeof FlowStateSchema>;
-
-/**
- * Retry options for flows and steps.
- */
-export interface RetryConfig {
-  /**
-   * Maximum number of times a request should be attempted.
-   * If left unspecified, will default to 3.
-   */
-  maxAttempts?: number;
-  /**
-   * Maximum amount of time for retrying failed task.
-   * If left unspecified will retry indefinitely.
-   */
-  maxRetrySeconds?: number;
-  /**
-   * The maximum amount of time to wait between attempts.
-   * If left unspecified will default to 1hr.
-   */
-  maxBackoffSeconds?: number;
-  /**
-   * The maximum number of times to double the backoff between
-   * retries. If left unspecified will default to 16.
-   */
-  maxDoublings?: number;
-  /**
-   * The minimum time to wait between attempts. If left unspecified
-   * will default to 100ms.
-   */
-  minBackoffSeconds?: number;
-}

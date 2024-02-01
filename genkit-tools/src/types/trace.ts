@@ -1,19 +1,14 @@
-import { z } from "zod";
+import * as z from 'zod';
 
-// NOTE: Keep this file in sync with genkit-tools/src/types/flow.ts!
+// NOTE: Keep this file in sync with genkit/common/src/tracing/types.ts!
 // Eventually tools will be source of truth for these types (by generating a
 // JSON schema) but until then this file must be manually kept in sync
 
-export interface TraceStore {
-  save(traceId, trace: TraceData): Promise<void>;
-  load(traceId: string): Promise<TraceData | undefined>;
-}
-
 export const SpanMetadataSchema = z.object({
   name: z.string(),
-  state: z.enum(["success", "error"]).optional(),
-  input: z.any().optional(),
-  output: z.any().optional(),
+  state: z.enum(['success', 'error']).optional(),
+  input: z.unknown().optional(),
+  output: z.unknown().optional(),
   isRoot: z.boolean().optional(),
   metadata: z.record(z.string(), z.string()).optional(),
 });
@@ -27,7 +22,7 @@ export const SpanStatusSchema = z.object({
 export const TimeEventSchema = z.object({
   time: z.number(),
   annotation: z.object({
-    attributes: z.record(z.string(), z.any()),
+    attributes: z.record(z.string(), z.unknown()),
     description: z.string(),
   }),
 });
@@ -41,7 +36,7 @@ export const SpanContextSchema = z.object({
 
 export const LinkSchema = z.object({
   context: SpanContextSchema.optional(),
-  attributes: z.record(z.string(), z.any()).optional(),
+  attributes: z.record(z.string(), z.unknown()).optional(),
   droppedAttributesCount: z.number().optional(),
 });
 
@@ -51,13 +46,13 @@ export const InstrumentationLibrarySchema = z.object({
   schemaUrl: z.string().optional().readonly(),
 });
 
-export const SpanDataSchema = z.object({
+const BaseSpanDataSchema = z.object({
   spanId: z.string(),
   traceId: z.string(),
   parentSpanId: z.string().optional(),
   startTime: z.number(),
   endTime: z.number(),
-  attributes: z.record(z.string(), z.any()),
+  attributes: z.record(z.string(), z.unknown()),
   displayName: z.string(),
   links: z.array(LinkSchema).optional(),
   instrumentationLibrary: InstrumentationLibrarySchema,
@@ -70,7 +65,12 @@ export const SpanDataSchema = z.object({
     })
     .optional(),
 });
-export type SpanData = z.infer<typeof SpanDataSchema>;
+export const SpanDataSchema: z.ZodType<SpanData> = BaseSpanDataSchema.extend({
+  spans: z.lazy(() => z.array(SpanDataSchema)),
+});
+export type SpanData = z.infer<typeof BaseSpanDataSchema> & {
+  spans: SpanData[];
+};
 
 export const TraceDataSchema = z.object({
   displayName: z.string().optional(),
