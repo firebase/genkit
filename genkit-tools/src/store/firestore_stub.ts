@@ -12,6 +12,8 @@ import { StateRetriever } from './state_retriever';
 import { Firestore, getFirestore } from 'firebase-admin/firestore';
 import { initializeApp } from 'firebase-admin/app';
 import { logger } from '../utils/logger';
+import { FlowState } from '../types/flow';
+import { SpanData, TraceData } from '../types/trace';
 
 const COLLECTION = 'ai-flows';
 
@@ -23,7 +25,7 @@ export class FirestoreStub implements StateRetriever {
     this.db = getFirestore(app);
   }
 
-  async listFlowRuns(): Promise<unknown[]> {
+  async listFlowRuns(): Promise<FlowState[]> {
     const q = await this.db
       .collection(COLLECTION)
       .orderBy('startTime', 'desc')
@@ -40,47 +42,54 @@ export class FirestoreStub implements StateRetriever {
             ? 'ERROR'
             : 'SUCCESS'
           : 'RUNNING',
+        cache: f.cache,
+        eventsTriggered: f.eventsTriggered,
+        blockedOnStep: f.blockedOnStep,
+        operation: f.operation,
+        traceContext: f.traceContext,
+        executions: f.executions
       }));
   }
 
-  async getFlowRun(flowId: string): Promise<unknown> {
+  async getFlowRun(flowId: string): Promise<FlowState|null> {
     const flow = await this.db.collection(COLLECTION).doc(flowId).get();
     const flowData = flow.data();
     if (!flowData) {
-      throw new Error('not found');
+      return null;
     }
     flowData.executions = await Promise.all(
       flowData.executions.map((e: { traceIds: string[] }) =>
         this.getTrace(e.traceIds[0]),
       ),
     );
-    return flowData;
+    return flowData as unknown as FlowState;
   }
 
-  async getTrace(traceId: string): Promise<unknown> {
+  async getTrace(traceId: string): Promise<SpanData|null> {
     // TODO: use trace reader
     const traceQuery = await this.db
       .collection('ai-traces-test')
       .doc(traceId)
       .get();
-    const trace = traceQuery.data();
+    const trace = traceQuery.data() as TraceData;
     if (!trace) {
       logger.warn('trace not found: ' + traceId + '. Try reloading.');
-      return {};
+      return null;
     }
     let rootSpan;
-    Object.values(trace.spans).forEach((span: any) => {
+    for (const span of Object.values(trace.spans)) {
       if (!span.parentSpanId) {
         rootSpan = span;
       } else {
         const parent = trace.spans[span.parentSpanId];
         if (!parent.spans) parent.spans = [];
         parent.spans.push(span);
-        parent.spans.sort((a: any, b: any) => a.startTime - b.startTime);
+        parent.spans.sort((a, b) => a.startTime - b.startTime);
       }
-    });
+    }
     if (!rootSpan) {
-      throw new Error("couldn't find the root span");
+      logger.warn("couldn't find the root span");
+      return null;
     }
     return rootSpan;
   }
