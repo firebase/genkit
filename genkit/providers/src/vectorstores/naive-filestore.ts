@@ -1,16 +1,17 @@
 import {
   CommonRetrieverOptionsSchema,
-  retrieverFactory,
+  CommonIndexerOptionsSchema,
   TextDocumentSchema,
   type TextDocument,
-} from '@google-genkit/ai/retrievers';
-import * as z from 'zod';
-import { embed, EmbedderAction } from '@google-genkit/ai/embedders';
-import { Md5 } from 'ts-md5';
-import * as fs from 'fs';
-import similarity from 'compute-cosine-similarity';
+  dataStoreFactory,
+} from "@google-genkit/ai/retrievers";
+import * as z from "zod";
+import { embed, EmbedderAction } from "@google-genkit/ai/embedders";
+import { Md5 } from "ts-md5";
+import * as fs from "fs";
+const similarity = require("compute-cosine-similarity");
 
-const _LOCAL_FILESTORE = '__db.json';
+const _LOCAL_FILESTORE = "__db.json";
 
 interface DbValue {
   doc: TextDocument;
@@ -39,10 +40,7 @@ function addDocument(
   }
 }
 
-/**
- * Imports documents into naive filestore.
- */
-export async function importDocumentsToNaiveFilestore<
+async function importDocumentsToNaiveFilestore<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
   EmbedderCustomOptions extends z.ZodTypeAny
@@ -81,9 +79,9 @@ async function getClosestDocuments<
 }) {
   const scoredDocs: { score: number; doc: TextDocument }[] = [];
   // Very dumb way to check for similar docs.
-  for (const [, value] of Object.entries(params.db)) {
+  for (const [key, value] of Object.entries(params.db)) {
     const thisEmbedding = value.embedding;
-    const score = similarity(params.queryEmbeddings, thisEmbedding) || 0;
+    const score = similarity(params.queryEmbeddings, thisEmbedding);
     scoredDocs.push({
       score,
       doc: value.doc,
@@ -94,9 +92,9 @@ async function getClosestDocuments<
   return scoredDocs.slice(0, params.k).map((o) => o.doc);
 }
 /**
- * Configures a naive filestore vector store retriever.
+ *
  */
-export function configureNaiveFilestoreRetriever<
+export function configureNaiveFilestore<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
   EmbedderCustomOptions extends z.ZodTypeAny
@@ -105,12 +103,13 @@ export function configureNaiveFilestoreRetriever<
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
   const { embedder, embedderOptions } = params;
-  const naiveFilestore = retrieverFactory(
-    'naiveFilestore',
-    'singleton',
+  const naiveFilestore = dataStoreFactory(
+    "naiveFilestore",
+    "singleton",
     z.string(),
     TextDocumentSchema,
     CommonRetrieverOptionsSchema,
+    CommonIndexerOptionsSchema.optional(),
     async (input, options) => {
       const db = loadFilestore();
 
@@ -125,6 +124,13 @@ export function configureNaiveFilestoreRetriever<
         k: options?.k ?? 3,
         queryEmbeddings,
         db,
+      });
+    },
+    async (docs) => {
+      await importDocumentsToNaiveFilestore({
+        docs: docs as TextDocument[],
+        embedder: embedder,
+        embedderOptions: embedderOptions,
       });
     }
   );
