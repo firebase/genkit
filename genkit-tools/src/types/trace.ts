@@ -2,7 +2,7 @@ import * as z from 'zod';
 
 export const SpanMetadataSchema = z.object({
   name: z.string(),
-  state: z.enum(["success", "error"]).optional(),
+  state: z.enum(['success', 'error']).optional(),
   input: z.unknown().optional(),
   output: z.unknown().optional(),
   isRoot: z.boolean().optional(),
@@ -65,7 +65,7 @@ export const SpanDataSchema: z.ZodType<SpanData> = BaseSpanDataSchema.extend({
   spans: z.lazy(() => z.array(SpanDataSchema)),
 });
 export type SpanData = z.infer<typeof BaseSpanDataSchema> & {
-  spans: SpanData[],
+  spans: SpanData[];
 };
 
 export const TraceDataSchema = z.object({

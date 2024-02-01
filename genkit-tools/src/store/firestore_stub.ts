@@ -47,11 +47,11 @@ export class FirestoreStub implements StateRetriever {
         blockedOnStep: f.blockedOnStep,
         operation: f.operation,
         traceContext: f.traceContext,
-        executions: f.executions
+        executions: f.executions,
       }));
   }
 
-  async getFlowRun(flowId: string): Promise<FlowState|null> {
+  async getFlowRun(flowId: string): Promise<FlowState | null> {
     const flow = await this.db.collection(COLLECTION).doc(flowId).get();
     const flowData = flow.data();
     if (!flowData) {
@@ -65,7 +65,7 @@ export class FirestoreStub implements StateRetriever {
     return flowData as unknown as FlowState;
   }
 
-  async getTrace(traceId: string): Promise<SpanData|null> {
+  async getTrace(traceId: string): Promise<SpanData | null> {
     // TODO: use trace reader
     const traceQuery = await this.db
       .collection('ai-traces-test')
