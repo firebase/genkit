@@ -64,7 +64,8 @@ export function enableTracingAndMetrics(
 
   const sdk = new NodeSDK({
     resource,
-    spanProcessor,
+    // TODO: fix this hack (any), SpanProcessor type does not resolve, suspect workspace deps issue
+    spanProcessor: spanProcessor as any, 
     contextManager,
   });
   sdk.start();

@@ -2,6 +2,7 @@
   "name": "@google-genkit/providers",
   "version": "0.0.1",
   "type": "commonjs",
+  "main": "./lib/cjs/llms.js",
   "scripts": {
     "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
     "build:clean": "rm -rf ./lib",
