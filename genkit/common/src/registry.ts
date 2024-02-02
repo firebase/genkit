@@ -45,21 +45,8 @@ export function registerAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 /**
  * Returns all actions in the registry.
  */
-<<<<<<< HEAD
-export function listActions(): {
-  [key: string]: ActionMetadata<z.ZodTypeAny, z.ZodTypeAny>;
-  } {
-  const actions = {};
-  for (const key in __actionRegistry) {
-    if (__actionRegistry.hasOwnProperty(key)) {
-      actions[key] = __actionRegistry[key].__action;
-    }
-  }
-  return actions;
-=======
 export function listActions(): Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>> {
   return Object.assign({}, __actionRegistry);
->>>>>>> main
 }
 
 // TODO: Remove these once tracing is removed from the registry.
