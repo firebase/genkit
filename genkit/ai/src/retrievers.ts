@@ -268,14 +268,14 @@ export async function index<
     'index' in params.dataStore &&
     typeof params.dataStore['index'] === 'function'
   ) {
-    return await (
-      params.dataStore as DataStore<QueryType, CustomOptions, IndexerOptions>
-    ).index({
+    return await params.dataStore.index({
       docs: params.docs,
       options: params.options,
     });
   }
-  return await params.dataStore({
+  return await (
+    params.dataStore as IndexerAction<I, O, DocType, CustomOptions>
+  )({
     docs: params.docs,
     options: params.options,
   });
