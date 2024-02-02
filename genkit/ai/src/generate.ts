@@ -86,7 +86,9 @@ function toToolDefinition(
 ): ToolDefinition {
   return {
     name: tool.__action.name,
-    outputSchema: zodToJsonSchema(tool.__action.outputSchema!),
+    outputSchema: tool.__action.outputSchema
+      ? zodToJsonSchema(tool.__action.outputSchema!)
+      : {}, // JSON schema matching anything
     inputSchema: zodToJsonSchema(tool.__action.inputSchema!),
   };
 }

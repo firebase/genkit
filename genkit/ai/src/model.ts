@@ -14,6 +14,9 @@ export const PartSchema = z.object({
     .optional(),
   tool: z
     .object({
+      ref: z
+        .string()
+        .describe('reference or id for distinguishing multiple tool calls'),
       name: z.string(),
       input: z.record(z.unknown()).optional(),
       output: z.record(z.unknown()).optional(),
@@ -45,7 +48,8 @@ export const ToolDefinitionSchema = z.object({
     .describe('Valid JSON Schema representing the input of the tool.'),
   outputSchema: z
     .record(z.any())
-    .describe('Valid JSON Schema describing the output of the tool.'),
+    .describe('Valid JSON Schema describing the output of the tool.')
+    .optional(),
 });
 export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
 
