@@ -1,6 +1,6 @@
-import { action, Action } from "@google-genkit/common";
-import * as registry from "@google-genkit/common/registry";
-import * as z from "zod";
+import { action, Action } from '@google-genkit/common';
+import * as registry from '@google-genkit/common/registry';
+import * as z from 'zod';
 
 const BaseDocumentSchema = z.object({
   metadata: z.record(z.string(), z.any()).optional(),
@@ -19,10 +19,15 @@ export const MulipartDocumentSchema = BaseDocumentSchema.extend({
   }),
 });
 
-type DocumentSchemaType = typeof TextDocumentSchema | typeof MulipartDocumentSchema;
+type DocumentSchemaType =
+  | typeof TextDocumentSchema
+  | typeof MulipartDocumentSchema;
 type Document = z.infer<DocumentSchemaType>;
 
-type RetrieverFn<InputType extends z.ZodTypeAny, RetrieverOptions extends z.ZodTypeAny> = (
+type RetrieverFn<
+  InputType extends z.ZodTypeAny,
+  RetrieverOptions extends z.ZodTypeAny
+> = (
   input: z.infer<InputType>,
   queryOpts: z.infer<RetrieverOptions>
 ) => Promise<Array<Document>>;
@@ -59,10 +64,14 @@ export interface DataStore<
   RetrieverOptions extends z.ZodTypeAny,
   IndexerOptions extends z.ZodTypeAny
 > {
-  (params: { query: z.infer<QueryType>; options: z.infer<RetrieverOptions> }): Promise<
-    Array<Document>
-  >;
-  index: (params: { docs: Array<Document>; options: z.infer<IndexerOptions> }) => Promise<void>;
+  (params: {
+    query: z.infer<QueryType>;
+    options: z.infer<RetrieverOptions>;
+  }): Promise<Array<Document>>;
+  index: (params: {
+    docs: Array<Document>;
+    options: z.infer<IndexerOptions>;
+  }) => Promise<void>;
 }
 
 function retrieverWithMetadata<
@@ -77,7 +86,13 @@ function retrieverWithMetadata<
   docType: DocType,
   customOptionsType: CustomOptions
 ): RetrieverAction<I, O, QueryType, DocType, CustomOptions> {
-  const withMeta = retriever as RetrieverAction<I, O, QueryType, DocType, CustomOptions>;
+  const withMeta = retriever as RetrieverAction<
+    I,
+    O,
+    QueryType,
+    DocType,
+    CustomOptions
+  >;
   withMeta.__queryType = queryType;
   withMeta.__docType = docType;
   withMeta.__customOptionsType = customOptionsType;
@@ -116,7 +131,7 @@ export function retrieverFactory<
 ) {
   const retriever = action(
     {
-      name: "retrieve",
+      name: 'retrieve',
       input: z.object({
         query: inputType,
         options: customOptionsType,
@@ -126,7 +141,12 @@ export function retrieverFactory<
     (i) => fn(i.query, i.options)
   );
   registry.register(`/retrievers/${provider}/${retrieverId}`, retriever);
-  return retrieverWithMetadata(retriever, inputType, documentType, customOptionsType);
+  return retrieverWithMetadata(
+    retriever,
+    inputType,
+    documentType,
+    customOptionsType
+  );
 }
 
 /**
@@ -141,7 +161,7 @@ export function indexerFactory<IndexerOptions extends z.ZodTypeAny>(
 ) {
   const indexer = action(
     {
-      name: "index",
+      name: 'index',
       input: z.object({
         docs: z.array(documentType),
         options: customOptionsType,
@@ -171,7 +191,13 @@ export function dataStoreFactory<
   retrieveFn: RetrieverFn<InputType, RetrieverOptions>,
   indexFn: IndexerFn<IndexerOptions>
 ) {
-  const indexer = indexerFactory(provider, id, documentType, indexerOptionsType, indexFn);
+  const indexer = indexerFactory(
+    provider,
+    id,
+    documentType,
+    indexerOptionsType,
+    indexFn
+  );
   const retriever = retrieverFactory(
     provider,
     id,
@@ -181,12 +207,15 @@ export function dataStoreFactory<
     retrieveFn
   );
 
-  const store = ((params: { query: z.infer<InputType>; options: z.infer<RetrieverOptions> }) =>
+  const store = ((params: {
+    query: z.infer<InputType>;
+    options: z.infer<RetrieverOptions>;
+  }) =>
     retriever({ query: params.query, options: params.options })) as DataStore<
-      InputType,
-      RetrieverOptions,
-      IndexerOptions
-    >;
+    InputType,
+    RetrieverOptions,
+    IndexerOptions
+  >;
   store.index = (params: {
     docs: Array<z.infer<typeof documentType>>;
     options: z.infer<IndexerOptions>;
@@ -207,8 +236,8 @@ export async function retrieve<
   IndexerOptions extends z.ZodTypeAny
 >(params: {
   dataStore:
-  | DataStore<QueryType, CustomOptions, IndexerOptions>
-  | RetrieverAction<I, O, QueryType, DocType, CustomOptions>;
+    | DataStore<QueryType, CustomOptions, IndexerOptions>
+    | RetrieverAction<I, O, QueryType, DocType, CustomOptions>;
   query: z.infer<QueryType>;
   options?: z.infer<CustomOptions>;
 }): Promise<Array<z.infer<DocType>>> {
@@ -230,28 +259,30 @@ export async function index<
   IndexerOptions extends z.ZodTypeAny
 >(params: {
   dataStore:
-  | DataStore<QueryType, CustomOptions, IndexerOptions>
-  | IndexerAction<I, O, DocType, CustomOptions>;
+    | DataStore<QueryType, CustomOptions, IndexerOptions>
+    | IndexerAction<I, O, DocType, CustomOptions>;
   docs: Array<z.infer<DocType>>;
   options?: z.infer<CustomOptions>;
 }): Promise<void> {
   if (
-    "index" in params.dataStore &&
-    typeof params.dataStore["index"] === "function"
+    'index' in params.dataStore &&
+    typeof params.dataStore['index'] === 'function'
   ) {
-    return await (params.dataStore as DataStore<QueryType, CustomOptions, IndexerOptions>).index({
+    return await (
+      params.dataStore as DataStore<QueryType, CustomOptions, IndexerOptions>
+    ).index({
       docs: params.docs,
       options: params.options,
     });
   }
-  return await (params.dataStore as IndexerAction<I, O, DocType, CustomOptions>)({
+  return await params.dataStore({
     docs: params.docs,
     options: params.options,
   });
 }
 
 export const CommonRetrieverOptionsSchema = z.object({
-  k: z.number().describe("Number of documents to retrieve").optional(),
+  k: z.number().describe('Number of documents to retrieve').optional(),
 });
 
 export const CommonIndexerOptionsSchema = z.object({});

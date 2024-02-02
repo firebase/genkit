@@ -4,14 +4,14 @@ import {
   TextDocumentSchema,
   type TextDocument,
   dataStoreFactory,
-} from "@google-genkit/ai/retrievers";
-import * as z from "zod";
-import { embed, EmbedderAction } from "@google-genkit/ai/embedders";
-import { Md5 } from "ts-md5";
-import * as fs from "fs";
-const similarity = require("compute-cosine-similarity");
+} from '@google-genkit/ai/retrievers';
+import * as z from 'zod';
+import { embed, EmbedderAction } from '@google-genkit/ai/embedders';
+import { Md5 } from 'ts-md5';
+import * as fs from 'fs';
+const similarity = require('compute-cosine-similarity');
 
-const _LOCAL_FILESTORE = "__db.json";
+const _LOCAL_FILESTORE = '__db.json';
 
 interface DbValue {
   doc: TextDocument;
@@ -105,8 +105,8 @@ export function configureNaiveFilestore<
 }) {
   const { embedder, embedderOptions } = params;
   const naiveFilestore = dataStoreFactory(
-    "naiveFilestore",
-    "singleton",
+    'naiveFilestore',
+    'singleton',
     z.string(),
     TextDocumentSchema,
     CommonRetrieverOptionsSchema,
