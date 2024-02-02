@@ -12,6 +12,7 @@ export type ActionType =
   | 'chat-llm'
   | 'text-llm'
   | 'retriever'
+  | 'indexer'
   | 'embedder'
   | 'flow';
 
@@ -50,10 +51,16 @@ export function listActions(): Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>
 
 // TODO: Remove these once tracing is removed from the registry.
 
+/**
+ *
+ */
 export function register(key: string, subject: any) {
   __registry[key] = subject;
 }
 
+/**
+ *
+ */
 export function lookup(key: string): any {
   return __registry[key];
 }
