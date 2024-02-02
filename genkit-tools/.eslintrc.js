@@ -44,6 +44,7 @@ module.exports = {
           "@typescript-eslint/explicit-function-return-type": ["error", { allowExpressions: true }], 
           "@typescript-eslint/no-use-before-define": ["error", { functions: false, typedefs: false }],
           "@typescript-eslint/prefer-includes": "error",
+          '@typescript-eslint/explicit-module-boundary-types': 'off',
         },
       },
     ],
