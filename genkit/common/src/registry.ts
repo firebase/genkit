@@ -9,6 +9,7 @@ export type ActionType =
   | 'chat-llm'
   | 'text-llm'
   | 'retriever'
+  | 'indexer'
   | 'embedder'
   | 'flow';
 
@@ -41,7 +42,9 @@ export function registerAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 /**
  * Returns all actions in the registry.
  */
-export function listActions(): { [key: string]: ActionMetadata<z.ZodTypeAny, z.ZodTypeAny> } {
+export function listActions(): {
+  [key: string]: ActionMetadata<z.ZodTypeAny, z.ZodTypeAny>;
+  } {
   const actions = {};
   for (const key in __actionRegistry) {
     if (__actionRegistry.hasOwnProperty(key)) {
@@ -53,10 +56,16 @@ export function listActions(): { [key: string]: ActionMetadata<z.ZodTypeAny, z.Z
 
 // TODO: Remove these once tracing is removed from the registry.
 
+/**
+ *
+ */
 export function register(key: string, subject: any) {
   __registry[key] = subject;
 }
 
+/**
+ *
+ */
 export function lookup(key: string): any {
   return __registry[key];
 }

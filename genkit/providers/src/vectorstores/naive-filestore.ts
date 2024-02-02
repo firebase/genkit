@@ -3,7 +3,7 @@ import {
   CommonIndexerOptionsSchema,
   TextDocumentSchema,
   type TextDocument,
-  dataStoreFactory,
+  documentStoreFactory,
 } from '@google-genkit/ai/retrievers';
 import * as z from 'zod';
 import { embed, EmbedderAction } from '@google-genkit/ai/embedders';
@@ -104,14 +104,14 @@ export function configureNaiveFilestore<
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
   const { embedder, embedderOptions } = params;
-  const naiveFilestore = dataStoreFactory(
-    'naiveFilestore',
-    'singleton',
-    z.string(),
-    TextDocumentSchema,
-    CommonRetrieverOptionsSchema,
-    CommonIndexerOptionsSchema.optional(),
-    async (input, options) => {
+  const naiveFilestore = documentStoreFactory({
+    provider: 'naiveFilestore',
+    id: 'singleton',
+    inputType: z.string(),
+    documentType: TextDocumentSchema,
+    retrieverOptionsType: CommonRetrieverOptionsSchema,
+    indexerOptionsType: CommonIndexerOptionsSchema.optional(),
+    retrieveFn: async (input, options) => {
       const db = loadFilestore();
 
       const queryEmbeddings = await embed({
@@ -127,13 +127,13 @@ export function configureNaiveFilestore<
         db,
       });
     },
-    async (docs) => {
+    indexFn: async (docs) => {
       await importDocumentsToNaiveFilestore({
         docs: docs as TextDocument[],
         embedder: embedder,
         embedderOptions: embedderOptions,
       });
     }
-  );
+  });
   return naiveFilestore;
 }
