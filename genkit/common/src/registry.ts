@@ -5,6 +5,9 @@ import * as z from 'zod';
 const __actionRegistry = {};
 const __registry = {};
 
+/**
+ * Type of a runnable action.
+ */
 export type ActionType =
   | 'chat-llm'
   | 'text-llm'
@@ -42,6 +45,7 @@ export function registerAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 /**
  * Returns all actions in the registry.
  */
+<<<<<<< HEAD
 export function listActions(): {
   [key: string]: ActionMetadata<z.ZodTypeAny, z.ZodTypeAny>;
   } {
@@ -52,6 +56,10 @@ export function listActions(): {
     }
   }
   return actions;
+=======
+export function listActions(): Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>> {
+  return Object.assign({}, __actionRegistry);
+>>>>>>> main
 }
 
 // TODO: Remove these once tracing is removed from the registry.
@@ -73,6 +81,6 @@ export function lookup(key: string): any {
 /**
  * Development mode only. Starts a Reflection API so that the actions can be called by the Runner.
  */
-if (process.env.START_REFLECTION_API) {
+if (process.env.GENKIT_START_REFLECTION_API) {
   startReflectionApi();
 }
