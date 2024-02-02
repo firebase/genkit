@@ -91,8 +91,9 @@ async function getClosestDocuments<
   scoredDocs.sort((a, b) => (a.score > b.score ? -1 : 1));
   return scoredDocs.slice(0, params.k).map((o) => o.doc);
 }
+
 /**
- *
+ * Configures a naive filestore datastore.
  */
 export function configureNaiveFilestore<
   I extends z.ZodTypeAny,

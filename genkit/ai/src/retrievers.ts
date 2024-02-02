@@ -101,7 +101,7 @@ function indexerWithMetadata<
 }
 
 /**
- *
+ *  Creates a retriever action for the provided {@link RetrieverFn} implementation.
  */
 export function retrieverFactory<
   InputType extends z.ZodTypeAny,
@@ -130,7 +130,7 @@ export function retrieverFactory<
 }
 
 /**
- *
+ *  Creates an indexer action for the provided {@link IndexerFn} implementation.
  */
 export function indexerFactory<IndexerOptions extends z.ZodTypeAny>(
   provider: string,
@@ -155,7 +155,7 @@ export function indexerFactory<IndexerOptions extends z.ZodTypeAny>(
 }
 
 /**
- *
+ * Creates a {@link DataStore} based on provided {@link RetrieverFn} and {@link IndexerFn}.
  */
 export function dataStoreFactory<
   IndexerOptions extends z.ZodTypeAny,
@@ -195,7 +195,8 @@ export function dataStoreFactory<
 }
 
 /**
- *
+ * Retrieves documents from a {@link RetrieverAction} or {@link DataStore}
+ * based on the provided query.
  */
 export async function retrieve<
   I extends z.ZodTypeAny,
@@ -218,7 +219,7 @@ export async function retrieve<
 }
 
 /**
- *
+ * Indexes documents using a {@link RetrieverAction} or a {@link DataStore}.
  */
 export async function index<
   I extends z.ZodTypeAny,
