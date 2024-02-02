@@ -85,6 +85,18 @@
       "require": "./lib/cjs/textModel.js",
       "import": "./lib/esm/textModel.js",
       "default": "./lib/esm/textModel.js"
+    },
+    "./model": {
+      "types": "./lib/types/model.d.ts",
+      "require": "./lib/cjs/model.js",
+      "import": "./lib/esm/model.js",
+      "default": "./lib/esm/model.js"
+    },
+    "./generate": {
+      "types": "./lib/types/generate.d.ts",
+      "require": "./lib/cjs/generate.js",
+      "import": "./lib/esm/generate.js",
+      "default": "./lib/esm/generate.js"
     }
   },
   "typesVersions": {
@@ -106,12 +118,18 @@
       ],
       "text": [
         "lib/types/textModel"
-      ], 
+      ],
       "chat": [
         "lib/types/chatModel"
-      ], 
+      ],
       "eval": [
         "lib/types/eval"
+      ],
+      "model": [
+        "lib/types/model"
+      ],
+      "generate": [
+        "lib/types/generate"
       ]
     }
   }

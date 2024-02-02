@@ -47,6 +47,12 @@
       "require": "./lib/cjs/embedders.js",
       "import": "./lib/esm/embedders.js",
       "default": "./lib/esm/embedders.js"
+    },
+    "./models": {
+      "types": "./lib/types/models.d.ts",
+      "require": "./lib/cjs/models.js",
+      "import": "./lib/esm/models.js",
+      "default": "./lib/esm/models.js"
     }
   },
   "typesVersions": {
@@ -59,6 +65,9 @@
       ],
       "embedders": [
         "lib/types/embedders"
+      ],
+      "models": [
+        "lib/types/models"
       ]
     }
   }
