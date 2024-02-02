@@ -93,7 +93,7 @@ async function getClosestDocuments<
 }
 
 /**
- * Configures a naive filestore datastore.
+ * Configures a naive filestore document store.
  */
 export function configureNaiveFilestore<
   I extends z.ZodTypeAny,

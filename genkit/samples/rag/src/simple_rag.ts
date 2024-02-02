@@ -54,7 +54,7 @@ export const askQuestionsAboutSpongebobFlow = flow(
   },
   async (query) => {
     const docs = await retrieve({
-      dataStore: spongebobFacts,
+      retriever: spongebobFacts,
       query,
       options: { k: 3 },
     });
@@ -91,7 +91,7 @@ const indexDocumentsFlow = flow(
       };
     });
     await index({
-      dataStore: spongebobFacts,
+      indexer: spongebobFacts,
       docs: transformedDocs,
       options: {} /* options not yet defined */,
     });
