@@ -59,9 +59,9 @@ export class Runner {
    * Creates a Runner instance.
    *
    * @param options - Options for configuring the Runner:
-   *   * `directory` - (Optional) Directory that contains the app code (defaults to the current working directory).
-   *   * `port` - (Optional) Port for the Runner API (defaults to process.env.RUNNER_PORT or 3000).
-   *   * `autoReload` - (Optional) Whether to watch for changes and automatically rebuild/reload the app code (defaults to true).
+   *   - `directory` - Directory that contains the app code (defaults to the current working directory).
+   *   - `port` - Port for the Runner API (defaults to process.env.RUNNER_PORT or 3000).
+   *   - `autoReload` - Whether to watch for changes and automatically rebuild/reload the app code (defaults to true).
    */
   constructor(
     options: {
@@ -71,7 +71,7 @@ export class Runner {
     } = {},
   ) {
     this.directory = options.directory || process.cwd();
-    this.port = options.port || Number(process.env.RUNNER_PORT) || 3000;
+    this.port = options.port || Number(process.env.GENKIT_RUNNER_PORT) || 3000;
     this.autoReload = options.autoReload || true;
   }
 
@@ -145,8 +145,8 @@ export class Runner {
     this.appProcess = spawn('node', [entryPoint], {
       env: {
         ...process.env,
-        START_REFLECTION_API: 'true',
-        REFLECTION_PORT: process.env.REFLECTION_PORT || '3100',
+        GENKIT_START_REFLECTION_API: 'true',
+        GENKIT_REFLECTION_PORT: process.env.GENKIT_REFLECTION_PORT || '3100',
       },
     });
 
