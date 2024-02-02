@@ -127,14 +127,14 @@ export function modelAction<
 ): ModelAction<CustomOptionsSchema> {
   const act = action(
     {
-      name,
-      description: `${name} GenAI model`,
+      name: options.name,
+      description: `${options.name} GenAI model`,
       input: GenerationRequestSchema,
       output: GenerationResponseSchema,
     },
     runner
   );
   (act as any).__customOptionsType = options.customOptionsType || z.any();
-  registerAction('model', name, act);
+  registerAction('model', options.name, act);
   return act as ModelAction<CustomOptionsSchema>;
 }
