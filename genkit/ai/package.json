@@ -11,14 +11,10 @@
     "lint:fix": "npm run lint -- --fix --quiet"
   },
   "dependencies": {
-    "@google-ai/generativelanguage": "^2.0.0",
-    "@google-cloud/aiplatform": "^3.4.0",
     "@google-cloud/monitoring": "^4.0.0",
     "@google-cloud/trace-agent": "^7.1.2",
-    "@google-cloud/vertexai": "^0.1.3",
     "@google-genkit/common": "*",
     "@google-genkit/flow": "*",
-    "@google/generative-ai": "^0.1.3",
     "handlebars": "^4.7.8",
     "uuid": "^9.0.1",
     "zod": "^3.22.4",
