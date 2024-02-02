@@ -14,7 +14,8 @@ export type ActionType =
   | 'retriever'
   | 'indexer'
   | 'embedder'
-  | 'flow';
+  | 'flow'
+  | 'model';
 
 /**
  * Looks up a registry key (action type and key) in the registry.
@@ -45,7 +46,10 @@ export function registerAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 /**
  * Returns all actions in the registry.
  */
-export function listActions(): Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>> {
+export function listActions(): Record<
+  string,
+  Action<z.ZodTypeAny, z.ZodTypeAny>
+> {
   return Object.assign({}, __actionRegistry);
 }
 
