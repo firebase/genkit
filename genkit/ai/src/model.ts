@@ -2,27 +2,66 @@ import { Action, action } from '@google-genkit/common';
 import { registerAction } from '@google-genkit/common/registry';
 import { z } from 'zod';
 
-export const PartSchema = z.object({
-  text: z.string().optional(),
-  media: z
-    .object({
-      contentType: z.string().optional(),
-      uri: z
-        .string()
-        .describe('data: or https: uri containing the media content'),
-    })
-    .optional(),
-  tool: z
-    .object({
-      ref: z
-        .string()
-        .describe('reference or id for distinguishing multiple tool calls'),
-      name: z.string(),
-      input: z.record(z.unknown()).optional(),
-      output: z.record(z.unknown()).optional(),
-    })
-    .optional(),
+export const TextPartSchema = z.object({
+  /** The text of the message. */
+  text: z.string(),
+  media: z.never().optional(),
+  toolRequest: z.never().optional(),
+  toolResponse: z.never().optional(),
 });
+export type TextPart = z.infer<typeof TextPartSchema>;
+
+export const MediaPartSchema = z.object({
+  text: z.never().optional(),
+  media: z.object({
+    /** The media content type. Inferred from data uri if not provided. */
+    contentType: z.string().optional(),
+    /** A `data:` or `https:` uri containing the media content.  */
+    uri: z.string(),
+  }),
+  toolRequest: z.never().optional(),
+  toolResponse: z.never().optional(),
+});
+export type MediaPart = z.infer<typeof MediaPartSchema>;
+
+export const ToolRequestPartSchema = z.object({
+  text: z.never().optional(),
+  media: z.never().optional(),
+  /** A request for a tool to be executed, usually provided by a model. */
+  toolRequest: z.object({
+    /** The call id or reference for a specific request. */
+    ref: z.string().optional(),
+    /** The name of the tool to call. */
+    name: z.string(),
+    /** The input parameters for the tool, usually a JSON object. */
+    input: z.unknown().optional(),
+  }),
+  toolResponse: z.never().optional(),
+});
+export type ToolRequestPart = z.infer<typeof ToolRequestPartSchema>;
+
+export const ToolResponsePartSchema = z.object({
+  text: z.never().optional(),
+  media: z.never().optional(),
+  toolRequest: z.never().optional(),
+  /** A provided response to a tool call. */
+  toolResponse: z.object({
+    /** The call id or reference for a specific request. */
+    ref: z.string().optional(),
+    /** The name of the tool. */
+    name: z.string(),
+    /** The output data returned from the tool, usually a JSON object. */
+    output: z.unknown().optional(),
+  }),
+});
+export type ToolResponsePart = z.infer<typeof ToolResponsePartSchema>;
+
+export const PartSchema = z.union([
+  TextPartSchema,
+  MediaPartSchema,
+  ToolRequestPartSchema,
+  ToolResponsePartSchema,
+]);
 export type Part = z.infer<typeof PartSchema>;
 
 export const RoleSchema = z.enum(['system', 'user', 'model', 'tool']);
