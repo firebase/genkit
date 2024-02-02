@@ -1,7 +1,8 @@
-// TODO(sam-gc): Actually have proper types here...
+import { FlowState } from '../types/flow';
+import { SpanData } from '../types/trace';
 
 export interface StateRetriever {
-  listFlowRuns(): Promise<Array<unknown>>;
-  getFlowRun(flowId: string): Promise<unknown>;
-  getTrace(traceId: string): Promise<unknown>;
+  listFlowRuns(): Promise<FlowState[]>;
+  getFlowRun(flowId: string): Promise<FlowState | null>;
+  getTrace(traceId: string): Promise<SpanData | null>;
 }
