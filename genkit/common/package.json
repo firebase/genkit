@@ -19,13 +19,10 @@
     "@opentelemetry/sdk-trace-base": "^1.20.0",
     "pino": "^8.17.2",
     "pino-pretty": "^10.3.1",
-    "uuid": "^9.0.1",
     "zod": "^3.22.4",
     "zod-to-json-schema": "^3.22.4"
   },
   "devDependencies": {
-    "@types/uuid": "^9.0.6",
-    "firebase-functions-test": "^3.1.0",
     "npm-run-all": "^4.1.5",
     "typescript": "^4.9.0"
   },

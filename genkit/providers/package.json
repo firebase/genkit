@@ -17,7 +17,6 @@
     "@google-genkit/ai": "*",
     "@google-genkit/common": "*",
     "@pinecone-database/pinecone": "^2.0.1",
-    "ajv": "^8.12.0",
     "chromadb": "^1.7.3",
     "compute-cosine-similarity": "^1.1.0",
     "openai": "^4.24.2",
