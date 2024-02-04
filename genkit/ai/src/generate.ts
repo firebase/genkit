@@ -142,7 +142,7 @@ export interface ModelPrompt<
   history?: MessageData[];
   tools?: Action<z.ZodTypeAny, z.ZodTypeAny>[];
   candidates?: number;
-  config: GenerationConfig<z.infer<CustomOptions>>;
+  config?: GenerationConfig<z.infer<CustomOptions>>;
   output?: { format?: 'text' | 'json'; schema?: O };
 }
 
