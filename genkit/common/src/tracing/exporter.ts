@@ -31,7 +31,7 @@ export class TraceStoreExporter implements SpanExporter {
    * @param span
    */
   private _exportInfo(span: ReadableSpan): SpanData {
-    const spanData: SpanData = {
+    const spanData: Partial<SpanData> = {
       spanId: span.spanContext().spanId,
       traceId: span.spanContext().traceId,
       startTime: transformTime(span.startTime),
@@ -39,7 +39,6 @@ export class TraceStoreExporter implements SpanExporter {
       attributes: span.attributes,
       displayName: span.name,
       links: span.links,
-      instrumentationLibrary: span.instrumentationLibrary,
       spanKind: SpanKind[span.kind],
       parentSpanId: span.parentSpanId,
       sameProcessAsParentSpan: { value: !span.spanContext().isRemote },
@@ -54,7 +53,18 @@ export class TraceStoreExporter implements SpanExporter {
         })),
       },
     };
-    return spanData;
+    if (span.instrumentationLibrary !== undefined) {
+      spanData.instrumentationLibrary = {
+        name: span.instrumentationLibrary.name
+      }
+      if (span.instrumentationLibrary.schemaUrl !== undefined) {
+        spanData.instrumentationLibrary.schemaUrl = span.instrumentationLibrary.schemaUrl;
+      }
+      if (span.instrumentationLibrary.version !== undefined) {
+        spanData.instrumentationLibrary.version = span.instrumentationLibrary.version;
+      }
+    }
+    return spanData as SpanData;
   }
 
   /**
@@ -64,11 +74,6 @@ export class TraceStoreExporter implements SpanExporter {
     return Promise.resolve();
   }
 
-  /**
-   * Showing spans in console
-   * @param spans
-   * @param done
-   */
   private async _sendSpans(
     spans: ReadableSpan[],
     done?: (result: ExportResult) => void
