@@ -17,7 +17,7 @@ export const MediaPartSchema = z.object({
     /** The media content type. Inferred from data uri if not provided. */
     contentType: z.string().optional(),
     /** A `data:` or `https:` uri containing the media content.  */
-    uri: z.string(),
+    url: z.string(),
   }),
   toolRequest: z.never().optional(),
   toolResponse: z.never().optional(),

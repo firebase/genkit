@@ -13,7 +13,7 @@ import {
 import { extractJson } from './extract';
 import { Action } from '@google-genkit/common';
 import { z } from 'zod';
-import { lookup } from '@google-genkit/common/registry';
+import { lookupAction } from '@google-genkit/common/registry';
 
 export class Message<T = unknown> implements MessageData {
   role: MessageData['role'];
@@ -128,6 +128,8 @@ ${JSON.stringify(outputSchema)}
         prompt.output?.format || (prompt.output?.schema ? 'json' : 'text'),
       schema: prompt.output?.schema
         ? zodToJsonSchema(prompt.output.schema)
+        : prompt.output?.jsonSchema
+        ? prompt.output.jsonSchema
         : undefined,
     },
   };
@@ -143,7 +145,11 @@ export interface ModelPrompt<
   tools?: Action<z.ZodTypeAny, z.ZodTypeAny>[];
   candidates?: number;
   config?: GenerationConfig<z.infer<CustomOptions>>;
-  output?: { format?: 'text' | 'json'; schema?: O };
+  output?: {
+    format?: 'text' | 'json';
+    schema?: O;
+    jsonSchema?: any;
+  };
 }
 
 export async function generate<
@@ -154,9 +160,12 @@ export async function generate<
 ): Promise<GenerationResponse<z.infer<O>>> {
   let model: ModelAction<CustomOptions>;
   if (typeof prompt.model === 'string') {
-    model = lookup(`models/${prompt.model}`);
+    model = lookupAction(`/model/${prompt.model}`);
   } else {
     model = prompt.model;
+  }
+  if (!model) {
+    throw new Error(`Model ${prompt.model} not found`);
   }
 
   const request = toGenerateRequest(prompt);

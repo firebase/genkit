@@ -9,11 +9,12 @@
     "lint": "eslint --ext .ts .",
     "lint:fix": "eslint --fix --ext .ts .",
     "install-parent-deps": "npm i",
-    "build:all": "npm run build:common && npm run build:flow && npm run build:ai && npm run build:providers",
+    "build:all": "npm run build:common && npm run build:flow && npm run build:ai && npm run build:providers && npm run build:dotprompt && npm run build:samples",
     "build:common": "cd common && npm install && npm run build",
     "build:flow": "cd flow && npm install && npm run build",
     "build:ai": "cd ai && npm install && npm run build",
     "build:providers": "cd providers && npm install && npm run build",
+    "build:dotprompt": "cd dotprompt && npm install && npm run build",
     "build:samples": "for i in samples/*/; do cd $i && npm install && npm run build && cd ../..; done"
   },
   "devDependencies": {

@@ -1,0 +1,10 @@
+---
+model: google-ai/gemini-ultra
+config:
+  temperature: 0.8
+variables:
+  subject: {type: string}
+  style: {type: string}
+---
+
+Tell a joke about {{subject}}{{#if style}} in the style of {{style}}{{/if}}.

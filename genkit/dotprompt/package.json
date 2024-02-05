@@ -1,0 +1,36 @@
+{
+  "name": "@google-genkit/dotprompt",
+  "version": "0.0.1",
+  "type": "commonjs",
+  "scripts": {
+    "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
+    "build:clean": "rm -rf ./lib",
+    "build": "npm-run-all build:clean compile",
+    "build:watch": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json --watch",
+    "lint": "eslint --config ../.eslintrc.js --ext .ts src",
+    "lint:fix": "npm run lint -- --fix --quiet",
+    "test": "node --loader tsx --test tests/*_test.ts"
+  },
+  "dependencies": {
+    "@google-genkit/ai": "*",
+    "@types/handlebars": "^4.1.0",
+    "front-matter": "^4.0.2",
+    "handlebars": "^4.7.8",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.16",
+    "npm-run-all": "^4.1.5",
+    "tsx": "^4.7.0",
+    "typescript": "^4.9.0"
+  },
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "require": "./lib/cjs/index.js",
+      "import": "./lib/esm/index.js",
+      "default": "./lib/esm/index.js"
+    }
+  }
+}
