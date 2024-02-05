@@ -2,7 +2,8 @@
   "private": true,
   "version": "0.0.1",
   "workspaces": [
-    "./*"
+    "./*",
+    "./samples/*"
   ],
   "scripts": {
     "lint": "eslint --ext .ts .",
@@ -12,7 +13,8 @@
     "build:common": "cd common && npm install && npm run build",
     "build:flow": "cd flow && npm install && npm run build",
     "build:ai": "cd ai && npm install && npm run build",
-    "build:providers": "cd providers && npm install && npm run build"
+    "build:providers": "cd providers && npm install && npm run build",
+    "build:samples": "for i in samples/*/; do cd $i && npm install && npm run build && cd ../..; done"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.12.0",

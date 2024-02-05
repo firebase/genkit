@@ -17,8 +17,11 @@
     "@opentelemetry/sdk-metrics": "^1.20.0",
     "@opentelemetry/sdk-node": "^0.47.0",
     "@opentelemetry/sdk-trace-base": "^1.20.0",
+    "firebase-admin": "^11.11.0",
+    "json-schema": "^0.4.0",
     "pino": "^8.17.2",
     "pino-pretty": "^10.3.1",
+    "express": "^4.18.2",
     "zod": "^3.22.4",
     "zod-to-json-schema": "^3.22.4"
   },
