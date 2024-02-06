@@ -1,0 +1,10 @@
+---
+model: google-ai/gemini-pro
+variables:
+  type: object
+  properties:
+    subject: {type: string}
+  required: [subject]
+---
+
+Tell a funny joke about {{subject}}, but talk like a pirate.
