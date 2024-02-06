@@ -1,28 +1,42 @@
-import * as z from "zod";
-import { SPAN_TYPE_ATTR, runInNewSpan } from "./tracing";
+import * as z from 'zod';
+import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing';
 
-export interface ActionMetadata<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
+export interface ActionMetadata<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  M extends Record<string, any> = Record<string, any>
+> {
   name: string;
   description?: string;
   inputSchema?: I;
   outputSchema?: O;
+  metadata?: M;
 }
 
-export type Action<I extends z.ZodTypeAny, O extends z.ZodTypeAny> = ((
-  input: z.infer<I>
-) => Promise<z.infer<O>>) & { __action: ActionMetadata<I, O> };
+export type Action<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  M extends Record<string, any> = Record<string, any>
+> = ((input: z.infer<I>) => Promise<z.infer<O>>) & {
+  __action: ActionMetadata<I, O, M>;
+};
 
 export type SideChannelData = Record<string, any>;
 
 /**
  *
  */
-export function action<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+export function action<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  M extends Record<string, any> = Record<string, any>
+>(
   config: {
     name: string;
     description?: string;
     input?: I;
     output?: O;
+    metadata?: M;
   },
   fn: (input: z.infer<I>) => Promise<z.infer<O>>
 ): Action<I, O> {
@@ -36,7 +50,7 @@ export function action<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
           name: config.name,
         },
         labels: {
-          [SPAN_TYPE_ATTR]: "action",
+          [SPAN_TYPE_ATTR]: 'action',
         },
       },
       async (metadata) => {
@@ -45,10 +59,10 @@ export function action<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
         try {
           const output = fn(input);
           metadata.output = output;
-          metadata.state = "success";
+          metadata.state = 'success';
           return output;
         } catch (e) {
-          metadata.state = "error";
+          metadata.state = 'error';
           throw e;
         }
       }
@@ -63,6 +77,7 @@ export function action<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     description: config.description,
     inputSchema: config.input,
     outputSchema: config.output,
+    metadata: config.metadata,
   };
   return actionFn;
 }

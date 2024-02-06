@@ -10,8 +10,39 @@ import {
   Part,
   MessageData,
   CandidateData,
+  ModelInfo,
 } from '@google-genkit/ai/model';
 import { modelAction } from '@google-genkit/ai/model';
+
+const SUPPORTED_MODELS = {
+  'google-ai/gemini-pro': {
+    names: ['google-ai/gemini-pro'],
+    label: 'Google AI - Gemini Pro',
+    supports: {
+      multiturn: true,
+      media: false,
+      tools: true,
+    },
+  },
+  'google-ai/gemini-pro-vision': {
+    names: ['google-ai/gemini-pro-vision'],
+    label: 'Google AI - Gemini Pro Vision',
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+    },
+  },
+  'google-ai/gemini-ultra': {
+    names: ['google-ai/gemini-ultra'],
+    label: 'Google AI - Gemini Ultra',
+    supports: {
+      multiturn: true,
+      media: false,
+      tools: true,
+    },
+  },
+};
 
 function toGeminiRole(role: MessageData['role']): string {
   switch (role) {
@@ -80,6 +111,7 @@ function fromGeminiCandidate(candidate: GeminiCandidate): CandidateData {
 }
 
 export function googleAIModel(name: string, apiKey?: string): ModelAction {
+  const modelName = `google-ai/${name}`;
   if (!apiKey) apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey)
     throw new Error(
@@ -88,28 +120,33 @@ export function googleAIModel(name: string, apiKey?: string): ModelAction {
   const client = new GoogleGenerativeAI(apiKey).getGenerativeModel({
     model: name,
   });
-  return modelAction({ name: `google-ai/${name}` }, async (request) => {
-    const messages = request.messages.map(toGeminiMessage);
-    if (messages.length === 0) throw new Error('No messages provided.');
-    const result = await client
-      .startChat({
-        history: messages.slice(0, messages.length - 1),
-        generationConfig: {
-          candidateCount: request.candidates,
-          temperature: request.config?.temperature,
-          maxOutputTokens: request.config?.maxOutputTokens,
-          topK: request.config?.topK,
-          topP: request.config?.topP,
-          stopSequences: request.config?.stopSequences,
-        },
-      })
-      .sendMessage(messages[messages.length - 1].parts);
+  if (!SUPPORTED_MODELS[modelName])
+    throw new Error(`Unsupported model: ${name}`);
+  return modelAction(
+    { name: modelName, ...SUPPORTED_MODELS[modelName] },
+    async (request) => {
+      const messages = request.messages.map(toGeminiMessage);
+      if (messages.length === 0) throw new Error('No messages provided.');
+      const result = await client
+        .startChat({
+          history: messages.slice(0, messages.length - 1),
+          generationConfig: {
+            candidateCount: request.candidates,
+            temperature: request.config?.temperature,
+            maxOutputTokens: request.config?.maxOutputTokens,
+            topK: request.config?.topK,
+            topP: request.config?.topP,
+            stopSequences: request.config?.stopSequences,
+          },
+        })
+        .sendMessage(messages[messages.length - 1].parts);
 
-    if (!result.response.candidates?.length)
-      throw new Error('No valid candidates returned.');
-    return {
-      candidates: result.response.candidates?.map(fromGeminiCandidate) || [],
-      custom: result.response,
-    };
-  });
+      if (!result.response.candidates?.length)
+        throw new Error('No valid candidates returned.');
+      return {
+        candidates: result.response.candidates?.map(fromGeminiCandidate) || [],
+        custom: result.response,
+      };
+    }
+  );
 }

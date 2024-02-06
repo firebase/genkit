@@ -74,9 +74,21 @@ export const MessageSchema = z.object({
 export type MessageData = z.infer<typeof MessageSchema>;
 
 export const ModelInfoSchema = z.object({
-  names: z.array(z.string()),
+  /** Acceptable names for this model (e.g. different versions). */
+  names: z.array(z.string()).optional(),
+  /** Friendly label for this model (e.g. "Google AI - Gemini Pro") */
   label: z.string().optional(),
-  match: z.function(z.tuple([z.string()]), z.boolean()).optional(),
+  /** Supported model capabilities. */
+  supports: z
+    .object({
+      /** Model can process historical messages passed with a prompt. */
+      multiturn: z.boolean().optional(),
+      /** Model can process media as part of the prompt (multimodal input). */
+      media: z.boolean().optional(),
+      /** Model can perform tool calls. */
+      tools: z.boolean().optional(),
+    })
+    .optional(),
 });
 export type ModelInfo = z.infer<typeof ModelInfoSchema>;
 
@@ -155,7 +167,11 @@ export type GenerationResponseData = z.infer<typeof GenerationResponseSchema>;
 
 export type ModelAction<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny
-> = Action<typeof GenerationRequestSchema, typeof GenerationResponseSchema> & {
+> = Action<
+  typeof GenerationRequestSchema,
+  typeof GenerationResponseSchema,
+  { model: ModelInfo }
+> & {
   __customOptionsType: CustomOptionsSchema;
 };
 
@@ -164,20 +180,37 @@ export function modelAction<
 >(
   options: {
     name: string;
+    /** Alternate acceptable names for this model (e.g. different versions). */
+    names?: string[];
+    /** Capabilities this model supports. */
+    supports?: ModelInfo['supports'];
+    /** Custom options schema for this model. */
     customOptionsType?: CustomOptionsSchema;
+    /** Descriptive name for this model e.g. 'Google AI - Gemini Pro'. */
+    label?: string;
   },
   runner: (request: GenerationRequest) => Promise<GenerationResponseData>
 ): ModelAction<CustomOptionsSchema> {
+  const label = options.label || `${options.name} GenAI model`;
   const act = action(
     {
       name: options.name,
-      description: `${options.name} GenAI model`,
+      description: label,
       input: GenerationRequestSchema,
       output: GenerationResponseSchema,
+      metadata: {
+        model: {
+          label,
+          names: options.names,
+          supports: options.supports,
+        },
+      },
     },
     runner
   );
-  (act as any).__customOptionsType = options.customOptionsType || z.any();
+  Object.assign(act, {
+    __customOptionsType: options.customOptionsType || z.unknown(),
+  });
   registerAction('model', options.name, act);
   return act as ModelAction<CustomOptionsSchema>;
 }
