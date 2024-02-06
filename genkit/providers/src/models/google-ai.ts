@@ -150,3 +150,19 @@ export function googleAIModel(name: string, apiKey?: string): ModelAction {
     }
   );
 }
+
+export function useGoogleAI(apiKey?: string) {
+  if (!apiKey) apiKey = process.env.GOOGLE_API_KEY;
+  if (!apiKey)
+    throw new Error(
+      'Must supply an API key or set GOOGLE_API_KEY environment variable'
+    );
+
+  const models = {
+    geminiPro: googleAIModel('gemini-pro', apiKey),
+    geminiProVision: googleAIModel('gemini-pro-vision', apiKey),
+    geminiUltra: googleAIModel('gemini-ultra', apiKey),
+  };
+
+  return { models };
+}

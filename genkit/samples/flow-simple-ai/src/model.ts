@@ -5,7 +5,7 @@ import {
   useFirestoreStateStore,
   run,
 } from '@google-genkit/flow';
-import { googleAIModel } from '@google-genkit/providers/models';
+import { useGoogleAI, useOpenAI } from '@google-genkit/providers/models';
 import { generate } from '@google-genkit/ai/generate';
 import { getProjectId } from '@google-genkit/common';
 import { setLogLevel } from '@google-genkit/common/logging';
@@ -21,18 +21,25 @@ useFirestoreTraceStore({ projectId: getProjectId() });
 
 enableTracingAndMetrics();
 
-const gemini = googleAIModel('gemini-pro');
+const googleAI = useGoogleAI();
+const openAI = useOpenAI();
 
 export const jokeFlow = flow(
   { name: 'jokeFlow', input: z.string(), output: z.string(), local: true },
   async (subject) => {
     return await run('call-llm', async () => {
+      const model =
+        Math.random() > 0.5
+          ? googleAI.models.geminiPro
+          : openAI.models.gpt4Turbo;
       const llmResponse = await generate({
-        model: gemini,
+        model,
         prompt: `Tell a joke about ${subject}.`,
       });
 
-      return llmResponse.text();
+      return `From ${
+        model.__action.metadata?.model.label
+      }: ${llmResponse.text()}`;
     });
   }
 );
