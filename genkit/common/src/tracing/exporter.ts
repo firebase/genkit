@@ -2,6 +2,7 @@ import { SpanKind, HrTime } from "@opentelemetry/api";
 import { SpanExporter, ReadableSpan } from "@opentelemetry/sdk-trace-base";
 import { ExportResult, ExportResultCode, hrTimeToMicroseconds } from "@opentelemetry/core";
 import { SpanData, TraceData, TraceStore } from "./types";
+import { deleteUndefinedProps } from "../utils";
 
 /**
  * Exports collected OpenTelemetetry spans to Firestore.
@@ -64,6 +65,7 @@ export class TraceStoreExporter implements SpanExporter {
         spanData.instrumentationLibrary.version = span.instrumentationLibrary.version;
       }
     }
+    deleteUndefinedProps(spanData)
     return spanData as SpanData;
   }
 
