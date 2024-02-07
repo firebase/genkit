@@ -1,5 +1,5 @@
 import * as registry from '@google-genkit/common/registry';
-import { FlowState, FlowStateSchema, FlowStateStore } from './types';
+import { FlowState, FlowStateQuery, FlowStateSchema, FlowStateStore } from '@google-genkit/common';
 
 /**
  * Not very useful in pactice in-memory flow state store.
@@ -17,6 +17,10 @@ export class InMemoryFlowStateStore implements FlowStateStore {
   save(id: string, state: FlowState): Promise<void> {
     this.state[id] = JSON.stringify(state);
     return Promise.resolve();
+  }
+
+  async list(query?: FlowStateQuery | undefined): Promise<FlowState[]> {
+    return Object.values(this.state).map(s => JSON.parse(s) as FlowState);
   }
 }
 

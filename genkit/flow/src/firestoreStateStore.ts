@@ -1,7 +1,7 @@
 import { App, initializeApp, getApp, AppOptions } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import * as registry from '@google-genkit/common/registry';
-import { FlowState, FlowStateSchema, FlowStateStore } from './types';
+import { FlowState, FlowStateQuery, FlowStateSchema, FlowStateStore } from '@google-genkit/common';
 import logging from '@google-genkit/common/logging';
 
 /**
@@ -68,5 +68,10 @@ export class FirestoreStateStore implements FlowStateStore {
   async save(id: string, state: FlowState): Promise<void> {
     logging.debug(state, 'save state');
     await this.db.collection(this.collection).doc(id).set(state);
+  }
+
+  async list(query?: FlowStateQuery): Promise<FlowState[]> {
+    const data = await this.db.collection(this.collection).limit(query?.limit || 10).get();
+    return data.docs.map(d => d.data() as FlowState);
   }
 }

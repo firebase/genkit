@@ -1,6 +1,6 @@
 import { App, initializeApp, getApp, AppOptions } from "firebase-admin/app";
 import { Firestore, getFirestore } from "firebase-admin/firestore";
-import { TraceData, TraceDataSchema, TraceStore } from "./types";
+import { TraceData, TraceDataSchema, TraceQuery, TraceStore } from "./types";
 import * as registry from "../registry";
 
 /**
@@ -60,5 +60,10 @@ export class FirestoreTraceStore implements TraceStore {
       return undefined;
     }
     return TraceDataSchema.parse(data);
+  }
+
+  async list(query?: TraceQuery): Promise<TraceData[]> {
+    const data = await this.db.collection(this.collection).limit(query?.limit || 10).get();
+    return data.docs.map(d => d.data() as TraceData);
   }
 }

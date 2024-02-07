@@ -1,10 +1,8 @@
 import {
   FlowError,
-  FlowInvokeEnvelopeMessage,
   FlowState,
   FlowStateStore,
-  WorkflowDispatcher,
-} from './types';
+} from '@google-genkit/common';
 import { z } from 'zod';
 import {
   SPAN_TYPE_ATTR,
@@ -14,6 +12,7 @@ import {
 import { Context } from './context';
 import { InterruptError, getErrorMessage, getErrorStack } from './errors';
 import { metadataPrefix, runWithActiveContext } from './utils';
+import { FlowInvokeEnvelopeMessage, WorkflowDispatcher } from './types';
 
 type StepsFunction<I extends z.ZodTypeAny, O extends z.ZodTypeAny> = (
   input: z.infer<I>

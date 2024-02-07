@@ -1,4 +1,4 @@
-import { ActionMetadata, asyncSleep } from '@google-genkit/common';
+import { ActionMetadata, asyncSleep, Operation } from '@google-genkit/common';
 import * as registry from '@google-genkit/common/registry';
 import { HttpsFunction } from 'firebase-functions/v2/https';
 import { MemoryOption } from 'firebase-functions/v2/options';
@@ -13,7 +13,6 @@ import { FlowRunner } from './runner';
 import {
   FlowInvokeEnvelopeMessage,
   FlowInvokeEnvelopeMessageSchema,
-  Operation,
   RetryConfig,
 } from './types';
 import { generateFlowId } from './utils';

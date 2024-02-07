@@ -1,7 +1,9 @@
 import express from 'express';
-import { zodToJsonSchema } from "zod-to-json-schema";
-import * as registry from './registry';
 import { JSONSchema7Type } from 'json-schema';
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { config } from './config';
+import logging from './logging';
+import * as registry from './registry';
 
 // TODO: Replace this with a build-time dependency that comes from genkit-tools.
 export interface ActionSchema {
@@ -73,6 +75,18 @@ export function startReflectionApi(port?: number | undefined) {
       console.log(message);
       return response.status(500).json({ message });
     }
+  });
+
+  api.get('/api/env/:env/traces', async (req, response) => {
+    const { env } = req.params
+    logging.debug("query traces for env: " + env)
+    response.json(await config?.tracestore?.list());
+  });
+
+  api.get('/api/env/:env/flows', async (req, response) => {
+    const { env } = req.params
+    logging.debug("query flows for env: " + env)
+    response.json(await config?.flowstore?.list());
   });
 
   api.listen(port, () => {

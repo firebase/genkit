@@ -2,8 +2,9 @@ import { Response } from 'express';
 import { Request } from 'firebase-functions/v2/https';
 import { TaskQueueFunction } from 'firebase-functions/v2/tasks';
 import { FlowRunner } from './runner';
-import { FlowInvokeEnvelopeMessage, Operation } from './types';
+import { Operation } from '@google-genkit/common';
 import { generateFlowId } from './utils';
+import { FlowInvokeEnvelopeMessage } from './types';
 
 const statusPathRegex = /^(\/.+)?\/invocations\/(.+)$/;
 const startPathRegex = /^(\/.+)?\/invocations\/?$/;

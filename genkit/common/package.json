@@ -61,6 +61,12 @@
       "import": "./lib/esm/logging.js",
       "default": "./lib/esm/logging.js"
     },
+    "./config": {
+      "types": "./lib/types/config.d.ts",
+      "require": "./lib/cjs/config.js",
+      "import": "./lib/esm/config.js",
+      "default": "./lib/esm/config.js"
+    },
     "./runtime": {
       "types": "./lib/types/runtime.d.ts",
       "require": "./lib/cjs/runtime.js",
@@ -81,6 +87,9 @@
       ],
       "logging": [
         "lib/types/logging"
+      ],
+      "config": [
+        "lib/types/config"
       ],
       "registry": [
         "lib/types/registry"
