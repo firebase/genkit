@@ -18,6 +18,7 @@ import { TraceStore } from "./tracing";
 
 export * from "./tracing/exporter";
 export * from "./tracing/firestoreTraceStore";
+export * from "./tracing/localFileStore";
 export * from "./tracing/instrumentation";
 export * from "./tracing/processor";
 export * from "./tracing/types";

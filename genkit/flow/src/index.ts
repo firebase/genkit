@@ -21,6 +21,10 @@ export {
   useFirestoreStateStore,
 } from './firestoreStateStore.js';
 export {
+  LocalFileFlowStateStore,
+  useDevStateStore,
+} from './localFileStore.js';
+export {
   InMemoryFlowStateStore,
   useInMemoryStateStore,
 } from './inMemoryStore.js';
