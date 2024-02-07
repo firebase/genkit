@@ -1,4 +1,4 @@
-import { ActionMetadata, asyncSleep, Operation } from '@google-genkit/common';
+import { ActionMetadata, asyncSleep, lookupFlowStateStore, Operation } from '@google-genkit/common';
 import * as registry from '@google-genkit/common/registry';
 import { HttpsFunction } from 'firebase-functions/v2/https';
 import { MemoryOption } from 'firebase-functions/v2/options';
@@ -53,13 +53,7 @@ export function flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   },
   steps: (input: z.infer<I>) => Promise<z.infer<O>>
 ): ConfiguredFlow<I, O> {
-  const stateStore = registry.lookup('/flows/stateStore');
-  if (!stateStore) {
-    throw new Error(
-      'State store is not configured/provided. Either pass in a state store instance or, for ' +
-        'example, call configureFirestoreStateStore.'
-    );
-  }
+  const stateStore = lookupFlowStateStore();
   const fr = new FlowRunner<I, O>({
     name: config.name,
     input: config.input,

@@ -1,9 +1,11 @@
 import express from 'express';
 import { JSONSchema7Type } from 'json-schema';
 import { zodToJsonSchema } from "zod-to-json-schema";
-import { config } from './config';
+import { config, initializeGenkit } from './config';
 import logging from './logging';
 import * as registry from './registry';
+import { lookupTraceStore } from './tracing';
+import { lookupFlowStateStore } from './flowTypes';
 
 // TODO: Replace this with a build-time dependency that comes from genkit-tools.
 export interface ActionSchema {
@@ -22,6 +24,10 @@ export function startReflectionApi(port?: number | undefined) {
   if (!port) {
     port = Number(process.env.GENKIT_REFLECTION_PORT) || 3100;
   }
+  // When stating reflection API make sure Genkit is initialized from config.
+  // We do it asynchronously because we need to give common package to initialize.
+  Promise.resolve().then(() => initializeGenkit());
+
   const api = express();
   api.use(express.json());
 
@@ -80,13 +86,15 @@ export function startReflectionApi(port?: number | undefined) {
   api.get('/api/env/:env/traces', async (req, response) => {
     const { env } = req.params
     logging.debug("query traces for env: " + env)
-    response.json(await config?.tracestore?.list());
+    const tracestore = lookupTraceStore();
+    response.json(await tracestore.list());
   });
 
   api.get('/api/env/:env/flows', async (req, response) => {
     const { env } = req.params
-    logging.debug("query flows for env: " + env)
-    response.json(await config?.flowstore?.list());
+    logging.debug("query traces for env: " + env)
+    const flowStateStore = lookupFlowStateStore();
+    response.json(await flowStateStore.list());
   });
 
   api.listen(port, () => {

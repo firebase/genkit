@@ -15,6 +15,7 @@
     "@google-cloud/aiplatform": "^3.10.0",
     "@google-cloud/vertexai": "file:google-cloud-vertexai-0.2.1.tgz",
     "@google-genkit/ai": "*",
+    "@google-genkit/flow": "*",
     "@google-genkit/common": "*",
     "@pinecone-database/pinecone": "^2.0.1",
     "chromadb": "^1.7.3",
@@ -52,6 +53,12 @@
       "require": "./lib/cjs/models.js",
       "import": "./lib/esm/models.js",
       "default": "./lib/esm/models.js"
+    },
+    "./stores": {
+      "types": "./lib/types/stores.d.ts",
+      "require": "./lib/cjs/stores.js",
+      "import": "./lib/esm/stores.js",
+      "default": "./lib/esm/stores.js"
     }
   },
   "typesVersions": {
@@ -67,6 +74,9 @@
       ],
       "models": [
         "lib/types/models"
+      ],
+      "stores": [
+        "lib/types/stores"
       ]
     }
   }

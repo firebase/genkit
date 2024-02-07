@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { config } from "./config";
+import * as registry from "./registry";
 
 // NOTE: Keep this file in sync with genkit-tools/src/types/flow.ts!
 // Eventually tools will be source of truth for these types (by generating a
@@ -45,14 +47,14 @@ export const OperationSchema = z.object({
     .string()
     .describe(
       'server-assigned name, which is only unique within the same service that originally ' +
-        'returns it.'
+      'returns it.'
     ),
   metadata: z
     .any()
     .optional()
     .describe(
       'Service-specific metadata associated with the operation. It typically contains progress ' +
-        'information and common metadata such as create time.'
+      'information and common metadata such as create time.'
     ),
   done: z
     .boolean()
@@ -60,7 +62,7 @@ export const OperationSchema = z.object({
     .default(false)
     .describe(
       'If the value is false, it means the operation is still in progress. If true, the ' +
-        'operation is completed, and either error or response is available.'
+      'operation is completed, and either error or response is available.'
     ),
   result: FlowResultSchema.optional(),
 });
@@ -97,3 +99,25 @@ export const FlowStateSchema = z.object({
 });
 export type FlowState = z.infer<typeof FlowStateSchema>;
 
+// TODO: temporary, the flow store registration and lookup needs rework.
+let flowStateStoreCache : FlowStateStore;
+export function lookupFlowStateStore(): FlowStateStore {
+  if (flowStateStoreCache) {
+    return flowStateStoreCache;
+  }
+  const pluginName = registry.lookup("/flows/stateStorePlugin")
+  const plugin = config.plugins?.find(p => p.name === pluginName);
+  if (!plugin) {
+    throw new Error("Unable to resolve plugin name: " + pluginName);
+  }
+  const provider = plugin.provides.flowStateStore;
+  if (!provider) {
+    throw new Error("Unable to resolve provider `flowStateStore` for plugin: " + pluginName);
+  }
+  const flowStateStore = registry.lookup(`/flowStateStore/${provider.id}`)
+  if (!flowStateStore) {
+    throw new Error("Unable to resolve flowStateStore for plugin: " + pluginName);
+  }
+  flowStateStoreCache = flowStateStore;
+  return flowStateStore as FlowStateStore;
+}

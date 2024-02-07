@@ -13,6 +13,8 @@ import { meterProvider } from "./metrics";
 import * as registry from "./registry";
 import { getProjectId } from "./runtime";
 import { TraceStoreExporter } from "./tracing/exporter";
+import { config } from "./config";
+import { TraceStore } from "./tracing";
 
 export * from "./tracing/exporter";
 export * from "./tracing/firestoreTraceStore";
@@ -37,11 +39,7 @@ export function enableTracingAndMetrics(
   const contextManager = new AsyncLocalStorageContextManager(); // this contextManager is not required if we do not want to invoke sdk#configureTracerProvider - can be removed
   contextManager.enable();
 
-  const traceStore = registry.lookup("/flows/traceStore");
-  if (!traceStore) {
-    throw new Error("trace store not configured. Use, e.g. `useFirestoreTraceStore()`");
-  }
-
+  const traceStore = lookupTraceStore();
   const exporter = new TraceStoreExporter(traceStore);
   const spanProcessor =
     options.processor === "batch"
@@ -76,4 +74,27 @@ export function enableTracingAndMetrics(
  */
 export async function flushTracing() {
   await Promise.all(processors.map((p) => p.forceFlush()));
+}
+
+// TODO: temporary, the trace store registration and lookup needs rework.
+let tracestoreCache: TraceStore;
+export function lookupTraceStore(): TraceStore {
+  if (tracestoreCache) {
+    return tracestoreCache;
+  }
+  const pluginName = registry.lookup("/trace/storePlugin")
+  const plugin = config.plugins?.find(p => p.name === pluginName);
+  if (!plugin) {
+    throw new Error("Unable to resolve plugin name: " + pluginName);
+  }
+  const provider = plugin.provides.traceStore;
+  if (!provider) {
+    throw new Error("Unable to resolve provider `traceStore` for plugin: " + pluginName);
+  }
+  const tracestore = registry.lookup(`/traceStore/${provider.id}`)
+  if (!tracestore) {
+    throw new Error("Unable to resolve tracestore for plugin: " + pluginName);
+  }
+  tracestoreCache = tracestore;
+  return tracestore as TraceStore;
 }
