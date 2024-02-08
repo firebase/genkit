@@ -1,47 +1,63 @@
 import {
-  GoogleGenerativeAI,
-  InputContent as GeminiMessage,
-  Part as GeminiPart,
-  GenerateContentCandidate as GeminiCandidate,
-} from '@google/generative-ai';
-import process from 'process';
-import {
+  CandidateData,
+  MessageData,
   ModelAction,
   Part,
-  MessageData,
-  CandidateData,
-  ModelInfo,
+  modelAction,
+  modelRef
 } from '@google-genkit/ai/model';
-import { modelAction } from '@google-genkit/ai/model';
+import { Plugin } from '@google-genkit/common/config';
+import {
+  GenerateContentCandidate as GeminiCandidate,
+  InputContent as GeminiMessage,
+  Part as GeminiPart,
+  GoogleGenerativeAI,
+} from '@google/generative-ai';
+import process from 'process';
 
-const SUPPORTED_MODELS = {
-  'google-ai/gemini-pro': {
-    names: ['google-ai/gemini-pro'],
+export const geminiPro = modelRef({
+  name: 'google-ai/gemini-pro',
+  info: {
     label: 'Google AI - Gemini Pro',
+    names: ['gemini-pro'],
     supports: {
       multiturn: true,
       media: false,
       tools: true,
-    },
-  },
-  'google-ai/gemini-pro-vision': {
-    names: ['google-ai/gemini-pro-vision'],
+    }
+  }
+})
+
+export const geminiProVision = modelRef({
+  name: 'google-ai/gemini-pro-vision',
+  info: {
     label: 'Google AI - Gemini Pro Vision',
+    names: ['gemini-pro-vision'],
     supports: {
       multiturn: true,
       media: true,
       tools: true,
-    },
-  },
-  'google-ai/gemini-ultra': {
-    names: ['google-ai/gemini-ultra'],
+    }
+  }
+})
+
+export const geminiUltra = modelRef({
+  name: 'google-ai/gemini-ultra',
+  info: {
     label: 'Google AI - Gemini Ultra',
+    names: ['gemini-ultra'],
     supports: {
       multiturn: true,
       media: false,
       tools: true,
-    },
-  },
+    }
+  }
+})
+
+const SUPPORTED_MODELS = {
+  'gemini-pro': geminiPro,
+  'gemini-pro-vision': geminiProVision,
+  'gemini-ultra': geminiUltra,
 };
 
 function toGeminiRole(role: MessageData['role']): string {
@@ -110,6 +126,15 @@ function fromGeminiCandidate(candidate: GeminiCandidate): CandidateData {
   };
 }
 
+export function googleAI(apiKey?: string): Plugin {
+  return {
+    name: 'google-ai',
+    provides: {
+      models: Object.keys(SUPPORTED_MODELS).map(name => googleAIModel(name, apiKey))
+    }
+  }
+}
+
 export function googleAIModel(name: string, apiKey?: string): ModelAction {
   const modelName = `google-ai/${name}`;
   if (!apiKey) apiKey = process.env.GOOGLE_API_KEY;
@@ -120,10 +145,10 @@ export function googleAIModel(name: string, apiKey?: string): ModelAction {
   const client = new GoogleGenerativeAI(apiKey).getGenerativeModel({
     model: name,
   });
-  if (!SUPPORTED_MODELS[modelName])
+  if (!SUPPORTED_MODELS[name])
     throw new Error(`Unsupported model: ${name}`);
   return modelAction(
-    { name: modelName, ...SUPPORTED_MODELS[modelName] },
+    { name: modelName, ...SUPPORTED_MODELS[name].info },
     async (request) => {
       const messages = request.messages.map(toGeminiMessage);
       if (messages.length === 0) throw new Error('No messages provided.');

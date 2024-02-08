@@ -7,6 +7,7 @@ import {
   GenerationUsage,
   MessageData,
   ModelAction,
+  ModelReference,
   Part,
   ToolDefinition,
 } from './model';
@@ -139,7 +140,7 @@ export interface ModelPrompt<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
 > {
-  model: ModelAction<CustomOptions> | string;
+  model: ModelAction<CustomOptions> | ModelReference<CustomOptions> | string;
   prompt: string | Part | Part[];
   history?: MessageData[];
   tools?: Action<z.ZodTypeAny, z.ZodTypeAny>[];
@@ -161,8 +162,11 @@ export async function generate<
   let model: ModelAction<CustomOptions>;
   if (typeof prompt.model === 'string') {
     model = lookupAction(`/model/${prompt.model}`);
+  } else if (prompt.model.hasOwnProperty("info")) {
+    const ref = prompt.model as ModelReference<CustomOptions>
+    model = lookupAction(`/model/${ref.name}`);
   } else {
-    model = prompt.model;
+    model = prompt.model as ModelAction<CustomOptions>;
   }
   if (!model) {
     throw new Error(`Model ${prompt.model} not found`);

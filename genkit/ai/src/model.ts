@@ -114,9 +114,7 @@ export const GenerationConfig = z.object({
 });
 export type GenerationConfig<CustomOptions = any> = z.infer<
   typeof GenerationConfig
-> & {
-  custom?: CustomOptions;
-};
+> & CustomOptions;
 
 const OutputConfigSchema = z.object({
   format: z.enum(['json', 'text']).optional(),
@@ -211,6 +209,27 @@ export function modelAction<
   Object.assign(act, {
     __customOptionsType: options.customOptionsType || z.unknown(),
   });
-  registerAction('model', options.name, act);
   return act as ModelAction<CustomOptionsSchema>;
+}
+
+export interface ModelReference<CustomOptions extends z.ZodTypeAny> {
+  name: string;
+  configSchema?: CustomOptions
+  info?: ModelInfo
+}
+
+export function modelRef<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny
+>(
+  options: {
+    name: string;
+    configSchema?: CustomOptionsSchema
+    info?: ModelInfo
+  }
+): ModelReference<CustomOptionsSchema> {
+  return {
+    name: options.name,
+    configSchema: options.configSchema,
+    info: options.info,
+  };
 }

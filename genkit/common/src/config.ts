@@ -23,7 +23,6 @@ interface Config {
   flowstore?: string;
   enableTracingAndMetrics?: boolean;
   logLevel?: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
-  models: Action<any, any, any>[];
 }
 
 export function genkitConfig(cfg: Config) {
@@ -56,16 +55,20 @@ export function initializeGenkit() {
       registry.register(`/traceStore/${plugin.provides.traceStore.id}`, plugin.provides.traceStore.value);
     }
     plugin.provides?.models?.forEach(model => {
-      registry.registerAction('model', model.name, model)
+      logging.debug(`configuring plugin: ${plugin.name}, model: ${model.__action.name}`)
+      registry.registerAction('model', model.__action.name, model)
     })
     plugin.provides?.embedders?.forEach(embedder => {
-      registry.registerAction('embedder', embedder.name, embedder)
+      logging.debug(`configuring plugin: ${plugin.name}, embedder: ${embedder.__action.name}`)
+      registry.registerAction('embedder', embedder.__action.name, embedder)
     })
     plugin.provides?.retrievers?.forEach(retriever => {
-      registry.registerAction('retriever', retriever.name, retriever)
+      logging.debug(`configuring plugin: ${plugin.name}, retriever: ${retriever.__action.name}`)
+      registry.registerAction('retriever', retriever.__action.name, retriever)
     })
     plugin.provides?.indexers?.forEach(indexer => {
-      registry.registerAction('indexer', indexer.name, indexer)
+      logging.debug(`configuring plugin: ${plugin.name}, indexer: ${indexer.__action.name}`)
+      registry.registerAction('indexer', indexer.__action.name, indexer)
     })
   })
   if (!config.flowstore) {

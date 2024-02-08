@@ -1,6 +1,7 @@
 import { loadPrompt, promptTemplate } from "@google-genkit/ai";
-import { generateText } from "@google-genkit/ai/text";
+import { generate } from "@google-genkit/ai/generate";
 import { initializeGenkit } from "@google-genkit/common/config";
+import { geminiPro } from "@google-genkit/providers/models";
 import { flow, run, runFlow } from "@google-genkit/flow";
 import * as z from "zod";
 
@@ -15,9 +16,9 @@ export const jokeFlow = flow(
     });
 
     return await run("call-llm", async () => {
-      const llmResponse = await generateText({ prompt });
+      const llmResponse = await generate({ prompt: "Tell me a joke", model: geminiPro});
 
-      return llmResponse.completion;
+      return llmResponse.text();
     });
   }
 );
