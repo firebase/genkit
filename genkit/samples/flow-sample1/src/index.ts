@@ -1,16 +1,17 @@
 
-import * as z from "zod";
-import { flow, useDevStateStore, run, runFlow } from "@google-genkit/flow";
+import { getProjectId } from "@google-genkit/common";
 import { setLogLevel } from "@google-genkit/common/logging";
 import {
   enableTracingAndMetrics,
-  useDevTraceStore,
+  useFirestoreTraceStore
 } from "@google-genkit/common/tracing";
+import { flow, run, runFlow, useFirestoreStateStore } from "@google-genkit/flow";
+import * as z from "zod";
 
 setLogLevel("debug")
 
-useDevStateStore();
-useDevTraceStore();
+useFirestoreStateStore({ projectId: getProjectId() });
+useFirestoreTraceStore({ projectId: getProjectId() });
 
 enableTracingAndMetrics();
 

@@ -99,30 +99,15 @@ export const FlowStateSchema = z.object({
 });
 export type FlowState = z.infer<typeof FlowStateSchema>;
 
-// TODO: temporary, the flow store registration and lookup needs rework.
-let flowStateStoreCache : FlowStateStore;
-export function lookupFlowStateStore(): FlowStateStore {
-  if (flowStateStoreCache) {
-    return flowStateStoreCache;
-  }
-  const legacyStore = registry.lookup("/flows/stateStore");
-  if (legacyStore) {
-    flowStateStoreCache = legacyStore;
-    return legacyStore;
-  }
-  const pluginName = registry.lookup("/flows/stateStorePlugin")
-  const plugin = config.plugins?.find(p => p.name === pluginName);
-  if (!plugin) {
-    throw new Error("Unable to resolve plugin name: " + pluginName);
-  }
-  const provider = plugin.provides.flowStateStore;
-  if (!provider) {
-    throw new Error("Unable to resolve provider `flowStateStore` for plugin: " + pluginName);
-  }
-  const flowStateStore = registry.lookup(`/flowStateStore/${provider.id}`)
+let flowStateStore: FlowStateStore;
+
+export function setGlobalFlowStateStore(store: FlowStateStore) {
+  flowStateStore = store;
+}
+
+export function getGlobalFlowStateStore(): FlowStateStore {
   if (!flowStateStore) {
-    throw new Error("Unable to resolve flowStateStore for plugin: " + pluginName);
+    throw new Error("setGlobalFlowStateStore has not been called, yet")
   }
-  flowStateStoreCache = flowStateStore;
-  return flowStateStore as FlowStateStore;
+  return flowStateStore;
 }

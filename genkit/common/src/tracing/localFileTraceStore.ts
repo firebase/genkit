@@ -5,12 +5,13 @@ import fs from 'fs'
 import path from 'path'
 import crypto from 'crypto'
 import { TraceData, TraceDataSchema, TraceQuery, TraceStore } from './types';
+import { setGlobalTraceStore } from '../tracing';
 
 /**
  * Configures default trace store to use {@link LocalFileTraceStore}.
  */
 export function useDevTraceStore() {
-  registry.register("/flows/traceStore", new LocalFileTraceStore());
+  setGlobalTraceStore(new LocalFileTraceStore());
 }
 
 /**

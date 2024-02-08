@@ -1,7 +1,7 @@
-import { App, initializeApp, getApp, AppOptions } from "firebase-admin/app";
+import { App, AppOptions, getApp, initializeApp } from "firebase-admin/app";
 import { Firestore, getFirestore } from "firebase-admin/firestore";
+import { setGlobalTraceStore } from "../tracing";
 import { TraceData, TraceDataSchema, TraceQuery, TraceStore } from "./types";
-import * as registry from "../registry";
 
 /**
  *
@@ -14,7 +14,7 @@ export function useFirestoreTraceStore(
     projectId?: string;
   } = {}
 ) {
-  registry.register("/flows/traceStore", new FirestoreTraceStore(params));
+  setGlobalTraceStore(new FirestoreTraceStore(params));
 }
 
 export class FirestoreTraceStore implements TraceStore {

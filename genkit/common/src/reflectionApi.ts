@@ -1,12 +1,10 @@
 import express from 'express';
-import { zodToJsonSchema } from 'zod-to-json-schema';
-import * as registry from './registry';
 import * as validator from 'express-openapi-validator';
 import * as path from 'path';
-import { initializeGenkit } from './config';
+import { zodToJsonSchema } from 'zod-to-json-schema';
+import { getFlowStateStore, getTraceStore, initializeGenkit } from './config';
 import logging from './logging';
-import { lookupTraceStore } from './tracing';
-import { lookupFlowStateStore } from './flowTypes';
+import * as registry from './registry';
 
 /**
  * Starts a Reflection API that will be used by the Runner to call and control actions and flows.
@@ -67,17 +65,47 @@ export function startReflectionApi(port?: number | undefined) {
     }
   });
 
+  api.get('/api/env/:env/traces/:traceId', async (req, response) => {
+    const { env, traceId } = req.params
+    if (env !== 'dev' && env !== 'prod') {
+      response.status(400).send(`unsupported env ${env}`)
+      return;
+    }
+    logging.debug(`load trace for env:${env} id:${traceId}`)
+    const tracestore = getTraceStore(env);
+    response.json(await tracestore.load(traceId));
+  });
+
   api.get('/api/env/:env/traces', async (req, response) => {
     const { env } = req.params
+    if (env !== 'dev' && env !== 'prod') {
+      response.status(400).send(`unsupported env ${env}`)
+      return;
+    }
     logging.debug("query traces for env: " + env)
-    const tracestore = lookupTraceStore();
+    const tracestore = getTraceStore(env);
     response.json(await tracestore.list());
+  });
+
+  api.get('/api/env/:env/flows/:flowId', async (req, response) => {
+    const { env, flowId } = req.params
+    if (env !== 'dev' && env !== 'prod') {
+      response.status(400).send(`unsupported env ${env}`)
+      return;
+    }
+    logging.debug(`load flow for env:${env} id:${flowId}`)
+    const flowStateStore = getFlowStateStore(env);
+    response.json(await flowStateStore.load(flowId));
   });
 
   api.get('/api/env/:env/flows', async (req, response) => {
     const { env } = req.params
+    if (env !== 'dev' && env !== 'prod') {
+      response.status(400).send(`unsupported env ${env}`)
+      return;
+    }
     logging.debug("query traces for env: " + env)
-    const flowStateStore = lookupFlowStateStore();
+    const flowStateStore = getFlowStateStore(env);
     response.json(await flowStateStore.list());
   });
 

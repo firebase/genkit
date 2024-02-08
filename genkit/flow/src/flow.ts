@@ -1,5 +1,4 @@
-import { ActionMetadata, asyncSleep, lookupFlowStateStore, Operation } from '@google-genkit/common';
-import * as registry from '@google-genkit/common/registry';
+import { ActionMetadata, asyncSleep, getGlobalFlowStateStore, Operation } from '@google-genkit/common';
 import { HttpsFunction } from 'firebase-functions/v2/https';
 import { MemoryOption } from 'firebase-functions/v2/options';
 import {
@@ -53,7 +52,7 @@ export function flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   },
   steps: (input: z.infer<I>) => Promise<z.infer<O>>
 ): ConfiguredFlow<I, O> {
-  const stateStore = lookupFlowStateStore();
+  const stateStore = getGlobalFlowStateStore();
   const fr = new FlowRunner<I, O>({
     name: config.name,
     input: config.input,

@@ -1,5 +1,4 @@
-import * as registry from '@google-genkit/common/registry';
-import { FlowState, FlowStateQuery, FlowStateSchema, FlowStateStore } from '@google-genkit/common';
+import { FlowState, FlowStateQuery, FlowStateSchema, FlowStateStore, setGlobalFlowStateStore } from '@google-genkit/common';
 
 /**
  * Not very useful in pactice in-memory flow state store.
@@ -30,5 +29,5 @@ export const inMemoryFlowStateStore = new InMemoryFlowStateStore();
  * Sets the global default state store to in-memory store.
  */
 export function useInMemoryStateStore() {
-  registry.register('/flows/stateStore', inMemoryFlowStateStore);
+  setGlobalFlowStateStore(inMemoryFlowStateStore);
 }

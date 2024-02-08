@@ -1,6 +1,5 @@
-import * as registry from '@google-genkit/common/registry';
-import { FlowState, FlowStateQuery, FlowStateSchema, FlowStateStore } from '@google-genkit/common';
-import logging from '@google-genkit/common/logging';
+import { FlowState, FlowStateQuery, FlowStateSchema, FlowStateStore, setGlobalFlowStateStore } from './flowTypes';
+import logging from './logging';
 import os from 'os'
 import fs from 'fs'
 import path from 'path'
@@ -9,8 +8,8 @@ import crypto from 'crypto'
 /**
  * Configures default state store to use {@link DevStateStore}.
  */
-export function useDevStateStore() {
-  registry.register('/flows/stateStore', new LocalFileFlowStateStore());
+export function useDevFlowStateStore() {
+  setGlobalFlowStateStore(new LocalFileFlowStateStore());
 }
 
 /**
