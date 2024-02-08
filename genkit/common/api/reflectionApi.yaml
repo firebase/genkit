@@ -1,0 +1,105 @@
+openapi: 3.0.0
+info:
+  version: 0.0.1
+  title: Genkit Reflection API
+  description: >-
+    A control API that allows clients to inspect app code to view actions, run
+    them, and view the results.
+components:
+  schemas:
+    SingularAny:
+      anyOf:
+        - type: string
+        - type: number
+        - type: integer
+          format: int64
+        - type: boolean
+        - type: object
+          properties: {}
+    CustomAny:
+      anyOf:
+        - type: string
+        - type: number
+        - type: integer
+          format: int64
+        - type: boolean
+        - type: object
+          properties: {}
+        - type: array
+          items:
+            $ref: '#/components/schemas/SingularAny'
+    JSONSchema7:
+      type: object
+      nullable: true
+      properties: {}
+      description: >-
+        A valid JSON Schema Draft 7 (http://json-schema.org/draft-07/schema)
+        object.
+    Action:
+      type: object
+      properties:
+        key:
+          type: string
+          description: Action key consisting of action type and ID.
+        name:
+          type: string
+          description: Action name.
+        description:
+          type: string
+          nullable: true
+          description: A description of what the action does.
+        inputSchema:
+          $ref: '#/components/schemas/JSONSchema7'
+        outputSchema:
+          $ref: '#/components/schemas/JSONSchema7'
+        metadata:
+          type: object
+          nullable: true
+          additionalProperties:
+            $ref: '#/components/schemas/CustomAny'
+          description: Metadata about the action (e.g. supported model features).
+      required:
+        - key
+        - name
+  parameters: {}
+paths:
+  /api/actions:
+    get:
+      summary: Retrieves all runnable actions.
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: '#/components/schemas/Action'
+  /api/runAction:
+    post:
+      summary: Runs an action and returns the result.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                key:
+                  type: string
+                  description: Action key.
+                input:
+                  allOf:
+                    - $ref: '#/components/schemas/CustomAny'
+                    - description: An input with the type that this action expects.
+              required:
+                - key
+                - input
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/CustomAny'
+                  - description: An output with the type that this action returns.

@@ -1,20 +1,12 @@
 import express from 'express';
-import { JSONSchema7Type } from 'json-schema';
-import { zodToJsonSchema } from "zod-to-json-schema";
-import { config, initializeGenkit } from './config';
-import logging from './logging';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 import * as registry from './registry';
+import * as validator from 'express-openapi-validator';
+import * as path from 'path';
+import { initializeGenkit } from './config';
+import logging from './logging';
 import { lookupTraceStore } from './tracing';
 import { lookupFlowStateStore } from './flowTypes';
-
-// TODO: Replace this with a build-time dependency that comes from genkit-tools.
-export interface ActionSchema {
-  key: string;
-  name: string;
-  description?: string;
-  input?: JSONSchema7Type;
-  output?: JSONSchema7Type;
-}
 
 /**
  * Starts a Reflection API that will be used by the Runner to call and control actions and flows.
@@ -29,24 +21,21 @@ export function startReflectionApi(port?: number | undefined) {
   Promise.resolve().then(() => initializeGenkit());
 
   const api = express();
-  api.use(express.json());
 
-  // Returns the status of the API.
-  api.get('/api/status', (request, response) => {
-    const uptime = process.uptime();
-    response.json({
-      status: 'OK',
-      timestamp: new Date(),
-      uptime: `${Math.floor(uptime / 60)} minutes, ${Math.floor(
-        uptime % 60
-      )} seconds`,
-    });
-  });
+  api.use(express.json());
+  api.use(
+    validator.middleware({
+      apiSpec: path.join(__dirname, '../../api/reflectionApi.yaml'),
+      validateRequests: true,
+      validateResponses: true,
+      ignoreUndocumented: true,
+    })
+  );
 
   // Returns a list of action keys including their type (e.g. text-llm, retriever, flow, etc).
   api.get('/api/actions', (_, response) => {
     const actions = registry.listActions();
-    const convertedActions: Record<string, ActionSchema> = {};
+    const convertedActions = {};
     Object.keys(actions).forEach((key) => {
       const action = actions[key].__action;
       convertedActions[key] = {
@@ -55,10 +44,10 @@ export function startReflectionApi(port?: number | undefined) {
         description: action.description,
       };
       if (action.inputSchema) {
-        convertedActions[key].input = zodToJsonSchema(action.inputSchema) as JSONSchema7Type;
+        convertedActions[key].inputSchema = zodToJsonSchema(action.inputSchema);
       }
       if (action.outputSchema) {
-        convertedActions[key].output = zodToJsonSchema(action.outputSchema) as JSONSchema7Type;
+        convertedActions[key].outputSchema = zodToJsonSchema(action.outputSchema);
       }
     });
     response.send(convertedActions);
@@ -67,11 +56,6 @@ export function startReflectionApi(port?: number | undefined) {
   // Runs a single action and returns the result (if any).
   api.post('/api/runAction', async (request, response) => {
     const { key, input } = request.body;
-    if (!key) {
-      return response
-        .status(400)
-        .json({ message: '`key` is a required field.' });
-    }
     console.log(`Running action \`${key}\`...`);
     try {
       const result = await registry.lookupAction(key)(input);
