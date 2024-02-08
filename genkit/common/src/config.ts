@@ -36,7 +36,14 @@ export function initializeGenkit() {
     logging.warn("initializeGenkit was already called")
     return;
   }
-  const config = require(findGenkitConfig()).default as Config;
+  const configPath = findGenkitConfig();
+  if (!configPath) {
+    logging.warn(
+      'Unable to find genkit.conf.js in any of the parent directories.'
+    );  
+    return;
+  }
+  const config = require(configPath).default as Config;
   config.plugins?.forEach(plugin => {
     if (plugin.provides?.flowStateStore) {
       logging.debug(`configuring plugin: ${plugin.name}, flowStateStore: ${plugin.provides.flowStateStore.id}`)
@@ -85,7 +92,5 @@ function findGenkitConfig() {
     }
     current = path.resolve(current, '..');
   }
-  throw new Error(
-    'Unable to find genkit.conf.js in any of the parent directories.'
-  );
+  return undefined;
 }

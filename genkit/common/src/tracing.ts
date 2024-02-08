@@ -83,6 +83,11 @@ export function lookupTraceStore(): TraceStore {
   if (tracestoreCache) {
     return tracestoreCache;
   }
+  const legacyStore = registry.lookup("/flows/traceStore");
+  if (legacyStore) {
+    tracestoreCache = legacyStore;
+    return legacyStore;
+  }
   const pluginName = registry.lookup("/trace/storePlugin")
   const plugin = config.plugins?.find(p => p.name === pluginName);
   if (!plugin) {

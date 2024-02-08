@@ -105,6 +105,11 @@ export function lookupFlowStateStore(): FlowStateStore {
   if (flowStateStoreCache) {
     return flowStateStoreCache;
   }
+  const legacyStore = registry.lookup("/flows/stateStore");
+  if (legacyStore) {
+    flowStateStoreCache = legacyStore;
+    return legacyStore;
+  }
   const pluginName = registry.lookup("/flows/stateStorePlugin")
   const plugin = config.plugins?.find(p => p.name === pluginName);
   if (!plugin) {
