@@ -22,20 +22,21 @@ const ChromaRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend({
  */
 export function configureChromaRetriever<
   I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
   EmbedderCustomOptions extends z.ZodTypeAny
 >(params: {
   collectionName: string;
-  embedder: EmbedderAction<I, O, z.ZodString, EmbedderCustomOptions>;
+  embedder: EmbedderAction<I, z.ZodString, EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
   const { embedder, collectionName, embedderOptions } = params;
   const chromaRetriever = retrieverFactory(
-    'chroma',
-    collectionName,
-    z.string(),
-    TextDocumentSchema,
-    ChromaRetrieverOptionsSchema,
+    {
+      provider: 'chroma',
+      retrieverId: collectionName,
+      queryType: z.string(),
+      documentType: TextDocumentSchema,
+      customOptionsType: ChromaRetrieverOptionsSchema,
+    },
     async (input, options) => {
       const client = new ChromaClient();
       const collection = await client.getOrCreateCollection({

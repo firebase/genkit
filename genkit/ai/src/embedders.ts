@@ -15,27 +15,27 @@ type EmbedderFn<
 
 export type EmbedderAction<
   I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
   InputType extends z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny
-> = Action<I, O> & {
+> = Action<I, typeof EmbeddingSchema> & {
   __inputType: InputType;
   __customOptionsType: CustomOptions;
+  getDimension: () => number;
 };
 
 function withMetadata<
   I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
   InputType extends z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny
 >(
-  embedder: Action<I, O>,
+  embedder: Action<I, typeof EmbeddingSchema>,
   inputType: InputType,
   customOptionsType: CustomOptions
-): EmbedderAction<I, O, InputType, CustomOptions> {
-  const withMeta = embedder as EmbedderAction<I, O, InputType, CustomOptions>;
+): EmbedderAction<I, InputType, CustomOptions> {
+  const withMeta = embedder as EmbedderAction<I, InputType, CustomOptions>;
   withMeta.__inputType = inputType;
   withMeta.__customOptionsType = customOptionsType;
+  withMeta.getDimension = () => embedder.__action.metadata?.dimension as number;
   return withMeta;
 }
 
@@ -46,25 +46,35 @@ export function embedderFactory<
   InputType extends z.ZodTypeAny,
   EmbedderOptions extends z.ZodTypeAny
 >(
-  provider: string,
-  embedderId: string,
-  inputType: InputType,
-  customOptionsType: EmbedderOptions,
-  fn: EmbedderFn<InputType, EmbedderOptions>
+  options: {
+    provider: string;
+    embedderId: string;
+    dimension: number;
+    inputType: InputType;
+    customOptionsType: EmbedderOptions;
+  },
+  runner: EmbedderFn<InputType, EmbedderOptions>
 ) {
   const embedder = action(
     {
       name: 'embed',
       input: z.object({
-        input: inputType,
-        options: customOptionsType.optional(),
+        input: options.inputType,
+        options: options.customOptionsType.optional(),
       }),
       output: EmbeddingSchema,
+      metadata: {
+        dimension: options.dimension,
+      },
     },
-    (i) => fn(i.input, i.options)
+    (i) => runner(i.input, i.options)
   );
-  registry.registerAction('embedder', `${provider}/${embedderId}`, embedder);
-  return withMetadata(embedder, inputType, customOptionsType);
+  registry.registerAction(
+    'embedder',
+    `${options.provider}/${options.embedderId}`,
+    embedder
+  );
+  return withMetadata(embedder, options.inputType, options.customOptionsType);
 }
 
 /**
@@ -72,13 +82,12 @@ export function embedderFactory<
  */
 export async function embed<
   I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
   InputType extends z.ZodTypeAny,
-  CustomOptions extends z.ZodTypeAny
+  EmbedderOptions extends z.ZodTypeAny
 >(params: {
-  embedder: EmbedderAction<I, O, InputType, CustomOptions>;
+  embedder: EmbedderAction<I, InputType, EmbedderOptions>;
   input: z.infer<InputType>;
-  options?: z.infer<CustomOptions>;
+  options?: z.infer<EmbedderOptions>;
 }): Promise<Embedding> {
   return await params.embedder({
     input: params.input,

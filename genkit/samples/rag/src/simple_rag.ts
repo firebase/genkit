@@ -5,7 +5,7 @@ import {
   index,
   type TextDocument,
 } from '@google-genkit/ai/retrievers';
-import { configureNaiveFilestore } from '@google-genkit/providers/vectorstores';
+import { configurePinecone } from '@google-genkit/providers/vectorstores';
 import {
   enableTracingAndMetrics,
   useFirestoreTraceStore,
@@ -28,7 +28,9 @@ const vertexEmbedder = configureVertexTextEmbedder({
   projectId: getProjectId(),
   modelName: 'textembedding-gecko@001',
 });
-const spongebobFacts = configureNaiveFilestore({
+const tomAndJerryFacts = configurePinecone({
+  indexId: 'tom-and-jerry',
+  apiKey: process.env['PINECONE_API_KEY'] ?? '',
   embedder: vertexEmbedder,
   embedderOptions: {
     temperature: 0,
@@ -45,19 +47,20 @@ Question: {question}
 Helpful Answer:`;
 
 // Define a simple RAG flow, we will evaluate this flow
-export const askQuestionsAboutSpongebobFlow = flow(
+export const askQuestionsAboutTomAndJerryFlow = flow(
   {
-    name: 'askQuestionsAboutSpongebobFlow',
+    name: 'askQuestionsAboutTomAndJerrybobFlow',
     input: z.string(),
     output: z.string(),
     local: true,
   },
   async (query) => {
     const docs = await retrieve({
-      retriever: spongebobFacts,
+      retriever: await tomAndJerryFacts,
       query,
       options: { k: 3 },
     });
+    console.log(docs);
 
     const augmentedPrompt = await promptTemplate({
       template: prompt(ragTemplate),
@@ -78,7 +81,7 @@ export const askQuestionsAboutSpongebobFlow = flow(
 // Define a flow to index documents into the "vector store"
 const indexDocumentsFlow = flow(
   {
-    name: 'indexSpongebobFacts',
+    name: 'indexTomAndJerryFacts',
     input: z.array(z.string()),
     output: z.void(),
     local: true,
@@ -87,34 +90,30 @@ const indexDocumentsFlow = flow(
     const transformedDocs: TextDocument[] = docs.map((text) => {
       return {
         content: text,
-        metadata: { type: 'tv', show: 'Spongebob' },
+        metadata: { type: 'tv', show: 'Tom and Jerry' },
       };
     });
     await index({
-      indexer: spongebobFacts,
+      indexer: await tomAndJerryFacts,
       docs: transformedDocs,
-      options: {} /* options not yet defined */,
+      options: {
+        namespace: '',
+      },
     });
   }
 );
 
 async function main() {
-  // First let us ingest some docs into the naive filestore
-  const docs = [
-    "SpongeBob's primary job is working as the fry cook at the Krusty Krab, where he takes immense pride in making Krabby Patties.",
-    'SpongeBob is known for his unwavering cheerfulness and optimism, no matter what challenges come his way. He always sees the best in every situation.',
-    'SpongeBob is incredibly loyal to his friends, especially Patrick Star and Sandy Cheeks. He cherishes spending time with them and going on adventures.',
-    'SpongeBob can be a little gullible and easily tricked, which sometimes leads him into trouble. But his innocence is also part of his charm.',
-    'SpongeBob is a yellow sea sponge, which explains his absorbent abilities and his rectangular shape.',
-  ];
+  // First let us ingest some docs into the doc store
+  const docs = ['Tom and Jerry was produced by Hannah and Barbera.'];
 
   const indexOperation = await runFlow(indexDocumentsFlow, docs);
   console.log('Operation', indexOperation);
   console.log('Finished indexing documents!');
 
   const qaOperation = await runFlow(
-    askQuestionsAboutSpongebobFlow,
-    'Who is spongebob?'
+    askQuestionsAboutTomAndJerryFlow,
+    'Who produced Tom and Jerry?'
   );
   console.log('Operation', qaOperation);
 }

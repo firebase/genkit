@@ -28,10 +28,13 @@ export function configureVertexTextEmbedder(params: {
   };
   const predictionServiceClient = new PredictionServiceClient(clientOptions);
   return embedderFactory(
-    publisher,
-    'vertexai',
-    z.string(),
-    VertexEmbedderrOptionsSchema,
+    {
+      provider: publisher,
+      embedderId: 'vertexai',
+      dimension: 768,
+      inputType: z.string(),
+      customOptionsType: VertexEmbedderrOptionsSchema,
+    },
     async (input, options) => {
       const endpoint =
         `projects/${projectId}/locations/${location}/` +

@@ -1,11 +1,13 @@
 import { EmbedderAction, embed } from '@google-genkit/ai/embedders';
 import {
   CommonRetrieverOptionsSchema,
-  retrieverFactory,
+  documentStoreFactory,
   TextDocumentSchema,
 } from '@google-genkit/ai/retrievers';
 import * as z from 'zod';
 import { Pinecone, RecordMetadata } from '@pinecone-database/pinecone';
+import { CreateIndexRequestSpec } from '@pinecone-database/pinecone/dist/pinecone-generated-ts-fetch';
+import { Md5 } from 'ts-md5';
 
 const SparseVectorSchema = z
   .object({
@@ -30,34 +32,51 @@ const PineconeRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend({
   sparseVector: SparseVectorSchema.optional(),
 });
 
+const PineconeIndexerOptionsSchema = z.object({
+  namespace: z.string().optional(),
+});
+
 const TEXT_KEY = '_content';
 
 /**
- * Configures a Pinecone vector store retriever.
+ * Configures a Pinecone document store.
  */
-export function configurePineconeRetriever<
+export async function configurePinecone<
   I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
   EmbedderCustomOptions extends z.ZodTypeAny
 >(params: {
   apiKey: string;
   indexId: string;
   textKey?: string;
-  embedder: EmbedderAction<I, O, z.ZodString, EmbedderCustomOptions>;
+  createIndexSpec?: CreateIndexRequestSpec; // Maybe just get the request?
+  embedder: EmbedderAction<I, z.ZodString, EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
-  const { apiKey, indexId, embedder, embedderOptions } = { ...params };
+  const { apiKey, indexId, embedder, createIndexSpec, embedderOptions } = {
+    ...params,
+  };
   const textKey = params.textKey ?? TEXT_KEY;
   const pinecone = new Pinecone({ apiKey });
-  const index = pinecone.index(indexId);
+  let index;
+  if (createIndexSpec) {
+    index = await pinecone.createIndex({
+      name: indexId,
+      dimension: embedder.getDimension(),
+      spec: createIndexSpec,
+      waitUntilReady: true /* always wait till ready*/,
+    });
+  } else {
+    index = pinecone.index(indexId);
+  }
 
-  return retrieverFactory(
-    'pinecone',
-    params.indexId,
-    z.string(),
-    TextDocumentSchema,
-    PineconeRetrieverOptionsSchema,
-    async (input, options) => {
+  return documentStoreFactory({
+    provider: 'pinecone',
+    id: params.indexId,
+    queryType: z.string(),
+    documentType: TextDocumentSchema,
+    retrieverOptionsType: PineconeRetrieverOptionsSchema,
+    indexerOptionsType: PineconeIndexerOptionsSchema,
+    retrieveFn: async (input, options) => {
       const queryEmbeddings = await embed({
         embedder,
         input,
@@ -84,6 +103,36 @@ export function configurePineconeRetriever<
             metadata,
           };
         });
-    }
-  );
+    },
+    indexFn: async (docs, options) => {
+      const scopedIndex = options.namespace
+        ? index.namespace(options.namespace)
+        : index;
+
+      const embeddings = await Promise.all(
+        docs.map((doc) =>
+          embed({
+            embedder,
+            input: doc.content,
+            options: embedderOptions,
+          })
+        )
+      );
+      await scopedIndex.upsert(
+        embeddings.map((values, i) => {
+          const metadata: RecordMetadata = {
+            ...docs[i].metadata,
+          };
+
+          metadata[textKey] = docs[i].content;
+          const id = Md5.hashStr(JSON.stringify(docs[i]));
+          return {
+            id,
+            values,
+            metadata,
+          };
+        })
+      );
+    },
+  });
 }
