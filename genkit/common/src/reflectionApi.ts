@@ -65,8 +65,8 @@ export function startReflectionApi(port?: number | undefined) {
     }
   });
 
-  api.get('/api/env/:env/traces/:traceId', async (req, response) => {
-    const { env, traceId } = req.params
+  api.get('/api/envs/:env/traces/:traceId', async (request, response) => {
+    const { env, traceId } = request.params
     if (env !== 'dev' && env !== 'prod') {
       response.status(400).send(`unsupported env ${env}`)
       return;
@@ -76,8 +76,8 @@ export function startReflectionApi(port?: number | undefined) {
     response.json(await tracestore.load(traceId));
   });
 
-  api.get('/api/env/:env/traces', async (req, response) => {
-    const { env } = req.params
+  api.get('/api/envs/:env/traces', async (request, response) => {
+    const { env } = request.params
     if (env !== 'dev' && env !== 'prod') {
       response.status(400).send(`unsupported env ${env}`)
       return;
@@ -87,8 +87,8 @@ export function startReflectionApi(port?: number | undefined) {
     response.json(await tracestore.list());
   });
 
-  api.get('/api/env/:env/flows/:flowId', async (req, response) => {
-    const { env, flowId } = req.params
+  api.get('/api/envs/:env/flowStates/:flowId', async (request, response) => {
+    const { env, flowId } = request.params
     if (env !== 'dev' && env !== 'prod') {
       response.status(400).send(`unsupported env ${env}`)
       return;
@@ -98,8 +98,8 @@ export function startReflectionApi(port?: number | undefined) {
     response.json(await flowStateStore.load(flowId));
   });
 
-  api.get('/api/env/:env/flows', async (req, response) => {
-    const { env } = req.params
+  api.get('/api/envs/:env/flowStates', async (request, response) => {
+    const { env } = request.params
     if (env !== 'dev' && env !== 'prod') {
       response.status(400).send(`unsupported env ${env}`)
       return;
