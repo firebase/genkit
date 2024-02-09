@@ -1,4 +1,7 @@
 import * as z from 'zod';
+import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
+
+extendZodWithOpenApi(z);
 
 // NOTE: Keep this file in sync with genkit/flow/src/types.ts!
 // Eventually tools will be source of truth for these types (by generating a
@@ -47,14 +50,14 @@ export const OperationSchema = z.object({
     .string()
     .describe(
       'server-assigned name, which is only unique within the same service that originally ' +
-        'returns it.',
+        'returns it.'
     ),
   metadata: z
     .unknown()
     .optional()
     .describe(
       'Service-specific metadata associated with the operation. It typically contains progress ' +
-        'information and common metadata such as create time.',
+        'information and common metadata such as create time.'
     ),
   done: z
     .boolean()
@@ -62,7 +65,7 @@ export const OperationSchema = z.object({
     .default(false)
     .describe(
       'If the value is false, it means the operation is still in progress. If true, the ' +
-        'operation is completed, and either error or response is available.',
+        'operation is completed, and either error or response is available.'
     ),
   result: FlowResultSchema.optional(),
 });
@@ -73,27 +76,29 @@ export type Operation = z.infer<typeof OperationSchema>;
  * Defines the format for flow state. This is the format used for persisting the state in
  * the Flow state store.
  */
-export const FlowStateSchema = z.object({
-  name: z.string().optional(),
-  flowId: z.string(),
-  input: z.unknown(),
-  startTime: z.number(),
-  cache: z.record(
-    z.string(),
-    z.object({
-      value: z.unknown().optional(),
-      empty: z.literal(true).optional(),
-    }),
-  ),
-  eventsTriggered: z.record(z.string(), z.unknown()),
-  blockedOnStep: z
-    .object({
-      name: z.string(),
-      schema: z.string().optional(),
-    })
-    .nullable(),
-  operation: OperationSchema,
-  traceContext: z.string().optional(),
-  executions: z.array(FlowStateExecutionSchema),
-});
+export const FlowStateSchema = z
+  .object({
+    name: z.string().optional(),
+    flowId: z.string(),
+    input: z.unknown(),
+    startTime: z.number(),
+    cache: z.record(
+      z.string(),
+      z.object({
+        value: z.unknown().optional(),
+        empty: z.literal(true).optional(),
+      })
+    ),
+    eventsTriggered: z.record(z.string(), z.unknown()),
+    blockedOnStep: z
+      .object({
+        name: z.string(),
+        schema: z.string().optional(),
+      })
+      .nullable(),
+    operation: OperationSchema,
+    traceContext: z.string().optional(),
+    executions: z.array(FlowStateExecutionSchema),
+  })
+  .openapi('FlowState');
 export type FlowState = z.infer<typeof FlowStateSchema>;

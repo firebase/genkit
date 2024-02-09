@@ -1,7 +1,7 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import axios from 'axios';
-import { z } from 'zod';
-import { ActionSchema } from '../common/types';
+import { Action } from '../types/action';
+import * as apis from '../types/apis';
 import { FlowState } from '../types/flow';
 import { TraceData } from '../types/trace';
 
@@ -11,40 +11,37 @@ const REFLECTION_API_URL = `http://localhost:${REFLECTION_PORT}/api`;
 
 export const TOOLS_SERVER_ROUTER = t.router({
   /** Retrieves all runnable actions. */
-  listActions: t.procedure.query(
-    async (): Promise<Record<string, ActionSchema>> => {
-      try {
-        const response = await axios.get(`${REFLECTION_API_URL}/actions`);
-        if (response.status !== 200) {
-          throw new TRPCError({
-            code: 'INTERNAL_SERVER_ERROR',
-            message: 'Failed to fetch actions.',
-          });
-        }
-        return response.data as Record<string, ActionSchema>;
-      } catch (error) {
-        console.error('Error fetching actions:', error);
+  listActions: t.procedure.query(async (): Promise<Record<string, Action>> => {
+    try {
+      const response = await axios.get(`${REFLECTION_API_URL}/actions`);
+      if (response.status !== 200) {
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
-          message: 'Error fetching actions.',
+          message: 'Failed to fetch actions.',
         });
       }
-    },
-  ),
+      return response.data as Record<string, Action>;
+    } catch (error) {
+      console.error('Error fetching actions:', error);
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'Error fetching actions.',
+      });
+    }
+  }),
 
   /** Runs an action. */
   runAction: t.procedure
-    .input(z.object({ key: z.string(), input: z.any().optional() }))
+    .input(apis.RunActionRequestSchema)
     .mutation(async ({ input }) => {
+      const request: apis.RunActionRequest = {
+        key: input.key,
+        input: input.input,
+      };
       try {
         const response = await axios.post(
           `${REFLECTION_API_URL}/runAction`,
-          {
-            key: input.key,
-            // TODO: This will be cleaned up when there is a strongly typed interface (e.g. OpenAPI).
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-            input: input.input,
-          },
+          request,
           {
             headers: {
               'Content-Type': 'application/json',
@@ -58,9 +55,7 @@ export const TOOLS_SERVER_ROUTER = t.router({
             message: 'Failed to run action.',
           });
         }
-        // TODO: This will be cleaned up when there is a strongly typed interface (e.g. OpenAPI).
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-        return response.data;
+        return response.data as unknown;
       } catch (error) {
         console.error('Error running action:', error);
         throw new TRPCError({
@@ -72,7 +67,7 @@ export const TOOLS_SERVER_ROUTER = t.router({
 
   /** Retrieves all traces for a given environment (e.g. dev or prod). */
   listTraces: t.procedure
-    .input(z.object({ env: z.string() }))
+    .input(apis.ListTracesRequestSchema)
     .query(async ({ input }) => {
       const { env } = input;
       try {
@@ -97,7 +92,7 @@ export const TOOLS_SERVER_ROUTER = t.router({
 
   /** Retrieves a trace for a given ID. */
   getTrace: t.procedure
-    .input(z.object({ env: z.string(), traceId: z.string() }))
+    .input(apis.GetTraceRequestSchema)
     .query(async ({ input }) => {
       const { env, traceId } = input;
       try {
@@ -123,9 +118,9 @@ export const TOOLS_SERVER_ROUTER = t.router({
       }
     }),
 
-  /** Retrieves all flow runs for a given environment (e.g. dev or prod). */
+  /** Retrieves all flow states for a given environment (e.g. dev or prod). */
   listFlowStates: t.procedure
-    .input(z.object({ env: z.string() }))
+    .input(apis.ListFlowStatesRequestSchema)
     .query(async ({ input }) => {
       const { env } = input;
       try {
@@ -148,9 +143,9 @@ export const TOOLS_SERVER_ROUTER = t.router({
       }
     }),
 
-  /** Retrieves a flow run for a given ID. */
+  /** Retrieves a flow state for a given ID. */
   getFlowState: t.procedure
-    .input(z.object({ env: z.string(), flowId: z.string() }))
+    .input(apis.GetFlowStateRequestSchema)
     .query(async ({ input }) => {
       const { env, flowId } = input;
       try {

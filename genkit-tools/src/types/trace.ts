@@ -1,4 +1,7 @@
 import * as z from 'zod';
+import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
+
+extendZodWithOpenApi(z);
 
 // NOTE: Keep this file in sync with genkit/common/src/tracing/types.ts!
 // Eventually tools will be source of truth for these types (by generating a
@@ -46,7 +49,7 @@ export const InstrumentationLibrarySchema = z.object({
   schemaUrl: z.string().optional().readonly(),
 });
 
-const BaseSpanDataSchema = z.object({
+export const SpanDataSchema = z.object({
   spanId: z.string(),
   traceId: z.string(),
   parentSpanId: z.string().optional(),
@@ -64,19 +67,25 @@ const BaseSpanDataSchema = z.object({
       timeEvent: z.array(TimeEventSchema),
     })
     .optional(),
-});
-export const SpanDataSchema: z.ZodType<SpanData> = BaseSpanDataSchema.extend({
+}).openapi('SpanData');
+
+export type SpanData = z.infer<typeof SpanDataSchema>;
+
+export const NestedSpanDataSchema = SpanDataSchema.extend({
   spans: z.lazy(() => z.array(SpanDataSchema)),
-});
-export type SpanData = z.infer<typeof BaseSpanDataSchema> & {
+})
+
+export type NestedSpanData = z.infer<typeof SpanDataSchema> & {
   spans: SpanData[];
 };
 
-export const TraceDataSchema = z.object({
-  displayName: z.string().optional(),
-  startTime: z.number().optional(),
-  endTime: z.number().optional(),
-  spans: z.record(z.string(), SpanDataSchema),
-});
+export const TraceDataSchema = z
+  .object({
+    displayName: z.string().optional(),
+    startTime: z.number().optional(),
+    endTime: z.number().optional(),
+    spans: z.record(z.string(), SpanDataSchema),
+  })
+  .openapi('TraceData');
 
 export type TraceData = z.infer<typeof TraceDataSchema>;

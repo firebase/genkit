@@ -16,6 +16,8 @@ export * from "./plugin"
 let configured = false;
 export let config: Config;
 
+export type Environment = 'dev' | 'prod';
+
 // TODO: temporary! make this nice
 interface Config {
   plugins?: Plugin[],
@@ -166,7 +168,7 @@ let prodFlowStateStore: FlowStateStore;
  * Returns a flow state store instance for the provided environment. In 'dev' it's assumed to be
  * local file store, and in prod it looks up what is set in the config.
  */
-export function getFlowStateStore(env: 'dev' | 'prod'): FlowStateStore {
+export function getFlowStateStore(env: Environment): FlowStateStore {
   if (env === 'dev' || !config.flowstore) {
     // This assumes that the dev UI will only run in dev env, so global store must be dev.
     return getGlobalFlowStateStore()
@@ -185,7 +187,7 @@ let prodTracestore: TraceStore;
  * Returns a trace store instance for the provided environment. In 'dev' it's assumed to be
  * local file store, and in prod it looks up what is set in the config.
  */
-export function getTraceStore(env: "dev" | "prod"): TraceStore {
+export function getTraceStore(env: Environment): TraceStore {
   if (env === 'dev' || !config.tracestore) {
     // This assumes that the dev UI will only run in dev env, so global store must be dev.
     return getGlobalTraceStore()
