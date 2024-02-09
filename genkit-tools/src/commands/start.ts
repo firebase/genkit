@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { startServer } from '../ui_server';
+import { startServer } from '../server';
 import { Runner } from '../runner/runner';
 import { logger } from '../utils/logger';
 

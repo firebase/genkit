@@ -1,13 +1,8 @@
-import * as express from 'express';
-import { ErrorRequestHandler } from 'express';
-import * as trpcExpress from '@trpc/server/adapters/express';
-import { spawn, execSync, ChildProcess } from 'child_process';
-import * as fs from 'fs';
-import * as path from 'path';
+import { ChildProcess, execSync, spawn } from 'child_process';
 import * as chokidar from 'chokidar';
 import * as clc from 'colorette';
-
-import { RUNNER_ROUTER } from './router';
+import * as fs from 'fs';
+import * as path from 'path';
 import { logger } from '../utils/logger';
 import { getNodeEntryPoint } from '../utils/utils';
 
@@ -29,11 +24,6 @@ export class Runner {
    * Directory that contains the app code.
    */
   readonly directory: string;
-
-  /**
-   * Port for the Runner API.
-   */
-  readonly port: number;
 
   /**
    * Whether to watch for changes and automatically rebuild/reload the app code.
@@ -60,18 +50,15 @@ export class Runner {
    *
    * @param options - Options for configuring the Runner:
    *   - `directory` - Directory that contains the app code (defaults to the current working directory).
-   *   - `port` - Port for the Runner API (defaults to process.env.RUNNER_PORT or 3000).
    *   - `autoReload` - Whether to watch for changes and automatically rebuild/reload the app code (defaults to true).
    */
   constructor(
     options: {
       directory?: string;
-      port?: number;
       autoReload?: boolean;
     } = {},
   ) {
     this.directory = options.directory || process.cwd();
-    this.port = options.port || Number(process.env.GENKIT_RUNNER_PORT) || 3000;
     this.autoReload = options.autoReload || true;
   }
 
@@ -83,7 +70,6 @@ export class Runner {
     if (this.autoReload) {
       this.watchForChanges();
     }
-    this.startApi();
   }
 
   /**
@@ -95,37 +81,6 @@ export class Runner {
       await this.stopApp();
     }
     this.startApp();
-  }
-
-  /**
-   * Starts an API that controls the app code.
-   */
-  private startApi(): void {
-    const api = express();
-    api.use(express.json());
-    const errorHandler: ErrorRequestHandler = (
-      error,
-      request,
-      response,
-      // Poor API doesn't allow leaving off `next` without changing the entire signature...
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      next,
-    ) => {
-      if (error instanceof Error) {
-        logger.error(error.stack);
-      }
-      return response.status(500).send(error);
-    };
-    api.use(errorHandler);
-    api.use(
-      '/api',
-      trpcExpress.createExpressMiddleware({
-        router: RUNNER_ROUTER,
-      }),
-    );
-    api.listen(this.port, () => {
-      logger.info(`Runner API running on http://localhost:${this.port}/api`);
-    });
   }
 
   /**

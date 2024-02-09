@@ -1,17 +1,17 @@
 import { initTRPC, TRPCError } from '@trpc/server';
+import axios from 'axios';
 import { z } from 'zod';
 import { ActionSchema } from '../common/types';
-import { TraceData } from '../types/trace';
 import { FlowState } from '../types/flow';
-import axios from 'axios';
+import { TraceData } from '../types/trace';
 
 const t = initTRPC.create();
 const REFLECTION_PORT = process.env.GENKIT_REFLECTION_PORT || 3100;
 const REFLECTION_API_URL = `http://localhost:${REFLECTION_PORT}/api`;
 
-export const RUNNER_ROUTER = t.router({
-  // Retrieves all runnable actions.
-  actions: t.procedure.query(
+export const TOOLS_SERVER_ROUTER = t.router({
+  /** Retrieves all runnable actions. */
+  listActions: t.procedure.query(
     async (): Promise<Record<string, ActionSchema>> => {
       try {
         const response = await axios.get(`${REFLECTION_API_URL}/actions`);
@@ -32,7 +32,7 @@ export const RUNNER_ROUTER = t.router({
     }
   ),
 
-  // Runs an action.
+  /** Runs an action. */
   runAction: t.procedure
     .input(z.object({ key: z.string(), input: z.any().optional() }))
     .mutation(async ({ input }) => {
@@ -70,13 +70,15 @@ export const RUNNER_ROUTER = t.router({
       }
     }),
 
-  // Retrieves all traces for a given environment (e.g. dev or prod).
-  traces: t.procedure
+  /** Retrieves all traces for a given environment (e.g. dev or prod). */
+  listTraces: t.procedure
     .input(z.object({ env: z.string() }))
     .query(async ({ input }) => {
       const { env } = input;
       try {
-        const response = await axios.get(`${REFLECTION_API_URL}/envs/${env}/traces`);
+        const response = await axios.get(
+          `${REFLECTION_API_URL}/envs/${env}/traces`
+        );
         if (response.status !== 200) {
           throw new TRPCError({
             code: 'INTERNAL_SERVER_ERROR',
@@ -93,13 +95,15 @@ export const RUNNER_ROUTER = t.router({
       }
     }),
 
-  // Retrieves a trace for a given ID.
-  trace: t.procedure
+  /** Retrieves a trace for a given ID. */
+  getTrace: t.procedure
     .input(z.object({ env: z.string(), traceId: z.string() }))
     .query(async ({ input }) => {
       const { env, traceId } = input;
       try {
-        const response = await axios.get(`${REFLECTION_API_URL}/envs/${env}/traces/${traceId}`);
+        const response = await axios.get(
+          `${REFLECTION_API_URL}/envs/${env}/traces/${traceId}`
+        );
         if (response.status !== 200) {
           throw new TRPCError({
             code: 'INTERNAL_SERVER_ERROR',
@@ -108,7 +112,10 @@ export const RUNNER_ROUTER = t.router({
         }
         return response.data as TraceData;
       } catch (error) {
-        console.error(`Error fetching trace ${traceId} from env ${env}:`, error);
+        console.error(
+          `Error fetching trace ${traceId} from env ${env}:`,
+          error
+        );
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: `Error fetching trace ${traceId} from env ${env}.`,
@@ -116,13 +123,15 @@ export const RUNNER_ROUTER = t.router({
       }
     }),
 
-  // Retrieves all flow runs for a given environment (e.g. dev or prod).
-  flowStates: t.procedure
+  /** Retrieves all flow runs for a given environment (e.g. dev or prod). */
+  listFlowStates: t.procedure
     .input(z.object({ env: z.string() }))
     .query(async ({ input }) => {
       const { env } = input;
       try {
-        const response = await axios.get(`${REFLECTION_API_URL}/envs/${env}/flowStates`);
+        const response = await axios.get(
+          `${REFLECTION_API_URL}/envs/${env}/flowStates`
+        );
         if (response.status !== 200) {
           throw new TRPCError({
             code: 'INTERNAL_SERVER_ERROR',
@@ -139,13 +148,15 @@ export const RUNNER_ROUTER = t.router({
       }
     }),
 
-  // Retrieves a flow run for a given ID.
-  flowState: t.procedure
+  /** Retrieves a flow run for a given ID. */
+  getFlowState: t.procedure
     .input(z.object({ env: z.string(), flowId: z.string() }))
     .query(async ({ input }) => {
       const { env, flowId } = input;
       try {
-        const response = await axios.get(`${REFLECTION_API_URL}/envs/${env}/flowStates/${flowId}`);
+        const response = await axios.get(
+          `${REFLECTION_API_URL}/envs/${env}/flowStates/${flowId}`
+        );
         if (response.status !== 200) {
           throw new TRPCError({
             code: 'INTERNAL_SERVER_ERROR',
@@ -163,4 +174,4 @@ export const RUNNER_ROUTER = t.router({
     }),
 });
 
-export type RunnerRouter = typeof RUNNER_ROUTER;
+export type ToolsServerRouter = typeof TOOLS_SERVER_ROUTER;

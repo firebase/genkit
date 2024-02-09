@@ -1,10 +1,11 @@
-import * as express from 'express';
-import { logger } from '../utils/logger';
-import path = require('path');
-import * as clc from 'colorette';
-import { writeFileSync } from 'fs';
 import * as trpcExpress from '@trpc/server/adapters/express';
-import { uiEndpointsRouter } from './endpoints';
+import * as clc from 'colorette';
+import * as express from 'express';
+import { ErrorRequestHandler } from 'express';
+import { writeFileSync } from 'fs';
+import * as path from 'path';
+import { logger } from '../utils/logger';
+import { TOOLS_SERVER_ROUTER } from './router';
 
 // Static files are copied to the /dist/client directory. This is a litle
 // brittle as __dirname refers directly to this particular file.
@@ -20,27 +21,20 @@ function generateDiscoverabilityFile(headless: boolean, port: number): void {
   const basePath = headless ? UI_DEVELOPMENT_FILES_DIR : UI_STATIC_FILES_DIR;
   writeFileSync(
     path.join(basePath, 'discovery.js'),
-    `(() => window._cli_port_ = ${port})();`,
+    `(() => window._tools_server_port_ = ${port})();`,
   );
 }
 
 /**
- * Starts up the CLI server, including static files for the UI as well as the
- * CLI API.
+ * Starts up the Genkit Tools server which includes static files for the UI and the Tools API.
  */
 export function startServer(headless: boolean, port: number): void {
   generateDiscoverabilityFile(headless, port);
 
   const app = express();
 
-  let startupMessage = `${clc.bold(
-    'GenKit CLI endpoints',
-  )} listening at http://localhost:${port}/api`;
   if (!headless) {
     app.use(express.static(UI_STATIC_FILES_DIR));
-    startupMessage = `${clc.bold(
-      'GenKit UI',
-    )} running at http://localhost:${port}`;
   }
 
   // Endpoints for CLI control
@@ -52,13 +46,30 @@ export function startServer(headless: boolean, port: number): void {
       if (req.method === 'OPTIONS') res.send('');
       else next();
     },
-    trpcExpress.createExpressMiddleware({
-      router: uiEndpointsRouter,
-      createContext: () => ({}),
-    }),
+    trpcExpress.createExpressMiddleware({ router: TOOLS_SERVER_ROUTER })
   );
 
+  const errorHandler: ErrorRequestHandler = (
+    error,
+    request,
+    response,
+    // Poor API doesn't allow leaving off `next` without changing the entire signature...
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    next,
+  ) => {
+    if (error instanceof Error) {
+      logger.error(error.stack);
+    }
+    return response.status(500).send(error);
+  };
+  app.use(errorHandler);
+
   app.listen(port, () => {
-    logger.info(startupMessage);
+    logger.info(`${clc.green(clc.bold(
+      'Genkit Tools API:'
+    ))} http://localhost:${port}/api`);
+    if (!headless) {
+      logger.info(`${clc.green(clc.bold('Genkit Tools UI:'))} http://localhost:${port}`);
+    }
   });
 }
