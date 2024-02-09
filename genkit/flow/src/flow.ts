@@ -1,4 +1,13 @@
-import { ActionMetadata, asyncSleep, getGlobalFlowStateStore, Operation } from '@google-genkit/common';
+import {
+  Action,
+  action,
+  ActionMetadata,
+  asyncSleep,
+  FlowStateSchema,
+  getGlobalFlowStateStore,
+  Operation,
+  OperationSchema,
+} from '@google-genkit/common';
 import { HttpsFunction } from 'firebase-functions/v2/https';
 import { MemoryOption } from 'firebase-functions/v2/options';
 import {
@@ -15,6 +24,8 @@ import {
   RetryConfig,
 } from './types';
 import { generateFlowId } from './utils';
+import * as registry from '@google-genkit/common/registry';
+import zodToJsonSchema from 'zod-to-json-schema';
 
 type TaskQueueWithMetadata<
   I extends z.ZodTypeAny,
@@ -82,7 +93,27 @@ export function flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     outputSchema: fr.output,
   };
   taskQueue.__flow = fr;
+  registry.registerAction('flow', config.name, wrapAsAction(fr));
   return taskQueue;
+}
+
+function wrapAsAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+  fr: FlowRunner<I, O>
+): Action<typeof FlowInvokeEnvelopeMessageSchema, typeof FlowStateSchema> {
+  return action(
+    {
+      name: fr.name,
+      input: FlowInvokeEnvelopeMessageSchema,
+      output: FlowStateSchema,
+      metadata: {
+        inputSchema: zodToJsonSchema(fr.input),
+        outputSchema: zodToJsonSchema(fr.output),
+      }
+    },
+    async (envelope) => {
+      return await fr.run(envelope);
+    }
+  );
 }
 
 function tqWrapper<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(

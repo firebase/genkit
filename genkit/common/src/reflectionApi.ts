@@ -40,6 +40,7 @@ export function startReflectionApi(port?: number | undefined) {
         key,
         name: action.name,
         description: action.description,
+        metadata: action.metadata,
       };
       if (action.inputSchema) {
         convertedActions[key].inputSchema = zodToJsonSchema(action.inputSchema);

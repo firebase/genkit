@@ -10,4 +10,5 @@ export interface ActionMetadata<
   description?: string;
   inputSchema?: I;
   outputSchema?: O;
+  metadata: Record<string, any>;
 }
