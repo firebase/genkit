@@ -32,8 +32,8 @@ export class LocalFileTraceStore implements TraceStore {
     if (!fs.existsSync(filePath)) {
       return undefined;
     }
-    const data = fs.readFileSync(filePath);
-    return TraceDataSchema.parse(data);
+    const data = fs.readFileSync(filePath, "utf8");
+    return TraceDataSchema.parse(JSON.parse(data));
   }
 
   async save(id: string, trace: TraceData): Promise<void> {

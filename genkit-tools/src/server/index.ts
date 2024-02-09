@@ -9,8 +9,11 @@ import { TOOLS_SERVER_ROUTER } from './router';
 
 // Static files are copied to the /dist/client directory. This is a litle
 // brittle as __dirname refers directly to this particular file.
-const UI_STATIC_FILES_DIR = path.resolve(__dirname, '../client/ui/browser');
-const UI_DEVELOPMENT_FILES_DIR = path.resolve(__dirname, '../../ui/src');
+const UI_STATIC_FILES_DIR = path.resolve(
+  __dirname,
+  '../client/ui/browser/assets',
+);
+const UI_DEVELOPMENT_FILES_DIR = path.resolve(__dirname, '../../ui/src/assets');
 const API_BASE_PATH = '/api';
 
 /**
@@ -46,7 +49,7 @@ export function startServer(headless: boolean, port: number): void {
       if (req.method === 'OPTIONS') res.send('');
       else next();
     },
-    trpcExpress.createExpressMiddleware({ router: TOOLS_SERVER_ROUTER })
+    trpcExpress.createExpressMiddleware({ router: TOOLS_SERVER_ROUTER }),
   );
 
   const errorHandler: ErrorRequestHandler = (
@@ -65,11 +68,15 @@ export function startServer(headless: boolean, port: number): void {
   app.use(errorHandler);
 
   app.listen(port, () => {
-    logger.info(`${clc.green(clc.bold(
-      'Genkit Tools API:'
-    ))} http://localhost:${port}/api`);
+    logger.info(
+      `${clc.green(
+        clc.bold('Genkit Tools API:'),
+      )} http://localhost:${port}/api`,
+    );
     if (!headless) {
-      logger.info(`${clc.green(clc.bold('Genkit Tools UI:'))} http://localhost:${port}`);
+      logger.info(
+        `${clc.green(clc.bold('Genkit Tools UI:'))} http://localhost:${port}`,
+      );
     }
   });
 }

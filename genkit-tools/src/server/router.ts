@@ -29,7 +29,7 @@ export const TOOLS_SERVER_ROUTER = t.router({
           message: 'Error fetching actions.',
         });
       }
-    }
+    },
   ),
 
   /** Runs an action. */
@@ -49,7 +49,7 @@ export const TOOLS_SERVER_ROUTER = t.router({
             headers: {
               'Content-Type': 'application/json',
             },
-          }
+          },
         );
         // TODO: Improve the error handling here including invalid arguments from the frontend.
         if (response.status !== 200) {
@@ -77,7 +77,7 @@ export const TOOLS_SERVER_ROUTER = t.router({
       const { env } = input;
       try {
         const response = await axios.get(
-          `${REFLECTION_API_URL}/envs/${env}/traces`
+          `${REFLECTION_API_URL}/envs/${env}/traces`,
         );
         if (response.status !== 200) {
           throw new TRPCError({
@@ -102,7 +102,7 @@ export const TOOLS_SERVER_ROUTER = t.router({
       const { env, traceId } = input;
       try {
         const response = await axios.get(
-          `${REFLECTION_API_URL}/envs/${env}/traces/${traceId}`
+          `${REFLECTION_API_URL}/envs/${env}/traces/${traceId}`,
         );
         if (response.status !== 200) {
           throw new TRPCError({
@@ -114,7 +114,7 @@ export const TOOLS_SERVER_ROUTER = t.router({
       } catch (error) {
         console.error(
           `Error fetching trace ${traceId} from env ${env}:`,
-          error
+          error,
         );
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
@@ -130,7 +130,7 @@ export const TOOLS_SERVER_ROUTER = t.router({
       const { env } = input;
       try {
         const response = await axios.get(
-          `${REFLECTION_API_URL}/envs/${env}/flowStates`
+          `${REFLECTION_API_URL}/envs/${env}/flowStates`,
         );
         if (response.status !== 200) {
           throw new TRPCError({
@@ -155,7 +155,7 @@ export const TOOLS_SERVER_ROUTER = t.router({
       const { env, flowId } = input;
       try {
         const response = await axios.get(
-          `${REFLECTION_API_URL}/envs/${env}/flowStates/${flowId}`
+          `${REFLECTION_API_URL}/envs/${env}/flowStates/${flowId}`,
         );
         if (response.status !== 200) {
           throw new TRPCError({

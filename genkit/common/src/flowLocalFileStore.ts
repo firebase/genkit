@@ -26,12 +26,12 @@ export class LocalFileFlowStateStore implements FlowStateStore {
   }
 
   async load(id: string): Promise<FlowState | undefined> {
-    const filePath = path.resolve(os.tmpdir(), `${id}`);
+    const filePath = path.resolve(this.storeRoot, `${id}`);
     if (!fs.existsSync(filePath)) {
       return undefined;
     }
-    const data = fs.readFileSync(filePath);
-    return FlowStateSchema.parse(data);
+    const data = fs.readFileSync(filePath, "utf8");
+    return FlowStateSchema.parse(JSON.parse(data));
   }
 
   async save(id: string, state: FlowState): Promise<void> {
