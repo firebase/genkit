@@ -19,6 +19,7 @@ export async function startReflectionApi(port?: number | undefined) {
   const api = express();
 
   api.use(express.json());
+  /*
   api.use(
     validator.middleware({
       apiSpec: path.join(__dirname, '../../api/reflectionApi.yaml'),
@@ -27,6 +28,7 @@ export async function startReflectionApi(port?: number | undefined) {
       ignoreUndocumented: true,
     })
   );
+  */
 
   api.get('/api/actions', (_, response) => {
     logging.debug(`Fetching actions.`);
