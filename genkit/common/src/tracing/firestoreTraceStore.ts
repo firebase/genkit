@@ -63,7 +63,11 @@ export class FirestoreTraceStore implements TraceStore {
   }
 
   async list(query?: TraceQuery): Promise<TraceData[]> {
-    const data = await this.db.collection(this.collection).limit(query?.limit || 10).get();
-    return data.docs.map(d => d.data() as TraceData);
+    const data = await this.db
+      .collection(this.collection)
+      .orderBy('startTime', 'desc')
+      .limit(query?.limit || 10)
+      .get();
+    return data.docs.map((d) => d.data() as TraceData);
   }
 }

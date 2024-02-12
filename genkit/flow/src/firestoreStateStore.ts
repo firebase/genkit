@@ -1,6 +1,12 @@
 import { App, initializeApp, getApp, AppOptions } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
-import { FlowState, FlowStateQuery, FlowStateSchema, FlowStateStore, setGlobalFlowStateStore } from '@google-genkit/common';
+import {
+  FlowState,
+  FlowStateQuery,
+  FlowStateSchema,
+  FlowStateStore,
+  setGlobalFlowStateStore,
+} from '@google-genkit/common';
 import logging from '@google-genkit/common/logging';
 
 /**
@@ -70,7 +76,11 @@ export class FirestoreStateStore implements FlowStateStore {
   }
 
   async list(query?: FlowStateQuery): Promise<FlowState[]> {
-    const data = await this.db.collection(this.collection).limit(query?.limit || 10).get();
-    return data.docs.map(d => d.data() as FlowState);
+    const data = await this.db
+      .collection(this.collection)
+      .orderBy('startTime', 'desc')
+      .limit(query?.limit || 10)
+      .get();
+    return data.docs.map((d) => d.data() as FlowState);
   }
 }
