@@ -1,6 +1,7 @@
 import { Action, action } from '@google-genkit/common';
 import { registerAction } from '@google-genkit/common/registry';
 import { z } from 'zod';
+import { Tool } from './types';
 
 export const TextPartSchema = z.object({
   /** The text of the message. */
@@ -186,6 +187,7 @@ export function modelAction<
     customOptionsType?: CustomOptionsSchema;
     /** Descriptive name for this model e.g. 'Google AI - Gemini Pro'. */
     label?: string;
+    tools?: Action<any, any>[];
   },
   runner: (request: GenerationRequest) => Promise<GenerationResponseData>
 ): ModelAction<CustomOptionsSchema> {

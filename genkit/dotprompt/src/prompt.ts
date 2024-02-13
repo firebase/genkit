@@ -1,9 +1,9 @@
 import { readFileSync } from 'fs';
 import { PromptMetadata } from './metadata';
 import { compile } from './template';
-import { GenerationRequest, MessageData } from '@google-genkit/ai/model';
+import { CandidateData, GenerationRequest, MessageData } from '@google-genkit/ai/model';
 import fm from 'front-matter';
-import { generate } from '@google-genkit/ai/generate';
+import { Candidate, generate } from '@google-genkit/ai/generate';
 
 export class PromptFile<Variables = unknown> {
   metadata: PromptMetadata;
@@ -62,7 +62,7 @@ export class PromptFile<Variables = unknown> {
       output: this.metadata.output || {},
       // TODO: tools
       // TODO: candidates
-    };
+    };  
   }
 
   generate(
