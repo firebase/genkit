@@ -49,34 +49,36 @@ export const InstrumentationLibrarySchema = z.object({
   schemaUrl: z.string().optional().readonly(),
 });
 
-export const SpanDataSchema = z.object({
-  spanId: z.string(),
-  traceId: z.string(),
-  parentSpanId: z.string().optional(),
-  startTime: z.number(),
-  endTime: z.number(),
-  attributes: z.record(z.string(), z.unknown()),
-  displayName: z.string(),
-  links: z.array(LinkSchema).optional(),
-  instrumentationLibrary: InstrumentationLibrarySchema,
-  spanKind: z.string(),
-  sameProcessAsParentSpan: z.object({ value: z.boolean() }).optional(),
-  status: SpanStatusSchema.optional(),
-  timeEvents: z
-    .object({
-      timeEvent: z.array(TimeEventSchema),
-    })
-    .optional(),
-}).openapi('SpanData');
+export const SpanDataSchema = z
+  .object({
+    spanId: z.string(),
+    traceId: z.string(),
+    parentSpanId: z.string().optional(),
+    startTime: z.number(),
+    endTime: z.number(),
+    attributes: z.record(z.string(), z.unknown()),
+    displayName: z.string(),
+    links: z.array(LinkSchema).optional(),
+    instrumentationLibrary: InstrumentationLibrarySchema,
+    spanKind: z.string(),
+    sameProcessAsParentSpan: z.object({ value: z.boolean() }).optional(),
+    status: SpanStatusSchema.optional(),
+    timeEvents: z
+      .object({
+        timeEvent: z.array(TimeEventSchema),
+      })
+      .optional(),
+  })
+  .openapi('SpanData');
 
 export type SpanData = z.infer<typeof SpanDataSchema>;
 
 export const NestedSpanDataSchema = SpanDataSchema.extend({
   spans: z.lazy(() => z.array(SpanDataSchema)),
-})
+});
 
 export type NestedSpanData = z.infer<typeof SpanDataSchema> & {
-  spans: SpanData[];
+  spans?: SpanData[];
 };
 
 export const TraceDataSchema = z
