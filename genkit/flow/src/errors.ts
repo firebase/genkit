@@ -22,3 +22,38 @@ export function getErrorStack(e: any): string | undefined {
   }
   return undefined;
 }
+
+/**
+ * Exception thrown when flow is not found in the flow state store.
+ */
+export class FlowNotFoundError extends Error {
+  constructor(msg: string) {
+    super(msg);
+  }
+}
+
+/**
+ * Exception thrown when flow execution is not completed yet.
+ */
+export class FlowStillRunningError extends Error {
+  constructor(readonly flowId: string) {
+    super(
+      `flow ${flowId} is not done execution. Consider using waitForFlowToComplete to wait for ` +
+      'completion before calling getOutput.'
+    );
+  }
+}
+
+/**
+ * Exception thrown when flow execution resulted in an error.
+ */
+export class FlowExecutionError extends Error {
+  constructor(
+    readonly flowId: string,
+    message: string,
+    readonly originalMessage: string,
+    readonly originalStacktrace?: any
+  ) {
+    super(message);
+  }
+}

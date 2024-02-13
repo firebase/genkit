@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "build": "cd functions && npm i && npm run build"
+  },
+  "private": true
+}

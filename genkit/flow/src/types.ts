@@ -1,13 +1,19 @@
 import { z } from 'zod';
-import { FlowRunner } from './runner';
+import { Flow } from './flow';
+import { Operation } from '@google-genkit/common';
 
-export interface WorkflowDispatcher<
+export interface Dispatcher<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny
 > {
-  dispatch(
-    flow: FlowRunner<I, O>,
+  deliver(
+    flow: Flow<I, O>,
     msg: FlowInvokeEnvelopeMessage
+  ): Promise<Operation>;
+  schedule(
+    flow: Flow<I, O>,
+    msg: FlowInvokeEnvelopeMessage,
+    delaySeconds?: number,
   ): Promise<void>;
 }
 
@@ -15,13 +21,32 @@ export interface WorkflowDispatcher<
  * The message format used by the flow task queue and control interface.
  */
 export const FlowInvokeEnvelopeMessageSchema = z.object({
-  input: z.unknown().optional(),
-  flowId: z.string().optional(),
-  resume: z
-    .object({
-      payload: z.unknown(),
-    })
-    .optional(),
+  // Start new flow.
+  start: z.object({
+    input: z.unknown().optional(),
+  }).optional(),
+  // Schedule new flow.
+  schedule: z.object({
+    input: z.unknown().optional(),
+    delay: z.number().optional(),
+  }).optional(),
+  // Run previously scheduled flow.
+  runScheduled: z.object({
+    flowId: z.string(),
+  }).optional(),
+  // Retry failed step (only if step is setup for retry)
+  retry: z.object({
+    flowId: z.string()
+  }).optional(),
+  // Resume an interrupted flow.
+  resume: z.object({
+    flowId: z.string(),
+    payload: z.unknown().optional(),
+  }).optional(),
+  // State check for a given flow ID. No side effects, can be used to check flow state.
+  state: z.object({
+    flowId: z.string(),
+  }).optional(),
 });
 export type FlowInvokeEnvelopeMessage = z.infer<
   typeof FlowInvokeEnvelopeMessageSchema

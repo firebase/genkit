@@ -5,7 +5,7 @@ import * as z from 'zod';
 initializeGenkit();
 
 export const jokeFlow = flow(
-  { name: 'jokeFlow', input: z.string(), output: z.string(), local: true },
+  { name: 'jokeFlow', input: z.string(), output: z.string() },
   async (subject) => {
     const foo = await run('call-llm', async () => {
       return `subject: ${subject}`;

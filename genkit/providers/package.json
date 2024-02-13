@@ -17,6 +17,7 @@
     "@google-genkit/ai": "*",
     "@google-genkit/flow": "*",
     "@google-genkit/common": "*",
+    "@google/generative-ai": "^0.2.0",
     "@pinecone-database/pinecone": "^2.0.1",
     "chromadb": "^1.7.3",
     "compute-cosine-similarity": "^1.1.0",
@@ -59,7 +60,14 @@
       "require": "./lib/cjs/stores.js",
       "import": "./lib/esm/stores.js",
       "default": "./lib/esm/stores.js"
+    },
+    "./firebase-functions": {
+      "types": "./lib/types/firebase-functions.d.ts",
+      "require": "./lib/cjs/firebase-functions.js",
+      "import": "./lib/esm/firebase-functions.js",
+      "default": "./lib/esm/firebase-functions.js"
     }
+
   },
   "typesVersions": {
     "*": {
@@ -77,6 +85,9 @@
       ],
       "stores": [
         "lib/types/stores"
+      ],
+      "firebase-functions": [
+        "lib/types/firebase-functions"
       ]
     }
   }

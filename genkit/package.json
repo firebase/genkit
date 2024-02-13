@@ -9,13 +9,19 @@
     "lint": "eslint --ext .ts .",
     "lint:fix": "eslint --fix --ext .ts .",
     "install-parent-deps": "npm i",
-    "build:all": "npm-run-all build:common build:flow build:ai build:providers build:dotprompt build:samples",
+    "build:all": "npm-run-all build:common build:flow build:ai build:providers build:dotprompt pack:all build:samples",
     "build:common": "cd common && npm install && npm run build",
     "build:flow": "cd flow && npm install && npm run build",
     "build:ai": "cd ai && npm install && npm run build",
     "build:providers": "cd providers && npm install && npm run build",
     "build:dotprompt": "cd dotprompt && npm install && npm run build",
-    "build:samples": "for i in samples/*/; do cd $i && npm install && npm run build && cd ../..; done"
+    "build:samples": "for i in samples/*/; do cd $i && npm install && npm run build && cd ../..; done",
+    "pack:all": "rm -r dist || true && mkdir dist && npm-run-all pack:common pack:flow pack:ai pack:providers zip:dist",
+    "pack:common": "cd common && npm pack --pack-destination ../dist -ws",
+    "pack:flow": "cd flow && npm pack --pack-destination ../dist -ws",
+    "pack:ai": "cd ai && npm pack --pack-destination ../dist -ws",
+    "pack:providers": "cd providers && cp google-cloud-vertexai-0.2.1.tgz ../dist && npm pack --pack-destination ../dist -ws",
+    "zip:dist": "cd dist && zip genkit-dist-0.0.1.zip *.tgz"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.12.0",

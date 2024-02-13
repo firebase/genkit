@@ -1,17 +1,13 @@
-import { generate } from '@google-genkit/ai/generate';
-import { initializeGenkit } from '@google-genkit/common/config';
-import {
-  flow,
-  run,
-  runFlow
-} from '@google-genkit/flow';
+import { generate } from "@google-genkit/ai/generate";
+import { initializeGenkit } from "@google-genkit/common/config";
+import { flow, run, runFlow } from "@google-genkit/flow";
 import { geminiPro, gpt35Turbo } from '@google-genkit/providers/models';
-import * as z from 'zod';
+import * as z from "zod";
 
 initializeGenkit();
 
 export const jokeFlow = flow(
-  { name: 'jokeFlow', input: z.string(), output: z.string(), local: true },
+  { name: "jokeFlow", input: z.string(), output: z.string() },
   async (subject) => {
     return await run('call-llm', async () => {
       const model =
@@ -31,8 +27,8 @@ export const jokeFlow = flow(
 );
 
 async function main() {
-  const operation = await runFlow(jokeFlow, 'banana');
-  console.log('Operation', operation);
+  const operation = await runFlow(jokeFlow, "banana");
+  console.log("Operation", operation);
 }
 
 main();

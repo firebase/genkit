@@ -1,14 +1,14 @@
-import { loadPrompt, promptTemplate } from '@google-genkit/ai';
-import { generate } from '@google-genkit/ai/generate';
-import { initializeGenkit } from '@google-genkit/common/config';
-import { flow, run, runFlow } from '@google-genkit/flow';
-import { geminiPro } from '@google-genkit/providers/models';
-import * as z from 'zod';
+import { loadPrompt, promptTemplate } from "@google-genkit/ai";
+import { generate } from "@google-genkit/ai/generate";
+import { initializeGenkit } from "@google-genkit/common/config";
+import { flow, getFlowState, run, runFlow } from "@google-genkit/flow";
+import { geminiPro } from "@google-genkit/providers/models";
+import * as z from "zod";
 
 initializeGenkit();
 
 export const jokeFlow = flow(
-  { name: 'jokeFlow', input: z.string(), output: z.string(), local: true },
+  { name: "jokeFlow", input: z.string(), output: z.string() },
   async (subject) => {
     const prompt = await promptTemplate({
       template: loadPrompt(__dirname + '/../prompts/TellJoke.prompt'),
@@ -27,8 +27,9 @@ export const jokeFlow = flow(
 );
 
 async function main() {
-  const operation = await runFlow(jokeFlow, 'banana');
-  console.log('Operation', operation);
+  const operation = await runFlow(jokeFlow, "banana");
+  console.log("Operation", operation);
+  console.log("state", await getFlowState(jokeFlow, operation.name));
 }
 
 main();

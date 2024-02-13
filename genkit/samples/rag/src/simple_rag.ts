@@ -45,7 +45,6 @@ export const askQuestionsAboutTomAndJerryFlow = flow(
     name: 'askQuestionsAboutTomAndJerrybobFlow',
     input: z.string(),
     output: z.string(),
-    local: true,
   },
   async (query) => {
     const docs = await retrieve({
@@ -77,7 +76,6 @@ const indexDocumentsFlow = flow(
     name: 'indexTomAndJerryFacts',
     input: z.array(z.string()),
     output: z.void(),
-    local: true,
   },
   async (docs) => {
     const transformedDocs: TextDocument[] = docs.map((text) => {
