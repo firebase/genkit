@@ -1,9 +1,12 @@
 import { startReflectionApi } from './reflectionApi';
-import { Action, ActionMetadata } from './types';
+import { Action } from './types';
+import { TraceStore } from './tracing/types';
+import { FlowStateStore } from './flowTypes';
 import * as z from 'zod';
 
-const __actionRegistry = {};
-const __registry = {};
+const __actionRegistry: Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>> = {};
+const __traceStore: Record<string, TraceStore> = {};
+const __flowStateStore: Record<string, FlowStateStore> = {};
 
 /**
  * Type of a runnable action.
@@ -25,7 +28,7 @@ export function lookupAction<
   O extends z.ZodTypeAny,
   R extends Action<I, O>
 >(key: string): R {
-  return __actionRegistry[key];
+  return __actionRegistry[key] as R;
 }
 
 /**
@@ -53,25 +56,40 @@ export function listActions(): Record<
   return Object.assign({}, __actionRegistry);
 }
 
-// TODO: Remove these once tracing is removed from the registry.
-
 /**
- *
+ * Registers a trace store for the given environment.
  */
-export function register(key: string, subject: any) {
-  __registry[key] = subject;
+export function registerTraceStore(env: string, traceStore: TraceStore) {
+  __traceStore[env] = traceStore;
 }
 
 /**
- *
+ * Looks up the trace store for the given environment.
  */
-export function lookup(key: string): any {
-  return __registry[key];
+export function lookupTraceStore(env: string): TraceStore {
+  return __traceStore[env];
+}
+
+/**
+ * Registers a flow state store for the given environment.
+ */
+export function registerFlowStateStore(
+  env: string,
+  flowStateStore: FlowStateStore
+) {
+  __flowStateStore[env] = flowStateStore;
+}
+
+/**
+ * Looks up the flow state store for the given environment.
+ */
+export function lookupFlowStateStore(env: string): FlowStateStore {
+  return __flowStateStore[env];
 }
 
 /**
  * Development mode only. Starts a Reflection API so that the actions can be called by the Runner.
  */
-if (process.env.GENKIT_START_REFLECTION_API) {
+if (process.env.GENKIT_ENV === 'dev') {
   startReflectionApi();
 }

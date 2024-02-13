@@ -100,7 +100,7 @@ export class Runner {
     this.appProcess = spawn('node', [entryPoint], {
       env: {
         ...process.env,
-        GENKIT_START_REFLECTION_API: 'true',
+        GENKIT_ENV: 'dev',
         GENKIT_REFLECTION_PORT: process.env.GENKIT_REFLECTION_PORT || '3100',
       },
     });

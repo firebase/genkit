@@ -5,23 +5,8 @@ import {
   FlowStateQuery,
   FlowStateSchema,
   FlowStateStore,
-  setGlobalFlowStateStore,
 } from '@google-genkit/common';
 import logging from '@google-genkit/common/logging';
-
-/**
- * Configures default state store to use {@link FirestoreStateStore}.
- */
-export function useFirestoreStateStore(
-  params: {
-    app?: App;
-    collection?: string;
-    databaseId?: string;
-    projectId?: string;
-  } = {}
-) {
-  setGlobalFlowStateStore(new FirestoreStateStore(params));
-}
 
 /**
  * Implementation of flow state store that persistes flow state in Firestore.

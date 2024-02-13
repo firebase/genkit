@@ -4,17 +4,18 @@ import {
   ActionMetadata,
   asyncSleep,
   FlowStateSchema,
-  getGlobalFlowStateStore,
   Operation,
-  OperationSchema,
 } from '@google-genkit/common';
+import * as registry from '@google-genkit/common/registry';
+import { config as globalConfig } from '@google-genkit/common/config';
 import { HttpsFunction } from 'firebase-functions/v2/https';
 import { MemoryOption } from 'firebase-functions/v2/options';
 import {
-  Request as TaskRequest,
   onTaskDispatched,
+  Request as TaskRequest,
 } from 'firebase-functions/v2/tasks';
 import * as z from 'zod';
+import zodToJsonSchema from 'zod-to-json-schema';
 import { dispatchCloudTask } from './cloudTaskDispatcher';
 import { createControlAPI } from './controlApi';
 import { FlowRunner } from './runner';
@@ -24,8 +25,6 @@ import {
   RetryConfig,
 } from './types';
 import { generateFlowId } from './utils';
-import * as registry from '@google-genkit/common/registry';
-import zodToJsonSchema from 'zod-to-json-schema';
 
 type TaskQueueWithMetadata<
   I extends z.ZodTypeAny,
@@ -63,7 +62,7 @@ export function flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   },
   steps: (input: z.infer<I>) => Promise<z.infer<O>>
 ): ConfiguredFlow<I, O> {
-  const stateStore = getGlobalFlowStateStore();
+  const stateStore = globalConfig.getFlowStateStore();
   const fr = new FlowRunner<I, O>({
     name: config.name,
     input: config.input,
@@ -108,7 +107,7 @@ function wrapAsAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       metadata: {
         inputSchema: zodToJsonSchema(fr.input),
         outputSchema: zodToJsonSchema(fr.output),
-      }
+      },
     },
     async (envelope) => {
       return await fr.run(envelope);

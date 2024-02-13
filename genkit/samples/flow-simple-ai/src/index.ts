@@ -8,7 +8,7 @@ import {
 import { geminiPro, gpt35Turbo } from '@google-genkit/providers/models';
 import * as z from 'zod';
 
-initializeGenkit()
+initializeGenkit();
 
 export const jokeFlow = flow(
   { name: 'jokeFlow', input: z.string(), output: z.string(), local: true },

@@ -1,119 +1,206 @@
 import fs from 'fs';
 import path from 'path';
+import { FlowStateStore } from './flowTypes';
+import { LocalFileFlowStateStore } from './localFileFlowStateStore';
 import logging, { setLogLevel } from './logging';
-import * as registry from './registry';
-import {
-  TraceStore,
-  enableTracingAndMetrics, getGlobalTraceStore, setGlobalTraceStore, useDevTraceStore,
-} from './tracing';
-import { Action } from './types';
 import { Plugin } from './plugin';
-import { FlowStateStore, getGlobalFlowStateStore, setGlobalFlowStateStore } from './flowTypes';
-import { useDevFlowStateStore } from './flowLocalFileStore';
+import * as registry from './registry';
+import { TraceStore, enableTracingAndMetrics } from './tracing';
+import { LocalFileTraceStore } from './tracing/localFileTraceStore';
 
-export * from "./plugin"
+export * from './plugin';
 
-let configured = false;
 export let config: Config;
-
-export type Environment = 'dev' | 'prod';
-
-// TODO: temporary! make this nice
-interface Config {
-  plugins?: Plugin[],
-  tracestore?: string;
-  flowstore?: string;
+export interface ConfigOptions {
+  plugins?: Plugin[];
+  traceStore?: string;
+  flowStateStore?: string;
   enableTracingAndMetrics?: boolean;
   logLevel?: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
 }
 
-export function genkitConfig(cfg: Config) {
-  config = cfg;
-  return config;
+class Config {
+  /** Developer-configured options. */
+  readonly options: ConfigOptions;
+  readonly configuredEnvs = new Set<string>(['dev']);
+
+  constructor(options: ConfigOptions) {
+    this.options = options;
+    this.configure();
+  }
+
+  /**
+   * Returns a flow state store instance for the running environment.
+   * If no store is configured, this will warn and default to `dev`.
+   */
+  public getFlowStateStore(): FlowStateStore {
+    const env = getCurrentEnv();
+    let flowStateStore = registry.lookupFlowStateStore(env);
+    if (!flowStateStore && env !== 'dev') {
+      flowStateStore = registry.lookupFlowStateStore('dev');
+      logging.warn(
+        `No flow state store configured for \`${env}\` environment. Defaulting to \`dev\` store.`
+      );
+    }
+    return flowStateStore;
+  }
+
+  /**
+   * Returns a trace store instance for the running environment.
+   * If no store is configured, this will warn and default to `dev`.
+   */
+  public getTraceStore(): TraceStore {
+    const env = getCurrentEnv();
+    let traceStore = registry.lookupTraceStore(env);
+    if (!traceStore && env !== 'dev') {
+      traceStore = registry.lookupTraceStore('dev');
+      logging.warn(
+        `No trace store configured for \`${env}\` environment. Defaulting to \`dev\` store.`
+      );
+    }
+    return traceStore;
+  }
+
+  /**
+   * Configures the system.
+   */
+  private configure() {
+    this.options.plugins?.forEach((plugin) => {
+      logging.debug(`Registering plugin ${plugin.name}...`);
+      plugin.provides?.models?.forEach((model) => {
+        logging.debug(`  - Model: ${model.__action.name}`);
+        registry.registerAction('model', model.__action.name, model);
+      });
+      plugin.provides?.embedders?.forEach((embedder) => {
+        logging.debug(`  - Embedder: ${embedder.__action.name}`);
+        registry.registerAction('embedder', embedder.__action.name, embedder);
+      });
+      plugin.provides?.retrievers?.forEach((retriever) => {
+        logging.debug(`  - Retriever: ${retriever.__action.name}`);
+        registry.registerAction(
+          'retriever',
+          retriever.__action.name,
+          retriever
+        );
+      });
+      plugin.provides?.indexers?.forEach((indexer) => {
+        logging.debug(`  - Indexer: ${indexer.__action.name}`);
+        registry.registerAction('indexer', indexer.__action.name, indexer);
+      });
+    });
+
+    logging.debug('Registering flow state stores...');
+    registry.registerFlowStateStore('dev', new LocalFileFlowStateStore());
+    if (this.options.flowStateStore) {
+      logging.debug(`  - prod: ${this.options.flowStateStore}`);
+      this.configuredEnvs.add('prod');
+      registry.registerFlowStateStore(
+        'prod',
+        this.resolveFlowStateStore(this.options.flowStateStore)
+      );
+    } else {
+      logging.warn(
+        '`flowStateStore` is not specified in the config; defaulting to dev store.'
+      );
+    }
+
+    logging.debug('Registering trace stores...');
+    registry.registerTraceStore('dev', new LocalFileTraceStore());
+    if (this.options.traceStore) {
+      logging.debug(`  - prod: ${this.options.traceStore}`);
+      this.configuredEnvs.add('prod');
+      registry.registerTraceStore(
+        'prod',
+        this.resolveTraceStore(this.options.traceStore)
+      );
+    } else {
+      logging.warn(
+        '`traceStore` is not specified in the config; defaulting to dev store.'
+      );
+    }
+
+    if (this.options.logLevel) {
+      setLogLevel(this.options.logLevel);
+    }
+  }
+
+  /**
+   * Resolves flow state store provided by the specified plugin.
+   */
+  private resolveFlowStateStore(pluginName: string): FlowStateStore {
+    const plugin = this.options.plugins?.find((p) => p.name === pluginName);
+    if (!plugin) {
+      throw new Error('Unable to resolve plugin name: ' + pluginName);
+    }
+    const provider = plugin.provides.flowStateStore;
+    if (!provider) {
+      throw new Error(
+        'Unable to resolve provided `flowStateStore` for plugin: ' + pluginName
+      );
+    }
+    return provider.value;
+  }
+
+  /**
+   * Resolves trace store provided by the specified plugin.
+   */
+  private resolveTraceStore(pluginName: string): TraceStore {
+    const plugin = this.options.plugins?.find((p) => p.name === pluginName);
+    if (!plugin) {
+      throw new Error('Unable to resolve plugin name: ' + pluginName);
+    }
+    const provider = plugin.provides.traceStore;
+    if (!provider) {
+      throw new Error(
+        'Unable to resolve provided `traceStore` for plugin: ' + pluginName
+      );
+    }
+    return provider.value;
+  }
 }
 
 /**
- * Locates `genkit.conf.js` and configures genkit using the config.
+ * Configures Genkit with a set of options. This should be called from `genkit.config.js`.
+ */
+export function configureGenkit(options: ConfigOptions) {
+  config = new Config(options);
+  if (options.enableTracingAndMetrics) {
+    enableTracingAndMetrics();
+  }
+}
+
+/**
+ * Locates `genkit.conf.js` and loads the file so that the config can be registered.
  */
 export function initializeGenkit() {
-  if (configured) {
+  // Already initialized.
+  if (config) {
     return;
   }
   const configPath = findGenkitConfig();
   if (!configPath) {
-    logging.warn(
+    throw Error(
       'Unable to find genkit.conf.js in any of the parent directories.'
     );
-    return;
   }
-  const config = require(configPath).default as Config;
-  config.plugins?.forEach(plugin => {
-    if (plugin.provides?.flowStateStore) {
-      logging.debug(`configuring plugin: ${plugin.name}, flowStateStore: ${plugin.provides.flowStateStore.id}`)
-      registry.register(`/flowStateStore/${plugin.provides.flowStateStore.id}`, plugin.provides.flowStateStore.value);
-    }
-    if (plugin.provides?.traceStore) {
-      logging.debug(`configuring plugin: ${plugin.name}, traceStore: ${plugin.provides.traceStore.id}`)
-      registry.register(`/traceStore/${plugin.provides.traceStore.id}`, plugin.provides.traceStore.value);
-    }
-    plugin.provides?.models?.forEach(model => {
-      logging.debug(`configuring plugin: ${plugin.name}, model: ${model.__action.name}`)
-      registry.registerAction('model', model.__action.name, model)
-    })
-    plugin.provides?.embedders?.forEach(embedder => {
-      logging.debug(`configuring plugin: ${plugin.name}, embedder: ${embedder.__action.name}`)
-      registry.registerAction('embedder', embedder.__action.name, embedder)
-    })
-    plugin.provides?.retrievers?.forEach(retriever => {
-      logging.debug(`configuring plugin: ${plugin.name}, retriever: ${retriever.__action.name}`)
-      registry.registerAction('retriever', retriever.__action.name, retriever)
-    })
-    plugin.provides?.indexers?.forEach(indexer => {
-      logging.debug(`configuring plugin: ${plugin.name}, indexer: ${indexer.__action.name}`)
-      registry.registerAction('indexer', indexer.__action.name, indexer)
-    })
-  })
-  if (!config.flowstore) {
-    logging.warn("flowstore is not specified in the config file, using dev store.")
-  }
-  if (!config.tracestore) {
-    logging.warn("tracestore is not specified in the config file, using dev store.")
-  }
-  if (isDevMode()) {
-    // In dev mode we always use dev stores!
-    useDevFlowStateStore();
-    useDevTraceStore();
-  } else {
-    if (config.flowstore) {
-      setGlobalFlowStateStore(lookupConfguredFlowStateStore(config.flowstore))
-    } else {
-      // if no prod store configured we default to dev. Logging warning above.
-      useDevFlowStateStore();
-    }
-    if (config.tracestore) {
-      setGlobalTraceStore(lookupConfiguredTraceStore(config.tracestore))
-    } else {
-      // if no prod store configured we default to dev. Logging warning above.
-      useDevTraceStore();
-    }
-  }
-  if (config.enableTracingAndMetrics) {
-    enableTracingAndMetrics();
-  }
-  if (config.logLevel) {
-    setLogLevel(config.logLevel);
-  }
-  configured = true;
+  // Loading the config file will automatically register the config.
+  require(configPath);
 }
 
-function isDevMode() {
-  return !!process.env.GENKIT_START_REFLECTION_API;
+/**
+ * @returns The current environment that the app code is running in.
+ */
+export function getCurrentEnv(): string {
+  return process.env.GENKIT_ENV || 'prod';
 }
 
+/**
+ * Locates `genkit.conf.js` and returns the path.
+ */
 function findGenkitConfig() {
   let current = require?.main?.filename;
   if (!current) {
-    throw new Error('Unable to resolve package root');
+    throw new Error('Unable to resolve package root.');
   }
   while (path.resolve(current, '..') !== current) {
     if (fs.existsSync(path.resolve(current, 'genkit.conf.js'))) {
@@ -122,80 +209,4 @@ function findGenkitConfig() {
     current = path.resolve(current, '..');
   }
   return undefined;
-}
-
-/**
- * Looks up configured flow state store provided by the specified plugin.
- */
-function lookupConfguredFlowStateStore(pluginName: string): FlowStateStore {
-  const plugin = config.plugins?.find(p => p.name === pluginName);
-  if (!plugin) {
-    throw new Error("Unable to resolve plugin name: " + pluginName);
-  }
-  const provider = plugin.provides.flowStateStore;
-  if (!provider) {
-    throw new Error("Unable to resolve provider `flowStateStore` for plugin: " + pluginName);
-  }
-  const flowStateStore = registry.lookup(`/flowStateStore/${provider.id}`)
-  if (!flowStateStore) {
-    throw new Error("Unable to resolve flowStateStore for plugin: " + pluginName);
-  }
-  return flowStateStore as FlowStateStore;
-}
-
-/**
- * Looks up configured trace store provided by the specified plugin.
- */
-function lookupConfiguredTraceStore(pluginName: string): TraceStore {
-  const plugin = config.plugins?.find(p => p.name === pluginName);
-  if (!plugin) {
-    throw new Error("Unable to resolve plugin name: " + pluginName);
-  }
-  const provider = plugin.provides.traceStore;
-  if (!provider) {
-    throw new Error("Unable to resolve provider `traceStore` for plugin: " + pluginName);
-  }
-  const tracestore = registry.lookup(`/traceStore/${provider.id}`)
-  if (!tracestore) {
-    throw new Error("Unable to resolve tracestore for plugin: " + pluginName);
-  }
-  return tracestore as TraceStore;
-}
-
-let prodFlowStateStore: FlowStateStore;
-
-/**
- * Returns a flow state store instance for the provided environment. In 'dev' it's assumed to be
- * local file store, and in prod it looks up what is set in the config.
- */
-export function getFlowStateStore(env: Environment): FlowStateStore {
-  if (env === 'dev' || !config.flowstore) {
-    // This assumes that the dev UI will only run in dev env, so global store must be dev.
-    return getGlobalFlowStateStore()
-  }
-  if (prodFlowStateStore) {
-    return prodFlowStateStore;
-  }
-  const pluginName = config.flowstore;
-  prodFlowStateStore = lookupConfguredFlowStateStore(pluginName);
-  return prodFlowStateStore ;
-}
-
-let prodTracestore: TraceStore;
-
-/**
- * Returns a trace store instance for the provided environment. In 'dev' it's assumed to be
- * local file store, and in prod it looks up what is set in the config.
- */
-export function getTraceStore(env: Environment): TraceStore {
-  if (env === 'dev' || !config.tracestore) {
-    // This assumes that the dev UI will only run in dev env, so global store must be dev.
-    return getGlobalTraceStore()
-  }
-  if (prodTracestore) {
-    return prodTracestore;
-  }
-  const pluginName = config.tracestore;
-  prodTracestore = lookupConfiguredTraceStore(pluginName);
-  return prodTracestore;
 }

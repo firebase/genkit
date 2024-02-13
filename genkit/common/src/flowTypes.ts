@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { config } from "./config";
-import * as registry from "./registry";
+import { config } from './config';
+import * as registry from './registry';
 
 // NOTE: Keep this file in sync with genkit-tools/src/types/flow.ts!
 // Eventually tools will be source of truth for these types (by generating a
@@ -24,6 +24,7 @@ export const FlowStateExecutionSchema = z.object({
   endTime: z.number().optional(),
   traceIds: z.array(z.string()),
 });
+
 export type FlowStateExecution = z.infer<typeof FlowStateExecutionSchema>;
 
 export const FlowResponseSchema = z.object({
@@ -34,6 +35,7 @@ export const FlowErrorSchema = z.object({
   error: z.string().optional(),
   stacktrace: z.string().optional(),
 });
+
 export type FlowError = z.infer<typeof FlowErrorSchema>;
 
 export const FlowResultSchema = FlowResponseSchema.and(FlowErrorSchema);
@@ -47,14 +49,14 @@ export const OperationSchema = z.object({
     .string()
     .describe(
       'server-assigned name, which is only unique within the same service that originally ' +
-      'returns it.'
+        'returns it.'
     ),
   metadata: z
     .any()
     .optional()
     .describe(
       'Service-specific metadata associated with the operation. It typically contains progress ' +
-      'information and common metadata such as create time.'
+        'information and common metadata such as create time.'
     ),
   done: z
     .boolean()
@@ -62,13 +64,12 @@ export const OperationSchema = z.object({
     .default(false)
     .describe(
       'If the value is false, it means the operation is still in progress. If true, the ' +
-      'operation is completed, and either error or response is available.'
+        'operation is completed, and either error or response is available.'
     ),
   result: FlowResultSchema.optional(),
 });
 
 export type Operation = z.infer<typeof OperationSchema>;
-
 
 /**
  * Defines the format for flow state. This is the format used for persisting the state in
@@ -97,17 +98,5 @@ export const FlowStateSchema = z.object({
   traceContext: z.string().optional(),
   executions: z.array(FlowStateExecutionSchema),
 });
+
 export type FlowState = z.infer<typeof FlowStateSchema>;
-
-let flowStateStore: FlowStateStore;
-
-export function setGlobalFlowStateStore(store: FlowStateStore) {
-  flowStateStore = store;
-}
-
-export function getGlobalFlowStateStore(): FlowStateStore {
-  if (!flowStateStore) {
-    throw new Error("setGlobalFlowStateStore has not been called, yet")
-  }
-  return flowStateStore;
-}

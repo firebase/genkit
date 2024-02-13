@@ -1,27 +1,21 @@
 export {
-  flow,
-  waitForFlowToComplete,
-  runFlow,
-  resumeFlow,
-  startFlowAsync,
-  ConfiguredFlow,
-  getFlowOutput,
-  getFlowState,
-} from './flow.js';
-export { run, runAction, interrupt, sleep, waitFor } from './steps.js';
-export {
   FlowState,
-  FlowStateStore,
   FlowStateExecutionSchema,
+  FlowStateStore,
   Operation,
   OperationSchema,
 } from '@google-genkit/common';
+export { FirestoreStateStore } from './firestoreStateStore.js';
 export {
-  FirestoreStateStore,
-  useFirestoreStateStore,
-} from './firestoreStateStore.js';
-export {
-  InMemoryFlowStateStore,
-  useInMemoryStateStore,
-} from './inMemoryStore.js';
+  ConfiguredFlow,
+  flow,
+  getFlowOutput,
+  getFlowState,
+  resumeFlow,
+  runFlow,
+  startFlowAsync,
+  waitForFlowToComplete,
+} from './flow.js';
+export { InMemoryFlowStateStore } from './inMemoryStore.js';
 export { FlowRunner } from './runner.js';
+export { interrupt, run, runAction, sleep, waitFor } from './steps.js';

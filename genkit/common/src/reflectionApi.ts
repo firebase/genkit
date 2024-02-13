@@ -2,7 +2,7 @@ import express from 'express';
 import * as validator from 'express-openapi-validator';
 import * as path from 'path';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { getFlowStateStore, getTraceStore, initializeGenkit, Environment } from './config';
+import { config, initializeGenkit } from './config';
 import logging from './logging';
 import * as registry from './registry';
 
@@ -14,7 +14,7 @@ export async function startReflectionApi(port?: number | undefined) {
   if (!port) {
     port = Number(process.env.GENKIT_REFLECTION_PORT) || 3100;
   }
-  initializeGenkit()
+  initializeGenkit();
 
   const api = express();
 
@@ -31,7 +31,7 @@ export async function startReflectionApi(port?: number | undefined) {
   */
 
   api.get('/api/actions', (_, response) => {
-    logging.debug(`Fetching actions.`);
+    logging.debug('Fetching actions.');
     const actions = registry.listActions();
     const convertedActions = {};
     Object.keys(actions).forEach((key) => {
@@ -46,7 +46,9 @@ export async function startReflectionApi(port?: number | undefined) {
         convertedActions[key].inputSchema = zodToJsonSchema(action.inputSchema);
       }
       if (action.outputSchema) {
-        convertedActions[key].outputSchema = zodToJsonSchema(action.outputSchema);
+        convertedActions[key].outputSchema = zodToJsonSchema(
+          action.outputSchema
+        );
       }
     });
     response.send(convertedActions);
@@ -65,31 +67,35 @@ export async function startReflectionApi(port?: number | undefined) {
     }
   });
 
+  api.get('/api/envs', async (_, response) => {
+    response.json(config.configuredEnvs);
+  });
+
   api.get('/api/envs/:env/traces/:traceId', async (request, response) => {
-    const { env, traceId } = request.params
-    logging.debug(`Fetching trace \`${traceId}\` for env \`${env}\`.`)
-    const tracestore = getTraceStore(env as Environment);
+    const { env, traceId } = request.params;
+    logging.debug(`Fetching trace \`${traceId}\` for env \`${env}\`.`);
+    const tracestore = registry.lookupTraceStore(env);
     response.json(await tracestore.load(traceId));
   });
 
   api.get('/api/envs/:env/traces', async (request, response) => {
-    const { env } = request.params
-    logging.debug(`Fetching traces for env \`${env}\`.`)
-    const tracestore = getTraceStore(env as Environment);
+    const { env } = request.params;
+    logging.debug(`Fetching traces for env \`${env}\`.`);
+    const tracestore = registry.lookupTraceStore(env);
     response.json(await tracestore.list());
   });
 
   api.get('/api/envs/:env/flowStates/:flowId', async (request, response) => {
-    const { env, flowId } = request.params
-    logging.debug(`Fetching flow state \`${flowId}\` for env \`${env}\`.`)
-    const flowStateStore = getFlowStateStore(env as Environment);
+    const { env, flowId } = request.params;
+    logging.debug(`Fetching flow state \`${flowId}\` for env \`${env}\`.`);
+    const flowStateStore = registry.lookupFlowStateStore(env);
     response.json(await flowStateStore.load(flowId));
   });
 
   api.get('/api/envs/:env/flowStates', async (request, response) => {
-    const { env } = request.params
-    logging.debug(`Fetching traces for env \`${env}\`.`)
-    const flowStateStore = getFlowStateStore(env as Environment);
+    const { env } = request.params;
+    logging.debug(`Fetching traces for env \`${env}\`.`);
+    const flowStateStore = registry.lookupFlowStateStore(env);
     response.json(await flowStateStore.list());
   });
 

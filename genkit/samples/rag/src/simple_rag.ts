@@ -1,26 +1,19 @@
-import * as z from 'zod';
-import { flow, runFlow, useFirestoreStateStore } from '@google-genkit/flow';
+import { prompt, promptTemplate } from '@google-genkit/ai';
 import {
-  retrieve,
   index,
+  retrieve,
   type TextDocument,
 } from '@google-genkit/ai/retrievers';
-import { configurePinecone } from '@google-genkit/providers/vectorstores';
-import {
-  enableTracingAndMetrics,
-  useFirestoreTraceStore,
-} from '@google-genkit/common/tracing';
-import { configureVertexTextEmbedder } from '@google-genkit/providers/embedders';
-import { getProjectId } from '@google-genkit/common';
-import { configureVertexAiTextModel } from '@google-genkit/providers/llms';
-import { prompt, promptTemplate } from '@google-genkit/ai';
 import { generateText } from '@google-genkit/ai/text';
+import { getProjectId } from '@google-genkit/common';
+import { initializeGenkit } from '@google-genkit/common/config';
+import { flow, runFlow } from '@google-genkit/flow';
+import { configureVertexTextEmbedder } from '@google-genkit/providers/embedders';
+import { configureVertexAiTextModel } from '@google-genkit/providers/llms';
+import { configurePinecone } from '@google-genkit/providers/vectorstores';
+import * as z from 'zod';
 
-// Setup GenKit for using providers and observability
-useFirestoreStateStore({ projectId: getProjectId() });
-useFirestoreTraceStore({ projectId: getProjectId() });
-
-enableTracingAndMetrics();
+initializeGenkit();
 
 // Setup the models, embedders and "vector store"
 const gemini = configureVertexAiTextModel({ modelName: 'gemini-pro' });

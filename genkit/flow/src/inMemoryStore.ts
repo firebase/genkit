@@ -1,4 +1,9 @@
-import { FlowState, FlowStateQuery, FlowStateSchema, FlowStateStore, setGlobalFlowStateStore } from '@google-genkit/common';
+import {
+  FlowState,
+  FlowStateQuery,
+  FlowStateSchema,
+  FlowStateStore,
+} from '@google-genkit/common';
 
 /**
  * Not very useful in pactice in-memory flow state store.
@@ -19,15 +24,8 @@ export class InMemoryFlowStateStore implements FlowStateStore {
   }
 
   async list(query?: FlowStateQuery | undefined): Promise<FlowState[]> {
-    return Object.values(this.state).map(s => JSON.parse(s) as FlowState);
+    return Object.values(this.state).map((s) => JSON.parse(s) as FlowState);
   }
 }
 
 export const inMemoryFlowStateStore = new InMemoryFlowStateStore();
-
-/**
- * Sets the global default state store to in-memory store.
- */
-export function useInMemoryStateStore() {
-  setGlobalFlowStateStore(inMemoryFlowStateStore);
-}

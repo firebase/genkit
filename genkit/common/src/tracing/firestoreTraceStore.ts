@@ -1,22 +1,10 @@
-import { App, AppOptions, getApp, initializeApp } from "firebase-admin/app";
-import { Firestore, getFirestore } from "firebase-admin/firestore";
-import { setGlobalTraceStore } from "../tracing";
-import { TraceData, TraceDataSchema, TraceQuery, TraceStore } from "./types";
+import { App, AppOptions, getApp, initializeApp } from 'firebase-admin/app';
+import { Firestore, getFirestore } from 'firebase-admin/firestore';
+import { TraceData, TraceDataSchema, TraceQuery, TraceStore } from './types';
 
 /**
- *
+ * Firestore implementation of a trace store.
  */
-export function useFirestoreTraceStore(
-  params: {
-    app?: App;
-    collection?: string;
-    databaseId?: string;
-    projectId?: string;
-  } = {}
-) {
-  setGlobalTraceStore(new FirestoreTraceStore(params));
-}
-
 export class FirestoreTraceStore implements TraceStore {
   readonly db: Firestore;
   readonly app: App;
@@ -32,8 +20,8 @@ export class FirestoreTraceStore implements TraceStore {
     } = {}
   ) {
     let app = params.app;
-    this.collection = params.collection || "ai-traces-test";
-    this.databaseId = params.databaseId || "(default)";
+    this.collection = params.collection || 'ai-traces-test';
+    this.databaseId = params.databaseId || '(default)';
     if (!app) {
       try {
         app = getApp();
@@ -49,13 +37,18 @@ export class FirestoreTraceStore implements TraceStore {
     this.db = getFirestore(this.app, this.databaseId);
   }
 
-  async save(traceId, traceData: TraceData): Promise<void> {
+  async save(traceId: string, traceData: TraceData): Promise<void> {
     console.debug(`saving ${Object.keys(traceData.spans).length} spans`);
-    await this.db.collection(this.collection).doc(traceId).set(traceData, { merge: true });
+    await this.db
+      .collection(this.collection)
+      .doc(traceId)
+      .set(traceData, { merge: true });
   }
 
   async load(traceId: string): Promise<TraceData | undefined> {
-    const data = (await this.db.collection(this.collection).doc(traceId).get()).data();
+    const data = (
+      await this.db.collection(this.collection).doc(traceId).get()
+    ).data();
     if (!data) {
       return undefined;
     }
