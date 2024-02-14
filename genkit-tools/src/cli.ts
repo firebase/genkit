@@ -3,6 +3,7 @@ import { example } from './commands/example';
 import { start } from './commands/start';
 import { logger } from './utils/logger';
 import * as clc from 'colorette';
+import { getPluginCommands } from './commands/plugins';
 
 /**
  * All commands need to be directly registered in this list.
@@ -13,10 +14,11 @@ import * as clc from 'colorette';
 const commands: Command[] = [example, start];
 
 /** Main entry point for CLI. */
-export function startCLI(): void {
+export async function startCLI(): Promise<void> {
   program.name('genkit').description('Google GenKit CLI').version('0.0.1');
 
   for (const command of commands) program.addCommand(command);
+  for (const command of await getPluginCommands()) program.addCommand(command);
 
   // Default action to catch unknown commands.
   program.action((_, { args }: { args: string[] }) => {

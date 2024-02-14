@@ -4,4 +4,4 @@
 
 import { startCLI } from '../cli';
 
-startCLI();
+void startCLI();

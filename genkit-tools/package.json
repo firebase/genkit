@@ -5,16 +5,21 @@
   "bin": {
     "genkit": "dist/bin/genkit.js"
   },
+  "workspaces": [
+    "./*"
+  ],
   "main": "dist/index.js",
   "scripts": {
-    "build": "(npm run build:cli) && (npm run build:ui) && (npm run copy-ui-build)",
+    "build": "(npm run build:common) && (npm run build:cli) && (npm run build:ui) && (npm run copy-ui-build)",
     "build:cli": "tsc",
     "build:ui": "cd ui && npm run build",
+    "build:common": "cd common && npm run build",
     "copy-ui-build": "rm -rf dist/client && cd ui && cp -r dist ../dist/client",
     "lint": "eslint --config .eslintrc.js --ext .ts,.js .",
     "lint:fix": "npm run lint -- --fix --quiet",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "preinstall": "cd ui && npm install"
+    "preinstall": "(npm install --ignore-scripts -C ./ui); (npm install --ignore-scripts -C ./common)",
+    "postinstall": "npm run build:common"
   },
   "author": "Firebase (https://firebase.google.com)",
   "license": "MIT",
@@ -34,7 +39,8 @@
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^6.3.1",
-    "@trpc/server": "^10.45.0",
+    "@google-genkit-tools/common": "*",
+    "@trpc/server": "10.45.0",
     "axios": "^1.6.7",
     "chokidar": "^3.5.3",
     "colorette": "^2.0.20",
