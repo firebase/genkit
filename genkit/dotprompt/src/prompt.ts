@@ -1,9 +1,9 @@
 import { readFileSync } from 'fs';
-import { PromptMetadata } from './metadata';
-import { compile } from './template';
-import { CandidateData, GenerationRequest, MessageData } from '@google-genkit/ai/model';
+import { PromptMetadata } from './metadata.js';
+import { compile } from './template.js';
+import { GenerationRequest, MessageData } from '@google-genkit/ai/model';
 import fm from 'front-matter';
-import { Candidate, generate } from '@google-genkit/ai/generate';
+import { GenerationResponse, generate } from '@google-genkit/ai/generate';
 
 export class PromptFile<Variables = unknown> {
   metadata: PromptMetadata;
@@ -16,7 +16,7 @@ export class PromptFile<Variables = unknown> {
   ) => MessageData[];
 
   static parse(source: string) {
-    const fmResult = fm(source);
+    const fmResult = (fm as any)(source);
     return new PromptFile(fmResult.body, fmResult.attributes as PromptMetadata);
   }
 
@@ -62,13 +62,13 @@ export class PromptFile<Variables = unknown> {
       output: this.metadata.output || {},
       // TODO: tools
       // TODO: candidates
-    };  
+    };
   }
 
   generate(
     variables: Variables,
     options?: { candidates?: number; variant?: string }
-  ) {
+  ): Promise<GenerationResponse> {
     const { variant, ...opts } = options || {};
     if (variant && !this.variants[variant]) {
       throw new Error(`Variant '${variant}' not found.`);

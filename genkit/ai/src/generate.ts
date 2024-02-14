@@ -105,8 +105,10 @@ function toGenerateRequest(prompt: ModelPrompt): GenerationRequest {
     promptMessage.content.push(prompt.prompt);
   }
 
-  if (prompt.output?.schema) {
-    const outputSchema = zodToJsonSchema(prompt.output.schema);
+  if (prompt.output?.schema || prompt.output?.jsonSchema) {
+    const outputSchema = prompt.output.schema
+      ? zodToJsonSchema(prompt.output.schema)
+      : prompt.output.jsonSchema;
     promptMessage.content.push({
       text: `
     
@@ -155,14 +157,20 @@ export interface ModelPrompt<
   returnToolRequests?: boolean;
 }
 
-
-const isValidCandidate = (candidate: CandidateData, tools: Action<any, any>[]): boolean => {
+const isValidCandidate = (
+  candidate: CandidateData,
+  tools: Action<any, any>[]
+): boolean => {
   // Check if tool calls are vlaid
-  const toolCalls = candidate.message.content.filter(part => !!part.toolRequest);
+  const toolCalls = candidate.message.content.filter(
+    (part) => !!part.toolRequest
+  );
   let toolCallsValid = true;
-  toolCalls.forEach(toolCall => {
+  toolCalls.forEach((toolCall) => {
     const input = toolCall.toolRequest?.input;
-    const tool = tools?.find(tool => tool.__action.name === toolCall.toolRequest?.name);
+    const tool = tools?.find(
+      (tool) => tool.__action.name === toolCall.toolRequest?.name
+    );
     if (!tool) {
       toolCallsValid = false;
       return;
@@ -173,21 +181,21 @@ const isValidCandidate = (candidate: CandidateData, tools: Action<any, any>[]): 
       toolCallsValid = false;
       return;
     }
-  })
+  });
   return toolCallsValid;
-}
+};
 
 export async function generate<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
 >(
-  prompt: ModelPrompt<O, CustomOptions>,
+  prompt: ModelPrompt<O, CustomOptions>
 ): Promise<GenerationResponse<z.infer<O>>> {
   let model: ModelAction<CustomOptions>;
   if (typeof prompt.model === 'string') {
     model = lookupAction(`/model/${prompt.model}`);
-  } else if (prompt.model.hasOwnProperty("info")) {
-    const ref = prompt.model as ModelReference<CustomOptions>
+  } else if (prompt.model.hasOwnProperty('info')) {
+    const ref = prompt.model as ModelReference<CustomOptions>;
     model = lookupAction(`/model/${ref.name}`);
   } else {
     model = prompt.model as ModelAction<CustomOptions>;
@@ -202,12 +210,12 @@ export async function generate<
     const outputData = response.output();
     prompt.output.schema.parse(outputData);
   }
-  
+
   // Pick the first valid candidate.
   let selected;
   for (const candidate of response.candidates) {
     if (isValidCandidate(candidate, prompt.tools || [])) {
-      selected = candidate; 
+      selected = candidate;
       break;
     }
   }
@@ -215,18 +223,28 @@ export async function generate<
   if (!selected) {
     throw new Error(`No valid candidates found`);
   }
-  
-  const toolCalls = selected.message.content.filter(part => !!part.toolRequest);
+
+  const toolCalls = selected.message.content.filter(
+    (part) => !!part.toolRequest
+  );
   if (prompt.returnToolRequests || toolCalls.length === 0) {
     return response;
   }
-  const toolResponses: ToolResponsePart[] = await Promise.all(toolCalls.map(async part => {
-    const tool = prompt.tools?.find(tool => tool.__action.name === part.toolRequest?.name);
-    if (!tool) {
-      throw Error(`Tool not found`);
-    }
-    return {name: part.toolRequest.name, ref: part.toolRequest.ref, output: await tool(part.toolRequest?.input)};
-  }))
-  prompt.history?.push({role: "tool", content: toolResponses});
+  const toolResponses: ToolResponsePart[] = await Promise.all(
+    toolCalls.map(async (part) => {
+      const tool = prompt.tools?.find(
+        (tool) => tool.__action.name === part.toolRequest?.name
+      );
+      if (!tool) {
+        throw Error(`Tool not found`);
+      }
+      return {
+        name: part.toolRequest.name,
+        ref: part.toolRequest.ref,
+        output: await tool(part.toolRequest?.input),
+      };
+    })
+  );
+  prompt.history?.push({ role: 'tool', content: toolResponses });
   return await generate(prompt);
 }

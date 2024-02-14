@@ -1,7 +1,6 @@
 import { readFileSync, readdirSync } from 'fs';
-import { PromptFile } from './prompt';
+import { PromptFile } from './prompt.js';
 export { PromptFile };
-import fetch from 'node-fetch';
 import { join } from 'path';
 
 export function loadPromptFile(path: string): PromptFile {
@@ -9,6 +8,7 @@ export function loadPromptFile(path: string): PromptFile {
 }
 
 export async function loadPromptUrl(url: string): Promise<PromptFile> {
+  const fetch = (await import('node-fetch')).default;
   const response = await fetch(url);
   const text = await response.text();
   return PromptFile.parse(text);

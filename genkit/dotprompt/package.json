@@ -1,12 +1,13 @@
 {
   "name": "@google-genkit/dotprompt",
   "version": "0.0.1",
-  "type": "commonjs",
+  "type": "module",
   "scripts": {
-    "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
+    "check": "tsc",
+    "compile": "tsup",
     "build:clean": "rm -rf ./lib",
-    "build": "npm-run-all build:clean compile",
-    "build:watch": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json --watch",
+    "build": "npm-run-all build:clean check compile",
+    "watch": "tsup --watch",
     "lint": "eslint --config ../.eslintrc.js --ext .ts src",
     "lint:fix": "npm run lint -- --fix --quiet",
     "test": "node --loader tsx --test tests/*_test.ts"
@@ -21,16 +22,16 @@
   "devDependencies": {
     "@types/node": "^20.11.16",
     "npm-run-all": "^4.1.5",
+    "tsup": "^8.0.2",
     "tsx": "^4.7.0",
     "typescript": "^4.9.0"
   },
-  "types": "lib/types/index.d.ts",
+  "types": "./lib/index.d.ts",
   "exports": {
     ".": {
-      "types": "./lib/types/index.d.ts",
-      "require": "./lib/cjs/index.js",
-      "import": "./lib/esm/index.js",
-      "default": "./lib/esm/index.js"
+      "require": "./lib/index.cjs",
+      "default": "./lib/index.js",
+      "types": "./lib/index.d.ts"
     }
   }
 }
