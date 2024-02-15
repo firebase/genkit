@@ -1,4 +1,4 @@
-import { findToolsConfig } from '@google-genkit-tools/common/config';
+import { findToolsConfig } from '@google-genkit/tools-plugins/config';
 import { Command } from 'commander';
 import { logger } from '../utils/logger';
 
@@ -11,7 +11,7 @@ export async function getPluginCommands(): Promise<Command[]> {
     return new Command(p.keyword)
       .argument('<string>', 'Action to run')
       .action(async (arg: string) => {
-        const action = p.actions.find((a) => a.name === arg);
+        const action = p.actions.find(({ action }) => action === arg);
         if (!action) {
           logger.error(`Unknown ${p.keyword} action ${arg}`);
           return;

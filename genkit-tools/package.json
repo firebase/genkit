@@ -6,14 +6,15 @@
     "genkit": "dist/bin/genkit.js"
   },
   "workspaces": [
-    "./*"
+    "./**"
   ],
   "main": "dist/index.js",
   "scripts": {
-    "build": "(npm run build:common) && (npm run build:cli) && (npm run build:ui) && (npm run copy-ui-build)",
+    "build": "(npm run build:common) && (npm run build:cli) && (npm run build:ui) && (npm run copy-ui-build) && (npm run build:plugins)",
     "build:cli": "tsc",
     "build:ui": "cd ui && npm run build",
     "build:common": "cd common && npm run build",
+    "build:plugins": "cd plugins/google && npm run build",
     "copy-ui-build": "rm -rf dist/client && cd ui && cp -r dist ../dist/client",
     "lint": "eslint --config .eslintrc.js --ext .ts,.js .",
     "lint:fix": "npm run lint -- --fix --quiet",
@@ -39,7 +40,6 @@
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^6.3.1",
-    "@google-genkit-tools/common": "*",
     "@trpc/server": "10.45.0",
     "axios": "^1.6.7",
     "chokidar": "^3.5.3",

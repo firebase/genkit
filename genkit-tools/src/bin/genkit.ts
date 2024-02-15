@@ -4,4 +4,7 @@
 
 import { startCLI } from '../cli';
 
-void startCLI();
+void (async () => {
+  await startCLI();
+  process.exit();
+})();

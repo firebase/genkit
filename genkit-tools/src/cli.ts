@@ -25,5 +25,5 @@ export async function startCLI(): Promise<void> {
     logger.error(`"${clc.bold(args[0])}" is not a known Gen Kit command.`);
   });
 
-  program.parse();
+  await program.parseAsync();
 }

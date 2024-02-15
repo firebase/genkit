@@ -1,5 +1,5 @@
 {
-  "name": "@google-genkit/tools-plugins",
+  "name": "@google-genkit/tools-plugin-google-cloud",
   "version": "0.0.1",
   "scripts": {
     "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
@@ -8,33 +8,28 @@
     "build:watch": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json --watch"
   },
   "devDependencies": {
+    "@google-genkit/tools-plugins": "*",
     "@types/node": "^20.11.17",
     "npm-run-all": "^4.1.5",
     "typescript": "^4.9.0"
   },
   "types": "lib/types/index.d.ts",
   "exports": {
-    "./config": {
-      "types": "./lib/types/config.d.ts",
-      "require": "./lib/cjs/config.js",
-      "import": "./lib/esm/config.js",
-      "default": "./lib/esm/config.js"
-    },
-    "./plugins": {
-      "types": "./lib/types/plugins.d.ts",
-      "require": "./lib/cjs/plugins.js",
-      "import": "./lib/esm/plugins.js",
-      "default": "./lib/esm/plugins.js"
+    ".": {
+      "types": "./lib/types/google.d.ts",
+      "require": "./lib/cjs/google.js",
+      "import": "./lib/esm/google.js",
+      "default": "./lib/esm/google.js"
     }
   },
   "typesVersions": {
     "*": {
-      "config": [
-        "lib/types/config"
-      ],
-      "plugins": [
-        "lib/types/plugins"
+      "google": [
+        "lib/types/google"
       ]
     }
+  },
+  "dependencies": {
+    "colorette": "^2.0.20"
   }
 }
