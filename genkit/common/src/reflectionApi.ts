@@ -79,7 +79,7 @@ export async function startReflectionApi(port?: number | undefined) {
     const tracestore = registry.lookupTraceStore(env);
     if (!tracestore) {
       response.status(500).send(`${env} trace store not found`);
-      return
+      return;
     }
     response.json(await tracestore?.load(traceId));
   });
@@ -90,7 +90,7 @@ export async function startReflectionApi(port?: number | undefined) {
     const tracestore = registry.lookupTraceStore(env);
     if (!tracestore) {
       response.status(500).send(`${env} trace store not found`);
-      return
+      return;
     }
     response.json(await tracestore.list());
   });
@@ -101,7 +101,7 @@ export async function startReflectionApi(port?: number | undefined) {
     const flowStateStore = registry.lookupFlowStateStore(env);
     if (!flowStateStore) {
       response.status(500).send(`${env} flow state store not found`);
-      return
+      return;
     }
     response.json(await flowStateStore?.load(flowId));
   });
@@ -112,7 +112,7 @@ export async function startReflectionApi(port?: number | undefined) {
     const flowStateStore = registry.lookupFlowStateStore(env);
     if (!flowStateStore) {
       response.status(500).send(`${env} flow state store not found`);
-      return
+      return;
     }
     response.json(await flowStateStore?.list());
   });

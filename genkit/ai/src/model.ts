@@ -1,7 +1,5 @@
 import { Action, action } from '@google-genkit/common';
-import { registerAction } from '@google-genkit/common/registry';
 import { z } from 'zod';
-import { Tool } from './types';
 
 export const TextPartSchema = z.object({
   /** The text of the message. */
@@ -115,7 +113,8 @@ export const GenerationConfig = z.object({
 });
 export type GenerationConfig<CustomOptions = any> = z.infer<
   typeof GenerationConfig
-> & CustomOptions;
+> &
+  CustomOptions;
 
 const OutputConfigSchema = z.object({
   format: z.enum(['json', 'text']).optional(),
@@ -174,6 +173,9 @@ export type ModelAction<
   __customOptionsType: CustomOptionsSchema;
 };
 
+/**
+ *
+ */
 export function modelAction<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny
 >(
@@ -216,19 +218,20 @@ export function modelAction<
 
 export interface ModelReference<CustomOptions extends z.ZodTypeAny> {
   name: string;
-  configSchema?: CustomOptions
-  info?: ModelInfo
+  configSchema?: CustomOptions;
+  info?: ModelInfo;
 }
 
+/**
+ *
+ */
 export function modelRef<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny
->(
-  options: {
-    name: string;
-    configSchema?: CustomOptionsSchema
-    info?: ModelInfo
-  }
-): ModelReference<CustomOptionsSchema> {
+>(options: {
+  name: string;
+  configSchema?: CustomOptionsSchema;
+  info?: ModelInfo;
+}): ModelReference<CustomOptionsSchema> {
   return {
     name: options.name,
     configSchema: options.configSchema,

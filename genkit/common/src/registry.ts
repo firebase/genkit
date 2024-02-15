@@ -10,7 +10,7 @@ type Provider<T> = () => T;
 const __actionsById: Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>> = {};
 const __traceStoresByEnv: Record<string, Provider<TraceStore>> = {};
 const __flowStateStoresByEnv: Record<string, Provider<FlowStateStore>> = {};
-const __pluginsByName: Record<string, PluginProvider<any, any, any>> = {};
+const __pluginsByName: Record<string, PluginProvider<any, any>> = {};
 
 /**
  * Type of a runnable action.
@@ -41,8 +41,8 @@ export function lookupAction<
 }
 
 function parsePluginName(registryKey: string) {
-  const tokens = registryKey.split("/");
-  if (tokens.length == 4) {
+  const tokens = registryKey.split('/');
+  if (tokens.length === 4) {
     return tokens[2];
   }
   return undefined;
@@ -63,23 +63,25 @@ export function registerAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   __actionsById[key] = action;
 }
 
+type ActionsRecord = Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>>;
+
 /**
  * Returns all actions in the registry.
  */
-export function listActions(): Record<
-  string,
-  Action<z.ZodTypeAny, z.ZodTypeAny>
-> {
+export function listActions(): ActionsRecord {
   Object.keys(__pluginsByName).forEach((pluginName) => {
-    initializePlugin(pluginName)
-  })
+    initializePlugin(pluginName);
+  });
   return Object.assign({}, __actionsById);
 }
 
 /**
  * Registers a trace store provider for the given environment.
  */
-export function registerTraceStore(env: string, traceStoreProvider: Provider<TraceStore>) {
+export function registerTraceStore(
+  env: string,
+  traceStoreProvider: Provider<TraceStore>
+) {
   __traceStoresByEnv[env] = traceStoreProvider;
 }
 
@@ -107,15 +109,14 @@ export function lookupFlowStateStore(env: string): FlowStateStore {
   return __flowStateStoresByEnv[env]();
 }
 
-
 /**
  * Registers a flow state store for the given environment.
  */
 export function registerPluginProvider(
   name: string,
-  provider: PluginProvider<any, any, any>
+  provider: PluginProvider<any, any>
 ) {
-  var cached;
+  let cached;
   __pluginsByName[name] = {
     name: provider.name,
     initializer: () => {
@@ -124,17 +125,19 @@ export function registerPluginProvider(
       }
       cached = provider.initializer();
       return cached;
-    }
+    },
   };
 }
 
+/**
+ *
+ */
 export function initializePlugin(name: string) {
   if (__pluginsByName[name]) {
     return __pluginsByName[name].initializer();
   }
   return undefined;
 }
-
 
 /**
  * Development mode only. Starts a Reflection API so that the actions can be called by the Runner.

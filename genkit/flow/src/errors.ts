@@ -39,7 +39,7 @@ export class FlowStillRunningError extends Error {
   constructor(readonly flowId: string) {
     super(
       `flow ${flowId} is not done execution. Consider using waitForFlowToComplete to wait for ` +
-      'completion before calling getOutput.'
+        'completion before calling getOutput.'
     );
   }
 }

@@ -1,6 +1,11 @@
 import { OperationSchema } from '@google-genkit/common';
 import { FlowWrapper } from '@google-genkit/flow';
-import { flow, Flow, FlowInvokeEnvelopeMessage, FlowInvokeEnvelopeMessageSchema } from '@google-genkit/flow';
+import {
+  flow,
+  Flow,
+  FlowInvokeEnvelopeMessage,
+  FlowInvokeEnvelopeMessageSchema,
+} from '@google-genkit/flow';
 import { Response } from 'express';
 import { getFunctions } from 'firebase-admin/functions';
 import { logger } from 'firebase-functions/v2';
@@ -13,36 +18,49 @@ import {
 import { GoogleAuth } from 'google-auth-library';
 import * as z from 'zod';
 
-type FunctionFlow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> = HttpsFunction & FlowWrapper<I, O>;
+type FunctionFlow<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny
+> = HttpsFunction & FlowWrapper<I, O>;
 
 interface FunctionFlowConfig<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
   name: string;
   input: I;
   output: O;
-  options?: TaskQueueOptions,
+  options?: TaskQueueOptions;
 }
 
+/**
+ *
+ */
 export function onFlow<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   config: FunctionFlowConfig<I, O>,
   steps: (input: z.infer<I>) => Promise<z.infer<O>>
 ): FunctionFlow<I, O> {
-  const f = flow({
-    ...config,
-    dispatcher: {
-      async deliver(flow, data) {
-        // TODO: unhardcode the location!
-        const responseJson = await callHttpsFunction(flow.name, 'us-central1', data)
-        return OperationSchema.parse(JSON.parse(responseJson));
+  const f = flow(
+    {
+      ...config,
+      dispatcher: {
+        async deliver(flow, data) {
+          // TODO: unhardcode the location!
+          const responseJson = await callHttpsFunction(
+            flow.name,
+            'us-central1',
+            data
+          );
+          return OperationSchema.parse(JSON.parse(responseJson));
+        },
+        async schedule(flow, msg, delaySeconds) {
+          await enqueueCloudTask(flow.name, msg, delaySeconds);
+        },
       },
-      async schedule(flow, msg, delaySeconds) {
-        await enqueueCloudTask(flow.name, msg, delaySeconds);
-      },
-    }
-  }, steps);
+    },
+    steps
+  );
 
-  const tq = tqWrapper(f, config)
+  const tq = tqWrapper(f, config);
 
-  const funcFlow = tq as FunctionFlow<I, O>
+  const funcFlow = tq as FunctionFlow<I, O>;
   funcFlow.flow = f;
 
   return funcFlow;
@@ -61,7 +79,8 @@ function tqWrapper<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
         minBackoffSeconds: 10,
       },
     },
-    () => { } // never called, everything handled in createControlAPI.
+    // eslint-disable-next-line @typescript-eslint/no-empty-function
+    () => {} // never called, everything handled in createControlAPI.
   );
   return createControlAPI(flow, tq);
 }
@@ -71,7 +90,7 @@ function createControlAPI(
   tq: TaskQueueFunction<FlowInvokeEnvelopeMessage>
 ) {
   const interceptor = async (req: Request, res: Response) => {
-    var data = req.body;
+    let data = req.body;
     // Task queue will wrap body in a "data" object, unwrap it.
     if (req.body.data) {
       data = req.body.data;
@@ -102,14 +121,16 @@ async function enqueueCloudTask(
   const queue = getFunctions().taskQueue(flowName);
   // TODO: set the right location
   const targetUri = await getFunctionUrl(flowName, 'us-central1');
-  logger.debug(`dispatchCloudTask targetUri for flow ${flowName} with delay ${scheduleDelaySeconds}`);
+  logger.debug(
+    `dispatchCloudTask targetUri for flow ${flowName} with delay ${scheduleDelaySeconds}`
+  );
   await queue.enqueue(payload, {
     scheduleDelaySeconds,
     dispatchDeadlineSeconds: scheduleDelaySeconds,
     uri: targetUri,
     headers: {
       'Content-Type': 'application/json',
-    }
+    },
   });
 }
 
@@ -123,7 +144,7 @@ function getAuthClient() {
   return auth;
 }
 
-const functionUrlCache = {} as Record<string, string>
+const functionUrlCache = {} as Record<string, string>;
 
 async function getFunctionUrl(name, location) {
   if (functionUrlCache[name]) {
@@ -136,7 +157,7 @@ async function getFunctionUrl(name, location) {
     `projects/${projectId}/locations/${location}/functions/${name}`;
 
   const client = await auth.getClient();
-  const res = await client.request({ url }) as any;
+  const res = (await client.request({ url })) as any;
   const uri = res.data?.serviceConfig?.uri;
   if (!uri) {
     throw new Error(`Unable to retrieve uri for function at ${url}`);
@@ -144,7 +165,6 @@ async function getFunctionUrl(name, location) {
   functionUrlCache[name] = uri;
   return uri;
 }
-
 
 async function callHttpsFunction(functionName, location, data) {
   const auth = getAuthClient();
@@ -155,17 +175,15 @@ async function callHttpsFunction(functionName, location, data) {
   const tokenClient = await auth.getIdTokenClient(funcUrl);
   const token = await tokenClient.idTokenProvider.fetchIdToken(funcUrl);
 
-  const res = await fetch(
-    funcUrl,
-    {
-      method: 'POST',
-      body: JSON.stringify(data),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      }
-    });
+  const res = await fetch(funcUrl, {
+    method: 'POST',
+    body: JSON.stringify(data),
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+  });
   const responseText = await res.text();
-  logger.debug("res", responseText)
-  return responseText
+  logger.debug('res', responseText);
+  return responseText;
 }

@@ -6,6 +6,7 @@ import {
 } from '@google-genkit/ai/retrievers';
 import * as z from 'zod';
 import { Pinecone, RecordMetadata } from '@pinecone-database/pinecone';
+// eslint-disable-next-line max-len
 import { CreateIndexRequestSpec } from '@pinecone-database/pinecone/dist/pinecone-generated-ts-fetch';
 import { Md5 } from 'ts-md5';
 

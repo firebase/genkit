@@ -10,5 +10,6 @@ export interface ActionMetadata<
   description?: string;
   inputSchema?: I;
   outputSchema?: O;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata: Record<string, any>;
 }

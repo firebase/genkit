@@ -36,6 +36,7 @@ export const TOOLS_SERVER_ROUTER = t.router({
     .mutation(async ({ input }) => {
       const request: apis.RunActionRequest = {
         key: input.key,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         input: input.input,
       };
       try {

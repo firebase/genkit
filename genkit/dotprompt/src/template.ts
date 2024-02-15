@@ -64,6 +64,7 @@ function toParts(source: string): Part[] {
     .split(MEDIA_REGEX)
     .filter((s) => s.trim() !== '')) {
     if (piece.startsWith('<<<dotprompt:media:')) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [_, url, contentType] = piece.split(' ');
       const part: MediaPart = { media: { url } };
       if (contentType) part.media.contentType = contentType;
@@ -75,6 +76,9 @@ function toParts(source: string): Part[] {
   return parts;
 }
 
+/**
+ *
+ */
 export function compile<Variables = any>(
   source: string,
   metadata: PromptMetadata

@@ -3,7 +3,7 @@ import path from 'path';
 import { FlowStateStore } from './flowTypes';
 import { LocalFileFlowStateStore } from './localFileFlowStateStore';
 import logging, { setLogLevel } from './logging';
-import { Plugin, PluginProvider } from './plugin';
+import { PluginProvider } from './plugin';
 import * as registry from './registry';
 import { TraceStore, enableTracingAndMetrics } from './tracing';
 import { LocalFileTraceStore } from './tracing/localFileTraceStore';
@@ -12,7 +12,7 @@ export * from './plugin';
 
 export let config: Config;
 export interface ConfigOptions {
-  plugins?: PluginProvider<any, any, any>[];
+  plugins?: PluginProvider<any, any>[];
   traceStore?: string;
   flowStateStore?: string;
   enableTracingAndMetrics?: boolean;
@@ -84,11 +84,19 @@ class Config {
           });
           initializedPlugin.embedders?.forEach((embedder) => {
             logging.debug(`  - Embedder: ${embedder.__action.name}`);
-            registry.registerAction('embedder', embedder.__action.name, embedder);
+            registry.registerAction(
+              'embedder',
+              embedder.__action.name,
+              embedder
+            );
           });
           initializedPlugin.retrievers?.forEach((retriever) => {
             logging.debug(`  - Retriever: ${retriever.__action.name}`);
-            registry.registerAction('retriever', retriever.__action.name, retriever);
+            registry.registerAction(
+              'retriever',
+              retriever.__action.name,
+              retriever
+            );
           });
           initializedPlugin.indexers?.forEach((indexer) => {
             logging.debug(`  - Indexer: ${indexer.__action.name}`);
@@ -96,7 +104,7 @@ class Config {
           });
           return initializedPlugin;
         },
-      })
+      });
     });
 
     logging.debug('Registering flow state stores...');
@@ -105,9 +113,8 @@ class Config {
       const flowStorePluginName = this.options.flowStateStore;
       logging.debug(`  - prod: ${flowStorePluginName}`);
       this.configuredEnvs.add('prod');
-      registry.registerFlowStateStore(
-        'prod',
-        () => this.resolveFlowStateStore(flowStorePluginName)
+      registry.registerFlowStateStore('prod', () =>
+        this.resolveFlowStateStore(flowStorePluginName)
       );
     } else {
       logging.warn(
@@ -121,9 +128,8 @@ class Config {
       const traceStorePluginName = this.options.traceStore;
       logging.debug(`  - prod: ${traceStorePluginName}`);
       this.configuredEnvs.add('prod');
-      registry.registerTraceStore(
-        'prod',
-        () => this.resolveTraceStore(traceStorePluginName)
+      registry.registerTraceStore('prod', () =>
+        this.resolveTraceStore(traceStorePluginName)
       );
     } else {
       logging.warn(
@@ -140,7 +146,7 @@ class Config {
    * Resolves flow state store provided by the specified plugin.
    */
   private resolveFlowStateStore(pluginName: string) {
-    const plugin = registry.initializePlugin(pluginName)
+    const plugin = registry.initializePlugin(pluginName);
     const provider = plugin?.flowStateStore;
     if (!provider) {
       throw new Error(
@@ -154,7 +160,7 @@ class Config {
    * Resolves trace store provided by the specified plugin.
    */
   private resolveTraceStore(pluginName: string) {
-    const plugin = registry.initializePlugin(pluginName)
+    const plugin = registry.initializePlugin(pluginName);
     const provider = plugin?.traceStore;
     if (!provider) {
       throw new Error(
@@ -184,7 +190,7 @@ export function configureGenkit(options: ConfigOptions): Config {
  */
 export function initializeGenkit(cfg?: Config) {
   // Already initialized.
-  if (config) {
+  if (config || cfg) {
     return;
   }
   const configPath = findGenkitConfig();

@@ -1,6 +1,4 @@
 import { z } from 'zod';
-import { config } from './config';
-import * as registry from './registry';
 
 // NOTE: Keep this file in sync with genkit-tools/src/types/flow.ts!
 // Eventually tools will be source of truth for these types (by generating a

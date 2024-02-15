@@ -6,16 +6,27 @@ import {
   FlowState,
   FlowStateSchema,
   FlowStateStore,
-  Operation
+  Operation,
 } from '@google-genkit/common';
 import { config as globalConfig } from '@google-genkit/common/config';
 import * as registry from '@google-genkit/common/registry';
-import { newTrace, setCustomMetadataAttribute, SPAN_TYPE_ATTR } from '@google-genkit/common/tracing';
+import {
+  newTrace,
+  setCustomMetadataAttribute,
+  SPAN_TYPE_ATTR,
+} from '@google-genkit/common/tracing';
 import { logger } from 'firebase-functions/v1';
 import * as z from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 import { Context } from './context';
-import { FlowExecutionError, FlowNotFoundError, FlowStillRunningError, getErrorMessage, getErrorStack, InterruptError } from './errors';
+import {
+  FlowExecutionError,
+  FlowNotFoundError,
+  FlowStillRunningError,
+  getErrorMessage,
+  getErrorStack,
+  InterruptError,
+} from './errors';
 import {
   Dispatcher,
   FlowInvokeEnvelopeMessage,
@@ -40,25 +51,28 @@ export function flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     name: string;
     input: I;
     output: O;
-    dispatcher?: Dispatcher<I, O>,
+    dispatcher?: Dispatcher<I, O>;
   },
   steps: (input: z.infer<I>) => Promise<z.infer<O>>
 ): Flow<I, O> {
-  const f = new Flow({
-    name: config.name,
-    input: config.input,
-    output: config.output,
-    stateStore: globalConfig.getFlowStateStore(),
-    dispatcher: config.dispatcher || {
-      async deliver(flow, msg) {
-        const state = await flow.runEnvelope(msg);
-        return state.operation;
+  const f = new Flow(
+    {
+      name: config.name,
+      input: config.input,
+      output: config.output,
+      stateStore: globalConfig.getFlowStateStore(),
+      dispatcher: config.dispatcher || {
+        async deliver(flow, msg) {
+          const state = await flow.runEnvelope(msg);
+          return state.operation;
+        },
+        async schedule(flow, msg, delay = 0) {
+          setTimeout(() => flow.runEnvelope(msg), delay * 1000);
+        },
       },
-      async schedule(flow, msg, delay = 0) {
-        setTimeout(() => flow.runEnvelope(msg), delay * 1000)
-      },
-    }
-  }, steps)
+    },
+    steps
+  );
   registry.registerAction('flow', config.name, wrapAsAction(f));
   return f;
 }
@@ -74,13 +88,15 @@ export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
   readonly stateStore: FlowStateStore;
   readonly dispatcher: Dispatcher<I, O>;
 
-  constructor(config: {
-    name: string,
-    input: I,
-    output: O,
-    stateStore: FlowStateStore,
-    dispatcher: Dispatcher<I, O>,
-  }, private steps: StepsFunction<I, O>
+  constructor(
+    config: {
+      name: string;
+      input: I;
+      output: O;
+      stateStore: FlowStateStore;
+      dispatcher: Dispatcher<I, O>;
+    },
+    private steps: StepsFunction<I, O>
   ) {
     this.name = config.name;
     this.input = config.input;
@@ -99,7 +115,7 @@ export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
       const state = createNewState(flowId, this.name, req.start.input);
       const ctx = new Context(flowId, state, this.stateStore);
       try {
-        await this.executeSteps(ctx, this.steps, "start");
+        await this.executeSteps(ctx, this.steps, 'start');
       } finally {
         await this.stateStore.save(flowId, state);
       }
@@ -111,13 +127,17 @@ export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
       const state = createNewState(flowId, this.name, req.schedule.input);
       try {
         await this.stateStore.save(flowId, state);
-        await this.dispatcher.schedule(this, { runScheduled: { flowId } } as FlowInvokeEnvelopeMessage, req.schedule.delay);
+        await this.dispatcher.schedule(
+          this,
+          { runScheduled: { flowId } } as FlowInvokeEnvelopeMessage,
+          req.schedule.delay
+        );
       } catch (e) {
         state.operation.done = true;
         state.operation.result = {
           error: getErrorMessage(e),
-          stacktrace: getErrorStack(e)
-        }
+          stacktrace: getErrorStack(e),
+        };
         await this.stateStore.save(flowId, state);
       }
       return state;
@@ -138,7 +158,7 @@ export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
       }
       const ctx = new Context(flowId, state, this.stateStore);
       try {
-        await this.executeSteps(ctx, this.steps, "runScheduled");
+        await this.executeSteps(ctx, this.steps, 'runScheduled');
       } finally {
         await ctx.saveState();
       }
@@ -157,7 +177,7 @@ export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
       }
       const ctx = new Context(flowId, state, this.stateStore);
       try {
-        await this.executeSteps(ctx, this.steps, "resume");
+        await this.executeSteps(ctx, this.steps, 'resume');
       } finally {
         await ctx.saveState();
       }
@@ -165,8 +185,10 @@ export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
     }
     // TODO: add retry
 
-    throw new Error("Unexpected envelope message case, must set one of: " +
-      "start, schedule, runScheduled, resume, retry, state")
+    throw new Error(
+      'Unexpected envelope message case, must set one of: ' +
+        'start, schedule, runScheduled, resume, retry, state'
+    );
   }
 
   // TODO: refactor me... this is a mess!
@@ -248,14 +270,17 @@ export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
 /**
  * Runs the flow locally. If the flow does not get interrupted may return a completed (done=true) operation.
  */
-export async function runFlow<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(flow: Flow<I, O> | FlowWrapper<I, O>, payload: z.infer<I>): Promise<Operation> {
+export async function runFlow<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+  flow: Flow<I, O> | FlowWrapper<I, O>,
+  payload: z.infer<I>
+): Promise<Operation> {
   if (!(flow instanceof Flow)) {
     flow = flow.flow;
   }
   const state = await flow.dispatcher.deliver(flow, {
     start: {
       input: flow.input.parse(payload),
-    }
+    },
   });
   return state;
 }
@@ -263,7 +288,14 @@ export async function runFlow<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(fl
 /**
  * Schedules a flow run. This is always return an operation that's not completed (done=false).
  */
-export async function scheduleFlow<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(flow: Flow<I, O> | FlowWrapper<I, O>, payload: z.infer<I>, delaySeconds?: number): Promise<Operation> {
+export async function scheduleFlow<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny
+>(
+  flow: Flow<I, O> | FlowWrapper<I, O>,
+  payload: z.infer<I>,
+  delaySeconds?: number
+): Promise<Operation> {
   if (!(flow instanceof Flow)) {
     flow = flow.flow;
   }
@@ -271,16 +303,18 @@ export async function scheduleFlow<I extends z.ZodTypeAny, O extends z.ZodTypeAn
     schedule: {
       input: flow.input.parse(payload),
       delay: delaySeconds,
-    }
+    },
   });
   return state;
 }
 
-
 /**
  * Resumes an interrupted flow.
  */
-export async function resumeFlow<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(flow: Flow<I, O> | FlowWrapper<I, O>, flowId: string, payload: any) {
+export async function resumeFlow<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny
+>(flow: Flow<I, O> | FlowWrapper<I, O>, flowId: string, payload: any) {
   if (!(flow instanceof Flow)) {
     flow = flow.flow;
   }
@@ -295,7 +329,10 @@ export async function resumeFlow<I extends z.ZodTypeAny, O extends z.ZodTypeAny>
 /**
  * Returns an operation representing current state of the flow.
  */
-export async function getFlowState<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(flow: Flow<I, O> | FlowWrapper<I, O>, flowId: string): Promise<Operation> {
+export async function getFlowState<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny
+>(flow: Flow<I, O> | FlowWrapper<I, O>, flowId: string): Promise<Operation> {
   if (!(flow instanceof Flow)) {
     flow = flow.flow;
   }
@@ -306,7 +343,10 @@ export async function getFlowState<I extends z.ZodTypeAny, O extends z.ZodTypeAn
   return state.operation;
 }
 
-function parseOutput<O extends z.ZodTypeAny>(flowId: string, state: Operation): z.infer<O> {
+function parseOutput<O extends z.ZodTypeAny>(
+  flowId: string,
+  state: Operation
+): z.infer<O> {
   if (!state.done) {
     throw new FlowStillRunningError(flowId);
   }
@@ -325,7 +365,10 @@ function parseOutput<O extends z.ZodTypeAny>(flowId: string, state: Operation): 
  * A local utility that waits for the flow execution to complete. If flow errored then a
  * {@link FlowExecutionError} will be thrown.
  */
-export async function waitFlowToComplete<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(flow: Flow<I, O> | FlowWrapper<I, O>, flowId: string): Promise<z.infer<O>> {
+export async function waitFlowToComplete<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny
+>(flow: Flow<I, O> | FlowWrapper<I, O>, flowId: string): Promise<z.infer<O>> {
   if (!(flow instanceof Flow)) {
     flow = flow.flow;
   }
@@ -347,7 +390,11 @@ export async function waitFlowToComplete<I extends z.ZodTypeAny, O extends z.Zod
   }
 }
 
-function createNewState(flowId: string, name: string, input: unknown): FlowState {
+function createNewState(
+  flowId: string,
+  name: string,
+  input: unknown
+): FlowState {
   return {
     flowId: flowId,
     name: name,
@@ -368,7 +415,6 @@ type StepsFunction<I extends z.ZodTypeAny, O extends z.ZodTypeAny> = (
   input: z.infer<I>
 ) => Promise<z.infer<O>>;
 
-
 function wrapAsAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   flow: Flow<I, O>
 ): Action<typeof FlowInvokeEnvelopeMessageSchema, typeof FlowStateSchema> {
@@ -380,7 +426,7 @@ function wrapAsAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       metadata: {
         inputSchema: zodToJsonSchema(flow.input),
         outputSchema: zodToJsonSchema(flow.output),
-      }
+      },
     },
     async (envelope) => {
       return await flow.runEnvelope(envelope);

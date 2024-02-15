@@ -12,7 +12,7 @@ import { configureVertexTextEmbedder } from '@google-genkit/providers/embedders'
 import { configureVertexAiTextModel } from '@google-genkit/providers/llms';
 import { configurePinecone } from '@google-genkit/providers/vectorstores';
 import * as z from 'zod';
-import config from "./genkit.conf";
+import config from './genkit.conf';
 
 initializeGenkit(config);
 
@@ -110,4 +110,4 @@ async function main() {
   console.log('Operation', qaOperation);
 }
 
-main();
+main().catch(console.error);

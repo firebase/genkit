@@ -1,7 +1,7 @@
 import { initializeGenkit } from '@google-genkit/common/config';
 import { flow, run, runFlow } from '@google-genkit/flow';
 import * as z from 'zod';
-import config from "./genkit.conf";
+import config from './genkit.conf';
 
 initializeGenkit(config);
 
@@ -22,4 +22,4 @@ async function main() {
   console.log(op);
 }
 
-main();
+main().catch(console.error);

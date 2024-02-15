@@ -1,3 +1,6 @@
+/**
+ *
+ */
 export function extractJson<T = unknown>(text: string): T | null {
   let openingChar: '{' | '[' | undefined;
   let closingChar: '}' | ']' | undefined;

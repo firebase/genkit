@@ -309,6 +309,7 @@ export async function index<
       options: params.options,
     });
   }
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
   return await (params.indexer as IndexerAction<I, DocType, IndexerOptions>)({
     docs: params.docs,
     options: params.options,

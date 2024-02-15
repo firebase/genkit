@@ -3,10 +3,16 @@ import { PromptFile } from './prompt.js';
 export { PromptFile };
 import { join } from 'path';
 
+/**
+ *
+ */
 export function loadPromptFile(path: string): PromptFile {
   return PromptFile.parse(readFileSync(path, 'utf-8'));
 }
 
+/**
+ *
+ */
 export async function loadPromptUrl(url: string): Promise<PromptFile> {
   const fetch = (await import('node-fetch')).default;
   const response = await fetch(url);
@@ -14,6 +20,9 @@ export async function loadPromptUrl(url: string): Promise<PromptFile> {
   return PromptFile.parse(text);
 }
 
+/**
+ *
+ */
 export function loadPromptDir(path: string): Record<string, PromptFile> {
   const files = readdirSync(path);
   const prompts: Record<
@@ -33,11 +42,13 @@ export function loadPromptDir(path: string): Record<string, PromptFile> {
   }
 
   const out: Record<string, PromptFile> = {};
+  // eslint-disable-next-line guard-for-in
   for (const name in prompts) {
     const variants: Record<string, PromptFile> = {};
+    // eslint-disable-next-line guard-for-in
     for (const variant in prompts[name].variants) {
       variants[variant] = loadPromptFile(
-        join(path, prompts[name].variants![variant])
+        join(path, prompts[name].variants[variant])
       );
     }
     // skip if no baseline file

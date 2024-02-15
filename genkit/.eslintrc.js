@@ -69,6 +69,7 @@ module.exports = {
         "@typescript-eslint/no-unsafe-return": "warn",
         "@typescript-eslint/restrict-template-expressions": "warn",
         "@typescript-eslint/require-await": "warn",
+        "@typescript-eslint/no-floating-promises": "warn",
       },
     },
   ]

@@ -18,7 +18,9 @@ export class LocalFileTraceStore implements TraceStore {
       .digest('hex');
     this.storeRoot = path.resolve(os.tmpdir(), `.genkit/${rootHash}/traces`);
     fs.mkdirSync(this.storeRoot, { recursive: true });
-    logging.info(`Initialized local file trace store at root: ${this.storeRoot}`);
+    logging.info(
+      `Initialized local file trace store at root: ${this.storeRoot}`
+    );
   }
 
   async load(id: string): Promise<TraceData | undefined> {

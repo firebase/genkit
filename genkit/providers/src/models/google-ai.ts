@@ -4,9 +4,9 @@ import {
   ModelAction,
   Part,
   modelAction,
-  modelRef
+  modelRef,
 } from '@google-genkit/ai/model';
-import { Plugin, genkitPlugin } from '@google-genkit/common/config';
+import { genkitPlugin } from '@google-genkit/common/config';
 import {
   GenerateContentCandidate as GeminiCandidate,
   InputContent as GeminiMessage,
@@ -24,9 +24,9 @@ export const geminiPro = modelRef({
       multiturn: true,
       media: false,
       tools: true,
-    }
-  }
-})
+    },
+  },
+});
 
 export const geminiProVision = modelRef({
   name: 'google-ai/gemini-pro-vision',
@@ -37,9 +37,9 @@ export const geminiProVision = modelRef({
       multiturn: true,
       media: true,
       tools: true,
-    }
-  }
-})
+    },
+  },
+});
 
 export const geminiUltra = modelRef({
   name: 'google-ai/gemini-ultra',
@@ -50,9 +50,9 @@ export const geminiUltra = modelRef({
       multiturn: true,
       media: false,
       tools: true,
-    }
-  }
-})
+    },
+  },
+});
 
 const SUPPORTED_MODELS = {
   'gemini-pro': geminiPro,
@@ -127,9 +127,14 @@ function fromGeminiCandidate(candidate: GeminiCandidate): CandidateData {
 }
 
 export const googleAI = genkitPlugin('google-ai', (apiKey?: string) => ({
-  models: Object.keys(SUPPORTED_MODELS).map(name => googleAIModel(name, apiKey))
-}))
+  models: Object.keys(SUPPORTED_MODELS).map((name) =>
+    googleAIModel(name, apiKey)
+  ),
+}));
 
+/**
+ *
+ */
 export function googleAIModel(name: string, apiKey?: string): ModelAction {
   const modelName = `google-ai/${name}`;
   if (!apiKey) apiKey = process.env.GOOGLE_API_KEY;
@@ -140,8 +145,7 @@ export function googleAIModel(name: string, apiKey?: string): ModelAction {
   const client = new GoogleGenerativeAI(apiKey).getGenerativeModel({
     model: name,
   });
-  if (!SUPPORTED_MODELS[name])
-    throw new Error(`Unsupported model: ${name}`);
+  if (!SUPPORTED_MODELS[name]) throw new Error(`Unsupported model: ${name}`);
   return modelAction(
     { name: modelName, ...SUPPORTED_MODELS[name].info },
     async (request) => {
@@ -171,6 +175,9 @@ export function googleAIModel(name: string, apiKey?: string): ModelAction {
   );
 }
 
+/**
+ *
+ */
 export function useGoogleAI(apiKey?: string) {
   if (!apiKey) apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey)

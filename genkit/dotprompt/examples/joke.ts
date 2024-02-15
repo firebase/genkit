@@ -1,6 +1,5 @@
-import { PromptFile } from '../src/prompt';
 import { googleAIModel } from '@google-genkit/providers/models';
-import { listActions } from '@google-genkit/common/registry';
+import { PromptFile } from '../src/prompt';
 
 googleAIModel('gemini-pro');
 
@@ -11,4 +10,5 @@ PromptFile.loadFile('./examples/joke.prompt')
   })
   .then((result) => {
     console.log(result.text());
-  });
+  })
+  .catch(console.error);

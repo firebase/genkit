@@ -1,5 +1,6 @@
-import * as path from 'path';
 import * as fs from 'fs';
+import * as path from 'path';
+import * as process from 'process';
 import { ToolPlugin } from './plugins';
 
 const CONFIG_NAME = 'genkit-tools.conf.js';

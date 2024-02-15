@@ -6,7 +6,7 @@ describe('compile', () => {
   for (const test of [
     {
       should: 'inject variables',
-      template: `Hello {{name}}`,
+      template: 'Hello {{name}}',
       input: { name: 'World' },
       want: [{ role: 'user', content: [{ text: 'Hello World' }] }],
     },
@@ -27,7 +27,8 @@ describe('compile', () => {
     {
       should: 'allow multiple media parts, adjacent or separated by text',
       template:
-        'Look at these images: {{#each images}}{{media url=.}} {{/each}} Do you like them? Here is another: {{media url=anotherImage}}',
+        'Look at these images: {{#each images}}{{media url=.}} {{/each}} Do you like them? Here ' +
+        'is another: {{media url=anotherImage}}',
       input: {
         images: [
           'http://1.png',
@@ -80,13 +81,13 @@ describe('compile', () => {
     {
       should: 'allow rendering JSON',
       input: { test: true },
-      template: `{{json .}}`,
+      template: '{{json .}}',
       want: [{ role: 'user', content: [{ text: '{"test":true}' }] }],
     },
     {
       should: 'allow indenting JSON',
       input: { test: true },
-      template: `{{json . indent=2}}`,
+      template: '{{json . indent=2}}',
       want: [{ role: 'user', content: [{ text: '{\n  "test": true\n}' }] }],
     },
   ]) {

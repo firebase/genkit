@@ -2,18 +2,12 @@ import { z } from 'zod';
 import { Flow } from './flow';
 import { Operation } from '@google-genkit/common';
 
-export interface Dispatcher<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny
-> {
-  deliver(
-    flow: Flow<I, O>,
-    msg: FlowInvokeEnvelopeMessage
-  ): Promise<Operation>;
+export interface Dispatcher<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
+  deliver(flow: Flow<I, O>, msg: FlowInvokeEnvelopeMessage): Promise<Operation>;
   schedule(
     flow: Flow<I, O>,
     msg: FlowInvokeEnvelopeMessage,
-    delaySeconds?: number,
+    delaySeconds?: number
   ): Promise<void>;
 }
 
@@ -22,31 +16,43 @@ export interface Dispatcher<
  */
 export const FlowInvokeEnvelopeMessageSchema = z.object({
   // Start new flow.
-  start: z.object({
-    input: z.unknown().optional(),
-  }).optional(),
+  start: z
+    .object({
+      input: z.unknown().optional(),
+    })
+    .optional(),
   // Schedule new flow.
-  schedule: z.object({
-    input: z.unknown().optional(),
-    delay: z.number().optional(),
-  }).optional(),
+  schedule: z
+    .object({
+      input: z.unknown().optional(),
+      delay: z.number().optional(),
+    })
+    .optional(),
   // Run previously scheduled flow.
-  runScheduled: z.object({
-    flowId: z.string(),
-  }).optional(),
+  runScheduled: z
+    .object({
+      flowId: z.string(),
+    })
+    .optional(),
   // Retry failed step (only if step is setup for retry)
-  retry: z.object({
-    flowId: z.string()
-  }).optional(),
+  retry: z
+    .object({
+      flowId: z.string(),
+    })
+    .optional(),
   // Resume an interrupted flow.
-  resume: z.object({
-    flowId: z.string(),
-    payload: z.unknown().optional(),
-  }).optional(),
+  resume: z
+    .object({
+      flowId: z.string(),
+      payload: z.unknown().optional(),
+    })
+    .optional(),
   // State check for a given flow ID. No side effects, can be used to check flow state.
-  state: z.object({
-    flowId: z.string(),
-  }).optional(),
+  state: z
+    .object({
+      flowId: z.string(),
+    })
+    .optional(),
 });
 export type FlowInvokeEnvelopeMessage = z.infer<
   typeof FlowInvokeEnvelopeMessageSchema

@@ -4,6 +4,7 @@ import {
   FlowStateSchema,
   FlowStateStore,
 } from '@google-genkit/common';
+import { logger } from 'firebase-functions/v1';
 
 /**
  * Not very useful in pactice in-memory flow state store.
@@ -24,6 +25,7 @@ export class InMemoryFlowStateStore implements FlowStateStore {
   }
 
   async list(query?: FlowStateQuery | undefined): Promise<FlowState[]> {
+    logger.debug(query, 'InMemoryFlowStateStore.list');
     return Object.values(this.state).map((s) => JSON.parse(s) as FlowState);
   }
 }

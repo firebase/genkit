@@ -89,7 +89,7 @@ function toToolDefinition(
   return {
     name: tool.__action.name,
     outputSchema: tool.__action.outputSchema
-      ? zodToJsonSchema(tool.__action.outputSchema!)
+      ? zodToJsonSchema(tool.__action.outputSchema)
       : {}, // JSON schema matching anything
     inputSchema: zodToJsonSchema(tool.__action.inputSchema!),
   };
@@ -132,9 +132,7 @@ ${JSON.stringify(outputSchema)}
         prompt.output?.format || (prompt.output?.schema ? 'json' : 'text'),
       schema: prompt.output?.schema
         ? zodToJsonSchema(prompt.output.schema)
-        : prompt.output?.jsonSchema
-          ? prompt.output.jsonSchema
-          : undefined,
+        : prompt.output?.jsonSchema,
     },
   };
 }
@@ -185,6 +183,9 @@ const isValidCandidate = (
   return toolCallsValid;
 };
 
+/**
+ *
+ */
 export async function generate<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
@@ -201,6 +202,7 @@ export async function generate<
       throw new Error(`Model ${ref.name} not found`);
     }
   } else {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
     model = prompt.model as ModelAction<CustomOptions>;
   }
   if (!model) {
@@ -224,7 +226,7 @@ export async function generate<
   }
 
   if (!selected) {
-    throw new Error(`No valid candidates found`);
+    throw new Error('No valid candidates found');
   }
 
   const toolCalls = selected.message.content.filter(
@@ -239,7 +241,7 @@ export async function generate<
         (tool) => tool.__action.name === part.toolRequest?.name
       );
       if (!tool) {
-        throw Error(`Tool not found`);
+        throw Error('Tool not found');
       }
       return {
         name: part.toolRequest.name,
