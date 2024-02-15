@@ -9,6 +9,10 @@ interface ToolsConfig {
   cliPlugins: ToolPlugin[];
 }
 
+/**
+ * Searches recursively up the directory structure for the Genkit tools config
+ * file.
+ */
 export async function findToolsConfig(): Promise<ToolsConfig | null> {
   let current = process.cwd();
   while (path.resolve(current, '..') !== current) {

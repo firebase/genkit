@@ -2,6 +2,7 @@ import { findToolsConfig } from '@google-genkit-tools/common/config';
 import { Command } from 'commander';
 import { logger } from '../utils/logger';
 
+/** Gets plugin commands based on the tools config file, if present. */
 export async function getPluginCommands(): Promise<Command[]> {
   const config = await findToolsConfig();
 

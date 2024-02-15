@@ -1,0 +1,14 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "strict": true,
+    "strictNullChecks": true,
+    "removeComments": true,
+    "target": "ES2022",
+    "sourceMap": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": false,
+    "skipLibCheck": true,
+  },
+  "lib": ["ES2022"],
+}

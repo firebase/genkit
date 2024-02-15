@@ -1,14 +1,9 @@
 {
-    "compilerOptions": {
-      "module": "commonjs",
-      "strict": true,
-      "strictNullChecks": true,
-      "outDir": "dist",
-      "removeComments": true,
-      "target": "es2017",
-      "sourceMap": true,
-    },
-    "include": ["src/**/*"],
-    "exclude": ["ui/**/*"],
-    "lib": ["es2015"],
-  }
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "outDir": "dist",
+  },
+  "include": ["src"],
+  "exclude": ["ui"],
+}
