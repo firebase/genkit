@@ -1,9 +1,9 @@
-import { Resource } from "@opentelemetry/resources";
-import { GcpDetectorSync } from "@google-cloud/opentelemetry-resource-util";
-import { MeterProvider } from "@opentelemetry/sdk-metrics";
+import { Resource } from '@opentelemetry/resources';
+import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
+import { MeterProvider } from '@opentelemetry/sdk-metrics';
 
-export const METRIC_NAME_PREFIX = "genkit.";
-export const METER_NAME = "genkit";
+export const METRIC_NAME_PREFIX = 'genkit.';
+export const METER_NAME = 'genkit';
 
 export const meterProvider = new MeterProvider({
   // Create a resource. Fill the `service.*` attributes in with real values for your service.

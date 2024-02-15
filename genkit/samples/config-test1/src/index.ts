@@ -4,8 +4,9 @@ import { initializeGenkit } from "@google-genkit/common/config";
 import { flow, getFlowState, run, runFlow } from "@google-genkit/flow";
 import { geminiPro } from "@google-genkit/providers/models";
 import * as z from "zod";
+import config from "./genkit.conf"
 
-initializeGenkit();
+initializeGenkit(config);
 
 export const jokeFlow = flow(
   { name: "jokeFlow", input: z.string(), output: z.string() },

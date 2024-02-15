@@ -6,7 +6,9 @@
     "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
     "build:clean": "rm -rf ./lib",
     "build": "npm-run-all build:clean compile",
-    "build:watch": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json --watch"
+    "build:watch": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json --watch",
+    "lint": "eslint --config ../.eslintrc.js --ext .ts src",
+    "lint:fix": "npm run lint -- --fix --quiet"
   },
   "dependencies": {
     "@google-cloud/monitoring": "^4.0.0",

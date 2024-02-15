@@ -1,16 +1,18 @@
-import pino from "pino";
+import pino from 'pino';
 
 const logger = pino({
-  level: "error",
+  level: 'error',
   transport: {
-    target: "pino-pretty",
+    target: 'pino-pretty',
   },
 });
 
 /**
  * Sets logging level.
  */
-export function setLogLevel(level: "fatal" | "error" | "warn" | "info" | "debug" | "trace") {
+export function setLogLevel(
+  level: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace'
+) {
   logger.level = level;
 }
 

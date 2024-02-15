@@ -1,4 +1,5 @@
 import { loadPrompt, promptTemplate } from "@google-genkit/ai";
+
 import { generateText } from "@google-genkit/ai/text";
 import { getProjectId } from "@google-genkit/common";
 import { configureGenkit } from "@google-genkit/common/config";
@@ -8,6 +9,7 @@ import { configureVertexAiTextModel } from "@google-genkit/providers/llms";
 import { firestoreStores } from "@google-genkit/providers/stores";
 import { onRequest } from "firebase-functions/v2/https";
 import * as z from "zod";
+
 
 configureVertexAiTextModel({ modelName: "gemini-pro" })
 

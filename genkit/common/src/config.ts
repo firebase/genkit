@@ -3,7 +3,7 @@ import path from 'path';
 import { FlowStateStore } from './flowTypes';
 import { LocalFileFlowStateStore } from './localFileFlowStateStore';
 import logging, { setLogLevel } from './logging';
-import { Plugin } from './plugin';
+import { Plugin, PluginProvider } from './plugin';
 import * as registry from './registry';
 import { TraceStore, enableTracingAndMetrics } from './tracing';
 import { LocalFileTraceStore } from './tracing/localFileTraceStore';
@@ -12,7 +12,7 @@ export * from './plugin';
 
 export let config: Config;
 export interface ConfigOptions {
-  plugins?: Plugin[];
+  plugins?: PluginProvider<any, any, any>[];
   traceStore?: string;
   flowStateStore?: string;
   enableTracingAndMetrics?: boolean;
@@ -42,6 +42,9 @@ class Config {
         `No flow state store configured for \`${env}\` environment. Defaulting to \`dev\` store.`
       );
     }
+    if (!flowStateStore) {
+      throw new Error('No flow store is configured.');
+    }
     return flowStateStore;
   }
 
@@ -58,6 +61,9 @@ class Config {
         `No trace store configured for \`${env}\` environment. Defaulting to \`dev\` store.`
       );
     }
+    if (!traceStore) {
+      throw new Error('No trace store is configured.');
+    }
     return traceStore;
   }
 
@@ -67,36 +73,41 @@ class Config {
   private configure() {
     this.options.plugins?.forEach((plugin) => {
       logging.debug(`Registering plugin ${plugin.name}...`);
-      plugin.provides?.models?.forEach((model) => {
-        logging.debug(`  - Model: ${model.__action.name}`);
-        registry.registerAction('model', model.__action.name, model);
-      });
-      plugin.provides?.embedders?.forEach((embedder) => {
-        logging.debug(`  - Embedder: ${embedder.__action.name}`);
-        registry.registerAction('embedder', embedder.__action.name, embedder);
-      });
-      plugin.provides?.retrievers?.forEach((retriever) => {
-        logging.debug(`  - Retriever: ${retriever.__action.name}`);
-        registry.registerAction(
-          'retriever',
-          retriever.__action.name,
-          retriever
-        );
-      });
-      plugin.provides?.indexers?.forEach((indexer) => {
-        logging.debug(`  - Indexer: ${indexer.__action.name}`);
-        registry.registerAction('indexer', indexer.__action.name, indexer);
-      });
+      registry.registerPluginProvider(plugin.name, {
+        name: plugin.name,
+        initializer() {
+          logging.debug(`Initializing plugin ${plugin.name}:`);
+          const initializedPlugin = plugin.initializer();
+          initializedPlugin.models?.forEach((model) => {
+            logging.debug(`  - Model: ${model.__action.name}`);
+            registry.registerAction('model', model.__action.name, model);
+          });
+          initializedPlugin.embedders?.forEach((embedder) => {
+            logging.debug(`  - Embedder: ${embedder.__action.name}`);
+            registry.registerAction('embedder', embedder.__action.name, embedder);
+          });
+          initializedPlugin.retrievers?.forEach((retriever) => {
+            logging.debug(`  - Retriever: ${retriever.__action.name}`);
+            registry.registerAction('retriever', retriever.__action.name, retriever);
+          });
+          initializedPlugin.indexers?.forEach((indexer) => {
+            logging.debug(`  - Indexer: ${indexer.__action.name}`);
+            registry.registerAction('indexer', indexer.__action.name, indexer);
+          });
+          return initializedPlugin;
+        },
+      })
     });
 
     logging.debug('Registering flow state stores...');
-    registry.registerFlowStateStore('dev', new LocalFileFlowStateStore());
+    registry.registerFlowStateStore('dev', () => new LocalFileFlowStateStore());
     if (this.options.flowStateStore) {
-      logging.debug(`  - prod: ${this.options.flowStateStore}`);
+      const flowStorePluginName = this.options.flowStateStore;
+      logging.debug(`  - prod: ${flowStorePluginName}`);
       this.configuredEnvs.add('prod');
       registry.registerFlowStateStore(
         'prod',
-        this.resolveFlowStateStore(this.options.flowStateStore)
+        () => this.resolveFlowStateStore(flowStorePluginName)
       );
     } else {
       logging.warn(
@@ -105,13 +116,14 @@ class Config {
     }
 
     logging.debug('Registering trace stores...');
-    registry.registerTraceStore('dev', new LocalFileTraceStore());
+    registry.registerTraceStore('dev', () => new LocalFileTraceStore());
     if (this.options.traceStore) {
-      logging.debug(`  - prod: ${this.options.traceStore}`);
+      const traceStorePluginName = this.options.traceStore;
+      logging.debug(`  - prod: ${traceStorePluginName}`);
       this.configuredEnvs.add('prod');
       registry.registerTraceStore(
         'prod',
-        this.resolveTraceStore(this.options.traceStore)
+        () => this.resolveTraceStore(traceStorePluginName)
       );
     } else {
       logging.warn(
@@ -127,12 +139,9 @@ class Config {
   /**
    * Resolves flow state store provided by the specified plugin.
    */
-  private resolveFlowStateStore(pluginName: string): FlowStateStore {
-    const plugin = this.options.plugins?.find((p) => p.name === pluginName);
-    if (!plugin) {
-      throw new Error('Unable to resolve plugin name: ' + pluginName);
-    }
-    const provider = plugin.provides.flowStateStore;
+  private resolveFlowStateStore(pluginName: string) {
+    const plugin = registry.initializePlugin(pluginName)
+    const provider = plugin?.flowStateStore;
     if (!provider) {
       throw new Error(
         'Unable to resolve provided `flowStateStore` for plugin: ' + pluginName
@@ -144,12 +153,9 @@ class Config {
   /**
    * Resolves trace store provided by the specified plugin.
    */
-  private resolveTraceStore(pluginName: string): TraceStore {
-    const plugin = this.options.plugins?.find((p) => p.name === pluginName);
-    if (!plugin) {
-      throw new Error('Unable to resolve plugin name: ' + pluginName);
-    }
-    const provider = plugin.provides.traceStore;
+  private resolveTraceStore(pluginName: string) {
+    const plugin = registry.initializePlugin(pluginName)
+    const provider = plugin?.traceStore;
     if (!provider) {
       throw new Error(
         'Unable to resolve provided `traceStore` for plugin: ' + pluginName
@@ -162,17 +168,21 @@ class Config {
 /**
  * Configures Genkit with a set of options. This should be called from `genkit.config.js`.
  */
-export function configureGenkit(options: ConfigOptions) {
+export function configureGenkit(options: ConfigOptions): Config {
+  if (config) {
+    throw new Error('configureGenkit was already called');
+  }
   config = new Config(options);
   if (options.enableTracingAndMetrics) {
     enableTracingAndMetrics();
   }
+  return config;
 }
 
 /**
  * Locates `genkit.conf.js` and loads the file so that the config can be registered.
  */
-export function initializeGenkit() {
+export function initializeGenkit(cfg?: Config) {
   // Already initialized.
   if (config) {
     return;

@@ -1,8 +1,12 @@
-import { SpanKind, HrTime } from "@opentelemetry/api";
-import { SpanExporter, ReadableSpan } from "@opentelemetry/sdk-trace-base";
-import { ExportResult, ExportResultCode, hrTimeToMicroseconds } from "@opentelemetry/core";
-import { SpanData, TraceData, TraceStore } from "./types";
-import { deleteUndefinedProps } from "../utils";
+import { SpanKind, HrTime } from '@opentelemetry/api';
+import { SpanExporter, ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import {
+  ExportResult,
+  ExportResultCode,
+  hrTimeToMicroseconds,
+} from '@opentelemetry/core';
+import { SpanData, TraceData, TraceStore } from './types';
+import { deleteUndefinedProps } from '../utils';
 
 /**
  * Exports collected OpenTelemetetry spans to Firestore.
@@ -15,7 +19,10 @@ export class TraceStoreExporter implements SpanExporter {
    * @param spans
    * @param resultCallback
    */
-  export(spans: ReadableSpan[], resultCallback: (result: ExportResult) => void): void {
+  export(
+    spans: ReadableSpan[],
+    resultCallback: (result: ExportResult) => void
+  ): void {
     this._sendSpans(spans, resultCallback);
   }
 
@@ -56,16 +63,18 @@ export class TraceStoreExporter implements SpanExporter {
     };
     if (span.instrumentationLibrary !== undefined) {
       spanData.instrumentationLibrary = {
-        name: span.instrumentationLibrary.name
-      }
+        name: span.instrumentationLibrary.name,
+      };
       if (span.instrumentationLibrary.schemaUrl !== undefined) {
-        spanData.instrumentationLibrary.schemaUrl = span.instrumentationLibrary.schemaUrl;
+        spanData.instrumentationLibrary.schemaUrl =
+          span.instrumentationLibrary.schemaUrl;
       }
       if (span.instrumentationLibrary.version !== undefined) {
-        spanData.instrumentationLibrary.version = span.instrumentationLibrary.version;
+        spanData.instrumentationLibrary.version =
+          span.instrumentationLibrary.version;
       }
     }
-    deleteUndefinedProps(spanData)
+    deleteUndefinedProps(spanData);
     return spanData as SpanData;
   }
 

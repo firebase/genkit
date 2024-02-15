@@ -1,9 +1,8 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 // NOTE: Keep this file in sync with genkit-tools/src/types/flow.ts!
 // Eventually tools will be source of truth for these types (by generating a
 // JSON schema) but until then this file must be manually kept in sync
-
 
 export interface TraceQuery {
   limit?: number;
@@ -17,7 +16,7 @@ export interface TraceStore {
 
 export const SpanMetadataSchema = z.object({
   name: z.string(),
-  state: z.enum(["success", "error"]).optional(),
+  state: z.enum(['success', 'error']).optional(),
   input: z.any().optional(),
   output: z.any().optional(),
   isRoot: z.boolean().optional(),

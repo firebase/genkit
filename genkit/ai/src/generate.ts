@@ -133,8 +133,8 @@ ${JSON.stringify(outputSchema)}
       schema: prompt.output?.schema
         ? zodToJsonSchema(prompt.output.schema)
         : prompt.output?.jsonSchema
-        ? prompt.output.jsonSchema
-        : undefined,
+          ? prompt.output.jsonSchema
+          : undefined,
     },
   };
 }
@@ -197,6 +197,9 @@ export async function generate<
   } else if (prompt.model.hasOwnProperty('info')) {
     const ref = prompt.model as ModelReference<CustomOptions>;
     model = lookupAction(`/model/${ref.name}`);
+    if (!model) {
+      throw new Error(`Model ${ref.name} not found`);
+    }
   } else {
     model = prompt.model as ModelAction<CustomOptions>;
   }

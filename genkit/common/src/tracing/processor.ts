@@ -1,6 +1,10 @@
-import { Context } from "@opentelemetry/api";
-import { ReadableSpan, SpanProcessor, Span } from "@opentelemetry/sdk-trace-base";
-import { ATTR_PREFIX } from "./instrumentation";
+import { Context } from '@opentelemetry/api';
+import {
+  ReadableSpan,
+  SpanProcessor,
+  Span,
+} from '@opentelemetry/sdk-trace-base';
+import { ATTR_PREFIX } from './instrumentation';
 
 // Experimental, WIP
 
@@ -16,7 +20,9 @@ export class GenkitSpanProcessorWrapper implements SpanProcessor {
   }
 
   onEnd(span: ReadableSpan): void {
-    if (Object.keys(span.attributes).find((k) => k.startsWith(ATTR_PREFIX + ":"))) {
+    if (
+      Object.keys(span.attributes).find((k) => k.startsWith(ATTR_PREFIX + ':'))
+    ) {
       return this.processor.onEnd(new FilteringReadableSpanProxy(span));
     } else {
       return this.processor.onEnd(span);
@@ -50,10 +56,13 @@ class FilteringReadableSpanProxy implements ReadableSpan {
     return this.span.status;
   }
   get attributes() {
-    console.log("FilteringReadableSpanProxy get attributes", this.span.attributes);
+    console.log(
+      'FilteringReadableSpanProxy get attributes',
+      this.span.attributes
+    );
     const out = {} as Record<string, any>;
     for (const [key, value] of Object.entries(this.span.attributes)) {
-      if (!key.startsWith(ATTR_PREFIX + ":")) {
+      if (!key.startsWith(ATTR_PREFIX + ':')) {
         out[key] = value;
       }
     }

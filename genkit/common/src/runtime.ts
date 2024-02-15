@@ -6,5 +6,5 @@ export function getProjectId() {
   if (projectIdOverride !== undefined) {
     return projectIdOverride;
   }
-  return process.env["GCLOUD_PROJECT"] || "";
+  return process.env['GCLOUD_PROJECT'] || '';
 }

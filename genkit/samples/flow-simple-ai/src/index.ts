@@ -1,10 +1,14 @@
 import { generate } from "@google-genkit/ai/generate";
 import { initializeGenkit } from "@google-genkit/common/config";
 import { flow, run, runFlow } from "@google-genkit/flow";
+import { configureVertexAiTextModel } from "@google-genkit/providers/llms";
 import { geminiPro, gpt35Turbo } from '@google-genkit/providers/models';
 import * as z from "zod";
+import config from "./genkit.conf";
 
-initializeGenkit();
+configureVertexAiTextModel({ modelName: "gemini-pro" })
+
+initializeGenkit(config);
 
 export const jokeFlow = flow(
   { name: "jokeFlow", input: z.string(), output: z.string() },

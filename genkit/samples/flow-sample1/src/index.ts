@@ -1,8 +1,9 @@
 import { initializeGenkit } from '@google-genkit/common/config';
 import { flow, run, runFlow } from '@google-genkit/flow';
 import * as z from 'zod';
+import config from "./genkit.conf";
 
-initializeGenkit();
+initializeGenkit(config);
 
 export const jokeFlow = flow(
   { name: 'jokeFlow', input: z.string(), output: z.string() },

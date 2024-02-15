@@ -93,7 +93,6 @@ export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
    * Executes the flow with the input in the envelope format.
    */
   async runEnvelope(req: FlowInvokeEnvelopeMessage): Promise<FlowState> {
-    console.log("runEnvelope", req)
     if (req.start) {
       // First time, create new state.
       const flowId = generateFlowId();
