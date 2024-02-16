@@ -1,14 +1,14 @@
+import { EmbedderAction, embed } from '@google-genkit/ai/embedders';
 import {
   CommonRetrieverOptionsSchema,
   TextDocumentSchema,
-  type TextDocument,
   documentStoreFactory,
+  type TextDocument,
 } from '@google-genkit/ai/retrievers';
-import * as z from 'zod';
-import { embed, EmbedderAction } from '@google-genkit/ai/embedders';
-import { Md5 } from 'ts-md5';
-import * as fs from 'fs';
 import similarity from 'compute-cosine-similarity';
+import * as fs from 'fs';
+import { Md5 } from 'ts-md5';
+import * as z from 'zod';
 
 const _LOCAL_FILESTORE = '__db.json';
 

@@ -1,5 +1,4 @@
 import { action, Action } from '@google-genkit/common';
-import * as registry from '@google-genkit/common/registry';
 import * as z from 'zod';
 
 export const EmbeddingSchema = z.array(z.number());
@@ -68,11 +67,6 @@ export function embedderFactory<
       },
     },
     (i) => runner(i.input, i.options)
-  );
-  registry.registerAction(
-    'embedder',
-    `${options.provider}/${options.embedderId}`,
-    embedder
   );
   return withMetadata(embedder, options.inputType, options.customOptionsType);
 }

@@ -1,7 +1,20 @@
-import { embedderFactory } from '@google-genkit/ai/embedders';
 import { PredictionServiceClient, helpers } from '@google-cloud/aiplatform';
+import { embedderFactory } from '@google-genkit/ai/embedders';
 import { getProjectId } from '@google-genkit/common';
+import { genkitPlugin } from '@google-genkit/common/config';
 import * as z from 'zod';
+
+export const googleVertexAI = genkitPlugin(
+  'google-vertexai',
+  (params?: {
+    projectId?: string;
+    location?: string;
+    publisher?: string;
+    modelName: string;
+  }) => ({
+    embedders: [configureVertexTextEmbedder(params)],
+  })
+);
 
 const VertexEmbedderrOptionsSchema = z.object({
   temperature: z.number().optional(),
@@ -13,16 +26,16 @@ const VertexEmbedderrOptionsSchema = z.object({
 /**
  * Configures a Vertex embedder model.
  */
-export function configureVertexTextEmbedder(params: {
+export function configureVertexTextEmbedder(params?: {
   projectId?: string;
   location?: string;
   publisher?: string;
   modelName: string;
 }) {
-  const projectId = params.projectId || getProjectId();
-  const location = params.location || 'us-central1';
-  const publisher = params.publisher || 'google';
-  const modelName = params.modelName;
+  const projectId = params?.projectId || getProjectId();
+  const location = params?.location || 'us-central1';
+  const publisher = params?.publisher || 'google';
+  const modelName = params?.modelName;
   const clientOptions = {
     apiEndpoint: location + '-aiplatform.googleapis.com',
   };

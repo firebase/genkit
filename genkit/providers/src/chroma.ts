@@ -1,11 +1,11 @@
+import { embed, EmbedderAction } from '@google-genkit/ai/embedders';
 import {
   CommonRetrieverOptionsSchema,
   retrieverFactory,
   TextDocumentSchema,
 } from '@google-genkit/ai/retrievers';
-import * as z from 'zod';
 import { ChromaClient, IncludeEnum, Where, WhereDocument } from 'chromadb';
-import { embed, EmbedderAction } from '@google-genkit/ai/embedders';
+import * as z from 'zod';
 export { IncludeEnum };
 
 const WhereSchema: z.ZodType<Where> = z.any();

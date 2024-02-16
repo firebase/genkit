@@ -9,5 +9,6 @@ recipePrompt
     .then((result) => {
     console.log(result.output());
     process.exit(0); // TODO: figure out why process hangs
-});
+})
+    .catch(console.error);
 //# sourceMappingURL=index.js.map

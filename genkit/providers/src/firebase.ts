@@ -14,10 +14,9 @@ interface FirestorePluginParams {
   };
 }
 
-export const firestoreStores = genkitPlugin(
-  'firestoreStores',
+export const firebase = genkitPlugin(
+  'firebase',
   (params?: FirestorePluginParams) => ({
-    name: 'firestoreStores',
     flowStateStore: {
       id: 'firestore',
       value: new FirestoreStateStore(params?.flowStateStore),

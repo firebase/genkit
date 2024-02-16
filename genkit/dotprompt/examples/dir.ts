@@ -1,5 +1,5 @@
 import { loadPromptDir } from '../src/index.js';
-import { useGoogleAI } from '@google-genkit/providers/models';
+import { useGoogleAI } from '@google-genkit/providers/google-ai';
 
 useGoogleAI();
 

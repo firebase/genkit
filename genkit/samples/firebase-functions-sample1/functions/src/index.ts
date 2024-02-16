@@ -6,14 +6,14 @@ import { configureGenkit } from '@google-genkit/common/config';
 import { run, runFlow } from '@google-genkit/flow';
 import { onFlow } from '@google-genkit/providers/firebase-functions';
 import { configureVertexAiTextModel } from '@google-genkit/providers/llms';
-import { firestoreStores } from '@google-genkit/providers/stores';
+import { firebase } from '@google-genkit/providers/firebase';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as z from 'zod';
 
 configureVertexAiTextModel({ modelName: 'gemini-pro' });
 
 configureGenkit({
-  plugins: [firestoreStores({ projectId: getProjectId() })],
+  plugins: [firebase({ projectId: getProjectId() })],
   flowStateStore: 'firestoreStores',
   traceStore: 'firestoreStores',
   enableTracingAndMetrics: true,

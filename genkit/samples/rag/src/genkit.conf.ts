@@ -1,10 +1,10 @@
 import { getProjectId } from '@google-genkit/common';
 import { configureGenkit } from '@google-genkit/common/config';
-import { googleAI } from '@google-genkit/providers/models';
-import { firestoreStores } from '@google-genkit/providers/stores';
+import { googleAI } from '@google-genkit/providers/google-ai';
+import { firebase } from '@google-genkit/providers/firebase';
 
 export default configureGenkit({
-  plugins: [firestoreStores({ projectId: getProjectId() }), googleAI()],
+  plugins: [firebase({ projectId: getProjectId() }), googleAI()],
   flowStateStore: 'firestoreStores',
   traceStore: 'firestoreStores',
   enableTracingAndMetrics: true,

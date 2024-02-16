@@ -8,9 +8,9 @@ import { generateText } from '@google-genkit/ai/text';
 import { getProjectId } from '@google-genkit/common';
 import { initializeGenkit } from '@google-genkit/common/config';
 import { flow, runFlow } from '@google-genkit/flow';
-import { configureVertexTextEmbedder } from '@google-genkit/providers/embedders';
+import { configureVertexTextEmbedder } from '@google-genkit/providers/google-vertexai';
 import { configureVertexAiTextModel } from '@google-genkit/providers/llms';
-import { configurePinecone } from '@google-genkit/providers/vectorstores';
+import { configurePinecone } from '@google-genkit/providers/pinecone';
 import * as z from 'zod';
 import config from './genkit.conf';
 

@@ -31,63 +31,89 @@
   },
   "types": "lib/types/index.d.ts",
   "exports": {
-    "./vectorstores": {
-      "types": "./lib/types/vectorstores.d.ts",
-      "require": "./lib/cjs/vectorstores.js",
-      "import": "./lib/esm/vectorstores.js",
-      "default": "./lib/esm/vectorstores.js"
-    },
     "./llms": {
       "types": "./lib/types/llms.d.ts",
       "require": "./lib/cjs/llms.js",
       "import": "./lib/esm/llms.js",
       "default": "./lib/esm/llms.js"
     },
-    "./embedders": {
-      "types": "./lib/types/embedders.d.ts",
-      "require": "./lib/cjs/embedders.js",
-      "import": "./lib/esm/embedders.js",
-      "default": "./lib/esm/embedders.js"
-    },
-    "./models": {
-      "types": "./lib/types/models.d.ts",
-      "require": "./lib/cjs/models.js",
-      "import": "./lib/esm/models.js",
-      "default": "./lib/esm/models.js"
-    },
-    "./stores": {
-      "types": "./lib/types/stores.d.ts",
-      "require": "./lib/cjs/stores.js",
-      "import": "./lib/esm/stores.js",
-      "default": "./lib/esm/stores.js"
+    "./firebase": {
+      "types": "./lib/types/firebase.d.ts",
+      "require": "./lib/cjs/firebase.js",
+      "import": "./lib/esm/firebase.js",
+      "default": "./lib/esm/firebase.js"
     },
     "./firebase-functions": {
       "types": "./lib/types/firebase-functions.d.ts",
       "require": "./lib/cjs/firebase-functions.js",
       "import": "./lib/esm/firebase-functions.js",
       "default": "./lib/esm/firebase-functions.js"
+    },
+    "./google-ai": {
+      "types": "./lib/types/google-ai.d.ts",
+      "require": "./lib/cjs/google-ai.js",
+      "import": "./lib/esm/google-ai.js",
+      "default": "./lib/esm/google-ai.js"
+    },
+    "./google-vertexai": {
+      "types": "./lib/types/google-vertexai.d.ts",
+      "require": "./lib/cjs/google-vertexai.js",
+      "import": "./lib/esm/google-vertexai.js",
+      "default": "./lib/esm/google-vertexai.js"
+    },
+    "./openai": {
+      "types": "./lib/types/openai.d.ts",
+      "require": "./lib/cjs/openai.js",
+      "import": "./lib/esm/openai.js",
+      "default": "./lib/esm/openai.js"
+    },
+    "./naive-filestore": {
+      "types": "./lib/types/naive-filestore.d.ts",
+      "require": "./lib/cjs/naive-filestore.js",
+      "import": "./lib/esm/naive-filestore.js",
+      "default": "./lib/esm/naive-filestore.js"
+    },
+    "./chroma": {
+      "types": "./lib/types/chroma.d.ts",
+      "require": "./lib/cjs/chroma.js",
+      "import": "./lib/esm/chroma.js",
+      "default": "./lib/esm/chroma.js"
+    },
+    "./pinecone": {
+      "types": "./lib/types/pinecone.d.ts",
+      "require": "./lib/cjs/pinecone.js",
+      "import": "./lib/esm/pinecone.js",
+      "default": "./lib/esm/pinecone.js"
     }
-
   },
   "typesVersions": {
     "*": {
-      "vectorstores": [
-        "lib/types/vectorstores"
-      ],
       "llms": [
         "lib/types/llms"
       ],
-      "embedders": [
-        "lib/types/embedders"
-      ],
-      "models": [
-        "lib/types/models"
-      ],
-      "stores": [
-        "lib/types/stores"
+      "firebase": [
+        "lib/types/firebase"
       ],
       "firebase-functions": [
         "lib/types/firebase-functions"
+      ],
+      "google-ai": [
+        "lib/types/google-ai"
+      ],
+      "google-vertexai": [
+        "lib/types/google-vertexai"
+      ],
+      "openai": [
+        "lib/types/openai"
+      ],
+      "chroma": [
+        "lib/types/chroma"
+      ],
+      "naive-filestore": [
+        "lib/types/naive-filestore"
+      ],
+      "pinecone": [
+        "lib/types/pinecone"
       ]
     }
   }

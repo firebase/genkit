@@ -1,7 +1,7 @@
 import { generate } from '@google-genkit/ai/generate';
 import { initializeGenkit } from '@google-genkit/common/config';
 import { flow, getFlowState, run, runFlow } from '@google-genkit/flow';
-import { geminiPro } from '@google-genkit/providers/models';
+import { geminiPro } from '@google-genkit/providers/google-ai';
 import * as z from 'zod';
 import config from './genkit.conf';
 

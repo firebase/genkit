@@ -121,6 +121,7 @@ const setModelOptions = (
 
 /**
  * Configures a Vertex AI chat model.
+ * @deprecated
  */
 export function configureVertexAiChatModel(params: {
   projectId?: string;
