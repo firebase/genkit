@@ -1,13 +1,18 @@
 export const defaultOptions = {
-  entry: ['src/index.ts'],
   format: ['cjs', 'esm'],
   dts: true,
   sourcemap: true,
   clean: true,
   shims: true,
   outDir: 'lib',
+  entry: ['src/**/*.ts'],
+  bundle: false,
+  treeshake: false,
 };
 
+/**
+ *
+ */
 export function fromPackageJson(packageJson: {
   exports?: { [key: string]: { import: string } };
 }): string[] {
