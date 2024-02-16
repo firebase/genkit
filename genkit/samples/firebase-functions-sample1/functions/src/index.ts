@@ -14,8 +14,8 @@ configureVertexAiTextModel({ modelName: 'gemini-pro' });
 
 configureGenkit({
   plugins: [firebase({ projectId: getProjectId() })],
-  flowStateStore: 'firestoreStores',
-  traceStore: 'firestoreStores',
+  flowStateStore: 'firebase',
+  traceStore: 'firebase',
   enableTracingAndMetrics: true,
   logLevel: 'info',
 });

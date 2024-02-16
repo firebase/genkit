@@ -5,8 +5,8 @@ import { firebase } from '@google-genkit/providers/firebase';
 
 export default configureGenkit({
   plugins: [firebase({ projectId: getProjectId() }), googleAI()],
-  flowStateStore: 'firestoreStores',
-  traceStore: 'firestoreStores',
+  flowStateStore: 'firebase',
+  traceStore: 'firebase',
   enableTracingAndMetrics: true,
   logLevel: 'info',
 });
