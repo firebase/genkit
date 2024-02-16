@@ -47,6 +47,3 @@ jobs:
     - name: Run build script for typescript runtime
       working-directory: ./genkit
       run: npm run build:all
-    - name: Run build script for samples
-      working-directory: ./genkit
-      run: npm run build:samples
