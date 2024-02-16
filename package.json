@@ -2,26 +2,14 @@
   "private": true,
   "version": "0.0.1",
   "scripts": {
-    "lint": "eslint --ext .ts .",
-    "lint:fix": "eslint --fix --ext .ts .",
-    "install-parent-deps": "npm i",
-    "build-all": "npm run build-common && npm run build-flow && npm run build-ai && npm run build-providers && npm run build-dotprompt",
-    "build-common": "cd genkit/common && npm install && npm run build",
-    "build-flow": "cd genkit/flow && npm install && npm run build",
-    "build-ai": "cd genkit/ai && npm install && npm run build",
-    "build-providers": "cd genkit/providers && npm install && npm run build",
-    "build-dotprompt": "cd genkit/dotprompt && npm install && npm run build"
+    "lint:fix": "npm-run-all lint-fix-genkit lint-fix-genkit-tools",
+    "lint-fix-genkit": "cd genkit && npm run lint:fix",
+    "lint-fix-genkit-tools": "cd genkit-tools && npm run lint:fix",
+    "build:all": "npm-run-all build-genkit build-genkit-tools",
+    "build-genkit": "cd genkit && npm run build:all",
+    "build-genkit-tools": "cd genkit-tools && npm run build"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^5.12.0",
-    "@typescript-eslint/parser": "^5.12.0",
-    "eslint": "^8.9.0",
-    "eslint-config-google": "^0.14.0",
-    "eslint-config-prettier": "^8.3.0",
-    "eslint-plugin-import": "^2.25.4",
-    "eslint-plugin-jsdoc": "^39.2.9",
-    "eslint-plugin-prettier": "^4.0.0",
-    "prettier": "^2.7.1",
-    "typescript": "^4.9.0"
+    "npm-run-all": "^4.1.5"
   }
 }
