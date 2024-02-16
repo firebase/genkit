@@ -26,4 +26,7 @@ export const start = new Command('start')
     startServer(options.headless ?? false, port);
     const runner = new Runner();
     runner.start();
+
+    // Return hanging promise to prevent immediate exit.
+    return new Promise(() => {});
   });

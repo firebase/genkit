@@ -6,5 +6,5 @@ import { startCLI } from '../cli';
 
 void (async () => {
   await startCLI();
-  // process.exit();
+  process.exit();
 })();
