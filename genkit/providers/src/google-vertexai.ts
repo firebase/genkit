@@ -1,17 +1,19 @@
 import { PredictionServiceClient, helpers } from '@google-cloud/aiplatform';
 import { embedderFactory } from '@google-genkit/ai/embedders';
 import { getProjectId } from '@google-genkit/common';
-import { genkitPlugin } from '@google-genkit/common/config';
+import { Plugin, genkitPlugin } from '@google-genkit/common/config';
 import * as z from 'zod';
 
-export const googleVertexAI = genkitPlugin(
+export interface PluginOptions {
+  projectId?: string;
+  location?: string;
+  publisher?: string;
+  modelName: string;
+}
+
+export const googleVertexAI: Plugin<[PluginOptions]> = genkitPlugin(
   'google-vertexai',
-  (params?: {
-    projectId?: string;
-    location?: string;
-    publisher?: string;
-    modelName: string;
-  }) => ({
+  (params?: PluginOptions) => ({
     embedders: [configureVertexTextEmbedder(params)],
   })
 );

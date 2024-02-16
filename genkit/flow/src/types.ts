@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Flow } from './flow';
+import { Flow } from './flow.js';
 import { Operation } from '@google-genkit/common';
 
 export interface Dispatcher<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {

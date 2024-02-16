@@ -1,18 +1,18 @@
 import fs from 'fs';
 import path from 'path';
-import { FlowStateStore } from './flowTypes';
-import { LocalFileFlowStateStore } from './localFileFlowStateStore';
-import logging, { setLogLevel } from './logging';
-import { PluginProvider } from './plugin';
-import * as registry from './registry';
-import { TraceStore, enableTracingAndMetrics } from './tracing';
-import { LocalFileTraceStore } from './tracing/localFileTraceStore';
+import { FlowStateStore } from './flowTypes.js';
+import { LocalFileFlowStateStore } from './localFileFlowStateStore.js';
+import logging, { setLogLevel } from './logging.js';
+import { PluginProvider } from './plugin.js';
+import * as registry from './registry.js';
+import { TraceStore, enableTracingAndMetrics } from './tracing.js';
+import { LocalFileTraceStore } from './tracing/localFileTraceStore.js';
 
-export * from './plugin';
+export * from './plugin.js';
 
 export let config: Config;
 export interface ConfigOptions {
-  plugins?: PluginProvider<any, any>[];
+  plugins?: PluginProvider[];
   traceStore?: string;
   flowStateStore?: string;
   enableTracingAndMetrics?: boolean;

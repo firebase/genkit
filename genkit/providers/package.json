@@ -2,12 +2,13 @@
   "name": "@google-genkit/providers",
   "version": "0.0.1",
   "type": "commonjs",
-  "main": "./lib/cjs/llms.js",
+  "main": "./lib/llms.mjs",
   "scripts": {
-    "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
+    "check": "tsc",
+    "compile": "tsup-node",
     "build:clean": "rm -rf ./lib",
-    "build": "npm-run-all build:clean compile",
-    "build:watch": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json --watch",
+    "build": "npm-run-all build:clean check compile",
+    "build:watch": "tsup-node --watch",
     "lint": "eslint --config ../.eslintrc.js --ext .ts src",
     "lint:fix": "npm run lint -- --fix --quiet"
   },
@@ -15,8 +16,8 @@
     "@google-cloud/aiplatform": "^3.10.0",
     "@google-cloud/vertexai": "file:google-cloud-vertexai-0.2.1.tgz",
     "@google-genkit/ai": "*",
-    "@google-genkit/flow": "*",
     "@google-genkit/common": "*",
+    "@google-genkit/flow": "*",
     "@google/generative-ai": "^0.2.0",
     "@pinecone-database/pinecone": "^2.0.1",
     "chromadb": "^1.7.3",
@@ -27,94 +28,55 @@
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5",
+    "tsup": "^8.0.2",
     "typescript": "^4.9.0"
   },
-  "types": "lib/types/index.d.ts",
+  "types": "lib/index.d.ts",
   "exports": {
     "./llms": {
-      "types": "./lib/types/llms.d.ts",
-      "require": "./lib/cjs/llms.js",
-      "import": "./lib/esm/llms.js",
-      "default": "./lib/esm/llms.js"
+      "types": "./lib/llms.d.ts",
+      "require": "./lib/llms.js",
+      "import": "./lib/llms.mjs"
     },
     "./firebase": {
-      "types": "./lib/types/firebase.d.ts",
-      "require": "./lib/cjs/firebase.js",
-      "import": "./lib/esm/firebase.js",
-      "default": "./lib/esm/firebase.js"
+      "types": "./lib/firebase.d.ts",
+      "require": "./lib/firebase.js",
+      "import": "./lib/firebase.mjs"
     },
     "./firebase-functions": {
-      "types": "./lib/types/firebase-functions.d.ts",
-      "require": "./lib/cjs/firebase-functions.js",
-      "import": "./lib/esm/firebase-functions.js",
-      "default": "./lib/esm/firebase-functions.js"
+      "types": "./lib/firebase-functions.d.ts",
+      "require": "./lib/firebase-functions.cjs",
+      "import": "./lib/firebase-functions.js"
     },
     "./google-ai": {
-      "types": "./lib/types/google-ai.d.ts",
-      "require": "./lib/cjs/google-ai.js",
-      "import": "./lib/esm/google-ai.js",
-      "default": "./lib/esm/google-ai.js"
+      "types": "./lib/google-ai.d.ts",
+      "require": "./lib/google-ai.js",
+      "import": "./lib/google-ai.mjs"
     },
     "./google-vertexai": {
-      "types": "./lib/types/google-vertexai.d.ts",
-      "require": "./lib/cjs/google-vertexai.js",
-      "import": "./lib/esm/google-vertexai.js",
-      "default": "./lib/esm/google-vertexai.js"
+      "types": "./lib/google-vertexai.d.ts",
+      "require": "./lib/google-vertexai.js",
+      "import": "./lib/google-vertexai.mjs"
     },
     "./openai": {
-      "types": "./lib/types/openai.d.ts",
-      "require": "./lib/cjs/openai.js",
-      "import": "./lib/esm/openai.js",
-      "default": "./lib/esm/openai.js"
+      "types": "./lib/openai.d.ts",
+      "require": "./lib/openai.js",
+      "import": "./lib/openai.mjs"
     },
     "./naive-filestore": {
-      "types": "./lib/types/naive-filestore.d.ts",
-      "require": "./lib/cjs/naive-filestore.js",
-      "import": "./lib/esm/naive-filestore.js",
-      "default": "./lib/esm/naive-filestore.js"
+      "types": "./lib/naive-filestore.d.ts",
+      "require": "./lib/naive-filestore.js",
+      "import": "./lib/naive-filestore.mjs"
     },
     "./chroma": {
-      "types": "./lib/types/chroma.d.ts",
-      "require": "./lib/cjs/chroma.js",
-      "import": "./lib/esm/chroma.js",
-      "default": "./lib/esm/chroma.js"
+      "types": "./lib/chroma.d.ts",
+      "require": "./lib/chroma.js",
+      "import": "./lib/chroma.mjs"
     },
     "./pinecone": {
-      "types": "./lib/types/pinecone.d.ts",
-      "require": "./lib/cjs/pinecone.js",
-      "import": "./lib/esm/pinecone.js",
-      "default": "./lib/esm/pinecone.js"
-    }
-  },
-  "typesVersions": {
-    "*": {
-      "llms": [
-        "lib/types/llms"
-      ],
-      "firebase": [
-        "lib/types/firebase"
-      ],
-      "firebase-functions": [
-        "lib/types/firebase-functions"
-      ],
-      "google-ai": [
-        "lib/types/google-ai"
-      ],
-      "google-vertexai": [
-        "lib/types/google-vertexai"
-      ],
-      "openai": [
-        "lib/types/openai"
-      ],
-      "chroma": [
-        "lib/types/chroma"
-      ],
-      "naive-filestore": [
-        "lib/types/naive-filestore"
-      ],
-      "pinecone": [
-        "lib/types/pinecone"
-      ]
+      "types": "./lib/pinecone.d.ts",
+      "require": "./lib/pinecone.js",
+      "import": "./lib/pinecone.mjs"
     }
   }
 }

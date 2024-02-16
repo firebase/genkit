@@ -1,6 +1,6 @@
-import { genkitPlugin } from '@google-genkit/common/config';
-import { FirestoreTraceStore } from '@google-genkit/common/tracing';
+import { genkitPlugin, Plugin } from '@google-genkit/common/config';
 import { FirestoreStateStore } from '@google-genkit/flow';
+import { FirestoreTraceStore } from '../../common/lib/tracing.js';
 
 interface FirestorePluginParams {
   projectId?: string;
@@ -14,7 +14,7 @@ interface FirestorePluginParams {
   };
 }
 
-export const firebase = genkitPlugin(
+export const firebase: Plugin<[FirestorePluginParams]> = genkitPlugin(
   'firebase',
   (params?: FirestorePluginParams) => ({
     flowStateStore: {

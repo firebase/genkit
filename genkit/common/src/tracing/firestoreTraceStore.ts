@@ -1,6 +1,6 @@
 import { App, AppOptions, getApp, initializeApp } from 'firebase-admin/app';
 import { Firestore, getFirestore } from 'firebase-admin/firestore';
-import { TraceData, TraceDataSchema, TraceQuery, TraceStore } from './types';
+import { TraceData, TraceDataSchema, TraceQuery, TraceStore } from './types.js';
 
 /**
  * Firestore implementation of a trace store.

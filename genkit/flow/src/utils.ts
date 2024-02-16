@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { Context } from './context';
+import { Context } from './context.js';
 import { v4 as uuidv4 } from 'uuid';
 
 /**

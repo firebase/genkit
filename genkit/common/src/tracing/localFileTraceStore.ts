@@ -1,9 +1,9 @@
-import logging from '../logging';
+import logging from '../logging.js';
 import os from 'os';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { TraceData, TraceDataSchema, TraceQuery, TraceStore } from './types';
+import { TraceData, TraceDataSchema, TraceQuery, TraceStore } from './types.js';
 
 /**
  * Implementation of trace store that persists traces on local disk.

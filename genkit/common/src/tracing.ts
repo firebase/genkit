@@ -9,17 +9,17 @@ import {
   SimpleSpanProcessor,
   SpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
-import { config } from './config';
-import { meterProvider } from './metrics';
-import { getProjectId } from './runtime';
-import { TraceStoreExporter } from './tracing/exporter';
+import { config } from './config.js';
+import { meterProvider } from './metrics.js';
+import { getProjectId } from './runtime.js';
+import { TraceStoreExporter } from './tracing/exporter.js';
 
-export * from './tracing/exporter';
-export * from './tracing/firestoreTraceStore';
-export * from './tracing/instrumentation';
-export * from './tracing/localFileTraceStore';
-export * from './tracing/processor';
-export * from './tracing/types';
+export * from './tracing/exporter.js';
+export * from './tracing/firestoreTraceStore.js';
+export * from './tracing/instrumentation.js';
+export * from './tracing/localFileTraceStore.js';
+export * from './tracing/processor.js';
+export * from './tracing/types.js';
 
 const processors: SpanProcessor[] = [];
 

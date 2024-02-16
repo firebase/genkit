@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "NodeNext",
     "noImplicitReturns": true,
     "noUnusedLocals": false,
     "outDir": "lib",
@@ -11,7 +11,5 @@
     "esModuleInterop": true
   },
   "compileOnSave": true,
-  "include": [
-    "src"
-  ]
+  "include": ["src"]
 }

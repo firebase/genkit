@@ -5,7 +5,7 @@ import {
   LlmResponse,
   LlmResponseSchema,
   StreamingCallback,
-} from './types';
+} from './types.js';
 import { Action, action } from '@google-genkit/common';
 import * as registry from '@google-genkit/common/registry';
 import { setCustomMetadataAttribute } from '@google-genkit/common/tracing';

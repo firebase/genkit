@@ -5,7 +5,7 @@ import {
   Span as ApiSpan,
   Link,
 } from '@opentelemetry/api';
-import { SpanMetadata } from './types';
+import { SpanMetadata } from './types.js';
 
 const stepAsyncLocalStorage = new AsyncLocalStorage<SpanMetadata>();
 

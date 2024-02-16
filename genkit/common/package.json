@@ -3,10 +3,11 @@
   "version": "0.0.1",
   "type": "commonjs",
   "scripts": {
-    "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
+    "check": "tsc",
+    "compile": "tsup-node",
     "build:clean": "rm -rf ./lib",
-    "build": "npm-run-all build:clean compile",
-    "build:watch": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json --watch",
+    "build": "npm-run-all build:clean check compile",
+    "build:watch": "tsup-node --watch",
     "lint": "eslint --config ../.eslintrc.js --ext .ts src",
     "lint:fix": "npm run lint -- --fix --quiet"
   },
@@ -30,73 +31,45 @@
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5",
+    "tsup": "^8.0.2",
     "typescript": "^4.9.0"
   },
-  "types": "lib/types/index.d.ts",
+  "types": "lib/index.d.ts",
   "exports": {
     ".": {
-      "types": "./lib/types/index.d.ts",
-      "require": "./lib/cjs/index.js",
-      "import": "./lib/esm/index.js",
-      "default": "./lib/esm/index.js"
+      "types": "./lib/index.d.ts",
+      "require": "./lib/index.js",
+      "import": "./lib/index.mjs"
     },
     "./metrics": {
-      "types": "./lib/types/metrics.d.ts",
-      "require": "./lib/cjs/metrics.js",
-      "import": "./lib/esm/metrics.js",
-      "default": "./lib/esm/metrics.js"
+      "types": "./lib/metrics.d.ts",
+      "require": "./lib/metrics.js",
+      "import": "./lib/metrics.mjs"
     },
     "./registry": {
-      "types": "./lib/types/registry.d.ts",
-      "require": "./lib/cjs/registry.js",
-      "import": "./lib/esm/registry.js",
-      "default": "./lib/esm/registry.js"
+      "types": "./lib/registry.d.ts",
+      "require": "./lib/registry.js",
+      "import": "./lib/registry.mjs"
     },
     "./tracing": {
-      "types": "./lib/types/tracing.d.ts",
-      "require": "./lib/cjs/tracing.js",
-      "import": "./lib/esm/tracing.js",
-      "default": "./lib/esm/tracing.js"
+      "types": "./lib/tracing.d.ts",
+      "require": "./lib/tracing.js",
+      "import": "./lib/tracing.mjs"
     },
     "./logging": {
-      "types": "./lib/types/logging.d.ts",
-      "require": "./lib/cjs/logging.js",
-      "import": "./lib/esm/logging.js",
-      "default": "./lib/esm/logging.js"
+      "types": "./lib/logging.d.ts",
+      "require": "./lib/logging.js",
+      "import": "./lib/logging.mjs"
     },
     "./config": {
-      "types": "./lib/types/config.d.ts",
-      "require": "./lib/cjs/config.js",
-      "import": "./lib/esm/config.js",
-      "default": "./lib/esm/config.js"
+      "types": "./lib/config.d.ts",
+      "require": "./lib/config.js",
+      "import": "./lib/config.mjs"
     },
     "./runtime": {
-      "types": "./lib/types/runtime.d.ts",
-      "require": "./lib/cjs/runtime.js",
-      "import": "./lib/esm/runtime.js",
-      "default": "./lib/esm/runtime.js"
-    }
-  },
-  "typesVersions": {
-    "*": {
-      "metrics": [
-        "lib/types/metrics"
-      ],
-      "runtime": [
-        "lib/types/runtime"
-      ],
-      "tracing": [
-        "lib/types/tracing"
-      ],
-      "logging": [
-        "lib/types/logging"
-      ],
-      "config": [
-        "lib/types/config"
-      ],
-      "registry": [
-        "lib/types/registry"
-      ]
+      "types": "./lib/runtime.d.ts",
+      "require": "./lib/runtime.js",
+      "import": "./lib/runtime.mjs"
     }
   }
 }

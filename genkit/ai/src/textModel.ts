@@ -7,7 +7,7 @@ import {
   StreamingCallback,
   ModelId,
   StreamingCallbackFn,
-} from './types';
+} from './types.js';
 import { Action, action } from '@google-genkit/common';
 import * as registry from '@google-genkit/common/registry';
 import {
@@ -16,7 +16,7 @@ import {
   Prompt,
   PromptSchema,
   prompt,
-} from './prompt';
+} from './prompt.js';
 import { setCustomMetadataAttribute } from '@google-genkit/common/tracing';
 import { AsyncLocalStorage } from 'node:async_hooks';
 

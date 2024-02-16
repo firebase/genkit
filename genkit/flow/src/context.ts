@@ -3,8 +3,8 @@ import {
   FlowStateExecution,
   FlowStateStore,
 } from '@google-genkit/common';
-import zodToJsonSchema from 'zod-to-json-schema';
-import { InterruptError } from './errors';
+import { zodToJsonSchema } from 'zod-to-json-schema';
+import { InterruptError } from './errors.js';
 import { z } from 'zod';
 import {
   SPAN_TYPE_ATTR,
@@ -12,8 +12,8 @@ import {
   setCustomMetadataAttribute,
   setCustomMetadataAttributes,
 } from '@google-genkit/common/tracing';
-import { RunStepConfig } from './flow';
-import { metadataPrefix } from './utils';
+import { RunStepConfig } from './flow.js';
+import { metadataPrefix } from './utils.js';
 import { logger } from 'firebase-functions/v1';
 
 /**

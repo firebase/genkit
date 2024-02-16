@@ -1,4 +1,4 @@
-import zodToJsonSchema from 'zod-to-json-schema';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 import {
   CandidateData,
   GenerationConfig,
@@ -11,8 +11,8 @@ import {
   Part,
   ToolDefinition,
   ToolResponsePart,
-} from './model';
-import { extractJson } from './extract';
+} from './model.js';
+import { extractJson } from './extract.js';
 import { Action } from '@google-genkit/common';
 import { z } from 'zod';
 import { lookupAction } from '@google-genkit/common/registry';

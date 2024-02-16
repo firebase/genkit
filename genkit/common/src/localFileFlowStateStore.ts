@@ -7,8 +7,8 @@ import {
   FlowStateQuery,
   FlowStateSchema,
   FlowStateStore,
-} from './flowTypes';
-import logging from './logging';
+} from './flowTypes.js';
+import logging from './logging.js';
 
 /**
  * Implementation of flow state store that persistes flow state on local disk.

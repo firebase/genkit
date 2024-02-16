@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
+    "module": "NodeNext",
     "noImplicitReturns": true,
     "noUnusedLocals": false,
     "outDir": "lib",

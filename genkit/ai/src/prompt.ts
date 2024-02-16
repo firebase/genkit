@@ -3,7 +3,7 @@ import { z } from 'zod';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import fm from 'front-matter';
-import { ModelId, ModelIdSchema } from './types';
+import { ModelId, ModelIdSchema } from './types.js';
 import { action } from '@google-genkit/common';
 
 function metadataPrefix(name: string) {

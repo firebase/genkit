@@ -1,12 +1,4 @@
 {
   "extends": "../tsconfig.json",
-  "compilerOptions": {
-    "rootDirs": [
-      "src",
-    ],
-    "lib": ["webworker"],
-  },
-  "include": [
-    "src",
-  ]
+  "include": ["src"]
 }

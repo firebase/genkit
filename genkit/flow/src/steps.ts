@@ -1,7 +1,7 @@
 import { Action } from '@google-genkit/common';
 import * as z from 'zod';
-import { RunStepConfig } from './flow';
-import { getActiveContext } from './utils';
+import { RunStepConfig } from './flow.js';
+import { getActiveContext } from './utils.js';
 
 /**
  * A flow steap that executes an action with provided input and memoizes the output.

@@ -1,5 +1,5 @@
 import * as z from 'zod';
-import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing';
+import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing.js';
 
 export interface ActionMetadata<
   I extends z.ZodTypeAny,

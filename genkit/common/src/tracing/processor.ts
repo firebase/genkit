@@ -4,7 +4,7 @@ import {
   SpanProcessor,
   Span,
 } from '@opentelemetry/sdk-trace-base';
-import { ATTR_PREFIX } from './instrumentation';
+import { ATTR_PREFIX } from './instrumentation.js';
 
 // Experimental, WIP
 

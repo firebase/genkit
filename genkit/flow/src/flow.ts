@@ -17,8 +17,8 @@ import {
 } from '@google-genkit/common/tracing';
 import { logger } from 'firebase-functions/v1';
 import * as z from 'zod';
-import zodToJsonSchema from 'zod-to-json-schema';
-import { Context } from './context';
+import { zodToJsonSchema } from 'zod-to-json-schema';
+import { Context } from './context.js';
 import {
   FlowExecutionError,
   FlowNotFoundError,
@@ -26,14 +26,18 @@ import {
   getErrorMessage,
   getErrorStack,
   InterruptError,
-} from './errors';
+} from './errors.js';
 import {
   Dispatcher,
   FlowInvokeEnvelopeMessage,
   FlowInvokeEnvelopeMessageSchema,
   RetryConfig,
-} from './types';
-import { generateFlowId, metadataPrefix, runWithActiveContext } from './utils';
+} from './types.js';
+import {
+  generateFlowId,
+  metadataPrefix,
+  runWithActiveContext,
+} from './utils.js';
 
 /**
  * Step configuration for retries, etc.

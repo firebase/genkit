@@ -6,7 +6,7 @@ import {
   modelAction,
   modelRef,
 } from '@google-genkit/ai/model';
-import { genkitPlugin } from '@google-genkit/common/config';
+import { genkitPlugin, Plugin } from '@google-genkit/common/config';
 import {
   GenerateContentCandidate as GeminiCandidate,
   InputContent as GeminiMessage,
@@ -126,11 +126,14 @@ function fromGeminiCandidate(candidate: GeminiCandidate): CandidateData {
   };
 }
 
-export const googleAI = genkitPlugin('google-ai', (apiKey?: string) => ({
-  models: Object.keys(SUPPORTED_MODELS).map((name) =>
-    googleAIModel(name, apiKey)
-  ),
-}));
+export const googleAI: Plugin<[string] | []> = genkitPlugin(
+  'google-ai',
+  (apiKey?: string) => ({
+    models: Object.keys(SUPPORTED_MODELS).map((name) =>
+      googleAIModel(name, apiKey)
+    ),
+  })
+);
 
 /**
  *

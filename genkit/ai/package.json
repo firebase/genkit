@@ -3,10 +3,11 @@
   "version": "0.0.1",
   "type": "commonjs",
   "scripts": {
-    "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
+    "check": "tsc",
+    "compile": "tsup-node",
     "build:clean": "rm -rf ./lib",
-    "build": "npm-run-all build:clean compile",
-    "build:watch": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json --watch",
+    "build": "npm-run-all build:clean check compile",
+    "build:watch": "tsup-node --watch",
     "lint": "eslint --config ../.eslintrc.js --ext .ts src",
     "lint:fix": "npm run lint -- --fix --quiet"
   },
@@ -20,107 +21,62 @@
     "npm-run-all": "^4.1.5",
     "typescript": "^4.9.0"
   },
-  "types": "lib/types/index.d.ts",
+  "types": "lib/index.d.ts",
   "exports": {
     ".": {
-      "types": "./lib/types/index.d.ts",
-      "require": "./lib/cjs/index.js",
-      "import": "./lib/esm/index.js",
-      "default": "./lib/esm/index.js"
+      "types": "./lib/index.d.ts",
+      "require": "./lib/index.js",
+      "import": "./lib/index.mjs"
     },
     "./agents": {
-      "types": "./lib/types/agents.d.ts",
-      "require": "./lib/cjs/agents.js",
-      "import": "./lib/esm/agents.js",
-      "default": "./lib/esm/agents.js"
+      "types": "./lib/agents.d.ts",
+      "require": "./lib/agents.js",
+      "import": "./lib/agents.mjs"
     },
     "./memory": {
-      "types": "./lib/types/memory.d.ts",
-      "require": "./lib/cjs/memory.js",
-      "import": "./lib/esm/memory.js",
-      "default": "./lib/esm/memory.js"
+      "types": "./lib/memory.d.ts",
+      "require": "./lib/memory.js",
+      "import": "./lib/memory.mjs"
     },
     "./recipes": {
-      "types": "./lib/types/recipes.d.ts",
-      "require": "./lib/cjs/recipes.js",
-      "import": "./lib/esm/recipes.js",
-      "default": "./lib/esm/recipes.js"
+      "types": "./lib/recipes.d.ts",
+      "require": "./lib/recipes.js",
+      "import": "./lib/recipes.mjs"
     },
     "./retrievers": {
-      "types": "./lib/types/retrievers.d.ts",
-      "require": "./lib/cjs/retrievers.js",
-      "import": "./lib/esm/retrievers.js",
-      "default": "./lib/esm/retrievers.js"
+      "types": "./lib/retrievers.d.ts",
+      "require": "./lib/retrievers.js",
+      "import": "./lib/retrievers.mjs"
     },
     "./embedders": {
-      "types": "./lib/types/embedders.d.ts",
-      "require": "./lib/cjs/embedders.js",
-      "import": "./lib/esm/embedders.js",
-      "default": "./lib/esm/embedders.js"
+      "types": "./lib/embedders.d.ts",
+      "require": "./lib/embedders.js",
+      "import": "./lib/embedders.mjs"
     },
     "./eval": {
-      "types": "./lib/types/eval.d.ts",
-      "require": "./lib/cjs/eval.js",
-      "import": "./lib/esm/eval.js",
-      "default": "./lib/esm/eval.js"
+      "types": "./lib/eval.d.ts",
+      "require": "./lib/eval.js",
+      "import": "./lib/eval.mjs"
     },
     "./chat": {
-      "types": "./lib/types/chatModel.d.ts",
-      "require": "./lib/cjs/chatModel.js",
-      "import": "./lib/esm/chatModel.js",
-      "default": "./lib/esm/chatModel.js"
+      "types": "./lib/chatModel.d.ts",
+      "require": "./lib/chatModel.js",
+      "import": "./lib/chatModel.mjs"
     },
     "./text": {
-      "types": "./lib/types/textModel.d.ts",
-      "require": "./lib/cjs/textModel.js",
-      "import": "./lib/esm/textModel.js",
-      "default": "./lib/esm/textModel.js"
+      "types": "./lib/textModel.d.ts",
+      "require": "./lib/textModel.js",
+      "import": "./lib/textModel.mjs"
     },
     "./model": {
-      "types": "./lib/types/model.d.ts",
-      "require": "./lib/cjs/model.js",
-      "import": "./lib/esm/model.js",
-      "default": "./lib/esm/model.js"
+      "types": "./lib/model.d.ts",
+      "require": "./lib/model.js",
+      "import": "./lib/model.mjs"
     },
     "./generate": {
-      "types": "./lib/types/generate.d.ts",
-      "require": "./lib/cjs/generate.js",
-      "import": "./lib/esm/generate.js",
-      "default": "./lib/esm/generate.js"
-    }
-  },
-  "typesVersions": {
-    "*": {
-      "agents": [
-        "lib/types/agents"
-      ],
-      "memory": [
-        "lib/types/memory"
-      ],
-      "recipes": [
-        "lib/types/recipes"
-      ],
-      "retrievers": [
-        "lib/types/retrievers"
-      ],
-      "embedders": [
-        "lib/types/embedders"
-      ],
-      "text": [
-        "lib/types/textModel"
-      ],
-      "chat": [
-        "lib/types/chatModel"
-      ],
-      "eval": [
-        "lib/types/eval"
-      ],
-      "model": [
-        "lib/types/model"
-      ],
-      "generate": [
-        "lib/types/generate"
-      ]
+      "types": "./lib/generate.d.ts",
+      "require": "./lib/generate.js",
+      "import": "./lib/generate.mjs"
     }
   }
 }

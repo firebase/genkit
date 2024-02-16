@@ -69,9 +69,7 @@ export function startServer(headless: boolean, port: number): void {
 
   app.listen(port, () => {
     logger.info(
-      `${clc.green(
-        clc.bold('Genkit Tools API:'),
-      )} http://localhost:${port}/api`,
+      `${clc.green(clc.bold('Genkit Tools API:'))} http://localhost:${port}/api`,
     );
     if (!headless) {
       logger.info(

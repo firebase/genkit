@@ -1,16 +1,16 @@
 import * as z from 'zod';
-import { FlowStateStore } from './flowTypes';
-import { PluginProvider } from './plugin';
-import { startReflectionApi } from './reflectionApi';
-import { TraceStore } from './tracing/types';
-import { Action } from './types';
+import { FlowStateStore } from './flowTypes.js';
+import { PluginProvider } from './plugin.js';
+import { startReflectionApi } from './reflectionApi.js';
+import { TraceStore } from './tracing/types.js';
+import { Action } from './types.js';
 
 type Provider<T> = () => T;
 
 const __actionsById: Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>> = {};
 const __traceStoresByEnv: Record<string, Provider<TraceStore>> = {};
 const __flowStateStoresByEnv: Record<string, Provider<FlowStateStore>> = {};
-const __pluginsByName: Record<string, PluginProvider<any, any>> = {};
+const __pluginsByName: Record<string, PluginProvider> = {};
 
 /**
  * Type of a runnable action.
@@ -112,10 +112,7 @@ export function lookupFlowStateStore(env: string): FlowStateStore {
 /**
  * Registers a flow state store for the given environment.
  */
-export function registerPluginProvider(
-  name: string,
-  provider: PluginProvider<any, any>
-) {
+export function registerPluginProvider(name: string, provider: PluginProvider) {
   let cached;
   __pluginsByName[name] = {
     name: provider.name,

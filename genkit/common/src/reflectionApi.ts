@@ -1,8 +1,8 @@
 import express from 'express';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { config } from './config';
-import logging from './logging';
-import * as registry from './registry';
+import { config } from './config.js';
+import logging from './logging.js';
+import * as registry from './registry.js';
 
 /**
  * Starts a Reflection API that will be used by the Runner to call and control actions and flows.
