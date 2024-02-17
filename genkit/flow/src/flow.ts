@@ -9,13 +9,14 @@ import {
   Operation,
 } from '@google-genkit/common';
 import { config as globalConfig } from '@google-genkit/common/config';
+import logging from '@google-genkit/common/logging';
 import * as registry from '@google-genkit/common/registry';
 import {
   newTrace,
   setCustomMetadataAttribute,
   SPAN_TYPE_ATTR,
 } from '@google-genkit/common/tracing';
-import { logger } from 'firebase-functions/v1';
+import { logger } from 'firebase-functions/v2';
 import * as z from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { Context } from './context.js';
@@ -113,6 +114,7 @@ export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
    * Executes the flow with the input in the envelope format.
    */
   async runEnvelope(req: FlowInvokeEnvelopeMessage): Promise<FlowState> {
+    logging.debug(req, 'runEnvelope');
     if (req.start) {
       // First time, create new state.
       const flowId = generateFlowId();
@@ -179,6 +181,7 @@ export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
           "Unable to resume flow that's currently not interrupted"
         );
       }
+      state.eventsTriggered[state.blockedOnStep.name] = req.resume.payload;
       const ctx = new Context(flowId, state, this.stateStore);
       try {
         await this.executeSteps(ctx, this.steps, 'resume');
@@ -318,11 +321,15 @@ export async function scheduleFlow<
 export async function resumeFlow<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny
->(flow: Flow<I, O> | FlowWrapper<I, O>, flowId: string, payload: any) {
+>(
+  flow: Flow<I, O> | FlowWrapper<I, O>,
+  flowId: string,
+  payload: any
+): Promise<Operation> {
   if (!(flow instanceof Flow)) {
     flow = flow.flow;
   }
-  await flow.dispatcher.deliver(flow, {
+  return await flow.dispatcher.deliver(flow, {
     resume: {
       flowId,
       payload,
