@@ -173,6 +173,39 @@ export type ModelAction<
   __customOptionsType: CustomOptionsSchema;
 };
 
+export interface ModelMiddleware {
+  (
+    req: GenerationRequest,
+    next: (req?: GenerationRequest) => Promise<GenerationResponseData>
+  ): Promise<GenerationResponseData>;
+}
+
+/**
+ *
+ */
+export function modelWithMiddleware(
+  model: ModelAction,
+  middleware: ModelMiddleware[]
+): ModelAction {
+  const wrapped = (async (req: GenerationRequest) => {
+    const dispatch = async (index: number, req: GenerationRequest) => {
+      if (index === middleware.length) {
+        // end of the chain, call the original model action
+        return await model(req);
+      }
+
+      const currentMiddleware = middleware[index];
+      return currentMiddleware(req, async (modifiedReq) =>
+        dispatch(index + 1, modifiedReq || req)
+      );
+    };
+
+    return await dispatch(0, req);
+  }) as ModelAction;
+  wrapped.__action = model.__action;
+  return wrapped;
+}
+
 /**
  *
  */
@@ -190,6 +223,7 @@ export function modelAction<
     /** Descriptive name for this model e.g. 'Google AI - Gemini Pro'. */
     label?: string;
     tools?: Action<any, any>[];
+    use?: ModelMiddleware[];
   },
   runner: (request: GenerationRequest) => Promise<GenerationResponseData>
 ): ModelAction<CustomOptionsSchema> {
@@ -213,6 +247,12 @@ export function modelAction<
   Object.assign(act, {
     __customOptionsType: options.customOptionsType || z.unknown(),
   });
+  if (options.use?.length) {
+    return modelWithMiddleware(
+      act as ModelAction,
+      options.use
+    ) as ModelAction<CustomOptionsSchema>;
+  }
   return act as ModelAction<CustomOptionsSchema>;
 }
 
@@ -227,14 +267,8 @@ export interface ModelReference<CustomOptions extends z.ZodTypeAny> {
  */
 export function modelRef<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny
->(options: {
-  name: string;
-  configSchema?: CustomOptionsSchema;
-  info?: ModelInfo;
-}): ModelReference<CustomOptionsSchema> {
-  return {
-    name: options.name,
-    configSchema: options.configSchema,
-    info: options.info,
-  };
+>(
+  options: ModelReference<CustomOptionsSchema>
+): ModelReference<CustomOptionsSchema> {
+  return { ...options };
 }

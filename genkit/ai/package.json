@@ -14,6 +14,7 @@
   "dependencies": {
     "@google-genkit/common": "*",
     "front-matter": "^4.0.2",
+    "node-fetch": "^3.3.2",
     "zod": "^3.22.4",
     "zod-to-json-schema": "^3.21.4"
   },
@@ -72,6 +73,11 @@
       "types": "./lib/model.d.ts",
       "require": "./lib/model.js",
       "import": "./lib/model.mjs"
+    },
+    "./model/middleware": {
+      "types": "./lib/model/middleware.d.ts",
+      "require": "./lib/model/middleware.js",
+      "import": "./lib/model/middleware.mjs"
     },
     "./generate": {
       "types": "./lib/generate.d.ts",

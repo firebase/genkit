@@ -3,7 +3,7 @@ import { initializeGenkit } from '@google-genkit/common/config';
 import { flow, run, runFlow } from '@google-genkit/flow';
 import { configureVertexAiTextModel } from '@google-genkit/providers/llms';
 import { gpt35Turbo } from '@google-genkit/providers/openai';
-import { geminiPro } from '@google-genkit/providers/google-ai';
+import { geminiPro, geminiProVision } from '@google-genkit/providers/google-ai';
 import * as z from 'zod';
 import config from './genkit.conf';
 
@@ -26,9 +26,31 @@ export const jokeFlow = flow(
   }
 );
 
+export const multimodalFlow = flow(
+  { name: 'multimodalFlow', input: z.string(), output: z.string() },
+  async (imageUrl) => {
+    const result = await generate({
+      model: geminiProVision,
+      prompt: [
+        { text: 'describe the following image:' },
+        { media: { url: imageUrl } },
+      ],
+    });
+
+    return result.text();
+  }
+);
+
 async function main() {
+  console.log('running joke flow...');
   const operation = await runFlow(jokeFlow, 'banana');
-  console.log('Operation', operation);
+  console.log('Joke:', operation);
+  console.log('running multimodal flow...');
+  const multimodalOperation = await runFlow(
+    multimodalFlow,
+    'https://picsum.photos/200'
+  );
+  console.log('Multimodal:', multimodalOperation);
 }
 
 main().catch(console.error);

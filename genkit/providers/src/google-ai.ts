@@ -1,11 +1,13 @@
 import {
   CandidateData,
+  MediaPart,
   MessageData,
   ModelAction,
   Part,
   modelAction,
   modelRef,
 } from '@google-genkit/ai/model';
+import { downloadRequestMedia } from '@google-genkit/ai/model/middleware';
 import { genkitPlugin, Plugin } from '@google-genkit/common/config';
 import {
   GenerateContentCandidate as GeminiCandidate,
@@ -14,6 +16,27 @@ import {
   GoogleGenerativeAI,
 } from '@google/generative-ai';
 import process from 'process';
+import z from 'zod';
+
+const SafetySettingsSchema = z.object({
+  category: z.enum([
+    'HARM_CATEGORY_UNSPECIFIED',
+    'HARM_CATEGORY_HATE_SPEECH',
+    'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+    'HARM_CATEGORY_HARASSMENT',
+    'HARM_CATEGORY_DANGEROUS_CONTENT',
+  ]),
+  threshold: z.enum([
+    'BLOCK_LOW_AND_ABOVE',
+    'BLOCK_MEDIUM_AND_ABOVE',
+    'BLOCK_ONLY_HIGH',
+    'BLOCK_NONE',
+  ]),
+});
+
+const GeminiConfigSchema = z.object({
+  safetySettings: z.array(SafetySettingsSchema).optional(),
+});
 
 export const geminiPro = modelRef({
   name: 'google-ai/gemini-pro',
@@ -26,6 +49,7 @@ export const geminiPro = modelRef({
       tools: true,
     },
   },
+  configSchema: GeminiConfigSchema,
 });
 
 export const geminiProVision = modelRef({
@@ -39,6 +63,7 @@ export const geminiProVision = modelRef({
       tools: true,
     },
   },
+  configSchema: GeminiConfigSchema,
 });
 
 export const geminiUltra = modelRef({
@@ -52,6 +77,7 @@ export const geminiUltra = modelRef({
       tools: true,
     },
   },
+  configSchema: GeminiConfigSchema,
 });
 
 const SUPPORTED_MODELS = {
@@ -75,9 +101,19 @@ function toGeminiRole(role: MessageData['role']): string {
   }
 }
 
+function toInlineData(part: MediaPart): GeminiPart {
+  const dataUrl = part.media.url;
+  const b64Data = dataUrl.substring(dataUrl.indexOf(',')! + 1);
+  const contentType =
+    part.media.contentType ||
+    dataUrl.substring(dataUrl.indexOf(':')! + 1, dataUrl.indexOf(';'));
+  return { inlineData: { mimeType: contentType, data: b64Data } };
+}
+
 function toGeminiPart(part: Part): GeminiPart {
   if (part.text) return { text: part.text };
-  throw new Error('Only support text for the moment.');
+  if (part.media) return toInlineData(part);
+  throw new Error('Only text and media parts are supported currently.');
 }
 
 function fromGeminiPart(part: GeminiPart): Part {
@@ -150,7 +186,12 @@ export function googleAIModel(name: string, apiKey?: string): ModelAction {
   });
   if (!SUPPORTED_MODELS[name]) throw new Error(`Unsupported model: ${name}`);
   return modelAction(
-    { name: modelName, ...SUPPORTED_MODELS[name].info },
+    {
+      name: modelName,
+      ...SUPPORTED_MODELS[name].info,
+      // since gemini api doesn't support downloading media from http(s)
+      use: [downloadRequestMedia({ maxBytes: 1024 * 1024 * 10 })],
+    },
     async (request) => {
       const messages = request.messages.map(toGeminiMessage);
       if (messages.length === 0) throw new Error('No messages provided.');
@@ -165,6 +206,7 @@ export function googleAIModel(name: string, apiKey?: string): ModelAction {
             topP: request.config?.topP,
             stopSequences: request.config?.stopSequences,
           },
+          safetySettings: request.config?.custom?.safetySettings,
         })
         .sendMessage(messages[messages.length - 1].parts);
 
