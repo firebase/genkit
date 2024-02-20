@@ -27,13 +27,17 @@ async function login(): Promise<void> {
     cliCommand('gcloud', 'auth application-default login');
   } catch (e) {
     console.error(
-      `${clc.bold(clc.red('Error:'))} Unable to complete login. Make sure the gcloud CLI is installed and you're able to open a browser.`,
+      `${clc.bold(
+        clc.red('Error:'),
+      )} Unable to complete login. Make sure the gcloud CLI is installed and you're able to open a browser.`,
     );
     return;
   }
 
   console.log(
-    `${clc.bold('Successfully signed in using application-default credentials.')}`,
+    `${clc.bold(
+      'Successfully signed in using application-default credentials.',
+    )}`,
   );
   console.log(
     'Goole Cloud SDKs will now automatically pick up your credentials during development.',
