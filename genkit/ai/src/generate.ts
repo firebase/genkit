@@ -33,6 +33,10 @@ export class Message<T = unknown> implements MessageData {
   text(): string {
     return this.content.map((part) => part.text || '').join('');
   }
+
+  media(): { url: string; contentType?: string } | null {
+    return this.content.find((part) => part.media)?.media || null;
+  }
 }
 
 export class Candidate<O = unknown> implements CandidateData {
@@ -49,6 +53,10 @@ export class Candidate<O = unknown> implements CandidateData {
 
   text(): string {
     return this.message.text();
+  }
+
+  media(): { url: string; contentType?: string } | null {
+    return this.message.media();
   }
 
   constructor(candidate: CandidateData) {
@@ -72,6 +80,10 @@ export class GenerationResponse<O = unknown> implements GenerationResponseData {
 
   text(): string {
     return this.candidates[0]?.text() || '';
+  }
+
+  media(): { url: string; contentType?: string } | null {
+    return this.candidates[0]?.media() || null;
   }
 
   constructor(response: GenerationResponseData) {

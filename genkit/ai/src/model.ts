@@ -86,6 +86,8 @@ export const ModelInfoSchema = z.object({
       media: z.boolean().optional(),
       /** Model can perform tool calls. */
       tools: z.boolean().optional(),
+      /** Model can output this type of data. */
+      output: z.array(z.enum(['text', 'media', 'data'])).optional(),
     })
     .optional(),
 });
@@ -113,8 +115,7 @@ export const GenerationConfig = z.object({
 });
 export type GenerationConfig<CustomOptions = any> = z.infer<
   typeof GenerationConfig
-> &
-  CustomOptions;
+> & { custom?: CustomOptions };
 
 const OutputConfigSchema = z.object({
   format: z.enum(['json', 'text']).optional(),

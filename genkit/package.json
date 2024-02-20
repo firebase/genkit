@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "workspaces": [
     "./*",
+    "./plugins/*",
     "./samples/*"
   ],
   "scripts": {
@@ -15,6 +16,7 @@
     "build:ai": "cd ai && npm install && npm run build",
     "build:providers": "cd providers && npm install && npm run build",
     "build:dotprompt": "cd dotprompt && npm install && npm run build",
+    "build:plugins": "for i in plugins/*/; do cd $i && npm install && npm run build && cd ../..; done",
     "build:samples": "for i in samples/*/; do cd $i && npm install && npm run build && cd ../..; done",
     "pack:all": "rm -r dist || true && mkdir dist && npm-run-all pack:common pack:flow pack:ai pack:providers zip:dist",
     "pack:common": "cd common && npm pack --pack-destination ../dist -ws",
