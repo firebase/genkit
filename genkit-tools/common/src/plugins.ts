@@ -1,6 +1,51 @@
 import * as clc from 'colorette';
 import { execSync } from 'child_process';
 import { createInterface } from 'readline/promises';
+import { z } from 'zod';
+
+const SupportedFlagValuesSchema = z.union([
+  z.undefined(),
+  z.string(),
+  z.boolean(),
+  z.array(z.string()),
+]);
+
+export const BaseToolPluginActionSchema = z.object({
+  args: z.optional(
+    z.array(
+      z.object({
+        description: z.string(),
+        flag: z.string(), // Flag uses Commander syntax; i.e. '-q, --quiet'
+        defaultValue: SupportedFlagValuesSchema,
+      }),
+    ),
+  ),
+  hook: z
+    .function()
+    .args(z.optional(z.record(z.string(), SupportedFlagValuesSchema)))
+    .returns(z.union([z.void(), z.promise(z.void())])),
+});
+
+export const ToolPluginActionSchema = BaseToolPluginActionSchema.extend({
+  action: z.string(),
+  helpText: z.string(),
+});
+
+export const ToolPluginSchema = z.object({
+  name: z.string(),
+  keyword: z.string(),
+  actions: z.array(ToolPluginActionSchema),
+  specialActions: z.optional(
+    z.object({
+      login: z.optional(BaseToolPluginActionSchema),
+    }),
+  ),
+});
+
+export type SupportedFlagValues = z.infer<typeof SupportedFlagValuesSchema>;
+export type BaseToolPluginAction = z.infer<typeof BaseToolPluginActionSchema>;
+export type ToolPluginAction = z.infer<typeof ToolPluginActionSchema>;
+export type ToolPlugin = z.infer<typeof ToolPluginSchema>;
 
 const SEPARATOR = '===========================';
 
@@ -8,17 +53,6 @@ const readline = createInterface({
   input: process.stdin,
   output: process.stdout,
 });
-
-export interface ToolPlugin {
-  name: string;
-  keyword: string;
-  actions: ToolPluginAction[];
-}
-
-export interface ToolPluginAction {
-  action: string;
-  hook: () => unknown;
-}
 
 /**
  * Executes the command given, returning the contents of STDOUT.
