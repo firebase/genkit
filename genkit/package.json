@@ -20,7 +20,7 @@
     "pack:common": "cd common && npm pack --pack-destination ../dist -ws",
     "pack:flow": "cd flow && npm pack --pack-destination ../dist -ws",
     "pack:ai": "cd ai && npm pack --pack-destination ../dist -ws",
-    "pack:providers": "cd providers && cp google-cloud-vertexai-0.2.1.tgz ../dist && npm pack --pack-destination ../dist -ws",
+    "pack:providers": "cd providers && npm pack --pack-destination ../dist -ws",
     "zip:dist": "cd dist && zip genkit-dist-0.0.1.zip *.tgz"
   },
   "devDependencies": {

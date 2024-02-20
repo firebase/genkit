@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@google-cloud/aiplatform": "^3.10.0",
-    "@google-cloud/vertexai": "file:google-cloud-vertexai-0.2.1.tgz",
+    "@google-cloud/vertexai": "^0.3.1",
     "@google-genkit/ai": "*",
     "@google-genkit/common": "*",
     "@google-genkit/flow": "*",
