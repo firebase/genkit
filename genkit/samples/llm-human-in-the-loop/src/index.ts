@@ -1,10 +1,14 @@
 import { promptTemplate } from '@google-genkit/ai';
 import { generate } from '@google-genkit/ai/generate';
 import { initializeGenkit } from '@google-genkit/common/config';
-import { flow, interrupt, resumeFlow, run, runFlow } from '@google-genkit/flow';
+import { flow, interrupt, run } from '@google-genkit/flow';
 import { geminiPro } from '@google-genkit/providers/google-ai';
 import * as z from 'zod';
 import config from './genkit.conf';
+
+// To run this sample use the following sample commands:
+//   genkit flow:run jokeFlow "\"apple\""
+//   genkit flow:resume jokeFlow FLOW_ID_FROM_PREV_COMMAND "\{\"approved\":true}"
 
 initializeGenkit(config);
 
@@ -45,12 +49,3 @@ export const jokeFlow = flow(
 async function notifyHooman(llmResponse: string) {
   console.log('notifyHooman', llmResponse);
 }
-
-async function main() {
-  const op = await runFlow(jokeFlow, 'spongebob');
-  console.log('Interrupted operation', op);
-  const resumeOp = await resumeFlow(jokeFlow, op.name, { approved: true });
-  console.log('Final operation', resumeOp);
-}
-
-main().catch(console.error);
