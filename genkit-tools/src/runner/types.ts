@@ -13,3 +13,9 @@ export interface ActionMetadata<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata: Record<string, any>;
 }
+
+export class InternalError extends Error {
+  constructor(msg: string) {
+    super(msg);
+  }
+}

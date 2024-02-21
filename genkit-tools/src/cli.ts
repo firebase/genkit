@@ -5,6 +5,7 @@ import { logger } from './utils/logger';
 import * as clc from 'colorette';
 import { getPluginCommands } from './commands/plugins';
 import { getLoginCommands } from './commands/login';
+import { flowRun } from './commands/flow-run';
 
 /**
  * All commands need to be directly registered in this list.
@@ -12,7 +13,7 @@ import { getLoginCommands } from './commands/login';
  * To add a new command to the CLI, create a file under src/commands that
  * exports a Command constant, then add it to the list below
  */
-const commands: Command[] = [example, start];
+const commands: Command[] = [example, start, flowRun];
 
 /** Main entry point for CLI. */
 export async function startCLI(): Promise<void> {

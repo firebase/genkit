@@ -6,6 +6,7 @@ import { writeFileSync } from 'fs';
 import * as path from 'path';
 import { logger } from '../utils/logger';
 import { TOOLS_SERVER_ROUTER } from './router';
+import { Runner } from '../runner/runner';
 
 // Static files are copied to the /dist/client directory. This is a litle
 // brittle as __dirname refers directly to this particular file.
@@ -31,7 +32,11 @@ function generateDiscoverabilityFile(headless: boolean, port: number): void {
 /**
  * Starts up the Genkit Tools server which includes static files for the UI and the Tools API.
  */
-export function startServer(headless: boolean, port: number): void {
+export function startServer(
+  runner: Runner,
+  headless: boolean,
+  port: number,
+): void {
   generateDiscoverabilityFile(headless, port);
 
   const app = express();
@@ -49,7 +54,9 @@ export function startServer(headless: boolean, port: number): void {
       if (req.method === 'OPTIONS') res.send('');
       else next();
     },
-    trpcExpress.createExpressMiddleware({ router: TOOLS_SERVER_ROUTER }),
+    trpcExpress.createExpressMiddleware({
+      router: TOOLS_SERVER_ROUTER(runner),
+    }),
   );
 
   const errorHandler: ErrorRequestHandler = (

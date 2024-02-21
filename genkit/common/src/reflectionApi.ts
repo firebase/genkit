@@ -27,6 +27,10 @@ export async function startReflectionApi(port?: number | undefined) {
   );
   */
 
+  api.get('/api/__health', (_, response) => {
+    response.status(200).send('OK');
+  });
+
   api.get('/api/actions', (_, response) => {
     logging.debug('Fetching actions.');
     const actions = registry.listActions();

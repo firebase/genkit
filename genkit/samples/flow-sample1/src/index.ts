@@ -1,5 +1,5 @@
 import { initializeGenkit } from '@google-genkit/common/config';
-import { flow, run, runFlow } from '@google-genkit/flow';
+import { flow, run } from '@google-genkit/flow';
 import * as z from 'zod';
 import config from './genkit.conf';
 
@@ -16,10 +16,3 @@ export const jokeFlow = flow(
     });
   }
 );
-
-async function main() {
-  const op = await runFlow(jokeFlow, 'subj');
-  console.log(op);
-}
-
-main().catch(console.error);

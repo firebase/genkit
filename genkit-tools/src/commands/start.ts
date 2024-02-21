@@ -23,8 +23,8 @@ export const start = new Command('start')
       return;
     }
 
-    startServer(options.headless ?? false, port);
     const runner = new Runner();
+    startServer(runner, options.headless ?? false, port);
     runner.start();
 
     // Return hanging promise to prevent immediate exit.

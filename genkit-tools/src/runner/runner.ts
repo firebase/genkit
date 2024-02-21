@@ -5,6 +5,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { logger } from '../utils/logger';
 import { getNodeEntryPoint } from '../utils/utils';
+import { Action } from '../types/action';
+import axios from 'axios';
+import * as apis from '../types/apis';
+import { TraceData } from '../types/trace';
+import { InternalError } from './types';
+import { FlowState } from '../types/flow';
 
 /**
  * Files in these directories will be excluded from being watched for changes.
@@ -15,6 +21,9 @@ const EXCLUDED_WATCHER_DIRS = ['node_modules'];
  * Delay after detecting changes in files before triggering app reload.
  */
 const RELOAD_DELAY_MS = 500;
+
+const REFLECTION_PORT = process.env.GENKIT_REFLECTION_PORT || 3100;
+const REFLECTION_API_URL = `http://localhost:${REFLECTION_PORT}/api`;
 
 /**
  * Runner is responsible for watching, building, and running app code and exposing an API to control actions on that app code.
@@ -73,6 +82,16 @@ export class Runner {
   }
 
   /**
+   * Stops the runner.
+   */
+  public async stop(): Promise<void> {
+    if (this.autoReload) {
+      await this.watcher?.close();
+    }
+    await this.stopApp();
+  }
+
+  /**
    * Reloads the app code. If it's not running, it will be started.
    */
   public async reloadApp(): Promise<void> {
@@ -113,7 +132,7 @@ export class Runner {
       logger.error(data);
     });
 
-    this.appProcess.on('error', (error) => {
+    this.appProcess.on('error', (error): void => {
       logger.error(`Error in app process: ${error.message}`);
     });
 
@@ -187,6 +206,132 @@ export class Runner {
         void this.reloadApp();
         this.changeTimeout = null;
       }, RELOAD_DELAY_MS);
+    }
+  }
+
+  /** Retrieves all runnable actions. */
+  async healthCheck(): Promise<boolean> {
+    try {
+      const response = await axios.get(`${REFLECTION_API_URL}/__health`);
+      if (response.status !== 200) {
+        return false;
+      }
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /** Retrieves all runnable actions. */
+  async listActions(): Promise<Record<string, Action>> {
+    try {
+      const response = await axios.get(`${REFLECTION_API_URL}/actions`);
+      if (response.status !== 200) {
+        throw new InternalError('Failed to fetch actions.');
+      }
+      return response.data as Record<string, Action>;
+    } catch (error) {
+      console.error('Error fetching actions:', error);
+      throw new InternalError('Error fetching actions.');
+    }
+  }
+
+  /** Runs an action. */
+  async runAction(input: apis.RunActionRequest): Promise<unknown> {
+    try {
+      const response = await axios.post(
+        `${REFLECTION_API_URL}/runAction`,
+        input,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      // TODO: Improve the error handling here including invalid arguments from the frontend.
+      if (response.status !== 200) {
+        throw new InternalError('Failed to run action.');
+      }
+      return response.data as unknown;
+    } catch (error) {
+      console.error('Error running action:', error);
+      throw new InternalError('Error running action.');
+    }
+  }
+
+  /** Retrieves all traces for a given environment (e.g. dev or prod). */
+  async listTraces(input: apis.ListTracesRequest): Promise<TraceData[]> {
+    const { env } = input;
+    try {
+      const response = await axios.get(
+        `${REFLECTION_API_URL}/envs/${env}/traces`,
+      );
+      if (response.status !== 200) {
+        throw new InternalError(`Failed to fetch traces from env ${env}.`);
+      }
+      return response.data as TraceData[];
+    } catch (error) {
+      console.error('Error fetching traces:', error);
+      throw new InternalError(`Error fetching traces from env ${env}.`);
+    }
+  }
+
+  /** Retrieves a trace for a given ID. */
+  async getTrace(input: apis.GetTraceRequest): Promise<TraceData> {
+    const { env, traceId } = input;
+    try {
+      const response = await axios.get(
+        `${REFLECTION_API_URL}/envs/${env}/traces/${traceId}`,
+      );
+      if (response.status !== 200) {
+        throw new InternalError(
+          `Failed to fetch trace ${traceId} from env ${env}.`,
+        );
+      }
+      return response.data as TraceData;
+    } catch (error) {
+      console.error(`Error fetching trace ${traceId} from env ${env}:`, error);
+      throw new InternalError(
+        `Error fetching trace ${traceId} from env ${env}.`,
+      );
+    }
+  }
+
+  /** Retrieves all flow states for a given environment (e.g. dev or prod). */
+  async listFlowStates(
+    input: apis.ListFlowStatesRequest,
+  ): Promise<FlowState[]> {
+    const { env } = input;
+    try {
+      const response = await axios.get(
+        `${REFLECTION_API_URL}/envs/${env}/flowStates`,
+      );
+      if (response.status !== 200) {
+        throw new InternalError(`Failed to fetch flows from env ${env}.`);
+      }
+      return response.data as FlowState[];
+    } catch (error) {
+      console.error('Error fetching flows:', error);
+      throw new InternalError(`Error fetching flows from env ${env}.`);
+    }
+  }
+
+  /** Retrieves a flow state for a given ID. */
+  async getFlowState(input: apis.GetFlowStateRequest): Promise<FlowState> {
+    const { env, flowId } = input;
+    try {
+      const response = await axios.get(
+        `${REFLECTION_API_URL}/envs/${env}/flowStates/${flowId}`,
+      );
+      if (response.status !== 200) {
+        throw new InternalError(
+          `Failed to fetch flow ${flowId} from env ${env}.`,
+        );
+      }
+      return response.data as FlowState;
+    } catch (error) {
+      console.error(`Error fetching flow ${flowId} from env ${env}:`, error);
+      throw new InternalError(`Error fetching flow ${flowId} from env ${env}.`);
     }
   }
 }
