@@ -4,27 +4,30 @@ import {
   retrieve,
   type TextDocument,
 } from '@google-genkit/ai/retrievers';
-import { getProjectId } from '@google-genkit/common';
 import { initializeGenkit } from '@google-genkit/common/config';
 import { flow, runFlow } from '@google-genkit/flow';
-import { configureVertexTextEmbedder } from '@google-genkit/providers/google-vertexai';
+import { textEmbeddingGecko } from '@google-genkit/providers/google-vertexai';
 import { configurePinecone } from '@google-genkit/providers/pinecone';
 import * as z from 'zod';
 import config from './genkit.conf';
 import { generate } from '@google-genkit/ai/generate';
-import { geminiPro } from '@google-genkit/providers/vertex-ai';
+import { geminiPro } from '@google-genkit/providers/google-ai';
+import { embed } from '@google-genkit/ai/embedders';
+import { lookupAction } from '@google-genkit/common/registry';
+import { EmbedderAction } from '@google-genkit/ai/embedders';
 
 initializeGenkit(config);
 
 // Setup the models, embedders and "vector store"
-const vertexEmbedder = configureVertexTextEmbedder({
-  projectId: getProjectId(),
-  modelName: 'textembedding-gecko@001',
-});
+const vertexEmbedder = lookupAction(`/embedder/${textEmbeddingGecko.name}`);
 const tomAndJerryFacts = configurePinecone({
   indexId: 'tom-and-jerry',
   apiKey: process.env['PINECONE_API_KEY'] ?? '',
-  embedder: vertexEmbedder,
+  embedder: vertexEmbedder as EmbedderAction<
+    z.ZodTypeAny,
+    z.ZodString,
+    z.ZodTypeAny
+  >,
   embedderOptions: {
     temperature: 0,
     topP: 0,
@@ -72,7 +75,7 @@ export const askQuestionsAboutTomAndJerryFlow = flow(
 );
 
 // Define a flow to index documents into the "vector store"
-const indexDocumentsFlow = flow(
+export const indexDocumentsFlow = flow(
   {
     name: 'indexTomAndJerryFacts',
     input: z.array(z.string()),
@@ -95,19 +98,28 @@ const indexDocumentsFlow = flow(
   }
 );
 
+// Define a flow to embed text -- for the sake of testing only
+const embedFlow = flow(
+  {
+    name: 'embedText',
+    input: z.string(),
+    output: z.void(),
+  },
+  async (input) => {
+    const embedding = await embed({
+      embedder: textEmbeddingGecko,
+      input,
+      options: {
+        temperature: 0.5,
+      },
+    });
+    console.log(`Embedding produced: ${embedding}`);
+  }
+);
+
 async function main() {
-  // First let us ingest some docs into the doc store
-  const docs = ['Tom and Jerry was produced by Hannah and Barbera.'];
-
-  const indexOperation = await runFlow(indexDocumentsFlow, docs);
-  console.log('Operation', indexOperation);
-  console.log('Finished indexing documents!');
-
-  const qaOperation = await runFlow(
-    askQuestionsAboutTomAndJerryFlow,
-    'Who produced Tom and Jerry?'
-  );
-  console.log('Operation', qaOperation);
+  const embedOp = await runFlow(embedFlow, 'Hello World');
+  console.log('Operation', embedOp);
 }
 
 main().catch(console.error);

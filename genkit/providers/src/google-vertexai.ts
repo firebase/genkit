@@ -1,5 +1,5 @@
 import { PredictionServiceClient, helpers } from '@google-cloud/aiplatform';
-import { embedderFactory } from '@google-genkit/ai/embedders';
+import { embedder, embedderRef } from '@google-genkit/ai/embedders';
 import { getProjectId } from '@google-genkit/common';
 import { Plugin, genkitPlugin } from '@google-genkit/common/config';
 import * as z from 'zod';
@@ -8,15 +8,7 @@ export interface PluginOptions {
   projectId?: string;
   location?: string;
   publisher?: string;
-  modelName: string;
 }
-
-export const googleVertexAI: Plugin<[PluginOptions]> = genkitPlugin(
-  'google-vertexai',
-  (params?: PluginOptions) => ({
-    embedders: [configureVertexTextEmbedder(params)],
-  })
-);
 
 const VertexEmbedderrOptionsSchema = z.object({
   temperature: z.number().optional(),
@@ -25,35 +17,66 @@ const VertexEmbedderrOptionsSchema = z.object({
   topK: z.number().optional(),
 });
 
+export const textEmbeddingGecko = embedderRef({
+  name: 'google-vertexai/textembedding-gecko',
+  info: {
+    label: 'Google Vertex AI - Text Embedding Gecko',
+    names: ['textembedding-gecko'],
+    supports: {
+      input: ['text'],
+      multilingual: false,
+    },
+    dimension: 768,
+  },
+  configSchema: VertexEmbedderrOptionsSchema.optional(),
+});
+
+const SUPPORTED_TEXT_EMBEDDERS = {
+  'textembedding-gecko': textEmbeddingGecko,
+};
+
+export const googleVertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
+  'google-vertexai',
+  (params?: PluginOptions) => ({
+    embedders: Object.keys(SUPPORTED_TEXT_EMBEDDERS).map((name) =>
+      googleVertexAiTextEmbedder(name, params)
+    ),
+  })
+);
+
 /**
  * Configures a Vertex embedder model.
  */
-export function configureVertexTextEmbedder(params?: {
-  projectId?: string;
-  location?: string;
-  publisher?: string;
-  modelName: string;
-}) {
+export function googleVertexAiTextEmbedder(
+  id: string,
+  params?: {
+    projectId?: string;
+    location?: string;
+    publisher?: string;
+  }
+) {
+  if (!SUPPORTED_TEXT_EMBEDDERS[id])
+    throw new Error(`Unsupported text embedding model: ${id}`);
+  const name = SUPPORTED_TEXT_EMBEDDERS[id].name;
   const projectId = params?.projectId || getProjectId();
   const location = params?.location || 'us-central1';
   const publisher = params?.publisher || 'google';
-  const modelName = params?.modelName;
   const clientOptions = {
     apiEndpoint: location + '-aiplatform.googleapis.com',
   };
   const predictionServiceClient = new PredictionServiceClient(clientOptions);
-  return embedderFactory(
+  return embedder(
     {
       provider: publisher,
-      embedderId: 'vertexai',
-      dimension: 768,
+      embedderId: name,
       inputType: z.string(),
+      info: SUPPORTED_TEXT_EMBEDDERS[id].info,
       customOptionsType: VertexEmbedderrOptionsSchema,
     },
     async (input, options) => {
       const endpoint =
         `projects/${projectId}/locations/${location}/` +
-        `publishers/${publisher}/models/${modelName}`;
+        `publishers/${publisher}/models/${id}`;
       const instance = {
         content: input,
       };

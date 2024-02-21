@@ -1,4 +1,5 @@
 import { action, Action } from '@google-genkit/common';
+import { lookupAction } from '@google-genkit/common/registry';
 import * as z from 'zod';
 
 export const EmbeddingSchema = z.array(z.number());
@@ -41,29 +42,29 @@ function withMetadata<
 /**
  * Creates embedder model for the provided {@link EmbedderFn} model implementation.
  */
-export function embedderFactory<
+export function embedder<
   InputType extends z.ZodTypeAny,
   EmbedderOptions extends z.ZodTypeAny
 >(
   options: {
     provider: string;
     embedderId: string;
-    dimension: number;
     inputType: InputType;
+    info: EmbedderInfo;
     customOptionsType: EmbedderOptions;
   },
   runner: EmbedderFn<InputType, EmbedderOptions>
 ) {
   const embedder = action(
     {
-      name: 'embed',
+      name: options.embedderId,
       input: z.object({
         input: options.inputType,
         options: options.customOptionsType.optional(),
       }),
       output: EmbeddingSchema,
       metadata: {
-        dimension: options.dimension,
+        info: options.info,
       },
     },
     (i) => runner(i.input, i.options)
@@ -79,12 +80,56 @@ export async function embed<
   InputType extends z.ZodTypeAny,
   EmbedderOptions extends z.ZodTypeAny
 >(params: {
-  embedder: EmbedderAction<I, InputType, EmbedderOptions>;
+  embedder:
+    | EmbedderAction<I, InputType, EmbedderOptions>
+    | EmbedderReference<EmbedderOptions>;
   input: z.infer<InputType>;
   options?: z.infer<EmbedderOptions>;
 }): Promise<Embedding> {
-  return await params.embedder({
+  let embedder: EmbedderAction<I, InputType, EmbedderOptions>;
+  if (params.embedder.hasOwnProperty('info')) {
+    embedder = lookupAction(`/embedder/${params.embedder.name}`);
+  } else {
+    embedder = params.embedder as EmbedderAction<I, InputType, EmbedderOptions>;
+  }
+  return await embedder({
     input: params.input,
     options: params.options,
   });
+}
+
+export const EmbedderInfoSchema = z.object({
+  /** Acceptable names for this embedder (e.g. different versions). */
+  names: z.array(z.string()).optional(),
+  /** Friendly label for this model (e.g. "Google AI - Gemini Pro") */
+  label: z.string().optional(),
+  /** Supported model capabilities. */
+  supports: z
+    .object({
+      /** Model can input this type of data. */
+      input: z.array(z.enum(['text', 'image'])).optional(),
+      /** Model can support multiple languages */
+      multilingual: z.boolean().optional(),
+    })
+    .optional(),
+  /** Embedding dimension */
+  dimension: z.number().optional(),
+});
+export type EmbedderInfo = z.infer<typeof EmbedderInfoSchema>;
+
+export interface EmbedderReference<CustomOptions extends z.ZodTypeAny> {
+  name: string;
+  configSchema?: CustomOptions;
+  info?: EmbedderInfo;
+}
+
+/**
+ *
+ */
+export function embedderRef<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny
+>(
+  options: EmbedderReference<CustomOptionsSchema>
+): EmbedderReference<CustomOptionsSchema> {
+  return { ...options };
 }
