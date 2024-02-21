@@ -4,20 +4,19 @@ import {
   retrieve,
   type TextDocument,
 } from '@google-genkit/ai/retrievers';
-import { generateText } from '@google-genkit/ai/text';
 import { getProjectId } from '@google-genkit/common';
 import { initializeGenkit } from '@google-genkit/common/config';
 import { flow, runFlow } from '@google-genkit/flow';
 import { configureVertexTextEmbedder } from '@google-genkit/providers/google-vertexai';
-import { configureVertexAiTextModel } from '@google-genkit/providers/llms';
 import { configurePinecone } from '@google-genkit/providers/pinecone';
 import * as z from 'zod';
 import config from './genkit.conf';
+import { generate } from '@google-genkit/ai/generate';
+import { geminiPro } from '@google-genkit/providers/vertex-ai';
 
 initializeGenkit(config);
 
 // Setup the models, embedders and "vector store"
-const gemini = configureVertexAiTextModel({ modelName: 'gemini-pro' });
 const vertexEmbedder = configureVertexTextEmbedder({
   projectId: getProjectId(),
   modelName: 'textembedding-gecko@001',
@@ -62,12 +61,13 @@ export const askQuestionsAboutTomAndJerryFlow = flow(
         context: docs.map((d) => d.content).join('\n\n'),
       },
     });
-
-    const llmResponse = await generateText({
-      model: gemini,
-      prompt: augmentedPrompt,
+    const model = geminiPro;
+    console.log(augmentedPrompt.prompt);
+    const llmResponse = await generate({
+      model,
+      prompt: { text: augmentedPrompt.prompt },
     });
-    return llmResponse.completion;
+    return llmResponse.text();
   }
 );
 

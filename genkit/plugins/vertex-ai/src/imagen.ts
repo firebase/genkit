@@ -77,6 +77,9 @@ interface PredictionResponse {
   predictions: { bytesBase64Encoded: string; mimeType: string }[];
 }
 
+/**
+ *
+ */
 export function imagen2Model(client: GoogleAuth, options: PluginOptions) {
   return modelAction(imagen2, async (request) => {
     const fetch = (await import('node-fetch')).default;

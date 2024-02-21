@@ -95,6 +95,7 @@ export type ModelInfo = z.infer<typeof ModelInfoSchema>;
 
 export const ToolDefinitionSchema = z.object({
   name: z.string(),
+  description: z.string(),
   inputSchema: z
     .record(z.any())
     .describe('Valid JSON Schema representing the input of the tool.'),

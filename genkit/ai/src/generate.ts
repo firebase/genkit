@@ -100,6 +100,7 @@ function toToolDefinition(
 ): ToolDefinition {
   return {
     name: tool.__action.name,
+    description: tool.__action.description || '',
     outputSchema: tool.__action.outputSchema
       ? zodToJsonSchema(tool.__action.outputSchema)
       : {}, // JSON schema matching anything

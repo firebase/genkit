@@ -59,16 +59,6 @@
       "require": "./lib/eval.js",
       "import": "./lib/eval.mjs"
     },
-    "./chat": {
-      "types": "./lib/chatModel.d.ts",
-      "require": "./lib/chatModel.js",
-      "import": "./lib/chatModel.mjs"
-    },
-    "./text": {
-      "types": "./lib/textModel.d.ts",
-      "require": "./lib/textModel.js",
-      "import": "./lib/textModel.mjs"
-    },
     "./model": {
       "types": "./lib/model.d.ts",
       "require": "./lib/model.js",

@@ -58,6 +58,11 @@
       "require": "./lib/google-vertexai.js",
       "import": "./lib/google-vertexai.mjs"
     },
+    "./vertex-ai": {
+      "types": "./lib/vertexai.d.ts",
+      "require": "./lib/vertexai.js",
+      "import": "./lib/vertexai.mjs"
+    },
     "./openai": {
       "types": "./lib/openai.d.ts",
       "require": "./lib/openai.js",
