@@ -18,9 +18,6 @@ export function runAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   return run(config, input, () => action(input));
 }
 
-/**
- * A flow steap that executes the provided function and memoizes the output.
- */
 export function run<T>(
   config: RunStepConfig,
   func: () => Promise<T>
@@ -32,7 +29,7 @@ export function run<T>(
 ): Promise<T>;
 export function run<T>(name: string, func: () => Promise<T>): Promise<T>;
 /**
- *
+ * A flow steap that executes the provided function and memoizes the output.
  */
 export function run<T>(
   nameOrConfig: string | RunStepConfig,
@@ -58,17 +55,28 @@ export function run<T>(
 }
 
 /**
+ * A helper that takes an array of inputs and maps each input to a run step.
+ */
+export function runMap<I, O>(
+  stepName: string,
+  input: I[],
+  fn: (i: I) => Promise<O>
+): Promise<O[]> {
+  return Promise.all(input.map((f) => run(stepName, () => fn(f))));
+}
+
+/**
  * Interrupts the flow execution until the flow is resumed with input defined by `responseSchema`.
  */
 export function interrupt<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
-  actionId: string,
+  stepName: string,
   responseSchema: I,
   func?: (payload: z.infer<I>) => Promise<z.infer<O>>
 ): Promise<z.infer<O>> {
   const ctx = getActiveContext();
   if (!ctx) throw new Error('interrupt can only be run from a flow');
   return ctx.interrupt(
-    actionId,
+    stepName,
     func || ((input: z.infer<I>): z.infer<O> => input),
     responseSchema
   );

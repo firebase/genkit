@@ -5,7 +5,7 @@ import { startRunner } from '../utils/runner-utils';
 /** Command to start GenKit server, optionally without static file serving */
 export const flowRun = new Command('flow:run')
   .argument('<flowName>', 'name of the flow to run')
-  .argument('<data>', 'JSON data to use to start the flow')
+  .argument('[data]', 'JSON data to use to start the flow')
   .action(async (flowName: string, data: string) => {
     const runner = await startRunner();
 
@@ -15,7 +15,7 @@ export const flowRun = new Command('flow:run')
       input: {
         start: {
           // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          input: JSON.parse(data),
+          input: data ? JSON.parse(data) : undefined,
         },
       },
     })) as FlowState;

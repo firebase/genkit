@@ -12,7 +12,7 @@ export {
   FlowInvokeEnvelopeMessageSchema,
   FlowInvokeEnvelopeMessage,
 } from './types.js';
-export { run, runAction, interrupt, sleep, waitFor } from './steps.js';
+export { run, runMap, runAction, interrupt, sleep, waitFor } from './steps.js';
 export {
   FlowState,
   FlowStateExecutionSchema,
