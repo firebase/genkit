@@ -4,15 +4,15 @@
   "version": "0.0.1",
   "scripts": {
     "lint:fix": "npm-run-all lint-fix-genkit lint-fix-genkit-tools",
-    "lint-fix-genkit": "cd genkit && npm run lint:fix",
-    "lint-fix-genkit-tools": "cd genkit-tools && npm run lint:fix",
-    "build:all": "npm-run-all build-genkit build-genkit-tools",
-    "link-tools": "cd genkit-tools && npm link",
-    "build-genkit": "cd genkit && npm run build:all",
-    "build-genkit-tools": "cd genkit-tools && npm run build",
+    "lint:fix-genkit": "cd genkit && npm run lint:fix",
+    "lint:fix-genkit-tools": "cd genkit-tools && npm run lint:fix",
+    "build:all": "npm-run-all build:genkit build:genkit-tools",
+    "build:genkit": "cd genkit && npm run build:all",
+    "build:genkit-tools": "cd genkit-tools && npm run build",
     "npm-install-genkit": "cd genkit && npm install",
     "npm-install-genkit-tools": "cd genkit-tools && npm install",
-    "setup": "npm-run-all npm-install-genkit npm-install-genkit-tools build:all link-tools"
+    "link-genkit-tools": "cd genkit-tools && npm link",
+    "setup": "npm-run-all npm-install-genkit npm-install-genkit-tools build:all link-genkit-tools"
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5"
