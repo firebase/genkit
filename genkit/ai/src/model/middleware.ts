@@ -1,9 +1,12 @@
-import { ModelMiddleware, Part } from '../model';
+import { ModelInfo, ModelMiddleware, Part } from '../model';
 
-/** Preprocess a GenerationRequest to download  */
-export const downloadRequestMedia = (options?: {
+/**
+ * Preprocess a GenerationRequest to download referenced http(s) media URLs and
+ * inline them as data URIs.
+ */
+export function downloadRequestMedia(options?: {
   maxBytes?: number;
-}): ModelMiddleware => {
+}): ModelMiddleware {
   return async (req, next) => {
     const { default: fetch } = await import('node-fetch');
 
@@ -55,4 +58,44 @@ export const downloadRequestMedia = (options?: {
 
     return next(newReq);
   };
-};
+}
+
+/**
+ * Validates that a GenerationRequest does not include unsupported features.
+ */
+export function validateSupport(options: {
+  name: string;
+  supports?: ModelInfo['supports'];
+}): ModelMiddleware {
+  const supports = options.supports || {};
+  return async (req, next) => {
+    function invalid(message: string): never {
+      throw new Error(
+        `Model '${
+          options.name
+        }' does not support ${message}. Request: ${JSON.stringify(
+          req,
+          null,
+          2
+        )}`
+      );
+    }
+
+    if (
+      supports.media === false &&
+      req.messages.some((message) => message.content.some((part) => part.media))
+    )
+      invalid('media, but media was provided');
+    if (supports.tools === false && req.tools?.length)
+      invalid('tool use, but tools were provided');
+    if (supports.multiturn === false && req.messages.length > 1)
+      invalid(`multiple messages, but ${req.messages.length} were provided`);
+    if (
+      typeof supports.output !== 'undefined' &&
+      req.output?.format &&
+      !supports.output.includes(req.output?.format)
+    )
+      invalid(`requested output format '${req.output?.format}'`);
+    return next();
+  };
+}

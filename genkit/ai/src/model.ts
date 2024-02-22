@@ -1,5 +1,6 @@
 import { Action, action } from '@google-genkit/common';
 import { z } from 'zod';
+import { validateSupport } from './model/middleware';
 
 const EmptyPartSchema = z.object({
   text: z.never().optional(),
@@ -75,6 +76,8 @@ export const MessageSchema = z.object({
 });
 export type MessageData = z.infer<typeof MessageSchema>;
 
+const OutputFormatSchema = z.enum(['json', 'text', 'media']);
+
 export const ModelInfoSchema = z.object({
   /** Acceptable names for this model (e.g. different versions). */
   names: z.array(z.string()).optional(),
@@ -90,7 +93,7 @@ export const ModelInfoSchema = z.object({
       /** Model can perform tool calls. */
       tools: z.boolean().optional(),
       /** Model can output this type of data. */
-      output: z.array(z.enum(['text', 'media', 'data'])).optional(),
+      output: z.array(OutputFormatSchema).optional(),
     })
     .optional(),
 });
@@ -122,7 +125,7 @@ export type GenerationConfig<CustomOptions = any> = z.infer<
 > & { custom?: CustomOptions };
 
 const OutputConfigSchema = z.object({
-  format: z.enum(['json', 'text']).optional(),
+  format: OutputFormatSchema.optional(),
   schema: z.record(z.any()).optional(),
 });
 export type OutputConfig = z.infer<typeof OutputConfigSchema>;
@@ -252,13 +255,11 @@ export function modelAction<
   Object.assign(act, {
     __customOptionsType: options.customOptionsType || z.unknown(),
   });
-  if (options.use?.length) {
-    return modelWithMiddleware(
-      act as ModelAction,
-      options.use
-    ) as ModelAction<CustomOptionsSchema>;
-  }
-  return act as ModelAction<CustomOptionsSchema>;
+  const middleware = [validateSupport(options), ...(options.use || [])];
+  return modelWithMiddleware(
+    act as ModelAction,
+    middleware
+  ) as ModelAction<CustomOptionsSchema>;
 }
 
 export interface ModelReference<CustomOptions extends z.ZodTypeAny> {
