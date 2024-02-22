@@ -1,2 +1,4 @@
 dist/
 lib/
+.vscode/
+.prettierrc.yaml

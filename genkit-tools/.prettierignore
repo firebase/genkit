@@ -1,2 +1,5 @@
 dist/
 lib/
+.angular
+.vscode/
+.prettierrc.yaml
