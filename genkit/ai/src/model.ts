@@ -1,6 +1,7 @@
 import { Action, action } from '@google-genkit/common';
 import { z } from 'zod';
 import { validateSupport } from './model/middleware';
+import { AsyncLocalStorage } from 'node:async_hooks';
 
 const EmptyPartSchema = z.object({
   text: z.never().optional(),
@@ -171,6 +172,18 @@ export const GenerationResponseSchema = z.object({
 });
 export type GenerationResponseData = z.infer<typeof GenerationResponseSchema>;
 
+export const GenerationResponseChunkSchema = z.object({
+  /** The index of the candidate this chunk belongs to. */
+  index: z.number(),
+  /** The chunk of content to stream right now. */
+  content: z.array(PartSchema),
+  /** Model-specific extra information attached to this chunk. */
+  custom: z.unknown().optional(),
+});
+export type GenerationResponseChunkData = z.infer<
+  typeof GenerationResponseChunkSchema
+>;
+
 export type ModelAction<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny
 > = Action<
@@ -233,7 +246,10 @@ export function modelAction<
     tools?: Action<any, any>[];
     use?: ModelMiddleware[];
   },
-  runner: (request: GenerationRequest) => Promise<GenerationResponseData>
+  runner: (
+    request: GenerationRequest,
+    streamingCallback?: StreamingCallback
+  ) => Promise<GenerationResponseData>
 ): ModelAction<CustomOptionsSchema> {
   const label = options.label || `${options.name} GenAI model`;
   const act = action(
@@ -250,7 +266,7 @@ export function modelAction<
         },
       },
     },
-    runner
+    (input) => runner(input, getStreamingCallback())
   );
   Object.assign(act, {
     __customOptionsType: options.customOptionsType || z.unknown(),
@@ -277,4 +293,32 @@ export function modelRef<
   options: ModelReference<CustomOptionsSchema>
 ): ModelReference<CustomOptionsSchema> {
   return { ...options };
+}
+
+// Streaming callback function.
+export type StreamingCallback = (chunk: GenerationResponseChunkData) => void;
+
+const streamingAls = new AsyncLocalStorage<StreamingCallback>();
+const sentinelNoopCallback = () => null;
+
+/**
+ * Executes provided function with streaming callback in async local storage which can be retrieved
+ * using {@link getStreamingCallback}.
+ */
+export function runWithStreamingCallback<O>(
+  streamingCallback: StreamingCallback | undefined,
+  fn: () => O
+): O {
+  return streamingAls.run(streamingCallback || sentinelNoopCallback, fn);
+}
+
+/**
+ * Retrieves the {@link StreamingCallback} previously set by {@link runWithStreamingCallback}
+ */
+export function getStreamingCallback(): StreamingCallback | undefined {
+  const cb = streamingAls.getStore();
+  if (cb === sentinelNoopCallback) {
+    return undefined;
+  }
+  return cb;
 }

@@ -68,6 +68,11 @@
       "require": "./lib/naive-filestore.js",
       "import": "./lib/naive-filestore.mjs"
     },
+    "./ollama": {
+      "types": "./lib/ollama.d.ts",
+      "require": "./lib/ollama.js",
+      "import": "./lib/ollama.mjs"
+    },
     "./chroma": {
       "types": "./lib/chroma.d.ts",
       "require": "./lib/chroma.js",

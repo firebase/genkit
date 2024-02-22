@@ -10,7 +10,7 @@
     "lint": "eslint --ext .ts .",
     "lint:fix": "eslint --fix --ext .ts .",
     "install-parent-deps": "npm i",
-    "build:all": "npm-run-all build:common build:flow build:ai build:providers build:dotprompt pack:all build:samples",
+    "build:all": "npm-run-all build:common build:flow build:ai build:providers build:plugins build:dotprompt pack:all build:samples",
     "build:common": "cd common && npm install && npm run build",
     "build:flow": "cd flow && npm install && npm run build",
     "build:ai": "cd ai && npm install && npm run build",

@@ -1,5 +1,5 @@
 {
-  "name": "flow-simple-ai",
+  "name": "express",
   "version": "1.0.0",
   "description": "",
   "main": "lib/index.js",
@@ -18,7 +18,7 @@
     "@google-genkit/flow": "*",
     "@google-genkit/ai": "*",
     "@google-genkit/providers": "*",
-    "@google-genkit/plugin-vertex-ai": "*"
+    "express": "~4.18.2"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

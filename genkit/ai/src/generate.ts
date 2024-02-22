@@ -9,8 +9,10 @@ import {
   ModelAction,
   ModelReference,
   Part,
+  StreamingCallback,
   ToolDefinition,
   ToolResponsePart,
+  runWithStreamingCallback,
 } from './model.js';
 import { extractJson } from './extract.js';
 import { Action } from '@google-genkit/common';
@@ -178,6 +180,7 @@ export interface ModelPrompt<
     jsonSchema?: any;
   };
   returnToolRequests?: boolean;
+  streamingCallback?: StreamingCallback;
 }
 
 const isValidCandidate = (
@@ -235,7 +238,10 @@ export async function generate<
   }
 
   const request = toGenerateRequest(prompt);
-  const response = new GenerationResponse<z.infer<O>>(await model(request));
+  const response = await runWithStreamingCallback(
+    prompt.streamingCallback,
+    async () => new GenerationResponse<z.infer<O>>(await model(request))
+  );
   if (prompt.output?.schema) {
     const outputData = response.output();
     prompt.output.schema.parse(outputData);

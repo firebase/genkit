@@ -59,14 +59,6 @@ export function toToolWireFormat(
   });
 }
 
-// Streaming callback function.
-export type StreamingCallbackFn = (text: string) => void;
-
-// Streaming
-export interface StreamingCallback {
-  onChunk: StreamingCallbackFn;
-}
-
 // Does it even make sense to have common options? since they are referenced differently in different LLMs.
 export const CommonLlmOptions = z.object({
   temperature: z.number().optional(),
