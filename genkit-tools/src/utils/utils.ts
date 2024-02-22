@@ -14,7 +14,7 @@ export function getNodeEntryPoint(directory: string): string {
   const defaultMain = 'lib/index.js';
   if (fs.existsSync(packageJsonPath)) {
     const packageJson = JSON.parse(
-      fs.readFileSync(packageJsonPath, 'utf8'),
+      fs.readFileSync(packageJsonPath, 'utf8')
     ) as PackageJson;
     return packageJson.main || defaultMain;
   }

@@ -17,8 +17,8 @@ export const BaseToolPluginActionSchema = z.object({
         description: z.string(),
         flag: z.string(), // Flag uses Commander syntax; i.e. '-q, --quiet'
         defaultValue: SupportedFlagValuesSchema,
-      }),
-    ),
+      })
+    )
   ),
   hook: z
     .function()
@@ -38,7 +38,7 @@ export const ToolPluginSchema = z.object({
   specialActions: z.optional(
     z.object({
       login: z.optional(BaseToolPluginActionSchema),
-    }),
+    })
   ),
 });
 
@@ -79,7 +79,7 @@ export function cliCommand(command: string, options?: string): void {
  */
 export async function promptContinue(
   message: string,
-  dfault: boolean,
+  dfault: boolean
 ): Promise<boolean> {
   console.log(message);
   const opts = dfault ? 'Y/n' : 'y/N';

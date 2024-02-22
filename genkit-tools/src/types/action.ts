@@ -18,7 +18,7 @@ export const CustomAnySchema = z
 export const JSONSchema7Schema = z
   .object({})
   .describe(
-    'A JSON Schema Draft 7 (http://json-schema.org/draft-07/schema) object.',
+    'A JSON Schema Draft 7 (http://json-schema.org/draft-07/schema) object.'
   )
   .nullish()
   .openapi('JSONSchema7');

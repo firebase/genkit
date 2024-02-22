@@ -24,7 +24,7 @@ export const flowResume = new Command('flow:resume')
 
     console.log(
       'Flow operation:\n',
-      JSON.stringify(state.operation, undefined, '  '),
+      JSON.stringify(state.operation, undefined, '  ')
     );
 
     await runner.stop();

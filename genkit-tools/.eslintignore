@@ -1,5 +1,0 @@
-dist
-node_modules
-.eslintrc.js
-common/lib
-plugins/google/lib

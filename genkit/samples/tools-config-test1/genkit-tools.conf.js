@@ -2,6 +2,9 @@
 
 module.exports = {
   cliPlugins: [
-    {keyword: 'tool-test', actions: [{name: 'hello', hook: () => console.log('Tool test!')}]}
-  ]
-}
+    {
+      keyword: 'tool-test',
+      actions: [{ name: 'hello', hook: () => console.log('Tool test!') }],
+    },
+  ],
+};

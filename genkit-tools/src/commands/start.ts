@@ -13,7 +13,7 @@ export const start = new Command('start')
   .option(
     '-x, --headless',
     'Do not serve static UI files (for development)',
-    false,
+    false
   )
   .option('-p, --port <number>', 'Port to serve on. Default is 4000', '4000')
   .action((options: StartOptions) => {

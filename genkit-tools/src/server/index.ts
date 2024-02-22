@@ -12,7 +12,7 @@ import { Runner } from '../runner/runner';
 // brittle as __dirname refers directly to this particular file.
 const UI_STATIC_FILES_DIR = path.resolve(
   __dirname,
-  '../client/ui/browser/assets',
+  '../client/ui/browser/assets'
 );
 const UI_DEVELOPMENT_FILES_DIR = path.resolve(__dirname, '../../ui/src/assets');
 const API_BASE_PATH = '/api';
@@ -25,7 +25,7 @@ function generateDiscoverabilityFile(headless: boolean, port: number): void {
   const basePath = headless ? UI_DEVELOPMENT_FILES_DIR : UI_STATIC_FILES_DIR;
   writeFileSync(
     path.join(basePath, 'discovery.js'),
-    `(() => window._tools_server_port_ = ${port})();`,
+    `(() => window._tools_server_port_ = ${port})();`
   );
 }
 
@@ -35,7 +35,7 @@ function generateDiscoverabilityFile(headless: boolean, port: number): void {
 export function startServer(
   runner: Runner,
   headless: boolean,
-  port: number,
+  port: number
 ): void {
   generateDiscoverabilityFile(headless, port);
 
@@ -56,7 +56,7 @@ export function startServer(
     },
     trpcExpress.createExpressMiddleware({
       router: TOOLS_SERVER_ROUTER(runner),
-    }),
+    })
   );
 
   const errorHandler: ErrorRequestHandler = (
@@ -65,7 +65,7 @@ export function startServer(
     response,
     // Poor API doesn't allow leaving off `next` without changing the entire signature...
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    next,
+    next
   ) => {
     if (error instanceof Error) {
       logger.error(error.stack);
@@ -76,13 +76,11 @@ export function startServer(
 
   app.listen(port, () => {
     logger.info(
-      `${clc.green(
-        clc.bold('Genkit Tools API:'),
-      )} http://localhost:${port}/api`,
+      `${clc.green(clc.bold('Genkit Tools API:'))} http://localhost:${port}/api`
     );
     if (!headless) {
       logger.info(
-        `${clc.green(clc.bold('Genkit Tools UI:'))} http://localhost:${port}`,
+        `${clc.green(clc.bold('Genkit Tools UI:'))} http://localhost:${port}`
       );
     }
   });

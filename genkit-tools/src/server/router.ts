@@ -12,7 +12,7 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
     listActions: t.procedure.query(
       async (): Promise<Record<string, Action>> => {
         return runner.listActions();
-      },
+      }
     ),
 
     /** Runs an action. */

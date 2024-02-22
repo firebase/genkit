@@ -16,8 +16,8 @@
     "build:common": "cd common && npm run build",
     "build:plugins": "cd plugins/google && npm run build",
     "copy-ui-build": "rm -rf dist/client && cd ui && cp -r dist ../dist/client",
-    "lint": "eslint --config .eslintrc.js --ext .ts,.js .",
-    "lint:fix": "npm run lint -- --fix --quiet",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
     "test": "echo \"Error: no test specified\" && exit 1",
     "preinstall": "(npm install --ignore-scripts -C ./ui); (npm install --ignore-scripts -C ./common)",
     "postinstall": "npm run build:common"
@@ -25,17 +25,11 @@
   "author": "Firebase (https://firebase.google.com)",
   "license": "MIT",
   "devDependencies": {
-    "@stylistic/eslint-plugin-js": "^1.5.3",
     "@types/cli-color": "^2.0.6",
     "@types/express": "^4.17.21",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.11.19",
-    "@typescript-eslint/eslint-plugin": "^6.15.0",
-    "eslint": "^8.56.0",
-    "eslint-config-google": "^0.14.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-jsdoc": "^46.9.1",
-    "eslint-plugin-prettier": "^5.1.0",
+    "prettier": "^3.2.5",
     "typescript": "^5.3.3"
   },
   "dependencies": {

@@ -65,7 +65,7 @@ export class Runner {
     options: {
       directory?: string;
       autoReload?: boolean;
-    } = {},
+    } = {}
   ) {
     this.directory = options.directory || process.cwd();
     this.autoReload = options.autoReload || true;
@@ -169,7 +169,7 @@ export class Runner {
         ignoreInitial: true,
         ignored: (filePath: string) => {
           return EXCLUDED_WATCHER_DIRS.some((dir) =>
-            filePath.includes(path.normalize(dir)),
+            filePath.includes(path.normalize(dir))
           );
         },
       })
@@ -186,7 +186,7 @@ export class Runner {
     const relativeFilePath = path.relative(this.directory, filePath);
     if (extension === '.ts') {
       logger.info(
-        `Detected a change in ${clc.bold(relativeFilePath)}. Compiling...`,
+        `Detected a change in ${clc.bold(relativeFilePath)}. Compiling...`
       );
       try {
         execSync('tsc', { stdio: 'inherit' });
@@ -196,8 +196,8 @@ export class Runner {
     } else if (extension === '.js') {
       logger.info(
         `Detected a change in ${clc.bold(
-          relativeFilePath,
-        )}. Waiting for other changes before reloading.`,
+          relativeFilePath
+        )}. Waiting for other changes before reloading.`
       );
       if (this.changeTimeout) {
         clearTimeout(this.changeTimeout);
@@ -246,7 +246,7 @@ export class Runner {
           headers: {
             'Content-Type': 'application/json',
           },
-        },
+        }
       );
       // TODO: Improve the error handling here including invalid arguments from the frontend.
       if (response.status !== 200) {
@@ -264,7 +264,7 @@ export class Runner {
     const { env } = input;
     try {
       const response = await axios.get(
-        `${REFLECTION_API_URL}/envs/${env}/traces`,
+        `${REFLECTION_API_URL}/envs/${env}/traces`
       );
       if (response.status !== 200) {
         throw new InternalError(`Failed to fetch traces from env ${env}.`);
@@ -281,30 +281,30 @@ export class Runner {
     const { env, traceId } = input;
     try {
       const response = await axios.get(
-        `${REFLECTION_API_URL}/envs/${env}/traces/${traceId}`,
+        `${REFLECTION_API_URL}/envs/${env}/traces/${traceId}`
       );
       if (response.status !== 200) {
         throw new InternalError(
-          `Failed to fetch trace ${traceId} from env ${env}.`,
+          `Failed to fetch trace ${traceId} from env ${env}.`
         );
       }
       return response.data as TraceData;
     } catch (error) {
       console.error(`Error fetching trace ${traceId} from env ${env}:`, error);
       throw new InternalError(
-        `Error fetching trace ${traceId} from env ${env}.`,
+        `Error fetching trace ${traceId} from env ${env}.`
       );
     }
   }
 
   /** Retrieves all flow states for a given environment (e.g. dev or prod). */
   async listFlowStates(
-    input: apis.ListFlowStatesRequest,
+    input: apis.ListFlowStatesRequest
   ): Promise<FlowState[]> {
     const { env } = input;
     try {
       const response = await axios.get(
-        `${REFLECTION_API_URL}/envs/${env}/flowStates`,
+        `${REFLECTION_API_URL}/envs/${env}/flowStates`
       );
       if (response.status !== 200) {
         throw new InternalError(`Failed to fetch flows from env ${env}.`);
@@ -321,11 +321,11 @@ export class Runner {
     const { env, flowId } = input;
     try {
       const response = await axios.get(
-        `${REFLECTION_API_URL}/envs/${env}/flowStates/${flowId}`,
+        `${REFLECTION_API_URL}/envs/${env}/flowStates/${flowId}`
       );
       if (response.status !== 200) {
         throw new InternalError(
-          `Failed to fetch flow ${flowId} from env ${env}.`,
+          `Failed to fetch flow ${flowId} from env ${env}.`
         );
       }
       return response.data as FlowState;

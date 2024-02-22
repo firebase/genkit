@@ -21,7 +21,7 @@ export const flowRun = new Command('flow:run')
     })) as FlowState;
     console.log(
       'Flow operation:\n',
-      JSON.stringify(state.operation, undefined, '  '),
+      JSON.stringify(state.operation, undefined, '  ')
     );
 
     await runner.stop();

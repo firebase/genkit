@@ -20,7 +20,7 @@ export async function getLoginCommands(): Promise<Command> {
     return command.action(() => {
       logger.error(
         'No plugins installed that support login. Add a supported ' +
-          `plugin to your ${clc.bold('genkit-tools.conf.js')} file.`,
+          `plugin to your ${clc.bold('genkit-tools.conf.js')} file.`
       );
     });
   }

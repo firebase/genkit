@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Formatting Check (Run npm run lint:fix locally if this fails)
+name: Formatting Check (Run npm run format locally if this fails)
 
 on: pull_request
 
@@ -40,10 +40,10 @@ jobs:
         run: npm install
       - name: Run formatting script in tools
         working-directory: ./genkit-tools
-        run: npm run lint
+        run: npm run format:check
       - name: NPM install typescript runtime
         working-directory: ./genkit
         run: npm install
       - name: Run formatting script typescript runtime
         working-directory: ./genkit
-        run: npm run build:all && npm run lint
+        run:  npm run format:check

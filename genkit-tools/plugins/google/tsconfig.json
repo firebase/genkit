@@ -5,7 +5,7 @@
     "moduleResolution": "Node",
     "outDir": "lib/esm",
     "esModuleInterop": true,
-    "rootDirs": ["src"],
+    "rootDirs": ["src"]
   },
   "include": ["src"]
 }

@@ -41,7 +41,7 @@ async function findToolsConfigInternal(): Promise<ToolsConfig | null> {
 
       console.warn(
         `${clc.bold(clc.yellow('Warning:'))} ` +
-          `Malformed tools schema:\n${result.error.toString()}`,
+          `Malformed tools schema:\n${result.error.toString()}`
       );
       return null;
     }

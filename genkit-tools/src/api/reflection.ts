@@ -15,7 +15,7 @@ const registry = new OpenAPIRegistry();
 registry.register('CustomAny', action.CustomAnySchema.openapi('CustomAny'));
 registry.register(
   'JSONSchema7',
-  action.JSONSchema7Schema.openapi('JSONSchema7'),
+  action.JSONSchema7Schema.openapi('JSONSchema7')
 );
 registry.register('Action', action.ActionSchema.openapi('Action'));
 registry.register('FlowState', FlowStateSchema.openapi('FlowState'));
@@ -55,7 +55,7 @@ registry.registerPath({
       content: {
         'application/json': {
           schema: action.CustomAnySchema.describe(
-            'An output with the type that this action returns.',
+            'An output with the type that this action returns.'
           ),
         },
       },
@@ -149,7 +149,7 @@ export const document = generator.generateDocument({
 
 if (!process.argv[2]) {
   throw Error(
-    'Please provide an absolute path to output the generated API spec.',
+    'Please provide an absolute path to output the generated API spec.'
   );
 }
 
@@ -160,5 +160,5 @@ fs.writeFileSync(
   yaml.dump(document),
   {
     encoding: 'utf-8',
-  },
+  }
 );

@@ -34,7 +34,7 @@ async function login(): Promise<void> {
   const cont = await promptContinue(
     'Genkit will use the GCloud CLI to log in to your Google account ' +
       'using OAuth, in order to perform administrative tasks',
-    true,
+    true
   );
   if (!cont) return;
 
@@ -43,7 +43,7 @@ async function login(): Promise<void> {
   } catch (e) {
     errorMessage(
       'Unable to complete login. Make sure the gcloud CLI is ' +
-        `installed and you're able to open a browser.`,
+        `installed and you're able to open a browser.`
     );
     return;
   }
@@ -52,13 +52,13 @@ async function login(): Promise<void> {
 }
 
 async function useApplicationDefaultCredentials(
-  opts?: Record<string, SupportedFlagValues>,
+  opts?: Record<string, SupportedFlagValues>
 ): Promise<void> {
   const project = opts?.project;
 
   if (!project || typeof project !== 'string') {
     errorMessage(
-      'Project not specified. Provide a project ID using the --project flag',
+      'Project not specified. Provide a project ID using the --project flag'
     );
     return;
   }
@@ -66,7 +66,7 @@ async function useApplicationDefaultCredentials(
   const cont = await promptContinue(
     'Genkit will use the GCloud CLI to log in to Google and download ' +
       `application default credentials for your project: ${clc.bold(project)}.`,
-    true,
+    true
   );
   if (!cont) return;
 
@@ -78,18 +78,18 @@ async function useApplicationDefaultCredentials(
   } catch (e) {
     errorMessage(
       'Unable to complete login. Make sure the gcloud CLI is ' +
-        `installed and you're able to open a browser.`,
+        `installed and you're able to open a browser.`
     );
     return;
   }
 
   console.log(
     `${clc.bold(
-      'Successfully signed in using application-default credentials.',
-    )}`,
+      'Successfully signed in using application-default credentials.'
+    )}`
   );
   console.log(
-    'Goole Cloud SDKs will now automatically pick up your credentials during development.',
+    'Goole Cloud SDKs will now automatically pick up your credentials during development.'
   );
 }
 
