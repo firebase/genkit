@@ -1,7 +1,13 @@
 import { Plugin, genkitPlugin } from '@google-genkit/common/config';
 import { imagen2, imagen2Model } from './imagen';
+import {
+  geminiModel,
+  geminiPro,
+  geminiProVision,
+  SUPPORTED_GEMINI_MODELS,
+} from './gemini';
 import { GoogleAuth } from 'google-auth-library';
-export { imagen2 };
+export { imagen2, geminiPro, geminiProVision };
 
 export interface PluginOptions {
   projectId?: string;
@@ -14,7 +20,12 @@ export const vertexAI: Plugin<[PluginOptions]> = genkitPlugin(
     const authClient = new GoogleAuth();
 
     return {
-      models: [imagen2Model(authClient, options)],
+      models: [
+        imagen2Model(authClient, options),
+        ...Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
+          geminiModel(name, options)
+        ),
+      ],
     };
   }
 );

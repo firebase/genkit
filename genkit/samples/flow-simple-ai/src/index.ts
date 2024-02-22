@@ -1,9 +1,7 @@
 import { generate } from '@google-genkit/ai/generate';
 import { initializeGenkit } from '@google-genkit/common/config';
 import { flow, run, runFlow } from '@google-genkit/flow';
-// import { gpt35Turbo } from '@google-genkit/providers/openai';
-// import { geminiPro } from '@google-genkit/providers/google-ai';
-import { geminiPro, geminiProVision } from '@google-genkit/providers/vertex-ai';
+import { geminiPro, geminiProVision } from '@google-genkit/plugin-vertex-ai';
 
 import * as z from 'zod';
 import config from './genkit.conf';

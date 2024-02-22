@@ -16,9 +16,7 @@ import {
   ToolDefinitionSchema,
   modelRef,
 } from '@google-genkit/ai/model';
-import { genkitPlugin } from '@google-genkit/common/config';
 import { z } from 'zod';
-import { Plugin } from '@google-genkit/common/config';
 
 export const geminiPro = modelRef({
   name: 'vertex-ai/gemini-1.0-pro',
@@ -46,7 +44,7 @@ export const geminiProVision = modelRef({
   },
 });
 
-const SUPPORTED_MODELS = {
+export const SUPPORTED_GEMINI_MODELS = {
   'gemini-1.0-pro': geminiPro,
   'gemini-1.0-pro-vision': geminiProVision,
   // 'gemini-ultra': geminiUltra,
@@ -194,38 +192,30 @@ const convertSchemaProperty = (property) => {
   }
 };
 
-type PluginParams = { project: string; location: string };
-export const vertexAI: Plugin<[PluginParams]> = genkitPlugin(
-  'vertex-ai',
-  (params?: PluginParams) => {
-    if (!params) {
-      throw Error('Params need to be defined');
-    }
-    return {
-      models: Object.keys(SUPPORTED_MODELS).map((name) =>
-        vertexModel(name, params || { project: '', location: '' })
-      ),
-    };
-  }
-);
-
 /**
  *
  */
-export function vertexModel(
+export function geminiModel(
   name: string,
   params: {
-    project: string;
+    projectId?: string;
     location: string;
   }
 ): ModelAction {
+  if (!params.projectId) {
+    throw Error('Project ID must be defined to use a Gemini model');
+  }
   const modelName = `vertex-ai/${name}`;
-  const vertex = new VertexAI({ ...params });
+  const vertex = new VertexAI({
+    project: params.projectId,
+    location: params.location,
+  });
   const client = vertex.preview.getGenerativeModel({ model: name });
 
-  if (!SUPPORTED_MODELS[name]) throw new Error(`Unsupported model: ${name}`);
+  if (!SUPPORTED_GEMINI_MODELS[name])
+    throw new Error(`Unsupported model: ${name}`);
   return modelAction(
-    { name: modelName, ...SUPPORTED_MODELS[name].info },
+    { name: modelName, ...SUPPORTED_GEMINI_MODELS[name].info },
     async (request) => {
       const messages = request.messages;
       if (messages.length === 0) throw new Error('No messages provided.');

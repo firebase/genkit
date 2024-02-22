@@ -11,7 +11,7 @@ import { configurePinecone } from '@google-genkit/providers/pinecone';
 import * as z from 'zod';
 import config from './genkit.conf';
 import { generate } from '@google-genkit/ai/generate';
-import { geminiPro } from '@google-genkit/providers/google-ai';
+import { geminiPro } from '@google-genkit/plugin-vertex-ai';
 import { embed } from '@google-genkit/ai/embedders';
 import { lookupAction } from '@google-genkit/common/registry';
 import { EmbedderAction } from '@google-genkit/ai/embedders';
