@@ -1,5 +1,13 @@
 import { initializeGenkit } from '@google-genkit/common/config';
-import { flow, interrupt, run, runMap } from '@google-genkit/flow';
+import {
+  flow,
+  interrupt,
+  run,
+  runFlow,
+  runMap,
+  sleep,
+  waitFor,
+} from '@google-genkit/flow';
 import * as z from 'zod';
 import config from './genkit.conf';
 
@@ -91,5 +99,47 @@ export const kitchensink = flow(
     );
 
     return something;
+  }
+);
+
+/**
+ * To run this flow;
+ *   genkit flow:run sleepy
+ */
+export const sleepy = flow(
+  { name: 'sleepy', input: z.void(), output: z.string() },
+  async () => {
+    const before = await run('before', async () => {
+      return 'foo';
+    });
+
+    await sleep('take-a-nap', 10);
+
+    const after = await run('after', async () => {
+      return 'bar';
+    });
+
+    return `${before} ${after}`;
+  }
+);
+
+/**
+ * To run this flow;
+ *   genkit flow:run waity
+ */
+export const waity = flow(
+  { name: 'waity', input: z.void(), output: z.string() },
+  async () => {
+    const flowOp = await run('start-sub-flow', async () => {
+      return await runFlow(sleepy);
+    });
+
+    const [op] = await waitFor('wait-for-other-to-complete', sleepy, [
+      flowOp.name,
+    ]);
+
+    return await run('after', async () => {
+      return `unpack sleepy result: ${JSON.stringify(op.result)}`;
+    });
   }
 );

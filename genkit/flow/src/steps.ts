@@ -1,7 +1,8 @@
-import { Action } from '@google-genkit/common';
+import { Action, Operation } from '@google-genkit/common';
 import * as z from 'zod';
-import { RunStepConfig } from './flow.js';
+import { Flow, RunStepConfig } from './flow.js';
 import { getActiveContext } from './utils.js';
+import { PollingConfig } from './context.js';
 
 /**
  * A flow steap that executes an action with provided input and memoizes the output.
@@ -94,11 +95,13 @@ export function sleep(actionId: string, durationMs: number) {
 /**
  * Interrupts the flow and periodically check for the flow ID to complete.
  */
-export function waitFor<O extends z.ZodTypeAny>(
-  actionId: string,
-  flowIds: string | string[]
-): z.infer<O> {
+export function waitFor(
+  stepName: string,
+  flow: Flow<z.ZodTypeAny, z.ZodTypeAny>,
+  flowIds: string[],
+  pollingConfig?: PollingConfig
+): Promise<Operation[]> {
   const ctx = getActiveContext();
   if (!ctx) throw new Error('waitFor can only be run from a flow');
-  return ctx.waitFor(actionId, flowIds);
+  return ctx.waitFor({ flow, stepName, flowIds, pollingConfig });
 }

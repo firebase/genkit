@@ -1,31 +1,31 @@
 import {
   FlowState,
   FlowStateExecution,
-  FlowStateStore,
+  Operation,
 } from '@google-genkit/common';
-import { zodToJsonSchema } from 'zod-to-json-schema';
-import { InterruptError } from './errors.js';
-import { z } from 'zod';
 import {
   SPAN_TYPE_ATTR,
   runInNewSpan,
   setCustomMetadataAttribute,
   setCustomMetadataAttributes,
 } from '@google-genkit/common/tracing';
-import { RunStepConfig } from './flow.js';
-import { metadataPrefix } from './utils.js';
 import { logger } from 'firebase-functions/v1';
+import { z } from 'zod';
+import { zodToJsonSchema } from 'zod-to-json-schema';
+import { InterruptError } from './errors.js';
+import { Flow, RunStepConfig } from './flow.js';
+import { metadataPrefix } from './utils.js';
 
 /**
  * Context object encapsulates flow execution state at runtime.
  */
-export class Context {
+export class Context<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
   private seenSteps: Record<string, number> = {};
 
   constructor(
+    readonly flow: Flow<I, O>,
     readonly flowId: string,
-    readonly state: FlowState,
-    private stateStore: FlowStateStore
+    readonly state: FlowState
   ) {}
 
   private isCached(stepName: string): boolean {
@@ -51,7 +51,7 @@ export class Context {
   }
 
   async saveState() {
-    await this.stateStore.save(this.flowId, this.state);
+    await this.flow.stateStore.save(this.flowId, this.state);
   }
 
   // Runs provided function in the current context. The config can specify retry and other behaviors.
@@ -109,7 +109,8 @@ export class Context {
   async interrupt<I extends z.ZodTypeAny, O>(
     stepName: string,
     func: (payload: I) => Promise<O>,
-    responseSchema: I | null
+    responseSchema: I | null,
+    skipCache?: boolean
   ): Promise<O> {
     return await runInNewSpan(
       {
@@ -127,7 +128,7 @@ export class Context {
           [metadataPrefix('stepName')]: stepName,
           [metadataPrefix('resolvedStepName')]: resolvedStepName,
         });
-        if (this.isCached(resolvedStepName)) {
+        if (!skipCache && this.isCached(resolvedStepName)) {
           setCustomMetadataAttribute(metadataPrefix('state'), 'skipped');
           return this.getCached(resolvedStepName);
         }
@@ -147,7 +148,9 @@ export class Context {
             throw e;
           }
           this.state.blockedOnStep = null;
-          this.updateCachedValue(resolvedStepName, value);
+          if (!skipCache) {
+            this.updateCachedValue(resolvedStepName, value);
+          }
           setCustomMetadataAttribute(metadataPrefix('state'), 'dispatch');
           if (value !== undefined) {
             metadata.output = value;
@@ -170,9 +173,17 @@ export class Context {
   // Sleep for the specified number of seconds.
   async sleep<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     stepName: string,
-    seconds: number // eslint-disable-line @typescript-eslint/no-unused-vars
+    seconds: number
   ): Promise<O> {
-    // TODO: placeholder, enqueue delayed message...
+    await this.flow.dispatcher.schedule(
+      this.flow,
+      {
+        resume: {
+          flowId: this.flowId,
+        },
+      },
+      seconds
+    );
     return this.interrupt(
       stepName,
       (input: z.infer<I>): z.infer<O> => input,
@@ -184,9 +195,46 @@ export class Context {
    * Wait for the provided flow to complete execution. This will do a poll.
    * Poll will be done with an exponential backoff (configurable).
    */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async waitFor(stepName: string, flowIds: string | string[]) {
-    // TODO: enqueue delayed message, interrupt...
+  async waitFor(opts: {
+    flow: Flow<z.ZodTypeAny, z.ZodTypeAny>;
+    stepName: string;
+    flowIds: string[];
+    pollingConfig?: PollingConfig;
+  }): Promise<Operation[]> {
+    const resolvedStepName = this.resolveStepName(opts.stepName);
+    if (this.isCached(resolvedStepName)) {
+      return this.getCached(resolvedStepName);
+    }
+    const states = await this.getFlowsOperations(opts.flow, opts.flowIds);
+    if (states.includes(undefined)) {
+      throw new Error(
+        'Unable to resolve flow state for ' +
+          opts.flowIds[states.indexOf(undefined)]
+      );
+    }
+    const ops = states.map((s) => s!.operation);
+    if (ops.map((op) => op.done).reduce((a, b) => a && b)) {
+      // all done.
+      this.updateCachedValue(resolvedStepName, states);
+      return ops;
+    }
+    await this.flow.dispatcher.schedule(
+      this.flow,
+      {
+        runScheduled: {
+          flowId: this.flowId,
+        },
+      },
+      opts.pollingConfig?.interval || 5
+    );
+    throw new InterruptError();
+  }
+
+  private async getFlowsOperations(
+    flow: Flow<z.ZodTypeAny, z.ZodTypeAny>,
+    flowIds: string[]
+  ): Promise<(FlowState | undefined)[]> {
+    return await Promise.all(flowIds.map((id) => flow.stateStore.load(id)));
   }
 
   /**
@@ -195,4 +243,9 @@ export class Context {
   getCurrentExecution(): FlowStateExecution {
     return this.state.executions[this.state.executions.length - 1];
   }
+}
+
+export interface PollingConfig {
+  // TODO: add more options
+  interval: number;
 }

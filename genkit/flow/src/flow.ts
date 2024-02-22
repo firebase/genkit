@@ -119,7 +119,7 @@ export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
       // First time, create new state.
       const flowId = generateFlowId();
       const state = createNewState(flowId, this.name, req.start.input);
-      const ctx = new Context(flowId, state, this.stateStore);
+      const ctx = new Context(this, flowId, state);
       try {
         await this.executeSteps(ctx, this.steps, 'start');
       } finally {
@@ -162,7 +162,7 @@ export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
       if (state === undefined) {
         throw new Error(`Unable to find flow state for ${flowId}`);
       }
-      const ctx = new Context(flowId, state, this.stateStore);
+      const ctx = new Context(this, flowId, state);
       try {
         await this.executeSteps(ctx, this.steps, 'runScheduled');
       } finally {
@@ -182,7 +182,7 @@ export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
         );
       }
       state.eventsTriggered[state.blockedOnStep.name] = req.resume.payload;
-      const ctx = new Context(flowId, state, this.stateStore);
+      const ctx = new Context(this, flowId, state);
       try {
         await this.executeSteps(ctx, this.steps, 'resume');
       } finally {
@@ -200,7 +200,7 @@ export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
 
   // TODO: refactor me... this is a mess!
   private async executeSteps(
-    ctx: Context,
+    ctx: Context<I, O>,
     handler: StepsFunction<I, O>,
     dispatchType: string
   ) {
@@ -279,14 +279,14 @@ export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
  */
 export async function runFlow<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   flow: Flow<I, O> | FlowWrapper<I, O>,
-  payload: z.infer<I>
+  payload?: z.infer<I>
 ): Promise<Operation> {
   if (!(flow instanceof Flow)) {
     flow = flow.flow;
   }
   const state = await flow.dispatcher.deliver(flow, {
     start: {
-      input: flow.input.parse(payload),
+      input: payload ? flow.input.parse(payload) : undefined,
     },
   });
   return state;

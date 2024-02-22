@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { FlowInvokeEnvelopeMessage, FlowState } from '../types/flow';
 import { startRunner } from '../utils/runner-utils';
+import { logger } from '../utils/logger';
 
 /** Command to start GenKit server, optionally without static file serving */
 export const flowResume = new Command('flow:resume')
@@ -10,7 +11,7 @@ export const flowResume = new Command('flow:resume')
   .action(async (flowName: string, flowId: string, data: string) => {
     const runner = await startRunner();
 
-    console.log(`Resuming '/flow/${flowName}'`);
+    logger.info(`Resuming '/flow/${flowName}'`);
     const state = (await runner.runAction({
       key: `/flow/${flowName}`,
       input: {
@@ -22,9 +23,8 @@ export const flowResume = new Command('flow:resume')
       } as FlowInvokeEnvelopeMessage,
     })) as FlowState;
 
-    console.log(
-      'Flow operation:\n',
-      JSON.stringify(state.operation, undefined, '  ')
+    logger.info(
+      'Flow operation:\n' + JSON.stringify(state.operation, undefined, '  ')
     );
 
     await runner.stop();
