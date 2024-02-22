@@ -27,7 +27,7 @@ export class Message<T = unknown> implements MessageData {
   }
 
   output(): T | null {
-    return extractJson<T>(this.text());
+    return this.data() || extractJson<T>(this.text());
   }
 
   text(): string {
@@ -36,6 +36,10 @@ export class Message<T = unknown> implements MessageData {
 
   media(): { url: string; contentType?: string } | null {
     return this.content.find((part) => part.media)?.media || null;
+  }
+
+  data(): T | null {
+    return this.content.find((part) => part.data)?.data as T | null;
   }
 }
 
@@ -57,6 +61,10 @@ export class Candidate<O = unknown> implements CandidateData {
 
   media(): { url: string; contentType?: string } | null {
     return this.message.media();
+  }
+
+  data(): O | null {
+    return this.message.data();
   }
 
   constructor(candidate: CandidateData) {
@@ -84,6 +92,10 @@ export class GenerationResponse<O = unknown> implements GenerationResponseData {
 
   media(): { url: string; contentType?: string } | null {
     return this.candidates[0]?.media() || null;
+  }
+
+  data(): O | null {
+    return this.candidates[0]?.data() || null;
   }
 
   constructor(response: GenerationResponseData) {

@@ -1,31 +1,31 @@
 import { Action, action } from '@google-genkit/common';
 import { z } from 'zod';
 
-export const TextPartSchema = z.object({
-  /** The text of the message. */
-  text: z.string(),
+const EmptyPartSchema = z.object({
+  text: z.never().optional(),
   media: z.never().optional(),
   toolRequest: z.never().optional(),
   toolResponse: z.never().optional(),
+  data: z.unknown().optional(),
+});
+
+export const TextPartSchema = EmptyPartSchema.extend({
+  /** The text of the message. */
+  text: z.string(),
 });
 export type TextPart = z.infer<typeof TextPartSchema>;
 
-export const MediaPartSchema = z.object({
-  text: z.never().optional(),
+export const MediaPartSchema = EmptyPartSchema.extend({
   media: z.object({
     /** The media content type. Inferred from data uri if not provided. */
     contentType: z.string().optional(),
     /** A `data:` or `https:` uri containing the media content.  */
     url: z.string(),
   }),
-  toolRequest: z.never().optional(),
-  toolResponse: z.never().optional(),
 });
 export type MediaPart = z.infer<typeof MediaPartSchema>;
 
-export const ToolRequestPartSchema = z.object({
-  text: z.never().optional(),
-  media: z.never().optional(),
+export const ToolRequestPartSchema = EmptyPartSchema.extend({
   /** A request for a tool to be executed, usually provided by a model. */
   toolRequest: z.object({
     /** The call id or reference for a specific request. */
@@ -35,14 +35,10 @@ export const ToolRequestPartSchema = z.object({
     /** The input parameters for the tool, usually a JSON object. */
     input: z.unknown().optional(),
   }),
-  toolResponse: z.never().optional(),
 });
 export type ToolRequestPart = z.infer<typeof ToolRequestPartSchema>;
 
-export const ToolResponsePartSchema = z.object({
-  text: z.never().optional(),
-  media: z.never().optional(),
-  toolRequest: z.never().optional(),
+export const ToolResponsePartSchema = EmptyPartSchema.extend({
   /** A provided response to a tool call. */
   toolResponse: z.object({
     /** The call id or reference for a specific request. */
@@ -55,11 +51,18 @@ export const ToolResponsePartSchema = z.object({
 });
 export type ToolResponsePart = z.infer<typeof ToolResponsePartSchema>;
 
+export const DataPartSchema = EmptyPartSchema.extend({
+  data: z.unknown(),
+});
+
+export type DataPart = z.infer<typeof DataPartSchema>;
+
 export const PartSchema = z.union([
   TextPartSchema,
   MediaPartSchema,
   ToolRequestPartSchema,
   ToolResponsePartSchema,
+  DataPartSchema,
 ]);
 export type Part = z.infer<typeof PartSchema>;
 
