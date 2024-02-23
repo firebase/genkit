@@ -69,6 +69,9 @@ export const basicCoffeeRecommender = flow(
       const llmResponse = await generate({
         model: geminiPro,
         prompt: simpleTemplate.prompt,
+        config: {
+          temperature: 1,
+        },
       });
 
       return llmResponse.text();
@@ -91,6 +94,9 @@ export const historyCoffeeRecommender = flow(
     const llmResponse = await generate({
       model: geminiPro,
       prompt: templateWithHistory.prompt,
+      config: {
+        temperature: 1,
+      },
     });
     return llmResponse.text();
   }
@@ -114,6 +120,9 @@ export const judgeResponseFlow = flow(
     const llmResponse = await generate({
       model: gpt35Turbo,
       prompt: simpleTemplate.prompt,
+      config: {
+        temperature: 1,
+      },
     });
 
     const judgeTemplate = await promptTemplate({
@@ -130,6 +139,9 @@ export const judgeResponseFlow = flow(
     const judgeResponse = await generate({
       model: gpt35Turbo,
       prompt: judgeTemplate.prompt,
+      config: {
+        temperature: 1,
+      },
     });
 
     return judgeResponse.text();
