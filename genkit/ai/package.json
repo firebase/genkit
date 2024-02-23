@@ -32,21 +32,6 @@
       "require": "./lib/index.js",
       "import": "./lib/index.mjs"
     },
-    "./agents": {
-      "types": "./lib/agents.d.ts",
-      "require": "./lib/agents.js",
-      "import": "./lib/agents.mjs"
-    },
-    "./memory": {
-      "types": "./lib/memory.d.ts",
-      "require": "./lib/memory.js",
-      "import": "./lib/memory.mjs"
-    },
-    "./recipes": {
-      "types": "./lib/recipes.d.ts",
-      "require": "./lib/recipes.js",
-      "import": "./lib/recipes.mjs"
-    },
     "./retrievers": {
       "types": "./lib/retrievers.d.ts",
       "require": "./lib/retrievers.js",
@@ -56,11 +41,6 @@
       "types": "./lib/embedders.d.ts",
       "require": "./lib/embedders.js",
       "import": "./lib/embedders.mjs"
-    },
-    "./eval": {
-      "types": "./lib/eval.d.ts",
-      "require": "./lib/eval.js",
-      "import": "./lib/eval.mjs"
     },
     "./model": {
       "types": "./lib/model.d.ts",
@@ -76,6 +56,25 @@
       "types": "./lib/generate.d.ts",
       "require": "./lib/generate.js",
       "import": "./lib/generate.mjs"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "retrievers": [
+        "lib/retrievers"
+      ],
+      "embedders": [
+        "lib/embedders"
+      ],
+      "model": [
+        "lib/model"
+      ],
+      "model/middleware": [
+        "lib/model/middleware"
+      ],
+      "generate": [
+        "lib/generate"
+      ]
     }
   }
 }

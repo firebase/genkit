@@ -18,12 +18,12 @@
     "build:dotprompt": "cd dotprompt && npm install && npm run build",
     "build:plugins": "for i in plugins/*/; do cd $i && npm install && npm run build && cd ../..; done",
     "build:samples": "pwd && for i in samples/*/; do cd $i && npm install && npm run build && cd ../..; done",
-    "pack:all": "rm -r dist || true && mkdir dist && npm-run-all pack:common pack:flow pack:ai pack:providers zip:dist",
+    "pack:all": "rm -r dist || true && mkdir dist && npm-run-all pack:common pack:flow pack:ai pack:providers pack:plugins",
     "pack:common": "cd common && npm pack --pack-destination ../dist -ws",
     "pack:flow": "cd flow && npm pack --pack-destination ../dist -ws",
     "pack:ai": "cd ai && npm pack --pack-destination ../dist -ws",
     "pack:providers": "cd providers && npm pack --pack-destination ../dist -ws",
-    "zip:dist": "cd dist && zip genkit-dist-0.0.1.zip *.tgz"
+    "pack:plugins": "for i in plugins/*/; do cd $i && npm pack --pack-destination ../../dist -ws; done"
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5",

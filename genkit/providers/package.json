@@ -33,11 +33,6 @@
   },
   "types": "lib/index.d.ts",
   "exports": {
-    "./llms": {
-      "types": "./lib/llms.d.ts",
-      "require": "./lib/llms.js",
-      "import": "./lib/llms.mjs"
-    },
     "./firebase": {
       "types": "./lib/firebase.d.ts",
       "require": "./lib/firebase.js",
@@ -82,6 +77,37 @@
       "types": "./lib/pinecone.d.ts",
       "require": "./lib/pinecone.js",
       "import": "./lib/pinecone.mjs"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "firebase": [
+        "lib/firebase"
+      ],
+      "firebase-functions": [
+        "lib/firebase-functions"
+      ],
+      "google-ai": [
+        "lib/google-ai"
+      ],
+      "google-vertexai": [
+        "lib/logging"
+      ],
+      "openai": [
+        "lib/openai"
+      ],
+      "naive-filestore": [
+        "lib/naive-filestore"
+      ],
+      "ollama": [
+        "lib/ollama"
+      ],
+      "chroma": [
+        "lib/chroma"
+      ],
+      "pinecone": [
+        "lib/pinecone"
+      ]
     }
   }
 }

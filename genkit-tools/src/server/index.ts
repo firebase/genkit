@@ -24,7 +24,7 @@ function generateDiscoverabilityFile(headless: boolean, port: number): void {
     : path.resolve(UI_STATIC_FILES_DIR, 'assets');
   writeFileSync(
     path.join(basePath, 'discovery.js'),
-    `(() => window._tools_server_port_ = ${port})();`
+    `(() => window._tools_server_url_ = ${headless ? `"http://localhost:${port}"` : '""'})();`
   );
 }
 
@@ -40,7 +40,6 @@ export function startServer(
 
   const app = express();
 
-  console.log('UI_STATIC_FILES_DIR', UI_STATIC_FILES_DIR);
   if (!headless) {
     app.use(express.static(UI_STATIC_FILES_DIR));
   }
@@ -73,6 +72,11 @@ export function startServer(
     return response.status(500).send(error);
   };
   app.use(errorHandler);
+
+  // serve angular paths
+  app.all('*', (req, res) => {
+    res.status(200).sendFile('/', { root: UI_STATIC_FILES_DIR });
+  });
 
   app.listen(port, () => {
     logger.info(

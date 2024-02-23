@@ -10,7 +10,7 @@
   ],
   "main": "dist/index.js",
   "scripts": {
-    "build": "(npm run build:common) && (npm run build:cli) && (npm run build:ui) && (npm run copy-ui-build) && (npm run build:plugins)",
+    "build": "(npm run init:deps) && (npm run build:common) && (npm run build:cli) && (npm run build:ui) && (npm run copy-ui-build) && (npm run build:plugins)",
     "build:cli": "tsc",
     "build:ui": "cd ui && npm run build",
     "build:common": "cd common && npm run build",
@@ -19,8 +19,7 @@
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "preinstall": "(npm install --ignore-scripts -C ./ui); (npm install --ignore-scripts -C ./common)",
-    "postinstall": "npm run build:common"
+    "init:deps": "(npm install --ignore-scripts -C ./ui); (npm install --ignore-scripts -C ./common)"
   },
   "author": "Firebase (https://firebase.google.com)",
   "license": "MIT",

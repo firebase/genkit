@@ -71,5 +71,27 @@
       "require": "./lib/runtime.js",
       "import": "./lib/runtime.mjs"
     }
+  },
+  "typesVersions": {
+    "*": {
+      "metrics": [
+        "lib/metrics"
+      ],
+      "registry": [
+        "lib/registry"
+      ],
+      "tracing": [
+        "lib/tracing"
+      ],
+      "logging": [
+        "lib/logging"
+      ],
+      "config": [
+        "lib/config"
+      ],
+      "runtime": [
+        "lib/runtime"
+      ]
+    }
   }
 }
