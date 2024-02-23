@@ -17,6 +17,7 @@ export interface ConfigOptions {
   flowStateStore?: string;
   enableTracingAndMetrics?: boolean;
   logLevel?: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
+  promptDir?: string;
 }
 
 class Config {

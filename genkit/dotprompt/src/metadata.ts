@@ -7,6 +7,9 @@ type JSONSchema = unknown;
  * Metadata for a prompt.
  */
 export interface PromptMetadata {
+  /** The name of the prompt. */
+  name?: string;
+
   /**
    * The name of the model to use for this prompt, e.g. `google-vertex/gemini-pro`
    * or `openai/gpt-4-0125-preview`.

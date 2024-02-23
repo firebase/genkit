@@ -1,64 +1,31 @@
-import { readFileSync, readdirSync } from 'fs';
-import { PromptFile } from './prompt.js';
-export { PromptFile };
-import { join } from 'path';
+import { readFileSync } from 'fs';
+import { Prompt } from './prompt.js';
+export { Prompt as PromptFile };
+import { basename } from 'path';
+import { lookupPrompt } from './registry.js';
 
-/**
- *
- */
-export function loadPromptFile(path: string): PromptFile {
-  return PromptFile.parse(readFileSync(path, 'utf-8'));
+export function loadPromptFile(path: string): Prompt {
+  return Prompt.parse(
+    basename(path).split('.')[0],
+    readFileSync(path, 'utf-8')
+  );
 }
 
-/**
- *
- */
-export async function loadPromptUrl(url: string): Promise<PromptFile> {
+export async function loadPromptUrl(
+  name: string,
+  url: string
+): Promise<Prompt> {
   const fetch = (await import('node-fetch')).default;
   const response = await fetch(url);
   const text = await response.text();
-  return PromptFile.parse(text);
+  return Prompt.parse(name, text);
 }
 
-/**
- *
- */
-export function loadPromptDir(path: string): Record<string, PromptFile> {
-  const files = readdirSync(path);
-  const prompts: Record<
-    string,
-    { name: string; file?: string; variants: Record<string, string> }
-  > = {};
-
-  for (const file of files) {
-    if (!file.endsWith('.prompt')) continue;
-    const parts = file.split('.');
-    prompts[parts[0]] = prompts[parts[0]] || { name: parts[0], variants: {} };
-    if (parts.length === 2) {
-      prompts[parts[0]].file = file;
-    } else if (parts.length === 3) {
-      prompts[parts[0]].variants[parts[1]] = file;
-    }
-  }
-
-  const out: Record<string, PromptFile> = {};
-  // eslint-disable-next-line guard-for-in
-  for (const name in prompts) {
-    const variants: Record<string, PromptFile> = {};
-    // eslint-disable-next-line guard-for-in
-    for (const variant in prompts[name].variants) {
-      variants[variant] = loadPromptFile(
-        join(path, prompts[name].variants[variant])
-      );
-    }
-    // skip if no baseline file
-    if (!prompts[name].file) {
-      continue;
-    }
-
-    out[name] = loadPromptFile(join(path, prompts[name].file!));
-    out[name].variants = variants;
-  }
-
-  return out;
+export async function prompt<Variables = unknown>(
+  name: string,
+  options?: { variant?: string }
+): Promise<Prompt<Variables>> {
+  return lookupPrompt(name, options?.variant) as Prompt<Variables>;
 }
+
+export { Prompt, PromptOptions, PromptAction, PromptInput } from './prompt.js';

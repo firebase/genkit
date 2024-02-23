@@ -1,38 +1,81 @@
 import { readFileSync } from 'fs';
 import { PromptMetadata } from './metadata.js';
 import { compile } from './template.js';
-import { GenerationRequest, MessageData } from '@google-genkit/ai/model';
+import {
+  GenerationRequest,
+  GenerationResponseSchema,
+  MessageData,
+} from '@google-genkit/ai/model';
 import fm from 'front-matter';
 import { GenerationResponse, generate } from '@google-genkit/ai/generate';
+import z from 'zod';
+import { Action, action } from '@google-genkit/common';
+import { createHash } from 'crypto';
 
-export class PromptFile<Variables = unknown> {
+const PromptInputSchema = z.object({
+  variables: z.unknown().optional(),
+  candidates: z.number().optional(),
+});
+export type PromptInput<Variables = unknown | undefined> = z.infer<
+  typeof PromptInputSchema
+> & {
+  variables: Variables;
+};
+
+export type PromptAction = Action<
+  typeof PromptInputSchema,
+  typeof GenerationResponseSchema,
+  Record<string, unknown> & {
+    prompt: PromptOptions;
+  }
+>;
+
+export interface PromptOptions {
+  name: string;
+  template: string;
+  metadata: PromptMetadata;
+  hash: string;
+  variant?: string;
+}
+
+export class Prompt<Variables = unknown> {
+  name: string;
+  variant?: string;
+  hash: string;
   metadata: PromptMetadata;
   template: string;
-  variants: Record<string, PromptFile>;
 
   private _render: (
     variables: Variables,
     options?: { context?: string[]; history?: MessageData[] }
   ) => MessageData[];
 
-  static parse(source: string) {
+  private _action?: PromptAction;
+
+  static parse(name: string, source: string) {
     const fmResult = (fm as any)(source);
-    return new PromptFile(fmResult.body, fmResult.attributes as PromptMetadata);
+    const hash = createHash('sha256').update(source).digest('hex');
+    return new Prompt({
+      name,
+      hash,
+      template: fmResult.body,
+      metadata: fmResult.attributes as PromptMetadata,
+    });
   }
 
-  static loadFile(path: string) {
-    return PromptFile.parse(readFileSync(path, 'utf8'));
+  static fromAction(action: PromptAction): Prompt {
+    const prompt = new Prompt(action.__action.metadata!.prompt);
+    prompt._action = action;
+    return prompt;
   }
 
-  constructor(
-    template: string,
-    metadata: PromptMetadata,
-    options?: { variants?: Record<string, PromptFile> }
-  ) {
-    this.metadata = metadata;
-    this.template = template;
-    this.variants = options?.variants || {};
-    this._render = compile(template, metadata);
+  constructor(options: PromptOptions) {
+    this.name = options.name;
+    this.metadata = options.metadata;
+    this.template = options.template;
+    this.hash = options.hash;
+    this.variant = options.variant;
+    this._render = compile(this.template, this.metadata);
   }
 
   renderText(variables: Variables): string {
@@ -65,28 +108,45 @@ export class PromptFile<Variables = unknown> {
     };
   }
 
-  generate(
-    variables: Variables,
-    options?: { candidates?: number; variant?: string }
-  ): Promise<GenerationResponse> {
-    const { variant, ...opts } = options || {};
-    if (variant && !this.variants[variant]) {
-      throw new Error(`Variant '${variant}' not found.`);
-    } else if (variant) {
-      return this.variants[variant].generate(variables, opts);
-    }
-
-    const messages = this.renderMessages(variables);
+  generate(options: PromptInput<Variables>): Promise<GenerationResponse> {
+    const messages = this.renderMessages(options.variables);
     return generate({
       model: this.metadata.model,
       config: this.metadata.config || {},
       history: messages.slice(0, messages.length - 1),
       prompt: messages[messages.length - 1].content,
-      candidates: options?.candidates || 1,
+      candidates: options.candidates || 1,
       output: {
         format: this.metadata.output?.format || undefined,
         jsonSchema: this.metadata.output?.schema,
       },
     });
+  }
+
+  action(): PromptAction {
+    if (this._action) return this._action;
+    this._action = action(
+      {
+        name: `${this.name}${this.variant ? `.${this.variant}` : ''}`,
+        input: PromptInputSchema,
+        output: GenerationResponseSchema,
+        metadata: {
+          prompt: {
+            name: this.name,
+            template: this.template,
+            metadata: this.metadata,
+            hash: this.hash,
+            variant: this.variant,
+          },
+        },
+      },
+      (input) => {
+        return this.generate({
+          variables: input.variables as Variables,
+          candidates: input.candidates || 1,
+        });
+      }
+    ) as PromptAction;
+    return this._action;
   }
 }
