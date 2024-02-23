@@ -15,7 +15,11 @@
     "npm-install-genkit": "cd genkit && npm install",
     "npm-install-genkit-tools": "cd genkit-tools && npm install",
     "link-genkit-tools": "cd genkit-tools && npm link",
-    "setup": "npm-run-all npm-install-genkit npm-install-genkit-tools build:all link-genkit-tools"
+    "setup": "npm-run-all npm-install-genkit npm-install-genkit-tools build:all link-genkit-tools",
+    "pack:all": "rm -r dist || true && mkdir dist && npm-run-all pack:genkit pack:tools dist:zip",
+    "pack:tools": "cd genkit-tools && npm run pack:all",
+    "pack:genkit": "cd genkit && npm run pack:all",
+    "dist:zip": "cd dist && zip genkit-dist.zip *.tgz"
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5"
