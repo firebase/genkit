@@ -40,8 +40,8 @@
     },
     "./firebase-functions": {
       "types": "./lib/firebase-functions.d.ts",
-      "require": "./lib/firebase-functions.cjs",
-      "import": "./lib/firebase-functions.js"
+      "require": "./lib/firebase-functions.js",
+      "import": "./lib/firebase-functions.mjs"
     },
     "./google-ai": {
       "types": "./lib/google-ai.d.ts",
