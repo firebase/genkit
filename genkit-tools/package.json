@@ -19,11 +19,16 @@
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "init:deps": "(npm install --ignore-scripts -C ./ui); (npm install --ignore-scripts -C ./common)"
+    "init:deps": "(npm install --ignore-scripts -C ./ui); (npm install --ignore-scripts -C ./common)",
+    "pack:all": "npm-run-all pack:cli pack:common pack:plugins",
+    "pack:cli": "npm pack --pack-destination ../dist",
+    "pack:common": "cd common && npm pack --pack-destination ../../dist -ws",
+    "pack:plugins": "for i in plugins/*/; do cd $i && npm pack --pack-destination ../../../dist -ws; done"
   },
   "author": "Firebase (https://firebase.google.com)",
   "license": "MIT",
   "devDependencies": {
+    "npm-run-all": "^4.1.5",
     "@types/cli-color": "^2.0.6",
     "@types/express": "^4.17.21",
     "@types/js-yaml": "^4.0.9",
