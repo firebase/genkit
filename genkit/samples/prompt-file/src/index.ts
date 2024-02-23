@@ -1,14 +1,25 @@
-import { loadPromptFile } from '@google-genkit/dotprompt';
+import { prompt } from '@google-genkit/dotprompt';
 import { initializeGenkit } from '@google-genkit/common/config';
 
 initializeGenkit();
 
-const recipePrompt = loadPromptFile('./recipe.prompt');
+(async () => {
+  const food = process.argv[2] || 'mexican asian fusion';
+  const recipePrompt = await prompt('recipe');
 
-recipePrompt
-  .generate({ food: process.argv[2] || 'mexican asian fusion' })
-  .then((result) => {
-    console.log(result.output());
-    process.exit(0); // TODO: figure out why process hangs
-  })
-  .catch(console.error);
+  const result = await recipePrompt.generate({
+    variables: { food },
+  });
+
+  console.log(result.output());
+
+  console.log('');
+  console.log('Now, as a robot...');
+  const robotPrompt = await prompt('recipe', { variant: 'robot' });
+
+  const result2 = await robotPrompt.generate({
+    variables: { food },
+  });
+
+  console.log(result2.output());
+})();

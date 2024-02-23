@@ -22,7 +22,8 @@ export type ActionType =
   | 'indexer'
   | 'embedder'
   | 'flow'
-  | 'model';
+  | 'model'
+  | 'prompt';
 
 /**
  * Looks up a registry key (action type and key) in the registry.
