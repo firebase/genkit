@@ -1,38 +1,25 @@
 import { prompt, promptTemplate } from '@google-genkit/ai';
-import {
-  index,
-  retrieve,
-  type TextDocument,
-} from '@google-genkit/ai/retrievers';
+import { retrieve } from '@google-genkit/ai/retrievers';
 import { initializeGenkit } from '@google-genkit/common/config';
 import { flow, runFlow } from '@google-genkit/flow';
-import { textEmbeddingGecko } from '@google-genkit/providers/google-vertexai';
-import { configurePinecone } from '@google-genkit/providers/pinecone';
+import { pineconeRef } from '@google-genkit/providers/pinecone';
 import * as z from 'zod';
 import config from './genkit.conf';
 import { generate } from '@google-genkit/ai/generate';
 import { geminiPro } from '@google-genkit/plugin-vertex-ai';
-import { embed } from '@google-genkit/ai/embedders';
-import { lookupAction } from '@google-genkit/common/registry';
-import { EmbedderAction } from '@google-genkit/ai/embedders';
+import { chromaRef } from '@google-genkit/providers/chroma';
 
 initializeGenkit(config);
 
 // Setup the models, embedders and "vector store"
-const vertexEmbedder = lookupAction(`/embedder/${textEmbeddingGecko.name}`);
-const tomAndJerryFacts = configurePinecone({
+export const tomAndJerryFacts = pineconeRef({
   indexId: 'tom-and-jerry',
-  apiKey: process.env['PINECONE_API_KEY'] ?? '',
-  embedder: vertexEmbedder as EmbedderAction<
-    z.ZodTypeAny,
-    z.ZodString,
-    z.ZodTypeAny
-  >,
-  embedderOptions: {
-    temperature: 0,
-    topP: 0,
-    topK: 1,
-  },
+  displayName: 'Tom and Jerry Collection',
+});
+
+export const spongeBobFacts = chromaRef({
+  collectionName: 'spongebob_collection',
+  displayName: 'Spongebob facts',
 });
 
 const ragTemplate = `Use the following pieces of context to answer the question at the end.
@@ -51,7 +38,7 @@ export const askQuestionsAboutTomAndJerryFlow = flow(
   },
   async (query) => {
     const docs = await retrieve({
-      retriever: await tomAndJerryFacts,
+      retriever: tomAndJerryFacts,
       query,
       options: { k: 3 },
     });
@@ -74,52 +61,50 @@ export const askQuestionsAboutTomAndJerryFlow = flow(
   }
 );
 
-// Define a flow to index documents into the "vector store"
-export const indexDocumentsFlow = flow(
+// Define a simple RAG flow, we will evaluate this flow
+export const askQuestionsAboutSpongebobFlow = flow(
   {
-    name: 'indexTomAndJerryFacts',
-    input: z.array(z.string()),
-    output: z.void(),
-  },
-  async (docs) => {
-    const transformedDocs: TextDocument[] = docs.map((text) => {
-      return {
-        content: text,
-        metadata: { type: 'tv', show: 'Tom and Jerry' },
-      };
-    });
-    await index({
-      indexer: await tomAndJerryFacts,
-      docs: transformedDocs,
-      options: {
-        namespace: '',
-      },
-    });
-  }
-);
-
-// Define a flow to embed text -- for the sake of testing only
-const embedFlow = flow(
-  {
-    name: 'embedText',
+    name: 'askQuestionsAboutSpongebobFlow',
     input: z.string(),
-    output: z.void(),
+    output: z.string(),
   },
-  async (input) => {
-    const embedding = await embed({
-      embedder: textEmbeddingGecko,
-      input,
-      options: {
-        temperature: 0.5,
+  async (query) => {
+    const docs = await retrieve({
+      retriever: spongeBobFacts,
+      query,
+      options: { k: 3 },
+    });
+    console.log(docs);
+
+    const augmentedPrompt = await promptTemplate({
+      template: prompt(ragTemplate),
+      variables: {
+        question: query,
+        context: docs.map((d) => d.content).join('\n\n'),
       },
     });
-    console.log(`Embedding produced: ${embedding}`);
+    const model = geminiPro;
+    console.log(augmentedPrompt.prompt);
+    const llmResponse = await generate({
+      model,
+      prompt: { text: augmentedPrompt.prompt },
+    });
+    return llmResponse.text();
   }
 );
 
 async function main() {
-  const embedOp = await runFlow(embedFlow, 'Hello World');
-  console.log('Operation', embedOp);
+  const tjOp = await runFlow(
+    askQuestionsAboutTomAndJerryFlow,
+    'What are the other names of Tom?'
+  );
+  console.log('Operation', tjOp);
+
+  const sbOp = await runFlow(
+    askQuestionsAboutSpongebobFlow,
+    "Who are SpongeBob's friends?"
+  );
+  console.log('Operation', sbOp);
 }
 
 main().catch(console.error);

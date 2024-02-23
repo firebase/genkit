@@ -17,11 +17,11 @@ const VertexEmbedderrOptionsSchema = z.object({
   topK: z.number().optional(),
 });
 
-export const textEmbeddingGecko = embedderRef({
-  name: 'google-vertexai/textembedding-gecko',
+export const textEmbeddingGecko001 = embedderRef({
+  name: 'google-vertexai/textembedding-gecko@001',
   info: {
     label: 'Google Vertex AI - Text Embedding Gecko',
-    names: ['textembedding-gecko'],
+    names: ['textembedding-gecko@001'],
     supports: {
       input: ['text'],
       multilingual: false,
@@ -32,7 +32,7 @@ export const textEmbeddingGecko = embedderRef({
 });
 
 const SUPPORTED_TEXT_EMBEDDERS = {
-  'textembedding-gecko': textEmbeddingGecko,
+  'textembedding-gecko@001': textEmbeddingGecko001,
 };
 
 export const googleVertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(

@@ -1,12 +1,15 @@
-import { embed, EmbedderAction } from '@google-genkit/ai/embedders';
+import { embed } from '@google-genkit/ai/embedders';
 import {
   CommonRetrieverOptionsSchema,
-  retrieverFactory,
+  retriever,
+  retrieverRef,
   TextDocumentSchema,
 } from '@google-genkit/ai/retrievers';
 import { ChromaClient, IncludeEnum, Where, WhereDocument } from 'chromadb';
 import * as z from 'zod';
 export { IncludeEnum };
+import { genkitPlugin, PluginProvider } from '@google-genkit/common/config';
+import { EmbedderReference } from '@google-genkit/ai/embedders';
 
 const WhereSchema: z.ZodType<Where> = z.any();
 const WhereDocumentSchema: z.ZodType<WhereDocument> = z.any();
@@ -15,35 +18,68 @@ const ChromaRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend({
   include: z.array(z.nativeEnum(IncludeEnum)).optional(),
   where: WhereSchema.optional(),
   whereDocument: WhereDocumentSchema.optional(),
-}).optional();
+});
+
+/**
+ * Chroma plugin that provides the Chroma retriever
+ */
+export function chroma<EmbedderCustomOptions extends z.ZodTypeAny>(params: {
+  collectionName: string;
+  embedder: EmbedderReference<EmbedderCustomOptions>;
+  embedderOptions?: z.infer<EmbedderCustomOptions>;
+}): PluginProvider {
+  const plugin = genkitPlugin(
+    'chroma',
+    (params: {
+      collectionName: string;
+      embedder: EmbedderReference<EmbedderCustomOptions>;
+      embedderOptions?: z.infer<EmbedderCustomOptions>;
+    }) => ({
+      retrievers: [chromaDbRetriever(params)],
+    })
+  );
+  return plugin(params);
+}
+
+export const chromaRef = (params: {
+  collectionName: string;
+  displayName?: string;
+}) => {
+  const displayName = params.displayName ?? params.collectionName;
+  return retrieverRef({
+    name: `chroma/${params.collectionName}`,
+    info: {
+      label: `Chroma DB - ${displayName}`,
+      names: [displayName],
+    },
+    configSchema: ChromaRetrieverOptionsSchema.optional(),
+  });
+};
 
 /**
  * Configures a Chroma vector store retriever.
  */
-export function configureChromaRetriever<
-  I extends z.ZodTypeAny,
+export function chromaDbRetriever<
   EmbedderCustomOptions extends z.ZodTypeAny
 >(params: {
   collectionName: string;
-  embedder: EmbedderAction<I, z.ZodString, EmbedderCustomOptions>;
+  embedder: EmbedderReference<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
   const { embedder, collectionName, embedderOptions } = params;
-  const chromaRetriever = retrieverFactory(
+  return retriever(
     {
       provider: 'chroma',
-      retrieverId: collectionName,
+      retrieverId: `chroma/${collectionName}`,
+      embedderInfo: embedder.info,
       queryType: z.string(),
       documentType: TextDocumentSchema,
       customOptionsType: ChromaRetrieverOptionsSchema,
     },
     async (input, options) => {
       const client = new ChromaClient();
-      const collection = await client.getOrCreateCollection({
+      const collection = await client.getCollection({
         name: collectionName,
-        metadata: {
-          description: 'My test collection',
-        },
       });
 
       const queryEmbeddings = await embed({
@@ -84,5 +120,4 @@ export function configureChromaRetriever<
       });
     }
   );
-  return chromaRetriever;
 }
