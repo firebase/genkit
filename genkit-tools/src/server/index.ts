@@ -10,10 +10,7 @@ import { Runner } from '../runner/runner';
 
 // Static files are copied to the /dist/client directory. This is a litle
 // brittle as __dirname refers directly to this particular file.
-const UI_STATIC_FILES_DIR = path.resolve(
-  __dirname,
-  '../client/ui/browser/assets'
-);
+const UI_STATIC_FILES_DIR = path.resolve(__dirname, '../client/ui/browser');
 const UI_DEVELOPMENT_FILES_DIR = path.resolve(__dirname, '../../ui/src/assets');
 const API_BASE_PATH = '/api';
 
@@ -22,7 +19,9 @@ const API_BASE_PATH = '/api';
  * development environment so that `ng serve` works as expected as well.
  */
 function generateDiscoverabilityFile(headless: boolean, port: number): void {
-  const basePath = headless ? UI_DEVELOPMENT_FILES_DIR : UI_STATIC_FILES_DIR;
+  const basePath = headless
+    ? UI_DEVELOPMENT_FILES_DIR
+    : path.resolve(UI_STATIC_FILES_DIR, 'assets');
   writeFileSync(
     path.join(basePath, 'discovery.js'),
     `(() => window._tools_server_port_ = ${port})();`
@@ -41,6 +40,7 @@ export function startServer(
 
   const app = express();
 
+  console.log('UI_STATIC_FILES_DIR', UI_STATIC_FILES_DIR);
   if (!headless) {
     app.use(express.static(UI_STATIC_FILES_DIR));
   }
