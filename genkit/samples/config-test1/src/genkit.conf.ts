@@ -3,9 +3,24 @@ import { configureGenkit } from '@google-genkit/common/config';
 import { openAI } from '@google-genkit/providers/openai';
 import { googleAI } from '@google-genkit/providers/google-ai';
 import { firebase } from '@google-genkit/providers/firebase';
+import { chroma } from '@google-genkit/providers/chroma';
+import {
+  googleVertexAI,
+  textEmbeddingGecko001,
+} from '@google-genkit/providers/google-vertexai';
 
 export default configureGenkit({
-  plugins: [firebase({ projectId: getProjectId() }), googleAI(), openAI()],
+  plugins: [
+    firebase({ projectId: getProjectId() }),
+    googleAI(),
+    openAI(),
+    googleVertexAI(),
+    chroma({
+      collectionName: 'spongebob_collection',
+      embedder: textEmbeddingGecko001,
+      embedderOptions: { topK: 7 },
+    }),
+  ],
   flowStateStore: 'firebase',
   traceStore: 'firebase',
   enableTracingAndMetrics: true,

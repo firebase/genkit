@@ -87,10 +87,13 @@ export async function embed<
   options?: z.infer<EmbedderOptions>;
 }): Promise<Embedding> {
   let embedder: EmbedderAction<I, InputType, EmbedderOptions>;
-  if (params.embedder.hasOwnProperty('info')) {
+  if (Object.hasOwnProperty.call(params.embedder, 'info')) {
     embedder = lookupAction(`/embedder/${params.embedder.name}`);
   } else {
     embedder = params.embedder as EmbedderAction<I, InputType, EmbedderOptions>;
+  }
+  if (!embedder) {
+    throw new Error('Unable to utilze the provided embedder');
   }
   return await embedder({
     input: params.input,
@@ -124,7 +127,7 @@ export interface EmbedderReference<CustomOptions extends z.ZodTypeAny> {
 }
 
 /**
- *
+ * Helper method to configure a {@link EmbedderReference} to a plugin.
  */
 export function embedderRef<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny

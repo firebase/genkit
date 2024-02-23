@@ -1,6 +1,8 @@
 import { action, Action } from '@google-genkit/common';
 import * as registry from '@google-genkit/common/registry';
+import { lookupAction } from '@google-genkit/common/registry';
 import * as z from 'zod';
+import { EmbedderInfo } from './embedders';
 
 const BaseDocumentSchema = z.object({
   metadata: z.record(z.string(), z.any()).optional(),
@@ -124,7 +126,7 @@ function indexerWithMetadata<
 /**
  *  Creates a retriever action for the provided {@link RetrieverFn} implementation.
  */
-export function retrieverFactory<
+export function retriever<
   QueryType extends z.ZodTypeAny,
   DocType extends DocumentSchemaType,
   RetrieverOptions extends z.ZodTypeAny
@@ -132,6 +134,7 @@ export function retrieverFactory<
   options: {
     provider: string;
     retrieverId: string;
+    embedderInfo?: EmbedderInfo;
     queryType: QueryType;
     documentType: DocType;
     customOptionsType: RetrieverOptions;
@@ -140,12 +143,13 @@ export function retrieverFactory<
 ) {
   const retriever = action(
     {
-      name: 'retrieve',
+      name: options.retrieverId,
       input: z.object({
         query: options.queryType,
         options: options.customOptionsType,
       }),
       output: z.array<DocumentSchemaType>(options.documentType),
+      metadata: options.embedderInfo,
     },
     (i) => runner(i.query, i.options)
   );
@@ -226,7 +230,7 @@ export function documentStoreFactory<
     retrieverOptionsType,
     indexerOptionsType,
   } = { ...params };
-  const indexer = indexerFactory(
+  const indexerAction = indexerFactory(
     {
       provider,
       indexerId: id,
@@ -235,7 +239,7 @@ export function documentStoreFactory<
     },
     params.indexFn
   );
-  const retriever = retrieverFactory(
+  const retrieverAction = retriever(
     {
       provider,
       retrieverId: id,
@@ -250,14 +254,14 @@ export function documentStoreFactory<
     query: z.infer<QueryType>;
     options: z.infer<RetrieverOptions>;
   }) =>
-    retriever({
+    retrieverAction({
       query: params.query,
       options: params.options,
     })) as DocumentStore<QueryType, DocType, RetrieverOptions, IndexerOptions>;
   store.index = (params: {
     docs: Array<z.infer<typeof documentType>>;
     options: z.infer<IndexerOptions>;
-  }) => indexer({ docs: params.docs, options: params.options });
+  }) => indexerAction({ docs: params.docs, options: params.options });
   return store;
 }
 
@@ -269,16 +273,29 @@ export async function retrieve<
   I extends z.ZodTypeAny,
   QueryType extends z.ZodTypeAny,
   DocType extends DocumentSchemaType,
-  RetrieverOptions extends z.ZodTypeAny,
-  IndexerOptions extends z.ZodTypeAny
+  RetrieverOptions extends z.ZodTypeAny
 >(params: {
   retriever:
-    | DocumentStore<QueryType, DocType, RetrieverOptions, IndexerOptions>
+    | RetrieverReference<RetrieverOptions>
     | RetrieverAction<I, QueryType, DocType, RetrieverOptions>;
   query: z.infer<QueryType>;
   options?: z.infer<RetrieverOptions>;
 }): Promise<Array<z.infer<DocType>>> {
-  return await params.retriever({
+  let retriever: RetrieverAction<I, QueryType, DocType, RetrieverOptions>;
+  if (Object.hasOwnProperty.call(params.retriever, 'info')) {
+    retriever = lookupAction(`/retriever/${params.retriever.name}`);
+  } else {
+    retriever = params.retriever as RetrieverAction<
+      I,
+      QueryType,
+      DocType,
+      RetrieverOptions
+    >;
+  }
+  if (!retriever) {
+    throw new Error('Unable to utilze the provided retriever');
+  }
+  return await retriever({
     query: params.query,
     options: params.options,
   });
@@ -319,3 +336,28 @@ export async function index<
 export const CommonRetrieverOptionsSchema = z.object({
   k: z.number().describe('Number of documents to retrieve').optional(),
 });
+
+export const RetrieverInfoSchema = z.object({
+  /** Acceptable names for this retriever (e.g. different versions). */
+  names: z.array(z.string()).optional(),
+  /** Friendly label for this model (e.g. "Google AI - Gemini Pro") */
+  label: z.string().optional(),
+});
+export type RetrieverInfo = z.infer<typeof RetrieverInfoSchema>;
+
+export interface RetrieverReference<CustomOptions extends z.ZodTypeAny> {
+  name: string;
+  configSchema?: CustomOptions;
+  info?: RetrieverInfo;
+}
+
+/**
+ * Helper method to configure a {@link RetrieverReference} to a plugin.
+ */
+export function retrieverRef<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny
+>(
+  options: RetrieverReference<CustomOptionsSchema>
+): RetrieverReference<CustomOptionsSchema> {
+  return { ...options };
+}
