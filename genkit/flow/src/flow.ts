@@ -8,7 +8,10 @@ import {
   FlowStateStore,
   Operation,
 } from '@google-genkit/common';
-import { config as globalConfig } from '@google-genkit/common/config';
+import {
+  config as globalConfig,
+  getCurrentEnv,
+} from '@google-genkit/common/config';
 import logging from '@google-genkit/common/logging';
 import * as registry from '@google-genkit/common/registry';
 import {
@@ -66,7 +69,8 @@ export function flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       input: config.input,
       output: config.output,
       stateStore: globalConfig.getFlowStateStore(),
-      dispatcher: config.dispatcher || {
+      // We always use local dispatcher in dev mode or when one is not provided.
+      dispatcher: (getCurrentEnv() !== 'dev' && config.dispatcher) || {
         async deliver(flow, msg) {
           const state = await flow.runEnvelope(msg);
           return state.operation;

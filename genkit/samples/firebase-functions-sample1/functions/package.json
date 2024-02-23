@@ -1,7 +1,7 @@
 {
   "name": "functions",
   "scripts": {
-    "install-dist": "cp -r ../../../../dist genkit-packages && npm i --save ./genkit-packages/google-genkit-common-0.0.1.tgz && npm i --save ./genkit-packages/google-genkit-ai-0.0.1.tgz && npm i --save ./genkit-packages/google-genkit-flow-0.0.1.tgz && npm i --save ./genkit-packages/google-genkit-providers-0.0.1.tgz",
+    "install-dist": "(mkdir genkit-packages || true) && cp -r ../../../../dist/* genkit-packages && npm i --save ./genkit-packages/google-genkit-common-0.0.1.tgz && npm i --save ./genkit-packages/google-genkit-ai-0.0.1.tgz && npm i --save ./genkit-packages/google-genkit-flow-0.0.1.tgz && npm i --save ./genkit-packages/google-genkit-providers-0.0.1.tgz",
     "build": "npm run install-dist && tsc",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
