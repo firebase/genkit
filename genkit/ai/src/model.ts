@@ -3,6 +3,11 @@ import { z } from 'zod';
 import { validateSupport } from './model/middleware';
 import { AsyncLocalStorage } from 'node:async_hooks';
 
+//
+// IMPORTANT: Please keep type definitions in sync with
+//   genkit-tools/src/types/model.ts
+//
+
 const EmptyPartSchema = z.object({
   text: z.never().optional(),
   media: z.never().optional(),
