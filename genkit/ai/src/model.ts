@@ -1,6 +1,6 @@
 import { Action, action } from '@google-genkit/common';
 import { z } from 'zod';
-import { validateSupport } from './model/middleware';
+import { conformOutput, validateSupport } from './model/middleware';
 import { AsyncLocalStorage } from 'node:async_hooks';
 
 //
@@ -14,6 +14,7 @@ const EmptyPartSchema = z.object({
   toolRequest: z.never().optional(),
   toolResponse: z.never().optional(),
   data: z.unknown().optional(),
+  metadata: z.record(z.unknown()).optional(),
 });
 
 export const TextPartSchema = EmptyPartSchema.extend({
@@ -276,7 +277,11 @@ export function modelAction<
   Object.assign(act, {
     __customOptionsType: options.customOptionsType || z.unknown(),
   });
-  const middleware = [validateSupport(options), ...(options.use || [])];
+  const middleware = [
+    ...(options.use || []),
+    validateSupport(options),
+    conformOutput(),
+  ];
   return modelWithMiddleware(
     act as ModelAction,
     middleware
