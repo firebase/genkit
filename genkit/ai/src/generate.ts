@@ -44,6 +44,13 @@ export class Message<T = unknown> implements MessageData {
   data(): T | null {
     return this.content.find((part) => part.data)?.data as T | null;
   }
+
+  toJSON(): MessageData {
+    return {
+      role: this.role,
+      content: [...this.content],
+    };
+  }
 }
 
 export class Candidate<O = unknown> implements CandidateData {
@@ -53,6 +60,7 @@ export class Candidate<O = unknown> implements CandidateData {
   finishReason: CandidateData['finishReason'];
   finishMessage: string;
   custom: unknown;
+  request?: GenerationRequest;
 
   output(): O | null {
     return this.message.output();
@@ -70,13 +78,33 @@ export class Candidate<O = unknown> implements CandidateData {
     return this.message.data();
   }
 
-  constructor(candidate: CandidateData) {
+  toHistory(): MessageData[] {
+    if (!this.request)
+      throw new Error(
+        "Can't construct history for candidate without request data."
+      );
+    return [...this.request?.messages, this.message.toJSON()];
+  }
+
+  constructor(candidate: CandidateData, request?: GenerationRequest) {
     this.message = new Message(candidate.message);
     this.index = candidate.index;
     this.usage = candidate.usage || {};
     this.finishReason = candidate.finishReason;
     this.finishMessage = candidate.finishMessage || '';
     this.custom = candidate.custom;
+    this.request = request;
+  }
+
+  toJSON(): CandidateData {
+    return {
+      message: this.message.toJSON(),
+      index: this.index,
+      usage: this.usage,
+      finishReason: this.finishReason,
+      finishMessage: this.finishMessage,
+      custom: (this.custom as { toJSON?: () => any }).toJSON?.() || this.custom,
+    };
   }
 }
 
@@ -84,6 +112,7 @@ export class GenerationResponse<O = unknown> implements GenerationResponseData {
   candidates: Candidate<O>[];
   usage: GenerationUsage;
   custom: unknown;
+  request?: GenerationRequest;
 
   output(): O | null {
     return this.candidates[0]?.output() || null;
@@ -101,12 +130,25 @@ export class GenerationResponse<O = unknown> implements GenerationResponseData {
     return this.candidates[0]?.data() || null;
   }
 
-  constructor(response: GenerationResponseData) {
+  toHistory(): MessageData[] {
+    return this.candidates[0].toHistory();
+  }
+
+  constructor(response: GenerationResponseData, request?: GenerationRequest) {
     this.candidates = (response.candidates || []).map(
-      (candidate) => new Candidate(candidate)
+      (candidate) => new Candidate(candidate, request)
     );
     this.usage = response.usage || {};
     this.custom = response.custom || {};
+    this.request = request;
+  }
+
+  toJSON(): GenerationResponseData {
+    return {
+      candidates: this.candidates.map((candidate) => candidate.toJSON()),
+      usage: this.usage,
+      custom: (this.custom as { toJSON?: () => any }).toJSON?.() || this.custom,
+    };
   }
 }
 
@@ -226,7 +268,8 @@ export async function generate<
   const request = toGenerateRequest(prompt);
   const response = await runWithStreamingCallback(
     prompt.streamingCallback,
-    async () => new GenerationResponse<z.infer<O>>(await model(request))
+    async () =>
+      new GenerationResponse<z.infer<O>>(await model(request), request)
   );
   if (prompt.output?.schema) {
     const outputData = response.output();
