@@ -11,7 +11,7 @@ export function metadataPrefix(name: string) {
 }
 
 const ctxAsyncLocalStorage = new AsyncLocalStorage<
-  Context<z.ZodTypeAny, z.ZodTypeAny>
+  Context<z.ZodTypeAny, z.ZodTypeAny, z.ZodTypeAny>
 >();
 
 /**
@@ -26,7 +26,7 @@ export function getActiveContext() {
  * within the async call stack to retrieve the context.
  */
 export function runWithActiveContext<R>(
-  ctx: Context<z.ZodTypeAny, z.ZodTypeAny>,
+  ctx: Context<z.ZodTypeAny, z.ZodTypeAny, z.ZodTypeAny>,
   fn: () => R
 ) {
   return ctxAsyncLocalStorage.run(ctx, fn);

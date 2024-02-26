@@ -97,7 +97,7 @@ export function sleep(actionId: string, durationMs: number) {
  */
 export function waitFor(
   stepName: string,
-  flow: Flow<z.ZodTypeAny, z.ZodTypeAny>,
+  flow: Flow<z.ZodTypeAny, z.ZodTypeAny, z.ZodTypeAny>,
   flowIds: string[],
   pollingConfig?: PollingConfig
 ): Promise<Operation[]> {

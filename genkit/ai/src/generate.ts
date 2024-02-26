@@ -3,13 +3,13 @@ import {
   CandidateData,
   GenerationConfig,
   GenerationRequest,
+  GenerationResponseChunkData,
   GenerationResponseData,
   GenerationUsage,
   MessageData,
   ModelAction,
   ModelReference,
   Part,
-  StreamingCallback,
   ToolDefinition,
   ToolResponsePart,
   runWithStreamingCallback,
@@ -18,6 +18,7 @@ import { extractJson } from './extract.js';
 import { Action } from '@google-genkit/common';
 import { z } from 'zod';
 import { lookupAction } from '@google-genkit/common/registry';
+import { StreamingCallback } from '@google-genkit/common';
 
 export class Message<T = unknown> implements MessageData {
   role: MessageData['role'];
@@ -165,7 +166,7 @@ export interface ModelPrompt<
     jsonSchema?: any;
   };
   returnToolRequests?: boolean;
-  streamingCallback?: StreamingCallback;
+  streamingCallback?: StreamingCallback<GenerationResponseChunkData>;
 }
 
 const isValidCandidate = (
