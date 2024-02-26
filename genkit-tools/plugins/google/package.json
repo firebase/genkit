@@ -1,6 +1,6 @@
 {
   "name": "@google-genkit/tools-plugin-google-cloud",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "scripts": {
     "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
     "build:clean": "rm -rf ./lib",

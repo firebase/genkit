@@ -3,12 +3,19 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const dotprompt_1 = require("@google-genkit/dotprompt");
 const config_1 = require("@google-genkit/common/config");
 (0, config_1.initializeGenkit)();
-const recipePrompt = (0, dotprompt_1.loadPromptFile)('./recipe.prompt');
-recipePrompt
-    .generate({ food: process.argv[2] || 'mexican asian fusion' })
-    .then((result) => {
+(async () => {
+    const food = process.argv[2] || 'mexican asian fusion';
+    const recipePrompt = await (0, dotprompt_1.prompt)('recipe');
+    const result = await recipePrompt.generate({
+        variables: { food },
+    });
     console.log(result.output());
-    process.exit(0); // TODO: figure out why process hangs
-})
-    .catch(console.error);
+    console.log('');
+    console.log('Now, as a robot...');
+    const robotPrompt = await (0, dotprompt_1.prompt)('recipe', { variant: 'robot' });
+    const result2 = await robotPrompt.generate({
+        variables: { food },
+    });
+    console.log(result2.output());
+})();
 //# sourceMappingURL=index.js.map

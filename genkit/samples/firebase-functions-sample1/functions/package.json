@@ -1,7 +1,7 @@
 {
   "name": "functions",
   "scripts": {
-    "install-dist": "(mkdir genkit-packages || true) && cp -r ../../../../dist/* genkit-packages && npm i --save ./genkit-packages/google-genkit-common-0.0.1.tgz && npm i --save ./genkit-packages/google-genkit-ai-0.0.1.tgz && npm i --save ./genkit-packages/google-genkit-flow-0.0.1.tgz && npm i --save ./genkit-packages/google-genkit-providers-0.0.1.tgz",
+    "install-dist": "rm -r genkit-packages && mkdir genkit-packages && cp -r ../../../../dist/* genkit-packages && npm i --save ./genkit-packages/google-genkit-common-0.0.2.tgz && npm i --save ./genkit-packages/google-genkit-ai-0.0.2.tgz && npm i --save ./genkit-packages/google-genkit-flow-0.0.2.tgz && npm i --save ./genkit-packages/google-genkit-providers-0.0.2.tgz",
     "build": "npm run install-dist && tsc",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
@@ -15,10 +15,10 @@
   },
   "main": "lib/index.js",
   "dependencies": {
-    "@google-genkit/ai": "file:genkit-packages/google-genkit-ai-0.0.1.tgz",
-    "@google-genkit/common": "file:genkit-packages/google-genkit-common-0.0.1.tgz",
-    "@google-genkit/flow": "file:genkit-packages/google-genkit-flow-0.0.1.tgz",
-    "@google-genkit/providers": "file:genkit-packages/google-genkit-providers-0.0.1.tgz",
+    "@google-genkit/ai": "file:genkit-packages/google-genkit-ai-0.0.2.tgz",
+    "@google-genkit/common": "file:genkit-packages/google-genkit-common-0.0.2.tgz",
+    "@google-genkit/flow": "file:genkit-packages/google-genkit-flow-0.0.2.tgz",
+    "@google-genkit/providers": "file:genkit-packages/google-genkit-providers-0.0.2.tgz",
     "firebase-admin": "^11.8.0",
     "firebase-functions": "^4.7.0"
   },
