@@ -1,11 +1,20 @@
 import { z } from 'zod';
 import { Flow } from './flow.js';
 import { Operation } from '@google-genkit/common';
+import { StreamingCallback } from '@google-genkit/common';
 
-export interface Dispatcher<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
-  deliver(flow: Flow<I, O>, msg: FlowInvokeEnvelopeMessage): Promise<Operation>;
+export interface Dispatcher<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+> {
+  deliver(
+    flow: Flow<I, O, S>,
+    msg: FlowInvokeEnvelopeMessage,
+    streamingCallback?: StreamingCallback<any>
+  ): Promise<Operation>;
   schedule(
-    flow: Flow<I, O>,
+    flow: Flow<I, O, S>,
     msg: FlowInvokeEnvelopeMessage,
     delaySeconds?: number
   ): Promise<void>;

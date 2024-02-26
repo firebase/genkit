@@ -2,9 +2,11 @@ export {
   flow,
   Flow,
   FlowWrapper,
+  StepsFunction,
   getFlowState,
   resumeFlow,
   runFlow,
+  streamFlow,
   scheduleFlow,
   waitFlowToComplete,
 } from './flow.js';

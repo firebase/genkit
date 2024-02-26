@@ -19,11 +19,15 @@ import { metadataPrefix } from './utils.js';
 /**
  * Context object encapsulates flow execution state at runtime.
  */
-export class Context<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
+export class Context<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+> {
   private seenSteps: Record<string, number> = {};
 
   constructor(
-    readonly flow: Flow<I, O>,
+    readonly flow: Flow<I, O, S>,
     readonly flowId: string,
     readonly state: FlowState
   ) {}
@@ -196,7 +200,7 @@ export class Context<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
    * Poll will be done with an exponential backoff (configurable).
    */
   async waitFor(opts: {
-    flow: Flow<z.ZodTypeAny, z.ZodTypeAny>;
+    flow: Flow<z.ZodTypeAny, z.ZodTypeAny, z.ZodTypeAny>;
     stepName: string;
     flowIds: string[];
     pollingConfig?: PollingConfig;
@@ -231,7 +235,7 @@ export class Context<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
   }
 
   private async getFlowsOperations(
-    flow: Flow<z.ZodTypeAny, z.ZodTypeAny>,
+    flow: Flow<z.ZodTypeAny, z.ZodTypeAny, z.ZodTypeAny>,
     flowIds: string[]
   ): Promise<(FlowState | undefined)[]> {
     return await Promise.all(flowIds.map((id) => flow.stateStore.load(id)));

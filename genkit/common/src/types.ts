@@ -81,3 +81,6 @@ export function action<
   };
   return actionFn;
 }
+
+// Streaming callback function.
+export type StreamingCallback<T> = (chunk: T) => void;

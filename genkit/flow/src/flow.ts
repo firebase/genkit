@@ -7,10 +7,11 @@ import {
   FlowStateSchema,
   FlowStateStore,
   Operation,
+  StreamingCallback,
 } from '@google-genkit/common';
 import {
-  config as globalConfig,
   getCurrentEnv,
+  config as globalConfig,
 } from '@google-genkit/common/config';
 import logging from '@google-genkit/common/logging';
 import * as registry from '@google-genkit/common/registry';
@@ -54,15 +55,20 @@ export interface RunStepConfig {
 /**
  * Defines the flow.
  */
-export function flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+export function flow<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+>(
   config: {
     name: string;
     input: I;
     output: O;
-    dispatcher?: Dispatcher<I, O>;
+    streamType?: S;
+    dispatcher?: Dispatcher<I, O, S>;
   },
-  steps: (input: z.infer<I>) => Promise<z.infer<O>>
-): Flow<I, O> {
+  steps: StepsFunction<I, O, S>
+): Flow<I, O, S> {
   const f = new Flow(
     {
       name: config.name,
@@ -71,8 +77,8 @@ export function flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       stateStore: globalConfig.getFlowStateStore(),
       // We always use local dispatcher in dev mode or when one is not provided.
       dispatcher: (getCurrentEnv() !== 'dev' && config.dispatcher) || {
-        async deliver(flow, msg) {
-          const state = await flow.runEnvelope(msg);
+        async deliver(flow, msg, streamingCallback) {
+          const state = await flow.runEnvelope(msg, streamingCallback);
           return state.operation;
         },
         async schedule(flow, msg, delay = 0) {
@@ -86,16 +92,24 @@ export function flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   return f;
 }
 
-export interface FlowWrapper<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
-  flow: Flow<I, O>;
+export interface FlowWrapper<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+> {
+  flow: Flow<I, O, S>;
 }
 
-export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
+export class Flow<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+> {
   readonly name: string;
   readonly input: I;
   readonly output: O;
   readonly stateStore: FlowStateStore;
-  readonly dispatcher: Dispatcher<I, O>;
+  readonly dispatcher: Dispatcher<I, O, S>;
 
   constructor(
     config: {
@@ -103,9 +117,9 @@ export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
       input: I;
       output: O;
       stateStore: FlowStateStore;
-      dispatcher: Dispatcher<I, O>;
+      dispatcher: Dispatcher<I, O, S>;
     },
-    private steps: StepsFunction<I, O>
+    private steps: StepsFunction<I, O, S>
   ) {
     this.name = config.name;
     this.input = config.input;
@@ -117,7 +131,10 @@ export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
   /**
    * Executes the flow with the input in the envelope format.
    */
-  async runEnvelope(req: FlowInvokeEnvelopeMessage): Promise<FlowState> {
+  async runEnvelope(
+    req: FlowInvokeEnvelopeMessage,
+    streamingCallback?: StreamingCallback<any>
+  ): Promise<FlowState> {
     logging.debug(req, 'runEnvelope');
     if (req.start) {
       // First time, create new state.
@@ -125,7 +142,7 @@ export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
       const state = createNewState(flowId, this.name, req.start.input);
       const ctx = new Context(this, flowId, state);
       try {
-        await this.executeSteps(ctx, this.steps, 'start');
+        await this.executeSteps(ctx, this.steps, 'start', streamingCallback);
       } finally {
         await this.stateStore.save(flowId, state);
       }
@@ -204,9 +221,10 @@ export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
 
   // TODO: refactor me... this is a mess!
   private async executeSteps(
-    ctx: Context<I, O>,
-    handler: StepsFunction<I, O>,
-    dispatchType: string
+    ctx: Context<I, O, S>,
+    handler: StepsFunction<I, O, S>,
+    dispatchType: string,
+    streamingCallback?: StreamingCallback<any>
   ) {
     await runWithActiveContext(ctx, async () => {
       let traceContext;
@@ -245,7 +263,7 @@ export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
               ? this.input.parse(ctx.state.input)
               : ctx.state.input;
             metadata.input = input;
-            const output = await handler(input);
+            const output = await handler(input, streamingCallback);
             metadata.output = output;
             metadata.state = 'success';
             setCustomMetadataAttribute(metadataPrefix('state'), 'done');
@@ -279,10 +297,14 @@ export class Flow<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
 }
 
 /**
- * Runs the flow locally. If the flow does not get interrupted may return a completed (done=true) operation.
+ * Runs the flow. If the flow does not get interrupted may return a completed (done=true) operation.
  */
-export async function runFlow<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
-  flow: Flow<I, O> | FlowWrapper<I, O>,
+export async function runFlow<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+>(
+  flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
   payload?: z.infer<I>
 ): Promise<Operation> {
   if (!(flow instanceof Flow)) {
@@ -296,14 +318,80 @@ export async function runFlow<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   return state;
 }
 
+interface StreamingResponse<S extends z.ZodTypeAny> {
+  stream(): AsyncGenerator<unknown, Operation, z.infer<S> | undefined>;
+  operation(): Promise<Operation>;
+}
+
+/**
+ * Runs the flow and streams results. If the flow does not get interrupted may return a completed (done=true) operation.
+ */
+export function streamFlow<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+>(
+  flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
+  payload?: z.infer<I>
+): StreamingResponse<S> {
+  if (!(flow instanceof Flow)) {
+    flow = flow.flow;
+  }
+
+  var chunkStreamController: ReadableStreamController<z.infer<S>>;
+  const chunkStream = new ReadableStream<z.infer<S>>({
+    start(controller) {
+      chunkStreamController = controller;
+    },
+    pull() {},
+    cancel() {},
+  });
+
+  const operationPromise = flow.dispatcher.deliver(
+    flow,
+    {
+      start: {
+        input: payload ? flow.input.parse(payload) : undefined,
+      },
+    },
+    (c) => {
+      chunkStreamController.enqueue(c);
+    }
+  );
+  operationPromise.then((o) => {
+    chunkStreamController.close();
+    return o;
+  });
+
+  return {
+    operation() {
+      return operationPromise;
+    },
+    async *stream() {
+      const reader = chunkStream.getReader();
+      while (true) {
+        const chunk = await reader.read();
+        if (chunk.value) {
+          yield chunk.value;
+        }
+        if (chunk.done) {
+          break;
+        }
+      }
+      return await operationPromise;
+    },
+  };
+}
+
 /**
  * Schedules a flow run. This is always return an operation that's not completed (done=false).
  */
 export async function scheduleFlow<
   I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
 >(
-  flow: Flow<I, O> | FlowWrapper<I, O>,
+  flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
   payload: z.infer<I>,
   delaySeconds?: number
 ): Promise<Operation> {
@@ -324,9 +412,10 @@ export async function scheduleFlow<
  */
 export async function resumeFlow<
   I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
 >(
-  flow: Flow<I, O> | FlowWrapper<I, O>,
+  flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
   flowId: string,
   payload: any
 ): Promise<Operation> {
@@ -346,8 +435,12 @@ export async function resumeFlow<
  */
 export async function getFlowState<
   I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny
->(flow: Flow<I, O> | FlowWrapper<I, O>, flowId: string): Promise<Operation> {
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+>(
+  flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
+  flowId: string
+): Promise<Operation> {
   if (!(flow instanceof Flow)) {
     flow = flow.flow;
   }
@@ -382,8 +475,12 @@ function parseOutput<O extends z.ZodTypeAny>(
  */
 export async function waitFlowToComplete<
   I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny
->(flow: Flow<I, O> | FlowWrapper<I, O>, flowId: string): Promise<z.infer<O>> {
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+>(
+  flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
+  flowId: string
+): Promise<z.infer<O>> {
   if (!(flow instanceof Flow)) {
     flow = flow.flow;
   }
@@ -426,12 +523,21 @@ function createNewState(
   };
 }
 
-type StepsFunction<I extends z.ZodTypeAny, O extends z.ZodTypeAny> = (
-  input: z.infer<I>
+export type StepsFunction<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+> = (
+  input: z.infer<I>,
+  streamingCallback: StreamingCallback<z.infer<S>> | undefined
 ) => Promise<z.infer<O>>;
 
-function wrapAsAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
-  flow: Flow<I, O>
+function wrapAsAction<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+>(
+  flow: Flow<I, O, S>
 ): Action<typeof FlowInvokeEnvelopeMessageSchema, typeof FlowStateSchema> {
   return action(
     {

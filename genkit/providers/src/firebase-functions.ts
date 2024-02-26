@@ -1,4 +1,10 @@
+import {
+  Operation,
+  StreamingCallback,
+  getLocation,
+} from '@google-genkit/common';
 import { OperationSchema } from '@google-genkit/common';
+import { StepsFunction } from '@google-genkit/flow';
 import {
   flow,
   Flow,
@@ -20,33 +26,46 @@ import * as z from 'zod';
 
 type FunctionFlow<
   I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny
-> = HttpsFunction & FlowWrapper<I, O>;
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+> = HttpsFunction & FlowWrapper<I, O, S>;
 
-interface FunctionFlowConfig<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
+interface FunctionFlowConfig<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+> {
   name: string;
   input: I;
   output: O;
+  streamType?: S;
   options?: TaskQueueOptions;
 }
+
+const streamDelimiter = '\n';
 
 /**
  *
  */
-export function onFlow<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
-  config: FunctionFlowConfig<I, O>,
-  steps: (input: z.infer<I>) => Promise<z.infer<O>>
-): FunctionFlow<I, O> {
+export function onFlow<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+>(
+  config: FunctionFlowConfig<I, O, S>,
+  steps: StepsFunction<I, O, S>
+): FunctionFlow<I, O, S> {
   const f = flow(
     {
       ...config,
       dispatcher: {
-        async deliver(flow, data) {
+        async deliver(flow, data, streamingCallback) {
           // TODO: unhardcode the location!
           const responseJson = await callHttpsFunction(
             flow.name,
-            'us-central1',
-            data
+            getLocation() || 'us-central1',
+            data,
+            streamingCallback
           );
           return OperationSchema.parse(JSON.parse(responseJson));
         },
@@ -60,16 +79,17 @@ export function onFlow<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 
   const tq = tqWrapper(f, config);
 
-  const funcFlow = tq as FunctionFlow<I, O>;
+  const funcFlow = tq as FunctionFlow<I, O, S>;
   funcFlow.flow = f;
 
   return funcFlow;
 }
 
-function tqWrapper<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
-  flow: Flow<I, O>,
-  config: FunctionFlowConfig<I, O>
-): HttpsFunction {
+function tqWrapper<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+>(flow: Flow<I, O, S>, config: FunctionFlowConfig<I, O, S>): HttpsFunction {
   const tq = onTaskDispatched<FlowInvokeEnvelopeMessage>(
     {
       ...config.options,
@@ -86,21 +106,58 @@ function tqWrapper<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 }
 
 function createControlAPI(
-  flow: Flow<any, any>,
+  flow: Flow<any, any, any>,
   tq: TaskQueueFunction<FlowInvokeEnvelopeMessage>
 ) {
   const interceptor = async (req: Request, res: Response) => {
+    const { stream } = req.query;
     let data = req.body;
     // Task queue will wrap body in a "data" object, unwrap it.
     if (req.body.data) {
       data = req.body.data;
     }
     const envMsg = FlowInvokeEnvelopeMessageSchema.parse(data);
-    try {
-      const state = await flow.runEnvelope(envMsg);
-      res.status(200).send(state.operation).end();
-    } catch (e) {
-      res.status(500).send(e).end();
+    if (stream === 'true') {
+      res.writeHead(200, {
+        'Content-Type': 'text/plain',
+        'Transfer-Encoding': 'chunked',
+      });
+      try {
+        const state = await flow.runEnvelope(envMsg, (c) => {
+          res.write(JSON.stringify(c) + streamDelimiter);
+        });
+        res.write(JSON.stringify(state.operation));
+        res.end();
+      } catch (e) {
+        logger.error(e);
+        res.write(
+          JSON.stringify({
+            done: true,
+            result: {
+              error: getErrorMessage(e),
+              stacktrace: getErrorStack(e),
+            },
+          } as Operation)
+        );
+        res.end();
+      }
+    } else {
+      try {
+        const state = await flow.runEnvelope(envMsg);
+        res.status(200).send(state.operation).end();
+      } catch (e) {
+        logger.error(e);
+        res
+          .status(500)
+          .send({
+            done: true,
+            result: {
+              error: getErrorMessage(e),
+              stacktrace: getErrorStack(e),
+            },
+          } as Operation)
+          .end();
+      }
     }
   };
   interceptor.__endpoint = tq.__endpoint;
@@ -166,14 +223,23 @@ async function getFunctionUrl(name, location) {
   return uri;
 }
 
-async function callHttpsFunction(functionName, location, data) {
+async function callHttpsFunction(
+  functionName: string,
+  location: string,
+  data: any,
+  streamingCallback?: StreamingCallback<any>
+) {
   const auth = getAuthClient();
-  const funcUrl = await getFunctionUrl(functionName, location);
+  var funcUrl = await getFunctionUrl(functionName, location);
   if (!funcUrl) {
     throw new Error(`Unable to retrieve uri for function at ${functionName}`);
   }
   const tokenClient = await auth.getIdTokenClient(funcUrl);
   const token = await tokenClient.idTokenProvider.fetchIdToken(funcUrl);
+
+  if (streamingCallback) {
+    funcUrl += '?stream=true';
+  }
 
   const res = await fetch(funcUrl, {
     method: 'POST',
@@ -183,7 +249,51 @@ async function callHttpsFunction(functionName, location, data) {
       Authorization: `Bearer ${token}`,
     },
   });
+
+  if (streamingCallback) {
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    var buffer = '';
+    while (true) {
+      const result = await reader.read();
+      const decodedValue = decoder.decode(result.value);
+      if (decodedValue) {
+        buffer += decodedValue;
+      }
+      // If buffer includes the delimiter that means we are still recieving chunks.
+      while (buffer.includes(streamDelimiter)) {
+        streamingCallback(
+          JSON.parse(buffer.substring(0, buffer.indexOf(streamDelimiter)))
+        );
+        buffer = buffer.substring(
+          buffer.indexOf(streamDelimiter) + streamDelimiter.length
+        );
+      }
+      if (result.done) {
+        return buffer;
+      }
+    }
+  }
   const responseText = await res.text();
-  logger.debug('res', responseText);
   return responseText;
+}
+
+/**
+ * Extracts error message from the given error object, or if input is not an error then just turn the error into a string.
+ */
+export function getErrorMessage(e: any): string {
+  if (e instanceof Error) {
+    return e.message;
+  }
+  return `${e}`;
+}
+
+/**
+ * Extracts stack trace from the given error object, or if input is not an error then returns undefined.
+ */
+export function getErrorStack(e: any): string | undefined {
+  if (e instanceof Error) {
+    return e.stack;
+  }
+  return undefined;
 }
