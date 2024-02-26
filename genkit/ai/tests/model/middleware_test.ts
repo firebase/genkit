@@ -1,51 +1,56 @@
 import { beforeEach, describe, it } from 'node:test';
-import { validateSupport } from '../../src/model/middleware';
+import { conformOutput, validateSupport } from '../../src/model/middleware';
 import assert from 'node:assert';
-import { GenerationRequest, GenerationResponseData } from '../../src/model';
-
-const examples: Record<string, GenerationRequest> = {
-  multiturn: {
-    messages: [
-      { role: 'user', content: [{ text: 'hello' }] },
-      { role: 'model', content: [{ text: 'hi' }] },
-      { role: 'user', content: [{ text: 'how are you' }] },
-    ],
-  },
-  media: {
-    messages: [
-      {
-        role: 'user',
-        content: [{ media: { url: 'https://example.com/image.png' } }],
-      },
-    ],
-  },
-  tools: {
-    messages: [
-      {
-        role: 'user',
-        content: [{ tools: { url: 'https://example.com/image.png' } }],
-      },
-    ],
-    tools: [
-      {
-        name: 'someTool',
-        description: 'hello world',
-        inputSchema: { type: 'object' },
-      },
-    ],
-  },
-  json: {
-    messages: [
-      {
-        role: 'user',
-        content: [{ text: 'hello world' }],
-      },
-    ],
-    output: { format: 'json' },
-  },
-};
+import {
+  GenerationRequest,
+  GenerationResponseData,
+  Part,
+  modelAction,
+} from '../../src/model';
 
 describe('validateSupport', () => {
+  const examples: Record<string, GenerationRequest> = {
+    multiturn: {
+      messages: [
+        { role: 'user', content: [{ text: 'hello' }] },
+        { role: 'model', content: [{ text: 'hi' }] },
+        { role: 'user', content: [{ text: 'how are you' }] },
+      ],
+    },
+    media: {
+      messages: [
+        {
+          role: 'user',
+          content: [{ media: { url: 'https://example.com/image.png' } }],
+        },
+      ],
+    },
+    tools: {
+      messages: [
+        {
+          role: 'user',
+          content: [{ media: { url: 'https://example.com/image.png' } }],
+        },
+      ],
+      tools: [
+        {
+          name: 'someTool',
+          description: 'hello world',
+          inputSchema: { type: 'object' },
+        },
+      ],
+    },
+    json: {
+      messages: [
+        {
+          role: 'user',
+          content: [{ text: 'hello world' }],
+        },
+      ],
+      output: { format: 'json' },
+    },
+  };
+
   let nextCalled = false;
   const noopNext: (
     req?: GenerationRequest
@@ -115,5 +120,76 @@ describe('validateSupport', () => {
       runner(examples.json, noopNext),
       /does not support requested output format/
     );
+  });
+});
+
+const echoModel = modelAction({ name: 'echo' }, async (req) => {
+  return {
+    candidates: [
+      {
+        index: 0,
+        finishReason: 'stop',
+        message: {
+          role: 'model',
+          content: [{ data: req }],
+        },
+      },
+    ],
+  };
+});
+
+describe('conformOutput (default middleware)', () => {
+  const schema = { type: 'object', properties: { test: { type: 'boolean' } } };
+
+  // return the output tagged part from the request
+  async function testRequest(req: GenerationRequest): Promise<Part> {
+    const response = await echoModel(req);
+    const treq = response.candidates[0].message.content[0]
+      .data as GenerationRequest;
+    if (
+      treq.messages
+        .at(-1)!
+        ?.content.filter((p) => p.metadata?.purpose === 'output').length > 1
+    ) {
+      throw new Error('too many output parts');
+    }
+    return treq.messages
+      .at(-1)
+      ?.content.find((p) => p.metadata?.purpose === 'output')!;
+  }
+
+  it('adds output instructions to the last message', async () => {
+    const part = await testRequest({
+      messages: [
+        { role: 'user', content: [{ text: 'hello' }] },
+        { role: 'model', content: [{ text: 'hi' }] },
+        { role: 'user', content: [{ text: 'hello again' }] },
+      ],
+      output: { format: 'json', schema },
+    });
+    assert(
+      part.text?.includes(JSON.stringify(schema)),
+      "schema wasn't found in output part"
+    );
+  });
+
+  it('does not add output instructions if already provided', async () => {
+    const part = await testRequest({
+      messages: [
+        {
+          role: 'user',
+          content: [{ text: 'hello again', metadata: { purpose: 'output' } }],
+        },
+      ],
+      output: { format: 'json', schema },
+    });
+    assert.equal(part.text, 'hello again');
+  });
+
+  it('does not add output instructions if no output schema is provided', async () => {
+    const part = await testRequest({
+      messages: [{ role: 'user', content: [{ text: 'hello' }] }],
+    });
+    assert(!part, 'output part added to non-schema request');
   });
 });

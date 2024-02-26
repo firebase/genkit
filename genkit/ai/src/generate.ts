@@ -132,21 +132,6 @@ function toGenerateRequest(prompt: ModelPrompt): GenerationRequest {
     promptMessage.content.push(prompt.prompt);
   }
 
-  if (prompt.output?.schema || prompt.output?.jsonSchema) {
-    const outputSchema = prompt.output.schema
-      ? zodToJsonSchema(prompt.output.schema)
-      : prompt.output.jsonSchema;
-    promptMessage.content.push({
-      text: `
-    
-Output should be JSON formatted and conform to the following schema:
-
-\`\`\`
-${JSON.stringify(outputSchema)}
-\`\`\``,
-    });
-  }
-
   const messages: MessageData[] = [...(prompt.history || []), promptMessage];
 
   return {

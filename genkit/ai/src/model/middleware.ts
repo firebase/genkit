@@ -99,3 +99,31 @@ export function validateSupport(options: {
     return next();
   };
 }
+
+export function conformOutput(): ModelMiddleware {
+  return async (req, next) => {
+    const lastMessage = req.messages[req.messages.length - 1];
+    if (
+      !req.output?.schema ||
+      req.messages
+        .at(-1)
+        ?.content.some((part) => part.metadata?.purpose === 'output')
+    ) {
+      return next(req);
+    }
+
+    lastMessage?.content.push({
+      text: `
+
+Output should be in JSON format and conform to the following schema:
+
+\`\`\`
+${JSON.stringify(req.output!.schema!)}
+\`\`\`
+`,
+      metadata: { purpose: 'output', source: 'default' },
+    });
+
+    return next(req);
+  };
+}
