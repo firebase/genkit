@@ -6,7 +6,10 @@
     "genkit": "dist/bin/genkit.js"
   },
   "workspaces": [
-    "./**"
+    "./*",
+    "./common/*",
+    "./plugins/*",
+    "./ui/*"
   ],
   "main": "dist/index.js",
   "scripts": {
