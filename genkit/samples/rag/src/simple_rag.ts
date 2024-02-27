@@ -1,25 +1,41 @@
 import { prompt, promptTemplate } from '@google-genkit/ai';
-import { retrieve } from '@google-genkit/ai/retrievers';
+import { retrieve, TextDocument, index } from '@google-genkit/ai/retrievers';
 import { initializeGenkit } from '@google-genkit/common/config';
 import { flow, runFlow } from '@google-genkit/flow';
-import { pineconeRef } from '@google-genkit/providers/pinecone';
+import {
+  pineconeRetrieverRef,
+  pineconeIndexerRef,
+} from '@google-genkit/providers/pinecone';
 import * as z from 'zod';
 import config from './genkit.conf';
 import { generate } from '@google-genkit/ai/generate';
 import { geminiPro } from '@google-genkit/plugin-vertex-ai';
-import { chromaRef } from '@google-genkit/providers/chroma';
+import {
+  chromaRetrieverRef,
+  chromaIndexerRef,
+} from '@google-genkit/providers/chroma';
 
 initializeGenkit(config);
 
 // Setup the models, embedders and "vector store"
-export const tomAndJerryFacts = pineconeRef({
+export const tomAndJerryFactsRetriever = pineconeRetrieverRef({
   indexId: 'tom-and-jerry',
-  displayName: 'Tom and Jerry Collection',
+  displayName: 'Tom and Jerry Retriever',
 });
 
-export const spongeBobFacts = chromaRef({
+export const tomAndJerryFactsIndexer = pineconeIndexerRef({
+  indexId: 'tom-and-jerry',
+  displayName: 'Tom and Jerry Indexer',
+});
+
+export const spongeBobFactsRetriever = chromaRetrieverRef({
   collectionName: 'spongebob_collection',
-  displayName: 'Spongebob facts',
+  displayName: 'Spongebob facts retriever',
+});
+
+export const spongeBobFactsIndexer = chromaIndexerRef({
+  collectionName: 'spongebob_collection',
+  displayName: 'Spongebob facts indexer',
 });
 
 const ragTemplate = `Use the following pieces of context to answer the question at the end.
@@ -38,7 +54,7 @@ export const askQuestionsAboutTomAndJerryFlow = flow(
   },
   async (query) => {
     const docs = await retrieve({
-      retriever: tomAndJerryFacts,
+      retriever: tomAndJerryFactsRetriever,
       query,
       options: { k: 3 },
     });
@@ -70,7 +86,7 @@ export const askQuestionsAboutSpongebobFlow = flow(
   },
   async (query) => {
     const docs = await retrieve({
-      retriever: spongeBobFacts,
+      retriever: spongeBobFactsRetriever,
       query,
       options: { k: 3 },
     });
@@ -93,18 +109,62 @@ export const askQuestionsAboutSpongebobFlow = flow(
   }
 );
 
+// Define a simple RAG flow, we will evaluate this flow
+export const indexTomAndJerryDocumentsFlow = flow(
+  {
+    name: 'indexTomAndJerryDocumentsFlow',
+    input: z.array(z.string()),
+    output: z.void(),
+  },
+  async (docs) => {
+    const transformedDocs: TextDocument[] = docs.map((text) => {
+      return {
+        content: text,
+        metadata: { type: 'tv', show: 'Tom and Jerry' },
+      };
+    });
+    await index({
+      indexer: tomAndJerryFactsIndexer,
+      docs: transformedDocs,
+      options: {
+        namespace: '',
+      },
+    });
+  }
+);
+
+// Define a flow to index documents into the "vector store"
+export const indexSpongebobDocumentsFlow = flow(
+  {
+    name: 'indexSpongebobFacts',
+    input: z.array(z.string()),
+    output: z.void(),
+  },
+  async (docs) => {
+    const transformedDocs: TextDocument[] = docs.map((text) => {
+      return {
+        content: text,
+        metadata: { type: 'tv', show: 'SpongeBob' },
+      };
+    });
+    await index({
+      indexer: spongeBobFactsIndexer,
+      docs: transformedDocs,
+    });
+  }
+);
+
 async function main() {
+  const tjIndexingOp = await runFlow(indexSpongebobDocumentsFlow, [
+    'SpongeBob has a pet snail',
+  ]);
+  console.log('Operation', tjIndexingOp);
+
   const tjOp = await runFlow(
-    askQuestionsAboutTomAndJerryFlow,
-    'What are the other names of Tom?'
+    askQuestionsAboutSpongebobFlow,
+    "Who is spongebob's pet?"
   );
   console.log('Operation', tjOp);
-
-  const sbOp = await runFlow(
-    askQuestionsAboutSpongebobFlow,
-    "Who are SpongeBob's friends?"
-  );
-  console.log('Operation', sbOp);
 }
 
 main().catch(console.error);

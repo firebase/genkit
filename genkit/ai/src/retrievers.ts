@@ -1,5 +1,4 @@
 import { action, Action } from '@google-genkit/common';
-import * as registry from '@google-genkit/common/registry';
 import { lookupAction } from '@google-genkit/common/registry';
 import * as z from 'zod';
 import { EmbedderInfo } from './embedders';
@@ -153,11 +152,6 @@ export function retriever<
     },
     (i) => runner(i.query, i.options)
   );
-  registry.registerAction(
-    'retriever',
-    `${options.provider}/${options.retrieverId}`,
-    retriever
-  );
   return retrieverWithMetadata(
     retriever,
     options.queryType,
@@ -169,13 +163,14 @@ export function retriever<
 /**
  *  Creates an indexer action for the provided {@link IndexerFn} implementation.
  */
-export function indexerFactory<
+export function indexer<
   DocType extends DocumentSchemaType,
   IndexerOptions extends z.ZodTypeAny
 >(
   options: {
     provider: string;
     indexerId: string;
+    embedderInfo?: EmbedderInfo;
     documentType: DocType;
     customOptionsType: IndexerOptions;
   },
@@ -183,19 +178,15 @@ export function indexerFactory<
 ) {
   const indexer = action(
     {
-      name: 'index',
+      name: options.indexerId,
       input: z.object({
         docs: z.array(options.documentType),
         options: options.customOptionsType,
       }),
       output: z.void(),
+      metadata: options.embedderInfo,
     },
     (i) => runner(i.docs, i.options)
-  );
-  registry.registerAction(
-    'indexer',
-    `${options.provider}/${options.indexerId}`,
-    indexer
   );
   return indexerWithMetadata(
     indexer,
@@ -230,7 +221,7 @@ export function documentStoreFactory<
     retrieverOptionsType,
     indexerOptionsType,
   } = { ...params };
-  const indexerAction = indexerFactory(
+  const indexerAction = indexer(
     {
       provider,
       indexerId: id,
@@ -306,28 +297,25 @@ export async function retrieve<
  */
 export async function index<
   I extends z.ZodTypeAny,
-  QueryType extends z.ZodTypeAny,
   DocType extends DocumentSchemaType,
-  RetrieverOptions extends z.ZodTypeAny,
   IndexerOptions extends z.ZodTypeAny
 >(params: {
   indexer:
-    | DocumentStore<QueryType, DocType, RetrieverOptions, IndexerOptions>
+    | IndexerReference<IndexerOptions>
     | IndexerAction<I, DocType, IndexerOptions>;
   docs: Array<z.infer<DocType>>;
   options?: z.infer<IndexerOptions>;
 }): Promise<void> {
-  if (
-    'index' in params.indexer &&
-    typeof params.indexer['index'] === 'function'
-  ) {
-    return await params.indexer.index({
-      docs: params.docs,
-      options: params.options,
-    });
+  let indexer: IndexerAction<I, DocType, IndexerOptions>;
+  if (Object.hasOwnProperty.call(params.indexer, 'info')) {
+    indexer = lookupAction(`/indexer/${params.indexer.name}`);
+  } else {
+    indexer = params.indexer as IndexerAction<I, DocType, IndexerOptions>;
   }
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-  return await (params.indexer as IndexerAction<I, DocType, IndexerOptions>)({
+  if (!indexer) {
+    throw new Error('Unable to utilze the provided indexer');
+  }
+  return await indexer({
     docs: params.docs,
     options: params.options,
   });
@@ -359,5 +347,26 @@ export function retrieverRef<
 >(
   options: RetrieverReference<CustomOptionsSchema>
 ): RetrieverReference<CustomOptionsSchema> {
+  return { ...options };
+}
+
+// Reuse the same schema for both indexers and retrievers -- for now.
+export const IndexerInfoSchema = RetrieverInfoSchema;
+export type IndexerInfo = z.infer<typeof IndexerInfoSchema>;
+
+export interface IndexerReference<CustomOptions extends z.ZodTypeAny> {
+  name: string;
+  configSchema?: CustomOptions;
+  info?: IndexerInfo;
+}
+
+/**
+ * Helper method to configure a {@link IndexerReference} to a plugin.
+ */
+export function indexerRef<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny
+>(
+  options: IndexerReference<CustomOptionsSchema>
+): IndexerReference<CustomOptionsSchema> {
   return { ...options };
 }
