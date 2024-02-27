@@ -2,6 +2,7 @@ import {
   VertexAI,
   FunctionDeclarationSchemaType,
   GenerateContentCandidate,
+  GenerateContentResponse,
   FunctionDeclaration,
   Tool,
   Part as VertexPart,
@@ -216,7 +217,7 @@ export function geminiModel(
     throw new Error(`Unsupported model: ${name}`);
   return modelAction(
     { name: modelName, ...SUPPORTED_GEMINI_MODELS[name].info },
-    async (request) => {
+    async (request, streamingCallback) => {
       const messages = request.messages;
       if (messages.length === 0) throw new Error('No messages provided.');
 
@@ -236,13 +237,40 @@ export function geminiModel(
         },
       };
       const msg = toGeminiMessage(messages[messages.length - 1]);
-      const result = await client.startChat(chatRequest).sendMessage(msg.parts);
-      if (!result.response.candidates?.length)
-        throw new Error('No valid candidates returned.');
-      return {
-        candidates: result.response.candidates?.map(fromGeminiCandidate) || [],
-        custom: result.response,
-      };
+      if (streamingCallback) {
+        const result = await client
+          .startChat(chatRequest)
+          .sendMessageStream(msg.parts);
+        for await (const item of result.stream) {
+          (item as GenerateContentResponse).candidates?.forEach((candidate) => {
+            const c = fromGeminiCandidate(candidate);
+            streamingCallback({
+              index: c.index,
+              content: c.message.content,
+            });
+          });
+        }
+        const response = await result.response;
+        if (!response.candidates?.length) {
+          throw new Error('No valid candidates returned.');
+        }
+        return {
+          candidates: response.candidates?.map(fromGeminiCandidate) || [],
+          custom: response,
+        };
+      } else {
+        const result = await client
+          .startChat(chatRequest)
+          .sendMessage(msg.parts);
+        if (!result.response.candidates?.length) {
+          throw new Error('No valid candidates returned.');
+        }
+        return {
+          candidates:
+            result.response.candidates?.map(fromGeminiCandidate) || [],
+          custom: result.response,
+        };
+      }
     }
   );
 }
