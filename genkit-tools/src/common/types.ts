@@ -10,6 +10,7 @@ export interface ActionSchema {
   key: string;
   name: string;
   description?: string;
-  input?: JSONSchema7Type;
-  output?: JSONSchema7Type;
+  inputSchema?: JSONSchema7Type;
+  outputSchema?: JSONSchema7Type;
+  metadata: any;
 }
