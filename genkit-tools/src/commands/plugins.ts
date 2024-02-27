@@ -6,6 +6,7 @@ import {
 } from '@google-genkit/tools-plugins/plugins';
 import { Command } from 'commander';
 import * as clc from 'colorette';
+import { logger } from '../utils/logger';
 
 /** Gets plugin commands based on the tools config file, if present. */
 export async function getPluginCommands(): Promise<Command[]> {
@@ -33,5 +34,10 @@ function pluginToCommander(p: ToolPlugin): Command {
     const subcmd = cmd.command(a.action).description(a.helpText);
     attachPluginActionToCommand(subcmd, a);
   }
+
+  // Default action to catch unknown commands.
+  cmd.action((_, { args }: { args: string[] }) => {
+    logger.error(`"${clc.bold(args[0])}" is not a known ${p.name} command.`);
+  });
   return cmd;
 }

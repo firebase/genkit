@@ -18,7 +18,7 @@ const commands: Command[] = [example, start, flowRun, flowResume];
 
 /** Main entry point for CLI. */
 export async function startCLI(): Promise<void> {
-  program.name('genkit').description('Google GenKit CLI').version('0.0.1');
+  program.name('genkit').description('Google Genkit CLI').version('0.0.1');
 
   for (const command of commands) program.addCommand(command);
   for (const command of await getPluginCommands()) program.addCommand(command);
@@ -28,7 +28,7 @@ export async function startCLI(): Promise<void> {
 
   // Default action to catch unknown commands.
   program.action((_, { args }: { args: string[] }) => {
-    logger.error(`"${clc.bold(args[0])}" is not a known Gen Kit command.`);
+    logger.error(`"${clc.bold(args[0])}" is not a known Genkit command.`);
   });
 
   await program.parseAsync();
