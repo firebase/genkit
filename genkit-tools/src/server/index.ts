@@ -10,7 +10,10 @@ import { Runner } from '../runner/runner';
 
 // Static files are copied to the /dist/client directory. This is a litle
 // brittle as __dirname refers directly to this particular file.
-const UI_STATIC_FILES_DIR = path.resolve(__dirname, '../client/ui/browser');
+const UI_STATIC_FILES_DIR = path.resolve(
+  __dirname,
+  '../client/dist/ui/browser'
+);
 const UI_DEVELOPMENT_FILES_DIR = path.resolve(__dirname, '../../ui/src/assets');
 const API_BASE_PATH = '/api';
 
