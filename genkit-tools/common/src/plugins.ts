@@ -31,21 +31,23 @@ export const ToolPluginActionSchema = BaseToolPluginActionSchema.extend({
   helpText: z.string(),
 });
 
+export const ToolPluginSubCommandsSchema = z.object({
+  login: z.optional(BaseToolPluginActionSchema),
+  deploy: z.optional(BaseToolPluginActionSchema),
+});
+
 export const ToolPluginSchema = z.object({
   name: z.string(),
   keyword: z.string(),
   actions: z.array(ToolPluginActionSchema),
-  specialActions: z.optional(
-    z.object({
-      login: z.optional(BaseToolPluginActionSchema),
-    })
-  ),
+  subCommands: z.optional(ToolPluginSubCommandsSchema),
 });
 
 export type SupportedFlagValues = z.infer<typeof SupportedFlagValuesSchema>;
 export type BaseToolPluginAction = z.infer<typeof BaseToolPluginActionSchema>;
 export type ToolPluginAction = z.infer<typeof ToolPluginActionSchema>;
 export type ToolPlugin = z.infer<typeof ToolPluginSchema>;
+export type SpecialAction = keyof z.infer<typeof ToolPluginSubCommandsSchema>;
 
 const SEPARATOR = '===========================';
 

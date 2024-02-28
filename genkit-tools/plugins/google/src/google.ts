@@ -23,7 +23,7 @@ export const GoogleCloudTools: ToolPlugin = {
       hook: useApplicationDefaultCredentials,
     },
   ],
-  specialActions: {
+  subCommands: {
     login: {
       hook: login,
     },
