@@ -238,25 +238,23 @@ export class Runner {
 
   /** Runs an action. */
   async runAction(input: apis.RunActionRequest): Promise<unknown> {
-    try {
-      const response = await axios.post(
-        `${REFLECTION_API_URL}/runAction`,
-        input,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
+    const response = await axios
+      .post(`${REFLECTION_API_URL}/runAction`, input, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      .catch((error) => {
+        if (error.response) {
+          return error.response;
         }
-      );
-      // TODO: Improve the error handling here including invalid arguments from the frontend.
-      if (response.status !== 200) {
-        throw new InternalError('Failed to run action.');
-      }
-      return response.data as unknown;
-    } catch (error) {
-      console.error('Error running action:', error);
-      throw new InternalError('Error running action.');
+        throw new InternalError(error);
+      });
+    // TODO: Improve the error handling here including invalid arguments from the frontend.
+    if (response.status !== 200) {
+      throw new InternalError(response.data.message);
     }
+    return response.data as unknown;
   }
 
   /** Retrieves all traces for a given environment (e.g. dev or prod). */
