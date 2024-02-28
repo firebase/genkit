@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@google-genkit/common": "*",
+    "@types/cors": "^2.8.17",
     "firebase-admin": "^11.11.0",
     "firebase-functions": "^4.3.1",
     "uuid": "^9.0.1",

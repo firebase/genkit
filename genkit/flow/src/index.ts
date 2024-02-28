@@ -9,6 +9,7 @@ export {
   streamFlow,
   scheduleFlow,
   waitFlowToComplete,
+  startFlowsServer,
 } from './flow.js';
 export {
   FlowInvokeEnvelopeMessageSchema,
