@@ -18,7 +18,7 @@
     "build:ui": "cd ui && npm run build",
     "build:common": "cd common && npm run build",
     "build:plugins": "(cd plugins/google && npm run build) && (cd plugins/firebase && npm run build)",
-    "copy-ui-build": "rm -rf dist/client && cd ui && rsync -r dist ../dist/client --exclude dist/ui/browser/assets/monaco-editor",
+    "copy-ui-build": "rm -rf dist/client && cd ui && rsync -r dist ../dist/client",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "test": "echo \"Error: no test specified\" && exit 1",
