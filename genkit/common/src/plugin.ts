@@ -18,6 +18,7 @@ export interface InitializedPlugin {
   retrievers?: Action<z.ZodTypeAny, z.ZodTypeAny>[];
   embedders?: Action<z.ZodTypeAny, z.ZodTypeAny>[];
   indexers?: Action<z.ZodTypeAny, z.ZodTypeAny>[];
+  evaluators?: Action<z.ZodTypeAny, z.ZodTypeAny>[];
   flowStateStore?: Provider<FlowStateStore>;
   traceStore?: Provider<TraceStore>;
 }

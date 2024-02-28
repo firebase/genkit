@@ -42,6 +42,11 @@
       "require": "./lib/embedders.js",
       "import": "./lib/embedders.mjs"
     },
+    "./evaluators": {
+      "types": "./lib/evaluators.d.ts",
+      "require": "./lib/evaluators.js",
+      "import": "./lib/evaluators.mjs"
+    },
     "./model": {
       "types": "./lib/model.d.ts",
       "require": "./lib/model.js",
@@ -65,6 +70,9 @@
       ],
       "embedders": [
         "lib/embedders"
+      ],
+      "evaluators": [
+        "lib/evaluators"
       ],
       "model": [
         "lib/model"
