@@ -91,7 +91,7 @@
         "lib/google-ai"
       ],
       "google-vertexai": [
-        "lib/logging"
+        "lib/google-vertexai"
       ],
       "openai": [
         "lib/openai"

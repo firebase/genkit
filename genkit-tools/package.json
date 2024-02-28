@@ -26,7 +26,7 @@
     "pack:all": "npm-run-all pack:cli pack:common pack:plugins",
     "pack:cli": "npm pack --pack-destination ../dist",
     "pack:common": "cd common && npm pack --pack-destination ../../dist -ws",
-    "pack:plugins": "for i in plugins/*/; do cd $i && npm pack --pack-destination ../../../dist -ws; done"
+    "pack:plugins": "for i in plugins/*/; do cd $i && npm pack --pack-destination ../../../dist -ws && cd ../..; done"
   },
   "author": "Firebase (https://firebase.google.com)",
   "license": "MIT",
