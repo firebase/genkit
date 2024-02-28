@@ -21,6 +21,7 @@ export type ActionType =
   | 'retriever'
   | 'indexer'
   | 'embedder'
+  | 'evaluator'
   | 'flow'
   | 'model'
   | 'prompt';

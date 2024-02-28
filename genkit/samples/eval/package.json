@@ -1,0 +1,25 @@
+{
+  "name": "eval",
+  "version": "1.0.0",
+  "description": "",
+  "main": "lib/index.js",
+  "scripts": {
+    "start": "node lib/index.js",
+    "compile": "tsc",
+    "build": "npm run build:clean && npm run compile",
+    "build:clean": "rm -rf ./lib",
+    "build:watch": "tsc --watch",
+    "build-and-run": "npm run build && node lib/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@google-genkit/ai": "*",
+    "@google-genkit/common": "*",
+    "@google-genkit/plugin-ragas": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

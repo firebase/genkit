@@ -103,6 +103,14 @@ class Config {
             logging.debug(`  - Indexer: ${indexer.__action.name}`);
             registry.registerAction('indexer', indexer.__action.name, indexer);
           });
+          initializedPlugin.evaluators?.forEach((evaluator) => {
+            logging.debug(`  - Evaluator: ${evaluator.__action.name}`);
+            registry.registerAction(
+              'evaluator',
+              evaluator.__action.name,
+              evaluator
+            );
+          });
           return initializedPlugin;
         },
       });
