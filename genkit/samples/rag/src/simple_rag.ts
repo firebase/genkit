@@ -14,6 +14,8 @@ import {
   chromaRetrieverRef,
   chromaIndexerRef,
 } from '@google-genkit/providers/chroma';
+import { naiveFilestoreRetrieverRef } from '@google-genkit/providers/naive-filestore';
+import { naiveFilestoreIndexerRef } from '@google-genkit/providers/naive-filestore';
 
 initializeGenkit(config);
 
@@ -37,6 +39,11 @@ export const spongeBobFactsIndexer = chromaIndexerRef({
   collectionName: 'spongebob_collection',
   displayName: 'Spongebob facts indexer',
 });
+
+// Simple aliases for readability
+export const nfsSpongeBobRetriever = naiveFilestoreRetrieverRef;
+
+export const nfsSpongeBobIndexer = naiveFilestoreIndexerRef;
 
 const ragTemplate = `Use the following pieces of context to answer the question at the end.
  If you don't know the answer, just say that you don't know, don't try to make up an answer.
@@ -86,7 +93,7 @@ export const askQuestionsAboutSpongebobFlow = flow(
   },
   async (query) => {
     const docs = await retrieve({
-      retriever: spongeBobFactsRetriever,
+      retriever: nfsSpongeBobRetriever,
       query,
       options: { k: 3 },
     });
@@ -148,7 +155,7 @@ export const indexSpongebobDocumentsFlow = flow(
       };
     });
     await index({
-      indexer: spongeBobFactsIndexer,
+      indexer: nfsSpongeBobIndexer,
       docs: transformedDocs,
     });
   }
@@ -156,13 +163,13 @@ export const indexSpongebobDocumentsFlow = flow(
 
 async function main() {
   const tjIndexingOp = await runFlow(indexSpongebobDocumentsFlow, [
-    'SpongeBob has a pet snail',
+    'SpongeBob has a pet snail named Gary',
   ]);
   console.log('Operation', tjIndexingOp);
 
   const tjOp = await runFlow(
     askQuestionsAboutSpongebobFlow,
-    "Who is spongebob's pet?"
+    "What is Spongebob's pet's name?"
   );
   console.log('Operation', tjOp);
 }

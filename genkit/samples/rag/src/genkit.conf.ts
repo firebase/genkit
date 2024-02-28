@@ -7,6 +7,7 @@ import { pinecone } from '@google-genkit/providers/pinecone';
 import { vertexAI } from '@google-genkit/plugin-vertex-ai';
 import { chroma } from '@google-genkit/providers/chroma';
 import { textEmbeddingGecko001 } from '@google-genkit/providers/google-vertexai';
+import { naiveFilestore } from '@google-genkit/providers/naive-filestore';
 
 export default configureGenkit({
   plugins: [
@@ -21,6 +22,10 @@ export default configureGenkit({
     }),
     chroma({
       collectionName: 'spongebob_collection',
+      embedder: textEmbeddingGecko001,
+      embedderOptions: { temperature: 0 },
+    }),
+    naiveFilestore({
       embedder: textEmbeddingGecko001,
       embedderOptions: { temperature: 0 },
     }),
