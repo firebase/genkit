@@ -3,10 +3,13 @@ import { example } from './commands/example';
 import { start } from './commands/start';
 import { logger } from './utils/logger';
 import * as clc from 'colorette';
-import { getPluginCommands } from './commands/plugins';
-import { getLoginCommands } from './commands/login';
+import { getPluginCommands, getPluginSubCommand } from './commands/plugins';
 import { flowRun } from './commands/flow-run';
 import { flowResume } from './commands/flow-resume';
+import {
+  ToolPluginSubCommandsSchema,
+  SpecialAction,
+} from '@google-genkit/tools-plugins/plugins';
 
 /**
  * All commands need to be directly registered in this list.
@@ -23,8 +26,9 @@ export async function startCLI(): Promise<void> {
   for (const command of commands) program.addCommand(command);
   for (const command of await getPluginCommands()) program.addCommand(command);
 
-  // Special-cased tool commands
-  program.addCommand(await getLoginCommands());
+  for (const cmd of ToolPluginSubCommandsSchema.keyof().options) {
+    program.addCommand(await getPluginSubCommand(cmd));
+  }
 
   // Default action to catch unknown commands.
   program.action((_, { args }: { args: string[] }) => {

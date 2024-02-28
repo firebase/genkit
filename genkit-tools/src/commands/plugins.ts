@@ -3,6 +3,7 @@ import {
   ToolPlugin,
   BaseToolPluginAction,
   SupportedFlagValues,
+  SpecialAction,
 } from '@google-genkit/tools-plugins/plugins';
 import { Command } from 'commander';
 import * as clc from 'colorette';
@@ -12,6 +13,41 @@ import { logger } from '../utils/logger';
 export async function getPluginCommands(): Promise<Command[]> {
   const config = await findToolsConfig();
   return (config?.cliPlugins || []).map(pluginToCommander);
+}
+
+/** Gets special-case commands for plugins in the config file. */
+export async function getPluginSubCommand(
+  commandString: SpecialAction
+): Promise<Command> {
+  const config = await findToolsConfig();
+  const actions = (config?.cliPlugins || [])
+    .filter((p) => !!p.subCommands?.[commandString])
+    .map((p) => ({
+      keyword: p.keyword,
+      name: p.name,
+      ...p.subCommands![commandString]!,
+    }));
+  const command = new Command(commandString).description(
+    `${humanReadableCommand(commandString)} using tools plugins`
+  );
+
+  if (!actions.length) {
+    return command.action(() => {
+      logger.error(
+        `No plugins installed that support ${commandString}. Add a supported ` +
+          `plugin to your ${clc.bold('genkit-tools.conf.js')} file.`
+      );
+    });
+  }
+
+  for (const a of actions) {
+    const subcmd = command
+      .command(a.keyword)
+      .description(a.name + ' ' + clc.italic('(plugin)'));
+    attachPluginActionToCommand(subcmd, a);
+  }
+
+  return command;
 }
 
 export function attachPluginActionToCommand(
@@ -40,4 +76,8 @@ function pluginToCommander(p: ToolPlugin): Command {
     logger.error(`"${clc.bold(args[0])}" is not a known ${p.name} command.`);
   });
   return cmd;
+}
+
+function humanReadableCommand(c: string): string {
+  return c[0].toUpperCase() + c.slice(1);
 }
