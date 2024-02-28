@@ -5,6 +5,7 @@ import { logger } from './utils/logger';
 import * as clc from 'colorette';
 import { getPluginCommands, getPluginSubCommand } from './commands/plugins';
 import { flowRun } from './commands/flow-run';
+import { evalExtractData } from './commands/eval-extract-data';
 import { flowResume } from './commands/flow-resume';
 import {
   ToolPluginSubCommandsSchema,
@@ -17,7 +18,13 @@ import {
  * To add a new command to the CLI, create a file under src/commands that
  * exports a Command constant, then add it to the list below
  */
-const commands: Command[] = [example, start, flowRun, flowResume];
+const commands: Command[] = [
+  example,
+  start,
+  flowRun,
+  flowResume,
+  evalExtractData,
+];
 
 /** Main entry point for CLI. */
 export async function startCLI(): Promise<void> {
