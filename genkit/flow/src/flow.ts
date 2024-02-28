@@ -20,7 +20,6 @@ import {
   setCustomMetadataAttribute,
   SPAN_TYPE_ATTR,
 } from '@google-genkit/common/tracing';
-import { logger } from 'firebase-functions/v2';
 import * as z from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { Context } from './context.js';
@@ -43,6 +42,12 @@ import {
   metadataPrefix,
   runWithActiveContext,
 } from './utils.js';
+import express from 'express';
+import * as bodyParser from 'body-parser';
+import { default as cors, CorsOptions } from 'cors';
+
+const streamDelimiter = '\n';
+const createdFlows = [] as Flow<any, any, any>[];
 
 /**
  * Step configuration for retries, etc.
@@ -65,6 +70,7 @@ export function flow<
     input: I;
     output: O;
     streamType?: S;
+    durable?: boolean;
     dispatcher?: Dispatcher<I, O, S>;
   },
   steps: StepsFunction<I, O, S>
@@ -74,6 +80,7 @@ export function flow<
       name: config.name,
       input: config.input,
       output: config.output,
+      durable: !!config.durable,
       stateStore: globalConfig.getFlowStateStore(),
       // We always use local dispatcher in dev mode or when one is not provided.
       dispatcher: (getCurrentEnv() !== 'dev' && config.dispatcher) || {
@@ -82,12 +89,19 @@ export function flow<
           return state.operation;
         },
         async schedule(flow, msg, delay = 0) {
+          if (!config.durable) {
+            throw new Error(
+              'This flow is not durable, cannot use scheduling features. ' +
+                'Set durable to true and follow task queue setup instructions.'
+            );
+          }
           setTimeout(() => flow.runEnvelope(msg), delay * 1000);
         },
       },
     },
     steps
   );
+  createdFlows.push(f);
   registry.registerAction('flow', config.name, wrapAsAction(f));
   return f;
 }
@@ -110,6 +124,7 @@ export class Flow<
   readonly output: O;
   readonly stateStore: FlowStateStore;
   readonly dispatcher: Dispatcher<I, O, S>;
+  readonly durable: boolean;
 
   constructor(
     config: {
@@ -118,6 +133,7 @@ export class Flow<
       output: O;
       stateStore: FlowStateStore;
       dispatcher: Dispatcher<I, O, S>;
+      durable: boolean;
     },
     private steps: StepsFunction<I, O, S>
   ) {
@@ -126,6 +142,7 @@ export class Flow<
     this.output = config.output;
     this.stateStore = config.stateStore;
     this.dispatcher = config.dispatcher;
+    this.durable = config.durable;
   }
 
   /**
@@ -293,6 +310,60 @@ export class Flow<
         ctx.state.operation.result = { response: output };
       }
     });
+  }
+
+  get expressHandler(): (req: express.Request, res: express.Response) => any {
+    return async (req: express.Request, res: express.Response) => {
+      const { stream } = req.query;
+      let data = req.body;
+      // Task queue will wrap body in a "data" object, unwrap it.
+      if (req.body.data) {
+        data = req.body.data;
+      }
+      const envMsg = FlowInvokeEnvelopeMessageSchema.parse(data);
+      if (stream === 'true') {
+        res.writeHead(200, {
+          'Content-Type': 'text/plain',
+          'Transfer-Encoding': 'chunked',
+        });
+        try {
+          const state = await this.runEnvelope(envMsg, (chunk) => {
+            res.write(JSON.stringify(chunk) + streamDelimiter);
+          });
+          res.write(JSON.stringify(state.operation));
+          res.end();
+        } catch (e) {
+          logging.error(e);
+          res.write(
+            JSON.stringify({
+              done: true,
+              result: {
+                error: getErrorMessage(e),
+                stacktrace: getErrorStack(e),
+              },
+            } as Operation)
+          );
+          res.end();
+        }
+      } else {
+        try {
+          const state = await this.runEnvelope(envMsg);
+          res.status(200).send(state.operation).end();
+        } catch (e) {
+          logging.error(e);
+          res
+            .status(500)
+            .send({
+              done: true,
+              result: {
+                error: getErrorMessage(e),
+                stacktrace: getErrorStack(e),
+              },
+            } as Operation)
+            .end();
+        }
+      }
+    };
   }
 }
 
@@ -488,7 +559,7 @@ export async function waitFlowToComplete<
   try {
     state = await getFlowState(flow, flowId);
   } catch (e) {
-    logger.error(e);
+    logging.error(e);
     // TODO: add timeout
     if (!(e instanceof FlowNotFoundError)) {
       throw e;
@@ -553,4 +624,29 @@ function wrapAsAction<
       return await flow.runEnvelope(envelope);
     }
   );
+}
+
+export function startFlowsServer(params?: {
+  flows?: Flow<any, any, any>[];
+  port?: number;
+  cors: CorsOptions;
+}) {
+  const port =
+    params?.port || (process.env.PORT ? parseInt(process.env.PORT) : 0) || 5000;
+  const app = express();
+  app.use(bodyParser.json());
+  if (params?.cors) {
+    app.use(cors(params.cors));
+  }
+
+  const flows = params?.flows || createdFlows;
+  logging.info(`Starting flows server on port ${port}`);
+  flows.forEach((f) => {
+    logging.info(` - /${f.name}`);
+    app.post(`/${f.name}`, f.expressHandler);
+  });
+
+  app.listen(port, () => {
+    console.log(`Flows server listening on port ${port}`);
+  });
 }
