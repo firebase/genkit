@@ -1,69 +1,61 @@
 import { generate } from '@google-genkit/ai/generate';
 import { initializeGenkit } from '@google-genkit/common/config';
-import { flow, run, runFlow } from '@google-genkit/flow';
-import { geminiPro, geminiProVision } from '@google-genkit/plugin-vertex-ai';
-
+import { flow, run } from '@google-genkit/flow';
 import * as z from 'zod';
 import config from './genkit.conf';
 
 initializeGenkit(config);
 
 export const jokeFlow = flow(
-  { name: 'jokeFlow', input: z.string(), output: z.string() },
-  async (subject) => {
+  {
+    name: 'jokeFlow',
+    input: z.object({ modelName: z.string(), subject: z.string() }),
+    output: z.string(),
+  },
+  async (input) => {
     return await run('call-llm', async () => {
-      const model = geminiPro;
       const llmResponse = await generate({
-        model,
-        prompt: `Tell a joke about ${subject}.`,
+        model: input.modelName,
+        prompt: `Tell a joke about ${input.subject}.`,
       });
-
-      return `From ${model.info?.label}: ${llmResponse.text()}`;
+      return `From ${input.modelName}: ${llmResponse.text()}`;
     });
   }
 );
 
 export const vertexStreamer = flow(
-  { name: 'vertexStreamer', input: z.string(), output: z.string() },
-  async (subject) => {
+  {
+    name: 'vertexStreamer',
+    input: z.object({ modelName: z.string(), subject: z.string() }),
+    output: z.string(),
+  },
+  async (input) => {
     return await run('call-llm', async () => {
-      const model = geminiPro;
       const llmResponse = await generate({
-        model,
-        prompt: `Tell me a very long joke about ${subject}.`,
+        model: input.modelName,
+        prompt: `Tell me a very long joke about ${input.subject}.`,
         streamingCallback: (c) => console.log('chunk', c),
       });
 
-      return `From ${model.info?.label}: ${llmResponse.text()}`;
+      return `From ${input.modelName}: ${llmResponse.text()}`;
     });
   }
 );
 
 export const multimodalFlow = flow(
-  { name: 'multimodalFlow', input: z.string(), output: z.string() },
-  async (imageUrl: string) => {
+  {
+    name: 'multimodalFlow',
+    input: z.object({ modelName: z.string(), imageUrl: z.string() }),
+    output: z.string(),
+  },
+  async (input) => {
     const result = await generate({
-      model: geminiProVision,
+      model: input.modelName,
       prompt: [
         { text: 'describe the following image:' },
-        { media: { url: imageUrl, contentType: 'image/jpeg' } },
+        { media: { url: input.imageUrl, contentType: 'image/jpeg' } },
       ],
     });
-
     return result.text();
   }
 );
-
-async function main() {
-  console.log('running joke flow...');
-  const operation = await runFlow(jokeFlow, 'banana');
-  console.log('Joke:', operation);
-  console.log('running multimodal flow...');
-  const multimodalOperation = await runFlow(
-    multimodalFlow,
-    'https://picsum.photos/200'
-  );
-  console.log('Multimodal:', multimodalOperation);
-}
-
-//main().catch(console.error);
