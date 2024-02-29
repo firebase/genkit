@@ -1,5 +1,9 @@
 import { action, Action } from '@google-genkit/common';
 import { lookupAction } from '@google-genkit/common/registry';
+import {
+  setCustomMetadataAttributes,
+  SPAN_SUBTYPE_ATTR,
+} from '@google-genkit/common/tracing';
 import * as z from 'zod';
 
 export const BaseDataPointSchema = z.object({
@@ -80,7 +84,10 @@ export function evaluator<
         })
       ),
     },
-    (i) => runner(i.dataset, i.options)
+    (i) => {
+      setCustomMetadataAttributes({ [SPAN_SUBTYPE_ATTR]: 'evaluator' });
+      return runner(i.dataset, i.options);
+    }
   );
   return withMetadata(
     evaluator,

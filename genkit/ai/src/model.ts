@@ -3,6 +3,10 @@ import { z } from 'zod';
 import { conformOutput, validateSupport } from './model/middleware';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { StreamingCallback } from '@google-genkit/common';
+import {
+  SPAN_SUBTYPE_ATTR,
+  setCustomMetadataAttributes,
+} from '@google-genkit/common/tracing';
 
 //
 // IMPORTANT: Please keep type definitions in sync with
@@ -273,7 +277,10 @@ export function modelAction<
         },
       },
     },
-    (input) => runner(input, getStreamingCallback())
+    (input) => {
+      setCustomMetadataAttributes({ [SPAN_SUBTYPE_ATTR]: 'model' });
+      return runner(input, getStreamingCallback());
+    }
   );
   Object.assign(act, {
     __customOptionsType: options.customOptionsType || z.unknown(),

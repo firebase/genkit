@@ -11,6 +11,7 @@ const stepAsyncLocalStorage = new AsyncLocalStorage<SpanMetadata>();
 
 export const ATTR_PREFIX = 'genkit';
 export const SPAN_TYPE_ATTR = ATTR_PREFIX + ':type';
+export const SPAN_SUBTYPE_ATTR = ATTR_PREFIX + ':subtype';
 const TRACER_NAME = 'genkit-tracer';
 const TRACER_VERSION = 'v1';
 

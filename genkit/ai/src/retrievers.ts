@@ -2,6 +2,10 @@ import { action, Action } from '@google-genkit/common';
 import { lookupAction } from '@google-genkit/common/registry';
 import * as z from 'zod';
 import { EmbedderInfo } from './embedders';
+import {
+  setCustomMetadataAttributes,
+  SPAN_SUBTYPE_ATTR,
+} from '@google-genkit/common/tracing';
 
 const BaseDocumentSchema = z.object({
   metadata: z.record(z.string(), z.any()).optional(),
@@ -150,7 +154,10 @@ export function retriever<
       output: z.array<DocumentSchemaType>(options.documentType),
       metadata: options.embedderInfo,
     },
-    (i) => runner(i.query, i.options)
+    (i) => {
+      setCustomMetadataAttributes({ [SPAN_SUBTYPE_ATTR]: 'retriever' });
+      return runner(i.query, i.options);
+    }
   );
   return retrieverWithMetadata(
     retriever,
@@ -186,7 +193,10 @@ export function indexer<
       output: z.void(),
       metadata: options.embedderInfo,
     },
-    (i) => runner(i.docs, i.options)
+    (i) => {
+      setCustomMetadataAttributes({ [SPAN_SUBTYPE_ATTR]: 'indexer' });
+      return runner(i.docs, i.options);
+    }
   );
   return indexerWithMetadata(
     indexer,
