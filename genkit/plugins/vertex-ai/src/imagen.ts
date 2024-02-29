@@ -7,6 +7,7 @@ import {
 import { PluginOptions } from '.';
 import z from 'zod';
 import { GoogleAuth } from 'google-auth-library';
+import { predictModel } from './predict';
 
 const ImagenConfigSchema = z.object({
   /** Language of the prompt text. */
@@ -36,11 +37,6 @@ export const imagen2 = modelRef({
   configSchema: ImagenConfigSchema,
 });
 
-function endpoint(options: PluginOptions) {
-  // eslint-disable-next-line max-len
-  return `https://${options.location}-aiplatform.googleapis.com/v1/projects/${options.projectId}/locations/${options.location}/publishers/google/models/imagegeneration@005:predict`;
-}
-
 function extractText(request: GenerationRequest) {
   return request.messages
     .at(-1)!
@@ -48,7 +44,15 @@ function extractText(request: GenerationRequest) {
     .join('');
 }
 
-function toParameters(request: GenerationRequest) {
+interface ImagenParameters {
+  sampleCount?: number;
+  aspectRatio?: string;
+  negativePrompt?: string;
+  seed?: number;
+  language?: string;
+}
+
+function toParameters(request: GenerationRequest): ImagenParameters {
   const config = request.config?.custom || ({} as ImagenConfig);
 
   const out = {
@@ -73,52 +77,41 @@ function extractPromptImage(request: GenerationRequest): string | undefined {
     ?.media?.url.split(',')[1];
 }
 
-interface PredictionResponse {
-  predictions: { bytesBase64Encoded: string; mimeType: string }[];
+interface ImagenPrediction {
+  bytesBase64Encoded: string;
+  mimeType: string;
+}
+
+interface ImagenInstance {
+  prompt: string;
+  image?: { bytesBase64Encoded: string };
 }
 
 /**
  *
  */
 export function imagen2Model(client: GoogleAuth, options: PluginOptions) {
-  return modelAction(imagen2, async (request) => {
-    const fetch = (await import('node-fetch')).default;
-    // TODO: Don't do it this way.
-    const accessToken = await (
-      await client.getApplicationDefault()
-    ).credential.getAccessToken();
+  const predict = predictModel<
+    ImagenInstance,
+    ImagenPrediction,
+    ImagenParameters
+  >(client, options, 'imagegeneration@005');
 
-    const instance: Record<string, any> = {
+  return modelAction(imagen2, async (request) => {
+    const instance: ImagenInstance = {
       prompt: extractText(request),
     };
     if (extractPromptImage(request))
-      instance.image = { bytesBase64Encoded: extractPromptImage(request) };
+      instance.image = { bytesBase64Encoded: extractPromptImage(request)! };
 
     const req: any = {
       instances: [instance],
       parameters: toParameters(request),
     };
 
-    const response = await fetch(endpoint(options), {
-      method: 'POST',
-      body: JSON.stringify(req),
-      headers: {
-        Authorization: `Bearer ${accessToken.token}`,
-        'Content-Type': 'application/json',
-        'User-Agent': 'genkit',
-      },
-    });
+    const response = await predict([instance], toParameters(request));
 
-    if (response.status !== 200) {
-      throw new Error(
-        `Error from Imagen2: HTTP ${response.status}: ${await response.text()}`
-      );
-    }
-
-    const responseBody: PredictionResponse =
-      (await response.json()) as PredictionResponse;
-
-    const candidates: CandidateData[] = responseBody.predictions.map((p, i) => {
+    const candidates: CandidateData[] = response.predictions.map((p, i) => {
       const b64data = p.bytesBase64Encoded;
       const mimeType = p.mimeType;
       return {
@@ -140,7 +133,7 @@ export function imagen2Model(client: GoogleAuth, options: PluginOptions) {
     return {
       candidates,
       usage: { custom: { generations: candidates.length } },
-      custom: responseBody,
+      custom: response,
     };
   });
 }

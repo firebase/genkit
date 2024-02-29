@@ -198,21 +198,8 @@ const convertSchemaProperty = (property) => {
 /**
  *
  */
-export function geminiModel(
-  name: string,
-  params: {
-    projectId?: string;
-    location: string;
-  }
-): ModelAction {
-  if (!params.projectId) {
-    throw Error('Project ID must be defined to use a Gemini model');
-  }
+export function geminiModel(name: string, vertex: VertexAI): ModelAction {
   const modelName = `vertex-ai/${name}`;
-  const vertex = new VertexAI({
-    project: params.projectId,
-    location: params.location,
-  });
   const client = vertex.preview.getGenerativeModel({ model: name });
 
   if (!SUPPORTED_GEMINI_MODELS[name])
