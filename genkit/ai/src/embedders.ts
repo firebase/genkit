@@ -1,9 +1,6 @@
 import { action, Action } from '@google-genkit/common';
 import { lookupAction } from '@google-genkit/common/registry';
-import {
-  setCustomMetadataAttributes,
-  SPAN_SUBTYPE_ATTR,
-} from '@google-genkit/common/tracing';
+import { setCustomMetadataAttributes } from '@google-genkit/common/tracing';
 import * as z from 'zod';
 
 export const EmbeddingSchema = z.array(z.number());
@@ -72,7 +69,7 @@ export function embedder<
       },
     },
     (i) => {
-      setCustomMetadataAttributes({ [SPAN_SUBTYPE_ATTR]: 'embedder' });
+      setCustomMetadataAttributes({ subtype: 'embedder' });
       return runner(i.input, i.options);
     }
   );
