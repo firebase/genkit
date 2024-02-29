@@ -1,6 +1,6 @@
 import { getProjectId } from '@google-genkit/common';
 import { configureGenkit } from '@google-genkit/common/config';
-import { openAI } from '@google-genkit/providers/openai';
+import { openAI } from '@google-genkit/plugin-openai';
 import { googleAI } from '@google-genkit/providers/google-ai';
 import { ollama } from '@google-genkit/providers/ollama';
 import { firebase } from '@google-genkit/providers/firebase';
