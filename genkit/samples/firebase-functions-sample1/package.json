@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "build": "cd functions && npm i && npm run build"
+    "build": "cd functions && npm run install-dist  && npm i && npm run build"
   },
   "private": true
 }
