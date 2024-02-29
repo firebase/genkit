@@ -16,7 +16,9 @@ import {
   Part,
   ToolDefinitionSchema,
   modelRef,
+  ModelMiddleware,
 } from '@google-genkit/ai/model';
+import { downloadRequestMedia } from '@google-genkit/ai/model/middleware';
 import { z } from 'zod';
 
 export const geminiPro = modelRef({
@@ -215,8 +217,18 @@ export function geminiModel(
 
   if (!SUPPORTED_GEMINI_MODELS[name])
     throw new Error(`Unsupported model: ${name}`);
+
+  const middlewares: ModelMiddleware[] = [];
+  if (SUPPORTED_GEMINI_MODELS[name]?.info?.supports?.media) {
+    middlewares.push(downloadRequestMedia({ maxBytes: 1024 * 1024 * 20 }));
+  }
+
   return modelAction(
-    { name: modelName, ...SUPPORTED_GEMINI_MODELS[name].info },
+    {
+      name: modelName,
+      use: middlewares,
+      ...SUPPORTED_GEMINI_MODELS[name].info,
+    },
     async (request, streamingCallback) => {
       const messages = request.messages;
       if (messages.length === 0) throw new Error('No messages provided.');
