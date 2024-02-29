@@ -68,7 +68,7 @@ But you can also go into specific package that you changed and run
 npm run build
 ```
 
-If you are going to be coding for a while they do
+If you are going to be coding for a while then do
 
 ```
 npm run build:watch
