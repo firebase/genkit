@@ -16,13 +16,38 @@ The customers name is {customerName}.
 Write a greeting for the customer in 15 words or less, and recommend a drink.
 `;
 
-const orderHistorySchema = z.object({
+const SimpleOrderHistorySchema = z.object({
   customerName: z.string(),
   currentTime: z.string(),
   previousOrder: z.string(),
 });
 
-const promptWithHistory = `
+export type orderHistoryType = z.infer<typeof SimpleOrderHistorySchema>;
+
+const MenuItemSchema = z.object({
+  name: z.string(),
+  id: z.string(),
+  price: z.number(),
+  description: z.string().optional(),
+  specialOfTheDay: z.boolean(),
+});
+
+const PreviousOrderSchema = z.object({
+  orderDate: z.string().datetime(),
+  menuItem: MenuItemSchema,
+});
+
+const ComplexCoffeeShopSchema = z.object({
+  customerName: z.string(),
+  customerId: z.string().optional(),
+  currentTime: z.string().datetime(),
+  previousOrders: z.array(PreviousOrderSchema),
+  currentMenuItems: z.array(MenuItemSchema),
+});
+
+export type complexOrderHistoryType = z.infer<typeof ComplexCoffeeShopSchema>;
+
+const promptWithSimpleHistory = `
 You're a barista at a high end coffee shop.
 
 Write a greeting for this customer in 20 words or less and recommend a drink.
@@ -55,6 +80,45 @@ What the LLM responded with:
 Your score:
 `;
 
+function makeComplexPrompt(orderHistory: complexOrderHistoryType) {
+  const previousOrdersString = orderHistory.previousOrders
+    .map((item) => {
+      return `${item.orderDate} | ${item.menuItem.name} | ${item.menuItem.price}`;
+    })
+    .join('\n');
+
+  const specialsOfTheDay = orderHistory.currentMenuItems
+    .filter((item) => {
+      return item.specialOfTheDay;
+    })
+    ?.map((item) => {
+      return `${item.name} | ${item.description} | ${item.price}`;
+    })
+    .join('\n');
+
+  return `
+  You're a professional, expert barista at a coffeeshop, recommend a drink for this customer
+   in 15 words or less, here's the context you need: 
+  
+   the customer name is ${orderHistory.customerName}
+   the current time is ${orderHistory.currentTime}
+   
+   
+   they've had previous orders:
+  ============= PREVIOUS ORDERS ==============
+  ${previousOrdersString}
+  ============================================
+
+  Today's specials are:
+  ============= SPECIALS =====================
+  ${specialsOfTheDay}
+  ============================================
+
+  Only suggest the special of the day if it's similar to the other drinks they've
+  ordered in the past, or if they don't have any previous order history
+  `;
+}
+
 export const basicCoffeeRecommender = flow(
   { name: 'coffeeFlow', input: z.string(), output: z.string() },
   async (name) => {
@@ -82,12 +146,12 @@ export const basicCoffeeRecommender = flow(
 export const historyCoffeeRecommender = flow(
   {
     name: 'Recommender with history',
-    input: orderHistorySchema,
+    input: SimpleOrderHistorySchema,
     output: z.string(),
   },
   async (query) => {
     const templateWithHistory = await promptTemplate({
-      template: promptWithHistory,
+      template: promptWithSimpleHistory,
       variables: query,
     });
 
@@ -148,6 +212,24 @@ export const judgeResponseFlow = flow(
   }
 );
 
+export const complexOrderHistoryFlow = flow(
+  {
+    name: 'complexOrderHistoryFlow',
+    input: ComplexCoffeeShopSchema,
+    output: z.string(),
+  },
+  async (complexOrderHistory) => {
+    const prompt = makeComplexPrompt(complexOrderHistory);
+
+    const response = await generate({
+      model: geminiPro,
+      prompt: prompt,
+    });
+
+    return response.text();
+  }
+);
+
 async function main() {
   // Call using a basic input
   const basicCoffeeOperation = await runFlow(basicCoffeeRecommender, 'Sam');
@@ -164,6 +246,34 @@ async function main() {
   // Use an LLM to judge the response
   const judgedCoffeeRecomendation = await runFlow(judgeResponseFlow, 'Sam');
   console.log('Judgement: ', judgedCoffeeRecomendation);
+
+  const complexOrderReccomendation = await runFlow(complexOrderHistoryFlow, {
+    customerName: 'sam',
+    currentTime: '2024-02-20T00:00:00Z',
+    previousOrders: [
+      {
+        orderDate: '2024-02-05T00:00:00Z',
+        menuItem: {
+          name: 'Earl Grey tea, hot',
+          id: '13431',
+          price: 4.22,
+          specialOfTheDay: true,
+          description: 'Delcicious Earl Grey tea from England',
+        },
+      },
+    ],
+    currentMenuItems: [
+      {
+        name: 'Americano',
+        id: '214',
+        price: 3.5,
+        specialOfTheDay: true,
+        description: 'A rich dark pull from our new Aeropress',
+      },
+    ],
+    customerId: undefined,
+  });
+  console.log('Complex order history response', complexOrderReccomendation);
 }
 
 main().catch(console.error);
