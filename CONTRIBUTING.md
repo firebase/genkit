@@ -55,7 +55,7 @@ Point your browser to http://localhost:4000
 FYI: `genkit` and `genkit-tools` are in two separate workspaces.
 
 As you make changes you may want to build an test things by running samples.
-You can reduce the scope of what you're building b
+You can reduce the scope of what you're building by running a specific build command:
 
 ```
 npm run build:genkit 
