@@ -9,7 +9,7 @@ import {
   SimpleSpanProcessor,
   SpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
-import { config } from './config.js';
+import { config, getCurrentEnv } from './config.js';
 import { meterProvider } from './metrics.js';
 import { getProjectId } from './runtime.js';
 import { TraceStoreExporter } from './tracing/exporter.js';
@@ -40,10 +40,11 @@ export function enableTracingAndMetrics(
 
   const traceStore = config.getTraceStore();
   const exporter = new TraceStoreExporter(traceStore);
+  // Use simple (instant) span processor when in dev mode.
   const spanProcessor =
-    options.processor === 'batch'
-      ? new BatchSpanProcessor(exporter)
-      : new SimpleSpanProcessor(exporter);
+    options.processor === 'simple' || getCurrentEnv() === 'dev'
+      ? new SimpleSpanProcessor(exporter)
+      : new BatchSpanProcessor(exporter);
 
   processors.push(spanProcessor);
 

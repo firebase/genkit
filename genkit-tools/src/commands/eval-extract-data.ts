@@ -22,7 +22,7 @@ export const evalExtractData = new Command('eval:extractData')
       const rootSpan = Object.values(t.spans).find(
         (s) =>
           s.attributes['genkit:type'] === 'flow' &&
-          t.displayName === flowName &&
+          s.attributes['genkit:metadata:flow:name'] === flowName &&
           s.attributes['genkit:metadata:flow:state'] === 'done'
       );
       if (!rootSpan) {

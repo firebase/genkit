@@ -77,22 +77,26 @@ export const pineconeIndexerRef = (params: {
 /**
  * Pinecone plugin that provides a pinecone retriever and indexer
  */
-export function pinecone<EmbedderCustomOptions extends z.ZodTypeAny>(params: {
-  indexId: string;
-  embedder: EmbedderReference<EmbedderCustomOptions>;
-  embedderOptions?: z.infer<EmbedderCustomOptions>;
-}): PluginProvider {
+export function pinecone<EmbedderCustomOptions extends z.ZodTypeAny>(
+  params: {
+    indexId: string;
+    embedder: EmbedderReference<EmbedderCustomOptions>;
+    embedderOptions?: z.infer<EmbedderCustomOptions>;
+  }[]
+): PluginProvider {
   const plugin = genkitPlugin(
     'pinecone',
-    (params: {
-      indexId: string;
-      apiKey?: string;
-      textKey?: string;
-      embedder: EmbedderReference<EmbedderCustomOptions>;
-      embedderOptions?: z.infer<EmbedderCustomOptions>;
-    }) => ({
-      retrievers: [configurePineconeRetriever(params)],
-      indexers: [configurePineconeIndexer(params)],
+    (
+      params: {
+        indexId: string;
+        apiKey?: string;
+        textKey?: string;
+        embedder: EmbedderReference<EmbedderCustomOptions>;
+        embedderOptions?: z.infer<EmbedderCustomOptions>;
+      }[]
+    ) => ({
+      retrievers: params.map((i) => configurePineconeRetriever(i)),
+      indexers: params.map((i) => configurePineconeIndexer(i)),
     })
   );
   return plugin(params);
