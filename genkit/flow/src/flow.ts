@@ -18,6 +18,7 @@ import * as registry from '@google-genkit/common/registry';
 import {
   newTrace,
   setCustomMetadataAttribute,
+  setCustomMetadataAttributes,
   SPAN_TYPE_ATTR,
 } from '@google-genkit/common/tracing';
 import * as z from 'zod';
@@ -263,7 +264,10 @@ export class Flow<
             traceIds: [],
           });
 
-          setCustomMetadataAttribute(metadataPrefix('id'), ctx.flowId);
+          setCustomMetadataAttributes({
+            [metadataPrefix('name')]: this.name,
+            [metadataPrefix('id')]: ctx.flowId,
+          });
           ctx
             .getCurrentExecution()
             .traceIds.push(rootSpan.spanContext().traceId);

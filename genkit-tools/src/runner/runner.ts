@@ -68,7 +68,7 @@ export class Runner {
     } = {}
   ) {
     this.directory = options.directory || process.cwd();
-    this.autoReload = options.autoReload || true;
+    this.autoReload = options.autoReload ?? true;
   }
 
   /**

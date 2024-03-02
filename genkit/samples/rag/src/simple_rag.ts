@@ -1,21 +1,24 @@
 import { prompt, promptTemplate } from '@google-genkit/ai';
-import { retrieve, TextDocument, index } from '@google-genkit/ai/retrievers';
+import { generate } from '@google-genkit/ai/generate';
+import { TextDocument, index, retrieve } from '@google-genkit/ai/retrievers';
 import { initializeGenkit } from '@google-genkit/common/config';
-import { flow, runFlow } from '@google-genkit/flow';
+import { flow } from '@google-genkit/flow';
+import { geminiPro } from '@google-genkit/plugin-vertex-ai';
 import {
-  pineconeRetrieverRef,
+  chromaIndexerRef,
+  chromaRetrieverRef,
+} from '@google-genkit/providers/chroma';
+import {
+  naiveFilestoreIndexerRef,
+  naiveFilestoreRetrieverRef,
+} from '@google-genkit/providers/naive-filestore';
+import {
   pineconeIndexerRef,
+  pineconeRetrieverRef,
 } from '@google-genkit/providers/pinecone';
 import * as z from 'zod';
 import config from './genkit.conf';
-import { generate } from '@google-genkit/ai/generate';
-import { geminiPro } from '@google-genkit/plugin-vertex-ai';
-import {
-  chromaRetrieverRef,
-  chromaIndexerRef,
-} from '@google-genkit/providers/chroma';
-import { naiveFilestoreRetrieverRef } from '@google-genkit/providers/naive-filestore';
-import { naiveFilestoreIndexerRef } from '@google-genkit/providers/naive-filestore';
+export * from './pdf_rag';
 
 initializeGenkit(config);
 
@@ -85,6 +88,7 @@ export const askQuestionsAboutTomAndJerryFlow = flow(
 );
 
 // Define a simple RAG flow, we will evaluate this flow
+// genkit run:flow askQuestionsAboutSpongebobFlow '"What is Spongebob's pet's name?"'
 export const askQuestionsAboutSpongebobFlow = flow(
   {
     name: 'askQuestionsAboutSpongebobFlow',
@@ -141,6 +145,7 @@ export const indexTomAndJerryDocumentsFlow = flow(
 );
 
 // Define a flow to index documents into the "vector store"
+// genkit flow:run indexSpongebobFacts '["SpongeBob has a pet snail named Gary"]'
 export const indexSpongebobDocumentsFlow = flow(
   {
     name: 'indexSpongebobFacts',
@@ -160,18 +165,3 @@ export const indexSpongebobDocumentsFlow = flow(
     });
   }
 );
-
-async function main() {
-  const tjIndexingOp = await runFlow(indexSpongebobDocumentsFlow, [
-    'SpongeBob has a pet snail named Gary',
-  ]);
-  console.log('Operation', tjIndexingOp);
-
-  const tjOp = await runFlow(
-    askQuestionsAboutSpongebobFlow,
-    "What is Spongebob's pet's name?"
-  );
-  console.log('Operation', tjOp);
-}
-
-main().catch(console.error);

@@ -1,16 +1,14 @@
-import { program, Command } from 'commander';
+import { ToolPluginSubCommandsSchema } from '@google-genkit/tools-plugins/plugins';
+import * as clc from 'colorette';
+import { Command, program } from 'commander';
+import { evalExtractData } from './commands/eval-extract-data';
 import { example } from './commands/example';
+import { flowBatchRun } from './commands/flow-batch-run';
+import { flowResume } from './commands/flow-resume';
+import { flowRun } from './commands/flow-run';
+import { getPluginCommands, getPluginSubCommand } from './commands/plugins';
 import { start } from './commands/start';
 import { logger } from './utils/logger';
-import * as clc from 'colorette';
-import { getPluginCommands, getPluginSubCommand } from './commands/plugins';
-import { flowRun } from './commands/flow-run';
-import { evalExtractData } from './commands/eval-extract-data';
-import { flowResume } from './commands/flow-resume';
-import {
-  ToolPluginSubCommandsSchema,
-  SpecialAction,
-} from '@google-genkit/tools-plugins/plugins';
 
 /**
  * All commands need to be directly registered in this list.
@@ -22,6 +20,7 @@ const commands: Command[] = [
   example,
   start,
   flowRun,
+  flowBatchRun,
   flowResume,
   evalExtractData,
 ];
