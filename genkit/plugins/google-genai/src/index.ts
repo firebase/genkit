@@ -13,7 +13,7 @@ export interface PluginOptions {
 
 export const googleGenAI: Plugin<[string] | []> = genkitPlugin(
   'google-ai',
-  (apiKey?: string) => {
+  async (apiKey?: string) => {
     return {
       models: [
         ...Object.keys(SUPPORTED_MODELS).map((name) =>

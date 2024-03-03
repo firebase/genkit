@@ -110,7 +110,7 @@ export async function evaluate<
 }): Promise<Array<Record<string, number>>> {
   let evaluator: EvaluatorAction<I, O, DataPoint, EvaluatorOptions>;
   if (Object.hasOwnProperty.call(params.evaluator, 'info')) {
-    evaluator = lookupAction(`/evaluator/${params.evaluator.name}`);
+    evaluator = await lookupAction(`/evaluator/${params.evaluator.name}`);
   } else {
     evaluator = params.evaluator as EvaluatorAction<
       I,

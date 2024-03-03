@@ -16,7 +16,7 @@ interface FirestorePluginParams {
 
 export const firebase: Plugin<[FirestorePluginParams]> = genkitPlugin(
   'firebase',
-  (params?: FirestorePluginParams) => ({
+  async (params?: FirestorePluginParams) => ({
     flowStateStore: {
       id: 'firestore',
       value: new FirestoreStateStore(params?.flowStateStore),

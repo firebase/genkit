@@ -51,7 +51,9 @@ export function ragas<
 ): PluginProvider {
   const plugin = genkitPlugin(
     'ragas',
-    (params: PluginOptions<ModelCustomOptions, EmbedderCustomOptions>) => ({
+    async (
+      params: PluginOptions<ModelCustomOptions, EmbedderCustomOptions>
+    ) => ({
       evaluators: [...ragasEvaluators(params)],
     })
   );

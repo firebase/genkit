@@ -86,7 +86,7 @@ export function pinecone<EmbedderCustomOptions extends z.ZodTypeAny>(
 ): PluginProvider {
   const plugin = genkitPlugin(
     'pinecone',
-    (
+    async (
       params: {
         indexId: string;
         apiKey?: string;

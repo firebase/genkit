@@ -250,10 +250,10 @@ export async function generate<
 ): Promise<GenerationResponse<z.infer<O>>> {
   let model: ModelAction<CustomOptions>;
   if (typeof prompt.model === 'string') {
-    model = lookupAction(`/model/${prompt.model}`);
+    model = await lookupAction(`/model/${prompt.model}`);
   } else if (prompt.model.hasOwnProperty('info')) {
     const ref = prompt.model as ModelReference<CustomOptions>;
-    model = lookupAction(`/model/${ref.name}`);
+    model = await lookupAction(`/model/${ref.name}`);
     if (!model) {
       throw new Error(`Model ${ref.name} not found`);
     }

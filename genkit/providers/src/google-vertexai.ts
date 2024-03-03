@@ -37,7 +37,7 @@ const SUPPORTED_TEXT_EMBEDDERS = {
 
 export const googleVertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
   'google-vertexai',
-  (params?: PluginOptions) => ({
+  async (params?: PluginOptions) => ({
     embedders: Object.keys(SUPPORTED_TEXT_EMBEDDERS).map((name) =>
       googleVertexAiTextEmbedder(name, params)
     ),

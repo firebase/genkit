@@ -5,10 +5,13 @@ import { readFileSync } from 'fs';
 import logger from '@google-genkit/common/logging';
 import { join } from 'path';
 
-export function lookupPrompt(name: string, variant?: string): Prompt {
-  const registryPrompt = lookupAction(
+export async function lookupPrompt(
+  name: string,
+  variant?: string
+): Promise<Prompt> {
+  const registryPrompt = (await lookupAction(
     `/prompt/${name}${variant ? `.${variant}` : ''}`
-  ) as PromptAction;
+  )) as PromptAction;
   if (registryPrompt) return Prompt.fromAction(registryPrompt);
 
   const prompt = loadPrompt(name, variant);

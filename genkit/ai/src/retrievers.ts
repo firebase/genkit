@@ -281,7 +281,7 @@ export async function retrieve<
 }): Promise<Array<z.infer<DocType>>> {
   let retriever: RetrieverAction<I, QueryType, DocType, RetrieverOptions>;
   if (Object.hasOwnProperty.call(params.retriever, 'info')) {
-    retriever = lookupAction(`/retriever/${params.retriever.name}`);
+    retriever = await lookupAction(`/retriever/${params.retriever.name}`);
   } else {
     retriever = params.retriever as RetrieverAction<
       I,
@@ -315,7 +315,7 @@ export async function index<
 }): Promise<void> {
   let indexer: IndexerAction<I, DocType, IndexerOptions>;
   if (Object.hasOwnProperty.call(params.indexer, 'info')) {
-    indexer = lookupAction(`/indexer/${params.indexer.name}`);
+    indexer = await lookupAction(`/indexer/${params.indexer.name}`);
   } else {
     indexer = params.indexer as IndexerAction<I, DocType, IndexerOptions>;
   }

@@ -92,7 +92,7 @@ export async function embed<
 }): Promise<Embedding> {
   let embedder: EmbedderAction<I, InputType, EmbedderOptions>;
   if (Object.hasOwnProperty.call(params.embedder, 'info')) {
-    embedder = lookupAction(`/embedder/${params.embedder.name}`);
+    embedder = await lookupAction(`/embedder/${params.embedder.name}`);
   } else {
     embedder = params.embedder as EmbedderAction<I, InputType, EmbedderOptions>;
   }

@@ -31,9 +31,9 @@ export async function startReflectionApi(port?: number | undefined) {
     response.status(200).send('OK');
   });
 
-  api.get('/api/actions', (_, response) => {
+  api.get('/api/actions', async (_, response) => {
     logging.debug('Fetching actions.');
-    const actions = registry.listActions();
+    const actions = await registry.listActions();
     const convertedActions = {};
     Object.keys(actions).forEach((key) => {
       const action = actions[key].__action;
@@ -59,7 +59,7 @@ export async function startReflectionApi(port?: number | undefined) {
     const { key, input } = request.body;
     logging.debug(`Running action \`${key}\`...`);
     try {
-      const action = registry.lookupAction(key);
+      const action = await registry.lookupAction(key);
       if (!action) {
         response.status(404).send(`action ${key} not found`);
         return;
@@ -80,7 +80,7 @@ export async function startReflectionApi(port?: number | undefined) {
   api.get('/api/envs/:env/traces/:traceId', async (request, response) => {
     const { env, traceId } = request.params;
     logging.debug(`Fetching trace \`${traceId}\` for env \`${env}\`.`);
-    const tracestore = registry.lookupTraceStore(env);
+    const tracestore = await registry.lookupTraceStore(env);
     if (!tracestore) {
       response.status(500).send(`${env} trace store not found`);
       return;
@@ -91,7 +91,7 @@ export async function startReflectionApi(port?: number | undefined) {
   api.get('/api/envs/:env/traces', async (request, response) => {
     const { env } = request.params;
     logging.debug(`Fetching traces for env \`${env}\`.`);
-    const tracestore = registry.lookupTraceStore(env);
+    const tracestore = await registry.lookupTraceStore(env);
     if (!tracestore) {
       response.status(500).send(`${env} trace store not found`);
       return;
@@ -102,7 +102,7 @@ export async function startReflectionApi(port?: number | undefined) {
   api.get('/api/envs/:env/flowStates/:flowId', async (request, response) => {
     const { env, flowId } = request.params;
     logging.debug(`Fetching flow state \`${flowId}\` for env \`${env}\`.`);
-    const flowStateStore = registry.lookupFlowStateStore(env);
+    const flowStateStore = await registry.lookupFlowStateStore(env);
     if (!flowStateStore) {
       response.status(500).send(`${env} flow state store not found`);
       return;
@@ -113,7 +113,7 @@ export async function startReflectionApi(port?: number | undefined) {
   api.get('/api/envs/:env/flowStates', async (request, response) => {
     const { env } = request.params;
     logging.debug(`Fetching traces for env \`${env}\`.`);
-    const flowStateStore = registry.lookupFlowStateStore(env);
+    const flowStateStore = await registry.lookupFlowStateStore(env);
     if (!flowStateStore) {
       response.status(500).send(`${env} flow state store not found`);
       return;

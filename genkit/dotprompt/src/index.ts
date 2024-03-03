@@ -25,7 +25,7 @@ export async function prompt<Variables = unknown>(
   name: string,
   options?: { variant?: string }
 ): Promise<Prompt<Variables>> {
-  return lookupPrompt(name, options?.variant) as Prompt<Variables>;
+  return (await lookupPrompt(name, options?.variant)) as Prompt<Variables>;
 }
 
 export { Prompt, PromptOptions, PromptAction, PromptInput } from './prompt.js';

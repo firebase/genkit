@@ -5,11 +5,14 @@ import { startReflectionApi } from './reflectionApi.js';
 import { TraceStore } from './tracing/types.js';
 import { Action } from './types.js';
 
-type Provider<T> = () => T;
+type AsyncProvider<T> = () => Promise<T>;
 
 const __actionsById: Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>> = {};
-const __traceStoresByEnv: Record<string, Provider<TraceStore>> = {};
-const __flowStateStoresByEnv: Record<string, Provider<FlowStateStore>> = {};
+const __traceStoresByEnv: Record<string, AsyncProvider<TraceStore>> = {};
+const __flowStateStoresByEnv: Record<
+  string,
+  AsyncProvider<FlowStateStore>
+> = {};
 const __pluginsByName: Record<string, PluginProvider> = {};
 
 /**
@@ -29,15 +32,15 @@ export type ActionType =
 /**
  * Looks up a registry key (action type and key) in the registry.
  */
-export function lookupAction<
+export async function lookupAction<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
   R extends Action<I, O>
->(key: string): R {
+>(key: string): Promise<R> {
   // If we don't see the key in the registry we try to initialize the plugin first.
   const pluginName = parsePluginName(key);
   if (!__actionsById[key] && pluginName) {
-    initializePlugin(pluginName);
+    await initializePlugin(pluginName);
   }
   return __actionsById[key] as R;
 }
@@ -70,9 +73,9 @@ type ActionsRecord = Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>>;
 /**
  * Returns all actions in the registry.
  */
-export function listActions(): ActionsRecord {
-  Object.keys(__pluginsByName).forEach((pluginName) => {
-    initializePlugin(pluginName);
+export async function listActions(): Promise<ActionsRecord> {
+  Object.keys(__pluginsByName).forEach(async (pluginName) => {
+    await initializePlugin(pluginName);
   });
   return Object.assign({}, __actionsById);
 }
@@ -82,7 +85,7 @@ export function listActions(): ActionsRecord {
  */
 export function registerTraceStore(
   env: string,
-  traceStoreProvider: Provider<TraceStore>
+  traceStoreProvider: AsyncProvider<TraceStore>
 ) {
   __traceStoresByEnv[env] = traceStoreProvider;
 }
@@ -90,7 +93,7 @@ export function registerTraceStore(
 /**
  * Looks up the trace store for the given environment.
  */
-export function lookupTraceStore(env: string): TraceStore {
+export function lookupTraceStore(env: string): Promise<TraceStore> {
   return __traceStoresByEnv[env]();
 }
 
@@ -99,7 +102,7 @@ export function lookupTraceStore(env: string): TraceStore {
  */
 export function registerFlowStateStore(
   env: string,
-  flowStateStoreProvider: Provider<FlowStateStore>
+  flowStateStoreProvider: AsyncProvider<FlowStateStore>
 ) {
   __flowStateStoresByEnv[env] = flowStateStoreProvider;
 }
@@ -107,7 +110,7 @@ export function registerFlowStateStore(
 /**
  * Looks up the flow state store for the given environment.
  */
-export function lookupFlowStateStore(env: string): FlowStateStore {
+export function lookupFlowStateStore(env: string): Promise<FlowStateStore> {
   return __flowStateStoresByEnv[env]();
 }
 
@@ -131,9 +134,9 @@ export function registerPluginProvider(name: string, provider: PluginProvider) {
 /**
  *
  */
-export function initializePlugin(name: string) {
+export async function initializePlugin(name: string) {
   if (__pluginsByName[name]) {
-    return __pluginsByName[name].initializer();
+    return await __pluginsByName[name].initializer();
   }
   return undefined;
 }

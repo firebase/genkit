@@ -10,7 +10,7 @@ export interface Provider<T> {
 
 export interface PluginProvider {
   name: string;
-  initializer: () => InitializedPlugin;
+  initializer: () => Promise<InitializedPlugin>;
 }
 
 export interface InitializedPlugin {
@@ -23,7 +23,7 @@ export interface InitializedPlugin {
   traceStore?: Provider<TraceStore>;
 }
 
-type PluginInit = (...args: any[]) => InitializedPlugin;
+type PluginInit = (...args: any[]) => Promise<InitializedPlugin>;
 
 export type Plugin<T extends any[]> = (...args: T) => PluginProvider;
 
