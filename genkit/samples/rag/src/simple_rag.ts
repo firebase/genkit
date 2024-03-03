@@ -44,9 +44,10 @@ export const spongeBobFactsIndexer = chromaIndexerRef({
 });
 
 // Simple aliases for readability
-export const nfsSpongeBobRetriever = naiveFilestoreRetrieverRef;
+export const nfsSpongeBobRetriever =
+  naiveFilestoreRetrieverRef('spongebob-facts');
 
-export const nfsSpongeBobIndexer = naiveFilestoreIndexerRef;
+export const nfsSpongeBobIndexer = naiveFilestoreIndexerRef('spongebob-facts');
 
 const ragTemplate = `Use the following pieces of context to answer the question at the end.
  If you don't know the answer, just say that you don't know, don't try to make up an answer.

@@ -36,10 +36,18 @@ export default configureGenkit({
       embedder: textEmbeddingGecko001,
       embedderOptions: { temperature: 0 },
     }),
-    naiveFilestore({
-      embedder: textEmbeddingGecko001,
-      embedderOptions: { temperature: 0 },
-    }),
+    naiveFilestore([
+      {
+        indexName: 'spongebob-facts',
+        embedder: textEmbeddingGecko001,
+        embedderOptions: { temperature: 0 },
+      },
+      {
+        indexName: 'pdfQA',
+        embedder: textEmbeddingGecko001,
+        embedderOptions: { temperature: 0 },
+      },
+    ]),
   ],
   flowStateStore: 'firebase',
   traceStore: 'firebase',

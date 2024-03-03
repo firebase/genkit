@@ -24,4 +24,3 @@ export {
   OperationSchema,
 } from '@google-genkit/common';
 export { FirestoreStateStore } from './firestoreStateStore.js';
-export { InMemoryFlowStateStore } from './inMemoryStore.js';

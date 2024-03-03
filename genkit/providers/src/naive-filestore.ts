@@ -18,17 +18,18 @@ import * as fs from 'fs';
 import { Md5 } from 'ts-md5';
 import * as z from 'zod';
 
-const _LOCAL_FILESTORE = '__db.json';
+const _LOCAL_FILESTORE = '__db_{INDEX_NAME}.json';
 
 interface DbValue {
   doc: TextDocument;
   embedding: Array<number>;
 }
 
-function loadFilestore() {
+function loadFilestore(indexName: string) {
   let existingData = {};
-  if (fs.existsSync(_LOCAL_FILESTORE)) {
-    existingData = JSON.parse(fs.readFileSync(_LOCAL_FILESTORE).toString());
+  const indexFileName = _LOCAL_FILESTORE.replace('{INDEX_NAME}', indexName);
+  if (fs.existsSync(indexFileName)) {
+    existingData = JSON.parse(fs.readFileSync(indexFileName).toString());
   }
   return existingData;
 }
@@ -47,23 +48,23 @@ function addDocument(
   }
 }
 
+interface Params<EmbedderCustomOptions extends z.ZodTypeAny> {
+  indexName: string;
+  embedder: EmbedderReference<EmbedderCustomOptions>;
+  embedderOptions?: z.infer<EmbedderCustomOptions>;
+}
+
 /**
  * Naive filestore plugin that provides retriever and indexer
  */
-export function naiveFilestore<
-  EmbedderCustomOptions extends z.ZodTypeAny
->(params: {
-  embedder: EmbedderReference<EmbedderCustomOptions>;
-  embedderOptions?: z.infer<EmbedderCustomOptions>;
-}): PluginProvider {
+export function naiveFilestore<EmbedderCustomOptions extends z.ZodTypeAny>(
+  params: Params<EmbedderCustomOptions>[]
+): PluginProvider {
   const plugin = genkitPlugin(
     'naiveFilestore',
-    async (params: {
-      embedder: EmbedderReference<EmbedderCustomOptions>;
-      embedderOptions?: z.infer<EmbedderCustomOptions>;
-    }) => ({
-      retrievers: [configureNaiveFilestoreRetriever(params)],
-      indexers: [configureNaiveFilestoreIndexer(params)],
+    async (params: Params<EmbedderCustomOptions>[]) => ({
+      retrievers: params.map((p) => configureNaiveFilestoreRetriever(p)),
+      indexers: params.map((p) => configureNaiveFilestoreIndexer(p)),
     })
   );
   return plugin(params);
@@ -72,31 +73,35 @@ export function naiveFilestore<
 /**
  * Naive filestore retriever reference
  */
-export const naiveFilestoreRetrieverRef = retrieverRef({
-  name: `naiveFilestore/singleton`,
-  info: {
-    label: `Naive Filestore Retriever`,
-    names: ['NFS'],
-  },
-  configSchema: CommonRetrieverOptionsSchema.optional(),
-});
+export function naiveFilestoreRetrieverRef(indexName: string) {
+  return retrieverRef({
+    name: `naiveFilestore/${indexName}`,
+    info: {
+      label: `Naive Filestore Retriever`,
+    },
+    configSchema: CommonRetrieverOptionsSchema.optional(),
+  });
+}
 
 /**
  * Naive filestore indexer reference
  */
-export const naiveFilestoreIndexerRef = indexerRef({
-  name: `naiveFilestore/singleton`,
-  info: {
-    label: `Naive Filestore Indexer`,
-    names: ['NFS'],
-  },
-  configSchema: z.null().optional(),
-});
+export function naiveFilestoreIndexerRef(indexName: string) {
+  return indexerRef({
+    name: `naiveFilestore/${indexName}`,
+    info: {
+      label: `Naive Filestore Indexer`,
+      names: ['NFS'],
+    },
+    configSchema: z.null().optional(),
+  });
+}
 
 async function importDocumentsToNaiveFilestore<
   I extends z.ZodTypeAny,
   EmbedderCustomOptions extends z.ZodTypeAny
 >(params: {
+  indexName: string;
   docs: Array<TextDocument>;
   embedder:
     | EmbedderReference<EmbedderCustomOptions>
@@ -104,7 +109,7 @@ async function importDocumentsToNaiveFilestore<
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
   const { docs, embedder, embedderOptions } = { ...params };
-  const data = loadFilestore();
+  const data = loadFilestore(params.indexName);
 
   await Promise.all(
     docs.map(async (doc) => {
@@ -117,7 +122,10 @@ async function importDocumentsToNaiveFilestore<
     })
   );
   // Update the file
-  fs.writeFileSync(_LOCAL_FILESTORE, JSON.stringify(data));
+  fs.writeFileSync(
+    _LOCAL_FILESTORE.replace('{INDEX_NAME}', params.indexName),
+    JSON.stringify(data)
+  );
 }
 
 async function getClosestDocuments<
@@ -150,6 +158,7 @@ export function configureNaiveFilestoreRetriever<
   I extends z.ZodTypeAny,
   EmbedderCustomOptions extends z.ZodTypeAny
 >(params: {
+  indexName: string;
   embedder:
     | EmbedderReference<EmbedderCustomOptions>
     | EmbedderAction<I, z.ZodString, EmbedderCustomOptions>;
@@ -159,13 +168,13 @@ export function configureNaiveFilestoreRetriever<
   const naiveFilestore = retriever(
     {
       provider: 'naiveFilestore',
-      retrieverId: 'naiveFilestore/singleton',
+      retrieverId: `naiveFilestore/${params.indexName}`,
       queryType: z.string(),
       documentType: TextDocumentSchema,
       customOptionsType: CommonRetrieverOptionsSchema,
     },
     async (input, options) => {
-      const db = loadFilestore();
+      const db = loadFilestore(params.indexName);
 
       const queryEmbeddings = await embed({
         embedder,
@@ -189,6 +198,7 @@ export function configureNaiveFilestoreIndexer<
   I extends z.ZodTypeAny,
   EmbedderCustomOptions extends z.ZodTypeAny
 >(params: {
+  indexName: string;
   embedder:
     | EmbedderReference<EmbedderCustomOptions>
     | EmbedderAction<I, z.ZodString, EmbedderCustomOptions>;
@@ -198,12 +208,13 @@ export function configureNaiveFilestoreIndexer<
   const naiveFilestore = indexer(
     {
       provider: 'naiveFilestore',
-      indexerId: 'naiveFilestore/singleton',
+      indexerId: `naiveFilestore/${params.indexName}`,
       documentType: TextDocumentSchema,
       customOptionsType: z.null().optional(),
     },
     async (docs) => {
       await importDocumentsToNaiveFilestore({
+        indexName: params.indexName,
         docs,
         embedder: embedder,
         embedderOptions: embedderOptions,

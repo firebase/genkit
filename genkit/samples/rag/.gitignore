@@ -1,4 +1,6 @@
 node_modules
 lib
 .DS_Store
-__db.json
+__db*.json
+batchinput*.json
+synthesized*.json
