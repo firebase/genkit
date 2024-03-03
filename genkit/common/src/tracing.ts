@@ -26,7 +26,7 @@ const processors: SpanProcessor[] = [];
 /**
  * Enables trace spans to be written to the trace store.
  */
-export function enableTracingAndMetrics(
+export async function enableTracingAndMetrics(
   options: {
     projectId?: string;
     processor?: 'batch' | 'simple';
@@ -38,7 +38,7 @@ export function enableTracingAndMetrics(
   const contextManager = new AsyncLocalStorageContextManager(); // this contextManager is not required if we do not want to invoke sdk#configureTracerProvider - can be removed
   contextManager.enable();
 
-  const traceStore = config.getTraceStore();
+  const traceStore = await config.getTraceStore();
   const exporter = new TraceStoreExporter(traceStore);
   // Use simple (instant) span processor when in dev mode.
   const spanProcessor =

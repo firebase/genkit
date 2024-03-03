@@ -123,7 +123,7 @@ export class Flow<
   readonly name: string;
   readonly input: I;
   readonly output: O;
-  readonly stateStore: FlowStateStore;
+  readonly stateStore: Promise<FlowStateStore>;
   readonly dispatcher: Dispatcher<I, O, S>;
   readonly durable: boolean;
 
@@ -132,7 +132,7 @@ export class Flow<
       name: string;
       input: I;
       output: O;
-      stateStore: FlowStateStore;
+      stateStore: Promise<FlowStateStore>;
       dispatcher: Dispatcher<I, O, S>;
       durable: boolean;
     },
@@ -162,7 +162,7 @@ export class Flow<
       try {
         await this.executeSteps(ctx, this.steps, 'start', streamingCallback);
       } finally {
-        await this.stateStore.save(flowId, state);
+        await (await this.stateStore).save(flowId, state);
       }
       return state;
     }
@@ -171,7 +171,7 @@ export class Flow<
       const flowId = generateFlowId();
       const state = createNewState(flowId, this.name, req.schedule.input);
       try {
-        await this.stateStore.save(flowId, state);
+        await (await this.stateStore).save(flowId, state);
         await this.dispatcher.schedule(
           this,
           { runScheduled: { flowId } } as FlowInvokeEnvelopeMessage,
@@ -183,13 +183,13 @@ export class Flow<
           error: getErrorMessage(e),
           stacktrace: getErrorStack(e),
         };
-        await this.stateStore.save(flowId, state);
+        await (await this.stateStore).save(flowId, state);
       }
       return state;
     }
     if (req.state) {
       const flowId = req.state.flowId;
-      const state = await this.stateStore.load(flowId);
+      const state = await (await this.stateStore).load(flowId);
       if (state === undefined) {
         throw new Error(`Unable to find flow state for ${flowId}`);
       }
@@ -197,7 +197,7 @@ export class Flow<
     }
     if (req.runScheduled) {
       const flowId = req.runScheduled.flowId;
-      const state = await this.stateStore.load(flowId);
+      const state = await (await this.stateStore).load(flowId);
       if (state === undefined) {
         throw new Error(`Unable to find flow state for ${flowId}`);
       }
@@ -211,7 +211,7 @@ export class Flow<
     }
     if (req.resume) {
       const flowId = req.resume.flowId;
-      const state = await this.stateStore.load(flowId);
+      const state = await (await this.stateStore).load(flowId);
       if (state === undefined) {
         throw new Error(`Unable to find flow state for ${flowId}`);
       }
@@ -519,7 +519,7 @@ export async function getFlowState<
   if (!(flow instanceof Flow)) {
     flow = flow.flow;
   }
-  const state = await flow.stateStore.load(flowId);
+  const state = await (await flow.stateStore).load(flowId);
   if (!state) {
     throw new FlowNotFoundError(`flow state ${flowId} not found`);
   }

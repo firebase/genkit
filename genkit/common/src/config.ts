@@ -34,11 +34,11 @@ class Config {
    * Returns a flow state store instance for the running environment.
    * If no store is configured, this will warn and default to `dev`.
    */
-  public getFlowStateStore(): FlowStateStore {
+  public async getFlowStateStore(): Promise<FlowStateStore> {
     const env = getCurrentEnv();
-    let flowStateStore = registry.lookupFlowStateStore(env);
+    let flowStateStore = await registry.lookupFlowStateStore(env);
     if (!flowStateStore && env !== 'dev') {
-      flowStateStore = registry.lookupFlowStateStore('dev');
+      flowStateStore = await registry.lookupFlowStateStore('dev');
       logging.warn(
         `No flow state store configured for \`${env}\` environment. Defaulting to \`dev\` store.`
       );
@@ -53,11 +53,11 @@ class Config {
    * Returns a trace store instance for the running environment.
    * If no store is configured, this will warn and default to `dev`.
    */
-  public getTraceStore(): TraceStore {
+  public async getTraceStore(): Promise<TraceStore> {
     const env = getCurrentEnv();
-    let traceStore = registry.lookupTraceStore(env);
+    let traceStore = await registry.lookupTraceStore(env);
     if (!traceStore && env !== 'dev') {
-      traceStore = registry.lookupTraceStore('dev');
+      traceStore = await registry.lookupTraceStore('dev');
       logging.warn(
         `No trace store configured for \`${env}\` environment. Defaulting to \`dev\` store.`
       );
@@ -76,9 +76,9 @@ class Config {
       logging.debug(`Registering plugin ${plugin.name}...`);
       registry.registerPluginProvider(plugin.name, {
         name: plugin.name,
-        initializer() {
+        async initializer() {
           logging.debug(`Initializing plugin ${plugin.name}:`);
-          const initializedPlugin = plugin.initializer();
+          const initializedPlugin = await plugin.initializer();
           initializedPlugin.models?.forEach((model) => {
             logging.debug(`  - Model: ${model.__action.name}`);
             registry.registerAction('model', model.__action.name, model);
@@ -117,7 +117,10 @@ class Config {
     });
 
     logging.debug('Registering flow state stores...');
-    registry.registerFlowStateStore('dev', () => new LocalFileFlowStateStore());
+    registry.registerFlowStateStore(
+      'dev',
+      async () => new LocalFileFlowStateStore()
+    );
     if (this.options.flowStateStore) {
       const flowStorePluginName = this.options.flowStateStore;
       logging.debug(`  - prod: ${flowStorePluginName}`);
@@ -132,7 +135,7 @@ class Config {
     }
 
     logging.debug('Registering trace stores...');
-    registry.registerTraceStore('dev', () => new LocalFileTraceStore());
+    registry.registerTraceStore('dev', async () => new LocalFileTraceStore());
     if (this.options.traceStore) {
       const traceStorePluginName = this.options.traceStore;
       logging.debug(`  - prod: ${traceStorePluginName}`);
@@ -154,8 +157,8 @@ class Config {
   /**
    * Resolves flow state store provided by the specified plugin.
    */
-  private resolveFlowStateStore(pluginName: string) {
-    const plugin = registry.initializePlugin(pluginName);
+  private async resolveFlowStateStore(pluginName: string) {
+    const plugin = await registry.initializePlugin(pluginName);
     const provider = plugin?.flowStateStore;
     if (!provider) {
       throw new Error(
@@ -168,8 +171,8 @@ class Config {
   /**
    * Resolves trace store provided by the specified plugin.
    */
-  private resolveTraceStore(pluginName: string) {
-    const plugin = registry.initializePlugin(pluginName);
+  private async resolveTraceStore(pluginName: string) {
+    const plugin = await registry.initializePlugin(pluginName);
     const provider = plugin?.traceStore;
     if (!provider) {
       throw new Error(

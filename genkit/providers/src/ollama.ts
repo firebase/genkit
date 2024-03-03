@@ -20,7 +20,7 @@ interface OllamaPluginParams {
 
 export const ollama: Plugin<[OllamaPluginParams]> = genkitPlugin(
   'ollama',
-  (params: OllamaPluginParams) => {
+  async (params: OllamaPluginParams) => {
     const serverAddress = params?.serverAddress || startOllama();
     if (params.pullModel) {
       // TODO: https://github.com/ollama/ollama/blob/main/docs/api.md#pull-a-model

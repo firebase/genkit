@@ -44,7 +44,7 @@ export function chroma<EmbedderCustomOptions extends z.ZodTypeAny>(params: {
 }): PluginProvider {
   const plugin = genkitPlugin(
     'chroma',
-    (params: {
+    async (params: {
       collectionName: string;
       embedder: EmbedderReference<EmbedderCustomOptions>;
       embedderOptions?: z.infer<EmbedderCustomOptions>;

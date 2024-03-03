@@ -58,7 +58,7 @@ export function naiveFilestore<
 }): PluginProvider {
   const plugin = genkitPlugin(
     'naiveFilestore',
-    (params: {
+    async (params: {
       embedder: EmbedderReference<EmbedderCustomOptions>;
       embedderOptions?: z.infer<EmbedderCustomOptions>;
     }) => ({

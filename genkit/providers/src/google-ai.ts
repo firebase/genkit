@@ -164,7 +164,7 @@ function fromGeminiCandidate(candidate: GeminiCandidate): CandidateData {
 
 export const googleAI: Plugin<[string] | []> = genkitPlugin(
   'google-ai',
-  (apiKey?: string) => ({
+  async (apiKey?: string) => ({
     models: Object.keys(SUPPORTED_MODELS).map((name) =>
       googleAIModel(name, apiKey)
     ),
