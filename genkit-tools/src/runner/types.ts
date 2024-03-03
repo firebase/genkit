@@ -19,3 +19,6 @@ export class InternalError extends Error {
     super(msg);
   }
 }
+
+// Streaming callback function.
+export type StreamingCallback<T> = (chunk: T) => void;

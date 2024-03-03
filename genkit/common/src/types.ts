@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import * as z from 'zod';
 import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing.js';
 
@@ -84,3 +85,28 @@ export function action<
 
 // Streaming callback function.
 export type StreamingCallback<T> = (chunk: T) => void;
+
+const streamingAls = new AsyncLocalStorage<StreamingCallback<any>>();
+const sentinelNoopCallback = () => null;
+
+/**
+ * Executes provided function with streaming callback in async local storage which can be retrieved
+ * using {@link getStreamingCallback}.
+ */
+export function runWithStreamingCallback<S, O>(
+  streamingCallback: StreamingCallback<S> | undefined,
+  fn: () => O
+): O {
+  return streamingAls.run(streamingCallback || sentinelNoopCallback, fn);
+}
+
+/**
+ * Retrieves the {@link StreamingCallback} previously set by {@link runWithStreamingCallback}
+ */
+export function getStreamingCallback<S>(): StreamingCallback<S> | undefined {
+  const cb = streamingAls.getStore();
+  if (cb === sentinelNoopCallback) {
+    return undefined;
+  }
+  return cb;
+}
