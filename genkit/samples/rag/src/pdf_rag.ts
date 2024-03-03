@@ -4,21 +4,16 @@ import { TextDocument, index, retrieve } from '@google-genkit/ai/retrievers';
 import { flow, run } from '@google-genkit/flow';
 import { geminiPro } from '@google-genkit/plugin-vertex-ai';
 import {
-  pineconeIndexerRef,
-  pineconeRetrieverRef,
-} from '@google-genkit/providers/pinecone';
+  naiveFilestoreIndexerRef,
+  naiveFilestoreRetrieverRef,
+} from '@google-genkit/providers/naive-filestore';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import * as z from 'zod';
 
-export const pdfChatRetriever = pineconeRetrieverRef({
-  indexId: 'pdf-chat',
-  displayName: 'PDF Chat',
-});
-export const pdfChatIndexer = pineconeIndexerRef({
-  indexId: 'pdf-chat',
-  displayName: 'PDF Chat',
-});
+export const pdfChatRetriever = naiveFilestoreRetrieverRef('pdfQA');
+
+export const pdfChatIndexer = naiveFilestoreIndexerRef('pdfQA');
 
 const ragTemplate = `Use the following pieces of context to answer the question at the end.
  If you don't know the answer, just say that you don't know, don't try to make up an answer.
@@ -66,6 +61,7 @@ const chunkingConfig = {
 } as any;
 
 // Define a flow to index documents into the "vector store"
+// genkit flow:run indexPdf '"35650.pdf"'
 export const indexPdf = flow(
   {
     name: 'indexPdf',
@@ -87,9 +83,6 @@ export const indexPdf = flow(
     await index({
       indexer: pdfChatIndexer,
       docs: transformedDocs,
-      options: {
-        namespace: '',
-      },
     });
   }
 );
@@ -114,6 +107,7 @@ async function extractText(filePath: string): Promise<string> {
 }
 
 // genkit flow:run synthesizeQuestions '"35650.pdf"' --output synthesizedQuestions.json
+// genkit flow:batchRun pdfQA synthesizedQuestions.json --output batchinput_small_out.json
 export const synthesizeQuestions = flow(
   {
     name: 'synthesizeQuestions',
