@@ -12,13 +12,13 @@ import {
   Part,
   ToolDefinition,
   ToolResponsePart,
-  runWithStreamingCallback,
 } from './model.js';
 import { extractJson } from './extract.js';
 import { Action } from '@google-genkit/common';
 import { z } from 'zod';
 import { lookupAction } from '@google-genkit/common/registry';
 import { StreamingCallback } from '@google-genkit/common';
+import { runWithStreamingCallback } from '@google-genkit/common';
 
 export class Message<T = unknown> implements MessageData {
   role: MessageData['role'];

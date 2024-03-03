@@ -1,9 +1,9 @@
 import { Action, action } from '@google-genkit/common';
 import { z } from 'zod';
 import { conformOutput, validateSupport } from './model/middleware';
-import { AsyncLocalStorage } from 'node:async_hooks';
 import { StreamingCallback } from '@google-genkit/common';
 import { setCustomMetadataAttributes } from '@google-genkit/common/tracing';
+import { getStreamingCallback } from '@google-genkit/common';
 
 //
 // IMPORTANT: Please keep type definitions in sync with
@@ -308,33 +308,4 @@ export function modelRef<
   options: ModelReference<CustomOptionsSchema>
 ): ModelReference<CustomOptionsSchema> {
   return { ...options };
-}
-
-const streamingAls = new AsyncLocalStorage<
-  StreamingCallback<GenerationResponseChunkData>
->();
-const sentinelNoopCallback = () => null;
-
-/**
- * Executes provided function with streaming callback in async local storage which can be retrieved
- * using {@link getStreamingCallback}.
- */
-export function runWithStreamingCallback<O>(
-  streamingCallback: StreamingCallback<GenerationResponseChunkData> | undefined,
-  fn: () => O
-): O {
-  return streamingAls.run(streamingCallback || sentinelNoopCallback, fn);
-}
-
-/**
- * Retrieves the {@link StreamingCallback} previously set by {@link runWithStreamingCallback}
- */
-export function getStreamingCallback():
-  | StreamingCallback<GenerationResponseChunkData>
-  | undefined {
-  const cb = streamingAls.getStore();
-  if (cb === sentinelNoopCallback) {
-    return undefined;
-  }
-  return cb;
 }

@@ -9,8 +9,8 @@ import { Action } from '../types/action';
 import axios from 'axios';
 import * as apis from '../types/apis';
 import { TraceData } from '../types/trace';
-import { InternalError } from './types';
-import { FlowState } from '../types/flow';
+import { InternalError, StreamingCallback } from './types';
+import { FlowState, Operation } from '../types/flow';
 
 /**
  * Files in these directories will be excluded from being watched for changes.
@@ -24,6 +24,8 @@ const RELOAD_DELAY_MS = 500;
 
 const REFLECTION_PORT = process.env.GENKIT_REFLECTION_PORT || 3100;
 const REFLECTION_API_URL = `http://localhost:${REFLECTION_PORT}/api`;
+
+const STREAM_DELIMITER = '\n';
 
 /**
  * Runner is responsible for watching, building, and running app code and exposing an API to control actions on that app code.
@@ -237,24 +239,65 @@ export class Runner {
   }
 
   /** Runs an action. */
-  async runAction(input: apis.RunActionRequest): Promise<unknown> {
-    const response = await axios
-      .post(`${REFLECTION_API_URL}/runAction`, input, {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-      .catch((error) => {
-        if (error.response) {
-          return error.response;
+  async runAction(
+    input: apis.RunActionRequest,
+    streamingCallback?: StreamingCallback<any>
+  ): Promise<unknown> {
+    if (streamingCallback) {
+      const response = await axios
+        .post(`${REFLECTION_API_URL}/runAction?stream=true`, input, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          responseType: 'stream',
+        })
+        .catch((error) => {
+          if (error.response) {
+            return error.response;
+          }
+          throw new InternalError(error);
+        });
+      const stream = response.data;
+
+      var buffer = '';
+      stream.on('data', (data: string) => {
+        buffer += data;
+        while (buffer.includes(STREAM_DELIMITER)) {
+          streamingCallback(
+            JSON.parse(buffer.substring(0, buffer.indexOf(STREAM_DELIMITER)))
+          );
+          buffer = buffer.substring(
+            buffer.indexOf(STREAM_DELIMITER) + STREAM_DELIMITER.length
+          );
         }
-        throw new InternalError(error);
       });
-    // TODO: Improve the error handling here including invalid arguments from the frontend.
-    if (response.status !== 200) {
-      throw new InternalError(response.data.message);
+      var resolver: (op: unknown) => void;
+      const promise = new Promise((r) => {
+        resolver = r;
+      });
+      stream.on('end', () => {
+        resolver(JSON.parse(buffer));
+      });
+      return promise;
+    } else {
+      const response = await axios
+        .post(`${REFLECTION_API_URL}/runAction`, input, {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+        .catch((error) => {
+          if (error.response) {
+            return error.response;
+          }
+          throw new InternalError(error);
+        });
+      // TODO: Improve the error handling here including invalid arguments from the frontend.
+      if (response.status !== 200) {
+        throw new InternalError(response.data.message);
+      }
+      return response.data as unknown;
     }
-    return response.data as unknown;
   }
 
   /** Retrieves all traces for a given environment (e.g. dev or prod). */

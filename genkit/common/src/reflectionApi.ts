@@ -3,6 +3,7 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 import { config } from './config.js';
 import logging from './logging.js';
 import * as registry from './registry.js';
+import { runWithStreamingCallback } from './types.js';
 
 /**
  * Starts a Reflection API that will be used by the Runner to call and control actions and flows.
@@ -57,6 +58,7 @@ export async function startReflectionApi(port?: number | undefined) {
 
   api.post('/api/runAction', async (request, response) => {
     const { key, input } = request.body;
+    const { stream } = request.query;
     logging.debug(`Running action \`${key}\`...`);
     try {
       const action = await registry.lookupAction(key);
@@ -64,8 +66,19 @@ export async function startReflectionApi(port?: number | undefined) {
         response.status(404).send(`action ${key} not found`);
         return;
       }
-      const result = await action(input);
-      response.send(result);
+      if (stream === 'true') {
+        const result = await runWithStreamingCallback(
+          (chunk) => {
+            response.write(JSON.stringify(chunk) + '\n');
+          },
+          async () => await action(input)
+        );
+        response.write(JSON.stringify(result));
+        response.end();
+      } else {
+        const result = await action(input);
+        response.send(result);
+      }
     } catch (err) {
       const message = `Error running action \`${key}\`: ${err}`;
       logging.error(message);

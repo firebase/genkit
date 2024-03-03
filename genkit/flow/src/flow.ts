@@ -46,6 +46,7 @@ import {
 import express from 'express';
 import * as bodyParser from 'body-parser';
 import { default as cors, CorsOptions } from 'cors';
+import { getStreamingCallback } from '@google-genkit/common';
 
 const streamDelimiter = '\n';
 const createdFlows = [] as Flow<any, any, any>[];
@@ -625,7 +626,7 @@ function wrapAsAction<
       },
     },
     async (envelope) => {
-      return await flow.runEnvelope(envelope);
+      return await flow.runEnvelope(envelope, getStreamingCallback());
     }
   );
 }
