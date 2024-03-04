@@ -96,7 +96,7 @@ Answer:
   }
 ]
 
-Now provide your analysis for the following inputs. DO NOT PROVIDER ANY MORE EXAMPLES. Your response must be a valid JSON like you see above.
+Now provide your analysis for the following inputs. DO NOT PROVIDER ANY MORE EXAMPLES. Your response must be a valid JSON array like you see above.
 
 Context:
 {{context}}
@@ -129,7 +129,10 @@ export async function faithfulnessScore<
     console.debug('sample: ', JSON.stringify(d));
     const { input, output, context } = { ...d };
     if (!context) {
-      throw new Error('contexts required');
+      throw new Error('context required');
+    }
+    if (!output) {
+      throw new Error('output required');
     }
     const longFormTemplate = Handlebars.compile(LONG_FORM_ANSWER_PROMPT);
     const longFormPrompt = longFormTemplate({
@@ -145,7 +148,7 @@ export async function faithfulnessScore<
       },
     });
 
-    console.debug('response', longFormResponse.output());
+    console.debug('longform', longFormResponse.output());
     let statements = longFormResponse.output()?.statements ?? [];
     statements = !!statements && statements.length > 0 ? statements : ['Nil'];
     const all_statements = statements.map((s) => `statement: ${s}`).join('\n');
@@ -164,7 +167,7 @@ export async function faithfulnessScore<
         schema: NliResponseSchema,
       },
     });
-    console.debug('response', response.output());
+    console.debug('nli', response.output());
     scores.push(nliResponseToScore(response.output()));
   }
   return scores;

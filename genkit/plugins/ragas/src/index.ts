@@ -123,17 +123,13 @@ export function ragasEvaluators<
             );
             return fillScores(
               dataset,
-              RagasMetric.CONTEXT_PRECISION,
+              RagasMetric.ANSWER_RELEVANCY,
               answerRelevancy
             );
           }
           case RagasMetric.FAITHFULNESS: {
             faithfulness = await faithfulnessScore(judge, dataset);
-            return fillScores(
-              dataset,
-              RagasMetric.CONTEXT_PRECISION,
-              faithfulness
-            );
+            return fillScores(dataset, RagasMetric.FAITHFULNESS, faithfulness);
           }
         }
       }

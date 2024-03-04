@@ -1,16 +1,16 @@
 import { getProjectId } from '@google-genkit/common';
 import { configureGenkit } from '@google-genkit/common/config';
-import { vertexAI } from '@google-genkit/plugin-vertex-ai';
-import { chroma } from '@google-genkit/providers/chroma';
+import { googleAI } from '@google-genkit/providers/google-ai';
 import { firebase } from '@google-genkit/providers/firebase';
-import { geminiPro, googleAI } from '@google-genkit/providers/google-ai';
+import { pinecone } from '@google-genkit/providers/pinecone';
+import { geminiPro, vertexAI } from '@google-genkit/plugin-vertex-ai';
+import { chroma } from '@google-genkit/providers/chroma';
 import { RagasMetric, ragas } from '@google-genkit/plugin-ragas';
 import {
   googleVertexAI,
   textEmbeddingGecko001,
 } from '@google-genkit/providers/google-vertexai';
 import { naiveFilestore } from '@google-genkit/providers/naive-filestore';
-import { pinecone } from '@google-genkit/providers/pinecone';
 
 export default configureGenkit({
   plugins: [
