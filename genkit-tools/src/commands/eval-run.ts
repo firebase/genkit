@@ -1,15 +1,22 @@
 import { Command } from 'commander';
 import { startRunner } from '../utils/runner-utils';
 import { logger } from '../utils/logger';
-import { readFile } from 'fs/promises';
+import { readFile, writeFile } from 'fs/promises';
 
+interface EvalRunOptions {
+  output?: string;
+}
 /** Command to run evaluation on a dataset. */
 export const evalRun = new Command('eval:run')
   .argument(
     '<dataset>',
     'Dataset to evaluate on (currently only supports JSON)'
   )
-  .action(async (dataset: string) => {
+  .option(
+    '--output <filename>',
+    'name of the output file to write evaluation results'
+  )
+  .action(async (dataset: string, options: EvalRunOptions) => {
     const runner = await startRunner();
 
     logger.debug(`Loading data from '${dataset}'...`);
@@ -19,25 +26,29 @@ export const evalRun = new Command('eval:run')
       (name) => name.startsWith('/evaluator')
     );
     if (!evaluatorActions) {
-      logger.info('No evaluators installed');
+      logger.error('No evaluators installed');
       return undefined;
     }
+    const results: Record<string, any> = {};
     await Promise.all(
-      evaluatorActions.map((e) => {
+      evaluatorActions.map(async (e) => {
         logger.info(`Running evaluator '${e}'...`);
-        return runner
-          .runAction({
-            key: e,
-            input: {
-              dataset: loadedData,
-            },
-          })
-          .then((response) => {
-            const results = JSON.stringify(response);
-            console.log(results);
-          });
+        const response = await runner.runAction({
+          key: e,
+          input: {
+            dataset: loadedData,
+          },
+        });
+        results[e] = response;
       })
     );
+
+    if (options.output) {
+      logger.info(`Writing results to '${options.output}'...`);
+      await writeFile(options.output, JSON.stringify(results, undefined, '  '));
+    } else {
+      console.log(JSON.stringify(results, undefined, '  '));
+    }
 
     await runner.stop();
   });

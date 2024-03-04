@@ -28,6 +28,7 @@ export const FlowInvokeEnvelopeMessageSchema = z.object({
   start: z
     .object({
       input: z.unknown().optional(),
+      labels: z.record(z.string(), z.string()).optional(),
     })
     .optional(),
   // Schedule new flow.
