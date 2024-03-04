@@ -301,16 +301,28 @@ export class Runner {
   }
 
   /** Retrieves all traces for a given environment (e.g. dev or prod). */
-  async listTraces(input: apis.ListTracesRequest): Promise<TraceData[]> {
-    const { env } = input;
+  async listTraces(
+    input: apis.ListTracesRequest
+  ): Promise<apis.ListTracesResponse> {
+    const { env, limit, continuationToken } = input;
+    var query = '';
+    if (limit) {
+      query += `limit=${limit}`;
+    }
+    if (continuationToken) {
+      if (query !== '') {
+        query += '&';
+      }
+      query += `continuationToken=${continuationToken}`;
+    }
     try {
       const response = await axios.get(
-        `${REFLECTION_API_URL}/envs/${env}/traces`
+        `${REFLECTION_API_URL}/envs/${env}/traces?${query}`
       );
       if (response.status !== 200) {
         throw new InternalError(`Failed to fetch traces from env ${env}.`);
       }
-      return response.data as TraceData[];
+      return apis.ListTracesResponseSchema.parse(response.data);
     } catch (error) {
       console.error('Error fetching traces:', error);
       throw new InternalError(`Error fetching traces from env ${env}.`);
@@ -341,16 +353,26 @@ export class Runner {
   /** Retrieves all flow states for a given environment (e.g. dev or prod). */
   async listFlowStates(
     input: apis.ListFlowStatesRequest
-  ): Promise<FlowState[]> {
-    const { env } = input;
+  ): Promise<apis.ListFlowStatesResponse> {
+    const { env, limit, continuationToken } = input;
+    var query = '';
+    if (limit) {
+      query += `limit=${limit}`;
+    }
+    if (continuationToken) {
+      if (query !== '') {
+        query += '&';
+      }
+      query += `continuationToken=${continuationToken}`;
+    }
     try {
       const response = await axios.get(
-        `${REFLECTION_API_URL}/envs/${env}/flowStates`
+        `${REFLECTION_API_URL}/envs/${env}/flowStates?${query}`
       );
       if (response.status !== 200) {
         throw new InternalError(`Failed to fetch flows from env ${env}.`);
       }
-      return response.data as FlowState[];
+      return apis.ListFlowStatesResponseSchema.parse(response.data);
     } catch (error) {
       console.error('Error fetching flows:', error);
       throw new InternalError(`Error fetching flows from env ${env}.`);

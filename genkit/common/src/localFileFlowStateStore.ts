@@ -5,6 +5,7 @@ import path from 'path';
 import {
   FlowState,
   FlowStateQuery,
+  FlowStateQueryResponse,
   FlowStateSchema,
   FlowStateStore,
 } from './flowTypes.js';
@@ -43,7 +44,7 @@ export class LocalFileFlowStateStore implements FlowStateStore {
     );
   }
 
-  async list(query?: FlowStateQuery): Promise<FlowState[]> {
+  async list(query?: FlowStateQuery): Promise<FlowStateQueryResponse> {
     const files = fs.readdirSync(this.storeRoot);
     files.sort((a, b) => {
       return (
@@ -51,10 +52,19 @@ export class LocalFileFlowStateStore implements FlowStateStore {
         fs.statSync(path.resolve(this.storeRoot, `${a}`)).mtime.getTime()
       );
     });
-    return files.slice(0, query?.limit || 10).map((id) => {
+    const startFrom = query?.continuationToken
+      ? parseInt(query?.continuationToken)
+      : 0;
+    const stopAt = startFrom + (query?.limit || 10);
+    const flowStates = files.slice(startFrom, stopAt).map((id) => {
       const filePath = path.resolve(this.storeRoot, `${id}`);
       const data = fs.readFileSync(filePath, 'utf8');
       return FlowStateSchema.parse(JSON.parse(data));
     });
+    return {
+      flowStates,
+      continuationToken:
+        files.length > stopAt ? (stopAt + 1).toString() : undefined,
+    };
   }
 }

@@ -6,6 +6,11 @@ import { z } from 'zod';
 
 export interface FlowStateQuery {
   limit?: number;
+  continuationToken?: string;
+}
+export interface FlowStateQueryResponse {
+  flowStates: FlowState[];
+  continuationToken?: string;
 }
 
 /**
@@ -14,7 +19,7 @@ export interface FlowStateQuery {
 export interface FlowStateStore {
   save(id: string, state: FlowState): Promise<void>;
   load(id: string): Promise<FlowState | undefined>;
-  list(query?: FlowStateQuery): Promise<FlowState[]>;
+  list(query?: FlowStateQuery): Promise<FlowStateQueryResponse>;
 }
 
 export const FlowStateExecutionSchema = z.object({

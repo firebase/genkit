@@ -1,4 +1,6 @@
 import { z } from 'zod';
+import { TraceDataSchema } from './trace';
+import { FlowStateSchema } from './flow';
 
 /**
  * This file contains API schemas that are shared between Tools API and Reflection API.
@@ -11,9 +13,20 @@ export const EnvTypesSchema = z
 
 export type EnvTypes = z.infer<typeof EnvTypesSchema>;
 
-export const ListTracesRequestSchema = z.object({ env: EnvTypesSchema });
+export const ListTracesRequestSchema = z.object({
+  env: EnvTypesSchema.optional(),
+  limit: z.number().optional(),
+  continuationToken: z.string().optional(),
+});
 
 export type ListTracesRequest = z.infer<typeof ListTracesRequestSchema>;
+
+export const ListTracesResponseSchema = z.object({
+  traces: z.array(TraceDataSchema),
+  continuationToken: z.string().optional(),
+});
+
+export type ListTracesResponse = z.infer<typeof ListTracesResponseSchema>;
 
 export const GetTraceRequestSchema = z.object({
   env: EnvTypesSchema,
@@ -22,9 +35,22 @@ export const GetTraceRequestSchema = z.object({
 
 export type GetTraceRequest = z.infer<typeof GetTraceRequestSchema>;
 
-export const ListFlowStatesRequestSchema = z.object({ env: EnvTypesSchema });
+export const ListFlowStatesRequestSchema = z.object({
+  env: EnvTypesSchema.optional(),
+  limit: z.number().optional(),
+  continuationToken: z.string().optional(),
+});
 
 export type ListFlowStatesRequest = z.infer<typeof ListFlowStatesRequestSchema>;
+
+export const ListFlowStatesResponseSchema = z.object({
+  flowStates: z.array(FlowStateSchema),
+  continuationToken: z.string().optional(),
+});
+
+export type ListFlowStatesResponse = z.infer<
+  typeof ListFlowStatesResponseSchema
+>;
 
 export const GetFlowStateRequestSchema = z.object({
   env: EnvTypesSchema,
