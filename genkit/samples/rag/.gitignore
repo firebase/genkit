@@ -4,3 +4,4 @@ lib
 __db*.json
 batchinput*.json
 synthesized*.json
+out.json
