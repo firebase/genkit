@@ -74,9 +74,9 @@ type ActionsRecord = Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>>;
  * Returns all actions in the registry.
  */
 export async function listActions(): Promise<ActionsRecord> {
-  Object.keys(__pluginsByName).forEach(async (pluginName) => {
+  for (const pluginName of Object.keys(__pluginsByName)) {
     await initializePlugin(pluginName);
-  });
+  }
   return Object.assign({}, __actionsById);
 }
 
@@ -146,4 +146,15 @@ export async function initializePlugin(name: string) {
  */
 if (process.env.GENKIT_ENV === 'dev') {
   startReflectionApi();
+}
+
+export function __hardResetRegistryForTesting() {
+  deleteAll(__actionsById);
+  deleteAll(__traceStoresByEnv);
+  deleteAll(__flowStateStoresByEnv);
+  deleteAll(__pluginsByName);
+}
+
+function deleteAll(map: Record<any, any>) {
+  Object.keys(map).forEach((key) => delete map[key]);
 }
