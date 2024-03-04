@@ -13,6 +13,7 @@ import {
   InputContent as GeminiMessage,
   Part as GeminiPart,
   GoogleGenerativeAI,
+  GenerateContentResponse,
 } from '@google/generative-ai';
 import process from 'process';
 import z from 'zod';
@@ -183,30 +184,54 @@ export function googleAIModel(name: string, apiKey?: string): ModelAction {
       // since gemini api doesn't support downloading media from http(s)
       use: [downloadRequestMedia({ maxBytes: 1024 * 1024 * 10 })],
     },
-    async (request) => {
+    async (request, streamingCallback) => {
       const messages = request.messages.map(toGeminiMessage);
       if (messages.length === 0) throw new Error('No messages provided.');
-      const result = await client
-        .startChat({
-          history: messages.slice(0, messages.length - 1),
-          generationConfig: {
-            candidateCount: request.candidates,
-            temperature: request.config?.temperature,
-            maxOutputTokens: request.config?.maxOutputTokens,
-            topK: request.config?.topK,
-            topP: request.config?.topP,
-            stopSequences: request.config?.stopSequences,
-          },
-          safetySettings: request.config?.custom?.safetySettings,
-        })
-        .sendMessage(messages[messages.length - 1].parts);
-
-      if (!result.response.candidates?.length)
-        throw new Error('No valid candidates returned.');
-      return {
-        candidates: result.response.candidates?.map(fromGeminiCandidate) || [],
-        custom: result.response,
+      const chatRequest = {
+        history: messages.slice(0, messages.length - 1),
+        generationConfig: {
+          candidateCount: request.candidates,
+          temperature: request.config?.temperature,
+          maxOutputTokens: request.config?.maxOutputTokens,
+          topK: request.config?.topK,
+          topP: request.config?.topP,
+          stopSequences: request.config?.stopSequences,
+        },
+        safetySettings: request.config?.custom?.safetySettings,
       };
+      if (streamingCallback) {
+        const result = await client
+          .startChat(chatRequest)
+          .sendMessageStream(messages[messages.length - 1].parts);
+        for await (const item of result.stream) {
+          (item as GenerateContentResponse).candidates?.forEach((candidate) => {
+            const c = fromGeminiCandidate(candidate);
+            streamingCallback({
+              index: c.index,
+              content: c.message.content,
+            });
+          });
+        }
+        const response = await result.response;
+        if (!response.candidates?.length) {
+          throw new Error('No valid candidates returned.');
+        }
+        return {
+          candidates: response.candidates?.map(fromGeminiCandidate) || [],
+          custom: response,
+        };
+      } else {
+        const result = await client
+          .startChat(chatRequest)
+          .sendMessage(messages[messages.length - 1].parts);
+        if (!result.response.candidates?.length)
+          throw new Error('No valid candidates returned.');
+        return {
+          candidates:
+            result.response.candidates?.map(fromGeminiCandidate) || [],
+          custom: result.response,
+        };
+      }
     }
   );
 }
