@@ -330,9 +330,19 @@ paths:
               - dev
               - prod
             description: Supported environments in the runtime.
-          required: true
+          required: false
           description: Supported environments in the runtime.
           name: env
+          in: path
+        - schema:
+            type: number
+          required: false
+          name: limit
+          in: path
+        - schema:
+            type: string
+          required: false
+          name: continuationToken
           in: path
       responses:
         '200':
@@ -377,9 +387,19 @@ paths:
             type: string
             enum: *ref_0
             description: Supported environments in the runtime.
-          required: true
+          required: false
           description: Supported environments in the runtime.
           name: env
+          in: path
+        - schema:
+            type: number
+          required: false
+          name: limit
+          in: path
+        - schema:
+            type: string
+          required: false
+          name: continuationToken
           in: path
       responses:
         '200':

@@ -3,6 +3,7 @@ import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import {
   FlowState,
   FlowStateQuery,
+  FlowStateQueryResponse,
   FlowStateSchema,
   FlowStateStore,
 } from '@google-genkit/common';
@@ -60,12 +61,13 @@ export class FirestoreStateStore implements FlowStateStore {
     await this.db.collection(this.collection).doc(id).set(state);
   }
 
-  async list(query?: FlowStateQuery): Promise<FlowState[]> {
+  async list(query?: FlowStateQuery): Promise<FlowStateQueryResponse> {
     const data = await this.db
       .collection(this.collection)
       .orderBy('startTime', 'desc')
       .limit(query?.limit || 10)
       .get();
-    return data.docs.map((d) => d.data() as FlowState);
+    // TODO: add continuation token support
+    return { flowStates: data.docs.map((d) => d.data() as FlowState) };
   }
 }

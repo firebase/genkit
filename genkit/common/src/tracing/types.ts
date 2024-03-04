@@ -6,12 +6,17 @@ import { z } from 'zod';
 
 export interface TraceQuery {
   limit?: number;
+  continuationToken?: string;
+}
+export interface TraceQueryResponse {
+  traces: TraceData[];
+  continuationToken?: string;
 }
 
 export interface TraceStore {
   save(traceId, trace: TraceData): Promise<void>;
   load(traceId: string): Promise<TraceData | undefined>;
-  list(query?: TraceQuery): Promise<TraceData[]>;
+  list(query?: TraceQuery): Promise<TraceQueryResponse>;
 }
 
 export const SpanMetadataSchema = z.object({

@@ -103,13 +103,21 @@ export async function startReflectionApi(port?: number | undefined) {
 
   api.get('/api/envs/:env/traces', async (request, response) => {
     const { env } = request.params;
+    const { limit, continuationToken } = request.query;
     logging.debug(`Fetching traces for env \`${env}\`.`);
     const tracestore = await registry.lookupTraceStore(env);
     if (!tracestore) {
       response.status(500).send(`${env} trace store not found`);
       return;
     }
-    response.json(await tracestore.list());
+    response.json(
+      await tracestore.list({
+        limit: limit ? parseInt(limit.toString()) : undefined,
+        continuationToken: continuationToken
+          ? continuationToken.toString()
+          : undefined,
+      })
+    );
   });
 
   api.get('/api/envs/:env/flowStates/:flowId', async (request, response) => {
@@ -125,13 +133,21 @@ export async function startReflectionApi(port?: number | undefined) {
 
   api.get('/api/envs/:env/flowStates', async (request, response) => {
     const { env } = request.params;
+    const { limit, continuationToken } = request.query;
     logging.debug(`Fetching traces for env \`${env}\`.`);
     const flowStateStore = await registry.lookupFlowStateStore(env);
     if (!flowStateStore) {
       response.status(500).send(`${env} flow state store not found`);
       return;
     }
-    response.json(await flowStateStore?.list());
+    response.json(
+      await flowStateStore?.list({
+        limit: limit ? parseInt(limit.toString()) : undefined,
+        continuationToken: continuationToken
+          ? continuationToken.toString()
+          : undefined,
+      })
+    );
   });
 
   api.listen(port, () => {

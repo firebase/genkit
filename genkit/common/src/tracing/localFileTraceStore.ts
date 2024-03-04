@@ -3,7 +3,13 @@ import os from 'os';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { TraceData, TraceDataSchema, TraceQuery, TraceStore } from './types.js';
+import {
+  TraceData,
+  TraceDataSchema,
+  TraceQuery,
+  TraceQueryResponse,
+  TraceStore,
+} from './types.js';
 
 /**
  * Implementation of trace store that persists traces on local disk.
@@ -52,7 +58,7 @@ export class LocalFileTraceStore implements TraceStore {
     );
   }
 
-  async list(query?: TraceQuery): Promise<TraceData[]> {
+  async list(query?: TraceQuery): Promise<TraceQueryResponse> {
     const files = fs.readdirSync(this.storeRoot);
     files.sort((a, b) => {
       return (
@@ -60,10 +66,19 @@ export class LocalFileTraceStore implements TraceStore {
         fs.statSync(path.resolve(this.storeRoot, `${a}`)).mtime.getTime()
       );
     });
-    return files.slice(0, query?.limit || 10).map((id) => {
+    const startFrom = query?.continuationToken
+      ? parseInt(query?.continuationToken)
+      : 0;
+    const stopAt = startFrom + (query?.limit || 10);
+    const traces = files.slice(startFrom, stopAt).map((id) => {
       const filePath = path.resolve(this.storeRoot, `${id}`);
       const data = fs.readFileSync(filePath, 'utf8');
       return TraceDataSchema.parse(JSON.parse(data));
     });
+    return {
+      traces,
+      continuationToken:
+        files.length > stopAt ? (stopAt + 1).toString() : undefined,
+    };
   }
 }
