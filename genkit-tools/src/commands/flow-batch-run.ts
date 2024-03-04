@@ -7,6 +7,7 @@ import { writeFile, readFile } from 'fs/promises';
 interface FlowBatchRunOptions {
   wait?: boolean;
   output?: string;
+  label?: string;
 }
 
 /** Command to run flows with batch input. */
@@ -15,6 +16,7 @@ export const flowBatchRun = new Command('flow:batchRun')
   .argument('<inputFileName>', 'JSON batch data to use to run the flow')
   .option('-w, --wait', 'Wait for the flow to complete', false)
   .option('--output <filename>', 'name of the output file to store the output')
+  .option('--label [label]', 'label flow run in this batch')
   .action(
     async (
       flowName: string,
@@ -36,6 +38,7 @@ export const flowBatchRun = new Command('flow:batchRun')
           input: {
             start: {
               input: data,
+              labels: options.label ? { batchRun: options.label } : undefined,
             },
           } as FlowInvokeEnvelopeMessage,
         })) as FlowState;

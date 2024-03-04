@@ -161,7 +161,13 @@ export class Flow<
       const state = createNewState(flowId, this.name, req.start.input);
       const ctx = new Context(this, flowId, state);
       try {
-        await this.executeSteps(ctx, this.steps, 'start', streamingCallback);
+        await this.executeSteps(
+          ctx,
+          this.steps,
+          'start',
+          streamingCallback,
+          req.start.labels
+        );
       } finally {
         await (await this.stateStore).save(flowId, state);
       }
@@ -204,7 +210,13 @@ export class Flow<
       }
       const ctx = new Context(this, flowId, state);
       try {
-        await this.executeSteps(ctx, this.steps, 'runScheduled');
+        await this.executeSteps(
+          ctx,
+          this.steps,
+          'runScheduled',
+          undefined,
+          undefined
+        );
       } finally {
         await ctx.saveState();
       }
@@ -224,7 +236,13 @@ export class Flow<
       state.eventsTriggered[state.blockedOnStep.name] = req.resume.payload;
       const ctx = new Context(this, flowId, state);
       try {
-        await this.executeSteps(ctx, this.steps, 'resume');
+        await this.executeSteps(
+          ctx,
+          this.steps,
+          'resume',
+          undefined,
+          undefined
+        );
       } finally {
         await ctx.saveState();
       }
@@ -243,7 +261,8 @@ export class Flow<
     ctx: Context<I, O, S>,
     handler: StepsFunction<I, O, S>,
     dispatchType: string,
-    streamingCallback?: StreamingCallback<any>
+    streamingCallback: StreamingCallback<any> | undefined,
+    labels: Record<string, string> | undefined
   ) {
     await runWithActiveContext(ctx, async () => {
       let traceContext;
@@ -264,6 +283,15 @@ export class Flow<
             startTime: Date.now(),
             traceIds: [],
           });
+
+          if (labels) {
+            Object.keys(labels).forEach((label) => {
+              setCustomMetadataAttribute(
+                metadataPrefix(`label:${label}`),
+                labels[label]
+              );
+            });
+          }
 
           setCustomMetadataAttributes({
             [metadataPrefix('name')]: this.name,
