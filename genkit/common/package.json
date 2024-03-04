@@ -9,7 +9,8 @@
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
     "lint": "eslint --config ../.eslintrc.js --ext .ts src",
-    "lint:fix": "npm run lint -- --fix --quiet"
+    "lint:fix": "npm run lint -- --fix --quiet",
+    "test": "node --import tsx --test tests/*_test.ts"
   },
   "dependencies": {
     "@google-cloud/monitoring": "^4.0.0",
@@ -30,8 +31,10 @@
     "zod-to-json-schema": "^3.22.4"
   },
   "devDependencies": {
+    "@types/node": "^20.11.16",
     "npm-run-all": "^4.1.5",
     "tsup": "^8.0.2",
+    "tsx": "^4.7.0",
     "typescript": "^4.9.0"
   },
   "types": "lib/index.d.ts",

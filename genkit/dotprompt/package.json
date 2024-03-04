@@ -10,7 +10,7 @@
     "build:watch": "tsup-node --watch",
     "lint": "eslint --config ../.eslintrc.js --ext .ts src",
     "lint:fix": "npm run lint -- --fix --quiet",
-    "test": "node --loader tsx --test tests/*_test.ts"
+    "test": "node --import tsx --test tests/*_test.ts"
   },
   "dependencies": {
     "@google-genkit/ai": "*",
