@@ -1,8 +1,3 @@
-import { MetricExporter } from '@google-cloud/opentelemetry-cloud-monitoring-exporter';
-import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
-import { AsyncLocalStorageContextManager } from '@opentelemetry/context-async-hooks';
-import { Resource } from '@opentelemetry/resources';
-import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import {
   BatchSpanProcessor,
@@ -10,9 +5,8 @@ import {
   SpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
 import { config, getCurrentEnv } from './config.js';
-import { meterProvider } from './metrics.js';
-import { getProjectId } from './runtime.js';
 import { TraceStoreExporter } from './tracing/exporter.js';
+import { MultiSpanProcessor } from './tracing/multiSpanProcessor.js';
 
 export * from './tracing/exporter.js';
 export * from './tracing/firestoreTraceStore.js';
@@ -27,50 +21,49 @@ const processors: SpanProcessor[] = [];
  * Enables trace spans to be written to the trace store.
  */
 export async function enableTracingAndMetrics(
-  options: {
-    projectId?: string;
+  traceStoreOptions: {
     processor?: 'batch' | 'simple';
   } = {}
 ) {
-  options.projectId = options.projectId || getProjectId();
-  options.processor = options.processor || 'batch';
+  addProcessor(
+    await createTraceStoreProcessor(traceStoreOptions.processor || 'batch')
+  );
 
-  const contextManager = new AsyncLocalStorageContextManager(); // this contextManager is not required if we do not want to invoke sdk#configureTracerProvider - can be removed
-  contextManager.enable();
+  const telemetryConfig = await config.getTelemetryConfig();
+  const nodeOtelConfig = telemetryConfig.getConfig() || {};
 
-  const traceStore = await config.getTraceStore();
-  const exporter = new TraceStoreExporter(traceStore);
-  // Use simple (instant) span processor when in dev mode.
-  const spanProcessor =
-    options.processor === 'simple' || getCurrentEnv() === 'dev'
-      ? new SimpleSpanProcessor(exporter)
-      : new BatchSpanProcessor(exporter);
+  addProcessor(nodeOtelConfig.spanProcessor as any);
+  nodeOtelConfig.spanProcessor = new MultiSpanProcessor(processors) as any;
+  const sdk = new NodeSDK(nodeOtelConfig);
 
-  processors.push(spanProcessor);
-
-  const metricReader = new PeriodicExportingMetricReader({
-    // Export metrics every 10 seconds. 5 seconds is the smallest sample period allowed by
-    // Cloud Monitoring.
-    exportIntervalMillis: 10_000,
-    exporter: new MetricExporter(),
-  }) as any;
-  meterProvider.addMetricReader(metricReader);
-
-  const resource = new Resource({
-    type: 'global',
-  }).merge(new GcpDetectorSync().detect());
-
-  const sdk = new NodeSDK({
-    resource,
-    // TODO: fix this hack (any), SpanProcessor type does not resolve, suspect workspace deps issue
-    spanProcessor: spanProcessor as any,
-    contextManager,
-  });
   sdk.start();
 }
 
 /**
+ * Creates a new SpanProcessor for exporting data to the configured TraceStore.
  *
+ * Returns `undefined` if no trace store implementation is configured.
+ */
+async function createTraceStoreProcessor(
+  processor: 'batch' | 'simple'
+): Promise<SpanProcessor | undefined> {
+  const traceStore = await config.getTraceStore();
+  if (traceStore) {
+    const exporter = new TraceStoreExporter(traceStore);
+    return processor === 'simple' || getCurrentEnv() === 'dev'
+      ? new SimpleSpanProcessor(exporter)
+      : new BatchSpanProcessor(exporter);
+  }
+  return undefined;
+}
+
+/** Adds the given {SpanProcessor} to the list of processors */
+function addProcessor(processor: SpanProcessor | undefined) {
+  if (processor) processors.push(processor);
+}
+
+/**
+ * Flushes all configured span processors
  */
 export async function flushTracing() {
   await Promise.all(processors.map((p) => p.forceFlush()));

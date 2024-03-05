@@ -269,6 +269,7 @@ export class Flow<
       if (ctx.state.traceContext) {
         traceContext = JSON.parse(ctx.state.traceContext);
       }
+      let ctxLinks = traceContext ? [{ context: traceContext }] : [];
       let errored = false;
       const output = await newTrace(
         {
@@ -276,7 +277,7 @@ export class Flow<
           labels: {
             [SPAN_TYPE_ATTR]: 'flow',
           },
-          links: [{ context: traceContext }],
+          links: ctxLinks,
         },
         async (metadata, rootSpan) => {
           ctx.state.executions.push({
