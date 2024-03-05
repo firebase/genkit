@@ -8,11 +8,11 @@ import { ragas, RagasMetric } from '@google-genkit/plugin-ragas';
 import { vertexAI, textembeddingGecko } from '@google-genkit/plugin-vertex-ai';
 
 // providers - will be moved to plugins eventually
-import { chroma } from '@google-genkit/providers/chroma';
+import { chroma } from '@google-genkit/plugin-chroma';
 import { firebase } from '@google-genkit/plugin-firebase';
-import { naiveFilestore } from '@google-genkit/providers/naive-filestore';
+import { devLocalVectorstore } from '@google-genkit/plugin-dev-local-vectorstore';
 import { ollama } from '@google-genkit/providers/ollama';
-import { pinecone } from '@google-genkit/providers/pinecone';
+import { pinecone } from '@google-genkit/plugin-pinecone';
 
 // Not all plugins configured below are used by the flow, but we load
 // "everything" for UI development and testing.
@@ -31,7 +31,7 @@ export default configureGenkit({
       embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
     }),
     firebase({ projectId: getProjectId() }),
-    naiveFilestore([
+    devLocalVectorstore([
       {
         indexName: 'naive-index',
         embedder: textembeddingGecko,

@@ -2,15 +2,15 @@ import { getProjectId } from '@google-genkit/common';
 import { configureGenkit } from '@google-genkit/common/config';
 import { googleAI } from '@google-genkit/providers/google-ai';
 import { firebase } from '@google-genkit/plugin-firebase';
-import { pinecone } from '@google-genkit/providers/pinecone';
+import { pinecone } from '@google-genkit/plugin-pinecone';
 import { geminiPro, vertexAI } from '@google-genkit/plugin-vertex-ai';
-import { chroma } from '@google-genkit/providers/chroma';
+import { chroma } from '@google-genkit/plugin-chroma';
 import { RagasMetric, ragas } from '@google-genkit/plugin-ragas';
 import {
   googleVertexAI,
   textEmbeddingGecko001,
 } from '@google-genkit/providers/google-vertexai';
-import { naiveFilestore } from '@google-genkit/providers/naive-filestore';
+import { devLocalVectorstore } from '@google-genkit/plugin-dev-local-vectorstore';
 
 export default configureGenkit({
   plugins: [
@@ -36,7 +36,7 @@ export default configureGenkit({
       embedder: textEmbeddingGecko001,
       embedderOptions: { temperature: 0 },
     }),
-    naiveFilestore([
+    devLocalVectorstore([
       {
         indexName: 'spongebob-facts',
         embedder: textEmbeddingGecko001,

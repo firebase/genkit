@@ -1,8 +1,9 @@
-import { embed } from '@google-genkit/ai/embedders';
+import { embed, EmbedderReference } from '@google-genkit/ai/embedders';
 import {
   CommonRetrieverOptionsSchema,
   indexerRef,
   retriever,
+  indexer,
   retrieverRef,
   TextDocumentSchema,
 } from '@google-genkit/ai/retrievers';
@@ -17,8 +18,6 @@ import {
 } from 'chromadb';
 import * as z from 'zod';
 import { genkitPlugin, PluginProvider } from '@google-genkit/common/config';
-import { EmbedderReference } from '@google-genkit/ai/embedders';
-import { indexer } from '@google-genkit/ai/retrievers';
 import { Md5 } from 'ts-md5';
 
 export { IncludeEnum };
@@ -55,6 +54,8 @@ export function chroma<EmbedderCustomOptions extends z.ZodTypeAny>(params: {
   );
   return plugin(params);
 }
+
+export default chroma;
 
 export const chromaRetrieverRef = (params: {
   collectionName: string;

@@ -55,49 +55,53 @@ interface Params<EmbedderCustomOptions extends z.ZodTypeAny> {
 }
 
 /**
- * Naive filestore plugin that provides retriever and indexer
+ * Local file-based vectorstore plugin that provides retriever and indexer.
+ *
+ * NOT INTENDED FOR USE IN PRODUCTION
  */
-export function naiveFilestore<EmbedderCustomOptions extends z.ZodTypeAny>(
+export function devLocalVectorstore<EmbedderCustomOptions extends z.ZodTypeAny>(
   params: Params<EmbedderCustomOptions>[]
 ): PluginProvider {
   const plugin = genkitPlugin(
-    'naiveFilestore',
+    'devLocalVectorstore',
     async (params: Params<EmbedderCustomOptions>[]) => ({
-      retrievers: params.map((p) => configureNaiveFilestoreRetriever(p)),
-      indexers: params.map((p) => configureNaiveFilestoreIndexer(p)),
+      retrievers: params.map((p) => configureDevLocalRetriever(p)),
+      indexers: params.map((p) => configureDevLocalIndexer(p)),
     })
   );
   return plugin(params);
 }
 
+export default devLocalVectorstore;
+
 /**
- * Naive filestore retriever reference
+ * Local file-based vectorstore retriever reference
  */
-export function naiveFilestoreRetrieverRef(indexName: string) {
+export function devLocalRetrieverRef(indexName: string) {
   return retrieverRef({
-    name: `naiveFilestore/${indexName}`,
+    name: `devLocalVectorstore/${indexName}`,
     info: {
-      label: `Naive Filestore Retriever`,
+      label: `Local file-based Retriever`,
     },
     configSchema: CommonRetrieverOptionsSchema.optional(),
   });
 }
 
 /**
- * Naive filestore indexer reference
+ * Local file-based indexer reference
  */
-export function naiveFilestoreIndexerRef(indexName: string) {
+export function devLocalIndexerRef(indexName: string) {
   return indexerRef({
-    name: `naiveFilestore/${indexName}`,
+    name: `devLocalVectorstore/${indexName}`,
     info: {
-      label: `Naive Filestore Indexer`,
-      names: ['NFS'],
+      label: `Local file-based Indexer`,
+      names: ['LFVS'],
     },
     configSchema: z.null().optional(),
   });
 }
 
-async function importDocumentsToNaiveFilestore<
+async function importDocumentsToLocalVectorstore<
   I extends z.ZodTypeAny,
   EmbedderCustomOptions extends z.ZodTypeAny
 >(params: {
@@ -152,9 +156,9 @@ async function getClosestDocuments<
 }
 
 /**
- * Configures a naive filestore retriever
+ * Configures a local vectorstore retriever
  */
-export function configureNaiveFilestoreRetriever<
+export function configureDevLocalRetriever<
   I extends z.ZodTypeAny,
   EmbedderCustomOptions extends z.ZodTypeAny
 >(params: {
@@ -165,10 +169,10 @@ export function configureNaiveFilestoreRetriever<
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
   const { embedder, embedderOptions } = params;
-  const naiveFilestore = retriever(
+  const vectorstore = retriever(
     {
-      provider: 'naiveFilestore',
-      retrieverId: `naiveFilestore/${params.indexName}`,
+      provider: 'devLocalVectorstore',
+      retrieverId: `devLocalVectorstore/${params.indexName}`,
       queryType: z.string(),
       documentType: TextDocumentSchema,
       customOptionsType: CommonRetrieverOptionsSchema,
@@ -188,13 +192,13 @@ export function configureNaiveFilestoreRetriever<
       });
     }
   );
-  return naiveFilestore;
+  return vectorstore;
 }
 
 /**
- * Configures a naive filestore indexer.
+ * Configures a local vectorstore indexer.
  */
-export function configureNaiveFilestoreIndexer<
+export function configureDevLocalIndexer<
   I extends z.ZodTypeAny,
   EmbedderCustomOptions extends z.ZodTypeAny
 >(params: {
@@ -205,15 +209,15 @@ export function configureNaiveFilestoreIndexer<
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
   const { embedder, embedderOptions } = params;
-  const naiveFilestore = indexer(
+  const filestore = indexer(
     {
-      provider: 'naiveFilestore',
-      indexerId: `naiveFilestore/${params.indexName}`,
+      provider: 'devLocalVectorstore',
+      indexerId: `devLocalVectorstore/${params.indexName}`,
       documentType: TextDocumentSchema,
       customOptionsType: z.null().optional(),
     },
     async (docs) => {
-      await importDocumentsToNaiveFilestore({
+      await importDocumentsToLocalVectorstore({
         indexName: params.indexName,
         docs,
         embedder: embedder,
@@ -221,5 +225,5 @@ export function configureNaiveFilestoreIndexer<
       });
     }
   );
-  return naiveFilestore;
+  return filestore;
 }
