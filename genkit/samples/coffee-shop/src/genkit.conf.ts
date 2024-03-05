@@ -11,7 +11,7 @@ import { vertexAI, textembeddingGecko } from '@google-genkit/plugin-vertex-ai';
 import { chroma } from '@google-genkit/plugin-chroma';
 import { firebase } from '@google-genkit/plugin-firebase';
 import { devLocalVectorstore } from '@google-genkit/plugin-dev-local-vectorstore';
-import { ollama } from '@google-genkit/providers/ollama';
+import { ollama } from '@google-genkit/plugin-ollama';
 import { pinecone } from '@google-genkit/plugin-pinecone';
 
 // Not all plugins configured below are used by the flow, but we load
