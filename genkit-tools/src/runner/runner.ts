@@ -191,7 +191,7 @@ export class Runner {
         `Detected a change in ${clc.bold(relativeFilePath)}. Compiling...`
       );
       try {
-        execSync('tsc', { stdio: 'inherit' });
+        execSync('npm run build', { stdio: 'inherit' });
       } catch (error) {
         logger.error('Compilation error:', error);
       }
