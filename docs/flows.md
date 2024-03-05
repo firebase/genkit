@@ -1,7 +1,7 @@
 # Flows
 
 Flows are strongly typed, streamable, locally and remotely callable, fully observable functions.
-Genkit provides CL and Dev UI tooling for working with flows (running, debugging, etc).
+Genkit provides CLI and Dev UI tooling for working with flows (running, debugging, etc).
 
 ## Defining flows
 
