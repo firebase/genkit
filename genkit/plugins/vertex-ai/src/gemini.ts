@@ -5,6 +5,7 @@ import {
   GenerateContentResponse,
   FunctionDeclaration,
   Tool,
+  Content,
   Part as VertexPart,
   StartChatParams,
 } from '@google-cloud/vertexai';
@@ -17,6 +18,7 @@ import {
   ToolDefinitionSchema,
   modelRef,
   ModelMiddleware,
+  MediaPart,
 } from '@google-genkit/ai/model';
 import { downloadRequestMedia } from '@google-genkit/ai/model/middleware';
 import { z } from 'zod';
@@ -68,7 +70,64 @@ function toGeminiRole(role: MessageData['role']): string {
   }
 }
 
-const toGeminiMessage = (message: MessageData): any => {
+const toGeminiTool = (tool: z.infer<typeof ToolDefinitionSchema>): Tool => {
+  const declaration: FunctionDeclaration = {
+    name: tool.name,
+    description: tool.description,
+    parameters: convertSchemaProperty(tool.inputSchema),
+  };
+  return {
+    function_declarations: [declaration],
+  };
+};
+
+const toGeminiFileDataPart = (part: Part): VertexPart => {
+  // TODO: Figure out when is it possible that contentType is not defined?
+  if (!part?.media?.contentType) {
+    throw Error(
+      'Could not convert genkit part to gemini tool response part: missing file data'
+    );
+  }
+  return {
+    file_data: {
+      mime_type: part.media.contentType,
+      file_uri: part.media.url,
+    },
+  };
+};
+
+const toGeminiToolRequestPart = (part: Part): VertexPart => {
+  if (!part?.toolRequest?.input) {
+    throw Error(
+      'Could not convert genkit part to gemini tool response part: missing tool request data'
+    );
+  }
+  return {
+    functionCall: {
+      name: part.toolRequest.name,
+      args: part.toolRequest.input,
+    },
+  };
+};
+
+const toGeminiToolResponsePart = (part: Part): VertexPart => {
+  if (!part?.toolResponse?.output) {
+    throw Error(
+      'Could not convert genkit part to gemini tool response part: missing tool response data'
+    );
+  }
+  return {
+    functionResponse: {
+      name: part.toolResponse.name,
+      response: {
+        name: part.toolResponse.name,
+        content: part.toolResponse.output,
+      },
+    },
+  };
+};
+
+const toGeminiMessage = (message: MessageData): Content => {
   const vertexRole = toGeminiRole(message.role);
   const vertexAiMessage: any = {
     role: vertexRole,
@@ -79,44 +138,18 @@ const toGeminiMessage = (message: MessageData): any => {
   parts.forEach((part) => {
     if (part.text) {
       vertexAiMessage.parts.push({ text: part.text });
-    } else if (part.media) {
-      vertexAiMessage.parts.push({
-        file_data: {
-          mime_type: part.media.contentType,
-          file_uri: part.media.url,
-        },
-      });
-    } else if (part.toolRequest) {
-      vertexAiMessage.parts.push({
-        functionCall: {
-          name: part.toolRequest.name,
-          args: part.toolRequest.input,
-        },
-      });
-    } else if (part.toolResponse) {
-      vertexAiMessage.parts.push({
-        functionResponse: {
-          name: part.toolResponse.name,
-          response: {
-            name: part.toolResponse.name,
-            content: part.toolResponse.output,
-          },
-        },
-      });
+    }
+    if (part.media) {
+      vertexAiMessage.parts.push(toGeminiFileDataPart(part));
+    }
+    if (part.toolRequest) {
+      vertexAiMessage.parts.push(toGeminiToolRequestPart(part));
+    }
+    if (part.toolResponse) {
+      vertexAiMessage.parts.push(toGeminiToolResponsePart(part));
     }
   });
   return vertexAiMessage;
-};
-
-const toGeminiTool = (tool: z.infer<typeof ToolDefinitionSchema>): Tool => {
-  const declaration: FunctionDeclaration = {
-    name: tool.name,
-    description: tool.description,
-    parameters: convertSchemaProperty(tool.inputSchema),
-  };
-  return {
-    function_declarations: [declaration],
-  };
 };
 
 function fromGeminiFinishReason(
@@ -137,28 +170,89 @@ function fromGeminiFinishReason(
   }
 }
 
+function fromGeminiInlineDataPart(part: VertexPart): MediaPart {
+  // Check if the required properties exist
+  if (
+    !part.inline_data ||
+    !part.inline_data.hasOwnProperty('mime_type') ||
+    !part.inline_data.hasOwnProperty('data')
+  ) {
+    throw new Error('Invalid GeminiPart: missing required properties');
+  }
+  const { mime_type, data } = part.inline_data;
+  // Combine data and mimeType into a data URL
+  const dataUrl = `data:${mime_type};base64,${data}`;
+  return {
+    media: {
+      url: dataUrl,
+      contentType: mime_type,
+    },
+  };
+}
+
+function fromGeminiFileDataPart(part: VertexPart): MediaPart {
+  if (
+    !part.file_data ||
+    !part.file_data.hasOwnProperty('mime_type') ||
+    !part.file_data.hasOwnProperty('url')
+  ) {
+    throw new Error(
+      'Invalid Gemini File Data Part: missing required properties'
+    );
+  }
+
+  return {
+    media: {
+      url: part.file_data?.file_uri,
+      contentType: part.file_data?.mime_type,
+    },
+  };
+}
+
+function fromGeminiFunctionCallPart(part: VertexPart): Part {
+  if (!part.functionCall) {
+    throw new Error(
+      'Invalid Gemini Function Call Part: missing function call data'
+    );
+  }
+  return { toolRequest: part.functionCall };
+}
+
+function fromGeminiFunctionResponsePart(part: VertexPart): Part {
+  if (!part.functionResponse) {
+    throw new Error(
+      'Invalid Gemini Function Call Part: missing function call data'
+    );
+  }
+  return {
+    toolResponse: {
+      name: part.functionResponse.name,
+      output: part.functionResponse.response,
+    },
+  };
+}
+
 // Converts vertex part to genkit part
 function fromGeminiPart(part: VertexPart): Part {
-  if (part.text) return { text: part.text };
-  if (part.functionCall) return { toolRequest: part.functionCall };
-  if (part.functionResponse)
-    return {
-      toolResponse: {
-        name: part.functionResponse.name,
-        output: part.functionResponse.response,
-      },
-    };
-  throw new Error('Only support text for the moment.');
+  if (part.text !== undefined) return { text: part.text };
+  if (part.functionCall) return fromGeminiFunctionCallPart(part);
+  if (part.functionResponse) return fromGeminiFunctionResponsePart(part);
+  if (part.inline_data) return fromGeminiInlineDataPart(part);
+  if (part.file_data) return fromGeminiFileDataPart(part);
+  throw new Error(
+    'Part type is unsupported/corrupted. Either data is missing or type cannot be inferred from type.'
+  );
 }
 
 function fromGeminiCandidate(
   candidate: GenerateContentCandidate
 ): CandidateData {
+  const parts = candidate.content.parts || [];
   return {
     index: candidate.index || 0, // reasonable default?
     message: {
       role: 'model',
-      content: candidate.content.parts.map(fromGeminiPart),
+      content: parts.map(fromGeminiPart),
     },
     finishReason: fromGeminiFinishReason(candidate.finishReason),
     finishMessage: candidate.finishMessage,

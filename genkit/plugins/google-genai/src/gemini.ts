@@ -110,14 +110,35 @@ function toInlineData(part: MediaPart): GeminiPart {
   return { inlineData: { mimeType: contentType, data: b64Data } };
 }
 
+function fromInlineData(inlinePart: GeminiPart): MediaPart {
+  // Check if the required properties exist
+  if (
+    !inlinePart.inlineData ||
+    !inlinePart.inlineData.hasOwnProperty('mimeType') ||
+    !inlinePart.inlineData.hasOwnProperty('data')
+  ) {
+    throw new Error('Invalid GeminiPart: missing required properties');
+  }
+  const { mimeType, data } = inlinePart.inlineData;
+  // Combine data and mimeType into a data URL
+  const dataUrl = `data:${mimeType};base64,${data}`;
+  return {
+    media: {
+      url: dataUrl,
+      contentType: mimeType,
+    },
+  };
+}
+
 function toGeminiPart(part: Part): GeminiPart {
-  if (part.text) return { text: part.text };
+  if (part.text !== undefined) return { text: part.text };
   if (part.media) return toInlineData(part);
   throw new Error('Only text and media parts are supported currently.');
 }
 
 function fromGeminiPart(part: GeminiPart): Part {
-  if (part.text) return { text: part.text };
+  if (part.text !== undefined) return { text: part.text };
+  if (part.inlineData) return fromInlineData(part);
   throw new Error('Only support text for the moment.');
 }
 
