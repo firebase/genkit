@@ -9,7 +9,7 @@ import { vertexAI, textembeddingGecko } from '@google-genkit/plugin-vertex-ai';
 
 // providers - will be moved to plugins eventually
 import { chroma } from '@google-genkit/providers/chroma';
-import { firebase } from '@google-genkit/providers/firebase';
+import { firebase } from '@google-genkit/plugin-firebase';
 import { naiveFilestore } from '@google-genkit/providers/naive-filestore';
 import { ollama } from '@google-genkit/providers/ollama';
 import { pinecone } from '@google-genkit/providers/pinecone';

@@ -1,25 +1,26 @@
 import {
-  Operation,
+  OperationSchema,
   StreamingCallback,
   getLocation,
 } from '@google-genkit/common';
-import { OperationSchema } from '@google-genkit/common';
-import { StepsFunction } from '@google-genkit/flow';
 import {
-  flow,
   Flow,
   FlowInvokeEnvelopeMessage,
-  FlowInvokeEnvelopeMessageSchema,
   FlowWrapper,
+  StepsFunction,
+  flow,
 } from '@google-genkit/flow';
-import { Response } from 'express';
 import { getFunctions } from 'firebase-admin/functions';
 import { logger } from 'firebase-functions/v2';
-import { HttpsFunction, Request } from 'firebase-functions/v2/https';
 import {
-  onTaskDispatched,
+  HttpsFunction,
+  HttpsOptions,
+  onRequest,
+} from 'firebase-functions/v2/https';
+import {
   TaskQueueFunction,
   TaskQueueOptions,
+  onTaskDispatched,
 } from 'firebase-functions/v2/tasks';
 import { GoogleAuth } from 'google-auth-library';
 import * as z from 'zod';
@@ -39,13 +40,25 @@ interface FunctionFlowConfig<
   input: I;
   output: O;
   streamType?: S;
-  options?: TaskQueueOptions;
+  httpsOptions?: HttpsOptions;
+}
+
+interface ScheduledFlowConfig<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+> {
+  name: string;
+  input: I;
+  output: O;
+  streamType?: S;
+  experimentalTaskQueueOptions?: TaskQueueOptions;
 }
 
 const streamDelimiter = '\n';
 
 /**
- *
+ * Creates a flow backed by Cloud Functions for Firebase gen2 HTTPS function.
  */
 export function onFlow<
   I extends z.ZodTypeAny,
@@ -58,48 +71,96 @@ export function onFlow<
   const f = flow(
     {
       ...config,
-      dispatcher: {
-        async deliver(flow, data, streamingCallback) {
-          // TODO: unhardcode the location!
-          const responseJson = await callHttpsFunction(
-            flow.name,
-            getLocation() || 'us-central1',
-            data,
-            streamingCallback
-          );
-          return OperationSchema.parse(JSON.parse(responseJson));
-        },
-        async schedule(flow, msg, delaySeconds) {
-          await enqueueCloudTask(flow.name, msg, delaySeconds);
-        },
+      invoker: async (flow, data, streamingCallback) => {
+        const responseJson = await callHttpsFunction(
+          flow.name,
+          getLocation() || 'us-central1',
+          data,
+          streamingCallback
+        );
+        return OperationSchema.parse(JSON.parse(responseJson));
       },
     },
     steps
   );
 
-  const tq = tqWrapper(f, config);
+  const wrapped = wrapHttpsFlow(f, config);
 
-  const funcFlow = tq as FunctionFlow<I, O, S>;
+  const funcFlow = wrapped as FunctionFlow<I, O, S>;
   funcFlow.flow = f;
 
   return funcFlow;
 }
 
-function tqWrapper<
+/**
+ * Creates a scheduled flow backed by Cloud Functions for Firebase gen2 Cloud Task triggered function.
+ * This feature is EXPERIMENTAL -- APIs will change or may get removed completely.
+ * For testing and feedback only.
+ */
+export function onScheduledFlow<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+>(
+  config: ScheduledFlowConfig<I, O, S>,
+  steps: StepsFunction<I, O, S>
+): FunctionFlow<I, O, S> {
+  const f = flow(
+    {
+      ...config,
+      invoker: async (flow, data, streamingCallback) => {
+        const responseJson = await callHttpsFunction(
+          flow.name,
+          getLocation() || 'us-central1',
+          data,
+          streamingCallback
+        );
+        return OperationSchema.parse(JSON.parse(responseJson));
+      },
+      experimentalDurable: true,
+      experimentalScheduler: async (flow, msg, delaySeconds) => {
+        await enqueueCloudTask(flow.name, msg, delaySeconds);
+      },
+    },
+    steps
+  );
+
+  const wrapped = wrapScheduledFlow(f, config);
+
+  const funcFlow = wrapped as FunctionFlow<I, O, S>;
+  funcFlow.flow = f;
+
+  return funcFlow;
+}
+
+function wrapHttpsFlow<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
   S extends z.ZodTypeAny
 >(flow: Flow<I, O, S>, config: FunctionFlowConfig<I, O, S>): HttpsFunction {
+  return onRequest(
+    {
+      ...config.httpsOptions,
+      memory: config.httpsOptions?.memory || '512MiB',
+    },
+    flow.expressHandler
+  );
+}
+
+function wrapScheduledFlow<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+>(flow: Flow<I, O, S>, config: ScheduledFlowConfig<I, O, S>): HttpsFunction {
   const tq = onTaskDispatched<FlowInvokeEnvelopeMessage>(
     {
-      ...config.options,
-      memory: config.options?.memory || '512MiB',
-      retryConfig: config.options?.retryConfig || {
+      ...config.experimentalTaskQueueOptions,
+      memory: config.experimentalTaskQueueOptions?.memory || '512MiB',
+      retryConfig: config.experimentalTaskQueueOptions?.retryConfig || {
         maxAttempts: 2,
         minBackoffSeconds: 10,
       },
     },
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
     () => {} // never called, everything handled in createControlAPI.
   );
   return createControlAPI(flow, tq);
@@ -109,57 +170,7 @@ function createControlAPI(
   flow: Flow<any, any, any>,
   tq: TaskQueueFunction<FlowInvokeEnvelopeMessage>
 ) {
-  const interceptor = async (req: Request, res: Response) => {
-    const { stream } = req.query;
-    let data = req.body;
-    // Task queue will wrap body in a "data" object, unwrap it.
-    if (req.body.data) {
-      data = req.body.data;
-    }
-    const envMsg = FlowInvokeEnvelopeMessageSchema.parse(data);
-    if (stream === 'true') {
-      res.writeHead(200, {
-        'Content-Type': 'text/plain',
-        'Transfer-Encoding': 'chunked',
-      });
-      try {
-        const state = await flow.runEnvelope(envMsg, (c) => {
-          res.write(JSON.stringify(c) + streamDelimiter);
-        });
-        res.write(JSON.stringify(state.operation));
-        res.end();
-      } catch (e) {
-        logger.error(e);
-        res.write(
-          JSON.stringify({
-            done: true,
-            result: {
-              error: getErrorMessage(e),
-              stacktrace: getErrorStack(e),
-            },
-          } as Operation)
-        );
-        res.end();
-      }
-    } else {
-      try {
-        const state = await flow.runEnvelope(envMsg);
-        res.status(200).send(state.operation).end();
-      } catch (e) {
-        logger.error(e);
-        res
-          .status(500)
-          .send({
-            done: true,
-            result: {
-              error: getErrorMessage(e),
-              stacktrace: getErrorStack(e),
-            },
-          } as Operation)
-          .end();
-      }
-    }
-  };
+  const interceptor = flow.expressHandler as any;
   interceptor.__endpoint = tq.__endpoint;
   if (tq.hasOwnProperty('__requiredAPIs')) {
     interceptor.__requiredAPIs = tq['__requiredAPIs'];

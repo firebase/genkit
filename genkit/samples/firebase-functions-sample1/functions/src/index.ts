@@ -1,15 +1,18 @@
 import { generate } from '@google-genkit/ai/generate';
-import { getProjectId } from '@google-genkit/common';
+import { getLocation, getProjectId } from '@google-genkit/common';
 import { configureGenkit } from '@google-genkit/common/config';
 import { run, runFlow, streamFlow } from '@google-genkit/flow';
-import { firebase } from '@google-genkit/providers/firebase';
-import { onFlow } from '@google-genkit/providers/firebase-functions';
-import { geminiPro, googleAI } from '@google-genkit/providers/google-ai';
+import { firebase } from '@google-genkit/plugin-firebase';
+import { onFlow } from '@google-genkit/plugin-firebase/functions';
+import { geminiPro, vertexAI } from '@google-genkit/plugin-vertex-ai';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as z from 'zod';
 
 configureGenkit({
-  plugins: [firebase({ projectId: getProjectId() }), googleAI()],
+  plugins: [
+    firebase({ projectId: getProjectId() }),
+    vertexAI({ location: getLocation(), projectId: getProjectId() }),
+  ],
   flowStateStore: 'firebase',
   traceStore: 'firebase',
   enableTracingAndMetrics: true,
@@ -17,7 +20,12 @@ configureGenkit({
 });
 
 export const jokeFlow = onFlow(
-  { name: 'jokeFlow', input: z.string(), output: z.string() },
+  {
+    name: 'jokeFlow',
+    input: z.string(),
+    output: z.string(),
+    httpsOptions: { invoker: 'private' },
+  },
   async (subject) => {
     const prompt = `Tell me a joke about ${subject}`;
 

@@ -179,7 +179,7 @@ export class Context<
     stepName: string,
     seconds: number
   ): Promise<O> {
-    await this.flow.dispatcher.schedule(
+    await this.flow.scheduler(
       this.flow,
       {
         resume: {
@@ -222,7 +222,7 @@ export class Context<
       this.updateCachedValue(resolvedStepName, states);
       return ops;
     }
-    await this.flow.dispatcher.schedule(
+    await this.flow.scheduler(
       this.flow,
       {
         runScheduled: {

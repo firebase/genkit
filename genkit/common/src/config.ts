@@ -265,6 +265,11 @@ export function getCurrentEnv(): string {
   return process.env.GENKIT_ENV || 'prod';
 }
 
+/** Whether current env is `dev`. */
+export function isDevEnv(): boolean {
+  return getCurrentEnv() === 'dev';
+}
+
 /**
  * Locates `genkit.conf.js` and returns the path.
  */

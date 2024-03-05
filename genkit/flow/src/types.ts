@@ -3,22 +3,25 @@ import { Flow } from './flow.js';
 import { Operation } from '@google-genkit/common';
 import { StreamingCallback } from '@google-genkit/common';
 
-export interface Dispatcher<
+export type Invoker<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
   S extends z.ZodTypeAny
-> {
-  deliver(
-    flow: Flow<I, O, S>,
-    msg: FlowInvokeEnvelopeMessage,
-    streamingCallback?: StreamingCallback<any>
-  ): Promise<Operation>;
-  schedule(
-    flow: Flow<I, O, S>,
-    msg: FlowInvokeEnvelopeMessage,
-    delaySeconds?: number
-  ): Promise<void>;
-}
+> = (
+  flow: Flow<I, O, S>,
+  msg: FlowInvokeEnvelopeMessage,
+  streamingCallback?: StreamingCallback<any>
+) => Promise<Operation>;
+
+export type Scheduler<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+> = (
+  flow: Flow<I, O, S>,
+  msg: FlowInvokeEnvelopeMessage,
+  delaySeconds?: number
+) => Promise<void>;
 
 /**
  * The message format used by the flow task queue and control interface.

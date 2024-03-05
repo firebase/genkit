@@ -33,16 +33,6 @@
   },
   "types": "lib/index.d.ts",
   "exports": {
-    "./firebase": {
-      "types": "./lib/firebase.d.ts",
-      "require": "./lib/firebase.js",
-      "import": "./lib/firebase.mjs"
-    },
-    "./firebase-functions": {
-      "types": "./lib/firebase-functions.d.ts",
-      "require": "./lib/firebase-functions.js",
-      "import": "./lib/firebase-functions.mjs"
-    },
     "./google-ai": {
       "types": "./lib/google-ai.d.ts",
       "require": "./lib/google-ai.js",
@@ -81,12 +71,6 @@
   },
   "typesVersions": {
     "*": {
-      "firebase": [
-        "lib/firebase"
-      ],
-      "firebase-functions": [
-        "lib/firebase-functions"
-      ],
       "google-ai": [
         "lib/google-ai"
       ],
