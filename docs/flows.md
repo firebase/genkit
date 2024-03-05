@@ -1,5 +1,8 @@
 # Flows
 
+Flows are strongly typed, streamable, locally and remotely callable, fully observable functions.
+Genkit provides CL and Dev UI tooling for working with flows (running, debugging, etc).
+
 ## Defining flows
 
 ```javascript
@@ -8,18 +11,155 @@ import { flow } from "flow"
 
 export const myFlow = flow({ name: 'myFlow', input: z.string(), output: z.string()},
   async (input) => {
-    const output = // steps
+    const output = doSomethingCool(input);
 
     return output;
   }
 )
 ```
 
-Input and output schemas for flows and actions (see below) are defined using zod.
+Input and output schemas for flows are defined using zod.
+
+## Running flows
+
+There are a couple main ways to run flows:
+
+
+### Direct invocation
+
+```javascript
+const operation = await runFlow(jokeFlow, 'banana');
+```
+
+this will invoke the flow and block until the flow finished execution or is interrupted. For flows without interrupting behaviour it's guaranteed that the returned operation will contain either the result or error.
+
+You can use the CLI to run flows as well:
+
+```
+npx genkit flow:run jokeFlow '"banana"'
+```
+
+### Streamed
+
+Similar to "direct invocation" you can also stream the flow response, if the flow streams any values.
+
+```javascript
+const response = streamFlow(streamer, 5);
+
+for await (const chunk of response.stream()) {
+  console.log('chunk', chunk);
+}
+
+console.log('streamConsumer done', await response.operation());
+```
+
+You can use the CLI to stream flows as well:
+
+```
+npx genkit flow:run jokeFlow '"banana"' -s
+```
+
+here's a simple example of flow that can stream values:
+
+```javascript
+export const streamer = flow(
+  {
+    name: 'streamer',
+    input: z.number(),
+    output: z.string(),
+    streamType: z.object({ count: z.number() }),
+  },
+  async (count, streamingCallback) => {
+    var i = 0;
+    if (streamingCallback) {
+      for (; i < count; i++) {
+        await new Promise((r) => setTimeout(r, 1000));
+        streamingCallback({ count: i });
+      }
+    }
+    return `done: ${count}, streamed: ${i} times`;
+  }
+);
+```
+
+Note that `streamingCallback` can be `undefined`. It's only available only if the invoking client is doing streaming invocation.
+
+
+## Deploying flows
+
+When you define a flow using the `flow` function you get a flow that can only run locally (in the same node instance as your code). It's suitable for many cases, but if you want to be able to access your flow over HTTP you will need to deploy it first. Genkit provides integrations for Cloud Functions for Firebase and Cloud Run.
+
+To use flows with Cloud Functions for Firebase simply use the firebase plugin and replace `flow` with `onFlow`.
+
+```javascript
+import { onFlow } from '@google-genkit/providers/firebase-functions';
+
+export const jokeFlow = onFlow(
+  { name: 'jokeFlow', input: z.string(), output: z.string() },
+  async (subject, streamingCallback) => {
+    // ....
+  }
+);
+```
+
+Deployed flows support all the same features (like streaming and observability).
+
+Cloud Run is WIP, stay tuned.
+
+# EXPERIMENTAL: Schedulable flows
+
+IMPORTANT: this feature is experimental, subject to change and removal.
+
+Schedulable flows (a.k.a. durable flows, persisted flows) are an advanced feature of flow which allows interrupting and resuming flow execution, as well as scheduling executions.
+Schedulable flows do not support streaming, because they are specifically designed for long-running background operations.
+
+
+```javascript
+import { onFlow } from '@google-genkit/providers/firebase-functions';
+
+export const jokeFlow = onScheduledFlow(
+  { name: 'jokeFlow', input: z.string(), output: z.string() },
+  async (subject) => {
+    // ....
+  }
+);
+```
+
+
+To enable that behaviour flow states are persisted in the flow state store which can be implemented by pluging.
+
+You can use the configuration to specify which persistence implementation to use when running on non-dev environment. 
+
+```javascript
+configureGenkit({
+  plugins: [
+    firebase({ projectId: getProjectId() }),
+  ],
+  flowStateStore: 'firebase',
+  //...
+});
+```
+
+### Scheduled invocation
+
+```
+const operation = await scheduleFlow(jokeFlow, 'banana');
+```
+
+this will schedule the flow to be executed at a later time. In this case the later time is almost immediately, but it still guaranteed to be invoked asynchronously via the scheduler.
+
+It is guaranteed that the returned operation will not be complete (`done=false`) and you will have to use some kind of polling to wait for the flow to complete.
+
+You can schedule the flow to run with a delay (specified in seconds).
+
+```
+const operation = await scheduleFlow(jokeFlow, 'banana', 10);
+```
+
 
 ## Steps
 
-Steps of a flow are wrapper functions that offer specific functionality but universally all steps have built-in memoization -- results of execution of each step are cached and if this step is executed again memoized value will be returned immediately. Universal memoization is a core/critical feature because each flow instance can be run more than once for the following reasons:
+Steps of a flow are wrapper functions that offer specific functionality but universally all steps have built-in memoization -- results of execution of each step are memoized and if this step is executed again memoized value will be returned immediately. Universal memoization is a core/critical feature because each flow instance can be run more than once for the following reasons:
 * flows are built on top of cloud task queues which offer "deliver at least once" guarantee
 * some features (see below: interrupt, sleep, waitFor or various error retry feature) rely on the ability of the flow to be "interrupted" and then re-run again.
 
@@ -224,91 +364,6 @@ export const myFlow = flow({ name: 'myFlow', input: z.string(), output: z.string
 )
 ```
 
-### Persistence
-
-When running in the Genkit dev environment (`getnkit start` or `genkit flow:run`) all flows and traces are automatically persisted locally on disk.
-
-You can use the configuration to specify which persistence implementation to use when running on non-dev environment. 
-
-```
-configureGenkit({
-  plugins: [
-    firebase({ projectId: getProjectId() }),
-  ],
-  flowStateStore: 'firebase',
-  traceStore: 'firebase',
-  //...
-});
-```
-
-## Running flows
-
-There are three ways to run flows:
-
-
-### Direct invocation
-
-```
-const operation = await runFlow(jokeFlow, 'banana');
-```
-
-this will invoke the flow and block until the flow finished execution or is interrupted. For flows without interrupting behaviour it's guaranteed that the returned operation will contain either the result or error.
-
-### Scheduled invocation
-
-```
-const operation = await scheduleFlow(jokeFlow, 'banana');
-```
-
-this will schedule the flow to be executed at a later time. In this case the later time is almost immediately, but it still guaranteed to be invoked asynchronously via the scheduler.
-
-It is guaranteed that the returned operation will not be complete (`done=false`) and you will have to use some kind of polling to wait for the flow to complete.
-
-You can schedule the flow to run with a delay (specified in seconds).
-
-```
-const operation = await scheduleFlow(jokeFlow, 'banana', 10);
-```
-
-### Streamed
-
-Similar to "direct invocation" you can also stream the flow response, if the flow streams any values.
-
-```
-const response = streamFlow(streamer, 5);
-
-for await (const chunk of response.stream()) {
-  console.log('chunk', chunk);
-}
-
-console.log('streamConsumer done', await response.operation());
-```
-
-here's a simple example of flow that can stream values:
-
-```
-export const streamer = onFlow(
-  {
-    name: 'streamer',
-    input: z.number(),
-    output: z.string(),
-    streamType: z.object({ count: z.number() }),
-  },
-  async (count, streamingCallback) => {
-    var i = 0;
-    if (streamingCallback) {
-      for (; i < count; i++) {
-        await new Promise((r) => setTimeout(r, 1000));
-        streamingCallback({ count: i });
-      }
-    }
-    return `done: ${count}, streamed: ${i} times`;
-  }
-);
-```
-
-Note that `streamingCallback` can be `undefined`. It's only available only if the invoking client is doing streaming invocation.
-
 ## Getting results
 
 `getFlowState` can also be used to retrieve the current state:
@@ -322,25 +377,3 @@ async function main() {
   console.log('state', await getFlowState(jokeFlow, operation.name));
 }
 ```
-
-
-## Deploying flows
-
-When you define a flow using the `flow` function you get a flow that can only run locally (in the same node instance as your code). It's suitable for many cases, however it does not support scheduling very well -- it uses `setTimeout` to schedule flow runs, and it's not very reliable when deployed to production. In production it's best to use Cloud Tasks for reliable scheduling. Genkit provides integrations for Cloud Functions for Firebase and Cloud Run.
-
-To use flows with Cloud Functions for Firebase simply use the firebase plugin and replace `flow` with `onFlow`.
-
-```
-import { onFlow } from '@google-genkit/providers/firebase-functions';
-
-export const jokeFlow = onFlow(
-  { name: 'jokeFlow', input: z.string(), output: z.string() },
-  async (subject, streamingCallback) => {
-    // ....
-  }
-);
-```
-
-Deployed flows support all the same features (like streaming), but offer more reliable scheduling behaviour.
-
-Cloud Run is WIP, stay tuned.
