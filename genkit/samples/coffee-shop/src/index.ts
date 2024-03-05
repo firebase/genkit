@@ -230,50 +230,61 @@ export const complexOrderHistoryFlow = flow(
   }
 );
 
-async function main() {
-  // Call using a basic input
-  const basicCoffeeOperation = await runFlow(basicCoffeeRecommender, 'Sam');
-  console.log('Basic Coffee Recomender', basicCoffeeOperation);
+/* 
+*  Invokes each flow with some static inputs to validate they're all working
+   as expected.  Test with
+*  genkit flow:run testAllFlows
+*/
+export const testAllFlows = flow(
+  {
+    name: 'testAllFlows',
+    input: z.void(),
+    output: z.void(),
+  },
+  async () => {
+    // Test the most simple case
+    const basicCoffeeOperation = await runFlow(basicCoffeeRecommender, 'Sam');
+    console.log('Basic Coffee Recomender', basicCoffeeOperation);
 
-  // Pass structured input
-  const historyCoffeeOperation = await runFlow(historyCoffeeRecommender, {
-    customerName: 'Max',
-    currentTime: '12:30AM',
-    previousOrder: 'Maple Cortado',
-  });
-  console.log('History Coffee recommendation', historyCoffeeOperation);
+    // Test with simple structured input
+    const historyCoffeeOperation = await runFlow(historyCoffeeRecommender, {
+      customerName: 'Max',
+      currentTime: '12:30AM',
+      previousOrder: 'Maple Cortado',
+    });
+    console.log('History Coffee recommendation', historyCoffeeOperation);
 
-  // Use an LLM to judge the response
-  const judgedCoffeeRecomendation = await runFlow(judgeResponseFlow, 'Sam');
-  console.log('Judgement: ', judgedCoffeeRecomendation);
+    // Use an LLM to judge the response
+    const judgedCoffeeRecomendation = await runFlow(judgeResponseFlow, 'Sam');
+    console.log('Judgement: ', judgedCoffeeRecomendation);
 
-  const complexOrderReccomendation = await runFlow(complexOrderHistoryFlow, {
-    customerName: 'sam',
-    currentTime: '2024-02-20T00:00:00Z',
-    previousOrders: [
-      {
-        orderDate: '2024-02-05T00:00:00Z',
-        menuItem: {
-          name: 'Earl Grey tea, hot',
-          id: '13431',
-          price: 4.22,
-          specialOfTheDay: true,
-          description: 'Delcicious Earl Grey tea from England',
+    // Pass in a complex object
+    const complexOrderReccomendation = await runFlow(complexOrderHistoryFlow, {
+      customerName: 'sam',
+      currentTime: '2024-02-20T00:00:00Z',
+      previousOrders: [
+        {
+          orderDate: '2024-02-05T00:00:00Z',
+          menuItem: {
+            name: 'Earl Grey tea, hot',
+            id: '13431',
+            price: 4.22,
+            specialOfTheDay: true,
+            description: 'Delcicious Earl Grey tea from England',
+          },
         },
-      },
-    ],
-    currentMenuItems: [
-      {
-        name: 'Americano',
-        id: '214',
-        price: 3.5,
-        specialOfTheDay: true,
-        description: 'A rich dark pull from our new Aeropress',
-      },
-    ],
-    customerId: undefined,
-  });
-  console.log('Complex order history response', complexOrderReccomendation);
-}
-
-main().catch(console.error);
+      ],
+      currentMenuItems: [
+        {
+          name: 'Americano',
+          id: '214',
+          price: 3.5,
+          specialOfTheDay: true,
+          description: 'A rich dark pull from our new Aeropress',
+        },
+      ],
+      customerId: undefined,
+    });
+    console.log('Complex order history response', complexOrderReccomendation);
+  }
+);
