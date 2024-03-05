@@ -4,16 +4,16 @@ import { TextDocument, index, retrieve } from '@google-genkit/ai/retrievers';
 import { flow, run } from '@google-genkit/flow';
 import { geminiPro } from '@google-genkit/plugin-vertex-ai';
 import {
-  naiveFilestoreIndexerRef,
-  naiveFilestoreRetrieverRef,
-} from '@google-genkit/providers/naive-filestore';
+  devLocalRetrieverRef,
+  devLocalIndexerRef,
+} from '@google-genkit/plugin-dev-local-vectorstore';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import * as z from 'zod';
 
-export const pdfChatRetriever = naiveFilestoreRetrieverRef('pdfQA');
+export const pdfChatRetriever = devLocalRetrieverRef('pdfQA');
 
-export const pdfChatIndexer = naiveFilestoreIndexerRef('pdfQA');
+export const pdfChatIndexer = devLocalIndexerRef('pdfQA');
 
 const ragTemplate = `Use the following pieces of context to answer the question at the end.
  If you don't know the answer, just say that you don't know, don't try to make up an answer.

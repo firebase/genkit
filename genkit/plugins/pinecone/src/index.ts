@@ -102,6 +102,8 @@ export function pinecone<EmbedderCustomOptions extends z.ZodTypeAny>(
   return plugin(params);
 }
 
+export default pinecone;
+
 /**
  * Configures a Pinecone retriever.
  */

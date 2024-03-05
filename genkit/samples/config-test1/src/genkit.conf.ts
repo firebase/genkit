@@ -3,7 +3,7 @@ import { configureGenkit } from '@google-genkit/common/config';
 import { openAI } from '@google-genkit/plugin-openai';
 import { googleAI } from '@google-genkit/providers/google-ai';
 import { firebase } from '@google-genkit/plugin-firebase';
-import { chroma } from '@google-genkit/providers/chroma';
+import { chroma } from '@google-genkit/plugin-chroma';
 import {
   googleVertexAI,
   textEmbeddingGecko001,
