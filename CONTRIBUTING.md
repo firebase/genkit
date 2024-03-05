@@ -37,14 +37,14 @@ In the `genkit/samples` folder you will find some samples. They might contain in
 Here's one that requires no setup:
 
 ```
-cd genkit/samples/flows-sample1
+cd genkit/samples/flow-sample1
 genkit flow:run basic "\"hello\""
 ```
 
 Run the DevUI
 
 ```
-cd genkit/samples/flows-sample1
+cd genkit/samples/flow-sample1
 genkit start
 ```
 
