@@ -6,13 +6,11 @@ import {
   FlowState,
   FlowStateSchema,
   FlowStateStore,
+  getStreamingCallback,
   Operation,
   StreamingCallback,
 } from '@google-genkit/common';
-import {
-  getCurrentEnv,
-  config as globalConfig,
-} from '@google-genkit/common/config';
+import { config as globalConfig, isDevEnv } from '@google-genkit/common/config';
 import logging from '@google-genkit/common/logging';
 import * as registry from '@google-genkit/common/registry';
 import {
@@ -21,6 +19,9 @@ import {
   setCustomMetadataAttributes,
   SPAN_TYPE_ATTR,
 } from '@google-genkit/common/tracing';
+import * as bodyParser from 'body-parser';
+import { default as cors, CorsOptions } from 'cors';
+import express from 'express';
 import * as z from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { Context } from './context.js';
@@ -33,20 +34,17 @@ import {
   InterruptError,
 } from './errors.js';
 import {
-  Dispatcher,
   FlowInvokeEnvelopeMessage,
   FlowInvokeEnvelopeMessageSchema,
+  Invoker,
   RetryConfig,
+  Scheduler,
 } from './types.js';
 import {
   generateFlowId,
   metadataPrefix,
   runWithActiveContext,
 } from './utils.js';
-import express from 'express';
-import * as bodyParser from 'body-parser';
-import { default as cors, CorsOptions } from 'cors';
-import { getStreamingCallback } from '@google-genkit/common';
 
 const streamDelimiter = '\n';
 const createdFlows = [] as Flow<any, any, any>[];
@@ -72,8 +70,9 @@ export function flow<
     input: I;
     output: O;
     streamType?: S;
-    durable?: boolean;
-    dispatcher?: Dispatcher<I, O, S>;
+    invoker?: Invoker<I, O, S>;
+    experimentalDurable?: boolean;
+    experimentalScheduler?: Scheduler<I, O, S>;
   },
   steps: StepsFunction<I, O, S>
 ): Flow<I, O, S> {
@@ -82,23 +81,26 @@ export function flow<
       name: config.name,
       input: config.input,
       output: config.output,
-      durable: !!config.durable,
+      experimentalDurable: !!config.experimentalDurable,
       stateStore: globalConfig.getFlowStateStore(),
       // We always use local dispatcher in dev mode or when one is not provided.
-      dispatcher: (getCurrentEnv() !== 'dev' && config.dispatcher) || {
-        async deliver(flow, msg, streamingCallback) {
-          const state = await flow.runEnvelope(msg, streamingCallback);
-          return state.operation;
-        },
-        async schedule(flow, msg, delay = 0) {
-          if (!config.durable) {
-            throw new Error(
-              'This flow is not durable, cannot use scheduling features. ' +
-                'Set durable to true and follow task queue setup instructions.'
-            );
-          }
-          setTimeout(() => flow.runEnvelope(msg), delay * 1000);
-        },
+      invoker: async (flow, msg, streamingCallback) => {
+        if (!isDevEnv() && config.invoker) {
+          return config.invoker(flow, msg, streamingCallback);
+        }
+        const state = await flow.runEnvelope(msg, streamingCallback);
+        return state.operation;
+      },
+      scheduler: async (flow, msg, delay = 0) => {
+        if (!config.experimentalDurable) {
+          throw new Error(
+            'This flow is not durable, cannot use scheduling features.'
+          );
+        }
+        if (!isDevEnv() && config.experimentalScheduler) {
+          return config.experimentalScheduler(flow, msg, delay);
+        }
+        setTimeout(() => flow.runEnvelope(msg), delay * 1000);
       },
     },
     steps
@@ -125,8 +127,9 @@ export class Flow<
   readonly input: I;
   readonly output: O;
   readonly stateStore: Promise<FlowStateStore>;
-  readonly dispatcher: Dispatcher<I, O, S>;
-  readonly durable: boolean;
+  readonly invoker: Invoker<I, O, S>;
+  readonly scheduler: Scheduler<I, O, S>;
+  readonly experimentalDurable: boolean;
 
   constructor(
     config: {
@@ -134,8 +137,9 @@ export class Flow<
       input: I;
       output: O;
       stateStore: Promise<FlowStateStore>;
-      dispatcher: Dispatcher<I, O, S>;
-      durable: boolean;
+      invoker: Invoker<I, O, S>;
+      scheduler: Scheduler<I, O, S>;
+      experimentalDurable: boolean;
     },
     private steps: StepsFunction<I, O, S>
   ) {
@@ -143,8 +147,9 @@ export class Flow<
     this.input = config.input;
     this.output = config.output;
     this.stateStore = config.stateStore;
-    this.dispatcher = config.dispatcher;
-    this.durable = config.durable;
+    this.invoker = config.invoker;
+    this.scheduler = config.scheduler;
+    this.experimentalDurable = config.experimentalDurable;
   }
 
   /**
@@ -169,17 +174,22 @@ export class Flow<
           req.start.labels
         );
       } finally {
-        await (await this.stateStore).save(flowId, state);
+        if (isDevEnv() || this.experimentalDurable) {
+          await ctx.saveState();
+        }
       }
       return state;
     }
     if (req.schedule) {
+      if (!this.experimentalDurable) {
+        throw new Error('Cannot schedule a non-durable flow');
+      }
       // First time, create new state.
       const flowId = generateFlowId();
       const state = createNewState(flowId, this.name, req.schedule.input);
       try {
         await (await this.stateStore).save(flowId, state);
-        await this.dispatcher.schedule(
+        await this.scheduler(
           this,
           { runScheduled: { flowId } } as FlowInvokeEnvelopeMessage,
           req.schedule.delay
@@ -195,6 +205,9 @@ export class Flow<
       return state;
     }
     if (req.state) {
+      if (!this.experimentalDurable) {
+        throw new Error('Cannot state check a non-durable flow');
+      }
       const flowId = req.state.flowId;
       const state = await (await this.stateStore).load(flowId);
       if (state === undefined) {
@@ -203,6 +216,9 @@ export class Flow<
       return state;
     }
     if (req.runScheduled) {
+      if (!this.experimentalDurable) {
+        throw new Error('Cannot run scheduled non-durable flow');
+      }
       const flowId = req.runScheduled.flowId;
       const state = await (await this.stateStore).load(flowId);
       if (state === undefined) {
@@ -223,6 +239,9 @@ export class Flow<
       return state;
     }
     if (req.resume) {
+      if (!this.experimentalDurable) {
+        throw new Error('Cannot resume a non-durable flow');
+      }
       const flowId = req.resume.flowId;
       const state = await (await this.stateStore).load(flowId);
       if (state === undefined) {
@@ -415,7 +434,7 @@ export async function runFlow<
   if (!(flow instanceof Flow)) {
     flow = flow.flow;
   }
-  const state = await flow.dispatcher.deliver(flow, {
+  const state = await flow.invoker(flow, {
     start: {
       input: payload ? flow.input.parse(payload) : undefined,
     },
@@ -452,7 +471,7 @@ export function streamFlow<
     cancel() {},
   });
 
-  const operationPromise = flow.dispatcher.deliver(
+  const operationPromise = flow.invoker(
     flow,
     {
       start: {
@@ -503,7 +522,7 @@ export async function scheduleFlow<
   if (!(flow instanceof Flow)) {
     flow = flow.flow;
   }
-  const state = await flow.dispatcher.deliver(flow, {
+  const state = await flow.invoker(flow, {
     schedule: {
       input: flow.input.parse(payload),
       delay: delaySeconds,
@@ -527,7 +546,7 @@ export async function resumeFlow<
   if (!(flow instanceof Flow)) {
     flow = flow.flow;
   }
-  return await flow.dispatcher.deliver(flow, {
+  return await flow.invoker(flow, {
     resume: {
       flowId,
       payload,

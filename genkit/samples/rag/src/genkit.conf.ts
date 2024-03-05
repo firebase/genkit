@@ -1,7 +1,7 @@
 import { getProjectId } from '@google-genkit/common';
 import { configureGenkit } from '@google-genkit/common/config';
 import { googleAI } from '@google-genkit/providers/google-ai';
-import { firebase } from '@google-genkit/providers/firebase';
+import { firebase } from '@google-genkit/plugin-firebase';
 import { pinecone } from '@google-genkit/providers/pinecone';
 import { geminiPro, vertexAI } from '@google-genkit/plugin-vertex-ai';
 import { chroma } from '@google-genkit/providers/chroma';

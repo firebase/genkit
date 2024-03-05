@@ -2,7 +2,7 @@ import { getProjectId, getLocation } from '@google-genkit/common';
 import { configureGenkit } from '@google-genkit/common/config';
 import { vertexAI, geminiPro } from '@google-genkit/plugin-vertex-ai';
 import { ragas, RagasMetric } from '@google-genkit/plugin-ragas';
-import { firebase } from '@google-genkit/providers/firebase';
+import { firebase } from '@google-genkit/plugin-firebase';
 import {
   googleVertexAI,
   textEmbeddingGecko001,

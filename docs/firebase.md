@@ -98,8 +98,8 @@
      import { getProjectId } from '@google-genkit/common';
      import { configureGenkit } from '@google-genkit/common/config';
      import { run, runFlow } from '@google-genkit/flow';
-     import { firebase } from '@google-genkit/providers/firebase';
-     import { onFlow } from '@google-genkit/providers/firebase-functions';
+     import { firebase } from '@google-genkit/plugin-firebase';
+     import { onFlow } from '@google-genkit/plugin-firebase/functions';
      import { geminiPro, googleAI } from '@google-genkit/providers/google-ai';
      import { onRequest } from 'firebase-functions/v2/https';
      import * as z from 'zod';

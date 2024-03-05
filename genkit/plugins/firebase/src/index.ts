@@ -1,6 +1,6 @@
 import { genkitPlugin, Plugin } from '@google-genkit/common/config';
 import { FirestoreStateStore } from '@google-genkit/flow';
-import { FirestoreTraceStore } from '../../common/lib/tracing.js';
+import { FirestoreTraceStore } from '@google-genkit/common/tracing';
 
 interface FirestorePluginParams {
   projectId?: string;
