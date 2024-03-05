@@ -1,6 +1,7 @@
 import { FlowStateStore } from './flowTypes.js';
 import { TraceStore } from './tracing.js';
 import { Action } from './types.js';
+import { TelemetryConfig } from './telemetryTypes.js';
 import { z } from 'zod';
 
 export interface Provider<T> {
@@ -21,6 +22,7 @@ export interface InitializedPlugin {
   evaluators?: Action<z.ZodTypeAny, z.ZodTypeAny>[];
   flowStateStore?: Provider<FlowStateStore>;
   traceStore?: Provider<TraceStore>;
+  telemetry?: Provider<TelemetryConfig>;
 }
 
 type PluginInit = (...args: any[]) => Promise<InitializedPlugin>;

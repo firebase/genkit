@@ -5,8 +5,11 @@ import { LocalFileFlowStateStore } from './localFileFlowStateStore.js';
 import logging, { setLogLevel } from './logging.js';
 import { PluginProvider } from './plugin.js';
 import * as registry from './registry.js';
+import { AsyncProvider } from './registry.js';
 import { TraceStore, enableTracingAndMetrics } from './tracing.js';
 import { LocalFileTraceStore } from './tracing/localFileTraceStore.js';
+import { TelemetryConfig, TelemetryOptions } from './telemetryTypes.js';
+import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 
 export * from './plugin.js';
 
@@ -18,6 +21,7 @@ export interface ConfigOptions {
   enableTracingAndMetrics?: boolean;
   logLevel?: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
   promptDir?: string;
+  telemetry?: TelemetryOptions;
 }
 
 class Config {
@@ -25,9 +29,17 @@ class Config {
   readonly options: ConfigOptions;
   readonly configuredEnvs = new Set<string>(['dev']);
 
+  private telemetryConfig: AsyncProvider<TelemetryConfig>;
+
   constructor(options: ConfigOptions) {
     this.options = options;
     this.configure();
+    this.telemetryConfig = async () =>
+      <TelemetryConfig>{
+        getConfig() {
+          return {} as Partial<NodeSDKConfiguration>;
+        },
+      };
   }
 
   /**
@@ -66,6 +78,14 @@ class Config {
       throw new Error('No trace store is configured.');
     }
     return traceStore;
+  }
+
+  /**
+   * Returns the configuration for exporting Telemetry data for the current
+   * environment.
+   */
+  public getTelemetryConfig(): Promise<TelemetryConfig> {
+    return this.telemetryConfig();
   }
 
   /**
@@ -149,6 +169,14 @@ class Config {
       );
     }
 
+    logging.debug('Registering telemetry exporters...');
+    if (this.options.telemetry) {
+      const telemetryPluginName = this.options.telemetry.instrumentation;
+      logging.debug(`  - all environments: ${telemetryPluginName}`);
+      this.telemetryConfig = async () =>
+        this.resolveTelemetryConfig(telemetryPluginName);
+    }
+
     if (this.options.logLevel) {
       setLogLevel(this.options.logLevel);
     }
@@ -177,6 +205,21 @@ class Config {
     if (!provider) {
       throw new Error(
         'Unable to resolve provided `traceStore` for plugin: ' + pluginName
+      );
+    }
+    return provider.value;
+  }
+
+  /**
+   * Resolves the telemetry configuration provided by the specified plugin.
+   */
+  private async resolveTelemetryConfig(pluginName: string) {
+    const plugin = await registry.initializePlugin(pluginName);
+    const provider = plugin?.telemetry;
+
+    if (!provider) {
+      throw new Error(
+        'Unable to resolve provider `telemetry` for plugin: ' + pluginName
       );
     }
     return provider.value;

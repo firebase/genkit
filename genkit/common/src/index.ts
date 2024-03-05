@@ -2,6 +2,7 @@ export * from './types.js';
 export * from './flowTypes.js';
 export * from './metrics.js';
 export * from './runtime.js';
+export * from './telemetryTypes.js';
 
 // TODO: Move to utils.
 /**

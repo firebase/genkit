@@ -5,7 +5,7 @@ import { startReflectionApi } from './reflectionApi.js';
 import { TraceStore } from './tracing/types.js';
 import { Action } from './types.js';
 
-type AsyncProvider<T> = () => Promise<T>;
+export type AsyncProvider<T> = () => Promise<T>;
 
 const __actionsById: Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>> = {};
 const __traceStoresByEnv: Record<string, AsyncProvider<TraceStore>> = {};
