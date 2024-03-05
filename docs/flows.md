@@ -142,7 +142,7 @@ configureGenkit({
 
 ### Scheduled invocation
 
-```
+```javascript
 const operation = await scheduleFlow(jokeFlow, 'banana');
 ```
 
@@ -152,7 +152,7 @@ It is guaranteed that the returned operation will not be complete (`done=false`)
 
 You can schedule the flow to run with a delay (specified in seconds).
 
-```
+```javascript
 const operation = await scheduleFlow(jokeFlow, 'banana', 10);
 ```
 
