@@ -88,7 +88,7 @@ export const askQuestionsAboutTomAndJerryFlow = flow(
 );
 
 // Define a simple RAG flow, we will evaluate this flow
-// genkit run:flow askQuestionsAboutSpongebobFlow '"What is Spongebob's pet's name?"'
+// genkit flow:run askQuestionsAboutSpongebobFlow '"What is Spongebob's pet's name?"'
 export const askQuestionsAboutSpongebobFlow = flow(
   {
     name: 'askQuestionsAboutSpongebobFlow',
