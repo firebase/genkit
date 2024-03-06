@@ -1,6 +1,6 @@
 import { getProjectId } from '@google-genkit/common';
 import { configureGenkit } from '@google-genkit/common/config';
-import { googleAI } from '@google-genkit/providers/google-ai';
+import { googleGenAI } from '@google-genkit/plugin-google-genai';
 import { firebase } from '@google-genkit/plugin-firebase';
 import { pinecone } from '@google-genkit/plugin-pinecone';
 import { geminiPro, vertexAI } from '@google-genkit/plugin-vertex-ai';
@@ -15,7 +15,7 @@ import { devLocalVectorstore } from '@google-genkit/plugin-dev-local-vectorstore
 export default configureGenkit({
   plugins: [
     firebase({ projectId: getProjectId() }),
-    googleAI(),
+    googleGenAI(),
     googleVertexAI(),
     ragas({ judge: geminiPro, metrics: [RagasMetric.CONTEXT_PRECISION] }),
     vertexAI({ projectId: getProjectId(), location: 'us-central1' }),
