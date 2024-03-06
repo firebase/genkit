@@ -22,7 +22,7 @@ Genkit provides the following features:
 ## Learn More
 
   * [Config and plugins](config.md)
-  * [Models](model.md)
+  * [Models](models.md)
   * [Flows](flows.md)
   * [Dev Tools](devtools.md)
   * [RAG](rag.md)
