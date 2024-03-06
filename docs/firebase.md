@@ -171,8 +171,3 @@
     ```
     {"name":"bc042edd-efc4-48e9-8e36-23e4797e7a11","done":true,"result":{"response":"What did one banana say to the other?\n\nWe're about to split!"}}
     ```
-
-    You can check the status of your flow by running:
-    ```
-    curl -m 70 -X POST https://us-central1-$GCLOUD_PROJECT.cloudfunctions.net/jokeFlow -H "Authorization: bearer $(gcloud auth print-identity-token)" -H "Content-Type: application/json" -d '{"state": {"flowId": "YOUR_FLOW_ID_FROM_PREVIOUS_RUN"}}'
-    ```
