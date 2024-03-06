@@ -17,7 +17,7 @@ Genkit provides the following features:
 ## Getting started
 
   * [with Firebase](firebase.md)
-  * [with ExpressJS and Cloud Run](express.md)
+  * [with Cloud Run](express.md)
 
 ## Learn More
 
