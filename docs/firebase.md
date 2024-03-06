@@ -91,6 +91,7 @@
      import { getProjectId } from '@google-genkit/common';
      import { configureGenkit } from '@google-genkit/common/config';
      import { run } from '@google-genkit/flow';
+     import { generate } from '@google-genkit/ai/generate';
      import { firebase } from '@google-genkit/plugin-firebase';
      import { onFlow } from '@google-genkit/plugin-firebase/functions';
      import { geminiPro, googleGenAI } from '@google-genkit/plugin-google-genai';
