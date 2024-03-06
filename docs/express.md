@@ -176,7 +176,7 @@
 
     1. Try out the express endpoint:
         ```
-        curl -X POST http://127.0.0.1:5000/jokeFlow?stream=true -H "Content-Type: application/json"  -d '{"start": {"input": "banana"}}'
+        curl -X POST "http://127.0.0.1:5000/jokeFlow?stream=true" -H "Content-Type: application/json"  -d '{"start": {"input": "banana"}}'
         ```
 
 1. To deploy to Cloud Run first check that the "Default compute service account" has the necessary permissions to run your flow. By default it usually has an "Editor" role, but it's dependent on the org policy.
