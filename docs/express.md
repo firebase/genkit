@@ -100,11 +100,11 @@
      }
      ```
 
-1. Install Genkit packages:
+1. Install Genkit packages. This steps assumes you have access to genkit package tgz files and have them in the folder represented by GENKIT_DIST variable.
 
     ```
     mkdir genkit-dist
-    cp $GENKIT_DIST/* genkit-dist
+    cp $GENKIT_DIST/*.tgz genkit-dist
     npm install --save-dev typescript
     npm i --save ./genkit-dist/*.tgz
     ```
