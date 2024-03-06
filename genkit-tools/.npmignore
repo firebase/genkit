@@ -1,1 +1,4 @@
 node_modules
+plugins/
+common/
+ui/
