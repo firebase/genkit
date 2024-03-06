@@ -36,8 +36,7 @@ app.get(
       res.status(400).send('provide subject query param');
       return;
     }
-    const operation = await runFlow(jokeFlow, subject);
-    res.send(operation.result?.response);
+    res.send(await runFlow(jokeFlow, subject));
   }
 );
 

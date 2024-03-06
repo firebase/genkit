@@ -1,6 +1,6 @@
 import { generate } from '@google-genkit/ai/generate';
 import { initializeGenkit } from '@google-genkit/common/config';
-import { flow, getFlowState, run, runFlow } from '@google-genkit/flow';
+import { flow, run } from '@google-genkit/flow';
 import { geminiPro } from '@google-genkit/providers/google-ai';
 import * as z from 'zod';
 import config from './genkit.conf';
@@ -20,11 +20,3 @@ export const jokeFlow = flow(
     });
   }
 );
-
-async function main() {
-  const operation = await runFlow(jokeFlow, 'banana');
-  console.log('Operation', operation);
-  console.log('state', await getFlowState(jokeFlow, operation.name));
-}
-
-main().catch(console.error);

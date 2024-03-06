@@ -430,7 +430,7 @@ export async function runFlow<
 >(
   flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
   payload?: z.infer<I>
-): Promise<Operation> {
+): Promise<z.infer<O>> {
   if (!(flow instanceof Flow)) {
     flow = flow.flow;
   }
@@ -439,7 +439,19 @@ export async function runFlow<
       input: payload ? flow.input.parse(payload) : undefined,
     },
   });
-  return state;
+  if (!state.done) {
+    throw new FlowStillRunningError(
+      `flow ${state.name} did not finish execution`
+    );
+  }
+  if (state.result?.error) {
+    throw new FlowExecutionError(
+      state.name,
+      state.result?.error,
+      state.result?.stacktrace
+    );
+  }
+  return state.result?.response;
 }
 
 interface StreamingResponse<S extends z.ZodTypeAny> {
@@ -585,7 +597,6 @@ function parseOutput<O extends z.ZodTypeAny>(
   if (state.result?.error) {
     throw new FlowExecutionError(
       flowId,
-      `flow ${flowId} failed: ${state.result.error}`,
       state.result.error,
       state.result.stacktrace
     );

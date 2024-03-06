@@ -28,10 +28,10 @@ There are a couple main ways to run flows:
 ### Direct invocation
 
 ```javascript
-const operation = await runFlow(jokeFlow, 'banana');
+const response = await runFlow(jokeFlow, 'banana');
 ```
 
-this will invoke the flow and block until the flow finished execution or is interrupted. For flows without interrupting behaviour it's guaranteed that the returned operation will contain either the result or error.
+this will invoke the flow and block until the flow finished execution is finished.
 
 You can use the CLI to run flows as well:
 
@@ -355,7 +355,7 @@ waitFor is a convenient version of poll that allows waiting for other flows to c
 ```javascript
 export const myFlow = flow({ name: 'myFlow', input: z.string(), output: z.string() },
   async (input) => {
-    const otherFlowOp = await runFlow(otherFlow, input)
+    const otherFlowOp = await scheduleFlow(otherFlow, input)
 
     const [op] = await waitFor("wait-for-other-action", otherFlow, [otherFlowOp.name])
     
@@ -372,7 +372,7 @@ export const myFlow = flow({ name: 'myFlow', input: z.string(), output: z.string
 import { runFlow, getFlowState } from "flow"
 
 async function main() {
-  const operation = await runFlow(jokeFlow, 'banana');
+  const operation = await scheduleFlow(jokeFlow, 'banana');
   console.log('Operation', operation);
   console.log('state', await getFlowState(jokeFlow, operation.name));
 }

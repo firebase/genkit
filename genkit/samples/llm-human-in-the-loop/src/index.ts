@@ -13,7 +13,12 @@ import config from './genkit.conf';
 initializeGenkit(config);
 
 export const jokeFlow = flow(
-  { name: 'jokeFlow', input: z.string(), output: z.string() },
+  {
+    name: 'jokeFlow',
+    input: z.string(),
+    output: z.string(),
+    experimentalDurable: true,
+  },
   async (inputSubject) => {
     const prompt = await run(
       'make-prompt',
