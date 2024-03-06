@@ -83,13 +83,7 @@
     cd functions
     mkdir genkit-dist
     cp $GENKIT_DIST/* genkit-dist
-    npm i --save ./genkit-dist/google-genkit-common-0.0.2.tgz
-    npm i --save ./genkit-dist/google-genkit-flow-0.0.2.tgz
-    npm i --save ./genkit-dist/google-genkit-ai-0.0.2.tgz
-    npm i --save ./genkit-dist/google-genkit-providers-0.0.2.tgz 
-    npm i --save ./genkit-dist/google-genkit-plugin-vertex-ai-0.0.2.tgz
-    npm i --save-dev ./genkit-dist/google-genkit-tools-plugins-0.0.2.tgz
-    npm i --save-dev ./genkit-dist/genkit-cli-0.0.2.tgz
+    npm i --save ./genkit-dist/*.tgz
     ```
 
 1. Paste the following sample code into functions/src/index.ts file:
