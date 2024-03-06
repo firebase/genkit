@@ -103,17 +103,10 @@
 1. Install Genkit packages:
 
     ```
-    cd functions
     mkdir genkit-dist
     cp $GENKIT_DIST/* genkit-dist
     npm install --save-dev typescript
-    npm i --save ./genkit-dist/google-genkit-common-0.0.2.tgz
-    npm i --save ./genkit-dist/google-genkit-flow-0.0.2.tgz
-    npm i --save ./genkit-dist/google-genkit-ai-0.0.2.tgz
-    npm i --save ./genkit-dist/google-genkit-providers-0.0.2.tgz 
-    npm i --save ./genkit-dist/google-genkit-plugin-vertex-ai-0.0.2.tgz
-    npm i --save-dev ./genkit-dist/google-genkit-tools-plugins-0.0.2.tgz
-    npm i --save-dev ./genkit-dist/genkit-cli-0.0.2.tgz
+    npm i --save ./genkit-dist/*.tgz
     ```
 
 1. Create the src/index.ts file where your Genkit code will live:
@@ -123,25 +116,68 @@
     touch src/index.ts
     ```
 
-    Paste the following sample code into src/index.ts file: https://paste.googleplex.com/6246351714648064
+    Paste the following sample code into src/index.ts file:
+   
+    ```javascript
+    import { generate } from '@google-genkit/ai/generate';
+    import { GenerationResponseChunkSchema } from '@google-genkit/ai/model';
+    import { getLocation, getProjectId } from '@google-genkit/common';
+    import { configureGenkit } from '@google-genkit/common/config';
+    import { flow, run, startFlowsServer } from '@google-genkit/flow';
+    import { firebase } from '@google-genkit/plugin-firebase';
+    import { geminiPro, vertexAI } from '@google-genkit/plugin-vertex-ai';
+    import * as z from 'zod';
+    
+    configureGenkit({
+      plugins: [
+        firebase({ projectId: getProjectId() }),
+        vertexAI({ projectId: getProjectId(), location: getLocation() || 'us-central1' }),
+      ],
+      flowStateStore: 'firebase',
+      traceStore: 'firebase',
+      enableTracingAndMetrics: true,
+      logLevel: 'debug',
+    });
+    
+    export const jokeFlow = flow(
+      { name: 'jokeFlow', input: z.string(), output: z.string(), streamType: GenerationResponseChunkSchema },
+      async (subject, streamingCallback) => {
+        return await run('call-llm', async () => {
+          const llmResponse = await generate({
+            prompt: `Tell me a long joke about ${subject}`,
+            model: geminiPro,
+            config: {
+              temperature: 1,
+            },
+            streamingCallback,
+          });
+    
+          return llmResponse.text();
+        });
+      }
+    );
+    
+    startFlowsServer()
+    ```
 
 
 1. Build and run your code:
 
    ```
    npm run build
+   npx genkit flow:run jokeFlow "\"banana\"" -s
    ```
 
 1. Start the dev UI:
 
     ```npx genkit start```
 
-    1. To try out the joke flow navigate to http://localhost:4000/flows and run the flow via the emulator.
+    1. To try out the joke flow navigate to http://localhost:4000/flows and run the flow via the Dev UI.
 
-    1. Try out the express app:
-        - http://localhost:5000/joke?subject=banana
-        - http://localhost:5000/jokeStream?subject=banana
-
+    1. Try out the express endpoint:
+        ```
+        curl -X POST http://127.0.0.1:5000/jokeFlow?stream=true -H "Content-Type: application/json"  -d '{"start": {"input": "banana"}}'
+        ```
 
 1. To deploy to Cloud Run first check that the "Default compute service account" has the necessary permissions to run your flow. By default it usually has an "Editor" role, but it's dependent on the org policy.
 
@@ -166,10 +202,7 @@
     export MY_CLOUD_RUN_SERVICE_URL=https://.....run.app
     ```
     ```
-    curl -m 70 -X GET $MY_CLOUD_RUN_SERVICE_URL/jokeStream?subject=banana -H "Authorization: bearer $(gcloud auth print-identity-token)"
-    ```
-    ```
-    curl -m 70 -X GET $MY_CLOUD_RUN_SERVICE_URL/joke?subject=banana -H "Authorization: bearer $(gcloud auth print-identity-token)"
+    curl -m 70 -X POST $MY_CLOUD_RUN_SERVICE_URL/jokeFlow?stream=true -H "Authorization: bearer $(gcloud auth print-identity-token)" -H "Content-Type: application/json"  -d '{"start": {"input": "banana"}}'
     ```
 
 
