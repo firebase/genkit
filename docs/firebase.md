@@ -88,6 +88,7 @@
 
 1. Paste the following sample code into functions/src/index.ts file:
      ```javascript
+     import { generate } from '@google-genkit/ai/generate';
      import { getProjectId } from '@google-genkit/common';
      import { configureGenkit } from '@google-genkit/common/config';
      import { run } from '@google-genkit/flow';
