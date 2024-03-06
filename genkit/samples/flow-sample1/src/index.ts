@@ -5,6 +5,7 @@ import {
   run,
   runFlow,
   runMap,
+  scheduleFlow,
   sleep,
   waitFor,
 } from '@google-genkit/flow';
@@ -23,9 +24,19 @@ export const basic = flow(
     const foo = await run('call-llm', async () => {
       return `subject: ${subject}`;
     });
+    if (subject) {
+      throw new Error('boo');
+    }
     return await run('call-llm', async () => {
       return `foo: ${foo}`;
     });
+  }
+);
+
+export const parent = flow(
+  { name: 'parent', input: z.void(), output: z.string() },
+  async () => {
+    return JSON.stringify(await runFlow(basic, 'foo'));
   }
 );
 
@@ -57,7 +68,12 @@ export const simpleFanout = flow(
  *   genkit flow:resume kitchensink FLOW_ID "\"final\""
  */
 export const kitchensink = flow(
-  { name: 'kitchensink', input: z.string(), output: z.string() },
+  {
+    name: 'kitchensink',
+    input: z.string(),
+    output: z.string(),
+    experimentalDurable: true,
+  },
   async (i) => {
     const hello = await run('say-hello', async () => {
       return 'hello';
@@ -107,7 +123,12 @@ export const kitchensink = flow(
  *   genkit flow:run sleepy
  */
 export const sleepy = flow(
-  { name: 'sleepy', input: z.void(), output: z.string() },
+  {
+    name: 'sleepy',
+    input: z.void(),
+    output: z.string(),
+    experimentalDurable: true,
+  },
   async () => {
     const before = await run('before', async () => {
       return 'foo';
@@ -128,10 +149,15 @@ export const sleepy = flow(
  *   genkit flow:run waity
  */
 export const waity = flow(
-  { name: 'waity', input: z.void(), output: z.string() },
+  {
+    name: 'waity',
+    input: z.void(),
+    output: z.string(),
+    experimentalDurable: true,
+  },
   async () => {
     const flowOp = await run('start-sub-flow', async () => {
-      return await runFlow(sleepy);
+      return await scheduleFlow(sleepy, undefined);
     });
 
     const [op] = await waitFor('wait-for-other-to-complete', sleepy, [

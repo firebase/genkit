@@ -50,10 +50,10 @@ export class FlowStillRunningError extends Error {
 export class FlowExecutionError extends Error {
   constructor(
     readonly flowId: string,
-    message: string,
     readonly originalMessage: string,
     readonly originalStacktrace?: any
   ) {
-    super(message);
+    super(originalMessage);
+    this.stack = originalStacktrace;
   }
 }
