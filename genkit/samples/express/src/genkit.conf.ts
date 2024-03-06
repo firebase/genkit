@@ -1,14 +1,14 @@
 import { getProjectId } from '@google-genkit/common';
 import { configureGenkit } from '@google-genkit/common/config';
 import { openAI } from '@google-genkit/plugin-openai';
-import { googleAI } from '@google-genkit/providers/google-ai';
+import { googleGenAI } from '@google-genkit/plugin-google-genai';
 import { ollama } from '@google-genkit/plugin-ollama';
 import { firebase } from '@google-genkit/plugin-firebase';
 
 export default configureGenkit({
   plugins: [
     firebase({ projectId: getProjectId() }),
-    googleAI(),
+    googleGenAI(),
     openAI(),
     ollama({
       models: [{ name: 'llama2' }],
