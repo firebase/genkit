@@ -77,7 +77,7 @@
      }    
      ```
 
-1. Install Genkit packages:
+1. Install Genkit packages. This steps assumes you have access to genkit package tgz files and have them in the folder represented by GENKIT_DIST variable.
 
     ```
     cd functions
