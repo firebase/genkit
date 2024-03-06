@@ -88,38 +88,37 @@
 
 1. Paste the following sample code into functions/src/index.ts file:
      ```javascript
-        import { getProjectId } from '@google-genkit/common';
-        import { configureGenkit } from '@google-genkit/common/config';
-        import { run } from '@google-genkit/flow';
-        import { firebase } from '@google-genkit/plugin-firebase';
-        import { onFlow } from '@google-genkit/plugin-firebase/functions';
-        import { geminiPro, googleGenAI } from '@google-genkit/plugin-google-genai';
-        import * as z from 'zod';
+     import { getProjectId } from '@google-genkit/common';
+     import { configureGenkit } from '@google-genkit/common/config';
+     import { run } from '@google-genkit/flow';
+     import { firebase } from '@google-genkit/plugin-firebase';
+     import { onFlow } from '@google-genkit/plugin-firebase/functions';
+     import { geminiPro, googleGenAI } from '@google-genkit/plugin-google-genai';
+     import * as z from 'zod';
+     
+     configureGenkit({
+       plugins: [firebase({ projectId: getProjectId() }), googleGenAI()],
+       flowStateStore: 'firebase',
+       traceStore: 'firebase',
+       enableTracingAndMetrics: true,
+       logLevel: 'debug',
+     });
+     
+     export const jokeFlow = onFlow(
+       { name: 'jokeFlow', input: z.string(), output: z.string() },
+       async (subject) => {
+         const prompt = `Tell me a joke about ${subject}`;
         
-        configureGenkit({
-          plugins: [firebase({ projectId: getProjectId() }), googleGenAI()],
-          flowStateStore: 'firebase',
-          traceStore: 'firebase',
-          enableTracingAndMetrics: true,
-          logLevel: 'debug',
-        });
+         return await run('call-llm', async () => {
+           const llmResponse = await generate({
+             model: geminiPro,
+             prompt: prompt,
+           });
         
-        export const jokeFlow = onFlow(
-          { name: 'jokeFlow', input: z.string(), output: z.string() },
-          async (subject) => {
-            const prompt = `Tell me a joke about ${subject}`;
-        
-            return await run('call-llm', async () => {
-              const llmResponse = await generate({
-                model: geminiPro,
-                prompt: prompt,
-              });
-        
-              return llmResponse.text();
-            });
-          }
-        );
-
+           return llmResponse.text();
+         });
+       }
+     );
      ```
 
 2. Build your code by running: 
