@@ -65,7 +65,7 @@ const response = await generate({
 If the model supports multimodal input you can pass in images as input:
 
 ```javascript
-const geminiProVision = configureVertexAiTextModel({ modelName: "gemini-pro-vision" });
+import { geminiProVision } from '@google-genkit/plugin-vertex-ai';
 
 const result = await generate({
   model: geminiProVision,
