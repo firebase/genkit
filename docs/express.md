@@ -1,4 +1,4 @@
-# Genkit with Express (and Cloud Run)
+# Genkit with Cloud Run
 
 1. Install required tools
     1. make sure you are using node version 18 or higher (run `node --version` to check).
