@@ -22,8 +22,9 @@ Genkit provides the following features:
 ## Learn More
 
   * [Config and plugins](config.md)
-  * [AI Primitives](ai.md)
+  * [Models](model.md)
   * [Flows](flows.md)
   * [Dev Tools](devtools.md)
+  * [RAG](rag.md)
   * [Evaluation](evaluation.md)
   * [Observability](observability.md)
