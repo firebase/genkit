@@ -52,7 +52,7 @@
 
 1. Create `functions/.env` file and add `GOOGLE_API_KEY=xyzYourKeyHere` in there as well.
 
-1. Edit `tsconfig.json` file -- add the following option to the compilerOptions: `"skipLibCheck": true,`
+1. Edit `functions/tsconfig.json` file -- add the following option to the compilerOptions: `"skipLibCheck": true,`
 
     also consider setting: `"noUnusedLocals": false`
 
