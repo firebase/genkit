@@ -18,7 +18,7 @@
     "build:dotprompt": "cd dotprompt && npm install && npm run build",
     "build:plugins": "for i in plugins/*/; do cd $i && npm install && npm run build && cd ../..; done",
     "build:samples": "pwd && for i in samples/*/; do cd $i && npm install && npm run build && cd ../..; done",
-    "pack:all": "mkdir ../dist || true && npm-run-all pack:common pack:flow pack:ai pack:providers pack:dotprompt pack:plugins",
+    "pack:all": "mkdir ../dist || true && npm-run-all pack:common pack:flow pack:ai pack:dotprompt pack:plugins",
     "pack:common": "cd common && npm pack --pack-destination ../../dist -ws",
     "pack:flow": "cd flow && npm pack --pack-destination ../../dist -ws",
     "pack:ai": "cd ai && npm pack --pack-destination ../../dist -ws",
