@@ -23,6 +23,25 @@ export const jokeFlow = flow(
   }
 );
 
+export const drawPictureFlow = flow(
+  {
+    name: 'drawPictureFlow',
+    input: z.object({ modelName: z.string(), object: z.string() }),
+    output: z.string(),
+  },
+  async (input) => {
+    return await run('call-llm', async () => {
+      const llmResponse = await generate({
+        model: input.modelName,
+        prompt: `Draw a picture of a ${input.object}.`,
+      });
+      return `From ${
+        input.modelName
+      }: Here is a picture of a cat: ${llmResponse.text()}`;
+    });
+  }
+);
+
 export const vertexStreamer = flow(
   {
     name: 'vertexStreamer',
