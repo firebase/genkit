@@ -2,7 +2,8 @@
 
 These docs are for private testers of Genkit, Google's GenAI toolkit.
 
-**IMPORTANT:** Genkit is not public and is CONFIDENTIAL.
+> [!IMPORTANT]  
+> Genkit is not public and is CONFIDENTIAL.
 
 Genkit provides the following features:
 
@@ -12,7 +13,8 @@ Genkit provides the following features:
  * **Dev tooling** - Local flow runner with prompt & retriever playgrounds.
  * **Evaluation** - Evaluate your end-to-end flow or intermediate steps.
 
-**NOTE:** This is an early version of our toolkit and docs. We will be adding new features and improving the documentation over time. If you find any issues, with either the toolkit or docs, please report them. You can also ping pavelj@ and chgill@ directly for private questions and comments.
+> [!NOTE]  
+> This is an early version of our toolkit and docs. We will be adding new features and improving the documentation over time. If you find any issues, with either the toolkit or docs, please report them.
 
 ## Getting started
 

@@ -1,8 +1,8 @@
 # Dotprompt
 
-Genkit comes with a prompt library called dotprompt.
+Genkit comes with a prompt library called _dotprompt_.
 
-The library allows you to define prompt in a separate file:
+The library allows you to define prompts in a separate file:
 
 ```
 ---
@@ -23,6 +23,7 @@ You are a chef famous for making creative recipes that can be prepared in 45 min
 Generate a recipe for {{food}}.
 ```
 
+To use this prompt, import the `dotprompt` library and load the prompt using `prompt('name-of-the-prompt-file')`:
 
 ```
 import { prompt } from '@google-genkit/dotprompt';
