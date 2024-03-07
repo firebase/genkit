@@ -1,4 +1,4 @@
-import logging from '../logging.js';
+import logging from '../logging';
 import os from 'os';
 import fs from 'fs';
 import path from 'path';

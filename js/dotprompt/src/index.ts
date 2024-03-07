@@ -1,8 +1,8 @@
 import { readFileSync } from 'fs';
-import { Prompt } from './prompt.js';
+import { Prompt } from './prompt';
 export { Prompt as PromptFile };
 import { basename } from 'path';
-import { lookupPrompt } from './registry.js';
+import { lookupPrompt } from './registry';
 
 export function loadPromptFile(path: string): Prompt {
   return Prompt.parse(

@@ -24,7 +24,7 @@ import { default as cors, CorsOptions } from 'cors';
 import express from 'express';
 import * as z from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { Context } from './context.js';
+import { Context } from './context';
 import {
   FlowExecutionError,
   FlowNotFoundError,

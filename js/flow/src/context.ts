@@ -12,9 +12,9 @@ import {
 import { logger } from 'firebase-functions/v1';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { InterruptError } from './errors.js';
-import { Flow, RunStepConfig } from './flow.js';
-import { metadataPrefix } from './utils.js';
+import { InterruptError } from './errors';
+import { Flow, RunStepConfig } from './flow';
+import { metadataPrefix } from './utils';
 
 /**
  * Context object encapsulates flow execution state at runtime.

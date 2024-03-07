@@ -13,7 +13,7 @@ import {
   ToolDefinition,
   ToolResponsePart,
 } from './model.js';
-import { extractJson } from './extract.js';
+import { extractJson } from './extract';
 import { Action } from '@google-genkit/common';
 import { z } from 'zod';
 import { lookupAction } from '@google-genkit/common/registry';
