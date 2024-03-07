@@ -4,6 +4,7 @@ import { conformOutput, validateSupport } from './model/middleware';
 import { StreamingCallback } from '@google-genkit/common';
 import { setCustomMetadataAttributes } from '@google-genkit/common/tracing';
 import { getStreamingCallback } from '@google-genkit/common';
+import zodToJsonSchema from 'zod-to-json-schema';
 
 //
 // IMPORTANT: Please keep type definitions in sync with
@@ -251,7 +252,6 @@ export function modelAction<
     customOptionsType?: CustomOptionsSchema;
     /** Descriptive name for this model e.g. 'Google AI - Gemini Pro'. */
     label?: string;
-    tools?: Action<any, any>[];
     use?: ModelMiddleware[];
   },
   runner: (
@@ -269,6 +269,9 @@ export function modelAction<
       metadata: {
         model: {
           label,
+          customOptions: options.customOptionsType
+            ? JSON.stringify(zodToJsonSchema(options.customOptionsType))
+            : undefined,
           names: options.names,
           supports: options.supports,
         },

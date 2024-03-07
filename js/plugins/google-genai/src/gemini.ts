@@ -202,6 +202,7 @@ export function googleAIModel(name: string, apiKey?: string): ModelAction {
     {
       name: modelName,
       ...SUPPORTED_MODELS[name].info,
+      customOptionsType: SUPPORTED_MODELS[name].configSchema,
       // since gemini api doesn't support downloading media from http(s)
       use: [downloadRequestMedia({ maxBytes: 1024 * 1024 * 10 })],
     },
