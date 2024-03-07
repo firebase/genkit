@@ -334,7 +334,7 @@ export class Flow<
               : ctx.state.input;
             metadata.input = input;
             const output = await handler(input, streamingCallback);
-            metadata.output = output;
+            metadata.output = JSON.stringify(output);
             setCustomMetadataAttribute(metadataPrefix('state'), 'done');
             return output;
           } catch (e) {

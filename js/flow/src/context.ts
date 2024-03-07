@@ -91,7 +91,7 @@ export class Context<
         } else {
           setCustomMetadataAttribute(metadataPrefix('state'), 'run');
           if (value !== undefined) {
-            metadata.output = value;
+            metadata.output = JSON.stringify(value);
           }
         }
         return value;
@@ -157,7 +157,7 @@ export class Context<
           }
           setCustomMetadataAttribute(metadataPrefix('state'), 'dispatch');
           if (value !== undefined) {
-            metadata.output = value;
+            metadata.output = JSON.stringify(value);
           }
           return value;
         }
