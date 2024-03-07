@@ -7,6 +7,7 @@ import * as path from 'path';
 import { logger } from '../utils/logger';
 import { TOOLS_SERVER_ROUTER } from './router';
 import { Runner } from '../runner/runner';
+import * as open from 'open';
 
 // Static files are copied to the /dist/client directory. This is a litle
 // brittle as __dirname refers directly to this particular file.
@@ -86,9 +87,9 @@ export function startServer(
       `${clc.green(clc.bold('Genkit Tools API:'))} http://localhost:${port}/api`
     );
     if (!headless) {
-      logger.info(
-        `${clc.green(clc.bold('Genkit Tools UI:'))} http://localhost:${port}`
-      );
+      const uiUrl = 'http://localhost:' + port;
+      logger.info(`${clc.green(clc.bold('Genkit Tools UI:'))} ${uiUrl}`);
+      open(uiUrl);
     }
   });
 }
