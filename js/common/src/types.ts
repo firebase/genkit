@@ -57,15 +57,9 @@ export function action<
       async (metadata) => {
         metadata.name = config.name;
         metadata.input = input;
-        try {
-          const output = fn(input);
-          metadata.output = output;
-          metadata.state = 'success';
-          return output;
-        } catch (e) {
-          metadata.state = 'error';
-          throw e;
-        }
+        const output = fn(input);
+        metadata.output = output;
+        return output;
       }
     );
     if (config.output) {
