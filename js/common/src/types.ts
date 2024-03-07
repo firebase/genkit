@@ -57,8 +57,8 @@ export function action<
       async (metadata) => {
         metadata.name = config.name;
         metadata.input = input;
-        const output = fn(input);
-        metadata.output = output;
+        const output = await fn(input);
+        metadata.output = JSON.stringify(output);
         return output;
       }
     );
