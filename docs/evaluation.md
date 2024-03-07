@@ -12,6 +12,7 @@ Produce a test dataset of inputs for the RAG flow. Ex:
   "Where does Spongebob lives?",
   "Does Spongebob have any friends?",
 ]
+```
 
 You can then batch run your RAG flag and label the runs with a unique label which then will be used to extract evaluation data"
 
@@ -44,5 +45,4 @@ export default configureGenkit({
   ],
   // ...
 });
-
 ```

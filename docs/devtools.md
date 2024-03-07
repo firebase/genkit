@@ -1,6 +1,6 @@
 # Dev tooling: local flow runner, playgrounds
 
-You can run dev tooling locally using the Genkit CLI:
+You can run Genkit's developer tooling locally using the Genkit CLI:
 
 ```
 npx genkit start

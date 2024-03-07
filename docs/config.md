@@ -1,6 +1,8 @@
 # Configuration and Plugins
 
-Genkit frameworks has a configuration and plugin system. Every Genkit app starts with configuration where you specify plugins you want to use and configure various subsystems. For example, as you might have seen in one of the earlier examples:
+Genkit has a configuration and plugin system. Every Genkit app starts with configuration where you specify plugins you want to use and configure various subsystems. 
+
+Here is an example you might have seen in some of the examples:
 
 ```
 configureGenkit({
@@ -15,11 +17,11 @@ configureGenkit({
 });
 ```
 
-In `plugins` you specify an array of plugins that will be made available to the framework. Plugins provide such features as: models, retrievers, indexers, flow state stores, trace stores, etc. One plugin can provide more than one thing, and even more than one, for example, model.
+In `plugins` you specify an array of plugins that will be made available to the framework. Plugins provide features such as: models, retrievers, indexers, flow state stores, trace stores, etc. One plugin can provide more than one thing, and even more than one instance of that thing.
 
-`flowStateStore` tell Genkit which plugin to use for persisting flow states. The `firebase` plugin provides a Firestore implementation.
+`flowStateStore` tells Genkit which plugin to use for persisting flow states. The `firebase` plugin provides a Firestore implementation of a flow state store.
 
-`traceStore` (similar to `flowStateStore`) tell Genkit which plugin to use for persisting traces. The `firebase` plugin provides a Firestore implementation.
+`traceStore` (similar to `flowStateStore`) tells Genkit which plugin to use for persisting traces. The `firebase` plugin provides a Firestore implementation of a trace store.
 
 `enableTracingAndMetrics` instructs the framework to perform OpenTelemetry instrumentation and enable trace collection.
 

@@ -39,7 +39,7 @@
 
 1. Enable services used in this sample app:
 
-     1. Enable Firestore by navigating to https://pantheon.corp.google.com/firestore/databases?project=_ and click "Create Database".
+     1. Enable Firestore by navigating to https://console.cloud.google.com/firestore/databases?project=_ and click "Create Database".
 
      1. Enable Vertex AI by running: 
 
@@ -181,7 +181,7 @@
 
 1. To deploy to Cloud Run first check that the "Default compute service account" has the necessary permissions to run your flow. By default it usually has an "Editor" role, but it's dependent on the org policy.
 
-    Navigate to https://pantheon.corp.google.com/iam-admin/iam (make sure your project is selected) and search for the Principal ending with `-compute@developer.gserviceaccount.com`
+    Navigate to https://console.cloud.google.com/iam-admin/iam (make sure your project is selected) and search for the Principal ending with `-compute@developer.gserviceaccount.com`
 
     At the very least it will need the following roles: Cloud Datastore User, Vertex AI User, Logs Writer, Monitoring Metric Writer, Cloud Trace Agent.
 
