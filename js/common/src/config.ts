@@ -33,13 +33,13 @@ class Config {
 
   constructor(options: ConfigOptions) {
     this.options = options;
-    this.configure();
     this.telemetryConfig = async () =>
       <TelemetryConfig>{
         getConfig() {
           return {} as Partial<NodeSDKConfiguration>;
         },
       };
+    this.configure();
   }
 
   /**
