@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Flow } from './flow.js';
+import { Flow } from './flow';
 import { Operation } from '@google-genkit/common';
 import { StreamingCallback } from '@google-genkit/common';
 

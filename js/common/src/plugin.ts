@@ -1,7 +1,7 @@
-import { FlowStateStore } from './flowTypes.js';
-import { TraceStore } from './tracing.js';
-import { Action } from './types.js';
-import { TelemetryConfig } from './telemetryTypes.js';
+import { FlowStateStore } from './flowTypes';
+import { TraceStore } from './tracing';
+import { Action } from './types';
+import { TelemetryConfig } from './telemetryTypes';
 import { z } from 'zod';
 
 export interface Provider<T> {

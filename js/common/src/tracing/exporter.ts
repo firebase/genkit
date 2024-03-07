@@ -5,8 +5,8 @@ import {
   ExportResultCode,
   hrTimeToMicroseconds,
 } from '@opentelemetry/core';
-import { SpanData, TraceData, TraceStore } from './types.js';
-import { deleteUndefinedProps } from '../utils.js';
+import { SpanData, TraceData, TraceStore } from './types';
+import { deleteUndefinedProps } from '../utils';
 
 /**
  * Exports collected OpenTelemetetry spans to Firestore.

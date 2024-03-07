@@ -1,14 +1,14 @@
 import fs from 'fs';
 import path from 'path';
-import { FlowStateStore } from './flowTypes.js';
-import { LocalFileFlowStateStore } from './localFileFlowStateStore.js';
-import logging, { setLogLevel } from './logging.js';
-import { PluginProvider } from './plugin.js';
-import * as registry from './registry.js';
-import { AsyncProvider } from './registry.js';
-import { TraceStore, enableTracingAndMetrics } from './tracing.js';
-import { LocalFileTraceStore } from './tracing/localFileTraceStore.js';
-import { TelemetryConfig, TelemetryOptions } from './telemetryTypes.js';
+import { FlowStateStore } from './flowTypes';
+import { LocalFileFlowStateStore } from './localFileFlowStateStore';
+import logging, { setLogLevel } from './logging';
+import { PluginProvider } from './plugin';
+import * as registry from './registry';
+import { AsyncProvider } from './registry';
+import { TraceStore, enableTracingAndMetrics } from './tracing';
+import { LocalFileTraceStore } from './tracing/localFileTraceStore';
+import { TelemetryConfig, TelemetryOptions } from './telemetryTypes';
 import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 
 export * from './plugin.js';

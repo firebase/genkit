@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
-import { PromptMetadata } from './metadata.js';
-import { compile } from './template.js';
+import { PromptMetadata } from './metadata';
+import { compile } from './template';
 import {
   GenerationRequest,
   GenerationResponseSchema,

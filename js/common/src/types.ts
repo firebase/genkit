@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import * as z from 'zod';
-import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing.js';
+import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing';
 
 export interface ActionMetadata<
   I extends z.ZodTypeAny,

@@ -1,9 +1,9 @@
 import * as z from 'zod';
-import { FlowStateStore } from './flowTypes.js';
-import { PluginProvider } from './plugin.js';
-import { startReflectionApi } from './reflectionApi.js';
-import { TraceStore } from './tracing/types.js';
-import { Action } from './types.js';
+import { FlowStateStore } from './flowTypes';
+import { PluginProvider } from './plugin';
+import { startReflectionApi } from './reflectionApi';
+import { TraceStore } from './tracing/types';
+import { Action } from './types';
 
 export type AsyncProvider<T> = () => Promise<T>;
 

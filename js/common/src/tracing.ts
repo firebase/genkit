@@ -4,9 +4,9 @@ import {
   SimpleSpanProcessor,
   SpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
-import { config, getCurrentEnv } from './config.js';
-import { TraceStoreExporter } from './tracing/exporter.js';
-import { MultiSpanProcessor } from './tracing/multiSpanProcessor.js';
+import { config, getCurrentEnv } from './config';
+import { TraceStoreExporter } from './tracing/exporter';
+import { MultiSpanProcessor } from './tracing/multiSpanProcessor';
 
 export * from './tracing/exporter.js';
 export * from './tracing/firestoreTraceStore.js';
