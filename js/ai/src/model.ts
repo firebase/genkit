@@ -1,10 +1,14 @@
-import { Action, action } from '@google-genkit/common';
-import { z } from 'zod';
-import { conformOutput, validateSupport } from './model/middleware';
-import { StreamingCallback } from '@google-genkit/common';
+import {
+  Action,
+  StreamingCallback,
+  action,
+  getStreamingCallback,
+} from '@google-genkit/common';
+import * as registry from '@google-genkit/common/registry';
 import { setCustomMetadataAttributes } from '@google-genkit/common/tracing';
-import { getStreamingCallback } from '@google-genkit/common';
+import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
+import { conformOutput, validateSupport } from './model/middleware';
 
 //
 // IMPORTANT: Please keep type definitions in sync with
@@ -290,10 +294,12 @@ export function modelAction<
     validateSupport(options),
     conformOutput(),
   ];
-  return modelWithMiddleware(
+  const ma = modelWithMiddleware(
     act as ModelAction,
     middleware
   ) as ModelAction<CustomOptionsSchema>;
+  registry.registerAction('model', ma.__action.name, ma);
+  return ma;
 }
 
 export interface ModelReference<CustomOptions extends z.ZodTypeAny> {

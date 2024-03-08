@@ -1,5 +1,6 @@
 import * as z from 'zod';
 import { FlowStateStore } from './flowTypes';
+import logging from './logging';
 import { PluginProvider } from './plugin';
 import { startReflectionApi } from './reflectionApi';
 import { TraceStore } from './tracing/types';
@@ -61,9 +62,12 @@ export function registerAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   id: string,
   action: Action<I, O>
 ) {
+  logging.info(`Registering ${type}: ${action.__action.name}`);
   const key = `/${type}/${id}`;
   if (__actionsById.hasOwnProperty(key)) {
-    console.log(`WARNING: ${key} already has an entry in the registry.`);
+    logging.warn(
+      `WARNING: ${key} already has an entry in the registry. Overwriting.`
+    );
   }
   __actionsById[key] = action;
 }

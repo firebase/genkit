@@ -1,3 +1,4 @@
+import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 import fs from 'fs';
 import path from 'path';
 import { FlowStateStore } from './flowTypes';
@@ -6,10 +7,9 @@ import logging, { setLogLevel } from './logging';
 import { PluginProvider } from './plugin';
 import * as registry from './registry';
 import { AsyncProvider } from './registry';
+import { TelemetryConfig, TelemetryOptions } from './telemetryTypes';
 import { TraceStore, enableTracingAndMetrics } from './tracing';
 import { LocalFileTraceStore } from './tracing/localFileTraceStore';
-import { TelemetryConfig, TelemetryOptions } from './telemetryTypes';
-import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 
 export * from './plugin.js';
 
@@ -100,41 +100,8 @@ class Config {
       registry.registerPluginProvider(plugin.name, {
         name: plugin.name,
         async initializer() {
-          logging.debug(`Initializing plugin ${plugin.name}:`);
-          const initializedPlugin = await plugin.initializer();
-          initializedPlugin.models?.forEach((model) => {
-            logging.debug(`  - Model: ${model.__action.name}`);
-            registry.registerAction('model', model.__action.name, model);
-          });
-          initializedPlugin.embedders?.forEach((embedder) => {
-            logging.debug(`  - Embedder: ${embedder.__action.name}`);
-            registry.registerAction(
-              'embedder',
-              embedder.__action.name,
-              embedder
-            );
-          });
-          initializedPlugin.retrievers?.forEach((retriever) => {
-            logging.debug(`  - Retriever: ${retriever.__action.name}`);
-            registry.registerAction(
-              'retriever',
-              retriever.__action.name,
-              retriever
-            );
-          });
-          initializedPlugin.indexers?.forEach((indexer) => {
-            logging.debug(`  - Indexer: ${indexer.__action.name}`);
-            registry.registerAction('indexer', indexer.__action.name, indexer);
-          });
-          initializedPlugin.evaluators?.forEach((evaluator) => {
-            logging.debug(`  - Evaluator: ${evaluator.__action.name}`);
-            registry.registerAction(
-              'evaluator',
-              evaluator.__action.name,
-              evaluator
-            );
-          });
-          return initializedPlugin;
+          logging.info(`Initializing plugin ${plugin.name}:`);
+          return await plugin.initializer();
         },
       });
     });

@@ -1,4 +1,5 @@
 import { action, Action } from '@google-genkit/common';
+import * as registry from '@google-genkit/common/registry';
 import { lookupAction } from '@google-genkit/common/registry';
 import { setCustomMetadataAttributes } from '@google-genkit/common/tracing';
 import * as z from 'zod';
@@ -86,11 +87,13 @@ export function evaluator<
       return runner(i.dataset, i.options);
     }
   );
-  return withMetadata(
+  const ewm = withMetadata(
     evaluator,
     options.dataPointType,
     options.customOptionsType
   );
+  registry.registerAction('evaluator', evaluator.__action.name, evaluator);
+  return ewm;
 }
 
 /**
