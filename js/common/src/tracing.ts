@@ -32,8 +32,8 @@ export async function enableTracingAndMetrics(
   const telemetryConfig = await config.getTelemetryConfig();
   const nodeOtelConfig = telemetryConfig.getConfig() || {};
 
-  addProcessor(nodeOtelConfig.spanProcessor as any);
-  nodeOtelConfig.spanProcessor = new MultiSpanProcessor(processors) as any;
+  addProcessor(nodeOtelConfig.spanProcessor);
+  nodeOtelConfig.spanProcessor = new MultiSpanProcessor(processors);
   const sdk = new NodeSDK(nodeOtelConfig);
 
   sdk.start();

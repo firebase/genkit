@@ -92,6 +92,9 @@ class Config {
    * Configures the system.
    */
   private configure() {
+    if (this.options.logLevel) {
+      setLogLevel(this.options.logLevel);
+    }
     this.options.plugins?.forEach((plugin) => {
       logging.debug(`Registering plugin ${plugin.name}...`);
       registry.registerPluginProvider(plugin.name, {
@@ -175,10 +178,6 @@ class Config {
       logging.debug(`  - all environments: ${telemetryPluginName}`);
       this.telemetryConfig = async () =>
         this.resolveTelemetryConfig(telemetryPluginName);
-    }
-
-    if (this.options.logLevel) {
-      setLogLevel(this.options.logLevel);
     }
   }
 
