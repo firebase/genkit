@@ -56,7 +56,7 @@ function withMetadata<
 /**
  * Creates evaluator action for the provided {@link EvaluatorFn} implementation.
  */
-export function evaluator<
+export function defineEvaluator<
   DataPoint extends z.ZodTypeAny = BaseDataPointZodType,
   EvaluatorOptions extends z.ZodTypeAny = z.ZodAny
 >(

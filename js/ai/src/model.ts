@@ -243,7 +243,7 @@ export function modelWithMiddleware(
 /**
  *
  */
-export function modelAction<
+export function defineModel<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny
 >(
   options: {

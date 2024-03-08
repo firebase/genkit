@@ -1,5 +1,5 @@
 import { PredictionServiceClient, helpers } from '@google-cloud/aiplatform';
-import { embedder, embedderRef } from '@google-genkit/ai/embedders';
+import { defineEmbedder, embedderRef } from '@google-genkit/ai/embedders';
 import { getProjectId } from '@google-genkit/common';
 import { Plugin, genkitPlugin } from '@google-genkit/common/config';
 import * as z from 'zod';
@@ -65,7 +65,7 @@ export function googleVertexAiTextEmbedder(
     apiEndpoint: location + '-aiplatform.googleapis.com',
   };
   const predictionServiceClient = new PredictionServiceClient(clientOptions);
-  return embedder(
+  return defineEmbedder(
     {
       provider: publisher,
       embedderId: name,

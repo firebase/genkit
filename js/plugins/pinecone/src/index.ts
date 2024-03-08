@@ -1,9 +1,10 @@
 import { EmbedderReference, embed } from '@google-genkit/ai/embedders';
-import { indexer, indexerRef } from '@google-genkit/ai/retrievers';
 import {
   CommonRetrieverOptionsSchema,
   TextDocumentSchema,
-  retriever,
+  defineIndexer,
+  defineRetriever,
+  indexerRef,
   retrieverRef,
 } from '@google-genkit/ai/retrievers';
 import { PluginProvider, genkitPlugin } from '@google-genkit/common/config';
@@ -124,7 +125,7 @@ export function configurePineconeRetriever<
   const pinecone = new Pinecone({ apiKey });
   const index = pinecone.index(indexId);
 
-  return retriever(
+  return defineRetriever(
     {
       provider: 'pinecone',
       retrieverId: `pinecone/${params.indexId}`,
@@ -184,7 +185,7 @@ export function configurePineconeIndexer<
   const pinecone = new Pinecone({ apiKey });
   const index = pinecone.index(indexId);
 
-  return indexer(
+  return defineIndexer(
     {
       provider: 'pinecone',
       indexerId: `pinecone/${params.indexId}`,

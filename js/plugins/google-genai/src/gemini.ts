@@ -4,7 +4,7 @@ import {
   MessageData,
   ModelAction,
   Part,
-  modelAction,
+  defineModel,
   modelRef,
 } from '@google-genkit/ai/model';
 import { downloadRequestMedia } from '@google-genkit/ai/model/middleware';
@@ -12,8 +12,8 @@ import {
   GenerateContentCandidate as GeminiCandidate,
   InputContent as GeminiMessage,
   Part as GeminiPart,
-  GoogleGenerativeAI,
   GenerateContentResponse,
+  GoogleGenerativeAI,
 } from '@google/generative-ai';
 import process from 'process';
 import z from 'zod';
@@ -198,7 +198,7 @@ export function googleAIModel(name: string, apiKey?: string): ModelAction {
     model: name,
   });
   if (!SUPPORTED_MODELS[name]) throw new Error(`Unsupported model: ${name}`);
-  return modelAction(
+  return defineModel(
     {
       name: modelName,
       ...SUPPORTED_MODELS[name].info,

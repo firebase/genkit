@@ -1,12 +1,12 @@
 import {
-  modelRef,
-  modelAction,
-  GenerationRequest,
   CandidateData,
+  GenerationRequest,
+  defineModel,
+  modelRef,
 } from '@google-genkit/ai/model';
-import { PluginOptions } from '.';
-import z from 'zod';
 import { GoogleAuth } from 'google-auth-library';
+import z from 'zod';
+import { PluginOptions } from '.';
 import { predictModel } from './predict';
 
 const ImagenConfigSchema = z.object({
@@ -97,7 +97,7 @@ export function imagen2Model(client: GoogleAuth, options: PluginOptions) {
     ImagenParameters
   >(client, options, 'imagegeneration@005');
 
-  return modelAction(imagen2, async (request) => {
+  return defineModel(imagen2, async (request) => {
     const instance: ImagenInstance = {
       prompt: extractText(request),
     };
