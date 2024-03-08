@@ -4,6 +4,7 @@ import { config } from './config';
 import logging from './logging';
 import * as registry from './registry';
 import { runWithStreamingCallback } from './types';
+import { flushTracing } from './tracing.js';
 
 /**
  * Starts a Reflection API that will be used by the Runner to call and control actions and flows.
@@ -73,6 +74,7 @@ export async function startReflectionApi(port?: number | undefined) {
           },
           async () => await action(input)
         );
+        await flushTracing();
         response.write(JSON.stringify(result));
         response.end();
       } else {
