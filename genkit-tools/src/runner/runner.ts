@@ -6,7 +6,7 @@ import * as path from 'path';
 import { logger } from '../utils/logger';
 import { getNodeEntryPoint } from '../utils/utils';
 import { Action } from '../types/action';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import * as apis from '../types/apis';
 import { TraceData } from '../types/trace';
 import { InternalError, StreamingCallback } from './types';
@@ -220,8 +220,22 @@ export class Runner {
       }
       return true;
     } catch (error) {
-      return false;
+      if ((error as AxiosError).code === 'ECONNREFUSED') {
+        return false;
+      }
+      throw new Error('Code failed to load, please check log messages above.');
     }
+  }
+
+  async waitUntilHealthy(): Promise<void> {
+    for (let i = 0; i < 200; i++) {
+      const healthy = await this.healthCheck();
+      if (healthy) {
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    throw new Error('Timed out while waiting for code to load.');
   }
 
   /** Retrieves all runnable actions. */
