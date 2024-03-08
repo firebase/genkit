@@ -39,7 +39,12 @@ export function startServer(
   runner: Runner,
   headless: boolean,
   port: number
-): void {
+): Promise<void> {
+  let serverEnder: (() => void) | undefined = undefined;
+  const enderPromise = new Promise<void>((resolver) => {
+    serverEnder = resolver;
+  });
+
   generateDiscoverabilityFile(headless, port);
 
   const app = express();
@@ -89,7 +94,15 @@ export function startServer(
     if (!headless) {
       const uiUrl = 'http://localhost:' + port;
       logger.info(`${clc.green(clc.bold('Genkit Tools UI:'))} ${uiUrl}`);
-      open(uiUrl);
+      runner
+        .waitUntilHealthy()
+        .then(() => open(uiUrl))
+        .catch((e) => {
+          logger.error(e.message);
+          if (serverEnder) serverEnder();
+        });
     }
   });
+
+  return enderPromise;
 }
