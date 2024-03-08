@@ -15,6 +15,7 @@
     "@google-genkit/ai": "*",
     "@google-genkit/common": "*",
     "google-auth-library": "^9.6.3",
+    "@google-cloud/vertexai": "^0.5.0",
     "node-fetch": "^3.3.2"
   },
   "devDependencies": {
