@@ -99,7 +99,12 @@ const traceStoresByEnvCache: Record<any, Promise<TraceStore>> = {};
 /**
  * Looks up the trace store for the given environment.
  */
-export function lookupTraceStore(env: string): Promise<TraceStore> {
+export async function lookupTraceStore(
+  env: string
+): Promise<TraceStore | undefined> {
+  if (!__traceStoresByEnv[env]) {
+    return undefined;
+  }
   const cached = traceStoresByEnvCache[env];
   if (!cached) {
     const newStore = __traceStoresByEnv[env]();
@@ -125,7 +130,10 @@ const flowStateStoresByEnvCache: Record<any, Promise<FlowStateStore>> = {};
  */
 export async function lookupFlowStateStore(
   env: string
-): Promise<FlowStateStore> {
+): Promise<FlowStateStore | undefined> {
+  if (!__flowStateStoresByEnv[env]) {
+    return undefined;
+  }
   const cached = flowStateStoresByEnvCache[env];
   if (!cached) {
     const newStore = __flowStateStoresByEnv[env]();
