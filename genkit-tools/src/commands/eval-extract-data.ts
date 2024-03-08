@@ -35,6 +35,8 @@ export const evalExtractData = new Command('eval:extractData')
       });
       continuationToken = response.continuationToken;
       const traces = response.traces;
+      // TODO: This assumes that all the data is in one trace, but it could be across multiple.
+      // We should support this use case similar to how we do in eval-flow-run.ts
       var batch = traces.map((t) => {
         const rootSpan = Object.values(t.spans).find(
           (s) =>

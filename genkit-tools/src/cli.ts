@@ -10,6 +10,7 @@ import { getPluginCommands, getPluginSubCommand } from './commands/plugins';
 import { start } from './commands/start';
 import { logger } from './utils/logger';
 import { evalRun } from './commands/eval-run';
+import { evalFlowRun } from './commands/eval-flow-run';
 
 /**
  * All commands need to be directly registered in this list.
@@ -25,6 +26,7 @@ const commands: Command[] = [
   flowResume,
   evalExtractData,
   evalRun,
+  evalFlowRun,
 ];
 
 /** Main entry point for CLI. */
