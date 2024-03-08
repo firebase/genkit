@@ -90,11 +90,19 @@ export function registerTraceStore(
   __traceStoresByEnv[env] = traceStoreProvider;
 }
 
+const traceStoresByEnvCache: Record<any, Promise<TraceStore>> = {};
+
 /**
  * Looks up the trace store for the given environment.
  */
 export function lookupTraceStore(env: string): Promise<TraceStore> {
-  return __traceStoresByEnv[env]();
+  const cached = traceStoresByEnvCache[env];
+  if (!cached) {
+    const newStore = __traceStoresByEnv[env]();
+    traceStoresByEnvCache[env] = newStore;
+    return newStore;
+  }
+  return cached;
 }
 
 /**
@@ -107,11 +115,20 @@ export function registerFlowStateStore(
   __flowStateStoresByEnv[env] = flowStateStoreProvider;
 }
 
+const flowStateStoresByEnvCache: Record<any, Promise<FlowStateStore>> = {};
 /**
  * Looks up the flow state store for the given environment.
  */
-export function lookupFlowStateStore(env: string): Promise<FlowStateStore> {
-  return __flowStateStoresByEnv[env]();
+export async function lookupFlowStateStore(
+  env: string
+): Promise<FlowStateStore> {
+  const cached = flowStateStoresByEnvCache[env];
+  if (!cached) {
+    const newStore = __flowStateStoresByEnv[env]();
+    flowStateStoresByEnvCache[env] = newStore;
+    return newStore;
+  }
+  return cached;
 }
 
 /**
