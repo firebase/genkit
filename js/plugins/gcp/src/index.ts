@@ -3,6 +3,7 @@ import { GcpOpenTelemetry } from './gcpOpenTelemetry';
 import { Sampler } from '@opentelemetry/api';
 import { AlwaysOnSampler } from '@opentelemetry/core';
 import { InstrumentationConfigMap } from '@opentelemetry/auto-instrumentations-node';
+export { GcpOpenTelemetry } from './gcpOpenTelemetry';
 
 export interface PluginOptions {
   projectId?: string;
@@ -13,6 +14,7 @@ export interface TelemetryConfig {
   sampler?: Sampler;
   autoInstrumentation?: boolean;
   autoInstrumentationConfig?: InstrumentationConfigMap;
+  metricExportIntervalMillis?: number;
 }
 
 /**

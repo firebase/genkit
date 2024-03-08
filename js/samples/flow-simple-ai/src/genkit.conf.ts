@@ -5,7 +5,7 @@ import { gcp } from '@google-genkit/plugin-gcp';
 import { googleGenAI } from '@google-genkit/plugin-google-genai';
 import { openAI } from '@google-genkit/plugin-openai';
 import { vertexAI } from '@google-genkit/plugin-vertex-ai';
-import { AlwaysOnSampler } from '@opentelemetry/core';
+import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 
 export default configureGenkit({
   plugins: [
@@ -25,6 +25,7 @@ export default configureGenkit({
           '@opentelemetry/instrumentation-dns': { enabled: false },
           '@opentelemetry/instrumentation-net': { enabled: false },
         },
+        metricExportIntervalMillis: 5_000,
       },
     }),
   ],
