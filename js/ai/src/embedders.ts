@@ -44,7 +44,7 @@ function withMetadata<
 /**
  * Creates embedder model for the provided {@link EmbedderFn} model implementation.
  */
-export function embedder<
+export function defineEmbedder<
   InputType extends z.ZodTypeAny,
   EmbedderOptions extends z.ZodTypeAny
 >(

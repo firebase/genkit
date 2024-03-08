@@ -127,7 +127,7 @@ function indexerWithMetadata<
 /**
  *  Creates a retriever action for the provided {@link RetrieverFn} implementation.
  */
-export function retriever<
+export function defineRetriever<
   QueryType extends z.ZodTypeAny,
   DocType extends DocumentSchemaType,
   RetrieverOptions extends z.ZodTypeAny
@@ -170,7 +170,7 @@ export function retriever<
 /**
  *  Creates an indexer action for the provided {@link IndexerFn} implementation.
  */
-export function indexer<
+export function defineIndexer<
   DocType extends DocumentSchemaType,
   IndexerOptions extends z.ZodTypeAny
 >(
@@ -233,7 +233,7 @@ export function documentStoreFactory<
     retrieverOptionsType,
     indexerOptionsType,
   } = { ...params };
-  const indexerAction = indexer(
+  const indexerAction = defineIndexer(
     {
       provider,
       indexerId: id,
@@ -242,7 +242,7 @@ export function documentStoreFactory<
     },
     params.indexFn
   );
-  const retrieverAction = retriever(
+  const retrieverAction = defineRetriever(
     {
       provider,
       retrieverId: id,

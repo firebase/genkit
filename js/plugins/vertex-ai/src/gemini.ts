@@ -1,24 +1,24 @@
 import {
-  VertexAI,
+  Content,
+  FunctionDeclaration,
   FunctionDeclarationSchemaType,
   GenerateContentCandidate,
   GenerateContentResponse,
-  FunctionDeclaration,
-  Tool,
-  Content,
-  Part as VertexPart,
   StartChatParams,
+  Tool,
+  VertexAI,
+  Part as VertexPart,
 } from '@google-cloud/vertexai';
 import {
-  ModelAction,
-  modelAction,
-  MessageData,
   CandidateData,
+  MediaPart,
+  MessageData,
+  ModelAction,
+  ModelMiddleware,
   Part,
   ToolDefinitionSchema,
+  defineModel,
   modelRef,
-  ModelMiddleware,
-  MediaPart,
 } from '@google-genkit/ai/model';
 import { downloadRequestMedia } from '@google-genkit/ai/model/middleware';
 import { z } from 'zod';
@@ -304,7 +304,7 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
     middlewares.push(downloadRequestMedia({ maxBytes: 1024 * 1024 * 20 }));
   }
 
-  return modelAction(
+  return defineModel(
     {
       name: modelName,
       use: middlewares,

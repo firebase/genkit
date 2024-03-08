@@ -1,7 +1,7 @@
 import {
   GenerationRequest,
   GenerationResponseData,
-  modelAction,
+  defineModel,
 } from '@google-genkit/ai/model';
 import { Plugin, genkitPlugin } from '@google-genkit/common/config';
 import logging from '@google-genkit/common/logging';
@@ -45,7 +45,7 @@ function ollamaModel(
   type: 'chat' | 'generate' | undefined,
   serverAddress: string
 ) {
-  return modelAction(
+  return defineModel(
     {
       name: `ollama/${name}`,
     },

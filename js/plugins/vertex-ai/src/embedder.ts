@@ -1,8 +1,8 @@
-import { embedder, embedderRef } from '@google-genkit/ai/embedders';
-import { z } from 'zod';
+import { defineEmbedder, embedderRef } from '@google-genkit/ai/embedders';
 import { GoogleAuth } from 'google-auth-library';
-import { predictModel } from './predict';
+import { z } from 'zod';
 import { PluginOptions } from '.';
+import { predictModel } from './predict';
 
 export const TaskTypeSchema = z.enum([
   'RETRIEVAL_DOCUMENT',
@@ -72,7 +72,7 @@ export function textEmbeddingGeckoEmbedder(
     options,
     'textembedding-gecko@003'
   );
-  return embedder(
+  return defineEmbedder(
     {
       info: textembeddingGecko.info!,
       customOptionsType: TextEmbeddingGeckoConfigSchema,

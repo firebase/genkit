@@ -6,11 +6,11 @@ import {
 import {
   CommonRetrieverOptionsSchema,
   TextDocumentSchema,
-  type TextDocument,
-  retriever,
-  indexer,
+  defineIndexer,
+  defineRetriever,
   indexerRef,
   retrieverRef,
+  type TextDocument,
 } from '@google-genkit/ai/retrievers';
 import { PluginProvider, genkitPlugin } from '@google-genkit/common/config';
 import similarity from 'compute-cosine-similarity';
@@ -169,7 +169,7 @@ export function configureDevLocalRetriever<
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
   const { embedder, embedderOptions } = params;
-  const vectorstore = retriever(
+  const vectorstore = defineRetriever(
     {
       provider: 'devLocalVectorstore',
       retrieverId: `devLocalVectorstore/${params.indexName}`,
@@ -209,7 +209,7 @@ export function configureDevLocalIndexer<
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
   const { embedder, embedderOptions } = params;
-  const filestore = indexer(
+  const vectorstore = defineIndexer(
     {
       provider: 'devLocalVectorstore',
       indexerId: `devLocalVectorstore/${params.indexName}`,
@@ -225,5 +225,5 @@ export function configureDevLocalIndexer<
       });
     }
   );
-  return filestore;
+  return vectorstore;
 }

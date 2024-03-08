@@ -1,20 +1,24 @@
-import { PluginProvider, genkitPlugin } from '@google-genkit/common/config';
+import { EmbedderReference } from '@google-genkit/ai/embedders';
 import {
+  Dataset,
+  defineEvaluator,
+  evaluatorRef,
+} from '@google-genkit/ai/evaluators';
+import { ModelReference } from '@google-genkit/ai/model';
+import { PluginProvider, genkitPlugin } from '@google-genkit/common/config';
+import * as z from 'zod';
+import {
+  answerRelevancyScore,
   contextPrecisionScore,
   faithfulnessScore,
-  answerRelevancyScore,
 } from './metrics';
 import {
+  RagasDataPoint,
   RagasDataPointSchema,
   RagasDataPointZodType,
-  RagasDataPoint,
   RagasMetric,
 } from './types';
-import * as z from 'zod';
-import { EmbedderReference } from '@google-genkit/ai/embedders';
-import { Dataset, evaluator, evaluatorRef } from '@google-genkit/ai/evaluators';
-import { ModelReference } from '@google-genkit/ai/model';
-export { RagasMetric, RagasDataPoint, RagasDataPointZodType };
+export { RagasDataPoint, RagasDataPointZodType, RagasMetric };
 
 export interface PluginOptions<
   ModelCustomOptions extends z.ZodTypeAny,
@@ -95,7 +99,7 @@ export function ragasEvaluators<
     throw new Error('Embedder must be specified if computing answer relvancy');
   }
   return metrics.map((metric) => {
-    return evaluator(
+    return defineEvaluator(
       {
         provider: 'ragas',
         evaluatorId: `ragas/${metric.toLocaleLowerCase()}`,

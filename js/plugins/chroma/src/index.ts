@@ -1,12 +1,13 @@
 import { embed, EmbedderReference } from '@google-genkit/ai/embedders';
 import {
   CommonRetrieverOptionsSchema,
+  defineIndexer,
+  defineRetriever,
   indexerRef,
-  retriever,
-  indexer,
   retrieverRef,
   TextDocumentSchema,
 } from '@google-genkit/ai/retrievers';
+import { genkitPlugin, PluginProvider } from '@google-genkit/common/config';
 import {
   ChromaClient,
   CollectionMetadata,
@@ -16,9 +17,8 @@ import {
   Where,
   WhereDocument,
 } from 'chromadb';
-import * as z from 'zod';
-import { genkitPlugin, PluginProvider } from '@google-genkit/common/config';
 import { Md5 } from 'ts-md5';
+import * as z from 'zod';
 
 export { IncludeEnum };
 
@@ -98,7 +98,7 @@ export function chromaRetriever<
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
   const { embedder, collectionName, embedderOptions } = params;
-  return retriever(
+  return defineRetriever(
     {
       provider: 'chroma',
       retrieverId: `chroma/${collectionName}`,
@@ -169,7 +169,7 @@ export function chromaIndexer<
   };
   const client = new ChromaClient();
 
-  return indexer(
+  return defineIndexer(
     {
       provider: 'chroma',
       indexerId: `chroma/${params.collectionName}`,
