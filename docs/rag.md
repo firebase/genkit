@@ -76,7 +76,7 @@ const docs = await retrieve({
 It's also very easy to create your own retriever. This is useful if your
 documents are managed in a document store that is not currently supported in
 Genkit (eg: MySQL, Google Drive, etc.). The Genkit SDK provides a flexible
-`retrieverFactory` method that lets you provide custom code to fetch documents.
+`defineRetriever` method that lets you provide custom code for fetching documents.
 You can also define custom retrievers that build on top of existing retrievers
 in Genkit and apply advanced RAG techniques (ex. reranking or prompt
 extensions) on top.
@@ -85,16 +85,17 @@ extensions) on top.
 ```javascript
 import {
   CommonRetrieverOptionsSchema,
-  retrieverFactory,
   TextDocumentSchema,
-  TextDocument,
+  defineRetriever,
+  retrieve,
 } from "@google-genkit/ai/retrievers";
+import * as z from 'zod';
 
 const MyAdvancedOptionsSchema = CommonRetrieverOptionsSchema.extend({
   preRerankK: z.number().max(1000),
 });
 
-const advancedRetriever = retriever({
+const advancedRetriever = defineRetriever({
   provider: 'custom',
   retrieverId: `custom/myAdvancedRetriver`,
   queryType: z.string(),
