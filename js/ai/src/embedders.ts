@@ -1,4 +1,5 @@
 import { action, Action } from '@google-genkit/common';
+import * as registry from '@google-genkit/common/registry';
 import { lookupAction } from '@google-genkit/common/registry';
 import { setCustomMetadataAttributes } from '@google-genkit/common/tracing';
 import * as z from 'zod';
@@ -73,7 +74,13 @@ export function embedder<
       return runner(i.input, i.options);
     }
   );
-  return withMetadata(embedder, options.inputType, options.customOptionsType);
+  const ewm = withMetadata(
+    embedder,
+    options.inputType,
+    options.customOptionsType
+  );
+  registry.registerAction('embedder', ewm.__action.name, ewm);
+  return ewm;
 }
 
 /**

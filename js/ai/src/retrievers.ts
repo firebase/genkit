@@ -1,8 +1,9 @@
 import { action, Action } from '@google-genkit/common';
+import * as registry from '@google-genkit/common/registry';
 import { lookupAction } from '@google-genkit/common/registry';
+import { setCustomMetadataAttributes } from '@google-genkit/common/tracing';
 import * as z from 'zod';
 import { EmbedderInfo } from './embedders';
-import { setCustomMetadataAttributes } from '@google-genkit/common/tracing';
 
 const BaseDocumentSchema = z.object({
   metadata: z.record(z.string(), z.any()).optional(),
@@ -156,12 +157,14 @@ export function retriever<
       return runner(i.query, i.options);
     }
   );
-  return retrieverWithMetadata(
+  const rwm = retrieverWithMetadata(
     retriever,
     options.queryType,
     options.documentType,
     options.customOptionsType
   );
+  registry.registerAction('retriever', rwm.__action.name, rwm);
+  return rwm;
 }
 
 /**
@@ -195,11 +198,13 @@ export function indexer<
       return runner(i.docs, i.options);
     }
   );
-  return indexerWithMetadata(
+  const iwm = indexerWithMetadata(
     indexer,
     options.documentType,
     options.customOptionsType
   );
+  registry.registerAction('indexer', iwm.__action.name, iwm);
+  return iwm;
 }
 
 /**
