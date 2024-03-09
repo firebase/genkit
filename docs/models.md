@@ -76,6 +76,23 @@ const result = await generate({
 });
 ```
 
+or from a local file
+
+```javascript
+const result = await generate({
+  model: geminiProVision,
+  prompt: [
+    { text: 'describe the following image:' },
+    {
+      data: {
+        url: fs.readFileSync(__dirname+"/image.jpeg", {encoding:"base64",flag:"r" }),
+        contentType: 'image/jpeg'
+     }
+    },
+  ],
+});
+```
+
 Model also supports tools/function calling. Currently tool support depends on specific models.
 
 ```javascript
