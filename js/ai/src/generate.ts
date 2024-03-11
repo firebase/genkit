@@ -19,6 +19,9 @@ import { z } from 'zod';
 import { lookupAction } from '@google-genkit/common/registry';
 import { StreamingCallback } from '@google-genkit/common';
 import { runWithStreamingCallback } from '@google-genkit/common';
+import { action } from '@google-genkit/common';
+import * as registry from '@google-genkit/common/registry';
+import { setCustomMetadataAttributes } from '@google-genkit/common/tracing';
 
 export class Message<T = unknown> implements MessageData {
   role: MessageData['role'];
@@ -165,7 +168,9 @@ function toToolDefinition(
   };
 }
 
-function toGenerateRequest(prompt: ModelPrompt): GenerationRequest {
+async function toGenerateRequest(
+  prompt: ModelPrompt
+): Promise<GenerationRequest> {
   const promptMessage: MessageData = { role: 'user', content: [] };
   if (typeof prompt.prompt === 'string') {
     promptMessage.content.push({ text: prompt.prompt });
@@ -176,12 +181,15 @@ function toGenerateRequest(prompt: ModelPrompt): GenerationRequest {
   }
 
   const messages: MessageData[] = [...(prompt.history || []), promptMessage];
-
+  let tools: Action<any, any>[] | undefined;
+  if (prompt.tools) {
+    tools = await resolveTools(prompt);
+  }
   return {
     messages,
     candidates: prompt.candidates,
     config: prompt.config,
-    tools: prompt.tools?.map((tool) => toToolDefinition(tool)) || [],
+    tools: tools?.map((tool) => toToolDefinition(tool)) || [],
     output: {
       format:
         prompt.output?.format || (prompt.output?.schema ? 'json' : 'text'),
@@ -199,7 +207,7 @@ export interface ModelPrompt<
   model: ModelAction<CustomOptions> | ModelReference<CustomOptions> | string;
   prompt: string | Part | Part[];
   history?: MessageData[];
-  tools?: Action<z.ZodTypeAny, z.ZodTypeAny>[];
+  tools?: (Action<z.ZodTypeAny, z.ZodTypeAny> | string)[];
   candidates?: number;
   config?: GenerationConfig<z.infer<CustomOptions>>;
   output?: {
@@ -239,6 +247,30 @@ const isValidCandidate = (
   return toolCallsValid;
 };
 
+async function resolveTools<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
+>(prompt: ModelPrompt<O, CustomOptions>) {
+  if (!prompt.tools) {
+    throw new Error('Tools not provided.');
+  }
+  const tools: Action<any, any>[] = [];
+  for (const tool of prompt.tools) {
+    let toolName;
+    if (typeof tool === 'string') {
+      toolName = tool;
+    } else {
+      toolName = tool.__action.name;
+    }
+    const resolvedTool = await lookupAction(`tool/${toolName}`);
+    if (!resolvedTool) {
+      throw new Error(`Tool ${toolName} not found`);
+    }
+    tools.push(resolvedTool);
+  }
+  return tools;
+}
+
 /**
  *
  */
@@ -248,6 +280,10 @@ export async function generate<
 >(
   prompt: ModelPrompt<O, CustomOptions>
 ): Promise<GenerationResponse<z.infer<O>>> {
+  let tools: Action<any, any>[] | undefined;
+  if (prompt.tools) {
+    tools = await resolveTools(prompt);
+  }
   let model: ModelAction<CustomOptions>;
   if (typeof prompt.model === 'string') {
     model = await lookupAction(`/model/${prompt.model}`);
@@ -265,7 +301,7 @@ export async function generate<
     throw new Error(`Model ${prompt.model} not found`);
   }
 
-  const request = toGenerateRequest(prompt);
+  const request = await toGenerateRequest(prompt);
   const response = await runWithStreamingCallback(
     prompt.streamingCallback,
     async () =>
@@ -279,7 +315,7 @@ export async function generate<
   // Pick the first valid candidate.
   let selected;
   for (const candidate of response.candidates) {
-    if (isValidCandidate(candidate, prompt.tools || [])) {
+    if (isValidCandidate(candidate, tools || [])) {
       selected = candidate;
       break;
     }
@@ -297,7 +333,7 @@ export async function generate<
   }
   const toolResponses: ToolResponsePart[] = await Promise.all(
     toolCalls.map(async (part) => {
-      const tool = prompt.tools?.find(
+      const tool = tools?.find(
         (tool) => tool.__action.name === part.toolRequest?.name
       );
       if (!tool) {
@@ -312,4 +348,25 @@ export async function generate<
   );
   prompt.history?.push({ role: 'tool', content: toolResponses });
   return await generate(prompt);
+}
+
+export function tool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>({
+  name,
+  description,
+  input,
+  output,
+  fn,
+}: {
+  name: string;
+  description: string;
+  input: I;
+  output: O;
+  fn: (input: z.infer<I>) => Promise<z.infer<O>>;
+}): Action<I, O> {
+  const a = action({ name, description, input, output }, (i) => {
+    setCustomMetadataAttributes({ subtype: 'tool' });
+    return fn(i);
+  });
+  registry.registerAction('tool', name, a);
+  return a;
 }

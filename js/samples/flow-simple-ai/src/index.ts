@@ -1,4 +1,4 @@
-import { generate } from '@google-genkit/ai/generate';
+import { generate, tool } from '@google-genkit/ai/generate';
 import { initializeGenkit } from '@google-genkit/common/config';
 import { flow, run } from '@google-genkit/flow';
 import * as z from 'zod';
@@ -40,6 +40,35 @@ export const drawPictureFlow = flow(
         input.modelName
       }: Here is a picture of a cat: ${llmResponse.text()}`;
     });
+  }
+);
+
+const tools = [
+  tool({
+    name: 'tellAFunnyJoke',
+    description:
+      'Tells jokes about an input topic. Use this tool whenever user asks you to tell a joke.',
+    input: z.object({ topic: z.string() }),
+    output: z.string(),
+    fn: async (input) => {
+      return `Why did the ${input.topic} cross the road?`;
+    },
+  }),
+];
+
+export const jokeWithToolsFlow = flow(
+  {
+    name: 'jokeWithToolsFlow',
+    input: z.object({ modelName: z.string(), subject: z.string() }),
+    output: z.string(),
+  },
+  async (input) => {
+    const llmResponse = await generate({
+      model: input.modelName,
+      tools,
+      prompt: `Tell a joke about ${input.subject}.`,
+    });
+    return `From ${input.modelName}: ${llmResponse.text()}`;
   }
 );
 
