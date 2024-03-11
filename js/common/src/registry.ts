@@ -28,7 +28,8 @@ export type ActionType =
   | 'evaluator'
   | 'flow'
   | 'model'
-  | 'prompt';
+  | 'prompt'
+  | 'tool';
 
 /**
  * Looks up a registry key (action type and key) in the registry.
