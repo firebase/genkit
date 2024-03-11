@@ -3,6 +3,7 @@ import { initializeGenkit } from '@google-genkit/common/config';
 import { flow, run } from '@google-genkit/flow';
 import * as z from 'zod';
 import config from './genkit.conf';
+import { geminiPro } from '@google-genkit/plugin-vertex-ai';
 
 initializeGenkit(config);
 
@@ -45,18 +46,18 @@ export const drawPictureFlow = flow(
 export const vertexStreamer = flow(
   {
     name: 'vertexStreamer',
-    input: z.object({ modelName: z.string(), subject: z.string() }),
+    input: z.string(),
     output: z.string(),
   },
-  async (input) => {
+  async (input, streamingCallback) => {
     return await run('call-llm', async () => {
       const llmResponse = await generate({
-        model: input.modelName,
-        prompt: `Tell me a very long joke about ${input.subject}.`,
-        streamingCallback: (c) => console.log('chunk', c),
+        model: geminiPro,
+        prompt: `Tell me a very long joke about ${input}.`,
+        streamingCallback,
       });
 
-      return `From ${input.modelName}: ${llmResponse.text()}`;
+      return llmResponse.text();
     });
   }
 );

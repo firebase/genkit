@@ -179,10 +179,32 @@ export const streamy = flow(
     streamType: z.object({ count: z.number() }),
   },
   async (count, streamingCallback) => {
-    console.log('streamingCallback', !!streamingCallback);
     var i = 0;
     if (streamingCallback) {
       for (; i < count; i++) {
+        await new Promise((r) => setTimeout(r, 1000));
+        streamingCallback({ count: i });
+      }
+    }
+    return `done: ${count}, streamed: ${i} times`;
+  }
+);
+
+// genkit flow:run streamy 5 -s
+export const streamyThrowy = flow(
+  {
+    name: 'streamyThrowy',
+    input: z.number(),
+    output: z.string(),
+    streamType: z.object({ count: z.number() }),
+  },
+  async (count, streamingCallback) => {
+    var i = 0;
+    if (streamingCallback) {
+      for (; i < count; i++) {
+        if (i == 3) {
+          throw new Error('whoops');
+        }
         await new Promise((r) => setTimeout(r, 1000));
         streamingCallback({ count: i });
       }
