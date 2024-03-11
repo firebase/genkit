@@ -38,6 +38,18 @@
       "types": "./lib/index.d.ts",
       "require": "./lib/index.js",
       "import": "./lib/index.mjs"
+    },
+    "./experimental": {
+      "types": "./lib/experimental.d.ts",
+      "require": "./lib/experimental.js",
+      "import": "./lib/experimental.mjs"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "experimental": [
+        "lib/experimental"
+      ]
     }
   }
 }

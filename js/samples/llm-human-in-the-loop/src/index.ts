@@ -1,7 +1,7 @@
 import { promptTemplate } from '@google-genkit/ai';
 import { generate } from '@google-genkit/ai/generate';
 import { initializeGenkit } from '@google-genkit/common/config';
-import { flow, interrupt, run } from '@google-genkit/flow';
+import { durableFlow, interrupt, run } from '@google-genkit/flow/experimental';
 import { geminiPro } from '@google-genkit/plugin-google-genai';
 import * as z from 'zod';
 import config from './genkit.conf';
@@ -12,12 +12,11 @@ import config from './genkit.conf';
 
 initializeGenkit(config);
 
-export const jokeFlow = flow(
+export const jokeFlow = durableFlow(
   {
     name: 'jokeFlow',
     input: z.string(),
     output: z.string(),
-    experimentalDurable: true,
   },
   async (inputSubject) => {
     const prompt = await run(

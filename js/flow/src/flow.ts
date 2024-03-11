@@ -1,7 +1,6 @@
 import {
   Action,
   action,
-  asyncSleep,
   FlowError,
   FlowState,
   FlowStateSchema,
@@ -27,7 +26,6 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 import { Context } from './context';
 import {
   FlowExecutionError,
-  FlowNotFoundError,
   FlowStillRunningError,
   getErrorMessage,
   getErrorStack,
@@ -303,7 +301,10 @@ export class Flow<
             startTime: Date.now(),
             traceIds: [],
           });
-
+          setCustomMetadataAttribute(
+            metadataPrefix(`execution`),
+            (ctx.state.executions.length - 1).toString()
+          );
           if (labels) {
             Object.keys(labels).forEach((label) => {
               setCustomMetadataAttribute(
@@ -518,124 +519,6 @@ export function streamFlow<
   };
 }
 
-/**
- * Schedules a flow run. This is always return an operation that's not completed (done=false).
- */
-export async function scheduleFlow<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny
->(
-  flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
-  payload: z.infer<I>,
-  delaySeconds?: number
-): Promise<Operation> {
-  if (!(flow instanceof Flow)) {
-    flow = flow.flow;
-  }
-  const state = await flow.invoker(flow, {
-    schedule: {
-      input: flow.input.parse(payload),
-      delay: delaySeconds,
-    },
-  });
-  return state;
-}
-
-/**
- * Resumes an interrupted flow.
- */
-export async function resumeFlow<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny
->(
-  flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
-  flowId: string,
-  payload: any
-): Promise<Operation> {
-  if (!(flow instanceof Flow)) {
-    flow = flow.flow;
-  }
-  return await flow.invoker(flow, {
-    resume: {
-      flowId,
-      payload,
-    },
-  });
-}
-
-/**
- * Returns an operation representing current state of the flow.
- */
-export async function getFlowState<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny
->(
-  flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
-  flowId: string
-): Promise<Operation> {
-  if (!(flow instanceof Flow)) {
-    flow = flow.flow;
-  }
-  const state = await (await flow.stateStore).load(flowId);
-  if (!state) {
-    throw new FlowNotFoundError(`flow state ${flowId} not found`);
-  }
-  return state.operation;
-}
-
-function parseOutput<O extends z.ZodTypeAny>(
-  flowId: string,
-  state: Operation
-): z.infer<O> {
-  if (!state.done) {
-    throw new FlowStillRunningError(flowId);
-  }
-  if (state.result?.error) {
-    throw new FlowExecutionError(
-      flowId,
-      state.result.error,
-      state.result.stacktrace
-    );
-  }
-  return state.result?.response;
-}
-
-/**
- * A local utility that waits for the flow execution to complete. If flow errored then a
- * {@link FlowExecutionError} will be thrown.
- */
-export async function waitFlowToComplete<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny
->(
-  flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
-  flowId: string
-): Promise<z.infer<O>> {
-  if (!(flow instanceof Flow)) {
-    flow = flow.flow;
-  }
-  let state: Operation | undefined = undefined;
-  try {
-    state = await getFlowState(flow, flowId);
-  } catch (e) {
-    logging.error(e);
-    // TODO: add timeout
-    if (!(e instanceof FlowNotFoundError)) {
-      throw e;
-    }
-  }
-  if (state && state.done) {
-    return parseOutput(flowId, state);
-  } else {
-    await asyncSleep(1000);
-    return await waitFlowToComplete(flow, flowId);
-  }
-}
-
 function createNewState(
   flowId: string,
   name: string,
@@ -681,6 +564,7 @@ function wrapAsAction<
       metadata: {
         inputSchema: zodToJsonSchema(flow.input),
         outputSchema: zodToJsonSchema(flow.output),
+        experimentalDurable: !!flow.experimentalDurable,
       },
     },
     async (envelope) => {

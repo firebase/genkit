@@ -34,11 +34,19 @@
       "require": "./lib/functions.js",
       "import": "./lib/functions.mjs",
       "types": "./lib/functions.d.ts"
+    },
+    "./functions/experimental": {
+      "require": "./lib/experimental.js",
+      "import": "./lib/experimental.mjs",
+      "types": "./lib/experimental.d.ts"
     }
   },
   "typesVersions": {
     "*": {
       "functions": [
+        "lib/functions"
+      ],
+      "functions/experimental": [
         "lib/functions"
       ]
     }

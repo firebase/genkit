@@ -3,19 +3,15 @@ export {
   Flow,
   FlowWrapper,
   StepsFunction,
-  getFlowState,
-  resumeFlow,
   runFlow,
   streamFlow,
-  scheduleFlow,
-  waitFlowToComplete,
   startFlowsServer,
 } from './flow.js';
 export {
   FlowInvokeEnvelopeMessageSchema,
   FlowInvokeEnvelopeMessage,
 } from './types.js';
-export { run, runMap, runAction, interrupt, sleep, waitFor } from './steps.js';
+export { run, runMap, runAction } from './steps.js';
 export {
   FlowState,
   FlowStateExecutionSchema,
