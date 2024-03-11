@@ -1,5 +1,0 @@
----
-modelProvider: google-vertex
-modelName: gemini-pro
----
-Tell a joke about {subject}

@@ -1,0 +1,125 @@
+import { OperationSchema, getLocation } from '@google-genkit/common';
+import {
+  Flow,
+  FlowInvokeEnvelopeMessage,
+  StepsFunction,
+} from '@google-genkit/flow';
+import { durableFlow } from '@google-genkit/flow/experimental';
+import { getFunctions } from 'firebase-admin/functions';
+import { logger } from 'firebase-functions/v2';
+import { HttpsFunction } from 'firebase-functions/v2/https';
+import {
+  TaskQueueFunction,
+  TaskQueueOptions,
+  onTaskDispatched,
+} from 'firebase-functions/v2/tasks';
+import * as z from 'zod';
+import { FunctionFlow } from './functions';
+import { callHttpsFunction, getFunctionUrl } from './helpers';
+
+interface ScheduledFlowConfig<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+> {
+  name: string;
+  input: I;
+  output: O;
+  streamType?: S;
+  taskQueueOptions?: TaskQueueOptions;
+}
+
+/**
+ * Creates a scheduled flow backed by Cloud Functions for Firebase gen2 Cloud Task triggered function.
+ * This feature is EXPERIMENTAL -- APIs will change or may get removed completely.
+ * For testing and feedback only.
+ */
+export function onScheduledFlow<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+>(
+  config: ScheduledFlowConfig<I, O, S>,
+  steps: StepsFunction<I, O, S>
+): FunctionFlow<I, O, S> {
+  const f = durableFlow(
+    {
+      ...config,
+      invoker: async (flow, data, streamingCallback) => {
+        const responseJson = await callHttpsFunction(
+          flow.name,
+          getLocation() || 'us-central1',
+          data,
+          streamingCallback
+        );
+        return OperationSchema.parse(JSON.parse(responseJson));
+      },
+      scheduler: async (flow, msg, delaySeconds) => {
+        await enqueueCloudTask(flow.name, msg, delaySeconds);
+      },
+    },
+    steps
+  );
+
+  const wrapped = wrapScheduledFlow(f, config);
+
+  const funcFlow = wrapped as FunctionFlow<I, O, S>;
+  funcFlow.flow = f;
+
+  return funcFlow;
+}
+
+function wrapScheduledFlow<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  S extends z.ZodTypeAny
+>(flow: Flow<I, O, S>, config: ScheduledFlowConfig<I, O, S>): HttpsFunction {
+  const tq = onTaskDispatched<FlowInvokeEnvelopeMessage>(
+    {
+      ...config.taskQueueOptions,
+      memory: config.taskQueueOptions?.memory || '512MiB',
+      retryConfig: config.taskQueueOptions?.retryConfig || {
+        maxAttempts: 2,
+        minBackoffSeconds: 10,
+      },
+    },
+    () => {} // never called, everything handled in createControlAPI.
+  );
+  return createControlAPI(flow, tq);
+}
+
+function createControlAPI(
+  flow: Flow<any, any, any>,
+  tq: TaskQueueFunction<FlowInvokeEnvelopeMessage>
+) {
+  const interceptor = flow.expressHandler as any;
+  interceptor.__endpoint = tq.__endpoint;
+  if (tq.hasOwnProperty('__requiredAPIs')) {
+    interceptor.__requiredAPIs = tq['__requiredAPIs'];
+  }
+  return interceptor;
+}
+
+/**
+ * Sends the flow invocation envelope to the flow via a task queue.
+ */
+async function enqueueCloudTask(
+  flowName: string,
+  payload: FlowInvokeEnvelopeMessage,
+  scheduleDelaySeconds?
+) {
+  const queue = getFunctions().taskQueue(flowName);
+  // TODO: set the right location
+  const targetUri = await getFunctionUrl(flowName, 'us-central1');
+  logger.debug(
+    `dispatchCloudTask targetUri for flow ${flowName} with delay ${scheduleDelaySeconds}`
+  );
+  await queue.enqueue(payload, {
+    scheduleDelaySeconds,
+    dispatchDeadlineSeconds: scheduleDelaySeconds,
+    uri: targetUri,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+}

@@ -1,14 +1,12 @@
 import { initializeGenkit } from '@google-genkit/common/config';
+import { flow, run, runFlow, runMap } from '@google-genkit/flow';
 import {
-  flow,
+  durableFlow,
   interrupt,
-  run,
-  runFlow,
-  runMap,
   scheduleFlow,
   sleep,
   waitFor,
-} from '@google-genkit/flow';
+} from '@google-genkit/flow/experimental';
 import * as z from 'zod';
 import config from './genkit.conf';
 
@@ -67,12 +65,11 @@ export const simpleFanout = flow(
  *   genkit flow:resume kitchensink FLOW_ID "\"aux\""
  *   genkit flow:resume kitchensink FLOW_ID "\"final\""
  */
-export const kitchensink = flow(
+export const kitchensink = durableFlow(
   {
     name: 'kitchensink',
     input: z.string(),
     output: z.string(),
-    experimentalDurable: true,
   },
   async (i) => {
     const hello = await run('say-hello', async () => {
@@ -122,12 +119,11 @@ export const kitchensink = flow(
  * To run this flow;
  *   genkit flow:run sleepy
  */
-export const sleepy = flow(
+export const sleepy = durableFlow(
   {
     name: 'sleepy',
     input: z.void(),
     output: z.string(),
-    experimentalDurable: true,
   },
   async () => {
     const before = await run('before', async () => {
@@ -148,12 +144,11 @@ export const sleepy = flow(
  * To run this flow;
  *   genkit flow:run waity
  */
-export const waity = flow(
+export const waity = durableFlow(
   {
     name: 'waity',
     input: z.void(),
     output: z.string(),
-    experimentalDurable: true,
   },
   async () => {
     const flowOp = await run('start-sub-flow', async () => {

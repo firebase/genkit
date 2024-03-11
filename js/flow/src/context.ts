@@ -179,15 +179,22 @@ export class Context<
     stepName: string,
     seconds: number
   ): Promise<O> {
+    const resolvedStepName = this.resolveStepName(stepName);
+    if (this.isCached(resolvedStepName)) {
+      setCustomMetadataAttribute(metadataPrefix('state'), 'skipped');
+      return this.getCached(resolvedStepName);
+    }
+
     await this.flow.scheduler(
       this.flow,
       {
-        resume: {
+        runScheduled: {
           flowId: this.flowId,
         },
       },
       seconds
     );
+    this.updateCachedValue(resolvedStepName, undefined);
     return this.interrupt(
       stepName,
       (input: z.infer<I>): z.infer<O> => input,
