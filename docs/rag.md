@@ -73,6 +73,49 @@ const docs = await retrieve({
 });
 ```
 
+It's very easy to swap out your retriever if for example you want to try a different one.
+
+```javascript
+import { chroma } from '@google-genkit/plugin-chroma';
+
+export default configureGenkit({
+  plugins: [
+    chroma({
+      collectionName: 'spongebob_collection',
+      embedder: textembeddingGecko,
+    }),
+    // ...
+  ],
+  // ...
+});
+```
+
+```javascript
+import {
+  chromaIndexerRef,
+  chromaRetrieverRef,
+} from '@google-genkit/plugin-chroma';
+
+export const spongeBobFactsRetriever = chromaRetrieverRef({
+  collectionName: 'spongebob_collection',
+  displayName: 'Spongebob facts retriever',
+});
+
+export const spongeBobFactsIndexer = chromaIndexerRef({
+  collectionName: 'spongebob_collection',
+  displayName: 'Spongebob facts indexer',
+});
+```
+
+```javascript
+const docs = await retrieve({
+  retriever: spongeBobFactsRetriever,
+  query: "Who is spongebob?"
+});
+```
+
+### Writing your own retrievers
+
 It's also very easy to create your own retriever. This is useful if your
 documents are managed in a document store that is not currently supported in
 Genkit (eg: MySQL, Google Drive, etc.). The Genkit SDK provides a flexible
@@ -80,6 +123,19 @@ Genkit (eg: MySQL, Google Drive, etc.). The Genkit SDK provides a flexible
 You can also define custom retrievers that build on top of existing retrievers
 in Genkit and apply advanced RAG techniques (ex. reranking or prompt
 extensions) on top.
+
+#### Popular retrievers
+
+Here is some additional documentation on how to start using your favorite vector-based
+storage solutions in Genkit.
+
+* [Pgvector](retrievers/pgvector.md) 
+* More to follow soon!
+
+#### Custom retriever
+
+Here is an example of how you can define an advanced 
+retriever, with custom steps (reranking, prompt expansion, post-processing, etc.)
 
 
 ```javascript
@@ -124,46 +180,5 @@ const docs = await retrieve({
   retriever: advancedRetriever,
   query: "Who is spongebob?",
   options: { preRerankK: 7, k: 3 }
-});
-```
-
-It's very easy to swap out your retriever if for example you want to try a different one.
-
-```javascript
-import { chroma } from '@genkit-ai/plugin-chroma';
-
-export default configureGenkit({
-  plugins: [
-    chroma({
-      collectionName: 'spongebob_collection',
-      embedder: textembeddingGecko,
-    }),
-    // ...
-  ],
-  // ...
-});
-```
-
-```javascript
-import {
-  chromaIndexerRef,
-  chromaRetrieverRef,
-} from '@genkit-ai/plugin-chroma';
-
-export const spongeBobFactsRetriever = chromaRetrieverRef({
-  collectionName: 'spongebob_collection',
-  displayName: 'Spongebob facts retriever',
-});
-
-export const spongeBobFactsIndexer = chromaIndexerRef({
-  collectionName: 'spongebob_collection',
-  displayName: 'Spongebob facts indexer',
-});
-```
-
-```javascript
-const docs = await retrieve({
-  retriever: spongeBobFactsRetriever,
-  query: "Who is spongebob?"
 });
 ```
