@@ -56,6 +56,23 @@ export interface RunStepConfig {
 }
 
 /**
+ * Flow Auth policy. Consumes the authorization context of the flow and
+ * performs checks before the flow runs. If this throws, the flow will not
+ * be executed.
+ */
+export interface FlowAuthPolicy {
+  (auth?: unknown): void | Promise<void>;
+}
+
+/**
+ * For express-based flows, req.auth should contain the value to bepassed into
+ * the flow context.
+ */
+export interface __RequestWithAuth extends express.Request {
+  auth?: unknown;
+}
+
+/**
  * Defines the flow.
  */
 export function flow<
@@ -68,6 +85,8 @@ export function flow<
     input: I;
     output: O;
     streamType?: S;
+    authPolicy?: FlowAuthPolicy;
+    middleware?: express.RequestHandler[];
     invoker?: Invoker<I, O, S>;
     experimentalDurable?: boolean;
     experimentalScheduler?: Scheduler<I, O, S>;
@@ -81,6 +100,8 @@ export function flow<
       output: config.output,
       experimentalDurable: !!config.experimentalDurable,
       stateStore: globalConfig.getFlowStateStore(),
+      authPolicy: config.authPolicy,
+      middleware: config.middleware,
       // We always use local dispatcher in dev mode or when one is not provided.
       invoker: async (flow, msg, streamingCallback) => {
         if (!isDevEnv() && config.invoker) {
@@ -128,6 +149,8 @@ export class Flow<
   readonly invoker: Invoker<I, O, S>;
   readonly scheduler: Scheduler<I, O, S>;
   readonly experimentalDurable: boolean;
+  readonly authPolicy?: FlowAuthPolicy;
+  readonly middleware?: express.RequestHandler[];
 
   constructor(
     config: {
@@ -138,6 +161,8 @@ export class Flow<
       invoker: Invoker<I, O, S>;
       scheduler: Scheduler<I, O, S>;
       experimentalDurable: boolean;
+      authPolicy?: FlowAuthPolicy;
+      middleware?: express.RequestHandler[];
     },
     private steps: StepsFunction<I, O, S>
   ) {
@@ -148,6 +173,8 @@ export class Flow<
     this.invoker = config.invoker;
     this.scheduler = config.scheduler;
     this.experimentalDurable = config.experimentalDurable;
+    this.authPolicy = config.authPolicy;
+    this.middleware = config.middleware;
   }
 
   /**
@@ -155,14 +182,15 @@ export class Flow<
    */
   async runEnvelope(
     req: FlowInvokeEnvelopeMessage,
-    streamingCallback?: StreamingCallback<any>
+    streamingCallback?: StreamingCallback<any>,
+    auth?: unknown
   ): Promise<FlowState> {
     logging.debug(req, 'runEnvelope');
     if (req.start) {
       // First time, create new state.
       const flowId = generateFlowId();
       const state = createNewState(flowId, this.name, req.start.input);
-      const ctx = new Context(this, flowId, state);
+      const ctx = new Context(this, flowId, state, auth);
       try {
         await this.executeSteps(
           ctx,
@@ -365,8 +393,8 @@ export class Flow<
     });
   }
 
-  get expressHandler(): (req: express.Request, res: express.Response) => any {
-    return async (req: express.Request, res: express.Response) => {
+  get expressHandler(): (req: __RequestWithAuth, res: express.Response) => any {
+    return async (req: __RequestWithAuth, res: express.Response) => {
       const { stream } = req.query;
       let data = req.body;
       // Task queue will wrap body in a "data" object, unwrap it.
@@ -400,7 +428,16 @@ export class Flow<
         }
       } else {
         try {
-          const state = await this.runEnvelope(envMsg);
+          await this.authPolicy?.(req.auth);
+        } catch (e: any) {
+          res
+            .status(403)
+            .send(e.message ? e.message : 'Unauthorized')
+            .end();
+        }
+
+        try {
+          const state = await this.runEnvelope(envMsg, undefined, req.auth);
           res.status(200).send(state.operation).end();
         } catch (e) {
           logging.error(e);
@@ -429,11 +466,15 @@ export async function runFlow<
   S extends z.ZodTypeAny
 >(
   flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
-  payload?: z.infer<I>
+  payload?: z.infer<I>,
+  opts?: { withLocalAuthContext?: unknown }
 ): Promise<z.infer<O>> {
   if (!(flow instanceof Flow)) {
     flow = flow.flow;
   }
+
+  await flow.authPolicy?.(opts?.withLocalAuthContext);
+
   const state = await flow.invoker(flow, {
     start: {
       input: payload ? flow.input.parse(payload) : undefined,
@@ -590,6 +631,10 @@ export function startFlowsServer(params?: {
   logging.info(`Starting flows server on port ${port}`);
   flows.forEach((f) => {
     logging.info(` - /${f.name}`);
+    // Add middlware
+    f.middleware?.forEach((m) => {
+      app.post(`/${f.name}`, m);
+    });
     app.post(`/${f.name}`, f.expressHandler);
   });
 

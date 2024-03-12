@@ -3,8 +3,9 @@ import { getLocation, getProjectId } from '@genkit-ai/common';
 import { configureGenkit } from '@genkit-ai/common/config';
 import { run, runFlow, streamFlow } from '@genkit-ai/flow';
 import { firebase } from '@genkit-ai/plugin-firebase';
-import { onFlow } from '@genkit-ai/plugin-firebase/functions';
+import { onFlow, noAuth } from '@genkit-ai/plugin-firebase/functions';
 import { geminiPro, vertexAI } from '@genkit-ai/plugin-vertex-ai';
+import { firebaseAuth } from '@genkit-ai/plugin-firebase/auth';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as z from 'zod';
 
@@ -25,6 +26,11 @@ export const jokeFlow = onFlow(
     input: z.string(),
     output: z.string(),
     httpsOptions: { invoker: 'private' },
+    authPolicy: firebaseAuth((user) => {
+      if (!user.email_verified) {
+        throw new Error('Email not verified');
+      }
+    }),
   },
   async (subject) => {
     const prompt = `Tell me a joke about ${subject}`;
@@ -40,12 +46,27 @@ export const jokeFlow = onFlow(
   }
 );
 
+export const authFlow = onFlow(
+  {
+    name: 'authFlow',
+    input: z.string(),
+    output: z.string(),
+    authPolicy: firebaseAuth((user) => {
+      if (!user.email_verified) {
+        throw new Error('Email not verified');
+      }
+    }),
+  },
+  async (input) => input.toUpperCase()
+);
+
 export const streamer = onFlow(
   {
     name: 'streamer',
     input: z.number(),
     output: z.string(),
     streamType: z.object({ count: z.number() }),
+    authPolicy: noAuth(),
   },
   async (count, streamingCallback) => {
     console.log('streamingCallback', !!streamingCallback);
@@ -61,7 +82,12 @@ export const streamer = onFlow(
 );
 
 export const streamConsumer = onFlow(
-  { name: 'streamConsumer', input: z.void(), output: z.void() },
+  {
+    name: 'streamConsumer',
+    input: z.void(),
+    output: z.void(),
+    authPolicy: noAuth(),
+  },
   async () => {
     const response = streamFlow(streamer, 5);
 

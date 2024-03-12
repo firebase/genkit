@@ -6,6 +6,8 @@ export {
   runFlow,
   streamFlow,
   startFlowsServer,
+  FlowAuthPolicy,
+  __RequestWithAuth,
 } from './flow.js';
 export {
   FlowInvokeEnvelopeMessageSchema,

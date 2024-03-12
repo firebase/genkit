@@ -92,10 +92,10 @@ When you define a flow using the `flow` function you get a flow that can only ru
 To use flows with Cloud Functions for Firebase simply use the firebase plugin and replace `flow` with `onFlow`.
 
 ```javascript
-import { onFlow } from '@genkit-ai/plugin-firebase/functions';
+import { onFlow, noAuth } from '@genkit-ai/plugin-firebase/functions';
 
 export const jokeFlow = onFlow(
-  { name: 'jokeFlow', input: z.string(), output: z.string() },
+  { name: 'jokeFlow', input: z.string(), output: z.string(), authPolicy: noAuth() },
   async (subject, streamingCallback) => {
     // ....
   }
