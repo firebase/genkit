@@ -1,22 +1,19 @@
 import { getProjectId, getLocation } from '@google-genkit/common';
 import { configureGenkit } from '@google-genkit/common/config';
-import { vertexAI, geminiPro } from '@google-genkit/plugin-vertex-ai';
+import { vertexAI, textembeddingGecko } from '@google-genkit/plugin-vertex-ai';
+import { openAI, gpt4Turbo } from '@google-genkit/plugin-openai';
 import { ragas, RagasMetric } from '@google-genkit/plugin-ragas';
 import { firebase } from '@google-genkit/plugin-firebase';
-import {
-  googleVertexAI,
-  textEmbeddingGecko001,
-} from '@google-genkit/providers/google-vertexai';
 
 export default configureGenkit({
   plugins: [
     firebase({ projectId: getProjectId() }),
+    openAI(),
     vertexAI({ projectId: getProjectId(), location: getLocation() }),
-    googleVertexAI(),
     ragas({
-      judge: geminiPro,
+      judge: gpt4Turbo,
       metrics: [RagasMetric.ANSWER_RELEVANCY],
-      embedder: textEmbeddingGecko001,
+      embedder: textembeddingGecko,
     }),
   ],
   flowStateStore: 'firebase',

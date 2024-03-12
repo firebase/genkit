@@ -10,6 +10,7 @@ import {
   googleVertexAI,
   textEmbeddingGecko001,
 } from '@google-genkit/providers/google-vertexai';
+import { gpt4, openAI } from '@google-genkit/plugin-openai';
 import { devLocalVectorstore } from '@google-genkit/plugin-dev-local-vectorstore';
 
 export default configureGenkit({
@@ -17,7 +18,8 @@ export default configureGenkit({
     firebase({ projectId: getProjectId() }),
     googleGenAI(),
     googleVertexAI(),
-    ragas({ judge: geminiPro, metrics: [RagasMetric.CONTEXT_PRECISION] }),
+    openAI(),
+    ragas({ judge: gpt4, metrics: [RagasMetric.FAITHFULNESS] }),
     vertexAI({ projectId: getProjectId(), location: 'us-central1' }),
     pinecone([
       {
