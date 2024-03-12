@@ -1,5 +1,5 @@
-import { OperationSchema, getLocation } from '@google-genkit/common';
-import { Flow, FlowWrapper, StepsFunction, flow } from '@google-genkit/flow';
+import { OperationSchema, getLocation } from '@genkit-ai/common';
+import { Flow, FlowWrapper, StepsFunction, flow } from '@genkit-ai/flow';
 import {
   HttpsFunction,
   HttpsOptions,

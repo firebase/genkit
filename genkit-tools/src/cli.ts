@@ -1,4 +1,4 @@
-import { ToolPluginSubCommandsSchema } from '@google-genkit/tools-plugins/plugins';
+import { ToolPluginSubCommandsSchema } from '@genkit-ai/tools-plugins/plugins';
 import * as clc from 'colorette';
 import { Command, program } from 'commander';
 import { evalExtractData } from './commands/eval-extract-data';

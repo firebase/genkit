@@ -1,14 +1,10 @@
-import {
-  FlowState,
-  FlowStateExecution,
-  Operation,
-} from '@google-genkit/common';
+import { FlowState, FlowStateExecution, Operation } from '@genkit-ai/common';
 import {
   SPAN_TYPE_ATTR,
   runInNewSpan,
   setCustomMetadataAttribute,
   setCustomMetadataAttributes,
-} from '@google-genkit/common/tracing';
+} from '@genkit-ai/common/tracing';
 import { logger } from 'firebase-functions/v1';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';

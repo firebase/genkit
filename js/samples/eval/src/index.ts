@@ -1,12 +1,12 @@
-import { initializeGenkit } from '@google-genkit/common/config';
+import { initializeGenkit } from '@genkit-ai/common/config';
 import {
   RagasDataPointZodType,
   RagasMetric,
   ragasRef,
-} from '@google-genkit/plugin-ragas';
+} from '@genkit-ai/plugin-ragas';
 
 import config from './genkit.conf';
-import { Dataset, evaluate } from '@google-genkit/ai/evaluators';
+import { Dataset, evaluate } from '@genkit-ai/ai/evaluators';
 
 initializeGenkit(config);
 

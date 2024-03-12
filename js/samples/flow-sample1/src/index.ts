@@ -1,12 +1,12 @@
-import { initializeGenkit } from '@google-genkit/common/config';
-import { flow, run, runFlow, runMap } from '@google-genkit/flow';
+import { initializeGenkit } from '@genkit-ai/common/config';
+import { flow, run, runFlow, runMap } from '@genkit-ai/flow';
 import {
   durableFlow,
   interrupt,
   scheduleFlow,
   sleep,
   waitFor,
-} from '@google-genkit/flow/experimental';
+} from '@genkit-ai/flow/experimental';
 import * as z from 'zod';
 import config from './genkit.conf';
 

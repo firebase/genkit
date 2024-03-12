@@ -6,7 +6,7 @@ import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
 import { Resource } from '@opentelemetry/resources';
 import { Span } from '@opentelemetry/api';
-import { TelemetryConfig } from '@google-genkit/common';
+import { TelemetryConfig } from '@genkit-ai/common';
 import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
 import { MetricExporter } from '@google-cloud/opentelemetry-cloud-monitoring-exporter';
 import {

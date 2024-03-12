@@ -1,11 +1,11 @@
-import { generate } from '@google-genkit/ai/generate';
-import { initializeGenkit } from '@google-genkit/common/config';
-import { flow, run, runFlow } from '@google-genkit/flow';
-import { geminiPro } from '@google-genkit/plugin-vertex-ai';
+import { generate } from '@genkit-ai/ai/generate';
+import { initializeGenkit } from '@genkit-ai/common/config';
+import { flow, run, runFlow } from '@genkit-ai/flow';
+import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 import * as z from 'zod';
 import config from './genkit.conf';
-import { gpt35Turbo } from '@google-genkit/plugin-openai';
-import { promptTemplate } from '@google-genkit/ai';
+import { gpt35Turbo } from '@genkit-ai/plugin-openai';
+import { promptTemplate } from '@genkit-ai/ai';
 
 initializeGenkit(config);
 

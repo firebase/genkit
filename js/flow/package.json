@@ -1,5 +1,5 @@
 {
-  "name": "@google-genkit/flow",
+  "name": "@genkit-ai/flow",
   "version": "0.0.2",
   "type": "commonjs",
   "main": "./lib/cjs/index.js",
@@ -13,7 +13,7 @@
     "lint:fix": "npm run lint -- --fix --quiet"
   },
   "dependencies": {
-    "@google-genkit/common": "*",
+    "@genkit-ai/common": "*",
     "@types/cors": "^2.8.17",
     "uuid": "^9.0.1",
     "zod": "^3.22.4",

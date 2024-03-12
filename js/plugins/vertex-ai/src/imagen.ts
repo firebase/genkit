@@ -3,7 +3,7 @@ import {
   GenerationRequest,
   defineModel,
   modelRef,
-} from '@google-genkit/ai/model';
+} from '@genkit-ai/ai/model';
 import { GoogleAuth } from 'google-auth-library';
 import z from 'zod';
 import { PluginOptions } from '.';

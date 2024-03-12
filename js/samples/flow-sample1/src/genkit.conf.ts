@@ -1,6 +1,6 @@
-import { getProjectId } from '@google-genkit/common';
-import { configureGenkit } from '@google-genkit/common/config';
-import { firebase } from '@google-genkit/plugin-firebase';
+import { getProjectId } from '@genkit-ai/common';
+import { configureGenkit } from '@genkit-ai/common/config';
+import { firebase } from '@genkit-ai/plugin-firebase';
 
 export default configureGenkit({
   plugins: [firebase({ projectId: getProjectId() })],

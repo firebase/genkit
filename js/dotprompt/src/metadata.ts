@@ -1,4 +1,4 @@
-import { GenerationConfig } from '@google-genkit/ai/model';
+import { GenerationConfig } from '@genkit-ai/ai/model';
 
 // TODO: Do a real type here.
 type JSONSchema = unknown;

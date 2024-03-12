@@ -91,14 +91,14 @@
 
 1. Paste the following sample code into `functions/src/index.ts` file:
      ```javascript
-     import { generate } from '@google-genkit/ai/generate';
-     import { getProjectId } from '@google-genkit/common';
-     import { configureGenkit } from '@google-genkit/common/config';
-     import { run } from '@google-genkit/flow';
-     import { generate } from '@google-genkit/ai/generate';
-     import { firebase } from '@google-genkit/plugin-firebase';
-     import { onFlow } from '@google-genkit/plugin-firebase/functions';
-     import { geminiPro, googleGenAI } from '@google-genkit/plugin-google-genai';
+     import { generate } from '@genkit-ai/ai/generate';
+     import { getProjectId } from '@genkit-ai/common';
+     import { configureGenkit } from '@genkit-ai/common/config';
+     import { run } from '@genkit-ai/flow';
+     import { generate } from '@genkit-ai/ai/generate';
+     import { firebase } from '@genkit-ai/plugin-firebase';
+     import { onFlow } from '@genkit-ai/plugin-firebase/functions';
+     import { geminiPro, googleGenAI } from '@genkit-ai/plugin-google-genai';
      import * as z from 'zod';
      
      configureGenkit({

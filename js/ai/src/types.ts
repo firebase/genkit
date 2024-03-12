@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { Action } from '@google-genkit/common';
+import { Action } from '@genkit-ai/common';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 
 export const ModelIdSchema = z.object({

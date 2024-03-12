@@ -5,11 +5,11 @@ import {
   EmbedderAction,
   EmbedderReference,
   embed,
-} from '@google-genkit/ai/embedders';
-import { Dataset } from '@google-genkit/ai/evaluators';
-import { ModelAction, ModelReference } from '@google-genkit/ai/model';
+} from '@genkit-ai/ai/embedders';
+import { Dataset } from '@genkit-ai/ai/evaluators';
+import { ModelAction, ModelReference } from '@genkit-ai/ai/model';
 import { RagasDataPointZodType } from '../types';
-import { generate } from '@google-genkit/ai/generate';
+import { generate } from '@genkit-ai/ai/generate';
 
 const QUESTION_GEN_PROMPT = `Generate a question for the given answer and context. Also identify if answer is noncommittal. Here are some examples:
 

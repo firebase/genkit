@@ -1,12 +1,12 @@
-import { prompt, promptTemplate } from '@google-genkit/ai';
-import { generate } from '@google-genkit/ai/generate';
-import { TextDocument, index, retrieve } from '@google-genkit/ai/retrievers';
-import { flow, run } from '@google-genkit/flow';
-import { geminiPro } from '@google-genkit/plugin-vertex-ai';
+import { prompt, promptTemplate } from '@genkit-ai/ai';
+import { generate } from '@genkit-ai/ai/generate';
+import { TextDocument, index, retrieve } from '@genkit-ai/ai/retrievers';
+import { flow, run } from '@genkit-ai/flow';
+import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 import {
   devLocalRetrieverRef,
   devLocalIndexerRef,
-} from '@google-genkit/plugin-dev-local-vectorstore';
+} from '@genkit-ai/plugin-dev-local-vectorstore';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import * as z from 'zod';

@@ -1,4 +1,4 @@
-import { Plugin, genkitPlugin } from '@google-genkit/common/config';
+import { Plugin, genkitPlugin } from '@genkit-ai/common/config';
 import { imagen2, imagen2Model } from './imagen';
 import {
   geminiModel,
@@ -7,7 +7,7 @@ import {
   SUPPORTED_GEMINI_MODELS,
 } from './gemini';
 import { VertexAI } from '@google-cloud/vertexai';
-import { getProjectId } from '@google-genkit/common';
+import { getProjectId } from '@genkit-ai/common';
 import { textEmbeddingGeckoEmbedder, textembeddingGecko } from './embedder';
 import { GoogleAuth } from 'google-auth-library';
 

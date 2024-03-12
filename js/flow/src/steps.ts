@@ -1,4 +1,4 @@
-import { Action } from '@google-genkit/common';
+import { Action } from '@genkit-ai/common';
 import * as z from 'zod';
 import { getActiveContext } from './utils';
 

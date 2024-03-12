@@ -1,8 +1,8 @@
-import { promptTemplate } from '@google-genkit/ai';
-import { generate } from '@google-genkit/ai/generate';
-import { initializeGenkit } from '@google-genkit/common/config';
-import { durableFlow, interrupt, run } from '@google-genkit/flow/experimental';
-import { geminiPro } from '@google-genkit/plugin-google-genai';
+import { promptTemplate } from '@genkit-ai/ai';
+import { generate } from '@genkit-ai/ai/generate';
+import { initializeGenkit } from '@genkit-ai/common/config';
+import { durableFlow, interrupt, run } from '@genkit-ai/flow/experimental';
+import { geminiPro } from '@genkit-ai/plugin-google-genai';
 import * as z from 'zod';
 import config from './genkit.conf';
 

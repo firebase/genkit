@@ -1,7 +1,7 @@
 import Handlebars from 'handlebars';
-import { generate } from '@google-genkit/ai/generate';
-import { Dataset } from '@google-genkit/ai/evaluators';
-import { ModelAction, ModelReference } from '@google-genkit/ai/model';
+import { generate } from '@genkit-ai/ai/generate';
+import { Dataset } from '@genkit-ai/ai/evaluators';
+import { ModelAction, ModelReference } from '@genkit-ai/ai/model';
 import { RagasDataPointZodType } from '../types';
 import * as z from 'zod';
 

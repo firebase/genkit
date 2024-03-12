@@ -1,5 +1,5 @@
-import { Action, Operation, asyncSleep } from '@google-genkit/common';
-import logging from '@google-genkit/common/logging';
+import { Action, Operation, asyncSleep } from '@genkit-ai/common';
+import logging from '@genkit-ai/common/logging';
 import * as z from 'zod';
 import { PollingConfig } from './context';
 import {

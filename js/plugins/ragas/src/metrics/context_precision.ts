@@ -1,9 +1,9 @@
 import Handlebars from 'handlebars';
 import { RagasDataPointZodType } from '../types';
-import { generate } from '@google-genkit/ai/generate';
-import { Dataset } from '@google-genkit/ai/evaluators';
+import { generate } from '@genkit-ai/ai/generate';
+import { Dataset } from '@genkit-ai/ai/evaluators';
 import * as z from 'zod';
-import { ModelAction, ModelReference } from '@google-genkit/ai/model';
+import { ModelAction, ModelReference } from '@genkit-ai/ai/model';
 
 const contextPrecisionPrompt = `Verify if the information in the given context is useful in answering the question. Here are some examples:
 

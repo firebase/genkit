@@ -1,4 +1,4 @@
-import { embed, EmbedderReference } from '@google-genkit/ai/embedders';
+import { embed, EmbedderReference } from '@genkit-ai/ai/embedders';
 import {
   CommonRetrieverOptionsSchema,
   defineIndexer,
@@ -6,8 +6,8 @@ import {
   indexerRef,
   retrieverRef,
   TextDocumentSchema,
-} from '@google-genkit/ai/retrievers';
-import { genkitPlugin, PluginProvider } from '@google-genkit/common/config';
+} from '@genkit-ai/ai/retrievers';
+import { genkitPlugin, PluginProvider } from '@genkit-ai/common/config';
 import {
   ChromaClient,
   CollectionMetadata,

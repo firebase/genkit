@@ -17,8 +17,8 @@ create your own.
 Let's take a look at a dev local file based vector similarity retriever that Genkit provides out-of-the box for simple testing/prototyping (DO NOT USE IN PRODUCTION).
 
 ```javascript
-import { geminiPro, vertexAI, textembeddingGecko } from '@google-genkit/plugin-vertex-ai';
-import { devLocalVectorstore } from '@google-genkit/plugin-dev-local-vectorstore';
+import { geminiPro, vertexAI, textembeddingGecko } from '@genkit-ai/plugin-vertex-ai';
+import { devLocalVectorstore } from '@genkit-ai/plugin-dev-local-vectorstore';
 
 export default configureGenkit({
   plugins: [
@@ -88,7 +88,7 @@ import {
   TextDocumentSchema,
   defineRetriever,
   retrieve,
-} from "@google-genkit/ai/retrievers";
+} from "@genkit-ai/ai/retrievers";
 import * as z from 'zod';
 
 const MyAdvancedOptionsSchema = CommonRetrieverOptionsSchema.extend({
@@ -130,7 +130,7 @@ const docs = await retrieve({
 It's very easy to swap out your retriever if for example you want to try a different one.
 
 ```javascript
-import { chroma } from '@google-genkit/plugin-chroma';
+import { chroma } from '@genkit-ai/plugin-chroma';
 
 export default configureGenkit({
   plugins: [
@@ -148,7 +148,7 @@ export default configureGenkit({
 import {
   chromaIndexerRef,
   chromaRetrieverRef,
-} from '@google-genkit/plugin-chroma';
+} from '@genkit-ai/plugin-chroma';
 
 export const spongeBobFactsRetriever = chromaRetrieverRef({
   collectionName: 'spongebob_collection',

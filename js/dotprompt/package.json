@@ -1,5 +1,5 @@
 {
-  "name": "@google-genkit/dotprompt",
+  "name": "@genkit-ai/dotprompt",
   "version": "0.0.2",
   "type": "commonjs",
   "scripts": {
@@ -13,8 +13,8 @@
     "test": "node --import tsx --test tests/*_test.ts"
   },
   "dependencies": {
-    "@google-genkit/ai": "*",
-    "@google-genkit/common": "*",
+    "@genkit-ai/ai": "*",
+    "@genkit-ai/common": "*",
     "@types/handlebars": "^4.1.0",
     "front-matter": "^4.0.2",
     "handlebars": "^4.7.8",

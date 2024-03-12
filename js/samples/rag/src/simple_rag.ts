@@ -1,21 +1,18 @@
-import { prompt, promptTemplate } from '@google-genkit/ai';
-import { generate } from '@google-genkit/ai/generate';
-import { TextDocument, index, retrieve } from '@google-genkit/ai/retrievers';
-import { initializeGenkit } from '@google-genkit/common/config';
-import { flow } from '@google-genkit/flow';
-import { geminiPro } from '@google-genkit/plugin-vertex-ai';
-import {
-  chromaIndexerRef,
-  chromaRetrieverRef,
-} from '@google-genkit/plugin-chroma';
+import { prompt, promptTemplate } from '@genkit-ai/ai';
+import { generate } from '@genkit-ai/ai/generate';
+import { TextDocument, index, retrieve } from '@genkit-ai/ai/retrievers';
+import { initializeGenkit } from '@genkit-ai/common/config';
+import { flow } from '@genkit-ai/flow';
+import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
+import { chromaIndexerRef, chromaRetrieverRef } from '@genkit-ai/plugin-chroma';
 import {
   devLocalRetrieverRef,
   devLocalIndexerRef,
-} from '@google-genkit/plugin-dev-local-vectorstore';
+} from '@genkit-ai/plugin-dev-local-vectorstore';
 import {
   pineconeIndexerRef,
   pineconeRetrieverRef,
-} from '@google-genkit/plugin-pinecone';
+} from '@genkit-ai/plugin-pinecone';
 import * as z from 'zod';
 import config from './genkit.conf';
 export * from './pdf_rag';

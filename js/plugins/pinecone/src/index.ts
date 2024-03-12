@@ -1,4 +1,4 @@
-import { EmbedderReference, embed } from '@google-genkit/ai/embedders';
+import { EmbedderReference, embed } from '@genkit-ai/ai/embedders';
 import {
   CommonRetrieverOptionsSchema,
   TextDocumentSchema,
@@ -6,8 +6,8 @@ import {
   defineRetriever,
   indexerRef,
   retrieverRef,
-} from '@google-genkit/ai/retrievers';
-import { PluginProvider, genkitPlugin } from '@google-genkit/common/config';
+} from '@genkit-ai/ai/retrievers';
+import { PluginProvider, genkitPlugin } from '@genkit-ai/common/config';
 import {
   CreateIndexOptions,
   Pinecone,

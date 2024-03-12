@@ -1,5 +1,5 @@
 {
-  "name": "@google-genkit/common",
+  "name": "@genkit-ai/common",
   "version": "0.0.2",
   "type": "commonjs",
   "scripts": {

@@ -8,16 +8,16 @@ import {
   getStreamingCallback,
   Operation,
   StreamingCallback,
-} from '@google-genkit/common';
-import { config as globalConfig, isDevEnv } from '@google-genkit/common/config';
-import logging from '@google-genkit/common/logging';
-import * as registry from '@google-genkit/common/registry';
+} from '@genkit-ai/common';
+import { config as globalConfig, isDevEnv } from '@genkit-ai/common/config';
+import logging from '@genkit-ai/common/logging';
+import * as registry from '@genkit-ai/common/registry';
 import {
   newTrace,
   setCustomMetadataAttribute,
   setCustomMetadataAttributes,
   SPAN_TYPE_ATTR,
-} from '@google-genkit/common/tracing';
+} from '@genkit-ai/common/tracing';
 import * as bodyParser from 'body-parser';
 import { default as cors, CorsOptions } from 'cors';
 import express from 'express';

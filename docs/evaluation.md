@@ -37,7 +37,7 @@ genkit eval:run eval123_dataset.json --output eval123-evalresult.json
 The evaluator will automatically use the evaluators that you have installed in your config. For example:
 
 ```javascript
-import { RagasMetric, ragas } from '@google-genkit/plugin-ragas';
+import { RagasMetric, ragas } from '@genkit-ai/plugin-ragas';
 
 export default configureGenkit({
   plugins: [

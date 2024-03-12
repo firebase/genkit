@@ -1,10 +1,10 @@
-import { getLocation, getProjectId } from '@google-genkit/common';
-import { configureGenkit } from '@google-genkit/common/config';
-import { firebase } from '@google-genkit/plugin-firebase';
-import { gcp } from '@google-genkit/plugin-gcp';
-import { googleGenAI } from '@google-genkit/plugin-google-genai';
-import { openAI } from '@google-genkit/plugin-openai';
-import { vertexAI } from '@google-genkit/plugin-vertex-ai';
+import { getLocation, getProjectId } from '@genkit-ai/common';
+import { configureGenkit } from '@genkit-ai/common/config';
+import { firebase } from '@genkit-ai/plugin-firebase';
+import { gcp } from '@genkit-ai/plugin-gcp';
+import { googleGenAI } from '@genkit-ai/plugin-google-genai';
+import { openAI } from '@genkit-ai/plugin-openai';
+import { vertexAI } from '@genkit-ai/plugin-vertex-ai';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 
 export default configureGenkit({

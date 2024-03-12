@@ -1,11 +1,11 @@
-import { EmbedderReference } from '@google-genkit/ai/embedders';
+import { EmbedderReference } from '@genkit-ai/ai/embedders';
 import {
   Dataset,
   defineEvaluator,
   evaluatorRef,
-} from '@google-genkit/ai/evaluators';
-import { ModelReference } from '@google-genkit/ai/model';
-import { PluginProvider, genkitPlugin } from '@google-genkit/common/config';
+} from '@genkit-ai/ai/evaluators';
+import { ModelReference } from '@genkit-ai/ai/model';
+import { PluginProvider, genkitPlugin } from '@genkit-ai/common/config';
 import * as z from 'zod';
 import {
   answerRelevancyScore,

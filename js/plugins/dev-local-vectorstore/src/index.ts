@@ -2,7 +2,7 @@ import {
   EmbedderAction,
   EmbedderReference,
   embed,
-} from '@google-genkit/ai/embedders';
+} from '@genkit-ai/ai/embedders';
 import {
   CommonRetrieverOptionsSchema,
   TextDocumentSchema,
@@ -11,8 +11,8 @@ import {
   indexerRef,
   retrieverRef,
   type TextDocument,
-} from '@google-genkit/ai/retrievers';
-import { PluginProvider, genkitPlugin } from '@google-genkit/common/config';
+} from '@genkit-ai/ai/retrievers';
+import { PluginProvider, genkitPlugin } from '@genkit-ai/common/config';
 import similarity from 'compute-cosine-similarity';
 import * as fs from 'fs';
 import { Md5 } from 'ts-md5';

@@ -1,5 +1,5 @@
 {
-  "name": "@google-genkit/plugin-firebase",
+  "name": "@genkit-ai/plugin-firebase",
   "version": "0.0.2",
   "type": "commonjs",
   "scripts": {
@@ -12,7 +12,7 @@
     "lint:fix": "npm run lint -- --fix --quiet"
   },
   "dependencies": {
-    "@google-genkit/common": "*",
+    "@genkit-ai/common": "*",
     "firebase-admin": "^11.11.0",
     "firebase-functions": "^4.3.1"
   },

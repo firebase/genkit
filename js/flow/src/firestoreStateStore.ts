@@ -6,8 +6,8 @@ import {
   FlowStateQueryResponse,
   FlowStateSchema,
   FlowStateStore,
-} from '@google-genkit/common';
-import logging from '@google-genkit/common/logging';
+} from '@genkit-ai/common';
+import logging from '@genkit-ai/common/logging';
 
 /**
  * Implementation of flow state store that persistes flow state in Firestore.

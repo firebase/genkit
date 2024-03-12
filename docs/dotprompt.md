@@ -26,7 +26,7 @@ Generate a recipe for {{food}}.
 To use this prompt, import the `dotprompt` library and load the prompt using `prompt('name-of-the-prompt-file')`:
 
 ```
-import { prompt } from '@google-genkit/dotprompt';
+import { prompt } from '@genkit-ai/dotprompt';
 
 const food = 'mexican asian fusion';
 const recipePrompt = await prompt('recipe');

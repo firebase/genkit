@@ -1,8 +1,8 @@
-import { getProjectId } from '@google-genkit/common';
-import { configureGenkit } from '@google-genkit/common/config';
-import { openAI } from '@google-genkit/plugin-openai';
-import { googleGenAI } from '@google-genkit/plugin-google-genai';
-import { firebase } from '@google-genkit/plugin-firebase';
+import { getProjectId } from '@genkit-ai/common';
+import { configureGenkit } from '@genkit-ai/common/config';
+import { openAI } from '@genkit-ai/plugin-openai';
+import { googleGenAI } from '@genkit-ai/plugin-google-genai';
+import { firebase } from '@genkit-ai/plugin-firebase';
 
 export default configureGenkit({
   plugins: [firebase({ projectId: getProjectId() }), googleGenAI(), openAI()],
