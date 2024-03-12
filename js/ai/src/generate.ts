@@ -271,6 +271,19 @@ async function resolveTools<
   return tools;
 }
 
+async function resolveModel(
+  model: ModelAction<any> | ModelReference<any> | string
+): Promise<ModelAction> {
+  if (typeof model === 'string') {
+    return (await lookupAction(`/model/${model}`)) as ModelAction;
+  } else if (model.hasOwnProperty('info')) {
+    const ref = model as ModelReference<any>;
+    return (await lookupAction(`/model/${ref.name}`)) as ModelAction;
+  } else {
+    return model as ModelAction;
+  }
+}
+
 /**
  *
  */
@@ -278,27 +291,19 @@ export async function generate<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
 >(
-  prompt: ModelPrompt<O, CustomOptions>
+  options:
+    | ModelPrompt<O, CustomOptions>
+    | PromiseLike<ModelPrompt<O, CustomOptions>>
 ): Promise<GenerationResponse<z.infer<O>>> {
+  const prompt: ModelPrompt<O, CustomOptions> = await Promise.resolve(options);
+  const model = await resolveModel(prompt.model);
+  if (!model) {
+    throw new Error(`Model ${prompt.model} not found`);
+  }
+
   let tools: Action<any, any>[] | undefined;
   if (prompt.tools) {
     tools = await resolveTools(prompt);
-  }
-  let model: ModelAction<CustomOptions>;
-  if (typeof prompt.model === 'string') {
-    model = await lookupAction(`/model/${prompt.model}`);
-  } else if (prompt.model.hasOwnProperty('info')) {
-    const ref = prompt.model as ModelReference<CustomOptions>;
-    model = await lookupAction(`/model/${ref.name}`);
-    if (!model) {
-      throw new Error(`Model ${ref.name} not found`);
-    }
-  } else {
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-    model = prompt.model as ModelAction<CustomOptions>;
-  }
-  if (!model) {
-    throw new Error(`Model ${prompt.model} not found`);
   }
 
   const request = await toGenerateRequest(prompt);
