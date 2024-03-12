@@ -39,6 +39,11 @@
       "require": "./lib/experimental.js",
       "import": "./lib/experimental.mjs",
       "types": "./lib/experimental.d.ts"
+    },
+    "./auth": {
+      "require": "./lib/auth.js",
+      "import": "./lib/auth.mjs",
+      "types": "./lib/auth.d.ts"
     }
   },
   "typesVersions": {
@@ -48,6 +53,9 @@
       ],
       "functions/experimental": [
         "lib/functions"
+      ],
+      "auth": [
+        "lib/auth"
       ]
     }
   }

@@ -25,7 +25,8 @@ export class Context<
   constructor(
     readonly flow: Flow<I, O, S>,
     readonly flowId: string,
-    readonly state: FlowState
+    readonly state: FlowState,
+    readonly auth?: unknown
   ) {}
 
   private isCached(stepName: string): boolean {

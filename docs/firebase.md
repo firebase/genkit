@@ -97,7 +97,7 @@
      import { run } from '@genkit-ai/flow';
      import { generate } from '@genkit-ai/ai/generate';
      import { firebase } from '@genkit-ai/plugin-firebase';
-     import { onFlow } from '@genkit-ai/plugin-firebase/functions';
+     import { onFlow, noAuth } from '@genkit-ai/plugin-firebase/functions';
      import { geminiPro, googleGenAI } from '@genkit-ai/plugin-google-genai';
      import * as z from 'zod';
      
@@ -110,7 +110,7 @@
      });
      
      export const jokeFlow = onFlow(
-       { name: 'jokeFlow', input: z.string(), output: z.string() },
+       { name: 'jokeFlow', input: z.string(), output: z.string(), authPolicy: noAuth() },
        async (subject) => {
          const prompt = `Tell me a joke about ${subject}`;
         
