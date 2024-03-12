@@ -1,5 +1,5 @@
 {
-  "name": "@google-genkit/plugin-gcp",
+  "name": "@genkit-ai/plugin-gcp",
   "version": "0.0.2",
   "type": "commonjs",
   "scripts": {
@@ -14,8 +14,8 @@
   "dependencies": {
     "@google-cloud/opentelemetry-cloud-monitoring-exporter": "^0.17.0",
     "@google-cloud/opentelemetry-cloud-trace-exporter": "*",
-    "@google-genkit/ai": "*",
-    "@google-genkit/common": "*",
+    "@genkit-ai/ai": "*",
+    "@genkit-ai/common": "*",
     "@opentelemetry/api-metrics": "^0.33.0",
     "@opentelemetry/auto-instrumentations-node": "*",
     "@opentelemetry/instrumentation-pino": "*",

@@ -15,10 +15,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@google-genkit/flow": "*",
-    "@google-genkit/ai": "*",
-    "@google-genkit/providers": "*",
-    "@google-genkit/plugin-vertex-ai": "*"
+    "@genkit-ai/flow": "*",
+    "@genkit-ai/ai": "*",
+    "@genkit-ai/providers": "*",
+    "@genkit-ai/plugin-vertex-ai": "*"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

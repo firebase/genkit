@@ -6,8 +6,8 @@ import {
   Part,
   defineModel,
   modelRef,
-} from '@google-genkit/ai/model';
-import { downloadRequestMedia } from '@google-genkit/ai/model/middleware';
+} from '@genkit-ai/ai/model';
+import { downloadRequestMedia } from '@genkit-ai/ai/model/middleware';
 import {
   GenerateContentCandidate as GeminiCandidate,
   InputContent as GeminiMessage,

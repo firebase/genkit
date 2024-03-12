@@ -1,9 +1,9 @@
-import { getProjectId, getLocation } from '@google-genkit/common';
-import { configureGenkit } from '@google-genkit/common/config';
-import { vertexAI, textembeddingGecko } from '@google-genkit/plugin-vertex-ai';
-import { openAI, gpt4Turbo } from '@google-genkit/plugin-openai';
-import { ragas, RagasMetric } from '@google-genkit/plugin-ragas';
-import { firebase } from '@google-genkit/plugin-firebase';
+import { getProjectId, getLocation } from '@genkit-ai/common';
+import { configureGenkit } from '@genkit-ai/common/config';
+import { vertexAI, textembeddingGecko } from '@genkit-ai/plugin-vertex-ai';
+import { openAI, gpt4Turbo } from '@genkit-ai/plugin-openai';
+import { ragas, RagasMetric } from '@genkit-ai/plugin-ragas';
+import { firebase } from '@genkit-ai/plugin-firebase';
 
 export default configureGenkit({
   plugins: [

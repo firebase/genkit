@@ -1,5 +1,5 @@
 {
-  "name": "@google-genkit/plugin-vertex-ai",
+  "name": "@genkit-ai/plugin-vertex-ai",
   "version": "0.0.2",
   "type": "commonjs",
   "scripts": {
@@ -12,8 +12,8 @@
     "lint:fix": "npm run lint -- --fix --quiet"
   },
   "dependencies": {
-    "@google-genkit/ai": "*",
-    "@google-genkit/common": "*",
+    "@genkit-ai/ai": "*",
+    "@genkit-ai/common": "*",
     "google-auth-library": "^9.6.3",
     "@google-cloud/vertexai": "^0.5.0",
     "node-fetch": "^3.3.2"

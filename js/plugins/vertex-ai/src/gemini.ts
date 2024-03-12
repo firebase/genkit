@@ -19,8 +19,8 @@ import {
   ToolDefinitionSchema,
   defineModel,
   modelRef,
-} from '@google-genkit/ai/model';
-import { downloadRequestMedia } from '@google-genkit/ai/model/middleware';
+} from '@genkit-ai/ai/model';
+import { downloadRequestMedia } from '@genkit-ai/ai/model/middleware';
 import { z } from 'zod';
 
 export const geminiPro = modelRef({

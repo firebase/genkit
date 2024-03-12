@@ -1,5 +1,5 @@
 {
-  "name": "@google-genkit/ai",
+  "name": "@genkit-ai/ai",
   "version": "0.0.2",
   "type": "commonjs",
   "scripts": {
@@ -13,7 +13,7 @@
     "test": "node --loader tsx --test ./tests/**/*_test.ts"
   },
   "dependencies": {
-    "@google-genkit/common": "*",
+    "@genkit-ai/common": "*",
     "@types/node": "^20.11.19",
     "front-matter": "^4.0.2",
     "node-fetch": "^3.3.2",

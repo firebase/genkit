@@ -1,6 +1,6 @@
-import { generate } from '@google-genkit/ai/generate';
-import { initializeGenkit } from '@google-genkit/common/config';
-import { flow, run, runFlow } from '@google-genkit/flow';
+import { generate } from '@genkit-ai/ai/generate';
+import { initializeGenkit } from '@genkit-ai/common/config';
+import { flow, run, runFlow } from '@genkit-ai/flow';
 import express from 'express';
 import * as z from 'zod';
 import config from './genkit.conf';

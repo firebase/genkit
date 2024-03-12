@@ -1,7 +1,7 @@
-import { action, Action } from '@google-genkit/common';
-import * as registry from '@google-genkit/common/registry';
-import { lookupAction } from '@google-genkit/common/registry';
-import { setCustomMetadataAttributes } from '@google-genkit/common/tracing';
+import { action, Action } from '@genkit-ai/common';
+import * as registry from '@genkit-ai/common/registry';
+import { lookupAction } from '@genkit-ai/common/registry';
+import { setCustomMetadataAttributes } from '@genkit-ai/common/tracing';
 import * as z from 'zod';
 
 export const BaseDataPointSchema = z.object({

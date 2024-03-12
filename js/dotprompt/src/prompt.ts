@@ -5,11 +5,11 @@ import {
   GenerationRequest,
   GenerationResponseSchema,
   MessageData,
-} from '@google-genkit/ai/model';
+} from '@genkit-ai/ai/model';
 import fm from 'front-matter';
-import { GenerationResponse, generate } from '@google-genkit/ai/generate';
+import { GenerationResponse, generate } from '@genkit-ai/ai/generate';
 import z from 'zod';
-import { Action, action } from '@google-genkit/common';
+import { Action, action } from '@genkit-ai/common';
 import { createHash } from 'crypto';
 
 const PromptInputSchema = z.object({

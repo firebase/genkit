@@ -1,4 +1,4 @@
-import { Plugin, genkitPlugin } from '@google-genkit/common/config';
+import { Plugin, genkitPlugin } from '@genkit-ai/common/config';
 import {
   googleAIModel,
   geminiPro,

@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "dependencies": {
-    "@google-genkit/dotprompt": "*"
+    "@genkit-ai/dotprompt": "*"
   },
   "scripts": {
     "build": "tsc",

@@ -3,9 +3,9 @@ import {
   StreamingCallback,
   action,
   getStreamingCallback,
-} from '@google-genkit/common';
-import * as registry from '@google-genkit/common/registry';
-import { setCustomMetadataAttributes } from '@google-genkit/common/tracing';
+} from '@genkit-ai/common';
+import * as registry from '@genkit-ai/common/registry';
+import { setCustomMetadataAttributes } from '@genkit-ai/common/tracing';
 import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 import { conformOutput, validateSupport } from './model/middleware';

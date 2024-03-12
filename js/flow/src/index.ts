@@ -18,5 +18,5 @@ export {
   FlowStateStore,
   Operation,
   OperationSchema,
-} from '@google-genkit/common';
+} from '@genkit-ai/common';
 export { FirestoreStateStore } from './firestoreStateStore.js';

@@ -1,10 +1,10 @@
-import { OperationSchema, getLocation } from '@google-genkit/common';
+import { OperationSchema, getLocation } from '@genkit-ai/common';
 import {
   Flow,
   FlowInvokeEnvelopeMessage,
   StepsFunction,
-} from '@google-genkit/flow';
-import { durableFlow } from '@google-genkit/flow/experimental';
+} from '@genkit-ai/flow';
+import { durableFlow } from '@genkit-ai/flow/experimental';
 import { getFunctions } from 'firebase-admin/functions';
 import { logger } from 'firebase-functions/v2';
 import { HttpsFunction } from 'firebase-functions/v2/https';

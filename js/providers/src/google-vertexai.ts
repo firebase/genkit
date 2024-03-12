@@ -1,7 +1,7 @@
 import { PredictionServiceClient, helpers } from '@google-cloud/aiplatform';
-import { defineEmbedder, embedderRef } from '@google-genkit/ai/embedders';
-import { getProjectId } from '@google-genkit/common';
-import { Plugin, genkitPlugin } from '@google-genkit/common/config';
+import { defineEmbedder, embedderRef } from '@genkit-ai/ai/embedders';
+import { getProjectId } from '@genkit-ai/common';
+import { Plugin, genkitPlugin } from '@genkit-ai/common/config';
 import * as z from 'zod';
 
 export interface PluginOptions {

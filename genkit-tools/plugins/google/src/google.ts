@@ -3,7 +3,7 @@ import {
   ToolPlugin,
   cliCommand,
   promptContinue,
-} from '@google-genkit/tools-plugins/plugins';
+} from '@genkit-ai/tools-plugins/plugins';
 import * as clc from 'colorette';
 
 export const GoogleCloudTools: ToolPlugin = {

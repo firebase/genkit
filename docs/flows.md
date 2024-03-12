@@ -92,7 +92,7 @@ When you define a flow using the `flow` function you get a flow that can only ru
 To use flows with Cloud Functions for Firebase simply use the firebase plugin and replace `flow` with `onFlow`.
 
 ```javascript
-import { onFlow } from '@google-genkit/plugin-firebase/functions';
+import { onFlow } from '@genkit-ai/plugin-firebase/functions';
 
 export const jokeFlow = onFlow(
   { name: 'jokeFlow', input: z.string(), output: z.string() },
@@ -115,7 +115,7 @@ Schedulable flows do not support streaming, because they are specifically design
 
 
 ```javascript
-import { onFlow } from '@google-genkit/plugin-firebase/functions';
+import { onFlow } from '@genkit-ai/plugin-firebase/functions';
 
 export const jokeFlow = onScheduledFlow(
   { name: 'jokeFlow', input: z.string(), output: z.string() },

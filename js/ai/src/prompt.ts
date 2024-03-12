@@ -1,10 +1,10 @@
-import { setCustomMetadataAttribute } from '@google-genkit/common/tracing';
+import { setCustomMetadataAttribute } from '@genkit-ai/common/tracing';
 import { z } from 'zod';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import fm from 'front-matter';
 import { ModelId, ModelIdSchema } from './types';
-import { action } from '@google-genkit/common';
+import { action } from '@genkit-ai/common';
 
 function metadataPrefix(name: string) {
   return `ai:${name}`;

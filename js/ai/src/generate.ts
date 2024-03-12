@@ -14,14 +14,14 @@ import {
   ToolResponsePart,
 } from './model.js';
 import { extractJson } from './extract';
-import { Action } from '@google-genkit/common';
+import { Action } from '@genkit-ai/common';
 import { z } from 'zod';
-import { lookupAction } from '@google-genkit/common/registry';
-import { StreamingCallback } from '@google-genkit/common';
-import { runWithStreamingCallback } from '@google-genkit/common';
-import { action } from '@google-genkit/common';
-import * as registry from '@google-genkit/common/registry';
-import { setCustomMetadataAttributes } from '@google-genkit/common/tracing';
+import { lookupAction } from '@genkit-ai/common/registry';
+import { StreamingCallback } from '@genkit-ai/common';
+import { runWithStreamingCallback } from '@genkit-ai/common';
+import { action } from '@genkit-ai/common';
+import * as registry from '@genkit-ai/common/registry';
+import { setCustomMetadataAttributes } from '@genkit-ai/common/tracing';
 
 export class Message<T = unknown> implements MessageData {
   role: MessageData['role'];

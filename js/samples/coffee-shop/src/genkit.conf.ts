@@ -1,18 +1,18 @@
-import { getProjectId } from '@google-genkit/common';
-import { configureGenkit } from '@google-genkit/common/config';
+import { getProjectId } from '@genkit-ai/common';
+import { configureGenkit } from '@genkit-ai/common/config';
 
 // plugins
-import { googleGenAI, geminiPro } from '@google-genkit/plugin-google-genai';
-import { openAI } from '@google-genkit/plugin-openai';
-import { ragas, RagasMetric } from '@google-genkit/plugin-ragas';
-import { vertexAI, textembeddingGecko } from '@google-genkit/plugin-vertex-ai';
+import { googleGenAI, geminiPro } from '@genkit-ai/plugin-google-genai';
+import { openAI } from '@genkit-ai/plugin-openai';
+import { ragas, RagasMetric } from '@genkit-ai/plugin-ragas';
+import { vertexAI, textembeddingGecko } from '@genkit-ai/plugin-vertex-ai';
 
 // providers - will be moved to plugins eventually
-import { chroma } from '@google-genkit/plugin-chroma';
-import { firebase } from '@google-genkit/plugin-firebase';
-import { devLocalVectorstore } from '@google-genkit/plugin-dev-local-vectorstore';
-import { ollama } from '@google-genkit/plugin-ollama';
-import { pinecone } from '@google-genkit/plugin-pinecone';
+import { chroma } from '@genkit-ai/plugin-chroma';
+import { firebase } from '@genkit-ai/plugin-firebase';
+import { devLocalVectorstore } from '@genkit-ai/plugin-dev-local-vectorstore';
+import { ollama } from '@genkit-ai/plugin-ollama';
+import { pinecone } from '@genkit-ai/plugin-pinecone';
 
 // Not all plugins configured below are used by the flow, but we load
 // "everything" for UI development and testing.

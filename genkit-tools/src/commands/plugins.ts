@@ -1,10 +1,10 @@
-import { findToolsConfig } from '@google-genkit/tools-plugins/config';
+import { findToolsConfig } from '@genkit-ai/tools-plugins/config';
 import {
   ToolPlugin,
   BaseToolPluginAction,
   SupportedFlagValues,
   SpecialAction,
-} from '@google-genkit/tools-plugins/plugins';
+} from '@genkit-ai/tools-plugins/plugins';
 import { Command } from 'commander';
 import * as clc from 'colorette';
 import { logger } from '../utils/logger';

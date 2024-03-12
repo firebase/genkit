@@ -2,9 +2,9 @@ import {
   GenerationRequest,
   GenerationResponseData,
   defineModel,
-} from '@google-genkit/ai/model';
-import { Plugin, genkitPlugin } from '@google-genkit/common/config';
-import logging from '@google-genkit/common/logging';
+} from '@genkit-ai/ai/model';
+import { Plugin, genkitPlugin } from '@genkit-ai/common/config';
+import logging from '@genkit-ai/common/logging';
 
 interface OllamaPluginParams {
   models: { name: string; type?: 'chat' | 'generate' }[];

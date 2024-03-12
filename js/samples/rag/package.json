@@ -14,15 +14,15 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@google-genkit/ai": "*",
-    "@google-genkit/common": "*",
-    "@google-genkit/flow": "*",
-    "@google-genkit/plugin-vertex-ai": "*",
-    "@google-genkit/providers": "*",
+    "@genkit-ai/ai": "*",
+    "@genkit-ai/common": "*",
+    "@genkit-ai/flow": "*",
+    "@genkit-ai/plugin-vertex-ai": "*",
+    "@genkit-ai/providers": "*",
     "@types/pdfjs-dist": "^2.10.378",
     "llm-chunk": "^0.0.1",
     "pdfjs-dist": "^4.0.379",
-    "@google-genkit/plugin-ragas": "*",
+    "@genkit-ai/plugin-ragas": "*",
     "zod": "^3.22.4"
   },
   "devDependencies": {

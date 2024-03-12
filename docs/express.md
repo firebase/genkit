@@ -119,13 +119,13 @@
     Paste the following sample code into src/index.ts file:
    
     ```javascript
-    import { generate } from '@google-genkit/ai/generate';
-    import { GenerationResponseChunkSchema } from '@google-genkit/ai/model';
-    import { getLocation, getProjectId } from '@google-genkit/common';
-    import { configureGenkit } from '@google-genkit/common/config';
-    import { flow, run, startFlowsServer } from '@google-genkit/flow';
-    import { firebase } from '@google-genkit/plugin-firebase';
-    import { geminiPro, vertexAI } from '@google-genkit/plugin-vertex-ai';
+    import { generate } from '@genkit-ai/ai/generate';
+    import { GenerationResponseChunkSchema } from '@genkit-ai/ai/model';
+    import { getLocation, getProjectId } from '@genkit-ai/common';
+    import { configureGenkit } from '@genkit-ai/common/config';
+    import { flow, run, startFlowsServer } from '@genkit-ai/flow';
+    import { firebase } from '@genkit-ai/plugin-firebase';
+    import { geminiPro, vertexAI } from '@genkit-ai/plugin-vertex-ai';
     import * as z from 'zod';
     
     configureGenkit({

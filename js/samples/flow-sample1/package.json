@@ -15,7 +15,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@google-genkit/flow": "*"
+    "@genkit-ai/flow": "*"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

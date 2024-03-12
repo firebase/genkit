@@ -1,5 +1,5 @@
 {
-  "name": "@google-genkit/tools-plugin-google-cloud",
+  "name": "@genkit-ai/tools-plugin-google-cloud",
   "version": "0.0.2",
   "scripts": {
     "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
@@ -8,7 +8,7 @@
     "build:watch": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json --watch"
   },
   "devDependencies": {
-    "@google-genkit/tools-plugins": "*",
+    "@genkit-ai/tools-plugins": "*",
     "@types/node": "^20.11.19",
     "npm-run-all": "^4.1.5",
     "typescript": "^4.9.0"

@@ -1,4 +1,4 @@
-import { defineEmbedder, embedderRef } from '@google-genkit/ai/embedders';
+import { defineEmbedder, embedderRef } from '@genkit-ai/ai/embedders';
 import { GoogleAuth } from 'google-auth-library';
 import { z } from 'zod';
 import { PluginOptions } from '.';

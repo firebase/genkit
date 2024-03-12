@@ -1,5 +1,5 @@
 {
-  "name": "@google-genkit/plugin-ragas",
+  "name": "@genkit-ai/plugin-ragas",
   "version": "0.0.2",
   "type": "commonjs",
   "scripts": {
@@ -12,8 +12,8 @@
     "lint:fix": "npm run lint -- --fix --quiet"
   },
   "dependencies": {
-    "@google-genkit/ai": "*",
-    "@google-genkit/common": "*",
+    "@genkit-ai/ai": "*",
+    "@genkit-ai/common": "*",
     "node-fetch": "^3.3.2",
     "handlebars": "^4.7.8"
   },

@@ -1,17 +1,17 @@
-import { getProjectId } from '@google-genkit/common';
-import { configureGenkit } from '@google-genkit/common/config';
-import { googleGenAI } from '@google-genkit/plugin-google-genai';
-import { firebase } from '@google-genkit/plugin-firebase';
-import { pinecone } from '@google-genkit/plugin-pinecone';
-import { geminiPro, vertexAI } from '@google-genkit/plugin-vertex-ai';
-import { chroma } from '@google-genkit/plugin-chroma';
-import { RagasMetric, ragas } from '@google-genkit/plugin-ragas';
+import { getProjectId } from '@genkit-ai/common';
+import { configureGenkit } from '@genkit-ai/common/config';
+import { googleGenAI } from '@genkit-ai/plugin-google-genai';
+import { firebase } from '@genkit-ai/plugin-firebase';
+import { pinecone } from '@genkit-ai/plugin-pinecone';
+import { geminiPro, vertexAI } from '@genkit-ai/plugin-vertex-ai';
+import { chroma } from '@genkit-ai/plugin-chroma';
+import { RagasMetric, ragas } from '@genkit-ai/plugin-ragas';
 import {
   googleVertexAI,
   textEmbeddingGecko001,
-} from '@google-genkit/providers/google-vertexai';
-import { gpt4, openAI } from '@google-genkit/plugin-openai';
-import { devLocalVectorstore } from '@google-genkit/plugin-dev-local-vectorstore';
+} from '@genkit-ai/providers/google-vertexai';
+import { gpt4, openAI } from '@genkit-ai/plugin-openai';
+import { devLocalVectorstore } from '@genkit-ai/plugin-dev-local-vectorstore';
 
 export default configureGenkit({
   plugins: [

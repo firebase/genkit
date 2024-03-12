@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { Flow } from './flow';
-import { Operation } from '@google-genkit/common';
-import { StreamingCallback } from '@google-genkit/common';
+import { Operation } from '@genkit-ai/common';
+import { StreamingCallback } from '@genkit-ai/common';
 
 export type Invoker<
   I extends z.ZodTypeAny,

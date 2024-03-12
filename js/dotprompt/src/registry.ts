@@ -1,8 +1,8 @@
-import { config } from '@google-genkit/common/config';
-import { lookupAction, registerAction } from '@google-genkit/common/registry';
+import { config } from '@genkit-ai/common/config';
+import { lookupAction, registerAction } from '@genkit-ai/common/registry';
 import { Prompt, PromptAction } from './prompt';
 import { readFileSync } from 'fs';
-import logger from '@google-genkit/common/logging';
+import logger from '@genkit-ai/common/logging';
 import { join } from 'path';
 
 export async function lookupPrompt(

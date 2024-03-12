@@ -15,9 +15,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@google-genkit/flow": "*",
-    "@google-genkit/ai": "*",
-    "@google-genkit/providers": "*",
+    "@genkit-ai/flow": "*",
+    "@genkit-ai/ai": "*",
+    "@genkit-ai/providers": "*",
     "express": "~4.18.2"
   },
   "devDependencies": {

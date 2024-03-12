@@ -1,5 +1,5 @@
-import { prompt } from '@google-genkit/dotprompt';
-import { initializeGenkit } from '@google-genkit/common/config';
+import { prompt } from '@genkit-ai/dotprompt';
+import { initializeGenkit } from '@genkit-ai/common/config';
 
 initializeGenkit();
 

@@ -1,9 +1,9 @@
-import { generate, tool } from '@google-genkit/ai/generate';
-import { initializeGenkit } from '@google-genkit/common/config';
-import { flow, run } from '@google-genkit/flow';
+import { generate, tool } from '@genkit-ai/ai/generate';
+import { initializeGenkit } from '@genkit-ai/common/config';
+import { flow, run } from '@genkit-ai/flow';
 import * as z from 'zod';
 import config from './genkit.conf';
-import { geminiPro } from '@google-genkit/plugin-vertex-ai';
+import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 
 initializeGenkit(config);
 
