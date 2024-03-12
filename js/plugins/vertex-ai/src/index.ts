@@ -7,7 +7,7 @@ import {
   SUPPORTED_GEMINI_MODELS,
 } from './gemini';
 import { VertexAI } from '@google-cloud/vertexai';
-import { getProjectId } from '@genkit-ai/common';
+import { getProjectId, getLocation } from '@genkit-ai/common';
 import { textEmbeddingGeckoEmbedder, textembeddingGecko } from './embedder';
 import { GoogleAuth } from 'google-auth-library';
 
@@ -22,10 +22,22 @@ export const vertexAI: Plugin<[PluginOptions]> = genkitPlugin(
   'vertex-ai',
   async (options: PluginOptions) => {
     const authClient = new GoogleAuth();
-    const vertexClient = new VertexAI({
-      project: options.projectId || getProjectId(),
-      location: options.location,
-    });
+    const project = options.projectId || getProjectId();
+    const location = options.location || getLocation();
+
+    const confError = (parameter: string, envVariableName: string) => {
+      return new Error(
+        `VertexAI Plugin is missing the '${parameter}' environment variable. Please set the '${envVariableName}' environment variable or explicitly pass '${parameter}' into genkit.conf.ts.`
+      );
+    };
+    if (!location) {
+      throw confError(project, 'GCLOUD_LOCATION');
+    }
+    if (!project) {
+      throw confError(project, 'GCLOUD_PROJECT');
+    }
+
+    const vertexClient = new VertexAI({ project, location });
     return {
       models: [
         imagen2Model(authClient, options),
