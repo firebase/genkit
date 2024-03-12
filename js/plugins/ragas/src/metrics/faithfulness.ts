@@ -104,14 +104,17 @@ Context:
 Answer:
 `;
 
-const NliResponseSchema = z.array(
-  z.object({
-    statement: z.string(),
-    reason: z.string(),
-    verdict: z.enum(['Yes', 'No']),
-  })
-);
-type NliResponse = z.infer<typeof NliResponseSchema>;
+const NliResponseBaseSchema = z.object({
+  statement: z.string(),
+  reason: z.string(),
+  verdict: z.enum(['Yes', 'No']),
+});
+
+type NliResponseBase = z.infer<typeof NliResponseBaseSchema>;
+
+const NliResponseSchema = z
+  .array(NliResponseBaseSchema)
+  .or(NliResponseBaseSchema);
 
 /**
  *
@@ -150,10 +153,9 @@ export async function faithfulnessScore<
 
     console.debug('longform', longFormResponse.output());
     let statements = longFormResponse.output()?.statements ?? [];
-    statements = !!statements && statements.length > 0 ? statements : ['Nil'];
+    statements = statements.length > 0 ? statements : ['Nil'];
     const all_statements = statements.map((s) => `statement: ${s}`).join('\n');
     const allContext = context.join('\n');
-
     const nliTemplate = Handlebars.compile(NLI_STATEMENTS_MESSAGE);
     const nliPrompt = nliTemplate({
       context: allContext,
@@ -173,8 +175,10 @@ export async function faithfulnessScore<
   return scores;
 }
 
-function nliResponseToScore(responses: NliResponse | null) {
-  if (!responses) return 0;
+function nliResponseToScore(input: NliResponseBase[] | NliResponseBase | null) {
+  if (!input) return 0;
+  let responses: NliResponseBase[];
+  responses = Array.isArray(input) ? input : [input];
   const faithful_statements = responses
     .map((entry) => (entry.verdict === 'Yes' ? 1 : 0) as number)
     .reduce((total, curr) => {
