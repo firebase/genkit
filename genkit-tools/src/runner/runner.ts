@@ -212,9 +212,12 @@ export class Runner {
   }
 
   private httpErrorHandler(error: AxiosError, message?: string): any {
+    const newError = new GenkitToolsError(message || 'Internal Error');
+
     if (error.response) {
-      // Don't treat non-200 responses as exceptions; return them instead.
-      return error.response;
+      // we got a non-200 response; copy the payload and rethrow
+      newError.data = error.response.data;
+      throw newError;
     }
 
     // We actually have an exception; wrap it and re-throw.
@@ -254,10 +257,8 @@ export class Runner {
   async listActions(): Promise<Record<string, Action>> {
     const response = await axios
       .get(`${REFLECTION_API_URL}/actions`)
-      .catch(this.httpErrorHandler);
-    if (response.status !== 200) {
-      throw new GenkitToolsError(response.data);
-    }
+      .catch((err) => this.httpErrorHandler(err, 'Error listing actions.'));
+
     return response.data as Record<string, Action>;
   }
 
@@ -304,12 +305,9 @@ export class Runner {
             'Content-Type': 'application/json',
           },
         })
-        .catch(this.httpErrorHandler);
-
-      // TODO: Improve the error handling here including invalid arguments from the frontend.
-      if (response.status !== 200) {
-        throw new GenkitToolsError(response.data);
-      }
+        .catch((err) =>
+          this.httpErrorHandler(err, `Error running action key='${input.key}'.`)
+        );
       return response.data as unknown;
     }
   }
@@ -332,10 +330,13 @@ export class Runner {
 
     const response = await axios
       .get(`${REFLECTION_API_URL}/envs/${env}/traces?${query}`)
-      .catch(this.httpErrorHandler);
-    if (response.status !== 200) {
-      throw new GenkitToolsError(response.data);
-    }
+      .catch((err) =>
+        this.httpErrorHandler(
+          err,
+          `Error listing traces for env='${env}', query='${query}'.`
+        )
+      );
+
     return apis.ListTracesResponseSchema.parse(response.data);
   }
 
@@ -344,10 +345,13 @@ export class Runner {
     const { env, traceId } = input;
     const response = await axios
       .get(`${REFLECTION_API_URL}/envs/${env}/traces/${traceId}`)
-      .catch(this.httpErrorHandler);
-    if (response.status !== 200) {
-      throw new GenkitToolsError(response.data);
-    }
+      .catch((err) =>
+        this.httpErrorHandler(
+          err,
+          `Error getting trace for traceId='${traceId}', env='${env}'.`
+        )
+      );
+
     return response.data as TraceData;
   }
 
@@ -368,10 +372,13 @@ export class Runner {
     }
     const response = await axios
       .get(`${REFLECTION_API_URL}/envs/${env}/flowStates?${query}`)
-      .catch(this.httpErrorHandler);
-    if (response.status !== 200) {
-      throw new GenkitToolsError(response.data);
-    }
+      .catch((err) =>
+        this.httpErrorHandler(
+          err,
+          `Error listing flowStates for env='${env}', query='${query}'.`
+        )
+      );
+
     return apis.ListFlowStatesResponseSchema.parse(response.data);
   }
 
@@ -380,10 +387,13 @@ export class Runner {
     const { env, flowId } = input;
     const response = await axios
       .get(`${REFLECTION_API_URL}/envs/${env}/flowStates/${flowId}`)
-      .catch(this.httpErrorHandler);
-    if (response.status !== 200) {
-      throw new GenkitToolsError(response.data);
-    }
+      .catch((err) =>
+        this.httpErrorHandler(
+          err,
+          `Error getting flowState for flowId='${flowId}', env='${env}'.`
+        )
+      );
+
     return response.data as FlowState;
   }
 }
