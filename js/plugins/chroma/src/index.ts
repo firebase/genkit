@@ -10,6 +10,7 @@ import {
 import { genkitPlugin, PluginProvider } from '@genkit-ai/common/config';
 import {
   ChromaClient,
+  ChromaClientParams,
   CollectionMetadata,
   IEmbeddingFunction,
   IncludeEnum,
@@ -36,20 +37,26 @@ export const ChromaIndexerOptionsSchema = z.null().optional();
 /**
  * Chroma plugin that provides the Chroma retriever and indexer
  */
-export function chroma<EmbedderCustomOptions extends z.ZodTypeAny>(params: {
-  collectionName: string;
-  embedder: EmbedderReference<EmbedderCustomOptions>;
-  embedderOptions?: z.infer<EmbedderCustomOptions>;
-}): PluginProvider {
+export function chroma<EmbedderCustomOptions extends z.ZodTypeAny>(
+  params: {
+    clientParams?: ChromaClientParams;
+    collectionName: string;
+    embedder: EmbedderReference<EmbedderCustomOptions>;
+    embedderOptions?: z.infer<EmbedderCustomOptions>;
+  }[]
+): PluginProvider {
   const plugin = genkitPlugin(
     'chroma',
-    async (params: {
-      collectionName: string;
-      embedder: EmbedderReference<EmbedderCustomOptions>;
-      embedderOptions?: z.infer<EmbedderCustomOptions>;
-    }) => ({
-      retrievers: [chromaRetriever(params)],
-      indexers: [chromaIndexer(params)],
+    async (
+      params: {
+        clientParams?: ChromaClientParams;
+        collectionName: string;
+        embedder: EmbedderReference<EmbedderCustomOptions>;
+        embedderOptions?: z.infer<EmbedderCustomOptions>;
+      }[]
+    ) => ({
+      retrievers: params.map((i) => chromaRetriever(i)),
+      indexers: params.map((i) => chromaIndexer(i)),
     })
   );
   return plugin(params);
@@ -93,6 +100,7 @@ export const chromaIndexerRef = (params: {
 export function chromaRetriever<
   EmbedderCustomOptions extends z.ZodTypeAny
 >(params: {
+  clientParams?: ChromaClientParams;
   collectionName: string;
   embedder: EmbedderReference<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
@@ -108,7 +116,7 @@ export function chromaRetriever<
       customOptionsType: ChromaRetrieverOptionsSchema,
     },
     async (input, options) => {
-      const client = new ChromaClient();
+      const client = new ChromaClient(params.clientParams);
       const collection = await client.getCollection({
         name: collectionName,
       });
@@ -159,6 +167,7 @@ export function chromaRetriever<
 export function chromaIndexer<
   EmbedderCustomOptions extends z.ZodTypeAny
 >(params: {
+  clientParams?: ChromaClientParams;
   collectionName: string;
   textKey?: string;
   embedder: EmbedderReference<EmbedderCustomOptions>;
@@ -167,7 +176,7 @@ export function chromaIndexer<
   const { collectionName, embedder, embedderOptions } = {
     ...params,
   };
-  const client = new ChromaClient();
+  const client = new ChromaClient(params.clientParams);
 
   return defineIndexer(
     {
@@ -220,6 +229,7 @@ export async function createChromaCollection<
   EmbedderCustomOptions extends z.ZodTypeAny
 >(params: {
   name: string;
+  clientParams?: ChromaClientParams;
   metadata?: CollectionMetadata;
   embedder?: EmbedderReference<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
@@ -241,7 +251,7 @@ export async function createChromaCollection<
       },
     };
   }
-  const client = new ChromaClient();
+  const client = new ChromaClient(params.clientParams);
   return await client.createCollection({
     ...params,
     embeddingFunction: chromaEmbedder,
@@ -251,8 +261,11 @@ export async function createChromaCollection<
 /**
  * Helper function for deleting Chroma collections.
  */
-export async function deleteChromaCollection(params: { name: string }) {
-  const client = new ChromaClient();
+export async function deleteChromaCollection(params: {
+  name: string;
+  clientParams?: ChromaClientParams;
+}) {
+  const client = new ChromaClient(params.clientParams);
   return await client.deleteCollection({
     ...params,
   });

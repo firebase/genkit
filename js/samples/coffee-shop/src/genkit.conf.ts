@@ -25,11 +25,13 @@ export default configureGenkit({
     ragas({ judge: geminiPro, metrics: [RagasMetric.CONTEXT_PRECISION] }),
 
     // providers - will be moved to plugins eventually
-    chroma({
-      collectionName: 'chroma-collection',
-      embedder: textembeddingGecko,
-      embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
-    }),
+    chroma([
+      {
+        collectionName: 'chroma-collection',
+        embedder: textembeddingGecko,
+        embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
+      },
+    ]),
     firebase({ projectId: getProjectId() }),
     devLocalVectorstore([
       {
