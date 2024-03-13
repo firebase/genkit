@@ -9,8 +9,8 @@ import { Action } from '../types/action';
 import axios, { AxiosError } from 'axios';
 import * as apis from '../types/apis';
 import { TraceData } from '../types/trace';
-import { InternalError, StreamingCallback } from './types';
-import { FlowState, Operation } from '../types/flow';
+import { GenkitToolsError, StreamingCallback } from './types';
+import { FlowState } from '../types/flow';
 
 /**
  * Files in these directories will be excluded from being watched for changes.
@@ -211,6 +211,18 @@ export class Runner {
     }
   }
 
+  private httpErrorHandler(error: AxiosError, message?: string): any {
+    if (error.response) {
+      // Don't treat non-200 responses as exceptions; return them instead.
+      return error.response;
+    }
+
+    // We actually have an exception; wrap it and re-throw.
+    throw new GenkitToolsError(message || 'Internal Error', {
+      cause: error.cause,
+    });
+  }
+
   /** Retrieves all runnable actions. */
   async healthCheck(): Promise<boolean> {
     try {
@@ -240,16 +252,13 @@ export class Runner {
 
   /** Retrieves all runnable actions. */
   async listActions(): Promise<Record<string, Action>> {
-    try {
-      const response = await axios.get(`${REFLECTION_API_URL}/actions`);
-      if (response.status !== 200) {
-        throw new InternalError('Failed to fetch actions.');
-      }
-      return response.data as Record<string, Action>;
-    } catch (error) {
-      console.error('Error fetching actions:', error);
-      throw new InternalError('Error fetching actions.');
+    const response = await axios
+      .get(`${REFLECTION_API_URL}/actions`)
+      .catch(this.httpErrorHandler);
+    if (response.status !== 200) {
+      throw new GenkitToolsError(response.data);
     }
+    return response.data as Record<string, Action>;
   }
 
   /** Runs an action. */
@@ -265,12 +274,7 @@ export class Runner {
           },
           responseType: 'stream',
         })
-        .catch((error) => {
-          if (error.response) {
-            return error.response;
-          }
-          throw new InternalError(error);
-        });
+        .catch(this.httpErrorHandler);
       const stream = response.data;
 
       var buffer = '';
@@ -300,15 +304,11 @@ export class Runner {
             'Content-Type': 'application/json',
           },
         })
-        .catch((error) => {
-          if (error.response) {
-            return error.response;
-          }
-          throw new InternalError(error);
-        });
+        .catch(this.httpErrorHandler);
+
       // TODO: Improve the error handling here including invalid arguments from the frontend.
       if (response.status !== 200) {
-        throw new InternalError(response.data.message);
+        throw new GenkitToolsError(response.data);
       }
       return response.data as unknown;
     }
@@ -329,39 +329,26 @@ export class Runner {
       }
       query += `continuationToken=${continuationToken}`;
     }
-    try {
-      const response = await axios.get(
-        `${REFLECTION_API_URL}/envs/${env}/traces?${query}`
-      );
-      if (response.status !== 200) {
-        throw new InternalError(`Failed to fetch traces from env ${env}.`);
-      }
-      return apis.ListTracesResponseSchema.parse(response.data);
-    } catch (error) {
-      console.error('Error fetching traces:', error);
-      throw new InternalError(`Error fetching traces from env ${env}.`);
+
+    const response = await axios
+      .get(`${REFLECTION_API_URL}/envs/${env}/traces?${query}`)
+      .catch(this.httpErrorHandler);
+    if (response.status !== 200) {
+      throw new GenkitToolsError(response.data);
     }
+    return apis.ListTracesResponseSchema.parse(response.data);
   }
 
   /** Retrieves a trace for a given ID. */
   async getTrace(input: apis.GetTraceRequest): Promise<TraceData> {
     const { env, traceId } = input;
-    try {
-      const response = await axios.get(
-        `${REFLECTION_API_URL}/envs/${env}/traces/${traceId}`
-      );
-      if (response.status !== 200) {
-        throw new InternalError(
-          `Failed to fetch trace ${traceId} from env ${env}.`
-        );
-      }
-      return response.data as TraceData;
-    } catch (error) {
-      console.error(`Error fetching trace ${traceId} from env ${env}:`, error);
-      throw new InternalError(
-        `Error fetching trace ${traceId} from env ${env}.`
-      );
+    const response = await axios
+      .get(`${REFLECTION_API_URL}/envs/${env}/traces/${traceId}`)
+      .catch(this.httpErrorHandler);
+    if (response.status !== 200) {
+      throw new GenkitToolsError(response.data);
     }
+    return response.data as TraceData;
   }
 
   /** Retrieves all flow states for a given environment (e.g. dev or prod). */
@@ -379,36 +366,24 @@ export class Runner {
       }
       query += `continuationToken=${continuationToken}`;
     }
-    try {
-      const response = await axios.get(
-        `${REFLECTION_API_URL}/envs/${env}/flowStates?${query}`
-      );
-      if (response.status !== 200) {
-        throw new InternalError(`Failed to fetch flows from env ${env}.`);
-      }
-      return apis.ListFlowStatesResponseSchema.parse(response.data);
-    } catch (error) {
-      console.error('Error fetching flows:', error);
-      throw new InternalError(`Error fetching flows from env ${env}.`);
+    const response = await axios
+      .get(`${REFLECTION_API_URL}/envs/${env}/flowStates?${query}`)
+      .catch(this.httpErrorHandler);
+    if (response.status !== 200) {
+      throw new GenkitToolsError(response.data);
     }
+    return apis.ListFlowStatesResponseSchema.parse(response.data);
   }
 
   /** Retrieves a flow state for a given ID. */
   async getFlowState(input: apis.GetFlowStateRequest): Promise<FlowState> {
     const { env, flowId } = input;
-    try {
-      const response = await axios.get(
-        `${REFLECTION_API_URL}/envs/${env}/flowStates/${flowId}`
-      );
-      if (response.status !== 200) {
-        throw new InternalError(
-          `Failed to fetch flow ${flowId} from env ${env}.`
-        );
-      }
-      return response.data as FlowState;
-    } catch (error) {
-      console.error(`Error fetching flow ${flowId} from env ${env}:`, error);
-      throw new InternalError(`Error fetching flow ${flowId} from env ${env}.`);
+    const response = await axios
+      .get(`${REFLECTION_API_URL}/envs/${env}/flowStates/${flowId}`)
+      .catch(this.httpErrorHandler);
+    if (response.status !== 200) {
+      throw new GenkitToolsError(response.data);
     }
+    return response.data as FlowState;
   }
 }
