@@ -15,6 +15,8 @@ export interface ActionMetadata<
 }
 
 export class GenkitToolsError extends Error {
+  public data?: unknown;
+
   constructor(msg: string, options?: ErrorOptions) {
     super(msg, options);
   }
