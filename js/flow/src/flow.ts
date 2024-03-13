@@ -30,19 +30,16 @@ import {
   getErrorMessage,
   getErrorStack,
   InterruptError,
-} from './errors.js';
+} from './errors';
 import {
+  FlowActionInputSchema,
   FlowInvokeEnvelopeMessage,
   FlowInvokeEnvelopeMessageSchema,
   Invoker,
   RetryConfig,
   Scheduler,
-} from './types.js';
-import {
-  generateFlowId,
-  metadataPrefix,
-  runWithActiveContext,
-} from './utils.js';
+} from './types';
+import { generateFlowId, metadataPrefix, runWithActiveContext } from './utils';
 
 const streamDelimiter = '\n';
 const createdFlows = [] as Flow<any, any, any>[];
@@ -596,11 +593,11 @@ function wrapAsAction<
   S extends z.ZodTypeAny
 >(
   flow: Flow<I, O, S>
-): Action<typeof FlowInvokeEnvelopeMessageSchema, typeof FlowStateSchema> {
+): Action<typeof FlowActionInputSchema, typeof FlowStateSchema> {
   return action(
     {
       name: flow.name,
-      input: FlowInvokeEnvelopeMessageSchema,
+      input: FlowActionInputSchema,
       output: FlowStateSchema,
       metadata: {
         inputSchema: zodToJsonSchema(flow.input),
@@ -609,7 +606,12 @@ function wrapAsAction<
       },
     },
     async (envelope) => {
-      return await flow.runEnvelope(envelope, getStreamingCallback());
+      await flow.authPolicy?.(envelope.auth);
+      return await flow.runEnvelope(
+        envelope,
+        getStreamingCallback(),
+        envelope.auth
+      );
     }
   );
 }

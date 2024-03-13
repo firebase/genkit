@@ -8,6 +8,7 @@ interface FlowRunOptions {
   wait?: boolean;
   output?: string;
   stream?: boolean;
+  auth?: string;
 }
 
 /** Command to start GenKit server, optionally without static file serving */
@@ -16,6 +17,11 @@ export const flowRun = new Command('flow:run')
   .argument('[data]', 'JSON data to use to start the flow')
   .option('-w, --wait', 'Wait for the flow to complete', false)
   .option('-s, --stream', 'Stream output', false)
+  .option(
+    '-a, --auth <JSON>',
+    'JSON object passed to authPolicy and stored in local state as auth',
+    ''
+  )
   .option(
     '--output <filename>',
     'name of the output file to store the extracted data'
@@ -29,9 +35,9 @@ export const flowRun = new Command('flow:run')
         key: `/flow/${flowName}`,
         input: {
           start: {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             input: data ? JSON.parse(data) : undefined,
           },
+          auth: options.auth ? JSON.parse(options.auth) : undefined,
         } as FlowInvokeEnvelopeMessage,
       },
       options.stream
