@@ -1,4 +1,3 @@
-import { prompt, promptTemplate } from '@genkit-ai/ai';
 import { generate } from '@genkit-ai/ai/generate';
 import { TextDocument, index, retrieve } from '@genkit-ai/ai/retrievers';
 import { initializeGenkit } from '@genkit-ai/common/config';
@@ -45,12 +44,20 @@ export const nfsSpongeBobRetriever = devLocalRetrieverRef('spongebob-facts');
 
 export const nfsSpongeBobIndexer = devLocalIndexerRef('spongebob-facts');
 
-const ragTemplate = `Use the following pieces of context to answer the question at the end.
+function ragTemplate({
+  context,
+  question,
+}: {
+  context: string;
+  question: string;
+}) {
+  return `Use the following pieces of context to answer the question at the end.
  If you don't know the answer, just say that you don't know, don't try to make up an answer.
  
-{context}
-Question: {question}
+${context}
+Question: ${question}
 Helpful Answer:`;
+}
 
 // Define a simple RAG flow, we will evaluate this flow
 export const askQuestionsAboutTomAndJerryFlow = flow(
@@ -67,18 +74,15 @@ export const askQuestionsAboutTomAndJerryFlow = flow(
     });
     console.log(docs);
 
-    const augmentedPrompt = await promptTemplate({
-      template: prompt(ragTemplate),
-      variables: {
-        question: query,
-        context: docs.map((d) => d.content).join('\n\n'),
-      },
+    const augmentedPrompt = ragTemplate({
+      question: query,
+      context: docs.map((d) => d.content).join('\n\n'),
     });
     const model = geminiPro;
-    console.log(augmentedPrompt.prompt);
+    console.log(augmentedPrompt);
     const llmResponse = await generate({
       model,
-      prompt: { text: augmentedPrompt.prompt },
+      prompt: { text: augmentedPrompt },
     });
     return llmResponse.text();
   }
@@ -100,18 +104,15 @@ export const askQuestionsAboutSpongebobFlow = flow(
     });
     console.log(docs);
 
-    const augmentedPrompt = await promptTemplate({
-      template: prompt(ragTemplate),
-      variables: {
-        question: query,
-        context: docs.map((d) => d.content).join('\n\n'),
-      },
+    const augmentedPrompt = ragTemplate({
+      question: query,
+      context: docs.map((d) => d.content).join('\n\n'),
     });
     const model = geminiPro;
-    console.log(augmentedPrompt.prompt);
+    console.log(augmentedPrompt);
     const llmResponse = await generate({
       model,
-      prompt: { text: augmentedPrompt.prompt },
+      prompt: { text: augmentedPrompt },
     });
     return llmResponse.text();
   }
