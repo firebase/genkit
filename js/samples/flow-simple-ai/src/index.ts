@@ -4,6 +4,8 @@ import { flow, run } from '@genkit-ai/flow';
 import * as z from 'zod';
 import config from './genkit.conf';
 import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
+import { gpt35Turbo, gpt4, gpt4Turbo } from '@genkit-ai/plugin-openai';
+import { geminiPro as googleGeminiPro } from '@genkit-ai/plugin-google-genai';
 
 initializeGenkit(config);
 
@@ -59,7 +61,16 @@ const tools = [
 export const jokeWithToolsFlow = flow(
   {
     name: 'jokeWithToolsFlow',
-    input: z.object({ modelName: z.string(), subject: z.string() }),
+    input: z.object({
+      modelName: z.enum([
+        geminiPro.name,
+        gpt4Turbo.name,
+        googleGeminiPro.name,
+        gpt35Turbo.name,
+        gpt4.name,
+      ]),
+      subject: z.string(),
+    }),
     output: z.string(),
   },
   async (input) => {
