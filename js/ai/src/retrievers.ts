@@ -150,7 +150,9 @@ export function defineRetriever<
         options: options.customOptionsType,
       }),
       output: z.array<DocumentSchemaType>(options.documentType),
-      metadata: options.embedderInfo,
+      metadata: {
+        embedderInfo: options.embedderInfo,
+      },
     },
     (i) => {
       setCustomMetadataAttributes({ subtype: 'retriever' });
@@ -191,7 +193,9 @@ export function defineIndexer<
         options: options.customOptionsType,
       }),
       output: z.void(),
-      metadata: options.embedderInfo,
+      metadata: {
+        embedderInfo: options.embedderInfo,
+      },
     },
     (i) => {
       setCustomMetadataAttributes({ subtype: 'indexer' });
