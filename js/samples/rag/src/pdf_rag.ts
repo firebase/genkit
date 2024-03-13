@@ -1,4 +1,3 @@
-import { prompt, promptTemplate } from '@genkit-ai/ai';
 import { generate } from '@genkit-ai/ai/generate';
 import { TextDocument, index, retrieve } from '@genkit-ai/ai/retrievers';
 import { flow, run } from '@genkit-ai/flow';
@@ -15,12 +14,20 @@ export const pdfChatRetriever = devLocalRetrieverRef('pdfQA');
 
 export const pdfChatIndexer = devLocalIndexerRef('pdfQA');
 
-const ragTemplate = `Use the following pieces of context to answer the question at the end.
+function ragTemplate({
+  context,
+  question,
+}: {
+  context: string;
+  question: string;
+}) {
+  return `Use the following pieces of context to answer the question at the end.
  If you don't know the answer, just say that you don't know, don't try to make up an answer.
- 
-{context}
-Question: {question}
+
+${context}
+Question: ${question}
 Helpful Answer:`;
+}
 
 // Define a simple RAG flow, we will evaluate this flow
 export const pdfQA = flow(
@@ -37,16 +44,13 @@ export const pdfQA = flow(
     });
     console.log(docs);
 
-    const augmentedPrompt = await promptTemplate({
-      template: prompt(ragTemplate),
-      variables: {
-        question: query,
-        context: docs.map((d) => d.content).join('\n\n'),
-      },
+    const augmentedPrompt = ragTemplate({
+      question: query,
+      context: docs.map((d) => d.content).join('\n\n'),
     });
     const llmResponse = await generate({
       model: geminiPro,
-      prompt: { text: augmentedPrompt.prompt },
+      prompt: { text: augmentedPrompt },
     });
     return llmResponse.text();
   }

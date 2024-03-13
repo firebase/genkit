@@ -1,4 +1,3 @@
-import { promptTemplate } from '@genkit-ai/ai';
 import { generate } from '@genkit-ai/ai/generate';
 import { initializeGenkit } from '@genkit-ai/common/config';
 import { durableFlow, interrupt, run } from '@genkit-ai/flow/experimental';
@@ -19,14 +18,9 @@ export const jokeFlow = durableFlow(
     output: z.string(),
   },
   async (inputSubject) => {
-    const prompt = await run(
-      'make-prompt',
-      async () =>
-        await promptTemplate({
-          template: 'Tell me a joke about {subject}',
-          variables: { subject: inputSubject },
-        })
-    );
+    const prompt = await run('make-prompt', async () => ({
+      prompt: `Tell me a joke about ${inputSubject}`,
+    }));
 
     const llmResponse = await run('run-llm', async () =>
       (await generate({ model: geminiPro, prompt: prompt.prompt })).text()
