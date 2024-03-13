@@ -14,9 +14,9 @@ export interface ActionMetadata<
   metadata: Record<string, any>;
 }
 
-export class InternalError extends Error {
-  constructor(msg: string) {
-    super(msg);
+export class GenkitToolsError extends Error {
+  constructor(msg: string, options?: ErrorOptions) {
+    super(msg, options);
   }
 }
 
