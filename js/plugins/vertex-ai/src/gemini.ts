@@ -81,19 +81,31 @@ const toGeminiTool = (tool: z.infer<typeof ToolDefinitionSchema>): Tool => {
   };
 };
 
-const toGeminiFileDataPart = (part: Part): VertexPart => {
-  // TODO: Figure out when is it possible that contentType is not defined?
-  if (!part?.media?.contentType) {
-    throw Error(
-      'Could not convert genkit part to gemini tool response part: missing file data'
-    );
+const toGeminiFileDataPart = (part: MediaPart): VertexPart => {
+  const media = part.media;
+  if (media.url.startsWith('gs://')) {
+    if (!media.contentType)
+      throw new Error(
+        'Must supply contentType when using media from gs:// URLs.'
+      );
+    return {
+      file_data: {
+        mime_type: media.contentType,
+        file_uri: media.url,
+      },
+    };
+  } else if (media.url.startsWith('data:')) {
+    const dataUrl = media.url;
+    const b64Data = dataUrl.substring(dataUrl.indexOf(',')! + 1);
+    const contentType =
+      media.contentType ||
+      dataUrl.substring(dataUrl.indexOf(':')! + 1, dataUrl.indexOf(';'));
+    return { inline_data: { mime_type: contentType, data: b64Data } };
   }
-  return {
-    file_data: {
-      mime_type: part.media.contentType,
-      file_uri: part.media.url,
-    },
-  };
+
+  throw Error(
+    'Could not convert genkit part to gemini tool response part: missing file data'
+  );
 };
 
 const toGeminiToolRequestPart = (part: Part): VertexPart => {
