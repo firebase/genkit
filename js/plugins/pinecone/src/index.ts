@@ -11,6 +11,7 @@ import { PluginProvider, genkitPlugin } from '@genkit-ai/common/config';
 import {
   CreateIndexOptions,
   Pinecone,
+  PineconeConfiguration,
   RecordMetadata,
 } from '@pinecone-database/pinecone';
 import { Md5 } from 'ts-md5';
@@ -80,6 +81,7 @@ export const pineconeIndexerRef = (params: {
  */
 export function pinecone<EmbedderCustomOptions extends z.ZodTypeAny>(
   params: {
+    clientParams?: PineconeConfiguration;
     indexId: string;
     embedder: EmbedderReference<EmbedderCustomOptions>;
     embedderOptions?: z.infer<EmbedderCustomOptions>;
@@ -89,8 +91,8 @@ export function pinecone<EmbedderCustomOptions extends z.ZodTypeAny>(
     'pinecone',
     async (
       params: {
+        clientParams?: PineconeConfiguration;
         indexId: string;
-        apiKey?: string;
         textKey?: string;
         embedder: EmbedderReference<EmbedderCustomOptions>;
         embedderOptions?: z.infer<EmbedderCustomOptions>;
@@ -112,7 +114,7 @@ export function configurePineconeRetriever<
   EmbedderCustomOptions extends z.ZodTypeAny
 >(params: {
   indexId: string;
-  apiKey?: string;
+  clientParams?: PineconeConfiguration;
   textKey?: string;
   embedder: EmbedderReference<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
@@ -120,9 +122,9 @@ export function configurePineconeRetriever<
   const { indexId, embedder, embedderOptions } = {
     ...params,
   };
-  const apiKey = getApiKey(params.apiKey);
+  const pineconeConfig = params.clientParams ?? getDefaultConfig();
   const textKey = params.textKey ?? TEXT_KEY;
-  const pinecone = new Pinecone({ apiKey });
+  const pinecone = new Pinecone(pineconeConfig);
   const index = pinecone.index(indexId);
 
   return defineRetriever(
@@ -172,7 +174,7 @@ export function configurePineconeIndexer<
   EmbedderCustomOptions extends z.ZodTypeAny
 >(params: {
   indexId: string;
-  apiKey?: string;
+  clientParams?: PineconeConfiguration;
   textKey?: string;
   embedder: EmbedderReference<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
@@ -180,9 +182,9 @@ export function configurePineconeIndexer<
   const { indexId, embedder, embedderOptions } = {
     ...params,
   };
-  const apiKey = getApiKey(params.apiKey);
+  const pineconeConfig = params.clientParams ?? getDefaultConfig();
   const textKey = params.textKey ?? TEXT_KEY;
-  const pinecone = new Pinecone({ apiKey });
+  const pinecone = new Pinecone(pineconeConfig);
   const index = pinecone.index(indexId);
 
   return defineIndexer(
@@ -230,9 +232,12 @@ export function configurePineconeIndexer<
  */
 export async function createPineconeIndex<
   EmbedderCustomOptions extends z.ZodTypeAny
->(params: { apiKey?: string; options: CreateIndexOptions }) {
-  const apiKey = getApiKey(params.apiKey);
-  const pinecone = new Pinecone({ apiKey });
+>(params: {
+  clientParams?: PineconeConfiguration;
+  options: CreateIndexOptions;
+}) {
+  const pineconeConfig = params.clientParams ?? getDefaultConfig();
+  const pinecone = new Pinecone(pineconeConfig);
   return await pinecone.createIndex(params.options);
 }
 
@@ -241,9 +246,9 @@ export async function createPineconeIndex<
  */
 export async function describePineconeIndex<
   EmbedderCustomOptions extends z.ZodTypeAny
->(params: { apiKey?: string; name: string }) {
-  const apiKey = getApiKey(params.apiKey);
-  const pinecone = new Pinecone({ apiKey });
+>(params: { clientParams?: PineconeConfiguration; name: string }) {
+  const pineconeConfig = params.clientParams ?? getDefaultConfig();
+  const pinecone = new Pinecone(pineconeConfig);
   return await pinecone.describeIndex(params.name);
 }
 
@@ -251,20 +256,19 @@ export async function describePineconeIndex<
  * Helper function for deleting Chroma collections.
  */
 export async function deletePineconeIndex(params: {
-  apiKey?: string;
+  clientParams?: PineconeConfiguration;
   name: string;
 }) {
-  const apiKey = getApiKey(params.apiKey);
-  const pinecone = new Pinecone({ apiKey });
+  const pineconeConfig = params.clientParams ?? getDefaultConfig();
+  const pinecone = new Pinecone(pineconeConfig);
   return await pinecone.deleteIndex(params.name);
 }
 
-function getApiKey(apiKey?: string) {
-  let maybeApiKey;
-  if (!apiKey) maybeApiKey = process.env.PINECONE_API_KEY;
+function getDefaultConfig() {
+  const maybeApiKey = process.env.PINECONE_API_KEY;
   if (!maybeApiKey)
     throw new Error(
       'please pass in the API key or set PINECONE_API_KEY environment variable'
     );
-  return maybeApiKey;
+  return { apiKey: maybeApiKey } as PineconeConfiguration;
 }

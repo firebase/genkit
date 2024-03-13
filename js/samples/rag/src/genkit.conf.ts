@@ -33,11 +33,13 @@ export default configureGenkit({
         embedderOptions: { temperature: 0 },
       },
     ]),
-    chroma({
-      collectionName: 'spongebob_collection',
-      embedder: textEmbeddingGecko001,
-      embedderOptions: { temperature: 0 },
-    }),
+    chroma([
+      {
+        collectionName: 'spongebob_collection',
+        embedder: textEmbeddingGecko001,
+        embedderOptions: { temperature: 0 },
+      },
+    ]),
     devLocalVectorstore([
       {
         indexName: 'spongebob-facts',

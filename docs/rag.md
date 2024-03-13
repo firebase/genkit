@@ -80,10 +80,12 @@ import { chroma } from '@google-genkit/plugin-chroma';
 
 export default configureGenkit({
   plugins: [
-    chroma({
-      collectionName: 'spongebob_collection',
-      embedder: textembeddingGecko,
-    }),
+    chroma([
+      {
+        collectionName: 'spongebob_collection',
+        embedder: textembeddingGecko,
+      },
+    ]),
     // ...
   ],
   // ...
