@@ -8,6 +8,7 @@ interface FlowBatchRunOptions {
   wait?: boolean;
   output?: string;
   label?: string;
+  auth?: string;
 }
 
 /** Command to run flows with batch input. */
@@ -15,6 +16,11 @@ export const flowBatchRun = new Command('flow:batchRun')
   .argument('<flowName>', 'name of the flow to run')
   .argument('<inputFileName>', 'JSON batch data to use to run the flow')
   .option('-w, --wait', 'Wait for the flow to complete', false)
+  .option(
+    '-a, --auth <JSON>',
+    'JSON object passed to authPolicy and stored in local state as auth',
+    ''
+  )
   .option('--output <filename>', 'name of the output file to store the output')
   .option('--label [label]', 'label flow run in this batch')
   .action(
@@ -39,6 +45,7 @@ export const flowBatchRun = new Command('flow:batchRun')
             start: {
               input: data,
               labels: options.label ? { batchRun: options.label } : undefined,
+              auth: options.auth ? JSON.parse(options.auth) : undefined,
             },
           } as FlowInvokeEnvelopeMessage,
         })) as FlowState;

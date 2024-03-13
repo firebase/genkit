@@ -1,6 +1,6 @@
 import { Response } from 'express';
 import { DecodedIdToken, getAuth } from 'firebase-admin/auth';
-import { __RequestWithAuth, FlowAuthPolicy } from '@genkit-ai/flow';
+import { __RequestWithAuth } from '@genkit-ai/flow';
 import { FunctionFlowAuth } from './functions';
 
 export function firebaseAuth(
@@ -20,7 +20,17 @@ export function firebaseAuth(
 ): FunctionFlowAuth {
   const required = config?.required || true;
   return {
-    policy: policy as unknown as FlowAuthPolicy,
+    async policy(auth?: unknown) {
+      // If required is true, then auth will always be set when called from
+      // an HTTP context. However, we need to wrap the user-provided policy
+      // to check for presence of auth when the flow is executed from runFlow
+      // or an action context.
+      if (required && !auth) {
+        throw new Error('Auth is required');
+      }
+
+      return policy(auth as DecodedIdToken);
+    },
     async provider(req, res, next) {
       const token = req.headers['authorization']?.split(/[Bb]earer /)[1];
       let decoded: DecodedIdToken;

@@ -10,12 +10,18 @@ import { Runner } from '../runner/runner';
 interface EvalFlowRunOptions {
   input?: string;
   output?: string;
+  auth?: string;
 }
 /** Command to run a flow and evaluate the output */
 export const evalFlowRun = new Command('eval:flow')
   .argument('<flowName>', 'Name of the flow to run')
   .argument('[data]', 'JSON data to use to start the flow')
   .option('--input <filename>', 'JSON batch data to use to run the flow')
+  .option(
+    '-a, --auth <JSON>',
+    'JSON object passed to authPolicy and stored in local state as auth',
+    ''
+  )
   .option(
     '--output <filename>',
     'Name of the output file to write evaluation results'
@@ -63,6 +69,7 @@ export const evalFlowRun = new Command('eval:flow')
               key: e,
               input: {
                 dataset,
+                auth: options.auth ? JSON.parse(options.auth) : undefined,
               },
             });
             results[e] = response;
