@@ -187,8 +187,6 @@
 
     If you don't see it on the list then you'll need to manually grant it (`YOUT_PROJECT_NUMBER-compute@developer.gserviceaccount.com`) the necessary permissions.
 
-    For reference: https://screencast.googleplex.com/cast/NTc2MDM0NjMzNjc4ODQ4MHw4ZWU2NDA2YS01Ng
-
 
 1. Deploy to Cloud Run:
 
