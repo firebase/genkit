@@ -14,7 +14,9 @@
 
 name: Run Tests
 
-on: pull_request
+on:
+  pull_request:
+    paths-ignore: 'go/**'
 
 env:
   GITHUB_PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
