@@ -231,6 +231,9 @@ export class Runner {
     const newError = new GenkitToolsError(message || 'Internal Error');
 
     if (error.response) {
+      if ((error.response?.data as any).message) {
+        newError.message = (error.response?.data as any).message;
+      }
       // we got a non-200 response; copy the payload and rethrow
       newError.data = error.response.data;
       throw newError;
