@@ -1,13 +1,13 @@
 
 # Models
 
-Models in Genkit are very easy to use libraries and abstractions that provide access to various Google and 3P LLMs.
+Models in Genkit are very easy to use libraries and abstractions that provide access to various Google and non-Google LLMs.
 
 Models are fully instrumented for observability and come with tooling integrations provided via Genkit Dev UI -- you can try any model via the model playground.
 
-When working with Models in Genkit you first need to configure the model you want to work with. Model configuration is performed via the plugin system. In this example we are configuring VertexAI plugin which provides gemini models (refer to plugin documentation to see which models it provides).
+When working with models in Genkit you first need to configure the model you want to work with. Model configuration is performed via the plugin system. In this example we are configuring the VertexAI plugin which provides Gemini models.
 
-```
+```js
 configureGenkit({
   plugins: [
     firebase({ projectId: getProjectId() }),
@@ -20,18 +20,130 @@ configureGenkit({
 });
 ```
 
-Also note that different pluging and model use different methods of authentication. For example, Vertex API uses [Google Auth Library](https://cloud.google.com/nodejs/docs/reference/google-auth-library/latest) so it can pull required credentials using [Application Default Credentials](https://cloud.google.com/nodejs/docs/reference/google-auth-library/latest#application-default-credentials). To configure a "text" model you just need to run: 
-
+Also note that different plugins and models use different methods of authentication. For example, Vertex API uses Google Auth Library so it can pull required credentials using Application Default Credentials.
 
 To use models provided by the plugin you can either refer to them by name (e.g. `'vertex-ai/gemini-1.0-pro'`) or some plugins export model ref objects which provide additional type info about the model capabilities and options.
 
-```javascript
+```js
 import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 ```
 
-### Working with models
+## Supported models
 
-`generate` is a helper function for working with text models.
+Genkit provides built-in plugins for the following model providers:
+
+### Google Generative AI
+
+```js
+import { googleGenAI } from '@genkit-ai/plugin-google-genai';
+
+export default configureGenkit({
+  plugins: [
+    googleGenAI(),
+  ],
+ // ...
+});
+```
+
+The plugin requires that you set `GOOGLE_API_KEY` environment variable with the API Key which you can get from [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
+
+The plugin statically exports references to various supported models:
+
+```js
+import { geminiPro, geminiProVision } from '@genkit-ai/plugin-google-genai';
+```
+
+### Google Vertex AI
+
+```js
+import { vertexAI } from '@genkit-ai/plugin-vertex-ai';
+import { getProjectId } from '@genkit-ai/common';
+
+export default configureGenkit({
+  plugins: [
+    vertexAI({ projectId: getProjectId(), location: 'us-central1' }),
+  ],
+ // ...
+});
+```
+The plugin requires that you set the `GCLOUD_PROJECT` environment variable with your Google Cloud project ID. If you're not running your flow from a Google Cloud environment, you will also need to [set up Google Cloud Default Application Credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc). On your local dev environment, do this by running:
+
+```sh
+gcloud auth application-default login
+```
+
+The plugin statically exports references to various supported models:
+
+```js
+import {
+  geminiPro,
+  geminiProVision,
+  textembeddingGecko,
+  imagen2
+} from '@genkit-ai/plugin-vertex-ai';
+```
+
+### OpenAI
+
+```js
+import { vertexAI } from '@genkit-ai/plugin-vertex-ai';
+
+export default configureGenkit({
+  plugins: [
+    vertexAI({ projectId: getProjectId(), location: 'us-central1' }),
+  ],
+ // ...
+});
+```
+
+The plugin requires that you set the OPENAI_API_KEY environment variable with your OpenAI API Key.
+
+The plugin statically exports references to various supported models:
+
+```js
+import { gpt35Turbo, gpt4, gpt4Turbo, gpt4Vision } from '@genkit-ai/plugin-openai';
+```
+
+### Ollama
+
+The plugin requires that you first install and run ollama server. You can follow the instructions on: [https://ollama.com/download](https://ollama.com/download)
+
+You can use the ollama cli to download the model you are interested in, ex. `ollama pull gemma`
+
+Configure the ollama plugin like this:
+
+```js
+import { ollama } from '@genkit-ai/plugin-ollama';
+
+export default configureGenkit({
+  plugins: [
+     ollama({
+      models: [{ name: 'gemma' }],
+      serverAddress: 'http://127.0.0.1:11434', // default ollama local port
+    }),
+  ],
+  // ...
+});
+```
+
+The plugin does not statically export references for models, but you can use string references for your configured models, ex:
+
+```js
+await generate({
+  prompt: `Tell me a joke about ${subject}`,
+  model: 'ollama/gemma',
+  config: {
+    temperature: 1,
+  },
+  streamingCallback: (c) => {
+    console.log(c.content[0].text);
+  },
+});
+```
+
+## Working with models
+
+`generate` is a helper function for working with models.
 
 To simply call the model:
 
@@ -116,9 +228,9 @@ const llmResponse = await generate({
 });
 ```
 
-This will automatically call the tools in order to fulfill user prompt.
+This will automatically call the tools in order to fulfill the user prompt.
 
-You can specify `returnToolRequests: true` for manual control of tool calling. 
+You can specify `returnToolRequests: true` for manual control of tool calling.
 
 ```javascript
 const llmResponse = await generate({
