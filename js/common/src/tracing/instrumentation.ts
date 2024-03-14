@@ -79,7 +79,9 @@ export async function runInNewSpan<T>(
         const output = await stepAsyncLocalStorage.run(opts.metadata, () =>
           fn(opts.metadata, otSpan, isInRoot)
         );
-        opts.metadata.state = 'success';
+        if (opts.metadata.state !== 'error') {
+          opts.metadata.state = 'success';
+        }
         return output;
       } catch (e) {
         opts.metadata.state = 'error';
