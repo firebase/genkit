@@ -38,9 +38,6 @@ export const basic = flow(
     const foo = await run('call-llm', async () => {
       return `subject: ${subject}`;
     });
-    if (subject) {
-      throw new Error('boo');
-    }
     return await run('call-llm', async () => {
       return `foo: ${foo}`;
     });
@@ -221,5 +218,43 @@ export const streamyThrowy = flow(
       }
     }
     return `done: ${count}, streamed: ${i} times`;
+  }
+);
+
+/**
+ * To run this flow;
+ *   genkit flow:run throwy "\"hello\""
+ */
+export const throwy = flow(
+  { name: 'throwy', input: z.string(), output: z.string() },
+  async (subject) => {
+    const foo = await run('call-llm', async () => {
+      return `subject: ${subject}`;
+    });
+    if (subject) {
+      throw new Error(subject);
+    }
+    return await run('call-llm', async () => {
+      return `foo: ${foo}`;
+    });
+  }
+);
+
+/**
+ * To run this flow;
+ *   genkit flow:run throwy2 "\"hello\""
+ */
+export const throwy2 = flow(
+  { name: 'throwy2', input: z.string(), output: z.string() },
+  async (subject) => {
+    const foo = await run('call-llm', async () => {
+      if (subject) {
+        throw new Error(subject);
+      }
+      return `subject: ${subject}`;
+    });
+    return await run('call-llm', async () => {
+      return `foo: ${foo}`;
+    });
   }
 );
