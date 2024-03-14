@@ -120,11 +120,20 @@ export async function getFlowState<
   if (!(flow instanceof Flow)) {
     flow = flow.flow;
   }
+  if (!flow.stateStore) {
+    throw new Error('Flow state must be configured.');
+  }
   const state = await (await flow.stateStore).load(flowId);
   if (!state) {
     throw new FlowNotFoundError(`flow state ${flowId} not found`);
   }
-  return state.operation;
+  const op = {
+    ...state.operation,
+  } as Operation;
+  if (state.blockedOnStep) {
+    op.blockedOnStep = state.blockedOnStep;
+  }
+  return op;
 }
 /**
  * A flow steap that executes an action with provided input and memoizes the output.

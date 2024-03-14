@@ -268,3 +268,7 @@ function findGenkitConfig() {
   }
   return undefined;
 }
+
+export function __hardResetConfigForTesting() {
+  (config as any) = undefined;
+}
