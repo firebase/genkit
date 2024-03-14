@@ -274,7 +274,7 @@ export function defineModel<
         model: {
           label,
           customOptions: options.customOptionsType
-            ? JSON.stringify(zodToJsonSchema(options.customOptionsType))
+            ? zodToJsonSchema(options.customOptionsType)
             : undefined,
           names: options.names,
           supports: options.supports,
