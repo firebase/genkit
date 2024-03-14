@@ -1,7 +1,6 @@
 # Flows
 
-Flows are strongly typed, streamable, locally and remotely callable, fully observable functions.
-Genkit provides CLI and Dev UI tooling for working with flows (running, debugging, etc).
+Flows are strongly typed, streamable, locally and remotely callable, fully observable functions. Genkit provides CLI and Dev UI tooling for working with flows (running, debugging, etc).
 
 ## Defining flows
 
@@ -18,7 +17,7 @@ export const myFlow = flow({ name: 'myFlow', input: z.string(), output: z.string
 )
 ```
 
-Input and output schemas for flows are defined using zod.
+Input and output schemas for flows are defined using `zod`.
 
 ## Running flows
 
@@ -27,11 +26,11 @@ There are a couple main ways to run flows:
 
 ### Direct invocation
 
-```javascript
+This will invoke the flow and block until the flow is finished:
+
+```js
 const response = await runFlow(jokeFlow, 'banana');
 ```
-
-this will invoke the flow and block until the flow finished execution is finished.
 
 You can use the CLI to run flows as well:
 
@@ -59,7 +58,7 @@ You can use the CLI to stream flows as well:
 npx genkit flow:run jokeFlow '"banana"' -s
 ```
 
-here's a simple example of flow that can stream values:
+Here's a simple example of a flow that can stream values:
 
 ```javascript
 export const streamer = flow(
@@ -82,16 +81,16 @@ export const streamer = flow(
 );
 ```
 
-Note that `streamingCallback` can be `undefined`. It's only available only if the invoking client is doing streaming invocation.
+Note that `streamingCallback` can be undefined. It's only available only if the invoking client is doing streaming.
 
 
 ## Deploying flows
 
-When you define a flow using the `flow` function you get a flow that can only run locally (in the same node instance as your code). It's suitable for many cases, but if you want to be able to access your flow over HTTP you will need to deploy it first. Genkit provides integrations for Cloud Functions for Firebase and Cloud Run.
+If you want to be able to access your flow over HTTP you will need to deploy it first. Genkit provides integrations for Cloud Functions for Firebase and Cloud Run.
 
-To use flows with Cloud Functions for Firebase simply use the firebase plugin and replace `flow` with `onFlow`.
+To use flows with Cloud Functions for Firebase simply use the `firebase` plugin and replace `flow` with `onFlow`.
 
-```javascript
+```js
 import { onFlow, noAuth } from '@genkit-ai/plugin-firebase/functions';
 
 export const jokeFlow = onFlow(
@@ -102,11 +101,37 @@ export const jokeFlow = onFlow(
 );
 ```
 
-Deployed flows support all the same features (like streaming and observability).
+To deploy flows using Cloud Run and similar services, define your flows with `flow` and then call `startFlowsServer()`:
 
-Cloud Run is WIP, stay tuned.
+```js
+import { flow, startFlowsServer } from '@genkit-ai/flow';
 
-# EXPERIMENTAL: Schedulable flows
+export const jokeFlow = flow(
+  { name: 'jokeFlow', input: z.string(), output: z.string() },
+  async (subject, streamingCallback) => {
+    // ....
+  }
+);
+
+startFlowsServer();
+```
+
+Deployed flows support all the same features as local flows (like streaming and observability).
+
+Sometimes when using 3rd party SDK that that are not instrumented for observability, you might want to still see them as a separate step in the Dev UI. All you need to do is wrap the code  in the `run` function.
+
+```js
+export const myFlow = flow({ name: 'myFlow', input: z.string(), output: z.string() },
+  async (input) => {
+    const output = await run("step-name", async () => {
+      return await doSomething(input)
+    })
+    return output;
+  }
+)
+```
+
+## EXPERIMENTAL: Schedulable flows
 
 IMPORTANT: this feature is experimental, subject to change and removal.
 

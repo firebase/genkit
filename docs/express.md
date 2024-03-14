@@ -203,4 +203,3 @@
     curl -m 70 -X POST $MY_CLOUD_RUN_SERVICE_URL/jokeFlow?stream=true -H "Authorization: bearer $(gcloud auth print-identity-token)" -H "Content-Type: application/json"  -d '{"start": {"input": "banana"}}'
     ```
 
-

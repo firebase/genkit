@@ -18,11 +18,12 @@ Genkit provides the following features:
 
 ## Getting started
 
-  * [with Firebase](firebase.md)
-  * [with Cloud Run](express.md)
+See the [Getting started](get-started.md) page.
 
 ## Learn More
 
+  * [Deploy with Firebase](firebase.md)
+  * [Deploy with Cloud Run](express.md)
   * [Config and plugins](config.md)
   * [Models](models.md)
   * [Flows](flows.md)

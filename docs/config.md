@@ -19,10 +19,10 @@ configureGenkit({
 
 In `plugins` you specify an array of plugins that will be made available to the framework. Plugins provide features such as: models, retrievers, indexers, flow state stores, trace stores, etc. One plugin can provide more than one thing, and even more than one instance of that thing.
 
-`flowStateStore` tells Genkit which plugin to use for persisting flow states. The `firebase` plugin provides a Firestore implementation of a flow state store.
+`flowStateStore` tells Genkit which plugin to use for persisting flow states. The `firebase` plugin provides a Firestore implementation.
 
-`traceStore` (similar to `flowStateStore`) tells Genkit which plugin to use for persisting traces. The `firebase` plugin provides a Firestore implementation of a trace store.
+`traceStore` (similar to `flowStateStore`) tells Genkit which plugin to use for persisting traces. The `firebase` plugin provides a Firestore implementation.
 
 `enableTracingAndMetrics` instructs the framework to perform OpenTelemetry instrumentation and enable trace collection.
 
-`logLevel` specifies verbosity level of the framework level logging. Sometimes it's useful when troubleshooting to see more details log messages, set it to `debug`.
+`logLevel` specifies the verbosity level of the framework level logging. Sometimes it's useful when troubleshooting to see more detailed log messages; set it to `debug`.
