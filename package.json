@@ -19,7 +19,10 @@
     "pack:all": "rm -r dist || true && mkdir dist && npm-run-all pack:js pack:tools dist:zip",
     "pack:tools": "cd genkit-tools && npm run pack:all",
     "pack:js": "cd js && npm run pack:all",
-    "dist:zip": "cd dist && zip genkit-dist.zip *.tgz"
+    "dist:zip": "cd dist && zip genkit-dist.zip *.tgz",
+    "test:all": "npm-run-all test:js test:genkit-tools",
+    "test:js": "cd js && npm i && npm run test:all",
+    "test:genkit-tools": "cd genkit-tools && npm i && npm run test:all"
   },
   "pre-commit": [
     "format:check"

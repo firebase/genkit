@@ -86,6 +86,12 @@ export const OperationSchema = z.object({
         'operation is completed, and either error or response is available.'
     ),
   result: FlowResultSchema.optional(),
+  blockedOnStep: z
+    .object({
+      name: z.string(),
+      schema: z.string().optional(),
+    })
+    .optional(),
 });
 
 export type Operation = z.infer<typeof OperationSchema>;

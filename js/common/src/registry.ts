@@ -199,6 +199,8 @@ export function __hardResetRegistryForTesting() {
   deleteAll(__traceStoresByEnv);
   deleteAll(__flowStateStoresByEnv);
   deleteAll(__pluginsByName);
+  deleteAll(flowStateStoresByEnvCache);
+  deleteAll(traceStoresByEnvCache);
 }
 
 function deleteAll(map: Record<any, any>) {

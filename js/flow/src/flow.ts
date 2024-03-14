@@ -158,7 +158,7 @@ export class Flow<
   readonly name: string;
   readonly input: I;
   readonly output: O;
-  readonly stateStore: Promise<FlowStateStore>;
+  readonly stateStore?: Promise<FlowStateStore>;
   readonly invoker: Invoker<I, O, S>;
   readonly scheduler: Scheduler<I, O, S>;
   readonly experimentalDurable: boolean;
@@ -170,7 +170,7 @@ export class Flow<
       name: string;
       input: I;
       output: O;
-      stateStore: Promise<FlowStateStore>;
+      stateStore?: Promise<FlowStateStore>;
       invoker: Invoker<I, O, S>;
       scheduler: Scheduler<I, O, S>;
       experimentalDurable: boolean;
@@ -223,6 +223,11 @@ export class Flow<
       if (!this.experimentalDurable) {
         throw new Error('Cannot schedule a non-durable flow');
       }
+      if (!this.stateStore) {
+        throw new Error(
+          'Flow state store for durable flows must be configured'
+        );
+      }
       // First time, create new state.
       const flowId = generateFlowId();
       const state = createNewState(flowId, this.name, req.schedule.input);
@@ -247,6 +252,11 @@ export class Flow<
       if (!this.experimentalDurable) {
         throw new Error('Cannot state check a non-durable flow');
       }
+      if (!this.stateStore) {
+        throw new Error(
+          'Flow state store for durable flows must be configured'
+        );
+      }
       const flowId = req.state.flowId;
       const state = await (await this.stateStore).load(flowId);
       if (state === undefined) {
@@ -257,6 +267,11 @@ export class Flow<
     if (req.runScheduled) {
       if (!this.experimentalDurable) {
         throw new Error('Cannot run scheduled non-durable flow');
+      }
+      if (!this.stateStore) {
+        throw new Error(
+          'Flow state store for durable flows must be configured'
+        );
       }
       const flowId = req.runScheduled.flowId;
       const state = await (await this.stateStore).load(flowId);
@@ -280,6 +295,11 @@ export class Flow<
     if (req.resume) {
       if (!this.experimentalDurable) {
         throw new Error('Cannot resume a non-durable flow');
+      }
+      if (!this.stateStore) {
+        throw new Error(
+          'Flow state store for durable flows must be configured'
+        );
       }
       const flowId = req.resume.flowId;
       const state = await (await this.stateStore).load(flowId);
