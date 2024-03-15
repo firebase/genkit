@@ -1,6 +1,6 @@
 {
   "name": "@genkit-ai/tools-plugins",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "scripts": {
     "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
     "build:clean": "rm -rf ./lib",

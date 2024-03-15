@@ -1,6 +1,6 @@
 {
   "name": "@genkit-ai/providers",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "type": "commonjs",
   "main": "./lib/llms.mjs",
   "scripts": {
