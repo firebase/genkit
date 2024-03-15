@@ -643,6 +643,7 @@ function wrapAsAction<
     },
     async (envelope) => {
       await flow.authPolicy?.(envelope.auth);
+      setCustomMetadataAttribute(metadataPrefix('wrapperAction'), 'true');
       return await flow.runEnvelope(
         envelope,
         getStreamingCallback(),
