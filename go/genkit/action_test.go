@@ -15,6 +15,7 @@
 package genkit
 
 import (
+	"bytes"
 	"context"
 	"testing"
 )
@@ -31,5 +32,18 @@ func TestActionRun(t *testing.T) {
 	}
 	if want := 4; got != want {
 		t.Errorf("got %d, want %d", got, want)
+	}
+}
+
+func TestActionRunJSON(t *testing.T) {
+	a := NewAction("inc", inc)
+	input := []byte("3")
+	want := []byte("4")
+	got, err := a.runJSON(context.Background(), input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("got %v, want %v", got, want)
 	}
 }

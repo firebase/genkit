@@ -14,9 +14,7 @@
 
 name: Build Check (Run npm run build everywhere locally if this fails)
 
-on:
-  pull_request:
-    paths-ignore: 'go/**'
+on: pull_request
 
 env:
   GITHUB_PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}

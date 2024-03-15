@@ -16,6 +16,7 @@ package genkit
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 )
 
@@ -58,4 +59,25 @@ func (a *Action[I, O]) Run(ctx context.Context, input I) (output O, err error) {
 	}()
 	// TODO: run the function in a new tracing span.
 	return a.fn(ctx, input)
+}
+
+func (a *Action[I, O]) runJSON(ctx context.Context, input []byte) ([]byte, error) {
+	var in I
+	if err := json.Unmarshal(input, &in); err != nil {
+		return nil, err
+	}
+	out, err := a.Run(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return json.Marshal(out)
+}
+
+// action is the type that all Action[I, O] have in common.
+type action interface {
+	Name() string
+
+	// runJSON uses encoding/json to unmarshal the input,
+	// calls Action.Run, then returns the marshaled result.
+	runJSON(ctx context.Context, input []byte) ([]byte, error)
 }
