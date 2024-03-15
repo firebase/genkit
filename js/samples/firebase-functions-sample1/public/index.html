@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="./config.js"></script>
+    <script src="./bundle.js"></script>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <h1>Genkit authentication demo</h1>
+    <p>
+      The <span class="code bold">jokeFlow</span> CF3 flow linked in this demo
+      requires Firebase Auth to be called correctly. Specifically, to execute
+      the flow, you must be logged in with Firebase Auth, and your email account
+      must be verified.
+    </p>
+    <p>
+      Use this page to test three states: unauthenticated, logged in without
+      verification, logged in with verification (via Google sign-in which
+      auto-verifies). Try running the flow in each state.
+    </p>
+    <div class="flow">
+      <input id="subject" placeholder="subject" />
+      <button onclick="runflow()">Tell joke</button>
+      <p>
+        <span class="bold">Response:&nbsp;</span
+        ><span id="response"></span>&nbsp;<span id="response-code"></span>
+      </p>
+    </div>
+    <div class="auth">
+      <p>
+        <span id="login">
+          <button onclick="anonymous()">
+            Sign in anonymously (no email verification)
+          </button>
+          <button onclick="google()">
+            Sign in with Google (email verification)
+          </button>
+        </span>
+        <button id="logout" onclick="logout()">Sign out</button>
+      </p>
+      <p class="bold">Token:</p>
+      <pre id="token-blob">Signed out</pre>
+    </div>
+  </body>
+</html>
