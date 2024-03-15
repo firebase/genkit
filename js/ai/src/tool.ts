@@ -1,0 +1,87 @@
+import { Action, action } from '@genkit-ai/common';
+import { lookupAction, registerAction } from '@genkit-ai/common/registry';
+import { setCustomMetadataAttributes } from '@genkit-ai/common/tracing';
+import z from 'zod';
+
+export type ToolAction<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny
+> = Action<I, O> & {
+  __action: {
+    metadata: {
+      type: 'tool';
+    };
+  };
+};
+
+export function asTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+  action: Action<I, O>
+): ToolAction<I, O> {
+  if (action.__action?.metadata?.type === 'tool') {
+    return action as ToolAction<I, O>;
+  }
+
+  const fn = ((input) => {
+    setCustomMetadataAttributes({ subtype: 'tool' });
+    return action(input);
+  }) as ToolAction<I, O>;
+  fn.__action = {
+    ...action.__action,
+    metadata: { ...action.__action.metadata, type: 'tool' },
+  };
+  return fn;
+}
+
+export async function resolveTools<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
+>(
+  tools: (Action<z.ZodTypeAny, z.ZodTypeAny> | string)[] = []
+): Promise<ToolAction[]> {
+  return await Promise.all(
+    tools.map(async (ref): Promise<ToolAction> => {
+      if (typeof ref === 'string') {
+        const tool = await lookupAction(`/tool/${ref}`);
+        if (!tool) {
+          throw new Error(`Tool ${ref} not found`);
+        }
+        return tool as ToolAction;
+      } else if (ref.__action) {
+        return asTool(ref);
+      }
+      throw new Error('Tools must be strings or actions.');
+    })
+  );
+}
+
+export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>({
+  name,
+  description,
+  input,
+  output,
+  fn,
+  metadata,
+}: {
+  name: string;
+  description: string;
+  input: I;
+  output: O;
+  metadata?: Record<string, any>;
+  fn: (input: z.infer<I>) => Promise<z.infer<O>>;
+}): ToolAction<I, O> {
+  const a = action(
+    {
+      name,
+      description,
+      input,
+      output,
+      metadata: { ...(metadata || {}), type: 'tool' },
+    },
+    (i) => {
+      setCustomMetadataAttributes({ subtype: 'tool' });
+      return fn(i);
+    }
+  );
+  registerAction('tool', name, a);
+  return a as ToolAction<I, O>;
+}

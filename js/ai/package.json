@@ -61,6 +61,11 @@
       "types": "./lib/generate.d.ts",
       "require": "./lib/generate.js",
       "import": "./lib/generate.mjs"
+    },
+    "./tool": {
+      "types": "./lib/tool.d.ts",
+      "require": "./lib/tool.js",
+      "import": "./lib/tool.mjs"
     }
   },
   "typesVersions": {
@@ -82,6 +87,9 @@
       ],
       "generate": [
         "lib/generate"
+      ],
+      "tool": [
+        "lib/tool"
       ]
     }
   }
