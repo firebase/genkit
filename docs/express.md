@@ -100,14 +100,18 @@
      }
      ```
 
-1. Install Genkit packages. This steps assumes you have access to genkit package tgz files and have them in the folder represented by GENKIT_DIST variable.
-
-    ```
-    mkdir genkit-dist
-    cp $GENKIT_DIST/*.tgz genkit-dist
-    npm install --save-dev typescript
-    npm i --save ./genkit-dist/*.tgz
-    ```
+1.  Install Genkit in your project:
+    -   Download packages zip file:
+        [genkit-dist.zip](https://bit.ly/genkit-dist)
+    -   Unzip the file into `genkit-dist` folder in your project folder
+    -   Run:
+        ```
+        npm i --save ./genkit-dist/*.tgz
+        ```
+    -   Also install typescript by running:
+        ```
+        npm install --save-dev typescript
+        ```
 
 1. Create the src/index.ts file where your Genkit code will live:
 
