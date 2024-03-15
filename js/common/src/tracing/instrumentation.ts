@@ -23,7 +23,7 @@ import {
 } from '@opentelemetry/api';
 import { SpanMetadata } from './types';
 
-const stepAsyncLocalStorage = new AsyncLocalStorage<SpanMetadata>();
+export const spanMetadataAls = new AsyncLocalStorage<SpanMetadata>();
 
 export const ATTR_PREFIX = 'genkit';
 export const SPAN_TYPE_ATTR = ATTR_PREFIX + ':type';
@@ -68,7 +68,7 @@ export async function runInNewSpan<T>(
   fn: (metadata: SpanMetadata, otSpan: ApiSpan, isRoot: boolean) => Promise<T>
 ): Promise<T> {
   const tracer = trace.getTracer(TRACER_NAME, TRACER_VERSION);
-  const parentStep = stepAsyncLocalStorage.getStore();
+  const parentStep = spanMetadataAls.getStore();
   const isInRoot = parentStep?.isRoot === true;
   return await tracer.startActiveSpan(
     opts.metadata.name,
@@ -76,7 +76,9 @@ export async function runInNewSpan<T>(
     async (otSpan) => {
       if (opts.labels) otSpan.setAttributes(opts.labels);
       try {
-        const output = await stepAsyncLocalStorage.run(opts.metadata, () =>
+        const parentPath = parentStep?.path || '';
+        opts.metadata.path = parentPath + '/' + opts.metadata.name;
+        const output = await spanMetadataAls.run(opts.metadata, () =>
           fn(opts.metadata, otSpan, isInRoot)
         );
         if (opts.metadata.state !== 'error') {
@@ -149,7 +151,7 @@ export function setCustomMetadataAttributes(values: Record<string, string>) {
 }
 
 function getCurrentSpan(): SpanMetadata {
-  const step = stepAsyncLocalStorage.getStore();
+  const step = spanMetadataAls.getStore();
   if (!step) {
     throw new Error('running outside step context');
   }

@@ -14,9 +14,80 @@
  * limitations under the License.
  */
 
-import { Resource } from '@opentelemetry/resources';
-import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
-import { MeterProvider } from '@opentelemetry/sdk-metrics';
+import { Counter, Histogram, Meter, metrics } from '@opentelemetry/api';
 
-export const METRIC_NAME_PREFIX = 'genkit.';
 export const METER_NAME = 'genkit';
+export const METRIC_NAME_PREFIX = 'genkit';
+
+export function internalMetricNamespaceWrap(...namespaces) {
+  return [METRIC_NAME_PREFIX, ...namespaces].join('.');
+}
+
+type MetricCreateFn<T> = (meter: Meter) => T;
+
+/**
+ * Wrapper for OpenTelemetry metrics.
+ *
+ * The OpenTelemetry {MeterProvider} can only be accessed through the metrics
+ * API after the NodeSDK library has been initialized. To prevent race
+ * conditions we defer the instantiation of the metric to when it is first
+ * ticked.
+ */
+class Metric<T> {
+  readonly createFn: MetricCreateFn<T>;
+  readonly meterName: string;
+  metric?: T;
+
+  constructor(createFn: MetricCreateFn<T>, meterName: string = METER_NAME) {
+    this.meterName = meterName;
+    this.createFn = createFn;
+  }
+
+  get(): T {
+    if (!this.metric) {
+      this.metric = this.createFn(
+        metrics.getMeterProvider().getMeter(this.meterName)
+      );
+    }
+
+    return this.metric;
+  }
+}
+
+/**
+ * Wrapper for an OpenTelemetry Counter.
+ *
+ * By using this wrapper, we defer initialization of the counter until it is
+ * need, which ensures that the OpenTelemetry SDK has been initialized before
+ * the metric has been defined.
+ */
+export class MetricCounter extends Metric<Counter> {
+  constructor(name: string, options: any) {
+    super((meter) => meter.createCounter(name, options));
+  }
+
+  add(val?: number, opts?: any) {
+    if (val) {
+      this.get().add(val, opts);
+    }
+  }
+}
+
+/**
+ * Wrapper for an OpenTelemetry Histogram.
+ *
+ * By using this wrapper, we defer initialization of the counter until it is
+ * need, which ensures that the OpenTelemetry SDK has been initialized before
+ * the metric has been defined.
+ */
+export class MetricHistogram extends Metric<Histogram> {
+  constructor(name: string, options: any) {
+    super((meter) => meter.createHistogram(name, options));
+  }
+
+  record(val?: number, opts?: any) {
+    if (val) {
+      this.get().record(val, opts);
+    }
+  }
+}
