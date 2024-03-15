@@ -64,19 +64,19 @@ npm link
 
 ## Run it
 
-In the `genkit/samples` folder you will find some samples. They might contain instructions for how to run them and what setup is necessary.
+In the `js/samples` folder you will find some samples. They might contain instructions for how to run them and what setup is necessary.
 
 Here's one that requires no setup:
 
 ```
-cd genkit/samples/flow-sample1
+cd js/samples/flow-sample1
 genkit flow:run basic "\"hello\""
 ```
 
 Run the DevUI
 
 ```
-cd genkit/samples/flow-sample1
+cd js/samples/flow-sample1
 genkit start
 ```
 
@@ -84,7 +84,7 @@ Point your browser to http://localhost:4000
 
 ## Code it
 
-FYI: `genkit` and `genkit-tools` are in two separate workspaces.
+FYI: `js` and `genkit-tools` are in two separate workspaces.
 
 As you make changes you may want to build an test things by running samples.
 You can reduce the scope of what you're building by running a specific build command:
