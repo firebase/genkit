@@ -27,6 +27,7 @@ import * as apis from '../types/apis';
 import { TraceData } from '../types/trace';
 import { GenkitToolsError, StreamingCallback } from './types';
 import { FlowState } from '../types/flow';
+import { findToolsConfig } from '@genkit-ai/tools-plugins/config';
 
 /**
  * Files in these directories will be excluded from being watched for changes.
@@ -72,6 +73,8 @@ export class Runner {
    */
   private changeTimeout: NodeJS.Timeout | null = null;
 
+  private buildCommand?: string;
+
   /**
    * Creates a Runner instance.
    *
@@ -92,11 +95,14 @@ export class Runner {
   /**
    * Starts the runner.
    */
-  public start(): void {
-    this.startApp();
+  public async start(): Promise<void> {
     if (this.autoReload) {
+      const config = await findToolsConfig();
+      this.buildCommand = config?.builder?.cmd ?? 'npm run build';
+      this.build();
       this.watchForChanges();
     }
+    this.startApp();
   }
 
   /**
@@ -202,12 +208,12 @@ export class Runner {
   private handleFileChange(filePath: string): void {
     const extension = path.extname(filePath);
     const relativeFilePath = path.relative(this.directory, filePath);
-    if (extension === '.ts') {
+    if (extension === '.ts' && this.buildCommand) {
       logger.info(
         `Detected a change in ${clc.bold(relativeFilePath)}. Compiling...`
       );
       try {
-        execSync('npm run build', { stdio: 'inherit' });
+        this.build();
       } catch (error) {
         logger.error('Compilation error:', error);
       }
@@ -224,6 +230,12 @@ export class Runner {
         void this.reloadApp();
         this.changeTimeout = null;
       }, RELOAD_DELAY_MS);
+    }
+  }
+
+  private build() {
+    if (this.buildCommand) {
+      execSync(this.buildCommand, { stdio: 'inherit' });
     }
   }
 

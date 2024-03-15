@@ -32,7 +32,7 @@ export const start = new Command('start')
     false
   )
   .option('-p, --port <number>', 'Port to serve on. Default is 4000', '4000')
-  .action((options: StartOptions) => {
+  .action(async (options: StartOptions) => {
     const port = Number(options.port);
     if (isNaN(port) || port < 0) {
       logger.error(`"${options.port}" is not a valid port number`);
@@ -40,6 +40,6 @@ export const start = new Command('start')
     }
 
     const runner = new Runner();
-    runner.start();
+    await runner.start();
     return startServer(runner, options.headless ?? false, port);
   });
