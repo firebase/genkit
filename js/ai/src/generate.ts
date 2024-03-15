@@ -26,6 +26,7 @@ import {
   ModelAction,
   ModelReference,
   Part,
+  Role,
   ToolDefinition,
   ToolResponsePart,
 } from './model.js';
@@ -50,6 +51,11 @@ export class Message<T = unknown> implements MessageData {
 
   output(): T | null {
     return this.data() || extractJson<T>(this.text());
+  }
+
+  toolResponseParts(): ToolResponsePart[] {
+    const res = this.content.filter((part) => !!part.toolResponse);
+    return res as ToolResponsePart[];
   }
 
   text(): string {
@@ -184,6 +190,27 @@ function toToolDefinition(
   };
 }
 
+function getRoleFromPart(part: Part): Role {
+  if (part.toolRequest !== undefined) return 'model';
+  if (part.toolResponse !== undefined) return 'tool';
+  if (part.text !== undefined) return 'user';
+  if (part.media !== undefined) return 'user';
+  if (part.data !== undefined) return 'user';
+  throw new Error('No recognized fields in content');
+}
+
+function inferRoleFromParts(parts: Part[]): Role {
+  const uniqueRoles = new Set<Role>();
+  for (const part of parts) {
+    const role = getRoleFromPart(part);
+    uniqueRoles.add(role);
+    if (uniqueRoles.size > 1) {
+      throw new Error('Contents contain mixed roles');
+    }
+  }
+  return Array.from(uniqueRoles)[0];
+}
+
 async function toGenerateRequest(
   prompt: ModelPrompt
 ): Promise<GenerationRequest> {
@@ -191,11 +218,12 @@ async function toGenerateRequest(
   if (typeof prompt.prompt === 'string') {
     promptMessage.content.push({ text: prompt.prompt });
   } else if (Array.isArray(prompt.prompt)) {
+    promptMessage.role = inferRoleFromParts(prompt.prompt);
     promptMessage.content.push(...prompt.prompt);
   } else {
+    promptMessage.role = inferRoleFromParts([prompt.prompt]);
     promptMessage.content.push(prompt.prompt);
   }
-
   const messages: MessageData[] = [...(prompt.history || []), promptMessage];
   let tools: Action<any, any>[] | undefined;
   if (prompt.tools) {
@@ -278,7 +306,7 @@ async function resolveTools<
     } else {
       toolName = tool.__action.name;
     }
-    const resolvedTool = await lookupAction(`tool/${toolName}`);
+    const resolvedTool = await lookupAction(`/tool/${toolName}`);
     if (!resolvedTool) {
       throw new Error(`Tool ${toolName} not found`);
     }
@@ -334,7 +362,7 @@ export async function generate<
   }
 
   // Pick the first valid candidate.
-  let selected;
+  let selected: Candidate<z.TypeOf<O>> | undefined;
   for (const candidate of response.candidates) {
     if (isValidCandidate(candidate, tools || [])) {
       selected = candidate;
@@ -354,6 +382,11 @@ export async function generate<
   }
   const toolResponses: ToolResponsePart[] = await Promise.all(
     toolCalls.map(async (part) => {
+      if (!part.toolRequest) {
+        throw Error(
+          'Tool request expected but not provided in tool request part'
+        );
+      }
       const tool = tools?.find(
         (tool) => tool.__action.name === part.toolRequest?.name
       );
@@ -361,13 +394,17 @@ export async function generate<
         throw Error('Tool not found');
       }
       return {
-        name: part.toolRequest.name,
-        ref: part.toolRequest.ref,
-        output: await tool(part.toolRequest?.input),
+        toolResponse: {
+          name: part.toolRequest.name,
+          ref: part.toolRequest.ref,
+          output: await tool(part.toolRequest?.input),
+        },
       };
     })
   );
-  prompt.history?.push({ role: 'tool', content: toolResponses });
+  prompt.history = request.messages;
+  prompt.history.push(selected.message);
+  prompt.prompt = toolResponses;
   return await generate(prompt);
 }
 
