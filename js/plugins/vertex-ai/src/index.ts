@@ -43,14 +43,14 @@ export const vertexAI: Plugin<[PluginOptions]> = genkitPlugin(
 
     const confError = (parameter: string, envVariableName: string) => {
       return new Error(
-        `VertexAI Plugin is missing the '${parameter}' environment variable. Please set the '${envVariableName}' environment variable or explicitly pass '${parameter}' into genkit.conf.ts.`
+        `VertexAI Plugin is missing the '${parameter}' configuration. Please set the '${envVariableName}' environment variable or explicitly pass '${parameter}' into genkit config.`
       );
     };
     if (!location) {
-      throw confError(project, 'GCLOUD_LOCATION');
+      throw confError('location', 'GCLOUD_LOCATION');
     }
     if (!project) {
-      throw confError(project, 'GCLOUD_PROJECT');
+      throw confError('project', 'GCLOUD_PROJECT');
     }
 
     const vertexClient = new VertexAI({ project, location });
