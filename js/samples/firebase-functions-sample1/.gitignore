@@ -63,3 +63,6 @@ node_modules/
 .env
 
 .firebaserc
+
+public/bundle.js
+public/config.js

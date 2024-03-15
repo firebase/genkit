@@ -1,0 +1,29 @@
+p {
+  max-width: 700px;
+}
+
+.code {
+  font-family: monospace;
+}
+
+.bold {
+  font-weight: 700;
+}
+
+.flow {
+  padding: 40px;
+}
+
+.auth {
+  border: 1px solid black;
+  display: inline-block;
+  padding: 0 20px;
+}
+
+#logout {
+  display: none;
+}
+
+#response-code {
+  font-style: italic;
+}

@@ -41,9 +41,11 @@ export const jokeFlow = onFlow(
     name: 'jokeFlow',
     input: z.string(),
     output: z.string(),
-    httpsOptions: { invoker: 'private' },
+    httpsOptions: {
+      cors: '*',
+    },
     authPolicy: firebaseAuth((user) => {
-      if (!user.email_verified) {
+      if (!user.email_verified && !user.admin) {
         throw new Error('Email not verified');
       }
     }),
@@ -82,6 +84,7 @@ export const streamer = onFlow(
     input: z.number(),
     output: z.string(),
     streamType: z.object({ count: z.number() }),
+    httpsOptions: { invoker: 'private' },
     authPolicy: noAuth(),
   },
   async (count, streamingCallback) => {
@@ -102,6 +105,7 @@ export const streamConsumer = onFlow(
     name: 'streamConsumer',
     input: z.void(),
     output: z.void(),
+    httpsOptions: { invoker: 'private' },
     authPolicy: noAuth(),
   },
   async () => {
@@ -120,7 +124,9 @@ export const triggerJokeFlow = onRequest(
   async (req, res) => {
     const { subject } = req.query;
     console.log('req.query', req.query);
-    const op = await runFlow(jokeFlow, String(subject));
+    const op = await runFlow(jokeFlow, String(subject), {
+      withLocalAuthContext: { admin: true },
+    });
     console.log('operation', op);
     res.send(op);
   }
