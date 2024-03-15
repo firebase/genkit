@@ -24,6 +24,7 @@ import {
   Tool,
   VertexAI,
   Part as VertexPart,
+  FunctionDeclarationsTool,
 } from '@google-cloud/vertexai';
 import {
   CandidateData,
@@ -60,7 +61,7 @@ export const geminiProVision = modelRef({
     supports: {
       multiturn: true,
       media: true,
-      tools: true,
+      tools: false,
     },
   },
 });
@@ -243,7 +244,12 @@ function fromGeminiFunctionCallPart(part: VertexPart): Part {
       'Invalid Gemini Function Call Part: missing function call data'
     );
   }
-  return { toolRequest: part.functionCall };
+  return {
+    toolRequest: {
+      name: part.functionCall.name,
+      input: part.functionCall.args,
+    },
+  };
 }
 
 function fromGeminiFunctionResponsePart(part: VertexPart): Part {
@@ -324,11 +330,11 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
   const modelName = `vertex-ai/${name}`;
   const client = vertex.preview.getGenerativeModel({ model: name });
 
-  if (!SUPPORTED_GEMINI_MODELS[name])
-    throw new Error(`Unsupported model: ${name}`);
+  const model = SUPPORTED_GEMINI_MODELS[name];
+  if (!model) throw new Error(`Unsupported model: ${name}`);
 
   const middlewares: ModelMiddleware[] = [];
-  if (SUPPORTED_GEMINI_MODELS[name]?.info?.supports?.media) {
+  if (model?.info?.supports?.media) {
     middlewares.push(downloadRequestMedia({ maxBytes: 1024 * 1024 * 20 }));
   }
 
@@ -342,9 +348,8 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
       const messages = request.messages;
       if (messages.length === 0) throw new Error('No messages provided.');
 
-      const tools = request.tools?.map(toGeminiTool) || [];
       const chatRequest: StartChatParams = {
-        tools: tools,
+        tools: request.tools?.map(toGeminiTool) || [],
         history: messages
           .slice(0, -1)
           .map((message) => toGeminiMessage(message)),
