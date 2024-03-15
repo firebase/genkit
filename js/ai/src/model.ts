@@ -21,10 +21,15 @@ import {
   getStreamingCallback,
 } from '@genkit-ai/common';
 import * as registry from '@genkit-ai/common/registry';
-import { setCustomMetadataAttributes } from '@genkit-ai/common/tracing';
+import {
+  setCustomMetadataAttributes,
+  spanMetadataAls,
+} from '@genkit-ai/common/tracing';
+import * as metrics from './metrics';
 import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 import { conformOutput, validateSupport } from './model/middleware';
+import { performance } from 'node:perf_hooks';
 
 //
 // IMPORTANT: Please keep type definitions in sync with
@@ -173,6 +178,10 @@ export const GenerationUsageSchema = z.object({
   inputTokens: z.number().optional(),
   outputTokens: z.number().optional(),
   totalTokens: z.number().optional(),
+  inputCharacters: z.number().optional(),
+  outputCharacters: z.number().optional(),
+  inputImages: z.number().optional(),
+  outputImages: z.number().optional(),
   custom: z.record(z.number()).optional(),
 });
 export type GenerationUsage = z.infer<typeof GenerationUsageSchema>;
@@ -196,6 +205,7 @@ export type CandidateError = z.infer<typeof CandidateErrorSchema>;
 
 export const GenerationResponseSchema = z.object({
   candidates: z.array(CandidateSchema),
+  latencyMs: z.number().optional(),
   usage: GenerationUsageSchema.optional(),
   custom: z.unknown(),
 });
@@ -299,7 +309,20 @@ export function defineModel<
     },
     (input) => {
       setCustomMetadataAttributes({ subtype: 'model' });
-      return runner(input, getStreamingCallback());
+      const startTimeMs = performance.now();
+      return runner(input, getStreamingCallback())
+        .then((response) => {
+          const timedResponse = {
+            ...response,
+            latencyMs: performance.now() - startTimeMs,
+          };
+          writeMetrics(options.name, input, { response: timedResponse });
+          return timedResponse;
+        })
+        .catch((err) => {
+          writeMetrics(options.name, input, { err });
+          throw err;
+        });
     }
   );
   Object.assign(act, {
@@ -333,4 +356,30 @@ export function modelRef<
   options: ModelReference<CustomOptionsSchema>
 ): ModelReference<CustomOptionsSchema> {
   return { ...options };
+}
+
+function writeMetrics(
+  modelName: string,
+  input: GenerationRequest,
+  opts: {
+    response?: GenerationResponseData;
+    err?: any;
+  }
+) {
+  metrics.recordGenerateAction(modelName, {
+    temperature: input.config?.temperature,
+    topK: input.config?.topK,
+    topP: input.config?.topP,
+    maxOutputTokens: input.config?.maxOutputTokens,
+    path: spanMetadataAls?.getStore()?.path,
+    inputTokens: opts.response?.usage?.inputTokens,
+    outputTokens: opts.response?.usage?.outputTokens,
+    totalTokens: opts.response?.usage?.totalTokens,
+    inputCharacters: opts.response?.usage?.inputCharacters,
+    outputCharacters: opts.response?.usage?.outputCharacters,
+    inputImages: opts.response?.usage?.inputImages,
+    outputImages: opts.response?.usage?.outputImages,
+    latencyMs: opts.response?.latencyMs,
+    err: opts.err,
+  });
 }

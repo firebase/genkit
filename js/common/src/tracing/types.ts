@@ -42,6 +42,7 @@ export const SpanMetadataSchema = z.object({
   output: z.any().optional(),
   isRoot: z.boolean().optional(),
   metadata: z.record(z.string(), z.string()).optional(),
+  path: z.string().optional(),
 });
 export type SpanMetadata = z.infer<typeof SpanMetadataSchema>;
 

@@ -351,7 +351,7 @@ export class Flow<
       let errored = false;
       const output = await newTrace(
         {
-          name: ctx.flowId,
+          name: ctx.flow.name,
           labels: {
             [SPAN_TYPE_ATTR]: 'flow',
           },
