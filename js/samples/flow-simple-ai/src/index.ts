@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { generate, tool } from '@genkit-ai/ai/generate';
+import { generate } from '@genkit-ai/ai/generate';
 import { initializeGenkit } from '@genkit-ai/common/config';
 import { flow, run } from '@genkit-ai/flow';
 import * as z from 'zod';
@@ -22,6 +22,7 @@ import config from './genkit.conf';
 import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 import { gpt35Turbo, gpt4, gpt4Turbo } from '@genkit-ai/plugin-openai';
 import { geminiPro as googleGeminiPro } from '@genkit-ai/plugin-google-genai';
+import { defineTool } from '@genkit-ai/ai/tool';
 
 initializeGenkit(config);
 
@@ -62,7 +63,7 @@ export const drawPictureFlow = flow(
 );
 
 const tools = [
-  tool({
+  defineTool({
     name: 'tellAFunnyJoke',
     description:
       'Tells jokes about an input topic. Use this tool whenever user asks you to tell a joke.',
