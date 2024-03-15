@@ -21,7 +21,7 @@ later.
 
 1.  Install Genkit in your project:
     -   Download packages zip file:
-        [genkit-dist.zip](https://drive.google.com/file/d/1sDsyL-jmudJoLLIeYEtUziYWdRAniSgr/view?usp=drive_link&resourcekey=0-k0DxfTlgQLXnrcAJ9Rt5mw)
+        [genkit-dist.zip](https://bit.ly/genkit-dist)
     -   Unzip the file into `genkit-dist` folder in your project folder
     -   Run:
         ```
@@ -146,7 +146,7 @@ Cloud billing account.
 
 1.  Install Genkit:
     -   Download
-        [packages zip file](https://drive.google.com/file/d/1sDsyL-jmudJoLLIeYEtUziYWdRAniSgr/view?usp=drive_link&resourcekey=0-k0DxfTlgQLXnrcAJ9Rt5mw)
+        [packages zip file](https://bit.ly/genkit-dist)
         and unzip into `functions/genkit-dist` folder.
     -   `cd functions`
     -   `npm i --save ./genkit-dist/*.tgz`
