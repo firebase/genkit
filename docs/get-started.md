@@ -33,25 +33,25 @@ later.
     ```js
     import { generate } from '@genkit-ai/ai/generate';
     import { configureGenkit } from '@genkit-ai/common/config';
-    import { flow, run } from '@genkit-ai/flow';
+    import { flow } from '@genkit-ai/flow';
     import { geminiPro, googleGenAI } from "@genkit-ai/plugin-google-genai";
     import * as z from 'zod';
 
     configureGenkit({
-    plugins: [googleGenAI()],
-    enableTracingAndMetrics: true,
-    logLevel: 'debug',
+      plugins: [googleGenAI()],
+      enableTracingAndMetrics: true,
+      logLevel: 'debug',
     });
 
     export const jokeFlow = flow(
-    { name: 'jokeFlow', input: z.string(), output: z.string() },
-    async (subject) => {
+      { name: 'jokeFlow', input: z.string(), output: z.string() },
+      async (subject) => {
         const llmResponse = await generate({
-        model: geminiPro,
-        prompt: `Tell a joke about ${subject}.`,
+          model: geminiPro,
+          prompt: `Tell a joke about ${subject}.`,
         });
         return llmResponse.text();
-    }
+      }
     );
     ```
 
@@ -160,36 +160,36 @@ Cloud billing account.
     import { getProjectId } from '@genkit-ai/common';
     import { configureGenkit } from '@genkit-ai/common/config';
     import { firebase } from '@genkit-ai/plugin-firebase';
-    import { onFlow } from '@genkit-ai/plugin-firebase/functions';
+    import { noAuth, onFlow } from '@genkit-ai/plugin-firebase/functions';
     import { geminiPro, googleGenAI } from "@genkit-ai/plugin-google-genai";
     import { defineSecret } from 'firebase-functions/params';
 
     const googleaiApiKey = defineSecret('GOOGLE_API_KEY');
 
     configureGenkit({
-    plugins: [
+      plugins: [
         firebase({ projectId: getProjectId() }),
         googleGenAI()
-    ],
-    enableTracingAndMetrics: true,
-    traceStore: 'firebase',
-    logLevel: 'debug',
+      ],
+      enableTracingAndMetrics: true,
+      traceStore: 'firebase',
+      logLevel: 'debug',
     });
 
     export const jokeFlow = onFlow(
-    {
+      {
         name: 'jokeFlow', input: z.string(), output: z.string(), authPolicy: noAuth(),
         httpsOptions: { secrets: [googleaiApiKey] }
-    },
-    async (subject) => {
+      },
+      async (subject) => {
         process.env.GOOGLE_API_KEY = googleaiApiKey.value();
 
         const llmResponse = await generate({
-        model: geminiPro,
-        prompt: `Tell a joke about ${subject}.`,
+          model: geminiPro,
+          prompt: `Tell a joke about ${subject}.`,
         });
         return llmResponse.text();
-    }
+      }
     );
     ```
 
