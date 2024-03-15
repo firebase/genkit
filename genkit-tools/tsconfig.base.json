@@ -1,6 +1,7 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
+    "esModuleInterop": true,
     "strict": true,
     "strictNullChecks": true,
     "removeComments": true,

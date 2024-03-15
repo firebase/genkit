@@ -16,14 +16,14 @@
 
 import * as trpcExpress from '@trpc/server/adapters/express';
 import * as clc from 'colorette';
-import * as express from 'express';
+import express from 'express';
 import { ErrorRequestHandler } from 'express';
 import { writeFileSync } from 'fs';
-import * as path from 'path';
+import path from 'path';
 import { logger } from '../utils/logger';
 import { TOOLS_SERVER_ROUTER } from './router';
 import { Runner } from '../runner/runner';
-import * as open from 'open';
+import open from 'open';
 import * as bodyParser from 'body-parser';
 
 // Static files are copied to the /dist/client directory. This is a litle
