@@ -53,12 +53,16 @@ func (a *Action[I, O]) Name() string { return a.name }
 func (a *Action[I, O]) Run(ctx context.Context, input I) (output O, err error) {
 	// TODO: validate input against JSONSchema for I.
 	// TODO: validate output against JSONSchema for O.
-	logger(ctx).Debug("Action.Run", "input", fmt.Sprintf("%#v", input))
+	logger(ctx).Debug("Action.Run",
+		"name", a.name,
+		"input", fmt.Sprintf("%#v", input))
 	defer func() {
-		logger(ctx).Debug("Action.Run", "output", fmt.Sprintf("%#v", output), "err", err)
+		logger(ctx).Debug("Action.Run",
+			"name", a.name,
+			"output", fmt.Sprintf("%#v", output),
+			"err", err)
 	}()
-	// TODO: run the function in a new tracing span.
-	return a.fn(ctx, input)
+	return runInNewSpan(ctx, a.name, "action", input, a.fn)
 }
 
 func (a *Action[I, O]) runJSON(ctx context.Context, input []byte) ([]byte, error) {
