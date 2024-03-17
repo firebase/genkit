@@ -1,0 +1,21 @@
+{
+  "name": "tests",
+  "version": "1.0.0",
+  "description": "",
+  "main": "lib/e2e.js",
+  "scripts": {
+    "test": "node --import tsx src/e2e.ts "
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "puppeteer": "^22.5.0",
+    "puppeteer-screen-recorder": "^3.0.3",
+    "semver": "^7.6.0",
+    "terminate": "^2.6.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.1"
+  }
+}
