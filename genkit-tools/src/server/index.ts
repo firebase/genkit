@@ -135,10 +135,12 @@ export function startServer(
     );
     if (!headless) {
       const uiUrl = 'http://localhost:' + port;
-      logger.info(`${clc.green(clc.bold('Genkit Tools UI:'))} ${uiUrl}`);
       runner
         .waitUntilHealthy()
-        .then(() => open(uiUrl))
+        .then(() => {
+          logger.info(`${clc.green(clc.bold('Genkit Tools UI:'))} ${uiUrl}`);
+          open(uiUrl);
+        })
         .catch((e) => {
           logger.error(e.message);
           if (serverEnder) serverEnder();

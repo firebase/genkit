@@ -22,7 +22,8 @@
     "dist:zip": "cd dist && zip genkit-dist.zip *.tgz",
     "test:all": "npm-run-all test:js test:genkit-tools",
     "test:js": "cd js && npm i && npm run test:all",
-    "test:genkit-tools": "cd genkit-tools && npm i && npm run test:all"
+    "test:genkit-tools": "cd genkit-tools && npm i && npm run test:all",
+    "test:e2e": "npm run build:all && npm run pack:all && cd tests && npm run test"
   },
   "pre-commit": [
     "format:check"
