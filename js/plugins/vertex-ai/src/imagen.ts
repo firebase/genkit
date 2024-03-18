@@ -18,6 +18,7 @@ import {
   CandidateData,
   GenerationRequest,
   defineModel,
+  getBasicUsageStats,
   modelRef,
 } from '@genkit-ai/ai/model';
 import { GoogleAuth } from 'google-auth-library';
@@ -148,7 +149,10 @@ export function imagen2Model(client: GoogleAuth, options: PluginOptions) {
     });
     return {
       candidates,
-      usage: { custom: { generations: candidates.length } },
+      usage: {
+        ...getBasicUsageStats(request.messages, candidates),
+        custom: { generations: candidates.length },
+      },
       custom: response,
     };
   });

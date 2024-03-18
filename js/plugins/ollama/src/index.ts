@@ -15,9 +15,11 @@
  */
 
 import {
+  CandidateData,
   GenerationRequest,
   GenerationResponseData,
   defineModel,
+  getBasicUsageStats,
 } from '@genkit-ai/ai/model';
 import { Plugin, genkitPlugin } from '@genkit-ai/common/config';
 import logging from '@genkit-ai/common/logging';
@@ -137,21 +139,23 @@ function ollamaModel(
       }
       logging.debug(textResponse, 'ollama final response');
 
-      return {
-        candidates: [
-          {
-            index: 0,
-            finishReason: 'stop',
-            message: {
-              role: 'model',
-              content: [
-                {
-                  text: textResponse,
-                },
-              ],
-            },
+      const responseCandidates = [
+        {
+          index: 0,
+          finishReason: 'stop',
+          message: {
+            role: 'model',
+            content: [
+              {
+                text: textResponse,
+              },
+            ],
           },
-        ],
+        } as CandidateData,
+      ];
+      return {
+        candidates: responseCandidates,
+        usage: getBasicUsageStats(request.messages, responseCandidates),
       } as GenerationResponseData;
     }
   );
