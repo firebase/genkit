@@ -35,6 +35,7 @@ import {
   Part,
   ToolDefinitionSchema,
   defineModel,
+  getBasicUsageStats,
   modelRef,
 } from '@genkit-ai/ai/model';
 import { downloadRequestMedia } from '@genkit-ai/ai/model/middleware';
@@ -391,10 +392,12 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
         if (!result.response.candidates?.length) {
           throw new Error('No valid candidates returned.');
         }
+        const responseCandidates =
+          result.response.candidates?.map(fromGeminiCandidate) || [];
         return {
-          candidates:
-            result.response.candidates?.map(fromGeminiCandidate) || [],
+          candidates: responseCandidates,
           custom: result.response,
+          usage: getBasicUsageStats(request.messages, responseCandidates),
         };
       }
     }

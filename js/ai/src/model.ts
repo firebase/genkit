@@ -358,6 +358,46 @@ export function modelRef<
   return { ...options };
 }
 
+/** Container for counting usage stats for a single input/output {Part} */
+type PartCounts = {
+  characters: number;
+  images: number;
+};
+
+/**
+ * Calculates basic usage statistics from the given model inputs and outputs.
+ */
+export function getBasicUsageStats(
+  input: MessageData[],
+  candidates: CandidateData[]
+): GenerationUsage {
+  const responseCandidateParts = candidates.flatMap(
+    (candidate) => candidate.message.content
+  );
+  const inputCounts = getPartCounts(input.flatMap((md) => md.content));
+  const outputCounts = getPartCounts(
+    candidates.flatMap((c) => c.message.content)
+  );
+  return {
+    inputCharacters: inputCounts.characters,
+    inputImages: inputCounts.images,
+    outputCharacters: outputCounts.characters,
+    outputImages: outputCounts.images,
+  };
+}
+
+function getPartCounts(parts: Part[]): PartCounts {
+  return parts.reduce(
+    (counts, part) => {
+      return {
+        characters: counts.characters + (part.text?.length || 0),
+        images: counts.images + (part.media ? 1 : 0),
+      };
+    },
+    { characters: 0, images: 0 }
+  );
+}
+
 function writeMetrics(
   modelName: string,
   input: GenerationRequest,
