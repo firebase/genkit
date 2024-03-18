@@ -28,16 +28,18 @@ export const flowResume = new Command('flow:resume')
     const runner = await startRunner();
 
     logger.info(`Resuming '/flow/${flowName}'`);
-    const state = (await runner.runAction({
-      key: `/flow/${flowName}`,
-      input: {
-        resume: {
-          flowId,
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-          payload: JSON.parse(data),
-        },
-      } as FlowInvokeEnvelopeMessage,
-    })) as FlowState;
+    const state = (
+      await runner.runAction({
+        key: `/flow/${flowName}`,
+        input: {
+          resume: {
+            flowId,
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            payload: JSON.parse(data),
+          },
+        } as FlowInvokeEnvelopeMessage,
+      })
+    ).result as FlowState;
 
     logger.info(
       'Flow operation:\n' + JSON.stringify(state.operation, undefined, '  ')

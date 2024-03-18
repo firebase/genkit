@@ -21,7 +21,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { logger } from '../utils/logger';
 import { getNodeEntryPoint } from '../utils/utils';
-import { Action } from '../types/action';
+import {
+  Action,
+  RunActionResponse,
+  RunActionResponseSchema,
+} from '../types/action';
 import axios, { AxiosError } from 'axios';
 import * as apis from '../types/apis';
 import { TraceData } from '../types/trace';
@@ -297,7 +301,7 @@ export class Runner {
   async runAction(
     input: apis.RunActionRequest,
     streamingCallback?: StreamingCallback<any>
-  ): Promise<unknown> {
+  ): Promise<RunActionResponse> {
     if (streamingCallback) {
       const response = await axios
         .post(`${REFLECTION_API_URL}/runAction?stream=true`, input, {
@@ -321,12 +325,12 @@ export class Runner {
           );
         }
       });
-      var resolver: (op: unknown) => void;
-      const promise = new Promise((r) => {
+      var resolver: (op: RunActionResponse) => void;
+      const promise = new Promise<RunActionResponse>((r) => {
         resolver = r;
       });
       stream.on('end', () => {
-        resolver(JSON.parse(buffer));
+        resolver(RunActionResponseSchema.parse(JSON.parse(buffer)));
       });
       return promise;
     } else {
@@ -339,7 +343,7 @@ export class Runner {
         .catch((err) =>
           this.httpErrorHandler(err, `Error running action key='${input.key}'.`)
         );
-      return response.data as unknown;
+      return RunActionResponseSchema.parse(response.data);
     }
   }
 

@@ -46,20 +46,22 @@ export const flowRun = new Command('flow:run')
     const runner = await startRunner();
 
     logger.info(`Running '/flow/${flowName}' (stream=${options.stream})...`);
-    var state = (await runner.runAction(
-      {
-        key: `/flow/${flowName}`,
-        input: {
-          start: {
-            input: data ? JSON.parse(data) : undefined,
-          },
-          auth: options.auth ? JSON.parse(options.auth) : undefined,
-        } as FlowInvokeEnvelopeMessage,
-      },
-      options.stream
-        ? (chunk) => console.log(JSON.stringify(chunk, undefined, '  '))
-        : undefined
-    )) as FlowState;
+    var state = (
+      await runner.runAction(
+        {
+          key: `/flow/${flowName}`,
+          input: {
+            start: {
+              input: data ? JSON.parse(data) : undefined,
+            },
+            auth: options.auth ? JSON.parse(options.auth) : undefined,
+          } as FlowInvokeEnvelopeMessage,
+        },
+        options.stream
+          ? (chunk) => console.log(JSON.stringify(chunk, undefined, '  '))
+          : undefined
+      )
+    ).result as FlowState;
 
     if (!state.operation.done && options.wait) {
       logger.info('Started flow run, waiting for it to complete...');

@@ -55,16 +55,18 @@ export const flowBatchRun = new Command('flow:batchRun')
       const outputValues = [] as { input: any; output: Operation }[];
       for (const data of inputData) {
         logger.info(`Running '/flow/${flowName}'...`);
-        var state = (await runner.runAction({
-          key: `/flow/${flowName}`,
-          input: {
-            start: {
-              input: data,
-              labels: options.label ? { batchRun: options.label } : undefined,
-              auth: options.auth ? JSON.parse(options.auth) : undefined,
-            },
-          } as FlowInvokeEnvelopeMessage,
-        })) as FlowState;
+        var state = (
+          await runner.runAction({
+            key: `/flow/${flowName}`,
+            input: {
+              start: {
+                input: data,
+                labels: options.label ? { batchRun: options.label } : undefined,
+                auth: options.auth ? JSON.parse(options.auth) : undefined,
+              },
+            } as FlowInvokeEnvelopeMessage,
+          })
+        ).result as FlowState;
 
         if (!state.operation.done && options.wait) {
           logger.info('Started flow run, waiting for it to complete...');
