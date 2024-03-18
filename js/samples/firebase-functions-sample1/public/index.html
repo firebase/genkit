@@ -23,6 +23,7 @@
   </head>
   <body>
     <h1>Genkit authentication demo</h1>
+    <p id="emulator-warning">Using emulators</p>
     <p>
       The <span class="code bold">jokeFlow</span> CF3 flow linked in this demo
       requires Firebase Auth to be called correctly. Specifically, to execute
@@ -56,6 +57,9 @@
       </p>
       <p class="bold">Token:</p>
       <pre id="token-blob">Signed out</pre>
+    </div>
+    <div>
+      <button onclick="emulate()" id="emulator-button">Use emulator</button>
     </div>
   </body>
 </html>

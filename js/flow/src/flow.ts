@@ -188,6 +188,45 @@ export class Flow<
     this.experimentalDurable = config.experimentalDurable;
     this.authPolicy = config.authPolicy;
     this.middleware = config.middleware;
+
+    // Durable flows can't use an auth policy; instead they should be invoked
+    // from a privileged context after ACL checks are performed.
+    if (this.authPolicy && this.experimentalDurable) {
+      throw new Error('Durable flows can not define auth policies.');
+    }
+  }
+
+  /**
+   * Executes the flow with the input directly.
+   *
+   * This will either be called by runEnvelope when starting durable flows,
+   * or it will be called directly when starting non-durable flows.
+   */
+  async runDirectly(
+    input: unknown,
+    opts: {
+      streamingCallback?: StreamingCallback<unknown>;
+      labels?: Record<string, string>;
+      auth?: unknown;
+    }
+  ): Promise<FlowState> {
+    const flowId = generateFlowId();
+    const state = createNewState(flowId, this.name, input);
+    const ctx = new Context(this, flowId, state, opts.auth);
+    try {
+      await this.executeSteps(
+        ctx,
+        this.steps,
+        'start',
+        opts.streamingCallback,
+        opts.labels
+      );
+    } finally {
+      if (isDevEnv() || this.experimentalDurable) {
+        await ctx.saveState();
+      }
+    }
+    return state;
   }
 
   /**
@@ -201,23 +240,11 @@ export class Flow<
     logging.debug(req, 'runEnvelope');
     if (req.start) {
       // First time, create new state.
-      const flowId = generateFlowId();
-      const state = createNewState(flowId, this.name, req.start.input);
-      const ctx = new Context(this, flowId, state, auth);
-      try {
-        await this.executeSteps(
-          ctx,
-          this.steps,
-          'start',
-          streamingCallback,
-          req.start.labels
-        );
-      } finally {
-        if (isDevEnv() || this.experimentalDurable) {
-          await ctx.saveState();
-        }
-      }
-      return state;
+      return this.runDirectly(req.start.input, {
+        streamingCallback,
+        auth,
+        labels: req.start.labels,
+      });
     }
     if (req.schedule) {
       if (!this.experimentalDurable) {
@@ -426,67 +453,133 @@ export class Flow<
     });
   }
 
-  get expressHandler(): (req: __RequestWithAuth, res: express.Response) => any {
-    return async (req: __RequestWithAuth, res: express.Response) => {
-      const { stream } = req.query;
-      let data = req.body;
-      // Task queue will wrap body in a "data" object, unwrap it.
-      if (req.body.data) {
-        data = req.body.data;
-      }
-      const envMsg = FlowInvokeEnvelopeMessageSchema.parse(data);
-      if (stream === 'true') {
-        res.writeHead(200, {
-          'Content-Type': 'text/plain',
-          'Transfer-Encoding': 'chunked',
-        });
-        try {
-          const state = await this.runEnvelope(envMsg, (chunk) => {
-            res.write(JSON.stringify(chunk) + streamDelimiter);
-          });
-          res.write(JSON.stringify(state.operation));
-          res.end();
-        } catch (e) {
-          logging.error(e);
-          res.write(
-            JSON.stringify({
-              done: true,
-              result: {
-                error: getErrorMessage(e),
-                stacktrace: getErrorStack(e),
-              },
-            } as Operation)
-          );
-          res.end();
-        }
-      } else {
-        try {
-          await this.authPolicy?.(req.auth);
-        } catch (e: any) {
-          res
-            .status(403)
-            .send(e.message ? e.message : 'Unauthorized')
-            .end();
-        }
+  private async durableExpressHandler(
+    req: express.Request,
+    res: express.Response
+  ): Promise<void> {
+    if (req.query.stream === 'true') {
+      res
+        .status(400)
+        .send({
+          error: {
+            status: 'INVALID_ARGUMENT',
+            message: 'Output from durable flows cannot be streamed',
+          },
+        })
+        .end();
+      return;
+    }
 
-        try {
-          const state = await this.runEnvelope(envMsg, undefined, req.auth);
-          res.status(200).send(state.operation).end();
-        } catch (e) {
-          logging.error(e);
-          res
-            .status(500)
-            .send({
-              done: true,
-              result: {
-                error: getErrorMessage(e),
-                stacktrace: getErrorStack(e),
-              },
-            } as Operation)
-            .end();
-        }
+    let data = req.body;
+    // Task queue will wrap body in a "data" object, unwrap it.
+    if (req.body.data) {
+      data = req.body.data;
+    }
+    const envMsg = FlowInvokeEnvelopeMessageSchema.parse(data);
+    try {
+      const state = await this.runEnvelope(envMsg);
+      res.status(200).send(state.operation).end();
+    } catch (e) {
+      // Pass errors as operations instead of a standard API error
+      // (https://cloud.google.com/apis/design/errors#http_mapping)
+      logging.error(e);
+      res
+        .status(500)
+        .send({
+          done: true,
+          result: {
+            error: getErrorMessage(e),
+            stacktrace: getErrorStack(e),
+          },
+        } as Operation)
+        .end();
+    }
+  }
+
+  private async nonDurableExpressHandler(
+    req: __RequestWithAuth,
+    res: express.Response
+  ): Promise<void> {
+    const { stream } = req.query;
+    const auth = req.auth;
+
+    let input = req.body.data;
+
+    try {
+      await this.authPolicy?.(auth);
+    } catch (e: any) {
+      logging.error(e);
+      res
+        .status(403)
+        .send({
+          error: {
+            status: 'PERMISSION_DENIED',
+            message: e.message || 'Permission denied to resource',
+          },
+        })
+        .end();
+    }
+
+    if (stream === 'true') {
+      res.writeHead(200, {
+        'Content-Type': 'text/plain',
+        'Transfer-Encoding': 'chunked',
+      });
+      try {
+        const state = await this.runDirectly(input, {
+          streamingCallback: (chunk) => {
+            res.write(JSON.stringify(chunk) + streamDelimiter);
+          },
+          auth,
+        });
+        res.write(JSON.stringify(state.operation));
+        res.end();
+      } catch (e) {
+        // Errors while streaming are also passed back as operations
+        logging.error(e);
+        res.write(
+          JSON.stringify({
+            done: true,
+            result: {
+              error: getErrorMessage(e),
+              stacktrace: getErrorStack(e),
+            },
+          } as Operation)
+        );
+        res.end();
       }
-    };
+    } else {
+      try {
+        const state = await this.runDirectly(input, { auth });
+        if (state.operation.result?.error) {
+          throw new Error(state.operation.result?.error);
+        }
+        res.status(200).send(state.operation).end();
+      } catch (e) {
+        // Errors for non-durable, non-streaming flows are passed back as
+        // standard API errors.
+        logging.error(e);
+        res
+          .status(500)
+          .send({
+            error: {
+              status: 'INTERNAL',
+              message: getErrorMessage(e),
+              details: getErrorStack(e),
+            },
+          })
+          .end();
+      }
+    }
+  }
+
+  get expressHandler(): (
+    req: __RequestWithAuth,
+    res: express.Response
+  ) => Promise<void> {
+    return this.experimentalDurable
+      ? this.durableExpressHandler.bind(this)
+      : this.nonDurableExpressHandler.bind(this);
   }
 }
 

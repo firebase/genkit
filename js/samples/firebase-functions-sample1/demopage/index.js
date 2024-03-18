@@ -16,12 +16,17 @@
 
 import {
   GoogleAuthProvider,
+  connectAuthEmulator,
   getAuth,
   signInAnonymously,
   signInWithPopup,
 } from 'firebase/auth';
 import { initializeApp } from 'firebase/app';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import {
+  connectFunctionsEmulator,
+  getFunctions,
+  httpsCallable,
+} from 'firebase/functions';
 
 import $ from 'jquery';
 
@@ -33,6 +38,7 @@ import $ from 'jquery';
 
 let auth;
 let jokeFlow;
+let emulated = false;
 
 async function getDecodedIdToken() {
   const tok = await auth.currentUser.getIdToken();
@@ -46,9 +52,20 @@ function updateResult(message, code) {
 }
 
 $(() => {
+  emulated = new URL(window.location.href).search.includes('emulated=true');
   initializeApp(window.firebaseConfig);
   auth = getAuth();
   const fns = getFunctions();
+
+  if (emulated) {
+    $('#emulator-button').text('Use prod');
+    $('#emulator-warning').show();
+    connectAuthEmulator(auth, 'http://localhost:9099', {
+      disableWarnings: true,
+    });
+    connectFunctionsEmulator(fns, 'localhost', 5001);
+  }
+
   jokeFlow = httpsCallable(fns, 'jokeFlow');
   auth.onAuthStateChanged(async (user) => {
     if (user) {
@@ -78,14 +95,20 @@ window.logout = async () => {
 
 window.runflow = async () => {
   try {
-    const payload = {
-      start: {
-        input: $('#subject').val(),
-      },
-    };
+    const payload = $('#subject').val();
     const response = await jokeFlow(payload);
-    updateResult(response.data.response, '(success)');
+    updateResult(response.data.response, '200');
   } catch (e) {
-    updateResult(e.code, '(error)');
+    updateResult(e.message, e.code);
   }
+};
+
+window.emulate = function () {
+  const url = new URL(window.location.href);
+  if (emulated) {
+    url.search = '';
+  } else {
+    url.search = 'emulated=true';
+  }
+  window.location.replace(url);
 };
