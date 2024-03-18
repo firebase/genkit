@@ -129,7 +129,7 @@ export function chromaRetriever<
       embedderInfo: embedder.info,
       queryType: z.string(),
       documentType: TextDocumentSchema,
-      customOptionsType: ChromaRetrieverOptionsSchema,
+      customOptionsType: ChromaRetrieverOptionsSchema.optional(),
     },
     async (input, options) => {
       const client = new ChromaClient(params.clientParams);

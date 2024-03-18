@@ -1,3 +1,4 @@
+"use strict";
 /**
  * Copyright 2024 Google LLC
  *
@@ -13,8 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-"use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const dotprompt_1 = require("@genkit-ai/dotprompt");
 const config_1 = require("@genkit-ai/common/config");

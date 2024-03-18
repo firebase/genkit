@@ -151,9 +151,6 @@ export const indexTomAndJerryDocumentsFlow = flow(
     await index({
       indexer: tomAndJerryFactsIndexer,
       docs: transformedDocs,
-      options: {
-        namespace: '',
-      },
     });
   }
 );
