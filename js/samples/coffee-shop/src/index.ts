@@ -167,7 +167,7 @@ export const basicCoffeeRecommender = flow(
 
 export const historyCoffeeRecommender = flow(
   {
-    name: 'Recommender with history',
+    name: 'recommenderWithHistory',
     input: SimpleOrderHistorySchema,
     output: z.string(),
   },
