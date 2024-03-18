@@ -38,6 +38,11 @@ import { StreamingCallback } from '@genkit-ai/common';
 import { runWithStreamingCallback } from '@genkit-ai/common';
 import { ToolAction, resolveTools } from './tool.js';
 
+/**
+ * Message represents a single role's contribution to a generation. Each message
+ * can contain multiple parts (for example text and an image), and each generation
+ * can contain multiple messages.
+ */
 export class Message<T = unknown> implements MessageData {
   role: MessageData['role'];
   content: Part[];
@@ -47,6 +52,13 @@ export class Message<T = unknown> implements MessageData {
     this.content = message.content;
   }
 
+  /**
+   * If a message contains a `data` part, it is returned. Otherwise, the `output()`
+   * method extracts the first valid JSON object or array from the text contained in
+   * the message and returns it.
+   *
+   * @returns The structured output contained in the message.
+   */
   output(): T | null {
     return this.data() || extractJson<T>(this.text());
   }
@@ -56,18 +68,35 @@ export class Message<T = unknown> implements MessageData {
     return res as ToolResponsePart[];
   }
 
+  /**
+   * Concatenates all `text` parts present in the message with no delimiter.
+   * @returns A string of all concatenated text parts.
+   */
   text(): string {
     return this.content.map((part) => part.text || '').join('');
   }
 
+  /**
+   * Returns the first media part detected in the message. Useful for extracting
+   * (for example) an image from a generation expected to create one.
+   * @returns The first detected `media` part in the message.
+   */
   media(): { url: string; contentType?: string } | null {
     return this.content.find((part) => part.media)?.media || null;
   }
 
+  /**
+   * Returns the first detected `data` part of a message.
+   * @returns The first `data` part detected in the message (if any).
+   */
   data(): T | null {
     return this.content.find((part) => part.data)?.data as T | null;
   }
 
+  /**
+   * Converts the Message to a plain JS object.
+   * @returns Plain JS object representing the data contained in the message.
+   */
   toJSON(): MessageData {
     return {
       role: this.role,
@@ -76,38 +105,26 @@ export class Message<T = unknown> implements MessageData {
   }
 }
 
+/**
+ * Candidate represents one of several possible generated responses from a generation
+ * request. A candidate contains a single generated message along with additional
+ * metadata about its generation. A generation request can create multiple candidates.
+ */
 export class Candidate<O = unknown> implements CandidateData {
+  /** The message this candidate generated. */
   message: Message<O>;
+  /** The positional index of this candidate in the generation response. */
   index: number;
+  /** Usage information about this candidate. */
   usage: GenerationUsage;
+  /** The reason generation stopped for this candidate. */
   finishReason: CandidateData['finishReason'];
-  finishMessage: string;
+  /** Additional information about why the candidate stopped generating, if any. */
+  finishMessage?: string;
+  /** Additional provider-specific information about this candidate. */
   custom: unknown;
+  /** The request that led to the generation of this candidate. */
   request?: GenerationRequest;
-
-  output(): O | null {
-    return this.message.output();
-  }
-
-  text(): string {
-    return this.message.text();
-  }
-
-  media(): { url: string; contentType?: string } | null {
-    return this.message.media();
-  }
-
-  data(): O | null {
-    return this.message.data();
-  }
-
-  toHistory(): MessageData[] {
-    if (!this.request)
-      throw new Error(
-        "Can't construct history for candidate without request data."
-      );
-    return [...this.request?.messages, this.message.toJSON()];
-  }
 
   constructor(candidate: CandidateData, request?: GenerationRequest) {
     this.message = new Message(candidate.message);
@@ -119,6 +136,60 @@ export class Candidate<O = unknown> implements CandidateData {
     this.request = request;
   }
 
+  /**
+   * If a candidate's message contains a `data` part, it is returned. Otherwise, the `output()`
+   * method extracts the first valid JSON object or array from the text contained in
+   * the candidate's message and returns it.
+   *
+   * @returns The structured output contained in the candidate.
+   */
+  output(): O | null {
+    return this.message.output();
+  }
+
+  /**
+   * Concatenates all `text` parts present in the candidate's message with no delimiter.
+   * @returns A string of all concatenated text parts.
+   */
+  text(): string {
+    return this.message.text();
+  }
+
+  /**
+   * Returns the first detected media part in the candidate's message. Useful for extracting
+   * (for example) an image from a generation expected to create one.
+   * @returns The first detected `media` part in the candidate.
+   */
+  media(): { url: string; contentType?: string } | null {
+    return this.message.media();
+  }
+
+  /**
+   * Returns the first detected `data` part of a candidate's message.
+   * @returns The first `data` part detected in the candidate (if any).
+   */
+  data(): O | null {
+    return this.message.data();
+  }
+
+  /**
+   * Appends the message generated by this candidate to the messages already
+   * present in the generation request. The result of this method can be safely
+   * serialized to JSON for persistence in a database.
+   * @returns A serializable list of messages compatible with `generate({history})`.
+   */
+  toHistory(): MessageData[] {
+    if (!this.request)
+      throw new Error(
+        "Can't construct history for candidate without request data."
+      );
+    return [...this.request?.messages, this.message.toJSON()];
+  }
+
+  /**
+   * Converts the Candidate to a plain JS object.
+   * @returns Plain JS object representing the data contained in the candidate.
+   */
   toJSON(): CandidateData {
     return {
       message: this.message.toJSON(),
@@ -131,30 +202,69 @@ export class Candidate<O = unknown> implements CandidateData {
   }
 }
 
+/**
+ * GenerationResponse is the result from a `generate()` call and contains one or
+ * more generated candidate messages.
+ */
 export class GenerationResponse<O = unknown> implements GenerationResponseData {
+  /** The potential generated messages. */
   candidates: Candidate<O>[];
+  /** Usage information. */
   usage: GenerationUsage;
+  /** Provider-specific response data. */
   custom: unknown;
+  /** The request that generated this response. */
   request?: GenerationRequest;
 
-  output(): O | null {
-    return this.candidates[0]?.output() || null;
+  /**
+   * If the selected candidate's message contains a `data` part, it is returned. Otherwise,
+   * the `output()` method extracts the first valid JSON object or array from the text
+   * contained in the selected candidate's message and returns it.
+   *
+   * @param index The candidate index from which to extract output, defaults to first candidate.
+   * @returns The structured output contained in the selected candidate.
+   */
+  output(index: number = 0): O | null {
+    return this.candidates[index]?.output() || null;
   }
 
-  text(): string {
-    return this.candidates[0]?.text() || '';
+  /**
+   * Concatenates all `text` parts present in the candidate's message with no delimiter.
+   * @param index The candidate index from which to extract text, defaults to first candidate.
+   * @returns A string of all concatenated text parts.
+   */
+  text(index: number = 0): string {
+    return this.candidates[index]?.text() || '';
   }
 
-  media(): { url: string; contentType?: string } | null {
-    return this.candidates[0]?.media() || null;
+  /**
+   * Returns the first detected media part in the selected candidate's message. Useful for
+   * extracting (for example) an image from a generation expected to create one.
+   * @param index The candidate index from which to extract media, defaults to first candidate.
+   * @returns The first detected `media` part in the candidate.
+   */
+  media(index: number = 0): { url: string; contentType?: string } | null {
+    return this.candidates[index]?.media() || null;
   }
 
-  data(): O | null {
-    return this.candidates[0]?.data() || null;
+  /**
+   * Returns the first detected `data` part of the selected candidate's message.
+   * @param index The candidate index from which to extract data, defaults to first candidate.
+   * @returns The first `data` part detected in the candidate (if any).
+   */
+  data(index: number = 0): O | null {
+    return this.candidates[index]?.data() || null;
   }
 
-  toHistory(): MessageData[] {
-    return this.candidates[0].toHistory();
+  /**
+   * Appends the message generated by the selected candidate to the messages already
+   * present in the generation request. The result of this method can be safely
+   * serialized to JSON for persistence in a database.
+   * @param index The candidate index to utilize during conversion, defaults to first candidate.
+   * @returns A serializable list of messages compatible with `generate({history})`.
+   */
+  toHistory(index: number = 0): MessageData[] {
+    return this.candidates[index].toHistory();
   }
 
   constructor(response: GenerationResponseData, request?: GenerationRequest) {
@@ -210,7 +320,7 @@ function inferRoleFromParts(parts: Part[]): Role {
 }
 
 async function toGenerateRequest(
-  prompt: ModelPrompt
+  prompt: GenerateOptions
 ): Promise<GenerationRequest> {
   const promptMessage: MessageData = { role: 'user', content: [] };
   if (typeof prompt.prompt === 'string') {
@@ -242,22 +352,31 @@ async function toGenerateRequest(
   };
 }
 
-export interface ModelPrompt<
+export interface GenerateOptions<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
 > {
+  /** A model name (e.g. `vertex-ai/gemini-1.0-pro`) or reference. */
   model: ModelAction<CustomOptions> | ModelReference<CustomOptions> | string;
+  /** The prompt for which to generate a response. Can be a string for a simple text prompt or one or more parts for multi-modal prompts. */
   prompt: string | Part | Part[];
+  /** Conversation history for multi-turn prompting when supported by the underlying model. */
   history?: MessageData[];
+  /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
   tools?: (Action<z.ZodTypeAny, z.ZodTypeAny> | string)[];
+  /** Number of candidate messages to generate. */
   candidates?: number;
+  /** Configuration for the generation request. */
   config?: GenerationConfig<z.infer<CustomOptions>>;
+  /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
   output?: {
-    format?: 'text' | 'json';
+    format?: 'text' | 'json' | 'media';
     schema?: O;
     jsonSchema?: any;
   };
+  /** When true, return tool calls for manual processing instead of automatically resolving them. */
   returnToolRequests?: boolean;
+  /** When provided, models supporting streaming will call the provided callback with chunks as generation progresses. */
   streamingCallback?: StreamingCallback<GenerationResponseChunkData>;
 }
 
@@ -303,17 +422,27 @@ async function resolveModel(
 }
 
 /**
+ * Generate calls a generative model based on the provided prompt and configuration. If
+ * `history` is provided, the generation will include a conversation history in its
+ * request. If `tools` are provided, the generate method will automatically resolve
+ * tool calls returned from the model unless `returnToolRequests` is set to `true`.
  *
+ * See `GenerateOptions` for detailed information about available options.
+ *
+ * @param options The options for this generation request.
+ * @returns The generated response based on the provided parameters.
  */
 export async function generate<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
 >(
   options:
-    | ModelPrompt<O, CustomOptions>
-    | PromiseLike<ModelPrompt<O, CustomOptions>>
+    | GenerateOptions<O, CustomOptions>
+    | PromiseLike<GenerateOptions<O, CustomOptions>>
 ): Promise<GenerationResponse<z.infer<O>>> {
-  const prompt: ModelPrompt<O, CustomOptions> = await Promise.resolve(options);
+  const prompt: GenerateOptions<O, CustomOptions> = await Promise.resolve(
+    options
+  );
   const model = await resolveModel(prompt.model);
   if (!model) {
     throw new Error(`Model ${prompt.model} not found`);
