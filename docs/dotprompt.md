@@ -1,11 +1,14 @@
+Project: /genkit/_project.yaml
+Book: /genkit/_book.yaml
+
 # Dotprompt
 
 Dotprompt is a text format for GenAI prompts that helps you write and organize your prompts. To use
 Dotprompt, first create a `prompts` directory in your project root and then create a `.prompt` file
 in that directory. Here's a simple example we might call `greeting.prompt`:
 
-```hbs
----
+```none
+{% verbatim %}---
 model: vertex-ai/gemini-1.0-pro
 config:
   temperature: 0.9
@@ -20,7 +23,7 @@ variables:
 
 You are the world's most welcoming AI assistant and are currently working at {{location}}.
 
-Greet a guest{{#if name}} named {{name}}{{/if}}{{#if style}} in the style of {{style}}.
+Greet a guest{{#if name}} named {{name}}{{/if}}{{#if style}} in the style of {{style}}.{% endverbatim %}
 ```
 
 To use this prompt, import the `@genkit-ai/dotprompt` library and load the prompt using
@@ -45,15 +48,15 @@ Dotprompt's syntax is based on the [Handlebars](https://handlebarsjs.com/guide/)
 language. You can use the `if`, `unless`, and `each` helpers to add conditional portions of
 your prompt or iterate through structured content.
 
-## Multi-message prompts with `{{role "<role_name>"}}`
+## Multi-message prompts
 
 By default Dotprompt constructs a single message with a `"user"` role. Some prompts are
 best expressed as a combination of multiple messages, such as a system prompt.
 
-The `{{role}}` helper provides a simple way to construct multi-message prompts:
+The `{% verbatim %}{{role}}{% endverbatim %}` helper provides a simple way to construct multi-message prompts:
 
-```hbs
----
+```none
+{% verbatim %}---
 model: vertex-ai/gemini-1.0-pro
 variables:
   type: object
@@ -66,15 +69,16 @@ variables:
 You are a helpful AI assistant that really loves to talk about puppies. Try to work puppies
 into all of your conversations.
 {{role "user"}}
-{{userQuestion}}
+{{userQuestion}}{% endverbatim %}
 ```
 
-## Multi-modal prompts with `{{media url=<variable>}}`
+## Multi-modal prompts
 
-For models that support multimodal input such as images, you can use the `{{media}}` helper:
+For models that support multimodal input such as images, you can use the
+`{% verbatim %}{{media}}{% endverbatim %}` helper:
 
-```hbs
----
+```none
+{% verbatim %}---
 model: vertex-ai/gemini-1.0-pro-vision
 variables:
   type: object
@@ -85,7 +89,7 @@ variables:
 
 Describe this image in a detailed paragraph:
 
-{{image url=photoUrl}}
+{{image url=photoUrl}}{% endverbatim %}
 ```
 
 The URL can be `https://` or base64-encoded `data:` URIs for "inline" image usage. In code

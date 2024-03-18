@@ -1,10 +1,15 @@
-# Configuration and Plugins
+Project: /genkit/_project.yaml
+Book: /genkit/_book.yaml
 
-Genkit has a configuration and plugin system. Every Genkit app starts with configuration where you specify plugins you want to use and configure various subsystems. 
+# Configuration and plugins
+
+Genkit has a configuration and plugin system. Every Genkit app starts with
+configuration where you specify plugins you want to use and configure various
+subsystems.
 
 Here is an example you might have seen in some of the examples:
 
-```
+```js
 configureGenkit({
   plugins: [
     firebase({ projectId: getProjectId() }),
@@ -17,12 +22,20 @@ configureGenkit({
 });
 ```
 
-In `plugins` you specify an array of plugins that will be made available to the framework. Plugins provide features such as: models, retrievers, indexers, flow state stores, trace stores, etc. One plugin can provide more than one thing, and even more than one instance of that thing.
+In `plugins` you specify an array of plugins that will be made available to the
+framework. Plugins provide features such as: models, retrievers, indexers, flow
+state stores, and trace stores. One plugin can provide more than one thing, and
+even more than one instance of that thing.
 
-`flowStateStore` tells Genkit which plugin to use for persisting flow states. The `firebase` plugin provides a Firestore implementation.
+`flowStateStore` tells Genkit which plugin to use for persisting flow states.
+The `firebase` plugin provides a Firestore implementation.
 
-`traceStore` (similar to `flowStateStore`) tells Genkit which plugin to use for persisting traces. The `firebase` plugin provides a Firestore implementation.
+`traceStore` (similar to `flowStateStore`) tells Genkit which plugin to use for
+persisting traces. The `firebase` plugin provides a Firestore implementation.
 
-`enableTracingAndMetrics` instructs the framework to perform OpenTelemetry instrumentation and enable trace collection.
+`enableTracingAndMetrics` instructs the framework to perform OpenTelemetry
+instrumentation and enable trace collection.
 
-`logLevel` specifies the verbosity level of the framework level logging. Sometimes it's useful when troubleshooting to see more detailed log messages; set it to `debug`.
+`logLevel` specifies the verbosity level of the framework level logging.
+Sometimes it's useful when troubleshooting to see more detailed log messages;
+set it to `debug`.

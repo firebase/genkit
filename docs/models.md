@@ -1,11 +1,19 @@
+Project: /genkit/_project.yaml
+Book: /genkit/_book.yaml
 
 # Models
 
-Models in Genkit are very easy to use libraries and abstractions that provide access to various Google and non-Google LLMs.
+Models in Genkit are libraries and abstractions that provide access to various
+Google and non-Google LLMs.
 
-Models are fully instrumented for observability and come with tooling integrations provided via Genkit Dev UI -- you can try any model via the model playground.
+Models are fully instrumented for observability and come with tooling
+integrations provided by the Genkit Dev UI -- you can try any model using the
+model playground.
 
-When working with models in Genkit you first need to configure the model you want to work with. Model configuration is performed via the plugin system. In this example we are configuring the VertexAI plugin which provides Gemini models.
+When working with models in Genkit you first need to configure the model you
+want to work with. Model configuration is performed by the plugin system. In
+this example you are configuring the VertexAI plugin which provides Gemini
+models.
 
 ```js
 configureGenkit({
@@ -20,9 +28,13 @@ configureGenkit({
 });
 ```
 
-Also note that different plugins and models use different methods of authentication. For example, Vertex API uses Google Auth Library so it can pull required credentials using Application Default Credentials.
+Also note that different plugins and models use different methods of
+authentication. For example, Vertex API uses Google Auth Library so it can pull
+required credentials using Application Default Credentials.
 
-To use models provided by the plugin you can either refer to them by name (e.g. `'vertex-ai/gemini-1.0-pro'`) or some plugins export model ref objects which provide additional type info about the model capabilities and options.
+To use models provided by the plugin you can either refer to them by name (e.g.
+`'vertex-ai/gemini-1.0-pro'`) or some plugins export model ref objects which
+provide additional type info about the model capabilities and options.
 
 ```js
 import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
@@ -45,7 +57,9 @@ export default configureGenkit({
 });
 ```
 
-The plugin requires that you set `GOOGLE_API_KEY` environment variable with the API Key which you can get from [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
+The plugin requires that you set `GOOGLE_API_KEY` environment variable with the
+API Key which you can get from
+[https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
 
 The plugin statically exports references to various supported models:
 
@@ -66,9 +80,15 @@ export default configureGenkit({
  // ...
 });
 ```
-The plugin requires that you set the `GCLOUD_PROJECT` environment variable with your Google Cloud project ID. If you're not running your flow from a Google Cloud environment, you will also need to [set up Google Cloud Default Application Credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc). On your local dev environment, do this by running:
 
-```sh
+The plugin requires that you set the `GCLOUD_PROJECT` environment variable with
+your Google Cloud project ID. If you're not running your flow from a Google
+Cloud environment, you will also need to [set up Google Cloud Default
+Application
+Credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc).
+On your local dev environment, do this by running:
+
+```posix-terminal
 gcloud auth application-default login
 ```
 
@@ -96,7 +116,8 @@ export default configureGenkit({
 });
 ```
 
-The plugin requires that you set the OPENAI_API_KEY environment variable with your OpenAI API Key.
+The plugin requires that you set the OPENAI_API_KEY environment variable with
+your OpenAI API Key.
 
 The plugin statically exports references to various supported models:
 
@@ -106,9 +127,11 @@ import { gpt35Turbo, gpt4, gpt4Turbo, gpt4Vision } from '@genkit-ai/plugin-opena
 
 ### Ollama
 
-The plugin requires that you first install and run ollama server. You can follow the instructions on: [https://ollama.com/download](https://ollama.com/download)
+The plugin requires that you first install and run ollama server. You can follow
+the instructions on: [https://ollama.com/download](https://ollama.com/download)
 
-You can use the ollama cli to download the model you are interested in, ex. `ollama pull gemma`
+You can use the ollama cli to download the model you are interested in, ex.
+`ollama pull gemma`
 
 Configure the ollama plugin like this:
 
@@ -126,7 +149,8 @@ export default configureGenkit({
 });
 ```
 
-The plugin does not statically export references for models, but you can use string references for your configured models, ex:
+The plugin does not statically export references for models, but you can use
+string references for your configured models, ex:
 
 ```js
 await generate({
@@ -145,7 +169,7 @@ await generate({
 
 `generate` is a helper function for working with models.
 
-To simply call the model:
+To just call the model:
 
 ```javascript
 import { generate } from '@genkit-ai/ai/generate';
@@ -159,12 +183,13 @@ const llmResponse = await generate({
 console.log(await llmResponse.text());
 ```
 
-you can pass in various model options for that model, including custom model for specific LLM.
+You can pass in various model options for that model, including custom model for
+specific LLM.
 
 ```javascript
 const response = await generate({
-  model: geminiPro, 
-  prompt, 
+  model: geminiPro,
+  prompt,
   config: {
     temperature: 1,
     custom: {
@@ -205,7 +230,8 @@ const result = await generate({
 });
 ```
 
-Model also supports tools/function calling. Currently tool support depends on specific models.
+Model also supports tools and function calling. Tool support depends on
+specific models.
 
 ```javascript
 const myTool = action(
@@ -219,12 +245,12 @@ const myTool = action(
 );
 
 const llmResponse = await generate({
-  model: geminiPro, 
-  prompt: "Tell me a joke.", 
+  model: geminiPro,
+  prompt: "Tell me a joke.",
   tools: [myTool],
   options: {
     temperature: 0.5,
-  },  
+  },
 });
 ```
 
@@ -234,13 +260,13 @@ You can specify `returnToolRequests: true` for manual control of tool calling.
 
 ```javascript
 const llmResponse = await generate({
-  model: geminiPro, 
-  prompt: "Tell me a joke.", 
+  model: geminiPro,
+  prompt: "Tell me a joke.",
   tools: [myTool],
   returnToolRequests: true,
   options: {
     temperature: 0.5,
-  },  
+  },
 });
 ```
 

@@ -1,3 +1,6 @@
+Project: /genkit/_project.yaml
+Book: /genkit/_book.yaml
+
 # Get started
 
 ## Run an LLM flow locally
@@ -10,10 +13,16 @@ If you want to follow along with this introduction, you need Node.js 18 or
 later.
 
 1.  Set up a Node project with TypeScript:
-    -   `mkdir genkit-intro && cd genkit-intro`
-    -   `npm init -y`
-    -   `npm install --save-dev typescript`
-    -   `npx tsc --init`
+
+    ```posix-terminal
+    mkdir genkit-intro && cd genkit-intro
+
+    npm init -y
+
+    npm install --save-dev typescript
+
+    npx tsc --init
+    ```
 
     Although TypeScript is not required, Genkit was built with type safety
     in mind, using TypeScript for compile-time type checking and Zod for
@@ -22,9 +31,10 @@ later.
 1.  Install Genkit in your project:
     -   Download packages zip file:
         [genkit-dist.zip](https://bit.ly/genkit-dist)
-    -   Unzip the file into `genkit-dist` folder in your project folder
+    -   Extract the file into `genkit-dist` folder in your project folder
     -   Run:
-        ```
+
+        ```posix-terminal
         npm i --save ./genkit-dist/*.tgz
         ```
 
@@ -57,7 +67,7 @@ later.
 
     And compile it:
 
-    ```
+    ```posix-terminal
     npx tsc
     ```
 
@@ -72,14 +82,14 @@ later.
     Gemini API using Google AI Studio. Then, set the `GOOGLE_API_KEY`
     environment variable to your key:
 
-    ```
+    ```posix-terminal
     export GOOGLE_API_KEY=<your API key>
     ```
 
 1.  Now you can run and explore your flow locally on your machine. Start
     the Genkit Dev UI:
 
-    ```
+    ```posix-terminal
     npx genkit start
     ```
 
@@ -101,13 +111,13 @@ later.
     -   On the Actions tab you will see a list of all of the flows you have
         defined and any models that have been configured by plugins.
 
-        Click on jokeFlow and try running it with some input text (for example,
+        Click **jokeFlow** and try running it with some input text (for example,
         `"manatees"`). If all goes well, you'll be rewarded with a joke about
         manatees. Run it a few more times and you might get one that's funny.
 
     -   On the Flows tab, you'll see a history of flow executions. For each
-        entry you can see the parameters that were passed to the flow and a trace
-        of each step as they run.
+        entry you can see the parameters that were passed to the flow and a
+        trace of each step as they run.
 
 ## Deploy your flow
 
@@ -126,8 +136,12 @@ Cloud billing account.
     -   Upgrade your project to the Blaze plan, which is required to
         deploy Cloud Functions.
 1.  Initialize your project:
-    -   `mkdir genkit-intro-firebase && cd genkit-intro-firebase`
-    -   `firebase init`
+
+    ```posix-terminal
+    mkdir genkit-intro-firebase && cd genkit-intro-firebase
+
+    firebase init
+    ```
 
     The Firebase CLI will ask you how to configure your project. Choose the
     following settings:
@@ -138,19 +152,24 @@ Cloud billing account.
     -   Select TypeScript as the language for your Cloud Functions; you
         can otherwise accept the defaults.
 
-1.  Edit tsconfig.json and add the following setting to `compilerOptions`:
+1.  Edit tsconfig.js and add the following setting to `compilerOptions`:
 
-    ```
+    ```json
     "skipLibCheck": true,
     ```
 
 1.  Install Genkit:
     -   Download
         [packages zip file](https://bit.ly/genkit-dist)
-        and unzip into `functions/genkit-dist` folder.
-    -   `cd functions`
-    -   `npm i --save ./genkit-dist/*.tgz`
-    -   `cd ..`
+        and extract into the `functions/genkit-dist` folder.
+
+        ```posix-terminal
+        cd functions`
+
+        npm i --save ./genkit-dist/*.tgz`
+
+        cd ..
+        ```
 
 1.  Replace the contents of `src/index.ts` with the following:
 
@@ -198,18 +217,18 @@ Cloud billing account.
 
     -   It now uses Cloud Firestore to store flow traces.
     -   It now defines your flow using `onFlow` instead of `flow`. `onFlow` Is a
-        convenience function provided by the `firebase` plugin that wraps your flow
-        in a Cloud Functions HTTP request handler.
-    -   It defines an authorization policy, which establishes the authorization       
-        requirements required to access your deployed endpoint. This example sets
-        the policy to `noAuth()` so you can easily try the endpoint, but
+        convenience function provided by the `firebase` plugin that wraps your
+        flow in a Cloud Functions HTTP request handler.
+    -   It defines an authorization policy, which establishes the authorization
+        requirements required to access your deployed endpoint. This example
+        sets the policy to `noAuth()` so you can easily try the endpoint, but
         _never do this in production_.
     -   It now gets the API key using Cloud Secret Manager instead of from an
         environment variable.
 
 1.  Deploy your function:
 
-    ```
+    ```posix-terminal
     firebase deploy --only functions
     ```
 
@@ -221,13 +240,13 @@ Cloud billing account.
 
 1.  Try making a request to your deployed endpoint. For example, using `curl`:
 
-    ```
+    ```posix-terminal
     curl -m 70 -X POST https://jokeflow-xyz.a.run.app -H "Content-Type: application/json" -d '{"start": {"input": "bananas"}}'
     ```
 
     If all goes well, you'll get a response like the following:
 
-    ```
+    ```none
     {"name":"e64efa71-a63d-4618-bad7-33e61e4622ad","done":true,
     "result":{"response":"What do you call a banana that's been in the sun too long?\n\nA tanana!"}}
     ```
