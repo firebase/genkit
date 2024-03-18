@@ -138,7 +138,7 @@ Cloud billing account.
     -   Select TypeScript as the language for your Cloud Functions; you
         can otherwise accept the defaults.
 
-1.  Edit tsconfig.js and add the following setting to `compilerOptions`:
+1.  Edit tsconfig.json and add the following setting to `compilerOptions`:
 
     ```
     "skipLibCheck": true,
