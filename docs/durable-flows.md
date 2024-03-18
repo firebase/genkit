@@ -1,11 +1,14 @@
+Project: /genkit/_project.yaml
+Book: /genkit/_book.yaml
 
 # EXPERIMENTAL: Durable flows
 
 IMPORTANT: this feature is experimental, subject to change and removal.
 
-Schedulable flows (a.k.a. durable flows, persisted flows) are an advanced feature of flow which allows interrupting and resuming flow execution, as well as scheduling executions.
-Schedulable flows do not support streaming, because they are specifically designed for long-running background operations.
-
+Schedulable flows (a.k.a. durable flows, persisted flows) are an advanced
+feature of flow which allows interrupting and resuming flow execution, as well
+as scheduling executions. Schedulable flows don't support streaming, because
+they are specifically designed for long-running background operations.
 
 ```javascript
 import { onScheduledFlow } from '@genkit-ai/plugin-firebase/functions/experimental';
@@ -18,10 +21,11 @@ export const jokeFlow = onScheduledFlow(
 );
 ```
 
+To enable that behaviour flow states are persisted in the flow state store which
+can be implemented by plugins.
 
-To enable that behaviour flow states are persisted in the flow state store which can be implemented by pluging.
-
-You can use the configuration to specify which persistence implementation to use when running on non-dev environment. 
+You can use the configuration to specify which persistence implementation to use
+when running on non-dev environment.
 
 ```javascript
 configureGenkit({
@@ -39,9 +43,12 @@ configureGenkit({
 const operation = await scheduleFlow(jokeFlow, 'banana');
 ```
 
-this will schedule the flow to be executed at a later time. In this case the later time is almost immediately, but it still guaranteed to be invoked asynchronously via the scheduler.
+this will schedule the flow to be executed at a later time. In this case the
+later time is almost immediately, but it still guaranteed to be invoked
+asynchronously by the scheduler.
 
-It is guaranteed that the returned operation will not be complete (`done=false`) and you will have to use some kind of polling to wait for the flow to complete.
+It is guaranteed that the returned operation won't be complete (`done=false`)
+and you will have to use some kind of polling to wait for the flow to complete.
 
 You can schedule the flow to run with a delay (specified in seconds).
 
@@ -49,18 +56,27 @@ You can schedule the flow to run with a delay (specified in seconds).
 const operation = await scheduleFlow(jokeFlow, 'banana', 10);
 ```
 
-
 ## Steps
 
-Steps of a flow are wrapper functions that offer specific functionality but universally all steps have built-in memoization -- results of execution of each step are memoized and if this step is executed again memoized value will be returned immediately. Universal memoization is a core/critical feature because each flow instance can be run more than once for the following reasons:
-* flows are built on top of cloud task queues which offer "deliver at least once" guarantee
-* some features (see below: interrupt, sleep, waitFor or various error retry feature) rely on the ability of the flow to be "interrupted" and then re-run again.
+Steps of a flow are wrapper functions that offer specific capabilities but
+universally all steps have built-in memoization -- results of execution of each
+step are memoized and if this step is executed again memoized value will be
+returned immediately. Universal memoization is a core feature because
+each flow instance can be run more than once for the following reasons:
 
-All logic that has side-effects or is expensive to perform must be defined as a step within a flow to avoid unnecessary/undesiriable repeated execution. 
+*   flows are built on top of cloud task queues which offer "deliver at least
+    once" guarantee
+*   Some features (see below: interrupt, sleep, waitFor or various error retry
+    feature) rely on the ability of the flow to be "interrupted" and then re-run
+    again.
+
+All logic that has side-effects or is expensive to perform must be defined as a
+step within a flow to avoid unnecessary or undesirable repeated execution.
 
 ### run
 
-This is the simplest way to define a step. Step has a name and function. Memoization uses the run step name as a key.
+This is the simplest way to define a step. Step has a name and function.
+Memoization uses the run step name as a key.
 
 ```javascript
 export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.string(), output: z.string() },
@@ -90,7 +106,10 @@ export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.string(), outpu
 )
 ```
 
-Retry behavior can be specified on the run step. In case of an error thrown within the step function and framework can retry executing this step as per the provided retry configuration.  By default there's no retry -- if an error occurs, the whole flow execution will result in an error.
+Retry behavior can be specified on the run step. In case of an error thrown
+within the step function and framework can retry executing this step as per the
+provided retry configuration. By default there's no retry -- if an error occurs,
+the whole flow execution will result in an error.
 
 ```javascript
 export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.string(), output: z.string() },
@@ -110,7 +129,10 @@ export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.string(), outpu
 ```
 
 ### runAction
-Action is a self-describing function. It exposes metadata (self-describing): name, description and input/output zod schema. Action is a shared type across the Genkit framework -- many AI primitives are implemented as actions.
+
+Action is a self-describing function. It exposes metadata (self-describing):
+name, description and input/output zod schema. Action is a shared type across
+the Genkit framework -- many AI primitives are implemented as actions.
 
 The Action type is defined like this:
 
@@ -122,8 +144,8 @@ export interface ActionMetadata<I extends z.ZodType, O extends z.ZodType> {
   outputSchema?: O,
 }
 
-export type Action<I extends z.ZodType, O extends z.ZodType> = 
-  ((input: z.infer<I>) => Promise<z.infer<O>>) & 
+export type Action<I extends z.ZodType, O extends z.ZodType> =
+  ((input: z.infer<I>) => Promise<z.infer<O>>) &
   { __action: ActionMetadata<I, O> }
 
 A helper action factory method is provided and you can build action factories like this:
@@ -134,7 +156,9 @@ const greet = (greeting) => action(
   })
 ```
 
-runAction is a wrapper around run step to make it easier to work with actions. Because actions already have all the necessary metadata it can be omitted during step definition.
+runAction is a wrapper around run step to make it easier to work with actions.
+Because actions already have all the necessary metadata it can be omitted during
+step definition.
 
 ```javascript
 export const greetingFlow = onScheduledFlow({ name: 'greetingFlow', input: z.string(), output: z.string() },
@@ -151,12 +175,12 @@ retry can also be configured for runAction in the same way as for run.
 
 ### interrupt
 
-interrupt step can be used to interrupt the flow and request external input. 
+interrupt step can be used to interrupt the flow and request external input.
 
 ```javascript
 export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.void(), output: z.boolean() },
   async () => {
-    const hoomanSaid = await interrupt("approve-by-hooman", 
+    const hoomanSaid = await interrupt("approve-by-hooman",
       z.object({ approved: z.boolean() }))
 
     return hoomanSaid.approved;
@@ -170,7 +194,8 @@ await resumeFlow(myFlow, flowId, {
 })
 ```
 
-interrupt will "interrupt" the flow by throwing an InterruptError, so need to be careful with wrapping the interrupt step in try-catch.
+interrupt will "interrupt" the flow by throwing an InterruptError, so need to be
+careful with wrapping the interrupt step in try-catch.
 
 ```javascript
 import { InterruptError } from "@genkit-ai/flow/experimental"
@@ -196,7 +221,8 @@ export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.void(), output:
 
 ### sleep
 
-sleep method can be used to interrupt and automatically resume it after the specified number of seconds. 
+sleep method can be used to interrupt and automatically resume it after the
+specified number of seconds.
 
 ```javascript
 export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.string(), output: z.string() },
@@ -218,7 +244,8 @@ sleep has similar considerations to interrupt. See above.
 
 **IMPORTANT:** not fully implemented yet, for reference only
 
-Basic polling. Will periodically invoke the provided function until it returns true.
+Basic polling. Will periodically invoke the provided function until it returns
+true.
 
 ```javascript
 export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.string(), output: z.string() },
@@ -231,7 +258,7 @@ export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.string(), outpu
       pollPeriodSeconds: 10,
       backoff: ...
     }, async () => isThatSomethingElseComplete(workId))
-    
+
     return await run("do-something-else", async () => {...});
   }
 )
@@ -239,11 +266,14 @@ export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.string(), outpu
 
 poll has similar considerations to interrupt. See above.
 
-Polling is done by reenqueuing the task in the queue (as per the polling configuration) and poll will continue interrupting the execution until the function returns true.
+Polling is done by reenqueuing the task in the queue (as per the polling
+configuration) and poll will continue interrupting the execution until the
+function returns true.
 
 ### waitFor
 
-waitFor is a convenient version of poll that allows waiting for other flows to complete. 
+waitFor is a convenient version of poll that allows waiting for other flows to
+complete.
 
 ```javascript
 export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.string(), output: z.string() },
@@ -251,7 +281,7 @@ export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.string(), outpu
     const otherFlowOp = await scheduleFlow(otherFlow, input)
 
     const [op] = await waitFor("wait-for-other-action", otherFlow, [otherFlowOp.name])
-    
+
     return op.result.response;
   }
 )

@@ -1,0 +1,32 @@
+guides:
+- title: Introduction
+  path: /genkit
+- title: Get started
+  path: /genkit/get-started
+- title: Configuration and plugins
+  path: /genkit/config
+- title: Models
+  path: /genkit/models
+- title: Prompt management
+  path: /genkit/dotprompt
+- title: Flows
+  path: /genkit/flows
+- title: Durable flows
+  path: /genkit/durable-flows
+- title: Retrieval-augmented generation (RAG)
+  path: /genkit/rag
+- title: Observability
+  path: /genkit/observability
+- title: Evaluation
+  path: /genkit/evaluation
+- title: Monitoring
+  path: /genkit/monitoring
+- title: Developer tools
+  path: /genkit/devtools
+- title: Deploy with Firebase
+  path: /genkit/firebase
+- title: Deploy as an express.js app
+  path: /genkit/express
+reference:
+- title: Resource summary
+  path: /genkit/reference/coming-soon

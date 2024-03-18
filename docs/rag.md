@@ -1,19 +1,33 @@
+Project: /genkit/_project.yaml
+Book: /genkit/_book.yaml
+
 # Retrieval-augmented generation (RAG)
 
-RAG is a very broad area and there are many different techniques used to achieve the best quality RAG. The core Genkit framework offers two main abstractions/APIs to help you do RAG:
+RAG is a very broad area and there are many different techniques used to achieve
+the best quality RAG. The core Genkit framework offers two main
+abstractions to help you do RAG:
 
 -   Retrievers - retrieves documents from an "index" given a query.
 -   Indexers - adds documents to the "index".
 
-The definitions are broad on purpose because Genkit is un-opinionated about what an "index" is or how exactly documents are retrieved from it. Genkit only provides document formats for `TextDocument` and `MultipartDocument`. Everything else is defined by retriever/indexer implementation provider (via the plugions system).
+The definitions are broad on purpose because Genkit is un-opinionated about what
+an "index" is or how exactly documents are retrieved from it. Genkit only
+provides document formats for `TextDocument` and `MultipartDocument`. Everything
+else is defined by retriever or indexer implementation provider (through the
+plugin system).
 
 ## Retrievers
 
-Retriever is a concept which encapsulates logic related to any kind of document retrieval. The most popular retrieval cases typically include retrieval from vector stores.
+Retriever is a concept which encapsulates logic related to any kind of document
+retrieval. The most popular retrieval cases typically include retrieval from
+vector stores.
 
-To create a retriever you can use one of the provided implementations or easily create your own.
+To create a retriever you can use one of the provided implementations or
+create your own.
 
-Let's take a look at a dev local file based vector similarity retriever that Genkit provides out-of-the box for simple testing/prototyping (DO NOT USE IN PRODUCTION).
+Take a look at a dev local file based vector similarity retriever that
+Genkit provides out-of-the box for simple testing and prototyping (DO NOT USE IN
+PRODUCTION).
 
 ```javascript
 import { geminiPro, vertexAI, textembeddingGecko } from '@genkit-ai/plugin-vertex-ai';
@@ -62,7 +76,8 @@ await index({
 });
 ```
 
-You can then use the provided `retrieve` function to retrieve documents from the store:
+You can then use the provided `retrieve` function to retrieve documents from the
+store:
 
 ```javascript
 const docs = await retrieve({
@@ -72,7 +87,8 @@ const docs = await retrieve({
 });
 ```
 
-It's very easy to swap out your retriever if for example you want to try a different one.
+You can also swap out your retriever if, for example, you want to try a
+different one.
 
 ```js
 import { chroma } from '@genkit-ai/plugin-chroma';
@@ -113,7 +129,8 @@ const docs = await retrieve({
 
 ### Retriever plugins
 
-Genkit provides built-in plugins for the following retrievers for some popular vectorstore:
+Genkit provides built-in plugins for the following retrievers for some popular
+vectorstore:
 
 #### Chroma DB
 
@@ -164,9 +181,11 @@ export default configureGenkit({
 });
 ```
 
-The plugin requires that you set the PINECONE_API_KEY environment variable with your Pinecone API Key.
+The plugin requires that you set the PINECONE_API_KEY environment variable with
+your Pinecone API Key.
 
-Note that you need to configure the plugin with the embedder by passing in a reference.
+Note that you need to configure the plugin with the embedder by passing in a
+reference.
 
 You can then create retriever and indexer references like so
 
@@ -230,7 +249,7 @@ const sqlRetriever = defineRetriever(
 );
 ```
 
-and here's how to use the above retriever in a flow:
+And here's how to use the retriever in a flow:
 
 ```js
 // Simple flow to use the sqlRetriever
@@ -250,16 +269,22 @@ export const askQuestionsOnGoT = flow(
     });
     console.log(docs);
 
-    // Continue with using retrieved docs 
+    // Continue with using retrieved docs
     // in RAG prompts.
-    ... 
+    ...
   }
 );
 ```
 
 ### Write your own retrievers
 
-It's also possible to create your own retriever. This is useful if your documents are managed in a document store that is not currently supported in Genkit (eg: MySQL, Google Drive, etc.). The Genkit SDK provides a flexible `defineRetriever` method that lets you provide custom code for fetching documents. You can also define custom retrievers that build on top of existing retrievers in Genkit and apply advanced RAG techniques (ex. reranking or prompt extensions) on top.
+It's also possible to create your own retriever. This is useful if your
+documents are managed in a document store that is not supported in
+Genkit (eg: MySQL, Google Drive, etc.). The Genkit SDK provides a flexible
+`defineRetriever` method that lets you provide custom code for fetching
+documents. You can also define custom retrievers that build on top of existing
+retrievers in Genkit and apply advanced RAG techniques (ex. reranking or prompt
+extensions) on top.
 
 ```javascript
 import {
@@ -276,7 +301,7 @@ const MyAdvancedOptionsSchema = CommonRetrieverOptionsSchema.extend({
 
 const advancedRetriever = defineRetriever({
   provider: 'custom',
-  retrieverId: `custom/myAdvancedRetriver`,
+  retrieverId: `custom/myAdvancedRetriever`,
   queryType: z.string(),
   documentType: TextDocumentSchema,
   customOptionsType: MyAdvancedOptionsSchema,
@@ -294,7 +319,8 @@ const advancedRetriever = defineRetriever({
 );
 ```
 
-(`extendPrompt` and `rerank` is something you would have to implement yourself, currently not provided by the framework)
+(`extendPrompt` and `rerank` is something you would have to implement yourself,
+not provided by the framework)
 
 And then you can just swap out your retriever:
 
@@ -308,7 +334,8 @@ const docs = await retrieve({
 
 ## Chunking
 
-Genkit does not currently provide built-in chunking libraries, however there are open source libraries available that are compatible with Genkit.
+Genkit does not provide built-in chunking libraries, however there are
+open source libraries available that are compatible with Genkit.
 
 ```js
 // npm install llm-chunk
@@ -334,7 +361,7 @@ export const indexPdf = flow(
   },
   async (filePath) => {
     filePath = path.resolve(filePath);
-    const pdfTxt = await run('extract-text', () => 
+    const pdfTxt = await run('extract-text', () =>
       extractTextFromPdf(filePath)
     );
 
