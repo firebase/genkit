@@ -57,3 +57,13 @@ export const ActionSchema = z
   .openapi('Action');
 
 export type Action = z.infer<typeof ActionSchema>;
+
+export const RunActionResponseSchema = z.object({
+  result: z.unknown().optional(),
+  telemetry: z
+    .object({
+      traceId: z.string().optional(),
+    })
+    .optional(),
+});
+export type RunActionResponse = z.infer<typeof RunActionResponseSchema>;

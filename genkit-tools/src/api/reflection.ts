@@ -70,9 +70,7 @@ registry.registerPath({
       description: 'Success',
       content: {
         'application/json': {
-          schema: action.CustomAnySchema.describe(
-            'An output with the type that this action returns.'
-          ),
+          schema: action.RunActionResponseSchema,
         },
       },
     },

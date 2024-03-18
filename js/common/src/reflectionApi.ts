@@ -20,7 +20,22 @@ import { config } from './config';
 import logging from './logging';
 import * as registry from './registry';
 import { runWithStreamingCallback } from './types';
-import { flushTracing } from './tracing.js';
+import {
+  flushTracing,
+  newTrace,
+  setCustomMetadataAttribute,
+} from './tracing.js';
+import z from 'zod';
+
+export const RunActionResponseSchema = z.object({
+  result: z.unknown().optional(),
+  telemetry: z
+    .object({
+      traceId: z.string().optional(),
+    })
+    .optional(),
+});
+export type RunActionResponse = z.infer<typeof RunActionResponseSchema>;
 
 /**
  * Starts a Reflection API that will be used by the Runner to call and control actions and flows.
@@ -85,18 +100,48 @@ export async function startReflectionApi(port?: number | undefined) {
         return;
       }
       if (stream === 'true') {
-        const result = await runWithStreamingCallback(
-          (chunk) => {
-            response.write(JSON.stringify(chunk) + '\n');
-          },
-          async () => await action(input)
+        var traceId;
+        const result = await newTrace(
+          { name: 'dev-run-action-wrapper' },
+          async (_, span) =>
+            await runWithStreamingCallback(
+              (chunk) => {
+                setCustomMetadataAttribute('genkit-dev-internal', 'true');
+                traceId = span.spanContext().traceId;
+                response.write(JSON.stringify(chunk) + '\n');
+              },
+              async () => await action(input)
+            )
         );
         await flushTracing();
-        response.write(JSON.stringify(result));
+        response.write(
+          JSON.stringify({
+            result,
+            telemetry: traceId
+              ? {
+                  traceId,
+                }
+              : undefined,
+          } as RunActionResponse)
+        );
         response.end();
       } else {
-        const result = await action(input);
-        response.send(result);
+        const result = await newTrace(
+          { name: 'dev-run-action-wrapper' },
+          async (_, span) => {
+            setCustomMetadataAttribute('genkit-dev-internal', 'true');
+            traceId = span.spanContext().traceId;
+            return await action(input);
+          }
+        );
+        response.send({
+          result,
+          telemetry: traceId
+            ? {
+                traceId,
+              }
+            : undefined,
+        } as RunActionResponse);
       }
     } catch (err) {
       const message = `Error running action \`${key}\`: ${err}`;

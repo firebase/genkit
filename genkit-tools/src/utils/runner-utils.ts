@@ -55,12 +55,14 @@ export async function getFlowState(
   flowName: string,
   flowId: string
 ): Promise<FlowState> {
-  return (await runner.runAction({
-    key: `/flow/${flowName}`,
-    input: {
-      state: {
-        flowId,
-      },
-    } as FlowInvokeEnvelopeMessage,
-  })) as FlowState;
+  return (
+    await runner.runAction({
+      key: `/flow/${flowName}`,
+      input: {
+        state: {
+          flowId,
+        },
+      } as FlowInvokeEnvelopeMessage,
+    })
+  ).result as FlowState;
 }

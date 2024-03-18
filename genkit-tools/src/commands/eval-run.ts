@@ -55,7 +55,7 @@ export const evalRun = new Command('eval:run')
             dataset: loadedData,
           },
         });
-        results[e] = response;
+        results[e] = response.result;
       })
     );
 

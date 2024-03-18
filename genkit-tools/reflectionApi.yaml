@@ -142,6 +142,15 @@ components:
                       type: string
                     stacktrace:
                       type: string
+            blockedOnStep:
+              type: object
+              properties:
+                name:
+                  type: string
+                schema:
+                  type: string
+              required:
+                - name
           required:
             - name
         traceContext:
@@ -331,9 +340,15 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/CustomAny'
-                  - description: An output with the type that this action returns.
+                type: object
+                properties:
+                  result:
+                    nullable: true
+                  telemetry:
+                    type: object
+                    properties:
+                      traceId:
+                        type: string
   /api/envs/{env}/traces:
     get:
       summary: Retrieves all traces for a given environment (e.g. dev or prod).

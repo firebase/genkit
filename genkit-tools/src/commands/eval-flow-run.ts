@@ -88,7 +88,7 @@ export const evalFlowRun = new Command('eval:flow')
                 auth: options.auth ? JSON.parse(options.auth) : undefined,
               },
             });
-            results[e] = response;
+            results[e] = response.result;
           })
         );
 
@@ -127,14 +127,16 @@ async function runFlows(
 
   for (const d of data) {
     logger.info(`Running '/flow/${flowName}' ...`);
-    var state = (await runner.runAction({
-      key: `/flow/${flowName}`,
-      input: {
-        start: {
-          input: d,
-        },
-      } as FlowInvokeEnvelopeMessage,
-    })) as FlowState;
+    var state = (
+      await runner.runAction({
+        key: `/flow/${flowName}`,
+        input: {
+          start: {
+            input: d,
+          },
+        } as FlowInvokeEnvelopeMessage,
+      })
+    ).result as FlowState;
 
     if (!state.operation.done) {
       logger.info('Started flow run, waiting for it to complete...');
