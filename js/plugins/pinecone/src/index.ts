@@ -73,7 +73,7 @@ export const pineconeRetrieverRef = (params: {
       label: `Pinecone - ${displayName}`,
       names: [displayName],
     },
-    configSchema: PineconeRetrieverOptionsSchema.optional(),
+    configSchema: PineconeRetrieverOptionsSchema,
   });
 };
 
@@ -158,7 +158,7 @@ export function configurePineconeRetriever<
         input,
         options: embedderOptions,
       });
-      const scopedIndex = options.namespace
+      const scopedIndex = !!options.namespace
         ? index.namespace(options.namespace)
         : index;
       const response = await scopedIndex.query({
@@ -208,10 +208,10 @@ export function configurePineconeIndexer<
       provider: 'pinecone',
       indexerId: `pinecone/${params.indexId}`,
       documentType: TextDocumentSchema,
-      customOptionsType: PineconeIndexerOptionsSchema,
+      customOptionsType: PineconeIndexerOptionsSchema.optional(),
     },
     async (docs, options) => {
-      const scopedIndex = options.namespace
+      const scopedIndex = !!options?.namespace
         ? index.namespace(options.namespace)
         : index;
 
@@ -246,9 +246,7 @@ export function configurePineconeIndexer<
 /**
  * Helper function for creating a Pinecone index.
  */
-export async function createPineconeIndex<
-  EmbedderCustomOptions extends z.ZodTypeAny
->(params: {
+export async function createPineconeIndex(params: {
   clientParams?: PineconeConfiguration;
   options: CreateIndexOptions;
 }) {
@@ -260,9 +258,10 @@ export async function createPineconeIndex<
 /**
  * Helper function to describe a Pinecone index. Use it to check if a newly created index is ready for use.
  */
-export async function describePineconeIndex<
-  EmbedderCustomOptions extends z.ZodTypeAny
->(params: { clientParams?: PineconeConfiguration; name: string }) {
+export async function describePineconeIndex(params: {
+  clientParams?: PineconeConfiguration;
+  name: string;
+}) {
   const pineconeConfig = params.clientParams ?? getDefaultConfig();
   const pinecone = new Pinecone(pineconeConfig);
   return await pinecone.describeIndex(params.name);
