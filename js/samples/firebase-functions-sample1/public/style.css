@@ -43,3 +43,8 @@ p {
 #response-code {
   font-style: italic;
 }
+
+#emulator-warning {
+  color: red;
+  display: none;
+}
