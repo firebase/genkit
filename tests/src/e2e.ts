@@ -1,6 +1,6 @@
 import { runDevUiTest } from './utils';
 
-runDevUiTest(async (page, url) => {
+runDevUiTest('test_js_app', async (page, url) => {
   await page.goto(url);
   await page.setViewport({ width: 1080, height: 1024 });
 
@@ -18,4 +18,9 @@ runDevUiTest(async (page, url) => {
   runFlowButton?.click();
 
   await page.waitForSelector('text/Test flow passed');
+
+  const inspectFlowButton = await page.waitForSelector('text/Inspect flow state');
+  inspectFlowButton?.click();
+
+  await page.waitForSelector('text/testFlow')
 })

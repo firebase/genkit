@@ -6,8 +6,8 @@ import puppeteer, { Page } from 'puppeteer';
 import { PuppeteerScreenRecorder } from 'puppeteer-screen-recorder';
 import terminate from 'terminate';
 
-export async function runDevUiTest(testFn: (page: Page, devUiUrl: string) => Promise<void>) {
-  const url = await startDevUi()
+export async function runDevUiTest(testAppName: string, testFn: (page: Page, devUiUrl: string) => Promise<void>) {
+  const url = await startDevUi(testAppName)
   try {
     const browser = await puppeteer.launch({
       slowMo: 50,
@@ -28,11 +28,11 @@ export async function runDevUiTest(testFn: (page: Page, devUiUrl: string) => Pro
   }
 }
 
-export async function startDevUi(): Promise<string> {
+export async function startDevUi(testAppName: string): Promise<string> {
   const testRoot = path.resolve(os.tmpdir(), `./e2e-run-${Date.now()}`)
   console.log(`testRoot=${testRoot} pwd=${process.cwd()}`)
   fs.mkdirSync(testRoot, { recursive: true });
-  fs.cpSync('test_app', testRoot, { recursive: true });
+  fs.cpSync(testAppName, testRoot, { recursive: true });
   const distDir = path.resolve(process.cwd(), '../dist');
   execSync(`npm i --save ${distDir}/*.tgz`, { stdio: 'inherit', cwd: testRoot });
   execSync(`npm run build`, { stdio: 'inherit', cwd: testRoot });
