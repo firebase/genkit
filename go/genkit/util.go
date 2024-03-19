@@ -16,6 +16,8 @@ package genkit
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 )
 
 // A contextKey is a unique, typed key for a value stored in a context.
@@ -37,4 +39,20 @@ func (k contextKey[T]) newContext(ctx context.Context, value T) context.Context 
 func (k contextKey[T]) fromContext(ctx context.Context) T {
 	t, _ := ctx.Value(k.key).(T)
 	return t
+}
+
+// zero returns the zero value for T.
+func zero[T any]() T {
+	var z T
+	return z
+}
+
+// jsonString returns json.Marshal(x) as a string. If json.Marshal returns
+// an error, jsonString returns the error text as a JSON string beginning "ERROR:".
+func jsonString(x any) string {
+	bytes, err := json.Marshal(x)
+	if err != nil {
+		bytes, _ = json.Marshal(fmt.Sprintf("ERROR: %v", err))
+	}
+	return string(bytes)
 }
