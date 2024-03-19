@@ -32,7 +32,7 @@ export type Dataset<DataPoint extends z.ZodTypeAny = BaseDataPointZodType> =
 
 export interface EvalResult<DataPoint extends z.ZodTypeAny> {
   sample: z.infer<DataPoint>;
-  score: Record<string, number>;
+  score: Record<string, number | null>;
 }
 
 type EvaluatorFn<
@@ -94,7 +94,7 @@ export function defineEvaluator<
       output: z.array(
         z.object({
           sample: options.dataPointType,
-          score: z.record(z.string(), z.number()),
+          score: z.record(z.string(), z.number().nullable()),
         })
       ),
     },
