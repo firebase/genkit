@@ -1,6 +1,6 @@
 {
   "name": "@genkit-ai/common",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
