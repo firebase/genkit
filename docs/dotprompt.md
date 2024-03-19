@@ -37,7 +37,7 @@ import { prompt } from '@genkit-ai/dotprompt';
 const greetingPrompt = await prompt('greeting');
 
 const result = await recipePrompt.generate({
-  variables: {
+  input: {
     location: "the beach",
     style: "a fancy pirate",
   },
@@ -55,8 +55,8 @@ metadata for a prompt inline with the template.
 
 You can set the format and output schema of a prompt to coerce into JSON:
 
-```hbs
----
+```none
+{% verbatim %}---
 model: vertex-ai/gemini-1.0-pro
 input:
   schema:
@@ -72,7 +72,7 @@ output:
       description: {type: string}
 ---
 
-Generate a tabletop RPG character that would be found in {{location}}.
+Generate a tabletop RPG character that would be found in {{location}}.{% endverbatim %}
 ```
 
 When generating a prompt with structured output, the `output()` helper can be used to
@@ -82,7 +82,7 @@ retrieve and validate it:
 const characterPrompt = await prompt('create_character');
 
 const character = await characterPrompt.generate({
-  variables: {
+  input: {
     location: "the beach",
   },
 });
@@ -141,7 +141,7 @@ this would be:
 const describeImagePrompt = await prompt('describe_image');
 
 const result = await describeImagePrompt.generate({
-  variables: {
+  input: {
     photoUrl: 'https://example.com/image.png',
   },
 });
@@ -206,8 +206,10 @@ const myPrompt = await loadPromptUrl('https://example.com/my_prompt.prompt');
 // Define a prompt in code
 const myPrompt = definePrompt({
   model: 'vertex-ai/gemini-1.0-pro',
-  variablesSchema: z.object({
-    name: z.string(),
+  input: {
+    schema: z.object({
+      name: z.string(),
+    }
   }),
-}, `Hello {{name}}, how are you today?`);
+}, `Hello {% verbatim %}{{name}}{% endverbatim %}, how are you today?`);
 ```

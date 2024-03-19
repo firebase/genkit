@@ -1,6 +1,6 @@
 ---
 model: google-ai/gemini-pro
-variables:
+input:
   type: object
   properties:
     subject: {type: string}

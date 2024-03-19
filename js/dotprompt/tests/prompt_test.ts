@@ -21,7 +21,7 @@ describe('Prompt', () => {
     it('should render variables', async () => {
       const prompt = testPrompt(`Hello {{name}}, how are you?`);
 
-      const rendered = await prompt.render({ variables: { name: 'Michael' } });
+      const rendered = await prompt.render({ input: { name: 'Michael' } });
       assert.deepStrictEqual(rendered.messages, [
         { role: 'user', content: [{ text: 'Hello Michael, how are you?' }] },
       ]);
@@ -32,7 +32,7 @@ describe('Prompt', () => {
         input: { default: { name: 'Fellow Human' } },
       });
 
-      const rendered = await prompt.render({ variables: {} });
+      const rendered = await prompt.render({ input: {} });
       assert.deepStrictEqual(rendered.messages, [
         {
           role: 'user',
