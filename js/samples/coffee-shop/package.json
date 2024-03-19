@@ -17,7 +17,15 @@
   "dependencies": {
     "@genkit-ai/flow": "*",
     "@genkit-ai/ai": "*",
-    "@genkit-ai/providers": "*"
+    "@genkit-ai/plugin-google-genai": "*",
+    "@genkit-ai/plugin-openai": "*",
+    "@genkit-ai/plugin-ragas": "*",
+    "@genkit-ai/plugin-vertex-ai": "*",
+    "@genkit-ai/plugin-chroma": "*",
+    "@genkit-ai/plugin-firebase": "*",
+    "@genkit-ai/plugin-dev-local-vectorstore": "*",
+    "@genkit-ai/plugin-ollama": "*",
+    "@genkit-ai/plugin-pinecone": "*"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

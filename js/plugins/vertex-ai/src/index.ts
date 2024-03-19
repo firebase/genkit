@@ -24,10 +24,10 @@ import {
 } from './gemini';
 import { VertexAI } from '@google-cloud/vertexai';
 import { getProjectId, getLocation } from '@genkit-ai/common';
-import { textEmbeddingGeckoEmbedder, textembeddingGecko } from './embedder';
+import { textEmbeddingGeckoEmbedder, textEmbeddingGecko } from './embedder';
 import { GoogleAuth } from 'google-auth-library';
 
-export { imagen2, geminiPro, geminiProVision, textembeddingGecko };
+export { imagen2, geminiPro, geminiProVision, textEmbeddingGecko };
 
 export interface PluginOptions {
   projectId?: string;

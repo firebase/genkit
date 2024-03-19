@@ -18,11 +18,14 @@
     "@genkit-ai/common": "*",
     "@genkit-ai/flow": "*",
     "@genkit-ai/plugin-vertex-ai": "*",
-    "@genkit-ai/providers": "*",
+    "@genkit-ai/plugin-ragas": "*",
+    "@genkit-ai/plugin-google-genai": "*",
+    "@genkit-ai/plugin-firebase": "*",
+    "@genkit-ai/plugin-dev-local-vectorstore": "*",
+    "@genkit-ai/plugin-pinecone": "*",
     "@types/pdfjs-dist": "^2.10.378",
     "llm-chunk": "^0.0.1",
     "pdfjs-dist": "^4.0.379",
-    "@genkit-ai/plugin-ragas": "*",
     "zod": "^3.22.4"
   },
   "devDependencies": {

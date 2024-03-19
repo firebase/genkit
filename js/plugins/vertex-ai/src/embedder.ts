@@ -45,7 +45,7 @@ const TextEmbeddingGeckoInputSchema = z.union([
   z.object({ title: z.string().optional(), content: z.string() }),
 ]);
 
-export const textembeddingGecko = embedderRef({
+export const textEmbeddingGecko = embedderRef({
   name: 'vertex-ai/textembedding-gecko',
   configSchema: TextEmbeddingGeckoConfigSchema,
   info: {
@@ -90,10 +90,10 @@ export function textEmbeddingGeckoEmbedder(
   );
   return defineEmbedder(
     {
-      info: textembeddingGecko.info!,
+      info: textEmbeddingGecko.info!,
       customOptionsType: TextEmbeddingGeckoConfigSchema,
       inputType: TextEmbeddingGeckoInputSchema,
-      embedderId: textembeddingGecko.name,
+      embedderId: textEmbeddingGecko.name,
       provider: 'vertex-ai',
     },
     async (input, options) => {

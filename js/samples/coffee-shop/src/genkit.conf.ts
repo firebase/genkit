@@ -21,9 +21,7 @@ import { configureGenkit } from '@genkit-ai/common/config';
 import { googleGenAI, geminiPro } from '@genkit-ai/plugin-google-genai';
 import { openAI } from '@genkit-ai/plugin-openai';
 import { ragas, RagasMetric } from '@genkit-ai/plugin-ragas';
-import { vertexAI, textembeddingGecko } from '@genkit-ai/plugin-vertex-ai';
-
-// providers - will be moved to plugins eventually
+import { vertexAI, textEmbeddingGecko } from '@genkit-ai/plugin-vertex-ai';
 import { chroma } from '@genkit-ai/plugin-chroma';
 import { firebase } from '@genkit-ai/plugin-firebase';
 import { devLocalVectorstore } from '@genkit-ai/plugin-dev-local-vectorstore';
@@ -44,7 +42,7 @@ export default configureGenkit({
     chroma([
       {
         collectionName: 'chroma-collection',
-        embedder: textembeddingGecko,
+        embedder: textEmbeddingGecko,
         embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
       },
     ]),
@@ -52,7 +50,7 @@ export default configureGenkit({
     devLocalVectorstore([
       {
         indexName: 'naive-index',
-        embedder: textembeddingGecko,
+        embedder: textEmbeddingGecko,
         embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
       },
     ]),
@@ -64,7 +62,7 @@ export default configureGenkit({
     pinecone([
       {
         indexId: 'pinecone-index',
-        embedder: textembeddingGecko,
+        embedder: textEmbeddingGecko,
         embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
       },
     ]),
