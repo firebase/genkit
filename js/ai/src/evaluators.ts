@@ -139,7 +139,7 @@ export async function evaluate<
     >;
   }
   if (!evaluator) {
-    throw new Error('Unable to utilze the provided evaluator');
+    throw new Error('Unable to utilize the provided evaluator');
   }
   return await evaluator({
     dataset: params.dataset,

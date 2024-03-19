@@ -316,7 +316,7 @@ export async function retrieve<
     >;
   }
   if (!retriever) {
-    throw new Error('Unable to utilze the provided retriever');
+    throw new Error('Unable to utilize the provided retriever');
   }
   return await retriever({
     query: params.query,
@@ -345,7 +345,7 @@ export async function index<
     indexer = params.indexer as IndexerAction<I, DocType, IndexerOptions>;
   }
   if (!indexer) {
-    throw new Error('Unable to utilze the provided indexer');
+    throw new Error('Unable to utilize the provided indexer');
   }
   return await indexer({
     docs: params.docs,
