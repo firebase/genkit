@@ -112,8 +112,8 @@ function wrapHttpsFlow<
 /**
  * Indicates that no authorization is in effect.
  *
- * WARNING: If you are using Firebase Functions with no IAM policy,
- * this will allow anyone on the interet to execute this flow.
+ * WARNING: If you are using Cloud Functions for Firebase with no IAM policy,
+ * this will allow anyone on the internet to execute this flow.
  */
 export function noAuth(): FunctionFlowAuth {
   return {
