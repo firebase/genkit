@@ -34,13 +34,13 @@ import { createHash } from 'crypto';
 import { resolveTools, toToolDefinition } from '@genkit-ai/ai/tool';
 
 const PromptInputSchema = z.object({
-  variables: z.unknown().optional(),
+  input: z.unknown().optional(),
   candidates: z.number().optional(),
 });
 export type PromptInput<Variables = unknown | undefined> = z.infer<
   typeof PromptInputSchema
 > & {
-  variables: Variables;
+  input: Variables;
 };
 
 export type PromptData = PromptFrontmatter & { template: string };
@@ -69,7 +69,7 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
   config?: PromptMetadata['config'];
 
   private _render: (
-    variables: Variables,
+    input: Variables,
     options?: { context?: string[]; history?: MessageData[] }
   ) => MessageData[];
 
@@ -112,8 +112,8 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
     this._render = compile(this.template, options);
   }
 
-  renderText(variables: Variables): string {
-    const result = this.renderMessages(variables);
+  renderText(input: Variables): string {
+    const result = this.renderMessages(input);
     if (result.length !== 1) {
       throw new Error("Multi-message prompt can't be rendered as text.");
     }
@@ -127,12 +127,12 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
     return out;
   }
 
-  renderMessages(variables: Variables): MessageData[] {
-    return this._render({ ...this.input?.default, ...variables });
+  renderMessages(input: Variables): MessageData[] {
+    return this._render({ ...this.input?.default, ...input });
   }
 
   async render(options: PromptInput<Variables>): Promise<GenerationRequest> {
-    const messages = this.renderMessages(options.variables);
+    const messages = this.renderMessages(options.input);
     return {
       config: this.config || {},
       messages,
@@ -145,7 +145,7 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
   private _generate(
     options: PromptInput<Variables>
   ): Promise<GenerationResponse> {
-    const messages = this.renderMessages(options.variables);
+    const messages = this.renderMessages(options.input);
     return generate({
       model: this.model,
       config: this.config || {},
@@ -180,10 +180,10 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
           prompt: this.toJSON(),
         },
       },
-      (input) => {
+      (args) => {
         return this._generate({
-          variables: input.variables as Variables,
-          candidates: input.candidates || 1,
+          input: args.input as Variables,
+          candidates: args.candidates || 1,
         });
       }
     ) as PromptAction;

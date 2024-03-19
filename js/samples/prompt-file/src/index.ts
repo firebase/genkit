@@ -24,7 +24,7 @@ initializeGenkit();
   const recipePrompt = await prompt('recipe');
 
   const result = await recipePrompt.generate({
-    variables: { food },
+    input: { food },
   });
 
   console.log(result.output());
@@ -34,7 +34,7 @@ initializeGenkit();
   const robotPrompt = await prompt('recipe', { variant: 'robot' });
 
   const result2 = await robotPrompt.generate({
-    variables: { food },
+    input: { food },
   });
 
   console.log(result2.output());

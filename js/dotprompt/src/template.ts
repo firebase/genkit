@@ -111,10 +111,10 @@ export function compile<Variables = any>(
   });
 
   return (
-    variables: Variables,
+    input: Variables,
     options?: { context?: any[]; history?: MessageData[] }
   ) => {
-    const renderedString = renderString(variables, {
+    const renderedString = renderString(input, {
       data: { prompt: metadata, context: options?.context || null },
     });
     return toMessages(renderedString);
