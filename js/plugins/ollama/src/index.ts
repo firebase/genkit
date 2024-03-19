@@ -22,7 +22,7 @@ import {
   getBasicUsageStats,
 } from '@genkit-ai/ai/model';
 import { Plugin, genkitPlugin } from '@genkit-ai/common/config';
-import logging from '@genkit-ai/common/logging';
+import { logger } from '@genkit-ai/common/logging';
 
 interface OllamaPluginParams {
   models: { name: string; type?: 'chat' | 'generate' }[];
@@ -96,7 +96,7 @@ function ollamaModel(
       } else {
         request.prompt = getPrompt(input);
       }
-      logging.debug(request, `ollama request (type: ${type})`);
+      logger.debug(request, `ollama request (type: ${type})`);
       const res = await fetch(
         serverAddress + (type === 'chat' ? '/api/chat' : '/api/generate'),
         {
@@ -137,7 +137,7 @@ function ollamaModel(
         const json = JSON.parse(txtBody);
         textResponse = json.response;
       }
-      logging.debug(textResponse, 'ollama final response');
+      logger.debug(textResponse, 'ollama final response');
 
       const responseCandidates = [
         {

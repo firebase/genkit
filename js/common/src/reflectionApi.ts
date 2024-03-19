@@ -17,7 +17,7 @@
 import express from 'express';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { config } from './config';
-import logging from './logging';
+import { logger } from './logging';
 import * as registry from './registry';
 import { runWithStreamingCallback } from './types';
 import {
@@ -66,7 +66,7 @@ export async function startReflectionApi(port?: number | undefined) {
   });
 
   api.get('/api/actions', async (_, response) => {
-    logging.debug('Fetching actions.');
+    logger.debug('Fetching actions.');
     const actions = await registry.listActions();
     const convertedActions = {};
     Object.keys(actions).forEach((key) => {
@@ -92,7 +92,7 @@ export async function startReflectionApi(port?: number | undefined) {
   api.post('/api/runAction', async (request, response) => {
     const { key, input } = request.body;
     const { stream } = request.query;
-    logging.debug(`Running action \`${key}\`...`);
+    logger.debug(`Running action \`${key}\`...`);
     try {
       const action = await registry.lookupAction(key);
       if (!action) {
@@ -145,7 +145,7 @@ export async function startReflectionApi(port?: number | undefined) {
       }
     } catch (err) {
       const message = `Error running action \`${key}\`: ${err}`;
-      logging.error(message);
+      logger.error(message);
       return response.status(500).json({ message });
     }
   });
@@ -156,7 +156,7 @@ export async function startReflectionApi(port?: number | undefined) {
 
   api.get('/api/envs/:env/traces/:traceId', async (request, response) => {
     const { env, traceId } = request.params;
-    logging.debug(`Fetching trace \`${traceId}\` for env \`${env}\`.`);
+    logger.debug(`Fetching trace \`${traceId}\` for env \`${env}\`.`);
     const tracestore = await registry.lookupTraceStore(env);
     if (!tracestore) {
       response.status(500).send(`${env} trace store not found`);
@@ -168,7 +168,7 @@ export async function startReflectionApi(port?: number | undefined) {
   api.get('/api/envs/:env/traces', async (request, response) => {
     const { env } = request.params;
     const { limit, continuationToken } = request.query;
-    logging.debug(`Fetching traces for env \`${env}\`.`);
+    logger.debug(`Fetching traces for env \`${env}\`.`);
     const tracestore = await registry.lookupTraceStore(env);
     if (!tracestore) {
       response.status(500).send(`${env} trace store not found`);
@@ -186,7 +186,7 @@ export async function startReflectionApi(port?: number | undefined) {
 
   api.get('/api/envs/:env/flowStates/:flowId', async (request, response) => {
     const { env, flowId } = request.params;
-    logging.debug(`Fetching flow state \`${flowId}\` for env \`${env}\`.`);
+    logger.debug(`Fetching flow state \`${flowId}\` for env \`${env}\`.`);
     const flowStateStore = await registry.lookupFlowStateStore(env);
     if (!flowStateStore) {
       response.status(500).send(`${env} flow state store not found`);
@@ -198,7 +198,7 @@ export async function startReflectionApi(port?: number | undefined) {
   api.get('/api/envs/:env/flowStates', async (request, response) => {
     const { env } = request.params;
     const { limit, continuationToken } = request.query;
-    logging.debug(`Fetching traces for env \`${env}\`.`);
+    logger.debug(`Fetching traces for env \`${env}\`.`);
     const flowStateStore = await registry.lookupFlowStateStore(env);
     if (!flowStateStore) {
       response.status(500).send(`${env} flow state store not found`);

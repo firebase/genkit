@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import logging from '../logging';
+import { logger } from '../logging';
 import os from 'os';
 import fs from 'fs';
 import path from 'path';
@@ -40,7 +40,7 @@ export class LocalFileTraceStore implements TraceStore {
       .digest('hex');
     this.storeRoot = path.resolve(os.tmpdir(), `.genkit/${rootHash}/traces`);
     fs.mkdirSync(this.storeRoot, { recursive: true });
-    logging.info(
+    logger.info(
       `Initialized local file trace store at root: ${this.storeRoot}`
     );
   }
@@ -65,7 +65,7 @@ export class LocalFileTraceStore implements TraceStore {
       existsing.endTime = trace.endTime;
       trace = existsing;
     }
-    logging.debug(
+    logger.debug(
       `save trace ${id} to ` + path.resolve(this.storeRoot, `${id}`)
     );
     fs.writeFileSync(

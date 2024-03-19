@@ -26,7 +26,7 @@ import {
   StreamingCallback,
 } from '@genkit-ai/common';
 import { config as globalConfig, isDevEnv } from '@genkit-ai/common/config';
-import logging from '@genkit-ai/common/logging';
+import { logger } from '@genkit-ai/common/logging';
 import * as registry from '@genkit-ai/common/registry';
 import {
   newTrace,
@@ -239,7 +239,7 @@ export class Flow<
     streamingCallback?: StreamingCallback<any>,
     auth?: unknown
   ): Promise<FlowState> {
-    logging.debug(req, 'runEnvelope');
+    logger.debug(req, 'runEnvelope');
     if (req.start) {
       // First time, create new state.
       return this.runDirectly(req.start.input, {
@@ -494,7 +494,7 @@ export class Flow<
     } catch (e) {
       // Pass errors as operations instead of a standard API error
       // (https://cloud.google.com/apis/design/errors#http_mapping)
-      logging.error(e);
+      logger.error(e);
       res
         .status(500)
         .send({
@@ -520,7 +520,7 @@ export class Flow<
     try {
       await this.authPolicy?.(auth);
     } catch (e: any) {
-      logging.error(e);
+      logger.error(e);
       res
         .status(403)
         .send({
@@ -548,7 +548,7 @@ export class Flow<
         res.end();
       } catch (e) {
         // Errors while streaming are also passed back as operations
-        logging.error(e);
+        logger.error(e);
         res.write(
           JSON.stringify({
             done: true,
@@ -570,7 +570,7 @@ export class Flow<
       } catch (e) {
         // Errors for non-durable, non-streaming flows are passed back as
         // standard API errors.
-        logging.error(e);
+        logger.error(e);
         res
           .status(500)
           .send({
@@ -772,9 +772,9 @@ export function startFlowsServer(params?: {
   }
 
   const flows = params?.flows || createdFlows;
-  logging.info(`Starting flows server on port ${port}`);
+  logger.info(`Starting flows server on port ${port}`);
   flows.forEach((f) => {
-    logging.info(` - /${f.name}`);
+    logger.info(` - /${f.name}`);
     // Add middlware
     f.middleware?.forEach((m) => {
       app.post(`/${f.name}`, m);

@@ -23,7 +23,7 @@ import {
   FlowStateSchema,
   FlowStateStore,
 } from '@genkit-ai/common';
-import logging from '@genkit-ai/common/logging';
+import { logger } from '@genkit-ai/common/logging';
 
 /**
  * Implementation of flow state store that persistes flow state in Firestore.
@@ -73,7 +73,7 @@ export class FirestoreStateStore implements FlowStateStore {
   }
 
   async save(id: string, state: FlowState): Promise<void> {
-    logging.debug(state, 'save state');
+    logger.debug(state, 'save state');
     await this.db.collection(this.collection).doc(id).set(state);
   }
 

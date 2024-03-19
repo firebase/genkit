@@ -15,7 +15,7 @@
  */
 
 import { Action, Operation, asyncSleep } from '@genkit-ai/common';
-import logging from '@genkit-ai/common/logging';
+import { logger } from '@genkit-ai/common/logging';
 import * as z from 'zod';
 import { PollingConfig } from './context';
 import {
@@ -169,7 +169,7 @@ export async function waitFlowToComplete<
   try {
     state = await getFlowState(flow, flowId);
   } catch (e) {
-    logging.error(e);
+    logger.error(e);
     // TODO: add timeout
     if (!(e instanceof FlowNotFoundError)) {
       throw e;
