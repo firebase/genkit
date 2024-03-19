@@ -54,3 +54,14 @@ export function runWithActiveContext<R>(
 export function generateFlowId() {
   return uuidv4();
 }
+
+/**
+ * Gets the auth object from the current context.
+ */
+export function getFlowAuth(): unknown {
+  const ctx = getActiveContext();
+  if (!ctx) {
+    throw new Error('Can only be run from a flow');
+  }
+  return ctx.auth;
+}
