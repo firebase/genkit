@@ -16,8 +16,7 @@
 
 import { Plugin, genkitPlugin } from '@genkit-ai/common/config';
 import { GcpOpenTelemetry } from './gcpOpenTelemetry';
-import { Sampler } from '@opentelemetry/api';
-import { AlwaysOnSampler } from '@opentelemetry/core';
+import { Sampler } from '@opentelemetry/sdk-trace-base';
 import { InstrumentationConfigMap } from '@opentelemetry/auto-instrumentations-node';
 export { GcpOpenTelemetry } from './gcpOpenTelemetry';
 

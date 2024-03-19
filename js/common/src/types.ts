@@ -17,6 +17,8 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import * as z from 'zod';
 import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing';
+import * as telemetry from './telemetry';
+import { performance } from 'node:perf_hooks';
 
 export interface ActionMetadata<
   I extends z.ZodTypeAny,
@@ -73,9 +75,23 @@ export function action<
       async (metadata) => {
         metadata.name = config.name;
         metadata.input = input;
-        const output = await fn(input);
-        metadata.output = JSON.stringify(output);
-        return output;
+        const startTimeMs = performance.now();
+        try {
+          const output = await fn(input);
+          metadata.output = JSON.stringify(output);
+          telemetry.writeActionSuccess(
+            metadata.name,
+            performance.now() - startTimeMs
+          );
+          return output;
+        } catch (e) {
+          telemetry.writeActionFailure(
+            metadata.name,
+            performance.now() - startTimeMs,
+            e
+          );
+          throw e;
+        }
       }
     );
     if (config.output) {
