@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { AlwaysOnSampler } from '@opentelemetry/core';
+import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { Instrumentation } from '@opentelemetry/instrumentation';
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';

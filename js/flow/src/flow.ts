@@ -47,6 +47,7 @@ import {
   getErrorStack,
   InterruptError,
 } from './errors';
+import * as telemetry from './telemetry';
 import {
   FlowActionInputSchema,
   FlowInvokeEnvelopeMessage,
@@ -56,6 +57,7 @@ import {
   Scheduler,
 } from './types';
 import { generateFlowId, metadataPrefix, runWithActiveContext } from './utils';
+import { performance } from 'node:perf_hooks';
 
 const streamDelimiter = '\n';
 const createdFlows = [] as Flow<any, any, any>[];
@@ -369,6 +371,7 @@ export class Flow<
     streamingCallback: StreamingCallback<any> | undefined,
     labels: Record<string, string> | undefined
   ) {
+    const startTimeMs = performance.now();
     await runWithActiveContext(ctx, async () => {
       let traceContext;
       if (ctx.state.traceContext) {
@@ -425,6 +428,10 @@ export class Flow<
             const output = await handler(input, streamingCallback);
             metadata.output = JSON.stringify(output);
             setCustomMetadataAttribute(metadataPrefix('state'), 'done');
+            telemetry.writeFlowSuccess(
+              ctx.flow.name,
+              performance.now() - startTimeMs
+            );
             return output;
           } catch (e) {
             if (e instanceof InterruptError) {
@@ -440,6 +447,11 @@ export class Flow<
                 error: getErrorMessage(e),
                 stacktrace: getErrorStack(e),
               } as FlowError;
+              telemetry.writeFlowFailure(
+                ctx.flow.name,
+                performance.now() - startTimeMs,
+                e
+              );
             }
             errored = true;
           }

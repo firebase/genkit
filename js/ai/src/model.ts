@@ -25,7 +25,7 @@ import {
   setCustomMetadataAttributes,
   spanMetadataAls,
 } from '@genkit-ai/common/tracing';
-import * as metrics from './metrics';
+import * as telemetry from './telemetry';
 import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 import { conformOutput, validateSupport } from './model/middleware';
@@ -406,7 +406,7 @@ function writeMetrics(
     err?: any;
   }
 ) {
-  metrics.recordGenerateAction(modelName, {
+  telemetry.recordGenerateAction(modelName, {
     temperature: input.config?.temperature,
     topK: input.config?.topK,
     topP: input.config?.topP,
