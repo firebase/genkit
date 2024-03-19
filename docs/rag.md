@@ -30,17 +30,17 @@ Genkit provides out-of-the box for simple testing and prototyping (DO NOT USE IN
 PRODUCTION).
 
 ```javascript
-import { geminiPro, vertexAI, textembeddingGecko } from '@genkit-ai/plugin-vertex-ai';
+import { geminiPro, vertexAI, textEmbeddingGecko } from '@genkit-ai/plugin-vertex-ai';
 import { devLocalVectorstore } from '@genkit-ai/plugin-dev-local-vectorstore';
 
 export default configureGenkit({
   plugins: [
-    // vertexAI provides the textembeddingGecko embedder that'll use.
+    // vertexAI provides the textEmbeddingGecko embedder that'll use.
     vertexAI({ projectId: getProjectId(), location: 'us-central1' }),
     devLocalVectorstore([
       {
         indexName: 'spongebob-facts',
-        embedder: textembeddingGecko,
+        embedder: textEmbeddingGecko,
       }
     ]),
     // ...
@@ -141,7 +141,7 @@ export default configureGenkit({
   plugins: [
     chroma({
       collectionName: 'spongebob_collection',
-      embedder: textEmbeddingGecko001,
+      embedder: textEmbeddingGecko,
       embedderOptions: { temperature: 0 },
     }),
   ],
@@ -172,7 +172,7 @@ export default configureGenkit({
     pinecone([
       {
         indexId: 'pdf-chat',
-        embedder: textEmbeddingGecko001,
+        embedder: textEmbeddingGecko,
         embedderOptions: { temperature: 0 },
       },
     ]),
@@ -214,7 +214,7 @@ import {
 import { z } from 'zod';
 import postgres from 'postgres';
 import { embed } from '@genkit-ai/ai/embedders';
-import { textembeddingGecko } from '@genkit-ai/plugin-vertex-ai';
+import { textEmbeddingGecko } from '@genkit-ai/plugin-vertex-ai';
 import { toSql } from 'pgvector';
 
 const sql = postgres({ ssl: false, database: 'recaps' });
@@ -232,7 +232,7 @@ const sqlRetriever = defineRetriever(
   },
   async (input) => {
     const embedding = await embed({
-      embedder: textembeddingGecko,
+      embedder: textEmbeddingGecko,
       input: input.question,
     });
     const results = await sql`

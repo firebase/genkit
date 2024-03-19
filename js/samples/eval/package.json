@@ -17,8 +17,9 @@
   "dependencies": {
     "@genkit-ai/ai": "*",
     "@genkit-ai/common": "*",
-    "@genkit-ai/plugin-ragas": "*",
-    "@genkit-ai/providers": "*"
+    "@genkit-ai/plugin-vertex-ai": "*",
+    "@genkit-ai/plugin-firebase": "*",
+    "@genkit-ai/plugin-ragas": "*"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

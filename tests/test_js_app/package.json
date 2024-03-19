@@ -15,7 +15,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@genkit-ai/flow": "*"
+    "@genkit-ai/flow": "*",
+    "@genkit-ai/ai": "*",
+    "@genkit-ai/plugin-firebase": "*"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

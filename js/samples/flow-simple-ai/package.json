@@ -17,8 +17,11 @@
   "dependencies": {
     "@genkit-ai/flow": "*",
     "@genkit-ai/ai": "*",
-    "@genkit-ai/providers": "*",
-    "@genkit-ai/plugin-vertex-ai": "*"
+    "@genkit-ai/plugin-openai": "*",
+    "@genkit-ai/plugin-vertex-ai": "*",
+    "@genkit-ai/plugin-google-genai": "*",
+    "@genkit-ai/plugin-firebase": "*",
+    "@genkit-ai/plugin-gcp": "*"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

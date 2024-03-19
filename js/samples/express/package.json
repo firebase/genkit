@@ -17,7 +17,10 @@
   "dependencies": {
     "@genkit-ai/flow": "*",
     "@genkit-ai/ai": "*",
-    "@genkit-ai/providers": "*",
+    "@genkit-ai/plugin-openai": "*",
+    "@genkit-ai/plugin-ollama": "*",
+    "@genkit-ai/plugin-google-genai": "*",
+    "@genkit-ai/plugin-firebase": "*",
     "express": "~4.18.2"
   },
   "devDependencies": {
