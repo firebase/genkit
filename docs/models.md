@@ -106,11 +106,11 @@ import {
 ### OpenAI
 
 ```js
-import { vertexAI } from '@genkit-ai/plugin-vertex-ai';
+import { openAI } from '@genkit-ai/plugin-openai';
 
 export default configureGenkit({
   plugins: [
-    vertexAI({ projectId: getProjectId(), location: 'us-central1' }),
+    openAI(),
   ],
  // ...
 });
