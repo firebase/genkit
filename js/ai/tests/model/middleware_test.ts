@@ -21,7 +21,7 @@ import {
   GenerationRequest,
   GenerationResponseData,
   Part,
-  modelAction,
+  defineModel,
 } from '../../src/model';
 
 describe('validateSupport', () => {
@@ -139,7 +139,7 @@ describe('validateSupport', () => {
   });
 });
 
-const echoModel = modelAction({ name: 'echo' }, async (req) => {
+const echoModel = defineModel({ name: 'echo' }, async (req) => {
   return {
     candidates: [
       {
