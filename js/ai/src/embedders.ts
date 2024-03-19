@@ -120,7 +120,7 @@ export async function embed<
     embedder = params.embedder as EmbedderAction<I, InputType, EmbedderOptions>;
   }
   if (!embedder) {
-    throw new Error('Unable to utilze the provided embedder');
+    throw new Error('Unable to utilize the provided embedder');
   }
   return await embedder({
     input: params.input,
