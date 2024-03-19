@@ -83,7 +83,7 @@ Book: /genkit/_book.yaml
          "strict": true,
          "target": "es2017",
          "skipLibCheck": true,
-          "esModuleInterop": true
+         "esModuleInterop": true
        },
        "compileOnSave": true,
        "include": [
@@ -110,7 +110,6 @@ Book: /genkit/_book.yaml
     import { getProjectId } from '@genkit-ai/common';
     import { configureGenkit } from '@genkit-ai/common/config';
     import { run } from '@genkit-ai/flow';
-    import { generate } from '@genkit-ai/ai/generate';
     import { firebase } from '@genkit-ai/plugin-firebase';
     import { onFlow, noAuth } from '@genkit-ai/plugin-firebase/functions';
     import { geminiPro, googleGenAI } from '@genkit-ai/plugin-google-genai';
@@ -137,8 +136,8 @@ Book: /genkit/_book.yaml
 
           return llmResponse.text();
         });
-  }
-  );
+      }
+    );
   ```
 
 2.  Build your code by running:
