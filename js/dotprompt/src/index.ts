@@ -15,10 +15,17 @@
  */
 
 import { readFileSync } from 'fs';
-import { Prompt } from './prompt';
-export { Prompt as PromptFile };
 import { basename } from 'path';
+
+import z from 'zod';
+
+import { registerAction } from '@genkit-ai/common/registry';
+
+import { Prompt, PromptAction, PromptInput } from './prompt';
+import { PromptMetadata } from './metadata';
 import { lookupPrompt } from './registry';
+
+export { Prompt, PromptAction, PromptInput };
 
 export function loadPromptFile(path: string): Prompt {
   return Prompt.parse(
@@ -44,4 +51,11 @@ export async function prompt<Variables = unknown>(
   return (await lookupPrompt(name, options?.variant)) as Prompt<Variables>;
 }
 
-export { Prompt, PromptOptions, PromptAction, PromptInput } from './prompt.js';
+export function definePrompt<V extends z.ZodTypeAny = z.ZodTypeAny>(
+  options: PromptMetadata,
+  template: string
+): Prompt<z.infer<V>> {
+  const prompt = new Prompt(options, template);
+  registerAction('prompt', `/prompt/${prompt.name}`, prompt.action());
+  return prompt;
+}

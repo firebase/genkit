@@ -18,6 +18,8 @@ import { Action, action } from '@genkit-ai/common';
 import { lookupAction, registerAction } from '@genkit-ai/common/registry';
 import { setCustomMetadataAttributes } from '@genkit-ai/common/tracing';
 import z from 'zod';
+import { ToolDefinition } from './model';
+import zodToJsonSchema from 'zod-to-json-schema';
 
 export type ToolAction<
   I extends z.ZodTypeAny = z.ZodTypeAny,
@@ -29,6 +31,11 @@ export type ToolAction<
     };
   };
 };
+
+export type ToolArgument<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny
+> = string | ToolAction<I, O> | Action<I, O>;
 
 export function asTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   action: Action<I, O>
@@ -68,6 +75,19 @@ export async function resolveTools<
       throw new Error('Tools must be strings or actions.');
     })
   );
+}
+
+export function toToolDefinition(
+  tool: Action<z.ZodTypeAny, z.ZodTypeAny>
+): ToolDefinition {
+  return {
+    name: tool.__action.name,
+    description: tool.__action.description || '',
+    outputSchema: tool.__action.outputSchema
+      ? zodToJsonSchema(tool.__action.outputSchema)
+      : {}, // JSON schema matching anything
+    inputSchema: zodToJsonSchema(tool.__action.inputSchema!),
+  };
 }
 
 export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>({

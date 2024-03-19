@@ -14,19 +14,24 @@
  * limitations under the License.
  */
 
-import { readFileSync } from 'fs';
-import { PromptMetadata } from './metadata';
+import {
+  PromptFrontmatter,
+  PromptMetadata,
+  toFrontmatter,
+  toMetadata,
+} from './metadata';
 import { compile } from './template';
 import {
   GenerationRequest,
   GenerationResponseSchema,
   MessageData,
 } from '@genkit-ai/ai/model';
-import fm from 'front-matter';
+import fm, { FrontMatterResult } from 'front-matter';
 import { GenerationResponse, generate } from '@genkit-ai/ai/generate';
 import z from 'zod';
 import { Action, action } from '@genkit-ai/common';
 import { createHash } from 'crypto';
+import { resolveTools, toToolDefinition } from '@genkit-ai/ai/tool';
 
 const PromptInputSchema = z.object({
   variables: z.unknown().optional(),
@@ -38,28 +43,30 @@ export type PromptInput<Variables = unknown | undefined> = z.infer<
   variables: Variables;
 };
 
+export type PromptData = PromptFrontmatter & { template: string };
+
 export type PromptAction = Action<
   typeof PromptInputSchema,
   typeof GenerationResponseSchema,
   Record<string, unknown> & {
-    prompt: PromptOptions;
+    type: 'prompt';
+    prompt: PromptData;
   }
 >;
 
-export interface PromptOptions {
+export class Prompt<Variables = unknown> implements PromptMetadata {
   name: string;
-  template: string;
-  metadata: PromptMetadata;
-  hash: string;
   variant?: string;
-}
+  hash: string;
 
-export class Prompt<Variables = unknown> {
-  name: string;
-  variant?: string;
-  hash: string;
-  metadata: PromptMetadata;
   template: string;
+
+  model: PromptMetadata['model'];
+  metadata: PromptMetadata['metadata'];
+  input?: PromptMetadata['input'];
+  output?: PromptMetadata['output'];
+  tools?: PromptMetadata['tools'];
+  config?: PromptMetadata['config'];
 
   private _render: (
     variables: Variables,
@@ -69,29 +76,40 @@ export class Prompt<Variables = unknown> {
   private _action?: PromptAction;
 
   static parse(name: string, source: string) {
-    const fmResult = (fm as any)(source);
-    const hash = createHash('sha256').update(source).digest('hex');
-    return new Prompt({
-      name,
-      hash,
-      template: fmResult.body,
-      metadata: fmResult.attributes as PromptMetadata,
-    });
+    const fmResult = (fm as any)(source) as FrontMatterResult<unknown>;
+    return new Prompt(
+      { ...toMetadata(fmResult.attributes), name } as PromptMetadata,
+      fmResult.body
+    );
   }
 
   static fromAction(action: PromptAction): Prompt {
-    const prompt = new Prompt(action.__action.metadata!.prompt);
+    const { template, ...options } = action.__action.metadata!.prompt;
+    const prompt = new Prompt(options as PromptMetadata, template);
     prompt._action = action;
     return prompt;
   }
 
-  constructor(options: PromptOptions) {
+  constructor(options: PromptMetadata, template: string) {
     this.name = options.name;
-    this.metadata = options.metadata;
-    this.template = options.template;
-    this.hash = options.hash;
     this.variant = options.variant;
-    this._render = compile(this.template, this.metadata);
+    this.model = options.model;
+    this.input = options.input;
+    this.output = options.output;
+    this.tools = options.tools;
+    this.config = options.config;
+    this.template = template;
+    this.hash = createHash('sha256').update(JSON.stringify(this)).digest('hex');
+
+    // automatically assume supplied json schema is type: 'object' unless specified otherwise
+    if (this.input?.jsonSchema && !(this.input?.jsonSchema as any).type) {
+      (this.input.jsonSchema as any).type = 'object';
+    }
+    if (this.output?.jsonSchema && !(this.output?.jsonSchema as any).type) {
+      (this.output.jsonSchema as any).type = 'object';
+    }
+
+    this._render = compile(this.template, options);
   }
 
   renderText(variables: Variables): string {
@@ -110,33 +128,44 @@ export class Prompt<Variables = unknown> {
   }
 
   renderMessages(variables: Variables): MessageData[] {
-    return this._render(variables);
+    return this._render({ ...this.input?.default, ...variables });
   }
 
-  render(variables: Variables): GenerationRequest {
-    const messages = this.renderMessages(variables);
+  async render(options: PromptInput<Variables>): Promise<GenerationRequest> {
+    const messages = this.renderMessages(options.variables);
     return {
-      config: this.metadata.config || {},
+      config: this.config || {},
       messages,
-      output: this.metadata.output || {},
-      // TODO: tools
-      // TODO: candidates
+      output: this.output || {},
+      tools: (await resolveTools(this.tools)).map(toToolDefinition),
+      candidates: options.candidates || 1,
     };
   }
 
-  generate(options: PromptInput<Variables>): Promise<GenerationResponse> {
+  private _generate(
+    options: PromptInput<Variables>
+  ): Promise<GenerationResponse> {
     const messages = this.renderMessages(options.variables);
     return generate({
-      model: this.metadata.model,
-      config: this.metadata.config || {},
+      model: this.model,
+      config: this.config || {},
       history: messages.slice(0, messages.length - 1),
       prompt: messages[messages.length - 1].content,
       candidates: options.candidates || 1,
       output: {
-        format: this.metadata.output?.format || undefined,
-        jsonSchema: this.metadata.output?.schema,
+        format: this.output?.format || undefined,
+        schema: this.output?.schema,
+        jsonSchema: this.output?.jsonSchema,
       },
     });
+  }
+
+  generate(options: PromptInput<Variables>): Promise<GenerationResponse> {
+    return this.action()(options) as Promise<GenerationResponse>;
+  }
+
+  toJSON(): PromptData {
+    return { ...toFrontmatter(this), template: this.template };
   }
 
   action(): PromptAction {
@@ -147,17 +176,12 @@ export class Prompt<Variables = unknown> {
         input: PromptInputSchema,
         output: GenerationResponseSchema,
         metadata: {
-          prompt: {
-            name: this.name,
-            template: this.template,
-            metadata: this.metadata,
-            hash: this.hash,
-            variant: this.variant,
-          },
+          type: 'prompt',
+          prompt: this.toJSON(),
         },
       },
       (input) => {
-        return this.generate({
+        return this._generate({
           variables: input.variables as Variables,
           candidates: input.candidates || 1,
         });
