@@ -16,6 +16,7 @@ package genkit
 
 import (
 	"fmt"
+	"log/slog"
 	"sync"
 )
 
@@ -51,6 +52,7 @@ func RegisterAction(typ ActionType, id string, a action) {
 	if _, ok := actions[key]; ok {
 		panic(fmt.Sprintf("action %q of type %s already has an entry in the registry", id, typ))
 	}
+	slog.Info("RegisterAction", "key", key)
 	actions[key] = a
 }
 
