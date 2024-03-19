@@ -12,13 +12,15 @@ in that directory. Here's a simple example we might call `greeting.prompt`:
 model: vertex-ai/gemini-1.0-pro
 config:
   temperature: 0.9
-variables:
-  type: object
-  properties:
-    location: {type: string}
-    style: {type: string}
-    name: {type: string}
-  required: [location]
+input:
+  schema:
+    properties:
+      location: {type: string}
+      style: {type: string}
+      name: {type: string}
+    required: [location]
+  default:
+    location: a restaurant
 ---
 
 You are the world's most welcoming AI assistant and are currently working at {{location}}.
@@ -32,7 +34,7 @@ To use this prompt, import the `@genkit-ai/dotprompt` library and load the promp
 ```ts
 import { prompt } from '@genkit-ai/dotprompt';
 
-const greetingPrompt = prompt('greeting');
+const greetingPrompt = await prompt('greeting');
 
 const result = await recipePrompt.generate({
   variables: {
@@ -46,7 +48,47 @@ console.log(result.text());
 
 Dotprompt's syntax is based on the [Handlebars](https://handlebarsjs.com/guide/) templating
 language. You can use the `if`, `unless`, and `each` helpers to add conditional portions of
-your prompt or iterate through structured content.
+your prompt or iterate through structured content. It utilizes YAML frontmatter to provide
+metadata for a prompt inline with the template.
+
+## Structured output
+
+You can set the format and output schema of a prompt to coerce into JSON:
+
+```hbs
+---
+model: vertex-ai/gemini-1.0-pro
+input:
+  schema:
+    properties:
+      location: {type: string}
+    required: [location]
+output:
+  format: json
+  schema:
+    properties:
+      name: {type: string}
+      hitPoints: {type: integer}
+      description: {type: string}
+---
+
+Generate a tabletop RPG character that would be found in {{location}}.
+```
+
+When generating a prompt with structured output, the `output()` helper can be used to
+retrieve and validate it:
+
+```ts
+const characterPrompt = await prompt('create_character');
+
+const character = await characterPrompt.generate({
+  variables: {
+    location: "the beach",
+  },
+});
+
+console.log(character.output());
+```
 
 ## Multi-message prompts
 
@@ -58,11 +100,11 @@ The `{% verbatim %}{{role}}{% endverbatim %}` helper provides a simple way to co
 ```none
 {% verbatim %}---
 model: vertex-ai/gemini-1.0-pro
-variables:
-  type: object
-  properties:
-    userQuestion: {type: string}
-  required: [userQuestion]
+input:
+  schema:
+    properties:
+      userQuestion: {type: string}
+    required: [userQuestion]
 ---
 
 {{role "system"}}
@@ -80,11 +122,11 @@ For models that support multimodal input such as images, you can use the
 ```none
 {% verbatim %}---
 model: vertex-ai/gemini-1.0-pro-vision
-variables:
-  type: object
-  properties:
-    photoUrl: {type: string}
-  required: [userQuestion]
+input:
+  schema:
+    properties:
+      photoUrl: {type: string}
+    required: [userQuestion]
 ---
 
 Describe this image in a detailed paragraph:
@@ -139,3 +181,33 @@ const myPrompt = await prompt('my_prompt', {
 
 The name of the variant is included in the metadata in generation traces, so you can
 compare and contrast actual performance between variants in the Genkit trace inspector.
+
+## Alternate ways to load and define prompts
+
+Dotprompt is optimized for organization in the prompt directory. However, there are a few
+other ways to load and define prompts:
+
+* `loadPromptFile`: Load a prompt from a file in the prompt directory.
+* `loadPromptUrl`: Load a prompt from a URL.
+* `definePrompt`: Define a prompt in code.
+
+Examples:
+
+```ts
+import { loadPromptFile, loadPromptUrl, definePrompt } from "@genkit-ai/dotprompt";
+import { z } from "zod";
+
+// Load a prompt from a file
+const myPrompt = await loadPromptFile('./path/to/my_prompt.prompt');
+
+// Load a prompt from a URL
+const myPrompt = await loadPromptUrl('https://example.com/my_prompt.prompt');
+
+// Define a prompt in code
+const myPrompt = definePrompt({
+  model: 'vertex-ai/gemini-1.0-pro',
+  variablesSchema: z.object({
+    name: z.string(),
+  }),
+}, `Hello {{name}}, how are you today?`);
+```

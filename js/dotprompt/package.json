@@ -10,7 +10,7 @@
     "build:watch": "tsup-node --watch",
     "lint": "eslint --config ../.eslintrc.js --ext .ts src",
     "lint:fix": "npm run lint -- --fix --quiet",
-    "test": "node --import tsx --test tests/*_test.ts"
+    "test": "node --experimental-loader tsx --test tests/*_test.ts"
   },
   "dependencies": {
     "@genkit-ai/ai": "*",
@@ -19,7 +19,8 @@
     "front-matter": "^4.0.2",
     "handlebars": "^4.7.8",
     "node-fetch": "^3.3.2",
-    "zod": "^3.22.4"
+    "zod": "^3.22.4",
+    "zod-to-json-schema": "^3.22.4"
   },
   "devDependencies": {
     "@types/node": "^20.11.16",

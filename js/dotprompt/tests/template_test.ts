@@ -15,8 +15,8 @@
  */
 
 import { describe, it } from 'node:test';
-import { compile } from '../src/template';
 import assert from 'node:assert';
+import { compile } from '../src/template';
 
 describe('compile', () => {
   for (const test of [

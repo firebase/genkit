@@ -147,7 +147,7 @@ export const ToolDefinitionSchema = z.object({
 });
 export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
 
-export const GenerationConfig = z.object({
+export const GenerationConfigSchema = z.object({
   temperature: z.number().optional(),
   maxOutputTokens: z.number().optional(),
   topK: z.number().optional(),
@@ -156,7 +156,7 @@ export const GenerationConfig = z.object({
   stopSequences: z.array(z.string()).optional(),
 });
 export type GenerationConfig<CustomOptions = any> = z.infer<
-  typeof GenerationConfig
+  typeof GenerationConfigSchema
 > & { custom?: CustomOptions };
 
 const OutputConfigSchema = z.object({
@@ -167,7 +167,7 @@ export type OutputConfig = z.infer<typeof OutputConfigSchema>;
 
 export const GenerationRequestSchema = z.object({
   messages: z.array(MessageSchema),
-  config: GenerationConfig.optional(),
+  config: GenerationConfigSchema.optional(),
   tools: z.array(ToolDefinitionSchema).optional(),
   output: OutputConfigSchema.optional(),
   candidates: z.number().optional(),
@@ -423,3 +423,8 @@ function writeMetrics(
     err: opts.err,
   });
 }
+
+export type ModelArgument<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> =
+  | ModelAction<CustomOptions>
+  | ModelReference<CustomOptions>
+  | string;

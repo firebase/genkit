@@ -24,10 +24,10 @@ import {
   GenerationUsage,
   MessageData,
   ModelAction,
+  ModelArgument,
   ModelReference,
   Part,
   Role,
-  ToolDefinition,
   ToolResponsePart,
 } from './model.js';
 import { extractJson } from './extract';
@@ -36,7 +36,12 @@ import { z } from 'zod';
 import { lookupAction } from '@genkit-ai/common/registry';
 import { StreamingCallback } from '@genkit-ai/common';
 import { runWithStreamingCallback } from '@genkit-ai/common';
-import { ToolAction, resolveTools } from './tool.js';
+import {
+  ToolAction,
+  ToolArgument,
+  resolveTools,
+  toToolDefinition,
+} from './tool.js';
 
 /**
  * Message represents a single role's contribution to a generation. Each message
@@ -285,19 +290,6 @@ export class GenerationResponse<O = unknown> implements GenerationResponseData {
   }
 }
 
-function toToolDefinition(
-  tool: Action<z.ZodTypeAny, z.ZodTypeAny>
-): ToolDefinition {
-  return {
-    name: tool.__action.name,
-    description: tool.__action.description || '',
-    outputSchema: tool.__action.outputSchema
-      ? zodToJsonSchema(tool.__action.outputSchema)
-      : {}, // JSON schema matching anything
-    inputSchema: zodToJsonSchema(tool.__action.inputSchema!),
-  };
-}
-
 function getRoleFromPart(part: Part): Role {
   if (part.toolRequest !== undefined) return 'model';
   if (part.toolResponse !== undefined) return 'tool';
@@ -357,13 +349,13 @@ export interface GenerateOptions<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
 > {
   /** A model name (e.g. `vertex-ai/gemini-1.0-pro`) or reference. */
-  model: ModelAction<CustomOptions> | ModelReference<CustomOptions> | string;
+  model: ModelArgument;
   /** The prompt for which to generate a response. Can be a string for a simple text prompt or one or more parts for multi-modal prompts. */
   prompt: string | Part | Part[];
   /** Conversation history for multi-turn prompting when supported by the underlying model. */
   history?: MessageData[];
   /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
-  tools?: (Action<z.ZodTypeAny, z.ZodTypeAny> | string)[];
+  tools?: ToolArgument[];
   /** Number of candidate messages to generate. */
   candidates?: number;
   /** Configuration for the generation request. */
