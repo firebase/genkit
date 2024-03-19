@@ -30,3 +30,11 @@ export interface ActionSchema {
   outputSchema?: JSONSchema7Type;
   metadata: any;
 }
+
+/**
+ * Configuration common to most Action Runners that need to load from a trace.
+ */
+export interface ActionRunnerConfig {
+  traceId?: string;
+  spanId?: string;
+}
