@@ -25,7 +25,7 @@ import {
   FlowStateSchema,
   FlowStateStore,
 } from './flowTypes.js';
-import logging from './logging';
+import { logger } from './logging';
 
 /**
  * Implementation of flow state store that persistes flow state on local disk.
@@ -40,7 +40,7 @@ export class LocalFileFlowStateStore implements FlowStateStore {
       .digest('hex');
     this.storeRoot = path.resolve(os.tmpdir(), `.genkit/${rootHash}/flows`);
     fs.mkdirSync(this.storeRoot, { recursive: true });
-    logging.info('Using DevFlowStateStore. Root: ' + this.storeRoot);
+    logger.info('Using DevFlowStateStore. Root: ' + this.storeRoot);
   }
 
   async load(id: string): Promise<FlowState | undefined> {
@@ -53,7 +53,7 @@ export class LocalFileFlowStateStore implements FlowStateStore {
   }
 
   async save(id: string, state: FlowState): Promise<void> {
-    logging.debug('save flow state ' + id);
+    logger.debug('save flow state ' + id);
     fs.writeFileSync(
       path.resolve(this.storeRoot, `${id}`),
       JSON.stringify(state)

@@ -15,6 +15,7 @@
  */
 
 import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
+import { LoggerOptions } from 'winston';
 
 /**
  * Provides a {NodeSDKConfiguration} configuration for use with the
@@ -23,6 +24,14 @@ import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
  */
 export interface TelemetryConfig {
   getConfig(): Partial<NodeSDKConfiguration>;
+}
+
+/**
+ * Provides a Winston {LoggerOptions} configuration for building a Winston
+ * logger. This logger will be used to write genkit debug logs.
+ */
+export interface LoggerConfig {
+  getConfig(): LoggerOptions;
 }
 
 /**
@@ -38,4 +47,10 @@ export interface TelemetryOptions {
    * environment.
    * */
   instrumentation: string;
+
+  /**
+   * Specifies which winston logging provider to use. The value specified here
+   * must match the id of a {TelemetryConfig} provided by an installed plugin.
+   */
+  logger: string;
 }

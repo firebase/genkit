@@ -19,7 +19,7 @@ import fs from 'fs';
 import path from 'path';
 import { FlowStateStore } from './flowTypes';
 import { LocalFileFlowStateStore } from './localFileFlowStateStore';
-import logging, { setLogLevel } from './logging';
+import { logger } from './logging';
 import { PluginProvider } from './plugin';
 import * as registry from './registry';
 import { AsyncProvider } from './registry';
@@ -35,7 +35,7 @@ export interface ConfigOptions {
   traceStore?: string;
   flowStateStore?: string;
   enableTracingAndMetrics?: boolean;
-  logLevel?: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace';
+  logLevel?: 'error' | 'warn' | 'info' | 'debug';
   promptDir?: string;
   telemetry?: TelemetryOptions;
 }
@@ -67,7 +67,7 @@ class Config {
     let flowStateStore = await registry.lookupFlowStateStore(env);
     if (!flowStateStore && env !== 'dev') {
       flowStateStore = await registry.lookupFlowStateStore('dev');
-      logging.warn(
+      logger.warn(
         `No flow state store configured for \`${env}\` environment. Defaulting to \`dev\` store.`
       );
     }
@@ -86,7 +86,7 @@ class Config {
     let traceStore = await registry.lookupTraceStore(env);
     if (!traceStore && env !== 'dev') {
       traceStore = await registry.lookupTraceStore('dev');
-      logging.warn(
+      logger.warn(
         `No trace store configured for \`${env}\` environment. Defaulting to \`dev\` store.`
       );
     }
@@ -109,58 +109,68 @@ class Config {
    */
   private configure() {
     if (this.options.logLevel) {
-      setLogLevel(this.options.logLevel);
+      logger.setLogLevel(this.options.logLevel);
     }
+
     this.options.plugins?.forEach((plugin) => {
-      logging.debug(`Registering plugin ${plugin.name}...`);
+      logger.debug(`Registering plugin ${plugin.name}...`);
       registry.registerPluginProvider(plugin.name, {
         name: plugin.name,
         async initializer() {
-          logging.info(`Initializing plugin ${plugin.name}:`);
+          logger.info(`Initializing plugin ${plugin.name}:`);
           return await plugin.initializer();
         },
       });
     });
 
-    logging.debug('Registering flow state stores...');
+    if (this.options.telemetry?.logger) {
+      const telemetryPluginName = this.options.telemetry.logger;
+      logger.debug('Registering logging exporters...');
+      logger.debug(`  - all environments: ${telemetryPluginName}`);
+      this.resolveLoggerConfig(telemetryPluginName).then((config) =>
+        logger.init(config)
+      );
+    }
+
+    if (this.options.telemetry?.instrumentation) {
+      const telemetryPluginName = this.options.telemetry.instrumentation;
+      logger.debug('Registering telemetry exporters...');
+      logger.debug(`  - all environments: ${telemetryPluginName}`);
+      this.telemetryConfig = async () =>
+        this.resolveTelemetryConfig(telemetryPluginName);
+    }
+
+    logger.debug('Registering flow state stores...');
     registry.registerFlowStateStore(
       'dev',
       async () => new LocalFileFlowStateStore()
     );
     if (this.options.flowStateStore) {
       const flowStorePluginName = this.options.flowStateStore;
-      logging.debug(`  - prod: ${flowStorePluginName}`);
+      logger.debug(`  - prod: ${flowStorePluginName}`);
       this.configuredEnvs.add('prod');
       registry.registerFlowStateStore('prod', () =>
         this.resolveFlowStateStore(flowStorePluginName)
       );
     } else {
-      logging.warn(
+      logger.warn(
         '`flowStateStore` is not specified in the config; defaulting to dev store.'
       );
     }
 
-    logging.debug('Registering trace stores...');
+    logger.debug('Registering trace stores...');
     registry.registerTraceStore('dev', async () => new LocalFileTraceStore());
     if (this.options.traceStore) {
       const traceStorePluginName = this.options.traceStore;
-      logging.debug(`  - prod: ${traceStorePluginName}`);
+      logger.debug(`  - prod: ${traceStorePluginName}`);
       this.configuredEnvs.add('prod');
       registry.registerTraceStore('prod', () =>
         this.resolveTraceStore(traceStorePluginName)
       );
     } else {
-      logging.warn(
+      logger.warn(
         '`traceStore` is not specified in the config; defaulting to dev store.'
       );
-    }
-
-    logging.debug('Registering telemetry exporters...');
-    if (this.options.telemetry) {
-      const telemetryPluginName = this.options.telemetry.instrumentation;
-      logging.debug(`  - all environments: ${telemetryPluginName}`);
-      this.telemetryConfig = async () =>
-        this.resolveTelemetryConfig(telemetryPluginName);
     }
   }
 
@@ -197,11 +207,28 @@ class Config {
    */
   private async resolveTelemetryConfig(pluginName: string) {
     const plugin = await registry.initializePlugin(pluginName);
-    const provider = plugin?.telemetry;
+    const provider = plugin?.telemetry?.instrumentation;
 
     if (!provider) {
       throw new Error(
-        'Unable to resolve provider `telemetry` for plugin: ' + pluginName
+        'Unable to resolve provider `telemetry.instrumentation` for plugin: ' +
+          pluginName
+      );
+    }
+    return provider.value;
+  }
+
+  /**
+   * Resolves the logging configuration provided by the specified plugin.
+   */
+  private async resolveLoggerConfig(pluginName: string) {
+    const plugin = await registry.initializePlugin(pluginName);
+    const provider = plugin?.telemetry?.logger;
+
+    if (!provider) {
+      throw new Error(
+        'Unable to resolve provider `telemetry.logger` for plugin: ' +
+          pluginName
       );
     }
     return provider.value;

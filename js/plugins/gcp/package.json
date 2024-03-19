@@ -12,10 +12,11 @@
     "lint:fix": "npm run lint -- --fix --quiet"
   },
   "dependencies": {
-    "@google-cloud/opentelemetry-cloud-monitoring-exporter": "^0.17.0",
-    "@google-cloud/opentelemetry-cloud-trace-exporter": "*",
     "@genkit-ai/ai": "*",
     "@genkit-ai/common": "*",
+    "@google-cloud/logging-winston": "^6.0.0",
+    "@google-cloud/opentelemetry-cloud-monitoring-exporter": "^0.17.0",
+    "@google-cloud/opentelemetry-cloud-trace-exporter": "*",
     "@opentelemetry/api-metrics": "^0.33.0",
     "@opentelemetry/auto-instrumentations-node": "*",
     "@opentelemetry/instrumentation-pino": "*",

@@ -51,5 +51,6 @@ export default configureGenkit({
   logLevel: 'debug',
   telemetry: {
     instrumentation: 'gcp',
+    logger: 'gcp',
   },
 });

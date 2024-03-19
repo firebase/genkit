@@ -16,9 +16,9 @@
 
 import { Plugin, genkitPlugin } from '@genkit-ai/common/config';
 import { GcpOpenTelemetry } from './gcpOpenTelemetry';
+import { GcpLogger } from './gcpLogger';
 import { Sampler } from '@opentelemetry/sdk-trace-base';
 import { InstrumentationConfigMap } from '@opentelemetry/auto-instrumentations-node';
-export { GcpOpenTelemetry } from './gcpOpenTelemetry';
 
 export interface PluginOptions {
   projectId?: string;
@@ -40,8 +40,14 @@ export const gcp: Plugin<[PluginOptions]> = genkitPlugin(
   async (options: PluginOptions) => {
     return {
       telemetry: {
-        id: 'gcp',
-        value: new GcpOpenTelemetry(options),
+        instrumentation: {
+          id: 'gcp',
+          value: new GcpOpenTelemetry(options),
+        },
+        logger: {
+          id: 'gcp',
+          value: new GcpLogger(options),
+        },
       },
     };
   }

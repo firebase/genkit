@@ -14,47 +14,59 @@
  * limitations under the License.
  */
 
-import { pino } from 'pino';
+import * as winston from 'winston';
+import { LoggerConfig } from './telemetryTypes';
 
-const logger = pino({
-  level: 'error',
-  transport: {
-    target: 'pino-pretty',
-  },
-});
+class Logger {
+  readonly genkitLabels = { labels: { module: 'genkit' } };
 
-/**
- * Sets logging level.
- */
-export function setLogLevel(
-  level: 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace'
-) {
-  logger.level = level;
+  textLogger: winston.Logger;
+  structuredLogger: winston.Logger;
+
+  constructor() {
+    this.textLogger = winston.createLogger({
+      transports: [new winston.transports.Console()],
+      level: 'debug',
+    });
+    this.structuredLogger = winston.createLogger({
+      transports: [],
+      level: 'info',
+    });
+  }
+
+  init(config: LoggerConfig) {
+    this.textLogger = winston.createLogger(config.getConfig());
+    this.structuredLogger = winston.createLogger({
+      ...config.getConfig(),
+      level: 'info',
+      format: winston.format.json(),
+    });
+  }
+
+  info(...args: any) {
+    // eslint-disable-next-line prefer-spread
+    this.textLogger.info(args, this.genkitLabels);
+  }
+  debug(...args: any) {
+    // eslint-disable-next-line prefer-spread
+    this.textLogger.debug(args, this.genkitLabels);
+  }
+  error(...args: any) {
+    // eslint-disable-next-line prefer-spread
+    this.textLogger.error(args, this.genkitLabels);
+  }
+  warn(...args: any) {
+    // eslint-disable-next-line prefer-spread
+    this.textLogger.warn(args, this.genkitLabels);
+  }
+
+  setLogLevel(level: 'error' | 'warn' | 'info' | 'debug') {
+    this.textLogger.level = level;
+  }
+
+  logStructured(obj: any) {
+    this.structuredLogger.info(obj);
+  }
 }
 
-export default {
-  info: (...args: any) => {
-    // eslint-disable-next-line prefer-spread
-    logger.info.apply(logger, args);
-  },
-  debug: (...args: any) => {
-    // eslint-disable-next-line prefer-spread
-    logger.debug.apply(logger, args);
-  },
-  trace: (...args: any) => {
-    // eslint-disable-next-line prefer-spread
-    logger.trace.apply(logger, args);
-  },
-  error: (...args: any) => {
-    // eslint-disable-next-line prefer-spread
-    logger.error.apply(logger, args);
-  },
-  warn: (...args: any) => {
-    // eslint-disable-next-line prefer-spread
-    logger.warn.apply(logger, args);
-  },
-  fatal: (...args: any) => {
-    // eslint-disable-next-line prefer-spread
-    logger.fatal.apply(logger, args);
-  },
-};
+export const logger = new Logger();
