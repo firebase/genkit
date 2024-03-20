@@ -173,10 +173,16 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
 
   action(): PromptAction {
     if (this._action) return this._action;
+
     this._action = action(
       {
         name: `${this.name}${this.variant ? `.${this.variant}` : ''}`,
-        input: PromptInputSchema,
+        input: this.input?.schema
+          ? z.object({
+              candidates: z.number().optional(),
+              input: this.input!.schema.optional(),
+            })
+          : PromptInputSchema,
         output: GenerationResponseSchema,
         metadata: {
           type: 'prompt',
@@ -190,6 +196,8 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
         });
       }
     ) as PromptAction;
+    if (this.input?.jsonSchema)
+      this._action.__action.inputJsonSchema = this.input.jsonSchema;
     return this._action;
   }
 }

@@ -77,13 +77,13 @@ export async function startReflectionApi(port?: number | undefined) {
         description: action.description,
         metadata: action.metadata,
       };
-      if (action.inputSchema) {
-        convertedActions[key].inputSchema = zodToJsonSchema(action.inputSchema);
+      if (action.inputSchema || action.inputJsonSchema) {
+        convertedActions[key].inputSchema =
+          action.inputJsonSchema || zodToJsonSchema(action.inputSchema!);
       }
-      if (action.outputSchema) {
-        convertedActions[key].outputSchema = zodToJsonSchema(
-          action.outputSchema
-        );
+      if (action.outputSchema || action.outputJsonSchema) {
+        convertedActions[key].outputSchema =
+          action.outputJsonSchema || zodToJsonSchema(action.outputSchema!);
       }
     });
     response.send(convertedActions);
