@@ -78,21 +78,27 @@ type SpanData struct {
 	Links                   []*Link                `json:"links"`
 	InstrumentationLibrary  InstrumentationLibrary `json:"instrumentationLibrary"`
 	SpanKind                string                 `json:"spanKind"` // trace.SpanKind as a string
-	SameProcessAsParentSpan struct {
-		Value bool `json:"value"`
-	} `json:"sameProcessAsParentSpan"`
-	Status     Status `json:"status"`
-	TimeEvents struct {
-		TimeEvent []TimeEvent `json:"timeEvent"`
-	} `json:"timeEvents"`
+	SameProcessAsParentSpan boolValue              `json:"sameProcessAsParentSpan"`
+	Status                  Status                 `json:"status"`
+	TimeEvents              timeEvents             `json:"timeEvents"`
+}
+
+type timeEvents struct {
+	TimeEvent []TimeEvent `json:"timeEvent"`
+}
+
+type boolValue struct {
+	Value bool `json:"value"`
 }
 
 type TimeEvent struct {
 	Time       Microseconds `json:"time"`
-	Annotation struct {
-		Attributes  map[string]any `json:"attributes"`
-		Description string         `json:"description"`
-	} `json:"annotation"`
+	Annotation annotation   `json:"annotation"`
+}
+
+type annotation struct {
+	Attributes  map[string]any `json:"attributes"`
+	Description string         `json:"description"`
 }
 
 // A SpanContext contains identifying trace information about a Span.
