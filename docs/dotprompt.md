@@ -1,5 +1,3 @@
-Project: /genkit/_project.yaml
-Book: /genkit/_book.yaml
 
 # Dotprompt
 
@@ -8,7 +6,7 @@ Dotprompt, first create a `prompts` directory in your project root and then crea
 in that directory. Here's a simple example we might call `greeting.prompt`:
 
 ```none
-{% verbatim %}---
+---
 model: vertex-ai/gemini-1.0-pro
 config:
   temperature: 0.9
@@ -25,7 +23,7 @@ input:
 
 You are the world's most welcoming AI assistant and are currently working at {{location}}.
 
-Greet a guest{{#if name}} named {{name}}{{/if}}{{#if style}} in the style of {{style}}.{% endverbatim %}
+Greet a guest{{#if name}} named {{name}}{{/if}}{{#if style}} in the style of {{style}}.
 ```
 
 To use this prompt, import the `@genkit-ai/dotprompt` library and load the prompt using
@@ -95,10 +93,10 @@ console.log(character.output());
 By default Dotprompt constructs a single message with a `"user"` role. Some prompts are
 best expressed as a combination of multiple messages, such as a system prompt.
 
-The `{% verbatim %}{{role}}{% endverbatim %}` helper provides a simple way to construct multi-message prompts:
+The `{{role}}` helper provides a simple way to construct multi-message prompts:
 
 ```none
-{% verbatim %}---
+---
 model: vertex-ai/gemini-1.0-pro
 input:
   schema:
@@ -111,16 +109,16 @@ input:
 You are a helpful AI assistant that really loves to talk about puppies. Try to work puppies
 into all of your conversations.
 {{role "user"}}
-{{userQuestion}}{% endverbatim %}
+{{userQuestion}}
 ```
 
 ## Multi-modal prompts
 
 For models that support multimodal input such as images, you can use the
-`{% verbatim %}{{media}}{% endverbatim %}` helper:
+`{{media}}` helper:
 
 ```none
-{% verbatim %}---
+---
 model: vertex-ai/gemini-1.0-pro-vision
 input:
   schema:
@@ -131,7 +129,7 @@ input:
 
 Describe this image in a detailed paragraph:
 
-{{image url=photoUrl}}{% endverbatim %}
+{{image url=photoUrl}}
 ```
 
 The URL can be `https://` or base64-encoded `data:` URIs for "inline" image usage. In code
