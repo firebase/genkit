@@ -36,7 +36,7 @@ export default configureGenkit({
     googleGenAI(),
     openAI(),
     vertexAI({ projectId: getProjectId(), location: 'us-central1' }),
-    ragas({ judge: geminiPro, metrics: [RagasMetric.CONTEXT_PRECISION] }),
+    ragas({ judge: geminiPro, metrics: [RagasMetric.CONTEXT_UTILIZATION] }),
 
     // providers - will be moved to plugins eventually
     chroma([

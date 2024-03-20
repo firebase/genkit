@@ -54,7 +54,7 @@ import { RagasMetric, ragas } from '@genkit-ai/plugin-ragas';
 
 export default configureGenkit({
   plugins: [
-    ragas({ judge: geminiPro, metrics: [RagasMetric.CONTEXT_PRECISION] }),
+    ragas({ judge: geminiPro, metrics: [RagasMetric.CONTEXT_UTILIZATION] }),
   ],
   // ...
 });

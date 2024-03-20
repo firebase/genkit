@@ -32,7 +32,7 @@ export default configureGenkit({
     openAI(),
     ragas({
       judge: gpt4Turbo,
-      metrics: [RagasMetric.FAITHFULNESS, RagasMetric.CONTEXT_PRECISION],
+      metrics: [RagasMetric.FAITHFULNESS, RagasMetric.CONTEXT_UTILIZATION],
     }),
     vertexAI({ projectId: getProjectId(), location: 'us-central1' }),
     pinecone([
