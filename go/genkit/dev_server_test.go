@@ -15,34 +15,72 @@
 package genkit
 
 import (
+	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 )
 
+func dec(_ context.Context, x int) (int, error) {
+	return x - 1, nil
+}
+
 func TestDevServer(t *testing.T) {
 	RegisterAction("test", "inc", NewAction("inc", inc))
+	RegisterAction("test", "dec", NewAction("dec", dec))
 	srv := httptest.NewServer(newDevServerMux())
 	defer srv.Close()
 
-	body := `{"key": "/test/inc", "input": 3}`
-	res, err := http.Post(srv.URL+"/api/runAction", "application/json", strings.NewReader(body))
-	if err != nil {
-		t.Fatal(err)
+	t.Run("runAction", func(t *testing.T) {
+		body := `{"key": "/test/inc", "input": 3}`
+		res, err := http.Post(srv.URL+"/api/runAction", "application/json", strings.NewReader(body))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		if res.StatusCode != 200 {
+			t.Fatalf("got status %d, wanted 200", res.StatusCode)
+		}
+		got, err := readJSON[int](res.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := 4
+		if got != want {
+			t.Errorf("got %d, want %d", got, want)
+		}
+	})
+	t.Run("actions", func(t *testing.T) {
+		res, err := http.Get(srv.URL + "/api/actions")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		if res.StatusCode != 200 {
+			t.Fatalf("got status %d, wanted 200", res.StatusCode)
+		}
+		got, err := readJSON[[]actionDesc](res.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := []actionDesc{
+			{Key: "/test/dec", Name: "dec"},
+			{Key: "/test/inc", Name: "inc"},
+		}
+		if !slices.EqualFunc(got, want, actionDesc.equal) {
+			t.Errorf("\n got  %v\nwant %v", got, want)
+		}
+	})
+}
+
+func readJSON[T any](r io.Reader) (T, error) {
+	var x T
+	if err := json.NewDecoder(r).Decode(&x); err != nil {
+		return x, err
 	}
-	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		t.Fatalf("got status %d, wanted 200", res.StatusCode)
-	}
-	data, err := io.ReadAll(res.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := string(data)
-	want := `4`
-	if got != want {
-		t.Errorf("got %q, want %q", got, want)
-	}
+	return x, nil
 }

@@ -17,7 +17,10 @@ package genkit
 import (
 	"fmt"
 	"log/slog"
+	"slices"
 	"sync"
+
+	"golang.org/x/exp/maps"
 )
 
 // This file implements a global registry of actions.
@@ -61,4 +64,21 @@ func lookupAction(key string) action {
 	mu.Lock()
 	defer mu.Unlock()
 	return actions[key]
+}
+
+// listActions returns a list of descriptions of all registered actions.
+// The list is sorted by action name.
+func listActions() []actionDesc {
+	var ads []actionDesc
+	mu.Lock()
+	defer mu.Unlock()
+	keys := maps.Keys(actions)
+	slices.Sort(keys)
+	for _, key := range keys {
+		a := actions[key]
+		ad := a.desc()
+		ad.Key = key
+		ads = append(ads, ad)
+	}
+	return ads
 }

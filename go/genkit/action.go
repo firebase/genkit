@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 )
 
 // An Action is a function with a name.
@@ -84,4 +85,34 @@ type action interface {
 	// runJSON uses encoding/json to unmarshal the input,
 	// calls Action.Run, then returns the marshaled result.
 	runJSON(ctx context.Context, input []byte) ([]byte, error)
+
+	// desc returns a description of the action.
+	// It should set all fields of actionDesc except Key, which
+	// the registry will set.
+	desc() actionDesc
+}
+
+// An actionDesc is a description of an Action.
+// It is used to provide a list of registered actions.
+type actionDesc struct {
+	Key         string // full key from the registry
+	Name        string
+	Description string
+	Metadata    map[string]any
+}
+
+func (d1 actionDesc) equal(d2 actionDesc) bool {
+	return d1.Key == d2.Key &&
+		d1.Name == d2.Name &&
+		d1.Description == d2.Description &&
+		maps.Equal(d1.Metadata, d2.Metadata)
+}
+
+func (a *Action[I, O]) desc() actionDesc {
+	return actionDesc{
+		Name:        a.name,
+		Description: a.Description,
+		Metadata:    a.Metadata,
+		// TODO: JSON schemata
+	}
 }
