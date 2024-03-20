@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-//import { describe, it, afterEach, beforeEach } from 'node:test';
 import { describe, it, beforeEach, expect } from '@jest/globals';
 import path from 'path';
 import { vol } from 'memfs';
@@ -34,6 +33,7 @@ describe('localFileEvalStore', () => {
   var storeRoot: string;
   const evalRunResults: EvalResult[] = [
     {
+      testCaseId: 'alakjdshfalsdkjh',
       input: { subject: 'Kermit the Frog', style: 'Jerry Seinfeld' },
       output: `So, here's the thing about Kermit the Frog, right? He's got this whole \"it's not easy being green\"
           routine.  Which, I mean, relatable, right? We've all got our things...But, the guy's a frog! He
@@ -54,6 +54,7 @@ describe('localFileEvalStore', () => {
       traceIds: [],
     },
     {
+      testCaseId: 'lkjhasdfkljahsdf',
       input: { subject: "Doctor's office", style: 'Wanda Sykes' },
       output: `Okay, check this out. You ever been to one of those doctor's offices where it takes you a year to get an appointment, 
         then they stick you in a waiting room with magazines from like, 1997? It's like, are they expecting me to catch up on all the

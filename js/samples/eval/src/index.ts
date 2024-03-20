@@ -28,6 +28,7 @@ initializeGenkit(config);
 
 const samples: Dataset<RagasDataPointZodType> = [
   {
+    testCaseId: 'who_is_spongebob',
     input: 'Who is SpongeBob?',
     context: [
       'SpongeBob loves his friends Patrick and Sandy Cheeks',
@@ -36,6 +37,7 @@ const samples: Dataset<RagasDataPointZodType> = [
     output: 'Spongebob is a sea sponge',
   },
   {
+    testCaseId: 'why_absorbancy',
     input: 'Why can Spongebob absorb liquids?',
     context: [
       'SpongeBob can soak liquids because he is a sea sponge',
@@ -44,6 +46,7 @@ const samples: Dataset<RagasDataPointZodType> = [
     output: 'Spongebob is a sea sponge',
   },
   {
+    testCaseId: 'first_aired',
     input: 'When was SpongeBob first aired?',
     context: [
       'SpongeBob loves his friends Patrick and Sandy Cheeks',

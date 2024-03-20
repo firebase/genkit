@@ -14,13 +14,19 @@
  * limitations under the License.
  */
 
-import { InvalidArgumentError, Command } from 'commander';
+import { Command } from 'commander';
 import { logger } from '../utils/logger';
 import { startRunner, waitForFlowToComplete } from '../utils/runner-utils';
 import { FlowInvokeEnvelopeMessage, FlowState } from '../types/flow';
 import { writeFile, readFile } from 'fs/promises';
 import { SpanData } from '../types/trace';
 import { Runner } from '../runner/runner';
+import {
+  LocalFileEvalStore,
+  EvalInput,
+  enrichResultsWithScoring,
+} from '../eval';
+import { randomUUID } from 'crypto';
 
 // TODO: Support specifying waiting or streaming
 interface EvalFlowRunOptions {
@@ -45,7 +51,7 @@ export const evalFlowRun = new Command('eval:flow')
   .action(
     async (flowName: string, data: string, options: EvalFlowRunOptions) => {
       const runner = await startRunner();
-
+      const evalStore = new LocalFileEvalStore();
       try {
         const evaluatorActions = Object.keys(await runner.listActions()).filter(
           (name) => name.startsWith('/evaluator')
@@ -75,32 +81,42 @@ export const evalFlowRun = new Command('eval:flow')
           return;
         }
 
-        const dataset = await fetchDataSet(runner, flowName, states);
+        const datasetToEval = await fetchDataSet(runner, flowName, states);
 
-        const results: Record<string, any> = {};
+        const scores: Record<string, any> = {};
         await Promise.all(
           evaluatorActions.map(async (e) => {
             logger.info(`Running evaluator '${e}'...`);
             const response = await runner.runAction({
               key: e,
               input: {
-                dataset,
+                dataset: datasetToEval,
                 auth: options.auth ? JSON.parse(options.auth) : undefined,
               },
             });
-            results[e] = response.result;
+            scores[e] = response.result;
           })
         );
+
+        const scoredResults = enrichResultsWithScoring(scores, datasetToEval);
 
         if (options.output) {
           logger.info(`Writing results to '${options.output}'...`);
           await writeFile(
             options.output,
-            JSON.stringify(results, undefined, '  ')
+            JSON.stringify(scoredResults, undefined, '  ')
           );
-        } else {
-          console.log(JSON.stringify(results, undefined, '  '));
         }
+
+        logger.info(`Writing results to EvalStore...`);
+        await evalStore.save({
+          key: {
+            actionId: flowName,
+            evalRunId: randomUUID(),
+            createdAt: new Date(),
+          },
+          results: scoredResults,
+        });
       } finally {
         await runner.stop();
       }
@@ -138,7 +154,7 @@ async function runFlows(
       })
     ).result as FlowState;
 
-    if (!state.operation.done) {
+    if (!state?.operation.done) {
       logger.info('Started flow run, waiting for it to complete...');
       state = await waitForFlowToComplete(runner, flowName, state.flowId);
     }
@@ -157,7 +173,7 @@ async function fetchDataSet(
   runner: Runner,
   flowName: string,
   states: FlowState[]
-) {
+): Promise<EvalInput[]> {
   return await Promise.all(
     states.map(async (s) => {
       const traceIds = s.executions.flatMap((e) => e.traceIds);
@@ -212,9 +228,11 @@ async function fetchDataSet(
       }
 
       return {
+        testCaseId: randomUUID(),
         input: rootSpan!.attributes['genkit:input'],
         output: rootSpan!.attributes['genkit:output'],
         context,
+        traceIds,
       };
     })
   );

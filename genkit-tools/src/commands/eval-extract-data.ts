@@ -17,6 +17,8 @@
 import { Command } from 'commander';
 import { startRunner } from '../utils/runner-utils';
 import { logger } from '../utils/logger';
+import { EvalInput } from '../eval';
+import { randomUUID } from 'crypto';
 import { writeFile } from 'fs/promises';
 
 interface EvalDatasetOptions {
@@ -34,14 +36,13 @@ export const evalExtractData = new Command('eval:extractData')
     '--output <filename>',
     'name of the output file to store the extracted data'
   )
-  .option('--maxRows <env>', 'maximum number of rows', '100')
+  .option('--maxRows <maxRows>', 'maximum number of rows', '100')
   .option('--label [label]', 'label flow run in this batch')
   .action(async (flowName: string, options: EvalDatasetOptions) => {
     const runner = await startRunner();
-
     logger.info(`Extracting trace data '/flow/${flowName}'...`);
 
-    var dataset: any[] = [];
+    var dataset: EvalInput[] = [];
     var continuationToken = undefined;
     while (dataset.length < parseInt(options.maxRows)) {
       const response = await runner.listTraces({
@@ -53,35 +54,42 @@ export const evalExtractData = new Command('eval:extractData')
       const traces = response.traces;
       // TODO: This assumes that all the data is in one trace, but it could be across multiple.
       // We should support this use case similar to how we do in eval-flow-run.ts
-      var batch = traces.map((t) => {
-        const rootSpan = Object.values(t.spans).find(
-          (s) =>
-            s.attributes['genkit:type'] === 'flow' &&
-            (!options.label ||
-              s.attributes['genkit:metadata:flow:label:batchRun'] ===
-                options.label) &&
-            s.attributes['genkit:metadata:flow:name'] === flowName &&
-            s.attributes['genkit:metadata:flow:state'] === 'done'
-        );
-        if (!rootSpan) {
-          return undefined;
-        }
-        const context = Object.values(t.spans)
-          .filter(
-            (s) => s.attributes['genkit:metadata:subtype'] === 'retriever'
-          )
-          .flatMap((s) =>
-            JSON.parse(s.attributes['genkit:output'] as string).map(
-              (d: { content: string }) => d.content
-            )
+      var batch: EvalInput[] = traces
+        .map((t) => {
+          const rootSpan = Object.values(t.spans).find(
+            (s) =>
+              s.attributes['genkit:type'] === 'flow' &&
+              (!options.label ||
+                s.attributes['genkit:metadata:flow:label:batchRun'] ===
+                  options.label) &&
+              s.attributes['genkit:metadata:flow:name'] === flowName &&
+              s.attributes['genkit:metadata:flow:state'] === 'done'
           );
-        return {
-          input: rootSpan?.attributes['genkit:input'],
-          output: rootSpan?.attributes['genkit:output'],
-          context,
-        };
-      });
-      batch = batch.filter((d) => !!d);
+          if (!rootSpan) {
+            return undefined;
+          }
+          const context: string[] = Object.values(t.spans)
+            .filter(
+              (s) => s.attributes['genkit:metadata:subtype'] === 'retriever'
+            )
+            .flatMap((s) =>
+              JSON.parse(s.attributes['genkit:output'] as string).map(
+                (d: { content: string }) => d.content
+              )
+            );
+          return {
+            testCaseId: randomUUID(),
+            input: rootSpan?.attributes['genkit:input'],
+            output: rootSpan?.attributes['genkit:output'],
+            context,
+            // The trace (t) does not contain the traceId, so we have to pull it out of the
+            // spans, de- dupe, and turn it back into an array.
+            traceIds: Array.from(
+              new Set(Object.values(t.spans).map((span) => span.traceId))
+            ),
+          } as EvalInput;
+        })
+        .filter((result): result is EvalInput => !!result);
       batch.forEach((d) => dataset.push(d));
       if (dataset.length > parseInt(options.maxRows)) {
         dataset = dataset.splice(0, parseInt(options.maxRows));
@@ -92,10 +100,12 @@ export const evalExtractData = new Command('eval:extractData')
       }
     }
 
-    logger.info(JSON.stringify(dataset, undefined, '  '));
     if (options.output) {
       logger.info(`Writing data to '${options.output}'...`);
       await writeFile(options.output, JSON.stringify(dataset, undefined, '  '));
+    } else {
+      logger.info(`Results will not be written to file.`);
+      console.log(`Results: ${JSON.stringify(dataset, undefined, '  ')}`);
     }
 
     await runner.stop();
