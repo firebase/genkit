@@ -122,5 +122,14 @@ func handleRunAction(w http.ResponseWriter, r *http.Request) error {
 
 // handleListActions lists all the registered actions.
 func handleListActions(w http.ResponseWriter, r *http.Request) error {
-	return &httpError{http.StatusNotImplemented, errors.New("ListActions unimplemented")}
+	descs := listActions()
+	data, err := json.MarshalIndent(descs, "", "    ")
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(data)
+	if err != nil {
+		logger(r.Context()).Error("writing actions output", "err", err)
+	}
+	return nil
 }
