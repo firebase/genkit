@@ -1,6 +1,24 @@
+# General build + OS files
 node_modules
+lib
 dist
 .vscode
 .DS_Store
 package-lock.json
 js/third_party
+
+# Sample-specific files
+genkit-packages
+typings
+js/samples/firebase-functions-sample1/public/bundle.js
+js/samples/firebase-functions-sample1/public/config.js
+
+# RAG sample files
+__db*.json
+out.json
+batchinput*.json
+synthesized*.json
+out.json
+
+# Test files
+last_recording.mp4
