@@ -27,6 +27,7 @@ class Logger {
     this.textLogger = winston.createLogger({
       transports: [new winston.transports.Console()],
       level: 'debug',
+      ...this.getDevConfigurationOverrides(),
     });
     this.structuredLogger = winston.createLogger({
       transports: [],
@@ -34,8 +35,21 @@ class Logger {
     });
   }
 
+  private getDevConfigurationOverrides() {
+    return process.env.GENKIT_ENV === 'dev'
+      ? {
+          format: winston.format.printf((info): string => {
+            return `[${info.level}] ${info.message}`;
+          }),
+        }
+      : {};
+  }
+
   init(config: LoggerConfig) {
-    this.textLogger = winston.createLogger(config.getConfig());
+    this.textLogger = winston.createLogger({
+      ...config.getConfig(),
+      ...this.getDevConfigurationOverrides(),
+    });
     this.structuredLogger = winston.createLogger({
       ...config.getConfig(),
       level: 'info',
