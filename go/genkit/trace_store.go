@@ -31,7 +31,7 @@ type TraceStore interface {
 	// It returns an error that is fs.ErrNotExist if there isn't one.
 	Load(ctx context.Context, id string) (*TraceData, error)
 	// List returns all the TraceDatas in the store that satisfy q,
-	// sorted by ID.
+	// in some deterministic order.
 	List(ctx context.Context, q *TraceQuery) ([]*TraceData, error)
 }
 
