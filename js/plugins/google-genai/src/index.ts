@@ -24,16 +24,16 @@ import {
 export { geminiPro, geminiProVision };
 
 export interface PluginOptions {
-  apiKey: string;
+  apiKey?: string;
 }
 
-export const googleGenAI: Plugin<[string] | []> = genkitPlugin(
+export const googleGenAI: Plugin<PluginOptions[]> = genkitPlugin(
   'google-ai',
-  async (apiKey?: string) => {
+  async (options: PluginOptions) => {
     return {
       models: [
         ...Object.keys(SUPPORTED_MODELS).map((name) =>
-          googleAIModel(name, apiKey)
+          googleAIModel(name, options?.apiKey)
         ),
       ],
     };
