@@ -18,6 +18,12 @@ import { Command } from 'commander';
 import { startRunner } from '../utils/runner-utils';
 import { logger } from '../utils/logger';
 import { readFile, writeFile } from 'fs/promises';
+import { randomUUID } from 'crypto';
+import {
+  LocalFileEvalStore,
+  enrichResultsWithScoring,
+  EvalInput,
+} from '../eval';
 
 interface EvalRunOptions {
   output?: string;
@@ -34,9 +40,18 @@ export const evalRun = new Command('eval:run')
   )
   .action(async (dataset: string, options: EvalRunOptions) => {
     const runner = await startRunner();
+    const evalStore = new LocalFileEvalStore();
 
     logger.debug(`Loading data from '${dataset}'...`);
-    const loadedData = JSON.parse((await readFile(dataset)).toString('utf-8'));
+    const datasetToEval: EvalInput[] = JSON.parse(
+      (await readFile(dataset)).toString('utf-8')
+    ).map((testCase: any) => ({
+      input: testCase.input,
+      output: testCase.output,
+      context: testCase.context,
+      testCaseId: testCase.testCaseId || randomUUID(),
+      traceIds: testCase.traceIds || [],
+    }));
 
     const evaluatorActions = Object.keys(await runner.listActions()).filter(
       (name) => name.startsWith('/evaluator')
@@ -45,26 +60,38 @@ export const evalRun = new Command('eval:run')
       logger.error('No evaluators installed');
       return undefined;
     }
-    const results: Record<string, any> = {};
+    const scores: Record<string, any> = {};
     await Promise.all(
       evaluatorActions.map(async (e) => {
         logger.info(`Running evaluator '${e}'...`);
         const response = await runner.runAction({
           key: e,
           input: {
-            dataset: loadedData,
+            dataset: datasetToEval,
           },
         });
-        results[e] = response.result;
+        scores[e] = response.result;
       })
     );
 
+    const scoredResults = enrichResultsWithScoring(scores, datasetToEval);
+
     if (options.output) {
       logger.info(`Writing results to '${options.output}'...`);
-      await writeFile(options.output, JSON.stringify(results, undefined, '  '));
-    } else {
-      console.log(JSON.stringify(results, undefined, '  '));
+      await writeFile(
+        options.output,
+        JSON.stringify(scoredResults, undefined, '  ')
+      );
     }
+
+    logger.info(`Writing results to EvalStore...`);
+    await evalStore.save({
+      key: {
+        evalRunId: randomUUID(),
+        createdAt: new Date(),
+      },
+      results: scoredResults,
+    });
 
     await runner.stop();
   });

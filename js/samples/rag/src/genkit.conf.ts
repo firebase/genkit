@@ -22,7 +22,7 @@ import { pinecone } from '@genkit-ai/plugin-pinecone';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/plugin-vertex-ai';
 import { chroma } from '@genkit-ai/plugin-chroma';
 import { RagasMetric, ragas } from '@genkit-ai/plugin-ragas';
-import { gpt4, openAI } from '@genkit-ai/plugin-openai';
+import { gpt4Turbo, openAI } from '@genkit-ai/plugin-openai';
 import { devLocalVectorstore } from '@genkit-ai/plugin-dev-local-vectorstore';
 
 export default configureGenkit({
@@ -30,7 +30,10 @@ export default configureGenkit({
     firebase({ projectId: getProjectId() }),
     googleGenAI(),
     openAI(),
-    ragas({ judge: gpt4, metrics: [RagasMetric.FAITHFULNESS] }),
+    ragas({
+      judge: gpt4Turbo,
+      metrics: [RagasMetric.FAITHFULNESS, RagasMetric.CONTEXT_PRECISION],
+    }),
     vertexAI({ projectId: getProjectId(), location: 'us-central1' }),
     pinecone([
       {

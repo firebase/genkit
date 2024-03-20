@@ -16,16 +16,25 @@
 
 import { z } from 'zod';
 
+/**
+ * List request to fetch all EvalRunKeys from the EvalStore.
+ */
 export interface ListEvalKeysRequest {
   filter?: {
     actionId?: string;
   };
 }
 
+/**
+ * List response of all relevant EvalRunKeys from the EvalStore.
+ */
 export interface ListEvalKeysResponse {
   results: EvalRunKey[];
 }
 
+/**
+ * A unique identifier for an Evaluation Run.
+ */
 export const EvalRunKeySchema = z.object({
   actionId: z.string().optional(),
   evalRunId: z.string(),
@@ -36,11 +45,46 @@ export type EvalRunKey = z.infer<typeof EvalRunKeySchema>;
 export const EvalMetricSchema = z.object({
   evaluator: z.string(),
   score: z.union([z.number(), z.string(), z.boolean()]),
-  rationale: z.string(),
+  rationale: z.string().optional(),
 });
 export type EvalMetric = z.infer<typeof EvalMetricSchema>;
 
+/**
+ * Alias for evaluator score output.
+ */
+export type ScoreRecord = Record<
+  string, // evaluator identifier
+  ScoreValue[] // array of scores for this evaluator
+>;
+
+/**
+ * Minimal interface of required fields from evaluator output.
+ */
+export interface ScoreValue {
+  sample: { testCaseId: string };
+  score: Record<string, number>;
+}
+
+/**
+ * A record that is ready for evaluation.
+ *
+ * TODO: consider renaming.
+ */
+export const EvalInputSchema = z.object({
+  testCaseId: z.string(),
+  input: z.any(),
+  output: z.any(),
+  context: z.array(z.string()).optional(),
+  groundTruth: z.any().optional(),
+  traceIds: z.array(z.string()),
+});
+export type EvalInput = z.infer<typeof EvalInputSchema>;
+
+/**
+ * The scored result of an evaluation of an individual inference.
+ */
 export const EvalResultSchema = z.object({
+  testCaseId: z.string(),
   input: z.any(),
   output: z.any(),
   context: z.array(z.string()).optional(),
@@ -50,6 +94,9 @@ export const EvalResultSchema = z.object({
 });
 export type EvalResult = z.infer<typeof EvalResultSchema>;
 
+/**
+ * A container for the results of evaluation over a batch of test cases.
+ */
 export const EvalRunSchema = z.object({
   key: EvalRunKeySchema,
   results: z.array(EvalResultSchema),

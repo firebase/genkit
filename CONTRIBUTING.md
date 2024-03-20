@@ -64,6 +64,8 @@ npm link
 
 ## Run it
 
+### Run a flow
+
 In the `js/samples` folder you will find some samples. They might contain instructions for how to run them and what setup is necessary.
 
 Here's one that requires no setup:
@@ -73,7 +75,7 @@ cd js/samples/flow-sample1
 genkit flow:run basic "\"hello\""
 ```
 
-Run the DevUI
+### Run the DevUI
 
 ```
 cd js/samples/flow-sample1
@@ -81,6 +83,34 @@ genkit start
 ```
 
 Point your browser to http://localhost:4000
+
+### Run evaluations
+
+We'll be using the `pdfQA` flow for our example.
+
+To start, let's make sure we have some context to pull from the vector store.
+
+1. Start the DevUI
+
+```
+cd js/samples/rag
+genkit start
+```
+
+2. Click on the `indexPdf` flow in the left nav.
+3. Input paths to pdfs you want to index. There's one checked into the directory:
+
+```
+"./35650.pdf"
+```
+
+4. Run the evaluation
+
+```
+genkit eval:flow pdfQA '"What's a brief description of MapReduce?"'
+```
+
+5. To see the output, look for the log line `Saving EvalRun` with the path to the json file.
 
 ## Code it
 
@@ -90,7 +120,7 @@ As you make changes you may want to build an test things by running samples.
 You can reduce the scope of what you're building by running a specific build command:
 
 ```
-npm run build:genkit 
+npm run build:genkit
 npm run build:genkit-tools
 ```
 
@@ -118,5 +148,3 @@ Before sending the PR alwaya run
 npm run format
 npm run build:all
 ```
-
-

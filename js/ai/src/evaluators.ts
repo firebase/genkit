@@ -24,6 +24,7 @@ export const BaseDataPointSchema = z.object({
   input: z.unknown(),
   output: z.unknown().optional(),
   context: z.unknown().optional(),
+  testCaseId: z.string(),
 });
 type BaseDataPointZodType = typeof BaseDataPointSchema;
 

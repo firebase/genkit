@@ -15,4 +15,5 @@
  */
 
 export * from './types';
+export * from './parser';
 export { LocalFileEvalStore } from './localFileEvalStore';
