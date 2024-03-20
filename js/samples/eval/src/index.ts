@@ -59,7 +59,7 @@ const samples: Dataset<RagasDataPointZodType> = [
 async function main() {
   console.log('running ragas eval...');
   const scores = await evaluate({
-    evaluator: ragasRef(RagasMetric.ANSWER_RELEVANCY),
+    evaluator: ragasRef(RagasMetric.FAITHFULNESS),
     dataset: samples,
   });
   console.log(JSON.stringify(scores));
