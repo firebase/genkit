@@ -30,6 +30,7 @@ import {
 import * as z from 'zod';
 import * as express from 'express';
 import { callHttpsFunction } from './helpers';
+import { getAppCheck } from 'firebase-admin/app-check';
 
 export type FunctionFlow<
   I extends z.ZodTypeAny,
@@ -53,6 +54,8 @@ interface FunctionFlowConfig<
   authPolicy: FunctionFlowAuth;
   streamType?: S;
   httpsOptions?: HttpsOptions;
+  enforceAppCheck?: boolean;
+  consumeAppCheckToken?: boolean;
 }
 
 /**
@@ -102,11 +105,46 @@ function wrapHttpsFlow<
       memory: config.httpsOptions?.memory || '512MiB',
     },
     async (req, res) => {
+      if (config.enforceAppCheck) {
+        if (
+          !(await appCheckValid(
+            req.headers['x-firebase-appcheck'],
+            !!config.consumeAppCheckToken
+          ))
+        ) {
+          res
+            .status(401)
+            .send({
+              error: {
+                status: 'UNAUTHENTICATED',
+                message: 'Unauthorized',
+              },
+            })
+            .end();
+          return;
+        }
+      }
+
       await config.authPolicy.provider(req, res, () =>
         flow.expressHandler(req, res)
       );
     }
   );
+}
+
+async function appCheckValid(
+  tok: string | string[] | undefined,
+  consume: boolean
+): Promise<boolean> {
+  if (typeof tok !== 'string') return false;
+  try {
+    const appCheckClaims = await getAppCheck().verifyToken(tok, { consume });
+
+    if (consume && appCheckClaims.alreadyConsumed) return false;
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 
 /**
