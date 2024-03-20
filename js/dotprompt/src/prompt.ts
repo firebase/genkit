@@ -160,8 +160,11 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
     });
   }
 
-  generate(options: PromptInput<Variables>): Promise<GenerationResponse> {
-    return this.action()(options) as Promise<GenerationResponse>;
+  async generate(options: PromptInput<Variables>): Promise<GenerationResponse> {
+    return new GenerationResponse(
+      await this.action()(options),
+      await this.render(options) // TODO: don't re-render to do this
+    );
   }
 
   toJSON(): PromptData {
