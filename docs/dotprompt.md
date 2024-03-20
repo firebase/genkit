@@ -54,7 +54,7 @@ metadata for a prompt inline with the template.
 You can set the format and output schema of a prompt to coerce into JSON:
 
 ```none
-{% verbatim %}---
+---
 model: vertex-ai/gemini-1.0-pro
 input:
   schema:
@@ -70,7 +70,7 @@ output:
       description: {type: string}
 ---
 
-Generate a tabletop RPG character that would be found in {{location}}.{% endverbatim %}
+Generate a tabletop RPG character that would be found in {{location}}.
 ```
 
 When generating a prompt with structured output, the `output()` helper can be used to
@@ -209,5 +209,5 @@ const myPrompt = definePrompt({
       name: z.string(),
     }
   }),
-}, `Hello {% verbatim %}{{name}}{% endverbatim %}, how are you today?`);
+}, `Hello {{name}}, how are you today?`);
 ```
