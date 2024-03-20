@@ -1,5 +1,3 @@
-Project: /genkit/_project.yaml
-Book: /genkit/_book.yaml
 
 # Dev tooling: local flow runner, playgrounds
 
