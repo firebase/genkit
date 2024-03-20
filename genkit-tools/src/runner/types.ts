@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { JSONSchema7 } from 'json-schema';
 import * as z from 'zod';
 
 // TODO: Temporarily here to get rid of the dependency on @genkit-ai/common.
@@ -25,7 +26,9 @@ export interface ActionMetadata<
   name: string;
   description?: string;
   inputSchema?: I;
-  outputSchema?: O;
+  inputJsonSchema?: JSONSchema7;
+  outputSchema?: unknown;
+  outputJsonSchema?: JSONSchema7;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   metadata: Record<string, any>;
 }

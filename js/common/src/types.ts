@@ -17,6 +17,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import * as z from 'zod';
 import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing';
+import { JSONSchema7 } from 'json-schema';
 import * as telemetry from './telemetry';
 import { performance } from 'node:perf_hooks';
 
@@ -28,7 +29,9 @@ export interface ActionMetadata<
   name: string;
   description?: string;
   inputSchema?: I;
+  inputJsonSchema?: JSONSchema7;
   outputSchema?: O;
+  outputJsonSchema?: JSONSchema7;
   metadata?: M;
 }
 
