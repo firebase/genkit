@@ -32,7 +32,11 @@ export default configureGenkit({
     vertexAI({ projectId: getProjectId(), location: getLocation() }),
     ragas({
       judge: gpt4Turbo,
-      metrics: [RagasMetric.FAITHFULNESS],
+      metrics: [
+        RagasMetric.FAITHFULNESS,
+        RagasMetric.ANSWER_RELEVANCY,
+        RagasMetric.CONTEXT_UTILIZATION,
+      ],
       embedder: textEmbeddingGecko,
     }),
   ],

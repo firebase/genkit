@@ -65,4 +65,4 @@ async function main() {
   console.log(JSON.stringify(scores));
 }
 
-main();
+// main();
