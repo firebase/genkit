@@ -16,8 +16,8 @@
 
 import { Command } from 'commander';
 import { FlowInvokeEnvelopeMessage, FlowState } from '../types/flow';
-import { startRunner } from '../utils/runner-utils';
 import { logger } from '../utils/logger';
+import { startRunner } from '../utils/runner-utils';
 
 /** Command to start GenKit server, optionally without static file serving */
 export const flowResume = new Command('flow:resume')

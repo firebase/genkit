@@ -15,10 +15,10 @@
  */
 
 import { Command } from 'commander';
+import { readFile, writeFile } from 'fs/promises';
 import { FlowInvokeEnvelopeMessage, FlowState, Operation } from '../types/flow';
-import { startRunner, waitForFlowToComplete } from '../utils/runner-utils';
 import { logger } from '../utils/logger';
-import { writeFile, readFile } from 'fs/promises';
+import { startRunner, waitForFlowToComplete } from '../utils/runner-utils';
 
 interface FlowBatchRunOptions {
   wait?: boolean;

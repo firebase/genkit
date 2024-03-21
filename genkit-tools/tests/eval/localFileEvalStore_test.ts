@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { describe, it, beforeEach, expect } from '@jest/globals';
-import path from 'path';
-import { vol } from 'memfs';
+import { beforeEach, describe, expect, it } from '@jest/globals';
 import fs from 'fs';
+import { vol } from 'memfs';
+import path from 'path';
 import {
+  EvalResult,
+  EvalRun,
   EvalRunSchema,
   LocalFileEvalStore,
-  EvalRun,
-  EvalResult,
 } from '../../src/eval';
 
 jest.mock('fs');

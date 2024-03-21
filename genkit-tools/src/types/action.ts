@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { z } from 'zod';
 import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
+import { z } from 'zod';
 
 extendZodWithOpenApi(z);
 

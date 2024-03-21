@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import * as winston from 'winston';
 import * as clc from 'colorette';
+import * as winston from 'winston';
 
 export const logger = winston.createLogger({
   level: process.env.DEBUG ? 'debug' : 'info',

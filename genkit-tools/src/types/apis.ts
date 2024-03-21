@@ -15,8 +15,8 @@
  */
 
 import { z } from 'zod';
-import { TraceDataSchema } from './trace';
 import { FlowStateSchema } from './flow';
+import { TraceDataSchema } from './trace';
 
 /**
  * This file contains API schemas that are shared between Tools API and Reflection API.
