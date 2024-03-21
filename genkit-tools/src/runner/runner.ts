@@ -43,10 +43,9 @@ const EXCLUDED_WATCHER_DIRS = ['node_modules'];
  */
 const RELOAD_DELAY_MS = 500;
 
-const REFLECTION_PORT = process.env.GENKIT_REFLECTION_PORT || 3100;
-const REFLECTION_API_URL = `http://localhost:${REFLECTION_PORT}/api`;
-
 const STREAM_DELIMITER = '\n';
+
+const DEFAULT_REFLECTION_PORT = 3100;
 
 /**
  * Runner is responsible for watching, building, and running app code and exposing an API to control actions on that app code.
@@ -79,6 +78,9 @@ export class Runner {
 
   private buildCommand?: string;
 
+  private reflectionApiPort: number;
+  private reflectionApiUrl?: string;
+
   /**
    * Creates a Runner instance.
    *
@@ -90,16 +92,20 @@ export class Runner {
     options: {
       directory?: string;
       autoReload?: boolean;
+      reflectionApiPort?: number;
     } = {}
   ) {
     this.directory = options.directory || process.cwd();
     this.autoReload = options.autoReload ?? true;
+    this.reflectionApiPort =
+      options.reflectionApiPort ?? DEFAULT_REFLECTION_PORT;
   }
 
   /**
    * Starts the runner.
    */
   public async start(): Promise<void> {
+    this.reflectionApiUrl = `http://localhost:${this.reflectionApiPort}/api`;
     if (this.autoReload) {
       const config = await findToolsConfig();
       this.buildCommand = config?.builder?.cmd ?? 'npm run build';
@@ -107,6 +113,18 @@ export class Runner {
       this.watchForChanges();
     }
     this.startApp();
+  }
+
+  /**
+   * Attach to an already running process at the provided address.
+   */
+  public async attach(attachAddress: string): Promise<void> {
+    this.reflectionApiUrl = `${attachAddress}/api`;
+    if (!(await this.healthCheck())) {
+      throw new Error(
+        `Unable to attach to provided external dev process address: ${attachAddress}`
+      );
+    }
   }
 
   /**
@@ -148,7 +166,7 @@ export class Runner {
       env: {
         ...process.env,
         GENKIT_ENV: 'dev',
-        GENKIT_REFLECTION_PORT: process.env.GENKIT_REFLECTION_PORT || '3100',
+        GENKIT_REFLECTION_PORT: `${this.reflectionApiPort}`,
       },
     });
 
@@ -264,7 +282,7 @@ export class Runner {
   /** Retrieves all runnable actions. */
   async healthCheck(): Promise<boolean> {
     try {
-      const response = await axios.get(`${REFLECTION_API_URL}/__health`);
+      const response = await axios.get(`${this.reflectionApiUrl}/__health`);
       if (response.status !== 200) {
         return false;
       }
@@ -291,7 +309,7 @@ export class Runner {
   /** Retrieves all runnable actions. */
   async listActions(): Promise<Record<string, Action>> {
     const response = await axios
-      .get(`${REFLECTION_API_URL}/actions`)
+      .get(`${this.reflectionApiUrl}/actions`)
       .catch((err) => this.httpErrorHandler(err, 'Error listing actions.'));
 
     return response.data as Record<string, Action>;
@@ -304,7 +322,7 @@ export class Runner {
   ): Promise<RunActionResponse> {
     if (streamingCallback) {
       const response = await axios
-        .post(`${REFLECTION_API_URL}/runAction?stream=true`, input, {
+        .post(`${this.reflectionApiUrl}/runAction?stream=true`, input, {
           headers: {
             'Content-Type': 'application/json',
           },
@@ -335,7 +353,7 @@ export class Runner {
       return promise;
     } else {
       const response = await axios
-        .post(`${REFLECTION_API_URL}/runAction`, input, {
+        .post(`${this.reflectionApiUrl}/runAction`, input, {
           headers: {
             'Content-Type': 'application/json',
           },
@@ -364,7 +382,7 @@ export class Runner {
     }
 
     const response = await axios
-      .get(`${REFLECTION_API_URL}/envs/${env}/traces?${query}`)
+      .get(`${this.reflectionApiUrl}/envs/${env}/traces?${query}`)
       .catch((err) =>
         this.httpErrorHandler(
           err,
@@ -379,7 +397,7 @@ export class Runner {
   async getTrace(input: apis.GetTraceRequest): Promise<TraceData> {
     const { env, traceId } = input;
     const response = await axios
-      .get(`${REFLECTION_API_URL}/envs/${env}/traces/${traceId}`)
+      .get(`${this.reflectionApiUrl}/envs/${env}/traces/${traceId}`)
       .catch((err) =>
         this.httpErrorHandler(
           err,
@@ -406,7 +424,7 @@ export class Runner {
       query += `continuationToken=${continuationToken}`;
     }
     const response = await axios
-      .get(`${REFLECTION_API_URL}/envs/${env}/flowStates?${query}`)
+      .get(`${this.reflectionApiUrl}/envs/${env}/flowStates?${query}`)
       .catch((err) =>
         this.httpErrorHandler(
           err,
@@ -421,7 +439,7 @@ export class Runner {
   async getFlowState(input: apis.GetFlowStateRequest): Promise<FlowState> {
     const { env, flowId } = input;
     const response = await axios
-      .get(`${REFLECTION_API_URL}/envs/${env}/flowStates/${flowId}`)
+      .get(`${this.reflectionApiUrl}/envs/${env}/flowStates/${flowId}`)
       .catch((err) =>
         this.httpErrorHandler(
           err,
