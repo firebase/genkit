@@ -23,11 +23,23 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-// This file implements a global registry of actions.
+// This file implements a global registry of actions and other values.
 
 var (
-	mu      sync.Mutex
-	actions = map[string]action{}
+	registryMu sync.Mutex
+	actions    = map[string]action{}
+	// TraceStores, at most one for each [Environment].
+	// Only the prod trace store is actually registered; the dev one is
+	// always created automatically. But it's simpler if we keep them together here.
+	traceStores = map[Environment]TraceStore{}
+)
+
+// An Environment is the development context that the program is running in.
+type Environment string
+
+const (
+	EnvironmentDev  Environment = "dev"  // development: testing, debugging, etc.
+	EnvironmentProd Environment = "prod" // production: user data, SLOs, etc.
 )
 
 // An ActionType is the kind of an action.
@@ -50,8 +62,8 @@ const (
 // registered.
 func RegisterAction(typ ActionType, id string, a action) {
 	key := fmt.Sprintf("/%s/%s", typ, id)
-	mu.Lock()
-	defer mu.Unlock()
+	registryMu.Lock()
+	defer registryMu.Unlock()
 	if _, ok := actions[key]; ok {
 		panic(fmt.Sprintf("action %q of type %s already has an entry in the registry", id, typ))
 	}
@@ -61,8 +73,8 @@ func RegisterAction(typ ActionType, id string, a action) {
 
 // lookupAction returns the action for the given key, or nil if there is none.
 func lookupAction(key string) action {
-	mu.Lock()
-	defer mu.Unlock()
+	registryMu.Lock()
+	defer registryMu.Unlock()
 	return actions[key]
 }
 
@@ -70,8 +82,8 @@ func lookupAction(key string) action {
 // The list is sorted by action name.
 func listActions() []actionDesc {
 	var ads []actionDesc
-	mu.Lock()
-	defer mu.Unlock()
+	registryMu.Lock()
+	defer registryMu.Unlock()
 	keys := maps.Keys(actions)
 	slices.Sort(keys)
 	for _, key := range keys {
@@ -81,4 +93,27 @@ func listActions() []actionDesc {
 		ads = append(ads, ad)
 	}
 	return ads
+}
+
+// RegisterTraceStore uses the given TraceStore to record traces in the prod environment.
+// (A TraceStore that writes to the local filesystem is always installed in the dev environment.)
+// RegisterTraceStore panics if called more than once.
+// You must call [Init] after calling this function to initialize tracing.
+func RegisterTraceStore(ts TraceStore) {
+	registerTraceStore(EnvironmentProd, ts)
+}
+
+func registerTraceStore(env Environment, ts TraceStore) {
+	registryMu.Lock()
+	defer registryMu.Unlock()
+	if _, ok := traceStores[env]; ok {
+		panic(fmt.Sprintf("RegisterTraceStore called twice for environment %q", env))
+	}
+	traceStores[env] = ts
+}
+
+func lookupTraceStore(env Environment) TraceStore {
+	registryMu.Lock()
+	defer registryMu.Unlock()
+	return traceStores[env]
 }
