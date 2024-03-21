@@ -27,7 +27,11 @@ import { flowRun } from './commands/flow-run';
 import { init } from './commands/init';
 import { getPluginCommands, getPluginSubCommand } from './commands/plugins';
 import { start } from './commands/start';
-import { notifyAnalyticsIfFirstRun } from './utils/analytics';
+import {
+  RunCommandEvent,
+  notifyAnalyticsIfFirstRun,
+  record,
+} from './utils/analytics';
 import { logger } from './utils/logger';
 
 /**
@@ -50,7 +54,21 @@ const commands: Command[] = [
 
 /** Main entry point for CLI. */
 export async function startCLI(): Promise<void> {
-  program.name('genkit').description('Google Genkit CLI').version('0.0.1');
+  program
+    .name('genkit')
+    .description('Google Genkit CLI')
+    .version('0.0.1')
+    .hook('preAction', async (_, actionCommand) => {
+      // For now only record known command names, to avoid tools plugins causing
+      // arbitrary text to get recorded. Once we launch tools plugins, we'll have
+      // to give this more thought
+      const commandName = commands
+        .map((c) => c.name())
+        .includes(actionCommand.name())
+        ? actionCommand.name()
+        : 'unknown';
+      await record(new RunCommandEvent(commandName));
+    });
 
   for (const command of commands) program.addCommand(command);
   for (const command of await getPluginCommands()) program.addCommand(command);
