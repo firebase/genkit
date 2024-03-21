@@ -55,7 +55,7 @@ func TestTracing(t *testing.T) {
 	}
 	// The dev TraceStore is registered by Init, called from TestMain.
 	ts := lookupTraceStore(EnvironmentDev)
-	tds, err := ts.List(ctx, nil)
+	tds, _, err := ts.List(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -16,7 +16,9 @@ package genkit
 
 import (
 	"context"
+	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 )
@@ -80,15 +82,56 @@ func TestFileTraceStore(t *testing.T) {
 
 	// Test List.
 	td3 := &TraceData{DisplayName: "td3"}
+	time.Sleep(50 * time.Millisecond) // force different mtimes
 	if err := ts.Save(ctx, "id3", td3); err != nil {
 		t.Fatal(err)
 	}
-	gotl, err := ts.List(ctx, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	wantl := []*TraceData{want, td3}
-	if diff := cmp.Diff(wantl, gotl); diff != "" {
+
+	gotTDs, gotCT, err := ts.List(ctx, nil)
+	// All the TraceDatas, in the expected order.
+	wantTDs := []*TraceData{td3, want}
+	if diff := cmp.Diff(wantTDs, gotTDs); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
+	}
+	if gotCT != "" {
+		t.Errorf("continuation token: got %q, want %q", gotCT, "")
+	}
+}
+
+func TestListRange(t *testing.T) {
+	// These tests assume the default limit is 10.
+	total := 20
+	for _, test := range []struct {
+		q                  *TraceQuery
+		wantStart, wantEnd int
+		wantErr            bool
+	}{
+		{nil, 0, 10, false},
+		{
+			&TraceQuery{Limit: 1},
+			0, 1, false,
+		},
+		{
+			&TraceQuery{Limit: 5, ContinuationToken: "1"},
+			1, 6, false,
+		},
+		{
+			&TraceQuery{ContinuationToken: "5"},
+			5, 15, false,
+		},
+		{&TraceQuery{Limit: -1}, 0, 0, true},               // negative limit
+		{&TraceQuery{ContinuationToken: "x"}, 0, 0, true},  // not a number
+		{&TraceQuery{ContinuationToken: "-1"}, 0, 0, true}, // too small
+		{&TraceQuery{ContinuationToken: "21"}, 0, 0, true}, // too large
+	} {
+		gotStart, gotEnd, err := listRange(test.q, total)
+		if test.wantErr {
+			if !errors.Is(err, errBadQuery) {
+				t.Errorf("%+v: got err %v, want errBadQuery", test.q, err)
+			}
+		} else if gotStart != test.wantStart || gotEnd != test.wantEnd || err != nil {
+			t.Errorf("%+v: got (%d, %d, %v), want (%d, %d, nil)",
+				test.q, gotStart, gotEnd, err, test.wantStart, test.wantEnd)
+		}
 	}
 }

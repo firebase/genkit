@@ -18,6 +18,7 @@ package genkit
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
@@ -30,14 +31,26 @@ type TraceStore interface {
 	// Load reads the TraceData with the given ID from the store.
 	// It returns an error that is fs.ErrNotExist if there isn't one.
 	Load(ctx context.Context, id string) (*TraceData, error)
-	// List returns all the TraceDatas in the store that satisfy q,
-	// in some deterministic order.
-	List(ctx context.Context, q *TraceQuery) ([]*TraceData, error)
+	// List returns all the TraceDatas in the store that satisfy q, in some deterministic
+	// order.
+	// It also returns a continuation token: an opaque string that can be passed
+	// to the next call to List to resume the listing from where it left off. If
+	// the listing reached the end, this is the empty string.
+	// If the TraceQuery is malformed, List returns an error that is errBadQuery.
+	List(ctx context.Context, q *TraceQuery) (tds []*TraceData, contToken string, err error)
 }
+
+var errBadQuery = errors.New("bad TraceQuery")
 
 // A TraceQuery filters the result of [TraceStore.List].
 type TraceQuery struct {
-	Limit int // maximum number of traces to return
+	// Maximum number of traces to return. If zero, a default value may be used.
+	// Callers should not assume they will get the entire list; they should always
+	// check the returned continuation token.
+	Limit int
+	// Where to continue the listing from. Must be either empty to start from the
+	// beginning, or the result of a recent, previous call to List.
+	ContinuationToken string
 }
 
 // Microseconds represents a time as the number of microseconds since the Unix epoch.

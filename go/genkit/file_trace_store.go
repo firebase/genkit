@@ -18,10 +18,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
+	"strconv"
+	"time"
 )
 
 // A FileTraceStore is a TraceStore that writes traces to files.
@@ -73,25 +77,83 @@ func (s *FileTraceStore) Load(ctx context.Context, id string) (*TraceData, error
 }
 
 // List implements [TraceStore.List].
-// The result is sorted in an implementation-dependent way that is fixed
-// for a given version of this package.
-func (s *FileTraceStore) List(ctx context.Context, q *TraceQuery) ([]*TraceData, error) {
+// The traces are returned in the order they were written, newest first.
+// The default limit is 10.
+func (s *FileTraceStore) List(ctx context.Context, q *TraceQuery) ([]*TraceData, string, error) {
 	entries, err := os.ReadDir(s.dir)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	var ts []*TraceData
+	// Sort by modified time.
+	modTimes := map[string]time.Time{}
 	for _, e := range entries {
+		info, err := e.Info()
+		if err != nil {
+			return nil, "", err
+		}
+		modTimes[e.Name()] = info.ModTime()
+	}
+	slices.SortFunc(entries, func(e1, e2 os.DirEntry) int {
+		return modTimes[e2.Name()].Compare(modTimes[e1.Name()])
+	})
+
+	// Determine subsequence to return.
+	start, end, err := listRange(q, len(entries))
+	if err != nil {
+		return nil, "", err
+	}
+
+	var ts []*TraceData
+	for _, e := range entries[start:end] {
 		t, err := readJSONFile[*TraceData](filepath.Join(s.dir, e.Name()))
 		if err != nil {
-			return nil, err
+			return nil, "", err
 		}
 		ts = append(ts, t)
 	}
-	if q != nil && q.Limit > 0 && len(ts) > q.Limit {
-		ts = ts[:q.Limit]
+	ctoken := ""
+	if end < len(entries) {
+		ctoken = strconv.Itoa(end)
 	}
-	return ts, nil
+	return ts, ctoken, nil
+}
+
+// listRange returns the range of elements to return from a List call.
+func listRange(q *TraceQuery, total int) (start, end int, err error) {
+	const defaultLimit = 10
+	start = 0
+	end = total
+	limit := 0
+	ctoken := ""
+	if q != nil {
+		limit = q.Limit
+		ctoken = q.ContinuationToken
+	}
+	if ctoken != "" {
+		// A continuation token is just an integer index in string form.
+		// This doesn't work well with newest-first order if files are added during listing,
+		// because the indexes will change.
+		// But we use it for consistency with the javascript implementation.
+		// TODO(jba): consider using distance from the end (len(entries) - end).
+		start, err = strconv.Atoi(ctoken)
+		if err != nil {
+			return 0, 0, fmt.Errorf("%w: parsing continuation token: %v", errBadQuery, err)
+		}
+		if start < 0 || start >= total {
+			return 0, 0, fmt.Errorf("%w: continuation token out of range", errBadQuery)
+		}
+	}
+	if limit < 0 {
+		return 0, 0, fmt.Errorf("%w: negative limit", errBadQuery)
+	}
+	if limit == 0 {
+		limit = defaultLimit
+	}
+	end = start + limit
+	if end > total {
+		end = total
+	}
+	return start, end, nil
 }
 
 // readJSONFile reads the contents of filename and JSON-decodes it
