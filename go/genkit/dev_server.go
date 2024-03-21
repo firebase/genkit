@@ -20,11 +20,14 @@ package genkit
 // See js/common/src/reflectionApi.ts.
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"sync/atomic"
 )
 
@@ -44,6 +47,8 @@ func newDevServerMux() *http.ServeMux {
 	mux := http.NewServeMux()
 	handle(mux, "POST /api/runAction", handleRunAction)
 	handle(mux, "GET /api/actions", handleListActions)
+	handle(mux, "GET /api/envs/{env}/traces/{traceID}", handleGetTrace)
+	handle(mux, "GET /api/envs/{env}/traces", handleListTraces)
 	return mux
 }
 
@@ -123,13 +128,66 @@ func handleRunAction(w http.ResponseWriter, r *http.Request) error {
 // handleListActions lists all the registered actions.
 func handleListActions(w http.ResponseWriter, r *http.Request) error {
 	descs := listActions()
-	data, err := json.MarshalIndent(descs, "", "    ")
+	return writeJSON(r.Context(), w, descs)
+}
+
+// handleGetTrace returns a single trace from a TraceStore.
+func handleGetTrace(w http.ResponseWriter, r *http.Request) error {
+	env := r.PathValue("env")
+	ts := lookupTraceStore(Environment(env))
+	if ts == nil {
+		return &httpError{http.StatusNotFound, fmt.Errorf("no TraceStore for environment %q", env)}
+	}
+	tid := r.PathValue("traceID")
+	td, err := ts.Load(r.Context(), tid)
+	if errors.Is(err, fs.ErrNotExist) {
+		return &httpError{http.StatusNotFound, fmt.Errorf("no %s trace with ID %q", env, tid)}
+	}
+	if err != nil {
+		return err
+	}
+	return writeJSON(r.Context(), w, td)
+}
+
+// handleListTraces returns a list of traces from a TraceStore.
+func handleListTraces(w http.ResponseWriter, r *http.Request) error {
+	env := r.PathValue("env")
+	ts := lookupTraceStore(Environment(env))
+	if ts == nil {
+		return &httpError{http.StatusNotFound, fmt.Errorf("no TraceStore for environment %q", env)}
+	}
+	limit := 0
+	if lim := r.FormValue("limit"); lim != "" {
+		var err error
+		limit, err = strconv.Atoi(lim)
+		if err != nil {
+			return &httpError{http.StatusBadRequest, err}
+		}
+	}
+	ctoken := r.FormValue("continuationToken")
+	tds, ctoken, err := ts.List(r.Context(), &TraceQuery{Limit: limit, ContinuationToken: ctoken})
+	if errors.Is(err, errBadQuery) {
+		return &httpError{http.StatusBadRequest, err}
+	}
+	if err != nil {
+		return err
+	}
+	return writeJSON(r.Context(), w, listTracesResult{tds, ctoken})
+}
+
+type listTracesResult struct {
+	Traces            []*TraceData `json:"traces"`
+	ContinuationToken string       `json:"continuationToken"`
+}
+
+func writeJSON(ctx context.Context, w http.ResponseWriter, value any) error {
+	data, err := json.MarshalIndent(value, "", "    ")
 	if err != nil {
 		return err
 	}
 	_, err = w.Write(data)
 	if err != nil {
-		logger(r.Context()).Error("writing actions output", "err", err)
+		logger(ctx).Error("writing output", "err", err)
 	}
 	return nil
 }
