@@ -24,6 +24,7 @@ import {
 } from '../eval';
 import { Runner } from '../runner/runner';
 import { FlowInvokeEnvelopeMessage, FlowState } from '../types/flow';
+import { DocumentData } from '../types/retrievers';
 import { SpanData } from '../types/trace';
 import { logger } from '../utils/logger';
 import { startRunner, waitForFlowToComplete } from '../utils/runner-utils';
@@ -220,7 +221,9 @@ async function fetchDataSet(
         if (!Array.isArray(output)) {
           return [];
         }
-        return output.map((d: { content: string }) => d.content);
+        return output.flatMap((d: DocumentData) =>
+          d.content.map((c) => c.text).filter((text): text is string => !!text)
+        );
       });
 
       if (!rootSpan) {
