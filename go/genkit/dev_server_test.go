@@ -54,7 +54,7 @@ func TestDevServer(t *testing.T) {
 			t.Errorf("got %d, want %d", got, want)
 		}
 	})
-	t.Run("actions", func(t *testing.T) {
+	t.Run("list actions", func(t *testing.T) {
 		res, err := http.Get(srv.URL + "/api/actions")
 		if err != nil {
 			t.Fatal(err)
@@ -74,6 +74,20 @@ func TestDevServer(t *testing.T) {
 		if !slices.EqualFunc(got, want, actionDesc.equal) {
 			t.Errorf("\n got  %v\nwant %v", got, want)
 		}
+	})
+	t.Run("list traces", func(t *testing.T) {
+		res, err := http.Get(srv.URL + "/api/envs/dev/traces")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.StatusCode != 200 {
+			t.Fatalf("got status %d, wanted 200", res.StatusCode)
+		}
+		_, err = readJSON[listTracesResult](res.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// We may have any result, including zero traces, so don't check anything else.
 	})
 }
 
