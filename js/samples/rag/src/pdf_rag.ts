@@ -15,7 +15,7 @@
  */
 
 import { generate } from '@genkit-ai/ai/generate';
-import { TextDocument, index, retrieve } from '@genkit-ai/ai/retrievers';
+import { Document, index, retrieve } from '@genkit-ai/ai/retrievers';
 import { flow, run } from '@genkit-ai/flow';
 import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 import {
@@ -62,7 +62,7 @@ export const pdfQA = flow(
 
     const augmentedPrompt = ragTemplate({
       question: query,
-      context: docs.map((d) => d.content).join('\n\n'),
+      context: docs.map((d) => d.text()).join('\n\n'),
     });
     const llmResponse = await generate({
       model: geminiPro,
@@ -96,13 +96,13 @@ export const indexPdf = flow(
       chunk(pdfTxt, chunkingConfig)
     );
 
-    const transformedDocs: TextDocument[] = chunks.map((text) => {
-      return { content: text, metadata: { filePath } };
+    const documents: Document[] = chunks.map((text) => {
+      return Document.fromText(text, { filePath });
     });
 
     await index({
       indexer: pdfChatIndexer,
-      docs: transformedDocs,
+      documents,
     });
   }
 );

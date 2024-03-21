@@ -15,3 +15,31 @@
  */
 
 export * from './types.js';
+
+export {
+  generate,
+  GenerationResponse,
+  Message,
+  Candidate,
+  GenerateOptions,
+} from './generate';
+export {
+  retrieve,
+  retrieverRef,
+  index,
+  indexerRef,
+  RetrieverAction,
+  IndexerAction,
+  RetrieverInfo,
+  RetrieverReference,
+  IndexerReference,
+  IndexerInfo,
+} from './retrievers';
+export {
+  evaluate,
+  evaluatorRef,
+  EvaluatorReference,
+  EvaluatorAction,
+  EvaluatorInfo,
+} from './evaluators';
+export { defineTool, ToolAction, asTool } from './tool';

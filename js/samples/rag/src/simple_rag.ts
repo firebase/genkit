@@ -15,7 +15,7 @@
  */
 
 import { generate } from '@genkit-ai/ai/generate';
-import { TextDocument, index, retrieve } from '@genkit-ai/ai/retrievers';
+import { Document, index, retrieve } from '@genkit-ai/ai/retrievers';
 import { initializeGenkit } from '@genkit-ai/common/config';
 import { flow } from '@genkit-ai/flow';
 import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
@@ -92,7 +92,7 @@ export const askQuestionsAboutTomAndJerryFlow = flow(
 
     const augmentedPrompt = ragTemplate({
       question: query,
-      context: docs.map((d) => d.content).join('\n\n'),
+      context: docs.map((d) => d.text()).join('\n\n'),
     });
     const model = geminiPro;
     console.log(augmentedPrompt);
@@ -122,7 +122,7 @@ export const askQuestionsAboutSpongebobFlow = flow(
 
     const augmentedPrompt = ragTemplate({
       question: query,
-      context: docs.map((d) => d.content).join('\n\n'),
+      context: docs.map((d) => d.text()).join('\n\n'),
     });
     const model = geminiPro;
     console.log(augmentedPrompt);
@@ -142,15 +142,12 @@ export const indexTomAndJerryDocumentsFlow = flow(
     output: z.void(),
   },
   async (docs) => {
-    const transformedDocs: TextDocument[] = docs.map((text) => {
-      return {
-        content: text,
-        metadata: { type: 'tv', show: 'Tom and Jerry' },
-      };
+    const documents = docs.map((text) => {
+      return Document.fromText(text, { type: 'tv', show: 'Tom and Jerry' });
     });
     await index({
       indexer: tomAndJerryFactsIndexer,
-      docs: transformedDocs,
+      documents,
     });
   }
 );
@@ -164,15 +161,12 @@ export const indexSpongebobDocumentsFlow = flow(
     output: z.void(),
   },
   async (docs) => {
-    const transformedDocs: TextDocument[] = docs.map((text) => {
-      return {
-        content: text,
-        metadata: { type: 'tv', show: 'SpongeBob' },
-      };
+    const documents = docs.map((text) => {
+      return Document.fromText(text, { type: 'tv', show: 'SpongeBob' });
     });
     await index({
       indexer: nfsSpongeBobIndexer,
-      docs: transformedDocs,
+      documents,
     });
   }
 );

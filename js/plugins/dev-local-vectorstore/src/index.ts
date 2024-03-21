@@ -14,19 +14,15 @@
  * limitations under the License.
  */
 
-import {
-  EmbedderAction,
-  EmbedderReference,
-  embed,
-} from '@genkit-ai/ai/embedders';
+import { EmbedderArgument, embed } from '@genkit-ai/ai/embedders';
+import { DocumentData } from '@genkit-ai/ai/retrievers';
 import {
   CommonRetrieverOptionsSchema,
-  TextDocumentSchema,
+  Document,
   defineIndexer,
   defineRetriever,
   indexerRef,
   retrieverRef,
-  type TextDocument,
 } from '@genkit-ai/ai/retrievers';
 import { PluginProvider, genkitPlugin } from '@genkit-ai/common/config';
 import similarity from 'compute-cosine-similarity';
@@ -37,7 +33,7 @@ import * as z from 'zod';
 const _LOCAL_FILESTORE = '__db_{INDEX_NAME}.json';
 
 interface DbValue {
-  doc: TextDocument;
+  doc: DocumentData;
   embedding: Array<number>;
 }
 
@@ -51,7 +47,7 @@ function loadFilestore(indexName: string) {
 }
 
 function addDocument(
-  doc: TextDocument,
+  doc: Document,
   contents: Record<string, DbValue>,
   embedding: Array<number>
 ) {
@@ -66,7 +62,7 @@ function addDocument(
 
 interface Params<EmbedderCustomOptions extends z.ZodTypeAny> {
   indexName: string;
-  embedder: EmbedderReference<EmbedderCustomOptions>;
+  embedder: EmbedderArgument<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }
 
@@ -97,7 +93,7 @@ export function devLocalRetrieverRef(indexName: string) {
   return retrieverRef({
     name: `devLocalVectorstore/${indexName}`,
     info: {
-      label: `Local file-based Retriever`,
+      label: `Local file-based Retriever - ${indexName}`,
     },
     configSchema: CommonRetrieverOptionsSchema.optional(),
   });
@@ -110,22 +106,18 @@ export function devLocalIndexerRef(indexName: string) {
   return indexerRef({
     name: `devLocalVectorstore/${indexName}`,
     info: {
-      label: `Local file-based Indexer`,
-      names: ['LFVS'],
+      label: `Local file-based Indexer - ${indexName}`,
     },
     configSchema: z.null().optional(),
   });
 }
 
 async function importDocumentsToLocalVectorstore<
-  I extends z.ZodTypeAny,
   EmbedderCustomOptions extends z.ZodTypeAny
 >(params: {
   indexName: string;
-  docs: Array<TextDocument>;
-  embedder:
-    | EmbedderReference<EmbedderCustomOptions>
-    | EmbedderAction<I, z.ZodString, EmbedderCustomOptions>;
+  docs: Array<Document>;
+  embedder: EmbedderArgument<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
   const { docs, embedder, embedderOptions } = { ...params };
@@ -135,12 +127,13 @@ async function importDocumentsToLocalVectorstore<
     docs.map(async (doc) => {
       const embedding = await embed({
         embedder,
-        input: doc.content,
+        content: doc,
         options: embedderOptions,
       });
       addDocument(doc, data, embedding);
     })
   );
+
   // Update the file
   fs.writeFileSync(
     _LOCAL_FILESTORE.replace('{INDEX_NAME}', params.indexName),
@@ -155,15 +148,15 @@ async function getClosestDocuments<
   queryEmbeddings: Array<number>;
   db: Record<string, DbValue>;
   k: number;
-}) {
-  const scoredDocs: { score: number; doc: TextDocument }[] = [];
+}): Promise<Document[]> {
+  const scoredDocs: { score: number; doc: Document }[] = [];
   // Very dumb way to check for similar docs.
   for (const [, value] of Object.entries(params.db)) {
     const thisEmbedding = value.embedding;
     const score = similarity(params.queryEmbeddings, thisEmbedding) ?? 0;
     scoredDocs.push({
       score,
-      doc: value.doc,
+      doc: new Document(value.doc),
     });
   }
 
@@ -175,37 +168,33 @@ async function getClosestDocuments<
  * Configures a local vectorstore retriever
  */
 export function configureDevLocalRetriever<
-  I extends z.ZodTypeAny,
   EmbedderCustomOptions extends z.ZodTypeAny
 >(params: {
   indexName: string;
-  embedder:
-    | EmbedderReference<EmbedderCustomOptions>
-    | EmbedderAction<I, z.ZodString, EmbedderCustomOptions>;
+  embedder: EmbedderArgument<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
   const { embedder, embedderOptions } = params;
   const vectorstore = defineRetriever(
     {
-      provider: 'devLocalVectorstore',
-      retrieverId: `devLocalVectorstore/${params.indexName}`,
-      queryType: z.string(),
-      documentType: TextDocumentSchema,
-      customOptionsType: CommonRetrieverOptionsSchema,
+      name: `devLocalVectorstore/${params.indexName}`,
+      configSchema: CommonRetrieverOptionsSchema,
     },
-    async (input, options) => {
+    async (content, options) => {
       const db = loadFilestore(params.indexName);
 
-      const queryEmbeddings = await embed({
+      const embedding = await embed({
         embedder,
-        input,
+        content,
         options: embedderOptions,
       });
-      return getClosestDocuments({
-        k: options?.k ?? 3,
-        queryEmbeddings,
-        db,
-      });
+      return {
+        documents: await getClosestDocuments({
+          k: options?.k ?? 3,
+          queryEmbeddings: embedding,
+          db,
+        }),
+      };
     }
   );
   return vectorstore;
@@ -215,28 +204,20 @@ export function configureDevLocalRetriever<
  * Configures a local vectorstore indexer.
  */
 export function configureDevLocalIndexer<
-  I extends z.ZodTypeAny,
   EmbedderCustomOptions extends z.ZodTypeAny
 >(params: {
   indexName: string;
-  embedder:
-    | EmbedderReference<EmbedderCustomOptions>
-    | EmbedderAction<I, z.ZodString, EmbedderCustomOptions>;
+  embedder: EmbedderArgument<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
   const { embedder, embedderOptions } = params;
   const vectorstore = defineIndexer(
-    {
-      provider: 'devLocalVectorstore',
-      indexerId: `devLocalVectorstore/${params.indexName}`,
-      documentType: TextDocumentSchema,
-      customOptionsType: z.null().optional(),
-    },
+    { name: `devLocalVectorstore/${params.indexName}` },
     async (docs) => {
       await importDocumentsToLocalVectorstore({
         indexName: params.indexName,
         docs,
-        embedder: embedder,
+        embedder,
         embedderOptions: embedderOptions,
       });
     }

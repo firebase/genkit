@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-import { embed, EmbedderReference } from '@genkit-ai/ai/embedders';
+import { embed, EmbedderArgument } from '@genkit-ai/ai/embedders';
 import {
   CommonRetrieverOptionsSchema,
   defineIndexer,
   defineRetriever,
   indexerRef,
   retrieverRef,
-  TextDocumentSchema,
+  Document,
 } from '@genkit-ai/ai/retrievers';
 import { genkitPlugin, PluginProvider } from '@genkit-ai/common/config';
 import {
@@ -57,7 +57,7 @@ export function chroma<EmbedderCustomOptions extends z.ZodTypeAny>(
   params: {
     clientParams?: ChromaClientParams;
     collectionName: string;
-    embedder: EmbedderReference<EmbedderCustomOptions>;
+    embedder: EmbedderArgument<EmbedderCustomOptions>;
     embedderOptions?: z.infer<EmbedderCustomOptions>;
   }[]
 ): PluginProvider {
@@ -67,7 +67,7 @@ export function chroma<EmbedderCustomOptions extends z.ZodTypeAny>(
       params: {
         clientParams?: ChromaClientParams;
         collectionName: string;
-        embedder: EmbedderReference<EmbedderCustomOptions>;
+        embedder: EmbedderArgument<EmbedderCustomOptions>;
         embedderOptions?: z.infer<EmbedderCustomOptions>;
       }[]
     ) => ({
@@ -84,12 +84,10 @@ export const chromaRetrieverRef = (params: {
   collectionName: string;
   displayName?: string;
 }) => {
-  const displayName = params.displayName ?? params.collectionName;
   return retrieverRef({
     name: `chroma/${params.collectionName}`,
     info: {
-      label: `Chroma DB - ${displayName}`,
-      names: [displayName],
+      label: params.displayName ?? `Chroma DB - ${params.collectionName}`,
     },
     configSchema: ChromaRetrieverOptionsSchema.optional(),
   });
@@ -99,12 +97,10 @@ export const chromaIndexerRef = (params: {
   collectionName: string;
   displayName?: string;
 }) => {
-  const displayName = params.displayName ?? params.collectionName;
   return indexerRef({
     name: `chroma/${params.collectionName}`,
     info: {
-      label: `Chroma DB - ${displayName}`,
-      names: [displayName],
+      label: params.displayName ?? `Chroma DB - ${params.collectionName}`,
     },
     configSchema: ChromaIndexerOptionsSchema.optional(),
   });
@@ -118,28 +114,24 @@ export function chromaRetriever<
 >(params: {
   clientParams?: ChromaClientParams;
   collectionName: string;
-  embedder: EmbedderReference<EmbedderCustomOptions>;
+  embedder: EmbedderArgument<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
   const { embedder, collectionName, embedderOptions } = params;
   return defineRetriever(
     {
-      provider: 'chroma',
-      retrieverId: `chroma/${collectionName}`,
-      embedderInfo: embedder.info,
-      queryType: z.string(),
-      documentType: TextDocumentSchema,
-      customOptionsType: ChromaRetrieverOptionsSchema.optional(),
+      name: `chroma/${collectionName}`,
+      configSchema: ChromaRetrieverOptionsSchema.optional(),
     },
-    async (input, options) => {
+    async (content, options) => {
       const client = new ChromaClient(params.clientParams);
       const collection = await client.getCollection({
         name: collectionName,
       });
 
-      const queryEmbeddings = await embed({
+      const embedding = await embed({
         embedder,
-        input,
+        content,
         options: embedderOptions,
       });
       const results = await collection.query({
@@ -147,7 +139,7 @@ export function chromaRetriever<
         include: options?.include,
         where: options?.where,
         whereDocument: options?.whereDocument,
-        queryEmbeddings,
+        queryEmbeddings: embedding,
       });
 
       const documents = results.documents[0];
@@ -167,12 +159,11 @@ export function chromaRetriever<
           (r): r is { document: string; metadata: Record<string, any> } => !!r
         );
 
-      return combined.map((result) => {
-        return {
-          content: result.document,
-          metadata: result.metadata,
-        };
-      });
+      return {
+        documents: combined.map((result) =>
+          Document.fromText(result.document, result.metadata).toJSON()
+        ),
+      };
     }
   );
 }
@@ -186,7 +177,7 @@ export function chromaIndexer<
   clientParams?: ChromaClientParams;
   collectionName: string;
   textKey?: string;
-  embedder: EmbedderReference<EmbedderCustomOptions>;
+  embedder: EmbedderArgument<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
   const { collectionName, embedder, embedderOptions } = {
@@ -196,10 +187,8 @@ export function chromaIndexer<
 
   return defineIndexer(
     {
-      provider: 'chroma',
-      indexerId: `chroma/${params.collectionName}`,
-      documentType: TextDocumentSchema,
-      customOptionsType: ChromaIndexerOptionsSchema,
+      name: `chroma/${params.collectionName}`,
+      configSchema: ChromaIndexerOptionsSchema,
     },
     async (docs) => {
       const collection = await client.getCollection({
@@ -210,11 +199,12 @@ export function chromaIndexer<
         docs.map((doc) =>
           embed({
             embedder,
-            input: doc.content,
+            content: doc,
             options: embedderOptions,
           })
         )
       );
+
       const entries = embeddings.map((value, i) => {
         const metadata: Metadata = {
           ...docs[i].metadata,
@@ -224,7 +214,7 @@ export function chromaIndexer<
         return {
           id,
           value,
-          document: docs[i].content,
+          document: docs[i].text(),
           metadata,
         };
       });
@@ -247,7 +237,7 @@ export async function createChromaCollection<
   name: string;
   clientParams?: ChromaClientParams;
   metadata?: CollectionMetadata;
-  embedder?: EmbedderReference<EmbedderCustomOptions>;
+  embedder?: EmbedderArgument<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
   let chromaEmbedder: IEmbeddingFunction | undefined = undefined;
@@ -259,7 +249,7 @@ export async function createChromaCollection<
           texts.map((text) =>
             embed({
               embedder,
-              input: text,
+              content: text,
               options: params.embedderOptions,
             })
           )
