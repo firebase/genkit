@@ -24,6 +24,7 @@ import { example } from './commands/example';
 import { flowBatchRun } from './commands/flow-batch-run';
 import { flowResume } from './commands/flow-resume';
 import { flowRun } from './commands/flow-run';
+import { init } from './commands/init';
 import { getPluginCommands, getPluginSubCommand } from './commands/plugins';
 import { start } from './commands/start';
 import { notifyAnalyticsIfFirstRun } from './utils/analytics';
@@ -44,6 +45,7 @@ const commands: Command[] = [
   evalExtractData,
   evalRun,
   evalFlowRun,
+  init,
 ];
 
 /** Main entry point for CLI. */

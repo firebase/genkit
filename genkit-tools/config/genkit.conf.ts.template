@@ -1,0 +1,11 @@
+import { configureGenkit } from '@genkit-ai/common/config';
+
+$GENKIT_IMPORTS
+
+export default configureGenkit({
+  plugins: [
+$GENKIT_PLUGINS
+  ],$GENKIT_STORE
+  logLevel: 'debug',
+  enableTracingAndMetrics: true,
+});

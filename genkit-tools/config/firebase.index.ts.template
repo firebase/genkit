@@ -1,0 +1,24 @@
+import { generate } from '@genkit-ai/ai/generate';
+import { run } from '@genkit-ai/flow';
+import { noAuth, onFlow } from '@genkit-ai/plugin-firebase/functions';
+$GENKIT_MODEL_IMPORT
+import * as z from 'zod';
+
+export const jokeFlow = onFlow(
+  {
+    name: 'jokeFlow',
+    input: z.string(),
+    output: z.string(),
+    authPolicy: noAuth(),
+  },
+  async (subject) => {
+    const prompt = `Tell me a joke about ${subject}`;
+
+    const llmResponse = await generate({
+      model: $GENKIT_MODEL,
+      prompt: prompt,
+    });
+
+    return llmResponse.text();
+  }
+);
