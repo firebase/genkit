@@ -34,12 +34,12 @@ export interface PluginOptions {
   location: string;
 }
 
-export const vertexAI: Plugin<[PluginOptions]> = genkitPlugin(
+export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
   'vertex-ai',
-  async (options: PluginOptions) => {
+  async (options?: PluginOptions) => {
     const authClient = new GoogleAuth();
-    const project = options.projectId || getProjectId();
-    const location = options.location || getLocation();
+    const projectId = options?.projectId || getProjectId();
+    const location = options?.location || getLocation();
 
     const confError = (parameter: string, envVariableName: string) => {
       return new Error(
@@ -49,19 +49,21 @@ export const vertexAI: Plugin<[PluginOptions]> = genkitPlugin(
     if (!location) {
       throw confError('location', 'GCLOUD_LOCATION');
     }
-    if (!project) {
+    if (!projectId) {
       throw confError('project', 'GCLOUD_PROJECT');
     }
 
-    const vertexClient = new VertexAI({ project, location });
+    const vertexClient = new VertexAI({ project: projectId, location });
     return {
       models: [
-        imagen2Model(authClient, options),
+        imagen2Model(authClient, { projectId, location }),
         ...Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
           geminiModel(name, vertexClient)
         ),
       ],
-      embedders: [textEmbeddingGeckoEmbedder(authClient, options)],
+      embedders: [
+        textEmbeddingGeckoEmbedder(authClient, { projectId, location }),
+      ],
     };
   }
 );
