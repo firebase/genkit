@@ -18,6 +18,7 @@ import { Command } from 'commander';
 import { randomUUID } from 'crypto';
 import { writeFile } from 'fs/promises';
 import { EvalInput } from '../eval';
+import { DocumentData } from '../types/retrievers';
 import { logger } from '../utils/logger';
 import { startRunner } from '../utils/runner-utils';
 
@@ -73,8 +74,11 @@ export const evalExtractData = new Command('eval:extractData')
               (s) => s.attributes['genkit:metadata:subtype'] === 'retriever'
             )
             .flatMap((s) =>
-              JSON.parse(s.attributes['genkit:output'] as string).map(
-                (d: { content: string }) => d.content
+              JSON.parse(s.attributes['genkit:output'] as string).flatMap(
+                (d: DocumentData) =>
+                  d.content
+                    .map((c) => c.text)
+                    .filter((text): text is string => !!text)
               )
             );
           return {
