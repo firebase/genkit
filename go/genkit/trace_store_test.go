@@ -33,6 +33,8 @@ func TestMicroseconds(t *testing.T) {
 	} {
 		m := timeToMicroseconds(tm)
 		got := m.time()
+		// Compare to the nearest microsecond. Due to the floating-point operations in the above
+		// two functions, we can't be sure that the round trip is more accurate than that.
 		if !got.Round(time.Microsecond).Equal(tm.Round(time.Microsecond)) {
 			t.Errorf("got %v, want %v", got, tm)
 		}
