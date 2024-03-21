@@ -19,11 +19,32 @@
 //
 import { z } from 'zod';
 
-const BaseDocumentSchema = z.object({
-  metadata: z.record(z.string(), z.any()).optional(),
+const EmptyPartSchema = z.object({
+  text: z.never().optional(),
+  media: z.never().optional(),
 });
 
-export const TextDocumentSchema = BaseDocumentSchema.extend({
-  content: z.string(),
+export const TextPartSchema = EmptyPartSchema.extend({
+  /** The text of the document. */
+  text: z.string(),
 });
-export type TextDocument = z.infer<typeof TextDocumentSchema>;
+export type TextPart = z.infer<typeof TextPartSchema>;
+
+export const MediaPartSchema = EmptyPartSchema.extend({
+  media: z.object({
+    /** The media content type. Inferred from data uri if not provided. */
+    contentType: z.string().optional(),
+    /** A `data:` or `https:` uri containing the media content.  */
+    url: z.string(),
+  }),
+});
+export type MediaPart = z.infer<typeof MediaPartSchema>;
+
+export const PartSchema = z.union([TextPartSchema, MediaPartSchema]);
+export type Part = z.infer<typeof PartSchema>;
+
+export const DocumentDataSchema = z.object({
+  content: z.array(PartSchema),
+  metadata: z.record(z.string(), z.any()).optional(),
+});
+export type DocumentData = z.infer<typeof DocumentDataSchema>;

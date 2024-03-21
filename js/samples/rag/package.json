@@ -16,6 +16,7 @@
   "dependencies": {
     "@genkit-ai/ai": "*",
     "@genkit-ai/common": "*",
+    "@genkit-ai/dotprompt": "*",
     "@genkit-ai/flow": "*",
     "@genkit-ai/plugin-vertex-ai": "*",
     "@genkit-ai/plugin-ragas": "*",

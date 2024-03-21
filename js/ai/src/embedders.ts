@@ -19,41 +19,40 @@ import * as registry from '@genkit-ai/common/registry';
 import { lookupAction } from '@genkit-ai/common/registry';
 import { setCustomMetadataAttributes } from '@genkit-ai/common/tracing';
 import * as z from 'zod';
+import { Document, DocumentData, DocumentDataSchema } from './document';
+
+export type EmbeddingBatch = { embedding: number[] }[];
 
 export const EmbeddingSchema = z.array(z.number());
 type Embedding = z.infer<typeof EmbeddingSchema>;
 
-type EmbedderFn<
-  InputType extends z.ZodTypeAny,
-  EmbedderOptions extends z.ZodTypeAny
-> = (
-  input: z.infer<InputType>,
+type EmbedderFn<EmbedderOptions extends z.ZodTypeAny> = (
+  input: Document[],
   embedderOpts?: z.infer<EmbedderOptions>
-) => Promise<Embedding>;
+) => Promise<EmbedResponse>;
 
-export type EmbedderAction<
-  I extends z.ZodTypeAny,
-  InputType extends z.ZodTypeAny,
-  CustomOptions extends z.ZodTypeAny
-> = Action<I, typeof EmbeddingSchema> & {
-  __inputType: InputType;
-  __customOptionsType: CustomOptions;
-  getDimension: () => number;
-};
+const EmbedRequestSchema = z.object({
+  input: z.array(DocumentDataSchema),
+  options: z.any().optional(),
+});
 
-function withMetadata<
-  I extends z.ZodTypeAny,
-  InputType extends z.ZodTypeAny,
-  CustomOptions extends z.ZodTypeAny
->(
-  embedder: Action<I, typeof EmbeddingSchema>,
-  inputType: InputType,
-  customOptionsType: CustomOptions
-): EmbedderAction<I, InputType, CustomOptions> {
-  const withMeta = embedder as EmbedderAction<I, InputType, CustomOptions>;
-  withMeta.__inputType = inputType;
-  withMeta.__customOptionsType = customOptionsType;
-  withMeta.getDimension = () => embedder.__action.metadata?.dimension as number;
+const EmbedResponseSchema = z.object({
+  embeddings: z.array(z.object({ embedding: EmbeddingSchema })),
+  // TODO: stats, etc.
+});
+type EmbedResponse = z.infer<typeof EmbedResponseSchema>;
+
+export type EmbedderAction<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> =
+  Action<typeof EmbedRequestSchema, typeof EmbedResponseSchema> & {
+    __configSchema?: CustomOptions;
+  };
+
+function withMetadata<CustomOptions extends z.ZodTypeAny>(
+  embedder: Action<typeof EmbedRequestSchema, typeof EmbedResponseSchema>,
+  configSchema?: CustomOptions
+): EmbedderAction<CustomOptions> {
+  const withMeta = embedder as EmbedderAction<CustomOptions>;
+  withMeta.__configSchema = configSchema;
   return withMeta;
 }
 
@@ -61,76 +60,117 @@ function withMetadata<
  * Creates embedder model for the provided {@link EmbedderFn} model implementation.
  */
 export function defineEmbedder<
-  InputType extends z.ZodTypeAny,
-  EmbedderOptions extends z.ZodTypeAny
+  ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny
 >(
   options: {
-    provider: string;
-    embedderId: string;
-    inputType: InputType;
-    info: EmbedderInfo;
-    customOptionsType: EmbedderOptions;
+    name: string;
+    configSchema?: ConfigSchema;
+    info?: EmbedderInfo;
   },
-  runner: EmbedderFn<InputType, EmbedderOptions>
+  runner: EmbedderFn<ConfigSchema>
 ) {
   const embedder = action(
     {
-      name: options.embedderId,
-      input: z.object({
-        input: options.inputType,
-        options: options.customOptionsType.optional(),
-      }),
-      output: EmbeddingSchema,
+      name: options.name,
+      input: options.configSchema
+        ? EmbedRequestSchema.extend({
+            options: options.configSchema.optional(),
+          })
+        : EmbedRequestSchema,
+      output: EmbedResponseSchema,
       metadata: {
+        type: 'embedder',
         info: options.info,
       },
     },
     (i) => {
       setCustomMetadataAttributes({ subtype: 'embedder' });
-      return runner(i.input, i.options);
+      return runner(
+        i.input.map((dd) => new Document(dd)),
+        i.options
+      );
     }
   );
   const ewm = withMetadata(
-    embedder,
-    options.inputType,
-    options.customOptionsType
+    embedder as Action<typeof EmbedRequestSchema, typeof EmbedResponseSchema>,
+    options.configSchema
   );
   registry.registerAction('embedder', ewm.__action.name, ewm);
   return ewm;
 }
 
+export type EmbedderArgument<
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
+> = string | EmbedderAction<CustomOptions> | EmbedderReference<CustomOptions>;
+
 /**
  * A veneer for interacting with embedder models.
  */
 export async function embed<
-  I extends z.ZodTypeAny,
-  InputType extends z.ZodTypeAny,
-  EmbedderOptions extends z.ZodTypeAny
+  ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny
 >(params: {
-  embedder:
-    | EmbedderAction<I, InputType, EmbedderOptions>
-    | EmbedderReference<EmbedderOptions>;
-  input: z.infer<InputType>;
-  options?: z.infer<EmbedderOptions>;
+  embedder: EmbedderArgument<ConfigSchema>;
+  content: string | DocumentData;
+  metadata?: Record<string, unknown>;
+  options?: z.infer<ConfigSchema>;
 }): Promise<Embedding> {
-  let embedder: EmbedderAction<I, InputType, EmbedderOptions>;
-  if (Object.hasOwnProperty.call(params.embedder, 'info')) {
-    embedder = await lookupAction(`/embedder/${params.embedder.name}`);
+  let embedder: EmbedderAction<ConfigSchema>;
+  if (typeof params.embedder === 'string') {
+    embedder = await lookupAction(`/embedder/${params.embedder}`);
+  } else if (Object.hasOwnProperty.call(params.embedder, 'info')) {
+    embedder = await lookupAction(
+      `/embedder/${(params.embedder as EmbedderReference).name}`
+    );
   } else {
-    embedder = params.embedder as EmbedderAction<I, InputType, EmbedderOptions>;
+    embedder = params.embedder as EmbedderAction<ConfigSchema>;
   }
   if (!embedder) {
     throw new Error('Unable to utilize the provided embedder');
   }
-  return await embedder({
-    input: params.input,
+  const response = await embedder({
+    input:
+      typeof params.content === 'string'
+        ? [Document.fromText(params.content, params.metadata)]
+        : [params.content],
     options: params.options,
   });
+  return response.embeddings[0].embedding;
+}
+
+/**
+ * A veneer for interacting with embedder models in bulk.
+ */
+export async function embedMany<
+  ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny
+>(params: {
+  embedder: EmbedderArgument<ConfigSchema>;
+  content: string[] | DocumentData[];
+  metadata?: Record<string, unknown>;
+  options?: z.infer<ConfigSchema>;
+}): Promise<EmbeddingBatch> {
+  let embedder: EmbedderAction<ConfigSchema>;
+  if (typeof params.embedder === 'string') {
+    embedder = await lookupAction(`/embedder/${params.embedder}`);
+  } else if (Object.hasOwnProperty.call(params.embedder, 'info')) {
+    embedder = await lookupAction(
+      `/embedder/${(params.embedder as EmbedderReference).name}`
+    );
+  } else {
+    embedder = params.embedder as EmbedderAction<ConfigSchema>;
+  }
+  if (!embedder) {
+    throw new Error('Unable to utilize the provided embedder');
+  }
+  const response = await embedder({
+    input: params.content.map((i) =>
+      typeof i === 'string' ? Document.fromText(i, params.metadata) : i
+    ),
+    options: params.options,
+  });
+  return response.embeddings;
 }
 
 export const EmbedderInfoSchema = z.object({
-  /** Acceptable names for this embedder (e.g. different versions). */
-  names: z.array(z.string()).optional(),
   /** Friendly label for this model (e.g. "Google AI - Gemini Pro") */
   label: z.string().optional(),
   /** Supported model capabilities. */
@@ -143,11 +183,13 @@ export const EmbedderInfoSchema = z.object({
     })
     .optional(),
   /** Embedding dimension */
-  dimension: z.number().optional(),
+  dimensions: z.number().optional(),
 });
 export type EmbedderInfo = z.infer<typeof EmbedderInfoSchema>;
 
-export interface EmbedderReference<CustomOptions extends z.ZodTypeAny> {
+export interface EmbedderReference<
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
+> {
   name: string;
   configSchema?: CustomOptions;
   info?: EmbedderInfo;

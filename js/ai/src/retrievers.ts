@@ -20,123 +20,84 @@ import { lookupAction } from '@genkit-ai/common/registry';
 import { setCustomMetadataAttributes } from '@genkit-ai/common/tracing';
 import * as z from 'zod';
 import { EmbedderInfo } from './embedders';
+import { Document, DocumentData, DocumentDataSchema } from './document';
 
-const BaseDocumentSchema = z.object({
-  metadata: z.record(z.string(), z.any()).optional(),
-});
+export { Document, DocumentData, DocumentDataSchema } from './document';
 
-export const TextDocumentSchema = BaseDocumentSchema.extend({
-  content: z.string(),
-});
-export type TextDocument = z.infer<typeof TextDocumentSchema>;
-
-export const MultipartDocumentSchema = BaseDocumentSchema.extend({
-  content: z.object({
-    mimeType: z.string(),
-    data: z.string(),
-    blob: z.instanceof(Blob).optional(),
-  }),
-});
-export type MultipartDocument = z.infer<typeof MultipartDocumentSchema>;
-
-type DocumentSchemaType =
-  | typeof TextDocumentSchema
-  | typeof MultipartDocumentSchema;
-
-type RetrieverFn<
-  QueryType extends z.ZodTypeAny,
-  DocType extends DocumentSchemaType,
-  RetrieverOptions extends z.ZodTypeAny
-> = (
-  query: z.infer<QueryType>,
+type RetrieverFn<RetrieverOptions extends z.ZodTypeAny> = (
+  query: Document,
   queryOpts: z.infer<RetrieverOptions>
-) => Promise<Array<z.infer<DocType>>>;
+) => Promise<RetrieverResponse>;
 
-type IndexerFn<
-  DocType extends DocumentSchemaType,
-  IndexerOptions extends z.ZodTypeAny
-> = (
-  docs: Array<z.infer<DocType>>,
+type IndexerFn<IndexerOptions extends z.ZodTypeAny> = (
+  docs: Array<Document>,
   indexerOpts: z.infer<IndexerOptions>
 ) => Promise<void>;
 
-type DocumentsCollectionType<DocType extends DocumentSchemaType> =
-  z.ZodArray<DocType>;
+const RetrieverRequestSchema = z.object({
+  query: DocumentDataSchema,
+  options: z.any().optional(),
+});
 
-export type RetrieverAction<
-  I extends z.ZodTypeAny,
-  QueryType extends z.ZodTypeAny,
-  DocType extends DocumentSchemaType,
-  RetrieverOptions extends z.ZodTypeAny
-> = Action<I, DocumentsCollectionType<DocType>> & {
-  __queryType: QueryType;
-  __docType: DocType;
-  __customOptionsType: RetrieverOptions;
-};
+const RetrieverResponseSchema = z.object({
+  documents: z.array(DocumentDataSchema),
+  // TODO: stats, etc.
+});
+type RetrieverResponse = z.infer<typeof RetrieverResponseSchema>;
 
-export type IndexerAction<
-  I extends z.ZodTypeAny,
-  DocType extends DocumentSchemaType,
-  IndexerOptions extends z.ZodTypeAny
-> = Action<I, z.ZodVoid> & {
-  __docType: DocType;
-  __customOptionsType: IndexerOptions;
-};
+const IndexerRequestSchema = z.object({
+  documents: z.array(DocumentDataSchema),
+  options: z.any().optional(),
+});
 
-/**
- * Encapsulation of both {@link RetrieverAction} and {@link IndexerAction}.
- */
-export interface DocumentStore<
-  QueryType extends z.ZodTypeAny,
-  DocType extends DocumentSchemaType,
-  RetrieverOptions extends z.ZodTypeAny,
-  IndexerOptions extends z.ZodTypeAny
-> {
-  (params: {
-    query: z.infer<QueryType>;
-    options: z.infer<RetrieverOptions>;
-  }): Promise<Array<z.infer<DocType>>>;
-  index: (params: {
-    docs: Array<z.infer<DocType>>;
-    options: z.infer<IndexerOptions>;
-  }) => Promise<void>;
-}
+export const RetrieverInfoSchema = z.object({
+  label: z.string().optional(),
+  /** Supported model capabilities. */
+  supports: z
+    .object({
+      /** Model can process media as part of the prompt (multimodal input). */
+      media: z.boolean().optional(),
+    })
+    .optional(),
+});
+export type RetrieverInfo = z.infer<typeof RetrieverInfoSchema>;
+
+export type RetrieverAction<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> =
+  Action<
+    typeof RetrieverRequestSchema,
+    typeof RetrieverResponseSchema,
+    { model: RetrieverInfo }
+  > & {
+    __configSchema?: CustomOptions;
+  };
+
+export type IndexerAction<IndexerOptions extends z.ZodTypeAny = z.ZodTypeAny> =
+  Action<typeof IndexerRequestSchema, z.ZodVoid> & {
+    __configSchema?: IndexerOptions;
+  };
 
 function retrieverWithMetadata<
-  I extends z.ZodTypeAny,
-  QueryType extends z.ZodTypeAny,
-  DocType extends DocumentSchemaType,
-  RetrieverOptions extends z.ZodTypeAny
+  RetrieverOptions extends z.ZodTypeAny = z.ZodTypeAny
 >(
-  retriever: Action<I, DocumentsCollectionType<DocType>>,
-  queryType: QueryType,
-  docType: DocType,
-  customOptionsType: RetrieverOptions
-): RetrieverAction<I, QueryType, DocType, RetrieverOptions> {
-  const withMeta = retriever as RetrieverAction<
-    I,
-    QueryType,
-    DocType,
-    RetrieverOptions
-  >;
-  withMeta.__queryType = queryType;
-  withMeta.__docType = docType;
-  withMeta.__customOptionsType = customOptionsType;
+  retriever: Action<
+    typeof RetrieverRequestSchema,
+    typeof RetrieverResponseSchema
+  >,
+  customOptionsType?: RetrieverOptions
+): RetrieverAction<RetrieverOptions> {
+  const withMeta = retriever as RetrieverAction<RetrieverOptions>;
+  withMeta.__configSchema = customOptionsType;
   return withMeta;
 }
 
 function indexerWithMetadata<
-  I extends z.ZodTypeAny,
-  DocType extends DocumentSchemaType,
-  IndexerOptions extends z.ZodTypeAny
+  IndexerOptions extends z.ZodTypeAny = z.ZodTypeAny
 >(
-  indexer: Action<I, z.ZodVoid>,
-  docType: DocType,
-  customOptionsType: IndexerOptions
-): IndexerAction<I, DocType, IndexerOptions> {
-  const withMeta = indexer as IndexerAction<I, DocType, IndexerOptions>;
-  withMeta.__docType = docType;
-  withMeta.__customOptionsType = customOptionsType;
+  indexer: Action<typeof IndexerRequestSchema, z.ZodVoid>,
+  customOptionsType?: IndexerOptions
+): IndexerAction<IndexerOptions> {
+  const withMeta = indexer as IndexerAction<IndexerOptions>;
+  withMeta.__configSchema = customOptionsType;
   return withMeta;
 }
 
@@ -144,42 +105,40 @@ function indexerWithMetadata<
  *  Creates a retriever action for the provided {@link RetrieverFn} implementation.
  */
 export function defineRetriever<
-  QueryType extends z.ZodTypeAny,
-  DocType extends DocumentSchemaType,
-  RetrieverOptions extends z.ZodTypeAny
+  OptionsType extends z.ZodTypeAny = z.ZodTypeAny
 >(
   options: {
-    provider: string;
-    retrieverId: string;
-    embedderInfo?: EmbedderInfo;
-    queryType: QueryType;
-    documentType: DocType;
-    customOptionsType: RetrieverOptions;
+    name: string;
+    configSchema?: OptionsType;
+    info?: RetrieverInfo;
   },
-  runner: RetrieverFn<QueryType, DocType, RetrieverOptions>
+  runner: RetrieverFn<OptionsType>
 ) {
   const retriever = action(
     {
-      name: options.retrieverId,
-      input: z.object({
-        query: options.queryType,
-        options: options.customOptionsType,
-      }),
-      output: z.array<DocumentSchemaType>(options.documentType),
+      name: options.name,
+      input: options.configSchema
+        ? RetrieverRequestSchema.extend({
+            options: options.configSchema.optional(),
+          })
+        : RetrieverRequestSchema,
+      output: RetrieverResponseSchema,
       metadata: {
-        embedderInfo: options.embedderInfo,
+        type: 'retriever',
+        info: options.info,
       },
     },
     (i) => {
       setCustomMetadataAttributes({ subtype: 'retriever' });
-      return runner(i.query, i.options);
+      return runner(new Document(i.query), i.options);
     }
   );
   const rwm = retrieverWithMetadata(
-    retriever,
-    options.queryType,
-    options.documentType,
-    options.customOptionsType
+    retriever as Action<
+      typeof RetrieverRequestSchema,
+      typeof RetrieverResponseSchema
+    >,
+    options.configSchema
   );
   registry.registerAction('retriever', rwm.__action.name, rwm);
   return rwm;
@@ -188,167 +147,108 @@ export function defineRetriever<
 /**
  *  Creates an indexer action for the provided {@link IndexerFn} implementation.
  */
-export function defineIndexer<
-  DocType extends DocumentSchemaType,
-  IndexerOptions extends z.ZodTypeAny
->(
+export function defineIndexer<IndexerOptions extends z.ZodTypeAny>(
   options: {
-    provider: string;
-    indexerId: string;
+    name: string;
     embedderInfo?: EmbedderInfo;
-    documentType: DocType;
-    customOptionsType: IndexerOptions;
+    configSchema?: IndexerOptions;
   },
-  runner: IndexerFn<DocType, IndexerOptions>
+  runner: IndexerFn<IndexerOptions>
 ) {
   const indexer = action(
     {
-      name: options.indexerId,
-      input: z.object({
-        docs: z.array(options.documentType),
-        options: options.customOptionsType,
-      }),
+      name: options.name,
+      input: options.configSchema
+        ? IndexerRequestSchema.extend({
+            options: options.configSchema.optional(),
+          })
+        : IndexerRequestSchema,
       output: z.void(),
       metadata: {
+        type: 'indexer',
         embedderInfo: options.embedderInfo,
       },
     },
     (i) => {
       setCustomMetadataAttributes({ subtype: 'indexer' });
-      return runner(i.docs, i.options);
+      return runner(
+        i.documents.map((dd) => new Document(dd)),
+        i.options
+      );
     }
   );
   const iwm = indexerWithMetadata(
-    indexer,
-    options.documentType,
-    options.customOptionsType
+    indexer as Action<typeof IndexerRequestSchema, z.ZodVoid>,
+    options.configSchema
   );
   registry.registerAction('indexer', iwm.__action.name, iwm);
   return iwm;
 }
 
-/**
- * Creates a {@link DocumentStore} based on provided {@link RetrieverFn} and {@link IndexerFn}.
- */
-export function documentStoreFactory<
-  QueryType extends z.ZodTypeAny,
-  DocType extends DocumentSchemaType,
-  RetrieverOptions extends z.ZodTypeAny,
-  IndexerOptions extends z.ZodTypeAny
->(params: {
-  provider: string;
-  id: string;
-  queryType: QueryType;
-  documentType: DocType;
-  retrieverOptionsType: RetrieverOptions;
-  indexerOptionsType: IndexerOptions;
-  retrieveFn: RetrieverFn<QueryType, DocType, RetrieverOptions>;
-  indexFn: IndexerFn<DocType, IndexerOptions>;
-}) {
-  const {
-    provider,
-    id,
-    queryType,
-    documentType,
-    retrieverOptionsType,
-    indexerOptionsType,
-  } = { ...params };
-  const indexerAction = defineIndexer(
-    {
-      provider,
-      indexerId: id,
-      documentType,
-      customOptionsType: indexerOptionsType,
-    },
-    params.indexFn
-  );
-  const retrieverAction = defineRetriever(
-    {
-      provider,
-      retrieverId: id,
-      queryType,
-      documentType,
-      customOptionsType: retrieverOptionsType,
-    },
-    params.retrieveFn
-  );
-
-  const store = ((params: {
-    query: z.infer<QueryType>;
-    options: z.infer<RetrieverOptions>;
-  }) =>
-    retrieverAction({
-      query: params.query,
-      options: params.options,
-    })) as DocumentStore<QueryType, DocType, RetrieverOptions, IndexerOptions>;
-  store.index = (params: {
-    docs: Array<z.infer<typeof documentType>>;
-    options: z.infer<IndexerOptions>;
-  }) => indexerAction({ docs: params.docs, options: params.options });
-  return store;
+export interface RetrieverParams<
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
+> {
+  retriever: RetrieverArgument<CustomOptions>;
+  query: string | DocumentData;
+  options?: z.infer<CustomOptions>;
 }
 
+export type RetrieverArgument<
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
+> = RetrieverAction<CustomOptions> | RetrieverReference<CustomOptions> | string;
+
 /**
- * Retrieves documents from a {@link RetrieverAction} or {@link DocumentStore}
- * based on the provided query.
+ * Retrieves documents from a {@link RetrieverAction} based on the provided query.
  */
-export async function retrieve<
-  I extends z.ZodTypeAny,
-  QueryType extends z.ZodTypeAny,
-  DocType extends DocumentSchemaType,
-  RetrieverOptions extends z.ZodTypeAny
->(params: {
-  retriever:
-    | RetrieverReference<RetrieverOptions>
-    | RetrieverAction<I, QueryType, DocType, RetrieverOptions>;
-  query: z.infer<QueryType>;
-  options?: z.infer<RetrieverOptions>;
-}): Promise<Array<z.infer<DocType>>> {
-  let retriever: RetrieverAction<I, QueryType, DocType, RetrieverOptions>;
-  if (Object.hasOwnProperty.call(params.retriever, 'info')) {
+export async function retrieve<CustomOptions extends z.ZodTypeAny>(
+  params: RetrieverParams<CustomOptions>
+): Promise<Array<Document>> {
+  let retriever: RetrieverAction<CustomOptions>;
+  if (typeof params.retriever === 'string') {
+    retriever = await lookupAction(`/retriever/${params.retriever}`);
+  } else if (Object.hasOwnProperty.call(params.retriever, 'info')) {
     retriever = await lookupAction(`/retriever/${params.retriever.name}`);
   } else {
-    retriever = params.retriever as RetrieverAction<
-      I,
-      QueryType,
-      DocType,
-      RetrieverOptions
-    >;
+    retriever = params.retriever as RetrieverAction<CustomOptions>;
   }
   if (!retriever) {
-    throw new Error('Unable to utilize the provided retriever');
+    throw new Error('Unable to resolve the retriever');
   }
-  return await retriever({
-    query: params.query,
+  const response = await retriever({
+    query:
+      typeof params.query === 'string'
+        ? Document.fromText(params.query)
+        : params.query,
     options: params.options,
   });
+
+  return response.documents.map((d) => new Document(d));
 }
+
+export type IndexerArgument<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> =
+  IndexerReference<CustomOptions> | IndexerAction<CustomOptions> | string;
 
 /**
  * Indexes documents using a {@link IndexerAction} or a {@link DocumentStore}.
  */
-export async function index<
-  I extends z.ZodTypeAny,
-  DocType extends DocumentSchemaType,
-  IndexerOptions extends z.ZodTypeAny
->(params: {
-  indexer:
-    | IndexerReference<IndexerOptions>
-    | IndexerAction<I, DocType, IndexerOptions>;
-  docs: Array<z.infer<DocType>>;
+export async function index<IndexerOptions extends z.ZodTypeAny>(params: {
+  indexer: IndexerArgument<IndexerOptions>;
+  documents: Array<DocumentData>;
   options?: z.infer<IndexerOptions>;
 }): Promise<void> {
-  let indexer: IndexerAction<I, DocType, IndexerOptions>;
-  if (Object.hasOwnProperty.call(params.indexer, 'info')) {
+  let indexer: IndexerAction<IndexerOptions>;
+  if (typeof params.indexer === 'string') {
+    indexer = await lookupAction(`/indexer/${params.indexer}`);
+  } else if (Object.hasOwnProperty.call(params.indexer, 'info')) {
     indexer = await lookupAction(`/indexer/${params.indexer.name}`);
   } else {
-    indexer = params.indexer as IndexerAction<I, DocType, IndexerOptions>;
+    indexer = params.indexer as IndexerAction<IndexerOptions>;
   }
   if (!indexer) {
     throw new Error('Unable to utilize the provided indexer');
   }
   return await indexer({
-    docs: params.docs,
+    documents: params.documents,
     options: params.options,
   });
 }
@@ -356,14 +256,6 @@ export async function index<
 export const CommonRetrieverOptionsSchema = z.object({
   k: z.number().describe('Number of documents to retrieve').optional(),
 });
-
-export const RetrieverInfoSchema = z.object({
-  /** Acceptable names for this retriever (e.g. different versions). */
-  names: z.array(z.string()).optional(),
-  /** Friendly label for this model (e.g. "Google AI - Gemini Pro") */
-  label: z.string().optional(),
-});
-export type RetrieverInfo = z.infer<typeof RetrieverInfoSchema>;
 
 export interface RetrieverReference<CustomOptions extends z.ZodTypeAny> {
   name: string;

@@ -49,14 +49,8 @@ export const textEmbeddingGecko = embedderRef({
   name: 'vertex-ai/textembedding-gecko',
   configSchema: TextEmbeddingGeckoConfigSchema,
   info: {
-    dimension: 768,
+    dimensions: 768,
     label: 'Vertex AI - Text Embedding Gecko',
-    names: [
-      'vertex-ai/textembedding-gecko-002',
-      'vertex-ai/textembedding-gecko-003',
-      'vertex-ai/textembedding-gecko-multilingual',
-      'vertex-ai/textembedding-gecko-multilingual-001',
-    ],
     supports: {
       input: ['text'],
     },
@@ -90,21 +84,25 @@ export function textEmbeddingGeckoEmbedder(
   );
   return defineEmbedder(
     {
+      name: textEmbeddingGecko.name,
+      configSchema: TextEmbeddingGeckoConfigSchema,
       info: textEmbeddingGecko.info!,
-      customOptionsType: TextEmbeddingGeckoConfigSchema,
-      inputType: TextEmbeddingGeckoInputSchema,
-      embedderId: textEmbeddingGecko.name,
-      provider: 'vertex-ai',
     },
     async (input, options) => {
-      const instance: EmbeddingInstance =
-        typeof input === 'string' ? { content: input } : input;
-      if (options?.taskType) {
-        instance.task_type = options.taskType;
-      }
-
-      const response = await predict([instance]);
-      return response.predictions[0].embeddings.values;
+      const response = await predict(
+        input.map((i) => {
+          const instance: EmbeddingInstance = { content: i.text() };
+          if (options?.taskType) {
+            instance.task_type = options.taskType;
+          }
+          return instance;
+        })
+      );
+      return {
+        embeddings: response.predictions.map((p) => ({
+          embedding: p.embeddings.values,
+        })),
+      };
     }
   );
 }
