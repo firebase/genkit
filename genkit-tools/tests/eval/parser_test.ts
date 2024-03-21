@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { describe, it, expect } from '@jest/globals';
+import { describe, expect, it } from '@jest/globals';
 import {
   EvalMetricSchema,
   EvalResult,

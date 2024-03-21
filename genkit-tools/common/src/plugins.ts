@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import * as clc from 'colorette';
 import { execSync } from 'child_process';
+import * as clc from 'colorette';
 import { createInterface } from 'readline/promises';
 import { z } from 'zod';
 

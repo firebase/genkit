@@ -15,18 +15,18 @@
  */
 
 import { Command } from 'commander';
-import { logger } from '../utils/logger';
-import { startRunner, waitForFlowToComplete } from '../utils/runner-utils';
-import { FlowInvokeEnvelopeMessage, FlowState } from '../types/flow';
-import { writeFile, readFile } from 'fs/promises';
-import { SpanData } from '../types/trace';
-import { Runner } from '../runner/runner';
+import { randomUUID } from 'crypto';
+import { readFile, writeFile } from 'fs/promises';
 import {
-  LocalFileEvalStore,
   EvalInput,
+  LocalFileEvalStore,
   enrichResultsWithScoring,
 } from '../eval';
-import { randomUUID } from 'crypto';
+import { Runner } from '../runner/runner';
+import { FlowInvokeEnvelopeMessage, FlowState } from '../types/flow';
+import { SpanData } from '../types/trace';
+import { logger } from '../utils/logger';
+import { startRunner, waitForFlowToComplete } from '../utils/runner-utils';
 
 // TODO: Support specifying waiting or streaming
 interface EvalFlowRunOptions {

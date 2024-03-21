@@ -18,6 +18,8 @@ import { ToolPluginSubCommandsSchema } from '@genkit-ai/tools-plugins/plugins';
 import * as clc from 'colorette';
 import { Command, program } from 'commander';
 import { evalExtractData } from './commands/eval-extract-data';
+import { evalFlowRun } from './commands/eval-flow-run';
+import { evalRun } from './commands/eval-run';
 import { example } from './commands/example';
 import { flowBatchRun } from './commands/flow-batch-run';
 import { flowResume } from './commands/flow-resume';
@@ -25,8 +27,6 @@ import { flowRun } from './commands/flow-run';
 import { getPluginCommands, getPluginSubCommand } from './commands/plugins';
 import { start } from './commands/start';
 import { logger } from './utils/logger';
-import { evalRun } from './commands/eval-run';
-import { evalFlowRun } from './commands/eval-flow-run';
 
 /**
  * All commands need to be directly registered in this list.

@@ -1,4 +1,4 @@
-import { EvalInput, EvalResult, EvalMetric, ScoreRecord } from '../eval';
+import { EvalInput, EvalMetric, EvalResult, ScoreRecord } from '../eval';
 
 /**
  * Combines EvalInput with the generated scores to create a storable EvalResult.

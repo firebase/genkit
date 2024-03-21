@@ -15,8 +15,8 @@
  */
 
 import { Command } from 'commander';
-import { startServer } from '../server';
 import { Runner } from '../runner/runner';
+import { startServer } from '../server';
 import { logger } from '../utils/logger';
 
 interface StartOptions {

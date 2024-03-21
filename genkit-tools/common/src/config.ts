@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
+import * as clc from 'colorette';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as clc from 'colorette';
 import * as process from 'process';
-import { ToolPluginSchema } from './plugins';
 import { z } from 'zod';
+import { ToolPluginSchema } from './plugins';
 
 const CONFIG_NAME = 'genkit-tools.conf.js';
 

@@ -15,11 +15,11 @@
  */
 
 import { Command } from 'commander';
-import { startRunner } from '../utils/runner-utils';
-import { logger } from '../utils/logger';
-import { EvalInput } from '../eval';
 import { randomUUID } from 'crypto';
 import { writeFile } from 'fs/promises';
+import { EvalInput } from '../eval';
+import { logger } from '../utils/logger';
+import { startRunner } from '../utils/runner-utils';
 
 interface EvalDatasetOptions {
   env: 'dev' | 'prod';

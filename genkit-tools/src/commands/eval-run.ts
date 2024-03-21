@@ -15,15 +15,15 @@
  */
 
 import { Command } from 'commander';
-import { startRunner } from '../utils/runner-utils';
-import { logger } from '../utils/logger';
-import { readFile, writeFile } from 'fs/promises';
 import { randomUUID } from 'crypto';
+import { readFile, writeFile } from 'fs/promises';
 import {
+  EvalInput,
   LocalFileEvalStore,
   enrichResultsWithScoring,
-  EvalInput,
 } from '../eval';
+import { logger } from '../utils/logger';
+import { startRunner } from '../utils/runner-utils';
 
 interface EvalRunOptions {
   output?: string;

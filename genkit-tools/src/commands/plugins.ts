@@ -16,13 +16,13 @@
 
 import { findToolsConfig } from '@genkit-ai/tools-plugins/config';
 import {
-  ToolPlugin,
   BaseToolPluginAction,
-  SupportedFlagValues,
   SpecialAction,
+  SupportedFlagValues,
+  ToolPlugin,
 } from '@genkit-ai/tools-plugins/plugins';
-import { Command } from 'commander';
 import * as clc from 'colorette';
+import { Command } from 'commander';
 import { logger } from '../utils/logger';
 
 /** Gets plugin commands based on the tools config file, if present. */
