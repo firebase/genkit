@@ -15,11 +15,11 @@
  */
 
 import { config } from '@genkit-ai/common/config';
-import { lookupAction, registerAction } from '@genkit-ai/common/registry';
-import { Prompt, PromptAction } from './prompt';
-import { readFileSync } from 'fs';
 import { logger } from '@genkit-ai/common/logging';
+import { lookupAction, registerAction } from '@genkit-ai/common/registry';
+import { readFileSync } from 'fs';
 import { join } from 'path';
+import { Prompt, PromptAction } from './prompt';
 
 export async function lookupPrompt(
   name: string,

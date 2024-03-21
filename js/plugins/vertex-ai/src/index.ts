@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
-import { Plugin, genkitPlugin } from '@genkit-ai/common/config';
-import { imagen2, imagen2Model } from './imagen';
+import { getLocation, getProjectId } from '@genkit-ai/common';
+import { genkitPlugin, Plugin } from '@genkit-ai/common/config';
+import { VertexAI } from '@google-cloud/vertexai';
+import { GoogleAuth } from 'google-auth-library';
+import { textEmbeddingGecko, textEmbeddingGeckoEmbedder } from './embedder';
 import {
   geminiModel,
   geminiPro,
   geminiProVision,
   SUPPORTED_GEMINI_MODELS,
 } from './gemini';
-import { VertexAI } from '@google-cloud/vertexai';
-import { getProjectId, getLocation } from '@genkit-ai/common';
-import { textEmbeddingGeckoEmbedder, textEmbeddingGecko } from './embedder';
-import { GoogleAuth } from 'google-auth-library';
+import { imagen2, imagen2Model } from './imagen';
 
 export { imagen2, geminiPro, geminiProVision, textEmbeddingGecko };
 

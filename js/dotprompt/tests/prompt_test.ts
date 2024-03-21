@@ -1,12 +1,12 @@
-import { describe, it } from 'node:test';
 import assert from 'node:assert';
+import { describe, it } from 'node:test';
 
 import { defineModel } from '@genkit-ai/ai/model';
 import z from 'zod';
 
+import zodToJsonSchema from 'zod-to-json-schema';
 import { Prompt } from '../src';
 import { PromptMetadata } from '../src/metadata';
-import zodToJsonSchema from 'zod-to-json-schema';
 
 const echo = defineModel({ name: 'echo' }, async (input) => ({
   candidates: [{ index: 0, message: input.messages[0], finishReason: 'stop' }],

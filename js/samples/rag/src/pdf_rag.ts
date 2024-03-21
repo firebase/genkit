@@ -17,11 +17,11 @@
 import { generate } from '@genkit-ai/ai/generate';
 import { Document, index, retrieve } from '@genkit-ai/ai/retrievers';
 import { flow, run } from '@genkit-ai/flow';
-import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 import {
-  devLocalRetrieverRef,
   devLocalIndexerRef,
+  devLocalRetrieverRef,
 } from '@genkit-ai/plugin-dev-local-vectorstore';
+import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import * as z from 'zod';

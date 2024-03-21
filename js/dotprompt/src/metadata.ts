@@ -14,8 +14,11 @@
  * limitations under the License.
  */
 
-import { ModelArgument } from '@genkit-ai/ai/model';
-import { GenerationConfigSchema, GenerationConfig } from '@genkit-ai/ai/model';
+import {
+  GenerationConfig,
+  GenerationConfigSchema,
+  ModelArgument,
+} from '@genkit-ai/ai/model';
 import { ToolArgument } from '@genkit-ai/ai/tool';
 import z from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';

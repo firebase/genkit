@@ -16,10 +16,10 @@
 
 import { getProjectId } from '@genkit-ai/common';
 import { configureGenkit } from '@genkit-ai/common/config';
-import { openAI } from '@genkit-ai/plugin-openai';
+import { firebase } from '@genkit-ai/plugin-firebase';
 import { googleGenAI } from '@genkit-ai/plugin-google-genai';
 import { ollama } from '@genkit-ai/plugin-ollama';
-import { firebase } from '@genkit-ai/plugin-firebase';
+import { openAI } from '@genkit-ai/plugin-openai';
 
 export default configureGenkit({
   plugins: [

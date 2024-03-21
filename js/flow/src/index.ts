@@ -15,23 +15,6 @@
  */
 
 export {
-  flow,
-  Flow,
-  FlowWrapper,
-  StepsFunction,
-  runFlow,
-  streamFlow,
-  startFlowsServer,
-  FlowAuthPolicy,
-  __RequestWithAuth,
-} from './flow';
-export {
-  FlowInvokeEnvelopeMessageSchema,
-  FlowInvokeEnvelopeMessage,
-} from './types';
-export { getFlowAuth } from './utils';
-export { run, runMap, runAction } from './steps';
-export {
   FlowState,
   FlowStateExecutionSchema,
   FlowStateStore,
@@ -39,3 +22,20 @@ export {
   OperationSchema,
 } from '@genkit-ai/common';
 export { FirestoreStateStore } from './firestoreStateStore';
+export {
+  flow,
+  Flow,
+  FlowAuthPolicy,
+  FlowWrapper,
+  runFlow,
+  startFlowsServer,
+  StepsFunction,
+  streamFlow,
+  __RequestWithAuth,
+} from './flow';
+export { run, runAction, runMap } from './steps';
+export {
+  FlowInvokeEnvelopeMessage,
+  FlowInvokeEnvelopeMessageSchema,
+} from './types';
+export { getFlowAuth } from './utils';

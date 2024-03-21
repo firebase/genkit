@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-import { App, initializeApp, getApp, AppOptions } from 'firebase-admin/app';
-import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import {
   FlowState,
   FlowStateQuery,
@@ -24,6 +22,8 @@ import {
   FlowStateStore,
 } from '@genkit-ai/common';
 import { logger } from '@genkit-ai/common/logging';
+import { App, AppOptions, getApp, initializeApp } from 'firebase-admin/app';
+import { Firestore, getFirestore } from 'firebase-admin/firestore';
 
 /**
  * Implementation of flow state store that persistes flow state in Firestore.

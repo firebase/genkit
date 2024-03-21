@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { PluginOptions } from './index';
 import { LoggerConfig } from '@genkit-ai/common';
 import { LoggingWinston } from '@google-cloud/logging-winston';
 import { LoggerOptions } from 'winston';
+import { PluginOptions } from './index';
 
 /**
  * Provides a {LoggerConfig} for exporting Genkit debug logs to GCP Cloud

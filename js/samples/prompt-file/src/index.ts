@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { prompt } from '@genkit-ai/dotprompt';
 import { initializeGenkit } from '@genkit-ai/common/config';
+import { prompt } from '@genkit-ai/dotprompt';
 
 initializeGenkit();
 

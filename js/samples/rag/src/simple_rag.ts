@@ -18,16 +18,16 @@ import { generate } from '@genkit-ai/ai/generate';
 import { Document, index, retrieve } from '@genkit-ai/ai/retrievers';
 import { initializeGenkit } from '@genkit-ai/common/config';
 import { flow } from '@genkit-ai/flow';
-import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 import { chromaIndexerRef, chromaRetrieverRef } from '@genkit-ai/plugin-chroma';
 import {
-  devLocalRetrieverRef,
   devLocalIndexerRef,
+  devLocalRetrieverRef,
 } from '@genkit-ai/plugin-dev-local-vectorstore';
 import {
   pineconeIndexerRef,
   pineconeRetrieverRef,
 } from '@genkit-ai/plugin-pinecone';
+import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 import * as z from 'zod';
 import config from './genkit.conf';
 export * from './pdf_rag';

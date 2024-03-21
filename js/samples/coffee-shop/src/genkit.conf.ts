@@ -18,15 +18,15 @@ import { getProjectId } from '@genkit-ai/common';
 import { configureGenkit } from '@genkit-ai/common/config';
 
 // plugins
-import { googleGenAI, geminiPro } from '@genkit-ai/plugin-google-genai';
-import { openAI } from '@genkit-ai/plugin-openai';
-import { ragas, RagasMetric } from '@genkit-ai/plugin-ragas';
-import { vertexAI, textEmbeddingGecko } from '@genkit-ai/plugin-vertex-ai';
 import { chroma } from '@genkit-ai/plugin-chroma';
-import { firebase } from '@genkit-ai/plugin-firebase';
 import { devLocalVectorstore } from '@genkit-ai/plugin-dev-local-vectorstore';
+import { firebase } from '@genkit-ai/plugin-firebase';
+import { geminiPro, googleGenAI } from '@genkit-ai/plugin-google-genai';
 import { ollama } from '@genkit-ai/plugin-ollama';
+import { openAI } from '@genkit-ai/plugin-openai';
 import { pinecone } from '@genkit-ai/plugin-pinecone';
+import { ragas, RagasMetric } from '@genkit-ai/plugin-ragas';
+import { textEmbeddingGecko, vertexAI } from '@genkit-ai/plugin-vertex-ai';
 
 // Not all plugins configured below are used by the flow, but we load
 // "everything" for UI development and testing.

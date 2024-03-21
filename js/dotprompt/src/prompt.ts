@@ -14,6 +14,17 @@
  * limitations under the License.
  */
 
+import { generate, GenerationResponse } from '@genkit-ai/ai/generate';
+import {
+  GenerationRequest,
+  GenerationResponseSchema,
+  MessageData,
+} from '@genkit-ai/ai/model';
+import { resolveTools, toToolDefinition } from '@genkit-ai/ai/tool';
+import { Action, action } from '@genkit-ai/common';
+import { createHash } from 'crypto';
+import fm, { FrontMatterResult } from 'front-matter';
+import z from 'zod';
 import {
   PromptFrontmatter,
   PromptMetadata,
@@ -21,17 +32,6 @@ import {
   toMetadata,
 } from './metadata';
 import { compile } from './template';
-import {
-  GenerationRequest,
-  GenerationResponseSchema,
-  MessageData,
-} from '@genkit-ai/ai/model';
-import fm, { FrontMatterResult } from 'front-matter';
-import { GenerationResponse, generate } from '@genkit-ai/ai/generate';
-import z from 'zod';
-import { Action, action } from '@genkit-ai/common';
-import { createHash } from 'crypto';
-import { resolveTools, toToolDefinition } from '@genkit-ai/ai/tool';
 
 const PromptInputSchema = z.object({
   input: z.unknown().optional(),

@@ -16,18 +16,18 @@
 
 import { getProjectId } from '@genkit-ai/common';
 import { configureGenkit } from '@genkit-ai/common/config';
-import { googleGenAI } from '@genkit-ai/plugin-google-genai';
+import { chroma } from '@genkit-ai/plugin-chroma';
+import { devLocalVectorstore } from '@genkit-ai/plugin-dev-local-vectorstore';
 import { firebase } from '@genkit-ai/plugin-firebase';
+import { googleGenAI } from '@genkit-ai/plugin-google-genai';
+import { openAI } from '@genkit-ai/plugin-openai';
 import { pinecone } from '@genkit-ai/plugin-pinecone';
+import { ragas, RagasMetric } from '@genkit-ai/plugin-ragas';
 import {
-  textEmbeddingGecko,
   geminiPro,
+  textEmbeddingGecko,
   vertexAI,
 } from '@genkit-ai/plugin-vertex-ai';
-import { chroma } from '@genkit-ai/plugin-chroma';
-import { RagasMetric, ragas } from '@genkit-ai/plugin-ragas';
-import { gpt4Turbo, openAI } from '@genkit-ai/plugin-openai';
-import { devLocalVectorstore } from '@genkit-ai/plugin-dev-local-vectorstore';
 
 export default configureGenkit({
   plugins: [

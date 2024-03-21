@@ -14,7 +14,15 @@
  * limitations under the License.
  */
 
+import {
+  Action,
+  runWithStreamingCallback,
+  StreamingCallback,
+} from '@genkit-ai/common';
+import { lookupAction } from '@genkit-ai/common/registry';
+import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import { extractJson } from './extract';
 import {
   CandidateData,
   GenerationConfig,
@@ -30,16 +38,10 @@ import {
   Role,
   ToolResponsePart,
 } from './model.js';
-import { extractJson } from './extract';
-import { Action } from '@genkit-ai/common';
-import { z } from 'zod';
-import { lookupAction } from '@genkit-ai/common/registry';
-import { StreamingCallback } from '@genkit-ai/common';
-import { runWithStreamingCallback } from '@genkit-ai/common';
 import {
+  resolveTools,
   ToolAction,
   ToolArgument,
-  resolveTools,
   toToolDefinition,
 } from './tool.js';
 

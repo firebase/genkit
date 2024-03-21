@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { PromptFile } from '../src/prompt';
 import { googleAIModel } from '@genkit-ai/providers/google-ai';
+import { PromptFile } from '../src/prompt';
 
 googleAIModel('gemini-pro');
 

@@ -19,9 +19,9 @@ import { getLocation, getProjectId } from '@genkit-ai/common';
 import { configureGenkit } from '@genkit-ai/common/config';
 import { run, runFlow, streamFlow } from '@genkit-ai/flow';
 import { firebase } from '@genkit-ai/plugin-firebase';
-import { onFlow, noAuth } from '@genkit-ai/plugin-firebase/functions';
-import { geminiPro, vertexAI } from '@genkit-ai/plugin-vertex-ai';
 import { firebaseAuth } from '@genkit-ai/plugin-firebase/auth';
+import { noAuth, onFlow } from '@genkit-ai/plugin-firebase/functions';
+import { geminiPro, vertexAI } from '@genkit-ai/plugin-vertex-ai';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as z from 'zod';
 

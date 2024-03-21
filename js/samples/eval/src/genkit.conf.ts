@@ -14,16 +14,12 @@
  * limitations under the License.
  */
 
-import { getProjectId, getLocation } from '@genkit-ai/common';
+import { getLocation, getProjectId } from '@genkit-ai/common';
 import { configureGenkit } from '@genkit-ai/common/config';
-import {
-  vertexAI,
-  textEmbeddingGecko,
-  geminiPro,
-} from '@genkit-ai/plugin-vertex-ai';
-import { openAI, gpt4Turbo } from '@genkit-ai/plugin-openai';
-import { ragas, RagasMetric } from '@genkit-ai/plugin-ragas';
 import { firebase } from '@genkit-ai/plugin-firebase';
+import { gpt4Turbo, openAI } from '@genkit-ai/plugin-openai';
+import { ragas, RagasMetric } from '@genkit-ai/plugin-ragas';
+import { textEmbeddingGecko, vertexAI } from '@genkit-ai/plugin-vertex-ai';
 
 export default configureGenkit({
   plugins: [

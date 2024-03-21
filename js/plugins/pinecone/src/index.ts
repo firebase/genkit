@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-import { EmbedderArgument, embed } from '@genkit-ai/ai/embedders';
+import { embed, EmbedderArgument } from '@genkit-ai/ai/embedders';
 import {
   CommonRetrieverOptionsSchema,
-  Document,
   defineIndexer,
   defineRetriever,
+  Document,
   indexerRef,
   retrieverRef,
 } from '@genkit-ai/ai/retrievers';
-import { PluginProvider, genkitPlugin } from '@genkit-ai/common/config';
+import { genkitPlugin, PluginProvider } from '@genkit-ai/common/config';
 import {
   CreateIndexOptions,
   Pinecone,

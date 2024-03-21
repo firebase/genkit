@@ -16,20 +16,20 @@
 
 import {
   Action,
-  StreamingCallback,
   action,
   getStreamingCallback,
+  StreamingCallback,
 } from '@genkit-ai/common';
 import * as registry from '@genkit-ai/common/registry';
 import {
   setCustomMetadataAttributes,
   spanMetadataAls,
 } from '@genkit-ai/common/tracing';
-import * as telemetry from './telemetry';
+import { performance } from 'node:perf_hooks';
 import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 import { conformOutput, validateSupport } from './model/middleware';
-import { performance } from 'node:perf_hooks';
+import * as telemetry from './telemetry';
 
 //
 // IMPORTANT: Please keep type definitions in sync with

@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { beforeEach, describe, it } from 'node:test';
-import { conformOutput, validateSupport } from '../../src/model/middleware';
 import assert from 'node:assert';
+import { beforeEach, describe, it } from 'node:test';
 import {
+  defineModel,
   GenerationRequest,
   GenerationResponseData,
   Part,
-  defineModel,
 } from '../../src/model';
+import { validateSupport } from '../../src/model/middleware';
 
 describe('validateSupport', () => {
   const examples: Record<string, GenerationRequest> = {

@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { Plugin, genkitPlugin } from '@genkit-ai/common/config';
-import { GcpOpenTelemetry } from './gcpOpenTelemetry';
-import { GcpLogger } from './gcpLogger';
-import { Sampler } from '@opentelemetry/sdk-trace-base';
+import { genkitPlugin, Plugin } from '@genkit-ai/common/config';
 import { InstrumentationConfigMap } from '@opentelemetry/auto-instrumentations-node';
+import { Sampler } from '@opentelemetry/sdk-trace-base';
+import { GcpLogger } from './gcpLogger';
+import { GcpOpenTelemetry } from './gcpOpenTelemetry';
 
 export interface PluginOptions {
   projectId?: string;

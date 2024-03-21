@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
+import { Operation, StreamingCallback } from '@genkit-ai/common';
 import { z } from 'zod';
 import { Flow } from './flow';
-import { Operation } from '@genkit-ai/common';
-import { StreamingCallback } from '@genkit-ai/common';
 
 export type Invoker<
   I extends z.ZodTypeAny,
