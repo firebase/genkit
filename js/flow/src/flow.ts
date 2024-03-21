@@ -75,8 +75,8 @@ export interface RunStepConfig {
  * performs checks before the flow runs. If this throws, the flow will not
  * be executed.
  */
-export interface FlowAuthPolicy {
-  (auth?: unknown): void | Promise<void>;
+export interface FlowAuthPolicy<I extends z.ZodTypeAny> {
+  (auth: unknown | undefined, input: z.infer<I>): void | Promise<void>;
 }
 
 /**
@@ -100,7 +100,7 @@ export function flow<
     input: I;
     output: O;
     streamType?: S;
-    authPolicy?: FlowAuthPolicy;
+    authPolicy?: FlowAuthPolicy<I>;
     middleware?: express.RequestHandler[];
     invoker?: Invoker<I, O, S>;
     experimentalDurable?: boolean;
@@ -164,7 +164,7 @@ export class Flow<
   readonly invoker: Invoker<I, O, S>;
   readonly scheduler: Scheduler<I, O, S>;
   readonly experimentalDurable: boolean;
-  readonly authPolicy?: FlowAuthPolicy;
+  readonly authPolicy?: FlowAuthPolicy<I>;
   readonly middleware?: express.RequestHandler[];
 
   constructor(
@@ -176,7 +176,7 @@ export class Flow<
       invoker: Invoker<I, O, S>;
       scheduler: Scheduler<I, O, S>;
       experimentalDurable: boolean;
-      authPolicy?: FlowAuthPolicy;
+      authPolicy?: FlowAuthPolicy<I>;
       middleware?: express.RequestHandler[];
     },
     private steps: StepsFunction<I, O, S>
@@ -518,7 +518,7 @@ export class Flow<
     let input = req.body.data;
 
     try {
-      await this.authPolicy?.(auth);
+      await this.authPolicy?.(auth, input);
     } catch (e: any) {
       logger.error(e);
       res
@@ -611,11 +611,12 @@ export async function runFlow<
     flow = flow.flow;
   }
 
-  await flow.authPolicy?.(opts?.withLocalAuthContext);
+  const input = payload ? flow.input.parse(payload) : undefined;
+  await flow.authPolicy?.(opts?.withLocalAuthContext, payload);
 
   const state = await flow.invoker(flow, {
     start: {
-      input: payload ? flow.input.parse(payload) : undefined,
+      input,
     },
   });
   if (!state.done) {
@@ -747,7 +748,12 @@ function wrapAsAction<
       },
     },
     async (envelope) => {
-      await flow.authPolicy?.(envelope.auth);
+      // Only non-durable flows have an authPolicy, so envelope.start should always
+      // be defined here.
+      await flow.authPolicy?.(
+        envelope.auth,
+        envelope.start?.input as I | undefined
+      );
       setCustomMetadataAttribute(metadataPrefix('wrapperAction'), 'true');
       return await flow.runEnvelope(
         envelope,

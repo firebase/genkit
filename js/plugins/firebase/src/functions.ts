@@ -38,9 +38,9 @@ export type FunctionFlow<
   S extends z.ZodTypeAny
 > = HttpsFunction & FlowWrapper<I, O, S>;
 
-export interface FunctionFlowAuth {
+export interface FunctionFlowAuth<I extends z.ZodTypeAny> {
   provider: express.RequestHandler;
-  policy: FlowAuthPolicy;
+  policy: FlowAuthPolicy<I>;
 }
 
 interface FunctionFlowConfig<
@@ -51,7 +51,7 @@ interface FunctionFlowConfig<
   name: string;
   input: I;
   output: O;
-  authPolicy: FunctionFlowAuth;
+  authPolicy: FunctionFlowAuth<I>;
   streamType?: S;
   httpsOptions?: HttpsOptions;
   enforceAppCheck?: boolean;
@@ -153,7 +153,7 @@ async function appCheckValid(
  * WARNING: If you are using Cloud Functions for Firebase with no IAM policy,
  * this will allow anyone on the internet to execute this flow.
  */
-export function noAuth(): FunctionFlowAuth {
+export function noAuth(): FunctionFlowAuth<any> {
   return {
     provider: (req, res, next) => next(),
     policy: () => {},
