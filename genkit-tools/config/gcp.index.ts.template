@@ -1,0 +1,25 @@
+import { generate } from '@genkit-ai/ai/generate';
+import { flow, run, startFlowsServer } from '@genkit-ai/flow';
+$GENKIT_MODEL_IMPORT
+import * as z from 'zod';
+
+export const jokeFlow = flow(
+  {
+    name: 'jokeFlow',
+    input: z.string(),
+    output: z.string(),
+  },
+  async (subject) => {
+    const llmResponse = await generate({
+      prompt: `Tell me a long joke about ${subject}`,
+      model: $GENKIT_MODEL,
+      config: {
+        temperature: 1,
+      },
+    });
+
+    return llmResponse.text();
+  }
+);
+
+startFlowsServer();
