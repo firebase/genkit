@@ -75,7 +75,7 @@ describe('localFileEvalStore', () => {
     key: {
       actionId: 'flow/tellMeAJoke',
       evalRunId: 'abc1234',
-      createdAt: new Date(),
+      createdAt: new Date().toISOString(),
     },
     results: evalRunResults,
   });
@@ -83,7 +83,7 @@ describe('localFileEvalStore', () => {
   const evalRunWithoutAction = EvalRunSchema.parse({
     key: {
       evalRunId: 'def456',
-      createdAt: new Date(),
+      createdAt: new Date().toISOString(),
     },
     results: evalRunResults,
   });

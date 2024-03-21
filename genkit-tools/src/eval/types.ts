@@ -38,7 +38,7 @@ export interface ListEvalKeysResponse {
 export const EvalRunKeySchema = z.object({
   actionId: z.string().optional(),
   evalRunId: z.string(),
-  createdAt: z.coerce.date(),
+  createdAt: z.string(),
 });
 export type EvalRunKey = z.infer<typeof EvalRunKeySchema>;
 

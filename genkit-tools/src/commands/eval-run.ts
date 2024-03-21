@@ -88,7 +88,7 @@ export const evalRun = new Command('eval:run')
     await evalStore.save({
       key: {
         evalRunId: randomUUID(),
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
       },
       results: scoredResults,
     });
