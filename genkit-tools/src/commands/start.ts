@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import * as clc from 'colorette';
 import { Command } from 'commander';
 import { Runner } from '../runner/runner';
 import { startServer } from '../server';
@@ -22,6 +23,7 @@ import { logger } from '../utils/logger';
 interface StartOptions {
   headless?: boolean;
   port: string;
+  attach?: string;
 }
 
 /** Command to start GenKit server, optionally without static file serving */
@@ -32,6 +34,10 @@ export const start = new Command('start')
     false
   )
   .option('-p, --port <number>', 'Port to serve on. Default is 4000', '4000')
+  .option(
+    '-a, --attach <number>',
+    'Externally running dev process address to attach to'
+  )
   .action(async (options: StartOptions) => {
     const port = Number(options.port);
     if (isNaN(port) || port < 0) {
@@ -40,6 +46,15 @@ export const start = new Command('start')
     }
 
     const runner = new Runner();
-    await runner.start();
+    if (options.attach) {
+      try {
+        await runner.attach(options.attach);
+      } catch (e) {
+        logger.error(clc.red(clc.bold((e as Error).message)));
+        return;
+      }
+    } else {
+      await runner.start();
+    }
     return startServer(runner, options.headless ?? false, port);
   });

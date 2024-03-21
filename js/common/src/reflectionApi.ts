@@ -215,6 +215,6 @@ export async function startReflectionApi(port?: number | undefined) {
   });
 
   api.listen(port, () => {
-    console.log(`Reflection API running on http://localhost:${port}/api`);
+    console.log(`Reflection API running on http://localhost:${port}`);
   });
 }
