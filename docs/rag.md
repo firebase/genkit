@@ -10,9 +10,8 @@ abstractions to help you do RAG:
 
 The definitions are broad on purpose because Genkit is un-opinionated about what
 an "index" is or how exactly documents are retrieved from it. Genkit only
-provides document formats for `TextDocument` and `MultipartDocument`. Everything
-else is defined by retriever or indexer implementation provider (through the
-plugin system).
+provides `Document` format and everything else is defined by retriever or indexer
+implementation provider.
 
 ## Retrievers
 
@@ -28,13 +27,14 @@ Genkit provides out-of-the box for simple testing and prototyping (DO NOT USE IN
 PRODUCTION).
 
 ```javascript
-import { geminiPro, vertexAI, textEmbeddingGecko } from '@genkit-ai/plugin-vertex-ai';
+import { configureGenkit } from '@genkit-ai/common/config';
 import { devLocalVectorstore } from '@genkit-ai/plugin-dev-local-vectorstore';
+import { textEmbeddingGecko, vertexAI } from '@genkit-ai/plugin-vertex-ai';
 
-export default configureGenkit({
+configureGenkit({
   plugins: [
-    // vertexAI provides the textEmbeddingGecko embedder that'll use.
-    vertexAI({ projectId: getProjectId(), location: 'us-central1' }),
+    // vertexAI provides the textEmbeddingGecko embedder
+    vertexAI(),
     devLocalVectorstore([
       {
         indexName: 'spongebob-facts',
@@ -50,6 +50,8 @@ export default configureGenkit({
 Once configured, create a references for your index:
 
 ```javascript
+import { devLocalIndexerRef, devLocalRetrieverRef } from '@genkit-ai/plugin-dev-local-vectorstore';
+
 export const spongeBobFactRetriever = devLocalRetrieverRef('spongebob-facts');
 export const spongeBobFactIndexer = devLocalIndexerRef('spongebob-facts');
 ```
@@ -57,14 +59,16 @@ export const spongeBobFactIndexer = devLocalIndexerRef('spongebob-facts');
 You can then import documents into the store:
 
 ```javascript
+import { index } from '@genkit-ai/ai/retrievers';
+
 const spongebobFacts = [
   {
-    content: "SpongeBob's primary job is working as the fry cook at the Krusty Krab.",
-    metadata: { type: "tv", show: "Spongebob" },
+    content: 'SpongeBob's primary job is working as the fry cook at the Krusty Krab.',
+    metadata: { type: 'tv', show: 'Spongebob' },
   },
   {
-    content: "SpongeBob is a yellow sea sponge.",
-    metadata: { type: "tv", show: "Spongebob" },
+    content: 'SpongeBob is a yellow sea sponge.',
+    metadata: { type: 'tv', show: 'Spongebob' },
   },
 ]
 
@@ -78,9 +82,11 @@ You can then use the provided `retrieve` function to retrieve documents from the
 store:
 
 ```javascript
+import { retrieve } from '@genkit-ai/ai/retrievers';
+
 const docs = await retrieve({
   retriever: spongeBobFactRetriever,
-  query, // e.g. "Where does spongebob work?"
+  query: 'Where does spongebob work?',
   options: { k: 3 },
 });
 ```
@@ -91,12 +97,14 @@ different one.
 ```js
 import { chroma } from '@genkit-ai/plugin-chroma';
 
-export default configureGenkit({
+configureGenkit({
   plugins: [
-    chroma({
-      collectionName: 'spongebob_collection',
-      embedder: textembeddingGecko,
-    }),
+    chroma([
+      {
+        collectionName: 'spongebob_collection',
+        embedder: textEmbeddingGecko,
+      }
+    ]),
     // ...
   ],
   // ...
@@ -121,7 +129,7 @@ export const spongeBobFactsIndexer = chromaIndexerRef({
 
 const docs = await retrieve({
   retriever: spongeBobFactsRetriever,
-  query: "Who is spongebob?"
+  query: 'Who is spongebob?'
 });
 ```
 
@@ -137,13 +145,15 @@ import { chroma } from '@genkit-ai/plugin-chroma';
 
 export default configureGenkit({
   plugins: [
-    chroma({
-      collectionName: 'spongebob_collection',
-      embedder: textEmbeddingGecko,
-      embedderOptions: { temperature: 0 },
-    }),
+    chroma([
+      {
+        collectionName: 'spongebob_collection',
+        embedder: textEmbeddingGecko,
+        embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
+      }
+    ]),
   ],
- // ...
+  // ...
 });
 ```
 
@@ -171,7 +181,7 @@ export default configureGenkit({
       {
         indexId: 'pdf-chat',
         embedder: textEmbeddingGecko,
-        embedderOptions: { temperature: 0 },
+        embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
       },
     ]),
   ],
@@ -204,45 +214,47 @@ export const tomAndJerryFactsIndexer = pineconeIndexerRef({
 #### pgvector
 
 ```js
+import { embed } from '@genkit-ai/ai/embedders';
 import {
-  TextDocumentSchema,
+  Document,
   defineRetriever,
   retrieve,
 } from '@genkit-ai/ai/retrievers';
-import { z } from 'zod';
-import postgres from 'postgres';
-import { embed } from '@genkit-ai/ai/embedders';
+import { flow } from '@genkit-ai/flow';
 import { textEmbeddingGecko } from '@genkit-ai/plugin-vertex-ai';
 import { toSql } from 'pgvector';
+import postgres from 'postgres';
+import { z } from 'zod';
 
 const sql = postgres({ ssl: false, database: 'recaps' });
 
+const QueryOptions = z.object({
+  show: z.string(),
+  k: z.number().optional()
+})
+
 const sqlRetriever = defineRetriever(
   {
-    provider: 'custom',
-    retrieverId: 'sql',
-    customOptionsType: z.any(),
-    documentType: TextDocumentSchema,
-    queryType: z.object({
-      show: z.string(),
-      question: z.string(),
-    }),
+    name: 'pgvector/myTable',
+    configSchema: QueryOptions
   },
-  async (input) => {
+  async (input, options) => {
     const embedding = await embed({
       embedder: textEmbeddingGecko,
-      input: input.question,
+      content: input,
     });
     const results = await sql`
       SELECT episode_id, season_number, chunk as content
         FROM embeddings
-        WHERE show_id = ${input.show}
-        ORDER BY embedding <#> ${toSql(embedding)} LIMIT 5
+        WHERE show_id = ${options.show}
+        ORDER BY embedding <#> ${toSql(embedding)} LIMIT ${ options.k ?? 3}
       `;
-    return results.map((row) => {
-      const { content, ...metadata } = row;
-      return { content, metadata };
-    });
+    return {
+      documents: results.map((row) => {
+        const { content, ...metadata } = row;
+        return Document.fromText(content, metadata);
+      })
+    };
   }
 );
 ```
@@ -260,16 +272,16 @@ export const askQuestionsOnGoT = flow(
   async (inputQuestion) => {
     const docs = await retrieve({
       retriever: sqlRetriever,
-      query: {
-        show: "Game of Thrones",
-        question: inputQuestion,
+      query: inputQuestion,
+      options: {
+        show: 'Game of Thrones',
       }
     });
     console.log(docs);
 
     // Continue with using retrieved docs
     // in RAG prompts.
-    ...
+    //...
   }
 );
 ```
@@ -287,10 +299,9 @@ extensions) on top.
 ```javascript
 import {
   CommonRetrieverOptionsSchema,
-  TextDocumentSchema,
   defineRetriever,
-  retrieve,
-} from "@genkit-ai/ai/retrievers";
+  retrieve
+} from '@genkit-ai/ai/retrievers';
 import * as z from 'zod';
 
 const MyAdvancedOptionsSchema = CommonRetrieverOptionsSchema.extend({
@@ -298,11 +309,8 @@ const MyAdvancedOptionsSchema = CommonRetrieverOptionsSchema.extend({
 });
 
 const advancedRetriever = defineRetriever({
-  provider: 'custom',
-  retrieverId: `custom/myAdvancedRetriever`,
-  queryType: z.string(),
-  documentType: TextDocumentSchema,
-  customOptionsType: MyAdvancedOptionsSchema,
+  name: `custom/myAdvancedRetriever`,
+  configSchema: MyAdvancedOptionsSchema,
 },
   async (input, options) => {
     const extendedPrompt = await extendPrompt(input);
@@ -325,7 +333,7 @@ And then you can just swap out your retriever:
 ```javascript
 const docs = await retrieve({
   retriever: advancedRetriever,
-  query: "Who is spongebob?",
+  query: 'Who is spongebob?',
   options: { preRerankK: 7, k: 3 }
 });
 ```
@@ -336,8 +344,14 @@ Genkit does not provide built-in chunking libraries, however there are
 open source libraries available that are compatible with Genkit.
 
 ```js
-// npm install llm-chunk
-import { chunk } from 'llm-chunk';
+import { Document, index } from '@genkit-ai/ai/retrievers';
+import { flow, run } from '@genkit-ai/flow';
+import { pineconeIndexerRef } from '@genkit-ai/plugin-pinecone';
+import fs from 'fs';
+import { chunk } from 'llm-chunk'; // npm install llm-chunk
+import path from 'path';
+import pdf from 'pdf-parse'; // npm i pdf-parse && npm i -D --save @types/pdf-parse
+import z from 'zod';
 
 const chunkingConfig = {
   minLength: 1000, // number of minimum characters into chunk
@@ -346,11 +360,9 @@ const chunkingConfig = {
   overlap: 100, // number of overlap chracters
   delimiters: '', // regex for base split method
 } as any;
-```
 
-here's how you can use the chunking library with Genkit:
+export const pdfChatIndexer = pineconeIndexerRef({indexId: 'pdf-chat'});
 
-```js
 export const indexPdf = flow(
   {
     name: 'indexPdf',
@@ -367,14 +379,21 @@ export const indexPdf = flow(
       chunk(pdfTxt, chunkingConfig)
     );
 
-    const transformedDocs: TextDocument[] = chunks.map((text) => {
-      return { content: text, metadata: { filePath } };
+    const documents = chunks.map((text) => {
+      return Document.fromText(text, { filePath });
     });
 
     await index({
       indexer: pdfChatIndexer,
-      docs: transformedDocs,
+      documents,
     });
   }
 );
+
+async function extractTextFromPdf(filePath: string) {
+  const pdfFile = path.resolve(filePath)
+  const dataBuffer = fs.readFileSync(pdfFile);
+  const data = await pdf(dataBuffer)
+  return data.text
+}
 ```
