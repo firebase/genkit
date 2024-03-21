@@ -7,13 +7,13 @@ You can run Genkit's developer tooling locally using the Genkit CLI:
 npx genkit start
 ```
 
-You can run flows
+You can run flows:
 
 ```posix-terminal
 npx genkit flow:run myFlow {"input":"value"}
 ```
 
-or resume flows
+Or resume flows:
 
 ```posix-terminal
 npx genkit flow:resume myFlow FLOW_ID {"resume":"value"}
