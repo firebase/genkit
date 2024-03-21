@@ -26,6 +26,7 @@ import { flowResume } from './commands/flow-resume';
 import { flowRun } from './commands/flow-run';
 import { getPluginCommands, getPluginSubCommand } from './commands/plugins';
 import { start } from './commands/start';
+import { notifyAnalyticsIfFirstRun } from './utils/analytics';
 import { logger } from './utils/logger';
 
 /**
@@ -60,6 +61,8 @@ export async function startCLI(): Promise<void> {
   program.action((_, { args }: { args: string[] }) => {
     logger.error(`"${clc.bold(args[0])}" is not a known Genkit command.`);
   });
+
+  await notifyAnalyticsIfFirstRun();
 
   await program.parseAsync();
 }
