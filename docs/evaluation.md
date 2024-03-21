@@ -47,7 +47,7 @@ You can then see evaluation results in the output json file.
 
 ## Advanced use
 
-`eval:flow` is a convenient way quickly evaludate the flow, but sometimes you might need more control over evaluation steps. You can perform all the step that `eval:flow` semi-manually.
+`eval:flow` is a convenient way quickly evaluate the flow, but sometimes you might need more control over evaluation steps. You can perform all the step that `eval:flow` semi-manually.
 
 You can batch run your RAG flow and label the runs with a unique label which then will be used to extract evaluation data.
 
