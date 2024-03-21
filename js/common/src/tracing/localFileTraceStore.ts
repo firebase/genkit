@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { logger } from '../logging';
-import os from 'os';
-import fs from 'fs';
-import path from 'path';
 import crypto from 'crypto';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+import { logger } from '../logging';
 import {
   TraceData,
   TraceDataSchema,

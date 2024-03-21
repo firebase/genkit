@@ -15,9 +15,9 @@
  */
 
 import {
+  internalMetricNamespaceWrap,
   MetricCounter,
   MetricHistogram,
-  internalMetricNamespaceWrap,
 } from '@genkit-ai/common/metrics';
 import { ValueType } from '@opentelemetry/api';
 

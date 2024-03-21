@@ -15,8 +15,8 @@
  */
 
 import { genkitPlugin, Plugin } from '@genkit-ai/common/config';
-import { FirestoreStateStore } from '@genkit-ai/flow';
 import { FirestoreTraceStore } from '@genkit-ai/common/tracing';
+import { FirestoreStateStore } from '@genkit-ai/flow';
 
 interface FirestorePluginParams {
   projectId?: string;

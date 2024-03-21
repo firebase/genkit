@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { describe, it, beforeEach } from 'node:test';
-import {
-  __hardResetRegistryForTesting,
-  registerPluginProvider,
-  registerAction,
-  lookupAction,
-  listActions,
-} from '../src/registry';
 import assert from 'node:assert';
+import { beforeEach, describe, it } from 'node:test';
+import {
+  listActions,
+  lookupAction,
+  registerAction,
+  registerPluginProvider,
+  __hardResetRegistryForTesting,
+} from '../src/registry';
 import { action } from '../src/types';
 
 describe('registry', () => {

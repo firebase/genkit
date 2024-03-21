@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
+import { initializeApp } from 'firebase/app';
 import {
-  GoogleAuthProvider,
   connectAuthEmulator,
   getAuth,
+  GoogleAuthProvider,
   signInAnonymously,
   signInWithPopup,
 } from 'firebase/auth';
-import { initializeApp } from 'firebase/app';
 import {
   connectFunctionsEmulator,
   getFunctions,

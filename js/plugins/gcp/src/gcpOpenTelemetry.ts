@@ -14,23 +14,25 @@
  * limitations under the License.
  */
 
-import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
-import { Instrumentation } from '@opentelemetry/instrumentation';
-import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
-import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
-import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
-import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
-import { Resource } from '@opentelemetry/resources';
-import { Span } from '@opentelemetry/api';
 import { TelemetryConfig } from '@genkit-ai/common';
-import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
 import { MetricExporter } from '@google-cloud/opentelemetry-cloud-monitoring-exporter';
+import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
+import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
+import { Span } from '@opentelemetry/api';
+import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { Instrumentation } from '@opentelemetry/instrumentation';
+import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
+import { WinstonInstrumentation } from '@opentelemetry/instrumentation-winston';
+import { Resource } from '@opentelemetry/resources';
 import {
   MetricReader,
   PeriodicExportingMetricReader,
 } from '@opentelemetry/sdk-metrics';
-import { WinstonInstrumentation } from '@opentelemetry/instrumentation-winston';
-import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
+import {
+  AlwaysOnSampler,
+  BatchSpanProcessor,
+} from '@opentelemetry/sdk-trace-base';
 import { PluginOptions } from './index';
 
 /**

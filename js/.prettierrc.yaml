@@ -14,3 +14,4 @@
 
 trailingComma: 'es5'
 semi: true
+plugins: ['prettier-plugin-organize-imports']

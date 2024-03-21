@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { AsyncLocalStorage } from 'node:async_hooks';
 import {
+  Link,
+  Span as ApiSpan,
   SpanStatusCode,
   trace,
-  Span as ApiSpan,
-  Link,
 } from '@opentelemetry/api';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { SpanMetadata } from './types';
 
 export const spanMetadataAls = new AsyncLocalStorage<SpanMetadata>();

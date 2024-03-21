@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { loadPromptDir } from '../src/index';
 import { useGoogleAI } from '@genkit-ai/providers/google-ai';
+import { loadPromptDir } from '../src/index';
 
 useGoogleAI();
 

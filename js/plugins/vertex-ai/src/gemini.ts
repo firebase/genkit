@@ -15,30 +15,29 @@
  */
 
 import {
+  CandidateData,
+  defineModel,
+  getBasicUsageStats,
+  MediaPart,
+  MessageData,
+  ModelAction,
+  ModelMiddleware,
+  modelRef,
+  Part,
+  ToolDefinitionSchema,
+} from '@genkit-ai/ai/model';
+import { downloadRequestMedia } from '@genkit-ai/ai/model/middleware';
+import {
   Content,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
   GenerateContentCandidate,
   GenerateContentResponse,
+  Part as VertexPart,
   StartChatParams,
   Tool,
   VertexAI,
-  Part as VertexPart,
-  FunctionDeclarationsTool,
 } from '@google-cloud/vertexai';
-import {
-  CandidateData,
-  MediaPart,
-  MessageData,
-  ModelAction,
-  ModelMiddleware,
-  Part,
-  ToolDefinitionSchema,
-  defineModel,
-  getBasicUsageStats,
-  modelRef,
-} from '@genkit-ai/ai/model';
-import { downloadRequestMedia } from '@genkit-ai/ai/model/middleware';
 import { z } from 'zod';
 
 export const geminiPro = modelRef({

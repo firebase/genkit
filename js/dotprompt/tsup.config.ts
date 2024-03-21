@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Options, defineConfig } from 'tsup';
+import { defineConfig, Options } from 'tsup';
 import { defaultOptions } from '../tsup.common';
 
 export default defineConfig({

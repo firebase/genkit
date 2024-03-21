@@ -24,7 +24,7 @@ import { PluginProvider } from './plugin';
 import * as registry from './registry';
 import { AsyncProvider } from './registry';
 import { TelemetryConfig, TelemetryOptions } from './telemetryTypes';
-import { TraceStore, enableTracingAndMetrics } from './tracing';
+import { enableTracingAndMetrics, TraceStore } from './tracing';
 import { LocalFileTraceStore } from './tracing/localFileTraceStore';
 
 export * from './plugin.js';

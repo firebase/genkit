@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+import { MediaPart, MessageData, Part, Role } from '@genkit-ai/ai/model';
 import Handlebars from 'handlebars';
 import { PromptMetadata } from './metadata';
-import { MediaPart, MessageData, Part, Role } from '@genkit-ai/ai/model';
 
 const Promptbars = Handlebars.create();
 

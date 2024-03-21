@@ -17,8 +17,8 @@
 import { Context } from '@opentelemetry/api';
 import {
   ReadableSpan,
-  SpanProcessor,
   Span,
+  SpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
 import { ATTR_PREFIX } from './instrumentation';
 

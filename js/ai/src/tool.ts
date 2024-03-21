@@ -18,8 +18,8 @@ import { Action, action } from '@genkit-ai/common';
 import { lookupAction, registerAction } from '@genkit-ai/common/registry';
 import { setCustomMetadataAttributes } from '@genkit-ai/common/tracing';
 import z from 'zod';
-import { ToolDefinition } from './model';
 import zodToJsonSchema from 'zod-to-json-schema';
+import { ToolDefinition } from './model';
 
 export type ToolAction<
   I extends z.ZodTypeAny = z.ZodTypeAny,

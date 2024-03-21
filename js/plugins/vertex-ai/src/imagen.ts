@@ -16,8 +16,8 @@
 
 import {
   CandidateData,
-  GenerationRequest,
   defineModel,
+  GenerationRequest,
   getBasicUsageStats,
   modelRef,
 } from '@genkit-ai/ai/model';

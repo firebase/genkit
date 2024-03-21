@@ -19,9 +19,9 @@ import {
   CommonRetrieverOptionsSchema,
   defineIndexer,
   defineRetriever,
+  Document,
   indexerRef,
   retrieverRef,
-  Document,
 } from '@genkit-ai/ai/retrievers';
 import { genkitPlugin, PluginProvider } from '@genkit-ai/common/config';
 import {

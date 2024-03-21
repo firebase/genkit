@@ -17,10 +17,10 @@
 import { generate } from '@genkit-ai/ai/generate';
 import { initializeGenkit } from '@genkit-ai/common/config';
 import { flow, run, runFlow } from '@genkit-ai/flow';
+import { gpt35Turbo } from '@genkit-ai/plugin-openai';
 import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 import * as z from 'zod';
 import config from './genkit.conf';
-import { gpt35Turbo } from '@genkit-ai/plugin-openai';
 
 initializeGenkit(config);
 

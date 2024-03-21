@@ -19,8 +19,8 @@ import * as registry from '@genkit-ai/common/registry';
 import { lookupAction } from '@genkit-ai/common/registry';
 import { setCustomMetadataAttributes } from '@genkit-ai/common/tracing';
 import * as z from 'zod';
-import { EmbedderInfo } from './embedders';
 import { Document, DocumentData, DocumentDataSchema } from './document';
+import { EmbedderInfo } from './embedders';
 
 export { Document, DocumentData, DocumentDataSchema } from './document';
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Action, Operation, asyncSleep } from '@genkit-ai/common';
+import { Action, asyncSleep, Operation } from '@genkit-ai/common';
 import { logger } from '@genkit-ai/common/logging';
 import * as z from 'zod';
 import { PollingConfig } from './context';
@@ -23,7 +23,7 @@ import {
   FlowNotFoundError,
   FlowStillRunningError,
 } from './errors';
-import { Flow, FlowWrapper, RunStepConfig, StepsFunction, flow } from './flow';
+import { Flow, flow, FlowWrapper, RunStepConfig, StepsFunction } from './flow';
 import { Invoker, Scheduler } from './types';
 import { getActiveContext } from './utils';
 

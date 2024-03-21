@@ -35,8 +35,9 @@ import {
   SPAN_TYPE_ATTR,
 } from '@genkit-ai/common/tracing';
 import * as bodyParser from 'body-parser';
-import { default as cors, CorsOptions } from 'cors';
+import { CorsOptions, default as cors } from 'cors';
 import express from 'express';
+import { performance } from 'node:perf_hooks';
 import * as z from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { Context } from './context';
@@ -57,7 +58,6 @@ import {
   Scheduler,
 } from './types';
 import { generateFlowId, metadataPrefix, runWithActiveContext } from './utils';
-import { performance } from 'node:perf_hooks';
 
 const streamDelimiter = '\n';
 const createdFlows = [] as Flow<any, any, any>[];

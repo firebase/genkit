@@ -16,12 +16,12 @@
 
 import {
   CandidateData,
+  defineModel,
   GenerationRequest,
   GenerationResponseData,
-  defineModel,
   getBasicUsageStats,
 } from '@genkit-ai/ai/model';
-import { Plugin, genkitPlugin } from '@genkit-ai/common/config';
+import { genkitPlugin, Plugin } from '@genkit-ai/common/config';
 import { logger } from '@genkit-ai/common/logging';
 
 interface OllamaPluginParams {

@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { SpanKind, HrTime } from '@opentelemetry/api';
-import { SpanExporter, ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import { HrTime, SpanKind } from '@opentelemetry/api';
 import {
   ExportResult,
   ExportResultCode,
   hrTimeToMicroseconds,
 } from '@opentelemetry/core';
-import { SpanData, TraceData, TraceStore } from './types';
+import { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base';
 import { deleteUndefinedProps } from '../utils';
+import { SpanData, TraceData, TraceStore } from './types';
 
 /**
  * Exports collected OpenTelemetetry spans to Firestore.

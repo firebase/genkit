@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { Plugin, genkitPlugin } from '@genkit-ai/common/config';
+import { genkitPlugin, Plugin } from '@genkit-ai/common/config';
 import {
-  googleAIModel,
   geminiPro,
   geminiProVision,
+  googleAIModel,
   SUPPORTED_MODELS,
 } from './gemini';
 export { geminiPro, geminiProVision };

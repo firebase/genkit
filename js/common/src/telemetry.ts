@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
+import { ValueType } from '@opentelemetry/api';
 import {
+  internalMetricNamespaceWrap,
   MetricCounter,
   MetricHistogram,
-  internalMetricNamespaceWrap,
 } from './metrics';
-import { ValueType } from '@opentelemetry/api';
 
 /**
  * Wraps the declared metrics in a Genkit-specific, internal namespace.
