@@ -156,7 +156,7 @@ const toGeminiToolResponsePart = (part: Part): VertexPart => {
   };
 };
 
-const toGeminiMessage = (message: MessageData): Content => {
+export const toGeminiMessage = (message: MessageData): Content => {
   const vertexRole = toGeminiRole(message.role);
   const vertexAiMessage: any = {
     role: vertexRole,
@@ -278,11 +278,11 @@ function fromGeminiPart(part: VertexPart): Part {
   );
 }
 
-function fromGeminiCandidate(
+export function fromGeminiCandidate(
   candidate: GenerateContentCandidate
 ): CandidateData {
   const parts = candidate.content.parts || [];
-  return {
+  const genkitCandidate: CandidateData = {
     index: candidate.index || 0, // reasonable default?
     message: {
       role: 'model',
@@ -295,6 +295,7 @@ function fromGeminiCandidate(
       citationMetadata: candidate.citationMetadata,
     },
   };
+  return genkitCandidate;
 }
 
 // Translate JSON schema to Vertex AI's format. Specifically, the type field needs be mapped.
