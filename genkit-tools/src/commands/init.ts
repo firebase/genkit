@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import * as fs from 'fs';
 import * as inquirer from 'inquirer';
 import * as path from 'path';
+import { InitEvent, record } from '../utils/analytics';
 import { logger } from '../utils/logger';
 
 /** Maps from supported platforms to required plugins. */
@@ -156,6 +157,8 @@ export const init = new Command('init')
       logger.error(error);
       process.exit(1);
     }
+
+    await record(new InitEvent(platform));
     logger.info('Genkit successfully initialized.');
   });
 
