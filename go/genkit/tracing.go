@@ -16,21 +16,74 @@ package genkit
 
 import (
 	"context"
+	"os"
 	"path"
 	"sync"
 
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 )
 
-// This file contains code translated from js/common/src/tracing/*.ts.
+// tracerType holds an OpenTelemetry Tracer for creating traces.
+type tracerType struct {
+	mu  sync.Mutex
+	val trace.Tracer
+}
 
-// tracer is an OpenTelemetry object that creates traces.
-// Use the same one for the lifetime of the process.
-var tracer = otel.Tracer("genkit-tracer")
+func (tt *tracerType) get() trace.Tracer {
+	tt.mu.Lock()
+	defer tt.mu.Unlock()
+	if tt.val == nil {
+		panic("tracing not configured; did you call genkit.Init?")
+	}
+	return tt.val
+}
 
+func (tt *tracerType) set(t trace.Tracer) {
+	tt.mu.Lock()
+	defer tt.mu.Unlock()
+	tt.val = t
+}
+
+// globalTracer
+// Use the same Tracer for the lifetime of the process.
+var globalTracer tracerType
+
+// initTracing is called from [Init] to initialize the tracer global.
+// It returns a function that must be called before the program exits to
+// ensure all traces have been stored.
+func initTracing() (shutdown func(context.Context) error, err error) {
+	// TODO(jba): The js code uses a hash of the program name as the directory,
+	// so the same store is used across runs. That won't work well with the common
+	// use of `go run`. Should we let the user configure the directory?
+	// Does it matter?
+	dir, err := os.MkdirTemp("", "genkit-tracing")
+	if err != nil {
+		return nil, err
+	}
+	// Don't remove the temp directory, for post-mortem debugging.
+	devTS, err := NewFileTraceStore(dir)
+	if err != nil {
+		return nil, err
+	}
+	registerTraceStore(EnvironmentDev, devTS)
+	devExporter := newTraceStoreExporter(devTS)
+	// Write dev traces synchronously to disk, so we never lose one from a crash.
+	opts := []sdktrace.TracerProviderOption{sdktrace.WithSyncer(devExporter)}
+	if prodTS := lookupTraceStore(EnvironmentProd); prodTS != nil {
+		prodExporter := newTraceStoreExporter(prodTS)
+		// Batch traces for efficiency. Saving to a production TraceStore will likely
+		// involve an RPC or two.
+		opts = append(opts, sdktrace.WithBatcher(prodExporter))
+	}
+	traceProvider := sdktrace.NewTracerProvider(opts...)
+	globalTracer.set(traceProvider.Tracer("genkit-tracer"))
+	return traceProvider.Shutdown, nil
+}
+
+// The res of this file contains code translated from js/common/src/tracing/*.ts.
 const (
 	attrPrefix   = "genkit"
 	spanTypeAttr = attrPrefix + ":type"
@@ -59,7 +112,7 @@ func runInNewSpan[I, O any](
 		parentPath = parentSpanMeta.Path
 	}
 	sm.Path = path.Join(parentPath, name)
-	ctx, span := tracer.Start(ctx, name, trace.WithAttributes(attribute.String(spanTypeAttr, spanType)))
+	ctx, span := globalTracer.get().Start(ctx, name, trace.WithAttributes(attribute.String(spanTypeAttr, spanType)))
 	defer span.End()
 	// At the end, copy some of the spanMetadata to the OpenTelemetry span.
 	defer func() { span.SetAttributes(sm.attributes()...) }()
