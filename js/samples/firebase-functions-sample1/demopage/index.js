@@ -55,6 +55,7 @@ $(() => {
   emulated = new URL(window.location.href).search.includes('emulated=true');
   initializeApp(window.firebaseConfig);
   auth = getAuth();
+  window.auth = auth;
   const fns = getFunctions();
 
   if (emulated) {

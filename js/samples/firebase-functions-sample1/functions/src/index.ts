@@ -67,15 +67,15 @@ export const jokeFlow = onFlow(
 export const authFlow = onFlow(
   {
     name: 'authFlow',
-    input: z.string(),
+    input: z.object({ uid: z.string(), input: z.string() }),
     output: z.string(),
-    authPolicy: firebaseAuth((user) => {
-      if (!user.email_verified) {
-        throw new Error('Email not verified');
+    authPolicy: firebaseAuth((user, input) => {
+      if (user.user_id !== input.uid) {
+        throw new Error('User must act as themselves');
       }
     }),
   },
-  async (input) => input.toUpperCase()
+  async ({ input }) => input.toUpperCase()
 );
 
 export const streamer = onFlow(

@@ -18,25 +18,29 @@ import { __RequestWithAuth } from '@genkit-ai/flow';
 import { Response } from 'express';
 import { DecodedIdToken, getAuth } from 'firebase-admin/auth';
 import { FunctionFlowAuth } from './functions';
+import * as z from 'zod';
 
-export function firebaseAuth(
-  policy: (user: DecodedIdToken) => void | Promise<void>
-): FunctionFlowAuth;
-export function firebaseAuth(
-  policy: (user: DecodedIdToken) => void | Promise<void>,
+export function firebaseAuth<I extends z.ZodTypeAny>(
+  policy: (user: DecodedIdToken, input: z.infer<I>) => void | Promise<void>
+): FunctionFlowAuth<I>;
+export function firebaseAuth<I extends z.ZodTypeAny>(
+  policy: (user: DecodedIdToken, input: z.infer<I>) => void | Promise<void>,
   config: { required: true }
-): FunctionFlowAuth;
-export function firebaseAuth(
-  policy: (user?: DecodedIdToken) => void | Promise<void>,
+): FunctionFlowAuth<I>;
+export function firebaseAuth<I extends z.ZodTypeAny>(
+  policy: (
+    user: DecodedIdToken | undefined,
+    input: z.infer<I>
+  ) => void | Promise<void>,
   config: { required: false }
-): FunctionFlowAuth;
-export function firebaseAuth(
-  policy: (user: DecodedIdToken) => void | Promise<void>,
+): FunctionFlowAuth<I>;
+export function firebaseAuth<I extends z.ZodTypeAny>(
+  policy: (user: DecodedIdToken, input: z.infer<I>) => void | Promise<void>,
   config?: { required: boolean }
-): FunctionFlowAuth {
+): FunctionFlowAuth<I> {
   const required = config?.required || true;
   return {
-    async policy(auth?: unknown) {
+    async policy(auth: unknown | undefined, input: z.infer<I>) {
       // If required is true, then auth will always be set when called from
       // an HTTP context. However, we need to wrap the user-provided policy
       // to check for presence of auth when the flow is executed from runFlow
@@ -45,7 +49,7 @@ export function firebaseAuth(
         throw new Error('Auth is required');
       }
 
-      return policy(auth as DecodedIdToken);
+      return policy(auth as DecodedIdToken, input);
     },
     async provider(req, res, next) {
       const token = req.headers['authorization']?.split(/[Bb]earer /)[1];
