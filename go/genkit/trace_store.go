@@ -68,19 +68,20 @@ type TraceData struct {
 // SpanData can be passed to json.Marshal, whereas most of the OpenTelemetry
 // types make no claims about JSON serializability.
 type SpanData struct {
-	SpanID                  string                 `json:"spanId"`
-	TraceID                 string                 `json:"traceId,omitempty"`
-	ParentSpanID            string                 `json:"parentSpanId,omitempty"`
-	StartTime               Microseconds           `json:"startTime"`
-	EndTime                 Microseconds           `json:"endTime"`
-	Attributes              map[string]any         `json:"attributes"`
-	DisplayName             string                 `json:"displayName"`
-	Links                   []*Link                `json:"links"`
-	InstrumentationLibrary  InstrumentationLibrary `json:"instrumentationLibrary"`
-	SpanKind                string                 `json:"spanKind"` // trace.SpanKind as a string
-	SameProcessAsParentSpan boolValue              `json:"sameProcessAsParentSpan"`
-	Status                  Status                 `json:"status"`
-	TimeEvents              timeEvents             `json:"timeEvents"`
+	SpanID                 string                 `json:"spanId"`
+	TraceID                string                 `json:"traceId,omitempty"`
+	ParentSpanID           string                 `json:"parentSpanId,omitempty"`
+	StartTime              Microseconds           `json:"startTime"`
+	EndTime                Microseconds           `json:"endTime"`
+	Attributes             map[string]any         `json:"attributes"`
+	DisplayName            string                 `json:"displayName"`
+	Links                  []*Link                `json:"links"`
+	InstrumentationLibrary InstrumentationLibrary `json:"instrumentationLibrary"`
+	SpanKind               string                 `json:"spanKind"` // trace.SpanKind as a string
+	// This bool is in a separate struct, to match the js (and presumably the OTel) formats.
+	SameProcessAsParentSpan boolValue  `json:"sameProcessAsParentSpan"`
+	Status                  Status     `json:"status"`
+	TimeEvents              timeEvents `json:"timeEvents"`
 }
 
 type timeEvents struct {
