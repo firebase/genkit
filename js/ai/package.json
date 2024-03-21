@@ -62,6 +62,11 @@
       "require": "./lib/generate.js",
       "import": "./lib/generate.mjs"
     },
+    "./extract": {
+      "types": "./lib/extract.d.ts",
+      "require": "./lib/extract.js",
+      "import": "./lib/extract.mjs"
+    },
     "./tool": {
       "types": "./lib/tool.d.ts",
       "require": "./lib/tool.js",
@@ -87,6 +92,9 @@
       ],
       "generate": [
         "lib/generate"
+      ],
+      "extract": [
+        "lib/extract"
       ],
       "tool": [
         "lib/tool"

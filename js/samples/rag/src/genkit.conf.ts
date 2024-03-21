@@ -19,7 +19,11 @@ import { configureGenkit } from '@genkit-ai/common/config';
 import { googleGenAI } from '@genkit-ai/plugin-google-genai';
 import { firebase } from '@genkit-ai/plugin-firebase';
 import { pinecone } from '@genkit-ai/plugin-pinecone';
-import { textEmbeddingGecko, vertexAI } from '@genkit-ai/plugin-vertex-ai';
+import {
+  textEmbeddingGecko,
+  geminiPro,
+  vertexAI,
+} from '@genkit-ai/plugin-vertex-ai';
 import { chroma } from '@genkit-ai/plugin-chroma';
 import { RagasMetric, ragas } from '@genkit-ai/plugin-ragas';
 import { gpt4Turbo, openAI } from '@genkit-ai/plugin-openai';
@@ -31,7 +35,7 @@ export default configureGenkit({
     googleGenAI(),
     openAI(),
     ragas({
-      judge: gpt4Turbo,
+      judge: geminiPro,
       metrics: [RagasMetric.FAITHFULNESS, RagasMetric.CONTEXT_UTILIZATION],
     }),
     vertexAI({ projectId: getProjectId(), location: 'us-central1' }),
