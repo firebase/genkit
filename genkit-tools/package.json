@@ -60,6 +60,7 @@
     "js-yaml": "^4.1.0",
     "json-schema": "^0.4.0",
     "open": "^6.3.0",
+    "prettier-plugin-css-order": "^2.0.1",
     "winston": "^3.11.0",
     "zod": "^3.22.4"
   }
