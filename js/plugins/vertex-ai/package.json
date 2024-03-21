@@ -9,7 +9,8 @@
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
     "lint": "eslint --config ../../.eslintrc.js --ext .ts src",
-    "lint:fix": "npm run lint -- --fix --quiet"
+    "lint:fix": "npm run lint -- --fix --quiet",
+    "test": "node --loader tsx --test ./tests/*_test.ts"
   },
   "dependencies": {
     "@genkit-ai/ai": "*",
