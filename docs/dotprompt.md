@@ -1,9 +1,23 @@
 
-# Dotprompt
+# Managing prompts with Dotprompt
 
-Dotprompt is a text format for GenAI prompts that helps you write and organize your prompts. To use
-Dotprompt, first create a `prompts` directory in your project root and then create a `.prompt` file
-in that directory. Here's a simple example we might call `greeting.prompt`:
+Genkit provides the Dotprompt library and text format to help you write and
+organize your generative AI prompts.
+
+Prompt manipulation is the primary way that you, as an app developer, influence
+the output of generative AI models. For example, when using LLMs, you can craft
+prompts that influence the tone, format, length, and other characteristics of
+the models’ responses.
+
+Dotprompt is designed around the premise that _prompts are code_. You write and
+maintain your prompts in specially-formatted files called dotprompt files, track
+changes to them using the same version control system that you use for your
+code, and you deploy them along with the code that calls your generative AI
+models.
+
+To use Dotprompt, first create a `prompts` directory in your project root and
+then create a `.prompt` file in that directory. Here's a simple example you
+might call `greeting.prompt`:
 
 ```none
 ---
@@ -44,10 +58,11 @@ const result = await recipePrompt.generate({
 console.log(result.text());
 ```
 
-Dotprompt's syntax is based on the [Handlebars](https://handlebarsjs.com/guide/) templating
-language. You can use the `if`, `unless`, and `each` helpers to add conditional portions of
-your prompt or iterate through structured content. It utilizes YAML frontmatter to provide
-metadata for a prompt inline with the template.
+Dotprompt's syntax is based on the [Handlebars](https://handlebarsjs.com/guide/)
+templating language. You can use the `if`, `unless`, and `each` helpers to add
+conditional portions to your prompt or iterate through structured content. The
+file format utilizes YAML frontmatter to provide metadata for a prompt inline
+with the template.
 
 ## Structured output
 
@@ -73,7 +88,7 @@ output:
 Generate a tabletop RPG character that would be found in {{location}}.
 ```
 
-When generating a prompt with structured output, the `output()` helper can be used to
+When generating a prompt with structured output, use the `output()` helper to
 retrieve and validate it:
 
 ```ts
@@ -90,8 +105,9 @@ console.log(character.output());
 
 ## Multi-message prompts
 
-By default Dotprompt constructs a single message with a `"user"` role. Some prompts are
-best expressed as a combination of multiple messages, such as a system prompt.
+By default, Dotprompt constructs a single message with a `"user"` role. Some
+prompts are best expressed as a combination of multiple messages, such as a
+system prompt.
 
 The `{{role}}` helper provides a simple way to construct multi-message prompts:
 
@@ -114,8 +130,8 @@ into all of your conversations.
 
 ## Multi-modal prompts
 
-For models that support multimodal input such as images, you can use the
-`{{media}}` helper:
+For models that support multimodal input such as images alongside text, you can
+use the `{{media}}` helper:
 
 ```none
 ---
@@ -132,15 +148,15 @@ Describe this image in a detailed paragraph:
 {{image url=photoUrl}}
 ```
 
-The URL can be `https://` or base64-encoded `data:` URIs for "inline" image usage. In code
-this would be:
+The URL can be `https://` or base64-encoded `data:` URIs for "inline" image
+usage. In code, this would be:
 
 ```ts
-const describeImagePrompt = await prompt('describe_image');
+const describeImagePrompt = await prompt("describe_image");
 
 const result = await describeImagePrompt.generate({
   input: {
-    photoUrl: 'https://example.com/image.png',
+    photoUrl: "https://example.com/image.png",
   },
 });
 
@@ -149,14 +165,15 @@ console.log(result.text());
 
 ## Prompt Variants
 
-Because prompt files are just text, you can (and should!) commit them to your version control
-system, giving you an easy ability to compare changes over time. However, oftentimes tweaked
-versions of prompts can only be fully tested in a production environment side-by-side with
-existing versions. Dotprompt supports this through its **variants** feature.
+Because prompt files are just text, you can (and should!) commit them to your
+version control system, giving you an easy ability to compare changes over time.
+However, oftentimes tweaked versions of prompts can only be fully tested in a
+production environment side-by-side with existing versions. Dotprompt supports
+this through its **variants** feature.
 
-To create a variant, simply create a `[name].[variant].prompt` file. For instance, if I was
-using GPT-3.5 Turbo in my prompt but wanted to see if Gemini 1.0 Pro would perform better,
-I might create two files:
+To create a variant, create a `[name].[variant].prompt` file. For instance, if
+you were using GPT-3.5 Turbo in your prompt but wanted to see if Gemini 1.0 Pro
+would perform better, you might create two files:
 
 * `my_prompt.prompt`: the "baseline" prompt
 * `my_prompt.gemini.prompt`: a variant named "gemini"
@@ -167,9 +184,9 @@ To use a prompt variant, specify the `variant` option when loading:
 const myPrompt = await prompt('my_prompt', {variant: 'gemini'});
 ```
 
-The prompt loader will look for a recognized variant of that name, or fall back to the
-baseline if none exists. This means you can use conditional loading based on whatever
-criteria makes sense for your application:
+The prompt loader will attempt to load the variant of that name, and fall back
+to the baseline if none exists. This means you can use conditional loading based
+on whatever criteria makes sense for your application:
 
 ```ts
 const myPrompt = await prompt('my_prompt', {
@@ -177,13 +194,14 @@ const myPrompt = await prompt('my_prompt', {
 });
 ```
 
-The name of the variant is included in the metadata in generation traces, so you can
-compare and contrast actual performance between variants in the Genkit trace inspector.
+The name of the variant is included in the metadata of generation traces, so you
+can compare and contrast actual performance between variants in the Genkit trace
+inspector.
 
 ## Alternate ways to load and define prompts
 
-Dotprompt is optimized for organization in the prompt directory. However, there are a few
-other ways to load and define prompts:
+Dotprompt is optimized for organization in the prompt directory. However, there
+are a few other ways to load and define prompts:
 
 * `loadPromptFile`: Load a prompt from a file in the prompt directory.
 * `loadPromptUrl`: Load a prompt from a URL.
@@ -207,7 +225,7 @@ const myPrompt = definePrompt({
   input: {
     schema: z.object({
       name: z.string(),
-    }
-  }),
+    })
+  },
 }, `Hello {{name}}, how are you today?`);
 ```
