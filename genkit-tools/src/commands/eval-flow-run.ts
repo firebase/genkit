@@ -113,7 +113,7 @@ export const evalFlowRun = new Command('eval:flow')
           key: {
             actionId: flowName,
             evalRunId: randomUUID(),
-            createdAt: new Date(),
+            createdAt: new Date().toISOString(),
           },
           results: scoredResults,
         });
