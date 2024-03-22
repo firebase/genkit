@@ -80,7 +80,19 @@ export function onFlow<
           data,
           streamingCallback
         );
-        return OperationSchema.parse(JSON.parse(responseJson));
+
+        const res = JSON.parse(responseJson);
+        if (streamingCallback) {
+          return OperationSchema.parse(res);
+        } else {
+          return {
+            name: '',
+            done: true,
+            result: {
+              response: res,
+            },
+          };
+        }
       },
     },
     steps

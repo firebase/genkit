@@ -98,7 +98,7 @@ window.runflow = async () => {
   try {
     const payload = $('#subject').val();
     const response = await jokeFlow(payload);
-    updateResult(response.data.response, '200');
+    updateResult(response.data, '200');
   } catch (e) {
     updateResult(e.message, e.code);
   }
