@@ -17,7 +17,6 @@ package genkit
 import (
 	"context"
 	"os"
-	"path"
 	"sync"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -79,11 +78,11 @@ func initTracing() (shutdown func(context.Context) error, err error) {
 		opts = append(opts, sdktrace.WithBatcher(prodExporter))
 	}
 	traceProvider := sdktrace.NewTracerProvider(opts...)
-	globalTracer.set(traceProvider.Tracer("genkit-tracer"))
+	globalTracer.set(traceProvider.Tracer("genkit-tracer", trace.WithInstrumentationVersion("v1")))
 	return traceProvider.Shutdown, nil
 }
 
-// The res of this file contains code translated from js/common/src/tracing/*.ts.
+// The rest of this file contains code translated from js/common/src/tracing/*.ts.
 const (
 	attrPrefix   = "genkit"
 	spanTypeAttr = attrPrefix + ":type"
@@ -97,7 +96,7 @@ func runInNewSpan[I, O any](
 	input I,
 	f func(context.Context, I) (O, error),
 ) (O, error) {
-	// TODO(jba): support span links
+	// TODO(jba): support span links.
 	log := logger(ctx)
 	log.Debug("span start", "name", name)
 	defer log.Debug("span end", "name", name)
@@ -105,14 +104,18 @@ func runInNewSpan[I, O any](
 		Name:  name,
 		Input: input,
 	}
-	// TODO(jba): Determine whether this span is an immediate child of the root, and understand why it matters.
 	parentSpanMeta := spanMetaKey.fromContext(ctx)
+	sm.IsRoot = (parentSpanMeta == nil)
 	var parentPath string
 	if parentSpanMeta != nil {
 		parentPath = parentSpanMeta.Path
 	}
-	sm.Path = path.Join(parentPath, name)
-	ctx, span := globalTracer.get().Start(ctx, name, trace.WithAttributes(attribute.String(spanTypeAttr, spanType)))
+	sm.Path = parentPath + "/" + name
+	var opts []trace.SpanStartOption
+	if spanType != "" {
+		opts = append(opts, trace.WithAttributes(attribute.String(spanTypeAttr, spanType)))
+	}
+	ctx, span := globalTracer.get().Start(ctx, name, opts...)
 	defer span.End()
 	// At the end, copy some of the spanMetadata to the OpenTelemetry span.
 	defer func() { span.SetAttributes(sm.attributes()...) }()
@@ -147,6 +150,7 @@ const (
 type spanMetadata struct {
 	Name   string
 	State  SpanState
+	IsRoot bool
 	Input  any
 	Output any
 	Path   string // slash-separated list of names from the root span to the current one
@@ -173,10 +177,15 @@ func (sm *spanMetadata) attributes() []attribute.KeyValue {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	kvs := []attribute.KeyValue{
+		attribute.String("genkit:name", sm.Name),
 		attribute.String("genkit:state", string(sm.State)),
 		attribute.String("genkit:input", jsonString(sm.Input)),
+		attribute.String("genkit:path", sm.Path),
 		// TODO(jba): the ts code includes the input but not the output. Why?
 		// attribute.String("genkit:output", jsonString(sm.Output))),
+	}
+	if sm.IsRoot {
+		kvs = append(kvs, attribute.Bool("genkit:isRoot", sm.IsRoot))
 	}
 	for k, v := range sm.attrs {
 		kvs = append(kvs, attribute.String(attrPrefix+":metadata:"+k, v))
@@ -186,3 +195,7 @@ func (sm *spanMetadata) attributes() []attribute.KeyValue {
 
 // spanMetaKey is for storing spanMetadatas in a context.
 var spanMetaKey = newContextKey[*spanMetadata]()
+
+func setCustomMetadataAttr(ctx context.Context, key, value string) {
+	spanMetaKey.fromContext(ctx).SetAttr(key, value)
+}

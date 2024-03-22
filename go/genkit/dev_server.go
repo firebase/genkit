@@ -29,6 +29,8 @@ import (
 	"net/http"
 	"strconv"
 	"sync/atomic"
+
+	"go.opentelemetry.io/otel/trace"
 )
 
 // StartDevServer starts the development server (reflection API) at the given address.
@@ -101,6 +103,7 @@ func (e *httpError) Error() string {
 // handleRunAction looks up an action by name in the registry, runs it with the
 // provded JSON input, and writes back the JSON-marshaled request.
 func handleRunAction(w http.ResponseWriter, r *http.Request) error {
+	ctx := r.Context()
 	var body struct {
 		Key   string          `json:"key"`
 		Input json.RawMessage `json:"input"`
@@ -110,19 +113,32 @@ func handleRunAction(w http.ResponseWriter, r *http.Request) error {
 		return &httpError{http.StatusBadRequest, err}
 	}
 	action := lookupAction(body.Key)
-	logger(r.Context()).Debug("bodyKey", "k", body.Key)
+	logger(ctx).Debug("running action", "key", body.Key)
 	if action == nil {
-		return &httpError{http.StatusNotFound, errors.New("no action with that ID")}
+		return &httpError{http.StatusNotFound, fmt.Errorf("no action with key %q", body.Key)}
 	}
-	output, err := action.runJSON(r.Context(), body.Input)
+	var traceID string
+	output, err := runInNewSpan(ctx, "dev-run-action-wrapper", "", body.Input, func(ctx context.Context, input json.RawMessage) ([]byte, error) {
+		setCustomMetadataAttr(ctx, "genkit-dev-internal", "true")
+		traceID = trace.SpanContextFromContext(ctx).TraceID().String()
+		return action.runJSON(ctx, input)
+	})
 	if err != nil {
 		return err
 	}
-	_, err = w.Write(output)
-	if err != nil {
-		logger(r.Context()).Error("writing runAction output", "err", err)
-	}
-	return nil
+	return writeJSON(ctx, w, runActionResponse{
+		Result:    output,
+		Telemetry: telemetry{TraceID: traceID},
+	})
+}
+
+type runActionResponse struct {
+	Result    json.RawMessage `json:"result"`
+	Telemetry telemetry       `json:"telemetry"`
+}
+
+type telemetry struct {
+	TraceID string `json:"traceId"`
 }
 
 // handleListActions lists all the registered actions.
