@@ -33,7 +33,7 @@ export async function lookupPrompt(
   const prompt = loadPrompt(name, variant);
   registerAction(
     'prompt',
-    `/prompt/${name}${variant ? `.${variant}` : ''}`,
+    `prompt/${name}${variant ? `.${variant}` : ''}`,
     prompt.action()
   );
   return prompt;
