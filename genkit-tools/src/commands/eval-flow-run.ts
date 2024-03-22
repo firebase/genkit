@@ -24,7 +24,7 @@ import {
 } from '../eval';
 import { Runner } from '../runner/runner';
 import { FlowInvokeEnvelopeMessage, FlowState } from '../types/flow';
-import { DocumentData } from '../types/retrievers';
+import { DocumentData, RetrieverResponse } from '../types/retrievers';
 import { SpanData } from '../types/trace';
 import { logger } from '../utils/logger';
 import { startRunner, waitForFlowToComplete } from '../utils/runner-utils';
@@ -217,13 +217,17 @@ async function fetchDataSet(
       }
 
       const context = retrievers.flatMap((s) => {
-        const output = JSON.parse(s.attributes['genkit:output'] as string);
-        if (!Array.isArray(output)) {
+        const output: RetrieverResponse = JSON.parse(
+          s.attributes['genkit:output'] as string
+        );
+        if (!output) {
           return [];
         }
-        return output.flatMap((d: DocumentData) =>
-          d.content.map((c) => c.text).filter((text): text is string => !!text)
-        );
+        return output.documents.flatMap((d: DocumentData) => {
+          return d.content
+            .map((c) => c.text)
+            .filter((text): text is string => !!text);
+        });
       });
 
       if (!rootSpan) {

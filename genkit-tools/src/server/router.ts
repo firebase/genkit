@@ -13,13 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-import { initTRPC } from '@trpc/server';
+import { initTRPC, TRPCError } from '@trpc/server';
+import { EvalRunSchema, LocalFileEvalStore } from '../eval';
 import { Runner } from '../runner/runner';
 import { Action } from '../types/action';
 import * as apis from '../types/apis';
+import * as evals from '../types/eval';
 
 const t = initTRPC.create();
+
+// TODO make this a singleton provider instead
+const evalStore = new LocalFileEvalStore();
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
@@ -64,6 +68,35 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
       .input(apis.GetFlowStateRequestSchema)
       .query(async ({ input }) => {
         return runner.getFlowState(input);
+      }),
+
+    /** Retrieves all eval run keys */
+    listEvalRunKeys: t.procedure
+      .input(evals.ListEvalKeysRequestSchema)
+      .output(evals.ListEvalKeysResponseSchema)
+      .query(async ({ input }) => {
+        const response = await evalStore.list(input);
+        return {
+          evalRunKeys: response.results,
+        };
+      }),
+
+    /** Retrieves a single eval run by ID */
+    getEvalRun: t.procedure
+      .input(evals.GetEvalRunRequestSchema)
+      .output(EvalRunSchema)
+      .query(async ({ input }) => {
+        const parts = input.name.split('/');
+        const evalRunId = parts[3];
+        const actionId = parts[1] !== '-' ? parts[1] : undefined;
+        const evalRun = await evalStore.load(evalRunId, actionId);
+        if (!evalRun) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: `Eval run with ${input.name} not found`,
+          });
+        }
+        return evalRun;
       }),
   });
 
