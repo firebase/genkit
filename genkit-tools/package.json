@@ -25,6 +25,7 @@
     "test:ui": "cd ui && npm run test-headless",
     "test:jest": "jest --verbose",
     "init:deps": "(npm install --ignore-scripts -C ./ui); (npm install --ignore-scripts -C ./common)",
+    "export:schemas": "ts-node scripts/schema-exporter.ts .",
     "pack:all": "npm-run-all pack:cli pack:common pack:plugins",
     "pack:cli": "npm pack --pack-destination ../dist",
     "pack:common": "cd common && npm pack --pack-destination ../../dist -ws",
@@ -50,6 +51,7 @@
     "prettier-plugin-css-order": "^2.0.1",
     "prettier-plugin-organize-imports": "^3.2.4",
     "ts-jest": "^29.1.2",
+    "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   },
   "dependencies": {
@@ -68,6 +70,7 @@
     "open": "^6.3.0",
     "uuid": "^9.0.1",
     "winston": "^3.11.0",
-    "zod": "^3.22.4"
+    "zod": "^3.22.4",
+    "zod-to-json-schema": "^3.22.4"
   }
 }
