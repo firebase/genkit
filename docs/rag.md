@@ -8,18 +8,18 @@ abstractions to help you do RAG:
 -   Retrievers - retrieves documents from an "index" given a query.
 -   Indexers - adds documents to the "index".
 
-The definitions are broad on purpose because Genkit is un-opinionated about what
-an "index" is or how exactly documents are retrieved from it. Genkit only
-provides `Document` format and everything else is defined by retriever or indexer
-implementation provider.
+These definitions are broad on purpose because Genkit is un-opinionated about
+what an "index" is or how exactly documents are retrieved from it. Genkit only
+provides a `Document` format and everything else is defined by the retriever or
+indexer implementation provider.
 
 ## Retrievers
 
-Retriever is a concept which encapsulates logic related to any kind of document
+A retriever is a concept that encapsulates logic related to any kind of document
 retrieval. The most popular retrieval cases typically include retrieval from
 vector stores.
 
-To create a retriever you can use one of the provided implementations or
+To create a retriever, you can use one of the provided implementations or
 create your own.
 
 Take a look at a dev local file based vector similarity retriever that
@@ -47,7 +47,7 @@ configureGenkit({
 });
 ```
 
-Once configured, create a references for your index:
+Once configured, create references for your index:
 
 ```javascript
 import { devLocalIndexerRef, devLocalRetrieverRef } from '@genkit-ai/plugin-dev-local-vectorstore';
@@ -135,8 +135,7 @@ const docs = await retrieve({
 
 ### Retriever plugins
 
-Genkit provides built-in plugins for the following retrievers for some popular
-vectorstore:
+Genkit provides built-in plugins with retrievers for some popular vector stores:
 
 #### Chroma DB
 
@@ -157,7 +156,7 @@ export default configureGenkit({
 });
 ```
 
-You can then create retriever and indexer references like so
+You can then create retriever and indexer references like so:
 
 ```js
 import { chromaIndexerRef, chromaRetrieverRef } from '@genkit-ai/plugin-chroma';
@@ -195,7 +194,7 @@ your Pinecone API Key.
 Note that you need to configure the plugin with the embedder by passing in a
 reference.
 
-You can then create retriever and indexer references like so
+You can then create retriever and indexer references like so:
 
 ```js
 import {
@@ -289,12 +288,11 @@ export const askQuestionsOnGoT = flow(
 ### Write your own retrievers
 
 It's also possible to create your own retriever. This is useful if your
-documents are managed in a document store that is not supported in
-Genkit (eg: MySQL, Google Drive, etc.). The Genkit SDK provides a flexible
-`defineRetriever` method that lets you provide custom code for fetching
-documents. You can also define custom retrievers that build on top of existing
-retrievers in Genkit and apply advanced RAG techniques (ex. reranking or prompt
-extensions) on top.
+documents are managed in a document store that is not supported in Genkit (eg:
+MySQL, Google Drive, etc.). The Genkit SDK provides a flexible `defineRetriever`
+method that lets you provide custom code for fetching documents. You can also
+define custom retrievers that build on top of existing retrievers in Genkit and
+apply advanced RAG techniques (such as reranking or prompt extensions) on top.
 
 ```javascript
 import {
@@ -340,7 +338,7 @@ const docs = await retrieve({
 
 ## Chunking
 
-Genkit does not provide built-in chunking libraries, however there are
+Genkit does not provide built-in chunking libraries; however, there are
 open source libraries available that are compatible with Genkit.
 
 ```js

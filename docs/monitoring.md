@@ -1,9 +1,11 @@
 
 # Monitoring
 
-Genkit framework is fully instrumented with OpenTelemetry tracing, metrics and
-logging. Genkit provides out-of-the-box integration with Google Cloud Tracing,
-Logging and Monitoring. To enable exporting your traces, logs and metrics to
+Genkit is fully instrumented with OpenTelemetry tracing, metrics and
+logging.
+
+Genkit provides out-of-the-box integration with Google Cloud Tracing,
+Logging and Monitoring. To enable exporting to
 Google Cloud Tracing, Logging and Monitoring, add the `gcp` plugin to your
 configuration.
 
@@ -24,17 +26,17 @@ configureGenkit({
 });
 ```
 
-When running in production your telemetry will get automatically exported.
+When running in production, your telemetry gets automatically exported.
 
 Note: When running locally (specifically with the `genkit` CLI) not all
 instrumentation is enabled and you may not see your telemetry getting exported
 during local development.
 
-The `traceStore` is complimentary to your telemetry instrumentation. It lets you
-inspect your traces for your flow runs in the Genkit Dev UI. It requires
-a separate configuration which provides a trace storage implementation. The
-`firebase` plugin offers Firestore based implementation. This configuration is
-optional, but is recommended because it lets you inspect and debug
-issues in production. When using Firestore based trace storage you will want to
-enable TTL for the trace documents:
+The `traceStore` option is complementary to your telemetry instrumentation. It
+lets you inspect your traces for your flow runs in the Genkit Dev UI. It
+requires a separate configuration which provides a trace storage implementation.
+The `firebase` plugin offers a Firestore-based implementation. This
+configuration is optional, but is recommended because it lets you inspect and
+debug issues in production. When using Firestore-based trace storage you will
+want to enable TTL for the trace documents:
 https://firebase.google.com/docs/firestore/ttl
