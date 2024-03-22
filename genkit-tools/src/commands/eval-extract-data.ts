@@ -18,7 +18,7 @@ import { Command } from 'commander';
 import { randomUUID } from 'crypto';
 import { writeFile } from 'fs/promises';
 import { EvalInput } from '../eval';
-import { DocumentData } from '../types/retrievers';
+import { DocumentData, RetrieverResponse } from '../types/retrievers';
 import { logger } from '../utils/logger';
 import { startRunner } from '../utils/runner-utils';
 
@@ -73,14 +73,19 @@ export const evalExtractData = new Command('eval:extractData')
             .filter(
               (s) => s.attributes['genkit:metadata:subtype'] === 'retriever'
             )
-            .flatMap((s) =>
-              JSON.parse(s.attributes['genkit:output'] as string).flatMap(
-                (d: DocumentData) =>
-                  d.content
-                    .map((c) => c.text)
-                    .filter((text): text is string => !!text)
-              )
-            );
+            .flatMap((s) => {
+              const output: RetrieverResponse = JSON.parse(
+                s.attributes['genkit:output'] as string
+              );
+              if (!output) {
+                return [];
+              }
+              return output.documents.flatMap((d: DocumentData) =>
+                d.content
+                  .map((c) => c.text)
+                  .filter((text): text is string => !!text)
+              );
+            });
           return {
             testCaseId: randomUUID(),
             input: rootSpan?.attributes['genkit:input'],

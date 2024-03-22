@@ -48,3 +48,9 @@ export const DocumentDataSchema = z.object({
   metadata: z.record(z.string(), z.any()).optional(),
 });
 export type DocumentData = z.infer<typeof DocumentDataSchema>;
+
+const RetrieverResponseSchema = z.object({
+  documents: z.array(DocumentDataSchema),
+});
+
+export type RetrieverResponse = z.infer<typeof RetrieverResponseSchema>;
