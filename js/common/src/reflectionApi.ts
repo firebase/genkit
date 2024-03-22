@@ -20,6 +20,7 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 import { config } from './config';
 import { logger } from './logging';
 import * as registry from './registry';
+import { StatusCodes, StatusResponse } from './statusTypes';
 import {
   flushTracing,
   newTrace,
@@ -29,6 +30,7 @@ import { runWithStreamingCallback } from './types';
 
 export const RunActionResponseSchema = z.object({
   result: z.unknown().optional(),
+  error: z.unknown().optional(),
   telemetry: z
     .object({
       traceId: z.string().optional(),
@@ -93,6 +95,7 @@ export async function startReflectionApi(port?: number | undefined) {
     const { key, input } = request.body;
     const { stream } = request.query;
     logger.debug(`Running action \`${key}\`...`);
+    let traceId;
     try {
       const action = await registry.lookupAction(key);
       if (!action) {
@@ -100,7 +103,6 @@ export async function startReflectionApi(port?: number | undefined) {
         return;
       }
       if (stream === 'true') {
-        var traceId;
         const result = await newTrace(
           { name: 'dev-run-action-wrapper' },
           async (_, span) =>
@@ -144,9 +146,18 @@ export async function startReflectionApi(port?: number | undefined) {
         } as RunActionResponse);
       }
     } catch (err) {
-      const message = `Error running action \`${key}\`: ${err}`;
+      const error = err as Error;
+      const { message, stack } = error;
+      const errorResponse: StatusResponse = {
+        code: StatusCodes.INTERNAL,
+        message,
+        details: {
+          traceId,
+          stack,
+        },
+      };
       logger.error(message);
-      return response.status(500).json({ message });
+      return response.status(500).json(errorResponse);
     }
   });
 

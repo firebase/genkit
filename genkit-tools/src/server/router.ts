@@ -16,11 +16,29 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import { EvalRunSchema, LocalFileEvalStore } from '../eval';
 import { Runner } from '../runner/runner';
+import { GenkitToolsError } from '../runner/types';
 import { Action } from '../types/action';
 import * as apis from '../types/apis';
 import * as evals from '../types/eval';
 
-const t = initTRPC.create();
+const t = initTRPC.create({
+  errorFormatter(opts) {
+    const { shape, error } = opts;
+    if (!(error.cause instanceof GenkitToolsError)) {
+      return shape;
+    }
+    return {
+      ...shape,
+      data: {
+        ...shape.data,
+        genkitErrorMessage: (error.cause.data as Record<string, unknown>)
+          .message,
+        genkitErrorDetails: (error.cause.data as Record<string, unknown>)
+          .details,
+      },
+    };
+  },
+});
 
 // TODO make this a singleton provider instead
 const evalStore = new LocalFileEvalStore();

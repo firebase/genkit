@@ -269,7 +269,7 @@ export class Runner {
         newError.message = (error.response?.data as any).message;
       }
       // we got a non-200 response; copy the payload and rethrow
-      newError.data = error.response.data;
+      newError.data = error.response.data as Record<string, unknown>;
       throw newError;
     }
 
