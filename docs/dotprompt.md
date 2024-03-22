@@ -48,7 +48,7 @@ import { prompt } from '@genkit-ai/dotprompt';
 
 const greetingPrompt = await prompt('greeting');
 
-const result = await recipePrompt.generate({
+const result = await greetingPrompt.generate({
   input: {
     location: "the beach",
     style: "a fancy pirate",
