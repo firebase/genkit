@@ -13,9 +13,10 @@ typings
 js/samples/firebase-functions-sample1/functions/.env
 js/samples/firebase-functions-sample1/.firebase
 js/samples/firebase-functions-sample1/.firebaserc
-js/samples/firebase-functions-sample1/ui-debug.log
 js/samples/firebase-functions-sample1/public/bundle.js
 js/samples/firebase-functions-sample1/public/config.js
+ui-debug.log
+firebase-debug.log
 
 # RAG sample files
 __db*.json

@@ -566,7 +566,14 @@ export class Flow<
         if (state.operation.result?.error) {
           throw new Error(state.operation.result?.error);
         }
-        res.status(200).send(state.operation).end();
+        // Responses for non-streaming, non-durable flows are passed back
+        // with the flow result stored in a field called "result."
+        res
+          .status(200)
+          .send({
+            result: state.operation.result?.response,
+          })
+          .end();
       } catch (e) {
         // Errors for non-durable, non-streaming flows are passed back as
         // standard API errors.
