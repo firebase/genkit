@@ -37,8 +37,10 @@ func TestSpanMetadata(t *testing.T) {
 
 	got := sm.attributes()
 	want := []attribute.KeyValue{
+		attribute.String("genkit:name", "name"),
 		attribute.String("genkit:state", "success"),
 		attribute.String("genkit:input", strconv.Itoa(testInput)),
+		attribute.String("genkit:path", "parent/name"),
 		attribute.String("genkit:metadata:key", "value"),
 	}
 	if !slices.Equal(got, want) {

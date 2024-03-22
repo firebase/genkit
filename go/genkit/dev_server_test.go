@@ -23,6 +23,9 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func dec(_ context.Context, x int) (int, error) {
@@ -45,14 +48,18 @@ func TestDevServer(t *testing.T) {
 		if res.StatusCode != 200 {
 			t.Fatalf("got status %d, wanted 200", res.StatusCode)
 		}
-		got, err := readJSON[int](res.Body)
+		got, err := readJSON[runActionResponse](res.Body)
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := 4
-		if got != want {
-			t.Errorf("got %d, want %d", got, want)
+		if g, w := string(got.Result), "4"; g != w {
+			t.Errorf("got %q, want %q", g, w)
 		}
+		tid := got.Telemetry.TraceID
+		if len(tid) != 32 {
+			t.Errorf("trace ID is %q, wanted 32-byte string", tid)
+		}
+		checkActionTrace(t, tid, "inc")
 	})
 	t.Run("list actions", func(t *testing.T) {
 		res, err := http.Get(srv.URL + "/api/actions")
@@ -89,6 +96,60 @@ func TestDevServer(t *testing.T) {
 		}
 		// We may have any result, including zero traces, so don't check anything else.
 	})
+}
+
+func checkActionTrace(t *testing.T, tid, name string) {
+	ts := lookupTraceStore(EnvironmentDev)
+	td, err := ts.Load(context.Background(), tid)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rootSpan := findRootSpan(t, td.Spans)
+	want := &SpanData{
+		TraceID:                 tid,
+		DisplayName:             "dev-run-action-wrapper",
+		SpanKind:                "internal",
+		SameProcessAsParentSpan: boolValue{Value: true},
+		Status:                  Status{Code: 0},
+		InstrumentationLibrary: InstrumentationLibrary{
+			Name:    "genkit-tracer",
+			Version: "v1",
+		},
+		Attributes: map[string]any{
+			"genkit:name":                         "dev-run-action-wrapper",
+			"genkit:input":                        "3",
+			"genkit:isRoot":                       true,
+			"genkit:path":                         "/dev-run-action-wrapper",
+			"genkit:metadata:genkit-dev-internal": "true",
+			"genkit:state":                        "success",
+		},
+	}
+	diff := cmp.Diff(want, rootSpan, cmpopts.IgnoreFields(SpanData{}, "SpanID", "StartTime", "EndTime"))
+	if diff != "" {
+		t.Errorf("mismatch (-want, +got):\n%s", diff)
+	}
+}
+
+// findRootSpan finds the root span in spans.
+// It also verifies that it is unique.
+func findRootSpan(t *testing.T, spans map[string]*SpanData) *SpanData {
+	t.Helper()
+	var root *SpanData
+	for _, sd := range spans {
+		if sd.ParentSpanID == "" {
+			if root != nil {
+				t.Fatal("more than one root span")
+			}
+			if g, w := sd.Attributes["genkit:isRoot"], true; g != w {
+				t.Errorf("root span genkit:isRoot attr = %v, want %v", g, w)
+			}
+			root = sd
+		}
+	}
+	if root == nil {
+		t.Fatal("no root span")
+	}
+	return root
 }
 
 func readJSON[T any](r io.Reader) (T, error) {
