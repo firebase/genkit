@@ -2,15 +2,18 @@
 # Evaluation
 
 Genkit's powerful observability features provide insight into the runtime state
-of your LLM-powered application, which can provide evaluation tooling with all
-the necessary data to evaluate the quality of LLM responses. The data that can
-be extracted from runtime is not limited to input and output of the flow, but
-can also give you access to input and outputs of any intermediate step. For
-example, if you have a RAG flow you can extract the set of documents that was
-returned by the retriever so that you can evaluate the quality of your retriever
-while it runs in the context of the flow.
+of your LLM-powered applications. You can extract data that can provide
+evaluation tooling with the necessary information to evaluate the quality of LLM
+responses.
 
-Genkit supports third party evaluation plugins, ex:
+The data that can be extracted from runtime is not limited to the input and
+output of the flow, but can also give you access to input and outputs of any
+intermediate step. For example, if you have a RAG flow, you can extract the set
+of documents that was returned by the retriever so that you can evaluate the
+quality of your retriever while it runs in the context of the flow.
+
+Genkit supports third-party evaluation tools through plugins. For example, to
+use Ragas:
 
 ```js
 import { RagasMetric, ragas } from '@genkit-ai/plugin-ragas';
@@ -23,9 +26,11 @@ export default configureGenkit({
 });
 ```
 
-Once installed, the evaluation plugins provide evalution metrics to the Genkit framework which can be used with the Genkit evaluation tooling.
+Once installed, evaluation plugins provide metrics to the Genkit framework that
+you can use with Genkit's evaluation tooling.
 
-Start by defining a set of inputs that you want to use as a test dataset. For example:
+Start by defining a set of inputs that you want to use as a test dataset. For
+example:
 
 ```json
 [
@@ -35,9 +40,8 @@ Start by defining a set of inputs that you want to use as a test dataset. For ex
 ]
 ```
 
-Below you can see an example of how an LLM can help you generate the test dataset.
-
-You can then use `eval:flow` command to evaluate your flow against the test dataset.
+You can then use `eval:flow` command to evaluate your flow against the test
+dataset.
 
 ```posix-terminal
 genkit eval:flow spongebobQA --input testQuestions.json --output eval-result.json
@@ -45,11 +49,17 @@ genkit eval:flow spongebobQA --input testQuestions.json --output eval-result.jso
 
 You can then see evaluation results in the output json file.
 
+Note: Below you can see an example of how an LLM can help you generate the test
+dataset.
+
 ## Advanced use
 
-`eval:flow` is a convenient way quickly evaluate the flow, but sometimes you might need more control over evaluation steps. You can perform all the step that `eval:flow` semi-manually.
+`eval:flow` is a convenient way quickly evaluate the flow, but sometimes you
+might need more control over evaluation steps. You can perform all the step that
+`eval:flow` performs semi-manually.
 
-You can batch run your RAG flow and label the runs with a unique label which then will be used to extract evaluation data.
+You can batch run your RAG flow and label the runs with a unique label which
+then will be used to extract evaluation data.
 
 ```posix-terminal
 npx genkit flow:batchRun myRagFlow test_inputs.json --output flow_outputs.json --label eval123
@@ -61,9 +71,10 @@ Extract the evaluation data:
 npx genkit eval:extractData myRagFlow --label eval123 --output eval123_dataset.json
 ```
 
-The exported data will be in a HuggingFace Dataset format that you can use with
-other open-source evaluation frameworks. The data extractor will automatically
-locate retrievers and add the produced docs to the dataset as context.
+The exported data will be in a HuggingFace Dataset format, which you can use
+with other open-source evaluation frameworks. The data extractor will
+automatically locate retrievers and add the produced docs to the dataset as
+context.
 
 You can the then run the installed evaluators on the dataset:
 
@@ -77,7 +88,8 @@ your config.
 
 ### Synthesizing test data using an LLM
 
-Here's an example flow which will use a PDF file to generate possible questions users might be asking about it.
+Here's an example flow that uses a PDF file to generate possible questions
+users might be asking about it.
 
 ```js
 export const synthesizeQuestions = flow(
@@ -109,7 +121,8 @@ export const synthesizeQuestions = flow(
 );
 ```
 
-You can then use this command to export the data into a file and use for evaluation.
+You can then use this command to export the data into a file and use for
+evaluation.
 
 ```posix-terminal
 genkit flow:run synthesizeQuestions '"35650.pdf"' --output synthesizedQuestions.json

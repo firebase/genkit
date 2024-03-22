@@ -8,9 +8,9 @@ Models are fully instrumented for observability and come with tooling
 integrations provided by the Genkit Dev UI -- you can try any model using the
 model playground.
 
-When working with models in Genkit you first need to configure the model you
+When working with models in Genkit, you first need to configure the model you
 want to work with. Model configuration is performed by the plugin system. In
-this example you are configuring the VertexAI plugin which provides Gemini
+this example you are configuring the Vertex AI plugin, which provides Gemini
 models.
 
 ```js
@@ -27,10 +27,10 @@ configureGenkit({
 ```
 
 Also note that different plugins and models use different methods of
-authentication. For example, Vertex API uses Google Auth Library so it can pull
-required credentials using Application Default Credentials.
+authentication. For example, Vertex API uses the Google Auth Library so it can
+pull required credentials using Application Default Credentials.
 
-To use models provided by the plugin you can either refer to them by name (e.g.
+To use models provided by the plugin, you can either refer to them by name (e.g.
 `'vertex-ai/gemini-1.0-pro'`) or some plugins export model ref objects which
 provide additional type info about the model capabilities and options.
 
@@ -181,8 +181,8 @@ const llmResponse = await generate({
 console.log(await llmResponse.text());
 ```
 
-You can pass in various model options for that model, including custom model for
-specific LLM.
+You can pass in various model options for that model, including specifying a
+custom model for specific LLMs.
 
 ```javascript
 const response = await generate({
@@ -197,7 +197,7 @@ const response = await generate({
 });
 ```
 
-If the model supports multimodal input you can pass in images as input:
+If the model supports multimodal input, you can pass in images as input:
 
 ```javascript
 import { geminiProVision } from '@genkit-ai/plugin-vertex-ai';
@@ -211,7 +211,7 @@ const result = await generate({
 });
 ```
 
-or from a local file
+Or from a local file:
 
 ```javascript
 const result = await generate({
@@ -228,7 +228,7 @@ const result = await generate({
 });
 ```
 
-Model also supports tools and function calling. Tool support depends on
+`Model` also supports tools and function calling. Tool support depends on
 specific models.
 
 ```javascript

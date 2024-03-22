@@ -1,9 +1,10 @@
 
 # Flows
 
-Flows are strongly typed, streamable, locally and remotely callable, fully
-observable functions. Genkit provides CLI and Dev UI tooling for working with
-flows (running, debugging, etc).
+Flows are functions with some additional characteristics: they are strongly
+typed, streamable, locally and remotely callable, and fully observable. Genkit
+provides CLI and Dev UI tooling for working with flows (running, debugging,
+etc).
 
 ## Defining flows
 
@@ -84,14 +85,14 @@ export const streamer = flow(
 );
 ```
 
-Note that `streamingCallback` can be undefined. It's only available only if the
+Note that `streamingCallback` can be undefined. It's only defined if the
 invoking client is doing streaming.
 
 ## Deploying flows
 
 If you want to be able to access your flow over HTTP you will need to deploy it
-first. Genkit provides integrations for Cloud Functions for Firebase and Cloud
-Run.
+first. Genkit provides integrations for Cloud Functions for Firebase and
+express.js hosts such as Cloud Run.
 
 To use flows with Cloud Functions for Firebase use the `firebase` plugin
 and replace `flow` with `onFlow`.
@@ -126,7 +127,7 @@ startFlowsServer();
 Deployed flows support all the same features as local flows (like streaming and
 observability).
 
-Sometimes when using 3rd party SDK that that are not instrumented for
+Sometimes when using 3rd party SDKs that that are not instrumented for
 observability, you might want to still see them as a separate step in the Dev
 UI. All you need to do is wrap the code in the `run` function.
 
