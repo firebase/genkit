@@ -17,7 +17,7 @@
 import { Command } from 'commander';
 import { FlowInvokeEnvelopeMessage, FlowState } from '../types/flow';
 import { logger } from '../utils/logger';
-import { startRunner } from '../utils/runner-utils';
+import { runInRunnerThenStop } from '../utils/runner-utils';
 
 /** Command to start GenKit server, optionally without static file serving */
 export const flowResume = new Command('flow:resume')
@@ -25,25 +25,23 @@ export const flowResume = new Command('flow:resume')
   .argument('<flowId>', 'ID of the flow to resume')
   .argument('<data>', 'JSON data to use to resume the flow')
   .action(async (flowName: string, flowId: string, data: string) => {
-    const runner = await startRunner();
+    await runInRunnerThenStop(async (runner) => {
+      logger.info(`Resuming '/flow/${flowName}'`);
+      const state = (
+        await runner.runAction({
+          key: `/flow/${flowName}`,
+          input: {
+            resume: {
+              flowId,
+              // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+              payload: JSON.parse(data),
+            },
+          } as FlowInvokeEnvelopeMessage,
+        })
+      ).result as FlowState;
 
-    logger.info(`Resuming '/flow/${flowName}'`);
-    const state = (
-      await runner.runAction({
-        key: `/flow/${flowName}`,
-        input: {
-          resume: {
-            flowId,
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-            payload: JSON.parse(data),
-          },
-        } as FlowInvokeEnvelopeMessage,
-      })
-    ).result as FlowState;
-
-    logger.info(
-      'Flow operation:\n' + JSON.stringify(state.operation, undefined, '  ')
-    );
-
-    await runner.stop();
+      logger.info(
+        'Flow operation:\n' + JSON.stringify(state.operation, undefined, '  ')
+      );
+    });
   });

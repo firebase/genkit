@@ -67,6 +67,12 @@ export async function startReflectionApi(port?: number | undefined) {
     response.status(200).send('OK');
   });
 
+  api.get('/api/__quitquitquit', async (_, response) => {
+    logger.debug('Received quitquitquit');
+    response.status(200).send('OK');
+    process.exit(0);
+  });
+
   api.get('/api/actions', async (_, response) => {
     logger.debug('Fetching actions.');
     const actions = await registry.listActions();

@@ -22,9 +22,27 @@ import { FlowInvokeEnvelopeMessage, FlowState } from '../types/flow';
  */
 export async function startRunner(): Promise<Runner> {
   const runner = new Runner({ autoReload: false });
-  await runner.start();
+  if (!(await runner.start())) {
+    throw new Error('Failed to load app code.');
+  }
   await runner.waitUntilHealthy();
   return runner;
+}
+
+export async function runInRunnerThenStop(
+  fn: (runner: Runner) => Promise<void>
+) {
+  let runner: Runner;
+  try {
+    runner = await startRunner();
+  } catch (e) {
+    process.exit(1);
+  }
+  try {
+    await fn(runner);
+  } finally {
+    await runner.stop();
+  }
 }
 
 /**

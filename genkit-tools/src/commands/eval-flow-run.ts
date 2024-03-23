@@ -27,7 +27,10 @@ import { FlowInvokeEnvelopeMessage, FlowState } from '../types/flow';
 import { DocumentData, RetrieverResponse } from '../types/retrievers';
 import { SpanData } from '../types/trace';
 import { logger } from '../utils/logger';
-import { startRunner, waitForFlowToComplete } from '../utils/runner-utils';
+import {
+  runInRunnerThenStop,
+  waitForFlowToComplete,
+} from '../utils/runner-utils';
 
 // TODO: Support specifying waiting or streaming
 interface EvalFlowRunOptions {
@@ -51,9 +54,8 @@ export const evalFlowRun = new Command('eval:flow')
   )
   .action(
     async (flowName: string, data: string, options: EvalFlowRunOptions) => {
-      const runner = await startRunner();
-      const evalStore = new LocalFileEvalStore();
-      try {
+      await runInRunnerThenStop(async (runner) => {
+        const evalStore = new LocalFileEvalStore();
         const evaluatorActions = Object.keys(await runner.listActions()).filter(
           (name) => name.startsWith('/evaluator')
         );
@@ -118,9 +120,7 @@ export const evalFlowRun = new Command('eval:flow')
           },
           results: scoredResults,
         });
-      } finally {
-        await runner.stop();
-      }
+      });
     }
   );
 

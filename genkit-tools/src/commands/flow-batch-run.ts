@@ -18,7 +18,10 @@ import { Command } from 'commander';
 import { readFile, writeFile } from 'fs/promises';
 import { FlowInvokeEnvelopeMessage, FlowState, Operation } from '../types/flow';
 import { logger } from '../utils/logger';
-import { startRunner, waitForFlowToComplete } from '../utils/runner-utils';
+import {
+  runInRunnerThenStop,
+  waitForFlowToComplete,
+} from '../utils/runner-utils';
 
 interface FlowBatchRunOptions {
   wait?: boolean;
@@ -45,49 +48,50 @@ export const flowBatchRun = new Command('flow:batchRun')
       fileName: string,
       options: FlowBatchRunOptions
     ) => {
-      const runner = await startRunner();
-
-      const inputData = JSON.parse(await readFile(fileName, 'utf8')) as any[];
-      if (!Array.isArray(inputData)) {
-        throw new Error('batch input data must be an array');
-      }
-
-      const outputValues = [] as { input: any; output: Operation }[];
-      for (const data of inputData) {
-        logger.info(`Running '/flow/${flowName}'...`);
-        var state = (
-          await runner.runAction({
-            key: `/flow/${flowName}`,
-            input: {
-              start: {
-                input: data,
-                labels: options.label ? { batchRun: options.label } : undefined,
-                auth: options.auth ? JSON.parse(options.auth) : undefined,
-              },
-            } as FlowInvokeEnvelopeMessage,
-          })
-        ).result as FlowState;
-
-        if (!state.operation.done && options.wait) {
-          logger.info('Started flow run, waiting for it to complete...');
-          state = await waitForFlowToComplete(runner, flowName, state.flowId);
+      await runInRunnerThenStop(async (runner) => {
+        const inputData = JSON.parse(await readFile(fileName, 'utf8')) as any[];
+        if (!Array.isArray(inputData)) {
+          throw new Error('batch input data must be an array');
         }
-        logger.info(
-          'Flow operation:\n' + JSON.stringify(state.operation, undefined, '  ')
-        );
-        outputValues.push({
-          input: data,
-          output: state.operation,
-        });
-      }
 
-      if (options.output) {
-        await writeFile(
-          options.output,
-          JSON.stringify(outputValues, undefined, ' ')
-        );
-      }
+        const outputValues = [] as { input: any; output: Operation }[];
+        for (const data of inputData) {
+          logger.info(`Running '/flow/${flowName}'...`);
+          var state = (
+            await runner.runAction({
+              key: `/flow/${flowName}`,
+              input: {
+                start: {
+                  input: data,
+                  labels: options.label
+                    ? { batchRun: options.label }
+                    : undefined,
+                  auth: options.auth ? JSON.parse(options.auth) : undefined,
+                },
+              } as FlowInvokeEnvelopeMessage,
+            })
+          ).result as FlowState;
 
-      await runner.stop();
+          if (!state.operation.done && options.wait) {
+            logger.info('Started flow run, waiting for it to complete...');
+            state = await waitForFlowToComplete(runner, flowName, state.flowId);
+          }
+          logger.info(
+            'Flow operation:\n' +
+              JSON.stringify(state.operation, undefined, '  ')
+          );
+          outputValues.push({
+            input: data,
+            output: state.operation,
+          });
+        }
+
+        if (options.output) {
+          await writeFile(
+            options.output,
+            JSON.stringify(outputValues, undefined, ' ')
+          );
+        }
+      });
     }
   );
