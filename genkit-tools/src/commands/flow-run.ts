@@ -18,7 +18,10 @@ import { Command } from 'commander';
 import { writeFile } from 'fs/promises';
 import { FlowInvokeEnvelopeMessage, FlowState } from '../types/flow';
 import { logger } from '../utils/logger';
-import { startRunner, waitForFlowToComplete } from '../utils/runner-utils';
+import {
+  runInRunnerThenStop,
+  waitForFlowToComplete,
+} from '../utils/runner-utils';
 
 interface FlowRunOptions {
   wait?: boolean;
@@ -43,48 +46,47 @@ export const flowRun = new Command('flow:run')
     'name of the output file to store the extracted data'
   )
   .action(async (flowName: string, data: string, options: FlowRunOptions) => {
-    const runner = await startRunner();
+    await runInRunnerThenStop(async (runner) => {
+      logger.info(`Running '/flow/${flowName}' (stream=${options.stream})...`);
+      var state = (
+        await runner.runAction(
+          {
+            key: `/flow/${flowName}`,
+            input: {
+              start: {
+                input: data ? JSON.parse(data) : undefined,
+              },
+              auth: options.auth ? JSON.parse(options.auth) : undefined,
+            } as FlowInvokeEnvelopeMessage,
+          },
+          options.stream
+            ? (chunk) => console.log(JSON.stringify(chunk, undefined, '  '))
+            : undefined
+        )
+      ).result as FlowState;
 
-    logger.info(`Running '/flow/${flowName}' (stream=${options.stream})...`);
-    var state = (
-      await runner.runAction(
-        {
-          key: `/flow/${flowName}`,
-          input: {
-            start: {
-              input: data ? JSON.parse(data) : undefined,
-            },
-            auth: options.auth ? JSON.parse(options.auth) : undefined,
-          } as FlowInvokeEnvelopeMessage,
-        },
-        options.stream
-          ? (chunk) => console.log(JSON.stringify(chunk, undefined, '  '))
-          : undefined
-      )
-    ).result as FlowState;
-
-    if (!state.operation.done && options.wait) {
-      logger.info('Started flow run, waiting for it to complete...');
-      state = await waitForFlowToComplete(runner, flowName, state.flowId);
-    }
-    logger.info(
-      'Flow operation:\n' + JSON.stringify(state.operation, undefined, '  ')
-    );
-    if (state.operation.result?.error) {
-      logger.error(
-        'Error:\n' +
-          JSON.stringify(state.operation.result?.error, undefined, '  ')
+      if (!state.operation.done && options.wait) {
+        logger.info('Started flow run, waiting for it to complete...');
+        state = await waitForFlowToComplete(runner, flowName, state.flowId);
+      }
+      logger.info(
+        'Flow operation:\n' + JSON.stringify(state.operation, undefined, '  ')
       );
-      logger.error(
-        'Stack Trace:\n' +
-          JSON.stringify(state.operation.result?.stacktrace, undefined, '  ')
-      );
-    }
-    if (options.output && state.operation.result?.response) {
-      await writeFile(
-        options.output,
-        JSON.stringify(state.operation.result?.response, undefined, ' ')
-      );
-    }
-    await runner.stop();
+      if (state.operation.result?.error) {
+        logger.error(
+          'Error:\n' +
+            JSON.stringify(state.operation.result?.error, undefined, '  ')
+        );
+        logger.error(
+          'Stack Trace:\n' +
+            JSON.stringify(state.operation.result?.stacktrace, undefined, '  ')
+        );
+      }
+      if (options.output && state.operation.result?.response) {
+        await writeFile(
+          options.output,
+          JSON.stringify(state.operation.result?.response, undefined, ' ')
+        );
+      }
+    });
   });

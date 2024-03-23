@@ -20,7 +20,7 @@ import { writeFile } from 'fs/promises';
 import { EvalInput } from '../eval';
 import { DocumentData, RetrieverResponse } from '../types/retrievers';
 import { logger } from '../utils/logger';
-import { startRunner } from '../utils/runner-utils';
+import { runInRunnerThenStop } from '../utils/runner-utils';
 
 interface EvalDatasetOptions {
   env: 'dev' | 'prod';
@@ -40,82 +40,84 @@ export const evalExtractData = new Command('eval:extractData')
   .option('--maxRows <maxRows>', 'maximum number of rows', '100')
   .option('--label [label]', 'label flow run in this batch')
   .action(async (flowName: string, options: EvalDatasetOptions) => {
-    const runner = await startRunner();
-    logger.info(`Extracting trace data '/flow/${flowName}'...`);
+    await runInRunnerThenStop(async (runner) => {
+      logger.info(`Extracting trace data '/flow/${flowName}'...`);
 
-    var dataset: EvalInput[] = [];
-    var continuationToken = undefined;
-    while (dataset.length < parseInt(options.maxRows)) {
-      const response = await runner.listTraces({
-        env: options.env,
-        limit: parseInt(options.maxRows),
-        continuationToken,
-      });
-      continuationToken = response.continuationToken;
-      const traces = response.traces;
-      // TODO: This assumes that all the data is in one trace, but it could be across multiple.
-      // We should support this use case similar to how we do in eval-flow-run.ts
-      var batch: EvalInput[] = traces
-        .map((t) => {
-          const rootSpan = Object.values(t.spans).find(
-            (s) =>
-              s.attributes['genkit:type'] === 'flow' &&
-              (!options.label ||
-                s.attributes['genkit:metadata:flow:label:batchRun'] ===
-                  options.label) &&
-              s.attributes['genkit:metadata:flow:name'] === flowName &&
-              s.attributes['genkit:metadata:flow:state'] === 'done'
-          );
-          if (!rootSpan) {
-            return undefined;
-          }
-          const context: string[] = Object.values(t.spans)
-            .filter(
-              (s) => s.attributes['genkit:metadata:subtype'] === 'retriever'
-            )
-            .flatMap((s) => {
-              const output: RetrieverResponse = JSON.parse(
-                s.attributes['genkit:output'] as string
-              );
-              if (!output) {
-                return [];
-              }
-              return output.documents.flatMap((d: DocumentData) =>
-                d.content
-                  .map((c) => c.text)
-                  .filter((text): text is string => !!text)
-              );
-            });
-          return {
-            testCaseId: randomUUID(),
-            input: rootSpan?.attributes['genkit:input'],
-            output: rootSpan?.attributes['genkit:output'],
-            context,
-            // The trace (t) does not contain the traceId, so we have to pull it out of the
-            // spans, de- dupe, and turn it back into an array.
-            traceIds: Array.from(
-              new Set(Object.values(t.spans).map((span) => span.traceId))
-            ),
-          } as EvalInput;
-        })
-        .filter((result): result is EvalInput => !!result);
-      batch.forEach((d) => dataset.push(d));
-      if (dataset.length > parseInt(options.maxRows)) {
-        dataset = dataset.splice(0, parseInt(options.maxRows));
-        break;
+      var dataset: EvalInput[] = [];
+      var continuationToken = undefined;
+      while (dataset.length < parseInt(options.maxRows)) {
+        const response = await runner.listTraces({
+          env: options.env,
+          limit: parseInt(options.maxRows),
+          continuationToken,
+        });
+        continuationToken = response.continuationToken;
+        const traces = response.traces;
+        // TODO: This assumes that all the data is in one trace, but it could be across multiple.
+        // We should support this use case similar to how we do in eval-flow-run.ts
+        var batch: EvalInput[] = traces
+          .map((t) => {
+            const rootSpan = Object.values(t.spans).find(
+              (s) =>
+                s.attributes['genkit:type'] === 'flow' &&
+                (!options.label ||
+                  s.attributes['genkit:metadata:flow:label:batchRun'] ===
+                    options.label) &&
+                s.attributes['genkit:metadata:flow:name'] === flowName &&
+                s.attributes['genkit:metadata:flow:state'] === 'done'
+            );
+            if (!rootSpan) {
+              return undefined;
+            }
+            const context: string[] = Object.values(t.spans)
+              .filter(
+                (s) => s.attributes['genkit:metadata:subtype'] === 'retriever'
+              )
+              .flatMap((s) => {
+                const output: RetrieverResponse = JSON.parse(
+                  s.attributes['genkit:output'] as string
+                );
+                if (!output) {
+                  return [];
+                }
+                return output.documents.flatMap((d: DocumentData) =>
+                  d.content
+                    .map((c) => c.text)
+                    .filter((text): text is string => !!text)
+                );
+              });
+            return {
+              testCaseId: randomUUID(),
+              input: rootSpan?.attributes['genkit:input'],
+              output: rootSpan?.attributes['genkit:output'],
+              context,
+              // The trace (t) does not contain the traceId, so we have to pull it out of the
+              // spans, de- dupe, and turn it back into an array.
+              traceIds: Array.from(
+                new Set(Object.values(t.spans).map((span) => span.traceId))
+              ),
+            } as EvalInput;
+          })
+          .filter((result): result is EvalInput => !!result);
+        batch.forEach((d) => dataset.push(d));
+        if (dataset.length > parseInt(options.maxRows)) {
+          dataset = dataset.splice(0, parseInt(options.maxRows));
+          break;
+        }
+        if (!continuationToken) {
+          break;
+        }
       }
-      if (!continuationToken) {
-        break;
+
+      if (options.output) {
+        logger.info(`Writing data to '${options.output}'...`);
+        await writeFile(
+          options.output,
+          JSON.stringify(dataset, undefined, '  ')
+        );
+      } else {
+        logger.info(`Results will not be written to file.`);
+        console.log(`Results: ${JSON.stringify(dataset, undefined, '  ')}`);
       }
-    }
-
-    if (options.output) {
-      logger.info(`Writing data to '${options.output}'...`);
-      await writeFile(options.output, JSON.stringify(dataset, undefined, '  '));
-    } else {
-      logger.info(`Results will not be written to file.`);
-      console.log(`Results: ${JSON.stringify(dataset, undefined, '  ')}`);
-    }
-
-    await runner.stop();
+    });
   });

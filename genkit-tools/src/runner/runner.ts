@@ -104,7 +104,7 @@ export class Runner {
   /**
    * Starts the runner.
    */
-  public async start(): Promise<void> {
+  public async start(): Promise<boolean> {
     this.reflectionApiUrl = `http://localhost:${this.reflectionApiPort}/api`;
     if (this.autoReload) {
       const config = await findToolsConfig();
@@ -112,7 +112,7 @@ export class Runner {
       this.build();
       this.watchForChanges();
     }
-    this.startApp();
+    return this.startApp();
   }
 
   /**
@@ -152,12 +152,12 @@ export class Runner {
    * Starts the app code in a subprocess.
    * @param entryPoint - entry point of the app (e.g. index.js)
    */
-  private startApp(): void {
+  private startApp(): boolean {
     const entryPoint = getNodeEntryPoint(process.cwd());
 
     if (!fs.existsSync(entryPoint)) {
       logger.error(`Could not find \`${entryPoint}\`. App not started.`);
-      return;
+      return false;
     }
 
     logger.info(`Starting app at ${entryPoint}...`);
@@ -186,23 +186,28 @@ export class Runner {
       logger.info(`App process exited with code ${code}`);
       this.appProcess = null;
     });
+
+    return true;
   }
 
   /**
    * Stops the app code process.
    */
   private stopApp(): Promise<void> {
-    return new Promise((resolve) => {
-      if (this.appProcess && !this.appProcess.killed) {
-        this.appProcess.on('exit', () => {
-          this.appProcess = null;
-          resolve();
-        });
-        this.appProcess.kill();
-      } else {
-        resolve();
-      }
-    });
+    return this.sendQuit().then(
+      () =>
+        new Promise((resolve) => {
+          if (this.appProcess && !this.appProcess.killed) {
+            this.appProcess.on('exit', () => {
+              this.appProcess = null;
+              resolve();
+            });
+            this.appProcess.kill();
+          } else {
+            resolve();
+          }
+        })
+    );
   }
 
   /**
@@ -292,6 +297,24 @@ export class Runner {
         return false;
       }
       throw new Error('Code failed to load, please check log messages above.');
+    }
+  }
+
+  /** Retrieves all runnable actions. */
+  async sendQuit(): Promise<boolean> {
+    try {
+      const response = await axios.get(
+        `${this.reflectionApiUrl}/__quitquitquit`
+      );
+      if (response.status !== 200) {
+        return false;
+      }
+      return true;
+    } catch (error) {
+      if ((error as AxiosError).code === 'ECONNREFUSED') {
+        return false;
+      }
+      throw new Error('Failed to send quit call.');
     }
   }
 
