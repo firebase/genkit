@@ -19,11 +19,8 @@ ui-debug.log
 firebase-debug.log
 
 # RAG sample files
-__db*.json
-out.json
-batchinput*.json
-synthesized*.json
-out.json
+!js/samples/rag/package.json
+js/samples/rag/*.json
 
 # Test files
 last_recording.mp4
