@@ -354,7 +354,7 @@ export class Runner {
         .catch(this.httpErrorHandler);
       const stream = response.data;
 
-      var buffer = '';
+      let buffer = '';
       stream.on('data', (data: string) => {
         buffer += data;
         while (buffer.includes(STREAM_DELIMITER)) {
@@ -366,7 +366,7 @@ export class Runner {
           );
         }
       });
-      var resolver: (op: RunActionResponse) => void;
+      let resolver: (op: RunActionResponse) => void;
       const promise = new Promise<RunActionResponse>((r) => {
         resolver = r;
       });
@@ -393,7 +393,7 @@ export class Runner {
     input: apis.ListTracesRequest
   ): Promise<apis.ListTracesResponse> {
     const { env, limit, continuationToken } = input;
-    var query = '';
+    let query = '';
     if (limit) {
       query += `limit=${limit}`;
     }
@@ -436,7 +436,7 @@ export class Runner {
     input: apis.ListFlowStatesRequest
   ): Promise<apis.ListFlowStatesResponse> {
     const { env, limit, continuationToken } = input;
-    var query = '';
+    let query = '';
     if (limit) {
       query += `limit=${limit}`;
     }

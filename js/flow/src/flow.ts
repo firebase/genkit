@@ -664,7 +664,7 @@ export function streamFlow<
     flow = flow.flow;
   }
 
-  var chunkStreamController: ReadableStreamController<z.infer<S>>;
+  let chunkStreamController: ReadableStreamController<z.infer<S>>;
   const chunkStream = new ReadableStream<z.infer<S>>({
     start(controller) {
       chunkStreamController = controller;

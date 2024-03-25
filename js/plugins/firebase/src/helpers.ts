@@ -36,7 +36,7 @@ export async function callHttpsFunction(
   streamingCallback?: StreamingCallback<any>
 ) {
   const auth = getAuthClient();
-  var funcUrl = await getFunctionUrl(functionName, location);
+  let funcUrl = await getFunctionUrl(functionName, location);
   if (!funcUrl) {
     throw new Error(`Unable to retrieve uri for function at ${functionName}`);
   }
@@ -59,7 +59,7 @@ export async function callHttpsFunction(
   if (streamingCallback) {
     const reader = res.body!.getReader();
     const decoder = new TextDecoder();
-    var buffer = '';
+    let buffer = '';
     while (true) {
       const result = await reader.read();
       const decodedValue = decoder.decode(result.value);

@@ -80,7 +80,7 @@ describe('registry', () => {
 
   describe('lookupAction', () => {
     it('initializes plugin for action first', async () => {
-      var fooInitialized = false;
+      let fooInitialized = false;
       registerPluginProvider('foo', {
         name: 'foo',
         async initializer() {
@@ -88,7 +88,7 @@ describe('registry', () => {
           return {};
         },
       });
-      var barInitialized = false;
+      let barInitialized = false;
       registerPluginProvider('bar', {
         name: 'bar',
         async initializer() {

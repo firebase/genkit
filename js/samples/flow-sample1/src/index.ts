@@ -187,7 +187,7 @@ export const streamy = flow(
     streamType: z.object({ count: z.number() }),
   },
   async (count, streamingCallback) => {
-    var i = 0;
+    let i = 0;
     if (streamingCallback) {
       for (; i < count; i++) {
         await new Promise((r) => setTimeout(r, 1000));
@@ -207,7 +207,7 @@ export const streamyThrowy = flow(
     streamType: z.object({ count: z.number() }),
   },
   async (count, streamingCallback) => {
-    var i = 0;
+    let i = 0;
     if (streamingCallback) {
       for (; i < count; i++) {
         if (i == 3) {

@@ -48,7 +48,7 @@ export const flowRun = new Command('flow:run')
   .action(async (flowName: string, data: string, options: FlowRunOptions) => {
     await runInRunnerThenStop(async (runner) => {
       logger.info(`Running '/flow/${flowName}' (stream=${options.stream})...`);
-      var state = (
+      let state = (
         await runner.runAction(
           {
             key: `/flow/${flowName}`,

@@ -90,7 +90,7 @@ export class LocalFileEvalStore implements EvalStore {
   async list(
     query?: ListEvalKeysRequest | undefined
   ): Promise<ListEvalKeysResponse> {
-    var keys = await readFile(this.indexFile, 'utf8').then((data) =>
+    let keys = await readFile(this.indexFile, 'utf8').then((data) =>
       // strip the final carriage return before parsing all lines
       data.slice(0, -1).split(this.indexDelimiter).map(this.parseLineToKey)
     );

@@ -57,7 +57,7 @@ export const flowBatchRun = new Command('flow:batchRun')
         const outputValues = [] as { input: any; output: Operation }[];
         for (const data of inputData) {
           logger.info(`Running '/flow/${flowName}'...`);
-          var state = (
+          let state = (
             await runner.runAction({
               key: `/flow/${flowName}`,
               input: {
