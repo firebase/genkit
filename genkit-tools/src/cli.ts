@@ -20,7 +20,6 @@ import { Command, program } from 'commander';
 import { evalExtractData } from './commands/eval-extract-data';
 import { evalFlowRun } from './commands/eval-flow-run';
 import { evalRun } from './commands/eval-run';
-import { example } from './commands/example';
 import { flowBatchRun } from './commands/flow-batch-run';
 import { flowResume } from './commands/flow-resume';
 import { flowRun } from './commands/flow-run';
@@ -41,7 +40,6 @@ import { logger } from './utils/logger';
  * exports a Command constant, then add it to the list below
  */
 const commands: Command[] = [
-  example,
   start,
   flowRun,
   flowBatchRun,
