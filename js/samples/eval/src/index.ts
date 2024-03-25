@@ -15,18 +15,14 @@
  */
 
 import { initializeGenkit } from '@genkit-ai/common/config';
-import {
-  RagasDataPointZodType,
-  RagasMetric,
-  ragasRef,
-} from '@genkit-ai/plugin-ragas';
+import { RagasMetric, ragasRef } from '@genkit-ai/plugin-ragas';
 
 import { Dataset, evaluate } from '@genkit-ai/ai/evaluators';
 import config from './genkit.conf';
 
 initializeGenkit(config);
 
-const samples: Dataset<RagasDataPointZodType> = [
+const samples: Dataset = [
   {
     testCaseId: 'who_is_spongebob',
     input: 'Who is SpongeBob?',
@@ -65,4 +61,4 @@ async function main() {
   console.log(JSON.stringify(scores));
 }
 
-// main();
+main();

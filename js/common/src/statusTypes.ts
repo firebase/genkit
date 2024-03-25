@@ -158,10 +158,10 @@ export enum StatusCodes {
 
 const StatusCodesSchema = z.nativeEnum(StatusCodes);
 
-const StatusSchema = z.object({
+export const StatusSchema = z.object({
   code: StatusCodesSchema,
   message: z.string(),
   details: z.any().optional(),
 });
 
-export type StatusResponse = z.infer<typeof StatusSchema>;
+export type Status = z.infer<typeof StatusSchema>;

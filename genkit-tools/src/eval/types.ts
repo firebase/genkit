@@ -44,8 +44,9 @@ export type EvalRunKey = z.infer<typeof EvalRunKeySchema>;
 
 export const EvalMetricSchema = z.object({
   evaluator: z.string(),
-  score: z.union([z.number(), z.string(), z.boolean()]).nullable(),
+  score: z.union([z.number(), z.string(), z.boolean()]).optional(),
   rationale: z.string().optional(),
+  error: z.string().optional(),
 });
 export type EvalMetric = z.infer<typeof EvalMetricSchema>;
 

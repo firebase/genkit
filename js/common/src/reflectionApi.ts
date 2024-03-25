@@ -20,13 +20,12 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 import { config } from './config';
 import { logger } from './logging';
 import * as registry from './registry';
-import { StatusCodes, StatusResponse } from './statusTypes';
 import {
   flushTracing,
   newTrace,
   setCustomMetadataAttribute,
 } from './tracing.js';
-import { runWithStreamingCallback } from './types';
+import { runWithStreamingCallback, Status, StatusCodes } from './types';
 
 export const RunActionResponseSchema = z.object({
   result: z.unknown().optional(),
@@ -154,7 +153,7 @@ export async function startReflectionApi(port?: number | undefined) {
     } catch (err) {
       const error = err as Error;
       const { message, stack } = error;
-      const errorResponse: StatusResponse = {
+      const errorResponse: Status = {
         code: StatusCodes.INTERNAL,
         message,
         details: {

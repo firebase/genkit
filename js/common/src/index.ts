@@ -18,13 +18,3 @@ export * from './flowTypes.js';
 export * from './runtime.js';
 export * from './telemetryTypes.js';
 export * from './types.js';
-
-// TODO: Move to utils.
-/**
- *
- */
-export async function asyncSleep(duration: number) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, duration);
-  });
-}
