@@ -22,6 +22,7 @@ import {
 } from '@genkit-ai/ai/model';
 import { resolveTools, toToolDefinition } from '@genkit-ai/ai/tool';
 import { Action, action } from '@genkit-ai/common';
+import { setCustomMetadataAttributes } from '@genkit-ai/common/tracing';
 import { createHash } from 'crypto';
 import fm, { FrontMatterResult } from 'front-matter';
 import z from 'zod';
@@ -190,6 +191,7 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
         },
       },
       (args) => {
+        setCustomMetadataAttributes({ subtype: 'prompt' });
         return this._generate({
           input: args.input as Variables,
           candidates: args.candidates || 1,
