@@ -279,3 +279,47 @@ await generate({
   }
 });
 ```
+
+## Message history
+
+Genkit models support maintaining a history of the messages sent to the model
+and its responses, which you can use to build interactive experiences, such as
+chatbots.
+
+To generate message history from a model response, call the `toHistory()`
+method:
+
+```js
+let response = await generate({
+    model: geminiPro,
+    prompt: "How do you say 'dog' in French?"
+});
+let history = response.toHistory();
+```
+
+You can serialize this history and persist it in a database or session storage.
+Then, pass the history along with the prompt on future calls to `generate()`:
+
+```js
+response = await generate({
+    model: geminiPro,
+    prompt: "How about in Spanish?",
+    history
+});
+history = response.toHistory();
+```
+
+If the model you're using supports the `system` role, you can use the initial
+history to set the system message:
+
+```ts
+let history: MessageData[] = [
+    { role: "system", content: [{ text: "Talk like a pirate." }] }
+];
+let response = await generate({
+    model: geminiPro,
+    prompt: "How do you say 'dog' in French?",
+    history
+});
+history = response.toHistory();
+```
