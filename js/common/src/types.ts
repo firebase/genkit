@@ -21,6 +21,8 @@ import * as z from 'zod';
 import * as telemetry from './telemetry';
 import { runInNewSpan, SPAN_TYPE_ATTR } from './tracing';
 
+export { Status, StatusCodes, StatusSchema } from './statusTypes.js';
+
 export interface ActionMetadata<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Action, asyncSleep, Operation } from '@genkit-ai/common';
+import { Action, Operation } from '@genkit-ai/common';
 import { logger } from '@genkit-ai/common/logging';
 import * as z from 'zod';
 import { PollingConfig } from './context';
@@ -275,4 +275,10 @@ export function waitFor(
   const ctx = getActiveContext();
   if (!ctx) throw new Error('waitFor can only be run from a flow');
   return ctx.waitFor({ flow, stepName, flowIds, pollingConfig });
+}
+
+export async function asyncSleep(duration: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, duration);
+  });
 }

@@ -26,6 +26,10 @@ import { Runner } from '../runner/runner';
 import { FlowInvokeEnvelopeMessage, FlowState } from '../types/flow';
 import { DocumentData, RetrieverResponse } from '../types/retrievers';
 import { SpanData } from '../types/trace';
+import {
+  EVALUATOR_ACTION_PREFIX,
+  stripEvaluatorNamePrefix,
+} from '../utils/eval';
 import { logger } from '../utils/logger';
 import {
   runInRunnerThenStop,
@@ -37,7 +41,9 @@ interface EvalFlowRunOptions {
   input?: string;
   output?: string;
   auth?: string;
+  evaluators?: string;
 }
+
 /** Command to run a flow and evaluate the output */
 export const evalFlowRun = new Command('eval:flow')
   .argument('<flowName>', 'Name of the flow to run')
@@ -52,17 +58,40 @@ export const evalFlowRun = new Command('eval:flow')
     '--output <filename>',
     'Name of the output file to write evaluation results'
   )
+  .option(
+    '--evaluators <evaluators>',
+    'comma separated list of evaluators to use (by default uses all)'
+  )
   .action(
     async (flowName: string, data: string, options: EvalFlowRunOptions) => {
       await runInRunnerThenStop(async (runner) => {
         const evalStore = new LocalFileEvalStore();
-        const evaluatorActions = Object.keys(await runner.listActions()).filter(
-          (name) => name.startsWith('/evaluator')
+        const allEvaluatorActions = Object.keys(
+          await runner.listActions()
+        ).filter((name) => name.startsWith(EVALUATOR_ACTION_PREFIX));
+        const filteredEvaluatorActions = allEvaluatorActions.filter(
+          (name) =>
+            !options.evaluators ||
+            options.evaluators
+              .split(',')
+              .includes(stripEvaluatorNamePrefix(name))
         );
-        if (!evaluatorActions) {
-          logger.error('No evaluators installed');
+        if (filteredEvaluatorActions.length === 0) {
+          if (allEvaluatorActions.length == 0) {
+            logger.error('No evaluators installed');
+          } else {
+            logger.error(
+              `No evaluators matched your specifed filter: ${options.evaluators}`
+            );
+            logger.info(
+              `All available evaluators: ${allEvaluatorActions.map(stripEvaluatorNamePrefix).join(',')}`
+            );
+          }
           return;
         }
+        logger.info(
+          `Using evaluators: ${filteredEvaluatorActions.map(stripEvaluatorNamePrefix).join(',')}`
+        );
 
         if (!data && !options.input) {
           logger.error(
@@ -88,7 +117,7 @@ export const evalFlowRun = new Command('eval:flow')
 
         const scores: Record<string, any> = {};
         await Promise.all(
-          evaluatorActions.map(async (e) => {
+          filteredEvaluatorActions.map(async (e) => {
             logger.info(`Running evaluator '${e}'...`);
             const response = await runner.runAction({
               key: e,

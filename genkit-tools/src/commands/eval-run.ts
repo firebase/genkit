@@ -22,11 +22,17 @@ import {
   LocalFileEvalStore,
   enrichResultsWithScoring,
 } from '../eval';
+import { EvaluatorResponse } from '../types/evaluators';
+import {
+  EVALUATOR_ACTION_PREFIX,
+  stripEvaluatorNamePrefix,
+} from '../utils/eval';
 import { logger } from '../utils/logger';
 import { runInRunnerThenStop } from '../utils/runner-utils';
 
 interface EvalRunOptions {
   output?: string;
+  evaluators?: string;
 }
 /** Command to run evaluation on a dataset. */
 export const evalRun = new Command('eval:run')
@@ -38,6 +44,10 @@ export const evalRun = new Command('eval:run')
     '--output <filename>',
     'name of the output file to write evaluation results'
   )
+  .option(
+    '--evaluators <evaluators>',
+    'comma separated list of evaluators to use (by default uses all)'
+  )
   .action(async (dataset: string, options: EvalRunOptions) => {
     await runInRunnerThenStop(async (runner) => {
       const evalStore = new LocalFileEvalStore();
@@ -46,23 +56,38 @@ export const evalRun = new Command('eval:run')
       const datasetToEval: EvalInput[] = JSON.parse(
         (await readFile(dataset)).toString('utf-8')
       ).map((testCase: any) => ({
-        input: testCase.input,
-        output: testCase.output,
-        context: testCase.context,
+        ...testCase,
         testCaseId: testCase.testCaseId || randomUUID(),
         traceIds: testCase.traceIds || [],
       }));
 
-      const evaluatorActions = Object.keys(await runner.listActions()).filter(
-        (name) => name.startsWith('/evaluator')
+      const allEvaluatorActions = Object.keys(
+        await runner.listActions()
+      ).filter((name) => name.startsWith(EVALUATOR_ACTION_PREFIX));
+      const filteredEvaluatorActions = allEvaluatorActions.filter(
+        (name) =>
+          !options.evaluators ||
+          options.evaluators.split(',').includes(stripEvaluatorNamePrefix(name))
       );
-      if (!evaluatorActions) {
-        logger.error('No evaluators installed');
-        return undefined;
+      if (filteredEvaluatorActions.length === 0) {
+        if (allEvaluatorActions.length == 0) {
+          logger.error('No evaluators installed');
+        } else {
+          logger.error(
+            `No evaluators matched your specifed filter: ${options.evaluators}`
+          );
+          logger.info(
+            `All available evaluators: ${allEvaluatorActions.map(stripEvaluatorNamePrefix).join(',')}`
+          );
+        }
+        return;
       }
-      const scores: Record<string, any> = {};
+      logger.info(
+        `Using evaluators: ${filteredEvaluatorActions.map(stripEvaluatorNamePrefix).join(',')}`
+      );
+      const scores: Record<string, EvaluatorResponse> = {};
       await Promise.all(
-        evaluatorActions.map(async (e) => {
+        filteredEvaluatorActions.map(async (e) => {
           logger.info(`Running evaluator '${e}'...`);
           const response = await runner.runAction({
             key: e,
@@ -70,7 +95,7 @@ export const evalRun = new Command('eval:run')
               dataset: datasetToEval,
             },
           });
-          scores[e] = response.result;
+          scores[e] = response.result as EvaluatorResponse;
         })
       );
 

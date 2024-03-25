@@ -23,81 +23,97 @@ import * as z from 'zod';
 export const BaseDataPointSchema = z.object({
   input: z.unknown(),
   output: z.unknown().optional(),
-  context: z.unknown().optional(),
-  testCaseId: z.string(),
+  context: z.array(z.unknown()).optional(),
+  testCaseId: z.string().optional(),
 });
-type BaseDataPointZodType = typeof BaseDataPointSchema;
 
-export type Dataset<DataPoint extends z.ZodTypeAny = BaseDataPointZodType> =
-  Array<z.infer<DataPoint>>;
+export const ScoreSchema = z.object({
+  score: z.number().optional(),
+  // TODO: use StatusSchema
+  error: z.string().optional(),
+  details: z
+    .object({
+      reasoning: z.string().optional(),
+    })
+    .passthrough()
+    .optional(),
+});
 
-export interface EvalResult<DataPoint extends z.ZodTypeAny> {
-  sample: z.infer<DataPoint>;
-  score: Record<string, number | null>;
-}
+export type Score = z.infer<typeof ScoreSchema>;
+
+export type Dataset<
+  DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema
+> = Array<z.infer<DataPoint>>;
+
+export const EvaluatorResponseSchema = z.array(
+  z.object({
+    sampleIndex: z.number(),
+    testCaseId: z.string().optional(),
+    evaluation: ScoreSchema,
+  })
+);
+
+export type EvaluatorResponse = z.infer<typeof EvaluatorResponseSchema>;
 
 type EvaluatorFn<
-  DataPoint extends z.ZodTypeAny = BaseDataPointZodType,
-  CustomOptions extends z.ZodTypeAny = z.ZodAny
+  DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
 > = (
   input: Dataset<DataPoint>,
   evaluatorOptions?: z.infer<CustomOptions>
-) => Promise<Array<EvalResult<DataPoint>>>;
+) => Promise<EvaluatorResponse>;
 
 export type EvaluatorAction<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny = z.ZodAny,
-  DataPoint extends z.ZodTypeAny = BaseDataPointZodType,
-  CustomOptions extends z.ZodTypeAny = z.ZodAny
-> = Action<I, O> & {
-  __dataPointType: DataPoint;
-  __customOptionsType: CustomOptions;
+  DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
+> = Action<typeof EvalRequestSchema, typeof EvaluatorResponseSchema> & {
+  __dataPointType?: DataPoint;
+  __customOptionsType?: CustomOptions;
 };
 
 function withMetadata<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  DataPoint extends z.ZodTypeAny = BaseDataPointZodType,
-  CustomOptions extends z.ZodTypeAny = z.ZodAny
+  DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
 >(
-  evaluator: Action<I, O>,
-  dataPointType: DataPoint,
-  customOptionsType: CustomOptions
-): EvaluatorAction<I, O, DataPoint, CustomOptions> {
-  const withMeta = evaluator as EvaluatorAction<I, O, DataPoint, CustomOptions>;
+  evaluator: Action<typeof EvalRequestSchema, typeof EvaluatorResponseSchema>,
+  dataPointType?: DataPoint,
+  customOptionsType?: CustomOptions
+): EvaluatorAction<DataPoint, CustomOptions> {
+  const withMeta = evaluator as EvaluatorAction<DataPoint, CustomOptions>;
   withMeta.__dataPointType = dataPointType;
   withMeta.__customOptionsType = customOptionsType;
   return withMeta;
 }
 
+const EvalRequestSchema = z.object({
+  dataset: z.array(BaseDataPointSchema),
+  options: z.unknown(),
+});
+
 /**
  * Creates evaluator action for the provided {@link EvaluatorFn} implementation.
  */
 export function defineEvaluator<
-  DataPoint extends z.ZodTypeAny = BaseDataPointZodType,
-  EvaluatorOptions extends z.ZodTypeAny = z.ZodAny
+  DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
+  EvaluatorOptions extends z.ZodTypeAny = z.ZodTypeAny
 >(
   options: {
-    provider: string;
-    evaluatorId: string;
-    dataPointType: DataPoint;
-    customOptionsType: EvaluatorOptions;
+    name: string;
+    dataPointType?: DataPoint;
+    customOptionsType?: EvaluatorOptions;
   },
   runner: EvaluatorFn<DataPoint, EvaluatorOptions>
 ) {
   const evaluator = action(
     {
-      name: options.evaluatorId,
-      input: z.object({
-        dataset: z.array(options.dataPointType),
-        options: options.customOptionsType,
+      name: options.name,
+      input: EvalRequestSchema.extend({
+        dataset: options.dataPointType
+          ? z.array(options.dataPointType)
+          : z.array(BaseDataPointSchema),
+        options: options.customOptionsType ?? z.unknown(),
       }),
-      output: z.array(
-        z.object({
-          sample: options.dataPointType,
-          score: z.record(z.string(), z.number().nullable()),
-        })
-      ),
+      output: EvaluatorResponseSchema,
     },
     (i) => {
       setCustomMetadataAttributes({ subtype: 'evaluator' });
@@ -105,7 +121,10 @@ export function defineEvaluator<
     }
   );
   const ewm = withMetadata(
-    evaluator,
+    evaluator as any as Action<
+      typeof EvalRequestSchema,
+      typeof EvaluatorResponseSchema
+    >,
     options.dataPointType,
     options.customOptionsType
   );
@@ -113,28 +132,32 @@ export function defineEvaluator<
   return ewm;
 }
 
+export type EvaluatorArgument<
+  DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
+> =
+  | string
+  | EvaluatorAction<DataPoint, CustomOptions>
+  | EvaluatorReference<CustomOptions>;
+
 /**
  * A veneer for interacting with evaluators.
  */
 export async function evaluate<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  DataPoint extends z.ZodTypeAny = BaseDataPointZodType,
-  EvaluatorOptions extends z.ZodTypeAny = z.ZodAny
+  DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
+  EvaluatorOptions extends z.ZodTypeAny = z.ZodTypeAny
 >(params: {
-  evaluator:
-    | EvaluatorAction<I, O, DataPoint, EvaluatorOptions>
-    | EvaluatorReference<EvaluatorOptions>;
+  evaluator: EvaluatorArgument<DataPoint, EvaluatorOptions>;
   dataset: Dataset<DataPoint>;
   options?: z.infer<EvaluatorOptions>;
-}): Promise<Array<Record<string, number>>> {
-  let evaluator: EvaluatorAction<I, O, DataPoint, EvaluatorOptions>;
-  if (Object.hasOwnProperty.call(params.evaluator, 'info')) {
+}): Promise<EvaluatorResponse> {
+  let evaluator: EvaluatorAction<DataPoint, EvaluatorOptions>;
+  if (typeof params.evaluator === 'string') {
+    evaluator = await lookupAction(`/evaluator/${params.evaluator}`);
+  } else if (Object.hasOwnProperty.call(params.evaluator, 'info')) {
     evaluator = await lookupAction(`/evaluator/${params.evaluator.name}`);
   } else {
     evaluator = params.evaluator as EvaluatorAction<
-      I,
-      O,
       DataPoint,
       EvaluatorOptions
     >;
@@ -142,15 +165,13 @@ export async function evaluate<
   if (!evaluator) {
     throw new Error('Unable to utilize the provided evaluator');
   }
-  return await evaluator({
+  return (await evaluator({
     dataset: params.dataset,
     options: params.options,
-  });
+  })) as EvaluatorResponse;
 }
 
 export const EvaluatorInfoSchema = z.object({
-  /** Acceptable names for this evaluator */
-  names: z.array(z.string()).optional(),
   /** Friendly label for this evaluator */
   label: z.string().optional(),
   metrics: z.array(z.string()),
