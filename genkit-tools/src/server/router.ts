@@ -18,8 +18,10 @@ import { EvalRunSchema, LocalFileEvalStore } from '../eval';
 import { Runner } from '../runner/runner';
 import { GenkitToolsError } from '../runner/types';
 import { Action } from '../types/action';
+import { AnalyticsInfoSchema } from '../types/analytics';
 import * as apis from '../types/apis';
 import * as evals from '../types/eval';
+import { getAnalyticsSettings } from '../utils/analytics';
 
 const t = initTRPC.create({
   errorFormatter(opts) {
@@ -116,6 +118,11 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
         }
         return evalRun;
       }),
+
+    /** Gets analytics session information */
+    getAnalyticsSettings: t.procedure
+      .output(AnalyticsInfoSchema)
+      .query(() => getAnalyticsSettings()),
   });
 
 export type ToolsServerRouter = ReturnType<typeof TOOLS_SERVER_ROUTER>;

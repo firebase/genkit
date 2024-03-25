@@ -1,5 +1,6 @@
 import { createInterface } from 'readline/promises';
 import { v4 as uuidV4 } from 'uuid';
+import { AnalyticsInfo } from '../types/analytics';
 import { configstore } from './configstore';
 import { logger } from './logger';
 import { toolsPackage } from './package';
@@ -70,6 +71,28 @@ export async function notifyAnalyticsIfFirstRun(): Promise<void> {
   await readline.question('(Press Enter to continue)');
 
   configstore.set(NOTIFICATION_ACKED, true);
+}
+
+/** Gets session information for the UI. */
+export function getAnalyticsSettings(): AnalyticsInfo {
+  if (!isAnalyticsEnabled()) {
+    return { enabled: false };
+  }
+
+  const session = getSession();
+
+  return {
+    enabled: true,
+    property: GA_INFO.property,
+    measurementId: GA_INFO.measurementId,
+    apiSecret: GA_INFO.apiSecret,
+    clientId: session.clientId,
+    sessionId: session.sessionId,
+    debug: {
+      debugMode: isDebugMode(),
+      validateOnly: isValidateOnly(),
+    },
+  };
 }
 
 // ===============================================================
