@@ -15,7 +15,6 @@
  */
 
 import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
-import { LoggerOptions } from 'winston';
 
 /**
  * Provides a {NodeSDKConfiguration} configuration for use with the
@@ -31,7 +30,8 @@ export interface TelemetryConfig {
  * logger. This logger will be used to write genkit debug logs.
  */
 export interface LoggerConfig {
-  getConfig(): LoggerOptions;
+  /** Gets the logger used for writing generic log statements */
+  getLogger(env: string): any;
 }
 
 /**

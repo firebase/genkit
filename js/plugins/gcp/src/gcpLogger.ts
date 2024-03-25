@@ -16,7 +16,6 @@
 
 import { LoggerConfig } from '@genkit-ai/common';
 import { LoggingWinston } from '@google-cloud/logging-winston';
-import { LoggerOptions } from 'winston';
 import { PluginOptions } from './index';
 
 /**
@@ -30,13 +29,31 @@ export class GcpLogger implements LoggerConfig {
     this.options = options;
   }
 
-  getConfig(): LoggerOptions {
-    return {
+  async getLogger(env: string) {
+    // Dynamically importing winston here more strictly controls
+    // the import order relative to registering instrumentation
+    // with OpenTelemetry. Incorrect import order will trigger
+    // an internal OT warning and will result in logs not being
+    // associated with correct spans/traces.
+    const winston = await import('winston');
+    const format =
+      env === 'dev'
+        ? {
+            format: winston.format.printf((info): string => {
+              return `[${info.level}] ${info.message}`;
+            }),
+          }
+        : { format: winston.format.json() };
+    return winston.createLogger({
       transports: [
         new LoggingWinston({
           projectId: this.options.projectId,
+          labels: { module: 'genkit' },
+          prefix: 'genkit',
+          logName: 'genkit_log',
         }),
       ],
-    };
+      ...format,
+    });
   }
 }

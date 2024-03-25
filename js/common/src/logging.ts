@@ -14,72 +14,55 @@
  * limitations under the License.
  */
 
-import * as winston from 'winston';
 import { LoggerConfig } from './telemetryTypes';
 
 class Logger {
-  readonly genkitLabels = { labels: { module: 'genkit' } };
-
-  textLogger: winston.Logger;
-  structuredLogger: winston.Logger;
+  logger: {
+    debug(...args: any);
+    info(...args: any);
+    warn(...args: any);
+    error(...args: any);
+    level: string;
+  };
 
   constructor() {
-    this.textLogger = winston.createLogger({
-      transports: [new winston.transports.Console()],
-      level: 'debug',
-      ...this.getDevConfigurationOverrides(),
-    });
-    this.structuredLogger = winston.createLogger({
-      transports: [],
+    this.logger = {
+      ...console,
       level: 'info',
-    });
+    };
   }
 
-  private getDevConfigurationOverrides() {
-    return process.env.GENKIT_ENV === 'dev'
-      ? {
-          format: winston.format.printf((info): string => {
-            return `[${info.level}] ${info.message}`;
-          }),
-        }
-      : {};
-  }
-
-  init(config: LoggerConfig) {
-    this.textLogger = winston.createLogger({
-      ...config.getConfig(),
-      ...this.getDevConfigurationOverrides(),
-    });
-    this.structuredLogger = winston.createLogger({
-      ...config.getConfig(),
-      level: 'info',
-      format: winston.format.json(),
-    });
+  async init(config: LoggerConfig) {
+    this.logger = await config.getLogger(process.env.GENKIT_ENV || 'dev');
   }
 
   info(...args: any) {
     // eslint-disable-next-line prefer-spread
-    this.textLogger.info(args, this.genkitLabels);
+    this.logger.info.apply(this.logger, args);
   }
   debug(...args: any) {
     // eslint-disable-next-line prefer-spread
-    this.textLogger.debug(args, this.genkitLabels);
+    this.logger.debug.apply(this.logger, args);
   }
   error(...args: any) {
     // eslint-disable-next-line prefer-spread
-    this.textLogger.error(args, this.genkitLabels);
+    this.logger.error.apply(this.logger, args);
   }
   warn(...args: any) {
     // eslint-disable-next-line prefer-spread
-    this.textLogger.warn(args, this.genkitLabels);
+    this.logger.warn.apply(this.logger, args);
   }
 
   setLogLevel(level: 'error' | 'warn' | 'info' | 'debug') {
-    this.textLogger.level = level;
+    this.logger.level = level;
   }
 
-  logStructured(obj: any) {
-    this.structuredLogger.info(obj);
+  logStructured(msg: string, metadata: any) {
+    this.logger.info(msg, metadata);
+  }
+
+  logStructuredError(msg: string, metadata: any) {
+    this.logger.error(msg, metadata);
   }
 }
 

@@ -439,6 +439,7 @@ export class Flow<
                 metadataPrefix('state'),
                 'interrupted'
               );
+              // Log interrupted
             } else {
               metadata.state = 'error';
               setCustomMetadataAttribute(metadataPrefix('state'), 'error');
@@ -447,6 +448,8 @@ export class Flow<
                 error: getErrorMessage(e),
                 stacktrace: getErrorStack(e),
               } as FlowError;
+
+              telemetry.recordError(e);
               telemetry.writeFlowFailure(
                 ctx.flow.name,
                 performance.now() - startTimeMs,
@@ -494,7 +497,7 @@ export class Flow<
     } catch (e) {
       // Pass errors as operations instead of a standard API error
       // (https://cloud.google.com/apis/design/errors#http_mapping)
-      logger.error(e);
+      telemetry.recordError(e);
       res
         .status(500)
         .send({
@@ -520,7 +523,7 @@ export class Flow<
     try {
       await this.authPolicy?.(auth, input);
     } catch (e: any) {
-      logger.error(e);
+      telemetry.recordError(e);
       res
         .status(403)
         .send({
@@ -548,7 +551,7 @@ export class Flow<
         res.end();
       } catch (e) {
         // Errors while streaming are also passed back as operations
-        logger.error(e);
+        telemetry.recordError(e);
         res.write(
           JSON.stringify({
             done: true,
@@ -577,7 +580,7 @@ export class Flow<
       } catch (e) {
         // Errors for non-durable, non-streaming flows are passed back as
         // standard API errors.
-        logger.error(e);
+        telemetry.recordError(e);
         res
           .status(500)
           .send({

@@ -74,11 +74,9 @@ export class GcpOpenTelemetry implements TelemetryConfig {
   /** Gets all open telemetry instrumentations as configured by the plugin. */
   private getInstrumentations() {
     if (this.options?.telemetryConfig?.autoInstrumentation) {
-      return this.getDefaultLoggingInstrumentations().concat(
-        getNodeAutoInstrumentations(
-          this.options?.telemetryConfig?.autoInstrumentationConfig || {}
-        )
-      );
+      return getNodeAutoInstrumentations(
+        this.options?.telemetryConfig?.autoInstrumentationConfig || {}
+      ).concat(this.getDefaultLoggingInstrumentations());
     }
     return this.getDefaultLoggingInstrumentations();
   }

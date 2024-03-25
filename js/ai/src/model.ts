@@ -21,10 +21,7 @@ import {
   StreamingCallback,
 } from '@genkit-ai/common';
 import * as registry from '@genkit-ai/common/registry';
-import {
-  setCustomMetadataAttributes,
-  spanMetadataAls,
-} from '@genkit-ai/common/tracing';
+import { setCustomMetadataAttributes } from '@genkit-ai/common/tracing';
 import { performance } from 'node:perf_hooks';
 import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
@@ -316,11 +313,13 @@ export function defineModel<
             ...response,
             latencyMs: performance.now() - startTimeMs,
           };
-          writeMetrics(options.name, input, { response: timedResponse });
+          telemetry.recordGenerateActionMetrics(options.name, input, {
+            response: timedResponse,
+          });
           return timedResponse;
         })
         .catch((err) => {
-          writeMetrics(options.name, input, { err });
+          telemetry.recordGenerateActionMetrics(options.name, input, { err });
           throw err;
         });
     }
@@ -396,32 +395,6 @@ function getPartCounts(parts: Part[]): PartCounts {
     },
     { characters: 0, images: 0 }
   );
-}
-
-function writeMetrics(
-  modelName: string,
-  input: GenerationRequest,
-  opts: {
-    response?: GenerationResponseData;
-    err?: any;
-  }
-) {
-  telemetry.recordGenerateAction(modelName, {
-    temperature: input.config?.temperature,
-    topK: input.config?.topK,
-    topP: input.config?.topP,
-    maxOutputTokens: input.config?.maxOutputTokens,
-    path: spanMetadataAls?.getStore()?.path,
-    inputTokens: opts.response?.usage?.inputTokens,
-    outputTokens: opts.response?.usage?.outputTokens,
-    totalTokens: opts.response?.usage?.totalTokens,
-    inputCharacters: opts.response?.usage?.inputCharacters,
-    outputCharacters: opts.response?.usage?.outputCharacters,
-    inputImages: opts.response?.usage?.inputImages,
-    outputImages: opts.response?.usage?.outputImages,
-    latencyMs: opts.response?.latencyMs,
-    err: opts.err,
-  });
 }
 
 export type ModelArgument<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> =
