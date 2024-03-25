@@ -28,6 +28,7 @@ See the [Getting started](/genkit/get-started) page.
 
 *   [Deploy with Firebase](/genkit/firebase)
 *   [Deploy with Cloud Run](/genkit/express)
+*   [Set auth policies](/genkit/auth)
 *   [Config and plugins](/genkit/config)
 *   [Models](/genkit/models)
 *   [Flows](/genkit/flows)
