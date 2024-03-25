@@ -33,7 +33,7 @@ const actionCounter = new MetricCounter(_N('requests'), {
 
 const actionLatencies = new MetricHistogram(_N('action_latency'), {
   description: 'Latencies when calling Genkit actions.',
-  valueType: ValueType.INT,
+  valueType: ValueType.DOUBLE,
   unit: 'ms',
 });
 

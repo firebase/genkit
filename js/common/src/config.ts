@@ -23,7 +23,11 @@ import { logger } from './logging';
 import { PluginProvider } from './plugin';
 import * as registry from './registry';
 import { AsyncProvider } from './registry';
-import { TelemetryConfig, TelemetryOptions } from './telemetryTypes';
+import {
+  LoggerConfig,
+  TelemetryConfig,
+  TelemetryOptions,
+} from './telemetryTypes';
 import { enableTracingAndMetrics, TraceStore } from './tracing';
 import { LocalFileTraceStore } from './tracing/localFileTraceStore';
 
@@ -46,6 +50,7 @@ class Config {
   readonly configuredEnvs = new Set<string>(['dev']);
 
   private telemetryConfig: AsyncProvider<TelemetryConfig>;
+  private loggerConfig?: AsyncProvider<LoggerConfig>;
 
   constructor(options: ConfigOptions) {
     this.options = options;
@@ -124,12 +129,11 @@ class Config {
     });
 
     if (this.options.telemetry?.logger) {
-      const telemetryPluginName = this.options.telemetry.logger;
+      const loggerPluginName = this.options.telemetry.logger;
       logger.debug('Registering logging exporters...');
-      logger.debug(`  - all environments: ${telemetryPluginName}`);
-      this.resolveLoggerConfig(telemetryPluginName).then((config) =>
-        logger.init(config)
-      );
+      logger.debug(`  - all environments: ${loggerPluginName}`);
+      this.loggerConfig = async () =>
+        this.resolveLoggerConfig(loggerPluginName);
     }
 
     if (this.options.telemetry?.instrumentation) {
@@ -171,6 +175,26 @@ class Config {
       logger.warn(
         '`traceStore` is not specified in the config; defaulting to dev store.'
       );
+    }
+  }
+
+  /**
+   * Sets up the tracing and logging as configured.
+   *
+   * Note: the logging configuration must come after tracing has been enabled to
+   * ensure that all tracing instrumentations are applied.
+   * See limitations described here:
+   * https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-instrumentation#limitations
+   */
+  async setupTracingAndLogging() {
+    if (this.options.enableTracingAndMetrics) {
+      enableTracingAndMetrics(
+        await this.getTelemetryConfig(),
+        await this.getTraceStore()
+      );
+    }
+    if (this.loggerConfig) {
+      logger.init(await this.loggerConfig());
     }
   }
 
@@ -243,9 +267,7 @@ export function configureGenkit(options: ConfigOptions): Config {
     throw new Error('configureGenkit was already called');
   }
   config = new Config(options);
-  if (options.enableTracingAndMetrics) {
-    enableTracingAndMetrics();
-  }
+  config.setupTracingAndLogging();
   return config;
 }
 

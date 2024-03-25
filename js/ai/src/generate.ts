@@ -38,6 +38,7 @@ import {
   Role,
   ToolResponsePart,
 } from './model.js';
+import * as telemetry from './telemetry';
 import {
   resolveTools,
   ToolAction,
@@ -448,6 +449,7 @@ export async function generate<
   }
 
   const request = await toGenerateRequest(prompt);
+  telemetry.recordGenerateActionInputLogs(model.__action.name, prompt, request);
   const response = await runWithStreamingCallback(
     prompt.streamingCallback,
     async () =>
@@ -475,6 +477,11 @@ export async function generate<
     (part) => !!part.toolRequest
   );
   if (prompt.returnToolRequests || toolCalls.length === 0) {
+    telemetry.recordGenerateActionOutputLogs(
+      model.__action.name,
+      prompt,
+      response
+    );
     return response;
   }
   const toolResponses: ToolResponsePart[] = await Promise.all(

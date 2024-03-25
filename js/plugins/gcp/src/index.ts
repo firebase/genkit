@@ -16,6 +16,7 @@
 
 import { genkitPlugin, Plugin } from '@genkit-ai/common/config';
 import { InstrumentationConfigMap } from '@opentelemetry/auto-instrumentations-node';
+import { Instrumentation } from '@opentelemetry/instrumentation';
 import { Sampler } from '@opentelemetry/sdk-trace-base';
 import { GcpLogger } from './gcpLogger';
 import { GcpOpenTelemetry } from './gcpOpenTelemetry';
@@ -30,6 +31,7 @@ export interface TelemetryConfig {
   autoInstrumentation?: boolean;
   autoInstrumentationConfig?: InstrumentationConfigMap;
   metricExportIntervalMillis?: number;
+  instrumentations?: Instrumentation[];
 }
 
 /**

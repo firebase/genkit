@@ -20,7 +20,9 @@ import {
   SimpleSpanProcessor,
   SpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
-import { config, getCurrentEnv } from './config';
+import { getCurrentEnv } from './config';
+import { TelemetryConfig } from './telemetryTypes';
+import { TraceStore } from './tracing';
 import { TraceStoreExporter } from './tracing/exporter';
 import { MultiSpanProcessor } from './tracing/multiSpanProcessor';
 
@@ -36,16 +38,22 @@ const processors: SpanProcessor[] = [];
 /**
  * Enables trace spans to be written to the trace store.
  */
-export async function enableTracingAndMetrics(
+export function enableTracingAndMetrics(
+  telemetryConfig: TelemetryConfig,
+  traceStore?: TraceStore,
   traceStoreOptions: {
     processor?: 'batch' | 'simple';
   } = {}
 ) {
-  addProcessor(
-    await createTraceStoreProcessor(traceStoreOptions.processor || 'batch')
-  );
+  if (traceStore) {
+    addProcessor(
+      createTraceStoreProcessor(
+        traceStore,
+        traceStoreOptions.processor || 'batch'
+      )
+    );
+  }
 
-  const telemetryConfig = await config.getTelemetryConfig();
   const nodeOtelConfig = telemetryConfig.getConfig() || {};
 
   addProcessor(nodeOtelConfig.spanProcessor);
@@ -60,17 +68,14 @@ export async function enableTracingAndMetrics(
  *
  * Returns `undefined` if no trace store implementation is configured.
  */
-async function createTraceStoreProcessor(
+function createTraceStoreProcessor(
+  traceStore: TraceStore,
   processor: 'batch' | 'simple'
-): Promise<SpanProcessor | undefined> {
-  const traceStore = await config.getTraceStore();
-  if (traceStore) {
-    const exporter = new TraceStoreExporter(traceStore);
-    return processor === 'simple' || getCurrentEnv() === 'dev'
-      ? new SimpleSpanProcessor(exporter)
-      : new BatchSpanProcessor(exporter);
-  }
-  return undefined;
+): SpanProcessor {
+  const exporter = new TraceStoreExporter(traceStore);
+  return processor === 'simple' || getCurrentEnv() === 'dev'
+    ? new SimpleSpanProcessor(exporter)
+    : new BatchSpanProcessor(exporter);
 }
 
 /** Adds the given {SpanProcessor} to the list of processors */

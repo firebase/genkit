@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
+import { logger } from '@genkit-ai/common/logging';
 import {
   internalMetricNamespaceWrap,
   MetricCounter,
   MetricHistogram,
 } from '@genkit-ai/common/metrics';
+import { spanMetadataAls } from '@genkit-ai/common/tracing';
 import { ValueType } from '@opentelemetry/api';
 
 /**
@@ -33,9 +35,19 @@ const flowCounter = new MetricCounter(_N('requests'), {
 
 const flowLatencies = new MetricHistogram(_N('flow_latency'), {
   description: 'Latencies when calling Genkit flows.',
-  valueType: ValueType.INT,
+  valueType: ValueType.DOUBLE,
   unit: 'ms',
 });
+
+export function recordError(err: any) {
+  const path = spanMetadataAls?.getStore()?.path;
+  logger.logStructuredError(`Error[${path}, ${err.name}]`, {
+    path: path,
+    name: err.name,
+    message: err.message,
+    stack: err.stack,
+  });
+}
 
 export function writeFlowSuccess(flowName: string, latencyMs: number) {
   const dimensions = {
