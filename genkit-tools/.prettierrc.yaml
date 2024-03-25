@@ -15,5 +15,5 @@
 trailingComma: 'es5'
 semi: true
 bracketSameLine: true
-cssDeclarationSorterOrder: 'alphabetical'
+cssDeclarationSorterCustomOrder: ['alphabetical']
 plugins: ['prettier-plugin-css-order', 'prettier-plugin-organize-imports']
