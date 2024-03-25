@@ -314,7 +314,7 @@ function inferRoleFromParts(parts: Part[]): Role {
   return Array.from(uniqueRoles)[0];
 }
 
-async function toGenerateRequest(
+export async function toGenerateRequest(
   prompt: GenerateOptions
 ): Promise<GenerationRequest> {
   const promptMessage: MessageData = { role: 'user', content: [] };
