@@ -29,8 +29,8 @@ jest.mock('fs');
 jest.mock('fs/promises');
 
 describe('localFileEvalStore', () => {
-  var evalStore: LocalFileEvalStore;
-  var storeRoot: string;
+  let evalStore: LocalFileEvalStore;
+  let storeRoot: string;
   const evalRunResults: EvalResult[] = [
     {
       testCaseId: 'alakjdshfalsdkjh',

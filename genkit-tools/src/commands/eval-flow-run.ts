@@ -173,7 +173,7 @@ async function runFlows(
 
   for (const d of data) {
     logger.info(`Running '/flow/${flowName}' ...`);
-    var state = (
+    let state = (
       await runner.runAction({
         key: `/flow/${flowName}`,
         input: {
@@ -220,8 +220,8 @@ async function fetchDataSet(
         )
       );
 
-      var rootSpan: SpanData | undefined = undefined;
-      var retrievers: SpanData[] = [];
+      let rootSpan: SpanData | undefined = undefined;
+      let retrievers: SpanData[] = [];
       for (const trace of traces) {
         const tempRootSpan = Object.values(trace.spans).find(
           (s) =>

@@ -89,7 +89,7 @@ export const streamer = onFlow(
   },
   async (count, streamingCallback) => {
     console.log('streamingCallback', !!streamingCallback);
-    var i = 0;
+    let i = 0;
     if (streamingCallback) {
       for (; i < count; i++) {
         await new Promise((r) => setTimeout(r, 1000));

@@ -43,8 +43,8 @@ export const evalExtractData = new Command('eval:extractData')
     await runInRunnerThenStop(async (runner) => {
       logger.info(`Extracting trace data '/flow/${flowName}'...`);
 
-      var dataset: EvalInput[] = [];
-      var continuationToken = undefined;
+      let dataset: EvalInput[] = [];
+      let continuationToken = undefined;
       while (dataset.length < parseInt(options.maxRows)) {
         const response = await runner.listTraces({
           env: options.env,
@@ -55,7 +55,7 @@ export const evalExtractData = new Command('eval:extractData')
         const traces = response.traces;
         // TODO: This assumes that all the data is in one trace, but it could be across multiple.
         // We should support this use case similar to how we do in eval-flow-run.ts
-        var batch: EvalInput[] = traces
+        let batch: EvalInput[] = traces
           .map((t) => {
             const rootSpan = Object.values(t.spans).find(
               (s) =>

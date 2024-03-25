@@ -111,9 +111,9 @@ async function extractText(filePath: string): Promise<string> {
   const pdfjsLib = await import('pdfjs-dist');
   let doc = await pdfjsLib.getDocument(filePath).promise;
 
-  var pdfTxt = '';
+  let pdfTxt = '';
   const numPages = doc.numPages;
-  for (var i = 1; i <= numPages; i++) {
+  for (let i = 1; i <= numPages; i++) {
     let page = await doc.getPage(i);
     let content = await page.getTextContent();
     let strings = content.items.map((item) => {
@@ -143,7 +143,7 @@ export const synthesizeQuestions = flow(
     );
 
     const questions: string[] = [];
-    for (var i = 0; i < chunks.length; i++) {
+    for (let i = 0; i < chunks.length; i++) {
       const qResponse = await generate({
         model: geminiPro,
         prompt: {
