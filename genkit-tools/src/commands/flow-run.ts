@@ -72,16 +72,7 @@ export const flowRun = new Command('flow:run')
       logger.info(
         'Flow operation:\n' + JSON.stringify(state.operation, undefined, '  ')
       );
-      if (state.operation.result?.error) {
-        logger.error(
-          'Error:\n' +
-            JSON.stringify(state.operation.result?.error, undefined, '  ')
-        );
-        logger.error(
-          'Stack Trace:\n' +
-            JSON.stringify(state.operation.result?.stacktrace, undefined, '  ')
-        );
-      }
+
       if (options.output && state.operation.result?.response) {
         await writeFile(
           options.output,
