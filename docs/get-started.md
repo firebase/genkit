@@ -169,41 +169,40 @@ Cloud billing account.
       and extract into the `functions/genkit-dist` folder.
 
       ```posix-terminal
-      cd functions`
+      cd functions
 
-      npm i --save ./genkit-dist/*.tgz`
-
-      cd ..
+      npm i --save ./genkit-dist/*.tgz
       ```
 
 1.  Replace the contents of `src/index.ts` with the following:
 
+<!-- prettier-ignore-start -->
     ```js
-    import * as z from 'zod';
-    import { generate } from '@genkit-ai/ai/generate';
-    import { getProjectId } from '@genkit-ai/common';
-    import { configureGenkit } from '@genkit-ai/common/config';
-    import { firebase } from '@genkit-ai/plugin-firebase';
-    import { noAuth, onFlow } from '@genkit-ai/plugin-firebase/functions';
-    import { geminiPro, googleGenAI } from '@genkit-ai/plugin-google-genai';
-    import { defineSecret } from 'firebase-functions/params';
+    import * as z from "zod";
+    import {generate} from "@genkit-ai/ai/generate";
+    import {getProjectId} from "@genkit-ai/common";
+    import {configureGenkit} from "@genkit-ai/common/config";
+    import {firebase} from "@genkit-ai/plugin-firebase";
+    import {noAuth, onFlow} from "@genkit-ai/plugin-firebase/functions";
+    import {geminiPro, googleGenAI} from "@genkit-ai/plugin-google-genai";
+    import {defineSecret} from "firebase-functions/params";
 
-    const googleaiApiKey = defineSecret('GOOGLE_API_KEY');
+    const googleaiApiKey = defineSecret("GOOGLE_API_KEY");
 
     configureGenkit({
-      plugins: [firebase({ projectId: getProjectId() }), googleGenAI()],
+      plugins: [firebase({projectId: getProjectId()}), googleGenAI()],
       enableTracingAndMetrics: true,
-      traceStore: 'firebase',
-      logLevel: 'debug',
+      traceStore: "firebase",
+      logLevel: "debug",
     });
 
     export const jokeFlow = onFlow(
       {
-        name: 'jokeFlow',
+        name: "jokeFlow",
         input: z.string(),
         output: z.string(),
         authPolicy: noAuth(),
-        httpsOptions: { secrets: [googleaiApiKey] },
+        httpsOptions: {secrets: [googleaiApiKey]},
       },
       async (subject) => {
         process.env.GOOGLE_API_KEY = googleaiApiKey.value();
@@ -216,6 +215,7 @@ Cloud billing account.
       }
     );
     ```
+<!-- prettier-ignore-end -->
 
     This is very similar to the code you ran locally in the last section,
     with a few important differences:
@@ -246,14 +246,13 @@ Cloud billing account.
 1.  Try making a request to your deployed endpoint. For example, using `curl`:
 
     ```posix-terminal
-    curl -m 70 -X POST https://jokeflow-xyz.a.run.app -H "Content-Type: application/json" -d '{"start": {"input": "bananas"}}'
+    curl -m 70 -X POST https://jokeflow-xyz.a.run.app -H "Content-Type: application/json" -d '{"data":"apple"}'
     ```
 
     If all goes well, you'll get a response like the following:
 
     ```none
-    {"name":"e64efa71-a63d-4618-bad7-33e61e4622ad","done":true,
-    "result":{"response":"What do you call a banana that's been in the sun too long?\n\nA tanana!"}}
+    {"result":"What do you call..."}
     ```
 
 The getting started guide has walked you through the basics of writing a
