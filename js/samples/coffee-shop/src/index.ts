@@ -14,283 +14,117 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai/generate';
 import { initializeGenkit } from '@genkit-ai/common/config';
-import { flow, run, runFlow } from '@genkit-ai/flow';
-import { gpt35Turbo } from '@genkit-ai/plugin-openai';
+import { definePrompt } from '@genkit-ai/dotprompt';
+import { flow, runFlow } from '@genkit-ai/flow';
 import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 import * as z from 'zod';
 import config from './genkit.conf';
 
 initializeGenkit(config);
 
-function promptSimple({ customerName }: { customerName: string }) {
-  return `
-  You're a barista at a high end coffee shop.  
-  The customers name is ${customerName}.  
-  
-  Write a greeting for the customer in 15 words or less, and recommend a drink.
-  `;
-}
+// This example generates greetings for a customer at our new AI-powered coffee shop,
+// demonstrating how to use prompts in Genkit flows.
 
-const SimpleOrderHistorySchema = z.object({
+// A flow to greet a customer by name
+
+const CustomerNameSchema = z.object({
+  customerName: z.string(),
+});
+
+const simpleGreetingPrompt = definePrompt(
+  {
+    name: 'simpleGreeting',
+    model: geminiPro,
+    input: CustomerNameSchema,
+    output: {
+      format: 'text',
+    },
+  },
+  `
+You're a barista at a nice coffee shop.  
+A regular customer named {{customerName}} enters.
+Greet the customer in one sentence, and recommend a coffee drink.
+`
+);
+
+export const simpleGreetingFlow = flow(
+  { name: 'simpleGreeting', input: CustomerNameSchema, output: z.string() },
+  async (input) =>
+    (await simpleGreetingPrompt.generate({ input: input })).text()
+);
+
+// Another flow to recommend a drink based on the time of day and a previous order.
+// This prompt uses multiple messages, alternating roles
+// to make the response more conversational.
+
+const CustomerTimeAndHistorySchema = z.object({
   customerName: z.string(),
   currentTime: z.string(),
   previousOrder: z.string(),
 });
 
-export type orderHistoryType = z.infer<typeof SimpleOrderHistorySchema>;
+const greetingWithHistoryPrompt = definePrompt(
+  {
+    name: 'greetingWithHistory',
+    model: geminiPro,
+    input: CustomerTimeAndHistorySchema,
+    output: {
+      format: 'text',
+    },
+  },
+  `
+{{role "user"}}
+Hi, my name is {{customerName}}. The time is {{currentTime}}. Who are you?
 
-const MenuItemSchema = z.object({
-  name: z.string(),
-  id: z.string(),
-  price: z.number(),
-  description: z.string().optional(),
-  specialOfTheDay: z.boolean(),
-});
+{{role "model"}}
+I am Barb, a barista at this nice underwater-themed coffee shop called Krabby Kooffee.  
+I know pretty much everything there is to know about coffee, 
+and I can cheerfully recommend delicious coffee drinks to you based on whatever you like.
 
-const PreviousOrderSchema = z.object({
-  orderDate: z.string().datetime(),
-  menuItem: MenuItemSchema,
-});
-
-const ComplexCoffeeShopSchema = z.object({
-  customerName: z.string(),
-  customerId: z.string().optional(),
-  currentTime: z.string().datetime(),
-  previousOrders: z.array(PreviousOrderSchema),
-  currentMenuItems: z.array(MenuItemSchema),
-});
-
-export type complexOrderHistoryType = z.infer<typeof ComplexCoffeeShopSchema>;
-
-function promptWithSimpleHistory({ previousOrder }: { previousOrder: string }) {
-  return `
-You're a barista at a high end coffee shop.
-
-Write a greeting for this customer in 20 words or less and recommend a drink.
-
-In you're response, account for the fact that the current time is {current_time},
-and the customer's previous order was:
-
-  Order: ${previousOrder}
-`;
-}
-
-function promptForJudgement({
-  llmRequest,
-  llmResponse,
-}: {
-  llmRequest: string;
-  llmResponse: string;
-}) {
-  return `
-You're a nitpicky and detailed oriented judge of LLM responses.  
-Your job is to score an LLM response between 0 and 5,
-where 0 is a very poor response and 5 is great.
-
-Carefully consider each aspect of the request that went 
-to the LLM and how it responsed and then respond ONLY with a number between 0 and 5
-
-What the LLM was asked:
-========================
-${llmRequest}
-========================
-
-What the LLM responded with:
-========================
-${llmResponse}
-========================
-
-
-Your score:
-`;
-}
-
-function makeComplexPrompt(orderHistory: complexOrderHistoryType) {
-  const previousOrdersString = orderHistory.previousOrders
-    .map((item) => {
-      return `${item.orderDate} | ${item.menuItem.name} | ${item.menuItem.price}`;
-    })
-    .join('\n');
-
-  const specialsOfTheDay = orderHistory.currentMenuItems
-    .filter((item) => {
-      return item.specialOfTheDay;
-    })
-    ?.map((item) => {
-      return `${item.name} | ${item.description} | ${item.price}`;
-    })
-    .join('\n');
-
-  return `
-  You're a professional, expert barista at a coffeeshop, recommend a drink for this customer
-   in 15 words or less, here's the context you need: 
-  
-   the customer name is ${orderHistory.customerName}
-   the current time is ${orderHistory.currentTime}
-   
-   
-   they've had previous orders:
-  ============= PREVIOUS ORDERS ==============
-  ${previousOrdersString}
-  ============================================
-
-  Today's specials are:
-  ============= SPECIALS =====================
-  ${specialsOfTheDay}
-  ============================================
-
-  Only suggest the special of the day if it's similar to the other drinks they've
-  ordered in the past, or if they don't have any previous order history
-  `;
-}
-
-export const basicCoffeeRecommender = flow(
-  { name: 'coffeeFlow', input: z.string(), output: z.string() },
-  async (name) => {
-    return await run('call-llm', async () => {
-      const llmResponse = await generate({
-        model: geminiPro,
-        prompt: promptSimple({
-          customerName: name,
-        }),
-        config: {
-          temperature: 1,
-        },
-      });
-
-      return llmResponse.text();
-    });
-  }
+{{role "user"}} 
+Great. Last time I had {{previousOrder}}.
+I want you to greet me in one sentence, and recommend a drink.
+`
 );
 
-export const historyCoffeeRecommender = flow(
+export const greetingWithHistoryFlow = flow(
   {
-    name: 'recommenderWithHistory',
-    input: SimpleOrderHistorySchema,
+    name: 'greetingWithHistory',
+    input: CustomerTimeAndHistorySchema,
     output: z.string(),
   },
-  async (query) => {
-    const llmResponse = await generate({
-      model: geminiPro,
-      prompt: promptWithSimpleHistory(query),
-      config: {
-        temperature: 1,
-      },
-    });
-    return llmResponse.text();
-  }
+  async (input) =>
+    (await greetingWithHistoryPrompt.generate({ input: input })).text()
 );
 
-// Run a simple flow and judge the response
-export const judgeResponseFlow = flow(
+// A flow to quickly test all the above flows
+// Run on the CLI with `$ genkit flow:run testAllCoffeeFlows`
+// View the trace in the dev ui to see the llm responses.
+
+export const testAllCoffeeFlows = flow(
   {
-    name: 'judgeResponseFlow',
-    input: z.string(),
-    output: z.string(),
-  },
-  async (customerName) => {
-    const initialPrompt = promptSimple({ customerName });
-    const llmResponse = await generate({
-      model: gpt35Turbo,
-      prompt: initialPrompt,
-      config: {
-        temperature: 1,
-      },
-    });
-
-    console.log(`Response: ${llmResponse.text()}`);
-    console.log(`Request: ${initialPrompt}`);
-
-    const judgeResponse = await generate({
-      model: gpt35Turbo,
-      prompt: promptForJudgement({
-        llmRequest: initialPrompt,
-        llmResponse: llmResponse.text(),
-      }),
-      config: {
-        temperature: 1,
-      },
-    });
-
-    return judgeResponse.text();
-  }
-);
-
-export const complexOrderHistoryFlow = flow(
-  {
-    name: 'complexOrderHistoryFlow',
-    input: ComplexCoffeeShopSchema,
-    output: z.string(),
-  },
-  async (complexOrderHistory) => {
-    const prompt = makeComplexPrompt(complexOrderHistory);
-
-    const response = await generate({
-      model: geminiPro,
-      prompt: prompt,
-    });
-
-    return response.text();
-  }
-);
-
-/* 
-*  Invokes each flow with some static inputs to validate they're all working
-   as expected.  Test with
-*  genkit flow:run testAllFlows
-*/
-export const testAllFlows = flow(
-  {
-    name: 'testAllFlows',
+    name: 'testAllCoffeeFlows',
     input: z.void(),
-    output: z.void(),
+    output: z.object({
+      pass: z.boolean(),
+      error: z.string().optional(),
+    }),
   },
   async () => {
-    // Test the most simple case
-    const basicCoffeeOperation = await runFlow(basicCoffeeRecommender, 'Sam');
-    console.log('Basic Coffee Recomender', basicCoffeeOperation);
-
-    // Test with simple structured input
-    const historyCoffeeOperation = await runFlow(historyCoffeeRecommender, {
-      customerName: 'Max',
-      currentTime: '12:30AM',
-      previousOrder: 'Maple Cortado',
+    const test1 = runFlow(simpleGreetingFlow, { customerName: 'Sam' });
+    const test2 = runFlow(greetingWithHistoryFlow, {
+      customerName: 'Sam',
+      currentTime: '09:45am',
+      previousOrder: 'Caramel Macchiato',
     });
-    console.log('History Coffee recommendation', historyCoffeeOperation);
 
-    // Use an LLM to judge the response
-    const judgedCoffeeRecomendation = await runFlow(judgeResponseFlow, 'Sam');
-    console.log('Judgement: ', judgedCoffeeRecomendation);
-
-    // Pass in a complex object
-    const complexOrderReccomendation = await runFlow(complexOrderHistoryFlow, {
-      customerName: 'sam',
-      currentTime: '2024-02-20T00:00:00Z',
-      previousOrders: [
-        {
-          orderDate: '2024-02-05T00:00:00Z',
-          menuItem: {
-            name: 'Earl Grey tea, hot',
-            id: '13431',
-            price: 4.22,
-            specialOfTheDay: true,
-            description: 'Delcicious Earl Grey tea from England',
-          },
-        },
-      ],
-      currentMenuItems: [
-        {
-          name: 'Americano',
-          id: '214',
-          price: 3.5,
-          specialOfTheDay: true,
-          description: 'A rich dark pull from our new Aeropress',
-        },
-      ],
-      customerId: undefined,
-    });
-    console.log('Complex order history response', complexOrderReccomendation);
+    return Promise.all([test1, test2])
+      .then((unused) => {
+        return { pass: true };
+      })
+      .catch((e: Error) => {
+        return { pass: false, error: e.toString() };
+      });
   }
 );
