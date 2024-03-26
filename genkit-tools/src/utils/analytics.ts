@@ -8,6 +8,8 @@ import { toolsPackage } from './package';
 // This code is largely adapted from
 // https://github.com/firebase/firebase-tools/blob/master/src/track.ts
 
+export const ANALYTICS_OPT_OUT_CONFIG_TAG = 'analyticsOptOut';
+
 /**
  * The track function accepts this abstract class, but callers should use
  * one of the pre-defined events listed below this class. If you need to add a
@@ -156,7 +158,10 @@ function isValidateOnly(): boolean {
 // are set. Once we have opt-out and we're ready for public preview this will
 // get updated.
 function isAnalyticsEnabled(): boolean {
-  return isDebugMode() || isValidateOnly();
+  return !!process.env['GENKIT_GA_ENABLED'];
+
+  // TODO: Switch to this before launch:
+  // return !getUserSettings()[ANALYTICS_OPT_OUT_CONFIG_TAG];
 }
 
 async function recordInternal(
