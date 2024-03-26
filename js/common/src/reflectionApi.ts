@@ -230,7 +230,18 @@ export async function startReflectionApi(port?: number | undefined) {
     );
   });
 
-  api.listen(port, () => {
+  const server = api.listen(port, () => {
     console.log(`Reflection API running on http://localhost:${port}`);
+  });
+
+  server.on('error', (error) => {
+    if (process.env.GENKIT_REFLECTION_ON_STARTUP_FAILURE === 'ignore') {
+      logger.warn(
+        `Failed to start the reflection API on port ${port}, ignoring the error.`
+      );
+      logger.debug(error);
+    } else {
+      throw error;
+    }
   });
 }
