@@ -62,7 +62,7 @@ export const geminiPro = modelRef({
   name: 'google-ai/gemini-pro',
   info: {
     label: 'Google AI - Gemini Pro',
-    names: ['gemini-pro'],
+    versions: ['gemini-1.0-pro', 'gemini-1.0-pro-latest', 'gemini-1.0-pro-001'],
     supports: {
       multiturn: true,
       media: false,
@@ -76,7 +76,8 @@ export const geminiProVision = modelRef({
   name: 'google-ai/gemini-pro-vision',
   info: {
     label: 'Google AI - Gemini Pro Vision',
-    names: ['gemini-pro-vision'],
+    // none declared on https://ai.google.dev/models/gemini#model-variations
+    versions: [],
     supports: {
       multiturn: true,
       media: true,
@@ -90,7 +91,7 @@ export const geminiUltra = modelRef({
   name: 'google-ai/gemini-ultra',
   info: {
     label: 'Google AI - Gemini Ultra',
-    names: ['gemini-ultra'],
+    versions: [],
     supports: {
       multiturn: true,
       media: false,
@@ -103,7 +104,7 @@ export const geminiUltra = modelRef({
 export const SUPPORTED_MODELS = {
   'gemini-pro': geminiPro,
   'gemini-pro-vision': geminiProVision,
-  'gemini-ultra': geminiUltra,
+  // 'gemini-ultra': geminiUltra,
 };
 
 function toGeminiRole(role: MessageData['role']): string {
@@ -178,10 +179,9 @@ function fromGeminiFinishReason(
       return 'stop';
     case 'MAX_TOKENS':
       return 'length';
-    case 'SAFETY':
+    case 'SAFETY': // blocked for safety
+    case 'RECITATION': // blocked for reciting training data
       return 'blocked';
-    case 'RECITATION':
-      return 'other';
     default:
       return 'unknown';
   }
@@ -214,9 +214,7 @@ export function googleAIModel(name: string, apiKey?: string): ModelAction {
     throw new Error(
       'please pass in the API key or set the GOOGLE_GENAI_API_KEY or GOOGLE_API_KEY environment variable'
     );
-  const client = new GoogleGenerativeAI(apiKey).getGenerativeModel({
-    model: name,
-  });
+
   if (!SUPPORTED_MODELS[name]) throw new Error(`Unsupported model: ${name}`);
   return defineModel(
     {
@@ -231,6 +229,9 @@ export function googleAIModel(name: string, apiKey?: string): ModelAction {
       ],
     },
     async (request, streamingCallback) => {
+      const client = new GoogleGenerativeAI(apiKey!).getGenerativeModel({
+        model: request.config?.version || name,
+      });
       const messages = request.messages.map(toGeminiMessage);
       if (messages.length === 0) throw new Error('No messages provided.');
       const chatRequest = {
