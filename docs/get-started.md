@@ -112,16 +112,16 @@ later.
     configured, run them, and examine traces of previous runs. Try out some of
     these features:
 
-    - On the Actions tab you will see a list of all of the flows you have
+    - On the "Run" tab, you will see a list of all of the flows tat you have
       defined and any models that have been configured by plugins.
 
       Click **jokeFlow** and try running it with some input text (for example,
       `"manatees"`). If all goes well, you'll be rewarded with a joke about
       manatees. Run it a few more times and you might get one that's funny.
 
-    - On the Flows tab, you'll see a history of flow executions. For each
-      entry you can see the parameters that were passed to the flow and a
-      trace of each step as they run.
+    - On the "Inspect" tab, you'll see a history of flow executions. For each
+      flow, you can see the parameters that were passed to the flow and a
+      trace of each step as they ran.
 
 ## Deploy your flow
 
