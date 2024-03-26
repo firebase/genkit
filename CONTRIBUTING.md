@@ -142,7 +142,7 @@ in the package that you're editing.
 
 Once done coding you will want to send a PR. Always do things in a separate branch (by convention name the branch `your_name-feature-something`).
 
-Before sending the PR alwaya run
+Before sending the PR, always run:
 
 ```
 npm run format
