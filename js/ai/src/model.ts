@@ -112,7 +112,7 @@ const OutputFormatSchema = z.enum(['json', 'text', 'media']);
 
 export const ModelInfoSchema = z.object({
   /** Acceptable names for this model (e.g. different versions). */
-  names: z.array(z.string()).optional(),
+  versions: z.array(z.string()).optional(),
   /** Friendly label for this model (e.g. "Google AI - Gemini Pro") */
   label: z.string().optional(),
   /** Supported model capabilities. */
@@ -145,6 +145,8 @@ export const ToolDefinitionSchema = z.object({
 export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
 
 export const GenerationConfigSchema = z.object({
+  /** A specific version of a model family, e.g. `gemini-1.0-pro-001` for the `gemini-1.0-pro` family. */
+  version: z.string().optional(),
   temperature: z.number().optional(),
   maxOutputTokens: z.number().optional(),
   topK: z.number().optional(),
@@ -271,8 +273,8 @@ export function defineModel<
 >(
   options: {
     name: string;
-    /** Alternate acceptable names for this model (e.g. different versions). */
-    names?: string[];
+    /** Known version names for this model, e.g. `gemini-1.0-pro-001`. */
+    versions?: string[];
     /** Capabilities this model supports. */
     supports?: ModelInfo['supports'];
     /** Custom options schema for this model. */
@@ -299,7 +301,7 @@ export function defineModel<
           customOptions: options.customOptionsType
             ? zodToJsonSchema(options.customOptionsType)
             : undefined,
-          names: options.names,
+          versions: options.versions,
           supports: options.supports,
         },
       },

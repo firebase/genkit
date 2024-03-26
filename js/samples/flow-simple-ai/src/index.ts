@@ -29,13 +29,18 @@ initializeGenkit(config);
 export const jokeFlow = flow(
   {
     name: 'jokeFlow',
-    input: z.object({ modelName: z.string(), subject: z.string() }),
+    input: z.object({
+      modelName: z.string(),
+      modelVersion: z.string().optional(),
+      subject: z.string(),
+    }),
     output: z.string(),
   },
   async (input) => {
     return await run('call-llm', async () => {
       const llmResponse = await generate({
         model: input.modelName,
+        config: { version: input.modelVersion },
         prompt: `Tell a joke about ${input.subject}.`,
       });
       return `From ${input.modelName}: ${llmResponse.text()}`;

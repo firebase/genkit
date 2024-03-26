@@ -23,6 +23,7 @@ import {
   ModelAction,
   ModelMiddleware,
   modelRef,
+  ModelReference,
   Part,
   ToolDefinitionSchema,
 } from '@genkit-ai/ai/model';
@@ -47,7 +48,7 @@ export const geminiPro = modelRef({
   name: 'vertex-ai/gemini-1.0-pro',
   info: {
     label: 'Vertex AI - Gemini Pro',
-    names: ['gemini-1.0-pro'],
+    versions: ['gemini-1.0-pro', 'gemini-1.0-pro-001'],
     supports: {
       multiturn: true,
       media: false,
@@ -60,7 +61,7 @@ export const geminiProVision = modelRef({
   name: 'vertex-ai/gemini-1.0-pro-vision',
   info: {
     label: 'Vertex AI - Gemini Pro Vision',
-    names: ['gemini-1.0-pro-vision'],
+    versions: ['gemini-1.0-pro-vision', 'gemini-1.0-pro-vision-001'],
     supports: {
       multiturn: true,
       media: true,
@@ -193,10 +194,9 @@ function fromGeminiFinishReason(
       return 'stop';
     case 'MAX_TOKENS':
       return 'length';
-    case 'SAFETY':
+    case 'SAFETY': // blocked for safety
+    case 'RECITATION': // blocked for reciting training data
       return 'blocked';
-    case 'RECITATION':
-      return 'other';
     default:
       return 'unknown';
   }
@@ -332,9 +332,8 @@ const convertSchemaProperty = (property) => {
  */
 export function geminiModel(name: string, vertex: VertexAI): ModelAction {
   const modelName = `vertex-ai/${name}`;
-  const client = vertex.preview.getGenerativeModel({ model: name });
 
-  const model = SUPPORTED_GEMINI_MODELS[name];
+  const model: ModelReference<z.ZodTypeAny> = SUPPORTED_GEMINI_MODELS[name];
   if (!model) throw new Error(`Unsupported model: ${name}`);
 
   const middlewares: ModelMiddleware[] = [simulateSystemPrompt()];
@@ -349,6 +348,10 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
       ...SUPPORTED_GEMINI_MODELS[name].info,
     },
     async (request, streamingCallback) => {
+      const client = vertex.preview.getGenerativeModel({
+        model: request.config?.version || name,
+      });
+
       const messages = request.messages;
       if (messages.length === 0) throw new Error('No messages provided.');
 
