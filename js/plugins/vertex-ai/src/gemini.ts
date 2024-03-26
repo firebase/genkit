@@ -26,7 +26,10 @@ import {
   Part,
   ToolDefinitionSchema,
 } from '@genkit-ai/ai/model';
-import { downloadRequestMedia } from '@genkit-ai/ai/model/middleware';
+import {
+  downloadRequestMedia,
+  simulateSystemPrompt,
+} from '@genkit-ai/ai/model/middleware';
 import {
   Content,
   FunctionDeclaration,
@@ -334,7 +337,7 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
   const model = SUPPORTED_GEMINI_MODELS[name];
   if (!model) throw new Error(`Unsupported model: ${name}`);
 
-  const middlewares: ModelMiddleware[] = [];
+  const middlewares: ModelMiddleware[] = [simulateSystemPrompt()];
   if (model?.info?.supports?.media) {
     middlewares.push(downloadRequestMedia({ maxBytes: 1024 * 1024 * 20 }));
   }

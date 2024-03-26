@@ -24,7 +24,10 @@ import {
   modelRef,
   Part,
 } from '@genkit-ai/ai/model';
-import { downloadRequestMedia } from '@genkit-ai/ai/model/middleware';
+import {
+  downloadRequestMedia,
+  simulateSystemPrompt,
+} from '@genkit-ai/ai/model/middleware';
 import {
   GenerateContentCandidate as GeminiCandidate,
   GenerateContentResponse,
@@ -220,8 +223,12 @@ export function googleAIModel(name: string, apiKey?: string): ModelAction {
       name: modelName,
       ...SUPPORTED_MODELS[name].info,
       customOptionsType: SUPPORTED_MODELS[name].configSchema,
-      // since gemini api doesn't support downloading media from http(s)
-      use: [downloadRequestMedia({ maxBytes: 1024 * 1024 * 10 })],
+      use: [
+        // simulate a system prompt since no native one is supported
+        simulateSystemPrompt(),
+        // since gemini api doesn't support downloading media from http(s)
+        downloadRequestMedia({ maxBytes: 1024 * 1024 * 10 }),
+      ],
     },
     async (request, streamingCallback) => {
       const messages = request.messages.map(toGeminiMessage);

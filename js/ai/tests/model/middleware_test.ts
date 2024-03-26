@@ -22,7 +22,10 @@ import {
   GenerationResponseData,
   Part,
 } from '../../src/model';
-import { validateSupport } from '../../src/model/middleware';
+import {
+  simulateSystemPrompt,
+  validateSupport,
+} from '../../src/model/middleware';
 
 describe('validateSupport', () => {
   const examples: Record<string, GenerationRequest> = {
@@ -207,5 +210,51 @@ describe('conformOutput (default middleware)', () => {
       messages: [{ role: 'user', content: [{ text: 'hello' }] }],
     });
     assert(!part, 'output part added to non-schema request');
+  });
+});
+
+describe('simulateSystemPrompt', () => {
+  function testRequest(
+    req: GenerationRequest,
+    options?: Parameters<typeof simulateSystemPrompt>[0]
+  ) {
+    return new Promise((resolve, reject) => {
+      simulateSystemPrompt(options)(req, resolve as any);
+    });
+  }
+
+  it('does not modify a request with no system prompt', async () => {
+    const req: GenerationRequest = {
+      messages: [{ role: 'user', content: [{ text: 'hello' }] }],
+    };
+    assert.deepEqual(await testRequest(req), req);
+  });
+
+  it('keeps other messages in place', async () => {
+    const req: GenerationRequest = {
+      messages: [
+        { role: 'system', content: [{ text: 'I am a system message' }] },
+        { role: 'user', content: [{ text: 'hello' }] },
+      ],
+    };
+    assert.deepEqual(await testRequest(req), {
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { text: 'SYSTEM INSTRUCTIONS:\n' },
+            { text: 'I am a system message' },
+          ],
+        },
+        {
+          role: 'model',
+          content: [{ text: 'Understood.' }],
+        },
+        {
+          role: 'user',
+          content: [{ text: 'hello' }],
+        },
+      ],
+    });
   });
 });
