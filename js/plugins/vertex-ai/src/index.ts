@@ -15,19 +15,19 @@
  */
 
 import { getLocation, getProjectId } from '@genkit-ai/common';
-import { genkitPlugin, Plugin } from '@genkit-ai/common/config';
+import { Plugin, genkitPlugin } from '@genkit-ai/common/config';
 import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleAuth } from 'google-auth-library';
 import { textEmbeddingGecko, textEmbeddingGeckoEmbedder } from './embedder';
 import {
+  SUPPORTED_GEMINI_MODELS,
   geminiModel,
   geminiPro,
   geminiProVision,
-  SUPPORTED_GEMINI_MODELS,
 } from './gemini';
 import { imagen2, imagen2Model } from './imagen';
 
-export { imagen2, geminiPro, geminiProVision, textEmbeddingGecko };
+export { geminiPro, geminiProVision, imagen2, textEmbeddingGecko };
 
 export interface PluginOptions {
   projectId?: string;

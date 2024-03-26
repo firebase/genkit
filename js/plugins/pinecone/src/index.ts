@@ -123,7 +123,7 @@ export default pinecone;
  * Configures a Pinecone retriever.
  */
 export function configurePineconeRetriever<
-  EmbedderCustomOptions extends z.ZodTypeAny
+  EmbedderCustomOptions extends z.ZodTypeAny,
 >(params: {
   indexId: string;
   clientParams?: PineconeConfiguration;
@@ -178,7 +178,7 @@ export function configurePineconeRetriever<
  * Configures a Pinecone indexer.
  */
 export function configurePineconeIndexer<
-  EmbedderCustomOptions extends z.ZodTypeAny
+  EmbedderCustomOptions extends z.ZodTypeAny,
 >(params: {
   indexId: string;
   clientParams?: PineconeConfiguration;

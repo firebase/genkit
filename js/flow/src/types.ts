@@ -21,7 +21,7 @@ import { Flow } from './flow';
 export type Invoker<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny
+  S extends z.ZodTypeAny,
 > = (
   flow: Flow<I, O, S>,
   msg: FlowInvokeEnvelopeMessage,
@@ -31,7 +31,7 @@ export type Invoker<
 export type Scheduler<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny
+  S extends z.ZodTypeAny,
 > = (
   flow: Flow<I, O, S>,
   msg: FlowInvokeEnvelopeMessage,

@@ -22,8 +22,11 @@ import puppeteer, { Page } from 'puppeteer';
 import { PuppeteerScreenRecorder } from 'puppeteer-screen-recorder';
 import terminate from 'terminate';
 
-export async function runDevUiTest(testAppName: string, testFn: (page: Page, devUiUrl: string) => Promise<void>) {
-  const url = await startDevUi(testAppName)
+export async function runDevUiTest(
+  testAppName: string,
+  testFn: (page: Page, devUiUrl: string) => Promise<void>
+) {
+  const url = await startDevUi(testAppName);
   try {
     const browser = await puppeteer.launch({
       slowMo: 50,
@@ -35,7 +38,7 @@ export async function runDevUiTest(testAppName: string, testFn: (page: Page, dev
 
     try {
       await testFn(page, url);
-      console.log('Test passed')
+      console.log('Test passed');
     } finally {
       await recorder.stop();
     }
@@ -45,12 +48,15 @@ export async function runDevUiTest(testAppName: string, testFn: (page: Page, dev
 }
 
 export async function startDevUi(testAppName: string): Promise<string> {
-  const testRoot = path.resolve(os.tmpdir(), `./e2e-run-${Date.now()}`)
-  console.log(`testRoot=${testRoot} pwd=${process.cwd()}`)
+  const testRoot = path.resolve(os.tmpdir(), `./e2e-run-${Date.now()}`);
+  console.log(`testRoot=${testRoot} pwd=${process.cwd()}`);
   fs.mkdirSync(testRoot, { recursive: true });
   fs.cpSync(testAppName, testRoot, { recursive: true });
   const distDir = path.resolve(process.cwd(), '../dist');
-  execSync(`npm i --save ${distDir}/*.tgz`, { stdio: 'inherit', cwd: testRoot });
+  execSync(`npm i --save ${distDir}/*.tgz`, {
+    stdio: 'inherit',
+    cwd: testRoot,
+  });
   execSync(`npm run build`, { stdio: 'inherit', cwd: testRoot });
   return new Promise((urlResolver) => {
     const appProcess = spawn('npx', ['genkit', 'start'], {
@@ -61,7 +67,7 @@ export async function startDevUi(testAppName: string): Promise<string> {
       console.log('stdout: ' + data.toString());
       const match = data.toString().match(/Genkit Tools UI: ([^ ]*)/);
       if (match && match.length > 1) {
-        console.log("Dev UI ready, launching test " + match[1])
+        console.log('Dev UI ready, launching test ' + match[1]);
 
         urlResolver(match[1]);
       }
@@ -79,5 +85,5 @@ export async function startDevUi(testAppName: string): Promise<string> {
       process.exitCode = 23;
       terminate(process.pid);
     });
-  })
+  });
 }

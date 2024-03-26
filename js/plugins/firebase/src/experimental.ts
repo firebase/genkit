@@ -36,7 +36,7 @@ import { callHttpsFunction, getFunctionUrl } from './helpers';
 interface ScheduledFlowConfig<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny
+  S extends z.ZodTypeAny,
 > {
   name: string;
   input: I;
@@ -53,7 +53,7 @@ interface ScheduledFlowConfig<
 export function onScheduledFlow<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny
+  S extends z.ZodTypeAny,
 >(
   config: ScheduledFlowConfig<I, O, S>,
   steps: StepsFunction<I, O, S>
@@ -88,7 +88,7 @@ export function onScheduledFlow<
 function wrapScheduledFlow<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny
+  S extends z.ZodTypeAny,
 >(flow: Flow<I, O, S>, config: ScheduledFlowConfig<I, O, S>): HttpsFunction {
   const tq = onTaskDispatched<FlowInvokeEnvelopeMessage>(
     {

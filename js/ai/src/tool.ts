@@ -23,7 +23,7 @@ import { ToolDefinition } from './model';
 
 export type ToolAction<
   I extends z.ZodTypeAny = z.ZodTypeAny,
-  O extends z.ZodTypeAny = z.ZodTypeAny
+  O extends z.ZodTypeAny = z.ZodTypeAny,
 > = Action<I, O> & {
   __action: {
     metadata: {
@@ -34,7 +34,7 @@ export type ToolAction<
 
 export type ToolArgument<
   I extends z.ZodTypeAny = z.ZodTypeAny,
-  O extends z.ZodTypeAny = z.ZodTypeAny
+  O extends z.ZodTypeAny = z.ZodTypeAny,
 > = string | ToolAction<I, O> | Action<I, O>;
 
 export function asTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
@@ -57,7 +57,7 @@ export function asTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 
 export async function resolveTools<
   O extends z.ZodTypeAny = z.ZodTypeAny,
-  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   tools: (Action<z.ZodTypeAny, z.ZodTypeAny> | string)[] = []
 ): Promise<ToolAction[]> {

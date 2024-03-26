@@ -1,7 +1,7 @@
-
 # Genkit with Cloud Run
 
 1.  Install required tools
+
     1.  make sure you are using node version 18 or higher (run `node --version`
         to check).
     1.  install [gcloud cli](https://cloud.google.com/sdk/docs/install)
@@ -25,7 +25,7 @@
     ```
 
 1.  You will need a Google Cloud or Firebase project for persisting traces in
-    Firestore. After you have created / picked one, run the following to set an
+      Firestore. After you have created / picked one, run the following to set an
     env var with your project ID and set the project as your default:
 
     ```posix-terminal
@@ -64,65 +64,65 @@
 
     ```json
     {
-       "compilerOptions": {
-          "module": "commonjs",
-         "noImplicitReturns": true,
-         "noUnusedLocals": false,
-         "outDir": "lib",
-         "sourceMap": true,
-          "strict": true,
-         "target": "es2017",
-         "skipLibCheck": true,
-         "esModuleInterop": true
-       },
-        "compileOnSave": true,
-       "include": [
-         "src"
-       ]
+      "compilerOptions": {
+        "module": "commonjs",
+        "noImplicitReturns": true,
+        "noUnusedLocals": false,
+        "outDir": "lib",
+        "sourceMap": true,
+        "strict": true,
+        "target": "es2017",
+        "skipLibCheck": true,
+        "esModuleInterop": true
+      },
+      "compileOnSave": true,
+      "include": ["src"]
     }
     ```
 
     Replace the contents of your package.json file with the following:
 
     ```json
-     {
-       "name": "genkit-express-project1",
-       "version": "1.0.0",
-       "description": "",
-       "main": "lib/index.js",
-        "scripts": {
-         "start": "node lib/index.js",
-         "compile": "tsc",
-         "build": "npm run build:clean && npm run compile",
-         "build:clean": "rm -rf ./lib",
-          "build:watch": "tsc --watch"
-       },
-       "keywords": [],
-       "author": "",
-       "license": "ISC",
-       "devDependencies": {
-          "typescript": "^5.3.3"
-       },
-       "dependencies": {
-         "express": "^4.18.2"
-       }
-     }
+    {
+      "name": "genkit-express-project1",
+      "version": "1.0.0",
+      "description": "",
+      "main": "lib/index.js",
+      "scripts": {
+        "start": "node lib/index.js",
+        "compile": "tsc",
+        "build": "npm run build:clean && npm run compile",
+        "build:clean": "rm -rf ./lib",
+        "build:watch": "tsc --watch"
+      },
+      "keywords": [],
+      "author": "",
+      "license": "ISC",
+      "devDependencies": {
+        "typescript": "^5.3.3"
+      },
+      "dependencies": {
+        "express": "^4.18.2"
+      }
+    }
     ```
 
 1.  Install Genkit in your project:
-    -   Download packages zip file:
-        [genkit-dist.zip](https://bit.ly/genkit-dist)
-    -   Extract the file into `genkit-dist` folder in your project folder
-    -   Run:
 
-        ```posix-terminal
-        npm i --save ./genkit-dist/*.tgz
-        ```
-    -   Also install typescript by running:
+    - Download packages zip file:
+      [genkit-dist.zip](https://bit.ly/genkit-dist)
+    - Extract the file into `genkit-dist` folder in your project folder
+    - Run:
 
-        ```posix-terminal
-        npm install --save-dev typescript
-        ```
+      ```posix-terminal
+      npm i --save ./genkit-dist/*.tgz
+      ```
+
+    - Also install typescript by running:
+
+      ```posix-terminal
+      npm install --save-dev typescript
+      ```
 
 1.  Create the src/index.ts file where your Genkit code will live:
 
@@ -147,7 +147,10 @@
     configureGenkit({
       plugins: [
         firebase({ projectId: getProjectId() }),
-        vertexAI({ projectId: getProjectId(), location: getLocation() || 'us-central1' }),
+        vertexAI({
+          projectId: getProjectId(),
+          location: getLocation() || 'us-central1',
+        }),
       ],
       flowStateStore: 'firebase',
       traceStore: 'firebase',
@@ -156,7 +159,12 @@
     });
 
     export const jokeFlow = flow(
-      { name: 'jokeFlow', input: z.string(), output: z.string(), streamType: GenerationResponseChunkSchema },
+      {
+        name: 'jokeFlow',
+        input: z.string(),
+        output: z.string(),
+        streamType: GenerationResponseChunkSchema,
+      },
       async (subject, streamingCallback) => {
         return await run('call-llm', async () => {
           const llmResponse = await generate({
@@ -169,11 +177,11 @@
           });
 
           return llmResponse.text();
-    });
-    }
+        });
+      }
     );
 
-    startFlowsServer()
+    startFlowsServer();
     ```
 
 1.  Build and run your code:
@@ -193,7 +201,7 @@
         the flow using the Dev UI.
 
     1.  Try out the express endpoint:
-    
+
         ```posix-terminal
         curl -X POST "http://127.0.0.1:5000/jokeFlow?stream=true" -H "Content-Type: application/json"  -d '{"start": {"input": "banana"}}'
         ```

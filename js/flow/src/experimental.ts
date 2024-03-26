@@ -23,7 +23,7 @@ import {
   FlowNotFoundError,
   FlowStillRunningError,
 } from './errors';
-import { Flow, flow, FlowWrapper, RunStepConfig, StepsFunction } from './flow';
+import { Flow, FlowWrapper, RunStepConfig, StepsFunction, flow } from './flow';
 import { Invoker, Scheduler } from './types';
 import { getActiveContext } from './utils';
 
@@ -33,7 +33,7 @@ import { getActiveContext } from './utils';
 export function durableFlow<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny
+  S extends z.ZodTypeAny,
 >(
   config: {
     name: string;
@@ -65,7 +65,7 @@ export function durableFlow<
 export async function scheduleFlow<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny
+  S extends z.ZodTypeAny,
 >(
   flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
   payload: z.infer<I>,
@@ -89,7 +89,7 @@ export async function scheduleFlow<
 export async function resumeFlow<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny
+  S extends z.ZodTypeAny,
 >(
   flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
   flowId: string,
@@ -112,7 +112,7 @@ export async function resumeFlow<
 export async function getFlowState<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny
+  S extends z.ZodTypeAny,
 >(
   flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
   flowId: string
@@ -157,7 +157,7 @@ export function runAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 export async function waitFlowToComplete<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny
+  S extends z.ZodTypeAny,
 >(
   flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
   flowId: string

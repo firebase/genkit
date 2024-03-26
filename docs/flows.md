@@ -1,4 +1,3 @@
-
 # Flows
 
 Flows are functions with some additional characteristics: they are strongly
@@ -9,16 +8,17 @@ etc).
 ## Defining flows
 
 ```javascript
-import * as z from "zod"
-import { flow } from "@genkit-ai/flow"
+import * as z from 'zod';
+import { flow } from '@genkit-ai/flow';
 
-export const myFlow = flow({ name: 'myFlow', input: z.string(), output: z.string()},
+export const myFlow = flow(
+  { name: 'myFlow', input: z.string(), output: z.string() },
   async (input) => {
     const output = doSomethingCool(input);
 
     return output;
   }
-)
+);
 ```
 
 Input and output schemas for flows are defined using `zod`.
@@ -101,7 +101,12 @@ and replace `flow` with `onFlow`.
 import { onFlow, noAuth } from '@genkit-ai/plugin-firebase/functions';
 
 export const jokeFlow = onFlow(
-  { name: 'jokeFlow', input: z.string(), output: z.string(), authPolicy: noAuth() },
+  {
+    name: 'jokeFlow',
+    input: z.string(),
+    output: z.string(),
+    authPolicy: noAuth(),
+  },
   async (subject, streamingCallback) => {
     // ....
   }
@@ -132,12 +137,13 @@ observability, you might want to still see them as a separate step in the Dev
 UI. All you need to do is wrap the code in the `run` function.
 
 ```js
-export const myFlow = flow({ name: 'myFlow', input: z.string(), output: z.string() },
+export const myFlow = flow(
+  { name: 'myFlow', input: z.string(), output: z.string() },
   async (input) => {
-    const output = await run("step-name", async () => {
-      return await doSomething(input)
-    })
+    const output = await run('step-name', async () => {
+      return await doSomething(input);
+    });
     return output;
   }
-)
+);
 ```

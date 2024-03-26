@@ -28,7 +28,7 @@ import {
   TelemetryConfig,
   TelemetryOptions,
 } from './telemetryTypes';
-import { enableTracingAndMetrics, TraceStore } from './tracing';
+import { TraceStore, enableTracingAndMetrics } from './tracing';
 import { LocalFileTraceStore } from './tracing/localFileTraceStore';
 
 export * from './plugin.js';

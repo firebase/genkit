@@ -110,7 +110,7 @@ export const chromaIndexerRef = (params: {
  * Configures a Chroma vector store retriever.
  */
 export function chromaRetriever<
-  EmbedderCustomOptions extends z.ZodTypeAny
+  EmbedderCustomOptions extends z.ZodTypeAny,
 >(params: {
   clientParams?: ChromaClientParams;
   collectionName: string;
@@ -172,7 +172,7 @@ export function chromaRetriever<
  * Configures a Chroma indexer.
  */
 export function chromaIndexer<
-  EmbedderCustomOptions extends z.ZodTypeAny
+  EmbedderCustomOptions extends z.ZodTypeAny,
 >(params: {
   clientParams?: ChromaClientParams;
   collectionName: string;
@@ -232,7 +232,7 @@ export function chromaIndexer<
  * Helper function for creating Chroma collections.
  */
 export async function createChromaCollection<
-  EmbedderCustomOptions extends z.ZodTypeAny
+  EmbedderCustomOptions extends z.ZodTypeAny,
 >(params: {
   name: string;
   clientParams?: ChromaClientParams;

@@ -18,7 +18,7 @@ import { getLocation, getProjectId } from '@genkit-ai/common';
 import { configureGenkit } from '@genkit-ai/common/config';
 import { firebase } from '@genkit-ai/plugin-firebase';
 import { gpt4Turbo, openAI } from '@genkit-ai/plugin-openai';
-import { ragas, RagasMetric } from '@genkit-ai/plugin-ragas';
+import { RagasMetric, ragas } from '@genkit-ai/plugin-ragas';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/plugin-vertex-ai';
 
 export default configureGenkit({

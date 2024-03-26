@@ -77,7 +77,7 @@ export type IndexerAction<IndexerOptions extends z.ZodTypeAny = z.ZodTypeAny> =
   };
 
 function retrieverWithMetadata<
-  RetrieverOptions extends z.ZodTypeAny = z.ZodTypeAny
+  RetrieverOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   retriever: Action<
     typeof RetrieverRequestSchema,
@@ -91,7 +91,7 @@ function retrieverWithMetadata<
 }
 
 function indexerWithMetadata<
-  IndexerOptions extends z.ZodTypeAny = z.ZodTypeAny
+  IndexerOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   indexer: Action<typeof IndexerRequestSchema, z.ZodVoid>,
   customOptionsType?: IndexerOptions
@@ -105,7 +105,7 @@ function indexerWithMetadata<
  *  Creates a retriever action for the provided {@link RetrieverFn} implementation.
  */
 export function defineRetriever<
-  OptionsType extends z.ZodTypeAny = z.ZodTypeAny
+  OptionsType extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   options: {
     name: string;
@@ -186,7 +186,7 @@ export function defineIndexer<IndexerOptions extends z.ZodTypeAny>(
 }
 
 export interface RetrieverParams<
-  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > {
   retriever: RetrieverArgument<CustomOptions>;
   query: string | DocumentData;
@@ -194,7 +194,7 @@ export interface RetrieverParams<
 }
 
 export type RetrieverArgument<
-  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > = RetrieverAction<CustomOptions> | RetrieverReference<CustomOptions> | string;
 
 /**
@@ -267,7 +267,7 @@ export interface RetrieverReference<CustomOptions extends z.ZodTypeAny> {
  * Helper method to configure a {@link RetrieverReference} to a plugin.
  */
 export function retrieverRef<
-  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   options: RetrieverReference<CustomOptionsSchema>
 ): RetrieverReference<CustomOptionsSchema> {
@@ -288,7 +288,7 @@ export interface IndexerReference<CustomOptions extends z.ZodTypeAny> {
  * Helper method to configure a {@link IndexerReference} to a plugin.
  */
 export function indexerRef<
-  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   options: IndexerReference<CustomOptionsSchema>
 ): IndexerReference<CustomOptionsSchema> {

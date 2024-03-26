@@ -113,7 +113,7 @@ export function devLocalIndexerRef(indexName: string) {
 }
 
 async function importDocumentsToLocalVectorstore<
-  EmbedderCustomOptions extends z.ZodTypeAny
+  EmbedderCustomOptions extends z.ZodTypeAny,
 >(params: {
   indexName: string;
   docs: Array<Document>;
@@ -143,7 +143,7 @@ async function importDocumentsToLocalVectorstore<
 
 async function getClosestDocuments<
   I extends z.ZodTypeAny,
-  EmbedderCustomOptions extends z.ZodTypeAny
+  EmbedderCustomOptions extends z.ZodTypeAny,
 >(params: {
   queryEmbeddings: Array<number>;
   db: Record<string, DbValue>;
@@ -168,7 +168,7 @@ async function getClosestDocuments<
  * Configures a local vectorstore retriever
  */
 export function configureDevLocalRetriever<
-  EmbedderCustomOptions extends z.ZodTypeAny
+  EmbedderCustomOptions extends z.ZodTypeAny,
 >(params: {
   indexName: string;
   embedder: EmbedderArgument<EmbedderCustomOptions>;
@@ -204,7 +204,7 @@ export function configureDevLocalRetriever<
  * Configures a local vectorstore indexer.
  */
 export function configureDevLocalIndexer<
-  EmbedderCustomOptions extends z.ZodTypeAny
+  EmbedderCustomOptions extends z.ZodTypeAny,
 >(params: {
   indexName: string;
   embedder: EmbedderArgument<EmbedderCustomOptions>;

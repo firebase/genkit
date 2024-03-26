@@ -1,4 +1,3 @@
-
 # Genkit with Firebase
 
 1.  Install required tools
@@ -74,41 +73,40 @@
 1.  Edit the `functions/tsconfig.json` file, and add the following option to the
     `compilerOptions`:
 
-    *   `"skipLibCheck": true,`
-    *   also consider setting: `"noUnusedLocals": false`
+    - `"skipLibCheck": true,`
+    - also consider setting: `"noUnusedLocals": false`
 
     Your `tsconfig.json` file should look like this:
 
     ```json
-     {
-       "compilerOptions": {
-         "module": "commonjs",
-         "noImplicitReturns": true,
-         "noUnusedLocals": false,
-          "outDir": "lib",
-         "sourceMap": true,
-         "strict": true,
-         "target": "es2017",
-         "skipLibCheck": true,
-         "esModuleInterop": true
-       },
-       "compileOnSave": true,
-       "include": [
-         "src"
-        ]
-     }
-     ```
+    {
+      "compilerOptions": {
+        "module": "commonjs",
+        "noImplicitReturns": true,
+        "noUnusedLocals": false,
+        "outDir": "lib",
+        "sourceMap": true,
+        "strict": true,
+        "target": "es2017",
+        "skipLibCheck": true,
+        "esModuleInterop": true
+      },
+      "compileOnSave": true,
+      "include": ["src"]
+    }
+    ```
 
 1.  Install Genkit in your project:
-    -   Download packages zip file:
-        [genkit-dist.zip](https://bit.ly/genkit-dist)
-    -   Extract the file into `functions/genkit-dist` folder in your project
-        folder
-    -   Run:
 
-        ```posix-terminal
-        npm i --save ./genkit-dist/*.tgz
-        ```
+    - Download packages zip file:
+      [genkit-dist.zip](https://bit.ly/genkit-dist)
+    - Extract the file into `functions/genkit-dist` folder in your project
+      folder
+    - Run:
+
+      ```posix-terminal
+      npm i --save ./genkit-dist/*.tgz
+      ```
 
 1.  Paste the following sample code into `functions/src/index.ts` file:
 
@@ -132,124 +130,127 @@
     });
 
     export const jokeFlow = onFlow(
-        {
-            name: 'jokeFlow',
-            input: z.string(),
-            output: z.string(),
-            authPolicy: firebaseAuth(user => {
-            if (!user.email_verified) throw new Error('Requires verification!');
-            }),
-            httpsOptions: {
-                cors: '*',
-            },
+      {
+        name: 'jokeFlow',
+        input: z.string(),
+        output: z.string(),
+        authPolicy: firebaseAuth((user) => {
+          if (!user.email_verified) throw new Error('Requires verification!');
+        }),
+        httpsOptions: {
+          cors: '*',
         },
-        async (subject) => {
-            const prompt = `Tell me a joke about ${subject}`;
+      },
+      async (subject) => {
+        const prompt = `Tell me a joke about ${subject}`;
 
-            return await run('call-llm', async () => {
-            const llmResponse = await generate({
-                model: geminiPro,
-                prompt: prompt,
-            });
+        return await run('call-llm', async () => {
+          const llmResponse = await generate({
+            model: geminiPro,
+            prompt: prompt,
+          });
 
-            return llmResponse.text();
-            });
-        }
+          return llmResponse.text();
+        });
+      }
     );
-  ```
+    ```
+
+````
 
 1.  Build your code by running:
 
-    ```posix-terminal
-    npm run build
-    ```
+  ```posix-terminal
+  npm run build
+  ```
 
 1.  Run your code locally:
 
-    ```posix-terminal
-    npx genkit flow:run jokeFlow "\"banana\"" --auth "{\"email_verified\": true}"
-    ```
+  ```posix-terminal
+  npx genkit flow:run jokeFlow "\"banana\"" --auth "{\"email_verified\": true}"
+  ```
 
-    Run Genkit Dev UI and try running the flow and explore traces:
+  Run Genkit Dev UI and try running the flow and explore traces:
 
-    ```posix-terminal
-    npx genkit start
-    ```
+  ```posix-terminal
+  npx genkit start
+  ```
 
-    Open http://localhost:4000 in a browser.
+  Open http://localhost:4000 in a browser.
 
 1.  Check that the _Default compute service account_ has the necessary
-    permissions to run your Genkit flow. By default it usually has an _Editor_
-    role, but it's dependent on the organisation policy.
+  permissions to run your Genkit flow. By default it usually has an _Editor_
+  role, but it's dependent on the organisation policy.
 
-    Navigate to https://console.cloud.google.com/iam-admin/iam (make sure your
-    project is selected) and search for the principal ending with
-    `-compute@developer.gserviceaccount.com`
+  Navigate to https://console.cloud.google.com/iam-admin/iam (make sure your
+  project is selected) and search for the principal ending with
+  `-compute@developer.gserviceaccount.com`
 
-    At the very least it will need the following roles: _Cloud Datastore User_,
-    _Vertex AI User_, _Logs Writer_, _Monitoring Metric Writer_, _Cloud Trace
-    Agent_.
+  At the very least it will need the following roles: _Cloud Datastore User_,
+  _Vertex AI User_, _Logs Writer_, _Monitoring Metric Writer_, _Cloud Trace
+  Agent_.
 
-    If you don't see it on the list then you'll need to manually grant it
-    (`YOUT_PROJECT_NUMBER-compute@developer.gserviceaccount.com`) the necessary
-    permissions.
+  If you don't see it on the list then you'll need to manually grant it
+  (`YOUT_PROJECT_NUMBER-compute@developer.gserviceaccount.com`) the necessary
+  permissions.
 
 1.  Create a simple web app to get a Firebase Auth context. Go to the Firebase
-    Console and create a new Web app, and copy the config JS blob that is given.
+  Console and create a new Web app, and copy the config JS blob that is given.
 
-    Create `public/index.html` with the following contents:
-    ```html
-    <body>
-        <!-- Insert this script at the bottom of the HTML, but before you use any Firebase services -->
-        <script type="module">
-            import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js'
+  Create `public/index.html` with the following contents:
+  ```html
+  <body>
+      <!-- Insert this script at the bottom of the HTML, but before you use any Firebase services -->
+      <script type="module">
+          import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.9.0/firebase-app.js'
 
-            // Add Firebase products that you want to use
-            import { getAuth, signInWithPopup, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js'
-            import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.9.0/firebase-functions.js'
+          // Add Firebase products that you want to use
+          import { getAuth, signInWithPopup, GoogleAuthProvider } from 'https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js'
+          import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.9.0/firebase-functions.js'
 
-            const firebaseConfig = {...}; // From the Console
-            const app = initializeApp(firebaseConfig);
+          const firebaseConfig = {...}; // From the Console
+          const app = initializeApp(firebaseConfig);
 
-            const auth = getAuth();
-            const fns = getFunctions();
+          const auth = getAuth();
+          const fns = getFunctions();
 
-            window.login = () => {
-                signInWithPopup(auth, new GoogleAuthProvider());
-            };
+          window.login = () => {
+              signInWithPopup(auth, new GoogleAuthProvider());
+          };
 
-            window.tellJoke = (subject) => {
-                const callable = httpsCallable(fns, 'jokeFlow')
-                return callable(subject);
-            }
-        </script>
-    </body>
-    ```
+          window.tellJoke = (subject) => {
+              const callable = httpsCallable(fns, 'jokeFlow')
+              return callable(subject);
+          }
+      </script>
+  </body>
+  ```
 
 
 1.  Run:
 
-    ```posix-terminal
-    firebase deploy --only functions
-    firebase serve --only hosting
-    ```
+  ```posix-terminal
+  firebase deploy --only functions
+  firebase serve --only hosting
+  ```
 
 1.  Run the flow from your web app. Go to http://localhost:5000 in your browser.
-    
-    Open developer tools to the JS console. First try running the flow without
-    logging in:
 
-    ```js
-    await tellJoke('Banana');
-    ```
+  Open developer tools to the JS console. First try running the flow without
+  logging in:
 
-    Now try logging in first.
-    ```js
-    login();
-    
-    // Follow the login prompt, then run:
-    await tellJoke('Banana');
-    ```
+  ```js
+  await tellJoke('Banana');
+  ```
 
-    You can read more about the Genkit integration with Firebase Auth in the
-    [authorization docs](/genkit/auth).
+  Now try logging in first.
+  ```js
+  login();
+
+  // Follow the login prompt, then run:
+  await tellJoke('Banana');
+  ```
+
+  You can read more about the Genkit integration with Firebase Auth in the
+  [authorization docs](/genkit/auth).
+````

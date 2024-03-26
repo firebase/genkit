@@ -1,4 +1,3 @@
-
 # Durable flows (experimental)
 
 Important: This feature is experimental, and subject to change or removal.
@@ -30,9 +29,7 @@ development, Genkit uses local files to persist state):
 
 ```js
 configureGenkit({
-  plugins: [
-    firebase({ projectId: getProjectId() }),
-  ],
+  plugins: [firebase({ projectId: getProjectId() })],
   flowStateStore: 'firebase',
   //...
 });
@@ -65,11 +62,11 @@ are memoized and if the step is executed again, it immediately returns the
 memoized value. Universal memoization is a core feature because each flow
 instance can run more than once for the following reasons:
 
-*   Flows are built on top of cloud task queues, which offer only a "deliver at
-    least once" guarantee
-*   Some features (see below: interrupt, sleep, waitFor or various error retry
-    feature) rely on the ability of the flow to be "interrupted" and then re-run
-    again.
+- Flows are built on top of cloud task queues, which offer only a "deliver at
+  least once" guarantee
+- Some features (see below: interrupt, sleep, waitFor or various error retry
+  feature) rely on the ability of the flow to be "interrupted" and then re-run
+  again.
 
 All logic that has side-effects or is expensive to perform must be defined as a
 step within a flow to avoid unnecessary or undesirable repeated execution.
@@ -80,31 +77,33 @@ This is the simplest way to define a step. Step has a name and function.
 Memoization uses the run step name as a key.
 
 ```js
-export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.string(), output: z.string() },
+export const myFlow = onScheduledFlow(
+  { name: 'myFlow', input: z.string(), output: z.string() },
   async (input) => {
-    const output = await run("step-name", async () => {
-      return await doSomething(input)
-    })
+    const output = await run('step-name', async () => {
+      return await doSomething(input);
+    });
     return output;
   }
-)
+);
 ```
 
 It's allowed (although not recommended) to use the same name more than once:
 
 ```javascript
-export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.string(), output: z.string() },
+export const myFlow = onScheduledFlow(
+  { name: 'myFlow', input: z.string(), output: z.string() },
   async (input) => {
-    const output1 = await run("same-name", async () => {
-      return await doSomething1(input)
-    })
-    const output2 = await run("same-name", async () => {
-      return await doSomething2(input)
-    })
+    const output1 = await run('same-name', async () => {
+      return await doSomething1(input);
+    });
+    const output2 = await run('same-name', async () => {
+      return await doSomething2(input);
+    });
 
     return output1 + output2;
   }
-)
+);
 ```
 
 Retry behavior can be specified in the run step. In case of an error thrown
@@ -113,20 +112,24 @@ provided retry configuration. By default, there's no retry -- if an error
 occurs, the whole flow execution will result in an error.
 
 ```js
-export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.string(), output: z.string() },
+export const myFlow = onScheduledFlow(
+  { name: 'myFlow', input: z.string(), output: z.string() },
   async (input) => {
-    const output = await run({
-      name: "step-name",
-      retryConfig: {
-        maxAttempts: 3,
-        minBackoffSeconds: 10,
+    const output = await run(
+      {
+        name: 'step-name',
+        retryConfig: {
+          maxAttempts: 3,
+          minBackoffSeconds: 10,
+        },
+      },
+      async () => {
+        return await doSomething(input);
       }
-    }, async () => {
-      return await doSomething(input)
-    })
+    );
     return output;
   }
-)
+);
 ```
 
 ### runAction
@@ -138,11 +141,13 @@ across the Genkit framework: many AI primitives are implemented as actions.
 You can build action factories with the `action()` helper:
 
 ```js
-const greet = (greeting) => action(
-  { name: "greet", input: z.string(), output: z.string() },
-  async (name) => {
-     return `${greeting}, ${name}!`
-  })
+const greet = (greeting) =>
+  action(
+    { name: 'greet', input: z.string(), output: z.string() },
+    async (name) => {
+      return `${greeting}, ${name}!`;
+    }
+  );
 ```
 
 `runAction()` is a wrapper around a `run` step that makes it easier to work with
@@ -150,14 +155,15 @@ actions. Because actions already have all the necessary metadata, it can be
 omitted during step definition.
 
 ```javascript
-export const greetingFlow = onScheduledFlow({ name: 'greetingFlow', input: z.string(), output: z.string() },
+export const greetingFlow = onScheduledFlow(
+  { name: 'greetingFlow', input: z.string(), output: z.string() },
   async (name) => {
-    const frenchGreeting = greet("Bonjour")
-    const greeting = await runAction(frenchGreeting, name)
+    const frenchGreeting = greet('Bonjour');
+    const greeting = await runAction(frenchGreeting, name);
 
     return greeting;
   }
-)
+);
 ```
 
 You can configure retry behavior for `runAction` in the same way as for `run`.
@@ -167,20 +173,23 @@ You can configure retry behavior for `runAction` in the same way as for `run`.
 Use `interrupt` steps to interrupt the flow and request external input.
 
 ```js
-export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.void(), output: z.boolean() },
+export const myFlow = onScheduledFlow(
+  { name: 'myFlow', input: z.void(), output: z.boolean() },
   async () => {
-    const hoomanSaid = await interrupt("approve-by-hooman",
-      z.object({ approved: z.boolean() }))
+    const hoomanSaid = await interrupt(
+      'approve-by-hooman',
+      z.object({ approved: z.boolean() })
+    );
 
     return hoomanSaid.approved;
   }
 );
 
 // Resume the interrupted flow
-import { resumeFlow } from "@genkit-ai/flow/experimental"
+import { resumeFlow } from '@genkit-ai/flow/experimental';
 await resumeFlow(myFlow, flowId, {
-  approve: false
-})
+  approve: false,
+});
 ```
 
 `interrupt` will "interrupt" the flow by throwing an `InterruptError`, so you
@@ -188,14 +197,17 @@ need to be careful to rethrow the error when wrapping the `interrupt` step in
 `try`-`catch`.
 
 ```js
-import { InterruptError } from "@genkit-ai/flow/experimental"
+import { InterruptError } from '@genkit-ai/flow/experimental';
 
-export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.void(), output: z.boolean() },
+export const myFlow = onScheduledFlow(
+  { name: 'myFlow', input: z.void(), output: z.boolean() },
   async () => {
-    var hoomanSaid
+    var hoomanSaid;
     try {
       hoomanSaid = await interrupt(
-        "approve-by-hooman", z.object({ approved: z.boolean() }))
+        'approve-by-hooman',
+        z.object({ approved: z.boolean() })
+      );
     } catch (e) {
       // Must rethrow
       if (e instanceof InterruptError) {
@@ -206,7 +218,7 @@ export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.void(), output:
 
     return hoomanSaid.approved;
   }
-)
+);
 ```
 
 ### sleep
@@ -268,15 +280,18 @@ function returns `true`.
 complete.
 
 ```js
-export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.string(), output: z.string() },
+export const myFlow = onScheduledFlow(
+  { name: 'myFlow', input: z.string(), output: z.string() },
   async (input) => {
-    const otherFlowOp = await scheduleFlow(otherFlow, input)
+    const otherFlowOp = await scheduleFlow(otherFlow, input);
 
-    const [op] = await waitFor("wait-for-other-action", otherFlow, [otherFlowOp.name])
+    const [op] = await waitFor('wait-for-other-action', otherFlow, [
+      otherFlowOp.name,
+    ]);
 
     return op.result.response;
   }
-)
+);
 ```
 
 ## Getting results
@@ -284,7 +299,7 @@ export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.string(), outpu
 Use `getFlowState()` to retrieve a flow's current state:
 
 ```javascript
-import { runFlow, getFlowState } from "@genkit-ai/flow/experimental"
+import { runFlow, getFlowState } from '@genkit-ai/flow/experimental';
 
 const operation = await scheduleFlow(jokeFlow, 'banana');
 console.log('Operation', operation);

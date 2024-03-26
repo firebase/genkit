@@ -1,12 +1,11 @@
-
 # Retrieval-augmented generation (RAG)
 
 RAG is a very broad area and there are many different techniques used to achieve
 the best quality RAG. The core Genkit framework offers two main
 abstractions to help you do RAG:
 
--   Retrievers - retrieves documents from an "index" given a query.
--   Indexers - adds documents to the "index".
+- Retrievers - retrieves documents from an "index" given a query.
+- Indexers - adds documents to the "index".
 
 These definitions are broad on purpose because Genkit is un-opinionated about
 what an "index" is or how exactly documents are retrieved from it. Genkit only
@@ -39,7 +38,7 @@ configureGenkit({
       {
         indexName: 'spongebob-facts',
         embedder: textEmbeddingGecko,
-      }
+      },
     ]),
     // ...
   ],
@@ -50,7 +49,10 @@ configureGenkit({
 Once configured, create references for your index:
 
 ```javascript
-import { devLocalIndexerRef, devLocalRetrieverRef } from '@genkit-ai/plugin-dev-local-vectorstore';
+import {
+  devLocalIndexerRef,
+  devLocalRetrieverRef,
+} from '@genkit-ai/plugin-dev-local-vectorstore';
 
 export const spongeBobFactRetriever = devLocalRetrieverRef('spongebob-facts');
 export const spongeBobFactIndexer = devLocalIndexerRef('spongebob-facts');
@@ -103,7 +105,7 @@ configureGenkit({
       {
         collectionName: 'spongebob_collection',
         embedder: textEmbeddingGecko,
-      }
+      },
     ]),
     // ...
   ],
@@ -112,10 +114,7 @@ configureGenkit({
 ```
 
 ```js
-import {
-  chromaIndexerRef,
-  chromaRetrieverRef,
-} from '@genkit-ai/plugin-chroma';
+import { chromaIndexerRef, chromaRetrieverRef } from '@genkit-ai/plugin-chroma';
 
 export const spongeBobFactsRetriever = chromaRetrieverRef({
   collectionName: 'spongebob_collection',
@@ -129,7 +128,7 @@ export const spongeBobFactsIndexer = chromaIndexerRef({
 
 const docs = await retrieve({
   retriever: spongeBobFactsRetriever,
-  query: 'Who is spongebob?'
+  query: 'Who is spongebob?',
 });
 ```
 
@@ -149,7 +148,7 @@ export default configureGenkit({
         collectionName: 'spongebob_collection',
         embedder: textEmbeddingGecko,
         embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
-      }
+      },
     ]),
   ],
   // ...
@@ -162,10 +161,10 @@ You can then create retriever and indexer references like so:
 import { chromaIndexerRef, chromaRetrieverRef } from '@genkit-ai/plugin-chroma';
 
 export const spongeBobFactsRetriever = chromaRetrieverRef({
-  collectionName: 'spongebob_collection'
+  collectionName: 'spongebob_collection',
 });
 export const spongeBobFactsIndexer = chromaIndexerRef({
-  collectionName: 'spongebob_collection'
+  collectionName: 'spongebob_collection',
 });
 ```
 
@@ -184,7 +183,7 @@ export default configureGenkit({
       },
     ]),
   ],
- // ...
+  // ...
 });
 ```
 
@@ -203,10 +202,10 @@ import {
 } from '@genkit-ai/plugin-pinecone';
 
 export const tomAndJerryFactsRetriever = pineconeRetrieverRef({
-  indexId: 'pdf-chat'
+  indexId: 'pdf-chat',
 });
 export const tomAndJerryFactsIndexer = pineconeIndexerRef({
-  indexId: 'pdf-chat'
+  indexId: 'pdf-chat',
 });
 ```
 
@@ -214,11 +213,7 @@ export const tomAndJerryFactsIndexer = pineconeIndexerRef({
 
 ```js
 import { embed } from '@genkit-ai/ai/embedders';
-import {
-  Document,
-  defineRetriever,
-  retrieve,
-} from '@genkit-ai/ai/retrievers';
+import { Document, defineRetriever, retrieve } from '@genkit-ai/ai/retrievers';
 import { flow } from '@genkit-ai/flow';
 import { textEmbeddingGecko } from '@genkit-ai/plugin-vertex-ai';
 import { toSql } from 'pgvector';
@@ -229,13 +224,13 @@ const sql = postgres({ ssl: false, database: 'recaps' });
 
 const QueryOptions = z.object({
   show: z.string(),
-  k: z.number().optional()
-})
+  k: z.number().optional(),
+});
 
 const sqlRetriever = defineRetriever(
   {
     name: 'pgvector/myTable',
-    configSchema: QueryOptions
+    configSchema: QueryOptions,
   },
   async (input, options) => {
     const embedding = await embed({
@@ -246,13 +241,13 @@ const sqlRetriever = defineRetriever(
       SELECT episode_id, season_number, chunk as content
         FROM embeddings
         WHERE show_id = ${options.show}
-        ORDER BY embedding <#> ${toSql(embedding)} LIMIT ${ options.k ?? 3}
+        ORDER BY embedding <#> ${toSql(embedding)} LIMIT ${options.k ?? 3}
       `;
     return {
       documents: results.map((row) => {
         const { content, ...metadata } = row;
         return Document.fromText(content, metadata);
-      })
+      }),
     };
   }
 );
@@ -274,7 +269,7 @@ export const askQuestionsOnGoT = flow(
       query: inputQuestion,
       options: {
         show: 'Game of Thrones',
-      }
+      },
     });
     console.log(docs);
 
@@ -298,7 +293,7 @@ apply advanced RAG techniques (such as reranking or prompt extensions) on top.
 import {
   CommonRetrieverOptionsSchema,
   defineRetriever,
-  retrieve
+  retrieve,
 } from '@genkit-ai/ai/retrievers';
 import * as z from 'zod';
 
@@ -306,16 +301,17 @@ const MyAdvancedOptionsSchema = CommonRetrieverOptionsSchema.extend({
   preRerankK: z.number().max(1000),
 });
 
-const advancedRetriever = defineRetriever({
-  name: `custom/myAdvancedRetriever`,
-  configSchema: MyAdvancedOptionsSchema,
-},
+const advancedRetriever = defineRetriever(
+  {
+    name: `custom/myAdvancedRetriever`,
+    configSchema: MyAdvancedOptionsSchema,
+  },
   async (input, options) => {
     const extendedPrompt = await extendPrompt(input);
     const docs = await retrieve({
       retriever: spongeBobFactsRetriever,
       query: extendedPrompt,
-      options: { k: options.preRerankK || 10 }
+      options: { k: options.preRerankK || 10 },
     });
     const rerankedDocs = await rerank(docs);
     return rerankedDocs.slice(0, options.k || 3);
@@ -332,7 +328,7 @@ And then you can just swap out your retriever:
 const docs = await retrieve({
   retriever: advancedRetriever,
   query: 'Who is spongebob?',
-  options: { preRerankK: 7, k: 3 }
+  options: { preRerankK: 7, k: 3 },
 });
 ```
 

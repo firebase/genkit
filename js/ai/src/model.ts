@@ -221,7 +221,7 @@ export type GenerationResponseChunkData = z.infer<
 >;
 
 export type ModelAction<
-  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 > = Action<
   typeof GenerationRequestSchema,
   typeof GenerationResponseSchema,
@@ -267,7 +267,7 @@ export function modelWithMiddleware(
  *
  */
 export function defineModel<
-  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   options: {
     name: string;
@@ -350,7 +350,7 @@ export interface ModelReference<CustomOptions extends z.ZodTypeAny> {
  *
  */
 export function modelRef<
-  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   options: ModelReference<CustomOptionsSchema>
 ): ModelReference<CustomOptionsSchema> {

@@ -17,11 +17,11 @@
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import {
+  __hardResetRegistryForTesting,
   listActions,
   lookupAction,
   registerAction,
   registerPluginProvider,
-  __hardResetRegistryForTesting,
 } from '../src/registry';
 import { action } from '../src/types';
 

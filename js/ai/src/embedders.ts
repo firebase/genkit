@@ -60,7 +60,7 @@ function withMetadata<CustomOptions extends z.ZodTypeAny>(
  * Creates embedder model for the provided {@link EmbedderFn} model implementation.
  */
 export function defineEmbedder<
-  ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny
+  ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   options: {
     name: string;
@@ -100,14 +100,14 @@ export function defineEmbedder<
 }
 
 export type EmbedderArgument<
-  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > = string | EmbedderAction<CustomOptions> | EmbedderReference<CustomOptions>;
 
 /**
  * A veneer for interacting with embedder models.
  */
 export async function embed<
-  ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny
+  ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(params: {
   embedder: EmbedderArgument<ConfigSchema>;
   content: string | DocumentData;
@@ -141,7 +141,7 @@ export async function embed<
  * A veneer for interacting with embedder models in bulk.
  */
 export async function embedMany<
-  ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny
+  ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(params: {
   embedder: EmbedderArgument<ConfigSchema>;
   content: string[] | DocumentData[];
@@ -188,7 +188,7 @@ export const EmbedderInfoSchema = z.object({
 export type EmbedderInfo = z.infer<typeof EmbedderInfoSchema>;
 
 export interface EmbedderReference<
-  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > {
   name: string;
   configSchema?: CustomOptions;
@@ -199,7 +199,7 @@ export interface EmbedderReference<
  * Helper method to configure a {@link EmbedderReference} to a plugin.
  */
 export function embedderRef<
-  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   options: EmbedderReference<CustomOptionsSchema>
 ): EmbedderReference<CustomOptionsSchema> {
