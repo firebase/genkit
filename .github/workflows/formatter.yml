@@ -38,12 +38,6 @@ jobs:
       - name: NPM install
         working-directory: ./
         run: npm install
-      - name: NPM install genkit-tools
-        working-directory: ./genkit-tools
-        run: npm install
-      - name: NPM install js
-        working-directory: ./js
-        run: npm install
       - name: Check formatting
         working-directory: ./
         run:  npm run format:check
