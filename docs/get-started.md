@@ -36,6 +36,12 @@ later.
         npm i --save ./genkit-dist/*.tgz
         ```
 
+1.  Edit package.json and add the following build script to `scripts`:
+
+    ```json
+    "build": "tsc"
+    ```
+
 1.  Create a file `index.ts` with the following contents:
 
     ```js
