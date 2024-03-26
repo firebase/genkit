@@ -26,7 +26,7 @@ export { Status, StatusCodes, StatusSchema } from './statusTypes.js';
 export interface ActionMetadata<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  M extends Record<string, any> = Record<string, any>
+  M extends Record<string, any> = Record<string, any>,
 > {
   name: string;
   description?: string;
@@ -40,7 +40,7 @@ export interface ActionMetadata<
 export type Action<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  M extends Record<string, any> = Record<string, any>
+  M extends Record<string, any> = Record<string, any>,
 > = ((input: z.infer<I>) => Promise<z.infer<O>>) & {
   __action: ActionMetadata<I, O, M>;
 };
@@ -53,7 +53,7 @@ export type SideChannelData = Record<string, any>;
 export function action<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  M extends Record<string, any> = Record<string, any>
+  M extends Record<string, any> = Record<string, any>,
 >(
   config: {
     name: string;

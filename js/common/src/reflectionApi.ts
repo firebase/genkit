@@ -25,7 +25,7 @@ import {
   newTrace,
   setCustomMetadataAttribute,
 } from './tracing.js';
-import { runWithStreamingCallback, Status, StatusCodes } from './types';
+import { Status, StatusCodes, runWithStreamingCallback } from './types';
 
 export const RunActionResponseSchema = z.object({
   result: z.unknown().optional(),

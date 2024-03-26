@@ -42,17 +42,25 @@ receive an error:
 
 ```ts
 // Error: Authorization required.
-await runFlow(selfSummaryFlow, {uid: 'abc-def'});
+await runFlow(selfSummaryFlow, { uid: 'abc-def' });
 
 // Error: You may only summarize your own profile data.
-await runFlow(selfSummaryFlow, {uid: 'abc-def'}, {
-  withLocalAuthContext: {uid: 'hij-klm'},
-});
+await runFlow(
+  selfSummaryFlow,
+  { uid: 'abc-def' },
+  {
+    withLocalAuthContext: { uid: 'hij-klm' },
+  }
+);
 
 // Success
-await runFlow(selfSummaryFlow, {uid: 'abc-def'}, {
-  withLocalAuthContext: {uid: 'abc-def'},
-});
+await runFlow(
+  selfSummaryFlow,
+  { uid: 'abc-def' },
+  {
+    withLocalAuthContext: { uid: 'abc-def' },
+  }
+);
 ```
 
 You can also retrieve the auth context for the flow at any time within the flow
@@ -85,6 +93,7 @@ export const selfSummaryFlow = flow(
 
 When testing flows with Genkit dev tools, you are able to specify this auth
 object in the UI, or on the command line with the `--auth` flag:
+
 ```posix-terminal
 genkit flow:run selfSummaryFlow '{"uid": "abc-def"}' --auth '{"uid": "abc-def"}'
 ```
@@ -200,7 +209,7 @@ alongside the native flows. You have two options:
 
 1.  Use whatever server framework you like, and pass the auth context through via
     `runFlow()` as noted above.
-   
+
 1.  Use the built-in `startFlowsServer()` and provide Express middleware in the
     flow config:
 
@@ -232,6 +241,7 @@ alongside the native flows. You have two options:
 
     startFlowsServer();  // This will register the middleware
     ```
+
     For more information about using Express, see the [Cloud Run](/genkit/express)
     instructions.
 

@@ -42,7 +42,7 @@ export const ScoreSchema = z.object({
 export type Score = z.infer<typeof ScoreSchema>;
 
 export type Dataset<
-  DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema
+  DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
 > = Array<z.infer<DataPoint>>;
 
 export const EvaluatorResponseSchema = z.array(
@@ -57,7 +57,7 @@ export type EvaluatorResponse = z.infer<typeof EvaluatorResponseSchema>;
 
 type EvaluatorFn<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
-  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > = (
   input: Dataset<DataPoint>,
   evaluatorOptions?: z.infer<CustomOptions>
@@ -65,7 +65,7 @@ type EvaluatorFn<
 
 export type EvaluatorAction<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
-  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > = Action<typeof EvalRequestSchema, typeof EvaluatorResponseSchema> & {
   __dataPointType?: DataPoint;
   __customOptionsType?: CustomOptions;
@@ -73,7 +73,7 @@ export type EvaluatorAction<
 
 function withMetadata<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
-  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   evaluator: Action<typeof EvalRequestSchema, typeof EvaluatorResponseSchema>,
   dataPointType?: DataPoint,
@@ -95,7 +95,7 @@ const EvalRequestSchema = z.object({
  */
 export function defineEvaluator<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
-  EvaluatorOptions extends z.ZodTypeAny = z.ZodTypeAny
+  EvaluatorOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   options: {
     name: string;
@@ -134,7 +134,7 @@ export function defineEvaluator<
 
 export type EvaluatorArgument<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
-  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > =
   | string
   | EvaluatorAction<DataPoint, CustomOptions>
@@ -145,7 +145,7 @@ export type EvaluatorArgument<
  */
 export async function evaluate<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
-  EvaluatorOptions extends z.ZodTypeAny = z.ZodTypeAny
+  EvaluatorOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(params: {
   evaluator: EvaluatorArgument<DataPoint, EvaluatorOptions>;
   dataset: Dataset<DataPoint>;
@@ -188,7 +188,7 @@ export interface EvaluatorReference<CustomOptions extends z.ZodTypeAny> {
  * Helper method to configure a {@link EvaluatorReference} to a plugin.
  */
 export function evaluatorRef<
-  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   options: EvaluatorReference<CustomOptionsSchema>
 ): EvaluatorReference<CustomOptionsSchema> {

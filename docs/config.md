@@ -1,4 +1,3 @@
-
 # Configuration and plugins
 
 Genkit has a configuration and plugin system. Every Genkit app starts with
@@ -11,7 +10,10 @@ Here is an example you might have seen in some of the examples:
 configureGenkit({
   plugins: [
     firebase({ projectId: getProjectId() }),
-    vertexAI({ projectId: getProjectId(), location: getLocation() || 'us-central1' }),
+    vertexAI({
+      projectId: getProjectId(),
+      location: getLocation() || 'us-central1',
+    }),
   ],
   flowStateStore: 'firebase',
   traceStore: 'firebase',

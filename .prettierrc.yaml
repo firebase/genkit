@@ -14,4 +14,7 @@
 
 trailingComma: 'es5'
 semi: true
-plugins: ['prettier-plugin-organize-imports']
+singleQuote: true
+bracketSameLine: true
+cssDeclarationSorterOrder: 'alphabetical'
+plugins: ['prettier-plugin-css-order', 'prettier-plugin-organize-imports']

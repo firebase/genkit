@@ -23,15 +23,15 @@ export {
 } from '@genkit-ai/common';
 export { FirestoreStateStore } from './firestoreStateStore';
 export {
-  flow,
   Flow,
   FlowAuthPolicy,
   FlowWrapper,
+  StepsFunction,
+  __RequestWithAuth,
+  flow,
   runFlow,
   startFlowsServer,
-  StepsFunction,
   streamFlow,
-  __RequestWithAuth,
 } from './flow';
 export { run, runAction, runMap } from './steps';
 export {

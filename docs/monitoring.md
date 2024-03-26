@@ -1,4 +1,3 @@
-
 # Monitoring
 
 Genkit is fully instrumented with OpenTelemetry tracing, metrics and
@@ -21,7 +20,7 @@ configureGenkit({
   traceStore: 'firebase',
   telemetry: {
     instrumentation: 'gcp',
-  }
+  },
   // ...
 });
 ```

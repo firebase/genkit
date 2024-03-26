@@ -1,4 +1,3 @@
-
 # Models
 
 Models in Genkit are libraries and abstractions that provide access to various
@@ -17,7 +16,10 @@ models.
 configureGenkit({
   plugins: [
     firebase({ projectId: getProjectId() }),
-    vertexAI({ projectId: getProjectId(), location: getLocation() || 'us-central1' }),
+    vertexAI({
+      projectId: getProjectId(),
+      location: getLocation() || 'us-central1',
+    }),
   ],
   flowStateStore: 'firebase',
   traceStore: 'firebase',
@@ -48,10 +50,8 @@ Genkit provides built-in plugins for the following model providers:
 import { googleGenAI } from '@genkit-ai/plugin-google-genai';
 
 export default configureGenkit({
-  plugins: [
-    googleGenAI(),
-  ],
- // ...
+  plugins: [googleGenAI()],
+  // ...
 });
 ```
 
@@ -72,10 +72,8 @@ import { vertexAI } from '@genkit-ai/plugin-vertex-ai';
 import { getProjectId } from '@genkit-ai/common';
 
 export default configureGenkit({
-  plugins: [
-    vertexAI({ projectId: getProjectId(), location: 'us-central1' }),
-  ],
- // ...
+  plugins: [vertexAI({ projectId: getProjectId(), location: 'us-central1' })],
+  // ...
 });
 ```
 
@@ -97,7 +95,7 @@ import {
   geminiPro,
   geminiProVision,
   textembeddingGecko,
-  imagen2
+  imagen2,
 } from '@genkit-ai/plugin-vertex-ai';
 ```
 
@@ -107,10 +105,8 @@ import {
 import { openAI } from '@genkit-ai/plugin-openai';
 
 export default configureGenkit({
-  plugins: [
-    openAI(),
-  ],
- // ...
+  plugins: [openAI()],
+  // ...
 });
 ```
 
@@ -120,7 +116,12 @@ your OpenAI API Key.
 The plugin statically exports references to various supported models:
 
 ```js
-import { gpt35Turbo, gpt4, gpt4Turbo, gpt4Vision } from '@genkit-ai/plugin-openai';
+import {
+  gpt35Turbo,
+  gpt4,
+  gpt4Turbo,
+  gpt4Vision,
+} from '@genkit-ai/plugin-openai';
 ```
 
 ### Ollama
@@ -138,7 +139,7 @@ import { ollama } from '@genkit-ai/plugin-ollama';
 
 export default configureGenkit({
   plugins: [
-     ollama({
+    ollama({
       models: [{ name: 'gemma' }],
       serverAddress: 'http://127.0.0.1:11434', // default ollama local port
     }),
@@ -175,7 +176,7 @@ import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 
 const llmResponse = await generate({
   model: geminiPro,
-  prompt: "Tell me a joke."
+  prompt: 'Tell me a joke.',
 });
 
 console.log(await llmResponse.text());
@@ -191,8 +192,8 @@ const response = await generate({
   config: {
     temperature: 1,
     custom: {
-      stopSequences: ["abc"]
-    }
+      stopSequences: ['abc'],
+    },
   },
 });
 ```
@@ -220,9 +221,12 @@ const result = await generate({
     { text: 'describe the following image:' },
     {
       data: {
-        url: fs.readFileSync(__dirname+"/image.jpeg", {encoding:"base64",flag:"r" }),
-        contentType: 'image/jpeg'
-     }
+        url: fs.readFileSync(__dirname + '/image.jpeg', {
+          encoding: 'base64',
+          flag: 'r',
+        }),
+        contentType: 'image/jpeg',
+      },
     },
   ],
 });
@@ -234,17 +238,17 @@ specific models.
 ```javascript
 const myTool = action(
   {
-    name: "myJoke",
-    description: "useful when you need a joke to tell.",
+    name: 'myJoke',
+    description: 'useful when you need a joke to tell.',
     input: z.object({ subject: z.string() }),
     output: z.string(),
   },
-  async (input) => "haha Just kidding no joke! got you"
+  async (input) => 'haha Just kidding no joke! got you'
 );
 
 const llmResponse = await generate({
   model: geminiPro,
-  prompt: "Tell me a joke.",
+  prompt: 'Tell me a joke.',
   tools: [myTool],
   options: {
     temperature: 0.5,
@@ -259,7 +263,7 @@ You can specify `returnToolRequests: true` for manual control of tool calling.
 ```javascript
 const llmResponse = await generate({
   model: geminiPro,
-  prompt: "Tell me a joke.",
+  prompt: 'Tell me a joke.',
   tools: [myTool],
   returnToolRequests: true,
   options: {
@@ -273,10 +277,10 @@ And you can stream output from models that support it:
 ```javascript
 await generate({
   model: geminiPro,
-  prompt: "Tell me a very long joke.",
+  prompt: 'Tell me a very long joke.',
   streamingCallback: (chunk) => {
-    console.log(chunk)
-  }
+    console.log(chunk);
+  },
 });
 ```
 
@@ -291,8 +295,8 @@ method:
 
 ```js
 let response = await generate({
-    model: geminiPro,
-    prompt: "How do you say 'dog' in French?"
+  model: geminiPro,
+  prompt: "How do you say 'dog' in French?",
 });
 let history = response.toHistory();
 ```
@@ -302,9 +306,9 @@ Then, pass the history along with the prompt on future calls to `generate()`:
 
 ```js
 response = await generate({
-    model: geminiPro,
-    prompt: "How about in Spanish?",
-    history
+  model: geminiPro,
+  prompt: 'How about in Spanish?',
+  history,
 });
 history = response.toHistory();
 ```
@@ -314,12 +318,12 @@ history to set the system message:
 
 ```ts
 let history: MessageData[] = [
-    { role: "system", content: [{ text: "Talk like a pirate." }] }
+  { role: 'system', content: [{ text: 'Talk like a pirate.' }] },
 ];
 let response = await generate({
-    model: gpt35Turbo,
-    prompt: "How do you say 'dog' in French?",
-    history
+  model: gpt35Turbo,
+  prompt: "How do you say 'dog' in French?",
+  history,
 });
 history = response.toHistory();
 ```

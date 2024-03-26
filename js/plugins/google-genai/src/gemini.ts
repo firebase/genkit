@@ -30,10 +30,10 @@ import {
 } from '@genkit-ai/ai/model/middleware';
 import {
   GenerateContentCandidate as GeminiCandidate,
-  GenerateContentResponse,
-  GoogleGenerativeAI,
   InputContent as GeminiMessage,
   Part as GeminiPart,
+  GenerateContentResponse,
+  GoogleGenerativeAI,
 } from '@google/generative-ai';
 import process from 'process';
 import z from 'zod';

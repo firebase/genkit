@@ -35,7 +35,7 @@ import { callHttpsFunction } from './helpers';
 export type FunctionFlow<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny
+  S extends z.ZodTypeAny,
 > = HttpsFunction & FlowWrapper<I, O, S>;
 
 export interface FunctionFlowAuth<I extends z.ZodTypeAny> {
@@ -46,7 +46,7 @@ export interface FunctionFlowAuth<I extends z.ZodTypeAny> {
 interface FunctionFlowConfig<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny
+  S extends z.ZodTypeAny,
 > {
   name: string;
   input: I;
@@ -64,7 +64,7 @@ interface FunctionFlowConfig<
 export function onFlow<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny
+  S extends z.ZodTypeAny,
 >(
   config: FunctionFlowConfig<I, O, S>,
   steps: StepsFunction<I, O, S>
@@ -109,7 +109,7 @@ export function onFlow<
 function wrapHttpsFlow<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny
+  S extends z.ZodTypeAny,
 >(flow: Flow<I, O, S>, config: FunctionFlowConfig<I, O, S>): HttpsFunction {
   return onRequest(
     {

@@ -1,6 +1,0 @@
-dist/
-lib/
-public/
-.vscode/
-.prettierrc.yaml
-samples/rag/*.json

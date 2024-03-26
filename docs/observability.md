@@ -1,4 +1,3 @@
-
 # Observability
 
 The observability framework is based on OpenTelemetry and Genkit uses custom

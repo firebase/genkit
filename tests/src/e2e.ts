@@ -35,8 +35,10 @@ runDevUiTest('test_js_app', async (page, url) => {
 
   await page.waitForSelector('text/Test flow passed');
 
-  const inspectFlowButton = await page.waitForSelector('text/Inspect flow state');
+  const inspectFlowButton = await page.waitForSelector(
+    'text/Inspect flow state'
+  );
   inspectFlowButton?.click();
 
-  await page.waitForSelector('text/testFlow')
-})
+  await page.waitForSelector('text/testFlow');
+});

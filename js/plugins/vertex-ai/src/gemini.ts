@@ -36,10 +36,10 @@ import {
   FunctionDeclarationSchemaType,
   GenerateContentCandidate,
   GenerateContentResponse,
-  Part as VertexPart,
   StartChatParams,
   Tool,
   VertexAI,
+  Part as VertexPart,
 } from '@google-cloud/vertexai';
 import { z } from 'zod';
 

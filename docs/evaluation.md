@@ -1,4 +1,3 @@
-
 # Evaluation
 
 Genkit's powerful observability features provide insight into the runtime state
@@ -36,7 +35,7 @@ example:
 [
   "How old is Spongebob?",
   "Where does Spongebob lives?",
-  "Does Spongebob have any friends?",
+  "Does Spongebob have any friends?"
 ]
 ```
 
@@ -84,7 +83,6 @@ npx genkit eval:run eval123_dataset.json --output eval123-evalresult.json
 
 The evaluator will automatically use the evaluators that you have installed in
 your config.
-
 
 ### Synthesizing test data using an LLM
 

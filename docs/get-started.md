@@ -1,4 +1,3 @@
-
 # Get started
 
 ## Run an LLM flow locally
@@ -27,14 +26,15 @@ later.
     run-time type checking.
 
 1.  Install Genkit in your project:
-    -   Download packages zip file:
-        [genkit-dist.zip](https://bit.ly/genkit-dist)
-    -   Extract the file into `genkit-dist` folder in your project folder
-    -   Run:
 
-        ```posix-terminal
-        npm i --save ./genkit-dist/*.tgz
-        ```
+    - Download packages zip file:
+      [genkit-dist.zip](https://bit.ly/genkit-dist)
+    - Extract the file into `genkit-dist` folder in your project folder
+    - Run:
+
+      ```posix-terminal
+      npm i --save ./genkit-dist/*.tgz
+      ```
 
 1.  Edit package.json and add the following build script to `scripts`:
 
@@ -48,7 +48,7 @@ later.
     import { generate } from '@genkit-ai/ai/generate';
     import { configureGenkit } from '@genkit-ai/common/config';
     import { flow } from '@genkit-ai/flow';
-    import { geminiPro, googleGenAI } from "@genkit-ai/plugin-google-genai";
+    import { geminiPro, googleGenAI } from '@genkit-ai/plugin-google-genai';
     import * as z from 'zod';
 
     configureGenkit({
@@ -105,23 +105,23 @@ later.
     Also, because you are in a dev environment, Genkit will store traces and
     flow state in local files.
 
-1.  Open the Genkit Dev UI by clicking the link printed by the `genkit
-    start` command.
+1.  Open the Genkit Dev UI by clicking the link printed by the `genkit start`
+    command.
 
     This Dev UI lets you see which flows you have defined and models you
     configured, run them, and examine traces of previous runs. Try out some of
     these features:
 
-    -   On the Actions tab you will see a list of all of the flows you have
-        defined and any models that have been configured by plugins.
+    - On the Actions tab you will see a list of all of the flows you have
+      defined and any models that have been configured by plugins.
 
-        Click **jokeFlow** and try running it with some input text (for example,
-        `"manatees"`). If all goes well, you'll be rewarded with a joke about
-        manatees. Run it a few more times and you might get one that's funny.
+      Click **jokeFlow** and try running it with some input text (for example,
+      `"manatees"`). If all goes well, you'll be rewarded with a joke about
+      manatees. Run it a few more times and you might get one that's funny.
 
-    -   On the Flows tab, you'll see a history of flow executions. For each
-        entry you can see the parameters that were passed to the flow and a
-        trace of each step as they run.
+    - On the Flows tab, you'll see a history of flow executions. For each
+      entry you can see the parameters that were passed to the flow and a
+      trace of each step as they run.
 
 ## Deploy your flow
 
@@ -136,9 +136,9 @@ Cloud billing account.
 
 1.  Create a new project in the Firebase console. In your new project, do
     the following:
-    -   Create a Cloud Firestore database.
-    -   Upgrade your project to the Blaze plan, which is required to
-        deploy Cloud Functions.
+    - Create a Cloud Firestore database.
+    - Upgrade your project to the Blaze plan, which is required to
+      deploy Cloud Functions.
 1.  Initialize your project:
 
     ```posix-terminal
@@ -150,11 +150,11 @@ Cloud billing account.
     The Firebase CLI will ask you how to configure your project. Choose the
     following settings:
 
-    -   Specify the project you created in the previous step.
-    -   Enable the Cloud Firestore and Cloud Functions services.
-    -   Accept the default settings for Cloud Firestore.
-    -   Select TypeScript as the language for your Cloud Functions; you
-        can otherwise accept the defaults.
+    - Specify the project you created in the previous step.
+    - Enable the Cloud Firestore and Cloud Functions services.
+    - Accept the default settings for Cloud Firestore.
+    - Select TypeScript as the language for your Cloud Functions; you
+      can otherwise accept the defaults.
 
 1.  Edit tsconfig.js and add the following setting to `compilerOptions`:
 
@@ -163,17 +163,18 @@ Cloud billing account.
     ```
 
 1.  Install Genkit:
-    -   Download
-        [packages zip file](https://bit.ly/genkit-dist)
-        and extract into the `functions/genkit-dist` folder.
 
-        ```posix-terminal
-        cd functions`
+    - Download
+      [packages zip file](https://bit.ly/genkit-dist)
+      and extract into the `functions/genkit-dist` folder.
 
-        npm i --save ./genkit-dist/*.tgz`
+      ```posix-terminal
+      cd functions`
 
-        cd ..
-        ```
+      npm i --save ./genkit-dist/*.tgz`
+
+      cd ..
+      ```
 
 1.  Replace the contents of `src/index.ts` with the following:
 
@@ -184,16 +185,13 @@ Cloud billing account.
     import { configureGenkit } from '@genkit-ai/common/config';
     import { firebase } from '@genkit-ai/plugin-firebase';
     import { noAuth, onFlow } from '@genkit-ai/plugin-firebase/functions';
-    import { geminiPro, googleGenAI } from "@genkit-ai/plugin-google-genai";
+    import { geminiPro, googleGenAI } from '@genkit-ai/plugin-google-genai';
     import { defineSecret } from 'firebase-functions/params';
 
     const googleaiApiKey = defineSecret('GOOGLE_API_KEY');
 
     configureGenkit({
-      plugins: [
-        firebase({ projectId: getProjectId() }),
-        googleGenAI()
-      ],
+      plugins: [firebase({ projectId: getProjectId() }), googleGenAI()],
       enableTracingAndMetrics: true,
       traceStore: 'firebase',
       logLevel: 'debug',
@@ -201,8 +199,11 @@ Cloud billing account.
 
     export const jokeFlow = onFlow(
       {
-        name: 'jokeFlow', input: z.string(), output: z.string(), authPolicy: noAuth(),
-        httpsOptions: { secrets: [googleaiApiKey] }
+        name: 'jokeFlow',
+        input: z.string(),
+        output: z.string(),
+        authPolicy: noAuth(),
+        httpsOptions: { secrets: [googleaiApiKey] },
       },
       async (subject) => {
         process.env.GOOGLE_API_KEY = googleaiApiKey.value();
@@ -219,16 +220,16 @@ Cloud billing account.
     This is very similar to the code you ran locally in the last section,
     with a few important differences:
 
-    -   It now uses Cloud Firestore to store flow traces.
-    -   It now defines your flow using `onFlow` instead of `flow`. `onFlow` Is a
-        convenience function provided by the `firebase` plugin that wraps your
-        flow in a Cloud Functions HTTP request handler.
-    -   It defines an authorization policy, which establishes the authorization
-        requirements required to access your deployed endpoint. This example
-        sets the policy to `noAuth()` so you can easily try the endpoint, but
-        _never do this in production_.
-    -   It now gets the API key using Cloud Secret Manager instead of from an
-        environment variable.
+    - It now uses Cloud Firestore to store flow traces.
+    - It now defines your flow using `onFlow` instead of `flow`. `onFlow` Is a
+      convenience function provided by the `firebase` plugin that wraps your
+      flow in a Cloud Functions HTTP request handler.
+    - It defines an authorization policy, which establishes the authorization
+      requirements required to access your deployed endpoint. This example
+      sets the policy to `noAuth()` so you can easily try the endpoint, but
+      _never do this in production_.
+    - It now gets the API key using Cloud Secret Manager instead of from an
+      environment variable.
 
 1.  Deploy your function:
 

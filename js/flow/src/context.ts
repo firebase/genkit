@@ -16,10 +16,10 @@
 
 import { FlowState, FlowStateExecution, Operation } from '@genkit-ai/common';
 import {
+  SPAN_TYPE_ATTR,
   runInNewSpan,
   setCustomMetadataAttribute,
   setCustomMetadataAttributes,
-  SPAN_TYPE_ATTR,
 } from '@genkit-ai/common/tracing';
 import { logger } from 'firebase-functions/v1';
 import { z } from 'zod';
@@ -34,7 +34,7 @@ import { metadataPrefix } from './utils';
 export class Context<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny
+  S extends z.ZodTypeAny,
 > {
   private seenSteps: Record<string, number> = {};
 

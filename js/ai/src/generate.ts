@@ -349,7 +349,7 @@ export async function toGenerateRequest(
 
 export interface GenerateOptions<
   O extends z.ZodTypeAny = z.ZodTypeAny,
-  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > {
   /** A model name (e.g. `vertex-ai/gemini-1.0-pro`) or reference. */
   model: ModelArgument;
@@ -429,15 +429,14 @@ async function resolveModel(
  */
 export async function generate<
   O extends z.ZodTypeAny = z.ZodTypeAny,
-  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   options:
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
 ): Promise<GenerationResponse<z.infer<O>>> {
-  const prompt: GenerateOptions<O, CustomOptions> = await Promise.resolve(
-    options
-  );
+  const prompt: GenerateOptions<O, CustomOptions> =
+    await Promise.resolve(options);
   const model = await resolveModel(prompt.model);
   if (!model) {
     throw new Error(`Model ${prompt.model} not found`);

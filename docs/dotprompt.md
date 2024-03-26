@@ -1,4 +1,3 @@
-
 # Managing prompts with Dotprompt
 
 Genkit provides the Dotprompt library and text format to help you write and
@@ -50,8 +49,8 @@ const greetingPrompt = await prompt('greeting');
 
 const result = await greetingPrompt.generate({
   input: {
-    location: "the beach",
-    style: "a fancy pirate",
+    location: 'the beach',
+    style: 'a fancy pirate',
   },
 });
 
@@ -96,7 +95,7 @@ const characterPrompt = await prompt('create_character');
 
 const character = await characterPrompt.generate({
   input: {
-    location: "the beach",
+    location: 'the beach',
   },
 });
 
@@ -152,11 +151,11 @@ The URL can be `https://` or base64-encoded `data:` URIs for "inline" image
 usage. In code, this would be:
 
 ```ts
-const describeImagePrompt = await prompt("describe_image");
+const describeImagePrompt = await prompt('describe_image');
 
 const result = await describeImagePrompt.generate({
   input: {
-    photoUrl: "https://example.com/image.png",
+    photoUrl: 'https://example.com/image.png',
   },
 });
 
@@ -175,13 +174,13 @@ To create a variant, create a `[name].[variant].prompt` file. For instance, if
 you were using GPT-3.5 Turbo in your prompt but wanted to see if Gemini 1.0 Pro
 would perform better, you might create two files:
 
-* `my_prompt.prompt`: the "baseline" prompt
-* `my_prompt.gemini.prompt`: a variant named "gemini"
+- `my_prompt.prompt`: the "baseline" prompt
+- `my_prompt.gemini.prompt`: a variant named "gemini"
 
 To use a prompt variant, specify the `variant` option when loading:
 
 ```ts
-const myPrompt = await prompt('my_prompt', {variant: 'gemini'});
+const myPrompt = await prompt('my_prompt', { variant: 'gemini' });
 ```
 
 The prompt loader will attempt to load the variant of that name, and fall back
@@ -190,7 +189,7 @@ on whatever criteria makes sense for your application:
 
 ```ts
 const myPrompt = await prompt('my_prompt', {
-  variant: isBetaTester(user) ? 'gemini' : null
+  variant: isBetaTester(user) ? 'gemini' : null,
 });
 ```
 
@@ -203,15 +202,19 @@ inspector.
 Dotprompt is optimized for organization in the prompt directory. However, there
 are a few other ways to load and define prompts:
 
-* `loadPromptFile`: Load a prompt from a file in the prompt directory.
-* `loadPromptUrl`: Load a prompt from a URL.
-* `definePrompt`: Define a prompt in code.
+- `loadPromptFile`: Load a prompt from a file in the prompt directory.
+- `loadPromptUrl`: Load a prompt from a URL.
+- `definePrompt`: Define a prompt in code.
 
 Examples:
 
 ```ts
-import { loadPromptFile, loadPromptUrl, definePrompt } from "@genkit-ai/dotprompt";
-import { z } from "zod";
+import {
+  loadPromptFile,
+  loadPromptUrl,
+  definePrompt,
+} from '@genkit-ai/dotprompt';
+import { z } from 'zod';
 
 // Load a prompt from a file
 const myPrompt = await loadPromptFile('./path/to/my_prompt.prompt');
@@ -220,12 +223,15 @@ const myPrompt = await loadPromptFile('./path/to/my_prompt.prompt');
 const myPrompt = await loadPromptUrl('https://example.com/my_prompt.prompt');
 
 // Define a prompt in code
-const myPrompt = definePrompt({
-  model: 'vertex-ai/gemini-1.0-pro',
-  input: {
-    schema: z.object({
-      name: z.string(),
-    })
+const myPrompt = definePrompt(
+  {
+    model: 'vertex-ai/gemini-1.0-pro',
+    input: {
+      schema: z.object({
+        name: z.string(),
+      }),
+    },
   },
-}, `Hello {{name}}, how are you today?`);
+  `Hello {{name}}, how are you today?`
+);
 ```
