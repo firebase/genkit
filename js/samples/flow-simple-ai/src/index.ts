@@ -63,16 +63,18 @@ export const drawPictureFlow = flow(
 );
 
 const tools = [
-  defineTool({
-    name: 'tellAFunnyJoke',
-    description:
-      'Tells jokes about an input topic. Use this tool whenever user asks you to tell a joke.',
-    input: z.object({ topic: z.string() }),
-    output: z.string(),
-    fn: async (input) => {
-      return `Why did the ${input.topic} cross the road?`;
+  defineTool(
+    {
+      name: 'tellAFunnyJoke',
+      description:
+        'Tells jokes about an input topic. Use this tool whenever user asks you to tell a joke.',
+      input: z.object({ topic: z.string() }),
+      output: z.string(),
     },
-  }),
+    async (input) => {
+      return `Why did the ${input.topic} cross the road?`;
+    }
+  ),
 ];
 
 export const jokeWithToolsFlow = flow(
