@@ -14,25 +14,3 @@
 
 // Package genkit is the genkit API for Go.
 package genkit
-
-import (
-	"context"
-	"sync"
-)
-
-var initMu sync.Mutex
-var initted bool
-
-// Init should be called immediately after all calls to RegisterAction and RegisterTraceStore.
-// The returned function should be called before the program ends to ensure that
-// all pending data is stored.
-// Init panics if called a second time.
-func Init() (shutdown func(context.Context) error, err error) {
-	initMu.Lock()
-	defer initMu.Unlock()
-	if initted {
-		panic("Init called twice")
-	}
-	initted = true
-	return initTracing()
-}

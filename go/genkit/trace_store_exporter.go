@@ -85,15 +85,15 @@ func convertTrace(spans []sdktrace.ReadOnlySpan) (*TraceData, error) {
 func convertSpan(span sdktrace.ReadOnlySpan) *SpanData {
 	sc := span.SpanContext()
 	sd := &SpanData{
-		SpanID:      sc.SpanID().String(),
-		TraceID:     sc.TraceID().String(),
-		StartTime:   timeToMicroseconds(span.StartTime()),
-		EndTime:     timeToMicroseconds(span.EndTime()),
-		Attributes:  attributesToMap(span.Attributes()),
-		DisplayName:  span.Name(),
-		Links:  convertLinks(span.Links()),
+		SpanID:                  sc.SpanID().String(),
+		TraceID:                 sc.TraceID().String(),
+		StartTime:               timeToMicroseconds(span.StartTime()),
+		EndTime:                 timeToMicroseconds(span.EndTime()),
+		Attributes:              attributesToMap(span.Attributes()),
+		DisplayName:             span.Name(),
+		Links:                   convertLinks(span.Links()),
 		InstrumentationLibrary:  InstrumentationLibrary(span.InstrumentationLibrary()),
-		SpanKind:  span.SpanKind().String(),
+		SpanKind:                span.SpanKind().String(),
 		SameProcessAsParentSpan: boolValue{!sc.IsRemote()},
 		Status:                  convertStatus(span.Status()),
 	}
@@ -156,4 +156,9 @@ func convertStatus(s sdktrace.Status) Status {
 }
 
 // ExportSpans implements [go.opentelemetry.io/otel/sdk/trace.SpanExporter.Shutdown].
-func (e *traceStoreExporter) Shutdown(ctx context.Context) error { return nil }
+func (e *traceStoreExporter) Shutdown(ctx context.Context) error {
+	// NOTE: In the current implementation, this function is never called on the store in the
+	// dev environment. To get that to happen, the Shutdown method on the TracerProvider must
+	// be called. See tracing.go.
+	return nil
+}
