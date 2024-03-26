@@ -1,6 +1,6 @@
 {
   "name": "@genkit-ai/plugin-google-genai",
-  "version": "0.0.1",
+  "version": "0.0.5",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",

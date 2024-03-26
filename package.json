@@ -1,7 +1,7 @@
 {
   "name": "genkit",
   "private": true,
-  "version": "0.0.4",
+  "version": "0.0.5",
   "scripts": {
     "format:check": "npm-run-all format:check-js format:check-genkit-tools",
     "format:check-js": "cd js && npm run format:check",
