@@ -24,6 +24,7 @@ interface FormatType {
   footer?: string;
 }
 
+const FILE_OPTS: { encoding: 'utf-8' } = { encoding: 'utf-8' };
 const FORMAT_TYPES: FormatType[] = [
   { regex: /\.((ts)|(scss)|(js))$/, header: '/**', body: ' *', footer: ' */' },
   { regex: /\.html$/, header: '<!--', body: '', footer: '-->' },
@@ -44,7 +45,11 @@ const COPYRIGHT = ` Copyright ${new Date().getFullYear()} Google LLC
  limitations under the License.`;
 
 async function getSourceFilesToUpdate() {
-  const paths = execSync('git ls-files', { encoding: 'utf-8' })
+  const paths = (
+    execSync('git ls-files', FILE_OPTS) +
+    '\n' +
+    execSync('git ls-files -o --exclude-standard', FILE_OPTS)
+  )
     .split('\n')
     .filter((p) => !!p);
   const fileContents = await Promise.all(
