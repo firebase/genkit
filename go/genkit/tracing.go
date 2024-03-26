@@ -16,6 +16,7 @@ package genkit
 
 import (
 	"context"
+	"log"
 	"os"
 	"sync"
 
@@ -25,64 +26,76 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// tracerType holds an OpenTelemetry Tracer for creating traces.
-type tracerType struct {
-	mu  sync.Mutex
-	val trace.Tracer
+// tracingState holds OpenTelemetry values for creating traces.
+type tracingState struct {
+	mu sync.Mutex
+	tp *sdktrace.TracerProvider // references TraceStores
+	t  trace.Tracer             // returned from tp.Tracer(), cached
 }
 
-func (tt *tracerType) get() trace.Tracer {
-	tt.mu.Lock()
-	defer tt.mu.Unlock()
-	if tt.val == nil {
-		panic("tracing not configured; did you call genkit.Init?")
+func (ts *tracingState) tracer() trace.Tracer {
+	ts.mu.Lock()
+	defer ts.mu.Unlock()
+	return ts.t
+}
+
+// addSpanProcessor adds a new SpanProcessor (holding a TracingStore) to the TracerProvider
+// and returns the TracerProvider's shutdown method.
+func (ts *tracingState) addSpanProcessor(sp sdktrace.SpanProcessor) (shutdown func(context.Context) error) {
+	ts.mu.Lock()
+	defer ts.mu.Unlock()
+	if ts.tp == nil {
+		ts.tp = sdktrace.NewTracerProvider()
 	}
-	return tt.val
+	ts.tp.RegisterSpanProcessor(sp)
+	ts.t = ts.tp.Tracer("genkit-tracer", trace.WithInstrumentationVersion("v1"))
+	return ts.tp.Shutdown
 }
 
-func (tt *tracerType) set(t trace.Tracer) {
-	tt.mu.Lock()
-	defer tt.mu.Unlock()
-	tt.val = t
+// Use the same TracerProvider for the lifetime of the process.
+var globalTracingState tracingState
+
+func init() {
+	// Initialize the dev tracer at program startup.
+	if err := initDevTracing(); err != nil {
+		log.Fatal(err)
+	}
 }
 
-// globalTracer
-// Use the same Tracer for the lifetime of the process.
-var globalTracer tracerType
-
-// initTracing is called from [Init] to initialize the tracer global.
-// It returns a function that must be called before the program exits to
-// ensure all traces have been stored.
-func initTracing() (shutdown func(context.Context) error, err error) {
+func initDevTracing() error {
 	// TODO(jba): The js code uses a hash of the program name as the directory,
 	// so the same store is used across runs. That won't work well with the common
 	// use of `go run`. Should we let the user configure the directory?
 	// Does it matter?
 	dir, err := os.MkdirTemp("", "genkit-tracing")
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// Don't remove the temp directory, for post-mortem debugging.
 	devTS, err := NewFileTraceStore(dir)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	registerTraceStore(EnvironmentDev, devTS)
 	devExporter := newTraceStoreExporter(devTS)
-	// Write dev traces synchronously to disk, so we never lose one from a crash.
-	opts := []sdktrace.TracerProviderOption{sdktrace.WithSyncer(devExporter)}
-	if prodTS := lookupTraceStore(EnvironmentProd); prodTS != nil {
-		prodExporter := newTraceStoreExporter(prodTS)
-		// Batch traces for efficiency. Saving to a production TraceStore will likely
-		// involve an RPC or two.
-		opts = append(opts, sdktrace.WithBatcher(prodExporter))
-	}
-	traceProvider := sdktrace.NewTracerProvider(opts...)
-	globalTracer.set(traceProvider.Tracer("genkit-tracer", trace.WithInstrumentationVersion("v1")))
-	return traceProvider.Shutdown, nil
+	// Adding a SimpleSpanProcessor is like using the WithSyncer option.
+	_ = globalTracingState.addSpanProcessor(sdktrace.NewSimpleSpanProcessor(devExporter))
+	// Ignore tracerProvider.Shutdown. It shouldn't be needed when using WithSyncer.
+	// Confirmed for OTel packages as of v1.24.0.
+	// Also requires traceStoreExporter.Shutdown to be a no-op.
+	return nil
+}
+
+func initProdTracing(ts TraceStore) (shutdown func(context.Context) error) {
+	e := newTraceStoreExporter(ts)
+	// Batch traces for efficiency. Saving to a production TraceStore will likely
+	// involve an RPC or two.
+	// Adding a BatchSpanProcessor is like using the WithBatcher option.
+	return globalTracingState.addSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
 }
 
 // The rest of this file contains code translated from js/common/src/tracing/*.ts.
+
 const (
 	attrPrefix   = "genkit"
 	spanTypeAttr = attrPrefix + ":type"
@@ -115,7 +128,7 @@ func runInNewSpan[I, O any](
 	if spanType != "" {
 		opts = append(opts, trace.WithAttributes(attribute.String(spanTypeAttr, spanType)))
 	}
-	ctx, span := globalTracer.get().Start(ctx, name, opts...)
+	ctx, span := globalTracingState.tracer().Start(ctx, name, opts...)
 	defer span.End()
 	// At the end, copy some of the spanMetadata to the OpenTelemetry span.
 	defer func() { span.SetAttributes(sm.attributes()...) }()

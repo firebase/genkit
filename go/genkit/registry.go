@@ -15,6 +15,7 @@
 package genkit
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -97,10 +98,12 @@ func listActions() []actionDesc {
 
 // RegisterTraceStore uses the given TraceStore to record traces in the prod environment.
 // (A TraceStore that writes to the local filesystem is always installed in the dev environment.)
+// The returned function should be called before the program ends to ensure that
+// all pending data is stored.
 // RegisterTraceStore panics if called more than once.
-// You must call [Init] after calling this function to initialize tracing.
-func RegisterTraceStore(ts TraceStore) {
+func RegisterTraceStore(ts TraceStore) (shutdown func(context.Context) error) {
 	registerTraceStore(EnvironmentProd, ts)
+	return initProdTracing(ts)
 }
 
 func registerTraceStore(env Environment, ts TraceStore) {
