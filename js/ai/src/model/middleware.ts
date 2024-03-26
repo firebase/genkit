@@ -143,3 +143,31 @@ ${JSON.stringify(req.output!.schema!)}
     return next(req);
   };
 }
+
+/**
+ * Provide a simulated system prompt for models that don't support it natively.
+ */
+export function simulateSystemPrompt(options?: {
+  preface: string;
+  acknowledgement: string;
+}): ModelMiddleware {
+  const preface = options?.preface || 'SYSTEM INSTRUCTIONS:\n';
+  const acknowledgement = options?.acknowledgement || 'Understood.';
+
+  return (req, next) => {
+    const messages = [...req.messages];
+    for (let i = 0; i < messages.length; i++) {
+      if (req.messages[i].role === 'system') {
+        const systemPrompt = messages[i].content;
+        messages.splice(
+          i,
+          1,
+          { role: 'user', content: [{ text: preface }, ...systemPrompt] },
+          { role: 'model', content: [{ text: acknowledgement }] }
+        );
+        break;
+      }
+    }
+    return next({ ...req, messages });
+  };
+}
