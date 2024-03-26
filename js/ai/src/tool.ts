@@ -90,21 +90,22 @@ export function toToolDefinition(
   };
 }
 
-export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>({
-  name,
-  description,
-  input,
-  output,
-  fn,
-  metadata,
-}: {
-  name: string;
-  description: string;
-  input: I;
-  output: O;
-  metadata?: Record<string, any>;
-  fn: (input: z.infer<I>) => Promise<z.infer<O>>;
-}): ToolAction<I, O> {
+export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+  {
+    name,
+    description,
+    input,
+    output,
+    metadata,
+  }: {
+    name: string;
+    description: string;
+    input?: I;
+    output?: O;
+    metadata?: Record<string, any>;
+  },
+  fn: (input: z.infer<I>) => Promise<z.infer<O>>
+): ToolAction<I, O> {
   const a = action(
     {
       name,
