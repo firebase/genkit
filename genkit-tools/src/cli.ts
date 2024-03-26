@@ -17,6 +17,7 @@
 import { ToolPluginSubCommandsSchema } from '@genkit-ai/tools-plugins/plugins';
 import * as clc from 'colorette';
 import { Command, program } from 'commander';
+import { config } from './commands/config';
 import { evalExtractData } from './commands/eval-extract-data';
 import { evalFlowRun } from './commands/eval-flow-run';
 import { evalRun } from './commands/eval-run';
@@ -48,6 +49,7 @@ const commands: Command[] = [
   evalRun,
   evalFlowRun,
   init,
+  config,
 ];
 
 /** Main entry point for CLI. */
