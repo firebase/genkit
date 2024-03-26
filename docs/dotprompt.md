@@ -36,7 +36,7 @@ input:
 
 You are the world's most welcoming AI assistant and are currently working at {{location}}.
 
-Greet a guest{{#if name}} named {{name}}{{/if}}{{#if style}} in the style of {{style}}.
+Greet a guest{{#if name}} named {{name}}{{/if}}{{#if style}} in the style of {{style}}{{/if}}.
 ```
 
 To use this prompt, import the `@genkit-ai/dotprompt` library and load the prompt using
