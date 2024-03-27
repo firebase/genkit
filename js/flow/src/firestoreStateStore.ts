@@ -22,44 +22,29 @@ import {
   FlowStateStore,
 } from '@genkit-ai/common';
 import { logger } from '@genkit-ai/common/logging';
-import { App, AppOptions, getApp, initializeApp } from 'firebase-admin/app';
-import { Firestore, getFirestore } from 'firebase-admin/firestore';
+import { Firestore } from '@google-cloud/firestore';
 
 /**
  * Implementation of flow state store that persistes flow state in Firestore.
  */
 export class FirestoreStateStore implements FlowStateStore {
   readonly db: Firestore;
-  readonly app: App;
   readonly collection: string;
   readonly databaseId: string;
 
   constructor(
     params: {
-      app?: App;
       collection?: string;
       databaseId?: string;
       projectId?: string;
     } = {}
   ) {
-    let app = params.app;
-    this.collection = params.collection || 'ai-flows';
+    this.collection = params.collection || 'genkit-flows';
     this.databaseId = params.databaseId || '(default)';
-    // TODO: revisit the default app creation flow
-    if (!app) {
-      try {
-        app = getApp();
-      } catch {
-        const appOpts = {} as AppOptions;
-        if (params.projectId) {
-          appOpts.projectId = params.projectId;
-        }
-        app = initializeApp(appOpts);
-      }
-    }
-    this.app = app;
-    this.db = getFirestore(this.app, this.databaseId);
-    this.db.settings({ ignoreUndefinedProperties: true });
+    this.db = new Firestore({
+      databaseId: this.databaseId,
+      ignoreUndefinedProperties: true,
+    });
   }
 
   async load(id: string): Promise<FlowState | undefined> {

@@ -15,7 +15,7 @@
  */
 
 import { initializeGenkit } from '@genkit-ai/common/config';
-import { flow, run, runFlow, runMap } from '@genkit-ai/flow';
+import { flow, run, runFlow, runMap, startFlowsServer } from '@genkit-ai/flow';
 import {
   durableFlow,
   interrupt,
@@ -38,6 +38,7 @@ export const basic = flow(
     const foo = await run('call-llm', async () => {
       return `subject: ${subject}`;
     });
+
     return await run('call-llm', async () => {
       return `foo: ${foo}`;
     });
@@ -258,3 +259,5 @@ export const throwy2 = flow(
     });
   }
 );
+
+startFlowsServer();

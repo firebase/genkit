@@ -99,6 +99,7 @@ export type NestedSpanData = z.infer<typeof SpanDataSchema> & {
 
 export const TraceDataSchema = z
   .object({
+    traceId: z.string(),
     displayName: z.string().optional(),
     startTime: z.number().optional(),
     endTime: z.number().optional(),

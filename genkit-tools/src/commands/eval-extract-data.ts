@@ -18,12 +18,13 @@ import { Command } from 'commander';
 import { randomUUID } from 'crypto';
 import { writeFile } from 'fs/promises';
 import { EvalInput } from '../eval';
+import { EnvTypes } from '../types/apis';
 import { DocumentData, RetrieverResponse } from '../types/retrievers';
 import { logger } from '../utils/logger';
 import { runInRunnerThenStop } from '../utils/runner-utils';
 
 interface EvalDatasetOptions {
-  env: 'dev' | 'prod';
+  env: EnvTypes;
   output?: string;
   maxRows: string;
   label?: string;

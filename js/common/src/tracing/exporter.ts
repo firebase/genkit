@@ -123,6 +123,7 @@ export class TraceStoreExporter implements SpanExporter {
   private async save(traceId, spans: ReadableSpan[]): Promise<void> {
     // TODO: add interface for Firestore doc
     const data = {
+      traceId,
       spans: {},
     } as TraceData;
     for (const span of spans) {

@@ -100,6 +100,7 @@ export const SpanDataSchema = z.object({
 export type SpanData = z.infer<typeof SpanDataSchema>;
 
 export const TraceDataSchema = z.object({
+  traceId: z.string(),
   displayName: z.string().optional(),
   startTime: z
     .number()
