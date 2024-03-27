@@ -16,26 +16,39 @@
 
 import { initializeGenkit } from '@genkit-ai/common/config';
 import { prompt } from '@genkit-ai/dotprompt';
+import { flow } from '@genkit-ai/flow';
+import * as z from 'zod';
 
 initializeGenkit();
 
-(async () => {
-  const food = process.argv[2] || 'mexican asian fusion';
-  const recipePrompt = await prompt('recipe');
+// This example demonstrates using prompt files in a flow
 
-  const result = await recipePrompt.generate({
-    input: { food },
-  });
+// Load the prompt file during initialization.
+// If it fails, due to the file being invalid, the process will crash
+// instead of us getting a weird failure later when the flow runs.
 
-  console.log(result.output());
+prompt('recipe').then((recipePrompt) => {
+  flow(
+    {
+      name: 'chefFlow',
+      input: z.object({
+        food: z.string(),
+      }),
+      output: z.any(),
+    },
+    async (input) => (await recipePrompt.generate({ input: input })).output()
+  );
+});
 
-  console.log('');
-  console.log('Now, as a robot...');
-  const robotPrompt = await prompt('recipe', { variant: 'robot' });
-
-  const result2 = await robotPrompt.generate({
-    input: { food },
-  });
-
-  console.log(result2.output());
-})();
+prompt('recipe', { variant: 'robot' }).then((recipePrompt) => {
+  flow(
+    {
+      name: 'robotChefFlow',
+      input: z.object({
+        food: z.string(),
+      }),
+      output: z.any(),
+    },
+    async (input) => (await recipePrompt.generate({ input: input })).output()
+  );
+});

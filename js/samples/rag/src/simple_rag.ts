@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai/generate';
 import { Document, index, retrieve } from '@genkit-ai/ai/retrievers';
-import { initializeGenkit } from '@genkit-ai/common/config';
 import { flow } from '@genkit-ai/flow';
 import { chromaIndexerRef, chromaRetrieverRef } from '@genkit-ai/plugin-chroma';
 import {
@@ -27,12 +25,8 @@ import {
   pineconeIndexerRef,
   pineconeRetrieverRef,
 } from '@genkit-ai/plugin-pinecone';
-import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 import * as z from 'zod';
-import config from './genkit.conf';
-export * from './pdf_rag';
-
-initializeGenkit(config);
+import { augmentedPrompt } from './prompt';
 
 // Setup the models, embedders and "vector store"
 export const tomAndJerryFactsRetriever = pineconeRetrieverRef({
@@ -60,21 +54,6 @@ export const nfsSpongeBobRetriever = devLocalRetrieverRef('spongebob-facts');
 
 export const nfsSpongeBobIndexer = devLocalIndexerRef('spongebob-facts');
 
-function ragTemplate({
-  context,
-  question,
-}: {
-  context: string;
-  question: string;
-}) {
-  return `Use the following pieces of context to answer the question at the end.
- If you don't know the answer, just say that you don't know, don't try to make up an answer.
- 
-${context}
-Question: ${question}
-Helpful Answer:`;
-}
-
 // Define a simple RAG flow, we will evaluate this flow
 export const askQuestionsAboutTomAndJerryFlow = flow(
   {
@@ -88,19 +67,14 @@ export const askQuestionsAboutTomAndJerryFlow = flow(
       query,
       options: { k: 3 },
     });
-    console.log(docs);
-
-    const augmentedPrompt = ragTemplate({
-      question: query,
-      context: docs.map((d) => d.text()).join('\n\n'),
-    });
-    const model = geminiPro;
-    console.log(augmentedPrompt);
-    const llmResponse = await generate({
-      model,
-      prompt: { text: augmentedPrompt },
-    });
-    return llmResponse.text();
+    return augmentedPrompt
+      .generate({
+        input: {
+          question: query,
+          context: docs.map((d) => d.text()),
+        },
+      })
+      .then((r) => r.text());
   }
 );
 
@@ -118,19 +92,14 @@ export const askQuestionsAboutSpongebobFlow = flow(
       query,
       options: { k: 3 },
     });
-    console.log(docs);
-
-    const augmentedPrompt = ragTemplate({
-      question: query,
-      context: docs.map((d) => d.text()).join('\n\n'),
-    });
-    const model = geminiPro;
-    console.log(augmentedPrompt);
-    const llmResponse = await generate({
-      model,
-      prompt: { text: augmentedPrompt },
-    });
-    return llmResponse.text();
+    return augmentedPrompt
+      .generate({
+        input: {
+          question: query,
+          context: docs.map((d) => d.text()),
+        },
+      })
+      .then((r) => r.text());
   }
 );
 

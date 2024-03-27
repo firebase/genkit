@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-const { configureGenkit } = require('@genkit-ai/common/config');
-const { googleGenAI } = require('@genkit-ai/plugin-google-genai');
+import { initializeGenkit } from '@genkit-ai/common/config';
+import config from './genkit.conf';
 
-exports.default = configureGenkit({
-  plugins: [googleGenAI()],
-  enableTracingAndMetrics: true,
-  logLevel: 'debug',
-});
+initializeGenkit(config);
+
+export * from './pdf_rag';
+export * from './simple_rag';

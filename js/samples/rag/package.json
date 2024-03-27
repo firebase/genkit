@@ -2,9 +2,9 @@
   "name": "rag",
   "version": "1.0.0",
   "description": "",
-  "main": "lib/simple_rag.js",
+  "main": "lib/index.js",
   "scripts": {
-    "start": "node lib/simple_rag.js",
+    "start": "node lib/index.js",
     "compile": "tsc",
     "build": "npm run build:clean && npm run compile",
     "build:clean": "rm -rf ./lib",

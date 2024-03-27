@@ -25,25 +25,11 @@ import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import * as z from 'zod';
+import { augmentedPrompt } from './prompt';
 
 export const pdfChatRetriever = devLocalRetrieverRef('pdfQA');
 
 export const pdfChatIndexer = devLocalIndexerRef('pdfQA');
-
-function ragTemplate({
-  context,
-  question,
-}: {
-  context: string;
-  question: string;
-}) {
-  return `Use the following pieces of context to answer the question at the end.
- If you don't know the answer, just say that you don't know, don't try to make up an answer.
-
-${context}
-Question: ${question}
-Helpful Answer:`;
-}
 
 // Define a simple RAG flow, we will evaluate this flow
 export const pdfQA = flow(
@@ -58,17 +44,15 @@ export const pdfQA = flow(
       query,
       options: { k: 3 },
     });
-    console.log(docs);
 
-    const augmentedPrompt = ragTemplate({
-      question: query,
-      context: docs.map((d) => d.text()).join('\n\n'),
-    });
-    const llmResponse = await generate({
-      model: geminiPro,
-      prompt: { text: augmentedPrompt },
-    });
-    return llmResponse.text();
+    return augmentedPrompt
+      .generate({
+        input: {
+          question: query,
+          context: docs.map((d) => d.text()),
+        },
+      })
+      .then((r) => r.text());
   }
 );
 
