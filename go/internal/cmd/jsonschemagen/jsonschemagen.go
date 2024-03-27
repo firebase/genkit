@@ -301,7 +301,6 @@ func (g *generator) generateStruct(name string, s *Schema, tcfg *itemConfig) err
 	}
 	g.pr("type %s struct {\n", goName)
 	for _, field := range sortedKeys(s.Properties) {
-		// TODO(jba): generate struct tags for JSON encoding.
 		fcfg := g.cfg.itemConfigs[name+"."+field]
 		if fcfg == nil {
 			fcfg = &itemConfig{}
@@ -322,7 +321,8 @@ func (g *generator) generateStruct(name string, s *Schema, tcfg *itemConfig) err
 			}
 		}
 		g.generateDoc(fs, fcfg)
-		g.pr("  %s %s\n", adjustIdentifier(field), typeExpr)
+		jsonTag := fmt.Sprintf(`json:"%s,omitempty"`, field)
+		g.pr("  %s %s `%s`\n", adjustIdentifier(field), typeExpr, jsonTag)
 	}
 	g.pr("}\n\n")
 	return nil
