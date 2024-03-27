@@ -51,7 +51,12 @@ export class LocalFileTraceStore implements TraceStore {
       return undefined;
     }
     const data = fs.readFileSync(filePath, 'utf8');
-    return TraceDataSchema.parse(JSON.parse(data));
+    const parsed = JSON.parse(data);
+    // For backwards compatibility, new field.
+    if (!parsed.traceId) {
+      parsed.traceId = id;
+    }
+    return TraceDataSchema.parse(parsed);
   }
 
   async save(id: string, trace: TraceData): Promise<void> {
@@ -89,7 +94,12 @@ export class LocalFileTraceStore implements TraceStore {
     const traces = files.slice(startFrom, stopAt).map((id) => {
       const filePath = path.resolve(this.storeRoot, `${id}`);
       const data = fs.readFileSync(filePath, 'utf8');
-      return TraceDataSchema.parse(JSON.parse(data));
+      const parsed = JSON.parse(data);
+      // For backwards compatibility, new field.
+      if (!parsed.traceId) {
+        parsed.traceId = id;
+      }
+      return TraceDataSchema.parse(parsed);
     });
     return {
       traces,

@@ -14,6 +14,7 @@
     "test": "node --import tsx --test tests/*_test.ts"
   },
   "dependencies": {
+    "@google-cloud/firestore": "^7.5.0",
     "@genkit-ai/common": "*",
     "@types/cors": "^2.8.17",
     "express": "^4.18.2",

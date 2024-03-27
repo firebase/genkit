@@ -14,9 +14,12 @@
  * limitations under the License.
  */
 
-import { App, AppOptions, getApp, initializeApp } from 'firebase-admin/app';
-import { Firestore, getFirestore } from 'firebase-admin/firestore';
+import { Firestore } from '@google-cloud/firestore';
+import { randomUUID } from 'crypto';
+import { logger } from '../logging';
 import {
+  SpanData,
+  SpanDataSchema,
   TraceData,
   TraceDataSchema,
   TraceQuery,
@@ -29,52 +32,71 @@ import {
  */
 export class FirestoreTraceStore implements TraceStore {
   readonly db: Firestore;
-  readonly app: App;
   readonly collection: string;
   readonly databaseId: string;
+  readonly expireAfterDays: number;
 
   constructor(
     params: {
-      app?: App;
       collection?: string;
       databaseId?: string;
       projectId?: string;
+      expireAfterDays?: number;
     } = {}
   ) {
-    let app = params.app;
-    this.collection = params.collection || 'ai-traces-test';
+    this.collection = params.collection || 'genkit-traces';
     this.databaseId = params.databaseId || '(default)';
-    if (!app) {
-      try {
-        app = getApp();
-      } catch {
-        const appOpts = {} as AppOptions;
-        if (params.projectId) {
-          appOpts.projectId = params.projectId;
-        }
-        app = initializeApp(appOpts);
-      }
-    }
-    this.app = app;
-    this.db = getFirestore(this.app, this.databaseId);
+    this.expireAfterDays = params.expireAfterDays || 14;
+    this.db = new Firestore({
+      databaseId: this.databaseId,
+      ignoreUndefinedProperties: true,
+    });
   }
 
   async save(traceId: string, traceData: TraceData): Promise<void> {
-    console.debug(`saving ${Object.keys(traceData.spans).length} spans`);
+    const traceInfo = {
+      ...traceData,
+      expireAt: Date.now() + this.expireAfterDays * 24 * 60 * 60 * 1000,
+      spans: {},
+    };
+    const start = Date.now();
     await this.db
       .collection(this.collection)
       .doc(traceId)
-      .set(traceData, { merge: true });
+      .set(traceInfo, { merge: true });
+    await this.db
+      .collection(this.collection)
+      .doc(traceId)
+      .collection('spans')
+      .doc(randomUUID())
+      .set({
+        spans: traceData.spans,
+      });
+    logger.debug(
+      `saved trace ${traceId}, ${Object.keys(traceData.spans).length} span(s) (${Date.now() - start}ms)`
+    );
   }
 
   async load(traceId: string): Promise<TraceData | undefined> {
-    const data = (
-      await this.db.collection(this.collection).doc(traceId).get()
-    ).data();
-    if (!data) {
-      return undefined;
-    }
-    return TraceDataSchema.parse(data);
+    const [traceInfo, spanBatches] = await Promise.all([
+      this.db.collection(this.collection).doc(traceId).get(),
+      this.db
+        .collection(this.collection)
+        .doc(traceId)
+        .collection('spans')
+        .get(),
+    ]);
+    const spans: Record<string, SpanData> = {};
+    spanBatches.forEach((batch) => {
+      const spansBatch: Record<string, SpanData> = batch.data().spans;
+      Object.keys(spansBatch).forEach((key) => {
+        spans[key] = SpanDataSchema.parse(spansBatch[key]);
+      });
+    });
+    return TraceDataSchema.parse({
+      ...traceInfo.data(),
+      spans,
+    });
   }
 
   async list(query?: TraceQuery): Promise<TraceQueryResponse> {
