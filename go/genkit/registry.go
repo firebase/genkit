@@ -59,14 +59,14 @@ const (
 )
 
 // RegisterAction records the action in the global registry.
-// It panics if an action with the same type and ID is already
+// It panics if an action with the same type, provider and name is already
 // registered.
-func RegisterAction(typ ActionType, id string, a action) {
-	key := fmt.Sprintf("/%s/%s", typ, id)
+func RegisterAction(typ ActionType, provider string, a action) {
+	key := fmt.Sprintf("/%s/%s/%s", typ, provider, a.Name())
 	registryMu.Lock()
 	defer registryMu.Unlock()
 	if _, ok := actions[key]; ok {
-		panic(fmt.Sprintf("action %q of type %s already has an entry in the registry", id, typ))
+		panic(fmt.Sprintf("action %q is already registered", key))
 	}
 	slog.Info("RegisterAction", "key", key)
 	actions[key] = a
