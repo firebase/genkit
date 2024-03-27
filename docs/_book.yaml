@@ -41,8 +41,8 @@ guides:
     path: /genkit/devtools
   - title: Deploy with Firebase
     path: /genkit/firebase
-  - title: Deploy as an express.js app
-    path: /genkit/express
+  - title: Deploy Cloud Run
+    path: /genkit/cloud-run
 reference:
   - title: Resource summary
     path: /genkit/reference/coming-soon
