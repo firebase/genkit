@@ -294,9 +294,7 @@ func (g *generator) generateType(name string) (err error) {
 }
 
 func (g *generator) generateStruct(name string, s *Schema, tcfg *itemConfig) error {
-	if s.Description != "" {
-		g.pr("// %s\n", s.Description)
-	}
+	g.generateDoc(s, tcfg)
 	goName := tcfg.name
 	if goName == "" {
 		goName = adjustIdentifier(name)
@@ -323,9 +321,7 @@ func (g *generator) generateStruct(name string, s *Schema, tcfg *itemConfig) err
 				return fmt.Errorf("%s: %w", field, err)
 			}
 		}
-		if fs.Description != "" {
-			g.pr("  // %s\n", fs.Description)
-		}
+		g.generateDoc(fs, fcfg)
 		g.pr("  %s %s\n", adjustIdentifier(field), typeExpr)
 	}
 	g.pr("}\n\n")
@@ -333,9 +329,7 @@ func (g *generator) generateStruct(name string, s *Schema, tcfg *itemConfig) err
 }
 
 func (g *generator) generateStringEnum(name string, s *Schema, tcfg *itemConfig) error {
-	if s.Description != "" {
-		g.pr("// %s\n", s.Description)
-	}
+	g.generateDoc(s, tcfg)
 	goName := tcfg.name
 	if goName == "" {
 		goName = adjustIdentifier(name)
@@ -352,6 +346,20 @@ func (g *generator) generateStringEnum(name string, s *Schema, tcfg *itemConfig)
 	}
 	g.pr(")\n\n")
 	return nil
+}
+
+func (g *generator) generateDoc(s *Schema, ic *itemConfig) {
+	var lines []string
+	if len(ic.docLines) > 0 {
+		lines = ic.docLines
+	} else if s.Description != "" {
+		lines = []string{s.Description}
+	}
+	if len(lines) > 0 {
+		for _, line := range lines {
+			g.pr("// %s\n", line)
+		}
+	}
 }
 
 // typeExpr returns a Go type expression denoting the type represented by the schema.
@@ -456,6 +464,7 @@ type itemConfig struct {
 	omit     bool
 	name     string
 	typeExpr string
+	docLines []string
 }
 
 // parseConfigFile parses the config file.
@@ -471,6 +480,8 @@ type itemConfig struct {
 //	    use NAME instead of the default name
 //	type EXPR
 //	    use EXPR for the type expression (for fields only)
+//	doc
+//	    doc is following lines until the line "."
 func parseConfigFile(filename string) (config, error) {
 	c := config{itemConfigs: map[string]*itemConfig{}}
 	filedata, err := os.ReadFile(filename)
@@ -478,15 +489,30 @@ func parseConfigFile(filename string) (config, error) {
 		return config{}, err
 	}
 
+	var n int // line number
+
+	errf := func(format string, args ...any) (config, error) {
+		return config{}, fmt.Errorf("%s:%d: %s", filename, n, fmt.Sprintf(format, args...))
+	}
+
+	var docItem *itemConfig // if non-empty, collect doc lines here
 	for i, ln := range bytes.Split(filedata, []byte("\n")) {
+		n = i + 1
 		line := strings.TrimSpace(string(ln))
-		n := i + 1
+		if docItem != nil {
+			if line == "." {
+				docItem = nil
+			} else {
+				docItem.docLines = append(docItem.docLines, line)
+			}
+			continue
+		}
 		if len(line) == 0 || line[0] == '#' {
 			continue
 		}
 		words := strings.Fields(line)
 		if len(words) < 2 {
-			return config{}, fmt.Errorf("%s:%d: need NAME DIRECTIVE ...", filename, n)
+			return errf("need NAME DIRECTIVE ...")
 		}
 		ic := c.itemConfigs[words[0]]
 		if ic == nil {
@@ -498,16 +524,18 @@ func parseConfigFile(filename string) (config, error) {
 			ic.omit = true
 		case "name":
 			if len(words) < 3 {
-				return config{}, fmt.Errorf("%s:%d: need NAME name NEWNAME", filename, n)
+				return errf("need NAME name NEWNAME")
 			}
 			ic.name = words[2]
 		case "type":
 			if len(words) < 3 {
-				return config{}, fmt.Errorf("%s:%d: need NAME type EXPR", filename, n)
+				return errf("need NAME type EXPR")
 			}
 			ic.typeExpr = words[2]
+		case "doc":
+			docItem = ic
 		default:
-			return config{}, fmt.Errorf("%s:%d: unknown directive %q", filename, n, words[1])
+			return errf("unknown directive %q", words[1])
 		}
 	}
 	return c, nil

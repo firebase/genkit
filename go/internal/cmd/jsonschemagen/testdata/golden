@@ -16,13 +16,17 @@
 
 package test
 
+// A Candidate is a single generated result.
+//
+// Something after a blank line.
 type Candidate struct {
 	Custom        any
 	FinishMessage string
 	FinishReason  FinishReason
-	Index         int
-	Message       *Message
-	Usage         *GenerationUsage
+	// Position of candidate in list.
+	Index   int
+	Message *Message
+	Usage   *GenerationUsage
 }
 
 type FinishReason string
