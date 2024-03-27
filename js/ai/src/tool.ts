@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Action, action } from '@genkit-ai/common';
+import { Action, JSONSchema7, action } from '@genkit-ai/common';
 import { lookupAction, registerAction } from '@genkit-ai/common/registry';
 import { setCustomMetadataAttributes } from '@genkit-ai/common/tracing';
 import z from 'zod';
@@ -83,10 +83,14 @@ export function toToolDefinition(
   return {
     name: tool.__action.name,
     description: tool.__action.description || '',
-    outputSchema: tool.__action.outputSchema
-      ? zodToJsonSchema(tool.__action.outputSchema)
-      : {}, // JSON schema matching anything
-    inputSchema: zodToJsonSchema(tool.__action.inputSchema!),
+    outputSchema:
+      tool.__action.outputJsonSchema ||
+      (tool.__action.outputSchema
+        ? zodToJsonSchema(tool.__action.outputSchema)
+        : {}), // JSON schema matching anything
+    inputSchema:
+      tool.__action.inputJsonSchema ||
+      zodToJsonSchema(tool.__action.inputSchema!),
   };
 }
 
@@ -95,13 +99,17 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     name,
     description,
     input,
+    inputJsonSchema,
     output,
+    outputJsonSchema,
     metadata,
   }: {
     name: string;
     description: string;
     input?: I;
+    inputJsonSchema?: JSONSchema7;
     output?: O;
+    outputJsonSchema?: JSONSchema7;
     metadata?: Record<string, any>;
   },
   fn: (input: z.infer<I>) => Promise<z.infer<O>>
@@ -111,7 +119,9 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       name,
       description,
       input,
+      inputJsonSchema,
       output,
+      outputJsonSchema,
       metadata: { ...(metadata || {}), type: 'tool' },
     },
     (i) => {

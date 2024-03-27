@@ -39,7 +39,6 @@ import {
   GenerateContentResponse,
   GenerateContentResult,
   StartChatParams,
-  Tool,
   VertexAI,
   Part as VertexPart,
 } from '@google-cloud/vertexai';
@@ -92,15 +91,15 @@ function toGeminiRole(role: MessageData['role']): string {
   }
 }
 
-const toGeminiTool = (tool: z.infer<typeof ToolDefinitionSchema>): Tool => {
+const toGeminiTool = (
+  tool: z.infer<typeof ToolDefinitionSchema>
+): FunctionDeclaration => {
   const declaration: FunctionDeclaration = {
-    name: tool.name,
+    name: tool.name.replace(/\//g, '__'), // Gemini throws on '/' in tool name
     description: tool.description,
     parameters: convertSchemaProperty(tool.inputSchema),
   };
-  return {
-    function_declarations: [declaration],
-  };
+  return declaration;
 };
 
 const toGeminiFileDataPart = (part: MediaPart): VertexPart => {
@@ -264,7 +263,7 @@ function fromGeminiFunctionResponsePart(part: VertexPart): Part {
   }
   return {
     toolResponse: {
-      name: part.functionResponse.name,
+      name: part.functionResponse.name.replace(/__/g, '/'), // restore slashes
       output: part.functionResponse.response,
     },
   };
@@ -306,6 +305,9 @@ export function fromGeminiCandidate(
 // Since JSON schemas can include nested arrays/objects, we have to recursively map the type field
 // in all nested fields.
 const convertSchemaProperty = (property) => {
+  if (!property) {
+    return null;
+  }
   if (property.type === 'object') {
     const nestedProperties = {};
     Object.keys(property.properties).forEach((key) => {
@@ -357,7 +359,9 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
       if (messages.length === 0) throw new Error('No messages provided.');
 
       const chatRequest: StartChatParams = {
-        tools: request.tools?.map(toGeminiTool) || [],
+        tools: request.tools?.length
+          ? [{ function_declarations: request.tools?.map(toGeminiTool) }]
+          : [],
         history: messages
           .slice(0, -1)
           .map((message) => toGeminiMessage(message)),

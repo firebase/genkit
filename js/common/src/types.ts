@@ -22,6 +22,7 @@ import * as telemetry from './telemetry';
 import { runInNewSpan, SPAN_TYPE_ATTR } from './tracing';
 
 export { Status, StatusCodes, StatusSchema } from './statusTypes.js';
+export { JSONSchema7 };
 
 export interface ActionMetadata<
   I extends z.ZodTypeAny,
@@ -59,7 +60,9 @@ export function action<
     name: string;
     description?: string;
     input?: I;
+    inputJsonSchema?: JSONSchema7;
     output?: O;
+    outputJsonSchema?: JSONSchema7;
     metadata?: M;
   },
   fn: (input: z.infer<I>) => Promise<z.infer<O>>
@@ -108,7 +111,9 @@ export function action<
     name: config.name,
     description: config.description,
     inputSchema: config.input,
+    inputJsonSchema: config.inputJsonSchema,
     outputSchema: config.output,
+    outputJsonSchema: config.outputJsonSchema,
     metadata: config.metadata,
   };
   return actionFn;
