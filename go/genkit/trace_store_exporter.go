@@ -87,8 +87,8 @@ func convertSpan(span sdktrace.ReadOnlySpan) *SpanData {
 	sd := &SpanData{
 		SpanID:                  sc.SpanID().String(),
 		TraceID:                 sc.TraceID().String(),
-		StartTime:               timeToMicroseconds(span.StartTime()),
-		EndTime:                 timeToMicroseconds(span.EndTime()),
+		StartTime:               timeToMilliseconds(span.StartTime()),
+		EndTime:                 timeToMilliseconds(span.EndTime()),
 		Attributes:              attributesToMap(span.Attributes()),
 		DisplayName:             span.Name(),
 		Links:                   convertLinks(span.Links()),
@@ -138,7 +138,7 @@ func convertEvents(evs []sdktrace.Event) []TimeEvent {
 	var tes []TimeEvent
 	for _, e := range evs {
 		tes = append(tes, TimeEvent{
-			Time: timeToMicroseconds(e.Time),
+			Time: timeToMilliseconds(e.Time),
 			Annotation: annotation{
 				Description: e.Name,
 				Attributes:  attributesToMap(e.Attributes),

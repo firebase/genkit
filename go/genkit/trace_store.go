@@ -53,25 +53,25 @@ type TraceQuery struct {
 	ContinuationToken string
 }
 
-// Microseconds represents a time as the number of microseconds since the Unix epoch.
-type Microseconds float64
+// Milliseconds represents a time as the number of microseconds since the Unix epoch.
+type Milliseconds float64
 
-func timeToMicroseconds(t time.Time) Microseconds {
+func timeToMilliseconds(t time.Time) Milliseconds {
 	nsec := t.UnixNano()
-	return Microseconds(float64(nsec) / 1e3)
+	return Milliseconds(float64(nsec) / 1e6)
 }
 
-func (m Microseconds) time() time.Time {
-	sec := int64(m / 1e6)
-	nsec := int64((float64(m) - float64(sec*1e6)) * 1e3)
+func (m Milliseconds) time() time.Time {
+	sec := int64(m / 1e3)
+	nsec := int64((float64(m) - float64(sec*1e3)) * 1e6)
 	return time.Unix(sec, nsec)
 }
 
 // TraceData is information about a trace.
 type TraceData struct {
 	DisplayName string               `json:"displayName"`
-	StartTime   Microseconds         `json:"startTime"`
-	EndTime     Microseconds         `json:"endTime"`
+	StartTime   Milliseconds         `json:"startTime"`
+	EndTime     Milliseconds         `json:"endTime"`
 	Spans       map[string]*SpanData `json:"spans"`
 }
 
@@ -84,8 +84,8 @@ type SpanData struct {
 	SpanID                 string                 `json:"spanId"`
 	TraceID                string                 `json:"traceId,omitempty"`
 	ParentSpanID           string                 `json:"parentSpanId,omitempty"`
-	StartTime              Microseconds           `json:"startTime"`
-	EndTime                Microseconds           `json:"endTime"`
+	StartTime              Milliseconds           `json:"startTime"`
+	EndTime                Milliseconds           `json:"endTime"`
 	Attributes             map[string]any         `json:"attributes"`
 	DisplayName            string                 `json:"displayName"`
 	Links                  []*Link                `json:"links"`
@@ -106,7 +106,7 @@ type boolValue struct {
 }
 
 type TimeEvent struct {
-	Time       Microseconds `json:"time"`
+	Time       Milliseconds `json:"time"`
 	Annotation annotation   `json:"annotation"`
 }
 

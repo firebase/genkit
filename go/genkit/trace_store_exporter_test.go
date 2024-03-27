@@ -15,7 +15,6 @@
 package genkit
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -90,11 +89,11 @@ func TestConvertSpan(t *testing.T) {
 		SpanID:       spanID1,
 		ParentSpanID: spanID2,
 		SpanKind:     "internal",
-		StartTime:    Microseconds(1e6),
-		EndTime:      Microseconds(2e6),
+		StartTime:    Milliseconds(1e3),
+		EndTime:      Milliseconds(2e3),
 		Attributes:   map[string]any{"k": "v"},
 		TimeEvents: timeEvents{TimeEvent: []TimeEvent{{
-			Time: Microseconds(3e6),
+			Time: Milliseconds(3e3),
 			Annotation: annotation{
 				Attributes:  map[string]any{"k2": "v2"},
 				Description: "ename",
@@ -119,6 +118,7 @@ func TestConvertSpan(t *testing.T) {
 	}
 
 	got := convertSpan(ss.Snapshot())
-	diff := cmp.Diff(want, got)
-	fmt.Println(diff)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("mismatch (-want, +got)\n%s", diff)
+	}
 }
