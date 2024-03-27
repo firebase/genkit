@@ -39,8 +39,14 @@ export interface FlowStateStore {
 }
 
 export const FlowStateExecutionSchema = z.object({
-  startTime: z.number().optional(),
-  endTime: z.number().optional(),
+  startTime: z
+    .number()
+    .optional()
+    .describe('start time in milliseconds since the epoch'),
+  endTime: z
+    .number()
+    .optional()
+    .describe('end time in milliseconds since the epoch'),
   traceIds: z.array(z.string()),
 });
 
@@ -104,7 +110,7 @@ export const FlowStateSchema = z.object({
   name: z.string().optional(),
   flowId: z.string(),
   input: z.unknown(),
-  startTime: z.number(),
+  startTime: z.number().describe('start time in milliseconds since the epoch'),
   cache: z.record(
     z.string(),
     z.object({
