@@ -101,8 +101,14 @@ export type SpanData = z.infer<typeof SpanDataSchema>;
 
 export const TraceDataSchema = z.object({
   displayName: z.string().optional(),
-  startTime: z.number().optional(),
-  endTime: z.number().optional(),
+  startTime: z
+    .number()
+    .optional()
+    .describe('trace start time in milliseconds since the epoch'),
+  endTime: z
+    .number()
+    .optional()
+    .describe('end time in milliseconds since the epoch'),
   spans: z.record(z.string(), SpanDataSchema),
 });
 

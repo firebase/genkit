@@ -18,7 +18,7 @@ import { HrTime, SpanKind } from '@opentelemetry/api';
 import {
   ExportResult,
   ExportResultCode,
-  hrTimeToMicroseconds,
+  hrTimeToMilliseconds,
 } from '@opentelemetry/core';
 import { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base';
 import { deleteUndefinedProps } from '../utils';
@@ -126,18 +126,19 @@ export class TraceStoreExporter implements SpanExporter {
       spans: {},
     } as TraceData;
     for (const span of spans) {
-      const conertedSpan = this._exportInfo(span);
-      data.spans[conertedSpan.spanId] = conertedSpan;
-      if (!conertedSpan.parentSpanId) {
-        data.displayName = conertedSpan.displayName;
-        data.startTime = conertedSpan.startTime;
-        data.endTime = conertedSpan.endTime;
+      const convertedSpan = this._exportInfo(span);
+      data.spans[convertedSpan.spanId] = convertedSpan;
+      if (!convertedSpan.parentSpanId) {
+        data.displayName = convertedSpan.displayName;
+        data.startTime = convertedSpan.startTime;
+        data.endTime = convertedSpan.endTime;
       }
     }
     await this.traceStore.save(traceId, data);
   }
 }
 
+// Converts an HrTime to milliseconds.
 function transformTime(time: HrTime) {
-  return hrTimeToMicroseconds(time);
+  return hrTimeToMilliseconds(time);
 }
