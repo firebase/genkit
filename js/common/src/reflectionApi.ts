@@ -161,7 +161,6 @@ export async function startReflectionApi(port?: number | undefined) {
           stack,
         },
       };
-      logger.error(message);
       return response.status(500).json(errorResponse);
     }
   });

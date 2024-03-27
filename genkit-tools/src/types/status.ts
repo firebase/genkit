@@ -180,6 +180,6 @@ export const StatusSchema = z.object({
   message: z.string(),
   details: z.any().optional(),
 });
-// then also change: genkit-tools/src/types/status.ts
+// then also change: js/common/src/statusTypes.ts
 
 export type Status = z.infer<typeof StatusSchema>;
