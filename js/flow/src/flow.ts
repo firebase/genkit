@@ -624,6 +624,12 @@ export async function runFlow<
   const input = payload ? flow.input.parse(payload) : undefined;
   await flow.authPolicy?.(opts?.withLocalAuthContext, payload);
 
+  if (flow.middleware) {
+    logger.warn(
+      `Flow (${flow.name}) middleware won't run when invoked with runFlow.`
+    );
+  }
+
   const state = await flow.invoker(flow, {
     start: {
       input,
