@@ -33,13 +33,13 @@ func dec(_ context.Context, x int) (int, error) {
 }
 
 func TestDevServer(t *testing.T) {
-	RegisterAction("test", "inc", NewAction("inc", inc))
-	RegisterAction("test", "dec", NewAction("dec", dec))
+	RegisterAction("test", "devServer", NewAction("inc", inc))
+	RegisterAction("test", "devServer", NewAction("dec", dec))
 	srv := httptest.NewServer(newDevServerMux())
 	defer srv.Close()
 
 	t.Run("runAction", func(t *testing.T) {
-		body := `{"key": "/test/inc", "input": 3}`
+		body := `{"key": "/test/devServer/inc", "input": 3}`
 		res, err := http.Post(srv.URL+"/api/runAction", "application/json", strings.NewReader(body))
 		if err != nil {
 			t.Fatal(err)
@@ -75,8 +75,8 @@ func TestDevServer(t *testing.T) {
 			t.Fatal(err)
 		}
 		want := []actionDesc{
-			{Key: "/test/dec", Name: "dec"},
-			{Key: "/test/inc", Name: "inc"},
+			{Key: "/test/devServer/dec", Name: "dec"},
+			{Key: "/test/devServer/inc", Name: "inc"},
 		}
 		if !slices.EqualFunc(got, want, actionDesc.equal) {
 			t.Errorf("\n got  %v\nwant %v", got, want)
