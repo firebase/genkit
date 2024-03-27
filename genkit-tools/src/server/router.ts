@@ -26,19 +26,19 @@ import { getAnalyticsSettings } from '../utils/analytics';
 const t = initTRPC.create({
   errorFormatter(opts) {
     const { shape, error } = opts;
-    if (!(error.cause instanceof GenkitToolsError)) {
-      return shape;
+    if (error.cause instanceof GenkitToolsError && error.cause.data) {
+      return {
+        ...shape,
+        data: {
+          ...shape.data,
+          genkitErrorMessage: (error.cause.data as Record<string, unknown>)
+            .message,
+          genkitErrorDetails: (error.cause.data as Record<string, unknown>)
+            .details,
+        },
+      };
     }
-    return {
-      ...shape,
-      data: {
-        ...shape.data,
-        genkitErrorMessage: (error.cause.data as Record<string, unknown>)
-          .message,
-        genkitErrorDetails: (error.cause.data as Record<string, unknown>)
-          .details,
-      },
-    };
+    return shape;
   },
 });
 
