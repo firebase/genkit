@@ -20,7 +20,7 @@ import {
   ModelArgument,
 } from '@genkit-ai/ai/model';
 import { ToolArgument } from '@genkit-ai/ai/tool';
-import z from 'zod';
+import z, { ZodType } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 
 // TODO: Do a real type here.
@@ -132,6 +132,15 @@ export function toMetadata(attributes: unknown): Partial<PromptMetadata> {
   });
 }
 
+function toJsonSchema(zodOrJsonSchema: any, jsonSchema?: any) {
+  if (jsonSchema) return jsonSchema;
+  if (zodOrJsonSchema instanceof ZodType) {
+    return zodToJsonSchema(zodOrJsonSchema);
+  }
+  // zodOrJsonSchema is a json schema
+  return zodOrJsonSchema;
+}
+
 export function toFrontmatter(md: PromptMetadata): PromptFrontmatter {
   return stripUndefined({
     name: md.name,
@@ -140,17 +149,13 @@ export function toFrontmatter(md: PromptMetadata): PromptFrontmatter {
     input: md.input
       ? {
           default: md.input.default,
-          schema: md.input.schema
-            ? zodToJsonSchema(md.input.schema)
-            : md.input.jsonSchema,
+          schema: toJsonSchema(md.input.schema, md.input.jsonSchema),
         }
       : undefined,
     output: md.output
       ? {
           format: md.output.format,
-          schema: md.output.schema
-            ? zodToJsonSchema(md.output.schema)
-            : md.output.jsonSchema,
+          schema: toJsonSchema(md.output.schema, md.output.jsonSchema),
         }
       : undefined,
     metadata: md.metadata,
