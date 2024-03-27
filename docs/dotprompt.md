@@ -144,7 +144,7 @@ input:
 
 Describe this image in a detailed paragraph:
 
-{{image url=photoUrl}}
+{{media url=photoUrl}}
 ```
 
 The URL can be `https://` or base64-encoded `data:` URIs for "inline" image
