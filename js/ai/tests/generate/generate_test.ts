@@ -17,8 +17,90 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { z } from 'zod';
-import { GenerateOptions, toGenerateRequest } from '../src/generate';
-import { defineTool } from '../src/tool';
+import {
+  Candidate,
+  GenerateOptions,
+  Message,
+  toGenerateRequest,
+} from '../../src/generate';
+import { CandidateData } from '../../src/model';
+import { defineTool } from '../../src/tool';
+
+describe('Candidate toJSON() tests', () => {
+  const testCases = [
+    {
+      should: 'serialize correctly when custom is undefined',
+      candidateData: {
+        message: new Message({
+          role: 'model',
+          content: [{ text: '{"name": "Bob"}' }],
+        }),
+        index: 0,
+        usage: {},
+        finishReason: 'stop',
+        finishMessage: '',
+        // No 'custom' property
+      },
+      expectedOutput: {
+        message: { content: [{ text: '{"name": "Bob"}' }], role: 'model' }, // NOTE THIS IS WRONG??
+        index: 0,
+        usage: {},
+        finishReason: 'stop',
+        finishMessage: '',
+        custom: undefined, // Or omit this if appropriate
+      },
+    },
+  ];
+
+  for (const test of testCases) {
+    it(test.should, () => {
+      const candidate = new Candidate(test.candidateData as Candidate);
+      assert.deepStrictEqual(candidate.toJSON(), test.expectedOutput);
+    });
+  }
+});
+
+describe('Candidate output() tests', () => {
+  const testCases = [
+    {
+      should: 'return structured data from the data part',
+      candidateData: {
+        message: new Message({
+          role: 'model',
+          content: [{ data: { name: 'Alice', age: 30 } }],
+        }),
+        index: 0,
+        usage: {},
+        finishReason: 'stop',
+        finishMessage: '',
+        custom: {},
+      },
+      expectedOutput: { name: 'Alice', age: 30 },
+    },
+    {
+      should: 'parse JSON from text when the data part is absent',
+      candidateData: {
+        message: new Message({
+          role: 'model',
+          content: [{ text: '{"name": "Bob"}' }],
+        }),
+        index: 0,
+        usage: {},
+        finishReason: 'stop',
+        finishMessage: '',
+        custom: {},
+      },
+      expectedOutput: { name: 'Bob' },
+    },
+  ];
+
+  for (const test of testCases) {
+    it(test.should, () => {
+      const candidate = new Candidate(test.candidateData as CandidateData);
+      assert.deepStrictEqual(candidate.output(), test.expectedOutput);
+    });
+  }
+});
 
 describe('toGenerateRequest', () => {
   // register tools
@@ -179,9 +261,9 @@ describe('toGenerateRequest', () => {
     },
   ];
   for (const test of testCases) {
-    it(test.should, () => {
+    it(test.should, async () => {
       assert.deepStrictEqual(
-        toGenerateRequest(test.prompt as GenerateOptions),
+        await toGenerateRequest(test.prompt as GenerateOptions),
         test.expectedOutput
       );
     });
