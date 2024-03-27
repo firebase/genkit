@@ -65,14 +65,15 @@ import { index } from '@genkit-ai/ai/retrievers';
 
 const spongebobFacts = [
   {
-    content: 'SpongeBob's primary job is working as the fry cook at the Krusty Krab.',
+    content:
+      "SpongeBob's primary job is working as the fry cook at the Krusty Krab.",
     metadata: { type: 'tv', show: 'Spongebob' },
   },
   {
     content: 'SpongeBob is a yellow sea sponge.',
     metadata: { type: 'tv', show: 'Spongebob' },
   },
-]
+];
 
 await index({
   indexer: spongeBobFactIndexer,
