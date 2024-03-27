@@ -439,7 +439,7 @@ export async function generate<
     await Promise.resolve(options);
   const model = await resolveModel(prompt.model);
   if (!model) {
-    throw new Error(`Model ${prompt.model} not found`);
+    throw new Error(`Model ${JSON.stringify(prompt.model)} not found`);
   }
 
   let tools: ToolAction[] | undefined;
