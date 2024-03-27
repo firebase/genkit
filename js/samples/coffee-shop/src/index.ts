@@ -36,7 +36,7 @@ const simpleGreetingPrompt = definePrompt(
   {
     name: 'simpleGreeting',
     model: geminiPro,
-    input: CustomerNameSchema,
+    input: { schema: CustomerNameSchema },
     output: {
       format: 'text',
     },
@@ -68,7 +68,7 @@ const greetingWithHistoryPrompt = definePrompt(
   {
     name: 'greetingWithHistory',
     model: geminiPro,
-    input: CustomerTimeAndHistorySchema,
+    input: { schema: CustomerTimeAndHistorySchema },
     output: {
       format: 'text',
     },
