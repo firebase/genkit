@@ -15,7 +15,10 @@
  */
 
 import { Runner } from '../runner/runner';
+import { GenkitToolsError } from '../runner/types';
 import { FlowInvokeEnvelopeMessage, FlowState } from '../types/flow';
+import { Status } from '../types/status';
+import { logger } from './logger';
 
 /**
  * Start the runner and waits for it to fully load -- reflection API to become avaialble.
@@ -40,6 +43,20 @@ export async function runInRunnerThenStop(
   }
   try {
     await fn(runner);
+  } catch (err) {
+    logger.info('Command exited with an Error:');
+    const error = err as GenkitToolsError;
+    if (typeof error.data === 'object') {
+      const errorStatus = error.data as Status;
+      const { code, details, message } = errorStatus;
+      logger.info(`\tCode: ${code}`);
+      logger.info(`\tMessage: ${message}`);
+      logger.info(`\tTrace: http://localhost:4200/traces/${details.traceId}\n`);
+    } else {
+      logger.info(`\tMessage: ${error.data}\n`);
+    }
+    logger.error('Stacktrace:');
+    logger.error(`${error.stack}`);
   } finally {
     await runner.stop();
   }
