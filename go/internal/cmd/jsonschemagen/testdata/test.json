@@ -1,0 +1,889 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$defs": {
+    "SpanMetadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "success",
+            "error"
+          ]
+        },
+        "input": {},
+        "output": {},
+        "isRoot": {
+          "type": "boolean"
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "SpanStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "number"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "additionalProperties": false
+    },
+    "TimeEvent": {
+      "type": "object",
+      "properties": {
+        "time": {
+          "type": "number"
+        },
+        "annotation": {
+          "type": "object",
+          "properties": {
+            "attributes": {
+              "type": "object",
+              "additionalProperties": {}
+            },
+            "description": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "attributes",
+            "description"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "time",
+        "annotation"
+      ],
+      "additionalProperties": false
+    },
+    "SpanContext": {
+      "type": "object",
+      "properties": {
+        "traceId": {
+          "type": "string"
+        },
+        "spanId": {
+          "type": "string"
+        },
+        "isRemote": {
+          "type": "boolean"
+        },
+        "traceFlags": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "traceId",
+        "spanId",
+        "traceFlags"
+      ],
+      "additionalProperties": false
+    },
+    "Link": {
+      "type": "object",
+      "properties": {
+        "context": {
+          "$ref": "#/$defs/SpanContext"
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "droppedAttributesCount": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "InstrumentationLibrary": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "schemaUrl": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "SpanData": {
+      "type": "object",
+      "properties": {
+        "spanId": {
+          "type": "string"
+        },
+        "traceId": {
+          "type": "string"
+        },
+        "parentSpanId": {
+          "type": "string"
+        },
+        "startTime": {
+          "type": "number"
+        },
+        "endTime": {
+          "type": "number"
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Link"
+          }
+        },
+        "instrumentationLibrary": {
+          "$ref": "#/$defs/InstrumentationLibrary"
+        },
+        "spanKind": {
+          "type": "string"
+        },
+        "sameProcessAsParentSpan": {
+          "type": "object",
+          "properties": {
+            "value": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        "status": {
+          "$ref": "#/$defs/SpanStatus"
+        },
+        "timeEvents": {
+          "type": "object",
+          "properties": {
+            "timeEvent": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/TimeEvent"
+              }
+            }
+          },
+          "required": [
+            "timeEvent"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "spanId",
+        "traceId",
+        "startTime",
+        "endTime",
+        "attributes",
+        "displayName",
+        "instrumentationLibrary",
+        "spanKind"
+      ],
+      "additionalProperties": false
+    },
+    "TraceData": {
+      "type": "object",
+      "properties": {
+        "displayName": {
+          "type": "string"
+        },
+        "startTime": {
+          "type": "number"
+        },
+        "endTime": {
+          "type": "number"
+        },
+        "spans": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/SpanData"
+          }
+        }
+      },
+      "required": [
+        "spans"
+      ],
+      "additionalProperties": false
+    },
+    "TextPart": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "media": {
+          "not": {}
+        },
+        "toolRequest": {
+          "not": {}
+        },
+        "toolResponse": {
+          "not": {}
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "additionalProperties": false
+    },
+    "MediaPart": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "not": {}
+        },
+        "media": {
+          "type": "object",
+          "properties": {
+            "contentType": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "url"
+          ],
+          "additionalProperties": false
+        },
+        "toolRequest": {
+          "not": {}
+        },
+        "toolResponse": {
+          "not": {}
+        }
+      },
+      "required": [
+        "media"
+      ],
+      "additionalProperties": false
+    },
+    "Part": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TextPart"
+        },
+        {
+          "$ref": "#/$defs/MediaPart"
+        },
+        {
+          "$ref": "#/$defs/ToolRequestPart"
+        },
+        {
+          "$ref": "#/$defs/ToolResponsePart"
+        }
+      ]
+    },
+    "DocumentData": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "type": "string"
+                  },
+                  "media": {
+                    "not": {}
+                  }
+                },
+                "required": [
+                  "text"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "text": {
+                    "not": {}
+                  },
+                  "media": {
+                    "type": "object",
+                    "properties": {
+                      "contentType": {
+                        "type": "string"
+                      },
+                      "url": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "url"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "media"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "ToolRequestPart": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "not": {}
+        },
+        "media": {
+          "not": {}
+        },
+        "toolRequest": {
+          "type": "object",
+          "properties": {
+            "ref": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "input": {}
+          },
+          "required": [
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        "toolResponse": {
+          "not": {}
+        }
+      },
+      "required": [
+        "toolRequest"
+      ],
+      "additionalProperties": false
+    },
+    "ToolResponsePart": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "not": {}
+        },
+        "media": {
+          "not": {}
+        },
+        "toolRequest": {
+          "not": {}
+        },
+        "toolResponse": {
+          "type": "object",
+          "properties": {
+            "ref": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "output": {}
+          },
+          "required": [
+            "name"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "toolResponse"
+      ],
+      "additionalProperties": false
+    },
+    "Role": {
+      "type": "string",
+      "enum": [
+        "system",
+        "user",
+        "model",
+        "tool"
+      ]
+    },
+    "Message": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "$ref": "#/$defs/Role"
+        },
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Part"
+          }
+        }
+      },
+      "required": [
+        "role",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "ToolDefinition": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "inputSchema": {
+          "type": "object",
+          "additionalProperties": {},
+          "description": "Valid JSON Schema representing the input of the tool."
+        },
+        "outputSchema": {
+          "type": "object",
+          "additionalProperties": {},
+          "description": "Valid JSON Schema describing the output of the tool."
+        }
+      },
+      "required": [
+        "name",
+        "inputSchema"
+      ],
+      "additionalProperties": false
+    },
+    "GenerationConfig": {
+      "type": "object",
+      "properties": {
+        "temperature": {
+          "type": "number"
+        },
+        "maxOutputTokens": {
+          "type": "number"
+        },
+        "topK": {
+          "type": "number"
+        },
+        "topP": {
+          "type": "number"
+        },
+        "custom": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "stopSequences": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "GenerationRequest": {
+      "type": "object",
+      "properties": {
+        "messages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Message"
+          }
+        },
+        "config": {
+          "$ref": "#/$defs/GenerationConfig"
+        },
+        "tools": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ToolDefinition"
+          }
+        },
+        "output": {
+          "type": "object",
+          "properties": {
+            "format": {
+              "type": "string",
+              "enum": [
+                "json",
+                "text"
+              ]
+            },
+            "schema": {
+              "type": "object",
+              "additionalProperties": {}
+            }
+          },
+          "additionalProperties": false
+        },
+        "candidates": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "messages"
+      ],
+      "additionalProperties": false
+    },
+    "GenerationUsage": {
+      "type": "object",
+      "properties": {
+        "inputTokens": {
+          "type": "number"
+        },
+        "outputTokens": {
+          "type": "number"
+        },
+        "totalTokens": {
+          "type": "number"
+        },
+        "custom": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "Candidate": {
+      "type": "object",
+      "properties": {
+        "index": {
+          "type": "number"
+        },
+        "message": {
+          "$ref": "#/$defs/Message"
+        },
+        "usage": {
+          "$ref": "#/$defs/GenerationUsage"
+        },
+        "finishReason": {
+          "type": "string",
+          "enum": [
+            "stop",
+            "length",
+            "blocked",
+            "other",
+            "unknown"
+          ]
+        },
+        "finishMessage": {
+          "type": "string"
+        },
+        "custom": {}
+      },
+      "required": [
+        "index",
+        "message",
+        "finishReason"
+      ],
+      "additionalProperties": false
+    },
+    "GenerationResponse": {
+      "type": "object",
+      "properties": {
+        "candidates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Candidate"
+          }
+        },
+        "usage": {
+          "$ref": "#/$defs/GenerationUsage"
+        },
+        "custom": {}
+      },
+      "required": [
+        "candidates"
+      ],
+      "additionalProperties": false
+    },
+    "FlowInvokeEnvelopeMessage": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "type": "object",
+          "properties": {
+            "input": {},
+            "labels": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "schedule": {
+          "type": "object",
+          "properties": {
+            "input": {},
+            "delay": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "runScheduled": {
+          "type": "object",
+          "properties": {
+            "flowId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "flowId"
+          ],
+          "additionalProperties": false
+        },
+        "retry": {
+          "type": "object",
+          "properties": {
+            "flowId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "flowId"
+          ],
+          "additionalProperties": false
+        },
+        "resume": {
+          "type": "object",
+          "properties": {
+            "flowId": {
+              "type": "string"
+            },
+            "payload": {}
+          },
+          "required": [
+            "flowId"
+          ],
+          "additionalProperties": false
+        },
+        "state": {
+          "type": "object",
+          "properties": {
+            "flowId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "flowId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "FlowStateExecution": {
+      "type": "object",
+      "properties": {
+        "startTime": {
+          "type": "number"
+        },
+        "endTime": {
+          "type": "number"
+        },
+        "traceIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "traceIds"
+      ],
+      "additionalProperties": false
+    },
+    "FlowResponse": {
+      "type": "object",
+      "properties": {
+        "response": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "FlowError": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "stacktrace": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "FlowResult": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/FlowResponse"
+        },
+        {
+          "$ref": "#/$defs/FlowError"
+        }
+      ]
+    },
+    "Operation": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "server-assigned name, which is only unique within the same service that originally returns it."
+        },
+        "metadata": {
+          "description": "Service-specific metadata associated with the operation. It typically contains progress information and common metadata such as create time."
+        },
+        "done": {
+          "type": "boolean",
+          "default": false,
+          "description": "If the value is false, it means the operation is still in progress. If true, the operation is completed, and either error or response is available."
+        },
+        "result": {
+          "$ref": "#/$defs/FlowResult"
+        },
+        "blockedOnStep": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "schema": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "FlowState": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "flowId": {
+          "type": "string"
+        },
+        "input": {},
+        "startTime": {
+          "type": "number"
+        },
+        "cache": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "value": {},
+              "empty": {
+                "type": "boolean",
+                "const": true
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "eventsTriggered": {
+          "type": "object",
+          "additionalProperties": {}
+        },
+        "blockedOnStep": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "operation": {
+          "$ref": "#/$defs/Operation"
+        },
+        "traceContext": {
+          "type": "string"
+        },
+        "executions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FlowStateExecution"
+          }
+        }
+      },
+      "required": [
+        "flowId",
+        "startTime",
+        "cache",
+        "eventsTriggered",
+        "blockedOnStep",
+        "operation",
+        "executions"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
