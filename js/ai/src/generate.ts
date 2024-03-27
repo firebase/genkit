@@ -205,7 +205,9 @@ export class Candidate<O = unknown> implements CandidateData {
       usage: this.usage,
       finishReason: this.finishReason,
       finishMessage: this.finishMessage,
-      custom: (this.custom as { toJSON?: () => any }).toJSON?.() || this.custom,
+      custom:
+        (!!this.custom && (this.custom as { toJSON?: () => any }).toJSON?.()) ||
+        this.custom,
     };
   }
 }

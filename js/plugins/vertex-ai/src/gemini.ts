@@ -37,6 +37,7 @@ import {
   FunctionDeclarationSchemaType,
   GenerateContentCandidate,
   GenerateContentResponse,
+  GenerateContentResult,
   StartChatParams,
   Tool,
   VertexAI,
@@ -392,10 +393,13 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
           custom: response,
         };
       } else {
-        const result = await client
-          .startChat(chatRequest)
-          .sendMessage(msg.parts);
-        if (!result.response.candidates?.length) {
+        let result: GenerateContentResult | undefined;
+        try {
+          result = await client.startChat(chatRequest).sendMessage(msg.parts);
+        } catch (err) {
+          throw new Error(`Vertex response generation failed: ${err}`);
+        }
+        if (!result?.response.candidates?.length) {
           throw new Error('No valid candidates returned.');
         }
         const responseCandidates =
