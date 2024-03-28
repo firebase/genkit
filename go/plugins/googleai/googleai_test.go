@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package vertexai_test
+package googleai_test
 
 import (
 	"context"
 	"flag"
 	"testing"
 
-	"github.com/FirebasePrivate/genkit/go/plugins/vertexai"
+	"github.com/FirebasePrivate/genkit/go/plugins/googleai"
 )
 
 // The tests here only work with an API key set to a valid value.
@@ -30,7 +30,7 @@ func TestTextEmbedder(t *testing.T) {
 		t.Skipf("no -key provided")
 	}
 	ctx := context.Background()
-	a, err := vertexai.NewTextEmbedder(ctx, "embedding-001", *apiKey)
+	a, err := googleai.NewTextEmbedder(ctx, "embedding-001", *apiKey)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package vertexai
+package googleai
 
 import (
 	"context"
@@ -36,14 +36,14 @@ func newClient(ctx context.Context, apiKey string) (*genai.Client, error) {
 }
 
 // NewTextEmbedder returns an action which computes the embedding of
-// the input string in the given vertex AI model.
+// the input string in the given google AI model.
 func NewTextEmbedder(ctx context.Context, model, apiKey string) (*genkit.Action[string, []float32], error) {
 	client, err := newClient(ctx, apiKey)
 	if err != nil {
 		return nil, err
 	}
 	return genkit.NewAction(
-		"google-vertexai/text"+model,
+		"google-genai/text"+model,
 		func(ctx context.Context, input string) ([]float32, error) {
 			return embed(ctx, client, model, []genai.Part{genai.Text(input)})
 		}), nil
