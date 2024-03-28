@@ -36,7 +36,7 @@ const modelToPlugin: Record<string, string> = {
   OpenAI: '@genkit-ai/plugin-openai',
 };
 /** External packages required to use Genkit. */
-const externalPackages = ['zod'];
+const externalPackages = ['zod', 'express'];
 /** Core packages required to use Genkit. */
 const corePackages = [
   '@genkit-ai/common',
@@ -62,6 +62,7 @@ const pluginToInfo: Record<string, PluginInfo> = {
     name: '@genkit-ai/plugin-vertex-ai',
     import: 'vertexAI',
     init: "vertexAI({ location: 'us-central1' })",
+    model: 'geminiPro',
   },
   '@genkit-ai/plugin-openai': {
     name: '@genkit-ai/plugin-openai',
@@ -80,13 +81,14 @@ const configTemplatePath = '../../config/genkit.conf.ts.template';
 const sampleTemplatePaths: Record<Platform, string> = {
   firebase: '../../config/firebase.index.ts.template',
   gcp: '../../config/gcp.index.ts.template',
-  other: '',
+  other: '../../config/gcp.index.ts.template', // This can deviate from GCP template in the future as needed.
 };
 /** Supported runtimes for the init command. */
 const supportedRuntimes: Runtime[] = ['node'];
 
 type Platform = 'firebase' | 'gcp' | 'other';
 type Runtime = 'node' | undefined;
+type WriteMode = 'keep' | 'overwrite' | 'merge';
 
 interface PluginInfo {
   name: string;
@@ -160,15 +162,13 @@ export const init = new Command('init')
       generateConfigFile(plugins, platform);
       await updateTsConfig();
       await updatePackageJson();
-      if (model !== 'Vertex AI' && platform !== 'other') {
-        if (
-          await confirm({
-            message: 'Would you like to generate a sample flow?',
-            default: true,
-          })
-        ) {
-          generateSampleFile(platform, modelToPlugin[model]);
-        }
+      if (
+        await confirm({
+          message: 'Would you like to generate a sample flow?',
+          default: true,
+        })
+      ) {
+        generateSampleFile(platform, modelToPlugin[model]);
       }
     } catch (error) {
       logger.error(error);
@@ -292,18 +292,20 @@ function generateConfigFile(pluginNames: string[], platform?: Platform): void {
  * Prompts for what type of write to perform when there is a conflict.
  */
 async function promptWriteMode(
-  message: string
-): Promise<'keep' | 'overwrite' | 'merge'> {
+  message: string,
+  defaultOption: WriteMode = 'merge'
+): Promise<WriteMode> {
   const answers = await inquirer.prompt([
     {
       type: 'list',
       name: 'option',
       message,
       choices: [
-        { name: 'Keep unchanged', value: 'keep' },
-        { name: 'Overwrite', value: 'overwrite' },
         { name: 'Set if unset', value: 'merge' },
+        { name: 'Overwrite', value: 'overwrite' },
+        { name: 'Keep unchanged', value: 'keep' },
       ],
+      default: defaultOption,
     },
   ]);
   return answers.option;
@@ -319,7 +321,7 @@ async function updateTsConfig() {
     if (fs.existsSync(tsConfigPath)) {
       existingTsConfig = JSON.parse(fs.readFileSync(tsConfigPath, 'utf-8'));
     }
-    let choice: 'keep' | 'overwrite' | 'merge' = 'overwrite';
+    let choice: WriteMode = 'overwrite';
     if (existingTsConfig) {
       choice = await promptWriteMode(
         'Would you like to update your tsconfig.json with suggested settings?'
