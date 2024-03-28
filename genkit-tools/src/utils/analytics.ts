@@ -48,6 +48,26 @@ abstract class GAEvent {
 
 // Add new events here; this way everything's centralized and auditable.
 
+export class PageViewEvent extends GAEvent {
+  name = 'page_view';
+  duration = 1;
+
+  constructor(page_title: string) {
+    super();
+    this.parameters = { page_title };
+  }
+}
+
+export class ToolsRequestEvent extends GAEvent {
+  name = 'tools_request';
+  duration = 1;
+
+  constructor(route: string) {
+    super();
+    this.parameters = { route };
+  }
+}
+
 export class RunCommandEvent extends GAEvent {
   name = 'run_command';
   duration = 1; // Should we actually track command duration?
