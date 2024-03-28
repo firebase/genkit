@@ -15,6 +15,7 @@
  */
 
 import { JSONSchema7Type } from 'json-schema';
+import { EnvTypes } from '../types/apis';
 
 /**
  * Schema of a runnable action (e.g. text-llm, flow, etc).
@@ -37,4 +38,5 @@ export interface ActionSchema {
 export interface ActionRunnerConfig {
   traceId?: string;
   spanId?: string;
+  env?: EnvTypes;
 }
