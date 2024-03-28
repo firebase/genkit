@@ -18,7 +18,7 @@ import { initializeGenkit } from '@genkit-ai/core/config';
 import { RagasMetric, ragasRef } from '@genkit-ai/plugin-ragas';
 
 import { Dataset, evaluate } from '@genkit-ai/ai/evaluator';
-import config from './genkit.conf';
+import config from './genkit.config';
 
 initializeGenkit(config);
 

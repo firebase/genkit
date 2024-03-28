@@ -77,7 +77,7 @@ const pluginToInfo: Record<string, PluginInfo> = {
     model: 'geminiPro',
   },
 };
-const configTemplatePath = '../../config/genkit.conf.ts.template';
+const configTemplatePath = '../../config/genkit.config.ts.template';
 const sampleTemplatePaths: Record<Platform, string> = {
   firebase: '../../config/firebase.index.ts.template',
   gcp: '../../config/gcp.index.ts.template',
@@ -254,7 +254,7 @@ function generateSampleFile(platform: Platform, modelPlugin: string) {
 }
 
 /**
- * Generates a genkit.conf file.
+ * Generates a genkit.config file.
  * @param pluginInfos List of plugin infos.
  * @param platform Deployment platform.
  */
@@ -280,11 +280,11 @@ function generateConfigFile(pluginNames: string[], platform?: Platform): void {
       .replace('$GENKIT_IMPORTS', imports)
       .replace('$GENKIT_PLUGINS', plugins)
       .replace('$GENKIT_STORE', store);
-    const outputPath = path.join(process.cwd(), 'src/genkit.conf.ts');
-    logger.info('Generating genkit.conf.ts...');
+    const outputPath = path.join(process.cwd(), 'src/genkit.config.ts');
+    logger.info('Generating genkit.config.ts...');
     fs.writeFileSync(outputPath, config, 'utf8');
   } catch (error) {
-    throw new Error(`Failed to generate genkit.conf file: ${error}`);
+    throw new Error(`Failed to generate genkit.config file: ${error}`);
   }
 }
 

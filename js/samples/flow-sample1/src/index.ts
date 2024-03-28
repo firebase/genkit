@@ -24,7 +24,7 @@ import {
   waitFor,
 } from '@genkit-ai/flow/experimental';
 import * as z from 'zod';
-import config from './genkit.conf';
+import config from './genkit.config';
 
 initializeGenkit(config);
 
