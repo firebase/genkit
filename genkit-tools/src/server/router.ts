@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { initTRPC, TRPCError } from '@trpc/server';
-import { EvalRunSchema, LocalFileEvalStore } from '../eval';
+import { EvalRunSchema, getLocalFileEvalStore } from '../eval';
 import { Runner } from '../runner/runner';
 import { GenkitToolsError } from '../runner/types';
 import { Action } from '../types/action';
@@ -86,9 +86,6 @@ const loggedProcedure = t.procedure.use(async (opts) => {
   return result;
 });
 
-// TODO make this a singleton provider instead
-const evalStore = new LocalFileEvalStore();
-
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
   t.router({
@@ -139,7 +136,7 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
       .input(evals.ListEvalKeysRequestSchema)
       .output(evals.ListEvalKeysResponseSchema)
       .query(async ({ input }) => {
-        const response = await evalStore.list(input);
+        const response = await getLocalFileEvalStore().list(input);
         return {
           evalRunKeys: response.results,
         };
@@ -153,7 +150,7 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
         const parts = input.name.split('/');
         const evalRunId = parts[3];
         const actionId = parts[1] !== '-' ? parts[1] : undefined;
-        const evalRun = await evalStore.load(evalRunId, actionId);
+        const evalRun = await getLocalFileEvalStore().load(evalRunId, actionId);
         if (!evalRun) {
           throw new TRPCError({
             code: 'NOT_FOUND',

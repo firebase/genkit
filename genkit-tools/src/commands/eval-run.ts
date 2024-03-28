@@ -19,8 +19,8 @@ import { randomUUID } from 'crypto';
 import { readFile, writeFile } from 'fs/promises';
 import {
   EvalInput,
-  LocalFileEvalStore,
   enrichResultsWithScoring,
+  getLocalFileEvalStore,
 } from '../eval';
 import { EvaluatorResponse } from '../types/evaluators';
 import {
@@ -50,7 +50,7 @@ export const evalRun = new Command('eval:run')
   )
   .action(async (dataset: string, options: EvalRunOptions) => {
     await runInRunnerThenStop(async (runner) => {
-      const evalStore = new LocalFileEvalStore();
+      const evalStore = getLocalFileEvalStore();
 
       logger.debug(`Loading data from '${dataset}'...`);
       const datasetToEval: EvalInput[] = JSON.parse(
