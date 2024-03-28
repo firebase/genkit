@@ -8,8 +8,6 @@
     "build:clean": "rm -rf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
-    "lint": "eslint --config ../.eslintrc.js --ext .ts src",
-    "lint:fix": "npm run lint -- --fix --quiet",
     "test": "node --import tsx --test tests/*_test.ts"
   },
   "dependencies": {
@@ -19,6 +17,7 @@
     "@google-cloud/trace-agent": "^7.1.2",
     "@opentelemetry/api": "^1.7.0",
     "@opentelemetry/context-async-hooks": "^1.20.0",
+    "@opentelemetry/core": "^1.22.0",
     "@opentelemetry/sdk-metrics": "^1.22.0",
     "@opentelemetry/sdk-node": "^0.49.0",
     "@opentelemetry/sdk-trace-base": "^1.22.0",

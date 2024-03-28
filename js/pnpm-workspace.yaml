@@ -1,0 +1,5 @@
+packages:
+  - './*'
+  - 'plugins/*'
+  - 'samples/*'
+  - 'third_party/*'

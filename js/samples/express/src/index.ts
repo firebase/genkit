@@ -17,7 +17,7 @@
 import { generate } from '@genkit-ai/ai/generate';
 import { initializeGenkit } from '@genkit-ai/common/config';
 import { flow, run, runFlow } from '@genkit-ai/flow';
-import express from 'express';
+import express, { Request, Response } from 'express';
 import * as z from 'zod';
 import config from './genkit.conf';
 
@@ -44,19 +44,16 @@ export const jokeFlow = flow(
 const app = express();
 const port = process.env.PORT || 5000;
 
-app.get(
-  '/jokeWithFlow',
-  async (req: express.Request, res: express.Response) => {
-    const subject = req.query['subject']?.toString();
-    if (!subject) {
-      res.status(400).send('provide subject query param');
-      return;
-    }
-    res.send(await runFlow(jokeFlow, subject));
+app.get('/jokeWithFlow', async (req: Request, res: Response) => {
+  const subject = req.query['subject']?.toString();
+  if (!subject) {
+    res.status(400).send('provide subject query param');
+    return;
   }
-);
+  res.send(await runFlow(jokeFlow, subject));
+});
 
-app.get('/jokeStream', async (req: express.Request, res: express.Response) => {
+app.get('/jokeStream', async (req: Request, res: Response) => {
   const subject = req.query['subject']?.toString();
   if (!subject) {
     res.status(400).send('provide subject query param');

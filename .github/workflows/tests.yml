@@ -24,23 +24,18 @@ jobs:
   build:
     name: Run Tests (just DevUI tests for now)
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout Repo
-      uses: actions/checkout@main
+    - uses: actions/checkout@v3
+    - uses: pnpm/action-setup@v3
       with:
-        # get all history for the diff
-        fetch-depth: 0
-    - name: Set up node (16)
+        version: 8
+    - name: Set up node v20
       uses: actions/setup-node@v4
       with:
         node-version: 20.x
-    - name: NPM install for tools
-      working-directory: ./genkit-tools
-      run: npm install
-    - name: Run build script for tools
-      working-directory: ./genkit-tools
-      run: npm run build
-    - name: Tests for dev UI
+        cache: 'pnpm'
+    - name: Install dependencies and build
+      run: pnpm build:genkit-tools
+    - name: Run Dev UI tests
       working-directory: ./genkit-tools/ui
-      run: npm run test-headless
+      run: pnpm test-headless

@@ -1,6 +1,6 @@
 # E2E tests
 
-This folder houses some e2e tests. You can run them by: `npm run test` (this assumes you've already ran `npm i`), however there are a few extra steps:
+This folder houses some e2e tests. You can run them by: `pnpm test` (this assumes you've already ran `pnpm i`), however there are a few extra steps:
 
 1. Some tests use puppeteer framework which requires a dev build of the chrome browser. This is a one time setup step. Run
 
@@ -15,13 +15,13 @@ This folder houses some e2e tests. You can run them by: `npm run test` (this ass
    To rebuild everything (slow but guaranteed clean build) from the root run:
 
    ```
-   npm run build:all
+   pnpm build
    ```
 
-   to pack what you already built, you can run `npm run pack` from most package folders, but you can also from the root run:
+   to pack what you already built, you can run `pnpm pack` from most package folders, but you can also from the root run:
 
    ```
-   npm run pack:all
+   pnpm pack:all
    ```
 
    which will pack everything (it's pretty fast).

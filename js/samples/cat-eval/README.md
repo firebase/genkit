@@ -3,13 +3,13 @@
 ## Build it
 
 ```
-npm run build
+pnpm build
 ```
 
 or if you need to, build everything:
 
 ```
-cd ../../../;npm run build:all;npm run pack:all;cd -
+cd ../../../; pnpm build; pnpm pack:all; cd -
 ```
 
 ## Run setup
