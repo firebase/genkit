@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { initializeGenkit } from '@genkit-ai/common/config';
+import { initializeGenkit } from '@genkit-ai/core/config';
 import { RagasMetric, ragasRef } from '@genkit-ai/plugin-ragas';
 
 import { Dataset, evaluate } from '@genkit-ai/ai/evaluators';

@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { logger } from '@genkit-ai/common/logging';
+import { logger } from '@genkit-ai/core/logging';
 import {
   internalMetricNamespaceWrap,
   MetricCounter,
   MetricHistogram,
-} from '@genkit-ai/common/metrics';
-import { spanMetadataAls } from '@genkit-ai/common/tracing';
+} from '@genkit-ai/core/metrics';
+import { spanMetadataAls } from '@genkit-ai/core/tracing';
 import { ValueType } from '@opentelemetry/api';
 
 /**

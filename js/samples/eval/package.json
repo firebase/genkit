@@ -16,7 +16,7 @@
   "license": "ISC",
   "dependencies": {
     "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/common": "workspace:*",
+    "@genkit-ai/core": "workspace:*",
     "@genkit-ai/plugin-firebase": "workspace:*",
     "@genkit-ai/plugin-openai": "workspace:*",
     "@genkit-ai/plugin-ragas": "workspace:*",

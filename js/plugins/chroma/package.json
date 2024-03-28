@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/common": "workspace:*",
+    "@genkit-ai/core": "workspace:*",
     "chromadb": "^1.7.3",
     "ts-md5": "^1.3.1",
     "zod": "^3.22.4"

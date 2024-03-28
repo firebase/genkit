@@ -26,7 +26,7 @@ Genkit provides out-of-the box for simple testing and prototyping (DO NOT USE IN
 PRODUCTION).
 
 ```javascript
-import { configureGenkit } from '@genkit-ai/common/config';
+import { configureGenkit } from '@genkit-ai/core/config';
 import { devLocalVectorstore } from '@genkit-ai/plugin-dev-local-vectorstore';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/plugin-vertex-ai';
 

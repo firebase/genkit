@@ -20,8 +20,8 @@ import {
   FlowStateQueryResponse,
   FlowStateSchema,
   FlowStateStore,
-} from '@genkit-ai/common';
-import { logger } from '@genkit-ai/common/logging';
+} from '@genkit-ai/core';
+import { logger } from '@genkit-ai/core/logging';
 import { Firestore } from '@google-cloud/firestore';
 
 /**

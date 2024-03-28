@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { FlowState, FlowStateExecution, Operation } from '@genkit-ai/common';
+import { FlowState, FlowStateExecution, Operation } from '@genkit-ai/core';
 import {
   SPAN_TYPE_ATTR,
   runInNewSpan,
   setCustomMetadataAttribute,
   setCustomMetadataAttributes,
-} from '@genkit-ai/common/tracing';
+} from '@genkit-ai/core/tracing';
 import { logger } from 'firebase-functions/v1';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';

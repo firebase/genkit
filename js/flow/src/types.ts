@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Operation, StreamingCallback } from '@genkit-ai/common';
+import { Operation, StreamingCallback } from '@genkit-ai/core';
 import { z } from 'zod';
 import { Flow } from './flow';
 

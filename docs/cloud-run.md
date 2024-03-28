@@ -137,8 +137,8 @@
     ```javascript
     import { generate } from '@genkit-ai/ai/generate';
     import { GenerationResponseChunkSchema } from '@genkit-ai/ai/model';
-    import { getLocation, getProjectId } from '@genkit-ai/common';
-    import { configureGenkit } from '@genkit-ai/common/config';
+    import { getLocation, getProjectId } from '@genkit-ai/core';
+    import { configureGenkit } from '@genkit-ai/core/config';
     import { flow, run, startFlowsServer } from '@genkit-ai/flow';
     import { firebase } from '@genkit-ai/plugin-firebase';
     import { geminiPro, vertexAI } from '@genkit-ai/plugin-vertex-ai';

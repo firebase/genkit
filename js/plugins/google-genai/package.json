@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/common": "workspace:*",
+    "@genkit-ai/core": "workspace:*",
     "@google/generative-ai": "^0.2.0",
     "google-auth-library": "^9.6.3",
     "node-fetch": "^3.3.2",

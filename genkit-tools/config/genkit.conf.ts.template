@@ -1,4 +1,4 @@
-import { configureGenkit } from '@genkit-ai/common/config';
+import { configureGenkit } from '@genkit-ai/core/config';
 
 $GENKIT_IMPORTS
 

@@ -11,7 +11,7 @@
     "test": "node --loader tsx --test ./tests/**/*_test.ts"
   },
   "dependencies": {
-    "@genkit-ai/common": "workspace:*",
+    "@genkit-ai/core": "workspace:*",
     "@opentelemetry/api": "^1.7.0",
     "@types/node": "^20.11.19",
     "crypto": "^1.0.1",

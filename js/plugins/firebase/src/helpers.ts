@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { StreamingCallback } from '@genkit-ai/common';
+import { StreamingCallback } from '@genkit-ai/core';
 import { GoogleAuth } from 'google-auth-library';
 
 // cached `GoogleAuth` client.

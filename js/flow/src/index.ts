@@ -20,7 +20,7 @@ export {
   FlowStateStore,
   Operation,
   OperationSchema,
-} from '@genkit-ai/common';
+} from '@genkit-ai/core';
 export { FirestoreStateStore } from './firestoreStateStore';
 export {
   Flow,

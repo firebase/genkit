@@ -16,8 +16,8 @@
 
 import { generate } from '@genkit-ai/ai/generate';
 import { defineModel } from '@genkit-ai/ai/model';
-import { getProjectId } from '@genkit-ai/common';
-import { configureGenkit } from '@genkit-ai/common/config';
+import { getProjectId } from '@genkit-ai/core';
+import { configureGenkit } from '@genkit-ai/core/config';
 import { flow } from '@genkit-ai/flow';
 import { firebase } from '@genkit-ai/plugin-firebase';
 import * as z from 'zod';

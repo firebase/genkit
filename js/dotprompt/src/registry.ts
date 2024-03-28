@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { config } from '@genkit-ai/common/config';
-import { logger } from '@genkit-ai/common/logging';
-import { lookupAction, registerAction } from '@genkit-ai/common/registry';
+import { config } from '@genkit-ai/core/config';
+import { logger } from '@genkit-ai/core/logging';
+import { lookupAction, registerAction } from '@genkit-ai/core/registry';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { Prompt, PromptAction } from './prompt';

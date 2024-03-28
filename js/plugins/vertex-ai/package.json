@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/common": "workspace:*",
+    "@genkit-ai/core": "workspace:*",
     "@google-cloud/vertexai": "^0.5.0",
     "google-auth-library": "^9.6.3",
     "node-fetch": "^3.3.2",

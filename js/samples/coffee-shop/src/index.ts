@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { initializeGenkit } from '@genkit-ai/common/config';
+import { initializeGenkit } from '@genkit-ai/core/config';
 import { definePrompt } from '@genkit-ai/dotprompt';
 import { flow, runFlow } from '@genkit-ai/flow';
 import { geminiPro } from '@genkit-ai/plugin-vertex-ai';

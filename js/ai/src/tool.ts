@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { Action, JSONSchema7, action } from '@genkit-ai/common';
-import { lookupAction, registerAction } from '@genkit-ai/common/registry';
-import { setCustomMetadataAttributes } from '@genkit-ai/common/tracing';
+import { Action, JSONSchema7, action } from '@genkit-ai/core';
+import { lookupAction, registerAction } from '@genkit-ai/core/registry';
+import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import z from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 import { ToolDefinition } from './model';
