@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { defineEmbedder, embedderRef } from '@genkit-ai/ai/embedders';
+import { defineEmbedder, embedderRef } from '@genkit-ai/ai/embedder';
 import { GoogleAuth } from 'google-auth-library';
 import { z } from 'zod';
 import { PluginOptions } from '.';

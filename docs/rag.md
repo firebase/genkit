@@ -61,7 +61,7 @@ export const spongeBobFactIndexer = devLocalIndexerRef('spongebob-facts');
 You can then import documents into the store:
 
 ```javascript
-import { index } from '@genkit-ai/ai/retrievers';
+import { index } from '@genkit-ai/ai/retriever';
 
 const spongebobFacts = [
   {
@@ -85,7 +85,7 @@ You can then use the provided `retrieve` function to retrieve documents from the
 store:
 
 ```javascript
-import { retrieve } from '@genkit-ai/ai/retrievers';
+import { retrieve } from '@genkit-ai/ai/retriever';
 
 const docs = await retrieve({
   retriever: spongeBobFactRetriever,
@@ -213,8 +213,8 @@ export const tomAndJerryFactsIndexer = pineconeIndexerRef({
 #### pgvector
 
 ```js
-import { embed } from '@genkit-ai/ai/embedders';
-import { Document, defineRetriever, retrieve } from '@genkit-ai/ai/retrievers';
+import { embed } from '@genkit-ai/ai/embedder';
+import { Document, defineRetriever, retrieve } from '@genkit-ai/ai/retriever';
 import { flow } from '@genkit-ai/flow';
 import { textEmbeddingGecko } from '@genkit-ai/plugin-vertex-ai';
 import { toSql } from 'pgvector';
@@ -295,7 +295,7 @@ import {
   CommonRetrieverOptionsSchema,
   defineRetriever,
   retrieve,
-} from '@genkit-ai/ai/retrievers';
+} from '@genkit-ai/ai/retriever';
 import * as z from 'zod';
 
 const MyAdvancedOptionsSchema = CommonRetrieverOptionsSchema.extend({
@@ -339,7 +339,7 @@ Genkit does not provide built-in chunking libraries; however, there are
 open source libraries available that are compatible with Genkit.
 
 ```js
-import { Document, index } from '@genkit-ai/ai/retrievers';
+import { Document, index } from '@genkit-ai/ai/retriever';
 import { flow, run } from '@genkit-ai/flow';
 import { pineconeIndexerRef } from '@genkit-ai/plugin-pinecone';
 import fs from 'fs';

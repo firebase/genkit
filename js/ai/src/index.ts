@@ -20,7 +20,7 @@ export {
   EvaluatorReference,
   evaluate,
   evaluatorRef,
-} from './evaluators';
+} from './evaluator';
 export {
   Candidate,
   GenerateOptions,
@@ -39,6 +39,6 @@ export {
   indexerRef,
   retrieve,
   retrieverRef,
-} from './retrievers';
+} from './retriever';
 export { ToolAction, asTool, defineTool } from './tool';
 export * from './types.js';

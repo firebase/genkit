@@ -20,7 +20,7 @@ import { lookupAction } from '@genkit-ai/core/registry';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import * as z from 'zod';
 import { Document, DocumentData, DocumentDataSchema } from './document';
-import { EmbedderInfo } from './embedders';
+import { EmbedderInfo } from './embedder';
 
 export { Document, DocumentData, DocumentDataSchema } from './document';
 
