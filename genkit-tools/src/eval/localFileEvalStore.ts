@@ -98,10 +98,16 @@ class LocalFileEvalStore implements EvalStore {
   async list(
     query?: ListEvalKeysRequest | undefined
   ): Promise<ListEvalKeysResponse> {
-    let keys = await readFile(this.indexFile, 'utf8').then((data) =>
+    let keys = await readFile(this.indexFile, 'utf8').then((data) => {
+      if (!data) {
+        return [];
+      }
       // strip the final carriage return before parsing all lines
-      data.slice(0, -1).split(this.indexDelimiter).map(this.parseLineToKey)
-    );
+      return data
+        .slice(0, -1)
+        .split(this.indexDelimiter)
+        .map(this.parseLineToKey);
+    });
 
     logger.debug(`Found keys: ${JSON.stringify(keys)}`);
 
