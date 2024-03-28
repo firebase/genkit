@@ -15,7 +15,7 @@
  */
 
 import { initializeGenkit } from '@genkit-ai/core/config';
-import config from './genkit.conf';
+import config from './genkit.config';
 
 initializeGenkit(config);
 

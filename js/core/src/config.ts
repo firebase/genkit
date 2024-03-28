@@ -260,7 +260,7 @@ class Config {
 }
 
 /**
- * Configures Genkit with a set of options. This should be called from `genkit.config.js`.
+ * Configures Genkit with a set of options. This should be called from `genkit.configig.js`.
  */
 export function configureGenkit(options: ConfigOptions): Config {
   if (config) {
@@ -272,7 +272,7 @@ export function configureGenkit(options: ConfigOptions): Config {
 }
 
 /**
- * Locates `genkit.conf.js` and loads the file so that the config can be registered.
+ * Locates `genkit.config.js` and loads the file so that the config can be registered.
  */
 export function initializeGenkit(cfg?: Config) {
   // Already initialized.
@@ -282,7 +282,7 @@ export function initializeGenkit(cfg?: Config) {
   const configPath = findGenkitConfig();
   if (!configPath) {
     throw Error(
-      'Unable to find genkit.conf.js in any of the parent directories.'
+      'Unable to find genkit.config.js in any of the parent directories.'
     );
   }
   // Loading the config file will automatically register the config.
@@ -302,7 +302,7 @@ export function isDevEnv(): boolean {
 }
 
 /**
- * Locates `genkit.conf.js` and returns the path.
+ * Locates `genkit.config.js` and returns the path.
  */
 function findGenkitConfig() {
   let current = require?.main?.filename;
@@ -310,8 +310,8 @@ function findGenkitConfig() {
     throw new Error('Unable to resolve package root.');
   }
   while (path.resolve(current, '..') !== current) {
-    if (fs.existsSync(path.resolve(current, 'genkit.conf.js'))) {
-      return path.resolve(current, 'genkit.conf.js');
+    if (fs.existsSync(path.resolve(current, 'genkit.config.js'))) {
+      return path.resolve(current, 'genkit.config.js');
     }
     current = path.resolve(current, '..');
   }

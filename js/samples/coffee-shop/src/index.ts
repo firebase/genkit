@@ -19,7 +19,7 @@ import { definePrompt } from '@genkit-ai/dotprompt';
 import { flow, runFlow } from '@genkit-ai/flow';
 import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 import * as z from 'zod';
-import config from './genkit.conf';
+import config from './genkit.config';
 
 initializeGenkit(config);
 

@@ -19,7 +19,7 @@ import { initializeGenkit } from '@genkit-ai/core/config';
 import { flow, run, runFlow } from '@genkit-ai/flow';
 import express, { Request, Response } from 'express';
 import * as z from 'zod';
-import config from './genkit.conf';
+import config from './genkit.config';
 
 initializeGenkit(config);
 

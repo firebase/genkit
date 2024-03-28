@@ -19,7 +19,7 @@ import { initializeGenkit } from '@genkit-ai/core/config';
 import { durableFlow, interrupt, run } from '@genkit-ai/flow/experimental';
 import { geminiPro } from '@genkit-ai/plugin-google-genai';
 import * as z from 'zod';
-import config from './genkit.conf';
+import config from './genkit.config';
 
 // To run this sample use the following sample commands:
 //   genkit flow:run jokeFlow "\"apple\""
