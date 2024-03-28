@@ -14,6 +14,6 @@
  * limitations under the License.
  */
 
-export { getLocalFileEvalStore } from './localFileEvalStore';
+export { getLocalFileEvalStore, resetEvalStore } from './localFileEvalStore';
 export * from './parser';
 export * from './types';

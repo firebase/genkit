@@ -22,14 +22,25 @@ import {
   EvalResult,
   EvalRun,
   EvalRunSchema,
-  LocalFileEvalStore,
+  EvalStore,
+  getLocalFileEvalStore,
+  resetEvalStore,
 } from '../../src/eval';
 
 jest.mock('fs');
 jest.mock('fs/promises');
 
+/**
+ * Facilitate testing methods without exposing LocalFileEvalStore.
+ */
+interface LocalFileInterface extends EvalStore {
+  generateFileName(evalRunId: string, actionId?: string): string;
+  getIndexFilePath(): string;
+  generateRootPath(): string;
+}
+
 describe('localFileEvalStore', () => {
-  let evalStore: LocalFileEvalStore;
+  let evalStore: LocalFileInterface;
   let storeRoot: string;
   const evalRunResults: EvalResult[] = [
     {
@@ -105,8 +116,9 @@ describe('localFileEvalStore', () => {
   };
 
   beforeEach(() => {
+    resetEvalStore();
     vol.reset();
-    evalStore = new LocalFileEvalStore();
+    evalStore = getLocalFileEvalStore() as LocalFileInterface;
     storeRoot = evalStore.generateRootPath();
   });
 

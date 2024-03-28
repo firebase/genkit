@@ -39,6 +39,13 @@ export function getLocalFileEvalStore(): EvalStore {
   return cachedEvalStore;
 }
 
+/**
+ * Resets the cached eval store to force getLocalFileEvalStore to create a new instance.
+ */
+export function resetEvalStore() {
+  cachedEvalStore = null;
+}
+
 class LocalFileEvalStore implements EvalStore {
   private readonly storeRoot;
   private readonly indexFile;
