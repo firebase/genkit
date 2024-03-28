@@ -12,7 +12,7 @@
     "build:cli:watch": "tsc --watch",
     "build:ui": "cd ui && pnpm build",
     "build:common": "cd common && pnpm build",
-    "build:plugins": "(cd plugins/google && pnpm build) && (cd plugins/firebase && pnpm build)",
+    "build:plugins": "pnpm -r --workspace-concurrency 8 -F \"./plugins/**\" build",
     "copy-ui-build": "rm -rf dist/client && cd ui && rsync -r dist ../dist/client",
     "test:all": "pnpm run test:ui && pnpm run test:jest",
     "test:ui": "cd ui && pnpm test-headless",
