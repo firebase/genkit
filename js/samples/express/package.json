@@ -22,7 +22,7 @@
     "@genkit-ai/plugin-google-genai": "workspace:*",
     "@genkit-ai/plugin-ollama": "workspace:*",
     "@genkit-ai/plugin-openai": "workspace:*",
-    "express": "~4.18.3",
+    "express": "~4.19.2",
     "zod": "^3.22.4"
   },
   "devDependencies": {
