@@ -229,7 +229,7 @@ export type ModelAction<
   typeof GenerationResponseSchema,
   { model: ModelInfo }
 > & {
-  __customOptionsType: CustomOptionsSchema;
+  __configSchema: CustomOptionsSchema;
 };
 
 export interface ModelMiddleware {
@@ -278,7 +278,7 @@ export function defineModel<
     /** Capabilities this model supports. */
     supports?: ModelInfo['supports'];
     /** Custom options schema for this model. */
-    customOptionsType?: CustomOptionsSchema;
+    configSchema?: CustomOptionsSchema;
     /** Descriptive name for this model e.g. 'Google AI - Gemini Pro'. */
     label?: string;
     use?: ModelMiddleware[];
@@ -298,8 +298,8 @@ export function defineModel<
       metadata: {
         model: {
           label,
-          customOptions: options.customOptionsType
-            ? zodToJsonSchema(options.customOptionsType)
+          customOptions: options.configSchema
+            ? zodToJsonSchema(options.configSchema)
             : undefined,
           versions: options.versions,
           supports: options.supports,
@@ -327,7 +327,7 @@ export function defineModel<
     }
   );
   Object.assign(act, {
-    __customOptionsType: options.customOptionsType || z.unknown(),
+    __configSchema: options.configSchema || z.unknown(),
   });
   const middleware = [
     ...(options.use || []),

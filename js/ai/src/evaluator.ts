@@ -68,7 +68,7 @@ export type EvaluatorAction<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > = Action<typeof EvalRequestSchema, typeof EvaluatorResponseSchema> & {
   __dataPointType?: DataPoint;
-  __customOptionsType?: CustomOptions;
+  __configSchema?: CustomOptions;
 };
 
 function withMetadata<
@@ -77,11 +77,11 @@ function withMetadata<
 >(
   evaluator: Action<typeof EvalRequestSchema, typeof EvaluatorResponseSchema>,
   dataPointType?: DataPoint,
-  customOptionsType?: CustomOptions
+  configSchema?: CustomOptions
 ): EvaluatorAction<DataPoint, CustomOptions> {
   const withMeta = evaluator as EvaluatorAction<DataPoint, CustomOptions>;
   withMeta.__dataPointType = dataPointType;
-  withMeta.__customOptionsType = customOptionsType;
+  withMeta.__configSchema = configSchema;
   return withMeta;
 }
 
@@ -100,7 +100,7 @@ export function defineEvaluator<
   options: {
     name: string;
     dataPointType?: DataPoint;
-    customOptionsType?: EvaluatorOptions;
+    configSchema?: EvaluatorOptions;
   },
   runner: EvaluatorFn<DataPoint, EvaluatorOptions>
 ) {
@@ -111,7 +111,7 @@ export function defineEvaluator<
         dataset: options.dataPointType
           ? z.array(options.dataPointType)
           : z.array(BaseDataPointSchema),
-        options: options.customOptionsType ?? z.unknown(),
+        options: options.configSchema ?? z.unknown(),
       }),
       outputSchema: EvaluatorResponseSchema,
     },
@@ -126,7 +126,7 @@ export function defineEvaluator<
       typeof EvaluatorResponseSchema
     >,
     options.dataPointType,
-    options.customOptionsType
+    options.configSchema
   );
   registry.registerAction('evaluator', evaluator.__action.name, evaluator);
   return ewm;
