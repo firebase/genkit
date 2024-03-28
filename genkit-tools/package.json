@@ -9,6 +9,7 @@
   "scripts": {
     "build": "pnpm install && pnpm build:common && pnpm build:cli && pnpm build:ui && pnpm copy-ui-build && pnpm build:plugins",
     "build:cli": "tsc",
+    "build:cli:watch": "tsc --watch",
     "build:ui": "cd ui && pnpm build",
     "build:common": "cd common && pnpm build",
     "build:plugins": "(cd plugins/google && pnpm build) && (cd plugins/firebase && pnpm build)",
@@ -35,6 +36,7 @@
     "commander": "^11.1.0",
     "configstore": "^5.0.1",
     "express": "^4.18.2",
+    "extract-zip": "^2.0.1",
     "firebase-admin": "^12.0.0",
     "inquirer": "^8.2.0",
     "js-yaml": "^4.1.0",

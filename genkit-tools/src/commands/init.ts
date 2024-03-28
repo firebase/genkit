@@ -16,6 +16,7 @@
 
 import { execSync } from 'child_process';
 import { Command } from 'commander';
+import extract from 'extract-zip';
 import * as fs from 'fs';
 import * as inquirer from 'inquirer';
 import * as path from 'path';
@@ -34,13 +35,14 @@ const modelToPlugin: Record<string, string> = {
   'Vertex AI': '@genkit-ai/plugin-vertex-ai',
   OpenAI: '@genkit-ai/plugin-openai',
 };
+/** External packages required to use Genkit. */
+const externalPackages = ['zod'];
 /** Core packages required to use Genkit. */
 const corePackages = [
   '@genkit-ai/common',
   '@genkit-ai/ai',
   '@genkit-ai/dotprompt',
   '@genkit-ai/flow',
-  'zod',
 ];
 /** Core dev packages required to use Genkit. */
 const coreDevPackages = ['typescript'];
@@ -95,14 +97,7 @@ interface PluginInfo {
 
 interface InitOptions {
   platform: Platform;
-}
-
-interface TsConfig {
-  compilerOptions?: {
-    esModuleInterop?: boolean;
-    skipLibCheck?: boolean;
-    noUnusedLocals?: boolean;
-  };
+  distArchive: string;
 }
 
 export const init = new Command('init')
@@ -111,8 +106,12 @@ export const init = new Command('init')
     '-p, --platform <platform>',
     'Deployment platform (firebase, gcp, or other)'
   )
+  .option(
+    '-d, --dist-archive <distArchive>',
+    'Path to local Genkit dist archive'
+  )
   .action(async (options: InitOptions) => {
-    let { platform } = options;
+    let { platform, distArchive } = options;
     const supportedPlatforms = Object.keys(platformToPlugins);
     if (supportedPlatforms.includes(platform)) {
       logger.error(
@@ -148,63 +147,118 @@ export const init = new Command('init')
       },
     ]);
     plugins.push(modelToPlugin[model]);
-    let generateSample = false;
-    if (model !== 'Vertex AI' && platform !== 'other') {
-      generateSample = await confirm({
-        message: 'Would you like to generate a sample flow?',
-        default: true,
-      });
+    const packages = [...externalPackages];
+    if (!distArchive) {
+      packages.push(...corePackages);
+      packages.push(...plugins);
     }
-    const packages = [...corePackages, ...plugins];
-    const storePlugin =
-      platform === 'firebase' || platform === 'gcp' ? 'firebase' : undefined;
     try {
-      logger.info('Installing Genkit plugins...');
-      installNpmPackages(packages, coreDevPackages);
-      logger.info('Generating genkit.conf...');
-      generateConfigFile(plugins, storePlugin);
-      logger.info('Updating tsconfig.json...');
-      updateTsConfig();
-      if (generateSample) {
-        logger.info('Generating sample file...');
-        generateSampleFile(platform, modelToPlugin[model]);
+      await installNpmPackages(packages, coreDevPackages, distArchive);
+      if (!fs.existsSync('src')) {
+        fs.mkdirSync('src');
+      }
+      generateConfigFile(plugins, platform);
+      await updateTsConfig();
+      await updatePackageJson();
+      if (model !== 'Vertex AI' && platform !== 'other') {
+        if (
+          await confirm({
+            message: 'Would you like to generate a sample flow?',
+            default: true,
+          })
+        ) {
+          generateSampleFile(platform, modelToPlugin[model]);
+        }
       }
     } catch (error) {
       logger.error(error);
       process.exit(1);
     }
-
+    if (model === 'Vertex AI') {
+      logger.info(
+        `Run the following command to enable Vertex AI in your Google Cloud project:\n\n  gcloud services enable aiplatform.googleapis.com\n`
+      );
+    }
     await record(new InitEvent(platform));
     logger.info('Genkit successfully initialized.');
   });
+
+/**
+ * Updates package.json with Genkit-expected fields.
+ */
+async function updatePackageJson() {
+  const packageJsonPath = path.join(process.cwd(), 'package.json');
+  // package.json should exist before reaching this point.
+  if (!fs.existsSync(packageJsonPath)) {
+    throw new Error('Failed to find package.json.');
+  }
+  const existingPackageJson = JSON.parse(
+    fs.readFileSync(packageJsonPath, 'utf8')
+  );
+  const choice = await promptWriteMode(
+    'Would you like to update your package.json with suggested settings?'
+  );
+  const packageJson = {
+    main: 'lib/index.js',
+    scripts: {
+      start: 'node lib/index.js',
+      compile: 'tsc',
+      build: 'npm run build:clean && npm run compile',
+      'build:clean': 'rm -rf ./lib',
+      'build:watch': 'tsc --watch',
+    },
+  };
+  let newPackageJson = {};
+  switch (choice) {
+    case 'overwrite':
+      newPackageJson = {
+        ...existingPackageJson,
+        ...packageJson,
+        scripts: {
+          ...existingPackageJson.scripts,
+          ...packageJson.scripts,
+        },
+      };
+      break;
+    case 'merge':
+      newPackageJson = {
+        ...packageJson,
+        ...existingPackageJson,
+        scripts: {
+          ...packageJson.scripts,
+          ...existingPackageJson.scripts,
+        },
+      };
+      break;
+    case 'keep':
+      logger.info('Leaving package.json unchanged.');
+      return;
+  }
+  logger.info('Updating package.json...');
+  fs.writeFileSync(packageJsonPath, JSON.stringify(newPackageJson, null, 2));
+}
 
 /**
  * Generates a sample index.ts file.
  * @param platform Deployment platform.
  */
 function generateSampleFile(platform: Platform, modelPlugin: string) {
+  const modelImport = `import { ${pluginToInfo[modelPlugin].model} } from '${modelPlugin}';`;
   const templatePath = path.join(__dirname, sampleTemplatePaths[platform]);
   let template = fs.readFileSync(templatePath, 'utf8');
-  const modelImport = `import { ${pluginToInfo[modelPlugin].model} } from '${modelPlugin}';`;
-  template = template
+  const sample = template
     .replace('$GENKIT_MODEL_IMPORT', modelImport)
     .replace('$GENKIT_MODEL', pluginToInfo[modelPlugin].model || '');
-  const outputPath = 'src/index.ts';
-  fs.writeFileSync(outputPath, template, 'utf8');
+  logger.info('Generating sample file...');
+  fs.writeFileSync('src/index.ts', sample, 'utf8');
 }
 
 /**
  * Generates a genkit.conf file.
  * @param pluginInfos List of plugin infos.
- * @param storePlugin Name of plugin to use for stores.
+ * @param platform Deployment platform.
  */
-function generateConfigFile(
-  pluginNames: string[],
-  storePlugin: string | undefined
-): void {
-  const templatePath = path.join(__dirname, configTemplatePath);
-  // TODO: Allow user input for config file path.
-  const outputPath = path.join(process.cwd(), 'src/genkit.conf.ts');
+function generateConfigFile(pluginNames: string[], platform?: Platform): void {
   const imports = pluginNames
     .map(
       (pluginName) =>
@@ -214,15 +268,20 @@ function generateConfigFile(
   const plugins = pluginNames
     .map((pluginName) => `    ${pluginToInfo[pluginName].init},`)
     .join('\n');
+  const storePlugin =
+    platform === 'firebase' || platform === 'gcp' ? 'firebase' : undefined;
   const store = storePlugin
     ? `\n  flowStateStore: '${storePlugin}',\n  traceStore: '${storePlugin}',`
     : '';
   try {
+    const templatePath = path.join(__dirname, configTemplatePath);
     const template = fs.readFileSync(templatePath, 'utf8');
     const config = template
       .replace('$GENKIT_IMPORTS', imports)
       .replace('$GENKIT_PLUGINS', plugins)
       .replace('$GENKIT_STORE', store);
+    const outputPath = path.join(process.cwd(), 'src/genkit.conf.ts');
+    logger.info('Generating genkit.conf.ts...');
     fs.writeFileSync(outputPath, config, 'utf8');
   } catch (error) {
     throw new Error(`Failed to generate genkit.conf file: ${error}`);
@@ -230,22 +289,84 @@ function generateConfigFile(
 }
 
 /**
+ * Prompts for what type of write to perform when there is a conflict.
+ */
+async function promptWriteMode(
+  message: string
+): Promise<'keep' | 'overwrite' | 'merge'> {
+  const answers = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'option',
+      message,
+      choices: [
+        { name: 'Keep unchanged', value: 'keep' },
+        { name: 'Overwrite', value: 'overwrite' },
+        { name: 'Set if unset', value: 'merge' },
+      ],
+    },
+  ]);
+  return answers.option;
+}
+
+/**
  * Updates tsconfig.json with required flags for Genkit.
  */
-function updateTsConfig() {
+async function updateTsConfig() {
   try {
     const tsConfigPath = path.join(process.cwd(), 'tsconfig.json');
-    let tsConfig: TsConfig = {};
+    let existingTsConfig = undefined;
     if (fs.existsSync(tsConfigPath)) {
-      const tsConfigContent = fs.readFileSync(tsConfigPath, 'utf-8');
-      tsConfig = JSON.parse(tsConfigContent) as TsConfig;
+      existingTsConfig = JSON.parse(fs.readFileSync(tsConfigPath, 'utf-8'));
     }
-    tsConfig.compilerOptions = {
-      ...tsConfig.compilerOptions,
-      esModuleInterop: true,
-      skipLibCheck: true,
+    let choice: 'keep' | 'overwrite' | 'merge' = 'overwrite';
+    if (existingTsConfig) {
+      choice = await promptWriteMode(
+        'Would you like to update your tsconfig.json with suggested settings?'
+      );
+    }
+    const tsConfig = {
+      compileOnSave: true,
+      include: ['src'],
+      compilerOptions: {
+        module: 'commonjs',
+        noImplicitReturns: true,
+        outDir: 'lib',
+        sourceMap: true,
+        strict: true,
+        target: 'es2017',
+        skipLibCheck: true,
+        esModuleInterop: true,
+      },
     };
-    fs.writeFileSync(tsConfigPath, JSON.stringify(tsConfig, null, 2));
+    let newTsConfig = {};
+    switch (choice) {
+      case 'overwrite':
+        newTsConfig = {
+          ...existingTsConfig,
+          ...tsConfig,
+          compilerOptions: {
+            ...existingTsConfig?.compilerOptions,
+            ...tsConfig.compilerOptions,
+          },
+        };
+        break;
+      case 'merge':
+        newTsConfig = {
+          ...tsConfig,
+          ...existingTsConfig,
+          compilerOptions: {
+            ...tsConfig.compilerOptions,
+            ...existingTsConfig?.compilerOptions,
+          },
+        };
+        break;
+      case 'keep':
+        logger.info('Leaving tsconfig.json unchanged.');
+        return;
+    }
+    logger.info('Updating tsconfig.json...');
+    fs.writeFileSync(tsConfigPath, JSON.stringify(newTsConfig, null, 2));
   } catch (error) {
     throw new Error(`Failed to update tsconfig.json: ${error}`);
   }
@@ -256,11 +377,13 @@ function updateTsConfig() {
  * @param packages List of NPM packages to install.
  * @param devPackages List of NPM dev packages to install.
  */
-function installNpmPackages(
+async function installNpmPackages(
   packages: string[],
-  devPackages: string[] | undefined
-): void {
+  devPackages?: string[],
+  distArchive?: string
+): Promise<void> {
   try {
+    logger.info('Installing packages...');
     if (packages.length) {
       execSync(`npm install ${packages.join(' ')} --save`, {
         stdio: 'inherit',
@@ -270,6 +393,15 @@ function installNpmPackages(
       execSync(`npm install ${devPackages.join(' ')} --save-dev`, {
         stdio: 'inherit',
       });
+    }
+    if (distArchive) {
+      const distDir = 'genkit-dist';
+      const outputPath = path.join(process.cwd(), distDir);
+      if (!fs.existsSync(distDir)) {
+        fs.mkdirSync(distDir);
+      }
+      await extract(distArchive, { dir: outputPath });
+      execSync(`npm install ${outputPath}/*.tgz --save`);
     }
   } catch (error) {
     throw new Error(`Failed to install NPM packages: ${error}`);
