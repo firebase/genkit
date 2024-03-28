@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai/generate';
+import { generate } from '@genkit-ai/ai';
 import { initializeGenkit } from '@genkit-ai/core/config';
 import { durableFlow, interrupt, run } from '@genkit-ai/flow/experimental';
 import { geminiPro } from '@genkit-ai/plugin-google-genai';

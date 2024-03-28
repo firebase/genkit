@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai/generate';
+import { generate } from '@genkit-ai/ai';
 import { defineTool } from '@genkit-ai/ai/tool';
 import { initializeGenkit } from '@genkit-ai/core/config';
 import { flow, run } from '@genkit-ai/flow';

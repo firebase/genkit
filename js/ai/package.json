@@ -58,11 +58,6 @@
       "require": "./lib/model/middleware.js",
       "import": "./lib/model/middleware.mjs"
     },
-    "./generate": {
-      "types": "./lib/generate.d.ts",
-      "require": "./lib/generate.js",
-      "import": "./lib/generate.mjs"
-    },
     "./extract": {
       "types": "./lib/extract.d.ts",
       "require": "./lib/extract.js",
@@ -90,9 +85,6 @@
       ],
       "model/middleware": [
         "lib/model/middleware"
-      ],
-      "generate": [
-        "lib/generate"
       ],
       "extract": [
         "lib/extract"

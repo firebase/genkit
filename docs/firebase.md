@@ -111,7 +111,7 @@
 1.  Paste the following sample code into `functions/src/index.ts` file:
 
     ```javascript
-    import { generate } from '@genkit-ai/ai/generate';
+    import { generate } from '@genkit-ai/ai';
     import { getProjectId } from '@genkit-ai/core';
     import { configureGenkit } from '@genkit-ai/core/config';
     import { run } from '@genkit-ai/flow';
