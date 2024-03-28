@@ -174,10 +174,25 @@ export async function startReflectionApi(port?: number | undefined) {
     logger.debug(`Fetching trace \`${traceId}\` for env \`${env}\`.`);
     const tracestore = await registry.lookupTraceStore(env);
     if (!tracestore) {
-      response.status(500).send(`${env} trace store not found`);
-      return;
+      return response.status(500).send({
+        code: StatusCodes.FAILED_PRECONDITION,
+        message: `${env} trace store not found`,
+      });
     }
-    response.json(await tracestore?.load(traceId));
+    try {
+      response.json(await tracestore?.load(traceId));
+    } catch (err) {
+      const error = err as Error;
+      const { message, stack } = error;
+      const errorResponse: Status = {
+        code: StatusCodes.INTERNAL,
+        message,
+        details: {
+          stack,
+        },
+      };
+      return response.status(500).json(errorResponse);
+    }
   });
 
   api.get('/api/envs/:env/traces', async (request, response) => {
@@ -186,17 +201,32 @@ export async function startReflectionApi(port?: number | undefined) {
     logger.debug(`Fetching traces for env \`${env}\`.`);
     const tracestore = await registry.lookupTraceStore(env);
     if (!tracestore) {
-      response.status(500).send(`${env} trace store not found`);
-      return;
+      return response.status(500).send({
+        code: StatusCodes.FAILED_PRECONDITION,
+        message: `${env} trace store not found`,
+      });
     }
-    response.json(
-      await tracestore.list({
-        limit: limit ? parseInt(limit.toString()) : undefined,
-        continuationToken: continuationToken
-          ? continuationToken.toString()
-          : undefined,
-      })
-    );
+    try {
+      response.json(
+        await tracestore.list({
+          limit: limit ? parseInt(limit.toString()) : undefined,
+          continuationToken: continuationToken
+            ? continuationToken.toString()
+            : undefined,
+        })
+      );
+    } catch (err) {
+      const error = err as Error;
+      const { message, stack } = error;
+      const errorResponse: Status = {
+        code: StatusCodes.INTERNAL,
+        message,
+        details: {
+          stack,
+        },
+      };
+      return response.status(500).json(errorResponse);
+    }
   });
 
   api.get('/api/envs/:env/flowStates/:flowId', async (request, response) => {
@@ -204,10 +234,25 @@ export async function startReflectionApi(port?: number | undefined) {
     logger.debug(`Fetching flow state \`${flowId}\` for env \`${env}\`.`);
     const flowStateStore = await registry.lookupFlowStateStore(env);
     if (!flowStateStore) {
-      response.status(500).send(`${env} flow state store not found`);
-      return;
+      return response.status(500).send({
+        code: StatusCodes.FAILED_PRECONDITION,
+        message: `${env} flow state store not found`,
+      });
     }
-    response.json(await flowStateStore?.load(flowId));
+    try {
+      response.json(await flowStateStore?.load(flowId));
+    } catch (err) {
+      const error = err as Error;
+      const { message, stack } = error;
+      const errorResponse: Status = {
+        code: StatusCodes.INTERNAL,
+        message,
+        details: {
+          stack,
+        },
+      };
+      return response.status(500).json(errorResponse);
+    }
   });
 
   api.get('/api/envs/:env/flowStates', async (request, response) => {
@@ -216,17 +261,32 @@ export async function startReflectionApi(port?: number | undefined) {
     logger.debug(`Fetching traces for env \`${env}\`.`);
     const flowStateStore = await registry.lookupFlowStateStore(env);
     if (!flowStateStore) {
-      response.status(500).send(`${env} flow state store not found`);
-      return;
+      return response.status(500).send({
+        code: StatusCodes.FAILED_PRECONDITION,
+        message: `${env} flow state store not found`,
+      });
     }
-    response.json(
-      await flowStateStore?.list({
-        limit: limit ? parseInt(limit.toString()) : undefined,
-        continuationToken: continuationToken
-          ? continuationToken.toString()
-          : undefined,
-      })
-    );
+    try {
+      response.json(
+        await flowStateStore?.list({
+          limit: limit ? parseInt(limit.toString()) : undefined,
+          continuationToken: continuationToken
+            ? continuationToken.toString()
+            : undefined,
+        })
+      );
+    } catch (err) {
+      const error = err as Error;
+      const { message, stack } = error;
+      const errorResponse: Status = {
+        code: StatusCodes.INTERNAL,
+        message,
+        details: {
+          stack,
+        },
+      };
+      return response.status(500).json(errorResponse);
+    }
   });
 
   const server = api.listen(port, () => {
