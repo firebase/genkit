@@ -35,9 +35,11 @@ export const setup = flow(
       documentArr.concat(catFacts);
     }
 
-    documentArr.forEach(async (document) => {
-      await runFlow(indexPdf, document);
-      console.log(`Indexed ${document}`);
-    });
+    await Promise.all(
+      documentArr.map(async (document) => {
+        console.log(`Indexed ${document}`);
+        return runFlow(indexPdf, document);
+      })
+    );
   }
 );
