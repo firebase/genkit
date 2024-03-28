@@ -2,4 +2,6 @@ packages:
   - './*'
   - 'plugins/*'
   - 'samples/*'
+  - '!samples/firebase-functions-sample1'
+  - '!samples/firebase-functions-sample1/functions'
   - 'third_party/*'
