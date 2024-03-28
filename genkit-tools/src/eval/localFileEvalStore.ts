@@ -31,7 +31,15 @@ import {
   ListEvalKeysResponse,
 } from './types';
 
-export class LocalFileEvalStore implements EvalStore {
+let cachedEvalStore: LocalFileEvalStore | null = null;
+export function getLocalFileEvalStore(): EvalStore {
+  if (!cachedEvalStore) {
+    cachedEvalStore = new LocalFileEvalStore();
+  }
+  return cachedEvalStore;
+}
+
+class LocalFileEvalStore implements EvalStore {
   private readonly storeRoot;
   private readonly indexFile;
   private readonly indexDelimiter = '\n';
