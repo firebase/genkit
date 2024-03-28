@@ -83,10 +83,10 @@ function retrieverWithMetadata<
     typeof RetrieverRequestSchema,
     typeof RetrieverResponseSchema
   >,
-  customOptionsType?: RetrieverOptions
+  configSchema?: RetrieverOptions
 ): RetrieverAction<RetrieverOptions> {
   const withMeta = retriever as RetrieverAction<RetrieverOptions>;
-  withMeta.__configSchema = customOptionsType;
+  withMeta.__configSchema = configSchema;
   return withMeta;
 }
 
@@ -94,10 +94,10 @@ function indexerWithMetadata<
   IndexerOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   indexer: Action<typeof IndexerRequestSchema, z.ZodVoid>,
-  customOptionsType?: IndexerOptions
+  configSchema?: IndexerOptions
 ): IndexerAction<IndexerOptions> {
   const withMeta = indexer as IndexerAction<IndexerOptions>;
-  withMeta.__configSchema = customOptionsType;
+  withMeta.__configSchema = configSchema;
   return withMeta;
 }
 

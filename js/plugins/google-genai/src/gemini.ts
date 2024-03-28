@@ -220,7 +220,7 @@ export function googleAIModel(name: string, apiKey?: string): ModelAction {
     {
       name: modelName,
       ...SUPPORTED_MODELS[name].info,
-      customOptionsType: SUPPORTED_MODELS[name].configSchema,
+      configSchema: SUPPORTED_MODELS[name].configSchema,
       use: [
         // simulate a system prompt since no native one is supported
         simulateSystemPrompt(),
