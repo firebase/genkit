@@ -46,38 +46,38 @@ type FlowError struct {
 }
 
 type FlowInvokeEnvelopeMessage struct {
-	Resume       *FlowInvokeEnvelopeMessage_resume       `json:"resume,omitempty"`
-	Retry        *FlowInvokeEnvelopeMessage_retry        `json:"retry,omitempty"`
-	RunScheduled *FlowInvokeEnvelopeMessage_runScheduled `json:"runScheduled,omitempty"`
-	Schedule     *FlowInvokeEnvelopeMessage_schedule     `json:"schedule,omitempty"`
-	Start        *FlowInvokeEnvelopeMessage_start        `json:"start,omitempty"`
-	State        *FlowInvokeEnvelopeMessage_state        `json:"state,omitempty"`
+	Resume       *FlowInvokeEnvelopeMessageResume       `json:"resume,omitempty"`
+	Retry        *FlowInvokeEnvelopeMessageRetry        `json:"retry,omitempty"`
+	RunScheduled *FlowInvokeEnvelopeMessageRunScheduled `json:"runScheduled,omitempty"`
+	Schedule     *FlowInvokeEnvelopeMessageSchedule     `json:"schedule,omitempty"`
+	Start        *FlowInvokeEnvelopeMessageStart        `json:"start,omitempty"`
+	State        *FlowInvokeEnvelopeMessageState        `json:"state,omitempty"`
 }
 
-type FlowInvokeEnvelopeMessage_resume struct {
+type FlowInvokeEnvelopeMessageResume struct {
 	FlowID  string `json:"flowId,omitempty"`
 	Payload any    `json:"payload,omitempty"`
 }
 
-type FlowInvokeEnvelopeMessage_retry struct {
+type FlowInvokeEnvelopeMessageRetry struct {
 	FlowID string `json:"flowId,omitempty"`
 }
 
-type FlowInvokeEnvelopeMessage_runScheduled struct {
+type FlowInvokeEnvelopeMessageRunScheduled struct {
 	FlowID string `json:"flowId,omitempty"`
 }
 
-type FlowInvokeEnvelopeMessage_schedule struct {
+type FlowInvokeEnvelopeMessageSchedule struct {
 	Delay float64 `json:"delay,omitempty"`
 	Input any     `json:"input,omitempty"`
 }
 
-type FlowInvokeEnvelopeMessage_start struct {
+type FlowInvokeEnvelopeMessageStart struct {
 	Input  any               `json:"input,omitempty"`
 	Labels map[string]string `json:"labels,omitempty"`
 }
 
-type FlowInvokeEnvelopeMessage_state struct {
+type FlowInvokeEnvelopeMessageState struct {
 	FlowID string `json:"flowId,omitempty"`
 }
 
@@ -188,20 +188,20 @@ type ToolDefinition struct {
 }
 
 type ToolRequestPart struct {
-	ToolRequest *ToolRequestPart_toolRequest `json:"toolRequest,omitempty"`
+	ToolRequest *ToolRequestPartToolRequest `json:"toolRequest,omitempty"`
 }
 
-type ToolRequestPart_toolRequest struct {
+type ToolRequestPartToolRequest struct {
 	Input any    `json:"input,omitempty"`
 	Name  string `json:"name,omitempty"`
 	Ref   string `json:"ref,omitempty"`
 }
 
 type ToolResponsePart struct {
-	ToolResponse *ToolResponsePart_toolResponse `json:"toolResponse,omitempty"`
+	ToolResponse *ToolResponsePartToolResponse `json:"toolResponse,omitempty"`
 }
 
-type ToolResponsePart_toolResponse struct {
+type ToolResponsePartToolResponse struct {
 	Name   string `json:"name,omitempty"`
 	Output any    `json:"output,omitempty"`
 	Ref    string `json:"ref,omitempty"`

@@ -20,23 +20,23 @@ package test
 //
 // Something after a blank line.
 type Candidate struct {
-	Custom        any          `json:"custom,omitempty"`
-	FinishMessage string       `json:"finishMessage,omitempty"`
-	FinishReason  FinishReason `json:"finishReason,omitempty"`
+	Custom        any                   `json:"custom,omitempty"`
+	FinishMessage string                `json:"finishMessage,omitempty"`
+	FinishReason  CandidateFinishReason `json:"finishReason,omitempty"`
 	// Position of candidate in list.
 	Index   int              `json:"index,omitempty"`
 	Message *Message         `json:"message,omitempty"`
 	Usage   *GenerationUsage `json:"usage,omitempty"`
 }
 
-type FinishReason string
+type CandidateFinishReason string
 
 const (
-	FinishReasonStop    FinishReason = "stop"
-	FinishReasonLength  FinishReason = "length"
-	FinishReasonBlocked FinishReason = "blocked"
-	FinishReasonOther   FinishReason = "other"
-	FinishReasonUnknown FinishReason = "unknown"
+	CandidateFinishReasonStop    CandidateFinishReason = "stop"
+	CandidateFinishReasonLength  CandidateFinishReason = "length"
+	CandidateFinishReasonBlocked CandidateFinishReason = "blocked"
+	CandidateFinishReasonOther   CandidateFinishReason = "other"
+	CandidateFinishReasonUnknown CandidateFinishReason = "unknown"
 )
 
 type DocumentData struct {
@@ -50,38 +50,38 @@ type FlowError struct {
 }
 
 type FlowInvokeEnvelopeMessage struct {
-	Resume       *FlowInvokeEnvelopeMessage_resume       `json:"resume,omitempty"`
-	Retry        *FlowInvokeEnvelopeMessage_retry        `json:"retry,omitempty"`
-	RunScheduled *FlowInvokeEnvelopeMessage_runScheduled `json:"runScheduled,omitempty"`
-	Schedule     *FlowInvokeEnvelopeMessage_schedule     `json:"schedule,omitempty"`
-	Start        *FlowInvokeEnvelopeMessage_start        `json:"start,omitempty"`
-	State        *FlowInvokeEnvelopeMessage_state        `json:"state,omitempty"`
+	Resume       *FlowInvokeEnvelopeMessageResume       `json:"resume,omitempty"`
+	Retry        *FlowInvokeEnvelopeMessageRetry        `json:"retry,omitempty"`
+	RunScheduled *FlowInvokeEnvelopeMessageRunScheduled `json:"runScheduled,omitempty"`
+	Schedule     *FlowInvokeEnvelopeMessageSchedule     `json:"schedule,omitempty"`
+	Start        *FlowInvokeEnvelopeMessageStart        `json:"start,omitempty"`
+	State        *FlowInvokeEnvelopeMessageState        `json:"state,omitempty"`
 }
 
-type FlowInvokeEnvelopeMessage_resume struct {
+type FlowInvokeEnvelopeMessageResume struct {
 	FlowID  string `json:"flowId,omitempty"`
 	Payload any    `json:"payload,omitempty"`
 }
 
-type FlowInvokeEnvelopeMessage_retry struct {
+type FlowInvokeEnvelopeMessageRetry struct {
 	FlowID string `json:"flowId,omitempty"`
 }
 
-type FlowInvokeEnvelopeMessage_runScheduled struct {
+type FlowInvokeEnvelopeMessageRunScheduled struct {
 	FlowID string `json:"flowId,omitempty"`
 }
 
-type FlowInvokeEnvelopeMessage_schedule struct {
+type FlowInvokeEnvelopeMessageSchedule struct {
 	Delay float64 `json:"delay,omitempty"`
 	Input any     `json:"input,omitempty"`
 }
 
-type FlowInvokeEnvelopeMessage_start struct {
+type FlowInvokeEnvelopeMessageStart struct {
 	Input  any               `json:"input,omitempty"`
 	Labels map[string]string `json:"labels,omitempty"`
 }
 
-type FlowInvokeEnvelopeMessage_state struct {
+type FlowInvokeEnvelopeMessageState struct {
 	FlowID string `json:"flowId,omitempty"`
 }
 
@@ -118,23 +118,23 @@ type GenerationConfig struct {
 }
 
 type GenerationRequest struct {
-	Candidates float64                   `json:"candidates,omitempty"`
-	Config     *GenerationConfig         `json:"config,omitempty"`
-	Messages   []*Message                `json:"messages,omitempty"`
-	Output     *GenerationRequest_output `json:"output,omitempty"`
-	Tools      []*ToolDefinition         `json:"tools,omitempty"`
+	Candidates float64                  `json:"candidates,omitempty"`
+	Config     *GenerationConfig        `json:"config,omitempty"`
+	Messages   []*Message               `json:"messages,omitempty"`
+	Output     *GenerationRequestOutput `json:"output,omitempty"`
+	Tools      []*ToolDefinition        `json:"tools,omitempty"`
 }
 
-type GenerationRequest_output struct {
-	Format GenerationRequest_output_format `json:"format,omitempty"`
-	Schema map[string]any                  `json:"schema,omitempty"`
+type GenerationRequestOutput struct {
+	Format GenerationRequestOutputFormat `json:"format,omitempty"`
+	Schema map[string]any                `json:"schema,omitempty"`
 }
 
-type GenerationRequest_output_format string
+type GenerationRequestOutputFormat string
 
 const (
-	GenerationRequest_output_formatJson GenerationRequest_output_format = "json"
-	GenerationRequest_output_formatText GenerationRequest_output_format = "text"
+	GenerationRequestOutputFormatJson GenerationRequestOutputFormat = "json"
+	GenerationRequestOutputFormatText GenerationRequestOutputFormat = "text"
 )
 
 type GenerationResponse struct {
@@ -163,10 +163,10 @@ type Link struct {
 }
 
 type MediaPart struct {
-	Media *MediaPart_media `json:"media,omitempty"`
+	Media *MediaPartMedia `json:"media,omitempty"`
 }
 
-type MediaPart_media struct {
+type MediaPartMedia struct {
 	ContentType string `json:"contentType,omitempty"`
 	Url         string `json:"url,omitempty"`
 }
@@ -177,7 +177,7 @@ type Message struct {
 }
 
 type Operation struct {
-	BlockedOnStep *Operation_blockedOnStep `json:"blockedOnStep,omitempty"`
+	BlockedOnStep *OperationBlockedOnStep `json:"blockedOnStep,omitempty"`
 	// If the value is false, it means the operation is still in progress. If true, the operation is completed, and either error or response is available.
 	Done bool `json:"done,omitempty"`
 	// Service-specific metadata associated with the operation. It typically contains progress information and common metadata such as create time.
@@ -187,7 +187,7 @@ type Operation struct {
 	Result *FlowResult `json:"result,omitempty"`
 }
 
-type Operation_blockedOnStep struct {
+type OperationBlockedOnStep struct {
 	Name   string `json:"name,omitempty"`
 	Schema string `json:"schema,omitempty"`
 }
@@ -209,43 +209,43 @@ type SpanContext struct {
 }
 
 type SpanData struct {
-	Attributes              map[string]any                    `json:"attributes,omitempty"`
-	DisplayName             string                            `json:"displayName,omitempty"`
-	EndTime                 float64                           `json:"endTime,omitempty"`
-	InstrumentationLibrary  *InstrumentationLibrary           `json:"instrumentationLibrary,omitempty"`
-	Links                   []*Link                           `json:"links,omitempty"`
-	ParentSpanID            string                            `json:"parentSpanId,omitempty"`
-	SameProcessAsParentSpan *SpanData_sameProcessAsParentSpan `json:"sameProcessAsParentSpan,omitempty"`
-	SpanID                  string                            `json:"spanId,omitempty"`
-	SpanKind                string                            `json:"spanKind,omitempty"`
-	StartTime               float64                           `json:"startTime,omitempty"`
-	Status                  *SpanStatus                       `json:"status,omitempty"`
-	TimeEvents              *SpanData_timeEvents              `json:"timeEvents,omitempty"`
-	TraceID                 string                            `json:"traceId,omitempty"`
+	Attributes              map[string]any                   `json:"attributes,omitempty"`
+	DisplayName             string                           `json:"displayName,omitempty"`
+	EndTime                 float64                          `json:"endTime,omitempty"`
+	InstrumentationLibrary  *InstrumentationLibrary          `json:"instrumentationLibrary,omitempty"`
+	Links                   []*Link                          `json:"links,omitempty"`
+	ParentSpanID            string                           `json:"parentSpanId,omitempty"`
+	SameProcessAsParentSpan *SpanDataSameProcessAsParentSpan `json:"sameProcessAsParentSpan,omitempty"`
+	SpanID                  string                           `json:"spanId,omitempty"`
+	SpanKind                string                           `json:"spanKind,omitempty"`
+	StartTime               float64                          `json:"startTime,omitempty"`
+	Status                  *SpanStatus                      `json:"status,omitempty"`
+	TimeEvents              *SpanDataTimeEvents              `json:"timeEvents,omitempty"`
+	TraceID                 string                           `json:"traceId,omitempty"`
 }
 
-type SpanData_sameProcessAsParentSpan struct {
+type SpanDataSameProcessAsParentSpan struct {
 	Value bool `json:"value,omitempty"`
 }
 
-type SpanData_timeEvents struct {
+type SpanDataTimeEvents struct {
 	TimeEvent []*TimeEvent `json:"timeEvent,omitempty"`
 }
 
 type SpanMetadata struct {
-	Input    any                `json:"input,omitempty"`
-	IsRoot   bool               `json:"isRoot,omitempty"`
-	Metadata map[string]string  `json:"metadata,omitempty"`
-	Name     string             `json:"name,omitempty"`
-	Output   any                `json:"output,omitempty"`
-	State    SpanMetadata_state `json:"state,omitempty"`
+	Input    any               `json:"input,omitempty"`
+	IsRoot   bool              `json:"isRoot,omitempty"`
+	Metadata map[string]string `json:"metadata,omitempty"`
+	Name     string            `json:"name,omitempty"`
+	Output   any               `json:"output,omitempty"`
+	State    SpanMetadataState `json:"state,omitempty"`
 }
 
-type SpanMetadata_state string
+type SpanMetadataState string
 
 const (
-	SpanMetadata_stateSuccess SpanMetadata_state = "success"
-	SpanMetadata_stateError   SpanMetadata_state = "error"
+	SpanMetadataStateSuccess SpanMetadataState = "success"
+	SpanMetadataStateError   SpanMetadataState = "error"
 )
 
 type SpanStatus struct {
@@ -258,11 +258,11 @@ type TextPart struct {
 }
 
 type TimeEvent struct {
-	Annotation *TimeEvent_annotation `json:"annotation,omitempty"`
-	Time       float64               `json:"time,omitempty"`
+	Annotation *TimeEventAnnotation `json:"annotation,omitempty"`
+	Time       float64              `json:"time,omitempty"`
 }
 
-type TimeEvent_annotation struct {
+type TimeEventAnnotation struct {
 	Attributes  map[string]any `json:"attributes,omitempty"`
 	Description string         `json:"description,omitempty"`
 }
@@ -276,20 +276,20 @@ type ToolDefinition struct {
 }
 
 type ToolRequestPart struct {
-	ToolRequest *ToolRequestPart_toolRequest `json:"toolRequest,omitempty"`
+	ToolRequest *ToolRequestPartToolRequest `json:"toolRequest,omitempty"`
 }
 
-type ToolRequestPart_toolRequest struct {
+type ToolRequestPartToolRequest struct {
 	Input any    `json:"input,omitempty"`
 	Name  string `json:"name,omitempty"`
 	Ref   string `json:"ref,omitempty"`
 }
 
 type ToolResponsePart struct {
-	ToolResponse *ToolResponsePart_toolResponse `json:"toolResponse,omitempty"`
+	ToolResponse *ToolResponsePartToolResponse `json:"toolResponse,omitempty"`
 }
 
-type ToolResponsePart_toolResponse struct {
+type ToolResponsePartToolResponse struct {
 	Name   string `json:"name,omitempty"`
 	Output any    `json:"output,omitempty"`
 	Ref    string `json:"ref,omitempty"`
