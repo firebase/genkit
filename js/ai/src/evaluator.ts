@@ -107,13 +107,13 @@ export function defineEvaluator<
   const evaluator = action(
     {
       name: options.name,
-      input: EvalRequestSchema.extend({
+      inputSchema: EvalRequestSchema.extend({
         dataset: options.dataPointType
           ? z.array(options.dataPointType)
           : z.array(BaseDataPointSchema),
         options: options.customOptionsType ?? z.unknown(),
       }),
-      output: EvaluatorResponseSchema,
+      outputSchema: EvaluatorResponseSchema,
     },
     (i) => {
       setCustomMetadataAttributes({ subtype: 'evaluator' });

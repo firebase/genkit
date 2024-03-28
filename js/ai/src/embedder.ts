@@ -72,12 +72,12 @@ export function defineEmbedder<
   const embedder = action(
     {
       name: options.name,
-      input: options.configSchema
+      inputSchema: options.configSchema
         ? EmbedRequestSchema.extend({
             options: options.configSchema.optional(),
           })
         : EmbedRequestSchema,
-      output: EmbedResponseSchema,
+      outputSchema: EmbedResponseSchema,
       metadata: {
         type: 'embedder',
         info: options.info,

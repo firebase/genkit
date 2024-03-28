@@ -98,17 +98,17 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   {
     name,
     description,
-    input,
+    inputSchema,
     inputJsonSchema,
-    output,
+    outputSchema,
     outputJsonSchema,
     metadata,
   }: {
     name: string;
     description: string;
-    input?: I;
+    inputSchema?: I;
     inputJsonSchema?: JSONSchema7;
-    output?: O;
+    outputSchema?: O;
     outputJsonSchema?: JSONSchema7;
     metadata?: Record<string, any>;
   },
@@ -118,9 +118,9 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     {
       name,
       description,
-      input,
+      inputSchema,
       inputJsonSchema,
-      output,
+      outputSchema,
       outputJsonSchema,
       metadata: { ...(metadata || {}), type: 'tool' },
     },

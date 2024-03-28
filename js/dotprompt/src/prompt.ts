@@ -178,13 +178,13 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
     this._action = action(
       {
         name: `${this.name}${this.variant ? `.${this.variant}` : ''}`,
-        input: this.input?.schema
+        inputSchema: this.input?.schema
           ? z.object({
               candidates: z.number().optional(),
               input: this.input!.schema.optional(),
             })
           : PromptInputSchema,
-        output: GenerationResponseSchema,
+        outputSchema: GenerationResponseSchema,
         metadata: {
           type: 'prompt',
           prompt: this.toJSON(),
