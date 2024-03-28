@@ -87,4 +87,10 @@ export const RunActionRequestSchema = z.object({
 
 export type RunActionRequest = z.infer<typeof RunActionRequestSchema>;
 
+export const PageViewSchema = z.object({
+  pageTitle: z.string().describe('Page that was viewed by the user.'),
+});
+
+export type PageView = z.infer<typeof PageViewSchema>;
+
 // TODO: Add return types if deemed necessary.

@@ -18,10 +18,9 @@ import { EvalRunSchema, LocalFileEvalStore } from '../eval';
 import { Runner } from '../runner/runner';
 import { GenkitToolsError } from '../runner/types';
 import { Action } from '../types/action';
-import { AnalyticsInfoSchema } from '../types/analytics';
 import * as apis from '../types/apis';
 import * as evals from '../types/eval';
-import { getAnalyticsSettings } from '../utils/analytics';
+import { PageViewEvent, record, ToolsRequestEvent } from '../utils/analytics';
 
 const t = initTRPC.create({
   errorFormatter(opts) {
@@ -42,6 +41,51 @@ const t = initTRPC.create({
   },
 });
 
+const analyticsEventForRoute = (
+  path: string,
+  input: unknown,
+  durationMs: number
+) => {
+  const event = new ToolsRequestEvent(path);
+  event.duration = durationMs;
+
+  switch (path) {
+    case 'runAction':
+      // set action type (flow, model, etc...)
+      const splits = (input as apis.RunActionRequest).key?.split('/');
+      event.parameters = {
+        ...event.parameters,
+        action: splits.length > 1 ? splits[1] : 'unknown',
+      };
+      break;
+    default:
+    // do nothing
+  }
+
+  return event;
+};
+
+/** Base handler that will send an analytics event */
+const loggedProcedure = t.procedure.use(async (opts) => {
+  const start = Date.now();
+  const result = await opts.next();
+  const durationMs = Date.now() - start;
+
+  const analyticsEvent = analyticsEventForRoute(
+    opts.path,
+    opts.rawInput,
+    durationMs
+    // TODO(michaeldoyle): record success/failure?
+  );
+
+  // fire-and-forget
+  record(analyticsEvent).catch((err) => {
+    console.log(`Failed to send analytics ${err}`);
+  });
+
+  return result;
+});
+
 // TODO make this a singleton provider instead
 const evalStore = new LocalFileEvalStore();
 
@@ -49,49 +93,49 @@ const evalStore = new LocalFileEvalStore();
 export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
   t.router({
     /** Retrieves all runnable actions. */
-    listActions: t.procedure.query(
+    listActions: loggedProcedure.query(
       async (): Promise<Record<string, Action>> => {
         return runner.listActions();
       }
     ),
 
     /** Runs an action. */
-    runAction: t.procedure
+    runAction: loggedProcedure
       .input(apis.RunActionRequestSchema)
       .mutation(async ({ input }) => {
         return runner.runAction(input);
       }),
 
     /** Retrieves all traces for a given environment (e.g. dev or prod). */
-    listTraces: t.procedure
+    listTraces: loggedProcedure
       .input(apis.ListTracesRequestSchema)
       .query(async ({ input }) => {
         return runner.listTraces(input);
       }),
 
     /** Retrieves a trace for a given ID. */
-    getTrace: t.procedure
+    getTrace: loggedProcedure
       .input(apis.GetTraceRequestSchema)
       .query(async ({ input }) => {
         return runner.getTrace(input);
       }),
 
     /** Retrieves all flow states for a given environment (e.g. dev or prod). */
-    listFlowStates: t.procedure
+    listFlowStates: loggedProcedure
       .input(apis.ListFlowStatesRequestSchema)
       .query(async ({ input }) => {
         return runner.listFlowStates(input);
       }),
 
     /** Retrieves a flow state for a given ID. */
-    getFlowState: t.procedure
+    getFlowState: loggedProcedure
       .input(apis.GetFlowStateRequestSchema)
       .query(async ({ input }) => {
         return runner.getFlowState(input);
       }),
 
     /** Retrieves all eval run keys */
-    listEvalRunKeys: t.procedure
+    listEvalRunKeys: loggedProcedure
       .input(evals.ListEvalKeysRequestSchema)
       .output(evals.ListEvalKeysResponseSchema)
       .query(async ({ input }) => {
@@ -102,7 +146,7 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
       }),
 
     /** Retrieves a single eval run by ID */
-    getEvalRun: t.procedure
+    getEvalRun: loggedProcedure
       .input(evals.GetEvalRunRequestSchema)
       .output(EvalRunSchema)
       .query(async ({ input }) => {
@@ -119,10 +163,12 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
         return evalRun;
       }),
 
-    /** Gets analytics session information */
-    getAnalyticsSettings: t.procedure
-      .output(AnalyticsInfoSchema)
-      .query(() => getAnalyticsSettings()),
+    /** Send a screen view analytics event */
+    sendPageView: t.procedure
+      .input(apis.PageViewSchema)
+      .query(async ({ input }) => {
+        await record(new PageViewEvent(input.pageTitle));
+      }),
   });
 
 export type ToolsServerRouter = ReturnType<typeof TOOLS_SERVER_ROUTER>;
