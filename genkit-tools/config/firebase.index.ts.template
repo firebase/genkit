@@ -1,4 +1,4 @@
-import { generate } from '@genkit-ai/ai/generate';
+import { generate } from '@genkit-ai/ai';
 import { noAuth, onFlow } from '@genkit-ai/plugin-firebase/functions';
 $GENKIT_MODEL_IMPORT
 import * as z from 'zod';

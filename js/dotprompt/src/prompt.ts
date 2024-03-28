@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { generate, GenerationResponse } from '@genkit-ai/ai/generate';
+import { generate, GenerationResponse } from '@genkit-ai/ai';
 import {
   GenerationRequest,
   GenerationResponseSchema,

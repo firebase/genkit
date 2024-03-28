@@ -171,7 +171,7 @@ await generate({
 To just call the model:
 
 ```javascript
-import { generate } from '@genkit-ai/ai/generate';
+import { generate } from '@genkit-ai/ai';
 import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 
 const llmResponse = await generate({

@@ -135,7 +135,7 @@
     Paste the following sample code into src/index.ts file:
 
     ```javascript
-    import { generate } from '@genkit-ai/ai/generate';
+    import { generate } from '@genkit-ai/ai';
     import { GenerationResponseChunkSchema } from '@genkit-ai/ai/model';
     import { getLocation, getProjectId } from '@genkit-ai/core';
     import { configureGenkit } from '@genkit-ai/core/config';

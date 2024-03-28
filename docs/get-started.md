@@ -45,7 +45,7 @@ later.
 1.  Create a file `index.ts` with the following contents:
 
     ```js
-    import { generate } from '@genkit-ai/ai/generate';
+    import { generate } from '@genkit-ai/ai';
     import { configureGenkit } from '@genkit-ai/core/config';
     import { flow } from '@genkit-ai/flow';
     import { geminiPro, googleGenAI } from '@genkit-ai/plugin-google-genai';
@@ -179,7 +179,7 @@ Cloud billing account.
 <!-- prettier-ignore-start -->
     ```js
     import * as z from "zod";
-    import {generate} from "@genkit-ai/ai/generate";
+    import {generate} from "@genkit-ai/ai";
     import {getProjectId} from "@genkit-ai/core";
     import {configureGenkit} from "@genkit-ai/core/config";
     import {firebase} from "@genkit-ai/plugin-firebase";
