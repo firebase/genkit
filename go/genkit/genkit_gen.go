@@ -17,12 +17,12 @@
 package genkit
 
 type Candidate struct {
-	Custom        any
-	FinishMessage string
-	FinishReason  FinishReason
-	Index         int
-	Message       *Message
-	Usage         *GenerationUsage
+	Custom        any              `json:"custom,omitempty"`
+	FinishMessage string           `json:"finishMessage,omitempty"`
+	FinishReason  FinishReason     `json:"finishReason,omitempty"`
+	Index         int              `json:"index,omitempty"`
+	Message       *Message         `json:"message,omitempty"`
+	Usage         *GenerationUsage `json:"usage,omitempty"`
 }
 
 type FinishReason string
@@ -36,94 +36,97 @@ const (
 )
 
 type DocumentData struct {
-	Content  []any
-	Metadata map[string]any
+	Content  []any          `json:"content,omitempty"`
+	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
 type FlowError struct {
-	Error      string
-	Stacktrace string
+	Error      string `json:"error,omitempty"`
+	Stacktrace string `json:"stacktrace,omitempty"`
 }
 
 type FlowInvokeEnvelopeMessage struct {
-	Resume       *FlowInvokeEnvelopeMessage_resume
-	Retry        *FlowInvokeEnvelopeMessage_retry
-	RunScheduled *FlowInvokeEnvelopeMessage_runScheduled
-	Schedule     *FlowInvokeEnvelopeMessage_schedule
-	Start        *FlowInvokeEnvelopeMessage_start
-	State        *FlowInvokeEnvelopeMessage_state
+	Resume       *FlowInvokeEnvelopeMessage_resume       `json:"resume,omitempty"`
+	Retry        *FlowInvokeEnvelopeMessage_retry        `json:"retry,omitempty"`
+	RunScheduled *FlowInvokeEnvelopeMessage_runScheduled `json:"runScheduled,omitempty"`
+	Schedule     *FlowInvokeEnvelopeMessage_schedule     `json:"schedule,omitempty"`
+	Start        *FlowInvokeEnvelopeMessage_start        `json:"start,omitempty"`
+	State        *FlowInvokeEnvelopeMessage_state        `json:"state,omitempty"`
 }
 
 type FlowInvokeEnvelopeMessage_resume struct {
-	FlowID  string
-	Payload any
+	FlowID  string `json:"flowId,omitempty"`
+	Payload any    `json:"payload,omitempty"`
 }
 
 type FlowInvokeEnvelopeMessage_retry struct {
-	FlowID string
+	FlowID string `json:"flowId,omitempty"`
 }
 
 type FlowInvokeEnvelopeMessage_runScheduled struct {
-	FlowID string
+	FlowID string `json:"flowId,omitempty"`
 }
 
 type FlowInvokeEnvelopeMessage_schedule struct {
-	Delay float64
-	Input any
+	Delay float64 `json:"delay,omitempty"`
+	Input any     `json:"input,omitempty"`
 }
 
 type FlowInvokeEnvelopeMessage_start struct {
-	Input  any
-	Labels map[string]string
+	Input  any               `json:"input,omitempty"`
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 type FlowInvokeEnvelopeMessage_state struct {
-	FlowID string
+	FlowID string `json:"flowId,omitempty"`
 }
 
 type FlowResponse struct {
-	Response any
+	Response any `json:"response,omitempty"`
 }
 
 type FlowState struct {
-	BlockedOnStep   any
-	Cache           map[string]any
-	EventsTriggered map[string]any
-	Executions      []*FlowStateExecution
-	FlowID          string
-	Input           any
-	Name            string
-	Operation       *Operation
-	StartTime       float64
-	TraceContext    string
+	BlockedOnStep   any                   `json:"blockedOnStep,omitempty"`
+	Cache           map[string]any        `json:"cache,omitempty"`
+	EventsTriggered map[string]any        `json:"eventsTriggered,omitempty"`
+	Executions      []*FlowStateExecution `json:"executions,omitempty"`
+	FlowID          string                `json:"flowId,omitempty"`
+	Input           any                   `json:"input,omitempty"`
+	Name            string                `json:"name,omitempty"`
+	Operation       *Operation            `json:"operation,omitempty"`
+	// start time in milliseconds since the epoch
+	StartTime    float64 `json:"startTime,omitempty"`
+	TraceContext string  `json:"traceContext,omitempty"`
 }
 
 type FlowStateExecution struct {
-	EndTime   float64
-	StartTime float64
-	TraceIDs  []string
+	// end time in milliseconds since the epoch
+	EndTime float64 `json:"endTime,omitempty"`
+	// start time in milliseconds since the epoch
+	StartTime float64  `json:"startTime,omitempty"`
+	TraceIDs  []string `json:"traceIds,omitempty"`
 }
 
 type GenerationConfig struct {
-	Custom          map[string]any
-	MaxOutputTokens float64
-	StopSequences   []string
-	Temperature     float64
-	TopK            float64
-	TopP            float64
+	Custom          map[string]any `json:"custom,omitempty"`
+	MaxOutputTokens float64        `json:"maxOutputTokens,omitempty"`
+	StopSequences   []string       `json:"stopSequences,omitempty"`
+	Temperature     float64        `json:"temperature,omitempty"`
+	TopK            float64        `json:"topK,omitempty"`
+	TopP            float64        `json:"topP,omitempty"`
 }
 
 type GenerationRequest struct {
-	Candidates float64
-	Config     *GenerationConfig
-	Messages   []*Message
-	Output     *GenerationRequestOutput
-	Tools      []*ToolDefinition
+	Candidates float64                  `json:"candidates,omitempty"`
+	Config     *GenerationConfig        `json:"config,omitempty"`
+	Messages   []*Message               `json:"messages,omitempty"`
+	Output     *GenerationRequestOutput `json:"output,omitempty"`
+	Tools      []*ToolDefinition        `json:"tools,omitempty"`
 }
 
 type GenerationRequestOutput struct {
-	Format OutputFormat
-	Schema map[string]any
+	Format OutputFormat   `json:"format,omitempty"`
+	Schema map[string]any `json:"schema,omitempty"`
 }
 
 type OutputFormat string
@@ -134,37 +137,37 @@ const (
 )
 
 type GenerationResponse struct {
-	Candidates []*Candidate
-	Custom     any
-	Usage      *GenerationUsage
+	Candidates []*Candidate     `json:"candidates,omitempty"`
+	Custom     any              `json:"custom,omitempty"`
+	Usage      *GenerationUsage `json:"usage,omitempty"`
 }
 
 type GenerationUsage struct {
-	Custom       map[string]float64
-	InputTokens  float64
-	OutputTokens float64
-	TotalTokens  float64
+	Custom       map[string]float64 `json:"custom,omitempty"`
+	InputTokens  float64            `json:"inputTokens,omitempty"`
+	OutputTokens float64            `json:"outputTokens,omitempty"`
+	TotalTokens  float64            `json:"totalTokens,omitempty"`
 }
 
 type Message struct {
-	Content []*Part
-	Role    Role
+	Content []*Part `json:"content,omitempty"`
+	Role    Role    `json:"role,omitempty"`
 }
 
 type Operation struct {
-	BlockedOnStep *BlockedOnStep
+	BlockedOnStep *BlockedOnStep `json:"blockedOnStep,omitempty"`
 	// If the value is false, it means the operation is still in progress. If true, the operation is completed, and either error or response is available.
-	Done bool
+	Done bool `json:"done,omitempty"`
 	// Service-specific metadata associated with the operation. It typically contains progress information and common metadata such as create time.
-	Metadata any
+	Metadata any `json:"metadata,omitempty"`
 	// server-assigned name, which is only unique within the same service that originally returns it.
-	Name   string
-	Result any
+	Name   string `json:"name,omitempty"`
+	Result any    `json:"result,omitempty"`
 }
 
 type BlockedOnStep struct {
-	Name   string
-	Schema string
+	Name   string `json:"name,omitempty"`
+	Schema string `json:"schema,omitempty"`
 }
 
 type Role string
@@ -178,28 +181,28 @@ const (
 
 type ToolDefinition struct {
 	// Valid JSON Schema representing the input of the tool.
-	InputSchema map[string]any
-	Name        string
+	InputSchema map[string]any `json:"inputSchema,omitempty"`
+	Name        string         `json:"name,omitempty"`
 	// Valid JSON Schema describing the output of the tool.
-	OutputSchema map[string]any
+	OutputSchema map[string]any `json:"outputSchema,omitempty"`
 }
 
 type ToolRequestPart struct {
-	ToolRequest *ToolRequestPart_toolRequest
+	ToolRequest *ToolRequestPart_toolRequest `json:"toolRequest,omitempty"`
 }
 
 type ToolRequestPart_toolRequest struct {
-	Input any
-	Name  string
-	Ref   string
+	Input any    `json:"input,omitempty"`
+	Name  string `json:"name,omitempty"`
+	Ref   string `json:"ref,omitempty"`
 }
 
 type ToolResponsePart struct {
-	ToolResponse *ToolResponsePart_toolResponse
+	ToolResponse *ToolResponsePart_toolResponse `json:"toolResponse,omitempty"`
 }
 
 type ToolResponsePart_toolResponse struct {
-	Name   string
-	Output any
-	Ref    string
+	Name   string `json:"name,omitempty"`
+	Output any    `json:"output,omitempty"`
+	Ref    string `json:"ref,omitempty"`
 }
