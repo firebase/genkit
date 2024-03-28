@@ -100,12 +100,23 @@ export class FirestoreTraceStore implements TraceStore {
   }
 
   async list(query?: TraceQuery): Promise<TraceQueryResponse> {
-    const data = await this.db
+    const limit = query?.limit || 10;
+    let fsQuery = this.db
       .collection(this.collection)
-      .orderBy('startTime', 'desc')
-      .limit(query?.limit || 10)
-      .get();
-    // TODO: add continuation token support
-    return { traces: data.docs.map((d) => d.data() as TraceData) };
+      .orderBy('startTime', 'desc');
+    if (query?.continuationToken) {
+      fsQuery = fsQuery.startAfter(parseInt(query.continuationToken));
+    }
+    fsQuery = fsQuery.limit(limit);
+
+    const data = await fsQuery.get();
+    const lastVisible = data.docs[data.docs.length - 1];
+    return {
+      traces: data.docs.map((d) => d.data() as TraceData),
+      continuationToken:
+        data.docs.length === limit
+          ? `${lastVisible.data().startTime}`
+          : undefined,
+    };
   }
 }

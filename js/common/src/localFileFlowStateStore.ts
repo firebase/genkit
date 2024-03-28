@@ -79,8 +79,7 @@ export class LocalFileFlowStateStore implements FlowStateStore {
     });
     return {
       flowStates,
-      continuationToken:
-        files.length > stopAt ? (stopAt + 1).toString() : undefined,
+      continuationToken: files.length > stopAt ? stopAt.toString() : undefined,
     };
   }
 }

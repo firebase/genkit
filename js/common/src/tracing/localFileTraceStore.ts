@@ -103,8 +103,7 @@ export class LocalFileTraceStore implements TraceStore {
     });
     return {
       traces,
-      continuationToken:
-        files.length > stopAt ? (stopAt + 1).toString() : undefined,
+      continuationToken: files.length > stopAt ? stopAt.toString() : undefined,
     };
   }
 }
