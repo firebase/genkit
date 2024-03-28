@@ -8,12 +8,11 @@
     "build:clean": "rm -rf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
-    "lint": "eslint --config ../.eslintrc.js --ext .ts src",
-    "lint:fix": "npm run lint -- --fix --quiet",
     "test": "node --loader tsx --test ./tests/**/*_test.ts"
   },
   "dependencies": {
-    "@genkit-ai/common": "*",
+    "@genkit-ai/common": "workspace:*",
+    "@opentelemetry/api": "^1.7.0",
     "@types/node": "^20.11.19",
     "crypto": "^1.0.1",
     "front-matter": "^4.0.2",
@@ -23,6 +22,7 @@
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5",
+    "tsup": "^8.0.2",
     "tsx": "^4.7.1",
     "typescript": "^4.9.0"
   },

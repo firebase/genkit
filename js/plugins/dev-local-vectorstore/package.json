@@ -7,13 +7,11 @@
     "compile": "tsup-node",
     "build:clean": "rm -rf ./lib",
     "build": "npm-run-all build:clean check compile",
-    "build:watch": "tsup-node --watch",
-    "lint": "eslint --config ../../.eslintrc.js --ext .ts src",
-    "lint:fix": "npm run lint -- --fix --quiet"
+    "build:watch": "tsup-node --watch"
   },
   "dependencies": {
-    "@genkit-ai/ai": "*",
-    "@genkit-ai/common": "*",
+    "@genkit-ai/ai": "workspace:*",
+    "@genkit-ai/common": "workspace:*",
     "compute-cosine-similarity": "^1.1.0",
     "ts-md5": "^1.3.1",
     "zod": "^3.22.4"

@@ -6,18 +6,18 @@
   "scripts": {
     "start": "node lib/index.js",
     "compile": "tsc",
-    "build": "npm run build:clean && npm run compile",
+    "build": "pnpm build:clean && pnpm compile",
     "build:clean": "rm -rf ./lib",
     "build:watch": "tsc --watch",
-    "build-and-run": "npm run build && node lib/index.js"
+    "build-and-run": "pnpm build && node lib/index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@genkit-ai/flow": "*",
-    "@genkit-ai/ai": "*",
-    "@genkit-ai/plugin-firebase": "*"
+    "@genkit-ai/flow": "workspace:*",
+    "@genkit-ai/ai": "workspace:*",
+    "@genkit-ai/plugin-firebase": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

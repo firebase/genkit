@@ -3,23 +3,24 @@
   "private": true,
   "version": "0.0.5",
   "scripts": {
+    "preinstall": "npx only-allow pnpm",
+    "setup": "npm-run-all pnpm-install-js pnpm-install-genkit-tools build link-genkit-tools",
     "format": "(prettier . --write) && (ts-node scripts/copyright.ts)",
     "format:check": "(prettier . --check) && (ts-node scripts/copyright.ts --check)",
-    "build:all": "concurrently npm:build:js npm:build:genkit-tools",
-    "build:js": "cd js && npm i && npm run build:all",
-    "build:genkit-tools": "cd genkit-tools && npm i && npm run build",
-    "npm-install-js": "cd js && npm install",
-    "npm-install-genkit-tools": "cd genkit-tools && npm install",
+    "build": "pnpm build:js && pnpm build:genkit-tools",
+    "build:js": "cd js && pnpm install && pnpm build",
+    "build:genkit-tools": "cd genkit-tools && pnpm install && pnpm build",
     "link-genkit-tools": "cd genkit-tools && npm link",
-    "setup": "npm-run-all npm-install-js npm-install-genkit-tools build:all link-genkit-tools",
-    "pack:all": "rm -r dist || true && mkdir dist && npm-run-all pack:js pack:tools dist:zip",
-    "pack:tools": "cd genkit-tools && npm run pack:all",
-    "pack:js": "cd js && npm run pack:all",
+    "pnpm-install-js": "cd js && pnpm install",
+    "pnpm-install-genkit-tools": "cd genkit-tools && pnpm install",
+    "pack:all": "rm -r dist || true && mkdir dist && pnpm run pack:tools && pnpm run pack:js && pnpm dist:zip",
+    "pack:tools": "cd genkit-tools && pnpm pack:all",
+    "pack:js": "cd js && pnpm pack:all",
     "dist:zip": "cd dist && zip genkit-dist.zip *.tgz",
     "test:all": "npm-run-all test:js test:genkit-tools",
-    "test:js": "cd js && npm i && npm run test:all",
-    "test:genkit-tools": "cd genkit-tools && npm i && npm run test:all",
-    "test:e2e": "npm run build:all && npm run pack:all && cd tests && npm run test"
+    "test:js": "cd js && pnpm install && pnpm test:all",
+    "test:genkit-tools": "cd genkit-tools && pnpm install && pnpm test:all",
+    "test:e2e": "pnpm build && pnpm pack:all && cd tests && pnpm test"
   },
   "pre-commit": [
     "format:check"
@@ -27,10 +28,12 @@
   "devDependencies": {
     "concurrently": "^8.2.2",
     "npm-run-all": "^4.1.5",
+    "only-allow": "^1.2.1",
     "pre-commit": "^1.2.2",
     "prettier": "^3.2.5",
     "prettier-plugin-css-order": "2.0.1",
     "prettier-plugin-organize-imports": "^3.2.4",
     "ts-node": "^10.9.2"
-  }
+  },
+  "packageManager": "pnpm@8.15.5+sha256.4b4efa12490e5055d59b9b9fc9438b7d581a6b7af3b5675eb5c5f447cee1a589"
 }

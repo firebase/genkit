@@ -32,11 +32,24 @@ use GitHub pull requests for this purpose. Consult
 [GitHub Help](https://help.github.com/articles/about-pull-requests/) for more
 information on using pull requests.
 
+## Environment
+
+1. [Install node v20](https://nodejs.org/en/download)
+2. Run `corepack enable pnpm` to enable pnpm.
+
+## Quick setup
+
+```
+pnpm i
+pnpm run setup
+```
+
+This will install all dependencies and build all packages.
+
 ## Build it
 
 ```
-npm i
-npm run build:all
+pnpm build
 ```
 
 This will build all packages in this repository. This is recommended the first time you check out a fresh repo or pull new revisions.
@@ -48,7 +61,7 @@ Pack packages for testing/distribution.
 Assuming you built everything previously....
 
 ```
-npm run pack:all
+pnpm pack:all
 ```
 
 this will produce tarballs in the `dist` folder. Also `genkit-dist.zip` -- a zip of all the package tarballs.
@@ -58,8 +71,8 @@ this will produce tarballs in the `dist` folder. Also `genkit-dist.zip` -- a zip
 You will need the genkit CLI to run samples and the Dev UI
 
 ```
-cd  genkit-tools
-npm link
+cd genkit-tools
+pnpm link
 ```
 
 ## Run it
@@ -120,20 +133,20 @@ As you make changes you may want to build an test things by running samples.
 You can reduce the scope of what you're building by running a specific build command:
 
 ```
-npm run build:genkit
-npm run build:genkit-tools
+pnpm build:genkit
+pnpm build:genkit-tools
 ```
 
 But you can also go into specific package that you changed and run
 
 ```
-npm run build
+pnpm build
 ```
 
 If you are going to be coding for a while then do
 
 ```
-npm run build:watch
+pnpm build:watch
 ```
 
 in the package that you're editing.
@@ -145,6 +158,6 @@ Once done coding you will want to send a PR. Always do things in a separate bran
 Before sending the PR, always run:
 
 ```
-npm run format
-npm run build:all
+pnpm format
+pnpm build
 ```

@@ -1,35 +1,31 @@
 {
   "private": true,
   "version": "0.0.5",
-  "workspaces": [
-    "./*",
-    "./plugins/*",
-    "./third_party/*",
-    "./samples/*"
-  ],
   "scripts": {
-    "install-parent-deps": "npm i",
-    "build:all": "npm-run-all build:common build:flow build:ai build:plugins build:third_party build:dotprompt pack:all build:samples",
-    "build:common": "cd common && npm install && npm run build",
-    "build:flow": "cd flow && npm install && npm run build",
-    "build:ai": "cd ai && npm install && npm run build",
-    "build:dotprompt": "cd dotprompt && npm install && npm run build",
-    "build:plugins": "for i in plugins/*/; do cd $i && npm install && npm run build && cd ../..; done",
-    "build:third_party": "for i in third_party/*/; do cd $i && npm install && npm run build && cd ../..; done",
-    "build:samples": "pwd && for i in samples/*/; do cd $i && npm install && npm run build && cd ../..; done",
-    "pack:all": "mkdir ../dist || true && npm-run-all pack:common pack:flow pack:ai pack:dotprompt pack:plugins pack:third_party",
-    "pack:common": "cd common && npm pack --pack-destination ../../dist -ws",
-    "pack:flow": "cd flow && npm pack --pack-destination ../../dist -ws",
-    "pack:ai": "cd ai && npm pack --pack-destination ../../dist -ws",
-    "pack:dotprompt": "cd dotprompt && npm pack --pack-destination ../../dist -ws",
-    "pack:plugins": "for i in plugins/*/; do cd $i && npm pack --pack-destination ../../../dist -ws && cd ../..; done",
-    "pack:third_party": "for i in third_party/*/; do cd $i && npm pack --pack-destination ../../../dist -ws && cd ../..; done",
+    "preinstall": "npx only-allow pnpm",
+    "build": "npm-run-all build:common build:flow build:ai build:plugins build:third_party build:dotprompt build:samples",
+    "build:common": "cd common && pnpm install && pnpm build",
+    "build:flow": "cd flow && pnpm install && pnpm build",
+    "build:ai": "cd ai && pnpm install && pnpm build",
+    "build:dotprompt": "cd dotprompt && pnpm install && pnpm build",
+    "build:plugins": "for i in plugins/*/; do cd $i && pnpm install && pnpm build && cd ../..; done",
+    "build:third_party": "for i in third_party/*/; do cd $i && pnpm install && pnpm build && cd ../..; done",
+    "build:samples": "pwd && for i in samples/*/; do cd $i && pnpm install && pnpm build && cd ../..; done",
+    "pack:all": "(mkdir ../dist || true) && npm-run-all pack:common pack:flow pack:ai pack:dotprompt pack:plugins pack:third_party",
+    "pack:common": "cd common && pnpm pack --pack-destination ../../dist",
+    "pack:flow": "cd flow && pnpm pack --pack-destination ../../dist",
+    "pack:ai": "cd ai && pnpm pack --pack-destination ../../dist",
+    "pack:dotprompt": "cd dotprompt && pnpm pack --pack-destination ../../dist",
+    "pack:plugins": "for i in plugins/*/; do cd $i && pnpm pack --pack-destination ../../../dist && cd ../..; done",
+    "pack:third_party": "for i in third_party/*/; do cd $i && pnpm pack --pack-destination ../../../dist && cd ../..; done",
     "test:all": "npm-run-all test:common test:flow",
-    "test:common": "cd common && npm run test",
-    "test:flow": "cd flow && npm run test"
+    "test:common": "cd common && pnpm test",
+    "test:flow": "cd flow && pnpm test"
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5",
+    "only-allow": "^1.2.1",
     "typescript": "^4.9.0"
-  }
+  },
+  "packageManager": "pnpm@8.15.5+sha256.4b4efa12490e5055d59b9b9fc9438b7d581a6b7af3b5675eb5c5f447cee1a589"
 }

@@ -2,3 +2,4 @@ go/
 public/
 .github/
 .prettierrc.yaml
+pnpm-lock.yaml

@@ -6,27 +6,29 @@
   "scripts": {
     "start": "node lib/index.js",
     "compile": "tsc",
-    "build": "npm run build:clean && npm run compile",
+    "build": "pnpm build:clean && pnpm compile",
     "build:clean": "rm -rf ./lib",
     "build:watch": "tsc --watch",
-    "build-and-run": "npm run build && node lib/index.js"
+    "build-and-run": "pnpm build && node lib/index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@genkit-ai/flow": "*",
-    "@genkit-ai/ai": "*",
-    "@genkit-ai/plugin-google-genai": "*",
-    "@genkit-ai/plugin-openai": "*",
-    "@genkit-ai/plugin-ragas": "*",
-    "@genkit-ai/plugin-vertex-ai": "*",
-    "@genkit-ai/plugin-chroma": "*",
-    "@genkit-ai/plugin-firebase": "*",
-    "@genkit-ai/plugin-dev-local-vectorstore": "*",
-    "@genkit-ai/plugin-ollama": "*",
-    "@genkit-ai/plugin-pinecone": "*",
-    "@genkit-ai/dotprompt": "*"
+    "@genkit-ai/ai": "workspace:*",
+    "@genkit-ai/common": "workspace:*",
+    "@genkit-ai/dotprompt": "workspace:*",
+    "@genkit-ai/flow": "workspace:*",
+    "@genkit-ai/plugin-chroma": "workspace:*",
+    "@genkit-ai/plugin-dev-local-vectorstore": "workspace:*",
+    "@genkit-ai/plugin-firebase": "workspace:*",
+    "@genkit-ai/plugin-google-genai": "workspace:*",
+    "@genkit-ai/plugin-ollama": "workspace:*",
+    "@genkit-ai/plugin-openai": "workspace:*",
+    "@genkit-ai/plugin-pinecone": "workspace:*",
+    "@genkit-ai/plugin-ragas": "workspace:*",
+    "@genkit-ai/plugin-vertex-ai": "workspace:*",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

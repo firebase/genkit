@@ -8,13 +8,11 @@
     "build:clean": "rm -rf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
-    "lint": "eslint --config ../.eslintrc.js --ext .ts src",
-    "lint:fix": "npm run lint -- --fix --quiet",
     "test": "node --experimental-loader tsx --test tests/*_test.ts"
   },
   "dependencies": {
-    "@genkit-ai/ai": "*",
-    "@genkit-ai/common": "*",
+    "@genkit-ai/ai": "workspace:*",
+    "@genkit-ai/common": "workspace:*",
     "@types/handlebars": "^4.1.0",
     "front-matter": "^4.0.2",
     "handlebars": "^4.7.8",
