@@ -19,7 +19,7 @@ import { basename } from 'path';
 
 import z from 'zod';
 
-import { registerAction } from '@genkit-ai/common/registry';
+import { registerAction } from '@genkit-ai/core/registry';
 
 import { PromptMetadata } from './metadata';
 import { Prompt, PromptAction, PromptInput } from './prompt';

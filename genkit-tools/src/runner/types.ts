@@ -17,7 +17,7 @@
 import { JSONSchema7 } from 'json-schema';
 import * as z from 'zod';
 
-// TODO: Temporarily here to get rid of the dependency on @genkit-ai/common.
+// TODO: Temporarily here to get rid of the dependency on @genkit-ai/core.
 // This will be replaced with a better interface.
 export interface ActionMetadata<
   I extends z.ZodTypeAny,

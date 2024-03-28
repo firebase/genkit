@@ -20,9 +20,9 @@ import {
   FlowStateQueryResponse,
   FlowStateSchema,
   FlowStateStore,
-} from '@genkit-ai/common';
-import { configureGenkit } from '@genkit-ai/common/config';
-import { registerFlowStateStore } from '@genkit-ai/common/registry';
+} from '@genkit-ai/core';
+import { configureGenkit } from '@genkit-ai/core/config';
+import { registerFlowStateStore } from '@genkit-ai/core/registry';
 
 export function configureInMemoryStateStore(
   env: string

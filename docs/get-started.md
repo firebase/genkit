@@ -46,7 +46,7 @@ later.
 
     ```js
     import { generate } from '@genkit-ai/ai/generate';
-    import { configureGenkit } from '@genkit-ai/common/config';
+    import { configureGenkit } from '@genkit-ai/core/config';
     import { flow } from '@genkit-ai/flow';
     import { geminiPro, googleGenAI } from '@genkit-ai/plugin-google-genai';
     import * as z from 'zod';
@@ -180,8 +180,8 @@ Cloud billing account.
     ```js
     import * as z from "zod";
     import {generate} from "@genkit-ai/ai/generate";
-    import {getProjectId} from "@genkit-ai/common";
-    import {configureGenkit} from "@genkit-ai/common/config";
+    import {getProjectId} from "@genkit-ai/core";
+    import {configureGenkit} from "@genkit-ai/core/config";
     import {firebase} from "@genkit-ai/plugin-firebase";
     import {noAuth, onFlow} from "@genkit-ai/plugin-firebase/functions";
     import {geminiPro, googleGenAI} from "@genkit-ai/plugin-google-genai";

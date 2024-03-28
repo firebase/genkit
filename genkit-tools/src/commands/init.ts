@@ -39,7 +39,7 @@ const modelToPlugin: Record<string, string> = {
 const externalPackages = ['zod', 'express'];
 /** Core packages required to use Genkit. */
 const corePackages = [
-  '@genkit-ai/common',
+  '@genkit-ai/core',
   '@genkit-ai/ai',
   '@genkit-ai/dotprompt',
   '@genkit-ai/flow',

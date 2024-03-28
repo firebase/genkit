@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { getLocation, getProjectId } from '@genkit-ai/common';
-import { configureGenkit } from '@genkit-ai/common/config';
+import { getLocation, getProjectId } from '@genkit-ai/core';
+import { configureGenkit } from '@genkit-ai/core/config';
 import { firebase } from '@genkit-ai/plugin-firebase';
 import { gcp } from '@genkit-ai/plugin-gcp';
 import { googleGenAI } from '@genkit-ai/plugin-google-genai';

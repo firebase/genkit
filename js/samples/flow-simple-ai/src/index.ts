@@ -16,7 +16,7 @@
 
 import { generate } from '@genkit-ai/ai/generate';
 import { defineTool } from '@genkit-ai/ai/tool';
-import { initializeGenkit } from '@genkit-ai/common/config';
+import { initializeGenkit } from '@genkit-ai/core/config';
 import { flow, run } from '@genkit-ai/flow';
 import { geminiPro as googleGeminiPro } from '@genkit-ai/plugin-google-genai';
 import { gpt35Turbo, gpt4, gpt4Turbo } from '@genkit-ai/plugin-openai';

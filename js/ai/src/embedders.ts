@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { action, Action } from '@genkit-ai/common';
-import * as registry from '@genkit-ai/common/registry';
-import { lookupAction } from '@genkit-ai/common/registry';
-import { setCustomMetadataAttributes } from '@genkit-ai/common/tracing';
+import { action, Action } from '@genkit-ai/core';
+import * as registry from '@genkit-ai/core/registry';
+import { lookupAction } from '@genkit-ai/core/registry';
+import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import * as z from 'zod';
 import { Document, DocumentData, DocumentDataSchema } from './document';
 

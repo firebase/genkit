@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/common": "workspace:*",
+    "@genkit-ai/core": "workspace:*",
     "@types/handlebars": "^4.1.0",
     "front-matter": "^4.0.2",
     "handlebars": "^4.7.8",

@@ -18,8 +18,8 @@ import {
   Action,
   runWithStreamingCallback,
   StreamingCallback,
-} from '@genkit-ai/common';
-import { lookupAction } from '@genkit-ai/common/registry';
+} from '@genkit-ai/core';
+import { lookupAction } from '@genkit-ai/core/registry';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { extractJson } from './extract';

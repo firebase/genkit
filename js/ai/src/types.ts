@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Action } from '@genkit-ai/common';
+import { Action } from '@genkit-ai/core';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 

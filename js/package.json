@@ -4,17 +4,17 @@
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "build": "pnpm install && pnpm build:core && pnpm build:noncore",
-    "build:core": "pnpm -r --workspace-concurrency 1 -F common -F ai -F flow -F dotprompt build",
+    "build:core": "pnpm -r --workspace-concurrency 1 -F core -F ai -F flow -F dotprompt build",
     "build:noncore": "pnpm -r --workspace-concurrency 0 -F \"./(plugins|samples|third_party)/**\" build",
-    "pack:all": "(mkdir ../dist || true) && npm-run-all pack:common pack:flow pack:ai pack:dotprompt pack:plugins pack:third_party",
-    "pack:common": "cd common && pnpm pack --pack-destination ../../dist",
+    "pack:all": "(mkdir ../dist || true) && npm-run-all pack:core pack:flow pack:ai pack:dotprompt pack:plugins pack:third_party",
+    "pack:core": "cd core && pnpm pack --pack-destination ../../dist",
     "pack:flow": "cd flow && pnpm pack --pack-destination ../../dist",
     "pack:ai": "cd ai && pnpm pack --pack-destination ../../dist",
     "pack:dotprompt": "cd dotprompt && pnpm pack --pack-destination ../../dist",
     "pack:plugins": "for i in plugins/*/; do cd $i && pnpm pack --pack-destination ../../../dist && cd ../..; done",
     "pack:third_party": "for i in third_party/*/; do cd $i && pnpm pack --pack-destination ../../../dist && cd ../..; done",
-    "test:all": "npm-run-all test:common test:flow",
-    "test:common": "cd common && pnpm test",
+    "test:all": "npm-run-all test:core test:flow",
+    "test:core": "cd core && pnpm test",
     "test:flow": "cd flow && pnpm test"
   },
   "devDependencies": {

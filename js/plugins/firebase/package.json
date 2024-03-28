@@ -10,7 +10,7 @@
     "build:watch": "tsup-node --watch"
   },
   "dependencies": {
-    "@genkit-ai/common": "workspace:*",
+    "@genkit-ai/core": "workspace:*",
     "@genkit-ai/flow": "workspace:*",
     "express": "^4.19.2",
     "firebase-admin": "^11.11.0",

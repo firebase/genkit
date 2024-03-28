@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { getLocation, OperationSchema } from '@genkit-ai/common';
+import { getLocation, OperationSchema } from '@genkit-ai/core';
 import {
   Flow,
   flow,

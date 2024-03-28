@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { genkitPlugin, Plugin } from '@genkit-ai/common/config';
+import { genkitPlugin, Plugin } from '@genkit-ai/core/config';
 import {
   geminiPro,
   geminiProVision,

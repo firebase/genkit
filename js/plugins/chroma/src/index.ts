@@ -23,7 +23,7 @@ import {
   indexerRef,
   retrieverRef,
 } from '@genkit-ai/ai/retrievers';
-import { genkitPlugin, PluginProvider } from '@genkit-ai/common/config';
+import { genkitPlugin, PluginProvider } from '@genkit-ai/core/config';
 import {
   ChromaClient,
   ChromaClientParams,

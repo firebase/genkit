@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/common": "workspace:*",
+    "@genkit-ai/core": "workspace:*",
     "@google-cloud/logging-winston": "^6.0.0",
     "@google-cloud/opentelemetry-cloud-monitoring-exporter": "^0.17.0",
     "@google-cloud/opentelemetry-cloud-trace-exporter": "^2.1.0",

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { genkitPlugin, Plugin } from '@genkit-ai/common/config';
-import { FirestoreTraceStore } from '@genkit-ai/common/tracing';
+import { genkitPlugin, Plugin } from '@genkit-ai/core/config';
+import { FirestoreTraceStore } from '@genkit-ai/core/tracing';
 import { FirestoreStateStore } from '@genkit-ai/flow';
 
 interface FirestorePluginParams {

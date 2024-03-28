@@ -69,7 +69,7 @@ import { geminiPro, geminiProVision } from '@genkit-ai/plugin-google-genai';
 
 ```js
 import { vertexAI } from '@genkit-ai/plugin-vertex-ai';
-import { getProjectId } from '@genkit-ai/common';
+import { getProjectId } from '@genkit-ai/core';
 
 export default configureGenkit({
   plugins: [vertexAI({ projectId: getProjectId(), location: 'us-central1' })],

@@ -15,7 +15,7 @@
  */
 
 import { generate } from '@genkit-ai/ai/generate';
-import { initializeGenkit } from '@genkit-ai/common/config';
+import { initializeGenkit } from '@genkit-ai/core/config';
 import { durableFlow, interrupt, run } from '@genkit-ai/flow/experimental';
 import { geminiPro } from '@genkit-ai/plugin-google-genai';
 import * as z from 'zod';

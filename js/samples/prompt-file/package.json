@@ -4,7 +4,7 @@
   "description": "",
   "dependencies": {
     "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/common": "workspace:^",
+    "@genkit-ai/core": "workspace:^",
     "@genkit-ai/dotprompt": "workspace:*",
     "@genkit-ai/flow": "workspace:*",
     "zod": "^3.22.4"

@@ -19,9 +19,9 @@ import {
   action,
   getStreamingCallback,
   StreamingCallback,
-} from '@genkit-ai/common';
-import * as registry from '@genkit-ai/common/registry';
-import { setCustomMetadataAttributes } from '@genkit-ai/common/tracing';
+} from '@genkit-ai/core';
+import * as registry from '@genkit-ai/core/registry';
+import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import { performance } from 'node:perf_hooks';
 import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';

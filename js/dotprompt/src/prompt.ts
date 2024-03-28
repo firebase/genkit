@@ -21,8 +21,8 @@ import {
   MessageData,
 } from '@genkit-ai/ai/model';
 import { resolveTools, toToolDefinition } from '@genkit-ai/ai/tool';
-import { Action, action } from '@genkit-ai/common';
-import { setCustomMetadataAttributes } from '@genkit-ai/common/tracing';
+import { Action, action } from '@genkit-ai/core';
+import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import { createHash } from 'crypto';
 import fm, { FrontMatterResult } from 'front-matter';
 import z from 'zod';

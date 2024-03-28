@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { TelemetryConfig } from '@genkit-ai/common';
+import { TelemetryConfig } from '@genkit-ai/core';
 import { MetricExporter } from '@google-cloud/opentelemetry-cloud-monitoring-exporter';
 import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
