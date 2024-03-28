@@ -33,20 +33,20 @@
       "require": "./lib/index.js",
       "import": "./lib/index.mjs"
     },
-    "./retrievers": {
-      "types": "./lib/retrievers.d.ts",
-      "require": "./lib/retrievers.js",
-      "import": "./lib/retrievers.mjs"
+    "./retriever": {
+      "types": "./lib/retriever.d.ts",
+      "require": "./lib/retriever.js",
+      "import": "./lib/retriever.mjs"
     },
-    "./embedders": {
-      "types": "./lib/embedders.d.ts",
-      "require": "./lib/embedders.js",
-      "import": "./lib/embedders.mjs"
+    "./embedder": {
+      "types": "./lib/embedder.d.ts",
+      "require": "./lib/embedder.js",
+      "import": "./lib/embedder.mjs"
     },
-    "./evaluators": {
-      "types": "./lib/evaluators.d.ts",
-      "require": "./lib/evaluators.js",
-      "import": "./lib/evaluators.mjs"
+    "./evaluator": {
+      "types": "./lib/evaluator.d.ts",
+      "require": "./lib/evaluator.js",
+      "import": "./lib/evaluator.mjs"
     },
     "./model": {
       "types": "./lib/model.d.ts",
@@ -76,14 +76,14 @@
   },
   "typesVersions": {
     "*": {
-      "retrievers": [
-        "lib/retrievers"
+      "retriever": [
+        "lib/retriever"
       ],
-      "embedders": [
-        "lib/embedders"
+      "embedder": [
+        "lib/embedder"
       ],
-      "evaluators": [
-        "lib/evaluators"
+      "evaluator": [
+        "lib/evaluator"
       ],
       "model": [
         "lib/model"

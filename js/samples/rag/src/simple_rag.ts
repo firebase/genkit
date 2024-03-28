@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Document, index, retrieve } from '@genkit-ai/ai/retrievers';
+import { Document, index, retrieve } from '@genkit-ai/ai/retriever';
 import { flow } from '@genkit-ai/flow';
 import { chromaIndexerRef, chromaRetrieverRef } from '@genkit-ai/plugin-chroma';
 import {

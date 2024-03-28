@@ -15,7 +15,7 @@
  */
 
 import { generate } from '@genkit-ai/ai/generate';
-import { Document, index, retrieve } from '@genkit-ai/ai/retrievers';
+import { Document, index, retrieve } from '@genkit-ai/ai/retriever';
 import { flow, run } from '@genkit-ai/flow';
 import {
   devLocalIndexerRef,
