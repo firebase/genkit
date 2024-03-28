@@ -20,6 +20,7 @@ import {
   EvalResult,
   enrichResultsWithScoring,
 } from '../../src/eval';
+import { EvaluatorResponse } from '../../src/types/evaluators';
 
 describe('parser', () => {
   const evalRunResults: EvalResult[] = [
@@ -49,68 +50,48 @@ describe('parser', () => {
     },
   ];
 
-  const evaluatorOutput = {
+  const evaluatorOutput: Record<string, EvaluatorResponse> = {
     '/evaluator/ragas/faithfulness': [
       {
-        sample: {
-          input: '"Who is spongebobs best friend?"',
-          output: '"Patrick"',
-          context: [
-            "Spongebob's best friend is Patrick.",
-            'Spongebob has a friend named Patrick.',
-            'Spongebob has a friend named Sandy.',
-          ],
-          testCaseId: 'case1',
-        },
-        score: {
-          FAITHFULNESS: 1,
+        testCaseId: 'case1',
+        sampleIndex: 0,
+        evaluation: {
+          score: 1,
+          details: {
+            reasoning: 'It looks good to me!',
+          },
         },
       },
       {
-        sample: {
-          input: '"How many friends does Spongebob have?"',
-          output: '"2"',
-          context: [
-            "Spongebob's best friend is Patrick.",
-            'Spongebob has a friend named Patrick.',
-            'Spongebob has a friend named Sandy.',
-          ],
-          testCaseId: 'case2',
-        },
-        score: {
-          FAITHFULNESS: 1,
+        testCaseId: 'case2',
+        sampleIndex: 1,
+        evaluation: {
+          score: 1,
+          details: {
+            reasoning: 'I thought the LLM did a very nice job',
+          },
         },
       },
     ],
     '/evaluator/ragas/context_relevancy': [
       {
-        sample: {
-          input: '"Who is spongebobs best friend"',
-          output: '"Patrick"',
-          context: [
-            "Spongebob's best friend is Patrick.",
-            'Spongebob has a friend named Patrick.',
-            'Spongebob has a friend named Sandy.',
-          ],
-          testCaseId: 'case1',
-        },
-        score: {
-          CONTEXT_RELEVANCY: 1,
+        testCaseId: 'case1',
+        sampleIndex: 0,
+        evaluation: {
+          score: 1,
+          details: {
+            reasoning: 'Context was utilized.',
+          },
         },
       },
       {
-        sample: {
-          input: '"How many friends does Spongebob have?"',
-          output: '"2"',
-          context: [
-            "Spongebob's best friend is Patrick.",
-            'Spongebob has a friend named Patrick.',
-            'Spongebob has a friend named Sandy.',
-          ],
-          testCaseId: 'case2',
-        },
-        score: {
-          CONTEXT_RELEVANCY: 1,
+        testCaseId: 'case2',
+        sampleIndex: 0,
+        evaluation: {
+          score: 1,
+          details: {
+            reasoning: 'Context was utilized.',
+          },
         },
       },
     ],

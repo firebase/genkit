@@ -176,5 +176,14 @@ describe('localFileEvalStore', () => {
       const expectedKeys = { results: [evalRunWithAction.key] };
       expect(fetchedEvalKeys).toMatchObject(expectedKeys);
     });
+
+    it('lists all evalRun keys from empty file', async () => {
+      const fetchedEvalKeys = await evalStore.list();
+
+      const expectedKeys = {
+        results: [],
+      };
+      expect(fetchedEvalKeys).toMatchObject(expectedKeys);
+    });
   });
 });
