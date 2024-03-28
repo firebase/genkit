@@ -190,16 +190,17 @@ func nameAnonymousTypes(schemas map[string]*Schema) {
 	nameFields = func(prefix string, props map[string]*Schema) {
 		for fieldName, fs := range props {
 			if fs.Enum != nil || (fs.Type.Any() == "object" && fs.Properties != nil) {
-				newName := prefix + fieldName
+				fname := adjustIdentifier(fieldName)
+				newName := prefix + fname
 				schemas[newName] = fs
 				props[fieldName] = &Schema{Ref: refPrefix + newName}
-				nameFields(prefix+fieldName+"_", fs.Properties)
+				nameFields(prefix+fname, fs.Properties)
 			}
 		}
 
 	}
 	for typeName, ts := range schemas {
-		nameFields(typeName+"_", ts.Properties)
+		nameFields(typeName, ts.Properties)
 	}
 }
 
