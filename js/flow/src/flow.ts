@@ -755,8 +755,8 @@ function wrapAsAction<
   return action(
     {
       name: flow.name,
-      input: FlowActionInputSchema,
-      output: FlowStateSchema,
+      inputSchema: FlowActionInputSchema,
+      outputSchema: FlowStateSchema,
       metadata: {
         inputSchema: zodToJsonSchema(flow.input),
         outputSchema: zodToJsonSchema(flow.output),

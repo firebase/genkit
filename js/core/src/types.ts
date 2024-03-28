@@ -59,17 +59,17 @@ export function action<
   config: {
     name: string;
     description?: string;
-    input?: I;
+    inputSchema?: I;
     inputJsonSchema?: JSONSchema7;
-    output?: O;
+    outputSchema?: O;
     outputJsonSchema?: JSONSchema7;
     metadata?: M;
   },
   fn: (input: z.infer<I>) => Promise<z.infer<O>>
 ): Action<I, O> {
   const actionFn = async (input: I) => {
-    if (config.input) {
-      input = config.input.parse(input);
+    if (config.inputSchema) {
+      input = config.inputSchema.parse(input);
     }
     let output = await runInNewSpan(
       {
@@ -102,17 +102,17 @@ export function action<
         }
       }
     );
-    if (config.output) {
-      output = config.output.parse(output);
+    if (config.outputSchema) {
+      output = config.outputSchema.parse(output);
     }
     return output;
   };
   actionFn.__action = {
     name: config.name,
     description: config.description,
-    inputSchema: config.input,
+    inputSchema: config.inputSchema,
     inputJsonSchema: config.inputJsonSchema,
-    outputSchema: config.output,
+    outputSchema: config.outputSchema,
     outputJsonSchema: config.outputJsonSchema,
     metadata: config.metadata,
   };

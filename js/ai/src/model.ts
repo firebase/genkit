@@ -293,8 +293,8 @@ export function defineModel<
     {
       name: options.name,
       description: label,
-      input: GenerationRequestSchema,
-      output: GenerationResponseSchema,
+      inputSchema: GenerationRequestSchema,
+      outputSchema: GenerationResponseSchema,
       metadata: {
         model: {
           label,

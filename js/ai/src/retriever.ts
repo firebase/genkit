@@ -117,12 +117,12 @@ export function defineRetriever<
   const retriever = action(
     {
       name: options.name,
-      input: options.configSchema
+      inputSchema: options.configSchema
         ? RetrieverRequestSchema.extend({
             options: options.configSchema.optional(),
           })
         : RetrieverRequestSchema,
-      output: RetrieverResponseSchema,
+      outputSchema: RetrieverResponseSchema,
       metadata: {
         type: 'retriever',
         info: options.info,
@@ -158,12 +158,12 @@ export function defineIndexer<IndexerOptions extends z.ZodTypeAny>(
   const indexer = action(
     {
       name: options.name,
-      input: options.configSchema
+      inputSchema: options.configSchema
         ? IndexerRequestSchema.extend({
             options: options.configSchema.optional(),
           })
         : IndexerRequestSchema,
-      output: z.void(),
+      outputSchema: z.void(),
       metadata: {
         type: 'indexer',
         embedderInfo: options.embedderInfo,
