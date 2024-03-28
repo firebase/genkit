@@ -95,16 +95,16 @@ type FlowState struct {
 	Name            string                `json:"name,omitempty"`
 	Operation       *Operation            `json:"operation,omitempty"`
 	// start time in milliseconds since the epoch
-	StartTime    float64 `json:"startTime,omitempty"`
-	TraceContext string  `json:"traceContext,omitempty"`
+	StartTime    Milliseconds `json:"startTime,omitempty"`
+	TraceContext string       `json:"traceContext,omitempty"`
 }
 
 type FlowStateExecution struct {
 	// end time in milliseconds since the epoch
-	EndTime float64 `json:"endTime,omitempty"`
+	EndTime Milliseconds `json:"endTime,omitempty"`
 	// start time in milliseconds since the epoch
-	StartTime float64  `json:"startTime,omitempty"`
-	TraceIDs  []string `json:"traceIds,omitempty"`
+	StartTime Milliseconds `json:"startTime,omitempty"`
+	TraceIDs  []string     `json:"traceIds,omitempty"`
 }
 
 type GenerationConfig struct {
