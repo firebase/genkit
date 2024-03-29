@@ -19,8 +19,10 @@ import { Runner } from '../runner/runner';
 import { GenkitToolsError } from '../runner/types';
 import { Action } from '../types/action';
 import * as apis from '../types/apis';
+import { EnvironmentVariable } from '../types/env';
 import * as evals from '../types/eval';
 import { PageViewEvent, record, ToolsRequestEvent } from '../utils/analytics';
+import { version } from '../utils/version';
 
 const t = initTRPC.create({
   errorFormatter(opts) {
@@ -63,6 +65,27 @@ const analyticsEventForRoute = (
   }
 
   return event;
+};
+
+const parseEnv = (environ: NodeJS.ProcessEnv): EnvironmentVariable[] => {
+  const environmentVars: EnvironmentVariable[] = [];
+
+  Object.entries(environ)
+    .sort((a, b) => {
+      // sort by name
+      if (a[0] < b[0]) {
+        return -1;
+      }
+      if (a[0] > b[0]) {
+        return 1;
+      }
+      return 0;
+    })
+    .forEach(([name, value]) => {
+      environmentVars.push({ name, value: value || '' });
+    });
+
+  return environmentVars;
 };
 
 /** Base handler that will send an analytics event */
@@ -166,6 +189,15 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
       .query(async ({ input }) => {
         await record(new PageViewEvent(input.pageTitle));
       }),
+
+    /** Genkit Environment Information */
+    getGenkitEnvironment: t.procedure.query(() => {
+      return {
+        cliPackageVersion: version,
+        //TODO(michaeldoyle): packageVersion: ???,
+        environmentVars: parseEnv(process.env),
+      };
+    }),
   });
 
 export type ToolsServerRouter = ReturnType<typeof TOOLS_SERVER_ROUTER>;
