@@ -43,6 +43,17 @@ guides:
     path: /genkit/firebase
   - title: Deploy Cloud Run
     path: /genkit/cloud-run
+
+  - heading: Official plugins
+  - title: Google Generative AI
+    path: /genkit/plugins/google-genai
+  - title: Google Vertex AI
+    path: /genkit/plugins/vertex-ai
+  - title: OpenAI
+    path: /genkit/plugins/openai
+  - title: Ollama
+    path: /genkit/plugins/ollama
+
 reference:
   - title: Resource summary
     path: /genkit/reference/coming-soon
