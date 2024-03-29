@@ -33,6 +33,7 @@ import {
   record,
 } from './utils/analytics';
 import { logger } from './utils/logger';
+import { version } from './utils/version';
 
 /**
  * All commands need to be directly registered in this list.
@@ -57,7 +58,7 @@ export async function startCLI(): Promise<void> {
   program
     .name('genkit')
     .description('Google Genkit CLI')
-    .version('0.0.1')
+    .version(version)
     .hook('preAction', async (_, actionCommand) => {
       // For now only record known command names, to avoid tools plugins causing
       // arbitrary text to get recorded. Once we launch tools plugins, we'll have
