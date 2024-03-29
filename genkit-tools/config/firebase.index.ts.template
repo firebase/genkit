@@ -1,5 +1,6 @@
 import { generate } from '@genkit-ai/ai';
-import { noAuth, onFlow } from '@genkit-ai/plugin-firebase/functions';
+import { firebaseAuth } from '@genkit-ai/plugin-firebase/auth';
+import { onFlow } from '@genkit-ai/plugin-firebase/functions';
 $GENKIT_MODEL_IMPORT
 import * as z from 'zod';
 
@@ -8,7 +9,11 @@ export const jokeFlow = onFlow(
     name: 'jokeFlow',
     input: z.string(),
     output: z.string(),
-    authPolicy: noAuth(),
+    authPolicy: firebaseAuth((user) => {
+      if (!user.email_verified) {
+        throw new Error('Verified email required to run flow');
+      }
+    }),
   },
   async (subject) => {
     const prompt = `Tell me a joke about ${subject}`;
