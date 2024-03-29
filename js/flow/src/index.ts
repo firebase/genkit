@@ -28,7 +28,7 @@ export {
   FlowWrapper,
   StepsFunction,
   __RequestWithAuth,
-  flow,
+  defineFlow,
   runFlow,
   startFlowsServer,
   streamFlow,

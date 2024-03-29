@@ -25,12 +25,12 @@ import {
   resumeFlow,
   scheduleFlow,
 } from '../src/experimental';
-import { flow, runFlow } from '../src/flow';
+import { defineFlow, runFlow } from '../src/flow';
 
 import { asyncTurn, configureInMemoryStateStore } from './testUtil';
 
 function createSimpleTestDurableFlow() {
-  return flow(
+  return defineFlow(
     {
       name: 'testFlow',
       input: z.string(),
@@ -64,7 +64,7 @@ describe('durable', () => {
   describe('resumeFlow', () => {
     it('should run the flow', async () => {
       configureInMemoryStateStore('prod');
-      const testFlow = flow(
+      const testFlow = defineFlow(
         {
           name: 'testFlow',
           input: z.string(),

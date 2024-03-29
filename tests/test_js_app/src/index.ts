@@ -18,7 +18,7 @@ import { generate } from '@genkit-ai/ai';
 import { defineModel } from '@genkit-ai/ai/model';
 import { getProjectId } from '@genkit-ai/core';
 import { configureGenkit } from '@genkit-ai/core/config';
-import { flow } from '@genkit-ai/flow';
+import { defineFlow } from '@genkit-ai/flow';
 import { firebase } from '@genkit-ai/plugin-firebase';
 import * as z from 'zod';
 
@@ -54,7 +54,7 @@ export default configureGenkit({
   logLevel: 'debug',
 });
 
-export const testFlow = flow(
+export const testFlow = defineFlow(
   { name: 'testFlow', input: z.string(), output: z.string() },
   async (subject) => {
     const response = await generate({

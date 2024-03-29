@@ -47,7 +47,7 @@ later.
     ```js
     import { generate } from '@genkit-ai/ai';
     import { configureGenkit } from '@genkit-ai/core/config';
-    import { flow } from '@genkit-ai/flow';
+    import { defineFlow } from '@genkit-ai/flow';
     import { geminiPro, googleGenAI } from '@genkit-ai/plugin-google-genai';
     import * as z from 'zod';
 
@@ -57,7 +57,7 @@ later.
       logLevel: 'debug',
     });
 
-    export const jokeFlow = flow(
+    export const jokeFlow = defineFlow(
       { name: 'jokeFlow', input: z.string(), output: z.string() },
       async (subject) => {
         const llmResponse = await generate({

@@ -90,7 +90,7 @@ Here's an example flow that uses a PDF file to generate possible questions
 users might be asking about it.
 
 ```js
-export const synthesizeQuestions = flow(
+export const synthesizeQuestions = defineFlow(
   {
     name: 'synthesizeQuestions',
     input: z.string().describe('PDF file path'),

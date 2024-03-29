@@ -16,14 +16,14 @@
 
 import { generate } from '@genkit-ai/ai';
 import { initializeGenkit } from '@genkit-ai/core/config';
-import { flow, run, runFlow } from '@genkit-ai/flow';
+import { defineFlow, run, runFlow } from '@genkit-ai/flow';
 import express, { Request, Response } from 'express';
 import * as z from 'zod';
 import config from './genkit.config';
 
 initializeGenkit(config);
 
-export const jokeFlow = flow(
+export const jokeFlow = defineFlow(
   { name: 'jokeFlow', input: z.string(), output: z.string() },
   async (subject) => {
     return await run('call-llm', async () => {

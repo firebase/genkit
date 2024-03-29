@@ -20,11 +20,11 @@ import { __hardResetRegistryForTesting } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
-import { flow, runFlow } from '../src/flow';
+import { defineFlow, runFlow } from '../src/flow';
 import { configureInMemoryStateStore } from './testUtil';
 
 function createTestFlow() {
-  return flow(
+  return defineFlow(
     {
       name: 'testFlow',
       input: z.string(),
@@ -55,7 +55,7 @@ describe('flow', () => {
 
     it('should rethrow the error', async () => {
       configureInMemoryStateStore('prod');
-      const testFlow = flow(
+      const testFlow = defineFlow(
         {
           name: 'throwing',
           input: z.string(),
@@ -74,7 +74,7 @@ describe('flow', () => {
 
     it('should validate input', async () => {
       configureInMemoryStateStore('prod');
-      const testFlow = flow(
+      const testFlow = defineFlow(
         {
           name: 'validating',
           input: z.object({ foo: z.string(), bar: z.number() }),

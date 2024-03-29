@@ -16,7 +16,7 @@
 
 import { initializeGenkit } from '@genkit-ai/core/config';
 import { definePrompt } from '@genkit-ai/dotprompt';
-import { flow, runFlow } from '@genkit-ai/flow';
+import { defineFlow, runFlow } from '@genkit-ai/flow';
 import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 import * as z from 'zod';
 import config from './genkit.config';
@@ -48,7 +48,7 @@ Greet the customer in one sentence, and recommend a coffee drink.
 `
 );
 
-export const simpleGreetingFlow = flow(
+export const simpleGreetingFlow = defineFlow(
   { name: 'simpleGreeting', input: CustomerNameSchema, output: z.string() },
   async (input) =>
     (await simpleGreetingPrompt.generate({ input: input })).text()
@@ -88,7 +88,7 @@ I want you to greet me in one sentence, and recommend a drink.
 `
 );
 
-export const greetingWithHistoryFlow = flow(
+export const greetingWithHistoryFlow = defineFlow(
   {
     name: 'greetingWithHistory',
     input: CustomerTimeAndHistorySchema,
@@ -102,7 +102,7 @@ export const greetingWithHistoryFlow = flow(
 // Run on the CLI with `$ genkit flow:run testAllCoffeeFlows`
 // View the trace in the dev ui to see the llm responses.
 
-export const testAllCoffeeFlows = flow(
+export const testAllCoffeeFlows = defineFlow(
   {
     name: 'testAllCoffeeFlows',
     input: z.void(),

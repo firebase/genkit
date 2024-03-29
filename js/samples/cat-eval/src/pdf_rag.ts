@@ -16,7 +16,7 @@
 
 import { generate } from '@genkit-ai/ai';
 import { Document, index, retrieve } from '@genkit-ai/ai/retriever';
-import { flow, run } from '@genkit-ai/flow';
+import { defineFlow, run } from '@genkit-ai/flow';
 import {
   devLocalIndexerRef,
   devLocalRetrieverRef,
@@ -46,7 +46,7 @@ Helpful Answer:`;
 }
 
 // Define a simple RAG flow, we will evaluate this flow
-export const pdfQA = flow(
+export const pdfQA = defineFlow(
   {
     name: 'pdfQA',
     input: z.string(),
@@ -82,7 +82,7 @@ const chunkingConfig = {
 
 // Define a flow to index documents into the "vector store"
 // genkit flow:run indexPdf '"./docs/sfspca-cat-adoption-handbook-2023.pdf"'
-export const indexPdf = flow(
+export const indexPdf = defineFlow(
   {
     name: 'indexPdf',
     input: z.string().describe('PDF file path'),
@@ -127,7 +127,7 @@ async function extractText(filePath: string): Promise<string> {
 }
 
 // genkit flow:run synthesizeQuestions '"./docs/sfspca-cat-adoption-handbook-2023.pdf"' --output synthesizedQuestions.json
-export const synthesizeQuestions = flow(
+export const synthesizeQuestions = defineFlow(
   {
     name: 'synthesizeQuestions',
     input: z.string().describe('PDF file path'),

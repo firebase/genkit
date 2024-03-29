@@ -18,9 +18,9 @@ All flows can define an `authPolicy` in their config. An auth policy is a functi
 If this field is set, it is executed before the flow is invoked:
 
 ```ts
-import { flow, runFlow } from '@genkit-ai/flow';
+import { defineFlow, runFlow } from '@genkit-ai/flow';
 
-export const selfSummaryFlow = flow(
+export const selfSummaryFlow = defineFlow(
   {
     name: 'selfSummaryFlow',
     input: z.object({uid: z.string()}),
@@ -67,7 +67,7 @@ You can also retrieve the auth context for the flow at any time within the flow
 by calling `getFlowAuth()`, including in functions invoked by the flow:
 
 ```ts
-import { getFlowAuth, flow} from '@genkit-ai/flow';
+import { getFlowAuth, defineFlow } from '@genkit-ai/flow';
 
 async function readDatabase(uid: string) {
   if (getFlowAuth().admin) {
@@ -78,7 +78,7 @@ async function readDatabase(uid: string) {
   }
 }
 
-export const selfSummaryFlow = flow(
+export const selfSummaryFlow = defineFlow(
   {
     name: 'selfSummaryFlow',
     input: z.object({uid: z.string()}),
@@ -214,7 +214,7 @@ alongside the native flows. You have two options:
     flow config:
 
     ```ts
-    export const selfSummaryFlow = flow(
+    export const selfSummaryFlow = defineFlow(
     {
       name: 'selfSummaryFlow',
       input: z.object({uid: z.string()}),

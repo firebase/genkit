@@ -15,7 +15,7 @@
  */
 
 import { Document, index, retrieve } from '@genkit-ai/ai/retriever';
-import { flow } from '@genkit-ai/flow';
+import { defineFlow } from '@genkit-ai/flow';
 import { chromaIndexerRef, chromaRetrieverRef } from '@genkit-ai/plugin-chroma';
 import {
   devLocalIndexerRef,
@@ -55,7 +55,7 @@ export const nfsSpongeBobRetriever = devLocalRetrieverRef('spongebob-facts');
 export const nfsSpongeBobIndexer = devLocalIndexerRef('spongebob-facts');
 
 // Define a simple RAG flow, we will evaluate this flow
-export const askQuestionsAboutTomAndJerryFlow = flow(
+export const askQuestionsAboutTomAndJerryFlow = defineFlow(
   {
     name: 'askQuestionsAboutTomAndJerrybobFlow',
     input: z.string(),
@@ -80,7 +80,7 @@ export const askQuestionsAboutTomAndJerryFlow = flow(
 
 // Define a simple RAG flow, we will evaluate this flow
 // genkit flow:run askQuestionsAboutSpongebobFlow '"What is Spongebob's pet's name?"'
-export const askQuestionsAboutSpongebobFlow = flow(
+export const askQuestionsAboutSpongebobFlow = defineFlow(
   {
     name: 'askQuestionsAboutSpongebobFlow',
     input: z.string(),
@@ -104,7 +104,7 @@ export const askQuestionsAboutSpongebobFlow = flow(
 );
 
 // Define a simple RAG flow, we will evaluate this flow
-export const indexTomAndJerryDocumentsFlow = flow(
+export const indexTomAndJerryDocumentsFlow = defineFlow(
   {
     name: 'indexTomAndJerryDocumentsFlow',
     input: z.array(z.string()),
@@ -123,7 +123,7 @@ export const indexTomAndJerryDocumentsFlow = flow(
 
 // Define a flow to index documents into the "vector store"
 // genkit flow:run indexSpongebobFacts '["SpongeBob has a pet snail named Gary"]'
-export const indexSpongebobDocumentsFlow = flow(
+export const indexSpongebobDocumentsFlow = defineFlow(
   {
     name: 'indexSpongebobFacts',
     input: z.array(z.string()),
