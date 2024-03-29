@@ -39,6 +39,9 @@ export const ScoreSchema = z.object({
     .optional(),
 });
 
+// Update genkit-tools/src/utils/evals.ts if you change this value
+export const EVALUATOR_METADATA_KEY_USES_LLM = 'evaluatorUsesLlm';
+
 export type Score = z.infer<typeof ScoreSchema>;
 
 export type Dataset<
@@ -101,9 +104,13 @@ export function defineEvaluator<
     name: string;
     dataPointType?: DataPoint;
     configSchema?: EvaluatorOptions;
+    usesLlm?: boolean;
   },
   runner: EvaluatorFn<DataPoint, EvaluatorOptions>
 ) {
+  const metadata = {};
+  metadata[EVALUATOR_METADATA_KEY_USES_LLM] =
+    options.usesLlm == undefined ? true : options.usesLlm;
   const evaluator = action(
     {
       name: options.name,
@@ -114,6 +121,7 @@ export function defineEvaluator<
         options: options.configSchema ?? z.unknown(),
       }),
       outputSchema: EvaluatorResponseSchema,
+      metadata: metadata,
     },
     (i) => {
       setCustomMetadataAttributes({ subtype: 'evaluator' });
