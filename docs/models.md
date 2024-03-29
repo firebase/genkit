@@ -42,127 +42,22 @@ import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 
 ## Supported models
 
-Genkit provides built-in plugins for the following model providers:
+Genkit provides model support through its plugin system. The following plugins
+are officially supported:
 
-### Google Generative AI
+Plugin | Models
+==========================|====================================================
+[Google Generative AI][1] | Gemini Pro, Gemini Pro Vision
+[Google Vertex AI][2] | Gemini Pro, Gemini Pro Vision, Imagen2
+[OpenAI][3] | GPT 3.5 Turbo, GPT 4, GPT 4 Turbo, GPT 4 Vision, Dall-E 3
+[Ollama][4] | Many local models, including Gemma, Llama 2, Mistral, and more
 
-```js
-import { googleGenAI } from '@genkit-ai/plugin-google-genai';
+[1]: plugins/google-genai.md
+[2]: plugins/vertex-ai.md
+[3]: plugins/openai.md
+[4]: plugins/ollama.md
 
-export default configureGenkit({
-  plugins: [googleGenAI()],
-  // ...
-});
-```
-
-The plugin requires that you set `GOOGLE_API_KEY` environment variable with the
-API Key which you can get from
-[https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
-
-The plugin statically exports references to various supported models:
-
-```js
-import { geminiPro, geminiProVision } from '@genkit-ai/plugin-google-genai';
-```
-
-### Google Vertex AI
-
-```js
-import { vertexAI } from '@genkit-ai/plugin-vertex-ai';
-import { getProjectId } from '@genkit-ai/core';
-
-export default configureGenkit({
-  plugins: [vertexAI({ projectId: getProjectId(), location: 'us-central1' })],
-  // ...
-});
-```
-
-The plugin requires that you set the `GCLOUD_PROJECT` environment variable with
-your Google Cloud project ID. If you're not running your flow from a Google
-Cloud environment, you will also need to [set up Google Cloud Default
-Application
-Credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc).
-On your local dev environment, do this by running:
-
-```posix-terminal
-gcloud auth application-default login
-```
-
-The plugin statically exports references to various supported models:
-
-```js
-import {
-  geminiPro,
-  geminiProVision,
-  textembeddingGecko,
-  imagen2,
-} from '@genkit-ai/plugin-vertex-ai';
-```
-
-### OpenAI
-
-```js
-import { openAI } from '@genkit-ai/plugin-openai';
-
-export default configureGenkit({
-  plugins: [openAI()],
-  // ...
-});
-```
-
-The plugin requires that you set the OPENAI_API_KEY environment variable with
-your OpenAI API Key.
-
-The plugin statically exports references to various supported models:
-
-```js
-import {
-  gpt35Turbo,
-  gpt4,
-  gpt4Turbo,
-  gpt4Vision,
-} from '@genkit-ai/plugin-openai';
-```
-
-### Ollama
-
-The plugin requires that you first install and run ollama server. You can follow
-the instructions on: [https://ollama.com/download](https://ollama.com/download)
-
-You can use the ollama cli to download the model you are interested in, ex.
-`ollama pull gemma`
-
-Configure the ollama plugin like this:
-
-```js
-import { ollama } from '@genkit-ai/plugin-ollama';
-
-export default configureGenkit({
-  plugins: [
-    ollama({
-      models: [{ name: 'gemma' }],
-      serverAddress: 'http://127.0.0.1:11434', // default ollama local port
-    }),
-  ],
-  // ...
-});
-```
-
-The plugin does not statically export references for models, but you can use
-string references for your configured models, ex:
-
-```js
-await generate({
-  prompt: `Tell me a joke about ${subject}`,
-  model: 'ollama/gemma',
-  config: {
-    temperature: 1,
-  },
-  streamingCallback: (c) => {
-    console.log(c.content[0].text);
-  },
-});
-```
+See the docs for each plugin for setup and usage information.
 
 ## Working with models
 
