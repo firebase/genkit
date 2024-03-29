@@ -139,7 +139,7 @@
     import { GenerationResponseChunkSchema } from '@genkit-ai/ai/model';
     import { getLocation, getProjectId } from '@genkit-ai/core';
     import { configureGenkit } from '@genkit-ai/core/config';
-    import { flow, run, startFlowsServer } from '@genkit-ai/flow';
+    import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
     import { firebase } from '@genkit-ai/plugin-firebase';
     import { geminiPro, vertexAI } from '@genkit-ai/plugin-vertex-ai';
     import * as z from 'zod';
@@ -158,7 +158,7 @@
       logLevel: 'debug',
     });
 
-    export const jokeFlow = flow(
+    export const jokeFlow = defineFlow(
       {
         name: 'jokeFlow',
         input: z.string(),

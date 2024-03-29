@@ -15,7 +15,13 @@
  */
 
 import { initializeGenkit } from '@genkit-ai/core/config';
-import { flow, run, runFlow, runMap, startFlowsServer } from '@genkit-ai/flow';
+import {
+  defineFlow,
+  run,
+  runFlow,
+  runMap,
+  startFlowsServer,
+} from '@genkit-ai/flow';
 import {
   durableFlow,
   interrupt,
@@ -32,7 +38,7 @@ initializeGenkit(config);
  * To run this flow;
  *   genkit flow:run basic "\"hello\""
  */
-export const basic = flow(
+export const basic = defineFlow(
   { name: 'basic', input: z.string(), output: z.string() },
   async (subject) => {
     const foo = await run('call-llm', async () => {
@@ -45,7 +51,7 @@ export const basic = flow(
   }
 );
 
-export const parent = flow(
+export const parent = defineFlow(
   { name: 'parent', input: z.void(), output: z.string() },
   async () => {
     return JSON.stringify(await runFlow(basic, 'foo'));
@@ -56,7 +62,7 @@ export const parent = flow(
  * To run this flow;
  *   genkit flow:run simpleFanout
  */
-export const simpleFanout = flow(
+export const simpleFanout = defineFlow(
   { name: 'simpleFanout', input: z.void(), output: z.string() },
   async () => {
     const fanValues = await run('fan-generator', async () => {
@@ -180,7 +186,7 @@ export const waity = durableFlow(
 );
 
 // genkit flow:run streamy 5 -s
-export const streamy = flow(
+export const streamy = defineFlow(
   {
     name: 'streamy',
     input: z.number(),
@@ -200,7 +206,7 @@ export const streamy = flow(
 );
 
 // genkit flow:run streamy 5 -s
-export const streamyThrowy = flow(
+export const streamyThrowy = defineFlow(
   {
     name: 'streamyThrowy',
     input: z.number(),
@@ -226,7 +232,7 @@ export const streamyThrowy = flow(
  * To run this flow;
  *   genkit flow:run throwy "\"hello\""
  */
-export const throwy = flow(
+export const throwy = defineFlow(
   { name: 'throwy', input: z.string(), output: z.string() },
   async (subject) => {
     const foo = await run('call-llm', async () => {
@@ -245,7 +251,7 @@ export const throwy = flow(
  * To run this flow;
  *   genkit flow:run throwy2 "\"hello\""
  */
-export const throwy2 = flow(
+export const throwy2 = defineFlow(
   { name: 'throwy2', input: z.string(), output: z.string() },
   async (subject) => {
     const foo = await run('call-llm', async () => {

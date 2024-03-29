@@ -258,7 +258,7 @@ And here's how to use the retriever in a flow:
 
 ```js
 // Simple flow to use the sqlRetriever
-export const askQuestionsOnGoT = flow(
+export const askQuestionsOnGoT = defineFlow(
   {
     name: 'askQuestionsOnGoT',
     input: z.string(),
@@ -340,7 +340,7 @@ open source libraries available that are compatible with Genkit.
 
 ```js
 import { Document, index } from '@genkit-ai/ai/retriever';
-import { flow, run } from '@genkit-ai/flow';
+import { defineFlow, run } from '@genkit-ai/flow';
 import { pineconeIndexerRef } from '@genkit-ai/plugin-pinecone';
 import fs from 'fs';
 import { chunk } from 'llm-chunk'; // npm install llm-chunk
@@ -358,7 +358,7 @@ const chunkingConfig = {
 
 export const pdfChatIndexer = pineconeIndexerRef({indexId: 'pdf-chat'});
 
-export const indexPdf = flow(
+export const indexPdf = defineFlow(
   {
     name: 'indexPdf',
     input: z.string().describe('PDF file path'),

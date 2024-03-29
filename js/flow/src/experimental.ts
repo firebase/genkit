@@ -23,7 +23,13 @@ import {
   FlowNotFoundError,
   FlowStillRunningError,
 } from './errors';
-import { Flow, FlowWrapper, RunStepConfig, StepsFunction, flow } from './flow';
+import {
+  Flow,
+  FlowWrapper,
+  RunStepConfig,
+  StepsFunction,
+  defineFlow,
+} from './flow';
 import { Invoker, Scheduler } from './types';
 import { getActiveContext } from './utils';
 
@@ -45,7 +51,7 @@ export function durableFlow<
   },
   steps: StepsFunction<I, O, S>
 ): Flow<I, O, S> {
-  return flow(
+  return defineFlow(
     {
       name: config.name,
       input: config.input,

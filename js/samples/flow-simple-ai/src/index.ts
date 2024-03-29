@@ -17,7 +17,7 @@
 import { generate } from '@genkit-ai/ai';
 import { defineTool } from '@genkit-ai/ai/tool';
 import { initializeGenkit } from '@genkit-ai/core/config';
-import { flow, run } from '@genkit-ai/flow';
+import { defineFlow, run } from '@genkit-ai/flow';
 import { geminiPro as googleGeminiPro } from '@genkit-ai/plugin-google-genai';
 import { gpt35Turbo, gpt4, gpt4Turbo } from '@genkit-ai/plugin-openai';
 import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
@@ -26,7 +26,7 @@ import config from './genkit.config';
 
 initializeGenkit(config);
 
-export const jokeFlow = flow(
+export const jokeFlow = defineFlow(
   {
     name: 'jokeFlow',
     input: z.object({
@@ -48,7 +48,7 @@ export const jokeFlow = flow(
   }
 );
 
-export const drawPictureFlow = flow(
+export const drawPictureFlow = defineFlow(
   {
     name: 'drawPictureFlow',
     input: z.object({ modelName: z.string(), object: z.string() }),
@@ -82,7 +82,7 @@ const tools = [
   ),
 ];
 
-export const jokeWithToolsFlow = flow(
+export const jokeWithToolsFlow = defineFlow(
   {
     name: 'jokeWithToolsFlow',
     input: z.object({
@@ -107,7 +107,7 @@ export const jokeWithToolsFlow = flow(
   }
 );
 
-export const vertexStreamer = flow(
+export const vertexStreamer = defineFlow(
   {
     name: 'vertexStreamer',
     input: z.string(),
@@ -126,7 +126,7 @@ export const vertexStreamer = flow(
   }
 );
 
-export const multimodalFlow = flow(
+export const multimodalFlow = defineFlow(
   {
     name: 'multimodalFlow',
     input: z.object({ modelName: z.string(), imageUrl: z.string() }),

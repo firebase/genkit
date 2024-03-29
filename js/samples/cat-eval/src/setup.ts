@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { flow, runFlow } from '@genkit-ai/flow';
+import { defineFlow, runFlow } from '@genkit-ai/flow';
 import * as z from 'zod';
 import { indexPdf } from './pdf_rag';
 
@@ -22,7 +22,7 @@ const catFacts = ['./docs/sfspca-cat-adoption-handbook-2023.pdf'];
 
 // genkit flow:run setup
 // genkit flow:run setup '[\"your_awesome_pdf.pdf\", \"your_other_awesome_pdf.pdf\""]'
-export const setup = flow(
+export const setup = defineFlow(
   {
     name: 'setup',
     input: z.array(z.string()).optional(),

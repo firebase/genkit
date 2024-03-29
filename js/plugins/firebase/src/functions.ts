@@ -16,8 +16,8 @@
 
 import { getLocation, OperationSchema } from '@genkit-ai/core';
 import {
+  defineFlow,
   Flow,
-  flow,
   FlowAuthPolicy,
   FlowWrapper,
   StepsFunction,
@@ -69,7 +69,7 @@ export function onFlow<
   config: FunctionFlowConfig<I, O, S>,
   steps: StepsFunction<I, O, S>
 ): FunctionFlow<I, O, S> {
-  const f = flow(
+  const f = defineFlow(
     {
       ...config,
       authPolicy: config.authPolicy.policy,

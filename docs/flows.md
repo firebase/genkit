@@ -9,9 +9,9 @@ etc).
 
 ```javascript
 import * as z from 'zod';
-import { flow } from '@genkit-ai/flow';
+import { defineFlow } from '@genkit-ai/flow';
 
-export const myFlow = flow(
+export const myFlow = defineFlow(
   { name: 'myFlow', input: z.string(), output: z.string() },
   async (input) => {
     const output = doSomethingCool(input);
@@ -65,7 +65,7 @@ npx genkit flow:run jokeFlow '"banana"' -s
 Here's a simple example of a flow that can stream values:
 
 ```javascript
-export const streamer = flow(
+export const streamer = defineFlow(
   {
     name: 'streamer',
     input: z.number(),
@@ -117,9 +117,9 @@ To deploy flows using Cloud Run and similar services, define your flows with
 `flow` and then call `startFlowsServer()`:
 
 ```js
-import { flow, startFlowsServer } from '@genkit-ai/flow';
+import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
 
-export const jokeFlow = flow(
+export const jokeFlow = defineFlow(
   { name: 'jokeFlow', input: z.string(), output: z.string() },
   async (subject, streamingCallback) => {
     // ....
@@ -137,7 +137,7 @@ observability, you might want to still see them as a separate step in the Dev
 UI. All you need to do is wrap the code in the `run` function.
 
 ```js
-export const myFlow = flow(
+export const myFlow = defineFlow(
   { name: 'myFlow', input: z.string(), output: z.string() },
   async (input) => {
     const output = await run('step-name', async () => {

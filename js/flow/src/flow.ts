@@ -90,7 +90,7 @@ export interface __RequestWithAuth extends express.Request {
 /**
  * Defines the flow.
  */
-export function flow<
+export function defineFlow<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
   S extends z.ZodTypeAny,

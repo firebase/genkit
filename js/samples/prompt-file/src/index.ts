@@ -16,7 +16,7 @@
 
 import { initializeGenkit } from '@genkit-ai/core/config';
 import { prompt } from '@genkit-ai/dotprompt';
-import { flow } from '@genkit-ai/flow';
+import { defineFlow } from '@genkit-ai/flow';
 import * as z from 'zod';
 
 initializeGenkit();
@@ -28,7 +28,7 @@ initializeGenkit();
 // instead of us getting a weird failure later when the flow runs.
 
 prompt('recipe').then((recipePrompt) => {
-  flow(
+  defineFlow(
     {
       name: 'chefFlow',
       input: z.object({
@@ -41,7 +41,7 @@ prompt('recipe').then((recipePrompt) => {
 });
 
 prompt('recipe', { variant: 'robot' }).then((recipePrompt) => {
-  flow(
+  defineFlow(
     {
       name: 'robotChefFlow',
       input: z.object({
