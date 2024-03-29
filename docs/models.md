@@ -45,12 +45,12 @@ import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 Genkit provides model support through its plugin system. The following plugins
 are officially supported:
 
-Plugin | Models
-==========================|====================================================
-[Google Generative AI][1] | Gemini Pro, Gemini Pro Vision
-[Google Vertex AI][2] | Gemini Pro, Gemini Pro Vision, Imagen2
-[OpenAI][3] | GPT 3.5 Turbo, GPT 4, GPT 4 Turbo, GPT 4 Vision, Dall-E 3
-[Ollama][4] | Many local models, including Gemma, Llama 2, Mistral, and more
+| Plugin                    | Models                                                         |
+| ------------------------- | -------------------------------------------------------------- |
+| [Google Generative AI][1] | Gemini Pro, Gemini Pro Vision                                  |
+| [Google Vertex AI][2]     | Gemini Pro, Gemini Pro Vision, Imagen2                         |
+| [OpenAI][3]               | GPT 3.5 Turbo, GPT 4, GPT 4 Turbo, GPT 4 Vision, Dall-E 3      |
+| [Ollama][4]               | Many local models, including Gemma, Llama 2, Mistral, and more |
 
 [1]: plugins/google-genai.md
 [2]: plugins/vertex-ai.md
