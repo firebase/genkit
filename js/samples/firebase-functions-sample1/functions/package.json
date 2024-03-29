@@ -1,7 +1,7 @@
 {
   "name": "functions",
   "scripts": {
-    "install-dist": "(rm -r genkit-packages || true) && mkdir genkit-packages && cp -r ../../../../dist/* genkit-packages && npm i --save ./genkit-packages/genkit-ai-core-0.0.5.tgz && npm i --save ./genkit-packages/genkit-ai-ai-0.0.5.tgz && npm i --save ./genkit-packages/genkit-ai-flow-0.0.5.tgz && npm i --save ./genkit-packages/genkit-ai-plugin-firebase-0.0.5.tgz && npm i --save ./genkit-packages/genkit-ai-plugin-vertex-ai-0.0.5.tgz",
+    "install-dist": "(rm -r genkit-packages || true) && mkdir genkit-packages && cp -r ../../../../dist/* genkit-packages && npm i --save ./genkit-packages/genkit-ai-core-0.0.6.tgz && npm i --save ./genkit-packages/genkit-ai-ai-0.0.6.tgz && npm i --save ./genkit-packages/genkit-ai-flow-0.0.6.tgz && npm i --save ./genkit-packages/genkit-ai-plugin-firebase-0.0.6.tgz && npm i --save ./genkit-packages/genkit-ai-plugin-vertex-ai-0.0.6.tgz",
     "build": "tsc",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
@@ -15,11 +15,11 @@
   },
   "main": "lib/index.js",
   "dependencies": {
-    "@genkit-ai/ai": "file:genkit-packages/genkit-ai-ai-0.0.5.tgz",
-    "@genkit-ai/core": "file:genkit-packages/genkit-ai-core-0.0.5.tgz",
-    "@genkit-ai/flow": "file:genkit-packages/genkit-ai-flow-0.0.5.tgz",
-    "@genkit-ai/plugin-firebase": "file:genkit-packages/genkit-ai-plugin-firebase-0.0.5.tgz",
-    "@genkit-ai/plugin-vertex-ai": "file:genkit-packages/genkit-ai-plugin-vertex-ai-0.0.5.tgz",
+    "@genkit-ai/ai": "file:genkit-packages/genkit-ai-ai-0.0.6.tgz",
+    "@genkit-ai/core": "file:genkit-packages/genkit-ai-core-0.0.6.tgz",
+    "@genkit-ai/flow": "file:genkit-packages/genkit-ai-flow-0.0.6.tgz",
+    "@genkit-ai/plugin-firebase": "file:genkit-packages/genkit-ai-plugin-firebase-0.0.6.tgz",
+    "@genkit-ai/plugin-vertex-ai": "file:genkit-packages/genkit-ai-plugin-vertex-ai-0.0.6.tgz",
     "firebase-admin": "^11.8.0",
     "firebase-functions": "^4.8.1",
     "zod": "^3.22.4"
