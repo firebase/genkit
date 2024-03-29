@@ -23,16 +23,14 @@ import {
   getLocalFileEvalStore,
 } from '../eval';
 import { EvaluatorResponse } from '../types/evaluators';
-import {
-  EVALUATOR_ACTION_PREFIX,
-  stripEvaluatorNamePrefix,
-} from '../utils/eval';
+import { confirmLlmUse, evaluatorName, isEvaluator } from '../utils/eval';
 import { logger } from '../utils/logger';
 import { runInRunnerThenStop } from '../utils/runner-utils';
 
 interface EvalRunOptions {
   output?: string;
   evaluators?: string;
+  force?: boolean;
 }
 /** Command to run evaluation on a dataset. */
 export const evalRun = new Command('eval:run')
@@ -48,6 +46,7 @@ export const evalRun = new Command('eval:run')
     '--evaluators <evaluators>',
     'comma separated list of evaluators to use (by default uses all)'
   )
+  .option('--force', 'Automatically accept all interactive prompts')
   .action(async (dataset: string, options: EvalRunOptions) => {
     await runInRunnerThenStop(async (runner) => {
       const evalStore = getLocalFileEvalStore();
@@ -61,13 +60,17 @@ export const evalRun = new Command('eval:run')
         traceIds: testCase.traceIds || [],
       }));
 
-      const allEvaluatorActions = Object.keys(
-        await runner.listActions()
-      ).filter((name) => name.startsWith(EVALUATOR_ACTION_PREFIX));
+      const allActions = await runner.listActions();
+      const allEvaluatorActions = [];
+      for (const key in allActions) {
+        if (isEvaluator(key)) {
+          allEvaluatorActions.push(allActions[key]);
+        }
+      }
       const filteredEvaluatorActions = allEvaluatorActions.filter(
-        (name) =>
+        (action) =>
           !options.evaluators ||
-          options.evaluators.split(',').includes(stripEvaluatorNamePrefix(name))
+          options.evaluators.split(',').includes(action.name)
       );
       if (filteredEvaluatorActions.length === 0) {
         if (allEvaluatorActions.length == 0) {
@@ -77,25 +80,35 @@ export const evalRun = new Command('eval:run')
             `No evaluators matched your specifed filter: ${options.evaluators}`
           );
           logger.info(
-            `All available evaluators: ${allEvaluatorActions.map(stripEvaluatorNamePrefix).join(',')}`
+            `All available evaluators: ${allEvaluatorActions.map((action) => action.name).join(',')}`
           );
         }
         return;
       }
       logger.info(
-        `Using evaluators: ${filteredEvaluatorActions.map(stripEvaluatorNamePrefix).join(',')}`
+        `Using evaluators: ${filteredEvaluatorActions.map((action) => action.name).join(',')}`
       );
+
+      const confirmed = await confirmLlmUse(
+        filteredEvaluatorActions,
+        options.force
+      );
+      if (!confirmed) {
+        return;
+      }
+
       const scores: Record<string, EvaluatorResponse> = {};
       await Promise.all(
-        filteredEvaluatorActions.map(async (e) => {
-          logger.info(`Running evaluator '${e}'...`);
+        filteredEvaluatorActions.map(async (action) => {
+          const name = evaluatorName(action);
+          logger.info(`Running evaluator '${name}'...`);
           const response = await runner.runAction({
-            key: e,
+            key: name,
             input: {
               dataset: datasetToEval,
             },
           });
-          scores[e] = response.result as EvaluatorResponse;
+          scores[name] = response.result as EvaluatorResponse;
         })
       );
 

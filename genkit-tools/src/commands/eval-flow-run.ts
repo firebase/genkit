@@ -26,10 +26,7 @@ import { Runner } from '../runner/runner';
 import { FlowInvokeEnvelopeMessage, FlowState } from '../types/flow';
 import { DocumentData, RetrieverResponse } from '../types/retrievers';
 import { SpanData } from '../types/trace';
-import {
-  EVALUATOR_ACTION_PREFIX,
-  stripEvaluatorNamePrefix,
-} from '../utils/eval';
+import { confirmLlmUse, evaluatorName, isEvaluator } from '../utils/eval';
 import { logger } from '../utils/logger';
 import {
   runInRunnerThenStop,
@@ -42,6 +39,7 @@ interface EvalFlowRunOptions {
   output?: string;
   auth?: string;
   evaluators?: string;
+  force?: boolean;
 }
 
 /** Command to run a flow and evaluate the output */
@@ -62,19 +60,22 @@ export const evalFlowRun = new Command('eval:flow')
     '--evaluators <evaluators>',
     'comma separated list of evaluators to use (by default uses all)'
   )
+  .option('--force', 'Automatically accept all interactive prompts')
   .action(
     async (flowName: string, data: string, options: EvalFlowRunOptions) => {
       await runInRunnerThenStop(async (runner) => {
         const evalStore = getLocalFileEvalStore();
-        const allEvaluatorActions = Object.keys(
-          await runner.listActions()
-        ).filter((name) => name.startsWith(EVALUATOR_ACTION_PREFIX));
+        const allActions = await runner.listActions();
+        const allEvaluatorActions = [];
+        for (const key in allActions) {
+          if (isEvaluator(key)) {
+            allEvaluatorActions.push(allActions[key]);
+          }
+        }
         const filteredEvaluatorActions = allEvaluatorActions.filter(
-          (name) =>
+          (action) =>
             !options.evaluators ||
-            options.evaluators
-              .split(',')
-              .includes(stripEvaluatorNamePrefix(name))
+            options.evaluators.split(',').includes(action.name)
         );
         if (filteredEvaluatorActions.length === 0) {
           if (allEvaluatorActions.length == 0) {
@@ -84,19 +85,28 @@ export const evalFlowRun = new Command('eval:flow')
               `No evaluators matched your specifed filter: ${options.evaluators}`
             );
             logger.info(
-              `All available evaluators: ${allEvaluatorActions.map(stripEvaluatorNamePrefix).join(',')}`
+              `All available evaluators: ${allEvaluatorActions.map((action) => action.name).join(',')}`
             );
           }
           return;
         }
-        logger.info(
-          `Using evaluators: ${filteredEvaluatorActions.map(stripEvaluatorNamePrefix).join(',')}`
-        );
 
         if (!data && !options.input) {
           logger.error(
             'No input data passed. Specify input data using [data] argument or --input <filename> option'
           );
+          return;
+        }
+
+        logger.info(
+          `Using evaluators: ${filteredEvaluatorActions.map((action) => action.name).join(',')}`
+        );
+
+        const confirmed = await confirmLlmUse(
+          filteredEvaluatorActions,
+          options.force
+        );
+        if (!confirmed) {
           return;
         }
 
@@ -117,16 +127,17 @@ export const evalFlowRun = new Command('eval:flow')
 
         const scores: Record<string, any> = {};
         await Promise.all(
-          filteredEvaluatorActions.map(async (e) => {
-            logger.info(`Running evaluator '${e}'...`);
+          filteredEvaluatorActions.map(async (action) => {
+            const name = evaluatorName(action);
+            logger.info(`Running evaluator '${name}'...`);
             const response = await runner.runAction({
-              key: e,
+              key: name,
               input: {
                 dataset: datasetToEval,
                 auth: options.auth ? JSON.parse(options.auth) : undefined,
               },
             });
-            scores[e] = response.result;
+            scores[name] = response.result;
           })
         );
 
