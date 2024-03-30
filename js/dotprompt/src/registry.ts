@@ -19,7 +19,7 @@ import { logger } from '@genkit-ai/core/logging';
 import { lookupAction, registerAction } from '@genkit-ai/core/registry';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { Prompt, PromptAction } from './prompt';
+import { Prompt, PromptAction } from './prompt.js';
 
 export async function lookupPrompt(
   name: string,

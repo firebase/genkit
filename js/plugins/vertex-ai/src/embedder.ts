@@ -18,7 +18,7 @@ import { defineEmbedder, embedderRef } from '@genkit-ai/ai/embedder';
 import { GoogleAuth } from 'google-auth-library';
 import { z } from 'zod';
 import { PluginOptions } from '.';
-import { predictModel } from './predict';
+import { predictModel } from './predict.js';
 
 export const TaskTypeSchema = z.enum([
   'RETRIEVAL_DOCUMENT',

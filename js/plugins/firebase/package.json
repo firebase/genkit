@@ -29,21 +29,25 @@
   "exports": {
     ".": {
       "require": "./lib/index.js",
+      "default": "./lib/index.js",
       "import": "./lib/index.mjs",
       "types": "./lib/index.d.ts"
     },
     "./functions": {
       "require": "./lib/functions.js",
+      "default": "./lib/functions.js",
       "import": "./lib/functions.mjs",
       "types": "./lib/functions.d.ts"
     },
     "./functions/experimental": {
       "require": "./lib/experimental.js",
+      "default": "./lib/experimental.js",
       "import": "./lib/experimental.mjs",
       "types": "./lib/experimental.d.ts"
     },
     "./auth": {
       "require": "./lib/auth.js",
+      "default": "./lib/auth.js",
       "import": "./lib/auth.mjs",
       "types": "./lib/auth.d.ts"
     }

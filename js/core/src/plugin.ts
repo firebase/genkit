@@ -15,10 +15,10 @@
  */
 
 import { z } from 'zod';
-import { FlowStateStore } from './flowTypes';
-import { LoggerConfig, TelemetryConfig } from './telemetryTypes';
-import { TraceStore } from './tracing';
-import { Action } from './types';
+import { FlowStateStore } from './flowTypes.js';
+import { LoggerConfig, TelemetryConfig } from './telemetryTypes.js';
+import { TraceStore } from './tracing.js';
+import { Action } from './types.js';
 
 export interface Provider<T> {
   id: string;

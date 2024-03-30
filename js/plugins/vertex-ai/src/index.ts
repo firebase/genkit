@@ -18,14 +18,14 @@ import { getLocation, getProjectId } from '@genkit-ai/core';
 import { Plugin, genkitPlugin } from '@genkit-ai/core/config';
 import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleAuth } from 'google-auth-library';
-import { textEmbeddingGecko, textEmbeddingGeckoEmbedder } from './embedder';
+import { textEmbeddingGecko, textEmbeddingGeckoEmbedder } from './embedder.js';
 import {
   SUPPORTED_GEMINI_MODELS,
   geminiModel,
   geminiPro,
   geminiProVision,
-} from './gemini';
-import { imagen2, imagen2Model } from './imagen';
+} from './gemini.js';
+import { imagen2, imagen2Model } from './imagen.js';
 
 export { geminiPro, geminiProVision, imagen2, textEmbeddingGecko };
 

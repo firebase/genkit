@@ -27,7 +27,7 @@ import {
 } from '@genkit-ai/core';
 import { config as globalConfig, isDevEnv } from '@genkit-ai/core/config';
 import { logger } from '@genkit-ai/core/logging';
-import * as registry from '@genkit-ai/core/registry';
+import { registerAction } from '@genkit-ai/core/registry';
 import {
   newTrace,
   setCustomMetadataAttribute,
@@ -40,15 +40,15 @@ import express from 'express';
 import { performance } from 'node:perf_hooks';
 import * as z from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { Context } from './context';
+import { Context } from './context.js';
 import {
   FlowExecutionError,
   FlowStillRunningError,
   getErrorMessage,
   getErrorStack,
   InterruptError,
-} from './errors';
-import * as telemetry from './telemetry';
+} from './errors.js';
+import * as telemetry from './telemetry.js';
 import {
   FlowActionInputSchema,
   FlowInvokeEnvelopeMessage,
@@ -56,8 +56,12 @@ import {
   Invoker,
   RetryConfig,
   Scheduler,
-} from './types';
-import { generateFlowId, metadataPrefix, runWithActiveContext } from './utils';
+} from './types.js';
+import {
+  generateFlowId,
+  metadataPrefix,
+  runWithActiveContext,
+} from './utils.js';
 
 const streamDelimiter = '\n';
 const createdFlows = [] as Flow<any, any, any>[];
@@ -141,7 +145,7 @@ export function defineFlow<
     steps
   );
   createdFlows.push(f);
-  registry.registerAction('flow', config.name, wrapAsAction(f));
+  registerAction('flow', config.name, wrapAsAction(f));
   return f;
 }
 

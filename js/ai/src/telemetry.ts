@@ -23,7 +23,7 @@ import {
 import { spanMetadataAls } from '@genkit-ai/core/tracing';
 import { ValueType } from '@opentelemetry/api';
 import { createHash } from 'crypto';
-import { GenerateOptions } from './generate';
+import { GenerateOptions } from './generate.js';
 import {
   GenerationRequest,
   GenerationResponseData,
@@ -31,7 +31,7 @@ import {
   Part,
   ToolRequestPart,
   ToolResponsePart,
-} from './model';
+} from './model.js';
 
 /** The maximum length (in characters) of a logged prompt message. */
 const MAX_LOG_CONTENT_CHARS = 128_000;

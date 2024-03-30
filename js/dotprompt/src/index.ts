@@ -21,9 +21,9 @@ import z from 'zod';
 
 import { registerAction } from '@genkit-ai/core/registry';
 
-import { PromptMetadata } from './metadata';
-import { Prompt, PromptAction, PromptInput } from './prompt';
-import { lookupPrompt } from './registry';
+import { PromptMetadata } from './metadata.js';
+import { Prompt, PromptAction, PromptInput } from './prompt.js';
+import { lookupPrompt } from './registry.js';
 
 export { Prompt, PromptAction, PromptInput };
 

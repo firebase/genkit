@@ -15,7 +15,7 @@
  */
 
 import { useGoogleAI } from '@genkit-ai/providers/google-ai';
-import { loadPromptDir } from '../src/index';
+import { loadPromptDir } from '../src/index.js';
 
 useGoogleAI();
 

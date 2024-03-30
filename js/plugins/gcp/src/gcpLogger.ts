@@ -16,7 +16,7 @@
 
 import { LoggerConfig } from '@genkit-ai/core';
 import { LoggingWinston } from '@google-cloud/logging-winston';
-import { PluginOptions } from './index';
+import { PluginOptions } from './index.js';
 
 /**
  * Provides a {LoggerConfig} for exporting Genkit debug logs to GCP Cloud

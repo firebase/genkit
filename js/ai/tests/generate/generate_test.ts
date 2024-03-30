@@ -22,9 +22,9 @@ import {
   GenerateOptions,
   Message,
   toGenerateRequest,
-} from '../../src/generate';
-import { CandidateData } from '../../src/model';
-import { defineTool } from '../../src/tool';
+} from '../../src/generate.js';
+import { CandidateData } from '../../src/model.js';
+import { defineTool } from '../../src/tool.js';
 
 describe('Candidate toJSON() tests', () => {
   const testCases = [

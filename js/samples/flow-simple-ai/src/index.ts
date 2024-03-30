@@ -22,7 +22,7 @@ import { geminiPro as googleGeminiPro } from '@genkit-ai/plugin-google-genai';
 import { gpt35Turbo, gpt4, gpt4Turbo } from '@genkit-ai/plugin-openai';
 import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 import * as z from 'zod';
-import config from './genkit.config';
+import config from './genkit.config.js';
 
 initializeGenkit(config);
 

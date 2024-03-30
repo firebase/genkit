@@ -16,7 +16,7 @@
 
 import { defineFlow, runFlow } from '@genkit-ai/flow';
 import * as z from 'zod';
-import { indexPdf } from './pdf_rag';
+import { indexPdf } from './pdf_rag.js';
 
 const catFacts = ['./docs/sfspca-cat-adoption-handbook-2023.pdf'];
 

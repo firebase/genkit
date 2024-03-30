@@ -17,15 +17,15 @@
 import express from 'express';
 import z from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { config } from './config';
-import { logger } from './logging';
-import * as registry from './registry';
+import { config } from './config.js';
+import { logger } from './logging.js';
+import * as registry from './registry.js';
 import {
   flushTracing,
   newTrace,
   setCustomMetadataAttribute,
 } from './tracing.js';
-import { Status, StatusCodes, runWithStreamingCallback } from './types';
+import { Status, StatusCodes, runWithStreamingCallback } from './types.js';
 
 export const RunActionResponseSchema = z.object({
   result: z.unknown().optional(),

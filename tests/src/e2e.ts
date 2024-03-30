@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { runDevUiTest } from './utils';
+import { runDevUiTest } from './utils.js';
 
 runDevUiTest('test_js_app', async (page, url) => {
   await page.goto(url);

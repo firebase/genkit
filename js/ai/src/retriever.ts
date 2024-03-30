@@ -15,14 +15,13 @@
  */
 
 import { action, Action } from '@genkit-ai/core';
-import * as registry from '@genkit-ai/core/registry';
-import { lookupAction } from '@genkit-ai/core/registry';
+import { lookupAction, registerAction } from '@genkit-ai/core/registry';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import * as z from 'zod';
-import { Document, DocumentData, DocumentDataSchema } from './document';
-import { EmbedderInfo } from './embedder';
+import { Document, DocumentData, DocumentDataSchema } from './document.js';
+import { EmbedderInfo } from './embedder.js';
 
-export { Document, DocumentData, DocumentDataSchema } from './document';
+export { Document, DocumentData, DocumentDataSchema } from './document.js';
 
 type RetrieverFn<RetrieverOptions extends z.ZodTypeAny> = (
   query: Document,
@@ -140,7 +139,7 @@ export function defineRetriever<
     >,
     options.configSchema
   );
-  registry.registerAction('retriever', rwm.__action.name, rwm);
+  registerAction('retriever', rwm.__action.name, rwm);
   return rwm;
 }
 
@@ -181,7 +180,7 @@ export function defineIndexer<IndexerOptions extends z.ZodTypeAny>(
     indexer as Action<typeof IndexerRequestSchema, z.ZodVoid>,
     options.configSchema
   );
-  registry.registerAction('indexer', iwm.__action.name, iwm);
+  registerAction('indexer', iwm.__action.name, iwm);
   return iwm;
 }
 

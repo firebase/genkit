@@ -15,9 +15,9 @@
  */
 
 import { initializeGenkit } from '@genkit-ai/core/config';
-import config from './genkit.config';
+import config from './genkit.config.js';
 
 initializeGenkit(config);
 
-export * from './pdf_rag';
-export * from './simple_rag';
+export * from './pdf_rag.js';
+export * from './simple_rag.js';

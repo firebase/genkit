@@ -26,7 +26,7 @@ import {
   pineconeRetrieverRef,
 } from '@genkit-ai/plugin-pinecone';
 import * as z from 'zod';
-import { augmentedPrompt } from './prompt';
+import { augmentedPrompt } from './prompt.js';
 
 // Setup the models, embedders and "vector store"
 export const tomAndJerryFactsRetriever = pineconeRetrieverRef({

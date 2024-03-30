@@ -30,7 +30,7 @@ import {
   onRequest,
 } from 'firebase-functions/v2/https';
 import * as z from 'zod';
-import { callHttpsFunction } from './helpers';
+import { callHttpsFunction } from './helpers.js';
 
 export type FunctionFlow<
   I extends z.ZodTypeAny,

@@ -41,41 +41,49 @@
     ".": {
       "types": "./lib/index.d.ts",
       "require": "./lib/index.js",
+      "default": "./lib/index.js",
       "import": "./lib/index.mjs"
     },
     "./metrics": {
       "types": "./lib/metrics.d.ts",
       "require": "./lib/metrics.js",
+      "default": "./lib/metrics.js",
       "import": "./lib/metrics.mjs"
     },
     "./registry": {
       "types": "./lib/registry.d.ts",
       "require": "./lib/registry.js",
+      "default": "./lib/registry.js",
       "import": "./lib/registry.mjs"
     },
     "./tracing": {
       "types": "./lib/tracing.d.ts",
       "require": "./lib/tracing.js",
+      "default": "./lib/tracing.js",
       "import": "./lib/tracing.mjs"
     },
     "./logging": {
       "types": "./lib/logging.d.ts",
       "require": "./lib/logging.js",
+      "default": "./lib/logging.js",
       "import": "./lib/logging.mjs"
     },
     "./config": {
       "types": "./lib/config.d.ts",
       "require": "./lib/config.js",
+      "default": "./lib/config.js",
       "import": "./lib/config.mjs"
     },
     "./runtime": {
       "types": "./lib/runtime.d.ts",
       "require": "./lib/runtime.js",
+      "default": "./lib/runtime.js",
       "import": "./lib/runtime.mjs"
     },
     "./schema": {
       "types": "./lib/schema.d.ts",
       "require": "./lib/schema.js",
+      "default": "./lib/schema.js",
       "import": "./lib/schema.mjs"
     }
   },

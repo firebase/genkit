@@ -20,8 +20,8 @@ import { __hardResetRegistryForTesting } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
-import { defineFlow, runFlow } from '../src/flow';
-import { configureInMemoryStateStore } from './testUtil';
+import { defineFlow, runFlow } from '../src/flow.js';
+import { configureInMemoryStateStore } from './testUtil.js';
 
 function createTestFlow() {
   return defineFlow(

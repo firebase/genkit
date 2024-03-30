@@ -17,7 +17,7 @@
 import { GenerateContentCandidate } from '@google-cloud/vertexai';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { fromGeminiCandidate, toGeminiMessage } from '../src/gemini';
+import { fromGeminiCandidate, toGeminiMessage } from '../src/gemini.js';
 
 describe('toGeminiMessages', () => {
   const testCases = [

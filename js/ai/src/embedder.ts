@@ -15,11 +15,10 @@
  */
 
 import { action, Action } from '@genkit-ai/core';
-import * as registry from '@genkit-ai/core/registry';
-import { lookupAction } from '@genkit-ai/core/registry';
+import { lookupAction, registerAction } from '@genkit-ai/core/registry';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import * as z from 'zod';
-import { Document, DocumentData, DocumentDataSchema } from './document';
+import { Document, DocumentData, DocumentDataSchema } from './document.js';
 
 export type EmbeddingBatch = { embedding: number[] }[];
 
@@ -95,7 +94,7 @@ export function defineEmbedder<
     embedder as Action<typeof EmbedRequestSchema, typeof EmbedResponseSchema>,
     options.configSchema
   );
-  registry.registerAction('embedder', ewm.__action.name, ewm);
+  registerAction('embedder', ewm.__action.name, ewm);
   return ewm;
 }
 

@@ -24,10 +24,10 @@ import {
   interrupt,
   resumeFlow,
   scheduleFlow,
-} from '../src/experimental';
-import { defineFlow, runFlow } from '../src/flow';
+} from '../src/experimental.js';
+import { defineFlow, runFlow } from '../src/flow.js';
 
-import { asyncTurn, configureInMemoryStateStore } from './testUtil';
+import { asyncTurn, configureInMemoryStateStore } from './testUtil.js';
 
 function createSimpleTestDurableFlow() {
   return defineFlow(

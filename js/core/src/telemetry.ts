@@ -19,7 +19,7 @@ import {
   internalMetricNamespaceWrap,
   MetricCounter,
   MetricHistogram,
-} from './metrics';
+} from './metrics.js';
 
 /**
  * Wraps the declared metrics in a Genkit-specific, internal namespace.

@@ -31,8 +31,8 @@ import {
   PromptMetadata,
   toFrontmatter,
   toMetadata,
-} from './metadata';
-import { compile } from './template';
+} from './metadata.js';
+import { compile } from './template.js';
 
 const PromptInputSchema = z.object({
   input: z.unknown().optional(),
