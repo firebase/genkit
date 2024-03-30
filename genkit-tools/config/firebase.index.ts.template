@@ -1,14 +1,18 @@
 import { generate } from '@genkit-ai/ai';
+import { initializeGenkit } from '@genkit-ai/core/config';
 import { firebaseAuth } from '@genkit-ai/plugin-firebase/auth';
 import { onFlow } from '@genkit-ai/plugin-firebase/functions';
 $GENKIT_MODEL_IMPORT
 import * as z from 'zod';
+import config from './genkit.config.js';
+
+initializeGenkit(config);
 
 export const jokeFlow = onFlow(
   {
     name: 'jokeFlow',
-    input: z.string(),
-    output: z.string(),
+    inputSchema: z.string(),
+    outputSchema: z.string(),
     authPolicy: firebaseAuth((user) => {
       if (!user.email_verified) {
         throw new Error('Verified email required to run flow');

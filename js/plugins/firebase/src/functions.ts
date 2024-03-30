@@ -49,8 +49,8 @@ interface FunctionFlowConfig<
   S extends z.ZodTypeAny,
 > {
   name: string;
-  input: I;
-  output: O;
+  inputSchema?: I;
+  outputSchema?: O;
   authPolicy: FunctionFlowAuth<I>;
   streamType?: S;
   httpsOptions?: HttpsOptions;
