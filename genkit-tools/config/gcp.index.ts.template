@@ -2,12 +2,15 @@ import { generate } from '@genkit-ai/ai';
 import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
 $GENKIT_MODEL_IMPORT
 import * as z from 'zod';
+import config from './genkit.config';
+
+initializeGenkit(config)
 
 export const jokeFlow = defineFlow(
   {
     name: 'jokeFlow',
-    input: z.string(),
-    output: z.string(),
+    inputSchema: z.string(),
+    outputSchema: z.string(),
   },
   async (subject) => {
     const llmResponse = await generate({
