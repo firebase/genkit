@@ -14,9 +14,26 @@
  * limitations under the License.
  */
 
-export * from './flowTypes.js';
-export * from './runtime.js';
-export * from './telemetryTypes.js';
-export * from './types.js';
+import { StatusName } from './statusTypes';
 
-export { GenkitError } from './error.js';
+export class GenkitError extends Error {
+  source?: string;
+  status: StatusName;
+  detail?: any;
+
+  constructor({
+    status,
+    message,
+    detail,
+    source,
+  }: {
+    status: StatusName;
+    message: string;
+    detail?: any;
+    source?: string;
+  }) {
+    super(`${source ? `${source}: ` : ''}${status}: ${message}`);
+    this.status = status;
+    this.detail = detail;
+  }
+}

@@ -1,0 +1,107 @@
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import assert from 'node:assert';
+import { describe, it } from 'node:test';
+
+import { ValidationError, parseSchema, validateSchema, z } from '../src/schema';
+
+describe('validate()', () => {
+  const tests = [
+    {
+      it: 'should return true for a valid json schema',
+      jsonSchema: {
+        type: 'object',
+        properties: {
+          foo: {
+            type: 'boolean',
+          },
+        },
+      },
+      data: { foo: true },
+      valid: true,
+    },
+    {
+      it: 'should return errors for an invalid json schema',
+      jsonSchema: {
+        type: 'object',
+        properties: {
+          foo: {
+            type: 'boolean',
+          },
+        },
+      },
+      data: { foo: 123 },
+      valid: false,
+      errors: [{ path: 'foo', message: 'must be boolean' }],
+    },
+    {
+      it: 'should return true for a valid zod schema',
+      schema: z.object({ foo: z.boolean() }),
+      data: { foo: true },
+      valid: true,
+    },
+    {
+      it: 'should return errors for an invalid zod schema',
+      schema: z.object({ foo: z.boolean() }),
+      data: { foo: 123 },
+      valid: false,
+      errors: [{ path: 'foo', message: 'must be boolean' }],
+    },
+    {
+      it: 'should return dotted path for errors',
+      schema: z.object({ foo: z.array(z.object({ bar: z.boolean() })) }),
+      data: { foo: [{ bar: 123 }] },
+      valid: false,
+      errors: [{ path: 'foo.0.bar', message: 'must be boolean' }],
+    },
+  ];
+  for (const test of tests) {
+    it(test.it, () => {
+      const { valid, errors } = validateSchema(test.data, {
+        jsonSchema: test.jsonSchema,
+        schema: test.schema,
+      });
+      assert.strictEqual(valid, test.valid);
+      assert.deepStrictEqual(errors, test.errors);
+    });
+  }
+});
+
+describe('parse()', () => {
+  it('should throw a ValidationError for invalid schema', () => {
+    assert.throws(() => {
+      parseSchema(
+        { foo: 123 },
+        {
+          schema: z.object({ foo: z.boolean() }),
+        }
+      );
+    }, ValidationError);
+  });
+
+  it('should return the data if valid', () => {
+    assert.deepEqual(
+      parseSchema(
+        { foo: true },
+        {
+          schema: z.object({ foo: z.boolean() }),
+        }
+      ),
+      { foo: true }
+    );
+  });
+});

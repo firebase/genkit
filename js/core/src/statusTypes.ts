@@ -172,6 +172,26 @@ export enum StatusCodes {
   DATA_LOSS = 15,
 }
 
+export const StatusNameSchema = z.enum([
+  'CANCELLED',
+  'UNKNOWN',
+  'INVALID_ARGUMENT',
+  'DEADLINE_EXCEEDED',
+  'NOT_FOUND',
+  'ALREADY_EXISTS',
+  'PERMISSION_DENIED',
+  'UNAUTHENTICATED',
+  'RESOURCE_EXHAUSTED',
+  'FAILED_PRECONDITION',
+  'ABORTED',
+  'OUT_OF_RANGE',
+  'UNIMPLEMENTED',
+  'INTERNAL',
+  'UNAVAILABLE',
+  'DATA_LOSS',
+]);
+export type StatusName = z.infer<typeof StatusNameSchema>;
+
 const StatusCodesSchema = z.nativeEnum(StatusCodes);
 
 // If changing below
