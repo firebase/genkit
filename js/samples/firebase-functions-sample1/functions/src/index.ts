@@ -39,8 +39,8 @@ configureGenkit({
 export const jokeFlow = onFlow(
   {
     name: 'jokeFlow',
-    input: z.string(),
-    output: z.string(),
+    inputSchema: z.string(),
+    outputSchema: z.string(),
     httpsOptions: {
       cors: '*',
     },
@@ -67,8 +67,8 @@ export const jokeFlow = onFlow(
 export const authFlow = onFlow(
   {
     name: 'authFlow',
-    input: z.object({ uid: z.string(), input: z.string() }),
-    output: z.string(),
+    inputSchema: z.object({ uid: z.string(), input: z.string() }),
+    outputSchema: z.string(),
     authPolicy: firebaseAuth((user, input) => {
       if (user.user_id !== input.uid) {
         throw new Error('User must act as themselves');
@@ -81,8 +81,8 @@ export const authFlow = onFlow(
 export const streamer = onFlow(
   {
     name: 'streamer',
-    input: z.number(),
-    output: z.string(),
+    inputSchema: z.number(),
+    outputSchema: z.string(),
     streamType: z.object({ count: z.number() }),
     httpsOptions: { invoker: 'private' },
     authPolicy: noAuth(),
@@ -103,8 +103,6 @@ export const streamer = onFlow(
 export const streamConsumer = onFlow(
   {
     name: 'streamConsumer',
-    input: z.void(),
-    output: z.void(),
     httpsOptions: { invoker: 'private' },
     authPolicy: noAuth(),
   },

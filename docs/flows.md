@@ -12,7 +12,7 @@ import * as z from 'zod';
 import { defineFlow } from '@genkit-ai/flow';
 
 export const myFlow = defineFlow(
-  { name: 'myFlow', input: z.string(), output: z.string() },
+  { name: 'myFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (input) => {
     const output = doSomethingCool(input);
 
@@ -68,8 +68,8 @@ Here's a simple example of a flow that can stream values:
 export const streamer = defineFlow(
   {
     name: 'streamer',
-    input: z.number(),
-    output: z.string(),
+    inputSchema: z.number(),
+    outputSchema: z.string(),
     streamType: z.object({ count: z.number() }),
   },
   async (count, streamingCallback) => {
@@ -103,8 +103,8 @@ import { onFlow, noAuth } from '@genkit-ai/plugin-firebase/functions';
 export const jokeFlow = onFlow(
   {
     name: 'jokeFlow',
-    input: z.string(),
-    output: z.string(),
+    inputSchema: z.string(),
+    outputSchema: z.string(),
     authPolicy: noAuth(),
   },
   async (subject, streamingCallback) => {
@@ -120,7 +120,7 @@ To deploy flows using Cloud Run and similar services, define your flows with
 import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
 
 export const jokeFlow = defineFlow(
-  { name: 'jokeFlow', input: z.string(), output: z.string() },
+  { name: 'jokeFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (subject, streamingCallback) => {
     // ....
   }
@@ -138,7 +138,7 @@ UI. All you need to do is wrap the code in the `run` function.
 
 ```js
 export const myFlow = defineFlow(
-  { name: 'myFlow', input: z.string(), output: z.string() },
+  { name: 'myFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (input) => {
     const output = await run('step-name', async () => {
       return await doSomething(input);

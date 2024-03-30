@@ -37,15 +37,15 @@ import { getActiveContext } from './utils';
  * Defines the durable flow.
  */
 export function durableFlow<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   config: {
     name: string;
-    input: I;
-    output: O;
-    streamType?: S;
+    inputSchema?: I;
+    outputSchema?: O;
+    streamSchema?: S;
     invoker?: Invoker<I, O, S>;
     scheduler?: Scheduler<I, O, S>;
   },
@@ -54,9 +54,9 @@ export function durableFlow<
   return defineFlow(
     {
       name: config.name,
-      input: config.input,
-      output: config.output,
-      streamType: config.streamType,
+      inputSchema: config.inputSchema,
+      outputSchema: config.outputSchema,
+      streamSchema: config.streamSchema,
       invoker: config.invoker,
       experimentalScheduler: config.scheduler,
       experimentalDurable: true,
@@ -69,9 +69,9 @@ export function durableFlow<
  * Schedules a flow run. This is always return an operation that's not completed (done=false).
  */
 export async function scheduleFlow<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
   payload: z.infer<I>,
@@ -82,7 +82,7 @@ export async function scheduleFlow<
   }
   const state = await flow.invoker(flow, {
     schedule: {
-      input: flow.input.parse(payload),
+      input: flow.inputSchema ? flow.inputSchema.parse(payload) : payload,
       delay: delaySeconds,
     },
   });
@@ -93,9 +93,9 @@ export async function scheduleFlow<
  * Resumes an interrupted flow.
  */
 export async function resumeFlow<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
   flowId: string,
@@ -161,9 +161,9 @@ export function runAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
  * {@link FlowExecutionError} will be thrown.
  */
 export async function waitFlowToComplete<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
   flowId: string

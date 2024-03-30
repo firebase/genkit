@@ -58,8 +58,8 @@ export const nfsSpongeBobIndexer = devLocalIndexerRef('spongebob-facts');
 export const askQuestionsAboutTomAndJerryFlow = defineFlow(
   {
     name: 'askQuestionsAboutTomAndJerrybobFlow',
-    input: z.string(),
-    output: z.string(),
+    inputSchema: z.string(),
+    outputSchema: z.string(),
   },
   async (query) => {
     const docs = await retrieve({
@@ -83,8 +83,8 @@ export const askQuestionsAboutTomAndJerryFlow = defineFlow(
 export const askQuestionsAboutSpongebobFlow = defineFlow(
   {
     name: 'askQuestionsAboutSpongebobFlow',
-    input: z.string(),
-    output: z.string(),
+    inputSchema: z.string(),
+    outputSchema: z.string(),
   },
   async (query) => {
     const docs = await retrieve({
@@ -107,8 +107,8 @@ export const askQuestionsAboutSpongebobFlow = defineFlow(
 export const indexTomAndJerryDocumentsFlow = defineFlow(
   {
     name: 'indexTomAndJerryDocumentsFlow',
-    input: z.array(z.string()),
-    output: z.void(),
+    inputSchema: z.array(z.string()),
+    outputSchema: z.void(),
   },
   async (docs) => {
     const documents = docs.map((text) => {
@@ -126,8 +126,8 @@ export const indexTomAndJerryDocumentsFlow = defineFlow(
 export const indexSpongebobDocumentsFlow = defineFlow(
   {
     name: 'indexSpongebobFacts',
-    input: z.array(z.string()),
-    output: z.void(),
+    inputSchema: z.array(z.string()),
+    outputSchema: z.void(),
   },
   async (docs) => {
     const documents = docs.map((text) => {

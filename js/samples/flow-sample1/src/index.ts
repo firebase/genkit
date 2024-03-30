@@ -38,21 +38,18 @@ initializeGenkit(config);
  * To run this flow;
  *   genkit flow:run basic "\"hello\""
  */
-export const basic = defineFlow(
-  { name: 'basic', input: z.string(), output: z.string() },
-  async (subject) => {
-    const foo = await run('call-llm', async () => {
-      return `subject: ${subject}`;
-    });
+export const basic = defineFlow({ name: 'basic' }, async (subject) => {
+  const foo = await run('call-llm', async () => {
+    return `subject: ${subject}`;
+  });
 
-    return await run('call-llm', async () => {
-      return `foo: ${foo}`;
-    });
-  }
-);
+  return await run('call-llm', async () => {
+    return `foo: ${foo}`;
+  });
+});
 
 export const parent = defineFlow(
-  { name: 'parent', input: z.void(), output: z.string() },
+  { name: 'parent', outputSchema: z.string() },
   async () => {
     return JSON.stringify(await runFlow(basic, 'foo'));
   }
@@ -63,7 +60,7 @@ export const parent = defineFlow(
  *   genkit flow:run simpleFanout
  */
 export const simpleFanout = defineFlow(
-  { name: 'simpleFanout', input: z.void(), output: z.string() },
+  { name: 'simpleFanout', outputSchema: z.string() },
   async () => {
     const fanValues = await run('fan-generator', async () => {
       return ['a', 'b', 'c', 'd'];
@@ -88,8 +85,8 @@ export const simpleFanout = defineFlow(
 export const kitchensink = durableFlow(
   {
     name: 'kitchensink',
-    input: z.string(),
-    output: z.string(),
+    inputSchema: z.string(),
+    outputSchema: z.string(),
   },
   async (i) => {
     const hello = await run('say-hello', async () => {
@@ -142,8 +139,7 @@ export const kitchensink = durableFlow(
 export const sleepy = durableFlow(
   {
     name: 'sleepy',
-    input: z.void(),
-    output: z.string(),
+    outputSchema: z.string(),
   },
   async () => {
     const before = await run('before', async () => {
@@ -167,8 +163,7 @@ export const sleepy = durableFlow(
 export const waity = durableFlow(
   {
     name: 'waity',
-    input: z.void(),
-    output: z.string(),
+    outputSchema: z.string(),
   },
   async () => {
     const flowOp = await run('start-sub-flow', async () => {
@@ -189,9 +184,9 @@ export const waity = durableFlow(
 export const streamy = defineFlow(
   {
     name: 'streamy',
-    input: z.number(),
-    output: z.string(),
-    streamType: z.object({ count: z.number() }),
+    inputSchema: z.number(),
+    outputSchema: z.string(),
+    streamSchema: z.object({ count: z.number() }),
   },
   async (count, streamingCallback) => {
     let i = 0;
@@ -209,9 +204,9 @@ export const streamy = defineFlow(
 export const streamyThrowy = defineFlow(
   {
     name: 'streamyThrowy',
-    input: z.number(),
-    output: z.string(),
-    streamType: z.object({ count: z.number() }),
+    inputSchema: z.number(),
+    outputSchema: z.string(),
+    streamSchema: z.object({ count: z.number() }),
   },
   async (count, streamingCallback) => {
     let i = 0;
@@ -233,7 +228,7 @@ export const streamyThrowy = defineFlow(
  *   genkit flow:run throwy "\"hello\""
  */
 export const throwy = defineFlow(
-  { name: 'throwy', input: z.string(), output: z.string() },
+  { name: 'throwy', inputSchema: z.string(), outputSchema: z.string() },
   async (subject) => {
     const foo = await run('call-llm', async () => {
       return `subject: ${subject}`;
@@ -252,7 +247,7 @@ export const throwy = defineFlow(
  *   genkit flow:run throwy2 "\"hello\""
  */
 export const throwy2 = defineFlow(
-  { name: 'throwy2', input: z.string(), output: z.string() },
+  { name: 'throwy2', inputSchema: z.string(), outputSchema: z.string() },
   async (subject) => {
     const foo = await run('call-llm', async () => {
       if (subject) {

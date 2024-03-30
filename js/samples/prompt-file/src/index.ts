@@ -31,10 +31,10 @@ prompt('recipe').then((recipePrompt) => {
   defineFlow(
     {
       name: 'chefFlow',
-      input: z.object({
+      inputSchema: z.object({
         food: z.string(),
       }),
-      output: z.any(),
+      outputSchema: z.any(),
     },
     async (input) => (await recipePrompt.generate({ input: input })).output()
   );
@@ -44,10 +44,10 @@ prompt('recipe', { variant: 'robot' }).then((recipePrompt) => {
   defineFlow(
     {
       name: 'robotChefFlow',
-      input: z.object({
+      inputSchema: z.object({
         food: z.string(),
       }),
-      output: z.any(),
+      outputSchema: z.any(),
     },
     async (input) => (await recipePrompt.generate({ input: input })).output()
   );

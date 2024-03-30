@@ -75,7 +75,7 @@ export interface RunStepConfig {
  * performs checks before the flow runs. If this throws, the flow will not
  * be executed.
  */
-export interface FlowAuthPolicy<I extends z.ZodTypeAny> {
+export interface FlowAuthPolicy<I extends z.ZodTypeAny = z.ZodTypeAny> {
   (auth: unknown | undefined, input: z.infer<I>): void | Promise<void>;
 }
 
@@ -91,15 +91,15 @@ export interface __RequestWithAuth extends express.Request {
  * Defines the flow.
  */
 export function defineFlow<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   config: {
     name: string;
-    input: I;
-    output: O;
-    streamType?: S;
+    inputSchema?: I;
+    outputSchema?: O;
+    streamSchema?: S;
     authPolicy?: FlowAuthPolicy<I>;
     middleware?: express.RequestHandler[];
     invoker?: Invoker<I, O, S>;
@@ -111,8 +111,9 @@ export function defineFlow<
   const f = new Flow(
     {
       name: config.name,
-      input: config.input,
-      output: config.output,
+      inputSchema: config.inputSchema,
+      outputSchema: config.outputSchema,
+      streamSchema: config.streamSchema,
       experimentalDurable: !!config.experimentalDurable,
       stateStore: globalConfig.getFlowStateStore(),
       authPolicy: config.authPolicy,
@@ -145,21 +146,22 @@ export function defineFlow<
 }
 
 export interface FlowWrapper<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 > {
   flow: Flow<I, O, S>;
 }
 
 export class Flow<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 > {
   readonly name: string;
-  readonly input: I;
-  readonly output: O;
+  readonly inputSchema?: I;
+  readonly outputSchema?: O;
+  readonly streamSchema?: S;
   readonly stateStore?: Promise<FlowStateStore>;
   readonly invoker: Invoker<I, O, S>;
   readonly scheduler: Scheduler<I, O, S>;
@@ -170,8 +172,9 @@ export class Flow<
   constructor(
     config: {
       name: string;
-      input: I;
-      output: O;
+      inputSchema?: I;
+      outputSchema?: O;
+      streamSchema?: S;
       stateStore?: Promise<FlowStateStore>;
       invoker: Invoker<I, O, S>;
       scheduler: Scheduler<I, O, S>;
@@ -182,8 +185,9 @@ export class Flow<
     private steps: StepsFunction<I, O, S>
   ) {
     this.name = config.name;
-    this.input = config.input;
-    this.output = config.output;
+    this.inputSchema = config.inputSchema;
+    this.outputSchema = config.outputSchema;
+    this.streamSchema = config.streamSchema;
     this.stateStore = config.stateStore;
     this.invoker = config.invoker;
     this.scheduler = config.scheduler;
@@ -421,8 +425,8 @@ export class Flow<
             dispatchType
           );
           try {
-            const input = this.input
-              ? this.input.parse(ctx.state.input)
+            const input = this.inputSchema
+              ? this.inputSchema.parse(ctx.state.input)
               : ctx.state.input;
             metadata.input = input;
             const output = await handler(input, streamingCallback);
@@ -609,9 +613,9 @@ export class Flow<
  * Runs the flow. If the flow does not get interrupted may return a completed (done=true) operation.
  */
 export async function runFlow<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
   payload?: z.infer<I>,
@@ -621,7 +625,7 @@ export async function runFlow<
     flow = flow.flow;
   }
 
-  const input = payload ? flow.input.parse(payload) : undefined;
+  const input = flow.inputSchema ? flow.inputSchema.parse(payload) : payload;
   await flow.authPolicy?.(opts?.withLocalAuthContext, payload);
 
   if (flow.middleware) {
@@ -659,9 +663,9 @@ interface StreamingResponse<S extends z.ZodTypeAny> {
  * Runs the flow and streams results. If the flow does not get interrupted may return a completed (done=true) operation.
  */
 export function streamFlow<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
   payload?: z.infer<I>
@@ -683,7 +687,7 @@ export function streamFlow<
     flow,
     {
       start: {
-        input: payload ? flow.input.parse(payload) : undefined,
+        input: flow.inputSchema ? flow.inputSchema.parse(payload) : payload,
       },
     },
     (c) => {
@@ -737,18 +741,18 @@ function createNewState(
 }
 
 export type StepsFunction<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 > = (
   input: z.infer<I>,
   streamingCallback: StreamingCallback<z.infer<S>> | undefined
 ) => Promise<z.infer<O>>;
 
 function wrapAsAction<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   flow: Flow<I, O, S>
 ): Action<typeof FlowActionInputSchema, typeof FlowStateSchema> {
@@ -758,8 +762,8 @@ function wrapAsAction<
       inputSchema: FlowActionInputSchema,
       outputSchema: FlowStateSchema,
       metadata: {
-        inputSchema: zodToJsonSchema(flow.input),
-        outputSchema: zodToJsonSchema(flow.output),
+        inputSchema: zodToJsonSchema(flow.inputSchema ?? z.any()),
+        outputSchema: zodToJsonSchema(flow.outputSchema ?? z.any()),
         experimentalDurable: !!flow.experimentalDurable,
       },
     },

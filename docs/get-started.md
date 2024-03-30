@@ -58,7 +58,7 @@ later.
     });
 
     export const jokeFlow = defineFlow(
-      { name: 'jokeFlow', input: z.string(), output: z.string() },
+      { name: 'jokeFlow', inputSchema: z.string(), outputSchema: z.string() },
       async (subject) => {
         const llmResponse = await generate({
           model: geminiPro,
@@ -199,8 +199,8 @@ Cloud billing account.
     export const jokeFlow = onFlow(
       {
         name: "jokeFlow",
-        input: z.string(),
-        output: z.string(),
+        inputSchema: z.string(),
+        outputSchema: z.string(),
         authPolicy: noAuth(),
         httpsOptions: {secrets: [googleaiApiKey]},
       },

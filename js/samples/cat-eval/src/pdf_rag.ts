@@ -49,8 +49,8 @@ Helpful Answer:`;
 export const pdfQA = defineFlow(
   {
     name: 'pdfQA',
-    input: z.string(),
-    output: z.string(),
+    inputSchema: z.string(),
+    outputSchema: z.string(),
   },
   async (query) => {
     const docs = await retrieve({
@@ -85,8 +85,7 @@ const chunkingConfig = {
 export const indexPdf = defineFlow(
   {
     name: 'indexPdf',
-    input: z.string().describe('PDF file path'),
-    output: z.void(),
+    inputSchema: z.string().describe('PDF file path'),
   },
   async (filePath) => {
     filePath = path.resolve(filePath);
@@ -130,8 +129,8 @@ async function extractText(filePath: string): Promise<string> {
 export const synthesizeQuestions = defineFlow(
   {
     name: 'synthesizeQuestions',
-    input: z.string().describe('PDF file path'),
-    output: z.array(z.string()),
+    inputSchema: z.string().describe('PDF file path'),
+    outputSchema: z.array(z.string()),
   },
   async (filePath) => {
     filePath = path.resolve(filePath);

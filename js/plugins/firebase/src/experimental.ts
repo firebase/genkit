@@ -34,14 +34,14 @@ import { FunctionFlow } from './functions';
 import { callHttpsFunction, getFunctionUrl } from './helpers';
 
 interface ScheduledFlowConfig<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 > {
   name: string;
-  input: I;
-  output: O;
-  streamType?: S;
+  inputSchema?: I;
+  outputSchema?: O;
+  streamSchema?: S;
   taskQueueOptions?: TaskQueueOptions;
 }
 
@@ -51,9 +51,9 @@ interface ScheduledFlowConfig<
  * For testing and feedback only.
  */
 export function onScheduledFlow<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   config: ScheduledFlowConfig<I, O, S>,
   steps: StepsFunction<I, O, S>
@@ -86,9 +86,9 @@ export function onScheduledFlow<
 }
 
 function wrapScheduledFlow<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 >(flow: Flow<I, O, S>, config: ScheduledFlowConfig<I, O, S>): HttpsFunction {
   const tq = onTaskDispatched<FlowInvokeEnvelopeMessage>(
     {
