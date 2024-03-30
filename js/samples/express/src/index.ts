@@ -24,7 +24,7 @@ import config from './genkit.config';
 initializeGenkit(config);
 
 export const jokeFlow = defineFlow(
-  { name: 'jokeFlow', input: z.string(), output: z.string() },
+  { name: 'jokeFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (subject) => {
     return await run('call-llm', async () => {
       const llmResponse = await generate({

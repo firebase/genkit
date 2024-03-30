@@ -30,8 +30,8 @@ initializeGenkit(config);
 export const jokeFlow = durableFlow(
   {
     name: 'jokeFlow',
-    input: z.string(),
-    output: z.string(),
+    inputSchema: z.string(),
+    outputSchema: z.string(),
   },
   async (inputSubject) => {
     const prompt = await run('make-prompt', async () => ({

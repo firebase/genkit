@@ -132,8 +132,8 @@
     export const jokeFlow = onFlow(
       {
         name: 'jokeFlow',
-        input: z.string(),
-        output: z.string(),
+        inputSchema: z.string(),
+        outputSchema: z.string(),
         authPolicy: firebaseAuth((user) => {
           if (!user.email_verified) throw new Error('Requires verification!');
         }),

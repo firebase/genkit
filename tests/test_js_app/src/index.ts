@@ -55,7 +55,7 @@ export default configureGenkit({
 });
 
 export const testFlow = defineFlow(
-  { name: 'testFlow', input: z.string(), output: z.string() },
+  { name: 'testFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (subject) => {
     const response = await generate({
       model: 'custom/reflector',

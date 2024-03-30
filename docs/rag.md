@@ -261,8 +261,8 @@ And here's how to use the retriever in a flow:
 export const askQuestionsOnGoT = defineFlow(
   {
     name: 'askQuestionsOnGoT',
-    input: z.string(),
-    output: z.string(),
+    inputSchema: z.string(),
+    outputSchema: z.string(),
   },
   async (inputQuestion) => {
     const docs = await retrieve({
@@ -361,8 +361,7 @@ export const pdfChatIndexer = pineconeIndexerRef({indexId: 'pdf-chat'});
 export const indexPdf = defineFlow(
   {
     name: 'indexPdf',
-    input: z.string().describe('PDF file path'),
-    output: z.void(),
+    inputSchema: z.string().describe('PDF file path'),
   },
   async (filePath) => {
     filePath = path.resolve(filePath);

@@ -23,8 +23,8 @@ import { defineFlow, runFlow } from '@genkit-ai/flow';
 export const selfSummaryFlow = defineFlow(
   {
     name: 'selfSummaryFlow',
-    input: z.object({uid: z.string()}),
-    output: z.string(),
+    inputSchema: z.object({uid: z.string()}),
+    outputSchema: z.string(),
     authPolicy: (auth, input) => {
       if (!auth) {
         throw new Error('Authorization required.');
@@ -81,8 +81,8 @@ async function readDatabase(uid: string) {
 export const selfSummaryFlow = defineFlow(
   {
     name: 'selfSummaryFlow',
-    input: z.object({uid: z.string()}),
-    output: z.string(),
+    inputSchema: z.object({uid: z.string()}),
+    outputSchema: z.string(),
     authPolicy: ...
   },
   async (input) => {
@@ -119,8 +119,8 @@ import { onFlow } from '@genkit-ai/plugin-firebase/functions';
 
 export const jokeFlow = onFlow({
     name: 'jokeFlow',
-    input: z.string(),
-    output: z.string(),
+    inputSchema: z.string(),
+    outputSchema: z.string(),
     authPolicy: firebaseAuth((user) => {
       if (!user.email_verified && !user.admin) {
         throw new Error('Email not verified');
@@ -167,8 +167,8 @@ import { onFlow, noAuth } from '@genkit-ai/plugin-firebase/functions';
 
 export const jokeFlow = onFlow({
     name: 'jokeFlow',
-    input: z.string(),
-    output: z.string(),
+    inputSchema: z.string(),
+    outputSchema: z.string(),
     // WARNING: Only do this if you have some other gatekeeping in place, like
     // Cloud IAM!
     authPolicy: noAuth(),
@@ -188,8 +188,8 @@ import { onFlow } from '@genkit-ai/plugin-firebase/functions';
 
 export const jokeFlow = onFlow({
     name: 'jokeFlow',
-    input: z.string(),
-    output: z.string(),
+    inputSchema: z.string(),
+    outputSchema: z.string(),
 
     // These two fields for app check. The consumeAppCheckToken option is for
     // replay protection, and requires additional client configuration. See the
@@ -217,8 +217,8 @@ alongside the native flows. You have two options:
     export const selfSummaryFlow = defineFlow(
     {
       name: 'selfSummaryFlow',
-      input: z.object({uid: z.string()}),
-      output: z.string(),
+      inputSchema: z.object({uid: z.string()}),
+      outputSchema: z.string(),
       middleware: [
         (req, res, next) => {
           const token = req.headers['authorization'];

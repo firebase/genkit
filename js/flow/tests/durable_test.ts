@@ -33,8 +33,8 @@ function createSimpleTestDurableFlow() {
   return defineFlow(
     {
       name: 'testFlow',
-      input: z.string(),
-      output: z.string(),
+      inputSchema: z.string(),
+      outputSchema: z.string(),
       experimentalDurable: true,
     },
     async (input) => {
@@ -67,8 +67,8 @@ describe('durable', () => {
       const testFlow = defineFlow(
         {
           name: 'testFlow',
-          input: z.string(),
-          output: z.string(),
+          inputSchema: z.string(),
+          outputSchema: z.string(),
           experimentalDurable: true,
         },
         async (input) => {

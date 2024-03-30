@@ -25,8 +25,7 @@ const catFacts = ['./docs/sfspca-cat-adoption-handbook-2023.pdf'];
 export const setup = defineFlow(
   {
     name: 'setup',
-    input: z.array(z.string()).optional(),
-    output: z.void(),
+    inputSchema: z.array(z.string()).optional(),
   },
   async (documentArr) => {
     if (!documentArr) {

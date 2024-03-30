@@ -49,7 +49,11 @@ Greet the customer in one sentence, and recommend a coffee drink.
 );
 
 export const simpleGreetingFlow = defineFlow(
-  { name: 'simpleGreeting', input: CustomerNameSchema, output: z.string() },
+  {
+    name: 'simpleGreeting',
+    inputSchema: CustomerNameSchema,
+    outputSchema: z.string(),
+  },
   async (input) =>
     (await simpleGreetingPrompt.generate({ input: input })).text()
 );
@@ -91,8 +95,8 @@ I want you to greet me in one sentence, and recommend a drink.
 export const greetingWithHistoryFlow = defineFlow(
   {
     name: 'greetingWithHistory',
-    input: CustomerTimeAndHistorySchema,
-    output: z.string(),
+    inputSchema: CustomerTimeAndHistorySchema,
+    outputSchema: z.string(),
   },
   async (input) =>
     (await greetingWithHistoryPrompt.generate({ input: input })).text()
@@ -105,8 +109,7 @@ export const greetingWithHistoryFlow = defineFlow(
 export const testAllCoffeeFlows = defineFlow(
   {
     name: 'testAllCoffeeFlows',
-    input: z.void(),
-    output: z.object({
+    outputSchema: z.object({
       pass: z.boolean(),
       error: z.string().optional(),
     }),

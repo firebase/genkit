@@ -93,8 +93,8 @@ users might be asking about it.
 export const synthesizeQuestions = defineFlow(
   {
     name: 'synthesizeQuestions',
-    input: z.string().describe('PDF file path'),
-    output: z.array(z.string()),
+    inputSchema: z.string().describe('PDF file path'),
+    outputSchema: z.array(z.string()),
   },
   async (filePath) => {
     filePath = path.resolve(filePath);

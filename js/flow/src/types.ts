@@ -19,9 +19,9 @@ import { z } from 'zod';
 import { Flow } from './flow';
 
 export type Invoker<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 > = (
   flow: Flow<I, O, S>,
   msg: FlowInvokeEnvelopeMessage,
@@ -29,9 +29,9 @@ export type Invoker<
 ) => Promise<Operation>;
 
 export type Scheduler<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 > = (
   flow: Flow<I, O, S>,
   msg: FlowInvokeEnvelopeMessage,

@@ -13,7 +13,7 @@ Here's an example:
 import { onScheduledFlow } from '@genkit-ai/plugin-firebase/functions/experimental';
 
 export const jokeFlow = onScheduledFlow(
-  { name: 'jokeFlow', input: z.string(), output: z.string() },
+  { name: 'jokeFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (subject) => {
     // ....
   }
@@ -78,7 +78,7 @@ Memoization uses the run step name as a key.
 
 ```js
 export const myFlow = onScheduledFlow(
-  { name: 'myFlow', input: z.string(), output: z.string() },
+  { name: 'myFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (input) => {
     const output = await run('step-name', async () => {
       return await doSomething(input);
@@ -92,7 +92,7 @@ It's allowed (although not recommended) to use the same name more than once:
 
 ```javascript
 export const myFlow = onScheduledFlow(
-  { name: 'myFlow', input: z.string(), output: z.string() },
+  { name: 'myFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (input) => {
     const output1 = await run('same-name', async () => {
       return await doSomething1(input);
@@ -113,7 +113,7 @@ occurs, the whole flow execution will result in an error.
 
 ```js
 export const myFlow = onScheduledFlow(
-  { name: 'myFlow', input: z.string(), output: z.string() },
+  { name: 'myFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (input) => {
     const output = await run(
       {
@@ -143,7 +143,7 @@ You can build action factories with the `action()` helper:
 ```js
 const greet = (greeting) =>
   action(
-    { name: 'greet', input: z.string(), output: z.string() },
+    { name: 'greet', inputSchema: z.string(), outputSchema: z.string() },
     async (name) => {
       return `${greeting}, ${name}!`;
     }
@@ -156,7 +156,7 @@ omitted during step definition.
 
 ```javascript
 export const greetingFlow = onScheduledFlow(
-  { name: 'greetingFlow', input: z.string(), output: z.string() },
+  { name: 'greetingFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (name) => {
     const frenchGreeting = greet('Bonjour');
     const greeting = await runAction(frenchGreeting, name);
@@ -174,7 +174,7 @@ Use `interrupt` steps to interrupt the flow and request external input.
 
 ```js
 export const myFlow = onScheduledFlow(
-  { name: 'myFlow', input: z.void(), output: z.boolean() },
+  { name: 'myFlow', inputSchema: z.void(), outputSchema: z.boolean() },
   async () => {
     const hoomanSaid = await interrupt(
       'approve-by-hooman',
@@ -200,7 +200,7 @@ need to be careful to rethrow the error when wrapping the `interrupt` step in
 import { InterruptError } from '@genkit-ai/flow/experimental';
 
 export const myFlow = onScheduledFlow(
-  { name: 'myFlow', input: z.void(), output: z.boolean() },
+  { name: 'myFlow', outputSchema: z.boolean() },
   async () => {
     var hoomanSaid;
     try {
@@ -227,7 +227,7 @@ Use the `sleep()` method to interrupt a flow and automatically resume it after a
 specified number of seconds.
 
 ```js
-export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.string(), output: z.string() },
+export const myFlow = onScheduledFlow({ name: 'myFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (input) => {
     const something = await run("do-something", async () => {...});
 
@@ -251,7 +251,7 @@ Basic polling. Periodically invokes the provided function until it returns
 `true`.
 
 ```js
-export const myFlow = onScheduledFlow({ name: 'myFlow', input: z.string(), output: z.string() },
+export const myFlow = onScheduledFlow({ name: 'myFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (input) => {
     const workId = await run("start-something",
       async () => startSomething(input));
@@ -281,7 +281,7 @@ complete.
 
 ```js
 export const myFlow = onScheduledFlow(
-  { name: 'myFlow', input: z.string(), output: z.string() },
+  { name: 'myFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (input) => {
     const otherFlowOp = await scheduleFlow(otherFlow, input);
 

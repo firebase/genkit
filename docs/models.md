@@ -135,8 +135,8 @@ const myTool = action(
   {
     name: 'myJoke',
     description: 'useful when you need a joke to tell.',
-    input: z.object({ subject: z.string() }),
-    output: z.string(),
+    inputSchema: z.object({ subject: z.string() }),
+    outputSchema: z.string(),
   },
   async (input) => 'haha Just kidding no joke! got you'
 );

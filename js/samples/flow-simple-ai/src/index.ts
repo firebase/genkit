@@ -29,12 +29,12 @@ initializeGenkit(config);
 export const jokeFlow = defineFlow(
   {
     name: 'jokeFlow',
-    input: z.object({
+    inputSchema: z.object({
       modelName: z.string(),
       modelVersion: z.string().optional(),
       subject: z.string(),
     }),
-    output: z.string(),
+    outputSchema: z.string(),
   },
   async (input) => {
     return await run('call-llm', async () => {
@@ -51,8 +51,8 @@ export const jokeFlow = defineFlow(
 export const drawPictureFlow = defineFlow(
   {
     name: 'drawPictureFlow',
-    input: z.object({ modelName: z.string(), object: z.string() }),
-    output: z.string(),
+    inputSchema: z.object({ modelName: z.string(), object: z.string() }),
+    outputSchema: z.string(),
   },
   async (input) => {
     return await run('call-llm', async () => {
@@ -85,7 +85,7 @@ const tools = [
 export const jokeWithToolsFlow = defineFlow(
   {
     name: 'jokeWithToolsFlow',
-    input: z.object({
+    inputSchema: z.object({
       modelName: z.enum([
         geminiPro.name,
         gpt4Turbo.name,
@@ -95,7 +95,7 @@ export const jokeWithToolsFlow = defineFlow(
       ]),
       subject: z.string(),
     }),
-    output: z.string(),
+    outputSchema: z.string(),
   },
   async (input) => {
     const llmResponse = await generate({
@@ -110,8 +110,8 @@ export const jokeWithToolsFlow = defineFlow(
 export const vertexStreamer = defineFlow(
   {
     name: 'vertexStreamer',
-    input: z.string(),
-    output: z.string(),
+    inputSchema: z.string(),
+    outputSchema: z.string(),
   },
   async (input, streamingCallback) => {
     return await run('call-llm', async () => {
@@ -129,8 +129,8 @@ export const vertexStreamer = defineFlow(
 export const multimodalFlow = defineFlow(
   {
     name: 'multimodalFlow',
-    input: z.object({ modelName: z.string(), imageUrl: z.string() }),
-    output: z.string(),
+    inputSchema: z.object({ modelName: z.string(), imageUrl: z.string() }),
+    outputSchema: z.string(),
   },
   async (input) => {
     const result = await generate({

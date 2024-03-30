@@ -161,8 +161,8 @@
     export const jokeFlow = defineFlow(
       {
         name: 'jokeFlow',
-        input: z.string(),
-        output: z.string(),
+        inputSchema: z.string(),
+        outputSchema: z.string(),
         streamType: GenerationResponseChunkSchema,
       },
       async (subject, streamingCallback) => {

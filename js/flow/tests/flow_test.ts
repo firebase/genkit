@@ -27,8 +27,8 @@ function createTestFlow() {
   return defineFlow(
     {
       name: 'testFlow',
-      input: z.string(),
-      output: z.string(),
+      inputSchema: z.string(),
+      outputSchema: z.string(),
     },
     async (input) => {
       return `bar ${input}`;
@@ -58,8 +58,8 @@ describe('flow', () => {
       const testFlow = defineFlow(
         {
           name: 'throwing',
-          input: z.string(),
-          output: z.string(),
+          inputSchema: z.string(),
+          outputSchema: z.string(),
         },
         async (input) => {
           throw new Error(`bad happened: ${input}`);
@@ -77,8 +77,8 @@ describe('flow', () => {
       const testFlow = defineFlow(
         {
           name: 'validating',
-          input: z.object({ foo: z.string(), bar: z.number() }),
-          output: z.string(),
+          inputSchema: z.object({ foo: z.string(), bar: z.number() }),
+          outputSchema: z.string(),
         },
         async (input) => {
           return `ok ${input}`;
