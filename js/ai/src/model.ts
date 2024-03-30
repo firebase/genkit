@@ -20,13 +20,13 @@ import {
   getStreamingCallback,
   StreamingCallback,
 } from '@genkit-ai/core';
-import * as registry from '@genkit-ai/core/registry';
+import { registerAction } from '@genkit-ai/core/registry';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import { performance } from 'node:perf_hooks';
 import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
-import { conformOutput, validateSupport } from './model/middleware';
-import * as telemetry from './telemetry';
+import { conformOutput, validateSupport } from './model/middleware.js';
+import * as telemetry from './telemetry.js';
 
 //
 // IMPORTANT: Please keep type definitions in sync with
@@ -338,7 +338,7 @@ export function defineModel<
     act as ModelAction,
     middleware
   ) as ModelAction<CustomOptionsSchema>;
-  registry.registerAction('model', ma.__action.name, ma);
+  registerAction('model', ma.__action.name, ma);
   return ma;
 }
 

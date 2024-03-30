@@ -29,41 +29,49 @@
   "exports": {
     ".": {
       "types": "./lib/index.d.ts",
+      "default": "./lib/index.js",
       "require": "./lib/index.js",
       "import": "./lib/index.mjs"
     },
     "./retriever": {
       "types": "./lib/retriever.d.ts",
+      "default": "./lib/retriever.js",
       "require": "./lib/retriever.js",
       "import": "./lib/retriever.mjs"
     },
     "./embedder": {
       "types": "./lib/embedder.d.ts",
+      "default": "./lib/embedder.js",
       "require": "./lib/embedder.js",
       "import": "./lib/embedder.mjs"
     },
     "./evaluator": {
       "types": "./lib/evaluator.d.ts",
+      "default": "./lib/evaluator.js",
       "require": "./lib/evaluator.js",
       "import": "./lib/evaluator.mjs"
     },
     "./model": {
       "types": "./lib/model.d.ts",
+      "default": "./lib/model.js",
       "require": "./lib/model.js",
       "import": "./lib/model.mjs"
     },
     "./model/middleware": {
       "types": "./lib/model/middleware.d.ts",
+      "default": "./lib/model/middleware.js",
       "require": "./lib/model/middleware.js",
       "import": "./lib/model/middleware.mjs"
     },
     "./extract": {
       "types": "./lib/extract.d.ts",
+      "default": "./lib/extract.js",
       "require": "./lib/extract.js",
       "import": "./lib/extract.mjs"
     },
     "./tool": {
       "types": "./lib/tool.d.ts",
+      "default": "./lib/tool.js",
       "require": "./lib/tool.js",
       "import": "./lib/tool.mjs"
     }

@@ -18,8 +18,8 @@ import { genkitPlugin, Plugin } from '@genkit-ai/core/config';
 import { InstrumentationConfigMap } from '@opentelemetry/auto-instrumentations-node';
 import { Instrumentation } from '@opentelemetry/instrumentation';
 import { Sampler } from '@opentelemetry/sdk-trace-base';
-import { GcpLogger } from './gcpLogger';
-import { GcpOpenTelemetry } from './gcpOpenTelemetry';
+import { GcpLogger } from './gcpLogger.js';
+import { GcpOpenTelemetry } from './gcpOpenTelemetry.js';
 
 export interface PluginOptions {
   projectId?: string;

@@ -15,7 +15,7 @@
  */
 
 import { googleAIModel } from '@genkit-ai/providers/google-ai';
-import { PromptFile } from '../src/prompt';
+import { PromptFile } from '../src/prompt.js';
 
 googleAIModel('gemini-pro');
 

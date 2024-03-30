@@ -21,11 +21,11 @@ import {
   GenerationResponseData,
   Part,
   defineModel,
-} from '../../src/model';
+} from '../../src/model.js';
 import {
   simulateSystemPrompt,
   validateSupport,
-} from '../../src/model/middleware';
+} from '../../src/model/middleware.js';
 
 describe('validateSupport', () => {
   const examples: Record<string, GenerationRequest> = {

@@ -17,7 +17,7 @@
 import Ajv, { ErrorObject } from 'ajv';
 import { z } from 'zod';
 import zodToJsonSchema, { JsonSchema7Type } from 'zod-to-json-schema';
-import { GenkitError } from './error';
+import { GenkitError } from './error.js';
 const ajv = new Ajv();
 
 export { z }; // provide a consistent zod to use throughout genkit

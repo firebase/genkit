@@ -16,7 +16,7 @@
 
 import { MediaPart, MessageData, Part, Role } from '@genkit-ai/ai/model';
 import Handlebars from 'handlebars';
-import { PromptMetadata } from './metadata';
+import { PromptMetadata } from './metadata.js';
 
 const Promptbars = Handlebars.create();
 

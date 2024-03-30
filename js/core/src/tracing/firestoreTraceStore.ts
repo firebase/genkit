@@ -16,7 +16,7 @@
 
 import { Firestore } from '@google-cloud/firestore';
 import { randomUUID } from 'crypto';
-import { logger } from '../logging';
+import { logger } from '../logging.js';
 import {
   SpanData,
   SpanDataSchema,

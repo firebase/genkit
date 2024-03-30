@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { StatusName } from './statusTypes';
+import { StatusName } from './statusTypes.js';
 
 export class GenkitError extends Error {
   source?: string;

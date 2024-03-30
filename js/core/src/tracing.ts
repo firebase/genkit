@@ -20,11 +20,11 @@ import {
   SimpleSpanProcessor,
   SpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
-import { getCurrentEnv } from './config';
-import { TelemetryConfig } from './telemetryTypes';
-import { TraceStore } from './tracing';
-import { TraceStoreExporter } from './tracing/exporter';
-import { MultiSpanProcessor } from './tracing/multiSpanProcessor';
+import { getCurrentEnv } from './config.js';
+import { TelemetryConfig } from './telemetryTypes.js';
+import { TraceStore } from './tracing.js';
+import { TraceStoreExporter } from './tracing/exporter.js';
+import { MultiSpanProcessor } from './tracing/multiSpanProcessor.js';
 
 export * from './tracing/exporter.js';
 export * from './tracing/firestoreTraceStore.js';

@@ -44,11 +44,13 @@
     ".": {
       "types": "./lib/index.d.ts",
       "require": "./lib/index.js",
+      "default": "./lib/index.js",
       "import": "./lib/index.mjs"
     },
     "./experimental": {
       "types": "./lib/experimental.d.ts",
       "require": "./lib/experimental.js",
+      "default": "./lib/experimental.js",
       "import": "./lib/experimental.mjs"
     }
   },

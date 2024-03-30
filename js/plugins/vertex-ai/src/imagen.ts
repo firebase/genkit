@@ -24,7 +24,7 @@ import {
 import { GoogleAuth } from 'google-auth-library';
 import z from 'zod';
 import { PluginOptions } from '.';
-import { predictModel } from './predict';
+import { predictModel } from './predict.js';
 
 const ImagenConfigSchema = z.object({
   /** Language of the prompt text. */

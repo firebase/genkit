@@ -21,7 +21,7 @@ import {
   trace,
 } from '@opentelemetry/api';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { SpanMetadata } from './types';
+import { SpanMetadata } from './types.js';
 
 export const spanMetadataAls = new AsyncLocalStorage<SpanMetadata>();
 

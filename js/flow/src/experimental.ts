@@ -17,21 +17,21 @@
 import { Action, Operation } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import * as z from 'zod';
-import { PollingConfig } from './context';
+import { PollingConfig } from './context.js';
 import {
   FlowExecutionError,
   FlowNotFoundError,
   FlowStillRunningError,
-} from './errors';
+} from './errors.js';
 import {
   Flow,
   FlowWrapper,
   RunStepConfig,
   StepsFunction,
   defineFlow,
-} from './flow';
-import { Invoker, Scheduler } from './types';
-import { getActiveContext } from './utils';
+} from './flow.js';
+import { Invoker, Scheduler } from './types.js';
+import { getActiveContext } from './utils.js';
 
 /**
  * Defines the durable flow.

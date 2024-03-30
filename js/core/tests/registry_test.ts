@@ -22,8 +22,8 @@ import {
   lookupAction,
   registerAction,
   registerPluginProvider,
-} from '../src/registry';
-import { action } from '../src/types';
+} from '../src/registry.js';
+import { action } from '../src/types.js';
 
 describe('registry', () => {
   beforeEach(__hardResetRegistryForTesting);

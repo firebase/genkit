@@ -21,7 +21,7 @@ export {
   Operation,
   OperationSchema,
 } from '@genkit-ai/core';
-export { FirestoreStateStore } from './firestoreStateStore';
+export { FirestoreStateStore } from './firestoreStateStore.js';
 export {
   Flow,
   FlowAuthPolicy,
@@ -32,10 +32,10 @@ export {
   runFlow,
   startFlowsServer,
   streamFlow,
-} from './flow';
-export { run, runAction, runMap } from './steps';
+} from './flow.js';
+export { run, runAction, runMap } from './steps.js';
 export {
   FlowInvokeEnvelopeMessage,
   FlowInvokeEnvelopeMessageSchema,
-} from './types';
-export { getFlowAuth } from './utils';
+} from './types.js';
+export { getFlowAuth } from './utils.js';

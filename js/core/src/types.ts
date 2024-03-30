@@ -18,8 +18,8 @@ import { JSONSchema7 } from 'json-schema';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { performance } from 'node:perf_hooks';
 import * as z from 'zod';
-import * as telemetry from './telemetry';
-import { runInNewSpan, SPAN_TYPE_ATTR } from './tracing';
+import * as telemetry from './telemetry.js';
+import { runInNewSpan, SPAN_TYPE_ATTR } from './tracing.js';
 
 export { Status, StatusCodes, StatusSchema } from './statusTypes.js';
 export { JSONSchema7 };

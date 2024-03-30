@@ -21,8 +21,8 @@ import {
   hrTimeToMilliseconds,
 } from '@opentelemetry/core';
 import { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base';
-import { deleteUndefinedProps } from '../utils';
-import { SpanData, TraceData, TraceStore } from './types';
+import { deleteUndefinedProps } from '../utils.js';
+import { SpanData, TraceData, TraceStore } from './types.js';
 
 /**
  * Exports collected OpenTelemetetry spans to Firestore.

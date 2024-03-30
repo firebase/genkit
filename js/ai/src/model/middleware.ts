@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ModelInfo, ModelMiddleware, Part } from '../model';
+import { ModelInfo, ModelMiddleware, Part } from '../model.js';
 
 /**
  * Preprocess a GenerationRequest to download referenced http(s) media URLs and

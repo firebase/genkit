@@ -25,7 +25,7 @@ import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import * as z from 'zod';
-import { augmentedPrompt } from './prompt';
+import { augmentedPrompt } from './prompt.js';
 
 export const pdfChatRetriever = devLocalRetrieverRef('pdfQA');
 

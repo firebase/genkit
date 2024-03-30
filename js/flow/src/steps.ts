@@ -16,7 +16,7 @@
 
 import { Action } from '@genkit-ai/core';
 import * as z from 'zod';
-import { getActiveContext } from './utils';
+import { getActiveContext } from './utils.js';
 
 /**
  * A flow steap that executes an action with provided input and memoizes the output.

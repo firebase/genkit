@@ -20,14 +20,14 @@ export {
   EvaluatorReference,
   evaluate,
   evaluatorRef,
-} from './evaluator';
+} from './evaluator.js';
 export {
   Candidate,
   GenerateOptions,
   GenerationResponse,
   Message,
   generate,
-} from './generate';
+} from './generate.js';
 export {
   IndexerAction,
   IndexerInfo,
@@ -39,6 +39,6 @@ export {
   indexerRef,
   retrieve,
   retrieverRef,
-} from './retriever';
-export { ToolAction, asTool, defineTool } from './tool';
+} from './retriever.js';
+export { ToolAction, asTool, defineTool } from './tool.js';
 export * from './types.js';

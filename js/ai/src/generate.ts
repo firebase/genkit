@@ -22,7 +22,7 @@ import {
 import { lookupAction } from '@genkit-ai/core/registry';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { extractJson } from './extract';
+import { extractJson } from './extract.js';
 import {
   CandidateData,
   GenerationConfig,
@@ -38,7 +38,7 @@ import {
   Role,
   ToolResponsePart,
 } from './model.js';
-import * as telemetry from './telemetry';
+import * as telemetry from './telemetry.js';
 import {
   resolveTools,
   ToolAction,

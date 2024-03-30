@@ -15,8 +15,7 @@
  */
 
 import { action, Action } from '@genkit-ai/core';
-import * as registry from '@genkit-ai/core/registry';
-import { lookupAction } from '@genkit-ai/core/registry';
+import { lookupAction, registerAction } from '@genkit-ai/core/registry';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import * as z from 'zod';
 
@@ -136,7 +135,7 @@ export function defineEvaluator<
     options.dataPointType,
     options.configSchema
   );
-  registry.registerAction('evaluator', evaluator.__action.name, evaluator);
+  registerAction('evaluator', evaluator.__action.name, evaluator);
   return ewm;
 }
 

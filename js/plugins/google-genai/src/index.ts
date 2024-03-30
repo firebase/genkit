@@ -20,7 +20,7 @@ import {
   geminiProVision,
   googleAIModel,
   SUPPORTED_MODELS,
-} from './gemini';
+} from './gemini.js';
 export { geminiPro, geminiProVision };
 
 export interface PluginOptions {

@@ -30,8 +30,8 @@ import {
   TaskQueueOptions,
 } from 'firebase-functions/v2/tasks';
 import * as z from 'zod';
-import { FunctionFlow } from './functions';
-import { callHttpsFunction, getFunctionUrl } from './helpers';
+import { FunctionFlow } from './functions.js';
+import { callHttpsFunction, getFunctionUrl } from './helpers.js';
 
 interface ScheduledFlowConfig<
   I extends z.ZodTypeAny = z.ZodTypeAny,

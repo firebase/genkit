@@ -16,7 +16,7 @@
 
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { Document } from '../../src/document';
+import { Document } from '../../src/document.js';
 
 describe('document', () => {
   describe('text()', () => {

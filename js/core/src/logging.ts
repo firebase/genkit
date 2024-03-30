@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { LoggerConfig } from './telemetryTypes';
+import { LoggerConfig } from './telemetryTypes.js';
 
 class Logger {
   logger: {

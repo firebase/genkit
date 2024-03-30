@@ -16,7 +16,7 @@
 
 import { Operation, StreamingCallback } from '@genkit-ai/core';
 import { z } from 'zod';
-import { Flow } from './flow';
+import { Flow } from './flow.js';
 
 export type Invoker<
   I extends z.ZodTypeAny = z.ZodTypeAny,

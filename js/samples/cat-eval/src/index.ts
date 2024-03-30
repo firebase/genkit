@@ -14,6 +14,6 @@
  * limitations under the License.
  */
 
-export * from './genkit.config';
-export * from './pdf_rag';
-export * from './setup';
+export * from './genkit.config.js';
+export * from './pdf_rag.js';
+export * from './setup.js';

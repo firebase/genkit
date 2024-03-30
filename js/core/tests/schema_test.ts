@@ -17,7 +17,12 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 
-import { ValidationError, parseSchema, validateSchema, z } from '../src/schema';
+import {
+  ValidationError,
+  parseSchema,
+  validateSchema,
+  z,
+} from '../src/schema.js';
 
 describe('validate()', () => {
   const tests = [
