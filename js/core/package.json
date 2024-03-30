@@ -21,6 +21,7 @@
     "@opentelemetry/sdk-metrics": "^1.22.0",
     "@opentelemetry/sdk-node": "^0.49.0",
     "@opentelemetry/sdk-trace-base": "^1.22.0",
+    "ajv": "^8.12.0",
     "express": "^4.19.2",
     "express-openapi-validator": "^5.1.3",
     "json-schema": "^0.4.0",
@@ -71,6 +72,11 @@
       "types": "./lib/runtime.d.ts",
       "require": "./lib/runtime.js",
       "import": "./lib/runtime.mjs"
+    },
+    "./schema": {
+      "types": "./lib/schema.d.ts",
+      "require": "./lib/schema.js",
+      "import": "./lib/schema.mjs"
     }
   },
   "typesVersions": {
@@ -92,6 +98,9 @@
       ],
       "runtime": [
         "lib/runtime"
+      ],
+      "schema": [
+        "lib/schema"
       ]
     }
   }
