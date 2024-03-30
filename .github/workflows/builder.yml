@@ -38,5 +38,7 @@ jobs:
       run: pnpm install
     - name: Run build script
       run: pnpm build
+    - name: Run js tests
+      run: pnpm test:js
     - name: Validate working directory is clean
       run: .github/workflows/scripts/ensure-clean-working-tree.sh
