@@ -20,100 +20,232 @@ import { z } from 'zod';
 import {
   Candidate,
   GenerateOptions,
+  GenerationResponse,
   Message,
   toGenerateRequest,
 } from '../../src/generate.js';
-import { CandidateData } from '../../src/model.js';
+import {
+  CandidateData,
+  GenerationRequest,
+  MessageData,
+} from '../../src/model.js';
 import { defineTool } from '../../src/tool.js';
 
-describe('Candidate toJSON() tests', () => {
-  const testCases = [
-    {
-      should: 'serialize correctly when custom is undefined',
-      candidateData: {
-        message: new Message({
-          role: 'model',
-          content: [{ text: '{"name": "Bob"}' }],
-        }),
-        index: 0,
-        usage: {},
-        finishReason: 'stop',
-        finishMessage: '',
-        // No 'custom' property
+describe('Candidate', () => {
+  describe('#toJSON()', () => {
+    const testCases = [
+      {
+        should: 'serialize correctly when custom is undefined',
+        candidateData: {
+          message: new Message({
+            role: 'model',
+            content: [{ text: '{"name": "Bob"}' }],
+          }),
+          index: 0,
+          usage: {},
+          finishReason: 'stop',
+          finishMessage: '',
+          // No 'custom' property
+        },
+        expectedOutput: {
+          message: { content: [{ text: '{"name": "Bob"}' }], role: 'model' }, // NOTE THIS IS WRONG??
+          index: 0,
+          usage: {},
+          finishReason: 'stop',
+          finishMessage: '',
+          custom: undefined, // Or omit this if appropriate
+        },
       },
-      expectedOutput: {
-        message: { content: [{ text: '{"name": "Bob"}' }], role: 'model' }, // NOTE THIS IS WRONG??
-        index: 0,
-        usage: {},
-        finishReason: 'stop',
-        finishMessage: '',
-        custom: undefined, // Or omit this if appropriate
-      },
-    },
-  ];
+    ];
 
-  for (const test of testCases) {
-    it(test.should, () => {
-      const candidate = new Candidate(test.candidateData as Candidate);
-      assert.deepStrictEqual(candidate.toJSON(), test.expectedOutput);
+    for (const test of testCases) {
+      it(test.should, () => {
+        const candidate = new Candidate(test.candidateData as Candidate);
+        assert.deepStrictEqual(candidate.toJSON(), test.expectedOutput);
+      });
+    }
+  });
+
+  describe('#output()', () => {
+    const testCases = [
+      {
+        should: 'return structured data from the data part',
+        candidateData: {
+          message: new Message({
+            role: 'model',
+            content: [{ data: { name: 'Alice', age: 30 } }],
+          }),
+          index: 0,
+          usage: {},
+          finishReason: 'stop',
+          finishMessage: '',
+          custom: {},
+        },
+        expectedOutput: { name: 'Alice', age: 30 },
+      },
+      {
+        should: 'parse JSON from text when the data part is absent',
+        candidateData: {
+          message: new Message({
+            role: 'model',
+            content: [{ text: '{"name": "Bob"}' }],
+          }),
+          index: 0,
+          usage: {},
+          finishReason: 'stop',
+          finishMessage: '',
+          custom: {},
+        },
+        expectedOutput: { name: 'Bob' },
+      },
+    ];
+
+    for (const test of testCases) {
+      it(test.should, () => {
+        const candidate = new Candidate(test.candidateData as CandidateData);
+        assert.deepStrictEqual(candidate.output(), test.expectedOutput);
+      });
+    }
+  });
+
+  describe('#hasValidOutput()', () => {
+    const good: MessageData = {
+      role: 'model',
+      content: [{ text: '{"abc": 123}' }],
+    };
+    const bad: MessageData = {
+      role: 'model',
+      content: [{ text: '{"abc": "123"}' }],
+    };
+    const goodData: MessageData = {
+      role: 'model',
+      content: [{ data: { abc: 123 } }],
+    };
+    const badData: MessageData = {
+      role: 'model',
+      content: [{ data: { abc: '123' } }],
+    };
+    const schemaRequest = {
+      output: {
+        schema: { type: 'object', properties: { abc: { type: 'number' } } },
+      },
+    } as unknown as GenerationRequest;
+
+    it('returns true if no schema', () => {
+      assert(
+        new Candidate<any>({
+          index: 0,
+          message: bad,
+          finishReason: 'stop',
+        }).hasValidOutput()
+      );
     });
-  }
+
+    it('returns correctly based on validation from data', () => {
+      assert(
+        !new Candidate<any>({
+          index: 0,
+          message: badData,
+          finishReason: 'stop',
+        }).hasValidOutput(schemaRequest)
+      );
+      assert(
+        !new Candidate<any>(
+          { index: 0, message: badData, finishReason: 'stop' },
+          schemaRequest
+        ).hasValidOutput()
+      );
+      assert(
+        new Candidate<any>({
+          index: 0,
+          message: goodData,
+          finishReason: 'stop',
+        }).hasValidOutput(schemaRequest)
+      );
+      assert(
+        new Candidate<any>(
+          { index: 0, message: goodData, finishReason: 'stop' },
+          schemaRequest
+        ).hasValidOutput()
+      );
+    });
+
+    it('returns correctly based on validation from output', () => {
+      assert(
+        !new Candidate<any>({
+          index: 0,
+          message: bad,
+          finishReason: 'stop',
+        }).hasValidOutput(schemaRequest)
+      );
+      assert(
+        !new Candidate<any>(
+          { index: 0, message: bad, finishReason: 'stop' },
+          schemaRequest
+        ).hasValidOutput()
+      );
+      assert(
+        new Candidate<any>({
+          index: 0,
+          message: good,
+          finishReason: 'stop',
+        }).hasValidOutput(schemaRequest)
+      );
+      assert(
+        new Candidate<any>(
+          { index: 0, message: good, finishReason: 'stop' },
+          schemaRequest
+        ).hasValidOutput()
+      );
+    });
+  });
 });
 
-describe('Candidate output() tests', () => {
-  const testCases = [
-    {
-      should: 'return structured data from the data part',
-      candidateData: {
-        message: new Message({
-          role: 'model',
-          content: [{ data: { name: 'Alice', age: 30 } }],
-        }),
-        index: 0,
-        usage: {},
-        finishReason: 'stop',
-        finishMessage: '',
-        custom: {},
-      },
-      expectedOutput: { name: 'Alice', age: 30 },
-    },
-    {
-      should: 'parse JSON from text when the data part is absent',
-      candidateData: {
-        message: new Message({
-          role: 'model',
-          content: [{ text: '{"name": "Bob"}' }],
-        }),
-        index: 0,
-        usage: {},
-        finishReason: 'stop',
-        finishMessage: '',
-        custom: {},
-      },
-      expectedOutput: { name: 'Bob' },
-    },
-  ];
-
-  for (const test of testCases) {
-    it(test.should, () => {
-      const candidate = new Candidate(test.candidateData as CandidateData);
-      assert.deepStrictEqual(candidate.output(), test.expectedOutput);
+describe('GenerationResponse', () => {
+  describe('#output()', () => {
+    it('picks the first candidate with valid output if no index provided', () => {
+      const schemaRequest = {
+        output: {
+          schema: { type: 'object', properties: { abc: { type: 'number' } } },
+        },
+      } as unknown as GenerationRequest;
+      const response = new GenerationResponse(
+        {
+          candidates: [
+            {
+              index: 0,
+              finishReason: 'stop',
+              message: { role: 'model', content: [{ text: '{"abc":"123"}' }] },
+            },
+            {
+              index: 0,
+              finishReason: 'stop',
+              message: { role: 'model', content: [{ text: '{"abc":123}' }] },
+            },
+          ],
+        },
+        schemaRequest
+      );
+      assert.deepStrictEqual(response.output(), { abc: 123 });
+      assert.deepStrictEqual(response.output(0), { abc: '123' });
     });
-  }
+  });
 });
 
 describe('toGenerateRequest', () => {
   // register tools
-  const tellAFunnyJoke = defineTool({
-    name: 'tellAFunnyJoke',
-    description:
-      'Tells jokes about an input topic. Use this tool whenever user asks you to tell a joke.',
-    input: z.object({ topic: z.string() }),
-    output: z.string(),
-    fn: async (input) => {
-      return `Why did the ${input.topic} cross the road?`;
+  const tellAFunnyJoke = defineTool(
+    {
+      name: 'tellAFunnyJoke',
+      description:
+        'Tells jokes about an input topic. Use this tool whenever user asks you to tell a joke.',
+      inputSchema: z.object({ topic: z.string() }),
+      outputSchema: z.string(),
     },
-  });
+    async (input) => {
+      return `Why did the ${input.topic} cross the road?`;
+    }
+  );
 
   const testCases = [
     {

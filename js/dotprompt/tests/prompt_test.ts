@@ -20,7 +20,7 @@ import { describe, it } from 'node:test';
 import { defineModel } from '@genkit-ai/ai/model';
 import z from 'zod';
 
-import zodToJsonSchema from 'zod-to-json-schema';
+import { toJsonSchema } from '@genkit-ai/core/schema';
 import { Prompt } from '../src/index.js';
 import { PromptMetadata } from '../src/metadata.js';
 
@@ -68,7 +68,7 @@ describe('Prompt', () => {
 
       assert.deepStrictEqual(
         prompt.toJSON().input?.schema,
-        zodToJsonSchema(schema)
+        toJsonSchema({ schema })
       );
     });
   });

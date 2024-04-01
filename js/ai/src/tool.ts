@@ -16,9 +16,9 @@
 
 import { Action, JSONSchema7, action } from '@genkit-ai/core';
 import { lookupAction, registerAction } from '@genkit-ai/core/registry';
+import { toJsonSchema } from '@genkit-ai/core/schema';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import z from 'zod';
-import zodToJsonSchema from 'zod-to-json-schema';
 import { ToolDefinition } from './model.js';
 
 export type ToolAction<
@@ -83,14 +83,14 @@ export function toToolDefinition(
   return {
     name: tool.__action.name,
     description: tool.__action.description || '',
-    outputSchema:
-      tool.__action.outputJsonSchema ||
-      (tool.__action.outputSchema
-        ? zodToJsonSchema(tool.__action.outputSchema)
-        : {}), // JSON schema matching anything
-    inputSchema:
-      tool.__action.inputJsonSchema ||
-      zodToJsonSchema(tool.__action.inputSchema!),
+    outputSchema: toJsonSchema({
+      schema: tool.__action.outputSchema,
+      jsonSchema: tool.__action.outputJsonSchema,
+    }),
+    inputSchema: toJsonSchema({
+      schema: tool.__action.inputSchema,
+      jsonSchema: tool.__action.inputJsonSchema,
+    }),
   };
 }
 

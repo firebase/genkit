@@ -15,8 +15,8 @@
  */
 
 import { Action } from '@genkit-ai/core';
+import { toJsonSchema } from '@genkit-ai/core/schema';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 
 export const ModelIdSchema = z.object({
   modelProvider: z.string().readonly(),
@@ -68,8 +68,14 @@ export function toToolWireFormat(
       name: a.__action.name,
       description: a.__action.description,
       schema: {
-        input: zodToJsonSchema(a.__action.inputSchema),
-        output: zodToJsonSchema(a.__action.outputSchema),
+        input: toJsonSchema({
+          schema: a.__action.inputSchema,
+          jsonSchema: a.__action.inputJsonSchema,
+        }),
+        output: toJsonSchema({
+          schema: a.__action.outputSchema,
+          jsonSchema: a.__action.outputJsonSchema,
+        }),
       },
     };
   });

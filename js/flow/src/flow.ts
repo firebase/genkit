@@ -28,6 +28,7 @@ import {
 import { config as globalConfig, isDevEnv } from '@genkit-ai/core/config';
 import { logger } from '@genkit-ai/core/logging';
 import { registerAction } from '@genkit-ai/core/registry';
+import { toJsonSchema } from '@genkit-ai/core/schema';
 import {
   newTrace,
   setCustomMetadataAttribute,
@@ -39,7 +40,6 @@ import { default as cors, CorsOptions } from 'cors';
 import express from 'express';
 import { performance } from 'node:perf_hooks';
 import * as z from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import { Context } from './context.js';
 import {
   FlowExecutionError,
@@ -784,8 +784,8 @@ function wrapAsAction<
       inputSchema: FlowActionInputSchema,
       outputSchema: FlowStateSchema,
       metadata: {
-        inputSchema: zodToJsonSchema(flow.inputSchema ?? z.any()),
-        outputSchema: zodToJsonSchema(flow.outputSchema ?? z.any()),
+        inputSchema: toJsonSchema({ schema: flow.inputSchema }),
+        outputSchema: toJsonSchema({ schema: flow.outputSchema }),
         experimentalDurable: !!flow.experimentalDurable,
       },
     },

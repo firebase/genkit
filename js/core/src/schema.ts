@@ -82,7 +82,7 @@ export type ValidationResponse =
 
 export function validateSchema(
   data: unknown,
-  options: {}
+  options: ProvidedSchema
 ): { valid: boolean; errors?: any[] | null } {
   const toValidate = toJsonSchema(options);
   const validator = validators.get(toValidate) || ajv.compile(toValidate);
