@@ -638,24 +638,22 @@ export async function runFlow<
     );
   }
 
-  const state = await flow.invoker(flow, {
+  const op = await flow.invoker(flow, {
     start: {
       input,
     },
   });
-  if (!state.done) {
-    throw new FlowStillRunningError(
-      `flow ${state.name} did not finish execution`
-    );
+  if (!op.done) {
+    throw new FlowStillRunningError(`flow ${op.name} did not finish execution`);
   }
-  if (state.result?.error) {
+  if (op.result?.error) {
     throw new FlowExecutionError(
-      state.name,
-      state.result?.error,
-      state.result?.stacktrace
+      op.name,
+      op.result?.error,
+      op.result?.stacktrace
     );
   }
-  return state.result?.response;
+  return op.result?.response;
 }
 
 interface StreamingResponse<S extends z.ZodTypeAny> {
