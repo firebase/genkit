@@ -113,7 +113,7 @@ export const streamConsumer = onFlow(
       console.log('chunk', chunk);
     }
 
-    console.log('streamConsumer done', await response.operation());
+    console.log('streamConsumer done', await response.output());
   }
 );
 

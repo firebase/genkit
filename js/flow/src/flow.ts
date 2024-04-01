@@ -638,27 +638,32 @@ export async function runFlow<
     );
   }
 
-  const op = await flow.invoker(flow, {
+  const state = await flow.runEnvelope({
     start: {
       input,
     },
   });
-  if (!op.done) {
-    throw new FlowStillRunningError(`flow ${op.name} did not finish execution`);
-  }
-  if (op.result?.error) {
-    throw new FlowExecutionError(
-      op.name,
-      op.result?.error,
-      op.result?.stacktrace
+  if (!state.operation.done) {
+    throw new FlowStillRunningError(
+      `flow ${state.name} did not finish execution`
     );
   }
-  return op.result?.response;
+  if (state.operation.result?.error) {
+    throw new FlowExecutionError(
+      state.operation.name,
+      state.operation.result?.error,
+      state.operation.result?.stacktrace
+    );
+  }
+  return state.operation.result?.response;
 }
 
-interface StreamingResponse<S extends z.ZodTypeAny> {
+interface StreamingResponse<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> {
   stream(): AsyncGenerator<unknown, Operation, z.infer<S> | undefined>;
-  operation(): Promise<Operation>;
+  output(): Promise<z.infer<O>>;
 }
 
 /**
@@ -671,7 +676,7 @@ export function streamFlow<
 >(
   flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
   payload?: z.infer<I>
-): StreamingResponse<S> {
+): StreamingResponse<O, S> {
   if (!(flow instanceof Flow)) {
     flow = flow.flow;
   }
@@ -685,25 +690,40 @@ export function streamFlow<
     cancel() {},
   });
 
-  const operationPromise = flow.invoker(
-    flow,
-    {
-      start: {
-        input: flow.inputSchema ? flow.inputSchema.parse(payload) : payload,
+  const operationPromise = flow
+    .runEnvelope(
+      {
+        start: {
+          input: flow.inputSchema ? flow.inputSchema.parse(payload) : payload,
+        },
       },
-    },
-    (c) => {
-      chunkStreamController.enqueue(c);
-    }
-  );
+      (c) => {
+        chunkStreamController.enqueue(c);
+      }
+    )
+    .then((s) => s.operation);
   operationPromise.then((o) => {
     chunkStreamController.close();
     return o;
   });
 
   return {
-    operation() {
-      return operationPromise;
+    output() {
+      return operationPromise.then((op) => {
+        if (!op.done) {
+          throw new FlowStillRunningError(
+            `flow ${op.name} did not finish execution`
+          );
+        }
+        if (op.result?.error) {
+          throw new FlowExecutionError(
+            op.name,
+            op.result?.error,
+            op.result?.stacktrace
+          );
+        }
+        return op.result?.response;
+      });
     },
     async *stream() {
       const reader = chunkStream.getReader();
