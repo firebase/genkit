@@ -16,11 +16,15 @@
 
 import { genkitPlugin, Plugin } from '@genkit-ai/core/config';
 import {
+  SUPPORTED_MODELS as EMBEDDER_MODELS,
+  textEmbeddingGeckoEmbedder,
+} from './embedder';
+import {
+  SUPPORTED_MODELS as GEMINI_MODELS,
   geminiPro,
   geminiProVision,
   googleAIModel,
-  SUPPORTED_MODELS,
-} from './gemini.js';
+} from './gemini';
 export { geminiPro, geminiProVision };
 
 export interface PluginOptions {
@@ -32,8 +36,13 @@ export const googleGenAI: Plugin<PluginOptions[]> = genkitPlugin(
   async (options: PluginOptions) => {
     return {
       models: [
-        ...Object.keys(SUPPORTED_MODELS).map((name) =>
+        ...Object.keys(GEMINI_MODELS).map((name) =>
           googleAIModel(name, options?.apiKey)
+        ),
+      ],
+      embedders: [
+        ...Object.keys(EMBEDDER_MODELS).map((name) =>
+          textEmbeddingGeckoEmbedder(name, { apiKey: options?.apiKey })
         ),
       ],
     };
