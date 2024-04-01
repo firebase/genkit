@@ -27,6 +27,8 @@ import {
   TraceStore,
 } from './types.js';
 
+const DOC_MAX_SIZE = 1_000_000;
+
 /**
  * Firestore implementation of a trace store.
  */
@@ -54,24 +56,37 @@ export class FirestoreTraceStore implements TraceStore {
   }
 
   async save(traceId: string, traceData: TraceData): Promise<void> {
+    const expireAt = Date.now() + this.expireAfterDays * 24 * 60 * 60 * 1000;
     const traceInfo = {
       ...traceData,
-      expireAt: Date.now() + this.expireAfterDays * 24 * 60 * 60 * 1000,
+      expireAt,
       spans: {},
     };
     const start = Date.now();
-    await this.db
-      .collection(this.collection)
-      .doc(traceId)
-      .set(traceInfo, { merge: true });
-    await this.db
-      .collection(this.collection)
-      .doc(traceId)
-      .collection('spans')
-      .doc(randomUUID())
-      .set({
-        spans: traceData.spans,
-      });
+
+    const batches = rebatchSpans(traceData);
+
+    let batchWrite = this.db.batch();
+    batchWrite.set(
+      this.db.collection(this.collection).doc(traceId),
+      traceInfo,
+      { merge: true }
+    );
+    batches.forEach((batch) => {
+      batchWrite.create(
+        this.db
+          .collection(this.collection)
+          .doc(traceId)
+          .collection('spans')
+          .doc(randomUUID()),
+        {
+          expireAt,
+          spans: batch,
+        }
+      );
+    });
+    await batchWrite.commit();
+
     logger.debug(
       `saved trace ${traceId}, ${Object.keys(traceData.spans).length} span(s) (${Date.now() - start}ms)`
     );
@@ -119,4 +134,66 @@ export class FirestoreTraceStore implements TraceStore {
           : undefined,
     };
   }
+}
+
+/**
+ * Batches up spans in the trace by size, trying to make sure each batch does not exceed firestore docs size limit.
+ * Will truncate span if it's too big to fit into a batch by itself.
+ * @internal
+ */
+export function rebatchSpans(traceData: TraceData): Record<string, SpanData>[] {
+  const batches: Record<string, SpanData>[] = [];
+  let lastBatchRunningSize = 0;
+  for (const span of Object.values(traceData.spans)) {
+    let estimatedSpanSize = estimateSpanSize(span);
+    if (estimatedSpanSize >= DOC_MAX_SIZE) {
+      logger.warn(
+        `Truncating data for trace ${traceData.traceId} span ${span.spanId}`
+      );
+      truncateSpanData(span);
+      estimatedSpanSize = estimateSpanSize(span);
+    }
+    if (lastBatchRunningSize + estimatedSpanSize < DOC_MAX_SIZE) {
+      // last batch is small enough, keep piling on...
+      if (batches.length === 0) {
+        batches.push({});
+      }
+    } else {
+      // last batch is too big, start a new one
+      batches.push({});
+      lastBatchRunningSize = 0;
+    }
+    lastBatchRunningSize += estimatedSpanSize;
+    batches[batches.length - 1][span.spanId] = span;
+  }
+  return batches;
+}
+
+/**
+ * Estimates the data size of the span.
+ * @internal
+ */
+function estimateSpanSize(span: SpanData) {
+  if (Object.values(span.attributes).length === 0) {
+    return 0;
+  }
+  return Object.values(span.attributes)
+    .map((attr) => attr.toString().length)
+    .reduce((a, b) => a + b);
+}
+
+function truncateSpanData(span: SpanData) {
+  span.truncated = true;
+  // We fisrt see if deleting output does the trick (input might be useful for replayability)
+  delete span.attributes['genkit:output'];
+  if (estimateSpanSize(span) < DOC_MAX_SIZE) {
+    return;
+  }
+  delete span.attributes['genkit:input'];
+  if (estimateSpanSize(span) < DOC_MAX_SIZE) {
+    return;
+  }
+  // Nuclear option... maybe there's a better way? Not very likely though...
+  span.attributes = {};
+  return;
 }

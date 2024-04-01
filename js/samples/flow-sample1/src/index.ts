@@ -261,4 +261,38 @@ export const throwy2 = defineFlow(
   }
 );
 
+export const largeSteps = defineFlow({ name: 'largeSteps' }, async () => {
+  await run('large-step1', async () => {
+    return generateString(100_000);
+  });
+  await run('large-step2', async () => {
+    return generateString(800_000);
+  });
+  await run('large-step3', async () => {
+    return generateString(900_000);
+  });
+  await run('large-step4', async () => {
+    return generateString(999_000);
+  });
+  return 'something...';
+});
+
+const loremIpsum = [
+  'lorem',
+  'ipsum',
+  'dolor',
+  'sit',
+  'amet',
+  'consectetur',
+  'adipiscing',
+  'elit',
+];
+function generateString(length: number) {
+  let str = '';
+  while (str.length < length) {
+    str += loremIpsum[Math.floor(Math.random() * loremIpsum.length)] + ' ';
+  }
+  return str.substring(0, length);
+}
+
 startFlowsServer();

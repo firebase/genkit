@@ -21,6 +21,7 @@ import {
   hrTimeToMilliseconds,
 } from '@opentelemetry/core';
 import { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base';
+import { logger } from '../logging.js';
 import { deleteUndefinedProps } from '../utils.js';
 import { SpanData, TraceData, TraceStore } from './types.js';
 
@@ -60,7 +61,7 @@ export class TraceStoreExporter implements SpanExporter {
       traceId: span.spanContext().traceId,
       startTime: transformTime(span.startTime),
       endTime: transformTime(span.endTime),
-      attributes: span.attributes,
+      attributes: { ...span.attributes },
       displayName: span.name,
       links: span.links,
       spanKind: SpanKind[span.kind],
@@ -112,11 +113,19 @@ export class TraceStoreExporter implements SpanExporter {
       }
       traces[span.spanContext().traceId].push(span);
     }
+    let error = false;
     for (const traceId of Object.keys(traces)) {
-      await this.save(traceId, traces[traceId]);
-    }
-    if (done) {
-      return done({ code: ExportResultCode.SUCCESS });
+      try {
+        await this.save(traceId, traces[traceId]);
+      } catch (e) {
+        error = true;
+        logger.error('Failed to save trace ${traceId}', e);
+      }
+      if (done) {
+        return done({
+          code: error ? ExportResultCode.FAILED : ExportResultCode.SUCCESS,
+        });
+      }
     }
   }
 
