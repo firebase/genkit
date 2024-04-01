@@ -1,33 +1,102 @@
 # Retrieval-augmented generation (RAG)
 
-RAG is a very broad area and there are many different techniques used to achieve
-the best quality RAG. The core Genkit framework offers two main
-abstractions to help you do RAG:
+Genkit provides abstractions that help you build retrieval-augmented generation
+(RAG) flows, as well as plugins that provide integrations with related tools.
 
-- Retrievers - retrieves documents from an "index" given a query.
-- Indexers - adds documents to the "index".
+Retrieval-augmented generation is a technique used to incorporate external
+sources of information into an LLM’s responses. It's important to be able to do
+so because, while LLMs are typically trained on a broad body of
+material, practical use of LLMs often requires specific domain knowledge (for
+example, you might want to use an LLM to answer customers' questions about your
+company’s products).
+
+One solution is to fine-tune the model using more specific data. However, this
+can be expensive both in terms of compute cost and in terms of the effort needed
+to prepare adequate training data.
+
+In contrast, RAG works by incorporating external data sources into a prompt at
+the time it's passed to the model. For example, you could imagine the prompt,
+"What is Bart's relationship to Lisa?" might be expanded ("augmented") by
+prepending some relevant information, resulting in the prompt, "Homer and
+Marge's children are named Bart, Lisa, and Maggie. What is Bart's relationship
+to Lisa?"
+
+This approach has several advantages:
+
+- It can be more cost effective because you don't have to retrain the model.
+- You can continuously update your data source and the LLM can immediately make
+  use of the updated information.
+- You now have the potential to cite references in your LLM's responses.
+
+On the other hand, using RAG naturally means longer prompts, and some LLM API
+services charge for each input token you send. Ultimately, you must evaluate the
+cost tradeoffs for your applications.
+
+RAG is a very broad area and there are many different techniques used to achieve
+the best quality RAG. The core Genkit framework offers two main abstractions to
+help you do RAG:
+
+- Indexers: add documents to an "index".
+- Retrievers: retrieve documents from an "index", given a query.
 
 These definitions are broad on purpose because Genkit is un-opinionated about
 what an "index" is or how exactly documents are retrieved from it. Genkit only
 provides a `Document` format and everything else is defined by the retriever or
 indexer implementation provider.
 
-## Retrievers
+## Indexers
 
-A retriever is a concept that encapsulates logic related to any kind of document
-retrieval. The most popular retrieval cases typically include retrieval from
-vector stores.
+The index is responsible for keeping track of your documents in such a way that
+you can quickly retrieve relevant documents given a specific query. This is most
+often accomplished using a vector database, which indexes your documents using
+multidimensional vectors called embeddings. A text embedding (opaquely)
+represents the concepts expressed by a passage of text; these are generated
+using special-purpose ML models. By indexing text using its embedding, a vector
+database is able to cluster conceptually related text and retrieve documents
+related to a novel string of text (the query).
 
-To create a retriever, you can use one of the provided implementations or
-create your own.
+Before you can retrieve documents for the purpose of generation, you need to
+ingest them into your document index. A typical ingestion flow does the
+following:
 
-Take a look at a dev local file based vector similarity retriever that
-Genkit provides out-of-the box for simple testing and prototyping (DO NOT USE IN
-PRODUCTION).
+1.  Split up large documents into smaller documents so that only relevant
+    portions are used to augment your prompts – “chunking”. This is necessary
+    because many LLMs have a limited context window, making it impractical to
+    include entire documents with a prompt.
 
-```javascript
+    Genkit doesn't provide built-in chunking libraries; however, there are open
+    source libraries available that are compatible with Genkit.
+
+1.  Generate embeddings for each chunk. Depending on the database you're using,
+    you might explicitly do this with an embedding generation model, or you
+    might use the embedding generator provided by the database.
+
+1.  Add the text chunk and its index to the database.
+
+You might run your ingestion flow infrequently or only once if you are working
+with a stable source of data. On the other hand, if you are working with data
+that frequently changes, you might continuously run the ingestion flow (for
+example, in a Cloud Firestore trigger, whenever a document is updated).
+
+The following example shows how you could ingest a collection of PDF documents
+into a vector database. It uses the local file-based vector similarity retriever
+that Genkit provides out-of-the box for simple testing and prototyping (_do not
+use in production_):
+
+```ts
+import { Document, index } from '@genkit-ai/ai/retriever';
+import { defineFlow, run } from '@genkit-ai/flow';
+import fs from 'fs';
+import { chunk } from 'llm-chunk'; // npm install llm-chunk
+import path from 'path';
+import pdf from 'pdf-parse'; // npm i pdf-parse && npm i -D --save @types/pdf-parse
+import z from 'zod';
+
 import { configureGenkit } from '@genkit-ai/core/config';
-import { devLocalVectorstore } from '@genkit-ai/plugin-dev-local-vectorstore';
+import {
+  devLocalIndexerRef,
+  devLocalVectorstore,
+} from '@genkit-ai/plugin-dev-local-vectorstore';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/plugin-vertex-ai';
 
 configureGenkit({
@@ -40,97 +109,143 @@ configureGenkit({
         embedder: textEmbeddingGecko,
       },
     ]),
-    // ...
   ],
-  // ...
 });
-```
 
-Once configured, create references for your index:
+export const pdfIndexer = devLocalIndexerRef('spongebob-facts');
 
-```javascript
-import {
-  devLocalIndexerRef,
-  devLocalRetrieverRef,
-} from '@genkit-ai/plugin-dev-local-vectorstore';
+const chunkingConfig = {
+  minLength: 1000, // number of minimum characters into chunk
+  maxLength: 2000, // number of maximum characters into chunk
+  splitter: 'sentence', // paragraph | sentence
+  overlap: 100, // number of overlap chracters
+  delimiters: '', // regex for base split method
+} as any;
 
-export const spongeBobFactRetriever = devLocalRetrieverRef('spongebob-facts');
-export const spongeBobFactIndexer = devLocalIndexerRef('spongebob-facts');
-```
-
-You can then import documents into the store:
-
-```javascript
-import { index } from '@genkit-ai/ai/retriever';
-
-const spongebobFacts = [
+export const indexPdf = defineFlow(
   {
-    content:
-      "SpongeBob's primary job is working as the fry cook at the Krusty Krab.",
-    metadata: { type: 'tv', show: 'Spongebob' },
+    name: 'indexPdf',
+    input: z.string().describe('PDF file path'),
+    output: z.void(),
   },
-  {
-    content: 'SpongeBob is a yellow sea sponge.',
-    metadata: { type: 'tv', show: 'Spongebob' },
-  },
-];
+  async (filePath) => {
+    filePath = path.resolve(filePath);
+    const pdfTxt = await run('extract-text', () =>
+      extractTextFromPdf(filePath)
+    );
 
-await index({
-  indexer: spongeBobFactIndexer,
-  docs: spongebobFacts,
-});
+    const chunks = await run('chunk-it', async () =>
+      chunk(pdfTxt, chunkingConfig)
+    );
+
+    const documents = chunks.map((text) => {
+      return Document.fromText(text, { filePath });
+    });
+
+    await index({
+      indexer: pdfIndexer,
+      documents,
+    });
+  }
+);
+
+async function extractTextFromPdf(filePath: string) {
+  const pdfFile = path.resolve(filePath);
+  const dataBuffer = fs.readFileSync(pdfFile);
+  const data = await pdf(dataBuffer);
+  return data.text;
+}
 ```
 
-You can then use the provided `retrieve` function to retrieve documents from the
-store:
+To run the flow:
 
-```javascript
+```posix-terminal
+npx genkit flow:run indexPdf "'../pdfs'"
+```
+
+## Retrievers
+
+A retriever is a concept that encapsulates logic related to any kind of document
+retrieval. The most popular retrieval cases typically include retrieval from
+vector stores.
+
+To create a retriever, you can use one of the provided implementations or
+create your own.
+
+The following example shows how you might use a retriever in a RAG flow. Like
+the indexer example, this example uses Genkit's file-based vector retriever,
+which you should not use in production.
+
+```ts
+import { configureGenkit } from '@genkit-ai/core/config';
+import { defineFlow } from '@genkit-ai/flow';
+import { generate } from '@genkit-ai/ai/generate';
 import { retrieve } from '@genkit-ai/ai/retriever';
-
-const docs = await retrieve({
-  retriever: spongeBobFactRetriever,
-  query: 'Where does spongebob work?',
-  options: { k: 3 },
-});
-```
-
-You can also swap out your retriever if, for example, you want to try a
-different one.
-
-```js
-import { chroma } from '@genkit-ai/plugin-chroma';
+import { definePrompt } from '@genkit-ai/dotprompt';
+import {
+  devLocalRetrieverRef,
+  devLocalVectorstore,
+} from '@genkit-ai/plugin-dev-local-vectorstore';
+import {
+  geminiPro,
+  textEmbeddingGecko,
+  vertexAI,
+} from '@genkit-ai/plugin-vertex-ai';
+import * as z from 'zod';
 
 configureGenkit({
   plugins: [
-    chroma([
+    vertexAI(),
+    devLocalVectorstore([
       {
-        collectionName: 'spongebob_collection',
+        indexName: 'spongebob-facts',
         embedder: textEmbeddingGecko,
       },
     ]),
-    // ...
   ],
-  // ...
-});
-```
-
-```js
-import { chromaIndexerRef, chromaRetrieverRef } from '@genkit-ai/plugin-chroma';
-
-export const spongeBobFactsRetriever = chromaRetrieverRef({
-  collectionName: 'spongebob_collection',
-  displayName: 'Spongebob facts retriever',
 });
 
-export const spongeBobFactsIndexer = chromaIndexerRef({
-  collectionName: 'spongebob_collection',
-  displayName: 'Spongebob facts indexer',
-});
+export const spongeBobFactRetriever = devLocalRetrieverRef('spongebob-facts');
 
-const docs = await retrieve({
-  retriever: spongeBobFactsRetriever,
-  query: 'Who is spongebob?',
-});
+export const ragFlow = defineFlow(
+  { name: 'ragFlow', input: z.string(), output: z.string() },
+  async (input) => {
+    const docs = await retrieve({
+      retriever: spongeBobFactRetriever,
+      query: input,
+      options: { k: 3 },
+    });
+    const facts = docs.map((d) => d.text());
+
+    const promptGenerator = definePrompt(
+      {
+        name: 'spongebob-facts',
+        model: 'google-vertex/gemini-pro',
+        input: {
+          schema: z.object({
+            facts: z.array(z.string()),
+            question: z.string(),
+          }),
+        },
+      },
+      '{{#each people}}{{this}}\n\n{{/each}}\n{{question}}'
+    );
+    const prompt = await promptGenerator.generate({
+      input: {
+        facts,
+        question: input,
+      },
+    });
+
+    const llmResponse = await generate({
+      model: geminiPro,
+      prompt: prompt.text(),
+    });
+
+    const output = llmResponse.text();
+    return output;
+  }
+);
 ```
 
 ### Retriever plugins
@@ -215,7 +330,7 @@ export const tomAndJerryFactsIndexer = pineconeIndexerRef({
 ```js
 import { embed } from '@genkit-ai/ai/embedder';
 import { Document, defineRetriever, retrieve } from '@genkit-ai/ai/retriever';
-import { flow } from '@genkit-ai/flow';
+import { defineFlow } from '@genkit-ai/flow';
 import { textEmbeddingGecko } from '@genkit-ai/plugin-vertex-ai';
 import { toSql } from 'pgvector';
 import postgres from 'postgres';
