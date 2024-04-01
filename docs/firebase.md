@@ -88,7 +88,7 @@
     npx genkit init -d $HOME/Downloads/genkit-dist/genkit-dist.zip
     ```
 
-    Select `firebase` as the deployment platform option and Google AI as the model. If Google AI is not available in your reagion (see https://ai.google.dev/available_regions) consider using Vertex AI.
+    Select `firebase` as the deployment platform option and Google AI as the model. If Google AI is not available in your region (see https://ai.google.dev/available_regions) consider using Vertex AI.
 
 1.  Paste the following sample code into `functions/src/index.ts` file:
 
