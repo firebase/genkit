@@ -103,6 +103,7 @@ export const ToolDefinitionSchema = z.object({
 export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
 
 export const GenerationConfig = z.object({
+  version: z.string().optional(),
   temperature: z.number().optional(),
   maxOutputTokens: z.number().optional(),
   topK: z.number().optional(),
