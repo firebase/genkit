@@ -70,43 +70,25 @@
 
 1.  Create a `functions/.env` file and add `GOOGLE_API_KEY=xyzYourKeyHere`.
 
-1.  Edit the `functions/tsconfig.json` file, and add the following option to the
-    `compilerOptions`:
+1.  Initialize Genkit in your Firebase project:
 
-    - `"skipLibCheck": true,`
-    - also consider setting: `"noUnusedLocals": false`
+    Download and unzip [genkit-dist.zip](https://bit.ly/genkit-dist) (e.g. `$HOME/Downloads/genkit-dist`).
 
-    Your `tsconfig.json` file should look like this:
+    Start by installing Genkit CLI
 
-    ```json
-    {
-      "compilerOptions": {
-        "module": "commonjs",
-        "noImplicitReturns": true,
-        "noUnusedLocals": false,
-        "outDir": "lib",
-        "sourceMap": true,
-        "strict": true,
-        "target": "es2017",
-        "skipLibCheck": true,
-        "esModuleInterop": true
-      },
-      "compileOnSave": true,
-      "include": ["src"]
-    }
+    ```posix-terminal
+    cd functions
+
+    npm i --save -D $HOME/Downloads/genkit-dist/genkit-cli-0.0.6.tgz $HOME/Downloads/genkit-dist/genkit-ai-tools-plugins-0.0.6.tgz
     ```
 
-1.  Install Genkit in your project:
+    Then run:
 
-    - Download packages zip file:
-      [genkit-dist.zip](https://bit.ly/genkit-dist)
-    - Extract the file into `functions/genkit-dist` folder in your project
-      folder
-    - Run:
+    ```posix-terminal
+    npx genkit init -d $HOME/Downloads/genkit-dist/genkit-dist.zip
+    ```
 
-      ```posix-terminal
-      npm i --save ./genkit-dist/*.tgz
-      ```
+    Select `firebase` as the deployment platform option and Google AI as the model. If Google AI is not available in your reagion (see https://ai.google.dev/available_regions) consider using Vertex AI.
 
 1.  Paste the following sample code into `functions/src/index.ts` file:
 
