@@ -90,6 +90,7 @@ export class GcpOpenTelemetry implements TelemetryConfig {
         ? span
         : {
             ...span,
+            spanContext: span.spanContext,
             attributes: {
               ...span.attributes,
               '/http/status_code': '599',
