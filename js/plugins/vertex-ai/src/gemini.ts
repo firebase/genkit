@@ -348,7 +348,7 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
     {
       name: modelName,
       use: middlewares,
-      ...SUPPORTED_GEMINI_MODELS[name].info,
+      ...model.info,
     },
     async (request, streamingCallback) => {
       const client = vertex.preview.getGenerativeModel({
