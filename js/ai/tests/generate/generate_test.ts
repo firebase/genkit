@@ -261,7 +261,7 @@ describe('toGenerateRequest', () => {
         candidates: undefined,
         config: undefined,
         tools: [],
-        output: { format: 'text', schema: undefined },
+        output: { format: 'text', schema: {} },
       },
     },
     {
@@ -296,7 +296,7 @@ describe('toGenerateRequest', () => {
             },
           },
         ],
-        output: { format: 'text', schema: undefined },
+        output: { format: 'text', schema: {} },
       },
     },
     {
@@ -331,7 +331,7 @@ describe('toGenerateRequest', () => {
             },
           },
         ],
-        output: { format: 'text', schema: undefined },
+        output: { format: 'text', schema: {} },
       },
     },
     {
@@ -366,7 +366,7 @@ describe('toGenerateRequest', () => {
         candidates: undefined,
         config: undefined,
         tools: [],
-        output: { format: 'text', schema: undefined },
+        output: { format: 'text', schema: {} },
       },
     },
     {
@@ -388,7 +388,7 @@ describe('toGenerateRequest', () => {
         candidates: undefined,
         config: undefined,
         tools: [],
-        output: { format: 'text', schema: undefined },
+        output: { format: 'text', schema: {} },
       },
     },
   ];

@@ -13,13 +13,16 @@
     "pack:dotprompt": "cd dotprompt && pnpm pack --pack-destination ../../dist",
     "pack:plugins": "for i in plugins/*/; do cd $i && pnpm pack --pack-destination ../../../dist && cd ../..; done",
     "pack:third_party": "for i in third_party/*/; do cd $i && pnpm pack --pack-destination ../../../dist && cd ../..; done",
-    "test:all": "npm-run-all test:core test:flow",
+    "test:all": "concurrently npm:test:core npm:test:flow npm:test:ai npm:test:dotprompt",
     "test:core": "cd core && pnpm test",
-    "test:flow": "cd flow && pnpm test"
+    "test:flow": "cd flow && pnpm test",
+    "test:ai": "cd ai && pnpm test",
+    "test:dotprompt": "cd dotprompt && pnpm test"
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5",
     "only-allow": "^1.2.1",
+    "concurrently": "^8.2.2",
     "typescript": "^4.9.0"
   },
   "packageManager": "pnpm@8.15.5+sha256.4b4efa12490e5055d59b9b9fc9438b7d581a6b7af3b5675eb5c5f447cee1a589"
