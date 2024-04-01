@@ -15,6 +15,7 @@
  */
 
 import { FlowState, FlowStateExecution, Operation } from '@genkit-ai/core';
+import { toJsonSchema } from '@genkit-ai/core/schema';
 import {
   SPAN_TYPE_ATTR,
   runInNewSpan,
@@ -23,7 +24,6 @@ import {
 } from '@genkit-ai/core/tracing';
 import { logger } from 'firebase-functions/v1';
 import { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import { InterruptError } from './errors.js';
 import { Flow, RunStepConfig } from './flow.js';
 import { metadataPrefix } from './utils.js';
@@ -178,7 +178,7 @@ export class Context<
         this.state.blockedOnStep = { name: resolvedStepName };
         if (responseSchema) {
           this.state.blockedOnStep.schema = JSON.stringify(
-            zodToJsonSchema(responseSchema)
+            toJsonSchema({ schema: responseSchema })
           );
         }
         setCustomMetadataAttribute(metadataPrefix('state'), 'interrupted');

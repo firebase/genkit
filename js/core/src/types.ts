@@ -18,6 +18,7 @@ import { JSONSchema7 } from 'json-schema';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { performance } from 'node:perf_hooks';
 import * as z from 'zod';
+import { parseSchema } from './schema.js';
 import * as telemetry from './telemetry.js';
 import { runInNewSpan, SPAN_TYPE_ATTR } from './tracing.js';
 
@@ -68,9 +69,10 @@ export function action<
   fn: (input: z.infer<I>) => Promise<z.infer<O>>
 ): Action<I, O> {
   const actionFn = async (input: I) => {
-    if (config.inputSchema) {
-      input = config.inputSchema.parse(input);
-    }
+    input = parseSchema(input, {
+      schema: config.inputSchema,
+      jsonSchema: config.inputJsonSchema,
+    });
     let output = await runInNewSpan(
       {
         metadata: {
@@ -102,9 +104,10 @@ export function action<
         }
       }
     );
-    if (config.outputSchema) {
-      output = config.outputSchema.parse(output);
-    }
+    output = parseSchema(output, {
+      schema: config.outputSchema,
+      jsonSchema: config.outputJsonSchema,
+    });
     return output;
   };
   actionFn.__action = {

@@ -16,10 +16,10 @@
 
 import express from 'express';
 import z from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
 import { config } from './config.js';
 import { logger } from './logging.js';
 import * as registry from './registry.js';
+import { toJsonSchema } from './schema.js';
 import {
   flushTracing,
   newTrace,
@@ -85,12 +85,16 @@ export async function startReflectionApi(port?: number | undefined) {
         metadata: action.metadata,
       };
       if (action.inputSchema || action.inputJsonSchema) {
-        convertedActions[key].inputSchema =
-          action.inputJsonSchema || zodToJsonSchema(action.inputSchema!);
+        convertedActions[key].inputSchema = toJsonSchema({
+          schema: action.inputSchema,
+          jsonSchema: action.inputJsonSchema,
+        });
       }
       if (action.outputSchema || action.outputJsonSchema) {
-        convertedActions[key].outputSchema =
-          action.outputJsonSchema || zodToJsonSchema(action.outputSchema!);
+        convertedActions[key].outputSchema = toJsonSchema({
+          schema: action.outputSchema,
+          jsonSchema: action.outputJsonSchema,
+        });
       }
     });
     response.send(convertedActions);

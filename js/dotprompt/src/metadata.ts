@@ -20,11 +20,8 @@ import {
   ModelArgument,
 } from '@genkit-ai/ai/model';
 import { ToolArgument } from '@genkit-ai/ai/tool';
-import z, { ZodType } from 'zod';
-import zodToJsonSchema from 'zod-to-json-schema';
-
-// TODO: Do a real type here.
-type JSONSchema = unknown;
+import { JSONSchema, parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
+import z from 'zod';
 
 /**
  * Metadata for a prompt.
@@ -116,7 +113,9 @@ function stripUndefined(obj: any) {
 }
 
 export function toMetadata(attributes: unknown): Partial<PromptMetadata> {
-  const fm = PromptFrontmatterSchema.parse(attributes);
+  const fm = parseSchema<z.infer<typeof PromptFrontmatterSchema>>(attributes, {
+    schema: PromptFrontmatterSchema,
+  });
   return stripUndefined({
     name: fm.name,
     model: fm.model,
@@ -132,15 +131,6 @@ export function toMetadata(attributes: unknown): Partial<PromptMetadata> {
   });
 }
 
-function toJsonSchema(zodOrJsonSchema: any, jsonSchema?: any) {
-  if (jsonSchema) return jsonSchema;
-  if (zodOrJsonSchema instanceof ZodType) {
-    return zodToJsonSchema(zodOrJsonSchema);
-  }
-  // zodOrJsonSchema is a json schema
-  return zodOrJsonSchema;
-}
-
 export function toFrontmatter(md: PromptMetadata): PromptFrontmatter {
   return stripUndefined({
     name: md.name,
@@ -149,13 +139,19 @@ export function toFrontmatter(md: PromptMetadata): PromptFrontmatter {
     input: md.input
       ? {
           default: md.input.default,
-          schema: toJsonSchema(md.input.schema, md.input.jsonSchema),
+          schema: toJsonSchema({
+            schema: md.input.schema,
+            jsonSchema: md.input.jsonSchema,
+          }),
         }
       : undefined,
     output: md.output
       ? {
           format: md.output.format,
-          schema: toJsonSchema(md.output.schema, md.output.jsonSchema),
+          schema: toJsonSchema({
+            schema: md.output.schema,
+            jsonSchema: md.output.jsonSchema,
+          }),
         }
       : undefined,
     metadata: md.metadata,

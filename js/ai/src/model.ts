@@ -21,10 +21,10 @@ import {
   StreamingCallback,
 } from '@genkit-ai/core';
 import { registerAction } from '@genkit-ai/core/registry';
+import { toJsonSchema } from '@genkit-ai/core/schema';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import { performance } from 'node:perf_hooks';
 import { z } from 'zod';
-import zodToJsonSchema from 'zod-to-json-schema';
 import { conformOutput, validateSupport } from './model/middleware.js';
 import * as telemetry from './telemetry.js';
 
@@ -299,7 +299,7 @@ export function defineModel<
         model: {
           label,
           customOptions: options.configSchema
-            ? zodToJsonSchema(options.configSchema)
+            ? toJsonSchema({ schema: options.configSchema })
             : undefined,
           versions: options.versions,
           supports: options.supports,

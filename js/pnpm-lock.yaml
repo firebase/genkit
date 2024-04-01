@@ -574,6 +574,27 @@ importers:
         specifier: ^4.9.0
         version: 4.9.5
 
+  samples/bleigh-scratch:
+    dependencies:
+      '@genkit-ai/ai':
+        specifier: '*'
+        version: link:../../ai
+      '@genkit-ai/core':
+        specifier: '*'
+        version: link:../../core
+      '@genkit-ai/dotprompt':
+        specifier: '*'
+        version: link:../../dotprompt
+      '@genkit-ai/flow':
+        specifier: '*'
+        version: link:../../flow
+      '@genkit-ai/plugin-vertex-ai':
+        specifier: '*'
+        version: link:../../plugins/vertex-ai
+      zod:
+        specifier: ^3.22.4
+        version: 3.22.4
+
   samples/cat-eval:
     dependencies:
       '@genkit-ai/ai':
