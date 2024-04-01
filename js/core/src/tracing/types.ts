@@ -96,6 +96,7 @@ export const SpanDataSchema = z.object({
       timeEvent: z.array(TimeEventSchema),
     })
     .optional(),
+  truncated: z.boolean().optional(),
 });
 export type SpanData = z.infer<typeof SpanDataSchema>;
 

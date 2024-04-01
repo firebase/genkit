@@ -84,6 +84,7 @@ export const SpanDataSchema = z
         timeEvent: z.array(TimeEventSchema),
       })
       .optional(),
+    truncated: z.boolean().optional(),
   })
   .openapi('SpanData');
 
