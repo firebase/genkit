@@ -25,8 +25,6 @@ guides:
     path: /genkit/dotprompt
   - title: Flows
     path: /genkit/flows
-  - title: Durable flows
-    path: /genkit/durable-flows
   - title: Authorization and integrity
     path: /genkit/auth
   - title: Retrieval-augmented generation (RAG)
