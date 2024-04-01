@@ -45,15 +45,6 @@ type FlowError struct {
 	Stacktrace string `json:"stacktrace,omitempty"`
 }
 
-type FlowInvokeEnvelopeMessage struct {
-	Resume       *FlowInvokeEnvelopeMessageResume       `json:"resume,omitempty"`
-	Retry        *FlowInvokeEnvelopeMessageRetry        `json:"retry,omitempty"`
-	RunScheduled *FlowInvokeEnvelopeMessageRunScheduled `json:"runScheduled,omitempty"`
-	Schedule     *FlowInvokeEnvelopeMessageSchedule     `json:"schedule,omitempty"`
-	Start        *FlowInvokeEnvelopeMessageStart        `json:"start,omitempty"`
-	State        *FlowInvokeEnvelopeMessageState        `json:"state,omitempty"`
-}
-
 type FlowInvokeEnvelopeMessageResume struct {
 	FlowID  string `json:"flowId,omitempty"`
 	Payload any    `json:"payload,omitempty"`
@@ -85,21 +76,7 @@ type FlowResponse struct {
 	Response any `json:"response,omitempty"`
 }
 
-type FlowState struct {
-	BlockedOnStep   any                   `json:"blockedOnStep,omitempty"`
-	Cache           map[string]any        `json:"cache,omitempty"`
-	EventsTriggered map[string]any        `json:"eventsTriggered,omitempty"`
-	Executions      []*FlowStateExecution `json:"executions,omitempty"`
-	FlowID          string                `json:"flowId,omitempty"`
-	Input           any                   `json:"input,omitempty"`
-	Name            string                `json:"name,omitempty"`
-	Operation       *Operation            `json:"operation,omitempty"`
-	// start time in milliseconds since the epoch
-	StartTime    Milliseconds `json:"startTime,omitempty"`
-	TraceContext string       `json:"traceContext,omitempty"`
-}
-
-type FlowStateExecution struct {
+type FlowExecution struct {
 	// end time in milliseconds since the epoch
 	EndTime Milliseconds `json:"endTime,omitempty"`
 	// start time in milliseconds since the epoch
@@ -152,17 +129,6 @@ type GenerationUsage struct {
 type Message struct {
 	Content []*Part `json:"content,omitempty"`
 	Role    Role    `json:"role,omitempty"`
-}
-
-type Operation struct {
-	BlockedOnStep *BlockedOnStep `json:"blockedOnStep,omitempty"`
-	// If the value is false, it means the operation is still in progress. If true, the operation is completed, and either error or response is available.
-	Done bool `json:"done,omitempty"`
-	// Service-specific metadata associated with the operation. It typically contains progress information and common metadata such as create time.
-	Metadata any `json:"metadata,omitempty"`
-	// server-assigned name, which is only unique within the same service that originally returns it.
-	Name   string `json:"name,omitempty"`
-	Result any    `json:"result,omitempty"`
 }
 
 type BlockedOnStep struct {

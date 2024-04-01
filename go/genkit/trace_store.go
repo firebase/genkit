@@ -19,7 +19,6 @@ package genkit
 import (
 	"context"
 	"errors"
-	"time"
 )
 
 // A TraceStore stores trace information.
@@ -51,20 +50,6 @@ type TraceQuery struct {
 	// Where to continue the listing from. Must be either empty to start from the
 	// beginning, or the result of a recent, previous call to List.
 	ContinuationToken string
-}
-
-// Milliseconds represents a time as the number of microseconds since the Unix epoch.
-type Milliseconds float64
-
-func timeToMilliseconds(t time.Time) Milliseconds {
-	nsec := t.UnixNano()
-	return Milliseconds(float64(nsec) / 1e6)
-}
-
-func (m Milliseconds) time() time.Time {
-	sec := int64(m / 1e3)
-	nsec := int64((float64(m) - float64(sec*1e3)) * 1e6)
-	return time.Unix(sec, nsec)
 }
 
 // TraceData is information about a trace.

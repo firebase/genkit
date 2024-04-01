@@ -1,0 +1,346 @@
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// This file contains code for flows.
+//
+// A Flow[I, O] represents a function from I to O. But the function may run in pieces,
+// with interruptions and resumptions. (The interruptions discussed here are a part
+// of the flow mechanism, not hardware interrupts.) The actual Go function for the
+// flow may be executed multiple times, each time making more progress, until finally
+// it completes with a value of type O or an error. The mechanism used to achieve this
+// is explained below.
+//
+// To treat a flow as an action, which is an uninterrupted function execution, we
+// use different input and output types to capture the additional behavior. The input
+// to a flow action is an instruction about what to do: start running on the input,
+// resume after being suspended, and others. This is the type flowInstruction[I]
+// (called FlowInvokeEnvelopeMessage in the javascript code).
+//
+// The output of a flow action may contain the final output of type O if the flow
+// finishes, but in general contains the state of the flow, including an ID to retrieve
+// it later, what caused it to block, and so on.
+//
+// A flow consists of ordinary code, and can be interrupted on one machine and resumed
+// on another, even if the underlying system has no support for process migration.
+// To accomplish this, flowStates include the original input, and resuming a flow
+// involves loading its flowState from storage and re-running its Go function from
+// the beginning. To avoid repeating expensive work, parts of the flow, called steps,
+// are cached in the flowState. The programmer marks these steps manually, by calling
+// genkit.Run.
+//
+// A flow computation consists of one or more flow executions. (The FlowExecution
+// type records information about these; a flowState holds a slice of FlowExecutions.)
+// The computation begins with a "start" instruction. If the function is not interrupted,
+// it will run to completion and the final state will contain its result. If it is
+// interrupted, state will contain information about how and when it can be resumed.
+// A "resume" instruction will run the Go function again using the information in
+// the saved state.
+//
+// Another way to start a flow is to schedule it for some time in the future. The
+// "schedule" instruction accomplishes this; the flow is finally started at a later
+// time by the "runScheduled" instruction.
+
+package genkit
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strconv"
+	"sync"
+	"time"
+
+	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/trace"
+)
+
+// TODO(jba): support streaming
+// TODO(jba): support auth
+
+// Func is the type of function that Actions and Flows execute.
+// TODO(jba): use a generic type alias when they become available?
+type Func[I, O any] func(context.Context, I) (O, error)
+
+// A Flow is a kind of Action that can be interrupted and resumed.
+type Flow[I, O any] struct {
+	name       string         // The last component of the flow's key in the registry.
+	fn         Func[I, O]     // The function to run.
+	stateStore FlowStateStore // Where FlowStates are stored, to support resumption.
+	// TODO(jba): scheduler
+	// TODO(jba): experimentalDurable
+	// TODO(jba): authPolicy
+	// TODO(jba): middleware
+}
+
+// DefineFlow creates a Flow that runs fn, and registers it as an action.
+func DefineFlow[I, O any](name string, fn Func[I, O]) *Flow[I, O] {
+	f := &Flow[I, O]{
+		name: name,
+		fn:   fn,
+		// TODO(jba): set stateStore
+	}
+	RegisterAction(ActionTypeFlow, name, f.action())
+	return f
+}
+
+// A flowInstruction is an instruction to follow with a flow.
+// It is the input for the flow's action.
+// Exactly one field will be non-nil.
+type flowInstruction[I any] struct {
+	Start        *startInstruction[I]     `json:"start,omitempty"`
+	Resume       *resumeInstruction       `json:"resume,omitempty"`
+	Schedule     *scheduleInstruction[I]  `json:"schedule,omitempty"`
+	RunScheduled *runScheduledInstruction `json:"runScheduled,omitempty"`
+	State        *stateInstruction        `json:"state,omitempty"`
+	Retry        *retryInstruction        `json:"retry,omitempty"`
+}
+
+// A startInstruction starts a flow.
+type startInstruction[I any] struct {
+	Input  I                 `json:"input,omitempty"`
+	Labels map[string]string `json:"labels,omitempty"`
+}
+
+// A resumeInstruction resumes a flow that was started and then interrupted.
+type resumeInstruction struct {
+	FlowID  string `json:"flowId,omitempty"`
+	Payload any    `json:"payload,omitempty"`
+}
+
+// A scheduleInstruction schedules a flow to start at a later time.
+type scheduleInstruction[I any] struct {
+	DelaySecs float64 `json:"delay,omitempty"`
+	Input     I       `json:"input,omitempty"`
+}
+
+// A runScheduledInstruction starts a scheduled flow.
+type runScheduledInstruction struct {
+	FlowID string `json:"flowId,omitempty"`
+}
+
+// A stateInstruction retrieves the flowState from the flow.
+type stateInstruction struct {
+	FlowID string `json:"flowId,omitempty"`
+}
+
+// TODO(jba): document
+type retryInstruction struct {
+	FlowID string `json:"flowId,omitempty"`
+}
+
+// A flowState is a persistent representation of a flow that may be in the middle of running.
+// It contains all the information needed to resume a flow, including the original input
+// and a cache of all completed steps.
+type flowState[I, O any] struct {
+	FlowID   string `json:"flowId,omitempty"`
+	FlowName string `json:"name,omitempty"`
+	// start time in milliseconds since the epoch
+	StartTime       Milliseconds     `json:"startTime,omitempty"`
+	Input           I                `json:"input,omitempty"`
+	Cache           map[string]any   `json:"cache,omitempty"`
+	EventsTriggered map[string]any   `json:"eventsTriggered,omitempty"`
+	Executions      []*FlowExecution `json:"executions,omitempty"`
+	// The operation is the user-visible part of the state.
+	Operation    *Operation[O] `json:"operation,omitempty"`
+	TraceContext string        `json:"traceContext,omitempty"`
+}
+
+// isFlowState implements flowStater.
+func (fs *flowState[I, O]) isFlowState() {}
+
+// An Operation describes the state of a Flow that may still be in progress.
+type Operation[O any] struct {
+	FlowID        string         `json:"name,omitempty"`
+	BlockedOnStep *BlockedOnStep `json:"blockedOnStep,omitempty"`
+	// Whether the operation is completed.
+	// If true Result will be non-nil.
+	Done bool `json:"done,omitempty"`
+	// Service-specific metadata associated with the operation. It typically contains progress information and common metadata such as create time.
+	Metadata any            `json:"metadata,omitempty"`
+	Result   *FlowResult[O] `json:"result,omitempty"`
+}
+
+// A FlowResult is the result of a flow: either success, in which case Response is
+// the return value of the flow's function; or failure, in which case Error is the
+// non-empty error string.
+// (Called FlowResponse in the javascript.)
+type FlowResult[O any] struct {
+	Response   O      `json:"response,omitempty"`
+	Error      string `json:"error,omitempty"`
+	StackTrace string `json:"stacktrace,omitempty"`
+}
+
+// action creates an action for the flow. See the comment at the top of this file for more information.
+func (f *Flow[I, O]) action() *Action[*flowInstruction[I], *flowState[I, O]] {
+	return NewAction(f.name, func(ctx context.Context, inst *flowInstruction[I]) (*flowState[I, O], error) {
+		spanMetaKey.fromContext(ctx).SetAttr("flow:wrapperAction", "true")
+		return f.runInstruction(ctx, inst)
+	})
+}
+
+// runInstruction performs one of several actions on a flow, as determined by msg.
+// (Called runEnvelope in the js.)
+func (f *Flow[I, O]) runInstruction(ctx context.Context, inst *flowInstruction[I]) (*flowState[I, O], error) {
+	switch {
+	case inst.Start != nil:
+		// TODO(jba): pass msg.Start.Labels.
+		return f.start(ctx, inst.Start.Input)
+	case inst.Resume != nil:
+		return nil, errors.ErrUnsupported
+	case inst.Retry != nil:
+		return nil, errors.ErrUnsupported
+	case inst.RunScheduled != nil:
+		return nil, errors.ErrUnsupported
+	case inst.Schedule != nil:
+		return nil, errors.ErrUnsupported
+	case inst.State != nil:
+		return nil, errors.ErrUnsupported
+	default:
+		return nil, errors.New("all known fields of FlowInvokeEnvelopeMessage are nil")
+	}
+}
+
+// start starts executing the flow with the given input.
+func (f *Flow[I, O]) start(ctx context.Context, input I) (_ *flowState[I, O], err error) {
+	flowID, err := generateFlowID()
+	if err != nil {
+		return nil, err
+	}
+	state := newFlowState[I, O](flowID, f.name, input)
+	f.execute(ctx, state, "start")
+	return state, nil
+}
+
+// execute performs one flow execution.
+// Using its flowState argument as a starting point, it runs the flow function until
+// it finishes or is interrupted.
+// It updates the passed flowState to reflect the new state of the flow compuation.
+//
+// This function corresponds to Flow.executeSteps in the js, but does more:
+// it creates the flowContext and saves the state.
+func (f *Flow[I, O]) execute(ctx context.Context, state *flowState[I, O], dispatchType string) {
+	fctx := newFlowContext(state, f.stateStore)
+	defer fctx.finish()
+	ctx = flowContextKey.newContext(ctx, fctx)
+	exec := &FlowExecution{
+		StartTime: timeToMilliseconds(time.Now()),
+	}
+	state.Executions = append(state.Executions, exec)
+	// TODO(jba): retrieve the JSON-marshaled SpanContext from state.traceContext.
+	// TODO(jba): add a span link to the context.
+	output, err := runInNewSpan(ctx, f.name, "flow", true, state.Input, func(ctx context.Context, input I) (O, error) {
+		spanMeta := spanMetaKey.fromContext(ctx)
+		spanMeta.SetAttr("flow:execution", strconv.Itoa(len(state.Executions)-1))
+		// TODO(jba): put labels into span metadata.
+		spanMeta.SetAttr("flow:name", f.name)
+		spanMeta.SetAttr("flow:id", state.FlowID)
+		spanMeta.SetAttr("flow:dispatchType", dispatchType)
+		rootSpanContext := trace.SpanContextFromContext(ctx)
+		traceID := rootSpanContext.TraceID().String()
+		exec.TraceIDs = append(exec.TraceIDs, traceID)
+		// TODO(jba): Save rootSpanContext in the state.
+		// TODO(jba): If input is missing, get it from state.input and overwrite metadata.input.
+		output, err := f.fn(ctx, input)
+		if err != nil {
+			// TODO(jba): handle InterruptError
+			logger(ctx).Error("flow failed",
+				"path", spanMeta.Path,
+				"err", err.Error(),
+			)
+			spanMeta.SetAttr("flow:state", "error")
+		} else {
+			logger(ctx).Info("flow succeeded", "path", spanMeta.Path)
+			spanMeta.SetAttr("flow:state", "done")
+		}
+		// TODO(jba): telemetry
+		return output, nil
+	})
+	// TODO(jba): perhaps this should be in a defer, to handle panics?
+	state.Operation.Done = true
+	if err != nil {
+		state.Operation.Result = &FlowResult[O]{
+			Error: err.Error(),
+			// TODO(jba): stack trace?
+		}
+	} else {
+		state.Operation.Result = &FlowResult[O]{Response: output}
+	}
+}
+
+// generateFlowID returns a unique ID for identifying a flow execution.
+func generateFlowID() (string, error) {
+	// v4 UUID, as in the js code.
+	id, err := uuid.NewRandom()
+	if err != nil {
+		return "", err
+	}
+	return id.String(), nil
+}
+
+func newFlowState[I, O any](id, name string, input I) *flowState[I, O] {
+	return &flowState[I, O]{
+		FlowID:    id,
+		FlowName:  name,
+		Input:     input,
+		StartTime: timeToMilliseconds(time.Now()),
+		Operation: &Operation[O]{
+			FlowID: id,
+			Done:   false,
+		},
+	}
+}
+
+// A flowContext holds dynamically accessible information about a flow.
+// A flowContext is created when a flow starts running, and is stored
+// in a context.Context so it can be accessed from within the currrently active flow.
+type flowContext[I, O any] struct {
+	state      *flowState[I, O]
+	stateStore FlowStateStore
+	mu         sync.Mutex
+	seenSteps  map[string]int // number of times each name appears, to avoid duplicate names
+	// TODO(jba): auth
+}
+
+func newFlowContext[I, O any](state *flowState[I, O], store FlowStateStore) *flowContext[I, O] {
+	return &flowContext[I, O]{
+		state:      state,
+		stateStore: store,
+		seenSteps:  map[string]int{},
+	}
+}
+
+// finish is called at the end of a flow execution.
+func (fc *flowContext[I, O]) finish() {
+	//  TODO: save State
+	// NOTE: start saves it conditionally.
+}
+
+// uniqueStepName returns a name that is unique for this flow execution.
+func (fc *flowContext[I, O]) uniqueStepName(name string) string {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	n := fc.seenSteps[name]
+	fc.seenSteps[name] = n + 1
+	if n == 0 {
+		return name
+	}
+	return fmt.Sprintf("name-%d", n)
+}
+
+// flowContexter is the type of all flowContext[I, O].
+type flowContexter interface {
+	uniqueStepName(string) string
+}
+
+var flowContextKey = newContextKey[flowContexter]()

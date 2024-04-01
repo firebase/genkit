@@ -106,6 +106,7 @@ const (
 func runInNewSpan[I, O any](
 	ctx context.Context,
 	name, spanType string,
+	isRoot bool,
 	input I,
 	f func(context.Context, I) (O, error),
 ) (O, error) {
@@ -114,11 +115,11 @@ func runInNewSpan[I, O any](
 	log.Debug("span start", "name", name)
 	defer log.Debug("span end", "name", name)
 	sm := &spanMetadata{
-		Name:  name,
-		Input: input,
+		Name:   name,
+		Input:  input,
+		IsRoot: isRoot,
 	}
 	parentSpanMeta := spanMetaKey.fromContext(ctx)
-	sm.IsRoot = (parentSpanMeta == nil)
 	var parentPath string
 	if parentSpanMeta != nil {
 		parentPath = parentSpanMeta.Path

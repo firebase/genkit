@@ -118,7 +118,7 @@ func handleRunAction(w http.ResponseWriter, r *http.Request) error {
 		return &httpError{http.StatusNotFound, fmt.Errorf("no action with key %q", body.Key)}
 	}
 	var traceID string
-	output, err := runInNewSpan(ctx, "dev-run-action-wrapper", "", body.Input, func(ctx context.Context, input json.RawMessage) ([]byte, error) {
+	output, err := runInNewSpan(ctx, "dev-run-action-wrapper", "", true, body.Input, func(ctx context.Context, input json.RawMessage) ([]byte, error) {
 		setCustomMetadataAttr(ctx, "genkit-dev-internal", "true")
 		traceID = trace.SpanContextFromContext(ctx).TraceID().String()
 		return action.runJSON(ctx, input)
