@@ -20,7 +20,7 @@ import { __hardResetRegistryForTesting } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
-import { defineFlow, runFlow } from '../src/flow.js';
+import { defineFlow, runFlow, streamFlow } from '../src/flow.js';
 import { configureInMemoryStateStore } from './testUtil.js';
 
 function createTestFlow() {
@@ -32,6 +32,25 @@ function createTestFlow() {
     },
     async (input) => {
       return `bar ${input}`;
+    }
+  );
+}
+
+function createTestStreamingFlow() {
+  return defineFlow(
+    {
+      name: 'testFlow',
+      inputSchema: z.number(),
+      outputSchema: z.string(),
+      streamSchema: z.object({ count: z.number() }),
+    },
+    async (input, streamingCallback) => {
+      if (streamingCallback) {
+        for (let i = 0; i < input; i++) {
+          streamingCallback({ count: i });
+        }
+      }
+      return `bar ${input} ${!!streamingCallback}`;
     }
   );
 }
@@ -96,6 +115,42 @@ describe('flow', () => {
           return true;
         }
       );
+    });
+  });
+
+  describe('streamFlow', () => {
+    it('should run the flow', async () => {
+      configureInMemoryStateStore('prod');
+      const testFlow = createTestStreamingFlow();
+
+      const response = streamFlow(testFlow, 3);
+
+      const gotChunks: any[] = [];
+      for await (const chunk of response.stream()) {
+        gotChunks.push(chunk);
+      }
+
+      assert.equal(await response.output(), 'bar 3 true');
+      assert.deepEqual(gotChunks, [{ count: 0 }, { count: 1 }, { count: 2 }]);
+    });
+
+    it('should rethrow the error', async () => {
+      configureInMemoryStateStore('prod');
+      const testFlow = defineFlow(
+        {
+          name: 'throwing',
+          inputSchema: z.string(),
+        },
+        async (input) => {
+          throw new Error(`bad happened: ${input}`);
+        }
+      );
+
+      const response = streamFlow(testFlow, 'foo');
+      await assert.rejects(async () => await response.output(), {
+        name: 'Error',
+        message: 'bad happened: foo',
+      });
     });
   });
 

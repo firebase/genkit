@@ -8,28 +8,40 @@ etc).
 ## Defining flows
 
 ```javascript
-import * as z from 'zod';
 import { defineFlow } from '@genkit-ai/flow';
 
+export const myFlow = defineFlow({ name: 'myFlow' }, async (input) => {
+  const output = doSomethingCool(input);
+
+  return output;
+});
+```
+
+Input and output schemas for flows can be defined using `zod`.
+
+```javascript
+import { defineFlow } from '@genkit-ai/flow';
+import * as z from 'zod';
+
 export const myFlow = defineFlow(
-  { name: 'myFlow', inputSchema: z.string(), outputSchema: z.string() },
+  {
+    name: 'myFlow',
+    inputSchema: z.object({ subject: z.string() }),
+    outputSchema: z.string(),
+  },
   async (input) => {
-    const output = doSomethingCool(input);
+    const output = doSomethingCool(input.subject);
 
     return output;
   }
 );
 ```
 
-Input and output schemas for flows are defined using `zod`.
+When schema is specified Genkit will validate the schema for inputs and outputs.
 
 ## Running flows
 
-There are a couple main ways to run flows:
-
-### Direct invocation
-
-This will invoke the flow and block until the flow is finished:
+Use the `runFlow` function to run the flow:
 
 ```js
 const response = await runFlow(jokeFlow, 'banana');
@@ -43,26 +55,7 @@ npx genkit flow:run jokeFlow '"banana"'
 
 ### Streamed
 
-Similar to "direct invocation" you can also stream the flow response, if the
-flow streams any values.
-
-```javascript
-const response = streamFlow(streamer, 5);
-
-for await (const chunk of response.stream()) {
-  console.log('chunk', chunk);
-}
-
-console.log('streamConsumer done', await response.operation());
-```
-
-You can use the CLI to stream flows as well:
-
-```posix-terminal
-npx genkit flow:run jokeFlow '"banana"' -s
-```
-
-Here's a simple example of a flow that can stream values:
+Here's a simple example of a flow that can stream values from a flow:
 
 ```javascript
 export const streamer = defineFlow(
@@ -86,16 +79,40 @@ export const streamer = defineFlow(
 ```
 
 Note that `streamingCallback` can be undefined. It's only defined if the
-invoking client is doing streaming.
+invoking client is requesting streamed response.
+
+To invoke a flow in streaming mode use `streamFlow` function:
+
+```javascript
+const response = streamFlow(streamer, 5);
+
+for await (const chunk of response.stream()) {
+  console.log('chunk', chunk);
+}
+
+console.log('streamConsumer done', await response.output());
+```
+
+If the flow does not implement streaming `streamFlow` will behave identically to `runFlow`.
+
+You can use the CLI to stream flows as well:
+
+```posix-terminal
+npx genkit flow:run jokeFlow '"banana"' -s
+```
 
 ## Deploying flows
 
 If you want to be able to access your flow over HTTP you will need to deploy it
 first. Genkit provides integrations for Cloud Functions for Firebase and
-express.js hosts such as Cloud Run.
+Express.js hosts such as Cloud Run.
 
-To use flows with Cloud Functions for Firebase use the `firebase` plugin
-and replace `flow` with `onFlow`.
+Deployed flows support all the same features as local flows (like streaming and
+observability).
+
+### Cloud Function for Firebase
+
+To use flows with Cloud Functions for Firebase use the `firebase` plugin and replace `defineFlow` with `onFlow`.
 
 ```js
 import { onFlow, noAuth } from '@genkit-ai/plugin-firebase/functions';
@@ -113,30 +130,51 @@ export const jokeFlow = onFlow(
 );
 ```
 
-To deploy flows using Cloud Run and similar services, define your flows with
-`flow` and then call `startFlowsServer()`:
+### Express.js
+
+To deploy flows using Cloud Run and similar services, define your flows using `defineFlow` and then call `startFlowsServer()`:
 
 ```js
 import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
 
-export const jokeFlow = defineFlow(
-  { name: 'jokeFlow', inputSchema: z.string(), outputSchema: z.string() },
-  async (subject, streamingCallback) => {
-    // ....
-  }
-);
+export const jokeFlow = defineFlow({ name: 'jokeFlow' }, async (subject) => {
+  // ....
+});
 
 startFlowsServer();
 ```
 
-Deployed flows support all the same features as local flows (like streaming and
-observability).
+By default `startFlowsServer` will serve all the flows that you have defined in your codebase as HTTP endpoints (e.g. `http://localhost:5000/jokeFlow`).
 
-Sometimes when using 3rd party SDKs that that are not instrumented for
-observability, you might want to still see them as a separate step in the Dev
-UI. All you need to do is wrap the code in the `run` function.
+You can choose which flows are exposed via the flows server. You can specify a custom port (it will use the `PORT` environment variable if set). You can also set CORS settings.
 
 ```js
+import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
+
+export const flowA = defineFlow({ name: 'flowA' }, async (subject) => {
+  // ....
+});
+
+export const flowB = defineFlow({ name: 'flowB' }, async (subject) => {
+  // ....
+});
+
+startFlowsServer({
+  flows: [flowB],
+  port: 4567,
+  cors: {
+    origin: '*',
+  },
+});
+```
+
+## Flow observability
+
+Sometimes when using 3rd party SDKs that that are not instrumented for observability, you might want to see them as a separate trace step in the Dev UI. All you need to do is wrap the code in the `run` function.
+
+```js
+import { defineFlow, run } from '@genkit-ai/flow';
+
 export const myFlow = defineFlow(
   { name: 'myFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (input) => {
