@@ -20,6 +20,7 @@ import { ChildProcess, execSync, spawn } from 'child_process';
 import * as chokidar from 'chokidar';
 import * as clc from 'colorette';
 import * as fs from 'fs';
+import getPort, { makeRange } from 'get-port';
 import * as path from 'path';
 import {
   Action,
@@ -112,7 +113,7 @@ export class Runner {
       this.build();
       this.watchForChanges();
     }
-    return this.startApp();
+    return await this.startApp();
   }
 
   /**
@@ -145,14 +146,14 @@ export class Runner {
     if (this.appProcess) {
       await this.stopApp();
     }
-    this.startApp();
+    await this.startApp();
   }
 
   /**
    * Starts the app code in a subprocess.
    * @param entryPoint - entry point of the app (e.g. index.js)
    */
-  private startApp(): boolean {
+  private async startApp(): Promise<boolean> {
     const entryPoint = getNodeEntryPoint(process.cwd());
 
     if (!fs.existsSync(entryPoint)) {
@@ -162,11 +163,23 @@ export class Runner {
 
     logger.info(`Starting app at ${entryPoint}...`);
 
+    // Try the desired port first then fall back to default range.
+    let port = await getPort({ port: this.reflectionApiPort });
+    if (port !== this.reflectionApiPort) {
+      port = await getPort({
+        port: makeRange(DEFAULT_REFLECTION_PORT, DEFAULT_REFLECTION_PORT + 100),
+      });
+      logger.warn(
+        `Port ${this.reflectionApiPort} not available, using ${port} instead.`
+      );
+      this.reflectionApiPort = port;
+    }
+
     this.appProcess = spawn('node', [entryPoint], {
       env: {
         ...process.env,
         GENKIT_ENV: 'dev',
-        GENKIT_REFLECTION_PORT: `${this.reflectionApiPort}`,
+        GENKIT_REFLECTION_PORT: `${port}`,
       },
     });
 
