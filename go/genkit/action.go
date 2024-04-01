@@ -63,7 +63,7 @@ func (a *Action[I, O]) Run(ctx context.Context, input I) (output O, err error) {
 			"output", fmt.Sprintf("%#v", output),
 			"err", err)
 	}()
-	return runInNewSpan(ctx, a.name, "action", input, a.fn)
+	return runInNewSpan(ctx, a.name, "action", false, input, a.fn)
 }
 
 func (a *Action[I, O]) runJSON(ctx context.Context, input []byte) ([]byte, error) {

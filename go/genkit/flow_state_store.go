@@ -16,41 +16,26 @@ package genkit
 
 import "context"
 
+// flowStater is the common type of all flowState[I, O] types.
+type flowStater interface {
+	isFlowState()
+}
+
 // A FlowStateStore stores flow states.
 // Every flow state has a unique string identifier.
 // A durable FlowStateStore is necessary for durable flows.
 type FlowStateStore interface {
 	// Save saves the FlowState to the store.
 	// TODO(jba): Determine what should happen if the FlowState already exists.
-	Save(ctx context.Context, id string, fs *FlowState) error
+	Save(ctx context.Context, id string, fs flowStater) error
 	// Load reads the FlowState with the given ID from the store.
 	// It returns an error that is fs.ErrNotExist if there isn't one.
-	Load(ctx context.Context, id string) (*FlowState, error)
-	// List returns all the FlowStates in the store that satisfy q, in some deterministic
-	// order.
-	// It also returns a continuation token: an opaque string that can be passed
-	// to the next call to List to resume the listing from where it left off. If
-	// the listing reached the end, this is the empty string.
-	// If the FlowStateQuery is malformed, List returns an error that is errBadQuery.
-	List(ctx context.Context, q *FlowStateQuery) (fss []*FlowState, contToken string, err error)
-}
-
-// A FlowStateQuery filters the result of [FlowStateStore.List].
-type FlowStateQuery struct {
-	// Maximum number of traces to return. If zero, a default value may be used.
-	// Callers should not assume they will get the entire list; they should always
-	// check the returned continuation token.
-	Limit int
-	// Where to continue the listing from. Must be either empty to start from the
-	// beginning, or the result of a recent, previous call to List.
-	ContinuationToken string
+	// pfs must be a pointer to a flowState[I, O] of the correct type.
+	Load(ctx context.Context, id string, pfs any) error
 }
 
 // nopFlowStateStore is a FlowStateStore that does nothing.
 type nopFlowStateStore struct{}
 
-func (nopFlowStateStore) Save(ctx context.Context, id string, fs *FlowState) error { return nil }
-func (nopFlowStateStore) Load(ctx context.Context, id string) (*FlowState, error)  { return nil, nil }
-func (nopFlowStateStore) List(ctx context.Context, q *FlowStateQuery) (fss []*FlowState, contToken string, err error) {
-	return nil, "", nil
-}
+func (nopFlowStateStore) Save(ctx context.Context, id string, fs flowStater) error { return nil }
+func (nopFlowStateStore) Load(ctx context.Context, id string, pfs any) error       { return nil }

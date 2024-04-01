@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 // A contextKey is a unique, typed key for a value stored in a context.
@@ -55,4 +56,18 @@ func jsonString(x any) string {
 		bytes, _ = json.Marshal(fmt.Sprintf("ERROR: %v", err))
 	}
 	return string(bytes)
+}
+
+// Milliseconds represents a time as the number of milliseconds since the Unix epoch.
+type Milliseconds float64
+
+func timeToMilliseconds(t time.Time) Milliseconds {
+	nsec := t.UnixNano()
+	return Milliseconds(float64(nsec) / 1e6)
+}
+
+func (m Milliseconds) time() time.Time {
+	sec := int64(m / 1e3)
+	nsec := int64((float64(m) - float64(sec*1e3)) * 1e6)
+	return time.Unix(sec, nsec)
 }
