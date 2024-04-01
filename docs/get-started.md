@@ -1,7 +1,5 @@
 # Get started
 
-## Run an LLM flow locally
-
 Genkit has built-in support for several language models, both local and
 cloud-based. In this guide, you will use the Gemini Pro model, provided by the
 Gemini API.
@@ -9,95 +7,62 @@ Gemini API.
 If you want to follow along with this introduction, you need Node.js 18 or
 later.
 
-1.  Set up a Node project with TypeScript:
+1.  Download and unzip [genkit-dist.zip](https://bit.ly/genkit-dist) (e.g. `$HOME/Downloads/genkit-dist`).
+
+1.  Create a new project folder and install Genkit CLI:
 
     ```posix-terminal
     mkdir genkit-intro && cd genkit-intro
 
     npm init -y
 
-    npm install --save-dev typescript
-
-    npx tsc --init
+    npm i --save -D $HOME/Downloads/genkit-dist/genkit-cli-0.0.6.tgz $HOME/Downloads/genkit-dist/genkit-ai-tools-plugins-0.0.6.tgz
     ```
 
-    Although TypeScript is not required, Genkit was built with type safety
-    in mind, using TypeScript for compile-time type checking and Zod for
-    run-time type checking.
-
-1.  Install Genkit in your project:
-
-    - Download packages zip file:
-      [genkit-dist.zip](https://bit.ly/genkit-dist)
-    - Extract the file into `genkit-dist` folder in your project folder
-    - Run:
-
-      ```posix-terminal
-      npm i --save ./genkit-dist/*.tgz
-      ```
-
-1.  Edit package.json and add the following build script to `scripts`:
-
-    ```json
-    "build": "tsc"
-    ```
-
-1.  Create a file `index.ts` with the following contents:
-
-    ```js
-    import { generate } from '@genkit-ai/ai';
-    import { configureGenkit } from '@genkit-ai/core/config';
-    import { defineFlow } from '@genkit-ai/flow';
-    import { geminiPro, googleGenAI } from '@genkit-ai/plugin-google-genai';
-    import * as z from 'zod';
-
-    configureGenkit({
-      plugins: [googleGenAI()],
-      enableTracingAndMetrics: true,
-      logLevel: 'debug',
-    });
-
-    export const jokeFlow = defineFlow(
-      { name: 'jokeFlow', inputSchema: z.string(), outputSchema: z.string() },
-      async (subject) => {
-        const llmResponse = await generate({
-          model: geminiPro,
-          prompt: `Tell a joke about ${subject}.`,
-        });
-        return llmResponse.text();
-      }
-    );
-    ```
-
-    And compile it:
+1.  Initialize a Genkit project:
 
     ```posix-terminal
-    npx tsc
+    npx genkit init -d $HOME/Downloads/genkit-dist/genkit-dist.zip
     ```
 
-    This example is a single step flow that calls the Gemini API with a
-    simple prompt and returns the result. As you build out your app's AI
-    features with Genkit, you will likely create flows with multiple steps such
-    as Input preprocessing, more sophisticated prompt construction, integrating
-    external information sources for retrieval-augmented generation (RAG),
-    waiting for human intervention, and more.
+    1. Select `gcp` as the deployment platform option (you don't need a Google Cloud project to get started).
 
-1.  [Generate an API key](https://aistudio.google.com/app/apikey) for the
-    Gemini API using Google AI Studio. Then, set the `GOOGLE_API_KEY`
-    environment variable to your key:
+    1. Select your model:
 
-    ```posix-terminal
-    export GOOGLE_API_KEY=<your API key>
-    ```
+       The simplest way to get started is with Google AI Gemini API. Make sure it's available in your region: https://ai.google.dev/available_regions
 
-1.  Now you can run and explore your flow locally on your machine. Start
-    the Genkit Dev UI:
+       [Generate an API key](https://aistudio.google.com/app/apikey) for the
+       Gemini API using Google AI Studio. Then, set the `GOOGLE_API_KEY`
+       environment variable to your key:
+
+       ```posix-terminal
+       export GOOGLE_API_KEY=<your API key>
+       ```
+
+       If the Google AI Gemini API is not available in your region, consider using the Vertex AI API which also offers Gemini and other models. You will need to have a billing-enabled Google Cloud project, enable AI Platform API, and set some additional environment variable:
+
+       ```posix-terminal
+       gcloud services enable aiplatform.googleapis.com
+
+       export GCLOUD_PROJECT=<your project ID>
+       export GCLOUD_LOCATION=us-central1
+       ```
+
+       See https://cloud.google.com/vertex-ai/generative-ai/pricing for Vertex AI pricing.
+
+       If you are an existing OpenAI user there's also an option to use OpenAI models.
+
+    1. Choose default answers to the rest of the questions, which will initialize your project folder with some sample code.
+
+1.  Edit package.json and make sure the `main` field is set to `lib/index.js`.
+
+1.  Now you can run and explore Genkit features and sample project locally on your machine. Start the Genkit Dev UI:
 
     ```posix-terminal
     npx genkit start
     ```
 
-    The Genkit Dev UI is now running on your machine. When you run your flow
+    The Genkit Dev UI is now running on your machine. When you run models or flows
     in the next step, your machine will perform the orchestration tasks needed
     to get the steps of your flow working together; calls to external services
     such as the Gemini API will continue to be made against live servers.
@@ -123,140 +88,4 @@ later.
       flow, you can see the parameters that were passed to the flow and a
       trace of each step as they ran.
 
-## Deploy your flow
-
-Now that you have a basic flow running on your machine, try deploying it to a
-cloud service where your apps can call it. You can deploy your Genkit flows to
-any cloud service that can run Node.js, but in this guide, you'll use Cloud
-Functions for Firebase.
-
-If you want to follow along with this section, you need the [Firebase
-CLI](https://firebase.google.com/docs/cli#install_the_firebase_cli) and a Google
-Cloud billing account.
-
-1.  Create a new project in the Firebase console. In your new project, do
-    the following:
-    - Create a Cloud Firestore database.
-    - Upgrade your project to the Blaze plan, which is required to
-      deploy Cloud Functions.
-1.  Initialize your project:
-
-    ```posix-terminal
-    mkdir genkit-intro-firebase && cd genkit-intro-firebase
-
-    firebase init
-    ```
-
-    The Firebase CLI will ask you how to configure your project. Choose the
-    following settings:
-
-    - Specify the project you created in the previous step.
-    - Enable the Cloud Firestore and Cloud Functions services.
-    - Accept the default settings for Cloud Firestore.
-    - Select TypeScript as the language for your Cloud Functions; you
-      can otherwise accept the defaults.
-
-1.  Edit tsconfig.js and add the following setting to `compilerOptions`:
-
-    ```json
-    "skipLibCheck": true,
-    ```
-
-1.  Install Genkit:
-
-    - Download
-      [packages zip file](https://bit.ly/genkit-dist)
-      and extract into the `functions/genkit-dist` folder.
-
-      ```posix-terminal
-      cd functions
-
-      npm i --save ./genkit-dist/*.tgz
-      ```
-
-1.  Replace the contents of `src/index.ts` with the following:
-
-<!-- prettier-ignore-start -->
-    ```js
-    import * as z from "zod";
-    import {generate} from "@genkit-ai/ai";
-    import {getProjectId} from "@genkit-ai/core";
-    import {configureGenkit} from "@genkit-ai/core/config";
-    import {firebase} from "@genkit-ai/plugin-firebase";
-    import {noAuth, onFlow} from "@genkit-ai/plugin-firebase/functions";
-    import {geminiPro, googleGenAI} from "@genkit-ai/plugin-google-genai";
-    import {defineSecret} from "firebase-functions/params";
-
-    const googleaiApiKey = defineSecret("GOOGLE_API_KEY");
-
-    configureGenkit({
-      plugins: [firebase({projectId: getProjectId()}), googleGenAI()],
-      enableTracingAndMetrics: true,
-      traceStore: "firebase",
-      logLevel: "debug",
-    });
-
-    export const jokeFlow = onFlow(
-      {
-        name: "jokeFlow",
-        inputSchema: z.string(),
-        outputSchema: z.string(),
-        authPolicy: noAuth(),
-        httpsOptions: {secrets: [googleaiApiKey]},
-      },
-      async (subject) => {
-        process.env.GOOGLE_API_KEY = googleaiApiKey.value();
-
-        const llmResponse = await generate({
-          model: geminiPro,
-          prompt: `Tell a joke about ${subject}.`,
-        });
-        return llmResponse.text();
-      }
-    );
-    ```
-<!-- prettier-ignore-end -->
-
-    This is very similar to the code you ran locally in the last section,
-    with a few important differences:
-
-    - It now uses Cloud Firestore to store flow traces.
-    - It now defines your flow using `onFlow` instead of `flow`. `onFlow` Is a
-      convenience function provided by the `firebase` plugin that wraps your
-      flow in a Cloud Functions HTTP request handler.
-    - It defines an authorization policy, which establishes the authorization
-      requirements required to access your deployed endpoint. This example
-      sets the policy to `noAuth()` so you can easily try the endpoint, but
-      _never do this in production_.
-    - It now gets the API key using Cloud Secret Manager instead of from an
-      environment variable.
-
-1.  Deploy your function:
-
-    ```posix-terminal
-    firebase deploy --only functions
-    ```
-
-    When prompted, provide your API key for the Gemini API. Make sure this
-    key is for the same project into which you are deploying your function.
-
-    After deployment completes, the Firebase CLI will print the URL of the
-    endpoint.
-
-1.  Try making a request to your deployed endpoint. For example, using `curl`:
-
-    ```posix-terminal
-    curl -m 70 -X POST https://jokeflow-xyz.a.run.app -H "Content-Type: application/json" -d '{"data":"apple"}'
-    ```
-
-    If all goes well, you'll get a response like the following:
-
-    ```none
-    {"result":"What do you call..."}
-    ```
-
-The getting started guide has walked you through the basics of writing a
-generative AI flow, running it locally, and deploying it to a cloud endpoint.
-The flows you actually build in your apps will likely be more complex with more
-steps per flow. The rest of the docs teach you about the various building
-blocks Genkit makes available for you to create such flows.
+Next steps: check out how to build and deploy your Genkit app with [Firebase](firebase.md) and [Cloud Run](cloud-run.md).

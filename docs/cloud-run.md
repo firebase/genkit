@@ -24,8 +24,28 @@
     npm init -y
     ```
 
+1.  Initialize Genkit in your Firebase project:
+
+    Download and unzip [genkit-dist.zip](https://bit.ly/genkit-dist) (e.g. `$HOME/Downloads/genkit-dist`).
+
+    Start by installing Genkit CLI
+
+    ```posix-terminal
+    cd functions
+
+    npm i --save -D $HOME/Downloads/genkit-dist/genkit-cli-0.0.6.tgz $HOME/Downloads/genkit-dist/genkit-ai-tools-plugins-0.0.6.tgz
+    ```
+
+    Then run:
+
+    ```posix-terminal
+    npx genkit init -d $HOME/Downloads/genkit-dist/genkit-dist.zip
+    ```
+
+    Select `gcp` as the deployment platform option and Vertex AI as the model. Choose defaults for the rest of the options.
+
 1.  You will need a Google Cloud or Firebase project for persisting traces in
-      Firestore. After you have created / picked one, run the following to set an
+    Firestore. After you have created / picked one, run the following to set an
     env var with your project ID and set the project as your default:
 
     ```posix-terminal
@@ -60,27 +80,7 @@
         gcloud services enable compute.googleapis.com
         ```
 
-1.  Create a tsconfig.json file (`touch tsconfig.json`) and paste this:
-
-    ```json
-    {
-      "compilerOptions": {
-        "module": "commonjs",
-        "noImplicitReturns": true,
-        "noUnusedLocals": false,
-        "outDir": "lib",
-        "sourceMap": true,
-        "strict": true,
-        "target": "es2017",
-        "skipLibCheck": true,
-        "esModuleInterop": true
-      },
-      "compileOnSave": true,
-      "include": ["src"]
-    }
-    ```
-
-    Replace the contents of your package.json file with the following:
+1.  Replace the contents of your package.json file with the following:
 
     ```json
     {
@@ -107,32 +107,7 @@
     }
     ```
 
-1.  Install Genkit in your project:
-
-    - Download packages zip file:
-      [genkit-dist.zip](https://bit.ly/genkit-dist)
-    - Extract the file into `genkit-dist` folder in your project folder
-    - Run:
-
-      ```posix-terminal
-      npm i --save ./genkit-dist/*.tgz
-      ```
-
-    - Also install typescript by running:
-
-      ```posix-terminal
-      npm install --save-dev typescript
-      ```
-
-1.  Create the src/index.ts file where your Genkit code will live:
-
-    ```posix-terminal
-    mkdir src
-
-    touch src/index.ts
-    ```
-
-    Paste the following sample code into src/index.ts file:
+1.  Paste the following sample code into src/index.ts file:
 
     ```javascript
     import { generate } from '@genkit-ai/ai';
@@ -232,5 +207,5 @@
     ```posix-terminal
     export MY_CLOUD_RUN_SERVICE_URL=https://.....run.app
 
-    curl -m 70 -X POST $MY_CLOUD_RUN_SERVICE_URL/jokeFlow?stream=true -H "Authorization: bearer $(gcloud auth print-identity-token)" -H "Content-Type: application/json"  -d '{"start": {"input": "banana"}}'
+    curl -m 70 -X POST $MY_CLOUD_RUN_SERVICE_URL/jokeFlow?stream=true -H "Authorization: bearer $(gcloud auth print-identity-token)" -H "Content-Type: application/json"  -d '{"data": "banana"}'
     ```
