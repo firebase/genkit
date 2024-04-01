@@ -114,46 +114,53 @@ export function imagen2Model(client: GoogleAuth, options: PluginOptions) {
     ImagenParameters
   >(client, options, 'imagegeneration@005');
 
-  return defineModel(imagen2, async (request) => {
-    const instance: ImagenInstance = {
-      prompt: extractText(request),
-    };
-    if (extractPromptImage(request))
-      instance.image = { bytesBase64Encoded: extractPromptImage(request)! };
-
-    const req: any = {
-      instances: [instance],
-      parameters: toParameters(request),
-    };
-
-    const response = await predict([instance], toParameters(request));
-
-    const candidates: CandidateData[] = response.predictions.map((p, i) => {
-      const b64data = p.bytesBase64Encoded;
-      const mimeType = p.mimeType;
-      return {
-        index: i,
-        finishReason: 'stop',
-        message: {
-          role: 'model',
-          content: [
-            {
-              media: {
-                url: `data:${mimeType};base64,${b64data}`,
-                contentType: mimeType,
-              },
-            },
-          ],
-        },
+  return defineModel(
+    {
+      name: imagen2.name,
+      ...imagen2.info,
+      configSchema: imagen2.configSchema,
+    },
+    async (request) => {
+      const instance: ImagenInstance = {
+        prompt: extractText(request),
       };
-    });
-    return {
-      candidates,
-      usage: {
-        ...getBasicUsageStats(request.messages, candidates),
-        custom: { generations: candidates.length },
-      },
-      custom: response,
-    };
-  });
+      if (extractPromptImage(request))
+        instance.image = { bytesBase64Encoded: extractPromptImage(request)! };
+
+      const req: any = {
+        instances: [instance],
+        parameters: toParameters(request),
+      };
+
+      const response = await predict([instance], toParameters(request));
+
+      const candidates: CandidateData[] = response.predictions.map((p, i) => {
+        const b64data = p.bytesBase64Encoded;
+        const mimeType = p.mimeType;
+        return {
+          index: i,
+          finishReason: 'stop',
+          message: {
+            role: 'model',
+            content: [
+              {
+                media: {
+                  url: `data:${mimeType};base64,${b64data}`,
+                  contentType: mimeType,
+                },
+              },
+            ],
+          },
+        };
+      });
+      return {
+        candidates,
+        usage: {
+          ...getBasicUsageStats(request.messages, candidates),
+          custom: { generations: candidates.length },
+        },
+        custom: response,
+      };
+    }
+  );
 }
