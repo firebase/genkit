@@ -72,8 +72,8 @@ const pluginToInfo: Record<string, PluginInfo> = {
   },
   '@genkit-ai/plugin-google-genai': {
     name: '@genkit-ai/plugin-google-genai',
-    import: 'googleAI',
-    init: 'googleAI()',
+    import: 'googleGenAI',
+    init: 'googleGenAI()',
     model: 'geminiPro',
   },
 };
