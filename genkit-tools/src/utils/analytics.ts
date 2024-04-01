@@ -106,7 +106,7 @@ export async function notifyAnalyticsIfFirstRun(): Promise<void> {
   }
 
   console.log(ANALYTICS_NOTIFICATION);
-  await readline.question('(Press Enter to continue)');
+  await readline.question('Press "Enter" to continue');
 
   configstore.set(NOTIFICATION_ACKED, true);
 }
@@ -136,7 +136,11 @@ export function getAnalyticsSettings(): AnalyticsInfo {
 // ===============================================================
 // Start internal implementation
 
-const ANALYTICS_NOTIFICATION = 'Notice: PLACEHOLDER PLACEHOLDER PLACEHOLDER';
+const ANALYTICS_NOTIFICATION =
+  'Genkit CLI and Dev UI use cookies and ' +
+  'similar technologies from Google\nto deliver and enhance the quality of its ' +
+  'services and to analyze usage.\n' +
+  'Learn more at https://policies.google.com/technologies/cookies';
 const NOTIFICATION_ACKED = 'analytics_notification';
 const CONFIGSTORE_CLIENT_KEY = 'genkit-tools-ga-id';
 
