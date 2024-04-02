@@ -17,7 +17,7 @@
 import { defineEmbedder, embedderRef } from '@genkit-ai/ai/embedder';
 import { EmbedContentRequest, GoogleGenerativeAI } from '@google/generative-ai';
 import { string, z } from 'zod';
-import { PluginOptions } from './index';
+import { PluginOptions } from './index.js';
 
 export const TaskTypeSchema = z.enum([
   'RETRIEVAL_DOCUMENT',
