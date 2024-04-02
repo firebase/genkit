@@ -186,9 +186,9 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
       prompt: messages[messages.length - 1].content,
       candidates: options.candidates || this.candidates || 1,
       output: {
-        format: this.output?.format || undefined,
-        schema: this.output?.schema,
-        jsonSchema: this.output?.jsonSchema,
+        format: options.output?.format || this.output?.format || undefined,
+        schema: options.output?.schema || this.output?.schema,
+        jsonSchema: options.output?.jsonSchema || this.output?.jsonSchema,
       },
     });
   }
