@@ -224,6 +224,8 @@ async function updatePackageJson() {
       newPackageJson = {
         ...packageJson,
         ...existingPackageJson,
+        // Main will always be overwritten to match tsconfig.
+        main: packageJson.main,
         scripts: {
           ...packageJson.scripts,
           ...existingPackageJson.scripts,
@@ -241,6 +243,7 @@ async function updatePackageJson() {
 /**
  * Generates a sample index.ts file.
  * @param platform Deployment platform.
+ * @param modelPlugin Model plugin name.
  */
 function generateSampleFile(platform: Platform, modelPlugin: string) {
   const modelImport = `import { ${pluginToInfo[modelPlugin].model} } from '${modelPlugin}';`;
