@@ -42,6 +42,11 @@ guides:
   - title: Deploy Cloud Run
     path: /genkit/cloud-run
 
+  - break: true
+
+  - title: Writing plugins
+    path: /genkit/plugin-authoring
+
   - heading: Official plugins
   - title: Google Generative AI
     path: /genkit/plugins/google-genai
