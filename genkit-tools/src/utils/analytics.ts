@@ -88,6 +88,16 @@ export class InitEvent extends GAEvent {
   }
 }
 
+export class ConfigEvent extends GAEvent {
+  name = 'config_set';
+  duration = 1;
+
+  constructor(key: 'analyticsOptOut') {
+    super();
+    this.parameters = { key };
+  }
+}
+
 /**
  * Main function for recording analytics. This is a no-op if analyitcs are
  * disabled.

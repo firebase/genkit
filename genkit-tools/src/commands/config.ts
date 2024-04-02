@@ -16,7 +16,11 @@
 
 import * as clc from 'colorette';
 import { Command } from 'commander';
-import { ANALYTICS_OPT_OUT_CONFIG_TAG } from '../utils/analytics';
+import {
+  ANALYTICS_OPT_OUT_CONFIG_TAG,
+  ConfigEvent,
+  record,
+} from '../utils/analytics';
 import { getUserSettings, setUserSettings } from '../utils/configstore';
 import { logger } from '../utils/logger';
 
@@ -60,7 +64,7 @@ config
   .command('set')
   .argument('<tag>', `The config tag to get. One of [${readableTagsHint()}]`)
   .argument('<value>', 'The value to set tag to')
-  .action((tag, value) => {
+  .action(async (tag, value) => {
     if (!CONFIG_TAGS[tag]) {
       logger.error(
         `Unknown config tag "${clc.bold(tag)}.\nValid options: ${readableTagsHint()}`
@@ -75,6 +79,8 @@ config
       logger.error(`Invalid type for "${clc.bold(tag)}.\n${e.message}`);
       return;
     }
+
+    await record(new ConfigEvent(tag));
 
     const userSettings = getUserSettings();
     setUserSettings({
