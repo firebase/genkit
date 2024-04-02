@@ -492,6 +492,11 @@ export async function generate<
 
   let tools: ToolAction[] | undefined;
   if (prompt.tools) {
+    if (!model.__action.metadata?.model.supports?.tools) {
+      throw new Error(
+        `Model ${JSON.stringify(prompt.model)} does not support tools, but some tools were supplied to generate(). Please call generate() without tools if you would like to use this model.`
+      );
+    }
     tools = await resolveTools(prompt.tools);
   }
 

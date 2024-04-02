@@ -66,7 +66,7 @@ export const geminiPro = modelRef({
     supports: {
       multiturn: true,
       media: false,
-      tools: true,
+      tools: false,
     },
   },
   configSchema: GeminiConfigSchema,
@@ -81,7 +81,7 @@ export const geminiProVision = modelRef({
     supports: {
       multiturn: true,
       media: true,
-      tools: true,
+      tools: false,
     },
   },
   configSchema: GeminiConfigSchema,
@@ -95,7 +95,7 @@ export const geminiUltra = modelRef({
     supports: {
       multiturn: true,
       media: false,
-      tools: true,
+      tools: false,
     },
   },
   configSchema: GeminiConfigSchema,
