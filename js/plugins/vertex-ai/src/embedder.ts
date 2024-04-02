@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
-import { defineEmbedder, embedderRef } from '@genkit-ai/ai/embedder';
+import {
+  defineEmbedder,
+  embedderRef,
+  EmbedderReference,
+} from '@genkit-ai/ai/embedder';
 import { GoogleAuth } from 'google-auth-library';
 import { z } from 'zod';
 import { PluginOptions } from '.';
@@ -34,19 +38,15 @@ export const TextEmbeddingGeckoConfigSchema = z.object({
    * The `task_type` parameter is defined as the intended downstream application to help the model
    * produce better quality embeddings.
    **/
-  taskType: TaskTypeSchema,
+  taskType: TaskTypeSchema.optional(),
+  title: z.string().optional(),
 });
 export type TextEmbeddingGeckoConfig = z.infer<
   typeof TextEmbeddingGeckoConfigSchema
 >;
 
-const TextEmbeddingGeckoInputSchema = z.union([
-  z.string(),
-  z.object({ title: z.string().optional(), content: z.string() }),
-]);
-
-export const textEmbeddingGecko = embedderRef({
-  name: 'vertex-ai/textembedding-gecko',
+export const textEmbeddingGecko003 = embedderRef({
+  name: 'vertex-ai/textembedding-gecko@003',
   configSchema: TextEmbeddingGeckoConfigSchema,
   info: {
     dimensions: 768,
@@ -56,6 +56,59 @@ export const textEmbeddingGecko = embedderRef({
     },
   },
 });
+
+export const textEmbeddingGecko002 = embedderRef({
+  name: 'vertex-ai/textembedding-gecko@002',
+  configSchema: TextEmbeddingGeckoConfigSchema,
+  info: {
+    dimensions: 768,
+    label: 'Vertex AI - Text Embedding Gecko',
+    supports: {
+      input: ['text'],
+    },
+  },
+});
+
+export const textEmbeddingGecko001 = embedderRef({
+  name: 'vertex-ai/textembedding-gecko@001',
+  configSchema: TextEmbeddingGeckoConfigSchema,
+  info: {
+    dimensions: 768,
+    label: 'Vertex AI - Text Embedding Gecko (Legacy)',
+    supports: {
+      input: ['text'],
+    },
+  },
+});
+
+/*
+// @TODO(huangjeff): Fix multilingual text embedding gecko
+// For some reason this model returns 404 but it exists in the reference docs:
+// https://cloud.google.com/vertex-ai/generative-ai/docs/embeddings/get-text-embeddings
+
+export const textEmbeddingGeckoMultilingual001 = embedderRef({
+  name: 'vertex-ai/textembedding-gecko-multilingual@001',
+  configSchema: TextEmbeddingGeckoConfigSchema,
+  info: {
+    dimensions: 768,
+    label: 'Vertex AI - Multilingual Text Embedding Gecko',
+    supports: {
+      input: ['text'],
+    },
+  },
+});
+*/
+
+export const textEmbeddingGecko = textEmbeddingGecko003;
+
+export const SUPPORTED_EMBEDDER_MODELS: Record<string, EmbedderReference> = {
+  'textembedding-gecko': textEmbeddingGecko003,
+  'textembedding-gecko@003': textEmbeddingGecko003,
+  'textembedding-gecko@002': textEmbeddingGecko002,
+  'textembedding-gecko@001': textEmbeddingGecko001,
+  //'textembeddding-gecko-multilingual': textEmbeddingGeckoMultilingual001,
+  //'textembeddding-gecko-multilingual@001': textEmbeddingGeckoMultilingual001,
+};
 
 interface EmbeddingInstance {
   task_type?: TaskType;
@@ -73,29 +126,31 @@ interface EmbeddingPrediction {
 }
 
 export function textEmbeddingGeckoEmbedder(
+  name: string,
   client: GoogleAuth,
   options: PluginOptions
 ) {
+  const embedder = SUPPORTED_EMBEDDER_MODELS[name];
   // TODO: Figure out how to allow different versions while still sharing a single implementation.
   const predict = predictModel<EmbeddingInstance, EmbeddingPrediction>(
     client,
     options,
-    'textembedding-gecko@003'
+    name
   );
   return defineEmbedder(
     {
-      name: textEmbeddingGecko.name,
-      configSchema: TextEmbeddingGeckoConfigSchema,
-      info: textEmbeddingGecko.info!,
+      name: embedder.name,
+      configSchema: embedder.configSchema,
+      info: embedder.info!,
     },
     async (input, options) => {
       const response = await predict(
         input.map((i) => {
-          const instance: EmbeddingInstance = { content: i.text() };
-          if (options?.taskType) {
-            instance.task_type = options.taskType;
-          }
-          return instance;
+          return {
+            content: i.text(),
+            task_type: options?.taskType,
+            title: options?.title,
+          };
         })
       );
       return {
