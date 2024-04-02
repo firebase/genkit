@@ -1,5 +1,15 @@
 {
   "name": "@genkit-ai/plugin-ollama",
+  "description": "Genkit AI framework plugin for Ollama APIs.",
+  "keywords": [
+    "genkit",
+    "genkit-plugin",
+    "genkit-model",
+    "ollama",
+    "ai",
+    "genai",
+    "generative-ai"
+  ],
   "version": "0.0.6",
   "type": "commonjs",
   "scripts": {

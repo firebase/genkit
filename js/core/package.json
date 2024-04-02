@@ -1,5 +1,12 @@
 {
   "name": "@genkit-ai/core",
+  "description": "Genkit AI framework core libraries.",
+  "keywords": [
+    "genkit",
+    "ai",
+    "genai",
+    "generative-ai"
+  ],
   "version": "0.0.6",
   "type": "commonjs",
   "scripts": {

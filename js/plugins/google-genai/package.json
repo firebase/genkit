@@ -1,5 +1,18 @@
 {
   "name": "@genkit-ai/plugin-google-genai",
+  "description": "Genkit AI framework plugin for Google AI APIs, including Gemini APIs.",
+  "keywords": [
+    "genkit",
+    "genkit-plugin",
+    "genkit-embedder",
+    "genkit-model",
+    "gemini",
+    "google gemini",
+    "google ai",
+    "ai",
+    "genai",
+    "generative-ai"
+  ],
   "version": "0.0.6",
   "type": "commonjs",
   "scripts": {

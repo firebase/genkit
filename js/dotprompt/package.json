@@ -1,5 +1,14 @@
 {
   "name": "@genkit-ai/dotprompt",
+  "description": "Genkit AI framework `.prompt` file format and management library.",
+  "keywords": [
+    "genkit",
+    "ai",
+    "genai",
+    "generative-ai",
+    "prompting",
+    "templating"
+  ],
   "version": "0.0.6",
   "type": "commonjs",
   "scripts": {

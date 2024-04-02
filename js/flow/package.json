@@ -1,5 +1,12 @@
 {
   "name": "@genkit-ai/flow",
+  "description": "Genkit AI framework workflow APIs.",
+  "keywords": [
+    "genkit",
+    "ai",
+    "genai",
+    "generative-ai"
+  ],
   "version": "0.0.6",
   "type": "commonjs",
   "main": "./lib/cjs/index.js",

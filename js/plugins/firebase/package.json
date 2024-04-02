@@ -1,5 +1,18 @@
 {
   "name": "@genkit-ai/plugin-firebase",
+  "description": "Genkit AI framework plugin for Firebase including Firestore trace/state store and deployment helpers for Cloud Functions for Firebase.",
+  "keywords": [
+    "genkit",
+    "genkit-plugin",
+    "genkit-tracestore",
+    "genkit-statestore",
+    "genkit-deploy",
+    "genkit-flow",
+    "firestore",
+    "ai",
+    "genai",
+    "generative-ai"
+  ],
   "version": "0.0.6",
   "type": "commonjs",
   "scripts": {
