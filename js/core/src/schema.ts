@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-import Ajv, { ErrorObject } from 'ajv';
+import Ajv, { ErrorObject, JSONSchemaType } from 'ajv';
 import { z } from 'zod';
-import zodToJsonSchema, { JsonSchema7Type } from 'zod-to-json-schema';
+import zodToJsonSchema from 'zod-to-json-schema';
 import { GenkitError } from './error.js';
 const ajv = new Ajv();
 
 export { z }; // provide a consistent zod to use throughout genkit
-export type JSONSchema = JsonSchema7Type;
+export type JSONSchema = JSONSchemaType<any> | any;
 const jsonSchemas = new WeakMap<z.ZodTypeAny, JSONSchema>();
 const validators = new WeakMap<JSONSchema, ReturnType<typeof ajv.compile>>();
 
@@ -34,14 +34,16 @@ export class ValidationError extends GenkitError {
   constructor({
     data,
     errors,
+    schema,
   }: {
     data: any;
     errors: ValidationErrorDetail[];
+    schema: JSONSchema;
   }) {
     super({
       status: 'INVALID_ARGUMENT',
-      message: `Schema validation failed. Parse Errors:\n\n${errors.map((e) => `- ${e.path}: ${e.message}`).join('\n')}\n\nProvided data:\n\n${JSON.stringify(data, null, 2)}`,
-      detail: { errors },
+      message: `Schema validation failed. Parse Errors:\n\n${errors.map((e) => `- ${e.path}: ${e.message}`).join('\n')}\n\nProvided data:\n\n${JSON.stringify(data, null, 2)}\n\nRequired JSON schema:\n\n${JSON.stringify(schema, null, 2)}`,
+      detail: { errors, schema },
     });
   }
 }
@@ -54,14 +56,17 @@ export class ValidationError extends GenkitError {
 export function toJsonSchema({
   jsonSchema,
   schema,
-}: ProvidedSchema): JSONSchema {
-  // if neither jsonSchema or schema is present, default to empty object representing 'any' in JSONSchema
-  if (!jsonSchema && !schema) return {};
+}: ProvidedSchema): JSONSchema | undefined {
+  // if neither jsonSchema or schema is present return undefined
+  if (!jsonSchema && !schema) return null;
   if (jsonSchema) return jsonSchema;
   if (jsonSchemas.has(schema!)) return jsonSchemas.get(schema!)!;
-  const outSchema = zodToJsonSchema(schema!);
-  jsonSchemas.set(schema!, outSchema);
-  return outSchema;
+  const outSchema = zodToJsonSchema(schema!, {
+    $refStrategy: 'none',
+    removeAdditionalStrategy: 'strict',
+  });
+  jsonSchemas.set(schema!, outSchema as JSONSchema);
+  return outSchema as JSONSchema;
 }
 
 export interface ValidationErrorDetail {
@@ -71,7 +76,7 @@ export interface ValidationErrorDetail {
 
 function toErrorDetail(error: ErrorObject): ValidationErrorDetail {
   return {
-    path: error.instancePath.substring(1).replace(/\//g, '.'),
+    path: error.instancePath.substring(1).replace(/\//g, '.') || '(root)',
     message: error.message!,
   };
 }
@@ -83,19 +88,22 @@ export type ValidationResponse =
 export function validateSchema(
   data: unknown,
   options: ProvidedSchema
-): { valid: boolean; errors?: any[] | null } {
+): { valid: boolean; errors?: any[]; schema: JSONSchema } {
   const toValidate = toJsonSchema(options);
+  if (!toValidate) {
+    return { valid: true, schema: toValidate };
+  }
   const validator = validators.get(toValidate) || ajv.compile(toValidate);
   const valid = validator(data) as boolean;
   const errors = validator.errors?.map((e) => e);
-  return { valid, errors: errors?.map(toErrorDetail) };
+  return { valid, errors: errors?.map(toErrorDetail), schema: toValidate };
 }
 
 export function parseSchema<T = unknown>(
   data: unknown,
   options: ProvidedSchema
 ): T {
-  const { valid, errors } = validateSchema(data, options);
-  if (!valid) throw new ValidationError({ data, errors: errors! });
+  const { valid, errors, schema } = validateSchema(data, options);
+  if (!valid) throw new ValidationError({ data, errors: errors!, schema });
   return data as T;
 }

@@ -240,7 +240,6 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
     (actionJsonSchema as any).properties.input = this.input?.jsonSchema || {};
     if (this.input?.jsonSchema)
       this._action.__action.inputJsonSchema = actionJsonSchema;
-    console.log(this._action.__action.inputJsonSchema);
     return this._action;
   }
 }

@@ -73,6 +73,28 @@ describe('validate()', () => {
       valid: false,
       errors: [{ path: 'foo.0.bar', message: 'must be boolean' }],
     },
+    {
+      it: 'should be understandable for top-level errors',
+      jsonSchema: { type: 'object', additionalProperties: false },
+      data: { foo: 'bar' },
+      valid: false,
+      errors: [
+        { path: '(root)', message: 'must NOT have additional properties' },
+      ],
+    },
+    {
+      it: 'should be understandable for required fields',
+      jsonSchema: {
+        type: 'object',
+        properties: { foo: { type: 'string' } },
+        required: ['foo'],
+      },
+      data: {},
+      valid: false,
+      errors: [
+        { path: '(root)', message: "must have required property 'foo'" },
+      ],
+    },
   ];
   for (const test of tests) {
     it(test.it, () => {
