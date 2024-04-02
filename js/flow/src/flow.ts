@@ -809,7 +809,7 @@ function wrapAsAction<
 export function startFlowsServer(params?: {
   flows?: Flow<any, any, any>[];
   port?: number;
-  cors: CorsOptions;
+  cors?: CorsOptions;
 }) {
   const port =
     params?.port || (process.env.PORT ? parseInt(process.env.PORT) : 0) || 3400;
