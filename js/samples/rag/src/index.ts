@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { initializeGenkit } from '@genkit-ai/core/config';
+import { initializeGenkit } from '@genkit-ai/core';
 import config from './genkit.config.js';
 
 initializeGenkit(config);

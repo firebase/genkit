@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { genkitPlugin, Plugin } from '@genkit-ai/core/config';
+import { genkitPlugin, Plugin } from '@genkit-ai/core';
 import {
   SUPPORTED_MODELS as EMBEDDER_MODELS,
   textEmbeddingGeckoEmbedder,

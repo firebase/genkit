@@ -22,10 +22,11 @@ import {
   FlowStateSchema,
   FlowStateStore,
   getStreamingCallback,
+  config as globalConfig,
+  isDevEnv,
   Operation,
   StreamingCallback,
 } from '@genkit-ai/core';
-import { config as globalConfig, isDevEnv } from '@genkit-ai/core/config';
 import { logger } from '@genkit-ai/core/logging';
 import { registerAction } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';

@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-import { getProjectId } from '@genkit-ai/core';
-import { configureGenkit } from '@genkit-ai/core/config';
+import { configureGenkit, getProjectId } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 
 export default configureGenkit({

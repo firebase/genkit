@@ -14,8 +14,12 @@
  * limitations under the License.
  */
 
-import { getLocation, getProjectId } from '@genkit-ai/core';
-import { Plugin, genkitPlugin } from '@genkit-ai/core/config';
+import {
+  Plugin,
+  genkitPlugin,
+  getLocation,
+  getProjectId,
+} from '@genkit-ai/core';
 import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleAuth } from 'google-auth-library';
 import {

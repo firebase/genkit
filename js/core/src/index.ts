@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
+export * from './action.js';
+export * from './config.js';
 export * from './flowTypes.js';
 export * from './runtime.js';
 export * from './telemetryTypes.js';
-export * from './types.js';
 
 export { GenkitError } from './error.js';

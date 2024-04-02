@@ -95,7 +95,7 @@
     ```javascript
     import { generate } from '@genkit-ai/ai';
     import { getProjectId } from '@genkit-ai/core';
-    import { configureGenkit } from '@genkit-ai/core/config';
+    import { configureGenkit } from '@genkit-ai/core';
     import { run } from '@genkit-ai/flow';
     import { firebase } from '@genkit-ai/firebase';
     import { firebaseAuth } from '@genkit-ai/firebase/auth';

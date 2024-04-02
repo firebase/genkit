@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-const { configureGenkit } = require('@genkit-ai/core/config');
+const { configureGenkit } = require('@genkit-ai/core');
 const { googleGenAI } = require('@genkit-ai/google-genai');
 
 exports.default = configureGenkit({

@@ -15,7 +15,7 @@
  */
 
 import { generate } from '@genkit-ai/ai';
-import { initializeGenkit } from '@genkit-ai/core/config';
+import { initializeGenkit } from '@genkit-ai/core';
 import { defineFlow, run, runFlow } from '@genkit-ai/flow';
 import express, { Request, Response } from 'express';
 import * as z from 'zod';

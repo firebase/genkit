@@ -24,7 +24,7 @@ import {
   indexerRef,
   retrieverRef,
 } from '@genkit-ai/ai/retriever';
-import { genkitPlugin, PluginProvider } from '@genkit-ai/core/config';
+import { genkitPlugin, PluginProvider } from '@genkit-ai/core';
 import similarity from 'compute-cosine-similarity';
 import * as fs from 'fs';
 import { Md5 } from 'ts-md5';

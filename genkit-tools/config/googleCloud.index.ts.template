@@ -1,5 +1,5 @@
 import { generate } from '@genkit-ai/ai';
-import { initializeGenkit } from '@genkit-ai/core/config';
+import { initializeGenkit } from '@genkit-ai/core';
 import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
 $GENKIT_MODEL_IMPORT
 import * as z from 'zod';
