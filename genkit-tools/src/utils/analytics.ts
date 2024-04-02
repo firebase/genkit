@@ -17,7 +17,7 @@
 import { createInterface } from 'readline/promises';
 import { v4 as uuidV4 } from 'uuid';
 import { AnalyticsInfo } from '../types/analytics';
-import { configstore } from './configstore';
+import { configstore, getUserSettings } from './configstore';
 import { logger } from './logger';
 import { toolsPackage } from './package';
 
@@ -198,10 +198,7 @@ function isValidateOnly(): boolean {
 // are set. Once we have opt-out and we're ready for public preview this will
 // get updated.
 function isAnalyticsEnabled(): boolean {
-  return !!process.env['GENKIT_GA_ENABLED'];
-
-  // TODO: Switch to this before launch:
-  // return !getUserSettings()[ANALYTICS_OPT_OUT_CONFIG_TAG];
+  return !getUserSettings()[ANALYTICS_OPT_OUT_CONFIG_TAG];
 }
 
 async function recordInternal(
