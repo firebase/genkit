@@ -28,7 +28,7 @@ import z from 'zod';
  */
 export interface PromptMetadata<Options extends z.ZodTypeAny = z.ZodTypeAny> {
   /** The name of the prompt. */
-  name: string;
+  name?: string;
   /** The variant name for the prompt. */
   variant?: string;
 
@@ -36,10 +36,13 @@ export interface PromptMetadata<Options extends z.ZodTypeAny = z.ZodTypeAny> {
    * The name of the model to use for this prompt, e.g. `google-vertex/gemini-pro`
    * or `openai/gpt-4-0125-preview`.
    */
-  model: ModelArgument<Options>;
+  model?: ModelArgument<Options>;
 
   /** Names of tools (registered separately) to allow use of in this prompt. */
   tools?: ToolArgument[];
+
+  /** Number of candidates to generate by default. */
+  candidates?: number;
 
   /** Model configuration. Not all models support all options. */
   config?: GenerationConfig<z.infer<Options>>;
@@ -77,8 +80,9 @@ export interface PromptMetadata<Options extends z.ZodTypeAny = z.ZodTypeAny> {
 export const PromptFrontmatterSchema = z.object({
   name: z.string().optional(),
   variant: z.string().optional(),
-  model: z.string(),
+  model: z.string().optional(),
   tools: z.array(z.string()).optional(),
+  candidates: z.number().optional(),
   config: GenerationConfigSchema.optional(),
   input: z
     .object({
@@ -128,13 +132,14 @@ export function toMetadata(attributes: unknown): Partial<PromptMetadata> {
       : undefined,
     metadata: fm.metadata,
     tools: fm.tools,
+    candidates: fm.candidates,
   });
 }
 
 export function toFrontmatter(md: PromptMetadata): PromptFrontmatter {
   return stripUndefined({
     name: md.name,
-    model: typeof md.model === 'string' ? md.model : md.model.name,
+    model: typeof md.model === 'string' ? md.model : md.model?.name,
     config: md.config,
     input: md.input
       ? {
@@ -155,6 +160,8 @@ export function toFrontmatter(md: PromptMetadata): PromptFrontmatter {
         }
       : undefined,
     metadata: md.metadata,
-    tools: md.tools?.map((t) => (typeof t === 'string' ? t : t.__action.name)),
+    tools: md.tools?.map((t) =>
+      typeof t === 'string' ? t : (t as any).__action?.name || (t as any).name
+    ),
   });
 }

@@ -35,7 +35,7 @@ export type ToolAction<
 export type ToolArgument<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-> = string | ToolAction<I, O> | Action<I, O>;
+> = string | ToolAction<I, O> | Action<I, O> | ToolDefinition;
 
 export function asTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   action: Action<I, O>
@@ -58,9 +58,7 @@ export function asTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 export async function resolveTools<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
->(
-  tools: (Action<z.ZodTypeAny, z.ZodTypeAny> | string)[] = []
-): Promise<ToolAction[]> {
+>(tools: ToolArgument[] = []): Promise<ToolAction[]> {
   return await Promise.all(
     tools.map(async (ref): Promise<ToolAction> => {
       if (typeof ref === 'string') {
@@ -69,10 +67,15 @@ export async function resolveTools<
           throw new Error(`Tool ${ref} not found`);
         }
         return tool as ToolAction;
-      } else if (ref.__action) {
-        return asTool(ref);
+      } else if ((ref as Action).__action) {
+        return asTool(ref as Action);
+      } else if (ref.name) {
+        const tool = await lookupAction(`/tool/${ref.name}`);
+        if (!tool) {
+          throw new Error(`Tool ${ref} not found`);
+        }
       }
-      throw new Error('Tools must be strings or actions.');
+      throw new Error('Tools must be strings, tool definitions, or actions.');
     })
   );
 }

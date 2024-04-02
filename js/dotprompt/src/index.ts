@@ -22,10 +22,10 @@ import z from 'zod';
 import { registerAction } from '@genkit-ai/core/registry';
 
 import { PromptMetadata } from './metadata.js';
-import { Prompt, PromptAction, PromptInput } from './prompt.js';
+import { Prompt, PromptAction, PromptGenerateOptions } from './prompt.js';
 import { lookupPrompt } from './registry.js';
 
-export { Prompt, PromptAction, PromptInput };
+export { Prompt, PromptAction, PromptGenerateOptions };
 
 export function loadPromptFile(path: string): Prompt {
   return Prompt.parse(
@@ -56,6 +56,6 @@ export function definePrompt<V extends z.ZodTypeAny = z.ZodTypeAny>(
   template: string
 ): Prompt<z.infer<V>> {
   const prompt = new Prompt(options, template);
-  registerAction('prompt', prompt.name, prompt.action());
+  registerAction('prompt', prompt.name!, prompt.action());
   return prompt;
 }

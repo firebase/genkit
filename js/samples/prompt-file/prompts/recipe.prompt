@@ -1,5 +1,10 @@
 ---
 model: google-ai/gemini-pro
+input:
+  schema:
+    properties:
+      food: {type: string}
+    required: [food]
 output:
   schema:
     type: object
