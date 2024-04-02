@@ -63,6 +63,24 @@ conditional portions to your prompt or iterate through structured content. The
 file format utilizes YAML frontmatter to provide metadata for a prompt inline
 with the template.
 
+## Overriding Prompt Metadata
+
+While `.prompt` files allow you to embed metadata such as model configuration in
+the file itself, you can also override these values on a per-call basis:
+
+```ts
+const result = await greetingPrompt.generate({
+  model: 'google-genai/gemini-pro',
+  config: {
+    temperature: 1.0,
+  },
+  input: {
+    location: 'the beach',
+    style: 'a fancy pirate',
+  },
+});
+```
+
 ## Structured output
 
 You can set the format and output schema of a prompt to coerce into JSON:
