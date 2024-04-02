@@ -1,5 +1,18 @@
 {
   "name": "@genkit-ai/plugin-pinecone",
+  "description": "Genkit AI framework plugin for Pinecone vector database.",
+  "keywords": [
+    "genkit",
+    "genkit-retriever",
+    "genkit-plugin",
+    "genkit-indexer",
+    "pinecone",
+    "vector",
+    "embedding",
+    "ai",
+    "genai",
+    "generative-ai"
+  ],
   "version": "0.0.6",
   "type": "commonjs",
   "scripts": {
