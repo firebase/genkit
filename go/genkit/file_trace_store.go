@@ -16,11 +16,9 @@ package genkit
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
-	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -59,21 +57,16 @@ func (s *FileTraceStore) Save(ctx context.Context, id string, td *TraceData) err
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
-	f, err := os.Create(filepath.Join(s.dir, clean(id)))
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err = errors.Join(err, f.Close())
-	}()
-	enc := json.NewEncoder(f)
-	enc.SetIndent("", "    ") // make the trace easy to read for debugging
-	return enc.Encode(td)
+	return writeJSONFile(filepath.Join(s.dir, clean(id)), td)
 }
 
 // Load implements [TraceStore.Load].
 func (s *FileTraceStore) Load(ctx context.Context, id string) (*TraceData, error) {
-	return readJSONFile[*TraceData](filepath.Join(s.dir, clean(id)))
+	var td *TraceData
+	if err := readJSONFile(filepath.Join(s.dir, clean(id)), &td); err != nil {
+		return nil, err
+	}
+	return td, nil
 }
 
 // List implements [TraceStore.List].
@@ -105,8 +98,8 @@ func (s *FileTraceStore) List(ctx context.Context, q *TraceQuery) ([]*TraceData,
 
 	var ts []*TraceData
 	for _, e := range entries[start:end] {
-		t, err := readJSONFile[*TraceData](filepath.Join(s.dir, e.Name()))
-		if err != nil {
+		var t *TraceData
+		if err := readJSONFile(filepath.Join(s.dir, e.Name()), &t); err != nil {
 			return nil, "", err
 		}
 		ts = append(ts, t)
@@ -154,24 +147,4 @@ func listRange(q *TraceQuery, total int) (start, end int, err error) {
 		end = total
 	}
 	return start, end, nil
-}
-
-// readJSONFile reads the contents of filename and JSON-decodes it
-// into a value of type T.
-func readJSONFile[T any](filename string) (T, error) {
-	f, err := os.Open(filename)
-	if err != nil {
-		return zero[T](), err
-	}
-	defer f.Close()
-	var t T
-	if err := json.NewDecoder(f).Decode(&t); err != nil {
-		return zero[T](), err
-	}
-	return t, nil
-}
-
-// clean returns a valid filename for id.
-func clean(id string) string {
-	return url.PathEscape(id)
 }

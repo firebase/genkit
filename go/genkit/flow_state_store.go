@@ -25,8 +25,7 @@ type flowStater interface {
 // Every flow state has a unique string identifier.
 // A durable FlowStateStore is necessary for durable flows.
 type FlowStateStore interface {
-	// Save saves the FlowState to the store.
-	// TODO(jba): Determine what should happen if the FlowState already exists.
+	// Save saves the FlowState to the store, overwriting an existing one.
 	Save(ctx context.Context, id string, fs flowStater) error
 	// Load reads the FlowState with the given ID from the store.
 	// It returns an error that is fs.ErrNotExist if there isn't one.

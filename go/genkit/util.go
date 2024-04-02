@@ -16,8 +16,7 @@ package genkit
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
+	"net/url"
 	"time"
 )
 
@@ -48,14 +47,9 @@ func zero[T any]() T {
 	return z
 }
 
-// jsonString returns json.Marshal(x) as a string. If json.Marshal returns
-// an error, jsonString returns the error text as a JSON string beginning "ERROR:".
-func jsonString(x any) string {
-	bytes, err := json.Marshal(x)
-	if err != nil {
-		bytes, _ = json.Marshal(fmt.Sprintf("ERROR: %v", err))
-	}
-	return string(bytes)
+// clean returns a valid filename for id.
+func clean(id string) string {
+	return url.PathEscape(id)
 }
 
 // Milliseconds represents a time as the number of milliseconds since the Unix epoch.
