@@ -92,7 +92,7 @@ import path from 'path';
 import pdf from 'pdf-parse'; // npm i pdf-parse && npm i -D --save @types/pdf-parse
 import z from 'zod';
 
-import { configureGenkit } from '@genkit-ai/core/config';
+import { configureGenkit } from '@genkit-ai/core';
 import {
   devLocalIndexerRef,
   devLocalVectorstore,
@@ -177,7 +177,7 @@ the indexer example, this example uses Genkit's file-based vector retriever,
 which you should not use in production.
 
 ```ts
-import { configureGenkit } from '@genkit-ai/core/config';
+import { configureGenkit } from '@genkit-ai/core';
 import { defineFlow } from '@genkit-ai/flow';
 import { generate } from '@genkit-ai/ai/generate';
 import { retrieve } from '@genkit-ai/ai/retriever';

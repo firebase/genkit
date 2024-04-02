@@ -16,6 +16,7 @@
 
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
+import { action } from '../src/action.js';
 import {
   __hardResetRegistryForTesting,
   listActions,
@@ -23,7 +24,6 @@ import {
   registerAction,
   registerPluginProvider,
 } from '../src/registry.js';
-import { action } from '../src/types.js';
 
 describe('registry', () => {
   beforeEach(__hardResetRegistryForTesting);

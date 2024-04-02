@@ -21,7 +21,7 @@ import {
   GenerationResponseData,
   getBasicUsageStats,
 } from '@genkit-ai/ai/model';
-import { genkitPlugin, Plugin } from '@genkit-ai/core/config';
+import { genkitPlugin, Plugin } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 
 interface OllamaPluginParams {

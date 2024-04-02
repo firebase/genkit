@@ -15,8 +15,7 @@
  */
 
 import { generate } from '@genkit-ai/ai';
-import { getLocation, getProjectId } from '@genkit-ai/core';
-import { configureGenkit } from '@genkit-ai/core/config';
+import { configureGenkit, getLocation, getProjectId } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import { firebaseAuth } from '@genkit-ai/firebase/auth';
 import { noAuth, onFlow } from '@genkit-ai/firebase/functions';

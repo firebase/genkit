@@ -36,7 +36,7 @@ npm i --save @genkit-ai/core
 Then, define and export your plugin from your main entry point:
 
 ```ts
-import { genkitPlugin } from '@genkit-ai/core/plugin';
+import { genkitPlugin } from '@genkit-ai/core';
 
 interface MyPluginOptions {
   // add any plugin configuration here

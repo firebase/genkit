@@ -16,6 +16,7 @@
 
 import express from 'express';
 import z from 'zod';
+import { Status, StatusCodes, runWithStreamingCallback } from './action.js';
 import { config } from './config.js';
 import { logger } from './logging.js';
 import * as registry from './registry.js';
@@ -25,7 +26,6 @@ import {
   newTrace,
   setCustomMetadataAttribute,
 } from './tracing.js';
-import { Status, StatusCodes, runWithStreamingCallback } from './types.js';
 
 export const RunActionResponseSchema = z.object({
   result: z.unknown().optional(),

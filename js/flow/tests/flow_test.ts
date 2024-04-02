@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-import { FlowState } from '@genkit-ai/core';
-import { __hardResetConfigForTesting } from '@genkit-ai/core/config';
+import { FlowState, __hardResetConfigForTesting } from '@genkit-ai/core';
 import { __hardResetRegistryForTesting } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';

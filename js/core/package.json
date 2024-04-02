@@ -75,12 +75,6 @@
       "default": "./lib/logging.js",
       "import": "./lib/logging.mjs"
     },
-    "./config": {
-      "types": "./lib/config.d.ts",
-      "require": "./lib/config.js",
-      "default": "./lib/config.js",
-      "import": "./lib/config.mjs"
-    },
     "./runtime": {
       "types": "./lib/runtime.d.ts",
       "require": "./lib/runtime.js",

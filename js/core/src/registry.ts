@@ -15,12 +15,12 @@
  */
 
 import * as z from 'zod';
+import { Action } from './action.js';
 import { FlowStateStore } from './flowTypes.js';
 import { logger } from './logging.js';
 import { PluginProvider } from './plugin.js';
 import { startReflectionApi } from './reflectionApi.js';
 import { TraceStore } from './tracing/types.js';
-import { Action } from './types.js';
 
 export type AsyncProvider<T> = () => Promise<T>;
 
