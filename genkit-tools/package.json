@@ -1,6 +1,6 @@
 {
   "name": "genkit-cli",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "CLI for interacting with the Google GenKit AI framework",
   "bin": {
     "genkit": "dist/bin/genkit.js"
