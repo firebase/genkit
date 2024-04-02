@@ -60,14 +60,23 @@ export async function startCLI(): Promise<void> {
     .description('Google Genkit CLI')
     .version(version)
     .hook('preAction', async (_, actionCommand) => {
+      await notifyAnalyticsIfFirstRun();
+
       // For now only record known command names, to avoid tools plugins causing
       // arbitrary text to get recorded. Once we launch tools plugins, we'll have
       // to give this more thought
-      const commandName = commands
-        .map((c) => c.name())
-        .includes(actionCommand.name())
-        ? actionCommand.name()
-        : 'unknown';
+      const commandNames = commands.map((c) => c.name());
+      let commandName: string;
+      if (commandNames.includes(actionCommand.name())) {
+        commandName = actionCommand.name();
+      } else if (
+        actionCommand.parent &&
+        commandNames.includes(actionCommand.parent.name())
+      ) {
+        commandName = actionCommand.parent.name();
+      } else {
+        commandName = 'unknown';
+      }
       await record(new RunCommandEvent(commandName));
     });
 
@@ -82,8 +91,6 @@ export async function startCLI(): Promise<void> {
   program.action((_, { args }: { args: string[] }) => {
     logger.error(`"${clc.bold(args[0])}" is not a known Genkit command.`);
   });
-
-  await notifyAnalyticsIfFirstRun();
 
   await program.parseAsync();
 }
