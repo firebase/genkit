@@ -51,6 +51,12 @@ guides:
     path: /genkit/plugins/openai
   - title: Ollama
     path: /genkit/plugins/ollama
+  - title: Chroma DB
+    path: /genkit/plugins/chroma
+  - title: Pinecone
+    path: /genkit/plugins/pinecone
+  - title: pgvector (code template)
+    path: /genkit/templates/pgvector
 
 reference:
   - title: Resource summary
