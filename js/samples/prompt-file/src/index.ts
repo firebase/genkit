@@ -21,6 +21,7 @@ import * as z from 'zod';
 
 initializeGenkit();
 
+prompt('story');
 // This example demonstrates using prompt files in a flow
 
 // Load the prompt file during initialization.

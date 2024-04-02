@@ -192,7 +192,7 @@ function fromGeminiCandidate(candidate: GeminiCandidate): CandidateData {
     index: candidate.index,
     message: {
       role: 'model',
-      content: candidate.content.parts.map(fromGeminiPart),
+      content: (candidate.content?.parts || []).map(fromGeminiPart),
     },
     finishReason: fromGeminiFinishReason(candidate.finishReason),
     finishMessage: candidate.finishMessage,
@@ -237,7 +237,7 @@ export function googleAIModel(name: string, apiKey?: string): ModelAction {
       const chatRequest = {
         history: messages.slice(0, messages.length - 1),
         generationConfig: {
-          candidateCount: request.candidates,
+          candidateCount: request.candidates || undefined,
           temperature: request.config?.temperature,
           maxOutputTokens: request.config?.maxOutputTokens,
           topK: request.config?.topK,

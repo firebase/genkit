@@ -89,11 +89,11 @@ export function toToolDefinition(
     outputSchema: toJsonSchema({
       schema: tool.__action.outputSchema,
       jsonSchema: tool.__action.outputJsonSchema,
-    }),
+    })!,
     inputSchema: toJsonSchema({
       schema: tool.__action.inputSchema,
       jsonSchema: tool.__action.inputJsonSchema,
-    }),
+    })!,
   };
 }
 

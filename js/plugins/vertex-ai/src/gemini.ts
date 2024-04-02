@@ -366,7 +366,7 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
           .slice(0, -1)
           .map((message) => toGeminiMessage(message)),
         generation_config: {
-          candidate_count: request.candidates,
+          candidate_count: request.candidates || undefined,
           temperature: request.config?.temperature,
           max_output_tokens: request.config?.maxOutputTokens,
           top_k: request.config?.topK,

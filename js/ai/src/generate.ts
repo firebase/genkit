@@ -356,20 +356,24 @@ export async function toGenerateRequest(
   if (prompt.tools) {
     tools = await resolveTools(prompt.tools);
   }
-  return {
+
+  const out = {
     messages,
     candidates: prompt.candidates,
     config: prompt.config,
     tools: tools?.map((tool) => toToolDefinition(tool)) || [],
     output: {
       format:
-        prompt.output?.format || (prompt.output?.schema ? 'json' : 'text'),
+        prompt.output?.format ||
+        (prompt.output?.schema || prompt.output?.jsonSchema ? 'json' : 'text'),
       schema: toJsonSchema({
         schema: prompt.output?.schema,
         jsonSchema: prompt.output?.jsonSchema,
       }),
     },
   };
+  if (!out.output.schema) delete out.output.schema;
+  return out;
 }
 
 export interface GenerateOptions<
