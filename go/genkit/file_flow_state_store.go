@@ -35,6 +35,8 @@ func NewFileFlowStateStore(dir string) (*FileFlowStateStore, error) {
 }
 
 func (s *FileFlowStateStore) Save(ctx context.Context, id string, fs flowStater) error {
+	fs.lock()
+	defer fs.unlock()
 	return writeJSONFile(filepath.Join(s.dir, clean(id)), fs)
 }
 

@@ -16,11 +16,6 @@ package genkit
 
 import "context"
 
-// flowStater is the common type of all flowState[I, O] types.
-type flowStater interface {
-	isFlowState()
-}
-
 // A FlowStateStore stores flow states.
 // Every flow state has a unique string identifier.
 // A durable FlowStateStore is necessary for durable flows.

@@ -16,6 +16,7 @@ package genkit
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -43,4 +44,38 @@ func TestFlowStart(t *testing.T) {
 	if diff := cmp.Diff(want, got, cmpopts.IgnoreFields(Operation[int]{}, "FlowID")); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
+}
+
+func TestFlowRun(t *testing.T) {
+	n := 0
+	stepf := func() (int, error) {
+		n++
+		return n, nil
+	}
+
+	flow := DefineFlow("run", func(ctx context.Context, s string) ([]int, error) {
+		g1, err := Run(ctx, "s1", stepf)
+		if err != nil {
+			return nil, err
+		}
+		g2, err := Run(ctx, "s2", stepf)
+		if err != nil {
+			return nil, err
+		}
+		return []int{g1, g2}, nil
+	})
+	state, err := flow.start(context.Background(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	op := state.Operation
+	if !op.Done {
+		t.Fatal("not done")
+	}
+	got := op.Result.Response
+	want := []int{1, 2}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+
 }
