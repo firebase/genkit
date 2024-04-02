@@ -436,6 +436,30 @@ async function resolveModel(
   }
 }
 
+export class NoValidCandidatesError extends GenkitError {
+  detail: {
+    response: GenerationResponse;
+    [otherDetails: string]: any;
+  };
+
+  constructor({
+    message,
+    response,
+    detail,
+  }: {
+    message: string;
+    response: GenerationResponse;
+    detail?: Record<string, any>;
+  }) {
+    super({
+      status: 'FAILED_PRECONDITION',
+      message,
+      detail,
+    });
+    this.detail = { response, ...detail };
+  }
+}
+
 /**
  * Generate calls a generative model based on the provided prompt and configuration. If
  * `history` is provided, the generation will include a conversation history in its
@@ -475,6 +499,18 @@ export async function generate<
       new GenerationResponse<z.infer<O>>(await model(request), request)
   );
 
+  // throw NoValidCandidates if all candidates are blocked or
+  if (
+    !response.candidates.some((c) =>
+      ['stop', 'length'].includes(c.finishReason)
+    )
+  ) {
+    throw new NoValidCandidatesError({
+      message: `All candidates returned finishReason issues: ${JSON.stringify(response.candidates.map((c) => c.finishReason))}`,
+      response,
+    });
+  }
+
   if (prompt.output?.schema || prompt.output?.jsonSchema) {
     // find a candidate with valid output schema
     const candidateValidations = response.candidates.map((c) => {
@@ -491,10 +527,10 @@ export async function generate<
       }
     });
     if (!candidateValidations.some((c) => c.valid)) {
-      throw new GenkitError({
-        status: 'FAILED_PRECONDITION',
+      throw new NoValidCandidatesError({
         message:
           'Generation resulted in no candidates matching provided output schema.',
+        response,
         detail: {
           candidateErrors: candidateValidations,
         },
