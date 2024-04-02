@@ -23,6 +23,7 @@ import { GcpOpenTelemetry } from './gcpOpenTelemetry.js';
 
 export interface PluginOptions {
   projectId?: string;
+  forceDevExport?: boolean;
   telemetryConfig?: TelemetryConfig;
 }
 
