@@ -27,7 +27,10 @@ export interface Provider<T> {
 
 export interface PluginProvider {
   name: string;
-  initializer: () => Promise<InitializedPlugin>;
+  initializer: () =>
+    | InitializedPlugin
+    | void
+    | Promise<InitializedPlugin | void>;
 }
 
 export interface InitializedPlugin {
@@ -44,7 +47,9 @@ export interface InitializedPlugin {
   };
 }
 
-type PluginInit = (...args: any[]) => Promise<InitializedPlugin>;
+type PluginInit = (
+  ...args: any[]
+) => InitializedPlugin | void | Promise<InitializedPlugin | void>;
 
 export type Plugin<T extends any[]> = (...args: T) => PluginProvider;
 
@@ -57,6 +62,6 @@ export function genkitPlugin<T extends PluginInit>(
 ): Plugin<Parameters<T>> {
   return (...args: Parameters<T>) => ({
     name: pluginName,
-    initializer: () => initFn(...args),
+    initializer: async () => (await initFn(...args)) || {},
   });
 }
