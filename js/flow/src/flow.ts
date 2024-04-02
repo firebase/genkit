@@ -812,7 +812,7 @@ export function startFlowsServer(params?: {
   cors: CorsOptions;
 }) {
   const port =
-    params?.port || (process.env.PORT ? parseInt(process.env.PORT) : 0) || 5000;
+    params?.port || (process.env.PORT ? parseInt(process.env.PORT) : 0) || 3400;
   const app = express();
   app.use(bodyParser.json());
   if (params?.cors) {

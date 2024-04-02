@@ -144,7 +144,7 @@ export const jokeFlow = defineFlow({ name: 'jokeFlow' }, async (subject) => {
 startFlowsServer();
 ```
 
-By default `startFlowsServer` will serve all the flows that you have defined in your codebase as HTTP endpoints (e.g. `http://localhost:5000/jokeFlow`).
+By default `startFlowsServer` will serve all the flows that you have defined in your codebase as HTTP endpoints (e.g. `http://localhost:3400/jokeFlow`).
 
 You can choose which flows are exposed via the flows server. You can specify a custom port (it will use the `PORT` environment variable if set). You can also set CORS settings.
 
