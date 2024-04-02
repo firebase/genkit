@@ -21,13 +21,13 @@ genkit flow:run setup
 or add more pdfs to the index if you want:
 
 ```
-genkit flow:run setup '[\"./docs/Cat.pdf\"]'
+genkit flow:run setup '["./docs/Cat.pdf"]'
 ```
 
 ## Evaluate it
 
 ```
-genkit eval:flow pdfQA --input eval/cat_questions.json
+genkit eval:flow pdfQA --input eval/cat_adoption_questions.json
 ```
 
 ## See your results
