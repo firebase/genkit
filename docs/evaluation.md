@@ -15,7 +15,7 @@ Genkit supports third-party evaluation tools through plugins. For example, to
 use Ragas:
 
 ```js
-import { RagasMetric, ragas } from '@genkit-ai/plugin-ragas';
+import { RagasMetric, ragas } from '@genkit-ai/ragas';
 
 export default configureGenkit({
   plugins: [

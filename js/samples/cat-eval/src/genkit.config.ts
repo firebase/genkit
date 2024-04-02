@@ -16,15 +16,11 @@
 
 import { getProjectId } from '@genkit-ai/core';
 import { configureGenkit } from '@genkit-ai/core/config';
-import { devLocalVectorstore } from '@genkit-ai/plugin-dev-local-vectorstore';
-import { firebase } from '@genkit-ai/plugin-firebase';
-import { googleGenAI } from '@genkit-ai/plugin-google-genai';
-import { ragas, RagasMetric } from '@genkit-ai/plugin-ragas';
-import {
-  geminiPro,
-  textEmbeddingGecko,
-  vertexAI,
-} from '@genkit-ai/plugin-vertex-ai';
+import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
+import { firebase } from '@genkit-ai/firebase';
+import { googleGenAI } from '@genkit-ai/google-genai';
+import { ragas, RagasMetric } from '@genkit-ai/ragas';
+import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertex-ai';
 
 export default configureGenkit({
   plugins: [

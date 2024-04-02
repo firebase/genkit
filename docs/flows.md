@@ -115,7 +115,7 @@ observability).
 To use flows with Cloud Functions for Firebase use the `firebase` plugin and replace `defineFlow` with `onFlow`.
 
 ```js
-import { onFlow, noAuth } from '@genkit-ai/plugin-firebase/functions';
+import { onFlow, noAuth } from '@genkit-ai/firebase/functions';
 
 export const jokeFlow = onFlow(
   {

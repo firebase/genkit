@@ -1,5 +1,5 @@
 {
-  "name": "@genkit-ai/plugin-google-genai",
+  "name": "@genkit-ai/google-genai",
   "description": "Genkit AI framework plugin for Google AI APIs, including Gemini APIs.",
   "keywords": [
     "genkit",

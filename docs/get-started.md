@@ -25,7 +25,7 @@ later.
     npx genkit init -d $HOME/Downloads/genkit-dist/genkit-dist.zip
     ```
 
-    1. Select `gcp` as the deployment platform option (you don't need a Google Cloud project to get started).
+    1. Select `googleCloud` as the deployment platform option (you don't need a Google Cloud project to get started).
 
     1. Select your model:
 

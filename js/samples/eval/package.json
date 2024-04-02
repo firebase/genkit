@@ -17,10 +17,10 @@
   "dependencies": {
     "@genkit-ai/ai": "workspace:*",
     "@genkit-ai/core": "workspace:*",
-    "@genkit-ai/plugin-firebase": "workspace:*",
-    "@genkit-ai/plugin-openai": "workspace:*",
-    "@genkit-ai/plugin-ragas": "workspace:*",
-    "@genkit-ai/plugin-vertex-ai": "workspace:*"
+    "@genkit-ai/firebase": "workspace:*",
+    "@genkit-ai/openai": "workspace:*",
+    "@genkit-ai/ragas": "workspace:*",
+    "@genkit-ai/vertex-ai": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

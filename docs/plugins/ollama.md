@@ -18,7 +18,7 @@ ollama pull mixtral
 To use this plugin, specify it when you call `configureGenkit()`:
 
 ```js
-import { ollama } from '@genkit-ai/plugin-ollama';
+import { ollama } from '@genkit-ai/ollama';
 
 export default configureGenkit({
   plugins: [

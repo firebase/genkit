@@ -114,8 +114,8 @@ long as your app client is also using the
 You can use Firebase Auth to protect your flows defined with `onFlow()`:
 
 ```ts
-import { firebaseAuth } from '@genkit-ai/plugin-firebase/auth';
-import { onFlow } from '@genkit-ai/plugin-firebase/functions';
+import { firebaseAuth } from '@genkit-ai/firebase/auth';
+import { onFlow } from '@genkit-ai/firebase/functions';
 
 export const jokeFlow = onFlow({
     name: 'jokeFlow',
@@ -163,7 +163,7 @@ indicate to the library that you are forgoing authorization checks by using the
 `noAuth()` function:
 
 ```ts
-import { onFlow, noAuth } from '@genkit-ai/plugin-firebase/functions';
+import { onFlow, noAuth } from '@genkit-ai/firebase/functions';
 
 export const jokeFlow = onFlow({
     name: 'jokeFlow',
@@ -184,7 +184,7 @@ Firebase plugin for genkit includes first-class support for
 the following configuration options to your `onFlow()`:
 
 ```ts
-import { onFlow } from '@genkit-ai/plugin-firebase/functions';
+import { onFlow } from '@genkit-ai/firebase/functions';
 
 export const jokeFlow = onFlow({
     name: 'jokeFlow',

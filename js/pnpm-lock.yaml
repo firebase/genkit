@@ -334,7 +334,7 @@ importers:
         specifier: ^4.9.0
         version: 4.9.5
 
-  plugins/gcp:
+  plugins/google-cloud:
     dependencies:
       '@genkit-ai/ai':
         specifier: workspace:*
@@ -585,28 +585,28 @@ importers:
       '@genkit-ai/core':
         specifier: workspace:*
         version: link:../../core
+      '@genkit-ai/dev-local-vectorstore':
+        specifier: workspace:*
+        version: link:../../plugins/dev-local-vectorstore
       '@genkit-ai/dotprompt':
         specifier: workspace:*
         version: link:../../dotprompt
+      '@genkit-ai/firebase':
+        specifier: workspace:*
+        version: link:../../plugins/firebase
       '@genkit-ai/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/plugin-dev-local-vectorstore':
-        specifier: workspace:*
-        version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/plugin-firebase':
-        specifier: workspace:*
-        version: link:../../plugins/firebase
-      '@genkit-ai/plugin-google-genai':
+      '@genkit-ai/google-genai':
         specifier: workspace:*
         version: link:../../plugins/google-genai
-      '@genkit-ai/plugin-pinecone':
+      '@genkit-ai/pinecone':
         specifier: workspace:*
         version: link:../../plugins/pinecone
-      '@genkit-ai/plugin-ragas':
+      '@genkit-ai/ragas':
         specifier: workspace:*
         version: link:../../third_party/ragas
-      '@genkit-ai/plugin-vertex-ai':
+      '@genkit-ai/vertex-ai':
         specifier: workspace:*
         version: link:../../plugins/vertex-ai
       llm-chunk:
@@ -628,40 +628,40 @@ importers:
       '@genkit-ai/ai':
         specifier: workspace:*
         version: link:../../ai
+      '@genkit-ai/chromadb':
+        specifier: workspace:*
+        version: link:../../plugins/chroma
       '@genkit-ai/core':
         specifier: workspace:*
         version: link:../../core
+      '@genkit-ai/dev-local-vectorstore':
+        specifier: workspace:*
+        version: link:../../plugins/dev-local-vectorstore
       '@genkit-ai/dotprompt':
         specifier: workspace:*
         version: link:../../dotprompt
+      '@genkit-ai/firebase':
+        specifier: workspace:*
+        version: link:../../plugins/firebase
       '@genkit-ai/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/plugin-chroma':
-        specifier: workspace:*
-        version: link:../../plugins/chroma
-      '@genkit-ai/plugin-dev-local-vectorstore':
-        specifier: workspace:*
-        version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/plugin-firebase':
-        specifier: workspace:*
-        version: link:../../plugins/firebase
-      '@genkit-ai/plugin-google-genai':
+      '@genkit-ai/google-genai':
         specifier: workspace:*
         version: link:../../plugins/google-genai
-      '@genkit-ai/plugin-ollama':
+      '@genkit-ai/ollama':
         specifier: workspace:*
         version: link:../../plugins/ollama
-      '@genkit-ai/plugin-openai':
+      '@genkit-ai/openai':
         specifier: workspace:*
         version: link:../../plugins/openai
-      '@genkit-ai/plugin-pinecone':
+      '@genkit-ai/pinecone':
         specifier: workspace:*
         version: link:../../plugins/pinecone
-      '@genkit-ai/plugin-ragas':
+      '@genkit-ai/ragas':
         specifier: workspace:*
         version: link:../../third_party/ragas
-      '@genkit-ai/plugin-vertex-ai':
+      '@genkit-ai/vertex-ai':
         specifier: workspace:*
         version: link:../../plugins/vertex-ai
       zod:
@@ -680,16 +680,16 @@ importers:
       '@genkit-ai/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/plugin-firebase':
+      '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/plugin-openai':
+      '@genkit-ai/openai':
         specifier: workspace:*
         version: link:../../plugins/openai
-      '@genkit-ai/plugin-ragas':
+      '@genkit-ai/ragas':
         specifier: workspace:*
         version: link:../../third_party/ragas
-      '@genkit-ai/plugin-vertex-ai':
+      '@genkit-ai/vertex-ai':
         specifier: workspace:*
         version: link:../../plugins/vertex-ai
     devDependencies:
@@ -705,19 +705,19 @@ importers:
       '@genkit-ai/core':
         specifier: workspace:^
         version: link:../../core
+      '@genkit-ai/firebase':
+        specifier: workspace:*
+        version: link:../../plugins/firebase
       '@genkit-ai/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/plugin-firebase':
-        specifier: workspace:*
-        version: link:../../plugins/firebase
-      '@genkit-ai/plugin-google-genai':
+      '@genkit-ai/google-genai':
         specifier: workspace:*
         version: link:../../plugins/google-genai
-      '@genkit-ai/plugin-ollama':
+      '@genkit-ai/ollama':
         specifier: workspace:*
         version: link:../../plugins/ollama
-      '@genkit-ai/plugin-openai':
+      '@genkit-ai/openai':
         specifier: workspace:*
         version: link:../../plugins/openai
       express:
@@ -739,12 +739,12 @@ importers:
       '@genkit-ai/core':
         specifier: workspace:^
         version: link:../../core
+      '@genkit-ai/firebase':
+        specifier: workspace:^
+        version: link:../../plugins/firebase
       '@genkit-ai/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/plugin-firebase':
-        specifier: workspace:^
-        version: link:../../plugins/firebase
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -761,22 +761,22 @@ importers:
       '@genkit-ai/core':
         specifier: workspace:^
         version: link:../../core
+      '@genkit-ai/firebase':
+        specifier: workspace:*
+        version: link:../../plugins/firebase
       '@genkit-ai/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/plugin-firebase':
+      '@genkit-ai/google-cloud':
         specifier: workspace:*
-        version: link:../../plugins/firebase
-      '@genkit-ai/plugin-gcp':
-        specifier: workspace:*
-        version: link:../../plugins/gcp
-      '@genkit-ai/plugin-google-genai':
+        version: link:../../plugins/google-cloud
+      '@genkit-ai/google-genai':
         specifier: workspace:*
         version: link:../../plugins/google-genai
-      '@genkit-ai/plugin-openai':
+      '@genkit-ai/openai':
         specifier: workspace:*
         version: link:../../plugins/openai
-      '@genkit-ai/plugin-vertex-ai':
+      '@genkit-ai/vertex-ai':
         specifier: workspace:*
         version: link:../../plugins/vertex-ai
       '@opentelemetry/sdk-trace-base':
@@ -798,16 +798,16 @@ importers:
       '@genkit-ai/core':
         specifier: workspace:^
         version: link:../../core
+      '@genkit-ai/firebase':
+        specifier: workspace:^
+        version: link:../../plugins/firebase
       '@genkit-ai/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/plugin-firebase':
-        specifier: workspace:^
-        version: link:../../plugins/firebase
-      '@genkit-ai/plugin-google-genai':
+      '@genkit-ai/google-genai':
         specifier: workspace:^
         version: link:../../plugins/google-genai
-      '@genkit-ai/plugin-openai':
+      '@genkit-ai/openai':
         specifier: workspace:^
         version: link:../../plugins/openai
       zod:
@@ -832,7 +832,7 @@ importers:
       '@genkit-ai/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/plugin-google-genai':
+      '@genkit-ai/google-genai':
         specifier: workspace:*
         version: link:../../plugins/google-genai
       zod:
@@ -848,37 +848,37 @@ importers:
       '@genkit-ai/ai':
         specifier: '*'
         version: link:../../ai
+      '@genkit-ai/chromadb':
+        specifier: workspace:^
+        version: link:../../plugins/chroma
       '@genkit-ai/core':
         specifier: '*'
         version: link:../../core
+      '@genkit-ai/dev-local-vectorstore':
+        specifier: '*'
+        version: link:../../plugins/dev-local-vectorstore
       '@genkit-ai/dotprompt':
         specifier: '*'
         version: link:../../dotprompt
+      '@genkit-ai/firebase':
+        specifier: '*'
+        version: link:../../plugins/firebase
       '@genkit-ai/flow':
         specifier: '*'
         version: link:../../flow
-      '@genkit-ai/plugin-chroma':
-        specifier: workspace:^
-        version: link:../../plugins/chroma
-      '@genkit-ai/plugin-dev-local-vectorstore':
-        specifier: '*'
-        version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/plugin-firebase':
-        specifier: '*'
-        version: link:../../plugins/firebase
-      '@genkit-ai/plugin-google-genai':
+      '@genkit-ai/google-genai':
         specifier: '*'
         version: link:../../plugins/google-genai
-      '@genkit-ai/plugin-openai':
+      '@genkit-ai/openai':
         specifier: workspace:^
         version: link:../../plugins/openai
-      '@genkit-ai/plugin-pinecone':
+      '@genkit-ai/pinecone':
         specifier: '*'
         version: link:../../plugins/pinecone
-      '@genkit-ai/plugin-ragas':
+      '@genkit-ai/ragas':
         specifier: '*'
         version: link:../../third_party/ragas
-      '@genkit-ai/plugin-vertex-ai':
+      '@genkit-ai/vertex-ai':
         specifier: '*'
         version: link:../../plugins/vertex-ai
       '@types/pdfjs-dist':
@@ -7580,6 +7580,7 @@ packages:
 
   /wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
+    requiresBuild: true
     dev: false
 
   /xmlcreate@2.0.4:

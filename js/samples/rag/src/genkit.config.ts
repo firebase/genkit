@@ -14,20 +14,16 @@
  * limitations under the License.
  */
 
+import { chroma } from '@genkit-ai/chromadb';
 import { getProjectId } from '@genkit-ai/core';
 import { configureGenkit } from '@genkit-ai/core/config';
-import { chroma } from '@genkit-ai/plugin-chroma';
-import { devLocalVectorstore } from '@genkit-ai/plugin-dev-local-vectorstore';
-import { firebase } from '@genkit-ai/plugin-firebase';
-import { googleGenAI } from '@genkit-ai/plugin-google-genai';
-import { openAI } from '@genkit-ai/plugin-openai';
-import { pinecone } from '@genkit-ai/plugin-pinecone';
-import { ragas, RagasMetric } from '@genkit-ai/plugin-ragas';
-import {
-  geminiPro,
-  textEmbeddingGecko,
-  vertexAI,
-} from '@genkit-ai/plugin-vertex-ai';
+import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
+import { firebase } from '@genkit-ai/firebase';
+import { googleGenAI } from '@genkit-ai/google-genai';
+import { openAI } from '@genkit-ai/openai';
+import { pinecone } from '@genkit-ai/pinecone';
+import { ragas, RagasMetric } from '@genkit-ai/ragas';
+import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertex-ai';
 
 export default configureGenkit({
   plugins: [

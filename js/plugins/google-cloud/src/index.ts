@@ -37,17 +37,17 @@ export interface TelemetryConfig {
 /**
  * Provides a plugin for using Genkit with GCP.
  */
-export const gcp: Plugin<[PluginOptions]> = genkitPlugin(
-  'gcp',
+export const googleCloud: Plugin<[PluginOptions]> = genkitPlugin(
+  'googleCloud',
   async (options: PluginOptions) => {
     return {
       telemetry: {
         instrumentation: {
-          id: 'gcp',
+          id: 'googleCloud',
           value: new GcpOpenTelemetry(options),
         },
         logger: {
-          id: 'gcp',
+          id: 'googleCloud',
           value: new GcpLogger(options),
         },
       },
@@ -55,4 +55,4 @@ export const gcp: Plugin<[PluginOptions]> = genkitPlugin(
   }
 );
 
-export default gcp;
+export default googleCloud;

@@ -18,9 +18,9 @@
     "@genkit-ai/ai": "workspace:*",
     "@genkit-ai/core": "workspace:^",
     "@genkit-ai/flow": "workspace:*",
-    "@genkit-ai/plugin-firebase": "workspace:^",
-    "@genkit-ai/plugin-google-genai": "workspace:^",
-    "@genkit-ai/plugin-openai": "workspace:^",
+    "@genkit-ai/firebase": "workspace:^",
+    "@genkit-ai/google-genai": "workspace:^",
+    "@genkit-ai/openai": "workspace:^",
     "zod": "^3.22.4"
   },
   "devDependencies": {

@@ -1,5 +1,5 @@
 {
-  "name": "@genkit-ai/plugin-dev-local-vectorstore",
+  "name": "@genkit-ai/dev-local-vectorstore",
   "description": "Genkit AI framework plugin for temporary local vector database.",
   "keywords": [
     "genkit",

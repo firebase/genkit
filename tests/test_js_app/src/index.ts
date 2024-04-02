@@ -18,8 +18,8 @@ import { generate } from '@genkit-ai/ai';
 import { defineModel } from '@genkit-ai/ai/model';
 import { getProjectId } from '@genkit-ai/core';
 import { configureGenkit } from '@genkit-ai/core/config';
+import { firebase } from '@genkit-ai/firebase';
 import { defineFlow } from '@genkit-ai/flow';
-import { firebase } from '@genkit-ai/plugin-firebase';
 import * as z from 'zod';
 
 defineModel(

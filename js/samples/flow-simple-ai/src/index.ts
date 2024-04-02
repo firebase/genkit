@@ -18,9 +18,9 @@ import { generate } from '@genkit-ai/ai';
 import { defineTool } from '@genkit-ai/ai/tool';
 import { initializeGenkit } from '@genkit-ai/core/config';
 import { defineFlow, run } from '@genkit-ai/flow';
-import { geminiPro as googleGeminiPro } from '@genkit-ai/plugin-google-genai';
-import { gpt35Turbo, gpt4, gpt4Turbo } from '@genkit-ai/plugin-openai';
-import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
+import { geminiPro as googleGeminiPro } from '@genkit-ai/google-genai';
+import { gpt35Turbo, gpt4, gpt4Turbo } from '@genkit-ai/openai';
+import { geminiPro } from '@genkit-ai/vertex-ai';
 import * as z from 'zod';
 import config from './genkit.config.js';
 

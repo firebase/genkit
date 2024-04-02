@@ -1,5 +1,5 @@
 {
-  "name": "@genkit-ai/plugin-gcp",
+  "name": "@genkit-ai/google-cloud",
   "description": "Genkit AI framework plugin for Google Cloud Platform including Firestore trace/state store and deployment helpers for Cloud Functions for Firebase.",
   "keywords": [
     "genkit",

@@ -5,21 +5,21 @@ logging.
 
 Genkit provides out-of-the-box integration with Google Cloud Tracing,
 Logging and Monitoring. To enable exporting to
-Google Cloud Tracing, Logging and Monitoring, add the `gcp` plugin to your
+Google Cloud Tracing, Logging and Monitoring, add the `googleCloud` plugin to your
 configuration.
 
 ```js
 configureGenkit({
   plugins: [
     firebase({ projectId: getProjectId() }),
-    gcp({
+    googleCloud({
       projectId: getProjectId(),
     }),
     // ...
   ],
   traceStore: 'firebase',
   telemetry: {
-    instrumentation: 'gcp',
+    instrumentation: 'googleCloud',
   },
   // ...
 });

@@ -16,11 +16,11 @@
 
 import { getLocation, getProjectId } from '@genkit-ai/core';
 import { configureGenkit } from '@genkit-ai/core/config';
-import { firebase } from '@genkit-ai/plugin-firebase';
-import { gcp } from '@genkit-ai/plugin-gcp';
-import { googleGenAI } from '@genkit-ai/plugin-google-genai';
-import { openAI } from '@genkit-ai/plugin-openai';
-import { vertexAI } from '@genkit-ai/plugin-vertex-ai';
+import { firebase } from '@genkit-ai/firebase';
+import { googleCloud } from '@genkit-ai/google-cloud';
+import { googleGenAI } from '@genkit-ai/google-genai';
+import { openAI } from '@genkit-ai/openai';
+import { vertexAI } from '@genkit-ai/vertex-ai';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 
 export default configureGenkit({
@@ -29,7 +29,7 @@ export default configureGenkit({
     googleGenAI(),
     openAI(),
     vertexAI({ projectId: getProjectId(), location: getLocation() }),
-    gcp({
+    googleCloud({
       projectId: getProjectId(),
       // These are configured for demonstration purposes. Sensible defaults are
       // in place in the event that telemetryConfig is absent.
@@ -50,7 +50,7 @@ export default configureGenkit({
   enableTracingAndMetrics: true,
   logLevel: 'debug',
   telemetry: {
-    instrumentation: 'gcp',
-    logger: 'gcp',
+    instrumentation: 'googleCloud',
+    logger: 'googleCloud',
   },
 });
