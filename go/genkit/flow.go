@@ -55,6 +55,7 @@ package genkit
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -67,6 +68,7 @@ import (
 
 // TODO(jba): support streaming
 // TODO(jba): support auth
+// TODO(jba): provide a way to start a Flow from user code.
 
 // Func is the type of function that Actions and Flows execute.
 // TODO(jba): use a generic type alias when they become available?
@@ -146,18 +148,45 @@ type flowState[I, O any] struct {
 	FlowID   string `json:"flowId,omitempty"`
 	FlowName string `json:"name,omitempty"`
 	// start time in milliseconds since the epoch
-	StartTime       Milliseconds     `json:"startTime,omitempty"`
-	Input           I                `json:"input,omitempty"`
-	Cache           map[string]any   `json:"cache,omitempty"`
-	EventsTriggered map[string]any   `json:"eventsTriggered,omitempty"`
-	Executions      []*FlowExecution `json:"executions,omitempty"`
+	StartTime Milliseconds `json:"startTime,omitempty"`
+	Input     I            `json:"input,omitempty"`
+
+	mu              sync.Mutex
+	Cache           map[string]json.RawMessage `json:"cache,omitempty"`
+	EventsTriggered map[string]any             `json:"eventsTriggered,omitempty"`
+	Executions      []*FlowExecution           `json:"executions,omitempty"`
 	// The operation is the user-visible part of the state.
 	Operation    *Operation[O] `json:"operation,omitempty"`
 	TraceContext string        `json:"traceContext,omitempty"`
 }
 
+func newFlowState[I, O any](id, name string, input I) *flowState[I, O] {
+	return &flowState[I, O]{
+		FlowID:    id,
+		FlowName:  name,
+		Input:     input,
+		StartTime: timeToMilliseconds(time.Now()),
+		Cache:     map[string]json.RawMessage{},
+		Operation: &Operation[O]{
+			FlowID: id,
+			Done:   false,
+		},
+	}
+}
+
+// flowStater is the common type of all flowState[I, O] types.
+type flowStater interface {
+	isFlowState()
+	lock()
+	unlock()
+	cache() map[string]json.RawMessage
+}
+
 // isFlowState implements flowStater.
-func (fs *flowState[I, O]) isFlowState() {}
+func (fs *flowState[I, O]) isFlowState()                      {}
+func (fs *flowState[I, O]) lock()                             { fs.mu.Lock() }
+func (fs *flowState[I, O]) unlock()                           { fs.mu.Unlock() }
+func (fs *flowState[I, O]) cache() map[string]json.RawMessage { return fs.Cache }
 
 // An Operation describes the state of a Flow that may still be in progress.
 type Operation[O any] struct {
@@ -241,7 +270,9 @@ func (f *Flow[I, O]) execute(ctx context.Context, state *flowState[I, O], dispat
 	exec := &FlowExecution{
 		StartTime: timeToMilliseconds(time.Now()),
 	}
+	state.mu.Lock()
 	state.Executions = append(state.Executions, exec)
+	state.mu.Unlock()
 	// TODO(jba): retrieve the JSON-marshaled SpanContext from state.traceContext.
 	// TODO(jba): add a span link to the context.
 	output, err := runInNewSpan(ctx, f.name, "flow", true, state.Input, func(ctx context.Context, input I) (O, error) {
@@ -272,6 +303,8 @@ func (f *Flow[I, O]) execute(ctx context.Context, state *flowState[I, O], dispat
 		return output, nil
 	})
 	// TODO(jba): perhaps this should be in a defer, to handle panics?
+	state.mu.Lock()
+	defer state.mu.Unlock()
 	state.Operation.Done = true
 	if err != nil {
 		state.Operation.Result = &FlowResult[O]{
@@ -293,19 +326,6 @@ func generateFlowID() (string, error) {
 	return id.String(), nil
 }
 
-func newFlowState[I, O any](id, name string, input I) *flowState[I, O] {
-	return &flowState[I, O]{
-		FlowID:    id,
-		FlowName:  name,
-		Input:     input,
-		StartTime: timeToMilliseconds(time.Now()),
-		Operation: &Operation[O]{
-			FlowID: id,
-			Done:   false,
-		},
-	}
-}
-
 // A flowContext holds dynamically accessible information about a flow.
 // A flowContext is created when a flow starts running, and is stored
 // in a context.Context so it can be accessed from within the currrently active flow.
@@ -317,6 +337,12 @@ type flowContext[I, O any] struct {
 	// TODO(jba): auth
 }
 
+// flowContexter is the type of all flowContext[I, O].
+type flowContexter interface {
+	uniqueStepName(string) string
+	stater() flowStater
+}
+
 func newFlowContext[I, O any](state *flowState[I, O], store FlowStateStore) *flowContext[I, O] {
 	return &flowContext[I, O]{
 		state:      state,
@@ -324,6 +350,7 @@ func newFlowContext[I, O any](state *flowState[I, O], store FlowStateStore) *flo
 		seenSteps:  map[string]int{},
 	}
 }
+func (fc *flowContext[I, O]) stater() flowStater { return fc.state }
 
 // finish is called at the end of a flow execution.
 func (fc *flowContext[I, O]) finish(ctx context.Context) error {
@@ -346,9 +373,55 @@ func (fc *flowContext[I, O]) uniqueStepName(name string) string {
 	return fmt.Sprintf("name-%d", n)
 }
 
-// flowContexter is the type of all flowContext[I, O].
-type flowContexter interface {
-	uniqueStepName(string) string
-}
-
 var flowContextKey = newContextKey[flowContexter]()
+
+// Run runs the function f in the context of the current flow.
+// It returns an error if no flow is active.
+//
+// Each call to Run results in a new step in the flow.
+// A step has its own span in the trace, and its result is cached so that if the flow
+// is restarted, f will not be called a second time.
+func Run[T any](ctx context.Context, name string, f func() (T, error)) (T, error) {
+	// from js/flow/src/steps.ts
+	fc := flowContextKey.fromContext(ctx)
+	if fc == nil {
+		var z T
+		return z, fmt.Errorf("genkit.Run(%q): must be called from a flow", name)
+	}
+	// TODO(jba): The input here is irrelevant. Perhaps runInNewSpan should have only a result type param,
+	// as in the js.
+	return runInNewSpan(ctx, name, "flowStep", false, 0, func(ctx context.Context, _ int) (T, error) {
+		uName := fc.uniqueStepName(name)
+		spanMeta := spanMetaKey.fromContext(ctx)
+		spanMeta.SetAttr("flow:stepType", "run")
+		spanMeta.SetAttr("flow:stepName", name)
+		spanMeta.SetAttr("flow:resolvedStepName", uName)
+		// Memoize the function call, using the cache in the flowState.
+		// The locking here prevents corruption of the cache from concurrent access, but doesn't
+		// prevent two goroutines racing to check the cache and call f. However, that shouldn't
+		// happen because every step has a unique cache key.
+		fs := fc.stater()
+		fs.lock()
+		j, ok := fs.cache()[uName]
+		fs.unlock()
+		if ok {
+			var t T
+			if err := json.Unmarshal(j, &t); err != nil {
+				return zero[T](), err
+			}
+			return t, nil
+		}
+		t, err := f()
+		if err != nil {
+			return zero[T](), err
+		}
+		bytes, err := json.Marshal(t)
+		if err != nil {
+			return zero[T](), err
+		}
+		fs.lock()
+		fs.cache()[uName] = json.RawMessage(bytes)
+		fs.unlock()
+		return t, nil
+	})
+}
