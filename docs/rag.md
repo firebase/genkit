@@ -248,155 +248,33 @@ export const ragFlow = defineFlow(
 );
 ```
 
-### Retriever plugins
+## Supported indexers, retrievers, and embedders
 
-Genkit provides built-in plugins with retrievers for some popular vector stores:
+Genkit provides indexer and retriever support through its plugin system. The
+following plugins are officially supported:
 
-#### Chroma DB
+- [Chroma DB](plugins/chroma.md) vector database
+- [Pinecone](plugins/pinecone.md) cloud vector database
 
-```js
-import { chroma } from '@genkit-ai/plugin-chroma';
+In addition, Genkit supports the following vector stores through predefined
+code templates, which you can customize for your database configuration and
+schema:
 
-export default configureGenkit({
-  plugins: [
-    chroma([
-      {
-        collectionName: 'spongebob_collection',
-        embedder: textEmbeddingGecko,
-        embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
-      },
-    ]),
-  ],
-  // ...
-});
-```
+- PostgreSQL with [`pgvector`](templates/pgvector.md)
 
-You can then create retriever and indexer references like so:
+Embedding model support is provided through the following plugins:
 
-```js
-import { chromaIndexerRef, chromaRetrieverRef } from '@genkit-ai/plugin-chroma';
+| Plugin                    | Models                                             |
+| ------------------------- | -------------------------------------------------- |
+| [Google Generative AI][1] | Gecko text embedding                               |
+| [Google Vertex AI][2]     | Gecko text embedding                               |
+| [OpenAI][3]               | `text-embedding-3-small`, `text-embedding-3-large` |
 
-export const spongeBobFactsRetriever = chromaRetrieverRef({
-  collectionName: 'spongebob_collection',
-});
-export const spongeBobFactsIndexer = chromaIndexerRef({
-  collectionName: 'spongebob_collection',
-});
-```
+[1]: plugins/google-genai.md
+[2]: plugins/vertex-ai.md
+[3]: plugins/openai.md
 
-#### Pinecone
-
-```js
-import { pinecone } from '@genkit-ai/plugin-pinecone';
-
-export default configureGenkit({
-  plugins: [
-    pinecone([
-      {
-        indexId: 'pdf-chat',
-        embedder: textEmbeddingGecko,
-        embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
-      },
-    ]),
-  ],
-  // ...
-});
-```
-
-The plugin requires that you set the PINECONE_API_KEY environment variable with
-your Pinecone API Key.
-
-Note that you need to configure the plugin with the embedder by passing in a
-reference.
-
-You can then create retriever and indexer references like so:
-
-```js
-import {
-  pineconeIndexerRef,
-  pineconeRetrieverRef,
-} from '@genkit-ai/plugin-pinecone';
-
-export const tomAndJerryFactsRetriever = pineconeRetrieverRef({
-  indexId: 'pdf-chat',
-});
-export const tomAndJerryFactsIndexer = pineconeIndexerRef({
-  indexId: 'pdf-chat',
-});
-```
-
-#### pgvector
-
-```js
-import { embed } from '@genkit-ai/ai/embedder';
-import { Document, defineRetriever, retrieve } from '@genkit-ai/ai/retriever';
-import { defineFlow } from '@genkit-ai/flow';
-import { textEmbeddingGecko } from '@genkit-ai/plugin-vertex-ai';
-import { toSql } from 'pgvector';
-import postgres from 'postgres';
-import { z } from 'zod';
-
-const sql = postgres({ ssl: false, database: 'recaps' });
-
-const QueryOptions = z.object({
-  show: z.string(),
-  k: z.number().optional(),
-});
-
-const sqlRetriever = defineRetriever(
-  {
-    name: 'pgvector/myTable',
-    configSchema: QueryOptions,
-  },
-  async (input, options) => {
-    const embedding = await embed({
-      embedder: textEmbeddingGecko,
-      content: input,
-    });
-    const results = await sql`
-      SELECT episode_id, season_number, chunk as content
-        FROM embeddings
-        WHERE show_id = ${options.show}
-        ORDER BY embedding <#> ${toSql(embedding)} LIMIT ${options.k ?? 3}
-      `;
-    return {
-      documents: results.map((row) => {
-        const { content, ...metadata } = row;
-        return Document.fromText(content, metadata);
-      }),
-    };
-  }
-);
-```
-
-And here's how to use the retriever in a flow:
-
-```js
-// Simple flow to use the sqlRetriever
-export const askQuestionsOnGoT = defineFlow(
-  {
-    name: 'askQuestionsOnGoT',
-    inputSchema: z.string(),
-    outputSchema: z.string(),
-  },
-  async (inputQuestion) => {
-    const docs = await retrieve({
-      retriever: sqlRetriever,
-      query: inputQuestion,
-      options: {
-        show: 'Game of Thrones',
-      },
-    });
-    console.log(docs);
-
-    // Continue with using retrieved docs
-    // in RAG prompts.
-    //...
-  }
-);
-```
-
-### Write your own retrievers
+## Write your own indexers and retrievers
 
 It's also possible to create your own retriever. This is useful if your
 documents are managed in a document store that is not supported in Genkit (eg:
