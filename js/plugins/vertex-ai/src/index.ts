@@ -18,7 +18,11 @@ import { getLocation, getProjectId } from '@genkit-ai/core';
 import { Plugin, genkitPlugin } from '@genkit-ai/core/config';
 import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleAuth } from 'google-auth-library';
-import { textEmbeddingGecko, textEmbeddingGeckoEmbedder } from './embedder.js';
+import {
+  SUPPORTED_EMBEDDER_MODELS,
+  textEmbeddingGecko,
+  textEmbeddingGeckoEmbedder,
+} from './embedder.js';
 import {
   SUPPORTED_GEMINI_MODELS,
   geminiModel,
@@ -62,7 +66,9 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
         ),
       ],
       embedders: [
-        textEmbeddingGeckoEmbedder(authClient, { projectId, location }),
+        ...Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
+          textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
+        ),
       ],
     };
   }
