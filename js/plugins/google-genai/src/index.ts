@@ -18,13 +18,13 @@ import { genkitPlugin, Plugin } from '@genkit-ai/core/config';
 import {
   SUPPORTED_MODELS as EMBEDDER_MODELS,
   textEmbeddingGeckoEmbedder,
-} from './embedder';
+} from './embedder.js';
 import {
   SUPPORTED_MODELS as GEMINI_MODELS,
   geminiPro,
   geminiProVision,
   googleAIModel,
-} from './gemini';
+} from './gemini.js';
 export { geminiPro, geminiProVision };
 
 export interface PluginOptions {
