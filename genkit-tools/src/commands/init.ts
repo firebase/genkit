@@ -148,6 +148,11 @@ export const init = new Command('init')
         choices: Object.keys(modelToPlugin),
       },
     ]);
+    if (model === 'Google AI') {
+      logger.warn(
+        'Google AI is currently available in limited regions. For a complete list, see https://ai.google.dev/available_regions#available_regions'
+      );
+    }
     plugins.push(modelToPlugin[model]);
     const packages = [...externalPackages];
     if (!distArchive) {
