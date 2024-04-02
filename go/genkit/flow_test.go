@@ -24,6 +24,11 @@ import (
 
 func TestFlowStart(t *testing.T) {
 	f := DefineFlow("inc", inc)
+	ss, err := NewFileFlowStateStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.stateStore = ss
 	state, err := f.start(context.Background(), 1)
 	if err != nil {
 		t.Fatal(err)

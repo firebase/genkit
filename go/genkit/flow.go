@@ -88,7 +88,7 @@ func DefineFlow[I, O any](name string, fn Func[I, O]) *Flow[I, O] {
 	f := &Flow[I, O]{
 		name: name,
 		fn:   fn,
-		// TODO(jba): set stateStore
+		// TODO(jba): set stateStore?
 	}
 	RegisterAction(ActionTypeFlow, name, f.action())
 	return f
@@ -231,7 +231,12 @@ func (f *Flow[I, O]) start(ctx context.Context, input I) (_ *flowState[I, O], er
 // it creates the flowContext and saves the state.
 func (f *Flow[I, O]) execute(ctx context.Context, state *flowState[I, O], dispatchType string) {
 	fctx := newFlowContext(state, f.stateStore)
-	defer fctx.finish()
+	defer func() {
+		if err := fctx.finish(ctx); err != nil {
+			// TODO(jba): do something more with this error?
+			logger(ctx).Error("flowContext.finish", "err", err.Error())
+		}
+	}()
 	ctx = flowContextKey.newContext(ctx, fctx)
 	exec := &FlowExecution{
 		StartTime: timeToMilliseconds(time.Now()),
@@ -321,9 +326,12 @@ func newFlowContext[I, O any](state *flowState[I, O], store FlowStateStore) *flo
 }
 
 // finish is called at the end of a flow execution.
-func (fc *flowContext[I, O]) finish() {
-	//  TODO: save State
-	// NOTE: start saves it conditionally.
+func (fc *flowContext[I, O]) finish(ctx context.Context) error {
+	if fc.stateStore == nil {
+		return nil
+	}
+	// TODO(jba): In the js, start saves the state only under certain conditions. Duplicate?
+	return fc.stateStore.Save(ctx, fc.state.FlowID, fc.state)
 }
 
 // uniqueStepName returns a name that is unique for this flow execution.
