@@ -1,6 +1,6 @@
-# Genkit Plugin Authoring Guide
+# Writing Genkit plugins
 
-Genkit's capabilities are designed to be extended by **Plugins**. Genkit plugins are configurable modules
+Genkit's capabilities are designed to be extended by plugins. Genkit plugins are configurable modules
 that can provide models, retrievers, indexers, trace stores, and more. You've already seen plugins in
 action just by using Genkit:
 
@@ -13,23 +13,27 @@ configureGenkit({
 });
 ```
 
-The Vertex AI plugin takes configuration (such as the user's Google Cloud project id) and registers a variety
-of new models, embedders, and more with the **Genkit Registry**. The registry powers Genkit's local UI for
-running and inspecting models, prompts, and more as well as serves as a lookup service for named actions
-at runtime.
+The Vertex AI plugin takes configuration (such as the user's Google Cloud
+project ID) and registers a variety of new models, embedders, and more with the
+Genkit registry. The registry powers Genkit's local UI for running and
+inspecting models, prompts, and more as well as serves as a lookup service for
+named actions at runtime.
 
 ## Creating a Plugin
 
 To create a plugin you'll generally want to create a new NPM package:
 
-```bash
+```posix-terminal
 mkdir genkitx-my-plugin
+
 cd genkitx-my-plugin
+
 npm init -y
+
 npm i --save @genkit-ai/core
 ```
 
-Then you will define and export your plugin from your main entrypoint:
+Then, define and export your plugin from your main entry point:
 
 ```ts
 import { genkitPlugin } from '@genkit-ai/core/plugin';
@@ -48,9 +52,10 @@ export const myPlugin = genkitPlugin(
 
 ### Plugin options guidance
 
-In general, your plugin should take a single `options` argument that includes any plugin-wide configuration
-necessary to function. For any plugin option that requires a secret value (e.g. API keys), you should offer
-both an option and a default environment variable to configure it:
+In general, your plugin should take a single `options` argument that includes
+any plugin-wide configuration necessary to function. For any plugin option that
+requires a secret value, such as API keys, you should offer both an option and a
+default environment variable to configure it:
 
 ```ts
 export const myPlugin = genkitPlugin(
@@ -75,17 +80,18 @@ A single plugin can activate many new things within Genkit. For example, the Ver
 
 ### Model plugins
 
-Genkit model plugins add one or more GenAI models to the Genkit registry. A model represents any generative
+Genkit model plugins add one or more generative AI models to the Genkit registry. A model represents any generative
 model that is capable of receiving a prompt as input and generating text, media, or data as output.
-Generally a model plugin will make one or more `defineModel` calls in its initialization function.
+Generally, a model plugin will make one or more `defineModel` calls in its initialization function.
 
 A custom model generally consists of three components:
 
-1. Metadata defining the model's capabilities.
-2. A configuration schema with any specific parameters supported by the model.
-3. A function that implements the model accepting `GenerationRequest` and returning `GenerationResponse`.
+1.  Metadata defining the model's capabilities.
+2.  A configuration schema with any specific parameters supported by the model.
+3.  A function that implements the model accepting `GenerationRequest` and
+    returning `GenerationResponse`.
 
-At a high level a model plugin might look something like this:
+At a high level, a model plugin might look something like this:
 
 ```ts
 export const myPlugin = genkitPlugin('my-plugin', async (options: {apiKey?: string}) => {
@@ -119,15 +125,19 @@ export const myPlugin = genkitPlugin('my-plugin', async (options: {apiKey?: stri
 
 #### Transforming Requests and Responses
 
-The primary work of a Genkit model plugin is transforming the `GenerationRequest` from Genkit's common format into a format that is recognized/supported by your model's API, and then transforming the response from your model into the `GenerationResponseData` format used by Genkit.
+The primary work of a Genkit model plugin is transforming the
+`GenerationRequest` from Genkit's common format into a format that is recognized
+and supported by your model's API, and then transforming the response from your
+model into the `GenerationResponseData` format used by Genkit.
 
-Sometimes this may require massaging or manipulating data to work around model limitations. For example, if your model does not natively support a `system` message, you may need to transform a prompt's system message into a user/model message pair.
+Sometimes, this may require massaging or manipulating data to work around model limitations. For example, if your model does not natively support a `system` message, you may need to transform a prompt's system message into a user/model message pair.
 
 #### Model references
 
-Once a model is registered using `defineModel` it is always available when requested by name. However, to
-improve typing and IDE autocompletion, you can export a **model reference** from your package that includes
-only the metadata for a model but not its implementation:
+Once a model is registered using `defineModel`, it is always available when
+requested by name. However, to improve typing and IDE autocompletion, you can
+export a model reference from your package that includes only the metadata for a
+model but not its implementation:
 
 ```ts
 import { modelRef } from "@genkit-ai/ai/model";
@@ -154,9 +164,11 @@ generate({ model: 'my-plugin/my-model' });
 
 ## Publishing a plugin
 
-Genkit plugins can be published as normal NPM packages. To increase discoverability and maximize consistency,
-your package should be named `genkitx-{name}` to indicate it is a Genkit plugin and you should include as
-many of the following `keywords` in your `package.json` as are relevant to your plugin:
+Genkit plugins can be published as normal NPM packages. To increase
+discoverability and maximize consistency, your package should be named
+`genkitx-{name}` to indicate it is a Genkit plugin and you should include as
+many of the following `keywords` in your `package.json` as are relevant to your
+plugin:
 
 - `genkit-plugin`: always include this keyword in your package to indicate it is a Genkit plugin.
 - `genkit-model`: include this keyword if your package defines any models.
