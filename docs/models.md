@@ -37,7 +37,7 @@ To use models provided by the plugin, you can either refer to them by name (e.g.
 provide additional type info about the model capabilities and options.
 
 ```js
-import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
+import { geminiPro } from '@genkit-ai/vertex-ai';
 ```
 
 ## Supported models
@@ -67,7 +67,7 @@ To just call the model:
 
 ```javascript
 import { generate } from '@genkit-ai/ai';
-import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
+import { geminiPro } from '@genkit-ai/vertex-ai';
 
 const llmResponse = await generate({
   model: geminiPro,
@@ -96,7 +96,7 @@ const response = await generate({
 If the model supports multimodal input, you can pass in images as input:
 
 ```javascript
-import { geminiProVision } from '@genkit-ai/plugin-vertex-ai';
+import { geminiProVision } from '@genkit-ai/vertex-ai';
 
 const result = await generate({
   model: geminiProVision,

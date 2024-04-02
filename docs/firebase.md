@@ -97,10 +97,10 @@
     import { getProjectId } from '@genkit-ai/core';
     import { configureGenkit } from '@genkit-ai/core/config';
     import { run } from '@genkit-ai/flow';
-    import { firebase } from '@genkit-ai/plugin-firebase';
-    import { firebaseAuth } from '@genkit-ai/plugin-firebase/auth';
-    import { onFlow } from '@genkit-ai/plugin-firebase/functions';
-    import { geminiPro, googleGenAI } from '@genkit-ai/plugin-google-genai';
+    import { firebase } from '@genkit-ai/firebase';
+    import { firebaseAuth } from '@genkit-ai/firebase/auth';
+    import { onFlow } from '@genkit-ai/firebase/functions';
+    import { geminiPro, googleGenAI } from '@genkit-ai/google-genai';
     import * as z from 'zod';
 
     configureGenkit({

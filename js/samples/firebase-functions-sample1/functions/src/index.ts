@@ -17,11 +17,11 @@
 import { generate } from '@genkit-ai/ai';
 import { getLocation, getProjectId } from '@genkit-ai/core';
 import { configureGenkit } from '@genkit-ai/core/config';
+import { firebase } from '@genkit-ai/firebase';
+import { firebaseAuth } from '@genkit-ai/firebase/auth';
+import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
 import { run, runFlow, streamFlow } from '@genkit-ai/flow';
-import { firebase } from '@genkit-ai/plugin-firebase';
-import { firebaseAuth } from '@genkit-ai/plugin-firebase/auth';
-import { noAuth, onFlow } from '@genkit-ai/plugin-firebase/functions';
-import { geminiPro, vertexAI } from '@genkit-ai/plugin-vertex-ai';
+import { geminiPro, vertexAI } from '@genkit-ai/vertex-ai';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as z from 'zod';
 

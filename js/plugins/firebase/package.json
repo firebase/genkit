@@ -1,5 +1,5 @@
 {
-  "name": "@genkit-ai/plugin-firebase",
+  "name": "@genkit-ai/firebase",
   "description": "Genkit AI framework plugin for Firebase including Firestore trace/state store and deployment helpers for Cloud Functions for Firebase.",
   "keywords": [
     "genkit",

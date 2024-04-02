@@ -96,8 +96,8 @@ import { configureGenkit } from '@genkit-ai/core/config';
 import {
   devLocalIndexerRef,
   devLocalVectorstore,
-} from '@genkit-ai/plugin-dev-local-vectorstore';
-import { textEmbeddingGecko, vertexAI } from '@genkit-ai/plugin-vertex-ai';
+} from '@genkit-ai/dev-local-vectorstore';
+import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertex-ai';
 
 configureGenkit({
   plugins: [
@@ -185,12 +185,8 @@ import { definePrompt } from '@genkit-ai/dotprompt';
 import {
   devLocalRetrieverRef,
   devLocalVectorstore,
-} from '@genkit-ai/plugin-dev-local-vectorstore';
-import {
-  geminiPro,
-  textEmbeddingGecko,
-  vertexAI,
-} from '@genkit-ai/plugin-vertex-ai';
+} from '@genkit-ai/dev-local-vectorstore';
+import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertex-ai';
 import * as z from 'zod';
 
 configureGenkit({

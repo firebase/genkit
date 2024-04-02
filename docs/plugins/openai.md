@@ -12,7 +12,7 @@ through the [OpenAI API](https://platform.openai.com/):
 To use this plugin, specify it when you call `configureGenkit()`:
 
 ```js
-import { openAI } from '@genkit-ai/plugin-openai';
+import { openAI } from '@genkit-ai/openai';
 
 export default configureGenkit({
   plugins: [openAI()],
@@ -36,7 +36,7 @@ import {
   gpt4Turbo,
   gpt4Vision,
   dallE3,
-} from '@genkit-ai/plugin-openai';
+} from '@genkit-ai/openai';
 ```
 
 You can use these references to specify which model `generate()` uses:
@@ -52,10 +52,7 @@ This plugin also statically exports references to OpenAI's text embedding
 models:
 
 ```js
-import {
-  textEmbedding3Small,
-  textEmbedding3Large,
-} from '@genkit-ai/plugin-openai';
+import { textEmbedding3Small, textEmbedding3Large } from '@genkit-ai/openai';
 ```
 
 You can use these references to specify which embedder an indexer or retriever

@@ -1,5 +1,5 @@
 {
-  "name": "@genkit-ai/plugin-ollama",
+  "name": "@genkit-ai/ollama",
   "description": "Genkit AI framework plugin for Ollama APIs.",
   "keywords": [
     "genkit",

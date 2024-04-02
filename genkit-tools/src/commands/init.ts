@@ -25,15 +25,15 @@ import { logger } from '../utils/logger';
 
 /** Maps from supported platforms to required plugins. */
 const platformToPlugins: Record<Platform, string[]> = {
-  firebase: ['@genkit-ai/plugin-firebase'],
-  gcp: ['@genkit-ai/plugin-gcp'],
+  firebase: ['@genkit-ai/firebase'],
+  googleCloud: ['@genkit-ai/google-cloud'],
   other: [],
 };
 /** Maps from model name to plugin. */
 const modelToPlugin: Record<string, string> = {
-  'Google AI': '@genkit-ai/plugin-google-genai',
-  'Vertex AI': '@genkit-ai/plugin-vertex-ai',
-  OpenAI: '@genkit-ai/plugin-openai',
+  'Google AI': '@genkit-ai/google-genai',
+  'Vertex AI': '@genkit-ai/vertex-ai',
+  OpenAI: '@genkit-ai/openai',
 };
 /** External packages required to use Genkit. */
 const externalPackages = ['zod', 'express'];
@@ -48,30 +48,30 @@ const corePackages = [
 const coreDevPackages = ['typescript'];
 /** Plugin name to template insertion info. */
 const pluginToInfo: Record<string, PluginInfo> = {
-  '@genkit-ai/plugin-firebase': {
-    name: '@genkit-ai/plugin-firebase',
+  '@genkit-ai/firebase': {
+    name: '@genkit-ai/firebase',
     import: 'firebase',
     init: 'firebase({})',
   },
-  '@genkit-ai/plugin-gcp': {
-    name: '@genkit-ai/plugin-gcp',
-    import: 'gcp',
-    init: 'gcp({})',
+  '@genkit-ai/google-cloud': {
+    name: '@genkit-ai/google-cloud',
+    import: 'googleCloud',
+    init: 'googleCloud({})',
   },
-  '@genkit-ai/plugin-vertex-ai': {
-    name: '@genkit-ai/plugin-vertex-ai',
+  '@genkit-ai/vertex-ai': {
+    name: '@genkit-ai/vertex-ai',
     import: 'vertexAI',
     init: "vertexAI({ location: 'us-central1' })",
     model: 'geminiPro',
   },
-  '@genkit-ai/plugin-openai': {
-    name: '@genkit-ai/plugin-openai',
+  '@genkit-ai/openai': {
+    name: '@genkit-ai/openai',
     import: 'openAI',
     init: 'openAI()',
     model: 'gpt35Turbo',
   },
-  '@genkit-ai/plugin-google-genai': {
-    name: '@genkit-ai/plugin-google-genai',
+  '@genkit-ai/google-genai': {
+    name: '@genkit-ai/google-genai',
     import: 'googleGenAI',
     init: 'googleGenAI()',
     model: 'geminiPro',
@@ -80,13 +80,13 @@ const pluginToInfo: Record<string, PluginInfo> = {
 const configTemplatePath = '../../config/genkit.config.ts.template';
 const sampleTemplatePaths: Record<Platform, string> = {
   firebase: '../../config/firebase.index.ts.template',
-  gcp: '../../config/gcp.index.ts.template',
-  other: '../../config/gcp.index.ts.template', // This can deviate from GCP template in the future as needed.
+  googleCloud: '../../config/googleCloud.index.ts.template',
+  other: '../../config/googleCloud.index.ts.template', // This can deviate from GCP template in the future as needed.
 };
 /** Supported runtimes for the init command. */
 const supportedRuntimes: Runtime[] = ['node'];
 
-type Platform = 'firebase' | 'gcp' | 'other';
+type Platform = 'firebase' | 'googleCloud' | 'other';
 type Runtime = 'node' | undefined;
 type WriteMode = 'keep' | 'overwrite' | 'merge';
 
@@ -106,7 +106,7 @@ export const init = new Command('init')
   .description('Initialize a project for Genkit')
   .option(
     '-p, --platform <platform>',
-    'Deployment platform (firebase, gcp, or other)'
+    'Deployment platform (firebase, googleCloud, or other)'
   )
   .option(
     '-d, --dist-archive <distArchive>',
@@ -272,7 +272,9 @@ function generateConfigFile(pluginNames: string[], platform?: Platform): void {
     .map((pluginName) => `    ${pluginToInfo[pluginName].init},`)
     .join('\n');
   const storePlugin =
-    platform === 'firebase' || platform === 'gcp' ? 'firebase' : undefined;
+    platform === 'firebase' || platform === 'googleCloud'
+      ? 'firebase'
+      : undefined;
   const store = storePlugin
     ? `\n  flowStateStore: '${storePlugin}',\n  traceStore: '${storePlugin}',`
     : '';

@@ -16,12 +16,12 @@
 
 import { generate } from '@genkit-ai/ai';
 import { Document, index, retrieve } from '@genkit-ai/ai/retriever';
-import { defineFlow, run } from '@genkit-ai/flow';
 import {
   devLocalIndexerRef,
   devLocalRetrieverRef,
-} from '@genkit-ai/plugin-dev-local-vectorstore';
-import { geminiPro } from '@genkit-ai/plugin-vertex-ai';
+} from '@genkit-ai/dev-local-vectorstore';
+import { defineFlow, run } from '@genkit-ai/flow';
+import { geminiPro } from '@genkit-ai/vertex-ai';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import * as z from 'zod';

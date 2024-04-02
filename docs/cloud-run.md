@@ -42,7 +42,7 @@
     npx genkit init -d $HOME/Downloads/genkit-dist/genkit-dist.zip
     ```
 
-    Select `gcp` as the deployment platform option and Vertex AI as the model. Choose defaults for the rest of the options.
+    Select `googleCloud` as the deployment platform option and Vertex AI as the model. Choose defaults for the rest of the options.
 
 1.  You will need a Google Cloud or Firebase project for persisting traces in
     Firestore. After you have created / picked one, run the following to set an
@@ -115,8 +115,8 @@
     import { getLocation, getProjectId } from '@genkit-ai/core';
     import { configureGenkit } from '@genkit-ai/core/config';
     import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
-    import { firebase } from '@genkit-ai/plugin-firebase';
-    import { geminiPro, vertexAI } from '@genkit-ai/plugin-vertex-ai';
+    import { firebase } from '@genkit-ai/firebase';
+    import { geminiPro, vertexAI } from '@genkit-ai/vertex-ai';
     import * as z from 'zod';
 
     configureGenkit({

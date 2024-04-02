@@ -15,16 +15,13 @@
  */
 
 import { Document, index, retrieve } from '@genkit-ai/ai/retriever';
-import { defineFlow } from '@genkit-ai/flow';
-import { chromaIndexerRef, chromaRetrieverRef } from '@genkit-ai/plugin-chroma';
+import { chromaIndexerRef, chromaRetrieverRef } from '@genkit-ai/chromadb';
 import {
   devLocalIndexerRef,
   devLocalRetrieverRef,
-} from '@genkit-ai/plugin-dev-local-vectorstore';
-import {
-  pineconeIndexerRef,
-  pineconeRetrieverRef,
-} from '@genkit-ai/plugin-pinecone';
+} from '@genkit-ai/dev-local-vectorstore';
+import { defineFlow } from '@genkit-ai/flow';
+import { pineconeIndexerRef, pineconeRetrieverRef } from '@genkit-ai/pinecone';
 import * as z from 'zod';
 import { augmentedPrompt } from './prompt.js';
 

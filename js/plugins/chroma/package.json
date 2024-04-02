@@ -1,5 +1,5 @@
 {
-  "name": "@genkit-ai/plugin-chroma",
+  "name": "@genkit-ai/chromadb",
   "description": "Genkit AI framework plugin for Chroma vector database.",
   "keywords": [
     "genkit",

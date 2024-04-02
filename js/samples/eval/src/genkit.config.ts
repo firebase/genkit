@@ -16,10 +16,10 @@
 
 import { getLocation, getProjectId } from '@genkit-ai/core';
 import { configureGenkit } from '@genkit-ai/core/config';
-import { firebase } from '@genkit-ai/plugin-firebase';
-import { gpt4Turbo, openAI } from '@genkit-ai/plugin-openai';
-import { RagasMetric, ragas } from '@genkit-ai/plugin-ragas';
-import { textEmbeddingGecko, vertexAI } from '@genkit-ai/plugin-vertex-ai';
+import { firebase } from '@genkit-ai/firebase';
+import { gpt4Turbo, openAI } from '@genkit-ai/openai';
+import { RagasMetric, ragas } from '@genkit-ai/ragas';
+import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertex-ai';
 
 export default configureGenkit({
   plugins: [

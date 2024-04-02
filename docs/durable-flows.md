@@ -10,7 +10,7 @@ they are specifically designed for long-running background operations.
 Here's an example:
 
 ```js
-import { onScheduledFlow } from '@genkit-ai/plugin-firebase/functions/experimental';
+import { onScheduledFlow } from '@genkit-ai/firebase/functions/experimental';
 
 export const jokeFlow = onScheduledFlow(
   { name: 'jokeFlow', inputSchema: z.string(), outputSchema: z.string() },

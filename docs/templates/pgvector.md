@@ -8,7 +8,7 @@ schema.
 import { embed } from '@genkit-ai/ai/embedder';
 import { Document, defineRetriever, retrieve } from '@genkit-ai/ai/retriever';
 import { defineFlow } from '@genkit-ai/flow';
-import { textEmbeddingGecko } from '@genkit-ai/plugin-vertex-ai';
+import { textEmbeddingGecko } from '@genkit-ai/vertex-ai';
 import { toSql } from 'pgvector';
 import postgres from 'postgres';
 import { z } from 'zod';

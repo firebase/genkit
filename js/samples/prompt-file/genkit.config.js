@@ -15,7 +15,7 @@
  */
 
 const { configureGenkit } = require('@genkit-ai/core/config');
-const { googleGenAI } = require('@genkit-ai/plugin-google-genai');
+const { googleGenAI } = require('@genkit-ai/google-genai');
 
 exports.default = configureGenkit({
   plugins: [googleGenAI()],

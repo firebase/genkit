@@ -6,20 +6,20 @@ This plugin exports telemetry and logging data to [Google Cloud Operations Suite
 
 ## Adding the plugin
 
-Genkit's configuration supports a `telemetry` block that exposes hooks for instrumentation and logging. Add `gcp()` to the `plugins` array within `genkit.config.ts` and apecify `'gcp'` for both `instrumentation` and `logger` within the `telemetry` block to add this plugin to your project.
+Genkit's configuration supports a `telemetry` block that exposes hooks for instrumentation and logging. Add `googleCloud()` to the `plugins` array within `genkit.config.ts` and apecify `'googleCloud'` for both `instrumentation` and `logger` within the `telemetry` block to add this plugin to your project.
 
 ```typescript
-import { gcp } from '@genkit-ai/plugin-gcp';
+import { googleCloud } from '@genkit-ai/google-cloud';
 
 export default configureGenkit({
   plugins: [
     ...,
-    gcp({...}),
+    googleCloud({...}),
   ],
   ...,
   telemetry: {
-    instrumentation: 'gcp',
-    logger: 'gcp',
+    instrumentation: 'googleCloud',
+    logger: 'googleCloud',
   }
 });
 
@@ -37,7 +37,7 @@ There are four available configuration fields:
 A sample configuration may look similar to:
 
 ```typescript
-gcp({
+googleCloud({
   projectId: getProjectId(),
   telemetryConfig: {
     sampler: new AlwaysOnSampler(),

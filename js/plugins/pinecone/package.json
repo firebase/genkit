@@ -1,5 +1,5 @@
 {
-  "name": "@genkit-ai/plugin-pinecone",
+  "name": "@genkit-ai/pinecone",
   "description": "Genkit AI framework plugin for Pinecone vector database.",
   "keywords": [
     "genkit",
