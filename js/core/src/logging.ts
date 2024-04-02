@@ -33,7 +33,7 @@ class Logger {
   }
 
   async init(config: LoggerConfig) {
-    this.logger = await config.getLogger(process.env.GENKIT_ENV || 'dev');
+    this.logger = await config.getLogger(process.env.GENKIT_ENV || 'prod');
   }
 
   info(...args: any) {

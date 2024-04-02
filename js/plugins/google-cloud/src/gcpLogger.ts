@@ -36,24 +36,30 @@ export class GcpLogger implements LoggerConfig {
     // an internal OT warning and will result in logs not being
     // associated with correct spans/traces.
     const winston = await import('winston');
-    const format =
-      env === 'dev'
-        ? {
-            format: winston.format.printf((info): string => {
-              return `[${info.level}] ${info.message}`;
-            }),
-          }
-        : { format: winston.format.json() };
-    return winston.createLogger({
-      transports: [
-        new LoggingWinston({
+    const format = this.shouldExport(env)
+      ? { format: winston.format.json() }
+      : {
+          format: winston.format.printf((info): string => {
+            return `[${info.level}] ${info.message}`;
+          }),
+        };
+
+    const transport = this.shouldExport(env)
+      ? new LoggingWinston({
           projectId: this.options.projectId,
           labels: { module: 'genkit' },
           prefix: 'genkit',
           logName: 'genkit_log',
-        }),
-      ],
+        })
+      : new winston.transports.Console();
+
+    return winston.createLogger({
+      transports: [transport],
       ...format,
     });
+  }
+
+  private shouldExport(env: string) {
+    return this.options.forceDevExport || env !== 'dev';
   }
 }

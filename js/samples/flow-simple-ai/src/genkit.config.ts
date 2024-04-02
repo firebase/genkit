@@ -31,6 +31,8 @@ export default configureGenkit({
     vertexAI({ projectId: getProjectId(), location: getLocation() }),
     googleCloud({
       projectId: getProjectId(),
+      // Forces telemetry export in 'dev'
+      forceDevExport: true,
       // These are configured for demonstration purposes. Sensible defaults are
       // in place in the event that telemetryConfig is absent.
       telemetryConfig: {

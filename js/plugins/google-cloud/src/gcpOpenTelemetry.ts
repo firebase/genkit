@@ -26,14 +26,19 @@ import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
 import { WinstonInstrumentation } from '@opentelemetry/instrumentation-winston';
 import { Resource } from '@opentelemetry/resources';
 import {
+  AggregationTemporality,
+  InMemoryMetricExporter,
   MetricReader,
   PeriodicExportingMetricReader,
+  PushMetricExporter,
 } from '@opentelemetry/sdk-metrics';
 import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 import {
   AlwaysOnSampler,
   BatchSpanProcessor,
+  InMemorySpanExporter,
   ReadableSpan,
+  SpanExporter,
 } from '@opentelemetry/sdk-trace-base';
 import { PluginOptions } from './index';
 
@@ -107,9 +112,12 @@ export class GcpOpenTelemetry implements TelemetryConfig {
   }
 
   getConfig(): Partial<NodeSDKConfiguration> {
+    const exporter: SpanExporter = this.shouldExport()
+      ? new this.AdjustingTraceExporter()
+      : new InMemorySpanExporter();
     return {
       resource: this.resource,
-      spanProcessor: new BatchSpanProcessor(new this.AdjustingTraceExporter()),
+      spanProcessor: new BatchSpanProcessor(exporter),
       sampler: this.options?.telemetryConfig?.sampler || new AlwaysOnSampler(),
       instrumentations: this.getInstrumentations(),
       metricReader: this.createMetricReader(),
@@ -120,10 +128,13 @@ export class GcpOpenTelemetry implements TelemetryConfig {
    * Creates a {MetricReader} for pushing metrics out to GCP via OpenTelemetry.
    */
   private createMetricReader(): MetricReader {
+    const exporter: PushMetricExporter = this.shouldExport()
+      ? new MetricExporter({ projectId: this.options.projectId })
+      : new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
     return new PeriodicExportingMetricReader({
       exportIntervalMillis:
         this.options?.telemetryConfig?.metricExportIntervalMillis || 10_000,
-      exporter: new MetricExporter({ projectId: this.options.projectId }),
+      exporter,
     }) as MetricReader;
   }
 
@@ -135,6 +146,10 @@ export class GcpOpenTelemetry implements TelemetryConfig {
       ).concat(this.getDefaultLoggingInstrumentations());
     }
     return this.getDefaultLoggingInstrumentations();
+  }
+
+  private shouldExport(): boolean {
+    return this.options.forceDevExport || process.env.GENKIT_ENV !== 'dev';
   }
 
   /** Always configure the Pino and Winston instrumentations */
