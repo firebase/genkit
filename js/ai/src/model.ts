@@ -164,14 +164,14 @@ const OutputConfigSchema = z.object({
 });
 export type OutputConfig = z.infer<typeof OutputConfigSchema>;
 
-export const GenerationRequestSchema = z.object({
+export const GenerateRequestSchema = z.object({
   messages: z.array(MessageSchema),
   config: GenerationConfigSchema.optional(),
   tools: z.array(ToolDefinitionSchema).optional(),
   output: OutputConfigSchema.optional(),
   candidates: z.number().optional(),
 });
-export type GenerationRequest = z.infer<typeof GenerationRequestSchema>;
+export type GenerateRequest = z.infer<typeof GenerateRequestSchema>;
 
 export const GenerationUsageSchema = z.object({
   inputTokens: z.number().optional(),
@@ -202,15 +202,15 @@ export const CandidateErrorSchema = z.object({
 });
 export type CandidateError = z.infer<typeof CandidateErrorSchema>;
 
-export const GenerationResponseSchema = z.object({
+export const GenerateResponseSchema = z.object({
   candidates: z.array(CandidateSchema),
   latencyMs: z.number().optional(),
   usage: GenerationUsageSchema.optional(),
   custom: z.unknown(),
 });
-export type GenerationResponseData = z.infer<typeof GenerationResponseSchema>;
+export type GenerateResponseData = z.infer<typeof GenerateResponseSchema>;
 
-export const GenerationResponseChunkSchema = z.object({
+export const GenerateResponseChunkSchema = z.object({
   /** The index of the candidate this chunk belongs to. */
   index: z.number(),
   /** The chunk of content to stream right now. */
@@ -218,15 +218,15 @@ export const GenerationResponseChunkSchema = z.object({
   /** Model-specific extra information attached to this chunk. */
   custom: z.unknown().optional(),
 });
-export type GenerationResponseChunkData = z.infer<
-  typeof GenerationResponseChunkSchema
+export type GenerateResponseChunkData = z.infer<
+  typeof GenerateResponseChunkSchema
 >;
 
 export type ModelAction<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 > = Action<
-  typeof GenerationRequestSchema,
-  typeof GenerationResponseSchema,
+  typeof GenerateRequestSchema,
+  typeof GenerateResponseSchema,
   { model: ModelInfo }
 > & {
   __configSchema: CustomOptionsSchema;
@@ -234,9 +234,9 @@ export type ModelAction<
 
 export interface ModelMiddleware {
   (
-    req: GenerationRequest,
-    next: (req?: GenerationRequest) => Promise<GenerationResponseData>
-  ): Promise<GenerationResponseData>;
+    req: GenerateRequest,
+    next: (req?: GenerateRequest) => Promise<GenerateResponseData>
+  ): Promise<GenerateResponseData>;
 }
 
 /**
@@ -246,8 +246,8 @@ export function modelWithMiddleware(
   model: ModelAction,
   middleware: ModelMiddleware[]
 ): ModelAction {
-  const wrapped = (async (req: GenerationRequest) => {
-    const dispatch = async (index: number, req: GenerationRequest) => {
+  const wrapped = (async (req: GenerateRequest) => {
+    const dispatch = async (index: number, req: GenerateRequest) => {
       if (index === middleware.length) {
         // end of the chain, call the original model action
         return await model(req);
@@ -284,17 +284,17 @@ export function defineModel<
     use?: ModelMiddleware[];
   },
   runner: (
-    request: GenerationRequest,
-    streamingCallback?: StreamingCallback<GenerationResponseChunkData>
-  ) => Promise<GenerationResponseData>
+    request: GenerateRequest,
+    streamingCallback?: StreamingCallback<GenerateResponseChunkData>
+  ) => Promise<GenerateResponseData>
 ): ModelAction<CustomOptionsSchema> {
   const label = options.label || `${options.name} GenAI model`;
   const act = action(
     {
       name: options.name,
       description: label,
-      inputSchema: GenerationRequestSchema,
-      outputSchema: GenerationResponseSchema,
+      inputSchema: GenerateRequestSchema,
+      outputSchema: GenerateResponseSchema,
       metadata: {
         model: {
           label,

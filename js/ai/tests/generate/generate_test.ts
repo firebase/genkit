@@ -20,13 +20,13 @@ import { z } from 'zod';
 import {
   Candidate,
   GenerateOptions,
-  GenerationResponse,
+  GenerateResponse,
   Message,
   toGenerateRequest,
 } from '../../src/generate.js';
 import {
   CandidateData,
-  GenerationRequest,
+  GenerateRequest,
   MessageData,
 } from '../../src/model.js';
 import { defineTool } from '../../src/tool.js';
@@ -129,7 +129,7 @@ describe('Candidate', () => {
       output: {
         schema: { type: 'object', properties: { abc: { type: 'number' } } },
       },
-    } as unknown as GenerationRequest;
+    } as unknown as GenerateRequest;
 
     it('returns true if no schema', () => {
       assert(
@@ -201,15 +201,15 @@ describe('Candidate', () => {
   });
 });
 
-describe('GenerationResponse', () => {
+describe('GenerateResponse', () => {
   describe('#output()', () => {
     it('picks the first candidate with valid output if no index provided', () => {
       const schemaRequest = {
         output: {
           schema: { type: 'object', properties: { abc: { type: 'number' } } },
         },
-      } as unknown as GenerationRequest;
-      const response = new GenerationResponse(
+      } as unknown as GenerateRequest;
+      const response = new GenerateResponse(
         {
           candidates: [
             {

@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { generate, GenerateOptions, GenerationResponse } from '@genkit-ai/ai';
+import { generate, GenerateOptions, GenerateResponse } from '@genkit-ai/ai';
 import {
-  GenerationRequest,
-  GenerationRequestSchema,
-  GenerationResponseSchema,
+  GenerateRequest,
+  GenerateRequestSchema,
+  GenerateResponseSchema,
   MessageData,
 } from '@genkit-ai/ai/model';
 import { resolveTools, toToolDefinition } from '@genkit-ai/ai/tool';
@@ -36,7 +36,7 @@ import {
 } from './metadata.js';
 import { compile } from './template.js';
 
-const PromptActionInputSchema = GenerationRequestSchema.omit({
+const PromptActionInputSchema = GenerateRequestSchema.omit({
   messages: true,
   tools: true,
   output: true,
@@ -66,7 +66,7 @@ export type PromptData = PromptFrontmatter & { template: string };
 
 export type PromptAction = Action<
   typeof PromptActionInputSchema,
-  typeof GenerationResponseSchema,
+  typeof GenerateResponseSchema,
   Record<string, unknown> & {
     type: 'prompt';
     prompt: PromptData;
@@ -156,7 +156,7 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
 
   async render(
     options: PromptGenerateOptions<Variables>
-  ): Promise<GenerationRequest> {
+  ): Promise<GenerateRequest> {
     const messages = this.renderMessages(options.input);
     return {
       config: this.config || {},
@@ -169,7 +169,7 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
 
   private _generate(
     options: PromptGenerateOptions<Variables>
-  ): Promise<GenerationResponse> {
+  ): Promise<GenerateResponse> {
     if (!options.model && !this.model) {
       throw new GenkitError({
         source: 'dotprompt',
@@ -195,9 +195,9 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
 
   async generate(
     options: PromptGenerateOptions<Variables>
-  ): Promise<GenerationResponse> {
+  ): Promise<GenerateResponse> {
     const req = { ...options, tools: await resolveTools(options.tools) };
-    return new GenerationResponse(
+    return new GenerateResponse(
       await this.action()(req),
       await this.render(options) // TODO: don't re-render to do this
     );
@@ -214,7 +214,7 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
       {
         name: `${this.name}${this.variant ? `.${this.variant}` : ''}`,
         inputSchema: PromptActionInputSchema,
-        outputSchema: GenerationResponseSchema,
+        outputSchema: GenerateResponseSchema,
         metadata: {
           type: 'prompt',
           prompt: this.toJSON(),

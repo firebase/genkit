@@ -111,7 +111,7 @@
 
     ```javascript
     import { generate } from '@genkit-ai/ai';
-    import { GenerationResponseChunkSchema } from '@genkit-ai/ai/model';
+    import { GenerateResponseChunkSchema } from '@genkit-ai/ai/model';
     import { getLocation, getProjectId } from '@genkit-ai/core';
     import { configureGenkit } from '@genkit-ai/core';
     import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
@@ -138,7 +138,7 @@
         name: 'jokeFlow',
         inputSchema: z.string(),
         outputSchema: z.string(),
-        streamType: GenerationResponseChunkSchema,
+        streamType: GenerateResponseChunkSchema,
       },
       async (subject, streamingCallback) => {
         return await run('call-llm', async () => {

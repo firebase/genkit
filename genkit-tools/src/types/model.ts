@@ -121,14 +121,14 @@ const OutputConfigSchema = z.object({
 });
 export type OutputConfig = z.infer<typeof OutputConfigSchema>;
 
-export const GenerationRequestSchema = z.object({
+export const GenerateRequestSchema = z.object({
   messages: z.array(MessageSchema),
   config: GenerationConfig.optional(),
   tools: z.array(ToolDefinitionSchema).optional(),
   output: OutputConfigSchema.optional(),
   candidates: z.number().optional(),
 });
-export type GenerationRequest = z.infer<typeof GenerationRequestSchema>;
+export type GenerateRequest = z.infer<typeof GenerateRequestSchema>;
 
 export const GenerationUsageSchema = z.object({
   inputTokens: z.number().optional(),
@@ -148,9 +148,9 @@ export const CandidateSchema = z.object({
 });
 export type CandidateData = z.infer<typeof CandidateSchema>;
 
-export const GenerationResponseSchema = z.object({
+export const GenerateResponseSchema = z.object({
   candidates: z.array(CandidateSchema),
   usage: GenerationUsageSchema.optional(),
   custom: z.unknown(),
 });
-export type GenerationResponseData = z.infer<typeof GenerationResponseSchema>;
+export type GenerateResponseData = z.infer<typeof GenerateResponseSchema>;

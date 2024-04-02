@@ -24,7 +24,7 @@ export {
 export {
   Candidate,
   GenerateOptions,
-  GenerationResponse,
+  GenerateResponse,
   Message,
   generate,
 } from './generate.js';

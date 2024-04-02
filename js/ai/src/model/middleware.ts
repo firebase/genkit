@@ -17,7 +17,7 @@
 import { ModelInfo, ModelMiddleware, Part } from '../model.js';
 
 /**
- * Preprocess a GenerationRequest to download referenced http(s) media URLs and
+ * Preprocess a GenerateRequest to download referenced http(s) media URLs and
  * inline them as data URIs.
  */
 export function downloadRequestMedia(options?: {
@@ -77,7 +77,7 @@ export function downloadRequestMedia(options?: {
 }
 
 /**
- * Validates that a GenerationRequest does not include unsupported features.
+ * Validates that a GenerateRequest does not include unsupported features.
  */
 export function validateSupport(options: {
   name: string;

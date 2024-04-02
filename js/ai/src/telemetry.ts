@@ -25,8 +25,8 @@ import { ValueType } from '@opentelemetry/api';
 import { createHash } from 'crypto';
 import { GenerateOptions } from './generate.js';
 import {
-  GenerationRequest,
-  GenerationResponseData,
+  GenerateRequest,
+  GenerateResponseData,
   MediaPart,
   Part,
   ToolRequestPart,
@@ -110,9 +110,9 @@ type SharedDimensions = {
 
 export function recordGenerateActionMetrics(
   modelName: string,
-  input: GenerationRequest,
+  input: GenerateRequest,
   opts: {
-    response?: GenerationResponseData;
+    response?: GenerateResponseData;
     err?: any;
   }
 ) {
@@ -137,7 +137,7 @@ export function recordGenerateActionMetrics(
 export function recordGenerateActionInputLogs(
   model: string,
   options: GenerateOptions,
-  input: GenerationRequest
+  input: GenerateRequest
 ) {
   const path = spanMetadataAls?.getStore()?.path;
   const sharedMetadata = { model, path };
@@ -170,7 +170,7 @@ export function recordGenerateActionInputLogs(
 export function recordGenerateActionOutputLogs(
   model: string,
   options: GenerateOptions,
-  output: GenerationResponseData
+  output: GenerateResponseData
 ) {
   const path = spanMetadataAls?.getStore()?.path;
   const sharedMetadata = { model, path };
