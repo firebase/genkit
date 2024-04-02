@@ -17,7 +17,7 @@
 import {
   CandidateData,
   defineModel,
-  GenerationRequest,
+  GenerateRequest,
   getBasicUsageStats,
   modelRef,
 } from '@genkit-ai/ai/model';
@@ -54,7 +54,7 @@ export const imagen2 = modelRef({
   configSchema: ImagenConfigSchema,
 });
 
-function extractText(request: GenerationRequest) {
+function extractText(request: GenerateRequest) {
   return request.messages
     .at(-1)!
     .content.map((c) => c.text || '')
@@ -69,7 +69,7 @@ interface ImagenParameters {
   language?: string;
 }
 
-function toParameters(request: GenerationRequest): ImagenParameters {
+function toParameters(request: GenerateRequest): ImagenParameters {
   const config = request.config?.custom || ({} as ImagenConfig);
 
   const out = {
@@ -87,7 +87,7 @@ function toParameters(request: GenerationRequest): ImagenParameters {
   return out;
 }
 
-function extractPromptImage(request: GenerationRequest): string | undefined {
+function extractPromptImage(request: GenerateRequest): string | undefined {
   return request.messages
     .at(-1)
     ?.content.find((p) => !!p.media)

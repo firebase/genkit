@@ -88,8 +88,8 @@ A custom model generally consists of three components:
 
 1.  Metadata defining the model's capabilities.
 2.  A configuration schema with any specific parameters supported by the model.
-3.  A function that implements the model accepting `GenerationRequest` and
-    returning `GenerationResponse`.
+3.  A function that implements the model accepting `GenerateRequest` and
+    returning `GenerateResponse`.
 
 At a high level, a model plugin might look something like this:
 
@@ -118,7 +118,7 @@ export const myPlugin = genkitPlugin('my-plugin', async (options: {apiKey?: stri
   }, async request => {
     const myModelRequest = toMyModelRequest(request);
     const myModelResponse = await myModelApi(myModelRequest);
-    return toGenerationResponse(myModelResponse);
+    return toGenerateResponse(myModelResponse);
   });
 });
 ```
@@ -126,9 +126,9 @@ export const myPlugin = genkitPlugin('my-plugin', async (options: {apiKey?: stri
 #### Transforming Requests and Responses
 
 The primary work of a Genkit model plugin is transforming the
-`GenerationRequest` from Genkit's common format into a format that is recognized
+`GenerateRequest` from Genkit's common format into a format that is recognized
 and supported by your model's API, and then transforming the response from your
-model into the `GenerationResponseData` format used by Genkit.
+model into the `GenerateResponseData` format used by Genkit.
 
 Sometimes, this may require massaging or manipulating data to work around model limitations. For example, if your model does not natively support a `system` message, you may need to transform a prompt's system message into a user/model message pair.
 

@@ -26,10 +26,10 @@ import { z } from 'zod';
 import { extractJson } from './extract.js';
 import {
   CandidateData,
+  GenerateRequest,
+  GenerateResponseChunkData,
+  GenerateResponseData,
   GenerationConfig,
-  GenerationRequest,
-  GenerationResponseChunkData,
-  GenerationResponseData,
   GenerationUsage,
   MessageData,
   ModelAction,
@@ -133,9 +133,9 @@ export class Candidate<O = unknown> implements CandidateData {
   /** Additional provider-specific information about this candidate. */
   custom: unknown;
   /** The request that led to the generation of this candidate. */
-  request?: GenerationRequest;
+  request?: GenerateRequest;
 
-  constructor(candidate: CandidateData, request?: GenerationRequest) {
+  constructor(candidate: CandidateData, request?: GenerateRequest) {
     this.message = new Message(candidate.message);
     this.index = candidate.index;
     this.usage = candidate.usage || {};
@@ -187,7 +187,7 @@ export class Candidate<O = unknown> implements CandidateData {
    * @param request A request containing output schema to validate against. If not provided, uses request embedded in candidate.
    * @returns True if output matches request schema or if no request schema is provided.
    */
-  hasValidOutput(request?: GenerationRequest): boolean {
+  hasValidOutput(request?: GenerateRequest): boolean {
     const o = this.output();
     if (!request && !this.request) {
       return true;
@@ -231,10 +231,10 @@ export class Candidate<O = unknown> implements CandidateData {
 }
 
 /**
- * GenerationResponse is the result from a `generate()` call and contains one or
+ * GenerateResponse is the result from a `generate()` call and contains one or
  * more generated candidate messages.
  */
-export class GenerationResponse<O = unknown> implements GenerationResponseData {
+export class GenerateResponse<O = unknown> implements GenerateResponseData {
   /** The potential generated messages. */
   candidates: Candidate<O>[];
   /** Usage information. */
@@ -242,7 +242,7 @@ export class GenerationResponse<O = unknown> implements GenerationResponseData {
   /** Provider-specific response data. */
   custom: unknown;
   /** The request that generated this response. */
-  request?: GenerationRequest;
+  request?: GenerateRequest;
 
   /**
    * If the selected candidate's message contains a `data` part, it is returned. Otherwise,
@@ -299,7 +299,7 @@ export class GenerationResponse<O = unknown> implements GenerationResponseData {
     return this.candidates[index].toHistory();
   }
 
-  constructor(response: GenerationResponseData, request?: GenerationRequest) {
+  constructor(response: GenerateResponseData, request?: GenerateRequest) {
     this.candidates = (response.candidates || []).map(
       (candidate) => new Candidate(candidate, request)
     );
@@ -308,7 +308,7 @@ export class GenerationResponse<O = unknown> implements GenerationResponseData {
     this.request = request;
   }
 
-  toJSON(): GenerationResponseData {
+  toJSON(): GenerateResponseData {
     return {
       candidates: this.candidates.map((candidate) => candidate.toJSON()),
       usage: this.usage,
@@ -340,7 +340,7 @@ function inferRoleFromParts(parts: Part[]): Role {
 
 export async function toGenerateRequest(
   prompt: GenerateOptions
-): Promise<GenerationRequest> {
+): Promise<GenerateRequest> {
   const promptMessage: MessageData = { role: 'user', content: [] };
   if (typeof prompt.prompt === 'string') {
     promptMessage.content.push({ text: prompt.prompt });
@@ -401,7 +401,7 @@ export interface GenerateOptions<
   /** When true, return tool calls for manual processing instead of automatically resolving them. */
   returnToolRequests?: boolean;
   /** When provided, models supporting streaming will call the provided callback with chunks as generation progresses. */
-  streamingCallback?: StreamingCallback<GenerationResponseChunkData>;
+  streamingCallback?: StreamingCallback<GenerateResponseChunkData>;
 }
 
 const isValidCandidate = (
@@ -442,7 +442,7 @@ async function resolveModel(
 
 export class NoValidCandidatesError extends GenkitError {
   detail: {
-    response: GenerationResponse;
+    response: GenerateResponse;
     [otherDetails: string]: any;
   };
 
@@ -452,7 +452,7 @@ export class NoValidCandidatesError extends GenkitError {
     detail,
   }: {
     message: string;
-    response: GenerationResponse;
+    response: GenerateResponse;
     detail?: Record<string, any>;
   }) {
     super({
@@ -482,7 +482,7 @@ export async function generate<
   options:
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
-): Promise<GenerationResponse<z.infer<O>>> {
+): Promise<GenerateResponse<z.infer<O>>> {
   const prompt: GenerateOptions<O, CustomOptions> =
     await Promise.resolve(options);
   const model = await resolveModel(prompt.model);
@@ -499,8 +499,7 @@ export async function generate<
   telemetry.recordGenerateActionInputLogs(model.__action.name, prompt, request);
   const response = await runWithStreamingCallback(
     prompt.streamingCallback,
-    async () =>
-      new GenerationResponse<z.infer<O>>(await model(request), request)
+    async () => new GenerateResponse<z.infer<O>>(await model(request), request)
   );
 
   // throw NoValidCandidates if all candidates are blocked or

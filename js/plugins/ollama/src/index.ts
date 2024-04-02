@@ -17,8 +17,8 @@
 import {
   CandidateData,
   defineModel,
-  GenerationRequest,
-  GenerationResponseData,
+  GenerateRequest,
+  GenerateResponseData,
   getBasicUsageStats,
 } from '@genkit-ai/ai/model';
 import { genkitPlugin, Plugin } from '@genkit-ai/core';
@@ -156,7 +156,7 @@ function ollamaModel(
       return {
         candidates: responseCandidates,
         usage: getBasicUsageStats(request.messages, responseCandidates),
-      } as GenerationResponseData;
+      } as GenerateResponseData;
     }
   );
 }
@@ -173,7 +173,7 @@ function readChunks(reader) {
   };
 }
 
-function getPrompt(input: GenerationRequest) {
+function getPrompt(input: GenerateRequest) {
   // TODO: too naive...
   // see https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-chat-completion
   const content = input.messages[0]?.content[0];

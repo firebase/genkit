@@ -17,8 +17,8 @@
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import {
-  GenerationRequest,
-  GenerationResponseData,
+  GenerateRequest,
+  GenerateResponseData,
   Part,
   defineModel,
 } from '../../src/model.js';
@@ -28,7 +28,7 @@ import {
 } from '../../src/model/middleware.js';
 
 describe('validateSupport', () => {
-  const examples: Record<string, GenerationRequest> = {
+  const examples: Record<string, GenerateRequest> = {
     multiturn: {
       messages: [
         { role: 'user', content: [{ text: 'hello' }] },
@@ -72,8 +72,8 @@ describe('validateSupport', () => {
 
   let nextCalled = false;
   const noopNext: (
-    req?: GenerationRequest
-  ) => Promise<GenerationResponseData> = async () => {
+    req?: GenerateRequest
+  ) => Promise<GenerateResponseData> = async () => {
     nextCalled = true;
     return {
       candidates: [],
@@ -161,10 +161,10 @@ describe('conformOutput (default middleware)', () => {
   const schema = { type: 'object', properties: { test: { type: 'boolean' } } };
 
   // return the output tagged part from the request
-  async function testRequest(req: GenerationRequest): Promise<Part> {
+  async function testRequest(req: GenerateRequest): Promise<Part> {
     const response = await echoModel(req);
     const treq = response.candidates[0].message.content[0]
-      .data as GenerationRequest;
+      .data as GenerateRequest;
     if (
       treq.messages
         .at(-1)!
@@ -215,7 +215,7 @@ describe('conformOutput (default middleware)', () => {
 
 describe('simulateSystemPrompt', () => {
   function testRequest(
-    req: GenerationRequest,
+    req: GenerateRequest,
     options?: Parameters<typeof simulateSystemPrompt>[0]
   ) {
     return new Promise((resolve, reject) => {
@@ -224,14 +224,14 @@ describe('simulateSystemPrompt', () => {
   }
 
   it('does not modify a request with no system prompt', async () => {
-    const req: GenerationRequest = {
+    const req: GenerateRequest = {
       messages: [{ role: 'user', content: [{ text: 'hello' }] }],
     };
     assert.deepEqual(await testRequest(req), req);
   });
 
   it('keeps other messages in place', async () => {
-    const req: GenerationRequest = {
+    const req: GenerateRequest = {
       messages: [
         { role: 'system', content: [{ text: 'I am a system message' }] },
         { role: 'user', content: [{ text: 'hello' }] },
