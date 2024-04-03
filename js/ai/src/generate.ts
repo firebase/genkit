@@ -380,7 +380,7 @@ export interface GenerateOptions<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > {
-  /** A model name (e.g. `vertex-ai/gemini-1.0-pro`) or reference. */
+  /** A model name (e.g. `vertexai/gemini-1.0-pro`) or reference. */
   model: ModelArgument;
   /** The prompt for which to generate a response. Can be a string for a simple text prompt or one or more parts for multi-modal prompts. */
   prompt: string | Part | Part[];

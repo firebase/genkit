@@ -7,7 +7,7 @@
     "@genkit-ai/core": "workspace:^",
     "@genkit-ai/dotprompt": "workspace:*",
     "@genkit-ai/flow": "workspace:*",
-    "@genkit-ai/google-genai": "workspace:*",
+    "@genkit-ai/googleai": "workspace:*",
     "zod": "^3.22.4"
   },
   "scripts": {

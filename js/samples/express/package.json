@@ -19,7 +19,7 @@
     "@genkit-ai/core": "workspace:^",
     "@genkit-ai/flow": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
-    "@genkit-ai/google-genai": "workspace:*",
+    "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/ollama": "workspace:*",
     "@genkit-ai/openai": "workspace:*",
     "express": "~4.19.2",

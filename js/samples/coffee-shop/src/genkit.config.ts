@@ -20,19 +20,19 @@ import { configureGenkit } from '@genkit-ai/core';
 import { chroma } from '@genkit-ai/chromadb';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { firebase } from '@genkit-ai/firebase';
-import { geminiPro, googleGenAI } from '@genkit-ai/google-genai';
+import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import { ollama } from '@genkit-ai/ollama';
 import { openAI } from '@genkit-ai/openai';
 import { pinecone } from '@genkit-ai/pinecone';
 import { RagasMetric, ragas } from '@genkit-ai/ragas';
-import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertex-ai';
+import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 
 // Not all plugins configured below are used by the flow, but we load
 // "everything" for UI development and testing.
 export default configureGenkit({
   plugins: [
     // plugins
-    googleGenAI(),
+    googleAI(),
     openAI(),
     vertexAI(),
     ragas({ judge: geminiPro, metrics: [RagasMetric.CONTEXT_UTILIZATION] }),

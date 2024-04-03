@@ -115,7 +115,7 @@
     import { configureGenkit } from '@genkit-ai/core';
     import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
     import { firebase } from '@genkit-ai/firebase';
-    import { geminiPro, vertexAI } from '@genkit-ai/vertex-ai';
+    import { geminiPro, vertexAI } from '@genkit-ai/vertexai';
     import * as z from 'zod';
 
     configureGenkit({

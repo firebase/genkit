@@ -41,7 +41,7 @@ const ImagenConfigSchema = z.object({
 type ImagenConfig = z.infer<typeof ImagenConfigSchema>;
 
 export const imagen2 = modelRef({
-  name: 'vertex-ai/imagen2',
+  name: 'vertexai/imagen2',
   info: {
     label: 'Vertex AI - Imagen2',
     supports: {

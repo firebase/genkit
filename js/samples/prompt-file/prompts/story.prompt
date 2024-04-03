@@ -1,5 +1,5 @@
 ---
-model: google-ai/gemini-pro
+model: googleai/gemini-pro
 input:
   schema:
     properties:

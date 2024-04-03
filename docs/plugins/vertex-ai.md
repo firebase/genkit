@@ -12,7 +12,7 @@ through the [Vertex AI API](https://cloud.google.com/vertex-ai/generative-ai/doc
 To use this plugin, specify it when you call `configureGenkit()`:
 
 ```js
-import { vertexAI } from '@genkit-ai/vertex-ai';
+import { vertexAI } from '@genkit-ai/vertexai';
 
 export default configureGenkit({
   plugins: [
@@ -63,7 +63,7 @@ credentials.
 This plugin statically exports references to its supported generative AI models:
 
 ```js
-import { geminiPro, geminiProVision, imagen2 } from '@genkit-ai/vertex-ai';
+import { geminiPro, geminiProVision, imagen2 } from '@genkit-ai/vertexai';
 ```
 
 You can use these references to specify which model `generate()` uses:
@@ -79,7 +79,7 @@ This plugin also statically exports a reference to the Gecko text embedding
 model:
 
 ```js
-import { textEmbeddingGecko } from '@genkit-ai/vertex-ai';
+import { textEmbeddingGecko } from '@genkit-ai/vertexai';
 ```
 
 You can use this reference to specify which embedder an indexer or retriever

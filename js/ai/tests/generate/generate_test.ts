@@ -251,7 +251,7 @@ describe('toGenerateRequest', () => {
     {
       should: 'translate a string prompt correctly',
       prompt: {
-        model: 'vertex-ai/gemini-1.0-pro',
+        model: 'vertexai/gemini-1.0-pro',
         prompt: 'Tell a joke about dogs.',
       },
       expectedOutput: {
@@ -268,7 +268,7 @@ describe('toGenerateRequest', () => {
       should:
         'translate a string prompt correctly with tools referenced by their name',
       prompt: {
-        model: 'vertex-ai/gemini-1.0-pro',
+        model: 'vertexai/gemini-1.0-pro',
         tools: ['tellAFunnyJoke'],
         prompt: 'Tell a joke about dogs.',
       },
@@ -303,7 +303,7 @@ describe('toGenerateRequest', () => {
       should:
         'translate a string prompt correctly with tools referenced by their action',
       prompt: {
-        model: 'vertex-ai/gemini-1.0-pro',
+        model: 'vertexai/gemini-1.0-pro',
         tools: [tellAFunnyJoke],
         prompt: 'Tell a joke about dogs.',
       },
@@ -337,7 +337,7 @@ describe('toGenerateRequest', () => {
     {
       should: 'translate a media prompt correctly',
       prompt: {
-        model: 'vertex-ai/gemini-1.0-pro',
+        model: 'vertexai/gemini-1.0-pro',
         prompt: [
           { text: 'describe the following image:' },
           {
@@ -372,7 +372,7 @@ describe('toGenerateRequest', () => {
     {
       should: 'translate a prompt with history correctly',
       prompt: {
-        model: 'vertex-ai/gemini-1.0-pro',
+        model: 'vertexai/gemini-1.0-pro',
         history: [
           { content: [{ text: 'hi' }], role: 'user' },
           { content: [{ text: 'how can I help you' }], role: 'model' },

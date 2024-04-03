@@ -20,10 +20,10 @@
     "@genkit-ai/flow": "workspace:*",
     "@genkit-ai/dev-local-vectorstore": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
-    "@genkit-ai/google-genai": "workspace:*",
+    "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/pinecone": "workspace:*",
     "@genkit-ai/ragas": "workspace:*",
-    "@genkit-ai/vertex-ai": "workspace:*",
+    "@genkit-ai/vertexai": "workspace:*",
     "llm-chunk": "^0.0.1",
     "pdfjs-dist": "^4.0.379",
     "zod": "^3.22.4"

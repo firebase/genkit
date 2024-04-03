@@ -31,8 +31,8 @@ const platformToPlugins: Record<Platform, string[]> = {
 };
 /** Maps from model name to plugin. */
 const modelToPlugin: Record<string, string> = {
-  'Google AI': '@genkit-ai/google-genai',
-  'Vertex AI': '@genkit-ai/vertex-ai',
+  'Google AI': '@genkit-ai/googleai',
+  'Vertex AI': '@genkit-ai/vertexai',
   OpenAI: '@genkit-ai/openai',
 };
 /** External packages required to use Genkit. */
@@ -58,8 +58,8 @@ const pluginToInfo: Record<string, PluginInfo> = {
     import: 'googleCloud',
     init: 'googleCloud({})',
   },
-  '@genkit-ai/vertex-ai': {
-    name: '@genkit-ai/vertex-ai',
+  '@genkit-ai/vertexai': {
+    name: '@genkit-ai/vertexai',
     import: 'vertexAI',
     init: "vertexAI({ location: 'us-central1' })",
     model: 'geminiPro',
@@ -70,10 +70,10 @@ const pluginToInfo: Record<string, PluginInfo> = {
     init: 'openAI()',
     model: 'gpt35Turbo',
   },
-  '@genkit-ai/google-genai': {
-    name: '@genkit-ai/google-genai',
-    import: 'googleGenAI',
-    init: 'googleGenAI()',
+  '@genkit-ai/googleai': {
+    name: '@genkit-ai/googleai',
+    import: 'googleAI',
+    init: 'googleAI()',
     model: 'geminiPro',
   },
 };

@@ -15,7 +15,7 @@
  */
 
 import { definePrompt } from '@genkit-ai/dotprompt';
-import { geminiPro } from '@genkit-ai/vertex-ai';
+import { geminiPro } from '@genkit-ai/vertexai';
 import * as z from 'zod';
 
 // Define a prompt that includes the retrieved context documents

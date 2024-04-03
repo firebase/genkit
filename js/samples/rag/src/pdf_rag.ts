@@ -21,7 +21,7 @@ import {
   devLocalRetrieverRef,
 } from '@genkit-ai/dev-local-vectorstore';
 import { defineFlow, run } from '@genkit-ai/flow';
-import { geminiPro } from '@genkit-ai/vertex-ai';
+import { geminiPro } from '@genkit-ai/vertexai';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import * as z from 'zod';
