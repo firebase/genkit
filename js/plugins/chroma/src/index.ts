@@ -27,6 +27,7 @@ import { genkitPlugin, PluginProvider } from '@genkit-ai/core';
 import {
   ChromaClient,
   ChromaClientParams,
+  Collection,
   CollectionMetadata,
   IEmbeddingFunction,
   IncludeEnum,
@@ -57,6 +58,7 @@ export function chroma<EmbedderCustomOptions extends z.ZodTypeAny>(
   params: {
     clientParams?: ChromaClientParams;
     collectionName: string;
+    createCollectionIfMissing?: boolean;
     embedder: EmbedderArgument<EmbedderCustomOptions>;
     embedderOptions?: z.infer<EmbedderCustomOptions>;
   }[]
@@ -67,6 +69,7 @@ export function chroma<EmbedderCustomOptions extends z.ZodTypeAny>(
       params: {
         clientParams?: ChromaClientParams;
         collectionName: string;
+        createCollectionIfMissing?: boolean;
         embedder: EmbedderArgument<EmbedderCustomOptions>;
         embedderOptions?: z.infer<EmbedderCustomOptions>;
       }[]
@@ -114,6 +117,7 @@ export function chromaRetriever<
 >(params: {
   clientParams?: ChromaClientParams;
   collectionName: string;
+  createCollectionIfMissing?: boolean;
   embedder: EmbedderArgument<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
@@ -125,9 +129,16 @@ export function chromaRetriever<
     },
     async (content, options) => {
       const client = new ChromaClient(params.clientParams);
-      const collection = await client.getCollection({
-        name: collectionName,
-      });
+      let collection: Collection;
+      if (params.createCollectionIfMissing) {
+        collection = await client.getOrCreateCollection({
+          name: collectionName,
+        });
+      } else {
+        collection = await client.getCollection({
+          name: collectionName,
+        });
+      }
 
       const embedding = await embed({
         embedder,
@@ -177,6 +188,7 @@ export function chromaIndexer<
   clientParams?: ChromaClientParams;
   collectionName: string;
   textKey?: string;
+  createCollectionIfMissing?: boolean;
   embedder: EmbedderArgument<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }) {
@@ -191,9 +203,16 @@ export function chromaIndexer<
       configSchema: ChromaIndexerOptionsSchema,
     },
     async (docs) => {
-      const collection = await client.getCollection({
-        name: collectionName,
-      });
+      let collection: Collection;
+      if (params.createCollectionIfMissing) {
+        collection = await client.getOrCreateCollection({
+          name: collectionName,
+        });
+      } else {
+        collection = await client.getCollection({
+          name: collectionName,
+        });
+      }
 
       const embeddings = await Promise.all(
         docs.map((doc) =>
