@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
 import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from '.';
 
@@ -30,20 +31,29 @@ interface PredictionResponse<R> {
   predictions: R[];
 }
 
+const ACCESS_TOKEN_TTL = 50 * 60 * 10000; // cache access token for 50 minutes
+
 export function predictModel<I = unknown, R = unknown, P = unknown>(
   auth: GoogleAuth,
   { location, projectId }: PluginOptions,
   model: string
 ) {
+  let accessToken: string | null | undefined;
+  let accessTokenFetchTime = 0;
+
   return async (
     instances: I[],
     parameters?: P
   ): Promise<PredictionResponse<R>> => {
     const fetch = (await import('node-fetch')).default;
-    // TODO: Don't do it this way.
-    const accessToken = await (
-      await auth.getApplicationDefault()
-    ).credential.getAccessToken();
+
+    if (!accessToken || accessTokenFetchTime + ACCESS_TOKEN_TTL < Date.now()) {
+      const freshToken = await (
+        await auth.getApplicationDefault()
+      ).credential.getAccessToken();
+      accessToken = freshToken.token;
+      accessTokenFetchTime = Date.now();
+    }
 
     const req = {
       instances,
@@ -60,9 +70,9 @@ export function predictModel<I = unknown, R = unknown, P = unknown>(
         method: 'POST',
         body: JSON.stringify(req),
         headers: {
-          Authorization: `Bearer ${accessToken.token}`,
+          Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
-          'User-Agent': 'genkit',
+          'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
         },
       }
     );
