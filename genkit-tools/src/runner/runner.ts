@@ -80,7 +80,7 @@ export class Runner {
   private buildCommand?: string;
 
   private reflectionApiPort: number = DEFAULT_REFLECTION_PORT;
-  private reflectionApiUrl? = () =>
+  private reflectionApiUrl = () =>
     `http://localhost:${this.reflectionApiPort}/api`;
 
   /**
@@ -204,20 +204,17 @@ export class Runner {
    * Stops the app code process.
    */
   private async stopApp(): Promise<void> {
-    return this.sendQuit().then(
-      () =>
-        new Promise((resolve) => {
-          if (this.appProcess && !this.appProcess.killed) {
-            this.appProcess.on('exit', () => {
-              this.appProcess = null;
-              resolve();
-            });
-            this.appProcess.kill();
-          } else {
-            resolve();
-          }
-        })
-    );
+    return new Promise((resolve) => {
+      if (this.appProcess) {
+        this.appProcess.on('exit', () => {
+          this.appProcess = null;
+          resolve();
+        });
+        this.appProcess.kill();
+      } else {
+        resolve();
+      }
+    });
   }
 
   /**
@@ -296,7 +293,7 @@ export class Runner {
 
   async healthCheck(): Promise<boolean> {
     try {
-      const response = await axios.get(`${this.reflectionApiUrl}/__health`);
+      const response = await axios.get(`${this.reflectionApiUrl()}/__health`);
       if (response.status !== 200) {
         return false;
       }
@@ -327,9 +324,11 @@ export class Runner {
   }
 
   async waitUntilHealthy(): Promise<void> {
+    logger.debug(`Checking health of ${this.reflectionApiUrl()}...`);
     for (let i = 0; i < 200; i++) {
       const healthy = await this.healthCheck();
       if (healthy) {
+        logger.debug('Confirmed healthy.');
         return;
       }
       await new Promise((r) => setTimeout(r, 300));
@@ -340,7 +339,7 @@ export class Runner {
   /** Retrieves all runnable actions. */
   async listActions(): Promise<Record<string, Action>> {
     const response = await axios
-      .get(`${this.reflectionApiUrl}/actions`)
+      .get(`${this.reflectionApiUrl()}/actions`)
       .catch((err) => this.httpErrorHandler(err, 'Error listing actions.'));
 
     return response.data as Record<string, Action>;
@@ -353,7 +352,7 @@ export class Runner {
   ): Promise<RunActionResponse> {
     if (streamingCallback) {
       const response = await axios
-        .post(`${this.reflectionApiUrl}/runAction?stream=true`, input, {
+        .post(`${this.reflectionApiUrl()}/runAction?stream=true`, input, {
           headers: {
             'Content-Type': 'application/json',
           },
@@ -384,7 +383,7 @@ export class Runner {
       return promise;
     } else {
       const response = await axios
-        .post(`${this.reflectionApiUrl}/runAction`, input, {
+        .post(`${this.reflectionApiUrl()}/runAction`, input, {
           headers: {
             'Content-Type': 'application/json',
           },
@@ -413,7 +412,7 @@ export class Runner {
     }
 
     const response = await axios
-      .get(`${this.reflectionApiUrl}/envs/${env}/traces?${query}`)
+      .get(`${this.reflectionApiUrl()}/envs/${env}/traces?${query}`)
       .catch((err) =>
         this.httpErrorHandler(
           err,
@@ -428,7 +427,7 @@ export class Runner {
   async getTrace(input: apis.GetTraceRequest): Promise<TraceData> {
     const { env, traceId } = input;
     const response = await axios
-      .get(`${this.reflectionApiUrl}/envs/${env}/traces/${traceId}`)
+      .get(`${this.reflectionApiUrl()}/envs/${env}/traces/${traceId}`)
       .catch((err) =>
         this.httpErrorHandler(
           err,
@@ -455,7 +454,7 @@ export class Runner {
       query += `continuationToken=${continuationToken}`;
     }
     const response = await axios
-      .get(`${this.reflectionApiUrl}/envs/${env}/flowStates?${query}`)
+      .get(`${this.reflectionApiUrl()}/envs/${env}/flowStates?${query}`)
       .catch((err) =>
         this.httpErrorHandler(
           err,
@@ -470,7 +469,7 @@ export class Runner {
   async getFlowState(input: apis.GetFlowStateRequest): Promise<FlowState> {
     const { env, flowId } = input;
     const response = await axios
-      .get(`${this.reflectionApiUrl}/envs/${env}/flowStates/${flowId}`)
+      .get(`${this.reflectionApiUrl()}/envs/${env}/flowStates/${flowId}`)
       .catch((err) =>
         this.httpErrorHandler(
           err,
