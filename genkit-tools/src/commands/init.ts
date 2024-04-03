@@ -23,101 +23,138 @@ import * as path from 'path';
 import { InitEvent, record } from '../utils/analytics';
 import { logger } from '../utils/logger';
 
-/** Maps from supported platforms to required plugins. */
-const platformToPlugins: Record<Platform, string[]> = {
-  firebase: ['@genkit-ai/firebase'],
-  googleCloud: ['@genkit-ai/google-cloud'],
-  other: [],
+type Platform = 'firebase' | 'googlecloud' | 'nodejs';
+type ModelProvider = 'googleai' | 'vertexai' | 'openai' | 'none';
+type Runtime = 'node' | undefined;
+type WriteMode = 'keep' | 'overwrite' | 'merge';
+
+interface PromptOption {
+  // Label for prompt option.
+  label: string;
+  // Plugin name.
+  plugin?: string;
+}
+
+interface PluginInfo {
+  // Imported items from `name` (can be comma list).
+  imports: string;
+  // Initializer call.
+  init: string;
+  // Model name if plugin is for a model.
+  model?: string;
+}
+
+interface InitOptions {
+  // Deployment platform.
+  platform: Platform;
+  // Model provider.
+  model: ModelProvider;
+  // Path to local Genkit dist archive.
+  distArchive: string;
+}
+
+/** Supported platform to plugin name. */
+const platformOptions: Record<Platform, PromptOption> = {
+  firebase: { label: 'Firebase', plugin: '@genkit-ai/firebase' },
+  googlecloud: {
+    label: 'Google Cloud',
+    plugin: '@genkit-ai/google-cloud',
+  },
+  nodejs: { label: 'Node.js', plugin: undefined },
 };
-/** Maps from model name to plugin. */
-const modelToPlugin: Record<string, string> = {
-  'Google AI': '@genkit-ai/googleai',
-  'Vertex AI': '@genkit-ai/vertexai',
-  OpenAI: '@genkit-ai/openai',
+
+/** Model to plugin name. */
+const modelOptions: Record<ModelProvider, PromptOption> = {
+  googleai: { label: 'Google AI', plugin: '@genkit-ai/googleai' },
+  vertexai: {
+    label: 'Google Cloud Vertex AI',
+    plugin: '@genkit-ai/vertexai',
+  },
+  openai: { label: 'OpenAI', plugin: '@genkit-ai/openai' },
+  none: { label: 'None', plugin: undefined },
 };
+
 /** External packages required to use Genkit. */
 const externalPackages = ['zod', 'express'];
-/** Core packages required to use Genkit. */
-const corePackages = [
+
+/** External dev packages required to use Genkit. */
+const externalDevPackages = ['typescript'];
+
+/** Internal packages required to use Genkit. */
+const internalPackages = [
   '@genkit-ai/core',
   '@genkit-ai/ai',
   '@genkit-ai/dotprompt',
   '@genkit-ai/flow',
 ];
-/** Core dev packages required to use Genkit. */
-const coreDevPackages = ['typescript'];
-/** Plugin name to template insertion info. */
+
+/** Plugin name to descriptor. */
 const pluginToInfo: Record<string, PluginInfo> = {
   '@genkit-ai/firebase': {
-    name: '@genkit-ai/firebase',
-    import: 'firebase',
-    init: 'firebase({})',
+    imports: 'firebase',
+    init: 'firebase()',
   },
   '@genkit-ai/google-cloud': {
-    name: '@genkit-ai/google-cloud',
-    import: 'googleCloud',
-    init: 'googleCloud({})',
+    imports: 'googleCloud',
+    init: 'googleCloud()',
   },
   '@genkit-ai/vertexai': {
-    name: '@genkit-ai/vertexai',
-    import: 'vertexAI',
+    imports: 'vertexAI',
     init: "vertexAI({ location: 'us-central1' })",
     model: 'geminiPro',
   },
   '@genkit-ai/openai': {
-    name: '@genkit-ai/openai',
-    import: 'openAI',
+    imports: 'openAI',
     init: 'openAI()',
     model: 'gpt35Turbo',
   },
   '@genkit-ai/googleai': {
-    name: '@genkit-ai/googleai',
-    import: 'googleAI',
+    imports: 'googleAI',
     init: 'googleAI()',
     model: 'geminiPro',
   },
 };
+
+/** Path to genkit.config template. */
 const configTemplatePath = '../../config/genkit.config.ts.template';
+
+/** Platform to sample flow template paths. */
 const sampleTemplatePaths: Record<Platform, string> = {
   firebase: '../../config/firebase.index.ts.template',
-  googleCloud: '../../config/googleCloud.index.ts.template',
-  other: '../../config/googleCloud.index.ts.template', // This can deviate from GCP template in the future as needed.
+  googlecloud: '../../config/googleCloud.index.ts.template',
+  nodejs: '../../config/googleCloud.index.ts.template', // This can deviate from GCP template in the future as needed.
 };
+
 /** Supported runtimes for the init command. */
 const supportedRuntimes: Runtime[] = ['node'];
 
-type Platform = 'firebase' | 'googleCloud' | 'other';
-type Runtime = 'node' | undefined;
-type WriteMode = 'keep' | 'overwrite' | 'merge';
-
-interface PluginInfo {
-  name: string;
-  import: string;
-  init: string;
-  model?: string;
-}
-
-interface InitOptions {
-  platform: Platform;
-  distArchive: string;
-}
-
 export const init = new Command('init')
-  .description('Initialize a project for Genkit')
+  .description('Initialize a project directory with Genkit')
   .option(
     '-p, --platform <platform>',
-    'Deployment platform (firebase, googleCloud, or other)'
+    'Deployment platform (firebase, googlecloud, or nodejs)'
+  )
+  .option(
+    '-m, --model <model>',
+    'Model provider (googleai, vertexai, openai, or none)'
   )
   .option(
     '-d, --dist-archive <distArchive>',
     'Path to local Genkit dist archive'
   )
   .action(async (options: InitOptions) => {
-    let { platform, distArchive } = options;
-    const supportedPlatforms = Object.keys(platformToPlugins);
+    let { platform, model, distArchive } = options;
+    const supportedPlatforms = Object.keys(platformOptions) as Platform[];
     if (supportedPlatforms.includes(platform)) {
       logger.error(
         `\`${platform}\` is not a supported platform. Supported platforms: ${supportedPlatforms}`
+      );
+      process.exit(1);
+    }
+    const supportedModels = Object.keys(modelOptions) as ModelProvider[];
+    if (supportedModels.includes(model)) {
+      logger.error(
+        `\`${model}\` is not a supported model provider. Supported model providers: ${supportedModels}`
       );
       process.exit(1);
     }
@@ -129,42 +166,56 @@ export const init = new Command('init')
       process.exit(1);
     }
     if (!platform) {
-      const answer = await inquirer.prompt([
+      const answer = await inquirer.prompt<{ platform: Platform }>([
         {
           type: 'list',
           name: 'platform',
           message: 'Select the deployment platform:',
-          choices: supportedPlatforms,
+          choices: supportedPlatforms.map((platform) => ({
+            name: platformOptions[platform].label,
+            value: platform,
+          })),
         },
       ]);
       platform = answer.platform;
     }
-    const plugins = [...(platformToPlugins[platform] || [])];
-    const { model } = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'model',
-        message: 'Select the model:',
-        choices: Object.keys(modelToPlugin),
-      },
-    ]);
-    if (model === 'Google AI') {
+    const plugins: string[] = [];
+    if (platformOptions[platform]?.plugin) {
+      plugins.push(platformOptions[platform].plugin!);
+    }
+    if (!model) {
+      const answer = await inquirer.prompt<{ model: ModelProvider }>([
+        {
+          type: 'list',
+          name: 'model',
+          message: 'Select the model provider:',
+          choices: supportedModels.map((model) => ({
+            name: modelOptions[model].label,
+            value: model,
+          })),
+        },
+      ]);
+      model = answer.model;
+    }
+    if (model === 'googleai') {
       logger.warn(
-        'Google AI is currently available in limited regions. For a complete list, see https://ai.google.dev/available_regions#available_regions'
+        `${modelOptions['googleai'].label} is currently available in limited regions. For a complete list, see https://ai.google.dev/available_regions#available_regions`
       );
     }
-    plugins.push(modelToPlugin[model]);
+    if (modelOptions[model]?.plugin) {
+      plugins.push(modelOptions[model].plugin!);
+    }
     const packages = [...externalPackages];
     if (!distArchive) {
-      packages.push(...corePackages);
+      packages.push(...internalPackages);
       packages.push(...plugins);
     }
     try {
-      await installNpmPackages(packages, coreDevPackages, distArchive);
+      await installNpmPackages(packages, externalDevPackages, distArchive);
       if (!fs.existsSync('src')) {
         fs.mkdirSync('src');
       }
-      generateConfigFile(plugins, platform);
+      generateConfigFile(plugins);
       await updateTsConfig();
       await updatePackageJson();
       if (
@@ -173,13 +224,13 @@ export const init = new Command('init')
           default: true,
         })
       ) {
-        generateSampleFile(platform, modelToPlugin[model]);
+        generateSampleFile(platform, modelOptions[model].plugin);
       }
     } catch (error) {
       logger.error(error);
       process.exit(1);
     }
-    if (model === 'Vertex AI') {
+    if (model === 'vertexai') {
       logger.info(
         `Run the following command to enable Vertex AI in your Google Cloud project:\n\n  gcloud services enable aiplatform.googleapis.com\n`
       );
@@ -250,13 +301,20 @@ async function updatePackageJson() {
  * @param platform Deployment platform.
  * @param modelPlugin Model plugin name.
  */
-function generateSampleFile(platform: Platform, modelPlugin: string) {
-  const modelImport = `import { ${pluginToInfo[modelPlugin].model} } from '${modelPlugin}';`;
+function generateSampleFile(platform: Platform, modelPlugin?: string) {
+  const modelImport = modelPlugin
+    ? `import { ${pluginToInfo[modelPlugin].model} } from '${modelPlugin}';`
+    : '';
   const templatePath = path.join(__dirname, sampleTemplatePaths[platform]);
   let template = fs.readFileSync(templatePath, 'utf8');
   const sample = template
     .replace('$GENKIT_MODEL_IMPORT', modelImport)
-    .replace('$GENKIT_MODEL', pluginToInfo[modelPlugin].model || '');
+    .replace(
+      '$GENKIT_MODEL',
+      modelPlugin
+        ? pluginToInfo[modelPlugin].model || ''
+        : "'' /* TODO: Set a model. */"
+    );
   logger.info('Generating sample file...');
   fs.writeFileSync('src/index.ts', sample, 'utf8');
 }
@@ -264,32 +322,24 @@ function generateSampleFile(platform: Platform, modelPlugin: string) {
 /**
  * Generates a genkit.config file.
  * @param pluginInfos List of plugin infos.
- * @param platform Deployment platform.
  */
-function generateConfigFile(pluginNames: string[], platform?: Platform): void {
+function generateConfigFile(pluginNames: string[]): void {
   const imports = pluginNames
     .map(
       (pluginName) =>
-        `import { ${pluginToInfo[pluginName].import} } from '${pluginName}';`
+        `import { ${pluginToInfo[pluginName].imports} } from '${pluginName}';`
     )
     .join('\n');
-  const plugins = pluginNames
-    .map((pluginName) => `    ${pluginToInfo[pluginName].init},`)
-    .join('\n');
-  const storePlugin =
-    platform === 'firebase' || platform === 'googleCloud'
-      ? 'firebase'
-      : undefined;
-  const store = storePlugin
-    ? `\n  flowStateStore: '${storePlugin}',\n  traceStore: '${storePlugin}',`
-    : '';
+  const plugins =
+    pluginNames
+      .map((pluginName) => `    ${pluginToInfo[pluginName].init},`)
+      .join('\n') || '    /* Add your plugins here. */';
   try {
     const templatePath = path.join(__dirname, configTemplatePath);
     const template = fs.readFileSync(templatePath, 'utf8');
     const config = template
       .replace('$GENKIT_IMPORTS', imports)
-      .replace('$GENKIT_PLUGINS', plugins)
-      .replace('$GENKIT_STORE', store);
+      .replace('$GENKIT_PLUGINS', plugins);
     const outputPath = path.join(process.cwd(), 'src/genkit.config.ts');
     logger.info('Generating genkit.config.ts...');
     fs.writeFileSync(outputPath, config, 'utf8');

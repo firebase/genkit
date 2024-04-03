@@ -82,7 +82,7 @@ export class InitEvent extends GAEvent {
   name = 'init';
   duration = 1;
 
-  constructor(platform: 'firebase' | 'googleCloud' | 'other') {
+  constructor(platform: 'firebase' | 'googlecloud' | 'nodejs') {
     super();
     this.parameters = { platform };
   }
