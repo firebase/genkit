@@ -481,16 +481,16 @@ export class Flow<
     req: express.Request,
     res: express.Response
   ): Promise<void> {
+    telemetry.logRequest(this.name, req);
     if (req.query.stream === 'true') {
-      res
-        .status(400)
-        .send({
-          error: {
-            status: 'INVALID_ARGUMENT',
-            message: 'Output from durable flows cannot be streamed',
-          },
-        })
-        .end();
+      const respBody = {
+        error: {
+          status: 'INVALID_ARGUMENT',
+          message: 'Output from durable flows cannot be streamed',
+        },
+      };
+      res.status(400).send(respBody).end();
+      telemetry.logResponse(this.name, 400, respBody);
       return;
     }
 
@@ -503,20 +503,23 @@ export class Flow<
     try {
       const state = await this.runEnvelope(envMsg);
       res.status(200).send(state.operation).end();
+      telemetry.logResponse(this.name, 200, state.operation);
     } catch (e) {
       // Pass errors as operations instead of a standard API error
       // (https://cloud.google.com/apis/design/errors#http_mapping)
       telemetry.recordError(e);
+      const respBody = {
+        done: true,
+        result: {
+          error: getErrorMessage(e),
+          stacktrace: getErrorStack(e),
+        },
+      };
       res
         .status(500)
-        .send({
-          done: true,
-          result: {
-            error: getErrorMessage(e),
-            stacktrace: getErrorStack(e),
-          },
-        } as Operation)
+        .send(respBody as Operation)
         .end();
+      telemetry.logResponse(this.name, 500, respBody);
     }
   }
 
@@ -524,6 +527,7 @@ export class Flow<
     req: __RequestWithAuth,
     res: express.Response
   ): Promise<void> {
+    telemetry.logRequest(this.name, req);
     const { stream } = req.query;
     const auth = req.auth;
 
@@ -533,15 +537,14 @@ export class Flow<
       await this.authPolicy?.(auth, input);
     } catch (e: any) {
       telemetry.recordError(e);
-      res
-        .status(403)
-        .send({
-          error: {
-            status: 'PERMISSION_DENIED',
-            message: e.message || 'Permission denied to resource',
-          },
-        })
-        .end();
+      const respBody = {
+        error: {
+          status: 'PERMISSION_DENIED',
+          message: e.message || 'Permission denied to resource',
+        },
+      };
+      res.status(403).send(respBody).end();
+      telemetry.logResponse(this.name, 403, respBody);
     }
 
     if (stream === 'true') {
@@ -558,19 +561,20 @@ export class Flow<
         });
         res.write(JSON.stringify(state.operation));
         res.end();
+        telemetry.logResponse(this.name, 200, state.operation);
       } catch (e) {
         // Errors while streaming are also passed back as operations
         telemetry.recordError(e);
-        res.write(
-          JSON.stringify({
-            done: true,
-            result: {
-              error: getErrorMessage(e),
-              stacktrace: getErrorStack(e),
-            },
-          } as Operation)
-        );
+        const respBody = {
+          done: true,
+          result: {
+            error: getErrorMessage(e),
+            stacktrace: getErrorStack(e),
+          },
+        };
+        res.write(JSON.stringify(respBody as Operation));
         res.end();
+        telemetry.logResponse(this.name, 500, respBody);
       }
     } else {
       try {
@@ -586,6 +590,7 @@ export class Flow<
             result: state.operation.result?.response,
           })
           .end();
+        telemetry.logResponse(this.name, 200, state.operation);
       } catch (e) {
         // Errors for non-durable, non-streaming flows are passed back as
         // standard API errors.
