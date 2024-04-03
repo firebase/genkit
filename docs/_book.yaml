@@ -29,11 +29,9 @@ guides:
     path: /genkit/auth
   - title: Retrieval-augmented generation (RAG)
     path: /genkit/rag
-  - title: Observability
-    path: /genkit/observability
   - title: Evaluation
     path: /genkit/evaluation
-  - title: Monitoring
+  - title: Observability & monitoring
     path: /genkit/monitoring
   - title: Developer tools
     path: /genkit/devtools
