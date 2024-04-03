@@ -15,7 +15,7 @@
  */
 
 import { generate } from '@genkit-ai/ai';
-import { configureGenkit, getLocation, getProjectId } from '@genkit-ai/core';
+import { configureGenkit } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import { firebaseAuth } from '@genkit-ai/firebase/auth';
 import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
@@ -25,10 +25,7 @@ import { onRequest } from 'firebase-functions/v2/https';
 import * as z from 'zod';
 
 configureGenkit({
-  plugins: [
-    firebase({ projectId: getProjectId() }),
-    vertexAI({ location: getLocation(), projectId: getProjectId() }),
-  ],
+  plugins: [firebase(), vertexAI()],
   flowStateStore: 'firebase',
   traceStore: 'firebase',
   enableTracingAndMetrics: true,

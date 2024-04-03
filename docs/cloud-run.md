@@ -112,7 +112,6 @@
     ```javascript
     import { generate } from '@genkit-ai/ai';
     import { GenerateResponseChunkSchema } from '@genkit-ai/ai/model';
-    import { getLocation, getProjectId } from '@genkit-ai/core';
     import { configureGenkit } from '@genkit-ai/core';
     import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
     import { firebase } from '@genkit-ai/firebase';
@@ -121,10 +120,9 @@
 
     configureGenkit({
       plugins: [
-        firebase({ projectId: getProjectId() }),
+        firebase(),
         vertexAI({
-          projectId: getProjectId(),
-          location: getLocation() || 'us-central1',
+          location: 'us-central1',
         }),
       ],
       flowStateStore: 'firebase',

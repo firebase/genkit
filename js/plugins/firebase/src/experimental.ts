@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { getLocation, OperationSchema } from '@genkit-ai/core';
+import { OperationSchema } from '@genkit-ai/core';
 import {
   Flow,
   FlowInvokeEnvelopeMessage,
@@ -25,13 +25,13 @@ import { getFunctions } from 'firebase-admin/functions';
 import { logger } from 'firebase-functions/v2';
 import { HttpsFunction } from 'firebase-functions/v2/https';
 import {
-  onTaskDispatched,
   TaskQueueFunction,
   TaskQueueOptions,
+  onTaskDispatched,
 } from 'firebase-functions/v2/tasks';
 import * as z from 'zod';
 import { FunctionFlow } from './functions.js';
-import { callHttpsFunction, getFunctionUrl } from './helpers.js';
+import { callHttpsFunction, getFunctionUrl, getLocation } from './helpers.js';
 
 interface ScheduledFlowConfig<
   I extends z.ZodTypeAny = z.ZodTypeAny,
@@ -64,7 +64,7 @@ export function onScheduledFlow<
       invoker: async (flow, data, streamingCallback) => {
         const responseJson = await callHttpsFunction(
           flow.name,
-          getLocation() || 'us-central1',
+          await getLocation(),
           data,
           streamingCallback
         );

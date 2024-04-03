@@ -29,7 +29,7 @@ development, Genkit uses local files to persist state):
 
 ```js
 configureGenkit({
-  plugins: [firebase({ projectId: getProjectId() })],
+  plugins: [firebase()],
   flowStateStore: 'firebase',
   //...
 });

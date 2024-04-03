@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { configureGenkit, getLocation, getProjectId } from '@genkit-ai/core';
+import { configureGenkit } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import { googleCloud } from '@genkit-ai/google-cloud';
 import { googleGenAI } from '@genkit-ai/google-genai';
@@ -24,12 +24,11 @@ import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 
 export default configureGenkit({
   plugins: [
-    firebase({ projectId: getProjectId() }),
+    firebase(),
     googleGenAI(),
     openAI(),
-    vertexAI({ projectId: getProjectId(), location: getLocation() }),
+    vertexAI(),
     googleCloud({
-      projectId: getProjectId(),
       // Forces telemetry export in 'dev'
       forceDevExport: true,
       // These are configured for demonstration purposes. Sensible defaults are

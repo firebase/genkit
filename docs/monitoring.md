@@ -11,10 +11,8 @@ configuration.
 ```js
 configureGenkit({
   plugins: [
-    firebase({ projectId: getProjectId() }),
-    googleCloud({
-      projectId: getProjectId(),
-    }),
+    firebase(),
+    googleCloud(),
     // ...
   ],
   traceStore: 'firebase',

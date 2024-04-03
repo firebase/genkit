@@ -25,8 +25,8 @@ import { PluginOptions } from './index.js';
 export class GcpLogger implements LoggerConfig {
   private readonly options: PluginOptions;
 
-  constructor(options: PluginOptions) {
-    this.options = options;
+  constructor(options?: PluginOptions) {
+    this.options = options || {};
   }
 
   async getLogger(env: string) {

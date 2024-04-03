@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { configureGenkit, getLocation, getProjectId } from '@genkit-ai/core';
+import { configureGenkit } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import { gpt4Turbo, openAI } from '@genkit-ai/openai';
 import { RagasMetric, ragas } from '@genkit-ai/ragas';
@@ -22,9 +22,9 @@ import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertex-ai';
 
 export default configureGenkit({
   plugins: [
-    firebase({ projectId: getProjectId() }),
+    firebase(),
     openAI(),
-    vertexAI({ projectId: getProjectId(), location: getLocation() }),
+    vertexAI(),
     ragas({
       judge: gpt4Turbo,
       metrics: [

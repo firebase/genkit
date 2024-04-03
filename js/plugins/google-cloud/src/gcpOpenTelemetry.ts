@@ -104,8 +104,8 @@ export class GcpOpenTelemetry implements TelemetryConfig {
     }
   };
 
-  constructor(options: PluginOptions) {
-    this.options = options;
+  constructor(options?: PluginOptions) {
+    this.options = options || {};
     this.resource = new Resource({ type: 'global' }).merge(
       new GcpDetectorSync().detect()
     );

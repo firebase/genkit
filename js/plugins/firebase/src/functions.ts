@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { getLocation, OperationSchema } from '@genkit-ai/core';
+import { OperationSchema } from '@genkit-ai/core';
 import {
   defineFlow,
   Flow,
@@ -30,7 +30,7 @@ import {
   onRequest,
 } from 'firebase-functions/v2/https';
 import * as z from 'zod';
-import { callHttpsFunction } from './helpers.js';
+import { callHttpsFunction, getLocation } from './helpers.js';
 
 export type FunctionFlow<
   I extends z.ZodTypeAny,
@@ -76,7 +76,7 @@ export function onFlow<
       invoker: async (flow, data, streamingCallback) => {
         const responseJson = await callHttpsFunction(
           flow.name,
-          getLocation() || 'us-central1',
+          await getLocation(),
           data,
           streamingCallback
         );

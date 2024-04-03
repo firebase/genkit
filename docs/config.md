@@ -9,10 +9,9 @@ Here is an example you might have seen in some of the examples:
 ```js
 configureGenkit({
   plugins: [
-    firebase({ projectId: getProjectId() }),
+    firebase(),
     vertexAI({
-      projectId: getProjectId(),
-      location: getLocation() || 'us-central1',
+      location: 'us-central1',
     }),
   ],
   flowStateStore: 'firebase',

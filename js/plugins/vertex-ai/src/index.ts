@@ -14,12 +14,7 @@
  * limitations under the License.
  */
 
-import {
-  Plugin,
-  genkitPlugin,
-  getLocation,
-  getProjectId,
-} from '@genkit-ai/core';
+import { Plugin, genkitPlugin } from '@genkit-ai/core';
 import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleAuth } from 'google-auth-library';
 import {
@@ -46,8 +41,8 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
   'vertex-ai',
   async (options?: PluginOptions) => {
     const authClient = new GoogleAuth();
-    const projectId = options?.projectId || getProjectId();
-    const location = options?.location || getLocation();
+    const projectId = options?.projectId || (await authClient.getProjectId());
+    const location = options?.location || 'us-central1';
 
     const confError = (parameter: string, envVariableName: string) => {
       return new Error(

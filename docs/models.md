@@ -14,13 +14,7 @@ models.
 
 ```js
 configureGenkit({
-  plugins: [
-    firebase({ projectId: getProjectId() }),
-    vertexAI({
-      projectId: getProjectId(),
-      location: getLocation() || 'us-central1',
-    }),
-  ],
+  plugins: [firebase(), vertexAI()],
   flowStateStore: 'firebase',
   traceStore: 'firebase',
   enableTracingAndMetrics: true,

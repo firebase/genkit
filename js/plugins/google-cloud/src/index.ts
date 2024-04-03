@@ -38,9 +38,9 @@ export interface TelemetryConfig {
 /**
  * Provides a plugin for using Genkit with GCP.
  */
-export const googleCloud: Plugin<[PluginOptions]> = genkitPlugin(
+export const googleCloud: Plugin<[PluginOptions] | []> = genkitPlugin(
   'googleCloud',
-  async (options: PluginOptions) => {
+  async (options?: PluginOptions) => {
     return {
       telemetry: {
         instrumentation: {
