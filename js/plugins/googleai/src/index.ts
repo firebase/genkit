@@ -31,8 +31,8 @@ export interface PluginOptions {
   apiKey?: string;
 }
 
-export const googleGenAI: Plugin<[PluginOptions] | []> = genkitPlugin(
-  'google-ai',
+export const googleAI: Plugin<[PluginOptions] | []> = genkitPlugin(
+  'googleai',
   async (options?: PluginOptions) => {
     return {
       models: [
@@ -49,4 +49,4 @@ export const googleGenAI: Plugin<[PluginOptions] | []> = genkitPlugin(
   }
 );
 
-export default googleGenAI;
+export default googleAI;

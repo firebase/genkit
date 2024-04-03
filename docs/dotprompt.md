@@ -20,7 +20,7 @@ might call `greeting.prompt`:
 
 ```none
 ---
-model: vertex-ai/gemini-1.0-pro
+model: vertexai/gemini-1.0-pro
 config:
   temperature: 0.9
 input:
@@ -87,7 +87,7 @@ You can set the format and output schema of a prompt to coerce into JSON:
 
 ```none
 ---
-model: vertex-ai/gemini-1.0-pro
+model: vertexai/gemini-1.0-pro
 input:
   schema:
     properties:
@@ -130,7 +130,7 @@ The `{{role}}` helper provides a simple way to construct multi-message prompts:
 
 ```none
 ---
-model: vertex-ai/gemini-1.0-pro
+model: vertexai/gemini-1.0-pro
 input:
   schema:
     properties:
@@ -152,7 +152,7 @@ use the `{{media}}` helper:
 
 ```none
 ---
-model: vertex-ai/gemini-1.0-pro-vision
+model: vertexai/gemini-1.0-pro-vision
 input:
   schema:
     properties:
@@ -243,7 +243,7 @@ const myPrompt = await loadPromptUrl('https://example.com/my_prompt.prompt');
 // Define a prompt in code
 const myPrompt = definePrompt(
   {
-    model: 'vertex-ai/gemini-1.0-pro',
+    model: 'vertexai/gemini-1.0-pro',
     input: {
       schema: z.object({
         name: z.string(),

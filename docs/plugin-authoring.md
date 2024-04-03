@@ -6,7 +6,7 @@ action just by using Genkit:
 
 ```ts
 import { configureGenkit } from '@genkit-ai/core';
-import { vertexAI } from '@genkit-ai/vertex-ai';
+import { vertexAI } from '@genkit-ai/vertexai';
 
 configureGenkit({
   plugins: [vertexAI({ projectId: 'my-project' })],

@@ -59,7 +59,7 @@ const GeminiConfigSchema = z.object({
 });
 
 export const geminiPro = modelRef({
-  name: 'google-ai/gemini-pro',
+  name: 'googleai/gemini-pro',
   info: {
     label: 'Google AI - Gemini Pro',
     versions: ['gemini-1.0-pro', 'gemini-1.0-pro-latest', 'gemini-1.0-pro-001'],
@@ -73,7 +73,7 @@ export const geminiPro = modelRef({
 });
 
 export const geminiProVision = modelRef({
-  name: 'google-ai/gemini-pro-vision',
+  name: 'googleai/gemini-pro-vision',
   info: {
     label: 'Google AI - Gemini Pro Vision',
     // none declared on https://ai.google.dev/models/gemini#model-variations
@@ -88,7 +88,7 @@ export const geminiProVision = modelRef({
 });
 
 export const geminiUltra = modelRef({
-  name: 'google-ai/gemini-ultra',
+  name: 'googleai/gemini-ultra',
   info: {
     label: 'Google AI - Gemini Ultra',
     versions: [],
@@ -207,7 +207,7 @@ function fromGeminiCandidate(candidate: GeminiCandidate): CandidateData {
  *
  */
 export function googleAIModel(name: string, apiKey?: string): ModelAction {
-  const modelName = `google-ai/${name}`;
+  const modelName = `googleai/${name}`;
   if (!apiKey)
     apiKey = process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY;
   if (!apiKey)

@@ -38,7 +38,7 @@ export interface PluginOptions {
 }
 
 export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
-  'vertex-ai',
+  'vertexai',
   async (options?: PluginOptions) => {
     const authClient = new GoogleAuth();
     const projectId = options?.projectId || (await authClient.getProjectId());

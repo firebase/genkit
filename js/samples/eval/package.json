@@ -20,7 +20,7 @@
     "@genkit-ai/firebase": "workspace:*",
     "@genkit-ai/openai": "workspace:*",
     "@genkit-ai/ragas": "workspace:*",
-    "@genkit-ai/vertex-ai": "workspace:*"
+    "@genkit-ai/vertexai": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

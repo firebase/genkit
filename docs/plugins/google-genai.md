@@ -8,10 +8,10 @@ through the [Gemini API](https://ai.google.dev/docs/gemini_api_overview).
 To use this plugin, specify it when you call `configureGenkit()`:
 
 ```js
-import { googleGenAI } from '@genkit-ai/google-genai';
+import { googleAI } from '@genkit-ai/googleai';
 
 export default configureGenkit({
-  plugins: [googleGenAI()],
+  plugins: [googleAI()],
   // ...
 });
 ```
@@ -26,7 +26,7 @@ Configure the plugin to use your API key by doing one of the following:
 - Specify the API key when you initialize the plugin:
 
   ```js
-  googleGenAI({ apiKey: yourKey });
+  googleAI({ apiKey: yourKey });
   ```
 
   However, don't embed your API key directly in code! Use this feature only
@@ -37,7 +37,7 @@ Configure the plugin to use your API key by doing one of the following:
 This plugin statically exports references to its supported models:
 
 ```js
-import { geminiPro, geminiProVision } from '@genkit-ai/google-genai';
+import { geminiPro, geminiProVision } from '@genkit-ai/googleai';
 ```
 
 You can use these references to specify which model `generate()` uses:

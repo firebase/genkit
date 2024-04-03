@@ -413,7 +413,7 @@ importers:
         specifier: ^4.9.0
         version: 4.9.5
 
-  plugins/google-genai:
+  plugins/googleai:
     dependencies:
       '@genkit-ai/ai':
         specifier: workspace:*
@@ -540,7 +540,7 @@ importers:
         specifier: ^4.9.0
         version: 4.9.5
 
-  plugins/vertex-ai:
+  plugins/vertexai:
     dependencies:
       '@genkit-ai/ai':
         specifier: workspace:*
@@ -597,18 +597,18 @@ importers:
       '@genkit-ai/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/google-genai':
+      '@genkit-ai/googleai':
         specifier: workspace:*
-        version: link:../../plugins/google-genai
+        version: link:../../plugins/googleai
       '@genkit-ai/pinecone':
         specifier: workspace:*
         version: link:../../plugins/pinecone
       '@genkit-ai/ragas':
         specifier: workspace:*
         version: link:../../third_party/ragas
-      '@genkit-ai/vertex-ai':
+      '@genkit-ai/vertexai':
         specifier: workspace:*
-        version: link:../../plugins/vertex-ai
+        version: link:../../plugins/vertexai
       llm-chunk:
         specifier: ^0.0.1
         version: 0.0.1
@@ -646,9 +646,9 @@ importers:
       '@genkit-ai/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/google-genai':
+      '@genkit-ai/googleai':
         specifier: workspace:*
-        version: link:../../plugins/google-genai
+        version: link:../../plugins/googleai
       '@genkit-ai/ollama':
         specifier: workspace:*
         version: link:../../plugins/ollama
@@ -661,9 +661,9 @@ importers:
       '@genkit-ai/ragas':
         specifier: workspace:*
         version: link:../../third_party/ragas
-      '@genkit-ai/vertex-ai':
+      '@genkit-ai/vertexai':
         specifier: workspace:*
-        version: link:../../plugins/vertex-ai
+        version: link:../../plugins/vertexai
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -689,9 +689,9 @@ importers:
       '@genkit-ai/ragas':
         specifier: workspace:*
         version: link:../../third_party/ragas
-      '@genkit-ai/vertex-ai':
+      '@genkit-ai/vertexai':
         specifier: workspace:*
-        version: link:../../plugins/vertex-ai
+        version: link:../../plugins/vertexai
     devDependencies:
       typescript:
         specifier: ^5.3.3
@@ -711,9 +711,9 @@ importers:
       '@genkit-ai/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/google-genai':
+      '@genkit-ai/googleai':
         specifier: workspace:*
-        version: link:../../plugins/google-genai
+        version: link:../../plugins/googleai
       '@genkit-ai/ollama':
         specifier: workspace:*
         version: link:../../plugins/ollama
@@ -770,15 +770,15 @@ importers:
       '@genkit-ai/google-cloud':
         specifier: workspace:*
         version: link:../../plugins/google-cloud
-      '@genkit-ai/google-genai':
+      '@genkit-ai/googleai':
         specifier: workspace:*
-        version: link:../../plugins/google-genai
+        version: link:../../plugins/googleai
       '@genkit-ai/openai':
         specifier: workspace:*
         version: link:../../plugins/openai
-      '@genkit-ai/vertex-ai':
+      '@genkit-ai/vertexai':
         specifier: workspace:*
-        version: link:../../plugins/vertex-ai
+        version: link:../../plugins/vertexai
       '@opentelemetry/sdk-trace-base':
         specifier: ^1.22.0
         version: 1.22.0(@opentelemetry/api@1.8.0)
@@ -804,9 +804,9 @@ importers:
       '@genkit-ai/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/google-genai':
+      '@genkit-ai/googleai':
         specifier: workspace:^
-        version: link:../../plugins/google-genai
+        version: link:../../plugins/googleai
       '@genkit-ai/openai':
         specifier: workspace:^
         version: link:../../plugins/openai
@@ -832,9 +832,9 @@ importers:
       '@genkit-ai/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/google-genai':
+      '@genkit-ai/googleai':
         specifier: workspace:*
-        version: link:../../plugins/google-genai
+        version: link:../../plugins/googleai
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -866,9 +866,9 @@ importers:
       '@genkit-ai/flow':
         specifier: '*'
         version: link:../../flow
-      '@genkit-ai/google-genai':
+      '@genkit-ai/googleai':
         specifier: '*'
-        version: link:../../plugins/google-genai
+        version: link:../../plugins/googleai
       '@genkit-ai/openai':
         specifier: workspace:^
         version: link:../../plugins/openai
@@ -878,9 +878,9 @@ importers:
       '@genkit-ai/ragas':
         specifier: '*'
         version: link:../../third_party/ragas
-      '@genkit-ai/vertex-ai':
+      '@genkit-ai/vertexai':
         specifier: '*'
-        version: link:../../plugins/vertex-ai
+        version: link:../../plugins/vertexai
       '@types/pdfjs-dist':
         specifier: ^2.10.378
         version: 2.10.378

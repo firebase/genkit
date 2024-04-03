@@ -45,7 +45,7 @@ import {
 import { z } from 'zod';
 
 export const geminiPro = modelRef({
-  name: 'vertex-ai/gemini-1.0-pro',
+  name: 'vertexai/gemini-1.0-pro',
   info: {
     label: 'Vertex AI - Gemini Pro',
     versions: ['gemini-1.0-pro', 'gemini-1.0-pro-001'],
@@ -58,7 +58,7 @@ export const geminiPro = modelRef({
 });
 
 export const geminiProVision = modelRef({
-  name: 'vertex-ai/gemini-1.0-pro-vision',
+  name: 'vertexai/gemini-1.0-pro-vision',
   info: {
     label: 'Vertex AI - Gemini Pro Vision',
     versions: ['gemini-1.0-pro-vision', 'gemini-1.0-pro-vision-001'],
@@ -334,7 +334,7 @@ const convertSchemaProperty = (property) => {
  *
  */
 export function geminiModel(name: string, vertex: VertexAI): ModelAction {
-  const modelName = `vertex-ai/${name}`;
+  const modelName = `vertexai/${name}`;
 
   const model: ModelReference<z.ZodTypeAny> = SUPPORTED_GEMINI_MODELS[name];
   if (!model) throw new Error(`Unsupported model: ${name}`);

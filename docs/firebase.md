@@ -99,11 +99,11 @@
     import { firebase } from '@genkit-ai/firebase';
     import { firebaseAuth } from '@genkit-ai/firebase/auth';
     import { onFlow } from '@genkit-ai/firebase/functions';
-    import { geminiPro, googleGenAI } from '@genkit-ai/google-genai';
+    import { geminiPro, googleAI } from '@genkit-ai/googleai';
     import * as z from 'zod';
 
     configureGenkit({
-      plugins: [firebase(), googleGenAI()],
+      plugins: [firebase(), googleAI()],
       flowStateStore: 'firebase',
       traceStore: 'firebase',
       enableTracingAndMetrics: true,

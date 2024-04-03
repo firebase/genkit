@@ -6,6 +6,7 @@
     "build": "pnpm install && pnpm build:core && pnpm build:noncore",
     "build:core": "pnpm -r --workspace-concurrency 1 -F core -F ai -F flow -F dotprompt build",
     "build:noncore": "pnpm -r --workspace-concurrency 0 -F \"./(plugins|samples|third_party)/**\" build",
+    "build:samples": "for i in samples/*/; do cd $i && pnpm i && pnpm build && cd ../..; done",
     "pack:all": "(mkdir ../dist || true) && npm-run-all pack:core pack:flow pack:ai pack:dotprompt pack:plugins pack:third_party",
     "pack:core": "cd core && pnpm pack --pack-destination ../../dist",
     "pack:flow": "cd flow && pnpm pack --pack-destination ../../dist",

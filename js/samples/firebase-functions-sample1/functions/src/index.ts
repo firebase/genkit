@@ -20,7 +20,7 @@ import { firebase } from '@genkit-ai/firebase';
 import { firebaseAuth } from '@genkit-ai/firebase/auth';
 import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
 import { run, runFlow, streamFlow } from '@genkit-ai/flow';
-import { geminiPro, vertexAI } from '@genkit-ai/vertex-ai';
+import { geminiPro, vertexAI } from '@genkit-ai/vertexai';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as z from 'zod';
 

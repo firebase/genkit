@@ -22,12 +22,12 @@
     "@genkit-ai/chromadb": "workspace:*",
     "@genkit-ai/dev-local-vectorstore": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
-    "@genkit-ai/google-genai": "workspace:*",
+    "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/ollama": "workspace:*",
     "@genkit-ai/openai": "workspace:*",
     "@genkit-ai/pinecone": "workspace:*",
     "@genkit-ai/ragas": "workspace:*",
-    "@genkit-ai/vertex-ai": "workspace:*",
+    "@genkit-ai/vertexai": "workspace:*",
     "zod": "^3.22.4"
   },
   "devDependencies": {

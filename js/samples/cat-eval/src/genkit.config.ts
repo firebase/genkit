@@ -17,14 +17,14 @@
 import { configureGenkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { firebase } from '@genkit-ai/firebase';
-import { googleGenAI } from '@genkit-ai/google-genai';
+import { googleAI } from '@genkit-ai/googleai';
 import { RagasMetric, ragas } from '@genkit-ai/ragas';
-import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertex-ai';
+import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 
 export default configureGenkit({
   plugins: [
     firebase(),
-    googleGenAI(),
+    googleAI(),
     ragas({
       judge: geminiPro,
       metrics: [RagasMetric.FAITHFULNESS, RagasMetric.CONTEXT_UTILIZATION],

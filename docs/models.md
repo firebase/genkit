@@ -27,11 +27,11 @@ authentication. For example, Vertex API uses the Google Auth Library so it can
 pull required credentials using Application Default Credentials.
 
 To use models provided by the plugin, you can either refer to them by name (e.g.
-`'vertex-ai/gemini-1.0-pro'`) or some plugins export model ref objects which
+`'vertexai/gemini-1.0-pro'`) or some plugins export model ref objects which
 provide additional type info about the model capabilities and options.
 
 ```js
-import { geminiPro } from '@genkit-ai/vertex-ai';
+import { geminiPro } from '@genkit-ai/vertexai';
 ```
 
 ## Supported models
@@ -61,7 +61,7 @@ To just call the model:
 
 ```javascript
 import { generate } from '@genkit-ai/ai';
-import { geminiPro } from '@genkit-ai/vertex-ai';
+import { geminiPro } from '@genkit-ai/vertexai';
 
 const llmResponse = await generate({
   model: geminiPro,
@@ -90,7 +90,7 @@ const response = await generate({
 If the model supports multimodal input, you can pass in images as input:
 
 ```javascript
-import { geminiProVision } from '@genkit-ai/vertex-ai';
+import { geminiProVision } from '@genkit-ai/vertexai';
 
 const result = await generate({
   model: geminiProVision,

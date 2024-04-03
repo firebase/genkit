@@ -1,5 +1,5 @@
 {
-  "name": "@genkit-ai/vertex-ai",
+  "name": "@genkit-ai/vertexai",
   "description": "Genkit AI framework plugin for Google Cloud Vertex AI APIs including Gemini APIs, Imagen, and more.",
   "keywords": [
     "genkit",

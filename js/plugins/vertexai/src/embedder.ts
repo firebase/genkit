@@ -46,7 +46,7 @@ export type TextEmbeddingGeckoConfig = z.infer<
 >;
 
 export const textEmbeddingGecko003 = embedderRef({
-  name: 'vertex-ai/textembedding-gecko@003',
+  name: 'vertexai/textembedding-gecko@003',
   configSchema: TextEmbeddingGeckoConfigSchema,
   info: {
     dimensions: 768,
@@ -58,7 +58,7 @@ export const textEmbeddingGecko003 = embedderRef({
 });
 
 export const textEmbeddingGecko002 = embedderRef({
-  name: 'vertex-ai/textembedding-gecko@002',
+  name: 'vertexai/textembedding-gecko@002',
   configSchema: TextEmbeddingGeckoConfigSchema,
   info: {
     dimensions: 768,
@@ -70,7 +70,7 @@ export const textEmbeddingGecko002 = embedderRef({
 });
 
 export const textEmbeddingGecko001 = embedderRef({
-  name: 'vertex-ai/textembedding-gecko@001',
+  name: 'vertexai/textembedding-gecko@001',
   configSchema: TextEmbeddingGeckoConfigSchema,
   info: {
     dimensions: 768,
@@ -87,7 +87,7 @@ export const textEmbeddingGecko001 = embedderRef({
 // https://cloud.google.com/vertex-ai/generative-ai/docs/embeddings/get-text-embeddings
 
 export const textEmbeddingGeckoMultilingual001 = embedderRef({
-  name: 'vertex-ai/textembedding-gecko-multilingual@001',
+  name: 'vertexai/textembedding-gecko-multilingual@001',
   configSchema: TextEmbeddingGeckoConfigSchema,
   info: {
     dimensions: 768,
