@@ -14,13 +14,17 @@
 
 package genkit
 
+import (
+	"encoding/json"
+)
+
 // A Document is a piece of data that can be embedded, indexed, or retrieved.
 // It includes metadata. It can contain multiple parts.
 type Document struct {
 	// The data that is part of this document.
-	Parts []Part
+	Content []*Part `json:"content,omitempty"`
 	// The metadata for this document.
-	Metadata map[string]any
+	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
 // A Part is one part of a [Document]. This may be plain text or it
@@ -50,12 +54,59 @@ func (p *Part) ContentType() string {
 	return p.contentType
 }
 
+// MarshalJSON is called by the JSON marshaler to write out a Part.
+func (p *Part) MarshalJSON() ([]byte, error) {
+	// This is not handled by the schema generator because
+	// Part is defined in TypeScript as a union.
+
+	if p.isText {
+		v := TextPart{
+			Text: p.text,
+		}
+		return json.Marshal(v)
+	} else {
+		v := MediaPart{
+			Media: &MediaPartMedia{
+				ContentType: p.contentType,
+				Url: p.text,
+			},
+		}
+		return json.Marshal(v)
+	}
+}
+
+// UnmarshalJSON is called by the JSON unmarshaler to read a Part.
+func (p *Part) UnmarshalJSON(b []byte) error {
+	// This is not handled by the schema generator because
+	// Part is defined in TypeScript as a union.
+
+	var s struct {
+		Text  string `json:"text,omitempty"`
+		Media *MediaPartMedia `json:"media,omitempty"`
+	}
+
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+
+	if s.Media != nil {
+		p.isText = false
+		p.text = s.Media.Url
+		p.contentType = s.Media.ContentType
+	} else {
+		p.isText = true
+		p.text = s.Text
+		p.contentType = ""
+	}
+	return nil
+}
+
 // DocumentFromText returns a [Document] containing a single plain text part.
 // This takes ownership of the metadata map.
 func DocumentFromText(text string, metadata map[string] any) *Document {
 	return &Document{
-		Parts: []Part{
-			Part{
+		Content: []*Part{
+			&Part{
 				isText: true,
 				text: text,
 			},

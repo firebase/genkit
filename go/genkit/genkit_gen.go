@@ -35,11 +35,6 @@ const (
 	FinishReasonUnknown FinishReason = "unknown"
 )
 
-type DocumentData struct {
-	Content  []any          `json:"content,omitempty"`
-	Metadata map[string]any `json:"metadata,omitempty"`
-}
-
 type FlowError struct {
 	Error      string `json:"error,omitempty"`
 	Stacktrace string `json:"stacktrace,omitempty"`
@@ -91,6 +86,7 @@ type GenerationConfig struct {
 	Temperature     float64        `json:"temperature,omitempty"`
 	TopK            float64        `json:"topK,omitempty"`
 	TopP            float64        `json:"topP,omitempty"`
+	Version         string         `json:"version,omitempty"`
 }
 
 type GenerationRequest struct {
@@ -126,6 +122,15 @@ type GenerationUsage struct {
 	TotalTokens  float64            `json:"totalTokens,omitempty"`
 }
 
+type MediaPart struct {
+	Media *MediaPartMedia `json:"media,omitempty"`
+}
+
+type MediaPartMedia struct {
+	ContentType string `json:"contentType,omitempty"`
+	Url         string `json:"url,omitempty"`
+}
+
 type Message struct {
 	Content []*Part `json:"content,omitempty"`
 	Role    Role    `json:"role,omitempty"`
@@ -144,6 +149,10 @@ const (
 	RoleModel  Role = "model"
 	RoleTool   Role = "tool"
 )
+
+type TextPart struct {
+	Text string `json:"text,omitempty"`
+}
 
 type ToolDefinition struct {
 	// Valid JSON Schema representing the input of the tool.
