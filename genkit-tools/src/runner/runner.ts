@@ -79,8 +79,9 @@ export class Runner {
 
   private buildCommand?: string;
 
-  private reflectionApiPort: number;
-  private reflectionApiUrl?: string;
+  private reflectionApiPort: number = DEFAULT_REFLECTION_PORT;
+  private reflectionApiUrl? = () =>
+    `http://localhost:${this.reflectionApiPort}/api`;
 
   /**
    * Creates a Runner instance.
@@ -93,20 +94,16 @@ export class Runner {
     options: {
       directory?: string;
       autoReload?: boolean;
-      reflectionApiPort?: number;
     } = {}
   ) {
     this.directory = options.directory || process.cwd();
     this.autoReload = options.autoReload ?? true;
-    this.reflectionApiPort =
-      options.reflectionApiPort ?? DEFAULT_REFLECTION_PORT;
   }
 
   /**
    * Starts the runner.
    */
   public async start(): Promise<boolean> {
-    this.reflectionApiUrl = `http://localhost:${this.reflectionApiPort}/api`;
     if (this.autoReload) {
       const config = await findToolsConfig();
       this.buildCommand = config?.builder?.cmd ?? 'npm run build';
@@ -120,7 +117,7 @@ export class Runner {
    * Attach to an already running process at the provided address.
    */
   public async attach(attachAddress: string): Promise<void> {
-    this.reflectionApiUrl = `${attachAddress}/api`;
+    this.reflectionApiPort = parseInt(new URL(attachAddress).port, 10) || 80;
     if (!(await this.healthCheck())) {
       throw new Error(
         `Unable to attach to provided external dev process address: ${attachAddress}`
@@ -172,14 +169,14 @@ export class Runner {
       logger.warn(
         `Port ${this.reflectionApiPort} not available, using ${port} instead.`
       );
-      this.reflectionApiPort = port;
     }
+    this.reflectionApiPort = port;
 
     this.appProcess = spawn('node', [entryPoint], {
       env: {
         ...process.env,
         GENKIT_ENV: 'dev',
-        GENKIT_REFLECTION_PORT: `${port}`,
+        GENKIT_REFLECTION_PORT: `${this.reflectionApiPort}`,
       },
     });
 
@@ -206,7 +203,7 @@ export class Runner {
   /**
    * Stops the app code process.
    */
-  private stopApp(): Promise<void> {
+  private async stopApp(): Promise<void> {
     return this.sendQuit().then(
       () =>
         new Promise((resolve) => {
@@ -297,7 +294,6 @@ export class Runner {
     });
   }
 
-  /** Retrieves all runnable actions. */
   async healthCheck(): Promise<boolean> {
     try {
       const response = await axios.get(`${this.reflectionApiUrl}/__health`);
@@ -313,7 +309,6 @@ export class Runner {
     }
   }
 
-  /** Retrieves all runnable actions. */
   async sendQuit(): Promise<boolean> {
     try {
       const response = await axios.get(
