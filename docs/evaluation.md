@@ -1,6 +1,6 @@
 # Evaluation (Preview)
 
-NOTE: _Evaluation in Genkit is currently in early preview_ with a limited set of available evaluation metrics. You can try out the current experience by following the documentation below. If you run into any issues or have suggestions for improvements, please [file an issue](http://github.com/google/genkit/issues). We would love to see your feedback as we refine the evaluation experience!
+Note: _Evaluation in Genkit is currently in early preview_ with a limited set of available evaluation metrics. You can try out the current experience by following the documentation below. If you run into any issues or have suggestions for improvements, please [file an issue](http://github.com/google/genkit/issues). We would love to see your feedback as we refine the evaluation experience!
 
 Evaluations are a form of testing which helps you validate your LLM’s responses and ensure they meet your quality bar.
 
