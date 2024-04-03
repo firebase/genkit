@@ -18,6 +18,7 @@ import { genkitPlugin, Plugin } from '@genkit-ai/core';
 import { InstrumentationConfigMap } from '@opentelemetry/auto-instrumentations-node';
 import { Instrumentation } from '@opentelemetry/instrumentation';
 import { Sampler } from '@opentelemetry/sdk-trace-base';
+import { GoogleAuth } from 'google-auth-library';
 import { GcpLogger } from './gcpLogger.js';
 import { GcpOpenTelemetry } from './gcpOpenTelemetry.js';
 
@@ -41,15 +42,22 @@ export interface TelemetryConfig {
 export const googleCloud: Plugin<[PluginOptions] | []> = genkitPlugin(
   'googleCloud',
   async (options?: PluginOptions) => {
+    const authClient = new GoogleAuth();
+    const projectId = options?.projectId || (await authClient.getProjectId());
+    const optionsWithProjectId = {
+      ...options,
+      projectId,
+    };
+
     return {
       telemetry: {
         instrumentation: {
           id: 'googleCloud',
-          value: new GcpOpenTelemetry(options),
+          value: new GcpOpenTelemetry(optionsWithProjectId),
         },
         logger: {
           id: 'googleCloud',
-          value: new GcpLogger(options),
+          value: new GcpLogger(optionsWithProjectId),
         },
       },
     };
