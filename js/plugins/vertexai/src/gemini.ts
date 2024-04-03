@@ -44,6 +44,26 @@ import {
 } from '@google-cloud/vertexai';
 import { z } from 'zod';
 
+const SafetySettingsSchema = z.object({
+  category: z.enum([
+    'HARM_CATEGORY_UNSPECIFIED',
+    'HARM_CATEGORY_HATE_SPEECH',
+    'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+    'HARM_CATEGORY_HARASSMENT',
+    'HARM_CATEGORY_DANGEROUS_CONTENT',
+  ]),
+  threshold: z.enum([
+    'BLOCK_LOW_AND_ABOVE',
+    'BLOCK_MEDIUM_AND_ABOVE',
+    'BLOCK_ONLY_HIGH',
+    'BLOCK_NONE',
+  ]),
+});
+
+const GeminiConfigSchema = z.object({
+  safetySettings: z.array(SafetySettingsSchema).optional(),
+});
+
 export const geminiPro = modelRef({
   name: 'vertexai/gemini-1.0-pro',
   info: {
@@ -55,6 +75,7 @@ export const geminiPro = modelRef({
       tools: true,
     },
   },
+  configSchema: GeminiConfigSchema,
 });
 
 export const geminiProVision = modelRef({
@@ -68,6 +89,7 @@ export const geminiProVision = modelRef({
       tools: false,
     },
   },
+  configSchema: GeminiConfigSchema,
 });
 
 export const SUPPORTED_GEMINI_MODELS = {
@@ -347,8 +369,9 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
   return defineModel(
     {
       name: modelName,
-      use: middlewares,
       ...model.info,
+      configSchema: model.configSchema,
+      use: middlewares,
     },
     async (request, streamingCallback) => {
       const client = vertex.preview.getGenerativeModel({
@@ -373,6 +396,7 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
           top_p: request.config?.topP,
           stop_sequences: request.config?.stopSequences,
         },
+        safety_settings: request.config?.custom?.safetySettings,
       };
       const msg = toGeminiMessage(messages[messages.length - 1]);
       if (streamingCallback) {
