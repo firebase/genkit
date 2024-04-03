@@ -16,7 +16,6 @@ package genkit
 
 import (
 	"context"
-	"log"
 	"os"
 	"sync"
 
@@ -28,70 +27,55 @@ import (
 
 // tracingState holds OpenTelemetry values for creating traces.
 type tracingState struct {
-	mu sync.Mutex
-	tp *sdktrace.TracerProvider // references TraceStores
-	t  trace.Tracer             // returned from tp.Tracer(), cached
+	tp     *sdktrace.TracerProvider // references TraceStores
+	tracer trace.Tracer             // returned from tp.Tracer(), cached
 }
 
-func (ts *tracingState) tracer() trace.Tracer {
-	ts.mu.Lock()
-	defer ts.mu.Unlock()
-	return ts.t
-}
-
-// addSpanProcessor adds a new SpanProcessor (holding a TracingStore) to the TracerProvider
-// and returns the TracerProvider's shutdown method.
-func (ts *tracingState) addSpanProcessor(sp sdktrace.SpanProcessor) (shutdown func(context.Context) error) {
-	ts.mu.Lock()
-	defer ts.mu.Unlock()
-	if ts.tp == nil {
-		ts.tp = sdktrace.NewTracerProvider()
+func newTracingState() *tracingState {
+	tp := sdktrace.NewTracerProvider()
+	return &tracingState{
+		tp:     tp,
+		tracer: tp.Tracer("genkit-tracer", trace.WithInstrumentationVersion("v1")),
 	}
-	ts.tp.RegisterSpanProcessor(sp)
-	ts.t = ts.tp.Tracer("genkit-tracer", trace.WithInstrumentationVersion("v1"))
+}
+
+// addTraceStoreImmediate adds tstore to the tracingState.
+// Traces are saved immediately as they are finshed.
+// Use this for a TraceStore with a fast Save method,
+// such as one that writes to a file.
+func (ts *tracingState) addTraceStoreImmediate(tstore TraceStore) {
+	e := newTraceStoreExporter(tstore)
+	// Adding a SimpleSpanProcessor is like using the WithSyncer option.
+	ts.tp.RegisterSpanProcessor(sdktrace.NewSimpleSpanProcessor(e))
+	// Ignore tracerProvider.Shutdown. It shouldn't be needed when using WithSyncer.
+	// Confirmed for OTel packages as of v1.24.0.
+	// Also requires traceStoreExporter.Shutdown to be a no-op.
+}
+
+// addTraceStoreBatch adds ts to the tracingState.
+// Traces are batched before being sent for processing.
+// Use this for a TraceStore with a potentially expensive Save method,
+// such as one that makes an RPC.
+// Callers must invoke the returned function at the end of the program to flush the final batch
+// and perform other cleanup.
+func (ts *tracingState) addTraceStoreBatch(tstore TraceStore) (shutdown func(context.Context) error) {
+	e := newTraceStoreExporter(tstore)
+	// Adding a BatchSpanProcessor is like using the WithBatcher option.
+	ts.tp.RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
 	return ts.tp.Shutdown
 }
 
-// Use the same TracerProvider for the lifetime of the process.
-var globalTracingState tracingState
-
-func init() {
-	// Initialize the dev tracer at program startup.
-	if err := initDevTracing(); err != nil {
-		log.Fatal(err)
-	}
-}
-
-func initDevTracing() error {
+func newDevTraceStore() (TraceStore, error) {
 	// TODO(jba): The js code uses a hash of the program name as the directory,
 	// so the same store is used across runs. That won't work well with the common
 	// use of `go run`. Should we let the user configure the directory?
 	// Does it matter?
 	dir, err := os.MkdirTemp("", "genkit-tracing")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// Don't remove the temp directory, for post-mortem debugging.
-	devTS, err := NewFileTraceStore(dir)
-	if err != nil {
-		return err
-	}
-	registerTraceStore(EnvironmentDev, devTS)
-	devExporter := newTraceStoreExporter(devTS)
-	// Adding a SimpleSpanProcessor is like using the WithSyncer option.
-	_ = globalTracingState.addSpanProcessor(sdktrace.NewSimpleSpanProcessor(devExporter))
-	// Ignore tracerProvider.Shutdown. It shouldn't be needed when using WithSyncer.
-	// Confirmed for OTel packages as of v1.24.0.
-	// Also requires traceStoreExporter.Shutdown to be a no-op.
-	return nil
-}
-
-func initProdTracing(ts TraceStore) (shutdown func(context.Context) error) {
-	e := newTraceStoreExporter(ts)
-	// Batch traces for efficiency. Saving to a production TraceStore will likely
-	// involve an RPC or two.
-	// Adding a BatchSpanProcessor is like using the WithBatcher option.
-	return globalTracingState.addSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
+	return NewFileTraceStore(dir)
 }
 
 // The rest of this file contains code translated from js/common/src/tracing/*.ts.
@@ -105,6 +89,7 @@ const (
 // The attrs map provides the span's initial attributes.
 func runInNewSpan[I, O any](
 	ctx context.Context,
+	tstate *tracingState,
 	name, spanType string,
 	isRoot bool,
 	input I,
@@ -129,13 +114,12 @@ func runInNewSpan[I, O any](
 	if spanType != "" {
 		opts = append(opts, trace.WithAttributes(attribute.String(spanTypeAttr, spanType)))
 	}
-	ctx, span := globalTracingState.tracer().Start(ctx, name, opts...)
+	ctx, span := tstate.tracer.Start(ctx, name, opts...)
 	defer span.End()
 	// At the end, copy some of the spanMetadata to the OpenTelemetry span.
 	defer func() { span.SetAttributes(sm.attributes()...) }()
 	// Add the spanMetadata to the context, so the function can access it.
 	ctx = spanMetaKey.newContext(ctx, sm)
-
 	// Run the function.
 	output, err := f(ctx, input)
 

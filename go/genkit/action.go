@@ -27,8 +27,9 @@ import (
 //
 // Each time an Action is run, it results in a new trace span.
 type Action[I, O any] struct {
-	name string
-	fn   func(context.Context, I) (O, error)
+	name   string
+	fn     func(context.Context, I) (O, error)
+	tstate *tracingState
 	// optional
 	Description string
 	Metadata    map[string]any
@@ -50,6 +51,9 @@ func NewAction[I, O any](name string, fn func(context.Context, I) (O, error)) *A
 // Name returns the Action's name.
 func (a *Action[I, O]) Name() string { return a.name }
 
+// setTracingState sets the action's tracingState.
+func (a *Action[I, O]) setTracingState(tstate *tracingState) { a.tstate = tstate }
+
 // Run executes the Action's function in a new span.
 func (a *Action[I, O]) Run(ctx context.Context, input I) (output O, err error) {
 	// TODO: validate input against JSONSchema for I.
@@ -63,7 +67,12 @@ func (a *Action[I, O]) Run(ctx context.Context, input I) (output O, err error) {
 			"output", fmt.Sprintf("%#v", output),
 			"err", err)
 	}()
-	return runInNewSpan(ctx, a.name, "action", false, input, a.fn)
+	tstate := a.tstate
+	if tstate == nil {
+		// This action has probably not been registered.
+		tstate = globalRegistry.tstate
+	}
+	return runInNewSpan(ctx, tstate, a.name, "action", false, input, a.fn)
 }
 
 func (a *Action[I, O]) runJSON(ctx context.Context, input []byte) ([]byte, error) {
@@ -90,6 +99,9 @@ type action interface {
 	// It should set all fields of actionDesc except Key, which
 	// the registry will set.
 	desc() actionDesc
+
+	// setTracingState set's the action's tracingState.
+	setTracingState(*tracingState)
 }
 
 // An actionDesc is a description of an Action.

@@ -33,9 +33,13 @@ func dec(_ context.Context, x int) (int, error) {
 }
 
 func TestDevServer(t *testing.T) {
-	RegisterAction("test", "devServer", NewAction("inc", inc))
-	RegisterAction("test", "devServer", NewAction("dec", dec))
-	srv := httptest.NewServer(newDevServerMux())
+	r , err:= newRegistry()
+	if err != nil {
+		t.Fatal(err)
+	}
+	r.registerAction("test", "devServer", NewAction("inc", inc))
+	r.registerAction("test", "devServer", NewAction("dec", dec))
+	srv := httptest.NewServer(newDevServerMux(r))
 	defer srv.Close()
 
 	t.Run("runAction", func(t *testing.T) {
@@ -59,7 +63,7 @@ func TestDevServer(t *testing.T) {
 		if len(tid) != 32 {
 			t.Errorf("trace ID is %q, wanted 32-byte string", tid)
 		}
-		checkActionTrace(t, tid, "inc")
+		checkActionTrace(t, r, tid, "inc")
 	})
 	t.Run("list actions", func(t *testing.T) {
 		res, err := http.Get(srv.URL + "/api/actions")
@@ -98,8 +102,8 @@ func TestDevServer(t *testing.T) {
 	})
 }
 
-func checkActionTrace(t *testing.T, tid, name string) {
-	ts := lookupTraceStore(EnvironmentDev)
+func checkActionTrace(t *testing.T, reg *registry, tid, name string) {
+	ts := reg.lookupTraceStore(EnvironmentDev)
 	td, err := ts.Load(context.Background(), tid)
 	if err != nil {
 		t.Fatal(err)
