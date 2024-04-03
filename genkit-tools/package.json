@@ -1,5 +1,5 @@
 {
-  "name": "genkit-cli",
+  "name": "genkit",
   "version": "0.0.7",
   "description": "CLI for interacting with the Google GenKit AI framework",
   "bin": {

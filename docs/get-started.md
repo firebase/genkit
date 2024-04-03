@@ -16,7 +16,7 @@ later.
 
     npm init -y
 
-    npm i --save -D $HOME/Downloads/genkit-dist/genkit-cli-0.0.7.tgz $HOME/Downloads/genkit-dist/genkit-ai-tools-plugins-0.0.7.tgz
+    npm i --save -D $HOME/Downloads/genkit-dist/genkit-0.0.7.tgz $HOME/Downloads/genkit-dist/genkit-ai-tools-plugins-0.0.7.tgz
     ```
 
 1.  Initialize a Genkit project:
