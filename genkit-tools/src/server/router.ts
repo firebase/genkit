@@ -46,10 +46,15 @@ const t = initTRPC.create({
 const analyticsEventForRoute = (
   path: string,
   input: unknown,
-  durationMs: number
+  durationMs: number,
+  status: string
 ) => {
   const event = new ToolsRequestEvent(path);
   event.duration = durationMs;
+  event.parameters = {
+    ...event.parameters,
+    status,
+  };
 
   switch (path) {
     case 'runAction':
@@ -97,8 +102,8 @@ const loggedProcedure = t.procedure.use(async (opts) => {
   const analyticsEvent = analyticsEventForRoute(
     opts.path,
     opts.rawInput,
-    durationMs
-    // TODO(michaeldoyle): record success/failure?
+    durationMs,
+    result.ok ? 'success' : 'failure'
   );
 
   // fire-and-forget
