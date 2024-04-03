@@ -19,30 +19,33 @@ guides:
     path: /genkit/get-started
   - title: Configuration and plugins
     path: /genkit/config
+  - title: Developer tools
+    path: /genkit/devtools
+
+  - heading: Building AI workflows
   - title: Models
     path: /genkit/models
   - title: Prompt management
     path: /genkit/dotprompt
   - title: Flows
     path: /genkit/flows
-  - title: Authorization and integrity
-    path: /genkit/auth
   - title: Retrieval-augmented generation (RAG)
     path: /genkit/rag
   - title: Evaluation
     path: /genkit/evaluation
   - title: Observability & monitoring
     path: /genkit/monitoring
-  - title: Developer tools
-    path: /genkit/devtools
+
+  - heading: Deploying AI workflows
   - title: Deploy with Firebase
     path: /genkit/firebase
-  - title: Deploy Cloud Run
+  - title: Deploy with Cloud Run
     path: /genkit/cloud-run
+  - title: Authorization and integrity
+    path: /genkit/auth
 
-  - break: true
-
-  - title: Writing plugins
+  - heading: Writing plugins
+  - title: Overview
     path: /genkit/plugin-authoring
 
   - heading: Official plugins
@@ -62,7 +65,7 @@ guides:
     path: /genkit/templates/pgvector
   - title: Firebase
     path: /genkit/plugins/firebase
-
-reference:
-  - title: Resource summary
-    path: /genkit/reference/coming-soon
+#
+# reference:
+#   - title: Resource summary
+#     path: /genkit/reference/coming-soon
