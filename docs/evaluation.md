@@ -1,6 +1,6 @@
 # Evaluation (Preview)
 
-Note: _Evaluation in Genkit is currently in early preview_ with a limited set of available evaluation metrics. You can try out the current experience by following the documentation below. If you run into any issues or have suggestions for improvements, please [file an issue](http://github.com/google/genkit/issues). We would love to see your feedback as we refine the evaluation experience!
+Note: **Evaluation in Genkit is currently in early preview** with a limited set of available evaluation metrics. You can try out the current experience by following the documentation below. If you run into any issues or have suggestions for improvements, please [file an issue](http://github.com/google/genkit/issues). We would love to see your feedback as we refine the evaluation experience!
 
 Evaluations are a form of testing which helps you validate your LLM’s responses and ensure they meet your quality bar.
 
@@ -25,10 +25,9 @@ export default configureGenkit({
 });
 ```
 
-Once installed, evaluation plugins provide metrics to the Genkit framework that
-you can use with Genkit's evaluation tooling. For now, and since evals are still an early preview, we only support a small number of RAGAS metrics including: Faithfulness, Answer Relevancy, and Context Utilization.
+For now, and since evals are still an early preview, we only support a small number of ported [RAGAS](https://docs.ragas.io/en/latest/index.html) metrics including: [Faithfulness](https://docs.ragas.io/en/stable/concepts/metrics/faithfulness.html), [Answer Relevancy](https://docs.ragas.io/en/stable/concepts/metrics/answer_relevance.html), and [Context Utilization](https://github.com/explodinggradients/ragas/blob/main/src/ragas/metrics/_context_precision.py#L177).
 
-Start by defining a set of inputs that you want to use as a test dataset called `testQuestions.json`:
+Start by defining a set of inputs that you want to use as an input dataset called `testQuestions.json`. This input dataset represents the test cases you will use to generate output for evaluation.
 
 ```json
 [
@@ -38,7 +37,7 @@ Start by defining a set of inputs that you want to use as a test dataset called 
 ]
 ```
 
-You can then use `eval:flow` command to evaluate your flow against the test
+You can then use the `eval:flow` command to evaluate your flow against the test
 cases provided in `testQuestions.json`.
 
 ```posix-terminal
@@ -65,11 +64,14 @@ cases.
 ## Advanced use
 
 `eval:flow` is a convenient way quickly evaluate the flow, but sometimes you
-might need more control over evaluation steps. You can perform all the step that
-`eval:flow` performs semi-manually.
+might need more control over evaluation steps. This may occur if you are using a different
+framework and already have some output you would like to evaluate. You can perform all
+the step that `eval:flow` performs semi-manually.
 
-You can batch run your RAG flow and label the runs with a unique label which
-then will be used to extract evaluation data.
+You can batch run your Genkit flow and add a unique label to the run which
+then will be used to extract an evaluation dataset (a set of inputs, outputs, and contexts).
+
+Run the flow over your test inputs:
 
 ```posix-terminal
 npx genkit flow:batchRun myRagFlow test_inputs.json --output flow_outputs.json --label customLabel
@@ -95,7 +97,9 @@ The exported data will be output as a json file with each testCase in the follow
 ]
 ```
 
-The data extractor will automatically locate retrievers and add the produced docs to the dataset as context. By default, `eval:run` will run against all configured evaluators, and like `eval:flow`, results for `eval:run` will appear in the evaluation page of DevUI, located at `localhost:4000/evaluate`.
+The data extractor will automatically locate retrievers and add the produced docs to the context array. By default, `eval:run` will run against all configured evaluators, and like `eval:flow`, results for `eval:run` will appear in the evaluation page of DevUI, located at `localhost:4000/evaluate`.
+
+To run evaluation over an already extracted dataset:
 
 ```posix-terminal
 npx genkit eval:run customLabel_dataset.json
