@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { configureGenkit, getProjectId } from '@genkit-ai/core';
+import { configureGenkit } from '@genkit-ai/core';
 
 // plugins
 import { chroma } from '@genkit-ai/chromadb';
@@ -34,7 +34,7 @@ export default configureGenkit({
     // plugins
     googleGenAI(),
     openAI(),
-    vertexAI({ projectId: getProjectId(), location: 'us-central1' }),
+    vertexAI(),
     ragas({ judge: geminiPro, metrics: [RagasMetric.CONTEXT_UTILIZATION] }),
 
     // providers - will be moved to plugins eventually
@@ -45,7 +45,7 @@ export default configureGenkit({
         embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
       },
     ]),
-    firebase({ projectId: getProjectId() }),
+    firebase(),
     devLocalVectorstore([
       {
         indexName: 'naive-index',

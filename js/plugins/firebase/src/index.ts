@@ -30,7 +30,7 @@ interface FirestorePluginParams {
   };
 }
 
-export const firebase: Plugin<[FirestorePluginParams]> = genkitPlugin(
+export const firebase: Plugin<[FirestorePluginParams] | []> = genkitPlugin(
   'firebase',
   async (params?: FirestorePluginParams) => ({
     flowStateStore: {

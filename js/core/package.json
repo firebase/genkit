@@ -75,12 +75,6 @@
       "default": "./lib/logging.js",
       "import": "./lib/logging.mjs"
     },
-    "./runtime": {
-      "types": "./lib/runtime.d.ts",
-      "require": "./lib/runtime.js",
-      "default": "./lib/runtime.js",
-      "import": "./lib/runtime.mjs"
-    },
     "./schema": {
       "types": "./lib/schema.d.ts",
       "require": "./lib/schema.js",

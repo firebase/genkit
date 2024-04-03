@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { configureGenkit, getProjectId } from '@genkit-ai/core';
+import { configureGenkit } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import { googleGenAI } from '@genkit-ai/google-genai';
 import { openAI } from '@genkit-ai/openai';
 
 export default configureGenkit({
-  plugins: [firebase({ projectId: getProjectId() }), googleGenAI(), openAI()],
+  plugins: [firebase(), googleGenAI(), openAI()],
   flowStateStore: 'firebase',
   traceStore: 'firebase',
   enableTracingAndMetrics: true,

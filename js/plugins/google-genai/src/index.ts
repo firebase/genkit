@@ -31,9 +31,9 @@ export interface PluginOptions {
   apiKey?: string;
 }
 
-export const googleGenAI: Plugin<PluginOptions[]> = genkitPlugin(
+export const googleGenAI: Plugin<[PluginOptions] | []> = genkitPlugin(
   'google-ai',
-  async (options: PluginOptions) => {
+  async (options?: PluginOptions) => {
     return {
       models: [
         ...Object.keys(GEMINI_MODELS).map((name) =>

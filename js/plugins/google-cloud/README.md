@@ -38,7 +38,6 @@ A sample configuration may look similar to:
 
 ```typescript
 googleCloud({
-  projectId: getProjectId(),
   telemetryConfig: {
     sampler: new AlwaysOnSampler(),
     autoInstrumentation: true,

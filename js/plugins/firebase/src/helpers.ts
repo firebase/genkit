@@ -125,3 +125,7 @@ export function getErrorStack(e: any): string | undefined {
   }
   return undefined;
 }
+
+export function getLocation() {
+  return process.env['GCLOUD_LOCATION'] || 'us-central1';
+}

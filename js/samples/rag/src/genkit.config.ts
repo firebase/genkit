@@ -15,7 +15,7 @@
  */
 
 import { chroma } from '@genkit-ai/chromadb';
-import { configureGenkit, getProjectId } from '@genkit-ai/core';
+import { configureGenkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { firebase } from '@genkit-ai/firebase';
 import { googleGenAI } from '@genkit-ai/google-genai';
@@ -26,14 +26,14 @@ import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertex-ai';
 
 export default configureGenkit({
   plugins: [
-    firebase({ projectId: getProjectId() }),
+    firebase(),
     googleGenAI(),
     openAI(),
     ragas({
       judge: geminiPro,
       metrics: [RagasMetric.FAITHFULNESS, RagasMetric.CONTEXT_UTILIZATION],
     }),
-    vertexAI({ projectId: getProjectId(), location: 'us-central1' }),
+    vertexAI(),
     pinecone([
       {
         indexId: 'tom-and-jerry',
