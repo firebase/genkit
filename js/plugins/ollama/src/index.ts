@@ -27,23 +27,15 @@ import { logger } from '@genkit-ai/core/logging';
 interface OllamaPluginParams {
   models: { name: string; type?: 'chat' | 'generate' }[];
   /**
-   *  ollama server address. If not pprovided the plugin will attempt to run `ollama serve`.
+   *  ollama server address.
    */
-  serverAddress?: string;
-  /**
-   * Make ollama pull the model (default false).
-   */
-  pullModel: boolean;
+  serverAddress: string;
 }
 
 export const ollama: Plugin<[OllamaPluginParams]> = genkitPlugin(
   'ollama',
   async (params: OllamaPluginParams) => {
-    const serverAddress = params?.serverAddress || startOllama();
-    if (params.pullModel) {
-      // TODO: https://github.com/ollama/ollama/blob/main/docs/api.md#pull-a-model
-      throw new Error('Not implemented');
-    }
+    const serverAddress = params?.serverAddress;
     return {
       models: params.models.map((model) =>
         ollamaModel(model.name, model.type, serverAddress)
@@ -51,12 +43,6 @@ export const ollama: Plugin<[OllamaPluginParams]> = genkitPlugin(
     };
   }
 );
-
-function startOllama(): string {
-  // TODO: support starting the server and downloading models.
-  // see https://github.com/ollama/ollama/blob/main/docs/faq.md#how-do-i-configure-ollama-server
-  throw new Error('Not implemented');
-}
 
 function ollamaModel(
   name: string,
