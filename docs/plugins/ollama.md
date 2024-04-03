@@ -29,7 +29,7 @@ export default configureGenkit({
           type: 'chat',
         },
       ],
-      pullModel: false,
+      serverAddress: 'http://127.0.0.1:11434', // default local address
     }),
   ],
 });
