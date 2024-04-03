@@ -22,6 +22,7 @@ import {
 } from '@genkit-ai/core/metrics';
 import { spanMetadataAls } from '@genkit-ai/core/tracing';
 import { ValueType } from '@opentelemetry/api';
+import express from 'express';
 
 /**
  * Wraps the declared metrics in a Genkit-specific, internal namespace.
@@ -69,4 +70,28 @@ export function writeFlowFailure(
   };
   flowCounter.add(1, dimensions);
   flowLatencies.record(latencyMs, dimensions);
+}
+
+export function logRequest(flowName: string, req: express.Request) {
+  logger.logStructured(`Request[/${flowName}]`, {
+    flowName: flowName,
+    headers: {
+      ...req.headers,
+      authorization: '<redacted>',
+    },
+    params: req.params,
+    body: req.body,
+    query: req.query,
+    originalUrl: req.originalUrl,
+    path: `/${flowName}`,
+  });
+}
+
+export function logResponse(flowName: string, respCode: number, respBody: any) {
+  logger.logStructured(`Response[/${flowName}]`, {
+    flowName: flowName,
+    path: `/${flowName}`,
+    code: respCode,
+    body: respBody,
+  });
 }

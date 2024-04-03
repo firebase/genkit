@@ -15,6 +15,7 @@
  */
 
 import { OperationSchema } from '@genkit-ai/core';
+import { logger } from '@genkit-ai/core/logging';
 import {
   defineFlow,
   Flow,
@@ -124,15 +125,18 @@ function wrapHttpsFlow<
             !!config.consumeAppCheckToken
           ))
         ) {
-          res
-            .status(401)
-            .send({
-              error: {
-                status: 'UNAUTHENTICATED',
-                message: 'Unauthorized',
-              },
-            })
-            .end();
+          const respBody = {
+            error: {
+              status: 'UNAUTHENTICATED',
+              message: 'Unauthorized',
+            },
+          };
+          logger.logStructured(`Response[/${flow.name}]`, {
+            path: `/${flow.name}`,
+            code: 401,
+            body: respBody,
+          });
+          res.status(401).send(respBody).end();
           return;
         }
       }
