@@ -50,16 +50,6 @@ export async function startReflectionApi(port?: number | undefined) {
   const api = express();
 
   api.use(express.json());
-  /*
-  api.use(
-    validator.middleware({
-      apiSpec: path.join(__dirname, '../../api/reflectionApi.yaml'),
-      validateRequests: true,
-      validateResponses: true,
-      ignoreUndocumented: true,
-    })
-  );
-  */
 
   api.get('/api/__health', async (_, response) => {
     await registry.listActions();
@@ -300,11 +290,18 @@ export async function startReflectionApi(port?: number | undefined) {
   server.on('error', (error) => {
     if (process.env.GENKIT_REFLECTION_ON_STARTUP_FAILURE === 'ignore') {
       logger.warn(
-        `Failed to start the reflection API on port ${port}, ignoring the error.`
+        `Failed to start the Reflection API on port ${port}, ignoring the error.`
       );
       logger.debug(error);
     } else {
       throw error;
     }
+  });
+
+  process.on('SIGTERM', () => {
+    server.close(() => {
+      logger.info('Reflection API has succesfully shut down.');
+      process.exit(0);
+    });
   });
 }
