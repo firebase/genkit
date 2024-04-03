@@ -17,6 +17,7 @@ package genkit
 import (
 	"context"
 	"fmt"
+	"log"
 	"log/slog"
 	"slices"
 	"sync"
@@ -24,16 +25,46 @@ import (
 	"golang.org/x/exp/maps"
 )
 
-// This file implements a global registry of actions and other values.
+// This file implements registries of actions and other values.
 
-var (
-	registryMu sync.Mutex
-	actions    = map[string]action{}
+// The global registry, used in non-test code.
+// A test may create their own registries to avoid conflicting with other tests.
+var globalRegistry *registry
+
+func init() {
+	// Initialize the global registry, along with a dev tracer, at program startup.
+	var err error
+	globalRegistry, err = newRegistry()
+	if  err != nil {
+		log.Fatal(err)
+	}
+}
+
+type registry struct {
+	tstate      *tracingState
+	mu      sync.Mutex
+	actions map[string]action
 	// TraceStores, at most one for each [Environment].
 	// Only the prod trace store is actually registered; the dev one is
 	// always created automatically. But it's simpler if we keep them together here.
-	traceStores = map[Environment]TraceStore{}
-)
+	traceStores map[Environment]TraceStore
+}
+
+func newRegistry() (*registry , error){
+	r := &registry{
+		actions:     map[string]action{},
+		traceStores: map[Environment]TraceStore{},
+	}
+	tstore, err := newDevTraceStore()
+	if err != nil {
+		return nil,err
+	}
+	r.registerTraceStore(EnvironmentDev, tstore)
+	r.tstate = newTracingState()
+	r.tstate.addTraceStoreImmediate(tstore)
+	return r, nil
+}
+
 
 // An Environment is the development context that the program is running in.
 type Environment string
@@ -62,33 +93,41 @@ const (
 // It panics if an action with the same type, provider and name is already
 // registered.
 func RegisterAction(typ ActionType, provider string, a action) {
+	globalRegistry.registerAction(typ, provider, a)
+	slog.Info("RegisterAction",
+		"type", typ,
+		"provider", provider,
+		"name", a.Name())
+}
+
+func (r *registry) registerAction(typ ActionType, provider string, a action) {
 	key := fmt.Sprintf("/%s/%s/%s", typ, provider, a.Name())
-	registryMu.Lock()
-	defer registryMu.Unlock()
-	if _, ok := actions[key]; ok {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.actions[key]; ok {
 		panic(fmt.Sprintf("action %q is already registered", key))
 	}
-	slog.Info("RegisterAction", "key", key)
-	actions[key] = a
+	a.setTracingState(r.tstate)
+	r.actions[key] = a
 }
 
 // lookupAction returns the action for the given key, or nil if there is none.
-func lookupAction(key string) action {
-	registryMu.Lock()
-	defer registryMu.Unlock()
-	return actions[key]
+func (r *registry) lookupAction(key string) action {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.actions[key]
 }
 
 // listActions returns a list of descriptions of all registered actions.
 // The list is sorted by action name.
-func listActions() []actionDesc {
+func (r *registry) listActions() []actionDesc {
 	var ads []actionDesc
-	registryMu.Lock()
-	defer registryMu.Unlock()
-	keys := maps.Keys(actions)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	keys := maps.Keys(r.actions)
 	slices.Sort(keys)
 	for _, key := range keys {
-		a := actions[key]
+		a := r.actions[key]
 		ad := a.desc()
 		ad.Key = key
 		ads = append(ads, ad)
@@ -102,21 +141,21 @@ func listActions() []actionDesc {
 // all pending data is stored.
 // RegisterTraceStore panics if called more than once.
 func RegisterTraceStore(ts TraceStore) (shutdown func(context.Context) error) {
-	registerTraceStore(EnvironmentProd, ts)
-	return initProdTracing(ts)
+	globalRegistry.registerTraceStore(EnvironmentProd, ts)
+	return globalRegistry.tstate.addTraceStoreBatch(ts)
 }
 
-func registerTraceStore(env Environment, ts TraceStore) {
-	registryMu.Lock()
-	defer registryMu.Unlock()
-	if _, ok := traceStores[env]; ok {
+func (r *registry) registerTraceStore(env Environment, ts TraceStore) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.traceStores[env]; ok {
 		panic(fmt.Sprintf("RegisterTraceStore called twice for environment %q", env))
 	}
-	traceStores[env] = ts
+	r.traceStores[env] = ts
 }
 
-func lookupTraceStore(env Environment) TraceStore {
-	registryMu.Lock()
-	defer registryMu.Unlock()
-	return traceStores[env]
+func (r *registry) lookupTraceStore(env Environment) TraceStore {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.traceStores[env]
 }

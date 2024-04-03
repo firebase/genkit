@@ -40,17 +40,22 @@ func StartDevServer(addr string) error {
 	if addr == "" {
 		addr = "localhost:3100"
 	}
-	mux := newDevServerMux()
+	mux := newDevServerMux(globalRegistry)
 	slog.Info("listening", "addr", addr)
 	return http.ListenAndServe(addr, mux)
 }
 
-func newDevServerMux() *http.ServeMux {
+type devServer struct {
+	reg *registry
+}
+
+func newDevServerMux(r *registry) *http.ServeMux {
 	mux := http.NewServeMux()
-	handle(mux, "POST /api/runAction", handleRunAction)
-	handle(mux, "GET /api/actions", handleListActions)
-	handle(mux, "GET /api/envs/{env}/traces/{traceID}", handleGetTrace)
-	handle(mux, "GET /api/envs/{env}/traces", handleListTraces)
+	s := &devServer{r}
+	handle(mux, "POST /api/runAction", s.handleRunAction)
+	handle(mux, "GET /api/actions", s.handleListActions)
+	handle(mux, "GET /api/envs/{env}/traces/{traceID}", s.handleGetTrace)
+	handle(mux, "GET /api/envs/{env}/traces", s.handleListTraces)
 	return mux
 }
 
@@ -102,7 +107,7 @@ func (e *httpError) Error() string {
 
 // handleRunAction looks up an action by name in the registry, runs it with the
 // provded JSON input, and writes back the JSON-marshaled request.
-func handleRunAction(w http.ResponseWriter, r *http.Request) error {
+func (s *devServer) handleRunAction(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 	var body struct {
 		Key   string          `json:"key"`
@@ -112,13 +117,13 @@ func handleRunAction(w http.ResponseWriter, r *http.Request) error {
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		return &httpError{http.StatusBadRequest, err}
 	}
-	action := lookupAction(body.Key)
+	action := s.reg.lookupAction(body.Key)
 	logger(ctx).Debug("running action", "key", body.Key)
 	if action == nil {
 		return &httpError{http.StatusNotFound, fmt.Errorf("no action with key %q", body.Key)}
 	}
 	var traceID string
-	output, err := runInNewSpan(ctx, "dev-run-action-wrapper", "", true, body.Input, func(ctx context.Context, input json.RawMessage) ([]byte, error) {
+	output, err := runInNewSpan(ctx, s.reg.tstate, "dev-run-action-wrapper", "", true, body.Input, func(ctx context.Context, input json.RawMessage) ([]byte, error) {
 		setCustomMetadataAttr(ctx, "genkit-dev-internal", "true")
 		traceID = trace.SpanContextFromContext(ctx).TraceID().String()
 		return action.runJSON(ctx, input)
@@ -142,15 +147,15 @@ type telemetry struct {
 }
 
 // handleListActions lists all the registered actions.
-func handleListActions(w http.ResponseWriter, r *http.Request) error {
-	descs := listActions()
+func (s *devServer) handleListActions(w http.ResponseWriter, r *http.Request) error {
+	descs := s.reg.listActions()
 	return writeJSON(r.Context(), w, descs)
 }
 
 // handleGetTrace returns a single trace from a TraceStore.
-func handleGetTrace(w http.ResponseWriter, r *http.Request) error {
+func (s *devServer) handleGetTrace(w http.ResponseWriter, r *http.Request) error {
 	env := r.PathValue("env")
-	ts := lookupTraceStore(Environment(env))
+	ts := s.reg.lookupTraceStore(Environment(env))
 	if ts == nil {
 		return &httpError{http.StatusNotFound, fmt.Errorf("no TraceStore for environment %q", env)}
 	}
@@ -166,9 +171,9 @@ func handleGetTrace(w http.ResponseWriter, r *http.Request) error {
 }
 
 // handleListTraces returns a list of traces from a TraceStore.
-func handleListTraces(w http.ResponseWriter, r *http.Request) error {
+func (s *devServer) handleListTraces(w http.ResponseWriter, r *http.Request) error {
 	env := r.PathValue("env")
-	ts := lookupTraceStore(Environment(env))
+	ts := s.reg.lookupTraceStore(Environment(env))
 	if ts == nil {
 		return &httpError{http.StatusNotFound, fmt.Errorf("no TraceStore for environment %q", env)}
 	}

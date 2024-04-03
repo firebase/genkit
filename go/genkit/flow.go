@@ -79,6 +79,7 @@ type Flow[I, O any] struct {
 	name       string         // The last component of the flow's key in the registry.
 	fn         Func[I, O]     // The function to run.
 	stateStore FlowStateStore // Where FlowStates are stored, to support resumption.
+	tstate     *tracingState  // set from the action when the flow is defined
 	// TODO(jba): scheduler
 	// TODO(jba): experimentalDurable
 	// TODO(jba): authPolicy
@@ -87,12 +88,19 @@ type Flow[I, O any] struct {
 
 // DefineFlow creates a Flow that runs fn, and registers it as an action.
 func DefineFlow[I, O any](name string, fn Func[I, O]) *Flow[I, O] {
+	return defineFlow(globalRegistry, name, fn)
+}
+
+func defineFlow[I, O any](r *registry, name string, fn Func[I, O]) *Flow[I, O] {
 	f := &Flow[I, O]{
 		name: name,
 		fn:   fn,
 		// TODO(jba): set stateStore?
 	}
-	RegisterAction(ActionTypeFlow, name, f.action())
+	a := f.action()
+	r.registerAction(ActionTypeFlow, name, a)
+	// TODO(jba): this is a roundabout way to transmit the tracing state. Is there a cleaner way?
+	f.tstate = a.tstate
 	return f
 }
 
@@ -259,7 +267,7 @@ func (f *Flow[I, O]) start(ctx context.Context, input I) (_ *flowState[I, O], er
 // This function corresponds to Flow.executeSteps in the js, but does more:
 // it creates the flowContext and saves the state.
 func (f *Flow[I, O]) execute(ctx context.Context, state *flowState[I, O], dispatchType string) {
-	fctx := newFlowContext(state, f.stateStore)
+	fctx := newFlowContext(state, f.stateStore, f.tstate)
 	defer func() {
 		if err := fctx.finish(ctx); err != nil {
 			// TODO(jba): do something more with this error?
@@ -275,7 +283,7 @@ func (f *Flow[I, O]) execute(ctx context.Context, state *flowState[I, O], dispat
 	state.mu.Unlock()
 	// TODO(jba): retrieve the JSON-marshaled SpanContext from state.traceContext.
 	// TODO(jba): add a span link to the context.
-	output, err := runInNewSpan(ctx, f.name, "flow", true, state.Input, func(ctx context.Context, input I) (O, error) {
+	output, err := runInNewSpan(ctx, fctx.tracingState(), f.name, "flow", true, state.Input, func(ctx context.Context, input I) (O, error) {
 		spanMeta := spanMetaKey.fromContext(ctx)
 		spanMeta.SetAttr("flow:execution", strconv.Itoa(len(state.Executions)-1))
 		// TODO(jba): put labels into span metadata.
@@ -332,6 +340,7 @@ func generateFlowID() (string, error) {
 type flowContext[I, O any] struct {
 	state      *flowState[I, O]
 	stateStore FlowStateStore
+	tstate     *tracingState
 	mu         sync.Mutex
 	seenSteps  map[string]int // number of times each name appears, to avoid duplicate names
 	// TODO(jba): auth
@@ -341,16 +350,19 @@ type flowContext[I, O any] struct {
 type flowContexter interface {
 	uniqueStepName(string) string
 	stater() flowStater
+	tracingState() *tracingState
 }
 
-func newFlowContext[I, O any](state *flowState[I, O], store FlowStateStore) *flowContext[I, O] {
+func newFlowContext[I, O any](state *flowState[I, O], store FlowStateStore, tstate *tracingState) *flowContext[I, O] {
 	return &flowContext[I, O]{
 		state:      state,
 		stateStore: store,
+		tstate:     tstate,
 		seenSteps:  map[string]int{},
 	}
 }
-func (fc *flowContext[I, O]) stater() flowStater { return fc.state }
+func (fc *flowContext[I, O]) stater() flowStater          { return fc.state }
+func (fc *flowContext[I, O]) tracingState() *tracingState { return fc.tstate }
 
 // finish is called at the end of a flow execution.
 func (fc *flowContext[I, O]) finish(ctx context.Context) error {
@@ -390,7 +402,7 @@ func Run[T any](ctx context.Context, name string, f func() (T, error)) (T, error
 	}
 	// TODO(jba): The input here is irrelevant. Perhaps runInNewSpan should have only a result type param,
 	// as in the js.
-	return runInNewSpan(ctx, name, "flowStep", false, 0, func(ctx context.Context, _ int) (T, error) {
+	return runInNewSpan(ctx, fc.tracingState(), name, "flowStep", false, 0, func(ctx context.Context, _ int) (T, error) {
 		uName := fc.uniqueStepName(name)
 		spanMeta := spanMetaKey.fromContext(ctx)
 		spanMeta.SetAttr("flow:stepType", "run")
