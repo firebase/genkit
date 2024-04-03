@@ -17,15 +17,16 @@
 import { configureGenkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { firebase } from '@genkit-ai/firebase';
-import { googleAI } from '@genkit-ai/googleai';
+import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import { RagasMetric, ragas } from '@genkit-ai/ragas';
-import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 
 export default configureGenkit({
   plugins: [
     firebase(),
     googleAI(),
     ragas({
+      // Note: Gemini SDK from Google AI is more reliable than Vertex currently.
       judge: geminiPro,
       metrics: [RagasMetric.FAITHFULNESS, RagasMetric.CONTEXT_UTILIZATION],
     }),
