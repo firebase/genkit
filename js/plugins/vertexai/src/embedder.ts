@@ -102,11 +102,9 @@ export const textEmbeddingGeckoMultilingual001 = embedderRef({
 export const textEmbeddingGecko = textEmbeddingGecko003;
 
 export const SUPPORTED_EMBEDDER_MODELS: Record<string, EmbedderReference> = {
-  'textembedding-gecko': textEmbeddingGecko003,
   'textembedding-gecko@003': textEmbeddingGecko003,
   'textembedding-gecko@002': textEmbeddingGecko002,
   'textembedding-gecko@001': textEmbeddingGecko001,
-  //'textembeddding-gecko-multilingual': textEmbeddingGeckoMultilingual001,
   //'textembeddding-gecko-multilingual@001': textEmbeddingGeckoMultilingual001,
 };
 
