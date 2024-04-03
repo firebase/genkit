@@ -62,6 +62,8 @@ guides:
     path: /genkit/plugins/pinecone
   - title: pgvector (code template)
     path: /genkit/templates/pgvector
+  - title: Firebase
+    path: /genkit/plugins/firebase
 
 reference:
   - title: Resource summary
