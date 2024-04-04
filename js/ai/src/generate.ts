@@ -317,6 +317,52 @@ export class GenerateResponse<O = unknown> implements GenerateResponseData {
   }
 }
 
+export class GenerateResponseChunk<T = unknown>
+  implements GenerateResponseChunkData
+{
+  /** The index of the candidate this chunk corresponds to. */
+  index: number;
+  /** The content generated in this chunk. */
+  content: Part[];
+  /** Custom model-specific data for this chunk. */
+  custom?: unknown;
+
+  constructor(data: GenerateResponseChunkData) {
+    this.index = data.index;
+    this.content = data.content || [];
+    this.custom = data.custom;
+  }
+
+  /**
+   * Concatenates all `text` parts present in the chunk with no delimiter.
+   * @returns A string of all concatenated text parts.
+   */
+  text(): string {
+    return this.content.map((part) => part.text || '').join('');
+  }
+
+  /**
+   * Returns the first media part detected in the chunk. Useful for extracting
+   * (for example) an image from a generation expected to create one.
+   * @returns The first detected `media` part in the chunk.
+   */
+  media(): { url: string; contentType?: string } | null {
+    return this.content.find((part) => part.media)?.media || null;
+  }
+
+  /**
+   * Returns the first detected `data` part of a chunk.
+   * @returns The first `data` part detected in the chunk (if any).
+   */
+  data(): T | null {
+    return this.content.find((part) => part.data)?.data as T | null;
+  }
+
+  toJSON(): GenerateResponseChunkData {
+    return { index: this.index, content: this.content, custom: this.custom };
+  }
+}
+
 function getRoleFromPart(part: Part): Role {
   if (part.toolRequest !== undefined) return 'model';
   if (part.toolResponse !== undefined) return 'tool';
@@ -401,7 +447,7 @@ export interface GenerateOptions<
   /** When true, return tool calls for manual processing instead of automatically resolving them. */
   returnToolRequests?: boolean;
   /** When provided, models supporting streaming will call the provided callback with chunks as generation progresses. */
-  streamingCallback?: StreamingCallback<GenerateResponseChunkData>;
+  streamingCallback?: StreamingCallback<GenerateResponseChunk>;
 }
 
 const isValidCandidate = (
@@ -503,7 +549,10 @@ export async function generate<
   const request = await toGenerateRequest(prompt);
   telemetry.recordGenerateActionInputLogs(model.__action.name, prompt, request);
   const response = await runWithStreamingCallback(
-    prompt.streamingCallback,
+    prompt.streamingCallback
+      ? (chunk: GenerateResponseChunkData) =>
+          prompt.streamingCallback!(new GenerateResponseChunk(chunk))
+      : undefined,
     async () => new GenerateResponse<z.infer<O>>(await model(request), request)
   );
 
@@ -596,4 +645,82 @@ export async function generate<
   prompt.history.push(selected.message);
   prompt.prompt = toolResponses;
   return await generate(prompt);
+}
+
+export type GenerateStreamOptions<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+> = Omit<GenerateOptions<O, CustomOptions>, 'streamingCallback'>;
+
+export interface GenerateStreamResponse<O extends z.ZodTypeAny = z.ZodTypeAny> {
+  stream: () => AsyncIterable<GenerateResponseChunkData>;
+  response: () => Promise<GenerateResponse<O>>;
+}
+
+function createPromise<T>(): {
+  resolve: (result: T) => unknown;
+  reject: (err: unknown) => unknown;
+  promise: Promise<T>;
+} {
+  let resolve, reject;
+  let promise = new Promise<T>((res, rej) => ([resolve, reject] = [res, rej]));
+  return { resolve, reject, promise };
+}
+
+export async function generateStream<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  options:
+    | GenerateOptions<O, CustomOptions>
+    | PromiseLike<GenerateOptions<O, CustomOptions>>
+): Promise<GenerateStreamResponse<O>> {
+  let firstChunkSent = false;
+  return new Promise<GenerateStreamResponse<O>>(
+    (initialResolve, initialReject) => {
+      const {
+        resolve: finalResolve,
+        reject: finalReject,
+        promise: finalPromise,
+      } = createPromise<GenerateResponse<O>>();
+
+      let provideNextChunk, nextChunk;
+      ({ resolve: provideNextChunk, promise: nextChunk } =
+        createPromise<GenerateResponseChunkData | null>());
+      async function* chunkStream(): AsyncIterable<GenerateResponseChunkData> {
+        while (true) {
+          const next = await nextChunk;
+          if (!next) break;
+          yield next;
+        }
+      }
+
+      try {
+        generate<O, CustomOptions>({
+          ...options,
+          streamingCallback: (chunk) => {
+            firstChunkSent = true;
+            provideNextChunk(chunk);
+            ({ resolve: provideNextChunk, promise: nextChunk } =
+              createPromise<GenerateResponseChunkData | null>());
+          },
+        }).then((result) => {
+          provideNextChunk(null);
+          finalResolve(result);
+        });
+      } catch (e) {
+        if (!firstChunkSent) {
+          initialReject(e);
+          return;
+        }
+        provideNextChunk(null);
+        finalReject(e);
+      }
+
+      initialResolve({
+        response: () => finalPromise,
+        stream: chunkStream,
+      });
+    }
+  );
 }
