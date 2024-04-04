@@ -20,8 +20,8 @@ import { describe, it } from 'node:test';
 import { defineModel } from '@genkit-ai/ai/model';
 import z from 'zod';
 
-import { toJsonSchema } from '@genkit-ai/core/schema';
-import { Prompt } from '../src/index.js';
+import { ValidationError, toJsonSchema } from '@genkit-ai/core/schema';
+import { Prompt, definePrompt } from '../src/index.js';
 import { PromptMetadata } from '../src/metadata.js';
 
 const echo = defineModel({ name: 'echo' }, async (input) => ({
@@ -69,6 +69,49 @@ describe('Prompt', () => {
       assert.deepStrictEqual(
         prompt.toJSON().input?.schema,
         toJsonSchema({ schema })
+      );
+    });
+  });
+
+  describe('#generate', () => {
+    it('rejects input not matching the schema', async () => {
+      const invalidSchemaPrompt = definePrompt(
+        {
+          name: 'invalidInput',
+          model: 'echo',
+          input: {
+            jsonSchema: {
+              properties: { foo: { type: 'boolean' } },
+              required: ['foo'],
+            },
+          },
+        },
+        `You asked for {{foo}}.`
+      );
+
+      await assert.rejects(async () => {
+        await invalidSchemaPrompt.generate({ input: { foo: 'baz' } });
+      }, ValidationError);
+    });
+  });
+
+  describe('.parse', () => {
+    it('should throw a good error for invalid YAML', () => {
+      assert.throws(
+        () => {
+          Prompt.parse(
+            'example',
+            `---
+input: {
+  isInvalid: true
+  wasInvalid: true
+}
+---
+
+This is the rest of the prompt`
+          );
+        },
+        (e: any) => e.status === 'INVALID_ARGUMENT'
       );
     });
   });

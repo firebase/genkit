@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-import { initializeGenkit } from '@genkit-ai/core';
 import { prompt } from '@genkit-ai/dotprompt';
 import { defineFlow } from '@genkit-ai/flow';
 import * as z from 'zod';
-
-initializeGenkit();
+import './genkit.config';
 
 prompt('story');
 // This example demonstrates using prompt files in a flow

@@ -26,7 +26,10 @@ import z from 'zod';
 /**
  * Metadata for a prompt.
  */
-export interface PromptMetadata<Options extends z.ZodTypeAny = z.ZodTypeAny> {
+export interface PromptMetadata<
+  Input extends z.ZodTypeAny = z.ZodTypeAny,
+  Options extends z.ZodTypeAny = z.ZodTypeAny,
+> {
   /** The name of the prompt. */
   name?: string;
   /** The variant name for the prompt. */
@@ -51,7 +54,7 @@ export interface PromptMetadata<Options extends z.ZodTypeAny = z.ZodTypeAny> {
     /** Defines the default input variable values to use if none are provided. */
     default?: any;
     /** Zod schema defining the input variables. */
-    schema?: z.ZodTypeAny;
+    schema?: Input;
     /**
      * Defines the input variables that can be passed into the template in JSON schema form.
      * If not supplied, any object will be accepted. `{type: "object"}` is defaulted if not

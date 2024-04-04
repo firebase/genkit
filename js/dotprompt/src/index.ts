@@ -52,7 +52,7 @@ export async function prompt<Variables = unknown>(
 }
 
 export function definePrompt<V extends z.ZodTypeAny = z.ZodTypeAny>(
-  options: PromptMetadata,
+  options: PromptMetadata<V>,
   template: string
 ): Prompt<z.infer<V>> {
   const prompt = new Prompt(options, template);
