@@ -33,7 +33,7 @@
     ```posix-terminal
     cd functions
 
-    npm i --save -D $HOME/Downloads/genkit-dist/genkit-0.0.7.tgz $HOME/Downloads/genkit-dist/genkit-ai-tools-plugins-0.0.7.tgz
+    npm i --save -D $HOME/Downloads/genkit-dist/genkit-0.5.0.tgz $HOME/Downloads/genkit-dist/genkit-ai-tools-plugins-0.5.0.tgz
     ```
 
     Then run:

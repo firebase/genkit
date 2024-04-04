@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-export const GENKIT_VERSION = '0.0.7';
+export const GENKIT_VERSION = '0.5.0';
 export const GENKIT_CLIENT_HEADER = `genkit-node/${GENKIT_VERSION} gl-node/${process.versions.node}`;
 
 export * from './action.js';
