@@ -257,6 +257,7 @@ code templates, which you can customize for your database configuration and
 schema:
 
 - PostgreSQL with [`pgvector`](templates/pgvector.md)
+- [Firestore vector store](templates/firestore-vector.md)
 
 Embedding model support is provided through the following plugins:
 
