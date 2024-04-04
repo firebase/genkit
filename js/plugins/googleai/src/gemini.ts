@@ -28,9 +28,10 @@ import {
   downloadRequestMedia,
   simulateSystemPrompt,
 } from '@genkit-ai/ai/model/middleware';
+import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
 import {
   GenerateContentCandidate as GeminiCandidate,
-  InputContent as GeminiMessage,
+  Content as GeminiMessage,
   Part as GeminiPart,
   GenerateContentResponse,
   GoogleGenerativeAI,
@@ -229,9 +230,12 @@ export function googleAIModel(name: string, apiKey?: string): ModelAction {
       ],
     },
     async (request, streamingCallback) => {
-      const client = new GoogleGenerativeAI(apiKey!).getGenerativeModel({
-        model: request.config?.version || name,
-      });
+      const client = new GoogleGenerativeAI(apiKey!).getGenerativeModel(
+        {
+          model: request.config?.version || name,
+        },
+        { apiClient: GENKIT_CLIENT_HEADER }
+      );
       const messages = request.messages.map(toGeminiMessage);
       if (messages.length === 0) throw new Error('No messages provided.');
       const chatRequest = {

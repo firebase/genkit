@@ -422,8 +422,8 @@ importers:
         specifier: workspace:*
         version: link:../../core
       '@google/generative-ai':
-        specifier: ^0.2.0
-        version: 0.2.1
+        specifier: ^0.5.0
+        version: 0.5.0
       google-auth-library:
         specifier: ^9.6.3
         version: 9.7.0
@@ -1560,8 +1560,8 @@ packages:
       - supports-color
     dev: false
 
-  /@google/generative-ai@0.2.1:
-    resolution: {integrity: sha512-gNmMFadfwi7qf/6M9gImgyGJXY1jKQ/de8vGOqgJ0PPYgQ7WwzZDavbKrIuXS2zdqZZaYtxW3EFN6aG9x5wtFw==}
+  /@google/generative-ai@0.5.0:
+    resolution: {integrity: sha512-uxfN3mROgVxb+9KrlVHIiglcWgNE86pVTS9TRkGS6hMvQoZ5TrB1TIMcW5ZYWxlRhMwtmEdJnNMUxSqM3Qp/Ag==}
     engines: {node: '>=18.0.0'}
     dev: false
 
@@ -6203,6 +6203,7 @@ packages:
   /path2d-polyfill@2.1.1:
     resolution: {integrity: sha512-4Rka5lN+rY/p0CdD8+E+BFv51lFaFvJOrlOhyQ+zjzyQrzyh3ozmxd1vVGGDdIbUFSBtIZLSnspxTgPT0iJhvA==}
     engines: {node: '>=18'}
+    deprecated: this package has been deprecated
     requiresBuild: true
     dependencies:
       path2d: 0.1.1
