@@ -74,13 +74,13 @@ then will be used to extract an evaluation dataset (a set of inputs, outputs, an
 Run the flow over your test inputs:
 
 ```posix-terminal
-npx genkit flow:batchRun myRagFlow test_inputs.json --output flow_outputs.json --label customLabel
+genkit flow:batchRun myRagFlow test_inputs.json --output flow_outputs.json --label customLabel
 ```
 
 Extract the evaluation data:
 
 ```posix-terminal
-npx genkit eval:extractData myRagFlow --label customLabel --output customLabel_dataset.json
+genkit eval:extractData myRagFlow --label customLabel --output customLabel_dataset.json
 ```
 
 The exported data will be output as a json file with each testCase in the following format:
@@ -102,7 +102,7 @@ The data extractor will automatically locate retrievers and add the produced doc
 To run evaluation over an already extracted dataset:
 
 ```posix-terminal
-npx genkit eval:run customLabel_dataset.json
+genkit eval:run customLabel_dataset.json
 ```
 
 To output to a different location, use the `--output` flag.
@@ -114,7 +114,7 @@ genkit eval:flow spongebobQA --input testQuestions.json --output customLabel_eva
 To run on a subset of the configured evaluators, use the `--evaluators` flag and provide a comma separated list of evaluators by name:
 
 ```posix-terminal
-npx genkit eval:run customLabel_dataset.json --evaluators=ragas/faithfulness,ragas/answer_relevancy
+genkit eval:run customLabel_dataset.json --evaluators=ragas/faithfulness,ragas/answer_relevancy
 ```
 
 ### Synthesizing test data using an LLM
