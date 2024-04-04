@@ -19,6 +19,27 @@ import { defineFlow } from '@genkit-ai/flow';
 import * as z from 'zod';
 import './genkit.config';
 
+defineFlow(
+  {
+    name: 'tellStory',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+    streamSchema: z.string(),
+  },
+  async (subject, streamingCallback) => {
+    const storyPrompt = await prompt('story');
+    const { response, stream } = await storyPrompt.generateStream({
+      input: { subject },
+    });
+    if (streamingCallback) {
+      for await (const chunk of stream()) {
+        streamingCallback(chunk.content[0]?.text!);
+      }
+    }
+    return (await response()).text();
+  }
+);
+
 prompt('story');
 // This example demonstrates using prompt files in a flow
 

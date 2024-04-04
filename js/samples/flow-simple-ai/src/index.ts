@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
+import { generate, generateStream } from '@genkit-ai/ai';
 import { defineTool } from '@genkit-ai/ai/tool';
 import { initializeGenkit } from '@genkit-ai/core';
 import { defineFlow, run } from '@genkit-ai/flow';
@@ -64,6 +64,29 @@ export const drawPictureFlow = defineFlow(
         input.modelName
       }: Here is a picture of a cat: ${llmResponse.text()}`;
     });
+  }
+);
+
+export const streamFlow = defineFlow(
+  {
+    name: 'streamFlow',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+    streamSchema: z.string(),
+  },
+  async (prompt, streamingCallback) => {
+    const { response, stream } = await generateStream({
+      model: geminiPro,
+      prompt,
+    });
+
+    if (streamingCallback) {
+      for await (const chunk of stream()) {
+        streamingCallback(chunk.content[0].text!);
+      }
+    }
+
+    return (await response()).text();
   }
 );
 

@@ -14,7 +14,13 @@
  * limitations under the License.
  */
 
-import { generate, GenerateOptions, GenerateResponse } from '@genkit-ai/ai';
+import {
+  generate,
+  GenerateOptions,
+  GenerateResponse,
+  generateStream,
+  GenerateStreamResponse,
+} from '@genkit-ai/ai';
 import {
   GenerateRequest,
   GenerateRequestSchema,
@@ -116,6 +122,14 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
 
   static fromAction(action: PromptAction): Prompt {
     const { template, ...options } = action.__action.metadata!.prompt;
+    const pm = options as PromptMetadata;
+    if (pm.input?.schema) {
+      pm.input.jsonSchema = options.input?.schema;
+      delete pm.input.schema;
+    }
+    if (pm.output?.schema) {
+      pm.output.jsonSchema = options.output?.schema;
+    }
     const prompt = new Prompt(options as PromptMetadata, template);
     prompt._action = action;
     return prompt;
@@ -180,9 +194,9 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
     };
   }
 
-  private _generate(
+  private _generateOptions(
     options: PromptGenerateOptions<Variables>
-  ): Promise<GenerateResponse> {
+  ): GenerateOptions {
     if (!options.model && !this.model) {
       throw new GenkitError({
         source: 'dotprompt',
@@ -192,7 +206,7 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
     }
 
     const messages = this.renderMessages(options.input);
-    return generate({
+    return {
       model: options.model || this.model!,
       config: { ...this.config, ...options.config } || {},
       history: messages.slice(0, messages.length - 1),
@@ -203,7 +217,11 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
         schema: options.output?.schema || this.output?.schema,
         jsonSchema: options.output?.jsonSchema || this.output?.jsonSchema,
       },
-    });
+    };
+  }
+
+  async _generate(req: PromptGenerateOptions<Variables>) {
+    return generate(this._generateOptions(req));
   }
 
   async generate(
@@ -214,6 +232,13 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
       await this.action()(req),
       await this.render(options) // TODO: don't re-render to do this
     );
+  }
+
+  async generateStream(
+    options: PromptGenerateOptions<Variables>
+  ): Promise<GenerateStreamResponse> {
+    // TODO: properly wrap this in appropriate telemetry
+    return generateStream(this._generateOptions(options));
   }
 
   toJSON(): PromptData {

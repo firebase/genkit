@@ -25,8 +25,11 @@ export {
   Candidate,
   GenerateOptions,
   GenerateResponse,
+  GenerateStreamOptions,
+  GenerateStreamResponse,
   Message,
   generate,
+  generateStream,
 } from './generate.js';
 export {
   IndexerAction,

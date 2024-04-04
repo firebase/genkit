@@ -216,3 +216,24 @@ let response = await generate({
 });
 history = response.toHistory();
 ```
+
+## Streaming
+
+Genkit supports chunked streaming of model responses via the `generateStream()` method:
+
+```ts
+import { generateStream } from '@genkit-ai/ai';
+import { geminiPro } from '@genkit-ai/vertexai';
+
+const { response, stream } = await generateStream({
+  model: geminiPro,
+  prompt: 'Tell a long story about robots and ninjas.',
+});
+
+for await (const chunk of stream()) {
+  console.log(chunk.text());
+}
+
+// you can also await the full response
+console.log((await response()).text());
+```
