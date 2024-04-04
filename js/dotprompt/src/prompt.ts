@@ -23,7 +23,7 @@ import {
 } from '@genkit-ai/ai/model';
 import { resolveTools, toToolDefinition } from '@genkit-ai/ai/tool';
 import { Action, action, GenkitError } from '@genkit-ai/core';
-import { JSONSchema, toJsonSchema } from '@genkit-ai/core/schema';
+import { JSONSchema, parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import { createHash } from 'crypto';
 import fm, { FrontMatterResult } from 'front-matter';
@@ -96,13 +96,22 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
   private _action?: PromptAction;
 
   static parse(name: string, source: string) {
-    const fmResult = (fm as any)(
-      source.trimStart()
-    ) as FrontMatterResult<unknown>;
-    return new Prompt(
-      { ...toMetadata(fmResult.attributes), name } as PromptMetadata,
-      fmResult.body
-    );
+    try {
+      const fmResult = (fm as any)(source.trimStart(), {
+        allowUnsafe: false,
+      }) as FrontMatterResult<unknown>;
+
+      return new Prompt(
+        { ...toMetadata(fmResult.attributes), name } as PromptMetadata,
+        fmResult.body
+      );
+    } catch (e: any) {
+      throw new GenkitError({
+        source: 'dotprompt',
+        status: 'INVALID_ARGUMENT',
+        message: `Error parsing YAML frontmatter of '${name}' prompt: ${e.message}`,
+      });
+    }
   }
 
   static fromAction(action: PromptAction): Prompt {
@@ -151,6 +160,10 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
   }
 
   renderMessages(input?: Variables): MessageData[] {
+    input = parseSchema(input, {
+      schema: this.input?.schema,
+      jsonSchema: this.input?.jsonSchema,
+    });
     return this._render({ ...this.input?.default, ...input });
   }
 

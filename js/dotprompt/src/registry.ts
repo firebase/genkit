@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { config } from '@genkit-ai/core';
+import { GenkitError, config } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { lookupAction, registerAction } from '@genkit-ai/core/registry';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { Prompt, PromptAction } from './prompt.js';
 
@@ -41,21 +41,27 @@ export async function lookupPrompt(
 
 function loadPrompt(name: string, variant?: string) {
   const dir = config.options.promptDir || './prompts';
-  try {
-    const source = readFileSync(
-      join(dir, `${name}${variant ? `.${variant}` : ''}.prompt`),
-      'utf8'
+  const promptExists = existsSync(
+    join(dir, `${name}${variant ? `.${variant}` : ''}.prompt`)
+  );
+  if (!promptExists && variant) {
+    logger.warn(
+      `Prompt '${name}.${variant}' not found, trying '${name}' without variant.`
     );
-    const prompt = Prompt.parse(name, source);
-    prompt.variant = variant;
-    return prompt;
-  } catch (e) {
-    if (variant) {
-      logger.warn(
-        `Prompt '${name}.${variant}' not found, trying '${name}' without variant.`
-      );
-      return loadPrompt(name);
-    }
-    throw new Error(`Prompt ${name}${variant ? `.${variant}` : ''} not found`);
+    return loadPrompt(name);
+  } else if (!promptExists) {
+    throw new GenkitError({
+      source: 'dotprompt',
+      status: 'NOT_FOUND',
+      message: `Tried to load prompt '${name}.prompt' but the file did not exist.`,
+    });
   }
+
+  const source = readFileSync(
+    join(dir, `${name}${variant ? `.${variant}` : ''}.prompt`),
+    'utf8'
+  );
+  const prompt = Prompt.parse(name, source);
+  prompt.variant = variant;
+  return prompt;
 }
