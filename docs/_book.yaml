@@ -41,6 +41,8 @@ guides:
     path: /genkit/firebase
   - title: Deploy with Cloud Run
     path: /genkit/cloud-run
+  - title: Deploy to any Node.js platform
+    path: /genkit/deploy-node
   - title: Authorization and integrity
     path: /genkit/auth
 
