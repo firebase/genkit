@@ -73,7 +73,7 @@
 1.  Initialize Genkit in your Firebase project:
 
     ```posix-terminal
-    genkit init -d $HOME/Downloads/genkit-dist/genkit-dist.zip
+    genkit init
     ```
 
     Select `firebase` as the deployment platform option and Google AI as the model. If Google AI is not available in your region (see https://ai.google.dev/available_regions) consider using Vertex AI.
