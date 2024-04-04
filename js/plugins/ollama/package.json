@@ -19,6 +19,13 @@
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/google/genkit.git",
+    "directory": "js/plugins/ollama"
+  },
+  "author": "genkit",
+  "license": "Apache-2.0",
   "dependencies": {
     "@genkit-ai/ai": "workspace:*",
     "@genkit-ai/core": "workspace:*"
