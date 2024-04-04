@@ -79,25 +79,15 @@ type FlowExecution struct {
 	TraceIDs  []string     `json:"traceIds,omitempty"`
 }
 
-type GenerationConfig struct {
-	Custom          map[string]any `json:"custom,omitempty"`
-	MaxOutputTokens float64        `json:"maxOutputTokens,omitempty"`
-	StopSequences   []string       `json:"stopSequences,omitempty"`
-	Temperature     float64        `json:"temperature,omitempty"`
-	TopK            float64        `json:"topK,omitempty"`
-	TopP            float64        `json:"topP,omitempty"`
-	Version         string         `json:"version,omitempty"`
+type GenerateRequest struct {
+	Candidates int                    `json:"candidates,omitempty"`
+	Config     *GenerationConfig      `json:"config,omitempty"`
+	Messages   []*Message             `json:"messages,omitempty"`
+	Output     *GenerateRequestOutput `json:"output,omitempty"`
+	Tools      []*ToolDefinition      `json:"tools,omitempty"`
 }
 
-type GenerationRequest struct {
-	Candidates float64                  `json:"candidates,omitempty"`
-	Config     *GenerationConfig        `json:"config,omitempty"`
-	Messages   []*Message               `json:"messages,omitempty"`
-	Output     *GenerationRequestOutput `json:"output,omitempty"`
-	Tools      []*ToolDefinition        `json:"tools,omitempty"`
-}
-
-type GenerationRequestOutput struct {
+type GenerateRequestOutput struct {
 	Format OutputFormat   `json:"format,omitempty"`
 	Schema map[string]any `json:"schema,omitempty"`
 }
@@ -109,10 +99,20 @@ const (
 	OutputFormatText OutputFormat = "text"
 )
 
-type GenerationResponse struct {
+type GenerateResponse struct {
 	Candidates []*Candidate     `json:"candidates,omitempty"`
 	Custom     any              `json:"custom,omitempty"`
 	Usage      *GenerationUsage `json:"usage,omitempty"`
+}
+
+type GenerationConfig struct {
+	Custom          map[string]any `json:"custom,omitempty"`
+	MaxOutputTokens int            `json:"maxOutputTokens,omitempty"`
+	StopSequences   []string       `json:"stopSequences,omitempty"`
+	Temperature     float64        `json:"temperature,omitempty"`
+	TopK            int            `json:"topK,omitempty"`
+	TopP            float64        `json:"topP,omitempty"`
+	Version         string         `json:"version,omitempty"`
 }
 
 type GenerationUsage struct {
