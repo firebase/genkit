@@ -30,9 +30,16 @@ type Document struct {
 // A Part is one part of a [Document]. This may be plain text or it
 // may be a URL (possibly a "data:" URL with embedded data).
 type Part struct {
-	isText     bool
+	isText      bool
 	contentType string
 	text        string
+}
+
+func NewTextPart(text string) *Part {
+	return &Part{isText: true, text: text}
+}
+func NewBlobPart(mimeType, contents string) *Part {
+	return &Part{isText: false, contentType: mimeType, text: contents}
 }
 
 // IsText reports whether the [Part] contains plain text.
@@ -103,12 +110,12 @@ func (p *Part) UnmarshalJSON(b []byte) error {
 
 // DocumentFromText returns a [Document] containing a single plain text part.
 // This takes ownership of the metadata map.
-func DocumentFromText(text string, metadata map[string] any) *Document {
+func DocumentFromText(text string, metadata map[string]any) *Document {
 	return &Document{
 		Content: []*Part{
 			&Part{
 				isText: true,
-				text: text,
+				text:   text,
 			},
 		},
 		Metadata: metadata,

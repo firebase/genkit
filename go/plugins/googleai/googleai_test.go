@@ -19,6 +19,7 @@ import (
 	"flag"
 	"testing"
 
+	"github.com/FirebasePrivate/genkit/go/genkit"
 	"github.com/FirebasePrivate/genkit/go/plugins/googleai"
 )
 
@@ -50,5 +51,34 @@ func TestTextEmbedder(t *testing.T) {
 	}
 	if normSquared < 0.9 || normSquared > 1.1 {
 		t.Errorf("embedding vector not unit length: %f", normSquared)
+	}
+}
+
+func TestTextGenerator(t *testing.T) {
+	if *apiKey == "" {
+		t.Skipf("no -key provided")
+	}
+	ctx := context.Background()
+	a, err := googleai.NewGenerator(ctx, "gemini-1.0-pro", *apiKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := &genkit.GenerateRequest{
+		Candidates: 1,
+		Messages: []*genkit.Message{
+			&genkit.Message{
+				Content: []*genkit.Part{genkit.NewTextPart("Which country was Napoleon the emperor of?")},
+				Role:    genkit.RoleUser,
+			},
+		},
+	}
+
+	resp, err := a.Run(ctx, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := resp.Candidates[0].Message.Content[0].Text()
+	if out != "France" {
+		t.Errorf("got \"%s\", expecting \"France\"", out)
 	}
 }
