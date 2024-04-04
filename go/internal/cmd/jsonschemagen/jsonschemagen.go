@@ -339,8 +339,11 @@ func (g *generator) generateStringEnum(name string, s *Schema, tcfg *itemConfig)
 	g.pr("const (\n")
 	for _, v := range s.Enum {
 		goVName := goName + adjustIdentifier(v)
-		if ic := g.cfg.itemConfigs[goVName]; ic != nil && ic.name != "" {
-			goVName = ic.name
+		if ic := g.cfg.itemConfigs[goVName]; ic != nil {
+			if ic.name != "" {
+				goVName = ic.name
+			}
+			g.generateDoc(s, ic)
 		}
 		g.pr(`  %s %s = "%s"`, goVName, goName, v)
 		g.pr("\n")
