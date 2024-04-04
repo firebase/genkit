@@ -31,7 +31,7 @@ interface PredictionResponse<R> {
   predictions: R[];
 }
 
-const ACCESS_TOKEN_TTL = 50 * 60 * 10000; // cache access token for 50 minutes
+const ACCESS_TOKEN_TTL = 50 * 60 * 1000; // cache access token for 50 minutes
 
 export function predictModel<I = unknown, R = unknown, P = unknown>(
   auth: GoogleAuth,
@@ -48,10 +48,7 @@ export function predictModel<I = unknown, R = unknown, P = unknown>(
     const fetch = (await import('node-fetch')).default;
 
     if (!accessToken || accessTokenFetchTime + ACCESS_TOKEN_TTL < Date.now()) {
-      const freshToken = await (
-        await auth.getApplicationDefault()
-      ).credential.getAccessToken();
-      accessToken = freshToken.token;
+      accessToken = await auth.getAccessToken();
       accessTokenFetchTime = Date.now();
     }
 

@@ -16,7 +16,7 @@
 
 import { Plugin, genkitPlugin } from '@genkit-ai/core';
 import { VertexAI } from '@google-cloud/vertexai';
-import { GoogleAuth } from 'google-auth-library';
+import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
 import {
   SUPPORTED_EMBEDDER_MODELS,
   textEmbeddingGecko,
@@ -33,14 +33,21 @@ import { imagen2, imagen2Model } from './imagen.js';
 export { geminiPro, geminiProVision, imagen2, textEmbeddingGecko };
 
 export interface PluginOptions {
+  /** The Google Cloud project id to call. */
   projectId?: string;
+  /** The Google Cloud region to call. */
   location: string;
+  /** Provide custom authentication configuration for connecting to Vertex AI. */
+  googleAuth?: GoogleAuthOptions;
 }
 
+/**
+ * Add Google Cloud Vertex AI to Genkit. Includes Gemini and Imagen models and text embedder.
+ */
 export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
   'vertexai',
   async (options?: PluginOptions) => {
-    const authClient = new GoogleAuth();
+    const authClient = new GoogleAuth(options?.googleAuth);
     const projectId = options?.projectId || (await authClient.getProjectId());
     const location = options?.location || 'us-central1';
 
@@ -56,7 +63,11 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       throw confError('project', 'GCLOUD_PROJECT');
     }
 
-    const vertexClient = new VertexAI({ project: projectId, location });
+    const vertexClient = new VertexAI({
+      project: projectId,
+      location,
+      googleAuthOptions: options?.googleAuth,
+    });
     return {
       models: [
         imagen2Model(authClient, { projectId, location }),
