@@ -147,7 +147,7 @@ export function getAnalyticsSettings(): AnalyticsInfo {
 // Start internal implementation
 
 const ANALYTICS_NOTIFICATION =
-  'Genkit CLI and Dev UI use cookies and ' +
+  'Genkit CLI and Developer UI use cookies and ' +
   'similar technologies from Google\nto deliver and enhance the quality of its ' +
   'services and to analyze usage.\n' +
   'Learn more at https://policies.google.com/technologies/cookies';

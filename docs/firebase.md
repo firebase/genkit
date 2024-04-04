@@ -149,7 +149,7 @@
     npx genkit flow:run jokeFlow "\"banana\"" --auth "{\"email_verified\": true}"
     ```
 
-    Run Genkit Dev UI and try running the flow and explore traces:
+    Run the Genkit Developer UI and try running the flow and explore traces:
 
     ```posix-terminal
     npx genkit start

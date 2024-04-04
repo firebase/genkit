@@ -44,7 +44,7 @@ cases provided in `testQuestions.json`.
 genkit eval:flow spongebobQA --input testQuestions.json
 ```
 
-You can then see evaluation results in the DevUI by running:
+You can then see evaluation results in the Developer UI by running:
 
 ```posix-terminal
 genkit start
@@ -97,7 +97,7 @@ The exported data will be output as a json file with each testCase in the follow
 ]
 ```
 
-The data extractor will automatically locate retrievers and add the produced docs to the context array. By default, `eval:run` will run against all configured evaluators, and like `eval:flow`, results for `eval:run` will appear in the evaluation page of DevUI, located at `localhost:4000/evaluate`.
+The data extractor will automatically locate retrievers and add the produced docs to the context array. By default, `eval:run` will run against all configured evaluators, and like `eval:flow`, results for `eval:run` will appear in the evaluation page of Developer UI, located at `localhost:4000/evaluate`.
 
 To run evaluation over an already extracted dataset:
 

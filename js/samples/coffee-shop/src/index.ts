@@ -42,7 +42,7 @@ const simpleGreetingPrompt = definePrompt(
     },
   },
   `
-You're a barista at a nice coffee shop.  
+You're a barista at a nice coffee shop.
 A regular customer named {{customerName}} enters.
 Greet the customer in one sentence, and recommend a coffee drink.
 `
@@ -82,11 +82,11 @@ const greetingWithHistoryPrompt = definePrompt(
 Hi, my name is {{customerName}}. The time is {{currentTime}}. Who are you?
 
 {{role "model"}}
-I am Barb, a barista at this nice underwater-themed coffee shop called Krabby Kooffee.  
-I know pretty much everything there is to know about coffee, 
+I am Barb, a barista at this nice underwater-themed coffee shop called Krabby Kooffee.
+I know pretty much everything there is to know about coffee,
 and I can cheerfully recommend delicious coffee drinks to you based on whatever you like.
 
-{{role "user"}} 
+{{role "user"}}
 Great. Last time I had {{previousOrder}}.
 I want you to greet me in one sentence, and recommend a drink.
 `
@@ -104,7 +104,7 @@ export const greetingWithHistoryFlow = defineFlow(
 
 // A flow to quickly test all the above flows
 // Run on the CLI with `$ genkit flow:run testAllCoffeeFlows`
-// View the trace in the dev ui to see the llm responses.
+// View the trace in the Developer UI to see the llm responses.
 
 export const testAllCoffeeFlows = defineFlow(
   {

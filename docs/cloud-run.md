@@ -164,14 +164,14 @@
     npx genkit flow:run jokeFlow "\"banana\"" -s
     ```
 
-1.  Start the dev UI:
+1.  Start the Developer UI:
 
     ```posix-terminal
     npx genkit start
     ```
 
     1.  To try out the joke flow navigate to http://localhost:4000/flows and run
-        the flow using the Dev UI.
+        the flow using the Developer UI.
 
     1.  Try out the express endpoint:
 
