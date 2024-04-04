@@ -72,20 +72,8 @@
 
 1.  Initialize Genkit in your Firebase project:
 
-    Download and unzip [genkit-dist.zip](https://bit.ly/genkit-dist) (e.g. `$HOME/Downloads/genkit-dist`).
-
-    Start by installing Genkit CLI
-
     ```posix-terminal
-    cd functions
-
-    npm i --save -D $HOME/Downloads/genkit-dist/genkit-0.5.0.tgz $HOME/Downloads/genkit-dist/genkit-ai-tools-plugins-0.5.0.tgz
-    ```
-
-    Then run:
-
-    ```posix-terminal
-    npx genkit init -d $HOME/Downloads/genkit-dist/genkit-dist.zip
+    genkit init -d $HOME/Downloads/genkit-dist/genkit-dist.zip
     ```
 
     Select `firebase` as the deployment platform option and Google AI as the model. If Google AI is not available in your region (see https://ai.google.dev/available_regions) consider using Vertex AI.
@@ -146,13 +134,13 @@
 1.  Run your code locally:
 
     ```posix-terminal
-    npx genkit flow:run jokeFlow "\"banana\"" --auth "{\"email_verified\": true}"
+    genkit flow:run jokeFlow "\"banana\"" --auth "{\"email_verified\": true}"
     ```
 
     Run the Genkit Developer UI and try running the flow and explore traces:
 
     ```posix-terminal
-    npx genkit start
+    genkit start
     ```
 
     Open http://localhost:4000 in a browser.

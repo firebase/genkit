@@ -50,7 +50,7 @@ const response = await runFlow(jokeFlow, 'banana');
 You can use the CLI to run flows as well:
 
 ```posix-terminal
-npx genkit flow:run jokeFlow '"banana"'
+genkit flow:run jokeFlow '"banana"'
 ```
 
 ### Streamed
@@ -98,7 +98,7 @@ If the flow does not implement streaming `streamFlow` will behave identically to
 You can use the CLI to stream flows as well:
 
 ```posix-terminal
-npx genkit flow:run jokeFlow '"banana"' -s
+genkit flow:run jokeFlow '"banana"' -s
 ```
 
 ## Deploying flows

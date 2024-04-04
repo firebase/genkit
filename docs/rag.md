@@ -160,7 +160,7 @@ async function extractTextFromPdf(filePath: string) {
 To run the flow:
 
 ```posix-terminal
-npx genkit flow:run indexPdf "'../pdfs'"
+genkit flow:run indexPdf "'../pdfs'"
 ```
 
 ## Retrievers

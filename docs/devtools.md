@@ -3,17 +3,17 @@
 You can run Genkit's developer tooling locally using the Genkit CLI:
 
 ```posix-terminal
-npx genkit start
+genkit start
 ```
 
 You can run flows:
 
 ```posix-terminal
-npx genkit flow:run myFlow {"input":"value"}
+genkit flow:run myFlow {"input":"value"}
 ```
 
 Or resume flows:
 
 ```posix-terminal
-npx genkit flow:resume myFlow FLOW_ID {"resume":"value"}
+genkit flow:resume myFlow FLOW_ID {"resume":"value"}
 ```

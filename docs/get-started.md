@@ -7,7 +7,11 @@ Gemini API.
 If you want to follow along with this introduction, you need Node.js 18 or
 later.
 
-1.  Download and unzip [genkit-dist.zip](https://bit.ly/genkit-dist) (e.g. `$HOME/Downloads/genkit-dist`).
+1.  Install Genkit CLI by running
+
+    ```posix-terminal
+    npm i -g genkit
+    ```
 
 1.  Create a new project folder and install Genkit CLI:
 
@@ -15,14 +19,12 @@ later.
     mkdir genkit-intro && cd genkit-intro
 
     npm init -y
-
-    npm i --save -D $HOME/Downloads/genkit-dist/genkit-0.5.0.tgz $HOME/Downloads/genkit-dist/genkit-ai-tools-plugins-0.5.0.tgz
     ```
 
 1.  Initialize a Genkit project:
 
     ```posix-terminal
-    npx genkit init -d $HOME/Downloads/genkit-dist/genkit-dist.zip
+    genkit init
     ```
 
     1. Select `googleCloud` as the deployment platform option (you don't need a Google Cloud project to get started).
@@ -59,7 +61,7 @@ later.
 1.  Now you can run and explore Genkit features and sample project locally on your machine. Start the Genkit Developer UI:
 
     ```posix-terminal
-    npx genkit start
+    genkit start
     ```
 
     The Genkit Developer UI is now running on your machine. When you run models or flows
