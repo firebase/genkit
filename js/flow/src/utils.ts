@@ -58,7 +58,7 @@ export function generateFlowId() {
 /**
  * Gets the auth object from the current context.
  */
-export function getFlowAuth(): unknown {
+export function getFlowAuth(): any {
   const ctx = getActiveContext();
   if (!ctx) {
     throw new Error('Can only be run from a flow');

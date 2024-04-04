@@ -81,7 +81,7 @@ export interface RunStepConfig {
  * be executed.
  */
 export interface FlowAuthPolicy<I extends z.ZodTypeAny = z.ZodTypeAny> {
-  (auth: unknown | undefined, input: z.infer<I>): void | Promise<void>;
+  (auth: any | undefined, input: z.infer<I>): void | Promise<void>;
 }
 
 /**
