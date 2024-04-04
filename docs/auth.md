@@ -63,6 +63,9 @@ await runFlow(
 );
 ```
 
+When running with the Genkit Development UI, you can pass the Auth object by
+entering JSON in the "Auth JSON" tab: `{"uid": "abc-def"}`.
+
 You can also retrieve the auth context for the flow at any time within the flow
 by calling `getFlowAuth()`, including in functions invoked by the flow:
 
@@ -74,6 +77,7 @@ async function readDatabase(uid: string) {
     // Do something special if the user is an admin:
     ...
   } else {
+    // Otherwise, use the `uid` variable to retrieve the relevant document
     ...
   }
 }
@@ -136,7 +140,7 @@ above. When running this flow during development, you would pass the user object
 in the same way:
 
 ```posix-terminal
-genkit flow:run jokeFlow "Banana" --auth '{"admin": true}'
+genkit flow:run jokeFlow '"Banana"' --auth '{"admin": true}'
 ```
 
 By default the Firebase Auth plugin requires the auth header to be sent by the
@@ -146,7 +150,7 @@ configure the policy like so:
 
 ```ts
 authPolicy: firebaseAuth((user) => {
-  if (!user?.email_verified) {
+  if (user && !user.email_verified) {
     throw new Error('Logged in users must have verified emails');
   }
 }, {required: false}),
@@ -226,6 +230,7 @@ alongside the native flows. You have two options:
 
           // This is what will get passed to your authPolicy
           req.auth = user;
+          next();
         }
       ],
       authPolicy: (auth, input) => {
