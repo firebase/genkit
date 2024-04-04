@@ -13,6 +13,10 @@ this example you are configuring the Vertex AI plugin, which provides Gemini
 models.
 
 ```js
+import { configureGenkit } from '@genkit-ai/core';
+import { firebase } from '@genkit-ai/firebase';
+import { vertexAI } from '@genkit-ai/vertexai';
+
 configureGenkit({
   plugins: [firebase(), vertexAI()],
   flowStateStore: 'firebase',
