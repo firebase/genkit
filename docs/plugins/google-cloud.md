@@ -225,6 +225,6 @@ There are several quotas that are important to keep in mind:
 
 Cloud Logging, Cloud Trace, and Cloud Monitoring have generous free tiers. Specific pricing can be found at the following links:
 
-- [Cloud Logging Pricing](http://cloud/stackdriver/pricing#google-cloud-observability-pricing)
+- [Cloud Logging Pricing](http://cloud.google.com/stackdriver/pricing#google-cloud-observability-pricing)
 - [Cloud Trace Pricing](https://cloud.google.com/trace#pricing)
 - [Cloud Monitoring Pricing](https://cloud.google.com/stackdriver/pricing#monitoring-pricing-summary)
