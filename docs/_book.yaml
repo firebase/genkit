@@ -67,6 +67,8 @@ guides:
     path: /genkit/templates/firestore-vector
   - title: Firebase
     path: /genkit/plugins/firebase
+  - title: Google Cloud
+    path: /genkit/plugins/google-cloud
 #
 # reference:
 #   - title: Resource summary

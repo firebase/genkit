@@ -1,35 +1,25 @@
 # Monitoring
 
-Genkit is fully instrumented with OpenTelemetry tracing, metrics and
-logging.
+Genkit is fully instrumented with [OpenTelemetry](https://opentelemetry.io/) and provides hooks to export telemetry data.
 
-Genkit provides out-of-the-box integration with Google Cloud Tracing,
-Logging and Monitoring. To enable exporting to
-Google Cloud Tracing, Logging and Monitoring, add the `googleCloud` plugin to your
-configuration.
+## Telemetry Configuration
 
-```js
+Genkit's configuration supports a `telemetry` block that exposes instrumentation (trace and metrics) and logging hooks, allowing plugins to provide OpenTelemetry and logging exporters.
+
+```ts
 configureGenkit({
-  plugins: [
-    firebase(),
-    googleCloud(),
-    // ...
-  ],
-  traceStore: 'firebase',
   telemetry: {
-    instrumentation: 'googleCloud',
-  },
-  // ...
+    instrumentation: ...,
+    logger: ...
+  }
 });
 ```
 
-When running in production, your telemetry gets automatically exported.
+Genkit ships with a [Google Cloud plugin](./plugins/google-cloud.md) which exports telemetry to Cloud's operations suite.
 
-Note: When running locally (specifically with the `genkit` CLI) not all
-instrumentation is enabled and you may not see your telemetry getting exported
-during local development.
+## Trace Store
 
-The `traceStore` option is complementary to your telemetry instrumentation. It
+The `traceStore` option is complementary to the telemetry instrumentation. It
 lets you inspect your traces for your flow runs in the Genkit Developer UI. It
 requires a separate configuration which provides a trace storage implementation.
 The `firebase` plugin offers a Firestore-based implementation. This
@@ -37,3 +27,12 @@ configuration is optional, but is recommended because it lets you inspect and
 debug issues in production. When using Firestore-based trace storage you will
 want to enable TTL for the trace documents:
 https://firebase.google.com/docs/firestore/ttl
+
+```ts
+import { firebase } from '@genkit-ai/plugin-firebase';
+
+configureGenkit({
+  plugins: [firebase()],
+  traceStore: 'firebase',
+});
+```
