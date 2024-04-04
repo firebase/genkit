@@ -17,6 +17,13 @@
     "build:watch": "tsup-node --watch",
     "test": "node --import tsx --test tests/*_test.ts tests/**/*_test.ts"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/google/genkit.git",
+    "directory": "js/core"
+  },
+  "author": "genkit",
+  "license": "Apache-2.0",
   "dependencies": {
     "@google-cloud/firestore": "^7.5.0",
     "@google-cloud/monitoring": "^4.0.0",

@@ -12,6 +12,13 @@
     "npm-run-all": "^4.1.5",
     "typescript": "^4.9.0"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/google/genkit.git",
+    "directory": "js/genkit-tools/common"
+  },
+  "author": "genkit",
+  "license": "Apache-2.0",
   "types": "lib/types/index.d.ts",
   "exports": {
     "./config": {

@@ -24,8 +24,13 @@
     "pack:common": "cd common && pnpm pack --pack-destination ../../dist",
     "pack:plugins": "for i in plugins/*/; do cd $i && pnpm pack --pack-destination ../../../dist && cd ../..; done"
   },
-  "author": "Firebase (https://firebase.google.com)",
-  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/google/genkit.git",
+    "directory": "js/genkit-tools"
+  },
+  "author": "genkit",
+  "license": "Apache-2.0",
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^6.3.1",
     "@genkit-ai/tools-plugins": "workspace:*",
