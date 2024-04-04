@@ -67,7 +67,7 @@ export async function startDevUi(testAppName: string): Promise<string> {
       console.log('stdout: ' + data.toString());
       const match = data.toString().match(/Genkit Tools UI: ([^ ]*)/);
       if (match && match.length > 1) {
-        console.log('Dev UI ready, launching test ' + match[1]);
+        console.log('Developer UI ready, launching test ' + match[1]);
 
         urlResolver(match[1]);
       }
@@ -81,7 +81,7 @@ export async function startDevUi(testAppName: string): Promise<string> {
       terminate(process.pid);
     });
     appProcess.on('exit', (code) => {
-      console.log(`Dev UI exited with code ${code}`);
+      console.log(`Developer UI exited with code ${code}`);
       process.exitCode = 23;
       terminate(process.pid);
     });

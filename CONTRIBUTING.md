@@ -68,7 +68,7 @@ this will produce tarballs in the `dist` folder. Also `genkit-dist.zip` -- a zip
 
 ## Link it
 
-You will need the genkit CLI to run samples and the Dev UI
+You will need the Genkit CLI to run samples and the Developer UI:
 
 ```
 cd genkit-tools
@@ -88,7 +88,7 @@ cd js/samples/flow-sample1
 genkit flow:run basic "\"hello\""
 ```
 
-### Run the DevUI
+### Run the Developer UI
 
 ```
 cd js/samples/flow-sample1
@@ -103,7 +103,7 @@ We'll be using the `pdfQA` flow for our example.
 
 To start, let's make sure we have some context to pull from the vector store.
 
-1. Start the DevUI
+1. Start the Developer UI
 
 ```
 cd js/samples/rag

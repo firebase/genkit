@@ -4,8 +4,8 @@ Models in Genkit are libraries and abstractions that provide access to various
 Google and non-Google LLMs.
 
 Models are fully instrumented for observability and come with tooling
-integrations provided by the Genkit Dev UI -- you can try any model using the
-model playground.
+integrations provided by the Genkit Developer UI -- you can try any model using
+the model runner.
 
 When working with models in Genkit, you first need to configure the model you
 want to work with. Model configuration is performed by the plugin system. In

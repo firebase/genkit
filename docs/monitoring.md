@@ -30,7 +30,7 @@ instrumentation is enabled and you may not see your telemetry getting exported
 during local development.
 
 The `traceStore` option is complementary to your telemetry instrumentation. It
-lets you inspect your traces for your flow runs in the Genkit Dev UI. It
+lets you inspect your traces for your flow runs in the Genkit Developer UI. It
 requires a separate configuration which provides a trace storage implementation.
 The `firebase` plugin offers a Firestore-based implementation. This
 configuration is optional, but is recommended because it lets you inspect and

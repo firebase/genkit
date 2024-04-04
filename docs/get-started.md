@@ -56,13 +56,13 @@ later.
 
 1.  Edit package.json and make sure the `main` field is set to `lib/index.js`.
 
-1.  Now you can run and explore Genkit features and sample project locally on your machine. Start the Genkit Dev UI:
+1.  Now you can run and explore Genkit features and sample project locally on your machine. Start the Genkit Developer UI:
 
     ```posix-terminal
     npx genkit start
     ```
 
-    The Genkit Dev UI is now running on your machine. When you run models or flows
+    The Genkit Developer UI is now running on your machine. When you run models or flows
     in the next step, your machine will perform the orchestration tasks needed
     to get the steps of your flow working together; calls to external services
     such as the Gemini API will continue to be made against live servers.
@@ -70,10 +70,10 @@ later.
     Also, because you are in a dev environment, Genkit will store traces and
     flow state in local files.
 
-1.  Open the Genkit Dev UI by clicking the link printed by the `genkit start`
-    command.
+1.  Open the Genkit Developer UI by clicking the link printed by the
+    `genkit start` command.
 
-    This Dev UI lets you see which flows you have defined and models you
+    The Developer UI lets you see which flows you have defined and models you
     configured, run them, and examine traces of previous runs. Try out some of
     these features:
 

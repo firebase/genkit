@@ -2,8 +2,8 @@
 
 Flows are functions with some additional characteristics: they are strongly
 typed, streamable, locally and remotely callable, and fully observable. Genkit
-provides CLI and Dev UI tooling for working with flows (running, debugging,
-etc).
+provides CLI and Developer UI tooling for working with flows (running,
+debugging, etc).
 
 ## Defining flows
 
@@ -170,7 +170,7 @@ startFlowsServer({
 
 ## Flow observability
 
-Sometimes when using 3rd party SDKs that that are not instrumented for observability, you might want to see them as a separate trace step in the Dev UI. All you need to do is wrap the code in the `run` function.
+Sometimes when using 3rd party SDKs that that are not instrumented for observability, you might want to see them as a separate trace step in the Developer UI. All you need to do is wrap the code in the `run` function.
 
 ```js
 import { defineFlow, run } from '@genkit-ai/flow';
