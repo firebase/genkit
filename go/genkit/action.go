@@ -75,7 +75,7 @@ func (a *Action[I, O]) Run(ctx context.Context, input I) (output O, err error) {
 	return runInNewSpan(ctx, tstate, a.name, "action", false, input, a.fn)
 }
 
-func (a *Action[I, O]) runJSON(ctx context.Context, input []byte) ([]byte, error) {
+func (a *Action[I, O]) runJSON(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
 	var in I
 	if err := json.Unmarshal(input, &in); err != nil {
 		return nil, err
@@ -84,7 +84,11 @@ func (a *Action[I, O]) runJSON(ctx context.Context, input []byte) ([]byte, error
 	if err != nil {
 		return nil, err
 	}
-	return json.Marshal(out)
+	bytes, err := json.Marshal(out)
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(bytes), nil
 }
 
 // action is the type that all Action[I, O] have in common.
@@ -93,7 +97,7 @@ type action interface {
 
 	// runJSON uses encoding/json to unmarshal the input,
 	// calls Action.Run, then returns the marshaled result.
-	runJSON(ctx context.Context, input []byte) ([]byte, error)
+	runJSON(ctx context.Context, input json.RawMessage) (json.RawMessage, error)
 
 	// desc returns a description of the action.
 	// It should set all fields of actionDesc except Key, which

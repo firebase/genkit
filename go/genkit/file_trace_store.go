@@ -148,3 +148,7 @@ func listRange(q *TraceQuery, total int) (start, end int, err error) {
 	}
 	return start, end, nil
 }
+
+func (s *FileTraceStore) loadAny(id string, p any) error {
+	return readJSONFile(filepath.Join(s.dir, clean(id)), p)
+}

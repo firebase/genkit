@@ -33,7 +33,7 @@ func dec(_ context.Context, x int) (int, error) {
 }
 
 func TestDevServer(t *testing.T) {
-	r , err:= newRegistry()
+	r, err := newRegistry()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func checkActionTrace(t *testing.T, reg *registry, tid, name string) {
 	want := &SpanData{
 		TraceID:                 tid,
 		DisplayName:             "dev-run-action-wrapper",
-		SpanKind:                "internal",
+		SpanKind:                "INTERNAL",
 		SameProcessAsParentSpan: boolValue{Value: true},
 		Status:                  Status{Code: 0},
 		InstrumentationLibrary: InstrumentationLibrary{
@@ -124,6 +124,7 @@ func checkActionTrace(t *testing.T, reg *registry, tid, name string) {
 			"genkit:input":                        "3",
 			"genkit:isRoot":                       true,
 			"genkit:path":                         "/dev-run-action-wrapper",
+			"genkit:output":                       "4",
 			"genkit:metadata:genkit-dev-internal": "true",
 			"genkit:state":                        "success",
 		},

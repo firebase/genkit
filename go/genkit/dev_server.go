@@ -117,24 +117,12 @@ func (s *devServer) handleRunAction(w http.ResponseWriter, r *http.Request) erro
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		return &httpError{http.StatusBadRequest, err}
 	}
-	action := s.reg.lookupAction(body.Key)
 	logger(ctx).Debug("running action", "key", body.Key)
-	if action == nil {
-		return &httpError{http.StatusNotFound, fmt.Errorf("no action with key %q", body.Key)}
-	}
-	var traceID string
-	output, err := runInNewSpan(ctx, s.reg.tstate, "dev-run-action-wrapper", "", true, body.Input, func(ctx context.Context, input json.RawMessage) ([]byte, error) {
-		setCustomMetadataAttr(ctx, "genkit-dev-internal", "true")
-		traceID = trace.SpanContextFromContext(ctx).TraceID().String()
-		return action.runJSON(ctx, input)
-	})
+	resp, err := runAction(ctx, s.reg, body.Key, body.Input)
 	if err != nil {
 		return err
 	}
-	return writeJSON(ctx, w, runActionResponse{
-		Result:    output,
-		Telemetry: telemetry{TraceID: traceID},
-	})
+	return writeJSON(ctx, w, resp)
 }
 
 type runActionResponse struct {
@@ -144,6 +132,26 @@ type runActionResponse struct {
 
 type telemetry struct {
 	TraceID string `json:"traceId"`
+}
+
+func runAction(ctx context.Context, reg *registry, key string, input json.RawMessage) (*runActionResponse, error) {
+	action := reg.lookupAction(key)
+	if action == nil {
+		return nil, &httpError{http.StatusNotFound, fmt.Errorf("no action with key %q", key)}
+	}
+	var traceID string
+	output, err := runInNewSpan(ctx, reg.tstate, "dev-run-action-wrapper", "", true, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
+		setCustomMetadataAttr(ctx, "genkit-dev-internal", "true")
+		traceID = trace.SpanContextFromContext(ctx).TraceID().String()
+		return action.runJSON(ctx, input)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &runActionResponse{
+		Result:    output,
+		Telemetry: telemetry{TraceID: traceID},
+	}, nil
 }
 
 // handleListActions lists all the registered actions.

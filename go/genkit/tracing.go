@@ -179,8 +179,7 @@ func (sm *spanMetadata) attributes() []attribute.KeyValue {
 		attribute.String("genkit:state", string(sm.State)),
 		attribute.String("genkit:input", jsonString(sm.Input)),
 		attribute.String("genkit:path", sm.Path),
-		// TODO(jba): the ts code includes the input but not the output. Why?
-		// attribute.String("genkit:output", jsonString(sm.Output))),
+		attribute.String("genkit:output", jsonString(sm.Output)),
 	}
 	if sm.IsRoot {
 		kvs = append(kvs, attribute.Bool("genkit:isRoot", sm.IsRoot))

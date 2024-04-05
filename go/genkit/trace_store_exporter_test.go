@@ -88,7 +88,7 @@ func TestConvertSpan(t *testing.T) {
 		TraceID:      traceID,
 		SpanID:       spanID1,
 		ParentSpanID: spanID2,
-		SpanKind:     "internal",
+		SpanKind:     "INTERNAL",
 		StartTime:    Milliseconds(1e3),
 		EndTime:      Milliseconds(2e3),
 		Attributes:   map[string]any{"k": "v"},
