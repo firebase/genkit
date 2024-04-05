@@ -58,6 +58,7 @@ export async function runInRunnerThenStop(
     logger.error('Stacktrace:');
     logger.error(`${error.stack}`);
   } finally {
+    await runner.sendQuit();
     await runner.stop();
   }
 }
