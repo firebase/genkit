@@ -16,7 +16,7 @@ Prior to adding the plugin, make sure that the following APIs are enabled for yo
 
 These APIs should be listed in the [API dashboard](https://console.cloud.google.com/apis/dashboard) for your project.
 
-Click [here](https://support.google.com/googleapi/answer/6158841?hl=en) to learn more about enabling and disabling APIs.
+Click [here](https://support.google.com/googleapi/answer/6158841) to learn more about enabling and disabling APIs.
 
 ## Genkit configuration
 
