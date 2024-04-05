@@ -162,6 +162,10 @@ generate({ model: myModelRef });
 generate({ model: 'my-plugin/my-model' });
 ```
 
+### Telemetry plugins
+
+See [Writing a Genkit Telemetry Plugin](plugin-authoring-telemetry.md).
+
 ## Publishing a plugin
 
 Genkit plugins can be published as normal NPM packages. To increase
