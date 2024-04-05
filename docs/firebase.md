@@ -43,6 +43,8 @@
 1.  Initialize firebase project in the folder
 
     ```posix-terminal
+    npm init -y
+
     firebase init functions --project $GCLOUD_PROJECT
     ```
 
