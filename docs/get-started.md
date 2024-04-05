@@ -62,6 +62,7 @@ Node.js 18 or later.
          gcloud services enable aiplatform.googleapis.com
 
          export GCLOUD_PROJECT=<your project ID>
+
          export GCLOUD_LOCATION=us-central1
          ```
 
