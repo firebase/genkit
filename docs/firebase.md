@@ -155,7 +155,7 @@
 
     At the very least it will need the following roles: _Cloud Datastore User_,
     _Vertex AI User_, _Logs Writer_, _Monitoring Metric Writer_, _Cloud Trace
-    Agent_.
+    Agent_, _Cloud Functions Developer_.
 
     If you don't see it on the list then you'll need to manually grant it
     (`YOUR_PROJECT_NUMBER-compute@developer.gserviceaccount.com`) the necessary
