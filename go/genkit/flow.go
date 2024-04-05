@@ -412,6 +412,7 @@ func Run[T any](ctx context.Context, name string, f func() (T, error)) (T, error
 		// The locking here prevents corruption of the cache from concurrent access, but doesn't
 		// prevent two goroutines racing to check the cache and call f. However, that shouldn't
 		// happen because every step has a unique cache key.
+		// TODO(jba): don't memoize a nested flow (see context.ts)
 		fs := fc.stater()
 		fs.lock()
 		j, ok := fs.cache()[uName]
@@ -421,6 +422,7 @@ func Run[T any](ctx context.Context, name string, f func() (T, error)) (T, error
 			if err := json.Unmarshal(j, &t); err != nil {
 				return zero[T](), err
 			}
+			spanMeta.SetAttr("flow:state", "cached")
 			return t, nil
 		}
 		t, err := f()
@@ -434,6 +436,7 @@ func Run[T any](ctx context.Context, name string, f func() (T, error)) (T, error
 		fs.lock()
 		fs.cache()[uName] = json.RawMessage(bytes)
 		fs.unlock()
+		spanMeta.SetAttr("flow:state", "run")
 		return t, nil
 	})
 }

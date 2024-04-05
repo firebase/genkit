@@ -17,6 +17,7 @@ package genkit
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -93,7 +94,7 @@ func convertSpan(span sdktrace.ReadOnlySpan) *SpanData {
 		DisplayName:             span.Name(),
 		Links:                   convertLinks(span.Links()),
 		InstrumentationLibrary:  InstrumentationLibrary(span.InstrumentationLibrary()),
-		SpanKind:                span.SpanKind().String(),
+		SpanKind:                strings.ToUpper(span.SpanKind().String()),
 		SameProcessAsParentSpan: boolValue{!sc.IsRemote()},
 		Status:                  convertStatus(span.Status()),
 	}

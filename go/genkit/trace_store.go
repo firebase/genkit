@@ -37,6 +37,11 @@ type TraceStore interface {
 	// the listing reached the end, this is the empty string.
 	// If the TraceQuery is malformed, List returns an error that is errBadQuery.
 	List(ctx context.Context, q *TraceQuery) (tds []*TraceData, contToken string, err error)
+
+	// loadAny is like Load, but accepts a pointer to any type.
+	// It is for testing (see conformance_test.go).
+	// TODO(jba): replace Load with this.
+	loadAny(id string, p any) error
 }
 
 var errBadQuery = errors.New("bad TraceQuery")

@@ -35,13 +35,13 @@ func init() {
 	// Initialize the global registry, along with a dev tracer, at program startup.
 	var err error
 	globalRegistry, err = newRegistry()
-	if  err != nil {
+	if err != nil {
 		log.Fatal(err)
 	}
 }
 
 type registry struct {
-	tstate      *tracingState
+	tstate  *tracingState
 	mu      sync.Mutex
 	actions map[string]action
 	// TraceStores, at most one for each [Environment].
@@ -50,21 +50,20 @@ type registry struct {
 	traceStores map[Environment]TraceStore
 }
 
-func newRegistry() (*registry , error){
+func newRegistry() (*registry, error) {
 	r := &registry{
 		actions:     map[string]action{},
 		traceStores: map[Environment]TraceStore{},
 	}
 	tstore, err := newDevTraceStore()
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 	r.registerTraceStore(EnvironmentDev, tstore)
 	r.tstate = newTracingState()
 	r.tstate.addTraceStoreImmediate(tstore)
 	return r, nil
 }
-
 
 // An Environment is the development context that the program is running in.
 type Environment string

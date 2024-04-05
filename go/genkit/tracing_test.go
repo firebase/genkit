@@ -26,12 +26,16 @@ import (
 // TODO(jba): add tests that compare tracing data saved to disk with goldens.
 
 func TestSpanMetadata(t *testing.T) {
-	const testInput = 17
+	const (
+		testInput  = 17
+		testOutput = 18
+	)
 	sm := &spanMetadata{
-		Name:  "name",
-		State: SpanStateSuccess,
-		Path:  "parent/name",
-		Input: testInput,
+		Name:   "name",
+		State:  SpanStateSuccess,
+		Path:   "parent/name",
+		Input:  testInput,
+		Output: testOutput,
 	}
 	sm.SetAttr("key", "value")
 
@@ -41,6 +45,7 @@ func TestSpanMetadata(t *testing.T) {
 		attribute.String("genkit:state", "success"),
 		attribute.String("genkit:input", strconv.Itoa(testInput)),
 		attribute.String("genkit:path", "parent/name"),
+		attribute.String("genkit:output", strconv.Itoa(testOutput)),
 		attribute.String("genkit:metadata:key", "value"),
 	}
 	if !slices.Equal(got, want) {
