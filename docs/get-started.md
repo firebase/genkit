@@ -40,7 +40,8 @@ Node.js 18 or later.
        - {Gemini (Google AI)}
 
          The simplest way to get started is with Google AI Gemini API. Make sure
-         it's available in your region: https://ai.google.dev/available_regions
+         it's
+         [available in your region](https://ai.google.dev/available_regions).
 
          [Generate an API key](https://aistudio.google.com/app/apikey) for the
          Gemini API using Google AI Studio. Then, set the `GOOGLE_API_KEY`
@@ -85,10 +86,39 @@ Node.js 18 or later.
       and select and configure the plugins you want to load. The sample config
       loads a plugin to support the model provider you chose earlier.
 
+      ```js
+      export default configureGenkit({
+        plugins: [googleAI()],
+        logLevel: 'debug',
+        enableTracingAndMetrics: true,
+      });
+      ```
+
     - `index.ts`: this is your project's entry point, where you export your AI
       flows and other resources you've defined. The sample file contains a
       single flow, `jokeFlow`, that simply calls the model provider's API with a
       simple prompt and returns the result.
+
+      ```js
+      export const jokeFlow = defineFlow(
+        {
+          name: 'jokeFlow',
+          inputSchema: z.string(),
+          outputSchema: z.string(),
+        },
+        async (subject) => {
+          const llmResponse = await generate({
+            prompt: `Tell me a long joke about ${subject}`,
+            model: geminiPro,
+            config: {
+              temperature: 1,
+            },
+          });
+
+          return llmResponse.text();
+        }
+      );
+      ```
 
       As you build out your app's AI features with Genkit, you will likely
       create flows with multiple steps such as input preprocessing, more
@@ -101,6 +131,8 @@ Node.js 18 or later.
     ```posix-terminal
     genkit start
     ```
+
+    <img src="images/welcome_to_genkit_developer_ui.png" alt="Welcome to Genkit Developer UI" class="screenshot attempt-right">
 
     The Genkit Developer UI is now running on your machine. When you run models
     or flows in the next step, your machine will perform the orchestration tasks
