@@ -18,7 +18,7 @@ import { TelemetryConfig } from '@genkit-ai/core';
 import { MetricExporter } from '@google-cloud/opentelemetry-cloud-monitoring-exporter';
 import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
-import { Span, SpanStatusCode } from '@opentelemetry/api';
+import { Span, SpanStatusCode, TraceFlags } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { ExportResult } from '@opentelemetry/core';
 import { Instrumentation } from '@opentelemetry/instrumentation';
@@ -104,6 +104,19 @@ export class GcpOpenTelemetry implements TelemetryConfig {
     }
   };
 
+  /**
+   * Log hook for writing trace and span metadata to log messages in the format
+   * required by GCP.
+   */
+  private gcpTraceLogHook = (span: Span, record: any) => {
+    const isSampled = !!(span.spanContext().traceFlags & TraceFlags.SAMPLED);
+    record['logging.googleapis.com/trace'] = `projects/${
+      this.options.projectId
+    }/traces/${span.spanContext().traceId}`;
+    record['logging.googleapis.com/spanId'] = span.spanContext().spanId;
+    record['logging.googleapis.com/trace_sampled'] = isSampled ? '1' : '0';
+  };
+
   constructor(options?: PluginOptions) {
     this.options = options || {};
     this.resource = new Resource({ type: 'global' }).merge(
@@ -155,24 +168,8 @@ export class GcpOpenTelemetry implements TelemetryConfig {
   /** Always configure the Pino and Winston instrumentations */
   private getDefaultLoggingInstrumentations(): Instrumentation[] {
     return [
-      new WinstonInstrumentation({
-        logHook: (span: Span, record: any) => {
-          record['logging.googleapis.com/trace'] = `projects/${
-            this.options.projectId
-          }/traces/${span.spanContext().traceId}`;
-          record['logging.googleapis.com/spanId'] = span.spanContext().spanId;
-          record['logging.googleapis.com/trace_sampled'] = '1';
-        },
-      }),
-      new PinoInstrumentation({
-        logHook: (span: any, record: any) => {
-          record['logging.googleapis.com/trace'] = `projects/${
-            this.options.projectId
-          }/traces/${span.spanContext().traceId}`;
-          record['logging.googleapis.com/spanId'] = span.spanContext().spanId;
-          record['logging.googleapis.com/trace_sampled'] = '1';
-        },
-      }),
+      new WinstonInstrumentation({ logHook: this.gcpTraceLogHook }),
+      new PinoInstrumentation({ logHook: this.gcpTraceLogHook }),
     ];
   }
 }
