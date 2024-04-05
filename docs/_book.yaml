@@ -49,6 +49,8 @@ guides:
   - heading: Writing plugins
   - title: Overview
     path: /genkit/plugin-authoring
+  - title: Writing a Telemetry Plugin
+    path: /genkit/plugin-authoring-telemetry
 
   - heading: Official plugins
   - title: Google Generative AI
