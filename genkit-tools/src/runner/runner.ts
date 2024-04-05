@@ -251,7 +251,7 @@ export class Runner {
       } catch (error) {
         logger.error('Compilation error:', error);
       }
-    } else if (extension === '.js') {
+    } else if (extension === '.js' || extension === '.prompt') {
       logger.info(
         `Detected a change in ${clc.bold(
           relativeFilePath
