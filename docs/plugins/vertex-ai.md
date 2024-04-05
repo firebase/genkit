@@ -101,6 +101,8 @@ configureGenkit({
 Or you can generate an embedding directly:
 
 ```js
+import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
+
 const embedding = await embed({
   embedder: textEmbeddingGecko,
   content: 'How many widgets do you have in stock?',
