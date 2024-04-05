@@ -31,6 +31,10 @@ cd genkitx-my-plugin
 npm init -y
 
 npm i --save @genkit-ai/core
+
+npm i --save-dev typescript
+
+npx tsc --init
 ```
 
 Then, define and export your plugin from your main entry point:
@@ -58,6 +62,12 @@ requires a secret value, such as API keys, you should offer both an option and a
 default environment variable to configure it:
 
 ```ts
+import { genkitPlugin, GenkitError } from '@genkit-ai/core';
+
+interface MyPluginOptions {
+  apiKey?: string;
+}
+
 export const myPlugin = genkitPlugin(
   'my-plugin',
   async (options: MyPluginOptions) => {
@@ -91,9 +101,20 @@ A custom model generally consists of three components:
 3.  A function that implements the model accepting `GenerateRequest` and
     returning `GenerateResponse`.
 
+To build a model plugin, you'll need to use the `@genkit-ai/ai` package:
+
+```posix-terminal
+npm i --save @genkit-ai/ai
+```
+
 At a high level, a model plugin might look something like this:
 
 ```ts
+import { genkitPlugin, GenkitError } from '@genkit-ai/core';
+import { defineModel } from '@genkit-ai/ai/model';
+import { simulateSystemPrompt } from '@genkit-ai/ai/model/middleware';
+import { z } from 'zod';
+
 export const myPlugin = genkitPlugin('my-plugin', async (options: {apiKey?: string}) => {
   defineModel({
     // be sure to include your plugin as a provider prefix
