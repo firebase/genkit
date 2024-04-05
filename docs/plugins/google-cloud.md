@@ -10,9 +10,13 @@ This plugin requires a Google Cloud account ([sign up](https://cloud.google.com/
 
 Prior to adding the plugin, make sure that the following APIs are enabled for your project:
 
-- [Cloud Logging API](https://cloud.google.com/stackdriver/pricing#logging-pricing-summary)
+- [Cloud Logging API](https://console.cloud.google.com/apis/library/logging.googleapis.com)
 - [Cloud Trace API](https://console.cloud.google.com/apis/library/cloudtrace.googleapis.com)
 - [Cloud Monitoring API](https://console.cloud.google.com/apis/library/monitoring.googleapis.com)
+
+These APIs should be listed in the [API dashboard](https://console.cloud.google.com/apis/dashboard) for your project.
+
+Click [here](https://support.google.com/googleapi/answer/6158841?hl=en) to learn more about enabling and disabling APIs.
 
 ## Genkit configuration
 
@@ -71,6 +75,7 @@ This option configures the [OpenTelemetry NodeSDK](https://open-telemetry.github
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 
 googleCloud({
+  forceDevExport: false, // Set this to true to export telemetry for local runs
   telemetryConfig: {
     sampler: new AlwaysOnSampler(),
     autoInstrumentation: true,
