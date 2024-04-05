@@ -4,7 +4,7 @@
   "description": "",
   "main": "lib/e2e.js",
   "scripts": {
-    "test": "node --import tsx src/e2e.ts "
+    "test": "node --import tsx src/e2e.ts"
   },
   "keywords": [],
   "author": "",

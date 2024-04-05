@@ -6,7 +6,6 @@
     "build": "pnpm install && pnpm build:core && pnpm build:noncore",
     "build:core": "pnpm -r --workspace-concurrency 1 -F core -F ai -F flow -F dotprompt build",
     "build:noncore": "pnpm -r --workspace-concurrency 0 -F \"./(plugins|samples|third_party)/**\" build",
-    "build:samples": "for i in samples/*/; do cd $i && pnpm i && pnpm build && cd ../..; done",
     "pack:all": "(mkdir ../dist || true) && npm-run-all pack:core pack:flow pack:ai pack:dotprompt pack:plugins pack:third_party",
     "pack:core": "cd core && pnpm pack --pack-destination ../../dist",
     "pack:flow": "cd flow && pnpm pack --pack-destination ../../dist",
@@ -14,17 +13,12 @@
     "pack:dotprompt": "cd dotprompt && pnpm pack --pack-destination ../../dist",
     "pack:plugins": "for i in plugins/*/; do cd $i && pnpm pack --pack-destination ../../../dist && cd ../..; done",
     "pack:third_party": "for i in third_party/*/; do cd $i && pnpm pack --pack-destination ../../../dist && cd ../..; done",
-    "test:all": "concurrently npm:test:core npm:test:flow npm:test:ai npm:test:dotprompt",
-    "test:core": "cd core && pnpm test",
-    "test:flow": "cd flow && pnpm test",
-    "test:ai": "cd ai && pnpm test",
-    "test:dotprompt": "cd dotprompt && pnpm test"
+    "test:all": "pnpm -r --workspace-concurrency 0 -F \"./(ai|core|flow|dotprompt)/**\" test"
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5",
     "only-allow": "^1.2.1",
-    "concurrently": "^8.2.2",
     "typescript": "^4.9.0"
   },
-  "packageManager": "pnpm@8.15.5+sha256.4b4efa12490e5055d59b9b9fc9438b7d581a6b7af3b5675eb5c5f447cee1a589"
+  "packageManager": "pnpm@8.15.6+sha256.01c01eeb990e379b31ef19c03e9d06a14afa5250b82e81303f88721c99ff2e6f"
 }
