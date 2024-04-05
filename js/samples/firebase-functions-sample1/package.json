@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "build": "(cd functions && npm run install-dist && npm i && npm run build) && (npm run build:js)",
+    "build": "(cd functions && npm i && npm run build) && (npm run build:js)",
     "build:js": "webpack"
   },
   "private": true,
