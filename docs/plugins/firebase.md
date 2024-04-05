@@ -78,6 +78,8 @@ firebase({
 })
 ```
 
+When using Firestore-based trace storage you will want to enable TTL for the trace documents: https://firebase.google.com/docs/firestore/ttl
+
 ### Cloud Functions
 
 The plugin provides the `onFlow()` constructor, which creates a flow backed by a

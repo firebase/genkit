@@ -102,7 +102,6 @@
     import { GenerateResponseChunkSchema } from '@genkit-ai/ai/model';
     import { configureGenkit } from '@genkit-ai/core';
     import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
-    import { firebase } from '@genkit-ai/firebase';
     import { geminiPro, vertexAI } from '@genkit-ai/vertexai';
     import * as z from 'zod';
 
@@ -113,8 +112,6 @@
           location: 'us-central1',
         }),
       ],
-      flowStateStore: 'firebase',
-      traceStore: 'firebase',
       enableTracingAndMetrics: true,
       logLevel: 'debug',
     });

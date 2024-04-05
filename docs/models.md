@@ -18,11 +18,7 @@ import { firebase } from '@genkit-ai/firebase';
 import { vertexAI } from '@genkit-ai/vertexai';
 
 configureGenkit({
-  plugins: [firebase(), vertexAI()],
-  flowStateStore: 'firebase',
-  traceStore: 'firebase',
-  enableTracingAndMetrics: true,
-  logLevel: 'info',
+  plugins: [vertexAI()],
 });
 ```
 

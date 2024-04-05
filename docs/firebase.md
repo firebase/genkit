@@ -92,8 +92,6 @@
 
     configureGenkit({
       plugins: [firebase(), googleAI()],
-      flowStateStore: 'firebase',
-      traceStore: 'firebase',
       enableTracingAndMetrics: true,
       logLevel: 'debug',
     });
