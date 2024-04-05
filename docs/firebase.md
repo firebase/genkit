@@ -158,7 +158,7 @@
     Agent_.
 
     If you don't see it on the list then you'll need to manually grant it
-    (`YOUT_PROJECT_NUMBER-compute@developer.gserviceaccount.com`) the necessary
+    (`YOUR_PROJECT_NUMBER-compute@developer.gserviceaccount.com`) the necessary
     permissions.
 
 1.  Create a simple web app to get a Firebase Auth context. Go to the Firebase
