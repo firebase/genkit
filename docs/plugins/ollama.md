@@ -12,10 +12,10 @@ You can use the Ollama CLI to download the model you are interested in. For
 example:
 
 ```posix-terminal
-ollama pull mixtral
+ollama pull gemma
 ```
 
-To use this plugin, specify it when you call `configureGenkit()`:
+To use this plugin, specify it when you call `configureGenkit()`.
 
 ```js
 import { ollama } from '@genkit-ai/ollama';
@@ -25,8 +25,8 @@ export default configureGenkit({
     ollama({
       models: [
         {
-          name: 'mixtral',
-          type: 'chat',
+          name: 'gemma',
+          type: 'generate', // type: 'chat' | 'generate' | undefined
         },
       ],
       serverAddress: 'http://127.0.0.1:11434', // default local address
@@ -42,7 +42,7 @@ models you configured using a string identifier:
 
 ```js
 const llmResponse = await generate({
-  model: 'ollama/mixtral',
+  model: 'ollama/gemma',
   prompt: 'Tell me a joke.',
 });
 ```
