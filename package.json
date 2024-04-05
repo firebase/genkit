@@ -26,15 +26,14 @@
     "format:check"
   ],
   "devDependencies": {
-    "concurrently": "^8.2.2",
+    "inquirer": "^8.0.0",
     "npm-run-all": "^4.1.5",
     "only-allow": "^1.2.1",
     "pre-commit": "^1.2.2",
     "prettier": "^3.2.5",
     "prettier-plugin-css-order": "2.0.1",
     "prettier-plugin-organize-imports": "^3.2.4",
-    "ts-node": "^10.9.2",
-    "inquirer": "^8.0.0"
+    "ts-node": "^10.9.2"
   },
   "packageManager": "pnpm@8.15.6+sha256.01c01eeb990e379b31ef19c03e9d06a14afa5250b82e81303f88721c99ff2e6f"
 }
