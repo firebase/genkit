@@ -52,11 +52,28 @@ function ollamaModel(
   return defineModel(
     {
       name: `ollama/${name}`,
+      label: `Ollama - ${name}`,
     },
     async (input, streamingCallback) => {
+      const options: Record<string, any> = {};
+      if (input.config?.hasOwnProperty('temperature')) {
+        options.temperature = input.config?.temperature;
+      }
+      if (input.config?.hasOwnProperty('topP')) {
+        options.top_p = input.config?.topP;
+      }
+      if (input.config?.hasOwnProperty('topK')) {
+        options.top_k = input.config?.topK;
+      }
+      if (input.config?.hasOwnProperty('stopSequences')) {
+        options.stop = input.config?.stopSequences?.join('');
+      }
+      if (input.config?.hasOwnProperty('maxOutputTokens')) {
+        options.num_predict = input.config?.maxOutputTokens;
+      }
       const request = {
         model: name,
-        options: input.config,
+        options,
         stream: !!streamingCallback,
       } as any;
       if (type === 'chat') {
@@ -141,7 +158,7 @@ function ollamaModel(
       ];
       return {
         candidates: responseCandidates,
-        usage: getBasicUsageStats(request.messages, responseCandidates),
+        usage: getBasicUsageStats(input.messages, responseCandidates),
       } as GenerateResponseData;
     }
   );
