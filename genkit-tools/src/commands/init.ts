@@ -145,14 +145,14 @@ export const init = new Command('init')
   .action(async (options: InitOptions) => {
     let { platform, model, distArchive } = options;
     const supportedPlatforms = Object.keys(platformOptions) as Platform[];
-    if (supportedPlatforms.includes(platform)) {
+    if (!supportedPlatforms.includes(platform)) {
       logger.error(
         `\`${platform}\` is not a supported platform. Supported platforms: ${supportedPlatforms}`
       );
       process.exit(1);
     }
     const supportedModels = Object.keys(modelOptions) as ModelProvider[];
-    if (supportedModels.includes(model)) {
+    if (!supportedModels.includes(model)) {
       logger.error(
         `\`${model}\` is not a supported model provider. Supported model providers: ${supportedModels}`
       );
