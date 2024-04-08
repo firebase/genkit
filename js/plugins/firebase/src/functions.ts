@@ -53,7 +53,7 @@ interface FunctionFlowConfig<
   inputSchema?: I;
   outputSchema?: O;
   authPolicy: FunctionFlowAuth<I>;
-  streamType?: S;
+  streamSchema?: S;
   httpsOptions?: HttpsOptions;
   enforceAppCheck?: boolean;
   consumeAppCheckToken?: boolean;

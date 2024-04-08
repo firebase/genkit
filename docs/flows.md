@@ -63,7 +63,7 @@ export const streamer = defineFlow(
     name: 'streamer',
     inputSchema: z.number(),
     outputSchema: z.string(),
-    streamType: z.object({ count: z.number() }),
+    streamSchema: z.object({ count: z.number() }),
   },
   async (count, streamingCallback) => {
     var i = 0;
