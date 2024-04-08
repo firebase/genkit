@@ -22,6 +22,7 @@ import {
 import { ToolArgument } from '@genkit-ai/ai/tool';
 import { JSONSchema, parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
 import z from 'zod';
+import { picoschema } from './picoschema';
 
 /**
  * Metadata for a prompt.
@@ -128,10 +129,10 @@ export function toMetadata(attributes: unknown): Partial<PromptMetadata> {
     model: fm.model,
     config: fm.config,
     input: fm.input
-      ? { default: fm.input.default, jsonSchema: fm.input.schema }
+      ? { default: fm.input.default, jsonSchema: picoschema(fm.input.schema) }
       : undefined,
     output: fm.output
-      ? { format: fm.output.format, jsonSchema: fm.output.schema }
+      ? { format: fm.output.format, jsonSchema: picoschema(fm.output.schema) }
       : undefined,
     metadata: fm.metadata,
     tools: fm.tools,

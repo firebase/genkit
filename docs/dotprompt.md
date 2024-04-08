@@ -25,11 +25,9 @@ config:
   temperature: 0.9
 input:
   schema:
-    properties:
-      location: {type: string}
-      style: {type: string}
-      name: {type: string}
-    required: [location]
+    location: string
+    style?: string
+    name?: string
   default:
     location: a restaurant
 ---
@@ -63,6 +61,71 @@ conditional portions to your prompt or iterate through structured content. The
 file format utilizes YAML frontmatter to provide metadata for a prompt inline
 with the template.
 
+## Defining Input/Output Schemas with Picoschema
+
+Dotprompt includes a compact, YAML-optimized schema definition format called
+Picoschema to make it easy to define the most important attributs of a schema
+for LLM usage. Here's an example of a schema for an article:
+
+```yaml
+schema:
+  title: string # string, number, and boolean types are defined like this
+  subtitle?: string # optional fields are marked with a `?`
+  draft?: boolean, true when in draft state
+  date: string, the date of publication e.g. '2024-04-09' # descriptions follow a comma
+  tags(array, relevant tags for article): string # arrays are denoted via parentheses
+  authors(array):
+    name: string
+    email?: string
+  metadata?(object): # objects are also denoted via parentheses
+    updatedAt?: string, ISO timestamp of last update
+    approvedBy?: integer, id of approver
+```
+
+The above schema is equivalent to the following TypeScript interface:
+
+```ts
+interface Article {
+  title: string;
+  subtitle?: string;
+  /** true when in draft state */
+  draft?: boolean;
+  /** the date of publication e.g. '2024-04-09' */
+  date: string;
+  /** relevant tags for article */
+  tags: string[];
+  authors: {
+    name: string;
+    email?: string;
+  }[];
+  metadata?: {
+    /** ISO timestamp of last update */
+    updatedAt?: string;
+    /** id of approver */
+    approvedBy?: number;
+  };
+}
+```
+
+Picoschema supports scalar types `string`, `integer`, `number`, and `boolean`. For
+objects and arrays, they are denoted by a parenthetical after the field name.
+
+Objects defined by Picoschema have all properties as required unless denoted optional
+by `?`, and do not allow additional properties.
+
+Picoschema does not support many of the capabilities of full JSON schema. If you
+require more robust schemas, you may supply a JSON Schema instead:
+
+```yaml
+output:
+  schema:
+    type: object
+    properties:
+      field1:
+        type: number
+        minimum: 20
+```
+
 ## Overriding Prompt Metadata
 
 While `.prompt` files allow you to embed metadata such as model configuration in
@@ -90,16 +153,13 @@ You can set the format and output schema of a prompt to coerce into JSON:
 model: vertexai/gemini-1.0-pro
 input:
   schema:
-    properties:
-      location: {type: string}
-    required: [location]
+    location: string
 output:
   format: json
   schema:
-    properties:
-      name: {type: string}
-      hitPoints: {type: integer}
-      description: {type: string}
+    name: string
+    hitPoints: integer
+    description: string
 ---
 
 Generate a tabletop RPG character that would be found in {{location}}.
@@ -133,9 +193,7 @@ The `{{role}}` helper provides a simple way to construct multi-message prompts:
 model: vertexai/gemini-1.0-pro
 input:
   schema:
-    properties:
-      userQuestion: {type: string}
-    required: [userQuestion]
+    userQuestion: string
 ---
 
 {{role "system"}}
@@ -155,9 +213,7 @@ use the `{{media}}` helper:
 model: vertexai/gemini-1.0-pro-vision
 input:
   schema:
-    properties:
-      photoUrl: {type: string}
-    required: [userQuestion]
+    photoUrl: string
 ---
 
 Describe this image in a detailed paragraph:

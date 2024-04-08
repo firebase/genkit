@@ -114,5 +114,33 @@ This is the rest of the prompt`
         (e: any) => e.status === 'INVALID_ARGUMENT'
       );
     });
+
+    it('should parse picoschema', () => {
+      const p = Prompt.parse(
+        'example',
+        `---
+input:
+  schema:
+    type: string
+output:
+  schema:
+    name: string, the name of the person
+    date?: string, ISO date like '2024-04-09'
+---`
+      );
+
+      assert.deepEqual(p.input, { jsonSchema: { type: 'string' } });
+      assert.deepEqual(p.output, {
+        jsonSchema: {
+          type: 'object',
+          required: ['name'],
+          additionalProperties: false,
+          properties: {
+            name: { type: 'string', description: 'the name of the person' },
+            date: { type: 'string', description: "ISO date like '2024-04-09'" },
+          },
+        },
+      });
+    });
   });
 });
