@@ -99,7 +99,6 @@
 
     ```javascript
     import { generate } from '@genkit-ai/ai';
-    import { GenerateResponseChunkSchema } from '@genkit-ai/ai/model';
     import { configureGenkit } from '@genkit-ai/core';
     import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
     import { geminiPro, vertexAI } from '@genkit-ai/vertexai';
@@ -107,7 +106,6 @@
 
     configureGenkit({
       plugins: [
-        firebase(),
         vertexAI({
           location: 'us-central1',
         }),
@@ -121,7 +119,6 @@
         name: 'jokeFlow',
         inputSchema: z.string(),
         outputSchema: z.string(),
-        streamType: GenerateResponseChunkSchema,
       },
       async (subject, streamingCallback) => {
         return await run('call-llm', async () => {

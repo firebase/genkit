@@ -79,7 +79,7 @@ export const streamer = onFlow(
     name: 'streamer',
     inputSchema: z.number(),
     outputSchema: z.string(),
-    streamType: z.object({ count: z.number() }),
+    streamSchema: z.object({ count: z.number() }),
     httpsOptions: { invoker: 'private' },
     authPolicy: noAuth(),
   },
