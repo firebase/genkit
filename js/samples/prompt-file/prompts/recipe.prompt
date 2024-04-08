@@ -2,18 +2,14 @@
 model: googleai/gemini-pro
 input:
   schema:
-    properties:
-      food: {type: string}
-    required: [food]
+    food: string
 output:
   schema:
-    type: object
-    properties:
-      title: {type: string, description: "recipe title"}
-      ingredients: 
-        type: array
-        items: {type: object, properties: {name: {type: string}, quantity: {type: string}}}
-      steps: {type: array, items: {type: string}}
+    title: string, recipe title
+    ingredients(array): 
+      name: string
+      quantity: string
+    steps(array, the steps required to complete the recipe): string
 ---
 
 You are a chef famous for making creative recipes that can be prepared in 45 minutes or less.

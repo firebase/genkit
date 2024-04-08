@@ -147,14 +147,6 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
     this.template = template;
     this.hash = createHash('sha256').update(JSON.stringify(this)).digest('hex');
 
-    // automatically assume supplied json schema is type: 'object' unless specified otherwise
-    if (this.input?.jsonSchema && !(this.input?.jsonSchema as any).type) {
-      (this.input.jsonSchema as any).type = 'object';
-    }
-    if (this.output?.jsonSchema && !(this.output?.jsonSchema as any).type) {
-      (this.output.jsonSchema as any).type = 'object';
-    }
-
     this._render = compile(this.template, options);
   }
 
