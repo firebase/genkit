@@ -43,8 +43,6 @@
 1.  Initialize firebase project in the folder
 
     ```posix-terminal
-    npm init -y
-
     firebase init functions --project $GCLOUD_PROJECT
     ```
 
@@ -75,6 +73,8 @@
 1.  Initialize Genkit in your Firebase project:
 
     ```posix-terminal
+    cd functions
+
     genkit init
     ```
 
