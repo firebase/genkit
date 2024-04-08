@@ -17,8 +17,8 @@ package googleai
 import (
 	"context"
 
-	"github.com/FirebasePrivate/genkit/go/genkit"
 	"github.com/google/generative-ai-go/genai"
+	"github.com/google/genkit/go/genkit"
 	"google.golang.org/api/option"
 )
 

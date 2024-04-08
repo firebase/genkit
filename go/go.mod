@@ -1,4 +1,4 @@
-module github.com/FirebasePrivate/genkit/go
+module github.com/google/genkit/go
 
 go 1.22
 

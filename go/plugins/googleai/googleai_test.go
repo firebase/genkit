@@ -19,8 +19,8 @@ import (
 	"flag"
 	"testing"
 
-	"github.com/FirebasePrivate/genkit/go/genkit"
-	"github.com/FirebasePrivate/genkit/go/plugins/googleai"
+	"github.com/google/genkit/go/genkit"
+	"github.com/google/genkit/go/plugins/googleai"
 )
 
 // The tests here only work with an API key set to a valid value.
