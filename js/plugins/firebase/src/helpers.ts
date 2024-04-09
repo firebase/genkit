@@ -15,6 +15,7 @@
  */
 
 import { StreamingCallback } from '@genkit-ai/core';
+import { getApps, initializeApp } from 'firebase-admin/app';
 import { GoogleAuth } from 'google-auth-library';
 
 // cached `GoogleAuth` client.
@@ -128,4 +129,10 @@ export function getErrorStack(e: any): string | undefined {
 
 export function getLocation() {
   return process.env['GCLOUD_LOCATION'] || 'us-central1';
+}
+
+export function initializeAppIfNecessary() {
+  if (!getApps().length) {
+    initializeApp();
+  }
 }

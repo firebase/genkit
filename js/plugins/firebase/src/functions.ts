@@ -31,7 +31,11 @@ import {
   onRequest,
 } from 'firebase-functions/v2/https';
 import * as z from 'zod';
-import { callHttpsFunction, getLocation } from './helpers.js';
+import {
+  callHttpsFunction,
+  getLocation,
+  initializeAppIfNecessary,
+} from './helpers.js';
 
 export type FunctionFlow<
   I extends z.ZodTypeAny,
@@ -153,6 +157,7 @@ async function appCheckValid(
   consume: boolean
 ): Promise<boolean> {
   if (typeof tok !== 'string') return false;
+  initializeAppIfNecessary();
   try {
     const appCheckClaims = await getAppCheck().verifyToken(tok, { consume });
 
