@@ -15,19 +15,19 @@
  */
 
 import { EvalInput, EvalMetric, EvalResult } from '../eval';
-import { EvaluatorResponse } from '../types/evaluators';
+import { EvalResponse, EvalResponses } from '../types/evaluators';
 
 /**
  * Combines EvalInput with the generated scores to create a storable EvalResult.
  */
 export function enrichResultsWithScoring(
-  scores: Record<string, EvaluatorResponse>,
+  scores: Record<string, EvalResponses>,
   evalDataset: EvalInput[]
 ): EvalResult[] {
   const scoreMap: Record<string, EvalMetric[]> = {};
   Object.keys(scores).forEach((evaluator) => {
     const evaluatorResponse = scores[evaluator];
-    evaluatorResponse.forEach((scoredSample) => {
+    evaluatorResponse.forEach((scoredSample: EvalResponse) => {
       if (!scoredSample.testCaseId) {
         throw new Error('testCaseId expected to be present');
       }
@@ -40,6 +40,8 @@ export function enrichResultsWithScoring(
         score: score.score,
         rationale: score.details?.reasoning,
         error: score.error,
+        traceId: scoredSample.traceId,
+        spanId: scoredSample.spanId,
       });
     });
   });

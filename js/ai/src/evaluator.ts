@@ -15,9 +15,17 @@
  */
 
 import { action, Action } from '@genkit-ai/core';
+import { logger } from '@genkit-ai/core/logging';
 import { lookupAction, registerAction } from '@genkit-ai/core/registry';
-import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
+import {
+  runInNewSpan,
+  setCustomMetadataAttributes,
+  SPAN_TYPE_ATTR,
+} from '@genkit-ai/core/tracing';
 import * as z from 'zod';
+
+export const ATTR_PREFIX = 'genkit';
+export const SPAN_STATE_ATTR = ATTR_PREFIX + ':state';
 
 export const BaseDataPointSchema = z.object({
   input: z.unknown(),
@@ -43,33 +51,36 @@ export const ScoreSchema = z.object({
 export const EVALUATOR_METADATA_KEY_USES_LLM = 'evaluatorUsesLlm';
 
 export type Score = z.infer<typeof ScoreSchema>;
-
+export type BaseDataPoint = z.infer<typeof BaseDataPointSchema>;
 export type Dataset<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
 > = Array<z.infer<DataPoint>>;
 
-export const EvaluatorResponseSchema = z.array(
-  z.object({
-    sampleIndex: z.number(),
-    testCaseId: z.string().optional(),
-    evaluation: ScoreSchema,
-  })
-);
+export const EvalResponseSchema = z.object({
+  sampleIndex: z.number().optional(),
+  testCaseId: z.string().optional(),
+  traceId: z.string().optional(),
+  spanId: z.string().optional(),
+  evaluation: ScoreSchema,
+});
+export type EvalResponse = z.infer<typeof EvalResponseSchema>;
 
-export type EvaluatorResponse = z.infer<typeof EvaluatorResponseSchema>;
+// TODO remove EvalResponses in favor of EvalResponse[]
+export const EvalResponsesSchema = z.array(EvalResponseSchema);
+export type EvalResponses = z.infer<typeof EvalResponsesSchema>;
 
 type EvaluatorFn<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > = (
-  input: Dataset<DataPoint>,
+  input: z.infer<DataPoint>,
   evaluatorOptions?: z.infer<CustomOptions>
-) => Promise<EvaluatorResponse>;
+) => Promise<EvalResponse>;
 
 export type EvaluatorAction<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-> = Action<typeof EvalRequestSchema, typeof EvaluatorResponseSchema> & {
+> = Action<typeof EvalRequestSchema, typeof EvalResponsesSchema> & {
   __dataPointType?: DataPoint;
   __configSchema?: CustomOptions;
 };
@@ -78,7 +89,7 @@ function withMetadata<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  evaluator: Action<typeof EvalRequestSchema, typeof EvaluatorResponseSchema>,
+  evaluator: Action<typeof EvalRequestSchema, typeof EvalResponsesSchema>,
   dataPointType?: DataPoint,
   configSchema?: CustomOptions
 ): EvaluatorAction<DataPoint, CustomOptions> {
@@ -120,18 +131,68 @@ export function defineEvaluator<
           : z.array(BaseDataPointSchema),
         options: options.configSchema ?? z.unknown(),
       }),
-      outputSchema: EvaluatorResponseSchema,
+      outputSchema: EvalResponsesSchema,
       metadata: metadata,
     },
-    (i) => {
+    async (i) => {
       setCustomMetadataAttributes({ subtype: 'evaluator' });
-      return runner(i.dataset, i.options);
+      let evalResponses: EvalResponses = [];
+      for (let index = 0; index < i.dataset.length; index++) {
+        const datapoint = i.dataset[index];
+        let spanId;
+        let traceId;
+        try {
+          await runInNewSpan(
+            {
+              metadata: {
+                name: `Test Case ${datapoint.testCaseId}`,
+              },
+              labels: {
+                [SPAN_TYPE_ATTR]: 'evaluator',
+              },
+            },
+            async (metadata, otSpan) => {
+              try {
+                spanId = otSpan.spanContext().spanId;
+                traceId = otSpan.spanContext().traceId;
+                metadata.input = datapoint.input;
+                const testCaseOutput = await runner(datapoint, i.options);
+                testCaseOutput.sampleIndex = index;
+                testCaseOutput.spanId = spanId;
+                testCaseOutput.traceId = traceId;
+                metadata.output = testCaseOutput;
+                evalResponses.push(testCaseOutput);
+                return testCaseOutput;
+              } catch (e) {
+                const err = {
+                  sampleIndex: index,
+                  spanId,
+                  traceId,
+                  testCaseId: datapoint.testCaseId,
+                  evaluation: {
+                    error: `Evaluation of test case ${datapoint.testCaseId} failed: \n${(e as Error).stack}`,
+                  },
+                };
+                metadata.output = err;
+                evalResponses.push(err);
+                throw e;
+              }
+            }
+          );
+        } catch (e) {
+          logger.error(
+            `Evaluation of test case ${datapoint.testCaseId} failed: \n${(e as Error).stack}`
+          );
+          continue;
+        }
+      }
+      return evalResponses;
     }
   );
   const ewm = withMetadata(
     evaluator as any as Action<
       typeof EvalRequestSchema,
-      typeof EvaluatorResponseSchema
+      typeof EvalResponsesSchema
     >,
     options.dataPointType,
     options.configSchema
@@ -158,7 +219,7 @@ export async function evaluate<
   evaluator: EvaluatorArgument<DataPoint, EvaluatorOptions>;
   dataset: Dataset<DataPoint>;
   options?: z.infer<EvaluatorOptions>;
-}): Promise<EvaluatorResponse> {
+}): Promise<EvalResponses> {
   let evaluator: EvaluatorAction<DataPoint, EvaluatorOptions>;
   if (typeof params.evaluator === 'string') {
     evaluator = await lookupAction(`/evaluator/${params.evaluator}`);
@@ -176,7 +237,7 @@ export async function evaluate<
   return (await evaluator({
     dataset: params.dataset,
     options: params.options,
-  })) as EvaluatorResponse;
+  })) as EvalResponses;
 }
 
 export const EvaluatorInfoSchema = z.object({

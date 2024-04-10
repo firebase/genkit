@@ -20,7 +20,7 @@ import {
   EvalResult,
   enrichResultsWithScoring,
 } from '../../src/eval';
-import { EvaluatorResponse } from '../../src/types/evaluators';
+import { EvalResponses } from '../../src/types/evaluators';
 
 describe('parser', () => {
   const evalRunResults: EvalResult[] = [
@@ -50,7 +50,7 @@ describe('parser', () => {
     },
   ];
 
-  const evaluatorOutput: Record<string, EvaluatorResponse> = {
+  const evaluatorOutput: Record<string, EvalResponses> = {
     '/evaluator/ragas/faithfulness': [
       {
         testCaseId: 'case1',

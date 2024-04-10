@@ -28,12 +28,14 @@ export const ScoreSchema = z.object({
     .optional(),
 });
 
-export const EvaluatorResponseSchema = z.array(
-  z.object({
-    sampleIndex: z.number(),
-    testCaseId: z.string().optional(),
-    evaluation: ScoreSchema,
-  })
-);
+export const EvalResponseSchema = z.object({
+  sampleIndex: z.number(),
+  testCaseId: z.string().optional(),
+  traceId: z.string().optional(),
+  spanId: z.string().optional(),
+  evaluation: ScoreSchema,
+});
+export type EvalResponse = z.infer<typeof EvalResponseSchema>;
 
-export type EvaluatorResponse = z.infer<typeof EvaluatorResponseSchema>;
+export const EvalResponsesSchema = z.array(EvalResponseSchema);
+export type EvalResponses = z.infer<typeof EvalResponsesSchema>;

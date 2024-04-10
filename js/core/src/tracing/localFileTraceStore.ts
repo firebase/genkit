@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { Mutex } from 'async-mutex';
 import crypto from 'crypto';
 import fs from 'fs';
 import os from 'os';
@@ -32,6 +33,7 @@ import {
  */
 export class LocalFileTraceStore implements TraceStore {
   private readonly storeRoot;
+  private mutexes: Record<string, Mutex> = {};
 
   constructor() {
     const rootHash = crypto
@@ -59,24 +61,42 @@ export class LocalFileTraceStore implements TraceStore {
     return TraceDataSchema.parse(parsed);
   }
 
-  async save(id: string, trace: TraceData): Promise<void> {
-    const existsing = await this.load(id);
-    if (existsing) {
-      Object.keys(trace.spans).forEach(
-        (spanId) => (existsing.spans[spanId] = trace.spans[spanId])
-      );
-      existsing.displayName = trace.displayName;
-      existsing.startTime = trace.startTime;
-      existsing.endTime = trace.endTime;
-      trace = existsing;
+  getMutex(id: string): Mutex {
+    if (!this.mutexes[id]) {
+      this.mutexes[id] = new Mutex();
     }
-    logger.debug(
-      `save trace ${id} to ` + path.resolve(this.storeRoot, `${id}`)
-    );
-    fs.writeFileSync(
-      path.resolve(this.storeRoot, `${id}`),
-      JSON.stringify(trace)
-    );
+    return this.mutexes[id];
+  }
+
+  async save(id: string, trace: TraceData): Promise<void> {
+    const mutex = this.getMutex(id);
+    await mutex.waitForUnlock();
+    const release = await mutex.acquire();
+    try {
+      logger.debug(
+        `acquired lock to write trace ${id} for trace name ${trace.displayName}`
+      );
+      const existing = await this.load(id);
+      if (existing) {
+        Object.keys(trace.spans).forEach(
+          (spanId) => (existing.spans[spanId] = trace.spans[spanId])
+        );
+        existing.displayName = trace.displayName;
+        existing.startTime = trace.startTime;
+        existing.endTime = trace.endTime;
+        trace = existing;
+      }
+      logger.debug(
+        `save trace ${id} with name ${trace.displayName} to ` +
+          path.resolve(this.storeRoot, `${id}`)
+      );
+      fs.writeFileSync(
+        path.resolve(this.storeRoot, `${id}`),
+        JSON.stringify(trace)
+      );
+    } finally {
+      release();
+    }
   }
 
   async list(query?: TraceQuery): Promise<TraceQueryResponse> {
