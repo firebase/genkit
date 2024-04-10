@@ -133,7 +133,7 @@ Node.js 18 or later.
     genkit start
     ```
 
-    <img src="images/welcome_to_genkit_developer_ui.png" alt="Welcome to Genkit Developer UI" class="screenshot attempt-right">
+    <img src="resources/welcome_to_genkit_developer_ui.png" alt="Welcome to Genkit Developer UI" class="screenshot attempt-right">
 
     The Genkit Developer UI is now running on your machine. When you run models
     or flows in the next step, your machine will perform the orchestration tasks
