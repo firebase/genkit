@@ -847,40 +847,40 @@ importers:
     dependencies:
       '@genkit-ai/ai':
         specifier: '*'
-        version: 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
+        version: link:../../ai
       '@genkit-ai/chromadb':
         specifier: workspace:^
         version: link:../../plugins/chroma
       '@genkit-ai/core':
         specifier: '*'
-        version: 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
+        version: link:../../core
       '@genkit-ai/dev-local-vectorstore':
         specifier: '*'
-        version: 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
+        version: link:../../plugins/dev-local-vectorstore
       '@genkit-ai/dotprompt':
         specifier: '*'
-        version: 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
+        version: link:../../dotprompt
       '@genkit-ai/firebase':
         specifier: '*'
-        version: 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
+        version: link:../../plugins/firebase
       '@genkit-ai/flow':
         specifier: '*'
-        version: 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
+        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: '*'
-        version: 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
+        version: link:../../plugins/googleai
       '@genkit-ai/openai':
         specifier: workspace:^
         version: link:../../plugins/openai
       '@genkit-ai/pinecone':
         specifier: '*'
-        version: 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
+        version: link:../../plugins/pinecone
       '@genkit-ai/ragas':
         specifier: '*'
         version: link:../../third_party/ragas
       '@genkit-ai/vertexai':
         specifier: '*'
-        version: 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
+        version: link:../../plugins/vertexai
       '@types/pdfjs-dist':
         specifier: ^2.10.378
         version: 2.10.378
@@ -907,11 +907,11 @@ importers:
   third_party/ragas:
     dependencies:
       '@genkit-ai/ai':
-        specifier: '*'
-        version: 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
+        specifier: workspace:*
+        version: link:../../ai
       '@genkit-ai/core':
-        specifier: '*'
-        version: 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
+        specifier: workspace:*
+        version: link:../../core
       compute-cosine-similarity:
         specifier: ^1.1.0
         version: 1.1.0
@@ -1268,159 +1268,6 @@ packages:
     resolution: {integrity: sha512-DY02CRhOZwpzO36fHpuVysz6JZrscPiBXD0fXp6qSrL9oNOx5KWICKdR95C0lSITzxp0TZosVyHqzatE8JbcjA==}
     dependencies:
       tslib: 2.6.2
-    dev: false
-
-  /@genkit-ai/ai@0.5.0-rc.1(@opentelemetry/resources@1.22.0):
-    resolution: {integrity: sha512-wAld1A3SxXtEoBijCCzJloxw3LsMw/BS98Jvi6xli86P8CdZXagNb04xDko6caJ43ST5hUv6U26nOPUzADIZbw==}
-    dependencies:
-      '@genkit-ai/core': 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
-      '@opentelemetry/api': 1.8.0
-      '@types/node': 20.11.30
-      front-matter: 4.0.2
-      node-fetch: 3.3.2
-      zod: 3.22.4
-      zod-to-json-schema: 3.22.5(zod@3.22.4)
-    transitivePeerDependencies:
-      - '@opentelemetry/resources'
-      - encoding
-      - supports-color
-    dev: false
-
-  /@genkit-ai/core@0.5.0-rc.1(@opentelemetry/resources@1.22.0):
-    resolution: {integrity: sha512-TL/0AGf/I4Zo8CAVG93lakRV1PwbORQyLwwSiAeWWTi/HJJSIaFR1EZy9iw72oeuO7GnXBHHCcOGKDqoxSrRfA==}
-    dependencies:
-      '@google-cloud/firestore': 7.5.0
-      '@google-cloud/monitoring': 4.0.0
-      '@google-cloud/opentelemetry-cloud-monitoring-exporter': 0.17.0(@opentelemetry/api@1.8.0)(@opentelemetry/core@1.22.0)(@opentelemetry/resources@1.22.0)(@opentelemetry/sdk-metrics@1.22.0)
-      '@google-cloud/trace-agent': 7.1.2
-      '@opentelemetry/api': 1.8.0
-      '@opentelemetry/context-async-hooks': 1.22.0(@opentelemetry/api@1.8.0)
-      '@opentelemetry/core': 1.22.0(@opentelemetry/api@1.8.0)
-      '@opentelemetry/sdk-metrics': 1.22.0(@opentelemetry/api@1.8.0)
-      '@opentelemetry/sdk-node': 0.49.1(@opentelemetry/api@1.8.0)
-      '@opentelemetry/sdk-trace-base': 1.22.0(@opentelemetry/api@1.8.0)
-      ajv: 8.12.0
-      express: 4.19.2
-      express-openapi-validator: 5.1.6
-      json-schema: 0.4.0
-      winston: 3.13.0
-      zod: 3.22.4
-      zod-to-json-schema: 3.22.5(zod@3.22.4)
-    transitivePeerDependencies:
-      - '@opentelemetry/resources'
-      - encoding
-      - supports-color
-    dev: false
-
-  /@genkit-ai/dev-local-vectorstore@0.5.0-rc.1(@opentelemetry/resources@1.22.0):
-    resolution: {integrity: sha512-QcuZUn9NuWH8RlQlSyyHEaE6u+vqIGCbAVvZQuRdvBsnCH9Q/At6XUlBHVQbsbnrScUY4F88rtS99Mist32jMQ==}
-    dependencies:
-      '@genkit-ai/ai': 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
-      '@genkit-ai/core': 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
-      compute-cosine-similarity: 1.1.0
-      ts-md5: 1.3.1
-      zod: 3.22.4
-    transitivePeerDependencies:
-      - '@opentelemetry/resources'
-      - encoding
-      - supports-color
-    dev: false
-
-  /@genkit-ai/dotprompt@0.5.0-rc.1(@opentelemetry/resources@1.22.0):
-    resolution: {integrity: sha512-oeTmSsNgG1ljL51bT0G89zA7IeEvUa0eKvxmSloZQh5pqDqr13pJQ8wgIrT4/Yu7kQjiTQTCw3YrGM0YEP4Dbg==}
-    dependencies:
-      '@genkit-ai/ai': 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
-      '@genkit-ai/core': 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
-      front-matter: 4.0.2
-      handlebars: 4.7.8
-      node-fetch: 3.3.2
-      zod: 3.22.4
-      zod-to-json-schema: 3.22.5(zod@3.22.4)
-    transitivePeerDependencies:
-      - '@opentelemetry/resources'
-      - encoding
-      - supports-color
-    dev: false
-
-  /@genkit-ai/firebase@0.5.0-rc.1(@opentelemetry/resources@1.22.0):
-    resolution: {integrity: sha512-6vjuL316n2zMD9wcOZ+1mlOxbc6/iCkNo5ZiKla7PAdtAPWbh3c8B1l0nP6H+Muupm/J7cQdd0/q3Qv/iux2Kg==}
-    dependencies:
-      '@genkit-ai/core': 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
-      '@genkit-ai/flow': 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
-      express: 4.19.2
-      firebase-admin: 11.11.1
-      firebase-functions: 4.8.1(firebase-admin@11.11.1)
-      google-auth-library: 9.7.0
-      zod: 3.22.4
-    transitivePeerDependencies:
-      - '@opentelemetry/resources'
-      - encoding
-      - supports-color
-    dev: false
-
-  /@genkit-ai/flow@0.5.0-rc.1(@opentelemetry/resources@1.22.0):
-    resolution: {integrity: sha512-dCWsKE7rGCyQb5OaaOz+eR5rhAuKwblDHd6Veh/X09YrIRXSOBboM4u5yM5drXLGKXN31KuJPb99Ss14L4JTEw==}
-    dependencies:
-      '@genkit-ai/core': 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
-      '@google-cloud/firestore': 7.5.0
-      '@opentelemetry/api': 1.8.0
-      '@types/cors': 2.8.17
-      body-parser: 1.20.2
-      cors: 2.8.5
-      express: 4.19.2
-      firebase-admin: 11.11.1
-      firebase-functions: 4.8.1(firebase-admin@11.11.1)
-      uuid: 9.0.1
-      zod: 3.22.4
-      zod-to-json-schema: 3.22.5(zod@3.22.4)
-    transitivePeerDependencies:
-      - '@opentelemetry/resources'
-      - encoding
-      - supports-color
-    dev: false
-
-  /@genkit-ai/googleai@0.5.0-rc.1(@opentelemetry/resources@1.22.0):
-    resolution: {integrity: sha512-56POGNHlwHiX7xNKUVsLpv34g36t/+eRh/nvX5SF56rg4igyACqGcsmnr+FkQCFqRu35FSkDmhvd6GbrdcZYiA==}
-    dependencies:
-      '@genkit-ai/ai': 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
-      '@genkit-ai/core': 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
-      '@google/generative-ai': 0.5.0
-      google-auth-library: 9.7.0
-      node-fetch: 3.3.2
-      zod: 3.22.4
-    transitivePeerDependencies:
-      - '@opentelemetry/resources'
-      - encoding
-      - supports-color
-    dev: false
-
-  /@genkit-ai/pinecone@0.5.0-rc.1(@opentelemetry/resources@1.22.0):
-    resolution: {integrity: sha512-itFyuS4IC9uy29sl6e6KfvLf7nujgHess0XIUQ6ep4J7UVQm1e20EHDs0h8zqmoqu8hB5x7Gox4vwBrZHGgsCg==}
-    dependencies:
-      '@genkit-ai/ai': 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
-      '@genkit-ai/core': 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
-      '@pinecone-database/pinecone': 2.2.0
-      ts-md5: 1.3.1
-      zod: 3.22.4
-    transitivePeerDependencies:
-      - '@opentelemetry/resources'
-      - encoding
-      - supports-color
-    dev: false
-
-  /@genkit-ai/vertexai@0.5.0-rc.1(@opentelemetry/resources@1.22.0):
-    resolution: {integrity: sha512-Q2wuNV2qGIFK2vNpBcVx2NhlAPgch5Pol0hzacLf2UfxAD6q183eta+u+ZzxmWNFTNGpTwQbq18Vd6PuSgh6Nw==}
-    dependencies:
-      '@genkit-ai/ai': 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
-      '@genkit-ai/core': 0.5.0-rc.1(@opentelemetry/resources@1.22.0)
-      '@google-cloud/vertexai': 0.5.0
-      google-auth-library: 9.7.0
-      node-fetch: 3.3.2
-      zod: 3.22.4
-    transitivePeerDependencies:
-      - '@opentelemetry/resources'
-      - encoding
-      - supports-color
     dev: false
 
   /@google-cloud/common@4.0.3:
