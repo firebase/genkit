@@ -111,10 +111,10 @@ type action interface {
 // An actionDesc is a description of an Action.
 // It is used to provide a list of registered actions.
 type actionDesc struct {
-	Key         string // full key from the registry
-	Name        string
-	Description string
-	Metadata    map[string]any
+	Key         string         `json:"key"` // full key from the registry
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Metadata    map[string]any `json:"metadata"`
 }
 
 func (d1 actionDesc) equal(d2 actionDesc) bool {
