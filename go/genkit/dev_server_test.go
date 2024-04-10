@@ -18,9 +18,9 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
-	"slices"
 	"strings"
 	"testing"
 
@@ -74,15 +74,15 @@ func TestDevServer(t *testing.T) {
 		if res.StatusCode != 200 {
 			t.Fatalf("got status %d, wanted 200", res.StatusCode)
 		}
-		got, err := readJSON[[]actionDesc](res.Body)
+		got, err := readJSON[map[string]actionDesc](res.Body)
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := []actionDesc{
-			{Key: "/test/devServer/dec", Name: "dec"},
-			{Key: "/test/devServer/inc", Name: "inc"},
+		want := map[string]actionDesc{
+			"/test/devServer/dec": {Key: "/test/devServer/dec", Name: "dec"},
+			"/test/devServer/inc": {Key: "/test/devServer/inc", Name: "inc"},
 		}
-		if !slices.EqualFunc(got, want, actionDesc.equal) {
+		if !maps.EqualFunc(got, want, actionDesc.equal) {
 			t.Errorf("\n got  %v\nwant %v", got, want)
 		}
 	})

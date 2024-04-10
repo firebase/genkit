@@ -33,14 +33,17 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// StartDevServer starts the development server (reflection API) at the given address.
-// If addr is empty, it uses port 3100.
+// StartDevServer starts the development server (reflection API) listening at the given address.
+// If addr is "", it uses ":3100".
 // StartDevServer always returns a non-nil error, the one returned by http.ListenAndServe.
 func StartDevServer(addr string) error {
-	if addr == "" {
-		addr = "localhost:3100"
-	}
 	mux := newDevServerMux(globalRegistry)
+	if addr == "" {
+		// Don't use "localhost" here. That only binds the IPv4 address, and the genkit tool
+		// wants to connect to the IPv6 address even when you tell it to use "localhost".
+		// Omitting the host works.
+		addr = ":3100"
+	}
 	slog.Info("listening", "addr", addr)
 	return http.ListenAndServe(addr, mux)
 }
@@ -52,10 +55,15 @@ type devServer struct {
 func newDevServerMux(r *registry) *http.ServeMux {
 	mux := http.NewServeMux()
 	s := &devServer{r}
+	handle(mux, "GET /api/__health", func(w http.ResponseWriter, _ *http.Request) error {
+		return nil
+	})
 	handle(mux, "POST /api/runAction", s.handleRunAction)
 	handle(mux, "GET /api/actions", s.handleListActions)
 	handle(mux, "GET /api/envs/{env}/traces/{traceID}", s.handleGetTrace)
 	handle(mux, "GET /api/envs/{env}/traces", s.handleListTraces)
+	handle(mux, "GET /api/envs/{env}/flowStates", s.handleListFlowStates)
+
 	return mux
 }
 
@@ -157,7 +165,11 @@ func runAction(ctx context.Context, reg *registry, key string, input json.RawMes
 // handleListActions lists all the registered actions.
 func (s *devServer) handleListActions(w http.ResponseWriter, r *http.Request) error {
 	descs := s.reg.listActions()
-	return writeJSON(r.Context(), w, descs)
+	descMap := map[string]actionDesc{}
+	for _, d := range descs {
+		descMap[d.Key] = d
+	}
+	return writeJSON(r.Context(), w, descMap)
 }
 
 // handleGetTrace returns a single trace from a TraceStore.
@@ -201,11 +213,24 @@ func (s *devServer) handleListTraces(w http.ResponseWriter, r *http.Request) err
 	if err != nil {
 		return err
 	}
+	if tds == nil {
+		tds = []*TraceData{}
+	}
 	return writeJSON(r.Context(), w, listTracesResult{tds, ctoken})
 }
 
 type listTracesResult struct {
 	Traces            []*TraceData `json:"traces"`
+	ContinuationToken string       `json:"continuationToken"`
+}
+
+func (s *devServer) handleListFlowStates(w http.ResponseWriter, r *http.Request) error {
+	// TODO(jba): implement.
+	return writeJSON(r.Context(), w, listFlowStatesResult{[]flowStater{}, ""})
+}
+
+type listFlowStatesResult struct {
+	FlowStates        []flowStater `json:"flowStates"`
 	ContinuationToken string       `json:"continuationToken"`
 }
 
