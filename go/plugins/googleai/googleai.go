@@ -22,9 +22,15 @@ import (
 	"google.golang.org/api/option"
 )
 
-func embed(ctx context.Context, client *genai.Client, model string, input []genai.Part) ([]float32, error) {
-	em := client.EmbeddingModel(model)
-	res, err := em.EmbedContent(ctx, input...)
+type embedder struct {
+	model  string
+	client *genai.Client
+}
+
+func (e *embedder) Embed(ctx context.Context, input *genkit.EmbedRequest) ([]float32, error) {
+	em := e.client.EmbeddingModel(e.model)
+	parts := convertParts(input.Document.Content)
+	res, err := em.EmbedContent(ctx, parts...)
 	if err != nil {
 		return nil, err
 	}
@@ -35,18 +41,17 @@ func newClient(ctx context.Context, apiKey string) (*genai.Client, error) {
 	return genai.NewClient(ctx, option.WithAPIKey(apiKey))
 }
 
-// NewTextEmbedder returns an action which computes the embedding of
-// the input string in the given google AI model.
-func NewTextEmbedder(ctx context.Context, model, apiKey string) (*genkit.Action[string, []float32], error) {
+// NewEmbedder returns an embedder which can compute the embedding
+// of an input document given the Google AI model.
+func NewEmbedder(ctx context.Context, model, apiKey string) (genkit.Embedder, error) {
 	client, err := newClient(ctx, apiKey)
 	if err != nil {
 		return nil, err
 	}
-	return genkit.NewAction(
-		model,
-		func(ctx context.Context, input string) ([]float32, error) {
-			return embed(ctx, client, model, []genai.Part{genai.Text(input)})
-		}), nil
+	return &embedder{
+		model:  model,
+		client: client,
+	}, nil
 }
 
 func generate(ctx context.Context, client *genai.Client, model string, input *genkit.GenerateRequest) (*genkit.GenerateResponse, error) {
@@ -60,22 +65,6 @@ func generate(ctx context.Context, client *genai.Client, model string, input *ge
 		gm.SetTemperature(float32(c.Temperature))
 		gm.SetTopK(int32(c.TopK))
 		gm.SetTopP(float32(c.TopP))
-	}
-
-	convertPart := func(p *genkit.Part) genai.Part {
-		switch {
-		case p.IsPlainText():
-			return genai.Text(p.Text())
-		default:
-			return genai.Blob{MIMEType: p.ContentType(), Data: []byte(p.Text())}
-		}
-	}
-	convertParts := func(parts []*genkit.Part) []genai.Part {
-		res := make([]genai.Part, 0, len(parts))
-		for _, p := range parts {
-			res = append(res, convertPart(p))
-		}
-		return res
 	}
 
 	// Start a "chat".
@@ -161,11 +150,11 @@ func NewGenerator(ctx context.Context, model, apiKey string) (*genkit.Action[*ge
 
 // Init registers all the actions in this package with genkit.
 func Init(ctx context.Context, model, apiKey string) error {
-	t, err := NewTextEmbedder(ctx, model, apiKey)
+	e, err := NewEmbedder(ctx, model, apiKey)
 	if err != nil {
 		return err
 	}
-	genkit.RegisterAction(genkit.ActionTypeEmbedder, "google-genai", t)
+	genkit.RegisterEmbedder("google-genai", e)
 
 	g, err := NewGenerator(ctx, model, apiKey)
 	if err != nil {
@@ -174,4 +163,23 @@ func Init(ctx context.Context, model, apiKey string) error {
 	genkit.RegisterAction(genkit.ActionTypeModel, "google-genai", g)
 
 	return nil
+}
+
+// convertParts converts a slice of *genkit.Part to a slice of genai.Part.
+func convertParts(parts []*genkit.Part) []genai.Part {
+	res := make([]genai.Part, 0, len(parts))
+	for _, p := range parts {
+		res = append(res, convertPart(p))
+	}
+	return res
+}
+
+// convertPart converts a *genkit.Part to a genai.Part.
+func convertPart(p *genkit.Part) genai.Part {
+	switch {
+	case p.IsPlainText():
+		return genai.Text(p.Text())
+	default:
+		return genai.Blob{MIMEType: p.ContentType(), Data: []byte(p.Text())}
+	}
 }

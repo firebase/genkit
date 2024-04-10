@@ -26,16 +26,18 @@ import (
 // The tests here only work with an API key set to a valid value.
 var apiKey = flag.String("key", "", "Gemini API key")
 
-func TestTextEmbedder(t *testing.T) {
+func TestEmbedder(t *testing.T) {
 	if *apiKey == "" {
 		t.Skipf("no -key provided")
 	}
 	ctx := context.Background()
-	a, err := googleai.NewTextEmbedder(ctx, "embedding-001", *apiKey)
+	e, err := googleai.NewEmbedder(ctx, "embedding-001", *apiKey)
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, err := a.Run(ctx, "yellow banana")
+	out, err := e.Embed(ctx, &genkit.EmbedRequest{
+		Document: &genkit.Document{Content: []*genkit.Part{genkit.NewTextPart("yellow banana")}},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
