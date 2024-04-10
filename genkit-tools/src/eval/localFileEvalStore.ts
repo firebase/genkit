@@ -147,7 +147,7 @@ class LocalFileEvalStore implements EvalStore {
   generateRootPath(): string {
     const rootHash = crypto
       .createHash('md5')
-      .update(require?.main?.filename || 'unknown')
+      .update(process.cwd() || 'unknown')
       .digest('hex');
     return path.resolve(os.tmpdir(), `.genkit/${rootHash}/evals`);
   }
