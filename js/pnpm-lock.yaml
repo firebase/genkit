@@ -686,6 +686,9 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
+      '@genkit-ai/flow':
+        specifier: workspace:*
+        version: link:../../flow
       '@genkit-ai/openai':
         specifier: workspace:*
         version: link:../../plugins/openai
@@ -695,6 +698,9 @@ importers:
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
+      zod:
+        specifier: ^3.22.4
+        version: 3.22.4
     devDependencies:
       typescript:
         specifier: ^5.3.3

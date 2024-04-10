@@ -16,49 +16,33 @@
 
 import { initializeGenkit } from '@genkit-ai/core';
 import { RagasMetric, ragasRef } from '@genkit-ai/ragas';
+import * as z from 'zod';
 
-import { Dataset, evaluate } from '@genkit-ai/ai/evaluator';
+import {
+  Dataset,
+  EvalResponse,
+  EvalResponseSchema,
+  evaluate,
+} from '@genkit-ai/ai/evaluator';
+import { defineFlow } from '@genkit-ai/flow';
+
 import config from './genkit.config.js';
-
 initializeGenkit(config);
 
-const samples: Dataset = [
-  {
-    testCaseId: 'who_is_spongebob',
-    input: 'Who is SpongeBob?',
-    context: [
-      'SpongeBob loves his friends Patrick and Sandy Cheeks',
-      'SpongeBob is a sea sponge who lives in a pineapple',
-    ],
-    output: 'Spongebob is a sea sponge',
-  },
-  {
-    testCaseId: 'why_absorbancy',
-    input: 'Why can Spongebob absorb liquids?',
-    context: [
-      'SpongeBob can soak liquids because he is a sea sponge',
-      'SpongeBob has a pet snail',
-    ],
-    output: 'Spongebob is a sea sponge',
-  },
-  {
-    testCaseId: 'first_aired',
-    input: 'When was SpongeBob first aired?',
-    context: [
-      'SpongeBob loves his friends Patrick and Sandy Cheeks',
-      'SpongeBob is a sea sponge who lives in a pineapple',
-    ],
-    output: 'Spongebob was aired on April 1, 1999',
-  },
-];
+// Run this flow to execute the evaluator on the test dataset.
 
-async function main() {
-  console.log('running ragas eval...');
-  const scores = await evaluate({
-    evaluator: ragasRef(RagasMetric.FAITHFULNESS),
-    dataset: samples,
-  });
-  console.log(JSON.stringify(scores));
-}
+const samples: Dataset = require('../data/dogfacts.json');
 
-main();
+export const dogFactsEvalFlow = defineFlow(
+  {
+    name: 'dogFactsEval',
+    inputSchema: z.void(),
+    outputSchema: z.array(EvalResponseSchema),
+  },
+  async (): Promise<Array<EvalResponse>> => {
+    return await evaluate({
+      evaluator: ragasRef(RagasMetric.FAITHFULNESS),
+      dataset: samples,
+    });
+  }
+);

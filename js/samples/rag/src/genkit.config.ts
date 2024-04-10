@@ -21,7 +21,7 @@ import { firebase } from '@genkit-ai/firebase';
 import { googleAI } from '@genkit-ai/googleai';
 import { openAI } from '@genkit-ai/openai';
 import { pinecone } from '@genkit-ai/pinecone';
-import { RagasMetric, ragas } from '@genkit-ai/ragas';
+import { ragas, RagasMetric } from '@genkit-ai/ragas';
 import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 
 export default configureGenkit({
@@ -36,7 +36,7 @@ export default configureGenkit({
     vertexAI(),
     pinecone([
       {
-        indexId: 'tom-and-jerry',
+        indexId: 'cat-facts',
         embedder: textEmbeddingGecko,
       },
       {
@@ -46,13 +46,13 @@ export default configureGenkit({
     ]),
     chroma([
       {
-        collectionName: 'spongebob_collection',
+        collectionName: 'dogfacts_collection',
         embedder: textEmbeddingGecko,
       },
     ]),
     devLocalVectorstore([
       {
-        indexName: 'spongebob-facts',
+        indexName: 'dog-facts',
         embedder: textEmbeddingGecko,
       },
       {

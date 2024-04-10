@@ -26,41 +26,40 @@ import * as z from 'zod';
 import { augmentedPrompt } from './prompt.js';
 
 // Setup the models, embedders and "vector store"
-export const tomAndJerryFactsRetriever = pineconeRetrieverRef({
-  indexId: 'tom-and-jerry',
-  displayName: 'Tom and Jerry Retriever',
+export const catFactsRetriever = pineconeRetrieverRef({
+  indexId: 'cat-facts',
+  displayName: 'Cat facts retriever',
 });
 
-export const tomAndJerryFactsIndexer = pineconeIndexerRef({
-  indexId: 'tom-and-jerry',
-  displayName: 'Tom and Jerry Indexer',
+export const catFactsIndexer = pineconeIndexerRef({
+  indexId: 'cat-facts',
+  displayName: 'Cat facts indexer',
 });
 
-export const spongeBobFactsRetriever = chromaRetrieverRef({
-  collectionName: 'spongebob_collection',
-  displayName: 'Spongebob facts retriever',
+export const dogFactsRetriever = chromaRetrieverRef({
+  collectionName: 'dogfacts_collection',
+  displayName: 'Dog facts retriever',
 });
 
-export const spongeBobFactsIndexer = chromaIndexerRef({
-  collectionName: 'spongebob_collection',
-  displayName: 'Spongebob facts indexer',
+export const dogFactsIndexer = chromaIndexerRef({
+  collectionName: 'dogfacts_collection',
+  displayName: 'Dog facts indexer',
 });
 
 // Simple aliases for readability
-export const nfsSpongeBobRetriever = devLocalRetrieverRef('spongebob-facts');
-
-export const nfsSpongeBobIndexer = devLocalIndexerRef('spongebob-facts');
+export const nfsDogFactsRetriever = devLocalRetrieverRef('dog-facts');
+export const nfsDogFactsIndexer = devLocalIndexerRef('dog-facts');
 
 // Define a simple RAG flow, we will evaluate this flow
-export const askQuestionsAboutTomAndJerryFlow = defineFlow(
+export const askQuestionsAboutCatsFlow = defineFlow(
   {
-    name: 'askQuestionsAboutTomAndJerrybobFlow',
+    name: 'askQuestionsAboutCats',
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
   async (query) => {
     const docs = await retrieve({
-      retriever: tomAndJerryFactsRetriever,
+      retriever: catFactsRetriever,
       query,
       options: { k: 3 },
     });
@@ -76,16 +75,16 @@ export const askQuestionsAboutTomAndJerryFlow = defineFlow(
 );
 
 // Define a simple RAG flow, we will evaluate this flow
-// genkit flow:run askQuestionsAboutSpongebobFlow '"What is Spongebob's pet's name?"'
-export const askQuestionsAboutSpongebobFlow = defineFlow(
+// genkit flow:run askQuestionsAboutDogs '"How many dog breeds are there?"'
+export const askQuestionsAboutDogsFlow = defineFlow(
   {
-    name: 'askQuestionsAboutSpongebobFlow',
+    name: 'askQuestionsAboutDogs',
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
   async (query) => {
     const docs = await retrieve({
-      retriever: nfsSpongeBobRetriever,
+      retriever: nfsDogFactsRetriever,
       query,
       options: { k: 3 },
     });
@@ -101,37 +100,37 @@ export const askQuestionsAboutSpongebobFlow = defineFlow(
 );
 
 // Define a simple RAG flow, we will evaluate this flow
-export const indexTomAndJerryDocumentsFlow = defineFlow(
+export const indexCatFactsDocumentsFlow = defineFlow(
   {
-    name: 'indexTomAndJerryDocumentsFlow',
+    name: 'indexCatFactsDocuments',
     inputSchema: z.array(z.string()),
     outputSchema: z.void(),
   },
   async (docs) => {
     const documents = docs.map((text) => {
-      return Document.fromText(text, { type: 'tv', show: 'Tom and Jerry' });
+      return Document.fromText(text, { type: 'animal' });
     });
     await index({
-      indexer: tomAndJerryFactsIndexer,
+      indexer: catFactsIndexer,
       documents,
     });
   }
 );
 
 // Define a flow to index documents into the "vector store"
-// genkit flow:run indexSpongebobFacts '["SpongeBob has a pet snail named Gary"]'
-export const indexSpongebobDocumentsFlow = defineFlow(
+// $ genkit flow:run indexDogFacts '["There are over 400 distinct dog breeds."]'
+export const indexDogFactsDocumentsFlow = defineFlow(
   {
-    name: 'indexSpongebobFacts',
+    name: 'indexDogFactsDocuments',
     inputSchema: z.array(z.string()),
     outputSchema: z.void(),
   },
   async (docs) => {
     const documents = docs.map((text) => {
-      return Document.fromText(text, { type: 'tv', show: 'SpongeBob' });
+      return Document.fromText(text, { type: 'animal' });
     });
     await index({
-      indexer: nfsSpongeBobIndexer,
+      indexer: nfsDogFactsIndexer,
       documents,
     });
   }
