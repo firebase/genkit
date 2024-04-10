@@ -30,3 +30,9 @@ type EmbedRequest struct {
 	Document *Document `json:"input"`
 	Options  any       `json:"options,omitempty"`
 }
+
+// RegisterEmbedder registers the actions for a specific embedder.
+func RegisterEmbedder(name string, embedder Embedder) {
+	RegisterAction(ActionTypeEmbedder, name,
+		NewAction(name, embedder.Embed))
+}
