@@ -19,7 +19,6 @@ export const GENKIT_CLIENT_HEADER = `genkit-node/${GENKIT_VERSION} gl-node/${pro
 
 export * from './action.js';
 export * from './config.js';
+export { GenkitError } from './error.js';
 export * from './flowTypes.js';
 export * from './telemetryTypes.js';
-
-export { GenkitError } from './error.js';

@@ -123,25 +123,22 @@ export const evalFlowRun = new Command('eval:flow')
           return;
         }
 
-        const datasetToEval = await fetchDataSet(runner, flowName, states);
+        const evalDataset = await fetchDataSet(runner, flowName, states);
 
         const scores: Record<string, any> = {};
-        await Promise.all(
-          filteredEvaluatorActions.map(async (action) => {
-            const name = evaluatorName(action);
-            logger.info(`Running evaluator '${name}'...`);
-            const response = await runner.runAction({
-              key: name,
-              input: {
-                dataset: datasetToEval,
-                auth: options.auth ? JSON.parse(options.auth) : undefined,
-              },
-            });
-            scores[name] = response.result;
-          })
-        );
-
-        const scoredResults = enrichResultsWithScoring(scores, datasetToEval);
+        for (const action of filteredEvaluatorActions) {
+          const name = evaluatorName(action);
+          logger.info(`Running evaluator '${name}'...`);
+          const response = await runner.runAction({
+            key: name,
+            input: {
+              dataset: evalDataset,
+              auth: options.auth ? JSON.parse(options.auth) : undefined,
+            },
+          });
+          scores[name] = response.result;
+        }
+        const scoredResults = enrichResultsWithScoring(scores, evalDataset);
 
         if (options.output) {
           logger.info(`Writing results to '${options.output}'...`);

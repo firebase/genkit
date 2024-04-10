@@ -47,6 +47,8 @@ export const EvalMetricSchema = z.object({
   score: z.union([z.number(), z.string(), z.boolean()]).optional(),
   rationale: z.string().optional(),
   error: z.string().optional(),
+  traceId: z.string().optional(),
+  spanId: z.string().optional(),
 });
 export type EvalMetric = z.infer<typeof EvalMetricSchema>;
 

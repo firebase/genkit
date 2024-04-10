@@ -22,7 +22,7 @@ import {
   enrichResultsWithScoring,
   getLocalFileEvalStore,
 } from '../eval';
-import { EvaluatorResponse } from '../types/evaluators';
+import { EvalResponses } from '../types/evaluators';
 import { confirmLlmUse, evaluatorName, isEvaluator } from '../utils/eval';
 import { logger } from '../utils/logger';
 import { runInRunnerThenStop } from '../utils/runner-utils';
@@ -52,7 +52,7 @@ export const evalRun = new Command('eval:run')
       const evalStore = getLocalFileEvalStore();
 
       logger.debug(`Loading data from '${dataset}'...`);
-      const datasetToEval: EvalInput[] = JSON.parse(
+      const evalDataset: EvalInput[] = JSON.parse(
         (await readFile(dataset)).toString('utf-8')
       ).map((testCase: any) => ({
         ...testCase,
@@ -97,22 +97,20 @@ export const evalRun = new Command('eval:run')
         return;
       }
 
-      const scores: Record<string, EvaluatorResponse> = {};
-      await Promise.all(
-        filteredEvaluatorActions.map(async (action) => {
-          const name = evaluatorName(action);
-          logger.info(`Running evaluator '${name}'...`);
-          const response = await runner.runAction({
-            key: name,
-            input: {
-              dataset: datasetToEval,
-            },
-          });
-          scores[name] = response.result as EvaluatorResponse;
-        })
-      );
+      const scores: Record<string, EvalResponses> = {};
+      for (const action of filteredEvaluatorActions) {
+        const name = evaluatorName(action);
+        logger.info(`Running evaluator '${name}'...`);
+        const response = await runner.runAction({
+          key: name,
+          input: {
+            evalDataset,
+          },
+        });
+        scores[name] = response.result as EvalResponses;
+      }
 
-      const scoredResults = enrichResultsWithScoring(scores, datasetToEval);
+      const scoredResults = enrichResultsWithScoring(scores, evalDataset);
 
       if (options.output) {
         logger.info(`Writing results to '${options.output}'...`);
