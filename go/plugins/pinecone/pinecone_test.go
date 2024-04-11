@@ -19,6 +19,7 @@ import (
 	"flag"
 	"slices"
 	"testing"
+	"time"
 )
 
 var (
@@ -34,6 +35,9 @@ func TestPinecone(t *testing.T) {
 	if *testIndex == "" {
 		t.Skip("skipping test because -test-pinecone-index flag not used")
 	}
+
+	// We use a different namespace for each test to avoid confusion.
+	namespace := *testNamespace + "TestPinecone"
 
 	ctx := context.Background()
 
@@ -76,14 +80,49 @@ func TestPinecone(t *testing.T) {
 		},
 	}
 
-	err = idx.Upsert(ctx, vectors, *testNamespace)
+	err = idx.Upsert(ctx, vectors, namespace)
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	defer func() {
+		if err := idx.DeleteByID(ctx, []string{"1", "2", "3"}, namespace); err != nil {
+			t.Errorf("error deleting test vectors: %v", err)
+		}
+	}()
+
+	// The Pinecone docs say that for stability we need to wait
+	// until the vectors are visible. Tried using Stats but
+	// it's unreliable because we don't know whether the test vectors
+	// are already in the database due to an earlier failed test,
+	// so we don't know what the number of vectors should be.
+	wait := func() bool {
+		delay := 10 * time.Millisecond
+		for i := 0; i < 20; i++ {
+			vec, err := idx.QueryByID(ctx, "1", 0, namespace)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if vec != nil {
+				// For some reason Pinecone doesn't
+				// reliably return a vector with the same ID.
+				switch vec.ID {
+				case "1", "2", "3":
+					return true
+				}
+			}
+			time.Sleep(delay)
+			delay *= 2
+		}
+		return false
+	}
+	if !wait() {
+		t.Fatal("inserted records never became visible")
+	}
+
 	// Looking up v1 should return both v1 and v2.
 
-	results, err := idx.Query(ctx, v1, 2, 0, *testNamespace)
+	results, err := idx.Query(ctx, v1, 2, 0, namespace)
 	if err != nil {
 		t.Fatal(err)
 	}
