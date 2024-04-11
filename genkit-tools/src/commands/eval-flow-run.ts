@@ -17,12 +17,9 @@
 import { Command } from 'commander';
 import { randomUUID } from 'crypto';
 import { readFile, writeFile } from 'fs/promises';
-import {
-  EvalInput,
-  enrichResultsWithScoring,
-  getLocalFileEvalStore,
-} from '../eval';
+import { enrichResultsWithScoring, getEvalStore } from '../eval';
 import { Runner } from '../runner/runner';
+import { EvalInput } from '../types/eval';
 import { FlowInvokeEnvelopeMessage, FlowState } from '../types/flow';
 import { DocumentData, RetrieverResponse } from '../types/retrievers';
 import { SpanData } from '../types/trace';
@@ -64,7 +61,7 @@ export const evalFlowRun = new Command('eval:flow')
   .action(
     async (flowName: string, data: string, options: EvalFlowRunOptions) => {
       await runInRunnerThenStop(async (runner) => {
-        const evalStore = getLocalFileEvalStore();
+        const evalStore = getEvalStore();
         const allActions = await runner.listActions();
         const allEvaluatorActions = [];
         for (const key in allActions) {

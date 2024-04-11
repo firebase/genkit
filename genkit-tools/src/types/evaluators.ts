@@ -14,6 +14,13 @@
  * limitations under the License.
  */
 
+/**
+ * This file defines schema and types that are used by Genkit evaluators.
+ *
+ * NOTE: Keep this file in sync with genkit/ai/src/evaluator.ts!
+ * Eventually tools will be source of truth for these types (by generating a
+ * JSON schema) but until then this file must be manually kept in sync
+ */
 import { z } from 'zod';
 
 export const ScoreSchema = z.object({
@@ -28,14 +35,14 @@ export const ScoreSchema = z.object({
     .optional(),
 });
 
-export const EvalResponseSchema = z.object({
+export const TestCaseSchema = z.object({
   sampleIndex: z.number(),
   testCaseId: z.string().optional(),
   traceId: z.string().optional(),
   spanId: z.string().optional(),
   evaluation: ScoreSchema,
 });
-export type EvalResponse = z.infer<typeof EvalResponseSchema>;
+export type TestCase = z.infer<typeof TestCaseSchema>;
 
-export const EvalResponsesSchema = z.array(EvalResponseSchema);
-export type EvalResponses = z.infer<typeof EvalResponsesSchema>;
+export const EvalResponseSchema = z.array(TestCaseSchema);
+export type EvalResponse = z.infer<typeof EvalResponseSchema>;

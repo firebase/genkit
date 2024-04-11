@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { initTRPC, TRPCError } from '@trpc/server';
-import { EvalRunSchema, getLocalFileEvalStore } from '../eval';
+import { getEvalStore } from '../eval';
 import { Runner } from '../runner/runner';
 import { GenkitToolsError } from '../runner/types';
 import { Action } from '../types/action';
@@ -161,24 +161,24 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
 
     /** Retrieves all eval run keys */
     listEvalRunKeys: loggedProcedure
-      .input(evals.ListEvalKeysRequestSchema)
-      .output(evals.ListEvalKeysResponseSchema)
+      .input(apis.ListEvalKeysRequestSchema)
+      .output(apis.ListEvalKeysResponseSchema)
       .query(async ({ input }) => {
-        const response = await getLocalFileEvalStore().list(input);
+        const response = await getEvalStore().list(input);
         return {
-          evalRunKeys: response.results,
+          evalRunKeys: response.evalRunKeys,
         };
       }),
 
     /** Retrieves a single eval run by ID */
     getEvalRun: loggedProcedure
-      .input(evals.GetEvalRunRequestSchema)
-      .output(EvalRunSchema)
+      .input(apis.GetEvalRunRequestSchema)
+      .output(evals.EvalRunSchema)
       .query(async ({ input }) => {
         const parts = input.name.split('/');
         const evalRunId = parts[3];
         const actionId = parts[1] !== '-' ? parts[1] : undefined;
-        const evalRun = await getLocalFileEvalStore().load(evalRunId, actionId);
+        const evalRun = await getEvalStore().load(evalRunId, actionId);
         if (!evalRun) {
           throw new TRPCError({
             code: 'NOT_FOUND',

@@ -36,7 +36,7 @@ export const BaseDataPointSchema = z.object({
 });
 
 export const ScoreSchema = z.object({
-  score: z.number().optional(),
+  score: z.union([z.number(), z.string(), z.boolean()]).optional(),
   // TODO: use StatusSchema
   error: z.string().optional(),
   details: z
@@ -65,7 +65,6 @@ export const EvalResponseSchema = z.object({
 });
 export type EvalResponse = z.infer<typeof EvalResponseSchema>;
 
-// TODO remove EvalResponses in favor of EvalResponse[]
 export const EvalResponsesSchema = z.array(EvalResponseSchema);
 export type EvalResponses = z.infer<typeof EvalResponsesSchema>;
 
@@ -139,8 +138,6 @@ export function defineEvaluator<
       let evalResponses: EvalResponses = [];
       for (let index = 0; index < i.dataset.length; index++) {
         const datapoint = i.dataset[index];
-        let spanId;
-        let traceId;
         try {
           await runInNewSpan(
             {
@@ -152,9 +149,9 @@ export function defineEvaluator<
               },
             },
             async (metadata, otSpan) => {
+              const spanId = otSpan.spanContext().spanId;
+              const traceId = otSpan.spanContext().traceId;
               try {
-                spanId = otSpan.spanContext().spanId;
-                traceId = otSpan.spanContext().traceId;
                 metadata.input = datapoint.input;
                 const testCaseOutput = await runner(datapoint, i.options);
                 testCaseOutput.sampleIndex = index;

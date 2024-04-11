@@ -15,12 +15,9 @@
  */
 
 import { describe, expect, it } from '@jest/globals';
-import {
-  EvalMetricSchema,
-  EvalResult,
-  enrichResultsWithScoring,
-} from '../../src/eval';
-import { EvalResponses } from '../../src/types/evaluators';
+import { enrichResultsWithScoring } from '../../src/eval';
+import { EvalMetricSchema, EvalResult } from '../../src/types/eval';
+import { EvalResponse } from '../../src/types/evaluators';
 
 describe('parser', () => {
   const evalRunResults: EvalResult[] = [
@@ -50,7 +47,7 @@ describe('parser', () => {
     },
   ];
 
-  const evaluatorOutput: Record<string, EvalResponses> = {
+  const evaluatorOutput: Record<string, EvalResponse> = {
     '/evaluator/ragas/faithfulness': [
       {
         testCaseId: 'case1',

@@ -15,6 +15,7 @@
  */
 
 import { z } from 'zod';
+import { EvalRunKeySchema } from './eval';
 import { FlowStateSchema } from './flow';
 import { TraceDataSchema } from './trace';
 
@@ -94,3 +95,26 @@ export const PageViewSchema = z.object({
 export type PageView = z.infer<typeof PageViewSchema>;
 
 // TODO: Add return types if deemed necessary.
+
+export const ListEvalKeysRequestSchema = z.object({
+  filter: z
+    .object({
+      actionId: z.string().optional(),
+    })
+    .optional(),
+});
+
+export type ListEvalKeysRequest = z.infer<typeof ListEvalKeysRequestSchema>;
+
+export const ListEvalKeysResponseSchema = z.object({
+  evalRunKeys: z.array(EvalRunKeySchema),
+  // TODO: Add support continuation token
+});
+export type ListEvalKeysResponse = z.infer<typeof ListEvalKeysResponseSchema>;
+
+export const GetEvalRunRequestSchema = z.object({
+  // Eval run name in the form actions/{action}/evalRun/{evalRun}
+  // where `action` can be blank e.g. actions/-/evalRun/{evalRun}
+  name: z.string(),
+});
+export type GetEvalRunRequest = z.infer<typeof GetEvalRunRequestSchema>;

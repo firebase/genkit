@@ -21,37 +21,25 @@ import os from 'os';
 import path from 'path';
 import { logger } from '../utils/logger';
 
+import { ListEvalKeysRequest, ListEvalKeysResponse } from '../types/apis';
 import {
   EvalRun,
   EvalRunKey,
   EvalRunKeySchema,
   EvalRunSchema,
   EvalStore,
-  ListEvalKeysRequest,
-  ListEvalKeysResponse,
-} from './types';
-
-let cachedEvalStore: LocalFileEvalStore | null = null;
-export function getLocalFileEvalStore(): EvalStore {
-  if (!cachedEvalStore) {
-    cachedEvalStore = new LocalFileEvalStore();
-  }
-  return cachedEvalStore;
-}
+} from '../types/eval';
 
 /**
- * Resets the cached eval store to force getLocalFileEvalStore to create a new instance.
+ * A local, file-based EvalStore implementation.
  */
-export function resetEvalStore() {
-  cachedEvalStore = null;
-}
-
-class LocalFileEvalStore implements EvalStore {
+export class LocalFileEvalStore implements EvalStore {
   private readonly storeRoot;
   private readonly indexFile;
-  private readonly indexDelimiter = '\n';
+  private readonly INDEX_DELIMITER = '\n';
+  private static cachedEvalStore: LocalFileEvalStore | null = null;
 
-  constructor() {
+  private constructor() {
     this.storeRoot = this.generateRootPath();
     this.indexFile = this.getIndexFilePath();
     fs.mkdirSync(this.storeRoot, { recursive: true });
@@ -59,6 +47,17 @@ class LocalFileEvalStore implements EvalStore {
       fs.writeFileSync(path.resolve(this.indexFile), '');
     }
     logger.info(`Initialized local file eval store at root: ${this.storeRoot}`);
+  }
+
+  static getEvalStore() {
+    if (!this.cachedEvalStore) {
+      this.cachedEvalStore = new LocalFileEvalStore();
+    }
+    return this.cachedEvalStore;
+  }
+
+  static reset() {
+    this.cachedEvalStore = null;
   }
 
   async save(evalRun: EvalRun): Promise<void> {
@@ -82,7 +81,7 @@ class LocalFileEvalStore implements EvalStore {
     );
     await appendFile(
       path.resolve(this.indexFile),
-      JSON.stringify(evalRun.key) + this.indexDelimiter
+      JSON.stringify(evalRun.key) + this.INDEX_DELIMITER
     );
   }
 
@@ -112,7 +111,7 @@ class LocalFileEvalStore implements EvalStore {
       // strip the final carriage return before parsing all lines
       return data
         .slice(0, -1)
-        .split(this.indexDelimiter)
+        .split(this.INDEX_DELIMITER)
         .map(this.parseLineToKey);
     });
 
@@ -124,11 +123,11 @@ class LocalFileEvalStore implements EvalStore {
     }
 
     return {
-      results: keys,
+      evalRunKeys: keys,
     };
   }
 
-  generateFileName(evalRunId: string, actionId?: string): string {
+  private generateFileName(evalRunId: string, actionId?: string): string {
     if (!actionId) {
       return `${evalRunId}.json`;
     }
@@ -136,15 +135,15 @@ class LocalFileEvalStore implements EvalStore {
     return `${actionId?.replace('/', '_')}-${evalRunId}.json`;
   }
 
-  getIndexFilePath(): string {
+  private getIndexFilePath(): string {
     return path.resolve(this.storeRoot, 'index.txt');
   }
 
-  parseLineToKey(key: string): EvalRunKey {
+  private parseLineToKey(key: string): EvalRunKey {
     return EvalRunKeySchema.parse(JSON.parse(key));
   }
 
-  generateRootPath(): string {
+  private generateRootPath(): string {
     const rootHash = crypto
       .createHash('md5')
       .update(process.cwd() || 'unknown')

@@ -111,9 +111,6 @@ importers:
       jest:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@20.11.30)(ts-node@10.9.2)
-      memfs:
-        specifier: ^4.7.7
-        version: 4.8.0
       ts-jest:
         specifier: ^29.1.2
         version: 29.1.2(@babel/core@7.24.3)(jest@29.7.0)(typescript@5.4.3)
@@ -8500,13 +8497,6 @@ packages:
     engines: {node: '>= 4.0.0'}
     dependencies:
       fs-monkey: 1.0.5
-    dev: true
-
-  /memfs@4.8.0:
-    resolution: {integrity: sha512-fcs7trFxZlOMadmTw5nyfOwS3il9pr3y+6xzLfXNwmuR/D0i4wz6rJURxArAbcJDGalbpbMvQ/IFI0NojRZgRg==}
-    engines: {node: '>= 4.0.0'}
-    dependencies:
-      tslib: 2.6.2
     dev: true
 
   /memorystream@0.3.1:
