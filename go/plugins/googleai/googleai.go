@@ -54,8 +54,13 @@ func NewEmbedder(ctx context.Context, model, apiKey string) (genkit.Embedder, er
 	}, nil
 }
 
-func generate(ctx context.Context, client *genai.Client, model string, input *genkit.GenerateRequest) (*genkit.GenerateResponse, error) {
-	gm := client.GenerativeModel(model)
+type generator struct {
+	model  string
+	client *genai.Client
+}
+
+func (g *generator) Generate(ctx context.Context, input *genkit.GenerateRequest) (*genkit.GenerateResponse, error) {
+	gm := g.client.GenerativeModel(g.model)
 
 	// Translate from a genkit.GenerateRequest to a genai request.
 	gm.SetCandidateCount(int32(input.Candidates))
@@ -136,16 +141,15 @@ func generate(ctx context.Context, client *genai.Client, model string, input *ge
 
 // NewGenerator returns an action which sends a request to
 // the google AI model and returns the response.
-func NewGenerator(ctx context.Context, model, apiKey string) (*genkit.Action[*genkit.GenerateRequest, *genkit.GenerateResponse], error) {
+func NewGenerator(ctx context.Context, model, apiKey string) (genkit.Generator, error) {
 	client, err := newClient(ctx, apiKey)
 	if err != nil {
 		return nil, err
 	}
-	return genkit.NewAction(
-		model,
-		func(ctx context.Context, input *genkit.GenerateRequest) (*genkit.GenerateResponse, error) {
-			return generate(ctx, client, model, input)
-		}), nil
+	return &generator{
+		model:  model,
+		client: client,
+	}, nil
 }
 
 // Init registers all the actions in this package with genkit.
@@ -160,7 +164,7 @@ func Init(ctx context.Context, model, apiKey string) error {
 	if err != nil {
 		return err
 	}
-	genkit.RegisterAction(genkit.ActionTypeModel, "google-genai", g)
+	genkit.RegisterGenerator("google-genai", g)
 
 	return nil
 }
