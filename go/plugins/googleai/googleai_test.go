@@ -56,12 +56,12 @@ func TestEmbedder(t *testing.T) {
 	}
 }
 
-func TestTextGenerator(t *testing.T) {
+func TestGenerator(t *testing.T) {
 	if *apiKey == "" {
 		t.Skipf("no -key provided")
 	}
 	ctx := context.Background()
-	a, err := googleai.NewGenerator(ctx, "gemini-1.0-pro", *apiKey)
+	g, err := googleai.NewGenerator(ctx, "gemini-1.0-pro", *apiKey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +75,7 @@ func TestTextGenerator(t *testing.T) {
 		},
 	}
 
-	resp, err := a.Run(ctx, req)
+	resp, err := g.Generate(ctx, req)
 	if err != nil {
 		t.Fatal(err)
 	}
