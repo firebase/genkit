@@ -106,6 +106,9 @@ func TestFlowConformance(t *testing.T) {
 				t.Errorf("result:\n%s", diff)
 			}
 
+			if test.Trace == nil {
+				return
+			}
 			ts := r.lookupTraceStore(EnvironmentDev)
 			var gotTrace any
 			if err := ts.loadAny(resp.Telemetry.TraceID, &gotTrace); err != nil {
@@ -196,6 +199,7 @@ func renameSpans(t *testing.T, trace any) {
 // map are ignored.
 // If the "want" value is the string "$ANYTHING", then the corresponding "got" value can
 // be any string.
+// If a "want" map key is "_comment", no comparison is done.
 func compareJSON(got, want any) string {
 	var problems []string
 
@@ -237,6 +241,9 @@ func compareJSON(got, want any) string {
 		case map[string]any:
 			got := got.(map[string]any)
 			for k, wv := range want {
+				if k == "_comment" {
+					continue
+				}
 				gv, ok := got[k]
 				if !ok {
 					add(prefix, "missing key: %q", k)

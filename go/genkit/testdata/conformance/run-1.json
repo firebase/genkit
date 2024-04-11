@@ -76,6 +76,7 @@
           "genkit:input": "{\"start\":{}}",
           "genkit:metadata:flow:wrapperAction": "true",
           "genkit:output": "$ANYTHING",
+          "_comment": "The output above is a JSON object with various random IDs",
           "genkit:state": "success"
         },
         "displayName": "run",

@@ -382,7 +382,7 @@ func (fc *flowContext[I, O]) uniqueStepName(name string) string {
 	if n == 0 {
 		return name
 	}
-	return fmt.Sprintf("name-%d", n)
+	return fmt.Sprintf("%s-%d", name, n)
 }
 
 var flowContextKey = newContextKey[flowContexter]()
