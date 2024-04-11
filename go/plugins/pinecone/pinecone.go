@@ -34,6 +34,7 @@
 package pinecone
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -42,6 +43,9 @@ import (
 	"net/http"
 	"os"
 )
+
+// Set pineconeDebug to true to dump data sent to and received from the server.
+const pineconeDebug = false
 
 // apiServer is the Pinecone API server.
 const apiServer = "api.pinecone.io"
@@ -186,7 +190,7 @@ type Vector struct {
 // such that the real vector can be constructed with
 //
 //	for i, ind := range sv.Indices {
-//    		v[ind] = Values[i]
+//		v[ind] = Values[i]
 //	}
 type SparseValues struct {
 	Indices []uint32  `json:"indices,omitempty"`
@@ -204,6 +208,10 @@ type upsertData struct {
 // with the new one.
 // The namespace indicates which namespace to write to;
 // an empty string means the default namespace.
+//
+// The Pinecone docs say that after an Upsert operation,
+// the vectors may not be immediately visible.
+// The Stats method will report whether the vectors can be seen.
 func (idx *Index) Upsert(ctx context.Context, vectors []Vector, namespace string) error {
 	url := fmt.Sprintf("https://%s/vectors/upsert", idx.host)
 	data := upsertData{
@@ -272,6 +280,70 @@ func (idx *Index) Query(ctx context.Context, values []float32, count int, want W
 	return result.Matches, err
 }
 
+// QueryByID looks up a vector in the database by ID.
+func (idx *Index) QueryByID(ctx context.Context, id string, want WantData, namespace string) (*QueryResult, error) {
+	url := fmt.Sprintf("https://%s/query", idx.host)
+	data := queryData{
+		Namespace:       namespace,
+		TopK:            1,
+		IncludeValues:   (want & WantValues) != 0,
+		IncludeMetadata: (want & WantMetadata) != 0,
+		ID:              id,
+	}
+	var result queryResponse
+	if err := idx.client.postData(ctx, url, &data, &result); err != nil {
+		return nil, err
+	}
+	if len(result.Matches) == 0 {
+		return nil, nil
+	}
+	return result.Matches[0], nil
+}
+
+// deleteRequest is used for the delete operation.
+type deleteRequest struct {
+	IDs       []string       `json:"ids,omitempty"`        // vector IDs to delete
+	DeleteAll bool           `json:"delete_all,omitempty"` // delete all vectors
+	Namespace string         `json:"namespace,omitempty"`
+	Filter    map[string]any `json:"filter,omitempty"` // delete vectors with matching metadata
+}
+
+// Delete deletes vectors from the database by ID.
+func (idx *Index) DeleteByID(ctx context.Context, ids []string, namespace string) error {
+	url := fmt.Sprintf("https://%s/vectors/delete", idx.host)
+	data := &deleteRequest{
+		IDs:       ids,
+		Namespace: namespace,
+	}
+	return idx.client.postData(ctx, url, &data, nil)
+}
+
+// Stats is the data returns by the [Index.Stats] method.
+type Stats struct {
+	Dimension  int                        `json:"dimension,omitempty"`        // index dimension
+	Fullness   float32                    `json:"indexFullness,omitempty"`    // fullness, only for pod-based indexes
+	Count      int                        `json:"totalVectorCount,omitempty"` // number of vectors in index
+	Namespaces map[string]*NamespaceStats `json:"namespaces,omitempty"`
+}
+
+// NamespaceStats is data returned by the [Index.Stats] method for a namespace.
+type NamespaceStats struct {
+	Count int `json:"vectorCount,omitempty"` // number of vectors in namespace
+}
+
+// Stats returns statistics about an index.
+func (idx *Index) Stats(ctx context.Context) (*Stats, error) {
+	url := fmt.Sprintf("https://%s/describe_index_stats", idx.host)
+	var data struct {
+		Filter map[string]any `json:"filter,omitempty"` // always empty for us
+	}
+	var result Stats
+	if err := idx.client.postData(ctx, url, &data, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 // fetchData fetches data from a Pinecone URL.
 func (c *Client) fetchData(ctx context.Context, url string, result any) error {
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
@@ -316,10 +388,24 @@ func (c *Client) postData(ctx context.Context, url string, post, result any) err
 	req.Header.Add("Content-Type", "application/json")
 
 	encode := func() error {
-		enc := json.NewEncoder(httpWriter)
-		if err := enc.Encode(post); err != nil {
-			return err
+		if !pineconeDebug {
+			enc := json.NewEncoder(httpWriter)
+			if err := enc.Encode(post); err != nil {
+				return err
+			}
+		} else {
+			var buf bytes.Buffer
+			enc := json.NewEncoder(&buf)
+			if err := enc.Encode(post); err != nil {
+				return err
+			}
+			b := buf.Bytes()
+			fmt.Printf("pinecone: post to %s: %s\n", url, b)
+			if _, err := httpWriter.Write(b); err != nil {
+				return err
+			}
 		}
+
 		if err := httpWriter.Close(); err != nil && err != io.ErrClosedPipe {
 			return err
 		}
@@ -354,8 +440,18 @@ func (c *Client) postData(ctx context.Context, url string, post, result any) err
 		return fmt.Errorf("pinecone post to %s received unexpected status code %v (%v)", url, status, serr)
 	}
 
+	var r io.Reader = resp.Body
+	if pineconeDebug {
+		data, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("pinecone: reply from %s: %s\n", url, data)
+		r = bytes.NewReader(data)
+	}
+
 	if result != nil {
-		if err := json.NewDecoder(resp.Body).Decode(result); err != nil {
+		if err := json.NewDecoder(r).Decode(result); err != nil {
 			return fmt.Errorf("unmarshaling result of post to %s failed: %v", url, err)
 		}
 	}
