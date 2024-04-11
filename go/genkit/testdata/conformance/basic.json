@@ -1,0 +1,156 @@
+{
+  "name": "basic",
+  "_comment": "This is similar to the 'basic' flow in js/samples/flow-sample1",
+  "commands": [
+    {"run": {"name": "call-llm", "command": {"append": "y"}}},
+    {"run": {"name": "call-llm", "command": {"append": "z"}}}
+  ],
+  "input": {"start": {"input": "x"}},
+  "result": {
+    "operation": {
+      "done": true,
+      "result": {"response": "xyz"}
+    }
+  },
+  "trace": {
+    "displayName": "dev-run-action-wrapper",
+    "spans": {
+      "f6609d851221a8cb": {
+        "spanId": "f6609d851221a8cb",
+        "parentSpanId": "b5787d3b81988644",
+        "startTime": 1712320094375,
+        "attributes": {
+          "genkit:type": "flowStep",
+          "genkit:name": "call-llm",
+          "genkit:path": "/dev-run-action-wrapper/basic/basic/call-llm",
+          "genkit:metadata:flow:stepType": "run",
+          "genkit:metadata:flow:stepName": "call-llm",
+          "genkit:metadata:flow:resolvedStepName": "call-llm",
+          "genkit:metadata:flow:state": "run",
+          "genkit:output": "\"xy\"",
+          "genkit:state": "success"
+        },
+        "displayName": "call-llm",
+        "instrumentationLibrary": {
+          "name": "genkit-tracer",
+          "version": "v1"
+        },
+        "spanKind": "INTERNAL",
+        "sameProcessAsParentSpan": {
+          "value": true
+        },
+        "status": {
+          "code": 0
+        }
+      },
+      "be7e1cb426122d14": {
+        "spanId": "be7e1cb426122d14",
+        "parentSpanId": "b5787d3b81988644",
+        "startTime": 1712320094379,
+        "attributes": {
+          "genkit:type": "flowStep",
+          "genkit:name": "call-llm",
+          "genkit:path": "/dev-run-action-wrapper/basic/basic/call-llm",
+          "genkit:metadata:flow:stepType": "run",
+          "genkit:metadata:flow:stepName": "call-llm",
+          "genkit:metadata:flow:resolvedStepName": "call-llm-1",
+          "genkit:metadata:flow:state": "run",
+          "genkit:output": "\"xyz\"",
+          "genkit:state": "success"
+        },
+        "displayName": "call-llm",
+        "instrumentationLibrary": {
+          "name": "genkit-tracer",
+          "version": "v1"
+        },
+        "spanKind": "INTERNAL",
+        "sameProcessAsParentSpan": {
+          "value": true
+        },
+        "status": {
+          "code": 0
+        }
+      },
+      "b5787d3b81988644": {
+        "spanId": "b5787d3b81988644",
+        "parentSpanId": "3e16647b16b64d6d",
+        "startTime": 1712320094374,
+        "attributes": {
+          "genkit:type": "flow",
+          "genkit:name": "basic",
+          "genkit:isRoot": true,
+          "genkit:path": "/dev-run-action-wrapper/basic/basic",
+          "genkit:metadata:flow:execution": "0",
+          "genkit:metadata:flow:name": "basic",
+          "genkit:metadata:flow:id": "$ANYTHING",
+          "genkit:metadata:flow:dispatchType": "start",
+          "genkit:metadata:flow:state": "done",
+          "genkit:input": "\"x\"",
+          "genkit:output": "\"xyz\"",
+          "genkit:state": "success"
+        },
+        "displayName": "basic",
+        "instrumentationLibrary": {
+          "name": "genkit-tracer",
+          "version": "v1"
+        },
+        "spanKind": "INTERNAL",
+        "sameProcessAsParentSpan": {
+          "value": true
+        },
+        "status": {
+          "code": 0
+        }
+      },
+      "3e16647b16b64d6d": {
+        "spanId": "3e16647b16b64d6d",
+        "parentSpanId": "ac2c3e7a64920a29",
+        "startTime": 1712320094368,
+        "attributes": {
+          "genkit:type": "action",
+          "genkit:name": "basic",
+          "genkit:path": "/dev-run-action-wrapper/basic",
+          "genkit:input": "{\"start\":{\"input\":\"x\"}}",
+          "genkit:metadata:flow:wrapperAction": "true",
+          "genkit:output": "$ANYTHING",
+          "genkit:state": "success"
+        },
+        "displayName": "basic",
+        "instrumentationLibrary": {
+          "name": "genkit-tracer",
+          "version": "v1"
+        },
+        "spanKind": "INTERNAL",
+        "sameProcessAsParentSpan": {
+          "value": true
+        },
+        "status": {
+          "code": 0
+        }
+      },
+      "ac2c3e7a64920a29": {
+        "spanId": "ac2c3e7a64920a29",
+        "startTime": 1712320094311,
+        "attributes": {
+          "genkit:name": "dev-run-action-wrapper",
+          "genkit:isRoot": true,
+          "genkit:path": "/dev-run-action-wrapper",
+          "genkit:metadata:genkit-dev-internal": "true",
+          "genkit:state": "success"
+        },
+        "displayName": "dev-run-action-wrapper",
+        "spanKind": "INTERNAL",
+        "sameProcessAsParentSpan": {
+          "value": true
+        },
+        "status": {
+          "code": 0
+        },
+        "instrumentationLibrary": {
+          "name": "genkit-tracer",
+          "version": "v1"
+        }
+      }
+    }
+  }
+}
