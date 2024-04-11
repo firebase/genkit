@@ -14,20 +14,20 @@
  * limitations under the License.
  */
 
-import { EvalInput, EvalMetric, EvalResult } from '../eval';
-import { EvalResponse, EvalResponses } from '../types/evaluators';
+import { EvalInput, EvalMetric, EvalResult } from '../types/eval';
+import { EvalResponse, TestCase } from '../types/evaluators';
 
 /**
  * Combines EvalInput with the generated scores to create a storable EvalResult.
  */
 export function enrichResultsWithScoring(
-  scores: Record<string, EvalResponses>,
+  scores: Record<string, EvalResponse>,
   evalDataset: EvalInput[]
 ): EvalResult[] {
   const scoreMap: Record<string, EvalMetric[]> = {};
   Object.keys(scores).forEach((evaluator) => {
     const evaluatorResponse = scores[evaluator];
-    evaluatorResponse.forEach((scoredSample: EvalResponse) => {
+    evaluatorResponse.forEach((scoredSample: TestCase) => {
       if (!scoredSample.testCaseId) {
         throw new Error('testCaseId expected to be present');
       }

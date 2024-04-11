@@ -17,12 +17,9 @@
 import { Command } from 'commander';
 import { randomUUID } from 'crypto';
 import { readFile, writeFile } from 'fs/promises';
-import {
-  EvalInput,
-  enrichResultsWithScoring,
-  getLocalFileEvalStore,
-} from '../eval';
-import { EvalResponses } from '../types/evaluators';
+import { enrichResultsWithScoring, getEvalStore } from '../eval';
+import { EvalInput } from '../types/eval';
+import { EvalResponse } from '../types/evaluators';
 import { confirmLlmUse, evaluatorName, isEvaluator } from '../utils/eval';
 import { logger } from '../utils/logger';
 import { runInRunnerThenStop } from '../utils/runner-utils';
@@ -49,7 +46,7 @@ export const evalRun = new Command('eval:run')
   .option('--force', 'Automatically accept all interactive prompts')
   .action(async (dataset: string, options: EvalRunOptions) => {
     await runInRunnerThenStop(async (runner) => {
-      const evalStore = getLocalFileEvalStore();
+      const evalStore = getEvalStore();
 
       logger.debug(`Loading data from '${dataset}'...`);
       const evalDataset: EvalInput[] = JSON.parse(
@@ -97,7 +94,7 @@ export const evalRun = new Command('eval:run')
         return;
       }
 
-      const scores: Record<string, EvalResponses> = {};
+      const scores: Record<string, EvalResponse> = {};
       for (const action of filteredEvaluatorActions) {
         const name = evaluatorName(action);
         logger.info(`Running evaluator '${name}'...`);
@@ -107,7 +104,7 @@ export const evalRun = new Command('eval:run')
             evalDataset,
           },
         });
-        scores[name] = response.result as EvalResponses;
+        scores[name] = response.result as EvalResponse;
       }
 
       const scoredResults = enrichResultsWithScoring(scores, evalDataset);

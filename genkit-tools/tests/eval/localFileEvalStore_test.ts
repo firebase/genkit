@@ -14,186 +14,200 @@
  * limitations under the License.
  */
 
-import { beforeEach, describe, expect, it } from '@jest/globals';
-import fs from 'fs';
-import { vol } from 'memfs';
-import path from 'path';
 import {
-  EvalResult,
-  EvalRun,
-  EvalRunSchema,
-  EvalStore,
-  getLocalFileEvalStore,
-  resetEvalStore,
-} from '../../src/eval';
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals';
+import fs from 'fs';
+import { LocalFileEvalStore } from '../../src/eval/localFileEvalStore';
+import { EvalResult, EvalRunSchema, EvalStore } from '../../src/types/eval';
 
-jest.mock('fs');
-jest.mock('fs/promises');
+jest.mock('crypto', () => {
+  return {
+    createHash: jest.fn().mockReturnThis(),
+    update: jest.fn().mockReturnThis(),
+    digest: jest.fn(() => 'store-root'),
+  };
+});
 
-/**
- * Facilitate testing methods without exposing LocalFileEvalStore.
- */
-interface LocalFileInterface extends EvalStore {
-  generateFileName(evalRunId: string, actionId?: string): string;
-  getIndexFilePath(): string;
-  generateRootPath(): string;
-}
+const EVAL_RESULTS: EvalResult[] = [
+  {
+    testCaseId: 'alakjdshfalsdkjh',
+    input: { subject: 'Kermit the Frog', style: 'Jerry Seinfeld' },
+    output: `So, here's the thing about Kermit the Frog, right? He's got this whole \"it's not easy being green\"
+        routine.  Which, I mean, relatable, right? We've all got our things...But, the guy's a frog! He
+        lives in a swamp! You chose this, Kermit! You could be any color...you picked the one that blends
+        in perfectly with your natural habitat.`,
+    context: [
+      'Kermit has a song called "It\'s not easy being green"',
+      'Kermit is in a complicated relationship with Miss Piggy',
+    ],
+    metrics: [
+      {
+        evaluator: 'context_precision',
+        score: 0.5,
+        rationale: 'One out of two pieces of context were used in the output.',
+      },
+    ],
+    traceIds: [],
+  },
+  {
+    testCaseId: 'lkjhasdfkljahsdf',
+    input: { subject: "Doctor's office", style: 'Wanda Sykes' },
+    output: `Okay, check this out. You ever been to one of those doctor's offices where it takes you a year to get an appointment, 
+      then they stick you in a waiting room with magazines from like, 1997? It's like, are they expecting me to catch up on all the
+      Kardashian drama from the Bush administration?`,
+    context: [],
+    metrics: [
+      {
+        evaluator: 'context_precision',
+        score: 0,
+        rationale: 'No context was provided',
+      },
+    ],
+    traceIds: [],
+  },
+];
+
+const EVAL_RUN_WITH_ACTION = EvalRunSchema.parse({
+  key: {
+    actionId: 'flow/tellMeAJoke',
+    evalRunId: 'abc1234',
+    createdAt: new Date().toISOString(),
+  },
+  results: EVAL_RESULTS,
+});
+
+const EVAL_RUN_WITHOUT_ACTION = EvalRunSchema.parse({
+  key: {
+    evalRunId: 'def456',
+    createdAt: new Date().toISOString(),
+  },
+  results: EVAL_RESULTS,
+});
 
 describe('localFileEvalStore', () => {
-  let evalStore: LocalFileInterface;
-  let storeRoot: string;
-  const evalRunResults: EvalResult[] = [
-    {
-      testCaseId: 'alakjdshfalsdkjh',
-      input: { subject: 'Kermit the Frog', style: 'Jerry Seinfeld' },
-      output: `So, here's the thing about Kermit the Frog, right? He's got this whole \"it's not easy being green\"
-          routine.  Which, I mean, relatable, right? We've all got our things...But, the guy's a frog! He
-          lives in a swamp! You chose this, Kermit! You could be any color...you picked the one that blends
-          in perfectly with your natural habitat.`,
-      context: [
-        'Kermit has a song called "It\'s not easy being green"',
-        'Kermit is in a complicated relationship with Miss Piggy',
-      ],
-      metrics: [
-        {
-          evaluator: 'context_precision',
-          score: 0.5,
-          rationale:
-            'One out of two pieces of context were used in the output.',
-        },
-      ],
-      traceIds: [],
-    },
-    {
-      testCaseId: 'lkjhasdfkljahsdf',
-      input: { subject: "Doctor's office", style: 'Wanda Sykes' },
-      output: `Okay, check this out. You ever been to one of those doctor's offices where it takes you a year to get an appointment, 
-        then they stick you in a waiting room with magazines from like, 1997? It's like, are they expecting me to catch up on all the
-        Kardashian drama from the Bush administration?`,
-      context: [],
-      metrics: [
-        {
-          evaluator: 'context_precision',
-          score: 0,
-          rationale: 'No context was provided',
-        },
-      ],
-      traceIds: [],
-    },
-  ];
-
-  const evalRunWithAction = EvalRunSchema.parse({
-    key: {
-      actionId: 'flow/tellMeAJoke',
-      evalRunId: 'abc1234',
-      createdAt: new Date().toISOString(),
-    },
-    results: evalRunResults,
-  });
-
-  const evalRunWithoutAction = EvalRunSchema.parse({
-    key: {
-      evalRunId: 'def456',
-      createdAt: new Date().toISOString(),
-    },
-    results: evalRunResults,
-  });
-
-  const writeManual = (evalRun: EvalRun) => {
-    const fileName = evalStore.generateFileName(
-      evalRun.key.evalRunId,
-      evalRun.key.actionId
-    );
-    fs.writeFileSync(
-      path.resolve(storeRoot, fileName),
-      JSON.stringify(evalRun)
-    );
-  };
-
-  const writeIndexManual = (evalRun: EvalRun) => {
-    const indexFile = evalStore.getIndexFilePath();
-    fs.appendFileSync(indexFile, JSON.stringify(evalRun.key) + '\n');
-  };
+  let evalStore: EvalStore;
 
   beforeEach(() => {
-    resetEvalStore();
-    vol.reset();
-    evalStore = getLocalFileEvalStore() as LocalFileInterface;
-    storeRoot = evalStore.generateRootPath();
+    LocalFileEvalStore.reset();
+    evalStore = LocalFileEvalStore.getEvalStore() as EvalStore;
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   describe('save', () => {
-    it('persists a new evalRun file with an actionId', async () => {
-      await evalStore.save(evalRunWithAction);
-      const filePath = path.resolve(
-        storeRoot,
-        evalStore.generateFileName(
-          evalRunWithAction.key.evalRunId,
-          evalRunWithAction.key.actionId
-        )
+    beforeEach(() => {
+      fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
+      fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
+    });
+
+    it('writes and updates index for eval run with actionId', async () => {
+      await evalStore.save(EVAL_RUN_WITH_ACTION);
+
+      expect(fs.promises.writeFile).toHaveBeenCalledWith(
+        `/tmp/.genkit/store-root/evals/flow_tellMeAJoke-abc1234.json`,
+        JSON.stringify(EVAL_RUN_WITH_ACTION)
       );
-      expect(fs.existsSync(filePath)).toBeTruthy();
+      expect(fs.promises.appendFile).toHaveBeenCalledWith(
+        `/tmp/.genkit/store-root/evals/index.txt`,
+        JSON.stringify(EVAL_RUN_WITH_ACTION.key) + '\n'
+      );
     });
 
     it('persists a new evalRun file without an actionId', async () => {
-      await evalStore.save(evalRunWithoutAction);
-      const filePath = path.resolve(
-        storeRoot,
-        evalStore.generateFileName(evalRunWithoutAction.key.evalRunId)
+      await evalStore.save(EVAL_RUN_WITHOUT_ACTION);
+
+      expect(fs.promises.writeFile).toHaveBeenCalledWith(
+        `/tmp/.genkit/store-root/evals/def456.json`,
+        JSON.stringify(EVAL_RUN_WITHOUT_ACTION)
       );
-      expect(fs.existsSync(filePath)).toBeTruthy();
+      expect(fs.promises.appendFile).toHaveBeenCalledWith(
+        `/tmp/.genkit/store-root/evals/index.txt`,
+        JSON.stringify(EVAL_RUN_WITHOUT_ACTION.key) + '\n'
+      );
     });
   });
 
   describe('load', () => {
     it('fetches an evalRun file by id with actionId', async () => {
-      writeManual(evalRunWithAction);
-      const fetchedEvalRun = await evalStore.load(
-        evalRunWithAction.key.evalRunId,
-        evalRunWithAction.key.actionId
+      fs.existsSync = jest.fn(() => true);
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify(EVAL_RUN_WITH_ACTION) as any)
       );
-      expect(fetchedEvalRun).toMatchObject(evalRunWithAction);
+      const fetchedEvalRun = await evalStore.load(
+        EVAL_RUN_WITH_ACTION.key.evalRunId,
+        EVAL_RUN_WITH_ACTION.key.actionId
+      );
+      expect(fetchedEvalRun).toMatchObject(EVAL_RUN_WITH_ACTION);
     });
 
     it('fetches an evalRun file by id with no actionId', async () => {
-      writeManual(evalRunWithoutAction);
-      const fetchedEvalRun = await evalStore.load(
-        evalRunWithoutAction.key.evalRunId
+      fs.existsSync = jest.fn(() => true);
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify(EVAL_RUN_WITHOUT_ACTION) as any)
       );
-      expect(fetchedEvalRun).toMatchObject(evalRunWithoutAction);
+      const fetchedEvalRun = await evalStore.load(
+        EVAL_RUN_WITHOUT_ACTION.key.evalRunId,
+        EVAL_RUN_WITHOUT_ACTION.key.actionId
+      );
+      expect(fetchedEvalRun).toMatchObject(EVAL_RUN_WITHOUT_ACTION);
+    });
+
+    it('returns undefined if file does not exist', async () => {
+      fs.existsSync = jest.fn(() => false);
+
+      const fetchedEvalRun = await evalStore.load(
+        EVAL_RUN_WITH_ACTION.key.evalRunId,
+        EVAL_RUN_WITH_ACTION.key.actionId
+      );
+      expect(fetchedEvalRun).toBeUndefined();
     });
   });
 
   describe('list', () => {
-    it('lists all evalRun keys from file', async () => {
-      writeIndexManual(evalRunWithAction);
-      writeIndexManual(evalRunWithoutAction);
+    const EVAL_KEY_WITH_ACTION =
+      JSON.stringify(EVAL_RUN_WITH_ACTION.key) + '\n';
+    const EVAL_KEY_WITHOUT_ACTION =
+      JSON.stringify(EVAL_RUN_WITHOUT_ACTION.key) + '\n';
 
+    it('lists all evalRun keys from file', async () => {
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve((EVAL_KEY_WITH_ACTION + EVAL_KEY_WITHOUT_ACTION) as any)
+      );
       const fetchedEvalKeys = await evalStore.list();
 
       const expectedKeys = {
-        results: [evalRunWithAction.key, evalRunWithoutAction.key],
+        evalRunKeys: [EVAL_RUN_WITH_ACTION.key, EVAL_RUN_WITHOUT_ACTION.key],
       };
       expect(fetchedEvalKeys).toMatchObject(expectedKeys);
     });
 
     it('lists all evalRun keys for a flow', async () => {
-      await evalStore.save(evalRunWithAction);
-      await evalStore.save(evalRunWithoutAction);
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve((EVAL_KEY_WITH_ACTION + EVAL_KEY_WITHOUT_ACTION) as any)
+      );
 
       const fetchedEvalKeys = await evalStore.list({
-        filter: { actionId: evalRunWithAction.key.actionId },
+        filter: { actionId: EVAL_RUN_WITH_ACTION.key.actionId },
       });
 
-      const expectedKeys = { results: [evalRunWithAction.key] };
+      const expectedKeys = { evalRunKeys: [EVAL_RUN_WITH_ACTION.key] };
       expect(fetchedEvalKeys).toMatchObject(expectedKeys);
     });
 
     it('lists all evalRun keys from empty file', async () => {
+      fs.promises.readFile = jest.fn(async () => Promise.resolve('' as any));
       const fetchedEvalKeys = await evalStore.list();
 
       const expectedKeys = {
-        results: [],
+        evalRunKeys: [],
       };
       expect(fetchedEvalKeys).toMatchObject(expectedKeys);
     });
