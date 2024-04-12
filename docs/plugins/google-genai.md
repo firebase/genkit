@@ -21,7 +21,7 @@ The plugin requires an API key for the Gemini API, which you can get from
 
 Configure the plugin to use your API key by doing one of the following:
 
-- Set the `GOOGLE_API_KEY` environment variable to your API key.
+- Set the `GOOGLE_GENAI_API_KEY` environment variable to your API key.
 
 - Specify the API key when you initialize the plugin:
 
