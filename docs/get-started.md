@@ -44,11 +44,11 @@ Node.js 18 or later.
          [available in your region](https://ai.google.dev/available_regions).
 
          [Generate an API key](https://aistudio.google.com/app/apikey) for the
-         Gemini API using Google AI Studio. Then, set the `GOOGLE_API_KEY`
+         Gemini API using Google AI Studio. Then, set the `GOOGLE_GENAI_API_KEY`
          environment variable to your key:
 
          ```posix-terminal
-         export GOOGLE_API_KEY=<your API key>
+         export GOOGLE_GENAI_API_KEY=<your API key>
          ```
 
        - {Gemini (Vertex AI)}

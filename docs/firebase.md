@@ -75,17 +75,17 @@ the default sample flow to Firebase.
       1.  [Generate an API key](https://aistudio.google.com/app/apikey) for the
           Gemini API using Google AI Studio.
 
-      1.  Set the `GOOGLE_API_KEY` environment variable to your key:
+      1.  Set the `GOOGLE_GENAI_API_KEY` environment variable to your key:
 
           ```posix-terminal
-          export GOOGLE_API_KEY=<your API key>
+          export GOOGLE_GENAI_API_KEY=<your API key>
           ```
 
       1.  Edit `src/index.ts` and add the following after the existing imports:
 
           ```js
           import { defineSecret } from 'firebase-functions/params';
-          defineSecret('GOOGLE_API_KEY');
+          defineSecret('GOOGLE_GENAI_API_KEY');
           ```
 
           Now, when you deploy this function, your API key will be stored in
