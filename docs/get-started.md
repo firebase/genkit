@@ -68,16 +68,6 @@ Node.js 18 or later.
 
          See https://cloud.google.com/vertex-ai/generative-ai/pricing for Vertex AI pricing.
 
-       - {OpenAI}
-
-         If you are an existing OpenAI user, there's also an option to use
-         OpenAI models. Set the `OPENAI_API_KEY` environment variable to your
-         key:
-
-         ```posix-terminal
-         export OPENAI_API_KEY=<your API key>
-         ```
-
     1. Choose default answers to the rest of the questions, which will
        initialize your project folder with some sample code.
 

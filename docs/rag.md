@@ -261,15 +261,13 @@ schema:
 
 Embedding model support is provided through the following plugins:
 
-| Plugin                    | Models                                             |
-| ------------------------- | -------------------------------------------------- |
-| [Google Generative AI][1] | Gecko text embedding                               |
-| [Google Vertex AI][2]     | Gecko text embedding                               |
-| [OpenAI][3]               | `text-embedding-3-small`, `text-embedding-3-large` |
+| Plugin                    | Models               |
+| ------------------------- | -------------------- |
+| [Google Generative AI][1] | Gecko text embedding |
+| [Google Vertex AI][2]     | Gecko text embedding |
 
 [1]: plugins/google-genai.md
 [2]: plugins/vertex-ai.md
-[3]: plugins/openai.md
 
 ## Write your own indexers and retrievers
 
