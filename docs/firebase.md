@@ -115,26 +115,6 @@ the default sample flow to Firebase.
           gcloud auth application-default login
           ```
 
-    - {OpenAI}
-
-      1.  Set the `OPENAI_API_KEY` environment variable to your OpenAI platform
-          API key:
-
-          ```posix-terminal
-          export OPENAI_API_KEY=<your API key>
-          ```
-
-      1.  Edit `src/index.ts` and add the following after the existing imports:
-
-          ```js
-          import { defineSecret } from 'firebase-functions/params';
-          defineSecret('OPENAI_API_KEY');
-          ```
-
-          Now, when you deploy this function, your API key will be stored in
-          Cloud Secret Manager, and available from the Cloud Functions
-          environment.
-
     The only secret you need to set up for this tutorial is for the model
     provider, but in general, you must do something similar for each service
     your flow uses.
@@ -168,17 +148,17 @@ the default sample flow to Firebase.
         genkit start
         ```
 
-    1.  In the developer UI (http://localhost:4000/), run the flow:
+    2.  In the developer UI (http://localhost:4000/), run the flow:
 
         1.  Click **jokeFlow**.
 
-        1.  On the **Input JSON** tab, provide a subject for the model:
+        2.  On the **Input JSON** tab, provide a subject for the model:
 
             ```json
             "AI app developers"
             ```
 
-        1.  On the **Auth JSON** tab, provide a simulated auth object:
+        3.  On the **Auth JSON** tab, provide a simulated auth object:
 
             ```json
             {
@@ -187,7 +167,7 @@ the default sample flow to Firebase.
             }
             ```
 
-        1.  Click **Run**.
+        4.  Click **Run**.
 
 1.  If everything's working as expected so far, you can deploy the flow:
 

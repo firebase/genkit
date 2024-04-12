@@ -31,23 +31,50 @@ sample flow.
     npm init -y
     ```
 
-1.  Initialize Genkit in your project:
+1.  Initialize a Genkit project:
 
     ```posix-terminal
     genkit init
     ```
 
-    Select `Node.js` as the deployment platform option and (for the purpose of
-    this tutorial) OpenAI as the model provider. Choose defaults for the rest of
-    the options.
+    1. Select `Node.js` as the deployment platform option (templates for
+       Firebase Cloud Functions and Google Cloud Run are also available).
 
-1.  You will need an OpenAI API key from the
-    [OpenAI platform](https://platform.openai.com/api-keys) site. After you have
-    created it, run the following to set an environment variable with your key:
+    1. Select your model:
 
-    ```posix-terminal
-    export OPENAI_API_KEY=<your-api-key>
-    ```
+       - {Gemini (Google AI)}
+
+         The simplest way to get started is with Google AI Gemini API. Make sure
+         it's
+         [available in your region](https://ai.google.dev/available_regions).
+
+         [Generate an API key](https://aistudio.google.com/app/apikey) for the
+         Gemini API using Google AI Studio. Then, set the `GOOGLE_API_KEY`
+         environment variable to your key:
+
+         ```posix-terminal
+         export GOOGLE_API_KEY=<your API key>
+         ```
+
+       - {Gemini (Vertex AI)}
+
+         If the Google AI Gemini API is not available in your region, consider
+         using the Vertex AI API which also offers Gemini and other models. You
+         will need to have a billing-enabled Google Cloud project, enable AI
+         Platform API, and set some additional environment variable:
+
+         ```posix-terminal
+         gcloud services enable aiplatform.googleapis.com
+
+         export GCLOUD_PROJECT=<your project ID>
+
+         export GCLOUD_LOCATION=us-central1
+         ```
+
+         See https://cloud.google.com/vertex-ai/generative-ai/pricing for Vertex AI pricing.
+
+    1. Choose default answers to the rest of the questions, which will
+       initialize your project folder with some sample code.
 
 1.  Build and run the sample code:
 
@@ -87,4 +114,4 @@ sample flow.
     | Runtime               | Node.js 18 or newer                                                 |
     | Build command         | `npm run build`                                                     |
     | Start command         | `npm run start`                                                     |
-    | Environment variables | `OPENAI_API_KEY=<your-api-key>` (or whichever secrets are required) |
+    | Environment variables | `GOOGLE_API_KEY=<your-api-key>` (or whichever secrets are required) |

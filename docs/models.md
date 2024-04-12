@@ -43,13 +43,11 @@ are officially supported:
 | ------------------------- | -------------------------------------------------------------- |
 | [Google Generative AI][1] | Gemini Pro, Gemini Pro Vision                                  |
 | [Google Vertex AI][2]     | Gemini Pro, Gemini Pro Vision, Imagen2                         |
-| [OpenAI][3]               | GPT 3.5 Turbo, GPT 4, GPT 4 Turbo, GPT 4 Vision, Dall-E 3      |
-| [Ollama][4]               | Many local models, including Gemma, Llama 2, Mistral, and more |
+| [Ollama][3]               | Many local models, including Gemma, Llama 2, Mistral, and more |
 
 [1]: plugins/google-genai.md
 [2]: plugins/vertex-ai.md
-[3]: plugins/openai.md
-[4]: plugins/ollama.md
+[3]: plugins/ollama.md
 
 See the docs for each plugin for setup and usage information.
 
