@@ -95,13 +95,15 @@ export const evalRun = new Command('eval:run')
       }
 
       const scores: Record<string, EvalResponse> = {};
+      const evalRunId = randomUUID();
       for (const action of filteredEvaluatorActions) {
         const name = evaluatorName(action);
         logger.info(`Running evaluator '${name}'...`);
         const response = await runner.runAction({
           key: name,
           input: {
-            dataset: evalDataset,
+            evalDataset,
+            evalRunId,
           },
         });
         scores[name] = response.result as EvalResponse;
@@ -120,7 +122,7 @@ export const evalRun = new Command('eval:run')
       logger.info(`Writing results to EvalStore...`);
       await evalStore.save({
         key: {
-          evalRunId: randomUUID(),
+          evalRunId,
           createdAt: new Date().toISOString(),
         },
         results: scoredResults,

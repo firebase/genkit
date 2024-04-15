@@ -129,6 +129,7 @@ export function defineEvaluator<
           ? z.array(options.dataPointType)
           : z.array(BaseDataPointSchema),
         options: options.configSchema ?? z.unknown(),
+        evalRunId: z.string(),
       }),
       outputSchema: EvalResponsesSchema,
       metadata: metadata,
@@ -143,6 +144,7 @@ export function defineEvaluator<
             {
               metadata: {
                 name: `Test Case ${datapoint.testCaseId}`,
+                metadata: { 'evaluator:evalRunId': i.evalRunId },
               },
               labels: {
                 [SPAN_TYPE_ATTR]: 'evaluator',
