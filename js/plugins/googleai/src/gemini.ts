@@ -22,6 +22,7 @@ import {
   MessageData,
   ModelAction,
   modelRef,
+  ModelReference,
   Part,
 } from '@genkit-ai/ai/model';
 import {
@@ -35,6 +36,7 @@ import {
   Part as GeminiPart,
   GenerateContentResponse,
   GoogleGenerativeAI,
+  RequestOptions,
 } from '@google/generative-ai';
 import process from 'process';
 import z from 'zod';
@@ -88,6 +90,19 @@ export const geminiProVision = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini15Pro = modelRef({
+  name: 'googleai/gemini-1.5-pro-latest',
+  info: {
+    label: 'Google AI - Gemini 1.5 Pro',
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const geminiUltra = modelRef({
   name: 'googleai/gemini-ultra',
   info: {
@@ -104,6 +119,7 @@ export const geminiUltra = modelRef({
 
 export const SUPPORTED_MODELS = {
   'gemini-pro': geminiPro,
+  'gemini-1.5-pro-latest': gemini15Pro,
   'gemini-pro-vision': geminiProVision,
   // 'gemini-ultra': geminiUltra,
 };
@@ -207,7 +223,12 @@ function fromGeminiCandidate(candidate: GeminiCandidate): CandidateData {
 /**
  *
  */
-export function googleAIModel(name: string, apiKey?: string): ModelAction {
+export function googleAIModel(
+  name: string,
+  apiKey?: string,
+  apiVersion?: string,
+  baseUrl?: string
+): ModelAction {
   const modelName = `googleai/${name}`;
   if (!apiKey)
     apiKey = process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY;
@@ -215,13 +236,13 @@ export function googleAIModel(name: string, apiKey?: string): ModelAction {
     throw new Error(
       'please pass in the API key or set the GOOGLE_GENAI_API_KEY or GOOGLE_API_KEY environment variable'
     );
-
-  if (!SUPPORTED_MODELS[name]) throw new Error(`Unsupported model: ${name}`);
+  const model: ModelReference<z.ZodTypeAny> = SUPPORTED_MODELS[name];
+  if (!model) throw new Error(`Unsupported model: ${name}`);
   return defineModel(
     {
       name: modelName,
-      ...SUPPORTED_MODELS[name].info,
-      configSchema: SUPPORTED_MODELS[name].configSchema,
+      ...model.info,
+      configSchema: model.configSchema,
       use: [
         // simulate a system prompt since no native one is supported
         simulateSystemPrompt(),
@@ -230,11 +251,18 @@ export function googleAIModel(name: string, apiKey?: string): ModelAction {
       ],
     },
     async (request, streamingCallback) => {
+      const options: RequestOptions = { apiClient: GENKIT_CLIENT_HEADER };
+      if (apiVersion) {
+        options.apiVersion = apiVersion;
+      }
+      if (apiVersion) {
+        options.baseUrl = baseUrl;
+      }
       const client = new GoogleGenerativeAI(apiKey!).getGenerativeModel(
         {
-          model: request.config?.version || name,
+          model: request.config?.version || model.version || name,
         },
-        { apiClient: GENKIT_CLIENT_HEADER }
+        options
       );
       const messages = request.messages.map(toGeminiMessage);
       if (messages.length === 0) throw new Error('No messages provided.');

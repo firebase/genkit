@@ -19,11 +19,13 @@ import { firebase } from '@genkit-ai/firebase';
 import { googleAI } from '@genkit-ai/googleai';
 import { ollama } from '@genkit-ai/ollama';
 import { openAI } from '@genkit-ai/openai';
+import { vertexAI } from '@genkit-ai/vertexai';
 
 export default configureGenkit({
   plugins: [
     firebase(),
     googleAI(),
+    vertexAI(),
     openAI(),
     ollama({
       models: [{ name: 'llama2' }],

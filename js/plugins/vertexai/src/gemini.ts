@@ -92,8 +92,24 @@ export const geminiProVision = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini15ProPreview = modelRef({
+  name: 'vertexai/gemini-1.5-pro-preview',
+  info: {
+    label: 'Vertex AI - Gemini 1.5 Pro Preview',
+    versions: ['gemini-1.5-pro-preview-0409'],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+    },
+  },
+  configSchema: GeminiConfigSchema,
+  version: 'gemini-1.5-pro-preview-0409',
+});
+
 export const SUPPORTED_GEMINI_MODELS = {
   'gemini-1.0-pro': geminiPro,
+  'gemini-1.5-pro-preview': gemini15ProPreview,
   'gemini-1.0-pro-vision': geminiProVision,
   // 'gemini-ultra': geminiUltra,
 };
@@ -375,7 +391,7 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
     },
     async (request, streamingCallback) => {
       const client = vertex.preview.getGenerativeModel({
-        model: request.config?.version || name,
+        model: request.config?.version || model.version || name,
       });
 
       const messages = request.messages;

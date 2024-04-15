@@ -21,6 +21,7 @@
     "@genkit-ai/firebase": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/ollama": "workspace:*",
+    "@genkit-ai/vertexai": "workspace:*",
     "@genkit-ai/openai": "workspace:*",
     "express": "~4.19.2",
     "zod": "^3.22.4"
