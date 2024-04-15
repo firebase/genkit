@@ -1,0 +1,9 @@
+---
+model: googleai/gemini-pro
+input:
+  schema:
+    name: string
+    persona: string
+---
+
+Say hello to {{name}} in the voice of a {{persona}}.
