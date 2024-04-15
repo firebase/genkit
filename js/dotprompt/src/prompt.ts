@@ -267,9 +267,17 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
     const actionJsonSchema = toJsonSchema({
       schema: PromptActionInputSchema.omit({ input: true }),
     });
-    (actionJsonSchema as any).properties.input = this.input?.jsonSchema || {};
-    if (this.input?.jsonSchema)
+    if (this.input?.jsonSchema) {
+      // Prompt file case
+      (actionJsonSchema as any).properties.input = this.input.jsonSchema;
       this._action.__action.inputJsonSchema = actionJsonSchema;
+    } else if (this.input?.schema) {
+      // definePrompt case
+      (actionJsonSchema as any).properties.input = toJsonSchema({
+        schema: this.input.schema,
+      });
+      this._action.__action.inputJsonSchema = actionJsonSchema;
+    }
     return this._action;
   }
 }
