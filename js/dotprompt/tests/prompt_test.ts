@@ -20,8 +20,8 @@ import { describe, it } from 'node:test';
 import { defineModel } from '@genkit-ai/ai/model';
 import z from 'zod';
 
-import { ValidationError, toJsonSchema } from '@genkit-ai/core/schema';
-import { Prompt, definePrompt } from '../src/index.js';
+import { toJsonSchema, ValidationError } from '@genkit-ai/core/schema';
+import { definePrompt, prompt, Prompt } from '../src/index.js';
 import { PromptMetadata } from '../src/metadata.js';
 
 const echo = defineModel({ name: 'echo' }, async (input) => ({
@@ -141,6 +141,35 @@ output:
           },
         },
       });
+    });
+  });
+
+  describe('definePrompt', () => {
+    it('registers a prompt and its variant', async () => {
+      definePrompt(
+        {
+          name: 'promptName',
+          model: 'echo',
+        },
+        `This is a prompt.`
+      );
+
+      definePrompt(
+        {
+          name: 'promptName',
+          variant: 'variantName',
+          model: 'echo',
+        },
+        `And this is its variant.`
+      );
+
+      const basePrompt = await prompt('promptName');
+      assert.equal('This is a prompt.', basePrompt.template);
+
+      const variantPrompt = await prompt('promptName', {
+        variant: 'variantName',
+      });
+      assert.equal('And this is its variant.', variantPrompt.template);
     });
   });
 });
