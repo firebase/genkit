@@ -121,7 +121,7 @@ export const evalFlowRun = new Command('eval:flow')
         }
 
         const evalDataset = await fetchDataSet(runner, flowName, states);
-
+        const evalRunId = randomUUID();
         const scores: Record<string, any> = {};
         for (const action of filteredEvaluatorActions) {
           const name = evaluatorName(action);
@@ -130,6 +130,7 @@ export const evalFlowRun = new Command('eval:flow')
             key: name,
             input: {
               dataset: evalDataset,
+              evalRunId,
               auth: options.auth ? JSON.parse(options.auth) : undefined,
             },
           });
@@ -149,7 +150,7 @@ export const evalFlowRun = new Command('eval:flow')
         await evalStore.save({
           key: {
             actionId: flowName,
-            evalRunId: randomUUID(),
+            evalRunId,
             createdAt: new Date().toISOString(),
           },
           results: scoredResults,
