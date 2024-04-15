@@ -101,7 +101,7 @@ export const evalRun = new Command('eval:run')
         const response = await runner.runAction({
           key: name,
           input: {
-            evalDataset,
+            dataset: evalDataset,
           },
         });
         scores[name] = response.result as EvalResponse;
