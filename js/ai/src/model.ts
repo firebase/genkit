@@ -346,6 +346,7 @@ export interface ModelReference<CustomOptions extends z.ZodTypeAny> {
   name: string;
   configSchema?: CustomOptions;
   info?: ModelInfo;
+  version?: string;
 }
 
 /**

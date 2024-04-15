@@ -29,6 +29,8 @@ export { geminiPro, geminiProVision };
 
 export interface PluginOptions {
   apiKey?: string;
+  apiVersion?: string;
+  baseUrl?: string;
 }
 
 export const googleAI: Plugin<[PluginOptions] | []> = genkitPlugin(
@@ -37,7 +39,12 @@ export const googleAI: Plugin<[PluginOptions] | []> = genkitPlugin(
     return {
       models: [
         ...Object.keys(GEMINI_MODELS).map((name) =>
-          googleAIModel(name, options?.apiKey)
+          googleAIModel(
+            name,
+            options?.apiKey,
+            options?.apiVersion,
+            options?.baseUrl
+          )
         ),
       ],
       embedders: [
