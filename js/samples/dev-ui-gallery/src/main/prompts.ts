@@ -96,7 +96,7 @@ prompt('dotprompt-hello').then((prompt) => {
 // Dotprompt file - variant, text output
 //
 
-prompt('dotprompt-hello.variant').then((prompt) => {
+prompt('dotprompt-hello', { variant: 'variant' }).then((prompt) => {
   defineFlow(
     {
       name: 'dotPromptVariantFlow',
@@ -111,7 +111,7 @@ prompt('dotprompt-hello.variant').then((prompt) => {
 // Dotprompt file - json output
 //
 
-prompt('dotprompt-hello.json-output').then((prompt) => {
+prompt('dotprompt-hello', { variant: 'json-output' }).then((prompt) => {
   defineFlow(
     {
       name: 'dotPromptJsonOutputFlow',
