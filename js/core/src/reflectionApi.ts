@@ -104,15 +104,16 @@ export async function startReflectionApi(port?: number | undefined) {
       if (stream === 'true') {
         const result = await newTrace(
           { name: 'dev-run-action-wrapper' },
-          async (_, span) =>
-            await runWithStreamingCallback(
+          async (_, span) => {
+            setCustomMetadataAttribute('genkit-dev-internal', 'true');
+            traceId = span.spanContext().traceId;
+            return await runWithStreamingCallback(
               (chunk) => {
-                setCustomMetadataAttribute('genkit-dev-internal', 'true');
-                traceId = span.spanContext().traceId;
                 response.write(JSON.stringify(chunk) + '\n');
               },
               async () => await action(input)
-            )
+            );
+          }
         );
         await flushTracing();
         response.write(
