@@ -17,7 +17,7 @@
 //go:generate npm --prefix ../../genkit-tools run export:schemas
 
 // Run the Go code generator on the file just created.
-//go:generate go run ../internal/cmd/jsonschemagen -config schemas.config ../../genkit-tools/genkit-schema.json
+//go:generate go run ../internal/cmd/jsonschemagen -outdir .. -config schemas.config ../../genkit-tools/genkit-schema.json genkit
 
 // Package genkit is the genkit API for Go.
 package genkit

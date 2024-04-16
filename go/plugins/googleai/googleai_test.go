@@ -19,7 +19,7 @@ import (
 	"flag"
 	"testing"
 
-	"github.com/google/genkit/go/genkit"
+	"github.com/google/genkit/go/ai"
 	"github.com/google/genkit/go/plugins/googleai"
 )
 
@@ -35,8 +35,8 @@ func TestEmbedder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, err := e.Embed(ctx, &genkit.EmbedRequest{
-		Document: &genkit.Document{Content: []*genkit.Part{genkit.NewTextPart("yellow banana")}},
+	out, err := e.Embed(ctx, &ai.EmbedRequest{
+		Document: &ai.Document{Content: []*ai.Part{ai.NewTextPart("yellow banana")}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -65,12 +65,12 @@ func TestGenerator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	req := &genkit.GenerateRequest{
+	req := &ai.GenerateRequest{
 		Candidates: 1,
-		Messages: []*genkit.Message{
-			&genkit.Message{
-				Content: []*genkit.Part{genkit.NewTextPart("Which country was Napoleon the emperor of?")},
-				Role:    genkit.RoleUser,
+		Messages: []*ai.Message{
+			&ai.Message{
+				Content: []*ai.Part{ai.NewTextPart("Which country was Napoleon the emperor of?")},
+				Role:    ai.RoleUser,
 			},
 		},
 	}

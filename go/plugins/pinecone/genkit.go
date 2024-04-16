@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/genkit/go/genkit"
+	"github.com/google/genkit/go/ai"
 )
 
 // defaultTextKey is the default metadata key we use to store the
@@ -36,7 +36,7 @@ import (
 // documents in pinecone.
 const defaultTextKey = "_content"
 
-// Init registers actions to be used with genkit.
+// Init registers actions to be used with ai.
 //
 // apiKey is the API key to use to access Pinecone.
 // If it is the empty string, it is read from the PINECONE_API_INDEX
@@ -50,17 +50,17 @@ const defaultTextKey = "_content"
 //
 // The textKey parameter is the metadata key to use to store document text
 // in Pinecone; the default is "_content".
-func Init(ctx context.Context, apiKey, host string, embedder genkit.Embedder, embedderOptions any, textKey string) error {
+func Init(ctx context.Context, apiKey, host string, embedder ai.Embedder, embedderOptions any, textKey string) error {
 	r, err := newRetriever(ctx, apiKey, host, embedder, embedderOptions, textKey)
 	if err != nil {
 		return err
 	}
-	genkit.RegisterRetriever("pinecone", r)
+	ai.RegisterRetriever("pinecone", r)
 	return nil
 }
 
-// newRetriever returns a new genkit.Retriever to register.
-func newRetriever(ctx context.Context, apiKey, host string, embedder genkit.Embedder, embedderOptions any, textKey string) (genkit.Retriever, error) {
+// newRetriever returns a new ai.Retriever to register.
+func newRetriever(ctx context.Context, apiKey, host string, embedder ai.Embedder, embedderOptions any, textKey string) (ai.Retriever, error) {
 	client, err := NewClient(ctx, apiKey)
 	if err != nil {
 		return nil, err
@@ -82,30 +82,30 @@ func newRetriever(ctx context.Context, apiKey, host string, embedder genkit.Embe
 }
 
 // IndexerOptions may be passed in the Options field
-// of [genkit.IndexerRequest] to pass options to Pinecone.
+// of [ai.IndexerRequest] to pass options to Pinecone.
 // The Options field should be either nil or a value of type *IndexerOptions.
 type IndexerOptions struct {
 	Namespace string `json:"namespace,omitempty"` // Pinecone namespace to use
 }
 
 // RetrieverOptions may be passed in the Options field
-// of [genkit.RetrieverRequest] to pass options to Pinecone.
+// of [ai.RetrieverRequest] to pass options to Pinecone.
 // The Options field should be either nil or a value of type *RetrieverOptions.
 type RetrieverOptions struct {
 	Namespace string `json:"namespace,omitempty"` // Pinecone namespace to use
-	Count     int `json:"count,omitempty"`        // maximum number of values to retrieve
+	Count     int    `json:"count,omitempty"`     // maximum number of values to retrieve
 }
 
 // retriever implements the genkit Retriever interface.
 type retriever struct {
 	index           *Index
-	embedder        genkit.Embedder
+	embedder        ai.Embedder
 	embedderOptions any
 	textKey         string
 }
 
 // Index implements the genkit Retriever.Index method.
-func (r *retriever) Index(ctx context.Context, req *genkit.IndexerRequest) error {
+func (r *retriever) Index(ctx context.Context, req *ai.IndexerRequest) error {
 	if len(req.Documents) == 0 {
 		return nil
 	}
@@ -125,7 +125,7 @@ func (r *retriever) Index(ctx context.Context, req *genkit.IndexerRequest) error
 	// Use the embedder to convert each Document into a vector.
 	vecs := make([]Vector, 0, len(req.Documents))
 	for _, doc := range req.Documents {
-		ereq := &genkit.EmbedRequest{
+		ereq := &ai.EmbedRequest{
 			Document: doc,
 			Options:  r.embedderOptions,
 		}
@@ -154,8 +154,8 @@ func (r *retriever) Index(ctx context.Context, req *genkit.IndexerRequest) error
 		metadata[r.textKey] = sb.String()
 
 		v := Vector{
-			ID: id,
-			Values: vals,
+			ID:       id,
+			Values:   vals,
 			Metadata: metadata,
 		}
 		vecs = append(vecs, v)
@@ -201,7 +201,7 @@ func (r *retriever) Index(ctx context.Context, req *genkit.IndexerRequest) error
 }
 
 // Retrieve implements the genkit Retriever.Retrieve method.
-func (r *retriever) Retrieve(ctx context.Context, req *genkit.RetrieverRequest) (*genkit.RetrieverResponse, error) {
+func (r *retriever) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
 	var (
 		namespace string
 		count     int
@@ -220,7 +220,7 @@ func (r *retriever) Retrieve(ctx context.Context, req *genkit.RetrieverRequest) 
 
 	// Use the embedder to convert the document we want to
 	// retrieve into a vector.
-	ereq := &genkit.EmbedRequest{
+	ereq := &ai.EmbedRequest{
 		Document: req.Document,
 		Options:  r.embedderOptions,
 	}
@@ -234,7 +234,7 @@ func (r *retriever) Retrieve(ctx context.Context, req *genkit.RetrieverRequest) 
 		return nil, err
 	}
 
-	var docs []*genkit.Document
+	var docs []*ai.Document
 	for _, result := range results {
 		text, _ := result.Metadata[r.textKey].(string)
 		if text == "" {
@@ -243,11 +243,11 @@ func (r *retriever) Retrieve(ctx context.Context, req *genkit.RetrieverRequest) 
 		delete(result.Metadata, r.textKey)
 		// TODO(iant): This is what the TypeScript code does,
 		// but it loses information for multimedia documents.
-		d := genkit.DocumentFromText(text, result.Metadata)
+		d := ai.DocumentFromText(text, result.Metadata)
 		docs = append(docs, d)
 	}
 
-	ret := &genkit.RetrieverResponse{
+	ret := &ai.RetrieverResponse{
 		Documents: docs,
 	}
 	return ret, nil
@@ -255,7 +255,7 @@ func (r *retriever) Retrieve(ctx context.Context, req *genkit.RetrieverRequest) 
 
 // docID returns the ID to use for a Document.
 // This is intended to be the same as the genkit Typescript computation.
-func docID(doc *genkit.Document) (string, error) {
+func docID(doc *ai.Document) (string, error) {
 	b, err := json.Marshal(doc)
 	if err != nil {
 		return "", fmt.Errorf("pinecone: error marshaling document: %v", err)

@@ -23,28 +23,28 @@ import (
 	"context"
 	"errors"
 
-	"github.com/google/genkit/go/genkit"
+	"github.com/google/genkit/go/ai"
 )
 
 // Embedder is a fake implementation of genkit.Embedder.
 type Embedder struct {
-	registry map[*genkit.Document][]float32
+	registry map[*ai.Document][]float32
 }
 
 // New returns a new fake embedder.
 func New() *Embedder {
 	return &Embedder{
-		registry: make(map[*genkit.Document][]float32),
+		registry: make(map[*ai.Document][]float32),
 	}
 }
 
 // Register records the value to return for a Document.
-func (e *Embedder) Register(d *genkit.Document, vals []float32) {
+func (e *Embedder) Register(d *ai.Document, vals []float32) {
 	e.registry[d] = vals
 }
 
 // Embed implements genkit.Embedder.
-func (e *Embedder) Embed(ctx context.Context, req *genkit.EmbedRequest) ([]float32, error) {
+func (e *Embedder) Embed(ctx context.Context, req *ai.EmbedRequest) ([]float32, error) {
 	vals, ok := e.registry[req.Document]
 	if !ok {
 		return nil, errors.New("fake embedder called with unregistered document")

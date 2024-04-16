@@ -19,20 +19,20 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/google/genkit/go/genkit"
+	"github.com/google/genkit/go/ai"
 )
 
 func TestFakeEmbedder(t *testing.T) {
 	embed := New()
 
-	d := genkit.DocumentFromText("fakeembedder test", nil)
+	d := ai.DocumentFromText("fakeembedder test", nil)
 
 	vals := []float32{1, 2}
 	embed.Register(d, vals)
 
-	var genkitEmbedder genkit.Embedder
+	var genkitEmbedder ai.Embedder
 	genkitEmbedder = embed
-	req := &genkit.EmbedRequest{
+	req := &ai.EmbedRequest{
 		Document: d,
 	}
 	ctx := context.Background()
@@ -44,7 +44,7 @@ func TestFakeEmbedder(t *testing.T) {
 		t.Errorf("lookup returned %v, want %v", got, vals)
 	}
 
-	req.Document = genkit.DocumentFromText("missing document", nil)
+	req.Document = ai.DocumentFromText("missing document", nil)
 	if _, err = genkitEmbedder.Embed(ctx, req); err == nil {
 		t.Error("embedding unknown document succeeded unexpectedly")
 	}

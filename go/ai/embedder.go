@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package ai
 
 import (
 	"context"
+
+	"github.com/google/genkit/go/genkit"
 )
 
 // Embedder is the interface used to convert a document to a
@@ -33,6 +35,6 @@ type EmbedRequest struct {
 
 // RegisterEmbedder registers the actions for a specific embedder.
 func RegisterEmbedder(name string, embedder Embedder) {
-	RegisterAction(ActionTypeEmbedder, name,
-		NewAction(name, embedder.Embed))
+	genkit.RegisterAction(genkit.ActionTypeEmbedder, name,
+		genkit.NewAction(name, embedder.Embed))
 }

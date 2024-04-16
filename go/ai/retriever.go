@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package ai
 
 import (
 	"context"
+
+	"github.com/google/genkit/go/genkit"
 )
 
 // Retriever supports adding documents to a database, and
@@ -49,11 +51,11 @@ type RetrieverResponse struct {
 
 // RegisterRetriever registers the actions for a specific retriever.
 func RegisterRetriever(name string, retriever Retriever) {
-	RegisterAction(ActionTypeRetriever, name,
-		NewAction(name, retriever.Retrieve))
+	genkit.RegisterAction(genkit.ActionTypeRetriever, name,
+		genkit.NewAction(name, retriever.Retrieve))
 
-	RegisterAction(ActionTypeIndexer, name,
-		NewAction(name, func(ctx context.Context, req *IndexerRequest) (struct{}, error) {
+	genkit.RegisterAction(genkit.ActionTypeIndexer, name,
+		genkit.NewAction(name, func(ctx context.Context, req *IndexerRequest) (struct{}, error) {
 			err := retriever.Index(ctx, req)
 			return struct{}{}, err
 		}))

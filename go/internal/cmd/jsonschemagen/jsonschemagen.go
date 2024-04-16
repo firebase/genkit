@@ -26,6 +26,7 @@ import (
 	"go/format"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -38,7 +39,6 @@ import (
 var (
 	outputDir  = flag.String("outdir", "", "directory to write to, or '-' for stdout")
 	noFormat   = flag.Bool("nofmt", false, "do not format output")
-	pkg        = flag.String("pkg", "genkit", "package name")
 	configFile = flag.String("config", "", "config filename")
 )
 
@@ -47,32 +47,30 @@ func main() {
 	log.SetFlags(0)
 	flag.Usage = func() {
 		out := flag.CommandLine.Output()
-		fmt.Fprintf(out, "usage: jsonschemagen JSON_SCHEMA_FILE\n")
+		fmt.Fprintf(out, "usage: jsonschemagen JSON_SCHEMA_FILE DEFAULT_PKG\n")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
-	if flag.NArg() != 1 {
+	if flag.NArg() != 2 {
 		flag.Usage()
 		os.Exit(1)
 	}
-	outfile, err := run(flag.Arg(0), *pkg, *configFile, *outputDir)
-	if err != nil {
+	if err := run(flag.Arg(0), flag.Arg(1), *configFile, *outputDir); err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("wrote %s", outfile)
 }
 
-func run(infile, pkgName, configFile, outdir string) (string, error) {
+func run(infile, defaultPkgPath, configFile, outRoot string) error {
 	// Unmarshal the file, which is a JSON object with a "$defs" key that contains
 	// all the type definitions.
 	data, err := os.ReadFile(infile)
 	if err != nil {
-		return "", err
+		return err
 	}
 
 	var schema *Schema
 	if err := json.Unmarshal(data, &schema); err != nil {
-		return "", err
+		return err
 	}
 
 	// Verify that we've captured all the information in the file.
@@ -82,7 +80,7 @@ func run(infile, pkgName, configFile, outdir string) (string, error) {
 	// guarantee that JSONSchema won't add more, or that the input file contains
 	// some extension that we don't know about.)
 	if err := checkSchemaIsComplete(schema, data); err != nil {
-		return "", err
+		return err
 	}
 
 	// Read the config file, if any.
@@ -90,7 +88,7 @@ func run(infile, pkgName, configFile, outdir string) (string, error) {
 	if configFile != "" {
 		cfg, err = parseConfigFile(configFile)
 		if err != nil {
-			return "", err
+			return err
 		}
 	}
 
@@ -106,33 +104,63 @@ func run(infile, pkgName, configFile, outdir string) (string, error) {
 	// We do this as a transformation on the map of schemas.
 	nameAnonymousTypes(schemas)
 
-	// Generate code for each type.
-	gen := &generator{
-		pkgName: pkgName,
-		schemas: schemas,
-		cfg:     cfg,
-	}
-	src, err := gen.generate()
-	if err != nil {
-		return "", err
+	// Split schemas by package.
+	schemasByPackage := map[string]map[string]*Schema{}
+	for name, s := range schemas {
+		pkgPath := defaultPkgPath
+		if ic := cfg.configFor(name); ic != nil && ic.pkgPath != "" {
+			pkgPath = ic.pkgPath
+		}
+		m := schemasByPackage[pkgPath]
+		if m == nil {
+			m = map[string]*Schema{}
+			schemasByPackage[pkgPath] = m
+		}
+		m[name] = s
 	}
 
-	// Format and write the source.
-	if !*noFormat {
-		src, err = format.Source(src)
+	// Generate code by package.
+	for pkgPath, schemaMap := range schemasByPackage {
+		// Generate code for each type in the package.
+		gen := &generator{
+			pkgName: path.Base(pkgPath),
+			schemas: schemaMap,
+			cfg:     cfg,
+		}
+		src, err := gen.generate()
 		if err != nil {
-			return "", err
+			return err
+		}
+
+		// Format and write the source.
+		if !*noFormat {
+			src, err = format.Source(src)
+			if err != nil {
+				return err
+			}
+		}
+
+		if outRoot == "" {
+			outRoot = "."
+		}
+		outDir := filepath.Join(outRoot, filepath.FromSlash(pkgPath))
+		if err := os.MkdirAll(outDir, 0o755); err != nil {
+			return err
+		}
+		outFile := filepath.Join(outDir, "gen.go")
+		if err := os.WriteFile(outFile, src, 0o644); err != nil {
+			return err
+		}
+		log.Printf("wrote %s\n", outFile)
+	}
+
+	// Report unused config.
+	for name := range cfg.itemConfigs {
+		if !cfg.used[name] {
+			log.Printf("config %s unused", name)
 		}
 	}
-
-	outfile := fmt.Sprintf("%s_gen.go", pkgName)
-	if outdir != "" {
-		outfile = filepath.Join(outdir, outfile)
-	}
-	if err := os.WriteFile(outfile, src, 0660); err != nil {
-		return "", err
-	}
-	return outfile, nil
+	return nil
 }
 
 // checkSchemaIsComplete compares the given schema to the original JSON it was unmarshaled
@@ -239,7 +267,7 @@ func (g *generator) generate() ([]byte, error) {
 
 	// Sort the names so the output is deterministic.
 	for _, name := range sortedKeys(g.schemas) {
-		if ic := g.cfg.itemConfigs[name]; ic != nil && ic.omit {
+		if ic := g.cfg.configFor(name); ic != nil && ic.omit {
 			continue
 		}
 		if err := g.generateType(name); err != nil {
@@ -257,7 +285,7 @@ func (g *generator) generateType(name string) (err error) {
 	}()
 
 	s := g.schemas[name]
-	tcfg := g.cfg.itemConfigs[name]
+	tcfg := g.cfg.configFor(name)
 	if tcfg == nil {
 		tcfg = &itemConfig{}
 	}
@@ -302,7 +330,7 @@ func (g *generator) generateStruct(name string, s *Schema, tcfg *itemConfig) err
 	}
 	g.pr("type %s struct {\n", goName)
 	for _, field := range sortedKeys(s.Properties) {
-		fcfg := g.cfg.itemConfigs[name+"."+field]
+		fcfg := g.cfg.configFor(name + "." + field)
 		if fcfg == nil {
 			fcfg = &itemConfig{}
 		}
@@ -339,7 +367,7 @@ func (g *generator) generateStringEnum(name string, s *Schema, tcfg *itemConfig)
 	g.pr("const (\n")
 	for _, v := range s.Enum {
 		goVName := goName + adjustIdentifier(v)
-		if ic := g.cfg.itemConfigs[goVName]; ic != nil {
+		if ic := g.cfg.configFor(goVName); ic != nil {
 			if ic.name != "" {
 				goVName = ic.name
 			}
@@ -379,7 +407,7 @@ func (g *generator) typeExpr(s *Schema) (string, error) {
 			return "", fmt.Errorf("unknown type in reference: %q", name)
 		}
 		// Apply a config that changes the name.
-		if ic := g.cfg.itemConfigs[name]; ic != nil && ic.name != "" {
+		if ic := g.cfg.configFor(name); ic != nil && ic.name != "" {
 			name = ic.name
 		}
 		if s2.Enum != nil {
@@ -460,6 +488,15 @@ func sortedKeys[K cmp.Ordered, V any](m map[K]V) []K {
 // It describes modifications to the defaults of the code generator.
 type config struct {
 	itemConfigs map[string]*itemConfig
+	used        map[string]bool // which itemConfigs were used
+}
+
+func (c config) configFor(name string) *itemConfig {
+	if ic := c.itemConfigs[name]; ic != nil {
+		c.used[name] = true
+		return ic
+	}
+	return nil
 }
 
 // itemConfig is configuration for one item, either a type or field. Not all itemConfig
@@ -467,6 +504,7 @@ type config struct {
 type itemConfig struct {
 	omit     bool
 	name     string
+	pkgPath  string
 	typeExpr string
 	docLines []string
 }
@@ -486,8 +524,13 @@ type itemConfig struct {
 //	    use EXPR for the type expression (for fields only)
 //	doc
 //	    doc is following lines until the line "."
+//	pkg
+//	    package path, relative to outdir (last component is package name)
 func parseConfigFile(filename string) (config, error) {
-	c := config{itemConfigs: map[string]*itemConfig{}}
+	c := config{
+		itemConfigs: map[string]*itemConfig{},
+		used:        map[string]bool{},
+	}
 	filedata, err := os.ReadFile(filename)
 	if err != nil {
 		return config{}, err
@@ -538,6 +581,12 @@ func parseConfigFile(filename string) (config, error) {
 			ic.typeExpr = words[2]
 		case "doc":
 			docItem = ic
+		case "pkg":
+			if len(words) < 3 {
+				return errf("need NAME pkg PATH")
+			}
+			ic.pkgPath = words[2]
+
 		default:
 			return errf("unknown directive %q", words[1])
 		}
