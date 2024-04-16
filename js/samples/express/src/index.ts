@@ -25,15 +25,15 @@ initializeGenkit(config);
 
 export const jokeFlow = defineFlow(
   { name: 'jokeFlow', inputSchema: z.string(), outputSchema: z.string() },
-  async (subject) => {
+  async (subject, streamingCallback) => {
     return await run('call-llm', async () => {
       const llmResponse = await generate({
-        prompt: `Tell me a joke about ${subject}`,
-        model: 'ollama/llama2',
+        prompt: `${subject}`,
+        model: 'ollama/gemma',
         config: {
           temperature: 1,
         },
-        streamingCallback: (c) => console.log(c.content[0].text),
+        streamingCallback,
       });
 
       return llmResponse.text();

@@ -20,12 +20,15 @@ import {
   GenerateRequest,
   GenerateResponseData,
   getBasicUsageStats,
+  MessageData,
 } from '@genkit-ai/ai/model';
 import { genkitPlugin, Plugin } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 
+type ApiType = 'chat' | 'generate';
+
 interface OllamaPluginParams {
-  models: { name: string; type?: 'chat' | 'generate' }[];
+  models: { name: string; type?: ApiType }[];
   /**
    *  ollama server address.
    */
@@ -38,21 +41,20 @@ export const ollama: Plugin<[OllamaPluginParams]> = genkitPlugin(
     const serverAddress = params?.serverAddress;
     return {
       models: params.models.map((model) =>
-        ollamaModel(model.name, model.type, serverAddress)
+        ollamaModel(model.name, model.type ?? 'chat', serverAddress)
       ),
     };
   }
 );
 
-function ollamaModel(
-  name: string,
-  type: 'chat' | 'generate' | undefined,
-  serverAddress: string
-) {
+function ollamaModel(name: string, type: ApiType, serverAddress: string) {
   return defineModel(
     {
       name: `ollama/${name}`,
       label: `Ollama - ${name}`,
+      supports: {
+        multiturn: type === 'chat',
+      },
     },
     async (input, streamingCallback) => {
       const options: Record<string, any> = {};
@@ -71,35 +73,15 @@ function ollamaModel(
       if (input.config?.hasOwnProperty('maxOutputTokens')) {
         options.num_predict = input.config?.maxOutputTokens;
       }
-      const request = {
-        model: name,
+      const request = toOllamaRequest(
+        name,
+        input,
         options,
-        stream: !!streamingCallback,
-      } as any;
-      if (type === 'chat') {
-        const messages: Message[] = [];
-        input.messages.forEach((m) => {
-          let messageText = '';
-          const images: string[] = [];
-          m.content.forEach((c) => {
-            if (c.text) {
-              messageText += c.text;
-            }
-            if (c.media) {
-              images.push(c.media.url);
-            }
-          });
-          messages.push({
-            role: m.role,
-            content: messageText,
-            images: images.length > 0 ? images : undefined,
-          });
-        });
-        request.messages = messages;
-      } else {
-        request.prompt = getPrompt(input);
-      }
-      logger.debug(request, `ollama request (type: ${type})`);
+        type,
+        !!streamingCallback
+      );
+      logger.debug(request, `ollama request (${type})`);
+
       const res = await fetch(
         serverAddress + (type === 'chat' ? '/api/chat' : '/api/generate'),
         {
@@ -114,36 +96,23 @@ function ollamaModel(
         throw new Error('Response has no body');
       }
 
-      let textResponse = '';
+      const responseCandidates: CandidateData[] = [];
+
       if (streamingCallback) {
         const reader = res.body.getReader();
         const textDecoder = new TextDecoder();
+        let textResponse = '';
         for await (const chunk of readChunks(reader)) {
           const chunkText = textDecoder.decode(chunk);
           const json = JSON.parse(chunkText);
+          const message = parseMessage(json, type);
           streamingCallback({
             index: 0,
-            content: [
-              {
-                text:
-                  type === 'chat'
-                    ? (json.message as Message).content
-                    : json.response,
-              },
-            ],
+            content: message.content,
           });
-          textResponse +=
-            type === 'chat' ? (json.message as Message).content : json.response;
+          textResponse += message.content[0].text;
         }
-      } else {
-        const txtBody = await res.text();
-        const json = JSON.parse(txtBody);
-        textResponse = json.response;
-      }
-      logger.debug(textResponse, 'ollama final response');
-
-      const responseCandidates = [
-        {
+        responseCandidates.push({
           index: 0,
           finishReason: 'stop',
           message: {
@@ -154,14 +123,102 @@ function ollamaModel(
               },
             ],
           },
-        } as CandidateData,
-      ];
+        } as CandidateData);
+      } else {
+        const txtBody = await res.text();
+        const json = JSON.parse(txtBody);
+        logger.debug(txtBody, 'ollama raw response');
+
+        responseCandidates.push({
+          index: 0,
+          finishReason: 'stop',
+          message: parseMessage(json, type),
+        } as CandidateData);
+      }
+
       return {
         candidates: responseCandidates,
         usage: getBasicUsageStats(input.messages, responseCandidates),
       } as GenerateResponseData;
     }
   );
+}
+
+function parseMessage(response: any, type: ApiType): MessageData {
+  if (response.error) {
+    throw new Error(response.error);
+  }
+  if (type === 'chat') {
+    return {
+      role: toGenkitRole(response.message.role),
+      content: [
+        {
+          text: response.message.content,
+        },
+      ],
+    };
+  } else {
+    return {
+      role: 'model',
+      content: [
+        {
+          text: response.response,
+        },
+      ],
+    };
+  }
+}
+
+function toOllamaRequest(
+  name: string,
+  input: GenerateRequest,
+  options: Record<string, any>,
+  type: ApiType,
+  stream: boolean
+) {
+  const request = {
+    model: name,
+    options,
+    stream,
+  } as any;
+  if (type === 'chat') {
+    const messages: Message[] = [];
+    input.messages.forEach((m) => {
+      let messageText = '';
+      const images: string[] = [];
+      m.content.forEach((c) => {
+        if (c.text) {
+          messageText += c.text;
+        }
+        if (c.media) {
+          images.push(c.media.url);
+        }
+      });
+      messages.push({
+        role: toOllamaRole(m.role),
+        content: messageText,
+        images: images.length > 0 ? images : undefined,
+      });
+    });
+    request.messages = messages;
+  } else {
+    request.prompt = getPrompt(input);
+  }
+  return request;
+}
+
+function toOllamaRole(role) {
+  if (role === 'model') {
+    return 'assistant';
+  }
+  return role; // everything else seems to match
+}
+
+function toGenkitRole(role) {
+  if (role === 'assistant') {
+    return 'model';
+  }
+  return role; // everything else seems to match
 }
 
 function readChunks(reader) {
@@ -177,10 +234,7 @@ function readChunks(reader) {
 }
 
 function getPrompt(input: GenerateRequest) {
-  // TODO: too naive...
-  // see https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-chat-completion
-  const content = input.messages[0]?.content[0];
-  return content.text;
+  return input.messages.map((m) => m.content.map((c) => c.text).join()).join();
 }
 
 interface Message {
