@@ -180,7 +180,15 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
     return {
       config: this.config || {},
       messages,
-      output: this.output || {},
+      output: this.output
+        ? {
+            format: this.output?.format,
+            schema: toJsonSchema({
+              schema: this.output?.schema,
+              jsonSchema: this.output?.jsonSchema,
+            }),
+          }
+        : {},
       tools: (await resolveTools(this.tools)).map(toToolDefinition),
       candidates: options.candidates || 1,
     };
