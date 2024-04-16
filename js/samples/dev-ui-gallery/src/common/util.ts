@@ -14,10 +14,21 @@
  * limitations under the License.
  */
 
-import * as z from 'zod';
-import '../genkit.config';
+const loremIpsum = [
+  'lorem',
+  'ipsum',
+  'dolor',
+  'sit',
+  'amet',
+  'consectetur',
+  'adipiscing',
+  'elit',
+];
 
-export const HelloSchema = z.object({
-  name: z.string(),
-  persona: z.string().optional(),
-});
+export function generateString(length: number) {
+  let str = '';
+  while (str.length < length) {
+    str += loremIpsum[Math.floor(Math.random() * loremIpsum.length)] + ' ';
+  }
+  return str.substring(0, length);
+}
