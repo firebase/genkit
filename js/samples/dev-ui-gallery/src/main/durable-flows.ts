@@ -15,7 +15,14 @@
  */
 
 import { prompt } from '@genkit-ai/dotprompt';
-import { durableFlow, interrupt, run } from '@genkit-ai/flow/experimental';
+import { run } from '@genkit-ai/flow';
+import {
+  durableFlow,
+  interrupt,
+  scheduleFlow,
+  sleep,
+  waitFor,
+} from '@genkit-ai/flow/experimental';
 import * as z from 'zod';
 import { HelloSchema } from '../common/types.js';
 
@@ -25,7 +32,7 @@ import { HelloSchema } from '../common/types.js';
 
 durableFlow(
   {
-    name: 'durableInterruptFlow',
+    name: 'durableFlowInterrupt',
     inputSchema: HelloSchema,
     outputSchema: z.string(),
   },
@@ -58,4 +65,48 @@ async function notifyReviewer(llmResponse: string) {
   console.log('notifyReviewer', llmResponse);
 }
 
-// TODO(michaeldoyle) migrate the rest of flow-sample1 durable flows here
+//
+// Durable flow - sleep
+//
+
+const durableFlowSleep = durableFlow(
+  {
+    name: 'durableFlowSleep',
+    outputSchema: z.string(),
+  },
+  async () => {
+    const step1 = await run('step1', async () => {
+      return 'foo';
+    });
+
+    await sleep('sleeping', 10);
+
+    const step2 = await run('step2', async () => {
+      return 'bar';
+    });
+
+    return `${step1} ${step2}`;
+  }
+);
+
+//
+// Durable flow - wait
+//
+
+durableFlow(
+  {
+    name: 'durableFlowWaitFor',
+    outputSchema: z.string(),
+  },
+  async () => {
+    const flowOp = await run('step1', async () => {
+      return await scheduleFlow(durableFlowSleep, undefined);
+    });
+
+    const [op] = await waitFor('step2', durableFlowSleep, [flowOp.name]);
+
+    return await run('step3', async () => {
+      return JSON.stringify(op.result);
+    });
+  }
+);

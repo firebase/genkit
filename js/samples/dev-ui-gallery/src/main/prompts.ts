@@ -34,9 +34,39 @@ export const codeDefinedPrompt = definePrompt(
     model: geminiPro,
     input: {
       schema: HelloSchema,
+      default: {
+        persona: 'Space Pirate',
+      },
     },
     output: {
       format: 'text',
+    },
+    config: {
+      maxOutputTokens: 2048,
+      temperature: 0.6,
+      topK: 16,
+      topP: 0.95,
+      stopSequences: ['STAWP!'],
+      custom: {
+        safetySettings: [
+          {
+            category: 'HARM_CATEGORY_HATE_SPEECH',
+            threshold: 'BLOCK_ONLY_HIGH',
+          },
+          {
+            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+            threshold: 'BLOCK_ONLY_HIGH',
+          },
+          {
+            category: 'HARM_CATEGORY_HARASSMENT',
+            threshold: 'BLOCK_ONLY_HIGH',
+          },
+          {
+            category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            threshold: 'BLOCK_ONLY_HIGH',
+          },
+        ],
+      },
     },
   },
   template
@@ -49,6 +79,9 @@ export const codeDefinedPromptVariant = definePrompt(
     model: geminiPro,
     input: {
       schema: HelloSchema,
+      default: {
+        persona: 'Sportscaster',
+      },
     },
     output: {
       schema: z.object({
@@ -62,7 +95,7 @@ export const codeDefinedPromptVariant = definePrompt(
 
 defineFlow(
   {
-    name: 'codeDefinedPromptFlow',
+    name: 'flowCodeDefinedPrompt',
     inputSchema: HelloSchema,
     outputSchema: z.string(),
     streamSchema: z.string(),
@@ -84,7 +117,7 @@ defineFlow(
 prompt('dotprompt-hello').then((prompt) => {
   defineFlow(
     {
-      name: 'dotPromptFlow',
+      name: 'flowDotPrompt',
       inputSchema: HelloSchema,
       outputSchema: z.string(),
     },
@@ -99,7 +132,7 @@ prompt('dotprompt-hello').then((prompt) => {
 prompt('dotprompt-hello', { variant: 'variant' }).then((prompt) => {
   defineFlow(
     {
-      name: 'dotPromptVariantFlow',
+      name: 'flowDotPromptVariant',
       inputSchema: HelloSchema,
       outputSchema: z.string(),
     },
@@ -114,7 +147,7 @@ prompt('dotprompt-hello', { variant: 'variant' }).then((prompt) => {
 prompt('dotprompt-hello', { variant: 'json-output' }).then((prompt) => {
   defineFlow(
     {
-      name: 'dotPromptJsonOutputFlow',
+      name: 'flowDotPromptJsonOutput',
       inputSchema: HelloSchema,
       outputSchema: z.any(),
     },

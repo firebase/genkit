@@ -14,14 +14,15 @@
  * limitations under the License.
  */
 
-import { defineFlow, run, runFlow } from '@genkit-ai/flow';
+import { defineFlow, run, runFlow, runMap } from '@genkit-ai/flow';
 import * as z from 'zod';
+import { generateString } from '../common/util';
 
 //
 // Flow - simple
 //
 
-const singleStepFlow = defineFlow({ name: 'singleStepFlow' }, async (input) => {
+const flowSingleStep = defineFlow({ name: 'flowSingleStep' }, async (input) => {
   return await run('step1', async () => {
     return input;
   });
@@ -31,7 +32,7 @@ const singleStepFlow = defineFlow({ name: 'singleStepFlow' }, async (input) => {
 // Flow - multiStep
 //
 
-const multiStepFlow = defineFlow({ name: 'multiStepFlow' }, async (input) => {
+const flowMultiStep = defineFlow({ name: 'flowMultiStep' }, async (input) => {
   let i = 1;
 
   const result1 = await run('step1', async () => {
@@ -51,11 +52,11 @@ const multiStepFlow = defineFlow({ name: 'multiStepFlow' }, async (input) => {
 // Flow - nested
 //
 
-defineFlow({ name: 'nestedFlow', outputSchema: z.string() }, async () => {
+defineFlow({ name: 'flowNested', outputSchema: z.string() }, async () => {
   return JSON.stringify(
     {
-      firstResult: await runFlow(singleStepFlow, 'hello, world!'),
-      secondResult: await runFlow(multiStepFlow, 'hello, world!'),
+      firstResult: await runFlow(flowSingleStep, 'hello, world!'),
+      secondResult: await runFlow(flowMultiStep, 'hello, world!'),
     },
     null,
     2
@@ -68,7 +69,7 @@ defineFlow({ name: 'nestedFlow', outputSchema: z.string() }, async () => {
 
 defineFlow(
   {
-    name: 'streamingFlow',
+    name: 'flowStreaming',
     inputSchema: z.number(),
     outputSchema: z.string(),
     streamSchema: z.number(),
@@ -85,4 +86,81 @@ defineFlow(
   }
 );
 
-// TODO(michaeldoyle) migrate the rest of flow-sample1 standard flows here
+//
+// Flow - runMap
+//
+
+defineFlow({ name: 'flowRunMap', outputSchema: z.string() }, async () => {
+  const originalValues = await run('generator', async () => {
+    return ['a', 'b', 'c', 'd'];
+  });
+  const newValues = await runMap('map', originalValues, async (f) => {
+    return 'mapped-' + f;
+  });
+
+  return newValues.join(', ');
+});
+
+//
+// Flow - throws
+//
+
+defineFlow({ name: 'flowSingleStepThrows' }, async (input) => {
+  return await run('step1', async () => {
+    if (input) {
+      throw new Error('Got an error!');
+    }
+    return input;
+  });
+});
+
+//
+// Flow - streamingThrows
+//
+
+defineFlow(
+  {
+    name: 'flowStreamingThrows',
+    inputSchema: z.number(),
+    outputSchema: z.string(),
+    streamSchema: z.number(),
+  },
+  async (count, streamingCallback) => {
+    let i = 1;
+    if (streamingCallback) {
+      for (; i <= count; i++) {
+        if (i == 3) {
+          throw new Error('I cannot count that high!');
+        }
+        await new Promise((r) => setTimeout(r, 500));
+        streamingCallback(i);
+      }
+    }
+    if (count) {
+      throw new Error('I cannot count that low!');
+    }
+    return `done: ${count}, streamed: ${i - 1} times`;
+  }
+);
+
+//
+// Flow - largeOutput
+//
+
+export const largeSteps = defineFlow({ name: 'flowLargeOutput' }, async () => {
+  await run('step1', async () => {
+    return generateString(100_000);
+  });
+  await run('step2', async () => {
+    return generateString(800_000);
+  });
+  await run('step3', async () => {
+    return generateString(900_000);
+  });
+  await run('step4', async () => {
+    return generateString(999_000);
+  });
+  return 'something...';
+});
+
+// TODO(michaeldoyle): showcase advanced capabilities such as multimodal
