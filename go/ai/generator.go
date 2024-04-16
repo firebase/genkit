@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package ai
 
 import (
 	"context"
+
+	"github.com/google/genkit/go/genkit"
 )
 
 // Generator is the interface used to query an AI model.
@@ -25,6 +27,6 @@ type Generator interface {
 
 // RegisterGenerator registers the generator in the global registry.
 func RegisterGenerator(name string, generator Generator) {
-	RegisterAction(ActionTypeModel, name,
-		NewAction(name, generator.Generate))
+	genkit.RegisterAction(genkit.ActionTypeModel, name,
+		genkit.NewAction(name, generator.Generate))
 }

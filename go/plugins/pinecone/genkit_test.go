@@ -19,7 +19,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/genkit/go/genkit"
+	"github.com/google/genkit/go/ai"
 	"github.com/google/genkit/go/internal/fakeembedder"
 )
 
@@ -63,9 +63,9 @@ func TestGenkit(t *testing.T) {
 	}
 	v2[0] = 1
 
-	d1 := genkit.DocumentFromText("hello1", nil)
-	d2 := genkit.DocumentFromText("hello2", nil)
-	d3 := genkit.DocumentFromText("goodbye", nil)
+	d1 := ai.DocumentFromText("hello1", nil)
+	d2 := ai.DocumentFromText("hello2", nil)
+	d3 := ai.DocumentFromText("goodbye", nil)
 
 	embedder := fakeembedder.New()
 	embedder.Register(d1, v1)
@@ -81,9 +81,9 @@ func TestGenkit(t *testing.T) {
 		Namespace: namespace,
 	}
 
-	indexerReq := &genkit.IndexerRequest{
-		Documents: []*genkit.Document{d1, d2, d3},
-		Options: indexerOptions,
+	indexerReq := &ai.IndexerRequest{
+		Documents: []*ai.Document{d1, d2, d3},
+		Options:   indexerOptions,
 	}
 	err = r.Index(ctx, indexerReq)
 	if err != nil {
@@ -96,7 +96,7 @@ func TestGenkit(t *testing.T) {
 			t.Fatal(err)
 		}
 		var ids []string
-		addID := func(d *genkit.Document) {
+		addID := func(d *ai.Document) {
 			id, err := docID(d)
 			if err != nil {
 				t.Error("can't get document ID")
@@ -118,7 +118,7 @@ func TestGenkit(t *testing.T) {
 		Namespace: namespace,
 	}
 
-	retrieverReq := &genkit.RetrieverRequest{
+	retrieverReq := &ai.RetrieverRequest{
 		Document: d1,
 		Options:  retrieverOptions,
 	}

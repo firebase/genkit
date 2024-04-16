@@ -18,7 +18,7 @@ import (
 	"context"
 
 	"github.com/google/generative-ai-go/genai"
-	"github.com/google/genkit/go/genkit"
+	"github.com/google/genkit/go/ai"
 	"google.golang.org/api/option"
 )
 
@@ -27,7 +27,7 @@ type embedder struct {
 	client *genai.Client
 }
 
-func (e *embedder) Embed(ctx context.Context, input *genkit.EmbedRequest) ([]float32, error) {
+func (e *embedder) Embed(ctx context.Context, input *ai.EmbedRequest) ([]float32, error) {
 	em := e.client.EmbeddingModel(e.model)
 	parts := convertParts(input.Document.Content)
 	res, err := em.EmbedContent(ctx, parts...)
@@ -43,7 +43,7 @@ func newClient(ctx context.Context, apiKey string) (*genai.Client, error) {
 
 // NewEmbedder returns an embedder which can compute the embedding
 // of an input document given the Google AI model.
-func NewEmbedder(ctx context.Context, model, apiKey string) (genkit.Embedder, error) {
+func NewEmbedder(ctx context.Context, model, apiKey string) (ai.Embedder, error) {
 	client, err := newClient(ctx, apiKey)
 	if err != nil {
 		return nil, err
@@ -59,10 +59,10 @@ type generator struct {
 	client *genai.Client
 }
 
-func (g *generator) Generate(ctx context.Context, input *genkit.GenerateRequest) (*genkit.GenerateResponse, error) {
+func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest) (*ai.GenerateResponse, error) {
 	gm := g.client.GenerativeModel(g.model)
 
-	// Translate from a genkit.GenerateRequest to a genai request.
+	// Translate from a ai.GenerateRequest to a genai request.
 	gm.SetCandidateCount(int32(input.Candidates))
 	if c := input.Config; c != nil {
 		gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
@@ -98,36 +98,36 @@ func (g *generator) Generate(ctx context.Context, input *genkit.GenerateRequest)
 		return nil, err
 	}
 
-	// Translate from a genai.GenerateContentResponse to a genkit.GenerateResponse.
-	r := &genkit.GenerateResponse{}
+	// Translate from a genai.GenerateContentResponse to a ai.GenerateResponse.
+	r := &ai.GenerateResponse{}
 	for _, cand := range resp.Candidates {
-		c := &genkit.Candidate{}
+		c := &ai.Candidate{}
 		c.Index = int(cand.Index)
 		switch cand.FinishReason {
 		case genai.FinishReasonStop:
-			c.FinishReason = genkit.FinishReasonStop
+			c.FinishReason = ai.FinishReasonStop
 		case genai.FinishReasonMaxTokens:
-			c.FinishReason = genkit.FinishReasonLength
+			c.FinishReason = ai.FinishReasonLength
 		case genai.FinishReasonSafety:
-			c.FinishReason = genkit.FinishReasonBlocked
+			c.FinishReason = ai.FinishReasonBlocked
 		case genai.FinishReasonRecitation:
-			c.FinishReason = genkit.FinishReasonBlocked
+			c.FinishReason = ai.FinishReasonBlocked
 		case genai.FinishReasonOther:
-			c.FinishReason = genkit.FinishReasonOther
+			c.FinishReason = ai.FinishReasonOther
 		default: // Unspecified
-			c.FinishReason = genkit.FinishReasonUnknown
+			c.FinishReason = ai.FinishReasonUnknown
 		}
-		m := &genkit.Message{}
-		m.Role = genkit.Role(cand.Content.Role)
+		m := &ai.Message{}
+		m.Role = ai.Role(cand.Content.Role)
 		for _, part := range cand.Content.Parts {
-			var p *genkit.Part
+			var p *ai.Part
 			switch part := part.(type) {
 			case genai.Text:
-				p = genkit.NewTextPart(string(part))
+				p = ai.NewTextPart(string(part))
 			case genai.Blob:
-				p = genkit.NewBlobPart(part.MIMEType, string(part.Data))
+				p = ai.NewBlobPart(part.MIMEType, string(part.Data))
 			case genai.FunctionResponse:
-				p = genkit.NewBlobPart("TODO", string(part.Name))
+				p = ai.NewBlobPart("TODO", string(part.Name))
 			default:
 				panic("unknown part type")
 			}
@@ -141,7 +141,7 @@ func (g *generator) Generate(ctx context.Context, input *genkit.GenerateRequest)
 
 // NewGenerator returns an action which sends a request to
 // the google AI model and returns the response.
-func NewGenerator(ctx context.Context, model, apiKey string) (genkit.Generator, error) {
+func NewGenerator(ctx context.Context, model, apiKey string) (ai.Generator, error) {
 	client, err := newClient(ctx, apiKey)
 	if err != nil {
 		return nil, err
@@ -152,25 +152,25 @@ func NewGenerator(ctx context.Context, model, apiKey string) (genkit.Generator, 
 	}, nil
 }
 
-// Init registers all the actions in this package with genkit.
+// Init registers all the actions in this package with ai.
 func Init(ctx context.Context, model, apiKey string) error {
 	e, err := NewEmbedder(ctx, model, apiKey)
 	if err != nil {
 		return err
 	}
-	genkit.RegisterEmbedder("google-genai", e)
+	ai.RegisterEmbedder("google-genai", e)
 
 	g, err := NewGenerator(ctx, model, apiKey)
 	if err != nil {
 		return err
 	}
-	genkit.RegisterGenerator("google-genai", g)
+	ai.RegisterGenerator("google-genai", g)
 
 	return nil
 }
 
-// convertParts converts a slice of *genkit.Part to a slice of genai.Part.
-func convertParts(parts []*genkit.Part) []genai.Part {
+// convertParts converts a slice of *ai.Part to a slice of genai.Part.
+func convertParts(parts []*ai.Part) []genai.Part {
 	res := make([]genai.Part, 0, len(parts))
 	for _, p := range parts {
 		res = append(res, convertPart(p))
@@ -178,8 +178,8 @@ func convertParts(parts []*genkit.Part) []genai.Part {
 	return res
 }
 
-// convertPart converts a *genkit.Part to a genai.Part.
-func convertPart(p *genkit.Part) genai.Part {
+// convertPart converts a *ai.Part to a genai.Part.
+func convertPart(p *ai.Part) genai.Part {
 	switch {
 	case p.IsPlainText():
 		return genai.Text(p.Text())
