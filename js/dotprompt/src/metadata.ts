@@ -167,5 +167,6 @@ export function toFrontmatter(md: PromptMetadata): PromptFrontmatter {
     tools: md.tools?.map((t) =>
       typeof t === 'string' ? t : (t as any).__action?.name || (t as any).name
     ),
+    variant: md.variant,
   });
 }
