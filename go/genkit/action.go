@@ -19,6 +19,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"reflect"
+
+	"github.com/invopop/jsonschema"
 )
 
 // An Action is a function with a name.
@@ -27,24 +30,27 @@ import (
 //
 // Each time an Action is run, it results in a new trace span.
 type Action[I, O any] struct {
-	name   string
-	fn     func(context.Context, I) (O, error)
-	tstate *tracingState
+	name         string
+	fn           func(context.Context, I) (O, error)
+	tstate       *tracingState
+	inputSchema  *jsonschema.Schema
+	outputSchema *jsonschema.Schema
 	// optional
 	Description string
 	Metadata    map[string]any
-	// TODO?: JSON schemas for input and output types.
-	// JSONSchema can represent additional constraints beyond what the Go type system
-	// can express, so we should use them to validate inputs and outputs.
 }
 
 // See js/common/src/types.ts
 
 // NewAction creates a new Action with the given name and function.
 func NewAction[I, O any](name string, fn func(context.Context, I) (O, error)) *Action[I, O] {
+	var i I
+	var o O
 	return &Action[I, O]{
-		name: name,
-		fn:   fn,
+		name:         name,
+		fn:           fn,
+		inputSchema:  inferJSONSchema(i),
+		outputSchema: inferJSONSchema(o),
 	}
 }
 
@@ -111,10 +117,12 @@ type action interface {
 // An actionDesc is a description of an Action.
 // It is used to provide a list of registered actions.
 type actionDesc struct {
-	Key         string         `json:"key"` // full key from the registry
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
-	Metadata    map[string]any `json:"metadata"`
+	Key          string             `json:"key"` // full key from the registry
+	Name         string             `json:"name"`
+	Description  string             `json:"description"`
+	Metadata     map[string]any     `json:"metadata"`
+	InputSchema  *jsonschema.Schema `json:"inputSchema"`
+	OutputSchema *jsonschema.Schema `json:"outputSchema"`
 }
 
 func (d1 actionDesc) equal(d2 actionDesc) bool {
@@ -125,10 +133,28 @@ func (d1 actionDesc) equal(d2 actionDesc) bool {
 }
 
 func (a *Action[I, O]) desc() actionDesc {
-	return actionDesc{
-		Name:        a.name,
-		Description: a.Description,
-		Metadata:    a.Metadata,
-		// TODO: JSON schemata
+	ad := actionDesc{
+		Name:         a.name,
+		Description:  a.Description,
+		Metadata:     a.Metadata,
+		InputSchema:  a.inputSchema,
+		OutputSchema: a.outputSchema,
 	}
+	// Required by genkit UI:
+	if ad.Metadata == nil {
+		ad.Metadata = map[string]any{}
+	}
+	ad.Metadata["inputSchema"] = nil
+	ad.Metadata["outputSchema"] = nil
+	return ad
+}
+
+func inferJSONSchema(x any) *jsonschema.Schema {
+	var r jsonschema.Reflector
+	// If x is a struct, put its definition at the "top level" of the schema,
+	// instead of nested inside a "$defs" object.
+	if reflect.TypeOf(x).Kind() == reflect.Struct {
+		r.ExpandedStruct = true
+	}
+	return r.Reflect(x)
 }
