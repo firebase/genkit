@@ -239,22 +239,22 @@ console.log(result.text());
 ## Prompt Variants
 
 Because prompt files are just text, you can (and should!) commit them to your
-version control system, giving you an easy ability to compare changes over time.
-However, oftentimes tweaked versions of prompts can only be fully tested in a
+version control system, allowing you to compare changes over time easily.
+Often times, tweaked versions of prompts can only be fully tested in a
 production environment side-by-side with existing versions. Dotprompt supports
 this through its **variants** feature.
 
 To create a variant, create a `[name].[variant].prompt` file. For instance, if
-you were using GPT-3.5 Turbo in your prompt but wanted to see if Gemini 1.0 Pro
+you were using Gemini 1.0 Pro in your prompt but wanted to see if Gemini 1.5 Pro
 would perform better, you might create two files:
 
 - `my_prompt.prompt`: the "baseline" prompt
-- `my_prompt.gemini.prompt`: a variant named "gemini"
+- `my_prompt.gemini15.prompt`: a variant named "gemini"
 
 To use a prompt variant, specify the `variant` option when loading:
 
 ```ts
-const myPrompt = await prompt('my_prompt', { variant: 'gemini' });
+const myPrompt = await prompt('my_prompt', { variant: 'gemini15' });
 ```
 
 The prompt loader will attempt to load the variant of that name, and fall back
@@ -263,7 +263,7 @@ on whatever criteria makes sense for your application:
 
 ```ts
 const myPrompt = await prompt('my_prompt', {
-  variant: isBetaTester(user) ? 'gemini' : null,
+  variant: isBetaTester(user) ? 'gemini15' : null,
 });
 ```
 
