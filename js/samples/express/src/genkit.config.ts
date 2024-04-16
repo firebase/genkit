@@ -28,7 +28,10 @@ export default configureGenkit({
     vertexAI(),
     openAI(),
     ollama({
-      models: [{ name: 'llama2' }],
+      models: [
+        { name: 'llama2', type: 'generate' },
+        { name: 'gemma', type: 'chat' },
+      ],
       serverAddress: 'http://127.0.0.1:11434', // default local address
     }),
   ],
