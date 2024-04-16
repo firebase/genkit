@@ -57,8 +57,6 @@ guides:
     path: /genkit/plugins/google-genai
   - title: Google Vertex AI
     path: /genkit/plugins/vertex-ai
-  - title: OpenAI
-    path: /genkit/plugins/openai
   - title: Ollama
     path: /genkit/plugins/ollama
   - title: Chroma DB
