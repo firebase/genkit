@@ -21,3 +21,9 @@ export const HelloSchema = z.object({
   name: z.string(),
   persona: z.string().optional(),
 });
+
+export const HelloFullNameSchema = z.object({
+  firstName: z.string(),
+  lastName: z.string(),
+  persona: z.string(),
+});

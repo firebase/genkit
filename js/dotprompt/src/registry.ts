@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { GenkitError, config } from '@genkit-ai/core';
+import { config, GenkitError } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { lookupAction, registerAction } from '@genkit-ai/core/registry';
 import { existsSync, readFileSync } from 'fs';
