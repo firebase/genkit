@@ -18,7 +18,7 @@ import { definePrompt, prompt } from '@genkit-ai/dotprompt';
 import { defineFlow } from '@genkit-ai/flow';
 import { geminiPro } from '@genkit-ai/googleai';
 import * as z from 'zod';
-import { HelloSchema } from '../common/types.js';
+import { HelloFullNameSchema, HelloSchema } from '../common/types.js';
 import '../genkit.config.js';
 
 //
@@ -103,7 +103,7 @@ defineFlow(
   async (input, streamingCallback) => {
     const codeDefinedPrompt = await prompt('codeDefinedPrompt');
     const response = await codeDefinedPrompt.generate({
-      input: input,
+      input,
     });
 
     return response.text();
@@ -121,7 +121,7 @@ prompt('dotprompt-hello').then((prompt) => {
       inputSchema: HelloSchema,
       outputSchema: z.string(),
     },
-    async (input) => (await prompt.generate({ input: input })).text()
+    async (input) => (await prompt.generate({ input })).text()
   );
 });
 
@@ -129,14 +129,14 @@ prompt('dotprompt-hello').then((prompt) => {
 // Dotprompt file - variant, text output
 //
 
-prompt('dotprompt-hello', { variant: 'variant' }).then((prompt) => {
+prompt('dotprompt-hello', { variant: 'first-last-name' }).then((prompt) => {
   defineFlow(
     {
       name: 'flowDotPromptVariant',
-      inputSchema: HelloSchema,
+      inputSchema: HelloFullNameSchema,
       outputSchema: z.string(),
     },
-    async (input) => (await prompt.generate({ input: input })).text()
+    async (input) => (await prompt.generate({ input })).text()
   );
 });
 
@@ -151,7 +151,7 @@ prompt('dotprompt-hello', { variant: 'json-output' }).then((prompt) => {
       inputSchema: HelloSchema,
       outputSchema: z.any(),
     },
-    async (input) => (await prompt.generate({ input: input })).output()
+    async (input) => (await prompt.generate({ input })).output()
   );
 });
 
