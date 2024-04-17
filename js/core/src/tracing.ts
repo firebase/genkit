@@ -21,6 +21,7 @@ import {
   SpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
 import { getCurrentEnv } from './config.js';
+import { logger } from './logging';
 import { TelemetryConfig } from './telemetryTypes.js';
 import { TraceStore } from './tracing.js';
 import { TraceStoreExporter } from './tracing/exporter.js';
@@ -59,6 +60,11 @@ export function enableTracingAndMetrics(
   addProcessor(nodeOtelConfig.spanProcessor);
   nodeOtelConfig.spanProcessor = new MultiSpanProcessor(processors);
   const sdk = new NodeSDK(nodeOtelConfig);
+  process.on('SIGTERM', () => {
+    sdk.shutdown().then(() => {
+      logger.debug('OpenTelemetry SDK shut down.');
+    });
+  });
 
   sdk.start();
 }

@@ -302,7 +302,6 @@ export async function startReflectionApi(port?: number | undefined) {
   process.on('SIGTERM', () => {
     server.close(() => {
       logger.info('Reflection API has succesfully shut down.');
-      process.exit(0);
     });
   });
 }
