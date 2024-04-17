@@ -132,7 +132,7 @@ export class Runner {
     if (this.autoReload) {
       await this.watcher?.close();
     }
-    await this.stopApp();
+    this.stopApp();
   }
 
   /**
@@ -141,7 +141,7 @@ export class Runner {
   public async reloadApp(): Promise<void> {
     console.info('Reloading app code...');
     if (this.appProcess) {
-      await this.stopApp();
+      this.stopApp();
     }
     await this.startApp();
   }
@@ -203,18 +203,12 @@ export class Runner {
   /**
    * Stops the app code process.
    */
-  private async stopApp(): Promise<void> {
-    return new Promise((resolve) => {
-      if (this.appProcess) {
-        this.appProcess.on('exit', () => {
-          this.appProcess = null;
-          resolve();
-        });
-        this.appProcess.kill();
-      } else {
-        resolve();
-      }
-    });
+  private async stopApp() {
+    if (this.appProcess) {
+      // TODO: Make it wait for the exit event.
+      this.appProcess.kill();
+      this.appProcess = null;
+    }
   }
 
   /**

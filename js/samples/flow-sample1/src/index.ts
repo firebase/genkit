@@ -43,7 +43,7 @@ export const basic = defineFlow({ name: 'basic' }, async (subject) => {
     return `subject: ${subject}`;
   });
 
-  return await run('call-llm', async () => {
+  return await run('call-llm1', async () => {
     return `foo: ${foo}`;
   });
 });
