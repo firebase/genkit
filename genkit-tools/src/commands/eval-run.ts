@@ -102,7 +102,7 @@ export const evalRun = new Command('eval:run')
         const response = await runner.runAction({
           key: name,
           input: {
-            evalDataset,
+            dataset: evalDataset,
             evalRunId,
           },
         });

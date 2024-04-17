@@ -755,6 +755,34 @@ importers:
         specifier: ^5.3.3
         version: 5.4.3
 
+  samples/evaluator-gut-check:
+    dependencies:
+      '@genkit-ai/ai':
+        specifier: workspace:*
+        version: link:../../ai
+      '@genkit-ai/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@genkit-ai/firebase':
+        specifier: workspace:*
+        version: link:../../plugins/firebase
+      '@genkit-ai/flow':
+        specifier: workspace:*
+        version: link:../../flow
+      '@genkit-ai/googleai':
+        specifier: workspace:*
+        version: link:../../plugins/googleai
+      '@genkit-ai/ragas':
+        specifier: workspace:*
+        version: link:../../third_party/ragas
+      zod:
+        specifier: ^3.22.4
+        version: 3.22.4
+    devDependencies:
+      typescript:
+        specifier: ^5.3.3
+        version: 5.4.3
+
   samples/express:
     dependencies:
       '@genkit-ai/ai':
