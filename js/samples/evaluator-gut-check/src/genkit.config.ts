@@ -15,11 +15,9 @@
  */
 
 import { configureGenkit } from '@genkit-ai/core';
-import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import { RagasMetric, ragas } from '@genkit-ai/ragas';
-import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 
 export default configureGenkit({
   plugins: [
@@ -29,18 +27,12 @@ export default configureGenkit({
       // Note: Gemini SDK from Google AI is more reliable than Vertex currently.
       judge: geminiPro,
       metrics: [
+        RagasMetric.ANSWER_RELEVANCY,
         RagasMetric.FAITHFULNESS,
         RagasMetric.CONTEXT_UTILIZATION,
         RagasMetric.MALICIOUSNESS,
       ],
     }),
-    vertexAI(),
-    devLocalVectorstore([
-      {
-        indexName: 'pdfQA',
-        embedder: textEmbeddingGecko,
-      },
-    ]),
   ],
   flowStateStore: 'firebase',
   traceStore: 'firebase',
