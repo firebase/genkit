@@ -763,6 +763,9 @@ importers:
       '@genkit-ai/core':
         specifier: workspace:*
         version: link:../../core
+      '@genkit-ai/dev-local-vectorstore':
+        specifier: workspace:*
+        version: link:../../plugins/dev-local-vectorstore
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
@@ -775,6 +778,9 @@ importers:
       '@genkit-ai/ragas':
         specifier: workspace:*
         version: link:../../third_party/ragas
+      '@genkit-ai/vertexai':
+        specifier: workspace:*
+        version: link:../../plugins/vertexai
       zod:
         specifier: ^3.22.4
         version: 3.22.4

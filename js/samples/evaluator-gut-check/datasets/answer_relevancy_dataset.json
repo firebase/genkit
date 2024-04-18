@@ -1,0 +1,202 @@
+[
+  {
+    "input": "What are the symptoms of a migraine?",
+    "context": [
+      "Migraines are a type of neurological disorder often characterized by severe headaches.",
+      "Symptoms of a migraine can include throbbing pain, nausea, vomiting, and sensitivity to light and sound."
+    ],
+    "output": "Migraines often present with severe throbbing pain on one or both sides of the head,  nausea, vomiting, and sensitivity to light and sound.",
+    "testCaseId": "migraine_relevancy",
+    "traceIds": []
+  },
+  {
+    "input": "How do vaccines work?",
+    "context": [
+      "Vaccines contain a weakened or inactive form of a virus or bacteria.",
+      "When introduced to the body, vaccines trigger an immune response, helping the body build antibodies without getting sick."
+    ],
+    "output": "Vaccines work by introducing a weakened or inactive form of a pathogen into the body, stimulating the immune system to create antibodies that can fight off future infections.",
+    "testCaseId": "vaccine_relevancy",
+    "traceIds": []
+  },
+  {
+    "input": "What is the best way to learn Spanish?",
+    "context": [
+      "There are many ways to learn a language, including taking classes, using language learning apps, practicing with native speakers, and immersing yourself in the language.",
+      "Spanish is one of the world's most widely spoken languages, with over 500 million native speakers."
+    ],
+    "output": "The best way to learn Spanish is to combine different methods like taking classes, using language-learning apps, finding a conversation partner, and watching movies or TV shows in Spanish.",
+    "testCaseId": "spanish_relevancy",
+    "traceIds": []
+  },
+  {
+    "input": "What are the benefits of meditation?",
+    "context": [
+      "Meditation is the practice of focusing the mind and achieving a state of calm awareness.",
+      "Studies have shown that meditation can have numerous benefits for physical and mental health."
+    ],
+    "output": "Meditation has been linked to benefits like reduced stress, improved focus and concentration, better sleep, and even lowered blood pressure.",
+    "testCaseId": "meditation_relevancy",
+    "traceIds": []
+  },
+  {
+    "input": "How did the American Revolution begin?",
+    "context": [
+      "The American Revolution was a war for independence from Great Britain, fought from 1775-1783.",
+      "Tensions between the colonies and Britain grew over issues of taxation and representation."
+    ],
+    "output": "The American Revolution was sparked by growing tensions between the colonies and Great Britain, fueled by issues like taxation without representation, the Quartering Acts, and events like the Boston Massacre.",
+    "testCaseId": "american_revolution_relevancy",
+    "traceIds": []
+  },
+  {
+    "input": "What is the plot of the movie *The Lord of the Rings*?",
+    "context": [
+      "*The Lord of the Rings* is a fantasy epic based on the novels by J.R.R. Tolkien.",
+      "The story centers around a powerful ring and a hobbit named Frodo."
+    ],
+    "output": "In *The Lord of the Rings*, a hobbit named Frodo sets out on a quest to destroy the One Ring, a powerful artifact created by the evil Sauron, in order to save Middle-earth from darkness.",
+    "testCaseId": "lord_of_the_rings_relevancy",
+    "traceIds": []
+  },
+  {
+    "input": "How can I reduce my carbon footprint?",
+    "context": [
+      "A carbon footprint is the amount of greenhouse gases emitted by an individual or organization.",
+      "Reducing carbon footprints is important for mitigating the effects of climate change."
+    ],
+    "output": "You can reduce your carbon footprint by driving less, using energy-efficient appliances, eating less meat, recycling, and composting.",
+    "testCaseId": "carbon_footprint_relevancy",
+    "traceIds": []
+  },
+  {
+    "input": "What are some good houseplants for beginners?",
+    "context": [
+      "Houseplants add life and beauty to indoor spaces and can improve air quality.",
+      "Some houseplants are low-maintenance and easy to care for."
+    ],
+    "output": "Several easy-to-care-for houseplants are great for beginners, such as snake plants, pothos, spider plants, and ZZ plants.",
+    "testCaseId": "houseplants_relevancy",
+    "traceIds": []
+  },
+  {
+    "input": "When did World War II end?",
+    "context": [
+      "World War II was a global war fought from 1939-1945.",
+      "The major powers involved were the Axis Powers (Germany, Italy, Japan) and the Allied Powers (France, the UK, the US, the Soviet Union, and China)."
+    ],
+    "output": "World War II officially ended in 1945 with the surrender of the Axis Powers.",
+    "testCaseId": "world_war_2_relevancy",
+    "traceIds": []
+  },
+  {
+    "input": "How do I make a grilled cheese sandwich?",
+    "context": [
+      "A grilled cheese sandwich is a classic comfort food.",
+      "It typically consists of bread, butter, and cheese."
+    ],
+    "output": "To make a grilled cheese sandwich, butter two slices of bread, add your favorite cheese, and cook in a skillet over medium heat until the bread is golden brown and the cheese is melted.",
+    "testCaseId": "grilled_cheese_relevancy",
+    "traceIds": []
+  },
+  {
+    "input": "What are the symptoms of a migraine?",
+    "context": [
+      "Migraines are a type of neurological disorder often characterized by severe headaches.",
+      "Symptoms of a migraine can include throbbing pain, nausea, vomiting, and sensitivity to light and sound."
+    ],
+    "output": "Headaches can be caused by a variety of factors, including stress, dehydration, and lack of sleep.",
+    "testCaseId": "migraine_low_relevancy",
+    "traceIds": []
+  },
+  {
+    "input": "How do vaccines work?",
+    "context": [
+      "Vaccines contain a weakened or inactive form of a virus or bacteria.",
+      "When introduced to the body, vaccines trigger an immune response, helping the body build antibodies without getting sick."
+    ],
+    "output": "The immune system is a complex network of cells and organs that protect the body from harmful pathogens. It's important to keep your immune system strong by eating a healthy diet and getting enough sleep.",
+    "testCaseId": "vaccine_low_relevancy",
+    "traceIds": []
+  },
+  {
+    "input": "What is the best way to learn Spanish?",
+    "context": [
+      "There are many ways to learn a language, including taking classes, using language learning apps, practicing with native speakers, and immersing yourself in the language.",
+      "Spanish is one of the world's most widely spoken languages, with over 500 million native speakers."
+    ],
+    "output": "I cannot comment on the best way as that is a subjective assesment.",
+    "testCaseId": "spanish_low_relevancy",
+    "traceIds": []
+  },
+  {
+    "input": "What are the benefits of meditation?",
+    "context": [
+      "Meditation is the practice of focusing the mind and achieving a state of calm awareness.",
+      "Studies have shown that meditation can have numerous benefits for physical and mental health."
+    ],
+    "output": "Taking care of your mental well-being is important. Try spending time in nature.",
+    "testCaseId": "meditation_low_relevancy",
+    "traceIds": []
+  },
+  {
+    "input": "How did the American Revolution begin?",
+    "context": [
+      "The American Revolution was a war for independence from Great Britain, fought from 1775-1783.",
+      "Tensions between the colonies and Britain grew over issues of taxation and representation."
+    ],
+    "output": "Many wars throughout history have been fought for freedom and independence.",
+    "testCaseId": "american_revolution_low_relevancy",
+    "traceIds": []
+  },
+  {
+    "input": "What is the plot of the movie *The Lord of the Rings*?",
+    "context": [
+      "*The Lord of the Rings* is a fantasy epic based on the novels by J.R.R. Tolkien.",
+      "The story centers around a powerful ring and a hobbit named Frodo."
+    ],
+    "output": "Rings are a popular jewelry worn for various reasons.",
+    "testCaseId": "lord_of_the_rings_low_relevancy",
+    "traceIds": []
+  },
+  {
+    "input": "How can I reduce my carbon footprint?",
+    "context": [
+      "A carbon footprint is the amount of greenhouse gases emitted by an individual or organization.",
+      "Reducing carbon footprints is important for mitigating the effects of climate change."
+    ],
+    "output": "It's important to be mindful of our impact on the environment.",
+    "testCaseId": "carbon_footprint_low_relevancy",
+    "traceIds": []
+  },
+  {
+    "input": "What are some good houseplants for beginners?",
+    "context": [
+      "Houseplants add life and beauty to indoor spaces and can improve air quality.",
+      "Some houseplants are low-maintenance and easy to care for."
+    ],
+    "output": "Plants are a beautiful way to decorate your home.",
+    "testCaseId": "houseplants_low_relevancy",
+    "traceIds": []
+  },
+  {
+    "input": "When did World War II end?",
+    "context": [
+      "World War II was a global war fought from 1939-1945.",
+      "The major powers involved were the Axis Powers (Germany, Italy, Japan) and the Allied Powers (France, the UK, the US, the Soviet Union, and China)."
+    ],
+    "output": "World War II was a devastating conflict that had a profound effect on the world. Many countries were involved.",
+    "testCaseId": "world_war_2_low_relevancy",
+    "traceIds": []
+  },
+  {
+    "input": "How do I make a grilled cheese sandwich?",
+    "context": [
+      "A grilled cheese sandwich is a classic comfort food.",
+      "It typically consists of bread, butter, and cheese."
+    ],
+    "output": "There are many different types of delicious sandwiches. Some popular options include peanut butter and jelly or a BLT.",
+    "testCaseId": "grilled_cheese_low_relevancy",
+    "traceIds": []
+  }
+]
