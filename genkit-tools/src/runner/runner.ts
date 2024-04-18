@@ -132,7 +132,7 @@ export class Runner {
     if (this.autoReload) {
       await this.watcher?.close();
     }
-    this.stopApp();
+    await this.stopApp();
   }
 
   /**
@@ -141,7 +141,7 @@ export class Runner {
   public async reloadApp(): Promise<void> {
     console.info('Reloading app code...');
     if (this.appProcess) {
-      this.stopApp();
+      await this.stopApp();
     }
     await this.startApp();
   }
