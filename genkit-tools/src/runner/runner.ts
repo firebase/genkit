@@ -203,12 +203,18 @@ export class Runner {
   /**
    * Stops the app code process.
    */
-  private async stopApp() {
-    if (this.appProcess) {
-      // TODO: Make it wait for the exit event.
-      this.appProcess.kill();
-      this.appProcess = null;
-    }
+  private async stopApp(): Promise<void> {
+    return new Promise((resolve) => {
+      if (this.appProcess) {
+        this.appProcess.on('exit', () => {
+          this.appProcess = null;
+          resolve();
+        });
+        this.appProcess.kill();
+      } else {
+        resolve();
+      }
+    });
   }
 
   /**
@@ -303,7 +309,7 @@ export class Runner {
   async sendQuit(): Promise<boolean> {
     try {
       const response = await axios.get(
-        `${this.reflectionApiUrl}/__quitquitquit`
+        `${this.reflectionApiUrl()}/__quitquitquit`
       );
       if (response.status !== 200) {
         return false;

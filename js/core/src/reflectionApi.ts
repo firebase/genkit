@@ -21,6 +21,7 @@ import { config } from './config.js';
 import { logger } from './logging.js';
 import * as registry from './registry.js';
 import { toJsonSchema } from './schema.js';
+import { cleanUpTracing } from './tracing';
 import {
   flushTracing,
   newTrace,
@@ -37,6 +38,8 @@ export const RunActionResponseSchema = z.object({
     .optional(),
 });
 export type RunActionResponse = z.infer<typeof RunActionResponseSchema>;
+
+let server;
 
 /**
  * Starts a Reflection API that will be used by the Runner to call and control actions and flows.
@@ -59,7 +62,7 @@ export async function startReflectionApi(port?: number | undefined) {
   api.get('/api/__quitquitquit', async (_, response) => {
     logger.debug('Received quitquitquit');
     response.status(200).send('OK');
-    process.exit(0);
+    await stopReflectionApi();
   });
 
   api.get('/api/actions', async (_, response) => {
@@ -284,7 +287,7 @@ export async function startReflectionApi(port?: number | undefined) {
     }
   });
 
-  const server = api.listen(port, () => {
+  server = api.listen(port, () => {
     console.log(`Reflection API running on http://localhost:${port}`);
   });
 
@@ -299,9 +302,25 @@ export async function startReflectionApi(port?: number | undefined) {
     }
   });
 
-  process.on('SIGTERM', () => {
-    server.close(() => {
-      logger.info('Reflection API has succesfully shut down.');
-    });
-  });
+  process.on('SIGTERM', async () => await stopReflectionApi());
+}
+
+/**
+ * Stops Reflection API and any running dependencies.
+ */
+async function stopReflectionApi() {
+  await Promise.all([
+    new Promise<void>((resolve) => {
+      if (server) {
+        server.close(() => {
+          logger.info('Reflection API has succesfully shut down.');
+          resolve();
+        });
+      } else {
+        resolve();
+      }
+    }),
+    cleanUpTracing(),
+  ]);
+  process.exit(0);
 }

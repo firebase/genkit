@@ -35,6 +35,7 @@ export * from './tracing/processor.js';
 export * from './tracing/types.js';
 
 const processors: SpanProcessor[] = [];
+let telemetrySDK: NodeSDK | null = null;
 
 /**
  * Enables trace spans to be written to the trace store.
@@ -59,14 +60,23 @@ export function enableTracingAndMetrics(
 
   addProcessor(nodeOtelConfig.spanProcessor);
   nodeOtelConfig.spanProcessor = new MultiSpanProcessor(processors);
-  const sdk = new NodeSDK(nodeOtelConfig);
-  process.on('SIGTERM', () => {
-    sdk.shutdown().then(() => {
-      logger.debug('OpenTelemetry SDK shut down.');
-    });
-  });
+  telemetrySDK = new NodeSDK(nodeOtelConfig);
+  telemetrySDK.start();
+  process.on('SIGTERM', async () => await cleanUpTracing());
+}
 
-  sdk.start();
+export async function cleanUpTracing(): Promise<void> {
+  return new Promise((resolve) => {
+    if (telemetrySDK) {
+      return telemetrySDK.shutdown().then(() => {
+        logger.debug('OpenTelemetry SDK shut down.');
+        telemetrySDK = null;
+        resolve();
+      });
+    } else {
+      resolve();
+    }
+  });
 }
 
 /**
