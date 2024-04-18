@@ -24,7 +24,7 @@ import { InitEvent, record } from '../utils/analytics';
 import { logger } from '../utils/logger';
 
 type Platform = 'firebase' | 'googlecloud' | 'nodejs';
-type ModelProvider = 'googleai' | 'vertexai' | 'openai' | 'none';
+type ModelProvider = 'googleai' | 'vertexai' | 'ollama' | 'none';
 type Runtime = 'node' | undefined;
 type WriteMode = 'keep' | 'overwrite' | 'merge';
 
@@ -40,8 +40,10 @@ interface PluginInfo {
   imports: string;
   // Initializer call.
   init: string;
-  // Model name if plugin is for a model.
+  // Model name as an imported reference.
   model?: string;
+  // Model name as a string reference.
+  modelStr?: string;
 }
 
 interface InitOptions {
@@ -70,7 +72,7 @@ const modelOptions: Record<ModelProvider, PromptOption> = {
     label: 'Google Cloud Vertex AI',
     plugin: '@genkit-ai/vertexai',
   },
-  openai: { label: 'OpenAI', plugin: '@genkit-ai/openai' },
+  ollama: { label: 'Ollama (e.g. Gemma)', plugin: '@genkit-ai/ollama' },
   none: { label: 'None', plugin: undefined },
 };
 
@@ -103,10 +105,13 @@ const pluginToInfo: Record<string, PluginInfo> = {
     init: "vertexAI({ location: 'us-central1' })",
     model: 'geminiPro',
   },
-  '@genkit-ai/openai': {
-    imports: 'openAI',
-    init: 'openAI()',
-    model: 'gpt35Turbo',
+  '@genkit-ai/ollama': {
+    imports: 'ollama',
+    init: `ollama({
+      models: [{ name: 'gemma' }],
+      serverAddress: 'http://127.0.0.1:11434', // default ollama local address
+    })`,
+    modelStr: "'ollama/gemma'",
   },
   '@genkit-ai/googleai': {
     imports: 'googleAI',
@@ -136,7 +141,7 @@ export const init = new Command('init')
   )
   .option(
     '-m, --model <model>',
-    'Model provider (googleai, vertexai, openai, or none)'
+    'Model provider (googleai, vertexai, ollama, or none)'
   )
   .option(
     '-d, --dist-archive <distArchive>',
@@ -235,6 +240,11 @@ export const init = new Command('init')
         `Run the following command to enable Vertex AI in your Google Cloud project:\n\n  gcloud services enable aiplatform.googleapis.com\n`
       );
     }
+    if (model === 'ollama') {
+      logger.info(
+        `If you don't have Ollama already installed and configured, refer to https://developers.google.com/genkit/plugins/ollama\n`
+      );
+    }
     await record(new InitEvent(platform));
     logger.info('Genkit successfully initialized.');
   });
@@ -302,9 +312,10 @@ async function updatePackageJson() {
  * @param modelPlugin Model plugin name.
  */
 function generateSampleFile(platform: Platform, modelPlugin?: string) {
-  const modelImport = modelPlugin
-    ? `import { ${pluginToInfo[modelPlugin].model} } from '${modelPlugin}';`
-    : '';
+  const modelImport =
+    modelPlugin && pluginToInfo[modelPlugin].model
+      ? `import { ${pluginToInfo[modelPlugin].model} } from '${modelPlugin}';`
+      : '';
   const templatePath = path.join(__dirname, sampleTemplatePaths[platform]);
   let template = fs.readFileSync(templatePath, 'utf8');
   const sample = template
@@ -312,7 +323,9 @@ function generateSampleFile(platform: Platform, modelPlugin?: string) {
     .replace(
       '$GENKIT_MODEL',
       modelPlugin
-        ? pluginToInfo[modelPlugin].model || ''
+        ? pluginToInfo[modelPlugin].model ||
+            pluginToInfo[modelPlugin].modelStr ||
+            ''
         : "'' /* TODO: Set a model. */"
     );
   logger.info('Generating sample file...');
