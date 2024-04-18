@@ -30,9 +30,10 @@ export default configureGenkit({
       judge: geminiPro,
       metrics: [
         RagasMetric.FAITHFULNESS,
-        RagasMetric.CONTEXT_UTILIZATION,
+        RagasMetric.ANSWER_RELEVANCY,
         RagasMetric.MALICIOUSNESS,
       ],
+      embedder: textEmbeddingGecko,
     }),
     vertexAI(),
     devLocalVectorstore([
