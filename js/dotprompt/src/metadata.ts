@@ -33,13 +33,11 @@ export interface PromptMetadata<
 > {
   /** The name of the prompt. */
   name?: string;
+
   /** The variant name for the prompt. */
   variant?: string;
 
-  /**
-   * The name of the model to use for this prompt, e.g. `google-vertex/gemini-pro`
-   * or `openai/gpt-4-0125-preview`.
-   */
+  /** The name of the model to use for this prompt, e.g. `vertexai/gemini-1.0-pro` */
   model?: ModelArgument<Options>;
 
   /** Names of tools (registered separately) to allow use of in this prompt. */
