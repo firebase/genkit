@@ -16,7 +16,8 @@
 
 import { MediaPart, MessageData, Part, Role } from '@genkit-ai/ai/model';
 import Handlebars from 'handlebars';
-import { PromptMetadata } from './metadata.js';
+import { stringify } from 'yaml';
+import { PromptFrontmatter, PromptMetadata } from './metadata.js';
 
 const Promptbars = Handlebars.create();
 
@@ -92,9 +93,6 @@ function toParts(source: string): Part[] {
   return parts;
 }
 
-/**
- *
- */
 export function compile<Variables = any>(
   source: string,
   metadata: PromptMetadata
@@ -119,4 +117,38 @@ export function compile<Variables = any>(
     });
     return toMessages(renderedString);
   };
+}
+
+export function fromMessages(
+  frontmatter: PromptFrontmatter,
+  messages: MessageData[]
+): string {
+  let renderedMessages = '';
+  messages.forEach((message) => {
+    renderedMessages += `{{role "${message.role}"}}\n`;
+    renderedMessages += message.content.map(partToString);
+    renderedMessages += '\n\n';
+  });
+
+  return `---
+${stringify(frontmatter)}
+---
+
+${renderedMessages}`;
+}
+
+function partToString(part: Part): string {
+  if (part.text) {
+    return part.text;
+  } else if (part.data) {
+    return JSON.stringify(part.data);
+  } else if (part.media) {
+    return '<< media element omitted >>';
+  } else if (part.toolRequest) {
+    return '<< tool request omitted >>';
+  } else if (part.toolResponse) {
+    return '<<tool response omitted >>';
+  } else {
+    return '';
+  }
 }
