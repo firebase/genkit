@@ -20,12 +20,13 @@ import {
   textEmbeddingGeckoEmbedder,
 } from './embedder.js';
 import {
+  gemini15Pro,
   SUPPORTED_MODELS as GEMINI_MODELS,
   geminiPro,
   geminiProVision,
   googleAIModel,
 } from './gemini.js';
-export { geminiPro, geminiProVision };
+export { gemini15Pro, geminiPro, geminiProVision };
 
 export interface PluginOptions {
   apiKey?: string;

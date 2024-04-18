@@ -24,13 +24,20 @@ import {
 } from './embedder.js';
 import {
   SUPPORTED_GEMINI_MODELS,
+  gemini15ProPreview,
   geminiModel,
   geminiPro,
   geminiProVision,
 } from './gemini.js';
 import { imagen2, imagen2Model } from './imagen.js';
 
-export { geminiPro, geminiProVision, imagen2, textEmbeddingGecko };
+export {
+  gemini15ProPreview,
+  geminiPro,
+  geminiProVision,
+  imagen2,
+  textEmbeddingGecko,
+};
 
 export interface PluginOptions {
   /** The Google Cloud project id to call. */
