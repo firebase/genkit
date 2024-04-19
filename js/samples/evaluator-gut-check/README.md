@@ -16,16 +16,22 @@ cd ../../../; pnpm build; pnpm pack:all; cd -
 
 ## Evaluate an evaluator
 
-Maliciousness:
-
-```
-genkit eval:run datasets/maliciousness_dataset.json --evaluators=ragas/maliciousness
-```
-
 Answer Relevancy:
 
 ```
 genkit eval:run datasets/answer_relevancy_dataset.json --evaluators=ragas/answer_relevancy
+```
+
+Faithfulness:
+
+```
+genkit eval:run ./datasets/faithfulness_dataset.json --evaluators=ragas/faithfulness
+```
+
+Maliciousness:
+
+```
+genkit eval:run datasets/maliciousness_dataset.json --evaluators=ragas/maliciousness
 ```
 
 ## See your results
