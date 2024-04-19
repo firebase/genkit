@@ -31,7 +31,6 @@ export default configureGenkit({
       metrics: [
         RagasMetric.ANSWER_RELEVANCY,
         RagasMetric.FAITHFULNESS,
-        RagasMetric.CONTEXT_UTILIZATION,
         RagasMetric.MALICIOUSNESS,
       ],
       embedder: textEmbeddingGecko,
