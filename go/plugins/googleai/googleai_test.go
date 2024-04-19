@@ -36,7 +36,7 @@ func TestEmbedder(t *testing.T) {
 		t.Fatal(err)
 	}
 	out, err := e.Embed(ctx, &ai.EmbedRequest{
-		Document: &ai.Document{Content: []*ai.Part{ai.NewTextPart("yellow banana")}},
+		Document: ai.DocumentFromText("yellow banana", nil),
 	})
 	if err != nil {
 		t.Fatal(err)
