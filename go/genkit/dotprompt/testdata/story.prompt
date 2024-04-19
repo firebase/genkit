@@ -1,0 +1,12 @@
+---
+model: googleai/gemini-pro
+input:
+  schema:
+    properties:
+      subject: {type: string}
+    required: [subject]
+output:
+  format: text
+---
+
+Tell me a story about {{subject}}.
