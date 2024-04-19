@@ -21,7 +21,9 @@ import { Action } from '../types/action';
 import * as apis from '../types/apis';
 import { EnvironmentVariable } from '../types/env';
 import * as evals from '../types/eval';
+import { PromptFrontmatter } from '../types/prompt';
 import { PageViewEvent, record, ToolsRequestEvent } from '../utils/analytics';
+import { fromMessages } from '../utils/prompt';
 import { version } from '../utils/version';
 
 const t = initTRPC.create({
@@ -135,7 +137,11 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
     createPrompt: loggedProcedure
       .input(apis.CreatePromptRequestSchema)
       .mutation(async ({ input }) => {
-        return runner.createPrompt(input);
+        const frontmatter: PromptFrontmatter = {
+          model: input.model,
+          config: input.config,
+        };
+        return fromMessages(frontmatter, input.messages);
       }),
 
     /** Retrieves all traces for a given environment (e.g. dev or prod). */
