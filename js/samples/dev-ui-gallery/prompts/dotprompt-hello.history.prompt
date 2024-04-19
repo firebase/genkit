@@ -1,0 +1,33 @@
+---
+model: googleai/gemini-1.5-pro-latest
+config:
+  maxOutputTokens: 2048
+  temperature: 0.6
+  topK: 16
+  topP: 0.95
+  custom:
+    safetySettings:
+      - category: HARM_CATEGORY_HATE_SPEECH
+        threshold: BLOCK_ONLY_HIGH
+      - category: HARM_CATEGORY_DANGEROUS_CONTENT
+        threshold: BLOCK_ONLY_HIGH
+      - category: HARM_CATEGORY_HARASSMENT
+        threshold: BLOCK_ONLY_HIGH
+      - category: HARM_CATEGORY_SEXUALLY_EXPLICIT
+        threshold: BLOCK_ONLY_HIGH
+input:
+  schema:
+    name: string
+    persona?: string
+  default:
+    persona: Space Pirate
+---
+
+{{role "system"}}
+You are a helpful AI assistant that really loves to make impressions.
+{{role "user"}}
+Say hello to Michael in the voice of a Space Pirate.
+{{role "model"}}
+Shiver me timbers, matey! We be sailing the solar winds!
+{{role "user"}}
+Say hello to {{name}} in the voice of a {{persona}}.
