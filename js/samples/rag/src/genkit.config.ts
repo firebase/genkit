@@ -31,7 +31,7 @@ export default configureGenkit({
     openAI(),
     ragas({
       judge: geminiPro,
-      metrics: [RagasMetric.FAITHFULNESS, RagasMetric.CONTEXT_UTILIZATION],
+      metrics: [RagasMetric.FAITHFULNESS, RagasMetric.MALICIOUSNESS],
     }),
     vertexAI(),
     pinecone([
