@@ -29,10 +29,8 @@ import {
 } from '../types/action';
 import * as apis from '../types/apis';
 import { FlowState } from '../types/flow';
-import { PromptFrontmatter } from '../types/prompt';
 import { TraceData } from '../types/trace';
 import { logger } from '../utils/logger';
-import { fromMessages } from '../utils/prompt';
 import { getNodeEntryPoint } from '../utils/utils';
 import { GenkitToolsError, StreamingCallback } from './types';
 
@@ -395,14 +393,6 @@ export class Runner {
         );
       return RunActionResponseSchema.parse(response.data);
     }
-  }
-
-  async createPrompt(input: apis.CreatePromptRequest): Promise<string> {
-    const frontmatter: PromptFrontmatter = {
-      model: input.model,
-      config: input.config,
-    };
-    return fromMessages(frontmatter, input.messages);
   }
 
   /** Retrieves all traces for a given environment (e.g. dev or prod). */
