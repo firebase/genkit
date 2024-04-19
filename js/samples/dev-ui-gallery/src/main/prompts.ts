@@ -155,5 +155,27 @@ prompt('dotprompt-hello', { variant: 'json-output' }).then((prompt) => {
   );
 });
 
+prompt('dotprompt-hello', { variant: 'system' }).then((prompt) => {
+  defineFlow(
+    {
+      name: 'flowDotPromptSystemMessage',
+      inputSchema: HelloSchema,
+      outputSchema: z.any(),
+    },
+    async (input) => (await prompt.generate({ input })).output()
+  );
+});
+
+prompt('dotprompt-hello', { variant: 'history' }).then((prompt) => {
+  defineFlow(
+    {
+      name: 'flowDotPromptHistory',
+      inputSchema: HelloSchema,
+      outputSchema: z.any(),
+    },
+    async (input) => (await prompt.generate({ input })).output()
+  );
+});
+
 // TODO(michaeldoyle): showcase advanced capabilities of dotprompts
 //   chat, multi-modal, tools, history, etc

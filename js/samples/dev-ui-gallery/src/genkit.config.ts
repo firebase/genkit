@@ -38,7 +38,9 @@ export default configureGenkit({
     firebase(),
 
     // model providers
-    googleAI(),
+    googleAI({
+      apiVersion: 'v1beta', // enables Gemini 1.5
+    }),
     ollama({
       models: [{ name: 'llama2' }],
       serverAddress: 'http://127.0.0.1:11434', // default local address
