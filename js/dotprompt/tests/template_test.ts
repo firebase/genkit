@@ -14,11 +14,9 @@
  * limitations under the License.
  */
 
-import { MessageData } from '@genkit-ai/ai/model';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { PromptFrontmatter } from '../src/metadata';
-import { compile, fromMessages } from '../src/template';
+import { compile } from '../src/template';
 
 describe('compile', () => {
   for (const test of [
@@ -116,39 +114,4 @@ describe('compile', () => {
       );
     });
   }
-});
-
-describe('fromMessages', () => {
-  it('builds a template from messages', () => {
-    const frontmatter: PromptFrontmatter = {
-      name: 'my-prompt',
-      model: 'googleai/gemini-pro',
-      config: {
-        temperature: 0.5,
-      },
-    };
-    const messages: MessageData[] = [
-      { role: 'user', content: [{ text: 'Who are you?' }] },
-      {
-        role: 'model',
-        content: [{ text: 'I am Oz -- the Great and Powerful.' }],
-      },
-    ];
-    const expected =
-      '---\n' +
-      'name: my-prompt\n' +
-      'model: googleai/gemini-pro\n' +
-      'config:\n' +
-      '  temperature: 0.5\n' +
-      '\n' +
-      '---\n' +
-      '\n' +
-      '{{role "user"}}\n' +
-      'Who are you?\n' +
-      '\n' +
-      '{{role "model"}}\n' +
-      'I am Oz -- the Great and Powerful.\n' +
-      '\n';
-    assert.deepEqual(fromMessages(frontmatter, messages), expected);
-  });
 });

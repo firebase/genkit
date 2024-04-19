@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
+//
+// IMPORTANT: Please keep type definitions in sync with
+//   genkit-tools/src/types/prompt.ts
+//
+
 import {
   GenerationConfig,
   GenerationConfigSchema,
