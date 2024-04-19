@@ -17,6 +17,7 @@
 import { z } from 'zod';
 import { EvalRunKeySchema } from './eval';
 import { FlowStateSchema } from './flow';
+import { GenerationConfig, MessageSchema } from './model';
 import { TraceDataSchema } from './trace';
 
 /**
@@ -87,6 +88,14 @@ export const RunActionRequestSchema = z.object({
 });
 
 export type RunActionRequest = z.infer<typeof RunActionRequestSchema>;
+
+export const CreatePromptRequestSchema = z.object({
+  model: z.string(),
+  messages: z.array(MessageSchema),
+  config: GenerationConfig.optional(),
+});
+
+export type CreatePromptRequest = z.infer<typeof CreatePromptRequestSchema>;
 
 export const PageViewSchema = z.object({
   pageTitle: z.string().describe('Page that was viewed by the user.'),

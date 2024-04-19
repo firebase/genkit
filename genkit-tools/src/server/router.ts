@@ -131,6 +131,13 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
         return runner.runAction(input);
       }),
 
+    /** Generate a .prompt file from messages and model config. */
+    createPrompt: loggedProcedure
+      .input(apis.CreatePromptRequestSchema)
+      .mutation(async ({ input }) => {
+        return runner.createPrompt(input);
+      }),
+
     /** Retrieves all traces for a given environment (e.g. dev or prod). */
     listTraces: loggedProcedure
       .input(apis.ListTracesRequestSchema)
