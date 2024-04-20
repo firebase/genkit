@@ -20,7 +20,7 @@
 //
 
 import { z } from 'zod';
-import { GenerationConfig } from './model';
+import { GenerationCommonConfigSchema } from './model';
 
 /**
  * Formal schema for prompt YAML frontmatter.
@@ -31,7 +31,7 @@ export const PromptFrontmatterSchema = z.object({
   model: z.string().optional(),
   tools: z.array(z.string()).optional(),
   candidates: z.number().optional(),
-  config: GenerationConfig.optional(),
+  config: GenerationCommonConfigSchema.passthrough().optional(),
   input: z
     .object({
       schema: z.unknown(),

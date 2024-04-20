@@ -144,19 +144,15 @@ export const ToolDefinitionSchema = z.object({
 });
 export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
 
-export const GenerationConfigSchema = z.object({
+export const GenerationCommonConfigSchema = z.object({
   /** A specific version of a model family, e.g. `gemini-1.0-pro-001` for the `gemini-1.0-pro` family. */
   version: z.string().optional(),
   temperature: z.number().optional(),
   maxOutputTokens: z.number().optional(),
   topK: z.number().optional(),
   topP: z.number().optional(),
-  custom: z.record(z.any()).optional(),
   stopSequences: z.array(z.string()).optional(),
 });
-export type GenerationConfig<CustomOptions = any> = z.infer<
-  typeof GenerationConfigSchema
-> & { custom?: CustomOptions };
 
 const OutputConfigSchema = z.object({
   format: OutputFormatSchema.optional(),
@@ -166,12 +162,17 @@ export type OutputConfig = z.infer<typeof OutputConfigSchema>;
 
 export const GenerateRequestSchema = z.object({
   messages: z.array(MessageSchema),
-  config: GenerationConfigSchema.optional(),
+  config: z.any().optional(),
   tools: z.array(ToolDefinitionSchema).optional(),
   output: OutputConfigSchema.optional(),
   candidates: z.number().optional(),
 });
-export type GenerateRequest = z.infer<typeof GenerateRequestSchema>;
+
+export interface GenerateRequest<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+> extends z.infer<typeof GenerateRequestSchema> {
+  config?: z.infer<CustomOptionsSchema>;
+}
 
 export const GenerationUsageSchema = z.object({
   inputTokens: z.number().optional(),
@@ -284,7 +285,7 @@ export function defineModel<
     use?: ModelMiddleware[];
   },
   runner: (
-    request: GenerateRequest,
+    request: GenerateRequest<CustomOptionsSchema>,
     streamingCallback?: StreamingCallback<GenerateResponseChunkData>
   ) => Promise<GenerateResponseData>
 ): ModelAction<CustomOptionsSchema> {
@@ -400,7 +401,6 @@ function getPartCounts(parts: Part[]): PartCounts {
   );
 }
 
-export type ModelArgument<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> =
-  | ModelAction<CustomOptions>
-  | ModelReference<CustomOptions>
-  | string;
+export type ModelArgument<
+  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+> = ModelAction<CustomOptions> | ModelReference<CustomOptions> | string;

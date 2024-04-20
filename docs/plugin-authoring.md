@@ -111,7 +111,7 @@ At a high level, a model plugin might look something like this:
 
 ```ts
 import { genkitPlugin, GenkitError } from '@genkit-ai/core';
-import { defineModel } from '@genkit-ai/ai/model';
+import { defineModel, GenerationCommonConfigSchema } from '@genkit-ai/ai/model';
 import { simulateSystemPrompt } from '@genkit-ai/ai/model/middleware';
 import { z } from 'zod';
 
@@ -131,7 +131,7 @@ export const myPlugin = genkitPlugin('my-plugin', async (options: {apiKey?: stri
       output: ['text', 'media', 'json'], // types of output your model supports
     },
     // Zod schema for your model's custom configuration
-    configSchema: z.object({
+    configSchema: GenerationCommonConfigSchema.extend({
       safetySettings: z.object({...}),
     }),
     // list of middleware for your model to use

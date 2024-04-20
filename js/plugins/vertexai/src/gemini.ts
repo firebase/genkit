@@ -17,6 +17,7 @@
 import {
   CandidateData,
   defineModel,
+  GenerationCommonConfigSchema,
   getBasicUsageStats,
   MediaPart,
   MessageData,
@@ -38,6 +39,8 @@ import {
   GenerateContentCandidate,
   GenerateContentResponse,
   GenerateContentResult,
+  HarmBlockThreshold,
+  HarmCategory,
   StartChatParams,
   VertexAI,
   Part as VertexPart,
@@ -45,22 +48,11 @@ import {
 import { z } from 'zod';
 
 const SafetySettingsSchema = z.object({
-  category: z.enum([
-    'HARM_CATEGORY_UNSPECIFIED',
-    'HARM_CATEGORY_HATE_SPEECH',
-    'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-    'HARM_CATEGORY_HARASSMENT',
-    'HARM_CATEGORY_DANGEROUS_CONTENT',
-  ]),
-  threshold: z.enum([
-    'BLOCK_LOW_AND_ABOVE',
-    'BLOCK_MEDIUM_AND_ABOVE',
-    'BLOCK_ONLY_HIGH',
-    'BLOCK_NONE',
-  ]),
+  category: z.nativeEnum(HarmCategory),
+  threshold: z.nativeEnum(HarmBlockThreshold),
 });
 
-const GeminiConfigSchema = z.object({
+const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   safetySettings: z.array(SafetySettingsSchema).optional(),
 });
 
@@ -386,7 +378,7 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
     {
       name: modelName,
       ...model.info,
-      configSchema: model.configSchema,
+      configSchema: GeminiConfigSchema,
       use: middlewares,
     },
     async (request, streamingCallback) => {
@@ -412,7 +404,7 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
           top_p: request.config?.topP,
           stop_sequences: request.config?.stopSequences,
         },
-        safety_settings: request.config?.custom?.safetySettings,
+        safety_settings: request.config?.safetySettings,
       };
       const msg = toGeminiMessage(messages[messages.length - 1]);
       if (streamingCallback) {

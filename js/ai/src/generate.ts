@@ -29,7 +29,7 @@ import {
   GenerateRequest,
   GenerateResponseChunkData,
   GenerateResponseData,
-  GenerationConfig,
+  GenerationCommonConfigSchema,
   GenerationUsage,
   MessageData,
   ModelAction,
@@ -427,7 +427,7 @@ export interface GenerateOptions<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > {
   /** A model name (e.g. `vertexai/gemini-1.0-pro`) or reference. */
-  model: ModelArgument;
+  model: ModelArgument<CustomOptions>;
   /** The prompt for which to generate a response. Can be a string for a simple text prompt or one or more parts for multi-modal prompts. */
   prompt: string | Part | Part[];
   /** Conversation history for multi-turn prompting when supported by the underlying model. */
@@ -437,7 +437,7 @@ export interface GenerateOptions<
   /** Number of candidate messages to generate. */
   candidates?: number;
   /** Configuration for the generation request. */
-  config?: GenerationConfig<z.infer<CustomOptions>>;
+  config?: z.infer<CustomOptions>;
   /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
   output?: {
     format?: 'text' | 'json' | 'media';
@@ -523,7 +523,7 @@ export class NoValidCandidatesError extends GenkitError {
  */
 export async function generate<
   O extends z.ZodTypeAny = z.ZodTypeAny,
-  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
 >(
   options:
     | GenerateOptions<O, CustomOptions>
@@ -649,7 +649,7 @@ export async function generate<
 
 export type GenerateStreamOptions<
   O extends z.ZodTypeAny = z.ZodTypeAny,
-  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
 > = Omit<GenerateOptions<O, CustomOptions>, 'streamingCallback'>;
 
 export interface GenerateStreamResponse<O extends z.ZodTypeAny = z.ZodTypeAny> {
@@ -669,7 +669,7 @@ function createPromise<T>(): {
 
 export async function generateStream<
   O extends z.ZodTypeAny = z.ZodTypeAny,
-  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
 >(
   options:
     | GenerateOptions<O, CustomOptions>
