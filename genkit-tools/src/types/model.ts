@@ -102,18 +102,15 @@ export const ToolDefinitionSchema = z.object({
 });
 export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
 
-export const GenerationConfig = z.object({
+export const GenerationCommonConfigSchema = z.object({
+  /** A specific version of a model family, e.g. `gemini-1.0-pro-001` for the `gemini-1.0-pro` family. */
   version: z.string().optional(),
   temperature: z.number().optional(),
   maxOutputTokens: z.number().optional(),
   topK: z.number().optional(),
   topP: z.number().optional(),
-  custom: z.record(z.any()).optional(),
   stopSequences: z.array(z.string()).optional(),
 });
-export type GenerationConfig<CustomOptions = any> = z.infer<
-  typeof GenerationConfig
-> & { custom?: CustomOptions };
 
 const OutputConfigSchema = z.object({
   format: z.enum(['json', 'text']).optional(),
@@ -123,7 +120,7 @@ export type OutputConfig = z.infer<typeof OutputConfigSchema>;
 
 export const GenerateRequestSchema = z.object({
   messages: z.array(MessageSchema),
-  config: GenerationConfig.optional(),
+  config: z.any().optional(),
   tools: z.array(ToolDefinitionSchema).optional(),
   output: OutputConfigSchema.optional(),
   candidates: z.number().optional(),

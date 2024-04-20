@@ -78,9 +78,7 @@ const response = await generate({
   prompt,
   config: {
     temperature: 1,
-    custom: {
-      stopSequences: ['abc'],
-    },
+    stopSequences: ['abc'],
   },
 });
 ```

@@ -20,8 +20,7 @@
 //
 
 import {
-  GenerationConfig,
-  GenerationConfigSchema,
+  GenerationCommonConfigSchema,
   ModelArgument,
 } from '@genkit-ai/ai/model';
 import { ToolArgument } from '@genkit-ai/ai/tool';
@@ -52,7 +51,7 @@ export interface PromptMetadata<
   candidates?: number;
 
   /** Model configuration. Not all models support all options. */
-  config?: GenerationConfig<z.infer<Options>>;
+  config?: z.infer<Options>;
 
   input?: {
     /** Defines the default input variable values to use if none are provided. */
@@ -90,7 +89,7 @@ export const PromptFrontmatterSchema = z.object({
   model: z.string().optional(),
   tools: z.array(z.string()).optional(),
   candidates: z.number().optional(),
-  config: GenerationConfigSchema.optional(),
+  config: GenerationCommonConfigSchema.passthrough().optional(),
   input: z
     .object({
       schema: z.unknown(),

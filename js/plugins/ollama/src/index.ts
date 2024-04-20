@@ -19,6 +19,7 @@ import {
   defineModel,
   GenerateRequest,
   GenerateResponseData,
+  GenerationCommonConfigSchema,
   getBasicUsageStats,
   MessageData,
 } from '@genkit-ai/ai/model';
@@ -52,6 +53,7 @@ function ollamaModel(name: string, type: ApiType, serverAddress: string) {
     {
       name: `ollama/${name}`,
       label: `Ollama - ${name}`,
+      configSchema: GenerationCommonConfigSchema,
       supports: {
         multiturn: type === 'chat',
       },

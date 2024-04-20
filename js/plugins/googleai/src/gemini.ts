@@ -17,6 +17,7 @@
 import {
   CandidateData,
   defineModel,
+  GenerationCommonConfigSchema,
   getBasicUsageStats,
   MediaPart,
   MessageData,
@@ -37,6 +38,7 @@ import {
   GenerateContentResponse,
   GoogleGenerativeAI,
   RequestOptions,
+  StartChatParams,
 } from '@google/generative-ai';
 import process from 'process';
 import z from 'zod';
@@ -57,7 +59,7 @@ const SafetySettingsSchema = z.object({
   ]),
 });
 
-const GeminiConfigSchema = z.object({
+const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   safetySettings: z.array(SafetySettingsSchema).optional(),
 });
 
@@ -117,7 +119,7 @@ export const geminiUltra = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const SUPPORTED_MODELS = {
+export const SUPPORTED_MODELS: Record<string, ModelReference<z.ZodTypeAny>> = {
   'gemini-pro': geminiPro,
   'gemini-1.5-pro-latest': gemini15Pro,
   'gemini-pro-vision': geminiProVision,
@@ -276,8 +278,8 @@ export function googleAIModel(
           topP: request.config?.topP,
           stopSequences: request.config?.stopSequences,
         },
-        safetySettings: request.config?.custom?.safetySettings,
-      };
+        safetySettings: request.config?.safetySettings,
+      } as StartChatParams;
       if (streamingCallback) {
         const result = await client
           .startChat(chatRequest)

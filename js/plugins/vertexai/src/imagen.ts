@@ -18,6 +18,7 @@ import {
   CandidateData,
   defineModel,
   GenerateRequest,
+  GenerationCommonConfigSchema,
   getBasicUsageStats,
   modelRef,
 } from '@genkit-ai/ai/model';
@@ -26,7 +27,7 @@ import z from 'zod';
 import { PluginOptions } from '.';
 import { predictModel } from './predict.js';
 
-const ImagenConfigSchema = z.object({
+const ImagenConfigSchema = GenerationCommonConfigSchema.extend({
   /** Language of the prompt text. */
   language: z
     .enum(['auto', 'en', 'es', 'hi', 'ja', 'ko', 'pt', 'zh-TW', 'zh', 'zh-CN'])
@@ -69,15 +70,15 @@ interface ImagenParameters {
   language?: string;
 }
 
-function toParameters(request: GenerateRequest): ImagenParameters {
-  const config = request.config?.custom || ({} as ImagenConfig);
-
+function toParameters(
+  request: GenerateRequest<typeof ImagenConfigSchema>
+): ImagenParameters {
   const out = {
-    sampleCount: request.candidates || 1,
-    aspectRatio: config.aspectRatio,
-    negativePrompt: config.negativePrompt,
-    seed: config.seed,
-    language: config.language,
+    sampleCount: request.candidates ?? 1,
+    aspectRatio: request.config?.aspectRatio,
+    negativePrompt: request.config?.negativePrompt,
+    seed: request.config?.seed,
+    language: request.config?.language,
   };
 
   for (const k in out) {
@@ -118,7 +119,7 @@ export function imagen2Model(client: GoogleAuth, options: PluginOptions) {
     {
       name: imagen2.name,
       ...imagen2.info,
-      configSchema: imagen2.configSchema,
+      configSchema: ImagenConfigSchema,
     },
     async (request) => {
       const instance: ImagenInstance = {

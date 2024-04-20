@@ -25,6 +25,7 @@ import {
   GenerateRequest,
   GenerateRequestSchema,
   GenerateResponseSchema,
+  GenerationCommonConfigSchema,
   MessageData,
 } from '@genkit-ai/ai/model';
 import { resolveTools, toToolDefinition } from '@genkit-ai/ai/tool';
@@ -61,7 +62,7 @@ const PromptActionInputSchema = GenerateRequestSchema.omit({
 export type PromptActionInput = z.infer<typeof PromptActionInputSchema>;
 
 export type PromptGenerateOptions<V = unknown> = Omit<
-  GenerateOptions,
+  GenerateOptions<z.ZodTypeAny, typeof GenerationCommonConfigSchema>,
   'prompt' | 'history' | 'model'
 > & {
   model?: string;
