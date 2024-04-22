@@ -14,8 +14,10 @@
  * limitations under the License.
  */
 
+import JSON5 from 'json5';
+
 /**
- *
+ * Extracts JSON from string with lenient parsing rules to improve likelihood of successful extraction.
  */
 export function extractJson<T = unknown>(text: string): T | null {
   let openingChar: '{' | '[' | undefined;
@@ -40,14 +42,14 @@ export function extractJson<T = unknown>(text: string): T | null {
       nestingCount--;
       if (!nestingCount) {
         // Reached end of target element
-        return JSON.parse(text.substring(startPos || 0, i + 1)) as T;
+        return JSON5.parse(text.substring(startPos || 0, i + 1)) as T;
       }
     }
   }
 
   if (startPos !== undefined && nestingCount > 0) {
     try {
-      return JSON.parse(text.substring(startPos) + (closingChar || '')) as T;
+      return JSON5.parse(text.substring(startPos) + (closingChar || '')) as T;
     } catch (e) {
       throw new Error(`Invalid JSON extracted from model output: ${text}`);
     }
