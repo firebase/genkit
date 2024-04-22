@@ -551,6 +551,9 @@ importers:
       '@genkit-ai/core':
         specifier: workspace:*
         version: link:../../core
+      '@genkit-ai/flow':
+        specifier: workspace:*
+        version: link:../../flow
       '@google-cloud/vertexai':
         specifier: ^0.5.0
         version: 0.5.0
