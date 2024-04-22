@@ -14,22 +14,23 @@
  * limitations under the License.
  */
 
-import { Plugin, genkitPlugin } from '@genkit-ai/core';
+import { genkitPlugin, Plugin } from '@genkit-ai/core';
 import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
 import {
   SUPPORTED_EMBEDDER_MODELS,
   textEmbeddingGecko,
   textEmbeddingGeckoEmbedder,
-} from './embedder.js';
+} from './embedder';
+import { VertexAIEvaluationMetric, vertexEvaluators } from './evaluation';
 import {
-  SUPPORTED_GEMINI_MODELS,
   gemini15ProPreview,
   geminiModel,
   geminiPro,
   geminiProVision,
-} from './gemini.js';
-import { imagen2, imagen2Model } from './imagen.js';
+  SUPPORTED_GEMINI_MODELS,
+} from './gemini';
+import { imagen2, imagen2Model } from './imagen';
 
 export {
   gemini15ProPreview,
@@ -37,6 +38,7 @@ export {
   geminiProVision,
   imagen2,
   textEmbeddingGecko,
+  VertexAIEvaluationMetric,
 };
 
 export interface PluginOptions {
@@ -46,6 +48,10 @@ export interface PluginOptions {
   location: string;
   /** Provide custom authentication configuration for connecting to Vertex AI. */
   googleAuth?: GoogleAuthOptions;
+  /** Configure Vertex AI evaluators */
+  evaluation?: {
+    metrics: Array<VertexAIEvaluationMetric>;
+  };
 }
 
 /**
@@ -75,6 +81,10 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       location,
       googleAuthOptions: options?.googleAuth,
     });
+    const metrics =
+      options?.evaluation && options.evaluation.metrics.length > 0
+        ? options.evaluation.metrics
+        : [];
     return {
       models: [
         imagen2Model(authClient, { projectId, location }),
@@ -87,6 +97,7 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
           textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
         ),
       ],
+      evaluators: vertexEvaluators(authClient, metrics, projectId, location),
     };
   }
 );
