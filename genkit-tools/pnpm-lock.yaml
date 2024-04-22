@@ -13,7 +13,7 @@ importers:
         version: 6.4.0(zod@3.22.4)
       '@genkit-ai/tools-plugins':
         specifier: workspace:*
-        version: link:common
+        version: link:plugins/common
       '@trpc/server':
         specifier: 10.45.0
         version: 10.45.0
@@ -127,7 +127,7 @@ importers:
         specifier: ^5.3.3
         version: 5.4.3
 
-  common:
+  plugins/common:
     devDependencies:
       '@types/node':
         specifier: ^20.11.17
@@ -147,7 +147,7 @@ importers:
     devDependencies:
       '@genkit-ai/tools-plugins':
         specifier: workspace:*
-        version: link:../../common
+        version: link:../common
       '@types/node':
         specifier: ^20.11.19
         version: 20.11.30
@@ -166,7 +166,7 @@ importers:
     devDependencies:
       '@genkit-ai/tools-plugins':
         specifier: workspace:*
-        version: link:../../common
+        version: link:../common
       '@types/node':
         specifier: ^20.11.19
         version: 20.11.30

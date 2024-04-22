@@ -13,12 +13,12 @@
   },
   "main": "dist/index.js",
   "scripts": {
-    "build": "pnpm install && pnpm build:genversion && pnpm build:common && pnpm build:cli && pnpm build:ui && pnpm copy-ui-build && pnpm build:plugins",
+    "build": "pnpm install && pnpm build:genversion && pnpm build:plugins-common && pnpm build:cli && pnpm build:ui && pnpm copy-ui-build && pnpm build:plugins",
     "build:cli:watch": "tsc --watch",
     "build:cli": "tsc",
-    "build:common": "cd common && pnpm build",
     "build:genversion": "genversion -es src/utils/version.ts",
-    "build:plugins": "pnpm -r --workspace-concurrency 8 -F \"./plugins/**\" build",
+    "build:plugins-common": "pnpm -F \"./plugins/common\" build",
+    "build:plugins": "pnpm -r --workspace-concurrency 8 -F \"./plugins/**\" -F \"!./plugins/common\" build",
     "build:ui": "cd ui && pnpm build",
     "copy-ui-build": "rm -rf dist/client && cd ui && rsync -r dist ../dist/client",
     "test:all": "pnpm run test:ui && pnpm run test:jest",
@@ -27,13 +27,12 @@
     "export:schemas": "ts-node scripts/schema-exporter.ts .",
     "pack:all": "pnpm run pack:cli && pnpm run pack:common && pnpm run pack:plugins",
     "pack:cli": "pnpm pack --pack-destination ../dist",
-    "pack:common": "cd common && pnpm pack --pack-destination ../../dist",
     "pack:plugins": "for i in plugins/*/; do cd $i && pnpm pack --pack-destination ../../../dist && cd ../..; done"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/google/genkit.git",
-    "directory": "js/genkit-tools"
+    "directory": "genkit-tools"
   },
   "author": "genkit",
   "license": "Apache-2.0",
