@@ -24,14 +24,36 @@ import (
 	"github.com/invopop/jsonschema"
 )
 
+// Func is the type of function that Actions and Flows execute.
+// It takes an input of type I and returns an output of type O, optionally
+// streaming values of type S incrementally by invoking a callback.
+// TODO(jba): use a generic type alias when they become available?
+// If the StreamingCallback is non-nil and the function supports streaming, it should
+// stream the results by invoking the callback periodically, ultimately returning
+// with a final return value. Otherwise, it should ignore the StreamingCallback and
+// just return a result.
+type Func[I, O, S any] func(context.Context, I, StreamingCallback[S]) (O, error)
+
+// StreamingCallback is the type of streaming callbacks, which is passed to action
+// functions who should stream their responses.
+type StreamingCallback[S any] func(context.Context, S) error
+
+type nostream int
+
+// NoStream indicates that the action or flow does not support streaming.
+// A Func[I, O, NoStream] will ignore its streaming callback.
+type NoStream = StreamingCallback[nostream]
+
 // An Action is a function with a name.
+// It consists of a function that takes an input of type I and returns an output
+// of type O, optionally streaming values of type S incrementally by invoking a callback.
 // It optionally has other metadata, like a description
 // and JSON Schemas for its input and output.
 //
 // Each time an Action is run, it results in a new trace span.
-type Action[I, O any] struct {
+type Action[I, O, S any] struct {
 	name         string
-	fn           func(context.Context, I) (O, error)
+	fn           Func[I, O, S]
 	tstate       *tracingState
 	inputSchema  *jsonschema.Schema
 	outputSchema *jsonschema.Schema
@@ -42,11 +64,18 @@ type Action[I, O any] struct {
 
 // See js/common/src/types.ts
 
-// NewAction creates a new Action with the given name and function.
-func NewAction[I, O any](name string, fn func(context.Context, I) (O, error)) *Action[I, O] {
+// NewAction creates a new Action with the given name and non-streaming function.
+func NewAction[I, O any](name string, fn func(context.Context, I) (O, error)) *Action[I, O, nostream] {
+	return NewStreamingAction(name, func(ctx context.Context, in I, cb NoStream) (O, error) {
+		return fn(ctx, in)
+	})
+}
+
+// NewStreamingAction creates a new Action with the given name and streaming function.
+func NewStreamingAction[I, O, S any](name string, fn Func[I, O, S]) *Action[I, O, S] {
 	var i I
 	var o O
-	return &Action[I, O]{
+	return &Action[I, O, S]{
 		name:         name,
 		fn:           fn,
 		inputSchema:  inferJSONSchema(i),
@@ -55,13 +84,13 @@ func NewAction[I, O any](name string, fn func(context.Context, I) (O, error)) *A
 }
 
 // Name returns the Action's name.
-func (a *Action[I, O]) Name() string { return a.name }
+func (a *Action[I, O, S]) Name() string { return a.name }
 
 // setTracingState sets the action's tracingState.
-func (a *Action[I, O]) setTracingState(tstate *tracingState) { a.tstate = tstate }
+func (a *Action[I, O, S]) setTracingState(tstate *tracingState) { a.tstate = tstate }
 
 // Run executes the Action's function in a new span.
-func (a *Action[I, O]) Run(ctx context.Context, input I) (output O, err error) {
+func (a *Action[I, O, S]) Run(ctx context.Context, input I, cb StreamingCallback[S]) (output O, err error) {
 	// TODO: validate input against JSONSchema for I.
 	// TODO: validate output against JSONSchema for O.
 	logger(ctx).Debug("Action.Run",
@@ -78,15 +107,28 @@ func (a *Action[I, O]) Run(ctx context.Context, input I) (output O, err error) {
 		// This action has probably not been registered.
 		tstate = globalRegistry.tstate
 	}
-	return runInNewSpan(ctx, tstate, a.name, "action", false, input, a.fn)
+	return runInNewSpan(ctx, tstate, a.name, "action", false, input,
+		func(ctx context.Context, input I) (O, error) {
+			return a.fn(ctx, input, cb)
+		})
 }
 
-func (a *Action[I, O]) runJSON(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
+func (a *Action[I, O, S]) runJSON(ctx context.Context, input json.RawMessage, cb StreamingCallback[json.RawMessage]) (json.RawMessage, error) {
 	var in I
 	if err := json.Unmarshal(input, &in); err != nil {
 		return nil, err
 	}
-	out, err := a.Run(ctx, in)
+	var callback StreamingCallback[S]
+	if cb != nil {
+		callback = func(ctx context.Context, s S) error {
+			bytes, err := json.Marshal(s)
+			if err != nil {
+				return err
+			}
+			return cb(ctx, json.RawMessage(bytes))
+		}
+	}
+	out, err := a.Run(ctx, in, callback)
 	if err != nil {
 		return nil, err
 	}
@@ -97,13 +139,13 @@ func (a *Action[I, O]) runJSON(ctx context.Context, input json.RawMessage) (json
 	return json.RawMessage(bytes), nil
 }
 
-// action is the type that all Action[I, O] have in common.
+// action is the type that all Action[I, O, S] have in common.
 type action interface {
 	Name() string
 
 	// runJSON uses encoding/json to unmarshal the input,
 	// calls Action.Run, then returns the marshaled result.
-	runJSON(ctx context.Context, input json.RawMessage) (json.RawMessage, error)
+	runJSON(ctx context.Context, input json.RawMessage, cb StreamingCallback[json.RawMessage]) (json.RawMessage, error)
 
 	// desc returns a description of the action.
 	// It should set all fields of actionDesc except Key, which
@@ -132,7 +174,7 @@ func (d1 actionDesc) equal(d2 actionDesc) bool {
 		maps.Equal(d1.Metadata, d2.Metadata)
 }
 
-func (a *Action[I, O]) desc() actionDesc {
+func (a *Action[I, O, S]) desc() actionDesc {
 	ad := actionDesc{
 		Name:         a.name,
 		Description:  a.Description,

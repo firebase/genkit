@@ -23,14 +23,18 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
+func incFlow(_ context.Context, i int, _ NoStream) (int, error) {
+	return i + 1, nil
+}
+
 func TestFlowStart(t *testing.T) {
-	f := DefineFlow("inc", inc)
+	f := DefineFlow("inc", incFlow)
 	ss, err := NewFileFlowStateStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
 	f.stateStore = ss
-	state, err := f.start(context.Background(), 1)
+	state, err := f.start(context.Background(), 1, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +57,7 @@ func TestFlowRun(t *testing.T) {
 		return n, nil
 	}
 
-	flow := DefineFlow("run", func(ctx context.Context, s string) ([]int, error) {
+	flow := DefineFlow("run", func(ctx context.Context, s string, _ NoStream) ([]int, error) {
 		g1, err := Run(ctx, "s1", stepf)
 		if err != nil {
 			return nil, err
@@ -64,7 +68,7 @@ func TestFlowRun(t *testing.T) {
 		}
 		return []int{g1, g2}, nil
 	})
-	state, err := flow.start(context.Background(), "")
+	state, err := flow.start(context.Background(), "", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -19,6 +19,7 @@ import (
 
 	"github.com/google/generative-ai-go/genai"
 	"github.com/google/genkit/go/ai"
+	"github.com/google/genkit/go/genkit"
 	"google.golang.org/api/option"
 )
 
@@ -59,7 +60,7 @@ type generator struct {
 	client *genai.Client
 }
 
-func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest) (*ai.GenerateResponse, error) {
+func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, _ genkit.NoStream) (*ai.GenerateResponse, error) {
 	gm := g.client.GenerativeModel(g.model)
 
 	// Translate from a ai.GenerateRequest to a genai request.
@@ -93,6 +94,8 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest) (*a
 	//TODO: convert input.Tools and append to gm.Tools
 
 	// Send out the actual request.
+	// TODO(randall77): if the streaming callback is non-nil, use SendMessageStream
+	// and pass the streamed results to the callback.
 	resp, err := cs.SendMessage(ctx, parts...)
 	if err != nil {
 		return nil, err

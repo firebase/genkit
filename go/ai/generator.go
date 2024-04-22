@@ -22,11 +22,12 @@ import (
 
 // Generator is the interface used to query an AI model.
 type Generator interface {
-	Generate(context.Context, *GenerateRequest) (*GenerateResponse, error)
+	// TODO(randall77): define a type for streaming Generate calls.
+	Generate(context.Context, *GenerateRequest, genkit.NoStream) (*GenerateResponse, error)
 }
 
 // RegisterGenerator registers the generator in the global registry.
 func RegisterGenerator(name string, generator Generator) {
 	genkit.RegisterAction(genkit.ActionTypeModel, name,
-		genkit.NewAction(name, generator.Generate))
+		genkit.NewStreamingAction(name, generator.Generate))
 }
