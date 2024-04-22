@@ -16,8 +16,9 @@
 
 import { Command } from 'commander';
 import { randomUUID } from 'crypto';
-import { readFile, writeFile } from 'fs/promises';
+import { readFile } from 'fs/promises';
 import { enrichResultsWithScoring, getEvalStore } from '../eval';
+import { EvalExporter, getExporterForString } from '../eval/exporter';
 import { EvalInput } from '../types/eval';
 import { EvalResponse } from '../types/evaluators';
 import { confirmLlmUse, evaluatorName, isEvaluator } from '../utils/eval';
@@ -28,6 +29,7 @@ interface EvalRunOptions {
   output?: string;
   evaluators?: string;
   force?: boolean;
+  outputFormat: string;
 }
 /** Command to run evaluation on a dataset. */
 export const evalRun = new Command('eval:run')
@@ -37,7 +39,13 @@ export const evalRun = new Command('eval:run')
   )
   .option(
     '--output <filename>',
-    'name of the output file to write evaluation results'
+    'name of the output file to write evaluation results. Defaults to json output.'
+  )
+  // TODO: Figure out why passing a new Option with choices doesn't work
+  .option(
+    '--output-format <format>',
+    'The output file format (csv, json)',
+    'json'
   )
   .option(
     '--evaluators <evaluators>',
@@ -47,6 +55,7 @@ export const evalRun = new Command('eval:run')
   .action(async (dataset: string, options: EvalRunOptions) => {
     await runInRunnerThenStop(async (runner) => {
       const evalStore = getEvalStore();
+      const exportFn: EvalExporter = getExporterForString(options.outputFormat);
 
       logger.debug(`Loading data from '${dataset}'...`);
       const evalDataset: EvalInput[] = JSON.parse(
@@ -110,22 +119,19 @@ export const evalRun = new Command('eval:run')
       }
 
       const scoredResults = enrichResultsWithScoring(scores, evalDataset);
-
-      if (options.output) {
-        logger.info(`Writing results to '${options.output}'...`);
-        await writeFile(
-          options.output,
-          JSON.stringify(scoredResults, undefined, '  ')
-        );
-      }
-
-      logger.info(`Writing results to EvalStore...`);
-      await evalStore.save({
+      const evalRun = {
         key: {
           evalRunId,
           createdAt: new Date().toISOString(),
         },
         results: scoredResults,
-      });
+      };
+
+      logger.info(`Writing results to EvalStore...`);
+      await evalStore.save(evalRun);
+
+      if (options.output) {
+        await exportFn(evalRun, options.output);
+      }
     });
   });

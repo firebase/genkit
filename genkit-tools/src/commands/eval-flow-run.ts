@@ -16,8 +16,9 @@
 
 import { Command } from 'commander';
 import { randomUUID } from 'crypto';
-import { readFile, writeFile } from 'fs/promises';
+import { readFile } from 'fs/promises';
 import { enrichResultsWithScoring, getEvalStore } from '../eval';
+import { EvalExporter, getExporterForString } from '../eval/exporter';
 import { Runner } from '../runner/runner';
 import { EvalInput } from '../types/eval';
 import { FlowInvokeEnvelopeMessage, FlowState } from '../types/flow';
@@ -37,6 +38,7 @@ interface EvalFlowRunOptions {
   auth?: string;
   evaluators?: string;
   force?: boolean;
+  outputFormat: string;
 }
 
 /** Command to run a flow and evaluate the output */
@@ -50,18 +52,25 @@ export const evalFlowRun = new Command('eval:flow')
     ''
   )
   .option(
-    '--output <filename>',
-    'Name of the output file to write evaluation results'
+    '-o, --output <filename>',
+    'Name of the output file to write evaluation results. Defaults to json output.'
+  )
+  // TODO: Figure out why passing a new Option with choices doesn't work
+  .option(
+    '--output-format <format>',
+    'The output file format (csv, json)',
+    'json'
   )
   .option(
-    '--evaluators <evaluators>',
+    '-e, --evaluators <evaluators>',
     'comma separated list of evaluators to use (by default uses all)'
   )
-  .option('--force', 'Automatically accept all interactive prompts')
+  .option('-f, --force', 'Automatically accept all interactive prompts')
   .action(
     async (flowName: string, data: string, options: EvalFlowRunOptions) => {
       await runInRunnerThenStop(async (runner) => {
         const evalStore = getEvalStore();
+        let exportFn: EvalExporter = getExporterForString(options.outputFormat);
         const allActions = await runner.listActions();
         const allEvaluatorActions = [];
         for (const key in allActions) {
@@ -137,24 +146,21 @@ export const evalFlowRun = new Command('eval:flow')
           scores[name] = response.result;
         }
         const scoredResults = enrichResultsWithScoring(scores, evalDataset);
-
-        if (options.output) {
-          logger.info(`Writing results to '${options.output}'...`);
-          await writeFile(
-            options.output,
-            JSON.stringify(scoredResults, undefined, '  ')
-          );
-        }
-
-        logger.info(`Writing results to EvalStore...`);
-        await evalStore.save({
+        const evalRun = {
           key: {
             actionId: flowName,
             evalRunId,
             createdAt: new Date().toISOString(),
           },
           results: scoredResults,
-        });
+        };
+
+        logger.info(`Writing results to EvalStore...`);
+        await evalStore.save(evalRun);
+
+        if (options.output) {
+          await exportFn(evalRun, options.output);
+        }
       });
     }
   );
