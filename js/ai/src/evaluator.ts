@@ -154,7 +154,11 @@ export function defineEvaluator<
               const spanId = otSpan.spanContext().spanId;
               const traceId = otSpan.spanContext().traceId;
               try {
-                metadata.input = datapoint.input;
+                metadata.input = {
+                  input: datapoint.input,
+                  output: datapoint.output,
+                  context: datapoint.context,
+                };
                 const testCaseOutput = await runner(datapoint, i.options);
                 testCaseOutput.sampleIndex = index;
                 testCaseOutput.spanId = spanId;
