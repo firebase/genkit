@@ -181,6 +181,7 @@ func Parse(name, variant string, data []byte) (*Prompt, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse template: %w", err)
 	}
+	template.RegisterHelpers(templateHelpers)
 
 	prompt := &Prompt{
 		Name:        name,
