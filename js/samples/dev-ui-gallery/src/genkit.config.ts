@@ -72,6 +72,14 @@ export default configureGenkit({
     ]),
 
     // evaluation
-    ragas({ judge: geminiPro, metrics: [RagasMetric.FAITHFULNESS] }),
+    ragas({
+      judge: geminiPro,
+      embedder: textEmbeddingGecko,
+      metrics: [
+        RagasMetric.ANSWER_RELEVANCY,
+        RagasMetric.FAITHFULNESS,
+        RagasMetric.MALICIOUSNESS,
+      ],
+    }),
   ],
 });
