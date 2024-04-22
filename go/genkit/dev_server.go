@@ -125,8 +125,26 @@ func (s *devServer) handleRunAction(w http.ResponseWriter, r *http.Request) erro
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		return &httpError{http.StatusBadRequest, err}
 	}
-	logger(ctx).Debug("running action", "key", body.Key)
-	resp, err := runAction(ctx, s.reg, body.Key, body.Input)
+	stream := false
+	if s := r.FormValue("stream"); s != "" {
+		var err error
+		stream, err = strconv.ParseBool(s)
+		if err != nil {
+			return err
+		}
+	}
+	logger(ctx).Debug("running action",
+		"key", body.Key,
+		"stream", stream)
+	var callback StreamingCallback[json.RawMessage]
+	if stream {
+		// Stream results are newline-separated JSON.
+		callback = func(ctx context.Context, msg json.RawMessage) error {
+			_, err := fmt.Fprintf(w, "%s\n", msg)
+			return err
+		}
+	}
+	resp, err := runAction(ctx, s.reg, body.Key, body.Input, callback)
 	if err != nil {
 		return err
 	}
@@ -142,7 +160,7 @@ type telemetry struct {
 	TraceID string `json:"traceId"`
 }
 
-func runAction(ctx context.Context, reg *registry, key string, input json.RawMessage) (*runActionResponse, error) {
+func runAction(ctx context.Context, reg *registry, key string, input json.RawMessage, cb StreamingCallback[json.RawMessage]) (*runActionResponse, error) {
 	action := reg.lookupAction(key)
 	if action == nil {
 		return nil, &httpError{http.StatusNotFound, fmt.Errorf("no action with key %q", key)}
@@ -151,7 +169,7 @@ func runAction(ctx context.Context, reg *registry, key string, input json.RawMes
 	output, err := runInNewSpan(ctx, reg.tstate, "dev-run-action-wrapper", "", true, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
 		setCustomMetadataAttr(ctx, "genkit-dev-internal", "true")
 		traceID = trace.SpanContextFromContext(ctx).TraceID().String()
-		return action.runJSON(ctx, input)
+		return action.runJSON(ctx, input, cb)
 	})
 	if err != nil {
 		return nil, err

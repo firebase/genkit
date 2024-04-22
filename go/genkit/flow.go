@@ -14,12 +14,13 @@
 
 // This file contains code for flows.
 //
-// A Flow[I, O] represents a function from I to O. But the function may run in pieces,
-// with interruptions and resumptions. (The interruptions discussed here are a part
-// of the flow mechanism, not hardware interrupts.) The actual Go function for the
-// flow may be executed multiple times, each time making more progress, until finally
-// it completes with a value of type O or an error. The mechanism used to achieve this
-// is explained below.
+// A Flow[I, O, S] represents a function from I to O (the S parameter is described
+// under "Streaming" below). But the function may run in pieces, with interruptions
+// and resumptions. (The interruptions discussed here are a part of the flow mechanism,
+// not hardware interrupts.) The actual Go function for the flow may be executed
+// multiple times, each time making more progress, until finally it completes with
+// a value of type O or an error. The mechanism used to achieve this is explained
+// below.
 //
 // To treat a flow as an action, which is an uninterrupted function execution, we
 // use different input and output types to capture the additional behavior. The input
@@ -50,7 +51,17 @@
 // Another way to start a flow is to schedule it for some time in the future. The
 // "schedule" instruction accomplishes this; the flow is finally started at a later
 // time by the "runScheduled" instruction.
-
+//
+// # Streaming
+//
+// Some flows can "stream" their results, providing them incrementally. To do so,
+// the flow invokes a callback repeatedly. When streaming is complete, the flow
+// returns a final result in the usual way.
+//
+// A flow that doesn't support streaming can use [NoStream] as its third type parameter.
+//
+// Streaming is only supported for the "start" flow instruction. Currently there is
+// no way to schedule or resume a flow with streaming.
 package genkit
 
 import (
@@ -66,18 +77,13 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// TODO(jba): support streaming
 // TODO(jba): support auth
 // TODO(jba): provide a way to start a Flow from user code.
 
-// Func is the type of function that Actions and Flows execute.
-// TODO(jba): use a generic type alias when they become available?
-type Func[I, O any] func(context.Context, I) (O, error)
-
 // A Flow is a kind of Action that can be interrupted and resumed.
-type Flow[I, O any] struct {
+type Flow[I, O, S any] struct {
 	name       string         // The last component of the flow's key in the registry.
-	fn         Func[I, O]     // The function to run.
+	fn         Func[I, O, S]  // The function to run.
 	stateStore FlowStateStore // Where FlowStates are stored, to support resumption.
 	tstate     *tracingState  // set from the action when the flow is defined
 	// TODO(jba): scheduler
@@ -87,12 +93,12 @@ type Flow[I, O any] struct {
 }
 
 // DefineFlow creates a Flow that runs fn, and registers it as an action.
-func DefineFlow[I, O any](name string, fn Func[I, O]) *Flow[I, O] {
+func DefineFlow[I, O, S any](name string, fn Func[I, O, S]) *Flow[I, O, S] {
 	return defineFlow(globalRegistry, name, fn)
 }
 
-func defineFlow[I, O any](r *registry, name string, fn Func[I, O]) *Flow[I, O] {
-	f := &Flow[I, O]{
+func defineFlow[I, O, S any](r *registry, name string, fn Func[I, O, S]) *Flow[I, O, S] {
+	f := &Flow[I, O, S]{
 		name: name,
 		fn:   fn,
 		// TODO(jba): set stateStore?
@@ -219,20 +225,20 @@ type FlowResult[O any] struct {
 }
 
 // action creates an action for the flow. See the comment at the top of this file for more information.
-func (f *Flow[I, O]) action() *Action[*flowInstruction[I], *flowState[I, O]] {
-	return NewAction(f.name, func(ctx context.Context, inst *flowInstruction[I]) (*flowState[I, O], error) {
+func (f *Flow[I, O, S]) action() *Action[*flowInstruction[I], *flowState[I, O], S] {
+	return NewStreamingAction(f.name, func(ctx context.Context, inst *flowInstruction[I], cb StreamingCallback[S]) (*flowState[I, O], error) {
 		spanMetaKey.fromContext(ctx).SetAttr("flow:wrapperAction", "true")
-		return f.runInstruction(ctx, inst)
+		return f.runInstruction(ctx, inst, cb)
 	})
 }
 
 // runInstruction performs one of several actions on a flow, as determined by msg.
 // (Called runEnvelope in the js.)
-func (f *Flow[I, O]) runInstruction(ctx context.Context, inst *flowInstruction[I]) (*flowState[I, O], error) {
+func (f *Flow[I, O, S]) runInstruction(ctx context.Context, inst *flowInstruction[I], cb StreamingCallback[S]) (*flowState[I, O], error) {
 	switch {
 	case inst.Start != nil:
 		// TODO(jba): pass msg.Start.Labels.
-		return f.start(ctx, inst.Start.Input)
+		return f.start(ctx, inst.Start.Input, cb)
 	case inst.Resume != nil:
 		return nil, errors.ErrUnsupported
 	case inst.Retry != nil:
@@ -249,13 +255,13 @@ func (f *Flow[I, O]) runInstruction(ctx context.Context, inst *flowInstruction[I
 }
 
 // start starts executing the flow with the given input.
-func (f *Flow[I, O]) start(ctx context.Context, input I) (_ *flowState[I, O], err error) {
+func (f *Flow[I, O, S]) start(ctx context.Context, input I, cb StreamingCallback[S]) (_ *flowState[I, O], err error) {
 	flowID, err := generateFlowID()
 	if err != nil {
 		return nil, err
 	}
 	state := newFlowState[I, O](flowID, f.name, input)
-	f.execute(ctx, state, "start")
+	f.execute(ctx, state, "start", cb)
 	return state, nil
 }
 
@@ -266,7 +272,7 @@ func (f *Flow[I, O]) start(ctx context.Context, input I) (_ *flowState[I, O], er
 //
 // This function corresponds to Flow.executeSteps in the js, but does more:
 // it creates the flowContext and saves the state.
-func (f *Flow[I, O]) execute(ctx context.Context, state *flowState[I, O], dispatchType string) {
+func (f *Flow[I, O, S]) execute(ctx context.Context, state *flowState[I, O], dispatchType string, cb StreamingCallback[S]) {
 	fctx := newFlowContext(state, f.stateStore, f.tstate)
 	defer func() {
 		if err := fctx.finish(ctx); err != nil {
@@ -295,7 +301,7 @@ func (f *Flow[I, O]) execute(ctx context.Context, state *flowState[I, O], dispat
 		exec.TraceIDs = append(exec.TraceIDs, traceID)
 		// TODO(jba): Save rootSpanContext in the state.
 		// TODO(jba): If input is missing, get it from state.input and overwrite metadata.input.
-		output, err := f.fn(ctx, input)
+		output, err := f.fn(ctx, input, cb)
 		if err != nil {
 			// TODO(jba): handle InterruptError
 			logger(ctx).Error("flow failed",

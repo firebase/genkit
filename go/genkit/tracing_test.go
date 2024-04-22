@@ -57,7 +57,7 @@ func TestTracing(t *testing.T) {
 	ctx := context.Background()
 	const actionName = "TestTracing-inc"
 	a := NewAction(actionName, inc)
-	if _, err := a.Run(context.Background(), 3); err != nil {
+	if _, err := a.Run(context.Background(), 3, nil); err != nil {
 		t.Fatal(err)
 	}
 	// The dev TraceStore is registered by Init, called from TestMain.

@@ -94,7 +94,7 @@ func TestFlowConformance(t *testing.T) {
 			}
 			_ = defineFlow(r, test.Name, flowFunction(test.Commands))
 			key := fmt.Sprintf("/flow/%s/%[1]s", test.Name)
-			resp, err := runAction(context.Background(), r, key, test.Input)
+			resp, err := runAction(context.Background(), r, key, test.Input, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -124,8 +124,8 @@ func TestFlowConformance(t *testing.T) {
 }
 
 // flowFunction returns a function that runs the list of commands.
-func flowFunction(commands []command) Func[string, string] {
-	return func(ctx context.Context, input string) (string, error) {
+func flowFunction(commands []command) Func[string, string, nostream] {
+	return func(ctx context.Context, input string, cb NoStream) (string, error) {
 		result := input
 		var err error
 		for i, cmd := range commands {

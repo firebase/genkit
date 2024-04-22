@@ -22,7 +22,7 @@ import (
 )
 
 func main() {
-	genkit.DefineFlow("basic", func(ctx context.Context, subject string) (string, error) {
+	genkit.DefineFlow("basic", func(ctx context.Context, subject string, _ genkit.NoStream) (string, error) {
 		foo, err := genkit.Run(ctx, "call-llm", func() (string, error) { return "subject: " + subject, nil })
 		if err != nil {
 			return "", err
