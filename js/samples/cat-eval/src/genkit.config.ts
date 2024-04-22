@@ -28,6 +28,28 @@ export default configureGenkit({
     ragas({
       // Note: Gemini SDK from Google AI is more reliable than Vertex currently.
       judge: geminiPro,
+      // Turn off safety checks for evaluation so that the LLM as an evaluator can
+      // respond appropriately to potentially harmful content without error.
+      judgeConfig: {
+        safetySettings: [
+          {
+            category: 'HARM_CATEGORY_HATE_SPEECH',
+            threshold: 'BLOCK_NONE',
+          },
+          {
+            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+            threshold: 'BLOCK_NONE',
+          },
+          {
+            category: 'HARM_CATEGORY_HARASSMENT',
+            threshold: 'BLOCK_NONE',
+          },
+          {
+            category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            threshold: 'BLOCK_NONE',
+          },
+        ],
+      },
       metrics: [
         RagasMetric.FAITHFULNESS,
         RagasMetric.ANSWER_RELEVANCY,
