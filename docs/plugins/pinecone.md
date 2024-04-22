@@ -14,7 +14,7 @@ export default configureGenkit({
   plugins: [
     pinecone([
       {
-        indexId: 'spongebob-facts',
+        indexId: 'bob-facts',
         embedder: textEmbeddingGecko,
       },
     ]),
@@ -53,10 +53,10 @@ import { pineconeRetrieverRef } from '@genkit-ai/pinecone';
 let docs = await retrieve({ retriever: pineconeRetrieverRef, query });
 
 // To specify an index:
-export const spongeBobFactsRetriever = pineconeRetrieverRef({
-  indexId: 'spongebob-facts',
+export const bobFactsRetriever = pineconeRetrieverRef({
+  indexId: 'bob-facts',
 });
-docs = await retrieve({ retriever: spongeBobFactsRetriever, query });
+docs = await retrieve({ retriever: bobFactsRetriever, query });
 ```
 
 ```js
@@ -66,10 +66,10 @@ import { pineconeIndexerRef } from '@genkit-ai/pinecone';
 await index({ indexer: pineconeIndexerRef, documents });
 
 // To specify an index:
-export const spongeBobFactsIndexer = pineconeIndexerRef({
-  indexId: 'spongebob-facts',
+export const bobFactsIndexer = pineconeIndexerRef({
+  indexId: 'bob-facts',
 });
-await index({ indexer: spongeBobFactsIndexer, documents });
+await index({ indexer: bobFactsIndexer, documents });
 ```
 
 See the [Retrieval-augmented generation](../rag.md) page for a general

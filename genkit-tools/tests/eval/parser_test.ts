@@ -23,24 +23,24 @@ describe('parser', () => {
   const evalRunResults: EvalResult[] = [
     {
       testCaseId: 'case1',
-      input: 'Who is spongebobs best friend?',
+      input: 'Who is bob best friend?',
       output: 'Patrick',
       context: [
-        "Spongebob's best friend is Patrick.",
-        'Spongebob has a friend named Patrick.',
-        'Spongebob has a friend named Sandy.',
+        "Bob's best friend is Patrick.",
+        'Bob has a friend named Patrick.',
+        'Bob has a friend named Sandy.',
       ],
       metrics: [],
       traceIds: ['trace2'],
     },
     {
       testCaseId: 'case2',
-      input: 'How many friends does Spongebob have?',
+      input: 'How many friends does Bob have?',
       output: '2',
       context: [
-        "Spongebob's best friend is Patrick.",
-        'Spongebob has a friend named Patrick.',
-        'Spongebob has a friend named Sandy.',
+        "Bob's best friend is Patrick.",
+        'Bob has a friend named Patrick.',
+        'Bob has a friend named Sandy.',
       ],
       metrics: [],
       traceIds: ['trace2'],
