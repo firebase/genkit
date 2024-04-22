@@ -105,14 +105,14 @@ configureGenkit({
     vertexAI(),
     devLocalVectorstore([
       {
-        indexName: 'spongebob-facts',
+        indexName: 'bob-facts',
         embedder: textEmbeddingGecko,
       },
     ]),
   ],
 });
 
-export const pdfIndexer = devLocalIndexerRef('spongebob-facts');
+export const pdfIndexer = devLocalIndexerRef('bob-facts');
 
 const chunkingConfig = {
   minLength: 1000, // number of minimum characters into chunk
@@ -194,20 +194,20 @@ configureGenkit({
     vertexAI(),
     devLocalVectorstore([
       {
-        indexName: 'spongebob-facts',
+        indexName: 'bob-facts',
         embedder: textEmbeddingGecko,
       },
     ]),
   ],
 });
 
-export const spongeBobFactRetriever = devLocalRetrieverRef('spongebob-facts');
+export const bobFactRetriever = devLocalRetrieverRef('bob-facts');
 
 export const ragFlow = defineFlow(
   { name: 'ragFlow', input: z.string(), output: z.string() },
   async (input) => {
     const docs = await retrieve({
-      retriever: spongeBobFactRetriever,
+      retriever: bobFactRetriever,
       query: input,
       options: { k: 3 },
     });
@@ -215,7 +215,7 @@ export const ragFlow = defineFlow(
 
     const promptGenerator = definePrompt(
       {
-        name: 'spongebob-facts',
+        name: 'bob-facts',
         model: 'google-vertex/gemini-pro',
         input: {
           schema: z.object({
@@ -298,7 +298,7 @@ const advancedRetriever = defineRetriever(
   async (input, options) => {
     const extendedPrompt = await extendPrompt(input);
     const docs = await retrieve({
-      retriever: spongeBobFactsRetriever,
+      retriever: bobFactsRetriever,
       query: extendedPrompt,
       options: { k: options.preRerankK || 10 },
     });
@@ -316,7 +316,7 @@ And then you can just swap out your retriever:
 ```javascript
 const docs = await retrieve({
   retriever: advancedRetriever,
-  query: 'Who is spongebob?',
+  query: 'Who is Bob?',
   options: { preRerankK: 7, k: 3 },
 });
 ```

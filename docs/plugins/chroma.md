@@ -14,7 +14,7 @@ export default configureGenkit({
   plugins: [
     chroma([
       {
-        collectionName: 'spongebob_collection',
+        collectionName: 'bob_collection',
         embedder: textEmbeddingGecko,
       },
     ]),
@@ -55,10 +55,10 @@ import { chromaRetrieverRef } from '@genkit-ai/chromadb';
 let docs = await retrieve({ retriever: chromaRetrieverRef, query });
 
 // To specify an index:
-export const spongeBobFactsRetriever = chromaRetrieverRef({
-  collectionName: 'spongebob-facts',
+export const bobFactsRetriever = chromaRetrieverRef({
+  collectionName: 'bob-facts',
 });
-docs = await retrieve({ retriever: spongeBobFactsRetriever, query });
+docs = await retrieve({ retriever: bobFactsRetriever, query });
 ```
 
 ```js
@@ -68,10 +68,10 @@ import { chromaIndexerRef } from '@genkit-ai/chromadb';
 await index({ indexer: chromaIndexerRef, documents });
 
 // To specify an index:
-export const spongeBobFactsIndexer = chromaIndexerRef({
-  collectionName: 'spongebob-facts',
+export const bobFactsIndexer = chromaIndexerRef({
+  collectionName: 'bob-facts',
 });
-await index({ indexer: spongeBobFactsIndexer, documents });
+await index({ indexer: bobFactsIndexer, documents });
 ```
 
 See the [Retrieval-augmented generation](../rag.md) page for a general
