@@ -48,9 +48,7 @@ export function vertexEvaluators(
               projectId,
               {
                 safetyInput: {
-                  metricSpec: {
-                    version: '1',
-                  },
+                  metricSpec: {},
                   instance: {
                     prediction: datapoint.output as string,
                   },
@@ -78,9 +76,7 @@ export function vertexEvaluators(
               projectId,
               {
                 groundednessInput: {
-                  metricSpec: {
-                    version: '1',
-                  },
+                  metricSpec: {},
                   instance: {
                     prediction: datapoint.output as string,
                     context: datapoint.context.join('. '),
