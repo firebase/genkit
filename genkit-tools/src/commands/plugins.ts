@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-import { findToolsConfig } from '@genkit-ai/tools-plugins/config';
+import { logger } from '@genkit-ai/tools-common/utils';
 import {
   BaseToolPluginAction,
   SpecialAction,
   SupportedFlagValues,
   ToolPlugin,
-} from '@genkit-ai/tools-plugins/plugins';
+  findToolsConfig,
+} from '@genkit-ai/tools-plugins';
 import * as clc from 'colorette';
 import { Command } from 'commander';
-import { logger } from '../utils/logger';
 
 /** Gets plugin commands based on the tools config file, if present. */
 export async function getPluginCommands(): Promise<Command[]> {

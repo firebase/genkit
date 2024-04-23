@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
+import { Runner } from '@genkit-ai/tools-common/runner';
+import { startServer } from '@genkit-ai/tools-common/server';
+import { logger } from '@genkit-ai/tools-common/utils';
 import * as clc from 'colorette';
 import { Command } from 'commander';
-import { Runner } from '../runner/runner';
-import { startServer } from '../server';
-import { logger } from '../utils/logger';
 
 interface StartOptions {
   headless?: boolean;

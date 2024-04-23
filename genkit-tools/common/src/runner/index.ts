@@ -14,11 +14,5 @@
  * limitations under the License.
  */
 
-import { EvalStore } from '../types/eval';
-import { LocalFileEvalStore } from './localFileEvalStore';
-export * from './parser';
-
-export function getEvalStore(): EvalStore {
-  // TODO: This should provide EvalStore, based on tools config.
-  return LocalFileEvalStore.getEvalStore();
-}
+export { Runner } from './runner';
+export * from './types';

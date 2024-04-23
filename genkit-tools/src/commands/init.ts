@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
+import { InitEvent, logger, record } from '@genkit-ai/tools-common/utils';
 import { execSync } from 'child_process';
 import { Command } from 'commander';
 import extract from 'extract-zip';
 import * as fs from 'fs';
 import * as inquirer from 'inquirer';
 import * as path from 'path';
-import { InitEvent, record } from '../utils/analytics';
-import { logger } from '../utils/logger';
 
 type Platform = 'firebase' | 'googlecloud' | 'nodejs';
 type ModelProvider = 'googleai' | 'vertexai' | 'ollama' | 'none';

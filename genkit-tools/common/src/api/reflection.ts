@@ -151,7 +151,7 @@ registry.registerPath({
 });
 
 const generator = new OpenApiGeneratorV3(registry.definitions);
-export const document = generator.generateDocument({
+const document = generator.generateDocument({
   openapi: '3.0.0',
   info: {
     version: '0.0.1',

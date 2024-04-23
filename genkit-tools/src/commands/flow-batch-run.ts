@@ -14,14 +14,18 @@
  * limitations under the License.
  */
 
-import { Command } from 'commander';
-import { readFile, writeFile } from 'fs/promises';
-import { FlowInvokeEnvelopeMessage, FlowState, Operation } from '../types/flow';
-import { logger } from '../utils/logger';
 import {
+  FlowInvokeEnvelopeMessage,
+  FlowState,
+  Operation,
+} from '@genkit-ai/tools-common';
+import {
+  logger,
   runInRunnerThenStop,
   waitForFlowToComplete,
-} from '../utils/runner-utils';
+} from '@genkit-ai/tools-common/utils';
+import { Command } from 'commander';
+import { readFile, writeFile } from 'fs/promises';
 
 interface FlowBatchRunOptions {
   wait?: boolean;

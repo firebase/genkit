@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { findToolsConfig } from '@genkit-ai/tools-plugins/config';
+import { findToolsConfig } from '@genkit-ai/tools-plugins';
 import axios, { AxiosError } from 'axios';
 import { ChildProcess, execSync, spawn } from 'child_process';
 import * as chokidar from 'chokidar';
