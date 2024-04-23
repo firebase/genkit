@@ -19,9 +19,36 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as process from 'process';
 import { z } from 'zod';
+import { TraceDataSchema } from '../types/trace';
 import { ToolPluginSchema } from './plugins';
 
 const CONFIG_NAME = 'genkit-tools.conf.js';
+const EVAL_FIELDS = ['input', 'output', 'context'] as const;
+
+const InputSelectorSchema = z.object({
+  inputOf: z.string(),
+});
+const OutputSelectorSchema = z.object({
+  outputOf: z.string(),
+});
+const StepSelectorSchema = z.union([InputSelectorSchema, OutputSelectorSchema]);
+
+const EvaluationExtractorSchema = z.record(
+  z.enum(EVAL_FIELDS),
+  z.union([
+    z.string(), // specify the displayName (default to output)
+    StepSelectorSchema, //, {inputOf: 'my-step-name'}
+    z.function().args(TraceDataSchema).returns(z.string()), // custom trace extractor
+  ])
+);
+
+const EvaluatorConfig = z.object({
+  flowName: z
+    .string()
+    .describe('specify which flow this config is for')
+    .optional(),
+  extractors: z.optional(EvaluationExtractorSchema),
+});
 
 const ToolsConfigSchema = z
   .object({
@@ -31,6 +58,7 @@ const ToolsConfigSchema = z
         cmd: z.string().optional(),
       })
       .optional(),
+    evaluators: z.array(EvaluatorConfig).optional(),
   })
   .strict();
 
