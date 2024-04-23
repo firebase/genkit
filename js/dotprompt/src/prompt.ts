@@ -229,10 +229,12 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
     options: PromptGenerateOptions<Variables>
   ): Promise<GenerateResponse> {
     const req = { ...options, tools: await resolveTools(options.tools) };
-    return new GenerateResponse(
-      await this.action()(req),
-      await this.render(options) // TODO: don't re-render to do this
-    );
+    const rendered = await this.render(options); // TODO: don't re-render to do this
+    if (options.candidates == 0) {
+      return new GenerateResponse({ candidates: [] }, rendered);
+    } else {
+      return new GenerateResponse(await this.action()(req), rendered);
+    }
   }
 
   async generateStream(
