@@ -3,3 +3,4 @@ public/
 .github/
 .prettierrc.yaml
 pnpm-lock.yaml
+docs/_guides.yaml
