@@ -19,7 +19,6 @@ import { defineTool } from '@genkit-ai/ai/tool';
 import { initializeGenkit } from '@genkit-ai/core';
 import { defineFlow, run } from '@genkit-ai/flow';
 import { geminiPro as googleGeminiPro } from '@genkit-ai/googleai';
-import { gpt35Turbo, gpt4, gpt4Turbo } from '@genkit-ai/openai';
 import { geminiPro } from '@genkit-ai/vertexai';
 import * as z from 'zod';
 import config from './genkit.config.js';
@@ -109,13 +108,7 @@ export const jokeWithToolsFlow = defineFlow(
   {
     name: 'jokeWithToolsFlow',
     inputSchema: z.object({
-      modelName: z.enum([
-        geminiPro.name,
-        gpt4Turbo.name,
-        googleGeminiPro.name,
-        gpt35Turbo.name,
-        gpt4.name,
-      ]),
+      modelName: z.enum([geminiPro.name, googleGeminiPro.name]),
       subject: z.string(),
     }),
     outputSchema: z.string(),

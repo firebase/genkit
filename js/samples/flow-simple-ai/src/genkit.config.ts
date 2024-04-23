@@ -18,7 +18,6 @@ import { configureGenkit } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import { googleCloud } from '@genkit-ai/google-cloud';
 import { googleAI } from '@genkit-ai/googleai';
-import { openAI } from '@genkit-ai/openai';
 import { vertexAI } from '@genkit-ai/vertexai';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 
@@ -26,7 +25,6 @@ export default configureGenkit({
   plugins: [
     firebase(),
     googleAI(),
-    openAI(),
     vertexAI(),
     googleCloud({
       // Forces telemetry export in 'dev'

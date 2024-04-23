@@ -16,17 +16,15 @@
 
 import { configureGenkit } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
-import { gpt4Turbo, openAI } from '@genkit-ai/openai';
 import { RagasMetric, ragas } from '@genkit-ai/ragas';
-import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 
 export default configureGenkit({
   plugins: [
     firebase(),
-    openAI(),
     vertexAI(),
     ragas({
-      judge: gpt4Turbo,
+      judge: geminiPro,
       metrics: [
         RagasMetric.FAITHFULNESS,
         RagasMetric.ANSWER_RELEVANCY,

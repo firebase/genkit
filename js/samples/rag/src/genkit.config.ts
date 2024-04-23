@@ -19,7 +19,6 @@ import { configureGenkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { firebase } from '@genkit-ai/firebase';
 import { googleAI } from '@genkit-ai/googleai';
-import { openAI } from '@genkit-ai/openai';
 import { pinecone } from '@genkit-ai/pinecone';
 import { ragas, RagasMetric } from '@genkit-ai/ragas';
 import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
@@ -28,7 +27,6 @@ export default configureGenkit({
   plugins: [
     firebase(),
     googleAI(),
-    openAI(),
     ragas({
       judge: geminiPro,
       metrics: [RagasMetric.FAITHFULNESS, RagasMetric.MALICIOUSNESS],

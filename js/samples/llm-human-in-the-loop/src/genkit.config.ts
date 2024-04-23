@@ -17,10 +17,9 @@
 import { configureGenkit } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import { googleAI } from '@genkit-ai/googleai';
-import { openAI } from '@genkit-ai/openai';
 
 export default configureGenkit({
-  plugins: [firebase(), googleAI(), openAI()],
+  plugins: [firebase(), googleAI()],
   flowStateStore: 'firebase',
   traceStore: 'firebase',
   enableTracingAndMetrics: true,

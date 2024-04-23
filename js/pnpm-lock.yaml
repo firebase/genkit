@@ -480,38 +480,7 @@ importers:
       typescript:
         specifier: ^4.9.0
         version: 4.9.5
-
-  plugins/openai:
-    dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
-      openai:
-        specifier: ^4.28.4
-        version: 4.30.0
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
-    devDependencies:
-      '@types/node':
-        specifier: ^20.11.16
-        version: 20.11.30
-      npm-run-all:
-        specifier: ^4.1.5
-        version: 4.1.5
-      tsup:
-        specifier: ^8.0.2
-        version: 8.0.2(typescript@4.9.5)
-      tsx:
-        specifier: ^4.7.0
-        version: 4.7.1
-      typescript:
-        specifier: ^4.9.0
-        version: 4.9.5
-
+  
   plugins/pinecone:
     dependencies:
       '@genkit-ai/ai':
@@ -661,9 +630,6 @@ importers:
       '@genkit-ai/ollama':
         specifier: workspace:*
         version: link:../../plugins/ollama
-      '@genkit-ai/openai':
-        specifier: workspace:*
-        version: link:../../plugins/openai
       '@genkit-ai/pinecone':
         specifier: workspace:*
         version: link:../../plugins/pinecone
@@ -710,9 +676,6 @@ importers:
       '@genkit-ai/ollama':
         specifier: workspace:*
         version: link:../../plugins/ollama
-      '@genkit-ai/openai':
-        specifier: workspace:*
-        version: link:../../plugins/openai
       '@genkit-ai/pinecone':
         specifier: workspace:*
         version: link:../../plugins/pinecone
@@ -744,9 +707,6 @@ importers:
       '@genkit-ai/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/openai':
-        specifier: workspace:*
-        version: link:../../plugins/openai
       '@genkit-ai/ragas':
         specifier: workspace:*
         version: link:../../third_party/ragas
@@ -815,9 +775,6 @@ importers:
       '@genkit-ai/ollama':
         specifier: workspace:*
         version: link:../../plugins/ollama
-      '@genkit-ai/openai':
-        specifier: workspace:*
-        version: link:../../plugins/openai
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
@@ -874,9 +831,6 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/openai':
-        specifier: workspace:*
-        version: link:../../plugins/openai
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
@@ -908,9 +862,6 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:^
         version: link:../../plugins/googleai
-      '@genkit-ai/openai':
-        specifier: workspace:^
-        version: link:../../plugins/openai
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -1004,9 +955,6 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/openai':
-        specifier: workspace:*
-        version: link:../../plugins/openai
       '@genkit-ai/pinecone':
         specifier: workspace:*
         version: link:../../plugins/pinecone
