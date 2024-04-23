@@ -26,7 +26,6 @@ export default configureGenkit({
     firebase(),
     googleAI(),
     ragas({
-      // Note: Gemini SDK from Google AI is more reliable than Vertex currently.
       judge: geminiPro,
       // Turn off safety checks for evaluation so that the LLM as an evaluator can
       // respond appropriately to potentially harmful content without error.
