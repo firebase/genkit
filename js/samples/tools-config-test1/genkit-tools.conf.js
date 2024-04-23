@@ -19,8 +19,25 @@
 module.exports = {
   cliPlugins: [
     {
+      name: 'My tool',
       keyword: 'tool-test',
-      actions: [{ name: 'hello', hook: () => console.log('Tool test!') }],
+      actions: [
+        {
+          name: 'hello',
+          action: 'hello',
+          helpText: 'help me',
+          hook: () => console.log('Tool test!'),
+        },
+      ],
+    },
+  ],
+  evaluators: [
+    {
+      flowName: 'myFlow',
+      extractors: {
+        output: { inputOf: 'my-step-name' },
+        context: (t) => 'Hello',
+      },
     },
   ],
 };
