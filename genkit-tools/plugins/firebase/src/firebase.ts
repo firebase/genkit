@@ -19,7 +19,7 @@ import {
   ToolPlugin,
   cliCommand,
   promptContinue,
-} from '@genkit-ai/tools-plugins/plugins';
+} from '@genkit-ai/tools-plugins';
 import * as clc from 'colorette';
 
 export const FirebaseTools: ToolPlugin = {

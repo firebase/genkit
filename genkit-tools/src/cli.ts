@@ -14,7 +14,13 @@
  * limitations under the License.
  */
 
-import { ToolPluginSubCommandsSchema } from '@genkit-ai/tools-plugins/plugins';
+import {
+  RunCommandEvent,
+  logger,
+  notifyAnalyticsIfFirstRun,
+  record,
+} from '@genkit-ai/tools-common/utils';
+import { ToolPluginSubCommandsSchema } from '@genkit-ai/tools-plugins';
 import * as clc from 'colorette';
 import { Command, program } from 'commander';
 import { config } from './commands/config';
@@ -27,12 +33,6 @@ import { flowRun } from './commands/flow-run';
 import { init } from './commands/init';
 import { getPluginCommands, getPluginSubCommand } from './commands/plugins';
 import { start } from './commands/start';
-import {
-  RunCommandEvent,
-  notifyAnalyticsIfFirstRun,
-  record,
-} from './utils/analytics';
-import { logger } from './utils/logger';
 import { version } from './utils/version';
 
 /**

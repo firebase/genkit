@@ -23,8 +23,8 @@ import { EnvironmentVariable } from '../types/env';
 import * as evals from '../types/eval';
 import { PromptFrontmatter } from '../types/prompt';
 import { PageViewEvent, record, ToolsRequestEvent } from '../utils/analytics';
+import { toolsPackage } from '../utils/package';
 import { fromMessages } from '../utils/prompt';
-import { version } from '../utils/version';
 
 const t = initTRPC.create({
   errorFormatter(opts) {
@@ -211,7 +211,7 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
     /** Genkit Environment Information */
     getGenkitEnvironment: t.procedure.query(() => {
       return {
-        cliPackageVersion: version,
+        cliPackageVersion: toolsPackage.version,
         //TODO(michaeldoyle): packageVersion: ???,
         environmentVars: parseEnv(process.env),
       };

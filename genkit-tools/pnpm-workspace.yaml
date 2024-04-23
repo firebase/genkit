@@ -14,5 +14,6 @@
 
 packages:
   - '.'
+  - 'common'
   - 'plugins/*'
   - 'ui'

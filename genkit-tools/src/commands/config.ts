@@ -14,15 +14,16 @@
  * limitations under the License.
  */
 
-import * as clc from 'colorette';
-import { Command } from 'commander';
 import {
   ANALYTICS_OPT_OUT_CONFIG_TAG,
   ConfigEvent,
+  getUserSettings,
+  logger,
   record,
-} from '../utils/analytics';
-import { getUserSettings, setUserSettings } from '../utils/configstore';
-import { logger } from '../utils/logger';
+  setUserSettings,
+} from '@genkit-ai/tools-common/utils';
+import * as clc from 'colorette';
+import { Command } from 'commander';
 
 const CONFIG_TAGS: Record<
   string,

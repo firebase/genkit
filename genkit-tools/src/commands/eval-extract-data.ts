@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
+import {
+  DocumentData,
+  EnvTypes,
+  EvalInput,
+  RetrieverResponse,
+} from '@genkit-ai/tools-common';
+import { logger, runInRunnerThenStop } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { randomUUID } from 'crypto';
 import { writeFile } from 'fs/promises';
-import { EnvTypes } from '../types/apis';
-import { EvalInput } from '../types/eval';
-import { DocumentData, RetrieverResponse } from '../types/retrievers';
-import { logger } from '../utils/logger';
-import { runInRunnerThenStop } from '../utils/runner-utils';
 
 interface EvalDatasetOptions {
   env: EnvTypes;

@@ -159,7 +159,6 @@ const GA_INFO = {
   measurementId: 'G-2K1MPK763J',
   apiSecret: 'UccV7rIoTF6II6E9zYX5Ow',
 };
-
 const GA_USER_PROPS = {
   node_platform: {
     value: process.platform,
