@@ -218,6 +218,7 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
         schema: options.output?.schema || this.output?.schema,
         jsonSchema: options.output?.jsonSchema || this.output?.jsonSchema,
       },
+      tools: this.tools?.concat(options.tools || []) || [],
     };
   }
 
