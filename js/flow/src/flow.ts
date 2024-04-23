@@ -36,6 +36,7 @@ import {
   setCustomMetadataAttributes,
   SPAN_TYPE_ATTR,
 } from '@genkit-ai/core/tracing';
+import { SpanStatusCode } from '@opentelemetry/api';
 import * as bodyParser from 'body-parser';
 import { default as cors, CorsOptions } from 'cors';
 import express from 'express';
@@ -451,6 +452,11 @@ export class Flow<
               // Log interrupted
             } else {
               metadata.state = 'error';
+              rootSpan.setStatus({
+                code: SpanStatusCode.ERROR,
+                message: formatError(e),
+              });
+
               setCustomMetadataAttribute(metadataPrefix('state'), 'error');
               ctx.state.operation.done = true;
               ctx.state.operation.result = {
@@ -839,4 +845,11 @@ export function startFlowsServer(params?: {
   app.listen(port, () => {
     console.log(`Flows server listening on port ${port}`);
   });
+}
+
+function formatError(e: any): string {
+  if (e instanceof Error) {
+    return `${e.message}\n${e.stack}`;
+  }
+  return `${e}`;
 }

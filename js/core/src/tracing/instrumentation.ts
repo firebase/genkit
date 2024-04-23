@@ -89,7 +89,7 @@ export async function runInNewSpan<T>(
         opts.metadata.state = 'error';
         otSpan.setStatus({
           code: SpanStatusCode.ERROR,
-          message: JSON.stringify(e),
+          message: formatError(e),
         });
         throw e;
       } finally {
@@ -98,6 +98,13 @@ export async function runInNewSpan<T>(
       }
     }
   );
+}
+
+function formatError(e: any): string {
+  if (e instanceof Error) {
+    return `${e.message}\n${e.stack}`;
+  }
+  return `${e}`;
 }
 
 function metadataToAttributes(metadata: SpanMetadata): Record<string, string> {
