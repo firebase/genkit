@@ -20,7 +20,6 @@ import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import { ollama } from '@genkit-ai/ollama';
-import { openAI } from '@genkit-ai/openai';
 import { pinecone } from '@genkit-ai/pinecone';
 import { RagasMetric, ragas } from '@genkit-ai/ragas';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
@@ -45,7 +44,6 @@ export default configureGenkit({
       models: [{ name: 'llama2' }],
       serverAddress: 'http://127.0.0.1:11434', // default local address
     }),
-    openAI(),
     vertexAI(),
 
     // vector stores

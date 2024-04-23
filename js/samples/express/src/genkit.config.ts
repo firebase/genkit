@@ -18,7 +18,6 @@ import { configureGenkit } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import { googleAI } from '@genkit-ai/googleai';
 import { ollama } from '@genkit-ai/ollama';
-import { openAI } from '@genkit-ai/openai';
 import { vertexAI } from '@genkit-ai/vertexai';
 
 export default configureGenkit({
@@ -26,7 +25,6 @@ export default configureGenkit({
     firebase(),
     googleAI(),
     vertexAI(),
-    openAI(),
     ollama({
       models: [
         { name: 'llama2', type: 'generate' },
