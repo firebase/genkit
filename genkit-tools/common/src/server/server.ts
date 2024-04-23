@@ -28,7 +28,7 @@ import { TOOLS_SERVER_ROUTER } from './router';
 // brittle as __dirname refers directly to this particular file.
 const UI_STATIC_FILES_DIR = path.resolve(
   __dirname,
-  '../client/dist/ui/browser'
+  '../../../../ui/dist/ui/browser'
 );
 const API_BASE_PATH = '/api';
 
