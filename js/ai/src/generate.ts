@@ -313,6 +313,7 @@ export class GenerateResponse<O = unknown> implements GenerateResponseData {
       candidates: this.candidates.map((candidate) => candidate.toJSON()),
       usage: this.usage,
       custom: (this.custom as { toJSON?: () => any }).toJSON?.() || this.custom,
+      request: this.request,
     };
   }
 }

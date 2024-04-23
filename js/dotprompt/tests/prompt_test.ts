@@ -93,6 +93,26 @@ describe('Prompt', () => {
         await invalidSchemaPrompt.generate({ input: { foo: 'baz' } });
       }, ValidationError);
     });
+
+    const tinyPrompt = definePrompt(
+      {
+        name: 'littlePrompt',
+        model: 'echo',
+        input: { schema: z.any() },
+      },
+      `Tiny prompt`
+    );
+
+    it('includes its request in the response', async () => {
+      const response = await tinyPrompt.generate({ input: {} });
+      assert.notEqual(response.request, undefined);
+    });
+
+    it('does not call the model when candidates==0', async () => {
+      const response = await tinyPrompt.generate({ candidates: 0, input: {} });
+      assert.notEqual(response.request, undefined);
+      assert.equal(response.candidates.length, 0);
+    });
   });
 
   describe('.parse', () => {

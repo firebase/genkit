@@ -208,6 +208,7 @@ export const GenerateResponseSchema = z.object({
   latencyMs: z.number().optional(),
   usage: GenerationUsageSchema.optional(),
   custom: z.unknown(),
+  request: GenerateRequestSchema.optional(),
 });
 export type GenerateResponseData = z.infer<typeof GenerateResponseSchema>;
 
