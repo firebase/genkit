@@ -52,7 +52,7 @@ export async function startReflectionApi(port?: number | undefined) {
 
   const api = express();
 
-  api.use(express.json());
+  api.use(express.json({ limit: '30mb' }));
 
   api.get('/api/__health', async (_, response) => {
     await registry.listActions();
@@ -285,6 +285,20 @@ export async function startReflectionApi(port?: number | undefined) {
       };
       return response.status(500).json(errorResponse);
     }
+  });
+
+  api.use((err, req, res, next) => {
+    logger.error(err.stack);
+    const error = err as Error;
+    const { message, stack } = error;
+    const errorResponse: Status = {
+      code: StatusCodes.INTERNAL,
+      message,
+      details: {
+        stack,
+      },
+    };
+    res.status(500).json(errorResponse);
   });
 
   server = api.listen(port, () => {
