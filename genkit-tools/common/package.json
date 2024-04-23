@@ -8,7 +8,7 @@
     "build:watch": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json --watch"
   },
   "dependencies": {
-    "@asteasolutions/zod-to-openapi": "^6.3.1",
+    "@asteasolutions/zod-to-openapi": "^7.0.0",
     "@trpc/server": "10.45.0",
     "axios": "^1.6.7",
     "body-parser": "^1.20.2",
