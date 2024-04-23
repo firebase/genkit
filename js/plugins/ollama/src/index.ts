@@ -28,12 +28,23 @@ import { logger } from '@genkit-ai/core/logging';
 
 type ApiType = 'chat' | 'generate';
 
-interface OllamaPluginParams {
-  models: { name: string; type?: ApiType }[];
+type RequestHeaders =
+  | Record<string, string>
+  | ((
+      params: { serverAddress: string; model: ModelDefinition },
+      request: GenerateRequest
+    ) => Promise<Record<string, string> | void>);
+
+type ModelDefinition = { name: string; type?: ApiType };
+
+export interface OllamaPluginParams {
+  models: ModelDefinition[];
   /**
    *  ollama server address.
    */
   serverAddress: string;
+
+  requestHeaders?: RequestHeaders;
 }
 
 export const ollama: Plugin<[OllamaPluginParams]> = genkitPlugin(
@@ -42,20 +53,24 @@ export const ollama: Plugin<[OllamaPluginParams]> = genkitPlugin(
     const serverAddress = params?.serverAddress;
     return {
       models: params.models.map((model) =>
-        ollamaModel(model.name, model.type ?? 'chat', serverAddress)
+        ollamaModel(model, serverAddress, params.requestHeaders)
       ),
     };
   }
 );
 
-function ollamaModel(name: string, type: ApiType, serverAddress: string) {
+function ollamaModel(
+  model: ModelDefinition,
+  serverAddress: string,
+  requestHeaders?: RequestHeaders
+) {
   return defineModel(
     {
-      name: `ollama/${name}`,
-      label: `Ollama - ${name}`,
+      name: `ollama/${model.name}`,
+      label: `Ollama - ${model.name}`,
       configSchema: GenerationCommonConfigSchema,
       supports: {
-        multiturn: type === 'chat',
+        multiturn: !model.type || model.type === 'chat',
       },
     },
     async (input, streamingCallback) => {
@@ -75,14 +90,27 @@ function ollamaModel(name: string, type: ApiType, serverAddress: string) {
       if (input.config?.hasOwnProperty('maxOutputTokens')) {
         options.num_predict = input.config?.maxOutputTokens;
       }
+      const type = model.type ?? 'chat';
       const request = toOllamaRequest(
-        name,
+        model.name,
         input,
         options,
         type,
         !!streamingCallback
       );
       logger.debug(request, `ollama request (${type})`);
+
+      const extraHeaders = requestHeaders
+        ? typeof requestHeaders === 'function'
+          ? await requestHeaders(
+              {
+                serverAddress,
+                model,
+              },
+              input
+            )
+          : requestHeaders
+        : {};
 
       const res = await fetch(
         serverAddress + (type === 'chat' ? '/api/chat' : '/api/generate'),
@@ -91,6 +119,7 @@ function ollamaModel(name: string, type: ApiType, serverAddress: string) {
           body: JSON.stringify(request),
           headers: {
             'Content-Type': 'application/json',
+            ...extraHeaders,
           },
         }
       );
