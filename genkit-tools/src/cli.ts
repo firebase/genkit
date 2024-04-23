@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
+import { ToolPluginSubCommandsSchema } from '@genkit-ai/tools-common/plugin';
 import {
   RunCommandEvent,
   logger,
   notifyAnalyticsIfFirstRun,
   record,
 } from '@genkit-ai/tools-common/utils';
-import { ToolPluginSubCommandsSchema } from '@genkit-ai/tools-plugins';
 import * as clc from 'colorette';
 import { Command, program } from 'commander';
 import { config } from './commands/config';

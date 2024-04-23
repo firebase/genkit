@@ -11,9 +11,6 @@ importers:
       '@genkit-ai/tools-common':
         specifier: workspace:*
         version: link:common
-      '@genkit-ai/tools-plugins':
-        specifier: workspace:*
-        version: link:plugins/common
       colorette:
         specifier: ^2.0.20
         version: 2.0.20
@@ -78,9 +75,6 @@ importers:
       '@asteasolutions/zod-to-openapi':
         specifier: ^6.3.1
         version: 6.4.0(zod@3.23.3)
-      '@genkit-ai/tools-plugins':
-        specifier: workspace:*
-        version: link:../plugins/common
       '@trpc/server':
         specifier: 10.45.0
         version: 10.45.0
@@ -176,34 +170,15 @@ importers:
         specifier: ^5.3.3
         version: 5.4.3
 
-  plugins/common:
-    dependencies:
-      colorette:
-        specifier: ^2.0.20
-        version: 2.0.20
-      zod:
-        specifier: ^3.23.3
-        version: 3.23.3
-    devDependencies:
-      '@types/node':
-        specifier: ^20.11.17
-        version: 20.11.30
-      npm-run-all:
-        specifier: ^4.1.5
-        version: 4.1.5
-      typescript:
-        specifier: ^4.9.0
-        version: 4.9.5
-
   plugins/firebase:
     dependencies:
       colorette:
         specifier: ^2.0.20
         version: 2.0.20
     devDependencies:
-      '@genkit-ai/tools-plugins':
+      '@genkit-ai/tools-common':
         specifier: workspace:*
-        version: link:../common
+        version: link:../../common
       '@types/node':
         specifier: ^20.11.19
         version: 20.11.30
@@ -220,9 +195,9 @@ importers:
         specifier: ^2.0.20
         version: 2.0.20
     devDependencies:
-      '@genkit-ai/tools-plugins':
+      '@genkit-ai/tools-common':
         specifier: workspace:*
-        version: link:../common
+        version: link:../../common
       '@types/node':
         specifier: ^20.11.19
         version: 20.11.30

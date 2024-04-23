@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-import { logger } from '@genkit-ai/tools-common/utils';
 import {
   BaseToolPluginAction,
   SpecialAction,
   SupportedFlagValues,
   ToolPlugin,
   findToolsConfig,
-} from '@genkit-ai/tools-plugins';
+} from '@genkit-ai/tools-common/plugin';
+import { logger } from '@genkit-ai/tools-common/utils';
 import * as clc from 'colorette';
 import { Command } from 'commander';
 

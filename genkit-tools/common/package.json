@@ -9,7 +9,6 @@
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^6.3.1",
-    "@genkit-ai/tools-plugins": "workspace:*",
     "@trpc/server": "10.45.0",
     "axios": "^1.6.7",
     "body-parser": "^1.20.2",
@@ -65,6 +64,12 @@
       "import": "./lib/esm/eval/index.js",
       "default": "./lib/esm/eval/index.js"
     },
+    "./plugin": {
+      "types": "./lib/types/plugin/index.d.ts",
+      "require": "./lib/cjs/plugin/index.js",
+      "import": "./lib/esm/plugin/index.js",
+      "default": "./lib/esm/plugin/index.js"
+    },
     "./runner": {
       "types": "./lib/runner/index.d.ts",
       "require": "./lib/cjs/runner/index.js",
@@ -88,6 +93,9 @@
     "*": {
       "eval": [
         "lib/types/eval"
+      ],
+      "plugin": [
+        "lib/types/plugin"
       ],
       "runner": [
         "lib/types/runner"
