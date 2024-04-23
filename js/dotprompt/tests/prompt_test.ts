@@ -20,13 +20,20 @@ import { describe, it } from 'node:test';
 import { defineModel } from '@genkit-ai/ai/model';
 import z from 'zod';
 
+import { defineTool } from '@genkit-ai/ai';
+import { toToolDefinition } from '@genkit-ai/ai/tool';
 import { toJsonSchema, ValidationError } from '@genkit-ai/core/schema';
 import { definePrompt, prompt, Prompt } from '../src/index.js';
 import { PromptMetadata } from '../src/metadata.js';
 
-const echo = defineModel({ name: 'echo' }, async (input) => ({
-  candidates: [{ index: 0, message: input.messages[0], finishReason: 'stop' }],
-}));
+const echo = defineModel(
+  { name: 'echo', supports: { tools: true } },
+  async (input) => ({
+    candidates: [
+      { index: 0, message: input.messages[0], finishReason: 'stop' },
+    ],
+  })
+);
 
 function testPrompt(template, options?: Partial<PromptMetadata>): Prompt {
   return new Prompt({ name: 'test', model: echo, ...options }, template);
@@ -191,5 +198,31 @@ output:
       });
       assert.equal('And this is its variant.', variantPrompt.template);
     });
+  });
+
+  it('resolves its tools when generating', async () => {
+    const tool = defineTool(
+      {
+        name: 'testTool',
+        description: 'Just a test',
+        inputSchema: z.string(),
+        outputSchema: z.string(),
+      },
+      async (input) => {
+        return 'result';
+      }
+    );
+
+    const prompt = definePrompt(
+      {
+        name: 'promptName',
+        model: 'echo',
+        tools: [tool],
+      },
+      `This is a prompt.`
+    );
+
+    const out = await prompt.generate({ input: 'test' });
+    assert.deepEqual(out.request?.tools, [toToolDefinition(tool)]);
   });
 });
