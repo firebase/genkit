@@ -17,19 +17,19 @@
 import { chroma } from '@genkit-ai/chromadb';
 import { configureGenkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
+import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
 import { googleAI } from '@genkit-ai/googleai';
 import { pinecone } from '@genkit-ai/pinecone';
-import { ragas, RagasMetric } from '@genkit-ai/ragas';
 import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 
 export default configureGenkit({
   plugins: [
     firebase(),
     googleAI(),
-    ragas({
+    genkitEval({
       judge: geminiPro,
-      metrics: [RagasMetric.FAITHFULNESS, RagasMetric.MALICIOUSNESS],
+      metrics: [GenkitMetric.FAITHFULNESS, GenkitMetric.MALICIOUSNESS],
     }),
     vertexAI(),
     pinecone([

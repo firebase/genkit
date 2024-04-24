@@ -12,20 +12,20 @@ of documents that was returned by the retriever so that you can evaluate the
 quality of your retriever while it runs in the context of the flow as shown below with the RAGAS faithfulness and answer relevancy metrics:
 
 ```js
-import { RagasMetric, ragas } from '@genkit-ai/plugin-ragas';
+import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
 
 export default configureGenkit({
   plugins: [
-    ragas({
+    genkitEval({
       judge: geminiPro,
-      metrics: [RagasMetric.FAITHFULNESS, RagasMetric.ANSWER_RELEVANCY],
+      metrics: [GenkitMetric.FAITHFULNESS, GenkitMetric.ANSWER_RELEVANCY],
     }),
   ],
   // ...
 });
 ```
 
-For now, and since evals are still an early preview, we only support a small number of ported [RAGAS](https://docs.ragas.io/en/latest/index.html) metrics including: [Faithfulness](https://docs.ragas.io/en/stable/concepts/metrics/faithfulness.html), [Answer Relevancy](https://docs.ragas.io/en/stable/concepts/metrics/answer_relevance.html), and [Context Utilization](https://github.com/explodinggradients/ragas/blob/main/src/ragas/metrics/_context_precision.py#L177).
+We only support a small number of evaluators to help developers get started that are inspired by [RAGAS](https://docs.ragas.io/en/latest/index.html) metrics including: Faithfulness, Answer Relevancy, and Maliciousness.
 
 Start by defining a set of inputs that you want to use as an input dataset called `testQuestions.json`. This input dataset represents the test cases you will use to generate output for evaluation.
 
@@ -110,7 +110,7 @@ genkit eval:flow bobQA --input testQuestions.json --output customLabel_evalresul
 To run on a subset of the configured evaluators, use the `--evaluators` flag and provide a comma separated list of evaluators by name:
 
 ```posix-terminal
-genkit eval:run customLabel_dataset.json --evaluators=ragas/faithfulness,ragas/answer_relevancy
+genkit eval:run customLabel_dataset.json --evaluators=genkit/faithfulness,genkit/answer_relevancy
 ```
 
 ### Synthesizing test data using an LLM

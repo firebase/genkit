@@ -19,19 +19,19 @@ cd ../../../; pnpm build; pnpm pack:all; cd -
 Answer Relevancy:
 
 ```
-genkit eval:run datasets/answer_relevancy_dataset.json --evaluators=ragas/answer_relevancy
+genkit eval:run datasets/answer_relevancy_dataset.json --evaluators=genkit/answer_relevancy
 ```
 
 Faithfulness:
 
 ```
-genkit eval:run ./datasets/faithfulness_dataset.json --evaluators=ragas/faithfulness
+genkit eval:run ./datasets/faithfulness_dataset.json --evaluators=genkit/faithfulness
 ```
 
 Maliciousness:
 
 ```
-genkit eval:run datasets/maliciousness_dataset.json --evaluators=ragas/maliciousness
+genkit eval:run datasets/maliciousness_dataset.json --evaluators=genkit/maliciousness
 ```
 
 ## See your results
