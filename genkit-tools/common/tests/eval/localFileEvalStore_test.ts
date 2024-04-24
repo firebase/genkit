@@ -34,6 +34,10 @@ jest.mock('crypto', () => {
   };
 });
 
+jest.mock('os', () => {
+  return { tmpdir: jest.fn(() => '/tmp/') };
+});
+
 const EVAL_RESULTS: EvalResult[] = [
   {
     testCaseId: 'alakjdshfalsdkjh',
@@ -48,9 +52,9 @@ const EVAL_RESULTS: EvalResult[] = [
     ],
     metrics: [
       {
-        evaluator: 'context_precision',
+        evaluator: 'faithfulness',
         score: 0.5,
-        rationale: 'One out of two pieces of context were used in the output.',
+        rationale: 'One out of two claims can be inferred from the context',
       },
     ],
     traceIds: [],
@@ -64,7 +68,7 @@ const EVAL_RESULTS: EvalResult[] = [
     context: [],
     metrics: [
       {
-        evaluator: 'context_precision',
+        evaluator: 'faithfulness',
         score: 0,
         rationale: 'No context was provided',
       },
@@ -73,6 +77,13 @@ const EVAL_RESULTS: EvalResult[] = [
   },
 ];
 
+const METRICS_METADATA = {
+  faithfulness: {
+    displayName: 'Faithfullness',
+    definition: 'Faitfulness definition',
+  },
+};
+
 const EVAL_RUN_WITH_ACTION = EvalRunSchema.parse({
   key: {
     actionId: 'flow/tellMeAJoke',
@@ -80,6 +91,7 @@ const EVAL_RUN_WITH_ACTION = EvalRunSchema.parse({
     createdAt: new Date().toISOString(),
   },
   results: EVAL_RESULTS,
+  metricMetadata: METRICS_METADATA,
 });
 
 const EVAL_RUN_WITHOUT_ACTION = EvalRunSchema.parse({
@@ -88,6 +100,7 @@ const EVAL_RUN_WITHOUT_ACTION = EvalRunSchema.parse({
     createdAt: new Date().toISOString(),
   },
   results: EVAL_RESULTS,
+  metricMetadata: METRICS_METADATA,
 });
 
 describe('localFileEvalStore', () => {

@@ -34,14 +34,16 @@ export function vertexEvaluators(
   projectId: string,
   location: string
 ) {
-  return metrics.map((metric) =>
-    defineEvaluator(
-      {
-        name: `vertexai/${metric.toLocaleLowerCase()}`,
-      },
-      async (datapoint: BaseDataPoint) => {
-        switch (metric) {
-          case VertexAIEvaluationMetric.SAFETY: {
+  return metrics.map((metric) => {
+    switch (metric) {
+      case VertexAIEvaluationMetric.SAFETY: {
+        return defineEvaluator(
+          {
+            name: `vertexai/${metric.toLocaleLowerCase()}`,
+            displayName: 'Safety',
+            definition: 'Assesses the level of safety of an output',
+          },
+          async (datapoint: BaseDataPoint) => {
             const response = await evaluateInstances(
               auth,
               location,
@@ -66,7 +68,17 @@ export function vertexEvaluators(
               },
             };
           }
-          case VertexAIEvaluationMetric.GROUNDEDNESS: {
+        );
+      }
+      case VertexAIEvaluationMetric.GROUNDEDNESS: {
+        return defineEvaluator(
+          {
+            name: `vertexai/${metric.toLocaleLowerCase()}`,
+            displayName: 'Groundedness',
+            definition:
+              'Assesses the ability to provide or reference information included only in the context',
+          },
+          async (datapoint: BaseDataPoint) => {
             if (!datapoint.context || datapoint.context.length == 0) {
               throw new Error('Context was not provided');
             }
@@ -94,10 +106,10 @@ export function vertexEvaluators(
               },
             };
           }
-        }
+        );
       }
-    )
-  );
+    }
+  });
 }
 
 async function evaluateInstances(

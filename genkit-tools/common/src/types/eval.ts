@@ -72,6 +72,15 @@ export type EvalRunKey = z.infer<typeof EvalRunKeySchema>;
 export const EvalRunSchema = z.object({
   key: EvalRunKeySchema,
   results: z.array(EvalResultSchema),
+  metricsMetadata: z
+    .record(
+      z.string(),
+      z.object({
+        displayName: z.string(),
+        definition: z.string(),
+      })
+    )
+    .optional(),
 });
 export type EvalRun = z.infer<typeof EvalRunSchema>;
 

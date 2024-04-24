@@ -25,6 +25,7 @@ import {
 import {
   EvalExporter,
   enrichResultsWithScoring,
+  extractMetricsMetadata,
   getEvalStore,
   getExporterForString,
 } from '@genkit-ai/tools-common/eval';
@@ -155,7 +156,10 @@ export const evalFlowRun = new Command('eval:flow')
           });
           scores[name] = response.result;
         }
+
         const scoredResults = enrichResultsWithScoring(scores, evalDataset);
+        const metadata = extractMetricsMetadata(filteredEvaluatorActions);
+
         const evalRun = {
           key: {
             actionId: flowName,
@@ -163,6 +167,7 @@ export const evalFlowRun = new Command('eval:flow')
             createdAt: new Date().toISOString(),
           },
           results: scoredResults,
+          metricsMetadata: metadata,
         };
 
         logger.info(`Writing results to EvalStore...`);
