@@ -17,12 +17,16 @@
 import { chroma } from '@genkit-ai/chromadb';
 import { configureGenkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
-import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
+import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import { ollama } from '@genkit-ai/ollama';
 import { pinecone } from '@genkit-ai/pinecone';
-import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+import {
+  textEmbeddingGecko,
+  vertexAI,
+  VertexAIEvaluationMetric,
+} from '@genkit-ai/vertexai';
 
 export default configureGenkit({
   // settings
@@ -44,7 +48,15 @@ export default configureGenkit({
       models: [{ name: 'llama2' }],
       serverAddress: 'http://127.0.0.1:11434', // default local address
     }),
-    vertexAI(),
+    vertexAI({
+      location: 'us-central1',
+      evaluation: {
+        metrics: [
+          VertexAIEvaluationMetric.GROUNDEDNESS,
+          VertexAIEvaluationMetric.SAFETY,
+        ],
+      },
+    }),
 
     // vector stores
     chroma([
