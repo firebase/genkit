@@ -115,6 +115,55 @@ defineFlow({ name: 'flowSingleStepThrows' }, async (input) => {
 });
 
 //
+// Flow - multi-step throws
+//
+
+defineFlow({ name: 'flowMultiStepThrows' }, async (input) => {
+  let i = 1;
+
+  const result1 = await run('step1', async () => {
+    return `${input} ${i++},`;
+  });
+
+  const result2 = await run('step2', async () => {
+    if (result1) {
+      throw new Error('Got an error!');
+    }
+    return `${result1} ${i++},`;
+  });
+
+  return await run('step3', async () => {
+    return `${result2} ${i++}`;
+  });
+});
+
+//
+// Flow - caught error multi-step
+//
+
+defineFlow({ name: 'flowMultiStepCaughtError' }, async (input) => {
+  let i = 1;
+
+  const result1 = await run('step1', async () => {
+    return `${input} ${i++},`;
+  });
+
+  let result2 = '';
+  try {
+    result2 = await run('step2', async () => {
+      if (result1) {
+        throw new Error('Got an error!');
+      }
+      return `${result1} ${i++},`;
+    });
+  } catch (e) {}
+
+  return await run('step3', async () => {
+    return `${result2} ${i++}`;
+  });
+});
+
+//
 // Flow - streamingThrows
 //
 
