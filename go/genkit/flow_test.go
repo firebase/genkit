@@ -81,5 +81,45 @@ func TestFlowRun(t *testing.T) {
 	if !slices.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)
 	}
+}
 
+func TestRunFlow(t *testing.T) {
+	reg, err := newRegistry()
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := defineFlow(reg, "inc", incFlow)
+	got, err := RunFlow(context.Background(), f, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := 3; got != want {
+		t.Errorf("got %d, want %d", got, want)
+	}
+}
+
+func TestStreamFlow(t *testing.T) {
+	reg, err := newRegistry()
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := defineFlow(reg, "count", count)
+	iter := StreamFlow(context.Background(), f, 2)
+	want := 0
+	iter(func(val *StreamFlowValue[int, int], err error) bool {
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got int
+		if val.Done {
+			got = val.Output
+		} else {
+			got = val.Stream
+		}
+		if got != want {
+			t.Errorf("got %d, want %d", got, want)
+		}
+		want++
+		return true
+	})
 }

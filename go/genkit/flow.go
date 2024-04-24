@@ -219,8 +219,9 @@ type Operation[O any] struct {
 // non-empty error string.
 // (Called FlowResponse in the javascript.)
 type FlowResult[O any] struct {
-	Response   O      `json:"response,omitempty"`
-	Error      string `json:"error,omitempty"`
+	Response O      `json:"response,omitempty"`
+	Error    string `json:"error,omitempty"`
+	// TODO(jba): keep the actual error around so that RunFlow can use it.
 	StackTrace string `json:"stacktrace,omitempty"`
 }
 
@@ -445,4 +446,74 @@ func Run[T any](ctx context.Context, name string, f func() (T, error)) (T, error
 		spanMeta.SetAttr("flow:state", "run")
 		return t, nil
 	})
+}
+
+// RunFlow runs flow in the context of another flow. The flow must run to completion when started
+// (that is, it must not have interrupts).
+func RunFlow[I, O, S any](ctx context.Context, flow *Flow[I, O, S], input I) (O, error) {
+	state, err := flow.start(ctx, input, nil)
+	if err != nil {
+		return zero[O](), err
+	}
+	return finishedOpResponse(state.Operation)
+}
+
+// StreamFlowValue is either a streamed value or a final output of a flow.
+type StreamFlowValue[O, S any] struct {
+	Done   bool
+	Output O // valid if Done is true
+	Stream S // valid if Done is false
+}
+
+var errStop = errors.New("stop")
+
+// StreamFlow runs flow on input and delivers both the streamed values and the final output.
+// It returns a function whose argument function (the "yield function") will be repeatedly
+// called with the results.
+//
+// If the yield function is passed a non-nil error, the flow has failed with that
+// error; the yield function will not be called again. An error is also passed if
+// the flow fails to complete (that is, it has an interrupt).
+//
+// If the yield function's [StreamFlowValue] argument has Done == true, the value's
+// Output field contains the final output; the yield function will not be called
+// again.
+//
+// Otherwise the Stream field of the passed [StreamFlowValue] holds a streamed result.
+func StreamFlow[I, O, S any](ctx context.Context, flow *Flow[I, O, S], input I) func(func(*StreamFlowValue[O, S], error) bool) {
+	return func(yield func(*StreamFlowValue[O, S], error) bool) {
+		cb := func(ctx context.Context, s S) error {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			if !yield(&StreamFlowValue[O, S]{Stream: s}, nil) {
+				return errStop
+			}
+			return nil
+		}
+		var output O
+		state, err := flow.start(ctx, input, cb)
+		if err == nil {
+			if ctx.Err() != nil {
+				err = ctx.Err()
+			} else {
+				output, err = finishedOpResponse(state.Operation)
+			}
+		}
+		if err != nil {
+			yield(nil, err)
+		} else {
+			yield(&StreamFlowValue[O, S]{Done: true, Output: output}, nil)
+		}
+	}
+}
+
+func finishedOpResponse[O any](op *Operation[O]) (O, error) {
+	if !op.Done {
+		return zero[O](), fmt.Errorf("flow %s did not finish execution", op.FlowID)
+	}
+	if op.Result.Error != "" {
+		return zero[O](), fmt.Errorf("flow %s: %s", op.FlowID, op.Result.Error)
+	}
+	return op.Result.Response, nil
 }
