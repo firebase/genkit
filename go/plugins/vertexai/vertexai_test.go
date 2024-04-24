@@ -49,7 +49,7 @@ func TestGenerator(t *testing.T) {
 		},
 	}
 
-	resp, err := g.Generate(ctx, req)
+	resp, err := g.Generate(ctx, req, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
