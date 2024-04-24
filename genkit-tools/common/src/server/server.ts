@@ -19,17 +19,24 @@ import * as bodyParser from 'body-parser';
 import * as clc from 'colorette';
 import express, { ErrorRequestHandler } from 'express';
 import open from 'open';
+import os from 'os';
 import path from 'path';
 import { Runner } from '../runner/runner';
 import { logger } from '../utils/logger';
+import { toolsPackage } from '../utils/package';
+import { downloadAndExtractUiAssets } from '../utils/ui-assets';
 import { TOOLS_SERVER_ROUTER } from './router';
 
-// Static files are copied to the /dist/client directory. This is a litle
-// brittle as __dirname refers directly to this particular file.
-const UI_STATIC_FILES_DIR = path.resolve(
-  __dirname,
-  '../../../../ui/dist/ui/browser'
+const UI_ASSETS_GCS_BUCKET = `https://storage.googleapis.com/genkit-assets`;
+const UI_ASSETS_ZIP_FILE_NAME = `${toolsPackage.version}.zip`;
+const UI_ASSETS_ZIP_GCS_PATH = `${UI_ASSETS_GCS_BUCKET}/${UI_ASSETS_ZIP_FILE_NAME}`;
+const UI_ASSETS_ROOT = path.resolve(
+  os.homedir(),
+  '.genkit',
+  'assets',
+  toolsPackage.version
 );
+const UI_ASSETS_SERVE_PATH = path.resolve(UI_ASSETS_ROOT, 'ui', 'browser');
 const API_BASE_PATH = '/api';
 
 /**
@@ -48,7 +55,13 @@ export function startServer(
   const app = express();
 
   if (!headless) {
-    app.use(express.static(UI_STATIC_FILES_DIR));
+    // Download UI assets from public GCS bucket and serve locally
+    downloadAndExtractUiAssets({
+      fileUrl: UI_ASSETS_ZIP_GCS_PATH,
+      extractPath: UI_ASSETS_ROOT,
+      zipFileName: UI_ASSETS_ZIP_FILE_NAME,
+    });
+    app.use(express.static(UI_ASSETS_SERVE_PATH));
   }
 
   // tRPC doesn't support simple streaming mutations (https://github.com/trpc/trpc/issues/4477).
@@ -107,7 +120,7 @@ export function startServer(
 
   // serve angular paths
   app.all('*', (req, res) => {
-    res.status(200).sendFile('/', { root: UI_STATIC_FILES_DIR });
+    res.status(200).sendFile('/', { root: UI_ASSETS_SERVE_PATH });
   });
 
   app.listen(port, () => {
