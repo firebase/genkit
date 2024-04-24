@@ -48,6 +48,8 @@ export const ScoreSchema = z.object({
 });
 
 // Update genkit-tools/src/utils/evals.ts if you change this value
+export const EVALUATOR_METADATA_DISPLAY_NAME = 'evaluatorDisplayName';
+export const EVALUATOR_METADATA_DEFINITION = 'evaluatorDefinition';
 export const EVALUATOR_METADATA_KEY_USES_LLM = 'evaluatorUsesLlm';
 
 export type Score = z.infer<typeof ScoreSchema>;
@@ -112,6 +114,8 @@ export function defineEvaluator<
 >(
   options: {
     name: string;
+    displayName: string;
+    definition: string;
     dataPointType?: DataPoint;
     configSchema?: EvaluatorOptions;
     usesLlm?: boolean;
@@ -121,6 +125,8 @@ export function defineEvaluator<
   const metadata = {};
   metadata[EVALUATOR_METADATA_KEY_USES_LLM] =
     options.usesLlm == undefined ? true : options.usesLlm;
+  metadata[EVALUATOR_METADATA_DISPLAY_NAME] = options.displayName;
+  metadata[EVALUATOR_METADATA_DEFINITION] = options.definition;
   const evaluator = action(
     {
       name: options.name,

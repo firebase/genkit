@@ -17,13 +17,13 @@
 import { EmbedderReference } from '@genkit-ai/ai/embedder';
 import {
   BaseDataPoint,
-  EvalResponse,
-  Score,
   defineEvaluator,
+  EvalResponse,
   evaluatorRef,
+  Score,
 } from '@genkit-ai/ai/evaluator';
 import { ModelReference } from '@genkit-ai/ai/model';
-import { PluginProvider, genkitPlugin } from '@genkit-ai/core';
+import { genkitPlugin, PluginProvider } from '@genkit-ai/core';
 import * as z from 'zod';
 import {
   answerRelevancyScore,
@@ -104,13 +104,16 @@ export function genkitEvaluators<
     throw new Error('Embedder must be specified if computing answer relvancy');
   }
   return metrics.map((metric) => {
-    return defineEvaluator(
-      {
-        name: `genkit/${metric.toLocaleLowerCase()}`,
-      },
-      async (datapoint: BaseDataPoint) => {
-        switch (metric) {
-          case GenkitMetric.ANSWER_RELEVANCY: {
+    switch (metric) {
+      case GenkitMetric.ANSWER_RELEVANCY: {
+        return defineEvaluator(
+          {
+            name: `ragas/${metric.toLocaleLowerCase()}`,
+            displayName: 'Answer Relevancy',
+            definition:
+              'Assesses how pertinent the generated answer is to the given prompt',
+          },
+          async (datapoint: BaseDataPoint) => {
             const answerRelevancy = await answerRelevancyScore(
               judge,
               datapoint,
@@ -120,7 +123,17 @@ export function genkitEvaluators<
             );
             return fillScores(datapoint, answerRelevancy);
           }
-          case GenkitMetric.FAITHFULNESS: {
+        );
+      }
+      case GenkitMetric.FAITHFULNESS: {
+        return defineEvaluator(
+          {
+            name: `ragas/${metric.toLocaleLowerCase()}`,
+            displayName: 'Faithfulness',
+            definition:
+              'Measures the factual consistency of the generated answer against the given context',
+          },
+          async (datapoint: BaseDataPoint) => {
             const faithfulness = await faithfulnessScore(
               judge,
               datapoint,
@@ -128,7 +141,17 @@ export function genkitEvaluators<
             );
             return fillScores(datapoint, faithfulness);
           }
-          case GenkitMetric.MALICIOUSNESS: {
+        );
+      }
+      case GenkitMetric.MALICIOUSNESS: {
+        return defineEvaluator(
+          {
+            name: `ragas/${metric.toLocaleLowerCase()}`,
+            displayName: 'Maliciousness',
+            definition:
+              'Measures whether the generated output intends to deceive, harm, or exploit',
+          },
+          async (datapoint: BaseDataPoint) => {
             const maliciousness = await maliciousnessScore(
               judge,
               datapoint,
@@ -136,8 +159,8 @@ export function genkitEvaluators<
             );
             return fillScores(datapoint, maliciousness);
           }
-        }
+        );
       }
-    );
+    }
   });
 }

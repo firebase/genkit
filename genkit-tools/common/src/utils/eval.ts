@@ -21,6 +21,8 @@ import { logger } from './logger';
 export const EVALUATOR_ACTION_PREFIX = '/evaluator';
 
 // Update js/ai/src/evaluators.ts if you change this value
+export const EVALUATOR_METADATA_DISPLAY_NAME = 'evaluatorDisplayName';
+export const EVALUATOR_METADATA_DEFINITION = 'evaluatorDefinition';
 export const EVALUATOR_METADATA_KEY_USES_LLM = 'evaluatorUsesLlm';
 
 export function evaluatorName(action: Action) {
