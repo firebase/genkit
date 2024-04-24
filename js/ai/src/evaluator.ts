@@ -173,7 +173,7 @@ export function defineEvaluator<
                 evalResponses.push(testCaseOutput);
                 return testCaseOutput;
               } catch (e) {
-                const err = {
+                evalResponses.push({
                   sampleIndex: index,
                   spanId,
                   traceId,
@@ -181,9 +181,7 @@ export function defineEvaluator<
                   evaluation: {
                     error: `Evaluation of test case ${datapoint.testCaseId} failed: \n${(e as Error).stack}`,
                   },
-                };
-                metadata.output = err;
-                evalResponses.push(err);
+                });
                 throw e;
               }
             }

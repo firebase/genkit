@@ -261,6 +261,31 @@ export const throwy2 = defineFlow(
   }
 );
 
+export const flowMultiStepCaughtError = defineFlow(
+  { name: 'flowMultiStepCaughtError' },
+  async (input) => {
+    let i = 1;
+
+    const result1 = await run('step1', async () => {
+      return `${input} ${i++},`;
+    });
+
+    let result2 = '';
+    try {
+      result2 = await run('step2', async () => {
+        if (result1) {
+          throw new Error('Got an error!');
+        }
+        return `${result1} ${i++},`;
+      });
+    } catch (e) {}
+
+    return await run('step3', async () => {
+      return `${result2} ${i++}`;
+    });
+  }
+);
+
 export const largeSteps = defineFlow({ name: 'largeSteps' }, async () => {
   await run('large-step1', async () => {
     return generateString(100_000);

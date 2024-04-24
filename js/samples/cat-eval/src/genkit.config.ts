@@ -19,7 +19,11 @@ import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
-import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+import {
+  VertexAIEvaluationMetric,
+  textEmbeddingGecko,
+  vertexAI,
+} from '@genkit-ai/vertexai';
 
 export default configureGenkit({
   plugins: [
@@ -56,7 +60,12 @@ export default configureGenkit({
       ],
       embedder: textEmbeddingGecko,
     }),
-    vertexAI(),
+    vertexAI({
+      location: 'us-central1',
+      evaluation: {
+        metrics: [VertexAIEvaluationMetric.SAFETY],
+      },
+    }),
     devLocalVectorstore([
       {
         indexName: 'pdfQA',
