@@ -15,20 +15,20 @@
  */
 
 import { configureGenkit } from '@genkit-ai/core';
+import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
-import { RagasMetric, ragas } from '@genkit-ai/ragas';
 import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 
 export default configureGenkit({
   plugins: [
     firebase(),
     vertexAI(),
-    ragas({
+    genkitEval({
       judge: geminiPro,
       metrics: [
-        RagasMetric.FAITHFULNESS,
-        RagasMetric.ANSWER_RELEVANCY,
-        RagasMetric.MALICIOUSNESS,
+        GenkitMetric.FAITHFULNESS,
+        GenkitMetric.ANSWER_RELEVANCY,
+        GenkitMetric.MALICIOUSNESS,
       ],
       embedder: textEmbeddingGecko,
     }),

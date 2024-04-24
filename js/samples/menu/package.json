@@ -21,7 +21,7 @@
     "@genkit-ai/flow": "workspace:*",
     "@genkit-ai/dev-local-vectorstore": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
-    "@genkit-ai/ragas": "workspace:*",
+    "@genkit-ai/evaluator": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
     "zod": "^3.22.4"
   },

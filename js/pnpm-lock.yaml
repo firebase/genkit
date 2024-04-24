@@ -340,6 +340,43 @@ importers:
         specifier: ^4.9.0
         version: 4.9.5
 
+  plugins/evaluators:
+    dependencies:
+      '@genkit-ai/ai':
+        specifier: workspace:*
+        version: link:../../ai
+      '@genkit-ai/core':
+        specifier: workspace:*
+        version: link:../../core
+      compute-cosine-similarity:
+        specifier: ^1.1.0
+        version: 1.1.0
+      handlebars:
+        specifier: ^4.7.8
+        version: 4.7.8
+      node-fetch:
+        specifier: ^3.3.2
+        version: 3.3.2
+      zod:
+        specifier: ^3.22.4
+        version: 3.22.4
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.16
+        version: 20.11.30
+      npm-run-all:
+        specifier: ^4.1.5
+        version: 4.1.5
+      tsup:
+        specifier: ^8.0.2
+        version: 8.0.2(typescript@4.9.5)
+      tsx:
+        specifier: ^4.7.0
+        version: 4.7.1
+      typescript:
+        specifier: ^4.9.0
+        version: 4.9.5
+
   plugins/google-cloud:
     dependencies:
       '@genkit-ai/ai':
@@ -569,6 +606,9 @@ importers:
       '@genkit-ai/dotprompt':
         specifier: workspace:*
         version: link:../../dotprompt
+      '@genkit-ai/evaluator':
+        specifier: workspace:*
+        version: link:../../plugins/evaluators
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
@@ -581,9 +621,6 @@ importers:
       '@genkit-ai/pinecone':
         specifier: workspace:*
         version: link:../../plugins/pinecone
-      '@genkit-ai/ragas':
-        specifier: workspace:*
-        version: link:../../third_party/ragas
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
@@ -618,6 +655,9 @@ importers:
       '@genkit-ai/dotprompt':
         specifier: workspace:*
         version: link:../../dotprompt
+      '@genkit-ai/evaluator':
+        specifier: workspace:*
+        version: link:../../plugins/evaluators
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
@@ -633,9 +673,6 @@ importers:
       '@genkit-ai/pinecone':
         specifier: workspace:*
         version: link:../../plugins/pinecone
-      '@genkit-ai/ragas':
-        specifier: workspace:*
-        version: link:../../third_party/ragas
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
@@ -664,6 +701,9 @@ importers:
       '@genkit-ai/dotprompt':
         specifier: workspace:*
         version: link:../../dotprompt
+      '@genkit-ai/evaluator':
+        specifier: workspace:*
+        version: link:../../plugins/evaluators
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
@@ -679,9 +719,6 @@ importers:
       '@genkit-ai/pinecone':
         specifier: workspace:*
         version: link:../../plugins/pinecone
-      '@genkit-ai/ragas':
-        specifier: workspace:*
-        version: link:../../third_party/ragas
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
@@ -701,15 +738,15 @@ importers:
       '@genkit-ai/core':
         specifier: workspace:*
         version: link:../../core
+      '@genkit-ai/evaluator':
+        specifier: workspace:*
+        version: link:../../plugins/evaluators
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
       '@genkit-ai/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/ragas':
-        specifier: workspace:*
-        version: link:../../third_party/ragas
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
@@ -732,6 +769,9 @@ importers:
       '@genkit-ai/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
+      '@genkit-ai/evaluator':
+        specifier: workspace:*
+        version: link:../../plugins/evaluators
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
@@ -741,9 +781,6 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/ragas':
-        specifier: workspace:*
-        version: link:../../third_party/ragas
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
@@ -884,15 +921,15 @@ importers:
       '@genkit-ai/dotprompt':
         specifier: workspace:*
         version: link:../../dotprompt
+      '@genkit-ai/evaluator':
+        specifier: workspace:*
+        version: link:../../plugins/evaluators
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
       '@genkit-ai/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/ragas':
-        specifier: workspace:*
-        version: link:../../third_party/ragas
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
@@ -944,8 +981,11 @@ importers:
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
       '@genkit-ai/dotprompt':
-        specifier: workspace:*
+        specifier: 'workspace:*'
         version: link:../../dotprompt
+      '@genkit-ai/evaluator':
+        specifier: 'workspace:*'
+        version: link:../../plugins/evaluators
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
@@ -958,9 +998,6 @@ importers:
       '@genkit-ai/pinecone':
         specifier: workspace:*
         version: link:../../plugins/pinecone
-      '@genkit-ai/ragas':
-        specifier: workspace:*
-        version: link:../../third_party/ragas
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
@@ -986,43 +1023,6 @@ importers:
       typescript:
         specifier: ^5.3.3
         version: 5.4.3
-
-  third_party/ragas:
-    dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
-      compute-cosine-similarity:
-        specifier: ^1.1.0
-        version: 1.1.0
-      handlebars:
-        specifier: ^4.7.8
-        version: 4.7.8
-      node-fetch:
-        specifier: ^3.3.2
-        version: 3.3.2
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
-    devDependencies:
-      '@types/node':
-        specifier: ^20.11.16
-        version: 20.11.30
-      npm-run-all:
-        specifier: ^4.1.5
-        version: 4.1.5
-      tsup:
-        specifier: ^8.0.2
-        version: 8.0.2(typescript@4.9.5)
-      tsx:
-        specifier: ^4.7.0
-        version: 4.7.1
-      typescript:
-        specifier: ^4.9.0
-        version: 4.9.5
 
 packages:
 

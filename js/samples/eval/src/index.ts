@@ -15,7 +15,7 @@
  */
 
 import { initializeGenkit } from '@genkit-ai/core';
-import { RagasMetric, ragasRef } from '@genkit-ai/ragas';
+import { GenkitMetric, genkitEvalRef } from '@genkit-ai/evaluator';
 import * as z from 'zod';
 
 import {
@@ -41,7 +41,7 @@ export const dogFactsEvalFlow = defineFlow(
   },
   async (): Promise<Array<EvalResponse>> => {
     return await evaluate({
-      evaluator: ragasRef(RagasMetric.FAITHFULNESS),
+      evaluator: genkitEvalRef(GenkitMetric.FAITHFULNESS),
       dataset: samples,
     });
   }

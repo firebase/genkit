@@ -16,16 +16,16 @@
 
 import { configureGenkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
+import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
-import { RagasMetric, ragas } from '@genkit-ai/ragas';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 
 export default configureGenkit({
   plugins: [
     firebase(),
     googleAI(),
-    ragas({
+    genkitEval({
       judge: geminiPro,
       // Turn off safety checks for evaluation so that the LLM as an evaluator can
       // respond appropriately to potentially harmful content without error.
@@ -50,9 +50,9 @@ export default configureGenkit({
         ],
       },
       metrics: [
-        RagasMetric.FAITHFULNESS,
-        RagasMetric.ANSWER_RELEVANCY,
-        RagasMetric.MALICIOUSNESS,
+        GenkitMetric.FAITHFULNESS,
+        GenkitMetric.ANSWER_RELEVANCY,
+        GenkitMetric.MALICIOUSNESS,
       ],
       embedder: textEmbeddingGecko,
     }),

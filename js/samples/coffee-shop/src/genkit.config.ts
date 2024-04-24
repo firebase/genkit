@@ -19,11 +19,11 @@ import { configureGenkit } from '@genkit-ai/core';
 // plugins
 import { chroma } from '@genkit-ai/chromadb';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
+import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import { ollama } from '@genkit-ai/ollama';
 import { pinecone } from '@genkit-ai/pinecone';
-import { RagasMetric, ragas } from '@genkit-ai/ragas';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 
 // Not all plugins configured below are used by the flow, but we load
@@ -33,7 +33,7 @@ export default configureGenkit({
     // plugins
     googleAI(),
     vertexAI(),
-    ragas({ judge: geminiPro, metrics: [RagasMetric.FAITHFULNESS] }),
+    genkitEval({ judge: geminiPro, metrics: [GenkitMetric.FAITHFULNESS] }),
 
     // providers - will be moved to plugins eventually
     chroma([

@@ -48,7 +48,7 @@ describe('parser', () => {
   ];
 
   const evaluatorOutput: Record<string, EvalResponse> = {
-    '/evaluator/ragas/faithfulness': [
+    '/evaluator/genkit/faithfulness': [
       {
         testCaseId: 'case1',
         sampleIndex: 0,
@@ -70,7 +70,7 @@ describe('parser', () => {
         },
       },
     ],
-    '/evaluator/ragas/context_relevancy': [
+    '/evaluator/genkit/context_relevancy': [
       {
         testCaseId: 'case1',
         sampleIndex: 0,
@@ -101,11 +101,11 @@ describe('parser', () => {
       results.forEach((result) => {
         expect(result.metrics).toMatchObject([
           EvalMetricSchema.parse({
-            evaluator: '/evaluator/ragas/faithfulness',
+            evaluator: '/evaluator/genkit/faithfulness',
             score: 1,
           }),
           EvalMetricSchema.parse({
-            evaluator: '/evaluator/ragas/context_relevancy',
+            evaluator: '/evaluator/genkit/context_relevancy',
             score: 1,
           }),
         ]);

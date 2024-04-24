@@ -25,7 +25,7 @@
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/ollama": "workspace:*",
     "@genkit-ai/pinecone": "workspace:*",
-    "@genkit-ai/ragas": "workspace:*",
+    "@genkit-ai/evaluator": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
     "zod": "^3.22.4"
   },
