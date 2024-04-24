@@ -18,6 +18,7 @@ import * as trpcExpress from '@trpc/server/adapters/express';
 import * as bodyParser from 'body-parser';
 import * as clc from 'colorette';
 import express, { ErrorRequestHandler } from 'express';
+import { renameSync } from 'fs';
 import open from 'open';
 import os from 'os';
 import path from 'path';
@@ -61,6 +62,13 @@ export function startServer(
       extractPath: UI_ASSETS_ROOT,
       zipFileName: UI_ASSETS_ZIP_FILE_NAME,
     });
+
+    // Move licenses file into `browser` folder for serving
+    renameSync(
+      path.join(UI_ASSETS_ROOT, 'ui', '3rdpartylicenses.txt'),
+      path.join(UI_ASSETS_SERVE_PATH, 'licenses.txt')
+    );
+
     app.use(express.static(UI_ASSETS_SERVE_PATH));
   }
 
