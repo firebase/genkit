@@ -32,6 +32,7 @@ import {
   downloadRequestMedia,
   simulateSystemPrompt,
 } from '@genkit-ai/ai/model/middleware';
+import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
 import {
   Content,
   FunctionDeclaration,
@@ -140,9 +141,9 @@ const toGeminiFileDataPart = (part: MediaPart): VertexPart => {
         'Must supply contentType when using media from gs:// URLs.'
       );
     return {
-      file_data: {
-        mime_type: media.contentType,
-        file_uri: media.url,
+      fileData: {
+        mimeType: media.contentType,
+        fileUri: media.url,
       },
     };
   } else if (media.url.startsWith('data:')) {
@@ -151,7 +152,7 @@ const toGeminiFileDataPart = (part: MediaPart): VertexPart => {
     const contentType =
       media.contentType ||
       dataUrl.substring(dataUrl.indexOf(':')! + 1, dataUrl.indexOf(';'));
-    return { inline_data: { mime_type: contentType, data: b64Data } };
+    return { inlineData: { mimeType: contentType, data: b64Data } };
   }
 
   throw Error(
@@ -235,28 +236,28 @@ function fromGeminiFinishReason(
 function fromGeminiInlineDataPart(part: VertexPart): MediaPart {
   // Check if the required properties exist
   if (
-    !part.inline_data ||
-    !part.inline_data.hasOwnProperty('mime_type') ||
-    !part.inline_data.hasOwnProperty('data')
+    !part.inlineData ||
+    !part.inlineData.hasOwnProperty('mimeType') ||
+    !part.inlineData.hasOwnProperty('data')
   ) {
     throw new Error('Invalid GeminiPart: missing required properties');
   }
-  const { mime_type, data } = part.inline_data;
+  const { mimeType, data } = part.inlineData;
   // Combine data and mimeType into a data URL
-  const dataUrl = `data:${mime_type};base64,${data}`;
+  const dataUrl = `data:${mimeType};base64,${data}`;
   return {
     media: {
       url: dataUrl,
-      contentType: mime_type,
+      contentType: mimeType,
     },
   };
 }
 
 function fromGeminiFileDataPart(part: VertexPart): MediaPart {
   if (
-    !part.file_data ||
-    !part.file_data.hasOwnProperty('mime_type') ||
-    !part.file_data.hasOwnProperty('url')
+    !part.fileData ||
+    !part.fileData.hasOwnProperty('mimeType') ||
+    !part.fileData.hasOwnProperty('url')
   ) {
     throw new Error(
       'Invalid Gemini File Data Part: missing required properties'
@@ -265,8 +266,8 @@ function fromGeminiFileDataPart(part: VertexPart): MediaPart {
 
   return {
     media: {
-      url: part.file_data?.file_uri,
-      contentType: part.file_data?.mime_type,
+      url: part.fileData?.fileUri,
+      contentType: part.fileData?.mimeType,
     },
   };
 }
@@ -304,8 +305,8 @@ function fromGeminiPart(part: VertexPart): Part {
   if (part.text !== undefined) return { text: part.text };
   if (part.functionCall) return fromGeminiFunctionCallPart(part);
   if (part.functionResponse) return fromGeminiFunctionResponsePart(part);
-  if (part.inline_data) return fromGeminiInlineDataPart(part);
-  if (part.file_data) return fromGeminiFileDataPart(part);
+  if (part.inlineData) return fromGeminiInlineDataPart(part);
+  if (part.fileData) return fromGeminiFileDataPart(part);
   throw new Error(
     'Part type is unsupported/corrupted. Either data is missing or type cannot be inferred from type.'
   );
@@ -382,29 +383,34 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
       use: middlewares,
     },
     async (request, streamingCallback) => {
-      const client = vertex.preview.getGenerativeModel({
-        model: request.config?.version || model.version || name,
-      });
+      const client = vertex.preview.getGenerativeModel(
+        {
+          model: request.config?.version || model.version || name,
+        },
+        {
+          apiClient: GENKIT_CLIENT_HEADER,
+        }
+      );
 
       const messages = request.messages;
       if (messages.length === 0) throw new Error('No messages provided.');
 
       const chatRequest: StartChatParams = {
         tools: request.tools?.length
-          ? [{ function_declarations: request.tools?.map(toGeminiTool) }]
+          ? [{ functionDeclarations: request.tools?.map(toGeminiTool) }]
           : [],
         history: messages
           .slice(0, -1)
           .map((message) => toGeminiMessage(message)),
-        generation_config: {
-          candidate_count: request.candidates || undefined,
+        generationConfig: {
+          candidateCount: request.candidates || undefined,
           temperature: request.config?.temperature,
-          max_output_tokens: request.config?.maxOutputTokens,
-          top_k: request.config?.topK,
-          top_p: request.config?.topP,
-          stop_sequences: request.config?.stopSequences,
+          maxOutputTokens: request.config?.maxOutputTokens,
+          topK: request.config?.topK,
+          topP: request.config?.topP,
+          stopSequences: request.config?.stopSequences,
         },
-        safety_settings: request.config?.safetySettings,
+        safetySettings: request.config?.safetySettings,
       };
       const msg = toGeminiMessage(messages[messages.length - 1]);
       if (streamingCallback) {
