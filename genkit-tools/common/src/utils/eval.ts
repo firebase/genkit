@@ -21,9 +21,9 @@ import { logger } from './logger';
 export const EVALUATOR_ACTION_PREFIX = '/evaluator';
 
 // Update js/ai/src/evaluators.ts if you change this value
-export const EVALUATOR_METADATA_DISPLAY_NAME = 'evaluatorDisplayName';
-export const EVALUATOR_METADATA_DEFINITION = 'evaluatorDefinition';
-export const EVALUATOR_METADATA_KEY_USES_LLM = 'evaluatorUsesLlm';
+export const EVALUATOR_METADATA_KEY_DISPLAY_NAME = 'evaluatorDisplayName';
+export const EVALUATOR_METADATA_KEY_DEFINITION = 'evaluatorDefinition';
+export const EVALUATOR_METADATA_KEY_IS_BILLED = 'evaluatorIsBilled';
 
 export function evaluatorName(action: Action) {
   return `${EVALUATOR_ACTION_PREFIX}/${action.name}`;
@@ -37,18 +37,18 @@ export async function confirmLlmUse(
   evaluatorActions: Action[],
   force: boolean | undefined
 ): Promise<boolean> {
-  const usesLlm = evaluatorActions.some(
+  const isBilled = evaluatorActions.some(
     (action) =>
-      action.metadata && action.metadata[EVALUATOR_METADATA_KEY_USES_LLM]
+      action.metadata && action.metadata[EVALUATOR_METADATA_KEY_IS_BILLED]
   );
 
-  if (!usesLlm) {
+  if (!isBilled) {
     return true;
   }
 
   if (force) {
     logger.warn(
-      'The evaluation may result in multiple calls to LLMs per example.'
+      'For each example, the evaluation makes calls to APIs that may result in being charged.'
     );
     return true;
   }
@@ -58,7 +58,7 @@ export async function confirmLlmUse(
       type: 'confirm',
       name: 'confirm',
       message:
-        'The evaluation may result in multiple calls to LLMs per example. Do you wish to proceed?',
+        'For each example, the evaluation makes calls to APIs that may result in being charged. Do you wish to proceed?',
       default: false,
     },
   ]);

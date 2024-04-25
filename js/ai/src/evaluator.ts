@@ -48,9 +48,9 @@ export const ScoreSchema = z.object({
 });
 
 // Update genkit-tools/src/utils/evals.ts if you change this value
-export const EVALUATOR_METADATA_DISPLAY_NAME = 'evaluatorDisplayName';
-export const EVALUATOR_METADATA_DEFINITION = 'evaluatorDefinition';
-export const EVALUATOR_METADATA_KEY_USES_LLM = 'evaluatorUsesLlm';
+export const EVALUATOR_METADATA_KEY_DISPLAY_NAME = 'evaluatorDisplayName';
+export const EVALUATOR_METADATA_KEY_DEFINITION = 'evaluatorDefinition';
+export const EVALUATOR_METADATA_KEY_IS_BILLED = 'evaluatorIsBilled';
 
 export type Score = z.infer<typeof ScoreSchema>;
 export type BaseDataPoint = z.infer<typeof BaseDataPointSchema>;
@@ -118,15 +118,15 @@ export function defineEvaluator<
     definition: string;
     dataPointType?: DataPoint;
     configSchema?: EvaluatorOptions;
-    usesLlm?: boolean;
+    isBilled?: boolean;
   },
   runner: EvaluatorFn<DataPoint, EvaluatorOptions>
 ) {
   const metadata = {};
-  metadata[EVALUATOR_METADATA_KEY_USES_LLM] =
-    options.usesLlm == undefined ? true : options.usesLlm;
-  metadata[EVALUATOR_METADATA_DISPLAY_NAME] = options.displayName;
-  metadata[EVALUATOR_METADATA_DEFINITION] = options.definition;
+  metadata[EVALUATOR_METADATA_KEY_IS_BILLED] =
+    options.isBilled == undefined ? true : options.isBilled;
+  metadata[EVALUATOR_METADATA_KEY_DISPLAY_NAME] = options.displayName;
+  metadata[EVALUATOR_METADATA_KEY_DEFINITION] = options.definition;
   const evaluator = action(
     {
       name: options.name,
