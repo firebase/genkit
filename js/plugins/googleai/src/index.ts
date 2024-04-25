@@ -21,12 +21,13 @@ import {
 } from './embedder.js';
 import {
   gemini15Pro,
+  gemini15Spark,
   SUPPORTED_MODELS as GEMINI_MODELS,
   geminiPro,
   geminiProVision,
   googleAIModel,
 } from './gemini.js';
-export { gemini15Pro, geminiPro, geminiProVision };
+export { gemini15Pro, gemini15Spark, geminiPro, geminiProVision };
 
 export interface PluginOptions {
   apiKey?: string;
