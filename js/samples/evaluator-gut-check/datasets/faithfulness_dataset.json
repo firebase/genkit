@@ -7,7 +7,7 @@
     "context": [
       "The Normans (Norman: Nourmands; French: Normands; Latin: Normanni) were the people who in the 10th and 11th centuries gave their name to Normandy, a region in France. They were descended from Norse (\"Norman\" comes from \"Norseman\") raiders and pirates from Denmark, Iceland and Norway who, under their leader Rollo, agreed to swear fealty to King Charles III of West Francia. Through generations of assimilation and mixing with the native Frankish and Roman-Gaulish populations, their descendants would gradually merge with the Carolingian-based cultures of West Francia. The distinct cultural and ethnic identity of the Normans emerged initially in the first half of the 10th century, and it continued to evolve over the succeeding centuries."
     ],
-    "groundTruth": "France"
+    "reference": "France"
   },
   {
     "testCaseId": "squad2_norman_dynasty_impact",
@@ -17,7 +17,7 @@
     "context": [
       "The Norman dynasty had a major political, cultural and military impact on medieval Europe and even the Near East. The Normans were famed for their martial spirit and eventually for their Christian piety, becoming exponents of the Catholic orthodoxy into which they assimilated. They adopted the Gallo-Romance language of the Frankish land they settled, their dialect becoming known as Norman, Normaund or Norman French, an important literary language. The Duchy of Normandy, which they formed by treaty with the French crown, was a great fief of medieval France, and under Richard I of Normandy was forged into a cohesive and formidable principality in feudal tenure. The Normans are noted both for their culture, such as their unique Romanesque architecture and musical traditions, and for their significant military accomplishments and innovations. Norman adventurers founded the Kingdom of Sicily under Roger II after conquering southern Italy on the Saracens and Byzantines, and an expedition on behalf of their duke, William the Conqueror, led to the Norman conquest of England at the Battle of Hastings in 1066. Norman cultural and military influence spread from these new European centres to the Crusader states of the Near East, where their prince Bohemond I founded the Principality of Antioch in the Levant, to Scotland and Wales in Great Britain, to Ireland, and to the coasts of north Africa and the Canary Islands."
     ],
-    "groundTruth": ""
+    "reference": ""
   },
   {
     "testCaseId": "squad2_eight_counties",
@@ -27,7 +27,7 @@
     "context": [
       "Southern California, often abbreviated SoCal, is a geographic and cultural region that generally comprises California's southernmost 10 counties. The region is traditionally described as \"eight counties\", based on demographics and economic ties: Imperial, Los Angeles, Orange, Riverside, San Bernardino, San Diego, Santa Barbara, and Ventura. The more extensive 10-county definition, including Kern and San Luis Obispo counties, is also used based on historical political divisions. Southern California is a major economic center for the state of California and the United States."
     ],
-    "groundTruth": "demographics and economic"
+    "reference": "demographics and economic"
   },
   {
     "testCaseId": "squad2_socal_border",
@@ -37,7 +37,7 @@
     "context": [
       "To the east is the Colorado Desert and the Colorado River at the border with Arizona, and the Mojave Desert at the border with the state of Nevada. To the south is the Mexico–United States border."
     ],
-    "groundTruth": "Mexico–United States border"
+    "reference": "Mexico–United States border"
   },
   {
     "testCaseId": "squad2_earth_o2",
@@ -47,7 +47,7 @@
     "context": [
       "Oxygen is a chemical element with symbol O and atomic number 8. It is a member of the chalcogen group on the periodic table and is a highly reactive nonmetal and oxidizing agent that readily forms compounds (notably oxides) with most elements. By mass, oxygen is the third-most abundant element in the universe, after hydrogen and helium. At standard temperature and pressure, two atoms of the element bind to form dioxygen, a colorless and odorless diatomic gas with the formula O2. Diatomic oxygen gas constitutes 20.8% of the Earth's atmosphere. However, monitoring of atmospheric oxygen levels show a global downward trend, because of fossil-fuel burning. Oxygen is the most abundant element by mass in the Earth's crust as part of oxide compounds such as silicon dioxide, making up almost half of the crust's mass."
     ],
-    "groundTruth": "Diatomic oxygen gas"
+    "reference": "Diatomic oxygen gas"
   },
   {
     "testCaseId": "squad2_priestly_compound",
@@ -57,7 +57,7 @@
     "context": [
       "In the meantime, on August 1, 1774, an experiment conducted by the British clergyman Joseph Priestley focused sunlight on mercuric oxide (HgO) inside a glass tube, which liberated a gas he named \"dephlogisticated air\". He noted that candles burned brighter in the gas and that a mouse was more active and lived longer while breathing it. After breathing the gas himself, he wrote: \"The feeling of it to my lungs was not sensibly different from that of common air, but I fancied that my breast felt peculiarly light and easy for some time afterwards.\" Priestley published his findings in 1775 in a paper titled \"An Account of Further Discoveries in Air\" which was included in the second volume of his book titled Experiments and Observations on Different Kinds of Air. Because he published his findings first, Priestley is usually given priority in the discovery."
     ],
-    "groundTruth": "mercuric oxide"
+    "reference": "mercuric oxide"
   },
   {
     "testCaseId": "squad2_percy_shelly",
@@ -67,7 +67,7 @@
     "context": [
       "Following the Peterloo massacre of 1819, poet Percy Shelley wrote the political poem The Mask of Anarchy later that year, that begins with the images of what he thought to be the unjust forms of authority of his time—and then imagines the stirrings of a new form of social action. It is perhaps the first modern[vague] statement of the principle of nonviolent protest. A version was taken up by the author Henry David Thoreau in his essay Civil Disobedience, and later by Gandhi in his doctrine of Satyagraha. Gandhi's Satyagraha was partially influenced and inspired by Shelley's nonviolence in protest and political action. In particular, it is known that Gandhi would often quote Shelley's Masque of Anarchy to vast audiences during the campaign for a free India."
     ],
-    "groundTruth": "Henry David Thoreau"
+    "reference": "Henry David Thoreau"
   },
   {
     "testCaseId": "squad2_civil_disobedience",
@@ -77,7 +77,7 @@
     "context": [
       "Civil disobedience is usually defined as pertaining to a citizen's relation to the state and its laws, as distinguished from a constitutional impasse in which two public agencies, especially two equally sovereign branches of government, conflict. For instance, if the head of government of a country were to refuse to enforce a decision of that country's highest court, it would not be civil disobedience, since the head of government would be acting in her or his capacity as public official rather than private citizen."
     ],
-    "groundTruth": "as pertaining to a citizen's relation to the state and its laws"
+    "reference": "as pertaining to a citizen's relation to the state and its laws"
   },
   {
     "testCaseId": "squad2_block_switching",
@@ -87,7 +87,7 @@
     "context": [
       "Starting in the late 1950s, American computer scientist Paul Baran developed the concept Distributed Adaptive Message Block Switching with the goal to provide a fault-tolerant, efficient routing method for telecommunication messages as part of a research program at the RAND Corporation, funded by the US Department of Defense. This concept contrasted and contradicted the theretofore established principles of pre-allocation of network bandwidth, largely fortified by the development of telecommunications in the Bell System. The new concept found little resonance among network implementers until the independent work of Donald Davies at the National Physical Laboratory (United Kingdom) (NPL) in the late 1960s. Davies is credited with coining the modern name packet switching and inspiring numerous packet switching networks in Europe in the decade following, including the incorporation of the concept in the early ARPANET in the United States."
     ],
-    "groundTruth": "This concept contrasted and contradicted the theretofore established principles of pre-allocation of network bandwidth"
+    "reference": "This concept contrasted and contradicted the theretofore established principles of pre-allocation of network bandwidth"
   },
   {
     "testCaseId": "squad2_baran_research",
@@ -97,7 +97,7 @@
     "context": [
       "Baran developed the concept of distributed adaptive message block switching during his research at the RAND Corporation for the US Air Force into survivable communications networks, first presented to the Air Force in the summer of 1961 as briefing B-265, later published as RAND report P-2626 in 1962, and finally in report RM 3420 in 1964. Report P-2626 described a general architecture for a large-scale, distributed, survivable communications network. The work focuses on three key ideas: use of a decentralized network with multiple paths between any two points, dividing user messages into message blocks, later called packets, and delivery of these messages by store and forward switching."
     ],
-    "groundTruth": "distributed adaptive message block switching"
+    "reference": "distributed adaptive message block switching"
   },
   {
     "testCaseId": "squad2_norman_exports",
@@ -107,7 +107,7 @@
     "context": [
       "The Normans thereafter adopted the growing feudal doctrines of the rest of France, and worked them into a functional hierarchical system in both Normandy and in England. The new Norman rulers were culturally and ethnically distinct from the old French aristocracy, most of whom traced their lineage to Franks of the Carolingian dynasty. Most Norman knights remained poor and land-hungry, and by 1066 Normandy had been exporting fighting horsemen for more than a generation. Many Normans of Italy, France and England eventually served as avid Crusaders under the Italo-Norman prince Bohemund I and the Anglo-Norman king Richard the Lion-Heart."
     ],
-    "groundTruth": "fighting horsemen"
+    "reference": "fighting horsemen"
   },
   {
     "testCaseId": "squad2_herve",
@@ -117,7 +117,7 @@
     "context": [
       "One of the first Norman mercenaries to serve as a Byzantine general was Hervé in the 1050s. By then however, there were already Norman mercenaries serving as far away as Trebizond and Georgia. They were based at Malatya and Edessa, under the Byzantine duke of Antioch, Isaac Komnenos. In the 1060s, Robert Crispin led the Normans of Edessa against the Turks. Roussel de Bailleul even tried to carve out an independent state in Asia Minor with support from the local population, but he was stopped by the Byzantine general Alexius Komnenos."
     ],
-    "groundTruth": ""
+    "reference": ""
   },
   {
     "testCaseId": "squad2_hollywood",
@@ -127,7 +127,7 @@
     "context": [
       "Within southern California are two major cities, Los Angeles and San Diego, as well as three of the country's largest metropolitan areas. With a population of 3,792,621, Los Angeles is the most populous city in California and the second most populous in the United States. To the south and with a population of 1,307,402 is San Diego, the second most populous city in the state and the eighth most populous in the nation."
     ],
-    "groundTruth": ""
+    "reference": ""
   },
   {
     "testCaseId": "squad2_la_district",
@@ -137,7 +137,7 @@
     "context": [
       "The motion picture, television, and music industry is centered on the Los Angeles in southern California. Hollywood, a district within Los Angeles, is also a name associated with the motion picture industry. Headquartered in southern California are The Walt Disney Company (which also owns ABC), Sony Pictures, Universal, MGM, Paramount Pictures, 20th Century Fox, and Warner Brothers. Universal, Warner Brothers, and Sony also run major record companies as well."
     ],
-    "groundTruth": ""
+    "reference": ""
   },
   {
     "testCaseId": "squad2_priestley_1774",
@@ -147,7 +147,7 @@
     "context": [
       "In the meantime, on August 1, 1774, an experiment conducted by the British clergyman Joseph Priestley focused sunlight on mercuric oxide (HgO) inside a glass tube, which liberated a gas he named \"dephlogisticated air\". He noted that candles burned brighter in the gas and that a mouse was more active and lived longer while breathing it. After breathing the gas himself, he wrote: \"The feeling of it to my lungs was not sensibly different from that of common air, but I fancied that my breast felt peculiarly light and easy for some time afterwards.\" Priestley published his findings in 1775 in a paper titled \"An Account of Further Discoveries in Air\" which was included in the second volume of his book titled Experiments and Observations on Different Kinds of Air. Because he published his findings first, Priestley is usually given priority in the discovery."
     ],
-    "groundTruth": ""
+    "reference": ""
   },
   {
     "testCaseId": "squad2_hematite",
@@ -157,7 +157,7 @@
     "context": [
       "Oxygen is present in the atmosphere in trace quantities in the form of carbon dioxide (CO2). The Earth's crustal rock is composed in large part of oxides of silicon (silica SiO2, as found in granite and quartz), aluminium (aluminium oxide Al2O3, in bauxite and corundum), iron (iron(III) oxide Fe2O3, in hematite and rust), and calcium carbonate (in limestone). The rest of the Earth's crust is also made of oxygen compounds, in particular various complex silicates (in silicate minerals). The Earth's mantle, of much larger mass than the crust, is largely composed of silicates of magnesium and iron."
     ],
-    "groundTruth": ""
+    "reference": ""
   },
   {
     "testCaseId": "squad2_silas_cobb",
@@ -177,7 +177,7 @@
     "context": [
       "In cases where the criminalized behavior is pure speech, civil disobedience can consist simply of engaging in the forbidden speech. An example would be WBAI's broadcasting the track \"Filthy Words\" from a George Carlin comedy album, which eventually led to the 1978 Supreme Court case of FCC v. Pacifica Foundation. Threatening government officials is another classic way of expressing defiance toward the government and unwillingness to stand for its policies. For example, Joseph Haas was arrested for allegedly sending an email to the Lebanon, New Hampshire city councilors stating, \"Wise up or die.\""
     ],
-    "groundTruth": ""
+    "reference": ""
   },
   {
     "testCaseId": "squad2_packet_routing",
@@ -187,7 +187,7 @@
     "context": [
       "Packet mode communication may be implemented with or without intermediate forwarding nodes (packet switches or routers). Packets are normally forwarded by intermediate network nodes asynchronously using first-in, first-out buffering, but may be forwarded according to some scheduling discipline for fair queuing, traffic shaping, or for differentiated or guaranteed quality of service, such as weighted fair queuing or leaky bucket. In case of a shared physical medium (such as radio or 10BASE5), the packets may be delivered according to a multiple access scheme."
     ],
-    "groundTruth": ""
+    "reference": ""
   },
   {
     "testCaseId": "squad2_arpanet",
@@ -197,6 +197,6 @@
     "context": [
       "The CYCLADES packet switching network was a French research network designed and directed by Louis Pouzin. First demonstrated in 1973, it was developed to explore alternatives to the early ARPANET design and to support network research generally. It was the first network to make the hosts responsible for reliable delivery of data, rather than the network itself, using unreliable datagrams and associated end-to-end protocol mechanisms. Concepts of this network influenced later ARPANET architecture."
     ],
-    "groundTruth": ""
+    "reference": ""
   }
 ]
