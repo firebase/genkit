@@ -105,6 +105,19 @@ export const gemini15Pro = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini15Spark = modelRef({
+  name: 'googleai/gemini-1.5-spark-latest',
+  info: {
+    label: 'Google AI - Gemini 1.5 Spark',
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const geminiUltra = modelRef({
   name: 'googleai/gemini-ultra',
   info: {
@@ -123,6 +136,7 @@ export const SUPPORTED_MODELS: Record<string, ModelReference<z.ZodTypeAny>> = {
   'gemini-pro': geminiPro,
   'gemini-1.5-pro-latest': gemini15Pro,
   'gemini-pro-vision': geminiProVision,
+  'gemini-1.5-spark-latest': gemini15Spark,
   // 'gemini-ultra': geminiUltra,
 };
 
