@@ -30,10 +30,12 @@
   "author": "genkit",
   "license": "Apache-2.0",
   "dependencies": {
+    "@genkit-ai/ai": "workspace:*",
     "@genkit-ai/core": "workspace:*",
     "@genkit-ai/flow": "workspace:*",
+    "@google-cloud/firestore": "^7.6.0",
     "express": "^4.19.2",
-    "firebase-admin": "^11.11.0",
+    "firebase-admin": "^12.1.0",
     "firebase-functions": "^4.3.1",
     "google-auth-library": "^9.6.3",
     "zod": "^3.22.4"

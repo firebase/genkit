@@ -14,16 +14,21 @@
  * limitations under the License.
  */
 
-import { generate, generateStream } from '@genkit-ai/ai';
+import { generate, generateStream, retrieve } from '@genkit-ai/ai';
 import { defineTool } from '@genkit-ai/ai/tool';
 import { initializeGenkit } from '@genkit-ai/core';
+import { defineFirestoreRetriever } from '@genkit-ai/firebase';
 import { defineFlow, run } from '@genkit-ai/flow';
 import { geminiPro as googleGeminiPro } from '@genkit-ai/googleai';
-import { geminiPro } from '@genkit-ai/vertexai';
+import { geminiPro, textEmbeddingGecko } from '@genkit-ai/vertexai';
+import { initializeApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 import * as z from 'zod';
 import config from './genkit.config.js';
 
 initializeGenkit(config);
+
+const app = initializeApp();
 
 export const jokeFlow = defineFlow(
   {
@@ -156,6 +161,41 @@ export const multimodalFlow = defineFlow(
         { media: { url: input.imageUrl, contentType: 'image/jpeg' } },
       ],
     });
+    return result.text();
+  }
+);
+
+const destinationsRetriever = defineFirestoreRetriever({
+  name: 'destinationsRetriever',
+  firestore: getFirestore(app),
+  collection: 'destinations',
+  contentField: 'knownFor',
+  embedder: textEmbeddingGecko,
+  vectorField: 'embedding',
+});
+
+export const searchDestinations = defineFlow(
+  {
+    name: 'searchDestinations',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+  },
+  async (input) => {
+    const docs = await retrieve({
+      retriever: destinationsRetriever,
+      query: input,
+      options: { limit: 5 },
+    });
+
+    const result = await generate({
+      model: geminiPro,
+      prompt: `Give me a list of vacation options based on the provided context. Use only the options provided below, and describe how it fits with my query.
+      
+Query: ${input}
+
+Available Options:\n- ${docs.map((d) => `${d.metadata!.name}: ${d.text()}`).join('\n- ')}`,
+    });
+
     return result.text();
   }
 );
