@@ -54,7 +54,7 @@ const EVAL_RESULTS: EvalResult[] = [
       },
     ],
     traceIds: ['abc123', 'defhij'],
-    groundTruth: { structured: 'structured', output: 'output', other: 'other' },
+    reference: { structured: 'structured', output: 'output', other: 'other' },
   },
   {
     testCaseId: 'poqiweurqwepru',
@@ -340,14 +340,14 @@ carriage return\",,`;
             },
           ],
           traceIds: [],
-          groundTruth: 'This is the honest truth',
+          reference: 'This is the honest truth',
         },
       ];
 
       toCsv({ key: EVAL_RUN_KEY, results: evalResults }, CSV_OUTPUT_FILE);
 
       const expectedHeader =
-        'testCaseId,input,output,context,traceIds,groundTruth,faithfulness_score,faithfulness_rationale,faithfulness_error,faithfulness_traceId,faithfulness_spanId';
+        'testCaseId,input,output,context,traceIds,reference,faithfulness_score,faithfulness_rationale,faithfulness_error,faithfulness_traceId,faithfulness_spanId';
       const expectedRecord = `testCase1,input,output,[],[],This is the honest truth,0.5,faithful,,123,456`;
       expect(fs.promises.writeFile).toHaveBeenCalledWith(
         CSV_OUTPUT_FILE,

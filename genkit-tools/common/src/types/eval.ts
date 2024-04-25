@@ -31,7 +31,7 @@ export const EvalInputSchema = z.object({
   input: z.any(),
   output: z.any(),
   context: z.array(z.string()).optional(),
-  groundTruth: z.any().optional(),
+  reference: z.any().optional(),
   traceIds: z.array(z.string()),
 });
 export type EvalInput = z.infer<typeof EvalInputSchema>;
