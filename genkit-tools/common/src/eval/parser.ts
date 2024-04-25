@@ -18,8 +18,8 @@ import { Action } from '../types/action';
 import { EvalInput, EvalMetric, EvalResult } from '../types/eval';
 import { EvalResponse, TestCase } from '../types/evaluators';
 import {
-  EVALUATOR_METADATA_DEFINITION,
-  EVALUATOR_METADATA_DISPLAY_NAME,
+  EVALUATOR_METADATA_KEY_DEFINITION,
+  EVALUATOR_METADATA_KEY_DISPLAY_NAME,
 } from '../utils/eval';
 
 /**
@@ -63,8 +63,8 @@ export function extractMetricsMetadata(evaluatorActions: Action[]) {
   const metadata: Record<string, any> = {};
   for (const action of evaluatorActions) {
     metadata[action.name] = {
-      displayName: action.metadata![EVALUATOR_METADATA_DISPLAY_NAME],
-      definition: action.metadata![EVALUATOR_METADATA_DEFINITION],
+      displayName: action.metadata![EVALUATOR_METADATA_KEY_DISPLAY_NAME],
+      definition: action.metadata![EVALUATOR_METADATA_KEY_DEFINITION],
     };
   }
   return metadata;
