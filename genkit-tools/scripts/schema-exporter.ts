@@ -22,10 +22,10 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 
 /** List of files that contain types to be exported. */
 const EXPORTED_TYPE_MODULES = [
-  '../src/types/trace.ts',
-  '../src/types/retrievers.ts',
-  '../src/types/model.ts',
-  '../src/types/flow.ts',
+  '../common/src/types/trace.ts',
+  '../common/src/types/retrievers.ts',
+  '../common/src/types/model.ts',
+  '../common/src/types/flow.ts',
 ];
 
 /** Types that may appear that do not need to be included. */
