@@ -264,7 +264,7 @@ class Config {
  */
 export function configureGenkit(options: ConfigOptions): Config {
   if (config) {
-    throw new Error('configureGenkit was already called');
+    logger.warn('configureGenkit was already called');
   }
   config = new Config(options);
   config.setupTracingAndLogging();
