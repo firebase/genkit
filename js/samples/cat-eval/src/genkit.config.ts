@@ -16,13 +16,13 @@
 
 import { configureGenkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
-import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
+import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import {
-  VertexAIEvaluationMetric,
   textEmbeddingGecko,
   vertexAI,
+  VertexAIEvaluationMetricType,
 } from '@genkit-ai/vertexai';
 
 export default configureGenkit({
@@ -63,7 +63,17 @@ export default configureGenkit({
     vertexAI({
       location: 'us-central1',
       evaluation: {
-        metrics: [VertexAIEvaluationMetric.SAFETY],
+        metrics: [
+          VertexAIEvaluationMetricType.BLEU,
+          {
+            type: VertexAIEvaluationMetricType.ROUGE,
+            metricSpec: {
+              rougeType: 'rougeLsum',
+              useStemmer: true,
+              splitSummaries: 'true',
+            },
+          },
+        ],
       },
     }),
     devLocalVectorstore([

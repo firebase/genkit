@@ -23,7 +23,7 @@ import { ollama } from '@genkit-ai/ollama';
 import {
   textEmbeddingGecko,
   vertexAI,
-  VertexAIEvaluationMetric,
+  VertexAIEvaluationMetricType,
 } from '@genkit-ai/vertexai';
 import { chroma } from 'genkitx-chromadb';
 import { pinecone } from 'genkitx-pinecone';
@@ -52,8 +52,8 @@ export default configureGenkit({
       location: 'us-central1',
       evaluation: {
         metrics: [
-          VertexAIEvaluationMetric.GROUNDEDNESS,
-          VertexAIEvaluationMetric.SAFETY,
+          VertexAIEvaluationMetricType.GROUNDEDNESS,
+          VertexAIEvaluationMetricType.SAFETY,
         ],
       },
     }),

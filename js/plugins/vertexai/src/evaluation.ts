@@ -14,131 +14,220 @@
  * limitations under the License.
  */
 
-import { BaseDataPoint, defineEvaluator } from '@genkit-ai/ai/evaluator';
-import { runInNewSpan } from '@genkit-ai/core/tracing';
+import { BaseDataPoint } from '@genkit-ai/ai/evaluator';
+import { Action } from '@genkit-ai/core';
 import { GoogleAuth } from 'google-auth-library';
 import { JSONClient } from 'google-auth-library/build/src/auth/googleauth';
+import { EvaluatorFactory } from './evaluator_factory';
 
 /**
  * Vertex AI Evaluation metrics. See API documentation for more information.
  * https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/evaluation#parameter-list
  */
-export enum VertexAIEvaluationMetric {
+export enum VertexAIEvaluationMetricType {
   SAFETY = 'SAFETY',
   GROUNDEDNESS = 'GROUNDEDNESS',
+  BLEU = 'BLEU',
+  ROUGE = 'ROUGE',
 }
+
+/**
+ * Evaluation metric config. Use `metricSpec` to define the behavior of the metric.
+ * The value of `metricSpec` will be included in the request to the API. See the API documentation
+ * for details on the possible values of `metricSpec` for each metric.
+ * https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/evaluation#parameter-list
+ */
+export type VertexAIEvaluationMetricConfig = {
+  type: VertexAIEvaluationMetricType;
+  metricSpec: any;
+};
+
+export type VertexAIEvaluationMetric =
+  | VertexAIEvaluationMetricType
+  | VertexAIEvaluationMetricConfig;
 
 export function vertexEvaluators(
   auth: GoogleAuth<JSONClient>,
   metrics: VertexAIEvaluationMetric[],
   projectId: string,
   location: string
-) {
+): Action[] {
+  const factory = new EvaluatorFactory(auth, location, projectId);
   return metrics.map((metric) => {
-    switch (metric) {
-      case VertexAIEvaluationMetric.SAFETY: {
-        return defineEvaluator(
-          {
-            name: `vertexai/${metric.toLocaleLowerCase()}`,
-            displayName: 'Safety',
-            definition: 'Assesses the level of safety of an output',
-          },
-          async (datapoint: BaseDataPoint) => {
-            const response = await evaluateInstances(
-              auth,
-              location,
-              projectId,
-              {
-                safetyInput: {
-                  metricSpec: {},
-                  instance: {
-                    prediction: datapoint.output as string,
-                  },
-                },
-              }
-            );
+    const metricType = isConfig(metric) ? metric.type : metric;
+    const metricSpec = isConfig(metric) ? metric.metricSpec : {};
 
-            return {
-              testCaseId: datapoint.testCaseId,
-              evaluation: {
-                score: response.safetyResult?.score,
-                details: {
-                  reasoning: response.safetyResult?.explanation,
-                },
-              },
-            };
-          }
-        );
+    console.log(
+      `Creating evaluator for metric ${metricType} with metricSpec ${metricSpec}`
+    );
+
+    switch (metricType) {
+      case VertexAIEvaluationMetricType.BLEU: {
+        return createBleuEvaluator(factory, metricSpec);
       }
-      case VertexAIEvaluationMetric.GROUNDEDNESS: {
-        return defineEvaluator(
-          {
-            name: `vertexai/${metric.toLocaleLowerCase()}`,
-            displayName: 'Groundedness',
-            definition:
-              'Assesses the ability to provide or reference information included only in the context',
-          },
-          async (datapoint: BaseDataPoint) => {
-            if (!datapoint.context || datapoint.context.length == 0) {
-              throw new Error('Context was not provided');
-            }
-            const response = await evaluateInstances(
-              auth,
-              location,
-              projectId,
-              {
-                groundednessInput: {
-                  metricSpec: {},
-                  instance: {
-                    prediction: datapoint.output as string,
-                    context: datapoint.context.join('. '),
-                  },
-                },
-              }
-            );
-            return {
-              testCaseId: datapoint.testCaseId,
-              evaluation: {
-                score: response.groundednessResult?.score,
-                details: {
-                  reasoning: response.groundednessResult?.explanation,
-                },
-              },
-            };
-          }
-        );
+      case VertexAIEvaluationMetricType.ROUGE: {
+        return createRougeEvaluator(factory, metricSpec);
+      }
+      case VertexAIEvaluationMetricType.SAFETY: {
+        return createSafetyEvaluator(factory, metricSpec);
+      }
+      case VertexAIEvaluationMetricType.GROUNDEDNESS: {
+        return createGroundednessEvaluator(factory, metricSpec);
       }
     }
   });
 }
 
-async function evaluateInstances(
-  auth: GoogleAuth<JSONClient>,
-  location: string,
-  projectId: string,
-  partialRequest: any
-) {
-  const locationName = `projects/${projectId}/locations/${location}`;
-  return await runInNewSpan(
+function isConfig(
+  config: VertexAIEvaluationMetric
+): config is VertexAIEvaluationMetricConfig {
+  return (config as VertexAIEvaluationMetricConfig).type !== undefined;
+}
+
+// TODO: Add support for batch inputs
+function createBleuEvaluator(
+  factory: EvaluatorFactory,
+  metricSpec: any
+): Action {
+  return factory.create(
     {
-      metadata: {
-        name: 'EvaluationService#evaluateInstances',
-      },
+      metric: VertexAIEvaluationMetricType.BLEU,
+      displayName: 'BLEU',
+      definition:
+        'Computes the BLEU score by comparing the output against the ground truth',
     },
-    async (metadata, _otSpan) => {
-      const request = {
-        location: locationName,
-        ...partialRequest,
+    (datapoint) => {
+      if (!datapoint.reference) {
+        throw new Error('Reference is required');
+      }
+
+      return {
+        bleuInput: {
+          metricSpec,
+          instances: [
+            {
+              prediction: datapoint.output as string,
+              reference: datapoint.reference,
+            },
+          ],
+        },
       };
-      metadata.input = request;
-      const client = await auth.getClient();
-      const response = await client.request({
-        url: `https://${location}-aiplatform.googleapis.com/v1beta1/${locationName}:evaluateInstances`,
-        method: 'POST',
-        body: JSON.stringify(request),
-      });
-      metadata.output = response.data;
-      return response.data as any;
+    },
+    (response, datapoint) => {
+      return {
+        testCaseId: datapoint.testCaseId,
+        evaluation: {
+          score: response.bleuResults.bleuMetricValues[0].score,
+        },
+      };
+    }
+  );
+}
+
+// TODO: Add support for batch inputs
+function createRougeEvaluator(
+  factory: EvaluatorFactory,
+  metricSpec: any
+): Action {
+  return factory.create(
+    {
+      metric: VertexAIEvaluationMetricType.ROUGE,
+      displayName: 'ROUGE',
+      definition:
+        'Computes the ROUGE score by comparing the output against the ground truth',
+    },
+    (datapoint) => {
+      if (!datapoint.reference) {
+        throw new Error('Reference is required');
+      }
+
+      return {
+        rougeInput: {
+          metricSpec,
+          instances: {
+            prediction: datapoint.output as string,
+            reference: datapoint.reference,
+          },
+        },
+      };
+    },
+    (response, datapoint) => {
+      return {
+        testCaseId: datapoint.testCaseId,
+        evaluation: {
+          score: response.rougeResults.rougeMetricValues[0].score,
+        },
+      };
+    }
+  );
+}
+
+function createSafetyEvaluator(
+  factory: EvaluatorFactory,
+  metricSpec: any
+): Action {
+  return factory.create(
+    {
+      metric: VertexAIEvaluationMetricType.SAFETY,
+      displayName: 'Safety',
+      definition: 'Assesses the level of safety of an output',
+    },
+    (datapoint) => {
+      return {
+        safetyInput: {
+          metricSpec,
+          instance: {
+            prediction: datapoint.output as string,
+          },
+        },
+      };
+    },
+    (response: any, datapoint: BaseDataPoint) => {
+      return {
+        testCaseId: datapoint.testCaseId,
+        evaluation: {
+          score: response.safetyResult?.score,
+          details: {
+            reasoning: response.safetyResult?.explanation,
+          },
+        },
+      };
+    }
+  );
+}
+
+function createGroundednessEvaluator(
+  factory: EvaluatorFactory,
+  metricSpec: any
+): Action {
+  return factory.create(
+    {
+      metric: VertexAIEvaluationMetricType.GROUNDEDNESS,
+      displayName: 'Groundedness',
+      definition:
+        'Assesses the ability to provide or reference information included only in the context',
+    },
+    (datapoint) => {
+      return {
+        groundednessInput: {
+          metricSpec,
+          instance: {
+            prediction: datapoint.output as string,
+            context: datapoint.context?.join('. '),
+          },
+        },
+      };
+    },
+    (response: any, datapoint: BaseDataPoint) => {
+      return {
+        testCaseId: datapoint.testCaseId,
+        evaluation: {
+          score: response.groundedNessResult?.score,
+          details: {
+            reasoning: response.groundedNessResult?.explanation,
+          },
+        },
+      };
     }
   );
 }

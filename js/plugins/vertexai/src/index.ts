@@ -22,7 +22,11 @@ import {
   textEmbeddingGecko,
   textEmbeddingGeckoEmbedder,
 } from './embedder';
-import { VertexAIEvaluationMetric, vertexEvaluators } from './evaluation';
+import {
+  VertexAIEvaluationMetric,
+  VertexAIEvaluationMetricType,
+  vertexEvaluators,
+} from './evaluation';
 import {
   gemini15ProPreview,
   geminiModel,
@@ -38,7 +42,7 @@ export {
   geminiProVision,
   imagen2,
   textEmbeddingGecko,
-  VertexAIEvaluationMetric,
+  VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
 };
 
 export interface PluginOptions {
@@ -50,7 +54,7 @@ export interface PluginOptions {
   googleAuth?: GoogleAuthOptions;
   /** Configure Vertex AI evaluators */
   evaluation?: {
-    metrics: Array<VertexAIEvaluationMetric>;
+    metrics: VertexAIEvaluationMetric[];
   };
 }
 
