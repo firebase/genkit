@@ -39,6 +39,10 @@ func newTracingState() *tracingState {
 	}
 }
 
+func (ts *tracingState) registerSpanProcessor(sp sdktrace.SpanProcessor) {
+	ts.tp.RegisterSpanProcessor(sp)
+}
+
 // addTraceStoreImmediate adds tstore to the tracingState.
 // Traces are saved immediately as they are finshed.
 // Use this for a TraceStore with a fast Save method,
@@ -46,7 +50,7 @@ func newTracingState() *tracingState {
 func (ts *tracingState) addTraceStoreImmediate(tstore TraceStore) {
 	e := newTraceStoreExporter(tstore)
 	// Adding a SimpleSpanProcessor is like using the WithSyncer option.
-	ts.tp.RegisterSpanProcessor(sdktrace.NewSimpleSpanProcessor(e))
+	ts.registerSpanProcessor(sdktrace.NewSimpleSpanProcessor(e))
 	// Ignore tracerProvider.Shutdown. It shouldn't be needed when using WithSyncer.
 	// Confirmed for OTel packages as of v1.24.0.
 	// Also requires traceStoreExporter.Shutdown to be a no-op.
@@ -61,7 +65,7 @@ func (ts *tracingState) addTraceStoreImmediate(tstore TraceStore) {
 func (ts *tracingState) addTraceStoreBatch(tstore TraceStore) (shutdown func(context.Context) error) {
 	e := newTraceStoreExporter(tstore)
 	// Adding a BatchSpanProcessor is like using the WithBatcher option.
-	ts.tp.RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
+	ts.registerSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
 	return ts.tp.Shutdown
 }
 

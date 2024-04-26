@@ -22,6 +22,7 @@ import (
 	"slices"
 	"sync"
 
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/exp/maps"
 )
 
@@ -157,4 +158,15 @@ func (r *registry) lookupTraceStore(env Environment) TraceStore {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.traceStores[env]
+}
+
+// RegisterSpanProcessor registers an OpenTelemetry SpanProcessor for tracing.
+func RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
+	globalRegistry.registerSpanProcessor(sp)
+}
+
+func (r *registry) registerSpanProcessor(sp sdktrace.SpanProcessor) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.tstate.registerSpanProcessor(sp)
 }
