@@ -36,8 +36,8 @@ const (
 )
 
 type GenerateRequest struct {
-	Candidates int               `json:"candidates,omitempty"`
-	Config     *GenerationConfig `json:"config,omitempty"`
+	Candidates int `json:"candidates,omitempty"`
+	Config     any `json:"config,omitempty"`
 	// Messages is a list of messages to pass to the model. The first n-1 Messages
 	// are treated as history. The last Message is the current request.
 	Messages []*Message             `json:"messages,omitempty"`
@@ -63,14 +63,13 @@ type GenerateResponse struct {
 	Usage      *GenerationUsage `json:"usage,omitempty"`
 }
 
-type GenerationConfig struct {
-	Custom          map[string]any `json:"custom,omitempty"`
-	MaxOutputTokens int            `json:"maxOutputTokens,omitempty"`
-	StopSequences   []string       `json:"stopSequences,omitempty"`
-	Temperature     float64        `json:"temperature,omitempty"`
-	TopK            int            `json:"topK,omitempty"`
-	TopP            float64        `json:"topP,omitempty"`
-	Version         string         `json:"version,omitempty"`
+type GenerationCommonConfig struct {
+	MaxOutputTokens int      `json:"maxOutputTokens,omitempty"`
+	StopSequences   []string `json:"stopSequences,omitempty"`
+	Temperature     float64  `json:"temperature,omitempty"`
+	TopK            int      `json:"topK,omitempty"`
+	TopP            float64  `json:"topP,omitempty"`
+	Version         string   `json:"version,omitempty"`
 }
 
 type GenerationUsage struct {
