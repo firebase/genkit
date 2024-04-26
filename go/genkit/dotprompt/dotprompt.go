@@ -129,7 +129,7 @@ type Frontmatter struct {
 	Candidates int
 
 	// Details for the model.
-	Config *ai.GenerationConfig
+	Config *ai.GenerationCommonConfig
 
 	// Description of input data.
 	Input struct {
@@ -148,12 +148,12 @@ type Frontmatter struct {
 // We do it this way so that we can handle the input and output
 // fields as picoschema, while returning them as jsonschema.Schema.
 type frontmatterYAML struct {
-	Name       string               `yaml:"name,omitempty"`
-	Variant    string               `yaml:"variant,omitempty"`
-	Model      string               `yaml:"model,omitempty"`
-	Tools      []*ai.ToolDefinition `yaml:"tools,omitempty"`
-	Candidates int                  `yaml:"candidates,omitempty"`
-	Config     *ai.GenerationConfig `yaml:"config,omitempty"`
+	Name       string                     `yaml:"name,omitempty"`
+	Variant    string                     `yaml:"variant,omitempty"`
+	Model      string                     `yaml:"model,omitempty"`
+	Tools      []*ai.ToolDefinition       `yaml:"tools,omitempty"`
+	Candidates int                        `yaml:"candidates,omitempty"`
+	Config     *ai.GenerationCommonConfig `yaml:"config,omitempty"`
 	Input      struct {
 		Schema  any            `yaml:"schema,omitempty"`
 		Default map[string]any `yaml:"default,omitempty"`
