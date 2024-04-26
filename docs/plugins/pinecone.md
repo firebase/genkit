@@ -8,7 +8,7 @@ The Pinecone plugin provides indexer and retriever implementatons that use the
 To use this plugin, specify it when you call `configureGenkit()`:
 
 ```js
-import { pinecone } from '@genkit-ai/pinecone';
+import { pinecone } from 'genkitx-pinecone';
 
 export default configureGenkit({
   plugins: [
@@ -47,7 +47,7 @@ ways to do this:
 You can create and use retriever and indexer references like so:
 
 ```js
-import { pineconeRetrieverRef } from '@genkit-ai/pinecone';
+import { pineconeRetrieverRef } from 'genkitx-pinecone';
 
 // To use the index you configured when you loaded the plugin:
 let docs = await retrieve({ retriever: pineconeRetrieverRef, query });
@@ -60,7 +60,7 @@ docs = await retrieve({ retriever: bobFactsRetriever, query });
 ```
 
 ```js
-import { pineconeIndexerRef } from '@genkit-ai/pinecone';
+import { pineconeIndexerRef } from 'genkitx-pinecone';
 
 // To use the index you configured when you loaded the plugin:
 await index({ indexer: pineconeIndexerRef, documents });

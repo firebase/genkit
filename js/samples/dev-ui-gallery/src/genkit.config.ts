@@ -14,19 +14,19 @@
  * limitations under the License.
  */
 
-import { chroma } from '@genkit-ai/chromadb';
 import { configureGenkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import { ollama } from '@genkit-ai/ollama';
-import { pinecone } from '@genkit-ai/pinecone';
 import {
   textEmbeddingGecko,
   vertexAI,
   VertexAIEvaluationMetric,
 } from '@genkit-ai/vertexai';
+import { chroma } from 'genkitx-chromadb';
+import { pinecone } from 'genkitx-pinecone';
 
 export default configureGenkit({
   // settings

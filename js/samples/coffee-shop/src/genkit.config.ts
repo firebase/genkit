@@ -17,14 +17,14 @@
 import { configureGenkit } from '@genkit-ai/core';
 
 // plugins
-import { chroma } from '@genkit-ai/chromadb';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import { ollama } from '@genkit-ai/ollama';
-import { pinecone } from '@genkit-ai/pinecone';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+import { chroma } from 'genkitx-chromadb';
+import { pinecone } from 'genkitx-pinecone';
 
 // Not all plugins configured below are used by the flow, but we load
 // "everything" for UI development and testing.

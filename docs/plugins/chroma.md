@@ -8,7 +8,7 @@ The Chroma plugin provides indexer and retriever implementatons that use the
 To use this plugin, specify it when you call `configureGenkit()`:
 
 ```js
-import { chroma } from '@genkit-ai/chromadb';
+import { chroma } from 'genkitx-chromadb';
 
 export default configureGenkit({
   plugins: [
@@ -49,7 +49,7 @@ addition, there are two optional parameters:
 You can create and use retriever and indexer references like so:
 
 ```js
-import { chromaRetrieverRef } from '@genkit-ai/chromadb';
+import { chromaRetrieverRef } from 'genkitx-chromadb';
 
 // To use the index you configured when you loaded the plugin:
 let docs = await retrieve({ retriever: chromaRetrieverRef, query });
@@ -62,7 +62,7 @@ docs = await retrieve({ retriever: bobFactsRetriever, query });
 ```
 
 ```js
-import { chromaIndexerRef } from '@genkit-ai/chromadb';
+import { chromaIndexerRef } from 'genkitx-chromadb';
 
 // To use the index you configured when you loaded the plugin:
 await index({ indexer: chromaIndexerRef, documents });
