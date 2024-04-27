@@ -44,51 +44,51 @@
   "exports": {
     ".": {
       "types": "./lib/index.d.ts",
-      "default": "./lib/index.js",
       "require": "./lib/index.js",
-      "import": "./lib/index.mjs"
+      "import": "./lib/index.mjs",
+      "default": "./lib/index.js"
     },
     "./retriever": {
       "types": "./lib/retriever.d.ts",
-      "default": "./lib/retriever.js",
       "require": "./lib/retriever.js",
-      "import": "./lib/retriever.mjs"
+      "import": "./lib/retriever.mjs",
+      "default": "./lib/retriever.js"
     },
     "./embedder": {
       "types": "./lib/embedder.d.ts",
-      "default": "./lib/embedder.js",
       "require": "./lib/embedder.js",
-      "import": "./lib/embedder.mjs"
+      "import": "./lib/embedder.mjs",
+      "default": "./lib/embedder.js"
     },
     "./evaluator": {
       "types": "./lib/evaluator.d.ts",
-      "default": "./lib/evaluator.js",
       "require": "./lib/evaluator.js",
-      "import": "./lib/evaluator.mjs"
+      "import": "./lib/evaluator.mjs",
+      "default": "./lib/evaluator.js"
     },
     "./model": {
       "types": "./lib/model.d.ts",
-      "default": "./lib/model.js",
       "require": "./lib/model.js",
-      "import": "./lib/model.mjs"
+      "import": "./lib/model.mjs",
+      "default": "./lib/model.js"
     },
     "./model/middleware": {
       "types": "./lib/model/middleware.d.ts",
-      "default": "./lib/model/middleware.js",
       "require": "./lib/model/middleware.js",
-      "import": "./lib/model/middleware.mjs"
+      "import": "./lib/model/middleware.mjs",
+      "default": "./lib/model/middleware.js"
     },
     "./extract": {
       "types": "./lib/extract.d.ts",
-      "default": "./lib/extract.js",
       "require": "./lib/extract.js",
-      "import": "./lib/extract.mjs"
+      "import": "./lib/extract.mjs",
+      "default": "./lib/extract.js"
     },
     "./tool": {
       "types": "./lib/tool.d.ts",
-      "default": "./lib/tool.js",
       "require": "./lib/tool.js",
-      "import": "./lib/tool.mjs"
+      "import": "./lib/tool.mjs",
+      "default": "./lib/tool.js"
     }
   },
   "typesVersions": {
