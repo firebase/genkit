@@ -58,14 +58,14 @@
     ".": {
       "types": "./lib/index.d.ts",
       "require": "./lib/index.js",
-      "default": "./lib/index.js",
-      "import": "./lib/index.mjs"
+      "import": "./lib/index.mjs",
+      "default": "./lib/index.js"
     },
     "./experimental": {
       "types": "./lib/experimental.d.ts",
       "require": "./lib/experimental.js",
-      "default": "./lib/experimental.js",
-      "import": "./lib/experimental.mjs"
+      "import": "./lib/experimental.mjs",
+      "default": "./lib/experimental.js"
     }
   },
   "typesVersions": {

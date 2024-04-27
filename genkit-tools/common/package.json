@@ -57,8 +57,8 @@
     ".": {
       "require": "./lib/cjs/types/index.js",
       "import": "./lib/esm/types/index.js",
-      "default": "./lib/esm/types/index.js",
-      "types": "./lib/types/types/index.d.ts"
+      "types": "./lib/types/types/index.d.ts",
+      "default": "./lib/esm/types/index.js"
     },
     "./eval": {
       "types": "./lib/types/eval/index.d.ts",

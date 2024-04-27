@@ -48,9 +48,9 @@
   "exports": {
     ".": {
       "require": "./lib/index.js",
-      "default": "./lib/index.js",
       "import": "./lib/index.mjs",
-      "types": "./lib/index.d.ts"
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
     }
   }
 }
