@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"maps"
 	"reflect"
+	"time"
 
 	"github.com/invopop/jsonschema"
 )
@@ -109,7 +110,15 @@ func (a *Action[I, O, S]) Run(ctx context.Context, input I, cb StreamingCallback
 	}
 	return runInNewSpan(ctx, tstate, a.name, "action", false, input,
 		func(ctx context.Context, input I) (O, error) {
-			return a.fn(ctx, input, cb)
+			start := time.Now()
+			out, err := a.fn(ctx, input, cb)
+			latency := time.Since(start)
+			if err != nil {
+				writeActionFailure(ctx, a.name, latency, err)
+				return zero[O](), err
+			}
+			writeActionSuccess(ctx, a.name, latency)
+			return out, nil
 		})
 }
 

@@ -19,26 +19,53 @@ package googlecloud
 import (
 	"context"
 	"os"
+	"time"
 
+	mexporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"github.com/google/genkit/go/genkit"
+	"go.opentelemetry.io/otel"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
+type Options struct {
+	// Export to Google Cloud even in the dev environment.
+	ForceExport bool
+
+	// The interval for exporting metric data.
+	// The default is 60 seconds.
+	MetricInterval time.Duration
+}
+
 // Init initializes all telemetry in this package.
-// If forceExport is false, telemetry will not be exported to Google Cloud in the
-// dev environment.
-func Init(ctx context.Context, projectID string, forceExport bool) error {
-	shouldExport := forceExport || os.Getenv("GENKIT_ENV") != "dev"
+// In the dev environment, this does nothing unless [Options.ForceExport] is true.
+func Init(ctx context.Context, projectID string, opts *Options) error {
+	if opts == nil {
+		opts = &Options{}
+	}
+	shouldExport := opts.ForceExport || os.Getenv("GENKIT_ENV") != "dev"
 	if !shouldExport {
 		return nil
 	}
 	// Add a SpanProcessor for tracing.
-	e, err := texporter.New(texporter.WithProjectID(projectID))
+	texp, err := texporter.New(texporter.WithProjectID(projectID))
 	if err != nil {
 		return err
 	}
 	// TODO(jba): hide PII, perform other adjustments; see AdjustingTraceExporter in the js.
-	genkit.RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
+	genkit.RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(texp))
+
+	return setMeterProvider(projectID, opts.MetricInterval)
+}
+
+func setMeterProvider(projectID string, interval time.Duration) error {
+	mexp, err := mexporter.New(mexporter.WithProjectID(projectID))
+	if err != nil {
+		return err
+	}
+	r := sdkmetric.NewPeriodicReader(mexp, sdkmetric.WithInterval(interval))
+	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(r))
+	otel.SetMeterProvider(mp)
 	return nil
 }
