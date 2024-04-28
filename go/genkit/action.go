@@ -39,11 +39,10 @@ type Func[I, O, S any] func(context.Context, I, StreamingCallback[S]) (O, error)
 // functions who should stream their responses.
 type StreamingCallback[S any] func(context.Context, S) error
 
-type nostream int
-
 // NoStream indicates that the action or flow does not support streaming.
 // A Func[I, O, NoStream] will ignore its streaming callback.
-type NoStream = StreamingCallback[nostream]
+// Such a function corresponds to a Flow[I, O, struct{}].
+type NoStream = StreamingCallback[struct{}]
 
 // An Action is a function with a name.
 // It consists of a function that takes an input of type I and returns an output
@@ -66,7 +65,7 @@ type Action[I, O, S any] struct {
 // See js/common/src/types.ts
 
 // NewAction creates a new Action with the given name and non-streaming function.
-func NewAction[I, O any](name string, fn func(context.Context, I) (O, error)) *Action[I, O, nostream] {
+func NewAction[I, O any](name string, fn func(context.Context, I) (O, error)) *Action[I, O, struct{}] {
 	return NewStreamingAction(name, func(ctx context.Context, in I, cb NoStream) (O, error) {
 		return fn(ctx, in)
 	})
