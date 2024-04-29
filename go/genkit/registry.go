@@ -118,6 +118,13 @@ func (r *registry) lookupAction(key string) action {
 	return r.actions[key]
 }
 
+// LookupAction returns the action for the given key in the global registry,
+// or nil if there is none.
+func LookupAction(typ ActionType, provider, name string) action {
+	key := fmt.Sprintf("/%s/%s/%s", typ, provider, name)
+	return globalRegistry.lookupAction(key)
+}
+
 // listActions returns a list of descriptions of all registered actions.
 // The list is sorted by action name.
 func (r *registry) listActions() []actionDesc {

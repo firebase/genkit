@@ -16,6 +16,7 @@ package ai
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/genkit/go/genkit"
 )
@@ -30,4 +31,33 @@ type Generator interface {
 func RegisterGenerator(name string, generator Generator) {
 	genkit.RegisterAction(genkit.ActionTypeModel, name,
 		genkit.NewStreamingAction(name, generator.Generate))
+}
+
+// generatorActionType is the instantiated genkit.Action type registered
+// by RegisterGenerator.
+// TODO(ianlancetaylor, randall77): add streaming support
+type generatorActionType = genkit.Action[*GenerateRequest, *GenerateResponse, struct{}]
+
+// LookupGeneratorAction looks up an action registered by [RegisterGenerator]
+// and returns a generator that invokes the action.
+func LookupGeneratorAction(name string) (Generator, error) {
+	action := genkit.LookupAction(genkit.ActionTypeModel, name, name)
+	if action == nil {
+		return nil, fmt.Errorf("LookupGeneratorAction: no generator action named %q", name)
+	}
+	actionInst, ok := action.(*generatorActionType)
+	if !ok {
+		return nil, fmt.Errorf("LookupGeneratorAction: generator action %q has type %T, want %T", name, action, &generatorActionType{})
+	}
+	return &generatorAction{actionInst}, nil
+}
+
+// generatorAction implements Generator by invoking an action.
+type generatorAction struct {
+	action *generatorActionType
+}
+
+// Generate implements Generator.
+func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest, cb genkit.NoStream) (*GenerateResponse, error) {
+	return ga.action.Run(ctx, input, cb)
 }
