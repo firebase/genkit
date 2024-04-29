@@ -14,9 +14,17 @@
  * limitations under the License.
  */
 
+import { ModelReference } from '@genkit-ai/ai/model';
 import { genkitPlugin, Plugin } from '@genkit-ai/core';
 import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
+import {
+  anthropicModel,
+  claude3Haiku,
+  claude3Opus,
+  claude3Sonnet,
+  SUPPORTED_ANTHROPIC_MODELS,
+} from './anthropic';
 import {
   SUPPORTED_EMBEDDER_MODELS,
   textEmbeddingGecko,
@@ -37,6 +45,9 @@ import {
 import { imagen2, imagen2Model } from './imagen';
 
 export {
+  claude3Haiku,
+  claude3Opus,
+  claude3Sonnet,
   gemini15ProPreview,
   geminiPro,
   geminiProVision,
@@ -56,6 +67,7 @@ export interface PluginOptions {
   evaluation?: {
     metrics: VertexAIEvaluationMetric[];
   };
+  modelGardenModels?: ModelReference<any>[];
 }
 
 /**
@@ -89,13 +101,28 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       options?.evaluation && options.evaluation.metrics.length > 0
         ? options.evaluation.metrics
         : [];
+
+    const models = [
+      imagen2Model(authClient, { projectId, location }),
+      ...Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
+        geminiModel(name, vertexClient)
+      ),
+    ];
+
+    if (options?.modelGardenModels) {
+      options?.modelGardenModels.forEach((m) => {
+        const entry = Object.entries(SUPPORTED_ANTHROPIC_MODELS).find(
+          ([_, value]) => value.name === m.name
+        );
+        if (!entry) {
+          throw new Error(`Unsupported model garden model: ${m.name}`);
+        }
+        models.push(anthropicModel(entry[0], projectId, location));
+      });
+    }
+
     return {
-      models: [
-        imagen2Model(authClient, { projectId, location }),
-        ...Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
-          geminiModel(name, vertexClient)
-        ),
-      ],
+      models,
       embedders: [
         ...Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
           textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
