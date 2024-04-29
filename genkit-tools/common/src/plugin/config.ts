@@ -23,15 +23,21 @@ import { TraceDataSchema } from '../types/trace';
 import { ToolPluginSchema } from './plugins';
 
 const CONFIG_NAME = 'genkit-tools.conf.js';
-const EVAL_FIELDS = ['input', 'output', 'context'] as const;
+export const EVAL_FIELDS = ['input', 'output', 'context'] as const;
+export type EvalField = (typeof EVAL_FIELDS)[number];
 
 const InputSelectorSchema = z.object({
   inputOf: z.string(),
 });
+export type InputStepSelector = z.infer<typeof InputSelectorSchema>;
+
 const OutputSelectorSchema = z.object({
   outputOf: z.string(),
 });
+export type OutputStepSelector = z.infer<typeof OutputSelectorSchema>;
+
 const StepSelectorSchema = z.union([InputSelectorSchema, OutputSelectorSchema]);
+export type StepSelector = z.infer<typeof StepSelectorSchema>;
 
 const EvaluationExtractorSchema = z.record(
   z.enum(EVAL_FIELDS),
@@ -41,13 +47,19 @@ const EvaluationExtractorSchema = z.record(
     z.function().args(TraceDataSchema).returns(z.string()), // custom trace extractor
   ])
 );
+export type EvaluationExtractor = z.infer<typeof EvaluationExtractorSchema>;
+
+export function isEvalField(input: string): input is EvalField {
+  const foundField = EVAL_FIELDS.some((v) => v === input);
+  return !!foundField;
+}
 
 const EvaluatorConfig = z.object({
   flowName: z
     .string()
     .describe('specify which flow this config is for')
     .optional(),
-  extractors: z.optional(EvaluationExtractorSchema),
+  extractors: EvaluationExtractorSchema,
 });
 
 const ToolsConfigSchema = z

@@ -15,12 +15,9 @@
  */
 
 import {
-  DocumentData,
   EvalInput,
   FlowInvokeEnvelopeMessage,
   FlowState,
-  RetrieverResponse,
-  SpanData,
 } from '@genkit-ai/tools-common';
 import {
   EvalExporter,
@@ -33,6 +30,7 @@ import { Runner } from '@genkit-ai/tools-common/runner';
 import {
   confirmLlmUse,
   evaluatorName,
+  getEvalExtractors,
   isEvaluator,
   logger,
   runInRunnerThenStop,
@@ -231,9 +229,13 @@ async function fetchDataSet(
   flowName: string,
   states: FlowState[]
 ): Promise<EvalInput[]> {
+  const extractors = await getEvalExtractors(flowName);
   return await Promise.all(
     states.map(async (s) => {
       const traceIds = s.executions.flatMap((e) => e.traceIds);
+      if (traceIds.length > 1) {
+        logger.warn('The flow is split across multiple traces');
+      }
 
       const traces = await Promise.all(
         traceIds.map(async (traceId) =>
@@ -247,54 +249,21 @@ async function fetchDataSet(
         )
       );
 
-      let rootSpan: SpanData | undefined = undefined;
-      let retrievers: SpanData[] = [];
-      for (const trace of traces) {
-        const tempRootSpan = Object.values(trace.spans).find(
-          (s) =>
-            s.attributes['genkit:type'] === 'flow' &&
-            s.attributes['genkit:metadata:flow:name'] === flowName &&
-            s.attributes['genkit:metadata:flow:state'] === 'done'
-        );
-
-        if (tempRootSpan) {
-          rootSpan = tempRootSpan;
-        }
-
-        retrievers.push(
-          ...Object.values(trace.spans).filter(
-            (s) => s.attributes['genkit:metadata:subtype'] === 'retriever'
-          )
-        );
-      }
-
-      if (retrievers.length > 1) {
-        logger.warn('The flow contains multiple retrieve actions.');
-      }
-
-      const context = retrievers.flatMap((s) => {
-        const output: RetrieverResponse = JSON.parse(
-          s.attributes['genkit:output'] as string
-        );
-        if (!output) {
-          return [];
-        }
-        return output.documents.flatMap((d: DocumentData) => {
-          return d.content
-            .map((c) => c.text)
-            .filter((text): text is string => !!text);
-        });
+      let inputs: string[] = [];
+      let outputs: string[] = [];
+      let contexts: string[] = [];
+      traces.forEach((trace) => {
+        inputs.push(extractors.input(trace));
+        outputs.push(extractors.output(trace));
+        contexts.push(extractors.context(trace));
       });
 
-      if (!rootSpan) {
-        // TODO: Handle error case
-      }
-
       return {
+        // TODO Replace this with unified trace class
         testCaseId: randomUUID(),
-        input: rootSpan!.attributes['genkit:input'],
-        output: rootSpan!.attributes['genkit:output'],
-        context,
+        input: inputs[0],
+        output: outputs[0],
+        context: contexts,
         traceIds,
       };
     })

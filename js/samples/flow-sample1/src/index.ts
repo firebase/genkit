@@ -286,6 +286,28 @@ export const flowMultiStepCaughtError = defineFlow(
   }
 );
 
+export const multiSteps = defineFlow(
+  { name: 'multiSteps', inputSchema: z.string(), outputSchema: z.number() },
+  async (input) => {
+    const out1 = await run('step1', async () => {
+      return `Hello, ${input}! step 1`;
+    });
+    await run('step1', async () => {
+      return `Hello2222, ${input}! step 1`;
+    });
+    const out2 = await run('step2', out1, async () => {
+      return out1 + ' Faf ';
+    });
+    const out3 = await run('step3-array', async () => {
+      return [out2, out2];
+    });
+    const out4 = await run('step4-num', async () => {
+      return out3.join('-()-');
+    });
+    return 42;
+  }
+);
+
 export const largeSteps = defineFlow({ name: 'largeSteps' }, async () => {
   await run('large-step1', async () => {
     return generateString(100_000);

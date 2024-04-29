@@ -15,8 +15,22 @@
  */
 
 import * as inquirer from 'inquirer';
+import {
+  EvalField,
+  EvaluationExtractor,
+  InputStepSelector,
+  OutputStepSelector,
+  StepSelector,
+  findToolsConfig,
+  isEvalField,
+} from '../plugin';
 import { Action } from '../types/action';
+import { DocumentData, RetrieverResponse } from '../types/retrievers';
+import { SpanData, TraceData } from '../types/trace';
 import { logger } from './logger';
+
+export type EvalExtractorFn = (t: TraceData) => string;
+const JSON_EMPTY_STRING = '""';
 
 export const EVALUATOR_ACTION_PREFIX = '/evaluator';
 
@@ -64,4 +78,132 @@ export async function confirmLlmUse(
   ]);
 
   return answers.confirm;
+}
+
+function getRootSpan(trace: TraceData): SpanData | undefined {
+  return Object.values(trace.spans).find(
+    (s) =>
+      s.attributes['genkit:type'] === 'flow' &&
+      s.attributes['genkit:metadata:flow:state'] === 'done'
+  );
+}
+
+const DEFAULT_INPUT_EXTRACTOR: EvalExtractorFn = (trace: TraceData) => {
+  const rootSpan = getRootSpan(trace);
+  return (rootSpan?.attributes['genkit:input'] as string) || JSON_EMPTY_STRING;
+};
+const DEFAULT_OUTPUT_EXTRACTOR: EvalExtractorFn = (trace: TraceData) => {
+  const rootSpan = getRootSpan(trace);
+  return (rootSpan?.attributes['genkit:output'] as string) || JSON_EMPTY_STRING;
+};
+const DEFAULT_CONTEXT_EXTRACTOR: EvalExtractorFn = (trace: TraceData) => {
+  return JSON.stringify(
+    Object.values(trace.spans)
+      .filter((s) => s.attributes['genkit:metadata:subtype'] === 'retriever')
+      .flatMap((s) => {
+        const output: RetrieverResponse = JSON.parse(
+          s.attributes['genkit:output'] as string
+        );
+        if (!output) {
+          return [];
+        }
+        return output.documents.flatMap((d: DocumentData) =>
+          d.content.map((c) => c.text).filter((text): text is string => !!text)
+        );
+      })
+  );
+};
+
+const DEFAULT_EXTRACTORS: Record<EvalField, EvalExtractorFn> = {
+  input: DEFAULT_INPUT_EXTRACTOR,
+  output: DEFAULT_OUTPUT_EXTRACTOR,
+  context: DEFAULT_CONTEXT_EXTRACTOR,
+};
+
+function getStepAttribute(
+  trace: TraceData,
+  stepName: string,
+  attributeName?: string
+): string {
+  // Default to output
+  const attr = attributeName ?? 'genkit:output';
+  const values = Object.values(trace.spans)
+    .filter((step) => step.displayName === stepName)
+    .flatMap((step) => {
+      return JSON.parse(step.attributes[attr] as string);
+    });
+  if (values.length === 0) {
+    return JSON_EMPTY_STRING;
+  }
+  if (values.length === 1) {
+    return JSON.stringify(values[0]);
+  }
+  // Return array if multiple steps have the same name
+  return JSON.stringify(values);
+}
+
+function getExtractorFromStepName(stepName: string): EvalExtractorFn {
+  return (trace: TraceData) => {
+    return getStepAttribute(trace, stepName);
+  };
+}
+
+function getExtractorFromStepSelector(
+  stepSelector: StepSelector
+): EvalExtractorFn {
+  return (trace: TraceData) => {
+    let stepName: string | undefined = undefined;
+    let selectedAttribute: string = 'genkit:output'; // default
+
+    if (Object.hasOwn(stepSelector, 'inputOf')) {
+      stepName = (stepSelector as InputStepSelector).inputOf;
+      selectedAttribute = 'genkit:input';
+    } else {
+      stepName = (stepSelector as OutputStepSelector).outputOf;
+      selectedAttribute = 'genkit:output';
+    }
+    if (!stepName) {
+      return JSON_EMPTY_STRING;
+    } else {
+      return getStepAttribute(trace, stepName, selectedAttribute);
+    }
+  };
+}
+
+function getExtractorMap(extractor: EvaluationExtractor) {
+  let extractorMap: Record<EvalField, EvalExtractorFn> = {} as Record<
+    EvalField,
+    EvalExtractorFn
+  >;
+  for (const [key, value] of Object.entries(extractor)) {
+    if (isEvalField(key)) {
+      if (typeof value === 'string') {
+        extractorMap[key] = getExtractorFromStepName(value);
+      } else if (typeof value === 'object') {
+        extractorMap[key] = getExtractorFromStepSelector(value);
+      } else if (typeof value === 'function') {
+        extractorMap[key] = value;
+      }
+    }
+  }
+  return extractorMap;
+}
+
+export async function getEvalExtractors(
+  flowName: string
+): Promise<Record<string, EvalExtractorFn>> {
+  const config = await findToolsConfig();
+  logger.info(`Found tools config... ${JSON.stringify(config)}`);
+  const extractors = config?.evaluators
+    ?.filter((e) => e.flowName === flowName)
+    .map((e) => e.extractors);
+  if (!extractors) {
+    return Promise.resolve(DEFAULT_EXTRACTORS);
+  }
+  let composedExtractors = DEFAULT_EXTRACTORS;
+  for (const extractor of extractors) {
+    const extractorFunction = getExtractorMap(extractor);
+    composedExtractors = { ...composedExtractors, ...extractorFunction };
+  }
+  return Promise.resolve(composedExtractors);
 }
