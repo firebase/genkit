@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
+import { EnvTypes, EvalInput, TraceData } from '@genkit-ai/tools-common';
 import {
-  DocumentData,
-  EnvTypes,
-  EvalInput,
-  RetrieverResponse,
-} from '@genkit-ai/tools-common';
-import { logger, runInRunnerThenStop } from '@genkit-ai/tools-common/utils';
+  getEvalExtractors,
+  logger,
+  runInRunnerThenStop,
+} from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { randomUUID } from 'crypto';
 import { writeFile } from 'fs/promises';
@@ -44,6 +43,7 @@ export const evalExtractData = new Command('eval:extractData')
   .option('--label [label]', 'label flow run in this batch')
   .action(async (flowName: string, options: EvalDatasetOptions) => {
     await runInRunnerThenStop(async (runner) => {
+      const extractors = await getEvalExtractors(flowName);
       logger.info(`Extracting trace data '/flow/${flowName}'...`);
 
       let dataset: EvalInput[] = [];
@@ -72,32 +72,19 @@ export const evalExtractData = new Command('eval:extractData')
             if (!rootSpan) {
               return undefined;
             }
-            const context: string[] = Object.values(t.spans)
-              .filter(
-                (s) => s.attributes['genkit:metadata:subtype'] === 'retriever'
-              )
-              .flatMap((s) => {
-                const output: RetrieverResponse = JSON.parse(
-                  s.attributes['genkit:output'] as string
-                );
-                if (!output) {
-                  return [];
-                }
-                return output.documents.flatMap((d: DocumentData) =>
-                  d.content
-                    .map((c) => c.text)
-                    .filter((text): text is string => !!text)
-                );
-              });
+            return t;
+          })
+          .filter((t): t is TraceData => !!t)
+          .map((trace) => {
             return {
               testCaseId: randomUUID(),
-              input: rootSpan?.attributes['genkit:input'],
-              output: rootSpan?.attributes['genkit:output'],
-              context,
+              input: extractors.input(trace),
+              output: extractors.output(trace),
+              context: JSON.parse(extractors.context(trace)) as string[],
               // The trace (t) does not contain the traceId, so we have to pull it out of the
               // spans, de- dupe, and turn it back into an array.
               traceIds: Array.from(
-                new Set(Object.values(t.spans).map((span) => span.traceId))
+                new Set(Object.values(trace.spans).map((span) => span.traceId))
               ),
             } as EvalInput;
           })
