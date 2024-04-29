@@ -302,17 +302,22 @@ func (f *Flow[I, O, S]) execute(ctx context.Context, state *flowState[I, O], dis
 		exec.TraceIDs = append(exec.TraceIDs, traceID)
 		// TODO(jba): Save rootSpanContext in the state.
 		// TODO(jba): If input is missing, get it from state.input and overwrite metadata.input.
+		start := time.Now()
 		output, err := f.fn(ctx, input, cb)
+		latency := time.Since(start)
 		if err != nil {
 			// TODO(jba): handle InterruptError
 			logger(ctx).Error("flow failed",
 				"path", spanMeta.Path,
 				"err", err.Error(),
 			)
+			writeFlowFailure(ctx, f.name, latency, err)
 			spanMeta.SetAttr("flow:state", "error")
 		} else {
 			logger(ctx).Info("flow succeeded", "path", spanMeta.Path)
+			writeFlowSuccess(ctx, f.name, latency)
 			spanMeta.SetAttr("flow:state", "done")
+
 		}
 		// TODO(jba): telemetry
 		return output, nil

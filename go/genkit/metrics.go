@@ -27,6 +27,8 @@ import (
 type metricInstruments struct {
 	actionCounter   metric.Int64Counter
 	actionLatencies metric.Int64Histogram
+	flowCounter     metric.Int64Counter
+	flowLatencies   metric.Int64Histogram
 }
 
 // Delay instrument creation until first use to ensure that
@@ -53,31 +55,66 @@ func initInstruments() (*metricInstruments, error) {
 	if err != nil {
 		return nil, err
 	}
+	insts.flowCounter, err = meter.Int64Counter("flow.requests")
+	if err != nil {
+		return nil, err
+	}
+	insts.flowLatencies, err = meter.Int64Histogram("flow.latency", metric.WithUnit("ms"))
+	if err != nil {
+		return nil, err
+	}
 	return insts, nil
 }
 
 func writeActionSuccess(ctx context.Context, actionName string, latency time.Duration) {
-	recordAction(ctx, latency, attribute.String("actionName", actionName))
+	recordAction(ctx, latency, attribute.String("name", actionName))
 }
 
 func writeActionFailure(ctx context.Context, actionName string, latency time.Duration, err error) {
-	code := 0
-	// Support errors that have a numeric code.
-	if cerr, ok := err.(interface{ Code() int }); ok {
-		code = cerr.Code()
-	}
-	recordAction(ctx, latency, attribute.String("actionName", actionName),
-		attribute.Int("errorCode", code),
+	recordAction(ctx, latency, attribute.String("name", actionName),
+		attribute.Int("errorCode", errorCode(err)),
 		// TODO(jba): Mitigate against high-cardinality dimensions that arise from
 		// many different error messages, perhaps by taking a prefix of the error
 		// message.
 		attribute.String("errorMessage", err.Error()))
 }
 
+func errorCode(err error) int {
+	// Support errors that have a numeric code.
+	if cerr, ok := err.(interface{ Code() int }); ok {
+		return cerr.Code()
+	}
+	return 0
+}
+
 func recordAction(ctx context.Context, latency time.Duration, attrs ...attribute.KeyValue) {
 	if insts := fetchInstruments(); insts != nil {
-		opt := metric.WithAttributes(attrs...)
-		insts.actionCounter.Add(ctx, 1, opt)
-		insts.actionLatencies.Record(ctx, latency.Milliseconds(), opt)
+		recordCountAndLatency(ctx, insts.actionCounter, insts.actionLatencies, latency, attrs...)
 	}
+}
+
+func writeFlowSuccess(ctx context.Context, flowName string, latency time.Duration) {
+	recordFlow(ctx, latency, attribute.String("name", flowName))
+}
+
+func writeFlowFailure(ctx context.Context, flowName string, latency time.Duration, err error) {
+	recordAction(ctx, latency, attribute.String("name", flowName),
+		attribute.Int("errorCode", errorCode(err)),
+		// TODO(jba): Mitigate against high-cardinality dimensions that arise from
+		// many different error messages, perhaps by taking a prefix of the error
+		// message.
+		attribute.String("errorMessage", err.Error()))
+}
+
+func recordFlow(ctx context.Context, latency time.Duration, attrs ...attribute.KeyValue) {
+	if insts := fetchInstruments(); insts != nil {
+		recordCountAndLatency(ctx, insts.flowCounter, insts.flowLatencies, latency, attrs...)
+	}
+}
+
+func recordCountAndLatency(ctx context.Context, counter metric.Int64Counter, hist metric.Int64Histogram, latency time.Duration, attrs ...attribute.KeyValue) {
+	opt := metric.WithAttributes(attrs...)
+	counter.Add(ctx, 1, opt)
+	hist.Record(ctx, latency.Milliseconds(), opt)
+
 }
