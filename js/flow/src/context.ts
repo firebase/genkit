@@ -68,7 +68,9 @@ export class Context<
   }
 
   async saveState() {
-    await (await this.flow.stateStore)?.save(this.flowId, this.state);
+    if (this.flow.stateStore) {
+      await (await this.flow.stateStore()).save(this.flowId, this.state);
+    }
   }
 
   // Runs provided function in the current context. The config can specify retry and other behaviors.
@@ -263,7 +265,7 @@ export class Context<
         if (!flow.stateStore) {
           throw new Error('Flow state store must be configured');
         }
-        return (await flow.stateStore).load(id);
+        return (await flow.stateStore()).load(id);
       })
     );
   }

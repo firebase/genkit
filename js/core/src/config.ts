@@ -65,17 +65,10 @@ class Config {
 
   /**
    * Returns a flow state store instance for the running environment.
-   * If no store is configured, this will warn and default to `dev`.
+   * If no store is configured, will throw an error.
    */
   public async getFlowStateStore(): Promise<FlowStateStore> {
-    const env = getCurrentEnv();
-    let flowStateStore = await registry.lookupFlowStateStore(env);
-    if (!flowStateStore && env !== 'dev') {
-      flowStateStore = await registry.lookupFlowStateStore('dev');
-      logger.warn(
-        `No flow state store configured for \`${env}\` environment. Defaulting to \`dev\` store.`
-      );
-    }
+    const flowStateStore = await registry.lookupFlowStateStore(getCurrentEnv());
     if (!flowStateStore) {
       throw new Error('No flow store is configured.');
     }
@@ -84,21 +77,10 @@ class Config {
 
   /**
    * Returns a trace store instance for the running environment.
-   * If no store is configured, this will warn and default to `dev`.
+   * If no store is configured, will return undefined.
    */
-  public async getTraceStore(): Promise<TraceStore> {
-    const env = getCurrentEnv();
-    let traceStore = await registry.lookupTraceStore(env);
-    if (!traceStore && env !== 'dev') {
-      traceStore = await registry.lookupTraceStore('dev');
-      logger.warn(
-        `No trace store configured for \`${env}\` environment. Defaulting to \`dev\` store.`
-      );
-    }
-    if (!traceStore) {
-      throw new Error('No trace store is configured.');
-    }
-    return traceStore;
+  public async getTraceStore(): Promise<TraceStore | undefined> {
+    return await registry.lookupTraceStore(getCurrentEnv());
   }
 
   /**
@@ -145,10 +127,13 @@ class Config {
     }
 
     logger.debug('Registering flow state stores...');
-    registry.registerFlowStateStore(
-      'dev',
-      async () => new LocalFileFlowStateStore()
-    );
+    if (isDevEnv()) {
+      registry.registerFlowStateStore(
+        'dev',
+        async () => new LocalFileFlowStateStore()
+      );
+      logger.debug('Registered dev flow state store.');
+    }
     if (this.options.flowStateStore) {
       const flowStorePluginName = this.options.flowStateStore;
       logger.debug(`  - prod: ${flowStorePluginName}`);
@@ -156,14 +141,13 @@ class Config {
       registry.registerFlowStateStore('prod', () =>
         this.resolveFlowStateStore(flowStorePluginName)
       );
-    } else {
-      logger.warn(
-        '`flowStateStore` is not specified in the config; defaulting to dev store.'
-      );
     }
 
     logger.debug('Registering trace stores...');
-    registry.registerTraceStore('dev', async () => new LocalFileTraceStore());
+    if (isDevEnv()) {
+      registry.registerTraceStore('dev', async () => new LocalFileTraceStore());
+      logger.debug('Registered dev trace store.');
+    }
     if (this.options.traceStore) {
       const traceStorePluginName = this.options.traceStore;
       logger.debug(`  - prod: ${traceStorePluginName}`);
@@ -171,9 +155,14 @@ class Config {
       registry.registerTraceStore('prod', () =>
         this.resolveTraceStore(traceStorePluginName)
       );
+      if (isDevEnv()) {
+        logger.info(
+          'In dev mode `traceStore` is defaulted to local file store.'
+        );
+      }
     } else {
-      logger.warn(
-        '`traceStore` is not specified in the config; defaulting to dev store.'
+      logger.info(
+        '`traceStore` is not specified in the config; Traces are not going to be persisted in prod.'
       );
     }
   }
@@ -202,28 +191,74 @@ class Config {
    * Resolves flow state store provided by the specified plugin.
    */
   private async resolveFlowStateStore(pluginName: string) {
+    let flowStoreId;
+    if (pluginName.includes('/')) {
+      const tokens = pluginName.split('/', 2);
+      pluginName = tokens[0];
+      flowStoreId = tokens[1];
+    }
     const plugin = await registry.initializePlugin(pluginName);
-    const provider = plugin?.flowStateStore;
+    let provider = plugin?.flowStateStore;
     if (!provider) {
       throw new Error(
         'Unable to resolve provided `flowStateStore` for plugin: ' + pluginName
       );
     }
-    return provider.value;
+    if (!Array.isArray(provider)) {
+      provider = [provider];
+    }
+    if (provider.length === 1 && !flowStoreId) {
+      return provider[0].value;
+    }
+    if (provider.length > 1 && !flowStoreId) {
+      throw new Error(
+        `Plugin ${pluginName} provides more than one flow state store implementation (${provider.map((p) => p.id).join(', ')}), please specify the flow state store id (e.g. "${pluginName}/${provider[0].id}")`
+      );
+    }
+    const p = provider.find((p) => p.id === flowStoreId);
+    if (!p) {
+      throw new Error(
+        `Plugin ${pluginName} does not provide flow state store ${flowStoreId}`
+      );
+    }
+    return p.value;
   }
 
   /**
    * Resolves trace store provided by the specified plugin.
    */
   private async resolveTraceStore(pluginName: string) {
+    let traceStoreId;
+    if (pluginName.includes('/')) {
+      const tokens = pluginName.split('/', 2);
+      pluginName = tokens[0];
+      traceStoreId = tokens[1];
+    }
     const plugin = await registry.initializePlugin(pluginName);
-    const provider = plugin?.traceStore;
+    let provider = plugin?.traceStore;
     if (!provider) {
       throw new Error(
         'Unable to resolve provided `traceStore` for plugin: ' + pluginName
       );
     }
-    return provider.value;
+    if (!Array.isArray(provider)) {
+      provider = [provider];
+    }
+    if (provider.length === 1 && !traceStoreId) {
+      return provider[0].value;
+    }
+    if (provider.length > 1 && !traceStoreId) {
+      throw new Error(
+        `Plugin ${pluginName} provides more than one trace store implementation (${provider.map((p) => p.id).join(', ')}), please specify the trace store id (e.g. "${pluginName}/${provider[0].id}")`
+      );
+    }
+    const p = provider.find((p) => p.id === traceStoreId);
+    if (!p) {
+      throw new Error(
+        `Plugin ${pluginName} does not provide trace store ${traceStoreId}`
+      );
+    }
+    return p.value;
   }
 
   /**
