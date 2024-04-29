@@ -1,0 +1,155 @@
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package dotprompt
+
+import (
+	"context"
+	"errors"
+
+	"github.com/google/genkit/go/ai"
+	"github.com/google/genkit/go/genkit"
+)
+
+// ActionInput is the input type of a prompt action.
+// This should have all the fields of GenerateRequest other than
+// Messages, Tools, and Output.
+type ActionInput struct {
+	// Input variables to substitute in the template.
+	// TODO(ianlancetaylor) Not sure variables is the right name here.
+	Variables map[string]any `json:"variables,omitempty"`
+	// Number of candidates to return; if 0, 1 is used.
+	Candidates int `json:"candidates,omitempty"`
+	// Configuration.
+	Config *ai.GenerationCommonConfig `json:"config,omitempty"`
+	// The model to use. This overrides any model in the prompt.
+	Model string `json:"model,omitempty"`
+}
+
+// buildRequest prepares an [ai.GenerateRequest] based on the prompt,
+// using the input variables and other information in the [ActionInput].
+func (p *Prompt) buildRequest(input *ActionInput) (*ai.GenerateRequest, error) {
+	req := &ai.GenerateRequest{}
+
+	var err error
+	if req.Messages, err = p.RenderMessages(input.Variables); err != nil {
+		return nil, err
+	}
+
+	req.Candidates = input.Candidates
+	if req.Candidates == 0 && p.Frontmatter != nil {
+		req.Candidates = p.Frontmatter.Candidates
+	}
+	if req.Candidates == 0 {
+		req.Candidates = 1
+	}
+
+	if p.Frontmatter != nil {
+		req.Config = p.Frontmatter.Config
+	}
+
+	if p.Frontmatter != nil {
+		req.Output = p.Frontmatter.Output
+	}
+
+	if p.Frontmatter != nil {
+		req.Tools = p.Frontmatter.Tools
+	}
+
+	return req, nil
+}
+
+// Action returns a [genkit.Action] that executes the prompt.
+// The returned Action will take an [ActionInput] that provides
+// variables to substitute into the template text.
+// It will then pass the rendered text to an AI generator,
+// and return whatever the generator computes.
+func (p *Prompt) Action() (*genkit.Action[*ActionInput, *ai.GenerateResponse, struct{}], error) {
+	if p.Name == "" {
+		return nil, errors.New("dotprompt: missing name")
+	}
+	name := p.Name
+	if p.Variant != "" {
+		name += "." + p.Variant
+	}
+
+	a := genkit.NewAction(name, p.Execute)
+	a.Metadata = map[string]any{
+		"type": "prompt",
+		"prompt": p,
+	}
+	return a, nil
+}
+
+// Register registers an action to execute a prompt.
+func (p *Prompt) Register() error {
+	name := p.Name
+	if name == "" {
+		return errors.New("attempt to register unnamed prompt")
+	}
+	if p.Variant != "" {
+		name += "." + p.Variant
+	}
+
+	action, err := p.Action()
+	if err != nil {
+		return err
+	}
+
+	genkit.RegisterAction(genkit.ActionTypePrompt, name, action)
+	return nil
+}
+
+// Execute executes a prompt. It does variable substitution and
+// passes the rendered template to the AI generator specified by
+// the prompt.
+func (p *Prompt) Execute(ctx context.Context, input *ActionInput) (*ai.GenerateResponse, error) {
+	genkit.SetCustomMetadataAttr(ctx, "subtype", "prompt")
+
+	genReq, err := p.buildRequest(input)
+	if err != nil {
+		return nil, err
+	}
+
+	generator := p.generator
+	if generator == nil {
+		var model string
+		if p.Frontmatter != nil {
+			model = p.Frontmatter.Model
+		}
+		if input.Model != "" {
+			model = input.Model
+		}
+		if model == "" {
+			return nil, errors.New("dotprompt action: model not specified")
+		}
+
+		generator, err = ai.LookupGeneratorAction(model)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	resp, err := generator.Generate(ctx, genReq, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO(ianlancetaylor): The TypeScript code stores genReq
+	// with each candidate in resp. The TypeScript code
+	// extends CandidateData with an optional request field.
+	// We don't have a natural way to do that in Go.
+
+	return resp, nil
+}
