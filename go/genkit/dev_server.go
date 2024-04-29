@@ -167,7 +167,7 @@ func runAction(ctx context.Context, reg *registry, key string, input json.RawMes
 	}
 	var traceID string
 	output, err := runInNewSpan(ctx, reg.tstate, "dev-run-action-wrapper", "", true, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
-		setCustomMetadataAttr(ctx, "genkit-dev-internal", "true")
+		SetCustomMetadataAttr(ctx, "genkit-dev-internal", "true")
 		traceID = trace.SpanContextFromContext(ctx).TraceID().String()
 		return action.runJSON(ctx, input, cb)
 	})

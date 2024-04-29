@@ -72,6 +72,10 @@ type Prompt struct {
 
 	// The prompt YAML frontmatter.
 	Frontmatter *Frontmatter
+
+	// A Generator to use. If not nil, this is used by the
+	// [genkit.Action] returned by [Prompt.Action] to execute the prompt.
+	generator ai.Generator
 }
 
 // Open opens and parses a dotprompt file.
@@ -132,16 +136,19 @@ type Frontmatter struct {
 	Config *ai.GenerationCommonConfig
 
 	// Description of input data.
-	Input struct {
-		Schema  *jsonschema.Schema
-		Default map[string]any
-	}
+	Input FrontmatterInput
 
 	// Desired output format.
 	Output *ai.GenerateRequestOutput
 
 	// Arbitrary metadata.
 	Metadata map[string]any
+}
+
+// FrontmatterInput describes the input data.
+type FrontmatterInput struct {
+	Schema  *jsonschema.Schema // schema for input variables
+	Default map[string]any     // default input variables
 }
 
 // frontmatterYAML is the type we use to unpack the frontmatter.
@@ -165,7 +172,7 @@ type frontmatterYAML struct {
 	Metadata map[string]any `yaml:"metadata,omitempty"`
 }
 
-// parse parses the contents of a dotprompt file.
+// Parse parses the contents of a dotprompt file.
 func Parse(name, variant string, data []byte) (*Prompt, error) {
 	const header = "---\n"
 	var front *Frontmatter
@@ -177,7 +184,12 @@ func Parse(name, variant string, data []byte) (*Prompt, error) {
 		}
 	}
 
-	template, err := raymond.Parse(string(data))
+	return define(name, variant, front, fmt.Sprintf("%02x", sha256.Sum256(data)), string(data), nil)
+}
+
+// define defines a new prompt from frontmatter and template text.
+func define(name, variant string, frontmatter *Frontmatter, hash, text string, generator ai.Generator) (*Prompt, error) {
+	template, err := raymond.Parse(text)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse template: %w", err)
 	}
@@ -186,9 +198,10 @@ func Parse(name, variant string, data []byte) (*Prompt, error) {
 	prompt := &Prompt{
 		Name:        name,
 		Variant:     variant,
-		Hash:        fmt.Sprintf("%02x", sha256.Sum256(data)),
+		Hash:        hash,
 		Template:    template,
-		Frontmatter: front,
+		Frontmatter: frontmatter,
+		generator:   generator,
 	}
 	return prompt, nil
 }
@@ -221,8 +234,10 @@ func parseFrontmatter(data []byte) (*Frontmatter, []byte, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("dotprompt: can't parse input: %w", err)
 	}
-	ret.Input.Schema = inputSchema
-	ret.Input.Default = fy.Input.Default
+	ret.Input = FrontmatterInput{
+		Schema:  inputSchema,
+		Default: fy.Input.Default,
+	}
 
 	outputSchema, err := picoschemaToJSONSchema(fy.Output.Schema)
 	if err != nil {
@@ -268,6 +283,15 @@ func parseFrontmatter(data []byte) (*Frontmatter, []byte, error) {
 	}
 
 	return ret, data[end+len(footer):], nil
+}
+
+// Define defines a new Prompt. This can be called from code that
+// doesn't have a prompt file. If not nil, the generator argument
+// will implement the AI model given the substituted prompt text.
+// This may be used for testing or for direct calls not using the
+// genkit action and flow mechanisms.
+func Define(name string, frontmatter *Frontmatter, text string, generator ai.Generator) (*Prompt, error) {
+	return define(name, "", frontmatter, fmt.Sprintf("%02x", sha256.Sum256([]byte(text))), text, generator)
 }
 
 // sortSchemaSlices sorts the slices in a jsonschema to permit

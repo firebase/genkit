@@ -197,6 +197,7 @@ func (sm *spanMetadata) attributes() []attribute.KeyValue {
 // spanMetaKey is for storing spanMetadatas in a context.
 var spanMetaKey = newContextKey[*spanMetadata]()
 
-func setCustomMetadataAttr(ctx context.Context, key, value string) {
+// SetCustomMetadataAttr records a key in the current span metadata.
+func SetCustomMetadataAttr(ctx context.Context, key, value string) {
 	spanMetaKey.fromContext(ctx).SetAttr(key, value)
 }
