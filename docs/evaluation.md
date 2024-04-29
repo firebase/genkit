@@ -1,10 +1,10 @@
 # Evaluation (Preview)
 
-Note: **Evaluation in Genkit is currently in early preview** with a limited set of available evaluation metrics. You can try out the current experience by following the documentation below. If you run into any issues or have suggestions for improvements, please [file an issue](http://github.com/google/genkit/issues). We would love to see your feedback as we refine the evaluation experience!
+Note: **Evaluation in Firebase Genkit is currently in early preview** with a limited set of available evaluation metrics. You can try out the current experience by following the documentation below. If you run into any issues or have suggestions for improvements, please [file an issue](http://github.com/google/genkit/issues). We would love to see your feedback as we refine the evaluation experience!
 
 Evaluations are a form of testing which helps you validate your LLM’s responses and ensure they meet your quality bar.
 
-Genkit supports third-party evaluation tools through plugins, paired with powerful observability features which provide insight into the runtime state
+Firebase Genkit supports third-party evaluation tools through plugins, paired with powerful observability features which provide insight into the runtime state
 of your LLM-powered applications. Genkit tooling helps you automatically extract data including inputs, outputs, and information from intermediate steps to evaluate the end-to-end quality of LLM responses as well as understand the performance of your system’s building blocks.
 
 For example, if you have a RAG flow, Genkit will extract the set

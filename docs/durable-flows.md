@@ -20,8 +20,8 @@ export const jokeFlow = onScheduledFlow(
 );
 ```
 
-To enable this durable behaviour, Genkit persists flow states in a flow state
-store, which can be implemented by plugins.
+To enable this durable behaviour, Firebase Genkit persists flow states in a
+flow state store, which can be implemented by plugins.
 
 You can use `configureGenkit()` to specify which persistence implementation to
 use when running on a non-dev environment (when running locally during

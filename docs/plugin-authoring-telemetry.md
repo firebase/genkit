@@ -1,6 +1,6 @@
 # Writing a Genkit Telemetry Plugin
 
-[OpenTelemetry](http://opentelemetry.io) supports collecting traces, metrics, and logs. Genkit can be extended to export all telemetry data to any OpenTelemetry capable system by writing a telemetry plugin that configures the
+[OpenTelemetry](http://opentelemetry.io) supports collecting traces, metrics, and logs. Firebase Genkit can be extended to export all telemetry data to any OpenTelemetry capable system by writing a telemetry plugin that configures the
 [Node.js](https://opentelemetry.io/docs/languages/js/getting-started/nodejs/)
 SDK.
 

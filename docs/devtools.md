@@ -1,6 +1,6 @@
-# Genkit Developer Tools
+# Firebase Genkit Developer Tools
 
-Genkit comes with two sets of developer tools:
+Firebase Genkit comes with two sets of developer tools:
 
 - A Node.js CLI
 - A local web app connected to your Genkit configuration

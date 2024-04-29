@@ -1,8 +1,8 @@
-# Genkit with Firebase
+# Genkit with Firebase Cloud Functions
 
-Genkit includes a plugin that helps you deploy your flows to Firebase Cloud
-Functions. This page, as an example, walks you through the process of deploying
-the default sample flow to Firebase.
+Firebase Genkit includes a plugin that helps you deploy your flows to Firebase
+Cloud Functions. This page, as an example, walks you through the process of
+deploying the default sample flow to Firebase.
 
 ## Deploy a flow as a Cloud Function
 

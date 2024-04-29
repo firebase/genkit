@@ -1,7 +1,7 @@
-# Genkit
+# Firebase Genkit
 
-Genkit is an **open source framework** that helps you build, deploy, and monitor
-**production-ready** **AI-powered apps**.
+Firebase Genkit is an **open source framework** that helps you build, deploy,
+and monitor **production-ready** **AI-powered apps**.
 
 <img src="resources/genkit-logo.png" alt="Genkit logo" class="attempt-right">
 

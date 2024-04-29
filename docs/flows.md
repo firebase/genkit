@@ -1,9 +1,9 @@
 # Flows
 
 Flows are functions with some additional characteristics: they are strongly
-typed, streamable, locally and remotely callable, and fully observable. Genkit
-provides CLI and Developer UI tooling for working with flows (running,
-debugging, etc).
+typed, streamable, locally and remotely callable, and fully observable.
+Firebase Genkit provides CLI and Developer UI tooling for working with flows
+(running, debugging, etc).
 
 ## Defining flows
 

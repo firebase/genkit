@@ -1,7 +1,7 @@
 # Get started
 
-To get started with Genkit, install the Genkit CLI and run `genkit init` in a
-Node.js project. The rest of this page shows you how.
+To get started with Firebase Genkit, install the Genkit CLI and run
+`genkit init` in a Node.js project. The rest of this page shows you how.
 
 ## Requirements
 
