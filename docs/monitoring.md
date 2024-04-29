@@ -1,6 +1,8 @@
 # Monitoring
 
-Genkit is fully instrumented with [OpenTelemetry](https://opentelemetry.io/) and provides hooks to export telemetry data.
+Firebase Genkit is fully instrumented with
+[OpenTelemetry](https://opentelemetry.io/) and provides hooks to export
+telemetry data.
 
 ## Telemetry Configuration
 

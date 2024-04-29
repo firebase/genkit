@@ -6,11 +6,11 @@ necessary to ensure that the model is only accessing data it should, tool calls
 are properly scoped to the user invoking the LLM, and the flow is being invoked
 only by verified client applications.
 
-Genkit provides mechanisms for managing authorization policies and contexts. For
-flows running on Cloud Functions for Firebase, developers are required to
-provide an auth policy or else explicitly acknowledge the lack of one. For
-non-Functions flows, auth can be managed and set as well, but requires a bit
-more manual integration.
+Firebase Genkit provides mechanisms for managing authorization policies and
+contexts. For flows running on Cloud Functions for Firebase, developers are
+required to provide an auth policy or else explicitly acknowledge the lack of
+one. For non-Functions flows, auth can be managed and set as well, but requires
+a bit more manual integration.
 
 ## Basic flow authorization
 

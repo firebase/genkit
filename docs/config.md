@@ -1,7 +1,7 @@
 # Configuration and plugins
 
-Genkit has a configuration and plugin system. Every Genkit app starts with
-configuration where you specify the plugins you want to use and configure
+Firebase Genkit has a configuration and plugin system. Every Genkit app starts
+with configuration where you specify the plugins you want to use and configure
 various subsystems.
 
 Here is an example you might have seen in some of the examples:

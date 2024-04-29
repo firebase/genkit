@@ -1,7 +1,8 @@
-# Genkit with Cloud Run
+# Firebase Genkit with Cloud Run
 
-You can deploy Genkit flows as web services using Cloud Run. This page, as an
-example, walks you through the process of deploying the default sample flow.
+You can deploy Firebase Genkit flows as web services using Cloud Run. This page,
+as an example, walks you through the process of deploying the default sample
+flow.
 
 1.  Install the required tools:
 

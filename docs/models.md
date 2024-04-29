@@ -1,7 +1,7 @@
 # Models
 
-Models in Genkit are libraries and abstractions that provide access to various
-Google and non-Google LLMs.
+Models in Firebase Genkit are libraries and abstractions that provide access to
+various Google and non-Google LLMs.
 
 Models are fully instrumented for observability and come with tooling
 integrations provided by the Genkit Developer UI -- you can try any model using

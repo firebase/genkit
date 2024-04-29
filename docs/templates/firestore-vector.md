@@ -1,6 +1,7 @@
 # Firestore vector store template
 
-You can use Firestore vector store in Genkit to power your RAG flows by storing and retrieving embedding vectors.
+You can use Firestore vector store in Firebase Genkit to power your RAG flows by
+storing and retrieving embedding vectors.
 
 Here is a sample template which retrieves documents from Firestore.
 

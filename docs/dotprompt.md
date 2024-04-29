@@ -1,7 +1,7 @@
 # Managing prompts with Dotprompt
 
-Genkit provides the Dotprompt library and text format to help you write and
-organize your generative AI prompts.
+Firebase Genkit provides the Dotprompt library and text format to help you write
+and organize your generative AI prompts.
 
 Prompt manipulation is the primary way that you, as an app developer, influence
 the output of generative AI models. For example, when using LLMs, you can craft
