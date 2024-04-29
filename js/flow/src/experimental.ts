@@ -129,7 +129,7 @@ export async function getFlowState<
   if (!flow.stateStore) {
     throw new Error('Flow state must be configured.');
   }
-  const state = await (await flow.stateStore).load(flowId);
+  const state = await (await flow.stateStore()).load(flowId);
   if (!state) {
     throw new FlowNotFoundError(`flow state ${flowId} not found`);
   }

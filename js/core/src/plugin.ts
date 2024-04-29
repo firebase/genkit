@@ -39,8 +39,8 @@ export interface InitializedPlugin {
   embedders?: Action<z.ZodTypeAny, z.ZodTypeAny>[];
   indexers?: Action<z.ZodTypeAny, z.ZodTypeAny>[];
   evaluators?: Action<z.ZodTypeAny, z.ZodTypeAny>[];
-  flowStateStore?: Provider<FlowStateStore>;
-  traceStore?: Provider<TraceStore>;
+  flowStateStore?: Provider<FlowStateStore> | Provider<FlowStateStore>[];
+  traceStore?: Provider<TraceStore> | Provider<TraceStore>[];
   telemetry?: {
     instrumentation?: Provider<TelemetryConfig>;
     logger?: Provider<LoggerConfig>;
