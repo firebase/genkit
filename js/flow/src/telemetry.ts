@@ -52,7 +52,7 @@ export function recordError(err: any) {
 
 export function writeFlowSuccess(flowName: string, latencyMs: number) {
   const dimensions = {
-    flowName: flowName,
+    name: flowName,
   };
   flowCounter.add(1, dimensions);
   flowLatencies.record(latencyMs, dimensions);
@@ -64,7 +64,7 @@ export function writeFlowFailure(
   err: any
 ) {
   const dimensions = {
-    flowName: flowName,
+    name: flowName,
     errorCode: err?.code,
     errorMessage: err?.message,
   };
