@@ -39,7 +39,7 @@ const actionLatencies = new MetricHistogram(_N('action_latency'), {
 
 export function writeActionSuccess(actionName: string, latencyMs: number) {
   const dimensions = {
-    actionName: actionName,
+    name: actionName,
   };
   actionCounter.add(1, dimensions);
   actionLatencies.record(latencyMs, dimensions);
@@ -51,7 +51,7 @@ export function writeActionFailure(
   err: any
 ) {
   const dimensions = {
-    actionName: actionName,
+    name: actionName,
     errorCode: err?.code,
     errorMessage: err?.message,
   };
