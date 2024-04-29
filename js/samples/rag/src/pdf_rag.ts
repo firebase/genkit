@@ -38,7 +38,7 @@ export const pdfQA = defineFlow(
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
-  async (query) => {
+  async (query, streamingCallback) => {
     const docs = await retrieve({
       retriever: pdfChatRetriever,
       query,
@@ -51,6 +51,7 @@ export const pdfQA = defineFlow(
           question: query,
           context: docs.map((d) => d.text()),
         },
+        streamingCallback,
       })
       .then((r) => r.text());
   }

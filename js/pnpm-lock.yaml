@@ -560,6 +560,12 @@ importers:
 
   plugins/vertexai:
     dependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^0.20.7
+        version: 0.20.7
+      '@anthropic-ai/vertex-sdk':
+        specifier: ^0.3.5
+        version: 0.3.5
       '@genkit-ai/ai':
         specifier: workspace:*
         version: link:../../ai
@@ -1087,6 +1093,21 @@ importers:
 
 packages:
 
+  /@anthropic-ai/sdk@0.20.7:
+    resolution: {integrity: sha512-uyc+3WGLpe8ur6mSIKSab7P9JdBerTdmqb7popc/yROYLLCW/Ykyw4ZfjmN/cLmxjnAKnv5YUngzbPM0BJuGjg==}
+    dependencies:
+      '@types/node': 18.19.31
+      '@types/node-fetch': 2.6.11
+      abort-controller: 3.0.0
+      agentkeepalive: 4.5.0
+      form-data-encoder: 1.7.2
+      formdata-node: 4.4.1
+      node-fetch: 2.7.0(encoding@0.1.13)
+      web-streams-polyfill: 3.3.3
+    transitivePeerDependencies:
+      - encoding
+    dev: false
+
   /@anthropic-ai/sdk@0.9.1:
     resolution: {integrity: sha512-wa1meQ2WSfoY8Uor3EdrJq0jTiZJoKoSii2ZVWRY1oN4Tlr5s59pADg9T79FTbPe1/se5c3pBeZgJL63wmuoBA==}
     dependencies:
@@ -1101,6 +1122,16 @@ packages:
       web-streams-polyfill: 3.3.3
     transitivePeerDependencies:
       - encoding
+    dev: false
+
+  /@anthropic-ai/vertex-sdk@0.3.5:
+    resolution: {integrity: sha512-pn2PNWuPbmDZbOSb2gSE6mckQpoS/JunTEV5v+KfVsDAAoD7eE78eaoZWZSWZAnASGe2keyFV5s9fp5+GZ0sEw==}
+    dependencies:
+      '@anthropic-ai/sdk': 0.20.7
+      google-auth-library: 9.7.0
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
     dev: false
 
   /@apidevtools/json-schema-ref-parser@9.1.2:

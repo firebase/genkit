@@ -19,7 +19,12 @@ import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
 import { googleAI } from '@genkit-ai/googleai';
-import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+import {
+  claude3Sonnet,
+  geminiPro,
+  textEmbeddingGecko,
+  vertexAI,
+} from '@genkit-ai/vertexai';
 import { chroma } from 'genkitx-chromadb';
 import { pinecone } from 'genkitx-pinecone';
 
@@ -31,7 +36,10 @@ export default configureGenkit({
       judge: geminiPro,
       metrics: [GenkitMetric.FAITHFULNESS, GenkitMetric.MALICIOUSNESS],
     }),
-    vertexAI(),
+    vertexAI({
+      location: 'us-central1',
+      modelGardenModels: [claude3Sonnet],
+    }),
     pinecone([
       {
         indexId: 'cat-facts',
