@@ -81,6 +81,7 @@ export const evalRun = new Command('eval:run')
           allEvaluatorActions.push(allActions[key]);
         }
       }
+
       const filteredEvaluatorActions = allEvaluatorActions.filter(
         (action) =>
           !options.evaluators ||
