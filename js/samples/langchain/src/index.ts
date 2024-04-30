@@ -19,7 +19,7 @@ import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
 import { GoogleVertexAIEmbeddings } from '@langchain/community/embeddings/googlevertexai';
 import { GoogleVertexAI } from '@langchain/community/llms/googlevertexai';
 import { PromptTemplate } from '@langchain/core/prompts';
-import { GenkitTracer } from './callback.js';
+import { GenkitTracer } from 'genkitx-langchain';
 
 import { TextLoader } from 'langchain/document_loaders/fs/text';
 
