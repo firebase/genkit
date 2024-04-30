@@ -21,6 +21,9 @@ import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import { ollama } from '@genkit-ai/ollama';
 import {
+  claude3Haiku,
+  claude3Opus,
+  claude3Sonnet,
   textEmbeddingGecko,
   vertexAI,
   VertexAIEvaluationMetricType,
@@ -45,11 +48,19 @@ export default configureGenkit({
       apiVersion: 'v1beta', // enables Gemini 1.5
     }),
     ollama({
-      models: [{ name: 'llama2' }],
+      models: [
+        { name: 'llama2' },
+        { name: 'llama3' },
+        {
+          name: 'gemma',
+          type: 'generate',
+        },
+      ],
       serverAddress: 'http://127.0.0.1:11434', // default local address
     }),
     vertexAI({
       location: 'us-central1',
+      modelGardenModels: [claude3Haiku, claude3Sonnet, claude3Opus],
       evaluation: {
         metrics: [
           VertexAIEvaluationMetricType.BLEU,
