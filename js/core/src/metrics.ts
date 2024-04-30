@@ -20,7 +20,7 @@ export const METER_NAME = 'genkit';
 export const METRIC_NAME_PREFIX = 'genkit';
 
 export function internalMetricNamespaceWrap(...namespaces) {
-  return [METRIC_NAME_PREFIX, ...namespaces].join('.');
+  return [METRIC_NAME_PREFIX, ...namespaces].join('/');
 }
 
 type MetricCreateFn<T> = (meter: Meter) => T;

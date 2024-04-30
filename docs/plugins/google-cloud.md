@@ -176,30 +176,30 @@ Common dimensions include:
 
 ### Flow-level metrics
 
-| Name                     | Dimensions                           |
-| ------------------------ | ------------------------------------ |
-| genkit.flow.requests     | flow_name, error_code, error_message |
-| genkit.flow.flow_latency | flow_name                            |
+| Name                 | Dimensions                           |
+| -------------------- | ------------------------------------ |
+| genkit/flow/requests | flow_name, error_code, error_message |
+| genkit/flow/latency  | flow_name                            |
 
 ### Action-level metrics
 
-| Name                         | Dimensions                           |
-| ---------------------------- | ------------------------------------ |
-| genkit.action.requests       | flow_name, error_code, error_message |
-| genkit.action.action_latency | flow_name                            |
+| Name                   | Dimensions                           |
+| ---------------------- | ------------------------------------ |
+| genkit/action/requests | flow_name, error_code, error_message |
+| genkit/action/latency  | flow_name                            |
 
 ### Generate-level metrics
 
 | Name                                 | Dimensions                                                           |
 | ------------------------------------ | -------------------------------------------------------------------- |
-| genkit.ai.generate                   | flow_path, model, temperature, topK, topP, error_code, error_message |
-| genkit.ai.generate_input_tokens      | flow_path, model, temperature, topK, topP                            |
-| genkit.ai.generate_output_tokens     | flow_path, model, temperature, topK, topP                            |
-| genkit.ai.generate_input_characters  | flow_path, model, temperature, topK, topP                            |
-| genkit.ai.generate_output_characters | flow_path, model, temperature, topK, topP                            |
-| genkit.ai.generate_input_images      | flow_path, model, temperature, topK, topP                            |
-| genkit.ai.generate_output_images     | flow_path, model, temperature, topK, topP                            |
-| genkit.ai.generate_latency           | flow_path, model, temperature, topK, topP, error_code, error_message |
+| genkit/ai/generate                   | flow_path, model, temperature, topK, topP, error_code, error_message |
+| genkit/ai/generate/input_tokens      | flow_path, model, temperature, topK, topP                            |
+| genkit/ai/generate/output_tokens     | flow_path, model, temperature, topK, topP                            |
+| genkit/ai/generate/input_characters  | flow_path, model, temperature, topK, topP                            |
+| genkit/ai/generate/output_characters | flow_path, model, temperature, topK, topP                            |
+| genkit/ai/generate/input_images      | flow_path, model, temperature, topK, topP                            |
+| genkit/ai/generate/output_images     | flow_path, model, temperature, topK, topP                            |
+| genkit/ai/generate/latency           | flow_path, model, temperature, topK, topP, error_code, error_message |
 
 Visualizing metrics can be done through the Metrics Explorer. Using the side menu, select 'Logging' and click 'Metrics explorer'
 
