@@ -3,6 +3,12 @@
 The Google Generative AI plugin provides interfaces to Google's Gemini models
 through the [Gemini API](https://ai.google.dev/docs/gemini_api_overview).
 
+## Installation
+
+```posix-terminal
+npm i --save @genkit-ai/googleai
+```
+
 ## Configuration
 
 To use this plugin, specify it when you call `configureGenkit()`:

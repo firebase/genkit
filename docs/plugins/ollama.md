@@ -3,6 +3,12 @@
 The Ollama plugin provides interfaces to any of the local LLMs supported by
 [Ollama](https://ollama.com/).
 
+## Installation
+
+```posix-terminal
+npm i --save @genkit-ai/ollama
+```
+
 ## Configuration
 
 This plugin requires that you first install and run ollama server. You can follow

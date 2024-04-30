@@ -3,6 +3,12 @@
 The Chroma plugin provides indexer and retriever implementatons that use the
 [Chroma](https://docs.trychroma.com/) vector database in client/server mode.
 
+## Installation
+
+```posix-terminal
+npm i --save genkitx-chromadb
+```
+
 ## Configuration
 
 To use this plugin, specify it when you call `configureGenkit()`:

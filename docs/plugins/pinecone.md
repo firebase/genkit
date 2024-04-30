@@ -3,6 +3,12 @@
 The Pinecone plugin provides indexer and retriever implementatons that use the
 [Pinecone](https://www.pinecone.io/) cloud vector database.
 
+## Installation
+
+```posix-terminal
+npm i --save genkitx-pinecone
+```
+
 ## Configuration
 
 To use this plugin, specify it when you call `configureGenkit()`:
