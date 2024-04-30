@@ -24,13 +24,35 @@ import { TraceStore } from './tracing/types.js';
 
 export type AsyncProvider<T> = () => Promise<T>;
 
-const __actionsById: Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>> = {};
-const __traceStoresByEnv: Record<string, AsyncProvider<TraceStore>> = {};
-const __flowStateStoresByEnv: Record<
-  string,
-  AsyncProvider<FlowStateStore>
-> = {};
-const __pluginsByName: Record<string, PluginProvider> = {};
+const ACTIONS_BY_ID = 'genkit__ACTIONS_BY_ID';
+const TRACE_STORES_BY_ENV = 'genkit__TRACE_STORES_BY_ENV';
+const FLOW_STATE_STORES_BY_ENV = 'genkit__FLOW_STATE_STORES_BY_ENV';
+const PLUGINS_BY_NAME = 'genkit__PLUGINS_BY_NAME';
+
+function actionsById(): Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>> {
+  if (global[ACTIONS_BY_ID] === undefined) {
+    global[ACTIONS_BY_ID] = {};
+  }
+  return global[ACTIONS_BY_ID];
+}
+function traceStoresByEnv(): Record<string, AsyncProvider<TraceStore>> {
+  if (global[TRACE_STORES_BY_ENV] === undefined) {
+    global[TRACE_STORES_BY_ENV] = {};
+  }
+  return global[TRACE_STORES_BY_ENV];
+}
+function flowStateStoresByEnv(): Record<string, AsyncProvider<FlowStateStore>> {
+  if (global[FLOW_STATE_STORES_BY_ENV] === undefined) {
+    global[FLOW_STATE_STORES_BY_ENV] = {};
+  }
+  return global[FLOW_STATE_STORES_BY_ENV];
+}
+function pluginsByName(): Record<string, PluginProvider> {
+  if (global[PLUGINS_BY_NAME] === undefined) {
+    global[PLUGINS_BY_NAME] = {};
+  }
+  return global[PLUGINS_BY_NAME];
+}
 
 /**
  * Type of a runnable action.
@@ -57,10 +79,10 @@ export async function lookupAction<
 >(key: string): Promise<R> {
   // If we don't see the key in the registry we try to initialize the plugin first.
   const pluginName = parsePluginName(key);
-  if (!__actionsById[key] && pluginName) {
+  if (!actionsById()[key] && pluginName) {
     await initializePlugin(pluginName);
   }
-  return __actionsById[key] as R;
+  return actionsById()[key] as R;
 }
 
 function parsePluginName(registryKey: string) {
@@ -81,12 +103,12 @@ export function registerAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 ) {
   logger.info(`Registering ${type}: ${action.__action.name}`);
   const key = `/${type}/${id}`;
-  if (__actionsById.hasOwnProperty(key)) {
+  if (actionsById().hasOwnProperty(key)) {
     logger.warn(
       `WARNING: ${key} already has an entry in the registry. Overwriting.`
     );
   }
-  __actionsById[key] = action;
+  actionsById()[key] = action;
 }
 
 type ActionsRecord = Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>>;
@@ -95,10 +117,10 @@ type ActionsRecord = Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>>;
  * Returns all actions in the registry.
  */
 export async function listActions(): Promise<ActionsRecord> {
-  for (const pluginName of Object.keys(__pluginsByName)) {
+  for (const pluginName of Object.keys(pluginsByName())) {
     await initializePlugin(pluginName);
   }
-  return Object.assign({}, __actionsById);
+  return Object.assign({}, actionsById());
 }
 
 /**
@@ -108,7 +130,7 @@ export function registerTraceStore(
   env: string,
   traceStoreProvider: AsyncProvider<TraceStore>
 ) {
-  __traceStoresByEnv[env] = traceStoreProvider;
+  traceStoresByEnv()[env] = traceStoreProvider;
 }
 
 const traceStoresByEnvCache: Record<any, Promise<TraceStore>> = {};
@@ -119,12 +141,12 @@ const traceStoresByEnvCache: Record<any, Promise<TraceStore>> = {};
 export async function lookupTraceStore(
   env: string
 ): Promise<TraceStore | undefined> {
-  if (!__traceStoresByEnv[env]) {
+  if (!traceStoresByEnv()[env]) {
     return undefined;
   }
   const cached = traceStoresByEnvCache[env];
   if (!cached) {
-    const newStore = __traceStoresByEnv[env]();
+    const newStore = traceStoresByEnv()[env]();
     traceStoresByEnvCache[env] = newStore;
     return newStore;
   }
@@ -138,7 +160,7 @@ export function registerFlowStateStore(
   env: string,
   flowStateStoreProvider: AsyncProvider<FlowStateStore>
 ) {
-  __flowStateStoresByEnv[env] = flowStateStoreProvider;
+  flowStateStoresByEnv()[env] = flowStateStoreProvider;
 }
 
 const flowStateStoresByEnvCache: Record<any, Promise<FlowStateStore>> = {};
@@ -148,12 +170,12 @@ const flowStateStoresByEnvCache: Record<any, Promise<FlowStateStore>> = {};
 export async function lookupFlowStateStore(
   env: string
 ): Promise<FlowStateStore | undefined> {
-  if (!__flowStateStoresByEnv[env]) {
+  if (!flowStateStoresByEnv()[env]) {
     return undefined;
   }
   const cached = flowStateStoresByEnvCache[env];
   if (!cached) {
-    const newStore = __flowStateStoresByEnv[env]();
+    const newStore = flowStateStoresByEnv()[env]();
     flowStateStoresByEnvCache[env] = newStore;
     return newStore;
   }
@@ -165,7 +187,7 @@ export async function lookupFlowStateStore(
  */
 export function registerPluginProvider(name: string, provider: PluginProvider) {
   let cached;
-  __pluginsByName[name] = {
+  pluginsByName()[name] = {
     name: provider.name,
     initializer: () => {
       if (cached) {
@@ -181,8 +203,8 @@ export function registerPluginProvider(name: string, provider: PluginProvider) {
  *
  */
 export async function initializePlugin(name: string) {
-  if (__pluginsByName[name]) {
-    return await __pluginsByName[name].initializer();
+  if (pluginsByName()[name]) {
+    return await pluginsByName()[name].initializer();
   }
   return undefined;
 }
@@ -195,10 +217,10 @@ if (process.env.GENKIT_ENV === 'dev') {
 }
 
 export function __hardResetRegistryForTesting() {
-  deleteAll(__actionsById);
-  deleteAll(__traceStoresByEnv);
-  deleteAll(__flowStateStoresByEnv);
-  deleteAll(__pluginsByName);
+  delete global[ACTIONS_BY_ID];
+  delete global[TRACE_STORES_BY_ENV];
+  delete global[FLOW_STATE_STORES_BY_ENV];
+  delete global[PLUGINS_BY_NAME];
   deleteAll(flowStateStoresByEnvCache);
   deleteAll(traceStoresByEnvCache);
 }
