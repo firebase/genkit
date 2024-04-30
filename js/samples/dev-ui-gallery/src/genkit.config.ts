@@ -52,8 +52,17 @@ export default configureGenkit({
       location: 'us-central1',
       evaluation: {
         metrics: [
+          VertexAIEvaluationMetricType.BLEU,
           VertexAIEvaluationMetricType.GROUNDEDNESS,
           VertexAIEvaluationMetricType.SAFETY,
+          {
+            type: VertexAIEvaluationMetricType.ROUGE,
+            metricSpec: {
+              rougeType: 'rougeLsum',
+              useStemmer: true,
+              splitSummaries: 'true',
+            },
+          },
         ],
       },
     }),
@@ -84,6 +93,26 @@ export default configureGenkit({
     // evaluation
     genkitEval({
       judge: geminiPro,
+      judgeConfig: {
+        safetySettings: [
+          {
+            category: 'HARM_CATEGORY_HATE_SPEECH',
+            threshold: 'BLOCK_NONE',
+          },
+          {
+            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+            threshold: 'BLOCK_NONE',
+          },
+          {
+            category: 'HARM_CATEGORY_HARASSMENT',
+            threshold: 'BLOCK_NONE',
+          },
+          {
+            category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            threshold: 'BLOCK_NONE',
+          },
+        ],
+      },
       embedder: textEmbeddingGecko,
       metrics: [
         GenkitMetric.ANSWER_RELEVANCY,
