@@ -66,7 +66,15 @@ import {
 } from './utils.js';
 
 const streamDelimiter = '\n';
-const createdFlows = [] as Flow<any, any, any>[];
+
+const CREATED_FLOWS = 'genkit__CREATED_FLOWS';
+
+function createdFlows(): Flow<any, any, any>[] {
+  if (global[CREATED_FLOWS] === undefined) {
+    global[CREATED_FLOWS] = [];
+  }
+  return global[CREATED_FLOWS];
+}
 
 /**
  * Step configuration for retries, etc.
@@ -148,7 +156,7 @@ export function defineFlow<
     },
     steps
   );
-  createdFlows.push(f);
+  createdFlows().push(f);
   registerAction('flow', config.name, wrapAsAction(f));
   return f;
 }
@@ -833,7 +841,7 @@ export function startFlowsServer(params?: {
     app.use(cors(params.cors));
   }
 
-  const flows = params?.flows || createdFlows;
+  const flows = params?.flows || createdFlows();
   logger.info(`Starting flows server on port ${port}`);
   flows.forEach((f) => {
     logger.info(` - /${f.name}`);
