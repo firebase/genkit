@@ -22,8 +22,10 @@ import {
 } from '@genkit-ai/dev-local-vectorstore';
 import { defineFlow, run } from '@genkit-ai/flow';
 import { geminiPro } from '@genkit-ai/vertexai';
+import fs from 'fs';
 import { chunk } from 'llm-chunk';
 import path from 'path';
+import pdf from 'pdf-parse';
 import * as z from 'zod';
 import { augmentedPrompt } from './prompt.js';
 
@@ -91,23 +93,11 @@ export const indexPdf = defineFlow(
   }
 );
 
-async function extractText(filePath: string): Promise<string> {
-  const pdfjsLib = await import('pdfjs-dist');
-  let doc = await pdfjsLib.getDocument(filePath).promise;
-
-  let pdfTxt = '';
-  const numPages = doc.numPages;
-  for (let i = 1; i <= numPages; i++) {
-    let page = await doc.getPage(i);
-    let content = await page.getTextContent();
-    let strings = content.items.map((item) => {
-      const str: string = (item as any).str;
-      return str === '' ? '\n' : str;
-    });
-
-    pdfTxt += '\n\npage ' + i + '\n\n' + strings.join('');
-  }
-  return pdfTxt;
+async function extractText(filePath: string) {
+  const pdfFile = path.resolve(filePath);
+  const dataBuffer = fs.readFileSync(pdfFile);
+  const data = await pdf(dataBuffer);
+  return data.text;
 }
 
 // genkit flow:run synthesizeQuestions '"35650.pdf"' --output synthesizedQuestions.json

@@ -26,6 +26,7 @@ import {
   vertexAI,
 } from '@genkit-ai/vertexai';
 import { chroma } from 'genkitx-chromadb';
+import { langchain } from 'genkitx-langchain';
 import { pinecone } from 'genkitx-pinecone';
 
 export default configureGenkit({
@@ -35,6 +36,13 @@ export default configureGenkit({
     genkitEval({
       judge: geminiPro,
       metrics: [GenkitMetric.FAITHFULNESS, GenkitMetric.MALICIOUSNESS],
+    }),
+    langchain({
+      evaluators: {
+        criteria: ['coherence'],
+        labeledCriteria: ['correctness'],
+        judge: geminiPro,
+      },
     }),
     vertexAI({
       location: 'us-central1',

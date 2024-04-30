@@ -15,7 +15,12 @@
  */
 
 import { BaseTracer, type Run } from '@langchain/core/tracers/base';
-import { Span as ApiSpan, context, trace } from '@opentelemetry/api';
+import {
+  Span as ApiSpan,
+  SpanStatusCode,
+  context,
+  trace,
+} from '@opentelemetry/api';
 
 const TRACER_NAME = 'genkit-tracer';
 const TRACER_VERSION = 'v1';
@@ -78,7 +83,10 @@ export class GenkitTracer extends BaseTracer {
     const span = this.spans[run.id];
     span.setAttribute('genkit:state', run.error ? 'error' : 'success');
     if (run.error) {
-      span.setAttribute('genkit:error', run.error);
+      span.setStatus({
+        code: SpanStatusCode.ERROR,
+        message: run.error,
+      });
     }
     if (run.outputs) {
       span.setAttribute(
