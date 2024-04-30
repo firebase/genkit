@@ -95,6 +95,48 @@ The exported data will be output as a json file with each testCase in the follow
 
 The data extractor will automatically locate retrievers and add the produced docs to the context array. By default, `eval:run` will run against all configured evaluators, and like `eval:flow`, results for `eval:run` will appear in the evaluation page of Developer UI, located at `localhost:4000/evaluate`.
 
+### Custom extractors
+
+You can also provide custom extractors to be used in `eval:extractData` and `eval:flow` commands. Custom extractors allow you to override the default extraction logic giving you more power in creating datasets and evaluating them.
+
+To configure custom extractors, add a tools config file named `genkit-tools.conf.js` to your project root, if you don't have one already.
+
+```posix-terminal
+cd $GENKIT_PROJECT_HOME
+
+touch genkit-tools.conf.js
+```
+
+In the tools config file, add the following code:
+
+```js
+module.exports = {
+  evaluators: [
+    {
+      flowName: 'myFlow',
+      extractors: {
+        context: { outputOf: 'foo-step' },
+        output: 'bar-step',
+      },
+    },
+  ],
+};
+```
+
+In this sample, you configure an extractor for `myFlow` flow. The config overrides the extractors for `context` and `output` fields, and used the default logic for the `input` field.
+
+The specification of the evaluation extractors is as follows:
+
+- `evaluators` field accepts an array of EvaluatorConfig objects, which are scoped by `flowName`
+- `extractors` is an object that specifies the extractor overrides. The current supported keys in `extractors` are `[input, output, context]`. The acceptable value types are:
+  - `string` - this should be a step name, specified as a stirng. The output of this step is extracted for this key.
+  - `{ inputOf: string }` or `{ outputOf: string }` - These objects represent specific channels (input or output) of a step. For example, `{ inputOf: 'foo-step' }` would extract the input of step `foo-step` for this key.
+  - `(trace) => string;` - For further flexibility, you can provide a function that accepts a Genkit trace and returns a `string`, and specify the extraction logic inside this function. Refer to `genkit/genkit-tools/common/src/types/trace.ts` for the exact TraceData schema.
+
+Note: The extracted data for all these steps will be a JSON string. The tooling will parse this JSON string at the time of evaluation automatically. If providing a function extractor, make sure that the output is a valid JSON string. For eg: `"Hello, world!"` is not valid JSON; `"\"Hello, world!\""` is valid.
+
+### Running on existing datasets
+
 To run evaluation over an already extracted dataset:
 
 ```posix-terminal
