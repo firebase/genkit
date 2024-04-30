@@ -1,6 +1,8 @@
+"use server"
+
 import { generate } from '@genkit-ai/ai';
 import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
+import { defineFlow, runFlow } from '@genkit-ai/flow';
 $GENKIT_MODEL_IMPORT
 import * as z from 'zod';
 $GENKIT_CONFIG_IMPORTS
@@ -13,7 +15,12 @@ $GENKIT_CONFIG_PLUGINS
   enableTracingAndMetrics: true,
 });
 
-export const jokeFlow = defineFlow(
+export async function callJokeFlow() {
+  const joke = await runFlow(jokeFlow, 'banana');
+  console.log(joke)
+}
+
+const jokeFlow = defineFlow(
   {
     name: 'jokeFlow',
     inputSchema: z.string(),
@@ -31,5 +38,3 @@ export const jokeFlow = defineFlow(
     return llmResponse.text();
   }
 );
-
-startFlowsServer();
