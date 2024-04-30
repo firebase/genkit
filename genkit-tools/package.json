@@ -2,28 +2,26 @@
   "name": "genkit",
   "version": "0.5.0-rc.6",
   "description": "CLI for interacting with the Google GenKit AI framework",
+  "license": "Apache-2.0",
   "keywords": [
     "genkit",
     "ai",
     "genai",
     "generative-ai"
   ],
+  "author": "genkit",
   "bin": {
     "genkit": "dist/bin/genkit.js"
   },
   "main": "dist/index.js",
   "scripts": {
-    "build": "pnpm install && pnpm build:genversion && pnpm build:common && pnpm build:cli && pnpm build:ui && pnpm copy-ui-build && pnpm build:plugins",
+    "build": "pnpm install && pnpm build:genversion && pnpm build:common && pnpm build:cli && pnpm build:plugins",
     "build:cli:watch": "tsc --watch",
     "build:cli": "tsc",
     "build:common": "cd common && pnpm build",
     "build:genversion": "genversion -es src/utils/version.ts",
     "build:plugins": "pnpm -r --workspace-concurrency 8 -F \"./plugins/**\" build",
-    "build:ui": "cd ui && pnpm build",
-    "copy-ui-build": "rm -rf dist/client && cd ui && rsync -r dist ../dist/client",
-    "test:all": "pnpm run test:ui && pnpm run test:jest",
-    "test:ui": "cd ui && pnpm test-headless",
-    "test:jest": "jest --verbose",
+    "test": "jest --verbose",
     "export:schemas": "ts-node scripts/schema-exporter.ts .",
     "pack:all": "pnpm run pack:cli && pnpm run pack:common && pnpm run pack:plugins",
     "pack:common": "cd common && pnpm pack --pack-destination ../../dist",
@@ -35,8 +33,6 @@
     "url": "https://github.com/google/genkit.git",
     "directory": "genkit-tools"
   },
-  "author": "genkit",
-  "license": "Apache-2.0",
   "dependencies": {
     "@genkit-ai/tools-common": "workspace:*",
     "colorette": "^2.0.20",
