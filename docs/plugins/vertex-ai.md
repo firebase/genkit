@@ -108,3 +108,36 @@ const embedding = await embed({
   content: 'How many widgets do you have in stock?',
 });
 ```
+
+### Anthropic Claude 3 on Vertex AI Model Garden
+
+If you have access to Claude 3 models ([haiku](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden/claude-3-haiku), [sonnet](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden/claude-3-sonnet) or [opus](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden/claude-3-opus)) in Vertex AI Model Garden you can use them with Genkit.
+
+Here's sample configuration for enabling Vertex AI Model Garden models:
+
+```js
+import {
+  vertexAI,
+  claude3Haiku,
+  claude3Sonnet,
+  claude3Opus,
+} from '@genkit-ai/vertexai';
+
+export default configureGenkit({
+  plugins: [
+    vertexAI({
+      location: 'us-central1',
+      modelGardenModels: [claude3Haiku, claude3Sonnet, claude3Opus],
+    }),
+  ],
+});
+```
+
+Then use them as regular models:
+
+```js
+const llmResponse = await generate({
+  model: claude3Sonnet,
+  prompt: 'What should I do when I visit Melbourne?',
+});
+```
