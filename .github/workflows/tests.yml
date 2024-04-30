@@ -36,9 +36,5 @@ jobs:
         cache: 'pnpm'
     - name: Install dependencies and build
       run: pnpm build:genkit-tools
-    - name: Run Dev UI tests
-      working-directory: ./genkit-tools/ui
-      run: pnpm test-headless
-    - name: Run Jest tests
-      working-directory: ./genkit-tools
-      run: pnpm test:jest
+    - name: Run tests
+      run: pnpm test:genkit-tools
