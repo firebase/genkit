@@ -41,19 +41,19 @@ const MAX_LOG_CONTENT_CHARS = 128_000;
  */
 const _N = internalMetricNamespaceWrap.bind(null, 'ai');
 
-const generateActionCounter = new MetricCounter(_N('generate_requests'), {
+const generateActionCounter = new MetricCounter(_N('generate/requests'), {
   description: 'Counts calls to genkit generate actions.',
   valueType: ValueType.INT,
 });
 
-const generateActionLatencies = new MetricHistogram(_N('generate_latency'), {
+const generateActionLatencies = new MetricHistogram(_N('generate/latency'), {
   description: 'Latencies when interacting with a Genkit model.',
   valueType: ValueType.DOUBLE,
   unit: 'ms',
 });
 
 const generateActionInputCharacters = new MetricHistogram(
-  _N('generate_input_characters'),
+  _N('generate/input_characters'),
   {
     description: 'Histogram of input characters to a Genkit model.',
     valueType: ValueType.INT,
@@ -61,7 +61,7 @@ const generateActionInputCharacters = new MetricHistogram(
 );
 
 const generateActionInputTokens = new MetricHistogram(
-  _N('generate_input_tokens'),
+  _N('generate/input_tokens'),
   {
     description: 'Histogram of input tokens to a Genkit model.',
     valueType: ValueType.INT,
@@ -69,7 +69,7 @@ const generateActionInputTokens = new MetricHistogram(
 );
 
 const generateActionInputImages = new MetricHistogram(
-  _N('generate_input_images'),
+  _N('generate/input_images'),
   {
     description: 'Histogram of input images to a Genkit model.',
     valueType: ValueType.INT,
@@ -77,7 +77,7 @@ const generateActionInputImages = new MetricHistogram(
 );
 
 const generateActionOutputCharacters = new MetricHistogram(
-  _N('generate_output_characters'),
+  _N('generate/output_characters'),
   {
     description: 'Histogram of output characters to a Genkit model.',
     valueType: ValueType.INT,
@@ -85,7 +85,7 @@ const generateActionOutputCharacters = new MetricHistogram(
 );
 
 const generateActionOutputTokens = new MetricHistogram(
-  _N('generate_output_tokens'),
+  _N('generate/output_tokens'),
   {
     description: 'Histogram of output tokens to a Genkit model.',
     valueType: ValueType.INT,
@@ -93,7 +93,7 @@ const generateActionOutputTokens = new MetricHistogram(
 );
 
 const generateActionOutputImages = new MetricHistogram(
-  _N('generate_output_images'),
+  _N('generate/output_images'),
   {
     description: 'Histogram of output images to a Genkit model.',
     valueType: ValueType.INT,

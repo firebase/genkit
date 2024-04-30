@@ -47,19 +47,19 @@ func initInstruments() (*metricInstruments, error) {
 	meter := otel.Meter("genkit")
 	var err error
 	insts := &metricInstruments{}
-	insts.actionCounter, err = meter.Int64Counter("action.requests")
+	insts.actionCounter, err = meter.Int64Counter("genkit/action/requests")
 	if err != nil {
 		return nil, err
 	}
-	insts.actionLatencies, err = meter.Int64Histogram("action.latency", metric.WithUnit("ms"))
+	insts.actionLatencies, err = meter.Int64Histogram("genkit/action/latency", metric.WithUnit("ms"))
 	if err != nil {
 		return nil, err
 	}
-	insts.flowCounter, err = meter.Int64Counter("flow.requests")
+	insts.flowCounter, err = meter.Int64Counter("genkit/flow/requests")
 	if err != nil {
 		return nil, err
 	}
-	insts.flowLatencies, err = meter.Int64Histogram("flow.latency", metric.WithUnit("ms"))
+	insts.flowLatencies, err = meter.Int64Histogram("genkit/flow/latency", metric.WithUnit("ms"))
 	if err != nil {
 		return nil, err
 	}

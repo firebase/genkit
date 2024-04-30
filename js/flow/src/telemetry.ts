@@ -34,7 +34,7 @@ const flowCounter = new MetricCounter(_N('requests'), {
   valueType: ValueType.INT,
 });
 
-const flowLatencies = new MetricHistogram(_N('flow_latency'), {
+const flowLatencies = new MetricHistogram(_N('latency'), {
   description: 'Latencies when calling Genkit flows.',
   valueType: ValueType.DOUBLE,
   unit: 'ms',
