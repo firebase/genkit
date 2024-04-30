@@ -22,7 +22,7 @@ import * as fs from 'fs';
 import * as inquirer from 'inquirer';
 import * as path from 'path';
 
-type Platform = 'firebase' | 'googlecloud' | 'nodejs';
+type Platform = 'firebase' | 'googlecloud' | 'nodejs' | 'nextjs';
 type ModelProvider = 'googleai' | 'vertexai' | 'ollama' | 'none';
 type Runtime = 'node' | undefined;
 type WriteMode = 'keep' | 'overwrite' | 'merge';
@@ -62,6 +62,10 @@ const platformOptions: Record<Platform, PromptOption> = {
     plugin: '@genkit-ai/google-cloud',
   },
   nodejs: { label: 'Node.js', plugin: undefined },
+  nextjs: {
+    label: 'Next.js',
+    plugin: undefined,
+  },
 };
 
 /** Model to plugin name. */
@@ -119,14 +123,12 @@ const pluginToInfo: Record<string, PluginInfo> = {
   },
 };
 
-/** Path to genkit.config template. */
-const configTemplatePath = '../../config/genkit.config.ts.template';
-
 /** Platform to sample flow template paths. */
 const sampleTemplatePaths: Record<Platform, string> = {
   firebase: '../../config/firebase.index.ts.template',
   googlecloud: '../../config/googleCloud.index.ts.template',
   nodejs: '../../config/googleCloud.index.ts.template', // This can deviate from GCP template in the future as needed.
+  nextjs: '../../config/nextjs.genkit.ts.template',
 };
 
 /** Supported runtimes for the init command. */
@@ -219,7 +221,6 @@ export const init = new Command('init')
       if (!fs.existsSync('src')) {
         fs.mkdirSync('src');
       }
-      generateConfigFile(plugins);
       await updateTsConfig();
       await updatePackageJson();
       if (
@@ -228,7 +229,7 @@ export const init = new Command('init')
           default: true,
         })
       ) {
-        generateSampleFile(platform, modelOptions[model].plugin);
+        generateSampleFile(platform, modelOptions[model].plugin, plugins);
       }
     } catch (error) {
       logger.error(error);
@@ -310,32 +311,47 @@ async function updatePackageJson() {
  * @param platform Deployment platform.
  * @param modelPlugin Model plugin name.
  */
-function generateSampleFile(platform: Platform, modelPlugin?: string) {
+function generateSampleFile(
+  platform: Platform,
+  modelPlugin: string | undefined,
+  configPlugins: string[]
+) {
   const modelImport =
     modelPlugin && pluginToInfo[modelPlugin].model
       ? `import { ${pluginToInfo[modelPlugin].model} } from '${modelPlugin}';`
       : '';
   const templatePath = path.join(__dirname, sampleTemplatePaths[platform]);
   let template = fs.readFileSync(templatePath, 'utf8');
-  const sample = template
-    .replace('$GENKIT_MODEL_IMPORT', modelImport)
-    .replace(
-      '$GENKIT_MODEL',
-      modelPlugin
-        ? pluginToInfo[modelPlugin].model ||
-            pluginToInfo[modelPlugin].modelStr ||
-            ''
-        : "'' /* TODO: Set a model. */"
-    );
+  const sample = renderConfig(
+    configPlugins,
+    template
+      .replace('$GENKIT_MODEL_IMPORT', modelImport)
+      .replace(
+        '$GENKIT_MODEL',
+        modelPlugin
+          ? pluginToInfo[modelPlugin].model ||
+              pluginToInfo[modelPlugin].modelStr ||
+              ''
+          : "'' /* TODO: Set a model. */"
+      )
+  );
   logger.info('Generating sample file...');
-  fs.writeFileSync('src/index.ts', sample, 'utf8');
+  let samplePath = 'src/index.ts';
+  if (platform === 'nextjs') {
+    if (fs.existsSync('src/app')) {
+      samplePath = 'src/app/genkit.ts';
+    } else if (fs.existsSync('src')) {
+      samplePath = 'app/genkit.ts';
+    } else {
+      throw new Error(
+        'Unable to resolve source folder (app or src/app) of you next.js app.'
+      );
+    }
+  }
+  fs.writeFileSync(samplePath, sample, 'utf8');
 }
 
-/**
- * Generates a genkit.config file.
- * @param pluginInfos List of plugin infos.
- */
-function generateConfigFile(pluginNames: string[]): void {
+function renderConfig(pluginNames: string[], template: string): string {
   const imports = pluginNames
     .map(
       (pluginName) =>
@@ -346,18 +362,9 @@ function generateConfigFile(pluginNames: string[]): void {
     pluginNames
       .map((pluginName) => `    ${pluginToInfo[pluginName].init},`)
       .join('\n') || '    /* Add your plugins here. */';
-  try {
-    const templatePath = path.join(__dirname, configTemplatePath);
-    const template = fs.readFileSync(templatePath, 'utf8');
-    const config = template
-      .replace('$GENKIT_IMPORTS', imports)
-      .replace('$GENKIT_PLUGINS', plugins);
-    const outputPath = path.join(process.cwd(), 'src/genkit.config.ts');
-    logger.info('Generating genkit.config.ts...');
-    fs.writeFileSync(outputPath, config, 'utf8');
-  } catch (error) {
-    throw new Error(`Failed to generate genkit.config file: ${error}`);
-  }
+  return template
+    .replace('$GENKIT_CONFIG_IMPORTS', imports)
+    .replace('$GENKIT_CONFIG_PLUGINS', plugins);
 }
 
 /**

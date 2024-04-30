@@ -1,12 +1,18 @@
 import { generate } from '@genkit-ai/ai';
-import { initializeGenkit } from '@genkit-ai/core';
+import { configureGenkit } from '@genkit-ai/core';
 import { firebaseAuth } from '@genkit-ai/firebase/auth';
 import { onFlow } from '@genkit-ai/firebase/functions';
 $GENKIT_MODEL_IMPORT
 import * as z from 'zod';
-import config from './genkit.config.js';
+$GENKIT_CONFIG_IMPORTS
 
-initializeGenkit(config);
+configureGenkit({
+  plugins: [
+$GENKIT_CONFIG_PLUGINS
+  ],
+  logLevel: 'debug',
+  enableTracingAndMetrics: true,
+});
 
 export const jokeFlow = onFlow(
   {
