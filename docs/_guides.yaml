@@ -71,6 +71,8 @@ toc:
     path: /docs/genkit/plugins/firebase
   - title: Google Cloud
     path: /docs/genkit/plugins/google-cloud
+  - title: LangChain
+    path: /docs/genkit/plugins/langchain
 #
 # reference:
 #   - title: Resource summary

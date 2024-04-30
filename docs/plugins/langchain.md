@@ -1,19 +1,17 @@
-/**
- * Copyright 2024 Google LLC
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+# Using LangChain with Genkit
 
+## Installation
+
+```posix-terminal
+npm i --save genkitx-langchain
+```
+
+## Usage
+
+You can use most LangChain chains or utilities in Genkit flows as is. The example below
+uses LangChain retrievers, document loaders, and chain constructs to build a naive RAG sample.
+
+```js
 import { initializeGenkit } from '@genkit-ai/core';
 import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
 import { GoogleVertexAIEmbeddings } from '@langchain/community/embeddings/googlevertexai';
@@ -74,3 +72,32 @@ export const pdfQA = defineFlow(
 );
 
 startFlowsServer();
+```
+
+Note that the example uses `GenkitTracer` provided by the `genkitx-langchain` plugin to instrument LangChain
+chains with Genkit observability features. Now when you run the flow from Dev UI or in production,
+you will be getting full visibility into the LangChain chains.
+
+Also note that LangChain components are not interoperable with Genkit primitives (models,
+documents, retrievers, etc.).
+
+### Evaluators (Preview)
+
+You can use [LangChain evaluators](https://js.langchain.com/docs/guides/evaluation/) with Genkit.
+Configure which evaluators you want from the `langchain` plugin and then follow the standard
+evaluation process:
+
+```js
+import { langchain } from 'genkitx-langchain';
+
+configureGenkit({
+  plugins: [
+    langchain({
+      evaluators: {
+        judge: geminiPro,
+        criteria: ['harmfulness', 'maliciousness'],
+      },
+    }),
+  ],
+});
+```
