@@ -84,14 +84,16 @@ sample flow.
     genkit flow:run jokeFlow "\"banana\"" -s
     ```
 
-1.  **Optional**: Start the dev UI:
+1.  **Optional**: Start the developer UI:
 
     ```posix-terminal
     genkit start
     ```
 
-    To try out the joke flow, navigate to http://localhost:4000/flows and run
-    the flow using the Dev UI.
+    Then, navigate to [http://localhost:4000/flows](http://localhost:4000/flows) and run
+    the flow using the developer UI.
+
+    When you're done, press Ctrl+C in the console to quit the UI.
 
 1.  Try out the Express endpoint:
 
