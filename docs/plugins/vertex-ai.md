@@ -7,6 +7,12 @@ through the [Vertex AI API](https://cloud.google.com/vertex-ai/generative-ai/doc
 - Imagen2 image generation
 - Gecko text embedding generation
 
+## Installation
+
+```posix-terminal
+npm i --save @genkit-ai/vertexai
+```
+
 ## Configuration
 
 To use this plugin, specify it when you call `configureGenkit()`:

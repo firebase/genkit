@@ -8,6 +8,12 @@ The Firebase plugin provides several integrations with Firebase services:
 
 <!-- - State storage using Cloud Firestore -->
 
+## Installation
+
+```posix-terminal
+npm i --save @genkit-ai/firebase
+```
+
 ## Configuration
 
 To use this plugin, specify it when you call `configureGenkit()`:
