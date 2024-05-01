@@ -25,6 +25,7 @@ import { EvaluatorFactory } from './evaluator_factory';
  * https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/evaluation#parameter-list
  */
 export enum VertexAIEvaluationMetricType {
+  // Update genkit/docs/plugins/vertex-ai.md when modifying the list of enums
   SAFETY = 'SAFETY',
   GROUNDEDNESS = 'GROUNDEDNESS',
   BLEU = 'BLEU',
