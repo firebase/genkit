@@ -148,6 +148,7 @@ export type CandidateData = z.infer<typeof CandidateSchema>;
 export const GenerateResponseSchema = z.object({
   candidates: z.array(CandidateSchema),
   usage: GenerationUsageSchema.optional(),
+  request: GenerateRequestSchema.optional(),
   custom: z.unknown(),
 });
 export type GenerateResponseData = z.infer<typeof GenerateResponseSchema>;
