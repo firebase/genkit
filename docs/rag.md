@@ -60,7 +60,7 @@ ingest them into your document index. A typical ingestion flow does the
 following:
 
 1.  Split up large documents into smaller documents so that only relevant
-    portions are used to augment your prompts – “chunking”. This is necessary
+    portions are used to augment your prompts – "chunking". This is necessary
     because many LLMs have a limited context window, making it impractical to
     include entire documents with a prompt.
 
