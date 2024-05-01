@@ -41,7 +41,7 @@ export class EvaluatorFactory {
       {
         name: `vertexai/${config.metric.toLocaleLowerCase()}`,
         displayName: config.displayName,
-        definition: config.displayName,
+        definition: config.definition,
       },
       async (datapoint: BaseDataPoint) => {
         const response = await this.evaluateInstances(toRequest(datapoint));
