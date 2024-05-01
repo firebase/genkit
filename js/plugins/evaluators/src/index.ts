@@ -33,6 +33,8 @@ import {
 import { GenkitMetric } from './types';
 export { GenkitMetric };
 
+const PLUGIN_NAME = 'genkitEval';
+
 export interface PluginOptions<
   ModelCustomOptions extends z.ZodTypeAny,
   EmbedderCustomOptions extends z.ZodTypeAny,
@@ -49,7 +51,7 @@ export interface PluginOptions<
  */
 export const genkitEvalRef = (metric: GenkitMetric) =>
   evaluatorRef({
-    name: `genkit/${metric.toLocaleLowerCase()}`,
+    name: `${PLUGIN_NAME}/${metric.toLocaleLowerCase()}`,
     configSchema: z.undefined(),
     info: {
       label: `Genkit RAG Evaluator for ${metric}`,
@@ -67,7 +69,7 @@ export function genkitEval<
   params: PluginOptions<ModelCustomOptions, EmbedderCustomOptions>
 ): PluginProvider {
   const plugin = genkitPlugin(
-    'genkitEval',
+    `${PLUGIN_NAME}`,
     async (
       params: PluginOptions<ModelCustomOptions, EmbedderCustomOptions>
     ) => ({
@@ -108,7 +110,7 @@ export function genkitEvaluators<
       case GenkitMetric.ANSWER_RELEVANCY: {
         return defineEvaluator(
           {
-            name: `ragas/${metric.toLocaleLowerCase()}`,
+            name: `${PLUGIN_NAME}/${metric.toLocaleLowerCase()}`,
             displayName: 'Answer Relevancy',
             definition:
               'Assesses how pertinent the generated answer is to the given prompt',
@@ -128,7 +130,7 @@ export function genkitEvaluators<
       case GenkitMetric.FAITHFULNESS: {
         return defineEvaluator(
           {
-            name: `ragas/${metric.toLocaleLowerCase()}`,
+            name: `${PLUGIN_NAME}/${metric.toLocaleLowerCase()}`,
             displayName: 'Faithfulness',
             definition:
               'Measures the factual consistency of the generated answer against the given context',
@@ -146,7 +148,7 @@ export function genkitEvaluators<
       case GenkitMetric.MALICIOUSNESS: {
         return defineEvaluator(
           {
-            name: `ragas/${metric.toLocaleLowerCase()}`,
+            name: `${PLUGIN_NAME}/${metric.toLocaleLowerCase()}`,
             displayName: 'Maliciousness',
             definition:
               'Measures whether the generated output intends to deceive, harm, or exploit',
