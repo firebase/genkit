@@ -74,7 +74,7 @@ export async function startReflectionApi(port?: number | undefined) {
     await stopReflectionApi();
   });
 
-  api.get('/api/actions', async (_, response) => {
+  api.get('/api/actions', async (_, response, next) => {
     logger.debug('Fetching actions.');
     const actions = await registry.listActions();
     const convertedActions = {};
@@ -99,10 +99,17 @@ export async function startReflectionApi(port?: number | undefined) {
         });
       }
     });
-    response.send(convertedActions);
+    // TODO: Remove try/catch when upgrading to Express 5; error is sent to `next` automatically
+    // in that version
+    try {
+      response.send(convertedActions);
+    } catch (err) {
+      const { message, stack } = err as Error;
+      next({ message, stack });
+    }
   });
 
-  api.post('/api/runAction', async (request, response) => {
+  api.post('/api/runAction', async (request, response, next) => {
     const { key, input } = request.body;
     const { stream } = request.query;
     logger.debug(`Running action \`${key}\`...`);
@@ -158,17 +165,8 @@ export async function startReflectionApi(port?: number | undefined) {
         } as RunActionResponse);
       }
     } catch (err) {
-      const error = err as Error;
-      const { message, stack } = error;
-      const errorResponse: Status = {
-        code: StatusCodes.INTERNAL,
-        message,
-        details: {
-          traceId,
-          stack,
-        },
-      };
-      return response.status(500).json(errorResponse);
+      const { message, stack } = err as Error;
+      next({ message, stack, traceId });
     }
   });
 
@@ -186,6 +184,8 @@ export async function startReflectionApi(port?: number | undefined) {
         message: `${env} trace store not found`,
       });
     }
+    // TODO: Remove try/catch when upgrading to Express 5; error is sent to `next` automatically
+    // in that version
     try {
       response.json(await tracestore?.load(traceId));
     } catch (err) {
@@ -202,7 +202,7 @@ export async function startReflectionApi(port?: number | undefined) {
     }
   });
 
-  api.get('/api/envs/:env/traces', async (request, response) => {
+  api.get('/api/envs/:env/traces', async (request, response, next) => {
     const { env } = request.params;
     const { limit, continuationToken } = request.query;
     logger.debug(`Fetching traces for env \`${env}\`.`);
@@ -213,6 +213,8 @@ export async function startReflectionApi(port?: number | undefined) {
         message: `${env} trace store not found`,
       });
     }
+    // TODO: Remove try/catch when upgrading to Express 5; error is sent to `next` automatically
+    // in that version
     try {
       response.json(
         await tracestore.list({
@@ -223,46 +225,35 @@ export async function startReflectionApi(port?: number | undefined) {
         })
       );
     } catch (err) {
-      const error = err as Error;
-      const { message, stack } = error;
-      const errorResponse: Status = {
-        code: StatusCodes.INTERNAL,
-        message,
-        details: {
-          stack,
-        },
-      };
-      return response.status(500).json(errorResponse);
+      const { message, stack } = err as Error;
+      next({ message, stack });
     }
   });
 
-  api.get('/api/envs/:env/flowStates/:flowId', async (request, response) => {
-    const { env, flowId } = request.params;
-    logger.debug(`Fetching flow state \`${flowId}\` for env \`${env}\`.`);
-    const flowStateStore = await registry.lookupFlowStateStore(env);
-    if (!flowStateStore) {
-      return response.status(500).send({
-        code: StatusCodes.FAILED_PRECONDITION,
-        message: `${env} flow state store not found`,
-      });
+  api.get(
+    '/api/envs/:env/flowStates/:flowId',
+    async (request, response, next) => {
+      const { env, flowId } = request.params;
+      logger.debug(`Fetching flow state \`${flowId}\` for env \`${env}\`.`);
+      const flowStateStore = await registry.lookupFlowStateStore(env);
+      if (!flowStateStore) {
+        return response.status(500).send({
+          code: StatusCodes.FAILED_PRECONDITION,
+          message: `${env} flow state store not found`,
+        });
+      }
+      // TODO: Remove try/catch when upgrading to Express 5; error is sent to `next` automatically
+      // in that version
+      try {
+        response.json(await flowStateStore?.load(flowId));
+      } catch (err) {
+        const { message, stack } = err as Error;
+        next({ message, stack });
+      }
     }
-    try {
-      response.json(await flowStateStore?.load(flowId));
-    } catch (err) {
-      const error = err as Error;
-      const { message, stack } = error;
-      const errorResponse: Status = {
-        code: StatusCodes.INTERNAL,
-        message,
-        details: {
-          stack,
-        },
-      };
-      return response.status(500).json(errorResponse);
-    }
-  });
+  );
 
-  api.get('/api/envs/:env/flowStates', async (request, response) => {
+  api.get('/api/envs/:env/flowStates', async (request, response, next) => {
     const { env } = request.params;
     const { limit, continuationToken } = request.query;
     logger.debug(`Fetching traces for env \`${env}\`.`);
@@ -273,6 +264,8 @@ export async function startReflectionApi(port?: number | undefined) {
         message: `${env} flow state store not found`,
       });
     }
+    // TODO: Remove try/catch when upgrading to Express 5; error is sent to `next` automatically
+    // in that version
     try {
       response.json(
         await flowStateStore?.list({
@@ -283,16 +276,8 @@ export async function startReflectionApi(port?: number | undefined) {
         })
       );
     } catch (err) {
-      const error = err as Error;
-      const { message, stack } = error;
-      const errorResponse: Status = {
-        code: StatusCodes.INTERNAL,
-        message,
-        details: {
-          stack,
-        },
-      };
-      return response.status(500).json(errorResponse);
+      const { message, stack } = err as Error;
+      next({ message, stack });
     }
   });
 
@@ -307,6 +292,9 @@ export async function startReflectionApi(port?: number | undefined) {
         stack,
       },
     };
+    if (err.traceId) {
+      errorResponse.details.traceId = err.traceId;
+    }
     res.status(500).json(errorResponse);
   });
 
