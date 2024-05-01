@@ -41,11 +41,20 @@ export type RunActionResponse = z.infer<typeof RunActionResponseSchema>;
 
 let server;
 
+const GLOBAL_REFLECTION_API_PORT_KEY = 'genkit__reflectionApiPort';
+
 /**
  * Starts a Reflection API that will be used by the Runner to call and control actions and flows.
  * @param port port on which to listen
  */
 export async function startReflectionApi(port?: number | undefined) {
+  if (global[GLOBAL_REFLECTION_API_PORT_KEY] !== undefined) {
+    logger.warn(
+      `Reflection API is already running on port ${global[GLOBAL_REFLECTION_API_PORT_KEY]}`
+    );
+    return;
+  }
+
   if (!port) {
     port = Number(process.env.GENKIT_REFLECTION_PORT) || 3100;
   }
@@ -303,6 +312,7 @@ export async function startReflectionApi(port?: number | undefined) {
 
   server = api.listen(port, () => {
     console.log(`Reflection API running on http://localhost:${port}`);
+    global[GLOBAL_REFLECTION_API_PORT_KEY] = port;
   });
 
   server.on('error', (error) => {
