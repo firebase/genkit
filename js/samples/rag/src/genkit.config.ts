@@ -32,7 +32,7 @@ import { pinecone } from 'genkitx-pinecone';
 export default configureGenkit({
   plugins: [
     firebase(),
-    googleAI(),
+    googleAI({ apiVersion: ['v1', 'v1beta'] }),
     genkitEval({
       judge: geminiPro,
       metrics: [GenkitMetric.FAITHFULNESS, GenkitMetric.MALICIOUSNESS],

@@ -38,6 +38,24 @@ Configure the plugin to use your API key by doing one of the following:
   However, don't embed your API key directly in code! Use this feature only
   in conjunction with a service like Cloud Secret Manager or similar.
 
+Some models (like Gemini 1.5 Pro) are in preview and only aviable via the
+`v1beta` API. You can specify the `apiVersion` to get access to those models:
+
+```js
+configureGenkit({
+  plugins: [googleAI({ apiVersion: 'v1beta' })],
+});
+```
+
+or you can specify multiple versions if you'd like to use different versions of
+models at the same time.
+
+```js
+configureGenkit({
+  plugins: [googleAI({ apiVersion: ['v1', 'v1beta'] })],
+});
+```
+
 ## Usage
 
 This plugin statically exports references to its supported models:

@@ -21,39 +21,57 @@ import {
 } from './embedder.js';
 import {
   gemini15Pro,
-  gemini15Spark,
-  SUPPORTED_MODELS as GEMINI_MODELS,
   geminiPro,
   geminiProVision,
   googleAIModel,
+  V1_BETA_SUPPORTED_MODELS,
+  V1_SUPPORTED_MODELS,
 } from './gemini.js';
-export { gemini15Pro, gemini15Spark, geminiPro, geminiProVision };
+export { gemini15Pro, geminiPro, geminiProVision };
 
 export interface PluginOptions {
   apiKey?: string;
-  apiVersion?: string;
+  apiVersion?: string | string[];
   baseUrl?: string;
 }
 
 export const googleAI: Plugin<[PluginOptions] | []> = genkitPlugin(
   'googleai',
   async (options?: PluginOptions) => {
-    return {
-      models: [
-        ...Object.keys(GEMINI_MODELS).map((name) =>
-          googleAIModel(
-            name,
-            options?.apiKey,
-            options?.apiVersion,
-            options?.baseUrl
-          )
+    let models;
+    let embedders;
+    let apiVersions = ['v1'];
+
+    if (options?.apiVersion) {
+      if (Array.isArray(options?.apiVersion)) {
+        apiVersions = options?.apiVersion;
+      } else {
+        apiVersions = [options?.apiVersion];
+      }
+    }
+    if (apiVersions.includes('v1beta')) {
+      (embedders = []),
+        (models = [
+          ...Object.keys(V1_BETA_SUPPORTED_MODELS).map((name) =>
+            googleAIModel(name, options?.apiKey, 'v1beta', options?.baseUrl)
+          ),
+        ]);
+    }
+    if (apiVersions.includes('v1')) {
+      models = [
+        ...Object.keys(V1_SUPPORTED_MODELS).map((name) =>
+          googleAIModel(name, options?.apiKey, undefined, options?.baseUrl)
         ),
-      ],
-      embedders: [
+      ];
+      embedders = [
         ...Object.keys(EMBEDDER_MODELS).map((name) =>
           textEmbeddingGeckoEmbedder(name, { apiKey: options?.apiKey })
         ),
-      ],
+      ];
+    }
+    return {
+      models,
+      embedders,
     };
   }
 );
