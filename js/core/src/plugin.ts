@@ -62,6 +62,37 @@ export function genkitPlugin<T extends PluginInit>(
 ): Plugin<Parameters<T>> {
   return (...args: Parameters<T>) => ({
     name: pluginName,
-    initializer: async () => (await initFn(...args)) || {},
+    initializer: async () => {
+      const initializedPlugin = (await initFn(...args)) || {};
+      validatePluginActions(pluginName, initializedPlugin);
+      return initializedPlugin;
+    },
   });
+}
+
+function validatePluginActions(pluginName: string, plugin?: InitializedPlugin) {
+  if (!plugin) {
+    return;
+  }
+
+  plugin.models?.forEach((model) => validateNaming(pluginName, model));
+  plugin.retrievers?.forEach((retriever) =>
+    validateNaming(pluginName, retriever)
+  );
+  plugin.embedders?.forEach((embedder) => validateNaming(pluginName, embedder));
+  plugin.indexers?.forEach((indexer) => validateNaming(pluginName, indexer));
+  plugin.evaluators?.forEach((evaluator) =>
+    validateNaming(pluginName, evaluator)
+  );
+}
+
+function validateNaming(
+  pluginName: string,
+  action: Action<z.ZodTypeAny, z.ZodTypeAny>
+) {
+  const nameParts = action.__action.name.split('/');
+  if (nameParts[0] !== pluginName) {
+    const err = `Plugin name ${pluginName} not found in action name ${action.__action.name}. Action names must follow the pattern {pluginName}/{actionName}`;
+    throw new Error(err);
+  }
 }
