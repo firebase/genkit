@@ -117,7 +117,7 @@ Node.js 18 or later.
       sources for retrieval-augmented generation (RAG), and more.
 
 1.  Now you can run and explore Genkit features and the sample project locally
-    on your machine. Start the Genkit Developer UI:
+    on your machine. Download and start the Genkit Developer UI:
 
     ```posix-terminal
     genkit start
@@ -134,7 +134,7 @@ Node.js 18 or later.
     Also, because you are in a dev environment, Genkit will store traces and
     flow state in local files.
 
-1.  The Genkit Developer UI opens automatically when you run the
+1.  The Genkit Developer UI downloads and opens automatically when you run the
     `genkit start` command.
 
     The Developer UI lets you see which flows you have defined and models you
