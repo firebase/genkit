@@ -65,7 +65,7 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, _ g
 
 	// Translate from a ai.GenerateRequest to a genai request.
 	gm.SetCandidateCount(int32(input.Candidates))
-	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok {
+	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
 		gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
 		gm.StopSequences = c.StopSequences
 		gm.SetTemperature(float32(c.Temperature))
