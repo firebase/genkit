@@ -14,24 +14,7 @@
  * limitations under the License.
  */
 
-import { JSONSchema7 } from 'json-schema';
-import * as z from 'zod';
-
-// TODO: Temporarily here to get rid of the dependency on @genkit-ai/core.
-// This will be replaced with a better interface.
-export interface ActionMetadata<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-> {
-  name: string;
-  description?: string;
-  inputSchema?: I;
-  inputJsonSchema?: JSONSchema7;
-  outputSchema?: unknown;
-  outputJsonSchema?: JSONSchema7;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  metadata: Record<string, any>;
-}
+export type Runtime = 'node' | 'go' | undefined;
 
 export class GenkitToolsError extends Error {
   public data?: Record<string, unknown>;

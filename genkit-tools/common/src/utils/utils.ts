@@ -16,6 +16,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { Runtime } from '../runner/types';
 
 interface PackageJson {
   main: string;
@@ -23,16 +24,48 @@ interface PackageJson {
 
 /**
  * Returns the entry point of a Node.js app.
- * @param directory directory to check
  */
 export function getNodeEntryPoint(directory: string): string {
   const packageJsonPath = path.join(directory, 'package.json');
-  const defaultMain = 'lib/index.js';
+  let entryPoint = 'lib/index.js';
   if (fs.existsSync(packageJsonPath)) {
     const packageJson = JSON.parse(
       fs.readFileSync(packageJsonPath, 'utf8')
     ) as PackageJson;
-    return packageJson.main || defaultMain;
+    entryPoint = packageJson.main;
   }
-  return defaultMain;
+  return entryPoint;
+}
+
+/**
+ * Returns the entry point of any supported runtime.
+ */
+export function getEntryPoint(directory: string): string | undefined {
+  const runtime = detectRuntime(directory);
+  switch (runtime) {
+    case 'node':
+      return getNodeEntryPoint(directory);
+    case 'go':
+      return '.';
+    default:
+      return;
+  }
+}
+
+/**
+ * Detects what runtime is used in the current directory.
+ * @returns Runtime of the project directory.
+ */
+export function detectRuntime(directory: string): Runtime {
+  if (fs.existsSync(path.join(directory, 'package.json'))) {
+    return 'node';
+  }
+  fs.readdirSync(directory).forEach((file) => {
+    const filePath = path.join(directory, file);
+    const stat = fs.statSync(filePath);
+    if (stat.isFile() && path.extname(file) === '.go') {
+      return 'go';
+    }
+  });
+  return undefined;
 }
