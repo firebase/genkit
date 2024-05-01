@@ -27,8 +27,12 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
 	"sync/atomic"
+	"syscall"
+	"time"
 
 	"go.opentelemetry.io/otel/trace"
 )
@@ -39,13 +43,35 @@ import (
 func StartDevServer(addr string) error {
 	mux := newDevServerMux(globalRegistry)
 	if addr == "" {
-		// Don't use "localhost" here. That only binds the IPv4 address, and the genkit tool
-		// wants to connect to the IPv6 address even when you tell it to use "localhost".
-		// Omitting the host works.
-		addr = ":3100"
+		port := os.Getenv("GENKIT_REFLECTION_PORT")
+		if port != "" {
+			addr = ":" + port
+		} else {
+			// Don't use "localhost" here. That only binds the IPv4 address, and the genkit tool
+			// wants to connect to the IPv6 address even when you tell it to use "localhost".
+			// Omitting the host works.
+			addr = ":3100"
+		}
 	}
+	server := &http.Server{
+		Addr:    addr,
+		Handler: mux,
+	}
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		slog.Info("received SIGTERM, shutting down server")
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := server.Shutdown(ctx); err != nil {
+			slog.Error("server shutdown failed", "err", err)
+		} else {
+			slog.Info("server shutdown successfully")
+		}
+	}()
 	slog.Info("listening", "addr", addr)
-	return http.ListenAndServe(addr, mux)
+	return server.ListenAndServe()
 }
 
 type devServer struct {

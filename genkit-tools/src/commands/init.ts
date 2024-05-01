@@ -14,7 +14,13 @@
  * limitations under the License.
  */
 
-import { InitEvent, logger, record } from '@genkit-ai/tools-common/utils';
+import { Runtime } from '@genkit-ai/tools-common/runner';
+import {
+  InitEvent,
+  detectRuntime,
+  logger,
+  record,
+} from '@genkit-ai/tools-common/utils';
 import { execSync } from 'child_process';
 import { Command } from 'commander';
 import extract from 'extract-zip';
@@ -24,7 +30,6 @@ import * as path from 'path';
 
 type Platform = 'firebase' | 'googlecloud' | 'nodejs' | 'nextjs';
 type ModelProvider = 'googleai' | 'vertexai' | 'ollama' | 'none';
-type Runtime = 'node' | undefined;
 type WriteMode = 'keep' | 'overwrite' | 'merge';
 
 interface PromptOption {
@@ -164,7 +169,7 @@ export const init = new Command('init')
       );
       process.exit(1);
     }
-    const runtime = detectRuntime();
+    const runtime = detectRuntime(process.cwd());
     if (!supportedRuntimes.includes(runtime)) {
       logger.error(
         `The runtime could not be detected or is not supported. Supported runtimes: ${supportedRuntimes}`
@@ -487,17 +492,6 @@ async function installNpmPackages(
   } catch (error) {
     throw new Error(`Failed to install NPM packages: ${error}`);
   }
-}
-
-/**
- * Detects what runtime is used in the current directory.
- * @returns Runtime of the project directory.
- */
-function detectRuntime(): Runtime {
-  if (fs.existsSync(path.join(process.cwd(), 'package.json'))) {
-    return 'node';
-  }
-  return undefined;
 }
 
 async function confirm(args: {

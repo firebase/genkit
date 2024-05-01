@@ -31,7 +31,7 @@ import * as apis from '../types/apis';
 import { FlowState } from '../types/flow';
 import { TraceData } from '../types/trace';
 import { logger } from '../utils/logger';
-import { getNodeEntryPoint } from '../utils/utils';
+import { detectRuntime, getEntryPoint } from '../utils/utils';
 import { GenkitToolsError, StreamingCallback } from './types';
 
 /**
@@ -103,20 +103,27 @@ export class Runner {
   /**
    * Starts the runner.
    */
-  public async start(): Promise<boolean> {
+  async start(): Promise<boolean> {
+    if (this.appProcess) {
+      logger.info('Runner is already running.');
+      return Promise.resolve(true);
+    }
     if (this.autoReload) {
       const config = await findToolsConfig();
-      this.buildCommand = config?.builder?.cmd ?? 'npm run build';
+      this.buildCommand = config?.builder?.cmd;
+      if (!this.buildCommand && detectRuntime(process.cwd()) === 'node') {
+        this.buildCommand = 'npm run build';
+      }
       this.build();
       this.watchForChanges();
     }
-    return await this.startApp();
+    return this.startApp();
   }
 
   /**
    * Attach to an already running process at the provided address.
    */
-  public async attach(attachAddress: string): Promise<void> {
+  async attach(attachAddress: string): Promise<void> {
     this.reflectionApiPort = parseInt(new URL(attachAddress).port, 10) || 80;
     if (!(await this.healthCheck())) {
       throw new Error(
@@ -128,7 +135,7 @@ export class Runner {
   /**
    * Stops the runner.
    */
-  public async stop(): Promise<void> {
+  async stop(): Promise<void> {
     if (this.autoReload) {
       await this.watcher?.close();
     }
@@ -138,8 +145,8 @@ export class Runner {
   /**
    * Reloads the app code. If it's not running, it will be started.
    */
-  public async reloadApp(): Promise<void> {
-    console.info('Reloading app code...');
+  async reloadApp(): Promise<void> {
+    logger.info('Reloading app code.');
     if (this.appProcess) {
       await this.stopApp();
     }
@@ -148,17 +155,36 @@ export class Runner {
 
   /**
    * Starts the app code in a subprocess.
-   * @param entryPoint - entry point of the app (e.g. index.js)
    */
   private async startApp(): Promise<boolean> {
-    const entryPoint = getNodeEntryPoint(process.cwd());
+    const runtime = detectRuntime(process.cwd());
+    let command = '';
+    let args: string[] = [];
+    switch (runtime) {
+      case 'node':
+        command = 'node';
+        break;
+      case 'go':
+        command = 'go';
+        args.push('run');
+        break;
+      default:
+        throw Error(`Unexpected runtime while starting app code: ${runtime}`);
+    }
 
+    const entryPoint = getEntryPoint(process.cwd());
+    if (!entryPoint) {
+      logger.error(
+        'Could not detect entry point for app. Make sure you are at the root of your project directory.'
+      );
+      return false;
+    }
     if (!fs.existsSync(entryPoint)) {
       logger.error(`Could not find \`${entryPoint}\`. App not started.`);
       return false;
     }
 
-    logger.info(`Starting app at ${entryPoint}...`);
+    logger.info(`Starting app at \`${entryPoint}\`...`);
 
     // Try the desired port first then fall back to default range.
     let port = await getPort({ port: this.reflectionApiPort });
@@ -172,7 +198,9 @@ export class Runner {
     }
     this.reflectionApiPort = port;
 
-    this.appProcess = spawn('node', [entryPoint], {
+    args.push(entryPoint);
+    this.appProcess = spawn(command, args, {
+      stdio: 'inherit',
       env: {
         ...process.env,
         GENKIT_ENV: 'dev',
@@ -251,7 +279,11 @@ export class Runner {
       } catch (error) {
         logger.error('Compilation error:', error);
       }
-    } else if (extension === '.js' || extension === '.prompt') {
+    } else if (
+      extension === '.js' ||
+      extension === '.prompt' ||
+      extension === '.go'
+    ) {
       logger.info(
         `Detected a change in ${clc.bold(
           relativeFilePath
