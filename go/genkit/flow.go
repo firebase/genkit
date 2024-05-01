@@ -320,7 +320,7 @@ func (f *Flow[I, O, S]) execute(ctx context.Context, state *flowState[I, O], dis
 
 		}
 		// TODO(jba): telemetry
-		return output, nil
+		return output, err
 	})
 	// TODO(jba): perhaps this should be in a defer, to handle panics?
 	state.mu.Lock()
