@@ -3,7 +3,7 @@
 Firebase Genkit comes with two sets of developer tools:
 
 - A Node.js CLI
-- A local web app connected to your Genkit configuration
+- An optonal local web app that can connect to your Genkit configuration
 
 ### Command Line Interface
 
@@ -29,7 +29,7 @@ npx genkit --help
 
 The Genkit developer UI is a local web app that you can use to interact with the models, retrievers, flows and other actions in your Genkit project.
 
-Start the developer UI with:
+Download and start the developer UI with:
 
 ```posix-terminal
 npx genkit start
