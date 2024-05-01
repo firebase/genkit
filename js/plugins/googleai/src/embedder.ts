@@ -42,7 +42,7 @@ export type TextEmbeddingGeckoConfig = z.infer<
 >;
 
 export const textEmbeddingGecko001 = embedderRef({
-  name: 'google-genai/embedding-001',
+  name: 'googleai/embedding-001',
   configSchema: TextEmbeddingGeckoConfigSchema,
   info: {
     dimensions: 768,
