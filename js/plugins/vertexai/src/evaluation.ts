@@ -222,9 +222,9 @@ function createGroundednessEvaluator(
       return {
         testCaseId: datapoint.testCaseId,
         evaluation: {
-          score: response.groundedNessResult?.score,
+          score: response.groundednessResult?.score,
           details: {
-            reasoning: response.groundedNessResult?.explanation,
+            reasoning: response.groundednessResult?.explanation,
           },
         },
       };
