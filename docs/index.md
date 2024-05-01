@@ -1,9 +1,26 @@
+Project: /docs/genkit/_project.yaml
+Book: /docs/_book.yaml
+
+{% comment %}
+
+This file is automatically synced from GitHub. Please do not edit it directly!
+Instead, submit a PR to https://github.com/google/genkit
+
+{% endcomment %}
+
 # Firebase Genkit
 
 Firebase Genkit is an **open source framework** that helps you build, deploy,
 and monitor **production-ready** **AI-powered apps**.
 
-<img src="resources/genkit-logo.png" alt="Genkit logo" class="attempt-right">
+<picture class="attempt-right">
+  <source
+    srcset="/docs/genkit/logo-vert-dark.svg"
+    media="(prefers-color-scheme: dark)"
+    class="devsite-dark-theme"
+    alt="">
+  <img src="/docs/genkit/logo-vert-light.svg" alt="">
+</picture>
 
 Genkit is **designed for app developers**, to help you easily integrate
 powerful AI capabilities into your apps with familiar patterns and paradigms.
@@ -184,9 +201,9 @@ input:
     location: a restaurant
 ---
 
-You are the world's most welcoming AI assistant and are currently working at {{location}}.
+You are the world's most welcoming AI assistant and are currently working at {% verbatim %}{{location}}{% endverbatim %}.
 
-Greet a guest{{#if name}} named {{name}}{{/if}}{{#if style}} in the style of {{style}}{{/if}}.
+Greet a guest{% verbatim %}{{#if name}}{% endverbatim %} named {% verbatim %}{{name}}{% endverbatim %}{% verbatim %}{{/if}}{% endverbatim %}{% verbatim %}{{#if style}}{% endverbatim %} in the style of {% verbatim %}{{style}}{% endverbatim %}{% verbatim %}{{/if}}{% endverbatim %}.
 ```
 
 ### 6. Run flows locally
