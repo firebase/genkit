@@ -18,6 +18,7 @@ import { BaseDataPoint } from '@genkit-ai/ai/evaluator';
 import { Action } from '@genkit-ai/core';
 import { GoogleAuth } from 'google-auth-library';
 import { JSONClient } from 'google-auth-library/build/src/auth/googleauth';
+import z from 'zod';
 import { EvaluatorFactory } from './evaluator_factory';
 
 /**
@@ -58,10 +59,6 @@ export function vertexEvaluators(
     const metricType = isConfig(metric) ? metric.type : metric;
     const metricSpec = isConfig(metric) ? metric.metricSpec : {};
 
-    console.log(
-      `Creating evaluator for metric ${metricType} with metricSpec ${metricSpec}`
-    );
-
     switch (metricType) {
       case VertexAIEvaluationMetricType.BLEU: {
         return createBleuEvaluator(factory, metricSpec);
@@ -85,6 +82,12 @@ function isConfig(
   return (config as VertexAIEvaluationMetricConfig).type !== undefined;
 }
 
+const BleuResponseSchema = z.object({
+  bleuResults: z.object({
+    bleuMetricValues: z.array(z.object({ score: z.number() })),
+  }),
+});
+
 // TODO: Add support for batch inputs
 function createBleuEvaluator(
   factory: EvaluatorFactory,
@@ -96,6 +99,7 @@ function createBleuEvaluator(
       displayName: 'BLEU',
       definition:
         'Computes the BLEU score by comparing the output against the ground truth',
+      responseSchema: BleuResponseSchema,
     },
     (datapoint) => {
       if (!datapoint.reference) {
@@ -125,6 +129,12 @@ function createBleuEvaluator(
   );
 }
 
+const RougeResponseSchema = z.object({
+  rougeResults: z.object({
+    rougeMetricValues: z.array(z.object({ score: z.number() })),
+  }),
+});
+
 // TODO: Add support for batch inputs
 function createRougeEvaluator(
   factory: EvaluatorFactory,
@@ -136,6 +146,7 @@ function createRougeEvaluator(
       displayName: 'ROUGE',
       definition:
         'Computes the ROUGE score by comparing the output against the ground truth',
+      responseSchema: RougeResponseSchema,
     },
     (datapoint) => {
       if (!datapoint.reference) {
@@ -163,6 +174,14 @@ function createRougeEvaluator(
   );
 }
 
+const SafetyResponseSchema = z.object({
+  safetyResult: z.object({
+    score: z.number(),
+    explanation: z.string(),
+    confidence: z.number(),
+  }),
+});
+
 function createSafetyEvaluator(
   factory: EvaluatorFactory,
   metricSpec: any
@@ -172,6 +191,7 @@ function createSafetyEvaluator(
       metric: VertexAIEvaluationMetricType.SAFETY,
       displayName: 'Safety',
       definition: 'Assesses the level of safety of an output',
+      responseSchema: SafetyResponseSchema,
     },
     (datapoint) => {
       return {
@@ -183,7 +203,7 @@ function createSafetyEvaluator(
         },
       };
     },
-    (response: any, datapoint: BaseDataPoint) => {
+    (response, datapoint: BaseDataPoint) => {
       return {
         testCaseId: datapoint.testCaseId,
         evaluation: {
@@ -197,6 +217,14 @@ function createSafetyEvaluator(
   );
 }
 
+const GroundednessResponseSchema = z.object({
+  groundednessResult: z.object({
+    score: z.number(),
+    explanation: z.string(),
+    confidence: z.number(),
+  }),
+});
+
 function createGroundednessEvaluator(
   factory: EvaluatorFactory,
   metricSpec: any
@@ -207,6 +235,7 @@ function createGroundednessEvaluator(
       displayName: 'Groundedness',
       definition:
         'Assesses the ability to provide or reference information included only in the context',
+      responseSchema: GroundednessResponseSchema,
     },
     (datapoint) => {
       return {
@@ -219,7 +248,7 @@ function createGroundednessEvaluator(
         },
       };
     },
-    (response: any, datapoint: BaseDataPoint) => {
+    (response, datapoint: BaseDataPoint) => {
       return {
         testCaseId: datapoint.testCaseId,
         evaluation: {
