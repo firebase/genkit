@@ -326,7 +326,7 @@ export default configureGenkit({
 
 ## Testing
 
-The same issues that apply to evaluating the quality of the output of a genAI feature apply to evaluating the judging capacity of an LLM-based evaluator.
+The same issues that apply to evaluating the quality of the output of a generative AI feature apply to evaluating the judging capacity of an LLM-based evaluator.
 
 To get a sense of whether the custom evaluator performs at the expected level, create a set of test cases that have a clear right and wrong answer.
 
