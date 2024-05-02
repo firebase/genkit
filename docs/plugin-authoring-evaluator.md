@@ -230,7 +230,7 @@ export function createUSPhoneRegexEvaluator(
 
 ### Plugin Options
 
-Define the `PluginOptions` that the custom evaluator plugin will use. This object has no strict requirements for this object and it is purely dependent on the types of evaluators that are defined.
+Define the `PluginOptions` that the custom evaluator plugin will use. This object has no strict requirements and is dependent on the types of evaluators that are defined.
 
 At a minimum it will need to take the definition of which metrics to register.
 
