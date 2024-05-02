@@ -19,33 +19,10 @@ import { defineFlow } from '@genkit-ai/flow';
 import * as z from 'zod';
 import './genkit.config';
 
-defineFlow(
-  {
-    name: 'tellStory',
-    inputSchema: z.string(),
-    outputSchema: z.string(),
-    streamSchema: z.string(),
-  },
-  async (subject, streamingCallback) => {
-    const storyPrompt = await prompt('story');
-    const { response, stream } = await storyPrompt.generateStream({
-      input: { subject },
-    });
-    if (streamingCallback) {
-      for await (const chunk of stream()) {
-        streamingCallback(chunk.content[0]?.text!);
-      }
-    }
-    return (await response()).text();
-  }
-);
-
-prompt('story');
 // This example demonstrates using prompt files in a flow
-
 // Load the prompt file during initialization.
-// If it fails, due to the file being invalid, the process will crash
-// instead of us getting a weird failure later when the flow runs.
+// If it fails, due to the prompt file being invalid, the process will crash,
+// instead of us getting a more mysterious failure later when the flow runs.
 
 prompt('recipe').then((recipePrompt) => {
   defineFlow(
@@ -70,5 +47,32 @@ prompt('recipe', { variant: 'robot' }).then((recipePrompt) => {
       outputSchema: z.any(),
     },
     async (input) => (await recipePrompt.generate({ input: input })).output()
+  );
+});
+
+// A variation that supports streaming, optionally
+
+prompt('story').then((storyPrompt) => {
+  defineFlow(
+    {
+      name: 'tellStory',
+      inputSchema: z.string(),
+      outputSchema: z.string(),
+      streamSchema: z.string(),
+    },
+    async (subject, streamingCallback) => {
+      if (streamingCallback) {
+        const { response, stream } = await storyPrompt.generateStream({
+          input: { subject },
+        });
+        for await (const chunk of stream()) {
+          streamingCallback(chunk.content[0]?.text!);
+        }
+        return (await response()).text();
+      } else {
+        const response = await storyPrompt.generate({ input: { subject } });
+        return response.text();
+      }
+    }
   );
 });

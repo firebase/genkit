@@ -3,11 +3,6 @@
 Firebase Genkit provides the Dotprompt library and text format to help you write
 and organize your generative AI prompts.
 
-Prompt manipulation is the primary way that you, as an app developer, influence
-the output of generative AI models. For example, when using LLMs, you can craft
-prompts that influence the tone, format, length, and other characteristics of
-the models’ responses.
-
 Dotprompt is designed around the premise that _prompts are code_. You write and
 maintain your prompts in specially-formatted files called dotprompt files, track
 changes to them using the same version control system that you use for your
@@ -278,7 +273,7 @@ are a few other ways to load and define prompts:
 
 - `loadPromptFile`: Load a prompt from a file in the prompt directory.
 - `loadPromptUrl`: Load a prompt from a URL.
-- `definePrompt`: Define a prompt in code.
+- `defineDotprompt`: Define a prompt in code.
 
 Examples:
 
@@ -286,7 +281,7 @@ Examples:
 import {
   loadPromptFile,
   loadPromptUrl,
-  definePrompt,
+  defineDotprompt,
 } from '@genkit-ai/dotprompt';
 import { z } from 'zod';
 
@@ -297,7 +292,7 @@ const myPrompt = await loadPromptFile('./path/to/my_prompt.prompt');
 const myPrompt = await loadPromptUrl('https://example.com/my_prompt.prompt');
 
 // Define a prompt in code
-const myPrompt = definePrompt(
+const myPrompt = defineDotprompt(
   {
     model: 'vertexai/gemini-1.0-pro',
     input: {

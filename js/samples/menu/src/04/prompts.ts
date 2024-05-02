@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { definePrompt } from '@genkit-ai/dotprompt';
+import { defineDotprompt } from '@genkit-ai/dotprompt';
 import { geminiPro } from '@genkit-ai/vertexai';
 import { DataMenuQuestionInputSchema } from '../types';
 
-export const s04_ragDataMenuPrompt = definePrompt(
+export const s04_ragDataMenuPrompt = defineDotprompt(
   {
     name: 's04_ragDataMenu',
     model: geminiPro,

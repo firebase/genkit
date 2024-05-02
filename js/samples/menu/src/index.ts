@@ -23,7 +23,7 @@ initializeGenkit(config);
 // Export all of the example prompts and flows
 
 // 01
-export { s01_staticMenuPrompt } from './01/prompts';
+export { s01_staticMenuDotPrompt, s01_vanillaPrompt } from './01/prompts';
 // 02
 export { s02_menuQuestionFlow } from './02/flows';
 export { s02_dataMenuPrompt } from './02/prompts';

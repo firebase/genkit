@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { definePrompt } from '@genkit-ai/dotprompt';
+import { defineDotprompt } from '@genkit-ai/dotprompt';
 import { geminiPro } from '@genkit-ai/vertexai';
 import * as z from 'zod';
 
 // Define a prompt that includes the retrieved context documents
 
-export const augmentedPrompt = definePrompt(
+export const augmentedPrompt = defineDotprompt(
   {
     name: 'augmentedPrompt',
     model: geminiPro,
