@@ -65,8 +65,6 @@ toc:
     path: /docs/genkit/plugins/pinecone
   - title: pgvector (code template)
     path: /docs/genkit/templates/pgvector
-  - title: Firestore vector store (code template)
-    path: /docs/genkit/templates/firestore-vector
   - title: Firebase
     path: /docs/genkit/plugins/firebase
   - title: Google Cloud

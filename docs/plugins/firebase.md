@@ -2,6 +2,7 @@
 
 The Firebase plugin provides several integrations with Firebase services:
 
+- Indexers and retrievers using Cloud Firestore vector store
 - Trace storage using Cloud Firestore
 - Flow deployment using Cloud Functions
 - Authorization policies for Firebase Authentication users
@@ -58,7 +59,50 @@ Application Default Credentials. To specify your credentials:
 This plugin provides several integrations with Firebase services, which you can
 use together or individually.
 
-### Cloud Firestore
+### Cloud Firestore vector store
+
+You can use Cloud Firestore as a vector store for RAG indexing and retrieval.
+
+The `firebase` plugin provides a convenience function for defining Firestore
+retrievers, `defineFirestoreRetriever()`:
+
+```js
+import { defineFirestoreRetriever } from '@genkit-ai/firebase';
+import { initializeApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+
+const app = initializeApp();
+const firestore = getFirestore(app);
+
+const yourRetrieverRef = defineFirestoreRetriever({
+  name: 'yourRetriever',
+  firestore: getFirestore(app),
+  collection: 'yourCollection',
+  contentField: 'yourDataChunks',
+  vectorField: 'embedding',
+  embedder: textEmbeddingGecko,
+});
+```
+
+To use it, pass it to the `retrieve()` function:
+
+```js
+const docs = await retrieve({
+  retriever: yourRetrieverRef,
+  query: "look for something",
+  config: {limit: 5},
+});
+```
+
+For indexing, use an embedding generator along with the Admin SDK:
+
+```js
+```
+
+See the [Retrieval-augmented generation](../rag.md) page for a general
+discussion on indexers and retrievers.
+
+### Cloud Firestore trace storage
 
 You can use Cloud Firestore to store traces:
 
