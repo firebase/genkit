@@ -44,3 +44,21 @@ The Developer UI has action runners for `flow`, `prompt`, `model`, `tool`, `retr
 Here's a quick gif tour with cats.
 
 ![Gif overview of Genkit Developer UI](resources/genkit_developer_ui_overview.gif)
+
+### Analytics
+
+The Genkit CLI and Developer UI use cookies and similar technologies from Google
+to deliver and enhance the quality of its services and to analyze usage.
+[Learn more](https://policies.google.com/technologies/cookies').
+
+To opt-out of analytics, you can run the following command:
+
+```posix-terminal
+genkit config set analyticsOptOut true
+```
+
+You can view the current setting by running:
+
+```posix-terminal
+genkit config get analyticsOptOut
+```
