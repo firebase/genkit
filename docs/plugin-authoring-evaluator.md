@@ -146,7 +146,7 @@ export function createDeliciousnessEvaluator<
 
 ### Heuristic Evaluators
 
-A heuristic evaluator can be any function used evaluate the input, context, or output of your generative AI feature.
+A heuristic evaluator can be any function used to evaluate the input, context, or output of your generative AI feature.
 
 Heuristic evaluators in Genkit are made up of 2 components:
 
@@ -267,7 +267,7 @@ export function myAwesomeEval<ModelCustomOptions extends z.ZodTypeAny>(
             return createDeliciousnessEvaluator(judge, judgeConfig);
           case US_PHONE_REGEX_MATCH:
             // This evaluator does not require an LLM
-            return createWordCountEvaluator();
+            return createUSPhoneRegexEvaluator();
         }
       });
       return { evaluators };
