@@ -53,23 +53,22 @@ genkit eval:flow bobQA --input testQuestions.json --output eval-result.json
 Note: Below you can see an example of how an LLM can help you generate the test
 cases.
 
-## Supported Evaluator Plugins
+## Supported evaluators
 
-### Genkit Eval
+### Genkit evaluators
 
-We have created a small number of native evaluators to help developers get started that are inspired by [RAGAS](https://docs.ragas.io/en/latest/index.html) metrics including:
+Genkit includes a small number of native evaluators, inspired by RAGAS, to help you get started:
 
 - Faithfulness
 - Answer Relevancy
 - Maliciousness
 
-### VertexAI Rapid Evaluators
+### Evaluator plugins
 
-We support a handful of VertexAI Rapid Evaluators via the [VertexAI Plugin](/docs/plugins/vertex-ai#evaluation).
+Genkit supports additional evaluators through plugins:
 
-### Langchain Evaluators
-
-Firebase Genkit supports [Langchain Criteria Evaluation](https://python.langchain.com/docs/guides/productionization/evaluation/string/criteria_eval_chain/) via the Langchain Plugin.
+- VertexAI Rapid Evaluators via the [VertexAI Plugin](plugins/vertex-ai#evaluation).
+- [LangChain Criteria Evaluation](https://python.langchain.com/docs/guides/productionization/evaluation/string/criteria_eval_chain/) via the [LangChain plugin](plugins/langchain.md).
 
 ## Advanced use
 
