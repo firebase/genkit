@@ -15,7 +15,7 @@
  */
 
 import { BaseDataPoint, defineEvaluator, Score } from '@genkit-ai/ai/evaluator';
-import { Action } from '@genkit-ai/core';
+import { Action, GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
 import { runInNewSpan } from '@genkit-ai/core/tracing';
 import { GoogleAuth } from 'google-auth-library';
 import { JSONClient } from 'google-auth-library/build/src/auth/googleauth';
@@ -84,6 +84,9 @@ export class EvaluatorFactory {
           url,
           method: 'POST',
           body: JSON.stringify(request),
+          headers: {
+            'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
+          },
         });
         metadata.output = response.data;
 

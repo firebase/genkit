@@ -184,9 +184,12 @@ export const myFlow = onScheduledFlow(
     return hoomanSaid.approved;
   }
 );
+```
 
-// Resume the interrupted flow
-import { resumeFlow } from '@genkit-ai/flow/experimental';
+To resume the interrupted flow:
+
+```js
+// import { resumeFlow } from '@genkit-ai/flow/experimental';
 await resumeFlow(myFlow, flowId, {
   approve: false,
 });
@@ -299,7 +302,7 @@ export const myFlow = onScheduledFlow(
 Use `getFlowState()` to retrieve a flow's current state:
 
 ```javascript
-import { runFlow, getFlowState } from '@genkit-ai/flow/experimental';
+// import { getFlowState } from '@genkit-ai/flow/experimental';
 
 const operation = await scheduleFlow(jokeFlow, 'banana');
 console.log('Operation', operation);

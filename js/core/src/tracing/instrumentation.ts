@@ -89,8 +89,11 @@ export async function runInNewSpan<T>(
         opts.metadata.state = 'error';
         otSpan.setStatus({
           code: SpanStatusCode.ERROR,
-          message: formatError(e),
+          message: getErrorMessage(e),
         });
+        if (e instanceof Error) {
+          otSpan.recordException(e);
+        }
         throw e;
       } finally {
         otSpan.setAttributes(metadataToAttributes(opts.metadata));
@@ -100,9 +103,9 @@ export async function runInNewSpan<T>(
   );
 }
 
-function formatError(e: any): string {
+function getErrorMessage(e: any): string {
   if (e instanceof Error) {
-    return `${e.message}\n${e.stack}`;
+    return e.message;
   }
   return `${e}`;
 }

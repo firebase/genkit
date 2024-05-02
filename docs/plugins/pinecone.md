@@ -50,11 +50,16 @@ ways to do this:
 
 ## Usage
 
-You can create and use retriever and indexer references like so:
+Import retriever and indexer references like so:
 
 ```js
 import { pineconeRetrieverRef } from 'genkitx-pinecone';
+import { pineconeIndexerRef } from 'genkitx-pinecone';
+```
 
+Then, pass the references to `retrieve()` and `index()`:
+
+```js
 // To use the index you configured when you loaded the plugin:
 let docs = await retrieve({ retriever: pineconeRetrieverRef, query });
 
@@ -66,8 +71,6 @@ docs = await retrieve({ retriever: bobFactsRetriever, query });
 ```
 
 ```js
-import { pineconeIndexerRef } from 'genkitx-pinecone';
-
 // To use the index you configured when you loaded the plugin:
 await index({ indexer: pineconeIndexerRef, documents });
 

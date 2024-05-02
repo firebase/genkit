@@ -16,29 +16,29 @@
 
 import {
   Action,
-  action,
   FlowError,
   FlowState,
   FlowStateSchema,
   FlowStateStore,
+  Operation,
+  StreamingCallback,
+  action,
   getStreamingCallback,
   config as globalConfig,
   isDevEnv,
-  Operation,
-  StreamingCallback,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { registerAction } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import {
+  SPAN_TYPE_ATTR,
   newTrace,
   setCustomMetadataAttribute,
   setCustomMetadataAttributes,
-  SPAN_TYPE_ATTR,
 } from '@genkit-ai/core/tracing';
 import { SpanStatusCode } from '@opentelemetry/api';
 import * as bodyParser from 'body-parser';
-import { default as cors, CorsOptions } from 'cors';
+import { CorsOptions, default as cors } from 'cors';
 import express from 'express';
 import { performance } from 'node:perf_hooks';
 import * as z from 'zod';
@@ -46,9 +46,9 @@ import { Context } from './context.js';
 import {
   FlowExecutionError,
   FlowStillRunningError,
+  InterruptError,
   getErrorMessage,
   getErrorStack,
-  InterruptError,
 } from './errors.js';
 import * as telemetry from './telemetry.js';
 import {
@@ -464,8 +464,11 @@ export class Flow<
               metadata.state = 'error';
               rootSpan.setStatus({
                 code: SpanStatusCode.ERROR,
-                message: formatError(e),
+                message: getErrorMessage(e),
               });
+              if (e instanceof Error) {
+                rootSpan.recordException(e);
+              }
 
               setCustomMetadataAttribute(metadataPrefix('state'), 'error');
               ctx.state.operation.done = true;
@@ -855,11 +858,4 @@ export function startFlowsServer(params?: {
   app.listen(port, () => {
     console.log(`Flows server listening on port ${port}`);
   });
-}
-
-function formatError(e: any): string {
-  if (e instanceof Error) {
-    return `${e.message}\n${e.stack}`;
-  }
-  return `${e}`;
 }
