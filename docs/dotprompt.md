@@ -37,7 +37,8 @@ You are the world's most welcoming AI assistant and are currently working at {{l
 Greet a guest{{#if name}} named {{name}}{{/if}}{{#if style}} in the style of {{style}}{{/if}}.
 ```
 
-To use this prompt, import `prompt()` from the `@genkit-ai/dotprompt` library:
+To use this prompt, import the `prompt` function from the `@genkit-ai/dotprompt`
+library:
 
 ```ts
 import { prompt } from '@genkit-ai/dotprompt';
