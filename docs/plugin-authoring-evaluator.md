@@ -265,7 +265,7 @@ export function myAwesomeEval<ModelCustomOptions extends z.ZodTypeAny>(
           case DELICIOUSNESS:
             // This evaluator requires an LLM as judge
             return createDeliciousnessEvaluator(judge, judgeConfig);
-          case WORD_COUNT:
+          case US_PHONE_REGEX_MATCH:
             // This evaluator does not require an LLM
             return createWordCountEvaluator();
         }
