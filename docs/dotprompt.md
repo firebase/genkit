@@ -37,12 +37,16 @@ You are the world's most welcoming AI assistant and are currently working at {{l
 Greet a guest{{#if name}} named {{name}}{{/if}}{{#if style}} in the style of {{style}}{{/if}}.
 ```
 
-To use this prompt, import the `@genkit-ai/dotprompt` library and load the prompt using
-`prompt('file_name')`:
+To use this prompt, import the `prompt` function from the `@genkit-ai/dotprompt`
+library:
 
 ```ts
 import { prompt } from '@genkit-ai/dotprompt';
+```
 
+Then, load the prompt using `prompt('file_name')`:
+
+```ts
 const greetingPrompt = await prompt('greeting');
 
 const result = await greetingPrompt.generate({

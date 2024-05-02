@@ -61,12 +61,14 @@ To just call the model:
 import { generate } from '@genkit-ai/ai';
 import { geminiPro } from '@genkit-ai/vertexai';
 
-const llmResponse = await generate({
-  model: geminiPro,
-  prompt: 'Tell me a joke.',
-});
+(async () => {
+  const llmResponse = await generate({
+    model: geminiPro,
+    prompt: 'Tell me a joke.',
+  });
 
-console.log(await llmResponse.text());
+  console.log(await llmResponse.text());
+})();
 ```
 
 You can pass in various model options for that model, including specifying a
@@ -86,8 +88,6 @@ const response = await generate({
 If the model supports multimodal input, you can pass in images as input:
 
 ```javascript
-import { geminiProVision } from '@genkit-ai/vertexai';
-
 const result = await generate({
   model: geminiProVision,
   prompt: [
@@ -218,9 +218,7 @@ history = response.toHistory();
 Genkit supports chunked streaming of model responses via the `generateStream()` method:
 
 ```ts
-import { generateStream } from '@genkit-ai/ai';
-import { geminiPro } from '@genkit-ai/vertexai';
-
+// import { generateStream } from '@genkit-ai/ai';
 const { response, stream } = await generateStream({
   model: geminiPro,
   prompt: 'Tell a long story about robots and ninjas.',
