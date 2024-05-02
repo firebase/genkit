@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { BaseDataPoint } from '@genkit-ai/ai/evaluator';
 import { Action } from '@genkit-ai/core';
 import { GoogleAuth } from 'google-auth-library';
 import { JSONClient } from 'google-auth-library/build/src/auth/googleauth';
@@ -27,10 +26,11 @@ import { EvaluatorFactory } from './evaluator_factory';
  */
 export enum VertexAIEvaluationMetricType {
   // Update genkit/docs/plugins/vertex-ai.md when modifying the list of enums
-  SAFETY = 'SAFETY',
-  GROUNDEDNESS = 'GROUNDEDNESS',
   BLEU = 'BLEU',
   ROUGE = 'ROUGE',
+  FLUENCY = 'FLEUNCY',
+  SAFETY = 'SAFETY',
+  GROUNDEDNESS = 'GROUNDEDNESS',
 }
 
 /**
@@ -65,6 +65,9 @@ export function vertexEvaluators(
       }
       case VertexAIEvaluationMetricType.ROUGE: {
         return createRougeEvaluator(factory, metricSpec);
+      }
+      case VertexAIEvaluationMetricType.FLUENCY: {
+        return createFluencyEvaluator(factory, metricSpec);
       }
       case VertexAIEvaluationMetricType.SAFETY: {
         return createSafetyEvaluator(factory, metricSpec);
@@ -118,12 +121,9 @@ function createBleuEvaluator(
         },
       };
     },
-    (response, datapoint) => {
+    (response) => {
       return {
-        testCaseId: datapoint.testCaseId,
-        evaluation: {
-          score: response.bleuResults.bleuMetricValues[0].score,
-        },
+        score: response.bleuResults.bleuMetricValues[0].score,
       };
     }
   );
@@ -163,11 +163,48 @@ function createRougeEvaluator(
         },
       };
     },
-    (response, datapoint) => {
+    (response) => {
       return {
-        testCaseId: datapoint.testCaseId,
-        evaluation: {
-          score: response.rougeResults.rougeMetricValues[0].score,
+        score: response.rougeResults.rougeMetricValues[0].score,
+      };
+    }
+  );
+}
+
+const FluencyResponseSchema = z.object({
+  fluencyResult: z.object({
+    score: z.number(),
+    explanation: z.string(),
+    confidence: z.number(),
+  }),
+});
+
+function createFluencyEvaluator(
+  factory: EvaluatorFactory,
+  metricSpec: any
+): Action {
+  return factory.create(
+    {
+      metric: VertexAIEvaluationMetricType.FLUENCY,
+      displayName: 'Fluency',
+      definition: 'Assesses the language mastery of an output',
+      responseSchema: FluencyResponseSchema,
+    },
+    (datapoint) => {
+      return {
+        fluencyInput: {
+          metricSpec,
+          instance: {
+            prediction: datapoint.output as string,
+          },
+        },
+      };
+    },
+    (response) => {
+      return {
+        score: response.fluencyResult.score,
+        details: {
+          reasoning: response.fluencyResult.explanation,
         },
       };
     }
@@ -203,14 +240,11 @@ function createSafetyEvaluator(
         },
       };
     },
-    (response, datapoint: BaseDataPoint) => {
+    (response) => {
       return {
-        testCaseId: datapoint.testCaseId,
-        evaluation: {
-          score: response.safetyResult?.score,
-          details: {
-            reasoning: response.safetyResult?.explanation,
-          },
+        score: response.safetyResult.score,
+        details: {
+          reasoning: response.safetyResult.explanation,
         },
       };
     }
@@ -248,14 +282,11 @@ function createGroundednessEvaluator(
         },
       };
     },
-    (response, datapoint: BaseDataPoint) => {
+    (response) => {
       return {
-        testCaseId: datapoint.testCaseId,
-        evaluation: {
-          score: response.groundednessResult?.score,
-          details: {
-            reasoning: response.groundednessResult?.explanation,
-          },
+        score: response.groundednessResult.score,
+        details: {
+          reasoning: response.groundednessResult.explanation,
         },
       };
     }
