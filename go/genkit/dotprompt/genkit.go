@@ -17,6 +17,8 @@ package dotprompt
 import (
 	"context"
 	"errors"
+	"reflect"
+	"strings"
 
 	"github.com/google/genkit/go/ai"
 	"github.com/google/genkit/go/genkit"
@@ -35,6 +37,54 @@ type ActionInput struct {
 	Config *ai.GenerationCommonConfig `json:"config,omitempty"`
 	// The model to use. This overrides any model in the prompt.
 	Model string `json:"model,omitempty"`
+}
+
+// BuildVariables returns a map for [ActionInput.Variables] based
+// on a pointer to a struct value. The struct value should have
+// JSON tags that correspond to the Prompt's input schema.
+// Only exported fields of the struct will be used.
+func (p *Prompt) BuildVariables(input any) (map[string]any, error) {
+	v := reflect.ValueOf(input).Elem()
+	if v.Kind() != reflect.Struct {
+		return nil, errors.New("BuildVariables: not a pointer to a struct")
+	}
+	vt := v.Type()
+
+	// TODO(ianlancetaylor): Verify the struct with p.Frontmatter.Schema.
+
+	m := make(map[string]any)
+
+fieldLoop:
+	for i := 0; i < vt.NumField(); i++ {
+		ft := vt.Field(i)
+		if ft.PkgPath != "" {
+			continue
+		}
+
+		jsonTag := ft.Tag.Get("json")
+		jsonName, rest, _ := strings.Cut(jsonTag, ",")
+		if jsonName == "" {
+			jsonName = ft.Name
+		}
+
+		vf := v.Field(i)
+
+		// If the field is the zero value, and omitempty is set,
+		// don't pass it as a prompt input variable.
+		if vf.IsZero() {
+			for rest != "" {
+				var key string
+				key, rest, _ = strings.Cut(rest, ",")
+				if key == "omitempty" {
+					continue fieldLoop
+				}
+			}
+		}
+
+		m[jsonName] = vf.Interface()
+	}
+
+	return m, nil
 }
 
 // buildRequest prepares an [ai.GenerateRequest] based on the prompt,

@@ -16,7 +16,9 @@ package ai
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/genkit/go/genkit"
 )
@@ -60,4 +62,29 @@ type generatorAction struct {
 // Generate implements Generator.
 func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest, cb genkit.NoStream) (*GenerateResponse, error) {
 	return ga.action.Run(ctx, input, cb)
+}
+
+// Text returns the contents of the first candidate in a
+// [GenerateResponse] as a string. It returns an error if there
+// are no candidates or if the candidate has no message.
+func (gr *GenerateResponse) Text() (string, error) {
+	if len(gr.Candidates) == 0 {
+		return "", errors.New("no candidates returned")
+	}
+	msg := gr.Candidates[0].Message
+	if msg == nil {
+		return "", errors.New("candidate with no message")
+	}
+	if len(msg.Content) == 0 {
+		return "", errors.New("candidate message has no content")
+	}
+	if len(msg.Content) == 1 {
+		return msg.Content[0].Text(), nil
+	} else {
+		var sb strings.Builder
+		for _, p := range msg.Content {
+			sb.WriteString(p.Text())
+		}
+		return sb.String(), nil
+	}
 }
