@@ -20,6 +20,7 @@ import (
 	"github.com/google/generative-ai-go/genai"
 	"github.com/google/genkit/go/ai"
 	"github.com/google/genkit/go/genkit"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
 
@@ -60,7 +61,7 @@ type generator struct {
 	client *genai.Client
 }
 
-func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, _ genkit.NoStream) (*ai.GenerateResponse, error) {
+func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb genkit.StreamingCallback[*ai.Candidate]) (*ai.GenerateResponse, error) {
 	gm := g.client.GenerativeModel(g.model)
 
 	// Translate from a ai.GenerateRequest to a genai request.
@@ -94,52 +95,93 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, _ g
 	//TODO: convert input.Tools and append to gm.Tools
 
 	// Send out the actual request.
-	// TODO(randall77): if the streaming callback is non-nil, use SendMessageStream
-	// and pass the streamed results to the callback.
-	resp, err := cs.SendMessage(ctx, parts...)
-	if err != nil {
-		return nil, err
+	if cb == nil {
+		resp, err := cs.SendMessage(ctx, parts...)
+		if err != nil {
+			return nil, err
+		}
+		return translateResponse(resp), nil
 	}
 
-	// Translate from a genai.GenerateContentResponse to a ai.GenerateResponse.
-	r := &ai.GenerateResponse{}
-	for _, cand := range resp.Candidates {
-		c := &ai.Candidate{}
-		c.Index = int(cand.Index)
-		switch cand.FinishReason {
-		case genai.FinishReasonStop:
-			c.FinishReason = ai.FinishReasonStop
-		case genai.FinishReasonMaxTokens:
-			c.FinishReason = ai.FinishReasonLength
-		case genai.FinishReasonSafety:
-			c.FinishReason = ai.FinishReasonBlocked
-		case genai.FinishReasonRecitation:
-			c.FinishReason = ai.FinishReasonBlocked
-		case genai.FinishReasonOther:
-			c.FinishReason = ai.FinishReasonOther
-		default: // Unspecified
-			c.FinishReason = ai.FinishReasonUnknown
+	// Streaming version.
+	iter := cs.SendMessageStream(ctx, parts...)
+	var r *ai.GenerateResponse
+	for {
+		chunk, err := iter.Next()
+		if err == iterator.Done {
+			break
 		}
-		m := &ai.Message{}
-		m.Role = ai.Role(cand.Content.Role)
-		for _, part := range cand.Content.Parts {
-			var p *ai.Part
-			switch part := part.(type) {
-			case genai.Text:
-				p = ai.NewTextPart(string(part))
-			case genai.Blob:
-				p = ai.NewBlobPart(part.MIMEType, string(part.Data))
-			case genai.FunctionResponse:
-				p = ai.NewBlobPart("TODO", string(part.Name))
-			default:
-				panic("unknown part type")
+		if err != nil {
+			return nil, err
+		}
+		// Send candidates to the callback.
+		for _, c := range chunk.Candidates {
+			err := cb(ctx, translateCandidate(c))
+			if err != nil {
+				return nil, err
 			}
-			m.Content = append(m.Content, p)
 		}
-		c.Message = m
-		r.Candidates = append(r.Candidates, c)
+		if r == nil {
+			// Save all other fields of first response
+			// so we can surface them at the end.
+			// TODO: necessary? Use last instead of first? merge somehow?
+			chunk.Candidates = nil
+			r = translateResponse(chunk)
+		}
+	}
+	if r == nil {
+		// No candidates were returned. Probably rare, but it might avoid a NPE
+		// to return an empty instead of nil result.
+		r = &ai.GenerateResponse{}
 	}
 	return r, nil
+}
+
+// translateCandidate Translate from a genai.GenerateContentResponse to a ai.GenerateResponse.
+func translateCandidate(cand *genai.Candidate) *ai.Candidate {
+	c := &ai.Candidate{}
+	c.Index = int(cand.Index)
+	switch cand.FinishReason {
+	case genai.FinishReasonStop:
+		c.FinishReason = ai.FinishReasonStop
+	case genai.FinishReasonMaxTokens:
+		c.FinishReason = ai.FinishReasonLength
+	case genai.FinishReasonSafety:
+		c.FinishReason = ai.FinishReasonBlocked
+	case genai.FinishReasonRecitation:
+		c.FinishReason = ai.FinishReasonBlocked
+	case genai.FinishReasonOther:
+		c.FinishReason = ai.FinishReasonOther
+	default: // Unspecified
+		c.FinishReason = ai.FinishReasonUnknown
+	}
+	m := &ai.Message{}
+	m.Role = ai.Role(cand.Content.Role)
+	for _, part := range cand.Content.Parts {
+		var p *ai.Part
+		switch part := part.(type) {
+		case genai.Text:
+			p = ai.NewTextPart(string(part))
+		case genai.Blob:
+			p = ai.NewBlobPart(part.MIMEType, string(part.Data))
+		case genai.FunctionResponse:
+			p = ai.NewBlobPart("TODO", string(part.Name))
+		default:
+			panic("unknown part type")
+		}
+		m.Content = append(m.Content, p)
+	}
+	c.Message = m
+	return c
+}
+
+// Translate from a genai.GenerateContentResponse to a ai.GenerateResponse.
+func translateResponse(resp *genai.GenerateContentResponse) *ai.GenerateResponse {
+	r := &ai.GenerateResponse{}
+	for _, c := range resp.Candidates {
+		r.Candidates = append(r.Candidates, translateCandidate(c))
+	}
+	return r
 }
 
 // NewGenerator returns an action which sends a request to
