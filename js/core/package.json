@@ -15,7 +15,9 @@
     "build:clean": "rm -rf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
-    "test": "node --import tsx --test tests/*_test.ts tests/**/*_test.ts"
+    "test": "node --import tsx --test tests/*_test.ts tests/**/*_test.ts",
+    "extractapi:run": "api-extractor run --local --verbose",
+    "extractapi": "npm-run-all compile extractapi:run"
   },
   "repository": {
     "type": "git",

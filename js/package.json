@@ -6,6 +6,10 @@
     "build": "pnpm install && pnpm build:core && pnpm build:noncore",
     "build:core": "pnpm -r --workspace-concurrency 1 -F core -F ai -F flow -F dotprompt build",
     "build:noncore": "pnpm -r --workspace-concurrency 0 -F \"./(plugins|samples)/**\" build",
+    "docgen": "npm-run-all docgen:clean docgen:extractapi docgen:generate",
+    "docgen:clean": "rm -rf ./apitemp ../docs-tsref",
+    "docgen:extractapi": "pnpm -r --workspace-concurrency 1 -F core -F ai extractapi",
+    "docgen:generate": "api-documenter markdown -i apitemp -o ../docs-tsref",
     "pack:all": "(mkdir ../dist || true) && npm-run-all pack:core pack:flow pack:ai pack:dotprompt pack:plugins",
     "pack:core": "cd core && pnpm pack --pack-destination ../../dist",
     "pack:flow": "cd flow && pnpm pack --pack-destination ../../dist",
@@ -15,6 +19,7 @@
     "test:all": "pnpm -r --workspace-concurrency 0 -F \"./(ai|core|flow|dotprompt)/**\" test"
   },
   "devDependencies": {
+    "@microsoft/api-documenter": "^7.24.2",
     "npm-run-all": "^4.1.5",
     "only-allow": "^1.2.1",
     "typescript": "^4.9.0"

@@ -28,5 +28,8 @@ firebase-debug.log
 js/samples/rag/*.json
 js/samples/cat-eval/__db*.json
 
+# Doc build files
+apitemp
+
 # Test files
 last_recording.mp4
