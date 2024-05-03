@@ -370,6 +370,7 @@ maintained by the Genkit team:
     <td><code>firebase</code></td>
     <td>
       <b>Cloud deployment</b>: Cloud Functions, Firebase Authentication, App Check<br>
+      <b>Vector database</b>: Cloud Firestore vector store<br>
     </td>
   </tr>
 </table>

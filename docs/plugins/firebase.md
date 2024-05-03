@@ -2,6 +2,7 @@
 
 The Firebase plugin provides several integrations with Firebase services:
 
+- Indexers and retrievers using Cloud Firestore vector store
 - Trace storage using Cloud Firestore
 - Flow deployment using Cloud Functions
 - Authorization policies for Firebase Authentication users
@@ -58,7 +59,82 @@ Application Default Credentials. To specify your credentials:
 This plugin provides several integrations with Firebase services, which you can
 use together or individually.
 
-### Cloud Firestore
+### Cloud Firestore vector store
+
+You can use Cloud Firestore as a vector store for RAG indexing and retrieval.
+
+The `firebase` plugin provides a convenience function for defining Firestore
+retrievers, `defineFirestoreRetriever()`:
+
+```js
+import { defineFirestoreRetriever } from '@genkit-ai/firebase';
+import { initializeApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+
+const app = initializeApp();
+const firestore = getFirestore(app);
+
+const yourRetrieverRef = defineFirestoreRetriever({
+  name: 'yourRetriever',
+  firestore: getFirestore(app),
+  collection: 'yourCollection',
+  contentField: 'yourDataChunks',
+  vectorField: 'embedding',
+  embedder: textEmbeddingGecko,
+  distanceMeasure: 'COSINE', // 'EUCLIDEAN', 'DOT_PRODUCT', or 'COSINE' (default)
+});
+```
+
+To use it, pass it to the `retrieve()` function:
+
+```js
+const docs = await retrieve({
+  retriever: yourRetrieverRef,
+  query: 'look for something',
+  config: { limit: 5 },
+});
+```
+
+For indexing, use an embedding generator along with the Admin SDK:
+
+```js
+import { initializeApp } from 'firebase-admin';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { textEmbeddingGecko } from '@genkit-ai/vertexai';
+import { embed } from '@genkit-ai/ai/embedder';
+
+const app = initializeApp();
+const firestore = getFirestore(app);
+
+const indexConfig = {
+  collection: 'yourCollection',
+  contentField: 'yourDataChunks',
+  vectorField: 'embedding',
+  embedder: textEmbeddingGecko,
+};
+
+async function indexToFirestore(content) {
+  const embedding = await embed({
+    embedder: indexConfig.embedder,
+    content,
+  });
+  await firestore.collection(indexConfig.collection).add({
+    [indexConfig.vectorField]: FieldValue.vector(embedding),
+    [indexConfig.contentField]: content,
+  });
+}
+```
+
+Firestore depends on indexes to provide fast and efficient querying on
+collections. The prior example requires the `embedding` field to be indexed to
+work. To do so, invoke the function and Firestore will throw an error with a
+command to create an index. Execute that command and your index should be ready
+to use.
+
+See the [Retrieval-augmented generation](../rag.md) page for a general
+discussion on indexers and retrievers.
+
+### Cloud Firestore trace storage
 
 You can use Cloud Firestore to store traces:
 
