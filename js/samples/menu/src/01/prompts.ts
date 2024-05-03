@@ -14,16 +14,41 @@
  * limitations under the License.
  */
 
-import { definePrompt } from '@genkit-ai/dotprompt';
+import { definePrompt } from '@genkit-ai/ai';
+import { GenerateRequest } from '@genkit-ai/ai/model';
+import { defineDotprompt } from '@genkit-ai/dotprompt';
 import { geminiPro } from '@genkit-ai/vertexai';
-import { MenuQuestionInputSchema } from '../types';
+import { MenuQuestionInput, MenuQuestionInputSchema } from '../types';
 
 // Define a prompt to handle a customer question about the menu.
-// The daily menu is hard-coded into the prompt.
+// This prompt uses definePrompt directly.
 
-export const s01_staticMenuPrompt = definePrompt(
+export const s01_vanillaPrompt = definePrompt(
   {
-    name: 's01_staticMenu',
+    name: 's01_vanillaPrompt',
+    inputSchema: MenuQuestionInputSchema,
+  },
+  async (input: MenuQuestionInput): Promise<GenerateRequest> => {
+    const promptText = `
+    You are acting as a helpful AI assistant named "Walt" that can answer 
+    questions about the food available on the menu at Walt's Burgers.
+    Customer says: ${input.question}
+    `;
+
+    return {
+      messages: [{ role: 'user', content: [{ text: promptText }] }],
+      config: { temperature: 0.3 },
+    };
+  }
+);
+
+// Define another prompt which uses the Dotprompt library
+// that also gives us a type-safe handlebars template system,
+// and well-defined output schemas.
+
+export const s01_staticMenuDotPrompt = defineDotprompt(
+  {
+    name: 's01_staticMenuDotPrompt',
     model: geminiPro,
     input: { schema: MenuQuestionInputSchema },
     output: { format: 'text' },

@@ -30,7 +30,9 @@ export {
   Message,
   generate,
   generateStream,
+  toGenerateRequest,
 } from './generate.js';
+export { PromptAction, definePrompt, renderPrompt } from './prompt.js';
 export {
   IndexerAction,
   IndexerInfo,

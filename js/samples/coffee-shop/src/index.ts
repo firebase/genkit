@@ -15,7 +15,7 @@
  */
 
 import { initializeGenkit } from '@genkit-ai/core';
-import { definePrompt } from '@genkit-ai/dotprompt';
+import { defineDotprompt } from '@genkit-ai/dotprompt';
 import { defineFlow, runFlow } from '@genkit-ai/flow';
 import { geminiPro } from '@genkit-ai/vertexai';
 import * as z from 'zod';
@@ -32,7 +32,7 @@ const CustomerNameSchema = z.object({
   customerName: z.string(),
 });
 
-const simpleGreetingPrompt = definePrompt(
+const simpleGreetingPrompt = defineDotprompt(
   {
     name: 'simpleGreeting',
     model: geminiPro,
@@ -68,7 +68,7 @@ const CustomerTimeAndHistorySchema = z.object({
   previousOrder: z.string(),
 });
 
-const greetingWithHistoryPrompt = definePrompt(
+const greetingWithHistoryPrompt = defineDotprompt(
   {
     name: 'greetingWithHistory',
     model: geminiPro,
