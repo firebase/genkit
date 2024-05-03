@@ -99,7 +99,7 @@ For indexing, use an embedding generator along with the Admin SDK:
 
 ```js
 import { initializeApp } from 'firebase-admin';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { textEmbeddingGecko } from '@genkit-ai/vertexai';
 import { embed } from '@genkit-ai/ai/embedder';
 
@@ -119,13 +119,13 @@ async function indexToFirestore(content) {
     content,
   });
   await firestore.collection(indexConfig.collection).add({
-    [indexConfig.vectorField]: embedding,
+    [indexConfig.vectorField]: FieldValue.vector(embedding),
     [indexConfig.contentField]: content,
   });
 }
 ```
 
-Firestore depends on indices to provide fast and efficient querying on
+Firestore depends on indexes to provide fast and efficient querying on
 collections. The prior example requires the `embedding` field to be indexed to
 work. To do so, invoke the function and Firestore will throw an error with a
 command to create an index. Execute that command and your index should be ready
