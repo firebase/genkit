@@ -37,6 +37,7 @@ import {
   Content,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
+  Part as GeminiPart,
   GenerateContentCandidate,
   GenerateContentResponse,
   GenerateContentResult,
@@ -44,7 +45,6 @@ import {
   HarmCategory,
   StartChatParams,
   VertexAI,
-  Part as VertexPart,
 } from '@google-cloud/vertexai';
 import { z } from 'zod';
 
@@ -66,6 +66,7 @@ export const geminiPro = modelRef({
       multiturn: true,
       media: false,
       tools: true,
+      systemRole: false,
     },
   },
   configSchema: GeminiConfigSchema,
@@ -80,6 +81,7 @@ export const geminiProVision = modelRef({
       multiturn: true,
       media: true,
       tools: false,
+      systemRole: false,
     },
   },
   configSchema: GeminiConfigSchema,
@@ -94,6 +96,7 @@ export const gemini15ProPreview = modelRef({
       multiturn: true,
       media: true,
       tools: true,
+      systemRole: true,
     },
   },
   configSchema: GeminiConfigSchema,
@@ -107,14 +110,23 @@ export const SUPPORTED_GEMINI_MODELS = {
   // 'gemini-ultra': geminiUltra,
 };
 
-function toGeminiRole(role: MessageData['role']): string {
+function toGeminiRole(
+  role: MessageData['role'],
+  model?: ModelReference<z.ZodTypeAny>
+): string {
   switch (role) {
     case 'user':
       return 'user';
     case 'model':
       return 'model';
     case 'system':
-      throw new Error('system role is not supported');
+      if (model?.info?.supports?.systemRole) {
+        throw new Error(
+          'system role is only supported for a single message in the first position'
+        );
+      } else {
+        throw new Error('system role is not supported');
+      }
     case 'tool':
       return 'function';
     default:
@@ -133,7 +145,7 @@ const toGeminiTool = (
   return declaration;
 };
 
-const toGeminiFileDataPart = (part: MediaPart): VertexPart => {
+const toGeminiFileDataPart = (part: MediaPart): GeminiPart => {
   const media = part.media;
   if (media.url.startsWith('gs://')) {
     if (!media.contentType)
@@ -160,7 +172,7 @@ const toGeminiFileDataPart = (part: MediaPart): VertexPart => {
   );
 };
 
-const toGeminiToolRequestPart = (part: Part): VertexPart => {
+const toGeminiToolRequestPart = (part: Part): GeminiPart => {
   if (!part?.toolRequest?.input) {
     throw Error(
       'Could not convert genkit part to gemini tool response part: missing tool request data'
@@ -174,7 +186,7 @@ const toGeminiToolRequestPart = (part: Part): VertexPart => {
   };
 };
 
-const toGeminiToolResponsePart = (part: Part): VertexPart => {
+const toGeminiToolResponsePart = (part: Part): GeminiPart => {
   if (!part?.toolResponse?.output) {
     throw Error(
       'Could not convert genkit part to gemini tool response part: missing tool response data'
@@ -191,30 +203,22 @@ const toGeminiToolResponsePart = (part: Part): VertexPart => {
   };
 };
 
-export const toGeminiMessage = (message: MessageData): Content => {
-  const vertexRole = toGeminiRole(message.role);
-  const vertexAiMessage: any = {
-    role: vertexRole,
-    parts: [],
+export function toGeminiSystemInstruction(message: MessageData): Content {
+  return {
+    role: 'user',
+    parts: message.content.map(toGeminiPart),
   };
+}
 
-  const parts = message.content;
-  parts.forEach((part) => {
-    if (part.text) {
-      vertexAiMessage.parts.push({ text: part.text });
-    }
-    if (part.media) {
-      vertexAiMessage.parts.push(toGeminiFileDataPart(part));
-    }
-    if (part.toolRequest) {
-      vertexAiMessage.parts.push(toGeminiToolRequestPart(part));
-    }
-    if (part.toolResponse) {
-      vertexAiMessage.parts.push(toGeminiToolResponsePart(part));
-    }
-  });
-  return vertexAiMessage;
-};
+export function toGeminiMessage(
+  message: MessageData,
+  model?: ModelReference<z.ZodTypeAny>
+): Content {
+  return {
+    role: toGeminiRole(message.role, model),
+    parts: message.content.map(toGeminiPart),
+  };
+}
 
 function fromGeminiFinishReason(
   reason: GenerateContentCandidate['finishReason']
@@ -233,7 +237,21 @@ function fromGeminiFinishReason(
   }
 }
 
-function fromGeminiInlineDataPart(part: VertexPart): MediaPart {
+function toGeminiPart(part: Part): GeminiPart {
+  if (part.text) {
+    return { text: part.text };
+  } else if (part.media) {
+    return toGeminiFileDataPart(part);
+  } else if (part.toolRequest) {
+    return toGeminiToolRequestPart(part);
+  } else if (part.toolResponse) {
+    return toGeminiToolResponsePart(part);
+  } else {
+    throw new Error('unsupported type');
+  }
+}
+
+function fromGeminiInlineDataPart(part: GeminiPart): MediaPart {
   // Check if the required properties exist
   if (
     !part.inlineData ||
@@ -253,7 +271,7 @@ function fromGeminiInlineDataPart(part: VertexPart): MediaPart {
   };
 }
 
-function fromGeminiFileDataPart(part: VertexPart): MediaPart {
+function fromGeminiFileDataPart(part: GeminiPart): MediaPart {
   if (
     !part.fileData ||
     !part.fileData.hasOwnProperty('mimeType') ||
@@ -272,7 +290,7 @@ function fromGeminiFileDataPart(part: VertexPart): MediaPart {
   };
 }
 
-function fromGeminiFunctionCallPart(part: VertexPart): Part {
+function fromGeminiFunctionCallPart(part: GeminiPart): Part {
   if (!part.functionCall) {
     throw new Error(
       'Invalid Gemini Function Call Part: missing function call data'
@@ -286,7 +304,7 @@ function fromGeminiFunctionCallPart(part: VertexPart): Part {
   };
 }
 
-function fromGeminiFunctionResponsePart(part: VertexPart): Part {
+function fromGeminiFunctionResponsePart(part: GeminiPart): Part {
   if (!part.functionResponse) {
     throw new Error(
       'Invalid Gemini Function Call Part: missing function call data'
@@ -301,7 +319,7 @@ function fromGeminiFunctionResponsePart(part: VertexPart): Part {
 }
 
 // Converts vertex part to genkit part
-function fromGeminiPart(part: VertexPart): Part {
+function fromGeminiPart(part: GeminiPart): Part {
   if (part.text !== undefined) return { text: part.text };
   if (part.functionCall) return fromGeminiFunctionCallPart(part);
   if (part.functionResponse) return fromGeminiFunctionResponsePart(part);
@@ -370,8 +388,12 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
   const model: ModelReference<z.ZodTypeAny> = SUPPORTED_GEMINI_MODELS[name];
   if (!model) throw new Error(`Unsupported model: ${name}`);
 
-  const middlewares: ModelMiddleware[] = [simulateSystemPrompt()];
+  const middlewares: ModelMiddleware[] = [];
+  if (!model?.info?.supports?.systemRole) {
+    middlewares.push(simulateSystemPrompt());
+  }
   if (model?.info?.supports?.media) {
+    // the gemini api doesn't support downloading media from http(s)
     middlewares.push(downloadRequestMedia({ maxBytes: 1024 * 1024 * 20 }));
   }
 
@@ -395,13 +417,25 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
       const messages = request.messages;
       if (messages.length === 0) throw new Error('No messages provided.');
 
+      // Gemini does not support messages with role system and instead
+      // expects system instructions to be provided as a separate input.
+      // By convention, system message are expected to be in the "first"
+      // position, so we look for it there. System messages anywhere else
+      // are considered "exceptional".
+      let systemInstruction;
+      if (messages[0].role === 'system') {
+        systemInstruction = toGeminiSystemInstruction(messages[0]);
+      }
+
       const chatRequest: StartChatParams = {
+        systemInstruction: systemInstruction,
         tools: request.tools?.length
           ? [{ functionDeclarations: request.tools?.map(toGeminiTool) }]
           : [],
+        // history should not include the system message or final user message
         history: messages
-          .slice(0, -1)
-          .map((message) => toGeminiMessage(message)),
+          .slice(systemInstruction ? 1 : 0, -1)
+          .map((message) => toGeminiMessage(message, model)),
         generationConfig: {
           candidateCount: request.candidates || undefined,
           temperature: request.config?.temperature,
@@ -412,7 +446,7 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
         },
         safetySettings: request.config?.safetySettings,
       };
-      const msg = toGeminiMessage(messages[messages.length - 1]);
+      const msg = toGeminiMessage(messages[messages.length - 1], model);
       if (streamingCallback) {
         const result = await client
           .startChat(chatRequest)

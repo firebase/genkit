@@ -22,6 +22,7 @@ import {
   MediaPart,
   MessageData,
   ModelAction,
+  ModelMiddleware,
   modelRef,
   ModelReference,
   Part,
@@ -72,6 +73,7 @@ export const geminiPro = modelRef({
       multiturn: true,
       media: false,
       tools: false,
+      systemRole: false,
     },
   },
   configSchema: GeminiConfigSchema,
@@ -87,6 +89,7 @@ export const geminiProVision = modelRef({
       multiturn: true,
       media: true,
       tools: false,
+      systemRole: false,
     },
   },
   configSchema: GeminiConfigSchema,
@@ -100,6 +103,7 @@ export const gemini15Pro = modelRef({
       multiturn: true,
       media: true,
       tools: true,
+      systemRole: true,
     },
   },
   configSchema: GeminiConfigSchema,
@@ -114,6 +118,7 @@ export const geminiUltra = modelRef({
       multiturn: true,
       media: false,
       tools: false,
+      systemRole: false,
     },
   },
   configSchema: GeminiConfigSchema,
@@ -139,14 +144,23 @@ const SUPPORTED_MODELS = {
   ...V1_BETA_SUPPORTED_MODELS,
 };
 
-function toGeminiRole(role: MessageData['role']): string {
+function toGeminiRole(
+  role: MessageData['role'],
+  model?: ModelReference<z.ZodTypeAny>
+): string {
   switch (role) {
     case 'user':
       return 'user';
     case 'model':
       return 'model';
     case 'system':
-      throw new Error('system role is not supported');
+      if (model?.info?.supports?.systemRole) {
+        throw new Error(
+          'system role is only supported for a single message in the first position'
+        );
+      } else {
+        throw new Error('system role is not supported');
+      }
     case 'tool':
       return 'function';
     default:
@@ -195,9 +209,19 @@ function fromGeminiPart(part: GeminiPart): Part {
   throw new Error('Only support text for the moment.');
 }
 
-function toGeminiMessage(message: MessageData): GeminiMessage {
+function toGeminiMessage(
+  message: MessageData,
+  model?: ModelReference<z.ZodTypeAny>
+): GeminiMessage {
   return {
-    role: toGeminiRole(message.role),
+    role: toGeminiRole(message.role, model),
+    parts: message.content.map(toGeminiPart),
+  };
+}
+
+function toGeminiSystemInstruction(message: MessageData): GeminiMessage {
+  return {
+    role: 'user',
     parts: message.content.map(toGeminiPart),
   };
 }
@@ -245,25 +269,34 @@ export function googleAIModel(
   baseUrl?: string
 ): ModelAction {
   const modelName = `googleai/${name}`;
-  if (!apiKey)
+
+  if (!apiKey) {
     apiKey = process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY;
-  if (!apiKey)
+  }
+  if (!apiKey) {
     throw new Error(
       'please pass in the API key or set the GOOGLE_GENAI_API_KEY or GOOGLE_API_KEY environment variable'
     );
+  }
+
   const model: ModelReference<z.ZodTypeAny> = SUPPORTED_MODELS[name];
   if (!model) throw new Error(`Unsupported model: ${name}`);
+
+  const middleware: ModelMiddleware[] = [];
+  if (!model.info?.supports?.systemRole) {
+    middleware.push(simulateSystemPrompt());
+  }
+  if (model?.info?.supports?.media) {
+    // the gemini api doesn't support downloading media from http(s)
+    middleware.push(downloadRequestMedia({ maxBytes: 1024 * 1024 * 10 }));
+  }
+
   return defineModel(
     {
       name: modelName,
       ...model.info,
       configSchema: model.configSchema,
-      use: [
-        // simulate a system prompt since no native one is supported
-        simulateSystemPrompt(),
-        // since gemini api doesn't support downloading media from http(s)
-        downloadRequestMedia({ maxBytes: 1024 * 1024 * 10 }),
-      ],
+      use: middleware,
     },
     async (request, streamingCallback) => {
       const options: RequestOptions = { apiClient: GENKIT_CLIENT_HEADER };
@@ -279,10 +312,26 @@ export function googleAIModel(
         },
         options
       );
-      const messages = request.messages.map(toGeminiMessage);
+
+      const messages = request.messages;
       if (messages.length === 0) throw new Error('No messages provided.');
+
+      // Gemini does not support messages with role system and instead
+      // expects system instructions to be provided as a separate input.
+      // By convention, system message are expected to be in the "first"
+      // position, so we look for it there. System messages anywhere else
+      // are considered "exceptional".
+      let systemInstruction;
+      if (messages[0].role === 'system') {
+        systemInstruction = toGeminiSystemInstruction(messages[0]);
+      }
+
       const chatRequest = {
-        history: messages.slice(0, messages.length - 1),
+        systemInstruction,
+        // history should not include the system message or final user message
+        history: messages
+          .slice(systemInstruction ? 1 : 0, -1)
+          .map((message) => toGeminiMessage(message, model)),
         generationConfig: {
           candidateCount: request.candidates || undefined,
           temperature: request.config?.temperature,
@@ -293,10 +342,11 @@ export function googleAIModel(
         },
         safetySettings: request.config?.safetySettings,
       } as StartChatParams;
+      const msg = toGeminiMessage(messages[messages.length - 1], model);
       if (streamingCallback) {
         const result = await client
           .startChat(chatRequest)
-          .sendMessageStream(messages[messages.length - 1].parts);
+          .sendMessageStream(msg.parts);
         for await (const item of result.stream) {
           (item as GenerateContentResponse).candidates?.forEach((candidate) => {
             const c = fromGeminiCandidate(candidate);
@@ -317,7 +367,7 @@ export function googleAIModel(
       } else {
         const result = await client
           .startChat(chatRequest)
-          .sendMessage(messages[messages.length - 1].parts);
+          .sendMessage(msg.parts);
         if (!result.response.candidates?.length)
           throw new Error('No valid candidates returned.');
         const responseCandidates =
