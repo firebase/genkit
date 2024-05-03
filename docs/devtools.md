@@ -49,7 +49,7 @@ Here's a quick gif tour with cats.
 
 The Genkit CLI and Developer UI use cookies and similar technologies from Google
 to deliver and enhance the quality of its services and to analyze usage.
-[Learn more](https://policies.google.com/technologies/cookies').
+[Learn more](https://policies.google.com/technologies/cookies).
 
 To opt-out of analytics, you can run the following command:
 
