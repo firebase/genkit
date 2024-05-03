@@ -90,16 +90,16 @@ To use it, pass it to the `retrieve()` function:
 ```js
 const docs = await retrieve({
   retriever: yourRetrieverRef,
-  query: "look for something",
-  config: {limit: 5},
+  query: 'look for something',
+  config: { limit: 5 },
 });
 ```
 
 For indexing, use an embedding generator along with the Admin SDK:
 
 ```js
-import { initializeApp } from "firebase-admin";
-import { getFirestore } from "firebase-admin/firestore";
+import { initializeApp } from 'firebase-admin';
+import { getFirestore } from 'firebase-admin/firestore';
 import { textEmbeddingGecko } from '@genkit-ai/vertexai';
 import { embed } from '@genkit-ai/ai/embedder';
 
@@ -107,11 +107,11 @@ const app = initializeApp();
 const firestore = getFirestore(app);
 
 const indexConfig = {
-  collection: "yourCollection",
-  contentField: "yourDataChunks",
-  vectorField: "embedding",
+  collection: 'yourCollection',
+  contentField: 'yourDataChunks',
+  vectorField: 'embedding',
   embedder: textEmbeddingGecko,
-}
+};
 
 async function indexToFirestore(content) {
   const embedding = await embed({
