@@ -8,7 +8,7 @@
     "build:noncore": "pnpm -r --workspace-concurrency 0 -F \"./(plugins|samples)/**\" build",
     "docgen": "npm-run-all docgen:clean docgen:extractapi docgen:generate",
     "docgen:clean": "rm -rf ./apitemp ../docs-tsref",
-    "docgen:extractapi": "pnpm -r --workspace-concurrency 1 -F core -F ai extractapi",
+    "docgen:extractapi": "pnpm -r --workspace-concurrency 1 -F ai -F core -F dotprompt -F flow -F \"./plugins/**\" extractapi",
     "docgen:generate": "api-documenter markdown -i apitemp -o ../docs-tsref",
     "pack:all": "(mkdir ../dist || true) && npm-run-all pack:core pack:flow pack:ai pack:dotprompt pack:plugins",
     "pack:core": "cd core && pnpm pack --pack-destination ../../dist",

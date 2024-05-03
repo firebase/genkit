@@ -161,6 +161,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.5(zod@3.22.4)
     devDependencies:
+      '@microsoft/api-extractor':
+        specifier: ^7.43.1
+        version: 7.43.1(@types/node@20.11.30)
       '@types/node':
         specifier: ^20.11.16
         version: 20.11.30
@@ -219,6 +222,9 @@ importers:
         specifier: ^3.21.4
         version: 3.22.5(zod@3.22.4)
     devDependencies:
+      '@microsoft/api-extractor':
+        specifier: ^7.43.1
+        version: 7.43.1(@types/node@20.11.30)
       '@types/express':
         specifier: ^4.17.21
         version: 4.17.21
@@ -256,6 +262,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      '@microsoft/api-extractor':
+        specifier: ^7.43.1
+        version: 7.43.1(@types/node@20.11.30)
       '@types/node':
         specifier: ^20.11.16
         version: 20.11.30
@@ -290,6 +299,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      '@microsoft/api-extractor':
+        specifier: ^7.43.1
+        version: 7.43.1(@types/node@20.11.30)
       '@types/node':
         specifier: ^20.11.16
         version: 20.11.30
@@ -327,6 +339,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      '@microsoft/api-extractor':
+        specifier: ^7.43.1
+        version: 7.43.1(@types/node@20.11.30)
       '@types/node':
         specifier: ^20.11.16
         version: 20.11.30
@@ -373,6 +388,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      '@microsoft/api-extractor':
+        specifier: ^7.43.1
+        version: 7.43.1(@types/node@20.11.30)
       '@types/node':
         specifier: ^20.11.16
         version: 20.11.30
@@ -452,6 +470,9 @@ importers:
         specifier: ^3.12.0
         version: 3.13.0
     devDependencies:
+      '@microsoft/api-extractor':
+        specifier: ^7.43.1
+        version: 7.43.1(@types/node@20.11.30)
       '@types/node':
         specifier: ^20.11.16
         version: 20.11.30
@@ -489,6 +510,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      '@microsoft/api-extractor':
+        specifier: ^7.43.1
+        version: 7.43.1(@types/node@20.11.30)
       '@types/node':
         specifier: ^20.11.16
         version: 20.11.30
@@ -532,6 +556,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      '@microsoft/api-extractor':
+        specifier: ^7.43.1
+        version: 7.43.1(@types/node@20.11.30)
       '@types/node':
         specifier: ^20.11.16
         version: 20.11.30
@@ -557,6 +584,9 @@ importers:
         specifier: workspace:*
         version: link:../../core
     devDependencies:
+      '@microsoft/api-extractor':
+        specifier: ^7.43.1
+        version: 7.43.1(@types/node@20.11.30)
       '@types/node':
         specifier: ^20.11.16
         version: 20.11.30
@@ -591,6 +621,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      '@microsoft/api-extractor':
+        specifier: ^7.43.1
+        version: 7.43.1(@types/node@20.11.30)
       '@types/node':
         specifier: ^20.11.16
         version: 20.11.30
@@ -637,6 +670,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      '@microsoft/api-extractor':
+        specifier: ^7.43.1
+        version: 7.43.1(@types/node@20.11.30)
       '@types/node':
         specifier: ^20.11.16
         version: 20.11.30

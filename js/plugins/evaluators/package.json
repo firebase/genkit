@@ -19,6 +19,8 @@
     "build:clean": "rm -rf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
+    "extractapi:run": "api-extractor run --local --verbose",
+    "extractapi": "npm-run-all compile extractapi:run",
     "lint": "eslint --config ../../.eslintrc.js --ext .ts src",
     "lint:fix": "npm run lint -- --fix --quiet"
   },
@@ -38,6 +40,7 @@
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@microsoft/api-extractor": "^7.43.1",
     "@types/node": "^20.11.16",
     "npm-run-all": "^4.1.5",
     "tsup": "^8.0.2",

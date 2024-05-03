@@ -16,6 +16,8 @@
     "build:clean": "rm -rf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
+    "extractapi:run": "api-extractor run --local --verbose",
+    "extractapi": "npm-run-all compile extractapi:run",
     "test": "node --import tsx --test tests/*_test.ts"
   },
   "repository": {
@@ -40,12 +42,13 @@
     "zod-to-json-schema": "^3.21.4"
   },
   "devDependencies": {
+    "@microsoft/api-extractor": "^7.43.1",
     "@types/express": "^4.17.21",
     "@types/uuid": "^9.0.6",
     "npm-run-all": "^4.1.5",
     "tsup": "^8.0.2",
-    "typescript": "^4.9.0",
-    "tsx": "^4.7.1"
+    "tsx": "^4.7.1",
+    "typescript": "^4.9.0"
   },
   "files": [
     "genkit-ui",
