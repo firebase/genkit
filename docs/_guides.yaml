@@ -51,6 +51,8 @@ toc:
     path: /docs/genkit/plugin-authoring
   - title: Writing a Telemetry Plugin
     path: /docs/genkit/plugin-authoring-telemetry
+  - title: Writing an Evaluator Plugin
+    path: /docs/genkit/plugin-authoring-evaluator
   
   - heading: Official plugins
   - title: Google Generative AI
