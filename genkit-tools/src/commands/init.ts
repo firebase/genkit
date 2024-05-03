@@ -68,7 +68,7 @@ const platformOptions: Record<Platform, PromptOption> = {
   },
   nodejs: { label: 'Node.js', plugin: undefined },
   nextjs: {
-    label: 'Next.js',
+    label: 'Next.js (Experimental)',
     plugin: undefined,
   },
 };
