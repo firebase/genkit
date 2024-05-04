@@ -66,7 +66,7 @@ export const geminiPro = modelRef({
       multiturn: true,
       media: false,
       tools: true,
-      systemRole: false,
+      systemRole: true,
     },
   },
   configSchema: GeminiConfigSchema,
@@ -103,11 +103,19 @@ export const gemini15ProPreview = modelRef({
   version: 'gemini-1.5-pro-preview-0409',
 });
 
-export const SUPPORTED_GEMINI_MODELS = {
-  'gemini-1.0-pro': geminiPro,
-  'gemini-1.5-pro-preview': gemini15ProPreview,
-  'gemini-1.0-pro-vision': geminiProVision,
+export const SUPPORTED_V1_MODELS = {
+  'gemini-pro': geminiPro,
+  'gemini-pro-vision': geminiProVision,
   // 'gemini-ultra': geminiUltra,
+};
+
+export const SUPPORTED_V15_MODELS = {
+  'gemini-1.5-pro-preview': gemini15ProPreview,
+};
+
+export const SUPPORTED_GEMINI_MODELS = {
+  ...SUPPORTED_V1_MODELS,
+  ...SUPPORTED_V15_MODELS,
 };
 
 function toGeminiRole(
@@ -120,7 +128,9 @@ function toGeminiRole(
     case 'model':
       return 'model';
     case 'system':
-      if (model?.info?.supports?.systemRole) {
+      if (model && SUPPORTED_V15_MODELS[model.name]) {
+        // We should have already pulled out the supported system messages,
+        // anything remaining is unsupported; throw an error.
         throw new Error(
           'system role is only supported for a single message in the first position'
         );
@@ -389,7 +399,7 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
   if (!model) throw new Error(`Unsupported model: ${name}`);
 
   const middlewares: ModelMiddleware[] = [];
-  if (!model?.info?.supports?.systemRole) {
+  if (SUPPORTED_V1_MODELS[name]) {
     middlewares.push(simulateSystemPrompt());
   }
   if (model?.info?.supports?.media) {
@@ -414,27 +424,27 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
         }
       );
 
-      const messages = request.messages;
+      // make a copy so that modifying the request will not produce side-effects
+      const messages = [...request.messages];
       if (messages.length === 0) throw new Error('No messages provided.');
 
-      // Gemini does not support messages with role system and instead
-      // expects system instructions to be provided as a separate input.
-      // By convention, system message are expected to be in the "first"
-      // position, so we look for it there. System messages anywhere else
-      // are considered "exceptional".
-      let systemInstruction;
-      if (messages[0].role === 'system') {
-        systemInstruction = toGeminiSystemInstruction(messages[0]);
+      // Gemini does not support messages with role system and instead expects
+      // systemInstructions to be provided as a separate input. The first
+      // message detected with role=system will be used for systemInstructions.
+      // Any additional system messages may be considered to be "exceptional".
+      let systemInstruction: Content | undefined = undefined;
+      const systemMessage = messages.find((m) => m.role === 'system');
+      if (systemMessage) {
+        messages.splice(messages.indexOf(systemMessage), 1);
+        systemInstruction = toGeminiSystemInstruction(systemMessage);
       }
-
       const chatRequest: StartChatParams = {
-        systemInstruction: systemInstruction,
+        systemInstruction,
         tools: request.tools?.length
           ? [{ functionDeclarations: request.tools?.map(toGeminiTool) }]
           : [],
-        // history should not include the system message or final user message
         history: messages
-          .slice(systemInstruction ? 1 : 0, -1)
+          .slice(0, -1)
           .map((message) => toGeminiMessage(message, model)),
         generationConfig: {
           candidateCount: request.candidates || undefined,

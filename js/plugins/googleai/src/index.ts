@@ -24,8 +24,8 @@ import {
   geminiPro,
   geminiProVision,
   googleAIModel,
-  V1_BETA_SUPPORTED_MODELS,
-  V1_SUPPORTED_MODELS,
+  SUPPORTED_V15_MODELS,
+  SUPPORTED_V1_MODELS,
 } from './gemini.js';
 export { gemini15Pro, geminiPro, geminiProVision };
 
@@ -52,14 +52,14 @@ export const googleAI: Plugin<[PluginOptions] | []> = genkitPlugin(
     if (apiVersions.includes('v1beta')) {
       (embedders = []),
         (models = [
-          ...Object.keys(V1_BETA_SUPPORTED_MODELS).map((name) =>
+          ...Object.keys(SUPPORTED_V15_MODELS).map((name) =>
             googleAIModel(name, options?.apiKey, 'v1beta', options?.baseUrl)
           ),
         ]);
     }
     if (apiVersions.includes('v1')) {
       models = [
-        ...Object.keys(V1_SUPPORTED_MODELS).map((name) =>
+        ...Object.keys(SUPPORTED_V1_MODELS).map((name) =>
           googleAIModel(name, options?.apiKey, undefined, options?.baseUrl)
         ),
       ];
