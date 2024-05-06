@@ -16,7 +16,10 @@ package genkit
 
 import (
 	"context"
+	"crypto/md5"
+	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -70,12 +73,10 @@ func (ts *tracingState) addTraceStoreBatch(tstore TraceStore) (shutdown func(con
 }
 
 func newDevTraceStore() (TraceStore, error) {
-	// TODO(jba): The js code uses a hash of the program name as the directory,
-	// so the same store is used across runs. That won't work well with the common
-	// use of `go run`. Should we let the user configure the directory?
-	// Does it matter?
-	dir, err := os.MkdirTemp("", "genkit-tracing")
-	if err != nil {
+	programName := filepath.Base(os.Args[0])
+	rootHash := fmt.Sprintf("%02x", md5.Sum([]byte(programName)))
+	dir := filepath.Join(os.TempDir(), ".genkit", rootHash, "traces")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
 	// Don't remove the temp directory, for post-mortem debugging.
