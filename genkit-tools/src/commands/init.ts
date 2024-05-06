@@ -59,6 +59,13 @@ interface InitOptions {
   distArchive: string;
 }
 
+interface ImportOptions {
+  // Spacing around brackets in import
+  spacer: ' ' | '';
+  // Single or double quotes for import
+  quotes: '"' | "'";
+}
+
 /** Supported platform to plugin name. */
 const platformOptions: Record<Platform, PromptOption> = {
   firebase: { label: 'Firebase', plugin: '@genkit-ai/firebase' },
@@ -82,6 +89,13 @@ const modelOptions: Record<ModelProvider, PromptOption> = {
   },
   ollama: { label: 'Ollama (e.g. Gemma)', plugin: '@genkit-ai/ollama' },
   none: { label: 'None', plugin: undefined },
+};
+
+const platformImportOptions: Record<Platform, ImportOptions> = {
+  firebase: { spacer: '', quotes: '"' },
+  googlecloud: { spacer: ' ', quotes: "'" },
+  nodejs: { spacer: ' ', quotes: "'" },
+  nextjs: { spacer: ' ', quotes: "'" },
 };
 
 /** External packages required to use Genkit. */
@@ -323,12 +337,17 @@ function generateSampleFile(
 ) {
   const modelImport =
     modelPlugin && pluginToInfo[modelPlugin].model
-      ? `import { ${pluginToInfo[modelPlugin].model} } from '${modelPlugin}';`
+      ? generateImportStatement(
+          pluginToInfo[modelPlugin].model!,
+          modelPlugin,
+          platformImportOptions[platform]
+        )
       : '';
   const templatePath = path.join(__dirname, sampleTemplatePaths[platform]);
   let template = fs.readFileSync(templatePath, 'utf8');
   const sample = renderConfig(
     configPlugins,
+    platform,
     template
       .replace('$GENKIT_MODEL_IMPORT', modelImport)
       .replace(
@@ -356,11 +375,18 @@ function generateSampleFile(
   fs.writeFileSync(samplePath, sample, 'utf8');
 }
 
-function renderConfig(pluginNames: string[], template: string): string {
+function renderConfig(
+  pluginNames: string[],
+  platform: Platform,
+  template: string
+): string {
   const imports = pluginNames
-    .map(
-      (pluginName) =>
-        `import { ${pluginToInfo[pluginName].imports} } from '${pluginName}';`
+    .map((pluginName) =>
+      generateImportStatement(
+        pluginToInfo[pluginName].imports,
+        pluginName,
+        platformImportOptions[platform]
+      )
     )
     .join('\n');
   const plugins =
@@ -370,6 +396,14 @@ function renderConfig(pluginNames: string[], template: string): string {
   return template
     .replace('$GENKIT_CONFIG_IMPORTS', imports)
     .replace('$GENKIT_CONFIG_PLUGINS', plugins);
+}
+
+function generateImportStatement(
+  imports: string,
+  name: string,
+  opts: ImportOptions
+): string {
+  return `import {${opts.spacer}${imports}${opts.spacer}} from ${opts.quotes}${name}${opts.quotes};`;
 }
 
 /**
