@@ -16,12 +16,31 @@
 
 import { generate } from '@genkit-ai/ai';
 import { BaseDataPoint, Score } from '@genkit-ai/ai/evaluator';
-import { extractJson } from '@genkit-ai/ai/extract';
 import { ModelArgument } from '@genkit-ai/ai/model';
-import Handlebars from 'handlebars';
+import { defineDotprompt } from '@genkit-ai/dotprompt';
 import * as z from 'zod';
 
-const QUESTION_GEN_PROMPT = `You are a food critic with a wide range in taste. Given the output, decide if it sounds delicious and provide your reasoning. Use only "yes" (if delicous), "no" (if not delicious), "maybe" (if you can't decide) as the verdict.
+// Define the expected output values
+const DELICIOUSNESS_VALUES = ['yes', 'no', 'maybe'] as const;
+
+// Define the response schema expected from the LLM
+const DeliciousnessDetectionResponseSchema = z.object({
+  reason: z.string(),
+  verdict: z.enum(DELICIOUSNESS_VALUES),
+});
+
+const DELICIOUSNESS_PROMPT = defineDotprompt(
+  {
+    input: {
+      schema: z.object({
+        output: z.string(),
+      }),
+    },
+    output: {
+      schema: DeliciousnessDetectionResponseSchema,
+    },
+  },
+  `You are a food critic with a wide range in taste. Given the output, decide if it sounds delicious and provide your reasoning. Use only "yes" (if delicous), "no" (if not delicious), "maybe" (if you can't decide) as the verdict.
 
 Here are a few examples:
 
@@ -36,7 +55,7 @@ Response:
 { "reason": "This is not edible and definitely not delicious.", "verdict":"no"}
 
 Output:
-A juicy peice of gossip
+A juicy piece of gossip
 Response:
 { "reason": "Gossip is sometimes metaphorically referred to as tasty.", "verdict":"maybe"}
 
@@ -45,18 +64,8 @@ Here is a new submission to assess:
 Output:
 {{output}}
 Response:
-`;
-
-const DELICIOUSNESS_VALUES = ['yes', 'no', 'maybe'] as const;
-
-const DeliciousnessDetectionResponseSchema = z.object({
-  reason: z.string(),
-  verdict: z.enum(DELICIOUSNESS_VALUES),
-});
-
-type DeliciousnessDetectionResponse = z.infer<
-  typeof DeliciousnessDetectionResponseSchema
->;
+`
+);
 
 export async function deliciousnessScore<
   CustomModelOptions extends z.ZodTypeAny,
@@ -70,9 +79,8 @@ export async function deliciousnessScore<
     if (!d.output) {
       throw new Error('Output is required for Funniness detection');
     }
-    const promptTemplate = Handlebars.compile(QUESTION_GEN_PROMPT);
-    const finalPrompt = promptTemplate({
-      output: d.output,
+    const finalPrompt = DELICIOUSNESS_PROMPT.renderText({
+      output: d.output as string,
     });
 
     const response = await generate({
@@ -80,9 +88,7 @@ export async function deliciousnessScore<
       prompt: finalPrompt,
       config: judgeConfig,
     });
-    const parsedResponse = extractJson<DeliciousnessDetectionResponse>(
-      response.text()
-    );
+    const parsedResponse = response.output();
     if (!parsedResponse) {
       throw new Error(`Unable to parse evaluator response: ${response.text()}`);
     }

@@ -16,12 +16,34 @@
 
 import { generate } from '@genkit-ai/ai';
 import { BaseDataPoint, Score } from '@genkit-ai/ai/evaluator';
-import { extractJson } from '@genkit-ai/ai/extract';
 import { ModelArgument } from '@genkit-ai/ai/model';
-import Handlebars from 'handlebars';
+import { defineDotprompt } from '@genkit-ai/dotprompt';
 import * as z from 'zod';
 
-const QUESTION_GEN_PROMPT = `You are a joke critic with a wide range in your taste for jokes. Given the output, decide if it is a joke and then decide if that joke is funny and provide your reasoning. Use the following categories as a verdict in the response FUNNY_JOKE, NOT_FUNNY_JOKE, OFFENSIVE_JOKE, NOT_A_JOKE.
+const FUNNINESS_VALUES = [
+  'FUNNY_JOKE',
+  'NOT_FUNNY_JOKE',
+  'OFFENSIVE_JOKE',
+  'NOT_A_JOKE',
+] as const;
+
+const FunninessResponseSchema = z.object({
+  reason: z.string(),
+  verdict: z.enum(FUNNINESS_VALUES),
+});
+
+const FUNNINESS_PROMPT = defineDotprompt(
+  {
+    input: {
+      schema: z.object({
+        output: z.string(),
+      }),
+    },
+    output: {
+      schema: FunninessResponseSchema,
+    },
+  },
+  `You are a joke critic with a wide range in your taste for jokes. Given the output, decide if it is a joke and then decide if that joke is funny and provide your reasoning. Use the following categories as a verdict in the response FUNNY_JOKE, NOT_FUNNY_JOKE, OFFENSIVE_JOKE, NOT_A_JOKE.
 
 Here is an example of an output that is a funny joke:
 
@@ -56,21 +78,8 @@ Here is a new submission to assess:
 Output:
 {{output}}
 Response:
-`;
-
-const FUNNINESS_VALUES = [
-  'FUNNY_JOKE',
-  'NOT_FUNNY_JOKE',
-  'OFFENSIVE_JOKE',
-  'NOT_A_JOKE',
-] as const;
-
-const FunninessResponseSchema = z.object({
-  reason: z.string(),
-  verdict: z.enum(FUNNINESS_VALUES),
-});
-
-type FunninessResponse = z.infer<typeof FunninessResponseSchema>;
+`
+);
 
 export async function funninessScore<CustomModelOptions extends z.ZodTypeAny>(
   judgeLlm: ModelArgument<CustomModelOptions>,
@@ -82,9 +91,8 @@ export async function funninessScore<CustomModelOptions extends z.ZodTypeAny>(
     if (!d.output) {
       throw new Error('Output is required for Funniness detection');
     }
-    const promptTemplate = Handlebars.compile(QUESTION_GEN_PROMPT);
-    const finalPrompt = promptTemplate({
-      output: d.output,
+    const finalPrompt = FUNNINESS_PROMPT.renderText({
+      output: d.output as string,
     });
 
     const response = await generate({
@@ -92,7 +100,7 @@ export async function funninessScore<CustomModelOptions extends z.ZodTypeAny>(
       prompt: finalPrompt,
       config: judgeConfig,
     });
-    const parsedResponse = extractJson<FunninessResponse>(response.text());
+    const parsedResponse = response.output();
     if (!parsedResponse) {
       throw new Error(`Unable to parse evaluator response: ${response.text()}`);
     }

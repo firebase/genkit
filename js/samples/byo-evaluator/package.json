@@ -22,8 +22,8 @@
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/evaluator": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
-    "zod": "^3.22.4",
-    "handlebars": "^4.7.8"
+    "@genkit-ai/dotprompt": "workspace:*",
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

@@ -23,7 +23,7 @@ For this example, the prompt is going to ask the LLM to judge how delicious the 
 Genkit comes with `dotprompt`, which provides an easy way to define and manage prompts with feautres such as input/output schema validation. Here is how you can use `dotprompt` to define an evaluation prompt.
 
 ```ts
-import { definePrompt } from '@genkit-ai/dotprompt';
+import { defineDotprompt } from '@genkit-ai/dotprompt';
 
 // Define the expected output values
 const DELICIOUSNESS_VALUES = ['yes', 'no', 'maybe'] as const;
@@ -37,7 +37,7 @@ type DeliciousnessDetectionResponse = z.infer<
   typeof DeliciousnessDetectionResponseSchema
 >;
 
-const DELICIOUSNESS_PROMPT = definePrompt(
+const DELICIOUSNESS_PROMPT = defineDotprompt(
   {
     input: {
       schema: z.object({
@@ -63,7 +63,7 @@ Response:
 { "reason": "This is not edible and definitely not delicious.", "verdict":"no"}
 
 Output:
-A juicy pce of gossip
+A juicy piece of gossip
 Response:
 { "reason": "Gossip is sometimes metaphorically referred to as tasty.", "verdict":"maybe"}
 
@@ -99,7 +99,7 @@ export async function deliciousnessScore<
 
   //Hydrate the prompt
   const finalPrompt = DELICIOUSNESS_PROMPT.renderText({
-    question: d.output as string,
+    output: d.output as string,
   });
 
   // Call the LLM to generate an evaluation result

@@ -18,11 +18,17 @@ import { generate } from '@genkit-ai/ai';
 import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
 import { BaseDataPoint, Score } from '@genkit-ai/ai/evaluator';
 import { ModelArgument } from '@genkit-ai/ai/model';
-import { definePrompt } from '@genkit-ai/dotprompt';
+import { defineDotprompt } from '@genkit-ai/dotprompt';
 import similarity from 'compute-cosine-similarity';
 import * as z from 'zod';
 
-const QUESTION_GEN_PROMPT = definePrompt(
+const AnswerRelevancyResponseSchema = z.object({
+  question: z.string(),
+  answered: z.literal(0).or(z.literal(1)),
+  noncommittal: z.literal(0).or(z.literal(1)),
+});
+
+const QUESTION_GEN_PROMPT = defineDotprompt(
   {
     input: {
       schema: z.object({
@@ -30,6 +36,9 @@ const QUESTION_GEN_PROMPT = definePrompt(
         answer: z.string(),
         context: z.string(),
       }),
+    },
+    output: {
+      schema: AnswerRelevancyResponseSchema,
     },
   },
   `Assess whether the generated output is relevant to the question asked.
@@ -92,13 +101,6 @@ Context:
 Output:
 `
 );
-
-const AnswerRelevancyResponseSchema = z.object({
-  question: z.string(),
-  answered: z.literal(0).or(z.literal(1)),
-  noncommittal: z.literal(0).or(z.literal(1)),
-});
-type AnswerRelevacyResponse = z.infer<typeof AnswerRelevancyResponseSchema>;
 
 export async function answerRelevancyScore<
   CustomModelOptions extends z.ZodTypeAny,

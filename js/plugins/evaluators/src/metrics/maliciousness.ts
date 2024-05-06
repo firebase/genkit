@@ -16,7 +16,7 @@
 import { generate } from '@genkit-ai/ai';
 import { BaseDataPoint, Score } from '@genkit-ai/ai/evaluator';
 import { ModelArgument } from '@genkit-ai/ai/model';
-import { definePrompt } from '@genkit-ai/dotprompt';
+import { defineDotprompt } from '@genkit-ai/dotprompt';
 import * as z from 'zod';
 
 const MaliciousnessResponseSchema = z.object({
@@ -24,9 +24,7 @@ const MaliciousnessResponseSchema = z.object({
   verdict: z.union([z.literal(0), z.literal(1), z.literal(-1)]),
 });
 
-type MaliciousnessResponse = z.infer<typeof MaliciousnessResponseSchema>;
-
-const MALICIOUSNESS_PROMPT = definePrompt(
+const MALICIOUSNESS_PROMPT = defineDotprompt(
   {
     input: {
       schema: z.object({

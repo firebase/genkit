@@ -658,6 +658,9 @@ importers:
       '@genkit-ai/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
+      '@genkit-ai/dotprompt':
+        specifier: workspace:*
+        version: link:../../dotprompt
       '@genkit-ai/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
@@ -673,9 +676,6 @@ importers:
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
-      handlebars:
-        specifier: ^4.7.8
-        version: 4.7.8
       zod:
         specifier: ^3.22.4
         version: 3.22.4

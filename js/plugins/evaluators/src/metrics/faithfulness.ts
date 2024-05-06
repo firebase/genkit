@@ -17,16 +17,29 @@
 import { generate } from '@genkit-ai/ai';
 import { BaseDataPoint, Score } from '@genkit-ai/ai/evaluator';
 import { ModelArgument } from '@genkit-ai/ai/model';
-import { definePrompt } from '@genkit-ai/dotprompt';
+import { defineDotprompt } from '@genkit-ai/dotprompt';
 import * as z from 'zod';
 
-const LONG_FORM_ANSWER_PROMPT = definePrompt(
+const LongFormResponseSchema = z.object({ statements: z.array(z.string()) });
+
+const NliResponseBaseSchema = z.object({
+  statement: z.string(),
+  reason: z.string(),
+  verdict: z.union([z.literal(0), z.literal(1)]),
+});
+
+type NliResponseBase = z.infer<typeof NliResponseBaseSchema>;
+
+const LONG_FORM_ANSWER_PROMPT = defineDotprompt(
   {
     input: {
       schema: z.object({
         question: z.string(),
         answer: z.string(),
       }),
+    },
+    output: {
+      schema: LongFormResponseSchema,
     },
   },
   `Create one or more statements from each sentence in the given answer. 
@@ -77,13 +90,16 @@ statements in json:
 `
 );
 
-const NLI_STATEMENTS_MESSAGE = definePrompt(
+const NLI_STATEMENTS_MESSAGE = defineDotprompt(
   {
     input: {
       schema: z.object({
         context: z.string(),
         statements: z.string(),
       }),
+    },
+    output: {
+      schema: NliResponseBaseSchema,
     },
   },
   `Your task is to judge the faithfulness of a series of statements based on a given context. For each statement you must return verdict as 1 if the statement can be verified based on the context or 0 if the statement can not be verified based on the context.
@@ -139,17 +155,6 @@ Context:
 Answer:
 `
 );
-
-const LongFormResponseSchema = z.object({ statements: z.array(z.string()) });
-type LongFormResponse = z.infer<typeof LongFormResponseSchema>;
-
-const NliResponseBaseSchema = z.object({
-  statement: z.string(),
-  reason: z.string(),
-  verdict: z.union([z.literal(0), z.literal(1)]),
-});
-
-type NliResponseBase = z.infer<typeof NliResponseBaseSchema>;
 
 /**
  *
