@@ -18,7 +18,7 @@ import { JSONSchema7 } from 'json-schema';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { performance } from 'node:perf_hooks';
 import * as z from 'zod';
-import { ActionType, registerAction } from './registry.js';
+import { ActionType, lookupPlugin, registerAction } from './registry.js';
 import { parseSchema } from './schema.js';
 import * as telemetry from './telemetry.js';
 import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing.js';
@@ -83,8 +83,8 @@ export function action<
 ): Action<I, O> {
   const actionName =
     typeof config.name === 'string'
-      ? validateActionNameChunk(config.name)
-      : `${validateActionNameChunk(config.name.pluginId)}/${validateActionNameChunk(config.name.actionId)}`;
+      ? validateActionName(config.name)
+      : `${validatePluginName(config.name.pluginId)}/${validateActionId(config.name.actionId)}`;
   const actionFn = async (input: I) => {
     input = parseSchema(input, {
       schema: config.inputSchema,
@@ -139,11 +139,28 @@ export function action<
   return actionFn;
 }
 
-function validateActionNameChunk(chunk: string) {
-  if (chunk.includes('/')) {
-    throw new Error(`Action name must not include slashes (/): ${chunk}`);
+function validateActionName(name: string) {
+  if (name.includes('/')) {
+    validatePluginName(name.split('/', 1)[0]);
+    validateActionId(name.substring(name.indexOf('/') + 1));
   }
-  return chunk;
+  return name;
+}
+
+function validatePluginName(pluginId: string) {
+  if (!lookupPlugin(pluginId)) {
+    throw new Error(
+      `Unable to find plugin name used in the action name: ${pluginId}`
+    );
+  }
+  return pluginId;
+}
+
+function validateActionId(actionId: string) {
+  if (actionId.includes('/')) {
+    throw new Error(`Action name must not include slashes (/): ${actionId}`);
+  }
+  return actionId;
 }
 
 /**

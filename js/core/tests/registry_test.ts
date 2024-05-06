@@ -48,15 +48,6 @@ describe('registry', () => {
     });
 
     it('returns all registered actions by plugins', async () => {
-      const fooSomethingAction = action(
-        {
-          name: {
-            pluginId: 'foo',
-            actionId: 'something',
-          },
-        },
-        async () => null
-      );
       registerPluginProvider('foo', {
         name: 'foo',
         async initializer() {
@@ -64,10 +55,10 @@ describe('registry', () => {
           return {};
         },
       });
-      const barSomethingAction = action(
+      const fooSomethingAction = action(
         {
           name: {
-            pluginId: 'bar',
+            pluginId: 'foo',
             actionId: 'something',
           },
         },
@@ -80,6 +71,15 @@ describe('registry', () => {
           return {};
         },
       });
+      const barSomethingAction = action(
+        {
+          name: {
+            pluginId: 'bar',
+            actionId: 'something',
+          },
+        },
+        async () => null
+      );
 
       assert.deepEqual(await listActions(), {
         '/model/foo/something': fooSomethingAction,
@@ -142,6 +142,13 @@ describe('registry', () => {
   });
 
   it('returns action registered by plugin', async () => {
+    registerPluginProvider('foo', {
+      name: 'foo',
+      async initializer() {
+        registerAction('model', somethingAction);
+        return {};
+      },
+    });
     const somethingAction = action(
       {
         name: {
@@ -151,14 +158,6 @@ describe('registry', () => {
       },
       async () => null
     );
-
-    registerPluginProvider('foo', {
-      name: 'foo',
-      async initializer() {
-        registerAction('model', somethingAction);
-        return {};
-      },
-    });
 
     assert.strictEqual(
       await lookupAction('/model/foo/something'),

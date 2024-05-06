@@ -198,6 +198,10 @@ export function registerPluginProvider(name: string, provider: PluginProvider) {
   };
 }
 
+export function lookupPlugin(name: string) {
+  return pluginsByName()[name];
+}
+
 /**
  *
  */

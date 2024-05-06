@@ -267,7 +267,7 @@ export function modelWithMiddleware(
 }
 
 /**
- *
+ * Defines a new model and adds it to the registry.
  */
 export function defineModel<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
