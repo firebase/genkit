@@ -20,6 +20,12 @@ importers:
       extract-zip:
         specifier: ^2.0.1
         version: 2.0.1
+      zod:
+        specifier: ^3.22.4
+        version: 3.23.5
+      zod-to-json-schema:
+        specifier: ^3.22.4
+        version: 3.23.0(zod@3.23.5)
     devDependencies:
       '@jest/globals':
         specifier: ^29.7.0
