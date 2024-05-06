@@ -308,12 +308,12 @@ importers:
       '@genkit-ai/core':
         specifier: workspace:*
         version: link:../../core
+      '@genkit-ai/dotprompt':
+        specifier: workspace:*
+        version: link:../../dotprompt
       compute-cosine-similarity:
         specifier: ^1.1.0
         version: 1.1.0
-      handlebars:
-        specifier: ^4.7.8
-        version: 4.7.8
       node-fetch:
         specifier: ^3.3.2
         version: 3.3.2

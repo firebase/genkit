@@ -16,12 +16,20 @@
 
 import { generate } from '@genkit-ai/ai';
 import { BaseDataPoint, Score } from '@genkit-ai/ai/evaluator';
-import { extractJson } from '@genkit-ai/ai/extract';
 import { ModelArgument } from '@genkit-ai/ai/model';
-import Handlebars from 'handlebars';
+import { definePrompt } from '@genkit-ai/dotprompt';
 import * as z from 'zod';
 
-const LONG_FORM_ANSWER_PROMPT = `Create one or more statements from each sentence in the given answer. 
+const LONG_FORM_ANSWER_PROMPT = definePrompt(
+  {
+    input: {
+      schema: z.object({
+        question: z.string(),
+        answer: z.string(),
+      }),
+    },
+  },
+  `Create one or more statements from each sentence in the given answer. 
 Here are some examples:
 
 question: 
@@ -66,9 +74,19 @@ question:
 answer: 
 {{answer}}
 statements in json:
-`;
+`
+);
 
-const NLI_STATEMENTS_MESSAGE = `Your task is to judge the faithfulness of a series of statements based on a given context. For each statement you must return verdict as 1 if the statement can be verified based on the context or 0 if the statement can not be verified based on the context.
+const NLI_STATEMENTS_MESSAGE = definePrompt(
+  {
+    input: {
+      schema: z.object({
+        context: z.string(),
+        statements: z.string(),
+      }),
+    },
+  },
+  `Your task is to judge the faithfulness of a series of statements based on a given context. For each statement you must return verdict as 1 if the statement can be verified based on the context or 0 if the statement can not be verified based on the context.
 Here are some examples:
 
 Context:
@@ -119,7 +137,9 @@ Context:
 {{context}}
 {{statements}}
 Answer:
-`;
+`
+);
+
 const LongFormResponseSchema = z.object({ statements: z.array(z.string()) });
 type LongFormResponse = z.infer<typeof LongFormResponseSchema>;
 
@@ -149,37 +169,29 @@ export async function faithfulnessScore<
     if (!output) {
       throw new Error('Output was not provided');
     }
-    const longFormTemplate = Handlebars.compile(LONG_FORM_ANSWER_PROMPT);
-    const longFormPrompt = longFormTemplate({
-      question: input,
-      answer: output,
-    });
     const longFormResponse = await generate({
       model: judgeLlm,
       config: judgeConfig,
-      prompt: longFormPrompt,
+      prompt: LONG_FORM_ANSWER_PROMPT.renderText({
+        question: input as string,
+        answer: output as string,
+      }),
     });
-    const parsedLongFormResponse = extractJson<LongFormResponse>(
-      longFormResponse.text()
-    );
+    const parsedLongFormResponse = longFormResponse.output();
     let statements = parsedLongFormResponse?.statements ?? [];
     if (statements.length === 0) {
       throw new Error('No statements returned');
     }
     const allStatements = statements.map((s) => `statement: ${s}`).join('\n');
     const allContext = context.join('\n');
-    const nliTemplate = Handlebars.compile(NLI_STATEMENTS_MESSAGE);
-    const nliPrompt = nliTemplate({
-      context: allContext,
-      statements: allStatements,
-    });
     const response = await generate({
       model: judgeLlm,
-      prompt: nliPrompt,
+      prompt: NLI_STATEMENTS_MESSAGE.renderText({
+        context: allContext,
+        statements: allStatements,
+      }),
     });
-    const parsedResponse = extractJson<
-      Array<NliResponseBase> | NliResponseBase
-    >(response.text());
+    const parsedResponse = response.output();
     return nliResponseToScore(parsedResponse);
   } catch (err) {
     console.debug(

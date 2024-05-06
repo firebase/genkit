@@ -17,13 +17,22 @@
 import { generate } from '@genkit-ai/ai';
 import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
 import { BaseDataPoint, Score } from '@genkit-ai/ai/evaluator';
-import { extractJson } from '@genkit-ai/ai/extract';
 import { ModelArgument } from '@genkit-ai/ai/model';
+import { definePrompt } from '@genkit-ai/dotprompt';
 import similarity from 'compute-cosine-similarity';
-import Handlebars from 'handlebars';
 import * as z from 'zod';
 
-const QUESTION_GEN_PROMPT = `Assess whether the generated output is relevant to the question asked.
+const QUESTION_GEN_PROMPT = definePrompt(
+  {
+    input: {
+      schema: z.object({
+        question: z.string(),
+        answer: z.string(),
+        context: z.string(),
+      }),
+    },
+  },
+  `Assess whether the generated output is relevant to the question asked.
 
 To accomplish this perform the following 3 tasks in a step by step manner:
 1. Identify if the question is noncommittal. A noncommittal answer is one that is evasive, vague, or ambiguous. For example, "I don't know", "I'm not sure", and "I can't answer" are noncommittal answers. Give a score of 1 if the answer is noncommittal and 0 if it is committal.
@@ -81,7 +90,8 @@ Answer:
 Context:
 {{context}}
 Output:
-`;
+`
+);
 
 const AnswerRelevancyResponseSchema = z.object({
   question: z.string(),
@@ -107,19 +117,16 @@ export async function answerRelevancyScore<
     if (!dataPoint.output) {
       throw new Error('Output was not provided');
     }
-    const promptTemplate = Handlebars.compile(QUESTION_GEN_PROMPT);
-    const finalPrompt = promptTemplate({
-      question: dataPoint.input,
-      answer: dataPoint.output,
-      context: dataPoint.context.join(' '),
-    });
     const response = await generate({
       model: judgeLlm,
       config: judgeConfig,
-      prompt: finalPrompt,
+      prompt: QUESTION_GEN_PROMPT.renderText({
+        question: dataPoint.input as string,
+        answer: dataPoint.output as string,
+        context: dataPoint.context.join(' '),
+      }),
     });
-    const parsedResponse = extractJson<AnswerRelevacyResponse>(response.text());
-    const genQuestion = parsedResponse?.question;
+    const genQuestion = response.output()?.question;
     if (!genQuestion)
       throw new Error('Error generating question for answer relevancy');
 
