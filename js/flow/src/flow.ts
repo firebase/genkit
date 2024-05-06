@@ -16,7 +16,7 @@
 
 import {
   Action,
-  action,
+  defineAction,
   FlowError,
   FlowState,
   FlowStateSchema,
@@ -28,7 +28,6 @@ import {
   StreamingCallback,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
-import { registerAction } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import {
   newTrace,
@@ -157,7 +156,7 @@ export function defineFlow<
     steps
   );
   createdFlows().push(f);
-  registerAction('flow', config.name, wrapAsAction(f));
+  wrapAsAction(f);
   return f;
 }
 
@@ -800,8 +799,9 @@ function wrapAsAction<
 >(
   flow: Flow<I, O, S>
 ): Action<typeof FlowActionInputSchema, typeof FlowStateSchema> {
-  return action(
+  return defineAction(
     {
+      actionType: 'flow',
       name: flow.name,
       inputSchema: FlowActionInputSchema,
       outputSchema: FlowStateSchema,

@@ -16,11 +16,10 @@
 
 import {
   Action,
-  action,
+  defineAction,
   getStreamingCallback,
   StreamingCallback,
 } from '@genkit-ai/core';
-import { registerAction } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import { performance } from 'node:perf_hooks';
@@ -291,8 +290,9 @@ export function defineModel<
   ) => Promise<GenerateResponseData>
 ): ModelAction<CustomOptionsSchema> {
   const label = options.label || `${options.name} GenAI model`;
-  const act = action(
+  const act = defineAction(
     {
+      actionType: 'model',
       name: options.name,
       description: label,
       inputSchema: GenerateRequestSchema,
@@ -340,7 +340,6 @@ export function defineModel<
     act as ModelAction,
     middleware
   ) as ModelAction<CustomOptionsSchema>;
-  registerAction('model', ma.__action.name, ma);
   return ma;
 }
 

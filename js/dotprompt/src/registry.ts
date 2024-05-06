@@ -31,11 +31,7 @@ export async function lookupPrompt(
   if (registryPrompt) return Prompt.fromAction(registryPrompt);
 
   const prompt = loadPrompt(name, variant);
-  registerAction(
-    'prompt',
-    `${name}${variant ? `.${variant}` : ''}`,
-    prompt.action()
-  );
+  registerAction('prompt', prompt.action());
   return prompt;
 }
 

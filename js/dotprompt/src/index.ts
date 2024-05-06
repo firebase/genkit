@@ -56,10 +56,6 @@ export function definePrompt<V extends z.ZodTypeAny = z.ZodTypeAny>(
   template: string
 ): Prompt<z.infer<V>> {
   const prompt = new Prompt(options, template);
-  registerAction(
-    'prompt',
-    `${prompt.name}${prompt.variant ? `.${prompt.variant}` : ''}`,
-    prompt.action()
-  );
+  registerAction('prompt', prompt.action());
   return prompt;
 }
