@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-import { Action, action, JSONSchema7 } from '@genkit-ai/core';
-import { lookupAction, registerAction } from '@genkit-ai/core/registry';
-import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
+import { Action, defineAction, JSONSchema7 } from '@genkit-ai/core';
+import { lookupAction } from '@genkit-ai/core/registry';
 import z from 'zod';
 import { GenerateOptions } from './generate';
 import { GenerateRequest, GenerateRequestSchema, ModelArgument } from './model';
@@ -52,20 +51,17 @@ export function definePrompt<I extends z.ZodTypeAny>(
   },
   fn: PromptFn<I>
 ): PromptAction<I> {
-  const a = action(
+  const a = defineAction(
     {
+      actionType: 'prompt',
       name,
       description,
       inputSchema,
       inputJsonSchema,
       metadata: { ...(metadata || { prompt: {} }), type: 'prompt' },
     },
-    (i: I): Promise<GenerateRequest> => {
-      setCustomMetadataAttributes({ subtype: 'prompt' });
-      return fn(i);
-    }
+    fn
   );
-  registerAction('prompt', a);
   return a as PromptAction<I>;
 }
 

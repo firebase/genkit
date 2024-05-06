@@ -16,7 +16,6 @@
 
 import { Action, defineAction } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
-import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import * as z from 'zod';
 import { Document, DocumentData, DocumentDataSchema } from './document.js';
 import { EmbedderInfo } from './embedder.js';
@@ -128,10 +127,7 @@ export function defineRetriever<
         info: options.info,
       },
     },
-    (i) => {
-      setCustomMetadataAttributes({ subtype: 'retriever' });
-      return runner(new Document(i.query), i.options);
-    }
+    (i) => runner(new Document(i.query), i.options)
   );
   const rwm = retrieverWithMetadata(
     retriever as Action<
@@ -169,13 +165,11 @@ export function defineIndexer<IndexerOptions extends z.ZodTypeAny>(
         embedderInfo: options.embedderInfo,
       },
     },
-    (i) => {
-      setCustomMetadataAttributes({ subtype: 'indexer' });
-      return runner(
+    (i) =>
+      runner(
         i.documents.map((dd) => new Document(dd)),
         i.options
-      );
-    }
+      )
   );
   const iwm = indexerWithMetadata(
     indexer as Action<typeof IndexerRequestSchema, z.ZodVoid>,

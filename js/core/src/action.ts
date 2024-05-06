@@ -21,7 +21,7 @@ import * as z from 'zod';
 import { ActionType, lookupPlugin, registerAction } from './registry.js';
 import { parseSchema } from './schema.js';
 import * as telemetry from './telemetry.js';
-import { SPAN_TYPE_ATTR, runInNewSpan } from './tracing.js';
+import { SPAN_TYPE_ATTR, runInNewSpan, setCustomMetadataAttributes } from './tracing.js';
 
 export { Status, StatusCodes, StatusSchema } from './statusTypes.js';
 export { JSONSchema7 };
@@ -176,7 +176,10 @@ export function defineAction<
   },
   fn: (input: z.infer<I>) => Promise<z.infer<O>>
 ): Action<I, O> {
-  const act = action(config, fn);
+  const act = action(config, (i: I): Promise<z.infer<O>> => {
+    setCustomMetadataAttributes({ subtype: config.actionType });
+    return fn(i);
+  });
   act.__action.actionType = config.actionType;
   registerAction(config.actionType, act);
   return act;
