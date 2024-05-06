@@ -58,8 +58,7 @@ function pluginsByName(): Record<string, PluginProvider> {
  * Type of a runnable action.
  */
 export type ActionType =
-  | 'chat-llm'
-  | 'text-llm'
+  | 'custom'
   | 'retriever'
   | 'indexer'
   | 'embedder'
