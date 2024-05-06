@@ -433,11 +433,14 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
       // message detected with role=system will be used for systemInstructions.
       // Any additional system messages may be considered to be "exceptional".
       let systemInstruction: Content | undefined = undefined;
-      const systemMessage = messages.find((m) => m.role === 'system');
-      if (systemMessage) {
-        messages.splice(messages.indexOf(systemMessage), 1);
-        systemInstruction = toGeminiSystemInstruction(systemMessage);
+      if (SUPPORTED_V15_MODELS[name]) {
+        const systemMessage = messages.find((m) => m.role === 'system');
+        if (systemMessage) {
+          messages.splice(messages.indexOf(systemMessage), 1);
+          systemInstruction = toGeminiSystemInstruction(systemMessage);
+        }
       }
+
       const chatRequest: StartChatParams = {
         systemInstruction,
         tools: request.tools?.length
