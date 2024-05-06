@@ -54,7 +54,7 @@ type PluginInit = (
 export type Plugin<T extends any[]> = (...args: T) => PluginProvider;
 
 /**
- *
+ * Defines a Genkit plugin.
  */
 export function genkitPlugin<T extends PluginInit>(
   pluginName: string,

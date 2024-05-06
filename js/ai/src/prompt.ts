@@ -65,7 +65,7 @@ export function definePrompt<I extends z.ZodTypeAny>(
       return fn(i);
     }
   );
-  registerAction('prompt', name, a);
+  registerAction('prompt', a);
   return a as PromptAction<I>;
 }
 
