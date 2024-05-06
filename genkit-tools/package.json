@@ -5,7 +5,7 @@
     "preinstall": "npx only-allow pnpm",
     "build": "pnpm install && pnpm build:common && pnpm build:cli && pnpm build:plugins",
     "build:cli": "cd cli && pnpm build",
-    "build:common": "cd common && pnpm build",
+    "build:common": "cd common && pnpm build && cd .. && pnpm export:schemas",
     "build:plugins": "pnpm -r --workspace-concurrency 8 -F \"./plugins/**\" build",
     "export:schemas": "npx tsx scripts/schema-exporter.ts .",
     "pack:all": "pnpm run pack:cli && pnpm run pack:common && pnpm run pack:plugins",
