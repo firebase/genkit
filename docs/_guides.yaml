@@ -55,9 +55,9 @@ toc:
     path: /docs/genkit/plugin-authoring-evaluator
   
   - heading: Official plugins
-  - title: Google Generative AI
+  - title: Google AI for Developers
     path: /docs/genkit/plugins/google-genai
-  - title: Google Vertex AI
+  - title: Google Cloud Vertex AI
     path: /docs/genkit/plugins/vertex-ai
   - title: Ollama
     path: /docs/genkit/plugins/ollama
