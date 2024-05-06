@@ -16,24 +16,24 @@
 
 import {
   Action,
-  config as globalConfig,
-  defineAction,
   FlowError,
   FlowState,
   FlowStateSchema,
   FlowStateStore,
-  getStreamingCallback,
-  isDevEnv,
   Operation,
   StreamingCallback,
+  defineAction,
+  getStreamingCallback,
+  config as globalConfig,
+  isDevEnv,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import {
+  SPAN_TYPE_ATTR,
   newTrace,
   setCustomMetadataAttribute,
   setCustomMetadataAttributes,
-  SPAN_TYPE_ATTR,
 } from '@genkit-ai/core/tracing';
 import { SpanStatusCode } from '@opentelemetry/api';
 import * as bodyParser from 'body-parser';
@@ -45,9 +45,9 @@ import { Context } from './context.js';
 import {
   FlowExecutionError,
   FlowStillRunningError,
+  InterruptError,
   getErrorMessage,
   getErrorStack,
-  InterruptError,
 } from './errors.js';
 import * as telemetry from './telemetry.js';
 import {
