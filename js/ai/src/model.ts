@@ -124,6 +124,8 @@ export const ModelInfoSchema = z.object({
       media: z.boolean().optional(),
       /** Model can perform tool calls. */
       tools: z.boolean().optional(),
+      /** Model can accept messages with role "system". */
+      systemRole: z.boolean().optional(),
       /** Model can output this type of data. */
       output: z.array(OutputFormatSchema).optional(),
     })
