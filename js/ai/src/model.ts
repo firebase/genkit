@@ -21,7 +21,6 @@ import {
   StreamingCallback,
 } from '@genkit-ai/core';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import { performance } from 'node:perf_hooks';
 import { z } from 'zod';
 import { conformOutput, validateSupport } from './model/middleware.js';
@@ -311,7 +310,6 @@ export function defineModel<
       },
     },
     (input) => {
-      setCustomMetadataAttributes({ subtype: 'model' });
       const startTimeMs = performance.now();
       return runner(input, getStreamingCallback())
         .then((response) => {

@@ -17,11 +17,7 @@
 import { Action, defineAction } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { lookupAction } from '@genkit-ai/core/registry';
-import {
-  SPAN_TYPE_ATTR,
-  runInNewSpan,
-  setCustomMetadataAttributes,
-} from '@genkit-ai/core/tracing';
+import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
 import * as z from 'zod';
 
 export const ATTR_PREFIX = 'genkit';
@@ -143,7 +139,6 @@ export function defineEvaluator<
       metadata: metadata,
     },
     async (i) => {
-      setCustomMetadataAttributes({ subtype: 'evaluator' });
       let evalResponses: EvalResponses = [];
       for (let index = 0; index < i.dataset.length; index++) {
         const datapoint = i.dataset[index];

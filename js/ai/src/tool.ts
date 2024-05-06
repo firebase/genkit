@@ -128,10 +128,7 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       outputJsonSchema,
       metadata: { ...(metadata || {}), type: 'tool' },
     },
-    (i) => {
-      setCustomMetadataAttributes({ subtype: 'tool' });
-      return fn(i);
-    }
+    (i) => fn(i)
   );
   return a as ToolAction<I, O>;
 }
