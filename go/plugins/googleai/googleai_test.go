@@ -17,6 +17,7 @@ package googleai_test
 import (
 	"context"
 	"flag"
+	"strings"
 	"testing"
 
 	"github.com/google/genkit/go/ai"
@@ -82,5 +83,43 @@ func TestGenerator(t *testing.T) {
 	out := resp.Candidates[0].Message.Content[0].Text()
 	if out != "France" {
 		t.Errorf("got \"%s\", expecting \"France\"", out)
+	}
+}
+
+func TestGeneratorStreaming(t *testing.T) {
+	if *apiKey == "" {
+		t.Skipf("no -key provided")
+	}
+	ctx := context.Background()
+	g, err := googleai.NewGenerator(ctx, "gemini-1.0-pro", *apiKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := &ai.GenerateRequest{
+		Candidates: 1,
+		Messages: []*ai.Message{
+			&ai.Message{
+				Content: []*ai.Part{ai.NewTextPart("Write one paragraph about the Golden State Warriors.")},
+				Role:    ai.RoleUser,
+			},
+		},
+	}
+
+	out := ""
+	parts := 0
+	_, err = g.Generate(ctx, req, func(ctx context.Context, c *ai.Candidate) error {
+		parts++
+		out += c.Message.Content[0].Text()
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "San Francisco") {
+		t.Errorf("got \"%s\", expecting it to contain \"San Francisco\"", out)
+	}
+	if parts == 1 {
+		// Check if streaming actually occurred.
+		t.Errorf("expecting more than one part")
 	}
 }

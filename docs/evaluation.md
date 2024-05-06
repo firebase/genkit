@@ -1,6 +1,4 @@
-# Evaluation (Preview)
-
-Note: **Evaluation in Firebase Genkit is currently in early preview** with a limited set of available evaluation metrics. You can try out the current experience by following the documentation below. If you run into any issues or have suggestions for improvements, please [file an issue](http://github.com/google/genkit/issues). We would love to see your feedback as we refine the evaluation experience!
+# Evaluation
 
 Evaluations are a form of testing which helps you validate your LLM’s responses and ensure they meet your quality bar.
 
@@ -9,7 +7,7 @@ of your LLM-powered applications. Genkit tooling helps you automatically extract
 
 For example, if you have a RAG flow, Genkit will extract the set
 of documents that was returned by the retriever so that you can evaluate the
-quality of your retriever while it runs in the context of the flow as shown below with the RAGAS faithfulness and answer relevancy metrics:
+quality of your retriever while it runs in the context of the flow as shown below with the Genkit faithfulness and answer relevancy metrics:
 
 ```js
 import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
@@ -24,8 +22,6 @@ export default configureGenkit({
   // ...
 });
 ```
-
-We only support a small number of evaluators to help developers get started that are inspired by [RAGAS](https://docs.ragas.io/en/latest/index.html) metrics including: Faithfulness, Answer Relevancy, and Maliciousness.
 
 Start by defining a set of inputs that you want to use as an input dataset called `testQuestions.json`. This input dataset represents the test cases you will use to generate output for evaluation.
 
@@ -56,6 +52,23 @@ genkit eval:flow bobQA --input testQuestions.json --output eval-result.json
 
 Note: Below you can see an example of how an LLM can help you generate the test
 cases.
+
+## Supported evaluators
+
+### Genkit evaluators
+
+Genkit includes a small number of native evaluators, inspired by RAGAS, to help you get started:
+
+- Faithfulness
+- Answer Relevancy
+- Maliciousness
+
+### Evaluator plugins
+
+Genkit supports additional evaluators through plugins:
+
+- VertexAI Rapid Evaluators via the [VertexAI Plugin](plugins/vertex-ai#evaluation).
+- [LangChain Criteria Evaluation](https://python.langchain.com/docs/guides/productionization/evaluation/string/criteria_eval_chain/) via the [LangChain plugin](plugins/langchain.md).
 
 ## Advanced use
 

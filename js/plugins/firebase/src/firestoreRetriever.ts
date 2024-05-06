@@ -68,7 +68,7 @@ function toDocuments(
 
 /**
  * Define a retriever that uses vector similarity search to retrieve documents from Firestore.
- * Yu must create a vector index on the associated field before you can perform nearest-neighbor
+ * You must create a vector index on the associated field before you can perform nearest-neighbor
  * search.
  **/
 export function defineFirestoreRetriever(config: {

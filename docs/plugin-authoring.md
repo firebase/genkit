@@ -128,6 +128,7 @@ export const myPlugin = genkitPlugin('my-plugin', async (options: {apiKey?: stri
       multiturn: true, // true if your model supports conversations
       media: true, // true if your model supports multimodal input
       tools: true, // true if your model supports tool/function calling
+      systemRole: true, // true if your model supports the system role
       output: ['text', 'media', 'json'], // types of output your model supports
     },
     // Zod schema for your model's custom configuration

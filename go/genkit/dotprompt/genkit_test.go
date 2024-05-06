@@ -23,9 +23,9 @@ import (
 	"github.com/google/genkit/go/genkit"
 )
 
-type testGenerator struct {}
+type testGenerator struct{}
 
-func (testGenerator) Generate(ctx context.Context, req *ai.GenerateRequest, cb genkit.NoStream) (*ai.GenerateResponse, error) {
+func (testGenerator) Generate(ctx context.Context, req *ai.GenerateRequest, cb genkit.StreamingCallback[*ai.Candidate]) (*ai.GenerateResponse, error) {
 	input := req.Messages[0].Content[0].Text()
 	output := fmt.Sprintf("AI reply to %q", input)
 

@@ -44,9 +44,7 @@ export default configureGenkit({
     firebase(),
 
     // model providers
-    googleAI({
-      apiVersion: 'v1beta', // enables Gemini 1.5
-    }),
+    googleAI({ apiVersion: ['v1', 'v1beta'] }),
     ollama({
       models: [
         { name: 'llama2' },

@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { definePrompt } from '@genkit-ai/dotprompt';
+import { defineDotprompt } from '@genkit-ai/dotprompt';
 import { geminiPro, geminiProVision } from '@genkit-ai/vertexai';
 import * as z from 'zod';
 import { TextMenuQuestionInputSchema } from '../types';
 
-export const s05_readMenuPrompt = definePrompt(
+export const s05_readMenuPrompt = defineDotprompt(
   {
     name: 's05_readMenu',
     model: geminiProVision,
@@ -39,7 +39,7 @@ from the following image of a restaurant menu.
 `
 );
 
-export const s05_textMenuPrompt = definePrompt(
+export const s05_textMenuPrompt = defineDotprompt(
   {
     name: 's05_textMenu',
     model: geminiPro,

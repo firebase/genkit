@@ -7,6 +7,17 @@ through the [Vertex AI API](https://cloud.google.com/vertex-ai/generative-ai/doc
 - Imagen2 image generation
 - Gecko text embedding generation
 
+It also provides access to subset of evaluation metrics through the Vertex AI [Rapid Evaluation API](https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/evaluation).
+
+- [BLEU](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#bleuinput)
+- [ROUGE](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#rougeinput)
+- [Fluency](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#fluencyinput)
+- [Safety](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#safetyinput)
+- [Groundeness](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#groundednessinput)
+- [Summarization Quality](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#summarizationqualityinput)
+- [Summarization Helpfulness](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#summarizationhelpfulnessinput)
+- [Summarization Verbosity](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#summarizationverbosityinput)
+
 ## Installation
 
 ```posix-terminal
@@ -66,6 +77,8 @@ credentials.
 
 ## Usage
 
+### Generative AI Models
+
 This plugin statically exports references to its supported generative AI models:
 
 ```js
@@ -107,15 +120,14 @@ configureGenkit({
 Or you can generate an embedding directly:
 
 ```js
-import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
-
+// import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
 const embedding = await embed({
   embedder: textEmbeddingGecko,
   content: 'How many widgets do you have in stock?',
 });
 ```
 
-### Anthropic Claude 3 on Vertex AI Model Garden
+#### Anthropic Claude 3 on Vertex AI Model Garden
 
 If you have access to Claude 3 models ([haiku](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden/claude-3-haiku), [sonnet](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden/claude-3-sonnet) or [opus](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden/claude-3-opus)) in Vertex AI Model Garden you can use them with Genkit.
 
@@ -147,3 +159,36 @@ const llmResponse = await generate({
   prompt: 'What should I do when I visit Melbourne?',
 });
 ```
+
+### Evaluators
+
+To use the evaluators from Vertex AI Rapid Evaluation, add an `evaluation` block to your `vertexAI` plugin configuration.
+
+```js
+import { vertexAI, VertexAIEvaluationMetricType } from '@genkit-ai/vertexai';
+
+export default configureGenkit({
+  plugins: [
+    vertexAI({
+      projectId: 'your-cloud-project',
+      location: 'us-central1',
+      evaluation: {
+        metrics: [
+          VertexAIEvaluationMetricType.SAFETY,
+          {
+            type: VertexAIEvaluationMetricType.ROUGE,
+            metricSpec: {
+              rougeType: 'rougeLsum',
+            },
+          },
+        ],
+      },
+    }),
+  ],
+  // ...
+});
+```
+
+The configuration above adds evaluators for the `Safety` and `ROUGE` metrics. The example shows two approaches- the `Safety` metric uses the default specification, whereas the `ROUGE` metric provides a customized specification that sets the rouge type to `rougeLsum`.
+
+Both evaluators can be run using the `genkit eval:run` command with a compatible dataset: that is, a dataset with `output` and `reference` fields. The `Safety` evaluator can also be run using the `genkit eval:flow -e vertexai/safety` command since it only requires an `output`.

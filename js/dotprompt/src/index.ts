@@ -17,18 +17,13 @@
 import { readFileSync } from 'fs';
 import { basename } from 'path';
 
-import z from 'zod';
-
-import { registerAction } from '@genkit-ai/core/registry';
-
-import { PromptMetadata } from './metadata.js';
-import { Prompt, PromptAction, PromptGenerateOptions } from './prompt.js';
+import { defineDotprompt, Dotprompt } from './prompt.js';
 import { lookupPrompt } from './registry.js';
 
-export { Prompt, PromptAction, PromptGenerateOptions };
+export { defineDotprompt, Dotprompt };
 
-export function loadPromptFile(path: string): Prompt {
-  return Prompt.parse(
+export function loadPromptFile(path: string): Dotprompt {
+  return Dotprompt.parse(
     basename(path).split('.')[0],
     readFileSync(path, 'utf-8')
   );
@@ -37,25 +32,16 @@ export function loadPromptFile(path: string): Prompt {
 export async function loadPromptUrl(
   name: string,
   url: string
-): Promise<Prompt> {
+): Promise<Dotprompt> {
   const fetch = (await import('node-fetch')).default;
   const response = await fetch(url);
   const text = await response.text();
-  return Prompt.parse(name, text);
+  return Dotprompt.parse(name, text);
 }
 
 export async function prompt<Variables = unknown>(
   name: string,
   options?: { variant?: string }
-): Promise<Prompt<Variables>> {
-  return (await lookupPrompt(name, options?.variant)) as Prompt<Variables>;
-}
-
-export function definePrompt<V extends z.ZodTypeAny = z.ZodTypeAny>(
-  options: PromptMetadata<V>,
-  template: string
-): Prompt<z.infer<V>> {
-  const prompt = new Prompt(options, template);
-  registerAction('prompt', prompt.action());
-  return prompt;
+): Promise<Dotprompt<Variables>> {
+  return (await lookupPrompt(name, options?.variant)) as Dotprompt<Variables>;
 }

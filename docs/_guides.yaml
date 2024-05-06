@@ -51,6 +51,8 @@ toc:
     path: /docs/genkit/plugin-authoring
   - title: Writing a Telemetry Plugin
     path: /docs/genkit/plugin-authoring-telemetry
+  - title: Writing an Evaluator Plugin
+    path: /docs/genkit/plugin-authoring-evaluator
   
   - heading: Official plugins
   - title: Google Generative AI
@@ -65,8 +67,6 @@ toc:
     path: /docs/genkit/plugins/pinecone
   - title: pgvector (code template)
     path: /docs/genkit/templates/pgvector
-  - title: Firestore vector store (code template)
-    path: /docs/genkit/templates/firestore-vector
   - title: Firebase
     path: /docs/genkit/plugins/firebase
   - title: Google Cloud

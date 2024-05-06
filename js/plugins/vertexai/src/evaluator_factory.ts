@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-import { BaseDataPoint, defineEvaluator } from '@genkit-ai/ai/evaluator';
-import { Action } from '@genkit-ai/core';
+import { BaseDataPoint, defineEvaluator, Score } from '@genkit-ai/ai/evaluator';
+import { Action, GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
 import { runInNewSpan } from '@genkit-ai/core/tracing';
 import { GoogleAuth } from 'google-auth-library';
 import { JSONClient } from 'google-auth-library/build/src/auth/googleauth';
+import z from 'zod';
 import { VertexAIEvaluationMetricType } from './evaluation';
 
 export class EvaluatorFactory {
@@ -28,14 +29,15 @@ export class EvaluatorFactory {
     private readonly projectId: string
   ) {}
 
-  create(
+  create<ResponseType extends z.ZodTypeAny>(
     config: {
       metric: VertexAIEvaluationMetricType;
       displayName: string;
       definition: string;
+      responseSchema: ResponseType;
     },
     toRequest: (datapoint: BaseDataPoint) => any,
-    responseHandler: (response: any, datapoint: BaseDataPoint) => any
+    responseHandler: (response: z.infer<ResponseType>) => Score
   ): Action {
     return defineEvaluator(
       {
@@ -44,14 +46,24 @@ export class EvaluatorFactory {
         definition: config.definition,
       },
       async (datapoint: BaseDataPoint) => {
-        const response = await this.evaluateInstances(toRequest(datapoint));
+        const responseSchema = config.responseSchema;
+        const response = await this.evaluateInstances(
+          toRequest(datapoint),
+          responseSchema
+        );
 
-        return responseHandler(response, datapoint);
+        return {
+          evaluation: responseHandler(response),
+          testCaseId: datapoint.testCaseId,
+        };
       }
     );
   }
 
-  async evaluateInstances(partialRequest: any) {
+  async evaluateInstances<ResponseType extends z.ZodTypeAny>(
+    partialRequest: any,
+    responseSchema: ResponseType
+  ): Promise<z.infer<ResponseType>> {
     const locationName = `projects/${this.projectId}/locations/${this.location}`;
     return await runInNewSpan(
       {
@@ -64,15 +76,25 @@ export class EvaluatorFactory {
           location: locationName,
           ...partialRequest,
         };
+
         metadata.input = request;
         const client = await this.auth.getClient();
+        const url = `https://${this.location}-aiplatform.googleapis.com/v1beta1/${locationName}:evaluateInstances`;
         const response = await client.request({
-          url: `https://${this.location}-aiplatform.googleapis.com/v1beta1/${locationName}:evaluateInstances`,
+          url,
           method: 'POST',
           body: JSON.stringify(request),
+          headers: {
+            'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
+          },
         });
         metadata.output = response.data;
-        return response.data as any;
+
+        try {
+          return responseSchema.parse(response.data);
+        } catch (e) {
+          throw new Error(`Error parsing ${url} API response: ${e}`);
+        }
       }
     );
   }

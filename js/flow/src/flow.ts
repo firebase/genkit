@@ -16,13 +16,13 @@
 
 import {
   Action,
+  config as globalConfig,
   defineAction,
   FlowError,
   FlowState,
   FlowStateSchema,
   FlowStateStore,
   getStreamingCallback,
-  config as globalConfig,
   isDevEnv,
   Operation,
   StreamingCallback,
@@ -37,7 +37,7 @@ import {
 } from '@genkit-ai/core/tracing';
 import { SpanStatusCode } from '@opentelemetry/api';
 import * as bodyParser from 'body-parser';
-import { default as cors, CorsOptions } from 'cors';
+import { CorsOptions, default as cors } from 'cors';
 import express from 'express';
 import { performance } from 'node:perf_hooks';
 import * as z from 'zod';
@@ -463,8 +463,11 @@ export class Flow<
               metadata.state = 'error';
               rootSpan.setStatus({
                 code: SpanStatusCode.ERROR,
-                message: formatError(e),
+                message: getErrorMessage(e),
               });
+              if (e instanceof Error) {
+                rootSpan.recordException(e);
+              }
 
               setCustomMetadataAttribute(metadataPrefix('state'), 'error');
               ctx.state.operation.done = true;
@@ -855,11 +858,4 @@ export function startFlowsServer(params?: {
   app.listen(port, () => {
     console.log(`Flows server listening on port ${port}`);
   });
-}
-
-function formatError(e: any): string {
-  if (e instanceof Error) {
-    return `${e.message}\n${e.stack}`;
-  }
-  return `${e}`;
 }

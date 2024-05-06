@@ -20,10 +20,8 @@ import { describe, it } from 'node:test';
 import { defineModel } from '@genkit-ai/ai/model';
 import z from 'zod';
 
-import { defineTool } from '@genkit-ai/ai';
-import { toToolDefinition } from '@genkit-ai/ai/tool';
 import { toJsonSchema, ValidationError } from '@genkit-ai/core/schema';
-import { definePrompt, prompt, Prompt } from '../src/index.js';
+import { defineDotprompt, Dotprompt, prompt } from '../src/index.js';
 import { PromptMetadata } from '../src/metadata.js';
 
 const echo = defineModel(
@@ -35,8 +33,8 @@ const echo = defineModel(
   })
 );
 
-function testPrompt(template, options?: Partial<PromptMetadata>): Prompt {
-  return new Prompt({ name: 'test', model: echo, ...options }, template);
+function testPrompt(template, options?: Partial<PromptMetadata>): Dotprompt {
+  return new Dotprompt({ name: 'test', model: echo, ...options }, template);
 }
 
 describe('Prompt', () => {
@@ -45,8 +43,8 @@ describe('Prompt', () => {
       const prompt = testPrompt(`Hello {{name}}, how are you?`);
 
       const rendered = await prompt.render({ input: { name: 'Michael' } });
-      assert.deepStrictEqual(rendered.messages, [
-        { role: 'user', content: [{ text: 'Hello Michael, how are you?' }] },
+      assert.deepStrictEqual(rendered.prompt, [
+        { text: 'Hello Michael, how are you?' },
       ]);
     });
 
@@ -56,12 +54,59 @@ describe('Prompt', () => {
       });
 
       const rendered = await prompt.render({ input: {} });
-      assert.deepStrictEqual(rendered.messages, [
+      assert.deepStrictEqual(rendered.prompt, [
         {
-          role: 'user',
-          content: [{ text: 'Hello Fellow Human, how are you?' }],
+          text: 'Hello Fellow Human, how are you?',
         },
       ]);
+    });
+
+    it('rejects input not matching the schema', async () => {
+      const invalidSchemaPrompt = defineDotprompt(
+        {
+          name: 'invalidInput',
+          model: 'echo',
+          input: {
+            jsonSchema: {
+              properties: { foo: { type: 'boolean' } },
+              required: ['foo'],
+            },
+          },
+        },
+        `You asked for {{foo}}.`
+      );
+
+      await assert.rejects(async () => {
+        await invalidSchemaPrompt.render({ input: { foo: 'baz' } });
+      }, ValidationError);
+    });
+  });
+
+  describe('#generate', () => {
+    it('renders and calls the model', async () => {
+      const prompt = testPrompt(`Hello {{name}}, how are you?`);
+      const response = await prompt.generate({ input: { name: 'Bob' } });
+      assert.equal(response.text(), `Hello Bob, how are you?`);
+    });
+
+    it('rejects input not matching the schema', async () => {
+      const invalidSchemaPrompt = defineDotprompt(
+        {
+          name: 'invalidInput',
+          model: 'echo',
+          input: {
+            jsonSchema: {
+              properties: { foo: { type: 'boolean' } },
+              required: ['foo'],
+            },
+          },
+        },
+        `You asked for {{foo}}.`
+      );
+
+      await assert.rejects(async () => {
+        await invalidSchemaPrompt.generate({ input: { foo: 'baz' } });
+      }, ValidationError);
     });
   });
 
@@ -80,53 +125,11 @@ describe('Prompt', () => {
     });
   });
 
-  describe('#generate', () => {
-    it('rejects input not matching the schema', async () => {
-      const invalidSchemaPrompt = definePrompt(
-        {
-          name: 'invalidInput',
-          model: 'echo',
-          input: {
-            jsonSchema: {
-              properties: { foo: { type: 'boolean' } },
-              required: ['foo'],
-            },
-          },
-        },
-        `You asked for {{foo}}.`
-      );
-
-      await assert.rejects(async () => {
-        await invalidSchemaPrompt.generate({ input: { foo: 'baz' } });
-      }, ValidationError);
-    });
-
-    const tinyPrompt = definePrompt(
-      {
-        name: 'littlePrompt',
-        model: 'echo',
-        input: { schema: z.any() },
-      },
-      `Tiny prompt`
-    );
-
-    it('includes its request in the response', async () => {
-      const response = await tinyPrompt.generate({ input: {} });
-      assert.notEqual(response.request, undefined);
-    });
-
-    it('does not call the model when candidates==0', async () => {
-      const response = await tinyPrompt.generate({ candidates: 0, input: {} });
-      assert.notEqual(response.request, undefined);
-      assert.equal(response.candidates.length, 0);
-    });
-  });
-
   describe('.parse', () => {
     it('should throw a good error for invalid YAML', () => {
       assert.throws(
         () => {
-          Prompt.parse(
+          Dotprompt.parse(
             'example',
             `---
 input: {
@@ -143,7 +146,7 @@ This is the rest of the prompt`
     });
 
     it('should parse picoschema', () => {
-      const p = Prompt.parse(
+      const p = Dotprompt.parse(
         'example',
         `---
 input:
@@ -173,7 +176,7 @@ output:
 
   describe('definePrompt', () => {
     it('registers a prompt and its variant', async () => {
-      definePrompt(
+      defineDotprompt(
         {
           name: 'promptName',
           model: 'echo',
@@ -181,7 +184,7 @@ output:
         `This is a prompt.`
       );
 
-      definePrompt(
+      defineDotprompt(
         {
           name: 'promptName',
           variant: 'variantName',
@@ -198,31 +201,5 @@ output:
       });
       assert.equal('And this is its variant.', variantPrompt.template);
     });
-  });
-
-  it('resolves its tools when generating', async () => {
-    const tool = defineTool(
-      {
-        name: 'testTool',
-        description: 'Just a test',
-        inputSchema: z.string(),
-        outputSchema: z.string(),
-      },
-      async (input) => {
-        return 'result';
-      }
-    );
-
-    const prompt = definePrompt(
-      {
-        name: 'promptName',
-        model: 'echo',
-        tools: [tool],
-      },
-      `This is a prompt.`
-    );
-
-    const out = await prompt.generate({ input: 'test' });
-    assert.deepEqual(out.request?.tools, [toToolDefinition(tool)]);
   });
 });

@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { BaseDataPoint } from '@genkit-ai/ai/evaluator';
 import { Action } from '@genkit-ai/core';
 import { GoogleAuth } from 'google-auth-library';
 import { JSONClient } from 'google-auth-library/build/src/auth/googleauth';
+import z from 'zod';
 import { EvaluatorFactory } from './evaluator_factory';
 
 /**
@@ -25,10 +25,15 @@ import { EvaluatorFactory } from './evaluator_factory';
  * https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/evaluation#parameter-list
  */
 export enum VertexAIEvaluationMetricType {
-  SAFETY = 'SAFETY',
-  GROUNDEDNESS = 'GROUNDEDNESS',
+  // Update genkit/docs/plugins/vertex-ai.md when modifying the list of enums
   BLEU = 'BLEU',
   ROUGE = 'ROUGE',
+  FLUENCY = 'FLEUNCY',
+  SAFETY = 'SAFETY',
+  GROUNDEDNESS = 'GROUNDEDNESS',
+  SUMMARIZATION_QUALITY = 'SUMMARIZATION_QUALITY',
+  SUMMARIZATION_HELPFULNESS = 'SUMMARIZATION_HELPFULNESS',
+  SUMMARIZATION_VERBOSITY = 'SUMMARIZATION_VERBOSITY',
 }
 
 /**
@@ -57,10 +62,6 @@ export function vertexEvaluators(
     const metricType = isConfig(metric) ? metric.type : metric;
     const metricSpec = isConfig(metric) ? metric.metricSpec : {};
 
-    console.log(
-      `Creating evaluator for metric ${metricType} with metricSpec ${metricSpec}`
-    );
-
     switch (metricType) {
       case VertexAIEvaluationMetricType.BLEU: {
         return createBleuEvaluator(factory, metricSpec);
@@ -68,11 +69,23 @@ export function vertexEvaluators(
       case VertexAIEvaluationMetricType.ROUGE: {
         return createRougeEvaluator(factory, metricSpec);
       }
+      case VertexAIEvaluationMetricType.FLUENCY: {
+        return createFluencyEvaluator(factory, metricSpec);
+      }
       case VertexAIEvaluationMetricType.SAFETY: {
         return createSafetyEvaluator(factory, metricSpec);
       }
       case VertexAIEvaluationMetricType.GROUNDEDNESS: {
         return createGroundednessEvaluator(factory, metricSpec);
+      }
+      case VertexAIEvaluationMetricType.SUMMARIZATION_QUALITY: {
+        return createSummarizationQualityEvaluator(factory, metricSpec);
+      }
+      case VertexAIEvaluationMetricType.SUMMARIZATION_HELPFULNESS: {
+        return createSummarizationHelpfulnessEvaluator(factory, metricSpec);
+      }
+      case VertexAIEvaluationMetricType.SUMMARIZATION_VERBOSITY: {
+        return createSummarizationVerbosityEvaluator(factory, metricSpec);
       }
     }
   });
@@ -83,6 +96,12 @@ function isConfig(
 ): config is VertexAIEvaluationMetricConfig {
   return (config as VertexAIEvaluationMetricConfig).type !== undefined;
 }
+
+const BleuResponseSchema = z.object({
+  bleuResults: z.object({
+    bleuMetricValues: z.array(z.object({ score: z.number() })),
+  }),
+});
 
 // TODO: Add support for batch inputs
 function createBleuEvaluator(
@@ -95,12 +114,9 @@ function createBleuEvaluator(
       displayName: 'BLEU',
       definition:
         'Computes the BLEU score by comparing the output against the ground truth',
+      responseSchema: BleuResponseSchema,
     },
     (datapoint) => {
-      if (!datapoint.reference) {
-        throw new Error('Reference is required');
-      }
-
       return {
         bleuInput: {
           metricSpec,
@@ -113,16 +129,19 @@ function createBleuEvaluator(
         },
       };
     },
-    (response, datapoint) => {
+    (response) => {
       return {
-        testCaseId: datapoint.testCaseId,
-        evaluation: {
-          score: response.bleuResults.bleuMetricValues[0].score,
-        },
+        score: response.bleuResults.bleuMetricValues[0].score,
       };
     }
   );
 }
+
+const RougeResponseSchema = z.object({
+  rougeResults: z.object({
+    rougeMetricValues: z.array(z.object({ score: z.number() })),
+  }),
+});
 
 // TODO: Add support for batch inputs
 function createRougeEvaluator(
@@ -135,12 +154,9 @@ function createRougeEvaluator(
       displayName: 'ROUGE',
       definition:
         'Computes the ROUGE score by comparing the output against the ground truth',
+      responseSchema: RougeResponseSchema,
     },
     (datapoint) => {
-      if (!datapoint.reference) {
-        throw new Error('Reference is required');
-      }
-
       return {
         rougeInput: {
           metricSpec,
@@ -151,16 +167,61 @@ function createRougeEvaluator(
         },
       };
     },
-    (response, datapoint) => {
+    (response) => {
       return {
-        testCaseId: datapoint.testCaseId,
-        evaluation: {
-          score: response.rougeResults.rougeMetricValues[0].score,
+        score: response.rougeResults.rougeMetricValues[0].score,
+      };
+    }
+  );
+}
+
+const FluencyResponseSchema = z.object({
+  fluencyResult: z.object({
+    score: z.number(),
+    explanation: z.string(),
+    confidence: z.number(),
+  }),
+});
+
+function createFluencyEvaluator(
+  factory: EvaluatorFactory,
+  metricSpec: any
+): Action {
+  return factory.create(
+    {
+      metric: VertexAIEvaluationMetricType.FLUENCY,
+      displayName: 'Fluency',
+      definition: 'Assesses the language mastery of an output',
+      responseSchema: FluencyResponseSchema,
+    },
+    (datapoint) => {
+      return {
+        fluencyInput: {
+          metricSpec,
+          instance: {
+            prediction: datapoint.output as string,
+          },
+        },
+      };
+    },
+    (response) => {
+      return {
+        score: response.fluencyResult.score,
+        details: {
+          reasoning: response.fluencyResult.explanation,
         },
       };
     }
   );
 }
+
+const SafetyResponseSchema = z.object({
+  safetyResult: z.object({
+    score: z.number(),
+    explanation: z.string(),
+    confidence: z.number(),
+  }),
+});
 
 function createSafetyEvaluator(
   factory: EvaluatorFactory,
@@ -171,6 +232,7 @@ function createSafetyEvaluator(
       metric: VertexAIEvaluationMetricType.SAFETY,
       displayName: 'Safety',
       definition: 'Assesses the level of safety of an output',
+      responseSchema: SafetyResponseSchema,
     },
     (datapoint) => {
       return {
@@ -182,19 +244,24 @@ function createSafetyEvaluator(
         },
       };
     },
-    (response: any, datapoint: BaseDataPoint) => {
+    (response) => {
       return {
-        testCaseId: datapoint.testCaseId,
-        evaluation: {
-          score: response.safetyResult?.score,
-          details: {
-            reasoning: response.safetyResult?.explanation,
-          },
+        score: response.safetyResult.score,
+        details: {
+          reasoning: response.safetyResult.explanation,
         },
       };
     }
   );
 }
+
+const GroundednessResponseSchema = z.object({
+  groundednessResult: z.object({
+    score: z.number(),
+    explanation: z.string(),
+    confidence: z.number(),
+  }),
+});
 
 function createGroundednessEvaluator(
   factory: EvaluatorFactory,
@@ -206,6 +273,7 @@ function createGroundednessEvaluator(
       displayName: 'Groundedness',
       definition:
         'Assesses the ability to provide or reference information included only in the context',
+      responseSchema: GroundednessResponseSchema,
     },
     (datapoint) => {
       return {
@@ -218,14 +286,138 @@ function createGroundednessEvaluator(
         },
       };
     },
-    (response: any, datapoint: BaseDataPoint) => {
+    (response) => {
       return {
-        testCaseId: datapoint.testCaseId,
-        evaluation: {
-          score: response.groundednessResult?.score,
-          details: {
-            reasoning: response.groundednessResult?.explanation,
+        score: response.groundednessResult.score,
+        details: {
+          reasoning: response.groundednessResult.explanation,
+        },
+      };
+    }
+  );
+}
+
+const SummarizationQualityResponseSchema = z.object({
+  summarizationQualityResult: z.object({
+    score: z.number(),
+    explanation: z.string(),
+    confidence: z.number(),
+  }),
+});
+
+function createSummarizationQualityEvaluator(
+  factory: EvaluatorFactory,
+  metricSpec: any
+): Action {
+  return factory.create(
+    {
+      metric: VertexAIEvaluationMetricType.SUMMARIZATION_QUALITY,
+      displayName: 'Summarization quality',
+      definition: 'Assesses the overall ability to summarize text',
+      responseSchema: SummarizationQualityResponseSchema,
+    },
+    (datapoint) => {
+      return {
+        summarizationQualityInput: {
+          metricSpec,
+          instance: {
+            prediction: datapoint.output as string,
+            instruction: datapoint.input as string,
+            context: datapoint.context?.join('. '),
           },
+        },
+      };
+    },
+    (response) => {
+      return {
+        score: response.summarizationQualityResult.score,
+        details: {
+          reasoning: response.summarizationQualityResult.explanation,
+        },
+      };
+    }
+  );
+}
+
+const SummarizationHelpfulnessResponseSchema = z.object({
+  summarizationHelpfulnessResult: z.object({
+    score: z.number(),
+    explanation: z.string(),
+    confidence: z.number(),
+  }),
+});
+
+function createSummarizationHelpfulnessEvaluator(
+  factory: EvaluatorFactory,
+  metricSpec: any
+): Action {
+  return factory.create(
+    {
+      metric: VertexAIEvaluationMetricType.SUMMARIZATION_HELPFULNESS,
+      displayName: 'Summarization helpfulness',
+      definition:
+        'Assesses the ability to provide a summarization, which contains the details necessary to substitute the original text',
+      responseSchema: SummarizationHelpfulnessResponseSchema,
+    },
+    (datapoint) => {
+      return {
+        summarizationHelpfulnessInput: {
+          metricSpec,
+          instance: {
+            prediction: datapoint.output as string,
+            instruction: datapoint.input as string,
+            context: datapoint.context?.join('. '),
+          },
+        },
+      };
+    },
+    (response) => {
+      return {
+        score: response.summarizationHelpfulnessResult.score,
+        details: {
+          reasoning: response.summarizationHelpfulnessResult.explanation,
+        },
+      };
+    }
+  );
+}
+
+const SummarizationVerbositySchema = z.object({
+  summarizationVerbosityResult: z.object({
+    score: z.number(),
+    explanation: z.string(),
+    confidence: z.number(),
+  }),
+});
+
+function createSummarizationVerbosityEvaluator(
+  factory: EvaluatorFactory,
+  metricSpec: any
+): Action {
+  return factory.create(
+    {
+      metric: VertexAIEvaluationMetricType.SUMMARIZATION_VERBOSITY,
+      displayName: 'Summarization verbosity',
+      definition: 'Aassess the ability to provide a succinct summarization',
+      responseSchema: SummarizationVerbositySchema,
+    },
+    (datapoint) => {
+      return {
+        summarizationVerbosityInput: {
+          metricSpec,
+          instance: {
+            prediction: datapoint.output as string,
+            instruction: datapoint.input as string,
+            context: datapoint.context?.join('. '),
+          },
+        },
+      };
+    },
+    (response) => {
+      return {
+        score: response.summarizationVerbosityResult.score,
+        details: {
+          reasoning: response.summarizationVerbosityResult.explanation,
         },
       };
     }

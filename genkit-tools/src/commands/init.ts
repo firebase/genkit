@@ -68,7 +68,7 @@ const platformOptions: Record<Platform, PromptOption> = {
   },
   nodejs: { label: 'Node.js', plugin: undefined },
   nextjs: {
-    label: 'Next.js',
+    label: 'Next.js (Experimental)',
     plugin: undefined,
   },
 };
@@ -345,7 +345,7 @@ function generateSampleFile(
   if (platform === 'nextjs') {
     if (fs.existsSync('src/app')) {
       samplePath = 'src/app/genkit.ts';
-    } else if (fs.existsSync('src')) {
+    } else if (fs.existsSync('app')) {
       samplePath = 'app/genkit.ts';
     } else {
       throw new Error(

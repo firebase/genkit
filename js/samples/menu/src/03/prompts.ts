@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-import { definePrompt } from '@genkit-ai/dotprompt';
+import { defineDotprompt } from '@genkit-ai/dotprompt';
 import { geminiPro } from '@genkit-ai/vertexai';
 import { DataMenuQuestionInputSchema } from '../types';
 
 // This prompt will generate two messages when rendered.
 // These two messages will be used to seed the exchange with the model.
 
-export const s03_chatPreamblePrompt = definePrompt(
+export const s03_chatPreamblePrompt = defineDotprompt(
   {
     name: 's03_chatPreamble',
     model: geminiPro,

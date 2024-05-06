@@ -49,6 +49,7 @@ export const imagen2 = modelRef({
       media: false,
       multiturn: false,
       tools: false,
+      systemRole: false,
       output: ['media'],
     },
   },

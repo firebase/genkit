@@ -52,11 +52,16 @@ addition, there are two optional parameters:
 
 ## Usage
 
-You can create and use retriever and indexer references like so:
+Import retriever and indexer references like so:
 
 ```js
 import { chromaRetrieverRef } from 'genkitx-chromadb';
+import { chromaIndexerRef } from 'genkitx-chromadb';
+```
 
+Then, pass the references to `retrieve()` and `index()`:
+
+```js
 // To use the index you configured when you loaded the plugin:
 let docs = await retrieve({ retriever: chromaRetrieverRef, query });
 
@@ -68,8 +73,6 @@ docs = await retrieve({ retriever: bobFactsRetriever, query });
 ```
 
 ```js
-import { chromaIndexerRef } from 'genkitx-chromadb';
-
 // To use the index you configured when you loaded the plugin:
 await index({ indexer: chromaIndexerRef, documents });
 
