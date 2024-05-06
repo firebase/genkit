@@ -15,23 +15,18 @@
  */
 
 import {
+  definePrompt,
   generate,
   GenerateOptions,
   GenerateResponse,
   generateStream,
   GenerateStreamResponse,
+  PromptAction,
+  toGenerateRequest,
 } from '@genkit-ai/ai';
-import {
-  GenerateRequest,
-  GenerateRequestSchema,
-  GenerateResponseSchema,
-  GenerationCommonConfigSchema,
-  MessageData,
-} from '@genkit-ai/ai/model';
-import { resolveTools, toToolDefinition } from '@genkit-ai/ai/tool';
-import { Action, action, GenkitError } from '@genkit-ai/core';
-import { JSONSchema, parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
-import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
+import { GenerationCommonConfigSchema, MessageData } from '@genkit-ai/ai/model';
+import { GenkitError } from '@genkit-ai/core';
+import { parseSchema } from '@genkit-ai/core/schema';
 import { createHash } from 'crypto';
 import fm, { FrontMatterResult } from 'front-matter';
 import z from 'zod';
@@ -43,23 +38,7 @@ import {
 } from './metadata.js';
 import { compile } from './template.js';
 
-const PromptActionInputSchema = GenerateRequestSchema.omit({
-  messages: true,
-  tools: true,
-  output: true,
-}).extend({
-  model: z.string().optional(),
-  input: z.unknown().optional(),
-  tools: z.array(z.any()).optional(),
-  output: z
-    .object({
-      format: z.enum(['json', 'text', 'media']).optional(),
-      schema: z.any().optional(),
-      jsonSchema: z.any().optional(),
-    })
-    .optional(),
-});
-export type PromptActionInput = z.infer<typeof PromptActionInputSchema>;
+export type PromptData = PromptFrontmatter & { template: string };
 
 export type PromptGenerateOptions<V = unknown> = Omit<
   GenerateOptions<z.ZodTypeAny, typeof GenerationCommonConfigSchema>,
@@ -69,18 +48,7 @@ export type PromptGenerateOptions<V = unknown> = Omit<
   input?: V;
 };
 
-export type PromptData = PromptFrontmatter & { template: string };
-
-export type PromptAction = Action<
-  typeof PromptActionInputSchema,
-  typeof GenerateResponseSchema,
-  Record<string, unknown> & {
-    type: 'prompt';
-    prompt: PromptData;
-  }
->;
-
-export class Prompt<Variables = unknown> implements PromptMetadata {
+export class Dotprompt<Variables = unknown> implements PromptMetadata {
   name?: string;
   variant?: string;
   hash: string;
@@ -95,12 +63,7 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
   config?: PromptMetadata['config'];
   candidates?: PromptMetadata['candidates'];
 
-  private _render: (
-    input: Variables,
-    options?: { context?: string[]; history?: MessageData[] }
-  ) => MessageData[];
-
-  private _action?: PromptAction;
+  private _render: (input: Variables) => MessageData[];
 
   static parse(name: string, source: string) {
     try {
@@ -108,20 +71,20 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
         allowUnsafe: false,
       }) as FrontMatterResult<unknown>;
 
-      return new Prompt(
+      return new Dotprompt(
         { ...toMetadata(fmResult.attributes), name } as PromptMetadata,
         fmResult.body
       );
     } catch (e: any) {
       throw new GenkitError({
-        source: 'dotprompt',
+        source: 'Dotprompt',
         status: 'INVALID_ARGUMENT',
         message: `Error parsing YAML frontmatter of '${name}' prompt: ${e.message}`,
       });
     }
   }
 
-  static fromAction(action: PromptAction): Prompt {
+  static fromAction(action: PromptAction): Dotprompt {
     const { template, ...options } = action.__action.metadata!.prompt;
     const pm = options as PromptMetadata;
     if (pm.input?.schema) {
@@ -131,8 +94,7 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
     if (pm.output?.schema) {
       pm.output.jsonSchema = options.output?.schema;
     }
-    const prompt = new Prompt(options as PromptMetadata, template);
-    prompt._action = action;
+    const prompt = new Dotprompt(options as PromptMetadata, template);
     return prompt;
   }
 
@@ -140,7 +102,7 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
     this.name = options.name;
     this.variant = options.variant;
     this.model = options.model;
-    this.input = options.input;
+    this.input = options.input || { schema: z.any() };
     this.output = options.output;
     this.tools = options.tools;
     this.config = options.config;
@@ -174,25 +136,25 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
     return this._render({ ...this.input?.default, ...input });
   }
 
-  async render(
-    options: PromptGenerateOptions<Variables>
-  ): Promise<GenerateRequest> {
-    const messages = this.renderMessages(options.input);
-    return {
-      config: this.config || {},
-      messages,
-      output: this.output
-        ? {
-            format: this.output?.format,
-            schema: toJsonSchema({
-              schema: this.output?.schema,
-              jsonSchema: this.output?.jsonSchema,
-            }),
-          }
-        : {},
-      tools: (await resolveTools(this.tools)).map(toToolDefinition),
-      candidates: options.candidates || 1,
-    };
+  toJSON(): PromptData {
+    return { ...toFrontmatter(this), template: this.template };
+  }
+
+  define(): void {
+    definePrompt(
+      {
+        name: `${this.name}${this.variant ? `.${this.variant}` : ''}`,
+        description: 'Defined by Dotprompt',
+        inputSchema: this.input?.schema,
+        inputJsonSchema: this.input?.jsonSchema,
+        metadata: {
+          type: 'prompt',
+          prompt: this.toJSON(),
+        },
+      },
+      async (input: Variables) =>
+        toGenerateRequest(this.render({ input: input }))
+    );
   }
 
   private _generateOptions(
@@ -200,7 +162,7 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
   ): GenerateOptions {
     if (!options.model && !this.model) {
       throw new GenkitError({
-        source: 'dotprompt',
+        source: 'Dotprompt',
         message: 'Must supply `model` in prompt metadata or generate options.',
         status: 'INVALID_ARGUMENT',
       });
@@ -218,79 +180,32 @@ export class Prompt<Variables = unknown> implements PromptMetadata {
         schema: options.output?.schema || this.output?.schema,
         jsonSchema: options.output?.jsonSchema || this.output?.jsonSchema,
       },
-      tools: this.tools?.concat(options.tools || []) || [],
-      streamingCallback: options.streamingCallback,
+      tools: (options.tools || []).concat(this.tools || []),
     };
   }
 
-  async _generate(req: PromptGenerateOptions<Variables>) {
-    return generate(this._generateOptions(req));
+  render(opt: PromptGenerateOptions<Variables>): GenerateOptions {
+    return this._generateOptions(opt);
   }
 
   async generate(
-    options: PromptGenerateOptions<Variables>
+    opt: PromptGenerateOptions<Variables>
   ): Promise<GenerateResponse> {
-    const req = { ...options, tools: await resolveTools(options.tools) };
-    const rendered = await this.render(options); // TODO: don't re-render to do this
-    if (options.candidates == 0) {
-      return new GenerateResponse({ candidates: [] }, rendered);
-    } else {
-      return new GenerateResponse(await this.action()(req), rendered);
-    }
+    return generate(this.render(opt));
   }
 
   async generateStream(
-    options: PromptGenerateOptions<Variables>
+    opt: PromptGenerateOptions<Variables>
   ): Promise<GenerateStreamResponse> {
-    // TODO: properly wrap this in appropriate telemetry
-    return generateStream(this._generateOptions(options));
+    return generateStream(this.render(opt));
   }
+}
 
-  toJSON(): PromptData {
-    return { ...toFrontmatter(this), template: this.template };
-  }
-
-  action(): PromptAction {
-    if (this._action) return this._action;
-
-    this._action = action(
-      {
-        name: `${this.name}${this.variant ? `.${this.variant}` : ''}`,
-        inputSchema: PromptActionInputSchema,
-        outputSchema: GenerateResponseSchema,
-        metadata: {
-          type: 'prompt',
-          prompt: this.toJSON(),
-        },
-      },
-      (args) => {
-        setCustomMetadataAttributes({ subtype: 'prompt' });
-        args.output = args.output
-          ? {
-              format: args.output?.format,
-              jsonSchema: toJsonSchema({
-                schema: args.output.schema as z.ZodTypeAny,
-                jsonSchema: args.output.jsonSchema as JSONSchema,
-              }),
-            }
-          : undefined;
-        return this._generate(args as PromptGenerateOptions<Variables>);
-      }
-    ) as PromptAction;
-    const actionJsonSchema = toJsonSchema({
-      schema: PromptActionInputSchema.omit({ input: true }),
-    });
-    if (this.input?.jsonSchema) {
-      // Prompt file case
-      (actionJsonSchema as any).properties.input = this.input.jsonSchema;
-      this._action.__action.inputJsonSchema = actionJsonSchema;
-    } else if (this.input?.schema) {
-      // definePrompt case
-      (actionJsonSchema as any).properties.input = toJsonSchema({
-        schema: this.input.schema,
-      });
-      this._action.__action.inputJsonSchema = actionJsonSchema;
-    }
-    return this._action;
-  }
+export function defineDotprompt<V extends z.ZodTypeAny = z.ZodTypeAny>(
+  options: PromptMetadata<V>,
+  template: string
+): Dotprompt<z.infer<V>> {
+  const prompt = new Dotprompt(options, template);
+  prompt.define();
+  return prompt;
 }

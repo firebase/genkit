@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { definePrompt, prompt } from '@genkit-ai/dotprompt';
+import { defineDotprompt, prompt } from '@genkit-ai/dotprompt';
 import { defineFlow } from '@genkit-ai/flow';
 import { geminiPro } from '@genkit-ai/googleai';
 import * as z from 'zod';
@@ -28,7 +28,7 @@ import '../genkit.config.js';
 const promptName = 'codeDefinedPrompt';
 const template = 'Say hello to {{name}} in the voice of a {{persona}}.';
 
-export const codeDefinedPrompt = definePrompt(
+export const codeDefinedPrompt = defineDotprompt(
   {
     name: promptName,
     model: geminiPro,
@@ -72,7 +72,7 @@ export const codeDefinedPrompt = definePrompt(
   template
 );
 
-export const codeDefinedPromptVariant = definePrompt(
+export const codeDefinedPromptVariant = defineDotprompt(
   {
     name: promptName,
     variant: 'jsonOutput',

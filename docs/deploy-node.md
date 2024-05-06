@@ -61,7 +61,7 @@ sample flow.
          If the Google AI Gemini API is not available in your region, consider
          using the Vertex AI API which also offers Gemini and other models. You
          will need to have a billing-enabled Google Cloud project, enable AI
-         Platform API, and set some additional environment variable:
+         Platform API, and set some additional environment variables:
 
          ```posix-terminal
          gcloud services enable aiplatform.googleapis.com

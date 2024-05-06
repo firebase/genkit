@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { action, Action } from '@genkit-ai/core';
+import { Action, defineAction } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
-import { lookupAction, registerAction } from '@genkit-ai/core/registry';
+import { lookupAction } from '@genkit-ai/core/registry';
 import {
+  SPAN_TYPE_ATTR,
   runInNewSpan,
   setCustomMetadataAttributes,
-  SPAN_TYPE_ATTR,
 } from '@genkit-ai/core/tracing';
 import * as z from 'zod';
 
@@ -128,8 +128,9 @@ export function defineEvaluator<
     options.isBilled == undefined ? true : options.isBilled;
   metadata[EVALUATOR_METADATA_KEY_DISPLAY_NAME] = options.displayName;
   metadata[EVALUATOR_METADATA_KEY_DEFINITION] = options.definition;
-  const evaluator = action(
+  const evaluator = defineAction(
     {
+      actionType: 'evaluator',
       name: options.name,
       inputSchema: EvalRequestSchema.extend({
         dataset: options.dataPointType
@@ -205,7 +206,6 @@ export function defineEvaluator<
     options.dataPointType,
     options.configSchema
   );
-  registerAction('evaluator', evaluator.__action.name, evaluator);
   return ewm;
 }
 

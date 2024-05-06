@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { action, Action } from '@genkit-ai/core';
-import { lookupAction, registerAction } from '@genkit-ai/core/registry';
+import { Action, defineAction } from '@genkit-ai/core';
+import { lookupAction } from '@genkit-ai/core/registry';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import * as z from 'zod';
 import { Document, DocumentData, DocumentDataSchema } from './document.js';
@@ -113,8 +113,9 @@ export function defineRetriever<
   },
   runner: RetrieverFn<OptionsType>
 ) {
-  const retriever = action(
+  const retriever = defineAction(
     {
+      actionType: 'retriever',
       name: options.name,
       inputSchema: options.configSchema
         ? RetrieverRequestSchema.extend({
@@ -139,7 +140,6 @@ export function defineRetriever<
     >,
     options.configSchema
   );
-  registerAction('retriever', rwm.__action.name, rwm);
   return rwm;
 }
 
@@ -154,8 +154,9 @@ export function defineIndexer<IndexerOptions extends z.ZodTypeAny>(
   },
   runner: IndexerFn<IndexerOptions>
 ) {
-  const indexer = action(
+  const indexer = defineAction(
     {
+      actionType: 'indexer',
       name: options.name,
       inputSchema: options.configSchema
         ? IndexerRequestSchema.extend({
@@ -180,7 +181,6 @@ export function defineIndexer<IndexerOptions extends z.ZodTypeAny>(
     indexer as Action<typeof IndexerRequestSchema, z.ZodVoid>,
     options.configSchema
   );
-  registerAction('indexer', iwm.__action.name, iwm);
   return iwm;
 }
 

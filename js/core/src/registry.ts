@@ -98,11 +98,10 @@ function parsePluginName(registryKey: string) {
  */
 export function registerAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   type: ActionType,
-  id: string,
   action: Action<I, O>
 ) {
   logger.info(`Registering ${type}: ${action.__action.name}`);
-  const key = `/${type}/${id}`;
+  const key = `/${type}/${action.__action.name}`;
   if (actionsById().hasOwnProperty(key)) {
     logger.warn(
       `WARNING: ${key} already has an entry in the registry. Overwriting.`
@@ -197,6 +196,10 @@ export function registerPluginProvider(name: string, provider: PluginProvider) {
       return cached;
     },
   };
+}
+
+export function lookupPlugin(name: string) {
+  return pluginsByName()[name];
 }
 
 /**

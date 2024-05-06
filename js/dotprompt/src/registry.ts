@@ -14,32 +14,31 @@
  * limitations under the License.
  */
 
+import { PromptAction } from '@genkit-ai/ai';
 import { config, GenkitError } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
-import { lookupAction, registerAction } from '@genkit-ai/core/registry';
+import { lookupAction } from '@genkit-ai/core/registry';
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
-import { Prompt, PromptAction } from './prompt.js';
+import { Dotprompt } from './prompt.js';
 
 export async function lookupPrompt(
   name: string,
   variant?: string
-): Promise<Prompt> {
+): Promise<Dotprompt> {
   const registryPrompt = (await lookupAction(
     `/prompt/${name}${variant ? `.${variant}` : ''}`
   )) as PromptAction;
-  if (registryPrompt) return Prompt.fromAction(registryPrompt);
-
-  const prompt = loadPrompt(name, variant);
-  registerAction(
-    'prompt',
-    `${name}${variant ? `.${variant}` : ''}`,
-    prompt.action()
-  );
-  return prompt;
+  if (registryPrompt) {
+    return Dotprompt.fromAction(registryPrompt);
+  } else {
+    const loadedPrompt = loadPrompt(name, variant);
+    loadedPrompt.define(); // register it
+    return loadedPrompt;
+  }
 }
 
-function loadPrompt(name: string, variant?: string) {
+export function loadPrompt(name: string, variant?: string) {
   const dir = config.options.promptDir || './prompts';
   const promptExists = existsSync(
     join(dir, `${name}${variant ? `.${variant}` : ''}.prompt`)
@@ -61,7 +60,7 @@ function loadPrompt(name: string, variant?: string) {
     join(dir, `${name}${variant ? `.${variant}` : ''}.prompt`),
     'utf8'
   );
-  const prompt = Prompt.parse(name, source);
+  const prompt = Dotprompt.parse(name, source);
   prompt.variant = variant;
   return prompt;
 }

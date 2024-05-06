@@ -14,12 +14,15 @@
  * limitations under the License.
  */
 
-import { definePrompt } from '@genkit-ai/dotprompt';
+import { defineDotprompt } from '@genkit-ai/dotprompt';
 import { geminiPro } from '@genkit-ai/vertexai';
 import { MenuQuestionInputSchema } from '../types';
 import { menuTool } from './tools';
 
-export const s02_dataMenuPrompt = definePrompt(
+// The prompt uses a tool which will load the menu data,
+// if the user asks a reasonable question about the menu.
+
+export const s02_dataMenuPrompt = defineDotprompt(
   {
     name: 's02_dataMenu',
     model: geminiPro,
@@ -28,11 +31,13 @@ export const s02_dataMenuPrompt = definePrompt(
     tools: [menuTool],
   },
   `
-You are acting as a helpful AI assistant named "Walt" that can answer 
+You are acting as a helpful AI assistant named Walt that can answer 
 questions about the food available on the menu at Walt's Burgers. 
 
 Answer this customer's question, in a concise and helpful manner,
 as long as it is about food on the menu or something harmless like sports.
+Use the tools available to answer menu questions.
+DO NOT INVENT ITEMS NOT ON THE MENU.
 
 Question:
 {{question}} ?

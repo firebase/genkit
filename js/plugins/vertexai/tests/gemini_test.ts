@@ -14,10 +14,15 @@
  * limitations under the License.
  */
 
+import { MessageData } from '@genkit-ai/ai/model';
 import { GenerateContentCandidate } from '@google-cloud/vertexai';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { fromGeminiCandidate, toGeminiMessage } from '../src/gemini.js';
+import {
+  fromGeminiCandidate,
+  toGeminiMessage,
+  toGeminiSystemInstruction,
+} from '../src/gemini.js';
 
 describe('toGeminiMessages', () => {
   const testCases = [
@@ -108,7 +113,51 @@ describe('toGeminiMessages', () => {
   ];
   for (const test of testCases) {
     it(test.should, () => {
-      assert.deepEqual(toGeminiMessage(test.inputMessage), test.expectedOutput);
+      assert.deepEqual(
+        toGeminiMessage(test.inputMessage as MessageData),
+        test.expectedOutput
+      );
+    });
+  }
+});
+
+describe('toGeminiSystemInstruction', () => {
+  const testCases = [
+    {
+      should: 'should transform from system to user',
+      inputMessage: {
+        role: 'system',
+        content: [{ text: 'You are an expert in all things cats.' }],
+      },
+      expectedOutput: {
+        role: 'user',
+        parts: [{ text: 'You are an expert in all things cats.' }],
+      },
+    },
+    {
+      should: 'should transform from system to user with multiple parts',
+      inputMessage: {
+        role: 'system',
+        content: [
+          { text: 'You are an expert in all things animals.' },
+          { text: 'You love cats.' },
+        ],
+      },
+      expectedOutput: {
+        role: 'user',
+        parts: [
+          { text: 'You are an expert in all things animals.' },
+          { text: 'You love cats.' },
+        ],
+      },
+    },
+  ];
+  for (const test of testCases) {
+    it(test.should, () => {
+      assert.deepEqual(
+        toGeminiSystemInstruction(test.inputMessage as MessageData),
+        test.expectedOutput
+      );
     });
   }
 });

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { BaseDataPoint, defineEvaluator } from '@genkit-ai/ai/evaluator';
+import { BaseDataPoint, defineEvaluator, Score } from '@genkit-ai/ai/evaluator';
 import { Action, GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
 import { runInNewSpan } from '@genkit-ai/core/tracing';
 import { GoogleAuth } from 'google-auth-library';
@@ -37,10 +37,7 @@ export class EvaluatorFactory {
       responseSchema: ResponseType;
     },
     toRequest: (datapoint: BaseDataPoint) => any,
-    responseHandler: (
-      response: z.infer<ResponseType>,
-      datapoint: BaseDataPoint
-    ) => any
+    responseHandler: (response: z.infer<ResponseType>) => Score
   ): Action {
     return defineEvaluator(
       {
@@ -55,7 +52,10 @@ export class EvaluatorFactory {
           responseSchema
         );
 
-        return responseHandler(response, datapoint);
+        return {
+          evaluation: responseHandler(response),
+          testCaseId: datapoint.testCaseId,
+        };
       }
     );
   }
