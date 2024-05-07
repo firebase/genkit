@@ -218,7 +218,7 @@ export function augmentWithContext(
     req.context?.forEach((d, i) => {
       out += itemTemplate(new Document(d), i, options);
     });
-    out += "\n";
+    out += '\n';
     userMessage.content.push({ text: out, metadata: { purpose: 'context' } });
     return next(req);
   };
