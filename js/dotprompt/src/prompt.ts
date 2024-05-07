@@ -47,7 +47,6 @@ export type PromptGenerateOptions<V = unknown> = Omit<
 > & {
   model?: string;
   input?: V;
-  context?: DocumentData[];
 };
 
 export class Dotprompt<Variables = unknown> implements PromptMetadata {
@@ -147,36 +146,14 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
       {
         name: `${this.name}${this.variant ? `.${this.variant}` : ''}`,
         description: 'Defined by Dotprompt',
-        inputSchema: this.input?.schema
-          ? z.object({
-              input: this.input.schema,
-              context: z.array(DocumentDataSchema).optional(),
-            })
-          : undefined,
-        inputJsonSchema: this.input?.jsonSchema
-          ? {
-              type: 'object',
-              properties: {
-                input: this.input?.jsonSchema,
-                context: {
-                  type: 'array',
-                  items: toJsonSchema({ schema: DocumentDataSchema }),
-                },
-              },
-            }
-          : undefined,
+        inputSchema: this.input?.schema,
+        inputJsonSchema: this.input?.jsonSchema,
         metadata: {
           type: 'prompt',
           prompt: this.toJSON(),
         },
       },
-      async ({
-        input,
-        context,
-      }: {
-        input?: Variables;
-        context?: DocumentData[];
-      }) => toGenerateRequest(this.render({ input, context }))
+      async (input?: Variables) => toGenerateRequest(this.render({input}))
     );
   }
 
@@ -197,6 +174,7 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
       config: { ...this.config, ...options.config } || {},
       history: messages.slice(0, messages.length - 1),
       prompt: messages[messages.length - 1].content,
+      context: options.context,
       candidates: options.candidates || this.candidates || 1,
       output: {
         format: options.output?.format || this.output?.format || undefined,
