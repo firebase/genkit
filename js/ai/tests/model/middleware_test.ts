@@ -16,13 +16,17 @@
 
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
+import { DocumentData } from '../../src/document.js';
 import {
   GenerateRequest,
   GenerateResponseData,
+  MessageData,
   Part,
   defineModel,
 } from '../../src/model.js';
 import {
+  AugmentWithContextOptions,
+  augmentWithContext,
   simulateSystemPrompt,
   validateSupport,
 } from '../../src/model/middleware.js';
@@ -257,4 +261,164 @@ describe('simulateSystemPrompt', () => {
       ],
     });
   });
+});
+
+describe('augmentWithContext', () => {
+  async function testRequest(
+    messages: MessageData[],
+    context?: DocumentData[],
+    options?: AugmentWithContextOptions
+  ) {
+    const changedRequest = await new Promise<GenerateRequest>(
+      (resolve, reject) => {
+        augmentWithContext(options)(
+          {
+            messages,
+            context,
+          },
+          resolve as any
+        );
+      }
+    );
+    return changedRequest.messages;
+  }
+
+  it('should not change a message with empty context', async () => {
+    const messages: MessageData[] = [
+      { role: 'user', content: [{ text: 'first part' }] },
+    ];
+    assert.deepEqual(await testRequest(messages, undefined), messages);
+    assert.deepEqual(await testRequest(messages, []), messages);
+  });
+
+  it('should not change a message that already has a context part', async () => {
+    const messages: MessageData[] = [
+      {
+        role: 'user',
+        content: [{ text: 'first part', metadata: { purpose: 'context' } }],
+      },
+    ];
+    assert.deepEqual(
+      await testRequest(messages, [{ content: [{ text: 'i am context' }] }]),
+      messages
+    );
+  });
+
+  it('should append a new text part', async () => {
+    const messages: MessageData[] = [
+      { role: 'user', content: [{ text: 'first part' }] },
+    ];
+    const result = await testRequest(messages, [
+      { content: [{ text: 'i am context' }] },
+      { content: [{ text: 'i am more context' }] },
+    ]);
+    assert.deepEqual(result[0].content.at(-1), {
+      text: 'Use the following information to complete your task:\n\n- [0]: i am context\n- [1]: i am more context\n',
+      metadata: { purpose: 'context' },
+    });
+  });
+
+  it('should use a custom preface', async () => {
+    const messages: MessageData[] = [
+      { role: 'user', content: [{ text: 'first part' }] },
+    ];
+    const result = await testRequest(
+      messages,
+      [
+        { content: [{ text: 'i am context' }] },
+        { content: [{ text: 'i am more context' }] },
+      ],
+      { preface: 'Check this out:\n\n' }
+    );
+    assert.deepEqual(result[0].content.at(-1), {
+      text: 'Check this out:\n\n- [0]: i am context\n- [1]: i am more context\n',
+      metadata: { purpose: 'context' },
+    });
+  });
+
+  it('should elide a null preface', async () => {
+    const messages: MessageData[] = [
+      { role: 'user', content: [{ text: 'first part' }] },
+    ];
+    const result = await testRequest(
+      messages,
+      [
+        { content: [{ text: 'i am context' }] },
+        { content: [{ text: 'i am more context' }] },
+      ],
+      { preface: null }
+    );
+    assert.deepEqual(result[0].content.at(-1), {
+      text: '- [0]: i am context\n- [1]: i am more context\n',
+      metadata: { purpose: 'context' },
+    });
+  });
+
+  it('should use a citationKey', async () => {
+    const messages: MessageData[] = [
+      { role: 'user', content: [{ text: 'first part' }] },
+    ];
+    const result = await testRequest(
+      messages,
+      [
+        { content: [{ text: 'i am context' }], metadata: { uid: 'first' } },
+        {
+          content: [{ text: 'i am more context' }],
+          metadata: { uid: 'second' },
+        },
+      ],
+      { citationKey: 'uid' }
+    );
+    assert.deepEqual(result[0].content.at(-1), {
+      text: 'Use the following information to complete your task:\n\n- [first]: i am context\n- [second]: i am more context\n',
+      metadata: { purpose: 'context' },
+    });
+  });
+
+  it('should use "ref", "id", and index, in that order, if citationKey is unspecified', async () => {
+    const messages: MessageData[] = [
+      { role: 'user', content: [{ text: 'first part' }] },
+    ];
+    const result = await testRequest(
+      messages,
+      [
+        {
+          content: [{ text: 'i am context' }],
+          metadata: { ref: 'first', id: 'wrong' },
+        },
+        {
+          content: [{ text: 'i am more context' }],
+          metadata: { id: 'second' },
+        },
+        {
+          content: [{ text: 'i am even more context' }],
+        },
+      ]
+    );
+    assert.deepEqual(result[0].content.at(-1), {
+      text: 'Use the following information to complete your task:\n\n- [first]: i am context\n- [second]: i am more context\n- [2]: i am even more context\n',
+      metadata: { purpose: 'context' },
+    });
+  });
+
+  it('should use a custom itemTemplate', async () => {
+    const messages: MessageData[] = [
+      { role: 'user', content: [{ text: 'first part' }] },
+    ];
+    const result = await testRequest(
+      messages,
+      [
+        { content: [{ text: 'i am context' }], metadata: { uid: 'first' } },
+        {
+          content: [{ text: 'i am more context' }],
+          metadata: { uid: 'second' },
+        },
+      ],
+      { itemTemplate: (d) => `* (${d.metadata!.uid}) -- ${d.text()}\n`}
+    );
+    assert.deepEqual(result[0].content.at(-1), {
+      text: 'Use the following information to complete your task:\n\n* (first) -- i am context\n* (second) -- i am more context\n',
+      metadata: { purpose: 'context' },
+    });
+  })
 });

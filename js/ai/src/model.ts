@@ -24,7 +24,8 @@ import {
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { performance } from 'node:perf_hooks';
 import { z } from 'zod';
-import { conformOutput, validateSupport } from './model/middleware.js';
+import { DocumentDataSchema } from './document.js';
+import { augmentWithContext, conformOutput, validateSupport } from './model/middleware.js';
 import * as telemetry from './telemetry.js';
 
 //
@@ -127,6 +128,8 @@ export const ModelInfoSchema = z.object({
       systemRole: z.boolean().optional(),
       /** Model can output this type of data. */
       output: z.array(OutputFormatSchema).optional(),
+      /** Model can natively support document-based context grounding. */
+      context: z.boolean().optional(),
     })
     .optional(),
 });
@@ -166,6 +169,7 @@ export const GenerateRequestSchema = z.object({
   config: z.any().optional(),
   tools: z.array(ToolDefinitionSchema).optional(),
   output: OutputConfigSchema.optional(),
+  context: z.array(DocumentDataSchema).optional(),
   candidates: z.number().optional(),
 });
 
@@ -264,11 +268,12 @@ export function defineModel<
   ) => Promise<GenerateResponseData>
 ): ModelAction<CustomOptionsSchema> {
   const label = options.label || `${options.name} GenAI model`;
-  const middleware = [
+  const middleware: ModelMiddleware[] = [
     ...(options.use || []),
     validateSupport(options),
-    conformOutput(),
   ];
+  if (!options?.supports?.context) middleware.push(augmentWithContext());
+  middleware.push(conformOutput());
   const act = defineAction(
     {
       actionType: 'model',
