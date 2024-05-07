@@ -14,33 +14,33 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
 import { generate } from '@genkit-ai/ai';
-import { googleAI, geminiPro } from '@genkit-ai/googleai';
+import { configureGenkit } from '@genkit-ai/core';
 import { defineFlow } from '@genkit-ai/flow';
+import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import * as z from 'zod';
 
 export default configureGenkit({
-    plugins: [googleAI()],
-    logLevel: 'debug',
-    enableTracingAndMetrics: true,
-  });
+  plugins: [googleAI()],
+  logLevel: 'debug',
+  enableTracingAndMetrics: true,
+});
 
-  export const menuQAFlow = defineFlow(
-    {
-      name: 'menuQAFlow',
-      inputSchema: z.string(),
-      outputSchema: z.string(),
-    },
-    async (subject) => {
-      const llmResponse = await generate({
-        prompt: `Tell me a long joke about ${subject}`,
-        model: geminiPro,
-        config: {
-          temperature: 1,
-        },
-      });
-  
-      return llmResponse.text();
-    }
-  );
+export const menuQAFlow = defineFlow(
+  {
+    name: 'menuQAFlow',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+  },
+  async (subject) => {
+    const llmResponse = await generate({
+      prompt: `Tell me a long joke about ${subject}`,
+      model: geminiPro,
+      config: {
+        temperature: 1,
+      },
+    });
+
+    return llmResponse.text();
+  }
+);
