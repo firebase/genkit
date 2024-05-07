@@ -22,9 +22,9 @@ import { ActionType, lookupPlugin, registerAction } from './registry.js';
 import { parseSchema } from './schema.js';
 import * as telemetry from './telemetry.js';
 import {
-  SPAN_TYPE_ATTR,
   runInNewSpan,
   setCustomMetadataAttributes,
+  SPAN_TYPE_ATTR,
 } from './tracing.js';
 
 export { Status, StatusCodes, StatusSchema } from './statusTypes.js';
@@ -72,7 +72,36 @@ type ActionParams<
   outputSchema?: O;
   outputJsonSchema?: JSONSchema7;
   metadata?: M;
+  use?: Middleware<z.infer<I>, z.infer<O>>[];
 };
+
+export interface Middleware<I = any, O = any> {
+  (req: I, next: (req?: I) => Promise<O>): Promise<O>;
+}
+
+export function actionWithMiddleware<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  M extends Record<string, any> = Record<string, any>,
+>(action: Action<I, O, M>, middleware: Middleware<z.infer<I>, z.infer<O>>[]): Action<I, O, M> {
+  const wrapped = (async (req: z.infer<I>) => {
+    const dispatch = async (index: number, req: z.infer<I>) => {
+      if (index === middleware.length) {
+        // end of the chain, call the original model action
+        return await action(req);
+      }
+
+      const currentMiddleware = middleware[index];
+      return currentMiddleware(req, async (modifiedReq) =>
+        dispatch(index + 1, modifiedReq || req)
+      );
+    };
+
+    return await dispatch(0, req);
+  }) as Action<I, O, M>;
+  wrapped.__action = action.__action;
+  return wrapped;
+}
 
 /**
  * Creates an action with the provided config.
@@ -140,6 +169,10 @@ export function action<
     outputJsonSchema: config.outputJsonSchema,
     metadata: config.metadata,
   } as ActionMetadata<I, O, M>;
+
+  if (config.use) {
+    return actionWithMiddleware(actionFn, config.use);
+  }
   return actionFn;
 }
 
