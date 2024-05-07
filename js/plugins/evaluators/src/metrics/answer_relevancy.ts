@@ -18,8 +18,9 @@ import { generate } from '@genkit-ai/ai';
 import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
 import { BaseDataPoint, Score } from '@genkit-ai/ai/evaluator';
 import { ModelArgument } from '@genkit-ai/ai/model';
-import { defineDotprompt } from '@genkit-ai/dotprompt';
+import { defineDotprompt, loadPromptFile } from '@genkit-ai/dotprompt';
 import similarity from 'compute-cosine-similarity';
+import path from 'path';
 import * as z from 'zod';
 
 const AnswerRelevancyResponseSchema = z.object({
@@ -119,10 +120,11 @@ export async function answerRelevancyScore<
     if (!dataPoint.output) {
       throw new Error('Output was not provided');
     }
+    const prompt = await loadPromptFile(path.resolve(__dirname, "../../prompts/answer_relevancy.prompt"))
     const response = await generate({
       model: judgeLlm,
       config: judgeConfig,
-      prompt: QUESTION_GEN_PROMPT.renderText({
+      prompt: prompt.renderText({
         question: dataPoint.input as string,
         answer: dataPoint.output as string,
         context: dataPoint.context.join(' '),

@@ -35,6 +35,7 @@
     "@genkit-ai/dotprompt": "workspace:*",
     "compute-cosine-similarity": "^1.1.0",
     "node-fetch": "^3.3.2",
+    "path": "^0.12.7",
     "zod": "^3.22.4"
   },
   "devDependencies": {
