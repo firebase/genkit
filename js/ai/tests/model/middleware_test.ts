@@ -379,22 +379,19 @@ describe('augmentWithContext', () => {
     const messages: MessageData[] = [
       { role: 'user', content: [{ text: 'first part' }] },
     ];
-    const result = await testRequest(
-      messages,
-      [
-        {
-          content: [{ text: 'i am context' }],
-          metadata: { ref: 'first', id: 'wrong' },
-        },
-        {
-          content: [{ text: 'i am more context' }],
-          metadata: { id: 'second' },
-        },
-        {
-          content: [{ text: 'i am even more context' }],
-        },
-      ]
-    );
+    const result = await testRequest(messages, [
+      {
+        content: [{ text: 'i am context' }],
+        metadata: { ref: 'first', id: 'wrong' },
+      },
+      {
+        content: [{ text: 'i am more context' }],
+        metadata: { id: 'second' },
+      },
+      {
+        content: [{ text: 'i am even more context' }],
+      },
+    ]);
     assert.deepEqual(result[0].content.at(-1), {
       text: 'Use the following information to complete your task:\n\n- [first]: i am context\n- [second]: i am more context\n- [2]: i am even more context\n',
       metadata: { purpose: 'context' },
@@ -414,11 +411,11 @@ describe('augmentWithContext', () => {
           metadata: { uid: 'second' },
         },
       ],
-      { itemTemplate: (d) => `* (${d.metadata!.uid}) -- ${d.text()}\n`}
+      { itemTemplate: (d) => `* (${d.metadata!.uid}) -- ${d.text()}\n` }
     );
     assert.deepEqual(result[0].content.at(-1), {
       text: 'Use the following information to complete your task:\n\n* (first) -- i am context\n* (second) -- i am more context\n',
       metadata: { purpose: 'context' },
     });
-  })
+  });
 });

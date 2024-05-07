@@ -36,7 +36,10 @@ export type PromptAction<I extends z.ZodTypeAny = z.ZodTypeAny> = Action<
 };
 
 export function isPrompt(arg: any): boolean {
-  return typeof arg === 'function' && (arg as any).__action?.metadata?.type === 'prompt';
+  return (
+    typeof arg === 'function' &&
+    (arg as any).__action?.metadata?.type === 'prompt'
+  );
 }
 
 export function definePrompt<I extends z.ZodTypeAny>(

@@ -175,13 +175,13 @@ Documents from a retriever can be passed directly to `generate` to provide
 grounding context:
 
 ```javascript
-const docs = await companyPolicyRetriever({query: question});
+const docs = await companyPolicyRetriever({ query: question });
 
 await generate({
   model: geminiPro,
   prompt: `Answer using the available context from company policy: ${question}`,
   context: docs,
-})
+});
 ```
 
 The document context is automatically appended to the content of the prompt

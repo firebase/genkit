@@ -25,7 +25,11 @@ import { toJsonSchema } from '@genkit-ai/core/schema';
 import { performance } from 'node:perf_hooks';
 import { z } from 'zod';
 import { DocumentDataSchema } from './document.js';
-import { augmentWithContext, conformOutput, validateSupport } from './model/middleware.js';
+import {
+  augmentWithContext,
+  conformOutput,
+  validateSupport,
+} from './model/middleware.js';
 import * as telemetry from './telemetry.js';
 
 //
