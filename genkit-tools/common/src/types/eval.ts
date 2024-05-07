@@ -22,6 +22,33 @@ import { ListEvalKeysRequest, ListEvalKeysResponse } from './apis';
  */
 
 /**
+ * Structured input for eval:flow
+ */
+export const EvalFlowStructuredInputSchema = z.object({
+  cases: z.array(
+    z.object({
+      input: z.any(),
+      reference: z.any().optional(),
+    })
+  ),
+});
+export type EvalFlowStructuredInput = z.infer<
+  typeof EvalFlowStructuredInputSchema
+>;
+
+/**
+ * A dataset that is ready for eval:flow.
+ *
+ * This could be an array of input objects to the target flow, or
+ * It could be a JSON object as specified, with support for references.
+ */
+export const EvalFlowInputSchema = z.union([
+  z.array(z.any()),
+  EvalFlowStructuredInputSchema,
+]);
+export type EvalFlowInput = z.infer<typeof EvalFlowInputSchema>;
+
+/**
  * A record that is ready for evaluation.
  *
  * TODO: consider renaming.
