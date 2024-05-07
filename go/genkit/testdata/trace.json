@@ -18,7 +18,6 @@
         "genkit:state": "success"
       },
       "displayName": "call-llm",
-      "links": [],
       "instrumentationLibrary": {
         "name": "genkit-tracer",
         "version": "v1"
@@ -31,7 +30,6 @@
         "code": 0
       },
       "timeEvents": {
-        "timeEvent": []
       }
     },
     "238239e5468cb284": {
@@ -52,7 +50,6 @@
         "genkit:state": "success"
       },
       "displayName": "call-llm",
-      "links": [],
       "instrumentationLibrary": {
         "name": "genkit-tracer",
         "version": "v1"
@@ -65,7 +62,6 @@
         "code": 0
       },
       "timeEvents": {
-        "timeEvent": []
       }
     },
     "ac10ae6a3cced65e": {
@@ -89,7 +85,6 @@
         "genkit:state": "success"
       },
       "displayName": "basic",
-      "links": [],
       "instrumentationLibrary": {
         "name": "genkit-tracer",
         "version": "v1"
@@ -102,7 +97,6 @@
         "code": 0
       },
       "timeEvents": {
-        "timeEvent": []
       }
     },
     "26f0aa6dbff0fcf4": {
@@ -121,7 +115,6 @@
         "genkit:state": "success"
       },
       "displayName": "basic",
-      "links": [],
       "instrumentationLibrary": {
         "name": "genkit-tracer",
         "version": "v1"
@@ -134,7 +127,6 @@
         "code": 0
       },
       "timeEvents": {
-        "timeEvent": []
       }
     },
     "c1f0756a2349bef7": {
@@ -150,7 +142,6 @@
         "genkit:state": "success"
       },
       "displayName": "dev-run-action-wrapper",
-      "links": [],
       "spanKind": "INTERNAL",
       "sameProcessAsParentSpan": {
         "value": true
@@ -159,7 +150,6 @@
         "code": 0
       },
       "timeEvents": {
-        "timeEvent": []
       },
       "instrumentationLibrary": {
         "name": "genkit-tracer",

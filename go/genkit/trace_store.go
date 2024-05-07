@@ -76,33 +76,33 @@ type SpanData struct {
 	ParentSpanID           string                 `json:"parentSpanId,omitempty"`
 	StartTime              Milliseconds           `json:"startTime"`
 	EndTime                Milliseconds           `json:"endTime"`
-	Attributes             map[string]any         `json:"attributes"`
+	Attributes             map[string]any         `json:"attributes,omitempty"`
 	DisplayName            string                 `json:"displayName"`
-	Links                  []*Link                `json:"links"`
-	InstrumentationLibrary InstrumentationLibrary `json:"instrumentationLibrary"`
+	Links                  []*Link                `json:"links,omitempty"`
+	InstrumentationLibrary InstrumentationLibrary `json:"instrumentationLibrary,omitempty"`
 	SpanKind               string                 `json:"spanKind"` // trace.SpanKind as a string
 	// This bool is in a separate struct, to match the js (and presumably the OTel) formats.
 	SameProcessAsParentSpan boolValue  `json:"sameProcessAsParentSpan"`
 	Status                  Status     `json:"status"`
-	TimeEvents              timeEvents `json:"timeEvents"`
+	TimeEvents              timeEvents `json:"timeEvents,omitempty"`
 }
 
 type timeEvents struct {
-	TimeEvent []TimeEvent `json:"timeEvent"`
+	TimeEvent []TimeEvent `json:"timeEvent,omitempty"`
 }
 
 type boolValue struct {
-	Value bool `json:"value"`
+	Value bool `json:"value,omitempty"`
 }
 
 type TimeEvent struct {
-	Time       Milliseconds `json:"time"`
-	Annotation annotation   `json:"annotation"`
+	Time       Milliseconds `json:"time,omitempty"`
+	Annotation annotation   `json:"annotation,omitempty"`
 }
 
 type annotation struct {
-	Attributes  map[string]any `json:"attributes"`
-	Description string         `json:"description"`
+	Attributes  map[string]any `json:"attributes,omitempty"`
+	Description string         `json:"description,omitempty"`
 }
 
 // A SpanContext contains identifying trace information about a Span.
@@ -115,8 +115,8 @@ type SpanContext struct {
 
 // A Link describes the relationship between two Spans.
 type Link struct {
-	SpanContext            SpanContext    `json:"spanContext"`
-	Attributes             map[string]any `json:"attributes"`
+	SpanContext            SpanContext    `json:"spanContext,omitempty"`
+	Attributes             map[string]any `json:"attributes,omitempty"`
 	DroppedAttributesCount int            `json:"droppedAttributesCount"`
 }
 
