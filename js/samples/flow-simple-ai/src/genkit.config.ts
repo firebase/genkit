@@ -46,7 +46,7 @@ export default configureGenkit({
   flowStateStore: 'firebase',
   traceStore: 'firebase',
   enableTracingAndMetrics: true,
-  logLevel: 'debug',
+  logLevel: 'error',
   telemetry: {
     instrumentation: 'googleCloud',
     logger: 'googleCloud',
