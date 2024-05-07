@@ -46,6 +46,7 @@ import {
   ToolArgument,
   toToolDefinition,
 } from './tool.js';
+import { DocumentData } from '@google-cloud/firestore';
 
 /**
  * Message represents a single role's contribution to a generation. Each message
@@ -386,36 +387,36 @@ function inferRoleFromParts(parts: Part[]): Role {
 }
 
 export async function toGenerateRequest(
-  prompt: GenerateOptions
+  options: GenerateOptions
 ): Promise<GenerateRequest> {
   const promptMessage: MessageData = { role: 'user', content: [] };
-  if (typeof prompt.prompt === 'string') {
-    promptMessage.content.push({ text: prompt.prompt });
-  } else if (Array.isArray(prompt.prompt)) {
-    promptMessage.role = inferRoleFromParts(prompt.prompt);
-    promptMessage.content.push(...prompt.prompt);
+  if (typeof options.prompt === 'string') {
+    promptMessage.content.push({ text: options.prompt });
+  } else if (Array.isArray(options.prompt)) {
+    promptMessage.role = inferRoleFromParts(options.prompt);
+    promptMessage.content.push(...options.prompt);
   } else {
-    promptMessage.role = inferRoleFromParts([prompt.prompt]);
-    promptMessage.content.push(prompt.prompt);
+    promptMessage.role = inferRoleFromParts([options.prompt]);
+    promptMessage.content.push(options.prompt);
   }
-  const messages: MessageData[] = [...(prompt.history || []), promptMessage];
+  const messages: MessageData[] = [...(options.history || []), promptMessage];
   let tools: Action<any, any>[] | undefined;
-  if (prompt.tools) {
-    tools = await resolveTools(prompt.tools);
+  if (options.tools) {
+    tools = await resolveTools(options.tools);
   }
 
   const out = {
     messages,
-    candidates: prompt.candidates,
-    config: prompt.config,
+    candidates: options.candidates,
+    config: options.config,
     tools: tools?.map((tool) => toToolDefinition(tool)) || [],
     output: {
       format:
-        prompt.output?.format ||
-        (prompt.output?.schema || prompt.output?.jsonSchema ? 'json' : 'text'),
+        options.output?.format ||
+        (options.output?.schema || options.output?.jsonSchema ? 'json' : 'text'),
       schema: toJsonSchema({
-        schema: prompt.output?.schema,
-        jsonSchema: prompt.output?.jsonSchema,
+        schema: options.output?.schema,
+        jsonSchema: options.output?.jsonSchema,
       }),
     },
   };
@@ -431,6 +432,8 @@ export interface GenerateOptions<
   model: ModelArgument<CustomOptions>;
   /** The prompt for which to generate a response. Can be a string for a simple text prompt or one or more parts for multi-modal prompts. */
   prompt: string | Part | Part[];
+  /** Retrieved documents to be used as context for this generation. */
+  context?: DocumentData[],
   /** Conversation history for multi-turn prompting when supported by the underlying model. */
   history?: MessageData[];
   /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
@@ -530,29 +533,29 @@ export async function generate<
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
 ): Promise<GenerateResponse<z.infer<O>>> {
-  const prompt: GenerateOptions<O, CustomOptions> =
+  const resolvedOptions: GenerateOptions<O, CustomOptions> =
     await Promise.resolve(options);
-  const model = await resolveModel(prompt.model);
+  const model = await resolveModel(resolvedOptions.model);
   if (!model) {
-    throw new Error(`Model ${JSON.stringify(prompt.model)} not found`);
+    throw new Error(`Model ${JSON.stringify(resolvedOptions.model)} not found`);
   }
 
   let tools: ToolAction[] | undefined;
-  if (prompt.tools?.length) {
+  if (resolvedOptions.tools?.length) {
     if (!model.__action.metadata?.model.supports?.tools) {
       throw new Error(
-        `Model ${JSON.stringify(prompt.model)} does not support tools, but some tools were supplied to generate(). Please call generate() without tools if you would like to use this model.`
+        `Model ${JSON.stringify(resolvedOptions.model)} does not support tools, but some tools were supplied to generate(). Please call generate() without tools if you would like to use this model.`
       );
     }
-    tools = await resolveTools(prompt.tools);
+    tools = await resolveTools(resolvedOptions.tools);
   }
 
-  const request = await toGenerateRequest(prompt);
-  telemetry.recordGenerateActionInputLogs(model.__action.name, prompt, request);
+  const request = await toGenerateRequest(resolvedOptions);
+  telemetry.recordGenerateActionInputLogs(model.__action.name, resolvedOptions, request);
   const response = await runWithStreamingCallback(
-    prompt.streamingCallback
+    resolvedOptions.streamingCallback
       ? (chunk: GenerateResponseChunkData) =>
-          prompt.streamingCallback!(new GenerateResponseChunk(chunk))
+          resolvedOptions.streamingCallback!(new GenerateResponseChunk(chunk))
       : undefined,
     async () => new GenerateResponse<z.infer<O>>(await model(request), request)
   );
@@ -569,13 +572,13 @@ export async function generate<
     });
   }
 
-  if (prompt.output?.schema || prompt.output?.jsonSchema) {
+  if (resolvedOptions.output?.schema || resolvedOptions.output?.jsonSchema) {
     // find a candidate with valid output schema
     const candidateValidations = response.candidates.map((c) => {
       try {
         return validateSchema(c.output(), {
-          jsonSchema: prompt.output?.jsonSchema,
-          schema: prompt.output?.schema,
+          jsonSchema: resolvedOptions.output?.jsonSchema,
+          schema: resolvedOptions.output?.schema,
         });
       } catch (e) {
         return {
@@ -612,10 +615,10 @@ export async function generate<
   const toolCalls = selected.message.content.filter(
     (part) => !!part.toolRequest
   );
-  if (prompt.returnToolRequests || toolCalls.length === 0) {
+  if (resolvedOptions.returnToolRequests || toolCalls.length === 0) {
     telemetry.recordGenerateActionOutputLogs(
       model.__action.name,
-      prompt,
+      resolvedOptions,
       response
     );
     return response;
@@ -642,10 +645,10 @@ export async function generate<
       };
     })
   );
-  prompt.history = request.messages;
-  prompt.history.push(selected.message);
-  prompt.prompt = toolResponses;
-  return await generate(prompt);
+  resolvedOptions.history = request.messages;
+  resolvedOptions.history.push(selected.message);
+  resolvedOptions.prompt = toolResponses;
+  return await generate(resolvedOptions);
 }
 
 export type GenerateStreamOptions<
