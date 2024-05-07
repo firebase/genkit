@@ -14,9 +14,9 @@ $GENKIT_CONFIG_PLUGINS
   enableTracingAndMetrics: true,
 });
 
-export const jokeFlow = onFlow(
+export const menuQAFlow = onFlow(
   {
-    name: "jokeFlow",
+    name: 'menuQAFlow',
     inputSchema: z.string(),
     outputSchema: z.string(),
     authPolicy: firebaseAuth((user) => {
@@ -26,11 +26,15 @@ export const jokeFlow = onFlow(
     }),
   },
   async (subject) => {
-    const prompt = `Tell me a joke about ${subject}`;
+    const prompt = `Our menu today includes burgers, spinach, and cod.
+     Tell me if ${subject} can be found on the menu`;
 
     const llmResponse = await generate({
       model: $GENKIT_MODEL,
       prompt: prompt,
+      config: {
+        temperature: 1,
+      },
     });
 
     return llmResponse.text();

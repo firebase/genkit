@@ -15,20 +15,16 @@ $GENKIT_CONFIG_PLUGINS
   enableTracingAndMetrics: true,
 });
 
-export async function callJokeFlow() {
-  const joke = await runFlow(jokeFlow, 'banana');
-  console.log(joke)
-}
-
-const jokeFlow = defineFlow(
+const menuQAFlow = defineFlow(
   {
-    name: 'jokeFlow',
+    name: 'menuQAFlow',
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
   async (subject) => {
     const llmResponse = await generate({
-      prompt: `Tell me a long joke about ${subject}`,
+      prompt: `Our menu today includes burgers, spinach, and cod.
+     Tell me if ${subject} can be found on the menu`,
       model: $GENKIT_MODEL,
       config: {
         temperature: 1,
@@ -38,3 +34,8 @@ const jokeFlow = defineFlow(
     return llmResponse.text();
   }
 );
+
+export async function callMenuQAFlow() {
+  const flowResponse = await runFlow(menuQAFlow, 'banana');
+  console.log(flowResponse);
+}

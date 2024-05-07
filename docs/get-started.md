@@ -71,36 +71,32 @@ Node.js 18 or later.
     1. Choose default answers to the rest of the questions, which will
        initialize your project folder with some sample code.
 
-    The `genkit init` command created two sample source files:
+    The `genkit init` command creates a sample source file:
 
-    - `genkit.config.ts`: this is where you configure Genkit for your project,
-      and select and configure the plugins you want to load. The sample config
-      loads a plugin to support the model provider you chose earlier.
+    - `index.ts`: this is your project's entry point, where you configure Genkit for your project,
+      configure the plugins you want to load and export your AI flows and other resources you've defined.
+      The sample file contains a config that loads a plugin to support the model provider you chose earlier.
+      It also contains a single flow, `menuQAFlow`, that simply calls the model provider's API with a
+      simple prompt and returns the result.
 
       ```js
-      export default configureGenkit({
+      configureGenkit({
         plugins: [googleAI()],
         logLevel: 'debug',
         enableTracingAndMetrics: true,
       });
-      ```
 
-    - `index.ts`: this is your project's entry point, where you export your AI
-      flows and other resources you've defined. The sample file contains a
-      single flow, `jokeFlow`, that simply calls the model provider's API with a
-      simple prompt and returns the result.
-
-      ```js
-      export const jokeFlow = defineFlow(
+      export const menuQAFlow = defineFlow(
         {
-          name: 'jokeFlow',
+          name: 'menuQAFlow',
           inputSchema: z.string(),
           outputSchema: z.string(),
         },
         async (subject) => {
           const llmResponse = await generate({
-            prompt: `Tell me a long joke about ${subject}`,
             model: geminiPro,
+            prompt: `Our menu today includes burgers, spinach, and cod.
+            Tell me if ${subject} can be found on the menu`,
             config: {
               temperature: 1,
             },
@@ -144,9 +140,9 @@ Node.js 18 or later.
     - On the **Run** tab, you will see a list of all of the flows that you have
       defined and any models that have been configured by plugins.
 
-      Click **jokeFlow** and try running it with some input text (for example,
-      `"manatees"`). If all goes well, you'll be rewarded with a joke about
-      manatees. Run it a few more times and you might get one that's funny.
+      Click **menuQAFlow** and try running it with some input text (for example,
+      `"salad"`). If all goes well, you'll be rewarded with confirmation that
+      salad is not on the menu.
 
     - On the **Inspect** tab, you'll see a history of flow executions. For each
       flow, you can see the parameters that were passed to the flow and a
