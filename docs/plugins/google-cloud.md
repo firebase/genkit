@@ -11,6 +11,9 @@ The Google Cloud plugin exports Firebase Genkit's telemetry and logging data to
 npm i --save @genkit-ai/google-cloud
 ```
 
+If you want to locally run flows that use this plugin, you also need the
+[Google Cloud CLI tool](https://cloud.google.com/sdk/docs/install) installed.
+
 ## Set up a Google Cloud account
 
 This plugin requires a Google Cloud account ([sign up](https://cloud.google.com/gcp) if you don't already have one) and a Google Cloud project.

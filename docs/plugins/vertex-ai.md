@@ -24,6 +24,9 @@ It also provides access to subset of evaluation metrics through the Vertex AI [R
 npm i --save @genkit-ai/vertexai
 ```
 
+If you want to locally run flows that use this plugin, you also need the
+[Google Cloud CLI tool](https://cloud.google.com/sdk/docs/install) installed.
+
 ## Configuration
 
 To use this plugin, specify it when you call `configureGenkit()`:
