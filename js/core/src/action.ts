@@ -22,9 +22,9 @@ import { ActionType, lookupPlugin, registerAction } from './registry.js';
 import { parseSchema } from './schema.js';
 import * as telemetry from './telemetry.js';
 import {
+  SPAN_TYPE_ATTR,
   runInNewSpan,
   setCustomMetadataAttributes,
-  SPAN_TYPE_ATTR,
 } from './tracing.js';
 
 export { Status, StatusCodes, StatusSchema } from './statusTypes.js';
@@ -83,7 +83,10 @@ export function actionWithMiddleware<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
   M extends Record<string, any> = Record<string, any>,
->(action: Action<I, O, M>, middleware: Middleware<z.infer<I>, z.infer<O>>[]): Action<I, O, M> {
+>(
+  action: Action<I, O, M>,
+  middleware: Middleware<z.infer<I>, z.infer<O>>[]
+): Action<I, O, M> {
   const wrapped = (async (req: z.infer<I>) => {
     const dispatch = async (index: number, req: z.infer<I>) => {
       if (index === middleware.length) {

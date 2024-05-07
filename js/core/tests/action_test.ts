@@ -16,28 +16,31 @@
 
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
-import { __hardResetRegistryForTesting } from '../src/registry.js';
-import { action } from '../src/action.js';
 import { z } from 'zod';
+import { action } from '../src/action.js';
+import { __hardResetRegistryForTesting } from '../src/registry.js';
 
 describe('action', () => {
   beforeEach(__hardResetRegistryForTesting);
 
   it('applies middleware', async () => {
-    const act = action({
-      name: 'foo',
-      inputSchema: z.string(),
-      outputSchema: z.number(),
-      use: [
-        async (input, next) => await next(input + 'middle1') + 1,
-        async (input, next) => await next(input + 'middle2') + 2,
-      ]
-    }, async (input) => {
-      return input.length
-    });
+    const act = action(
+      {
+        name: 'foo',
+        inputSchema: z.string(),
+        outputSchema: z.number(),
+        use: [
+          async (input, next) => (await next(input + 'middle1')) + 1,
+          async (input, next) => (await next(input + 'middle2')) + 2,
+        ],
+      },
+      async (input) => {
+        return input.length;
+      }
+    );
 
     assert.strictEqual(
-      await act("foo"),
+      await act('foo'),
       20 // "foomiddle1middle2".length + 1 + 2
     );
   });

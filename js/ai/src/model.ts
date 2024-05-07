@@ -235,7 +235,10 @@ export type ModelAction<
   __configSchema: CustomOptionsSchema;
 };
 
-export type ModelMiddleware = Middleware<z.infer<typeof GenerateRequestSchema>, z.infer<typeof GenerateResponseSchema>>;
+export type ModelMiddleware = Middleware<
+  z.infer<typeof GenerateRequestSchema>,
+  z.infer<typeof GenerateResponseSchema>
+>;
 
 /**
  * Defines a new model and adds it to the registry.
