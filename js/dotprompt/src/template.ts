@@ -48,22 +48,22 @@ function mediaHelper(options: Handlebars.HelperOptions) {
 }
 Promptbars.registerHelper('media', mediaHelper);
 
-function contextHelper(options: Handlebars.HelperOptions) {
-  const context = options.data?.metadata?.context || [];
-  const items = context.map((d: DocumentData, i) => {
-    let text = new Document(d).text();
-    if (options.hash.cite === true) {
-      text += `[${i}]`;
-    } else if (d.metadata?.[options.hash.cite]) {
-      text += `[${d.metadata[options.hash.cite]}]`;
-    }
-    return Promptbars.escapeExpression(text);
-  });
+// function contextHelper(options: Handlebars.HelperOptions) {
+//   const context = options.data?.metadata?.context || [];
+//   const items = context.map((d: DocumentData, i) => {
+//     let text = new Document(d).text();
+//     if (options.hash.cite === true) {
+//       text += `[${i}]`;
+//     } else if (d.metadata?.[options.hash.cite]) {
+//       text += `[${d.metadata[options.hash.cite]}]`;
+//     }
+//     return Promptbars.escapeExpression(text);
+//   });
 
-  return new Promptbars.SafeString(`<<<dotprompt:section context>>>
-- ${items.join('\n- ')}`);
-}
-Promptbars.registerHelper('context', contextHelper);
+//   return new Promptbars.SafeString(`<<<dotprompt:section context>>>
+// - ${items.join('\n- ')}`);
+// }
+// Promptbars.registerHelper('context', contextHelper);
 
 const ROLE_REGEX = /(<<<dotprompt:role:[a-z]+)>>>/g;
 
@@ -134,9 +134,9 @@ export function compile<Variables = any>(
       media: true,
       role: true,
       history: true,
-      context: true,
+      // context: true,
     },
-    // knownHelpersOnly: true,
+    knownHelpersOnly: true,
   });
 
   return (

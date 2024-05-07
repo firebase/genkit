@@ -106,75 +106,73 @@ describe('compile', () => {
       template: '{{json . indent=2}}',
       want: [{ role: 'user', content: [{ text: '{\n  "test": true\n}' }] }],
     },
-    {
-      should: 'allow defining context',
-      input: {},
-      context: [
-        { content: [{ text: 'abc' }, { text: 'def' }] },
-        { content: [{ text: 'hgi' }] },
-      ],
-      template: '{{context}}',
-      want: [
-        {
-          role: 'user',
-          content: [
-            { text: '\n- abcdef\n- hgi', metadata: { purpose: 'context' } },
-          ],
-        },
-      ],
-    },
-    {
-      should: 'allow defining context with custom citations',
-      input: {},
-      context: [
-        {
-          content: [{ text: 'abc' }, { text: 'def' }],
-          metadata: { ref: 'first' },
-        },
-        { content: [{ text: 'hgi' }], metadata: { ref: 'second' } },
-      ],
-      template: '{{context cite="ref"}}',
-      want: [
-        {
-          role: 'user',
-          content: [
-            {
-              text: '\n- abcdef[first]\n- hgi[second]',
-              metadata: { purpose: 'context' },
-            },
-          ],
-        },
-      ],
-    },
-    {
-      should: 'allow defining context with numbered citations',
-      input: {},
-      context: [
-        {
-          content: [{ text: 'abc' }, { text: 'def' }],
-          metadata: { ref: 'first' },
-        },
-        { content: [{ text: 'hgi' }], metadata: { ref: 'second' } },
-      ],
-      template: '{{context cite=true}}',
-      want: [
-        {
-          role: 'user',
-          content: [
-            {
-              text: '\n- abcdef[0]\n- hgi[1]',
-              metadata: { purpose: 'context' },
-            },
-          ],
-        },
-      ],
-    },
+    // {
+    //   should: 'allow defining context',
+    //   input: {},
+    //   context: [
+    //     { content: [{ text: 'abc' }, { text: 'def' }] },
+    //     { content: [{ text: 'hgi' }] },
+    //   ],
+    //   template: '{{context}}',
+    //   want: [
+    //     {
+    //       role: 'user',
+    //       content: [
+    //         { text: '\n- abcdef\n- hgi', metadata: { purpose: 'context' } },
+    //       ],
+    //     },
+    //   ],
+    // },
+    // {
+    //   should: 'allow defining context with custom citations',
+    //   input: {},
+    //   context: [
+    //     {
+    //       content: [{ text: 'abc' }, { text: 'def' }],
+    //       metadata: { ref: 'first' },
+    //     },
+    //     { content: [{ text: 'hgi' }], metadata: { ref: 'second' } },
+    //   ],
+    //   template: '{{context cite="ref"}}',
+    //   want: [
+    //     {
+    //       role: 'user',
+    //       content: [
+    //         {
+    //           text: '\n- abcdef[first]\n- hgi[second]',
+    //           metadata: { purpose: 'context' },
+    //         },
+    //       ],
+    //     },
+    //   ],
+    // },
+    // {
+    //   should: 'allow defining context with numbered citations',
+    //   input: {},
+    //   context: [
+    //     {
+    //       content: [{ text: 'abc' }, { text: 'def' }],
+    //       metadata: { ref: 'first' },
+    //     },
+    //     { content: [{ text: 'hgi' }], metadata: { ref: 'second' } },
+    //   ],
+    //   template: '{{context cite=true}}',
+    //   want: [
+    //     {
+    //       role: 'user',
+    //       content: [
+    //         {
+    //           text: '\n- abcdef[0]\n- hgi[1]',
+    //           metadata: { purpose: 'context' },
+    //         },
+    //       ],
+    //     },
+    //   ],
+    // },
   ]) {
     it(test.should, () => {
       assert.deepEqual(
-        compile(test.template, { model: 'test/example' })(test.input, {
-          context: test.context,
-        }),
+        compile(test.template, { model: 'test/example' })(test.input),
         test.want
       );
     });
