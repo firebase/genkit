@@ -104,8 +104,8 @@ export const gemini15ProPreview = modelRef({
 });
 
 export const SUPPORTED_V1_MODELS = {
-  'gemini-pro': geminiPro,
-  'gemini-pro-vision': geminiProVision,
+  'gemini-1.0-pro': geminiPro,
+  'gemini-1.0-pro-vision': geminiProVision,
   // 'gemini-ultra': geminiUltra,
 };
 
