@@ -14,7 +14,14 @@
  * limitations under the License.
  */
 
-import { MediaPart, MessageData, Part, Role } from '@genkit-ai/ai/model';
+import {
+  MediaPart,
+  MessageData,
+  Part,
+  Role,
+  TextPart,
+} from '@genkit-ai/ai/model';
+import { Document, DocumentData } from '@genkit-ai/ai/retriever';
 import Handlebars from 'handlebars';
 import { PromptMetadata } from './metadata.js';
 
@@ -40,6 +47,23 @@ function mediaHelper(options: Handlebars.HelperOptions) {
   );
 }
 Promptbars.registerHelper('media', mediaHelper);
+
+function contextHelper(options: Handlebars.HelperOptions) {
+  const context = options.data?.metadata?.context || [];
+  const items = context.map((d: DocumentData, i) => {
+    let text = new Document(d).text();
+    if (options.hash.cite === true) {
+      text += `[${i}]`;
+    } else if (d.metadata?.[options.hash.cite]) {
+      text += `[${d.metadata[options.hash.cite]}]`;
+    }
+    return Promptbars.escapeExpression(text);
+  });
+
+  return new Promptbars.SafeString(`<<<dotprompt:section context>>>
+- ${items.join('\n- ')}`);
+}
+Promptbars.registerHelper('context', contextHelper);
 
 const ROLE_REGEX = /(<<<dotprompt:role:[a-z]+)>>>/g;
 
@@ -72,23 +96,30 @@ function toMessages(renderedString: string): MessageData[] {
   }));
 }
 
-const MEDIA_REGEX = /(<<<dotprompt:media:url.*?)>>>/g;
+const PART_REGEX = /(<<<dotprompt:(?:media:url|section).*?)>>>/g;
 
 function toParts(source: string): Part[] {
   const parts: Part[] = [];
-  for (const piece of source
-    .split(MEDIA_REGEX)
-    .filter((s) => s.trim() !== '')) {
+  const pieces = source.split(PART_REGEX).filter((s) => s.trim() !== '');
+  for (let i = 0; i < pieces.length; i++) {
+    const piece = pieces[i];
     if (piece.startsWith('<<<dotprompt:media:')) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [_, url, contentType] = piece.split(' ');
       const part: MediaPart = { media: { url } };
       if (contentType) part.media.contentType = contentType;
       parts.push(part);
+    } else if (piece.startsWith('<<<dotprompt:section')) {
+      const [_, sectionType] = piece.split(' ');
+      i++;
+      const text = pieces[i];
+      const part: TextPart = { text, metadata: { purpose: sectionType } };
+      parts.push(part);
     } else {
       parts.push({ text: piece });
     }
   }
+
   return parts;
 }
 
@@ -103,16 +134,19 @@ export function compile<Variables = any>(
       media: true,
       role: true,
       history: true,
+      context: true,
     },
-    knownHelpersOnly: true,
+    // knownHelpersOnly: true,
   });
 
   return (
     input: Variables,
-    options?: { context?: any[]; history?: MessageData[] }
+    options?: { context?: DocumentData[]; history?: MessageData[] }
   ) => {
     const renderedString = renderString(input, {
-      data: { prompt: metadata, context: options?.context || null },
+      data: {
+        metadata: { prompt: metadata, context: options?.context || null },
+      },
     });
     return toMessages(renderedString);
   };

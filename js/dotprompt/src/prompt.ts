@@ -9,7 +9,7 @@
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+cd * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
@@ -25,8 +25,9 @@ import {
   toGenerateRequest,
 } from '@genkit-ai/ai';
 import { GenerationCommonConfigSchema, MessageData } from '@genkit-ai/ai/model';
+import { DocumentData, DocumentDataSchema } from '@genkit-ai/ai/retriever';
 import { GenkitError } from '@genkit-ai/core';
-import { parseSchema } from '@genkit-ai/core/schema';
+import { parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
 import { createHash } from 'crypto';
 import fm, { FrontMatterResult } from 'front-matter';
 import z from 'zod';
@@ -46,6 +47,7 @@ export type PromptGenerateOptions<V = unknown> = Omit<
 > & {
   model?: string;
   input?: V;
+  context?: DocumentData[];
 };
 
 export class Dotprompt<Variables = unknown> implements PromptMetadata {
@@ -113,8 +115,8 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
     this._render = compile(this.template, options);
   }
 
-  renderText(input: Variables): string {
-    const result = this.renderMessages(input);
+  renderText(input: Variables, context?: DocumentData[]): string {
+    const result = this.renderMessages(input, context);
     if (result.length !== 1) {
       throw new Error("Multi-message prompt can't be rendered as text.");
     }
@@ -128,7 +130,7 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
     return out;
   }
 
-  renderMessages(input?: Variables): MessageData[] {
+  renderMessages(input?: Variables, context?: DocumentData[]): MessageData[] {
     input = parseSchema(input, {
       schema: this.input?.schema,
       jsonSchema: this.input?.jsonSchema,
@@ -145,15 +147,36 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
       {
         name: `${this.name}${this.variant ? `.${this.variant}` : ''}`,
         description: 'Defined by Dotprompt',
-        inputSchema: this.input?.schema,
-        inputJsonSchema: this.input?.jsonSchema,
+        inputSchema: this.input?.schema
+          ? z.object({
+              input: this.input.schema,
+              context: z.array(DocumentDataSchema).optional(),
+            })
+          : undefined,
+        inputJsonSchema: this.input?.jsonSchema
+          ? {
+              type: 'object',
+              properties: {
+                input: this.input?.jsonSchema,
+                context: {
+                  type: 'array',
+                  items: toJsonSchema({ schema: DocumentDataSchema }),
+                },
+              },
+            }
+          : undefined,
         metadata: {
           type: 'prompt',
           prompt: this.toJSON(),
         },
       },
-      async (input: Variables) =>
-        toGenerateRequest(this.render({ input: input }))
+      async ({
+        input,
+        context,
+      }: {
+        input?: Variables;
+        context?: DocumentData[];
+      }) => toGenerateRequest(this.render({ input, context }))
     );
   }
 
