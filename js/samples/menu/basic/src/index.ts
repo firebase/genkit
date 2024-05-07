@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
+// This sample is referenced by the genkit docs. Changes should be made to
+// both.
 import { generate } from '@genkit-ai/ai';
 import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow } from '@genkit-ai/flow';
+import { defineFlow, runFlow } from '@genkit-ai/flow';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import * as z from 'zod';
 
@@ -26,21 +28,24 @@ configureGenkit({
   enableTracingAndMetrics: true,
 });
 
-export const menuQAFlow = defineFlow(
+const menuQAFlow = defineFlow(
   {
     name: 'menuQAFlow',
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
   async (subject) => {
-    const prompt = `Our menu today includes burgers, spinach, and cod.
-     Tell me if ${subject} can be found on the menu`;
-
     const llmResponse = await generate({
       model: geminiPro,
-      prompt: prompt,
+      prompt: `Our menu today includes burgers, spinach, and cod.
+      Tell me if ${subject} can be found on the menu`,
     });
 
     return llmResponse.text();
   }
 );
+
+export async function callMenuQAFlow() {
+  const flowResponse = await runFlow(menuQAFlow, 'banana');
+  console.log(flowResponse);
+}
