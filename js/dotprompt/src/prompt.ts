@@ -25,9 +25,9 @@ import {
   toGenerateRequest,
 } from '@genkit-ai/ai';
 import { GenerationCommonConfigSchema, MessageData } from '@genkit-ai/ai/model';
-import { DocumentData, DocumentDataSchema } from '@genkit-ai/ai/retriever';
+import { DocumentData } from '@genkit-ai/ai/retriever';
 import { GenkitError } from '@genkit-ai/core';
-import { parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
+import { parseSchema } from '@genkit-ai/core/schema';
 import { createHash } from 'crypto';
 import fm, { FrontMatterResult } from 'front-matter';
 import z from 'zod';
@@ -153,7 +153,7 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
           prompt: this.toJSON(),
         },
       },
-      async (input?: Variables) => toGenerateRequest(this.render({input}))
+      async (input?: Variables) => toGenerateRequest(this.render({ input }))
     );
   }
 

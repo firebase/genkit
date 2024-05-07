@@ -16,10 +16,10 @@
 
 import { Action, defineAction, JSONSchema7 } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
+import { DocumentData } from '@google-cloud/firestore';
 import z from 'zod';
 import { GenerateOptions } from './generate';
 import { GenerateRequest, GenerateRequestSchema, ModelArgument } from './model';
-import { DocumentData } from '@google-cloud/firestore';
 
 export type PromptFn<I extends z.ZodTypeAny = z.ZodTypeAny> = (
   input: z.infer<I>
@@ -87,7 +87,7 @@ export async function renderPrompt<
 >(params: {
   prompt: PromptArgument<I>;
   input: z.infer<I>;
-  context?: DocumentData[],
+  context?: DocumentData[];
   model: ModelArgument<CustomOptions>;
   config?: z.infer<CustomOptions>;
 }): Promise<GenerateOptions> {

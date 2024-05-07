@@ -22,6 +22,7 @@ import {
 } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
 import { toJsonSchema, validateSchema } from '@genkit-ai/core/schema';
+import { DocumentData } from '@google-cloud/firestore';
 import { z } from 'zod';
 import { extractJson } from './extract.js';
 import {
@@ -46,7 +47,6 @@ import {
   ToolArgument,
   toToolDefinition,
 } from './tool.js';
-import { DocumentData } from '@google-cloud/firestore';
 
 /**
  * Message represents a single role's contribution to a generation. Each message
@@ -413,7 +413,9 @@ export async function toGenerateRequest(
     output: {
       format:
         options.output?.format ||
-        (options.output?.schema || options.output?.jsonSchema ? 'json' : 'text'),
+        (options.output?.schema || options.output?.jsonSchema
+          ? 'json'
+          : 'text'),
       schema: toJsonSchema({
         schema: options.output?.schema,
         jsonSchema: options.output?.jsonSchema,
@@ -433,7 +435,7 @@ export interface GenerateOptions<
   /** The prompt for which to generate a response. Can be a string for a simple text prompt or one or more parts for multi-modal prompts. */
   prompt: string | Part | Part[];
   /** Retrieved documents to be used as context for this generation. */
-  context?: DocumentData[],
+  context?: DocumentData[];
   /** Conversation history for multi-turn prompting when supported by the underlying model. */
   history?: MessageData[];
   /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
@@ -551,7 +553,11 @@ export async function generate<
   }
 
   const request = await toGenerateRequest(resolvedOptions);
-  telemetry.recordGenerateActionInputLogs(model.__action.name, resolvedOptions, request);
+  telemetry.recordGenerateActionInputLogs(
+    model.__action.name,
+    resolvedOptions,
+    request
+  );
   const response = await runWithStreamingCallback(
     resolvedOptions.streamingCallback
       ? (chunk: GenerateResponseChunkData) =>
