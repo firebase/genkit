@@ -59,7 +59,7 @@ type TraceQuery struct {
 
 // TraceData is information about a trace.
 type TraceData struct {
-	TraceID     string               `json:"traceId,omitempty"`
+	TraceID     string               `json:"traceId"`
 	DisplayName string               `json:"displayName"`
 	StartTime   Milliseconds         `json:"startTime"`
 	EndTime     Milliseconds         `json:"endTime"`
