@@ -26,6 +26,7 @@ import {
 } from '../../src/model.js';
 import {
   AugmentWithContextOptions,
+  CONTEXT_PREFACE,
   augmentWithContext,
   simulateSystemPrompt,
   validateSupport,
@@ -313,7 +314,7 @@ describe('augmentWithContext', () => {
       { content: [{ text: 'i am more context' }] },
     ]);
     assert.deepEqual(result[0].content.at(-1), {
-      text: 'Use the following information to complete your task:\n\n- [0]: i am context\n- [1]: i am more context\n',
+      text: `${CONTEXT_PREFACE}- [0]: i am context\n- [1]: i am more context\n\n`,
       metadata: { purpose: 'context' },
     });
   });
@@ -328,10 +329,10 @@ describe('augmentWithContext', () => {
         { content: [{ text: 'i am context' }] },
         { content: [{ text: 'i am more context' }] },
       ],
-      { preface: 'Check this out:\n\n' }
+      { preface: '\n\nCheck this out:\n\n' }
     );
     assert.deepEqual(result[0].content.at(-1), {
-      text: 'Check this out:\n\n- [0]: i am context\n- [1]: i am more context\n',
+      text: '\n\nCheck this out:\n\n- [0]: i am context\n- [1]: i am more context\n\n',
       metadata: { purpose: 'context' },
     });
   });
@@ -349,7 +350,7 @@ describe('augmentWithContext', () => {
       { preface: null }
     );
     assert.deepEqual(result[0].content.at(-1), {
-      text: '- [0]: i am context\n- [1]: i am more context\n',
+      text: '- [0]: i am context\n- [1]: i am more context\n\n',
       metadata: { purpose: 'context' },
     });
   });
@@ -370,7 +371,7 @@ describe('augmentWithContext', () => {
       { citationKey: 'uid' }
     );
     assert.deepEqual(result[0].content.at(-1), {
-      text: 'Use the following information to complete your task:\n\n- [first]: i am context\n- [second]: i am more context\n',
+      text: `${CONTEXT_PREFACE}- [first]: i am context\n- [second]: i am more context\n\n`,
       metadata: { purpose: 'context' },
     });
   });
@@ -393,7 +394,7 @@ describe('augmentWithContext', () => {
       },
     ]);
     assert.deepEqual(result[0].content.at(-1), {
-      text: 'Use the following information to complete your task:\n\n- [first]: i am context\n- [second]: i am more context\n- [2]: i am even more context\n',
+      text: `${CONTEXT_PREFACE}- [first]: i am context\n- [second]: i am more context\n- [2]: i am even more context\n\n`,
       metadata: { purpose: 'context' },
     });
   });
@@ -414,7 +415,7 @@ describe('augmentWithContext', () => {
       { itemTemplate: (d) => `* (${d.metadata!.uid}) -- ${d.text()}\n` }
     );
     assert.deepEqual(result[0].content.at(-1), {
-      text: 'Use the following information to complete your task:\n\n* (first) -- i am context\n* (second) -- i am more context\n',
+      text: `${CONTEXT_PREFACE}* (first) -- i am context\n* (second) -- i am more context\n\n`,
       metadata: { purpose: 'context' },
     });
   });

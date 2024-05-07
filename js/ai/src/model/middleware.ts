@@ -182,8 +182,8 @@ export interface AugmentWithContextOptions {
   citationKey?: string | null;
 }
 
-const CONTEXT_PREFACE =
-  'Use the following information to complete your task:\n\n';
+export const CONTEXT_PREFACE =
+  '\n\nUse the following information to complete your task:\n\n';
 const CONTEXT_ITEM_TEMPLATE = (
   d: Document,
   index: number,
@@ -218,6 +218,7 @@ export function augmentWithContext(
     req.context?.forEach((d, i) => {
       out += itemTemplate(new Document(d), i, options);
     });
+    out += "\n";
     userMessage.content.push({ text: out, metadata: { purpose: 'context' } });
     return next(req);
   };
