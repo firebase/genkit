@@ -1,6 +1,6 @@
 ---
 name: CLI or Dev UI bug report
-about: Create a report a bug in CLI or Dev UI
+about: Report a bug in Genkit CLI or Dev UI
 title: "[Tooling]"
 labels: bug, tooling
 assignees: ''
