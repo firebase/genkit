@@ -3,6 +3,8 @@
 Firebase Genkit provides abstractions that help you build retrieval-augmented generation
 (RAG) flows, as well as plugins that provide integrations with related tools.
 
+## What is RAG?
+
 Retrieval-augmented generation is a technique used to incorporate external
 sources of information into an LLM’s responses. It's important to be able to do
 so because, while LLMs are typically trained on a broad body of
@@ -37,6 +39,7 @@ the best quality RAG. The core Genkit framework offers two main abstractions to
 help you do RAG:
 
 - Indexers: add documents to an "index".
+- Embedders: transforms documents into a vector representation
 - Retrievers: retrieve documents from an "index", given a query.
 
 These definitions are broad on purpose because Genkit is un-opinionated about
@@ -44,7 +47,7 @@ what an "index" is or how exactly documents are retrieved from it. Genkit only
 provides a `Document` format and everything else is defined by the retriever or
 indexer implementation provider.
 
-## Indexers
+### Indexers
 
 The index is responsible for keeping track of your documents in such a way that
 you can quickly retrieve relevant documents given a specific query. This is most
@@ -78,21 +81,63 @@ with a stable source of data. On the other hand, if you are working with data
 that frequently changes, you might continuously run the ingestion flow (for
 example, in a Cloud Firestore trigger, whenever a document is updated).
 
-The following example shows how you could ingest a collection of PDF documents
-into a vector database. It uses the local file-based vector similarity retriever
+### Embedders
+
+An embedder is a function that takes a collection of content and creates a numeric vector that is representative of the semantic meaning of the original text. As mentioned above, embedders are leveraged as part of the process of indexing, however, they can also be used independently to create embeddings independent of an index.
+
+### Retrievers
+
+A retriever is a concept that encapsulates logic related to any kind of document
+retrieval. The most popular retrieval cases typically include retrieval from
+vector stores. While retrievers are typically used to to fetch data from vector stores, in Genkit a retriever can be any function that returns data.
+
+To create a retriever, you can use one of the provided implementations or
+create your own.
+
+## Supported indexers, retrievers, and embedders
+
+Genkit provides indexer and retriever support through its plugin system. The
+following plugins are officially supported:
+
+- [Cloud Firestore vector store](plugins/firebase.md)
+- [Chroma DB](plugins/chroma.md) vector database
+- [Pinecone](plugins/pinecone.md) cloud vector database
+
+In addition, Genkit supports the following vector stores through predefined
+code templates, which you can customize for your database configuration and
+schema:
+
+- PostgreSQL with [`pgvector`](templates/pgvector.md)
+
+Embedding model support is provided through the following plugins:
+
+| Plugin                    | Models               |
+| ------------------------- | -------------------- |
+| [Google Generative AI][1] | Gecko text embedding |
+| [Google Vertex AI][2]     | Gecko text embedding |
+
+[1]: plugins/google-genai.md
+[2]: plugins/vertex-ai.md
+
+## Defining a RAG Flow
+
+The following examples show how you could ingest a collection of PDF documents
+into a vector database and retrieve them for use in a flow.
+
+It uses the local file-based vector similarity retriever
 that Genkit provides out-of-the box for simple testing and prototyping (_do not
-use in production_):
+use in production_)
+
+### Install dependencies for processing pdfs
+
+```posix-terminal
+npm install llm-chunk pdf-parse
+npm i -D --save @types/pdf-parse
+```
+
+### Add a local vector store to your configuration
 
 ```ts
-import { Document, index } from '@genkit-ai/ai/retriever';
-import { defineFlow, run } from '@genkit-ai/flow';
-import fs from 'fs';
-import { chunk } from 'llm-chunk'; // npm install llm-chunk
-import path from 'path';
-import pdf from 'pdf-parse'; // npm i pdf-parse && npm i -D --save @types/pdf-parse
-import z from 'zod';
-
-import { configureGenkit } from '@genkit-ai/core';
 import {
   devLocalIndexerRef,
   devLocalVectorstore,
@@ -103,6 +148,8 @@ configureGenkit({
   plugins: [
     // vertexAI provides the textEmbeddingGecko embedder
     vertexAI(),
+
+    // the local vector store requires an embedder to translate from text to vector
     devLocalVectorstore([
       {
         indexName: 'bob-facts',
@@ -111,6 +158,21 @@ configureGenkit({
     ]),
   ],
 });
+```
+
+### Define an Indexer
+
+The following example shows how to create an indexer to ingest a collection of PDF documents
+and store them in a local vector database.
+
+It uses the local file-based vector similarity retriever
+that Genkit provides out-of-the box for simple testing and prototyping (_do not
+use in production_)
+
+#### Create the indexer
+
+```ts
+import { devLocalIndexerRef } from '@genkit-ai/dev-local-vectorstore';
 
 export const pdfIndexer = devLocalIndexerRef('bob-facts');
 
@@ -121,6 +183,20 @@ const chunkingConfig = {
   overlap: 100, // number of overlap chracters
   delimiters: '', // regex for base split method
 } as any;
+```
+
+#### Define your indexer flow
+
+```ts
+import { chunk } from 'llm-chunk';
+import path from 'path';
+import pdf from 'pdf-parse';
+import { readFile } from 'fs/promises';
+import z from 'zod';
+
+import { Document, index } from '@genkit-ai/ai/retriever';
+import { defineFlow, run } from '@genkit-ai/flow';
+import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 
 export const indexPdf = defineFlow(
   {
@@ -151,33 +227,27 @@ export const indexPdf = defineFlow(
 
 async function extractTextFromPdf(filePath: string) {
   const pdfFile = path.resolve(filePath);
-  const dataBuffer = fs.readFileSync(pdfFile);
+  const dataBuffer = await readFile(pdfFile);
   const data = await pdf(dataBuffer);
   return data.text;
 }
 ```
 
-To run the flow:
+#### Run the indexer flow
 
 ```posix-terminal
 genkit flow:run indexPdf "'../pdfs'"
 ```
 
-## Retrievers
+The local database now has documents stored in it!
 
-A retriever is a concept that encapsulates logic related to any kind of document
-retrieval. The most popular retrieval cases typically include retrieval from
-vector stores.
-
-To create a retriever, you can use one of the provided implementations or
-create your own.
+### Define a flow with retrieval
 
 The following example shows how you might use a retriever in a RAG flow. Like
 the indexer example, this example uses Genkit's file-based vector retriever,
 which you should not use in production.
 
 ```ts
-import { configureGenkit } from '@genkit-ai/core';
 import { defineFlow } from '@genkit-ai/flow';
 import { generate } from '@genkit-ai/ai/generate';
 import { retrieve } from '@genkit-ai/ai/retriever';
@@ -188,20 +258,6 @@ import {
 import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 import * as z from 'zod';
 
-configureGenkit({
-  plugins: [
-    vertexAI(),
-    devLocalVectorstore([
-      {
-        indexName: 'bob-facts',
-        embedder: textEmbeddingGecko,
-      },
-    ]),
-  ],
-});
-
-export const bobFactRetriever = devLocalRetrieverRef('bob-facts');
-
 export const ragFlow = defineFlow(
   { name: 'ragFlow', input: z.string(), output: z.string() },
   async (input) => {
@@ -211,6 +267,7 @@ export const ragFlow = defineFlow(
       options: { k: 3 },
     });
 
+    // generate a response
     const llmResponse = await generate({
       model: geminiPro,
       prompt: `Answer this question: ${input}`,
@@ -222,31 +279,6 @@ export const ragFlow = defineFlow(
   }
 );
 ```
-
-## Supported indexers, retrievers, and embedders
-
-Genkit provides indexer and retriever support through its plugin system. The
-following plugins are officially supported:
-
-- [Cloud Firestore vector store](plugins/firebase.md)
-- [Chroma DB](plugins/chroma.md) vector database
-- [Pinecone](plugins/pinecone.md) cloud vector database
-
-In addition, Genkit supports the following vector stores through predefined
-code templates, which you can customize for your database configuration and
-schema:
-
-- PostgreSQL with [`pgvector`](templates/pgvector.md)
-
-Embedding model support is provided through the following plugins:
-
-| Plugin                    | Models               |
-| ------------------------- | -------------------- |
-| [Google Generative AI][1] | Gecko text embedding |
-| [Google Vertex AI][2]     | Gecko text embedding |
-
-[1]: plugins/google-genai.md
-[2]: plugins/vertex-ai.md
 
 ## Write your own indexers and retrievers
 
