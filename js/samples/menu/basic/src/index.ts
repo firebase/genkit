@@ -39,6 +39,9 @@ const menuQAFlow = defineFlow(
       model: geminiPro,
       prompt: `Our menu today includes burgers, spinach, and cod.
       Tell me if ${subject} can be found on the menu`,
+      config: {
+        temperature: 1,
+      },
     });
 
     return llmResponse.text();
