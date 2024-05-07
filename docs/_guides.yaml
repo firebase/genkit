@@ -25,6 +25,8 @@ toc:
   - heading: Building AI workflows
   - title: Models
     path: /docs/genkit/models
+  - title: Prompting models
+    path: /docs/genkit/prompts
   - title: Prompt management
     path: /docs/genkit/dotprompt
   - title: Flows
