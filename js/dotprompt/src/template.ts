@@ -21,7 +21,7 @@ import {
   Role,
   TextPart,
 } from '@genkit-ai/ai/model';
-import { Document, DocumentData } from '@genkit-ai/ai/retriever';
+import { DocumentData } from '@genkit-ai/ai/retriever';
 import Handlebars from 'handlebars';
 import { PromptMetadata } from './metadata.js';
 
