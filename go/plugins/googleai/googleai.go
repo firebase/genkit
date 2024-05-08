@@ -203,13 +203,17 @@ func Init(ctx context.Context, model, apiKey string) error {
 	if err != nil {
 		return err
 	}
-	ai.RegisterEmbedder("google-genai", e)
-
+	ai.RegisterEmbedder("google-genai", nil, e)
 	g, err := NewGenerator(ctx, model, apiKey)
 	if err != nil {
 		return err
 	}
-	ai.RegisterGenerator("google-genai", g)
+	ai.RegisterGenerator("google-genai", model, &ai.GeneratorMetadata{
+		Label: "Google AI - " + model,
+		Supports: ai.GeneratorCapabilities{
+			Multiturn: true,
+		},
+	}, g)
 
 	return nil
 }

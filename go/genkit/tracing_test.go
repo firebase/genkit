@@ -56,7 +56,7 @@ func TestSpanMetadata(t *testing.T) {
 func TestTracing(t *testing.T) {
 	ctx := context.Background()
 	const actionName = "TestTracing-inc"
-	a := NewAction(actionName, inc)
+	a := NewAction(actionName, nil, inc)
 	if _, err := a.Run(context.Background(), 3, nil); err != nil {
 		t.Fatal(err)
 	}

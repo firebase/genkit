@@ -33,10 +33,39 @@ type Generator interface {
 	Generate(context.Context, *GenerateRequest, genkit.StreamingCallback[*Candidate]) (*GenerateResponse, error)
 }
 
+// GeneratorCapabilities describes various capabilities of the generator.
+type GeneratorCapabilities struct {
+	Multiturn  bool
+	Media      bool
+	Tools      bool
+	SystemRole bool
+}
+
+// GeneratorMetadata is the metadata of the generator, specifying things like nice user visible label, capabilities, etc.
+type GeneratorMetadata struct {
+	Label    string
+	Supports GeneratorCapabilities
+}
+
 // RegisterGenerator registers the generator in the global registry.
-func RegisterGenerator(name string, generator Generator) {
-	genkit.RegisterAction(genkit.ActionTypeModel, name,
-		genkit.NewStreamingAction(name, generator.Generate))
+func RegisterGenerator(provider string, name string, metadata *GeneratorMetadata, generator Generator) {
+	metadataMap := map[string]any{}
+	if metadata != nil {
+		if metadata.Label != "" {
+			metadataMap["label"] = metadata.Label
+		}
+		supports := map[string]bool{
+			"media":      metadata.Supports.Media,
+			"multiturn":  metadata.Supports.Multiturn,
+			"systemRole": metadata.Supports.SystemRole,
+			"tools":      metadata.Supports.Tools,
+		}
+		metadataMap["supports"] = supports
+	}
+	genkit.RegisterAction(genkit.ActionTypeModel, provider,
+		genkit.NewStreamingAction(name, map[string]any{
+			"model": metadataMap,
+		}, generator.Generate))
 }
 
 // generatorActionType is the instantiated genkit.Action type registered

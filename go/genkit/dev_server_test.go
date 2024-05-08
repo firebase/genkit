@@ -37,8 +37,12 @@ func TestDevServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.registerAction("test", "devServer", NewAction("inc", inc))
-	r.registerAction("test", "devServer", NewAction("dec", dec))
+	r.registerAction("test", "devServer", NewAction("inc", map[string]any{
+		"foo": "bar",
+	}, inc))
+	r.registerAction("test", "devServer", NewAction("dec", map[string]any{
+		"bar": "baz",
+	}, dec))
 	srv := httptest.NewServer(newDevServerMux(r))
 	defer srv.Close()
 
