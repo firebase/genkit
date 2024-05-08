@@ -34,8 +34,14 @@ import {
 export class LocalFileTraceStore implements TraceStore {
   private readonly storeRoot;
   private mutexes: Record<string, Mutex> = {};
+  private filters: Record<string, string>;
 
-  constructor() {
+  static defaultFilters: Record<string, string> = {
+    // Prevent prompt rendering from spamming local trace store
+    'genkit:metadata:subtype': 'prompt',
+  };
+
+  constructor(filters = LocalFileTraceStore.defaultFilters) {
     const rootHash = crypto
       .createHash('md5')
       .update(require?.main?.filename || 'unknown')
@@ -45,6 +51,7 @@ export class LocalFileTraceStore implements TraceStore {
     logger.info(
       `Initialized local file trace store at root: ${this.storeRoot}`
     );
+    this.filters = filters;
   }
 
   async load(id: string): Promise<TraceData | undefined> {
@@ -68,7 +75,11 @@ export class LocalFileTraceStore implements TraceStore {
     return this.mutexes[id];
   }
 
-  async save(id: string, trace: TraceData): Promise<void> {
+  async save(id: string, rawTrace: TraceData): Promise<void> {
+    let trace = this.filter(rawTrace);
+    if (Object.keys(trace.spans).length === 0) {
+      return;
+    }
     const mutex = this.getMutex(id);
     await mutex.waitForUnlock();
     const release = await mutex.acquire();
@@ -125,5 +136,27 @@ export class LocalFileTraceStore implements TraceStore {
       traces,
       continuationToken: files.length > stopAt ? stopAt.toString() : undefined,
     };
+  }
+
+  private filter(trace: TraceData): TraceData {
+    // Delete any spans that match the filter criteria
+    Object.keys(trace.spans).forEach((spanId) => {
+      const span = trace.spans[spanId];
+      Object.keys(this.filters).forEach((f) => {
+        if (span.attributes[f] === this.filters[f]) {
+          delete trace.spans[spanId];
+        }
+      });
+    });
+    // Delete the root wrapper if it's the only span left
+    if (Object.keys(trace.spans).length === 1) {
+      Object.keys(trace.spans).forEach((spanId) => {
+        const span = trace.spans[spanId];
+        if (span.attributes['genkit:name'] === 'dev-run-action-wrapper') {
+          delete trace.spans[spanId];
+        }
+      });
+    }
+    return trace;
   }
 }

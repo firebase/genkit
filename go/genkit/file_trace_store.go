@@ -50,6 +50,7 @@ func (s *FileTraceStore) Save(ctx context.Context, id string, td *TraceData) err
 		for k, v := range td.Spans {
 			existing.Spans[k] = v
 		}
+		existing.TraceID = id
 		existing.DisplayName = td.DisplayName
 		existing.StartTime = td.StartTime
 		existing.EndTime = td.EndTime

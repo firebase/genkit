@@ -63,6 +63,7 @@ func TestFileTraceStore(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := &TraceData{
+		TraceID:     "id1",
 		DisplayName: "td2",
 		StartTime:   30,
 		EndTime:     40,

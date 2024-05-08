@@ -1,27 +1,27 @@
-import { generate } from '@genkit-ai/ai';
-import { configureGenkit } from '@genkit-ai/core';
-import { firebaseAuth } from '@genkit-ai/firebase/auth';
-import { onFlow } from '@genkit-ai/firebase/functions';
+import {generate} from "@genkit-ai/ai";
+import {configureGenkit} from "@genkit-ai/core";
+import {firebaseAuth} from "@genkit-ai/firebase/auth";
+import {onFlow} from "@genkit-ai/firebase/functions";
 $GENKIT_MODEL_IMPORT
-import * as z from 'zod';
+import * as z from "zod";
 $GENKIT_CONFIG_IMPORTS
 
 configureGenkit({
   plugins: [
 $GENKIT_CONFIG_PLUGINS
   ],
-  logLevel: 'debug',
+  logLevel: "debug",
   enableTracingAndMetrics: true,
 });
 
 export const jokeFlow = onFlow(
   {
-    name: 'jokeFlow',
+    name: "jokeFlow",
     inputSchema: z.string(),
     outputSchema: z.string(),
     authPolicy: firebaseAuth((user) => {
       if (!user.email_verified) {
-        throw new Error('Verified email required to run flow');
+        throw new Error("Verified email required to run flow");
       }
     }),
   },

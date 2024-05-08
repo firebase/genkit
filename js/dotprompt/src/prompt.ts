@@ -25,6 +25,7 @@ import {
   toGenerateRequest,
 } from '@genkit-ai/ai';
 import { GenerationCommonConfigSchema, MessageData } from '@genkit-ai/ai/model';
+import { DocumentData } from '@genkit-ai/ai/retriever';
 import { GenkitError } from '@genkit-ai/core';
 import { parseSchema } from '@genkit-ai/core/schema';
 import { createHash } from 'crypto';
@@ -113,8 +114,8 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
     this._render = compile(this.template, options);
   }
 
-  renderText(input: Variables): string {
-    const result = this.renderMessages(input);
+  renderText(input: Variables, context?: DocumentData[]): string {
+    const result = this.renderMessages(input, context);
     if (result.length !== 1) {
       throw new Error("Multi-message prompt can't be rendered as text.");
     }
@@ -128,7 +129,7 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
     return out;
   }
 
-  renderMessages(input?: Variables): MessageData[] {
+  renderMessages(input?: Variables, context?: DocumentData[]): MessageData[] {
     input = parseSchema(input, {
       schema: this.input?.schema,
       jsonSchema: this.input?.jsonSchema,
@@ -152,8 +153,7 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
           prompt: this.toJSON(),
         },
       },
-      async (input: Variables) =>
-        toGenerateRequest(this.render({ input: input }))
+      async (input?: Variables) => toGenerateRequest(this.render({ input }))
     );
   }
 
@@ -174,6 +174,7 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
       config: { ...this.config, ...options.config } || {},
       history: messages.slice(0, messages.length - 1),
       prompt: messages[messages.length - 1].content,
+      context: options.context,
       candidates: options.candidates || this.candidates || 1,
       output: {
         format: options.output?.format || this.output?.format || undefined,

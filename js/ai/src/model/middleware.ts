@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { Document } from '../document.js';
 import { ModelInfo, ModelMiddleware, Part } from '../model.js';
 
 /**
@@ -169,5 +170,56 @@ export function simulateSystemPrompt(options?: {
       }
     }
     return next({ ...req, messages });
+  };
+}
+
+export interface AugmentWithContextOptions {
+  /** Preceding text to place before the rendered context documents. */
+  preface?: string | null;
+  /** A function to render a document into a text part to be included in the message. */
+  itemTemplate?: (d: Document, options?: AugmentWithContextOptions) => string;
+  /** The metadata key to use for citation reference. Pass `null` to provide no citations. */
+  citationKey?: string | null;
+}
+
+export const CONTEXT_PREFACE =
+  '\n\nUse the following information to complete your task:\n\n';
+const CONTEXT_ITEM_TEMPLATE = (
+  d: Document,
+  index: number,
+  options?: AugmentWithContextOptions
+) => {
+  let out = '- ';
+  if (options?.citationKey) {
+    out += `[${d.metadata![options.citationKey]}]: `;
+  } else if (options?.citationKey === undefined) {
+    out += `[${d.metadata?.['ref'] || d.metadata?.['id'] || index}]: `;
+  }
+  out += d.text() + '\n';
+  return out;
+};
+export function augmentWithContext(
+  options?: AugmentWithContextOptions
+): ModelMiddleware {
+  const preface =
+    typeof options?.preface === 'undefined' ? CONTEXT_PREFACE : options.preface;
+  const itemTemplate = options?.itemTemplate || CONTEXT_ITEM_TEMPLATE;
+  const citationKey = options?.citationKey;
+  return (req, next) => {
+    // if there is no context in the request, no-op
+    if (!req.context?.length) return next(req);
+    const userMessage = req.messages.at(-1);
+    // if there are no messages, no-op
+    if (!userMessage) return next(req);
+    // if there is already a context part, no-op
+    if (userMessage?.content.find((p) => p.metadata?.purpose === 'context'))
+      return next(req);
+    let out = `${preface || ''}`;
+    req.context?.forEach((d, i) => {
+      out += itemTemplate(new Document(d), i, options);
+    });
+    out += '\n';
+    userMessage.content.push({ text: out, metadata: { purpose: 'context' } });
+    return next(req);
   };
 }
