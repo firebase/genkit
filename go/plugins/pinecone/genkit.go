@@ -55,7 +55,7 @@ func Init(ctx context.Context, apiKey, host string, embedder ai.Embedder, embedd
 	if err != nil {
 		return err
 	}
-	ai.RegisterRetriever("pinecone", nil, r)
+	ai.RegisterRetriever("pinecone", r)
 	return nil
 }
 

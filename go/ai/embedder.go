@@ -34,7 +34,7 @@ type EmbedRequest struct {
 }
 
 // RegisterEmbedder registers the actions for a specific embedder.
-func RegisterEmbedder(name string, metadata map[string]any, embedder Embedder) {
+func RegisterEmbedder(name string, embedder Embedder) {
 	genkit.RegisterAction(genkit.ActionTypeEmbedder, name,
-		genkit.NewAction(name, metadata, embedder.Embed))
+		genkit.NewAction(name, nil, embedder.Embed))
 }
