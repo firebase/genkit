@@ -4,15 +4,14 @@
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "build": "pnpm install && pnpm build:core && pnpm build:noncore",
-    "build:core": "pnpm -r --workspace-concurrency 1 -F core -F ai -F flow -F dotprompt build",
+    "build:core": "pnpm -r --workspace-concurrency 1 -F core -F ai -F flow -F plugins/dotprompt build",
     "build:noncore": "pnpm -r --workspace-concurrency 0 -F \"./(plugins|samples)/**\" build",
-    "pack:all": "(mkdir ../dist || true) && npm-run-all pack:core pack:flow pack:ai pack:dotprompt pack:plugins",
+    "pack:all": "(mkdir ../dist || true) && npm-run-all pack:core pack:flow pack:ai pack:plugins",
     "pack:core": "cd core && pnpm pack --pack-destination ../../dist",
     "pack:flow": "cd flow && pnpm pack --pack-destination ../../dist",
     "pack:ai": "cd ai && pnpm pack --pack-destination ../../dist",
-    "pack:dotprompt": "cd dotprompt && pnpm pack --pack-destination ../../dist",
     "pack:plugins": "for i in plugins/*/; do cd $i && pnpm pack --pack-destination ../../../dist && cd ../..; done",
-    "test:all": "pnpm -r --workspace-concurrency 0 -F \"./(ai|core|flow|dotprompt)/**\" test"
+    "test:all": "pnpm -r --workspace-concurrency 0 -F \"./(ai|core|flow)/**\" test"
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5",

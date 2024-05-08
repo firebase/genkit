@@ -14,13 +14,41 @@
  * limitations under the License.
  */
 
+import {
+  genkitPlugin,
+  InitializedPlugin,
+  PluginProvider,
+} from '@genkit-ai/core';
+
 import { readFileSync } from 'fs';
 import { basename } from 'path';
-
 import { defineDotprompt, Dotprompt } from './prompt.js';
-import { lookupPrompt } from './registry.js';
+import { loadPromptFolder, lookupPrompt } from './registry.js';
 
 export { defineDotprompt, Dotprompt };
+
+export interface DotpromptPluginOptions {
+  dir: string;
+}
+
+export function dotprompt<IP extends InitializedPlugin>(
+  params: DotpromptPluginOptions = { dir: './prompts' }
+): PluginProvider {
+  const plugin = genkitPlugin(
+    'dotprompt',
+    async (options: DotpromptPluginOptions): Promise<IP> => {
+      return loadPromptFolder(options.dir).then((unused) => ({}) as IP);
+    }
+  );
+  return plugin(params);
+}
+
+export async function prompt<Variables = unknown>(
+  name: string,
+  options?: { variant?: string }
+): Promise<Dotprompt<Variables>> {
+  return (await lookupPrompt(name, options?.variant)) as Dotprompt<Variables>;
+}
 
 export function loadPromptFile(path: string): Dotprompt {
   return Dotprompt.parse(
@@ -37,11 +65,4 @@ export async function loadPromptUrl(
   const response = await fetch(url);
   const text = await response.text();
   return Dotprompt.parse(name, text);
-}
-
-export async function prompt<Variables = unknown>(
-  name: string,
-  options?: { variant?: string }
-): Promise<Dotprompt<Variables>> {
-  return (await lookupPrompt(name, options?.variant)) as Dotprompt<Variables>;
 }

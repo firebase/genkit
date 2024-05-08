@@ -22,7 +22,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/firebase/genkit.git",
-    "directory": "js/dotprompt"
+    "directory": "js/plugins/dotprompt"
   },
   "author": "genkit",
   "license": "Apache-2.0",

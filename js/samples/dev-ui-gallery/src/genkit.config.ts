@@ -16,6 +16,7 @@
 
 import { configureGenkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
+import { dotprompt } from '@genkit-ai/dotprompt';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
@@ -129,5 +130,8 @@ export default configureGenkit({
         GenkitMetric.MALICIOUSNESS,
       ],
     }),
+
+    // prompt files
+    dotprompt({ dir: './prompts' }),
   ],
 });
