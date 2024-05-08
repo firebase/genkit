@@ -48,7 +48,7 @@ type GeneratorMetadata struct {
 }
 
 // RegisterGenerator registers the generator in the global registry.
-func RegisterGenerator(provider string, name string, metadata *GeneratorMetadata, generator Generator) {
+func RegisterGenerator(provider, name string, metadata *GeneratorMetadata, generator Generator) {
 	metadataMap := map[string]any{}
 	if metadata != nil {
 		if metadata.Label != "" {
