@@ -21,6 +21,8 @@ import {
 } from '@genkit-ai/tools-common';
 import {
   EvalExporter,
+  EvalFlowInput,
+  EvalFlowInputSchema,
   enrichResultsWithScoring,
   extractMetricsMetadata,
   getEvalStore,
@@ -50,8 +52,10 @@ interface EvalFlowRunOptions {
   outputFormat: string;
 }
 
+const EVAL_FLOW_SCHEMA = '{samples: Array<{input: any; reference?: any;}>}';
+
 /** Command to run a flow and evaluate the output */
-export const evalFlowRun = new Command('eval:flow')
+export const evalFlow = new Command('eval:flow')
   .argument('<flowName>', 'Name of the flow to run')
   .argument('[data]', 'JSON data to use to start the flow')
   .option('--input <filename>', 'JSON batch data to use to run the flow')
@@ -138,7 +142,12 @@ export const evalFlowRun = new Command('eval:flow')
           return;
         }
 
-        const evalDataset = await fetchDataSet(runner, flowName, states);
+        const evalDataset = await fetchDataSet(
+          runner,
+          flowName,
+          states,
+          parsedData
+        );
         const evalRunId = randomUUID();
         const scores: Record<string, any> = {};
         for (const action of filteredEvaluatorActions) {
@@ -178,7 +187,10 @@ export const evalFlowRun = new Command('eval:flow')
     }
   );
 
-async function readInputs(data: string, filePath: string): Promise<any[]> {
+async function readInputs(
+  data: string,
+  filePath: string
+): Promise<EvalFlowInput> {
   const parsedData = JSON.parse(
     data ? data : await readFile(filePath!, 'utf8')
   );
@@ -186,17 +198,26 @@ async function readInputs(data: string, filePath: string): Promise<any[]> {
     return parsedData as any[];
   }
 
-  return [parsedData];
+  try {
+    return EvalFlowInputSchema.parse(parsedData);
+  } catch (e) {
+    throw new Error(
+      `Error parsing the input. Please provide an array of inputs for the flow or a ${EVAL_FLOW_SCHEMA} object. Error: ${e}`
+    );
+  }
 }
 
 async function runFlows(
   runner: Runner,
   flowName: string,
-  data: any[]
+  data: EvalFlowInput
 ): Promise<FlowState[]> {
   const states: FlowState[] = [];
+  let inputs: any[] = Array.isArray(data)
+    ? (data as any[])
+    : data.samples.map((c) => c.input);
 
-  for (const d of data) {
+  for (const d of inputs) {
     logger.info(`Running '/flow/${flowName}' ...`);
     let state = (
       await runner.runAction({
@@ -227,11 +248,23 @@ async function runFlows(
 async function fetchDataSet(
   runner: Runner,
   flowName: string,
-  states: FlowState[]
+  states: FlowState[],
+  parsedData: EvalFlowInput
 ): Promise<EvalInput[]> {
+  let references: any[] | undefined = undefined;
+  if (!Array.isArray(parsedData)) {
+    const maybeReferences = parsedData.samples.map((c: any) => c.reference);
+    if (maybeReferences.length === states.length) {
+      references = maybeReferences;
+    } else {
+      logger.warn(
+        'The input size does not match the flow states generated. Ignoring reference mapping...'
+      );
+    }
+  }
   const extractors = await getEvalExtractors(flowName);
   return await Promise.all(
-    states.map(async (s) => {
+    states.map(async (s, i) => {
       const traceIds = s.executions.flatMap((e) => e.traceIds);
       if (traceIds.length > 1) {
         logger.warn('The flow is split across multiple traces');
@@ -264,6 +297,7 @@ async function fetchDataSet(
         input: inputs[0],
         output: outputs[0],
         context: contexts,
+        reference: references?.at(i),
         traceIds,
       };
     })

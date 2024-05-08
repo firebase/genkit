@@ -308,15 +308,18 @@ importers:
       '@genkit-ai/core':
         specifier: workspace:*
         version: link:../../core
+      '@genkit-ai/dotprompt':
+        specifier: workspace:*
+        version: link:../../dotprompt
       compute-cosine-similarity:
         specifier: ^1.1.0
         version: 1.1.0
-      handlebars:
-        specifier: ^4.7.8
-        version: 4.7.8
       node-fetch:
         specifier: ^3.3.2
         version: 3.3.2
+      path:
+        specifier: ^0.12.7
+        version: 0.12.7
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -658,6 +661,9 @@ importers:
       '@genkit-ai/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
+      '@genkit-ai/dotprompt':
+        specifier: workspace:*
+        version: link:../../dotprompt
       '@genkit-ai/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
@@ -673,9 +679,9 @@ importers:
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
-      handlebars:
-        specifier: ^4.7.8
-        version: 4.7.8
+      path:
+        specifier: ^0.12.7
+        version: 0.12.7
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -3442,6 +3448,9 @@ packages:
   inflight@1.0.6:
     resolution: {integrity: sha512-k92I/b08q4wvFscXCLvqfsHCrjrF7yiXsQuIVvVE7N82W3+aqpzuUdBbfhWcy/FZR3/4IgflMgKLOsvPDrGCJA==}
 
+  inherits@2.0.3:
+    resolution: {integrity: sha512-x00IRNXNy63jwGkJmzPigoySHbaqpNuzKbBOmzK+g2OdZpQ9w+sxCN+VSB3ja7IAge2OP2qpfxTjeNcyjmW1uw==}
+
   inherits@2.0.4:
     resolution: {integrity: sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==}
 
@@ -4225,6 +4234,9 @@ packages:
     resolution: {integrity: sha512-/+S03c8AGsDYKKBtRDqieTJv2GlkMb0bWjnqOgtF6MkjdUQ9a8ARAtxWf9NgKLGm2+WQr6+/tqJdU8HNGsIDoA==}
     engines: {node: '>=6'}
 
+  path@0.12.7:
+    resolution: {integrity: sha512-aXXC6s+1w7otVF9UletFkFcDsJeO7lSZBPUQhtb5O0xJe8LtYhj/GxldoL09bBj9+ZmE2hNoHqQSFMN5fikh4Q==}
+
   pdf-parse@1.1.1:
     resolution: {integrity: sha512-v6ZJ/efsBpGrGGknjtq9J/oC8tZWq0KWL5vQrk2GlzLEQPUDB1ex+13Rmidl1neNN358Jn9EHZw5y07FFtaC7A==}
     engines: {node: '>=6.8.1'}
@@ -4318,6 +4330,10 @@ packages:
 
   process-nextick-args@2.0.1:
     resolution: {integrity: sha512-3ouUOpQhtgrbOa17J7+uxOTpITYWaGP7/AhoR3+A+/1e9skrzelGi/dXzEYyvbxubEF6Wn2ypscTKiKJFFn1ag==}
+
+  process@0.11.10:
+    resolution: {integrity: sha512-cdGef/drWFoydD1JsMzuFf8100nZl+GT+yacc2bEced5f9Rjk4z+WtFUTBu9PhOi9j/jfmBPu0mMEY4wIdAF8A==}
+    engines: {node: '>= 0.6.0'}
 
   proto3-json-serializer@2.0.1:
     resolution: {integrity: sha512-8awBvjO+FwkMd6gNoGFZyqkHZXCFd54CIYTb6De7dPaufGJ2XNW+QUNqbMr8MaAocMdb+KpsD4rxEOaTBDCffA==}
@@ -4801,6 +4817,9 @@ packages:
 
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
+
+  util@0.10.4:
+    resolution: {integrity: sha512-0Pm9hTQ3se5ll1XihRic3FDIku70C+iHUdT/W926rSgHV5QgXsYbKZN8MSC3tJtSkhuROzvsQjAaFENRXr+19A==}
 
   utils-merge@1.0.1:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
@@ -7551,6 +7570,8 @@ snapshots:
       wrappy: 1.0.2
     optional: true
 
+  inherits@2.0.3: {}
+
   inherits@2.0.4: {}
 
   ini@1.3.8: {}
@@ -8256,6 +8277,11 @@ snapshots:
   path2d@0.1.1:
     optional: true
 
+  path@0.12.7:
+    dependencies:
+      process: 0.11.10
+      util: 0.10.4
+
   pdf-parse@1.1.1:
     dependencies:
       debug: 3.2.7
@@ -8331,6 +8357,8 @@ snapshots:
   prettier@3.2.5: {}
 
   process-nextick-args@2.0.1: {}
+
+  process@0.11.10: {}
 
   proto3-json-serializer@2.0.1:
     dependencies:
@@ -8932,6 +8960,10 @@ snapshots:
   url-template@2.0.8: {}
 
   util-deprecate@1.0.2: {}
+
+  util@0.10.4:
+    dependencies:
+      inherits: 2.0.3
 
   utils-merge@1.0.1: {}
 

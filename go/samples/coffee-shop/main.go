@@ -66,9 +66,9 @@ type customerTimeAndHistoryInput struct {
 }
 
 type testAllCoffeeFlowsOutput struct {
-	Pass    bool   `json:"pass"`
+	Pass    bool     `json:"pass"`
 	Replies []string `json:"replies,omitempty"`
-	Error   string `json:"error,omitempty"`
+	Error   string   `json:"error,omitempty"`
 }
 
 func main() {
@@ -79,13 +79,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := googleai.Init(context.Background(), "gemini-pro", apiKey); err != nil {
+	if err := googleai.Init(context.Background(), "gemini-1.0-pro", apiKey); err != nil {
 		log.Fatal(err)
 	}
 
 	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting",
 		&dotprompt.Frontmatter{
-			Name: "simpleGreeting",
+			Name:  "simpleGreeting",
 			Model: "google-genai",
 			Input: dotprompt.FrontmatterInput{
 				Schema: jsonschema.Reflect(simpleGreetingInput{}),
@@ -106,7 +106,7 @@ func main() {
 		if err != nil {
 			return "", err
 		}
-		ai := &dotprompt.ActionInput{ Variables: vars }
+		ai := &dotprompt.ActionInput{Variables: vars}
 		resp, err := simpleGreetingPrompt.Execute(ctx, ai)
 		if err != nil {
 			return "", err
@@ -120,7 +120,7 @@ func main() {
 
 	greetingWithHistoryPrompt, err := dotprompt.Define("greetingWithHistory",
 		&dotprompt.Frontmatter{
-			Name: "greetingWithHistory",
+			Name:  "greetingWithHistory",
 			Model: "google-genai",
 			Input: dotprompt.FrontmatterInput{
 				Schema: jsonschema.Reflect(customerTimeAndHistoryInput{}),
@@ -141,7 +141,7 @@ func main() {
 		if err != nil {
 			return "", err
 		}
-		ai := &dotprompt.ActionInput{ Variables: vars }
+		ai := &dotprompt.ActionInput{Variables: vars}
 		resp, err := greetingWithHistoryPrompt.Execute(ctx, ai)
 		if err != nil {
 			return "", err
@@ -177,7 +177,7 @@ func main() {
 			return out, nil
 		}
 		out := &testAllCoffeeFlowsOutput{
-			Pass:    true,
+			Pass: true,
 			Replies: []string{
 				test1,
 				test2,

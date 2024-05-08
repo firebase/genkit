@@ -16,6 +16,7 @@
 
 import { EvalStore } from '../types/eval';
 import { LocalFileEvalStore } from './localFileEvalStore';
+export { EvalFlowInput, EvalFlowInputSchema } from '../types/eval';
 export * from './exporter';
 export * from './parser';
 

@@ -26,7 +26,7 @@ func inc(_ context.Context, x int) (int, error) {
 }
 
 func TestActionRun(t *testing.T) {
-	a := NewAction("inc", inc)
+	a := NewAction("inc", nil, inc)
 	got, err := a.Run(context.Background(), 3, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -37,7 +37,7 @@ func TestActionRun(t *testing.T) {
 }
 
 func TestActionRunJSON(t *testing.T) {
-	a := NewAction("inc", inc)
+	a := NewAction("inc", nil, inc)
 	input := []byte("3")
 	want := []byte("4")
 	got, err := a.runJSON(context.Background(), input, nil)
@@ -63,7 +63,7 @@ func count(ctx context.Context, n int, cb StreamingCallback[int]) (int, error) {
 
 func TestActionStreaming(t *testing.T) {
 	ctx := context.Background()
-	a := NewStreamingAction("count", count)
+	a := NewStreamingAction("count", nil, count)
 	const n = 3
 
 	// Non-streaming.
