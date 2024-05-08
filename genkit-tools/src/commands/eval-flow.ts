@@ -202,7 +202,7 @@ async function readInputs(
     return EvalFlowInputSchema.parse(parsedData);
   } catch (e) {
     throw new Error(
-      `Error parsing the input. Please provide an array of inputs for the flow or a ${EVAL_FLOW_SCHEMA} object`
+      `Error parsing the input. Please provide an array of inputs for the flow or a ${EVAL_FLOW_SCHEMA} object. Error: ${e}`
     );
   }
 }
