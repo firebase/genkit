@@ -52,23 +52,6 @@ export const jokeFlow = defineFlow(
   }
 );
 
-export const jokeFlowSimple = defineFlow(
-  {
-    name: 'jokeFlowSimple',
-    inputSchema: z.string(),
-    outputSchema: z.string(),
-  },
-  async (input) => {
-    return await run('call-llm', async () => {
-      const llmResponse = await generate({
-        model: googleGeminiPro,
-        prompt: `Tell a joke about ${input}.`,
-      });
-      return llmResponse.text();
-    });
-  }
-);
-
 export const drawPictureFlow = defineFlow(
   {
     name: 'drawPictureFlow',
