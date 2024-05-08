@@ -77,7 +77,7 @@ Key features:
 
 ## Google Cloud and Firebase integrations
 
-Genkit works great out-of-the-box with Firebase or Google Cloud projects thanks to official plugins and templates that make it easy to integrate Google Cloud and Firebase services for AI, databases, monitoring, authentication, and deployment. These include:
+Genkit works out of the box with Firebase or Google Cloud projects thanks to official plugins that make it easy to integrate Google services for AI, databases, monitoring, authentication, and deployment. These include:
 
 - [Google Cloud plugin](https://firebase.google.com/docs/genkit/plugins/google-cloud): Export logs, metrics, and traces from your AI-powered feature to Cloud Logging, Cloud Tracing, and Firestore.
 - [Firebase plugin](https://firebase.google.com/docs/genkit/plugins/firebase): Integrate with Cloud Functions for Firebase, Firebase Authentication, App Check, Firestore, and more.
