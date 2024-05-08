@@ -73,8 +73,6 @@ Key features:
 - **Trace Viewer:** View the previous executions of flows and actions, including step-by-step views of complex flows.
 - **Evaluations:** See the results of running evaluations of flows against test sets, including scored metrics and links to the traces for those evaluation runs. See the evaluation documentation for more
 
-Genkit's developer UI enables developers to prototype, develop, and test their AI features locally, resulting in quick turn-around times. Rich features like Genkit's action runners, trace viewer, and evaluations UI provide a great developer experience.
-
 ![Screenshot of IDE showing Firebase Genkit RAG sample code](docs/resources/readme-ui-screenshot.png)
 
 ## Google Cloud and Firebase integrations
