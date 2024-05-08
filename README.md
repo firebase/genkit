@@ -2,7 +2,7 @@
 
 Firebase Genkit (beta) is a code-centric framework with built-in tooling to help app developers build, test, deploy, and monitor AI-powered features with confidence. The Genkit framework itself is free and [open source](./LICENSE), and integrates with many services that have free tiers to get started.
 
-Genkit is available for TypeScript (Node.js), with Go support in active development.
+Genkit is available for Node.js (TypeScript), with Go support in active development.
 
 Please note since Genkit is currently in beta, this means that the public API and framework design may change in backward-incompatible ways.
 
