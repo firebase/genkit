@@ -83,13 +83,13 @@ example, in a Cloud Firestore trigger, whenever a document is updated).
 
 ### Embedders
 
-An embedder is a function that takes a collection of content and creates a numeric vector that is representative of the semantic meaning of the original text. As mentioned above, embedders are leveraged as part of the process of indexing, however, they can also be used independently to create embeddings independent of an index.
+An embedder is a function that takes content (text, images, audio, etc.) and creates a numeric vector that encodes the semantic meaning of the original content. As mentioned above, embedders are leveraged as part of the process of indexing, however, they can also be used independently to create embeddings without an index.
 
 ### Retrievers
 
 A retriever is a concept that encapsulates logic related to any kind of document
 retrieval. The most popular retrieval cases typically include retrieval from
-vector stores. While retrievers are typically used to to fetch data from vector stores, in Genkit a retriever can be any function that returns data.
+vector stores, however, in Genkit a retriever can be any function that returns data.
 
 To create a retriever, you can use one of the provided implementations or
 create your own.
@@ -128,10 +128,11 @@ It uses the local file-based vector similarity retriever
 that Genkit provides out-of-the box for simple testing and prototyping (_do not
 use in production_)
 
-### Install dependencies for processing pdfs
+### Install dependencies for processing PDFs
 
 ```posix-terminal
 npm install llm-chunk pdf-parse
+
 npm i -D --save @types/pdf-parse
 ```
 
@@ -175,15 +176,25 @@ use in production_)
 import { devLocalIndexerRef } from '@genkit-ai/dev-local-vectorstore';
 
 export const pdfIndexer = devLocalIndexerRef('bob-facts');
+```
 
+#### Create chunking config
+
+This example uses the `llm-chunk` library which provides a simple text splitter to break up documents into segments that can be vectorized.
+
+The following definition configures the chunking function to gaurantee a document segment of between 1000 and 2000 characters, broken at the end of a sentence, with an overlap between chunks of 100 characters.
+
+```ts
 const chunkingConfig = {
-  minLength: 1000, // number of minimum characters into chunk
-  maxLength: 2000, // number of maximum characters into chunk
-  splitter: 'sentence', // paragraph | sentence
-  overlap: 100, // number of overlap chracters
-  delimiters: '', // regex for base split method
+  minLength: 1000,
+  maxLength: 2000,
+  splitter: 'sentence',
+  overlap: 100,
+  delimiters: '',
 } as any;
 ```
+
+More chunking options for this library can be found in the [llm-chunk documentation](https://www.npmjs.com/package/llm-chunk).
 
 #### Define your indexer flow
 
@@ -206,18 +217,23 @@ export const indexPdf = defineFlow(
   },
   async (filePath) => {
     filePath = path.resolve(filePath);
+
+    // Read the pdf.
     const pdfTxt = await run('extract-text', () =>
       extractTextFromPdf(filePath)
     );
 
+    // Divide the pdf text into segments.
     const chunks = await run('chunk-it', async () =>
       chunk(pdfTxt, chunkingConfig)
     );
 
+    // Convert chunks of text into documents to store in the index.
     const documents = chunks.map((text) => {
       return Document.fromText(text, { filePath });
     });
 
+    // Add documents to the index.
     await index({
       indexer: pdfIndexer,
       documents,
@@ -239,7 +255,7 @@ async function extractTextFromPdf(filePath: string) {
 genkit flow:run indexPdf "'../pdfs'"
 ```
 
-The local database now has documents stored in it!
+After running the `indexPdf` flow, the vector database will be seeded with documents and ready to be used in Genkit flows with retrieval steps.
 
 ### Define a flow with retrieval
 
@@ -257,6 +273,9 @@ import {
 } from '@genkit-ai/dev-local-vectorstore';
 import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 import * as z from 'zod';
+
+// Define the retriever reference
+export const bobFactRetriever = devLocalRetrieverRef('bob-facts');
 
 export const ragFlow = defineFlow(
   { name: 'ragFlow', input: z.string(), output: z.string() },
