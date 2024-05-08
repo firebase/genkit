@@ -7,11 +7,12 @@
 **Signature:**
 
 ```typescript
-declare function renderPrompt<I extends z__default.ZodTypeAny = z__default.ZodTypeAny, CustomOptions extends z__default.ZodTypeAny = z__default.ZodTypeAny>(params: {
+export declare function renderPrompt<I extends z.ZodTypeAny = z.ZodTypeAny, CustomOptions extends z.ZodTypeAny = z.ZodTypeAny>(params: {
     prompt: PromptArgument<I>;
-    input: z__default.infer<I>;
+    input: z.infer<I>;
+    context?: DocumentData[];
     model: ModelArgument<CustomOptions>;
-    config?: z__default.infer<CustomOptions>;
+    config?: z.infer<CustomOptions>;
 }): Promise<GenerateOptions>;
 ```
 
@@ -40,7 +41,7 @@ params
 
 </td><td>
 
-{ prompt: PromptArgument&lt;I&gt;; input: z\_\_default.infer&lt;I&gt;; model: ModelArgument&lt;CustomOptions&gt;; config?: z\_\_default.infer&lt;CustomOptions&gt;; }
+{ prompt: PromptArgument&lt;I&gt;; input: z.infer&lt;I&gt;; context?: DocumentData\[\]; model: ModelArgument&lt;CustomOptions&gt;; config?: z.infer&lt;CustomOptions&gt;; }
 
 
 </td><td>

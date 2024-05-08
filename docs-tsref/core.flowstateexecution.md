@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-type FlowStateExecution = z.infer<typeof FlowStateExecutionSchema>;
+export type FlowStateExecution = z.infer<typeof FlowStateExecutionSchema>;
 ```
 **References:** [FlowStateExecutionSchema](./core.flowstateexecutionschema.md)
 

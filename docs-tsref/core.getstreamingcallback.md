@@ -9,7 +9,7 @@ Retrieves the [StreamingCallback](./core.streamingcallback.md) previously set by
 **Signature:**
 
 ```typescript
-declare function getStreamingCallback<S>(): StreamingCallback<S> | undefined;
+export declare function getStreamingCallback<S>(): StreamingCallback<S> | undefined;
 ```
 **Returns:**
 

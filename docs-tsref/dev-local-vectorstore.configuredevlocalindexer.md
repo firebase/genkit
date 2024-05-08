@@ -9,11 +9,11 @@ Configures a local vectorstore indexer.
 **Signature:**
 
 ```typescript
-declare function configureDevLocalIndexer<EmbedderCustomOptions extends z.ZodTypeAny>(params: {
+export declare function configureDevLocalIndexer<EmbedderCustomOptions extends z.ZodTypeAny>(params: {
     indexName: string;
     embedder: EmbedderArgument<EmbedderCustomOptions>;
     embedderOptions?: z.infer<EmbedderCustomOptions>;
-}): _genkit_ai_ai_retriever.IndexerAction<z.ZodTypeAny>;
+}): import("@genkit-ai/ai/retriever").IndexerAction<z.ZodTypeAny>;
 ```
 
 ## Parameters
@@ -51,5 +51,5 @@ params
 </tbody></table>
 **Returns:**
 
-[\_genkit\_ai\_ai\_retriever.IndexerAction](./ai.indexeraction.md)<!-- -->&lt;z.ZodTypeAny&gt;
+import("@genkit-ai/ai/retriever").[IndexerAction](./ai.indexeraction.md)<!-- -->&lt;z.ZodTypeAny&gt;
 

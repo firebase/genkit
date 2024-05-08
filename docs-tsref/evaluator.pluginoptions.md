@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-interface PluginOptions<ModelCustomOptions extends z.ZodTypeAny, EmbedderCustomOptions extends z.ZodTypeAny> 
+export interface PluginOptions<ModelCustomOptions extends z.ZodTypeAny, EmbedderCustomOptions extends z.ZodTypeAny> 
 ```
 
 ## Properties

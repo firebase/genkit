@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-type FlowError = z.infer<typeof FlowErrorSchema>;
+export type FlowError = z.infer<typeof FlowErrorSchema>;
 ```
 **References:** [FlowErrorSchema](./core.flowerrorschema.md)
 

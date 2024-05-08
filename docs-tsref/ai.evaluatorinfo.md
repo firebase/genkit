@@ -7,5 +7,5 @@
 **Signature:**
 
 ```typescript
-type EvaluatorInfo = z.infer<typeof EvaluatorInfoSchema>;
+export type EvaluatorInfo = z.infer<typeof EvaluatorInfoSchema>;
 ```

@@ -15,7 +15,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 **Signature:**
 
 ```typescript
-declare enum GenkitMetric 
+export declare enum GenkitMetric 
 ```
 
 ## Enumeration Members

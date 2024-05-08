@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-type RetrieverAction<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> = Action<typeof RetrieverRequestSchema, typeof RetrieverResponseSchema, {
+export type RetrieverAction<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> = Action<typeof RetrieverRequestSchema, typeof RetrieverResponseSchema, {
     model: RetrieverInfo;
 }> & {
     __configSchema?: CustomOptions;

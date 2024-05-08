@@ -9,7 +9,7 @@ Whether current env is `dev`<!-- -->.
 **Signature:**
 
 ```typescript
-declare function isDevEnv(): boolean;
+export declare function isDevEnv(): boolean;
 ```
 **Returns:**
 

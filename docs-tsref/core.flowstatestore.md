@@ -9,7 +9,7 @@ Flow state store persistence interface.
 **Signature:**
 
 ```typescript
-interface FlowStateStore 
+export interface FlowStateStore 
 ```
 
 ## Methods

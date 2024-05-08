@@ -9,13 +9,13 @@ Configures a Pinecone retriever.
 **Signature:**
 
 ```typescript
-declare function configurePineconeRetriever<EmbedderCustomOptions extends z.ZodTypeAny>(params: {
+export declare function configurePineconeRetriever<EmbedderCustomOptions extends z.ZodTypeAny>(params: {
     indexId: string;
     clientParams?: PineconeConfiguration;
     textKey?: string;
     embedder: EmbedderArgument<EmbedderCustomOptions>;
     embedderOptions?: z.infer<EmbedderCustomOptions>;
-}): _genkit_ai_ai_retriever.RetrieverAction<z.ZodObject<{
+}): import("@genkit-ai/ai/retriever").RetrieverAction<z.ZodObject<{
     k: z.ZodNumber;
     namespace: z.ZodOptional<z.ZodString>;
     filter: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
@@ -89,5 +89,5 @@ params
 </tbody></table>
 **Returns:**
 
-[\_genkit\_ai\_ai\_retriever.RetrieverAction](./ai.retrieveraction.md)<!-- -->&lt;z.ZodObject&lt;{ k: z.ZodNumber; namespace: z.ZodOptional&lt;z.ZodString&gt;; filter: z.ZodOptional&lt;z.ZodRecord&lt;z.ZodString, z.ZodAny&gt;&gt;; sparseVector: z.ZodOptional&lt;z.ZodEffects&lt;z.ZodObject&lt;{ indices: z.ZodArray&lt;z.ZodNumber, "many"&gt;; values: z.ZodArray&lt;z.ZodNumber, "many"&gt;; }, "strip", z.ZodTypeAny, { indices: number\[\]; values: number\[\]; }, { indices: number\[\]; values: number\[\]; }&gt;, { indices: number\[\]; values: number\[\]; }, { indices: number\[\]; values: number\[\]; }&gt;&gt;; }, "strip", z.ZodTypeAny, { k: number; namespace?: string \| undefined; filter?: Record&lt;string, any&gt; \| undefined; sparseVector?: { indices: number\[\]; values: number\[\]; } \| undefined; }, { k: number; namespace?: string \| undefined; filter?: Record&lt;string, any&gt; \| undefined; sparseVector?: { indices: number\[\]; values: number\[\]; } \| undefined; }&gt;&gt;
+import("@genkit-ai/ai/retriever").[RetrieverAction](./ai.retrieveraction.md)<!-- -->&lt;z.ZodObject&lt;{ k: z.ZodNumber; namespace: z.ZodOptional&lt;z.ZodString&gt;; filter: z.ZodOptional&lt;z.ZodRecord&lt;z.ZodString, z.ZodAny&gt;&gt;; sparseVector: z.ZodOptional&lt;z.ZodEffects&lt;z.ZodObject&lt;{ indices: z.ZodArray&lt;z.ZodNumber, "many"&gt;; values: z.ZodArray&lt;z.ZodNumber, "many"&gt;; }, "strip", z.ZodTypeAny, { indices: number\[\]; values: number\[\]; }, { indices: number\[\]; values: number\[\]; }&gt;, { indices: number\[\]; values: number\[\]; }, { indices: number\[\]; values: number\[\]; }&gt;&gt;; }, "strip", z.ZodTypeAny, { k: number; namespace?: string \| undefined; filter?: Record&lt;string, any&gt; \| undefined; sparseVector?: { indices: number\[\]; values: number\[\]; } \| undefined; }, { k: number; namespace?: string \| undefined; filter?: Record&lt;string, any&gt; \| undefined; sparseVector?: { indices: number\[\]; values: number\[\]; } \| undefined; }&gt;&gt;
 

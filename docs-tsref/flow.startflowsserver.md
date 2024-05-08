@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-declare function startFlowsServer(params?: {
+export declare function startFlowsServer(params?: {
     flows?: Flow<any, any, any>[];
     port?: number;
     cors?: CorsOptions;

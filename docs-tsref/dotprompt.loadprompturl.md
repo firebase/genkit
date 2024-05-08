@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-declare function loadPromptUrl(name: string, url: string): Promise<Dotprompt>;
+export declare function loadPromptUrl(name: string, url: string): Promise<Dotprompt>;
 ```
 
 ## Parameters

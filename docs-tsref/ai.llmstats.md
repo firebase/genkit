@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-type LlmStats = z.infer<typeof LlmStatsSchema>;
+export type LlmStats = z.infer<typeof LlmStatsSchema>;
 ```
 **References:** [LlmStatsSchema](./ai.llmstatsschema.md)
 

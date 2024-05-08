@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-declare function asTool<I extends z__default.ZodTypeAny, O extends z__default.ZodTypeAny>(action: Action<I, O>): ToolAction<I, O>;
+export declare function asTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(action: Action<I, O>): ToolAction<I, O>;
 ```
 
 ## Parameters

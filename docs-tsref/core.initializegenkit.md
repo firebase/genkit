@@ -9,7 +9,7 @@ Locates `genkit.config.js` and loads the file so that the config can be register
 **Signature:**
 
 ```typescript
-declare function initializeGenkit(cfg?: Config): void;
+export declare function initializeGenkit(cfg?: Config): void;
 ```
 
 ## Parameters

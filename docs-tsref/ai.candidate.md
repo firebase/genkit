@@ -9,7 +9,7 @@ Candidate represents one of several possible generated responses from a generati
 **Signature:**
 
 ```typescript
-declare class Candidate<O = unknown> implements CandidateData 
+export declare class Candidate<O = unknown> implements CandidateData 
 ```
 **Implements:** CandidateData
 

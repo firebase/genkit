@@ -9,7 +9,7 @@ Helper function for deleting Chroma collections.
 **Signature:**
 
 ```typescript
-declare function deleteChromaCollection(params: {
+export declare function deleteChromaCollection(params: {
     name: string;
     clientParams?: ChromaClientParams;
 }): Promise<void>;

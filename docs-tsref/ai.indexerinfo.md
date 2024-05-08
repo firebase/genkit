@@ -7,5 +7,5 @@
 **Signature:**
 
 ```typescript
-type IndexerInfo = z.infer<typeof IndexerInfoSchema>;
+export type IndexerInfo = z.infer<typeof IndexerInfoSchema>;
 ```

@@ -9,7 +9,7 @@ Gets the auth object from the current context.
 **Signature:**
 
 ```typescript
-declare function getFlowAuth(): any;
+export declare function getFlowAuth(): any;
 ```
 **Returns:**
 

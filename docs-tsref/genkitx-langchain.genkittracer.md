@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-declare class GenkitTracer extends BaseTracer 
+export declare class GenkitTracer extends BaseTracer 
 ```
 **Extends:** BaseTracer
 
@@ -61,7 +61,7 @@ Description
 
 </td><td>
 
-Record&lt;string, Span&gt;
+Record&lt;string, ApiSpan&gt;
 
 
 </td><td>
@@ -78,7 +78,7 @@ Record&lt;string, Span&gt;
 
 </td><td>
 
-\_opentelemetry\_api.Tracer
+import("@opentelemetry/api").Tracer
 
 
 </td><td>

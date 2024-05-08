@@ -9,7 +9,7 @@ Provides a Winston {<!-- -->LoggerOptions<!-- -->} configuration for building a 
 **Signature:**
 
 ```typescript
-interface LoggerConfig 
+export interface LoggerConfig 
 ```
 
 ## Methods

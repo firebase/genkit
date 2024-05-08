@@ -9,7 +9,7 @@ GenerateResponse is the result from a `generate()` call and contains one or more
 **Signature:**
 
 ```typescript
-declare class GenerateResponse<O = unknown> implements GenerateResponseData 
+export declare class GenerateResponse<O = unknown> implements GenerateResponseData 
 ```
 **Implements:** GenerateResponseData
 

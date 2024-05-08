@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-declare function defineTool<I extends z__default.ZodTypeAny, O extends z__default.ZodTypeAny>({ name, description, inputSchema, inputJsonSchema, outputSchema, outputJsonSchema, metadata, }: {
+export declare function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>({ name, description, inputSchema, inputJsonSchema, outputSchema, outputJsonSchema, metadata, }: {
     name: string;
     description: string;
     inputSchema?: I;
@@ -15,7 +15,7 @@ declare function defineTool<I extends z__default.ZodTypeAny, O extends z__defaul
     outputSchema?: O;
     outputJsonSchema?: JSONSchema7;
     metadata?: Record<string, any>;
-}, fn: (input: z__default.infer<I>) => Promise<z__default.infer<O>>): ToolAction<I, O>;
+}, fn: (input: z.infer<I>) => Promise<z.infer<O>>): ToolAction<I, O>;
 ```
 
 ## Parameters
@@ -57,7 +57,7 @@ fn
 
 </td><td>
 
-(input: z\_\_default.infer&lt;I&gt;) =&gt; Promise&lt;z\_\_default.infer&lt;O&gt;&gt;
+(input: z.infer&lt;I&gt;) =&gt; Promise&lt;z.infer&lt;O&gt;&gt;
 
 
 </td><td>

@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-declare class Dotprompt<Variables = unknown> implements PromptMetadata 
+export declare class Dotprompt<Variables = unknown> implements PromptMetadata 
 ```
 **Implements:** PromptMetadata
 
@@ -369,7 +369,7 @@ Description
 </td></tr>
 <tr><td>
 
-[renderMessages(input)](./dotprompt.dotprompt.rendermessages.md)
+[renderMessages(input, context)](./dotprompt.dotprompt.rendermessages.md)
 
 
 </td><td>
@@ -381,7 +381,7 @@ Description
 </td></tr>
 <tr><td>
 
-[renderText(input)](./dotprompt.dotprompt.rendertext.md)
+[renderText(input, context)](./dotprompt.dotprompt.rendertext.md)
 
 
 </td><td>

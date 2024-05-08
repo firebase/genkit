@@ -10,7 +10,7 @@
 chromaIndexerRef: (params: {
     collectionName: string;
     displayName?: string;
-}) => _genkit_ai_ai_retriever.IndexerReference<z.ZodOptional<z.ZodOptional<z.ZodNull>>>
+}) => import("@genkit-ai/ai/retriever").IndexerReference<z.ZodOptional<z.ZodOptional<z.ZodNull>>>
 ```
 
 ## Parameters
@@ -48,5 +48,5 @@ params
 </tbody></table>
 **Returns:**
 
-[\_genkit\_ai\_ai\_retriever.IndexerReference](./ai.indexerreference.md)<!-- -->&lt;z.ZodOptional&lt;z.ZodOptional&lt;z.ZodNull&gt;&gt;&gt;
+import("@genkit-ai/ai/retriever").[IndexerReference](./ai.indexerreference.md)<!-- -->&lt;z.ZodOptional&lt;z.ZodOptional&lt;z.ZodNull&gt;&gt;&gt;
 

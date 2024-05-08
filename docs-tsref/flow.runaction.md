@@ -9,7 +9,7 @@ A flow steap that executes an action with provided input and memoizes the output
 **Signature:**
 
 ```typescript
-declare function runAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(action: Action<I, O>, input: z.infer<I>): Promise<z.infer<O>>;
+export declare function runAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(action: Action<I, O>, input: z.infer<I>): Promise<z.infer<O>>;
 ```
 
 ## Parameters

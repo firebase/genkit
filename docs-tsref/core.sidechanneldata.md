@@ -7,5 +7,5 @@
 **Signature:**
 
 ```typescript
-type SideChannelData = Record<string, any>;
+export type SideChannelData = Record<string, any>;
 ```

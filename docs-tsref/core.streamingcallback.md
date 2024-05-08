@@ -7,5 +7,5 @@
 **Signature:**
 
 ```typescript
-type StreamingCallback<T> = (chunk: T) => void;
+export type StreamingCallback<T> = (chunk: T) => void;
 ```

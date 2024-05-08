@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-type PromptAction<I extends z__default.ZodTypeAny = z__default.ZodTypeAny> = Action<I, typeof GenerateRequestSchema> & {
+export type PromptAction<I extends z.ZodTypeAny = z.ZodTypeAny> = Action<I, typeof GenerateRequestSchema> & {
     __action: {
         metadata: {
             type: 'prompt';

@@ -9,7 +9,7 @@ Helper method to configure a [IndexerReference](./ai.indexerreference.md) to a p
 **Signature:**
 
 ```typescript
-declare function indexerRef<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(options: IndexerReference<CustomOptionsSchema>): IndexerReference<CustomOptionsSchema>;
+export declare function indexerRef<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(options: IndexerReference<CustomOptionsSchema>): IndexerReference<CustomOptionsSchema>;
 ```
 
 ## Parameters

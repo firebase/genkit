@@ -10,7 +10,7 @@
 chromaRetrieverRef: (params: {
     collectionName: string;
     displayName?: string;
-}) => _genkit_ai_ai_retriever.RetrieverReference<z.ZodOptional<z.ZodObject<{
+}) => import("@genkit-ai/ai/retriever").RetrieverReference<z.ZodOptional<z.ZodObject<{
     k: z.ZodOptional<z.ZodNumber>;
     include: z.ZodOptional<z.ZodArray<z.ZodNativeEnum<typeof IncludeEnum>, "many">>;
     where: z.ZodOptional<z.ZodType<Where, z.ZodTypeDef, Where>>;
@@ -63,5 +63,5 @@ params
 </tbody></table>
 **Returns:**
 
-[\_genkit\_ai\_ai\_retriever.RetrieverReference](./ai.retrieverreference.md)<!-- -->&lt;z.ZodOptional&lt;z.ZodObject&lt;{ k: z.ZodOptional&lt;z.ZodNumber&gt;; include: z.ZodOptional&lt;z.ZodArray&lt;z.ZodNativeEnum&lt;typeof IncludeEnum&gt;, "many"&gt;&gt;; where: z.ZodOptional&lt;z.ZodType&lt;Where, z.ZodTypeDef, Where&gt;&gt;; whereDocument: z.ZodOptional&lt;z.ZodType&lt;WhereDocument, z.ZodTypeDef, WhereDocument&gt;&gt;; }, "strip", z.ZodTypeAny, { k?: number \| undefined; include?: IncludeEnum\[\] \| undefined; where?: Where \| undefined; whereDocument?: WhereDocument \| undefined; }, { k?: number \| undefined; include?: IncludeEnum\[\] \| undefined; where?: Where \| undefined; whereDocument?: WhereDocument \| undefined; }&gt;&gt;&gt;
+import("@genkit-ai/ai/retriever").[RetrieverReference](./ai.retrieverreference.md)<!-- -->&lt;z.ZodOptional&lt;z.ZodObject&lt;{ k: z.ZodOptional&lt;z.ZodNumber&gt;; include: z.ZodOptional&lt;z.ZodArray&lt;z.ZodNativeEnum&lt;typeof IncludeEnum&gt;, "many"&gt;&gt;; where: z.ZodOptional&lt;z.ZodType&lt;Where, z.ZodTypeDef, Where&gt;&gt;; whereDocument: z.ZodOptional&lt;z.ZodType&lt;WhereDocument, z.ZodTypeDef, WhereDocument&gt;&gt;; }, "strip", z.ZodTypeAny, { k?: number \| undefined; include?: IncludeEnum\[\] \| undefined; where?: Where \| undefined; whereDocument?: WhereDocument \| undefined; }, { k?: number \| undefined; include?: IncludeEnum\[\] \| undefined; where?: Where \| undefined; whereDocument?: WhereDocument \| undefined; }&gt;&gt;&gt;
 

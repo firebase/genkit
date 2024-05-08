@@ -9,7 +9,7 @@ Helper function for creating Chroma collections.
 **Signature:**
 
 ```typescript
-declare function createChromaCollection<EmbedderCustomOptions extends z.ZodTypeAny>(params: {
+export declare function createChromaCollection<EmbedderCustomOptions extends z.ZodTypeAny>(params: {
     name: string;
     clientParams?: ChromaClientParams;
     metadata?: CollectionMetadata;

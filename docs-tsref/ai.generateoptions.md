@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-interface GenerateOptions<O extends z.ZodTypeAny = z.ZodTypeAny, CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> 
+export interface GenerateOptions<O extends z.ZodTypeAny = z.ZodTypeAny, CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> 
 ```
 
 ## Properties
@@ -68,6 +68,25 @@ z.infer&lt;CustomOptions&gt;
 </td><td>
 
 _(Optional)_ Configuration for the generation request.
+
+
+</td></tr>
+<tr><td>
+
+[context?](./ai.generateoptions.context.md)
+
+
+</td><td>
+
+
+</td><td>
+
+DocumentData\[\]
+
+
+</td><td>
+
+_(Optional)_ Retrieved documents to be used as context for this generation.
 
 
 </td></tr>

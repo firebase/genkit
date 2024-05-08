@@ -9,7 +9,7 @@ Converts actions to tool definition sent to model inputs.
 **Signature:**
 
 ```typescript
-declare function toToolWireFormat(actions?: Action<any, any>[]): z.infer<typeof ToolSchema>[] | undefined;
+export declare function toToolWireFormat(actions?: Action<any, any>[]): z.infer<typeof ToolSchema>[] | undefined;
 ```
 
 ## Parameters

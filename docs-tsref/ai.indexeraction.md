@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-type IndexerAction<IndexerOptions extends z.ZodTypeAny = z.ZodTypeAny> = Action<typeof IndexerRequestSchema, z.ZodVoid> & {
+export type IndexerAction<IndexerOptions extends z.ZodTypeAny = z.ZodTypeAny> = Action<typeof IndexerRequestSchema, z.ZodVoid> & {
     __configSchema?: IndexerOptions;
 };
 ```

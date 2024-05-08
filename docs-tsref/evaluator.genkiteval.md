@@ -9,7 +9,7 @@ Genkit evaluation plugin that provides the RAG evaluators
 **Signature:**
 
 ```typescript
-declare function genkitEval<ModelCustomOptions extends z.ZodTypeAny, EmbedderCustomOptions extends z.ZodTypeAny>(params: PluginOptions<ModelCustomOptions, EmbedderCustomOptions>): PluginProvider;
+export declare function genkitEval<ModelCustomOptions extends z.ZodTypeAny, EmbedderCustomOptions extends z.ZodTypeAny>(params: PluginOptions<ModelCustomOptions, EmbedderCustomOptions>): PluginProvider;
 ```
 
 ## Parameters

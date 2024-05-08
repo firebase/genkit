@@ -7,14 +7,14 @@
 **Signature:**
 
 ```typescript
-claude3Haiku: ModelReference<zod.ZodObject<{
-    version: zod.ZodOptional<zod.ZodString>;
-    temperature: zod.ZodOptional<zod.ZodNumber>;
-    maxOutputTokens: zod.ZodOptional<zod.ZodNumber>;
-    topK: zod.ZodOptional<zod.ZodNumber>;
-    topP: zod.ZodOptional<zod.ZodNumber>;
-    stopSequences: zod.ZodOptional<zod.ZodArray<zod.ZodString, "many">>;
-}, "strip", zod.ZodTypeAny, {
+claude3Haiku: ModelReference<import("zod").ZodObject<{
+    version: import("zod").ZodOptional<import("zod").ZodString>;
+    temperature: import("zod").ZodOptional<import("zod").ZodNumber>;
+    maxOutputTokens: import("zod").ZodOptional<import("zod").ZodNumber>;
+    topK: import("zod").ZodOptional<import("zod").ZodNumber>;
+    topP: import("zod").ZodOptional<import("zod").ZodNumber>;
+    stopSequences: import("zod").ZodOptional<import("zod").ZodArray<import("zod").ZodString, "many">>;
+}, "strip", import("zod").ZodTypeAny, {
     version?: string | undefined;
     temperature?: number | undefined;
     maxOutputTokens?: number | undefined;

@@ -7,5 +7,5 @@
 **Signature:**
 
 ```typescript
-type RetrieverInfo = z.infer<typeof RetrieverInfoSchema>;
+export type RetrieverInfo = z.infer<typeof RetrieverInfoSchema>;
 ```

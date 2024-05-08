@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-renderText(input: Variables): string;
+renderText(input: Variables, context?: DocumentData[]): string;
 ```
 
 ## Parameters
@@ -39,6 +39,22 @@ Variables
 
 
 </td><td>
+
+
+</td></tr>
+<tr><td>
+
+context
+
+
+</td><td>
+
+DocumentData\[\]
+
+
+</td><td>
+
+_(Optional)_
 
 
 </td></tr>

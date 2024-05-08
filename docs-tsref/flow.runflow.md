@@ -9,7 +9,7 @@ Runs the flow. If the flow does not get interrupted may return a completed (done
 **Signature:**
 
 ```typescript
-declare function runFlow<I extends z.ZodTypeAny = z.ZodTypeAny, O extends z.ZodTypeAny = z.ZodTypeAny, S extends z.ZodTypeAny = z.ZodTypeAny>(flow: Flow<I, O, S> | FlowWrapper<I, O, S>, payload?: z.infer<I>, opts?: {
+export declare function runFlow<I extends z.ZodTypeAny = z.ZodTypeAny, O extends z.ZodTypeAny = z.ZodTypeAny, S extends z.ZodTypeAny = z.ZodTypeAny>(flow: Flow<I, O, S> | FlowWrapper<I, O, S>, payload?: z.infer<I>, opts?: {
     withLocalAuthContext?: unknown;
 }): Promise<z.infer<O>>;
 ```

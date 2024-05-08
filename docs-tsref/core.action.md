@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-type Action<I extends z.ZodTypeAny = z.ZodTypeAny, O extends z.ZodTypeAny = z.ZodTypeAny, M extends Record<string, any> = Record<string, any>> = ((input: z.infer<I>) => Promise<z.infer<O>>) & {
+export type Action<I extends z.ZodTypeAny = z.ZodTypeAny, O extends z.ZodTypeAny = z.ZodTypeAny, M extends Record<string, any> = Record<string, any>> = ((input: z.infer<I>) => Promise<z.infer<O>>) & {
     __action: ActionMetadata<I, O, M>;
 };
 ```

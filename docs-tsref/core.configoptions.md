@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-interface ConfigOptions 
+export interface ConfigOptions 
 ```
 
 ## Properties

@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-declare function getCurrentEnv(): string;
+export declare function getCurrentEnv(): string;
 ```
 **Returns:**
 

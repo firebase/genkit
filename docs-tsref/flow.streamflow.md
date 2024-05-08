@@ -9,7 +9,7 @@ Runs the flow and streams results. If the flow does not get interrupted may retu
 **Signature:**
 
 ```typescript
-declare function streamFlow<I extends z.ZodTypeAny = z.ZodTypeAny, O extends z.ZodTypeAny = z.ZodTypeAny, S extends z.ZodTypeAny = z.ZodTypeAny>(flow: Flow<I, O, S> | FlowWrapper<I, O, S>, payload?: z.infer<I>): StreamingResponse<O, S>;
+export declare function streamFlow<I extends z.ZodTypeAny = z.ZodTypeAny, O extends z.ZodTypeAny = z.ZodTypeAny, S extends z.ZodTypeAny = z.ZodTypeAny>(flow: Flow<I, O, S> | FlowWrapper<I, O, S>, payload?: z.infer<I>): StreamingResponse<O, S>;
 ```
 
 ## Parameters

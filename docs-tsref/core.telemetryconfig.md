@@ -9,7 +9,7 @@ Provides a {<!-- -->NodeSDKConfiguration<!-- -->} configuration for use with the
 **Signature:**
 
 ```typescript
-interface TelemetryConfig 
+export interface TelemetryConfig 
 ```
 
 ## Methods

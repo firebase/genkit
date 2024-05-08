@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-interface FlowWrapper<I extends z.ZodTypeAny = z.ZodTypeAny, O extends z.ZodTypeAny = z.ZodTypeAny, S extends z.ZodTypeAny = z.ZodTypeAny> 
+export interface FlowWrapper<I extends z.ZodTypeAny = z.ZodTypeAny, O extends z.ZodTypeAny = z.ZodTypeAny, S extends z.ZodTypeAny = z.ZodTypeAny> 
 ```
 
 ## Properties

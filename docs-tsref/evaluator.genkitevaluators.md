@@ -9,7 +9,7 @@ Configures a Genkit evaluator
 **Signature:**
 
 ```typescript
-declare function genkitEvaluators<ModelCustomOptions extends z.ZodTypeAny, EmbedderCustomOptions extends z.ZodTypeAny>(params: PluginOptions<ModelCustomOptions, EmbedderCustomOptions>): _genkit_ai_ai_evaluator.EvaluatorAction<z.ZodObject<{
+export declare function genkitEvaluators<ModelCustomOptions extends z.ZodTypeAny, EmbedderCustomOptions extends z.ZodTypeAny>(params: PluginOptions<ModelCustomOptions, EmbedderCustomOptions>): import("@genkit-ai/ai/evaluator").EvaluatorAction<z.ZodObject<{
     input: z.ZodUnknown;
     output: z.ZodOptional<z.ZodUnknown>;
     context: z.ZodOptional<z.ZodArray<z.ZodUnknown, "many">>;
@@ -68,5 +68,5 @@ params
 </tbody></table>
 **Returns:**
 
-[\_genkit\_ai\_ai\_evaluator.EvaluatorAction](./ai.evaluatoraction.md)<!-- -->&lt;z.ZodObject&lt;{ input: z.ZodUnknown; output: z.ZodOptional&lt;z.ZodUnknown&gt;; context: z.ZodOptional&lt;z.ZodArray&lt;z.ZodUnknown, "many"&gt;&gt;; reference: z.ZodOptional&lt;z.ZodUnknown&gt;; testCaseId: z.ZodOptional&lt;z.ZodString&gt;; traceIds: z.ZodOptional&lt;z.ZodArray&lt;z.ZodString, "many"&gt;&gt;; }, "strip", z.ZodTypeAny, { input?: unknown; output?: unknown; context?: unknown\[\] \| undefined; reference?: unknown; testCaseId?: string \| undefined; traceIds?: string\[\] \| undefined; }, { input?: unknown; output?: unknown; context?: unknown\[\] \| undefined; reference?: unknown; testCaseId?: string \| undefined; traceIds?: string\[\] \| undefined; }&gt;, z.ZodTypeAny&gt;\[\]
+import("@genkit-ai/ai/evaluator").[EvaluatorAction](./ai.evaluatoraction.md)<!-- -->&lt;z.ZodObject&lt;{ input: z.ZodUnknown; output: z.ZodOptional&lt;z.ZodUnknown&gt;; context: z.ZodOptional&lt;z.ZodArray&lt;z.ZodUnknown, "many"&gt;&gt;; reference: z.ZodOptional&lt;z.ZodUnknown&gt;; testCaseId: z.ZodOptional&lt;z.ZodString&gt;; traceIds: z.ZodOptional&lt;z.ZodArray&lt;z.ZodString, "many"&gt;&gt;; }, "strip", z.ZodTypeAny, { input?: unknown; output?: unknown; context?: unknown\[\] \| undefined; reference?: unknown; testCaseId?: string \| undefined; traceIds?: string\[\] \| undefined; }, { input?: unknown; output?: unknown; context?: unknown\[\] \| undefined; reference?: unknown; testCaseId?: string \| undefined; traceIds?: string\[\] \| undefined; }&gt;, z.ZodTypeAny&gt;\[\]
 

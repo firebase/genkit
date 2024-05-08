@@ -10,7 +10,7 @@
 pineconeIndexerRef: (params: {
     indexId: string;
     displayName?: string;
-}) => _genkit_ai_ai_retriever.IndexerReference<z.ZodOptional<z.ZodObject<{
+}) => import("@genkit-ai/ai/retriever").IndexerReference<z.ZodOptional<z.ZodObject<{
     namespace: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     namespace?: string | undefined;
@@ -54,5 +54,5 @@ params
 </tbody></table>
 **Returns:**
 
-[\_genkit\_ai\_ai\_retriever.IndexerReference](./ai.indexerreference.md)<!-- -->&lt;z.ZodOptional&lt;z.ZodObject&lt;{ namespace: z.ZodOptional&lt;z.ZodString&gt;; }, "strip", z.ZodTypeAny, { namespace?: string \| undefined; }, { namespace?: string \| undefined; }&gt;&gt;&gt;
+import("@genkit-ai/ai/retriever").[IndexerReference](./ai.indexerreference.md)<!-- -->&lt;z.ZodOptional&lt;z.ZodObject&lt;{ namespace: z.ZodOptional&lt;z.ZodString&gt;; }, "strip", z.ZodTypeAny, { namespace?: string \| undefined; }, { namespace?: string \| undefined; }&gt;&gt;&gt;
 

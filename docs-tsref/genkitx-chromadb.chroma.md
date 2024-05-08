@@ -9,7 +9,7 @@ Chroma plugin that provides the Chroma retriever and indexer
 **Signature:**
 
 ```typescript
-declare function chroma<EmbedderCustomOptions extends z.ZodTypeAny>(params: {
+export declare function chroma<EmbedderCustomOptions extends z.ZodTypeAny>(params: {
     clientParams?: ChromaClientParams;
     collectionName: string;
     createCollectionIfMissing?: boolean;

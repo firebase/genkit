@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-interface InitializedPlugin 
+export interface InitializedPlugin 
 ```
 
 ## Properties

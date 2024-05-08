@@ -9,7 +9,7 @@ Vertex AI Evaluation metrics. See API documentation for more information. https:
 **Signature:**
 
 ```typescript
-declare enum VertexAIEvaluationMetricType 
+export declare enum VertexAIEvaluationMetricType 
 ```
 
 ## Enumeration Members

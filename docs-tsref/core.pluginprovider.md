@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-interface PluginProvider 
+export interface PluginProvider 
 ```
 
 ## Properties

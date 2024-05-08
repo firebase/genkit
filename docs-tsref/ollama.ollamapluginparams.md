@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-interface OllamaPluginParams 
+export interface OllamaPluginParams 
 ```
 
 ## Properties

@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-declare function run<T>(name: string, func: () => Promise<T>): Promise<T>;
+export declare function run<T>(name: string, func: () => Promise<T>): Promise<T>;
 ```
 
 ## Parameters

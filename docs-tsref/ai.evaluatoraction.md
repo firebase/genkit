@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-type EvaluatorAction<DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema, CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> = Action<typeof EvalRequestSchema, typeof EvalResponsesSchema> & {
+export type EvaluatorAction<DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema, CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> = Action<typeof EvalRequestSchema, typeof EvalResponsesSchema> & {
     __dataPointType?: DataPoint;
     __configSchema?: CustomOptions;
 };

@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-interface RetrieverReference<CustomOptions extends z.ZodTypeAny> 
+export interface RetrieverReference<CustomOptions extends z.ZodTypeAny> 
 ```
 
 ## Properties

@@ -9,7 +9,7 @@ Helper method to configure a [RetrieverReference](./ai.retrieverreference.md) to
 **Signature:**
 
 ```typescript
-declare function retrieverRef<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(options: RetrieverReference<CustomOptionsSchema>): RetrieverReference<CustomOptionsSchema>;
+export declare function retrieverRef<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(options: RetrieverReference<CustomOptionsSchema>): RetrieverReference<CustomOptionsSchema>;
 ```
 
 ## Parameters

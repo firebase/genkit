@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-declare function definePrompt<I extends z__default.ZodTypeAny>({ name, description, inputSchema, inputJsonSchema, metadata, }: {
+export declare function definePrompt<I extends z.ZodTypeAny>({ name, description, inputSchema, inputJsonSchema, metadata, }: {
     name: string;
     description?: string;
     inputSchema?: I;

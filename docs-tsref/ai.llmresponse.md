@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-type LlmResponse = z.infer<typeof LlmResponseSchema>;
+export type LlmResponse = z.infer<typeof LlmResponseSchema>;
 ```
 **References:** [LlmResponseSchema](./ai.llmresponseschema.md)
 

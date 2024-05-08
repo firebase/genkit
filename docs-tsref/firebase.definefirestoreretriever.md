@@ -4,12 +4,12 @@
 
 ## defineFirestoreRetriever() function
 
-Define a retriever that uses vector similarity search to retrieve documents from Firestore. Yu must create a vector index on the associated field before you can perform nearest-neighbor search.
+Define a retriever that uses vector similarity search to retrieve documents from Firestore. You must create a vector index on the associated field before you can perform nearest-neighbor search.
 
 **Signature:**
 
 ```typescript
-declare function defineFirestoreRetriever(config: {
+export declare function defineFirestoreRetriever(config: {
     name: string;
     label?: string;
     firestore: Firestore;
@@ -19,10 +19,10 @@ declare function defineFirestoreRetriever(config: {
     contentField: string | ((snap: QueryDocumentSnapshot) => Part[]);
     distanceMeasure?: 'EUCLIDEAN' | 'COSINE' | 'DOT_PRODUCT';
     metadataFields?: string[] | ((snap: QueryDocumentSnapshot) => Record<string, any>);
-}): _genkit_ai_ai_retriever.RetrieverAction<z__default__default.ZodObject<{
-    where: z__default__default.ZodOptional<z__default__default.ZodRecord<z__default__default.ZodString, z__default__default.ZodAny>>;
-    limit: z__default__default.ZodNumber;
-}, "strip", z__default__default.ZodTypeAny, {
+}): import("@genkit-ai/ai/retriever").RetrieverAction<z.ZodObject<{
+    where: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodAny>>;
+    limit: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
     limit: number;
     where?: Record<string, any> | undefined;
 }, {
@@ -66,5 +66,5 @@ config
 </tbody></table>
 **Returns:**
 
-[\_genkit\_ai\_ai\_retriever.RetrieverAction](./ai.retrieveraction.md)<!-- -->&lt;z\_\_default\_\_default.ZodObject&lt;{ where: z\_\_default\_\_default.ZodOptional&lt;z\_\_default\_\_default.ZodRecord&lt;z\_\_default\_\_default.ZodString, z\_\_default\_\_default.ZodAny&gt;&gt;; limit: z\_\_default\_\_default.ZodNumber; }, "strip", z\_\_default\_\_default.ZodTypeAny, { limit: number; where?: Record&lt;string, any&gt; \| undefined; }, { limit: number; where?: Record&lt;string, any&gt; \| undefined; }&gt;&gt;
+import("@genkit-ai/ai/retriever").[RetrieverAction](./ai.retrieveraction.md)<!-- -->&lt;z.ZodObject&lt;{ where: z.ZodOptional&lt;z.ZodRecord&lt;z.ZodString, z.ZodAny&gt;&gt;; limit: z.ZodNumber; }, "strip", z.ZodTypeAny, { limit: number; where?: Record&lt;string, any&gt; \| undefined; }, { limit: number; where?: Record&lt;string, any&gt; \| undefined; }&gt;&gt;
 

@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-type Status = z.infer<typeof StatusSchema>;
+export type Status = z.infer<typeof StatusSchema>;
 ```
 **References:** [StatusSchema](./core.statusschema.md)
 

@@ -9,7 +9,7 @@ Executes provided function with streaming callback in async local storage which 
 **Signature:**
 
 ```typescript
-declare function runWithStreamingCallback<S, O>(streamingCallback: StreamingCallback<S> | undefined, fn: () => O): O;
+export declare function runWithStreamingCallback<S, O>(streamingCallback: StreamingCallback<S> | undefined, fn: () => O): O;
 ```
 
 ## Parameters

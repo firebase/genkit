@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-type Tool = z.infer<typeof ToolSchema>;
+export type Tool = z.infer<typeof ToolSchema>;
 ```
 **References:** [ToolSchema](./ai.toolschema.md)
 

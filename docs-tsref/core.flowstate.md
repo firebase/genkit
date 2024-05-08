@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-type FlowState = z.infer<typeof FlowStateSchema>;
+export type FlowState = z.infer<typeof FlowStateSchema>;
 ```
 **References:** [FlowStateSchema](./core.flowstateschema.md)
 

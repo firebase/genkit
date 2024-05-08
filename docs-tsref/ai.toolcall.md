@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-type ToolCall = z.infer<typeof ToolCallSchema>;
+export type ToolCall = z.infer<typeof ToolCallSchema>;
 ```
 **References:** [ToolCallSchema](./ai.toolcallschema.md)
 

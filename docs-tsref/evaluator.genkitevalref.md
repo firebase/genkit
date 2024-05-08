@@ -9,7 +9,7 @@ Reference to the Genkit evaluator for a specified metric
 **Signature:**
 
 ```typescript
-genkitEvalRef: (metric: GenkitMetric) => _genkit_ai_ai_evaluator.EvaluatorReference<z.ZodUndefined>
+genkitEvalRef: (metric: GenkitMetric) => import("@genkit-ai/ai/evaluator").EvaluatorReference<z.ZodUndefined>
 ```
 
 ## Parameters
@@ -47,5 +47,5 @@ metric
 </tbody></table>
 **Returns:**
 
-[\_genkit\_ai\_ai\_evaluator.EvaluatorReference](./ai.evaluatorreference.md)<!-- -->&lt;z.ZodUndefined&gt;
+import("@genkit-ai/ai/evaluator").[EvaluatorReference](./ai.evaluatorreference.md)<!-- -->&lt;z.ZodUndefined&gt;
 

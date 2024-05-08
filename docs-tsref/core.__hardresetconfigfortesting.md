@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-declare function __hardResetConfigForTesting(): void;
+export declare function __hardResetConfigForTesting(): void;
 ```
 **Returns:**
 

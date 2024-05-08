@@ -7,5 +7,5 @@
 **Signature:**
 
 ```typescript
-spans: Record<string, Span>;
+spans: Record<string, ApiSpan>;
 ```

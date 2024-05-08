@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-interface TelemetryConfig 
+export interface TelemetryConfig 
 ```
 
 ## Properties

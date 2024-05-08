@@ -9,59 +9,59 @@ The message format used by the flow task queue and control interface.
 **Signature:**
 
 ```typescript
-FlowInvokeEnvelopeMessageSchema: z$1.ZodObject<{
-    start: z$1.ZodOptional<z$1.ZodObject<{
-        input: z$1.ZodOptional<z$1.ZodUnknown>;
-        labels: z$1.ZodOptional<z$1.ZodRecord<z$1.ZodString, z$1.ZodString>>;
-    }, "strip", z$1.ZodTypeAny, {
+FlowInvokeEnvelopeMessageSchema: z.ZodObject<{
+    start: z.ZodOptional<z.ZodObject<{
+        input: z.ZodOptional<z.ZodUnknown>;
+        labels: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodString>>;
+    }, "strip", z.ZodTypeAny, {
         input?: unknown;
         labels?: Record<string, string> | undefined;
     }, {
         input?: unknown;
         labels?: Record<string, string> | undefined;
     }>>;
-    schedule: z$1.ZodOptional<z$1.ZodObject<{
-        input: z$1.ZodOptional<z$1.ZodUnknown>;
-        delay: z$1.ZodOptional<z$1.ZodNumber>;
-    }, "strip", z$1.ZodTypeAny, {
+    schedule: z.ZodOptional<z.ZodObject<{
+        input: z.ZodOptional<z.ZodUnknown>;
+        delay: z.ZodOptional<z.ZodNumber>;
+    }, "strip", z.ZodTypeAny, {
         input?: unknown;
         delay?: number | undefined;
     }, {
         input?: unknown;
         delay?: number | undefined;
     }>>;
-    runScheduled: z$1.ZodOptional<z$1.ZodObject<{
-        flowId: z$1.ZodString;
-    }, "strip", z$1.ZodTypeAny, {
+    runScheduled: z.ZodOptional<z.ZodObject<{
+        flowId: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
         flowId: string;
     }, {
         flowId: string;
     }>>;
-    retry: z$1.ZodOptional<z$1.ZodObject<{
-        flowId: z$1.ZodString;
-    }, "strip", z$1.ZodTypeAny, {
+    retry: z.ZodOptional<z.ZodObject<{
+        flowId: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
         flowId: string;
     }, {
         flowId: string;
     }>>;
-    resume: z$1.ZodOptional<z$1.ZodObject<{
-        flowId: z$1.ZodString;
-        payload: z$1.ZodOptional<z$1.ZodUnknown>;
-    }, "strip", z$1.ZodTypeAny, {
+    resume: z.ZodOptional<z.ZodObject<{
+        flowId: z.ZodString;
+        payload: z.ZodOptional<z.ZodUnknown>;
+    }, "strip", z.ZodTypeAny, {
         flowId: string;
         payload?: unknown;
     }, {
         flowId: string;
         payload?: unknown;
     }>>;
-    state: z$1.ZodOptional<z$1.ZodObject<{
-        flowId: z$1.ZodString;
-    }, "strip", z$1.ZodTypeAny, {
+    state: z.ZodOptional<z.ZodObject<{
+        flowId: z.ZodString;
+    }, "strip", z.ZodTypeAny, {
         flowId: string;
     }, {
         flowId: string;
     }>>;
-}, "strip", z$1.ZodTypeAny, {
+}, "strip", z.ZodTypeAny, {
     start?: {
         input?: unknown;
         labels?: Record<string, string> | undefined;

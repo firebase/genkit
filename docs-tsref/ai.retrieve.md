@@ -9,7 +9,7 @@ Retrieves documents from a [RetrieverAction](./ai.retrieveraction.md) based on t
 **Signature:**
 
 ```typescript
-declare function retrieve<CustomOptions extends z.ZodTypeAny>(params: RetrieverParams<CustomOptions>): Promise<Array<Document>>;
+export declare function retrieve<CustomOptions extends z.ZodTypeAny>(params: RetrieverParams<CustomOptions>): Promise<Array<Document>>;
 ```
 
 ## Parameters

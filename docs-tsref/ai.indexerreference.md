@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-interface IndexerReference<CustomOptions extends z.ZodTypeAny> 
+export interface IndexerReference<CustomOptions extends z.ZodTypeAny> 
 ```
 
 ## Properties

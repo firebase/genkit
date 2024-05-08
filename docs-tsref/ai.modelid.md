@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-type ModelId = z.infer<typeof ModelIdSchema>;
+export type ModelId = z.infer<typeof ModelIdSchema>;
 ```
 **References:** [ModelIdSchema](./ai.modelidschema.md)
 

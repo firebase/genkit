@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-type Plugin<T extends any[]> = (...args: T) => PluginProvider;
+export type Plugin<T extends any[]> = (...args: T) => PluginProvider;
 ```
 **References:** [PluginProvider](./core.pluginprovider.md)
 

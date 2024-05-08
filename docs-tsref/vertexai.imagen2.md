@@ -7,18 +7,18 @@
 **Signature:**
 
 ```typescript
-imagen2: _genkit_ai_ai_model.ModelReference<zod__default.ZodObject<{
-    maxOutputTokens: zod__default.ZodOptional<zod__default.ZodNumber>;
-    stopSequences: zod__default.ZodOptional<zod__default.ZodArray<zod__default.ZodString, "many">>;
-    temperature: zod__default.ZodOptional<zod__default.ZodNumber>;
-    topK: zod__default.ZodOptional<zod__default.ZodNumber>;
-    topP: zod__default.ZodOptional<zod__default.ZodNumber>;
-    version: zod__default.ZodOptional<zod__default.ZodString>;
-    language: zod__default.ZodOptional<zod__default.ZodEnum<["auto", "en", "es", "hi", "ja", "ko", "pt", "zh-TW", "zh", "zh-CN"]>>;
-    aspectRatio: zod__default.ZodOptional<zod__default.ZodEnum<["1:1", "9:16", "16:9"]>>;
-    negativePrompt: zod__default.ZodOptional<zod__default.ZodString>;
-    seed: zod__default.ZodOptional<zod__default.ZodNumber>;
-}, "strip", zod__default.ZodTypeAny, {
+imagen2: import("@genkit-ai/ai/model").ModelReference<z.ZodObject<{
+    maxOutputTokens: z.ZodOptional<z.ZodNumber>;
+    stopSequences: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+    temperature: z.ZodOptional<z.ZodNumber>;
+    topK: z.ZodOptional<z.ZodNumber>;
+    topP: z.ZodOptional<z.ZodNumber>;
+    version: z.ZodOptional<z.ZodString>;
+    language: z.ZodOptional<z.ZodEnum<["auto", "en", "es", "hi", "ja", "ko", "pt", "zh-TW", "zh", "zh-CN"]>>;
+    aspectRatio: z.ZodOptional<z.ZodEnum<["1:1", "9:16", "16:9"]>>;
+    negativePrompt: z.ZodOptional<z.ZodString>;
+    seed: z.ZodOptional<z.ZodNumber>;
+}, "strip", z.ZodTypeAny, {
     maxOutputTokens?: number | undefined;
     stopSequences?: string[] | undefined;
     temperature?: number | undefined;

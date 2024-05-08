@@ -24,14 +24,6 @@ Description
 
 </td><td>
 
-Copyright 2024 Google LLC
-
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
-
 
 </td></tr>
 </tbody></table>
@@ -55,14 +47,6 @@ Description
 
 
 </td><td>
-
-Copyright 2024 Google LLC
-
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 
 
 </td></tr>
@@ -97,6 +81,17 @@ Description
 
 </td><td>
 
+Creates an action with the provided config.
+
+
+</td></tr>
+<tr><td>
+
+[actionWithMiddleware(action, middleware)](./core.actionwithmiddleware.md)
+
+
+</td><td>
+
 
 </td></tr>
 <tr><td>
@@ -112,10 +107,23 @@ Configures Genkit with a set of options. This should be called from `genkit.conf
 </td></tr>
 <tr><td>
 
+[defineAction(config, fn)](./core.defineaction.md)
+
+
+</td><td>
+
+Defines an action with the given config and registers it in the registry.
+
+
+</td></tr>
+<tr><td>
+
 [genkitPlugin(pluginName, initFn)](./core.genkitplugin.md)
 
 
 </td><td>
+
+Defines a Genkit plugin.
 
 
 </td></tr>
@@ -194,14 +202,6 @@ Description
 
 </td><td>
 
-Copyright 2024 Google LLC
-
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
-
 
 </td></tr>
 <tr><td>
@@ -219,14 +219,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 
 
 </td><td>
-
-Copyright 2024 Google LLC
-
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 
 
 </td></tr>
@@ -272,6 +264,15 @@ Provides a Winston {<!-- -->LoggerOptions<!-- -->} configuration for building a 
 </td></tr>
 <tr><td>
 
+[Middleware](./core.middleware.md)
+
+
+</td><td>
+
+
+</td></tr>
+<tr><td>
+
 [PluginProvider](./core.pluginprovider.md)
 
 
@@ -285,14 +286,6 @@ Provides a Winston {<!-- -->LoggerOptions<!-- -->} configuration for building a 
 
 
 </td><td>
-
-Copyright 2024 Google LLC
-
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 
 
 </td></tr>
@@ -339,14 +332,6 @@ Description
 
 
 </td><td>
-
-Copyright 2024 Google LLC
-
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the License. You may obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.
 
 
 </td></tr>

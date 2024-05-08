@@ -9,7 +9,7 @@ Configures Genkit with a set of options. This should be called from `genkit.conf
 **Signature:**
 
 ```typescript
-declare function configureGenkit(options: ConfigOptions): Config;
+export declare function configureGenkit(options: ConfigOptions): Config;
 ```
 
 ## Parameters

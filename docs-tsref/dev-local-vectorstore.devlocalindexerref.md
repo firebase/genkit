@@ -9,7 +9,7 @@ Local file-based indexer reference
 **Signature:**
 
 ```typescript
-declare function devLocalIndexerRef(indexName: string): _genkit_ai_ai_retriever.IndexerReference<z.ZodOptional<z.ZodNull>>;
+export declare function devLocalIndexerRef(indexName: string): import("@genkit-ai/ai/retriever").IndexerReference<z.ZodOptional<z.ZodNull>>;
 ```
 
 ## Parameters
@@ -47,5 +47,5 @@ string
 </tbody></table>
 **Returns:**
 
-[\_genkit\_ai\_ai\_retriever.IndexerReference](./ai.indexerreference.md)<!-- -->&lt;z.ZodOptional&lt;z.ZodNull&gt;&gt;
+import("@genkit-ai/ai/retriever").[IndexerReference](./ai.indexerreference.md)<!-- -->&lt;z.ZodOptional&lt;z.ZodNull&gt;&gt;
 

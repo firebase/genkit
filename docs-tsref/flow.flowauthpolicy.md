@@ -9,5 +9,5 @@ Flow Auth policy. Consumes the authorization context of the flow and performs ch
 **Signature:**
 
 ```typescript
-interface FlowAuthPolicy<I extends z.ZodTypeAny = z.ZodTypeAny> 
+export interface FlowAuthPolicy<I extends z.ZodTypeAny = z.ZodTypeAny> 
 ```

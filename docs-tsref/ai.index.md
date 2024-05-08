@@ -9,7 +9,7 @@ Indexes documents using a [IndexerAction](./ai.indexeraction.md) or a .
 **Signature:**
 
 ```typescript
-declare function index<IndexerOptions extends z.ZodTypeAny>(params: {
+export declare function index<IndexerOptions extends z.ZodTypeAny>(params: {
     indexer: IndexerArgument<IndexerOptions>;
     documents: Array<DocumentData>;
     options?: z.infer<IndexerOptions>;

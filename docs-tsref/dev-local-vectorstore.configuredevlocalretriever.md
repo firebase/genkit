@@ -9,11 +9,11 @@ Configures a local vectorstore retriever
 **Signature:**
 
 ```typescript
-declare function configureDevLocalRetriever<EmbedderCustomOptions extends z.ZodTypeAny>(params: {
+export declare function configureDevLocalRetriever<EmbedderCustomOptions extends z.ZodTypeAny>(params: {
     indexName: string;
     embedder: EmbedderArgument<EmbedderCustomOptions>;
     embedderOptions?: z.infer<EmbedderCustomOptions>;
-}): _genkit_ai_ai_retriever.RetrieverAction<z.ZodObject<{
+}): import("@genkit-ai/ai/retriever").RetrieverAction<z.ZodObject<{
     k: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     k?: number | undefined;
@@ -57,5 +57,5 @@ params
 </tbody></table>
 **Returns:**
 
-[\_genkit\_ai\_ai\_retriever.RetrieverAction](./ai.retrieveraction.md)<!-- -->&lt;z.ZodObject&lt;{ k: z.ZodOptional&lt;z.ZodNumber&gt;; }, "strip", z.ZodTypeAny, { k?: number \| undefined; }, { k?: number \| undefined; }&gt;&gt;
+import("@genkit-ai/ai/retriever").[RetrieverAction](./ai.retrieveraction.md)<!-- -->&lt;z.ZodObject&lt;{ k: z.ZodOptional&lt;z.ZodNumber&gt;; }, "strip", z.ZodTypeAny, { k?: number \| undefined; }, { k?: number \| undefined; }&gt;&gt;
 

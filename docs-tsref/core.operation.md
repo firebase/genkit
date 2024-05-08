@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-type Operation = z.infer<typeof OperationSchema>;
+export type Operation = z.infer<typeof OperationSchema>;
 ```
 **References:** [OperationSchema](./core.operationschema.md)
 

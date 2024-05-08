@@ -11,7 +11,7 @@ NOT INTENDED FOR USE IN PRODUCTION
 **Signature:**
 
 ```typescript
-declare function devLocalVectorstore<EmbedderCustomOptions extends z.ZodTypeAny>(params: Params<EmbedderCustomOptions>[]): PluginProvider;
+export declare function devLocalVectorstore<EmbedderCustomOptions extends z.ZodTypeAny>(params: Params<EmbedderCustomOptions>[]): PluginProvider;
 ```
 
 ## Parameters

@@ -32,6 +32,7 @@ js/samples/cat-eval/__db*.json
 
 # Doc build files
 apitemp
+dts
 
 # Test files
 last_recording.mp4

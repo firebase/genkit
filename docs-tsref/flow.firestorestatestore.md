@@ -9,7 +9,7 @@ Implementation of flow state store that persistes flow state in Firestore.
 **Signature:**
 
 ```typescript
-declare class FirestoreStateStore implements FlowStateStore 
+export declare class FirestoreStateStore implements FlowStateStore 
 ```
 **Implements:** [FlowStateStore](./core.flowstatestore.md)
 

@@ -9,7 +9,7 @@ Message represents a single role's contribution to a generation. Each message ca
 **Signature:**
 
 ```typescript
-declare class Message<T = unknown> implements MessageData 
+export declare class Message<T = unknown> implements MessageData 
 ```
 **Implements:** MessageData
 

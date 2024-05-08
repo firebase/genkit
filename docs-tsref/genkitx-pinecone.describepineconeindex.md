@@ -9,10 +9,10 @@ Helper function to describe a Pinecone index. Use it to check if a newly created
 **Signature:**
 
 ```typescript
-declare function describePineconeIndex(params: {
+export declare function describePineconeIndex(params: {
     clientParams?: PineconeConfiguration;
     name: string;
-}): Promise<_pinecone_database_pinecone.IndexModel>;
+}): Promise<import("@pinecone-database/pinecone").IndexModel>;
 ```
 
 ## Parameters
@@ -50,5 +50,5 @@ params
 </tbody></table>
 **Returns:**
 
-Promise&lt;\_pinecone\_database\_pinecone.IndexModel&gt;
+Promise&lt;import("@pinecone-database/pinecone").IndexModel&gt;
 

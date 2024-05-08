@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-type FlowInvokeEnvelopeMessage = z$1.infer<typeof FlowInvokeEnvelopeMessageSchema>;
+export type FlowInvokeEnvelopeMessage = z.infer<typeof FlowInvokeEnvelopeMessageSchema>;
 ```
 **References:** [FlowInvokeEnvelopeMessageSchema](./flow.flowinvokeenvelopemessageschema.md)
 

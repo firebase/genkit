@@ -9,7 +9,7 @@ Options for configuring the Open-Telemetry export configuration as part of a Gen
 **Signature:**
 
 ```typescript
-interface TelemetryOptions 
+export interface TelemetryOptions 
 ```
 
 ## Properties

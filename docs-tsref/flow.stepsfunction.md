@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-type StepsFunction<I extends z.ZodTypeAny = z.ZodTypeAny, O extends z.ZodTypeAny = z.ZodTypeAny, S extends z.ZodTypeAny = z.ZodTypeAny> = (input: z.infer<I>, streamingCallback: StreamingCallback<z.infer<S>> | undefined) => Promise<z.infer<O>>;
+export type StepsFunction<I extends z.ZodTypeAny = z.ZodTypeAny, O extends z.ZodTypeAny = z.ZodTypeAny, S extends z.ZodTypeAny = z.ZodTypeAny> = (input: z.infer<I>, streamingCallback: StreamingCallback<z.infer<S>> | undefined) => Promise<z.infer<O>>;
 ```
 **References:** [StreamingCallback](./core.streamingcallback.md)
 

@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-type GenerateStreamOptions<O extends z.ZodTypeAny = z.ZodTypeAny, CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema> = Omit<GenerateOptions<O, CustomOptions>, 'streamingCallback'>;
+export type GenerateStreamOptions<O extends z.ZodTypeAny = z.ZodTypeAny, CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema> = Omit<GenerateOptions<O, CustomOptions>, 'streamingCallback'>;
 ```
 **References:** [GenerateOptions](./ai.generateoptions.md)
 

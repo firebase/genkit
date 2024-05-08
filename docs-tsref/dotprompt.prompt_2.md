@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-declare function prompt<Variables = unknown>(name: string, options?: {
+export declare function prompt<Variables = unknown>(name: string, options?: {
     variant?: string;
 }): Promise<Dotprompt<Variables>>;
 ```

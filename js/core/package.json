@@ -16,8 +16,9 @@
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
     "test": "node --import tsx --test tests/*_test.ts tests/**/*_test.ts",
+    "extractapi:emitdts": "tsc --noEmit false --declaration --emitDeclarationOnly --outDir dts",
     "extractapi:run": "api-extractor run --local --verbose",
-    "extractapi": "npm-run-all compile extractapi:run"
+    "extractapi": "npm-run-all extractapi:emitdts extractapi:run"
   },
   "repository": {
     "type": "git",
@@ -31,6 +32,7 @@
     "@google-cloud/monitoring": "^4.0.0",
     "@google-cloud/opentelemetry-cloud-monitoring-exporter": "^0.17.0",
     "@google-cloud/trace-agent": "^7.1.2",
+    "@microsoft/api-extractor": "^7.43.1",
     "@opentelemetry/api": "^1.7.0",
     "@opentelemetry/context-async-hooks": "^1.20.0",
     "@opentelemetry/core": "^1.22.0",

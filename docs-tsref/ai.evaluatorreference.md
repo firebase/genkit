@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-interface EvaluatorReference<CustomOptions extends z.ZodTypeAny> 
+export interface EvaluatorReference<CustomOptions extends z.ZodTypeAny> 
 ```
 
 ## Properties

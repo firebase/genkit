@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-declare function toGenerateRequest(prompt: GenerateOptions): Promise<GenerateRequest>;
+export declare function toGenerateRequest(options: GenerateOptions): Promise<GenerateRequest>;
 ```
 
 ## Parameters
@@ -30,7 +30,7 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
-prompt
+options
 
 
 </td><td>

@@ -9,7 +9,7 @@ A veneer for interacting with evaluators.
 **Signature:**
 
 ```typescript
-declare function evaluate<DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema, EvaluatorOptions extends z.ZodTypeAny = z.ZodTypeAny>(params: {
+export declare function evaluate<DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema, EvaluatorOptions extends z.ZodTypeAny = z.ZodTypeAny>(params: {
     evaluator: EvaluatorArgument<DataPoint, EvaluatorOptions>;
     dataset: Dataset<DataPoint>;
     options?: z.infer<EvaluatorOptions>;

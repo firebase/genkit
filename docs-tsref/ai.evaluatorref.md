@@ -9,7 +9,7 @@ Helper method to configure a [EvaluatorReference](./ai.evaluatorreference.md) to
 **Signature:**
 
 ```typescript
-declare function evaluatorRef<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(options: EvaluatorReference<CustomOptionsSchema>): EvaluatorReference<CustomOptionsSchema>;
+export declare function evaluatorRef<CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny>(options: EvaluatorReference<CustomOptionsSchema>): EvaluatorReference<CustomOptionsSchema>;
 ```
 
 ## Parameters

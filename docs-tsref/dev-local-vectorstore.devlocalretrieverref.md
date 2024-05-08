@@ -9,7 +9,7 @@ Local file-based vectorstore retriever reference
 **Signature:**
 
 ```typescript
-declare function devLocalRetrieverRef(indexName: string): _genkit_ai_ai_retriever.RetrieverReference<z.ZodOptional<z.ZodObject<{
+export declare function devLocalRetrieverRef(indexName: string): import("@genkit-ai/ai/retriever").RetrieverReference<z.ZodOptional<z.ZodObject<{
     k: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     k?: number | undefined;
@@ -53,5 +53,5 @@ string
 </tbody></table>
 **Returns:**
 
-[\_genkit\_ai\_ai\_retriever.RetrieverReference](./ai.retrieverreference.md)<!-- -->&lt;z.ZodOptional&lt;z.ZodObject&lt;{ k: z.ZodOptional&lt;z.ZodNumber&gt;; }, "strip", z.ZodTypeAny, { k?: number \| undefined; }, { k?: number \| undefined; }&gt;&gt;&gt;
+import("@genkit-ai/ai/retriever").[RetrieverReference](./ai.retrieverreference.md)<!-- -->&lt;z.ZodOptional&lt;z.ZodObject&lt;{ k: z.ZodOptional&lt;z.ZodNumber&gt;; }, "strip", z.ZodTypeAny, { k?: number \| undefined; }, { k?: number \| undefined; }&gt;&gt;&gt;
 

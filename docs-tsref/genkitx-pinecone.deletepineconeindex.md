@@ -9,7 +9,7 @@ Helper function for deleting Chroma collections.
 **Signature:**
 
 ```typescript
-declare function deletePineconeIndex(params: {
+export declare function deletePineconeIndex(params: {
     clientParams?: PineconeConfiguration;
     name: string;
 }): Promise<void>;

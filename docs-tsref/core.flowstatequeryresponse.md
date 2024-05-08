@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-interface FlowStateQueryResponse 
+export interface FlowStateQueryResponse 
 ```
 
 ## Properties

@@ -16,8 +16,9 @@
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
     "test": "node --import tsx --test ./tests/**/*_test.ts",
+    "extractapi:emitdts": "tsc --noEmit false --declaration --emitDeclarationOnly --outDir dts",
     "extractapi:run": "api-extractor run --local --verbose",
-    "extractapi": "npm-run-all compile extractapi:run"
+    "extractapi": "npm-run-all extractapi:emitdts extractapi:run"
   },
   "repository": {
     "type": "git",

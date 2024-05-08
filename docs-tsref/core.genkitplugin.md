@@ -4,10 +4,12 @@
 
 ## genkitPlugin() function
 
+Defines a Genkit plugin.
+
 **Signature:**
 
 ```typescript
-declare function genkitPlugin<T extends PluginInit>(pluginName: string, initFn: T): Plugin<Parameters<T>>;
+export declare function genkitPlugin<T extends PluginInit>(pluginName: string, initFn: T): Plugin<Parameters<T>>;
 ```
 
 ## Parameters

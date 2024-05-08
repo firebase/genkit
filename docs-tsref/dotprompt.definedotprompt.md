@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-declare function defineDotprompt<V extends z.ZodTypeAny = z.ZodTypeAny>(options: PromptMetadata<V>, template: string): Dotprompt<z.infer<V>>;
+export declare function defineDotprompt<V extends z.ZodTypeAny = z.ZodTypeAny>(options: PromptMetadata<V>, template: string): Dotprompt<z.infer<V>>;
 ```
 
 ## Parameters

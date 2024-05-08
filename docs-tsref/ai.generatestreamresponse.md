@@ -7,7 +7,7 @@
 **Signature:**
 
 ```typescript
-interface GenerateStreamResponse<O extends z.ZodTypeAny = z.ZodTypeAny> 
+export interface GenerateStreamResponse<O extends z.ZodTypeAny = z.ZodTypeAny> 
 ```
 
 ## Properties

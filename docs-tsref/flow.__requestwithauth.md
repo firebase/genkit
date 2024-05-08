@@ -9,7 +9,7 @@ For express-based flows, req.auth should contain the value to bepassed into the 
 **Signature:**
 
 ```typescript
-interface __RequestWithAuth extends express.Request 
+export interface __RequestWithAuth extends express.Request 
 ```
 **Extends:** express.Request
 

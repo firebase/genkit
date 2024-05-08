@@ -9,14 +9,14 @@ Configures a Chroma indexer.
 **Signature:**
 
 ```typescript
-declare function chromaIndexer<EmbedderCustomOptions extends z.ZodTypeAny>(params: {
+export declare function chromaIndexer<EmbedderCustomOptions extends z.ZodTypeAny>(params: {
     clientParams?: ChromaClientParams;
     collectionName: string;
     textKey?: string;
     createCollectionIfMissing?: boolean;
     embedder: EmbedderArgument<EmbedderCustomOptions>;
     embedderOptions?: z.infer<EmbedderCustomOptions>;
-}): _genkit_ai_ai_retriever.IndexerAction<z.ZodOptional<z.ZodNull>>;
+}): import("@genkit-ai/ai/retriever").IndexerAction<z.ZodOptional<z.ZodNull>>;
 ```
 
 ## Parameters
@@ -54,5 +54,5 @@ params
 </tbody></table>
 **Returns:**
 
-[\_genkit\_ai\_ai\_retriever.IndexerAction](./ai.indexeraction.md)<!-- -->&lt;z.ZodOptional&lt;z.ZodNull&gt;&gt;
+import("@genkit-ai/ai/retriever").[IndexerAction](./ai.indexeraction.md)<!-- -->&lt;z.ZodOptional&lt;z.ZodNull&gt;&gt;
 

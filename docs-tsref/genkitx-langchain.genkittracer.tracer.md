@@ -7,5 +7,5 @@
 **Signature:**
 
 ```typescript
-tracer: _opentelemetry_api.Tracer;
+tracer: import("@opentelemetry/api").Tracer;
 ```

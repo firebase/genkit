@@ -9,7 +9,7 @@ Defines the flow.
 **Signature:**
 
 ```typescript
-declare function defineFlow<I extends z.ZodTypeAny = z.ZodTypeAny, O extends z.ZodTypeAny = z.ZodTypeAny, S extends z.ZodTypeAny = z.ZodTypeAny>(config: {
+export declare function defineFlow<I extends z.ZodTypeAny = z.ZodTypeAny, O extends z.ZodTypeAny = z.ZodTypeAny, S extends z.ZodTypeAny = z.ZodTypeAny>(config: {
     name: string;
     inputSchema?: I;
     outputSchema?: O;

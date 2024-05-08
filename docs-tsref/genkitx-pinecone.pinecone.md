@@ -9,7 +9,7 @@ Pinecone plugin that provides a pinecone retriever and indexer
 **Signature:**
 
 ```typescript
-declare function pinecone<EmbedderCustomOptions extends z.ZodTypeAny>(params: {
+export declare function pinecone<EmbedderCustomOptions extends z.ZodTypeAny>(params: {
     clientParams?: PineconeConfiguration;
     indexId: string;
     embedder: EmbedderArgument<EmbedderCustomOptions>;

@@ -9,10 +9,10 @@ Helper function for creating a Pinecone index.
 **Signature:**
 
 ```typescript
-declare function createPineconeIndex(params: {
+export declare function createPineconeIndex(params: {
     clientParams?: PineconeConfiguration;
     options: CreateIndexOptions;
-}): Promise<void | _pinecone_database_pinecone.IndexModel>;
+}): Promise<void | import("@pinecone-database/pinecone").IndexModel>;
 ```
 
 ## Parameters
@@ -50,5 +50,5 @@ params
 </tbody></table>
 **Returns:**
 
-Promise&lt;void \| \_pinecone\_database\_pinecone.IndexModel&gt;
+Promise&lt;void \| import("@pinecone-database/pinecone").IndexModel&gt;
 
