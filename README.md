@@ -41,7 +41,7 @@ genkit eval:flow myAiWorkflow --input testQuestions.json
 
 ### Extensibility with plugins
 
-**Access pre-built components and integrations** for models, vector stores, tools, evaluators, observability, and more through Genkit’s open ecosystem of plugins built by Google and the community. To see this in action, you can explore Node.js plugins on [NPM](https://www.npmjs.com/search?q=keywords:genkit-plugin).
+**Make use of pre-built components and integrations** for models, vector stores, tools, evaluators, observability, and more through Genkit’s open ecosystem of plugins built by Google and the community. To see this in action, you can explore Node.js plugins on [NPM](https://www.npmjs.com/search?q=keywords:genkit-plugin).
 
 You can also use this extensibility to easily define custom components whenever existing plugins don’t fit your needs.
 
