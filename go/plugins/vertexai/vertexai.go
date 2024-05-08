@@ -31,7 +31,10 @@ type generator struct {
 	client *genai.Client
 }
 
-func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, _ genkit.NoStream) (*ai.GenerateResponse, error) {
+func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb genkit.StreamingCallback[*ai.Candidate]) (*ai.GenerateResponse, error) {
+	if cb != nil {
+		panic("streaming not supported yet") // TODO: streaming
+	}
 	gm := g.client.GenerativeModel(g.model)
 
 	// Translate from a ai.GenerateRequest to a genai request.

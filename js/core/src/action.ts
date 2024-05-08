@@ -18,9 +18,14 @@ import { JSONSchema7 } from 'json-schema';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { performance } from 'node:perf_hooks';
 import * as z from 'zod';
+import { ActionType, lookupPlugin, registerAction } from './registry.js';
 import { parseSchema } from './schema.js';
 import * as telemetry from './telemetry.js';
-import { runInNewSpan, SPAN_TYPE_ATTR } from './tracing.js';
+import {
+  SPAN_TYPE_ATTR,
+  runInNewSpan,
+  setCustomMetadataAttributes,
+} from './tracing.js';
 
 export { Status, StatusCodes, StatusSchema } from './statusTypes.js';
 export { JSONSchema7 };
@@ -30,6 +35,7 @@ export interface ActionMetadata<
   O extends z.ZodTypeAny,
   M extends Record<string, any> = Record<string, any>,
 > {
+  actionType?: ActionType;
   name: string;
   description?: string;
   inputSchema?: I;
@@ -49,25 +55,72 @@ export type Action<
 
 export type SideChannelData = Record<string, any>;
 
+type ActionParams<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  M extends Record<string, any> = Record<string, any>,
+> = {
+  name:
+    | string
+    | {
+        pluginId: string;
+        actionId: string;
+      };
+  description?: string;
+  inputSchema?: I;
+  inputJsonSchema?: JSONSchema7;
+  outputSchema?: O;
+  outputJsonSchema?: JSONSchema7;
+  metadata?: M;
+  use?: Middleware<z.infer<I>, z.infer<O>>[];
+};
+
+export interface Middleware<I = any, O = any> {
+  (req: I, next: (req?: I) => Promise<O>): Promise<O>;
+}
+
+export function actionWithMiddleware<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  M extends Record<string, any> = Record<string, any>,
+>(
+  action: Action<I, O, M>,
+  middleware: Middleware<z.infer<I>, z.infer<O>>[]
+): Action<I, O, M> {
+  const wrapped = (async (req: z.infer<I>) => {
+    const dispatch = async (index: number, req: z.infer<I>) => {
+      if (index === middleware.length) {
+        // end of the chain, call the original model action
+        return await action(req);
+      }
+
+      const currentMiddleware = middleware[index];
+      return currentMiddleware(req, async (modifiedReq) =>
+        dispatch(index + 1, modifiedReq || req)
+      );
+    };
+
+    return await dispatch(0, req);
+  }) as Action<I, O, M>;
+  wrapped.__action = action.__action;
+  return wrapped;
+}
+
 /**
- *
+ * Creates an action with the provided config.
  */
 export function action<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
   M extends Record<string, any> = Record<string, any>,
 >(
-  config: {
-    name: string;
-    description?: string;
-    inputSchema?: I;
-    inputJsonSchema?: JSONSchema7;
-    outputSchema?: O;
-    outputJsonSchema?: JSONSchema7;
-    metadata?: M;
-  },
+  config: ActionParams<I, O, M>,
   fn: (input: z.infer<I>) => Promise<z.infer<O>>
 ): Action<I, O> {
+  const actionName =
+    typeof config.name === 'string'
+      ? validateActionName(config.name)
+      : `${validatePluginName(config.name.pluginId)}/${validateActionId(config.name.actionId)}`;
   const actionFn = async (input: I) => {
     input = parseSchema(input, {
       schema: config.inputSchema,
@@ -76,14 +129,14 @@ export function action<
     let output = await runInNewSpan(
       {
         metadata: {
-          name: config.name,
+          name: actionName,
         },
         labels: {
           [SPAN_TYPE_ATTR]: 'action',
         },
       },
       async (metadata) => {
-        metadata.name = config.name;
+        metadata.name = actionName;
         metadata.input = input;
         const startTimeMs = performance.now();
         try {
@@ -111,15 +164,65 @@ export function action<
     return output;
   };
   actionFn.__action = {
-    name: config.name,
+    name: actionName,
     description: config.description,
     inputSchema: config.inputSchema,
     inputJsonSchema: config.inputJsonSchema,
     outputSchema: config.outputSchema,
     outputJsonSchema: config.outputJsonSchema,
     metadata: config.metadata,
-  };
+  } as ActionMetadata<I, O, M>;
+
+  if (config.use) {
+    return actionWithMiddleware(actionFn, config.use);
+  }
   return actionFn;
+}
+
+function validateActionName(name: string) {
+  if (name.includes('/')) {
+    validatePluginName(name.split('/', 1)[0]);
+    validateActionId(name.substring(name.indexOf('/') + 1));
+  }
+  return name;
+}
+
+function validatePluginName(pluginId: string) {
+  if (!lookupPlugin(pluginId)) {
+    throw new Error(
+      `Unable to find plugin name used in the action name: ${pluginId}`
+    );
+  }
+  return pluginId;
+}
+
+function validateActionId(actionId: string) {
+  if (actionId.includes('/')) {
+    throw new Error(`Action name must not include slashes (/): ${actionId}`);
+  }
+  return actionId;
+}
+
+/**
+ * Defines an action with the given config and registers it in the registry.
+ */
+export function defineAction<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
+  M extends Record<string, any> = Record<string, any>,
+>(
+  config: ActionParams<I, O, M> & {
+    actionType: ActionType;
+  },
+  fn: (input: z.infer<I>) => Promise<z.infer<O>>
+): Action<I, O> {
+  const act = action(config, (i: I): Promise<z.infer<O>> => {
+    setCustomMetadataAttributes({ subtype: config.actionType });
+    return fn(i);
+  });
+  act.__action.actionType = config.actionType;
+  registerAction(config.actionType, act);
+  return act;
 }
 
 // Streaming callback function.

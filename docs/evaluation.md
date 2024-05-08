@@ -72,7 +72,7 @@ Genkit supports additional evaluators through plugins:
 
 ## Advanced use
 
-`eval:flow` is a convenient way quickly evaluate the flow, but sometimes you
+`eval:flow` is a convenient way to quickly evaluate the flow, but sometimes you
 might need more control over evaluation steps. This may occur if you are using a different
 framework and already have some output you would like to evaluate. You can perform all
 the step that `eval:flow` performs semi-manually.

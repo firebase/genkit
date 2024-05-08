@@ -60,12 +60,13 @@ export function detectRuntime(directory: string): Runtime {
   if (fs.existsSync(path.join(directory, 'package.json'))) {
     return 'node';
   }
-  fs.readdirSync(directory).forEach((file) => {
+  const files = fs.readdirSync(directory);
+  for (const file of files) {
     const filePath = path.join(directory, file);
     const stat = fs.statSync(filePath);
     if (stat.isFile() && path.extname(file) === '.go') {
       return 'go';
     }
-  });
+  }
   return undefined;
 }

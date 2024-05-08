@@ -16,16 +16,20 @@
 
 import {
   Action,
-  action,
+  defineAction,
   getStreamingCallback,
+  Middleware,
   StreamingCallback,
 } from '@genkit-ai/core';
-import { registerAction } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import { performance } from 'node:perf_hooks';
 import { z } from 'zod';
-import { conformOutput, validateSupport } from './model/middleware.js';
+import { DocumentDataSchema } from './document.js';
+import {
+  augmentWithContext,
+  conformOutput,
+  validateSupport,
+} from './model/middleware.js';
 import * as telemetry from './telemetry.js';
 
 //
@@ -124,8 +128,12 @@ export const ModelInfoSchema = z.object({
       media: z.boolean().optional(),
       /** Model can perform tool calls. */
       tools: z.boolean().optional(),
+      /** Model can accept messages with role "system". */
+      systemRole: z.boolean().optional(),
       /** Model can output this type of data. */
       output: z.array(OutputFormatSchema).optional(),
+      /** Model can natively support document-based context grounding. */
+      context: z.boolean().optional(),
     })
     .optional(),
 });
@@ -165,6 +173,7 @@ export const GenerateRequestSchema = z.object({
   config: z.any().optional(),
   tools: z.array(ToolDefinitionSchema).optional(),
   output: OutputConfigSchema.optional(),
+  context: z.array(DocumentDataSchema).optional(),
   candidates: z.number().optional(),
 });
 
@@ -234,41 +243,13 @@ export type ModelAction<
   __configSchema: CustomOptionsSchema;
 };
 
-export interface ModelMiddleware {
-  (
-    req: GenerateRequest,
-    next: (req?: GenerateRequest) => Promise<GenerateResponseData>
-  ): Promise<GenerateResponseData>;
-}
+export type ModelMiddleware = Middleware<
+  z.infer<typeof GenerateRequestSchema>,
+  z.infer<typeof GenerateResponseSchema>
+>;
 
 /**
- *
- */
-export function modelWithMiddleware(
-  model: ModelAction,
-  middleware: ModelMiddleware[]
-): ModelAction {
-  const wrapped = (async (req: GenerateRequest) => {
-    const dispatch = async (index: number, req: GenerateRequest) => {
-      if (index === middleware.length) {
-        // end of the chain, call the original model action
-        return await model(req);
-      }
-
-      const currentMiddleware = middleware[index];
-      return currentMiddleware(req, async (modifiedReq) =>
-        dispatch(index + 1, modifiedReq || req)
-      );
-    };
-
-    return await dispatch(0, req);
-  }) as ModelAction;
-  wrapped.__action = model.__action;
-  return wrapped;
-}
-
-/**
- *
+ * Defines a new model and adds it to the registry.
  */
 export function defineModel<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
@@ -291,8 +272,15 @@ export function defineModel<
   ) => Promise<GenerateResponseData>
 ): ModelAction<CustomOptionsSchema> {
   const label = options.label || `${options.name} GenAI model`;
-  const act = action(
+  const middleware: ModelMiddleware[] = [
+    ...(options.use || []),
+    validateSupport(options),
+  ];
+  if (!options?.supports?.context) middleware.push(augmentWithContext());
+  middleware.push(conformOutput());
+  const act = defineAction(
     {
+      actionType: 'model',
       name: options.name,
       description: label,
       inputSchema: GenerateRequestSchema,
@@ -307,9 +295,9 @@ export function defineModel<
           supports: options.supports,
         },
       },
+      use: middleware,
     },
     (input) => {
-      setCustomMetadataAttributes({ subtype: 'model' });
       const startTimeMs = performance.now();
       return runner(input, getStreamingCallback())
         .then((response) => {
@@ -331,17 +319,7 @@ export function defineModel<
   Object.assign(act, {
     __configSchema: options.configSchema || z.unknown(),
   });
-  const middleware = [
-    ...(options.use || []),
-    validateSupport(options),
-    conformOutput(),
-  ];
-  const ma = modelWithMiddleware(
-    act as ModelAction,
-    middleware
-  ) as ModelAction<CustomOptionsSchema>;
-  registerAction('model', ma.__action.name, ma);
-  return ma;
+  return act as ModelAction<CustomOptionsSchema>;
 }
 
 export interface ModelReference<CustomOptions extends z.ZodTypeAny> {

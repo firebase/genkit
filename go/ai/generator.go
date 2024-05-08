@@ -16,15 +16,21 @@ package ai
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/genkit/go/genkit"
 )
 
 // Generator is the interface used to query an AI model.
 type Generator interface {
-	// TODO(randall77): define a type for streaming Generate calls.
-	Generate(context.Context, *GenerateRequest, genkit.NoStream) (*GenerateResponse, error)
+	// If the streaming callback is non-nil:
+	// - Each response candidate will be passed to that callback instead of
+	//   populating the result's Candidates field.
+	// - If the streaming callback returns a non-nil error, generation will stop
+	//   and Generate immediately returns that error (and a nil response).
+	Generate(context.Context, *GenerateRequest, genkit.StreamingCallback[*Candidate]) (*GenerateResponse, error)
 }
 
 // RegisterGenerator registers the generator in the global registry.
@@ -35,8 +41,7 @@ func RegisterGenerator(name string, generator Generator) {
 
 // generatorActionType is the instantiated genkit.Action type registered
 // by RegisterGenerator.
-// TODO(ianlancetaylor, randall77): add streaming support
-type generatorActionType = genkit.Action[*GenerateRequest, *GenerateResponse, struct{}]
+type generatorActionType = genkit.Action[*GenerateRequest, *GenerateResponse, *Candidate]
 
 // LookupGeneratorAction looks up an action registered by [RegisterGenerator]
 // and returns a generator that invokes the action.
@@ -58,6 +63,31 @@ type generatorAction struct {
 }
 
 // Generate implements Generator.
-func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest, cb genkit.NoStream) (*GenerateResponse, error) {
+func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest, cb genkit.StreamingCallback[*Candidate]) (*GenerateResponse, error) {
 	return ga.action.Run(ctx, input, cb)
+}
+
+// Text returns the contents of the first candidate in a
+// [GenerateResponse] as a string. It returns an error if there
+// are no candidates or if the candidate has no message.
+func (gr *GenerateResponse) Text() (string, error) {
+	if len(gr.Candidates) == 0 {
+		return "", errors.New("no candidates returned")
+	}
+	msg := gr.Candidates[0].Message
+	if msg == nil {
+		return "", errors.New("candidate with no message")
+	}
+	if len(msg.Content) == 0 {
+		return "", errors.New("candidate message has no content")
+	}
+	if len(msg.Content) == 1 {
+		return msg.Content[0].Text(), nil
+	} else {
+		var sb strings.Builder
+		for _, p := range msg.Content {
+			sb.WriteString(p.Text())
+		}
+		return sb.String(), nil
+	}
 }

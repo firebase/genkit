@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-import { action, Action } from '@genkit-ai/core';
-import { lookupAction, registerAction } from '@genkit-ai/core/registry';
-import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
+import { Action, defineAction } from '@genkit-ai/core';
+import { lookupAction } from '@genkit-ai/core/registry';
 import * as z from 'zod';
 import { Document, DocumentData, DocumentDataSchema } from './document.js';
 
@@ -68,8 +67,9 @@ export function defineEmbedder<
   },
   runner: EmbedderFn<ConfigSchema>
 ) {
-  const embedder = action(
+  const embedder = defineAction(
     {
+      actionType: 'embedder',
       name: options.name,
       inputSchema: options.configSchema
         ? EmbedRequestSchema.extend({
@@ -82,19 +82,16 @@ export function defineEmbedder<
         info: options.info,
       },
     },
-    (i) => {
-      setCustomMetadataAttributes({ subtype: 'embedder' });
-      return runner(
+    (i) =>
+      runner(
         i.input.map((dd) => new Document(dd)),
         i.options
-      );
-    }
+      )
   );
   const ewm = withMetadata(
     embedder as Action<typeof EmbedRequestSchema, typeof EmbedResponseSchema>,
     options.configSchema
   );
-  registerAction('embedder', ewm.__action.name, ewm);
   return ewm;
 }
 

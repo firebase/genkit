@@ -3,6 +3,8 @@
 Firebase Genkit provides abstractions that help you build retrieval-augmented generation
 (RAG) flows, as well as plugins that provide integrations with related tools.
 
+## What is RAG?
+
 Retrieval-augmented generation is a technique used to incorporate external
 sources of information into an LLM’s responses. It's important to be able to do
 so because, while LLMs are typically trained on a broad body of
@@ -37,6 +39,7 @@ the best quality RAG. The core Genkit framework offers two main abstractions to
 help you do RAG:
 
 - Indexers: add documents to an "index".
+- Embedders: transforms documents into a vector representation
 - Retrievers: retrieve documents from an "index", given a query.
 
 These definitions are broad on purpose because Genkit is un-opinionated about
@@ -44,7 +47,7 @@ what an "index" is or how exactly documents are retrieved from it. Genkit only
 provides a `Document` format and everything else is defined by the retriever or
 indexer implementation provider.
 
-## Indexers
+### Indexers
 
 The index is responsible for keeping track of your documents in such a way that
 you can quickly retrieve relevant documents given a specific query. This is most
@@ -78,171 +81,18 @@ with a stable source of data. On the other hand, if you are working with data
 that frequently changes, you might continuously run the ingestion flow (for
 example, in a Cloud Firestore trigger, whenever a document is updated).
 
-The following example shows how you could ingest a collection of PDF documents
-into a vector database. It uses the local file-based vector similarity retriever
-that Genkit provides out-of-the box for simple testing and prototyping (_do not
-use in production_):
+### Embedders
 
-```ts
-import { Document, index } from '@genkit-ai/ai/retriever';
-import { defineFlow, run } from '@genkit-ai/flow';
-import fs from 'fs';
-import { chunk } from 'llm-chunk'; // npm install llm-chunk
-import path from 'path';
-import pdf from 'pdf-parse'; // npm i pdf-parse && npm i -D --save @types/pdf-parse
-import z from 'zod';
+An embedder is a function that takes content (text, images, audio, etc.) and creates a numeric vector that encodes the semantic meaning of the original content. As mentioned above, embedders are leveraged as part of the process of indexing, however, they can also be used independently to create embeddings without an index.
 
-import { configureGenkit } from '@genkit-ai/core';
-import {
-  devLocalIndexerRef,
-  devLocalVectorstore,
-} from '@genkit-ai/dev-local-vectorstore';
-import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
-
-configureGenkit({
-  plugins: [
-    // vertexAI provides the textEmbeddingGecko embedder
-    vertexAI(),
-    devLocalVectorstore([
-      {
-        indexName: 'bob-facts',
-        embedder: textEmbeddingGecko,
-      },
-    ]),
-  ],
-});
-
-export const pdfIndexer = devLocalIndexerRef('bob-facts');
-
-const chunkingConfig = {
-  minLength: 1000, // number of minimum characters into chunk
-  maxLength: 2000, // number of maximum characters into chunk
-  splitter: 'sentence', // paragraph | sentence
-  overlap: 100, // number of overlap chracters
-  delimiters: '', // regex for base split method
-} as any;
-
-export const indexPdf = defineFlow(
-  {
-    name: 'indexPdf',
-    input: z.string().describe('PDF file path'),
-    output: z.void(),
-  },
-  async (filePath) => {
-    filePath = path.resolve(filePath);
-    const pdfTxt = await run('extract-text', () =>
-      extractTextFromPdf(filePath)
-    );
-
-    const chunks = await run('chunk-it', async () =>
-      chunk(pdfTxt, chunkingConfig)
-    );
-
-    const documents = chunks.map((text) => {
-      return Document.fromText(text, { filePath });
-    });
-
-    await index({
-      indexer: pdfIndexer,
-      documents,
-    });
-  }
-);
-
-async function extractTextFromPdf(filePath: string) {
-  const pdfFile = path.resolve(filePath);
-  const dataBuffer = fs.readFileSync(pdfFile);
-  const data = await pdf(dataBuffer);
-  return data.text;
-}
-```
-
-To run the flow:
-
-```posix-terminal
-genkit flow:run indexPdf "'../pdfs'"
-```
-
-## Retrievers
+### Retrievers
 
 A retriever is a concept that encapsulates logic related to any kind of document
 retrieval. The most popular retrieval cases typically include retrieval from
-vector stores.
+vector stores, however, in Genkit a retriever can be any function that returns data.
 
 To create a retriever, you can use one of the provided implementations or
 create your own.
-
-The following example shows how you might use a retriever in a RAG flow. Like
-the indexer example, this example uses Genkit's file-based vector retriever,
-which you should not use in production.
-
-```ts
-import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow } from '@genkit-ai/flow';
-import { generate } from '@genkit-ai/ai/generate';
-import { retrieve } from '@genkit-ai/ai/retriever';
-import { definePrompt } from '@genkit-ai/dotprompt';
-import {
-  devLocalRetrieverRef,
-  devLocalVectorstore,
-} from '@genkit-ai/dev-local-vectorstore';
-import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
-import * as z from 'zod';
-
-configureGenkit({
-  plugins: [
-    vertexAI(),
-    devLocalVectorstore([
-      {
-        indexName: 'bob-facts',
-        embedder: textEmbeddingGecko,
-      },
-    ]),
-  ],
-});
-
-export const bobFactRetriever = devLocalRetrieverRef('bob-facts');
-
-export const ragFlow = defineFlow(
-  { name: 'ragFlow', input: z.string(), output: z.string() },
-  async (input) => {
-    const docs = await retrieve({
-      retriever: bobFactRetriever,
-      query: input,
-      options: { k: 3 },
-    });
-    const facts = docs.map((d) => d.text());
-
-    const promptGenerator = definePrompt(
-      {
-        name: 'bob-facts',
-        model: 'google-vertex/gemini-pro',
-        input: {
-          schema: z.object({
-            facts: z.array(z.string()),
-            question: z.string(),
-          }),
-        },
-      },
-      '{{#each people}}{{this}}\n\n{{/each}}\n{{question}}'
-    );
-    const prompt = await promptGenerator.generate({
-      input: {
-        facts,
-        question: input,
-      },
-    });
-
-    const llmResponse = await generate({
-      model: geminiPro,
-      prompt: prompt.text(),
-    });
-
-    const output = llmResponse.text();
-    return output;
-  }
-);
-```
 
 ## Supported indexers, retrievers, and embedders
 
@@ -268,6 +118,186 @@ Embedding model support is provided through the following plugins:
 
 [1]: plugins/google-genai.md
 [2]: plugins/vertex-ai.md
+
+## Defining a RAG Flow
+
+The following examples show how you could ingest a collection of PDF documents
+into a vector database and retrieve them for use in a flow.
+
+It uses the local file-based vector similarity retriever
+that Genkit provides out-of-the box for simple testing and prototyping (_do not
+use in production_)
+
+### Install dependencies for processing PDFs
+
+```posix-terminal
+npm install llm-chunk pdf-parse
+
+npm i -D --save @types/pdf-parse
+```
+
+### Add a local vector store to your configuration
+
+```ts
+import {
+  devLocalIndexerRef,
+  devLocalVectorstore,
+} from '@genkit-ai/dev-local-vectorstore';
+import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+
+configureGenkit({
+  plugins: [
+    // vertexAI provides the textEmbeddingGecko embedder
+    vertexAI(),
+
+    // the local vector store requires an embedder to translate from text to vector
+    devLocalVectorstore([
+      {
+        indexName: 'bob-facts',
+        embedder: textEmbeddingGecko,
+      },
+    ]),
+  ],
+});
+```
+
+### Define an Indexer
+
+The following example shows how to create an indexer to ingest a collection of PDF documents
+and store them in a local vector database.
+
+It uses the local file-based vector similarity retriever
+that Genkit provides out-of-the box for simple testing and prototyping (_do not
+use in production_)
+
+#### Create the indexer
+
+```ts
+import { devLocalIndexerRef } from '@genkit-ai/dev-local-vectorstore';
+
+export const pdfIndexer = devLocalIndexerRef('bob-facts');
+```
+
+#### Create chunking config
+
+This example uses the `llm-chunk` library which provides a simple text splitter to break up documents into segments that can be vectorized.
+
+The following definition configures the chunking function to gaurantee a document segment of between 1000 and 2000 characters, broken at the end of a sentence, with an overlap between chunks of 100 characters.
+
+```ts
+const chunkingConfig = {
+  minLength: 1000,
+  maxLength: 2000,
+  splitter: 'sentence',
+  overlap: 100,
+  delimiters: '',
+} as any;
+```
+
+More chunking options for this library can be found in the [llm-chunk documentation](https://www.npmjs.com/package/llm-chunk).
+
+#### Define your indexer flow
+
+```ts
+import { chunk } from 'llm-chunk';
+import path from 'path';
+import pdf from 'pdf-parse';
+import { readFile } from 'fs/promises';
+import z from 'zod';
+
+import { Document, index } from '@genkit-ai/ai/retriever';
+import { defineFlow, run } from '@genkit-ai/flow';
+import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
+
+export const indexPdf = defineFlow(
+  {
+    name: 'indexPdf',
+    input: z.string().describe('PDF file path'),
+    output: z.void(),
+  },
+  async (filePath) => {
+    filePath = path.resolve(filePath);
+
+    // Read the pdf.
+    const pdfTxt = await run('extract-text', () =>
+      extractTextFromPdf(filePath)
+    );
+
+    // Divide the pdf text into segments.
+    const chunks = await run('chunk-it', async () =>
+      chunk(pdfTxt, chunkingConfig)
+    );
+
+    // Convert chunks of text into documents to store in the index.
+    const documents = chunks.map((text) => {
+      return Document.fromText(text, { filePath });
+    });
+
+    // Add documents to the index.
+    await index({
+      indexer: pdfIndexer,
+      documents,
+    });
+  }
+);
+
+async function extractTextFromPdf(filePath: string) {
+  const pdfFile = path.resolve(filePath);
+  const dataBuffer = await readFile(pdfFile);
+  const data = await pdf(dataBuffer);
+  return data.text;
+}
+```
+
+#### Run the indexer flow
+
+```posix-terminal
+genkit flow:run indexPdf "'../pdfs'"
+```
+
+After running the `indexPdf` flow, the vector database will be seeded with documents and ready to be used in Genkit flows with retrieval steps.
+
+### Define a flow with retrieval
+
+The following example shows how you might use a retriever in a RAG flow. Like
+the indexer example, this example uses Genkit's file-based vector retriever,
+which you should not use in production.
+
+```ts
+import { defineFlow } from '@genkit-ai/flow';
+import { generate } from '@genkit-ai/ai/generate';
+import { retrieve } from '@genkit-ai/ai/retriever';
+import {
+  devLocalRetrieverRef,
+  devLocalVectorstore,
+} from '@genkit-ai/dev-local-vectorstore';
+import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+import * as z from 'zod';
+
+// Define the retriever reference
+export const bobFactRetriever = devLocalRetrieverRef('bob-facts');
+
+export const ragFlow = defineFlow(
+  { name: 'ragFlow', input: z.string(), output: z.string() },
+  async (input) => {
+    const docs = await retrieve({
+      retriever: bobFactRetriever,
+      query: input,
+      options: { k: 3 },
+    });
+
+    // generate a response
+    const llmResponse = await generate({
+      model: geminiPro,
+      prompt: `Answer this question: ${input}`,
+      context: docs,
+    });
+
+    const output = llmResponse.text();
+    return output;
+  }
+);
+```
 
 ## Write your own indexers and retrievers
 

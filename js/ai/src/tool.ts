@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { Action, JSONSchema7, action } from '@genkit-ai/core';
-import { lookupAction, registerAction } from '@genkit-ai/core/registry';
+import { Action, defineAction, JSONSchema7 } from '@genkit-ai/core';
+import { lookupAction } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import z from 'zod';
@@ -117,8 +117,9 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   },
   fn: (input: z.infer<I>) => Promise<z.infer<O>>
 ): ToolAction<I, O> {
-  const a = action(
+  const a = defineAction(
     {
+      actionType: 'tool',
       name,
       description,
       inputSchema,
@@ -127,11 +128,7 @@ export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
       outputJsonSchema,
       metadata: { ...(metadata || {}), type: 'tool' },
     },
-    (i) => {
-      setCustomMetadataAttributes({ subtype: 'tool' });
-      return fn(i);
-    }
+    (i) => fn(i)
   );
-  registerAction('tool', name, a);
   return a as ToolAction<I, O>;
 }

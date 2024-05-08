@@ -1,4 +1,8 @@
-# Models
+# Generating content
+
+Firebase Genkit provides an easy interface for generating content with LLMs.
+
+## Models
 
 Models in Firebase Genkit are libraries and abstractions that provide access to
 various Google and non-Google LLMs.
@@ -22,7 +26,7 @@ configureGenkit({
 });
 ```
 
-Also note that different plugins and models use different methods of
+Note: Different plugins and models use different methods of
 authentication. For example, Vertex API uses the Google Auth Library so it can
 pull required credentials using Application Default Credentials.
 
@@ -51,7 +55,7 @@ are officially supported:
 
 See the docs for each plugin for setup and usage information.
 
-## Working with models
+## How to generate content
 
 `generate` is a helper function for working with models.
 
@@ -169,7 +173,25 @@ await generate({
 });
 ```
 
-## Message history
+### Adding retriever context
+
+Documents from a retriever can be passed directly to `generate` to provide
+grounding context:
+
+```javascript
+const docs = await companyPolicyRetriever({ query: question });
+
+await generate({
+  model: geminiPro,
+  prompt: `Answer using the available context from company policy: ${question}`,
+  context: docs,
+});
+```
+
+The document context is automatically appended to the content of the prompt
+sent to the model.
+
+### Recording message history
 
 Genkit models support maintaining a history of the messages sent to the model
 and its responses, which you can use to build interactive experiences, such as
@@ -213,7 +235,7 @@ let response = await generate({
 history = response.toHistory();
 ```
 
-## Streaming
+### Streaming responses
 
 Genkit supports chunked streaming of model responses via the `generateStream()` method:
 

@@ -23,12 +23,14 @@ toc:
     path: /docs/genkit/devtools
   
   - heading: Building AI workflows
-  - title: Models
+  - title: Generating content
     path: /docs/genkit/models
-  - title: Prompt management
-    path: /docs/genkit/dotprompt
-  - title: Flows
+  - title: Creating flows
     path: /docs/genkit/flows
+  - title: Prompting models
+    path: /docs/genkit/prompts
+  - title: Managing prompts
+    path: /docs/genkit/dotprompt
   - title: Retrieval-augmented generation (RAG)
     path: /docs/genkit/rag
   - title: Evaluation

@@ -81,7 +81,7 @@ export const SpanDataSchema = z
     status: SpanStatusSchema.optional(),
     timeEvents: z
       .object({
-        timeEvent: z.array(TimeEventSchema),
+        timeEvent: z.array(TimeEventSchema).optional(),
       })
       .optional(),
     truncated: z.boolean().optional(),
