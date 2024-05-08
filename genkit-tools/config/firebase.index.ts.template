@@ -14,9 +14,9 @@ $GENKIT_CONFIG_PLUGINS
   enableTracingAndMetrics: true,
 });
 
-export const menuQAFlow = onFlow(
+export const menuSuggestionFlow = onFlow(
   {
-    name: 'menuQAFlow',
+    name: 'menuSuggestionFlow',
     inputSchema: z.string(),
     outputSchema: z.string(),
     authPolicy: firebaseAuth((user) => {
@@ -26,8 +26,7 @@ export const menuQAFlow = onFlow(
     }),
   },
   async (subject) => {
-    const prompt = `Our menu today includes burgers, spinach, and cod.
-     Tell me if ${subject} can be found on the menu`;
+    const prompt = `Suggest an item for the menu of a {subject} themed restaurant`;
 
     const llmResponse = await generate({
       model: $GENKIT_MODEL,

@@ -71,46 +71,41 @@ Node.js 18 or later.
     1. Choose default answers to the rest of the questions, which will
        initialize your project folder with some sample code.
 
-    The `genkit init` command creates a sample source file:
+    The `genkit init` command creates a sample source file, `index.ts`. This is your project's entry point, where you configure Genkit for your project, configure the plugins you want to load and export your AI flows and other resources you've defined. The sample file contains a config that loads a plugin to support the model provider you chose earlier. It also contains a single flow, `menuSuggestionFlow`, that prompts an LLM to suggest an item for a restaurant with a given theme.
 
-    - `index.ts`: this is your project's entry point, where you configure Genkit for your project,
-      configure the plugins you want to load and export your AI flows and other resources you've defined.
-      The sample file contains a config that loads a plugin to support the model provider you chose earlier.
-      It also contains a single flow, `menuQAFlow`, that simply calls the model provider's API with a
-      simple prompt and returns the result.
+    ```js
+    configureGenkit({
+      plugins: [googleAI()],
+      logLevel: 'debug',
+      enableTracingAndMetrics: true,
+    });
 
-      ```js
-      configureGenkit({
-        plugins: [googleAI()],
-        logLevel: 'debug',
-        enableTracingAndMetrics: true,
-      });
+    export const menuSuggestionFlow = defineFlow(
+      {
+        name: 'menuSuggestionFlow',
+        inputSchema: z.string(),
+        outputSchema: z.string(),
+      },
+      async (subject) => {
+        const llmResponse = await generate({
+          prompt: `Suggest an item for the menu of a {subject} themed restaurant`,
+          model: $GENKIT_MODEL,
+          config: {
+            temperature: 1,
+          },
+        });
 
-      export const menuQAFlow = defineFlow(
-        {
-          name: 'menuQAFlow',
-          inputSchema: z.string(),
-          outputSchema: z.string(),
-        },
-        async (subject) => {
-          const llmResponse = await generate({
-            model: geminiPro,
-            prompt: `Our menu today includes burgers, spinach, and cod.
-            Tell me if ${subject} can be found on the menu`,
-            config: {
-              temperature: 1,
-            },
-          });
+        return llmResponse.text();
+      }
+    );
 
-          return llmResponse.text();
-        }
-      );
-      ```
+    startFlowsServer();
+    ```
 
-      As you build out your app's AI features with Genkit, you will likely
-      create flows with multiple steps such as input preprocessing, more
-      sophisticated prompt construction, integrating external information
-      sources for retrieval-augmented generation (RAG), and more.
+    As you build out your app's AI features with Genkit, you will likely
+    create flows with multiple steps such as input preprocessing, more
+    sophisticated prompt construction, integrating external information
+    sources for retrieval-augmented generation (RAG), and more.
 
 1.  Now you can run and explore Genkit features and the sample project locally
     on your machine. Download and start the Genkit Developer UI:
@@ -140,9 +135,9 @@ Node.js 18 or later.
     - On the **Run** tab, you will see a list of all of the flows that you have
       defined and any models that have been configured by plugins.
 
-      Click **menuQAFlow** and try running it with some input text (for example,
-      `"salad"`). If all goes well, you'll be rewarded with confirmation that
-      salad is not on the menu.
+      Click **menuSuggestionFlow** and try running it with some input text (for example,
+      `"cat"`). If all goes well, you'll be rewarded with a menu suggestion for a cat
+      themed restaurant.
 
     - On the **Inspect** tab, you'll see a history of flow executions. For each
       flow, you can see the parameters that were passed to the flow and a
