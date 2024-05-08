@@ -26,7 +26,7 @@ export const menuSuggestionFlow = onFlow(
     }),
   },
   async (subject) => {
-    const prompt = `Suggest an item for the menu of a {subject} themed restaurant`;
+    const prompt = `Suggest an item for the menu of a ${subject} themed restaurant`;
 
     const llmResponse = await generate({
       model: $GENKIT_MODEL,
