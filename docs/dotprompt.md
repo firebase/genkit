@@ -287,10 +287,13 @@ import {
   loadPromptUrl,
   defineDotprompt,
 } from '@genkit-ai/dotprompt';
+import path from 'path';
 import { z } from 'zod';
 
 // Load a prompt from a file
-const myPrompt = await loadPromptFile('./path/to/my_prompt.prompt');
+const myPrompt = await loadPromptFile(
+  path.resolve(__dirname, './path/to/my_prompt.prompt')
+);
 
 // Load a prompt from a URL
 const myPrompt = await loadPromptUrl('https://example.com/my_prompt.prompt');

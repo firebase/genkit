@@ -16,47 +16,10 @@
 
 import { generate } from '@genkit-ai/ai';
 import { BaseDataPoint, Score } from '@genkit-ai/ai/evaluator';
-import { extractJson } from '@genkit-ai/ai/extract';
 import { ModelArgument } from '@genkit-ai/ai/model';
-import Handlebars from 'handlebars';
+import { loadPromptFile } from '@genkit-ai/dotprompt';
+import path from 'path';
 import * as z from 'zod';
-
-const QUESTION_GEN_PROMPT = `You are a joke critic with a wide range in your taste for jokes. Given the output, decide if it is a joke and then decide if that joke is funny and provide your reasoning. Use the following categories as a verdict in the response FUNNY_JOKE, NOT_FUNNY_JOKE, OFFENSIVE_JOKE, NOT_A_JOKE.
-
-Here is an example of an output that is a funny joke:
-
-Output:
-Why did the scarecrow win an award? Because he was outstanding in his field!
-Response:
-{ "reason": "This is a classic, simple joke with a play on words that's likely to elicit a chuckle.", "verdict":"FUNNY"}
-
-Here is an example of an output that is not a funny joke:
-
-Output:
-Why did the chicken cross the road? To get to the other side!
-Response:
-{ "reason": "This is a classic joke that is not funny because it has been overused. It might elicit a sigh or a sarcastic haha.", "verdict":"NOT_FUNNY"}
-
-Here is an example of an output that is an offensive joke:
-
-Output:
-What's the difference between a pizza and a politician? A pizza can feed a family of four.
-Response:
-{ "reason": "This joke targets a specific group (politicians) and makes a negative generalization about them. It could be considered offensive because it's mean-spirited and relies on a stereotype.", "verdict": "OFFENSIVE_JOKE"}
-
-Here is an example of an output that is not a joke:
-
-Output:
-The quick brown fox jumps over the lazy dog.
-Response:
-{ "reason": "This output is a statement with no intent to be funny", "verdict": "NOT_A_JOKE"}
-
-Here is a new submission to assess:
-
-Output:
-{{output}}
-Response:
-`;
 
 const FUNNINESS_VALUES = [
   'FUNNY_JOKE',
@@ -70,8 +33,6 @@ const FunninessResponseSchema = z.object({
   verdict: z.enum(FUNNINESS_VALUES),
 });
 
-type FunninessResponse = z.infer<typeof FunninessResponseSchema>;
-
 export async function funninessScore<CustomModelOptions extends z.ZodTypeAny>(
   judgeLlm: ModelArgument<CustomModelOptions>,
   dataPoint: BaseDataPoint,
@@ -82,17 +43,21 @@ export async function funninessScore<CustomModelOptions extends z.ZodTypeAny>(
     if (!d.output) {
       throw new Error('Output is required for Funniness detection');
     }
-    const promptTemplate = Handlebars.compile(QUESTION_GEN_PROMPT);
-    const finalPrompt = promptTemplate({
-      output: d.output,
-    });
+    const finalPrompt = await loadPromptFile(
+      path.resolve(__dirname, '../../prompts/funniness.prompt')
+    );
 
     const response = await generate({
       model: judgeLlm,
-      prompt: finalPrompt,
+      prompt: finalPrompt.renderText({
+        output: d.output as string,
+      }),
       config: judgeConfig,
+      output: {
+        schema: FunninessResponseSchema,
+      },
     });
-    const parsedResponse = extractJson<FunninessResponse>(response.text());
+    const parsedResponse = response.output();
     if (!parsedResponse) {
       throw new Error(`Unable to parse evaluator response: ${response.text()}`);
     }
