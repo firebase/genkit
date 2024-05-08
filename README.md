@@ -86,6 +86,6 @@ Genkit works out of the box with Firebase or Google Cloud projects thanks to off
 - [Ollama plugin](https://firebase.google.com/docs/genkit/plugins/ollama): Integrate with Ollama to access popular OSS models like Google’s Gemma.
 - [pgvector template](https://firebase.google.com/docs/genkit/templates/pgvector): See our template for integrating with pgvector for CloudSQL and AlloyDB.
 
-We appreciate you considering Genkit for your next project, remember to let us know of any issues by filing GitHub Issues or join our GitHub discussions to help shape the future of this product.
+We appreciate you considering Genkit for your next project. Remember to let us know of any issues by filing GitHub Issues or join our GitHub discussions to help shape the future of this product.
 
 Firebase Genkit Team
