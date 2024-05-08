@@ -14,7 +14,14 @@
  * limitations under the License.
  */
 
-import { MediaPart, MessageData, Part, Role } from '@genkit-ai/ai/model';
+import {
+  MediaPart,
+  MessageData,
+  Part,
+  Role,
+  TextPart,
+} from '@genkit-ai/ai/model';
+import { DocumentData } from '@genkit-ai/ai/retriever';
 import Handlebars from 'handlebars';
 import { PromptMetadata } from './metadata.js';
 
@@ -72,23 +79,30 @@ function toMessages(renderedString: string): MessageData[] {
   }));
 }
 
-const MEDIA_REGEX = /(<<<dotprompt:media:url.*?)>>>/g;
+const PART_REGEX = /(<<<dotprompt:(?:media:url|section).*?)>>>/g;
 
 function toParts(source: string): Part[] {
   const parts: Part[] = [];
-  for (const piece of source
-    .split(MEDIA_REGEX)
-    .filter((s) => s.trim() !== '')) {
+  const pieces = source.split(PART_REGEX).filter((s) => s.trim() !== '');
+  for (let i = 0; i < pieces.length; i++) {
+    const piece = pieces[i];
     if (piece.startsWith('<<<dotprompt:media:')) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [_, url, contentType] = piece.split(' ');
       const part: MediaPart = { media: { url } };
       if (contentType) part.media.contentType = contentType;
       parts.push(part);
+    } else if (piece.startsWith('<<<dotprompt:section')) {
+      const [_, sectionType] = piece.split(' ');
+      i++;
+      const text = pieces[i];
+      const part: TextPart = { text, metadata: { purpose: sectionType } };
+      parts.push(part);
     } else {
       parts.push({ text: piece });
     }
   }
+
   return parts;
 }
 
@@ -109,10 +123,12 @@ export function compile<Variables = any>(
 
   return (
     input: Variables,
-    options?: { context?: any[]; history?: MessageData[] }
+    options?: { context?: DocumentData[]; history?: MessageData[] }
   ) => {
     const renderedString = renderString(input, {
-      data: { prompt: metadata, context: options?.context || null },
+      data: {
+        metadata: { prompt: metadata, context: options?.context || null },
+      },
     });
     return toMessages(renderedString);
   };

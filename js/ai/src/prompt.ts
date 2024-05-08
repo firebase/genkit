@@ -16,6 +16,7 @@
 
 import { Action, defineAction, JSONSchema7 } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
+import { DocumentData } from '@google-cloud/firestore';
 import z from 'zod';
 import { GenerateOptions } from './generate';
 import { GenerateRequest, GenerateRequestSchema, ModelArgument } from './model';
@@ -34,6 +35,13 @@ export type PromptAction<I extends z.ZodTypeAny = z.ZodTypeAny> = Action<
     };
   };
 };
+
+export function isPrompt(arg: any): boolean {
+  return (
+    typeof arg === 'function' &&
+    (arg as any).__action?.metadata?.type === 'prompt'
+  );
+}
 
 export function definePrompt<I extends z.ZodTypeAny>(
   {
@@ -79,6 +87,7 @@ export async function renderPrompt<
 >(params: {
   prompt: PromptArgument<I>;
   input: z.infer<I>;
+  context?: DocumentData[];
   model: ModelArgument<CustomOptions>;
   config?: z.infer<CustomOptions>;
 }): Promise<GenerateOptions> {
@@ -94,5 +103,6 @@ export async function renderPrompt<
     config: { ...(rendered.config || {}), ...params.config },
     history: rendered.messages.slice(0, rendered.messages.length - 1),
     prompt: rendered.messages[rendered.messages.length - 1].content,
+    context: params.context,
   };
 }

@@ -181,7 +181,6 @@ import { configureGenkit } from '@genkit-ai/core';
 import { defineFlow } from '@genkit-ai/flow';
 import { generate } from '@genkit-ai/ai/generate';
 import { retrieve } from '@genkit-ai/ai/retriever';
-import { definePrompt } from '@genkit-ai/dotprompt';
 import {
   devLocalRetrieverRef,
   devLocalVectorstore,
@@ -211,31 +210,11 @@ export const ragFlow = defineFlow(
       query: input,
       options: { k: 3 },
     });
-    const facts = docs.map((d) => d.text());
-
-    const promptGenerator = definePrompt(
-      {
-        name: 'bob-facts',
-        model: 'google-vertex/gemini-pro',
-        input: {
-          schema: z.object({
-            facts: z.array(z.string()),
-            question: z.string(),
-          }),
-        },
-      },
-      '{{#each people}}{{this}}\n\n{{/each}}\n{{question}}'
-    );
-    const prompt = await promptGenerator.generate({
-      input: {
-        facts,
-        question: input,
-      },
-    });
 
     const llmResponse = await generate({
       model: geminiPro,
-      prompt: prompt.text(),
+      prompt: `Answer this question: ${input}`,
+      context: docs,
     });
 
     const output = llmResponse.text();
