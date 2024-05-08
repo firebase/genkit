@@ -4,7 +4,8 @@ Firebase Genkit (beta) is a code-centric framework with built-in tooling to help
 
 Genkit is available for Node.js (TypeScript), with Go support in active development.
 
-Please note since Genkit is currently in beta, this means that the public API and framework design may change in backward-incompatible ways.
+> [!NOTE]
+> Since Genkit is currently in beta, this means that the public API and framework design may change in backward-incompatible ways.
 
 Getting started is easy:
 
