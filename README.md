@@ -18,7 +18,7 @@ Genkit is an open source framework, and we welcome contributions. Information on
 
 ## Key features
 
-Gen AI models
+### Gen AI models
 
 - **Unified API for generation** across AI models built by Google (Gemini, Gemma) and third party providers. Supports multimodal input, multimedia content generation, and custom options.
 - **Generate structured output** as strongly-typed objects with custom schemas for easy integration into your app.
