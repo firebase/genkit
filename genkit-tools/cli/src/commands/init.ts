@@ -144,10 +144,10 @@ const pluginToInfo: Record<string, PluginInfo> = {
 
 /** Platform to sample flow template paths. */
 const sampleTemplatePaths: Record<Platform, string> = {
-  firebase: '../../config/firebase.index.ts.template',
-  googlecloud: '../../config/googleCloud.index.ts.template',
-  nodejs: '../../config/googleCloud.index.ts.template', // This can deviate from GCP template in the future as needed.
-  nextjs: '../../config/nextjs.genkit.ts.template',
+  firebase: '../../../config/firebase.index.ts.template',
+  googlecloud: '../../../config/googleCloud.index.ts.template',
+  nodejs: '../../../config/googleCloud.index.ts.template', // This can deviate from GCP template in the future as needed.
+  nextjs: '../../../config/nextjs.genkit.ts.template',
 };
 
 /** Supported runtimes for the init command. */
