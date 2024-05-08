@@ -10,7 +10,7 @@
     "build": "pnpm build:js && pnpm build:genkit-tools",
     "build:js": "cd js && pnpm i && pnpm build",
     "build:genkit-tools": "cd genkit-tools && pnpm i && pnpm build",
-    "link-genkit-tools": "cd genkit-tools && npm link",
+    "link-genkit-tools": "cd genkit-tools/cli && npm link",
     "pnpm-install-js": "cd js && pnpm i",
     "pnpm-install-genkit-tools": "cd genkit-tools && pnpm i",
     "pack:all": "rm -r dist || true && mkdir dist && pnpm run pack:tools && pnpm run pack:js && pnpm dist:zip",
@@ -19,7 +19,7 @@
     "dist:zip": "cd dist && zip genkit-dist.zip *.tgz",
     "test:all": "npm-run-all test:js test:genkit-tools",
     "test:js": "cd js && pnpm i && pnpm test:all",
-    "test:genkit-tools": "cd genkit-tools && pnpm i && pnpm test",
+    "test:genkit-tools": "cd genkit-tools/cli && pnpm i && pnpm test",
     "test:e2e": "pnpm build && pnpm pack:all && cd tests && pnpm test"
   },
   "pre-commit": [
