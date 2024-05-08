@@ -19,11 +19,7 @@ import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
-import {
-  textEmbeddingGecko,
-  vertexAI,
-  VertexAIEvaluationMetricType,
-} from '@genkit-ai/vertexai';
+import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 
 export default configureGenkit({
   plugins: [
@@ -54,27 +50,27 @@ export default configureGenkit({
         ],
       },
       metrics: [
-        GenkitMetric.FAITHFULNESS,
-        GenkitMetric.ANSWER_RELEVANCY,
+        // GenkitMetric.FAITHFULNESS,
+        // GenkitMetric.ANSWER_RELEVANCY,
         GenkitMetric.MALICIOUSNESS,
       ],
       embedder: textEmbeddingGecko,
     }),
     vertexAI({
       location: 'us-central1',
-      evaluation: {
-        metrics: [
-          VertexAIEvaluationMetricType.BLEU,
-          {
-            type: VertexAIEvaluationMetricType.ROUGE,
-            metricSpec: {
-              rougeType: 'rougeLsum',
-              useStemmer: true,
-              splitSummaries: 'true',
-            },
-          },
-        ],
-      },
+      // evaluation: {
+      //   metrics: [
+      //     VertexAIEvaluationMetricType.BLEU,
+      //     {
+      //       type: VertexAIEvaluationMetricType.ROUGE,
+      //       metricSpec: {
+      //         rougeType: 'rougeLsum',
+      //         useStemmer: true,
+      //         splitSummaries: 'true',
+      //       },
+      //     },
+      //   ],
+      // },
     }),
     devLocalVectorstore([
       {

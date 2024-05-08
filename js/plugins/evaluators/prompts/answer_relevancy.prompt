@@ -1,3 +1,10 @@
+---
+input:
+    schema:
+        question: string
+        answer: string
+        context: string
+---
 Assess whether the generated output is relevant to the question asked.
 
 To accomplish this perform the following 3 tasks in a step by step manner:
