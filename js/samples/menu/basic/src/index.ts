@@ -18,7 +18,7 @@
 // both.
 import { generate } from '@genkit-ai/ai';
 import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow, runFlow } from '@genkit-ai/flow';
+import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import * as z from 'zod';
 
@@ -28,7 +28,7 @@ configureGenkit({
   enableTracingAndMetrics: true,
 });
 
-const menuQAFlow = defineFlow(
+export const menuQAFlow = defineFlow(
   {
     name: 'menuQAFlow',
     inputSchema: z.string(),
@@ -48,7 +48,4 @@ const menuQAFlow = defineFlow(
   }
 );
 
-export async function callMenuQAFlow() {
-  const flowResponse = await runFlow(menuQAFlow, 'banana');
-  console.log(flowResponse);
-}
+startFlowsServer();
