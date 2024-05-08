@@ -1,4 +1,4 @@
-# Generating Content
+# Generating content
 
 Firebase Genkit provides an easy interface for generating content with LLMs.
 
@@ -26,7 +26,7 @@ configureGenkit({
 });
 ```
 
-NOTE: Different plugins and models use different methods of
+Note: Different plugins and models use different methods of
 authentication. For example, Vertex API uses the Google Auth Library so it can
 pull required credentials using Application Default Credentials.
 
