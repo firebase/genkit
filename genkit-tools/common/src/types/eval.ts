@@ -25,7 +25,7 @@ import { ListEvalKeysRequest, ListEvalKeysResponse } from './apis';
  * Structured input for eval:flow
  */
 export const EvalFlowStructuredInputSchema = z.object({
-  cases: z.array(
+  samples: z.array(
     z.object({
       input: z.any(),
       reference: z.any().optional(),

@@ -52,6 +52,8 @@ interface EvalFlowRunOptions {
   outputFormat: string;
 }
 
+const EVAL_FLOW_SCHEMA = '{samples: Array<{input: any; reference?: any;}>}';
+
 /** Command to run a flow and evaluate the output */
 export const evalFlow = new Command('eval:flow')
   .argument('<flowName>', 'Name of the flow to run')
@@ -196,7 +198,13 @@ async function readInputs(
     return parsedData as any[];
   }
 
-  return EvalFlowInputSchema.parse(parsedData);
+  try {
+    return EvalFlowInputSchema.parse(parsedData);
+  } catch (e) {
+    throw new Error(
+      `Error parsing the input. Please provide an array of inputs for the flow or a ${EVAL_FLOW_SCHEMA} object`
+    );
+  }
 }
 
 async function runFlows(
@@ -207,7 +215,7 @@ async function runFlows(
   const states: FlowState[] = [];
   let inputs: any[] = Array.isArray(data)
     ? (data as any[])
-    : data.cases.map((c) => c.input);
+    : data.samples.map((c) => c.input);
 
   for (const d of inputs) {
     logger.info(`Running '/flow/${flowName}' ...`);
@@ -245,7 +253,7 @@ async function fetchDataSet(
 ): Promise<EvalInput[]> {
   let references: any[] | undefined = undefined;
   if (!Array.isArray(parsedData)) {
-    const maybeReferences = parsedData.cases.map((c: any) => c.reference);
+    const maybeReferences = parsedData.samples.map((c: any) => c.reference);
     if (maybeReferences.length === states.length) {
       references = maybeReferences;
     } else {
