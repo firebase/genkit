@@ -65,7 +65,7 @@ Genkit is **fully instrumented with OpenTelemetry** and provides hooks to export
 
 ## Genkit Developer UI
 
-Genkit’s developer UI is a local web app downloaded by the Genkit CLI tooling package that gives developers sandboxed runners the Genkit actions (models, prompts, retrievers, etc) configured in your local environment.
+Genkit’s developer UI is a local web app that lets you run Genkit actions (models, prompts, retrievers, etc) in your local environment. You can use it to prototype, develop, and test AI features locally, resulting in quick turn-around times.
 
 Key features:
 
