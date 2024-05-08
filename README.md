@@ -9,7 +9,8 @@ Genkit is available for Node.js (TypeScript), with Go support in active developm
 
 Getting started is easy:
 
-Install Genkit: 
+Install Genkit:
+
 ```bash
 $ npm i -g genkit
 
@@ -42,7 +43,9 @@ Genkit is an open source framework, and we welcome contributions. Information on
 Evaluate your end-to-end AI workflow using a variety of pre-built and custom evaluators. As easy as:
 
 ```
+
 genkit eval:flow myAiWorkflow --input testQuestions.json
+
 ```
 
 ### Extensibility with plugins
@@ -95,3 +98,4 @@ Genkit works out of the box with Firebase or Google Cloud projects thanks to off
 We appreciate you considering Genkit for your next project. Remember to let us know of any issues by filing GitHub Issues or join our GitHub discussions to help shape the future of this product.
 
 Firebase Genkit Team
+```
