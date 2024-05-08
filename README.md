@@ -48,8 +48,8 @@ You can also use this extensibility to easily define custom components whenever 
 
 For more information:
 
-- Genkit plugins on NPM
-- Writing Genkit plugins
+- [Genkit plugins on npm](https://www.npmjs.com/search?q=keywords:genkit-plugin)
+- [Writing Genkit plugins](https://firebase.google.com/docs/genkit/plugin-authoring)
 
 ### Deployment
 
