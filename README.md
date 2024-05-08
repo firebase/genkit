@@ -9,7 +9,9 @@ Genkit is available for Node.js (TypeScript), with Go support in active developm
 
 Getting started is easy:
 
-Install Genkit: `npm i -g genkit`
+Install Genkit: 
+```bash
+$ npm i -g genkit
 
 Review the [documentation](https://firebase.google.com/docs/genkit) for details and samples.
 
