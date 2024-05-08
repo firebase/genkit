@@ -17,12 +17,13 @@
     "@genkit-ai/ai": "workspace:*",
     "@genkit-ai/core": "workspace:*",
     "@genkit-ai/dev-local-vectorstore": "workspace:*",
-    "@genkit-ai/flow": "workspace:*",
-    "@genkit-ai/firebase": "workspace:*",
-    "@genkit-ai/googleai": "workspace:*",
-    "@genkit-ai/evaluator": "workspace:*",
-    "@genkit-ai/vertexai": "workspace:*",
     "@genkit-ai/dotprompt": "workspace:*",
+    "@genkit-ai/evaluator": "workspace:*",
+    "@genkit-ai/firebase": "workspace:*",
+    "@genkit-ai/flow": "workspace:*",
+    "@genkit-ai/googleai": "workspace:*",
+    "@genkit-ai/vertexai": "workspace:*",
+    "path": "^0.12.7",
     "zod": "^3.22.4"
   },
   "devDependencies": {

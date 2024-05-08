@@ -679,6 +679,9 @@ importers:
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
+      path:
+        specifier: ^0.12.7
+        version: 0.12.7
       zod:
         specifier: ^3.22.4
         version: 3.22.4
