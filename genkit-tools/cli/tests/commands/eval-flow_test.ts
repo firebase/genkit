@@ -15,10 +15,10 @@
  */
 
 import { describe, expect, it } from '@jest/globals';
-import { evalFlowRun } from '../../src/commands/eval-flow-run';
+import { evalFlow } from '../../src/commands/eval-flow';
 
 describe('eval:flow', () => {
-  const command = evalFlowRun.exitOverride().configureOutput({
+  const command = evalFlow.exitOverride().configureOutput({
     writeOut: () => {},
     writeErr: () => {},
   });

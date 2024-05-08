@@ -25,7 +25,7 @@ import * as clc from 'colorette';
 import { Command, program } from 'commander';
 import { config } from './commands/config';
 import { evalExtractData } from './commands/eval-extract-data';
-import { evalFlowRun } from './commands/eval-flow-run';
+import { evalFlow } from './commands/eval-flow';
 import { evalRun } from './commands/eval-run';
 import { flowBatchRun } from './commands/flow-batch-run';
 import { flowResume } from './commands/flow-resume';
@@ -48,7 +48,7 @@ const commands: Command[] = [
   flowResume,
   evalExtractData,
   evalRun,
-  evalFlowRun,
+  evalFlow,
   init,
   config,
 ];
