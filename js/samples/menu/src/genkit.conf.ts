@@ -16,6 +16,7 @@
 
 import { configureGenkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
+import { dotprompt } from '@genkit-ai/dotprompt';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 
 export default configureGenkit({
@@ -28,6 +29,7 @@ export default configureGenkit({
         embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
       },
     ]),
+    dotprompt(),
   ],
   enableTracingAndMetrics: true,
   flowStateStore: 'firebase',
