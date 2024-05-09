@@ -308,3 +308,23 @@ app:
 Open the web app by visiting the URL printed by the `deploy` command. The app
 requires you to sign in with a Google account, after which you can initiate
 endpoint requests.
+
+## Developing using Firebase Local Emulator Suite
+
+Firebase offers a suite of emualtors for local development and you can use Genkit with [Firebase Local Emulator Suite](https://firebase.google.com/docs/emulator-suite).
+
+To use Genkit with Firebase emulator start the emulator like this:
+
+```bash
+GENKIT_ENV=dev firebase emulators:start --inspect-functions
+```
+
+this will run your code in the emulator and run genkit framework in dev mode which launches and exposes the Genkit reflection API (but not the Dev UI).
+
+To launch the Genkit Dev UI that talks to your code running inside the Firebase Emulator run this command:
+
+```bash
+genkit start --attach http://localhost:3100 --port 4001
+```
+
+To see traces from Firestore in the Dev UI you can navigate to the Inspect tab and toggle the "Dev/Prod" switch. When toggled to "prod" it will be loading traces from firestore.
