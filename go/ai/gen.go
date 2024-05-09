@@ -60,6 +60,7 @@ const (
 type GenerateResponse struct {
 	Candidates []*Candidate     `json:"candidates,omitempty"`
 	Custom     any              `json:"custom,omitempty"`
+	Request    *GenerateRequest `json:"request,omitempty"`
 	Usage      *GenerationUsage `json:"usage,omitempty"`
 }
 

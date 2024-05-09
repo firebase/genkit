@@ -39,6 +39,7 @@ func (testGenerator) Generate(ctx context.Context, req *ai.GenerateRequest, cb g
 				},
 			},
 		},
+		Request: req,
 	}
 	return r, nil
 }
