@@ -15,13 +15,33 @@
  */
 
 import { generate } from '@genkit-ai/ai';
-import { initializeGenkit } from '@genkit-ai/core';
+import { configureGenkit } from '@genkit-ai/core';
+import { firebase } from '@genkit-ai/firebase';
 import { defineFlow, run, runFlow } from '@genkit-ai/flow';
+import { googleAI } from '@genkit-ai/googleai';
+import { ollama } from '@genkit-ai/ollama';
+import { vertexAI } from '@genkit-ai/vertexai';
 import express, { Request, Response } from 'express';
 import * as z from 'zod';
-import config from './genkit.config';
 
-initializeGenkit(config);
+configureGenkit({
+  plugins: [
+    firebase(),
+    googleAI(),
+    vertexAI(),
+    ollama({
+      models: [
+        { name: 'llama2', type: 'generate' },
+        { name: 'gemma', type: 'chat' },
+      ],
+      serverAddress: 'http://127.0.0.1:11434', // default local address
+    }),
+  ],
+  flowStateStore: 'firebase',
+  traceStore: 'firebase',
+  enableTracingAndMetrics: true,
+  logLevel: 'debug',
+});
 
 export const jokeFlow = defineFlow(
   { name: 'jokeFlow', inputSchema: z.string(), outputSchema: z.string() },

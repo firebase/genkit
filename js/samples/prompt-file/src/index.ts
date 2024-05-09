@@ -14,10 +14,17 @@
  * limitations under the License.
  */
 
+import { configureGenkit } from '@genkit-ai/core';
 import { prompt } from '@genkit-ai/dotprompt';
 import { defineFlow } from '@genkit-ai/flow';
+import { googleAI } from '@genkit-ai/googleai';
 import * as z from 'zod';
-import './genkit.config';
+
+configureGenkit({
+  plugins: [googleAI()],
+  enableTracingAndMetrics: true,
+  logLevel: 'debug',
+});
 
 // This example demonstrates using prompt files in a flow
 // Load the prompt file during initialization.

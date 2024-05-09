@@ -15,22 +15,55 @@
  */
 import { EvaluatorAction } from '@genkit-ai/ai';
 import { ModelReference } from '@genkit-ai/ai/model';
-import { PluginProvider, genkitPlugin } from '@genkit-ai/core';
+import { configureGenkit, genkitPlugin, PluginProvider } from '@genkit-ai/core';
+import { firebase } from '@genkit-ai/firebase';
+import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import * as z from 'zod';
 import {
-  DELICIOUSNESS,
+  PERMISSIVE_SAFETY_SETTINGS,
+  URL_REGEX,
+  US_PHONE_REGEX,
+} from './constants.js';
+import {
   createDeliciousnessEvaluator,
+  DELICIOUSNESS,
 } from './deliciousness/deliciousness_evaluator.js';
 import {
-  FUNNINESS,
   createFunninessEvaluator,
+  FUNNINESS,
 } from './funniness/funniness_evaluator.js';
-import { PII_DETECTION, createPiiEvaluator } from './pii/pii_evaluator.js';
+import { createPiiEvaluator, PII_DETECTION } from './pii/pii_evaluator.js';
 import {
-  RegexMetric,
   createRegexEvaluators,
   isRegexMetric,
+  regexMatcher,
+  RegexMetric,
 } from './regex/regex_evaluator.js';
+
+configureGenkit({
+  plugins: [
+    firebase(),
+    googleAI({ apiVersion: ['v1', 'v1beta'] }),
+    byoEval({
+      judge: geminiPro,
+      judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
+      metrics: [
+        // regexMatcher will register an evaluator with a name in the format
+        // byo/regex_match_{suffix}. In this case, byo/regex_match_url
+        regexMatcher('url', URL_REGEX),
+        // byo/regex_match_us_phone
+        regexMatcher('us_phone', US_PHONE_REGEX),
+        PII_DETECTION,
+        DELICIOUSNESS,
+        FUNNINESS,
+      ],
+    }),
+  ],
+  flowStateStore: 'firebase',
+  traceStore: 'firebase',
+  enableTracingAndMetrics: true,
+  logLevel: 'debug',
+});
 
 /**
  * Generic metric definition with flexible configuration.
@@ -92,6 +125,5 @@ export function byoEval<ModelCustomOptions extends z.ZodTypeAny>(
   // create the plugin with the passed params
   return plugin(params);
 }
-export default byoEval;
 
-export * from './genkit.config.js';
+export default byoEval;
