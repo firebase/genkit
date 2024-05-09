@@ -63,22 +63,15 @@ genkit flow:run menuSuggestionFlow '"French"'
 Here's a simple example of a flow that can stream values from a flow:
 
 ```javascript
-export const streamer = defineFlow(
+export const menuSuggestionFlow = defineFlow(
   {
-    name: 'streamer',
-    inputSchema: z.number(),
-    outputSchema: z.string(),
-    streamSchema: z.object({ count: z.number() }),
+    name: 'menuSuggestionFlow',
+    streamSchema: z.string(),
   },
-  async (count, streamingCallback) => {
-    var i = 0;
-    if (streamingCallback) {
-      for (; i < count; i++) {
-        await new Promise((r) => setTimeout(r, 1000));
-        streamingCallback({ count: i });
-      }
-    }
-    return `done: ${count}, streamed: ${i} times`;
+  async (restaurantTheme, streamingCallback) => {
+    makeMenuItemSuggestionsAsync(restaurantTheme).subscribe((suggestion) => {
+      streamingCallback(suggestion);
+    });
   }
 );
 ```
@@ -89,13 +82,11 @@ invoking client is requesting streamed response.
 To invoke a flow in streaming mode use `streamFlow` function:
 
 ```javascript
-const response = streamFlow(streamer, 5);
+const response = streamFlow(menuSuggestionFlow, 5);
 
-for await (const chunk of response.stream()) {
-  console.log('chunk', chunk);
+for await (const suggestion of response.stream()) {
+  console.log('suggestion', suggestion);
 }
-
-console.log('streamConsumer done', await response.output());
 ```
 
 If the flow does not implement streaming `streamFlow` will behave identically to `runFlow`.
