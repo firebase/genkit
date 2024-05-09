@@ -22,8 +22,8 @@ import {
 } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
 import { toJsonSchema, validateSchema } from '@genkit-ai/core/schema';
-import { DocumentData } from '@google-cloud/firestore';
 import { z } from 'zod';
+import { DocumentData } from './document.js';
 import { extractJson } from './extract.js';
 import {
   CandidateData,

@@ -131,49 +131,6 @@ importers:
         specifier: ^4.9.0
         version: 4.9.5
 
-  dotprompt:
-    dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../core
-      front-matter:
-        specifier: ^4.0.2
-        version: 4.0.2
-      handlebars:
-        specifier: ^4.7.8
-        version: 4.7.8
-      node-fetch:
-        specifier: ^3.3.2
-        version: 3.3.2
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
-      zod-to-json-schema:
-        specifier: ^3.22.4
-        version: 3.22.5(zod@3.22.4)
-    devDependencies:
-      '@types/node':
-        specifier: ^20.11.16
-        version: 20.11.30
-      npm-run-all:
-        specifier: ^4.1.5
-        version: 4.1.5
-      tsup:
-        specifier: ^8.0.2
-        version: 8.0.2(typescript@4.9.5)
-      tsx:
-        specifier: ^4.7.0
-        version: 4.7.1
-      typescript:
-        specifier: ^4.9.0
-        version: 4.9.5
-      yaml:
-        specifier: ^2.4.1
-        version: 2.4.1
-
   flow:
     dependencies:
       '@genkit-ai/core':
@@ -242,7 +199,7 @@ importers:
         version: link:../../core
       chromadb:
         specifier: ^1.7.3
-        version: 1.8.1(@google/generative-ai@0.6.0)(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13))
+        version: 1.8.1(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13))
       ts-md5:
         specifier: ^1.3.1
         version: 1.3.1
@@ -300,6 +257,49 @@ importers:
         specifier: ^4.9.0
         version: 4.9.5
 
+  plugins/dotprompt:
+    dependencies:
+      '@genkit-ai/ai':
+        specifier: workspace:*
+        version: link:../../ai
+      '@genkit-ai/core':
+        specifier: workspace:*
+        version: link:../../core
+      front-matter:
+        specifier: ^4.0.2
+        version: 4.0.2
+      handlebars:
+        specifier: ^4.7.8
+        version: 4.7.8
+      node-fetch:
+        specifier: ^3.3.2
+        version: 3.3.2
+      zod:
+        specifier: ^3.22.4
+        version: 3.22.4
+      zod-to-json-schema:
+        specifier: ^3.22.4
+        version: 3.22.5(zod@3.22.4)
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.16
+        version: 20.11.30
+      npm-run-all:
+        specifier: ^4.1.5
+        version: 4.1.5
+      tsup:
+        specifier: ^8.0.2
+        version: 8.0.2(typescript@4.9.5)
+      tsx:
+        specifier: ^4.7.0
+        version: 4.7.1
+      typescript:
+        specifier: ^4.9.0
+        version: 4.9.5
+      yaml:
+        specifier: ^2.4.1
+        version: 2.4.1
+
   plugins/evaluators:
     dependencies:
       '@genkit-ai/ai':
@@ -308,15 +308,18 @@ importers:
       '@genkit-ai/core':
         specifier: workspace:*
         version: link:../../core
+      '@genkit-ai/dotprompt':
+        specifier: workspace:*
+        version: link:../../plugins/dotprompt
       compute-cosine-similarity:
         specifier: ^1.1.0
         version: 1.1.0
-      handlebars:
-        specifier: ^4.7.8
-        version: 4.7.8
       node-fetch:
         specifier: ^3.3.2
         version: 3.3.2
+      path:
+        specifier: ^0.12.7
+        version: 0.12.7
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -512,7 +515,7 @@ importers:
         version: link:../../flow
       '@langchain/community':
         specifier: ^0.0.53
-        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(@google/generative-ai@0.6.0)(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@9.7.0(encoding@0.1.13))(googleapis@97.0.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
+        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
       '@langchain/core':
         specifier: ^0.1.61
         version: 0.1.61
@@ -521,7 +524,7 @@ importers:
         version: 1.8.0
       langchain:
         specifier: ^0.1.36
-        version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(@google/generative-ai@0.6.0)(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13)))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@9.7.0(encoding@0.1.13))(googleapis@97.0.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
+        version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -658,6 +661,9 @@ importers:
       '@genkit-ai/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
+      '@genkit-ai/dotprompt':
+        specifier: workspace:*
+        version: link:../../plugins/dotprompt
       '@genkit-ai/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
@@ -673,9 +679,9 @@ importers:
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
-      handlebars:
-        specifier: ^4.7.8
-        version: 4.7.8
+      path:
+        specifier: ^0.12.7
+        version: 0.12.7
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -697,7 +703,7 @@ importers:
         version: link:../../plugins/dev-local-vectorstore
       '@genkit-ai/dotprompt':
         specifier: workspace:*
-        version: link:../../dotprompt
+        version: link:../../plugins/dotprompt
       '@genkit-ai/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
@@ -743,7 +749,7 @@ importers:
         version: link:../../plugins/dev-local-vectorstore
       '@genkit-ai/dotprompt':
         specifier: workspace:*
-        version: link:../../dotprompt
+        version: link:../../plugins/dotprompt
       '@genkit-ai/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
@@ -789,7 +795,7 @@ importers:
         version: link:../../plugins/dev-local-vectorstore
       '@genkit-ai/dotprompt':
         specifier: workspace:*
-        version: link:../../dotprompt
+        version: link:../../plugins/dotprompt
       '@genkit-ai/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
@@ -1002,7 +1008,7 @@ importers:
         version: link:../../plugins/vertexai
       '@langchain/community':
         specifier: ^0.0.53
-        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(@google/generative-ai@0.6.0)(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@9.7.0(encoding@0.1.13))(googleapis@97.0.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
+        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
       '@langchain/core':
         specifier: ^0.1.61
         version: 0.1.61
@@ -1017,7 +1023,7 @@ importers:
         version: link:../../plugins/langchain
       langchain:
         specifier: ^0.1.36
-        version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(@google/generative-ai@0.6.0)(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13)))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@9.7.0(encoding@0.1.13))(googleapis@97.0.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
+        version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
       pdf-parse:
         specifier: ^1.1.1
         version: 1.1.1
@@ -1070,7 +1076,7 @@ importers:
         version: link:../../plugins/dev-local-vectorstore
       '@genkit-ai/dotprompt':
         specifier: workspace:*
-        version: link:../../dotprompt
+        version: link:../../plugins/dotprompt
       '@genkit-ai/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
@@ -1101,7 +1107,7 @@ importers:
         version: link:../../core
       '@genkit-ai/dotprompt':
         specifier: workspace:*
-        version: link:../../dotprompt
+        version: link:../../plugins/dotprompt
       '@genkit-ai/flow':
         specifier: workspace:*
         version: link:../../flow
@@ -1129,7 +1135,7 @@ importers:
         version: link:../../plugins/dev-local-vectorstore
       '@genkit-ai/dotprompt':
         specifier: workspace:*
-        version: link:../../dotprompt
+        version: link:../../plugins/dotprompt
       '@genkit-ai/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
@@ -3442,6 +3448,9 @@ packages:
   inflight@1.0.6:
     resolution: {integrity: sha512-k92I/b08q4wvFscXCLvqfsHCrjrF7yiXsQuIVvVE7N82W3+aqpzuUdBbfhWcy/FZR3/4IgflMgKLOsvPDrGCJA==}
 
+  inherits@2.0.3:
+    resolution: {integrity: sha512-x00IRNXNy63jwGkJmzPigoySHbaqpNuzKbBOmzK+g2OdZpQ9w+sxCN+VSB3ja7IAge2OP2qpfxTjeNcyjmW1uw==}
+
   inherits@2.0.4:
     resolution: {integrity: sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ==}
 
@@ -4225,6 +4234,9 @@ packages:
     resolution: {integrity: sha512-/+S03c8AGsDYKKBtRDqieTJv2GlkMb0bWjnqOgtF6MkjdUQ9a8ARAtxWf9NgKLGm2+WQr6+/tqJdU8HNGsIDoA==}
     engines: {node: '>=6'}
 
+  path@0.12.7:
+    resolution: {integrity: sha512-aXXC6s+1w7otVF9UletFkFcDsJeO7lSZBPUQhtb5O0xJe8LtYhj/GxldoL09bBj9+ZmE2hNoHqQSFMN5fikh4Q==}
+
   pdf-parse@1.1.1:
     resolution: {integrity: sha512-v6ZJ/efsBpGrGGknjtq9J/oC8tZWq0KWL5vQrk2GlzLEQPUDB1ex+13Rmidl1neNN358Jn9EHZw5y07FFtaC7A==}
     engines: {node: '>=6.8.1'}
@@ -4318,6 +4330,10 @@ packages:
 
   process-nextick-args@2.0.1:
     resolution: {integrity: sha512-3ouUOpQhtgrbOa17J7+uxOTpITYWaGP7/AhoR3+A+/1e9skrzelGi/dXzEYyvbxubEF6Wn2ypscTKiKJFFn1ag==}
+
+  process@0.11.10:
+    resolution: {integrity: sha512-cdGef/drWFoydD1JsMzuFf8100nZl+GT+yacc2bEced5f9Rjk4z+WtFUTBu9PhOi9j/jfmBPu0mMEY4wIdAF8A==}
+    engines: {node: '>= 0.6.0'}
 
   proto3-json-serializer@2.0.1:
     resolution: {integrity: sha512-8awBvjO+FwkMd6gNoGFZyqkHZXCFd54CIYTb6De7dPaufGJ2XNW+QUNqbMr8MaAocMdb+KpsD4rxEOaTBDCffA==}
@@ -4801,6 +4817,9 @@ packages:
 
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
+
+  util@0.10.4:
+    resolution: {integrity: sha512-0Pm9hTQ3se5ll1XihRic3FDIku70C+iHUdT/W926rSgHV5QgXsYbKZN8MSC3tJtSkhuROzvsQjAaFENRXr+19A==}
 
   utils-merge@1.0.1:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
@@ -5392,7 +5411,7 @@ snapshots:
 
   '@jsdevtools/ono@7.1.3': {}
 
-  '@langchain/community@0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(@google/generative-ai@0.6.0)(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@9.7.0(encoding@0.1.13))(googleapis@97.0.0(encoding@0.1.13))(jsonwebtoken@9.0.2)':
+  '@langchain/community@0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)':
     dependencies:
       '@langchain/core': 0.1.61
       '@langchain/openai': 0.0.28(encoding@0.1.13)
@@ -5404,10 +5423,9 @@ snapshots:
       zod-to-json-schema: 3.22.5(zod@3.22.4)
     optionalDependencies:
       '@pinecone-database/pinecone': 2.2.0
-      chromadb: 1.8.1(@google/generative-ai@0.6.0)(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13))
+      chromadb: 1.8.1(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13))
       firebase-admin: 12.1.0(encoding@0.1.13)
-      google-auth-library: 9.7.0(encoding@0.1.13)
-      googleapis: 97.0.0(encoding@0.1.13)
+      google-auth-library: 8.9.0(encoding@0.1.13)
       jsonwebtoken: 9.0.2
     transitivePeerDependencies:
       - encoding
@@ -6607,12 +6625,11 @@ snapshots:
   chownr@2.0.0:
     optional: true
 
-  chromadb@1.8.1(@google/generative-ai@0.6.0)(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13)):
+  chromadb@1.8.1(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13)):
     dependencies:
       cliui: 8.0.1
       isomorphic-fetch: 3.0.0(encoding@0.1.13)
     optionalDependencies:
-      '@google/generative-ai': 0.6.0
       openai: 4.37.0(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
@@ -7551,6 +7568,8 @@ snapshots:
       wrappy: 1.0.2
     optional: true
 
+  inherits@2.0.3: {}
+
   inherits@2.0.4: {}
 
   ini@1.3.8: {}
@@ -7756,10 +7775,10 @@ snapshots:
 
   kuler@2.0.0: {}
 
-  langchain@0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(@google/generative-ai@0.6.0)(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13)))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@9.7.0(encoding@0.1.13))(googleapis@97.0.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1):
+  langchain@0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1):
     dependencies:
       '@anthropic-ai/sdk': 0.9.1(encoding@0.1.13)
-      '@langchain/community': 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(@google/generative-ai@0.6.0)(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@9.7.0(encoding@0.1.13))(googleapis@97.0.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
+      '@langchain/community': 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
       '@langchain/core': 0.1.61
       '@langchain/openai': 0.0.28(encoding@0.1.13)
       '@langchain/textsplitters': 0.0.0
@@ -7779,9 +7798,9 @@ snapshots:
     optionalDependencies:
       '@google-cloud/storage': 7.10.1(encoding@0.1.13)
       '@pinecone-database/pinecone': 2.2.0
-      chromadb: 1.8.1(@google/generative-ai@0.6.0)(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13))
+      chromadb: 1.8.1(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13))
       fast-xml-parser: 4.3.6
-      google-auth-library: 9.7.0(encoding@0.1.13)
+      google-auth-library: 8.9.0(encoding@0.1.13)
       handlebars: 4.7.8
       ignore: 5.3.1
       pdf-parse: 1.1.1
@@ -8256,6 +8275,11 @@ snapshots:
   path2d@0.1.1:
     optional: true
 
+  path@0.12.7:
+    dependencies:
+      process: 0.11.10
+      util: 0.10.4
+
   pdf-parse@1.1.1:
     dependencies:
       debug: 3.2.7
@@ -8331,6 +8355,8 @@ snapshots:
   prettier@3.2.5: {}
 
   process-nextick-args@2.0.1: {}
+
+  process@0.11.10: {}
 
   proto3-json-serializer@2.0.1:
     dependencies:
@@ -8932,6 +8958,10 @@ snapshots:
   url-template@2.0.8: {}
 
   util-deprecate@1.0.2: {}
+
+  util@0.10.4:
+    dependencies:
+      inherits: 2.0.3
 
   utils-merge@1.0.1: {}
 

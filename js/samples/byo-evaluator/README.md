@@ -77,7 +77,7 @@ genkit eval:run datasets/funniness_dataset.json --evaluators=byo/funniness
 Deliciousness:
 
 ```
-genkit eval:run datasets/funniness_dataset.json --evaluators=byo/deliciousness
+genkit eval:run datasets/deliciousness_dataset.json --evaluators=byo/deliciousness
 ```
 
 ## See your results
