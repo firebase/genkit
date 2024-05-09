@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
-import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
-import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
-import { firebase } from '@genkit-ai/firebase';
-import { geminiPro, googleAI } from '@genkit-ai/googleai';
-import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+export const URL_REGEX =
+  /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/i;
+
+export const US_PHONE_REGEX =
+  /^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4}$/i;
 
 // Turn off safety checks for evaluation so that the LLM as an evaluator can
 // respond appropriately to potentially harmful content without error.
@@ -43,32 +42,3 @@ export const PERMISSIVE_SAFETY_SETTINGS: any = {
     },
   ],
 };
-
-configureGenkit({
-  plugins: [
-    firebase(),
-    googleAI(),
-    genkitEval({
-      judge: geminiPro,
-      judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
-      metrics: [GenkitMetric.MALICIOUSNESS],
-      embedder: textEmbeddingGecko,
-    }),
-    vertexAI({
-      location: 'us-central1',
-    }),
-    devLocalVectorstore([
-      {
-        indexName: 'pdfQA',
-        embedder: textEmbeddingGecko,
-      },
-    ]),
-  ],
-  flowStateStore: 'firebase',
-  traceStore: 'firebase',
-  enableTracingAndMetrics: true,
-  logLevel: 'debug',
-});
-
-export * from './pdf_rag.js';
-export * from './setup.js';

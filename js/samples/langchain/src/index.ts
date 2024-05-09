@@ -14,8 +14,12 @@
  * limitations under the License.
  */
 
-import { initializeGenkit } from '@genkit-ai/core';
+import { configureGenkit } from '@genkit-ai/core';
+import { firebase } from '@genkit-ai/firebase';
 import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
+import { googleAI } from '@genkit-ai/googleai';
+import { ollama } from '@genkit-ai/ollama';
+import { vertexAI } from '@genkit-ai/vertexai';
 import { GoogleVertexAIEmbeddings } from '@langchain/community/embeddings/googlevertexai';
 import { GoogleVertexAI } from '@langchain/community/llms/googlevertexai';
 import { StringOutputParser } from '@langchain/core/output_parsers';
@@ -30,9 +34,24 @@ import { formatDocumentsAsString } from 'langchain/util/document';
 import { MemoryVectorStore } from 'langchain/vectorstores/memory';
 import * as z from 'zod';
 
-import config from './genkit.config';
-
-initializeGenkit(config);
+configureGenkit({
+  plugins: [
+    firebase(),
+    googleAI(),
+    vertexAI(),
+    ollama({
+      models: [
+        { name: 'llama2', type: 'generate' },
+        { name: 'gemma', type: 'chat' },
+      ],
+      serverAddress: 'http://127.0.0.1:11434', // default local address
+    }),
+  ],
+  flowStateStore: 'firebase',
+  traceStore: 'firebase',
+  enableTracingAndMetrics: true,
+  logLevel: 'debug',
+});
 
 const vectorStore = new MemoryVectorStore(new GoogleVertexAIEmbeddings());
 const model = new GoogleVertexAI();
