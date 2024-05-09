@@ -28,17 +28,16 @@ configureGenkit({
   enableTracingAndMetrics: true,
 });
 
-export const menuQAFlow = defineFlow(
+export const menuSuggestionFlow = defineFlow(
   {
-    name: 'menuQAFlow',
+    name: 'menuSuggestionFlow',
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
   async (subject) => {
     const llmResponse = await generate({
+      prompt: `Suggest an item for the menu of a ${subject} themed restaurant`,
       model: geminiPro,
-      prompt: `Our menu today includes burgers, spinach, and cod.
-      Tell me if ${subject} can be found on the menu`,
       config: {
         temperature: 1,
       },
