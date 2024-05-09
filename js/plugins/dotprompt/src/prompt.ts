@@ -161,14 +161,6 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
   private _generateOptions(
     options: PromptGenerateOptions<Variables>
   ): GenerateOptions {
-    if (!options.model && !this.model) {
-      throw new GenkitError({
-        source: 'Dotprompt',
-        message: 'Must supply `model` in prompt metadata or generate options.',
-        status: 'INVALID_ARGUMENT',
-      });
-    }
-
     const messages = this.renderMessages(options.input);
     return {
       model: options.model || this.model!,

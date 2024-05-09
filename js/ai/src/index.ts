@@ -30,6 +30,7 @@ export {
   Message,
   generate,
   generateStream,
+  setGlobalDefaultModel,
   toGenerateRequest,
 } from './generate.js';
 export { PromptAction, definePrompt, renderPrompt } from './prompt.js';

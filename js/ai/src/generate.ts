@@ -431,7 +431,7 @@ export interface GenerateOptions<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > {
   /** A model name (e.g. `vertexai/gemini-1.0-pro`) or reference. */
-  model: ModelArgument<CustomOptions>;
+  model?: ModelArgument<CustomOptions>;
   /** The prompt for which to generate a response. Can be a string for a simple text prompt or one or more parts for multi-modal prompts. */
   prompt: string | Part | Part[];
   /** Retrieved documents to be used as context for this generation. */
@@ -479,9 +479,39 @@ const isValidCandidate = (
   });
 };
 
-async function resolveModel(
-  model: ModelAction<any> | ModelReference<any> | string
-): Promise<ModelAction> {
+const DEFAULT_MODEL_GLOBAL_KEY = 'genkit_ai__defaultModel';
+
+interface GlobalModelRef {
+  model: ModelArgument<any>;
+  config?: any;
+}
+
+export function setGlobalDefaultModel<
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(model: ModelArgument<CustomOptions>, config?: z.infer<CustomOptions>) {
+  global[DEFAULT_MODEL_GLOBAL_KEY] = {
+    model,
+    config,
+  } as GlobalModelRef;
+}
+
+async function resolveModel(options: GenerateOptions): Promise<ModelAction> {
+  let model = options.model;
+  if (!model) {
+    const globalModel = global[DEFAULT_MODEL_GLOBAL_KEY] as GlobalModelRef;
+    if (globalModel) {
+      model = globalModel.model;
+      if (
+        (!options.config || Object.keys(options.config).length === 0) &&
+        globalModel.config
+      ) {
+        // use configured global config
+        options.config = globalModel.config;
+      }
+    } else {
+      throw new Error('Unable to resolve model.');
+    }
+  }
   if (typeof model === 'string') {
     return (await lookupAction(`/model/${model}`)) as ModelAction;
   } else if (model.hasOwnProperty('info')) {
@@ -537,7 +567,7 @@ export async function generate<
 ): Promise<GenerateResponse<z.infer<O>>> {
   const resolvedOptions: GenerateOptions<O, CustomOptions> =
     await Promise.resolve(options);
-  const model = await resolveModel(resolvedOptions.model);
+  const model = await resolveModel(resolvedOptions);
   if (!model) {
     throw new Error(`Model ${JSON.stringify(resolvedOptions.model)} not found`);
   }
