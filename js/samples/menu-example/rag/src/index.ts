@@ -21,7 +21,7 @@ import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 import * as z from 'zod';
 import { indexMenu } from './indexer';
 
-export default configureGenkit({
+configureGenkit({
   plugins: [
     vertexAI(),
     devLocalVectorstore([

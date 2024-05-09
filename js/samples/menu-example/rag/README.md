@@ -1,4 +1,4 @@
-# Evaluating pdfQA with cat facts
+# Evaluating menuQA flow
 
 ## Build it
 
@@ -14,7 +14,7 @@ cd ../../../; pnpm build; pnpm pack:all; cd -
 
 ## Run setup
 
-This will add the GenkitGrubPub.pdf to your index
+This will add the `GenkitGrubPub.pdf` to your index
 
 ```
 genkit flow:run setup
