@@ -15,14 +15,18 @@
  */
 
 import { configureGenkit } from '@genkit-ai/core';
-import { defineDotprompt } from '@genkit-ai/dotprompt';
+import { defineDotprompt, dotprompt } from '@genkit-ai/dotprompt';
 import { firebase } from '@genkit-ai/firebase';
 import { defineFlow, runFlow } from '@genkit-ai/flow';
 import googleAI, { geminiPro } from '@genkit-ai/googleai';
 import * as z from 'zod';
 
 configureGenkit({
-  plugins: [googleAI({ apiVersion: ['v1', 'v1beta'] }), firebase()],
+  plugins: [
+    googleAI({ apiVersion: ['v1', 'v1beta'] }),
+    firebase(),
+    dotprompt(),
+  ],
   enableTracingAndMetrics: true,
   flowStateStore: 'firebase',
   logLevel: 'debug',

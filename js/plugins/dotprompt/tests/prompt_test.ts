@@ -18,11 +18,20 @@ import assert from 'node:assert';
 import { describe, it } from 'node:test';
 
 import { defineModel } from '@genkit-ai/ai/model';
-import z from 'zod';
-
 import { toJsonSchema, ValidationError } from '@genkit-ai/core/schema';
+import z from 'zod';
+import { registerPluginProvider } from '../../../core/src/registry.js';
 import { defineDotprompt, Dotprompt, prompt } from '../src/index.js';
 import { PromptMetadata } from '../src/metadata.js';
+
+function registerDotprompt() {
+  registerPluginProvider('dotprompt', {
+    name: 'dotprompt',
+    async initializer() {
+      return {};
+    },
+  });
+}
 
 const echo = defineModel(
   { name: 'echo', supports: { tools: true } },
@@ -62,6 +71,7 @@ describe('Prompt', () => {
     });
 
     it('rejects input not matching the schema', async () => {
+      registerDotprompt();
       const invalidSchemaPrompt = defineDotprompt(
         {
           name: 'invalidInput',
@@ -90,6 +100,7 @@ describe('Prompt', () => {
     });
 
     it('rejects input not matching the schema', async () => {
+      registerDotprompt();
       const invalidSchemaPrompt = defineDotprompt(
         {
           name: 'invalidInput',
@@ -176,6 +187,7 @@ output:
 
   describe('definePrompt', () => {
     it('registers a prompt and its variant', async () => {
+      registerDotprompt();
       defineDotprompt(
         {
           name: 'promptName',
