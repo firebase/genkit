@@ -10,11 +10,16 @@ Firebase Genkit provides CLI and Developer UI tooling for working with flows
 ```javascript
 import { defineFlow } from '@genkit-ai/flow';
 
-export const myFlow = defineFlow({ name: 'myFlow' }, async (input) => {
-  const output = doSomethingCool(input);
+export const menuSuggestionFlow = defineFlow(
+  {
+    name: 'menuSuggestionFlow',
+  },
+  async (cuisine) => {
+    const suggestion = makeMenuSuggestion(input);
 
-  return output;
-});
+    return suggestion;
+  }
+);
 ```
 
 Input and output schemas for flows can be defined using `zod`.
@@ -23,16 +28,16 @@ Input and output schemas for flows can be defined using `zod`.
 import { defineFlow } from '@genkit-ai/flow';
 import * as z from 'zod';
 
-export const myFlow = defineFlow(
+export const menuSuggestionFlow = defineFlow(
   {
-    name: 'myFlow',
-    inputSchema: z.object({ subject: z.string() }),
+    name: 'menuSuggestionFlow',
+    inputSchema: z.object({ cuisine: z.string() }),
     outputSchema: z.string(),
   },
   async (input) => {
-    const output = doSomethingCool(input.subject);
+    const suggestion = makeMenuSuggestion(input.cuisine);
 
-    return output;
+    return llmResponse.text();
   }
 );
 ```
@@ -44,13 +49,13 @@ When schema is specified Genkit will validate the schema for inputs and outputs.
 Use the `runFlow` function to run the flow:
 
 ```js
-const response = await runFlow(jokeFlow, 'banana');
+const response = await runFlow(menuSuggestionFlow, 'French');
 ```
 
 You can use the CLI to run flows as well:
 
 ```posix-terminal
-genkit flow:run jokeFlow '"banana"'
+genkit flow:run menuSuggestionFlow '"French"'
 ```
 
 ### Streamed
@@ -98,7 +103,7 @@ If the flow does not implement streaming `streamFlow` will behave identically to
 You can use the CLI to stream flows as well:
 
 ```posix-terminal
-genkit flow:run jokeFlow '"banana"' -s
+genkit flow:run streamer '"banana"' -s
 ```
 
 ## Deploying flows
@@ -112,19 +117,17 @@ observability).
 
 ### Cloud Function for Firebase
 
-To use flows with Cloud Functions for Firebase use the `firebase` plugin and replace `defineFlow` with `onFlow`.
+To use flows with Cloud Functions for Firebase use the `firebase` plugin, replace `defineFlow` with `onFlow` and include an `authPolicy`.
 
 ```js
 import { onFlow, noAuth } from '@genkit-ai/firebase/functions';
 
-export const jokeFlow = onFlow(
+export const menuSuggestionFlow = onFlow(
   {
-    name: 'jokeFlow',
-    inputSchema: z.string(),
-    outputSchema: z.string(),
+    name: 'menuSuggestionFlow',
     authPolicy: noAuth(),
   },
-  async (subject, streamingCallback) => {
+  async (cuisine) => {
     // ....
   }
 );
@@ -137,27 +140,42 @@ To deploy flows using Cloud Run and similar services, define your flows using `d
 ```js
 import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
 
-export const jokeFlow = defineFlow({ name: 'jokeFlow' }, async (subject) => {
-  // ....
-});
+export const menuSuggestionFlow = defineFlow(
+  {
+    name: 'menuSuggestionFlow',
+  },
+  async (cuisine) => {
+    // ....
+  }
+);
 
 startFlowsServer();
 ```
 
-By default `startFlowsServer` will serve all the flows that you have defined in your codebase as HTTP endpoints (e.g. `http://localhost:3400/jokeFlow`).
+By default `startFlowsServer` will serve all the flows that you have defined in your codebase as HTTP endpoints (e.g. `http://localhost:3400/menuSuggestionFlow`).
 
 You can choose which flows are exposed via the flows server. You can specify a custom port (it will use the `PORT` environment variable if set). You can also set CORS settings.
 
 ```js
 import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
 
-export const flowA = defineFlow({ name: 'flowA' }, async (subject) => {
-  // ....
-});
+export const flowA = defineFlow(
+  {
+    name: 'menuSuggestionFlowA',
+  },
+  async (subject) => {
+    // ....
+  }
+);
 
-export const flowB = defineFlow({ name: 'flowB' }, async (subject) => {
-  // ....
-});
+export const flowB = defineFlow(
+  {
+    name: 'menuSuggestionFlowB',
+  },
+  async (subject) => {
+    // ....
+  }
+);
 
 startFlowsServer({
   flows: [flowB],
@@ -175,13 +193,20 @@ Sometimes when using 3rd party SDKs that that are not instrumented for observabi
 ```js
 import { defineFlow, run } from '@genkit-ai/flow';
 
-export const myFlow = defineFlow(
-  { name: 'myFlow', inputSchema: z.string(), outputSchema: z.string() },
+export const menuSuggestionFlow = defineFlow(
+  {
+    name: 'menuSuggestionFlow',
+    inputSchema: z.object({ cuisine: z.string() }),
+    outputSchema: z.string(),
+  },
   async (input) => {
-    const output = await run('step-name', async () => {
-      return await doSomething(input);
+    const cuisines = await run('find-similar-cusines', async () => {
+      return await findSimilarCuisines(input.cuisine);
     });
-    return output;
+
+    const suggestion = makeMenuSuggestion(cuisines);
+
+    return suggestion;
   }
 );
 ```
