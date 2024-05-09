@@ -4,7 +4,7 @@
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "build": "pnpm install && pnpm build:core && pnpm build:noncore",
-    "build:core": "pnpm -r --workspace-concurrency 1 -F core -F ai -F flow -F plugins/dotprompt build",
+    "build:core": "pnpm -r --workspace-concurrency 1 -F core -F ai -F flow build",
     "build:noncore": "pnpm -r --workspace-concurrency 0 -F \"./(plugins|samples)/**\" build",
     "pack:all": "(mkdir ../dist || true) && npm-run-all pack:core pack:flow pack:ai pack:plugins",
     "pack:core": "cd core && pnpm pack --pack-destination ../../dist",
