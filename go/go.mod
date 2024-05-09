@@ -1,6 +1,6 @@
 module github.com/google/genkit/go
 
-go 1.22
+go 1.22.0
 
 require (
 	cloud.google.com/go/vertexai v0.7.1
