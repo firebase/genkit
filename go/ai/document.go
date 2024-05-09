@@ -16,6 +16,7 @@ package ai
 
 import (
 	"encoding/json"
+	"fmt"
 )
 
 // A Document is a piece of data that can be embedded, indexed, or retrieved.
@@ -30,21 +31,53 @@ type Document struct {
 // A Part is one part of a [Document]. This may be plain text or it
 // may be a URL (possibly a "data:" URL with embedded data).
 type Part struct {
-	isText      bool
-	contentType string
-	text        string
+	kind         partKind
+	contentType  string        // valid for kind==blob
+	text         string        // valid for kind∈{text,blob}
+	toolRequest  *ToolRequest  // valid for kind==partToolRequest
+	toolResponse *ToolResponse // valid for kind==partToolResponse
 }
 
+type partKind int8
+
+const (
+	partText partKind = iota
+	partBlob
+	partToolRequest
+	partToolResponse
+)
+
 func NewTextPart(text string) *Part {
-	return &Part{isText: true, text: text}
+	return &Part{kind: partText, text: text}
 }
 func NewBlobPart(mimeType, contents string) *Part {
-	return &Part{isText: false, contentType: mimeType, text: contents}
+	return &Part{kind: partBlob, contentType: mimeType, text: contents}
+}
+func NewToolRequestPart(r *ToolRequest) *Part {
+	return &Part{kind: partToolRequest, toolRequest: r}
+}
+func NewToolResponsePart(r *ToolResponse) *Part {
+	return &Part{kind: partToolResponse, toolResponse: r}
 }
 
 // IsText reports whether the [Part] contains plain text.
 func (p *Part) IsPlainText() bool {
-	return p.isText
+	return p.kind == partText
+}
+
+// IsBlob reports whether the [Part] contains blob (non-plain-text) data.
+func (p *Part) IsBlob() bool {
+	return p.kind == partBlob
+}
+
+// IsToolRequest reports whether the [Part] contains a request to run a tool.
+func (p *Part) IsToolRequest() bool {
+	return p.kind == partToolRequest
+}
+
+// IsToolResponse reports whether the [Part] contains the result of running a tool.
+func (p *Part) IsToolResponse() bool {
+	return p.kind == partToolResponse
 }
 
 // Text returns the text. This is either plain text or a URL.
@@ -53,12 +86,24 @@ func (p *Part) Text() string {
 }
 
 // ContentType returns the type of the content.
-// This is only interesting if IsText is false.
+// This is only interesting if IsBlob() is true.
 func (p *Part) ContentType() string {
-	if p.isText {
+	if p.kind == partText {
 		return "text/plain"
 	}
 	return p.contentType
+}
+
+// ToolRequest returns a request from the model for the client to run a tool.
+// Valid only if [IsToolRequest] is true.
+func (p *Part) ToolRequest() *ToolRequest {
+	return p.toolRequest
+}
+
+// ToolResponse returns the tool response the client is sending to the model.
+// Valid only if [IsToolResponse] is true.
+func (p *Part) ToolResponse() *ToolResponse {
+	return p.toolResponse
 }
 
 // MarshalJSON is called by the JSON marshaler to write out a Part.
@@ -66,12 +111,13 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 	// This is not handled by the schema generator because
 	// Part is defined in TypeScript as a union.
 
-	if p.isText {
+	switch p.kind {
+	case partText:
 		v := textPart{
 			Text: p.text,
 		}
 		return json.Marshal(v)
-	} else {
+	case partBlob:
 		v := mediaPart{
 			Media: &mediaPartMedia{
 				ContentType: p.contentType,
@@ -79,6 +125,25 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 			},
 		}
 		return json.Marshal(v)
+	case partToolRequest:
+		// TODO: make sure these types marshal/unmarshal nicely
+		// between Go and javascript. At the very least the
+		// field name needs to change (here and in UnmarshalJSON).
+		v := struct {
+			ToolReq *ToolRequest `json:"toolreq,omitempty"`
+		}{
+			ToolReq: p.toolRequest,
+		}
+		return json.Marshal(v)
+	case partToolResponse:
+		v := struct {
+			ToolResp *ToolResponse `json:"toolresp,omitempty"`
+		}{
+			ToolResp: p.toolResponse,
+		}
+		return json.Marshal(v)
+	default:
+		return nil, fmt.Errorf("invalid part kind %v", p.kind)
 	}
 }
 
@@ -88,20 +153,29 @@ func (p *Part) UnmarshalJSON(b []byte) error {
 	// Part is defined in TypeScript as a union.
 
 	var s struct {
-		Text  string          `json:"text,omitempty"`
-		Media *mediaPartMedia `json:"media,omitempty"`
+		Text     string          `json:"text,omitempty"`
+		Media    *mediaPartMedia `json:"media,omitempty"`
+		ToolReq  *ToolRequest    `json:"toolreq,omitempty"`
+		ToolResp *ToolResponse   `json:"toolresp,omitempty"`
 	}
 
 	if err := json.Unmarshal(b, &s); err != nil {
 		return err
 	}
 
-	if s.Media != nil {
-		p.isText = false
+	switch {
+	case s.Media != nil:
+		p.kind = partBlob
 		p.text = s.Media.Url
 		p.contentType = s.Media.ContentType
-	} else {
-		p.isText = true
+	case s.ToolReq != nil:
+		p.kind = partToolRequest
+		p.toolRequest = s.ToolReq
+	case s.ToolResp != nil:
+		p.kind = partToolResponse
+		p.toolResponse = s.ToolResp
+	default:
+		p.kind = partText
 		p.text = s.Text
 		p.contentType = ""
 	}
@@ -114,8 +188,8 @@ func DocumentFromText(text string, metadata map[string]any) *Document {
 	return &Document{
 		Content: []*Part{
 			&Part{
-				isText: true,
-				text:   text,
+				kind: partText,
+				text: text,
 			},
 		},
 		Metadata: metadata,
