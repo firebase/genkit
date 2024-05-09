@@ -184,8 +184,12 @@ func (p *Prompt) Execute(ctx context.Context, input *ActionInput) (*ai.GenerateR
 		if model == "" {
 			return nil, errors.New("dotprompt action: model not specified")
 		}
+		provider, name, found := strings.Cut(model, "/")
+		if !found {
+			return nil, errors.New("dotprompt model not in provider/name format")
+		}
 
-		generator, err = ai.LookupGeneratorAction(model)
+		generator, err = ai.LookupGeneratorAction(provider, name)
 		if err != nil {
 			return nil, err
 		}
