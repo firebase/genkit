@@ -16,7 +16,7 @@ $GENKIT_CONFIG_PLUGINS
 
 export const menuSuggestionFlow = onFlow(
   {
-    name: 'menuSuggestionFlow',
+    name: "menuSuggestionFlow",
     inputSchema: z.string(),
     outputSchema: z.string(),
     authPolicy: firebaseAuth((user) => {
@@ -26,7 +26,8 @@ export const menuSuggestionFlow = onFlow(
     }),
   },
   async (subject) => {
-    const prompt = `Suggest an item for the menu of a ${subject} themed restaurant`;
+    const prompt =
+      `Suggest an item for the menu of a ${subject} themed restaurant`;
 
     const llmResponse = await generate({
       model: $GENKIT_MODEL,
@@ -39,3 +40,4 @@ export const menuSuggestionFlow = onFlow(
     return llmResponse.text();
   }
 );
+
