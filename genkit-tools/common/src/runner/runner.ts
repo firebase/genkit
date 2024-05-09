@@ -178,9 +178,9 @@ export class Runner {
 
     const harnessEntryPoint = path.join(__dirname, '../runner/harness.js');
     const entryPoint =
-      config?.runner?.mode === 'default'
-        ? getEntryPoint(process.cwd())
-        : harnessEntryPoint;
+      config?.runner?.mode === 'harness'
+        ? harnessEntryPoint
+        : getEntryPoint(process.cwd());
     if (!entryPoint) {
       logger.error(
         'Could not detect entry point for app. Make sure you are at the root of your project directory.'
