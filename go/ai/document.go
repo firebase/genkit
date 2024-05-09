@@ -47,15 +47,26 @@ const (
 	partToolResponse
 )
 
+// NewTextPart returns a Part containing raw string data.
 func NewTextPart(text string) *Part {
 	return &Part{kind: partText, text: text}
 }
+
+// NewBlobPart returns a Part containing structured data described
+// by the given mimeType.
 func NewBlobPart(mimeType, contents string) *Part {
 	return &Part{kind: partBlob, contentType: mimeType, text: contents}
 }
+
+// NewToolRequestPart returns a Part containing a request from
+// the model to the client to run a Tool.
+// (Only genkit plugins should need to use this function.)
 func NewToolRequestPart(r *ToolRequest) *Part {
 	return &Part{kind: partToolRequest, toolRequest: r}
 }
+
+// NewToolResponsePart returns a Part containing the results
+// of applying a Tool that the model requested.
 func NewToolResponsePart(r *ToolResponse) *Part {
 	return &Part{kind: partToolResponse, toolResponse: r}
 }

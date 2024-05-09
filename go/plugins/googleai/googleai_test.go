@@ -164,7 +164,7 @@ func TestGeneratorTool(t *testing.T) {
 	}
 	toolReq := p.ToolRequest()
 	if toolReq.Name != "exponentiation" {
-		t.Errorf("tool name is \"%s\", want \"exponentiation\"", toolReq.Name)
+		t.Errorf("tool name is %q, want \"exponentiation\"", toolReq.Name)
 	}
 	if toolReq.Input["base"] != 3.5 {
 		t.Errorf("base is %f, want 3.5", toolReq.Input["base"])
