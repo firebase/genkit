@@ -18,12 +18,13 @@
 // both.
 import { generate } from '@genkit-ai/ai';
 import { configureGenkit } from '@genkit-ai/core';
+import { dotprompt } from '@genkit-ai/dotprompt';
 import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import * as z from 'zod';
 
 configureGenkit({
-  plugins: [googleAI()],
+  plugins: [googleAI(), dotprompt()],
   logLevel: 'debug',
   enableTracingAndMetrics: true,
 });

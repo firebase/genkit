@@ -16,6 +16,7 @@
 
 import { configureGenkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
+import { dotprompt } from '@genkit-ai/dotprompt';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
 import { googleAI } from '@genkit-ai/googleai';
@@ -31,6 +32,7 @@ import { pinecone } from 'genkitx-pinecone';
 
 export default configureGenkit({
   plugins: [
+    dotprompt(),
     firebase(),
     googleAI({ apiVersion: ['v1', 'v1beta'] }),
     genkitEval({

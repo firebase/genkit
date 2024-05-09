@@ -16,6 +16,7 @@
 import { EvaluatorAction } from '@genkit-ai/ai';
 import { ModelReference } from '@genkit-ai/ai/model';
 import { configureGenkit, genkitPlugin, PluginProvider } from '@genkit-ai/core';
+import { dotprompt } from '@genkit-ai/dotprompt';
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import * as z from 'zod';
@@ -42,6 +43,7 @@ import {
 
 configureGenkit({
   plugins: [
+    dotprompt(),
     firebase(),
     googleAI({ apiVersion: ['v1', 'v1beta'] }),
     byoEval({
