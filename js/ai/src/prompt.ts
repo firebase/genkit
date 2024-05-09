@@ -16,8 +16,8 @@
 
 import { Action, defineAction, JSONSchema7 } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
-import { DocumentData } from '@google-cloud/firestore';
 import z from 'zod';
+import { DocumentData } from './document';
 import { GenerateOptions } from './generate';
 import { GenerateRequest, GenerateRequestSchema, ModelArgument } from './model';
 

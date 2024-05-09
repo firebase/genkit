@@ -19,7 +19,6 @@ import { defineFlow } from '@genkit-ai/flow';
 import { geminiPro } from '@genkit-ai/googleai';
 import * as z from 'zod';
 import { HelloFullNameSchema, HelloSchema } from '../common/types.js';
-import '../genkit.config.js';
 
 //
 // Prompt defined in code, subsequently loaded into a flow, plus an additional variant.

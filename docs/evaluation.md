@@ -11,12 +11,14 @@ quality of your retriever while it runs in the context of the flow as shown belo
 
 ```js
 import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
+import { textEmbeddingGecko } from '@genkit-ai/vertexai';
 
 export default configureGenkit({
   plugins: [
     genkitEval({
       judge: geminiPro,
       metrics: [GenkitMetric.FAITHFULNESS, GenkitMetric.ANSWER_RELEVANCY],
+      embedder: textEmbeddingGecko, // GenkitMetric.ANSWER_RELEVANCY requires an embedder
     }),
   ],
   // ...

@@ -4,3 +4,4 @@ public/
 .prettierrc.yaml
 pnpm-lock.yaml
 docs/_guides.yaml
+genkit-tools/genkit-schema.json

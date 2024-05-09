@@ -13,12 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import { configureGenkit } from '@genkit-ai/core';
+import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
+import { dotprompt } from '@genkit-ai/dotprompt';
+import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 
 // Initialize Genkit
 
-import { initializeGenkit } from '@genkit-ai/core';
-import config from './genkit.conf';
-initializeGenkit(config);
+configureGenkit({
+  plugins: [
+    dotprompt(),
+    vertexAI({ location: 'us-central1' }),
+    devLocalVectorstore([
+      {
+        indexName: 'menu-items',
+        embedder: textEmbeddingGecko,
+        embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
+      },
+    ]),
+  ],
+  enableTracingAndMetrics: true,
+  flowStateStore: 'firebase',
+  logLevel: 'debug',
+  traceStore: 'firebase',
+});
 
 // Export all of the example prompts and flows
 

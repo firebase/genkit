@@ -14,14 +14,20 @@
  * limitations under the License.
  */
 
-import { initializeGenkit } from '@genkit-ai/core';
+import { configureGenkit } from '@genkit-ai/core';
 import { defineDotprompt } from '@genkit-ai/dotprompt';
+import { firebase } from '@genkit-ai/firebase';
 import { defineFlow, runFlow } from '@genkit-ai/flow';
-import { geminiPro } from '@genkit-ai/vertexai';
+import googleAI, { geminiPro } from '@genkit-ai/googleai';
 import * as z from 'zod';
-import config from './genkit.config.js';
 
-initializeGenkit(config);
+configureGenkit({
+  plugins: [googleAI({ apiVersion: ['v1', 'v1beta'] }), firebase()],
+  enableTracingAndMetrics: true,
+  flowStateStore: 'firebase',
+  logLevel: 'debug',
+  traceStore: 'firebase',
+});
 
 // This example generates greetings for a customer at our new AI-powered coffee shop,
 // demonstrating how to use prompts in Genkit flows.

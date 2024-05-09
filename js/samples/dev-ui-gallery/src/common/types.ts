@@ -15,7 +15,6 @@
  */
 
 import * as z from 'zod';
-import '../genkit.config';
 
 export const HelloSchema = z.object({
   name: z.string(),

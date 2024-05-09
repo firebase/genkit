@@ -14,10 +14,72 @@
  * limitations under the License.
  */
 
-import { initializeGenkit } from '@genkit-ai/core';
-import config from './genkit.config.js';
+import { configureGenkit } from '@genkit-ai/core';
+import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
+import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
+import { firebase } from '@genkit-ai/firebase';
+import { googleAI } from '@genkit-ai/googleai';
+import {
+  claude3Sonnet,
+  geminiPro,
+  textEmbeddingGecko,
+  vertexAI,
+} from '@genkit-ai/vertexai';
+import { chroma } from 'genkitx-chromadb';
+import { langchain } from 'genkitx-langchain';
+import { pinecone } from 'genkitx-pinecone';
 
-initializeGenkit(config);
+export default configureGenkit({
+  plugins: [
+    firebase(),
+    googleAI({ apiVersion: ['v1', 'v1beta'] }),
+    genkitEval({
+      judge: geminiPro,
+      metrics: [GenkitMetric.FAITHFULNESS, GenkitMetric.MALICIOUSNESS],
+    }),
+    langchain({
+      evaluators: {
+        criteria: ['coherence'],
+        labeledCriteria: ['correctness'],
+        judge: geminiPro,
+      },
+    }),
+    vertexAI({
+      location: 'us-central1',
+      modelGardenModels: [claude3Sonnet],
+    }),
+    pinecone([
+      {
+        indexId: 'cat-facts',
+        embedder: textEmbeddingGecko,
+      },
+      {
+        indexId: 'pdf-chat',
+        embedder: textEmbeddingGecko,
+      },
+    ]),
+    chroma([
+      {
+        collectionName: 'dogfacts_collection',
+        embedder: textEmbeddingGecko,
+      },
+    ]),
+    devLocalVectorstore([
+      {
+        indexName: 'dog-facts',
+        embedder: textEmbeddingGecko,
+      },
+      {
+        indexName: 'pdfQA',
+        embedder: textEmbeddingGecko,
+      },
+    ]),
+  ],
+  flowStateStore: 'firebase',
+  traceStore: 'firebase',
+  enableTracingAndMetrics: true,
+  logLevel: 'debug',
+});
 
 export * from './pdf_rag.js';
 export * from './simple_rag.js';

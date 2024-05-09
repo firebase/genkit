@@ -15,17 +15,22 @@
  */
 
 import { generate } from '@genkit-ai/ai';
-import { initializeGenkit } from '@genkit-ai/core';
+import { configureGenkit } from '@genkit-ai/core';
+import { firebase } from '@genkit-ai/firebase';
 import { durableFlow, interrupt, run } from '@genkit-ai/flow/experimental';
-import { geminiPro } from '@genkit-ai/googleai';
+import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import * as z from 'zod';
-import config from './genkit.config.js';
-
 // To run this sample use the following sample commands:
 //   genkit flow:run jokeFlow "\"apple\""
 //   genkit flow:resume jokeFlow FLOW_ID_FROM_PREV_COMMAND "\{\"approved\":true}"
 
-initializeGenkit(config);
+configureGenkit({
+  plugins: [firebase(), googleAI()],
+  flowStateStore: 'firebase',
+  traceStore: 'firebase',
+  enableTracingAndMetrics: true,
+  logLevel: 'debug',
+});
 
 export const jokeFlow = durableFlow(
   {

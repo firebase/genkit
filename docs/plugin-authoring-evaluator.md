@@ -20,8 +20,35 @@ LLM-based evaluators in Genkit are made up of 3 components:
 
 For this example, the prompt is going to ask the LLM to judge how delicious the output is. First, provide context to the LLM, then describe what you want it to do, and finally, give it a few examples to base its response on.
 
+Genkit comes with `dotprompt`, which provides an easy way to define and manage prompts with feautres such as input/output schema validation. Here is how you can use `dotprompt` to define an evaluation prompt.
+
 ```ts
-const QUESTION_GEN_PROMPT = `You are a food critic with a wide range in taste. Given the output, decide if it sounds delicious and provide your reasoning. Use only "yes" (if delicous), "no" (if not delicious), "maybe" (if you can't decide) as the verdict.
+import { defineDotprompt } from '@genkit-ai/dotprompt';
+
+// Define the expected output values
+const DELICIOUSNESS_VALUES = ['yes', 'no', 'maybe'] as const;
+
+// Define the response schema expected from the LLM
+const DeliciousnessDetectionResponseSchema = z.object({
+  reason: z.string(),
+  verdict: z.enum(DELICIOUSNESS_VALUES),
+});
+type DeliciousnessDetectionResponse = z.infer<
+  typeof DeliciousnessDetectionResponseSchema
+>;
+
+const DELICIOUSNESS_PROMPT = defineDotprompt(
+  {
+    input: {
+      schema: z.object({
+        output: z.string(),
+      }),
+    },
+    output: {
+      schema: DeliciousnessDetectionResponseSchema,
+    },
+  },
+  `You are a food critic with a wide range in taste. Given the output, decide if it sounds delicious and provide your reasoning. Use only "yes" (if delicous), "no" (if not delicious), "maybe" (if you can't decide) as the verdict.
 
 Here are a few examples:
 
@@ -36,7 +63,7 @@ Response:
 { "reason": "This is not edible and definitely not delicious.", "verdict":"no"}
 
 Output:
-A juicy pce of gossip
+A juicy piece of gossip
 Response:
 { "reason": "Gossip is sometimes metaphorically referred to as tasty.", "verdict":"maybe"}
 
@@ -45,29 +72,15 @@ Here is a new submission to assess:
 Output:
 {{output}}
 Response:
-`;
+`
+);
 ```
 
 #### Define the scoring function
 
 Now, define the function that will take an example which includes `output` as is required by the prompt and score the result. Genkit test cases include `input` as required a required field, with optional fields for `output` and `context`. It is the responsibility of the evaluator to validate that all fields required for evaluation are present.
 
-This example leverages `handlebars` to hydrate the prompt and `zod` to format and validate the response.
-
 ```ts
-// Define the expected output values
-const DELICIOUSNESS_VALUES = ['yes', 'no', 'maybe'] as const;
-
-// Define the response schema expected from the LLM
-const DeliciousnessDetectionResponseSchema = z.object({
-  reason: z.string(),
-  verdict: z.enum(DELICIOUSNESS_VALUES),
-});
-
-type DeliciousnessDetectionResponse = z.infer<
-  typeof DeliciousnessDetectionResponseSchema
->;
-
 /**
  * Score an individual test case for delciousness.
  */
@@ -81,13 +94,12 @@ export async function deliciousnessScore<
   const d = dataPoint;
   // Validate the input has required fields
   if (!d.output) {
-    throw new Error('Output is required for Funniness detection');
+    throw new Error('Output is required for Deliciousness detection');
   }
 
   //Hydrate the prompt
-  const promptTemplate = Handlebars.compile(QUESTION_GEN_PROMPT);
-  const finalPrompt = promptTemplate({
-    output: d.output,
+  const finalPrompt = DELICIOUSNESS_PROMPT.renderText({
+    output: d.output as string,
   });
 
   // Call the LLM to generate an evaluation result
@@ -98,9 +110,7 @@ export async function deliciousnessScore<
   });
 
   // Parse the output
-  const parsedResponse = extractJson<DeliciousnessDetectionResponse>(
-    response.text()
-  );
+  const parsedResponse = response.output();
   if (!parsedResponse) {
     throw new Error(`Unable to parse evaluator response: ${response.text()}`);
   }

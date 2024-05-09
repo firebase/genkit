@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import { initializeGenkit } from '@genkit-ai/core';
+import { configureGenkit } from '@genkit-ai/core';
+import { firebase } from '@genkit-ai/firebase';
 import {
   defineFlow,
   run,
@@ -30,9 +31,14 @@ import {
   waitFor,
 } from '@genkit-ai/flow/experimental';
 import * as z from 'zod';
-import config from './genkit.config.js';
 
-initializeGenkit(config);
+configureGenkit({
+  plugins: [firebase()],
+  flowStateStore: 'firebase',
+  traceStore: 'firebase',
+  enableTracingAndMetrics: true,
+  logLevel: 'debug',
+});
 
 /**
  * To run this flow;
