@@ -157,12 +157,16 @@ export class Runner {
    * Starts the app code in a subprocess.
    */
   private async startApp(): Promise<boolean> {
+    const config = await findToolsConfig();
     const runtime = detectRuntime(process.cwd());
     let command = '';
     let args: string[] = [];
     switch (runtime) {
       case 'node':
-        command = 'node';
+        command =
+          config?.runner?.mode === 'harness'
+            ? path.join(__dirname, '../../../node_modules/.bin/tsx')
+            : 'node';
         break;
       case 'go':
         command = 'go';
@@ -172,7 +176,11 @@ export class Runner {
         throw Error(`Unexpected runtime while starting app code: ${runtime}`);
     }
 
-    const entryPoint = getEntryPoint(process.cwd());
+    const harnessEntryPoint = path.join(__dirname, '../runner/harness.js');
+    const entryPoint =
+      config?.runner?.mode === 'default'
+        ? getEntryPoint(process.cwd())
+        : harnessEntryPoint;
     if (!entryPoint) {
       logger.error(
         'Could not detect entry point for app. Make sure you are at the root of your project directory.'
@@ -184,7 +192,14 @@ export class Runner {
       return false;
     }
 
-    logger.info(`Starting app at \`${entryPoint}\`...`);
+    const files = config?.runner?.files;
+    if (config?.runner?.mode === 'harness') {
+      logger.info(
+        `Running harness with file paths:\n - ${files?.join('\n - ') || ' - None'}`
+      );
+    } else {
+      logger.info(`Starting app at \`${entryPoint}\`...`);
+    }
 
     // Try the desired port first then fall back to default range.
     let port = await getPort({ port: this.reflectionApiPort });
@@ -199,6 +214,9 @@ export class Runner {
     this.reflectionApiPort = port;
 
     args.push(entryPoint);
+    if (config?.runner?.mode === 'harness' && files) {
+      args.push(files.join(','));
+    }
     this.appProcess = spawn(command, args, {
       stdio: 'inherit',
       env: {
