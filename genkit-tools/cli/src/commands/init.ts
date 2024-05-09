@@ -87,7 +87,7 @@ const modelOptions: Record<ModelProvider, PromptOption> = {
     label: 'Google Cloud Vertex AI',
     plugin: '@genkit-ai/vertexai',
   },
-  ollama: { label: 'Ollama (e.g. Gemma)', plugin: '@genkit-ai/ollama' },
+  ollama: { label: 'Ollama (e.g. Gemma)', plugin: 'genkitx-ollama' },
   none: { label: 'None', plugin: undefined },
 };
 
@@ -127,7 +127,7 @@ const pluginToInfo: Record<string, PluginInfo> = {
     init: "vertexAI({ location: 'us-central1' })",
     model: 'geminiPro',
   },
-  '@genkit-ai/ollama': {
+  'genkitx-ollama': {
     imports: 'ollama',
     init: `ollama({
       models: [{ name: 'gemma' }],

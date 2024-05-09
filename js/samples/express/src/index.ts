@@ -19,7 +19,7 @@ import { configureGenkit } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import { defineFlow, run, runFlow } from '@genkit-ai/flow';
 import { googleAI } from '@genkit-ai/googleai';
-import { ollama } from '@genkit-ai/ollama';
+import { ollama } from 'genkitx-ollama';
 import { vertexAI } from '@genkit-ai/vertexai';
 import express, { Request, Response } from 'express';
 import * as z from 'zod';

@@ -762,7 +762,7 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/ollama':
+      'genkitx-ollama':
         specifier: workspace:*
         version: link:../../plugins/ollama
       '@genkit-ai/vertexai':
@@ -808,7 +808,7 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/ollama':
+      'genkitx-ollama':
         specifier: workspace:*
         version: link:../../plugins/ollama
       '@genkit-ai/vertexai':
@@ -907,7 +907,7 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/ollama':
+      'genkitx-ollama':
         specifier: workspace:*
         version: link:../../plugins/ollama
       '@genkit-ai/vertexai':
@@ -1000,7 +1000,7 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/ollama':
+      'genkitx-ollama':
         specifier: workspace:*
         version: link:../../plugins/ollama
       '@genkit-ai/vertexai':

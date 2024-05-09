@@ -20,7 +20,7 @@ import { dotprompt } from '@genkit-ai/dotprompt';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
-import { ollama } from '@genkit-ai/ollama';
+import { ollama } from 'genkitx-ollama';
 import {
   claude3Haiku,
   claude3Opus,
