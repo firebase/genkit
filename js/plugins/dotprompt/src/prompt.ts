@@ -37,6 +37,7 @@ import {
   toFrontmatter,
   toMetadata,
 } from './metadata.js';
+import { registryDefinitionKey } from './registry.js';
 import { compile } from './template.js';
 
 export type PromptData = PromptFrontmatter & { template: string };
@@ -50,7 +51,7 @@ export type PromptGenerateOptions<V = unknown> = Omit<
 };
 
 export class Dotprompt<Variables = unknown> implements PromptMetadata {
-  name?: string;
+  name: string;
   variant?: string;
   hash: string;
 
@@ -100,7 +101,7 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
   }
 
   constructor(options: PromptMetadata, template: string) {
-    this.name = options.name;
+    this.name = options.name || 'untitledPrompt';
     this.variant = options.variant;
     this.model = options.model;
     this.input = options.input || { schema: z.any() };
@@ -144,7 +145,7 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
   define(): void {
     definePrompt(
       {
-        name: `${this.name}${this.variant ? `.${this.variant}` : ''}`,
+        name: registryDefinitionKey(this.name, this.variant),
         description: 'Defined by Dotprompt',
         inputSchema: this.input?.schema,
         inputJsonSchema: this.input?.jsonSchema,
