@@ -93,6 +93,8 @@ function parsePico(obj: any, path: string[] = []): JSONSchema {
       };
     } else if (type === 'object') {
       schema.properties[propertyName] = parsePico(obj[key], [...path, key]);
+    } else if (type === 'enum') {
+      schema.properties[propertyName] = { enum: obj[key] };
     } else {
       throw new Error(
         "Picoschema: parenthetical types must be 'object' or 'array', got: " +
