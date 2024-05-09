@@ -22,22 +22,19 @@ interface PackageJson {
   main: string;
 }
 
-function getPackageJson(directory: string): PackageJson | undefined {
-  const packageJsonPath = path.join(directory, 'package.json');
-  if (fs.existsSync(packageJsonPath)) {
-    return JSON.parse(
-      fs.readFileSync(packageJsonPath, 'utf8')
-    ) as PackageJson;
-  }
-  return undefined;
-}
-
 /**
  * Returns the entry point of a Node.js app.
  */
 export function getNodeEntryPoint(directory: string): string {
-  const packageJson = getPackageJson(directory);
-  return packageJson?.main || 'lib/index.js';
+  const packageJsonPath = path.join(directory, 'package.json');
+  let entryPoint = 'lib/index.js';
+  if (fs.existsSync(packageJsonPath)) {
+    const packageJson = JSON.parse(
+      fs.readFileSync(packageJsonPath, 'utf8')
+    ) as PackageJson;
+    entryPoint = packageJson.main;
+  }
+  return entryPoint;
 }
 
 /**
@@ -61,7 +58,6 @@ export function getEntryPoint(directory: string): string | undefined {
  */
 export function detectRuntime(directory: string): Runtime {
   if (fs.existsSync(path.join(directory, 'package.json'))) {
-    const packageJson = getPackageJson(directory);
     return 'node';
   }
   const files = fs.readdirSync(directory);
