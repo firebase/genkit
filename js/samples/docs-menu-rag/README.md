@@ -9,8 +9,10 @@ pnpm build
 or if you need to, build everything:
 
 ```
-cd ../../../; pnpm build; pnpm pack:all; cd -
+cd </path/to/genkit>; pnpm build; pnpm pack:all; cd -
 ```
+
+where `</path/to/genkit>` is the top level of the genkit repo
 
 ## Run setup
 
