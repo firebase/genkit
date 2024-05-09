@@ -100,7 +100,9 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 		if err != nil {
 			return nil, err
 		}
-		return translateResponse(resp), nil
+		r := translateResponse(resp)
+		r.Request = input
+		return r, nil
 	}
 
 	// Streaming version.
@@ -134,6 +136,7 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 		// to return an empty instead of nil result.
 		r = &ai.GenerateResponse{}
 	}
+	r.Request = input
 	return r, nil
 }
 
