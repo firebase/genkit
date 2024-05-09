@@ -14,8 +14,8 @@ export const menuSuggestionFlow = defineFlow(
   {
     name: 'menuSuggestionFlow',
   },
-  async (cuisine) => {
-    const suggestion = makeMenuSuggestion(input);
+  async (restaurantTheme) => {
+    const suggestion = makeMenuItemSuggestion(restaurantTheme);
 
     return suggestion;
   }
@@ -31,13 +31,13 @@ import * as z from 'zod';
 export const menuSuggestionFlow = defineFlow(
   {
     name: 'menuSuggestionFlow',
-    inputSchema: z.object({ cuisine: z.string() }),
+    inputSchema: z.string(),
     outputSchema: z.string(),
   },
-  async (input) => {
-    const suggestion = makeMenuSuggestion(input.cuisine);
+  async (restaurantTheme) => {
+    const suggestion = makeMenuItemSuggestion(input.restaurantTheme);
 
-    return llmResponse.text();
+    return suggestion;
   }
 );
 ```
@@ -120,14 +120,19 @@ observability).
 To use flows with Cloud Functions for Firebase use the `firebase` plugin, replace `defineFlow` with `onFlow` and include an `authPolicy`.
 
 ```js
-import { onFlow, noAuth } from '@genkit-ai/firebase/functions';
+import { onFlow } from '@genkit-ai/firebase/functions';
+import { firebaseAuth } from '@genkit-ai/firebase/auth';
 
 export const menuSuggestionFlow = onFlow(
   {
     name: 'menuSuggestionFlow',
-    authPolicy: noAuth(),
+    authPolicy: firebaseAuth((user) => {
+      if (!user.email_verified) {
+        throw new Error("Verified email required to run flow");
+      }
+    }
   },
-  async (cuisine) => {
+  async (restaurantTheme) => {
     // ....
   }
 );
@@ -144,7 +149,7 @@ export const menuSuggestionFlow = defineFlow(
   {
     name: 'menuSuggestionFlow',
   },
-  async (cuisine) => {
+  async (restaurantTheme) => {
     // ....
   }
 );
@@ -159,23 +164,13 @@ You can choose which flows are exposed via the flows server. You can specify a c
 ```js
 import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
 
-export const flowA = defineFlow(
-  {
-    name: 'menuSuggestionFlowA',
-  },
-  async (subject) => {
-    // ....
-  }
-);
+export const flowA = defineFlow({ name: 'flowA' }, async (subject) => {
+  // ....
+});
 
-export const flowB = defineFlow(
-  {
-    name: 'menuSuggestionFlowB',
-  },
-  async (subject) => {
-    // ....
-  }
-);
+export const flowB = defineFlow({ name: 'flowB' }, async (subject) => {
+  // ....
+});
 
 startFlowsServer({
   flows: [flowB],
@@ -196,17 +191,16 @@ import { defineFlow, run } from '@genkit-ai/flow';
 export const menuSuggestionFlow = defineFlow(
   {
     name: 'menuSuggestionFlow',
-    inputSchema: z.object({ cuisine: z.string() }),
-    outputSchema: z.string(),
+    outputSchema: z.array(s.string()),
   },
-  async (input) => {
-    const cuisines = await run('find-similar-cusines', async () => {
-      return await findSimilarCuisines(input.cuisine);
+  async (restaurantTheme) => {
+    const themes = await run('find-similar-themes', async () => {
+      return await findSimilarRestaurantThemes(restaurantTheme);
     });
 
-    const suggestion = makeMenuSuggestion(cuisines);
+    const suggestions = makeMenuItemSuggestions(themes);
 
-    return suggestion;
+    return suggestions;
   }
 );
 ```
