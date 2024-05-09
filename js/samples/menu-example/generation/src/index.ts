@@ -16,17 +16,15 @@
 
 // This sample is referenced by the genkit docs. Changes should be made to
 // both.
-import { generate } from '@genkit-ai/ai';
+import { generate, generateStream } from '@genkit-ai/ai';
+import { MessageData } from '@genkit-ai/ai/model';
 import { configureGenkit } from '@genkit-ai/core';
 import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
 import { geminiPro, geminiProVision, googleAI } from '@genkit-ai/googleai';
 import * as z from 'zod';
-import { MessageData } from '@genkit-ai/ai/model';
 
 configureGenkit({
-  plugins: [
-    googleAI(),
-  ],
+  plugins: [googleAI()],
   logLevel: 'debug',
   enableTracingAndMetrics: true,
 });
@@ -47,6 +45,30 @@ export const menuSuggestionFlow = defineFlow(
     });
 
     return llmResponse.text();
+  }
+);
+
+export const menuStreamingSuggestionFlow = defineFlow(
+  {
+    name: 'menuStreamingSuggestionFlow',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+  },
+  async (subject) => {
+    const { response, stream } = await generateStream({
+      prompt: `Suggest many items for the menu of a ${subject} themed restaurant`,
+      model: geminiPro,
+      config: {
+        temperature: 1,
+      },
+    });
+
+    for await (const chunk of stream()) {
+      console.log(chunk.text());
+    }
+
+    // you can also await the full response
+    console.log((await response()).text());
   }
 );
 
@@ -71,32 +93,35 @@ export const menuHistoryFlow = defineFlow(
     chatHistory = llmResponse.toHistory();
     return llmResponse.text();
   }
-)
+);
 
-export const menuImageFlow = defineFlow({
-  name: 'menuImageFlow',
-  inputSchema: z.object({ imageUrl: z.string(), subject: z.string()}),
-  outputSchema: z.string(),
-},
+export const menuImageFlow = defineFlow(
+  {
+    name: 'menuImageFlow',
+    inputSchema: z.object({ imageUrl: z.string(), subject: z.string() }),
+    outputSchema: z.string(),
+  },
   async (input) => {
     const visionResponse = await generate({
       model: geminiProVision,
       prompt: [
-        { text: `Extract _all_ of the text, in order, 
-          from the following image of a restaurant menu.`},
-        { media: {url: input.imageUrl, contentType: 'image/jpeg'}}
-      ]
+        {
+          text: `Extract _all_ of the text, in order, 
+          from the following image of a restaurant menu.`,
+        },
+        { media: { url: input.imageUrl, contentType: 'image/jpeg' } },
+      ],
     });
     const imageDescription = visionResponse.text();
 
     const response = await generate({
       model: geminiPro,
       prompt: `Here is the text of today's menu: ${imageDescription} 
-      Theme the items to match the restaurant's ${input.subject} theme.`
+      Theme the items to match the restaurant's ${input.subject} theme.`,
     });
 
     return response.text();
   }
-)
+);
 
 startFlowsServer();
