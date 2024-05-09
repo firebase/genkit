@@ -72,9 +72,9 @@ type testAllCoffeeFlowsOutput struct {
 }
 
 func main() {
-	apiKey := os.Getenv("GEMINI_API_KEY")
+	apiKey := os.Getenv("GOOGLE_API_KEY")
 	if apiKey == "" {
-		fmt.Fprintln(os.Stderr, "coffee-shop example requires setting GEMINI_API_KEY in the environment.")
+		fmt.Fprintln(os.Stderr, "coffee-shop example requires setting GOOGLE_API_KEY in the environment.")
 		fmt.Fprintln(os.Stderr, "You can get an API key at https://ai.google.dev.")
 		os.Exit(1)
 	}
@@ -86,7 +86,7 @@ func main() {
 	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting",
 		&dotprompt.Frontmatter{
 			Name:  "simpleGreeting",
-			Model: "google-genai",
+			Model: "google-genai/gemini-1.0-pro",
 			Input: dotprompt.FrontmatterInput{
 				Schema: jsonschema.Reflect(simpleGreetingInput{}),
 			},
@@ -121,7 +121,7 @@ func main() {
 	greetingWithHistoryPrompt, err := dotprompt.Define("greetingWithHistory",
 		&dotprompt.Frontmatter{
 			Name:  "greetingWithHistory",
-			Model: "google-genai",
+			Model: "google-genai/gemini-1.0-pro",
 			Input: dotprompt.FrontmatterInput{
 				Schema: jsonschema.Reflect(customerTimeAndHistoryInput{}),
 			},
