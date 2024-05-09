@@ -14,6 +14,61 @@
  * limitations under the License.
  */
 
-export * from './genkit.config.js';
+import { configureGenkit } from '@genkit-ai/core';
+import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
+import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
+import { firebase } from '@genkit-ai/firebase';
+import { geminiPro, googleAI } from '@genkit-ai/googleai';
+import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+
+// Turn off safety checks for evaluation so that the LLM as an evaluator can
+// respond appropriately to potentially harmful content without error.
+export const PERMISSIVE_SAFETY_SETTINGS: any = {
+  safetySettings: [
+    {
+      category: 'HARM_CATEGORY_HATE_SPEECH',
+      threshold: 'BLOCK_NONE',
+    },
+    {
+      category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+      threshold: 'BLOCK_NONE',
+    },
+    {
+      category: 'HARM_CATEGORY_HARASSMENT',
+      threshold: 'BLOCK_NONE',
+    },
+    {
+      category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+      threshold: 'BLOCK_NONE',
+    },
+  ],
+};
+
+configureGenkit({
+  plugins: [
+    firebase(),
+    googleAI(),
+    genkitEval({
+      judge: geminiPro,
+      judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
+      metrics: [GenkitMetric.MALICIOUSNESS],
+      embedder: textEmbeddingGecko,
+    }),
+    vertexAI({
+      location: 'us-central1',
+    }),
+    devLocalVectorstore([
+      {
+        indexName: 'pdfQA',
+        embedder: textEmbeddingGecko,
+      },
+    ]),
+  ],
+  flowStateStore: 'firebase',
+  traceStore: 'firebase',
+  enableTracingAndMetrics: true,
+  logLevel: 'debug',
+});
+
 export * from './pdf_rag.js';
 export * from './setup.js';

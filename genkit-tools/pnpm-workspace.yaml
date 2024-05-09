@@ -14,5 +14,6 @@
 
 packages:
   - '.'
+  - 'cli'
   - 'common'
   - 'plugins/*'

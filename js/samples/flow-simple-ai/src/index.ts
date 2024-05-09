@@ -16,17 +16,48 @@
 
 import { generate, generateStream, retrieve } from '@genkit-ai/ai';
 import { defineTool } from '@genkit-ai/ai/tool';
-import { initializeGenkit } from '@genkit-ai/core';
-import { defineFirestoreRetriever } from '@genkit-ai/firebase';
+import { configureGenkit } from '@genkit-ai/core';
+import { defineFirestoreRetriever, firebase } from '@genkit-ai/firebase';
 import { defineFlow, run } from '@genkit-ai/flow';
-import { geminiPro as googleGeminiPro } from '@genkit-ai/googleai';
-import { geminiPro, textEmbeddingGecko } from '@genkit-ai/vertexai';
+import { googleCloud } from '@genkit-ai/google-cloud';
+import { googleAI, geminiPro as googleGeminiPro } from '@genkit-ai/googleai';
+import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import * as z from 'zod';
-import config from './genkit.config.js';
 
-initializeGenkit(config);
+configureGenkit({
+  plugins: [
+    firebase(),
+    googleAI(),
+    vertexAI(),
+    googleCloud({
+      // Forces telemetry export in 'dev'
+      forceDevExport: true,
+      // These are configured for demonstration purposes. Sensible defaults are
+      // in place in the event that telemetryConfig is absent.
+      telemetryConfig: {
+        sampler: new AlwaysOnSampler(),
+        autoInstrumentation: true,
+        autoInstrumentationConfig: {
+          '@opentelemetry/instrumentation-fs': { enabled: false },
+          '@opentelemetry/instrumentation-dns': { enabled: false },
+          '@opentelemetry/instrumentation-net': { enabled: false },
+        },
+        metricExportIntervalMillis: 5_000,
+      },
+    }),
+  ],
+  flowStateStore: 'firebase',
+  traceStore: 'firebase',
+  enableTracingAndMetrics: true,
+  logLevel: 'debug',
+  telemetry: {
+    instrumentation: 'googleCloud',
+    logger: 'googleCloud',
+  },
+});
 
 const app = initializeApp();
 

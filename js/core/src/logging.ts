@@ -16,6 +16,8 @@
 
 import { LoggerConfig } from './telemetryTypes.js';
 
+const LOG_LEVELS = ['debug', 'info', 'warn', 'error'];
+
 class Logger {
   logger: {
     debug(...args: any);
@@ -25,11 +27,27 @@ class Logger {
     level: string;
   };
 
+  defaultLogger = {
+    shouldLog(targetLevel: string) {
+      return LOG_LEVELS.indexOf(this.level) <= LOG_LEVELS.indexOf(targetLevel);
+    },
+    debug(...args: any) {
+      this.shouldLog('debug') && console.debug(...args);
+    },
+    info(...args: any) {
+      this.shouldLog('info') && console.info(...args);
+    },
+    warn(...args: any) {
+      this.shouldLog('warn') && console.warn(...args);
+    },
+    error(...args: any) {
+      this.shouldLog('error') && console.error(...args);
+    },
+    level: 'info',
+  };
+
   constructor() {
-    this.logger = {
-      ...console,
-      level: 'info',
-    };
+    this.logger = this.defaultLogger;
   }
 
   async init(config: LoggerConfig) {

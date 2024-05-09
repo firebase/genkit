@@ -14,20 +14,38 @@
  * limitations under the License.
  */
 
-import { initializeGenkit } from '@genkit-ai/core';
-import { GenkitMetric, genkitEvalRef } from '@genkit-ai/evaluator';
-import * as z from 'zod';
-
 import {
   Dataset,
   EvalResponse,
   EvalResponseSchema,
   evaluate,
 } from '@genkit-ai/ai/evaluator';
+import { configureGenkit } from '@genkit-ai/core';
+import { GenkitMetric, genkitEval, genkitEvalRef } from '@genkit-ai/evaluator';
+import { firebase } from '@genkit-ai/firebase';
 import { defineFlow } from '@genkit-ai/flow';
+import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+import * as z from 'zod';
 
-import config from './genkit.config.js';
-initializeGenkit(config);
+export default configureGenkit({
+  plugins: [
+    firebase(),
+    vertexAI(),
+    genkitEval({
+      judge: geminiPro,
+      metrics: [
+        GenkitMetric.FAITHFULNESS,
+        GenkitMetric.ANSWER_RELEVANCY,
+        GenkitMetric.MALICIOUSNESS,
+      ],
+      embedder: textEmbeddingGecko,
+    }),
+  ],
+  flowStateStore: 'firebase',
+  traceStore: 'firebase',
+  enableTracingAndMetrics: true,
+  logLevel: 'debug',
+});
 
 // Run this flow to execute the evaluator on the test dataset.
 

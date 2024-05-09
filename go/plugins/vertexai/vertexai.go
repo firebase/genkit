@@ -133,7 +133,12 @@ func Init(ctx context.Context, model, projectID, location string) error {
 	if err != nil {
 		return err
 	}
-	ai.RegisterGenerator("google-vertexai", g)
+	ai.RegisterGenerator("google-vertexai", model, &ai.GeneratorMetadata{
+		Label: "Vertex AI - " + model,
+		Supports: ai.GeneratorCapabilities{
+			Multiturn: true,
+		},
+	}, g)
 
 	return nil
 }

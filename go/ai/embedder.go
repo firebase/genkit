@@ -36,5 +36,5 @@ type EmbedRequest struct {
 // RegisterEmbedder registers the actions for a specific embedder.
 func RegisterEmbedder(name string, embedder Embedder) {
 	genkit.RegisterAction(genkit.ActionTypeEmbedder, name,
-		genkit.NewAction(name, embedder.Embed))
+		genkit.NewAction(name, nil, embedder.Embed))
 }

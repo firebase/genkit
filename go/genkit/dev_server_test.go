@@ -37,8 +37,12 @@ func TestDevServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.registerAction("test", "devServer", NewAction("inc", inc))
-	r.registerAction("test", "devServer", NewAction("dec", dec))
+	r.registerAction("test", "devServer", NewAction("inc", map[string]any{
+		"foo": "bar",
+	}, inc))
+	r.registerAction("test", "devServer", NewAction("dec", map[string]any{
+		"bar": "baz",
+	}, dec))
 	srv := httptest.NewServer(newDevServerMux(r))
 	defer srv.Close()
 
@@ -78,10 +82,9 @@ func TestDevServer(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		md := map[string]any{"inputSchema": nil, "outputSchema": nil}
 		want := map[string]actionDesc{
-			"/test/devServer/dec": {Key: "/test/devServer/dec", Name: "dec", Metadata: md},
-			"/test/devServer/inc": {Key: "/test/devServer/inc", Name: "inc", Metadata: md},
+			"/test/devServer/inc": {Key: "/test/devServer/inc", Name: "inc", Metadata: map[string]any{"inputSchema": nil, "outputSchema": nil, "foo": "bar"}},
+			"/test/devServer/dec": {Key: "/test/devServer/dec", Name: "dec", Metadata: map[string]any{"inputSchema": nil, "outputSchema": nil, "bar": "baz"}},
 		}
 		if !maps.EqualFunc(got, want, actionDesc.equal) {
 			t.Errorf("\n got  %v\nwant %v", got, want)
