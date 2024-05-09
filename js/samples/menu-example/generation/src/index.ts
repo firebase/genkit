@@ -72,8 +72,6 @@ export const menuStreamingSuggestionFlow = defineFlow(
   }
 );
 
-let chatHistory: MessageData[];
-
 export const menuHistoryFlow = defineFlow(
   {
     name: 'menuHistoryFlow',
@@ -81,15 +79,20 @@ export const menuHistoryFlow = defineFlow(
     outputSchema: z.string(),
   },
   async (subject) => {
-    let history = chatHistory;
-    const llmResponse = await generate({
+    // lets do few-shot examples: generate a few different generations, keep adding the history
+    // before generating an item for the menu of a themed restaurant
+    let response = await generate({
       prompt: `Suggest an item for the menu of a ${subject} themed restaurant`,
-      history,
-      model: geminiPro,
-      config: {
-        temperature: 1,
-      },
+      model: geminiPro
     });
+    let history = response.toHistory();
+    response = await generate({
+      prompt: `Suggest an item for the menu of a ${subject} themed restaurant`,
+      model: geminiPro,
+      history,
+    });
+    h
+    
     chatHistory = llmResponse.toHistory();
     return llmResponse.text();
   }
@@ -117,7 +120,7 @@ export const menuImageFlow = defineFlow(
     const response = await generate({
       model: geminiPro,
       prompt: `Here is the text of today's menu: ${imageDescription} 
-      Theme the items to match the restaurant's ${input.subject} theme.`,
+      Rename the items to match the restaurant's ${input.subject} theme.`,
     });
 
     return response.text();
