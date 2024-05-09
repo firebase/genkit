@@ -840,9 +840,7 @@ export function startFlowsServer(params?: {
     params?.port || (process.env.PORT ? parseInt(process.env.PORT) : 0) || 3400;
   const app = express();
   app.use(bodyParser.json());
-  if (params?.cors) {
-    app.use(cors(params.cors));
-  }
+  app.use(cors(params?.cors));
 
   const flows = params?.flows || createdFlows();
   logger.info(`Starting flows server on port ${port}`);
