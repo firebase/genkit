@@ -32,16 +32,16 @@ class Logger {
       return LOG_LEVELS.indexOf(this.level) <= LOG_LEVELS.indexOf(targetLevel);
     },
     debug(...args: any) {
-      this.shouldLog('debug') && console.debug(args);
+      this.shouldLog('debug') && console.debug(...args);
     },
     info(...args: any) {
-      this.shouldLog('info') && console.info(args);
+      this.shouldLog('info') && console.info(...args);
     },
     warn(...args: any) {
-      this.shouldLog('warn') && console.warn(args);
+      this.shouldLog('warn') && console.warn(...args);
     },
     error(...args: any) {
-      this.shouldLog('error') && console.error(args);
+      this.shouldLog('error') && console.error(...args);
     },
     level: 'info',
   };
