@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-export type Runtime = 'node' | 'go' | 'next.js' | undefined;
+export type Runtime = 'node' | 'go' | undefined;
 
 export class GenkitToolsError extends Error {
   public data?: Record<string, unknown>;

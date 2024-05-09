@@ -20,8 +20,6 @@ import { Runtime } from '../runner/types';
 
 interface PackageJson {
   main: string;
-  dependencies: Record<string, string>;
-  devDependencies: Record<string, string>;
 }
 
 function getPackageJson(directory: string): PackageJson | undefined {
@@ -52,8 +50,6 @@ export function getEntryPoint(directory: string): string | undefined {
       return getNodeEntryPoint(directory);
     case 'go':
       return '.';
-    case 'next.js':
-      return path.join(__dirname, '../runner/harness.js');
     default:
       return;
   }
@@ -66,9 +62,6 @@ export function getEntryPoint(directory: string): string | undefined {
 export function detectRuntime(directory: string): Runtime {
   if (fs.existsSync(path.join(directory, 'package.json'))) {
     const packageJson = getPackageJson(directory);
-    if (packageJson?.dependencies.next || packageJson?.devDependencies.next) {
-      return 'next.js';
-    }
     return 'node';
   }
   const files = fs.readdirSync(directory);
