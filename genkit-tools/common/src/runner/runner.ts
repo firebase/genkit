@@ -168,6 +168,9 @@ export class Runner {
         command = 'go';
         args.push('run');
         break;
+      case 'next.js':
+        command = path.join(__dirname, '../../../node_modules/.bin/tsx');
+        break;
       default:
         throw Error(`Unexpected runtime while starting app code: ${runtime}`);
     }
@@ -184,7 +187,16 @@ export class Runner {
       return false;
     }
 
-    logger.info(`Starting app at \`${entryPoint}\`...`);
+    const config = await findToolsConfig();
+    const files = config?.runner?.files;
+
+    if (runtime === 'next.js') {
+      logger.info(
+        `Running harness with file paths:\n - ${files?.join('\n - ') || ' - None'}`
+      );
+    } else {
+      logger.info(`Starting app at \`${entryPoint}\`...`);
+    }
 
     // Try the desired port first then fall back to default range.
     let port = await getPort({ port: this.reflectionApiPort });
@@ -199,6 +211,9 @@ export class Runner {
     this.reflectionApiPort = port;
 
     args.push(entryPoint);
+    if (runtime === 'next.js' && files) {
+      args.push(...files);
+    }
     this.appProcess = spawn(command, args, {
       stdio: 'inherit',
       env: {
