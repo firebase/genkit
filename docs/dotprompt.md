@@ -71,6 +71,7 @@ schema:
   title: string # string, number, and boolean types are defined like this
   subtitle?: string # optional fields are marked with a `?`
   draft?: boolean, true when in draft state
+  status?(enum, approval status): [PENDING, APPROVED]
   date: string, the date of publication e.g. '2024-04-09' # descriptions follow a comma
   tags(array, relevant tags for article): string # arrays are denoted via parentheses
   authors(array):
@@ -89,6 +90,8 @@ interface Article {
   subtitle?: string;
   /** true when in draft state */
   draft?: boolean;
+  /** approval status */
+  status?: 'PENDING' | 'APPROVED';
   /** the date of publication e.g. '2024-04-09' */
   date: string;
   /** relevant tags for article */
@@ -107,7 +110,7 @@ interface Article {
 ```
 
 Picoschema supports scalar types `string`, `integer`, `number`, and `boolean`. For
-objects and arrays, they are denoted by a parenthetical after the field name.
+objects, arrays, and enums they are denoted by a parenthetical after the field name.
 
 Objects defined by Picoschema have all properties as required unless denoted optional
 by `?`, and do not allow additional properties.

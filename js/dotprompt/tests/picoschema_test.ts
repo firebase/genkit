@@ -147,6 +147,18 @@ describe('picoschema()', () => {
     foo: {type: string}`,
       want: { type: 'object', properties: { foo: { type: 'string' } } },
     },
+    {
+      description: 'enum field',
+      yaml: `schema:
+  color?(enum, the enum): [RED, BLUE, GREEN]`,
+      want: {
+        type: 'object',
+        properties: {
+          color: { description: 'the enum', enum: ['RED', 'BLUE', 'GREEN'] },
+        },
+        additionalProperties: false,
+      },
+    },
   ];
 
   for (const test of tests) {
