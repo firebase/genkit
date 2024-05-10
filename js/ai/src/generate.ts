@@ -16,6 +16,7 @@
 
 import {
   Action,
+  config as genkitConfig,
   GenkitError,
   runWithStreamingCallback,
   StreamingCallback,
@@ -479,34 +480,20 @@ const isValidCandidate = (
   });
 };
 
-const DEFAULT_MODEL_GLOBAL_KEY = 'genkit_ai__defaultModel';
-
-interface GlobalModelRef {
-  model: ModelArgument<any>;
-  config?: any;
-}
-
-export function setGlobalDefaultModel<
-  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
->(model: ModelArgument<CustomOptions>, config?: z.infer<CustomOptions>) {
-  global[DEFAULT_MODEL_GLOBAL_KEY] = {
-    model,
-    config,
-  } as GlobalModelRef;
-}
-
 async function resolveModel(options: GenerateOptions): Promise<ModelAction> {
   let model = options.model;
   if (!model) {
-    const globalModel = global[DEFAULT_MODEL_GLOBAL_KEY] as GlobalModelRef;
-    if (globalModel) {
-      model = globalModel.model;
+    if (genkitConfig?.options.defaultModel) {
+      model =
+        typeof genkitConfig?.options.defaultModel.name === 'string'
+          ? genkitConfig?.options.defaultModel.name
+          : genkitConfig?.options.defaultModel.name.name;
       if (
         (!options.config || Object.keys(options.config).length === 0) &&
-        globalModel.config
+        genkitConfig?.options.defaultModel.config
       ) {
         // use configured global config
-        options.config = globalModel.config;
+        options.config = genkitConfig?.options.defaultModel.config;
       }
     } else {
       throw new Error('Unable to resolve model.');

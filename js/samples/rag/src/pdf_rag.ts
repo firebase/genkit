@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { generate, setGlobalDefaultModel } from '@genkit-ai/ai';
+import { generate } from '@genkit-ai/ai';
 import { Document, index, retrieve } from '@genkit-ai/ai/retriever';
 import {
   devLocalIndexerRef,
@@ -32,11 +32,6 @@ import { augmentedPrompt } from './prompt.js';
 export const pdfChatRetriever = devLocalRetrieverRef('pdfQA');
 
 export const pdfChatIndexer = devLocalIndexerRef('pdfQA');
-
-setGlobalDefaultModel(geminiPro, {
-  temperature: 0.6,
-  stopSequences: ['sorry'],
-});
 
 // Define a simple RAG flow, we will evaluate this flow
 export const pdfQA = defineFlow(

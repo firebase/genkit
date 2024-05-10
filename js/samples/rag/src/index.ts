@@ -77,6 +77,12 @@ export default configureGenkit({
       },
     ]),
   ],
+  defaultModel: {
+    name: geminiPro,
+    config: {
+      temperature: 0.6,
+    },
+  },
   flowStateStore: 'firebase',
   traceStore: 'firebase',
   enableTracingAndMetrics: true,
