@@ -23,4 +23,4 @@ Helper function to describe a Pinecone index. Use it to check if a newly created
 
 ## Source
 
-[plugins/pinecone/src/index.ts:250](https://github.com/firebase/genkit/blob/9cb10ef63dd6659f1a31ffd2367b7efa8acc10e5/js/plugins/pinecone/src/index.ts#L250)
+[plugins/pinecone/src/index.ts:250](https://github.com/firebase/genkit/blob/2b0be364306d92a8e7d13efc2da4fb04c1d21e29/js/plugins/pinecone/src/index.ts#L250)

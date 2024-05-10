@@ -7,6 +7,7 @@
     "build:core": "pnpm -r --workspace-concurrency 1 -F core -F ai -F flow build",
     "build:noncore": "pnpm build:dotprompt && pnpm -r --workspace-concurrency 0 -F \"./(plugins|samples)/**\" build",
     "build:dotprompt": "cd plugins/dotprompt && pnpm build",
+    "gendocs": "pnpm build && typedoc && ts-node scripts/make-typedoc-nav.ts",
     "pack:all": "(mkdir ../dist || true) && npm-run-all pack:core pack:flow pack:ai pack:plugins",
     "pack:core": "cd core && pnpm pack --pack-destination ../../dist",
     "pack:flow": "cd flow && pnpm pack --pack-destination ../../dist",
@@ -15,8 +16,10 @@
     "test:all": "pnpm -r --workspace-concurrency 0 -F \"./(ai|core|flow)/**\" test"
   },
   "devDependencies": {
+    "@types/node": "^20.12.11",
     "npm-run-all": "^4.1.5",
     "only-allow": "^1.2.1",
+    "ts-node": "^10.9.2",
     "typedoc": "^0.25.13",
     "typedoc-plugin-markdown": "^4.0.1",
     "typedoc-plugin-zod": "^1.1.2",
