@@ -36,7 +36,7 @@ export const start = new Command('start')
     false
   )
   .option('-p, --port <number>', 'Port to serve on. Default is 4000', '4000')
-  .option('-o, --open', 'Open the browser with the Dev UI')
+  .option('-o, --open', 'Open the browser with the Developer UI')
   .option(
     '-a, --attach <number>',
     'Externally running dev process address to attach to'
