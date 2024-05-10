@@ -45,7 +45,8 @@ const API_BASE_PATH = '/api';
 export function startServer(
   runner: Runner,
   headless: boolean,
-  port: number
+  port: number,
+  openBrowser: boolean
 ): Promise<void> {
   let serverEnder: (() => void) | undefined = undefined;
   const enderPromise = new Promise<void>((resolver) => {
@@ -133,7 +134,7 @@ export function startServer(
         .waitUntilHealthy()
         .then(() => {
           logger.info(`${clc.green(clc.bold('Genkit Tools UI:'))} ${uiUrl}`);
-          if (runner.openBrowser) {
+          if (openBrowser) {
             open(uiUrl);
           }
         })

@@ -61,5 +61,5 @@ export const start = new Command('start')
     } else {
       await runner.start();
     }
-    return startServer(runner, options.headless ?? false, port);
+    return startServer(runner, options.headless ?? false, port, !!options.open);
   });
