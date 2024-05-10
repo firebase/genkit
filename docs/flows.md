@@ -69,9 +69,11 @@ export const menuSuggestionFlow = defineFlow(
     streamSchema: z.string(),
   },
   async (restaurantTheme, streamingCallback) => {
-    makeMenuItemSuggestionsAsync(restaurantTheme).subscribe((suggestion) => {
-      streamingCallback(suggestion);
-    });
+    if (streamingCallback) {
+      makeMenuItemSuggestionsAsync(restaurantTheme).subscribe((suggestion) => {
+        streamingCallback(suggestion);
+      });
+    }
   }
 );
 ```
@@ -82,7 +84,7 @@ invoking client is requesting streamed response.
 To invoke a flow in streaming mode use `streamFlow` function:
 
 ```javascript
-const response = streamFlow(menuSuggestionFlow, 5);
+const response = streamFlow(menuSuggestionFlow, 'French');
 
 for await (const suggestion of response.stream()) {
   console.log('suggestion', suggestion);
