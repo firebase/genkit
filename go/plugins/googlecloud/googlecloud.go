@@ -20,9 +20,11 @@ package googlecloud
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"time"
 
+	"cloud.google.com/go/logging"
 	mexporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"github.com/google/genkit/go/genkit"
@@ -40,6 +42,10 @@ type Options struct {
 	// The interval for exporting metric data.
 	// The default is 60 seconds.
 	MetricInterval time.Duration
+
+	// The minimum level at which logs will be written.
+	// Defaults to [slog.LevelInfo].
+	LogLevel slog.Leveler
 }
 
 // Init initializes all telemetry in this package.
@@ -59,8 +65,10 @@ func Init(ctx context.Context, projectID string, opts *Options) error {
 	}
 	aexp := &adjustingTraceExporter{texp}
 	genkit.RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(aexp))
-
-	return setMeterProvider(projectID, opts.MetricInterval)
+	if err := setMeterProvider(projectID, opts.MetricInterval); err != nil {
+		return err
+	}
+	return setLogHandler(projectID, opts.LogLevel)
 }
 
 func setMeterProvider(projectID string, interval time.Duration) error {
@@ -108,4 +116,14 @@ func (s adjustedSpan) Attributes() []attribute.KeyValue {
 		ts = append(ts, attribute.String("/http/status_code", "599"))
 	}
 	return ts
+}
+
+func setLogHandler(projectID string, level slog.Leveler) error {
+	c, err := logging.NewClient(context.Background(), "projects/"+projectID)
+	if err != nil {
+		return err
+	}
+	logger := c.Logger("genkit_log")
+	slog.SetDefault(slog.New(newHandler(level, logger.Log)))
+	return nil
 }

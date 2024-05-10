@@ -19,6 +19,9 @@ package googlecloud
 import (
 	"context"
 	"flag"
+	"log/slog"
+	"os"
+	"runtime"
 	"testing"
 	"time"
 
@@ -30,8 +33,11 @@ import (
 var projectID = flag.String("project", "", "GCP project ID")
 
 // This test is part of verifying that we can export traces to GCP.
-// To verify, run the test, then visit the GCP Trace Explorer and look for the "test"
-// trace, and visit the Metrics Explorer and look for the "Generic Node - test" metric.
+// To verify, run the test, then:
+//   - visit the GCP Trace Explorer and look for the "test" trace
+//   - visit the Metrics Explorer and look for the "Generic Node - test" metric.
+//   - visit the Logging Explorer and look for the genkit_log logName, or run
+//     gcloud --project PROJECT_ID logging read 'logName:genkit_log'
 func TestGCP(t *testing.T) {
 	if *projectID == "" {
 		t.Skip("no -project")
@@ -62,6 +68,16 @@ func TestGCP(t *testing.T) {
 		}
 		c.Add(ctx, 100)
 		// Allow time to sample and export.
+		time.Sleep(2 * time.Second)
+	})
+	t.Run("logging", func(t *testing.T) {
+		if err := setLogHandler(*projectID, slog.LevelInfo); err != nil {
+			t.Fatal(err)
+		}
+		slog.Info("testing GCP logging",
+			"binaryName", os.Args[0],
+			"goVersion", runtime.Version())
+		// Allow time to export.
 		time.Sleep(2 * time.Second)
 	})
 }
