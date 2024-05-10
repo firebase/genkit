@@ -94,7 +94,6 @@ export class Runner {
     options: {
       directory?: string;
       autoReload?: boolean;
-      openBrowser?: boolean;
     } = {}
   ) {
     this.directory = options.directory || process.cwd();
