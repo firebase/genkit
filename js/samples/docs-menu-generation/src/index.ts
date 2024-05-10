@@ -17,10 +17,12 @@
 // This sample is referenced by the genkit docs. Changes should be made to
 // both.
 import { generate, generateStream } from '@genkit-ai/ai';
+import { MessageData } from '@genkit-ai/ai/model';
 import { configureGenkit } from '@genkit-ai/core';
 import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
 import { geminiPro, geminiProVision, googleAI } from '@genkit-ai/googleai';
 import * as z from 'zod';
+import { sampleMenuHistory } from './menuHistory';
 
 configureGenkit({
   plugins: [googleAI()],
@@ -28,9 +30,9 @@ configureGenkit({
   enableTracingAndMetrics: true,
 });
 
-export const menuStreamingSuggestionFlow = defineFlow(
+export const menuSuggestionFlowStreaming = defineFlow(
   {
-    name: 'menuStreamingSuggestionFlow',
+    name: 'menuSuggestionFlowStreaming',
     inputSchema: z.string(),
     outputSchema: z.void(),
   },
@@ -49,11 +51,11 @@ export const menuStreamingSuggestionFlow = defineFlow(
       }
     }
 
-    // you can also await the full response
     console.log((await response()).text());
   }
 );
 
+let historyMap: MessageData[] = sampleMenuHistory;
 export const menuHistoryFlow = defineFlow(
   {
     name: 'menuHistoryFlow',
@@ -61,26 +63,13 @@ export const menuHistoryFlow = defineFlow(
     outputSchema: z.string(),
   },
   async (subject) => {
-    // lets do few-shot examples: generate a few different generations, keep adding the history
-    // before generating an item for the menu of a themed restaurant
+    let history = historyMap;
     let response = await generate({
-      prompt: `Create examples of delicious menu entrees`,
-      model: geminiPro,
-    });
-    let history = response.toHistory();
-
-    response = await generate({
-      prompt: `Chicken is my favorite meat`,
+      prompt: `Suggest a menu item description for a ${subject} themed restaurant`,
       model: geminiPro,
       history,
     });
-    history = response.toHistory();
-
-    response = await generate({
-      prompt: `Suggest an item for the menu of a ${subject} themed restaurant`,
-      model: geminiPro,
-      history,
-    });
+    historyMap = response.toHistory();
     return response.text();
   }
 );
