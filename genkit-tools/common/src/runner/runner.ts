@@ -301,6 +301,7 @@ export class Runner {
       }
     } else if (
       extension === '.js' ||
+      extension === '.ts' ||
       extension === '.prompt' ||
       extension === '.go'
     ) {
