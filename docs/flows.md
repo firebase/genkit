@@ -94,7 +94,7 @@ If the flow does not implement streaming `streamFlow` will behave identically to
 You can use the CLI to stream flows as well:
 
 ```posix-terminal
-genkit flow:run streamer '"banana"' -s
+genkit flow:run menuSuggestionFlow '"French"' -s
 ```
 
 ## Deploying flows
