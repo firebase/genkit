@@ -490,10 +490,10 @@ async function resolveModel(options: GenerateOptions): Promise<ModelAction> {
           : genkitConfig.options.defaultModel.name.name;
       if (
         (!options.config || Object.keys(options.config).length === 0) &&
-        genkitConfig?.options.defaultModel.config
+        genkitConfig.options.defaultModel.config
       ) {
         // use configured global config
-        options.config = genkitConfig?.options.defaultModel.config;
+        options.config = genkitConfig.options.defaultModel.config;
       }
     } else {
       throw new Error('Unable to resolve model.');
