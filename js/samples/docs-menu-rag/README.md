@@ -12,11 +12,11 @@ or if you need to, build everything:
 cd </path/to/genkit>; pnpm run setup; cd -
 ```
 
-where `</path/to/genkit>` is the top level of the genkit repo
+where `</path/to/genkit>` is the top level of the genkit repo.
 
 ## Run setup
 
-This will add the `GenkitGrubPub.pdf` to your index
+This will add the `GenkitGrubPub.pdf` to your index:
 
 ```
 genkit flow:run setup
@@ -40,4 +40,4 @@ genkit flow:run menuQA '"What burgers are on the menu?"'
 genkit start
 ```
 
-Click on the menuQA flow in the lefthand navigation panel to playground the new flow.
+Click on the `menuQA` flow in the lefthand navigation panel to run the new flow.
