@@ -29,30 +29,11 @@ configureGenkit({
   enableTracingAndMetrics: true,
 });
 
-export const menuSuggestionFlow = defineFlow(
-  {
-    name: 'menuSuggestionFlow',
-    inputSchema: z.string(),
-    outputSchema: z.string(),
-  },
-  async (subject) => {
-    const llmResponse = await generate({
-      prompt: `Suggest an item for the menu of a ${subject} themed restaurant`,
-      model: geminiPro,
-      config: {
-        temperature: 1,
-      },
-    });
-
-    return llmResponse.text();
-  }
-);
-
 export const menuStreamingSuggestionFlow = defineFlow(
   {
     name: 'menuStreamingSuggestionFlow',
     inputSchema: z.string(),
-    outputSchema: z.string(),
+    outputSchema: z.void(),
   },
   async (subject) => {
     const { response, stream } = await generateStream({
@@ -63,8 +44,10 @@ export const menuStreamingSuggestionFlow = defineFlow(
       },
     });
 
-    for await (const chunk of stream()) {
-      console.log(chunk.text());
+    for await (let chunk of stream()) {
+      for (let content of chunk.content) {
+        console.log(content.text);
+      }
     }
 
     // you can also await the full response
@@ -82,19 +65,24 @@ export const menuHistoryFlow = defineFlow(
     // lets do few-shot examples: generate a few different generations, keep adding the history
     // before generating an item for the menu of a themed restaurant
     let response = await generate({
-      prompt: `Suggest an item for the menu of a ${subject} themed restaurant`,
+      prompt: `Create examples of delicious menu entrees`,
       model: geminiPro
     });
     let history = response.toHistory();
+
+    response = await generate({
+      prompt: `Chicken is my favorite meat`,
+      model: geminiPro,
+      history,
+    });
+    history = response.toHistory();
+    
     response = await generate({
       prompt: `Suggest an item for the menu of a ${subject} themed restaurant`,
       model: geminiPro,
       history,
     });
-    h
-    
-    chatHistory = llmResponse.toHistory();
-    return llmResponse.text();
+    return response.text();
   }
 );
 
