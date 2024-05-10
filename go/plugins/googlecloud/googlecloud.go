@@ -16,6 +16,8 @@
 // Google Cloud services.
 package googlecloud
 
+// See js/plugins/google-cloud/src/gcpOpenTelemetry.ts.
+
 import (
 	"context"
 	"os"
@@ -25,6 +27,8 @@ import (
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"github.com/google/genkit/go/genkit"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
@@ -53,8 +57,8 @@ func Init(ctx context.Context, projectID string, opts *Options) error {
 	if err != nil {
 		return err
 	}
-	// TODO(jba): hide PII, perform other adjustments; see AdjustingTraceExporter in the js.
-	genkit.RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(texp))
+	aexp := &adjustingTraceExporter{texp}
+	genkit.RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(aexp))
 
 	return setMeterProvider(projectID, opts.MetricInterval)
 }
@@ -68,4 +72,40 @@ func setMeterProvider(projectID string, interval time.Duration) error {
 	mp := sdkmetric.NewMeterProvider(sdkmetric.WithReader(r))
 	otel.SetMeterProvider(mp)
 	return nil
+}
+
+type adjustingTraceExporter struct {
+	e sdktrace.SpanExporter
+}
+
+func (e *adjustingTraceExporter) ExportSpans(ctx context.Context, spanData []sdktrace.ReadOnlySpan) error {
+	var adjusted []sdktrace.ReadOnlySpan
+	for _, s := range spanData {
+		adjusted = append(adjusted, adjustedSpan{s})
+	}
+	return e.e.ExportSpans(ctx, adjusted)
+}
+
+func (e *adjustingTraceExporter) Shutdown(ctx context.Context) error {
+	return e.e.Shutdown(ctx)
+}
+
+type adjustedSpan struct {
+	sdktrace.ReadOnlySpan
+}
+
+func (s adjustedSpan) Attributes() []attribute.KeyValue {
+	// Omit input and output, which may contain PII.
+	var ts []attribute.KeyValue
+	for _, a := range s.ReadOnlySpan.Attributes() {
+		if a.Key == "genkit:input" || a.Key == "genkit:output" {
+			continue
+		}
+		ts = append(ts, a)
+	}
+	// Add an attribute if there is an error.
+	if s.ReadOnlySpan.Status().Code == codes.Error {
+		ts = append(ts, attribute.String("/http/status_code", "599"))
+	}
+	return ts
 }
