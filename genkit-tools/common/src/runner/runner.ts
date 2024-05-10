@@ -299,8 +299,7 @@ export class Runner {
       } catch (error) {
         logger.error('Compilation error:', error);
       }
-    }
-    if (
+    } else if (
       extension === '.js' ||
       extension === '.ts' ||
       extension === '.prompt' ||
