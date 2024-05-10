@@ -28,6 +28,7 @@ interface StartOptions {
 
 /** Command to start GenKit server, optionally without static file serving */
 export const start = new Command('start')
+  .description('run the app in dev mode and start a Developer UI')
   .option(
     '-x, --headless',
     'Do not serve static UI files (for development)',

@@ -21,7 +21,6 @@ import {
   notifyAnalyticsIfFirstRun,
   record,
 } from '@genkit-ai/tools-common/utils';
-import * as clc from 'colorette';
 import { Command, program } from 'commander';
 import { config } from './commands/config';
 import { evalExtractData } from './commands/eval-extract-data';
@@ -57,7 +56,7 @@ const commands: Command[] = [
 export async function startCLI(): Promise<void> {
   program
     .name('genkit')
-    .description('Google Genkit CLI')
+    .description('Firebase Genkit CLI')
     .version(version)
     .hook('preAction', async (_, actionCommand) => {
       await notifyAnalyticsIfFirstRun();
@@ -84,12 +83,20 @@ export async function startCLI(): Promise<void> {
   for (const command of await getPluginCommands()) program.addCommand(command);
 
   for (const cmd of ToolPluginSubCommandsSchema.keyof().options) {
-    program.addCommand(await getPluginSubCommand(cmd));
+    const command = await getPluginSubCommand(cmd);
+    if (command) {
+      program.addCommand(command);
+    }
   }
-
+  program.addCommand(
+    new Command('help').action(() => {
+      logger.info(program.help());
+    })
+  );
   // Default action to catch unknown commands.
-  program.action((_, { args }: { args: string[] }) => {
-    logger.error(`"${clc.bold(args[0])}" is not a known Genkit command.`);
+  program.action(() => {
+    // print help
+    logger.info(program.help());
   });
 
   await program.parseAsync();

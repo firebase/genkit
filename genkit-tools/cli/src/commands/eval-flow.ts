@@ -56,6 +56,9 @@ const EVAL_FLOW_SCHEMA = '{samples: Array<{input: any; reference?: any;}>}';
 
 /** Command to run a flow and evaluate the output */
 export const evalFlow = new Command('eval:flow')
+  .description(
+    'evaluate a flow against configured evaluators using provided data as input'
+  )
   .argument('<flowName>', 'Name of the flow to run')
   .argument('[data]', 'JSON data to use to start the flow')
   .option('--input <filename>', 'JSON batch data to use to run the flow')

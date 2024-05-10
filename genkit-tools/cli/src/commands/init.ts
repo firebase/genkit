@@ -154,7 +154,7 @@ const sampleTemplatePaths: Record<Platform, string> = {
 const supportedRuntimes: Runtime[] = ['node'];
 
 export const init = new Command('init')
-  .description('Initialize a project directory with Genkit')
+  .description('initialize a project directory with Genkit')
   .option(
     '-p, --platform <platform>',
     'Deployment platform (firebase, googlecloud, or nodejs)'

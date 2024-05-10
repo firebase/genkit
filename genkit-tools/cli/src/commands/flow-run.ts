@@ -32,6 +32,7 @@ interface FlowRunOptions {
 
 /** Command to start GenKit server, optionally without static file serving */
 export const flowRun = new Command('flow:run')
+  .description('run a flow using provided data as input')
   .argument('<flowName>', 'name of the flow to run')
   .argument('[data]', 'JSON data to use to start the flow')
   .option('-w, --wait', 'Wait for the flow to complete', false)
