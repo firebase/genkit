@@ -72,10 +72,10 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 		}
 		return json.Marshal(v)
 	} else {
-		v := MediaPart{
-			Media: &MediaPartMedia{
+		v := mediaPart{
+			Media: &mediaPartMedia{
 				ContentType: p.contentType,
-				Url: p.text,
+				Url:         p.text,
 			},
 		}
 		return json.Marshal(v)
@@ -88,8 +88,8 @@ func (p *Part) UnmarshalJSON(b []byte) error {
 	// Part is defined in TypeScript as a union.
 
 	var s struct {
-		Text  string `json:"text,omitempty"`
-		Media *MediaPartMedia `json:"media,omitempty"`
+		Text  string          `json:"text,omitempty"`
+		Media *mediaPartMedia `json:"media,omitempty"`
 	}
 
 	if err := json.Unmarshal(b, &s); err != nil {
