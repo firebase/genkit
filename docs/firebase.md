@@ -311,7 +311,7 @@ endpoint requests.
 
 ## Developing using Firebase Local Emulator Suite
 
-Firebase offers a suite of emualtors for local development and you can use Genkit with [Firebase Local Emulator Suite](https://firebase.google.com/docs/emulator-suite).
+Firebase offers a suite of emulators for local development and you can use Genkit with [Firebase Local Emulator Suite](https://firebase.google.com/docs/emulator-suite).
 
 To use Genkit with Firebase emulator start the emulator like this:
 
