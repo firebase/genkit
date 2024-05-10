@@ -340,7 +340,7 @@ function generateToolsConfig(platform: Platform) {
     if (fs.existsSync('src/app')) {
       template = template.replace('$GENKIT_HARNESS_FILES', `'./src/app/*.ts'`);
     } else if (fs.existsSync('app')) {
-      template = template.replace('$GENKIT_HARNESS_FILES', `'./app/*.js'`);
+      template = template.replace('$GENKIT_HARNESS_FILES', `'./app/*.ts'`);
     } else {
       throw new Error(
         'Unable to resolve source folder (app or src/app) of you next.js app.'
