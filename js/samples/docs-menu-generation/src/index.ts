@@ -17,7 +17,6 @@
 // This sample is referenced by the genkit docs. Changes should be made to
 // both.
 import { generate, generateStream } from '@genkit-ai/ai';
-import { MessageData } from '@genkit-ai/ai/model';
 import { configureGenkit } from '@genkit-ai/core';
 import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
 import { geminiPro, geminiProVision, googleAI } from '@genkit-ai/googleai';
@@ -66,7 +65,7 @@ export const menuHistoryFlow = defineFlow(
     // before generating an item for the menu of a themed restaurant
     let response = await generate({
       prompt: `Create examples of delicious menu entrees`,
-      model: geminiPro
+      model: geminiPro,
     });
     let history = response.toHistory();
 
@@ -76,7 +75,7 @@ export const menuHistoryFlow = defineFlow(
       history,
     });
     history = response.toHistory();
-    
+
     response = await generate({
       prompt: `Suggest an item for the menu of a ${subject} themed restaurant`,
       model: geminiPro,
