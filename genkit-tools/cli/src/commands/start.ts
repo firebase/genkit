@@ -24,6 +24,7 @@ interface StartOptions {
   headless?: boolean;
   port: string;
   attach?: string;
+  open?: boolean;
 }
 
 /** Command to start GenKit server, optionally without static file serving */
@@ -35,6 +36,7 @@ export const start = new Command('start')
     false
   )
   .option('-p, --port <number>', 'Port to serve on. Default is 4000', '4000')
+  .option('-o, --open', 'Open the browser with the Dev UI')
   .option(
     '-a, --attach <number>',
     'Externally running dev process address to attach to'
@@ -46,7 +48,9 @@ export const start = new Command('start')
       return;
     }
 
-    const runner = new Runner();
+    const runner = new Runner({
+      openBrowser: options.open
+    });
     if (options.attach) {
       try {
         await runner.attach(options.attach);

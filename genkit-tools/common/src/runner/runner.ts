@@ -63,6 +63,11 @@ export class Runner {
   readonly autoReload: boolean;
 
   /**
+   * Whether to open the browser for the Dev UI.
+   */
+  readonly openBrowser: boolean;
+
+  /**
    * Subprocess for the app code. May not be running.
    */
   private appProcess: ChildProcess | null = null;
@@ -94,10 +99,12 @@ export class Runner {
     options: {
       directory?: string;
       autoReload?: boolean;
+      openBrowser?: boolean;
     } = {}
   ) {
     this.directory = options.directory || process.cwd();
     this.autoReload = options.autoReload ?? true;
+    this.openBrowser = !!options.openBrowser;
   }
 
   /**

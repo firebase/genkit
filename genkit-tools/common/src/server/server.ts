@@ -133,7 +133,9 @@ export function startServer(
         .waitUntilHealthy()
         .then(() => {
           logger.info(`${clc.green(clc.bold('Genkit Tools UI:'))} ${uiUrl}`);
-          open(uiUrl);
+          if (runner.openBrowser) {
+            open(uiUrl);
+          }
         })
         .catch((e) => {
           logger.error(e.message);
