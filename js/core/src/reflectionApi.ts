@@ -21,8 +21,8 @@ import { config } from './config.js';
 import { logger } from './logging.js';
 import * as registry from './registry.js';
 import { toJsonSchema } from './schema.js';
-import { cleanUpTracing } from './tracing';
 import {
+  cleanUpTracing,
   flushTracing,
   newTrace,
   setCustomMetadataAttribute,

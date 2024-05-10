@@ -40,7 +40,7 @@ import {
   ReadableSpan,
   SpanExporter,
 } from '@opentelemetry/sdk-trace-base';
-import { PluginOptions } from './index';
+import { PluginOptions } from './index.js';
 
 /**
  * Provides a {TelemetryConfig} for exporting OpenTelemetry data (Traces,

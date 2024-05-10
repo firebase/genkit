@@ -21,7 +21,7 @@ import {
   SpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
 import { getCurrentEnv } from './config.js';
-import { logger } from './logging';
+import { logger } from './logging.js';
 import { TelemetryConfig } from './telemetryTypes.js';
 import { TraceStore } from './tracing.js';
 import { TraceStoreExporter } from './tracing/exporter.js';

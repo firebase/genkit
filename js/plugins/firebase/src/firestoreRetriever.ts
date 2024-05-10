@@ -15,7 +15,7 @@
  */
 
 import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
-import { defineRetriever, DocumentData } from '@genkit-ai/ai/retriever';
+import { defineRetriever, DocumentData, Part } from '@genkit-ai/ai/retriever';
 import { VectorQuerySnapshot } from '@google-cloud/firestore';
 import {
   Firestore,
@@ -23,7 +23,6 @@ import {
   QueryDocumentSnapshot,
 } from 'firebase-admin/firestore';
 import z from 'zod';
-import { Part } from '../../../ai/lib/document';
 
 function toContent(
   d: QueryDocumentSnapshot,
