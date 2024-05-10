@@ -25,6 +25,12 @@ export default configureGenkit({
 });
 ```
 
+Note: The configuration above requires installing the `@genkit-ai/evaluator` and `@genkit-ai/vertexai` packages.
+
+```posix-terminal
+  npm install @genkit-ai/evaluator @genkit-ai/vertexai
+```
+
 Start by defining a set of inputs that you want to use as an input dataset called `testQuestions.json`. This input dataset represents the test cases you will use to generate output for evaluation.
 
 ```json
