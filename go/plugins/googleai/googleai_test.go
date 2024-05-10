@@ -174,19 +174,20 @@ func TestGeneratorTool(t *testing.T) {
 		t.Errorf("exponent is %f, want 2", toolReq.Input["exponent"])
 	}
 
-	// Now tell the model what our tool said. (Our "tool" is just math.Pow.)
-	req = &ai.GenerateRequest{
-		Candidates: 1,
-		Messages: []*ai.Message{
-			&ai.Message{
-				Content: []*ai.Part{ai.NewToolResponsePart(&ai.ToolResponse{
-					Name:   "exponentiation",
-					Output: map[string]any{"output": math.Pow(3.5, 2)},
-				})},
-				Role: ai.RoleTool,
-			},
+	// Update our conversation with the tool request the model made and our tool response.
+	// (Our "tool" is just math.Pow.)
+	req.Messages = append(req.Messages,
+		resp.Candidates[0].Message,
+		&ai.Message{
+			Content: []*ai.Part{ai.NewToolResponsePart(&ai.ToolResponse{
+				Name:   "exponentiation",
+				Output: map[string]any{"output": math.Pow(3.5, 2)},
+			})},
+			Role: ai.RoleTool,
 		},
-	}
+	)
+
+	// Issue our request again.
 	resp, err = g.Generate(ctx, req, nil)
 	if err != nil {
 		t.Fatal(err)

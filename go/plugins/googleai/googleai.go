@@ -58,9 +58,9 @@ func NewEmbedder(ctx context.Context, model, apiKey string) (ai.Embedder, error)
 }
 
 type generator struct {
-	model   string
-	client  *genai.Client
-	session *genai.ChatSession // non-nil if we're in the middle of a chat
+	model  string
+	client *genai.Client
+	//session *genai.ChatSession // non-nil if we're in the middle of a chat
 }
 
 func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb genkit.StreamingCallback[*ai.Candidate]) (*ai.GenerateResponse, error) {
@@ -76,12 +76,8 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 		gm.SetTopP(float32(c.TopP))
 	}
 
-	// Start a "chat" if we haven't already.
-	cs := g.session
-	if cs == nil {
-		cs = gm.StartChat()
-		g.session = cs
-	}
+	// Start a "chat".
+	cs := gm.StartChat()
 
 	// All but the last message goes in the history field.
 	messages := input.Messages
@@ -274,6 +270,9 @@ func convertPart(p *ai.Part) genai.Part {
 	case p.IsToolResponse():
 		toolResp := p.ToolResponse()
 		return genai.FunctionResponse{Name: toolResp.Name, Response: toolResp.Output}
+	case p.IsToolRequest():
+		toolReq := p.ToolRequest()
+		return genai.FunctionCall{Name: toolReq.Name, Args: toolReq.Input}
 	default:
 		panic("unknown part type in a request")
 	}
