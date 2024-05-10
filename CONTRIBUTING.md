@@ -64,15 +64,14 @@ Assuming you built everything previously....
 pnpm pack:all
 ```
 
-this will produce tarballs in the `dist` folder. Also `genkit-dist.zip` -- a zip of all the package tarballs.
+This will produce tarballs in the `dist` folder. Also `genkit-dist.zip` -- a zip of all the package tarballs.
 
 ## Link it
 
-You will need the Genkit CLI to run samples and the Developer UI:
+You will need the Genkit CLI to run samples and the Developer UI (this is done for you with `pnpm run setup`):
 
 ```
-cd genkit-tools
-pnpm link
+pnpm link-genkit-cli
 ```
 
 ## Run it
