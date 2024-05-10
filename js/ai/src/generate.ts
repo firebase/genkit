@@ -485,9 +485,9 @@ async function resolveModel(options: GenerateOptions): Promise<ModelAction> {
   if (!model) {
     if (genkitConfig?.options.defaultModel) {
       model =
-        typeof genkitConfig?.options.defaultModel.name === 'string'
-          ? genkitConfig?.options.defaultModel.name
-          : genkitConfig?.options.defaultModel.name.name;
+        typeof genkitConfig.options.defaultModel.name === 'string'
+          ? genkitConfig.options.defaultModel.name
+          : genkitConfig.options.defaultModel.name.name;
       if (
         (!options.config || Object.keys(options.config).length === 0) &&
         genkitConfig?.options.defaultModel.config
