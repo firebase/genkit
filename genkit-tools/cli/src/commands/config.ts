@@ -43,7 +43,7 @@ const CONFIG_TAGS: Record<
 export const config = new Command('config');
 
 config
-  .description('set development environemnt configuration')
+  .description('set development environment configuration')
   .command('get')
   .argument('<tag>', `The config tag to get. One of [${readableTagsHint()}]`)
   .action((tag) => {
