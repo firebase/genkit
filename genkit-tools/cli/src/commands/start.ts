@@ -48,9 +48,7 @@ export const start = new Command('start')
       return;
     }
 
-    const runner = new Runner({
-      openBrowser: options.open,
-    });
+    const runner = new Runner();
     if (options.attach) {
       try {
         await runner.attach(options.attach);
