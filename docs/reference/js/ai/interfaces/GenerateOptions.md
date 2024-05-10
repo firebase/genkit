@@ -1,0 +1,26 @@
+# Interface: GenerateOptions\<O, CustomOptions\>
+
+## Type parameters
+
+| Type parameter | Value |
+| :------ | :------ |
+| `O` *extends* `z.ZodTypeAny` | `z.ZodTypeAny` |
+| `CustomOptions` *extends* `z.ZodTypeAny` | `z.ZodTypeAny` |
+
+## Properties
+
+| Property | Type | Description |
+| :------ | :------ | :------ |
+| `candidates?` | `number` | Number of candidate messages to generate. |
+| `config?` | `TypeOf`\<`CustomOptions`\> | Configuration for the generation request. |
+| `context?` | \{ `"content"`: (\{ `"media"`: `undefined`; `"text"`: `string`; \} \| \{ `"media"`: \{ `"contentType"`: `string`; `"url"`: `string`; \}; `"text"`: `undefined`; \})[]; `"metadata"`: `Record`\<`string`, `any`\>; \}[] | Retrieved documents to be used as context for this generation. |
+| `history?` | \{ `"content"`: ( \| \{ `"data"`: `unknown`; `"media"`: `undefined`; `"metadata"`: `Record`\<`string`, `unknown`\>; `"text"`: `string`; `"toolRequest"`: `undefined`; `"toolResponse"`: `undefined`; \} \| \{ `"data"`: `unknown`; `"media"`: \{ `"contentType"`: `string`; `"url"`: `string`; \}; `"metadata"`: `Record`\<`string`, `unknown`\>; `"text"`: `undefined`; `"toolRequest"`: `undefined`; `"toolResponse"`: `undefined`; \} \| \{ `"data"`: `unknown`; `"media"`: `undefined`; `"metadata"`: `Record`\<`string`, `unknown`\>; `"text"`: `undefined`; `"toolRequest"`: \{ `"input"`: `unknown`; `"name"`: `string`; `"ref"`: `string`; \}; `"toolResponse"`: `undefined`; \} \| \{ `"data"`: `unknown`; `"media"`: `undefined`; `"metadata"`: `Record`\<`string`, `unknown`\>; `"text"`: `undefined`; `"toolRequest"`: `undefined`; `"toolResponse"`: \{ `"name"`: `string`; `"output"`: `unknown`; `"ref"`: `string`; \}; \} \| \{ `"data"`: `unknown`; `"media"`: `undefined`; `"metadata"`: `Record`\<`string`, `unknown`\>; `"text"`: `undefined`; `"toolRequest"`: `undefined`; `"toolResponse"`: `undefined`; \})[]; `"role"`: `RoleSchema`; \}[] | Conversation history for multi-turn prompting when supported by the underlying model. |
+| `model?` | `ModelArgument`\<`CustomOptions`\> | A model name (e.g. `vertexai/gemini-1.0-pro`) or reference. |
+| `output?` | \{ `"format"`: `"text"` \| `"media"` \| `"json"`; `"jsonSchema"`: `any`; `"schema"`: `O`; \} | Configuration for the desired output of the request. Defaults to the model's default output if unspecified. |
+| `output.format?` | `"text"` \| `"media"` \| `"json"` | - |
+| `output.jsonSchema?` | `any` | - |
+| `output.schema?` | `O` | - |
+| `prompt` |  \| `string` \| \{ `"data"`: `unknown`; `"media"`: `undefined`; `"metadata"`: `Record`\<`string`, `unknown`\>; `"text"`: `string`; `"toolRequest"`: `undefined`; `"toolResponse"`: `undefined`; \} \| \{ `"data"`: `unknown`; `"media"`: \{ `"contentType"`: `string`; `"url"`: `string`; \}; `"metadata"`: `Record`\<`string`, `unknown`\>; `"text"`: `undefined`; `"toolRequest"`: `undefined`; `"toolResponse"`: `undefined`; \} \| \{ `"data"`: `unknown`; `"media"`: `undefined`; `"metadata"`: `Record`\<`string`, `unknown`\>; `"text"`: `undefined`; `"toolRequest"`: \{ `"input"`: `unknown`; `"name"`: `string`; `"ref"`: `string`; \}; `"toolResponse"`: `undefined`; \} \| \{ `"data"`: `unknown`; `"media"`: `undefined`; `"metadata"`: `Record`\<`string`, `unknown`\>; `"text"`: `undefined`; `"toolRequest"`: `undefined`; `"toolResponse"`: \{ `"name"`: `string`; `"output"`: `unknown`; `"ref"`: `string`; \}; \} \| \{ `"data"`: `unknown`; `"media"`: `undefined`; `"metadata"`: `Record`\<`string`, `unknown`\>; `"text"`: `undefined`; `"toolRequest"`: `undefined`; `"toolResponse"`: `undefined`; \} \| ( \| \{ `"data"`: `unknown`; `"media"`: `undefined`; `"metadata"`: `Record`\<`string`, `unknown`\>; `"text"`: `string`; `"toolRequest"`: `undefined`; `"toolResponse"`: `undefined`; \} \| \{ `"data"`: `unknown`; `"media"`: \{ `"contentType"`: `string`; `"url"`: `string`; \}; `"metadata"`: `Record`\<`string`, `unknown`\>; `"text"`: `undefined`; `"toolRequest"`: `undefined`; `"toolResponse"`: `undefined`; \} \| \{ `"data"`: `unknown`; `"media"`: `undefined`; `"metadata"`: `Record`\<`string`, `unknown`\>; `"text"`: `undefined`; `"toolRequest"`: \{ `"input"`: `unknown`; `"name"`: `string`; `"ref"`: `string`; \}; `"toolResponse"`: `undefined`; \} \| \{ `"data"`: `unknown`; `"media"`: `undefined`; `"metadata"`: `Record`\<`string`, `unknown`\>; `"text"`: `undefined`; `"toolRequest"`: `undefined`; `"toolResponse"`: \{ `"name"`: `string`; `"output"`: `unknown`; `"ref"`: `string`; \}; \} \| \{ `"data"`: `unknown`; `"media"`: `undefined`; `"metadata"`: `Record`\<`string`, `unknown`\>; `"text"`: `undefined`; `"toolRequest"`: `undefined`; `"toolResponse"`: `undefined`; \})[] | The prompt for which to generate a response. Can be a string for a simple text prompt or one or more parts for multi-modal prompts. |
+| `returnToolRequests?` | `boolean` | When true, return tool calls for manual processing instead of automatically resolving them. |
+| `streamingCallback?` | `StreamingCallback`\<`GenerateResponseChunk`\<`unknown`\>\> | When provided, models supporting streaming will call the provided callback with chunks as generation progresses. |
+| `tools?` | `ToolArgument`\<`ZodTypeAny`, `ZodTypeAny`\>[] | List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. |

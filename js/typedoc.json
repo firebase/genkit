@@ -1,0 +1,28 @@
+{
+    "entryPoints": ["ai", "core", "flow", "plugins/*"],
+    "name": "Genkit TypeScript reference",
+    "out": "../docs/reference/js",
+    "entryPointStrategy": "packages",
+    "includeVersion": false,
+    "sort": [
+        "kind",
+        "instance-first",
+        "alphabetical"
+    ],
+    "sortEntryPoints": true,
+    "plugin": ["typedoc-plugin-zod", "typedoc-plugin-markdown"],
+
+    "entryFileName": "index",
+    "mergeReadme": true,
+    "excludeScopesInPaths": true,
+    "hidePageHeader": true,
+    "hideBreadcrumbs": true,
+    "expandObjects": true,
+    "expandParameters": true,
+    "useCodeBlocks": true,
+    "parametersFormat": "table",
+    "propertiesFormat": "table",
+    "enumMembersFormat": "table",
+    "typeDeclarationFormat": "table",
+    "indexFormat": "table",
+}
