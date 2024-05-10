@@ -11,7 +11,7 @@ To get you started, here are 10 key Genkit features we think you'll love:
 1. Many models, one interface
 Genkit provides plugins that give you access to popular models out of the box and a flexible model abstraction that makes it easy to integrate any model API and use community-maintained models. Trying out a new model is as easy as changing a single argument, but each model can specify custom configurations.
 import { geminiPro } from '@genkit-ai/vertexai';
-import { ollama } from '@genkit-ai/ollama';
+import { ollama } from 'genkitx-ollama';
 import { generate } from '@genkit-ai/ai';
 
 

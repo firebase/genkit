@@ -20,7 +20,7 @@
     "@genkit-ai/firebase": "workspace:*",
     "@genkit-ai/flow": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
-    "@genkit-ai/ollama": "workspace:*",
+    "genkitx-ollama": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
     "genkitx-langchain": "workspace:*",
     "@langchain/community": "^0.0.53",

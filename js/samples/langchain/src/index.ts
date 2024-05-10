@@ -18,7 +18,6 @@ import { configureGenkit } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
 import { googleAI } from '@genkit-ai/googleai';
-import { ollama } from '@genkit-ai/ollama';
 import { vertexAI } from '@genkit-ai/vertexai';
 import { GoogleVertexAIEmbeddings } from '@langchain/community/embeddings/googlevertexai';
 import { GoogleVertexAI } from '@langchain/community/llms/googlevertexai';
@@ -29,6 +28,7 @@ import {
   RunnableSequence,
 } from '@langchain/core/runnables';
 import { GenkitTracer } from 'genkitx-langchain';
+import { ollama } from 'genkitx-ollama';
 import { PDFLoader } from 'langchain/document_loaders/fs/pdf';
 import { formatDocumentsAsString } from 'langchain/util/document';
 import { MemoryVectorStore } from 'langchain/vectorstores/memory';
