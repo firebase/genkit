@@ -310,7 +310,7 @@ importers:
         version: link:../../core
       '@genkit-ai/dotprompt':
         specifier: workspace:*
-        version: link:../../plugins/dotprompt
+        version: link:../dotprompt
       compute-cosine-similarity:
         specifier: ^1.1.0
         version: 1.1.0
@@ -762,15 +762,15 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      'genkitx-ollama':
-        specifier: workspace:*
-        version: link:../../plugins/ollama
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       genkitx-chromadb:
         specifier: workspace:*
         version: link:../../plugins/chroma
+      genkitx-ollama:
+        specifier: workspace:*
+        version: link:../../plugins/ollama
       genkitx-pinecone:
         specifier: workspace:*
         version: link:../../plugins/pinecone
@@ -808,15 +808,15 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      'genkitx-ollama':
-        specifier: workspace:*
-        version: link:../../plugins/ollama
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       genkitx-chromadb:
         specifier: workspace:*
         version: link:../../plugins/chroma
+      genkitx-ollama:
+        specifier: workspace:*
+        version: link:../../plugins/ollama
       genkitx-pinecone:
         specifier: workspace:*
         version: link:../../plugins/pinecone
@@ -907,15 +907,15 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      'genkitx-ollama':
-        specifier: workspace:*
-        version: link:../../plugins/ollama
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       express:
         specifier: ~4.19.2
         version: 4.19.2
+      genkitx-ollama:
+        specifier: workspace:*
+        version: link:../../plugins/ollama
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -1000,9 +1000,6 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      'genkitx-ollama':
-        specifier: workspace:*
-        version: link:../../plugins/ollama
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
@@ -1021,6 +1018,9 @@ importers:
       genkitx-langchain:
         specifier: workspace:*
         version: link:../../plugins/langchain
+      genkitx-ollama:
+        specifier: workspace:*
+        version: link:../../plugins/ollama
       langchain:
         specifier: ^0.1.36
         version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
