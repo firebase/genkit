@@ -21,7 +21,6 @@ import {
   notifyAnalyticsIfFirstRun,
   record,
 } from '@genkit-ai/tools-common/utils';
-import * as clc from 'colorette';
 import { Command, program } from 'commander';
 import { config } from './commands/config';
 import { evalExtractData } from './commands/eval-extract-data';
@@ -89,9 +88,11 @@ export async function startCLI(): Promise<void> {
       program.addCommand(command);
     }
   }
-  program.addCommand(new Command('help').action(() => {
-    logger.info(program.help());    
-  }));
+  program.addCommand(
+    new Command('help').action(() => {
+      logger.info(program.help());
+    })
+  );
   // Default action to catch unknown commands.
   program.action(() => {
     // print help
