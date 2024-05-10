@@ -49,7 +49,7 @@ export const start = new Command('start')
     }
 
     const runner = new Runner({
-      openBrowser: options.open
+      openBrowser: options.open,
     });
     if (options.attach) {
       try {
