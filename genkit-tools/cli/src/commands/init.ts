@@ -150,6 +150,9 @@ const sampleTemplatePaths: Record<Platform, string> = {
   nextjs: '../../config/nextjs.genkit.ts.template',
 };
 
+const nextjsToolsConfigTemplatePath =
+  '../../config/nextjs.genkit-tools.config.js.template';
+
 /** Supported runtimes for the init command. */
 const supportedRuntimes: Runtime[] = ['node'];
 
@@ -250,6 +253,7 @@ export const init = new Command('init')
       ) {
         generateSampleFile(platform, modelOptions[model].plugin, plugins);
       }
+      generateToolsConfig(platform);
     } catch (error) {
       logger.error(error);
       process.exit(1);
@@ -323,6 +327,28 @@ async function updatePackageJson() {
   }
   logger.info('Updating package.json...');
   fs.writeFileSync(packageJsonPath, JSON.stringify(newPackageJson, null, 2));
+}
+
+/**
+ * Generates an appropriate tools config for the given platform.
+ * @param platform platform
+ */
+function generateToolsConfig(platform: Platform) {
+  if (platform === 'nextjs') {
+    const templatePath = path.join(__dirname, nextjsToolsConfigTemplatePath);
+    let template = fs.readFileSync(templatePath, 'utf8');
+    if (fs.existsSync('src/app')) {
+      template = template.replace('$GENKIT_HARNESS_FILES', `'./src/app/*.ts'`);
+    } else if (fs.existsSync('app')) {
+      template = template.replace('$GENKIT_HARNESS_FILES', `'./app/*.js'`);
+    } else {
+      throw new Error(
+        'Unable to resolve source folder (app or src/app) of you next.js app.'
+      );
+    }
+    const configPath = path.join(process.cwd(), 'genkit-tools.conf.js');
+    fs.writeFileSync(configPath, template, 'utf8');
+  }
 }
 
 /**
