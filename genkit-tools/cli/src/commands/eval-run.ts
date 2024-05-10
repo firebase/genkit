@@ -41,6 +41,7 @@ interface EvalRunOptions {
 }
 /** Command to run evaluation on a dataset. */
 export const evalRun = new Command('eval:run')
+  .description('evaluate provided dataset against configured evaluators')
   .argument(
     '<dataset>',
     'Dataset to evaluate on (currently only supports JSON)'

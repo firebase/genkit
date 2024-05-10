@@ -20,6 +20,7 @@ import { Command } from 'commander';
 
 /** Command to start GenKit server, optionally without static file serving */
 export const flowResume = new Command('flow:resume')
+  .description('resume an interrupted flow (experimental)')
   .argument('<flowName>', 'name of the flow to resume')
   .argument('<flowId>', 'ID of the flow to resume')
   .argument('<data>', 'JSON data to use to resume the flow')

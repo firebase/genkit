@@ -36,6 +36,9 @@ interface FlowBatchRunOptions {
 
 /** Command to run flows with batch input. */
 export const flowBatchRun = new Command('flow:batchRun')
+  .description(
+    'batch run a flow using provided set of data from a file as input'
+  )
   .argument('<flowName>', 'name of the flow to run')
   .argument('<inputFileName>', 'JSON batch data to use to run the flow')
   .option('-w, --wait', 'Wait for the flow to complete', false)
