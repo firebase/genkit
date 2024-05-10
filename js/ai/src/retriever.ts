@@ -20,7 +20,14 @@ import * as z from 'zod';
 import { Document, DocumentData, DocumentDataSchema } from './document.js';
 import { EmbedderInfo } from './embedder.js';
 
-export { Document, DocumentData, DocumentDataSchema } from './document.js';
+export {
+  Document,
+  DocumentData,
+  DocumentDataSchema,
+  MediaPart,
+  Part,
+  TextPart,
+} from './document.js';
 
 type RetrieverFn<RetrieverOptions extends z.ZodTypeAny> = (
   query: Document,

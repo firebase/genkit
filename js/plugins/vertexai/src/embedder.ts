@@ -21,7 +21,7 @@ import {
 } from '@genkit-ai/ai/embedder';
 import { GoogleAuth } from 'google-auth-library';
 import { z } from 'zod';
-import { PluginOptions } from '.';
+import { PluginOptions } from './index.js';
 import { predictModel } from './predict.js';
 
 export const TaskTypeSchema = z.enum([

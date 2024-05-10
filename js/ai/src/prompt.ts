@@ -17,9 +17,13 @@
 import { Action, defineAction, JSONSchema7 } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
 import z from 'zod';
-import { DocumentData } from './document';
-import { GenerateOptions } from './generate';
-import { GenerateRequest, GenerateRequestSchema, ModelArgument } from './model';
+import { DocumentData } from './document.js';
+import { GenerateOptions } from './generate.js';
+import {
+  GenerateRequest,
+  GenerateRequestSchema,
+  ModelArgument,
+} from './model.js';
 
 export type PromptFn<I extends z.ZodTypeAny = z.ZodTypeAny> = (
   input: z.infer<I>

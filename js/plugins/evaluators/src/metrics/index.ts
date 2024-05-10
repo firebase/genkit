@@ -14,6 +14,6 @@
  * limitations under the License.
  */
 
-export { answerRelevancyScore } from './answer_relevancy';
-export { faithfulnessScore } from './faithfulness';
-export { maliciousnessScore } from './maliciousness';
+export { answerRelevancyScore } from './answer_relevancy.js';
+export { faithfulnessScore } from './faithfulness.js';
+export { maliciousnessScore } from './maliciousness.js';

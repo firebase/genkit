@@ -24,25 +24,25 @@ import {
   claude3Opus,
   claude3Sonnet,
   SUPPORTED_ANTHROPIC_MODELS,
-} from './anthropic';
+} from './anthropic.js';
 import {
   SUPPORTED_EMBEDDER_MODELS,
   textEmbeddingGecko,
   textEmbeddingGeckoEmbedder,
-} from './embedder';
+} from './embedder.js';
 import {
   VertexAIEvaluationMetric,
   VertexAIEvaluationMetricType,
   vertexEvaluators,
-} from './evaluation';
+} from './evaluation.js';
 import {
   gemini15ProPreview,
   geminiModel,
   geminiPro,
   geminiProVision,
   SUPPORTED_GEMINI_MODELS,
-} from './gemini';
-import { imagen2, imagen2Model } from './imagen';
+} from './gemini.js';
+import { imagen2, imagen2Model } from './imagen.js';
 
 export {
   claude3Haiku,

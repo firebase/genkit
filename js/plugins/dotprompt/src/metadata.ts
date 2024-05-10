@@ -26,7 +26,7 @@ import {
 import { ToolArgument } from '@genkit-ai/ai/tool';
 import { JSONSchema, parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
 import z from 'zod';
-import { picoschema } from './picoschema';
+import { picoschema } from './picoschema.js';
 
 /**
  * Metadata for a prompt.

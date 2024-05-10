@@ -30,7 +30,7 @@ import {
   faithfulnessScore,
   maliciousnessScore,
 } from './metrics';
-import { GenkitMetric } from './types';
+import { GenkitMetric } from './types.js';
 export { GenkitMetric };
 
 const PLUGIN_NAME = 'genkitEval';
