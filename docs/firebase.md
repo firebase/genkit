@@ -313,7 +313,7 @@ endpoint requests.
 
 Firebase offers a suite of emulators for local development and you can use Genkit with [Firebase Local Emulator Suite](https://firebase.google.com/docs/emulator-suite).
 
-To use Genkit with Firebase emulator start the emulator like this:
+To use Genkit with the Firebase Emulator Suite, start the the Firebase emulators like this:
 
 ```bash
 GENKIT_ENV=dev firebase emulators:start --inspect-functions
