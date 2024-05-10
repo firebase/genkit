@@ -483,7 +483,7 @@ const isValidCandidate = (
 async function resolveModel(options: GenerateOptions): Promise<ModelAction> {
   let model = options.model;
   if (!model) {
-    if (genkitConfig?.options.defaultModel) {
+    if (genkitConfig?.options?.defaultModel) {
       model =
         typeof genkitConfig.options.defaultModel.name === 'string'
           ? genkitConfig.options.defaultModel.name
