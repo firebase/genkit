@@ -128,6 +128,7 @@ export function toMetadata(attributes: unknown): Partial<PromptMetadata> {
   });
   return stripUndefined({
     name: fm.name,
+    variant: fm.variant,
     model: fm.model,
     config: fm.config,
     input: fm.input
@@ -145,6 +146,7 @@ export function toMetadata(attributes: unknown): Partial<PromptMetadata> {
 export function toFrontmatter(md: PromptMetadata): PromptFrontmatter {
   return stripUndefined({
     name: md.name,
+    variant: md.variant,
     model: typeof md.model === 'string' ? md.model : md.model?.name,
     config: md.config,
     input: md.input
@@ -169,6 +171,6 @@ export function toFrontmatter(md: PromptMetadata): PromptFrontmatter {
     tools: md.tools?.map((t) =>
       typeof t === 'string' ? t : (t as any).__action?.name || (t as any).name
     ),
-    variant: md.variant,
+    candidates: md.candidates,
   });
 }
