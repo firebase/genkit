@@ -42,6 +42,10 @@ export interface ConfigOptions {
   logLevel?: 'error' | 'warn' | 'info' | 'debug';
   promptDir?: string;
   telemetry?: TelemetryOptions;
+  defaultModel?: {
+    name: string | { name: string };
+    config?: Record<string, any>;
+  };
 }
 
 class Config {

@@ -15,7 +15,6 @@
  */
 
 import { defineDotprompt } from '@genkit-ai/dotprompt';
-import { geminiPro } from '@genkit-ai/vertexai';
 import * as z from 'zod';
 
 // Define a prompt that includes the retrieved context documents
@@ -23,7 +22,6 @@ import * as z from 'zod';
 export const augmentedPrompt = defineDotprompt(
   {
     name: 'augmentedPrompt',
-    model: geminiPro,
     input: z.object({
       context: z.array(z.string()),
       question: z.string(),
