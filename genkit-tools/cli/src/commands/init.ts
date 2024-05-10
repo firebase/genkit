@@ -150,7 +150,8 @@ const sampleTemplatePaths: Record<Platform, string> = {
   nextjs: '../../config/nextjs.genkit.ts.template',
 };
 
-const nextjsToolsConfigTemplatePath = '../../config/nextjs.genkit-tools.config.js.template';
+const nextjsToolsConfigTemplatePath =
+  '../../config/nextjs.genkit-tools.config.js.template';
 
 /** Supported runtimes for the init command. */
 const supportedRuntimes: Runtime[] = ['node'];
