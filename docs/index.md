@@ -35,7 +35,7 @@ can specify custom configurations.
 
 ```js
 import { geminiPro } from '@genkit-ai/vertexai';
-import { ollama } from '@genkit-ai/ollama';
+import { ollama } from 'genkitx-ollama';
 import { generate } from '@genkit-ai/ai';
 
 function flipACoin(a, b) {

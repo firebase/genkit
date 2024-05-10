@@ -23,7 +23,7 @@
     "@genkit-ai/dev-local-vectorstore": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
-    "@genkit-ai/ollama": "workspace:*",
+    "genkitx-ollama": "workspace:*",
     "genkitx-pinecone": "workspace:*",
     "@genkit-ai/evaluator": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",

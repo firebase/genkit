@@ -26,6 +26,7 @@ firebase-debug.log
 !js/samples/rag/package.json
 js/samples/rag/*.json
 js/samples/cat-eval/__db*.json
+js/samples/menu-example/rag/__db*.json
 
 # Test files
 last_recording.mp4

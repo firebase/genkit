@@ -87,7 +87,7 @@ const modelOptions: Record<ModelProvider, PromptOption> = {
     label: 'Google Cloud Vertex AI',
     plugin: '@genkit-ai/vertexai',
   },
-  ollama: { label: 'Ollama (e.g. Gemma)', plugin: '@genkit-ai/ollama' },
+  ollama: { label: 'Ollama (e.g. Gemma)', plugin: 'genkitx-ollama' },
   none: { label: 'None', plugin: undefined },
 };
 
@@ -127,7 +127,7 @@ const pluginToInfo: Record<string, PluginInfo> = {
     init: "vertexAI({ location: 'us-central1' })",
     model: 'geminiPro',
   },
-  '@genkit-ai/ollama': {
+  'genkitx-ollama': {
     imports: 'ollama',
     init: `ollama({
       models: [{ name: 'gemma' }],
@@ -154,7 +154,7 @@ const sampleTemplatePaths: Record<Platform, string> = {
 const supportedRuntimes: Runtime[] = ['node'];
 
 export const init = new Command('init')
-  .description('Initialize a project directory with Genkit')
+  .description('initialize a project directory with Genkit')
   .option(
     '-p, --platform <platform>',
     'Deployment platform (firebase, googlecloud, or nodejs)'

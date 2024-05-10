@@ -26,7 +26,7 @@ export function registryDefinitionKey(name: string, variant?: string) {
 }
 
 export function registryLookupKey(name: string, variant?: string) {
-  return `prompt/${registryDefinitionKey(name, variant)}`;
+  return `/prompt/${registryDefinitionKey(name, variant)}`;
 }
 
 export async function lookupPrompt(
@@ -71,25 +71,29 @@ export async function loadPromptFolder(
 ): Promise<void> {
   const promptsPath = resolve(dir);
   return new Promise<void>((resolve, reject) => {
-    readdir(
-      promptsPath,
-      {
-        withFileTypes: true,
-        recursive: false,
-      },
-      (err, dirEnts) => {
-        if (err) {
-          reject(err);
-        } else {
-          dirEnts.forEach(async (dirEnt) => {
-            if (dirEnt.isFile() && dirEnt.name.endsWith('.prompt')) {
-              loadPrompt(dirEnt.path, dirEnt.name);
-            }
-          });
-          resolve();
+    if (existsSync(promptsPath)) {
+      readdir(
+        promptsPath,
+        {
+          withFileTypes: true,
+          recursive: false,
+        },
+        (err, dirEnts) => {
+          if (err) {
+            reject(err);
+          } else {
+            dirEnts.forEach(async (dirEnt) => {
+              if (dirEnt.isFile() && dirEnt.name.endsWith('.prompt')) {
+                loadPrompt(dirEnt.path, dirEnt.name);
+              }
+            });
+            resolve();
+          }
         }
-      }
-    );
+      );
+    } else {
+      resolve();
+    }
   });
 }
 

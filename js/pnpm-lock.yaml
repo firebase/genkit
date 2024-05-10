@@ -310,7 +310,7 @@ importers:
         version: link:../../core
       '@genkit-ai/dotprompt':
         specifier: workspace:*
-        version: link:../../plugins/dotprompt
+        version: link:../dotprompt
       compute-cosine-similarity:
         specifier: ^1.1.0
         version: 1.1.0
@@ -474,8 +474,8 @@ importers:
         specifier: workspace:*
         version: link:../../core
       '@google/generative-ai':
-        specifier: ^0.6.0
-        version: 0.6.0
+        specifier: ^0.10.0
+        version: 0.10.0
       google-auth-library:
         specifier: ^9.6.3
         version: 9.7.0(encoding@0.1.13)
@@ -762,15 +762,15 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/ollama':
-        specifier: workspace:*
-        version: link:../../plugins/ollama
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       genkitx-chromadb:
         specifier: workspace:*
         version: link:../../plugins/chroma
+      genkitx-ollama:
+        specifier: workspace:*
+        version: link:../../plugins/ollama
       genkitx-pinecone:
         specifier: workspace:*
         version: link:../../plugins/pinecone
@@ -808,15 +808,15 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/ollama':
-        specifier: workspace:*
-        version: link:../../plugins/ollama
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       genkitx-chromadb:
         specifier: workspace:*
         version: link:../../plugins/chroma
+      genkitx-ollama:
+        specifier: workspace:*
+        version: link:../../plugins/ollama
       genkitx-pinecone:
         specifier: workspace:*
         version: link:../../plugins/pinecone
@@ -907,15 +907,15 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/ollama':
-        specifier: workspace:*
-        version: link:../../plugins/ollama
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       express:
         specifier: ~4.19.2
         version: 4.19.2
+      genkitx-ollama:
+        specifier: workspace:*
+        version: link:../../plugins/ollama
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -1000,9 +1000,6 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/ollama':
-        specifier: workspace:*
-        version: link:../../plugins/ollama
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
@@ -1021,6 +1018,9 @@ importers:
       genkitx-langchain:
         specifier: workspace:*
         version: link:../../plugins/langchain
+      genkitx-ollama:
+        specifier: workspace:*
+        version: link:../../plugins/ollama
       langchain:
         specifier: ^0.1.36
         version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
@@ -1464,8 +1464,8 @@ packages:
     resolution: {integrity: sha512-hfwfdlVpJ+kM6o2b5UFfPnweBcz8tgHAFRswnqUKYqLJsvKU0DDD0Z2/YKoHyAUoPJAv20qg6KlC3msNeUKUiw==}
     engines: {node: '>=18.0.0'}
 
-  '@google/generative-ai@0.6.0':
-    resolution: {integrity: sha512-jkc7vBOW/yKhNtOkpQI1jYFtAybEc0kjf8I6CpSUBWVdrVh45jIikeTlYaYckH+KtZjteARUhg26mh5XnFT6Yg==}
+  '@google/generative-ai@0.10.0':
+    resolution: {integrity: sha512-fZJEL8DcDgvBCguLdaAdBBEoh+83LDXK3m9rVh5iksvwVJDgZqkpsLGKJuM5FEBKltWhbJ62WSyMEUGgy8eMUg==}
     engines: {node: '>=18.0.0'}
 
   '@grpc/grpc-js@1.10.4':
@@ -5326,7 +5326,7 @@ snapshots:
       - encoding
       - supports-color
 
-  '@google/generative-ai@0.6.0': {}
+  '@google/generative-ai@0.10.0': {}
 
   '@grpc/grpc-js@1.10.4':
     dependencies:

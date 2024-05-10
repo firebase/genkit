@@ -20,7 +20,6 @@ import { dotprompt } from '@genkit-ai/dotprompt';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
-import { ollama } from '@genkit-ai/ollama';
 import {
   claude3Haiku,
   claude3Opus,
@@ -30,6 +29,7 @@ import {
   VertexAIEvaluationMetricType,
 } from '@genkit-ai/vertexai';
 import { chroma } from 'genkitx-chromadb';
+import { ollama } from 'genkitx-ollama';
 import { pinecone } from 'genkitx-pinecone';
 
 // Turn off safety checks for evaluation so that the LLM as an evaluator can

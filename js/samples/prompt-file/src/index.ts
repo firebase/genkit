@@ -15,13 +15,13 @@
  */
 
 import { configureGenkit } from '@genkit-ai/core';
-import { prompt } from '@genkit-ai/dotprompt';
+import { dotprompt, prompt } from '@genkit-ai/dotprompt';
 import { defineFlow } from '@genkit-ai/flow';
 import { googleAI } from '@genkit-ai/googleai';
 import * as z from 'zod';
 
 configureGenkit({
-  plugins: [googleAI()],
+  plugins: [googleAI(), dotprompt()],
   enableTracingAndMetrics: true,
   logLevel: 'debug',
 });

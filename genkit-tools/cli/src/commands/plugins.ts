@@ -34,7 +34,7 @@ export async function getPluginCommands(): Promise<Command[]> {
 /** Gets special-case commands for plugins in the config file. */
 export async function getPluginSubCommand(
   commandString: SpecialAction
-): Promise<Command> {
+): Promise<Command | undefined> {
   const config = await findToolsConfig();
   const actions = (config?.cliPlugins || [])
     .filter((p) => !!p.subCommands?.[commandString])
@@ -48,12 +48,7 @@ export async function getPluginSubCommand(
   );
 
   if (!actions.length) {
-    return command.action(() => {
-      logger.error(
-        `No plugins installed that support ${commandString}. Add a supported ` +
-          `plugin to your ${clc.bold('genkit-tools.conf.js')} file.`
-      );
-    });
+    return undefined;
   }
 
   for (const a of actions) {

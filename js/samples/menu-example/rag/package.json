@@ -1,7 +1,4 @@
 {
-  "name": "dev-ui-gallery",
-  "version": "1.0.0",
-  "description": "Loads plugins and flows to demonstrate and test UI features.",
   "main": "lib/index.js",
   "scripts": {
     "start": "node lib/index.js",
@@ -11,25 +8,26 @@
     "build:watch": "tsc --watch",
     "build-and-run": "pnpm build && node lib/index.js"
   },
+  "name": "rag",
+  "version": "1.0.0",
+  "description": "",
   "keywords": [],
-  "author": "Google, LLC",
+  "author": "",
   "license": "ISC",
-  "devDependencies": {
-    "typescript": "^5.3.3"
-  },
   "dependencies": {
     "@genkit-ai/ai": "workspace:*",
     "@genkit-ai/core": "workspace:*",
-    "@genkit-ai/dotprompt": "workspace:*",
-    "@genkit-ai/flow": "workspace:*",
-    "genkitx-chromadb": "workspace:*",
     "@genkit-ai/dev-local-vectorstore": "workspace:*",
+    "@genkit-ai/dotprompt": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
-    "@genkit-ai/googleai": "workspace:*",
-    "genkitx-ollama": "workspace:*",
-    "genkitx-pinecone": "workspace:*",
-    "@genkit-ai/evaluator": "workspace:*",
+    "@genkit-ai/flow": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
+    "llm-chunk": "^0.0.1",
+    "pdf-parse": "^1.1.1",
     "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/pdf-parse": "^1.1.4",
+    "typescript": "^5.3.3"
   }
 }

@@ -200,10 +200,5 @@ func (p *Prompt) Execute(ctx context.Context, input *ActionInput) (*ai.GenerateR
 		return nil, err
 	}
 
-	// TODO(ianlancetaylor): The TypeScript code stores genReq
-	// with each candidate in resp. The TypeScript code
-	// extends CandidateData with an optional request field.
-	// We don't have a natural way to do that in Go.
-
 	return resp, nil
 }
