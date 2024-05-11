@@ -303,10 +303,39 @@ export const ragFlow = defineFlow(
 
 It's also possible to create your own retriever. This is useful if your
 documents are managed in a document store that is not supported in Genkit (eg:
-MySQL, Google Drive, etc.). The Genkit SDK provides a flexible `defineRetriever`
-method that lets you provide custom code for fetching documents. You can also
-define custom retrievers that build on top of existing retrievers in Genkit and
-apply advanced RAG techniques (such as reranking or prompt extensions) on top.
+MySQL, Google Drive, etc.). The Genkit SDK provides flexible methods that let
+you provide custom code for fetching documents. You can also define custom
+retrievers that build on top of existing retrievers in Genkit and apply advanced
+RAG techniques (such as reranking or prompt extensions) on top.
+
+### Simple Retrievers
+
+Simple retrievers let you easily convert existing code into retrievers:
+
+```javascript
+import {
+  defineSimpleRetriever,
+  retrieve
+} from "@genkit-ai/ai/retriever";
+import { searchEmails } from "./db";
+import { z } from "zod";
+
+defineSimpleRetriever({
+  name: 'myDatabase',
+  configSchema: z.object({
+    limit: z.number().optional()
+  }).optional(),
+  // we'll extract "message" from the returned email item
+  content: 'message',
+  // and several keys to use as metadata
+  metadata: ['from', 'to', 'subject'],
+} async (query, config) => {
+  const result = await searchEmails(query.text(), {limit: config.limit});
+  return result.data.emails;
+});
+```
+
+### Custom Retrievers
 
 ```javascript
 import {

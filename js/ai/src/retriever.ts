@@ -294,3 +294,5 @@ export function indexerRef<
 ): IndexerReference<CustomOptionsSchema> {
   return { ...options };
 }
+
+export { defineSimpleRetriever } from './simpleRetriever.js';
