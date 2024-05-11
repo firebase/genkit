@@ -29,7 +29,7 @@ function itemToDocument<R>(
     });
   if (typeof item === 'string') return Document.fromText(item);
   if (typeof options.content === 'function') {
-    const transformed = content(item);
+    const transformed = options.content(item);
     return typeof transformed === 'string'
       ? Document.fromText(transformed)
       : new Document({ content: transformed });
