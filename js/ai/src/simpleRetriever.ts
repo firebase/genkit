@@ -35,7 +35,7 @@ function itemToDocument<R>(
       : new Document({ content: transformed });
   }
   if (typeof options.content === 'string' && typeof item === 'object')
-    return new Document(item[options.content]);
+    return Document.fromText(item[options.content]);
   throw new GenkitError({
     status: 'INVALID_ARGUMENT',
     message: `Cannot convert item to document without content option. Item: ${JSON.stringify(item)}`,
