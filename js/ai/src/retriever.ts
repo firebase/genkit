@@ -22,8 +22,8 @@ import { EmbedderInfo } from './embedder.js';
 
 export {
   Document,
-  type DocumentData,
   DocumentDataSchema,
+  type DocumentData,
   type MediaPart,
   type Part,
   type TextPart,

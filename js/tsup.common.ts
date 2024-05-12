@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-import { Plugin } from 'esbuild';
-
 export const defaultOptions = {
   format: ['cjs', 'esm'],
   dts: true,
