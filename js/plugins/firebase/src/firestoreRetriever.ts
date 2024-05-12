@@ -15,11 +15,17 @@
  */
 
 import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
-import { defineRetriever, DocumentData, Part, RetrieverAction } from '@genkit-ai/ai/retriever';
 import {
-  VectorQuerySnapshot, Firestore,
+  defineRetriever,
+  DocumentData,
+  Part,
+  RetrieverAction,
+} from '@genkit-ai/ai/retriever';
+import {
+  Firestore,
   Query,
   QueryDocumentSnapshot,
+  VectorQuerySnapshot,
 } from '@google-cloud/firestore';
 import z from 'zod';
 
