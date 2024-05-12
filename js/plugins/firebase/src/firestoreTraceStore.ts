@@ -16,7 +16,7 @@
 
 import { Firestore } from '@google-cloud/firestore';
 import { randomUUID } from 'crypto';
-import { logger } from '../logging.js';
+import { logger } from '@genkit-ai/core/logging';
 import {
   SpanData,
   SpanDataSchema,
@@ -25,7 +25,7 @@ import {
   TraceQuery,
   TraceQueryResponse,
   TraceStore,
-} from './types.js';
+} from '@genkit-ai/core/tracing';
 
 const DOC_MAX_SIZE = 1_000_000;
 
