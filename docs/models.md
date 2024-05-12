@@ -139,7 +139,7 @@ const llmResponse = await generate({
   model: geminiPro,
   prompt: 'Tell me a joke.',
   tools: [myTool],
-  options: {
+  config: {
     temperature: 0.5,
   },
 });
@@ -155,7 +155,7 @@ const llmResponse = await generate({
   prompt: 'Tell me a joke.',
   tools: [myTool],
   returnToolRequests: true,
-  options: {
+  config: {
     temperature: 0.5,
   },
 });
