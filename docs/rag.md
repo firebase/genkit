@@ -316,9 +316,9 @@ Simple retrievers let you easily convert existing code into retrievers:
 import {
   defineSimpleRetriever,
   retrieve
-} from "@genkit-ai/ai/retriever";
-import { searchEmails } from "./db";
-import { z } from "zod";
+} from '@genkit-ai/ai/retriever';
+import { searchEmails } from './db';
+import { z } from 'zod';
 
 defineSimpleRetriever({
   name: 'myDatabase',
