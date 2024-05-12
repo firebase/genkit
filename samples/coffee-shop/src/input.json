@@ -1,0 +1,7 @@
+{
+  "start": {
+    "customerName": "sam",
+    "currentTime": "12:30AM",
+    "previousOrders": ["Americano"]
+  }
+}
