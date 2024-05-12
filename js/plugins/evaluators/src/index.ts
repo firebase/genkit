@@ -29,7 +29,7 @@ import {
   answerRelevancyScore,
   faithfulnessScore,
   maliciousnessScore,
-} from './metrics/index.js';
+} from './metrics';
 import { GenkitMetric } from './types';
 export { GenkitMetric };
 
