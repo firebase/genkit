@@ -26,6 +26,9 @@ export const defaultOptions = {
   treeshake: false,
 };
 
+/**
+ *
+ */
 export function fromPackageJson(packageJson: {
   exports?: { [key: string]: { import: string } };
 }): string[] {
