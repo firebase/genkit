@@ -22,11 +22,11 @@ import { EmbedderInfo } from './embedder.js';
 
 export {
   Document,
-  DocumentData,
   DocumentDataSchema,
-  MediaPart,
-  Part,
-  TextPart,
+  type DocumentData,
+  type MediaPart,
+  type Part,
+  type TextPart,
 } from './document.js';
 
 type RetrieverFn<RetrieverOptions extends z.ZodTypeAny> = (
