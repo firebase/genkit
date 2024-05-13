@@ -44,8 +44,8 @@ deploying the default sample flow to Firebase.
     firebase init
     ```
 
-    - Select the project you created earlier.
     - Select **Functions** as the only feature to set up (for now).
+    - Select the project you created earlier.
     - Select **TypeScript** as the functions language.
 
     Accept the defaults for the remaining prompts.
