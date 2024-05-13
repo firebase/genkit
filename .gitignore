@@ -12,6 +12,7 @@ package-lock.json
 genkit-tools/cli/src/utils/version.ts
 
 # Sample-specific files
+samples/**/pnpm-lock.yaml
 genkit-packages
 typings
 js/samples/firebase-functions-sample1/functions/.env

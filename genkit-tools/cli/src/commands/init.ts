@@ -57,6 +57,8 @@ interface InitOptions {
   model: ModelProvider;
   // Path to local Genkit dist archive.
   distArchive: string;
+  // Non-interactive mode.
+  nonInteractive: boolean;
 }
 
 interface ImportOptions {
@@ -167,6 +169,10 @@ export const init = new Command('init')
     'Model provider (googleai, vertexai, ollama, or none)'
   )
   .option(
+    '--non-interactive',
+    'Run init in non-interactive mode (experimental)'
+  )
+  .option(
     '-d, --dist-archive <distArchive>',
     'Path to local Genkit dist archive'
   )
@@ -243,13 +249,14 @@ export const init = new Command('init')
       if (!fs.existsSync('src')) {
         fs.mkdirSync('src');
       }
-      await updateTsConfig();
-      await updatePackageJson();
+      await updateTsConfig(options.nonInteractive);
+      await updatePackageJson(options.nonInteractive);
       if (
-        await confirm({
+        options.nonInteractive ||
+        (await confirm({
           message: 'Would you like to generate a sample flow?',
           default: true,
-        })
+        }))
       ) {
         generateSampleFile(platform, modelOptions[model].plugin, plugins);
       }
@@ -275,7 +282,7 @@ export const init = new Command('init')
 /**
  * Updates package.json with Genkit-expected fields.
  */
-async function updatePackageJson() {
+async function updatePackageJson(nonInteractive: boolean) {
   const packageJsonPath = path.join(process.cwd(), 'package.json');
   // package.json should exist before reaching this point.
   if (!fs.existsSync(packageJsonPath)) {
@@ -284,9 +291,11 @@ async function updatePackageJson() {
   const existingPackageJson = JSON.parse(
     fs.readFileSync(packageJsonPath, 'utf8')
   );
-  const choice = await promptWriteMode(
-    'Would you like to update your package.json with suggested settings?'
-  );
+  const choice = nonInteractive
+    ? 'overwrite'
+    : await promptWriteMode(
+        'Would you like to update your package.json with suggested settings?'
+      );
   const packageJson = {
     main: 'lib/index.js',
     scripts: {
@@ -458,7 +467,7 @@ async function promptWriteMode(
 /**
  * Updates tsconfig.json with required flags for Genkit.
  */
-async function updateTsConfig() {
+async function updateTsConfig(nonInteractive: boolean) {
   try {
     const tsConfigPath = path.join(process.cwd(), 'tsconfig.json');
     let existingTsConfig = undefined;
@@ -466,7 +475,7 @@ async function updateTsConfig() {
       existingTsConfig = JSON.parse(fs.readFileSync(tsConfigPath, 'utf-8'));
     }
     let choice: WriteMode = 'overwrite';
-    if (existingTsConfig) {
+    if (!nonInteractive && existingTsConfig) {
       choice = await promptWriteMode(
         'Would you like to update your tsconfig.json with suggested settings?'
       );
