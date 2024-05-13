@@ -15,8 +15,8 @@
 packages:
   - './*'
   - 'plugins/*'
-  - 'samples/*'
-  - '!samples/bleigh-scratch'
-  - '!samples/firebase-functions-sample1'
-  - '!samples/firebase-functions-sample1/functions'
+  - 'testapps/*'
+  - '!testapps/bleigh-scratch'
+  - '!testapps/firebase-functions-sample1'
+  - '!testapps/firebase-functions-sample1/functions'
   - 'third_party/*'

@@ -620,7 +620,7 @@ importers:
         specifier: ^4.9.0
         version: 4.9.5
 
-  samples/byo-evaluator:
+  testapps/byo-evaluator:
     dependencies:
       '@genkit-ai/ai':
         specifier: workspace:*
@@ -658,9 +658,9 @@ importers:
     devDependencies:
       typescript:
         specifier: ^5.3.3
-        version: 5.4.3
+        version: 5.4.5
 
-  samples/cat-eval:
+  testapps/cat-eval:
     dependencies:
       '@genkit-ai/ai':
         specifier: workspace:*
@@ -697,16 +697,16 @@ importers:
         version: 0.0.1
       pdfjs-dist:
         specifier: ^4.0.379
-        version: 4.0.379(encoding@0.1.13)
+        version: 4.2.67(encoding@0.1.13)
       zod:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
       typescript:
         specifier: ^5.3.3
-        version: 5.4.3
+        version: 5.4.5
 
-  samples/dev-ui-gallery:
+  testapps/dev-ui-gallery:
     dependencies:
       '@genkit-ai/ai':
         specifier: workspace:*
@@ -750,9 +750,9 @@ importers:
     devDependencies:
       typescript:
         specifier: ^5.3.3
-        version: 5.4.3
+        version: 5.4.5
 
-  samples/docs-menu-basic:
+  testapps/docs-menu-basic:
     dependencies:
       '@genkit-ai/ai':
         specifier: workspace:*
@@ -778,9 +778,9 @@ importers:
     devDependencies:
       typescript:
         specifier: ^5.3.3
-        version: 5.4.3
+        version: 5.4.5
 
-  samples/docs-menu-rag:
+  testapps/docs-menu-rag:
     dependencies:
       '@genkit-ai/ai':
         specifier: workspace:*
@@ -815,9 +815,9 @@ importers:
         version: 1.1.4
       typescript:
         specifier: ^5.3.3
-        version: 5.4.3
+        version: 5.4.5
 
-  samples/eval:
+  testapps/eval:
     dependencies:
       '@genkit-ai/ai':
         specifier: workspace:*
@@ -843,9 +843,9 @@ importers:
     devDependencies:
       typescript:
         specifier: ^5.3.3
-        version: 5.4.3
+        version: 5.4.5
 
-  samples/evaluator-gut-check:
+  testapps/evaluator-gut-check:
     dependencies:
       '@genkit-ai/ai':
         specifier: workspace:*
@@ -877,9 +877,9 @@ importers:
     devDependencies:
       typescript:
         specifier: ^5.3.3
-        version: 5.4.3
+        version: 5.4.5
 
-  samples/express:
+  testapps/express:
     dependencies:
       '@genkit-ai/ai':
         specifier: workspace:*
@@ -914,9 +914,9 @@ importers:
         version: 4.17.21
       typescript:
         specifier: ^5.3.3
-        version: 5.4.3
+        version: 5.4.5
 
-  samples/flow-sample1:
+  testapps/flow-sample1:
     dependencies:
       '@genkit-ai/core':
         specifier: workspace:^
@@ -933,9 +933,9 @@ importers:
     devDependencies:
       typescript:
         specifier: ^5.3.3
-        version: 5.4.3
+        version: 5.4.5
 
-  samples/flow-simple-ai:
+  testapps/flow-simple-ai:
     dependencies:
       '@genkit-ai/ai':
         specifier: workspace:*
@@ -973,9 +973,9 @@ importers:
     devDependencies:
       typescript:
         specifier: ^5.3.3
-        version: 5.4.3
+        version: 5.4.5
 
-  samples/langchain:
+  testapps/langchain:
     dependencies:
       '@genkit-ai/ai':
         specifier: workspace:*
@@ -1028,9 +1028,9 @@ importers:
         version: 4.17.21
       typescript:
         specifier: ^5.3.3
-        version: 5.4.3
+        version: 5.4.5
 
-  samples/llm-human-in-the-loop:
+  testapps/llm-human-in-the-loop:
     dependencies:
       '@genkit-ai/ai':
         specifier: workspace:*
@@ -1053,9 +1053,9 @@ importers:
     devDependencies:
       typescript:
         specifier: ^5.3.3
-        version: 5.4.3
+        version: 5.4.5
 
-  samples/menu:
+  testapps/menu:
     dependencies:
       '@genkit-ai/ai':
         specifier: workspace:*
@@ -1087,9 +1087,9 @@ importers:
     devDependencies:
       typescript:
         specifier: ^5.3.3
-        version: 5.4.3
+        version: 5.4.5
 
-  samples/prompt-file:
+  testapps/prompt-file:
     dependencies:
       '@genkit-ai/ai':
         specifier: workspace:*
@@ -1112,9 +1112,9 @@ importers:
     devDependencies:
       typescript:
         specifier: ^5.3.3
-        version: 5.4.3
+        version: 5.4.5
 
-  samples/rag:
+  testapps/rag:
     dependencies:
       '@genkit-ai/ai':
         specifier: workspace:*
@@ -1167,13 +1167,13 @@ importers:
         version: 1.1.4
       typescript:
         specifier: ^5.3.3
-        version: 5.4.3
+        version: 5.4.5
 
-  samples/tools-config-test1:
+  testapps/tools-config-test1:
     devDependencies:
       typescript:
         specifier: ^5.3.3
-        version: 5.4.3
+        version: 5.4.5
 
 packages:
 
@@ -4084,13 +4084,8 @@ packages:
     resolution: {integrity: sha512-gDKb8aZMDeD/tZWs9P6+q0J9Mwkdl6xMV8TjnGP3qJVJ06bdMgkbBlLU8IdfOsIsFz2BW1rNVT3XuNEl8zPAvw==}
     engines: {node: '>=8'}
 
-  path2d-polyfill@2.1.1:
-    resolution: {integrity: sha512-4Rka5lN+rY/p0CdD8+E+BFv51lFaFvJOrlOhyQ+zjzyQrzyh3ozmxd1vVGGDdIbUFSBtIZLSnspxTgPT0iJhvA==}
-    engines: {node: '>=18'}
-    deprecated: this package has been deprecated
-
-  path2d@0.1.1:
-    resolution: {integrity: sha512-/+S03c8AGsDYKKBtRDqieTJv2GlkMb0bWjnqOgtF6MkjdUQ9a8ARAtxWf9NgKLGm2+WQr6+/tqJdU8HNGsIDoA==}
+  path2d@0.2.0:
+    resolution: {integrity: sha512-KdPAykQX6kmLSOO6Jpu2KNcCED7CKjmaBNGGNuctOsG0hgYO1OdYQaan6cYXJiG0WmXOwZZPILPBimu5QAIw3A==}
     engines: {node: '>=6'}
 
   path@0.12.7:
@@ -4100,8 +4095,8 @@ packages:
     resolution: {integrity: sha512-v6ZJ/efsBpGrGGknjtq9J/oC8tZWq0KWL5vQrk2GlzLEQPUDB1ex+13Rmidl1neNN358Jn9EHZw5y07FFtaC7A==}
     engines: {node: '>=6.8.1'}
 
-  pdfjs-dist@4.0.379:
-    resolution: {integrity: sha512-6H0Gv1nna+wmrr3CakaKlZ4rbrL8hvGIFAgg4YcoFuGC0HC4B2DVjXEGTFjJEjLlf8nYi3C3/MYRcM5bNx0elA==}
+  pdfjs-dist@4.2.67:
+    resolution: {integrity: sha512-rJmuBDFpD7cqC8WIkQUEClyB4UAH05K4AsyewToMTp2gSy3Rrx8c1ydAVqlJlGv3yZSOrhEERQU/4ScQQFlLHA==}
     engines: {node: '>=18'}
 
   pg-int8@1.0.1:
@@ -4614,8 +4609,8 @@ packages:
     engines: {node: '>=4.2.0'}
     hasBin: true
 
-  typescript@5.4.3:
-    resolution: {integrity: sha512-KrPd3PKaCLr78MalgiwJnA25Nm8HAmdwN3mYUYZgG/wizIo9EainNVQI9/yDavtVFRN2h3k8uf3GLHuhDMgEHg==}
+  typescript@5.4.5:
+    resolution: {integrity: sha512-vcI4UpRgg81oIRUFwR0WSIHKt11nJ7SAVlYNIu+QpqeyXP+gpQJy/Z4+F0aGxSE4MqwjyXvW/TzgkLAx2AGHwQ==}
     engines: {node: '>=14.17'}
     hasBin: true
 
@@ -7915,12 +7910,7 @@ snapshots:
 
   path-type@4.0.0: {}
 
-  path2d-polyfill@2.1.1:
-    dependencies:
-      path2d: 0.1.1
-    optional: true
-
-  path2d@0.1.1:
+  path2d@0.2.0:
     optional: true
 
   path@0.12.7:
@@ -7935,10 +7925,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  pdfjs-dist@4.0.379(encoding@0.1.13):
+  pdfjs-dist@4.2.67(encoding@0.1.13):
     optionalDependencies:
       canvas: 2.11.2(encoding@0.1.13)
-      path2d-polyfill: 2.1.1
+      path2d: 0.2.0
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -8530,7 +8520,7 @@ snapshots:
 
   typescript@4.9.5: {}
 
-  typescript@5.4.3: {}
+  typescript@5.4.5: {}
 
   uglify-js@3.17.4:
     optional: true
