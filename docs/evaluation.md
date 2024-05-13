@@ -34,14 +34,18 @@ Note: The configuration above requires installing the `@genkit-ai/evaluator` and
 Start by defining a set of inputs that you want to use as an input dataset called `testQuestions.json`. This input dataset represents the test cases you will use to generate output for evaluation.
 
 ```json
-["How old is Bob?", "Where does Bob lives?", "Does Bob have any friends?"]
+[
+  "What is on the menu?",
+  "Does the restaurant have clams?",
+  "What is the special of the day?"
+]
 ```
 
 You can then use the `eval:flow` command to evaluate your flow against the test
 cases provided in `testQuestions.json`.
 
 ```posix-terminal
-genkit eval:flow bobQA --input testQuestions.json
+genkit eval:flow menuQA --input testQuestions.json
 ```
 
 You can then see evaluation results in the Developer UI by running:
@@ -55,7 +59,7 @@ Then navigate to `localhost:4000/evaluate`.
 Alternatively, you can provide an output file to inspect the output in a json file.
 
 ```posix-terminal
-genkit eval:flow bobQA --input testQuestions.json --output eval-result.json
+genkit eval:flow menuQA --input testQuestions.json --output eval-result.json
 ```
 
 Note: Below you can see an example of how an LLM can help you generate the test

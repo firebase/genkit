@@ -164,22 +164,22 @@ output:
     description: string
 ---
 
-Generate a tabletop RPG character that would be found in {{location}}.
+Generate a restaurant menu that would be found in {{location}}.
 ```
 
 When generating a prompt with structured output, use the `output()` helper to
 retrieve and validate it:
 
 ```ts
-const characterPrompt = await prompt('create_character');
+const createMenuPrompt = await prompt('create_menu');
 
-const character = await characterPrompt.generate({
+const menu = await createMenuPrompt.generate({
   input: {
-    location: 'the beach',
+    location: 'a mountain summit',
   },
 });
 
-console.log(character.output());
+console.log(menu.output());
 ```
 
 ## Multi-message prompts
@@ -199,8 +199,8 @@ input:
 ---
 
 {{role "system"}}
-You are a helpful AI assistant that really loves to talk about puppies. Try to work puppies
-into all of your conversations.
+You are a helpful AI assistant that really loves to talk about food. Try to work
+food items into all of your conversations.
 {{role "user"}}
 {{userQuestion}}
 ```
