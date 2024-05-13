@@ -319,7 +319,7 @@ To use Genkit with the Firebase Emulator Suite, start the the Firebase emulators
 GENKIT_ENV=dev firebase emulators:start --inspect-functions
 ```
 
-this will run your code in the emulator and run genkit framework in dev mode which launches and exposes the Genkit reflection API (but not the Dev UI).
+This will run your code in the emulator and run the Genkit framework in development mode, which launches and exposes the Genkit reflection API (but not the Dev UI).
 
 To launch the Genkit Dev UI that talks to your code running inside the Firebase Emulator run this command:
 
