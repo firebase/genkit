@@ -198,7 +198,7 @@ func TestRenderMessages(t *testing.T) {
 	}
 
 	cmpPart := func(a, b *ai.Part) bool {
-		if a.IsPlainText() != b.IsPlainText() {
+		if a.IsText() != b.IsText() {
 			return false
 		}
 		if a.Text() != b.Text() {

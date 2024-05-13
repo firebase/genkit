@@ -157,7 +157,7 @@ func convertParts(parts []*ai.Part) []genai.Part {
 // convertPart converts a *ai.Part to a genai.Part.
 func convertPart(p *ai.Part) genai.Part {
 	switch {
-	case p.IsPlainText():
+	case p.IsText():
 		return genai.Text(p.Text())
 	default:
 		return genai.Blob{MIMEType: p.ContentType(), Data: []byte(p.Text())}
