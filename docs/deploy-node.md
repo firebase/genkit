@@ -81,7 +81,7 @@ sample flow.
     ```posix-terminal
     npm run build
 
-    genkit flow:run jokeFlow "\"banana\"" -s
+    genkit flow:run menuSuggestionFlow "\"banana\"" -s
     ```
 
 1.  **Optional**: Start the developer UI:
@@ -104,7 +104,7 @@ sample flow.
     Then, in another window:
 
     ```posix-terminal
-    curl -X POST "http://127.0.0.1:3400/jokeFlow?stream=true" -H "Content-Type: application/json"  -d '{"data": "banana"}'
+    curl -X POST "http://127.0.0.1:3400/menuSuggestionFlow?stream=true" -H "Content-Type: application/json"  -d '{"data": "banana"}'
     ```
 
 1.  If everything's working as expected, you can deploy the flow to the provider

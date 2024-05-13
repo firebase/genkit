@@ -122,7 +122,7 @@ flow.
 
     1.  In the developer UI (http://localhost:4000/), run the flow:
 
-        1.  Click **jokeFlow**.
+        1.  Click **menuSuggestionFlow**.
 
         1.  On the **Input JSON** tab, provide a subject for the model:
 

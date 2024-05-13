@@ -121,8 +121,8 @@ You can use Firebase Auth to protect your flows defined with `onFlow()`:
 import { firebaseAuth } from '@genkit-ai/firebase/auth';
 import { onFlow } from '@genkit-ai/firebase/functions';
 
-export const jokeFlow = onFlow({
-    name: 'jokeFlow',
+export const menuSuggestionFlow = onFlow({
+    name: 'menuSuggestionFlow',
     inputSchema: z.string(),
     outputSchema: z.string(),
     authPolicy: firebaseAuth((user) => {
@@ -140,7 +140,7 @@ above. When running this flow during development, you would pass the user object
 in the same way:
 
 ```posix-terminal
-genkit flow:run jokeFlow '"Banana"' --auth '{"admin": true}'
+genkit flow:run menuSuggestionFlow '"Banana"' --auth '{"admin": true}'
 ```
 
 By default the Firebase Auth plugin requires the auth header to be sent by the
@@ -169,8 +169,8 @@ indicate to the library that you are forgoing authorization checks by using the
 ```ts
 import { onFlow, noAuth } from '@genkit-ai/firebase/functions';
 
-export const jokeFlow = onFlow({
-    name: 'jokeFlow',
+export const menuSuggestionFlow = onFlow({
+    name: 'menuSuggestionFlow',
     inputSchema: z.string(),
     outputSchema: z.string(),
     // WARNING: Only do this if you have some other gatekeeping in place, like
@@ -190,8 +190,8 @@ the following configuration options to your `onFlow()`:
 ```ts
 import { onFlow } from '@genkit-ai/firebase/functions';
 
-export const jokeFlow = onFlow({
-    name: 'jokeFlow',
+export const menuSuggestionFlow = onFlow({
+    name: 'menuSuggestionFlow',
     inputSchema: z.string(),
     outputSchema: z.string(),
 
