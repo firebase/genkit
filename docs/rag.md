@@ -121,8 +121,8 @@ Embedding model support is provided through the following plugins:
 
 ## Defining a RAG Flow
 
-The following examples show how you could ingest a collection of PDF documents
-into a vector database and retrieve them for use in a flow.
+The following examples show how you could ingest a collection of restaurant menu PDF documents
+into a vector database and retrieve them for use in a flow that determines what food items are available. 
 
 ### Install dependencies for processing PDFs
 
