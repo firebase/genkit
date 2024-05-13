@@ -1,6 +1,6 @@
 # Firebase Genkit CLI.
 
-To install the CLI
+To install the CLI:
 
 ```bash
 npm i -g genkit
