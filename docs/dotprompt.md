@@ -155,7 +155,7 @@ You can set the format and output schema of a prompt to coerce into JSON:
 model: vertexai/gemini-1.0-pro
 input:
   schema:
-    location: string
+    theme: string
 output:
   format: json
   schema:
@@ -175,7 +175,7 @@ const createMenuPrompt = await prompt('create_menu');
 
 const menu = await createMenuPrompt.generate({
   input: {
-    location: 'a mountain summit',
+    theme: 'banana',
   },
 });
 
