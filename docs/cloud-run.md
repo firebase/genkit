@@ -127,7 +127,7 @@ flow.
         1.  On the **Input JSON** tab, provide a subject for the model:
 
             ```json
-            "AI app developers"
+            "banana"
             ```
 
         1.  Click **Run**.
