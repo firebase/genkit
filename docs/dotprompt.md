@@ -164,7 +164,7 @@ output:
     ingredients(array): string
 ---
 
-Generate a menu item that could be found at a {{theme}} restaurant.
+Generate a menu item that could be found at a {{theme}} themed restaurant.
 ```
 
 When generating a prompt with structured output, use the `output()` helper to
