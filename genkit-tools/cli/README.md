@@ -1,4 +1,4 @@
-# Firebase Genkit CLI.
+# Firebase Genkit CLI
 
 To install the CLI:
 
