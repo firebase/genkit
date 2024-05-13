@@ -67,7 +67,7 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 	// Part is defined in TypeScript as a union.
 
 	if p.isText {
-		v := TextPart{
+		v := textPart{
 			Text: p.text,
 		}
 		return json.Marshal(v)

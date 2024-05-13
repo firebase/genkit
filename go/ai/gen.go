@@ -122,8 +122,7 @@ const (
 	RoleTool Role = "tool"
 )
 
-// A TextPart is a [Part] consisting of plain text.
-type TextPart struct {
+type textPart struct {
 	Text string `json:"text,omitempty"`
 }
 
