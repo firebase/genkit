@@ -203,7 +203,7 @@ export function augmentWithContext(
   options?: AugmentWithContextOptions
 ): ModelMiddleware {
   const preface =
-  typeof options?.preface === 'undefined' ? CONTEXT_PREFACE : options.preface;
+    typeof options?.preface === 'undefined' ? CONTEXT_PREFACE : options.preface;
   const itemTemplate = options?.itemTemplate || CONTEXT_ITEM_TEMPLATE;
   return (req, next) => {
     // if there is no context in the request, no-op

@@ -15,7 +15,6 @@
  */
 
 import { generate, generateStream, retrieve } from '@genkit-ai/ai';
-import { defineRetriever } from '@genkit-ai/ai/retriever';
 import { defineTool } from '@genkit-ai/ai/tool';
 import { configureGenkit } from '@genkit-ai/core';
 import { dotprompt, prompt } from '@genkit-ai/dotprompt';
@@ -234,19 +233,44 @@ Available Options:\n- ${docs.map((d) => `${d.metadata!.name}: ${d.text()}`).join
   }
 );
 
-export const dotpromptContext = defineFlow({
-  name: 'dotpromptContext',
-  inputSchema: z.string(),
-  outputSchema: z.object({answer: z.string(), id: z.string(), reasoning: z.string()}),
-}, async (question: string) => {
-  const docs = [
-    {content: [{text: 'an apple a day keeps the doctor away'}], metadata: {id: 'apple'}},
-    {content: [{text: 'those who live in glass houses should not throw stones'}],metadata: {id: 'stone'}},
-    {content: [{text: "if you don't have anything nice to say, don't say anything at all"}], metadata: {id: 'nice'}},
-  ];
+export const dotpromptContext = defineFlow(
+  {
+    name: 'dotpromptContext',
+    inputSchema: z.string(),
+    outputSchema: z.object({
+      answer: z.string(),
+      id: z.string(),
+      reasoning: z.string(),
+    }),
+  },
+  async (question: string) => {
+    const docs = [
+      {
+        content: [{ text: 'an apple a day keeps the doctor away' }],
+        metadata: { id: 'apple' },
+      },
+      {
+        content: [
+          { text: 'those who live in glass houses should not throw stones' },
+        ],
+        metadata: { id: 'stone' },
+      },
+      {
+        content: [
+          {
+            text: "if you don't have anything nice to say, don't say anything at all",
+          },
+        ],
+        metadata: { id: 'nice' },
+      },
+    ];
 
-  const result = await (await prompt('dotpromptContext')).generate({
-    input: {question: question}, context: docs
-  });
-  return result.output() as any;
-})
+    const result = await (
+      await prompt('dotpromptContext')
+    ).generate({
+      input: { question: question },
+      context: docs,
+    });
+    return result.output() as any;
+  }
+);
