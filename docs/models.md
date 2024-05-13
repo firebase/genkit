@@ -228,7 +228,7 @@ let history: MessageData[] = [
   { role: 'system', content: [{ text: 'Talk like a pirate.' }] },
 ];
 let response = await generate({
-  model: gpt35Turbo,
+  model: geminiPro,
   prompt: "How do you say 'dog' in French?",
   history,
 });
