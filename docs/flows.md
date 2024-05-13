@@ -197,5 +197,3 @@ export const menuSuggestionFlow = defineFlow(
   }
 );
 ```
-
-See the [test app](https://github.com/firebase/genkit/blob/main/js/testapps/menu) that uses the `menuSuggestionFlow`.
