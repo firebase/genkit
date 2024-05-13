@@ -341,6 +341,9 @@ func (g *generator) generateStruct(name string, s *Schema, tcfg *itemConfig) err
 		if fs.Not != nil {
 			continue
 		}
+		if fcfg.omit {
+			continue
+		}
 		typeExpr := fcfg.typeExpr
 		if typeExpr == "" {
 			var err error

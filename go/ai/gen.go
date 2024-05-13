@@ -135,22 +135,22 @@ type ToolDefinition struct {
 	OutputSchema map[string]any `json:"outputSchema,omitempty"`
 }
 
-type ToolRequestPart struct {
-	ToolRequest *ToolRequestPartToolRequest `json:"toolRequest,omitempty"`
+// A ToolRequest is a request from the model that the client should run
+// a specific tool and pass a [ToolResponse] to the model on the next request it makes.
+// Any ToolRequest will correspond to some [ToolDefinition] previously sent by the client.
+type ToolRequest struct {
+	// Input is a JSON object describing the input values to the tool.
+	// An example might be map[string]any{"country":"USA", "president":3}.
+	Input map[string]any `json:"input,omitempty"`
+	Name  string         `json:"name,omitempty"`
 }
 
-type ToolRequestPartToolRequest struct {
-	Input any    `json:"input,omitempty"`
-	Name  string `json:"name,omitempty"`
-	Ref   string `json:"ref,omitempty"`
-}
-
-type ToolResponsePart struct {
-	ToolResponse *ToolResponsePartToolResponse `json:"toolResponse,omitempty"`
-}
-
-type ToolResponsePartToolResponse struct {
-	Name   string `json:"name,omitempty"`
-	Output any    `json:"output,omitempty"`
-	Ref    string `json:"ref,omitempty"`
+// A ToolResponse is a response from the client to the model containing
+// the results of running a specific tool on the arguments passed to the client
+// by the model in a [ToolRequest].
+type ToolResponse struct {
+	Name string `json:"name,omitempty"`
+	// Output is a JSON object describing the results of running the tool.
+	// An example might be map[string]any{"name":"Thomas Jefferson", "born":1743}.
+	Output map[string]any `json:"output,omitempty"`
 }
