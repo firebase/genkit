@@ -94,7 +94,7 @@ func TestSimilarity(t *testing.T) {
 	y := []float32{3, 21, 2, 5, 14}
 	got := similarity(x, y)
 	want := 0.975
-	if math.Abs(got - want) > 0.001 {
+	if math.Abs(got-want) > 0.001 {
 		t.Errorf("got %f, want %f", got, want)
 	}
 }

@@ -37,12 +37,13 @@ import (
 // New returns a new local vector database. This will register a new
 // retriever with genkit, and also return it.
 // This retriever may only be used by a single goroutine at a time.
+// This is based on js/plugins/dev-local-vectorstore/src/index.ts.
 func New(ctx context.Context, dir, name string, embedder ai.Embedder, embedderOptions any) (ai.Retriever, error) {
 	r, err := newRetriever(ctx, dir, name, embedder, embedderOptions)
 	if err != nil {
 		return nil, err
 	}
-	ai.RegisterRetriever("devLocalVectorStore/" + name, r)
+	ai.RegisterRetriever("devLocalVectorStore/"+name, r)
 	return r, nil
 }
 
@@ -157,7 +158,7 @@ func (r *retriever) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 	}
 	vals, err := r.embedder.Embed(ctx, ereq)
 	if err != nil {
-		return nil, fmt.Errorf("pinecone retrieve embedding failed: %v", err)
+		return nil, fmt.Errorf("localvec retrieve embedding failed: %v", err)
 	}
 
 	type scoredDoc struct {
@@ -241,7 +242,7 @@ func similarity(vals1, vals2 []float32) float64 {
 func docID(doc *ai.Document) (string, error) {
 	b, err := json.Marshal(doc)
 	if err != nil {
-		return "", fmt.Errorf("pinecone: error marshaling document: %v", err)
+		return "", fmt.Errorf("localvec: error marshaling document: %v", err)
 	}
 	return fmt.Sprintf("%02x", md5.Sum(b)), nil
 }
