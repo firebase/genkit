@@ -29,8 +29,8 @@ func TestDocumentFromText(t *testing.T) {
 		t.Fatalf("got %d parts, want 1", len(d.Content))
 	}
 	p := d.Content[0]
-	if !p.IsPlainText() {
-		t.Errorf("IsPlainText() == %t, want %t", p.IsPlainText(), true)
+	if !p.IsText() {
+		t.Errorf("IsText() == %t, want %t", p.IsText(), true)
 	}
 	if got := p.Text(); got != data {
 		t.Errorf("Data() == %q, want %q", got, data)

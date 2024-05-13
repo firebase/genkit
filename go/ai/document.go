@@ -72,7 +72,7 @@ func NewToolResponsePart(r *ToolResponse) *Part {
 }
 
 // IsText reports whether the [Part] contains plain text.
-func (p *Part) IsPlainText() bool {
+func (p *Part) IsText() bool {
 	return p.kind == partText
 }
 
