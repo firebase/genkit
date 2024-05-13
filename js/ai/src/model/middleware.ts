@@ -198,13 +198,13 @@ const CONTEXT_ITEM_TEMPLATE = (
   out += d.text() + '\n';
   return out;
 };
+
 export function augmentWithContext(
   options?: AugmentWithContextOptions
 ): ModelMiddleware {
   const preface =
-    typeof options?.preface === 'undefined' ? CONTEXT_PREFACE : options.preface;
+  typeof options?.preface === 'undefined' ? CONTEXT_PREFACE : options.preface;
   const itemTemplate = options?.itemTemplate || CONTEXT_ITEM_TEMPLATE;
-  const citationKey = options?.citationKey;
   return (req, next) => {
     // if there is no context in the request, no-op
     if (!req.context?.length) return next(req);

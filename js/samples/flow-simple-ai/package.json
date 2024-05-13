@@ -22,6 +22,7 @@
     "@genkit-ai/google-cloud": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
+    "@genkit-ai/dotprompt": "workspace:*",
     "@opentelemetry/sdk-trace-base": "^1.22.0",
     "firebase-admin": "^12.1.0",
     "zod": "^3.22.4"
