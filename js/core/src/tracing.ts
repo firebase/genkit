@@ -28,7 +28,6 @@ import { TraceStoreExporter } from './tracing/exporter.js';
 import { MultiSpanProcessor } from './tracing/multiSpanProcessor.js';
 
 export * from './tracing/exporter.js';
-export * from './tracing/firestoreTraceStore.js';
 export * from './tracing/instrumentation.js';
 export * from './tracing/localFileTraceStore.js';
 export * from './tracing/processor.js';

@@ -207,7 +207,10 @@ function isValidateOnly(): boolean {
 // are set. Once we have opt-out and we're ready for public preview this will
 // get updated.
 function isAnalyticsEnabled(): boolean {
-  return !getUserSettings()[ANALYTICS_OPT_OUT_CONFIG_TAG];
+  return (
+    !process.argv.includes('--non-interactive') &&
+    !getUserSettings()[ANALYTICS_OPT_OUT_CONFIG_TAG]
+  );
 }
 
 async function recordInternal(
