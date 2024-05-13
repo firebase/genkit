@@ -15,7 +15,7 @@
     "build:clean": "rm -rf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
-    "test": "node --import tsx --test tests/*_test.ts tests/**/*_test.ts"
+    "test": "node --import tsx --test tests/*_test.ts"
   },
   "repository": {
     "type": "git",
