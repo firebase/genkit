@@ -134,8 +134,8 @@ importers:
         specifier: ^12.1.0
         version: 12.1.0(encoding@0.1.13)
       firebase-functions:
-        specifier: ^4.3.1
-        version: 4.8.1(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))
+        specifier: 4.8.0 || ^5.0.0
+        version: 5.0.1(firebase-admin@12.1.0(encoding@0.1.13))
       uuid:
         specifier: ^9.0.1
         version: 9.0.1
@@ -331,7 +331,7 @@ importers:
         specifier: ^12.1.0
         version: 12.1.0(encoding@0.1.13)
       firebase-functions:
-        specifier: ^4.3.1
+        specifier: ^4.8.0 || ^5.0.0
         version: 4.8.1(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))
       google-auth-library:
         specifier: ^9.6.3
@@ -3055,6 +3055,13 @@ packages:
     hasBin: true
     peerDependencies:
       firebase-admin: ^10.0.0 || ^11.0.0 || ^12.0.0
+
+  firebase-functions@5.0.1:
+    resolution: {integrity: sha512-1m+crtgAR8Tl36gjpM02KCY5zduAejFmDSXvih/DB93apg39f0U/WwRgT7sitGIRqyCcIpktNUbXJv7Y9JOF4A==}
+    engines: {node: '>=14.10.0'}
+    hasBin: true
+    peerDependencies:
+      firebase-admin: ^11.10.0 || ^12.0.0
 
   flat@5.0.2:
     resolution: {integrity: sha512-b6suED+5/3rTpUBdG1gupIl8MPFCAMA0QXwmljLhvCUKcUvdE4gWky9zpuGCcXHOsz4J9wPGNWq6OKpmIzz3hQ==}
@@ -6817,6 +6824,17 @@ snapshots:
       protobufjs: 7.2.6
     transitivePeerDependencies:
       - encoding
+      - supports-color
+
+  firebase-functions@5.0.1(firebase-admin@12.1.0(encoding@0.1.13)):
+    dependencies:
+      '@types/cors': 2.8.17
+      '@types/express': 4.17.3
+      cors: 2.8.5
+      express: 4.19.2
+      firebase-admin: 12.1.0(encoding@0.1.13)
+      protobufjs: 7.2.6
+    transitivePeerDependencies:
       - supports-color
 
   flat@5.0.2: {}

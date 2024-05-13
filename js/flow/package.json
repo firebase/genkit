@@ -34,7 +34,7 @@
     "cors": "^2.8.5",
     "express": "^4.19.2",
     "firebase-admin": "^12.1.0",
-    "firebase-functions": "^4.3.1",
+    "firebase-functions": "4.8.0 || ^5.0.0",
     "uuid": "^9.0.1",
     "zod": "^3.22.4"
   },
