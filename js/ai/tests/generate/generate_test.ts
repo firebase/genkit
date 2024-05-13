@@ -401,7 +401,7 @@ describe('toGenerateRequest', () => {
       prompt: {
         model: 'vertexai/gemini-1.0-pro',
         prompt: 'Tell a joke with context.',
-        context: [{content: [{text: 'context here'}]}],
+        context: [{ content: [{ text: 'context here' }] }],
       },
       expectedOutput: {
         messages: [
@@ -409,10 +409,10 @@ describe('toGenerateRequest', () => {
         ],
         candidates: undefined,
         config: undefined,
-        context: [{content: [{text: 'context here'}]}],
+        context: [{ content: [{ text: 'context here' }] }],
         tools: [],
         output: { format: 'text' },
-      }
+      },
     },
   ];
   for (const test of testCases) {
