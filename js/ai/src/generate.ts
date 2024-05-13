@@ -410,6 +410,7 @@ export async function toGenerateRequest(
     messages,
     candidates: options.candidates,
     config: options.config,
+    context: options.context,
     tools: tools?.map((tool) => toToolDefinition(tool)) || [],
     output: {
       format:

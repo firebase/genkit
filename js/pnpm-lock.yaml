@@ -989,6 +989,9 @@ importers:
       '@genkit-ai/core':
         specifier: workspace:^
         version: link:../../core
+      '@genkit-ai/dotprompt':
+        specifier: workspace:*
+        version: link:../../plugins/dotprompt
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
