@@ -321,7 +321,7 @@ GENKIT_ENV=dev firebase emulators:start --inspect-functions
 
 This will run your code in the emulator and run the Genkit framework in development mode, which launches and exposes the Genkit reflection API (but not the Dev UI).
 
-To launch the Genkit Dev UI that talks to your code running inside the Firebase Emulator run this command:
+Then, launch the Genkit Dev UI with the `--attach` option to connect it to your code running inside the Firebase Emulator:
 
 ```bash
 genkit start --attach http://localhost:3100 --port 4001
