@@ -17,6 +17,9 @@
 // TODO(sam-gc): Update this once we have actual libraries/plugins...
 
 module.exports = {
+  builder: {
+    cmd: "echo 'Custom message....' && npm run build",
+  },
   cliPlugins: [
     {
       name: 'My tool',
