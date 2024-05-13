@@ -260,6 +260,7 @@ describe('toGenerateRequest', () => {
         ],
         candidates: undefined,
         config: undefined,
+        context: undefined,
         tools: [],
         output: { format: 'text' },
       },
@@ -278,6 +279,7 @@ describe('toGenerateRequest', () => {
         ],
         candidates: undefined,
         config: undefined,
+        context: undefined,
         tools: [
           {
             name: 'tellAFunnyJoke',
@@ -313,6 +315,7 @@ describe('toGenerateRequest', () => {
         ],
         candidates: undefined,
         config: undefined,
+        context: undefined,
         tools: [
           {
             name: 'tellAFunnyJoke',
@@ -365,6 +368,7 @@ describe('toGenerateRequest', () => {
         ],
         candidates: undefined,
         config: undefined,
+        context: undefined,
         tools: [],
         output: { format: 'text' },
       },
@@ -387,9 +391,28 @@ describe('toGenerateRequest', () => {
         ],
         candidates: undefined,
         config: undefined,
+        context: undefined,
         tools: [],
         output: { format: 'text' },
       },
+    },
+    {
+      should: 'pass context through to the model',
+      prompt: {
+        model: 'vertexai/gemini-1.0-pro',
+        prompt: 'Tell a joke with context.',
+        context: [{content: [{text: 'context here'}]}],
+      },
+      expectedOutput: {
+        messages: [
+          { content: [{ text: 'Tell a joke with context.' }], role: 'user' },
+        ],
+        candidates: undefined,
+        config: undefined,
+        context: [{content: [{text: 'context here'}]}],
+        tools: [],
+        output: { format: 'text' },
+      }
     },
   ];
   for (const test of testCases) {
