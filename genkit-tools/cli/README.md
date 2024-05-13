@@ -8,40 +8,40 @@ npm i -g genkit
 
 Available commands:
 
- * `init [options]`
+- `init [options]`
 
-   initialize a project directory with Genkit
+  initialize a project directory with Genkit
 
- * `start [options]`
- 
-    run the app in dev mode and start a Developer UI
+- `start [options]`
 
- * `flow:run [options] <flowName> [data]`
-  
-   run a flow using provided data as input
+  run the app in dev mode and start a Developer UI
 
- * `flow:batchRun [options] <flowName> <inputFileName>`
-  
-   batch run a flow using provided set of data from a file as input
+- `flow:run [options] <flowName> [data]`
 
- * `flow:resume <flowName> <flowId> <data>`
-  
-    resume an interrupted flow (experimental)
+  run a flow using provided data as input
 
- * `eval:extractData [options] <flowName>`
+- `flow:batchRun [options] <flowName> <inputFileName>`
 
-    extract evaludation data for a given flow from the trace store
+  batch run a flow using provided set of data from a file as input
 
- * `eval:run [options] <dataset>`
+- `flow:resume <flowName> <flowId> <data>`
 
-    evaluate provided dataset against configured evaluators
+  resume an interrupted flow (experimental)
 
- * `eval:flow [options] <flowName> [data]`
+- `eval:extractData [options] <flowName>`
 
-   evaluate a flow against configured evaluators using provided data as input
+  extract evaludation data for a given flow from the trace store
 
- * `config`
+- `eval:run [options] <dataset>`
 
-   set development environment configuration
+  evaluate provided dataset against configured evaluators
 
- * `help`
+- `eval:flow [options] <flowName> [data]`
+
+  evaluate a flow against configured evaluators using provided data as input
+
+- `config`
+
+  set development environment configuration
+
+- `help`
