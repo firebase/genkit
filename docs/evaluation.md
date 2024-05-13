@@ -171,7 +171,7 @@ genkit eval:run customLabel_dataset.json
 To output to a different location, use the `--output` flag.
 
 ```posix-terminal
-genkit eval:flow bobQA --input testQuestions.json --output customLabel_evalresult.json
+genkit eval:flow menuQA --input testQuestions.json --output customLabel_evalresult.json
 ```
 
 To run on a subset of the configured evaluators, use the `--evaluators` flag and provide a comma separated list of evaluators by name:

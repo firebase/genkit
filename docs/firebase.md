@@ -123,9 +123,9 @@ deploying the default sample flow to Firebase.
     next section), in the `httpsOptions` parameter, set a CORS policy:
 
     ```js
-    export const menuSuggestionFlow = onFlow(
+    export const jokeFlow = onFlow(
       {
-        name: 'menuSuggestionFlow',
+        name: 'jokeFlow',
         // ...
         httpsOptions: { cors: '*' }, // Add this line.
       },
@@ -150,7 +150,7 @@ deploying the default sample flow to Firebase.
 
     2.  In the developer UI (http://localhost:4000/), run the flow:
 
-        1.  Click **menuSuggestionFlow**.
+        1.  Click **jokeFlow**.
 
         2.  On the **Input JSON** tab, provide a subject for the model:
 
@@ -243,8 +243,8 @@ app:
         </div>
         <div id="callGenkit" hidden>
           Subject: <input type="text" id="subject" />
-          <button id="suggestMenuItem">Suggest a menu item</button>
-          <p id="menuItem"></p>
+          <button id="tellJoke">Tell me a joke</button>
+          <p id="joke"></p>
         </div>
         <script type="module">
           import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js';
@@ -262,14 +262,11 @@ app:
           const firebaseConfig = await fetch('/__/firebase/init.json');
           initializeApp(await firebaseConfig.json());
 
-          async function generateMenuItem() {
-            const jokeFlow = httpsCallable(
-              getFunctions(),
-              'menuSuggestionFlow'
-            );
+          async function generateJoke() {
+            const jokeFlow = httpsCallable(getFunctions(), 'jokeFlow');
             const subject = document.querySelector('#subject').value;
-            const response = await menuSuggestionFlow(subject);
-            document.querySelector('#menuItem').innerText = response.data;
+            const response = await jokeFlow(subject);
+            document.querySelector('#joke').innerText = response.data;
           }
 
           function signIn() {
@@ -280,8 +277,8 @@ app:
             .querySelector('#signinBtn')
             .addEventListener('click', signIn);
           document
-            .querySelector('#suggestMenuItem')
-            .addEventListener('click', generateMenuItem);
+            .querySelector('#tellJoke')
+            .addEventListener('click', generateJoke);
 
           const signinEl = document.querySelector('#signin');
           const genkitEl = document.querySelector('#callGenkit');

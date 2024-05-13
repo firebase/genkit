@@ -160,11 +160,11 @@ output:
   format: json
   schema:
     name: string
-    hitPoints: integer
-    description: string
+    price: integer
+    ingredients(array): string
 ---
 
-Generate a restaurant menu that would be found in {{location}}.
+Generate a menu item that could be found at a {{theme}} restaurant.
 ```
 
 When generating a prompt with structured output, use the `output()` helper to
