@@ -160,7 +160,7 @@ After deployment finishes, the tool will print the service URL. You can test
 it with `curl`:
 
 ```posix-terminal
-curl -X POST https://<service-url>/jokeFlow \
+curl -X POST https://<service-url>/menuSuggestionFlow \
 -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
 -H "Content-Type: application/json" -d '{"data": "banana"}'
 ```
