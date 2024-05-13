@@ -39,3 +39,8 @@ func logger(ctx context.Context) *slog.Logger {
 	}
 	return slog.Default()
 }
+
+// DebugLog is a helper function for plugins to log debugging info.
+func DebugLog(ctx context.Context, msg string, args ...any) {
+	logger(ctx).Debug(msg, args...)
+}
