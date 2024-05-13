@@ -15,19 +15,19 @@ genkit-tools/cli/src/utils/version.ts
 samples/**/pnpm-lock.yaml
 genkit-packages
 typings
-js/samples/firebase-functions-sample1/functions/.env
-js/samples/firebase-functions-sample1/.firebase
-js/samples/firebase-functions-sample1/.firebaserc
-js/samples/firebase-functions-sample1/public/bundle.js
-js/samples/firebase-functions-sample1/public/config.js
+js/testapps/firebase-functions-sample1/functions/.env
+js/testapps/firebase-functions-sample1/.firebase
+js/testapps/firebase-functions-sample1/.firebaserc
+js/testapps/firebase-functions-sample1/public/bundle.js
+js/testapps/firebase-functions-sample1/public/config.js
 ui-debug.log
 firebase-debug.log
 
 # RAG sample files
-!js/samples/rag/package.json
-js/samples/rag/*.json
-js/samples/cat-eval/__db*.json
-js/samples/menu-example/rag/__db*.json
+!js/testapps/rag/package.json
+js/testapps/rag/*.json
+js/testapps/cat-eval/__db*.json
+js/testapps/menu/rag/__db*.json
 
 # Test files
 last_recording.mp4

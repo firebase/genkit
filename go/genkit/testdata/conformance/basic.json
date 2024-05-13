@@ -1,6 +1,6 @@
 {
   "name": "basic",
-  "_comment": "This is similar to the 'basic' flow in js/samples/flow-sample1",
+  "_comment": "This is similar to the 'basic' flow in js/testapps/flow-sample1",
   "commands": [
     {"run": {"name": "call-llm", "command": {"append": "y"}}},
     {"run": {"name": "call-llm", "command": {"append": "z"}}}

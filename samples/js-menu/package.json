@@ -1,7 +1,7 @@
 {
   "name": "menu",
   "version": "1.0.0",
-  "description": "Samples for a menu understanding app",
+  "description": "Genkit samples for a menu understanding app",
   "main": "lib/index.js",
   "scripts": {
     "start": "node lib/index.js",
