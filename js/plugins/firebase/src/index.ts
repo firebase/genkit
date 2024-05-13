@@ -16,7 +16,7 @@
 
 import { genkitPlugin, Plugin } from '@genkit-ai/core';
 import { FirestoreStateStore } from '@genkit-ai/flow';
-import { FirestoreTraceStore } from './firestoreTraceStore';
+import { FirestoreTraceStore } from './firestoreTraceStore.js';
 export { defineFirestoreRetriever } from './firestoreRetriever.js';
 
 interface FirestorePluginParams {
