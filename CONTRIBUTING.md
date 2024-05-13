@@ -68,7 +68,7 @@ This will produce tarballs in the `dist` folder. Also `genkit-dist.zip` -- a zip
 
 ## Link it
 
-You will need the Genkit CLI to run samples and the Developer UI (this is done for you with `pnpm run setup`):
+You will need the Genkit CLI to run test apps and the Developer UI (this is done for you with `pnpm run setup`):
 
 ```
 pnpm link-genkit-cli
@@ -78,19 +78,19 @@ pnpm link-genkit-cli
 
 ### Run a flow
 
-In the `js/samples` folder you will find some samples. They might contain instructions for how to run them and what setup is necessary.
+In the `js/testapps` folder you will find some test apps using Genkit. They might contain instructions for how to run them and what setup is necessary.
 
 Here's one that requires no setup:
 
 ```
-cd js/samples/flow-sample1
+cd js/testapps/flow-sample1
 genkit flow:run basic "\"hello\""
 ```
 
 ### Run the Developer UI
 
 ```
-cd js/samples/flow-sample1
+cd js/testapps/flow-sample1
 genkit start
 ```
 
@@ -105,7 +105,7 @@ To start, let's make sure we have some context to pull from the vector store.
 1. Start the Developer UI
 
 ```
-cd js/samples/rag
+cd js/testapps/rag
 genkit start
 ```
 
@@ -128,7 +128,7 @@ genkit eval:flow pdfQA '"What's a brief description of MapReduce?"'
 
 FYI: `js` and `genkit-tools` are in two separate workspaces.
 
-As you make changes you may want to build an test things by running samples.
+As you make changes you may want to build an test things by running test apps.
 You can reduce the scope of what you're building by running a specific build command:
 
 ```

@@ -1,7 +1,7 @@
 {
   "name": "coffee-shop",
   "version": "1.0.0",
-  "description": "Samples for a coffeeshop",
+  "description": "Genkit samples for a coffeeshop",
   "main": "lib/index.js",
   "scripts": {
     "start": "node lib/index.js",
