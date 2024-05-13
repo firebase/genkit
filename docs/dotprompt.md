@@ -157,31 +157,31 @@ You can set the format and output schema of a prompt to coerce into JSON:
 model: vertexai/gemini-1.0-pro
 input:
   schema:
-    location: string
+    theme: string
 output:
   format: json
   schema:
     name: string
-    hitPoints: integer
-    description: string
+    price: integer
+    ingredients(array): string
 ---
 
-Generate a tabletop RPG character that would be found in {{location}}.
+Generate a menu item that could be found at a {{theme}} themed restaurant.
 ```
 
 When generating a prompt with structured output, use the `output()` helper to
 retrieve and validate it:
 
 ```ts
-const characterPrompt = await prompt('create_character');
+const createMenuPrompt = await prompt('create_menu');
 
-const character = await characterPrompt.generate({
+const menu = await createMenuPrompt.generate({
   input: {
-    location: 'the beach',
+    theme: 'banana',
   },
 });
 
-console.log(character.output());
+console.log(menu.output());
 ```
 
 ## Multi-message prompts
@@ -201,8 +201,8 @@ input:
 ---
 
 {{role "system"}}
-You are a helpful AI assistant that really loves to talk about puppies. Try to work puppies
-into all of your conversations.
+You are a helpful AI assistant that really loves to talk about food. Try to work
+food items into all of your conversations.
 {{role "user"}}
 {{userQuestion}}
 ```
