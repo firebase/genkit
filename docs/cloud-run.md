@@ -122,12 +122,12 @@ flow.
 
     1.  In the developer UI (http://localhost:4000/), run the flow:
 
-        1.  Click **jokeFlow**.
+        1.  Click **menuSuggestionFlow**.
 
         1.  On the **Input JSON** tab, provide a subject for the model:
 
             ```json
-            "AI app developers"
+            "banana"
             ```
 
         1.  Click **Run**.
@@ -160,7 +160,7 @@ After deployment finishes, the tool will print the service URL. You can test
 it with `curl`:
 
 ```posix-terminal
-curl -X POST https://<service-url>/jokeFlow \
+curl -X POST https://<service-url>/menuSuggestionFlow \
 -H "Authorization: Bearer $(gcloud auth print-identity-token)" \
 -H "Content-Type: application/json" -d '{"data": "banana"}'
 ```
