@@ -28,11 +28,9 @@
     "@genkit-ai/core": "workspace:*",
     "@opentelemetry/api": "^1.7.0",
     "@types/node": "^20.11.19",
-    "front-matter": "^4.0.2",
     "json5": "^2.2.3",
     "node-fetch": "^3.3.2",
-    "zod": "^3.22.4",
-    "zod-to-json-schema": "^3.21.4"
+    "zod": "^3.22.4"
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5",

@@ -16,7 +16,7 @@
 
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { rebatchSpans } from '../../src/tracing.js';
+import { rebatchSpans } from '../src/firestoreTraceStore';
 
 const TRACE_ID = '1234';
 const SPAN_A = 'abc';
