@@ -134,7 +134,7 @@ importers:
         specifier: ^12.1.0
         version: 12.1.0(encoding@0.1.13)
       firebase-functions:
-        specifier: 4.8.0 || ^5.0.0
+        specifier: ^4.8.0 || ^5.0.0
         version: 5.0.1(firebase-admin@12.1.0(encoding@0.1.13))
       uuid:
         specifier: ^9.0.1
