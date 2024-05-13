@@ -15,15 +15,19 @@
  */
 
 import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
-import { defineRetriever, DocumentData } from '@genkit-ai/ai/retriever';
-import { VectorQuerySnapshot } from '@google-cloud/firestore';
+import {
+  defineRetriever,
+  DocumentData,
+  Part,
+  RetrieverAction,
+} from '@genkit-ai/ai/retriever';
 import {
   Firestore,
   Query,
   QueryDocumentSnapshot,
-} from 'firebase-admin/firestore';
+  VectorQuerySnapshot,
+} from '@google-cloud/firestore';
 import z from 'zod';
-import { Part } from '../../../ai/lib/document';
 
 function toContent(
   d: QueryDocumentSnapshot,
@@ -96,7 +100,7 @@ export function defineFirestoreRetriever(config: {
   metadataFields?:
     | string[]
     | ((snap: QueryDocumentSnapshot) => Record<string, any>);
-}) {
+}): RetrieverAction {
   const {
     name,
     label,

@@ -33,6 +33,7 @@ interface EvalDatasetOptions {
 
 /** Command to extract evaluation data. */
 export const evalExtractData = new Command('eval:extractData')
+  .description('extract evaludation data for a given flow from the trace store')
   .argument('<flowName>', 'name of the flow to run')
   .option('--env <env>', 'environment (dev/prod)', 'dev')
   .option(

@@ -74,8 +74,8 @@ type generatorActionType = genkit.Action[*GenerateRequest, *GenerateResponse, *C
 
 // LookupGeneratorAction looks up an action registered by [RegisterGenerator]
 // and returns a generator that invokes the action.
-func LookupGeneratorAction(name string) (Generator, error) {
-	action := genkit.LookupAction(genkit.ActionTypeModel, name, name)
+func LookupGeneratorAction(provider, name string) (Generator, error) {
+	action := genkit.LookupAction(genkit.ActionTypeModel, provider, name)
 	if action == nil {
 		return nil, fmt.Errorf("LookupGeneratorAction: no generator action named %q", name)
 	}

@@ -16,9 +16,8 @@
 
 import { Action } from '@genkit-ai/core';
 import { GoogleAuth } from 'google-auth-library';
-import { JSONClient } from 'google-auth-library/build/src/auth/googleauth';
 import z from 'zod';
-import { EvaluatorFactory } from './evaluator_factory';
+import { EvaluatorFactory } from './evaluator_factory.js';
 
 /**
  * Vertex AI Evaluation metrics. See API documentation for more information.
@@ -52,7 +51,7 @@ export type VertexAIEvaluationMetric =
   | VertexAIEvaluationMetricConfig;
 
 export function vertexEvaluators(
-  auth: GoogleAuth<JSONClient>,
+  auth: GoogleAuth,
   metrics: VertexAIEvaluationMetric[],
   projectId: string,
   location: string

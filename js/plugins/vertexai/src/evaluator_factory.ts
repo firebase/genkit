@@ -18,13 +18,12 @@ import { BaseDataPoint, defineEvaluator, Score } from '@genkit-ai/ai/evaluator';
 import { Action, GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
 import { runInNewSpan } from '@genkit-ai/core/tracing';
 import { GoogleAuth } from 'google-auth-library';
-import { JSONClient } from 'google-auth-library/build/src/auth/googleauth';
 import z from 'zod';
-import { VertexAIEvaluationMetricType } from './evaluation';
+import { VertexAIEvaluationMetricType } from './evaluation.js';
 
 export class EvaluatorFactory {
   constructor(
-    private readonly auth: GoogleAuth<JSONClient>,
+    private readonly auth: GoogleAuth,
     private readonly location: string,
     private readonly projectId: string
   ) {}

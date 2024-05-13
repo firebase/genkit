@@ -24,16 +24,19 @@ interface StartOptions {
   headless?: boolean;
   port: string;
   attach?: string;
+  open?: boolean;
 }
 
 /** Command to start GenKit server, optionally without static file serving */
 export const start = new Command('start')
+  .description('run the app in dev mode and start a Developer UI')
   .option(
     '-x, --headless',
     'Do not serve static UI files (for development)',
     false
   )
   .option('-p, --port <number>', 'Port to serve on. Default is 4000', '4000')
+  .option('-o, --open', 'Open the browser with the Developer UI')
   .option(
     '-a, --attach <number>',
     'Externally running dev process address to attach to'
@@ -56,5 +59,5 @@ export const start = new Command('start')
     } else {
       await runner.start();
     }
-    return startServer(runner, options.headless ?? false, port);
+    return startServer(runner, options.headless ?? false, port, !!options.open);
   });

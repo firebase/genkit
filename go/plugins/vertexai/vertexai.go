@@ -74,7 +74,9 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	}
 
 	// Translate from a genai.GenerateContentResponse to a ai.GenerateResponse.
-	r := &ai.GenerateResponse{}
+	r := &ai.GenerateResponse{
+		Request: input,
+	}
 	for _, cand := range resp.Candidates {
 		c := &ai.Candidate{}
 		c.Index = int(cand.Index)

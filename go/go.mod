@@ -1,8 +1,10 @@
 module github.com/google/genkit/go
 
-go 1.22
+go 1.22.0
 
 require (
+	cloud.google.com/go/aiplatform v1.60.0
+	cloud.google.com/go/logging v1.9.0
 	cloud.google.com/go/vertexai v0.7.1
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.46.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.22.0
@@ -11,6 +13,7 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/invopop/jsonschema v0.12.0
+	github.com/jba/slog v0.2.0
 	github.com/wk8/go-ordered-map/v2 v2.1.8
 	go.opentelemetry.io/otel v1.26.0
 	go.opentelemetry.io/otel/metric v1.26.0
@@ -19,13 +22,13 @@ require (
 	go.opentelemetry.io/otel/trace v1.26.0
 	golang.org/x/exp v0.0.0-20240318143956-a85f2c67cd81
 	google.golang.org/api v0.177.0
+	google.golang.org/protobuf v1.34.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
 	cloud.google.com/go v0.112.2 // indirect
 	cloud.google.com/go/ai v0.3.0 // indirect
-	cloud.google.com/go/aiplatform v1.60.0 // indirect
 	cloud.google.com/go/auth v0.3.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.2 // indirect
 	cloud.google.com/go/compute/metadata v0.3.0 // indirect
@@ -60,6 +63,5 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20240314234333-6e1732d8331c // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240429193739-8cf5692501f6 // indirect
 	google.golang.org/grpc v1.63.2 // indirect
-	google.golang.org/protobuf v1.34.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

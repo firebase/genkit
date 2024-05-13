@@ -6,7 +6,7 @@ The Ollama plugin provides interfaces to any of the local LLMs supported by
 ## Installation
 
 ```posix-terminal
-npm i --save @genkit-ai/ollama
+npm i --save genkitx-ollama
 ```
 
 ## Configuration
@@ -24,7 +24,7 @@ ollama pull gemma
 To use this plugin, specify it when you call `configureGenkit()`.
 
 ```js
-import { ollama } from '@genkit-ai/ollama';
+import { ollama } from 'genkitx-ollama';
 
 export default configureGenkit({
   plugins: [
@@ -63,7 +63,7 @@ the Google Auth library:
 
 ```js
 import { GoogleAuth } from 'google-auth-library';
-import { ollama, OllamaPluginParams } from '@genkit-ai/ollama';
+import { ollama, OllamaPluginParams } from 'genkitx-ollama';
 import { configureGenkit, isDevEnv } from '@genkit-ai/core';
 
 const ollamaCommon = {models: [{name: "gemma:2b"}]};

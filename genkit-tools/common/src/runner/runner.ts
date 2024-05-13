@@ -110,11 +110,13 @@ export class Runner {
     }
     if (this.autoReload) {
       const config = await findToolsConfig();
-      this.buildCommand = config?.builder?.cmd;
-      if (!this.buildCommand && detectRuntime(process.cwd()) === 'node') {
-        this.buildCommand = 'npm run build';
+      if (config?.runner?.mode !== 'harness') {
+        this.buildCommand = config?.builder?.cmd;
+        if (!this.buildCommand && detectRuntime(process.cwd()) === 'node') {
+          this.buildCommand = 'npm run build';
+        }
+        this.build();
       }
-      this.build();
       this.watchForChanges();
     }
     return this.startApp();
@@ -157,12 +159,16 @@ export class Runner {
    * Starts the app code in a subprocess.
    */
   private async startApp(): Promise<boolean> {
+    const config = await findToolsConfig();
     const runtime = detectRuntime(process.cwd());
     let command = '';
     let args: string[] = [];
     switch (runtime) {
       case 'node':
-        command = 'node';
+        command =
+          config?.runner?.mode === 'harness'
+            ? path.join(__dirname, '../../../node_modules/.bin/tsx')
+            : 'node';
         break;
       case 'go':
         command = 'go';
@@ -172,7 +178,11 @@ export class Runner {
         throw Error(`Unexpected runtime while starting app code: ${runtime}`);
     }
 
-    const entryPoint = getEntryPoint(process.cwd());
+    const harnessEntryPoint = path.join(__dirname, '../runner/harness.js');
+    const entryPoint =
+      config?.runner?.mode === 'harness'
+        ? harnessEntryPoint
+        : getEntryPoint(process.cwd());
     if (!entryPoint) {
       logger.error(
         'Could not detect entry point for app. Make sure you are at the root of your project directory.'
@@ -184,7 +194,14 @@ export class Runner {
       return false;
     }
 
-    logger.info(`Starting app at \`${entryPoint}\`...`);
+    const files = config?.runner?.files;
+    if (config?.runner?.mode === 'harness') {
+      logger.info(
+        `Running harness with file paths:\n - ${files?.join('\n - ') || ' - None'}`
+      );
+    } else {
+      logger.info(`Starting app at \`${entryPoint}\`...`);
+    }
 
     // Try the desired port first then fall back to default range.
     let port = await getPort({ port: this.reflectionApiPort });
@@ -199,6 +216,9 @@ export class Runner {
     this.reflectionApiPort = port;
 
     args.push(entryPoint);
+    if (config?.runner?.mode === 'harness' && files) {
+      args.push(files.join(','));
+    }
     this.appProcess = spawn(command, args, {
       stdio: 'inherit',
       env: {
@@ -281,6 +301,7 @@ export class Runner {
       }
     } else if (
       extension === '.js' ||
+      extension === '.ts' ||
       extension === '.prompt' ||
       extension === '.go'
     ) {

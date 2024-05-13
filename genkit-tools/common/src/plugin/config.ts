@@ -71,6 +71,12 @@ const ToolsConfigSchema = z
       })
       .optional(),
     evaluators: z.array(EvaluatorConfig).optional(),
+    runner: z
+      .object({
+        mode: z.enum(['default', 'harness']).default('default'),
+        files: z.array(z.string()).optional(),
+      })
+      .optional(),
   })
   .strict();
 

@@ -139,7 +139,7 @@ const llmResponse = await generate({
   model: geminiPro,
   prompt: 'Tell me a joke.',
   tools: [myTool],
-  options: {
+  config: {
     temperature: 0.5,
   },
 });
@@ -155,7 +155,7 @@ const llmResponse = await generate({
   prompt: 'Tell me a joke.',
   tools: [myTool],
   returnToolRequests: true,
-  options: {
+  config: {
     temperature: 0.5,
   },
 });
@@ -228,7 +228,7 @@ let history: MessageData[] = [
   { role: 'system', content: [{ text: 'Talk like a pirate.' }] },
 ];
 let response = await generate({
-  model: gpt35Turbo,
+  model: geminiPro,
   prompt: "How do you say 'dog' in French?",
   history,
 });

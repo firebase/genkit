@@ -184,8 +184,12 @@ func (p *Prompt) Execute(ctx context.Context, input *ActionInput) (*ai.GenerateR
 		if model == "" {
 			return nil, errors.New("dotprompt action: model not specified")
 		}
+		provider, name, found := strings.Cut(model, "/")
+		if !found {
+			return nil, errors.New("dotprompt model not in provider/name format")
+		}
 
-		generator, err = ai.LookupGeneratorAction(model)
+		generator, err = ai.LookupGeneratorAction(provider, name)
 		if err != nil {
 			return nil, err
 		}
@@ -195,11 +199,6 @@ func (p *Prompt) Execute(ctx context.Context, input *ActionInput) (*ai.GenerateR
 	if err != nil {
 		return nil, err
 	}
-
-	// TODO(ianlancetaylor): The TypeScript code stores genReq
-	// with each candidate in resp. The TypeScript code
-	// extends CandidateData with an optional request field.
-	// We don't have a natural way to do that in Go.
 
 	return resp, nil
 }

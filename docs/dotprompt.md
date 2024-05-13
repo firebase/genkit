@@ -1,6 +1,6 @@
 # Managing prompts with Dotprompt
 
-Firebase Genkit provides the Dotprompt library and text format to help you write
+Firebase Genkit provides the Dotprompt plugin and text format to help you write
 and organize your generative AI prompts.
 
 Dotprompt is designed around the premise that _prompts are code_. You write and
@@ -32,11 +32,13 @@ You are the world's most welcoming AI assistant and are currently working at {{l
 Greet a guest{{#if name}} named {{name}}{{/if}}{{#if style}} in the style of {{style}}{{/if}}.
 ```
 
-To use this prompt, import the `prompt` function from the `@genkit-ai/dotprompt`
-library:
+To use this prompt, install the `dotprompt` plugin, and import the `prompt` function from
+the `@genkit-ai/dotprompt` library:
 
 ```ts
-import { prompt } from '@genkit-ai/dotprompt';
+import { dotprompt, prompt } from '@genkit-ai/dotprompt';
+
+configureGenkit({ plugins: [dotprompt()] });
 ```
 
 Then, load the prompt using `prompt('file_name')`:
@@ -71,6 +73,7 @@ schema:
   title: string # string, number, and boolean types are defined like this
   subtitle?: string # optional fields are marked with a `?`
   draft?: boolean, true when in draft state
+  status?(enum, approval status): [PENDING, APPROVED]
   date: string, the date of publication e.g. '2024-04-09' # descriptions follow a comma
   tags(array, relevant tags for article): string # arrays are denoted via parentheses
   authors(array):
@@ -89,6 +92,8 @@ interface Article {
   subtitle?: string;
   /** true when in draft state */
   draft?: boolean;
+  /** approval status */
+  status?: 'PENDING' | 'APPROVED';
   /** the date of publication e.g. '2024-04-09' */
   date: string;
   /** relevant tags for article */
@@ -107,7 +112,7 @@ interface Article {
 ```
 
 Picoschema supports scalar types `string`, `integer`, `number`, and `boolean`. For
-objects and arrays, they are denoted by a parenthetical after the field name.
+objects, arrays, and enums they are denoted by a parenthetical after the field name.
 
 Objects defined by Picoschema have all properties as required unless denoted optional
 by `?`, and do not allow additional properties.
