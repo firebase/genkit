@@ -16,6 +16,7 @@ package vertexai
 
 import (
 	"context"
+	"fmt"
 
 	"cloud.google.com/go/vertexai/genai"
 	"github.com/google/genkit/go/ai"
@@ -39,7 +40,7 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 
 	// Translate from a ai.GenerateRequest to a genai request.
 	gm.SetCandidateCount(int32(input.Candidates))
-	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok {
+	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
 		gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
 		gm.StopSequences = c.StopSequences
 		gm.SetTemperature(float32(c.Temperature))
@@ -65,7 +66,40 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	if len(messages) > 0 {
 		parts = convertParts(messages[0].Content)
 	}
-	//TODO: convert input.Tools and append to gm.Tools
+
+	// Convert input.Tools and append to gm.Tools.
+	for _, t := range input.Tools {
+		schema := &genai.Schema{
+			Type:       genai.TypeObject,
+			Properties: make(map[string]*genai.Schema),
+		}
+		for k, v := range t.InputSchema {
+			typ := genai.TypeUnspecified
+			switch v {
+			case "string":
+				typ = genai.TypeString
+			case "float64":
+				typ = genai.TypeNumber
+			case "int":
+				typ = genai.TypeInteger
+			case "bool":
+				typ = genai.TypeBoolean
+			default:
+				return nil, fmt.Errorf("schema value %q not supported", v)
+			}
+			schema.Properties[k] = &genai.Schema{Type: typ}
+		}
+
+		fd := &genai.FunctionDeclaration{
+			Name:       t.Name,
+			Parameters: schema,
+		}
+
+		gm.Tools = append(gm.Tools, &genai.Tool{
+			FunctionDeclarations: []*genai.FunctionDeclaration{fd},
+		})
+	}
+	// TODO: gm.ToolConfig?
 
 	// Send out the actual request.
 	resp, err := cs.SendMessage(ctx, parts...)
@@ -103,10 +137,13 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 				p = ai.NewTextPart(string(part))
 			case genai.Blob:
 				p = ai.NewBlobPart(part.MIMEType, string(part.Data))
-			case genai.FunctionResponse:
-				p = ai.NewBlobPart("TODO", string(part.Name))
+			case genai.FunctionCall:
+				p = ai.NewToolRequestPart(&ai.ToolRequest{
+					Name:  part.Name,
+					Input: part.Args,
+				})
 			default:
-				panic("unknown part type")
+				panic(fmt.Sprintf("unknown part #%v", part))
 			}
 			m.Content = append(m.Content, p)
 		}
@@ -159,7 +196,21 @@ func convertPart(p *ai.Part) genai.Part {
 	switch {
 	case p.IsText():
 		return genai.Text(p.Text())
-	default:
+	case p.IsBlob():
 		return genai.Blob{MIMEType: p.ContentType(), Data: []byte(p.Text())}
+	case p.IsToolResponse():
+		toolResp := p.ToolResponse()
+		return genai.FunctionResponse{
+			Name:     toolResp.Name,
+			Response: toolResp.Output,
+		}
+	case p.IsToolRequest():
+		toolReq := p.ToolRequest()
+		return genai.FunctionCall{
+			Name: toolReq.Name,
+			Args: toolReq.Input,
+		}
+	default:
+		panic("unknown part type in a request")
 	}
 }
