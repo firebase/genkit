@@ -1,4 +1,5 @@
-![Firebase Genkit logo](docs/resources/genkit-logo.png 'Firebase Genkit')
+![Firebase Genkit logo](docs/resources/genkit-logo-dark.png#gh-dark-mode-only 'Firebase Genkit')
+![Firebase Genkit logo](docs/resources/genkit-logo.png#gh-light-mode-only 'Firebase Genkit')
 
 Firebase Genkit (beta) is a framework with powerful tooling to help app developers build, test, deploy, and monitor AI-powered features with confidence. Genkit is also built from the ground up to be cloud optimized and code-centric, designed to feel familiar to most developers with less new concepts to learn. The Genkit framework itself is free and [open source](./LICENSE), and integrates with many services that have free tiers to get started.
 
