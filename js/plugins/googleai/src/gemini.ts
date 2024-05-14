@@ -117,6 +117,20 @@ export const gemini15Pro = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+export const gemini15Flash = modelRef({
+  name: 'googleai/gemini-1.5-flash-latest',
+  info: {
+    label: 'Google AI - Gemini 1.5 Flash',
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      systemRole: true,
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const geminiUltra = modelRef({
   name: 'googleai/gemini-ultra',
   info: {
@@ -146,6 +160,7 @@ export const SUPPORTED_V15_MODELS: Record<
   ModelReference<z.ZodTypeAny>
 > = {
   'gemini-1.5-pro-latest': gemini15Pro,
+  'gemini-1.5-flash-latest': gemini15Flash,
 };
 
 const SUPPORTED_MODELS = {
