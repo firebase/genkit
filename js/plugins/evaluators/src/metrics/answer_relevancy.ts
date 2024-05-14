@@ -22,6 +22,7 @@ import { loadPromptFile } from '@genkit-ai/dotprompt';
 import similarity from 'compute-cosine-similarity';
 import path from 'path';
 import * as z from 'zod';
+import { getDirName } from './helper.js';
 
 const AnswerRelevancyResponseSchema = z.object({
   question: z.string(),
@@ -47,7 +48,7 @@ export async function answerRelevancyScore<
       throw new Error('Output was not provided');
     }
     const prompt = await loadPromptFile(
-      path.resolve(__dirname, '../../prompts/answer_relevancy.prompt')
+      path.resolve(getDirName(), '../../prompts/answer_relevancy.prompt')
     );
     const response = await generate({
       model: judgeLlm,
