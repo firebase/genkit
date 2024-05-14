@@ -93,6 +93,7 @@ Genkit works great out-of-the-box with Firebase or Google Cloud projects thanks 
 - [pgvector template](https://firebase.google.com/docs/genkit/templates/pgvector): See our template for integrating with pgvector for CloudSQL and AlloyDB.
 
 ## Try it out on IDX
+
 Interested in trying Genkit? [Try it out on Project IDX](https://idx.google.com/new/genkit) Google's AI-assisted workspace for full-stack app development.
 
 ## Contributing
