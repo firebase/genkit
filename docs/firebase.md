@@ -263,7 +263,7 @@ app:
           initializeApp(await firebaseConfig.json());
 
           async function generateMenuItem() {
-            const jokeFlow = httpsCallable(
+            const menuFlow = httpsCallable(
               getFunctions(),
               'menuSuggestionFlow'
             );
