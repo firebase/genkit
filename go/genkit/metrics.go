@@ -67,7 +67,9 @@ func initInstruments() (*metricInstruments, error) {
 }
 
 func writeActionSuccess(ctx context.Context, actionName string, latency time.Duration) {
-	recordAction(ctx, latency, attribute.String("name", actionName))
+	recordAction(ctx, latency,
+		attribute.String("name", actionName),
+		attribute.String("source", "go"))
 }
 
 func writeActionFailure(ctx context.Context, actionName string, latency time.Duration, err error) {
@@ -76,7 +78,8 @@ func writeActionFailure(ctx context.Context, actionName string, latency time.Dur
 		// TODO(jba): Mitigate against high-cardinality dimensions that arise from
 		// many different error messages, perhaps by taking a prefix of the error
 		// message.
-		attribute.String("errorMessage", err.Error()))
+		attribute.String("errorMessage", err.Error()),
+		attribute.String("source", "go"))
 }
 
 func errorCode(err error) int {
@@ -94,7 +97,9 @@ func recordAction(ctx context.Context, latency time.Duration, attrs ...attribute
 }
 
 func writeFlowSuccess(ctx context.Context, flowName string, latency time.Duration) {
-	recordFlow(ctx, latency, attribute.String("name", flowName))
+	recordFlow(ctx, latency,
+		attribute.String("name", flowName),
+		attribute.String("source", "go"))
 }
 
 func writeFlowFailure(ctx context.Context, flowName string, latency time.Duration, err error) {
@@ -103,7 +108,8 @@ func writeFlowFailure(ctx context.Context, flowName string, latency time.Duratio
 		// TODO(jba): Mitigate against high-cardinality dimensions that arise from
 		// many different error messages, perhaps by taking a prefix of the error
 		// message.
-		attribute.String("errorMessage", err.Error()))
+		attribute.String("errorMessage", err.Error()),
+		attribute.String("source", "go"))
 }
 
 func recordFlow(ctx context.Context, latency time.Duration, attrs ...attribute.KeyValue) {

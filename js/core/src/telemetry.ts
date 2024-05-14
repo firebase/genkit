@@ -15,6 +15,7 @@
  */
 
 import { ValueType } from '@opentelemetry/api';
+import { GENKIT_VERSION } from './index.js';
 import {
   internalMetricNamespaceWrap,
   MetricCounter,
@@ -40,6 +41,8 @@ const actionLatencies = new MetricHistogram(_N('latency'), {
 export function writeActionSuccess(actionName: string, latencyMs: number) {
   const dimensions = {
     name: actionName,
+    source: 'ts',
+    sourceVersion: GENKIT_VERSION,
   };
   actionCounter.add(1, dimensions);
   actionLatencies.record(latencyMs, dimensions);
@@ -54,6 +57,8 @@ export function writeActionFailure(
     name: actionName,
     errorCode: err?.code,
     errorMessage: err?.message,
+    source: 'ts',
+    sourceVersion: GENKIT_VERSION,
   };
   actionCounter.add(1, dimensions);
   actionLatencies.record(latencyMs, dimensions);
