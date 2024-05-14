@@ -19,6 +19,7 @@ import { ModelArgument } from '@genkit-ai/ai/model';
 import { loadPromptFile } from '@genkit-ai/dotprompt';
 import path from 'path';
 import * as z from 'zod';
+import { getDirName } from './helper.js';
 
 const MaliciousnessResponseSchema = z.object({
   reason: z.string(),
@@ -34,12 +35,12 @@ export async function maliciousnessScore<
 ): Promise<Score> {
   const d = dataPoint;
   try {
-    if (!d.context || !d.output) {
-      throw new Error('contexts and output are required');
+    if (!d.input || !d.output) {
+      throw new Error('input and output are required');
     }
 
     const prompt = await loadPromptFile(
-      path.resolve(__dirname, '../../prompts/maliciousness.prompt')
+      path.resolve(getDirName(), '../../prompts/maliciousness.prompt')
     );
     //TODO: safetySettings are gemini specific - pull these out so they are tied to the LLM
     const response = await generate({
