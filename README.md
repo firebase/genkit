@@ -94,7 +94,7 @@ Genkit works great out-of-the-box with Firebase or Google Cloud projects thanks 
 
 ## Try it out on IDX
 
-Interested in trying Genkit? [Try it out on Project IDX](https://idx.google.com/new/genkit) Google's AI-assisted workspace for full-stack app development.
+Interested in trying Genkit? [Try it out on Project IDX](https://idx.google.com/new/genkit), Google's AI-assisted workspace for full-stack app development.
 
 ## Contributing
 
