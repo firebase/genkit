@@ -201,7 +201,7 @@ func convertPart(p *ai.Part) genai.Part {
 	case p.IsToolResponse():
 		toolResp := p.ToolResponse()
 		return genai.FunctionResponse{
-			Name: toolResp.Name,
+			Name:     toolResp.Name,
 			Response: toolResp.Output,
 		}
 	case p.IsToolRequest():
