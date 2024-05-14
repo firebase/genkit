@@ -92,6 +92,10 @@ Genkit works great out-of-the-box with Firebase or Google Cloud projects thanks 
 - [Ollama plugin](https://firebase.google.com/docs/genkit/plugins/ollama): Integrate with Ollama to access popular OSS models like Google’s Gemma.
 - [pgvector template](https://firebase.google.com/docs/genkit/templates/pgvector): See our template for integrating with pgvector for CloudSQL and AlloyDB.
 
+## Try it out on IDX
+
+Interested in trying Genkit? [Try it out on Project IDX](https://idx.google.com/new/genkit), Google's AI-assisted workspace for full-stack app development.
+
 ## Contributing
 
 Genkit is an open source framework, and we welcome contributions. Information on how to get started can be found in our [contributor guide](CONTRIBUTING.md).
