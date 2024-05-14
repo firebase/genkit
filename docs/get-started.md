@@ -5,7 +5,7 @@ To get started with Firebase Genkit, install the Genkit CLI and run
 
 ## Requirements
 
-Node.js 18 or later.
+Node.js 20 or later.
 
 ## Procedure
 
