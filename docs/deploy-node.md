@@ -10,7 +10,7 @@ sample flow.
 
 1.  Install the required tools:
 
-    - Make sure you are using node version 18 or higher (run `node --version` to
+    - Make sure you are using node version 20 or higher (run `node --version` to
       check).
 
 1.  Create a directory for the Genkit sample project:
@@ -113,7 +113,7 @@ sample flow.
 
     | Setting               | Value                                                               |
     | --------------------- | ------------------------------------------------------------------- |
-    | Runtime               | Node.js 18 or newer                                                 |
+    | Runtime               | Node.js 20 or newer                                                 |
     | Build command         | `npm run build`                                                     |
     | Start command         | `npm run start`                                                     |
     | Environment variables | `GOOGLE_API_KEY=<your-api-key>` (or whichever secrets are required) |

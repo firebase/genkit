@@ -6,7 +6,7 @@ flow.
 
 1.  Install the required tools:
 
-    1.  Make sure you are using Node.js version 18 or higher (run
+    1.  Make sure you are using Node.js version 20 or higher (run
         `node --version` to check).
 
     1.  Install the

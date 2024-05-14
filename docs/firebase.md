@@ -8,7 +8,7 @@ deploying the default sample flow to Firebase.
 
 1.  Install the required tools:
 
-    1.  Make sure you are using Node.js version 18 or higher (run `node --version` to
+    1.  Make sure you are using Node.js version 20 or higher (run `node --version` to
         check).
 
     1.  Install the [Firebase CLI](https://firebase.google.com/docs/cli).
@@ -36,29 +36,15 @@ deploying the default sample flow to Firebase.
     mkdir -p $PROJECT_ROOT
     ```
 
-1.  Initialize a Firebase project in the folder:
+1.  Initialize a Firebase project with Genkit in the folder:
 
     ```posix-terminal
     cd $PROJECT_ROOT
 
-    firebase init
+    firebase init genkit
     ```
 
-    - Select **Functions** as the only feature to set up (for now).
     - Select the project you created earlier.
-    - Select **TypeScript** as the functions language.
-
-    Accept the defaults for the remaining prompts.
-
-1.  Initialize Genkit in your Firebase project:
-
-    ```posix-terminal
-    cd $PROJECT_ROOT/functions
-
-    genkit init
-    ```
-
-    - Select **Firebase** as the deployment platform.
     - Select the model provider you want to use.
 
     Accept the defaults for the remaining prompts. The `genkit` tool will create
