@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { GENKIT_VERSION } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import {
   internalMetricNamespaceWrap,
@@ -47,12 +48,16 @@ export function recordError(err: any) {
     name: err.name,
     message: err.message,
     stack: err.stack,
+    source: 'ts',
+    sourceVersion: GENKIT_VERSION,
   });
 }
 
 export function writeFlowSuccess(flowName: string, latencyMs: number) {
   const dimensions = {
     name: flowName,
+    source: 'ts',
+    sourceVersion: GENKIT_VERSION,
   };
   flowCounter.add(1, dimensions);
   flowLatencies.record(latencyMs, dimensions);
@@ -67,6 +72,8 @@ export function writeFlowFailure(
     name: flowName,
     errorCode: err?.code,
     errorMessage: err?.message,
+    source: 'ts',
+    sourceVersion: GENKIT_VERSION,
   };
   flowCounter.add(1, dimensions);
   flowLatencies.record(latencyMs, dimensions);
@@ -84,6 +91,8 @@ export function logRequest(flowName: string, req: express.Request) {
     query: req.query,
     originalUrl: req.originalUrl,
     path: `/${flowName}`,
+    source: 'ts',
+    sourceVersion: GENKIT_VERSION,
   });
 }
 
@@ -93,5 +102,7 @@ export function logResponse(flowName: string, respCode: number, respBody: any) {
     path: `/${flowName}`,
     code: respCode,
     body: respBody,
+    source: 'ts',
+    sourceVersion: GENKIT_VERSION,
   });
 }

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { GENKIT_VERSION } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import {
   internalMetricNamespaceWrap,
@@ -106,6 +107,8 @@ type SharedDimensions = {
   temperature?: number;
   topK?: number;
   topP?: number;
+  source?: string;
+  sourceVersion?: string;
 };
 
 export function recordGenerateActionMetrics(
@@ -131,6 +134,8 @@ export function recordGenerateActionMetrics(
     outputImages: opts.response?.usage?.outputImages,
     latencyMs: opts.response?.latencyMs,
     err: opts.err,
+    source: 'ts',
+    sourceVersion: GENKIT_VERSION,
   });
 }
 
@@ -148,6 +153,8 @@ export function recordGenerateActionInputLogs(
     topP: options.config?.topP,
     maxOutputTokens: options.config?.maxOutputTokens,
     stopSequences: options.config?.stopSequences,
+    source: 'ts',
+    sourceVersion: GENKIT_VERSION,
   });
 
   const messages = input.messages.length;
@@ -299,6 +306,8 @@ function doRecordGenerateActionMetrics(
     outputImages?: number;
     latencyMs?: number;
     err?: any;
+    source?: string;
+    sourceVersion: string;
   }
 ) {
   const shared: SharedDimensions = {
@@ -307,6 +316,8 @@ function doRecordGenerateActionMetrics(
     temperature: dimensions.temperature,
     topK: dimensions.topK,
     topP: dimensions.topP,
+    source: dimensions.source,
+    sourceVersion: dimensions.sourceVersion,
   };
 
   generateActionCounter.add(1, {
