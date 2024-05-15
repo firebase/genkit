@@ -249,7 +249,7 @@ app:
           initializeApp(await firebaseConfig.json());
 
           async function generateMenuItem() {
-            const menuFlow = httpsCallable(
+            const menuSuggestionFlow = httpsCallable(
               getFunctions(),
               'menuSuggestionFlow'
             );
