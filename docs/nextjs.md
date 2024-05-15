@@ -15,3 +15,5 @@ genkit init
 ```
 
 Make sure to select `Next.js (Experimental)` option for platform and say yes to generating a sample flow. This will create a `src/app/genkit.ts` (or `app/genkit.ts` if you chose not use `src`) file  in your source folder. This file contains your Genkit configuration and sample flows.
+
+You can then run `genkit start` do develop your genkit flows and use them as Next.js server actions.
