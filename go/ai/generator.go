@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/genkit/go/genkit"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 // Generator is the interface used to query an AI model.

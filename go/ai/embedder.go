@@ -17,7 +17,7 @@ package ai
 import (
 	"context"
 
-	"github.com/google/genkit/go/genkit"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 // Embedder is the interface used to convert a document to a

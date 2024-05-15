@@ -19,8 +19,8 @@ import (
 	"fmt"
 
 	"cloud.google.com/go/vertexai/genai"
-	"github.com/google/genkit/go/ai"
-	"github.com/google/genkit/go/genkit"
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 func newClient(ctx context.Context, projectID, location string) (*genai.Client, error) {

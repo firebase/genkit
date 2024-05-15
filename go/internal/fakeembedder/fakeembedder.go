@@ -23,7 +23,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/google/genkit/go/ai"
+	"github.com/firebase/genkit/go/ai"
 )
 
 // Embedder is a fake implementation of genkit.Embedder.

@@ -25,7 +25,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/genkit/go/ai"
+	"github.com/firebase/genkit/go/ai"
 )
 
 // defaultTextKey is the default metadata key we use to store the

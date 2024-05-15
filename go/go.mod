@@ -1,4 +1,4 @@
-module github.com/google/genkit/go
+module github.com/firebase/genkit/go
 
 go 1.22.0
 
