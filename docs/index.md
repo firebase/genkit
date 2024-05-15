@@ -24,6 +24,9 @@ autonomously make decisions, orchestrate tool calls, and much more!
 Genkit currently supports server-side development in JavaScript/TypeScript
 (Node.js) with Go support in active development.
 
+Follow along with its development or make contributions of your own at its
+[GitHub repository](https://github.com/firebase/genkit/).
+
 ## Key features
 
 Genkit is here to help you through every step of your AI development journey,
