@@ -110,11 +110,13 @@ export class Runner {
     }
     if (this.autoReload) {
       const config = await findToolsConfig();
-      this.buildCommand = config?.builder?.cmd;
-      if (!this.buildCommand && detectRuntime(process.cwd()) === 'node') {
-        this.buildCommand = 'npm run build';
+      if (config?.runner?.mode !== 'harness') {
+        this.buildCommand = config?.builder?.cmd;
+        if (!this.buildCommand && detectRuntime(process.cwd()) === 'node') {
+          this.buildCommand = 'npm run build';
+        }
+        this.build();
       }
-      this.build();
       this.watchForChanges();
     }
     return this.startApp();
@@ -299,6 +301,7 @@ export class Runner {
       }
     } else if (
       extension === '.js' ||
+      extension === '.ts' ||
       extension === '.prompt' ||
       extension === '.go'
     ) {

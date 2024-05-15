@@ -10,7 +10,7 @@ sample flow.
 
 1.  Install the required tools:
 
-    - Make sure you are using node version 18 or higher (run `node --version` to
+    - Make sure you are using node version 20 or higher (run `node --version` to
       check).
 
 1.  Create a directory for the Genkit sample project:
@@ -81,7 +81,7 @@ sample flow.
     ```posix-terminal
     npm run build
 
-    genkit flow:run jokeFlow "\"banana\"" -s
+    genkit flow:run menuSuggestionFlow "\"banana\"" -s
     ```
 
 1.  **Optional**: Start the developer UI:
@@ -104,7 +104,7 @@ sample flow.
     Then, in another window:
 
     ```posix-terminal
-    curl -X POST "http://127.0.0.1:3400/jokeFlow?stream=true" -H "Content-Type: application/json"  -d '{"data": "banana"}'
+    curl -X POST "http://127.0.0.1:3400/menuSuggestionFlow?stream=true" -H "Content-Type: application/json"  -d '{"data": "banana"}'
     ```
 
 1.  If everything's working as expected, you can deploy the flow to the provider
@@ -113,7 +113,7 @@ sample flow.
 
     | Setting               | Value                                                               |
     | --------------------- | ------------------------------------------------------------------- |
-    | Runtime               | Node.js 18 or newer                                                 |
+    | Runtime               | Node.js 20 or newer                                                 |
     | Build command         | `npm run build`                                                     |
     | Start command         | `npm run start`                                                     |
     | Environment variables | `GOOGLE_API_KEY=<your-api-key>` (or whichever secrets are required) |

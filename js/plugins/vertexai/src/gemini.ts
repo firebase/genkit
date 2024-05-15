@@ -103,6 +103,22 @@ export const gemini15ProPreview = modelRef({
   version: 'gemini-1.5-pro-preview-0409',
 });
 
+export const gemini15FlashPreview = modelRef({
+  name: 'vertexai/gemini-1.5-flash-preview',
+  info: {
+    label: 'Vertex AI - Gemini 1.5 Flash',
+    versions: ['gemini-1.5-flash-preview-0514'],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      systemRole: true,
+    },
+  },
+  configSchema: GeminiConfigSchema,
+  version: 'gemini-1.5-flash-preview-0514',
+});
+
 export const SUPPORTED_V1_MODELS = {
   'gemini-1.0-pro': geminiPro,
   'gemini-1.0-pro-vision': geminiProVision,
@@ -111,6 +127,7 @@ export const SUPPORTED_V1_MODELS = {
 
 export const SUPPORTED_V15_MODELS = {
   'gemini-1.5-pro-preview': gemini15ProPreview,
+  'gemini-1.5-flash-preview': gemini15FlashPreview,
 };
 
 export const SUPPORTED_GEMINI_MODELS = {

@@ -26,7 +26,7 @@ import {
 import { ToolArgument } from '@genkit-ai/ai/tool';
 import { JSONSchema, parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
 import z from 'zod';
-import { picoschema } from './picoschema';
+import { picoschema } from './picoschema.js';
 
 /**
  * Metadata for a prompt.
@@ -107,16 +107,16 @@ export const PromptFrontmatterSchema = z.object({
 
 export type PromptFrontmatter = z.infer<typeof PromptFrontmatterSchema>;
 
-function stripUndefined(obj: any) {
+function stripUndefinedOrNull(obj: any) {
   if (typeof obj !== 'object' || obj === null) {
     return obj;
   }
 
   for (const key in obj) {
-    if (obj[key] === undefined) {
+    if (obj[key] === undefined || obj[key] === null) {
       delete obj[key];
     } else if (typeof obj[key] === 'object') {
-      stripUndefined(obj[key]); // Recurse into nested objects
+      stripUndefinedOrNull(obj[key]); // Recurse into nested objects
     }
   }
   return obj;
@@ -126,7 +126,7 @@ export function toMetadata(attributes: unknown): Partial<PromptMetadata> {
   const fm = parseSchema<z.infer<typeof PromptFrontmatterSchema>>(attributes, {
     schema: PromptFrontmatterSchema,
   });
-  return stripUndefined({
+  return stripUndefinedOrNull({
     name: fm.name,
     variant: fm.variant,
     model: fm.model,
@@ -144,7 +144,7 @@ export function toMetadata(attributes: unknown): Partial<PromptMetadata> {
 }
 
 export function toFrontmatter(md: PromptMetadata): PromptFrontmatter {
-  return stripUndefined({
+  return stripUndefinedOrNull({
     name: md.name,
     variant: md.variant,
     model: typeof md.model === 'string' ? md.model : md.model?.name,

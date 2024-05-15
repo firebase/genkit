@@ -38,7 +38,7 @@ func (p *Prompt) RenderText(variables map[string]any) (string, error) {
 	}
 	var sb strings.Builder
 	for _, part := range msgs[0].Content {
-		if !part.IsPlainText() {
+		if !part.IsText() {
 			return "", errors.New("RenderText: multi-modal prompt can't be rendered as text")
 		}
 		sb.WriteString(part.Text())

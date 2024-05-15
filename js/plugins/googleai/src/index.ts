@@ -20,6 +20,7 @@ import {
   textEmbeddingGeckoEmbedder,
 } from './embedder.js';
 import {
+  gemini15Flash,
   gemini15Pro,
   geminiPro,
   geminiProVision,
@@ -27,7 +28,7 @@ import {
   SUPPORTED_V15_MODELS,
   SUPPORTED_V1_MODELS,
 } from './gemini.js';
-export { gemini15Pro, geminiPro, geminiProVision };
+export { gemini15Flash, gemini15Pro, geminiPro, geminiProVision };
 
 export interface PluginOptions {
   apiKey?: string;

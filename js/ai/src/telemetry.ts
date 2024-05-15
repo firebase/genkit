@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { GENKIT_VERSION } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import {
   internalMetricNamespaceWrap,
@@ -52,50 +53,50 @@ const generateActionLatencies = new MetricHistogram(_N('generate/latency'), {
   unit: 'ms',
 });
 
-const generateActionInputCharacters = new MetricHistogram(
-  _N('generate/input_characters'),
+const generateActionInputCharacters = new MetricCounter(
+  _N('generate/input/characters'),
   {
-    description: 'Histogram of input characters to a Genkit model.',
+    description: 'Counts input characters to any Genkit model.',
     valueType: ValueType.INT,
   }
 );
 
-const generateActionInputTokens = new MetricHistogram(
-  _N('generate/input_tokens'),
+const generateActionInputTokens = new MetricCounter(
+  _N('generate/input/tokens'),
   {
-    description: 'Histogram of input tokens to a Genkit model.',
+    description: 'Counts input tokens to a Genkit model.',
     valueType: ValueType.INT,
   }
 );
 
-const generateActionInputImages = new MetricHistogram(
-  _N('generate/input_images'),
+const generateActionInputImages = new MetricCounter(
+  _N('generate/input/images'),
   {
-    description: 'Histogram of input images to a Genkit model.',
+    description: 'Counts input images to a Genkit model.',
     valueType: ValueType.INT,
   }
 );
 
-const generateActionOutputCharacters = new MetricHistogram(
-  _N('generate/output_characters'),
+const generateActionOutputCharacters = new MetricCounter(
+  _N('generate/output/characters'),
   {
-    description: 'Histogram of output characters to a Genkit model.',
+    description: 'Counts output characters from a Genkit model.',
     valueType: ValueType.INT,
   }
 );
 
-const generateActionOutputTokens = new MetricHistogram(
-  _N('generate/output_tokens'),
+const generateActionOutputTokens = new MetricCounter(
+  _N('generate/output/tokens'),
   {
-    description: 'Histogram of output tokens to a Genkit model.',
+    description: 'Counts output tokens from a Genkit model.',
     valueType: ValueType.INT,
   }
 );
 
-const generateActionOutputImages = new MetricHistogram(
-  _N('generate/output_images'),
+const generateActionOutputImages = new MetricCounter(
+  _N('generate/output/images'),
   {
-    description: 'Histogram of output images to a Genkit model.',
+    description: 'Count output images from a Genkit model.',
     valueType: ValueType.INT,
   }
 );
@@ -106,6 +107,8 @@ type SharedDimensions = {
   temperature?: number;
   topK?: number;
   topP?: number;
+  source?: string;
+  sourceVersion?: string;
 };
 
 export function recordGenerateActionMetrics(
@@ -131,6 +134,8 @@ export function recordGenerateActionMetrics(
     outputImages: opts.response?.usage?.outputImages,
     latencyMs: opts.response?.latencyMs,
     err: opts.err,
+    source: 'ts',
+    sourceVersion: GENKIT_VERSION,
   });
 }
 
@@ -148,6 +153,8 @@ export function recordGenerateActionInputLogs(
     topP: options.config?.topP,
     maxOutputTokens: options.config?.maxOutputTokens,
     stopSequences: options.config?.stopSequences,
+    source: 'ts',
+    sourceVersion: GENKIT_VERSION,
   });
 
   const messages = input.messages.length;
@@ -299,6 +306,8 @@ function doRecordGenerateActionMetrics(
     outputImages?: number;
     latencyMs?: number;
     err?: any;
+    source?: string;
+    sourceVersion: string;
   }
 ) {
   const shared: SharedDimensions = {
@@ -307,6 +316,8 @@ function doRecordGenerateActionMetrics(
     temperature: dimensions.temperature,
     topK: dimensions.topK,
     topP: dimensions.topP,
+    source: dimensions.source,
+    sourceVersion: dimensions.sourceVersion,
   };
 
   generateActionCounter.add(1, {
@@ -319,12 +330,12 @@ function doRecordGenerateActionMetrics(
   generateActionLatencies.record(dimensions.latencyMs, shared);
 
   // inputs
-  generateActionInputTokens.record(dimensions.inputTokens, shared);
-  generateActionInputCharacters.record(dimensions.inputCharacters, shared);
-  generateActionInputImages.record(dimensions.inputImages, shared);
+  generateActionInputTokens.add(dimensions.inputTokens, shared);
+  generateActionInputCharacters.add(dimensions.inputCharacters, shared);
+  generateActionInputImages.add(dimensions.inputImages, shared);
 
   // outputs
-  generateActionOutputTokens.record(dimensions.outputTokens, shared);
-  generateActionOutputCharacters.record(dimensions.outputCharacters, shared);
-  generateActionOutputImages.record(dimensions.outputImages, shared);
+  generateActionOutputTokens.add(dimensions.outputTokens, shared);
+  generateActionOutputCharacters.add(dimensions.outputCharacters, shared);
+  generateActionOutputImages.add(dimensions.outputImages, shared);
 }

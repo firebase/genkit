@@ -1,6 +1,6 @@
 # Managing prompts with Dotprompt
 
-Firebase Genkit provides the Dotprompt library and text format to help you write
+Firebase Genkit provides the Dotprompt plugin and text format to help you write
 and organize your generative AI prompts.
 
 Dotprompt is designed around the premise that _prompts are code_. You write and
@@ -32,11 +32,13 @@ You are the world's most welcoming AI assistant and are currently working at {{l
 Greet a guest{{#if name}} named {{name}}{{/if}}{{#if style}} in the style of {{style}}{{/if}}.
 ```
 
-To use this prompt, import the `prompt` function from the `@genkit-ai/dotprompt`
-library:
+To use this prompt, install the `dotprompt` plugin, and import the `prompt` function from
+the `@genkit-ai/dotprompt` library:
 
 ```ts
-import { prompt } from '@genkit-ai/dotprompt';
+import { dotprompt, prompt } from '@genkit-ai/dotprompt';
+
+configureGenkit({ plugins: [dotprompt()] });
 ```
 
 Then, load the prompt using `prompt('file_name')`:
@@ -155,31 +157,31 @@ You can set the format and output schema of a prompt to coerce into JSON:
 model: vertexai/gemini-1.0-pro
 input:
   schema:
-    location: string
+    theme: string
 output:
   format: json
   schema:
     name: string
-    hitPoints: integer
-    description: string
+    price: integer
+    ingredients(array): string
 ---
 
-Generate a tabletop RPG character that would be found in {{location}}.
+Generate a menu item that could be found at a {{theme}} themed restaurant.
 ```
 
 When generating a prompt with structured output, use the `output()` helper to
 retrieve and validate it:
 
 ```ts
-const characterPrompt = await prompt('create_character');
+const createMenuPrompt = await prompt('create_menu');
 
-const character = await characterPrompt.generate({
+const menu = await createMenuPrompt.generate({
   input: {
-    location: 'the beach',
+    theme: 'banana',
   },
 });
 
-console.log(character.output());
+console.log(menu.output());
 ```
 
 ## Multi-message prompts
@@ -199,8 +201,8 @@ input:
 ---
 
 {{role "system"}}
-You are a helpful AI assistant that really loves to talk about puppies. Try to work puppies
-into all of your conversations.
+You are a helpful AI assistant that really loves to talk about food. Try to work
+food items into all of your conversations.
 {{role "user"}}
 {{userQuestion}}
 ```

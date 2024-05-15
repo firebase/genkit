@@ -8,7 +8,7 @@ deploying the default sample flow to Firebase.
 
 1.  Install the required tools:
 
-    1.  Make sure you are using Node.js version 18 or higher (run `node --version` to
+    1.  Make sure you are using Node.js version 20 or higher (run `node --version` to
         check).
 
     1.  Install the [Firebase CLI](https://firebase.google.com/docs/cli).
@@ -36,29 +36,15 @@ deploying the default sample flow to Firebase.
     mkdir -p $PROJECT_ROOT
     ```
 
-1.  Initialize a Firebase project in the folder:
+1.  Initialize a Firebase project with Genkit in the folder:
 
     ```posix-terminal
     cd $PROJECT_ROOT
 
-    firebase init
+    firebase init genkit
     ```
 
     - Select the project you created earlier.
-    - Select **Functions** as the only feature to set up (for now).
-    - Select **TypeScript** as the functions language.
-
-    Accept the defaults for the remaining prompts.
-
-1.  Initialize Genkit in your Firebase project:
-
-    ```posix-terminal
-    cd $PROJECT_ROOT/functions
-
-    genkit init
-    ```
-
-    - Select **Firebase** as the deployment platform.
     - Select the model provider you want to use.
 
     Accept the defaults for the remaining prompts. The `genkit` tool will create
@@ -123,9 +109,9 @@ deploying the default sample flow to Firebase.
     next section), in the `httpsOptions` parameter, set a CORS policy:
 
     ```js
-    export const jokeFlow = onFlow(
+    export const menuSuggestionFlow = onFlow(
       {
-        name: 'jokeFlow',
+        name: 'menuSuggestionFlow',
         // ...
         httpsOptions: { cors: '*' }, // Add this line.
       },
@@ -150,7 +136,7 @@ deploying the default sample flow to Firebase.
 
     2.  In the developer UI (http://localhost:4000/), run the flow:
 
-        1.  Click **jokeFlow**.
+        1.  Click **menuSuggestionFlow**.
 
         2.  On the **Input JSON** tab, provide a subject for the model:
 
@@ -243,8 +229,8 @@ app:
         </div>
         <div id="callGenkit" hidden>
           Subject: <input type="text" id="subject" />
-          <button id="tellJoke">Tell me a joke</button>
-          <p id="joke"></p>
+          <button id="suggestMenuItem">Suggest a menu item</button>
+          <p id="menuItem"></p>
         </div>
         <script type="module">
           import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.10.0/firebase-app.js';
@@ -262,11 +248,14 @@ app:
           const firebaseConfig = await fetch('/__/firebase/init.json');
           initializeApp(await firebaseConfig.json());
 
-          async function generateJoke() {
-            const jokeFlow = httpsCallable(getFunctions(), 'jokeFlow');
+          async function generateMenuItem() {
+            const menuSuggestionFlow = httpsCallable(
+              getFunctions(),
+              'menuSuggestionFlow'
+            );
             const subject = document.querySelector('#subject').value;
-            const response = await jokeFlow(subject);
-            document.querySelector('#joke').innerText = response.data;
+            const response = await menuSuggestionFlow(subject);
+            document.querySelector('#menuItem').innerText = response.data;
           }
 
           function signIn() {
@@ -277,8 +266,8 @@ app:
             .querySelector('#signinBtn')
             .addEventListener('click', signIn);
           document
-            .querySelector('#tellJoke')
-            .addEventListener('click', generateJoke);
+            .querySelector('#suggestMenuItem')
+            .addEventListener('click', generateMenuItem);
 
           const signinEl = document.querySelector('#signin');
           const genkitEl = document.querySelector('#callGenkit');
@@ -308,3 +297,23 @@ app:
 Open the web app by visiting the URL printed by the `deploy` command. The app
 requires you to sign in with a Google account, after which you can initiate
 endpoint requests.
+
+## Developing using Firebase Local Emulator Suite
+
+Firebase offers a [suite of emulators for local development](https://firebase.google.com/docs/emulator-suite), which you can use with Genkit.
+
+To use Genkit with the Firebase Emulator Suite, start the the Firebase emulators like this:
+
+```bash
+GENKIT_ENV=dev firebase emulators:start --inspect-functions
+```
+
+This will run your code in the emulator and run the Genkit framework in development mode, which launches and exposes the Genkit reflection API (but not the Dev UI).
+
+Then, launch the Genkit Dev UI with the `--attach` option to connect it to your code running inside the Firebase Emulator:
+
+```bash
+genkit start --attach http://localhost:3100 --port 4001
+```
+
+To see traces from Firestore in the Dev UI you can navigate to the Inspect tab and toggle the "Dev/Prod" switch. When toggled to "prod" it will be loading traces from firestore.

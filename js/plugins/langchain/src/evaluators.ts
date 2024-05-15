@@ -17,8 +17,8 @@
 import { BaseDataPointSchema, defineEvaluator } from '@genkit-ai/ai/evaluator';
 import { ModelArgument } from '@genkit-ai/ai/model';
 import { Criteria, loadEvaluator } from 'langchain/evaluation';
-import { genkitModel } from './model';
-import { GenkitTracer } from './tracing';
+import { genkitModel } from './model.js';
+import { GenkitTracer } from './tracing.js';
 
 export function langchainEvaluator(
   type: 'labeled_criteria' | 'criteria',

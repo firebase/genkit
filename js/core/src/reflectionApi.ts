@@ -21,8 +21,8 @@ import { config } from './config.js';
 import { logger } from './logging.js';
 import * as registry from './registry.js';
 import { toJsonSchema } from './schema.js';
-import { cleanUpTracing } from './tracing';
 import {
+  cleanUpTracing,
   flushTracing,
   newTrace,
   setCustomMetadataAttribute,
@@ -58,6 +58,7 @@ export async function startReflectionApi(port?: number | undefined) {
   if (!port) {
     port = Number(process.env.GENKIT_REFLECTION_PORT) || 3100;
   }
+  global[GLOBAL_REFLECTION_API_PORT_KEY] = port;
 
   const api = express();
 
@@ -300,7 +301,6 @@ export async function startReflectionApi(port?: number | undefined) {
 
   server = api.listen(port, () => {
     console.log(`Reflection API running on http://localhost:${port}`);
-    global[GLOBAL_REFLECTION_API_PORT_KEY] = port;
   });
 
   server.on('error', (error) => {

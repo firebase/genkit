@@ -20,6 +20,7 @@ import { ModelArgument } from '@genkit-ai/ai/model';
 import { loadPromptFile } from '@genkit-ai/dotprompt';
 import path from 'path';
 import * as z from 'zod';
+import { getDirName } from './helper.js';
 
 const LongFormResponseSchema = z.object({ statements: z.array(z.string()) });
 
@@ -54,7 +55,7 @@ export async function faithfulnessScore<
       throw new Error('Output was not provided');
     }
     const longFormPrompt = await loadPromptFile(
-      path.resolve(__dirname, '../../prompts/faithfulness_long_form.prompt')
+      path.resolve(getDirName(), '../../prompts/faithfulness_long_form.prompt')
     );
     const longFormResponse = await generate({
       model: judgeLlm,
@@ -75,7 +76,7 @@ export async function faithfulnessScore<
     const allStatements = statements.map((s) => `statement: ${s}`).join('\n');
     const allContext = context.join('\n');
     const nliPrompt = await loadPromptFile(
-      path.resolve(__dirname, '../../prompts/faithfulness_nli.prompt')
+      path.resolve(getDirName(), '../../prompts/faithfulness_nli.prompt')
     );
     const response = await generate({
       model: judgeLlm,

@@ -19,4 +19,5 @@ import { defaultOptions } from '../../tsup.common';
 
 export default defineConfig({
   ...(defaultOptions as Options),
+  shims: false,
 });

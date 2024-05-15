@@ -16,6 +16,9 @@
 
 package ai
 
+// A Candidate is one of several possible generated responses from a generation
+// request. It contains a single generated message along with additional
+// metadata about its generation. A generation request may result in multiple Candidates.
 type Candidate struct {
 	Custom        any              `json:"custom,omitempty"`
 	FinishMessage string           `json:"finishMessage,omitempty"`
@@ -25,6 +28,7 @@ type Candidate struct {
 	Usage         *GenerationUsage `json:"usage,omitempty"`
 }
 
+// FinishReason is the reason why a model stopped generating tokens.
 type FinishReason string
 
 const (
@@ -35,6 +39,7 @@ const (
 	FinishReasonUnknown FinishReason = "unknown"
 )
 
+// A GenerateRequest is a request to generate completions from a model.
 type GenerateRequest struct {
 	Candidates int `json:"candidates,omitempty"`
 	Config     any `json:"config,omitempty"`
@@ -45,11 +50,15 @@ type GenerateRequest struct {
 	Tools    []*ToolDefinition      `json:"tools,omitempty"`
 }
 
+// GenerateRequestOutput describes the structure that the model's output
+// should conform to. If Format is [OutputFormatJSON], then Schema
+// can describe the desired form of the generated JSON.
 type GenerateRequestOutput struct {
 	Format OutputFormat   `json:"format,omitempty"`
 	Schema map[string]any `json:"schema,omitempty"`
 }
 
+// OutputFormat is the format that the model's output should produce.
 type OutputFormat string
 
 const (
@@ -57,6 +66,7 @@ const (
 	OutputFormatText OutputFormat = "text"
 )
 
+// A GenerateResponse is a model's response to a [GenerateRequest].
 type GenerateResponse struct {
 	Candidates []*Candidate     `json:"candidates,omitempty"`
 	Custom     any              `json:"custom,omitempty"`
@@ -64,6 +74,7 @@ type GenerateResponse struct {
 	Usage      *GenerationUsage `json:"usage,omitempty"`
 }
 
+// GenerationCommonConfig holds configuration for generation.
 type GenerationCommonConfig struct {
 	MaxOutputTokens int      `json:"maxOutputTokens,omitempty"`
 	StopSequences   []string `json:"stopSequences,omitempty"`
@@ -73,6 +84,7 @@ type GenerationCommonConfig struct {
 	Version         string   `json:"version,omitempty"`
 }
 
+// GenerationUsage provides information about the generation process.
 type GenerationUsage struct {
 	Custom       map[string]float64 `json:"custom,omitempty"`
 	InputTokens  float64            `json:"inputTokens,omitempty"`
@@ -80,15 +92,16 @@ type GenerationUsage struct {
 	TotalTokens  float64            `json:"totalTokens,omitempty"`
 }
 
-type MediaPart struct {
-	Media *MediaPartMedia `json:"media,omitempty"`
+type mediaPart struct {
+	Media *mediaPartMedia `json:"media,omitempty"`
 }
 
-type MediaPartMedia struct {
+type mediaPartMedia struct {
 	ContentType string `json:"contentType,omitempty"`
 	Url         string `json:"url,omitempty"`
 }
 
+// Message is the contents of a model response.
 type Message struct {
 	Content []*Part `json:"content,omitempty"`
 	Role    Role    `json:"role,omitempty"`
@@ -109,10 +122,11 @@ const (
 	RoleTool Role = "tool"
 )
 
-type TextPart struct {
+type textPart struct {
 	Text string `json:"text,omitempty"`
 }
 
+// A ToolDefinition describes a tool.
 type ToolDefinition struct {
 	// Valid JSON Schema representing the input of the tool.
 	InputSchema map[string]any `json:"inputSchema,omitempty"`
@@ -121,22 +135,22 @@ type ToolDefinition struct {
 	OutputSchema map[string]any `json:"outputSchema,omitempty"`
 }
 
-type ToolRequestPart struct {
-	ToolRequest *ToolRequestPartToolRequest `json:"toolRequest,omitempty"`
+// A ToolRequest is a request from the model that the client should run
+// a specific tool and pass a [ToolResponse] to the model on the next request it makes.
+// Any ToolRequest will correspond to some [ToolDefinition] previously sent by the client.
+type ToolRequest struct {
+	// Input is a JSON object describing the input values to the tool.
+	// An example might be map[string]any{"country":"USA", "president":3}.
+	Input map[string]any `json:"input,omitempty"`
+	Name  string         `json:"name,omitempty"`
 }
 
-type ToolRequestPartToolRequest struct {
-	Input any    `json:"input,omitempty"`
-	Name  string `json:"name,omitempty"`
-	Ref   string `json:"ref,omitempty"`
-}
-
-type ToolResponsePart struct {
-	ToolResponse *ToolResponsePartToolResponse `json:"toolResponse,omitempty"`
-}
-
-type ToolResponsePartToolResponse struct {
-	Name   string `json:"name,omitempty"`
-	Output any    `json:"output,omitempty"`
-	Ref    string `json:"ref,omitempty"`
+// A ToolResponse is a response from the client to the model containing
+// the results of running a specific tool on the arguments passed to the client
+// by the model in a [ToolRequest].
+type ToolResponse struct {
+	Name string `json:"name,omitempty"`
+	// Output is a JSON object describing the results of running the tool.
+	// An example might be map[string]any{"name":"Thomas Jefferson", "born":1743}.
+	Output map[string]any `json:"output,omitempty"`
 }

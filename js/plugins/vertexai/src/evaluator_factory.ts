@@ -19,7 +19,7 @@ import { Action, GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
 import { runInNewSpan } from '@genkit-ai/core/tracing';
 import { GoogleAuth } from 'google-auth-library';
 import z from 'zod';
-import { VertexAIEvaluationMetricType } from './evaluation';
+import { VertexAIEvaluationMetricType } from './evaluation.js';
 
 export class EvaluatorFactory {
   constructor(

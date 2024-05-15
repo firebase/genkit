@@ -37,6 +37,9 @@ information on using pull requests.
 1. [Install node v20](https://nodejs.org/en/download)
 2. Run `corepack enable pnpm` to enable pnpm.
 
+Note: We recommend using Node v20 or greater when compiling and running Genkit.
+Any older versions of Node may not work properly.
+
 ## Quick setup
 
 ```
@@ -64,34 +67,33 @@ Assuming you built everything previously....
 pnpm pack:all
 ```
 
-this will produce tarballs in the `dist` folder. Also `genkit-dist.zip` -- a zip of all the package tarballs.
+This will produce tarballs in the `dist` folder. Also `genkit-dist.zip` -- a zip of all the package tarballs.
 
 ## Link it
 
-You will need the Genkit CLI to run samples and the Developer UI:
+You will need the Genkit CLI to run test apps and the Developer UI (this is done for you with `pnpm run setup`):
 
 ```
-cd genkit-tools
-pnpm link
+pnpm link-genkit-cli
 ```
 
 ## Run it
 
 ### Run a flow
 
-In the `js/samples` folder you will find some samples. They might contain instructions for how to run them and what setup is necessary.
+In the `js/testapps` folder you will find some test apps using Genkit. They might contain instructions for how to run them and what setup is necessary.
 
 Here's one that requires no setup:
 
 ```
-cd js/samples/flow-sample1
+cd js/testapps/flow-sample1
 genkit flow:run basic "\"hello\""
 ```
 
 ### Run the Developer UI
 
 ```
-cd js/samples/flow-sample1
+cd js/testapps/flow-sample1
 genkit start
 ```
 
@@ -106,7 +108,7 @@ To start, let's make sure we have some context to pull from the vector store.
 1. Start the Developer UI
 
 ```
-cd js/samples/rag
+cd js/testapps/rag
 genkit start
 ```
 
@@ -129,7 +131,7 @@ genkit eval:flow pdfQA '"What's a brief description of MapReduce?"'
 
 FYI: `js` and `genkit-tools` are in two separate workspaces.
 
-As you make changes you may want to build an test things by running samples.
+As you make changes you may want to build an test things by running test apps.
 You can reduce the scope of what you're building by running a specific build command:
 
 ```

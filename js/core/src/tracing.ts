@@ -21,14 +21,13 @@ import {
   SpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
 import { getCurrentEnv } from './config.js';
-import { logger } from './logging';
+import { logger } from './logging.js';
 import { TelemetryConfig } from './telemetryTypes.js';
 import { TraceStore } from './tracing.js';
 import { TraceStoreExporter } from './tracing/exporter.js';
 import { MultiSpanProcessor } from './tracing/multiSpanProcessor.js';
 
 export * from './tracing/exporter.js';
-export * from './tracing/firestoreTraceStore.js';
 export * from './tracing/instrumentation.js';
 export * from './tracing/localFileTraceStore.js';
 export * from './tracing/processor.js';

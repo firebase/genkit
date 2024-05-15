@@ -57,6 +57,8 @@ interface InitOptions {
   model: ModelProvider;
   // Path to local Genkit dist archive.
   distArchive: string;
+  // Non-interactive mode.
+  nonInteractive: boolean;
 }
 
 interface ImportOptions {
@@ -150,6 +152,9 @@ const sampleTemplatePaths: Record<Platform, string> = {
   nextjs: '../../config/nextjs.genkit.ts.template',
 };
 
+const nextjsToolsConfigTemplatePath =
+  '../../config/nextjs.genkit-tools.config.js.template';
+
 /** Supported runtimes for the init command. */
 const supportedRuntimes: Runtime[] = ['node'];
 
@@ -162,6 +167,10 @@ export const init = new Command('init')
   .option(
     '-m, --model <model>',
     'Model provider (googleai, vertexai, ollama, or none)'
+  )
+  .option(
+    '--non-interactive',
+    'Run init in non-interactive mode (experimental)'
   )
   .option(
     '-d, --dist-archive <distArchive>',
@@ -240,16 +249,18 @@ export const init = new Command('init')
       if (!fs.existsSync('src')) {
         fs.mkdirSync('src');
       }
-      await updateTsConfig();
-      await updatePackageJson();
+      await updateTsConfig(options.nonInteractive);
+      await updatePackageJson(options.nonInteractive);
       if (
-        await confirm({
+        options.nonInteractive ||
+        (await confirm({
           message: 'Would you like to generate a sample flow?',
           default: true,
-        })
+        }))
       ) {
         generateSampleFile(platform, modelOptions[model].plugin, plugins);
       }
+      generateToolsConfig(platform);
     } catch (error) {
       logger.error(error);
       process.exit(1);
@@ -271,7 +282,7 @@ export const init = new Command('init')
 /**
  * Updates package.json with Genkit-expected fields.
  */
-async function updatePackageJson() {
+async function updatePackageJson(nonInteractive: boolean) {
   const packageJsonPath = path.join(process.cwd(), 'package.json');
   // package.json should exist before reaching this point.
   if (!fs.existsSync(packageJsonPath)) {
@@ -280,9 +291,11 @@ async function updatePackageJson() {
   const existingPackageJson = JSON.parse(
     fs.readFileSync(packageJsonPath, 'utf8')
   );
-  const choice = await promptWriteMode(
-    'Would you like to update your package.json with suggested settings?'
-  );
+  const choice = nonInteractive
+    ? 'overwrite'
+    : await promptWriteMode(
+        'Would you like to update your package.json with suggested settings?'
+      );
   const packageJson = {
     main: 'lib/index.js',
     scripts: {
@@ -323,6 +336,28 @@ async function updatePackageJson() {
   }
   logger.info('Updating package.json...');
   fs.writeFileSync(packageJsonPath, JSON.stringify(newPackageJson, null, 2));
+}
+
+/**
+ * Generates an appropriate tools config for the given platform.
+ * @param platform platform
+ */
+function generateToolsConfig(platform: Platform) {
+  if (platform === 'nextjs') {
+    const templatePath = path.join(__dirname, nextjsToolsConfigTemplatePath);
+    let template = fs.readFileSync(templatePath, 'utf8');
+    if (fs.existsSync('src/app')) {
+      template = template.replace('$GENKIT_HARNESS_FILES', `'./src/app/*.ts'`);
+    } else if (fs.existsSync('app')) {
+      template = template.replace('$GENKIT_HARNESS_FILES', `'./app/*.ts'`);
+    } else {
+      throw new Error(
+        'Unable to resolve source folder (app or src/app) of you next.js app.'
+      );
+    }
+    const configPath = path.join(process.cwd(), 'genkit-tools.conf.js');
+    fs.writeFileSync(configPath, template, 'utf8');
+  }
 }
 
 /**
@@ -432,7 +467,7 @@ async function promptWriteMode(
 /**
  * Updates tsconfig.json with required flags for Genkit.
  */
-async function updateTsConfig() {
+async function updateTsConfig(nonInteractive: boolean) {
   try {
     const tsConfigPath = path.join(process.cwd(), 'tsconfig.json');
     let existingTsConfig = undefined;
@@ -440,7 +475,7 @@ async function updateTsConfig() {
       existingTsConfig = JSON.parse(fs.readFileSync(tsConfigPath, 'utf-8'));
     }
     let choice: WriteMode = 'overwrite';
-    if (existingTsConfig) {
+    if (!nonInteractive && existingTsConfig) {
       choice = await promptWriteMode(
         'Would you like to update your tsconfig.json with suggested settings?'
       );

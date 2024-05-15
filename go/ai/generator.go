@@ -77,7 +77,7 @@ type generatorActionType = genkit.Action[*GenerateRequest, *GenerateResponse, *C
 func LookupGeneratorAction(provider, name string) (Generator, error) {
 	action := genkit.LookupAction(genkit.ActionTypeModel, provider, name)
 	if action == nil {
-		return nil, fmt.Errorf("LookupGeneratorAction: no generator action named %q", name)
+		return nil, fmt.Errorf("LookupGeneratorAction: no generator action named %q/%q", provider, name)
 	}
 	actionInst, ok := action.(*generatorActionType)
 	if !ok {

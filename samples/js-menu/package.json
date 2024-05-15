@@ -1,0 +1,32 @@
+{
+  "name": "menu",
+  "version": "1.0.0",
+  "description": "Genkit samples for a menu understanding app",
+  "main": "lib/index.js",
+  "scripts": {
+    "start": "node lib/index.js",
+    "compile": "tsc",
+    "build": "npm run build:clean && npm run compile",
+    "build:clean": "rm -rf ./lib",
+    "build:watch": "tsc --watch",
+    "build-and-run": "npm run build && node lib/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@genkit-ai/ai": "^0.5.0",
+    "@genkit-ai/core": "^0.5.0",
+    "@genkit-ai/dotprompt": "^0.5.0",
+    "@genkit-ai/flow": "^0.5.0",
+    "@genkit-ai/dev-local-vectorstore": "^0.5.0",
+    "@genkit-ai/firebase": "^0.5.0",
+    "@genkit-ai/evaluator": "^0.5.0",
+    "@genkit-ai/vertexai": "^0.5.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "genkit": "^0.5.0",
+    "typescript": "^5.3.3"
+  }
+}

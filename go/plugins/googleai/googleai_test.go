@@ -17,6 +17,7 @@ package googleai_test
 import (
 	"context"
 	"flag"
+	"math"
 	"strings"
 	"testing"
 
@@ -84,6 +85,9 @@ func TestGenerator(t *testing.T) {
 	if out != "France" {
 		t.Errorf("got \"%s\", expecting \"France\"", out)
 	}
+	if resp.Request != req {
+		t.Error("Request field not set properly")
+	}
 }
 
 func TestGeneratorStreaming(t *testing.T) {
@@ -121,5 +125,77 @@ func TestGeneratorStreaming(t *testing.T) {
 	if parts == 1 {
 		// Check if streaming actually occurred.
 		t.Errorf("expecting more than one part")
+	}
+}
+
+func TestGeneratorTool(t *testing.T) {
+	if *apiKey == "" {
+		t.Skipf("no -key provided")
+	}
+	ctx := context.Background()
+	g, err := googleai.NewGenerator(ctx, "gemini-1.0-pro", *apiKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := &ai.GenerateRequest{
+		Candidates: 1,
+		Messages: []*ai.Message{
+			&ai.Message{
+				Content: []*ai.Part{ai.NewTextPart("what is 3.5 squared? Use the tool provided.")},
+				Role:    ai.RoleUser,
+			},
+		},
+		Tools: []*ai.ToolDefinition{
+			&ai.ToolDefinition{
+				Name:         "exponentiation",
+				InputSchema:  map[string]any{"base": "float64", "exponent": "int"},
+				OutputSchema: map[string]any{"output": "float64"},
+			},
+		},
+	}
+
+	resp, err := g.Generate(ctx, req, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := resp.Candidates[0].Message.Content[0]
+	if !p.IsToolRequest() {
+		t.Fatalf("tool not requested")
+	}
+	toolReq := p.ToolRequest()
+	if toolReq.Name != "exponentiation" {
+		t.Errorf("tool name is %q, want \"exponentiation\"", toolReq.Name)
+	}
+	if toolReq.Input["base"] != 3.5 {
+		t.Errorf("base is %f, want 3.5", toolReq.Input["base"])
+	}
+	if toolReq.Input["exponent"] != 2 && toolReq.Input["exponent"] != 2.0 {
+		// Note: 2.0 is wrong given the schema, but Gemini returns a float anyway.
+		t.Errorf("exponent is %f, want 2", toolReq.Input["exponent"])
+	}
+
+	// Update our conversation with the tool request the model made and our tool response.
+	// (Our "tool" is just math.Pow.)
+	req.Messages = append(req.Messages,
+		resp.Candidates[0].Message,
+		&ai.Message{
+			Content: []*ai.Part{ai.NewToolResponsePart(&ai.ToolResponse{
+				Name:   "exponentiation",
+				Output: map[string]any{"output": math.Pow(3.5, 2)},
+			})},
+			Role: ai.RoleTool,
+		},
+	)
+
+	// Issue our request again.
+	resp, err = g.Generate(ctx, req, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check final response.
+	out := resp.Candidates[0].Message.Content[0].Text()
+	if !strings.Contains(out, "12.25") {
+		t.Errorf("got %s, expecting it to contain \"12.25\"", out)
 	}
 }

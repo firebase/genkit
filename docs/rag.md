@@ -121,12 +121,8 @@ Embedding model support is provided through the following plugins:
 
 ## Defining a RAG Flow
 
-The following examples show how you could ingest a collection of PDF documents
-into a vector database and retrieve them for use in a flow.
-
-It uses the local file-based vector similarity retriever
-that Genkit provides out-of-the box for simple testing and prototyping (_do not
-use in production_)
+The following examples show how you could ingest a collection of restaurant menu PDF documents
+into a vector database and retrieve them for use in a flow that determines what food items are available.
 
 ### Install dependencies for processing PDFs
 
@@ -153,7 +149,7 @@ configureGenkit({
     // the local vector store requires an embedder to translate from text to vector
     devLocalVectorstore([
       {
-        indexName: 'bob-facts',
+        indexName: 'menuQA',
         embedder: textEmbeddingGecko,
       },
     ]),
@@ -175,7 +171,7 @@ use in production_)
 ```ts
 import { devLocalIndexerRef } from '@genkit-ai/dev-local-vectorstore';
 
-export const pdfIndexer = devLocalIndexerRef('bob-facts');
+export const menuPdfIndexer = devLocalIndexerRef('menuQA');
 ```
 
 #### Create chunking config
@@ -199,23 +195,22 @@ More chunking options for this library can be found in the [llm-chunk documentat
 #### Define your indexer flow
 
 ```ts
+import { index } from '@genkit-ai/ai';
+import { Document } from '@genkit-ai/ai/retriever';
+import { defineFlow, run } from '@genkit-ai/flow';
+import { readFile } from 'fs/promises';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import pdf from 'pdf-parse';
-import { readFile } from 'fs/promises';
-import z from 'zod';
+import * as z from 'zod';
 
-import { Document, index } from '@genkit-ai/ai/retriever';
-import { defineFlow, run } from '@genkit-ai/flow';
-import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
-
-export const indexPdf = defineFlow(
+export const indexMenu = defineFlow(
   {
-    name: 'indexPdf',
-    input: z.string().describe('PDF file path'),
-    output: z.void(),
+    name: 'indexMenu',
+    inputSchema: z.string().describe('PDF file path'),
+    outputSchema: z.void(),
   },
-  async (filePath) => {
+  async (filePath: string) => {
     filePath = path.resolve(filePath);
 
     // Read the pdf.
@@ -235,7 +230,7 @@ export const indexPdf = defineFlow(
 
     // Add documents to the index.
     await index({
-      indexer: pdfIndexer,
+      indexer: menuPdfIndexer,
       documents,
     });
   }
@@ -252,10 +247,10 @@ async function extractTextFromPdf(filePath: string) {
 #### Run the indexer flow
 
 ```posix-terminal
-genkit flow:run indexPdf "'../pdfs'"
+genkit flow:run indexMenu "'../pdfs'"
 ```
 
-After running the `indexPdf` flow, the vector database will be seeded with documents and ready to be used in Genkit flows with retrieval steps.
+After running the `indexMenu` flow, the vector database will be seeded with documents and ready to be used in Genkit flows with retrieval steps.
 
 ### Define a flow with retrieval
 
@@ -264,24 +259,22 @@ the indexer example, this example uses Genkit's file-based vector retriever,
 which you should not use in production.
 
 ```ts
-import { defineFlow } from '@genkit-ai/flow';
-import { generate } from '@genkit-ai/ai/generate';
+import { generate } from '@genkit-ai/ai';
 import { retrieve } from '@genkit-ai/ai/retriever';
-import {
-  devLocalRetrieverRef,
-  devLocalVectorstore,
-} from '@genkit-ai/dev-local-vectorstore';
-import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+import { devLocalRetrieverRef } from '@genkit-ai/dev-local-vectorstore';
+import { defineFlow } from '@genkit-ai/flow';
+import { geminiPro } from '@genkit-ai/vertexai';
 import * as z from 'zod';
 
 // Define the retriever reference
-export const bobFactRetriever = devLocalRetrieverRef('bob-facts');
+export const menuRetriever = devLocalRetrieverRef('menuQA');
 
-export const ragFlow = defineFlow(
-  { name: 'ragFlow', input: z.string(), output: z.string() },
-  async (input) => {
+export const menuQAFlow = defineFlow(
+  { name: 'menuQA', inputSchema: z.string(), outputSchema: z.string() },
+  async (input: string) => {
+    // retrieve relevant documents
     const docs = await retrieve({
-      retriever: bobFactRetriever,
+      retriever: menuRetriever,
       query: input,
       options: { k: 3 },
     });
@@ -289,7 +282,16 @@ export const ragFlow = defineFlow(
     // generate a response
     const llmResponse = await generate({
       model: geminiPro,
-      prompt: `Answer this question: ${input}`,
+      prompt: `
+    You are acting as a helpful AI assistant that can answer 
+    questions about the food available on the menu at Genkit Grub Pub.
+    
+    Use only the context provided to answer the question.
+    If you don't know, do not make up an answer.
+    Do not add or change items on the menu.
+
+    Question: ${input}
+    `,
       context: docs,
     });
 
@@ -303,10 +305,39 @@ export const ragFlow = defineFlow(
 
 It's also possible to create your own retriever. This is useful if your
 documents are managed in a document store that is not supported in Genkit (eg:
-MySQL, Google Drive, etc.). The Genkit SDK provides a flexible `defineRetriever`
-method that lets you provide custom code for fetching documents. You can also
-define custom retrievers that build on top of existing retrievers in Genkit and
-apply advanced RAG techniques (such as reranking or prompt extensions) on top.
+MySQL, Google Drive, etc.). The Genkit SDK provides flexible methods that let
+you provide custom code for fetching documents. You can also define custom
+retrievers that build on top of existing retrievers in Genkit and apply advanced
+RAG techniques (such as reranking or prompt extensions) on top.
+
+### Simple Retrievers
+
+Simple retrievers let you easily convert existing code into retrievers:
+
+```javascript
+import {
+  defineSimpleRetriever,
+  retrieve
+} from '@genkit-ai/ai/retriever';
+import { searchEmails } from './db';
+import { z } from 'zod';
+
+defineSimpleRetriever({
+  name: 'myDatabase',
+  configSchema: z.object({
+    limit: z.number().optional()
+  }).optional(),
+  // we'll extract "message" from the returned email item
+  content: 'message',
+  // and several keys to use as metadata
+  metadata: ['from', 'to', 'subject'],
+} async (query, config) => {
+  const result = await searchEmails(query.text(), {limit: config.limit});
+  return result.data.emails;
+});
+```
+
+### Custom Retrievers
 
 ```javascript
 import {
@@ -316,19 +347,21 @@ import {
 } from '@genkit-ai/ai/retriever';
 import * as z from 'zod';
 
-const MyAdvancedOptionsSchema = CommonRetrieverOptionsSchema.extend({
+export const menuRetriever = devLocalRetrieverRef('menuQA');
+
+const advancedMenuRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend({
   preRerankK: z.number().max(1000),
 });
 
-const advancedRetriever = defineRetriever(
+const advancedMenuRetriever = defineRetriever(
   {
-    name: `custom/myAdvancedRetriever`,
-    configSchema: MyAdvancedOptionsSchema,
+    name: `custom/advancedMenuRetriever`,
+    configSchema: advancedMenuRetrieverOptionsSchema,
   },
   async (input, options) => {
     const extendedPrompt = await extendPrompt(input);
     const docs = await retrieve({
-      retriever: bobFactsRetriever,
+      retriever: menuRetriever,
       query: extendedPrompt,
       options: { k: options.preRerankK || 10 },
     });
@@ -346,7 +379,7 @@ And then you can just swap out your retriever:
 ```javascript
 const docs = await retrieve({
   retriever: advancedRetriever,
-  query: 'Who is Bob?',
+  query: input,
   options: { preRerankK: 7, k: 3 },
 });
 ```

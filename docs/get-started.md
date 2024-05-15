@@ -5,7 +5,7 @@ To get started with Firebase Genkit, install the Genkit CLI and run
 
 ## Requirements
 
-Node.js 18 or later.
+Node.js 20 or later.
 
 ## Procedure
 
@@ -89,7 +89,7 @@ Node.js 18 or later.
       async (subject) => {
         const llmResponse = await generate({
           prompt: `Suggest an item for the menu of a {subject} themed restaurant`,
-          model: $GENKIT_MODEL,
+          model: geminiPro,
           config: {
             temperature: 1,
           },

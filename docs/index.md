@@ -3,7 +3,14 @@
 Firebase Genkit is an **open source framework** that helps you build, deploy,
 and monitor **production-ready** **AI-powered apps**.
 
-<img src="resources/genkit-logo.png" alt="Genkit logo" class="attempt-right">
+<picture class="attempt-right">
+  <source
+    srcset="/docs/genkit/resources/logo-vertical-dark.png"
+    media="(prefers-color-scheme: light)"
+    class="devsite-dark-theme"
+    alt="Genkit logo">
+  <img src="/docs/genkit/resources/logo-vertical-light.png" width="350px" height="197px" alt="Genkit logo">
+</picture>
 
 Genkit is **designed for app developers**, to help you easily integrate
 powerful AI capabilities into your apps with familiar patterns and paradigms.
@@ -331,21 +338,23 @@ maintained by the Genkit team:
   <tr>
     <td><code>googleai</code></td>
     <td>
-      <b>Generative models</b>: Gemini Pro, Gemini Pro Vision<br>
+      <b>Generative models</b>: Gemini Pro, Gemini 1.5 Pro, Gemini Pro Vision<br>
       <b>Embedding models</b>: Gecko text embedding<br>
     </td>
   </tr>
   <tr>
     <td><code>vertexai</code></td>
     <td>
-      <b>Generative models</b>: Gemini Pro, Gemini Pro Vision, Imagen2 <br>
+      <b>Generative models</b>: Gemini Pro, Gemini 1.5 Pro, Gemini Pro Vision, Imagen2,
+        Anthropic Claude 3<br>
       <b>Embedding models</b>: Gecko text embedding<br>
+      <b>Evaluators</b>: Vertex AI evaluation
     </td>
   </tr>
   <tr>
     <td><code>ollama</code></td>
     <td>
-      <b>Generative models</b>: Many local models, including Gemma, Llama 2, Mistral, and more<br>
+      <b>Generative models</b>: Many local models, including Gemma, Llama 3, Mistral, and more<br>
     </td>
   </tr>
   <tr>
@@ -371,6 +380,12 @@ maintained by the Genkit team:
     <td>
       <b>Cloud deployment</b>: Cloud Functions, Firebase Authentication, App Check<br>
       <b>Vector database</b>: Cloud Firestore vector store<br>
+    </td>
+  </tr>
+  <tr>
+    <td><code>langchain</code></td>
+    <td>
+      Use LangChain chains and utilities in Genkit flows
     </td>
   </tr>
 </table>

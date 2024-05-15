@@ -16,6 +16,7 @@ package ai
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -28,8 +29,8 @@ func TestDocumentFromText(t *testing.T) {
 		t.Fatalf("got %d parts, want 1", len(d.Content))
 	}
 	p := d.Content[0]
-	if !p.IsPlainText() {
-		t.Errorf("IsPlainText() == %t, want %t", p.IsPlainText(), true)
+	if !p.IsText() {
+		t.Errorf("IsText() == %t, want %t", p.IsText(), true)
 	}
 	if got := p.Text(); got != data {
 		t.Errorf("Data() == %q, want %q", got, data)
@@ -41,13 +42,27 @@ func TestDocumentJSON(t *testing.T) {
 	d := Document{
 		Content: []*Part{
 			&Part{
-				isText: true,
+				kind: partText,
 				text: "hi",
 			},
 			&Part{
-				isText: false,
+				kind:        partBlob,
 				contentType: "text/plain",
-				text: "data:,bye",
+				text:        "data:,bye",
+			},
+			&Part{
+				kind: partToolRequest,
+				toolRequest: &ToolRequest{
+					Name:  "tool1",
+					Input: map[string]any{"arg1": 3.3, "arg2": "foo"},
+				},
+			},
+			&Part{
+				kind: partToolResponse,
+				toolResponse: &ToolResponse{
+					Name:   "tool1",
+					Output: map[string]any{"res1": 4.4, "res2": "bar"},
+				},
 			},
 		},
 	}
@@ -56,6 +71,7 @@ func TestDocumentJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Logf("marshaled:%s\n", string(b))
 
 	var d2 Document
 	if err := json.Unmarshal(b, &d2); err != nil {
@@ -63,13 +79,21 @@ func TestDocumentJSON(t *testing.T) {
 	}
 
 	cmpPart := func(a, b *Part) bool {
-		if a.isText != b.isText {
+		if a.kind != b.kind {
 			return false
 		}
-		if a.isText {
+		switch a.kind {
+		case partText:
 			return a.text == b.text
-		} else {
+		case partBlob:
 			return a.contentType == b.contentType && a.text == b.text
+		case partToolRequest:
+			return reflect.DeepEqual(a.toolRequest, b.toolRequest)
+		case partToolResponse:
+			return reflect.DeepEqual(a.toolResponse, b.toolResponse)
+		default:
+			t.Fatalf("bad part kind %v", a.kind)
+			return false
 		}
 	}
 
