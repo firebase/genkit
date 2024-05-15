@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/google/genkit/go/ai"
+	"github.com/firebase/genkit/go/ai"
 	"github.com/google/go-cmp/cmp"
 )
 

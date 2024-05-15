@@ -18,9 +18,9 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/google/generative-ai-go/genai"
-	"github.com/google/genkit/go/ai"
-	"github.com/google/genkit/go/genkit"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )

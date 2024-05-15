@@ -21,8 +21,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/genkit/go/ai"
-	"github.com/google/genkit/go/plugins/googleai"
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/plugins/googleai"
 )
 
 // The tests here only work with an API key set to a valid value.

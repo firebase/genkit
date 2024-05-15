@@ -30,8 +30,8 @@ import (
 	"path/filepath"
 	"slices"
 
-	"github.com/google/genkit/go/ai"
-	"github.com/google/genkit/go/genkit"
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 // New returns a new local vector database. This will register a new

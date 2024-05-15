@@ -28,10 +28,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/google/genkit/go/ai"
-	"github.com/google/genkit/go/genkit"
-	"github.com/google/genkit/go/genkit/dotprompt"
-	"github.com/google/genkit/go/plugins/googleai"
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/genkit/dotprompt"
+	"github.com/firebase/genkit/go/plugins/googleai"
 	"github.com/invopop/jsonschema"
 )
 

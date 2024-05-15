@@ -20,8 +20,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/google/genkit/go/ai"
-	"github.com/google/genkit/go/genkit"
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 // ActionInput is the input type of a prompt action.

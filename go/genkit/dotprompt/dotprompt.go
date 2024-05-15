@@ -28,7 +28,7 @@ import (
 	"slices"
 
 	"github.com/aymerick/raymond"
-	"github.com/google/genkit/go/ai"
+	"github.com/firebase/genkit/go/ai"
 	"github.com/invopop/jsonschema"
 	"gopkg.in/yaml.v3"
 )

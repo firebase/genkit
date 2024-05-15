@@ -18,8 +18,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/google/genkit/go/ai"
-	"github.com/google/genkit/go/plugins/vertexai"
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/plugins/vertexai"
 )
 
 func TestEmbedder(t *testing.T) {

@@ -17,7 +17,7 @@ package ai
 import (
 	"context"
 
-	"github.com/google/genkit/go/genkit"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 // Retriever supports adding documents to a database, and
