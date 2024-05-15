@@ -107,50 +107,59 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 		return nil, err
 	}
 
-	// Translate from a genai.GenerateContentResponse to a ai.GenerateResponse.
-	r := &ai.GenerateResponse{
-		Request: input,
-	}
-	for _, cand := range resp.Candidates {
-		c := &ai.Candidate{}
-		c.Index = int(cand.Index)
-		switch cand.FinishReason {
-		case genai.FinishReasonStop:
-			c.FinishReason = ai.FinishReasonStop
-		case genai.FinishReasonMaxTokens:
-			c.FinishReason = ai.FinishReasonLength
-		case genai.FinishReasonSafety:
-			c.FinishReason = ai.FinishReasonBlocked
-		case genai.FinishReasonRecitation:
-			c.FinishReason = ai.FinishReasonBlocked
-		case genai.FinishReasonOther:
-			c.FinishReason = ai.FinishReasonOther
-		default: // Unspecified
-			c.FinishReason = ai.FinishReasonUnknown
-		}
-		m := &ai.Message{}
-		m.Role = ai.Role(cand.Content.Role)
-		for _, part := range cand.Content.Parts {
-			var p *ai.Part
-			switch part := part.(type) {
-			case genai.Text:
-				p = ai.NewTextPart(string(part))
-			case genai.Blob:
-				p = ai.NewBlobPart(part.MIMEType, string(part.Data))
-			case genai.FunctionCall:
-				p = ai.NewToolRequestPart(&ai.ToolRequest{
-					Name:  part.Name,
-					Input: part.Args,
-				})
-			default:
-				panic(fmt.Sprintf("unknown part #%v", part))
-			}
-			m.Content = append(m.Content, p)
-		}
-		c.Message = m
-		r.Candidates = append(r.Candidates, c)
-	}
+	r := translateResponse(resp)
+	r.Request = input
 	return r, nil
+}
+
+// translateCandidate translates from a genai.GenerateContentResponse to an ai.GenerateResponse.
+func translateCandidate(cand *genai.Candidate) *ai.Candidate {
+	c := &ai.Candidate{}
+	c.Index = int(cand.Index)
+	switch cand.FinishReason {
+	case genai.FinishReasonStop:
+		c.FinishReason = ai.FinishReasonStop
+	case genai.FinishReasonMaxTokens:
+		c.FinishReason = ai.FinishReasonLength
+	case genai.FinishReasonSafety:
+		c.FinishReason = ai.FinishReasonBlocked
+	case genai.FinishReasonRecitation:
+		c.FinishReason = ai.FinishReasonBlocked
+	case genai.FinishReasonOther:
+		c.FinishReason = ai.FinishReasonOther
+	default: // Unspecified
+		c.FinishReason = ai.FinishReasonUnknown
+	}
+	m := &ai.Message{}
+	m.Role = ai.Role(cand.Content.Role)
+	for _, part := range cand.Content.Parts {
+		var p *ai.Part
+		switch part := part.(type) {
+		case genai.Text:
+			p = ai.NewTextPart(string(part))
+		case genai.Blob:
+			p = ai.NewBlobPart(part.MIMEType, string(part.Data))
+		case genai.FunctionCall:
+			p = ai.NewToolRequestPart(&ai.ToolRequest{
+				Name:  part.Name,
+				Input: part.Args,
+			})
+		default:
+			panic(fmt.Sprintf("unknown part %#v", part))
+		}
+		m.Content = append(m.Content, p)
+	}
+	c.Message = m
+	return c
+}
+
+// Translate from a genai.GenerateContentResponse to a ai.GenerateResponse.
+func translateResponse(resp *genai.GenerateContentResponse) *ai.GenerateResponse {
+	r := &ai.GenerateResponse{}
+	for _, c := range resp.Candidates {
+		r.Candidates = append(r.Candidates, translateCandidate(c))
+	}
+	return r
 }
 
 // NewGenerator returns an action which sends a request to
