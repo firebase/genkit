@@ -16,7 +16,9 @@ package vertexai_test
 
 import (
 	"context"
+	"errors"
 	"flag"
+	"fmt"
 	"math"
 	"strings"
 	"testing"
@@ -63,6 +65,44 @@ func TestGenerator(t *testing.T) {
 	}
 }
 
+var toolDef = &ai.ToolDefinition{
+	Name:         "exponentiation",
+	InputSchema:  map[string]any{"base": "float64", "exponent": "int"},
+	OutputSchema: map[string]any{"output": "float64"},
+}
+
+func init() {
+	ai.RegisterTool("exponentiation",
+		toolDef, nil,
+		func(ctx context.Context, input map[string]any) (map[string]any, error) {
+			baseAny, ok := input["base"]
+			if !ok {
+				return nil, errors.New("exponentiation tool: missing base")
+			}
+			base, ok := baseAny.(float64)
+			if !ok {
+				return nil, fmt.Errorf("exponentiation tool: base is %T, want %T", baseAny, float64(0))
+			}
+
+			expAny, ok := input["exponent"]
+			if !ok {
+				return nil, errors.New("exponentiation tool: missing exponent")
+			}
+			exp, ok := expAny.(float64)
+			if !ok {
+				expInt, ok := expAny.(int)
+				if !ok {
+					return nil, fmt.Errorf("exponentiation tool: exponent is %T, want %T or %T", expAny, float64(0), int(0))
+				}
+				exp = float64(expInt)
+			}
+
+			r := map[string]any{"output": math.Pow(base, exp)}
+			return r, nil
+		},
+	)
+}
+
 func TestGeneratorTool(t *testing.T) {
 	if *projectID == "" {
 		t.Skip("no -projectid provided")
@@ -80,55 +120,14 @@ func TestGeneratorTool(t *testing.T) {
 				Role:    ai.RoleUser,
 			},
 		},
-		Tools: []*ai.ToolDefinition{
-			&ai.ToolDefinition{
-				Name:         "exponentiation",
-				InputSchema:  map[string]any{"base": "float64", "exponent": "int"},
-				OutputSchema: map[string]any{"output": "float64"},
-			},
-		},
+		Tools: []*ai.ToolDefinition{toolDef},
 	}
 
-	resp, err := g.Generate(ctx, req, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	p := resp.Candidates[0].Message.Content[0]
-	if !p.IsToolRequest() {
-		t.Fatalf("tool not requested")
-	}
-	toolReq := p.ToolRequest()
-	if toolReq.Name != "exponentiation" {
-		t.Errorf("tool name is %q, want \"exponentiation\"", toolReq.Name)
-	}
-	if toolReq.Input["base"] != 3.5 {
-		t.Errorf("base is %f, want 3.5", toolReq.Input["base"])
-	}
-	if toolReq.Input["exponent"] != 2 && toolReq.Input["exponent"] != 2.0 {
-		// Note: 2.0 is wrong given the schema, but Gemini returns a float anyway.
-		t.Errorf("exponent is %f, want 2", toolReq.Input["exponent"])
-	}
-
-	// Update our conversation with the tool request the model made and our tool response.
-	// (Our "tool" is just math.Pow.)
-	req.Messages = append(req.Messages,
-		resp.Candidates[0].Message,
-		&ai.Message{
-			Content: []*ai.Part{ai.NewToolResponsePart(&ai.ToolResponse{
-				Name:   "exponentiation",
-				Output: map[string]any{"output": math.Pow(3.5, 2)},
-			})},
-			Role: ai.RoleTool,
-		},
-	)
-
-	// Issue our request again.
-	resp, err = g.Generate(ctx, req, nil)
+	resp, err := ai.Generate(ctx, g, req, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Check final response.
 	out := resp.Candidates[0].Message.Content[0].Text()
 	if !strings.Contains(out, "12.25") {
 		t.Errorf("got %s, expecting it to contain \"12.25\"", out)
