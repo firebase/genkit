@@ -69,14 +69,15 @@ deploying the default sample flow to Firebase.
 
       1.  Edit `src/index.ts` and add the following after the existing imports:
 
-          ```js
-          import {defineSecret} from "firebase-functions/params";
-          defineSecret("GOOGLE_GENAI_API_KEY");
-          ```
+      <!-- prettier-ignore -->
+      ```js
+      import {defineSecret} from "firebase-functions/params";
+      defineSecret("GOOGLE_GENAI_API_KEY");
+      ```
 
-          Now, when you deploy this function, your API key will be stored in
-          Cloud Secret Manager, and available from the Cloud Functions
-          environment.
+      Now, when you deploy this function, your API key will be stored in
+      Cloud Secret Manager, and available from the Cloud Functions
+      environment.
 
     - {Gemini (Vertex AI)}
 
@@ -107,11 +108,11 @@ deploying the default sample flow to Firebase.
 
 1.  If you'll access your flow from a web app (which you will be doing in the
     next section), in the `httpsOptions` parameter, set a CORS policy:
-
+    <!-- prettier-ignore -->
     ```js
     export const menuSuggestionFlow = onFlow(
       {
-        name: 'menuSuggestionFlow',
+        name: "menuSuggestionFlow",
         // ...
         httpsOptions: {cors: true}, // Add this line.
       },
