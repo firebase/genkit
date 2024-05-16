@@ -70,8 +70,8 @@ deploying the default sample flow to Firebase.
       1.  Edit `src/index.ts` and add the following after the existing imports:
 
           ```js
-          import { defineSecret } from 'firebase-functions/params';
-          defineSecret('GOOGLE_GENAI_API_KEY');
+          import {defineSecret} from "firebase-functions/params";
+          defineSecret("GOOGLE_GENAI_API_KEY");
           ```
 
           Now, when you deploy this function, your API key will be stored in
@@ -113,7 +113,7 @@ deploying the default sample flow to Firebase.
       {
         name: 'menuSuggestionFlow',
         // ...
-        httpsOptions: { cors: '*' }, // Add this line.
+        httpsOptions: {cors: true}, // Add this line.
       },
       async (subject) => {
         // ...
@@ -229,7 +229,7 @@ app:
         </div>
         <div id="callGenkit" hidden>
           Subject: <input type="text" id="subject" />
-          <button id="suggestMenuItem">Suggest a menu item</button>
+          <button id="suggestMenuItem">Suggest a menu theme</button>
           <p id="menuItem"></p>
         </div>
         <script type="module">

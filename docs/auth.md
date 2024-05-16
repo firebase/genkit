@@ -118,16 +118,16 @@ long as your app client is also using the
 You can use Firebase Auth to protect your flows defined with `onFlow()`:
 
 ```ts
-import { firebaseAuth } from '@genkit-ai/firebase/auth';
-import { onFlow } from '@genkit-ai/firebase/functions';
+import {firebaseAuth} from "@genkit-ai/firebase/auth";
+import {onFlow} from "@genkit-ai/firebase/functions";
 
 export const selfSummaryFlow = onFlow({
-    name: 'selfSummaryFlow',
+    name: "selfSummaryFlow",
     inputSchema: z.string(),
     outputSchema: z.string(),
     authPolicy: firebaseAuth((user) => {
       if (!user.email_verified && !user.admin) {
-        throw new Error('Email not verified');
+        throw new Error("Email not verified");
       }
     }),
   }, (subject) => {...})
@@ -151,7 +151,7 @@ configure the policy like so:
 ```ts
 authPolicy: firebaseAuth((user) => {
   if (user && !user.email_verified) {
-    throw new Error('Logged in users must have verified emails');
+    throw new Error("Logged in users must have verified emails");
   }
 }, {required: false}),
 ```
@@ -167,10 +167,10 @@ indicate to the library that you are forgoing authorization checks by using the
 `noAuth()` function:
 
 ```ts
-import { onFlow, noAuth } from '@genkit-ai/firebase/functions';
+import {onFlow, noAuth} from "@genkit-ai/firebase/functions";
 
 export const selfSummaryFlow = onFlow({
-    name: 'selfSummaryFlow',
+    name: "selfSummaryFlow",
     inputSchema: z.string(),
     outputSchema: z.string(),
     // WARNING: Only do this if you have some other gatekeeping in place, like
@@ -188,10 +188,10 @@ Firebase plugin for genkit includes first-class support for
 the following configuration options to your `onFlow()`:
 
 ```ts
-import { onFlow } from '@genkit-ai/firebase/functions';
+import {onFlow} from "@genkit-ai/firebase/functions";
 
 export const selfSummaryFlow = onFlow({
-    name: 'selfSummaryFlow',
+    name: "selfSummaryFlow",
     inputSchema: z.string(),
     outputSchema: z.string(),
 

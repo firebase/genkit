@@ -4,4 +4,7 @@ public/
 .prettierrc.yaml
 pnpm-lock.yaml
 docs/_guides.yaml
+docs/firebase.md
+docs/auth.md
+docs/plugins/firebase.md
 genkit-tools/genkit-schema.json
