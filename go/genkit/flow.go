@@ -12,7 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This file contains code for flows.
+package genkit
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"strconv"
+	"sync"
+	"time"
+
+	"github.com/google/uuid"
+	"go.opentelemetry.io/otel/trace"
+)
+
+// TODO(jba): support auth
+// TODO(jba): provide a way to start a Flow from user code.
+
+// A Flow is a kind of Action that can be interrupted and resumed.
 //
 // A Flow[I, O, S] represents a function from I to O (the S parameter is described
 // under "Streaming" below). But the function may run in pieces, with interruptions
@@ -62,25 +80,6 @@
 //
 // Streaming is only supported for the "start" flow instruction. Currently there is
 // no way to schedule or resume a flow with streaming.
-package genkit
-
-import (
-	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"strconv"
-	"sync"
-	"time"
-
-	"github.com/google/uuid"
-	"go.opentelemetry.io/otel/trace"
-)
-
-// TODO(jba): support auth
-// TODO(jba): provide a way to start a Flow from user code.
-
-// A Flow is a kind of Action that can be interrupted and resumed.
 type Flow[I, O, S any] struct {
 	name       string         // The last component of the flow's key in the registry.
 	fn         Func[I, O, S]  // The function to run.
@@ -109,6 +108,8 @@ func defineFlow[I, O, S any](r *registry, name string, fn Func[I, O, S]) *Flow[I
 	f.tstate = a.tstate
 	return f
 }
+
+// TODO(jba): use flowError?
 
 // A flowInstruction is an instruction to follow with a flow.
 // It is the input for the flow's action.

@@ -16,40 +16,13 @@
 
 package genkit
 
-type FlowError struct {
+type flowError struct {
 	Error      string `json:"error,omitempty"`
 	Stacktrace string `json:"stacktrace,omitempty"`
 }
 
-type FlowInvokeEnvelopeMessageResume struct {
-	FlowID  string `json:"flowId,omitempty"`
-	Payload any    `json:"payload,omitempty"`
-}
-
-type FlowInvokeEnvelopeMessageRetry struct {
-	FlowID string `json:"flowId,omitempty"`
-}
-
 type FlowInvokeEnvelopeMessageRunScheduled struct {
 	FlowID string `json:"flowId,omitempty"`
-}
-
-type FlowInvokeEnvelopeMessageSchedule struct {
-	Delay float64 `json:"delay,omitempty"`
-	Input any     `json:"input,omitempty"`
-}
-
-type FlowInvokeEnvelopeMessageStart struct {
-	Input  any               `json:"input,omitempty"`
-	Labels map[string]string `json:"labels,omitempty"`
-}
-
-type FlowInvokeEnvelopeMessageState struct {
-	FlowID string `json:"flowId,omitempty"`
-}
-
-type FlowResponse struct {
-	Response any `json:"response,omitempty"`
 }
 
 type FlowExecution struct {
@@ -60,6 +33,7 @@ type FlowExecution struct {
 	TraceIDs  []string     `json:"traceIds,omitempty"`
 }
 
+// BlockedOnStep describes the step of the flow that the flow is blocked on.
 type BlockedOnStep struct {
 	Name   string `json:"name,omitempty"`
 	Schema string `json:"schema,omitempty"`

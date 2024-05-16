@@ -66,7 +66,7 @@ func newRegistry() (*registry, error) {
 	return r, nil
 }
 
-// An Environment is the development context that the program is running in.
+// An Environment is the execution context that the program is running in.
 type Environment string
 
 const (
