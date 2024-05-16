@@ -20,8 +20,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/google/genkit/go/ai"
-	"github.com/google/genkit/go/internal/fakeembedder"
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/internal/fakeembedder"
 )
 
 func TestLocalVec(t *testing.T) {

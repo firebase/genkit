@@ -18,43 +18,15 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 	"github.com/google/generative-ai-go/genai"
-	"github.com/google/genkit/go/ai"
-	"github.com/google/genkit/go/genkit"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
 
-type embedder struct {
-	model  string
-	client *genai.Client
-}
-
-func (e *embedder) Embed(ctx context.Context, input *ai.EmbedRequest) ([]float32, error) {
-	em := e.client.EmbeddingModel(e.model)
-	parts := convertParts(input.Document.Content)
-	res, err := em.EmbedContent(ctx, parts...)
-	if err != nil {
-		return nil, err
-	}
-	return res.Embedding.Values, nil
-}
-
 func newClient(ctx context.Context, apiKey string) (*genai.Client, error) {
 	return genai.NewClient(ctx, option.WithAPIKey(apiKey))
-}
-
-// NewEmbedder returns an embedder which can compute the embedding
-// of an input document given the Google AI model.
-func NewEmbedder(ctx context.Context, model, apiKey string) (ai.Embedder, error) {
-	client, err := newClient(ctx, apiKey)
-	if err != nil {
-		return nil, err
-	}
-	return &embedder{
-		model:  model,
-		client: client,
-	}, nil
 }
 
 type generator struct {
@@ -167,7 +139,7 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	return r, nil
 }
 
-// translateCandidate Translate from a genai.GenerateContentResponse to a ai.GenerateResponse.
+// translateCandidate translates from a genai.GenerateContentResponse to an ai.GenerateResponse.
 func translateCandidate(cand *genai.Candidate) *ai.Candidate {
 	c := &ai.Candidate{}
 	c.Index = int(cand.Index)
@@ -269,10 +241,16 @@ func convertPart(p *ai.Part) genai.Part {
 		return genai.Blob{MIMEType: p.ContentType(), Data: []byte(p.Text())}
 	case p.IsToolResponse():
 		toolResp := p.ToolResponse()
-		return genai.FunctionResponse{Name: toolResp.Name, Response: toolResp.Output}
+		return genai.FunctionResponse{
+			Name:     toolResp.Name,
+			Response: toolResp.Output,
+		}
 	case p.IsToolRequest():
 		toolReq := p.ToolRequest()
-		return genai.FunctionCall{Name: toolReq.Name, Args: toolReq.Input}
+		return genai.FunctionCall{
+			Name: toolReq.Name,
+			Args: toolReq.Input,
+		}
 	default:
 		panic("unknown part type in a request")
 	}

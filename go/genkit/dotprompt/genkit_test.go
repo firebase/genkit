@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/google/genkit/go/ai"
-	"github.com/google/genkit/go/genkit"
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 type testGenerator struct{}

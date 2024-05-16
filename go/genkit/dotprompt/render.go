@@ -23,7 +23,7 @@ import (
 	"sync"
 
 	"github.com/aymerick/raymond"
-	"github.com/google/genkit/go/ai"
+	"github.com/firebase/genkit/go/ai"
 )
 
 // RenderText returns the Prompt as a string.

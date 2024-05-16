@@ -20,8 +20,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/google/genkit/go/ai"
-	"github.com/google/genkit/go/genkit"
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 // ActionInput is the input type of a prompt action.
@@ -195,7 +195,7 @@ func (p *Prompt) Execute(ctx context.Context, input *ActionInput) (*ai.GenerateR
 		}
 	}
 
-	resp, err := generator.Generate(ctx, genReq, nil)
+	resp, err := ai.Generate(ctx, generator, genReq, nil)
 	if err != nil {
 		return nil, err
 	}
