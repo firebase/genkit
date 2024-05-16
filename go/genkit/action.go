@@ -200,11 +200,16 @@ func (a *Action[I, O, S]) desc() actionDesc {
 	return ad
 }
 
-func inferJSONSchema(x any) *jsonschema.Schema {
+func inferJSONSchema(x any) (s *jsonschema.Schema) {
 	var r jsonschema.Reflector
-	// If x is a struct, put its definition at the "top level" of the schema,
-	// instead of nested inside a "$defs" object.
-	if reflect.TypeOf(x).Kind() == reflect.Struct {
+	t := reflect.TypeOf(x)
+	if t.Kind() == reflect.Struct {
+		if t.NumField() == 0 {
+			// Make struct{} correspond to ZodVoid.
+			return &jsonschema.Schema{Type: "null"}
+		}
+		// Put a struct definition at the "top level" of the schema,
+		// instead of nested inside a "$defs" object.
 		r.ExpandedStruct = true
 	}
 	return r.Reflect(x)
