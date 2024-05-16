@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/firebase/genkit/go/genkit"
@@ -68,6 +69,26 @@ func RegisterGenerator(provider, name string, metadata *GeneratorMetadata, gener
 		}, generator.Generate))
 }
 
+// Generate applies a [Generator] to some input, handling tool requests.
+func Generate(ctx context.Context, generator Generator, input *GenerateRequest, cb genkit.StreamingCallback[*Candidate]) (*GenerateResponse, error) {
+	for {
+		resp, err := generator.Generate(ctx, input, cb)
+		if err != nil {
+			return nil, err
+		}
+
+		newReq, err := handleToolRequest(ctx, input, resp)
+		if err != nil {
+			return nil, err
+		}
+		if newReq == nil {
+			return resp, nil
+		}
+
+		input = newReq
+	}
+}
+
 // generatorActionType is the instantiated genkit.Action type registered
 // by RegisterGenerator.
 type generatorActionType = genkit.Action[*GenerateRequest, *GenerateResponse, *Candidate]
@@ -91,9 +112,65 @@ type generatorAction struct {
 	action *generatorActionType
 }
 
-// Generate implements Generator.
+// Generate implements Generator. This is like the [Generate] function,
+// but invokes the [genkit.Action] rather than invoking the Generator
+// directly.
 func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest, cb genkit.StreamingCallback[*Candidate]) (*GenerateResponse, error) {
-	return ga.action.Run(ctx, input, cb)
+	for {
+		resp, err := ga.action.Run(ctx, input, cb)
+		if err != nil {
+			return nil, err
+		}
+
+		newReq, err := handleToolRequest(ctx, input, resp)
+		if err != nil {
+			return nil, err
+		}
+		if newReq == nil {
+			return resp, nil
+		}
+
+		input = newReq
+	}
+}
+
+// handleToolRequest check or a tool requested by a generator.
+// If a tool was requested, this runs the tool and returns an
+// updated GenerateRequest. If no tool was requested this returns nil.
+func handleToolRequest(ctx context.Context, req *GenerateRequest, resp *GenerateResponse) (*GenerateRequest, error) {
+	if len(resp.Candidates) == 0 {
+		return nil, nil
+	}
+	msg := resp.Candidates[0].Message
+	if msg == nil || len(msg.Content) == 0 {
+		return nil, nil
+	}
+	part := msg.Content[0]
+	if !part.IsToolRequest() {
+		return nil, nil
+	}
+
+	toolReq := part.ToolRequest()
+	output, err := RunTool(ctx, toolReq.Name, toolReq.Input)
+	if err != nil {
+		return nil, err
+	}
+
+	toolResp := &Message{
+		Content: []*Part{
+			NewToolResponsePart(&ToolResponse{
+				Name:   toolReq.Name,
+				Output: output,
+			}),
+		},
+		Role: RoleTool,
+	}
+
+	// Copy the GenerateRequest rather than modifying it.
+	rreq := *req
+	rreq.Messages = append(slices.Clip(rreq.Messages), msg, toolResp)
+
+	return &rreq, nil
 }
 
 // Text returns the contents of the first candidate in a

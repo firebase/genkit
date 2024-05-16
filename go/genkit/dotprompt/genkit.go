@@ -195,7 +195,7 @@ func (p *Prompt) Execute(ctx context.Context, input *ActionInput) (*ai.GenerateR
 		}
 	}
 
-	resp, err := generator.Generate(ctx, genReq, nil)
+	resp, err := ai.Generate(ctx, generator, genReq, nil)
 	if err != nil {
 		return nil, err
 	}

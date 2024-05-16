@@ -87,6 +87,7 @@ const (
 	ActionTypeFlow      ActionType = "flow"
 	ActionTypeModel     ActionType = "model"
 	ActionTypePrompt    ActionType = "prompt"
+	ActionTypeTool      ActionType = "tool"
 )
 
 // RegisterAction records the action in the global registry.

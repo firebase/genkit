@@ -17,8 +17,8 @@ package googleai
 import (
 	"context"
 
+	"github.com/firebase/genkit/go/ai"
 	"github.com/google/generative-ai-go/genai"
-	"github.com/google/genkit/go/ai"
 )
 
 type embedder struct {
