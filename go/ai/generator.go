@@ -134,7 +134,7 @@ func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest,
 	}
 }
 
-// handleToolRequest check or a tool requested by a generator.
+// handleToolRequest checks if a tool was requested by a generator.
 // If a tool was requested, this runs the tool and returns an
 // updated GenerateRequest. If no tool was requested this returns nil.
 func handleToolRequest(ctx context.Context, req *GenerateRequest, resp *GenerateResponse) (*GenerateRequest, error) {
