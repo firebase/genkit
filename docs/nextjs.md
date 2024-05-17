@@ -21,7 +21,7 @@ Node.js 20 or later.
     npx create-next-app@latest
     ```
 
-    Select TypeScript as you language of choice.
+    Select TypeScript as your language of choice.
 
 1.  Initialize Genkit in your Next.js project:
 
