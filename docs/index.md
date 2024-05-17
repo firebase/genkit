@@ -145,9 +145,9 @@ const createReminder = defineTool({
     inputSchema: z.object({
       time: z.string().describe('ISO timestamp string, e.g. 2024-04-03T12:23:00Z'),
       reminder: z.string().describe('the content of the reminder'),
-    })
+    }),
+    outputSchema: z.number().describe('the ID of the created reminder'),
   },
-  outputSchema: z.number().describe('the ID of the created reminder'),
   (reminder) => db.reminders.create(reminder)
 );
 
