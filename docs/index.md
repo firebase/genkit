@@ -140,23 +140,25 @@ import { geminiPro } from "@genkit-ai/vertexai";
 import { z } from "zod";
 
 const createReminder = defineTool({
-  name: "createReminder",
-  description: "Use this to create reminders for things in the future",
-  inputSchema: z.object({
-    time: z.string().describe('ISO timestamp string, e.g. 2024-04-03T12:23:00Z'),
-    reminder: z.string().describe('the content of the reminder'),
-  }),
+    name: "createReminder",
+    description: "Use this to create reminders for things in the future",
+    inputSchema: z.object({
+      time: z.string().describe('ISO timestamp string, e.g. 2024-04-03T12:23:00Z'),
+      reminder: z.string().describe('the content of the reminder'),
+    })
+  },
   outputSchema: z.number().describe('the ID of the created reminder'),
   (reminder) => db.reminders.create(reminder)
-});
+);
 
 const searchNotes = defineTool({
-  name: "searchNotes",
-  description: "Use this to search the user's notes for people or phrases",
-  inputSchema: z.string().describe('the search query'),
-  outputSchema: z.object({notes: z.array(NoteSchema)}),
+    name: "searchNotes",
+    description: "Use this to search the user's notes for people or phrases",
+    inputSchema: z.string().describe('the search query'),
+    outputSchema: z.object({notes: z.array(NoteSchema)}),
+  },
   (query) => db.notes.search(query)
-});
+);
 
 const result = await generate({
   model: geminiPro,
