@@ -33,7 +33,6 @@ Node.js 20 or later.
 
     - Select **Next.js** as the deployment platform.
     - Select the model provider you want to use.
-    - Leave `package.json` unchanged.
 
     Accept the defaults for the remaining prompts. The `genkit` tool will create
     some sample source files to get you started developing your own AI flows.
@@ -152,8 +151,14 @@ Node.js 20 or later.
         }
         ```
 
-    1.  Run it in the development environment:
+    1.  Run it in the Next.js development environment:
 
         ```posix-terminal
         npm run dev
         ```
+
+1.  You can also run and explore your flows in the Genkit Developer UI:
+
+    ```posix-terminal
+    genkit start
+    ```
