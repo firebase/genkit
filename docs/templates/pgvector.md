@@ -22,7 +22,7 @@ const QueryOptions = z.object({
 
 const sqlRetriever = defineRetriever(
   {
-    name: 'pgvector/myTable',
+    name: 'pgvector-myTable',
     configSchema: QueryOptions,
   },
   async (input, options) => {
