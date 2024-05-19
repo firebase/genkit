@@ -378,7 +378,7 @@ export class Flow<
 
     throw new Error(
       'Unexpected envelope message case, must set one of: ' +
-        'start, schedule, runScheduled, resume, retry, state'
+      'start, schedule, runScheduled, resume, retry, state'
     );
   }
 
@@ -710,8 +710,8 @@ export function streamFlow<
     start(controller) {
       chunkStreamController = controller;
     },
-    pull() {},
-    cancel() {},
+    pull() { },
+    cancel() { },
   });
 
   const operationPromise = flow
@@ -835,9 +835,11 @@ export function startFlowsServer(params?: {
   flows?: Flow<any, any, any>[];
   port?: number;
   cors?: CorsOptions;
+  pathPrefix?: string;
 }) {
   const port =
     params?.port || (process.env.PORT ? parseInt(process.env.PORT) : 0) || 3400;
+  const pathPrefix = params?.pathPrefix ? `/${params?.pathPrefix}` : "";
   const app = express();
   app.use(bodyParser.json());
   app.use(cors(params?.cors));
@@ -845,12 +847,12 @@ export function startFlowsServer(params?: {
   const flows = params?.flows || createdFlows();
   logger.info(`Starting flows server on port ${port}`);
   flows.forEach((f) => {
-    logger.info(` - /${f.name}`);
+    logger.info(` - ${pathPrefix}/${f.name}`);
     // Add middlware
     f.middleware?.forEach((m) => {
-      app.post(`/${f.name}`, m);
+      app.post(`${pathPrefix}/${f.name}`, m);
     });
-    app.post(`/${f.name}`, f.expressHandler);
+    app.post(`${pathPrefix}/${f.name}`, f.expressHandler);
   });
 
   app.listen(port, () => {
