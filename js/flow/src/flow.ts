@@ -831,9 +831,8 @@ function wrapAsAction<
   );
 }
 
-export function startFlowsServer(params?: {
+export function createFlowsServer(params?: {
   flows?: Flow<any, any, any>[];
-  port?: number;
   cors?: CorsOptions;
   pathPrefix?: string;
 }) {
@@ -854,6 +853,23 @@ export function startFlowsServer(params?: {
       app.post(flowPath, m);
     });
     app.post(flowPath, f.expressHandler);
+  });
+
+  return app;
+}
+
+export function startFlowsServer(params?: {
+  flows?: Flow<any, any, any>[];
+  port?: number;
+  cors?: CorsOptions;
+  pathPrefix?: string;
+}) {
+  const port =
+    params?.port || (process.env.PORT ? parseInt(process.env.PORT) : 0) || 3400;
+  const app = createFlowsServer({
+    flows: params?.flows,
+    cors: params?.cors,
+    pathPrefix: params?.pathPrefix,
   });
 
   app.listen(port, () => {
