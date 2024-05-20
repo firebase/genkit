@@ -1,3 +1,6 @@
+<!-- NOTE: prettier-ignore used in some snippets to allow copy/paste into Firebase Functions which
+use https://github.com/firebase/firebase-tools/blob/master/templates/init/functions/javascript/_eslintrc -->
+
 # Genkit with Firebase Cloud Functions
 
 Firebase Genkit includes a plugin that helps you deploy your flows to Firebase
@@ -69,6 +72,7 @@ deploying the default sample flow to Firebase.
 
       1.  Edit `src/index.ts` and add the following after the existing imports:
 
+      <!--See note above on prettier-ignore -->
       <!-- prettier-ignore -->
       ```js
       import {defineSecret} from "firebase-functions/params";
@@ -108,6 +112,7 @@ deploying the default sample flow to Firebase.
 
 1.  If you'll access your flow from a web app (which you will be doing in the
     next section), in the `httpsOptions` parameter, set a CORS policy:
+    <!--See note above on prettier-ignore -->
     <!-- prettier-ignore -->
     ```js
     export const menuSuggestionFlow = onFlow(

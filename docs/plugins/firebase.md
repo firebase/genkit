@@ -1,3 +1,6 @@
+<!-- NOTE: prettier-ignore used in some snippets to allow copy/paste into Firebase Functions which
+use https://github.com/firebase/firebase-tools/blob/master/templates/init/functions/javascript/_eslintrc -->
+
 # Firebase plugin
 
 The Firebase plugin provides several integrations with Firebase services:
@@ -19,6 +22,7 @@ npm i --save @genkit-ai/firebase
 
 To use this plugin, specify it when you call `configureGenkit()`:
 
+<!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
 import {firebase} from "@genkit-ai/firebase";
@@ -67,6 +71,7 @@ You can use Cloud Firestore as a vector store for RAG indexing and retrieval.
 The `firebase` plugin provides a convenience function for defining Firestore
 retrievers, `defineFirestoreRetriever()`:
 
+<!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
 import {defineFirestoreRetriever} from "@genkit-ai/firebase";
@@ -89,6 +94,7 @@ const yourRetrieverRef = defineFirestoreRetriever({
 
 To use it, pass it to the `retrieve()` function:
 
+<!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
 const docs = await retrieve({
@@ -100,6 +106,7 @@ const docs = await retrieve({
 
 For indexing, use an embedding generator along with the Admin SDK:
 
+<!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
 import {initializeApp} from "firebase-admin";
@@ -142,6 +149,7 @@ discussion on indexers and retrievers.
 
 You can use Cloud Firestore to store traces:
 
+<!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
 import {firebase} from "@genkit-ai/firebase";
@@ -156,6 +164,7 @@ configureGenkit({
 By default, the plugin stores traces in a collection called `genkit-traces` in
 the project's default database. To change either setting:
 
+<!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
 firebase({
@@ -177,6 +186,7 @@ to Firebase's
 [Cloud Functions client SDKs](https://firebase.google.com/docs/functions/callable?gen=2nd#call_the_function)
 to call them.
 
+<!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
 import {firebase} from "@genkit-ai/firebase";
@@ -209,7 +219,7 @@ The `onFlow()` function has some options not present in `defineFlow()`:
 
 - `httpsOptions`: an [`HttpsOptions`](https://firebase.google.com/docs/reference/functions/2nd-gen/node/firebase-functions.https.httpsoptions)
   object used to configure your Cloud Function:
-
+  <!--See note above on prettier-ignore -->
   <!-- prettier-ignore -->
   ```js
   export const exampleFlow = onFlow(
@@ -238,6 +248,7 @@ The `onFlow()` function has some options not present in `defineFlow()`:
 This plugin provides a helper function to create authorization policies around
 Firebase Auth:
 
+<!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
 import {firebaseAuth} from "@genkit-ai/firebase/auth";

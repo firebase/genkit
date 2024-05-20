@@ -1,3 +1,6 @@
+<!-- NOTE: prettier-ignore used in some snippets to allow copy/paste into Firebase Functions which
+use https://github.com/firebase/firebase-tools/blob/master/templates/init/functions/javascript/_eslintrc -->
+
 # Authorization and integrity
 
 When building any public-facing application, it's extremely important to protect
@@ -117,7 +120,8 @@ long as your app client is also using the
 [Firebase Auth SDK](https://firebase.google.com/docs/auth).
 You can use Firebase Auth to protect your flows defined with `onFlow()`:
 
-<!-- prettier-ignore -->
+<!-- prettier-ignore: see note above -->
+
 ```ts
 import {firebaseAuth} from "@genkit-ai/firebase/auth";
 import {onFlow} from "@genkit-ai/firebase/functions";
@@ -149,7 +153,8 @@ client, but in cases where you wish to allow unauthenticated access with special
 handling for authenticated users (upselling features, say), then you can
 configure the policy like so:
 
-<!-- prettier-ignore -->
+<!-- prettier-ignore: see note above  -->
+
 ```ts
 authPolicy: firebaseAuth((user) => {
   if (user && !user.email_verified) {
@@ -168,7 +173,8 @@ your Function is not world-callable but instead is protected by
 indicate to the library that you are forgoing authorization checks by using the
 `noAuth()` function:
 
-<!-- prettier-ignore -->
+<!-- prettier-ignore: see note above -->
+
 ```ts
 import {onFlow, noAuth} from "@genkit-ai/firebase/functions";
 
@@ -190,7 +196,8 @@ Firebase plugin for genkit includes first-class support for
 [Firebase App Check](https://firebase.google.com/docs/app-check). Simply add
 the following configuration options to your `onFlow()`:
 
-<!-- prettier-ignore -->
+<!-- prettier-ignore: see note above -->
+
 ```ts
 import {onFlow} from "@genkit-ai/firebase/functions";
 
