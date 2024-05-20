@@ -22,6 +22,8 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/firebase/genkit/go/internal"
+	gtrace "github.com/firebase/genkit/go/trace"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -48,9 +50,9 @@ func (ts *tracingState) registerSpanProcessor(sp sdktrace.SpanProcessor) {
 
 // addTraceStoreImmediate adds tstore to the tracingState.
 // Traces are saved immediately as they are finshed.
-// Use this for a TraceStore with a fast Save method,
+// Use this for a trace.Store with a fast Save method,
 // such as one that writes to a file.
-func (ts *tracingState) addTraceStoreImmediate(tstore TraceStore) {
+func (ts *tracingState) addTraceStoreImmediate(tstore gtrace.Store) {
 	e := newTraceStoreExporter(tstore)
 	// Adding a SimpleSpanProcessor is like using the WithSyncer option.
 	ts.registerSpanProcessor(sdktrace.NewSimpleSpanProcessor(e))
@@ -61,18 +63,18 @@ func (ts *tracingState) addTraceStoreImmediate(tstore TraceStore) {
 
 // addTraceStoreBatch adds ts to the tracingState.
 // Traces are batched before being sent for processing.
-// Use this for a TraceStore with a potentially expensive Save method,
+// Use this for a trace.Store with a potentially expensive Save method,
 // such as one that makes an RPC.
 // Callers must invoke the returned function at the end of the program to flush the final batch
 // and perform other cleanup.
-func (ts *tracingState) addTraceStoreBatch(tstore TraceStore) (shutdown func(context.Context) error) {
+func (ts *tracingState) addTraceStoreBatch(tstore gtrace.Store) (shutdown func(context.Context) error) {
 	e := newTraceStoreExporter(tstore)
 	// Adding a BatchSpanProcessor is like using the WithBatcher option.
 	ts.registerSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
 	return ts.tp.Shutdown
 }
 
-func newDevTraceStore() (TraceStore, error) {
+func newDevTraceStore() (gtrace.Store, error) {
 	programName := filepath.Base(os.Args[0])
 	rootHash := fmt.Sprintf("%02x", md5.Sum([]byte(programName)))
 	dir := filepath.Join(os.TempDir(), ".genkit", rootHash, "traces")
@@ -80,7 +82,7 @@ func newDevTraceStore() (TraceStore, error) {
 		return nil, err
 	}
 	// Don't remove the temp directory, for post-mortem debugging.
-	return NewFileTraceStore(dir)
+	return gtrace.NewFileStore(dir)
 }
 
 // The rest of this file contains code translated from js/common/src/tracing/*.ts.
@@ -129,30 +131,30 @@ func runInNewSpan[I, O any](
 	output, err := f(ctx, input)
 
 	if err != nil {
-		sm.State = SpanStateError
+		sm.State = spanStateError
 		span.SetStatus(codes.Error, err.Error())
-		return zero[O](), err
+		return internal.Zero[O](), err
 	}
 	// TODO(jba): the typescript code checks if sm.State == error here. Can that happen?
-	sm.State = SpanStateSuccess
+	sm.State = spanStateSuccess
 	sm.Output = output
 	return output, nil
 
 }
 
-// SpanState is the completion status of a span.
-// An empty SpanState indicates that the span has not ended.
-type SpanState string
+// spanState is the completion status of a span.
+// An empty spanState indicates that the span has not ended.
+type spanState string
 
 const (
-	SpanStateSuccess SpanState = "success"
-	SpanStateError   SpanState = "error"
+	spanStateSuccess spanState = "success"
+	spanStateError   spanState = "error"
 )
 
 // spanMetadata holds genkit-specific information about a span.
 type spanMetadata struct {
 	Name   string
-	State  SpanState
+	State  spanState
 	IsRoot bool
 	Input  any
 	Output any
@@ -182,9 +184,9 @@ func (sm *spanMetadata) attributes() []attribute.KeyValue {
 	kvs := []attribute.KeyValue{
 		attribute.String("genkit:name", sm.Name),
 		attribute.String("genkit:state", string(sm.State)),
-		attribute.String("genkit:input", jsonString(sm.Input)),
+		attribute.String("genkit:input", internal.JSONString(sm.Input)),
 		attribute.String("genkit:path", sm.Path),
-		attribute.String("genkit:output", jsonString(sm.Output)),
+		attribute.String("genkit:output", internal.JSONString(sm.Output)),
 	}
 	if sm.IsRoot {
 		kvs = append(kvs, attribute.Bool("genkit:isRoot", sm.IsRoot))

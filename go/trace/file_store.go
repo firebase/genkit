@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package trace
 
 import (
 	"context"
@@ -24,25 +24,27 @@ import (
 	"slices"
 	"strconv"
 	"time"
+
+	"github.com/firebase/genkit/go/internal"
 )
 
-// A FileTraceStore is a TraceStore that writes traces to files.
-type FileTraceStore struct {
+// A FileStore is a Store that writes traces to files.
+type FileStore struct {
 	dir string
 }
 
-// NewFileTraceStore creates a FileTraceStore that writes traces to the given
+// NewFileStore creates a FileStore that writes traces to the given
 // directory. The directory is created if it does not exist.
-func NewFileTraceStore(dir string) (*FileTraceStore, error) {
+func NewFileStore(dir string) (*FileStore, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
-	return &FileTraceStore{dir: dir}, nil
+	return &FileStore{dir: dir}, nil
 }
 
-// Save implements [TraceStore.Save].
+// Save implements [Store.Save].
 // It is not safe to call Save concurrently with the same ID.
-func (s *FileTraceStore) Save(ctx context.Context, id string, td *TraceData) error {
+func (s *FileStore) Save(ctx context.Context, id string, td *Data) error {
 	existing, err := s.Load(ctx, id)
 	if err == nil {
 		// Merge the existing spans with the incoming ones.
@@ -58,22 +60,22 @@ func (s *FileTraceStore) Save(ctx context.Context, id string, td *TraceData) err
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
-	return writeJSONFile(filepath.Join(s.dir, clean(id)), td)
+	return internal.WriteJSONFile(filepath.Join(s.dir, internal.Clean(id)), td)
 }
 
-// Load implements [TraceStore.Load].
-func (s *FileTraceStore) Load(ctx context.Context, id string) (*TraceData, error) {
-	var td *TraceData
-	if err := readJSONFile(filepath.Join(s.dir, clean(id)), &td); err != nil {
+// Load implements [Store.Load].
+func (s *FileStore) Load(ctx context.Context, id string) (*Data, error) {
+	var td *Data
+	if err := internal.ReadJSONFile(filepath.Join(s.dir, internal.Clean(id)), &td); err != nil {
 		return nil, err
 	}
 	return td, nil
 }
 
-// List implements [TraceStore.List].
+// List implements [Store.List].
 // The traces are returned in the order they were written, newest first.
 // The default limit is 10.
-func (s *FileTraceStore) List(ctx context.Context, q *TraceQuery) ([]*TraceData, string, error) {
+func (s *FileStore) List(ctx context.Context, q *Query) ([]*Data, string, error) {
 	entries, err := os.ReadDir(s.dir)
 	if err != nil {
 		return nil, "", err
@@ -97,10 +99,10 @@ func (s *FileTraceStore) List(ctx context.Context, q *TraceQuery) ([]*TraceData,
 		return nil, "", err
 	}
 
-	var ts []*TraceData
+	var ts []*Data
 	for _, e := range entries[start:end] {
-		var t *TraceData
-		if err := readJSONFile(filepath.Join(s.dir, e.Name()), &t); err != nil {
+		var t *Data
+		if err := internal.ReadJSONFile(filepath.Join(s.dir, e.Name()), &t); err != nil {
 			return nil, "", err
 		}
 		ts = append(ts, t)
@@ -113,7 +115,7 @@ func (s *FileTraceStore) List(ctx context.Context, q *TraceQuery) ([]*TraceData,
 }
 
 // listRange returns the range of elements to return from a List call.
-func listRange(q *TraceQuery, total int) (start, end int, err error) {
+func listRange(q *Query, total int) (start, end int, err error) {
 	const defaultLimit = 10
 	start = 0
 	end = total
@@ -131,14 +133,14 @@ func listRange(q *TraceQuery, total int) (start, end int, err error) {
 		// TODO(jba): consider using distance from the end (len(entries) - end).
 		start, err = strconv.Atoi(ctoken)
 		if err != nil {
-			return 0, 0, fmt.Errorf("%w: parsing continuation token: %v", errBadQuery, err)
+			return 0, 0, fmt.Errorf("%w: parsing continuation token: %v", ErrBadQuery, err)
 		}
 		if start < 0 || start >= total {
-			return 0, 0, fmt.Errorf("%w: continuation token out of range", errBadQuery)
+			return 0, 0, fmt.Errorf("%w: continuation token out of range", ErrBadQuery)
 		}
 	}
 	if limit < 0 {
-		return 0, 0, fmt.Errorf("%w: negative limit", errBadQuery)
+		return 0, 0, fmt.Errorf("%w: negative limit", ErrBadQuery)
 	}
 	if limit == 0 {
 		limit = defaultLimit
@@ -150,6 +152,6 @@ func listRange(q *TraceQuery, total int) (start, end int, err error) {
 	return start, end, nil
 }
 
-func (s *FileTraceStore) loadAny(id string, p any) error {
-	return readJSONFile(filepath.Join(s.dir, clean(id)), p)
+func (s *FileStore) LoadAny(id string, p any) error {
+	return internal.ReadJSONFile(filepath.Join(s.dir, internal.Clean(id)), p)
 }

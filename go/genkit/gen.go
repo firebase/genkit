@@ -16,6 +16,8 @@
 
 package genkit
 
+import "github.com/firebase/genkit/go/common"
+
 type flowError struct {
 	Error      string `json:"error,omitempty"`
 	Stacktrace string `json:"stacktrace,omitempty"`
@@ -27,10 +29,10 @@ type FlowInvokeEnvelopeMessageRunScheduled struct {
 
 type FlowExecution struct {
 	// end time in milliseconds since the epoch
-	EndTime Milliseconds `json:"endTime,omitempty"`
+	EndTime common.Milliseconds `json:"endTime,omitempty"`
 	// start time in milliseconds since the epoch
-	StartTime Milliseconds `json:"startTime,omitempty"`
-	TraceIDs  []string     `json:"traceIds,omitempty"`
+	StartTime common.Milliseconds `json:"startTime,omitempty"`
+	TraceIDs  []string            `json:"traceIds,omitempty"`
 }
 
 // BlockedOnStep describes the step of the flow that the flow is blocked on.

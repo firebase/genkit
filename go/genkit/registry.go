@@ -22,6 +22,7 @@ import (
 	"slices"
 	"sync"
 
+	"github.com/firebase/genkit/go/trace"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/exp/maps"
 )
@@ -48,13 +49,13 @@ type registry struct {
 	// TraceStores, at most one for each [Environment].
 	// Only the prod trace store is actually registered; the dev one is
 	// always created automatically. But it's simpler if we keep them together here.
-	traceStores map[Environment]TraceStore
+	traceStores map[Environment]trace.Store
 }
 
 func newRegistry() (*registry, error) {
 	r := &registry{
 		actions:     map[string]action{},
-		traceStores: map[Environment]TraceStore{},
+		traceStores: map[Environment]trace.Store{},
 	}
 	tstore, err := newDevTraceStore()
 	if err != nil {
@@ -143,17 +144,17 @@ func (r *registry) listActions() []actionDesc {
 	return ads
 }
 
-// RegisterTraceStore uses the given TraceStore to record traces in the prod environment.
-// (A TraceStore that writes to the local filesystem is always installed in the dev environment.)
+// RegisterTraceStore uses the given trace.Store to record traces in the prod environment.
+// (A trace.Store that writes to the local filesystem is always installed in the dev environment.)
 // The returned function should be called before the program ends to ensure that
 // all pending data is stored.
 // RegisterTraceStore panics if called more than once.
-func RegisterTraceStore(ts TraceStore) (shutdown func(context.Context) error) {
+func RegisterTraceStore(ts trace.Store) (shutdown func(context.Context) error) {
 	globalRegistry.registerTraceStore(EnvironmentProd, ts)
 	return globalRegistry.tstate.addTraceStoreBatch(ts)
 }
 
-func (r *registry) registerTraceStore(env Environment, ts TraceStore) {
+func (r *registry) registerTraceStore(env Environment, ts trace.Store) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, ok := r.traceStores[env]; ok {
@@ -162,7 +163,7 @@ func (r *registry) registerTraceStore(env Environment, ts TraceStore) {
 	r.traceStores[env] = ts
 }
 
-func (r *registry) lookupTraceStore(env Environment) TraceStore {
+func (r *registry) lookupTraceStore(env Environment) trace.Store {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.traceStores[env]

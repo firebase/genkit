@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/firebase/genkit/go/internal"
 	"github.com/invopop/jsonschema"
 )
 
@@ -116,7 +117,7 @@ func (a *Action[I, O, S]) Run(ctx context.Context, input I, cb StreamingCallback
 			latency := time.Since(start)
 			if err != nil {
 				writeActionFailure(ctx, a.name, latency, err)
-				return zero[O](), err
+				return internal.Zero[O](), err
 			}
 			writeActionSuccess(ctx, a.name, latency)
 			return out, nil

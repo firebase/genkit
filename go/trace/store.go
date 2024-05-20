@@ -12,42 +12,43 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
-
-// Types related to storing trace information.
+// The trace package provides support for storing and exporting traces.
+package trace
 
 import (
 	"context"
 	"errors"
+
+	"github.com/firebase/genkit/go/common"
 )
 
-// A TraceStore stores trace information.
+// A Store stores trace information.
 // Every trace has a unique ID.
-type TraceStore interface {
-	// Save saves the TraceData to the store. If a TraceData with the id already exists,
+type Store interface {
+	// Save saves the Data to the store. If a Data with the id already exists,
 	// the two are merged.
-	Save(ctx context.Context, id string, td *TraceData) error
-	// Load reads the TraceData with the given ID from the store.
+	Save(ctx context.Context, id string, td *Data) error
+	// Load reads the Data with the given ID from the store.
 	// It returns an error that is fs.ErrNotExist if there isn't one.
-	Load(ctx context.Context, id string) (*TraceData, error)
-	// List returns all the TraceDatas in the store that satisfy q, in some deterministic
+	Load(ctx context.Context, id string) (*Data, error)
+	// List returns all the Datas in the store that satisfy q, in some deterministic
 	// order.
 	// It also returns a continuation token: an opaque string that can be passed
 	// to the next call to List to resume the listing from where it left off. If
 	// the listing reached the end, this is the empty string.
-	// If the TraceQuery is malformed, List returns an error that is errBadQuery.
-	List(ctx context.Context, q *TraceQuery) (tds []*TraceData, contToken string, err error)
+	// If the Query is malformed, List returns an error that is errBadQuery.
+	List(ctx context.Context, q *Query) (tds []*Data, contToken string, err error)
 
-	// loadAny is like Load, but accepts a pointer to any type.
+	// LoadAny is like Load, but accepts a pointer to any type.
 	// It is for testing (see conformance_test.go).
 	// TODO(jba): replace Load with this.
-	loadAny(id string, p any) error
+	LoadAny(id string, p any) error
 }
 
-var errBadQuery = errors.New("bad TraceQuery")
+var ErrBadQuery = errors.New("bad trace.Query")
 
-// A TraceQuery filters the result of [TraceStore.List].
-type TraceQuery struct {
+// A Query filters the result of [Store.List].
+type Query struct {
 	// Maximum number of traces to return. If zero, a default value may be used.
 	// Callers should not assume they will get the entire list; they should always
 	// check the returned continuation token.
@@ -57,12 +58,12 @@ type TraceQuery struct {
 	ContinuationToken string
 }
 
-// TraceData is information about a trace.
-type TraceData struct {
+// Data is information about a trace.
+type Data struct {
 	TraceID     string               `json:"traceId"`
 	DisplayName string               `json:"displayName"`
-	StartTime   Milliseconds         `json:"startTime"`
-	EndTime     Milliseconds         `json:"endTime"`
+	StartTime   common.Milliseconds  `json:"startTime"`
+	EndTime     common.Milliseconds  `json:"endTime"`
 	Spans       map[string]*SpanData `json:"spans"`
 }
 
@@ -75,33 +76,33 @@ type SpanData struct {
 	SpanID                 string                 `json:"spanId"`
 	TraceID                string                 `json:"traceId,omitempty"`
 	ParentSpanID           string                 `json:"parentSpanId,omitempty"`
-	StartTime              Milliseconds           `json:"startTime"`
-	EndTime                Milliseconds           `json:"endTime"`
+	StartTime              common.Milliseconds    `json:"startTime"`
+	EndTime                common.Milliseconds    `json:"endTime"`
 	Attributes             map[string]any         `json:"attributes,omitempty"`
 	DisplayName            string                 `json:"displayName"`
 	Links                  []*Link                `json:"links,omitempty"`
 	InstrumentationLibrary InstrumentationLibrary `json:"instrumentationLibrary,omitempty"`
 	SpanKind               string                 `json:"spanKind"` // trace.SpanKind as a string
 	// This bool is in a separate struct, to match the js (and presumably the OTel) formats.
-	SameProcessAsParentSpan boolValue  `json:"sameProcessAsParentSpan"`
+	SameProcessAsParentSpan BoolValue  `json:"sameProcessAsParentSpan"`
 	Status                  Status     `json:"status"`
-	TimeEvents              timeEvents `json:"timeEvents,omitempty"`
+	TimeEvents              TimeEvents `json:"timeEvents,omitempty"`
 }
 
-type timeEvents struct {
+type TimeEvents struct {
 	TimeEvent []TimeEvent `json:"timeEvent,omitempty"`
 }
 
-type boolValue struct {
+type BoolValue struct {
 	Value bool `json:"value,omitempty"`
 }
 
 type TimeEvent struct {
-	Time       Milliseconds `json:"time,omitempty"`
-	Annotation annotation   `json:"annotation,omitempty"`
+	Time       common.Milliseconds `json:"time,omitempty"`
+	Annotation Annotation          `json:"annotation,omitempty"`
 }
 
-type annotation struct {
+type Annotation struct {
 	Attributes  map[string]any `json:"attributes,omitempty"`
 	Description string         `json:"description,omitempty"`
 }
