@@ -110,23 +110,23 @@ func TestPrompts(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if prompt.Frontmatter.Model != test.model {
-				t.Errorf("got model %q want %q", prompt.Frontmatter.Model, test.model)
+			if prompt.Model != test.model {
+				t.Errorf("got model %q want %q", prompt.Model, test.model)
 			}
-			if diff := cmpSchema(t, prompt.Frontmatter.Input.Schema, test.input); diff != "" {
+			if diff := cmpSchema(t, prompt.InputSchema, test.input); diff != "" {
 				t.Errorf("input schema mismatch (-want, +got):\n%s", diff)
 			}
 
 			if test.output == "" {
-				if prompt.Frontmatter.Output != nil && prompt.Frontmatter.Output.Schema != nil {
-					t.Errorf("unexpected output schema: %v", prompt.Frontmatter.Output.Schema)
+				if prompt.OutputSchema != nil {
+					t.Errorf("unexpected output schema: %v", prompt.OutputSchema)
 				}
 			} else {
 				var output map[string]any
 				if err := json.Unmarshal([]byte(test.output), &output); err != nil {
 					t.Fatalf("JSON unmarshal of %q failed: %v", test.output, err)
 				}
-				if diff := cmp.Diff(output, prompt.Frontmatter.Output.Schema); diff != "" {
+				if diff := cmp.Diff(output, prompt.OutputSchema); diff != "" {
 					t.Errorf("output schema mismatch (-want, +got):\n%s", diff)
 				}
 			}
