@@ -524,18 +524,18 @@ type itemConfig struct {
 // Except for packages, the names are always the original JSONSchema names, not Go names.
 // The rest of the line is a directive; one of
 //
-//		omit
-//		    don't generate code for this item
-//		name NAME
-//		    use NAME instead of the default name
-//		type EXPR
-//		    use EXPR for the type expression (for fields only)
-//		doc
-//		    doc is following lines until the line "."
-//		pkg
-//		    package path, relative to outdir (last component is package name)
-//	 import
-//		    path of package to import ()
+//	omit
+//	    don't generate code for this item
+//	name NAME
+//	    use NAME instead of the default name
+//	type EXPR
+//	    use EXPR for the type expression (for fields only)
+//	doc
+//	    doc is following lines until the line "."
+//	pkg
+//	    package path, relative to outdir (last component is package name)
+//	import
+//	    path of package to import (for packages only)
 func parseConfigFile(filename string) (config, error) {
 	c := config{
 		itemConfigs: map[string]*itemConfig{},

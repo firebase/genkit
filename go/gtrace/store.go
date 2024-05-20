@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // The trace package provides support for storing and exporting traces.
-package trace
+package gtrace
 
 import (
 	"context"

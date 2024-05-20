@@ -20,7 +20,7 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/common"
-	gtrace "github.com/firebase/genkit/go/trace"
+	"github.com/firebase/genkit/go/gtrace"
 	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	otrace "go.opentelemetry.io/otel/trace"

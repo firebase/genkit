@@ -22,7 +22,7 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/firebase/genkit/go/trace"
+	"github.com/firebase/genkit/go/gtrace"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/exp/maps"
 )
@@ -49,13 +49,13 @@ type registry struct {
 	// TraceStores, at most one for each [Environment].
 	// Only the prod trace store is actually registered; the dev one is
 	// always created automatically. But it's simpler if we keep them together here.
-	traceStores map[Environment]trace.Store
+	traceStores map[Environment]gtrace.Store
 }
 
 func newRegistry() (*registry, error) {
 	r := &registry{
 		actions:     map[string]action{},
-		traceStores: map[Environment]trace.Store{},
+		traceStores: map[Environment]gtrace.Store{},
 	}
 	tstore, err := newDevTraceStore()
 	if err != nil {
@@ -149,12 +149,12 @@ func (r *registry) listActions() []actionDesc {
 // The returned function should be called before the program ends to ensure that
 // all pending data is stored.
 // RegisterTraceStore panics if called more than once.
-func RegisterTraceStore(ts trace.Store) (shutdown func(context.Context) error) {
+func RegisterTraceStore(ts gtrace.Store) (shutdown func(context.Context) error) {
 	globalRegistry.registerTraceStore(EnvironmentProd, ts)
 	return globalRegistry.tstate.addTraceStoreBatch(ts)
 }
 
-func (r *registry) registerTraceStore(env Environment, ts trace.Store) {
+func (r *registry) registerTraceStore(env Environment, ts gtrace.Store) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, ok := r.traceStores[env]; ok {
@@ -163,7 +163,7 @@ func (r *registry) registerTraceStore(env Environment, ts trace.Store) {
 	r.traceStores[env] = ts
 }
 
-func (r *registry) lookupTraceStore(env Environment) trace.Store {
+func (r *registry) lookupTraceStore(env Environment) gtrace.Store {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.traceStores[env]

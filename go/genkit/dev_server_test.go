@@ -24,7 +24,7 @@ import (
 	"strings"
 	"testing"
 
-	gtrace "github.com/firebase/genkit/go/trace"
+	"github.com/firebase/genkit/go/gtrace"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )

@@ -22,8 +22,8 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/firebase/genkit/go/gtrace"
 	"github.com/firebase/genkit/go/internal"
-	gtrace "github.com/firebase/genkit/go/trace"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -32,7 +32,7 @@ import (
 
 // tracingState holds OpenTelemetry values for creating traces.
 type tracingState struct {
-	tp     *sdktrace.TracerProvider // references TraceStores
+	tp     *sdktrace.TracerProvider // references gtrace.Stores
 	tracer trace.Tracer             // returned from tp.Tracer(), cached
 }
 
@@ -50,7 +50,7 @@ func (ts *tracingState) registerSpanProcessor(sp sdktrace.SpanProcessor) {
 
 // addTraceStoreImmediate adds tstore to the tracingState.
 // Traces are saved immediately as they are finshed.
-// Use this for a trace.Store with a fast Save method,
+// Use this for a gtrace.Store with a fast Save method,
 // such as one that writes to a file.
 func (ts *tracingState) addTraceStoreImmediate(tstore gtrace.Store) {
 	e := newTraceStoreExporter(tstore)
@@ -63,7 +63,7 @@ func (ts *tracingState) addTraceStoreImmediate(tstore gtrace.Store) {
 
 // addTraceStoreBatch adds ts to the tracingState.
 // Traces are batched before being sent for processing.
-// Use this for a trace.Store with a potentially expensive Save method,
+// Use this for a gtrace.Store with a potentially expensive Save method,
 // such as one that makes an RPC.
 // Callers must invoke the returned function at the end of the program to flush the final batch
 // and perform other cleanup.

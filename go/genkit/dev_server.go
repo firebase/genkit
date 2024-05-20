@@ -34,7 +34,7 @@ import (
 	"syscall"
 	"time"
 
-	gtrace "github.com/firebase/genkit/go/trace"
+	"github.com/firebase/genkit/go/gtrace"
 	"go.opentelemetry.io/otel/trace"
 )
 
