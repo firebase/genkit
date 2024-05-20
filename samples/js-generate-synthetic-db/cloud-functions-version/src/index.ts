@@ -117,17 +117,17 @@ const createBoneAppetitSalesRowSchema = defineFlow({
   });
 
   // 1. Get the parsed result
-  const BoneAppetitSalesDatabase = result.output();
+  const BoneAppetitSaleRowItem = result.output();
 
   // 2. Handle the null case more effectively
-  if (BoneAppetitSalesDatabase === null) {
+  if (BoneAppetitSaleRowItem === null) {
     // Instead of a placeholder, throw an error to signal failure
-    logger.error("Failed to generate a valid BoneAppetitSalesDatabase.");
-    throw new Error("Failed to generate a valid BoneAppetitSalesDatabase.");
+    logger.error("Failed to generate a valid BoneAppetitSaleRowItem.");
+    throw new Error("Failed to generate a valid BoneAppetitSaleRowItem.");
   }
 
-  // 3. Return valid creature data
-  return BoneAppetitSalesDatabase; // This now aligns with the expected schema
+  // 3. Return valid row data
+  return BoneAppetitSaleRowItem; // This now aligns with the expected schema
 });
 
 // Interface defining the structure of the resolved response from the AI generation.
