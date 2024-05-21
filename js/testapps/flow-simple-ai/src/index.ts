@@ -160,7 +160,7 @@ export const streamJsonFlow = defineFlow(
       output: {
         schema: GameCharactersSchema,
       },
-      prompt: `Respond in JSON only. Generate ${count} diferent RPG game characters.`,
+      prompt: `Respond as JSON only. Generate ${count} different RPG game characters.`,
     });
 
     let buffer = '';
