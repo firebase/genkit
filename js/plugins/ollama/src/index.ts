@@ -128,7 +128,10 @@ function ollamaModel(
       } catch (e) {
         const cause = (e as any).cause;
         if (cause) {
-          if (cause instanceof Error && cause.message?.includes('ECONNREFUSED')) {
+          if (
+            cause instanceof Error &&
+            cause.message?.includes('ECONNREFUSED')
+          ) {
             cause.message += '. Make sure ollama server is running.';
           }
           throw cause;
