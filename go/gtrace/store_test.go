@@ -12,34 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package gtrace
 
 import (
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
 )
-
-func TestMilliseconds(t *testing.T) {
-	for _, tm := range []time.Time{
-		time.Unix(0, 0),
-		time.Unix(1, 0),
-		time.Unix(100, 554),
-		time.Date(2024, time.March, 24, 1, 2, 3, 4, time.UTC),
-	} {
-		m := timeToMilliseconds(tm)
-		got := m.time()
-		// Compare to the nearest millisecond. Due to the floating-point operations in the above
-		// two functions, we can't be sure that the round trip is more accurate than that.
-		if !got.Round(time.Millisecond).Equal(tm.Round(time.Millisecond)) {
-			t.Errorf("got %v, want %v", got, tm)
-		}
-	}
-}
 
 func TestTraceJSON(t *testing.T) {
 	// We want to compare a JSON trace produced by the genkit javascript code,
@@ -56,7 +38,7 @@ func TestTraceJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var td TraceData
+	var td Data
 	if err := json.Unmarshal(jsBytes, &td); err != nil {
 		t.Fatal(err)
 	}
