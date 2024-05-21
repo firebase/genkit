@@ -15,11 +15,21 @@ The Firebase plugin provides several integrations with Firebase services:
 npm i --save @genkit-ai/firebase
 ```
 
+## Prerequisites
+
+- All Firebase products require a Firebase project. You can create a new project
+  or enable Firebase in an existing Google Cloud project using the
+  [Firebase console](https://console.firebase.google.com/).
+- In addition, if you want to deploy flows to Cloud Functions, you must
+  [upgrade your project](https://console.firebase.google.com/project/_/overview?purchaseBillingPlan=metered)
+  to the Blaze pay-as-you-go plan.
+
 ## Configuration
 
 To use this plugin, specify it when you call `configureGenkit()`:
 
 ```js
+import { configureGenkit } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 
 configureGenkit({
@@ -68,6 +78,7 @@ retrievers, `defineFirestoreRetriever()`:
 
 ```js
 import { defineFirestoreRetriever } from '@genkit-ai/firebase';
+import { retrieve } from '@genkit-ai/ai/retriever';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
@@ -75,12 +86,12 @@ const app = initializeApp();
 const firestore = getFirestore(app);
 
 const yourRetrieverRef = defineFirestoreRetriever({
-  name: 'yourRetriever',
+  name: 'yourRetriever',  // For display in the developer UI
   firestore: getFirestore(app),
   collection: 'yourCollection',
-  contentField: 'yourDataChunks',
+  contentField: 'yourContentField',
   vectorField: 'embedding',
-  embedder: textEmbeddingGecko,
+  embedder: textEmbeddingGecko, // Import from '@genkit-ai/googleai' or '@genkit-ai/vertexai'
   distanceMeasure: 'COSINE', // 'EUCLIDEAN', 'DOT_PRODUCT', or 'COSINE' (default)
 });
 ```
@@ -91,11 +102,18 @@ To use it, pass it to the `retrieve()` function:
 const docs = await retrieve({
   retriever: yourRetrieverRef,
   query: 'look for something',
-  config: { limit: 5 },
+  options: { limit: 5 },
 });
 ```
 
-For indexing, use an embedding generator along with the Admin SDK:
+Firestore depends on indexes to provide fast and efficient querying on
+collections. The prior example requires the `embedding` field to be indexed to
+work. To do so, call `retrieve()` and Firestore will throw an error with a
+command to create an index. Execute that command and your index should be ready
+to use.
+
+To populate your Firestore collection, use an embedding generator along with the
+Admin SDK:
 
 ```js
 import { initializeApp } from 'firebase-admin';
@@ -108,7 +126,7 @@ const firestore = getFirestore(app);
 
 const indexConfig = {
   collection: 'yourCollection',
-  contentField: 'yourDataChunks',
+  contentField: 'yourContentField',
   vectorField: 'embedding',
   embedder: textEmbeddingGecko,
 };
@@ -125,14 +143,12 @@ async function indexToFirestore(content) {
 }
 ```
 
-Firestore depends on indexes to provide fast and efficient querying on
-collections. The prior example requires the `embedding` field to be indexed to
-work. To do so, invoke the function and Firestore will throw an error with a
-command to create an index. Execute that command and your index should be ready
-to use.
+#### Learn more
 
-See the [Retrieval-augmented generation](../rag.md) page for a general
-discussion on indexers and retrievers.
+- See the [Retrieval-augmented generation](../rag.md) page for a general
+  discussion on indexers and retrievers in Genkit.
+- See [Search with vector embeddings](https://firebase.google.com/docs/firestore/vector-search)
+  in the Cloud Firestore docs for more on the vector search feature.
 
 ### Cloud Firestore trace storage
 
