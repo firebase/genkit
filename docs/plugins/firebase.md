@@ -73,6 +73,11 @@ use together or individually.
 
 You can use Cloud Firestore as a vector store for RAG indexing and retrieval.
 
+This section contains information specific to the `firebase` plugin and Cloud
+Firestore's vector search feature.
+See the [Retrieval-augmented generation](../rag.md) page for a general
+discussion on implementing RAG using Genkit.
+
 The `firebase` plugin provides a convenience function for defining Firestore
 retrievers, `defineFirestoreRetriever()`:
 
