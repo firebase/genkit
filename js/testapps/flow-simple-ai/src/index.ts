@@ -21,11 +21,12 @@ import { dotprompt, prompt } from '@genkit-ai/dotprompt';
 import { defineFirestoreRetriever, firebase } from '@genkit-ai/firebase';
 import { defineFlow, run } from '@genkit-ai/flow';
 import { googleCloud } from '@genkit-ai/google-cloud';
-import { googleAI, geminiPro as googleGeminiPro } from '@genkit-ai/googleai';
+import { geminiPro as googleGeminiPro, googleAI } from '@genkit-ai/googleai';
 import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { Allow, parse } from 'partial-json';
 import * as z from 'zod';
 
 configureGenkit({
@@ -126,6 +127,51 @@ export const streamFlow = defineFlow(
     return (await response()).text();
   }
 );
+
+const TestSchema = z.object({
+  messages: z.array(z.string()),
+});
+
+export const streamJsonFlow = defineFlow(
+  {
+    name: 'streamJsonFlow',
+    inputSchema: z.number(),
+    outputSchema: z.string(),
+    streamSchema: TestSchema,
+  },
+  async (count, streamingCallback) => {
+    if (!streamingCallback) {
+      throw new Error('this flow only works in streaming mode');
+    }
+    
+    const { response, stream } = await generateStream({
+      model: geminiPro,
+      output: {
+        schema: TestSchema,
+      },
+      prompt: `Respond in JSON only. Say "this is a test" ${count} times`,
+    });
+
+    let buffer = '';
+    for await (const chunk of stream()) {
+      buffer += chunk.content[0].text!;
+      if (buffer.length > 10) {
+        streamingCallback(parse(maybeStripMarkdown(buffer), Allow.ALL));
+      }
+    }
+
+    return (await response()).text();
+  }
+);
+
+const markdownRegex = /^\s*(```json)?((.|\n)*?)(```)?\s*$/i;
+function maybeStripMarkdown(withMarkdown: string) {
+  const mdMatch = markdownRegex.exec(withMarkdown);
+  if (!mdMatch) {
+    return withMarkdown;
+  }
+  return mdMatch[2];
+}
 
 const tools = [
   defineTool(
