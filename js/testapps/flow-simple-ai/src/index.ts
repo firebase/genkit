@@ -21,7 +21,7 @@ import { dotprompt, prompt } from '@genkit-ai/dotprompt';
 import { defineFirestoreRetriever, firebase } from '@genkit-ai/firebase';
 import { defineFlow, run } from '@genkit-ai/flow';
 import { googleCloud } from '@genkit-ai/google-cloud';
-import { geminiPro as googleGeminiPro, googleAI } from '@genkit-ai/googleai';
+import { googleAI, geminiPro as googleGeminiPro } from '@genkit-ai/googleai';
 import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
@@ -143,7 +143,7 @@ export const streamJsonFlow = defineFlow(
     if (!streamingCallback) {
       throw new Error('this flow only works in streaming mode');
     }
-    
+
     const { response, stream } = await generateStream({
       model: geminiPro,
       output: {
