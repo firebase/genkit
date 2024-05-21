@@ -29,6 +29,8 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { Allow, parse } from 'partial-json';
 import * as z from 'zod';
 
+
+//test
 configureGenkit({
   plugins: [
     firebase(),
