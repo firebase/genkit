@@ -1,0 +1,6 @@
+{
+  "scripts": {
+    "build": "cd functions && npm i && npm run build && cd .. && cd my-app && npm i && npm run build",
+    "start": "firebase emulators:start"
+  }
+}

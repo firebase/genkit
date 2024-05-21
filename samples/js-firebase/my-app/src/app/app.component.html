@@ -1,0 +1,18 @@
+<h1>RPG Character Generator</h1>
+Generator URL: <input type="text" [(ngModel)]="url" style="width: 500px;"><br/><br/>
+How many chatacters do you need? <input type="text" [(ngModel)]="count"> <button (click)="callFlow()">Generate</button>
+
+<div *ngIf="loading">
+  Loading...
+</div>
+<div *ngIf="error">
+  {{error}}
+</div>
+<div *ngIf="characters">
+  <div *ngFor="let character of characters.characters">
+    <b>{{character.name}}</b>
+    <ul>
+      <li *ngFor="let ability of character.abilities">{{ability}}</li>
+    </ul>
+  </div>
+</div>
