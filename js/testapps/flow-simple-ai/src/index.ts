@@ -128,8 +128,13 @@ export const streamFlow = defineFlow(
   }
 );
 
-const TestSchema = z.object({
-  messages: z.array(z.string()),
+const CharacterSchema = z.object({
+  messages: z.object({
+    name: z.string().describe('Name of a character'),
+    abilities: z
+      .array(z.string())
+      .describe('Various abilities (strength, magic, archery, etc.)'),
+  }),
 });
 
 export const streamJsonFlow = defineFlow(
@@ -137,7 +142,7 @@ export const streamJsonFlow = defineFlow(
     name: 'streamJsonFlow',
     inputSchema: z.number(),
     outputSchema: z.string(),
-    streamSchema: TestSchema,
+    streamSchema: CharacterSchema,
   },
   async (count, streamingCallback) => {
     if (!streamingCallback) {
@@ -147,9 +152,9 @@ export const streamJsonFlow = defineFlow(
     const { response, stream } = await generateStream({
       model: geminiPro,
       output: {
-        schema: TestSchema,
+        schema: CharacterSchema,
       },
-      prompt: `Respond in JSON only. Say "this is a test" ${count} times`,
+      prompt: `Respond in JSON only. Generate RPG game character with ${count} diferent abilities.`,
     });
 
     let buffer = '';
