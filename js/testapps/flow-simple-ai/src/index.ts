@@ -21,7 +21,7 @@ import { dotprompt, prompt } from '@genkit-ai/dotprompt';
 import { defineFirestoreRetriever, firebase } from '@genkit-ai/firebase';
 import { defineFlow, run } from '@genkit-ai/flow';
 import { googleCloud } from '@genkit-ai/google-cloud';
-import { googleAI, geminiPro as googleGeminiPro } from '@genkit-ai/googleai';
+import { geminiPro as googleGeminiPro, googleAI } from '@genkit-ai/googleai';
 import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
@@ -128,13 +128,19 @@ export const streamFlow = defineFlow(
   }
 );
 
-const CharacterSchema = z.object({
-  messages: z.object({
-    name: z.string().describe('Name of a character'),
-    abilities: z
-      .array(z.string())
-      .describe('Various abilities (strength, magic, archery, etc.)'),
-  }),
+const GameCharactersSchema = z.object({
+  characters: z
+    .array(
+      z
+        .object({
+          name: z.string().describe('Name of a character'),
+          abilities: z
+            .array(z.string())
+            .describe('Various abilities (strength, magic, archery, etc.)'),
+        })
+        .describe('Game character')
+    )
+    .describe('Characters'),
 });
 
 export const streamJsonFlow = defineFlow(
@@ -142,7 +148,7 @@ export const streamJsonFlow = defineFlow(
     name: 'streamJsonFlow',
     inputSchema: z.number(),
     outputSchema: z.string(),
-    streamSchema: CharacterSchema,
+    streamSchema: GameCharactersSchema,
   },
   async (count, streamingCallback) => {
     if (!streamingCallback) {
@@ -152,9 +158,9 @@ export const streamJsonFlow = defineFlow(
     const { response, stream } = await generateStream({
       model: geminiPro,
       output: {
-        schema: CharacterSchema,
+        schema: GameCharactersSchema,
       },
-      prompt: `Respond in JSON only. Generate RPG game character with ${count} diferent abilities.`,
+      prompt: `Respond in JSON only. Generate ${count} diferent RPG game characters.`,
     });
 
     let buffer = '';
