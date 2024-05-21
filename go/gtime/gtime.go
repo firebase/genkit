@@ -12,26 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package common
+// Package gtime provides time functionality for Go Genkit.
+package gtime
 
-import (
-	"testing"
-	"time"
-)
+import "time"
 
-func TestMilliseconds(t *testing.T) {
-	for _, tm := range []time.Time{
-		time.Unix(0, 0),
-		time.Unix(1, 0),
-		time.Unix(100, 554),
-		time.Date(2024, time.March, 24, 1, 2, 3, 4, time.UTC),
-	} {
-		m := TimeToMilliseconds(tm)
-		got := m.Time()
-		// Compare to the nearest millisecond. Due to the floating-point operations in the above
-		// two functions, we can't be sure that the round trip is more accurate than that.
-		if !got.Round(time.Millisecond).Equal(tm.Round(time.Millisecond)) {
-			t.Errorf("got %v, want %v", got, tm)
-		}
-	}
+// Milliseconds represents a time as the number of milliseconds since the Unix epoch.
+type Milliseconds float64
+
+func ToMilliseconds(t time.Time) Milliseconds {
+	nsec := t.UnixNano()
+	return Milliseconds(float64(nsec) / 1e6)
+}
+
+func (m Milliseconds) Time() time.Time {
+	sec := int64(m / 1e3)
+	nsec := int64((float64(m) - float64(sec*1e3)) * 1e6)
+	return time.Unix(sec, nsec)
 }

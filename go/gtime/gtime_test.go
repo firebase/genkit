@@ -12,23 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package common provides common functionality for Go Genkit.
-package common
+package gtime
 
 import (
+	"testing"
 	"time"
 )
 
-// Milliseconds represents a time as the number of milliseconds since the Unix epoch.
-type Milliseconds float64
-
-func TimeToMilliseconds(t time.Time) Milliseconds {
-	nsec := t.UnixNano()
-	return Milliseconds(float64(nsec) / 1e6)
-}
-
-func (m Milliseconds) Time() time.Time {
-	sec := int64(m / 1e3)
-	nsec := int64((float64(m) - float64(sec*1e3)) * 1e6)
-	return time.Unix(sec, nsec)
+func TestMilliseconds(t *testing.T) {
+	for _, tm := range []time.Time{
+		time.Unix(0, 0),
+		time.Unix(1, 0),
+		time.Unix(100, 554),
+		time.Date(2024, time.March, 24, 1, 2, 3, 4, time.UTC),
+	} {
+		m := ToMilliseconds(tm)
+		got := m.Time()
+		// Compare to the nearest millisecond. Due to the floating-point operations in the above
+		// two functions, we can't be sure that the round trip is more accurate than that.
+		if !got.Round(time.Millisecond).Equal(tm.Round(time.Millisecond)) {
+			t.Errorf("got %v, want %v", got, tm)
+		}
+	}
 }

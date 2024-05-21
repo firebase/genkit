@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/firebase/genkit/go/common"
+	"github.com/firebase/genkit/go/gtime"
 	"github.com/firebase/genkit/go/internal"
 	"github.com/google/uuid"
 	otrace "go.opentelemetry.io/otel/trace"
@@ -165,8 +165,8 @@ type flowState[I, O any] struct {
 	FlowID   string `json:"flowId,omitempty"`
 	FlowName string `json:"name,omitempty"`
 	// start time in milliseconds since the epoch
-	StartTime common.Milliseconds `json:"startTime,omitempty"`
-	Input     I                   `json:"input,omitempty"`
+	StartTime gtime.Milliseconds `json:"startTime,omitempty"`
+	Input     I                  `json:"input,omitempty"`
 
 	mu              sync.Mutex
 	Cache           map[string]json.RawMessage `json:"cache,omitempty"`
@@ -182,7 +182,7 @@ func newFlowState[I, O any](id, name string, input I) *flowState[I, O] {
 		FlowID:    id,
 		FlowName:  name,
 		Input:     input,
-		StartTime: common.TimeToMilliseconds(time.Now()),
+		StartTime: gtime.ToMilliseconds(time.Now()),
 		Cache:     map[string]json.RawMessage{},
 		Operation: &Operation[O]{
 			FlowID: id,
@@ -286,7 +286,7 @@ func (f *Flow[I, O, S]) execute(ctx context.Context, state *flowState[I, O], dis
 	}()
 	ctx = flowContextKey.newContext(ctx, fctx)
 	exec := &FlowExecution{
-		StartTime: common.TimeToMilliseconds(time.Now()),
+		StartTime: gtime.ToMilliseconds(time.Now()),
 	}
 	state.mu.Lock()
 	state.Executions = append(state.Executions, exec)
