@@ -68,7 +68,7 @@ export function textEmbeddingGeckoEmbedder(
   if (!apiKey)
     throw new Error(
       'Please pass in the API key or set either GOOGLE_GENAI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
-      'For more details see https://firebase.google.com/docs/genkit/plugins/google-genai'
+        'For more details see https://firebase.google.com/docs/genkit/plugins/google-genai'
     );
   const client = new GoogleGenerativeAI(apiKey).getGenerativeModel({
     model: name,
