@@ -40,13 +40,13 @@ func TestFlowStart(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := state.Operation
-	want := &Operation[int]{
+	want := &operation[int]{
 		Done: true,
 		Result: &FlowResult[int]{
 			Response: 2,
 		},
 	}
-	if diff := cmp.Diff(want, got, cmpopts.IgnoreFields(Operation[int]{}, "FlowID")); diff != "" {
+	if diff := cmp.Diff(want, got, cmpopts.IgnoreFields(operation[int]{}, "FlowID")); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
 }
@@ -137,7 +137,7 @@ func TestFlowState(t *testing.T) {
 		Cache:           map[string]json.RawMessage{"x": json.RawMessage([]byte("3"))},
 		EventsTriggered: map[string]any{"a": "b"},
 		Executions:      []*flowExecution{{StartTime: 4, EndTime: 5, TraceIDs: []string{"c"}}},
-		Operation: &Operation[int]{
+		Operation: &operation[int]{
 			FlowID: "id",
 			BlockedOnStep: &struct {
 				Name   string `json:"name"`

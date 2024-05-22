@@ -176,7 +176,7 @@ type flowState[I, O any] struct {
 	EventsTriggered map[string]any             `json:"eventsTriggered,omitempty"`
 	Executions      []*flowExecution           `json:"executions,omitempty"`
 	// The operation is the user-visible part of the state.
-	Operation    *Operation[O] `json:"operation,omitempty"`
+	Operation    *operation[O] `json:"operation,omitempty"`
 	TraceContext string        `json:"traceContext,omitempty"`
 }
 
@@ -187,7 +187,7 @@ func newFlowState[I, O any](id, name string, input I) *flowState[I, O] {
 		Input:     input,
 		StartTime: gtime.ToMilliseconds(time.Now()),
 		Cache:     map[string]json.RawMessage{},
-		Operation: &Operation[O]{
+		Operation: &operation[O]{
 			FlowID: id,
 			Done:   false,
 		},
@@ -208,8 +208,8 @@ func (fs *flowState[I, O]) lock()                             { fs.mu.Lock() }
 func (fs *flowState[I, O]) unlock()                           { fs.mu.Unlock() }
 func (fs *flowState[I, O]) cache() map[string]json.RawMessage { return fs.Cache }
 
-// An Operation describes the state of a Flow that may still be in progress.
-type Operation[O any] struct {
+// An operation describes the state of a Flow that may still be in progress.
+type operation[O any] struct {
 	FlowID string `json:"name,omitempty"`
 	// The step that the flow is blocked on, if any.
 	BlockedOnStep *struct {
@@ -524,7 +524,7 @@ func StreamFlow[I, O, S any](ctx context.Context, flow *Flow[I, O, S], input I) 
 	}
 }
 
-func finishedOpResponse[O any](op *Operation[O]) (O, error) {
+func finishedOpResponse[O any](op *operation[O]) (O, error) {
 	if !op.Done {
 		return internal.Zero[O](), fmt.Errorf("flow %s did not finish execution", op.FlowID)
 	}
