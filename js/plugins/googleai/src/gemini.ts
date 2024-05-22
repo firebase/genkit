@@ -36,16 +36,16 @@ import {
 } from '@genkit-ai/ai/model/middleware';
 import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
 import {
+  Content as GeminiMessage,
   FunctionCallPart,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
   FunctionResponsePart,
   GenerateContentCandidate as GeminiCandidate,
-  Content as GeminiMessage,
-  Part as GeminiPart,
   GenerateContentResponse,
   GoogleGenerativeAI,
   InlineDataPart,
+  Part as GeminiPart,
   RequestOptions,
   StartChatParams,
 } from '@google/generative-ai';
@@ -393,7 +393,8 @@ export function googleAIModel(
   }
   if (!apiKey) {
     throw new Error(
-      'please pass in the API key or set the GOOGLE_GENAI_API_KEY or GOOGLE_API_KEY environment variable'
+      'Please pass in the API key or set the GOOGLE_GENAI_API_KEY or GOOGLE_API_KEY environment variable.\n' +
+        'For more details see https://firebase.google.com/docs/genkit/plugins/google-genai'
     );
   }
 

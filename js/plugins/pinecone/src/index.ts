@@ -272,7 +272,8 @@ function getDefaultConfig() {
   const maybeApiKey = process.env.PINECONE_API_KEY;
   if (!maybeApiKey)
     throw new Error(
-      'please pass in the API key or set PINECONE_API_KEY environment variable'
+      'Please pass in the API key or set PINECONE_API_KEY environment variable.\n' +
+      'For more details see https://firebase.google.com/docs/genkit/plugins/pinecone'
     );
   return { apiKey: maybeApiKey } as PineconeConfiguration;
 }
