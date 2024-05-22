@@ -160,7 +160,7 @@ func (s *devServer) handleRunAction(w http.ResponseWriter, r *http.Request) erro
 			return err
 		}
 	}
-	logger(ctx).Debug("running action",
+	Logger(ctx).Debug("running action",
 		"key", body.Key,
 		"stream", stream)
 	var callback StreamingCallback[json.RawMessage]
@@ -286,7 +286,7 @@ func writeJSON(ctx context.Context, w http.ResponseWriter, value any) error {
 	}
 	_, err = w.Write(data)
 	if err != nil {
-		logger(ctx).Error("writing output", "err", err)
+		Logger(ctx).Error("writing output", "err", err)
 	}
 	return nil
 }

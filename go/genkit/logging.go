@@ -31,16 +31,11 @@ func init() {
 
 var loggerKey = newContextKey[*slog.Logger]()
 
-// logger returns the Logger in ctx, or the default Logger
+// Logger returns the Logger in ctx, or the default Logger
 // if there is none.
-func logger(ctx context.Context) *slog.Logger {
+func Logger(ctx context.Context) *slog.Logger {
 	if l := loggerKey.fromContext(ctx); l != nil {
 		return l
 	}
 	return slog.Default()
-}
-
-// DebugLog is a helper function for plugins to log debugging info.
-func DebugLog(ctx context.Context, msg string, args ...any) {
-	logger(ctx).Debug(msg, args...)
 }

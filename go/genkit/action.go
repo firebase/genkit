@@ -96,11 +96,11 @@ func (a *Action[I, O, S]) setTracingState(tstate *tracingState) { a.tstate = tst
 func (a *Action[I, O, S]) Run(ctx context.Context, input I, cb StreamingCallback[S]) (output O, err error) {
 	// TODO: validate input against JSONSchema for I.
 	// TODO: validate output against JSONSchema for O.
-	logger(ctx).Debug("Action.Run",
+	Logger(ctx).Debug("Action.Run",
 		"name", a.name,
 		"input", fmt.Sprintf("%#v", input))
 	defer func() {
-		logger(ctx).Debug("Action.Run",
+		Logger(ctx).Debug("Action.Run",
 			"name", a.name,
 			"output", fmt.Sprintf("%#v", output),
 			"err", err)

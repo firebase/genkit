@@ -16,6 +16,7 @@ package genkit
 
 import (
 	"context"
+	"encoding/json"
 	"slices"
 	"testing"
 
@@ -39,13 +40,13 @@ func TestFlowStart(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := state.Operation
-	want := &Operation[int]{
+	want := &operation[int]{
 		Done: true,
 		Result: &FlowResult[int]{
 			Response: 2,
 		},
 	}
-	if diff := cmp.Diff(want, got, cmpopts.IgnoreFields(Operation[int]{}, "FlowID")); diff != "" {
+	if diff := cmp.Diff(want, got, cmpopts.IgnoreFields(operation[int]{}, "FlowID")); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
 }
@@ -122,4 +123,46 @@ func TestStreamFlow(t *testing.T) {
 		want++
 		return true
 	})
+}
+
+func TestFlowState(t *testing.T) {
+	// A flowState is an action output, so it must support JSON marshaling.
+	// Verify that a fully populated flowState can round-trip via JSON.
+
+	fs := &flowState[int, int]{
+		FlowID:          "id",
+		FlowName:        "name",
+		StartTime:       1,
+		Input:           2,
+		Cache:           map[string]json.RawMessage{"x": json.RawMessage([]byte("3"))},
+		EventsTriggered: map[string]any{"a": "b"},
+		Executions:      []*flowExecution{{StartTime: 4, EndTime: 5, TraceIDs: []string{"c"}}},
+		Operation: &operation[int]{
+			FlowID: "id",
+			BlockedOnStep: &struct {
+				Name   string `json:"name"`
+				Schema string `json:"schema"`
+			}{Name: "bos", Schema: "s"},
+			Done:     true,
+			Metadata: "meta",
+			Result: &FlowResult[int]{
+				Response:   6,
+				Error:      "err",
+				StackTrace: "st",
+			},
+		},
+		TraceContext: "tc",
+	}
+	data, err := json.Marshal(fs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got *flowState[int, int]
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatal(err)
+	}
+	diff := cmp.Diff(fs, got, cmpopts.IgnoreUnexported(flowState[int, int]{}))
+	if diff != "" {
+		t.Errorf("mismatch (-want, +got):\n%s", diff)
+	}
 }
