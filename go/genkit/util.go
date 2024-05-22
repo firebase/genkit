@@ -16,8 +16,6 @@ package genkit
 
 import (
 	"context"
-	"net/url"
-	"time"
 )
 
 // A contextKey is a unique, typed key for a value stored in a context.
@@ -35,33 +33,8 @@ func (k contextKey[T]) newContext(ctx context.Context, value T) context.Context 
 }
 
 // fromContext returns the value associated with this key in the context,
-// or the zero value for T if the key is not present.
+// or the internal.Zero value for T if the key is not present.
 func (k contextKey[T]) fromContext(ctx context.Context) T {
 	t, _ := ctx.Value(k.key).(T)
 	return t
-}
-
-// zero returns the zero value for T.
-func zero[T any]() T {
-	var z T
-	return z
-}
-
-// clean returns a valid filename for id.
-func clean(id string) string {
-	return url.PathEscape(id)
-}
-
-// Milliseconds represents a time as the number of milliseconds since the Unix epoch.
-type Milliseconds float64
-
-func timeToMilliseconds(t time.Time) Milliseconds {
-	nsec := t.UnixNano()
-	return Milliseconds(float64(nsec) / 1e6)
-}
-
-func (m Milliseconds) time() time.Time {
-	sec := int64(m / 1e3)
-	nsec := int64((float64(m) - float64(sec*1e3)) * 1e6)
-	return time.Unix(sec, nsec)
 }

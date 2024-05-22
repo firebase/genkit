@@ -49,6 +49,11 @@ func TestActionRunJSON(t *testing.T) {
 	}
 }
 
+func TestNewAction(t *testing.T) {
+	// Verify that struct{} can occur in the function signature.
+	_ = NewAction("f", nil, func(context.Context, int) (struct{}, error) { return struct{}{}, nil })
+}
+
 // count streams the numbers from 0 to n-1, then returns n.
 func count(ctx context.Context, n int, cb StreamingCallback[int]) (int, error) {
 	if cb != nil {

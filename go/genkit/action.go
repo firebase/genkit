@@ -22,18 +22,20 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/firebase/genkit/go/internal"
 	"github.com/invopop/jsonschema"
 )
 
 // Func is the type of function that Actions and Flows execute.
 // It takes an input of type I and returns an output of type O, optionally
 // streaming values of type S incrementally by invoking a callback.
-// TODO(jba): use a generic type alias when they become available?
 // If the StreamingCallback is non-nil and the function supports streaming, it should
 // stream the results by invoking the callback periodically, ultimately returning
 // with a final return value. Otherwise, it should ignore the StreamingCallback and
 // just return a result.
 type Func[I, O, S any] func(context.Context, I, StreamingCallback[S]) (O, error)
+
+// TODO(jba): use a generic type alias for the above when they become available?
 
 // StreamingCallback is the type of streaming callbacks, which is passed to action
 // functions who should stream their responses.
@@ -44,7 +46,7 @@ type StreamingCallback[S any] func(context.Context, S) error
 // Such a function corresponds to a Flow[I, O, struct{}].
 type NoStream = StreamingCallback[struct{}]
 
-// An Action is a function with a name.
+// An Action is a named, observable operation.
 // It consists of a function that takes an input of type I and returns an output
 // of type O, optionally streaming values of type S incrementally by invoking a callback.
 // It optionally has other metadata, like a description
@@ -90,7 +92,7 @@ func (a *Action[I, O, S]) Name() string { return a.name }
 // setTracingState sets the action's tracingState.
 func (a *Action[I, O, S]) setTracingState(tstate *tracingState) { a.tstate = tstate }
 
-// Run executes the Action's function in a new span.
+// Run executes the Action's function in a new trace span.
 func (a *Action[I, O, S]) Run(ctx context.Context, input I, cb StreamingCallback[S]) (output O, err error) {
 	// TODO: validate input against JSONSchema for I.
 	// TODO: validate output against JSONSchema for O.
@@ -115,7 +117,7 @@ func (a *Action[I, O, S]) Run(ctx context.Context, input I, cb StreamingCallback
 			latency := time.Since(start)
 			if err != nil {
 				writeActionFailure(ctx, a.name, latency, err)
-				return zero[O](), err
+				return internal.Zero[O](), err
 			}
 			writeActionSuccess(ctx, a.name, latency)
 			return out, nil
@@ -200,11 +202,16 @@ func (a *Action[I, O, S]) desc() actionDesc {
 	return ad
 }
 
-func inferJSONSchema(x any) *jsonschema.Schema {
+func inferJSONSchema(x any) (s *jsonschema.Schema) {
 	var r jsonschema.Reflector
-	// If x is a struct, put its definition at the "top level" of the schema,
-	// instead of nested inside a "$defs" object.
-	if reflect.TypeOf(x).Kind() == reflect.Struct {
+	t := reflect.TypeOf(x)
+	if t.Kind() == reflect.Struct {
+		if t.NumField() == 0 {
+			// Make struct{} correspond to ZodVoid.
+			return &jsonschema.Schema{Type: "null"}
+		}
+		// Put a struct definition at the "top level" of the schema,
+		// instead of nested inside a "$defs" object.
 		r.ExpandedStruct = true
 	}
 	return r.Reflect(x)

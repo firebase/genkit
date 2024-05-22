@@ -32,7 +32,7 @@ func TestSpanMetadata(t *testing.T) {
 	)
 	sm := &spanMetadata{
 		Name:   "name",
-		State:  SpanStateSuccess,
+		State:  spanStateSuccess,
 		Path:   "parent/name",
 		Input:  testInput,
 		Output: testOutput,

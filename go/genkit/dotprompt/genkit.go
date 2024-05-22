@@ -98,24 +98,19 @@ func (p *Prompt) buildRequest(input *ActionInput) (*ai.GenerateRequest, error) {
 	}
 
 	req.Candidates = input.Candidates
-	if req.Candidates == 0 && p.Frontmatter != nil {
-		req.Candidates = p.Frontmatter.Candidates
+	if req.Candidates == 0 {
+		req.Candidates = p.Candidates
 	}
 	if req.Candidates == 0 {
 		req.Candidates = 1
 	}
 
-	if p.Frontmatter != nil {
-		req.Config = p.Frontmatter.Config
+	req.Config = p.GenerationConfig
+	req.Output = &ai.GenerateRequestOutput{
+		Format: p.OutputFormat,
+		Schema: p.OutputSchema,
 	}
-
-	if p.Frontmatter != nil {
-		req.Output = p.Frontmatter.Output
-	}
-
-	if p.Frontmatter != nil {
-		req.Tools = p.Frontmatter.Tools
-	}
+	req.Tools = p.Tools
 
 	return req, nil
 }
@@ -174,10 +169,7 @@ func (p *Prompt) Execute(ctx context.Context, input *ActionInput) (*ai.GenerateR
 
 	generator := p.generator
 	if generator == nil {
-		var model string
-		if p.Frontmatter != nil {
-			model = p.Frontmatter.Model
-		}
+		model := p.Model
 		if input.Model != "" {
 			model = input.Model
 		}

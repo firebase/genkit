@@ -18,6 +18,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/firebase/genkit/go/gtime"
+	"github.com/firebase/genkit/go/gtrace"
 	"github.com/google/go-cmp/cmp"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -83,24 +85,24 @@ func TestConvertSpan(t *testing.T) {
 			SchemaURL: "surl",
 		},
 	}
-	want := &SpanData{
+	want := &gtrace.SpanData{
 		DisplayName:  "name",
 		TraceID:      traceID,
 		SpanID:       spanID1,
 		ParentSpanID: spanID2,
 		SpanKind:     "INTERNAL",
-		StartTime:    Milliseconds(1e3),
-		EndTime:      Milliseconds(2e3),
+		StartTime:    gtime.Milliseconds(1e3),
+		EndTime:      gtime.Milliseconds(2e3),
 		Attributes:   map[string]any{"k": "v"},
-		TimeEvents: timeEvents{TimeEvent: []TimeEvent{{
-			Time: Milliseconds(3e3),
-			Annotation: annotation{
+		TimeEvents: gtrace.TimeEvents{TimeEvent: []gtrace.TimeEvent{{
+			Time: gtime.Milliseconds(3e3),
+			Annotation: gtrace.Annotation{
 				Attributes:  map[string]any{"k2": "v2"},
 				Description: "ename",
 			},
 		}}},
-		Links: []*Link{{
-			SpanContext: SpanContext{
+		Links: []*gtrace.Link{{
+			SpanContext: gtrace.SpanContext{
 				TraceID:    traceID,
 				SpanID:     spanID1,
 				IsRemote:   true,
@@ -109,8 +111,8 @@ func TestConvertSpan(t *testing.T) {
 			Attributes:             map[string]any{"k3": "v3"},
 			DroppedAttributesCount: 1,
 		}},
-		Status: Status{2, "desc"},
-		InstrumentationLibrary: InstrumentationLibrary{
+		Status: gtrace.Status{Code: 2, Description: "desc"},
+		InstrumentationLibrary: gtrace.InstrumentationLibrary{
 			Name:      "iname",
 			Version:   "version",
 			SchemaURL: "surl",

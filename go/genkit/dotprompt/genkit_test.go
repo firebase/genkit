@@ -45,10 +45,11 @@ func (testGenerator) Generate(ctx context.Context, req *ai.GenerateRequest, cb g
 }
 
 func TestExecute(t *testing.T) {
-	p, err := Define("TestExecute", &Frontmatter{}, "TestExecute", testGenerator{})
+	p, err := New("TestExecute", "TestExecute", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
+	p.generator = testGenerator{}
 	resp, err := p.Execute(context.Background(), &ActionInput{})
 	if err != nil {
 		t.Fatal(err)

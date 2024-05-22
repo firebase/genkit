@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package internal
 
 import (
 	"encoding/json"
@@ -21,9 +21,9 @@ import (
 	"os"
 )
 
-// jsonString returns json.Marshal(x) as a string. If json.Marshal returns
+// JSONString returns json.Marshal(x) as a string. If json.Marshal returns
 // an error, jsonString returns the error text as a JSON string beginning "ERROR:".
-func jsonString(x any) string {
+func JSONString(x any) string {
 	bytes, err := json.Marshal(x)
 	if err != nil {
 		bytes, _ = json.Marshal(fmt.Sprintf("ERROR: %v", err))
@@ -31,8 +31,8 @@ func jsonString(x any) string {
 	return string(bytes)
 }
 
-// writeJSONFile writes value to filename as JSON.
-func writeJSONFile(filename string, value any) error {
+// WriteJSONFile writes value to filename as JSON.
+func WriteJSONFile(filename string, value any) error {
 	f, err := os.Create(filename)
 	if err != nil {
 		return err
@@ -41,12 +41,13 @@ func writeJSONFile(filename string, value any) error {
 		err = errors.Join(err, f.Close())
 	}()
 	enc := json.NewEncoder(f)
-	enc.SetIndent("", "    ") // make the trace easy to read for debugging
+	enc.SetIndent("", "    ") // make the value easy to read for debugging
 	return enc.Encode(value)
 }
 
-// readJSONFile JSON-decodes the contents of filename into pvalue.
-func readJSONFile(filename string, pvalue any) error {
+// ReadJSONFile JSON-decodes the contents of filename into pvalue,
+// which must be a pointer.
+func ReadJSONFile(filename string, pvalue any) error {
 	f, err := os.Open(filename)
 	if err != nil {
 		return err

@@ -34,6 +34,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/firebase/genkit/go/gtrace"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -250,22 +251,22 @@ func (s *devServer) handleListTraces(w http.ResponseWriter, r *http.Request) err
 		}
 	}
 	ctoken := r.FormValue("continuationToken")
-	tds, ctoken, err := ts.List(r.Context(), &TraceQuery{Limit: limit, ContinuationToken: ctoken})
-	if errors.Is(err, errBadQuery) {
+	tds, ctoken, err := ts.List(r.Context(), &gtrace.Query{Limit: limit, ContinuationToken: ctoken})
+	if errors.Is(err, gtrace.ErrBadQuery) {
 		return &httpError{http.StatusBadRequest, err}
 	}
 	if err != nil {
 		return err
 	}
 	if tds == nil {
-		tds = []*TraceData{}
+		tds = []*gtrace.Data{}
 	}
 	return writeJSON(r.Context(), w, listTracesResult{tds, ctoken})
 }
 
 type listTracesResult struct {
-	Traces            []*TraceData `json:"traces"`
-	ContinuationToken string       `json:"continuationToken"`
+	Traces            []*gtrace.Data `json:"traces"`
+	ContinuationToken string         `json:"continuationToken"`
 }
 
 func (s *devServer) handleListFlowStates(w http.ResponseWriter, r *http.Request) error {

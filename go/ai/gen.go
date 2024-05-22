@@ -135,8 +135,8 @@ type ToolDefinition struct {
 	OutputSchema map[string]any `json:"outputSchema,omitempty"`
 }
 
-// A ToolRequest is a request from the model that the client should run
-// a specific tool and pass a [ToolResponse] to the model on the next request it makes.
+// A ToolRequest is a message from the model to the client that it should run a
+// specific tool and pass a [ToolResponse] to the model on the next chat request it makes.
 // Any ToolRequest will correspond to some [ToolDefinition] previously sent by the client.
 type ToolRequest struct {
 	// Input is a JSON object describing the input values to the tool.
@@ -145,7 +145,7 @@ type ToolRequest struct {
 	Name  string         `json:"name,omitempty"`
 }
 
-// A ToolResponse is a response from the client to the model containing
+// A ToolResponse is a message from the client to the model containing
 // the results of running a specific tool on the arguments passed to the client
 // by the model in a [ToolRequest].
 type ToolResponse struct {
