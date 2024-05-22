@@ -831,31 +831,29 @@ function wrapAsAction<
   );
 }
 
-export function createFlowsServer(params?: {
+export function createFlowsExpressRouter(params?: {
   flows?: Flow<any, any, any>[];
   cors?: CorsOptions;
-  pathPrefix?: string;
 }) {
   const port =
     params?.port || (process.env.PORT ? parseInt(process.env.PORT) : 0) || 3400;
-  const pathPrefix = params?.pathPrefix ?? '';
-  const app = express();
-  app.use(bodyParser.json());
-  app.use(cors(params?.cors));
+  const router = express.Router();
+  router.use(bodyParser.json());
+  router.use(cors(params?.cors));
 
   const flows = params?.flows || createdFlows();
   logger.info(`Starting flows server on port ${port}`);
   flows.forEach((f) => {
-    const flowPath = `${pathPrefix}/${f.name}`;
+    const flowPath = `/${f.name}`;
     logger.info(` - ${flowPath}`);
     // Add middlware
     f.middleware?.forEach((m) => {
-      app.post(flowPath, m);
+      router.post(flowPath, m);
     });
-    app.post(flowPath, f.expressHandler);
+    router.post(flowPath, f.expressHandler);
   });
 
-  return app;
+  return router;
 }
 
 export function startFlowsServer(params?: {
@@ -866,11 +864,14 @@ export function startFlowsServer(params?: {
 }) {
   const port =
     params?.port || (process.env.PORT ? parseInt(process.env.PORT) : 0) || 3400;
-  const app = createFlowsServer({
+  const pathPrefix = params?.pathPrefix ?? '';
+  const router = createFlowsExpressRouter({
     flows: params?.flows,
     cors: params?.cors,
-    pathPrefix: params?.pathPrefix,
   });
+
+  const app = express();
+  app.use(pathPrefix, router);
 
   app.listen(port, () => {
     console.log(`Flows server listening on port ${port}`);
