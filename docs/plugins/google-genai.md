@@ -61,7 +61,11 @@ configureGenkit({
 This plugin statically exports references to its supported models:
 
 ```js
-import { geminiPro, geminiProVision, textEmbeddingGecko001 } from '@genkit-ai/googleai';
+import {
+  geminiPro,
+  geminiProVision,
+  textEmbeddingGecko001,
+} from '@genkit-ai/googleai';
 ```
 
 You can use these references to specify which model `generate()` uses:
