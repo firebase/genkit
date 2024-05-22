@@ -7,7 +7,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "0.5.0",
+  "version": "0.5.1",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
@@ -32,7 +32,7 @@
     "@opentelemetry/sdk-node": "^0.49.0",
     "@opentelemetry/sdk-trace-base": "^1.22.0",
     "ajv": "^8.12.0",
-    "async-mutex": "^0.5.0",
+    "async-mutex": "^0.5.1",
     "express": "^4.19.2",
     "json-schema": "^0.4.0",
     "zod": "^3.22.4",
