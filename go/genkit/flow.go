@@ -210,7 +210,8 @@ func (fs *flowState[I, O]) cache() map[string]json.RawMessage { return fs.Cache 
 
 // An Operation describes the state of a Flow that may still be in progress.
 type Operation[O any] struct {
-	FlowID        string `json:"name,omitempty"`
+	FlowID string `json:"name,omitempty"`
+	// The step that the flow is blocked on, if any.
 	BlockedOnStep *struct {
 		Name   string `json:"name"`
 		Schema string `json:"schema"`
