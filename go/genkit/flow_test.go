@@ -138,10 +138,13 @@ func TestFlowState(t *testing.T) {
 		EventsTriggered: map[string]any{"a": "b"},
 		Executions:      []*flowExecution{{StartTime: 4, EndTime: 5, TraceIDs: []string{"c"}}},
 		Operation: &Operation[int]{
-			FlowID:        "id",
-			BlockedOnStep: &blockedOnStep{Name: "bos", Schema: "s"},
-			Done:          true,
-			Metadata:      "meta",
+			FlowID: "id",
+			BlockedOnStep: &struct {
+				Name   string `json:"name"`
+				Schema string `json:"schema"`
+			}{Name: "bos", Schema: "s"},
+			Done:     true,
+			Metadata: "meta",
 			Result: &FlowResult[int]{
 				Response:   6,
 				Error:      "err",

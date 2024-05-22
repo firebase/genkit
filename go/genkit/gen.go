@@ -30,9 +30,3 @@ type flowExecution struct {
 	StartTime gtime.Milliseconds `json:"startTime,omitempty"`
 	TraceIDs  []string           `json:"traceIds,omitempty"`
 }
-
-// blockedOnStep describes the step of the flow that the flow is blocked on.
-type blockedOnStep struct {
-	Name   string `json:"name,omitempty"`
-	Schema string `json:"schema,omitempty"`
-}

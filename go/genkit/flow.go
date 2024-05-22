@@ -210,8 +210,11 @@ func (fs *flowState[I, O]) cache() map[string]json.RawMessage { return fs.Cache 
 
 // An Operation describes the state of a Flow that may still be in progress.
 type Operation[O any] struct {
-	FlowID        string         `json:"name,omitempty"`
-	BlockedOnStep *blockedOnStep `json:"blockedOnStep,omitempty"`
+	FlowID        string `json:"name,omitempty"`
+	BlockedOnStep *struct {
+		Name   string `json:"name"`
+		Schema string `json:"schema"`
+	} `json:"blockedOnStep,omitempty"`
 	// Whether the operation is completed.
 	// If true Result will be non-nil.
 	Done bool `json:"done,omitempty"`
