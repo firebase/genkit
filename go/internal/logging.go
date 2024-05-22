@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package internal
 
 import (
 	"context"
@@ -29,12 +29,12 @@ func init() {
 	slog.SetDefault(h)
 }
 
-var loggerKey = newContextKey[*slog.Logger]()
+var loggerKey = NewContextKey[*slog.Logger]()
 
 // Logger returns the Logger in ctx, or the default Logger
 // if there is none.
 func Logger(ctx context.Context) *slog.Logger {
-	if l := loggerKey.fromContext(ctx); l != nil {
+	if l := loggerKey.FromContext(ctx); l != nil {
 		return l
 	}
 	return slog.Default()

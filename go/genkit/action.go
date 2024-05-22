@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/internal/tracing"
 	"github.com/invopop/jsonschema"
 )
 
@@ -56,7 +57,7 @@ type NoStream = StreamingCallback[struct{}]
 type Action[I, O, S any] struct {
 	name         string
 	fn           Func[I, O, S]
-	tstate       *tracingState
+	tstate       *tracing.State
 	inputSchema  *jsonschema.Schema
 	outputSchema *jsonschema.Schema
 	// optional
@@ -89,18 +90,18 @@ func NewStreamingAction[I, O, S any](name string, metadata map[string]any, fn Fu
 // Name returns the Action's name.
 func (a *Action[I, O, S]) Name() string { return a.name }
 
-// setTracingState sets the action's tracingState.
-func (a *Action[I, O, S]) setTracingState(tstate *tracingState) { a.tstate = tstate }
+// setTracingState sets the action's tracing.State.
+func (a *Action[I, O, S]) setTracingState(tstate *tracing.State) { a.tstate = tstate }
 
 // Run executes the Action's function in a new trace span.
 func (a *Action[I, O, S]) Run(ctx context.Context, input I, cb StreamingCallback[S]) (output O, err error) {
 	// TODO: validate input against JSONSchema for I.
 	// TODO: validate output against JSONSchema for O.
-	Logger(ctx).Debug("Action.Run",
+	internal.Logger(ctx).Debug("Action.Run",
 		"name", a.name,
 		"input", fmt.Sprintf("%#v", input))
 	defer func() {
-		Logger(ctx).Debug("Action.Run",
+		internal.Logger(ctx).Debug("Action.Run",
 			"name", a.name,
 			"output", fmt.Sprintf("%#v", output),
 			"err", err)
@@ -110,7 +111,7 @@ func (a *Action[I, O, S]) Run(ctx context.Context, input I, cb StreamingCallback
 		// This action has probably not been registered.
 		tstate = globalRegistry.tstate
 	}
-	return runInNewSpan(ctx, tstate, a.name, "action", false, input,
+	return tracing.RunInNewSpan(ctx, tstate, a.name, "action", false, input,
 		func(ctx context.Context, input I) (O, error) {
 			start := time.Now()
 			out, err := a.fn(ctx, input, cb)
@@ -163,8 +164,8 @@ type action interface {
 	// the registry will set.
 	desc() actionDesc
 
-	// setTracingState set's the action's tracingState.
-	setTracingState(*tracingState)
+	// setTracingState set's the action's tracing.State.
+	setTracingState(*tracing.State)
 }
 
 // An actionDesc is a description of an Action.

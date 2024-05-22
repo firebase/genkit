@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package tracing
 
 import (
 	"context"
@@ -20,7 +20,6 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/gtime"
-	"github.com/firebase/genkit/go/gtrace"
 	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	otrace "go.opentelemetry.io/otel/trace"
@@ -29,10 +28,10 @@ import (
 // A traceStoreExporter is an OpenTelemetry SpanExporter that
 // writes spans to a TraceStore.
 type traceStoreExporter struct {
-	store gtrace.Store
+	store Store
 }
 
-func newTraceStoreExporter(store gtrace.Store) *traceStoreExporter {
+func newTraceStoreExporter(store Store) *traceStoreExporter {
 	return &traceStoreExporter{store}
 }
 
@@ -65,8 +64,8 @@ func (e *traceStoreExporter) ExportSpans(ctx context.Context, spans []sdktrace.R
 
 // convertTrace converts a list of spans to a TraceData.
 // The spans must all have the same trace ID.
-func convertTrace(spans []sdktrace.ReadOnlySpan) (*gtrace.Data, error) {
-	td := &gtrace.Data{Spans: map[string]*gtrace.SpanData{}}
+func convertTrace(spans []sdktrace.ReadOnlySpan) (*Data, error) {
+	td := &Data{Spans: map[string]*SpanData{}}
 	for _, span := range spans {
 		cspan := convertSpan(span)
 		// The unique span with no parent determines
@@ -85,9 +84,9 @@ func convertTrace(spans []sdktrace.ReadOnlySpan) (*gtrace.Data, error) {
 }
 
 // convertSpan converts an OpenTelemetry span to a SpanData.
-func convertSpan(span sdktrace.ReadOnlySpan) *gtrace.SpanData {
+func convertSpan(span sdktrace.ReadOnlySpan) *SpanData {
 	sc := span.SpanContext()
-	sd := &gtrace.SpanData{
+	sd := &SpanData{
 		SpanID:                  sc.SpanID().String(),
 		TraceID:                 sc.TraceID().String(),
 		StartTime:               gtime.ToMilliseconds(span.StartTime()),
@@ -95,9 +94,9 @@ func convertSpan(span sdktrace.ReadOnlySpan) *gtrace.SpanData {
 		Attributes:              attributesToMap(span.Attributes()),
 		DisplayName:             span.Name(),
 		Links:                   convertLinks(span.Links()),
-		InstrumentationLibrary:  gtrace.InstrumentationLibrary(span.InstrumentationLibrary()),
+		InstrumentationLibrary:  InstrumentationLibrary(span.InstrumentationLibrary()),
 		SpanKind:                strings.ToUpper(span.SpanKind().String()),
-		SameProcessAsParentSpan: gtrace.BoolValue{!sc.IsRemote()},
+		SameProcessAsParentSpan: BoolValue{!sc.IsRemote()},
 		Status:                  convertStatus(span.Status()),
 	}
 	if p := span.Parent(); p.HasSpanID() {
@@ -115,10 +114,10 @@ func attributesToMap(attrs []attribute.KeyValue) map[string]any {
 	return m
 }
 
-func convertLinks(links []sdktrace.Link) []*gtrace.Link {
-	var cls []*gtrace.Link
+func convertLinks(links []sdktrace.Link) []*Link {
+	var cls []*Link
 	for _, l := range links {
-		cl := &gtrace.Link{
+		cl := &Link{
 			SpanContext:            convertSpanContext(l.SpanContext),
 			Attributes:             attributesToMap(l.Attributes),
 			DroppedAttributesCount: l.DroppedAttributeCount,
@@ -128,8 +127,8 @@ func convertLinks(links []sdktrace.Link) []*gtrace.Link {
 	return cls
 }
 
-func convertSpanContext(sc otrace.SpanContext) gtrace.SpanContext {
-	return gtrace.SpanContext{
+func convertSpanContext(sc otrace.SpanContext) SpanContext {
+	return SpanContext{
 		TraceID:    sc.TraceID().String(),
 		SpanID:     sc.SpanID().String(),
 		IsRemote:   sc.IsRemote(),
@@ -137,12 +136,12 @@ func convertSpanContext(sc otrace.SpanContext) gtrace.SpanContext {
 	}
 }
 
-func convertEvents(evs []sdktrace.Event) []gtrace.TimeEvent {
-	var tes []gtrace.TimeEvent
+func convertEvents(evs []sdktrace.Event) []TimeEvent {
+	var tes []TimeEvent
 	for _, e := range evs {
-		tes = append(tes, gtrace.TimeEvent{
+		tes = append(tes, TimeEvent{
 			Time: gtime.ToMilliseconds(e.Time),
-			Annotation: gtrace.Annotation{
+			Annotation: Annotation{
 				Description: e.Name,
 				Attributes:  attributesToMap(e.Attributes),
 			},
@@ -151,8 +150,8 @@ func convertEvents(evs []sdktrace.Event) []gtrace.TimeEvent {
 	return tes
 }
 
-func convertStatus(s sdktrace.Status) gtrace.Status {
-	return gtrace.Status{
+func convertStatus(s sdktrace.Status) Status {
+	return Status{
 		Code:        uint32(s.Code),
 		Description: s.Description,
 	}

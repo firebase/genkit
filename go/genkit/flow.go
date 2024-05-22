@@ -25,6 +25,7 @@ import (
 
 	"github.com/firebase/genkit/go/gtime"
 	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/internal/tracing"
 	"github.com/google/uuid"
 	otrace "go.opentelemetry.io/otel/trace"
 )
@@ -89,7 +90,7 @@ type Flow[I, O, S any] struct {
 	name       string         // The last component of the flow's key in the registry.
 	fn         Func[I, O, S]  // The function to run.
 	stateStore FlowStateStore // Where FlowStates are stored, to support resumption.
-	tstate     *tracingState  // set from the action when the flow is defined
+	tstate     *tracing.State // set from the action when the flow is defined
 	// TODO(jba): scheduler
 	// TODO(jba): experimentalDurable
 	// TODO(jba): authPolicy
@@ -239,7 +240,7 @@ type FlowResult[O any] struct {
 // action creates an action for the flow. See the comment at the top of this file for more information.
 func (f *Flow[I, O, S]) action() *Action[*flowInstruction[I], *flowState[I, O], S] {
 	return NewStreamingAction(f.name, nil, func(ctx context.Context, inst *flowInstruction[I], cb StreamingCallback[S]) (*flowState[I, O], error) {
-		spanMetaKey.fromContext(ctx).SetAttr("flow:wrapperAction", "true")
+		tracing.SpanMetaKey.FromContext(ctx).SetAttr("flow:wrapperAction", "true")
 		return f.runInstruction(ctx, inst, cb)
 	})
 }
@@ -289,10 +290,10 @@ func (f *Flow[I, O, S]) execute(ctx context.Context, state *flowState[I, O], dis
 	defer func() {
 		if err := fctx.finish(ctx); err != nil {
 			// TODO(jba): do something more with this error?
-			Logger(ctx).Error("flowContext.finish", "err", err.Error())
+			internal.Logger(ctx).Error("flowContext.finish", "err", err.Error())
 		}
 	}()
-	ctx = flowContextKey.newContext(ctx, fctx)
+	ctx = flowContextKey.NewContext(ctx, fctx)
 	exec := &flowExecution{
 		StartTime: gtime.ToMilliseconds(time.Now()),
 	}
@@ -301,8 +302,8 @@ func (f *Flow[I, O, S]) execute(ctx context.Context, state *flowState[I, O], dis
 	state.mu.Unlock()
 	// TODO(jba): retrieve the JSON-marshaled SpanContext from state.traceContext.
 	// TODO(jba): add a span link to the context.
-	output, err := runInNewSpan(ctx, fctx.tracingState(), f.name, "flow", true, state.Input, func(ctx context.Context, input I) (O, error) {
-		spanMeta := spanMetaKey.fromContext(ctx)
+	output, err := tracing.RunInNewSpan(ctx, fctx.tracingState(), f.name, "flow", true, state.Input, func(ctx context.Context, input I) (O, error) {
+		spanMeta := tracing.SpanMetaKey.FromContext(ctx)
 		spanMeta.SetAttr("flow:execution", strconv.Itoa(len(state.Executions)-1))
 		// TODO(jba): put labels into span metadata.
 		spanMeta.SetAttr("flow:name", f.name)
@@ -318,14 +319,14 @@ func (f *Flow[I, O, S]) execute(ctx context.Context, state *flowState[I, O], dis
 		latency := time.Since(start)
 		if err != nil {
 			// TODO(jba): handle InterruptError
-			Logger(ctx).Error("flow failed",
+			internal.Logger(ctx).Error("flow failed",
 				"path", spanMeta.Path,
 				"err", err.Error(),
 			)
 			writeFlowFailure(ctx, f.name, latency, err)
 			spanMeta.SetAttr("flow:state", "error")
 		} else {
-			Logger(ctx).Info("flow succeeded", "path", spanMeta.Path)
+			internal.Logger(ctx).Info("flow succeeded", "path", spanMeta.Path)
 			writeFlowSuccess(ctx, f.name, latency)
 			spanMeta.SetAttr("flow:state", "done")
 
@@ -363,7 +364,7 @@ func generateFlowID() (string, error) {
 type flowContext[I, O any] struct {
 	state      *flowState[I, O]
 	stateStore FlowStateStore
-	tstate     *tracingState
+	tstate     *tracing.State
 	mu         sync.Mutex
 	seenSteps  map[string]int // number of times each name appears, to avoid duplicate names
 	// TODO(jba): auth
@@ -373,10 +374,10 @@ type flowContext[I, O any] struct {
 type flowContexter interface {
 	uniqueStepName(string) string
 	stater() flowStater
-	tracingState() *tracingState
+	tracingState() *tracing.State
 }
 
-func newFlowContext[I, O any](state *flowState[I, O], store FlowStateStore, tstate *tracingState) *flowContext[I, O] {
+func newFlowContext[I, O any](state *flowState[I, O], store FlowStateStore, tstate *tracing.State) *flowContext[I, O] {
 	return &flowContext[I, O]{
 		state:      state,
 		stateStore: store,
@@ -384,8 +385,8 @@ func newFlowContext[I, O any](state *flowState[I, O], store FlowStateStore, tsta
 		seenSteps:  map[string]int{},
 	}
 }
-func (fc *flowContext[I, O]) stater() flowStater          { return fc.state }
-func (fc *flowContext[I, O]) tracingState() *tracingState { return fc.tstate }
+func (fc *flowContext[I, O]) stater() flowStater           { return fc.state }
+func (fc *flowContext[I, O]) tracingState() *tracing.State { return fc.tstate }
 
 // finish is called at the end of a flow execution.
 func (fc *flowContext[I, O]) finish(ctx context.Context) error {
@@ -408,7 +409,7 @@ func (fc *flowContext[I, O]) uniqueStepName(name string) string {
 	return fmt.Sprintf("%s-%d", name, n)
 }
 
-var flowContextKey = newContextKey[flowContexter]()
+var flowContextKey = internal.NewContextKey[flowContexter]()
 
 // Run runs the function f in the context of the current flow.
 // It returns an error if no flow is active.
@@ -418,16 +419,16 @@ var flowContextKey = newContextKey[flowContexter]()
 // is restarted, f will not be called a second time.
 func Run[T any](ctx context.Context, name string, f func() (T, error)) (T, error) {
 	// from js/flow/src/steps.ts
-	fc := flowContextKey.fromContext(ctx)
+	fc := flowContextKey.FromContext(ctx)
 	if fc == nil {
 		var z T
 		return z, fmt.Errorf("genkit.Run(%q): must be called from a flow", name)
 	}
 	// TODO(jba): The input here is irrelevant. Perhaps runInNewSpan should have only a result type param,
 	// as in the js.
-	return runInNewSpan(ctx, fc.tracingState(), name, "flowStep", false, 0, func(ctx context.Context, _ int) (T, error) {
+	return tracing.RunInNewSpan(ctx, fc.tracingState(), name, "flowStep", false, 0, func(ctx context.Context, _ int) (T, error) {
 		uName := fc.uniqueStepName(name)
-		spanMeta := spanMetaKey.fromContext(ctx)
+		spanMeta := tracing.SpanMetaKey.FromContext(ctx)
 		spanMeta.SetAttr("flow:stepType", "run")
 		spanMeta.SetAttr("flow:stepName", name)
 		spanMeta.SetAttr("flow:resolvedStepName", uName)
