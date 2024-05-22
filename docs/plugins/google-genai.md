@@ -77,7 +77,7 @@ const llmResponse = await generate({
 });
 ```
 
-or use `embed` with `textEmbeddingGecko001`
+or use embedders (ex. `textEmbeddingGecko001`) with `embed` or retrievers:
 
 ```js
 const embedding = await embed({
