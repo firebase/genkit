@@ -110,7 +110,7 @@ func (r *retriever) Index(ctx context.Context, req *ai.IndexerRequest) error {
 		}
 
 		if _, ok := r.data[id]; ok {
-			genkit.DebugLog(ctx, "localvec skipping document because already present", "id", id)
+			genkit.Logger(ctx).Debug("localvec skipping document because already present", "id", id)
 			continue
 		}
 

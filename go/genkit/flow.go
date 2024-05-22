@@ -33,14 +33,15 @@ import (
 // TODO(jba): provide a way to start a Flow from user code.
 
 // A Flow is a kind of Action that can be interrupted and resumed.
+// (Resumption is an experimental feature in the Javascript implementation,
+// and not yet supported in Go.)
 //
-// A Flow[I, O, S] represents a function from I to O (the S parameter is described
-// under "Streaming" below). But the function may run in pieces, with interruptions
-// and resumptions. (The interruptions discussed here are a part of the flow mechanism,
-// not hardware interrupts.) The actual Go function for the flow may be executed
-// multiple times, each time making more progress, until finally it completes with
-// a value of type O or an error. The mechanism used to achieve this is explained
-// below.
+// A Flow[I, O, S] represents a function from I to O (the S parameter is for streaming,
+// described below). But the function may run in pieces, with interruptions and resumptions.
+// (The interruptions discussed here are a part of the flow mechanism, not hardware
+// interrupts.) The actual Go function for the flow may be executed multiple times,
+// each time making more progress, until finally it completes with a value of type
+// O or an error. The mechanism used to achieve this is explained below.
 //
 // To treat a flow as an action, which is an uninterrupted function execution, we
 // use different input and output types to capture the additional behavior. The input
@@ -60,8 +61,8 @@ import (
 // are cached in the flowState. The programmer marks these steps manually, by calling
 // genkit.Run.
 //
-// A flow computation consists of one or more flow executions. (The FlowExecution
-// type records information about these; a flowState holds a slice of FlowExecutions.)
+// A flow computation consists of one or more flow executions. (The flowExecution
+// type records information about these; a flowState holds a slice of flowExecutions.)
 // The computation begins with a "start" instruction. If the function is not interrupted,
 // it will run to completion and the final state will contain its result. If it is
 // interrupted, state will contain information about how and when it can be resumed.
@@ -72,8 +73,6 @@ import (
 // "schedule" instruction accomplishes this; the flow is finally started at a later
 // time by the "runScheduled" instruction.
 //
-// # Streaming
-//
 // Some flows can "stream" their results, providing them incrementally. To do so,
 // the flow invokes a callback repeatedly. When streaming is complete, the flow
 // returns a final result in the usual way.
@@ -82,6 +81,10 @@ import (
 //
 // Streaming is only supported for the "start" flow instruction. Currently there is
 // no way to schedule or resume a flow with streaming.
+
+// A Flow is an Action with additional support for observability and introspection.
+// A Flow[I, O, S] represents a function from I to O. The S parameter is for
+// flows that support streaming: providing their results incrementally.
 type Flow[I, O, S any] struct {
 	name       string         // The last component of the flow's key in the registry.
 	fn         Func[I, O, S]  // The function to run.
@@ -171,7 +174,7 @@ type flowState[I, O any] struct {
 	mu              sync.Mutex
 	Cache           map[string]json.RawMessage `json:"cache,omitempty"`
 	EventsTriggered map[string]any             `json:"eventsTriggered,omitempty"`
-	Executions      []*FlowExecution           `json:"executions,omitempty"`
+	Executions      []*flowExecution           `json:"executions,omitempty"`
 	// The operation is the user-visible part of the state.
 	Operation    *Operation[O] `json:"operation,omitempty"`
 	TraceContext string        `json:"traceContext,omitempty"`
@@ -208,7 +211,7 @@ func (fs *flowState[I, O]) cache() map[string]json.RawMessage { return fs.Cache 
 // An Operation describes the state of a Flow that may still be in progress.
 type Operation[O any] struct {
 	FlowID        string         `json:"name,omitempty"`
-	BlockedOnStep *BlockedOnStep `json:"blockedOnStep,omitempty"`
+	BlockedOnStep *blockedOnStep `json:"blockedOnStep,omitempty"`
 	// Whether the operation is completed.
 	// If true Result will be non-nil.
 	Done bool `json:"done,omitempty"`
@@ -220,13 +223,14 @@ type Operation[O any] struct {
 // A FlowResult is the result of a flow: either success, in which case Response is
 // the return value of the flow's function; or failure, in which case Error is the
 // non-empty error string.
-// (Called FlowResponse in the javascript.)
 type FlowResult[O any] struct {
 	Response O      `json:"response,omitempty"`
 	Error    string `json:"error,omitempty"`
 	// TODO(jba): keep the actual error around so that RunFlow can use it.
 	StackTrace string `json:"stacktrace,omitempty"`
 }
+
+// FlowResult is called FlowResponse in the javascript.
 
 // action creates an action for the flow. See the comment at the top of this file for more information.
 func (f *Flow[I, O, S]) action() *Action[*flowInstruction[I], *flowState[I, O], S] {
@@ -281,11 +285,11 @@ func (f *Flow[I, O, S]) execute(ctx context.Context, state *flowState[I, O], dis
 	defer func() {
 		if err := fctx.finish(ctx); err != nil {
 			// TODO(jba): do something more with this error?
-			logger(ctx).Error("flowContext.finish", "err", err.Error())
+			Logger(ctx).Error("flowContext.finish", "err", err.Error())
 		}
 	}()
 	ctx = flowContextKey.newContext(ctx, fctx)
-	exec := &FlowExecution{
+	exec := &flowExecution{
 		StartTime: gtime.ToMilliseconds(time.Now()),
 	}
 	state.mu.Lock()
@@ -310,14 +314,14 @@ func (f *Flow[I, O, S]) execute(ctx context.Context, state *flowState[I, O], dis
 		latency := time.Since(start)
 		if err != nil {
 			// TODO(jba): handle InterruptError
-			logger(ctx).Error("flow failed",
+			Logger(ctx).Error("flow failed",
 				"path", spanMeta.Path,
 				"err", err.Error(),
 			)
 			writeFlowFailure(ctx, f.name, latency, err)
 			spanMeta.SetAttr("flow:state", "error")
 		} else {
-			logger(ctx).Info("flow succeeded", "path", spanMeta.Path)
+			Logger(ctx).Info("flow succeeded", "path", spanMeta.Path)
 			writeFlowSuccess(ctx, f.name, latency)
 			spanMeta.SetAttr("flow:state", "done")
 

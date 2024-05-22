@@ -103,7 +103,7 @@ func runInNewSpan[I, O any](
 	f func(context.Context, I) (O, error),
 ) (O, error) {
 	// TODO(jba): support span links.
-	log := logger(ctx)
+	log := Logger(ctx)
 	log.Debug("span start", "name", name)
 	defer log.Debug("span end", "name", name)
 	sm := &spanMetadata{

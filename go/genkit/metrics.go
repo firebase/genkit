@@ -37,7 +37,7 @@ var fetchInstruments = sync.OnceValue(func() *metricInstruments {
 	insts, err := initInstruments()
 	if err != nil {
 		// Do not stop the program because we can't collect metrics.
-		logger(context.Background()).Error("metric initialization failed; no metrics will be collected", "err", err)
+		Logger(context.Background()).Error("metric initialization failed; no metrics will be collected", "err", err)
 		return nil
 	}
 	return insts

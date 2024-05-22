@@ -23,11 +23,7 @@ type flowError struct {
 	Stacktrace string `json:"stacktrace,omitempty"`
 }
 
-type FlowInvokeEnvelopeMessageRunScheduled struct {
-	FlowID string `json:"flowId,omitempty"`
-}
-
-type FlowExecution struct {
+type flowExecution struct {
 	// end time in milliseconds since the epoch
 	EndTime gtime.Milliseconds `json:"endTime,omitempty"`
 	// start time in milliseconds since the epoch
@@ -35,8 +31,8 @@ type FlowExecution struct {
 	TraceIDs  []string           `json:"traceIds,omitempty"`
 }
 
-// BlockedOnStep describes the step of the flow that the flow is blocked on.
-type BlockedOnStep struct {
+// blockedOnStep describes the step of the flow that the flow is blocked on.
+type blockedOnStep struct {
 	Name   string `json:"name,omitempty"`
 	Schema string `json:"schema,omitempty"`
 }
