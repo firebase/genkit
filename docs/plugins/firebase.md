@@ -75,7 +75,7 @@ You can use Cloud Firestore as a vector store for RAG indexing and retrieval.
 
 This section contains information specific to the `firebase` plugin and Cloud
 Firestore's vector search feature.
-See the [Retrieval-augmented generation](../rag.md) page for a general
+See the [Retrieval-augmented generation](../rag.md) page for a more detailed
 discussion on implementing RAG using Genkit.
 
 The `firebase` plugin provides a convenience function for defining Firestore
@@ -111,12 +111,6 @@ const docs = await retrieve({
 });
 ```
 
-Firestore depends on indexes to provide fast and efficient querying on
-collections. The prior example requires the `embedding` field to be indexed to
-work. To do so, call `retrieve()` and Firestore will throw an error with a
-command to create an index. Execute that command and your index should be ready
-to use.
-
 To populate your Firestore collection, use an embedding generator along with the
 Admin SDK:
 
@@ -147,6 +141,19 @@ async function indexToFirestore(content) {
   });
 }
 ```
+
+Firestore depends on indexes to provide fast and efficient querying on
+collections. (Note that "index" here refers to database indexes, and not
+Genkit's indexer and retriever abstractions.)
+
+The prior example requires the `embedding` field to be indexed to
+work. To create the index:
+
+- Run the `gcloud` command described in the
+  [Create a single-field vector index](https://firebase.google.com/docs/firestore/vector-search?hl=en&authuser=0#create_and_manage_vector_indexes)
+  section of the Firestore docs.
+- Alternatively, call `retrieve()` and Firestore will throw an error with the
+  correct command to create the index.
 
 #### Learn more
 
