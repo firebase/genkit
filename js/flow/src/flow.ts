@@ -840,10 +840,12 @@ export function createFlowsExpressRouter(params?: {
   router.use(bodyParser.json());
   router.use(cors(params?.cors));
 
+  const port =
+    params?.port || (process.env.PORT ? parseInt(process.env.PORT) : 0) || 3400;
   const pathPrefix = params?.pathPrefix ?? '';
   const flows = params?.flows || createdFlows();
   flows.forEach((f) => {
-    const flowPath = `${pathPrefix}/${f.name}`;
+    const flowPath = `/${pathPrefix}${f.name}`;
     logger.info(` - ${flowPath}`);
     // Add middlware
     f.middleware?.forEach((m) => {

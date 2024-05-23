@@ -1,3 +1,6 @@
+<!-- NOTE: prettier-ignore used in some snippets to allow copy/paste into Firebase Functions which
+use https://github.com/firebase/firebase-tools/blob/master/templates/init/functions/javascript/_eslintrc -->
+
 # Genkit with Firebase Cloud Functions
 
 Firebase Genkit includes a plugin that helps you deploy your flows to Firebase
@@ -69,14 +72,16 @@ deploying the default sample flow to Firebase.
 
       1.  Edit `src/index.ts` and add the following after the existing imports:
 
-          ```js
-          import { defineSecret } from 'firebase-functions/params';
-          defineSecret('GOOGLE_GENAI_API_KEY');
-          ```
+      <!--See note above on prettier-ignore -->
+      <!-- prettier-ignore -->
+      ```js
+      import {defineSecret} from "firebase-functions/params";
+      defineSecret("GOOGLE_GENAI_API_KEY");
+      ```
 
-          Now, when you deploy this function, your API key will be stored in
-          Cloud Secret Manager, and available from the Cloud Functions
-          environment.
+      Now, when you deploy this function, your API key will be stored in
+      Cloud Secret Manager, and available from the Cloud Functions
+      environment.
 
     - {Gemini (Vertex AI)}
 
@@ -107,13 +112,14 @@ deploying the default sample flow to Firebase.
 
 1.  If you'll access your flow from a web app (which you will be doing in the
     next section), in the `httpsOptions` parameter, set a CORS policy:
-
+    <!--See note above on prettier-ignore -->
+    <!-- prettier-ignore -->
     ```js
     export const menuSuggestionFlow = onFlow(
       {
-        name: 'menuSuggestionFlow',
+        name: "menuSuggestionFlow",
         // ...
-        httpsOptions: { cors: '*' }, // Add this line.
+        httpsOptions: {cors: true}, // Add this line.
       },
       async (subject) => {
         // ...
@@ -229,7 +235,7 @@ app:
         </div>
         <div id="callGenkit" hidden>
           Subject: <input type="text" id="subject" />
-          <button id="suggestMenuItem">Suggest a menu item</button>
+          <button id="suggestMenuItem">Suggest a menu theme</button>
           <p id="menuItem"></p>
         </div>
         <script type="module">

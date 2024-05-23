@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package tracing
 
 import (
 	"context"
@@ -23,9 +23,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestFileTraceStore(t *testing.T) {
+func TestFileStore(t *testing.T) {
 	ctx := context.Background()
-	td1 := &TraceData{
+	td1 := &Data{
 		DisplayName: "td1",
 		StartTime:   10,
 		EndTime:     20,
@@ -34,7 +34,7 @@ func TestFileTraceStore(t *testing.T) {
 			"s2": {SpanID: "sid2"},
 		},
 	}
-	ts, err := NewFileTraceStore(t.TempDir())
+	ts, err := NewFileStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +51,7 @@ func TestFileTraceStore(t *testing.T) {
 
 	// Saving a span with the same ID merges spans and overrides the other
 	// fields.
-	td2 := &TraceData{
+	td2 := &Data{
 		DisplayName: "td2",
 		StartTime:   30,
 		EndTime:     40,
@@ -62,7 +62,7 @@ func TestFileTraceStore(t *testing.T) {
 	if err := ts.Save(ctx, "id1", td2); err != nil {
 		t.Fatal(err)
 	}
-	want := &TraceData{
+	want := &Data{
 		TraceID:     "id1",
 		DisplayName: "td2",
 		StartTime:   30,
@@ -82,15 +82,15 @@ func TestFileTraceStore(t *testing.T) {
 	}
 
 	// Test List.
-	td3 := &TraceData{DisplayName: "td3"}
+	td3 := &Data{DisplayName: "td3"}
 	time.Sleep(50 * time.Millisecond) // force different mtimes
 	if err := ts.Save(ctx, "id3", td3); err != nil {
 		t.Fatal(err)
 	}
 
 	gotTDs, gotCT, err := ts.List(ctx, nil)
-	// All the TraceDatas, in the expected order.
-	wantTDs := []*TraceData{td3, want}
+	// All the Datas, in the expected order.
+	wantTDs := []*Data{td3, want}
 	if diff := cmp.Diff(wantTDs, gotTDs); diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
@@ -103,31 +103,31 @@ func TestListRange(t *testing.T) {
 	// These tests assume the default limit is 10.
 	total := 20
 	for _, test := range []struct {
-		q                  *TraceQuery
+		q                  *Query
 		wantStart, wantEnd int
 		wantErr            bool
 	}{
 		{nil, 0, 10, false},
 		{
-			&TraceQuery{Limit: 1},
+			&Query{Limit: 1},
 			0, 1, false,
 		},
 		{
-			&TraceQuery{Limit: 5, ContinuationToken: "1"},
+			&Query{Limit: 5, ContinuationToken: "1"},
 			1, 6, false,
 		},
 		{
-			&TraceQuery{ContinuationToken: "5"},
+			&Query{ContinuationToken: "5"},
 			5, 15, false,
 		},
-		{&TraceQuery{Limit: -1}, 0, 0, true},               // negative limit
-		{&TraceQuery{ContinuationToken: "x"}, 0, 0, true},  // not a number
-		{&TraceQuery{ContinuationToken: "-1"}, 0, 0, true}, // too small
-		{&TraceQuery{ContinuationToken: "21"}, 0, 0, true}, // too large
+		{&Query{Limit: -1}, 0, 0, true},               // negative limit
+		{&Query{ContinuationToken: "x"}, 0, 0, true},  // not a number
+		{&Query{ContinuationToken: "-1"}, 0, 0, true}, // too small
+		{&Query{ContinuationToken: "21"}, 0, 0, true}, // too large
 	} {
 		gotStart, gotEnd, err := listRange(test.q, total)
 		if test.wantErr {
-			if !errors.Is(err, errBadQuery) {
+			if !errors.Is(err, ErrBadQuery) {
 				t.Errorf("%+v: got err %v, want errBadQuery", test.q, err)
 			}
 		} else if gotStart != test.wantStart || gotEnd != test.wantEnd || err != nil {

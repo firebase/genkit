@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/firebase/genkit/go/internal"
 	"golang.org/x/exp/maps"
 )
 
@@ -84,7 +85,7 @@ func TestFlowConformance(t *testing.T) {
 	for _, filename := range testFiles {
 		t.Run(strings.TrimSuffix(filepath.Base(filename), ".json"), func(t *testing.T) {
 			var test conformanceTest
-			if err := readJSONFile(filename, &test); err != nil {
+			if err := internal.ReadJSONFile(filename, &test); err != nil {
 				t.Fatal(err)
 			}
 			// Each test uses its own registry to avoid interference.
@@ -111,7 +112,7 @@ func TestFlowConformance(t *testing.T) {
 			}
 			ts := r.lookupTraceStore(EnvironmentDev)
 			var gotTrace any
-			if err := ts.loadAny(resp.Telemetry.TraceID, &gotTrace); err != nil {
+			if err := ts.LoadAny(resp.Telemetry.TraceID, &gotTrace); err != nil {
 				t.Fatal(err)
 			}
 			renameSpans(t, gotTrace)

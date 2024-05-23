@@ -354,8 +354,7 @@ maintained by the Genkit team:
   <tr>
     <td><code>vertexai</code></td>
     <td>
-      <b>Generative models</b>: Gemini Pro, Gemini 1.5 Pro, Gemini Pro Vision, Imagen2,
-        Anthropic Claude 3<br>
+      <b>Generative models</b>: Gemini Pro, Gemini Pro Vision, Gemini 1.5 Flash, Gemini 1.5 Pro, Imagen2, Anthropic Claude 3<br>
       <b>Embedding models</b>: Gecko text embedding<br>
       <b>Evaluators</b>: Vertex AI evaluation
     </td>

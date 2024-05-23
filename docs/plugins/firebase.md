@@ -1,3 +1,6 @@
+<!-- NOTE: prettier-ignore used in some snippets to allow copy/paste into Firebase Functions which
+use https://github.com/firebase/firebase-tools/blob/master/templates/init/functions/javascript/_eslintrc -->
+
 # Firebase plugin
 
 The Firebase plugin provides several integrations with Firebase services:
@@ -19,11 +22,13 @@ npm i --save @genkit-ai/firebase
 
 To use this plugin, specify it when you call `configureGenkit()`:
 
+<!--See note above on prettier-ignore -->
+<!-- prettier-ignore -->
 ```js
-import { firebase } from '@genkit-ai/firebase';
+import {firebase} from "@genkit-ai/firebase";
 
 configureGenkit({
-  plugins: [firebase({ projectId: 'your-firebase-project' })],
+  plugins: [firebase({projectId: "your-firebase-project"})],
 });
 ```
 
@@ -66,50 +71,56 @@ You can use Cloud Firestore as a vector store for RAG indexing and retrieval.
 The `firebase` plugin provides a convenience function for defining Firestore
 retrievers, `defineFirestoreRetriever()`:
 
+<!--See note above on prettier-ignore -->
+<!-- prettier-ignore -->
 ```js
-import { defineFirestoreRetriever } from '@genkit-ai/firebase';
-import { initializeApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import {defineFirestoreRetriever} from "@genkit-ai/firebase";
+import {initializeApp} from "firebase-admin/app";
+import {getFirestore} from "firebase-admin/firestore";
 
 const app = initializeApp();
 const firestore = getFirestore(app);
 
 const yourRetrieverRef = defineFirestoreRetriever({
-  name: 'yourRetriever',
+  name: "yourRetriever",
   firestore: getFirestore(app),
-  collection: 'yourCollection',
-  contentField: 'yourDataChunks',
-  vectorField: 'embedding',
+  collection: "yourCollection",
+  contentField: "yourDataChunks",
+  vectorField: "embedding",
   embedder: textEmbeddingGecko,
-  distanceMeasure: 'COSINE', // 'EUCLIDEAN', 'DOT_PRODUCT', or 'COSINE' (default)
+  distanceMeasure: "COSINE", // "EUCLIDEAN", "DOT_PRODUCT", or "COSINE" (default)
 });
 ```
 
 To use it, pass it to the `retrieve()` function:
 
+<!--See note above on prettier-ignore -->
+<!-- prettier-ignore -->
 ```js
 const docs = await retrieve({
   retriever: yourRetrieverRef,
-  query: 'look for something',
-  config: { limit: 5 },
+  query: "look for something",
+  options: {limit: 5},
 });
 ```
 
 For indexing, use an embedding generator along with the Admin SDK:
 
+<!--See note above on prettier-ignore -->
+<!-- prettier-ignore -->
 ```js
-import { initializeApp } from 'firebase-admin';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { textEmbeddingGecko } from '@genkit-ai/vertexai';
-import { embed } from '@genkit-ai/ai/embedder';
+import {initializeApp} from "firebase-admin";
+import {getFirestore, FieldValue} from "firebase-admin/firestore";
+import {textEmbeddingGecko} from "@genkit-ai/vertexai";
+import {embed} from "@genkit-ai/ai/embedder";
 
 const app = initializeApp();
 const firestore = getFirestore(app);
 
 const indexConfig = {
-  collection: 'yourCollection',
-  contentField: 'yourDataChunks',
-  vectorField: 'embedding',
+  collection: "yourCollection",
+  contentField: "yourDataChunks",
+  vectorField: "embedding",
   embedder: textEmbeddingGecko,
 };
 
@@ -138,12 +149,14 @@ discussion on indexers and retrievers.
 
 You can use Cloud Firestore to store traces:
 
+<!--See note above on prettier-ignore -->
+<!-- prettier-ignore -->
 ```js
-import { firebase } from '@genkit-ai/firebase';
+import {firebase} from "@genkit-ai/firebase";
 
 configureGenkit({
   plugins: [firebase()],
-  traceStore: 'firebase',
+  traceStore: "firebase",
   enableTracingAndMetrics: true,
 });
 ```
@@ -151,11 +164,13 @@ configureGenkit({
 By default, the plugin stores traces in a collection called `genkit-traces` in
 the project's default database. To change either setting:
 
+<!--See note above on prettier-ignore -->
+<!-- prettier-ignore -->
 ```js
 firebase({
   traceStore: {
-    collection: 'your-collection';
-    databaseId: 'your-db';
+    collection: "your-collection";
+    databaseId: "your-db";
   }
 })
 ```
@@ -171,9 +186,11 @@ to Firebase's
 [Cloud Functions client SDKs](https://firebase.google.com/docs/functions/callable?gen=2nd#call_the_function)
 to call them.
 
+<!--See note above on prettier-ignore -->
+<!-- prettier-ignore -->
 ```js
-import { firebase } from '@genkit-ai/firebase';
-import { onFlow, noAuth } from '@genkit-ai/firebase/functions';
+import {firebase} from "@genkit-ai/firebase";
+import {onFlow, noAuth} from "@genkit-ai/firebase/functions";
 
 configureGenkit({
   plugins: [firebase()],
@@ -181,7 +198,7 @@ configureGenkit({
 
 export const exampleFlow = onFlow(
   {
-    name: 'exampleFlow',
+    name: "exampleFlow",
     authPolicy: noAuth(), // WARNING: noAuth() creates an open endpoint!
   },
   async (prompt) => {
@@ -202,13 +219,14 @@ The `onFlow()` function has some options not present in `defineFlow()`:
 
 - `httpsOptions`: an [`HttpsOptions`](https://firebase.google.com/docs/reference/functions/2nd-gen/node/firebase-functions.https.httpsoptions)
   object used to configure your Cloud Function:
-
+  <!--See note above on prettier-ignore -->
+  <!-- prettier-ignore -->
   ```js
   export const exampleFlow = onFlow(
     {
-      name: 'exampleFlow',
+      name: "exampleFlow",
       httpsOptions: {
-        cors: '*',
+        cors: true,
       },
       // ...
     },
@@ -230,14 +248,16 @@ The `onFlow()` function has some options not present in `defineFlow()`:
 This plugin provides a helper function to create authorization policies around
 Firebase Auth:
 
+<!--See note above on prettier-ignore -->
+<!-- prettier-ignore -->
 ```js
-import { firebaseAuth } from '@genkit-ai/firebase/auth';
+import {firebaseAuth} from "@genkit-ai/firebase/auth";
 
 export const exampleFlow = onFlow(
   {
-    name: 'exampleFlow',
+    name: "exampleFlow",
     authPolicy: firebaseAuth((user) => {
-      if (!user.email_verified) throw new Error('Requires verification!');
+      if (!user.email_verified) throw new Error("Requires verification!");
     }),
   },
   async (prompt) => {
