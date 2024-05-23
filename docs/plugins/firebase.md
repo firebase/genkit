@@ -100,7 +100,7 @@ To use it, pass it to the `retrieve()` function:
 const docs = await retrieve({
   retriever: yourRetrieverRef,
   query: "look for something",
-  config: {limit: 5},
+  options: {limit: 5},
 });
 ```
 

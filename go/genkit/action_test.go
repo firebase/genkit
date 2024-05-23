@@ -97,3 +97,30 @@ func TestActionStreaming(t *testing.T) {
 		t.Errorf("got %d, want %d", got, n)
 	}
 }
+
+func TestActionTracing(t *testing.T) {
+	ctx := context.Background()
+	const actionName = "TestTracing-inc"
+	a := NewAction(actionName, nil, inc)
+	if _, err := a.Run(context.Background(), 3, nil); err != nil {
+		t.Fatal(err)
+	}
+	// The dev TraceStore is registered by Init, called from TestMain.
+	ts := globalRegistry.lookupTraceStore(EnvironmentDev)
+	tds, _, err := ts.List(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The same trace store is used for all tests, so there might be several traces.
+	// Look for this one, which has a unique name.
+	for _, td := range tds {
+		if td.DisplayName == actionName {
+			// Spot check: expect a single span.
+			if g, w := len(td.Spans), 1; g != w {
+				t.Errorf("got %d spans, want %d", g, w)
+			}
+			return
+		}
+	}
+	t.Fatalf("did not find trace named %q", actionName)
+}

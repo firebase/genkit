@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+// The tracing package provides support for execution traces.
+package tracing
 
 import (
 	"context"
@@ -22,7 +23,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/firebase/genkit/go/gtrace"
 	"github.com/firebase/genkit/go/internal"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -30,51 +30,51 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// tracingState holds OpenTelemetry values for creating traces.
-type tracingState struct {
-	tp     *sdktrace.TracerProvider // references gtrace.Stores
+// State holds OpenTelemetry values for creating traces.
+type State struct {
+	tp     *sdktrace.TracerProvider // references Stores
 	tracer trace.Tracer             // returned from tp.Tracer(), cached
 }
 
-func newTracingState() *tracingState {
+func NewState() *State {
 	tp := sdktrace.NewTracerProvider()
-	return &tracingState{
+	return &State{
 		tp:     tp,
 		tracer: tp.Tracer("genkit-tracer", trace.WithInstrumentationVersion("v1")),
 	}
 }
 
-func (ts *tracingState) registerSpanProcessor(sp sdktrace.SpanProcessor) {
+func (ts *State) RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
 	ts.tp.RegisterSpanProcessor(sp)
 }
 
-// addTraceStoreImmediate adds tstore to the tracingState.
+// AddTraceStoreImmediate adds tstore to the tracingState.
 // Traces are saved immediately as they are finshed.
 // Use this for a gtrace.Store with a fast Save method,
 // such as one that writes to a file.
-func (ts *tracingState) addTraceStoreImmediate(tstore gtrace.Store) {
+func (ts *State) AddTraceStoreImmediate(tstore Store) {
 	e := newTraceStoreExporter(tstore)
 	// Adding a SimpleSpanProcessor is like using the WithSyncer option.
-	ts.registerSpanProcessor(sdktrace.NewSimpleSpanProcessor(e))
+	ts.RegisterSpanProcessor(sdktrace.NewSimpleSpanProcessor(e))
 	// Ignore tracerProvider.Shutdown. It shouldn't be needed when using WithSyncer.
 	// Confirmed for OTel packages as of v1.24.0.
 	// Also requires traceStoreExporter.Shutdown to be a no-op.
 }
 
-// addTraceStoreBatch adds ts to the tracingState.
+// AddTraceStoreBatch adds ts to the tracingState.
 // Traces are batched before being sent for processing.
 // Use this for a gtrace.Store with a potentially expensive Save method,
 // such as one that makes an RPC.
 // Callers must invoke the returned function at the end of the program to flush the final batch
 // and perform other cleanup.
-func (ts *tracingState) addTraceStoreBatch(tstore gtrace.Store) (shutdown func(context.Context) error) {
+func (ts *State) AddTraceStoreBatch(tstore Store) (shutdown func(context.Context) error) {
 	e := newTraceStoreExporter(tstore)
 	// Adding a BatchSpanProcessor is like using the WithBatcher option.
-	ts.registerSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
+	ts.RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(e))
 	return ts.tp.Shutdown
 }
 
-func newDevTraceStore() (gtrace.Store, error) {
+func NewDevStore() (Store, error) {
 	programName := filepath.Base(os.Args[0])
 	rootHash := fmt.Sprintf("%02x", md5.Sum([]byte(programName)))
 	dir := filepath.Join(os.TempDir(), ".genkit", rootHash, "traces")
@@ -82,7 +82,7 @@ func newDevTraceStore() (gtrace.Store, error) {
 		return nil, err
 	}
 	// Don't remove the temp directory, for post-mortem debugging.
-	return gtrace.NewFileStore(dir)
+	return NewFileStore(dir)
 }
 
 // The rest of this file contains code translated from js/common/src/tracing/*.ts.
@@ -92,18 +92,18 @@ const (
 	spanTypeAttr = attrPrefix + ":type"
 )
 
-// runInNewSpan runs f on input in a new span with the given name.
+// RunInNewSpan runs f on input in a new span with the given name.
 // The attrs map provides the span's initial attributes.
-func runInNewSpan[I, O any](
+func RunInNewSpan[I, O any](
 	ctx context.Context,
-	tstate *tracingState,
+	tstate *State,
 	name, spanType string,
 	isRoot bool,
 	input I,
 	f func(context.Context, I) (O, error),
 ) (O, error) {
 	// TODO(jba): support span links.
-	log := logger(ctx)
+	log := internal.Logger(ctx)
 	log.Debug("span start", "name", name)
 	defer log.Debug("span end", "name", name)
 	sm := &spanMetadata{
@@ -111,7 +111,7 @@ func runInNewSpan[I, O any](
 		Input:  input,
 		IsRoot: isRoot,
 	}
-	parentSpanMeta := spanMetaKey.fromContext(ctx)
+	parentSpanMeta := SpanMetaKey.FromContext(ctx)
 	var parentPath string
 	if parentSpanMeta != nil {
 		parentPath = parentSpanMeta.Path
@@ -126,7 +126,7 @@ func runInNewSpan[I, O any](
 	// At the end, copy some of the spanMetadata to the OpenTelemetry span.
 	defer func() { span.SetAttributes(sm.attributes()...) }()
 	// Add the spanMetadata to the context, so the function can access it.
-	ctx = spanMetaKey.newContext(ctx, sm)
+	ctx = SpanMetaKey.NewContext(ctx, sm)
 	// Run the function.
 	output, err := f(ctx, input)
 
@@ -197,10 +197,10 @@ func (sm *spanMetadata) attributes() []attribute.KeyValue {
 	return kvs
 }
 
-// spanMetaKey is for storing spanMetadatas in a context.
-var spanMetaKey = newContextKey[*spanMetadata]()
+// SpanMetaKey is for storing spanMetadatas in a context.
+var SpanMetaKey = internal.NewContextKey[*spanMetadata]()
 
 // SetCustomMetadataAttr records a key in the current span metadata.
 func SetCustomMetadataAttr(ctx context.Context, key, value string) {
-	spanMetaKey.fromContext(ctx).SetAttr(key, value)
+	SpanMetaKey.FromContext(ctx).SetAttr(key, value)
 }

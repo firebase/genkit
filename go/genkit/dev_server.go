@@ -34,7 +34,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/firebase/genkit/go/gtrace"
+	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/internal/tracing"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -160,7 +161,7 @@ func (s *devServer) handleRunAction(w http.ResponseWriter, r *http.Request) erro
 			return err
 		}
 	}
-	logger(ctx).Debug("running action",
+	internal.Logger(ctx).Debug("running action",
 		"key", body.Key,
 		"stream", stream)
 	var callback StreamingCallback[json.RawMessage]
@@ -193,8 +194,8 @@ func runAction(ctx context.Context, reg *registry, key string, input json.RawMes
 		return nil, &httpError{http.StatusNotFound, fmt.Errorf("no action with key %q", key)}
 	}
 	var traceID string
-	output, err := runInNewSpan(ctx, reg.tstate, "dev-run-action-wrapper", "", true, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
-		SetCustomMetadataAttr(ctx, "genkit-dev-internal", "true")
+	output, err := tracing.RunInNewSpan(ctx, reg.tstate, "dev-run-action-wrapper", "", true, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
+		tracing.SetCustomMetadataAttr(ctx, "genkit-dev-internal", "true")
 		traceID = trace.SpanContextFromContext(ctx).TraceID().String()
 		return action.runJSON(ctx, input, cb)
 	})
@@ -251,22 +252,22 @@ func (s *devServer) handleListTraces(w http.ResponseWriter, r *http.Request) err
 		}
 	}
 	ctoken := r.FormValue("continuationToken")
-	tds, ctoken, err := ts.List(r.Context(), &gtrace.Query{Limit: limit, ContinuationToken: ctoken})
-	if errors.Is(err, gtrace.ErrBadQuery) {
+	tds, ctoken, err := ts.List(r.Context(), &tracing.Query{Limit: limit, ContinuationToken: ctoken})
+	if errors.Is(err, tracing.ErrBadQuery) {
 		return &httpError{http.StatusBadRequest, err}
 	}
 	if err != nil {
 		return err
 	}
 	if tds == nil {
-		tds = []*gtrace.Data{}
+		tds = []*tracing.Data{}
 	}
 	return writeJSON(r.Context(), w, listTracesResult{tds, ctoken})
 }
 
 type listTracesResult struct {
-	Traces            []*gtrace.Data `json:"traces"`
-	ContinuationToken string         `json:"continuationToken"`
+	Traces            []*tracing.Data `json:"traces"`
+	ContinuationToken string          `json:"continuationToken"`
 }
 
 func (s *devServer) handleListFlowStates(w http.ResponseWriter, r *http.Request) error {
@@ -286,7 +287,7 @@ func writeJSON(ctx context.Context, w http.ResponseWriter, value any) error {
 	}
 	_, err = w.Write(data)
 	if err != nil {
-		logger(ctx).Error("writing output", "err", err)
+		internal.Logger(ctx).Error("writing output", "err", err)
 	}
 	return nil
 }

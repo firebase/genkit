@@ -112,17 +112,32 @@ function ollamaModel(
           : requestHeaders
         : {};
 
-      const res = await fetch(
-        serverAddress + (type === 'chat' ? '/api/chat' : '/api/generate'),
-        {
-          method: 'POST',
-          body: JSON.stringify(request),
-          headers: {
-            'Content-Type': 'application/json',
-            ...extraHeaders,
-          },
+      let res;
+      try {
+        res = await fetch(
+          serverAddress + (type === 'chat' ? '/api/chat' : '/api/generate'),
+          {
+            method: 'POST',
+            body: JSON.stringify(request),
+            headers: {
+              'Content-Type': 'application/json',
+              ...extraHeaders,
+            },
+          }
+        );
+      } catch (e) {
+        const cause = (e as any).cause;
+        if (cause) {
+          if (
+            cause instanceof Error &&
+            cause.message?.includes('ECONNREFUSED')
+          ) {
+            cause.message += '. Make sure ollama server is running.';
+          }
+          throw cause;
         }
-      );
+        throw e;
+      }
       if (!res.body) {
         throw new Error('Response has no body');
       }

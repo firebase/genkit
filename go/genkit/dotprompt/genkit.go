@@ -22,6 +22,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/internal/tracing"
 )
 
 // ActionInput is the input type of a prompt action.
@@ -160,7 +161,7 @@ func (p *Prompt) Register() error {
 // passes the rendered template to the AI generator specified by
 // the prompt.
 func (p *Prompt) Execute(ctx context.Context, input *ActionInput) (*ai.GenerateResponse, error) {
-	genkit.SetCustomMetadataAttr(ctx, "subtype", "prompt")
+	tracing.SetCustomMetadataAttr(ctx, "subtype", "prompt")
 
 	genReq, err := p.buildRequest(input)
 	if err != nil {
