@@ -62,6 +62,8 @@ import { chromaIndexerRef } from 'genkitx-chromadb';
 Then, pass the references to `retrieve()` and `index()`:
 
 ```js
+import { retrieve } from '@genkit-ai/ai';
+
 // To use the index you configured when you loaded the plugin:
 let docs = await retrieve({ retriever: chromaRetrieverRef, query });
 
@@ -73,6 +75,8 @@ docs = await retrieve({ retriever: bobFactsRetriever, query });
 ```
 
 ```js
+import { retrieve } from '@genkit-ai/ai';
+
 // To use the index you configured when you loaded the plugin:
 await index({ indexer: chromaIndexerRef, documents });
 

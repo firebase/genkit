@@ -85,6 +85,7 @@ credentials.
 This plugin statically exports references to its supported generative AI models:
 
 ```js
+import { generate } from '@genkit-ai/ai';
 import { geminiPro, geminiProVision, imagen2 } from '@genkit-ai/vertexai';
 ```
 
@@ -101,6 +102,7 @@ This plugin also statically exports a reference to the Gecko text embedding
 model:
 
 ```js
+import { embed } from '@genkit-ai/ai/embedder';
 import { textEmbeddingGecko } from '@genkit-ai/vertexai';
 ```
 
@@ -157,6 +159,8 @@ export default configureGenkit({
 Then use them as regular models:
 
 ```js
+import { generate } from '@genkit-ai/ai';
+
 const llmResponse = await generate({
   model: claude3Sonnet,
   prompt: 'What should I do when I visit Melbourne?',

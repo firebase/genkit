@@ -25,7 +25,7 @@ To use this plugin, specify it when you call `configureGenkit()`:
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
-import {firebase} from "@genkit-ai/firebase";
+import { firebase } from "@genkit-ai/firebase";
 
 configureGenkit({
   plugins: [firebase({projectId: "your-firebase-project"})],
@@ -97,6 +97,8 @@ To use it, pass it to the `retrieve()` function:
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
+import { retrieve } from '@genkit-ai/ai';
+
 const docs = await retrieve({
   retriever: yourRetrieverRef,
   query: "look for something",

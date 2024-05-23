@@ -107,6 +107,8 @@ This plugin doesn't statically export model references. Specify one of the
 models you configured using a string identifier:
 
 ```js
+import { generate } from '@genkit-ai/ai';
+
 const llmResponse = await generate({
   model: 'ollama/gemma',
   prompt: 'Tell me a joke.',

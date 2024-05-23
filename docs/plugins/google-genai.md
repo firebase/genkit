@@ -71,6 +71,8 @@ import {
 You can use these references to specify which model `generate()` uses:
 
 ```js
+import { generate } from '@genkit-ai/ai';
+
 const llmResponse = await generate({
   model: geminiPro,
   prompt: 'Tell me a joke.',
@@ -80,6 +82,8 @@ const llmResponse = await generate({
 or use embedders (ex. `textEmbeddingGecko001`) with `embed` or retrievers:
 
 ```js
+import { embed } from '@genkit-ai/ai/embedder';
+
 const embedding = await embed({
   embedder: textEmbeddingGecko001,
   content: input,
