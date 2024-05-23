@@ -246,7 +246,7 @@ func (f *Flow[I, O, S]) action() *Action[*flowInstruction[I], *flowState[I, O], 
 		"outputSchema": inferJSONSchema(o),
 	}
 	return NewStreamingAction(f.name, metadata, func(ctx context.Context, inst *flowInstruction[I], cb StreamingCallback[S]) (*flowState[I, O], error) {
-		spanMetaKey.fromContext(ctx).SetAttr("flow:wrapperAction", "true")
+		tracing.SpanMetaKey.FromContext(ctx).SetAttr("flow:wrapperAction", "true")
 		return f.runInstruction(ctx, inst, cb)
 	})
 }
