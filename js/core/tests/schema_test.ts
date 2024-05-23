@@ -69,7 +69,7 @@ describe('validate()', () => {
     {
       it: 'should allow for date types',
       schema: z.object({ date: z.string().datetime() }),
-      data: { date: "2024-05-22T17:00:00Z" },
+      data: { date: '2024-05-22T17:00:00Z' },
       valid: true,
     },
     {
