@@ -112,33 +112,81 @@ const docs = await retrieve({
 ```
 
 To populate your Firestore collection, use an embedding generator along with the
-Admin SDK:
+Admin SDK. For example, the menu ingestion script from the
+[Retrieval-augmented generation](../rag.md) page could be adapted for Firestore
+in the following way:
 
 ```js
-import { initializeApp } from 'firebase-admin';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { textEmbeddingGecko } from '@genkit-ai/vertexai';
-import { embed } from '@genkit-ai/ai/embedder';
+import { configureGenkit } from "@genkit-ai/core";
+import { embed } from "@genkit-ai/ai/embedder";
+import { defineFlow, run } from "@genkit-ai/flow";
+import { textEmbeddingGecko, vertexAI } from "@genkit-ai/vertexai";
 
-const app = initializeApp();
-const firestore = getFirestore(app);
+import { applicationDefault, initializeApp } from "firebase-admin/app";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
+
+import { chunk } from "llm-chunk";
+import pdf from "pdf-parse";
+import * as z from "zod";
+
+import { readFile } from "fs/promises";
+import path from "path";
 
 const indexConfig = {
-  collection: 'yourCollection',
-  contentField: 'yourContentField',
-  vectorField: 'embedding',
+  collection: "menuInfo",
+  contentField: "text",
+  vectorField: "embedding",
   embedder: textEmbeddingGecko,
 };
 
-async function indexToFirestore(content) {
-  const embedding = await embed({
-    embedder: indexConfig.embedder,
-    content,
-  });
-  await firestore.collection(indexConfig.collection).add({
-    [indexConfig.vectorField]: FieldValue.vector(embedding),
-    [indexConfig.contentField]: content,
-  });
+configureGenkit({
+  plugins: [vertexAI({ location: "us-central1" })],
+  enableTracingAndMetrics: false,
+});
+
+const app = initializeApp({ credential: applicationDefault() });
+const firestore = getFirestore(app);
+
+export const indexMenu = defineFlow(
+  {
+    name: "indexMenu",
+    inputSchema: z.string().describe("PDF file path"),
+    outputSchema: z.void(),
+  },
+  async (filePath: string) => {
+    filePath = path.resolve(filePath);
+
+    // Read the PDF.
+    const pdfTxt = await run("extract-text", () =>
+      extractTextFromPdf(filePath)
+    );
+
+    // Divide the PDF text into segments.
+    const chunks = await run("chunk-it", async () => chunk(pdfTxt));
+
+    // Add chunks to the index.
+    await run("index-chunks", async () => indexToFirestore(chunks));
+  }
+);
+
+async function indexToFirestore(data: string[]) {
+  for (const text of data) {
+    const embedding = await embed({
+      embedder: indexConfig.embedder,
+      content: text,
+    });
+    await firestore.collection(indexConfig.collection).add({
+      [indexConfig.vectorField]: FieldValue.vector(embedding),
+      [indexConfig.contentField]: text,
+    });
+  }
+}
+
+async function extractTextFromPdf(filePath: string) {
+  const pdfFile = path.resolve(filePath);
+  const dataBuffer = await readFile(pdfFile);
+  const data = await pdf(dataBuffer);
+  return data.text;
 }
 ```
 
@@ -152,6 +200,18 @@ work. To create the index:
 - Run the `gcloud` command described in the
   [Create a single-field vector index](https://firebase.google.com/docs/firestore/vector-search?hl=en&authuser=0#create_and_manage_vector_indexes)
   section of the Firestore docs.
+
+  The command looks like the following:
+
+  ```posix-terminal
+  gcloud alpha firestore indexes composite create --project=your-project-id \
+    --collection-group=yourCollectionName --query-scope=COLLECTION \
+    --field-config=vector-config='{"dimension":"768","flat": "{}"}',field-path=yourEmbeddingField
+  ```
+
+  However, the correct indexing configuration depends on the queries you will
+  make and the embedding model you're using.
+
 - Alternatively, call `retrieve()` and Firestore will throw an error with the
   correct command to create the index.
 
