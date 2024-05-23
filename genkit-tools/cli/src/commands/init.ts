@@ -193,7 +193,22 @@ export const init = new Command('init')
       process.exit(1);
     }
     const runtime = detectRuntime(process.cwd());
-    if (!supportedRuntimes.includes(runtime)) {
+    if (!runtime) {
+      logger.info('No runtime was detected in the current directory.');
+      if (
+        await confirm({
+          default: true,
+          message: 'Would you like to initialize a Node.js Genkit project?',
+        })
+      ) {
+        execSync(`npm init -y`, { stdio: 'inherit' });
+      } else {
+        logger.error(
+          'Please re-run `genkit init` from an active project directory.'
+        );
+        process.exit(1);
+      }
+    } else if (!supportedRuntimes.includes(runtime)) {
       logger.error(
         `The runtime could not be detected or is not supported. Supported runtimes: ${supportedRuntimes}`
       );
