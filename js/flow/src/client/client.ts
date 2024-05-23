@@ -16,19 +16,12 @@
 
 const __flowStreamDelimiter = '\n';
 
-type FlowUrl = {
-  name: string;
-  projectId: string;
-  region?: string;
-  isFirebaseEmulator?: boolean;
-};
-
 export function streamFlow({
   url,
   payload,
   headers,
 }: {
-  url: string | FlowUrl;
+  url: string;
   payload: any;
   headers?: Record<string, string>;
 }) {
@@ -42,18 +35,8 @@ export function streamFlow({
     cancel() {},
   });
 
-  let flowUrl: string;
-  if (typeof url === 'string') {
-    flowUrl = url;
-  } else {
-    const region = url.region ?? 'us-central1';
-    flowUrl = url.isFirebaseEmulator
-      ? `http://127.0.0.1:5001/${url.projectId}/${region}/${url.name}`
-      : `https://${region}-${url.projectId}.cloudfunctions.net/${url.name}`;
-  }
-
   const operationPromise = __flowRunEnvelope({
-    url: flowUrl,
+    url,
     payload,
     streamingCallback: (c) => {
       chunkStreamController?.enqueue(c);
