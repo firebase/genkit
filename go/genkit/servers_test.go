@@ -44,7 +44,7 @@ func TestDevServer(t *testing.T) {
 	r.registerAction("test", "devServer", NewAction("dec", map[string]any{
 		"bar": "baz",
 	}, dec))
-	srv := httptest.NewServer(newDevServerMux(r))
+	srv := httptest.NewServer(newDevServeMux(r))
 	defer srv.Close()
 
 	t.Run("runAction", func(t *testing.T) {
@@ -118,6 +118,45 @@ func TestDevServer(t *testing.T) {
 		}
 		// We may have any result, including internal.Zero traces, so don't check anything else.
 	})
+}
+
+func TestProdServer(t *testing.T) {
+	r, err := newRegistry()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defineFlow(r, "inc", func(_ context.Context, i int, _ NoStream) (int, error) {
+		return i + 1, nil
+	})
+	srv := httptest.NewServer(newFlowServeMux(r))
+	defer srv.Close()
+
+	check := func(t *testing.T, input string, wantStatus, wantResult int) {
+		res, err := http.Post(srv.URL+"/inc", "application/json", strings.NewReader(input))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		if g, w := res.StatusCode, wantStatus; g != w {
+			t.Fatalf("status: got %d, want %d", g, w)
+		}
+		if res.StatusCode != 200 {
+			return
+		}
+		type resultType struct {
+			Result int
+		}
+		got, err := readJSON[resultType](res.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if g, w := got.Result, wantResult; g != w {
+			t.Errorf("result: got %d, want %d", g, w)
+		}
+	}
+
+	t.Run("ok", func(t *testing.T) { check(t, "2", 200, 3) })
+	t.Run("bad", func(t *testing.T) { check(t, "true", 400, 0) })
 }
 
 func checkActionTrace(t *testing.T, reg *registry, tid, name string) {
