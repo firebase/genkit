@@ -17,9 +17,14 @@
 //
 //	go run . &
 //
-// Tell it to run an action:
+// Tell it to run an action. Here are some examples:
+//  
+//  Flow without input:
 //
 //	curl -d '{"key":"/flow/testAllCoffeeFlows/testAllCoffeeFlows", "input":{"start": {"input":null}}}'  http://localhost:3100/api/runAction
+//  Flow with input:
+//
+//	curl -d '{"key":"/flow/simpleGreeting/simpleGreeting", "input":{"start": {"input":{"customerName": "John Doe"}}}}' http://localhost:3100/api/runAction
 package main
 
 import (
