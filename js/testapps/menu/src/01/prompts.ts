@@ -18,7 +18,7 @@ import { definePrompt } from '@genkit-ai/ai';
 import { GenerateRequest } from '@genkit-ai/ai/model';
 import { defineDotprompt } from '@genkit-ai/dotprompt';
 import { geminiPro } from '@genkit-ai/vertexai';
-import { MenuQuestionInput, MenuQuestionInputSchema } from '../types';
+import { MenuQuestionInput, MenuQuestionInputSchema } from '../types.js';
 
 // Define a prompt to handle a customer question about the menu.
 // This prompt uses definePrompt directly.

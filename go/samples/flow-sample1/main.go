@@ -26,6 +26,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 
 	"github.com/firebase/genkit/go/genkit"
 )
@@ -41,6 +42,19 @@ func main() {
 
 	genkit.DefineFlow("parent", func(ctx context.Context, _ struct{}, _ genkit.NoStream) (string, error) {
 		return genkit.RunFlow(ctx, basic, "foo")
+	})
+
+	type complex struct {
+		Key   string `json:"key"`
+		Value int    `json:"value"`
+	}
+
+	genkit.DefineFlow("complex", func(ctx context.Context, c complex, _ genkit.NoStream) (string, error) {
+		foo, err := genkit.Run(ctx, "call-llm", func() (string, error) { return c.Key + ": " + strconv.Itoa(c.Value), nil })
+		if err != nil {
+			return "", err
+		}
+		return foo, nil
 	})
 
 	type chunk struct {
@@ -59,7 +73,7 @@ func main() {
 		return fmt.Sprintf("done: %d, streamed: %d times", count, i), nil
 	})
 
-	if err := genkit.StartDevServer(""); err != nil {
+	if err := genkit.StartFlowServer(""); err != nil {
 		log.Fatal(err)
 	}
 }

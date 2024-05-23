@@ -196,10 +196,11 @@ func (a *Action[I, O, S]) desc() actionDesc {
 	}
 	// Required by genkit UI:
 	if ad.Metadata == nil {
-		ad.Metadata = map[string]any{}
+		ad.Metadata = map[string]any{
+			"inputSchema":  nil,
+			"outputSchema": nil,
+		}
 	}
-	ad.Metadata["inputSchema"] = nil
-	ad.Metadata["outputSchema"] = nil
 	return ad
 }
 
@@ -215,5 +216,8 @@ func inferJSONSchema(x any) (s *jsonschema.Schema) {
 		// instead of nested inside a "$defs" object.
 		r.ExpandedStruct = true
 	}
-	return r.Reflect(x)
+	s = r.Reflect(x)
+	// TODO: Unwind this change once Monaco Editor supports newer than JSON schema draft-07.
+	s.Version = ""
+	return s
 }

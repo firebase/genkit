@@ -185,7 +185,7 @@ output:
     });
   });
 
-  describe('definePrompt', () => {
+  describe('defineDotprompt', () => {
     it('registers a prompt and its variant', async () => {
       registerDotprompt();
       defineDotprompt(
