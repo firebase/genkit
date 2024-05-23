@@ -18,11 +18,11 @@ const __flowStreamDelimiter = '\n';
 
 export function streamFlow({
   url,
-  payload,
+  input,
   headers,
 }: {
   url: string;
-  payload: any;
+  input: any;
   headers?: Record<string, string>;
 }) {
   let chunkStreamController: ReadableStreamDefaultController | undefined =
@@ -37,7 +37,7 @@ export function streamFlow({
 
   const operationPromise = __flowRunEnvelope({
     url,
-    payload,
+    input,
     streamingCallback: (c) => {
       chunkStreamController?.enqueue(c);
     },
@@ -80,12 +80,12 @@ export function streamFlow({
 
 async function __flowRunEnvelope({
   url,
-  payload,
+  input,
   streamingCallback,
   headers,
 }: {
   url: string;
-  payload: any;
+  input: any;
   streamingCallback: (chunk: any) => void;
   headers?: Record<string, string>;
 }) {
@@ -93,7 +93,7 @@ async function __flowRunEnvelope({
   response = await fetch(url + '?stream=true', {
     method: 'POST',
     body: JSON.stringify({
-      data: payload,
+      data: input,
     }),
     headers: {
       'Content-Type': 'application/json',
