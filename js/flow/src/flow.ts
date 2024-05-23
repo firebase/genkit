@@ -834,6 +834,7 @@ function wrapAsAction<
 export function createFlowsExpressRouter(params?: {
   flows?: Flow<any, any, any>[];
   cors?: CorsOptions;
+  pathPrefix?: string;
 }) {
   const port =
     params?.port || (process.env.PORT ? parseInt(process.env.PORT) : 0) || 3400;
@@ -864,14 +865,14 @@ export function startFlowsServer(params?: {
 }) {
   const port =
     params?.port || (process.env.PORT ? parseInt(process.env.PORT) : 0) || 3400;
-  const pathPrefix = params?.pathPrefix ?? '';
   const router = createFlowsExpressRouter({
     flows: params?.flows,
     cors: params?.cors,
+    pathPrefix: params?.pathPrefix,
   });
 
   const app = express();
-  app.use(pathPrefix, router);
+  app.use(router);
 
   app.listen(port, () => {
     console.log(`Flows server listening on port ${port}`);
