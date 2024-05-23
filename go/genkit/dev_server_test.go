@@ -24,7 +24,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/firebase/genkit/go/gtrace"
+	"github.com/firebase/genkit/go/internal/tracing"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -114,13 +114,13 @@ func checkActionTrace(t *testing.T, reg *registry, tid, name string) {
 		t.Fatal(err)
 	}
 	rootSpan := findRootSpan(t, td.Spans)
-	want := &gtrace.SpanData{
+	want := &tracing.SpanData{
 		TraceID:                 tid,
 		DisplayName:             "dev-run-action-wrapper",
 		SpanKind:                "INTERNAL",
-		SameProcessAsParentSpan: gtrace.BoolValue{Value: true},
-		Status:                  gtrace.Status{Code: 0},
-		InstrumentationLibrary: gtrace.InstrumentationLibrary{
+		SameProcessAsParentSpan: tracing.BoolValue{Value: true},
+		Status:                  tracing.Status{Code: 0},
+		InstrumentationLibrary: tracing.InstrumentationLibrary{
 			Name:    "genkit-tracer",
 			Version: "v1",
 		},
@@ -134,7 +134,7 @@ func checkActionTrace(t *testing.T, reg *registry, tid, name string) {
 			"genkit:state":                        "success",
 		},
 	}
-	diff := cmp.Diff(want, rootSpan, cmpopts.IgnoreFields(gtrace.SpanData{}, "SpanID", "StartTime", "EndTime"))
+	diff := cmp.Diff(want, rootSpan, cmpopts.IgnoreFields(tracing.SpanData{}, "SpanID", "StartTime", "EndTime"))
 	if diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
@@ -142,9 +142,9 @@ func checkActionTrace(t *testing.T, reg *registry, tid, name string) {
 
 // findRootSpan finds the root span in spans.
 // It also verifies that it is unique.
-func findRootSpan(t *testing.T, spans map[string]*gtrace.SpanData) *gtrace.SpanData {
+func findRootSpan(t *testing.T, spans map[string]*tracing.SpanData) *tracing.SpanData {
 	t.Helper()
-	var root *gtrace.SpanData
+	var root *tracing.SpanData
 	for _, sd := range spans {
 		if sd.ParentSpanID == "" {
 			if root != nil {

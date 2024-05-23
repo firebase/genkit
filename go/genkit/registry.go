@@ -22,7 +22,7 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/firebase/genkit/go/gtrace"
+	"github.com/firebase/genkit/go/internal/tracing"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/exp/maps"
 )
@@ -43,31 +43,31 @@ func init() {
 }
 
 type registry struct {
-	tstate  *tracingState
+	tstate  *tracing.State
 	mu      sync.Mutex
 	actions map[string]action
 	// TraceStores, at most one for each [Environment].
 	// Only the prod trace store is actually registered; the dev one is
 	// always created automatically. But it's simpler if we keep them together here.
-	traceStores map[Environment]gtrace.Store
+	traceStores map[Environment]tracing.Store
 }
 
 func newRegistry() (*registry, error) {
 	r := &registry{
 		actions:     map[string]action{},
-		traceStores: map[Environment]gtrace.Store{},
+		traceStores: map[Environment]tracing.Store{},
 	}
-	tstore, err := newDevTraceStore()
+	tstore, err := tracing.NewDevStore()
 	if err != nil {
 		return nil, err
 	}
 	r.registerTraceStore(EnvironmentDev, tstore)
-	r.tstate = newTracingState()
-	r.tstate.addTraceStoreImmediate(tstore)
+	r.tstate = tracing.NewState()
+	r.tstate.AddTraceStoreImmediate(tstore)
 	return r, nil
 }
 
-// An Environment is the execution context that the program is running in.
+// An Environment is the execution context in which the program is running.
 type Environment string
 
 const (
@@ -149,12 +149,12 @@ func (r *registry) listActions() []actionDesc {
 // The returned function should be called before the program ends to ensure that
 // all pending data is stored.
 // RegisterTraceStore panics if called more than once.
-func RegisterTraceStore(ts gtrace.Store) (shutdown func(context.Context) error) {
+func RegisterTraceStore(ts tracing.Store) (shutdown func(context.Context) error) {
 	globalRegistry.registerTraceStore(EnvironmentProd, ts)
-	return globalRegistry.tstate.addTraceStoreBatch(ts)
+	return globalRegistry.tstate.AddTraceStoreBatch(ts)
 }
 
-func (r *registry) registerTraceStore(env Environment, ts gtrace.Store) {
+func (r *registry) registerTraceStore(env Environment, ts tracing.Store) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, ok := r.traceStores[env]; ok {
@@ -163,7 +163,7 @@ func (r *registry) registerTraceStore(env Environment, ts gtrace.Store) {
 	r.traceStores[env] = ts
 }
 
-func (r *registry) lookupTraceStore(env Environment) gtrace.Store {
+func (r *registry) lookupTraceStore(env Environment) tracing.Store {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.traceStores[env]
@@ -177,5 +177,5 @@ func RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
 func (r *registry) registerSpanProcessor(sp sdktrace.SpanProcessor) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.tstate.registerSpanProcessor(sp)
+	r.tstate.RegisterSpanProcessor(sp)
 }

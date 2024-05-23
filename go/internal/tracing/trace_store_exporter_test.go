@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package tracing
 
 import (
 	"testing"
 	"time"
 
 	"github.com/firebase/genkit/go/gtime"
-	"github.com/firebase/genkit/go/gtrace"
 	"github.com/google/go-cmp/cmp"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -85,7 +84,7 @@ func TestConvertSpan(t *testing.T) {
 			SchemaURL: "surl",
 		},
 	}
-	want := &gtrace.SpanData{
+	want := &SpanData{
 		DisplayName:  "name",
 		TraceID:      traceID,
 		SpanID:       spanID1,
@@ -94,15 +93,15 @@ func TestConvertSpan(t *testing.T) {
 		StartTime:    gtime.Milliseconds(1e3),
 		EndTime:      gtime.Milliseconds(2e3),
 		Attributes:   map[string]any{"k": "v"},
-		TimeEvents: gtrace.TimeEvents{TimeEvent: []gtrace.TimeEvent{{
+		TimeEvents: TimeEvents{TimeEvent: []TimeEvent{{
 			Time: gtime.Milliseconds(3e3),
-			Annotation: gtrace.Annotation{
+			Annotation: Annotation{
 				Attributes:  map[string]any{"k2": "v2"},
 				Description: "ename",
 			},
 		}}},
-		Links: []*gtrace.Link{{
-			SpanContext: gtrace.SpanContext{
+		Links: []*Link{{
+			SpanContext: SpanContext{
 				TraceID:    traceID,
 				SpanID:     spanID1,
 				IsRemote:   true,
@@ -111,8 +110,8 @@ func TestConvertSpan(t *testing.T) {
 			Attributes:             map[string]any{"k3": "v3"},
 			DroppedAttributesCount: 1,
 		}},
-		Status: gtrace.Status{Code: 2, Description: "desc"},
-		InstrumentationLibrary: gtrace.InstrumentationLibrary{
+		Status: Status{Code: 2, Description: "desc"},
+		InstrumentationLibrary: InstrumentationLibrary{
 			Name:      "iname",
 			Version:   "version",
 			SchemaURL: "surl",
