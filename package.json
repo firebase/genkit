@@ -1,7 +1,7 @@
 {
   "name": "genkit",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.5.1",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "setup": "npm-run-all pnpm-install-js pnpm-install-genkit-tools build link-genkit-cli",

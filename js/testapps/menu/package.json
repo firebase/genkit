@@ -2,7 +2,7 @@
   "name": "menu",
   "version": "1.0.0",
   "description": "A Genkit test app for understanding a restaurant menu",
-  "main": "lib/index.js",
+  "main": "./lib/src/index.js",
   "scripts": {
     "start": "node lib/index.js",
     "compile": "tsc",
@@ -27,5 +27,6 @@
   },
   "devDependencies": {
     "typescript": "^5.3.3"
-  }
+  },
+  "type": "module"
 }

@@ -26,6 +26,7 @@ import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { Allow, parse } from 'partial-json';
 import * as z from 'zod';
 
 configureGenkit({
@@ -126,6 +127,62 @@ export const streamFlow = defineFlow(
     return (await response()).text();
   }
 );
+
+const GameCharactersSchema = z.object({
+  characters: z
+    .array(
+      z
+        .object({
+          name: z.string().describe('Name of a character'),
+          abilities: z
+            .array(z.string())
+            .describe('Various abilities (strength, magic, archery, etc.)'),
+        })
+        .describe('Game character')
+    )
+    .describe('Characters'),
+});
+
+export const streamJsonFlow = defineFlow(
+  {
+    name: 'streamJsonFlow',
+    inputSchema: z.number(),
+    outputSchema: z.string(),
+    streamSchema: GameCharactersSchema,
+  },
+  async (count, streamingCallback) => {
+    if (!streamingCallback) {
+      throw new Error('this flow only works in streaming mode');
+    }
+
+    const { response, stream } = await generateStream({
+      model: geminiPro,
+      output: {
+        schema: GameCharactersSchema,
+      },
+      prompt: `Respond as JSON only. Generate ${count} different RPG game characters.`,
+    });
+
+    let buffer = '';
+    for await (const chunk of stream()) {
+      buffer += chunk.content[0].text!;
+      if (buffer.length > 10) {
+        streamingCallback(parse(maybeStripMarkdown(buffer), Allow.ALL));
+      }
+    }
+
+    return (await response()).text();
+  }
+);
+
+const markdownRegex = /^\s*(```json)?((.|\n)*?)(```)?\s*$/i;
+function maybeStripMarkdown(withMarkdown: string) {
+  const mdMatch = markdownRegex.exec(withMarkdown);
+  if (!mdMatch) {
+    return withMarkdown;
+  }
+  return mdMatch[2];
+}
 
 const tools = [
   defineTool(

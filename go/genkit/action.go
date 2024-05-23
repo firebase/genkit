@@ -22,18 +22,21 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/internal/tracing"
 	"github.com/invopop/jsonschema"
 )
 
 // Func is the type of function that Actions and Flows execute.
 // It takes an input of type I and returns an output of type O, optionally
 // streaming values of type S incrementally by invoking a callback.
-// TODO(jba): use a generic type alias when they become available?
 // If the StreamingCallback is non-nil and the function supports streaming, it should
 // stream the results by invoking the callback periodically, ultimately returning
 // with a final return value. Otherwise, it should ignore the StreamingCallback and
 // just return a result.
 type Func[I, O, S any] func(context.Context, I, StreamingCallback[S]) (O, error)
+
+// TODO(jba): use a generic type alias for the above when they become available?
 
 // StreamingCallback is the type of streaming callbacks, which is passed to action
 // functions who should stream their responses.
@@ -44,7 +47,7 @@ type StreamingCallback[S any] func(context.Context, S) error
 // Such a function corresponds to a Flow[I, O, struct{}].
 type NoStream = StreamingCallback[struct{}]
 
-// An Action is a function with a name.
+// An Action is a named, observable operation.
 // It consists of a function that takes an input of type I and returns an output
 // of type O, optionally streaming values of type S incrementally by invoking a callback.
 // It optionally has other metadata, like a description
@@ -54,7 +57,7 @@ type NoStream = StreamingCallback[struct{}]
 type Action[I, O, S any] struct {
 	name         string
 	fn           Func[I, O, S]
-	tstate       *tracingState
+	tstate       *tracing.State
 	inputSchema  *jsonschema.Schema
 	outputSchema *jsonschema.Schema
 	// optional
@@ -87,18 +90,18 @@ func NewStreamingAction[I, O, S any](name string, metadata map[string]any, fn Fu
 // Name returns the Action's name.
 func (a *Action[I, O, S]) Name() string { return a.name }
 
-// setTracingState sets the action's tracingState.
-func (a *Action[I, O, S]) setTracingState(tstate *tracingState) { a.tstate = tstate }
+// setTracingState sets the action's tracing.State.
+func (a *Action[I, O, S]) setTracingState(tstate *tracing.State) { a.tstate = tstate }
 
-// Run executes the Action's function in a new span.
+// Run executes the Action's function in a new trace span.
 func (a *Action[I, O, S]) Run(ctx context.Context, input I, cb StreamingCallback[S]) (output O, err error) {
 	// TODO: validate input against JSONSchema for I.
 	// TODO: validate output against JSONSchema for O.
-	logger(ctx).Debug("Action.Run",
+	internal.Logger(ctx).Debug("Action.Run",
 		"name", a.name,
 		"input", fmt.Sprintf("%#v", input))
 	defer func() {
-		logger(ctx).Debug("Action.Run",
+		internal.Logger(ctx).Debug("Action.Run",
 			"name", a.name,
 			"output", fmt.Sprintf("%#v", output),
 			"err", err)
@@ -108,14 +111,14 @@ func (a *Action[I, O, S]) Run(ctx context.Context, input I, cb StreamingCallback
 		// This action has probably not been registered.
 		tstate = globalRegistry.tstate
 	}
-	return runInNewSpan(ctx, tstate, a.name, "action", false, input,
+	return tracing.RunInNewSpan(ctx, tstate, a.name, "action", false, input,
 		func(ctx context.Context, input I) (O, error) {
 			start := time.Now()
 			out, err := a.fn(ctx, input, cb)
 			latency := time.Since(start)
 			if err != nil {
 				writeActionFailure(ctx, a.name, latency, err)
-				return zero[O](), err
+				return internal.Zero[O](), err
 			}
 			writeActionSuccess(ctx, a.name, latency)
 			return out, nil
@@ -161,8 +164,8 @@ type action interface {
 	// the registry will set.
 	desc() actionDesc
 
-	// setTracingState set's the action's tracingState.
-	setTracingState(*tracingState)
+	// setTracingState set's the action's tracing.State.
+	setTracingState(*tracing.State)
 }
 
 // An actionDesc is a description of an Action.
@@ -193,19 +196,28 @@ func (a *Action[I, O, S]) desc() actionDesc {
 	}
 	// Required by genkit UI:
 	if ad.Metadata == nil {
-		ad.Metadata = map[string]any{}
+		ad.Metadata = map[string]any{
+			"inputSchema":  nil,
+			"outputSchema": nil,
+		}
 	}
-	ad.Metadata["inputSchema"] = nil
-	ad.Metadata["outputSchema"] = nil
 	return ad
 }
 
-func inferJSONSchema(x any) *jsonschema.Schema {
+func inferJSONSchema(x any) (s *jsonschema.Schema) {
 	var r jsonschema.Reflector
-	// If x is a struct, put its definition at the "top level" of the schema,
-	// instead of nested inside a "$defs" object.
-	if reflect.TypeOf(x).Kind() == reflect.Struct {
+	t := reflect.TypeOf(x)
+	if t.Kind() == reflect.Struct {
+		if t.NumField() == 0 {
+			// Make struct{} correspond to ZodVoid.
+			return &jsonschema.Schema{Type: "null"}
+		}
+		// Put a struct definition at the "top level" of the schema,
+		// instead of nested inside a "$defs" object.
 		r.ExpandedStruct = true
 	}
-	return r.Reflect(x)
+	s = r.Reflect(x)
+	// TODO: Unwind this change once Monaco Editor supports newer than JSON schema draft-07.
+	s.Version = ""
+	return s
 }

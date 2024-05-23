@@ -300,9 +300,7 @@ async function updatePackageJson(nonInteractive: boolean) {
     main: 'lib/index.js',
     scripts: {
       start: 'node lib/index.js',
-      compile: 'tsc',
-      build: 'npm run build:clean && npm run compile',
-      'build:clean': 'rm -rf ./lib',
+      build: 'tsc',
       'build:watch': 'tsc --watch',
     },
   };

@@ -142,10 +142,10 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
     return { ...toFrontmatter(this), template: this.template };
   }
 
-  define(): void {
+  define(options?: { ns: string }): void {
     definePrompt(
       {
-        name: registryDefinitionKey(this.name, this.variant),
+        name: registryDefinitionKey(this.name, this.variant, options?.ns),
         description: 'Defined by Dotprompt',
         inputSchema: this.input?.schema,
         inputJsonSchema: this.input?.jsonSchema,

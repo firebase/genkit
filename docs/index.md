@@ -135,28 +135,34 @@ make it possible for AI to fetch data, display UI, write to a database, or take
 any other action you can code up.
 
 ```js
-import { generate, defineTool } from "@genkit-ai/ai";
-import { geminiPro } from "@genkit-ai/vertexai";
-import { z } from "zod";
+import { generate, defineTool } from '@genkit-ai/ai';
+import { geminiPro } from '@genkit-ai/vertexai';
+import { z } from 'zod';
 
-const createReminder = defineTool({
-  name: "createReminder",
-  description: "Use this to create reminders for things in the future",
-  inputSchema: z.object({
-    time: z.string().describe('ISO timestamp string, e.g. 2024-04-03T12:23:00Z'),
-    reminder: z.string().describe('the content of the reminder'),
-  }),
-  outputSchema: z.number().describe('the ID of the created reminder'),
+const createReminder = defineTool(
+  {
+    name: 'createReminder',
+    description: 'Use this to create reminders for things in the future',
+    inputSchema: z.object({
+      time: z
+        .string()
+        .describe('ISO timestamp string, e.g. 2024-04-03T12:23:00Z'),
+      reminder: z.string().describe('the content of the reminder'),
+    }),
+    outputSchema: z.number().describe('the ID of the created reminder'),
+  },
   (reminder) => db.reminders.create(reminder)
-});
+);
 
-const searchNotes = defineTool({
-  name: "searchNotes",
-  description: "Use this to search the user's notes for people or phrases",
-  inputSchema: z.string().describe('the search query'),
-  outputSchema: z.object({notes: z.array(NoteSchema)}),
+const searchNotes = defineTool(
+  {
+    name: 'searchNotes',
+    description: "Use this to search the user's notes for people or phrases",
+    inputSchema: z.string().describe('the search query'),
+    outputSchema: z.object({ notes: z.array(NoteSchema) }),
+  },
   (query) => db.notes.search(query)
-});
+);
 
 const result = await generate({
   model: geminiPro,
@@ -166,7 +172,7 @@ const result = await generate({
   If you create a reminder, describe in text the reminder you created as a response.
 
   Query: I took a note about a meeting with Anna - can you set a reminder for the time?
-  `
+  `,
 });
 console.log(result.text());
 ```
@@ -348,8 +354,7 @@ maintained by the Genkit team:
   <tr>
     <td><code>vertexai</code></td>
     <td>
-      <b>Generative models</b>: Gemini Pro, Gemini 1.5 Pro, Gemini Pro Vision, Imagen2,
-        Anthropic Claude 3<br>
+      <b>Generative models</b>: Gemini Pro, Gemini Pro Vision, Gemini 1.5 Flash, Gemini 1.5 Pro, Imagen2, Anthropic Claude 3<br>
       <b>Embedding models</b>: Gecko text embedding<br>
       <b>Evaluators</b>: Vertex AI evaluation
     </td>

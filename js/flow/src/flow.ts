@@ -835,9 +835,11 @@ export function startFlowsServer(params?: {
   flows?: Flow<any, any, any>[];
   port?: number;
   cors?: CorsOptions;
+  pathPrefix?: string;
 }) {
   const port =
     params?.port || (process.env.PORT ? parseInt(process.env.PORT) : 0) || 3400;
+  const pathPrefix = params?.pathPrefix ?? '';
   const app = express();
   app.use(bodyParser.json());
   app.use(cors(params?.cors));
@@ -845,12 +847,13 @@ export function startFlowsServer(params?: {
   const flows = params?.flows || createdFlows();
   logger.info(`Starting flows server on port ${port}`);
   flows.forEach((f) => {
-    logger.info(` - /${f.name}`);
+    const flowPath = `/${pathPrefix}${f.name}`;
+    logger.info(` - ${flowPath}`);
     // Add middlware
     f.middleware?.forEach((m) => {
-      app.post(`/${f.name}`, m);
+      app.post(flowPath, m);
     });
-    app.post(`/${f.name}`, f.expressHandler);
+    app.post(flowPath, f.expressHandler);
   });
 
   app.listen(port, () => {

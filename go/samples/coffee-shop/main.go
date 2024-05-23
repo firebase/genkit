@@ -83,19 +83,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting",
-		&dotprompt.Frontmatter{
-			Name:  "simpleGreeting",
-			Model: "google-genai/gemini-1.0-pro",
-			Input: dotprompt.FrontmatterInput{
-				Schema: jsonschema.Reflect(simpleGreetingInput{}),
-			},
-			Output: &ai.GenerateRequestOutput{
-				Format: ai.OutputFormatText,
-			},
+	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting", simpleGreetingPromptTemplate,
+		&dotprompt.Config{
+			Model:        "google-genai/gemini-1.0-pro",
+			InputSchema:  jsonschema.Reflect(simpleGreetingInput{}),
+			OutputFormat: ai.OutputFormatText,
 		},
-		simpleGreetingPromptTemplate,
-		nil,
 	)
 	if err != nil {
 		log.Fatal(err)
@@ -118,19 +111,12 @@ func main() {
 		return text, nil
 	})
 
-	greetingWithHistoryPrompt, err := dotprompt.Define("greetingWithHistory",
-		&dotprompt.Frontmatter{
-			Name:  "greetingWithHistory",
-			Model: "google-genai/gemini-1.0-pro",
-			Input: dotprompt.FrontmatterInput{
-				Schema: jsonschema.Reflect(customerTimeAndHistoryInput{}),
-			},
-			Output: &ai.GenerateRequestOutput{
-				Format: ai.OutputFormatText,
-			},
+	greetingWithHistoryPrompt, err := dotprompt.Define("greetingWithHistory", greetingWithHistoryPromptTemplate,
+		&dotprompt.Config{
+			Model:        "google-genai/gemini-1.0-pro",
+			InputSchema:  jsonschema.Reflect(customerTimeAndHistoryInput{}),
+			OutputFormat: ai.OutputFormatText,
 		},
-		greetingWithHistoryPromptTemplate,
-		nil,
 	)
 	if err != nil {
 		log.Fatal(err)

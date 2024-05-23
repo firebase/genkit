@@ -31,7 +31,7 @@ import (
 	"slices"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/internal"
 )
 
 // New returns a new local vector database. This will register a new
@@ -110,7 +110,7 @@ func (r *retriever) Index(ctx context.Context, req *ai.IndexerRequest) error {
 		}
 
 		if _, ok := r.data[id]; ok {
-			genkit.DebugLog(ctx, "localvec skipping document because already present", "id", id)
+			internal.Logger(ctx).Debug("localvec skipping document because already present", "id", id)
 			continue
 		}
 

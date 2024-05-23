@@ -12,25 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package tracing
 
 import (
 	"context"
 	"errors"
 	"strings"
 
+	"github.com/firebase/genkit/go/gtime"
 	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/trace"
+	otrace "go.opentelemetry.io/otel/trace"
 )
 
 // A traceStoreExporter is an OpenTelemetry SpanExporter that
 // writes spans to a TraceStore.
 type traceStoreExporter struct {
-	store TraceStore
+	store Store
 }
 
-func newTraceStoreExporter(store TraceStore) *traceStoreExporter {
+func newTraceStoreExporter(store Store) *traceStoreExporter {
 	return &traceStoreExporter{store}
 }
 
@@ -39,7 +40,7 @@ func newTraceStoreExporter(store TraceStore) *traceStoreExporter {
 // Saving is not atomic: it is possible that some but not all spans will be saved.
 func (e *traceStoreExporter) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
 	// Group spans by trace ID.
-	spansByTrace := map[trace.TraceID][]sdktrace.ReadOnlySpan{}
+	spansByTrace := map[otrace.TraceID][]sdktrace.ReadOnlySpan{}
 	for _, span := range spans {
 		tid := span.SpanContext().TraceID()
 		spansByTrace[tid] = append(spansByTrace[tid], span)
@@ -63,8 +64,8 @@ func (e *traceStoreExporter) ExportSpans(ctx context.Context, spans []sdktrace.R
 
 // convertTrace converts a list of spans to a TraceData.
 // The spans must all have the same trace ID.
-func convertTrace(spans []sdktrace.ReadOnlySpan) (*TraceData, error) {
-	td := &TraceData{Spans: map[string]*SpanData{}}
+func convertTrace(spans []sdktrace.ReadOnlySpan) (*Data, error) {
+	td := &Data{Spans: map[string]*SpanData{}}
 	for _, span := range spans {
 		cspan := convertSpan(span)
 		// The unique span with no parent determines
@@ -88,14 +89,14 @@ func convertSpan(span sdktrace.ReadOnlySpan) *SpanData {
 	sd := &SpanData{
 		SpanID:                  sc.SpanID().String(),
 		TraceID:                 sc.TraceID().String(),
-		StartTime:               timeToMilliseconds(span.StartTime()),
-		EndTime:                 timeToMilliseconds(span.EndTime()),
+		StartTime:               gtime.ToMilliseconds(span.StartTime()),
+		EndTime:                 gtime.ToMilliseconds(span.EndTime()),
 		Attributes:              attributesToMap(span.Attributes()),
 		DisplayName:             span.Name(),
 		Links:                   convertLinks(span.Links()),
 		InstrumentationLibrary:  InstrumentationLibrary(span.InstrumentationLibrary()),
 		SpanKind:                strings.ToUpper(span.SpanKind().String()),
-		SameProcessAsParentSpan: boolValue{!sc.IsRemote()},
+		SameProcessAsParentSpan: BoolValue{!sc.IsRemote()},
 		Status:                  convertStatus(span.Status()),
 	}
 	if p := span.Parent(); p.HasSpanID() {
@@ -126,7 +127,7 @@ func convertLinks(links []sdktrace.Link) []*Link {
 	return cls
 }
 
-func convertSpanContext(sc trace.SpanContext) SpanContext {
+func convertSpanContext(sc otrace.SpanContext) SpanContext {
 	return SpanContext{
 		TraceID:    sc.TraceID().String(),
 		SpanID:     sc.SpanID().String(),
@@ -139,8 +140,8 @@ func convertEvents(evs []sdktrace.Event) []TimeEvent {
 	var tes []TimeEvent
 	for _, e := range evs {
 		tes = append(tes, TimeEvent{
-			Time: timeToMilliseconds(e.Time),
-			Annotation: annotation{
+			Time: gtime.ToMilliseconds(e.Time),
+			Annotation: Annotation{
 				Description: e.Name,
 				Attributes:  attributesToMap(e.Attributes),
 			},

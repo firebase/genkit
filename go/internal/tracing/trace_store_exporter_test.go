@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package tracing
 
 import (
 	"testing"
 	"time"
 
+	"github.com/firebase/genkit/go/gtime"
 	"github.com/google/go-cmp/cmp"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -89,12 +90,12 @@ func TestConvertSpan(t *testing.T) {
 		SpanID:       spanID1,
 		ParentSpanID: spanID2,
 		SpanKind:     "INTERNAL",
-		StartTime:    Milliseconds(1e3),
-		EndTime:      Milliseconds(2e3),
+		StartTime:    gtime.Milliseconds(1e3),
+		EndTime:      gtime.Milliseconds(2e3),
 		Attributes:   map[string]any{"k": "v"},
-		TimeEvents: timeEvents{TimeEvent: []TimeEvent{{
-			Time: Milliseconds(3e3),
-			Annotation: annotation{
+		TimeEvents: TimeEvents{TimeEvent: []TimeEvent{{
+			Time: gtime.Milliseconds(3e3),
+			Annotation: Annotation{
 				Attributes:  map[string]any{"k2": "v2"},
 				Description: "ename",
 			},
@@ -109,7 +110,7 @@ func TestConvertSpan(t *testing.T) {
 			Attributes:             map[string]any{"k3": "v3"},
 			DroppedAttributesCount: 1,
 		}},
-		Status: Status{2, "desc"},
+		Status: Status{Code: 2, Description: "desc"},
 		InstrumentationLibrary: InstrumentationLibrary{
 			Name:      "iname",
 			Version:   "version",

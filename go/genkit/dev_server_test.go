@@ -24,6 +24,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/firebase/genkit/go/internal/tracing"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -102,7 +103,7 @@ func TestDevServer(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		// We may have any result, including zero traces, so don't check anything else.
+		// We may have any result, including internal.Zero traces, so don't check anything else.
 	})
 }
 
@@ -113,13 +114,13 @@ func checkActionTrace(t *testing.T, reg *registry, tid, name string) {
 		t.Fatal(err)
 	}
 	rootSpan := findRootSpan(t, td.Spans)
-	want := &SpanData{
+	want := &tracing.SpanData{
 		TraceID:                 tid,
 		DisplayName:             "dev-run-action-wrapper",
 		SpanKind:                "INTERNAL",
-		SameProcessAsParentSpan: boolValue{Value: true},
-		Status:                  Status{Code: 0},
-		InstrumentationLibrary: InstrumentationLibrary{
+		SameProcessAsParentSpan: tracing.BoolValue{Value: true},
+		Status:                  tracing.Status{Code: 0},
+		InstrumentationLibrary: tracing.InstrumentationLibrary{
 			Name:    "genkit-tracer",
 			Version: "v1",
 		},
@@ -133,7 +134,7 @@ func checkActionTrace(t *testing.T, reg *registry, tid, name string) {
 			"genkit:state":                        "success",
 		},
 	}
-	diff := cmp.Diff(want, rootSpan, cmpopts.IgnoreFields(SpanData{}, "SpanID", "StartTime", "EndTime"))
+	diff := cmp.Diff(want, rootSpan, cmpopts.IgnoreFields(tracing.SpanData{}, "SpanID", "StartTime", "EndTime"))
 	if diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
@@ -141,9 +142,9 @@ func checkActionTrace(t *testing.T, reg *registry, tid, name string) {
 
 // findRootSpan finds the root span in spans.
 // It also verifies that it is unique.
-func findRootSpan(t *testing.T, spans map[string]*SpanData) *SpanData {
+func findRootSpan(t *testing.T, spans map[string]*tracing.SpanData) *tracing.SpanData {
 	t.Helper()
-	var root *SpanData
+	var root *tracing.SpanData
 	for _, sd := range spans {
 		if sd.ParentSpanID == "" {
 			if root != nil {

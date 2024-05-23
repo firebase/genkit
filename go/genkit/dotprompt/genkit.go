@@ -22,6 +22,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/internal/tracing"
 )
 
 // ActionInput is the input type of a prompt action.
@@ -98,24 +99,19 @@ func (p *Prompt) buildRequest(input *ActionInput) (*ai.GenerateRequest, error) {
 	}
 
 	req.Candidates = input.Candidates
-	if req.Candidates == 0 && p.Frontmatter != nil {
-		req.Candidates = p.Frontmatter.Candidates
+	if req.Candidates == 0 {
+		req.Candidates = p.Candidates
 	}
 	if req.Candidates == 0 {
 		req.Candidates = 1
 	}
 
-	if p.Frontmatter != nil {
-		req.Config = p.Frontmatter.Config
+	req.Config = p.GenerationConfig
+	req.Output = &ai.GenerateRequestOutput{
+		Format: p.OutputFormat,
+		Schema: p.OutputSchema,
 	}
-
-	if p.Frontmatter != nil {
-		req.Output = p.Frontmatter.Output
-	}
-
-	if p.Frontmatter != nil {
-		req.Tools = p.Frontmatter.Tools
-	}
+	req.Tools = p.Tools
 
 	return req, nil
 }
@@ -165,7 +161,7 @@ func (p *Prompt) Register() error {
 // passes the rendered template to the AI generator specified by
 // the prompt.
 func (p *Prompt) Execute(ctx context.Context, input *ActionInput) (*ai.GenerateResponse, error) {
-	genkit.SetCustomMetadataAttr(ctx, "subtype", "prompt")
+	tracing.SetCustomMetadataAttr(ctx, "subtype", "prompt")
 
 	genReq, err := p.buildRequest(input)
 	if err != nil {
@@ -174,10 +170,7 @@ func (p *Prompt) Execute(ctx context.Context, input *ActionInput) (*ai.GenerateR
 
 	generator := p.generator
 	if generator == nil {
-		var model string
-		if p.Frontmatter != nil {
-			model = p.Frontmatter.Model
-		}
+		model := p.Model
 		if input.Model != "" {
 			model = input.Model
 		}
