@@ -73,7 +73,7 @@ func main() {
 		return fmt.Sprintf("done: %d, streamed: %d times", count, i), nil
 	})
 
-	if err := genkit.StartDevServer(""); err != nil {
+	if err := genkit.StartServer(""); err != nil {
 		log.Fatal(err)
 	}
 }

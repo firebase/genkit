@@ -12,18 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
-
-// This file implements a server used for development.
-// The genkit CLI sends requests to it.
+// This file implements production and development servers.
 //
+// The genkit CLI sends requests to the development server.
 // See js/common/src/reflectionApi.ts.
+//
+// The production server has a route for each flow. It
+// is intended for production deployments.
+
+package genkit
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -39,48 +43,39 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// StartServer starts the server appropriate for the current environment,
+// listening on addr.
+// StartServer always returns a non-nil error, the one returned by http.ListenAndServe.
+func StartServer(addr string) error {
+	switch e := currentEnvironment(); e {
+	case EnvironmentDev:
+		return StartDevServer(addr)
+	case EnvironmentProd:
+		return StartProdServer(addr)
+	default:
+		return fmt.Errorf("unknown environment value: %q", e)
+	}
+}
+
 // StartDevServer starts the development server (reflection API) listening at the given address.
-// If addr is "", it uses ":3100".
+// If addr is "", it uses the value of the environment variable GENKIT_REFLECTION_PORT
+// for the port, and if that is empty it uses ":3100".
 // StartDevServer always returns a non-nil error, the one returned by http.ListenAndServe.
 func StartDevServer(addr string) error {
-	mux := newDevServerMux(globalRegistry)
-	if addr == "" {
-		port := os.Getenv("GENKIT_REFLECTION_PORT")
-		if port != "" {
-			addr = ":" + port
-		} else {
-			// Don't use "localhost" here. That only binds the IPv4 address, and the genkit tool
-			// wants to connect to the IPv6 address even when you tell it to use "localhost".
-			// Omitting the host works.
-			addr = ":3100"
-		}
-	}
-	server := &http.Server{
-		Addr:    addr,
-		Handler: mux,
-	}
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGTERM)
-	go func() {
-		<-sigCh
-		slog.Info("received SIGTERM, shutting down server")
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := server.Shutdown(ctx); err != nil {
-			slog.Error("server shutdown failed", "err", err)
-		} else {
-			slog.Info("server shutdown successfully")
-		}
-	}()
-	slog.Info("listening", "addr", addr)
-	return server.ListenAndServe()
+	slog.Info("starting dev server")
+	// Don't use "localhost" here. That only binds the IPv4 address, and the genkit tool
+	// wants to connect to the IPv6 address even when you tell it to use "localhost".
+	// Omitting the host works.
+	addr = serverAddress(addr, "GENKIT_REFLECTION_PORT", ":3100")
+	mux := newDevServeMux(globalRegistry)
+	return listenAndServe(addr, mux)
 }
 
 type devServer struct {
 	reg *registry
 }
 
-func newDevServerMux(r *registry) *http.ServeMux {
+func newDevServeMux(r *registry) *http.ServeMux {
 	mux := http.NewServeMux()
 	s := &devServer{r}
 	handle(mux, "GET /api/__health", func(w http.ResponseWriter, _ *http.Request) error {
@@ -93,52 +88,6 @@ func newDevServerMux(r *registry) *http.ServeMux {
 	handle(mux, "GET /api/envs/{env}/flowStates", s.handleListFlowStates)
 
 	return mux
-}
-
-// requestID is a unique ID for each request.
-var requestID atomic.Int64
-
-// handle registers pattern on mux with an http.Handler that calls f.
-// If f returns a non-nil error, the handler calls http.Error.
-// If the error is an httpError, the code it contains is used as the status code;
-// otherwise a 500 status is used.
-func handle(mux *http.ServeMux, pattern string, f func(w http.ResponseWriter, r *http.Request) error) {
-	mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-		id := requestID.Add(1)
-		// Create a logger that always outputs the requestID, and store it in the request context.
-		log := slog.Default().With("reqID", id)
-		log.Info("request start",
-			"method", r.Method,
-			"path", r.URL.Path)
-		var err error
-		defer func() {
-			if err != nil {
-				log.Error("request end", "err", err)
-			} else {
-				log.Info("request end")
-			}
-		}()
-		err = f(w, r)
-		if err != nil {
-			// If the error is an httpError, serve the status code it contains.
-			// Otherwise, assume this is an unexpected error and serve a 500.
-			var herr *httpError
-			if errors.As(err, &herr) {
-				http.Error(w, herr.Error(), herr.code)
-			} else {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
-		}
-	})
-}
-
-type httpError struct {
-	code int
-	err  error
-}
-
-func (e *httpError) Error() string {
-	return fmt.Sprintf("%s: %s", http.StatusText(e.code), e.err)
 }
 
 // handleRunAction looks up an action by name in the registry, runs it with the
@@ -280,6 +229,189 @@ type listFlowStatesResult struct {
 	ContinuationToken string       `json:"continuationToken"`
 }
 
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// package genkit
+
+// import (
+// 	"encoding/json"
+// 	"fmt"
+// 	"io"
+// 	"net/http"
+// )
+
+// StartProdServer starts a production server listening at the given address.
+// The Server has a route for each defined flow.
+// If addr is "", it uses the value of the environment variable PORT
+// for the port, and if that is empty it uses ":3400".
+// StartProdServer always returns a non-nil error, the one returned by http.ListenAndServe.
+//
+// To construct a server with additional routes, use [NewFlowServeMux].
+func StartProdServer(addr string) error {
+	slog.Info("starting prod server")
+	addr = serverAddress(addr, "PORT", ":3400")
+	mux := NewFlowServeMux()
+	return listenAndServe(addr, mux)
+}
+
+// NewFlowServeMux constructs a [net/http.ServeMux] where each defined flow is a route.
+// All routes take a single query parameter, "stream", which if true will stream the
+// flow's results back to the client. (Not all flows support streaming, however.)
+//
+// To use the returned ServeMux as part of a server with other routes, either add routes
+// to it, or install it as part of another ServeMux, like so:
+//
+//	mainMux := http.NewServeMux()
+//	mainMux.Handle("POST /flow/", http.StripPrefix("/flow/", NewFlowServeMux()))
+func NewFlowServeMux() *http.ServeMux {
+	return newFlowServeMux(globalRegistry)
+}
+
+func newFlowServeMux(r *registry) *http.ServeMux {
+	mux := http.NewServeMux()
+	for _, f := range r.listFlows() {
+		handle(mux, "POST /"+f.Name(), nonDurableFlowHandler(f))
+	}
+	return mux
+}
+
+func nonDurableFlowHandler(f flow) func(http.ResponseWriter, *http.Request) error {
+	return func(w http.ResponseWriter, r *http.Request) error {
+		defer r.Body.Close()
+		input, err := io.ReadAll(r.Body)
+		if err != nil {
+			return err
+		}
+		stream, err := parseBoolQueryParam(r, "stream")
+		if err != nil {
+			return err
+		}
+		if stream {
+			// TODO(jba): implement streaming.
+			return &httpError{http.StatusNotImplemented, errors.New("streaming")}
+		} else {
+			// TODO(jba): telemetry
+			out, err := f.runJSON(r.Context(), json.RawMessage(input), nil)
+			if err != nil {
+				return err
+			}
+			// Responses for non-streaming, non-durable flows are passed back
+			// with the flow result stored in a field called "result."
+			_, err = fmt.Fprintf(w, `{"result": %s}\n`, out)
+			return err
+		}
+	}
+}
+
+// serverAddress determines a server address.
+func serverAddress(arg, envVar, defaultValue string) string {
+	if arg != "" {
+		return arg
+	}
+	if port := os.Getenv(envVar); port != "" {
+		return ":" + port
+	}
+	return defaultValue
+}
+
+func listenAndServe(addr string, mux *http.ServeMux) error {
+	server := &http.Server{
+		Addr:    addr,
+		Handler: mux,
+	}
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGTERM)
+	go func() {
+		<-sigCh
+		slog.Info("received SIGTERM, shutting down server")
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := server.Shutdown(ctx); err != nil {
+			slog.Error("server shutdown failed", "err", err)
+		} else {
+			slog.Info("server shutdown successfully")
+		}
+	}()
+	slog.Info("listening", "addr", addr)
+	return server.ListenAndServe()
+}
+
+// requestID is a unique ID for each request.
+var requestID atomic.Int64
+
+// handle registers pattern on mux with an http.Handler that calls f.
+// If f returns a non-nil error, the handler calls http.Error.
+// If the error is an httpError, the code it contains is used as the status code;
+// otherwise a 500 status is used.
+func handle(mux *http.ServeMux, pattern string, f func(w http.ResponseWriter, r *http.Request) error) {
+	mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
+		id := requestID.Add(1)
+		// Create a logger that always outputs the requestID, and store it in the request context.
+		log := slog.Default().With("reqID", id)
+		log.Info("request start",
+			"method", r.Method,
+			"path", r.URL.Path)
+		var err error
+		defer func() {
+			if err != nil {
+				log.Error("request end", "err", err)
+			} else {
+				log.Info("request end")
+			}
+		}()
+		err = f(w, r)
+		if err != nil {
+			// If the error is an httpError, serve the status code it contains.
+			// Otherwise, assume this is an unexpected error and serve a 500.
+			var herr *httpError
+			if errors.As(err, &herr) {
+				http.Error(w, herr.Error(), herr.code)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+		}
+	})
+}
+
+type httpError struct {
+	code int
+	err  error
+}
+
+func (e *httpError) Error() string {
+	return fmt.Sprintf("%s: %s", http.StatusText(e.code), e.err)
+}
+
+func parseBoolQueryParam(r *http.Request, name string) (bool, error) {
+	b := false
+	if s := r.FormValue(name); s != "" {
+		var err error
+		b, err = strconv.ParseBool(s)
+		if err != nil {
+			return false, &httpError{http.StatusBadRequest, err}
+		}
+	}
+	return b, nil
+}
+
+func currentEnvironment() Environment {
+	if v := os.Getenv("GENKIT_ENV"); v != "" {
+		return Environment(v)
+	}
+	return EnvironmentProd
+}
 func writeJSON(ctx context.Context, w http.ResponseWriter, value any) error {
 	data, err := json.MarshalIndent(value, "", "    ")
 	if err != nil {
