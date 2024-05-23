@@ -75,6 +75,9 @@ importers:
       ajv:
         specifier: ^8.12.0
         version: 8.12.0
+      ajv-formats:
+        specifier: ^3.0.1
+        version: 3.0.1(ajv@8.12.0)
       async-mutex:
         specifier: ^0.5.0
         version: 0.5.0
@@ -2521,6 +2524,14 @@ packages:
   agentkeepalive@4.5.0:
     resolution: {integrity: sha512-5GG/5IbQQpC9FpkRGsSvZI5QYeSCzlJHdpBQntCsuTOxhKD8lqKhrleg2Yi7yvMIf82Ycmmqln9U8V9qwEiJew==}
     engines: {node: '>= 8.0.0'}
+
+  ajv-formats@3.0.1:
+    resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
+    peerDependencies:
+      ajv: ^8.0.0
+    peerDependenciesMeta:
+      ajv:
+        optional: true
 
   ajv@8.12.0:
     resolution: {integrity: sha512-sRu1kpcO9yLtYxBKvqfTeh9KzZEwO3STyX1HT+4CaDzC6HpTGYhIhPIzj9XuKU7KYDwnaeh5hcOwjy1QuJzBPA==}
@@ -6152,6 +6163,10 @@ snapshots:
   agentkeepalive@4.5.0:
     dependencies:
       humanize-ms: 1.2.1
+
+  ajv-formats@3.0.1(ajv@8.12.0):
+    optionalDependencies:
+      ajv: 8.12.0
 
   ajv@8.12.0:
     dependencies:
