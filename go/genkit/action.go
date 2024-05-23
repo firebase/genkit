@@ -68,19 +68,22 @@ type Action[I, O, S any] struct {
 // See js/common/src/types.ts
 
 // NewAction creates a new Action with the given name and non-streaming function.
-func NewAction[I, O any](name string, metadata map[string]any, fn func(context.Context, I) (O, error)) *Action[I, O, struct{}] {
-	return NewStreamingAction(name, metadata, func(ctx context.Context, in I, cb NoStream) (O, error) {
+func NewAction[I, O any](name string, actionType ActionType, metadata map[string]any, fn func(context.Context, I) (O, error)) *Action[I, O, struct{}] {
+	return NewStreamingAction(name, actionType, metadata, func(ctx context.Context, in I, cb NoStream) (O, error) {
 		return fn(ctx, in)
 	})
 }
 
 // NewStreamingAction creates a new Action with the given name and streaming function.
-func NewStreamingAction[I, O, S any](name string, metadata map[string]any, fn Func[I, O, S]) *Action[I, O, S] {
+func NewStreamingAction[I, O, S any](name string, actionType ActionType, metadata map[string]any, fn Func[I, O, S]) *Action[I, O, S] {
 	var i I
 	var o O
 	return &Action[I, O, S]{
-		name:         name,
-		fn:           fn,
+		name: name,
+		fn: func(ctx context.Context, input I, sc StreamingCallback[S]) (O, error) {
+			tracing.SetCustomMetadataAttr(ctx, "subtype", string(actionType))
+			return fn(ctx, input, sc)
+		},
 		inputSchema:  inferJSONSchema(i),
 		outputSchema: inferJSONSchema(o),
 		Metadata:     metadata,

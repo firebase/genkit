@@ -64,7 +64,7 @@ func RegisterGenerator(provider, name string, metadata *GeneratorMetadata, gener
 		metadataMap["supports"] = supports
 	}
 	genkit.RegisterAction(genkit.ActionTypeModel, provider,
-		genkit.NewStreamingAction(name, map[string]any{
+		genkit.NewStreamingAction(name, genkit.ActionTypeModel, map[string]any{
 			"model": metadataMap,
 		}, generator.Generate))
 }

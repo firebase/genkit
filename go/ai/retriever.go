@@ -52,10 +52,10 @@ type RetrieverResponse struct {
 // RegisterRetriever registers the actions for a specific retriever.
 func RegisterRetriever(name string, retriever Retriever) {
 	genkit.RegisterAction(genkit.ActionTypeRetriever, name,
-		genkit.NewAction(name, nil, retriever.Retrieve))
+		genkit.NewAction(name, genkit.ActionTypeRetriever, nil, retriever.Retrieve))
 
 	genkit.RegisterAction(genkit.ActionTypeIndexer, name,
-		genkit.NewAction(name, nil, func(ctx context.Context, req *IndexerRequest) (struct{}, error) {
+		genkit.NewAction(name, genkit.ActionTypeIndexer, nil, func(ctx context.Context, req *IndexerRequest) (struct{}, error) {
 			err := retriever.Index(ctx, req)
 			return struct{}{}, err
 		}))

@@ -43,7 +43,7 @@ func RegisterTool(name string, definition *ToolDefinition, metadata map[string]a
 
 	// TODO: There is no provider for a tool.
 	genkit.RegisterAction(genkit.ActionTypeTool, "tool",
-		genkit.NewAction(definition.Name, metadata, fn))
+		genkit.NewAction(definition.Name, genkit.ActionTypeTool, metadata, fn))
 }
 
 // toolActionType is the instantiated genkit.Action type registered

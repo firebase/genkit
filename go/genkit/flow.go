@@ -239,7 +239,7 @@ type FlowResult[O any] struct {
 
 // action creates an action for the flow. See the comment at the top of this file for more information.
 func (f *Flow[I, O, S]) action() *Action[*flowInstruction[I], *flowState[I, O], S] {
-	return NewStreamingAction(f.name, nil, func(ctx context.Context, inst *flowInstruction[I], cb StreamingCallback[S]) (*flowState[I, O], error) {
+	return NewStreamingAction(f.name, ActionTypeFlow, nil, func(ctx context.Context, inst *flowInstruction[I], cb StreamingCallback[S]) (*flowState[I, O], error) {
 		tracing.SpanMetaKey.FromContext(ctx).SetAttr("flow:wrapperAction", "true")
 		return f.runInstruction(ctx, inst, cb)
 	})
