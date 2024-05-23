@@ -183,7 +183,7 @@ func main() {
 		}
 		return out, nil
 	})
-	if err := genkit.StartServer(""); err != nil {
+	if err := genkit.StartFlowServer(""); err != nil {
 		log.Fatal(err)
 	}
 }

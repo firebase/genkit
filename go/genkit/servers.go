@@ -43,25 +43,29 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// StartServer starts the server appropriate for the current environment,
-// listening on addr.
-// StartServer always returns a non-nil error, the one returned by http.ListenAndServe.
-func StartServer(addr string) error {
-	switch e := currentEnvironment(); e {
-	case EnvironmentDev:
-		return StartDevServer(addr)
-	case EnvironmentProd:
-		return StartProdServer(addr)
-	default:
-		return fmt.Errorf("unknown environment value: %q", e)
+// StartFlowServer starts a server serving the routes described in [NewFlowServeMux].
+// It listens on addr, or if empty, the value of the PORT environment variable,
+// or if that is empty, ":3400".
+//
+// In development mode (if the environment variable GENKIT_ENV=dev), it also starts
+// a dev server.
+//
+// StartFlowServer always returns a non-nil error, the one returned by http.ListenAndServe.
+func StartFlowServer(addr string) error {
+	if currentEnvironment() == EnvironmentDev {
+		go func() {
+			err := startDevServer("")
+			slog.Error("dev server stopped", "err", err)
+		}()
 	}
+	return startProdServer(addr)
 }
 
-// StartDevServer starts the development server (reflection API) listening at the given address.
+// startDevServer starts the development server (reflection API) listening at the given address.
 // If addr is "", it uses the value of the environment variable GENKIT_REFLECTION_PORT
 // for the port, and if that is empty it uses ":3100".
-// StartDevServer always returns a non-nil error, the one returned by http.ListenAndServe.
-func StartDevServer(addr string) error {
+// startDevServer always returns a non-nil error, the one returned by http.ListenAndServe.
+func startDevServer(addr string) error {
 	slog.Info("starting dev server")
 	// Don't use "localhost" here. That only binds the IPv4 address, and the genkit tool
 	// wants to connect to the IPv6 address even when you tell it to use "localhost".
@@ -229,15 +233,15 @@ type listFlowStatesResult struct {
 	ContinuationToken string       `json:"continuationToken"`
 }
 
-// StartProdServer starts a production server listening at the given address.
+// startProdServer starts a production server listening at the given address.
 // The Server has a route for each defined flow.
 // If addr is "", it uses the value of the environment variable PORT
 // for the port, and if that is empty it uses ":3400".
-// StartProdServer always returns a non-nil error, the one returned by http.ListenAndServe.
+// startProdServer always returns a non-nil error, the one returned by http.ListenAndServe.
 //
 // To construct a server with additional routes, use [NewFlowServeMux].
-func StartProdServer(addr string) error {
-	slog.Info("starting prod server")
+func startProdServer(addr string) error {
+	slog.Info("starting flow server")
 	addr = serverAddress(addr, "PORT", ":3400")
 	mux := NewFlowServeMux()
 	return listenAndServe(addr, mux)
