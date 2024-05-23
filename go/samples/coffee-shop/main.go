@@ -32,6 +32,7 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/genkit/dotprompt"
 	"github.com/firebase/genkit/go/plugins/googleai"
+	"github.com/firebase/genkit/go/plugins/localvec"
 	"github.com/invopop/jsonschema"
 )
 
@@ -41,8 +42,20 @@ A regular customer named {{customerName}} enters.
 Greet the customer in one sentence, and recommend a coffee drink.
 `
 
+const simpleQaPromptTemplate = `
+You're a helpful agent that answers the user's common questions based on your knowledge.
+
+Here is the user's query: {{question}}
+
+Please provide the best answer you can.
+`
+
 type simpleGreetingInput struct {
 	CustomerName string `json:"customerName"`
+}
+
+type simpleQaInput struct {
+	Question string `json:"question"`
 }
 
 const greetingWithHistoryPromptTemplate = `
@@ -107,6 +120,56 @@ func main() {
 		text, err := resp.Text()
 		if err != nil {
 			return "", fmt.Errorf("simpleGreeting: %v", err)
+		}
+		return text, nil
+	})
+
+	simpleQaPrompt, err := dotprompt.Define("simpleQaPrompt",
+		simpleQaPromptTemplate,
+		&dotprompt.Config{
+			Model:        "google-genai/gemini-1.0-pro",
+			InputSchema:  jsonschema.Reflect(simpleQaInput{}),
+			OutputFormat: ai.OutputFormatText,
+		},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	genkit.DefineFlow("simpleQaFlow", func(ctx context.Context, input *simpleQaInput, _ genkit.NoStream) (string, error) {
+		fmt.Println("Input recieved!!!!!")
+		fmt.Println(input)
+
+		d1 := ai.DocumentFromText("Paris is the capital of France", nil)
+		d2 := ai.DocumentFromText("USA is the largest importer of coffee", nil)
+		d3 := ai.DocumentFromText("Water exists in 3 states - solid, liquid and gas", nil)
+
+		embedder, err := googleai.NewEmbedder(ctx, "embedding-001", apiKey)
+		if err != nil {
+			return "", err
+		}
+		localDb, err := localvec.New(ctx, "/tmp/", "simpleQa", embedder, nil)
+		if err != nil {
+			return "", err
+		}
+
+		indexerReq := &ai.IndexerRequest{
+			Documents: []*ai.Document{d1, d2, d3},
+		}
+		localDb.Index(ctx, indexerReq)
+
+		vars, err := simpleGreetingPrompt.BuildVariables(input)
+		if err != nil {
+			return "", err
+		}
+		ai := &dotprompt.ActionInput{Variables: vars}
+		resp, err := simpleQaPrompt.Execute(ctx, ai)
+		if err != nil {
+			return "", err
+		}
+		text, err := resp.Text()
+		if err != nil {
+			return "", fmt.Errorf("simpleQa: %v", err)
 		}
 		return text, nil
 	})
