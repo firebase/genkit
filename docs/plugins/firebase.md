@@ -132,6 +132,7 @@ import * as z from "zod";
 import { readFile } from "fs/promises";
 import path from "path";
 
+// Change these values to match your Firestore config/schema
 const indexConfig = {
   collection: "menuInfo",
   contentField: "text",
