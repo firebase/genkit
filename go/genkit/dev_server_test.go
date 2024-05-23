@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"maps"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -27,6 +26,7 @@ import (
 	"github.com/firebase/genkit/go/internal/tracing"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/invopop/jsonschema"
 )
 
 func dec(_ context.Context, x int) (int, error) {
@@ -84,11 +84,24 @@ func TestDevServer(t *testing.T) {
 			t.Fatal(err)
 		}
 		want := map[string]actionDesc{
-			"/test/devServer/inc": {Key: "/test/devServer/inc", Name: "inc", Metadata: map[string]any{"inputSchema": nil, "outputSchema": nil, "foo": "bar"}},
-			"/test/devServer/dec": {Key: "/test/devServer/dec", Name: "dec", Metadata: map[string]any{"inputSchema": nil, "outputSchema": nil, "bar": "baz"}},
+			"/test/devServer/inc": {
+				Key:          "/test/devServer/inc",
+				Name:         "inc",
+				InputSchema:  &jsonschema.Schema{Type: "integer"},
+				OutputSchema: &jsonschema.Schema{Type: "integer"},
+				Metadata:     map[string]any{"foo": "bar"},
+			},
+			"/test/devServer/dec": {
+				Key:          "/test/devServer/dec",
+				InputSchema:  &jsonschema.Schema{Type: "integer"},
+				OutputSchema: &jsonschema.Schema{Type: "integer"},
+				Name:         "dec",
+				Metadata:     map[string]any{"bar": "baz"},
+			},
 		}
-		if !maps.EqualFunc(got, want, actionDesc.equal) {
-			t.Errorf("\n got  %v\nwant %v", got, want)
+		diff := cmp.Diff(want, got, cmpopts.IgnoreUnexported(jsonschema.Schema{}))
+		if diff != "" {
+			t.Errorf("mismatch (-want, +got):\n%s", diff)
 		}
 	})
 	t.Run("list traces", func(t *testing.T) {
