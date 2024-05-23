@@ -27,8 +27,8 @@ import {
   MenuItem,
   MenuItemSchema,
   MenuQuestionInputSchema,
-} from '../types';
-import { s04_ragDataMenuPrompt } from './prompts';
+} from '../types.js';
+import { s04_ragDataMenuPrompt } from './prompts.js';
 
 // Define a flow which indexes items on the menu.
 
