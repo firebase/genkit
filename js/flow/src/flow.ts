@@ -847,7 +847,7 @@ export function startFlowsServer(params?: {
   const flows = params?.flows || createdFlows();
   logger.info(`Starting flows server on port ${port}`);
   flows.forEach((f) => {
-    const flowPath = `${pathPrefix}/${f.name}`;
+    const flowPath = `/${pathPrefix}${f.name}`;
     logger.info(` - ${flowPath}`);
     // Add middlware
     f.middleware?.forEach((m) => {
