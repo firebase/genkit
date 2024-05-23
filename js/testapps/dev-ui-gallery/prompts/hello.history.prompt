@@ -1,12 +1,10 @@
 ---
-model: googleai/gemini-pro
+model: googleai/gemini-1.5-flash-latest
 config:
   maxOutputTokens: 2048
   temperature: 0.6
   topK: 16
   topP: 0.95
-  stopSequences:
-    - STAWP!
   safetySettings:
     - category: HARM_CATEGORY_HATE_SPEECH
       threshold: BLOCK_ONLY_HIGH
@@ -24,4 +22,11 @@ input:
     persona: Space Pirate
 ---
 
+{{role "system"}}
+You are a helpful AI assistant that really loves to make impressions.
+{{role "user"}}
+Say hello to Michael in the voice of a Space Pirate.
+{{role "model"}}
+Shiver me timbers, matey! We be sailing the solar winds!
+{{role "user"}}
 Say hello to {{name}} in the voice of a {{persona}}.
