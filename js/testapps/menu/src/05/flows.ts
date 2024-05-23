@@ -23,8 +23,8 @@ import {
   AnswerOutputSchema,
   MenuQuestionInputSchema,
   TextMenuQuestionInputSchema,
-} from '../types';
-import { s05_readMenuPrompt, s05_textMenuPrompt } from './prompts';
+} from '../types.js';
+import { s05_readMenuPrompt, s05_textMenuPrompt } from './prompts.js';
 
 // Define a flow that takes an image, passes it to Gemini Vision Pro,
 // and extracts all of the text from the photo of the menu.

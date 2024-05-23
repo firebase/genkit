@@ -21,12 +21,17 @@ import { existsSync, readdir, readFileSync } from 'fs';
 import { basename, join, resolve } from 'path';
 import { Dotprompt } from './prompt.js';
 
-export function registryDefinitionKey(name: string, variant?: string) {
-  return `dotprompt/${name}${variant ? `.${variant}` : ''}`;
+export function registryDefinitionKey(
+  name: string,
+  variant?: string,
+  ns?: string
+) {
+  // "ns/prompt.variant" where ns and variant are optional
+  return `${ns ? `${ns}/` : ''}${name}${variant ? `.${variant}` : ''}`;
 }
 
-export function registryLookupKey(name: string, variant?: string) {
-  return `/prompt/${registryDefinitionKey(name, variant)}`;
+export function registryLookupKey(name: string, variant?: string, ns?: string) {
+  return `/prompt/${registryDefinitionKey(name, variant, ns)}`;
 }
 
 export async function lookupPrompt(
@@ -34,12 +39,11 @@ export async function lookupPrompt(
   variant?: string,
   dir: string = './prompts'
 ): Promise<Dotprompt> {
-  // Expect to find the prompt in the registry
-  const registryPrompt = (await lookupAction(
-    registryLookupKey(name, variant)
-  )) as PromptAction;
+  let registryPrompt =
+    (await lookupAction(registryLookupKey(name, variant))) ||
+    (await lookupAction(registryLookupKey(name, variant, 'dotprompt')));
   if (registryPrompt) {
-    return Dotprompt.fromAction(registryPrompt);
+    return Dotprompt.fromAction(registryPrompt as PromptAction);
   } else {
     // Handle the case where initialization isn't complete
     // or a file was added after the prompt folder was loaded.
@@ -110,6 +114,6 @@ export function loadPrompt(path: string, filename: string): Dotprompt {
   if (variant) {
     prompt.variant = variant;
   }
-  prompt.define();
+  prompt.define({ ns: 'dotprompt' });
   return prompt;
 }
