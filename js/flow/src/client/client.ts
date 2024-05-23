@@ -16,6 +16,24 @@
 
 const __flowStreamDelimiter = '\n';
 
+/**
+ * Invoke and stream response from a deployed flow.
+ *
+ * For example:
+ *
+ * ```js
+ * import { streamFlow } from '@genkit-ai/flow/client';
+ *
+ * const response = streamFlow({
+ *   url: 'https://my-flow-deployed-url',
+ *   input: 'foo',
+ * });
+ * for await (const chunk of response.stream()) {
+ *   console.log(chunk);
+ * }
+ * console.log(await response.output());
+ * ```
+ */
 export function streamFlow({
   url,
   input,
