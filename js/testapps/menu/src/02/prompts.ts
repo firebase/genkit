@@ -16,8 +16,8 @@
 
 import { defineDotprompt } from '@genkit-ai/dotprompt';
 import { geminiPro } from '@genkit-ai/vertexai';
-import { MenuQuestionInputSchema } from '../types';
-import { menuTool } from './tools';
+import { MenuQuestionInputSchema } from '../types.js';
+import { menuTool } from './tools.js';
 
 // The prompt uses a tool which will load the menu data,
 // if the user asks a reasonable question about the menu.
