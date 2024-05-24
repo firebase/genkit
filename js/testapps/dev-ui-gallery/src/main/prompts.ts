@@ -99,7 +99,7 @@ defineFlow(
     outputSchema: z.string(),
     streamSchema: z.string(),
   },
-  async (input, streamingCallback) => {
+  async (input) => {
     const codeDefinedPrompt = await prompt('codeDefinedPrompt');
     const response = await codeDefinedPrompt.generate({
       input,
@@ -113,7 +113,7 @@ defineFlow(
 // Dotprompt file - text output
 //
 
-prompt('dotprompt-hello').then((prompt) => {
+prompt('hello').then((prompt) => {
   defineFlow(
     {
       name: 'flowDotPrompt',
@@ -128,7 +128,7 @@ prompt('dotprompt-hello').then((prompt) => {
 // Dotprompt file - variant, text output
 //
 
-prompt('dotprompt-hello', { variant: 'first-last-name' }).then((prompt) => {
+prompt('hello', { variant: 'first-last-name' }).then((prompt) => {
   defineFlow(
     {
       name: 'flowDotPromptVariant',
@@ -143,7 +143,7 @@ prompt('dotprompt-hello', { variant: 'first-last-name' }).then((prompt) => {
 // Dotprompt file - json output
 //
 
-prompt('dotprompt-hello', { variant: 'json-output' }).then((prompt) => {
+prompt('hello', { variant: 'json-output' }).then((prompt) => {
   defineFlow(
     {
       name: 'flowDotPromptJsonOutput',
@@ -154,7 +154,7 @@ prompt('dotprompt-hello', { variant: 'json-output' }).then((prompt) => {
   );
 });
 
-prompt('dotprompt-hello', { variant: 'system' }).then((prompt) => {
+prompt('hello', { variant: 'system' }).then((prompt) => {
   defineFlow(
     {
       name: 'flowDotPromptSystemMessage',
@@ -165,7 +165,7 @@ prompt('dotprompt-hello', { variant: 'system' }).then((prompt) => {
   );
 });
 
-prompt('dotprompt-hello', { variant: 'history' }).then((prompt) => {
+prompt('hello', { variant: 'history' }).then((prompt) => {
   defineFlow(
     {
       name: 'flowDotPromptHistory',

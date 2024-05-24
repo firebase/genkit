@@ -17,6 +17,7 @@ package genkit
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"slices"
 	"testing"
 
@@ -46,7 +47,10 @@ func TestFlowStart(t *testing.T) {
 			Response: 2,
 		},
 	}
-	if diff := cmp.Diff(want, got, cmpopts.IgnoreFields(operation[int]{}, "FlowID")); diff != "" {
+	diff := cmp.Diff(want, got,
+		cmpopts.IgnoreFields(operation[int]{}, "FlowID"),
+		cmpopts.IgnoreUnexported(FlowResult[int]{}, flowState[int, int]{}))
+	if diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}
 }
@@ -147,6 +151,7 @@ func TestFlowState(t *testing.T) {
 			Metadata: "meta",
 			Result: &FlowResult[int]{
 				Response:   6,
+				err:        errors.New("err"),
 				Error:      "err",
 				StackTrace: "st",
 			},
@@ -161,7 +166,7 @@ func TestFlowState(t *testing.T) {
 	if err := json.Unmarshal(data, &got); err != nil {
 		t.Fatal(err)
 	}
-	diff := cmp.Diff(fs, got, cmpopts.IgnoreUnexported(flowState[int, int]{}))
+	diff := cmp.Diff(fs, got, cmpopts.IgnoreUnexported(flowState[int, int]{}, FlowResult[int]{}))
 	if diff != "" {
 		t.Errorf("mismatch (-want, +got):\n%s", diff)
 	}

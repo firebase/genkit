@@ -16,7 +16,7 @@
 
 import { defineDotprompt } from '@genkit-ai/dotprompt';
 import { geminiPro } from '@genkit-ai/vertexai';
-import { DataMenuQuestionInputSchema } from '../types';
+import { DataMenuQuestionInputSchema } from '../types.js';
 
 // This prompt will generate two messages when rendered.
 // These two messages will be used to seed the exchange with the model.

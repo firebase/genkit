@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"sync"
 	"time"
@@ -112,6 +113,7 @@ func defineFlow[I, O, S any](r *registry, name string, fn Func[I, O, S]) *Flow[I
 	r.registerAction(ActionTypeFlow, name, a)
 	// TODO(jba): this is a roundabout way to transmit the tracing state. Is there a cleaner way?
 	f.tstate = a.tstate
+	r.registerFlow(f)
 	return f
 }
 
@@ -231,7 +233,10 @@ type operation[O any] struct {
 type FlowResult[O any] struct {
 	Response O      `json:"response,omitempty"`
 	Error    string `json:"error,omitempty"`
-	// TODO(jba): keep the actual error around so that RunFlow can use it.
+	// The Error field above is not used in the code, but it gets marshaled
+	// into JSON.
+	// TODO(jba): replace with  a type that implements error and json.Marshaler.
+	err        error
 	StackTrace string `json:"stacktrace,omitempty"`
 }
 
@@ -239,7 +244,13 @@ type FlowResult[O any] struct {
 
 // action creates an action for the flow. See the comment at the top of this file for more information.
 func (f *Flow[I, O, S]) action() *Action[*flowInstruction[I], *flowState[I, O], S] {
-	return NewStreamingAction(f.name, ActionTypeFlow, nil, func(ctx context.Context, inst *flowInstruction[I], cb StreamingCallback[S]) (*flowState[I, O], error) {
+	var i I
+	var o O
+	metadata := map[string]any{
+		"inputSchema":  inferJSONSchema(i),
+		"outputSchema": inferJSONSchema(o),
+	}
+	return NewStreamingAction(f.name, ActionTypeFlow, metadata, func(ctx context.Context, inst *flowInstruction[I], cb StreamingCallback[S]) (*flowState[I, O], error) {
 		tracing.SpanMetaKey.FromContext(ctx).SetAttr("flow:wrapperAction", "true")
 		return f.runInstruction(ctx, inst, cb)
 	})
@@ -265,6 +276,50 @@ func (f *Flow[I, O, S]) runInstruction(ctx context.Context, inst *flowInstructio
 	default:
 		return nil, errors.New("all known fields of FlowInvokeEnvelopeMessage are nil")
 	}
+}
+
+// flow is the type that all Flow[I, O, S] have in common.
+type flow interface {
+	Name() string
+
+	// runJSON uses encoding/json to unmarshal the input,
+	// calls Flow.start, then returns the marshaled result.
+	runJSON(ctx context.Context, input json.RawMessage, cb StreamingCallback[json.RawMessage]) (json.RawMessage, error)
+}
+
+func (f *Flow[I, O, S]) Name() string { return f.name }
+
+func (f *Flow[I, O, S]) runJSON(ctx context.Context, input json.RawMessage, cb StreamingCallback[json.RawMessage]) (json.RawMessage, error) {
+	var in I
+	if err := json.Unmarshal(input, &in); err != nil {
+		return nil, &httpError{http.StatusBadRequest, err}
+	}
+	// If there is a callback, wrap it to turn an S into a json.RawMessage.
+	var callback StreamingCallback[S]
+	if cb != nil {
+		callback = func(ctx context.Context, s S) error {
+			bytes, err := json.Marshal(s)
+			if err != nil {
+				return err
+			}
+			return cb(ctx, json.RawMessage(bytes))
+		}
+	}
+	fstate, err := f.start(ctx, in, callback)
+	if err != nil {
+		return nil, err
+	}
+	if fstate.Operation == nil {
+		return nil, errors.New("nil operation")
+	}
+	res := fstate.Operation.Result
+	if res == nil {
+		return nil, errors.New("nil result")
+	}
+	if res.err != nil {
+		return nil, res.err
+	}
+	return json.Marshal(res.Response)
 }
 
 // start starts executing the flow with the given input.
@@ -340,6 +395,7 @@ func (f *Flow[I, O, S]) execute(ctx context.Context, state *flowState[I, O], dis
 	state.Operation.Done = true
 	if err != nil {
 		state.Operation.Result = &FlowResult[O]{
+			err:   err,
 			Error: err.Error(),
 			// TODO(jba): stack trace?
 		}
@@ -529,8 +585,8 @@ func finishedOpResponse[O any](op *operation[O]) (O, error) {
 	if !op.Done {
 		return internal.Zero[O](), fmt.Errorf("flow %s did not finish execution", op.FlowID)
 	}
-	if op.Result.Error != "" {
-		return internal.Zero[O](), fmt.Errorf("flow %s: %s", op.FlowID, op.Result.Error)
+	if op.Result.err != nil {
+		return internal.Zero[O](), fmt.Errorf("flow %s: %w", op.FlowID, op.Result.err)
 	}
 	return op.Result.Response, nil
 }

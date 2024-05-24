@@ -46,6 +46,7 @@ type registry struct {
 	tstate  *tracing.State
 	mu      sync.Mutex
 	actions map[string]action
+	flows   []flow
 	// TraceStores, at most one for each [Environment].
 	// Only the prod trace store is actually registered; the dev one is
 	// always created automatically. But it's simpler if we keep them together here.
@@ -143,6 +144,20 @@ func (r *registry) listActions() []actionDesc {
 		ads = append(ads, ad)
 	}
 	return ads
+}
+
+// registerFlow stores the flow for use by the production server (see [NewFlowServeMux]).
+// It doesn't check for duplicates because registerAction will do that.
+func (r *registry) registerFlow(f flow) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.flows = append(r.flows, f)
+}
+
+func (r *registry) listFlows() []flow {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.flows
 }
 
 // RegisterTraceStore uses the given trace.Store to record traces in the prod environment.
