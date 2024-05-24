@@ -137,7 +137,7 @@ func translateCandidate(cand *genai.Candidate) *ai.Candidate {
 		case genai.Text:
 			p = ai.NewTextPart(string(part))
 		case genai.Blob:
-			p = ai.NewBlobPart(part.MIMEType, string(part.Data))
+			p = ai.NewMediaPart(part.MIMEType, string(part.Data))
 		case genai.FunctionCall:
 			p = ai.NewToolRequestPart(&ai.ToolRequest{
 				Name:  part.Name,
@@ -204,8 +204,10 @@ func convertPart(p *ai.Part) genai.Part {
 	switch {
 	case p.IsText():
 		return genai.Text(p.Text())
-	case p.IsBlob():
+	case p.IsMedia():
 		return genai.Blob{MIMEType: p.ContentType(), Data: []byte(p.Text())}
+	case p.IsData():
+		panic("vertexai does not support Data parts")
 	case p.IsToolResponse():
 		toolResp := p.ToolResponse()
 		return genai.FunctionResponse{
