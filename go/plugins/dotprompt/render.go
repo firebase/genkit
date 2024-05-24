@@ -184,7 +184,7 @@ func (p *Prompt) toParts(str string) []*ai.Part {
 
 		media := str[m[0]+len(mediaPrefix) : m[1]-len(mediaSuffix)]
 		url, contentType, _ := strings.Cut(media, " ")
-		ret = append(ret, ai.NewBlobPart(contentType, url))
+		ret = append(ret, ai.NewMediaPart(contentType, url))
 
 		i = m[1]
 	}

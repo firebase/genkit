@@ -42,20 +42,26 @@ type partKind int8
 
 const (
 	partText partKind = iota
-	partBlob
+	partMedia
+	partData
 	partToolRequest
 	partToolResponse
 )
 
-// NewTextPart returns a Part containing raw string data.
+// NewTextPart returns a Part containing text.
 func NewTextPart(text string) *Part {
 	return &Part{kind: partText, text: text}
 }
 
-// NewBlobPart returns a Part containing structured data described
+// NewMediaPart returns a Part containing structured data described
 // by the given mimeType.
-func NewBlobPart(mimeType, contents string) *Part {
-	return &Part{kind: partBlob, contentType: mimeType, text: contents}
+func NewMediaPart(mimeType, contents string) *Part {
+	return &Part{kind: partMedia, contentType: mimeType, text: contents}
+}
+
+// NewDataPart returns a Part containing raw string data.
+func NewDataPart(contents string) *Part {
+	return &Part{kind: partData, text: contents}
 }
 
 // NewToolRequestPart returns a Part containing a request from
@@ -76,9 +82,14 @@ func (p *Part) IsText() bool {
 	return p.kind == partText
 }
 
-// IsBlob reports whether the [Part] contains blob (non-plain-text) data.
-func (p *Part) IsBlob() bool {
-	return p.kind == partBlob
+// IsMedia reports whether the [Part] contains structured media data.
+func (p *Part) IsMedia() bool {
+	return p.kind == partMedia
+}
+
+// IsData reports whether the [Part] contains unstructured data.
+func (p *Part) IsData() bool {
+	return p.kind == partData
 }
 
 // IsToolRequest reports whether the [Part] contains a request to run a tool.
@@ -128,12 +139,17 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 			Text: p.text,
 		}
 		return json.Marshal(v)
-	case partBlob:
+	case partMedia:
 		v := mediaPart{
 			Media: &mediaPartMedia{
 				ContentType: p.contentType,
 				Url:         p.text,
 			},
+		}
+		return json.Marshal(v)
+	case partData:
+		v := dataPart{
+			Data: p.text,
 		}
 		return json.Marshal(v)
 	case partToolRequest:
@@ -166,6 +182,7 @@ func (p *Part) UnmarshalJSON(b []byte) error {
 	var s struct {
 		Text     string          `json:"text,omitempty"`
 		Media    *mediaPartMedia `json:"media,omitempty"`
+		Data     string          `json:"data,omitempty"`
 		ToolReq  *ToolRequest    `json:"toolreq,omitempty"`
 		ToolResp *ToolResponse   `json:"toolresp,omitempty"`
 	}
@@ -176,7 +193,7 @@ func (p *Part) UnmarshalJSON(b []byte) error {
 
 	switch {
 	case s.Media != nil:
-		p.kind = partBlob
+		p.kind = partMedia
 		p.text = s.Media.Url
 		p.contentType = s.Media.ContentType
 	case s.ToolReq != nil:
@@ -189,6 +206,11 @@ func (p *Part) UnmarshalJSON(b []byte) error {
 		p.kind = partText
 		p.text = s.Text
 		p.contentType = ""
+		if s.Data != "" {
+			// Note: if part is completely empty, we use text by default.
+			p.kind = partData
+			p.text = s.Data
+		}
 	}
 	return nil
 }

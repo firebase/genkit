@@ -115,7 +115,7 @@ func TestRenderMessages(t *testing.T) {
 				{
 					Role: ai.RoleUser,
 					Content: []*ai.Part{
-						ai.NewBlobPart("", "https://some.image.url/image.jpg"),
+						ai.NewMediaPart("", "https://some.image.url/image.jpg"),
 						ai.NewTextPart(" Describe the image above."),
 					},
 				},
@@ -137,11 +137,11 @@ func TestRenderMessages(t *testing.T) {
 					Role: ai.RoleUser,
 					Content: []*ai.Part{
 						ai.NewTextPart("Look at these images: "),
-						ai.NewBlobPart("", "http://1.png"),
-						ai.NewBlobPart("", "https://2.png"),
-						ai.NewBlobPart("", "data:image/jpeg;base64,abc123"),
+						ai.NewMediaPart("", "http://1.png"),
+						ai.NewMediaPart("", "https://2.png"),
+						ai.NewMediaPart("", "data:image/jpeg;base64,abc123"),
 						ai.NewTextPart("  Do you like them? Here is another: "),
-						ai.NewBlobPart("", "http://anotherImage.png"),
+						ai.NewMediaPart("", "http://anotherImage.png"),
 					},
 				},
 			},

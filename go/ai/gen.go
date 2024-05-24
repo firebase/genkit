@@ -53,7 +53,7 @@ const (
 	FinishReasonUnknown FinishReason = "unknown"
 )
 
-type DataPart struct {
+type dataPart struct {
 	Data     any            `json:"data,omitempty"`
 	Metadata map[string]any `json:"metadata,omitempty"`
 }
