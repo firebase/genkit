@@ -17,7 +17,7 @@ package ai
 import (
 	"context"
 
-	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/core"
 )
 
 // Embedder is the interface used to convert a document to a
@@ -35,6 +35,5 @@ type EmbedRequest struct {
 
 // RegisterEmbedder registers the actions for a specific embedder.
 func RegisterEmbedder(name string, embedder Embedder) {
-	genkit.RegisterAction(genkit.ActionTypeEmbedder, name,
-		genkit.NewAction(name, genkit.ActionTypeEmbedder, nil, embedder.Embed))
+	core.RegisterAction(name, core.NewAction(name, core.ActionTypeEmbedder, nil, embedder.Embed))
 }

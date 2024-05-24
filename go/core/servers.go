@@ -20,7 +20,7 @@
 // The production server has a route for each flow. It
 // is intended for production deployments.
 
-package genkit
+package core
 
 import (
 	"context"
@@ -117,7 +117,7 @@ func (s *devServer) handleRunAction(w http.ResponseWriter, r *http.Request) erro
 	internal.Logger(ctx).Debug("running action",
 		"key", body.Key,
 		"stream", stream)
-	var callback StreamingCallback[json.RawMessage]
+	var callback streamingCallback[json.RawMessage]
 	if stream {
 		// Stream results are newline-separated JSON.
 		callback = func(ctx context.Context, msg json.RawMessage) error {
@@ -141,7 +141,7 @@ type telemetry struct {
 	TraceID string `json:"traceId"`
 }
 
-func runAction(ctx context.Context, reg *registry, key string, input json.RawMessage, cb StreamingCallback[json.RawMessage]) (*runActionResponse, error) {
+func runAction(ctx context.Context, reg *registry, key string, input json.RawMessage, cb streamingCallback[json.RawMessage]) (*runActionResponse, error) {
 	action := reg.lookupAction(key)
 	if action == nil {
 		return nil, &httpError{http.StatusNotFound, fmt.Errorf("no action with key %q", key)}

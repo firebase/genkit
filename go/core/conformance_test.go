@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package core
 
 import (
 	"cmp"
@@ -81,6 +81,9 @@ func TestFlowConformance(t *testing.T) {
 	testFiles, err := filepath.Glob(filepath.FromSlash("testdata/conformance/*.json"))
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(testFiles) == 0 {
+		t.Fatal("did not find any test files")
 	}
 	for _, filename := range testFiles {
 		t.Run(strings.TrimSuffix(filepath.Base(filename), ".json"), func(t *testing.T) {

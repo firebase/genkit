@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package core
 
 import (
 	"context"
@@ -38,17 +38,17 @@ func TestDevServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.registerAction("test", "devServer", NewAction("inc", ActionTypeCustom, map[string]any{
+	r.registerAction("devServer", NewAction("inc", ActionTypeCustom, map[string]any{
 		"foo": "bar",
 	}, inc))
-	r.registerAction("test", "devServer", NewAction("dec", ActionTypeCustom, map[string]any{
+	r.registerAction("devServer", NewAction("dec", ActionTypeCustom, map[string]any{
 		"bar": "baz",
 	}, dec))
 	srv := httptest.NewServer(newDevServeMux(r))
 	defer srv.Close()
 
 	t.Run("runAction", func(t *testing.T) {
-		body := `{"key": "/test/devServer/inc", "input": 3}`
+		body := `{"key": "/custom/devServer/inc", "input": 3}`
 		res, err := http.Post(srv.URL+"/api/runAction", "application/json", strings.NewReader(body))
 		if err != nil {
 			t.Fatal(err)
@@ -84,15 +84,15 @@ func TestDevServer(t *testing.T) {
 			t.Fatal(err)
 		}
 		want := map[string]actionDesc{
-			"/test/devServer/inc": {
-				Key:          "/test/devServer/inc",
+			"/custom/devServer/inc": {
+				Key:          "/custom/devServer/inc",
 				Name:         "inc",
 				InputSchema:  &jsonschema.Schema{Type: "integer"},
 				OutputSchema: &jsonschema.Schema{Type: "integer"},
 				Metadata:     map[string]any{"foo": "bar"},
 			},
-			"/test/devServer/dec": {
-				Key:          "/test/devServer/dec",
+			"/custom/devServer/dec": {
+				Key:          "/custom/devServer/dec",
 				InputSchema:  &jsonschema.Schema{Type: "integer"},
 				OutputSchema: &jsonschema.Schema{Type: "integer"},
 				Name:         "dec",
