@@ -26,7 +26,7 @@ func inc(_ context.Context, x int) (int, error) {
 }
 
 func TestActionRun(t *testing.T) {
-	a := NewAction("inc", nil, inc)
+	a := NewAction("inc", ActionTypeCustom, nil, inc)
 	got, err := a.Run(context.Background(), 3, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -37,7 +37,7 @@ func TestActionRun(t *testing.T) {
 }
 
 func TestActionRunJSON(t *testing.T) {
-	a := NewAction("inc", nil, inc)
+	a := NewAction("inc", ActionTypeCustom, nil, inc)
 	input := []byte("3")
 	want := []byte("4")
 	got, err := a.runJSON(context.Background(), input, nil)
@@ -51,7 +51,7 @@ func TestActionRunJSON(t *testing.T) {
 
 func TestNewAction(t *testing.T) {
 	// Verify that struct{} can occur in the function signature.
-	_ = NewAction("f", nil, func(context.Context, int) (struct{}, error) { return struct{}{}, nil })
+	_ = NewAction("f", ActionTypeCustom, nil, func(context.Context, int) (struct{}, error) { return struct{}{}, nil })
 }
 
 // count streams the numbers from 0 to n-1, then returns n.
@@ -68,7 +68,7 @@ func count(ctx context.Context, n int, cb StreamingCallback[int]) (int, error) {
 
 func TestActionStreaming(t *testing.T) {
 	ctx := context.Background()
-	a := NewStreamingAction("count", nil, count)
+	a := NewStreamingAction("count", ActionTypeCustom, nil, count)
 	const n = 3
 
 	// Non-streaming.
@@ -101,7 +101,7 @@ func TestActionStreaming(t *testing.T) {
 func TestActionTracing(t *testing.T) {
 	ctx := context.Background()
 	const actionName = "TestTracing-inc"
-	a := NewAction(actionName, nil, inc)
+	a := NewAction(actionName, ActionTypeCustom, nil, inc)
 	if _, err := a.Run(context.Background(), 3, nil); err != nil {
 		t.Fatal(err)
 	}

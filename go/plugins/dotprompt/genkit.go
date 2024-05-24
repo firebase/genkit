@@ -130,7 +130,7 @@ func (p *Prompt) Action() (*genkit.Action[*ActionInput, *ai.GenerateResponse, st
 		name += "." + p.Variant
 	}
 
-	a := genkit.NewAction(name, nil, p.Execute)
+	a := genkit.NewAction(name, genkit.ActionTypePrompt, nil, p.Execute)
 	a.Metadata = map[string]any{
 		"type":   "prompt",
 		"prompt": p,
