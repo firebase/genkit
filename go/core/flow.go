@@ -24,9 +24,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/gtime"
 	"github.com/firebase/genkit/go/internal"
-	"github.com/firebase/genkit/go/internal/tracing"
 	"github.com/google/uuid"
 	otrace "go.opentelemetry.io/otel/trace"
 )
@@ -251,7 +251,7 @@ func (f *Flow[I, O, S]) action() *Action[*flowInstruction[I], *flowState[I, O], 
 		"outputSchema": inferJSONSchema(o),
 	}
 	cback := func(ctx context.Context, inst *flowInstruction[I], cb func(context.Context, S) error) (*flowState[I, O], error) {
-		tracing.SpanMetaKey.FromContext(ctx).SetAttr("flow:wrapperAction", "true")
+		tracing.SetCustomMetadataAttr(ctx, "flow:wrapperAction", "true")
 		return f.runInstruction(ctx, inst, streamingCallback[S](cb))
 	}
 	return NewStreamingAction(f.name, ActionTypeFlow, metadata, cback)
@@ -359,12 +359,11 @@ func (f *Flow[I, O, S]) execute(ctx context.Context, state *flowState[I, O], dis
 	// TODO(jba): retrieve the JSON-marshaled SpanContext from state.traceContext.
 	// TODO(jba): add a span link to the context.
 	output, err := tracing.RunInNewSpan(ctx, fctx.tracingState(), f.name, "flow", true, state.Input, func(ctx context.Context, input I) (O, error) {
-		spanMeta := tracing.SpanMetaKey.FromContext(ctx)
-		spanMeta.SetAttr("flow:execution", strconv.Itoa(len(state.Executions)-1))
+		tracing.SetCustomMetadataAttr(ctx, "flow:execution", strconv.Itoa(len(state.Executions)-1))
 		// TODO(jba): put labels into span metadata.
-		spanMeta.SetAttr("flow:name", f.name)
-		spanMeta.SetAttr("flow:id", state.FlowID)
-		spanMeta.SetAttr("flow:dispatchType", dispatchType)
+		tracing.SetCustomMetadataAttr(ctx, "flow:name", f.name)
+		tracing.SetCustomMetadataAttr(ctx, "flow:id", state.FlowID)
+		tracing.SetCustomMetadataAttr(ctx, "flow:dispatchType", dispatchType)
 		rootSpanContext := otrace.SpanContextFromContext(ctx)
 		traceID := rootSpanContext.TraceID().String()
 		exec.TraceIDs = append(exec.TraceIDs, traceID)
@@ -376,15 +375,15 @@ func (f *Flow[I, O, S]) execute(ctx context.Context, state *flowState[I, O], dis
 		if err != nil {
 			// TODO(jba): handle InterruptError
 			internal.Logger(ctx).Error("flow failed",
-				"path", spanMeta.Path,
+				"path", tracing.SpanPath(ctx),
 				"err", err.Error(),
 			)
 			writeFlowFailure(ctx, f.name, latency, err)
-			spanMeta.SetAttr("flow:state", "error")
+			tracing.SetCustomMetadataAttr(ctx, "flow:state", "error")
 		} else {
-			internal.Logger(ctx).Info("flow succeeded", "path", spanMeta.Path)
+			internal.Logger(ctx).Info("flow succeeded", "path", tracing.SpanPath(ctx))
 			writeFlowSuccess(ctx, f.name, latency)
-			spanMeta.SetAttr("flow:state", "done")
+			tracing.SetCustomMetadataAttr(ctx, "flow:state", "done")
 
 		}
 		// TODO(jba): telemetry
@@ -485,10 +484,9 @@ func Run[T any](ctx context.Context, name string, f func() (T, error)) (T, error
 	// as in the js.
 	return tracing.RunInNewSpan(ctx, fc.tracingState(), name, "flowStep", false, 0, func(ctx context.Context, _ int) (T, error) {
 		uName := fc.uniqueStepName(name)
-		spanMeta := tracing.SpanMetaKey.FromContext(ctx)
-		spanMeta.SetAttr("flow:stepType", "run")
-		spanMeta.SetAttr("flow:stepName", name)
-		spanMeta.SetAttr("flow:resolvedStepName", uName)
+		tracing.SetCustomMetadataAttr(ctx, "flow:stepType", "run")
+		tracing.SetCustomMetadataAttr(ctx, "flow:stepName", name)
+		tracing.SetCustomMetadataAttr(ctx, "flow:resolvedStepName", uName)
 		// Memoize the function call, using the cache in the flowState.
 		// The locking here prevents corruption of the cache from concurrent access, but doesn't
 		// prevent two goroutines racing to check the cache and call f. However, that shouldn't
@@ -503,7 +501,7 @@ func Run[T any](ctx context.Context, name string, f func() (T, error)) (T, error
 			if err := json.Unmarshal(j, &t); err != nil {
 				return internal.Zero[T](), err
 			}
-			spanMeta.SetAttr("flow:state", "cached")
+			tracing.SetCustomMetadataAttr(ctx, "flow:state", "cached")
 			return t, nil
 		}
 		t, err := f()
@@ -517,7 +515,7 @@ func Run[T any](ctx context.Context, name string, f func() (T, error)) (T, error
 		fs.lock()
 		fs.cache()[uName] = json.RawMessage(bytes)
 		fs.unlock()
-		spanMeta.SetAttr("flow:state", "run")
+		tracing.SetCustomMetadataAttr(ctx, "flow:state", "run")
 		return t, nil
 	})
 }

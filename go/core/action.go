@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/internal"
-	"github.com/firebase/genkit/go/internal/tracing"
+	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/invopop/jsonschema"
 )
 

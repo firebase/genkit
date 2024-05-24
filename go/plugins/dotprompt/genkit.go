@@ -22,7 +22,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal/tracing"
+	"github.com/firebase/genkit/go/core/tracing"
 )
 
 // ActionInput is the input type of a prompt action.

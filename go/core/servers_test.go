@@ -23,7 +23,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/firebase/genkit/go/internal/tracing"
+	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/invopop/jsonschema"

@@ -16,13 +16,16 @@ package core
 
 import (
 	"context"
+	"crypto/md5"
 	"fmt"
 	"log"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"slices"
 	"sync"
 
-	"github.com/firebase/genkit/go/internal/tracing"
+	"github.com/firebase/genkit/go/core/tracing"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/exp/maps"
 )
@@ -58,7 +61,7 @@ func newRegistry() (*registry, error) {
 		actions:     map[string]action{},
 		traceStores: map[Environment]tracing.Store{},
 	}
-	tstore, err := tracing.NewDevStore()
+	tstore, err := newDevStore()
 	if err != nil {
 		return nil, err
 	}
@@ -66,6 +69,17 @@ func newRegistry() (*registry, error) {
 	r.tstate = tracing.NewState()
 	r.tstate.AddTraceStoreImmediate(tstore)
 	return r, nil
+}
+
+func newDevStore() (tracing.Store, error) {
+	programName := filepath.Base(os.Args[0])
+	rootHash := fmt.Sprintf("%02x", md5.Sum([]byte(programName)))
+	dir := filepath.Join(os.TempDir(), ".genkit", rootHash, "traces")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, err
+	}
+	// Don't remove the temp directory, for post-mortem debugging.
+	return tracing.NewFileStore(dir)
 }
 
 // An Environment is the execution context in which the program is running.
