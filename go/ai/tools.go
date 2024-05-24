@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"maps"
 
-	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/core"
 )
 
 // A Tool is an implementation of a single tool.
@@ -42,18 +42,17 @@ func RegisterTool(name string, definition *ToolDefinition, metadata map[string]a
 	metadata["type"] = "tool"
 
 	// TODO: There is no provider for a tool.
-	genkit.RegisterAction(genkit.ActionTypeTool, "tool",
-		genkit.NewAction(definition.Name, genkit.ActionTypeTool, metadata, fn))
+	core.RegisterAction("tool", core.NewAction(definition.Name, core.ActionTypeTool, metadata, fn))
 }
 
-// toolActionType is the instantiated genkit.Action type registered
+// toolActionType is the instantiated core.Action type registered
 // by RegisterTool.
-type toolActionType = genkit.Action[map[string]any, map[string]any, struct{}]
+type toolActionType = core.Action[map[string]any, map[string]any, struct{}]
 
 // RunTool looks up a tool registered by [RegisterTool],
 // runs it with the given input, and returns the result.
 func RunTool(ctx context.Context, name string, input map[string]any) (map[string]any, error) {
-	action := genkit.LookupAction(genkit.ActionTypeTool, "tool", name)
+	action := core.LookupAction(core.ActionTypeTool, "tool", name)
 	if action == nil {
 		return nil, fmt.Errorf("no tool named %q", name)
 	}

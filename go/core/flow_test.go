@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package core
 
 import (
 	"context"
@@ -101,32 +101,6 @@ func TestRunFlow(t *testing.T) {
 	if want := 3; got != want {
 		t.Errorf("got %d, want %d", got, want)
 	}
-}
-
-func TestStreamFlow(t *testing.T) {
-	reg, err := newRegistry()
-	if err != nil {
-		t.Fatal(err)
-	}
-	f := defineFlow(reg, "count", count)
-	iter := StreamFlow(context.Background(), f, 2)
-	want := 0
-	iter(func(val *StreamFlowValue[int, int], err error) bool {
-		if err != nil {
-			t.Fatal(err)
-		}
-		var got int
-		if val.Done {
-			got = val.Output
-		} else {
-			got = val.Stream
-		}
-		if got != want {
-			t.Errorf("got %d, want %d", got, want)
-		}
-		want++
-		return true
-	})
 }
 
 func TestFlowState(t *testing.T) {

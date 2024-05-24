@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package core
 
 import (
 	"bytes"
@@ -55,7 +55,7 @@ func TestNewAction(t *testing.T) {
 }
 
 // count streams the numbers from 0 to n-1, then returns n.
-func count(ctx context.Context, n int, cb StreamingCallback[int]) (int, error) {
+func count(ctx context.Context, n int, cb func(context.Context, int) error) (int, error) {
 	if cb != nil {
 		for i := 0; i < n; i++ {
 			if err := cb(ctx, i); err != nil {

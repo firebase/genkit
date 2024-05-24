@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package core
 
 import (
 	"context"
@@ -96,16 +96,16 @@ const (
 // RegisterAction records the action in the global registry.
 // It panics if an action with the same type, provider and name is already
 // registered.
-func RegisterAction(typ ActionType, provider string, a action) {
-	globalRegistry.registerAction(typ, provider, a)
+func RegisterAction(provider string, a action) {
+	globalRegistry.registerAction(provider, a)
 	slog.Info("RegisterAction",
-		"type", typ,
+		"type", a.actionType(),
 		"provider", provider,
 		"name", a.Name())
 }
 
-func (r *registry) registerAction(typ ActionType, provider string, a action) {
-	key := fmt.Sprintf("/%s/%s/%s", typ, provider, a.Name())
+func (r *registry) registerAction(provider string, a action) {
+	key := fmt.Sprintf("/%s/%s/%s", a.actionType(), provider, a.Name())
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, ok := r.actions[key]; ok {

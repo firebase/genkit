@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package core
 
 import (
 	"context"
@@ -110,7 +110,7 @@ func defineFlow[I, O, S any](r *registry, name string, fn Func[I, O, S]) *Flow[I
 		// TODO(jba): set stateStore?
 	}
 	a := f.action()
-	r.registerAction(ActionTypeFlow, name, a)
+	r.registerAction(name, a)
 	// TODO(jba): this is a roundabout way to transmit the tracing state. Is there a cleaner way?
 	f.tstate = a.tstate
 	r.registerFlow(f)
@@ -250,15 +250,16 @@ func (f *Flow[I, O, S]) action() *Action[*flowInstruction[I], *flowState[I, O], 
 		"inputSchema":  inferJSONSchema(i),
 		"outputSchema": inferJSONSchema(o),
 	}
-	return NewStreamingAction(f.name, ActionTypeFlow, metadata, func(ctx context.Context, inst *flowInstruction[I], cb StreamingCallback[S]) (*flowState[I, O], error) {
+	cback := func(ctx context.Context, inst *flowInstruction[I], cb func(context.Context, S) error) (*flowState[I, O], error) {
 		tracing.SpanMetaKey.FromContext(ctx).SetAttr("flow:wrapperAction", "true")
-		return f.runInstruction(ctx, inst, cb)
-	})
+		return f.runInstruction(ctx, inst, streamingCallback[S](cb))
+	}
+	return NewStreamingAction(f.name, ActionTypeFlow, metadata, cback)
 }
 
 // runInstruction performs one of several actions on a flow, as determined by msg.
 // (Called runEnvelope in the js.)
-func (f *Flow[I, O, S]) runInstruction(ctx context.Context, inst *flowInstruction[I], cb StreamingCallback[S]) (*flowState[I, O], error) {
+func (f *Flow[I, O, S]) runInstruction(ctx context.Context, inst *flowInstruction[I], cb streamingCallback[S]) (*flowState[I, O], error) {
 	switch {
 	case inst.Start != nil:
 		// TODO(jba): pass msg.Start.Labels.
@@ -284,18 +285,18 @@ type flow interface {
 
 	// runJSON uses encoding/json to unmarshal the input,
 	// calls Flow.start, then returns the marshaled result.
-	runJSON(ctx context.Context, input json.RawMessage, cb StreamingCallback[json.RawMessage]) (json.RawMessage, error)
+	runJSON(ctx context.Context, input json.RawMessage, cb streamingCallback[json.RawMessage]) (json.RawMessage, error)
 }
 
 func (f *Flow[I, O, S]) Name() string { return f.name }
 
-func (f *Flow[I, O, S]) runJSON(ctx context.Context, input json.RawMessage, cb StreamingCallback[json.RawMessage]) (json.RawMessage, error) {
+func (f *Flow[I, O, S]) runJSON(ctx context.Context, input json.RawMessage, cb streamingCallback[json.RawMessage]) (json.RawMessage, error) {
 	var in I
 	if err := json.Unmarshal(input, &in); err != nil {
 		return nil, &httpError{http.StatusBadRequest, err}
 	}
 	// If there is a callback, wrap it to turn an S into a json.RawMessage.
-	var callback StreamingCallback[S]
+	var callback streamingCallback[S]
 	if cb != nil {
 		callback = func(ctx context.Context, s S) error {
 			bytes, err := json.Marshal(s)
@@ -323,7 +324,7 @@ func (f *Flow[I, O, S]) runJSON(ctx context.Context, input json.RawMessage, cb S
 }
 
 // start starts executing the flow with the given input.
-func (f *Flow[I, O, S]) start(ctx context.Context, input I, cb StreamingCallback[S]) (_ *flowState[I, O], err error) {
+func (f *Flow[I, O, S]) start(ctx context.Context, input I, cb streamingCallback[S]) (_ *flowState[I, O], err error) {
 	flowID, err := generateFlowID()
 	if err != nil {
 		return nil, err
@@ -340,7 +341,7 @@ func (f *Flow[I, O, S]) start(ctx context.Context, input I, cb StreamingCallback
 //
 // This function corresponds to Flow.executeSteps in the js, but does more:
 // it creates the flowContext and saves the state.
-func (f *Flow[I, O, S]) execute(ctx context.Context, state *flowState[I, O], dispatchType string, cb StreamingCallback[S]) {
+func (f *Flow[I, O, S]) execute(ctx context.Context, state *flowState[I, O], dispatchType string, cb streamingCallback[S]) {
 	fctx := newFlowContext(state, f.stateStore, f.tstate)
 	defer func() {
 		if err := fctx.finish(ctx); err != nil {
@@ -531,54 +532,18 @@ func RunFlow[I, O, S any](ctx context.Context, flow *Flow[I, O, S], input I) (O,
 	return finishedOpResponse(state.Operation)
 }
 
-// StreamFlowValue is either a streamed value or a final output of a flow.
-type StreamFlowValue[O, S any] struct {
-	Done   bool
-	Output O // valid if Done is true
-	Stream S // valid if Done is false
-}
+// InternalStreamFlow is for use by genkit.StreamFlow exclusively.
+// It is not subject to any backwards compatibility guarantees.
+func InternalStreamFlow[I, O, S any](ctx context.Context, flow *Flow[I, O, S], input I, callback func(context.Context, S) error) (O, error) {
 
-var errStop = errors.New("stop")
-
-// StreamFlow runs flow on input and delivers both the streamed values and the final output.
-// It returns a function whose argument function (the "yield function") will be repeatedly
-// called with the results.
-//
-// If the yield function is passed a non-nil error, the flow has failed with that
-// error; the yield function will not be called again. An error is also passed if
-// the flow fails to complete (that is, it has an interrupt).
-//
-// If the yield function's [StreamFlowValue] argument has Done == true, the value's
-// Output field contains the final output; the yield function will not be called
-// again.
-//
-// Otherwise the Stream field of the passed [StreamFlowValue] holds a streamed result.
-func StreamFlow[I, O, S any](ctx context.Context, flow *Flow[I, O, S], input I) func(func(*StreamFlowValue[O, S], error) bool) {
-	return func(yield func(*StreamFlowValue[O, S], error) bool) {
-		cb := func(ctx context.Context, s S) error {
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			if !yield(&StreamFlowValue[O, S]{Stream: s}, nil) {
-				return errStop
-			}
-			return nil
-		}
-		var output O
-		state, err := flow.start(ctx, input, cb)
-		if err == nil {
-			if ctx.Err() != nil {
-				err = ctx.Err()
-			} else {
-				output, err = finishedOpResponse(state.Operation)
-			}
-		}
-		if err != nil {
-			yield(nil, err)
-		} else {
-			yield(&StreamFlowValue[O, S]{Done: true, Output: output}, nil)
-		}
+	state, err := flow.start(ctx, input, callback)
+	if err != nil {
+		return internal.Zero[O](), err
 	}
+	if ctx.Err() != nil {
+		return internal.Zero[O](), ctx.Err()
+	}
+	return finishedOpResponse(state.Operation)
 }
 
 func finishedOpResponse[O any](op *operation[O]) (O, error) {

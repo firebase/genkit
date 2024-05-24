@@ -21,7 +21,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/core"
 )
 
 // Generator is the interface used to query an AI model.
@@ -31,7 +31,7 @@ type Generator interface {
 	//   populating the result's Candidates field.
 	// - If the streaming callback returns a non-nil error, generation will stop
 	//   and Generate immediately returns that error (and a nil response).
-	Generate(context.Context, *GenerateRequest, genkit.StreamingCallback[*Candidate]) (*GenerateResponse, error)
+	Generate(context.Context, *GenerateRequest, func(context.Context, *Candidate) error) (*GenerateResponse, error)
 }
 
 // GeneratorCapabilities describes various capabilities of the generator.
@@ -63,16 +63,16 @@ func RegisterGenerator(provider, name string, metadata *GeneratorMetadata, gener
 		}
 		metadataMap["supports"] = supports
 	}
-	genkit.RegisterAction(genkit.ActionTypeModel, provider,
-		genkit.NewStreamingAction(name, genkit.ActionTypeModel, map[string]any{
+	core.RegisterAction(provider,
+		core.NewStreamingAction(name, core.ActionTypeModel, map[string]any{
 			"model": metadataMap,
 		}, generator.Generate))
 }
 
 // Generate applies a [Generator] to some input, handling tool requests.
-func Generate(ctx context.Context, generator Generator, input *GenerateRequest, cb genkit.StreamingCallback[*Candidate]) (*GenerateResponse, error) {
+func Generate(ctx context.Context, g Generator, input *GenerateRequest, cb func(context.Context, *Candidate) error) (*GenerateResponse, error) {
 	for {
-		resp, err := generator.Generate(ctx, input, cb)
+		resp, err := g.Generate(ctx, input, cb)
 		if err != nil {
 			return nil, err
 		}
@@ -89,14 +89,14 @@ func Generate(ctx context.Context, generator Generator, input *GenerateRequest, 
 	}
 }
 
-// generatorActionType is the instantiated genkit.Action type registered
+// generatorActionType is the instantiated core.Action type registered
 // by RegisterGenerator.
-type generatorActionType = genkit.Action[*GenerateRequest, *GenerateResponse, *Candidate]
+type generatorActionType = core.Action[*GenerateRequest, *GenerateResponse, *Candidate]
 
 // LookupGeneratorAction looks up an action registered by [RegisterGenerator]
 // and returns a generator that invokes the action.
 func LookupGeneratorAction(provider, name string) (Generator, error) {
-	action := genkit.LookupAction(genkit.ActionTypeModel, provider, name)
+	action := core.LookupAction(core.ActionTypeModel, provider, name)
 	if action == nil {
 		return nil, fmt.Errorf("LookupGeneratorAction: no generator action named %q/%q", provider, name)
 	}
@@ -113,9 +113,9 @@ type generatorAction struct {
 }
 
 // Generate implements Generator. This is like the [Generate] function,
-// but invokes the [genkit.Action] rather than invoking the Generator
+// but invokes the [core.Action] rather than invoking the Generator
 // directly.
-func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest, cb genkit.StreamingCallback[*Candidate]) (*GenerateResponse, error) {
+func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest, cb func(context.Context, *Candidate) error) (*GenerateResponse, error) {
 	for {
 		resp, err := ga.action.Run(ctx, input, cb)
 		if err != nil {

@@ -17,7 +17,7 @@ package ai
 import (
 	"context"
 
-	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/core"
 )
 
 // Retriever supports adding documents to a database, and
@@ -51,11 +51,11 @@ type RetrieverResponse struct {
 
 // RegisterRetriever registers the actions for a specific retriever.
 func RegisterRetriever(name string, retriever Retriever) {
-	genkit.RegisterAction(genkit.ActionTypeRetriever, name,
-		genkit.NewAction(name, genkit.ActionTypeRetriever, nil, retriever.Retrieve))
+	core.RegisterAction(name,
+		core.NewAction(name, core.ActionTypeRetriever, nil, retriever.Retrieve))
 
-	genkit.RegisterAction(genkit.ActionTypeIndexer, name,
-		genkit.NewAction(name, genkit.ActionTypeIndexer, nil, func(ctx context.Context, req *IndexerRequest) (struct{}, error) {
+	core.RegisterAction(name,
+		core.NewAction(name, core.ActionTypeIndexer, nil, func(ctx context.Context, req *IndexerRequest) (struct{}, error) {
 			err := retriever.Index(ctx, req)
 			return struct{}{}, err
 		}))
