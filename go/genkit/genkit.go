@@ -31,8 +31,18 @@ import (
 )
 
 // DefineFlow creates a Flow that runs fn, and registers it as an action.
-func DefineFlow[I, O, S any](name string, fn core.Func[I, O, S]) *core.Flow[I, O, S] {
-	return core.DefineFlow(name, fn)
+//
+// fn takes an input of type I and returns an output of type O, optionally
+// streaming values of type S incrementally by invoking a callback.
+// If the callback is non-nil and the function supports streaming, it should
+// stream the results by invoking the callback periodically, ultimately returning
+// with a final return value. Otherwise, it should ignore the StreamingCallback and
+// just return a result.
+func DefineFlow[I, O, S any](
+	name string,
+	fn func(ctx context.Context, input I, callback func(context.Context, S) error) (O, error),
+) *core.Flow[I, O, S] {
+	return core.DefineFlow(name, core.Func[I, O, S](fn))
 }
 
 // Run runs the function f in the context of the current flow.
