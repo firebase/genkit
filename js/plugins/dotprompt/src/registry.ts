@@ -80,7 +80,7 @@ export async function loadPromptFolder(
         promptsPath,
         {
           withFileTypes: true,
-          recursive: false,
+          recursive: true,
         },
         (err, dirEnts) => {
           if (err) {
@@ -88,7 +88,15 @@ export async function loadPromptFolder(
           } else {
             dirEnts.forEach(async (dirEnt) => {
               if (dirEnt.isFile() && dirEnt.name.endsWith('.prompt')) {
-                loadPrompt(dirEnt.path, dirEnt.name);
+                // If this prompt is in a subdirectory, we need to include that
+                // in the namespace to prevent naming conflicts.
+                let prefix = '';
+                if (promptsPath !== dirEnt.path) {
+                  prefix = dirEnt.path
+                    .replace(`${promptsPath}/`, '')
+                    .replace(/\//g, '-');
+                }
+                loadPrompt(dirEnt.path, dirEnt.name, prefix);
               }
             });
             resolve();
@@ -101,8 +109,12 @@ export async function loadPromptFolder(
   });
 }
 
-export function loadPrompt(path: string, filename: string): Dotprompt {
-  let name = basename(filename, '.prompt');
+export function loadPrompt(
+  path: string,
+  filename: string,
+  prefix = ''
+): Dotprompt {
+  let name = `${prefix ? `${prefix}-` : ''}${basename(filename, '.prompt')}`;
   let variant: string | null = null;
   if (name.includes('.')) {
     const parts = name.split('.');
@@ -114,6 +126,6 @@ export function loadPrompt(path: string, filename: string): Dotprompt {
   if (variant) {
     prompt.variant = variant;
   }
-  prompt.define({ ns: 'dotprompt' });
+  prompt.define({ ns: `dotprompt` });
   return prompt;
 }
