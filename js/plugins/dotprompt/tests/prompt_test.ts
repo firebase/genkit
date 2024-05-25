@@ -96,10 +96,12 @@ describe('Prompt', () => {
 
       const streamingCallback = (c) => console.log(c);
 
-      const rendered = await prompt.render({ input: { name: 'Michael' }, streamingCallback});
+      const rendered = await prompt.render({
+        input: { name: 'Michael' },
+        streamingCallback,
+      });
       assert.strictEqual(rendered.streamingCallback, streamingCallback);
     });
-
   });
 
   describe('#generate', () => {
