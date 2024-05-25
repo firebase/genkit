@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/gtime"
 	"github.com/firebase/genkit/go/internal"
@@ -346,7 +347,7 @@ func (f *Flow[I, O, S]) execute(ctx context.Context, state *flowState[I, O], dis
 	defer func() {
 		if err := fctx.finish(ctx); err != nil {
 			// TODO(jba): do something more with this error?
-			internal.Logger(ctx).Error("flowContext.finish", "err", err.Error())
+			logger.FromContext(ctx).Error("flowContext.finish", "err", err.Error())
 		}
 	}()
 	ctx = flowContextKey.NewContext(ctx, fctx)
@@ -374,14 +375,14 @@ func (f *Flow[I, O, S]) execute(ctx context.Context, state *flowState[I, O], dis
 		latency := time.Since(start)
 		if err != nil {
 			// TODO(jba): handle InterruptError
-			internal.Logger(ctx).Error("flow failed",
+			logger.FromContext(ctx).Error("flow failed",
 				"path", tracing.SpanPath(ctx),
 				"err", err.Error(),
 			)
 			writeFlowFailure(ctx, f.name, latency, err)
 			tracing.SetCustomMetadataAttr(ctx, "flow:state", "error")
 		} else {
-			internal.Logger(ctx).Info("flow succeeded", "path", tracing.SpanPath(ctx))
+			logger.FromContext(ctx).Info("flow succeeded", "path", tracing.SpanPath(ctx))
 			writeFlowSuccess(ctx, f.name, latency)
 			tracing.SetCustomMetadataAttr(ctx, "flow:state", "done")
 
