@@ -90,6 +90,16 @@ describe('Prompt', () => {
         await invalidSchemaPrompt.render({ input: { foo: 'baz' } });
       }, ValidationError);
     });
+
+    it('should render with streaming callback', async () => {
+      const prompt = testPrompt(`Hello {{name}}, how are you?`);
+
+      const streamingCallback = (c) => console.log(c);
+
+      const rendered = await prompt.render({ input: { name: 'Michael' }, streamingCallback});
+      assert.strictEqual(rendered.streamingCallback, streamingCallback);
+    });
+
   });
 
   describe('#generate', () => {
