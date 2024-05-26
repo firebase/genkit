@@ -85,7 +85,7 @@ func Generate(ctx context.Context, g Generator, input *GenerateRequest, cb func(
 			return nil, err
 		}
 
-		candidates := findValidCandidates(ctx, resp)
+		candidates := validCandidates(ctx, resp)
 		if len(candidates) == 0 {
 			return nil, errors.New("generation resulted in no candidates matching provided output schema")
 		}
@@ -140,7 +140,7 @@ func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest,
 			return nil, err
 		}
 
-		candidates := findValidCandidates(ctx, resp)
+		candidates := validCandidates(ctx, resp)
 		if len(candidates) == 0 {
 			return nil, errors.New("generation resulted in no candidates matching provided output schema")
 		}
@@ -166,8 +166,7 @@ func conformOutput(input *GenerateRequest) error {
 			return fmt.Errorf("expected schema is not valid: %w", err)
 		}
 
-		jsonStr := string(jsonBytes)
-		escapedJSON := strconv.Quote(jsonStr)
+		escapedJSON := strconv.Quote(string(jsonBytes))
 		part := &Part{
 			text: fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", escapedJSON),
 		}
@@ -176,9 +175,9 @@ func conformOutput(input *GenerateRequest) error {
 	return nil
 }
 
-// findValidCandidates finds all candidates that match the expected schema.
-func findValidCandidates(ctx context.Context, resp *GenerateResponse) []*Candidate {
-	candidates := []*Candidate{}
+// validCandidates finds all candidates that match the expected schema.
+func validCandidates(ctx context.Context, resp *GenerateResponse) []*Candidate {
+	var candidates []*Candidate
 	for i, c := range resp.Candidates {
 		err := validateCandidate(c, resp.Request.Output)
 		if err == nil {
@@ -202,11 +201,10 @@ func validateCandidate(candidate *Candidate, outputSchema *GenerateRequestOutput
 		return err
 	}
 
-	text = stripJsonDelimiters(text)
+	text = stripJSONDelimiters(text)
 
-	var jsonData interface{}
-	err = json.Unmarshal([]byte(text), &jsonData)
-	if err != nil {
+	var jsonData any
+	if err = json.Unmarshal([]byte(text), &jsonData); err != nil {
 		return fmt.Errorf("candidate did not have valid JSON: %w", err)
 	}
 
@@ -233,8 +231,8 @@ func validateCandidate(candidate *Candidate, outputSchema *GenerateRequestOutput
 	return nil
 }
 
-// stripJsonDelimiters strips JSON delimiters that may come back in the response.
-func stripJsonDelimiters(s string) string {
+// stripJSONDelimiters strips Markdown JSON delimiters that may come back in the response.
+func stripJSONDelimiters(s string) string {
 	return strings.TrimSuffix(strings.TrimPrefix(s, "```json"), "```")
 }
 
