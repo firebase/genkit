@@ -164,6 +164,27 @@ type retryInstruction struct {
 	FlowID string `json:"flowId,omitempty"`
 }
 
+// flowInstructioner is the common type of all flowInstruction[I] types.
+type flowInstructioner interface {
+	IsFlowInstruction()
+	StartInput() any
+	ScheduleInput() any
+}
+
+func (fi *flowInstruction[I]) IsFlowInstruction() {}
+func (fi *flowInstruction[I]) StartInput() any {
+	if fi.Start != nil {
+		return fi.Start.Input
+	}
+	return nil
+}
+func (fi *flowInstruction[I]) ScheduleInput() any {
+	if fi.Schedule != nil {
+		return fi.Schedule.Input
+	}
+	return nil
+}
+
 // A flowState is a persistent representation of a flow that may be in the middle of running.
 // It contains all the information needed to resume a flow, including the original input
 // and a cache of all completed steps.
@@ -203,6 +224,7 @@ type flowStater interface {
 	lock()
 	unlock()
 	cache() map[string]json.RawMessage
+	result() any
 }
 
 // isFlowState implements flowStater.
@@ -210,6 +232,12 @@ func (fs *flowState[I, O]) isFlowState()                      {}
 func (fs *flowState[I, O]) lock()                             { fs.mu.Lock() }
 func (fs *flowState[I, O]) unlock()                           { fs.mu.Unlock() }
 func (fs *flowState[I, O]) cache() map[string]json.RawMessage { return fs.Cache }
+func (fs *flowState[I, O]) result() any {
+	if fs.Operation.Done {
+		return fs.Operation.Result.Response
+	}
+	return nil
+}
 
 // An operation describes the state of a Flow that may still be in progress.
 type operation[O any] struct {
