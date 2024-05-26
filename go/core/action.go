@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"maps"
 	"reflect"
 	"time"
@@ -142,7 +141,6 @@ func (a *Action[I, O, S]) Run(ctx context.Context, input I, cb func(context.Cont
 			var out O
 			if err == nil {
 				out, err = a.fn(ctx, input, cb)
-				log.Printf("alexpascal: out: %+v", out)
 				outputSchema, ok := a.Metadata["outputSchema"].(*jsonschema.Schema)
 				if ok {
 					var result any
