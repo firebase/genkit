@@ -20,7 +20,6 @@ import (
 
 	"cloud.google.com/go/vertexai/genai"
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/genkit"
 )
 
 func newClient(ctx context.Context, projectID, location string) (*genai.Client, error) {
@@ -32,7 +31,7 @@ type generator struct {
 	client *genai.Client
 }
 
-func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb genkit.StreamingCallback[*ai.Candidate]) (*ai.GenerateResponse, error) {
+func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.Candidate) error) (*ai.GenerateResponse, error) {
 	if cb != nil {
 		panic("streaming not supported yet") // TODO: streaming
 	}
@@ -138,7 +137,7 @@ func translateCandidate(cand *genai.Candidate) *ai.Candidate {
 		case genai.Text:
 			p = ai.NewTextPart(string(part))
 		case genai.Blob:
-			p = ai.NewBlobPart(part.MIMEType, string(part.Data))
+			p = ai.NewMediaPart(part.MIMEType, string(part.Data))
 		case genai.FunctionCall:
 			p = ai.NewToolRequestPart(&ai.ToolRequest{
 				Name:  part.Name,
@@ -205,8 +204,10 @@ func convertPart(p *ai.Part) genai.Part {
 	switch {
 	case p.IsText():
 		return genai.Text(p.Text())
-	case p.IsBlob():
+	case p.IsMedia():
 		return genai.Blob{MIMEType: p.ContentType(), Data: []byte(p.Text())}
+	case p.IsData():
+		panic("vertexai does not support Data parts")
 	case p.IsToolResponse():
 		toolResp := p.ToolResponse()
 		return genai.FunctionResponse{

@@ -61,7 +61,11 @@ configureGenkit({
 This plugin statically exports references to its supported models:
 
 ```js
-import { geminiPro, geminiProVision } from '@genkit-ai/googleai';
+import {
+  geminiPro,
+  geminiProVision,
+  textEmbeddingGecko001,
+} from '@genkit-ai/googleai';
 ```
 
 You can use these references to specify which model `generate()` uses:
@@ -70,5 +74,14 @@ You can use these references to specify which model `generate()` uses:
 const llmResponse = await generate({
   model: geminiPro,
   prompt: 'Tell me a joke.',
+});
+```
+
+or use embedders (ex. `textEmbeddingGecko001`) with `embed` or retrievers:
+
+```js
+const embedding = await embed({
+  embedder: textEmbeddingGecko001,
+  content: input,
 });
 ```

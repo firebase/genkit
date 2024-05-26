@@ -28,6 +28,11 @@ import { loadPromptFolder, lookupPrompt } from './registry.js';
 export { defineDotprompt, Dotprompt };
 
 export interface DotpromptPluginOptions {
+  // Directory to look for .prompt files.
+  //
+  // Note: This directory will be searched recursively, and any sub-directory
+  // paths will be included in the prompt name. E.g. - if a prompt file is
+  // located at `<dir>/foo/bar.prompt`, the prompt name will be `foo-bar`.
   dir: string;
 }
 

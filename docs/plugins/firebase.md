@@ -18,6 +18,15 @@ The Firebase plugin provides several integrations with Firebase services:
 npm i --save @genkit-ai/firebase
 ```
 
+## Prerequisites
+
+- All Firebase products require a Firebase project. You can create a new project
+  or enable Firebase in an existing Google Cloud project using the
+  [Firebase console](https://console.firebase.google.com/).
+- In addition, if you want to deploy flows to Cloud Functions, you must
+  [upgrade your project](https://console.firebase.google.com/project/_/overview?purchaseBillingPlan=metered)
+  to the Blaze pay-as-you-go plan.
+
 ## Configuration
 
 To use this plugin, specify it when you call `configureGenkit()`:
@@ -25,6 +34,7 @@ To use this plugin, specify it when you call `configureGenkit()`:
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
+import {configureGenkit} from "@genkit-ai/core";
 import {firebase} from "@genkit-ai/firebase";
 
 configureGenkit({
@@ -68,6 +78,11 @@ use together or individually.
 
 You can use Cloud Firestore as a vector store for RAG indexing and retrieval.
 
+This section contains information specific to the `firebase` plugin and Cloud
+Firestore's vector search feature.
+See the [Retrieval-augmented generation](../rag.md) page for a more detailed
+discussion on implementing RAG using Genkit.
+
 The `firebase` plugin provides a convenience function for defining Firestore
 retrievers, `defineFirestoreRetriever()`:
 
@@ -75,6 +90,8 @@ retrievers, `defineFirestoreRetriever()`:
 <!-- prettier-ignore -->
 ```js
 import {defineFirestoreRetriever} from "@genkit-ai/firebase";
+import {retrieve} from "@genkit-ai/ai/retriever";
+
 import {initializeApp} from "firebase-admin/app";
 import {getFirestore} from "firebase-admin/firestore";
 
@@ -87,7 +104,7 @@ const yourRetrieverRef = defineFirestoreRetriever({
   collection: "yourCollection",
   contentField: "yourDataChunks",
   vectorField: "embedding",
-  embedder: textEmbeddingGecko,
+  embedder: textEmbeddingGecko, // Import from '@genkit-ai/googleai' or '@genkit-ai/vertexai'
   distanceMeasure: "COSINE", // "EUCLIDEAN", "DOT_PRODUCT", or "COSINE" (default)
 });
 ```
@@ -100,50 +117,123 @@ To use it, pass it to the `retrieve()` function:
 const docs = await retrieve({
   retriever: yourRetrieverRef,
   query: "look for something",
-  config: {limit: 5},
+  options: {limit: 5},
 });
 ```
 
-For indexing, use an embedding generator along with the Admin SDK:
+To populate your Firestore collection, use an embedding generator along with the
+Admin SDK. For example, the menu ingestion script from the
+[Retrieval-augmented generation](../rag.md) page could be adapted for Firestore
+in the following way:
 
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
-```js
-import {initializeApp} from "firebase-admin";
-import {getFirestore, FieldValue} from "firebase-admin/firestore";
-import {textEmbeddingGecko} from "@genkit-ai/vertexai";
-import {embed} from "@genkit-ai/ai/embedder";
+```ts
+import { configureGenkit } from "@genkit-ai/core";
+import { embed } from "@genkit-ai/ai/embedder";
+import { defineFlow, run } from "@genkit-ai/flow";
+import { textEmbeddingGecko, vertexAI } from "@genkit-ai/vertexai";
 
-const app = initializeApp();
-const firestore = getFirestore(app);
+import { applicationDefault, initializeApp } from "firebase-admin/app";
+import { FieldValue, getFirestore } from "firebase-admin/firestore";
 
+import { chunk } from "llm-chunk";
+import pdf from "pdf-parse";
+import * as z from "zod";
+
+import { readFile } from "fs/promises";
+import path from "path";
+
+// Change these values to match your Firestore config/schema
 const indexConfig = {
-  collection: "yourCollection",
-  contentField: "yourDataChunks",
+  collection: "menuInfo",
+  contentField: "text",
   vectorField: "embedding",
   embedder: textEmbeddingGecko,
 };
 
-async function indexToFirestore(content) {
-  const embedding = await embed({
-    embedder: indexConfig.embedder,
-    content,
-  });
-  await firestore.collection(indexConfig.collection).add({
-    [indexConfig.vectorField]: FieldValue.vector(embedding),
-    [indexConfig.contentField]: content,
-  });
+configureGenkit({
+  plugins: [vertexAI({ location: "us-central1" })],
+  enableTracingAndMetrics: false,
+});
+
+const app = initializeApp({ credential: applicationDefault() });
+const firestore = getFirestore(app);
+
+export const indexMenu = defineFlow(
+  {
+    name: "indexMenu",
+    inputSchema: z.string().describe("PDF file path"),
+    outputSchema: z.void(),
+  },
+  async (filePath: string) => {
+    filePath = path.resolve(filePath);
+
+    // Read the PDF.
+    const pdfTxt = await run("extract-text", () =>
+      extractTextFromPdf(filePath)
+    );
+
+    // Divide the PDF text into segments.
+    const chunks = await run("chunk-it", async () => chunk(pdfTxt));
+
+    // Add chunks to the index.
+    await run("index-chunks", async () => indexToFirestore(chunks));
+  }
+);
+
+async function indexToFirestore(data: string[]) {
+  for (const text of data) {
+    const embedding = await embed({
+      embedder: indexConfig.embedder,
+      content: text,
+    });
+    await firestore.collection(indexConfig.collection).add({
+      [indexConfig.vectorField]: FieldValue.vector(embedding),
+      [indexConfig.contentField]: text,
+    });
+  }
+}
+
+async function extractTextFromPdf(filePath: string) {
+  const pdfFile = path.resolve(filePath);
+  const dataBuffer = await readFile(pdfFile);
+  const data = await pdf(dataBuffer);
+  return data.text;
 }
 ```
 
 Firestore depends on indexes to provide fast and efficient querying on
-collections. The prior example requires the `embedding` field to be indexed to
-work. To do so, invoke the function and Firestore will throw an error with a
-command to create an index. Execute that command and your index should be ready
-to use.
+collections. (Note that "index" here refers to database indexes, and not
+Genkit's indexer and retriever abstractions.)
 
-See the [Retrieval-augmented generation](../rag.md) page for a general
-discussion on indexers and retrievers.
+The prior example requires the `embedding` field to be indexed to
+work. To create the index:
+
+- Run the `gcloud` command described in the
+  [Create a single-field vector index](https://firebase.google.com/docs/firestore/vector-search?hl=en&authuser=0#create_and_manage_vector_indexes)
+  section of the Firestore docs.
+
+  The command looks like the following:
+
+  ```posix-terminal
+  gcloud alpha firestore indexes composite create --project=your-project-id \
+    --collection-group=yourCollectionName --query-scope=COLLECTION \
+    --field-config=vector-config='{"dimension":"768","flat": "{}"}',field-path=yourEmbeddingField
+  ```
+
+  However, the correct indexing configuration depends on the queries you will
+  make and the embedding model you're using.
+
+- Alternatively, call `retrieve()` and Firestore will throw an error with the
+  correct command to create the index.
+
+#### Learn more
+
+- See the [Retrieval-augmented generation](../rag.md) page for a general
+  discussion on indexers and retrievers in Genkit.
+- See [Search with vector embeddings](https://firebase.google.com/docs/firestore/vector-search)
+  in the Cloud Firestore docs for more on the vector search feature.
 
 ### Cloud Firestore trace storage
 

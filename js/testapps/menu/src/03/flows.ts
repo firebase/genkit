@@ -19,16 +19,15 @@ import { MessageData } from '@genkit-ai/ai/model';
 import { defineFlow, run } from '@genkit-ai/flow';
 import { geminiPro } from '@genkit-ai/vertexai';
 
-import { MenuItem } from '../types';
 import {
   ChatHistoryStore,
   ChatSessionInputSchema,
   ChatSessionOutputSchema,
-} from './chats';
-import { s03_chatPreamblePrompt } from './prompts';
+} from './chats.js';
+import { s03_chatPreamblePrompt } from './prompts.js';
 
 // Load the menu data from a JSON file.
-const menuData = require('../../data/menu.json') as Array<MenuItem>;
+import menuData from '../../data/menu.json' assert { type: 'json' };
 
 // Render the preamble prompt that seeds our chat history.
 const preamble: Array<MessageData> = s03_chatPreamblePrompt.renderMessages({

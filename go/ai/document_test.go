@@ -46,9 +46,13 @@ func TestDocumentJSON(t *testing.T) {
 				text: "hi",
 			},
 			&Part{
-				kind:        partBlob,
+				kind:        partMedia,
 				contentType: "text/plain",
 				text:        "data:,bye",
+			},
+			&Part{
+				kind: partData,
+				text: "somedata\x00string",
 			},
 			&Part{
 				kind: partToolRequest,
@@ -85,8 +89,10 @@ func TestDocumentJSON(t *testing.T) {
 		switch a.kind {
 		case partText:
 			return a.text == b.text
-		case partBlob:
+		case partMedia:
 			return a.contentType == b.contentType && a.text == b.text
+		case partData:
+			return a.text == b.text
 		case partToolRequest:
 			return reflect.DeepEqual(a.toolRequest, b.toolRequest)
 		case partToolResponse:
