@@ -124,9 +124,9 @@ func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest,
 			return nil, err
 		}
 
-		candidates, err := findValidCandidates(resp)
-		if err != nil {
-			return nil, err
+		candidates := findValidCandidates(resp)
+		if len(candidates) == 0 {
+			return nil, errors.New("generation resulted in no candidates matching provided output schema")
 		}
 		resp.Candidates = candidates
 
@@ -142,19 +142,15 @@ func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest,
 	}
 }
 
-// findValidCandidates will return any candidates that match the expected schema.
-// It will return an error if there are no valid candidates found.
-func findValidCandidates(resp *GenerateResponse) ([]*Candidate, error) {
+// findValidCandidates finds all candidates that match the expected schema.
+func findValidCandidates(resp *GenerateResponse) []*Candidate {
 	candidates := []*Candidate{}
 	for _, c := range resp.Candidates {
 		if err := validateCandidate(c, resp.Request.Output); err != nil {
 			candidates = append(candidates, c)
 		}
 	}
-	if len(candidates) == 0 {
-		return nil, errors.New("generation resulted in no candidates matching provided output schema")
-	}
-	return candidates, nil
+	return candidates
 }
 
 // validateCandidate will check a candidate against the expected schema.
