@@ -1,0 +1,157 @@
+{
+    "traceId": "3cd65103ed08e50344404fe2b11ce807",
+    "displayName": "dev-run-action-wrapper",
+    "startTime": 1716695799448.321,
+    "endTime": 1716695800962.0513,
+    "spans": {
+        "1e0cd2115f1a49c5": {
+            "spanId": "1e0cd2115f1a49c5",
+            "traceId": "3cd65103ed08e50344404fe2b11ce807",
+            "parentSpanId": "c52101826cbbd8c6",
+            "startTime": 1716695799448.4412,
+            "endTime": 1716695800960.2124,
+            "attributes": {
+                "genkit:input": "{\"start\":{\"input\":{\"customerName\":\"Alex\"}}}",
+                "genkit:metadata:flow:wrapperAction": "true",
+                "genkit:metadata:subtype": "flow",
+                "genkit:name": "simpleStructuredGreeting",
+                "genkit:output": "{\"flowId\":\"6b3edd5d-d377-4c60-a3e4-060b891abdd8\",\"name\":\"simpleStructuredGreeting\",\"startTime\":1716695799448.457,\"input\":{\"customerName\":\"Alex\"},\"executions\":[{\"startTime\":1716695799448.46,\"traceIds\":[\"3cd65103ed08e50344404fe2b11ce807\"]}],\"operation\":{\"name\":\"6b3edd5d-d377-4c60-a3e4-060b891abdd8\",\"done\":true,\"result\":{\"response\":\"```json\\n{\\\"customerName\\\": \\\"Alex\\\", \\\"greeting\\\": \\\"Hey Alex, good to see you again!\\\", \\\"drinkOfDay\\\": \\\"Caramel Cloud Macchiato\\\"}\\n```\"}}}",
+                "genkit:path": "/dev-run-action-wrapper/simpleStructuredGreeting",
+                "genkit:state": "success",
+                "genkit:type": "action"
+            },
+            "displayName": "simpleStructuredGreeting",
+            "instrumentationLibrary": {
+                "name": "genkit-tracer",
+                "version": "v1"
+            },
+            "spanKind": "INTERNAL",
+            "sameProcessAsParentSpan": {
+                "value": true
+            },
+            "status": {
+                "code": 0
+            },
+            "timeEvents": {}
+        },
+        "558a78c92f2d7085": {
+            "spanId": "558a78c92f2d7085",
+            "traceId": "3cd65103ed08e50344404fe2b11ce807",
+            "parentSpanId": "1e0cd2115f1a49c5",
+            "startTime": 1716695799448.478,
+            "endTime": 1716695800958.5195,
+            "attributes": {
+                "genkit:input": "{\"customerName\":\"Alex\"}",
+                "genkit:isRoot": true,
+                "genkit:metadata:flow:dispatchType": "start",
+                "genkit:metadata:flow:execution": "0",
+                "genkit:metadata:flow:id": "6b3edd5d-d377-4c60-a3e4-060b891abdd8",
+                "genkit:metadata:flow:name": "simpleStructuredGreeting",
+                "genkit:metadata:flow:state": "done",
+                "genkit:metadata:subtype": "prompt",
+                "genkit:name": "simpleStructuredGreeting",
+                "genkit:output": "\"```json\\n{\\\"customerName\\\": \\\"Alex\\\", \\\"greeting\\\": \\\"Hey Alex, good to see you again!\\\", \\\"drinkOfDay\\\": \\\"Caramel Cloud Macchiato\\\"}\\n```\"",
+                "genkit:path": "/dev-run-action-wrapper/simpleStructuredGreeting/simpleStructuredGreeting",
+                "genkit:state": "success",
+                "genkit:type": "flow"
+            },
+            "displayName": "simpleStructuredGreeting",
+            "instrumentationLibrary": {
+                "name": "genkit-tracer",
+                "version": "v1"
+            },
+            "spanKind": "INTERNAL",
+            "sameProcessAsParentSpan": {
+                "value": true
+            },
+            "status": {
+                "code": 0
+            },
+            "timeEvents": {}
+        },
+        "c52101826cbbd8c6": {
+            "spanId": "c52101826cbbd8c6",
+            "traceId": "3cd65103ed08e50344404fe2b11ce807",
+            "startTime": 1716695799448.321,
+            "endTime": 1716695800962.0513,
+            "attributes": {
+                "genkit:input": "{\"start\":{\"input\":{\"customerName\":\"Alex\"}}}",
+                "genkit:isRoot": true,
+                "genkit:metadata:genkit-dev-internal": "true",
+                "genkit:name": "dev-run-action-wrapper",
+                "genkit:output": "{\"flowId\":\"6b3edd5d-d377-4c60-a3e4-060b891abdd8\",\"name\":\"simpleStructuredGreeting\",\"startTime\":1716695799448.457,\"input\":{\"customerName\":\"Alex\"},\"executions\":[{\"startTime\":1716695799448.46,\"traceIds\":[\"3cd65103ed08e50344404fe2b11ce807\"]}],\"operation\":{\"name\":\"6b3edd5d-d377-4c60-a3e4-060b891abdd8\",\"done\":true,\"result\":{\"response\":\"```json\\n{\\\"customerName\\\": \\\"Alex\\\", \\\"greeting\\\": \\\"Hey Alex, good to see you again!\\\", \\\"drinkOfDay\\\": \\\"Caramel Cloud Macchiato\\\"}\\n```\"}}}",
+                "genkit:path": "/dev-run-action-wrapper",
+                "genkit:state": "success"
+            },
+            "displayName": "dev-run-action-wrapper",
+            "instrumentationLibrary": {
+                "name": "genkit-tracer",
+                "version": "v1"
+            },
+            "spanKind": "INTERNAL",
+            "sameProcessAsParentSpan": {
+                "value": true
+            },
+            "status": {
+                "code": 0
+            },
+            "timeEvents": {}
+        },
+        "e811f98e392f5d5e": {
+            "spanId": "e811f98e392f5d5e",
+            "traceId": "3cd65103ed08e50344404fe2b11ce807",
+            "parentSpanId": "f99f5fe820a3ce71",
+            "startTime": 1716695799448.968,
+            "endTime": 1716695800954.0957,
+            "attributes": {
+                "http.method": "POST",
+                "http.request_content_length": 1341,
+                "http.status_code": 200,
+                "http.url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:streamGenerateContent?%24alt=json%3Benum-encoding%3Dint\u0026key=AIzaSyAehb8ATuR3nkFatuxhEa1HgM5Jgzkvhvg",
+                "net.peer.name": "generativelanguage.googleapis.com"
+            },
+            "displayName": "HTTP POST",
+            "instrumentationLibrary": {
+                "name": "go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp",
+                "version": "0.49.0"
+            },
+            "spanKind": "CLIENT",
+            "sameProcessAsParentSpan": {
+                "value": true
+            },
+            "status": {
+                "code": 0
+            },
+            "timeEvents": {}
+        },
+        "f99f5fe820a3ce71": {
+            "spanId": "f99f5fe820a3ce71",
+            "traceId": "3cd65103ed08e50344404fe2b11ce807",
+            "parentSpanId": "558a78c92f2d7085",
+            "startTime": 1716695799448.702,
+            "endTime": 1716695800956.524,
+            "attributes": {
+                "genkit:input": "{\"candidates\":1,\"config\":null,\"messages\":[{\"content\":[{\"text\":\"\\nYou're a barista at a nice coffee shop.\\nA regular customer named Alex enters.\\nGreet the customer in one sentence.\\nProvide the name of the drink of the day, nothing else.\\n\"},{\"text\":\"Output should be in JSON format and conform to the following schema:\\n\\n```\\\"{\\\\\\\"$defs\\\\\\\":{\\\\\\\"simpleGreetingOutput\\\\\\\":{\\\\\\\"additionalProperties\\\\\\\":false,\\\\\\\"properties\\\\\\\":{\\\\\\\"customerName\\\\\\\":{\\\\\\\"type\\\\\\\":\\\\\\\"string\\\\\\\"},\\\\\\\"drinkOfDay\\\\\\\":{\\\\\\\"type\\\\\\\":\\\\\\\"string\\\\\\\"},\\\\\\\"greeting\\\\\\\":{\\\\\\\"type\\\\\\\":\\\\\\\"string\\\\\\\"}},\\\\\\\"required\\\\\\\":[\\\\\\\"customerName\\\\\\\",\\\\\\\"greeting\\\\\\\",\\\\\\\"drinkOfDay\\\\\\\"],\\\\\\\"type\\\\\\\":\\\\\\\"object\\\\\\\"}},\\\\\\\"$schema\\\\\\\":\\\\\\\"https://json-schema.org/draft/2020-12/schema\\\\\\\"}\\\"```\"},{\"text\":\"Output should be in JSON format and conform to the following schema:\\n\\n```\\\"{\\\\\\\"$defs\\\\\\\":{\\\\\\\"simpleGreetingOutput\\\\\\\":{\\\\\\\"additionalProperties\\\\\\\":false,\\\\\\\"properties\\\\\\\":{\\\\\\\"customerName\\\\\\\":{\\\\\\\"type\\\\\\\":\\\\\\\"string\\\\\\\"},\\\\\\\"drinkOfDay\\\\\\\":{\\\\\\\"type\\\\\\\":\\\\\\\"string\\\\\\\"},\\\\\\\"greeting\\\\\\\":{\\\\\\\"type\\\\\\\":\\\\\\\"string\\\\\\\"}},\\\\\\\"required\\\\\\\":[\\\\\\\"customerName\\\\\\\",\\\\\\\"greeting\\\\\\\",\\\\\\\"drinkOfDay\\\\\\\"],\\\\\\\"type\\\\\\\":\\\\\\\"object\\\\\\\"}},\\\\\\\"$schema\\\\\\\":\\\\\\\"https://json-schema.org/draft/2020-12/schema\\\\\\\"}\\\"```\"}],\"role\":\"user\"}],\"output\":{\"format\":\"json\",\"schema\":{\"$defs\":{\"simpleGreetingOutput\":{\"additionalProperties\":false,\"properties\":{\"customerName\":{\"type\":\"string\"},\"drinkOfDay\":{\"type\":\"string\"},\"greeting\":{\"type\":\"string\"}},\"required\":[\"customerName\",\"greeting\",\"drinkOfDay\"],\"type\":\"object\"}},\"$schema\":\"https://json-schema.org/draft/2020-12/schema\"}}}",
+                "genkit:metadata:subtype": "model",
+                "genkit:name": "gemini-1.5-pro",
+                "genkit:output": "{\"candidates\":[{\"finishReason\":\"stop\",\"message\":{\"content\":[{\"text\":\"```json\\n{\\\"customerName\\\": \\\"Alex\\\", \\\"greeting\\\": \\\"Hey Alex, good to see you again!\\\", \\\"drinkOfDay\\\": \\\"Caramel Cloud Macchiato\\\"}\\n```\"}],\"role\":\"model\"}}],\"request\":{\"candidates\":1,\"config\":null,\"messages\":[{\"content\":[{\"text\":\"\\nYou're a barista at a nice coffee shop.\\nA regular customer named Alex enters.\\nGreet the customer in one sentence.\\nProvide the name of the drink of the day, nothing else.\\n\"},{\"text\":\"Output should be in JSON format and conform to the following schema:\\n\\n```\\\"{\\\\\\\"$defs\\\\\\\":{\\\\\\\"simpleGreetingOutput\\\\\\\":{\\\\\\\"additionalProperties\\\\\\\":false,\\\\\\\"properties\\\\\\\":{\\\\\\\"customerName\\\\\\\":{\\\\\\\"type\\\\\\\":\\\\\\\"string\\\\\\\"},\\\\\\\"drinkOfDay\\\\\\\":{\\\\\\\"type\\\\\\\":\\\\\\\"string\\\\\\\"},\\\\\\\"greeting\\\\\\\":{\\\\\\\"type\\\\\\\":\\\\\\\"string\\\\\\\"}},\\\\\\\"required\\\\\\\":[\\\\\\\"customerName\\\\\\\",\\\\\\\"greeting\\\\\\\",\\\\\\\"drinkOfDay\\\\\\\"],\\\\\\\"type\\\\\\\":\\\\\\\"object\\\\\\\"}},\\\\\\\"$schema\\\\\\\":\\\\\\\"https://json-schema.org/draft/2020-12/schema\\\\\\\"}\\\"```\"},{\"text\":\"Output should be in JSON format and conform to the following schema:\\n\\n```\\\"{\\\\\\\"$defs\\\\\\\":{\\\\\\\"simpleGreetingOutput\\\\\\\":{\\\\\\\"additionalProperties\\\\\\\":false,\\\\\\\"properties\\\\\\\":{\\\\\\\"customerName\\\\\\\":{\\\\\\\"type\\\\\\\":\\\\\\\"string\\\\\\\"},\\\\\\\"drinkOfDay\\\\\\\":{\\\\\\\"type\\\\\\\":\\\\\\\"string\\\\\\\"},\\\\\\\"greeting\\\\\\\":{\\\\\\\"type\\\\\\\":\\\\\\\"string\\\\\\\"}},\\\\\\\"required\\\\\\\":[\\\\\\\"customerName\\\\\\\",\\\\\\\"greeting\\\\\\\",\\\\\\\"drinkOfDay\\\\\\\"],\\\\\\\"type\\\\\\\":\\\\\\\"object\\\\\\\"}},\\\\\\\"$schema\\\\\\\":\\\\\\\"https://json-schema.org/draft/2020-12/schema\\\\\\\"}\\\"```\"}],\"role\":\"user\"}],\"output\":{\"format\":\"json\",\"schema\":{\"$defs\":{\"simpleGreetingOutput\":{\"additionalProperties\":false,\"properties\":{\"customerName\":{\"type\":\"string\"},\"drinkOfDay\":{\"type\":\"string\"},\"greeting\":{\"type\":\"string\"}},\"required\":[\"customerName\",\"greeting\",\"drinkOfDay\"],\"type\":\"object\"}},\"$schema\":\"https://json-schema.org/draft/2020-12/schema\"}}}}",
+                "genkit:path": "/dev-run-action-wrapper/simpleStructuredGreeting/simpleStructuredGreeting/gemini-1.5-pro",
+                "genkit:state": "success",
+                "genkit:type": "action"
+            },
+            "displayName": "gemini-1.5-pro",
+            "instrumentationLibrary": {
+                "name": "genkit-tracer",
+                "version": "v1"
+            },
+            "spanKind": "INTERNAL",
+            "sameProcessAsParentSpan": {
+                "value": true
+            },
+            "status": {
+                "code": 0
+            },
+            "timeEvents": {}
+        }
+    }
+}

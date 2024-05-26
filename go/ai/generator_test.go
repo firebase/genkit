@@ -154,11 +154,12 @@ func TestValidateCandidate(t *testing.T) {
 					"name": map[string]any{"type": "string"},
 					"age":  map[string]any{"type": "integer"},
 				},
+				"additionalProperties": false,
 			},
 		}
 		err := validateCandidate(candidate, outputSchema)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "candidate contains unexpected field")
+		assert.Contains(t, err.Error(), "candidate did not match expected schema")
 	})
 
 	t.Run("Invalid expected schema", func(t *testing.T) {

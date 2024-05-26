@@ -75,11 +75,21 @@ func RegisterGenerator(provider, name string, metadata *GeneratorMetadata, gener
 
 // Generate applies a [Generator] to some input, handling tool requests.
 func Generate(ctx context.Context, g Generator, input *GenerateRequest, cb func(context.Context, *Candidate) error) (*GenerateResponse, error) {
+	if err := conformOutput(input); err != nil {
+		return nil, err
+	}
+
 	for {
 		resp, err := g.Generate(ctx, input, cb)
 		if err != nil {
 			return nil, err
 		}
+
+		candidates := findValidCandidates(ctx, resp)
+		if len(candidates) == 0 {
+			return nil, errors.New("generation resulted in no candidates matching provided output schema")
+		}
+		resp.Candidates = candidates
 
 		newReq, err := handleToolRequest(ctx, input, resp)
 		if err != nil {
@@ -120,6 +130,10 @@ type generatorAction struct {
 // but invokes the [core.Action] rather than invoking the Generator
 // directly.
 func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest, cb func(context.Context, *Candidate) error) (*GenerateResponse, error) {
+	if err := conformOutput(input); err != nil {
+		return nil, err
+	}
+
 	for {
 		resp, err := ga.action.Run(ctx, input, cb)
 		if err != nil {
@@ -144,15 +158,33 @@ func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest,
 	}
 }
 
+// conformOutput appends a message to the request indicating conformance to the expected schema.
+func conformOutput(input *GenerateRequest) error {
+	if len(input.Output.Schema) > 0 && len(input.Messages) > 0 {
+		jsonBytes, err := json.Marshal(input.Output.Schema)
+		if err != nil {
+			return fmt.Errorf("expected schema is not valid: %w", err)
+		}
+
+		jsonStr := string(jsonBytes)
+		escapedJSON := strconv.Quote(jsonStr)
+		part := &Part{
+			text: fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", escapedJSON),
+		}
+		input.Messages[len(input.Messages)-1].Content = append(input.Messages[len(input.Messages)-1].Content, part)
+	}
+	return nil
+}
+
 // findValidCandidates finds all candidates that match the expected schema.
 func findValidCandidates(ctx context.Context, resp *GenerateResponse) []*Candidate {
 	candidates := []*Candidate{}
 	for i, c := range resp.Candidates {
 		err := validateCandidate(c, resp.Request.Output)
-		if err != nil {
-			internal.Logger(ctx).Debug("candidate %s did not match provided output schema: %w", strconv.Itoa(i), err.Error())
-		} else {
+		if err == nil {
 			candidates = append(candidates, c)
+		} else {
+			internal.Logger(ctx).Debug("candidate did not match provided output schema", "index", i, "error", err.Error())
 		}
 	}
 	return candidates
@@ -169,6 +201,8 @@ func validateCandidate(candidate *Candidate, outputSchema *GenerateRequestOutput
 	if err != nil {
 		return err
 	}
+
+	text = stripJsonDelimiters(text)
 
 	var jsonData interface{}
 	err = json.Unmarshal([]byte(text), &jsonData)
@@ -196,38 +230,12 @@ func validateCandidate(candidate *Candidate, outputSchema *GenerateRequestOutput
 		return fmt.Errorf("candidate did not match expected schema:\n%s", errMsg)
 	}
 
-	if err = checkUnknownFields(jsonData.(map[string]interface{}), outputSchema.Schema); err != nil {
-		return err
-	}
-
 	return nil
 }
 
-// checkUnknownFields checks for unexpected fields that do not appear in the schema.
-func checkUnknownFields(jsonData map[string]interface{}, schema map[string]any) error {
-	for key, value := range jsonData {
-		schemaProperties, ok := schema["properties"].(map[string]any)
-		if !ok {
-			return fmt.Errorf("candidate contains unexpected field: %s", key)
-		}
-
-		if _, ok := schemaProperties[key]; !ok {
-			return fmt.Errorf("candidate contains unexpected field: %s", key)
-		}
-
-		if nestedObj, ok := value.(map[string]interface{}); ok {
-			nestedSchema, ok := schemaProperties[key].(map[string]any)
-			if !ok {
-				return fmt.Errorf("candidate contains unexpected nested object: %s", key)
-			}
-			err := checkUnknownFields(nestedObj, nestedSchema)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+// stripJsonDelimiters strips JSON delimiters that may come back in the response.
+func stripJsonDelimiters(s string) string {
+	return strings.TrimSuffix(strings.TrimPrefix(s, "```json"), "```")
 }
 
 // handleToolRequest checks if a tool was requested by a generator.
