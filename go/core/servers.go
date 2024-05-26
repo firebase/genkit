@@ -38,7 +38,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -114,7 +114,7 @@ func (s *devServer) handleRunAction(w http.ResponseWriter, r *http.Request) erro
 			return err
 		}
 	}
-	internal.Logger(ctx).Debug("running action",
+	logger.FromContext(ctx).Debug("running action",
 		"key", body.Key,
 		"stream", stream)
 	var callback streamingCallback[json.RawMessage]
@@ -400,7 +400,7 @@ func writeJSON(ctx context.Context, w http.ResponseWriter, value any) error {
 	}
 	_, err = w.Write(data)
 	if err != nil {
-		internal.Logger(ctx).Error("writing output", "err", err)
+		logger.FromContext(ctx).Error("writing output", "err", err)
 	}
 	return nil
 }
