@@ -193,7 +193,7 @@ func findValidCandidates(ctx context.Context, resp *GenerateResponse) []*Candida
 // validateCandidate will check a candidate against the expected schema.
 // It will return an error if it does not match, otherwise it will return nil.
 func validateCandidate(candidate *Candidate, outputSchema *GenerateRequestOutput) error {
-	if outputSchema.Format == OutputFormatText {
+	if outputSchema.Format != OutputFormatJSON {
 		return nil
 	}
 
