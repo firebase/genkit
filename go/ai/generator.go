@@ -20,9 +20,11 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/internal"
 	"github.com/xeipuuv/gojsonschema"
 )
 
@@ -124,7 +126,7 @@ func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest,
 			return nil, err
 		}
 
-		candidates := findValidCandidates(resp)
+		candidates := findValidCandidates(ctx, resp)
 		if len(candidates) == 0 {
 			return nil, errors.New("generation resulted in no candidates matching provided output schema")
 		}
@@ -143,10 +145,13 @@ func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest,
 }
 
 // findValidCandidates finds all candidates that match the expected schema.
-func findValidCandidates(resp *GenerateResponse) []*Candidate {
+func findValidCandidates(ctx context.Context, resp *GenerateResponse) []*Candidate {
 	candidates := []*Candidate{}
-	for _, c := range resp.Candidates {
-		if err := validateCandidate(c, resp.Request.Output); err != nil {
+	for i, c := range resp.Candidates {
+		err := validateCandidate(c, resp.Request.Output)
+		if err != nil {
+			internal.Logger(ctx).Debug("candidate %s did not match provided output schema: %w", strconv.Itoa(i), err.Error())
+		} else {
 			candidates = append(candidates, c)
 		}
 	}
