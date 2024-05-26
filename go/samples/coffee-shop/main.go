@@ -111,7 +111,7 @@ func main() {
 
 	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting", simpleGreetingPromptTemplate,
 		&dotprompt.Config{
-			Model:        "google-genai/gemini-1.0-pro",
+			Model:        "google-genai/gemini-1.5-pro",
 			InputSchema:  jsonschema.Reflect(simpleGreetingInput{}),
 			OutputFormat: ai.OutputFormatText,
 		},
@@ -139,7 +139,7 @@ func main() {
 
 	greetingWithHistoryPrompt, err := dotprompt.Define("greetingWithHistory", greetingWithHistoryPromptTemplate,
 		&dotprompt.Config{
-			Model:        "google-genai/gemini-1.0-pro",
+			Model:        "google-genai/gemini-1.5-pro",
 			InputSchema:  jsonschema.Reflect(customerTimeAndHistoryInput{}),
 			OutputFormat: ai.OutputFormatText,
 		},
@@ -167,7 +167,7 @@ func main() {
 
 	r := &jsonschema.Reflector{
 		AllowAdditionalProperties: false,
-		ExpandedStruct:            true,
+		DoNotReference:            true,
 	}
 	schema := r.Reflect(simpleGreetingOutput{})
 	jsonBytes, err := schema.MarshalJSON()

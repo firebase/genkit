@@ -22,8 +22,8 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/core/tracing"
+	"github.com/firebase/genkit/go/internal"
 	"github.com/invopop/jsonschema"
 )
 
@@ -211,7 +211,9 @@ func (a *Action[I, O, S]) desc() actionDesc {
 }
 
 func inferJSONSchema(x any) (s *jsonschema.Schema) {
-	var r jsonschema.Reflector
+	r := jsonschema.Reflector{
+		DoNotReference: true,
+	}
 	t := reflect.TypeOf(x)
 	if t.Kind() == reflect.Struct {
 		if t.NumField() == 0 {
