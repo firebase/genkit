@@ -16,12 +16,14 @@ package ai
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
 	"strings"
 
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/xeipuuv/gojsonschema"
 )
 
 // Generator is the interface used to query an AI model.
@@ -122,6 +124,12 @@ func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest,
 			return nil, err
 		}
 
+		candidates, err := findValidCandidates(resp)
+		if err != nil {
+			return nil, err
+		}
+		resp.Candidates = candidates
+
 		newReq, err := handleToolRequest(ctx, input, resp)
 		if err != nil {
 			return nil, err
@@ -132,6 +140,93 @@ func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest,
 
 		input = newReq
 	}
+}
+
+// findValidCandidates will return any candidates that match the expected schema.
+// It will return an error if there are no valid candidates found.
+func findValidCandidates(resp *GenerateResponse) ([]*Candidate, error) {
+	candidates := []*Candidate{}
+	for _, c := range resp.Candidates {
+		if err := validateCandidate(c, resp.Request.Output); err != nil {
+			candidates = append(candidates, c)
+		}
+	}
+	if len(candidates) == 0 {
+		return nil, errors.New("generation resulted in no candidates matching provided output schema")
+	}
+	return candidates, nil
+}
+
+// validateCandidate will check a candidate against the expected schema.
+// It will return an error if it does not match, otherwise it will return nil.
+func validateCandidate(candidate *Candidate, outputSchema *GenerateRequestOutput) error {
+	if outputSchema.Format == OutputFormatText {
+		return nil
+	}
+
+	text, err := candidate.Text()
+	if err != nil {
+		return err
+	}
+
+	var jsonData interface{}
+	err = json.Unmarshal([]byte(text), &jsonData)
+	if err != nil {
+		return fmt.Errorf("candidate did not have valid JSON: %w", err)
+	}
+
+	schemaBytes, err := json.Marshal(outputSchema.Schema)
+	if err != nil {
+		return fmt.Errorf("expected schema is not valid: %w", err)
+	}
+
+	schemaLoader := gojsonschema.NewStringLoader(string(schemaBytes))
+	jsonLoader := gojsonschema.NewGoLoader(jsonData)
+	result, err := gojsonschema.Validate(schemaLoader, jsonLoader)
+	if err != nil {
+		return fmt.Errorf("failed to validate expected schema: %w", err)
+	}
+
+	if !result.Valid() {
+		var errMsg string
+		for _, err := range result.Errors() {
+			errMsg += fmt.Sprintf("- %s\n", err)
+		}
+		return fmt.Errorf("candidate did not match expected schema:\n%s", errMsg)
+	}
+
+	if err = checkUnknownFields(jsonData.(map[string]interface{}), outputSchema.Schema); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// checkUnknownFields checks for unexpected fields that do not appear in the schema.
+func checkUnknownFields(jsonData map[string]interface{}, schema map[string]any) error {
+	for key, value := range jsonData {
+		schemaProperties, ok := schema["properties"].(map[string]any)
+		if !ok {
+			return fmt.Errorf("candidate contains unexpected field: %s", key)
+		}
+
+		if _, ok := schemaProperties[key]; !ok {
+			return fmt.Errorf("candidate contains unexpected field: %s", key)
+		}
+
+		if nestedObj, ok := value.(map[string]interface{}); ok {
+			nestedSchema, ok := schemaProperties[key].(map[string]any)
+			if !ok {
+				return fmt.Errorf("candidate contains unexpected nested object: %s", key)
+			}
+			err := checkUnknownFields(nestedObj, nestedSchema)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 // handleToolRequest checks if a tool was requested by a generator.
@@ -180,7 +275,13 @@ func (gr *GenerateResponse) Text() (string, error) {
 	if len(gr.Candidates) == 0 {
 		return "", errors.New("no candidates returned")
 	}
-	msg := gr.Candidates[0].Message
+	return gr.Candidates[0].Text()
+}
+
+// Text returns the contents of a [Candidate] as a string. It
+// returns an error if the candidate has no message.
+func (c *Candidate) Text() (string, error) {
+	msg := c.Message
 	if msg == nil {
 		return "", errors.New("candidate with no message")
 	}
