@@ -98,7 +98,7 @@ type Config struct {
 	OutputFormat ai.OutputFormat
 
 	// Desired output schema, for JSON output.
-	OutputSchema map[string]any // TODO: use *jsonschema.Schema
+	OutputSchema map[string]any // Cannot use *jsonschema.Schema because it will need to self-reflect.
 
 	// Arbitrary metadata.
 	Metadata map[string]any

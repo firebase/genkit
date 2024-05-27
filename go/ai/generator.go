@@ -160,7 +160,7 @@ func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest,
 
 // conformOutput appends a message to the request indicating conformance to the expected schema.
 func conformOutput(input *GenerateRequest) error {
-	if len(input.Output.Schema) > 0 && len(input.Messages) > 0 {
+	if input.Output.Format == OutputFormatJSON && len(input.Messages) > 0 {
 		jsonBytes, err := json.Marshal(input.Output.Schema)
 		if err != nil {
 			return fmt.Errorf("expected schema is not valid: %w", err)
@@ -174,10 +174,24 @@ func conformOutput(input *GenerateRequest) error {
 }
 
 // validCandidates finds all candidates that match the expected schema.
+// It will strip JSON markdown delimiters from the response.
 func validCandidates(ctx context.Context, resp *GenerateResponse) []*Candidate {
 	var candidates []*Candidate
 	for i, c := range resp.Candidates {
-		err := validateCandidate(c, resp.Request.Output)
+		var err error
+		if resp.Request.Output.Format == OutputFormatJSON {
+			var text string
+			text, err = c.Text()
+			if err == nil {
+				text = stripJSONDelimiters(text)
+				// TODO: Replace the text in the candidate with the stripped version.
+				var jsonBytes []byte
+				jsonBytes, err = json.Marshal(resp.Request.Output.Schema)
+				if err == nil {
+					err = core.ValidateRaw([]byte(text), jsonBytes)
+				}
+			}
+		}
 		if err == nil {
 			candidates = append(candidates, c)
 		} else {

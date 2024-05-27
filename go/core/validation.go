@@ -24,24 +24,29 @@ import (
 
 // ValidateObject will validate any object against the expected schema.
 // It will return an error if it doesn't match the schema, otherwise it will return nil.
-func ValidateObject(obj any, schema *jsonschema.Schema) error {
-	jsonBytes, err := json.Marshal(obj)
+func ValidateObject(data any, schema *jsonschema.Schema) error {
+	dataBytes, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("object is not a valid JSON type: %w", err)
 	}
-	return ValidateJSON(jsonBytes, schema)
+	return ValidateJSON(dataBytes, schema)
 }
 
 // ValidateJSON will validate JSON against the expected schema.
 // It will return an error if it doesn't match the schema, otherwise it will return nil.
-func ValidateJSON(jsonBytes json.RawMessage, schema *jsonschema.Schema) error {
+func ValidateJSON(dataBytes json.RawMessage, schema *jsonschema.Schema) error {
 	schemaBytes, err := schema.MarshalJSON()
 	if err != nil {
 		return fmt.Errorf("schema is not valid: %w", err)
 	}
+	return ValidateRaw(dataBytes, schemaBytes)
+}
 
+// ValidateRaw will validate JSON data against the JSON schema.
+// It will return an error if it doesn't match the schema, otherwise it will return nil.
+func ValidateRaw(dataBytes json.RawMessage, schemaBytes json.RawMessage) error {
 	schemaLoader := gojsonschema.NewBytesLoader(schemaBytes)
-	documentLoader := gojsonschema.NewBytesLoader(jsonBytes)
+	documentLoader := gojsonschema.NewBytesLoader(dataBytes)
 
 	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
 	if err != nil {
