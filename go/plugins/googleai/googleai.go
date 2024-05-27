@@ -235,19 +235,19 @@ func convertParts(parts []*ai.Part) []genai.Part {
 func convertPart(p *ai.Part) genai.Part {
 	switch {
 	case p.IsText():
-		return genai.Text(p.Text())
+		return genai.Text(p.Text)
 	case p.IsMedia():
-		return genai.Blob{MIMEType: p.ContentType(), Data: []byte(p.Text())}
+		return genai.Blob{MIMEType: p.ContentType, Data: []byte(p.Text)}
 	case p.IsData():
 		panic("googleai does not support Data parts")
 	case p.IsToolResponse():
-		toolResp := p.ToolResponse()
+		toolResp := p.ToolResponse
 		return genai.FunctionResponse{
 			Name:     toolResp.Name,
 			Response: toolResp.Output,
 		}
 	case p.IsToolRequest():
-		toolReq := p.ToolRequest()
+		toolReq := p.ToolRequest
 		return genai.FunctionCall{
 			Name: toolReq.Name,
 			Args: toolReq.Input,

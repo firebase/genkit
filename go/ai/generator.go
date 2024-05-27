@@ -167,9 +167,7 @@ func conformOutput(input *GenerateRequest) error {
 		}
 
 		escapedJSON := strconv.Quote(string(jsonBytes))
-		part := &Part{
-			text: fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", escapedJSON),
-		}
+		part := NewTextPart(fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", escapedJSON))
 		input.Messages[len(input.Messages)-1].Content = append(input.Messages[len(input.Messages)-1].Content, part)
 	}
 	return nil
@@ -252,7 +250,7 @@ func handleToolRequest(ctx context.Context, req *GenerateRequest, resp *Generate
 		return nil, nil
 	}
 
-	toolReq := part.ToolRequest()
+	toolReq := part.ToolRequest
 	output, err := RunTool(ctx, toolReq.Name, toolReq.Input)
 	if err != nil {
 		return nil, err
@@ -296,11 +294,11 @@ func (c *Candidate) Text() (string, error) {
 		return "", errors.New("candidate message has no content")
 	}
 	if len(msg.Content) == 1 {
-		return msg.Content[0].Text(), nil
+		return msg.Content[0].Text, nil
 	} else {
 		var sb strings.Builder
 		for _, p := range msg.Content {
-			sb.WriteString(p.Text())
+			sb.WriteString(p.Text)
 		}
 		return sb.String(), nil
 	}

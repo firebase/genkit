@@ -25,7 +25,7 @@ func TestValidateCandidate(t *testing.T) {
 		candidate := &Candidate{
 			Message: &Message{
 				Content: []*Part{
-					{text: "Hello, World!"},
+					{Text: "Hello, World!"},
 				},
 			},
 		}
@@ -40,7 +40,7 @@ func TestValidateCandidate(t *testing.T) {
 		candidate := &Candidate{
 			Message: &Message{
 				Content: []*Part{
-					{text: `{
+					{Text: `{
 						"name": "John",
 						"age": 30,
 						"address": {
@@ -81,7 +81,7 @@ func TestValidateCandidate(t *testing.T) {
 		candidate := &Candidate{
 			Message: &Message{
 				Content: []*Part{
-					{text: `{"name": "John", "age": "30"}`},
+					{Text: `{"name": "John", "age": "30"}`},
 				},
 			},
 		}
@@ -104,7 +104,7 @@ func TestValidateCandidate(t *testing.T) {
 		candidate := &Candidate{
 			Message: &Message{
 				Content: []*Part{
-					{text: `{"name": "John", "age": 30`}, // Missing trailing }.
+					{Text: `{"name": "John", "age": 30`}, // Missing trailing }.
 				},
 			},
 		}
@@ -142,7 +142,7 @@ func TestValidateCandidate(t *testing.T) {
 		candidate := &Candidate{
 			Message: &Message{
 				Content: []*Part{
-					{text: `{"name": "John", "height": "190"}`},
+					{Text: `{"name": "John", "height": "190"}`},
 				},
 			},
 		}
@@ -166,7 +166,7 @@ func TestValidateCandidate(t *testing.T) {
 		candidate := &Candidate{
 			Message: &Message{
 				Content: []*Part{
-					{text: `{"name": "John", "age": 30}`},
+					{Text: `{"name": "John", "age": 30}`},
 				},
 			},
 		}

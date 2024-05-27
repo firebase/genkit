@@ -31,11 +31,11 @@ type Document struct {
 // A Part is one part of a [Document]. This may be plain text or it
 // may be a URL (possibly a "data:" URL with embedded data).
 type Part struct {
-	kind         partKind
-	contentType  string        // valid for kind==blob
-	text         string        // valid for kind∈{text,blob}
-	toolRequest  *ToolRequest  // valid for kind==partToolRequest
-	toolResponse *ToolResponse // valid for kind==partToolResponse
+	Kind         partKind      `json:"kind,omitempty"`
+	ContentType  string        `json:"contentType,omitempty"` // valid for kind==blob
+	Text         string        `json:"text,omitempty"`        // valid for kind∈{text,blob}
+	ToolRequest  *ToolRequest  `json:"toolreq,omitempty"`     // valid for kind==partToolRequest
+	ToolResponse *ToolResponse `json:"toolresp,omitempty"`    // valid for kind==partToolResponse
 }
 
 type partKind int8
@@ -50,82 +50,56 @@ const (
 
 // NewTextPart returns a Part containing text.
 func NewTextPart(text string) *Part {
-	return &Part{kind: partText, text: text}
+	return &Part{Kind: partText, ContentType: "plain/text", Text: text}
 }
 
 // NewMediaPart returns a Part containing structured data described
 // by the given mimeType.
 func NewMediaPart(mimeType, contents string) *Part {
-	return &Part{kind: partMedia, contentType: mimeType, text: contents}
+	return &Part{Kind: partMedia, ContentType: mimeType, Text: contents}
 }
 
 // NewDataPart returns a Part containing raw string data.
 func NewDataPart(contents string) *Part {
-	return &Part{kind: partData, text: contents}
+	return &Part{Kind: partData, Text: contents}
 }
 
 // NewToolRequestPart returns a Part containing a request from
 // the model to the client to run a Tool.
 // (Only genkit plugins should need to use this function.)
 func NewToolRequestPart(r *ToolRequest) *Part {
-	return &Part{kind: partToolRequest, toolRequest: r}
+	return &Part{Kind: partToolRequest, ToolRequest: r}
 }
 
 // NewToolResponsePart returns a Part containing the results
 // of applying a Tool that the model requested.
 func NewToolResponsePart(r *ToolResponse) *Part {
-	return &Part{kind: partToolResponse, toolResponse: r}
+	return &Part{Kind: partToolResponse, ToolResponse: r}
 }
 
 // IsText reports whether the [Part] contains plain text.
 func (p *Part) IsText() bool {
-	return p.kind == partText
+	return p.Kind == partText
 }
 
 // IsMedia reports whether the [Part] contains structured media data.
 func (p *Part) IsMedia() bool {
-	return p.kind == partMedia
+	return p.Kind == partMedia
 }
 
 // IsData reports whether the [Part] contains unstructured data.
 func (p *Part) IsData() bool {
-	return p.kind == partData
+	return p.Kind == partData
 }
 
 // IsToolRequest reports whether the [Part] contains a request to run a tool.
 func (p *Part) IsToolRequest() bool {
-	return p.kind == partToolRequest
+	return p.Kind == partToolRequest
 }
 
 // IsToolResponse reports whether the [Part] contains the result of running a tool.
 func (p *Part) IsToolResponse() bool {
-	return p.kind == partToolResponse
-}
-
-// Text returns the text. This is either plain text or a URL.
-func (p *Part) Text() string {
-	return p.text
-}
-
-// ContentType returns the type of the content.
-// This is only interesting if IsBlob() is true.
-func (p *Part) ContentType() string {
-	if p.kind == partText {
-		return "text/plain"
-	}
-	return p.contentType
-}
-
-// ToolRequest returns a request from the model for the client to run a tool.
-// Valid only if [IsToolRequest] is true.
-func (p *Part) ToolRequest() *ToolRequest {
-	return p.toolRequest
-}
-
-// ToolResponse returns the tool response the client is sending to the model.
-// Valid only if [IsToolResponse] is true.
-func (p *Part) ToolResponse() *ToolResponse {
-	return p.toolResponse
+	return p.Kind == partToolResponse
 }
 
 // MarshalJSON is called by the JSON marshaler to write out a Part.
@@ -133,23 +107,23 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 	// This is not handled by the schema generator because
 	// Part is defined in TypeScript as a union.
 
-	switch p.kind {
+	switch p.Kind {
 	case partText:
 		v := textPart{
-			Text: p.text,
+			Text: p.Text,
 		}
 		return json.Marshal(v)
 	case partMedia:
 		v := mediaPart{
 			Media: &mediaPartMedia{
-				ContentType: p.contentType,
-				Url:         p.text,
+				ContentType: p.ContentType,
+				Url:         p.Text,
 			},
 		}
 		return json.Marshal(v)
 	case partData:
 		v := dataPart{
-			Data: p.text,
+			Data: p.Text,
 		}
 		return json.Marshal(v)
 	case partToolRequest:
@@ -159,18 +133,18 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 		v := struct {
 			ToolReq *ToolRequest `json:"toolreq,omitempty"`
 		}{
-			ToolReq: p.toolRequest,
+			ToolReq: p.ToolRequest,
 		}
 		return json.Marshal(v)
 	case partToolResponse:
 		v := struct {
 			ToolResp *ToolResponse `json:"toolresp,omitempty"`
 		}{
-			ToolResp: p.toolResponse,
+			ToolResp: p.ToolResponse,
 		}
 		return json.Marshal(v)
 	default:
-		return nil, fmt.Errorf("invalid part kind %v", p.kind)
+		return nil, fmt.Errorf("invalid part kind %v", p.Kind)
 	}
 }
 
@@ -193,23 +167,23 @@ func (p *Part) UnmarshalJSON(b []byte) error {
 
 	switch {
 	case s.Media != nil:
-		p.kind = partMedia
-		p.text = s.Media.Url
-		p.contentType = s.Media.ContentType
+		p.Kind = partMedia
+		p.Text = s.Media.Url
+		p.ContentType = s.Media.ContentType
 	case s.ToolReq != nil:
-		p.kind = partToolRequest
-		p.toolRequest = s.ToolReq
+		p.Kind = partToolRequest
+		p.ToolRequest = s.ToolReq
 	case s.ToolResp != nil:
-		p.kind = partToolResponse
-		p.toolResponse = s.ToolResp
+		p.Kind = partToolResponse
+		p.ToolResponse = s.ToolResp
 	default:
-		p.kind = partText
-		p.text = s.Text
-		p.contentType = ""
+		p.Kind = partText
+		p.Text = s.Text
+		p.ContentType = ""
 		if s.Data != "" {
 			// Note: if part is completely empty, we use text by default.
-			p.kind = partData
-			p.text = s.Data
+			p.Kind = partData
+			p.Text = s.Data
 		}
 	}
 	return nil
@@ -220,9 +194,9 @@ func (p *Part) UnmarshalJSON(b []byte) error {
 func DocumentFromText(text string, metadata map[string]any) *Document {
 	return &Document{
 		Content: []*Part{
-			&Part{
-				kind: partText,
-				text: text,
+			{
+				Kind: partText,
+				Text: text,
 			},
 		},
 		Metadata: metadata,

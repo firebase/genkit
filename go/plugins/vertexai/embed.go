@@ -59,7 +59,7 @@ func (e *embedder) Embed(ctx context.Context, req *ai.EmbedRequest) ([]float32, 
 	instances := make([]*structpb.Value, 0, len(req.Document.Content))
 	for _, part := range req.Document.Content {
 		fields := map[string]any{
-			"content": part.Text(),
+			"content": part.Text,
 		}
 		if title != "" {
 			fields["title"] = title

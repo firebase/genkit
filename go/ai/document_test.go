@@ -42,28 +42,28 @@ func TestDocumentJSON(t *testing.T) {
 	d := Document{
 		Content: []*Part{
 			&Part{
-				kind: partText,
-				text: "hi",
+				Kind: partText,
+				Text: "hi",
 			},
 			&Part{
-				kind:        partMedia,
-				contentType: "text/plain",
-				text:        "data:,bye",
+				Kind:        partMedia,
+				ContentType: "text/plain",
+				Text:        "data:,bye",
 			},
 			&Part{
-				kind: partData,
-				text: "somedata\x00string",
+				Kind: partData,
+				Text: "somedata\x00string",
 			},
 			&Part{
-				kind: partToolRequest,
-				toolRequest: &ToolRequest{
+				Kind: partToolRequest,
+				ToolRequest: &ToolRequest{
 					Name:  "tool1",
 					Input: map[string]any{"arg1": 3.3, "arg2": "foo"},
 				},
 			},
 			&Part{
-				kind: partToolResponse,
-				toolResponse: &ToolResponse{
+				Kind: partToolResponse,
+				ToolResponse: &ToolResponse{
 					Name:   "tool1",
 					Output: map[string]any{"res1": 4.4, "res2": "bar"},
 				},
@@ -83,22 +83,22 @@ func TestDocumentJSON(t *testing.T) {
 	}
 
 	cmpPart := func(a, b *Part) bool {
-		if a.kind != b.kind {
+		if a.Kind != b.Kind {
 			return false
 		}
-		switch a.kind {
+		switch a.Kind {
 		case partText:
-			return a.text == b.text
+			return a.Text == b.Text
 		case partMedia:
-			return a.contentType == b.contentType && a.text == b.text
+			return a.ContentType == b.ContentType && a.Text == b.Text
 		case partData:
-			return a.text == b.text
+			return a.Text == b.Text
 		case partToolRequest:
-			return reflect.DeepEqual(a.toolRequest, b.toolRequest)
+			return reflect.DeepEqual(a.ToolRequest, b.ToolRequest)
 		case partToolResponse:
-			return reflect.DeepEqual(a.toolResponse, b.toolResponse)
+			return reflect.DeepEqual(a.ToolResponse, b.ToolResponse)
 		default:
-			t.Fatalf("bad part kind %v", a.kind)
+			t.Fatalf("bad part kind %v", a.Kind)
 			return false
 		}
 	}

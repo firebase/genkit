@@ -25,7 +25,6 @@ import (
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
 	"github.com/invopop/jsonschema"
-	"github.com/xeipuuv/gojsonschema"
 )
 
 // Func is the type of function that Actions and Flows execute.
@@ -119,39 +118,14 @@ func (a *Action[I, O, S]) Run(ctx context.Context, input I, cb func(context.Cont
 		func(ctx context.Context, input I) (O, error) {
 			start := time.Now()
 			var err error
-			inputSchema, ok := a.Metadata["inputSchema"].(*jsonschema.Schema)
-			if ok {
-				var userInput any
-				switch v := any(input).(type) {
-				case flowInstructioner:
-					if v.StartInput() != nil {
-						userInput = v.StartInput()
-					}
-					if v.ScheduleInput() != nil {
-						userInput = v.ScheduleInput()
-					}
-				default:
-					userInput = input
-				}
-				err = ValidateObject(userInput, inputSchema)
-				if err != nil {
-					err = fmt.Errorf("invalid input: %w", err)
-				}
+			if err = ValidateObject(input, a.inputSchema); err != nil {
+				err = fmt.Errorf("invalid input: %w", err)
 			}
-			var out O
+			var output O
 			if err == nil {
-				out, err = a.fn(ctx, input, cb)
-				outputSchema, ok := a.Metadata["outputSchema"].(*jsonschema.Schema)
-				if ok {
-					var result any
-					switch v := any(out).(type) {
-					case flowStater:
-						result = v.result()
-					default:
-						result = out
-					}
-					err = ValidateObject(result, outputSchema)
-					if err != nil {
+				output, err = a.fn(ctx, input, cb)
+				if err != nil {
+					if err = ValidateObject(output, a.outputSchema); err != nil {
 						err = fmt.Errorf("invalid output: %w", err)
 					}
 				}
@@ -162,11 +136,16 @@ func (a *Action[I, O, S]) Run(ctx context.Context, input I, cb func(context.Cont
 				return internal.Zero[O](), err
 			}
 			writeActionSuccess(ctx, a.name, latency)
-			return out, nil
+			return output, nil
 		})
 }
 
+// runJSON runs an action with JSON input. This is only used in development mode.
 func (a *Action[I, O, S]) runJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error) {
+	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
+	if err := ValidateJSON(input, a.inputSchema); err != nil {
+		return nil, err
+	}
 	var in I
 	if err := json.Unmarshal(input, &in); err != nil {
 		return nil, err
@@ -264,36 +243,4 @@ func inferJSONSchema(x any) (s *jsonschema.Schema) {
 	// TODO: Unwind this change once Monaco Editor supports newer than JSON schema draft-07.
 	s.Version = ""
 	return s
-}
-
-// ValidateObject will take any object and validate it against the expected schema.
-// It will return an error if it doesn't match the schema, otherwise it will return nil.
-func ValidateObject(obj any, schema *jsonschema.Schema) error {
-	schemaBytes, err := schema.MarshalJSON()
-	if err != nil {
-		return fmt.Errorf("schema is not valid: %w", err)
-	}
-
-	jsonBytes, err := json.Marshal(obj)
-	if err != nil {
-		return fmt.Errorf("object is not a valid JSON type: %w", err)
-	}
-
-	schemaLoader := gojsonschema.NewBytesLoader(schemaBytes)
-	documentLoader := gojsonschema.NewBytesLoader(jsonBytes)
-
-	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
-	if err != nil {
-		return err
-	}
-
-	if !result.Valid() {
-		var errMsg string
-		for _, err := range result.Errors() {
-			errMsg += fmt.Sprintf("- %s\n", err)
-		}
-		return fmt.Errorf("object did not match expected schema:\n%s", errMsg)
-	}
-
-	return nil
 }
