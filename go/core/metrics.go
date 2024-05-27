@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package core
 
 import (
 	"context"
 	"sync"
 	"time"
 
-	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/core/logger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -38,7 +38,7 @@ var fetchInstruments = sync.OnceValue(func() *metricInstruments {
 	insts, err := initInstruments()
 	if err != nil {
 		// Do not stop the program because we can't collect metrics.
-		internal.Logger(context.Background()).Error("metric initialization failed; no metrics will be collected", "err", err)
+		logger.FromContext(context.Background()).Error("metric initialization failed; no metrics will be collected", "err", err)
 		return nil
 	}
 	return insts

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package core
 
 import (
 	"context"
@@ -22,8 +22,9 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/firebase/genkit/go/core/logger"
+	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
-	"github.com/firebase/genkit/go/internal/tracing"
 	"github.com/invopop/jsonschema"
 )
 
@@ -34,18 +35,16 @@ import (
 // stream the results by invoking the callback periodically, ultimately returning
 // with a final return value. Otherwise, it should ignore the StreamingCallback and
 // just return a result.
-type Func[I, O, S any] func(context.Context, I, StreamingCallback[S]) (O, error)
+type Func[I, O, S any] func(context.Context, I, func(context.Context, S) error) (O, error)
 
 // TODO(jba): use a generic type alias for the above when they become available?
-
-// StreamingCallback is the type of streaming callbacks, which is passed to action
-// functions who should stream their responses.
-type StreamingCallback[S any] func(context.Context, S) error
 
 // NoStream indicates that the action or flow does not support streaming.
 // A Func[I, O, NoStream] will ignore its streaming callback.
 // Such a function corresponds to a Flow[I, O, struct{}].
-type NoStream = StreamingCallback[struct{}]
+type NoStream = func(context.Context, struct{}) error
+
+type streamingCallback[S any] func(context.Context, S) error
 
 // An Action is a named, observable operation.
 // It consists of a function that takes an input of type I and returns an output
@@ -56,6 +55,7 @@ type NoStream = StreamingCallback[struct{}]
 // Each time an Action is run, it results in a new trace span.
 type Action[I, O, S any] struct {
 	name         string
+	atype        ActionType
 	fn           Func[I, O, S]
 	tstate       *tracing.State
 	inputSchema  *jsonschema.Schema
@@ -68,19 +68,23 @@ type Action[I, O, S any] struct {
 // See js/common/src/types.ts
 
 // NewAction creates a new Action with the given name and non-streaming function.
-func NewAction[I, O any](name string, metadata map[string]any, fn func(context.Context, I) (O, error)) *Action[I, O, struct{}] {
-	return NewStreamingAction(name, metadata, func(ctx context.Context, in I, cb NoStream) (O, error) {
+func NewAction[I, O any](name string, atype ActionType, metadata map[string]any, fn func(context.Context, I) (O, error)) *Action[I, O, struct{}] {
+	return NewStreamingAction(name, atype, metadata, func(ctx context.Context, in I, cb NoStream) (O, error) {
 		return fn(ctx, in)
 	})
 }
 
 // NewStreamingAction creates a new Action with the given name and streaming function.
-func NewStreamingAction[I, O, S any](name string, metadata map[string]any, fn Func[I, O, S]) *Action[I, O, S] {
+func NewStreamingAction[I, O, S any](name string, atype ActionType, metadata map[string]any, fn Func[I, O, S]) *Action[I, O, S] {
 	var i I
 	var o O
 	return &Action[I, O, S]{
-		name:         name,
-		fn:           fn,
+		name:  name,
+		atype: atype,
+		fn: func(ctx context.Context, input I, sc func(context.Context, S) error) (O, error) {
+			tracing.SetCustomMetadataAttr(ctx, "subtype", string(atype))
+			return fn(ctx, input, sc)
+		},
 		inputSchema:  inferJSONSchema(i),
 		outputSchema: inferJSONSchema(o),
 		Metadata:     metadata,
@@ -90,18 +94,20 @@ func NewStreamingAction[I, O, S any](name string, metadata map[string]any, fn Fu
 // Name returns the Action's name.
 func (a *Action[I, O, S]) Name() string { return a.name }
 
+func (a *Action[I, O, S]) actionType() ActionType { return a.atype }
+
 // setTracingState sets the action's tracing.State.
 func (a *Action[I, O, S]) setTracingState(tstate *tracing.State) { a.tstate = tstate }
 
 // Run executes the Action's function in a new trace span.
-func (a *Action[I, O, S]) Run(ctx context.Context, input I, cb StreamingCallback[S]) (output O, err error) {
+func (a *Action[I, O, S]) Run(ctx context.Context, input I, cb func(context.Context, S) error) (output O, err error) {
 	// TODO: validate input against JSONSchema for I.
 	// TODO: validate output against JSONSchema for O.
-	internal.Logger(ctx).Debug("Action.Run",
+	logger.FromContext(ctx).Debug("Action.Run",
 		"name", a.name,
 		"input", fmt.Sprintf("%#v", input))
 	defer func() {
-		internal.Logger(ctx).Debug("Action.Run",
+		logger.FromContext(ctx).Debug("Action.Run",
 			"name", a.name,
 			"output", fmt.Sprintf("%#v", output),
 			"err", err)
@@ -125,12 +131,12 @@ func (a *Action[I, O, S]) Run(ctx context.Context, input I, cb StreamingCallback
 		})
 }
 
-func (a *Action[I, O, S]) runJSON(ctx context.Context, input json.RawMessage, cb StreamingCallback[json.RawMessage]) (json.RawMessage, error) {
+func (a *Action[I, O, S]) runJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error) {
 	var in I
 	if err := json.Unmarshal(input, &in); err != nil {
 		return nil, err
 	}
-	var callback StreamingCallback[S]
+	var callback func(context.Context, S) error
 	if cb != nil {
 		callback = func(ctx context.Context, s S) error {
 			bytes, err := json.Marshal(s)
@@ -154,10 +160,11 @@ func (a *Action[I, O, S]) runJSON(ctx context.Context, input json.RawMessage, cb
 // action is the type that all Action[I, O, S] have in common.
 type action interface {
 	Name() string
+	actionType() ActionType
 
 	// runJSON uses encoding/json to unmarshal the input,
 	// calls Action.Run, then returns the marshaled result.
-	runJSON(ctx context.Context, input json.RawMessage, cb StreamingCallback[json.RawMessage]) (json.RawMessage, error)
+	runJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error)
 
 	// desc returns a description of the action.
 	// It should set all fields of actionDesc except Key, which

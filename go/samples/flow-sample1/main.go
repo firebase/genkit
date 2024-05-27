@@ -61,7 +61,7 @@ func main() {
 		Count int `json:"count"`
 	}
 
-	genkit.DefineFlow("streamy", func(ctx context.Context, count int, cb genkit.StreamingCallback[chunk]) (string, error) {
+	genkit.DefineFlow("streamy", func(ctx context.Context, count int, cb func(context.Context, chunk) error) (string, error) {
 		i := 0
 		if cb != nil {
 			for ; i < count; i++ {
@@ -73,7 +73,7 @@ func main() {
 		return fmt.Sprintf("done: %d, streamed: %d times", count, i), nil
 	})
 
-	if err := genkit.StartDevServer(""); err != nil {
+	if err := genkit.StartFlowServer(""); err != nil {
 		log.Fatal(err)
 	}
 }

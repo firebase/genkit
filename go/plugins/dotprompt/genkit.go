@@ -21,8 +21,8 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/internal/tracing"
+	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/core/tracing"
 )
 
 // ActionInput is the input type of a prompt action.
@@ -116,12 +116,12 @@ func (p *Prompt) buildRequest(input *ActionInput) (*ai.GenerateRequest, error) {
 	return req, nil
 }
 
-// Action returns a [genkit.Action] that executes the prompt.
+// Action returns a [core.Action] that executes the prompt.
 // The returned Action will take an [ActionInput] that provides
 // variables to substitute into the template text.
 // It will then pass the rendered text to an AI generator,
 // and return whatever the generator computes.
-func (p *Prompt) Action() (*genkit.Action[*ActionInput, *ai.GenerateResponse, struct{}], error) {
+func (p *Prompt) Action() (*core.Action[*ActionInput, *ai.GenerateResponse, struct{}], error) {
 	if p.Name == "" {
 		return nil, errors.New("dotprompt: missing name")
 	}
@@ -130,7 +130,7 @@ func (p *Prompt) Action() (*genkit.Action[*ActionInput, *ai.GenerateResponse, st
 		name += "." + p.Variant
 	}
 
-	a := genkit.NewAction(name, nil, p.Execute)
+	a := core.NewAction(name, core.ActionTypePrompt, nil, p.Execute)
 	a.Metadata = map[string]any{
 		"type":   "prompt",
 		"prompt": p,
@@ -153,7 +153,7 @@ func (p *Prompt) Register() error {
 		return err
 	}
 
-	genkit.RegisterAction(genkit.ActionTypePrompt, name, action)
+	core.RegisterAction(name, action)
 	return nil
 }
 

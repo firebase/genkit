@@ -17,12 +17,9 @@ package tracing
 
 import (
 	"context"
-	"crypto/md5"
-	"fmt"
-	"os"
-	"path/filepath"
 	"sync"
 
+	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/internal"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -74,17 +71,6 @@ func (ts *State) AddTraceStoreBatch(tstore Store) (shutdown func(context.Context
 	return ts.tp.Shutdown
 }
 
-func NewDevStore() (Store, error) {
-	programName := filepath.Base(os.Args[0])
-	rootHash := fmt.Sprintf("%02x", md5.Sum([]byte(programName)))
-	dir := filepath.Join(os.TempDir(), ".genkit", rootHash, "traces")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return nil, err
-	}
-	// Don't remove the temp directory, for post-mortem debugging.
-	return NewFileStore(dir)
-}
-
 // The rest of this file contains code translated from js/common/src/tracing/*.ts.
 
 const (
@@ -103,7 +89,7 @@ func RunInNewSpan[I, O any](
 	f func(context.Context, I) (O, error),
 ) (O, error) {
 	// TODO(jba): support span links.
-	log := internal.Logger(ctx)
+	log := logger.FromContext(ctx)
 	log.Debug("span start", "name", name)
 	defer log.Debug("span end", "name", name)
 	sm := &spanMetadata{
@@ -111,7 +97,7 @@ func RunInNewSpan[I, O any](
 		Input:  input,
 		IsRoot: isRoot,
 	}
-	parentSpanMeta := SpanMetaKey.FromContext(ctx)
+	parentSpanMeta := spanMetaKey.FromContext(ctx)
 	var parentPath string
 	if parentSpanMeta != nil {
 		parentPath = parentSpanMeta.Path
@@ -126,7 +112,7 @@ func RunInNewSpan[I, O any](
 	// At the end, copy some of the spanMetadata to the OpenTelemetry span.
 	defer func() { span.SetAttributes(sm.attributes()...) }()
 	// Add the spanMetadata to the context, so the function can access it.
-	ctx = SpanMetaKey.NewContext(ctx, sm)
+	ctx = spanMetaKey.NewContext(ctx, sm)
 	// Run the function.
 	output, err := f(ctx, input)
 
@@ -197,10 +183,15 @@ func (sm *spanMetadata) attributes() []attribute.KeyValue {
 	return kvs
 }
 
-// SpanMetaKey is for storing spanMetadatas in a context.
-var SpanMetaKey = internal.NewContextKey[*spanMetadata]()
+// spanMetaKey is for storing spanMetadatas in a context.
+var spanMetaKey = internal.NewContextKey[*spanMetadata]()
 
 // SetCustomMetadataAttr records a key in the current span metadata.
 func SetCustomMetadataAttr(ctx context.Context, key, value string) {
-	SpanMetaKey.FromContext(ctx).SetAttr(key, value)
+	spanMetaKey.FromContext(ctx).SetAttr(key, value)
+}
+
+// SpanPath returns the path as recroding in the current span metadata.
+func SpanPath(ctx context.Context) string {
+	return spanMetaKey.FromContext(ctx).Path
 }

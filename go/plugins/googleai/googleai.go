@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/genkit"
 	"github.com/google/generative-ai-go/genai"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
@@ -35,7 +34,7 @@ type generator struct {
 	//session *genai.ChatSession // non-nil if we're in the middle of a chat
 }
 
-func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb genkit.StreamingCallback[*ai.Candidate]) (*ai.GenerateResponse, error) {
+func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.Candidate) error) (*ai.GenerateResponse, error) {
 	gm := g.client.GenerativeModel(g.model)
 
 	// Translate from a ai.GenerateRequest to a genai request.
@@ -165,7 +164,7 @@ func translateCandidate(cand *genai.Candidate) *ai.Candidate {
 		case genai.Text:
 			p = ai.NewTextPart(string(part))
 		case genai.Blob:
-			p = ai.NewBlobPart(part.MIMEType, string(part.Data))
+			p = ai.NewMediaPart(part.MIMEType, string(part.Data))
 		case genai.FunctionCall:
 			p = ai.NewToolRequestPart(&ai.ToolRequest{
 				Name:  part.Name,
@@ -237,8 +236,10 @@ func convertPart(p *ai.Part) genai.Part {
 	switch {
 	case p.IsText():
 		return genai.Text(p.Text())
-	case p.IsBlob():
+	case p.IsMedia():
 		return genai.Blob{MIMEType: p.ContentType(), Data: []byte(p.Text())}
+	case p.IsData():
+		panic("googleai does not support Data parts")
 	case p.IsToolResponse():
 		toolResp := p.ToolResponse()
 		return genai.FunctionResponse{

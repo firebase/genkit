@@ -34,3 +34,15 @@ defineTool(
     };
   }
 );
+
+defineTool(
+  {
+    name: 'getTime',
+    description: 'Get the current time',
+    inputSchema: z.object({ timezone: z.string().optional() }),
+    outputSchema: z.object({ time: z.number() }),
+  },
+  async (input) => {
+    return { time: Date.now() };
+  }
+);

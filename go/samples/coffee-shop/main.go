@@ -13,18 +13,30 @@
 // limitations under the License.
 
 // This program can be manually tested like so:
+//
+// In development mode (with the environment variable GENKIT_ENV="dev"):
 // Start the server listening on port 3100:
 //
 //	go run . &
 //
 // Tell it to run an action. Here are some examples:
-//  
+//
 //  Flow without input:
 //
 //	curl -d '{"key":"/flow/testAllCoffeeFlows/testAllCoffeeFlows", "input":{"start": {"input":null}}}'  http://localhost:3100/api/runAction
 //  Flow with input:
 //
 //	curl -d '{"key":"/flow/simpleGreeting/simpleGreeting", "input":{"start": {"input":{"customerName": "John Doe"}}}}' http://localhost:3100/api/runAction
+//
+// In production mode (GENKIT_ENV missing or set to "prod"):
+// Start the server listening on port 3400:
+//
+//	go run . &
+//
+// Tell it to run a flow:
+//
+//  curl -d '{"customerName": "Stimpy"}' http://localhost:3400/simpleGreeting
+
 package main
 
 import (
@@ -35,7 +47,7 @@ import (
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/genkit/dotprompt"
+	"github.com/firebase/genkit/go/plugins/dotprompt"
 	"github.com/firebase/genkit/go/plugins/googleai"
 	"github.com/invopop/jsonschema"
 )
@@ -176,8 +188,7 @@ func main() {
 		}
 		return out, nil
 	})
-
-	if err := genkit.StartDevServer(""); err != nil {
+	if err := genkit.StartFlowServer(""); err != nil {
 		log.Fatal(err)
 	}
 }

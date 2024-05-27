@@ -12,21 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package genkit
+package core
 
 import (
 	"context"
 	"encoding/json"
 	"io"
-	"maps"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/firebase/genkit/go/internal/tracing"
+	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/invopop/jsonschema"
 )
 
 func dec(_ context.Context, x int) (int, error) {
@@ -38,17 +38,17 @@ func TestDevServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.registerAction("test", "devServer", NewAction("inc", map[string]any{
+	r.registerAction("devServer", NewAction("inc", ActionTypeCustom, map[string]any{
 		"foo": "bar",
 	}, inc))
-	r.registerAction("test", "devServer", NewAction("dec", map[string]any{
+	r.registerAction("devServer", NewAction("dec", ActionTypeCustom, map[string]any{
 		"bar": "baz",
 	}, dec))
-	srv := httptest.NewServer(newDevServerMux(r))
+	srv := httptest.NewServer(newDevServeMux(r))
 	defer srv.Close()
 
 	t.Run("runAction", func(t *testing.T) {
-		body := `{"key": "/test/devServer/inc", "input": 3}`
+		body := `{"key": "/custom/devServer/inc", "input": 3}`
 		res, err := http.Post(srv.URL+"/api/runAction", "application/json", strings.NewReader(body))
 		if err != nil {
 			t.Fatal(err)
@@ -84,11 +84,24 @@ func TestDevServer(t *testing.T) {
 			t.Fatal(err)
 		}
 		want := map[string]actionDesc{
-			"/test/devServer/inc": {Key: "/test/devServer/inc", Name: "inc", Metadata: map[string]any{"inputSchema": nil, "outputSchema": nil, "foo": "bar"}},
-			"/test/devServer/dec": {Key: "/test/devServer/dec", Name: "dec", Metadata: map[string]any{"inputSchema": nil, "outputSchema": nil, "bar": "baz"}},
+			"/custom/devServer/inc": {
+				Key:          "/custom/devServer/inc",
+				Name:         "inc",
+				InputSchema:  &jsonschema.Schema{Type: "integer"},
+				OutputSchema: &jsonschema.Schema{Type: "integer"},
+				Metadata:     map[string]any{"foo": "bar"},
+			},
+			"/custom/devServer/dec": {
+				Key:          "/custom/devServer/dec",
+				InputSchema:  &jsonschema.Schema{Type: "integer"},
+				OutputSchema: &jsonschema.Schema{Type: "integer"},
+				Name:         "dec",
+				Metadata:     map[string]any{"bar": "baz"},
+			},
 		}
-		if !maps.EqualFunc(got, want, actionDesc.equal) {
-			t.Errorf("\n got  %v\nwant %v", got, want)
+		diff := cmp.Diff(want, got, cmpopts.IgnoreUnexported(jsonschema.Schema{}))
+		if diff != "" {
+			t.Errorf("mismatch (-want, +got):\n%s", diff)
 		}
 	})
 	t.Run("list traces", func(t *testing.T) {
@@ -105,6 +118,45 @@ func TestDevServer(t *testing.T) {
 		}
 		// We may have any result, including internal.Zero traces, so don't check anything else.
 	})
+}
+
+func TestProdServer(t *testing.T) {
+	r, err := newRegistry()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defineFlow(r, "inc", func(_ context.Context, i int, _ NoStream) (int, error) {
+		return i + 1, nil
+	})
+	srv := httptest.NewServer(newFlowServeMux(r))
+	defer srv.Close()
+
+	check := func(t *testing.T, input string, wantStatus, wantResult int) {
+		res, err := http.Post(srv.URL+"/inc", "application/json", strings.NewReader(input))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		if g, w := res.StatusCode, wantStatus; g != w {
+			t.Fatalf("status: got %d, want %d", g, w)
+		}
+		if res.StatusCode != 200 {
+			return
+		}
+		type resultType struct {
+			Result int
+		}
+		got, err := readJSON[resultType](res.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if g, w := got.Result, wantResult; g != w {
+			t.Errorf("result: got %d, want %d", g, w)
+		}
+	}
+
+	t.Run("ok", func(t *testing.T) { check(t, "2", 200, 3) })
+	t.Run("bad", func(t *testing.T) { check(t, "true", 400, 0) })
 }
 
 func checkActionTrace(t *testing.T, reg *registry, tid, name string) {

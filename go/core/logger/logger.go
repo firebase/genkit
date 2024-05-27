@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package internal
+// Package logger provides a context-scoped slog.Logger.
+package logger
 
 import (
 	"context"
 	"log/slog"
 	"os"
+
+	"github.com/firebase/genkit/go/internal"
 )
 
 func init() {
@@ -29,11 +32,11 @@ func init() {
 	slog.SetDefault(h)
 }
 
-var loggerKey = NewContextKey[*slog.Logger]()
+var loggerKey = internal.NewContextKey[*slog.Logger]()
 
-// Logger returns the Logger in ctx, or the default Logger
+// FromContext returns the Logger in ctx, or the default Logger
 // if there is none.
-func Logger(ctx context.Context) *slog.Logger {
+func FromContext(ctx context.Context) *slog.Logger {
 	if l := loggerKey.FromContext(ctx); l != nil {
 		return l
 	}

@@ -67,6 +67,12 @@ describe('validate()', () => {
       errors: [{ path: 'foo', message: 'must be boolean' }],
     },
     {
+      it: 'should allow for date types',
+      schema: z.object({ date: z.string().datetime() }),
+      data: { date: '2024-05-22T17:00:00Z' },
+      valid: true,
+    },
+    {
       it: 'should return dotted path for errors',
       schema: z.object({ foo: z.array(z.object({ bar: z.boolean() })) }),
       data: { foo: [{ bar: 123 }] },
