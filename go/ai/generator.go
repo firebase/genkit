@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"slices"
 	"strconv"
 	"strings"
@@ -200,7 +199,6 @@ func validCandidate(candidate *Candidate, outputSchema *GenerateRequestOutput) (
 			return nil, err
 		}
 		text = stripJSONDelimiters(text)
-		log.Printf("alexpascal: %s", text)
 		var schemaBytes []byte
 		schemaBytes, err = json.Marshal(outputSchema.Schema)
 		if err != nil {
