@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/core/logger"
 )
 
 // Generator is the interface used to query an AI model.
@@ -181,7 +181,7 @@ func validCandidates(ctx context.Context, resp *GenerateResponse) ([]*Candidate,
 		if err == nil {
 			candidates = append(candidates, c)
 		} else {
-			internal.Logger(ctx).Debug("candidate did not match expected schema", "index", i, "error", err.Error())
+			logger.FromContext(ctx).Debug("candidate did not match expected schema", "index", i, "error", err.Error())
 		}
 	}
 	if len(candidates) == 0 {
