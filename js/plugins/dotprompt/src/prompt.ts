@@ -175,6 +175,8 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
         jsonSchema: options.output?.jsonSchema || this.output?.jsonSchema,
       },
       tools: (options.tools || []).concat(this.tools || []),
+      streamingCallback: options.streamingCallback,
+      returnToolRequests: options.returnToolRequests,
     };
   }
 

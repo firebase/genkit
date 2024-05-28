@@ -18,7 +18,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/firebase/genkit/go/gtime"
 	"github.com/google/go-cmp/cmp"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -90,11 +89,11 @@ func TestConvertSpan(t *testing.T) {
 		SpanID:       spanID1,
 		ParentSpanID: spanID2,
 		SpanKind:     "INTERNAL",
-		StartTime:    gtime.Milliseconds(1e3),
-		EndTime:      gtime.Milliseconds(2e3),
+		StartTime:    Milliseconds(1e3),
+		EndTime:      Milliseconds(2e3),
 		Attributes:   map[string]any{"k": "v"},
 		TimeEvents: TimeEvents{TimeEvent: []TimeEvent{{
-			Time: gtime.Milliseconds(3e3),
+			Time: Milliseconds(3e3),
 			Annotation: Annotation{
 				Attributes:  map[string]any{"k2": "v2"},
 				Description: "ename",

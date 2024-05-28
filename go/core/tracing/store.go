@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 
-	"github.com/firebase/genkit/go/gtime"
 )
 
 // A Store stores trace information.
@@ -61,8 +60,8 @@ type Query struct {
 type Data struct {
 	TraceID     string               `json:"traceId"`
 	DisplayName string               `json:"displayName"`
-	StartTime   gtime.Milliseconds   `json:"startTime"`
-	EndTime     gtime.Milliseconds   `json:"endTime"`
+	StartTime   Milliseconds   `json:"startTime"`
+	EndTime     Milliseconds   `json:"endTime"`
 	Spans       map[string]*SpanData `json:"spans"`
 }
 
@@ -75,8 +74,8 @@ type SpanData struct {
 	SpanID                 string                 `json:"spanId"`
 	TraceID                string                 `json:"traceId,omitempty"`
 	ParentSpanID           string                 `json:"parentSpanId,omitempty"`
-	StartTime              gtime.Milliseconds     `json:"startTime"`
-	EndTime                gtime.Milliseconds     `json:"endTime"`
+	StartTime              Milliseconds     `json:"startTime"`
+	EndTime                Milliseconds     `json:"endTime"`
 	Attributes             map[string]any         `json:"attributes,omitempty"`
 	DisplayName            string                 `json:"displayName"`
 	Links                  []*Link                `json:"links,omitempty"`
@@ -97,7 +96,7 @@ type BoolValue struct {
 }
 
 type TimeEvent struct {
-	Time       gtime.Milliseconds `json:"time,omitempty"`
+	Time       Milliseconds `json:"time,omitempty"`
 	Annotation Annotation         `json:"annotation,omitempty"`
 }
 

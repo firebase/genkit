@@ -16,7 +16,7 @@
 
 package core
 
-import "github.com/firebase/genkit/go/gtime"
+import "github.com/firebase/genkit/go/core/tracing"
 
 type flowError struct {
 	Error      string `json:"error,omitempty"`
@@ -25,8 +25,8 @@ type flowError struct {
 
 type flowExecution struct {
 	// end time in milliseconds since the epoch
-	EndTime gtime.Milliseconds `json:"endTime,omitempty"`
+	EndTime tracing.Milliseconds `json:"endTime,omitempty"`
 	// start time in milliseconds since the epoch
-	StartTime gtime.Milliseconds `json:"startTime,omitempty"`
-	TraceIDs  []string           `json:"traceIds,omitempty"`
+	StartTime tracing.Milliseconds `json:"startTime,omitempty"`
+	TraceIDs  []string             `json:"traceIds,omitempty"`
 }

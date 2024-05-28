@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
 	"github.com/invopop/jsonschema"
@@ -100,11 +101,11 @@ func (a *Action[I, O, S]) setTracingState(tstate *tracing.State) { a.tstate = ts
 
 // Run executes the Action's function in a new trace span.
 func (a *Action[I, O, S]) Run(ctx context.Context, input I, cb func(context.Context, S) error) (output O, err error) {
-	internal.Logger(ctx).Debug("Action.Run",
+	logger.FromContext(ctx).Debug("Action.Run",
 		"name", a.name,
 		"input", fmt.Sprintf("%#v", input))
 	defer func() {
-		internal.Logger(ctx).Debug("Action.Run",
+		logger.FromContext(ctx).Debug("Action.Run",
 			"name", a.name,
 			"output", fmt.Sprintf("%#v", output),
 			"err", err)

@@ -19,7 +19,6 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/firebase/genkit/go/gtime"
 	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	otrace "go.opentelemetry.io/otel/trace"
@@ -89,8 +88,8 @@ func convertSpan(span sdktrace.ReadOnlySpan) *SpanData {
 	sd := &SpanData{
 		SpanID:                  sc.SpanID().String(),
 		TraceID:                 sc.TraceID().String(),
-		StartTime:               gtime.ToMilliseconds(span.StartTime()),
-		EndTime:                 gtime.ToMilliseconds(span.EndTime()),
+		StartTime:               ToMilliseconds(span.StartTime()),
+		EndTime:                 ToMilliseconds(span.EndTime()),
 		Attributes:              attributesToMap(span.Attributes()),
 		DisplayName:             span.Name(),
 		Links:                   convertLinks(span.Links()),
@@ -140,7 +139,7 @@ func convertEvents(evs []sdktrace.Event) []TimeEvent {
 	var tes []TimeEvent
 	for _, e := range evs {
 		tes = append(tes, TimeEvent{
-			Time: gtime.ToMilliseconds(e.Time),
+			Time: ToMilliseconds(e.Time),
 			Annotation: Annotation{
 				Description: e.Name,
 				Attributes:  attributesToMap(e.Attributes),

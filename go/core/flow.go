@@ -24,8 +24,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
-	"github.com/firebase/genkit/go/gtime"
 	"github.com/firebase/genkit/go/internal"
 	"github.com/google/uuid"
 	"github.com/invopop/jsonschema"
@@ -199,7 +199,7 @@ type flowState[I, O any] struct {
 	FlowID   string `json:"flowId,omitempty"`
 	FlowName string `json:"name,omitempty"`
 	// start time in milliseconds since the epoch
-	StartTime gtime.Milliseconds `json:"startTime,omitempty"`
+	StartTime tracing.Milliseconds `json:"startTime,omitempty"`
 	Input     I                  `json:"input,omitempty"`
 
 	mu              sync.Mutex
@@ -216,7 +216,7 @@ func newFlowState[I, O any](id, name string, input I) *flowState[I, O] {
 		FlowID:    id,
 		FlowName:  name,
 		Input:     input,
-		StartTime: gtime.ToMilliseconds(time.Now()),
+		StartTime: tracing.ToMilliseconds(time.Now()),
 		Cache:     map[string]json.RawMessage{},
 		Operation: &operation[O]{
 			FlowID: id,
@@ -383,12 +383,12 @@ func (f *Flow[I, O, S]) execute(ctx context.Context, state *flowState[I, O], dis
 	defer func() {
 		if err := fctx.finish(ctx); err != nil {
 			// TODO(jba): do something more with this error?
-			internal.Logger(ctx).Error("flowContext.finish", "err", err.Error())
+			logger.FromContext(ctx).Error("flowContext.finish", "err", err.Error())
 		}
 	}()
 	ctx = flowContextKey.NewContext(ctx, fctx)
 	exec := &flowExecution{
-		StartTime: gtime.ToMilliseconds(time.Now()),
+		StartTime: tracing.ToMilliseconds(time.Now()),
 	}
 	state.mu.Lock()
 	state.Executions = append(state.Executions, exec)
@@ -423,14 +423,14 @@ func (f *Flow[I, O, S]) execute(ctx context.Context, state *flowState[I, O], dis
 		latency := time.Since(start)
 		if err != nil {
 			// TODO(jba): handle InterruptError
-			internal.Logger(ctx).Error("flow failed",
+			logger.FromContext(ctx).Error("flow failed",
 				"path", tracing.SpanPath(ctx),
 				"err", err.Error(),
 			)
 			writeFlowFailure(ctx, f.name, latency, err)
 			tracing.SetCustomMetadataAttr(ctx, "flow:state", "error")
 		} else {
-			internal.Logger(ctx).Info("flow succeeded", "path", tracing.SpanPath(ctx))
+			logger.FromContext(ctx).Info("flow succeeded", "path", tracing.SpanPath(ctx))
 			writeFlowSuccess(ctx, f.name, latency)
 			tracing.SetCustomMetadataAttr(ctx, "flow:state", "done")
 

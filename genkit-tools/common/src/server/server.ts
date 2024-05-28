@@ -125,9 +125,7 @@ export function startServer(
   });
 
   app.listen(port, () => {
-    logger.info(
-      `${clc.green(clc.bold('Genkit Tools API:'))} http://localhost:${port}/api`
-    );
+    logger.info(`Genkit Tools API: http://localhost:${port}/api`);
     if (!headless) {
       const uiUrl = 'http://localhost:' + port;
       runner
