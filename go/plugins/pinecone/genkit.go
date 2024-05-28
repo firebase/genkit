@@ -36,7 +36,7 @@ import (
 // documents in pinecone.
 const defaultTextKey = "_content"
 
-// Init registers actions to be used with ai.
+// Init registers all the actions in this package with [ai]'s Register calls.
 //
 // apiKey is the API key to use to access Pinecone.
 // If it is the empty string, it is read from the PINECONE_API_INDEX

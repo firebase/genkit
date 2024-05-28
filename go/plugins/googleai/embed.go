@@ -36,7 +36,7 @@ func (e *embedder) Embed(ctx context.Context, input *ai.EmbedRequest) ([]float32
 	return res.Embedding.Values, nil
 }
 
-// NewEmbedder returns an embedder which can compute the embedding
+// NewEmbedder returns an [ai.Embedder] that can compute the embedding
 // of an input document given the Google AI model.
 func NewEmbedder(ctx context.Context, model, apiKey string) (ai.Embedder, error) {
 	client, err := newClient(ctx, apiKey)
