@@ -47,7 +47,7 @@ func DefineFlow[In, Out, Stream any](
 // Each call to Run results in a new step in the flow.
 // A step has its own span in the trace, and its result is cached so that if the flow
 // is restarted, f will not be called a second time.
-func Run[T any](ctx context.Context, name string, f func() (T, error)) (T, error) {
+func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out, error) {
 	return core.Run(ctx, name, f)
 }
 
