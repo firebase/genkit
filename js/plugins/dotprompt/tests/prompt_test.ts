@@ -90,6 +90,20 @@ describe('Prompt', () => {
         await invalidSchemaPrompt.render({ input: { foo: 'baz' } });
       }, ValidationError);
     });
+
+    it('should render with overrided fields', async () => {
+      const prompt = testPrompt(`Hello {{name}}, how are you?`);
+
+      const streamingCallback = (c) => console.log(c);
+
+      const rendered = await prompt.render({
+        input: { name: 'Michael' },
+        streamingCallback,
+        returnToolRequests: true,
+      });
+      assert.strictEqual(rendered.streamingCallback, streamingCallback);
+      assert.strictEqual(rendered.returnToolRequests, true);
+    });
   });
 
   describe('#generate', () => {
