@@ -16,7 +16,7 @@
 
 import { defineDotprompt } from '@genkit-ai/dotprompt';
 import { geminiPro } from '@genkit-ai/vertexai';
-import { DataMenuQuestionInputSchema } from '../types';
+import { DataMenuQuestionInputSchema } from '../types.js';
 
 export const s04_ragDataMenuPrompt = defineDotprompt(
   {
