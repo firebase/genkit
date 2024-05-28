@@ -153,7 +153,7 @@ func (p *Prompt) Register() error {
 		return err
 	}
 
-	core.RegisterAction(name, action)
+	core.RegisterAction("dotprompt", action)
 	return nil
 }
 
