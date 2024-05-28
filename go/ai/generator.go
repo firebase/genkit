@@ -191,7 +191,7 @@ func validCandidates(ctx context.Context, resp *GenerateResponse) ([]*Candidate,
 }
 
 // validCandidate will validate the candidate's response against the expected schema.
-// It will return an error if it does not match, otherwise it will return a candidate with pure JSON content.
+// It will return an error if it does not match, otherwise it will return a candidate with JSON content and type.
 func validCandidate(candidate *Candidate, outputSchema *GenerateRequestOutput) (*Candidate, error) {
 	if outputSchema.Format == OutputFormatJSON {
 		text, err := candidate.Text()

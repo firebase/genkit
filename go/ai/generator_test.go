@@ -119,7 +119,7 @@ func TestValidCandidate(t *testing.T) {
 		}
 		_, err := validCandidate(candidate, outputSchema)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "candidate did not have valid JSON")
+		assert.Contains(t, err.Error(), "data is not valid JSON")
 	})
 
 	t.Run("Candidate with no message", func(t *testing.T) {

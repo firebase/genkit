@@ -45,6 +45,12 @@ func ValidateJSON(dataBytes json.RawMessage, schema *jsonschema.Schema) error {
 // ValidateRaw will validate JSON data against the JSON schema.
 // It will return an error if it doesn't match the schema, otherwise it will return nil.
 func ValidateRaw(dataBytes json.RawMessage, schemaBytes json.RawMessage) error {
+	var data any
+	// Do this check separately from below to get a better error message.
+	if err := json.Unmarshal(dataBytes, &data); err != nil {
+		return fmt.Errorf("data is not valid JSON: %w", err)
+	}
+
 	schemaLoader := gojsonschema.NewBytesLoader(schemaBytes)
 	documentLoader := gojsonschema.NewBytesLoader(dataBytes)
 
