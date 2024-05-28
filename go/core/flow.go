@@ -167,30 +167,30 @@ type retryInstruction struct {
 // A flowState is a persistent representation of a flow that may be in the middle of running.
 // It contains all the information needed to resume a flow, including the original input
 // and a cache of all completed steps.
-type flowState[I, O any] struct {
+type flowState[In, Out any] struct {
 	FlowID   string `json:"flowId,omitempty"`
 	FlowName string `json:"name,omitempty"`
 	// start time in milliseconds since the epoch
 	StartTime tracing.Milliseconds `json:"startTime,omitempty"`
-	Input     I                    `json:"input,omitempty"`
+	Input     In                   `json:"input,omitempty"`
 
 	mu              sync.Mutex
 	Cache           map[string]json.RawMessage `json:"cache,omitempty"`
 	EventsTriggered map[string]any             `json:"eventsTriggered,omitempty"`
 	Executions      []*flowExecution           `json:"executions,omitempty"`
 	// The operation is the user-visible part of the state.
-	Operation    *operation[O] `json:"operation,omitempty"`
-	TraceContext string        `json:"traceContext,omitempty"`
+	Operation    *operation[Out] `json:"operation,omitempty"`
+	TraceContext string          `json:"traceContext,omitempty"`
 }
 
-func newFlowState[I, O any](id, name string, input I) *flowState[I, O] {
-	return &flowState[I, O]{
+func newFlowState[In, Out any](id, name string, input In) *flowState[In, Out] {
+	return &flowState[In, Out]{
 		FlowID:    id,
 		FlowName:  name,
 		Input:     input,
 		StartTime: tracing.ToMilliseconds(time.Now()),
 		Cache:     map[string]json.RawMessage{},
-		Operation: &operation[O]{
+		Operation: &operation[Out]{
 			FlowID: id,
 			Done:   false,
 		},
@@ -206,13 +206,13 @@ type flowStater interface {
 }
 
 // isFlowState implements flowStater.
-func (fs *flowState[I, O]) isFlowState()                      {}
-func (fs *flowState[I, O]) lock()                             { fs.mu.Lock() }
-func (fs *flowState[I, O]) unlock()                           { fs.mu.Unlock() }
-func (fs *flowState[I, O]) cache() map[string]json.RawMessage { return fs.Cache }
+func (fs *flowState[In, Out]) isFlowState()                      {}
+func (fs *flowState[In, Out]) lock()                             { fs.mu.Lock() }
+func (fs *flowState[In, Out]) unlock()                           { fs.mu.Unlock() }
+func (fs *flowState[In, Out]) cache() map[string]json.RawMessage { return fs.Cache }
 
 // An operation describes the state of a Flow that may still be in progress.
-type operation[O any] struct {
+type operation[Out any] struct {
 	FlowID string `json:"name,omitempty"`
 	// The step that the flow is blocked on, if any.
 	BlockedOnStep *struct {
@@ -223,8 +223,8 @@ type operation[O any] struct {
 	// If true Result will be non-nil.
 	Done bool `json:"done,omitempty"`
 	// Service-specific metadata associated with the operation. It typically contains progress information and common metadata such as create time.
-	Metadata any            `json:"metadata,omitempty"`
-	Result   *FlowResult[O] `json:"result,omitempty"`
+	Metadata any              `json:"metadata,omitempty"`
+	Result   *FlowResult[Out] `json:"result,omitempty"`
 }
 
 // A FlowResult is the result of a flow: either success, in which case Response is
