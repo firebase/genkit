@@ -91,7 +91,7 @@ describe('Prompt', () => {
       }, ValidationError);
     });
 
-    it('should render with streaming callback', async () => {
+    it('should render with overrided fields', async () => {
       const prompt = testPrompt(`Hello {{name}}, how are you?`);
 
       const streamingCallback = (c) => console.log(c);
@@ -99,8 +99,10 @@ describe('Prompt', () => {
       const rendered = await prompt.render({
         input: { name: 'Michael' },
         streamingCallback,
+        returnToolRequests: true,
       });
       assert.strictEqual(rendered.streamingCallback, streamingCallback);
+      assert.strictEqual(rendered.returnToolRequests, true);
     });
   });
 

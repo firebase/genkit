@@ -176,6 +176,7 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
       },
       tools: (options.tools || []).concat(this.tools || []),
       streamingCallback: options.streamingCallback,
+      returnToolRequests: options.returnToolRequests,
     };
   }
 
