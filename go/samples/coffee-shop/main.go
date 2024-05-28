@@ -21,8 +21,6 @@
 //
 // Tell it to run a flow:
 //
-//  Flow with input:
-//
 //	curl -d '{"key":"/flow/simpleGreeting/simpleGreeting", "input":{"start": {"input":{"customerName": "John Doe"}}}}' http://localhost:3100/api/runAction
 //
 // In production mode (GENKIT_ENV missing or set to "prod"):
@@ -57,9 +55,11 @@ Greet the customer in one sentence, and recommend a coffee drink.
 `
 
 const simpleQaPromptTemplate = `
-You're a helpful agent that answers the user's common questions based on your knowledge.
+You're a helpful agent that answers the user's common questions based on the context provided.
 
-Here is the user's query: {{question}}
+Here is the user's query: {{query}}
+
+Here is the context you should use: {{context}}
 
 Please provide the best answer you can.
 `
@@ -70,6 +70,11 @@ type simpleGreetingInput struct {
 
 type simpleQaInput struct {
 	Question string `json:"question"`
+}
+
+type simpleQaPromptInput struct {
+	Query   string `json:"query"`
+	Context string `json:"context"`
 }
 
 const greetingWithHistoryPromptTemplate = `
@@ -142,7 +147,7 @@ func main() {
 		simpleQaPromptTemplate,
 		&dotprompt.Config{
 			Model:        "google-genai/gemini-1.0-pro",
-			InputSchema:  jsonschema.Reflect(simpleQaInput{}),
+			InputSchema:  jsonschema.Reflect(simpleQaPromptInput{}),
 			OutputFormat: ai.OutputFormatText,
 		},
 	)
@@ -169,7 +174,26 @@ func main() {
 		}
 		localDb.Index(ctx, indexerReq)
 
-		vars, err := simpleGreetingPrompt.BuildVariables(input)
+		dRequest := ai.DocumentFromText(input.Question, nil)
+		retrieverReq := &ai.RetrieverRequest{
+			Document: dRequest,
+		}
+		response, err := localDb.Retrieve(ctx, retrieverReq)
+		if err != nil {
+			return "", err
+		}
+
+		var context string
+		for _, d := range response.Documents {
+			context += d.Content[0].Text() + "\n"
+		}
+
+		promptInput := &simpleQaPromptInput{
+			Query:   input.Question,
+			Context: context,
+		}
+
+		vars, err := simpleQaPrompt.BuildVariables(promptInput)
 		if err != nil {
 			return "", err
 		}
