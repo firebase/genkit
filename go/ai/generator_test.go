@@ -20,35 +20,38 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestValidateCandidate(t *testing.T) {
+func TestValidCandidate(t *testing.T) {
+	t.Parallel()
+
 	t.Run("Valid candidate with text format", func(t *testing.T) {
 		candidate := &Candidate{
 			Message: &Message{
 				Content: []*Part{
-					{Text: "Hello, World!"},
+					NewTextPart("Hello, World!"),
 				},
 			},
 		}
 		outputSchema := &GenerateRequestOutput{
 			Format: OutputFormatText,
 		}
-		err := validateCandidate(candidate, outputSchema)
+		_, err := validCandidate(candidate, outputSchema)
 		assert.NoError(t, err)
 	})
 
 	t.Run("Valid candidate with JSON format and matching schema", func(t *testing.T) {
+		json := `{
+			"name": "John",
+			"age": 30,
+			"address": {
+				"street": "123 Main St",
+				"city": "New York",
+				"country": "USA"
+			}
+		}`
 		candidate := &Candidate{
 			Message: &Message{
 				Content: []*Part{
-					{Text: `{
-						"name": "John",
-						"age": 30,
-						"address": {
-							"street": "123 Main St",
-							"city": "New York",
-							"country": "USA"
-						}
-					}`},
+					NewTextPart(JSONMarkdown(json)),
 				},
 			},
 		}
@@ -73,15 +76,18 @@ func TestValidateCandidate(t *testing.T) {
 				},
 			},
 		}
-		err := validateCandidate(candidate, outputSchema)
+		candidate, err := validCandidate(candidate, outputSchema)
 		assert.NoError(t, err)
+		text, err := candidate.Text()
+		assert.NoError(t, err)
+		assert.EqualValues(t, text, json)
 	})
 
 	t.Run("Invalid candidate with JSON format and non-matching schema", func(t *testing.T) {
 		candidate := &Candidate{
 			Message: &Message{
 				Content: []*Part{
-					{Text: `{"name": "John", "age": "30"}`},
+					NewTextPart(JSONMarkdown(`{"name": "John", "age": "30"}`)),
 				},
 			},
 		}
@@ -95,23 +101,23 @@ func TestValidateCandidate(t *testing.T) {
 				},
 			},
 		}
-		err := validateCandidate(candidate, outputSchema)
+		_, err := validCandidate(candidate, outputSchema)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "candidate did not match expected schema")
+		assert.Contains(t, err.Error(), "data did not match expected schema")
 	})
 
 	t.Run("Candidate with invalid JSON", func(t *testing.T) {
 		candidate := &Candidate{
 			Message: &Message{
 				Content: []*Part{
-					{Text: `{"name": "John", "age": 30`}, // Missing trailing }.
+					NewTextPart(JSONMarkdown(`{"name": "John", "age": 30`)), // Missing trailing }.
 				},
 			},
 		}
 		outputSchema := &GenerateRequestOutput{
 			Format: OutputFormatJSON,
 		}
-		err := validateCandidate(candidate, outputSchema)
+		_, err := validCandidate(candidate, outputSchema)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "candidate did not have valid JSON")
 	})
@@ -121,7 +127,7 @@ func TestValidateCandidate(t *testing.T) {
 		outputSchema := &GenerateRequestOutput{
 			Format: OutputFormatJSON,
 		}
-		err := validateCandidate(candidate, outputSchema)
+		_, err := validCandidate(candidate, outputSchema)
 		assert.Error(t, err)
 		assert.Equal(t, "candidate with no message", err.Error())
 	})
@@ -133,7 +139,7 @@ func TestValidateCandidate(t *testing.T) {
 		outputSchema := &GenerateRequestOutput{
 			Format: OutputFormatJSON,
 		}
-		err := validateCandidate(candidate, outputSchema)
+		_, err := validCandidate(candidate, outputSchema)
 		assert.Error(t, err)
 		assert.Equal(t, "candidate message has no content", err.Error())
 	})
@@ -142,7 +148,7 @@ func TestValidateCandidate(t *testing.T) {
 		candidate := &Candidate{
 			Message: &Message{
 				Content: []*Part{
-					{Text: `{"name": "John", "height": "190"}`},
+					NewTextPart(JSONMarkdown(`{"name": "John", "height": 190}`)),
 				},
 			},
 		}
@@ -157,16 +163,16 @@ func TestValidateCandidate(t *testing.T) {
 				"additionalProperties": false,
 			},
 		}
-		err := validateCandidate(candidate, outputSchema)
+		_, err := validCandidate(candidate, outputSchema)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "candidate did not match expected schema")
+		assert.Contains(t, err.Error(), "data did not match expected schema")
 	})
 
 	t.Run("Invalid expected schema", func(t *testing.T) {
 		candidate := &Candidate{
 			Message: &Message{
 				Content: []*Part{
-					{Text: `{"name": "John", "age": 30}`},
+					NewTextPart(JSONMarkdown(`{"name": "John", "age": 30}`)),
 				},
 			},
 		}
@@ -176,8 +182,12 @@ func TestValidateCandidate(t *testing.T) {
 				"type": "invalid",
 			},
 		}
-		err := validateCandidate(candidate, outputSchema)
+		_, err := validCandidate(candidate, outputSchema)
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to validate expected schema")
+		assert.Contains(t, err.Error(), "failed to validate data against expected schema")
 	})
+}
+
+func JSONMarkdown(text string) string {
+	return "```json\n" + text + "\n```"
 }

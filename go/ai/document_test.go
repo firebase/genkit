@@ -32,7 +32,7 @@ func TestDocumentFromText(t *testing.T) {
 	if !p.IsText() {
 		t.Errorf("IsText() == %t, want %t", p.IsText(), true)
 	}
-	if got := p.Text(); got != data {
+	if got := p.Text; got != data {
 		t.Errorf("Data() == %q, want %q", got, data)
 	}
 }

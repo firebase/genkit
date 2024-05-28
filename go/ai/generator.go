@@ -19,13 +19,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal"
-	"github.com/xeipuuv/gojsonschema"
 )
 
 // Generator is the interface used to query an AI model.
@@ -85,9 +85,9 @@ func Generate(ctx context.Context, g Generator, input *GenerateRequest, cb func(
 			return nil, err
 		}
 
-		candidates := validCandidates(ctx, resp)
-		if len(candidates) == 0 {
-			return nil, errors.New("generation resulted in no candidates matching provided output schema")
+		candidates, err := validCandidates(ctx, resp)
+		if err != nil {
+			return nil, err
 		}
 		resp.Candidates = candidates
 
@@ -140,9 +140,9 @@ func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest,
 			return nil, err
 		}
 
-		candidates := validCandidates(ctx, resp)
-		if len(candidates) == 0 {
-			return nil, errors.New("generation resulted in no candidates matching provided output schema")
+		candidates, err := validCandidates(ctx, resp)
+		if err != nil {
+			return nil, err
 		}
 		resp.Candidates = candidates
 
@@ -175,77 +175,63 @@ func conformOutput(input *GenerateRequest) error {
 
 // validCandidates finds all candidates that match the expected schema.
 // It will strip JSON markdown delimiters from the response.
-func validCandidates(ctx context.Context, resp *GenerateResponse) []*Candidate {
+func validCandidates(ctx context.Context, resp *GenerateResponse) ([]*Candidate, error) {
 	var candidates []*Candidate
 	for i, c := range resp.Candidates {
-		var err error
-		if resp.Request.Output.Format == OutputFormatJSON {
-			var text string
-			text, err = c.Text()
-			if err == nil {
-				text = stripJSONDelimiters(text)
-				// TODO: Replace the text in the candidate with the stripped version.
-				var jsonBytes []byte
-				jsonBytes, err = json.Marshal(resp.Request.Output.Schema)
-				if err == nil {
-					err = core.ValidateRaw([]byte(text), jsonBytes)
-				}
-			}
-		}
+		c, err := validCandidate(c, resp.Request.Output)
 		if err == nil {
 			candidates = append(candidates, c)
 		} else {
-			internal.Logger(ctx).Debug("candidate did not match provided output schema", "index", i, "error", err.Error())
+			internal.Logger(ctx).Debug("candidate did not match expected schema", "index", i, "error", err.Error())
 		}
 	}
-	return candidates
+	if len(candidates) == 0 {
+		return nil, errors.New("generation resulted in no candidates matching expected schema")
+	}
+	return candidates, nil
 }
 
-// validateCandidate will check a candidate against the expected schema.
-// It will return an error if it does not match, otherwise it will return nil.
-func validateCandidate(candidate *Candidate, outputSchema *GenerateRequestOutput) error {
-	if outputSchema.Format != OutputFormatJSON {
-		return nil
-	}
-
-	text, err := candidate.Text()
-	if err != nil {
-		return err
-	}
-
-	text = stripJSONDelimiters(text)
-
-	var jsonData any
-	if err = json.Unmarshal([]byte(text), &jsonData); err != nil {
-		return fmt.Errorf("candidate did not have valid JSON: %w", err)
-	}
-
-	schemaBytes, err := json.Marshal(outputSchema.Schema)
-	if err != nil {
-		return fmt.Errorf("expected schema is not valid: %w", err)
-	}
-
-	schemaLoader := gojsonschema.NewStringLoader(string(schemaBytes))
-	jsonLoader := gojsonschema.NewGoLoader(jsonData)
-	result, err := gojsonschema.Validate(schemaLoader, jsonLoader)
-	if err != nil {
-		return fmt.Errorf("failed to validate expected schema: %w", err)
-	}
-
-	if !result.Valid() {
-		var errMsg string
-		for _, err := range result.Errors() {
-			errMsg += fmt.Sprintf("- %s\n", err)
+// validCandidate will validate the candidate's response against the expected schema.
+// It will return an error if it does not match, otherwise it will return a candidate with pure JSON content.
+func validCandidate(candidate *Candidate, outputSchema *GenerateRequestOutput) (*Candidate, error) {
+	if outputSchema.Format == OutputFormatJSON {
+		text, err := candidate.Text()
+		if err != nil {
+			return nil, err
 		}
-		return fmt.Errorf("candidate did not match expected schema:\n%s", errMsg)
+		text = stripJSONDelimiters(text)
+		log.Printf("alexpascal: %s", text)
+		var schemaBytes []byte
+		schemaBytes, err = json.Marshal(outputSchema.Schema)
+		if err != nil {
+			return nil, fmt.Errorf("expected schema is not valid: %w", err)
+		}
+		if err = core.ValidateRaw([]byte(text), schemaBytes); err != nil {
+			return nil, err
+		}
+		// TODO: Verify that it okay to replace all content with JSON.
+		candidate.Message.Content = []*Part{NewJSONPart(text)}
 	}
-
-	return nil
+	return candidate, nil
 }
 
 // stripJSONDelimiters strips Markdown JSON delimiters that may come back in the response.
 func stripJSONDelimiters(s string) string {
-	return strings.TrimSuffix(strings.TrimPrefix(s, "```json"), "```")
+	s = strings.TrimSpace(s)
+	delimiters := []string{"```", "~~~"}
+	for _, delimiter := range delimiters {
+		if strings.HasPrefix(s, delimiter) && strings.HasSuffix(s, delimiter) {
+			s = strings.TrimPrefix(s, delimiter)
+			s = strings.TrimSuffix(s, delimiter)
+			s = strings.TrimSpace(s)
+			if strings.HasPrefix(s, "json") {
+				s = strings.TrimPrefix(s, "json")
+				s = strings.TrimSpace(s)
+			}
+			break
+		}
+	}
+	return s
 }
 
 // handleToolRequest checks if a tool was requested by a generator.

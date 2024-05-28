@@ -53,6 +53,11 @@ func NewTextPart(text string) *Part {
 	return &Part{Kind: partText, ContentType: "plain/text", Text: text}
 }
 
+// NewJSONPart returns a Part containing JSON.
+func NewJSONPart(text string) *Part {
+	return &Part{Kind: partText, ContentType: "application/json", Text: text}
+}
+
 // NewMediaPart returns a Part containing structured data described
 // by the given mimeType.
 func NewMediaPart(mimeType, contents string) *Part {

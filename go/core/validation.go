@@ -27,7 +27,7 @@ import (
 func ValidateObject(data any, schema *jsonschema.Schema) error {
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
-		return fmt.Errorf("object is not a valid JSON type: %w", err)
+		return fmt.Errorf("data is not a valid JSON type: %w", err)
 	}
 	return ValidateJSON(dataBytes, schema)
 }
@@ -37,7 +37,7 @@ func ValidateObject(data any, schema *jsonschema.Schema) error {
 func ValidateJSON(dataBytes json.RawMessage, schema *jsonschema.Schema) error {
 	schemaBytes, err := schema.MarshalJSON()
 	if err != nil {
-		return fmt.Errorf("schema is not valid: %w", err)
+		return fmt.Errorf("expected schema is not valid: %w", err)
 	}
 	return ValidateRaw(dataBytes, schemaBytes)
 }
@@ -50,7 +50,7 @@ func ValidateRaw(dataBytes json.RawMessage, schemaBytes json.RawMessage) error {
 
 	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to validate data against expected schema: %w", err)
 	}
 
 	if !result.Valid() {
@@ -58,7 +58,7 @@ func ValidateRaw(dataBytes json.RawMessage, schemaBytes json.RawMessage) error {
 		for _, err := range result.Errors() {
 			errors += fmt.Sprintf("- %s\n", err)
 		}
-		return fmt.Errorf("data did not match the schema:\n%s", errors)
+		return fmt.Errorf("data did not match expected schema:\n%s", errors)
 	}
 
 	return nil
