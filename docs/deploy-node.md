@@ -1,7 +1,7 @@
 # Deploy flows to any Node.js platform
 
 Firebase Genkit has built-in integrations that help you deploy your flows to
-Firebase Cloud Functions and Google Cloud Run, but you can also deploy your
+Cloud Functions for Firebase and Google Cloud Run, but you can also deploy your
 flows to any platform that can serve an Express.js app, whether it’s a cloud
 service or self-hosted.
 
@@ -38,7 +38,7 @@ sample flow.
     ```
 
     1. Select `Node.js` as the deployment platform option (templates for
-       Firebase Cloud Functions and Google Cloud Run are also available).
+       Cloud Functions for Firebase and Google Cloud Run are also available).
 
     1. Select your model:
 
