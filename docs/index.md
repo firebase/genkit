@@ -345,14 +345,14 @@ maintained by the Genkit team:
     <th colspan=2>Official plugins</th>
   </tr>
   <tr>
-    <td><code>googleai</code></td>
+    <td><a href="./plugins/google-genai.md"><code>googleai</code></a></td>
     <td>
       <b>Generative models</b>: Gemini Pro, Gemini 1.5 Pro, Gemini Pro Vision<br>
       <b>Embedding models</b>: Gecko text embedding<br>
     </td>
   </tr>
   <tr>
-    <td><code>vertexai</code></td>
+    <td><a href="./plugins/vertex-ai.md"><code>vertexai</code></a></td>
     <td>
       <b>Generative models</b>: Gemini Pro, Gemini Pro Vision, Gemini 1.5 Flash, Gemini 1.5 Pro, Imagen2, Anthropic Claude 3<br>
       <b>Embedding models</b>: Gecko text embedding<br>
@@ -360,38 +360,38 @@ maintained by the Genkit team:
     </td>
   </tr>
   <tr>
-    <td><code>ollama</code></td>
+    <td><a href="./plugins/ollama.md"><code>ollama</code></a></td>
     <td>
       <b>Generative models</b>: Many local models, including Gemma, Llama 3, Mistral, and more<br>
     </td>
   </tr>
   <tr>
-    <td><code>chroma</code></td>
+    <td><a href="./plugins/chroma.md"><code>chroma</code></a></td>
     <td>
       <b>Vector database</b>: ChromaDB<br>
     </td>
   </tr>
   <tr>
-    <td><code>pinecone</code></td>
+    <td><a href="./plugins/pinecone.md"><code>pinecone</code></a></td>
     <td>
       <b>Vector database</b>: Pinecone<br>
     </td>
   </tr>
   <tr>
-    <td><code>google-cloud</code></td>
+    <td><a href="./plugins/google-cloud.md"><code>google-cloud</code></a></td>
     <td>
       <b>Monitoring tools</b>: Google Cloud Trace, Google Cloud Logging<br>
     </td>
   </tr>
   <tr>
-    <td><code>firebase</code></td>
+    <td><a href="./plugins/firebase.md"><code>firebase</code></a></td>
     <td>
       <b>Cloud deployment</b>: Cloud Functions, Firebase Authentication, App Check<br>
       <b>Vector database</b>: Cloud Firestore vector store<br>
     </td>
   </tr>
   <tr>
-    <td><code>langchain</code></td>
+    <td><a href="./plugins/langchain.md"><code>langchain</code></a></td>
     <td>
       Use LangChain chains and utilities in Genkit flows
     </td>
