@@ -35,6 +35,11 @@ const flowCounter = new MetricCounter(_N('requests'), {
   valueType: ValueType.INT,
 });
 
+const variantCounter = new MetricCounter(_N('variants'), {
+  description: 'Tracks unique flow variants per flow.',
+  valueType: ValueType.INT,
+});
+
 const flowLatencies = new MetricHistogram(_N('latency'), {
   description: 'Latencies when calling Genkit flows.',
   valueType: ValueType.DOUBLE,
@@ -53,7 +58,11 @@ export function recordError(err: any) {
   });
 }
 
-export function writeFlowSuccess(flowName: string, latencyMs: number) {
+export function writeFlowSuccess(
+  flowName: string,
+  variants: Set<string>,
+  latencyMs: number
+) {
   const dimensions = {
     name: flowName,
     source: 'ts',
@@ -61,10 +70,28 @@ export function writeFlowSuccess(flowName: string, latencyMs: number) {
   };
   flowCounter.add(1, dimensions);
   flowLatencies.record(latencyMs, dimensions);
+
+  const relevantVariants = Array.from(variants).filter((variant) =>
+    variant.includes(flowName)
+  );
+
+  logger.logStructured(`Variants[/${flowName}]`, {
+    flowName: flowName,
+    variants: relevantVariants,
+  });
+
+  relevantVariants.forEach((variant) =>
+    variantCounter.add(1, {
+      ...dimensions,
+      success: 'success',
+      variant,
+    })
+  );
 }
 
 export function writeFlowFailure(
   flowName: string,
+  variants: Set<string>,
   latencyMs: number,
   err: any
 ) {
@@ -77,6 +104,26 @@ export function writeFlowFailure(
   };
   flowCounter.add(1, dimensions);
   flowLatencies.record(latencyMs, dimensions);
+
+  const path = spanMetadataAls?.getStore()?.path;
+  const relevantVariants = Array.from(variants).filter(
+    (variant) => variant.includes(flowName) && variant !== path
+  );
+
+  // All variants that have succeeded need to be tracked as succeeded.
+  relevantVariants.forEach((variant) =>
+    variantCounter.add(1, {
+      flowName: flowName,
+      success: 'success',
+      variant: variant,
+    })
+  );
+
+  variantCounter.add(1, {
+    flowName: flowName,
+    success: 'failure',
+    variant: path,
+  });
 }
 
 export function logRequest(flowName: string, req: express.Request) {
