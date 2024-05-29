@@ -17,9 +17,19 @@
 //
 //	go run . &
 //
-// Tell it to run an action:
+// Tell it to run a flow:
 //
-//	curl -d '{"key":"/flow/parent/parent", "input":{"start": {"input":null}}}'  http://localhost:3100/api/runAction
+//	curl -d '{"key":"/flow/parent/parent", "input":{"start": {"input":null}}}' http://localhost:3100/api/runAction
+//
+// In production mode (GENKIT_ENV missing or set to "prod"):
+// Start the server listening on port 3400:
+//
+//	go run . &
+//
+// Tell it to run a flow:
+//
+// curl -d '{}' http://localhost:3400/parent
+
 package main
 
 import (
