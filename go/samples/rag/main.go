@@ -125,7 +125,7 @@ func main() {
 
 		var sb strings.Builder
 		for _, d := range response.Documents {
-			sb.WriteString(d.Content[0].Text())
+			sb.WriteString(d.Content[0].Text)
 			sb.WriteByte('\n')
 		}
 

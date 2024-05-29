@@ -72,7 +72,7 @@ func TestGenkit(t *testing.T) {
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
 
-	r, err := newRetriever(ctx, *testAPIKey, indexData.Host, embedder, nil, "")
+	r, err := New(ctx, *testAPIKey, indexData.Host, embedder, nil, "")
 	if err != nil {
 		t.Fatal(err)
 	}

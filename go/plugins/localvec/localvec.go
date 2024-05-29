@@ -34,6 +34,16 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 )
 
+// Init registers all the actions in this package with [ai]'s Register calls.
+func Init(ctx context.Context, dir, name string, embedder ai.Embedder, embedderOptions any) error {
+	r, err := New(ctx, dir, name, embedder, embedderOptions)
+	if err != nil {
+		return err
+	}
+	ai.RegisterRetriever("devLocalVectorStore/"+name, r)
+	return nil
+}
+
 // New returns a new local vector database. This will register a new
 // retriever with genkit, and also return it.
 // This retriever may only be used by a single goroutine at a time.
@@ -43,7 +53,6 @@ func New(ctx context.Context, dir, name string, embedder ai.Embedder, embedderOp
 	if err != nil {
 		return nil, err
 	}
-	ai.RegisterRetriever("devLocalVectorStore/"+name, r)
 	return r, nil
 }
 
