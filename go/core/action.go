@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
-	"reflect"
 	"time"
 
 	"github.com/firebase/genkit/go/core/logger"
@@ -101,8 +100,6 @@ func (a *Action[In, Out, Stream]) setTracingState(tstate *tracing.State) { a.tst
 
 // Run executes the Action's function in a new trace span.
 func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(context.Context, Stream) error) (output Out, err error) {
-	// TODO: validate input against JSONSchema for I.
-	// TODO: validate output against JSONSchema for O.
 	logger.FromContext(ctx).Debug("Action.Run",
 		"name", a.name,
 		"input", fmt.Sprintf("%#v", input))
@@ -120,18 +117,34 @@ func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(con
 	return tracing.RunInNewSpan(ctx, tstate, a.name, "action", false, input,
 		func(ctx context.Context, input In) (Out, error) {
 			start := time.Now()
-			out, err := a.fn(ctx, input, cb)
+			var err error
+			if err = ValidateValue(input, a.inputSchema); err != nil {
+				err = fmt.Errorf("invalid input: %w", err)
+			}
+			var output Out
+			if err == nil {
+				output, err = a.fn(ctx, input, cb)
+				if err == nil {
+					if err = ValidateValue(output, a.outputSchema); err != nil {
+						err = fmt.Errorf("invalid output: %w", err)
+					}
+				}
+			}
 			latency := time.Since(start)
 			if err != nil {
 				writeActionFailure(ctx, a.name, latency, err)
 				return internal.Zero[Out](), err
 			}
 			writeActionSuccess(ctx, a.name, latency)
-			return out, nil
+			return output, nil
 		})
 }
 
 func (a *Action[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error) {
+	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
+	if err := ValidateJSON(input, a.inputSchema); err != nil {
+		return nil, err
+	}
 	var in In
 	if err := json.Unmarshal(input, &in); err != nil {
 		return nil, err
@@ -212,16 +225,8 @@ func (a *Action[I, O, S]) desc() actionDesc {
 }
 
 func inferJSONSchema(x any) (s *jsonschema.Schema) {
-	var r jsonschema.Reflector
-	t := reflect.TypeOf(x)
-	if t.Kind() == reflect.Struct {
-		if t.NumField() == 0 {
-			// Make struct{} correspond to ZodVoid.
-			return &jsonschema.Schema{Type: "null"}
-		}
-		// Put a struct definition at the "top level" of the schema,
-		// instead of nested inside a "$defs" object.
-		r.ExpandedStruct = true
+	r := jsonschema.Reflector{
+		DoNotReference: true,
 	}
 	s = r.Reflect(x)
 	// TODO: Unwind this change once Monaco Editor supports newer than JSON schema draft-07.

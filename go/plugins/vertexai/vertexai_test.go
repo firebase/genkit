@@ -56,7 +56,7 @@ func TestGenerator(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out := resp.Candidates[0].Message.Content[0].Text()
+	out := resp.Candidates[0].Message.Content[0].Text
 	if !strings.Contains(out, "France") {
 		t.Errorf("got \"%s\", expecting it would contain \"France\"", out)
 	}
@@ -128,7 +128,7 @@ func TestGeneratorTool(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out := resp.Candidates[0].Message.Content[0].Text()
+	out := resp.Candidates[0].Message.Content[0].Text
 	if !strings.Contains(out, "12.25") {
 		t.Errorf("got %s, expecting it to contain \"12.25\"", out)
 	}

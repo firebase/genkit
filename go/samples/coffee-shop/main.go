@@ -36,6 +36,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -53,8 +54,21 @@ A regular customer named {{customerName}} enters.
 Greet the customer in one sentence, and recommend a coffee drink.
 `
 
+const simpleStructuredGreetingPromptTemplate = `
+You're a barista at a nice coffee shop.
+A regular customer named {{customerName}} enters.
+Greet the customer in one sentence.
+Provide the name of the drink of the day, nothing else.
+`
+
 type simpleGreetingInput struct {
 	CustomerName string `json:"customerName"`
+}
+
+type simpleGreetingOutput struct {
+	CustomerName string `json:"customerName"`
+	Greeting     string `json:"greeting,omitempty"`
+	DrinkOfDay   string `json:"drinkOfDay"`
 }
 
 const greetingWithHistoryPromptTemplate = `
@@ -91,13 +105,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := googleai.Init(context.Background(), "gemini-1.0-pro", apiKey); err != nil {
+	if err := googleai.Init(context.Background(), "gemini-1.5-pro", apiKey); err != nil {
 		log.Fatal(err)
 	}
 
 	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting", simpleGreetingPromptTemplate,
 		&dotprompt.Config{
-			Model:        "google-genai/gemini-1.0-pro",
+			Model:        "google-genai/gemini-1.5-pro",
 			InputSchema:  jsonschema.Reflect(simpleGreetingInput{}),
 			OutputFormat: ai.OutputFormatText,
 		},
@@ -125,7 +139,7 @@ func main() {
 
 	greetingWithHistoryPrompt, err := dotprompt.Define("greetingWithHistory", greetingWithHistoryPromptTemplate,
 		&dotprompt.Config{
-			Model:        "google-genai/gemini-1.0-pro",
+			Model:        "google-genai/gemini-1.5-pro",
 			InputSchema:  jsonschema.Reflect(customerTimeAndHistoryInput{}),
 			OutputFormat: ai.OutputFormatText,
 		},
@@ -147,6 +161,51 @@ func main() {
 		text, err := resp.Text()
 		if err != nil {
 			return "", fmt.Errorf("greetingWithHistory: %v", err)
+		}
+		return text, nil
+	})
+
+	r := &jsonschema.Reflector{
+		AllowAdditionalProperties: false,
+		DoNotReference:            true,
+	}
+	schema := r.Reflect(simpleGreetingOutput{})
+	jsonBytes, err := schema.MarshalJSON()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var outputSchema map[string]any
+	err = json.Unmarshal(jsonBytes, &outputSchema)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	simpleStructuredGreetingPrompt, err := dotprompt.Define("simpleStructuredGreeting", simpleStructuredGreetingPromptTemplate,
+		&dotprompt.Config{
+			Model:        "google-genai/gemini-1.5-pro",
+			InputSchema:  jsonschema.Reflect(simpleGreetingInput{}),
+			OutputFormat: ai.OutputFormatJSON,
+			OutputSchema: outputSchema,
+		},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	genkit.DefineFlow("simpleStructuredGreeting", func(ctx context.Context, input *simpleGreetingInput, _ genkit.NoStream) (string, error) {
+		vars, err := simpleGreetingPrompt.BuildVariables(input)
+		if err != nil {
+			return "", err
+		}
+		ai := &dotprompt.ActionInput{Variables: vars}
+		resp, err := simpleStructuredGreetingPrompt.Execute(ctx, ai)
+		if err != nil {
+			return "", err
+		}
+		text, err := resp.Text()
+		if err != nil {
+			return "", fmt.Errorf("simpleStructuredGreeting: %v", err)
 		}
 		return text, nil
 	})

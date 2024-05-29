@@ -25,7 +25,7 @@ import (
 type testGenerator struct{}
 
 func (testGenerator) Generate(ctx context.Context, req *ai.GenerateRequest, cb func(context.Context, *ai.Candidate) error) (*ai.GenerateResponse, error) {
-	input := req.Messages[0].Content[0].Text()
+	input := req.Messages[0].Content[0].Text
 	output := fmt.Sprintf("AI reply to %q", input)
 
 	r := &ai.GenerateResponse{
@@ -69,7 +69,7 @@ func TestExecute(t *testing.T) {
 			t.FailNow()
 		}
 	}
-	got := msg.Content[0].Text()
+	got := msg.Content[0].Text
 	want := `AI reply to "TestExecute"`
 	if got != want {
 		t.Errorf("fake generator replied with %q, want %q", got, want)
