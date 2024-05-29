@@ -22,6 +22,7 @@ import {
 import { defineFlow } from '@genkit-ai/flow';
 import { chromaIndexerRef, chromaRetrieverRef } from 'genkitx-chromadb';
 import { pineconeIndexerRef, pineconeRetrieverRef } from 'genkitx-pinecone';
+import { qdrantIndexerRef, qdrantRetrieverRef } from 'genkitx-qdrant';
 import * as z from 'zod';
 import { augmentedPrompt } from './prompt.js';
 
@@ -49,6 +50,16 @@ export const dogFactsIndexer = chromaIndexerRef({
 // Simple aliases for readability
 export const nfsDogFactsRetriever = devLocalRetrieverRef('dog-facts');
 export const nfsDogFactsIndexer = devLocalIndexerRef('dog-facts');
+
+export const knowHowsRetriever = qdrantRetrieverRef({
+  collectionName: 'know-hows',
+  displayName: 'Knowhows retriever',
+});
+
+export const knowHowsIndexer = qdrantIndexerRef({
+  collectionName: 'know-hows',
+  displayName: 'Knowhows indexer',
+});
 
 // Define a simple RAG flow, we will evaluate this flow
 export const askQuestionsAboutCatsFlow = defineFlow(
@@ -100,6 +111,31 @@ export const askQuestionsAboutDogsFlow = defineFlow(
 );
 
 // Define a simple RAG flow, we will evaluate this flow
+// $ genkit flow:run askQuestionsAboutKnowHows '"What does a cake need?"'
+export const askQuestionsAboutKnowHowsFlow = defineFlow(
+  {
+    name: 'askQuestionsAboutKnowHows',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+  },
+  async (query) => {
+    const docs = await retrieve({
+      retriever: knowHowsRetriever,
+      query,
+      options: { k: 3 },
+    });
+    return augmentedPrompt
+      .generate({
+        input: {
+          question: query,
+          context: docs.map((d) => d.text()),
+        },
+      })
+      .then((r) => r.text());
+  }
+);
+
+// Define a simple RAG flow, we will evaluate this flow
 export const indexCatFactsDocumentsFlow = defineFlow(
   {
     name: 'indexCatFactsDocuments',
@@ -131,6 +167,25 @@ export const indexDogFactsDocumentsFlow = defineFlow(
     });
     await index({
       indexer: nfsDogFactsIndexer,
+      documents,
+    });
+  }
+);
+
+// Define a flow to index documents into the "vector store"
+// $ genkit flow:run indexKnowHowsDocuments '["To make a cake, you need flour, sugar, and eggs."]'
+export const indexKnowHowsDocumentsFlow = defineFlow(
+  {
+    name: 'indexKnowHowsDocuments',
+    inputSchema: z.array(z.string()),
+    outputSchema: z.void(),
+  },
+  async (docs) => {
+    const documents = docs.map((text) => {
+      return Document.fromText(text, { type: 'description' });
+    });
+    await index({
+      indexer: knowHowsIndexer,
       documents,
     });
   }

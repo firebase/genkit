@@ -29,6 +29,7 @@ import {
 import { chroma } from 'genkitx-chromadb';
 import { langchain } from 'genkitx-langchain';
 import { pinecone } from 'genkitx-pinecone';
+import { qdrant } from 'genkitx-qdrant';
 
 export default configureGenkit({
   plugins: [
@@ -93,6 +94,16 @@ export default configureGenkit({
       },
       {
         indexName: 'pdfQA',
+        embedder: textEmbeddingGecko,
+      },
+    ]),
+    qdrant([
+      {
+        clientParams: {
+          host: 'localhost',
+          port: 6333,
+        },
+        collectionName: 'know-hows',
         embedder: textEmbeddingGecko,
       },
     ]),

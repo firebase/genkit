@@ -102,6 +102,7 @@ following plugins are officially supported:
 - [Cloud Firestore vector store](plugins/firebase.md)
 - [Chroma DB](plugins/chroma.md) vector database
 - [Pinecone](plugins/pinecone.md) cloud vector database
+- [Qdrant](plugins/qdrant.md/) vector database/search engine
 
 In addition, Genkit supports the following vector stores through predefined
 code templates, which you can customize for your database configuration and

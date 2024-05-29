@@ -71,6 +71,8 @@ toc:
     path: /docs/genkit/plugins/pinecone
   - title: pgvector (code template)
     path: /docs/genkit/templates/pgvector
+  - title: Qdrant
+    path: /docs/genkit/plugins/qdrant
   - title: Firebase
     path: /docs/genkit/plugins/firebase
   - title: Google Cloud

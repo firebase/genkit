@@ -488,7 +488,7 @@ importers:
         version: link:../../flow
       '@langchain/community':
         specifier: ^0.0.53
-        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
+        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(@qdrant/js-client-rest@1.9.0(typescript@4.9.5))(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
       '@langchain/core':
         specifier: ^0.1.61
         version: 0.1.61
@@ -497,7 +497,7 @@ importers:
         version: 1.8.0
       langchain:
         specifier: ^0.1.36
-        version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
+        version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(@qdrant/js-client-rest@1.9.0(typescript@4.9.5))(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -557,6 +557,43 @@ importers:
       ts-md5:
         specifier: ^1.3.1
         version: 1.3.1
+      zod:
+        specifier: ^3.22.4
+        version: 3.22.4
+    devDependencies:
+      '@types/node':
+        specifier: ^20.11.16
+        version: 20.11.30
+      npm-run-all:
+        specifier: ^4.1.5
+        version: 4.1.5
+      tsup:
+        specifier: ^8.0.2
+        version: 8.0.2(typescript@4.9.5)
+      tsx:
+        specifier: ^4.7.0
+        version: 4.7.1
+      typescript:
+        specifier: ^4.9.0
+        version: 4.9.5
+
+  plugins/qdrant:
+    dependencies:
+      '@genkit-ai/ai':
+        specifier: workspace:*
+        version: link:../../ai
+      '@genkit-ai/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@qdrant/js-client-rest':
+        specifier: ^1.9.0
+        version: 1.9.0(typescript@4.9.5)
+      ts-md5:
+        specifier: ^1.3.1
+        version: 1.3.1
+      uuid:
+        specifier: ^9.0.1
+        version: 9.0.1
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -1003,7 +1040,7 @@ importers:
         version: link:../../plugins/vertexai
       '@langchain/community':
         specifier: ^0.0.53
-        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
+        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(@qdrant/js-client-rest@1.9.0(typescript@5.4.5))(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
       '@langchain/core':
         specifier: ^0.1.61
         version: 0.1.61
@@ -1021,7 +1058,7 @@ importers:
         version: link:../../plugins/ollama
       langchain:
         specifier: ^0.1.36
-        version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
+        version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(@qdrant/js-client-rest@1.9.0(typescript@5.4.5))(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
       pdf-parse:
         specifier: ^1.1.1
         version: 1.1.1
@@ -1158,6 +1195,9 @@ importers:
       genkitx-pinecone:
         specifier: workspace:*
         version: link:../../plugins/pinecone
+      genkitx-qdrant:
+        specifier: workspace:*
+        version: link:../../plugins/qdrant
       llm-chunk:
         specifier: ^0.0.1
         version: 0.0.1
@@ -2254,6 +2294,16 @@ packages:
   '@protobufjs/utf8@1.1.0':
     resolution: {integrity: sha512-Vvn3zZrhQZkkBE8LSuW3em98c0FwgO4nxzv6OdSxPKJIEKY2bGbHn+mhGIPerzI4twdxaP8/0+06HBpwf345Lw==}
 
+  '@qdrant/js-client-rest@1.9.0':
+    resolution: {integrity: sha512-YiX/IskbRCoAY2ujyPDI6FBcO0ygAS4pgkGaJ7DcrJFh4SZV2XHs+u0KM7mO72RWJn1eJQFF2PQwxG+401xxJg==}
+    engines: {node: '>=18.0.0', pnpm: '>=8'}
+    peerDependencies:
+      typescript: '>=4.7'
+
+  '@qdrant/openapi-typescript-fetch@1.2.6':
+    resolution: {integrity: sha512-oQG/FejNpItrxRHoyctYvT3rwGZOnK4jr3JdppO/c78ktDvkWiPXPHNsrDf33K9sZdRb6PR7gi4noIapu5q4HA==}
+    engines: {node: '>=18.0.0', pnpm: '>=8'}
+
   '@rollup/rollup-android-arm-eabi@4.13.2':
     resolution: {integrity: sha512-3XFIDKWMFZrMnao1mJhnOT1h2g0169Os848NhhmGweEcfJ4rCi+3yMCOLG4zA61rbJdkcrM/DjVZm9Hg5p5w7g==}
     cpu: [arm]
@@ -2328,6 +2378,9 @@ packages:
     resolution: {integrity: sha512-7h7J2nokcdPePdKykd8wtc8QqqkqxIrUz7MHj6aNr8waBRU//NLDVnNjQnqQO6fqtjrtCdftpbTuOKAyrAQETQ==}
     cpu: [x64]
     os: [win32]
+
+  '@sevinf/maybe@0.5.0':
+    resolution: {integrity: sha512-ARhyoYDnY1LES3vYI0fiG6e9esWfTNcXcO6+MPJJXcnyMV3bim4lnFt45VXouV7y82F4x3YH8nOQ6VztuvUiWg==}
 
   '@sideway/address@4.1.5':
     resolution: {integrity: sha512-IqO/DUQHUkPeixNQ8n0JA6102hT9CmaljNTPmQ1u8MEhBo/R4Q8eKLN/vGZxuebwOroDB4cbpjheD4+/sKFK4Q==}
@@ -4649,6 +4702,10 @@ packages:
   undici-types@5.26.5:
     resolution: {integrity: sha512-JlCMO+ehdEIKqlFxk6IfVoAUVmgz7cU7zD/h9XZ0qzeosSHmUJVOzSQvvYSYWXkFXC+IfLKSIffhv0sVZup6pA==}
 
+  undici@5.28.4:
+    resolution: {integrity: sha512-72RFADWFqKmUb2hmmvNODKL3p9hcB6Gt2DOQMis1SEBaV6a4MH8soBvzg+95CYhCKPFedut2JY9bMfrDl9D23g==}
+    engines: {node: '>=14.0'}
+
   unpipe@1.0.0:
     resolution: {integrity: sha512-pjy2bYhSsufwWlKwPc+l3cN7+wuJlK6uz0YdJEOlQDbl6jo/YlPi4mb8agUkVC8BF7V8NuzeyPNqRksA3hztKQ==}
     engines: {node: '>= 0.8'}
@@ -5188,7 +5245,7 @@ snapshots:
 
   '@js-sdsl/ordered-map@4.4.2': {}
 
-  '@langchain/community@0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)':
+  '@langchain/community@0.0.53(@pinecone-database/pinecone@2.2.0)(@qdrant/js-client-rest@1.9.0(typescript@4.9.5))(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)':
     dependencies:
       '@langchain/core': 0.1.61
       '@langchain/openai': 0.0.28(encoding@0.1.13)
@@ -5200,6 +5257,27 @@ snapshots:
       zod-to-json-schema: 3.22.5(zod@3.22.4)
     optionalDependencies:
       '@pinecone-database/pinecone': 2.2.0
+      '@qdrant/js-client-rest': 1.9.0(typescript@4.9.5)
+      chromadb: 1.8.1(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13))
+      firebase-admin: 12.1.0(encoding@0.1.13)
+      google-auth-library: 8.9.0(encoding@0.1.13)
+      jsonwebtoken: 9.0.2
+    transitivePeerDependencies:
+      - encoding
+
+  '@langchain/community@0.0.53(@pinecone-database/pinecone@2.2.0)(@qdrant/js-client-rest@1.9.0(typescript@5.4.5))(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)':
+    dependencies:
+      '@langchain/core': 0.1.61
+      '@langchain/openai': 0.0.28(encoding@0.1.13)
+      expr-eval: 2.0.2
+      flat: 5.0.2
+      langsmith: 0.1.14
+      uuid: 9.0.1
+      zod: 3.22.4
+      zod-to-json-schema: 3.22.5(zod@3.22.4)
+    optionalDependencies:
+      '@pinecone-database/pinecone': 2.2.0
+      '@qdrant/js-client-rest': 1.9.0(typescript@5.4.5)
       chromadb: 1.8.1(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13))
       firebase-admin: 12.1.0(encoding@0.1.13)
       google-auth-library: 8.9.0(encoding@0.1.13)
@@ -5882,6 +5960,23 @@ snapshots:
 
   '@protobufjs/utf8@1.1.0': {}
 
+  '@qdrant/js-client-rest@1.9.0(typescript@4.9.5)':
+    dependencies:
+      '@qdrant/openapi-typescript-fetch': 1.2.6
+      '@sevinf/maybe': 0.5.0
+      typescript: 4.9.5
+      undici: 5.28.4
+
+  '@qdrant/js-client-rest@1.9.0(typescript@5.4.5)':
+    dependencies:
+      '@qdrant/openapi-typescript-fetch': 1.2.6
+      '@sevinf/maybe': 0.5.0
+      typescript: 5.4.5
+      undici: 5.28.4
+    optional: true
+
+  '@qdrant/openapi-typescript-fetch@1.2.6': {}
+
   '@rollup/rollup-android-arm-eabi@4.13.2':
     optional: true
 
@@ -5926,6 +6021,8 @@ snapshots:
 
   '@rollup/rollup-win32-x64-msvc@4.13.2':
     optional: true
+
+  '@sevinf/maybe@0.5.0': {}
 
   '@sideway/address@4.1.5':
     dependencies:
@@ -7483,10 +7580,109 @@ snapshots:
 
   kuler@2.0.0: {}
 
-  langchain@0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1):
+  langchain@0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(@qdrant/js-client-rest@1.9.0(typescript@4.9.5))(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1):
     dependencies:
       '@anthropic-ai/sdk': 0.9.1(encoding@0.1.13)
-      '@langchain/community': 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
+      '@langchain/community': 0.0.53(@pinecone-database/pinecone@2.2.0)(@qdrant/js-client-rest@1.9.0(typescript@4.9.5))(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
+      '@langchain/core': 0.1.61
+      '@langchain/openai': 0.0.28(encoding@0.1.13)
+      '@langchain/textsplitters': 0.0.0
+      binary-extensions: 2.3.0
+      js-tiktoken: 1.0.11
+      js-yaml: 4.1.0
+      jsonpointer: 5.0.1
+      langchainhub: 0.0.8
+      langsmith: 0.1.14
+      ml-distance: 4.0.1
+      openapi-types: 12.1.3
+      p-retry: 4.6.2
+      uuid: 9.0.1
+      yaml: 2.4.1
+      zod: 3.22.4
+      zod-to-json-schema: 3.22.5(zod@3.22.4)
+    optionalDependencies:
+      '@google-cloud/storage': 7.10.1(encoding@0.1.13)
+      '@pinecone-database/pinecone': 2.2.0
+      chromadb: 1.8.1(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13))
+      fast-xml-parser: 4.3.6
+      google-auth-library: 8.9.0(encoding@0.1.13)
+      handlebars: 4.7.8
+      ignore: 5.3.1
+      pdf-parse: 1.1.1
+    transitivePeerDependencies:
+      - '@aws-crypto/sha256-js'
+      - '@aws-sdk/client-bedrock-agent-runtime'
+      - '@aws-sdk/client-bedrock-runtime'
+      - '@aws-sdk/client-dynamodb'
+      - '@aws-sdk/client-kendra'
+      - '@aws-sdk/client-lambda'
+      - '@azure/search-documents'
+      - '@clickhouse/client'
+      - '@cloudflare/ai'
+      - '@datastax/astra-db-ts'
+      - '@elastic/elasticsearch'
+      - '@getmetal/metal-sdk'
+      - '@getzep/zep-js'
+      - '@gradientai/nodejs-sdk'
+      - '@huggingface/inference'
+      - '@mozilla/readability'
+      - '@neondatabase/serverless'
+      - '@opensearch-project/opensearch'
+      - '@planetscale/database'
+      - '@premai/prem-sdk'
+      - '@qdrant/js-client-rest'
+      - '@raycast/api'
+      - '@rockset/client'
+      - '@smithy/eventstream-codec'
+      - '@smithy/protocol-http'
+      - '@smithy/signature-v4'
+      - '@smithy/util-utf8'
+      - '@supabase/postgrest-js'
+      - '@tensorflow-models/universal-sentence-encoder'
+      - '@tensorflow/tfjs-converter'
+      - '@tensorflow/tfjs-core'
+      - '@upstash/redis'
+      - '@upstash/vector'
+      - '@vercel/postgres'
+      - '@writerai/writer-sdk'
+      - '@xenova/transformers'
+      - '@zilliz/milvus2-sdk-node'
+      - better-sqlite3
+      - cassandra-driver
+      - cborg
+      - closevector-common
+      - closevector-node
+      - closevector-web
+      - cohere-ai
+      - discord.js
+      - dria
+      - duck-duck-scrape
+      - encoding
+      - firebase-admin
+      - googleapis
+      - hnswlib-node
+      - interface-datastore
+      - it-all
+      - jsonwebtoken
+      - llmonitor
+      - lodash
+      - lunary
+      - mysql2
+      - neo4j-driver
+      - pg
+      - pg-copy-streams
+      - pickleparser
+      - portkey-ai
+      - replicate
+      - typesense
+      - usearch
+      - vectordb
+      - voy-search
+
+  langchain@0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(@qdrant/js-client-rest@1.9.0(typescript@5.4.5))(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1):
+    dependencies:
+      '@anthropic-ai/sdk': 0.9.1(encoding@0.1.13)
+      '@langchain/community': 0.0.53(@pinecone-database/pinecone@2.2.0)(@qdrant/js-client-rest@1.9.0(typescript@5.4.5))(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
       '@langchain/core': 0.1.61
       '@langchain/openai': 0.0.28(encoding@0.1.13)
       '@langchain/textsplitters': 0.0.0
@@ -8574,6 +8770,10 @@ snapshots:
       which-boxed-primitive: 1.0.2
 
   undici-types@5.26.5: {}
+
+  undici@5.28.4:
+    dependencies:
+      '@fastify/busboy': 2.1.1
 
   unpipe@1.0.0: {}
 

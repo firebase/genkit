@@ -378,6 +378,12 @@ maintained by the Genkit team:
     </td>
   </tr>
   <tr>
+    <td><a href="./plugins/qdrant.md"><code>qdrant</code></a></td>
+    <td>
+      <b>Vector database</b>: Qdrant<br>
+    </td>
+  </tr>
+  <tr>
     <td><a href="./plugins/google-cloud.md"><code>google-cloud</code></a></td>
     <td>
       <b>Monitoring tools</b>: Google Cloud Trace, Google Cloud Logging<br>
