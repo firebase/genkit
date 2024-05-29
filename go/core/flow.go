@@ -89,12 +89,12 @@ import (
 // A Flow[In, Out, Stream] represents a function from In to Out. The Stream parameter is for
 // flows that support streaming: providing their results incrementally.
 type Flow[In, Out, Stream any] struct {
-	name       string                // The last component of the flow's key in the registry.
-	fn         Func[In, Out, Stream] // The function to run.
-	stateStore FlowStateStore        // Where FlowStates are stored, to support resumption.
-	tstate     *tracing.State        // set from the action when the flow is defined
-	inputSchema  *jsonschema.Schema // Schema of the input to the flow
-	outputSchema *jsonschema.Schema // Schema of the output out of the flow
+	name         string                // The last component of the flow's key in the registry.
+	fn           Func[In, Out, Stream] // The function to run.
+	stateStore   FlowStateStore        // Where FlowStates are stored, to support resumption.
+	tstate       *tracing.State        // set from the action when the flow is defined
+	inputSchema  *jsonschema.Schema    // Schema of the input to the flow
+	outputSchema *jsonschema.Schema    // Schema of the output out of the flow
 	// TODO(jba): scheduler
 	// TODO(jba): experimentalDurable
 	// TODO(jba): authPolicy
@@ -107,11 +107,11 @@ func DefineFlow[In, Out, Stream any](name string, fn Func[In, Out, Stream]) *Flo
 }
 
 func defineFlow[In, Out, Stream any](r *registry, name string, fn Func[In, Out, Stream]) *Flow[In, Out, Stream] {
-  var i In
+	var i In
 	var o Out
 	f := &Flow[In, Out, Stream]{
-		name: name,
-		fn:   fn,
+		name:         name,
+		fn:           fn,
 		inputSchema:  inferJSONSchema(i),
 		outputSchema: inferJSONSchema(o),
 		// TODO(jba): set stateStore?
@@ -295,7 +295,7 @@ type flow interface {
 func (f *Flow[In, Out, Stream]) Name() string { return f.name }
 
 func (f *Flow[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMessage, cb streamingCallback[json.RawMessage]) (json.RawMessage, error) {
-  // Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
+	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
 	if err := ValidateJSON(input, f.inputSchema); err != nil {
 		return nil, &httpError{http.StatusBadRequest, err}
 	}
@@ -382,7 +382,7 @@ func (f *Flow[In, Out, Stream]) execute(ctx context.Context, state *flowState[In
 		if err = ValidateValue(input, f.inputSchema); err != nil {
 			err = fmt.Errorf("invalid input: %w", err)
 		}
-		var output O
+		var output Out
 		if err == nil {
 			output, err = f.fn(ctx, input, cb)
 			if err == nil {

@@ -121,7 +121,7 @@ func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(con
 			if err = ValidateValue(input, a.inputSchema); err != nil {
 				err = fmt.Errorf("invalid input: %w", err)
 			}
-			var output O
+			var output Out
 			if err == nil {
 				output, err = a.fn(ctx, input, cb)
 				if err == nil {
@@ -145,7 +145,7 @@ func (a *Action[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMes
 	if err := ValidateJSON(input, a.inputSchema); err != nil {
 		return nil, err
 	}
-  var in In
+	var in In
 	if err := json.Unmarshal(input, &in); err != nil {
 		return nil, err
 	}
