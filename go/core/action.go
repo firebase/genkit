@@ -124,7 +124,7 @@ func (a *Action[I, O, S]) Run(ctx context.Context, input I, cb func(context.Cont
 			var output O
 			if err == nil {
 				output, err = a.fn(ctx, input, cb)
-				if err != nil {
+				if err == nil {
 					if err = ValidateValue(output, a.outputSchema); err != nil {
 						err = fmt.Errorf("invalid output: %w", err)
 					}

@@ -35,7 +35,7 @@ func TestValidCandidate(t *testing.T) {
 		}
 		_, err := validCandidate(candidate, outputSchema)
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 	})
 
@@ -79,14 +79,14 @@ func TestValidCandidate(t *testing.T) {
 		}
 		candidate, err := validCandidate(candidate, outputSchema)
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		text, err := candidate.Text()
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		if text != json {
-			t.Errorf("mismatch (-want, +got) -%s +%s", json, text)
+			t.Fatalf("got %q, want %q", json, text)
 		}
 	})
 
