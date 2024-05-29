@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
-	"reflect"
 	"time"
 
 	"github.com/firebase/genkit/go/core/logger"
@@ -229,16 +228,6 @@ func (a *Action[I, O, S]) desc() actionDesc {
 func inferJSONSchema(x any) (s *jsonschema.Schema) {
 	r := jsonschema.Reflector{
 		DoNotReference: true,
-	}
-	t := reflect.TypeOf(x)
-	if t.Kind() == reflect.Struct {
-		if t.NumField() == 0 {
-			// Make struct{} correspond to ZodVoid.
-			return &jsonschema.Schema{Type: "null"}
-		}
-		// Put a struct definition at the "top level" of the schema,
-		// instead of nested inside a "$defs" object.
-		r.ExpandedStruct = true
 	}
 	s = r.Reflect(x)
 	// TODO: Unwind this change once Monaco Editor supports newer than JSON schema draft-07.
