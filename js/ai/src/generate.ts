@@ -39,7 +39,7 @@ import {
   ModelReference,
   Part,
   Role,
-  ToolRequestPart,
+  ToolRequest,
   ToolResponsePart,
 } from './model.js';
 import * as telemetry from './telemetry.js';
@@ -109,10 +109,10 @@ export class Message<T = unknown> implements MessageData {
    * Returns all tool request found in this message.
    * @returns Array of all tool request found in this message.
    */
-  toolRequests(): ToolRequestPart[] {
-    return this.content.filter(
-      (part) => !!part.toolRequest
-    ) as ToolRequestPart[];
+  toolRequests(): ToolRequest[] {
+    return this.content
+      .filter((part) => !!part.toolRequest)
+      .map((part) => part.toolRequest!);
   }
 
   /**
@@ -198,7 +198,7 @@ export class Candidate<O = unknown> implements CandidateData {
    * Returns all tool request found in this candidate.
    * @returns Array of all tool request found in this candidate.
    */
-  toolRequests(): ToolRequestPart[] {
+  toolRequests(): ToolRequest[] {
     return this.message.toolRequests();
   }
 
@@ -314,7 +314,7 @@ export class GenerateResponse<O = unknown> implements GenerateResponseData {
    * @param index The candidate index from which to extract tool requests, defaults to first candidate.
    * @returns Array of all tool request found in the candidate.
    */
-  toolRequests(index: number = 0): ToolRequestPart[] {
+  toolRequests(index: number = 0): ToolRequest[] {
     return this.candidates[index].toolRequests();
   }
 
@@ -393,10 +393,10 @@ export class GenerateResponseChunk<T = unknown>
    * Returns all tool request found in this chunk.
    * @returns Array of all tool request found in this chunk.
    */
-  toolRequests(): ToolRequestPart[] {
-    return this.content.filter(
-      (part) => !!part.toolRequest
-    ) as ToolRequestPart[];
+  toolRequests(): ToolRequest[] {
+    return this.content
+      .filter((part) => !!part.toolRequest)
+      .map((part) => part.toolRequest!);
   }
 
   toJSON(): GenerateResponseChunkData {

@@ -62,16 +62,19 @@ export const MediaPartSchema = EmptyPartSchema.extend({
 });
 export type MediaPart = z.infer<typeof MediaPartSchema>;
 
+export const ToolRequestSchema = z.object({
+  /** The call id or reference for a specific request. */
+  ref: z.string().optional(),
+  /** The name of the tool to call. */
+  name: z.string(),
+  /** The input parameters for the tool, usually a JSON object. */
+  input: z.unknown().optional(),
+});
+export type ToolRequest = z.infer<typeof ToolRequestSchema>;
+
 export const ToolRequestPartSchema = EmptyPartSchema.extend({
   /** A request for a tool to be executed, usually provided by a model. */
-  toolRequest: z.object({
-    /** The call id or reference for a specific request. */
-    ref: z.string().optional(),
-    /** The name of the tool to call. */
-    name: z.string(),
-    /** The input parameters for the tool, usually a JSON object. */
-    input: z.unknown().optional(),
-  }),
+  toolRequest: ToolRequestSchema,
 });
 export type ToolRequestPart = z.infer<typeof ToolRequestPartSchema>;
 
