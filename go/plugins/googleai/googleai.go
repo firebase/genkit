@@ -87,7 +87,11 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 			}
 			schema.Properties[k] = &genai.Schema{Type: typ}
 		}
-		fd := &genai.FunctionDeclaration{Name: t.Name, Parameters: schema}
+		fd := &genai.FunctionDeclaration{
+			Name:        t.Name,
+			Parameters:  schema,
+			Description: t.Description,
+		}
 		gm.Tools = append(gm.Tools, &genai.Tool{FunctionDeclarations: []*genai.FunctionDeclaration{fd}})
 	}
 	// TODO: gm.ToolConfig?
