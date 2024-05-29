@@ -137,8 +137,9 @@ type mediaPartMedia struct {
 
 // Message is the contents of a model response.
 type Message struct {
-	Content []*Part `json:"content,omitempty"`
-	Role    Role    `json:"role,omitempty"`
+	Content  []*Part `json:"content,omitempty"`
+	Role     Role    `json:"role,omitempty"`
+	Editable bool    `json:"editable,omitempty"`
 }
 
 type ModelInfo struct {
