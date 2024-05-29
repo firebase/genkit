@@ -39,6 +39,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -70,7 +71,7 @@ type simpleQaPromptInput struct {
 func main() {
 	apiKey := os.Getenv("GOOGLE_GENAI_API_KEY")
 	if apiKey == "" {
-		fmt.Fprintln(os.Stderr, "coffee-shop example requires setting GOOGLE_GENAI_API_KEY in the environment.")
+		fmt.Fprintln(os.Stderr, "rag example requires setting GOOGLE_GENAI_API_KEY in the environment.")
 		fmt.Fprintln(os.Stderr, "You can get an API key at https://ai.google.dev.")
 		os.Exit(1)
 	}
@@ -95,7 +96,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	localDb, err := localvec.New(context.Background(), "/tmp/", "simpleQa", embedder, nil)
+	localDb, err := localvec.New(context.Background(), os.TempDir(), "simpleQa", embedder, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -108,7 +109,10 @@ func main() {
 		indexerReq := &ai.IndexerRequest{
 			Documents: []*ai.Document{d1, d2, d3},
 		}
-		localDb.Index(ctx, indexerReq)
+		err := localDb.Index(ctx, indexerReq)
+		if err != nil {
+			return "", err
+		}
 
 		dRequest := ai.DocumentFromText(input.Question, nil)
 		retrieverReq := &ai.RetrieverRequest{
@@ -119,14 +123,15 @@ func main() {
 			return "", err
 		}
 
-		var context string
+		var sb strings.Builder
 		for _, d := range response.Documents {
-			context += d.Content[0].Text() + "\n"
+			sb.WriteString(d.Content[0].Text())
+			sb.WriteByte('\n')
 		}
 
 		promptInput := &simpleQaPromptInput{
 			Query:   input.Question,
-			Context: context,
+			Context: sb.String(),
 		}
 
 		vars, err := simpleQaPrompt.BuildVariables(promptInput)
