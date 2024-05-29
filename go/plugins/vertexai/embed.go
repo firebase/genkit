@@ -35,8 +35,8 @@ type embedder struct {
 	client    *aiplatform.PredictionClient
 }
 
-// EmbedOptions is options for the Vertex AI embedder.
-// Set [ai.EmbedRequest].Options to a value of type &EmbedOptions.
+// EmbedOptions are options for the Vertex AI embedder.
+// Set [ai.EmbedRequest.Options] to a value of type *[EmbedOptions].
 type EmbedOptions struct {
 	// Document title.
 	Title string `json:"title,omitempty"`
