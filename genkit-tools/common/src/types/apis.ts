@@ -93,6 +93,7 @@ export const CreatePromptRequestSchema = z.object({
   model: z.string(),
   messages: z.array(MessageSchema),
   config: GenerationCommonConfigSchema.passthrough().optional(),
+  toolNames: z.array(z.string()).optional(),
 });
 
 export type CreatePromptRequest = z.infer<typeof CreatePromptRequestSchema>;
