@@ -149,7 +149,7 @@ func (r *retriever) Index(ctx context.Context, req *ai.IndexerRequest) error {
 		// but it loses the structure of the document.
 		var sb strings.Builder
 		for _, p := range doc.Content {
-			sb.WriteString(p.Text())
+			sb.WriteString(p.Text)
 		}
 		metadata[r.textKey] = sb.String()
 

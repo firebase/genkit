@@ -28,6 +28,7 @@ import (
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
 	"github.com/google/uuid"
+	"github.com/invopop/jsonschema"
 	otrace "go.opentelemetry.io/otel/trace"
 )
 
@@ -88,10 +89,12 @@ import (
 // A Flow[In, Out, Stream] represents a function from In to Out. The Stream parameter is for
 // flows that support streaming: providing their results incrementally.
 type Flow[In, Out, Stream any] struct {
-	name       string                // The last component of the flow's key in the registry.
-	fn         Func[In, Out, Stream] // The function to run.
-	stateStore FlowStateStore        // Where FlowStates are stored, to support resumption.
-	tstate     *tracing.State        // set from the action when the flow is defined
+	name         string                // The last component of the flow's key in the registry.
+	fn           Func[In, Out, Stream] // The function to run.
+	stateStore   FlowStateStore        // Where FlowStates are stored, to support resumption.
+	tstate       *tracing.State        // set from the action when the flow is defined
+	inputSchema  *jsonschema.Schema    // Schema of the input to the flow
+	outputSchema *jsonschema.Schema    // Schema of the output out of the flow
 	// TODO(jba): scheduler
 	// TODO(jba): experimentalDurable
 	// TODO(jba): authPolicy
@@ -104,9 +107,13 @@ func DefineFlow[In, Out, Stream any](name string, fn Func[In, Out, Stream]) *Flo
 }
 
 func defineFlow[In, Out, Stream any](r *registry, name string, fn Func[In, Out, Stream]) *Flow[In, Out, Stream] {
+	var i In
+	var o Out
 	f := &Flow[In, Out, Stream]{
-		name: name,
-		fn:   fn,
+		name:         name,
+		fn:           fn,
+		inputSchema:  inferJSONSchema(i),
+		outputSchema: inferJSONSchema(o),
 		// TODO(jba): set stateStore?
 	}
 	a := f.action()
@@ -171,9 +178,8 @@ type flowState[In, Out any] struct {
 	FlowID   string `json:"flowId,omitempty"`
 	FlowName string `json:"name,omitempty"`
 	// start time in milliseconds since the epoch
-	StartTime tracing.Milliseconds `json:"startTime,omitempty"`
-	Input     In                   `json:"input,omitempty"`
-
+	StartTime       tracing.Milliseconds `json:"startTime,omitempty"`
+	Input           In                   `json:"input,omitempty"`
 	mu              sync.Mutex
 	Cache           map[string]json.RawMessage `json:"cache,omitempty"`
 	EventsTriggered map[string]any             `json:"eventsTriggered,omitempty"`
@@ -244,11 +250,9 @@ type FlowResult[Out any] struct {
 
 // action creates an action for the flow. See the comment at the top of this file for more information.
 func (f *Flow[In, Out, Stream]) action() *Action[*flowInstruction[In], *flowState[In, Out], Stream] {
-	var i In
-	var o Out
 	metadata := map[string]any{
-		"inputSchema":  inferJSONSchema(i),
-		"outputSchema": inferJSONSchema(o),
+		"inputSchema":  f.inputSchema,
+		"outputSchema": f.outputSchema,
 	}
 	cback := func(ctx context.Context, inst *flowInstruction[In], cb func(context.Context, Stream) error) (*flowState[In, Out], error) {
 		tracing.SetCustomMetadataAttr(ctx, "flow:wrapperAction", "true")
@@ -291,6 +295,10 @@ type flow interface {
 func (f *Flow[In, Out, Stream]) Name() string { return f.name }
 
 func (f *Flow[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMessage, cb streamingCallback[json.RawMessage]) (json.RawMessage, error) {
+	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
+	if err := ValidateJSON(input, f.inputSchema); err != nil {
+		return nil, &httpError{http.StatusBadRequest, err}
+	}
 	var in In
 	if err := json.Unmarshal(input, &in); err != nil {
 		return nil, &httpError{http.StatusBadRequest, err}
@@ -370,7 +378,19 @@ func (f *Flow[In, Out, Stream]) execute(ctx context.Context, state *flowState[In
 		// TODO(jba): Save rootSpanContext in the state.
 		// TODO(jba): If input is missing, get it from state.input and overwrite metadata.input.
 		start := time.Now()
-		output, err := f.fn(ctx, input, cb)
+		var err error
+		if err = ValidateValue(input, f.inputSchema); err != nil {
+			err = fmt.Errorf("invalid input: %w", err)
+		}
+		var output Out
+		if err == nil {
+			output, err = f.fn(ctx, input, cb)
+			if err == nil {
+				if err = ValidateValue(output, f.outputSchema); err != nil {
+					err = fmt.Errorf("invalid output: %w", err)
+				}
+			}
+		}
 		latency := time.Since(start)
 		if err != nil {
 			// TODO(jba): handle InterruptError
@@ -533,7 +553,6 @@ func RunFlow[In, Out, Stream any](ctx context.Context, flow *Flow[In, Out, Strea
 // InternalStreamFlow is for use by genkit.StreamFlow exclusively.
 // It is not subject to any backwards compatibility guarantees.
 func InternalStreamFlow[In, Out, Stream any](ctx context.Context, flow *Flow[In, Out, Stream], input In, callback func(context.Context, Stream) error) (Out, error) {
-
 	state, err := flow.start(ctx, input, callback)
 	if err != nil {
 		return internal.Zero[Out](), err

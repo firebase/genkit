@@ -132,7 +132,7 @@ func TestGenkit(t *testing.T) {
 		t.Errorf("got %d results, expected 2", len(docs))
 	}
 	for _, d := range docs {
-		text := d.Content[0].Text()
+		text := d.Content[0].Text
 		if !strings.HasPrefix(text, "hello") {
 			t.Errorf("returned doc text %q does not start with %q", text, "hello")
 		}

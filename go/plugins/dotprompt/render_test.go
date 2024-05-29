@@ -201,10 +201,10 @@ func TestRenderMessages(t *testing.T) {
 		if a.IsText() != b.IsText() {
 			return false
 		}
-		if a.Text() != b.Text() {
+		if a.Text != b.Text {
 			return false
 		}
-		if a.ContentType() != b.ContentType() {
+		if a.ContentType != b.ContentType {
 			return false
 		}
 		return true
