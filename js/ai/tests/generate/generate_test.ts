@@ -251,9 +251,11 @@ describe('GenerateResponse', () => {
     });
     it('picks the first candidate if no index provided', () => {
       const toolCall = {
-        name: 'foo',
-        ref: 'abc',
-        input: 'banana',
+        toolRequest: {
+          name: 'foo',
+          ref: 'abc',
+          input: 'banana',
+        },
       };
       const response = new GenerateResponse({
         candidates: [
@@ -262,7 +264,7 @@ describe('GenerateResponse', () => {
             finishReason: 'stop',
             message: {
               role: 'model',
-              content: [{ toolRequest: toolCall }],
+              content: [toolCall],
             },
           },
           {
@@ -277,14 +279,18 @@ describe('GenerateResponse', () => {
     });
     it('returns all tool call', () => {
       const toolCall1 = {
-        name: 'foo',
-        ref: 'abc',
-        input: 'banana',
+        toolRequest: {
+          name: 'foo',
+          ref: 'abc',
+          input: 'banana',
+        },
       };
       const toolCall2 = {
-        name: 'bar',
-        ref: 'bcd',
-        input: 'apple',
+        toolRequest: {
+          name: 'bar',
+          ref: 'bcd',
+          input: 'apple',
+        },
       };
       const response = new GenerateResponse({
         candidates: [
@@ -293,7 +299,7 @@ describe('GenerateResponse', () => {
             finishReason: 'stop',
             message: {
               role: 'model',
-              content: [{ toolRequest: toolCall1 }, { toolRequest: toolCall2 }],
+              content: [toolCall1, toolCall2],
             },
           },
           {
