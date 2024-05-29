@@ -171,27 +171,6 @@ type retryInstruction struct {
 	FlowID string `json:"flowId,omitempty"`
 }
 
-// flowInstructioner is the common type of all flowInstruction[I] types.
-type flowInstructioner interface {
-	IsFlowInstruction()
-	StartInput() any
-	ScheduleInput() any
-}
-
-func (fi *flowInstruction[I]) IsFlowInstruction() {}
-func (fi *flowInstruction[I]) StartInput() any {
-	if fi.Start != nil {
-		return fi.Start.Input
-	}
-	return nil
-}
-func (fi *flowInstruction[I]) ScheduleInput() any {
-	if fi.Schedule != nil {
-		return fi.Schedule.Input
-	}
-	return nil
-}
-
 // A flowState is a persistent representation of a flow that may be in the middle of running.
 // It contains all the information needed to resume a flow, including the original input
 // and a cache of all completed steps.
@@ -199,9 +178,8 @@ type flowState[I, O any] struct {
 	FlowID   string `json:"flowId,omitempty"`
 	FlowName string `json:"name,omitempty"`
 	// start time in milliseconds since the epoch
-	StartTime tracing.Milliseconds `json:"startTime,omitempty"`
-	Input     I                  `json:"input,omitempty"`
-
+	StartTime       tracing.Milliseconds `json:"startTime,omitempty"`
+	Input           I                    `json:"input,omitempty"`
 	mu              sync.Mutex
 	Cache           map[string]json.RawMessage `json:"cache,omitempty"`
 	EventsTriggered map[string]any             `json:"eventsTriggered,omitempty"`
@@ -231,7 +209,6 @@ type flowStater interface {
 	lock()
 	unlock()
 	cache() map[string]json.RawMessage
-	result() any
 }
 
 // isFlowState implements flowStater.
@@ -239,12 +216,6 @@ func (fs *flowState[I, O]) isFlowState()                      {}
 func (fs *flowState[I, O]) lock()                             { fs.mu.Lock() }
 func (fs *flowState[I, O]) unlock()                           { fs.mu.Unlock() }
 func (fs *flowState[I, O]) cache() map[string]json.RawMessage { return fs.Cache }
-func (fs *flowState[I, O]) result() any {
-	if fs.Operation.Done {
-		return fs.Operation.Result.Response
-	}
-	return nil
-}
 
 // An operation describes the state of a Flow that may still be in progress.
 type operation[O any] struct {
@@ -414,7 +385,7 @@ func (f *Flow[I, O, S]) execute(ctx context.Context, state *flowState[I, O], dis
 		var output O
 		if err == nil {
 			output, err = f.fn(ctx, input, cb)
-			if err != nil {
+			if err == nil {
 				if err = ValidateObject(output, f.outputSchema); err != nil {
 					err = fmt.Errorf("invalid output: %w", err)
 				}

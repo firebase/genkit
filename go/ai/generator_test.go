@@ -15,9 +15,8 @@
 package ai
 
 import (
+	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestValidCandidate(t *testing.T) {
@@ -35,7 +34,9 @@ func TestValidCandidate(t *testing.T) {
 			Format: OutputFormatText,
 		}
 		_, err := validCandidate(candidate, outputSchema)
-		assert.NoError(t, err)
+		if err != nil {
+			t.Error(err)
+		}
 	})
 
 	t.Run("Valid candidate with JSON format and matching schema", func(t *testing.T) {
@@ -77,10 +78,16 @@ func TestValidCandidate(t *testing.T) {
 			},
 		}
 		candidate, err := validCandidate(candidate, outputSchema)
-		assert.NoError(t, err)
+		if err != nil {
+			t.Error(err)
+		}
 		text, err := candidate.Text()
-		assert.NoError(t, err)
-		assert.EqualValues(t, text, json)
+		if err != nil {
+			t.Error(err)
+		}
+		if text != json {
+			t.Errorf("mismatch (-want, +got) -%s +%s", json, text)
+		}
 	})
 
 	t.Run("Invalid candidate with JSON format and non-matching schema", func(t *testing.T) {
@@ -102,8 +109,7 @@ func TestValidCandidate(t *testing.T) {
 			},
 		}
 		_, err := validCandidate(candidate, outputSchema)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "data did not match expected schema")
+		errorContains(t, err, "data did not match expected schema")
 	})
 
 	t.Run("Candidate with invalid JSON", func(t *testing.T) {
@@ -118,8 +124,7 @@ func TestValidCandidate(t *testing.T) {
 			Format: OutputFormatJSON,
 		}
 		_, err := validCandidate(candidate, outputSchema)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "data is not valid JSON")
+		errorContains(t, err, "data is not valid JSON")
 	})
 
 	t.Run("Candidate with no message", func(t *testing.T) {
@@ -128,8 +133,7 @@ func TestValidCandidate(t *testing.T) {
 			Format: OutputFormatJSON,
 		}
 		_, err := validCandidate(candidate, outputSchema)
-		assert.Error(t, err)
-		assert.Equal(t, "candidate with no message", err.Error())
+		errorContains(t, err, "candidate has no message")
 	})
 
 	t.Run("Candidate with message but no content", func(t *testing.T) {
@@ -140,8 +144,7 @@ func TestValidCandidate(t *testing.T) {
 			Format: OutputFormatJSON,
 		}
 		_, err := validCandidate(candidate, outputSchema)
-		assert.Error(t, err)
-		assert.Equal(t, "candidate message has no content", err.Error())
+		errorContains(t, err, "candidate message has no content")
 	})
 
 	t.Run("Candidate contains unexpected field", func(t *testing.T) {
@@ -164,8 +167,7 @@ func TestValidCandidate(t *testing.T) {
 			},
 		}
 		_, err := validCandidate(candidate, outputSchema)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "data did not match expected schema")
+		errorContains(t, err, "data did not match expected schema")
 	})
 
 	t.Run("Invalid expected schema", func(t *testing.T) {
@@ -183,11 +185,19 @@ func TestValidCandidate(t *testing.T) {
 			},
 		}
 		_, err := validCandidate(candidate, outputSchema)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to validate data against expected schema")
+		errorContains(t, err, "failed to validate data against expected schema")
 	})
 }
 
 func JSONMarkdown(text string) string {
 	return "```json\n" + text + "\n```"
+}
+
+func errorContains(t *testing.T, err error, want string) {
+	t.Helper()
+	if err == nil {
+		t.Error("got nil, want error")
+	} else if !strings.Contains(err.Error(), want) {
+		t.Errorf("got error message %q, want it to contain %q", err, want)
+	}
 }

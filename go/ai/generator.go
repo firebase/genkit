@@ -128,13 +128,13 @@ type generatorAction struct {
 // Generate implements Generator. This is like the [Generate] function,
 // but invokes the [core.Action] rather than invoking the Generator
 // directly.
-func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest, cb func(context.Context, *Candidate) error) (*GenerateResponse, error) {
-	if err := conformOutput(input); err != nil {
+func (ga *generatorAction) Generate(ctx context.Context, req *GenerateRequest, cb func(context.Context, *Candidate) error) (*GenerateResponse, error) {
+	if err := conformOutput(req); err != nil {
 		return nil, err
 	}
 
 	for {
-		resp, err := ga.action.Run(ctx, input, cb)
+		resp, err := ga.action.Run(ctx, req, cb)
 		if err != nil {
 			return nil, err
 		}
@@ -145,7 +145,7 @@ func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest,
 		}
 		resp.Candidates = candidates
 
-		newReq, err := handleToolRequest(ctx, input, resp)
+		newReq, err := handleToolRequest(ctx, req, resp)
 		if err != nil {
 			return nil, err
 		}
@@ -153,21 +153,21 @@ func (ga *generatorAction) Generate(ctx context.Context, input *GenerateRequest,
 			return resp, nil
 		}
 
-		input = newReq
+		req = newReq
 	}
 }
 
 // conformOutput appends a message to the request indicating conformance to the expected schema.
-func conformOutput(input *GenerateRequest) error {
-	if input.Output.Format == OutputFormatJSON && len(input.Messages) > 0 {
-		jsonBytes, err := json.Marshal(input.Output.Schema)
+func conformOutput(req *GenerateRequest) error {
+	if req.Output.Format == OutputFormatJSON && len(req.Messages) > 0 {
+		jsonBytes, err := json.Marshal(req.Output.Schema)
 		if err != nil {
 			return fmt.Errorf("expected schema is not valid: %w", err)
 		}
 
 		escapedJSON := strconv.Quote(string(jsonBytes))
 		part := NewTextPart(fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", escapedJSON))
-		input.Messages[len(input.Messages)-1].Content = append(input.Messages[len(input.Messages)-1].Content, part)
+		req.Messages[len(req.Messages)-1].Content = append(req.Messages[len(req.Messages)-1].Content, part)
 	}
 	return nil
 }
@@ -192,15 +192,15 @@ func validCandidates(ctx context.Context, resp *GenerateResponse) ([]*Candidate,
 
 // validCandidate will validate the candidate's response against the expected schema.
 // It will return an error if it does not match, otherwise it will return a candidate with JSON content and type.
-func validCandidate(candidate *Candidate, outputSchema *GenerateRequestOutput) (*Candidate, error) {
-	if outputSchema.Format == OutputFormatJSON {
-		text, err := candidate.Text()
+func validCandidate(c *Candidate, output *GenerateRequestOutput) (*Candidate, error) {
+	if output.Format == OutputFormatJSON {
+		text, err := c.Text()
 		if err != nil {
 			return nil, err
 		}
 		text = stripJSONDelimiters(text)
 		var schemaBytes []byte
-		schemaBytes, err = json.Marshal(outputSchema.Schema)
+		schemaBytes, err = json.Marshal(output.Schema)
 		if err != nil {
 			return nil, fmt.Errorf("expected schema is not valid: %w", err)
 		}
@@ -208,9 +208,9 @@ func validCandidate(candidate *Candidate, outputSchema *GenerateRequestOutput) (
 			return nil, err
 		}
 		// TODO: Verify that it okay to replace all content with JSON.
-		candidate.Message.Content = []*Part{NewJSONPart(text)}
+		c.Message.Content = []*Part{NewJSONPart(text)}
 	}
-	return candidate, nil
+	return c, nil
 }
 
 // stripJSONDelimiters strips Markdown JSON delimiters that may come back in the response.
@@ -286,7 +286,7 @@ func (gr *GenerateResponse) Text() (string, error) {
 func (c *Candidate) Text() (string, error) {
 	msg := c.Message
 	if msg == nil {
-		return "", errors.New("candidate with no message")
+		return "", errors.New("candidate has no message")
 	}
 	if len(msg.Content) == 0 {
 		return "", errors.New("candidate message has no content")

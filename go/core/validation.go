@@ -17,14 +17,15 @@ package core
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/invopop/jsonschema"
 	"github.com/xeipuuv/gojsonschema"
 )
 
-// ValidateObject will validate any object against the expected schema.
+// ValidateValue will validate any value against the expected schema.
 // It will return an error if it doesn't match the schema, otherwise it will return nil.
-func ValidateObject(data any, schema *jsonschema.Schema) error {
+func ValidateValue(data any, schema *jsonschema.Schema) error {
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("data is not a valid JSON type: %w", err)
@@ -60,11 +61,11 @@ func ValidateRaw(dataBytes json.RawMessage, schemaBytes json.RawMessage) error {
 	}
 
 	if !result.Valid() {
-		var errors string
+		var errors []string
 		for _, err := range result.Errors() {
-			errors += fmt.Sprintf("- %s\n", err)
+			errors = append(errors, fmt.Sprintf("- %s", err))
 		}
-		return fmt.Errorf("data did not match expected schema:\n%s", errors)
+		return fmt.Errorf("data did not match expected schema:\n%s", strings.Join(errors, "\n"))
 	}
 
 	return nil
