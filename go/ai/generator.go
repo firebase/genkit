@@ -73,13 +73,13 @@ func RegisterGenerator(provider, name string, metadata *GeneratorMetadata, gener
 }
 
 // Generate applies a [Generator] to some input, handling tool requests.
-func Generate(ctx context.Context, g Generator, input *GenerateRequest, cb func(context.Context, *Candidate) error) (*GenerateResponse, error) {
-	if err := conformOutput(input); err != nil {
+func Generate(ctx context.Context, g Generator, req *GenerateRequest, cb func(context.Context, *Candidate) error) (*GenerateResponse, error) {
+	if err := conformOutput(req); err != nil {
 		return nil, err
 	}
 
 	for {
-		resp, err := g.Generate(ctx, input, cb)
+		resp, err := g.Generate(ctx, req, cb)
 		if err != nil {
 			return nil, err
 		}
@@ -90,7 +90,7 @@ func Generate(ctx context.Context, g Generator, input *GenerateRequest, cb func(
 		}
 		resp.Candidates = candidates
 
-		newReq, err := handleToolRequest(ctx, input, resp)
+		newReq, err := handleToolRequest(ctx, req, resp)
 		if err != nil {
 			return nil, err
 		}
@@ -98,7 +98,7 @@ func Generate(ctx context.Context, g Generator, input *GenerateRequest, cb func(
 			return resp, nil
 		}
 
-		input = newReq
+		req = newReq
 	}
 }
 
