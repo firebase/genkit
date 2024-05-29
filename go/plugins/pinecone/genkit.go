@@ -36,7 +36,19 @@ import (
 // documents in pinecone.
 const defaultTextKey = "_content"
 
-// Init registers actions to be used with ai.
+// Init registers an action to be used with ai.
+//
+// The arguments are as for [New].
+func Init(ctx context.Context, apiKey, host string, embedder ai.Embedder, embedderOptions any, textKey string) error {
+	r, err := New(ctx, apiKey, host, embedder, embedderOptions, textKey)
+	if err != nil {
+		return err
+	}
+	ai.RegisterRetriever("pinecone", r)
+	return nil
+}
+
+// New returns an [ai.Retriever] that uses Pinecone.
 //
 // apiKey is the API key to use to access Pinecone.
 // If it is the empty string, it is read from the PINECONE_API_INDEX
@@ -50,17 +62,7 @@ const defaultTextKey = "_content"
 //
 // The textKey parameter is the metadata key to use to store document text
 // in Pinecone; the default is "_content".
-func Init(ctx context.Context, apiKey, host string, embedder ai.Embedder, embedderOptions any, textKey string) error {
-	r, err := newRetriever(ctx, apiKey, host, embedder, embedderOptions, textKey)
-	if err != nil {
-		return err
-	}
-	ai.RegisterRetriever("pinecone", r)
-	return nil
-}
-
-// newRetriever returns a new ai.Retriever to register.
-func newRetriever(ctx context.Context, apiKey, host string, embedder ai.Embedder, embedderOptions any, textKey string) (ai.Retriever, error) {
+func New(ctx context.Context, apiKey, host string, embedder ai.Embedder, embedderOptions any, textKey string) (ai.Retriever, error) {
 	client, err := NewClient(ctx, apiKey)
 	if err != nil {
 		return nil, err
