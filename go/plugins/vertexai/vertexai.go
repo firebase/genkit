@@ -90,8 +90,9 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 		}
 
 		fd := &genai.FunctionDeclaration{
-			Name:       t.Name,
-			Parameters: schema,
+			Name:        t.Name,
+			Parameters:  schema,
+			Description: t.Description,
 		}
 
 		gm.Tools = append(gm.Tools, &genai.Tool{
