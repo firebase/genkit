@@ -36,7 +36,7 @@ import (
 // documents in pinecone.
 const defaultTextKey = "_content"
 
-// Init registers an action to be used with ai.
+// Init registers all the actions in this package with [ai]'s Register calls.
 //
 // The arguments are as for [New].
 func Init(ctx context.Context, apiKey, host string, embedder ai.Embedder, embedderOptions any, textKey string) error {

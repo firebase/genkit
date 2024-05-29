@@ -34,7 +34,7 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 )
 
-// Init register an action to be used with ai.
+// Init registers all the actions in this package with [ai]'s Register calls.
 func Init(ctx context.Context, dir, name string, embedder ai.Embedder, embedderOptions any) error {
 	r, err := New(ctx, dir, name, embedder, embedderOptions)
 	if err != nil {
