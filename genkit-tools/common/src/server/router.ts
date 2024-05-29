@@ -140,6 +140,7 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
         const frontmatter: PromptFrontmatter = {
           model: input.model,
           config: input.config,
+          tools: input.toolNames,
         };
         return fromMessages(frontmatter, input.messages);
       }),
