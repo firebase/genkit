@@ -161,7 +161,7 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.GenerateResponse
 	return r
 }
 
-// NewGenerator returns an action which sends a request to
+// NewGenerator returns an [ai.Generator] which sends a request to
 // the vertex AI model and returns the response.
 func NewGenerator(ctx context.Context, model, projectID, location string) (ai.Generator, error) {
 	client, err := newClient(ctx, projectID, location)
@@ -174,7 +174,7 @@ func NewGenerator(ctx context.Context, model, projectID, location string) (ai.Ge
 	}, nil
 }
 
-// Init registers all the actions in this package with ai.
+// Init registers all the actions in this package with [ai]'s Register calls.
 func Init(ctx context.Context, model, projectID, location string) error {
 	g, err := NewGenerator(ctx, model, projectID, location)
 	if err != nil {
