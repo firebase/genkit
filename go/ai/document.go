@@ -31,80 +31,80 @@ type Document struct {
 // A Part is one part of a [Document]. This may be plain text or it
 // may be a URL (possibly a "data:" URL with embedded data).
 type Part struct {
-	Kind         partKind      `json:"kind,omitempty"`
+	Kind         PartKind      `json:"kind,omitempty"`
 	ContentType  string        `json:"contentType,omitempty"` // valid for kind==blob
 	Text         string        `json:"text,omitempty"`        // valid for kind∈{text,blob}
 	ToolRequest  *ToolRequest  `json:"toolreq,omitempty"`     // valid for kind==partToolRequest
 	ToolResponse *ToolResponse `json:"toolresp,omitempty"`    // valid for kind==partToolResponse
 }
 
-type partKind int8
+type PartKind int8
 
 const (
-	partText partKind = iota
-	partMedia
-	partData
-	partToolRequest
-	partToolResponse
+	PartText PartKind = iota
+	PartMedia
+	PartData
+	PartToolRequest
+	PartToolResponse
 )
 
 // NewTextPart returns a Part containing text.
 func NewTextPart(text string) *Part {
-	return &Part{Kind: partText, ContentType: "plain/text", Text: text}
+	return &Part{Kind: PartText, ContentType: "plain/text", Text: text}
 }
 
 // NewJSONPart returns a Part containing JSON.
 func NewJSONPart(text string) *Part {
-	return &Part{Kind: partText, ContentType: "application/json", Text: text}
+	return &Part{Kind: PartText, ContentType: "application/json", Text: text}
 }
 
 // NewMediaPart returns a Part containing structured data described
 // by the given mimeType.
 func NewMediaPart(mimeType, contents string) *Part {
-	return &Part{Kind: partMedia, ContentType: mimeType, Text: contents}
+	return &Part{Kind: PartMedia, ContentType: mimeType, Text: contents}
 }
 
 // NewDataPart returns a Part containing raw string data.
 func NewDataPart(contents string) *Part {
-	return &Part{Kind: partData, Text: contents}
+	return &Part{Kind: PartData, Text: contents}
 }
 
 // NewToolRequestPart returns a Part containing a request from
 // the model to the client to run a Tool.
 // (Only genkit plugins should need to use this function.)
 func NewToolRequestPart(r *ToolRequest) *Part {
-	return &Part{Kind: partToolRequest, ToolRequest: r}
+	return &Part{Kind: PartToolRequest, ToolRequest: r}
 }
 
 // NewToolResponsePart returns a Part containing the results
 // of applying a Tool that the model requested.
 func NewToolResponsePart(r *ToolResponse) *Part {
-	return &Part{Kind: partToolResponse, ToolResponse: r}
+	return &Part{Kind: PartToolResponse, ToolResponse: r}
 }
 
 // IsText reports whether the [Part] contains plain text.
 func (p *Part) IsText() bool {
-	return p.Kind == partText
+	return p.Kind == PartText
 }
 
 // IsMedia reports whether the [Part] contains structured media data.
 func (p *Part) IsMedia() bool {
-	return p.Kind == partMedia
+	return p.Kind == PartMedia
 }
 
 // IsData reports whether the [Part] contains unstructured data.
 func (p *Part) IsData() bool {
-	return p.Kind == partData
+	return p.Kind == PartData
 }
 
 // IsToolRequest reports whether the [Part] contains a request to run a tool.
 func (p *Part) IsToolRequest() bool {
-	return p.Kind == partToolRequest
+	return p.Kind == PartToolRequest
 }
 
 // IsToolResponse reports whether the [Part] contains the result of running a tool.
 func (p *Part) IsToolResponse() bool {
-	return p.Kind == partToolResponse
+	return p.Kind == PartToolResponse
 }
 
 // MarshalJSON is called by the JSON marshaler to write out a Part.
@@ -113,12 +113,12 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 	// Part is defined in TypeScript as a union.
 
 	switch p.Kind {
-	case partText:
+	case PartText:
 		v := textPart{
 			Text: p.Text,
 		}
 		return json.Marshal(v)
-	case partMedia:
+	case PartMedia:
 		v := mediaPart{
 			Media: &mediaPartMedia{
 				ContentType: p.ContentType,
@@ -126,12 +126,12 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 			},
 		}
 		return json.Marshal(v)
-	case partData:
+	case PartData:
 		v := dataPart{
 			Data: p.Text,
 		}
 		return json.Marshal(v)
-	case partToolRequest:
+	case PartToolRequest:
 		// TODO: make sure these types marshal/unmarshal nicely
 		// between Go and javascript. At the very least the
 		// field name needs to change (here and in UnmarshalJSON).
@@ -141,7 +141,7 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 			ToolReq: p.ToolRequest,
 		}
 		return json.Marshal(v)
-	case partToolResponse:
+	case PartToolResponse:
 		v := struct {
 			ToolResp *ToolResponse `json:"toolresp,omitempty"`
 		}{
@@ -172,22 +172,22 @@ func (p *Part) UnmarshalJSON(b []byte) error {
 
 	switch {
 	case s.Media != nil:
-		p.Kind = partMedia
+		p.Kind = PartMedia
 		p.Text = s.Media.Url
 		p.ContentType = s.Media.ContentType
 	case s.ToolReq != nil:
-		p.Kind = partToolRequest
+		p.Kind = PartToolRequest
 		p.ToolRequest = s.ToolReq
 	case s.ToolResp != nil:
-		p.Kind = partToolResponse
+		p.Kind = PartToolResponse
 		p.ToolResponse = s.ToolResp
 	default:
-		p.Kind = partText
+		p.Kind = PartText
 		p.Text = s.Text
 		p.ContentType = ""
 		if s.Data != "" {
 			// Note: if part is completely empty, we use text by default.
-			p.Kind = partData
+			p.Kind = PartData
 			p.Text = s.Data
 		}
 	}
@@ -200,7 +200,7 @@ func DocumentFromText(text string, metadata map[string]any) *Document {
 	return &Document{
 		Content: []*Part{
 			{
-				Kind: partText,
+				Kind: PartText,
 				Text: text,
 			},
 		},

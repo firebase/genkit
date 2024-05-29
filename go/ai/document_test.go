@@ -42,27 +42,27 @@ func TestDocumentJSON(t *testing.T) {
 	d := Document{
 		Content: []*Part{
 			&Part{
-				Kind: partText,
+				Kind: PartText,
 				Text: "hi",
 			},
 			&Part{
-				Kind:        partMedia,
+				Kind:        PartMedia,
 				ContentType: "text/plain",
 				Text:        "data:,bye",
 			},
 			&Part{
-				Kind: partData,
+				Kind: PartData,
 				Text: "somedata\x00string",
 			},
 			&Part{
-				Kind: partToolRequest,
+				Kind: PartToolRequest,
 				ToolRequest: &ToolRequest{
 					Name:  "tool1",
 					Input: map[string]any{"arg1": 3.3, "arg2": "foo"},
 				},
 			},
 			&Part{
-				Kind: partToolResponse,
+				Kind: PartToolResponse,
 				ToolResponse: &ToolResponse{
 					Name:   "tool1",
 					Output: map[string]any{"res1": 4.4, "res2": "bar"},
@@ -87,15 +87,15 @@ func TestDocumentJSON(t *testing.T) {
 			return false
 		}
 		switch a.Kind {
-		case partText:
+		case PartText:
 			return a.Text == b.Text
-		case partMedia:
+		case PartMedia:
 			return a.ContentType == b.ContentType && a.Text == b.Text
-		case partData:
+		case PartData:
 			return a.Text == b.Text
-		case partToolRequest:
+		case PartToolRequest:
 			return reflect.DeepEqual(a.ToolRequest, b.ToolRequest)
-		case partToolResponse:
+		case PartToolResponse:
 			return reflect.DeepEqual(a.ToolResponse, b.ToolResponse)
 		default:
 			t.Fatalf("bad part kind %v", a.Kind)
