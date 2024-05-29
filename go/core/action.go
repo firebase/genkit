@@ -119,14 +119,14 @@ func (a *Action[I, O, S]) Run(ctx context.Context, input I, cb func(context.Cont
 		func(ctx context.Context, input I) (O, error) {
 			start := time.Now()
 			var err error
-			if err = ValidateObject(input, a.inputSchema); err != nil {
+			if err = ValidateValue(input, a.inputSchema); err != nil {
 				err = fmt.Errorf("invalid input: %w", err)
 			}
 			var output O
 			if err == nil {
 				output, err = a.fn(ctx, input, cb)
 				if err != nil {
-					if err = ValidateObject(output, a.outputSchema); err != nil {
+					if err = ValidateValue(output, a.outputSchema); err != nil {
 						err = fmt.Errorf("invalid output: %w", err)
 					}
 				}

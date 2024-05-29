@@ -379,14 +379,14 @@ func (f *Flow[I, O, S]) execute(ctx context.Context, state *flowState[I, O], dis
 		// TODO(jba): If input is missing, get it from state.input and overwrite metadata.input.
 		start := time.Now()
 		var err error
-		if err = ValidateObject(input, f.inputSchema); err != nil {
+		if err = ValidateValue(input, f.inputSchema); err != nil {
 			err = fmt.Errorf("invalid input: %w", err)
 		}
 		var output O
 		if err == nil {
 			output, err = f.fn(ctx, input, cb)
 			if err == nil {
-				if err = ValidateObject(output, f.outputSchema); err != nil {
+				if err = ValidateValue(output, f.outputSchema); err != nil {
 					err = fmt.Errorf("invalid output: %w", err)
 				}
 			}
