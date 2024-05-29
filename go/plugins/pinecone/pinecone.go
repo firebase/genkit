@@ -64,7 +64,7 @@ type Client struct {
 // NewClient builds a Client.
 //
 // apiKey is the API key to use to access Pinecone.
-// If it is the empty string, it is read from the PINECONE_API_INDEX
+// If it is the empty string, it is read from the PINECONE_API_KEY
 // environment variable.
 func NewClient(ctx context.Context, apiKey string) (*Client, error) {
 	key, err := resolveAPIKey(apiKey)
