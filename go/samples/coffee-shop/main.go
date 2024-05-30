@@ -121,12 +121,12 @@ func main() {
 	}
 
 	simpleGreetingFlow := genkit.DefineFlow("simpleGreeting", func(ctx context.Context, input *simpleGreetingInput, _ genkit.NoStream) (string, error) {
-		vars, err := simpleGreetingPrompt.BuildVariables(input)
-		if err != nil {
-			return "", err
-		}
-		ai := &dotprompt.ActionInput{Variables: vars}
-		resp, err := simpleGreetingPrompt.Execute(ctx, ai)
+		resp, err := simpleGreetingPrompt.Generate(ctx,
+			&ai.PromptRequest{
+				Variables: input,
+			},
+			nil,
+		)
 		if err != nil {
 			return "", err
 		}
@@ -149,12 +149,12 @@ func main() {
 	}
 
 	greetingWithHistoryFlow := genkit.DefineFlow("greetingWithHistory", func(ctx context.Context, input *customerTimeAndHistoryInput, _ genkit.NoStream) (string, error) {
-		vars, err := greetingWithHistoryPrompt.BuildVariables(input)
-		if err != nil {
-			return "", err
-		}
-		ai := &dotprompt.ActionInput{Variables: vars}
-		resp, err := greetingWithHistoryPrompt.Execute(ctx, ai)
+		resp, err := greetingWithHistoryPrompt.Generate(ctx,
+			&ai.PromptRequest{
+				Variables: input,
+			},
+			nil,
+		)
 		if err != nil {
 			return "", err
 		}
@@ -194,12 +194,12 @@ func main() {
 	}
 
 	genkit.DefineFlow("simpleStructuredGreeting", func(ctx context.Context, input *simpleGreetingInput, _ genkit.NoStream) (string, error) {
-		vars, err := simpleGreetingPrompt.BuildVariables(input)
-		if err != nil {
-			return "", err
-		}
-		ai := &dotprompt.ActionInput{Variables: vars}
-		resp, err := simpleStructuredGreetingPrompt.Execute(ctx, ai)
+		resp, err := simpleStructuredGreetingPrompt.Generate(ctx,
+			&ai.PromptRequest{
+				Variables: input,
+			},
+			nil,
+		)
 		if err != nil {
 			return "", err
 		}

@@ -69,8 +69,7 @@ type Prompt struct {
 	// A hash of the prompt contents.
 	hash string
 
-	// A Generator to use. If not nil, this is used by the
-	// [genkit.Action] returned by [Prompt.Action] to execute the prompt.
+	// A Generator to use. If not nil, this is used to execute the prompt.
 	generator ai.Generator
 }
 
