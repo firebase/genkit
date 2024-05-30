@@ -134,7 +134,7 @@ func (r *retriever) Index(ctx context.Context, req *ai.IndexerRequest) error {
 	}
 
 	// Update the file every time we add documents.
-	tmpname := r.filename + ".tmp"
+	tmpname := r.filename
 	f, err := os.Create(tmpname)
 	if err != nil {
 		return err
