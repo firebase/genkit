@@ -51,7 +51,7 @@ import (
 const simpleGreetingPromptTemplate = `
 You're a barista at a nice coffee shop.
 A regular customer named {{customerName}} enters.
-Tell the customer a very long joke.
+Greet the customer in one sentence, and recommend a coffee drink.
 `
 
 const simpleStructuredGreetingPromptTemplate = `
