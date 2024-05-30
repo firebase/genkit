@@ -113,6 +113,7 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	for {
 		chunk, err := iter.Next()
 		if err == iterator.Done {
+			r = translateResponse(iter.MergedResponse())
 			break
 		}
 		if err != nil {
@@ -124,13 +125,6 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 			if err != nil {
 				return nil, err
 			}
-		}
-		if r == nil {
-			// Save all other fields of first response
-			// so we can surface them at the end.
-			// TODO: necessary? Use last instead of first? merge somehow?
-			chunk.Candidates = nil
-			r = translateResponse(chunk)
 		}
 	}
 	if r == nil {

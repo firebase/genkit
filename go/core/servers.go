@@ -122,7 +122,13 @@ func (s *devServer) handleRunAction(w http.ResponseWriter, r *http.Request) erro
 		// Stream results are newline-separated JSON.
 		callback = func(ctx context.Context, msg json.RawMessage) error {
 			_, err := fmt.Fprintf(w, "%s\n", msg)
-			return err
+			if err != nil {
+				return err
+			}
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
+			return nil
 		}
 	}
 	resp, err := runAction(ctx, s.reg, body.Key, body.Input, callback)
@@ -393,14 +399,18 @@ func currentEnvironment() Environment {
 	}
 	return EnvironmentProd
 }
+
 func writeJSON(ctx context.Context, w http.ResponseWriter, value any) error {
-	data, err := json.MarshalIndent(value, "", "    ")
+	data, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
 	_, err = w.Write(data)
 	if err != nil {
 		logger.FromContext(ctx).Error("writing output", "err", err)
+	}
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
 	}
 	return nil
 }

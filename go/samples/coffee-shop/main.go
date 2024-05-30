@@ -120,12 +120,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	simpleGreetingFlow := genkit.DefineFlow("simpleGreeting", func(ctx context.Context, input *simpleGreetingInput, _ genkit.NoStream) (string, error) {
+	simpleGreetingFlow := genkit.DefineFlow("simpleGreeting", func(ctx context.Context, input *simpleGreetingInput, cb func(context.Context, string) error) (string, error) {
+		callback := func(ctx context.Context, c *ai.Candidate) error {
+			text, err := c.Text()
+			if err != nil {
+				return err
+			}
+			return cb(ctx, text)
+		}
 		resp, err := simpleGreetingPrompt.Generate(ctx,
 			&ai.PromptRequest{
 				Variables: input,
 			},
-			nil,
+			callback,
 		)
 		if err != nil {
 			return "", err
@@ -193,12 +200,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	genkit.DefineFlow("simpleStructuredGreeting", func(ctx context.Context, input *simpleGreetingInput, _ genkit.NoStream) (string, error) {
+	genkit.DefineFlow("simpleStructuredGreeting", func(ctx context.Context, input *simpleGreetingInput, cb func(context.Context, string) error) (string, error) {
+		callback := func(ctx context.Context, c *ai.Candidate) error {
+			text, err := c.Text()
+			if err != nil {
+				return err
+			}
+			return cb(ctx, text)
+		}
 		resp, err := simpleStructuredGreetingPrompt.Generate(ctx,
 			&ai.PromptRequest{
 				Variables: input,
 			},
-			nil,
+			callback,
 		)
 		if err != nil {
 			return "", err
