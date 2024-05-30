@@ -64,6 +64,8 @@ import {
   runWithActiveContext,
 } from './utils.js';
 
+import { pathVariants } from '@genkit-ai/core/tracing';
+
 const streamDelimiter = '\n';
 
 const CREATED_FLOWS = 'genkit__CREATED_FLOWS';
@@ -449,6 +451,7 @@ export class Flow<
             setCustomMetadataAttribute(metadataPrefix('state'), 'done');
             telemetry.writeFlowSuccess(
               ctx.flow.name,
+              pathVariants,
               performance.now() - startTimeMs
             );
             return output;
@@ -479,6 +482,7 @@ export class Flow<
               telemetry.recordError(e);
               telemetry.writeFlowFailure(
                 ctx.flow.name,
+                pathVariants,
                 performance.now() - startTimeMs,
                 e
               );
@@ -812,6 +816,7 @@ function wrapAsAction<
         inputSchema: toJsonSchema({ schema: flow.inputSchema }),
         outputSchema: toJsonSchema({ schema: flow.outputSchema }),
         experimentalDurable: !!flow.experimentalDurable,
+        requiresAuth: !!flow.authPolicy,
       },
     },
     async (envelope) => {
