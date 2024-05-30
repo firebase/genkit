@@ -49,7 +49,7 @@ func TestExecute(t *testing.T) {
 		t.Fatal(err)
 	}
 	p.generator = testGenerator{}
-	resp, err := p.Execute(context.Background(), &ActionInput{})
+	resp, err := p.Generate(context.Background(), &ai.PromptRequest{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

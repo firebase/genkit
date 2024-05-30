@@ -21,37 +21,25 @@ import (
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/tracing"
 )
 
-// ActionInput is the input type of a prompt action.
-// This should have all the fields of GenerateRequest other than
-// Messages, Tools, and Output.
-type ActionInput struct {
-	// Input variables to substitute in the template.
-	// TODO(ianlancetaylor) Not sure variables is the right name here.
-	Variables map[string]any `json:"variables,omitempty"`
-	// Number of candidates to return; if 0, 1 is used.
-	Candidates int `json:"candidates,omitempty"`
-	// Configuration.
-	Config *ai.GenerationCommonConfig `json:"config,omitempty"`
-	// The model to use. This overrides any model in the prompt.
-	Model string `json:"model,omitempty"`
-}
-
-// BuildVariables returns a map for [ActionInput.Variables] based
-// on a pointer to a struct value. The struct value should have
+// buildVariables returns a map holding prompt field values based
+// on a struct or a pointer to a struct. The struct value should have
 // JSON tags that correspond to the Prompt's input schema.
 // Only exported fields of the struct will be used.
-func (p *Prompt) BuildVariables(input any) (map[string]any, error) {
-	v := reflect.ValueOf(input).Elem()
+func (p *Prompt) buildVariables(variables any) (map[string]any, error) {
+	if variables == nil {
+		return nil, nil
+	}
+
+	v := reflect.Indirect(reflect.ValueOf(variables))
 	if v.Kind() != reflect.Struct {
-		return nil, errors.New("BuildVariables: not a pointer to a struct")
+		return nil, errors.New("dotprompt: fields not a struct or pointer to a struct")
 	}
 	vt := v.Type()
 
-	// TODO(ianlancetaylor): Verify the struct with p.Frontmatter.Schema.
+	// TODO(ianlancetaylor): Verify the struct with p.Config.InputSchema.
 
 	m := make(map[string]any)
 
@@ -89,16 +77,19 @@ fieldLoop:
 }
 
 // buildRequest prepares an [ai.GenerateRequest] based on the prompt,
-// using the input variables and other information in the [ActionInput].
-func (p *Prompt) buildRequest(input *ActionInput) (*ai.GenerateRequest, error) {
+// using the input variables and other information in the [ai.PromptRequest].
+func (p *Prompt) buildRequest(pr *ai.PromptRequest) (*ai.GenerateRequest, error) {
 	req := &ai.GenerateRequest{}
 
-	var err error
-	if req.Messages, err = p.RenderMessages(input.Variables); err != nil {
+	m, err := p.buildVariables(pr.Variables)
+	if err != nil {
+		return nil, err
+	}
+	if req.Messages, err = p.RenderMessages(m); err != nil {
 		return nil, err
 	}
 
-	req.Candidates = input.Candidates
+	req.Candidates = pr.Candidates
 	if req.Candidates == 0 {
 		req.Candidates = p.Candidates
 	}
@@ -106,36 +97,21 @@ func (p *Prompt) buildRequest(input *ActionInput) (*ai.GenerateRequest, error) {
 		req.Candidates = 1
 	}
 
-	req.Config = p.GenerationConfig
+	req.Config = pr.Config
+	if req.Config == nil {
+		req.Config = p.GenerationConfig
+	}
+
+	req.Context = pr.Context
+
 	req.Output = &ai.GenerateRequestOutput{
 		Format: p.OutputFormat,
 		Schema: p.OutputSchema,
 	}
+
 	req.Tools = p.Tools
 
 	return req, nil
-}
-
-// Action returns a [core.Action] that executes the prompt.
-// The returned Action will take an [ActionInput] that provides
-// variables to substitute into the template text.
-// It will then pass the rendered text to an AI generator,
-// and return whatever the generator computes.
-func (p *Prompt) Action() (*core.Action[*ActionInput, *ai.GenerateResponse, struct{}], error) {
-	if p.Name == "" {
-		return nil, errors.New("dotprompt: missing name")
-	}
-	name := p.Name
-	if p.Variant != "" {
-		name += "." + p.Variant
-	}
-
-	a := core.NewAction(name, core.ActionTypePrompt, nil, p.Execute)
-	a.Metadata = map[string]any{
-		"type":   "prompt",
-		"prompt": p,
-	}
-	return a, nil
 }
 
 // Register registers an action to execute a prompt.
@@ -148,22 +124,20 @@ func (p *Prompt) Register() error {
 		name += "." + p.Variant
 	}
 
-	action, err := p.Action()
-	if err != nil {
-		return err
-	}
+	ai.RegisterPrompt("dotprompt", name, p)
 
-	core.RegisterAction("dotprompt", action)
 	return nil
 }
 
-// Execute executes a prompt. It does variable substitution and
+// Generate executes a prompt. It does variable substitution and
 // passes the rendered template to the AI generator specified by
 // the prompt.
-func (p *Prompt) Execute(ctx context.Context, input *ActionInput) (*ai.GenerateResponse, error) {
+//
+// This implements the [ai.Prompt] interface.
+func (p *Prompt) Generate(ctx context.Context, pr *ai.PromptRequest, cb func(context.Context, *ai.Candidate) error) (*ai.GenerateResponse, error) {
 	tracing.SetCustomMetadataAttr(ctx, "subtype", "prompt")
 
-	genReq, err := p.buildRequest(input)
+	genReq, err := p.buildRequest(pr)
 	if err != nil {
 		return nil, err
 	}
@@ -171,11 +145,11 @@ func (p *Prompt) Execute(ctx context.Context, input *ActionInput) (*ai.GenerateR
 	generator := p.generator
 	if generator == nil {
 		model := p.Model
-		if input.Model != "" {
-			model = input.Model
+		if pr.Model != "" {
+			model = pr.Model
 		}
 		if model == "" {
-			return nil, errors.New("dotprompt action: model not specified")
+			return nil, errors.New("dotprompt execution: model not specified")
 		}
 		provider, name, found := strings.Cut(model, "/")
 		if !found {
@@ -188,7 +162,7 @@ func (p *Prompt) Execute(ctx context.Context, input *ActionInput) (*ai.GenerateR
 		}
 	}
 
-	resp, err := ai.Generate(ctx, generator, genReq, nil)
+	resp, err := ai.Generate(ctx, generator, genReq, cb)
 	if err != nil {
 		return nil, err
 	}

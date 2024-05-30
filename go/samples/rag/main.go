@@ -134,12 +134,12 @@ func main() {
 			Context: sb.String(),
 		}
 
-		vars, err := simpleQaPrompt.BuildVariables(promptInput)
-		if err != nil {
-			return "", err
-		}
-		ai := &dotprompt.ActionInput{Variables: vars}
-		resp, err := simpleQaPrompt.Execute(ctx, ai)
+		resp, err := simpleQaPrompt.Generate(ctx,
+			&ai.PromptRequest{
+				Variables: promptInput,
+			},
+			nil,
+		)
 		if err != nil {
 			return "", err
 		}
