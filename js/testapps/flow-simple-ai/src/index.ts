@@ -114,7 +114,7 @@ export const streamFlow = defineFlow(
   },
   async (prompt, streamingCallback) => {
     const { response, stream } = await generateStream({
-      model: geminiPro,
+      model: googleGeminiPro,
       prompt,
     });
 

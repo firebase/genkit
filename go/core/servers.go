@@ -122,6 +122,9 @@ func (s *devServer) handleRunAction(w http.ResponseWriter, r *http.Request) erro
 		// Stream results are newline-separated JSON.
 		callback = func(ctx context.Context, msg json.RawMessage) error {
 			_, err := fmt.Fprintf(w, "%s\n", msg)
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
 			return err
 		}
 	}
@@ -401,6 +404,12 @@ func writeJSON(ctx context.Context, w http.ResponseWriter, value any) error {
 	_, err = w.Write(data)
 	if err != nil {
 		logger.FromContext(ctx).Error("writing output", "err", err)
+	}
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
+		if closer, ok := w.(io.Closer); ok {
+			closer.Close()
+		}
 	}
 	return nil
 }
