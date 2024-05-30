@@ -816,6 +816,7 @@ function wrapAsAction<
         inputSchema: toJsonSchema({ schema: flow.inputSchema }),
         outputSchema: toJsonSchema({ schema: flow.outputSchema }),
         experimentalDurable: !!flow.experimentalDurable,
+        requiresAuth: !!flow.authPolicy,
       },
     },
     async (envelope) => {
