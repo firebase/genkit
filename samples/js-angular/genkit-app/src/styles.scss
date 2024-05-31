@@ -1,0 +1,40 @@
+/* You can add global styles to this file, and also import other style files */
+
+:root {
+  --header-height: 65px;
+  --container-border-radius: 20px;
+  --input-border-radius: 8px;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--app-background);
+  color: var(--mat-app-text-color);
+  margin: 0;
+}
+
+hr {
+  border-bottom: 1px solid var(--divider-color);
+  border-width: 0 0 1px;
+  margin: 12px 0;
+}
+
+a {
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+pre {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+
+// Helper for filling available space in flex layouts
+.flex-spacer {
+  flex: 1;
+}

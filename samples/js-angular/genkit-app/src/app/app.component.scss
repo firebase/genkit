@@ -1,0 +1,51 @@
+app-bar {
+  border-bottom: 1px solid var(--divider-color);
+  grid-area: header;
+}
+
+article {
+  grid-area: content;
+}
+
+.wrapper {
+  display: grid;
+  grid-template:
+    'header' auto
+    'content' 1fr
+    / 1fr;
+  height: 100vh;
+}
+
+.home-link {
+  align-items: center;
+  color: var(--mat-app-color);
+  display: flex;
+  gap: 8px;
+
+  img {
+    height: 22px;
+    padding-left: 4px;
+  }
+}
+
+.mat-toolbar {
+  gap: 4px;
+  color: #005cbb;
+  background: #d7e3ff;
+}
+
+nav {
+  --mdc-secondary-navigation-tab-container-height: 64px;
+  --mat-tab-header-divider-height: 0;
+  margin-left: 32px;
+}
+
+.preview-badge {
+  margin-left: 8px;
+
+  mat-icon {
+    font-size: 18px;
+    height: 18px;
+    width: 18px;
+  }
+}

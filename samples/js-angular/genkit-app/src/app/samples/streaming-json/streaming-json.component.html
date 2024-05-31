@@ -1,0 +1,20 @@
+<div class="wrapper">
+  <h3>Stream JSON from LLM</h3>
+  This is a Game Character Generator.<br />
+  How many game chatacters do you need?
+  <input type="text" [(ngModel)]="count" />
+  <button (click)="callFlow()">Generate</button>
+
+  <div *ngIf="loading">Loading...</div>
+  <div *ngIf="error">
+    {{ error }}
+  </div>
+  <div *ngIf="characters" class="characters">
+    <div *ngFor="let character of characters.characters">
+      <b>{{ character.name }}</b>
+      <ul>
+        <li *ngFor="let ability of character.abilities">{{ ability }}</li>
+      </ul>
+    </div>
+  </div>
+</div>

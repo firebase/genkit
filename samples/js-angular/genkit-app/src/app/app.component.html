@@ -1,0 +1,20 @@
+<div class="wrapper">
+  <mat-toolbar color="secondary">
+    <a routerLink="/" class="home-link"> Firebase Genkit Samples </a>
+
+    <mat-tab-nav-panel #tabPanel></mat-tab-nav-panel>
+
+    <div class="flex-spacer"></div>
+    <a
+      mat-icon-button
+      href="https://firebase.google.com/docs/genkit"
+      matTooltip="Docs"
+      target="_blank">
+      <mat-icon>description</mat-icon>
+    </a>
+  </mat-toolbar>
+
+  <article>
+    <router-outlet></router-outlet>
+  </article>
+</div>
