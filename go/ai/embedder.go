@@ -35,5 +35,5 @@ type EmbedRequest struct {
 
 // RegisterEmbedder registers the actions for a specific embedder.
 func RegisterEmbedder(name string, embedder Embedder) {
-	core.RegisterAction(name, core.NewAction(name, core.ActionTypeEmbedder, nil, embedder.Embed))
+	core.DefineAction(name, core.ActionTypeEmbedder, nil, embedder.Embed)
 }

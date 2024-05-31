@@ -56,12 +56,10 @@ func DefineRetriever(
 	index func(context.Context, *IndexerRequest) error,
 	retrieve func(context.Context, *RetrieverRequest) (*RetrieverResponse, error),
 ) Retriever {
-	ia := core.NewAction(name, core.ActionTypeIndexer, nil, func(ctx context.Context, req *IndexerRequest) (struct{}, error) {
+	ia := core.DefineAction(name, core.ActionTypeIndexer, nil, func(ctx context.Context, req *IndexerRequest) (struct{}, error) {
 		return struct{}{}, index(ctx, req)
 	})
-	core.RegisterAction(name, ia)
-	ra := core.NewAction(name, core.ActionTypeRetriever, nil, retrieve)
-	core.RegisterAction(name, ra)
+	ra := core.DefineAction(name, core.ActionTypeRetriever, nil, retrieve)
 	return &retriever{ia, ra}
 }
 
