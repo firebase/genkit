@@ -159,7 +159,7 @@ func (ga *generatorAction) Generate(ctx context.Context, req *GenerateRequest, c
 
 // conformOutput appends a message to the request indicating conformance to the expected schema.
 func conformOutput(req *GenerateRequest) error {
-	if req.Output.Format == OutputFormatJSON && len(req.Messages) > 0 {
+	if req.Output != nil && req.Output.Format == OutputFormatJSON && len(req.Messages) > 0 {
 		jsonBytes, err := json.Marshal(req.Output.Schema)
 		if err != nil {
 			return fmt.Errorf("expected schema is not valid: %w", err)
@@ -193,7 +193,7 @@ func validCandidates(ctx context.Context, resp *GenerateResponse) ([]*Candidate,
 // validCandidate will validate the candidate's response against the expected schema.
 // It will return an error if it does not match, otherwise it will return a candidate with JSON content and type.
 func validCandidate(c *Candidate, output *GenerateRequestOutput) (*Candidate, error) {
-	if output.Format == OutputFormatJSON {
+	if output != nil && output.Format == OutputFormatJSON {
 		text, err := c.Text()
 		if err != nil {
 			return nil, err
