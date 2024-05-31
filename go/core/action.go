@@ -64,7 +64,18 @@ type Action[In, Out, Stream any] struct {
 	Metadata    map[string]any
 }
 
-// See js/common/src/types.ts
+// See js/core/src/action.ts
+
+// DefineAction creates a new Action and registers it.
+func DefineAction[In, Out any](name string, atype ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
+	return defineAction(globalRegistry, name, atype, metadata, fn)
+}
+
+func defineAction[In, Out any](r *registry, name string, atype ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
+	a := NewAction(name, atype, metadata, fn)
+	r.registerAction(name, a)
+	return a
+}
 
 // NewAction creates a new Action with the given name and non-streaming function.
 func NewAction[In, Out any](name string, atype ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {

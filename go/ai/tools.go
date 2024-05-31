@@ -41,8 +41,7 @@ func RegisterTool(name string, definition *ToolDefinition, metadata map[string]a
 	}
 	metadata["type"] = "tool"
 
-	// TODO: There is no provider for a tool.
-	core.RegisterAction("tool", core.NewAction(definition.Name, core.ActionTypeTool, metadata, fn))
+	core.DefineAction(definition.Name, core.ActionTypeTool, metadata, fn)
 }
 
 // toolActionType is the instantiated core.Action type registered
