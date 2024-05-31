@@ -36,18 +36,6 @@ import (
 // documents in pinecone.
 const defaultTextKey = "_content"
 
-// Init registers all the actions in this package with [ai]'s Register calls.
-//
-// The arguments are as for [New].
-func Init(ctx context.Context, apiKey, host string, embedder ai.Embedder, embedderOptions any, textKey string) error {
-	r, err := New(ctx, apiKey, host, embedder, embedderOptions, textKey)
-	if err != nil {
-		return err
-	}
-	ai.RegisterRetriever("pinecone", r)
-	return nil
-}
-
 // New returns an [ai.Retriever] that uses Pinecone.
 //
 // apiKey is the API key to use to access Pinecone.
@@ -80,7 +68,9 @@ func New(ctx context.Context, apiKey, host string, embedder ai.Embedder, embedde
 		embedderOptions: embedderOptions,
 		textKey:         textKey,
 	}
-	return r, nil
+
+	// index := func(ctx context.Context, req *ai.IndexerRequest) error {
+	return ai.DefineRetriever("pinecone", r.Index, r.Retrieve), nil
 }
 
 // IndexerOptions may be passed in the Options field

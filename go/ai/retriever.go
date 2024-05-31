@@ -49,14 +49,32 @@ type RetrieverResponse struct {
 	Documents []*Document `json:"documents"`
 }
 
-// RegisterRetriever registers the actions for a specific retriever.
-func RegisterRetriever(name string, retriever Retriever) {
-	core.RegisterAction(name,
-		core.NewAction(name, core.ActionTypeRetriever, nil, retriever.Retrieve))
+// DefineRetriever takes index and retrieve functions that access a vector DB
+// and returns a new Retriever that wraps them in registered actions.
+func DefineRetriever(
+	name string,
+	index func(context.Context, *IndexerRequest) error,
+	retrieve func(context.Context, *RetrieverRequest) (*RetrieverResponse, error),
+) Retriever {
+	ia := core.NewAction(name, core.ActionTypeIndexer, nil, func(ctx context.Context, req *IndexerRequest) (struct{}, error) {
+		return struct{}{}, index(ctx, req)
+	})
+	core.RegisterAction(name, ia)
+	ra := core.NewAction(name, core.ActionTypeRetriever, nil, retrieve)
+	core.RegisterAction(name, ra)
+	return &retriever{ia, ra}
+}
 
-	core.RegisterAction(name,
-		core.NewAction(name, core.ActionTypeIndexer, nil, func(ctx context.Context, req *IndexerRequest) (struct{}, error) {
-			err := retriever.Index(ctx, req)
-			return struct{}{}, err
-		}))
+type retriever struct {
+	index    *core.Action[*IndexerRequest, struct{}, struct{}]
+	retrieve *core.Action[*RetrieverRequest, *RetrieverResponse, struct{}]
+}
+
+func (r *retriever) Index(ctx context.Context, req *IndexerRequest) error {
+	_, err := r.index.Run(ctx, req, nil)
+	return err
+}
+
+func (r *retriever) Retrieve(ctx context.Context, req *RetrieverRequest) (*RetrieverResponse, error) {
+	return r.retrieve.Run(ctx, req, nil)
 }
