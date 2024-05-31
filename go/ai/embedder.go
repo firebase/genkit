@@ -21,7 +21,7 @@ import (
 )
 
 // Embedder is the interface used to convert a document to a
-// multidimensional vector. A [Retriever] will use a value of this type.
+// multidimensional vector. A [DocumentStore] will use a value of this type.
 type Embedder interface {
 	Embed(context.Context, *EmbedRequest) ([]float32, error)
 }

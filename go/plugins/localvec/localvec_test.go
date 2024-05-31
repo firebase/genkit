@@ -51,7 +51,7 @@ func TestLocalVec(t *testing.T) {
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
 
-	r, err := newRetriever(ctx, t.TempDir(), "testLocalVec", embedder, nil)
+	ds, err := newDocStore(ctx, t.TempDir(), "testLocalVec", embedder, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestLocalVec(t *testing.T) {
 	indexerReq := &ai.IndexerRequest{
 		Documents: []*ai.Document{d1, d2, d3},
 	}
-	err = r.Index(ctx, indexerReq)
+	err = ds.Index(ctx, indexerReq)
 	if err != nil {
 		t.Fatalf("Index operation failed: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestLocalVec(t *testing.T) {
 		Document: d1,
 		Options:  retrieverOptions,
 	}
-	retrieverResp, err := r.Retrieve(ctx, retrieverReq)
+	retrieverResp, err := ds.Retrieve(ctx, retrieverReq)
 	if err != nil {
 		t.Fatalf("Retrieve operation failed: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestPersistentIndexing(t *testing.T) {
 
 	tDir := t.TempDir()
 
-	r, err := newRetriever(ctx, tDir, "testLocalVec", embedder, nil)
+	ds, err := newDocStore(ctx, tDir, "testLocalVec", embedder, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func TestPersistentIndexing(t *testing.T) {
 	indexerReq := &ai.IndexerRequest{
 		Documents: []*ai.Document{d1, d2},
 	}
-	err = r.Index(ctx, indexerReq)
+	err = ds.Index(ctx, indexerReq)
 	if err != nil {
 		t.Fatalf("Index operation failed: %v", err)
 	}
@@ -134,7 +134,7 @@ func TestPersistentIndexing(t *testing.T) {
 		Document: d1,
 		Options:  retrieverOptions,
 	}
-	retrieverResp, err := r.Retrieve(ctx, retrieverReq)
+	retrieverResp, err := ds.Retrieve(ctx, retrieverReq)
 	if err != nil {
 		t.Fatalf("Retrieve operation failed: %v", err)
 	}
@@ -144,7 +144,7 @@ func TestPersistentIndexing(t *testing.T) {
 		t.Errorf("got %d results, expected 2", len(docs))
 	}
 
-	rAnother, err := newRetriever(ctx, tDir, "testLocalVec", embedder, nil)
+	dsAnother, err := newDocStore(ctx, tDir, "testLocalVec", embedder, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ func TestPersistentIndexing(t *testing.T) {
 	indexerReq = &ai.IndexerRequest{
 		Documents: []*ai.Document{d3},
 	}
-	err = rAnother.Index(ctx, indexerReq)
+	err = dsAnother.Index(ctx, indexerReq)
 	if err != nil {
 		t.Fatalf("Index operation failed: %v", err)
 	}
@@ -165,7 +165,7 @@ func TestPersistentIndexing(t *testing.T) {
 		Document: d1,
 		Options:  retrieverOptions,
 	}
-	retrieverResp, err = rAnother.Retrieve(ctx, retrieverReq)
+	retrieverResp, err = dsAnother.Retrieve(ctx, retrieverReq)
 	if err != nil {
 		t.Fatalf("Retrieve operation failed: %v", err)
 	}

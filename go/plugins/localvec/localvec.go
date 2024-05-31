@@ -38,17 +38,17 @@ import (
 // retriever with genkit, and also return it.
 // This retriever may only be used by a single goroutine at a time.
 // This is based on js/plugins/dev-local-vectorstore/src/index.ts.
-func New(ctx context.Context, dir, name string, embedder ai.Embedder, embedderOptions any) (ai.Retriever, error) {
-	r, err := newRetriever(ctx, dir, name, embedder, embedderOptions)
+func New(ctx context.Context, dir, name string, embedder ai.Embedder, embedderOptions any) (ai.DocumentStore, error) {
+	r, err := newDocStore(ctx, dir, name, embedder, embedderOptions)
 	if err != nil {
 		return nil, err
 	}
-	return ai.DefineRetriever("devLocalVectorStore/"+name, r.Index, r.Retrieve), nil
+	return ai.DefineDocumentStore("devLocalVectorStore/"+name, r.Index, r.Retrieve), nil
 }
 
-// retriever implements the [ai.Retriever] interface
+// docStore implements the [ai.DocumentStore] interface
 // for a local vector database.
-type retriever struct {
+type docStore struct {
 	filename        string
 	embedder        ai.Embedder
 	embedderOptions any
@@ -61,8 +61,8 @@ type dbValue struct {
 	Embedding []float32    `json:"embedding"`
 }
 
-// newRetriever returns a new ai.Retriever to register.
-func newRetriever(ctx context.Context, dir, name string, embedder ai.Embedder, embedderOptions any) (ai.Retriever, error) {
+// newDocStore returns a new ai.DocumentStore to register.
+func newDocStore(ctx context.Context, dir, name string, embedder ai.Embedder, embedderOptions any) (ai.DocumentStore, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
@@ -82,23 +82,23 @@ func newRetriever(ctx context.Context, dir, name string, embedder ai.Embedder, e
 		}
 	}
 
-	r := &retriever{
+	ds := &docStore{
 		filename:        filename,
 		embedder:        embedder,
 		embedderOptions: embedderOptions,
 		data:            data,
 	}
-	return r, nil
+	return ds, nil
 }
 
-// Index implements the genkit [ai.Retriever.Index] method.
-func (r *retriever) Index(ctx context.Context, req *ai.IndexerRequest) error {
+// Index implements the genkit [ai.DocumentStore.Index] method.
+func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 	for _, doc := range req.Documents {
 		ereq := &ai.EmbedRequest{
 			Document: doc,
-			Options:  r.embedderOptions,
+			Options:  ds.embedderOptions,
 		}
-		vals, err := r.embedder.Embed(ctx, ereq)
+		vals, err := ds.embedder.Embed(ctx, ereq)
 		if err != nil {
 			return fmt.Errorf("localvec index embedding failed: %v", err)
 		}
@@ -108,16 +108,16 @@ func (r *retriever) Index(ctx context.Context, req *ai.IndexerRequest) error {
 			return err
 		}
 
-		if _, ok := r.data[id]; ok {
+		if _, ok := ds.data[id]; ok {
 			logger.FromContext(ctx).Debug("localvec skipping document because already present", "id", id)
 			continue
 		}
 
-		if r.data == nil {
-			r.data = make(map[string]dbValue)
+		if ds.data == nil {
+			ds.data = make(map[string]dbValue)
 		}
 
-		r.data[id] = dbValue{
+		ds.data[id] = dbValue{
 			Doc:       doc,
 			Embedding: vals,
 		}
@@ -126,19 +126,19 @@ func (r *retriever) Index(ctx context.Context, req *ai.IndexerRequest) error {
 	// Update the file every time we add documents.
 	// We use a temporary file to avoid losing the original
 	// file, in case of a crash.
-	tmpname := r.filename + ".tmp"
+	tmpname := ds.filename + ".tmp"
 	f, err := os.Create(tmpname)
 	if err != nil {
 		return err
 	}
 	encoder := json.NewEncoder(f)
-	if err := encoder.Encode(r.data); err != nil {
+	if err := encoder.Encode(ds.data); err != nil {
 		return err
 	}
 	if err := f.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(tmpname, r.filename); err != nil {
+	if err := os.Rename(tmpname, ds.filename); err != nil {
 		return err
 	}
 
@@ -152,15 +152,15 @@ type RetrieverOptions struct {
 	K int `json:"k,omitempty"` // number of entries to return
 }
 
-// Retrieve implements the genkit [ai.Retriever.Retrieve] method.
-func (r *retriever) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
+// Retrieve implements the genkit [ai.DocumentStore.Retrieve] method.
+func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
 	// Use the embedder to convert the document we want to
 	// retrieve into a vector.
 	ereq := &ai.EmbedRequest{
 		Document: req.Document,
-		Options:  r.embedderOptions,
+		Options:  ds.embedderOptions,
 	}
-	vals, err := r.embedder.Embed(ctx, ereq)
+	vals, err := ds.embedder.Embed(ctx, ereq)
 	if err != nil {
 		return nil, fmt.Errorf("localvec retrieve embedding failed: %v", err)
 	}
@@ -169,8 +169,8 @@ func (r *retriever) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 		score float64
 		doc   *ai.Document
 	}
-	scoredDocs := make([]scoredDoc, 0, len(r.data))
-	for _, dbv := range r.data {
+	scoredDocs := make([]scoredDoc, 0, len(ds.data))
+	for _, dbv := range ds.data {
 		score := similarity(vals, dbv.Embedding)
 		scoredDocs = append(scoredDocs, scoredDoc{
 			score: score,
