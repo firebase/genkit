@@ -26,7 +26,7 @@ import (
 )
 
 var menuToolDef = &ai.ToolDefinition{
-	Name:        "todaysMenu",
+	Name: "todaysMenu",
 	OutputSchema: map[string]any{
 		"menuData": []menuItem{},
 	},
@@ -61,8 +61,8 @@ func setup02(ctx context.Context) error {
 		 Question:
 		 {{question}} ?`,
 		&dotprompt.Config{
-			Model: "google-vertexai/gemini-1.0-pro",
-			InputSchema: menuQuestionInputSchema,
+			Model:        "google-vertexai/gemini-1.0-pro",
+			InputSchema:  menuQuestionInputSchema,
 			OutputFormat: ai.OutputFormatText,
 			Tools: []*ai.ToolDefinition{
 				menuToolDef,

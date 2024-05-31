@@ -41,8 +41,8 @@ func setup04(ctx context.Context, datastore ai.Retriever) error {
 		  Answer this customer's question:
 		  {{question}}?`,
 		&dotprompt.Config{
-			Model: "google-vertexai/gemini-1.0-pro",
-			InputSchema: dataMenuQuestionInputSchema,
+			Model:        "google-vertexai/gemini-1.0-pro",
+			InputSchema:  dataMenuQuestionInputSchema,
 			OutputFormat: ai.OutputFormatText,
 			GenerationConfig: &ai.GenerationCommonConfig{
 				Temperature: 0.3,
@@ -111,7 +111,7 @@ func setup04(ctx context.Context, datastore ai.Retriever) error {
 				return nil, err
 			}
 
-			ret :=  &answerOutput{
+			ret := &answerOutput{
 				Answer: presp.Candidates[0].Message.Content[0].Text,
 			}
 			return ret, nil

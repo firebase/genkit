@@ -27,7 +27,7 @@ func setup01(ctx context.Context) error {
 		 questions about the food available on the menu at Walt's Burgers.
 		 Customer says: ${input.question}`,
 		&dotprompt.Config{
-			Model: "google-vertexai/gemini-1.0-pro",
+			Model:       "google-vertexai/gemini-1.0-pro",
 			InputSchema: menuQuestionInputSchema,
 		},
 	)
@@ -67,7 +67,7 @@ func setup01(ctx context.Context) error {
 		 Question:
 		 {{question}} ?`,
 		&dotprompt.Config{
-			Model: "google-vertexai/gemini-1.0-pro",
+			Model:        "google-vertexai/gemini-1.0-pro",
 			InputSchema:  menuQuestionInputSchema,
 			OutputFormat: ai.OutputFormatText,
 		},

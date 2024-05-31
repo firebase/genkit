@@ -29,7 +29,7 @@ type chatSessionInput struct {
 }
 
 type chatSessionOutput struct {
-	SessionID string `json:"sessionID"`
+	SessionID string        `json:"sessionID"`
 	History   []*ai.Message `json:"history"`
 }
 
@@ -57,7 +57,7 @@ func (ch *chatHistoryStore) Retrieve(sessionID string) chatHistory {
 
 func setup03(ctx context.Context, generator ai.Generator) error {
 	chatPreamblePrompt, err := dotprompt.Define("s03_chatPreamble",
-		  `
+		`
 		  {{ role "user" }}
 		  Hi. What's on the menu today?
 
@@ -72,8 +72,8 @@ func setup03(ctx context.Context, generator ai.Generator) error {
 		  {{~/each}}
 		  Do you have any questions about the menu?`,
 		&dotprompt.Config{
-			Model: "google-vertexai/gemini-1.0-pro",
-			InputSchema: dataMenuQuestionInputSchema,
+			Model:        "google-vertexai/gemini-1.0-pro",
+			InputSchema:  dataMenuQuestionInputSchema,
 			OutputFormat: ai.OutputFormatText,
 			GenerationConfig: &ai.GenerationCommonConfig{
 				Temperature: 0.3,

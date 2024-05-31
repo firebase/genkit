@@ -23,7 +23,6 @@ import (
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/dotprompt"
 	"github.com/invopop/jsonschema"
-
 )
 
 type imageURLInput struct {
@@ -38,8 +37,8 @@ func setup05(ctx context.Context) error {
 
 		  {{media url=imageUrl}}`,
 		&dotprompt.Config{
-			Model: "google-vertexai/gemini-1.0-pro-vision",
-			InputSchema: jsonschema.Reflect(imageURLInput{}),
+			Model:        "google-vertexai/gemini-1.0-pro-vision",
+			InputSchema:  jsonschema.Reflect(imageURLInput{}),
 			OutputFormat: ai.OutputFormatText,
 			GenerationConfig: &ai.GenerationCommonConfig{
 				Temperature: 0.1,
@@ -63,8 +62,8 @@ func setup05(ctx context.Context) error {
 		  {{question}}?
 		`,
 		&dotprompt.Config{
-			Model: "google-vertexai/gemini-1.0-pro",
-			InputSchema: textMenuQuestionInputSchema,
+			Model:        "google-vertexai/gemini-1.0-pro",
+			InputSchema:  textMenuQuestionInputSchema,
 			OutputFormat: ai.OutputFormatText,
 			GenerationConfig: &ai.GenerationCommonConfig{
 				Temperature: 0.3,
