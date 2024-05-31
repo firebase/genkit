@@ -134,6 +134,8 @@ func (r *retriever) Index(ctx context.Context, req *ai.IndexerRequest) error {
 	}
 
 	// Update the file every time we add documents.
+	// We use a temporary file to avoid losing the original
+	// file, in case of a crash.
 	tmpname := r.filename + ".tmp"
 	f, err := os.Create(tmpname)
 	if err != nil {
@@ -144,6 +146,9 @@ func (r *retriever) Index(ctx context.Context, req *ai.IndexerRequest) error {
 		return err
 	}
 	if err := f.Close(); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpname, r.filename); err != nil {
 		return err
 	}
 
