@@ -2,13 +2,14 @@ import { Component } from '@angular/core';
 import { streamFlow } from '../../../utils/flow';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { MatButtonModule } from '@angular/material/button';
 
 const url = 'http://127.0.0.1:3400/streamCharacters';
 
 @Component({
   selector: 'app-streaming-json',
   standalone: true,
-  imports: [FormsModule, CommonModule],
+  imports: [FormsModule, CommonModule, MatButtonModule],
   templateUrl: './streaming-json.component.html',
   styleUrl: './streaming-json.component.scss'
 })

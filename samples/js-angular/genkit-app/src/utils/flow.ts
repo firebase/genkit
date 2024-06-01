@@ -22,7 +22,7 @@ export function streamFlow({
   headers,
 }: {
   url: string;
-  payload: any;
+  payload?: any;
   headers?: Record<string, string>;
 }) {
   let chunkStreamController: ReadableStreamDefaultController | undefined =
@@ -83,7 +83,7 @@ async function __flowRunEnvelope({
   headers,
 }: {
   url: string;
-  payload: any;
+  payload?: any;
   streamingCallback: (chunk: any) => void;
   headers?: Record<string, string>;
 }) {
