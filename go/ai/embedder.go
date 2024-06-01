@@ -33,7 +33,14 @@ type EmbedRequest struct {
 	Options  any       `json:"options,omitempty"`
 }
 
-// RegisterEmbedder registers the actions for a specific embedder.
-func RegisterEmbedder(name string, embedder Embedder) {
-	core.DefineAction(name, core.ActionTypeEmbedder, nil, embedder.Embed)
+func DefineEmbedder(name string, embed func(context.Context, *EmbedRequest) ([]float32, error)) Embedder {
+	return embedder{core.DefineAction(name, core.ActionTypeEmbedder, nil, embed)}
+}
+
+type embedder struct {
+	embedAction *core.Action[*EmbedRequest, []float32, struct{}]
+}
+
+func (e embedder) Embed(ctx context.Context, req *EmbedRequest) ([]float32, error) {
+	return e.embedAction.Run(ctx, req, nil)
 }

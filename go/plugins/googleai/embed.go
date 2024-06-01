@@ -18,23 +18,7 @@ import (
 	"context"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/google/generative-ai-go/genai"
 )
-
-type embedder struct {
-	model  string
-	client *genai.Client
-}
-
-func (e *embedder) Embed(ctx context.Context, input *ai.EmbedRequest) ([]float32, error) {
-	em := e.client.EmbeddingModel(e.model)
-	parts := convertParts(input.Document.Content)
-	res, err := em.EmbedContent(ctx, parts...)
-	if err != nil {
-		return nil, err
-	}
-	return res.Embedding.Values, nil
-}
 
 // NewEmbedder returns an [ai.Embedder] that can compute the embedding
 // of an input document given the Google AI model.
@@ -43,8 +27,14 @@ func NewEmbedder(ctx context.Context, model, apiKey string) (ai.Embedder, error)
 	if err != nil {
 		return nil, err
 	}
-	return &embedder{
-		model:  model,
-		client: client,
-	}, nil
+	e := ai.DefineEmbedder("google-genai", func(ctx context.Context, input *ai.EmbedRequest) ([]float32, error) {
+		em := client.EmbeddingModel(model)
+		parts := convertParts(input.Document.Content)
+		res, err := em.EmbedContent(ctx, parts...)
+		if err != nil {
+			return nil, err
+		}
+		return res.Embedding.Values, nil
+	})
+	return e, nil
 }
