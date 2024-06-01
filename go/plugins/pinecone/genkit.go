@@ -36,7 +36,7 @@ import (
 // documents in pinecone.
 const defaultTextKey = "_content"
 
-// New returns an [ai.Retriever] that uses Pinecone.
+// New returns an [ai.DocumentStore] that uses Pinecone.
 //
 // apiKey is the API key to use to access Pinecone.
 // If it is the empty string, it is read from the PINECONE_API_KEY
@@ -50,7 +50,7 @@ const defaultTextKey = "_content"
 //
 // The textKey parameter is the metadata key to use to store document text
 // in Pinecone; the default is "_content".
-func New(ctx context.Context, apiKey, host string, embedder ai.Embedder, embedderOptions any, textKey string) (ai.Retriever, error) {
+func New(ctx context.Context, apiKey, host string, embedder ai.Embedder, embedderOptions any, textKey string) (ai.DocumentStore, error) {
 	client, err := NewClient(ctx, apiKey)
 	if err != nil {
 		return nil, err
@@ -62,15 +62,14 @@ func New(ctx context.Context, apiKey, host string, embedder ai.Embedder, embedde
 	if textKey == "" {
 		textKey = defaultTextKey
 	}
-	r := &retriever{
+	r := &docStore{
 		index:           index,
 		embedder:        embedder,
 		embedderOptions: embedderOptions,
 		textKey:         textKey,
 	}
 
-	// index := func(ctx context.Context, req *ai.IndexerRequest) error {
-	return ai.DefineRetriever("pinecone", r.Index, r.Retrieve), nil
+	return ai.DefineDocumentStore("pinecone", r.Index, r.Retrieve), nil
 }
 
 // IndexerOptions may be passed in the Options field
@@ -88,8 +87,8 @@ type RetrieverOptions struct {
 	Count     int    `json:"count,omitempty"`     // maximum number of values to retrieve
 }
 
-// retriever implements the genkit Retriever interface.
-type retriever struct {
+// docStore implements the genkit [ai.DocumentStore] interface.
+type docStore struct {
 	index           *Index
 	embedder        ai.Embedder
 	embedderOptions any
@@ -97,7 +96,7 @@ type retriever struct {
 }
 
 // Index implements the genkit Retriever.Index method.
-func (r *retriever) Index(ctx context.Context, req *ai.IndexerRequest) error {
+func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 	if len(req.Documents) == 0 {
 		return nil
 	}
@@ -119,9 +118,9 @@ func (r *retriever) Index(ctx context.Context, req *ai.IndexerRequest) error {
 	for _, doc := range req.Documents {
 		ereq := &ai.EmbedRequest{
 			Document: doc,
-			Options:  r.embedderOptions,
+			Options:  ds.embedderOptions,
 		}
-		vals, err := r.embedder.Embed(ctx, ereq)
+		vals, err := ds.embedder.Embed(ctx, ereq)
 		if err != nil {
 			return fmt.Errorf("pinecone index embedding failed: %v", err)
 		}
@@ -143,7 +142,7 @@ func (r *retriever) Index(ctx context.Context, req *ai.IndexerRequest) error {
 		for _, p := range doc.Content {
 			sb.WriteString(p.Text)
 		}
-		metadata[r.textKey] = sb.String()
+		metadata[ds.textKey] = sb.String()
 
 		v := Vector{
 			ID:       id,
@@ -153,7 +152,7 @@ func (r *retriever) Index(ctx context.Context, req *ai.IndexerRequest) error {
 		vecs = append(vecs, v)
 	}
 
-	if err := r.index.Upsert(ctx, vecs, namespace); err != nil {
+	if err := ds.index.Upsert(ctx, vecs, namespace); err != nil {
 		return err
 	}
 
@@ -162,7 +161,7 @@ func (r *retriever) Index(ctx context.Context, req *ai.IndexerRequest) error {
 	wait := func() (bool, error) {
 		delay := 10 * time.Millisecond
 		for i := 0; i < 20; i++ {
-			vec, err := r.index.QueryByID(ctx, vecs[0].ID, WantValues, namespace)
+			vec, err := ds.index.QueryByID(ctx, vecs[0].ID, WantValues, namespace)
 			if err != nil {
 				return false, err
 			}
@@ -193,7 +192,7 @@ func (r *retriever) Index(ctx context.Context, req *ai.IndexerRequest) error {
 }
 
 // Retrieve implements the genkit Retriever.Retrieve method.
-func (r *retriever) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
+func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
 	var (
 		namespace string
 		count     int
@@ -214,25 +213,25 @@ func (r *retriever) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 	// retrieve into a vector.
 	ereq := &ai.EmbedRequest{
 		Document: req.Document,
-		Options:  r.embedderOptions,
+		Options:  ds.embedderOptions,
 	}
-	vals, err := r.embedder.Embed(ctx, ereq)
+	vals, err := ds.embedder.Embed(ctx, ereq)
 	if err != nil {
 		return nil, fmt.Errorf("pinecone retrieve embedding failed: %v", err)
 	}
 
-	results, err := r.index.Query(ctx, vals, count, WantMetadata, namespace)
+	results, err := ds.index.Query(ctx, vals, count, WantMetadata, namespace)
 	if err != nil {
 		return nil, err
 	}
 
 	var docs []*ai.Document
 	for _, result := range results {
-		text, _ := result.Metadata[r.textKey].(string)
+		text, _ := result.Metadata[ds.textKey].(string)
 		if text == "" {
 			return nil, errors.New("Pinecone retrieve failed to fetch original document text")
 		}
-		delete(result.Metadata, r.textKey)
+		delete(result.Metadata, ds.textKey)
 		// TODO(iant): This is what the TypeScript code does,
 		// but it loses information for multimedia documents.
 		d := ai.DocumentFromText(text, result.Metadata)

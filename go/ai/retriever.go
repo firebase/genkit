@@ -20,10 +20,10 @@ import (
 	"github.com/firebase/genkit/go/core"
 )
 
-// Retriever supports adding documents to a database, and
+// DocumentStore supports adding documents to a database, and
 // retrieving documents from the database that are similar to a query document.
 // Vector databases will implement this interface.
-type Retriever interface {
+type DocumentStore interface {
 	// Add a document to the database.
 	Index(context.Context, *IndexerRequest) error
 	// Retrieve matching documents from the database.
@@ -49,30 +49,30 @@ type RetrieverResponse struct {
 	Documents []*Document `json:"documents"`
 }
 
-// DefineRetriever takes index and retrieve functions that access a vector DB
-// and returns a new Retriever that wraps them in registered actions.
-func DefineRetriever(
+// DefineDocumentStore takes index and retrieve functions that access a document store
+// and returns a new [DocumentStore] that wraps them in registered actions.
+func DefineDocumentStore(
 	name string,
 	index func(context.Context, *IndexerRequest) error,
 	retrieve func(context.Context, *RetrieverRequest) (*RetrieverResponse, error),
-) Retriever {
+) DocumentStore {
 	ia := core.DefineAction(name, core.ActionTypeIndexer, nil, func(ctx context.Context, req *IndexerRequest) (struct{}, error) {
 		return struct{}{}, index(ctx, req)
 	})
 	ra := core.DefineAction(name, core.ActionTypeRetriever, nil, retrieve)
-	return &retriever{ia, ra}
+	return &docStore{ia, ra}
 }
 
-type retriever struct {
+type docStore struct {
 	index    *core.Action[*IndexerRequest, struct{}, struct{}]
 	retrieve *core.Action[*RetrieverRequest, *RetrieverResponse, struct{}]
 }
 
-func (r *retriever) Index(ctx context.Context, req *IndexerRequest) error {
-	_, err := r.index.Run(ctx, req, nil)
+func (ds *docStore) Index(ctx context.Context, req *IndexerRequest) error {
+	_, err := ds.index.Run(ctx, req, nil)
 	return err
 }
 
-func (r *retriever) Retrieve(ctx context.Context, req *RetrieverRequest) (*RetrieverResponse, error) {
-	return r.retrieve.Run(ctx, req, nil)
+func (ds *docStore) Retrieve(ctx context.Context, req *RetrieverRequest) (*RetrieverResponse, error) {
+	return ds.retrieve.Run(ctx, req, nil)
 }
