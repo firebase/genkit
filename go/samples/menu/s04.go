@@ -24,7 +24,7 @@ import (
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
 
-func setup04(ctx context.Context, docstore ai.DocumentStore) error {
+func setup04(ctx context.Context, docstore ai.DocumentStore, gen ai.Generator) error {
 	ragDataMenuPrompt, err := dotprompt.Define("s04_ragDataMenu",
 		`
 		  You are acting as Walt, a helpful AI assistant here at the restaurant.
@@ -40,8 +40,8 @@ func setup04(ctx context.Context, docstore ai.DocumentStore) error {
 
 		  Answer this customer's question:
 		  {{question}}?`,
-		&dotprompt.Config{
-			Model:        "google-vertexai/gemini-1.0-pro",
+		dotprompt.Config{
+			Generator:    gen,
 			InputSchema:  dataMenuQuestionInputSchema,
 			OutputFormat: ai.OutputFormatText,
 			GenerationConfig: &ai.GenerationCommonConfig{

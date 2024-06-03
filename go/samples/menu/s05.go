@@ -29,15 +29,15 @@ type imageURLInput struct {
 	ImageURL string `json:"imageUrl"`
 }
 
-func setup05(ctx context.Context) error {
+func setup05(ctx context.Context, gen, genVision ai.Generator) error {
 	readMenuPrompt, err := dotprompt.Define("s05_readMenu",
 		`
 		  Extract _all_ of the text, in order,
 		  from the following image of a restaurant menu.
 
 		  {{media url=imageUrl}}`,
-		&dotprompt.Config{
-			Model:        "google-vertexai/gemini-1.0-pro-vision",
+		dotprompt.Config{
+			Generator:    genVision,
 			InputSchema:  jsonschema.Reflect(imageURLInput{}),
 			OutputFormat: ai.OutputFormatText,
 			GenerationConfig: &ai.GenerationCommonConfig{
@@ -61,8 +61,8 @@ func setup05(ctx context.Context) error {
 		  Answer this customer's question:
 		  {{question}}?
 		`,
-		&dotprompt.Config{
-			Model:        "google-vertexai/gemini-1.0-pro",
+		dotprompt.Config{
+			Generator:    gen,
 			InputSchema:  textMenuQuestionInputSchema,
 			OutputFormat: ai.OutputFormatText,
 			GenerationConfig: &ai.GenerationCommonConfig{

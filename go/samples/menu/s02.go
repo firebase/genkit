@@ -46,7 +46,7 @@ func menu(ctx context.Context, input map[string]any) (map[string]any, error) {
 	return map[string]any{"menu": s}, nil
 }
 
-func setup02(ctx context.Context) error {
+func setup02(ctx context.Context, g ai.Generator) error {
 	ai.RegisterTool("menu", menuToolDef, nil, menu)
 
 	dataMenuPrompt, err := dotprompt.Define("s02_dataMenu",
@@ -60,8 +60,8 @@ func setup02(ctx context.Context) error {
 
 		 Question:
 		 {{question}} ?`,
-		&dotprompt.Config{
-			Model:        "google-vertexai/gemini-1.0-pro",
+		dotprompt.Config{
+			Generator:    g,
 			InputSchema:  menuQuestionInputSchema,
 			OutputFormat: ai.OutputFormatText,
 			Tools: []*ai.ToolDefinition{

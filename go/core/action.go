@@ -77,6 +77,16 @@ func defineAction[In, Out any](r *registry, name string, atype ActionType, metad
 	return a
 }
 
+func DefineStreamingAction[In, Out, Stream any](name string, atype ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
+	return defineStreamingAction(globalRegistry, name, atype, metadata, fn)
+}
+
+func defineStreamingAction[In, Out, Stream any](r *registry, name string, atype ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
+	a := NewStreamingAction(name, atype, metadata, fn)
+	r.registerAction(name, a)
+	return a
+}
+
 // NewAction creates a new Action with the given name and non-streaming function.
 func NewAction[In, Out any](name string, atype ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
 	return NewStreamingAction(name, atype, metadata, func(ctx context.Context, in In, cb NoStream) (Out, error) {

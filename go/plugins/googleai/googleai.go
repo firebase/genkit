@@ -193,26 +193,14 @@ func NewGenerator(ctx context.Context, model, apiKey string) (ai.Generator, erro
 	if err != nil {
 		return nil, err
 	}
-	return &generator{
-		model:  model,
-		client: client,
-	}, nil
-}
-
-// Init registers all the actions in this package with [ai]'s Register calls.
-func Init(ctx context.Context, model, apiKey string) error {
-	g, err := NewGenerator(ctx, model, apiKey)
-	if err != nil {
-		return err
-	}
-	ai.RegisterGenerator("google-genai", model, &ai.GeneratorMetadata{
+	meta := &ai.GeneratorMetadata{
 		Label: "Google AI - " + model,
 		Supports: ai.GeneratorCapabilities{
 			Multiturn: true,
 		},
-	}, g)
-
-	return nil
+	}
+	g := generator{model: model, client: client}
+	return ai.DefineGenerator("google-genai", model, meta, g.Generate), nil
 }
 
 // convertParts converts a slice of *ai.Part to a slice of genai.Part.
