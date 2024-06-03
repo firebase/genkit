@@ -99,13 +99,13 @@ export async function runInNewSpan<T>(
 
         opts.metadata.path = decoratePathWithSubtype(opts.metadata);
         if (pathCount == getCurrentPathCount()) {
-          getCurrentTrace().paths?.add(opts.metadata.path);
+          traceMetadataAls.getStore()?.paths?.add(opts.metadata.path);
         }
 
         return output;
       } catch (e) {
         opts.metadata.path = decoratePathWithSubtype(opts.metadata);
-        getCurrentTrace().paths?.add(opts.metadata.path);
+        traceMetadataAls.getStore()?.paths?.add(opts.metadata.path);
         opts.metadata.state = 'error';
         otSpan.setStatus({
           code: SpanStatusCode.ERROR,
@@ -188,16 +188,8 @@ function getCurrentSpan(): SpanMetadata {
   return step;
 }
 
-function getCurrentTrace(): TraceMetadata {
-  const trace = traceMetadataAls.getStore();
-  if (!trace) {
-    throw new Error('running outside trace context');
-  }
-  return trace;
-}
-
 function getCurrentPathCount(): number {
-  return getCurrentTrace().paths?.size || 0;
+  return traceMetadataAls.getStore()?.paths?.size || 0;
 }
 
 function decoratePathWithSubtype(metadata: SpanMetadata): string {
