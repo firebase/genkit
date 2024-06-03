@@ -77,8 +77,8 @@ func main() {
 	}
 
 	location := "us-central1"
-	if envLocation := os.Getenv("GCLOUD_LOCATION"); envLocation != "" {
-		location = envLocation
+	if env := os.Getenv("GCLOUD_LOCATION"); env != "" {
+		location = env
 	}
 
 	if err := vertexai.Init(context.Background(), geminiPro, projectID, location); err != nil {

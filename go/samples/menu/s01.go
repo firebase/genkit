@@ -72,9 +72,6 @@ func setup01(ctx context.Context) error {
 			OutputFormat: ai.OutputFormatText,
 		},
 	)
-	if err != nil {
-		return err
-	}
 
-	return nil
+	return err
 }

@@ -38,9 +38,9 @@ func menu(ctx context.Context, input map[string]any) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	decoder := json.NewDecoder(f)
+	defer f.Close()
 	var s []any
-	if err := decoder.Decode(&s); err != nil {
+	if err := json.NewDecoder(f).Decode(&s); err != nil {
 		return nil, err
 	}
 	return map[string]any{"menu": s}, nil
