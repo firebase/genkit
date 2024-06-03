@@ -169,26 +169,14 @@ func NewGenerator(ctx context.Context, model, projectID, location string) (ai.Ge
 	if err != nil {
 		return nil, err
 	}
-	return &generator{
-		model:  model,
-		client: client,
-	}, nil
-}
-
-// Init registers all the actions in this package with [ai]'s Register calls.
-func Init(ctx context.Context, model, projectID, location string) error {
-	g, err := NewGenerator(ctx, model, projectID, location)
-	if err != nil {
-		return err
-	}
-	ai.RegisterGenerator("google-vertexai", model, &ai.GeneratorMetadata{
+	g := &generator{model: model, client: client}
+	meta := &ai.GeneratorMetadata{
 		Label: "Vertex AI - " + model,
 		Supports: ai.GeneratorCapabilities{
 			Multiturn: true,
 		},
-	}, g)
-
-	return nil
+	}
+	return ai.DefineGenerator("google-vertexai", model, meta, g.Generate), nil
 }
 
 // convertParts converts a slice of *ai.Part to a slice of genai.Part.

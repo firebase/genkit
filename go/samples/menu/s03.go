@@ -71,8 +71,8 @@ func setup03(ctx context.Context, generator ai.Generator) error {
 		    {{this.description}}
 		  {{~/each}}
 		  Do you have any questions about the menu?`,
-		&dotprompt.Config{
-			Model:        "google-vertexai/gemini-1.0-pro",
+		dotprompt.Config{
+			Generator:    generator,
 			InputSchema:  dataMenuQuestionInputSchema,
 			OutputFormat: ai.OutputFormatText,
 			GenerationConfig: &ai.GenerationCommonConfig{

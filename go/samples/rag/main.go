@@ -76,14 +76,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := googleai.Init(context.Background(), "gemini-1.0-pro", apiKey); err != nil {
+	g, err := googleai.NewGenerator(context.Background(), "gemini-1.0-pro", apiKey)
+	if err != nil {
 		log.Fatal(err)
 	}
 
 	simpleQaPrompt, err := dotprompt.Define("simpleQaPrompt",
 		simpleQaPromptTemplate,
-		&dotprompt.Config{
-			Model:        "google-genai/gemini-1.0-pro",
+		dotprompt.Config{
+			Generator:    g,
 			InputSchema:  jsonschema.Reflect(simpleQaPromptInput{}),
 			OutputFormat: ai.OutputFormatText,
 		},

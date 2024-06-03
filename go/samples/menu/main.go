@@ -20,7 +20,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/localvec"
 	"github.com/firebase/genkit/go/plugins/vertexai"
@@ -81,23 +80,21 @@ func main() {
 		location = env
 	}
 
-	if err := vertexai.Init(context.Background(), geminiPro, projectID, location); err != nil {
-		log.Fatal(err)
-	}
-
-	ctx := context.Background()
-	if err := setup01(ctx); err != nil {
-		log.Fatal(err)
-	}
-	if err := setup02(ctx); err != nil {
-		log.Fatal(err)
-	}
-
-	generator, err := ai.LookupGeneratorAction("google-vertexai", geminiPro)
+	gen, err := vertexai.NewGenerator(context.Background(), geminiPro, projectID, location)
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := setup03(ctx, generator); err != nil {
+	genVision, err := vertexai.NewGenerator(context.Background(), geminiPro+"-vision", projectID, location)
+
+	ctx := context.Background()
+	if err := setup01(ctx, gen); err != nil {
+		log.Fatal(err)
+	}
+	if err := setup02(ctx, gen); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := setup03(ctx, gen); err != nil {
 		log.Fatal(err)
 	}
 
@@ -109,11 +106,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := setup04(ctx, ds); err != nil {
+	if err := setup04(ctx, ds, gen); err != nil {
 		log.Fatal(err)
 	}
 
-	if err := setup05(ctx); err != nil {
+	if err := setup05(ctx, gen, genVision); err != nil {
 		log.Fatal(err)
 	}
 

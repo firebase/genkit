@@ -30,7 +30,7 @@ func (testGenerator) Generate(ctx context.Context, req *ai.GenerateRequest, cb f
 
 	r := &ai.GenerateResponse{
 		Candidates: []*ai.Candidate{
-			&ai.Candidate{
+			{
 				Message: &ai.Message{
 					Content: []*ai.Part{
 						ai.NewTextPart(output),
@@ -44,11 +44,10 @@ func (testGenerator) Generate(ctx context.Context, req *ai.GenerateRequest, cb f
 }
 
 func TestExecute(t *testing.T) {
-	p, err := New("TestExecute", "TestExecute", nil)
+	p, err := New("TestExecute", "TestExecute", Config{Generator: testGenerator{}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	p.generator = testGenerator{}
 	resp, err := p.Generate(context.Background(), &ai.PromptRequest{}, nil)
 	if err != nil {
 		t.Fatal(err)
