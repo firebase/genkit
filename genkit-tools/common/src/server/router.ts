@@ -138,9 +138,9 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
       .input(apis.CreatePromptRequestSchema)
       .mutation(async ({ input }) => {
         const frontmatter: PromptFrontmatter = {
-          model: input.model,
+          model: input.model.replace('/model/', ''),
           config: input.config,
-          tools: input.toolNames,
+          tools: input.tools?.map((toolDefinition) => toolDefinition.name),
         };
         return fromMessages(frontmatter, input.messages);
       }),
