@@ -33,6 +33,8 @@ type EmbedRequest struct {
 	Options  any       `json:"options,omitempty"`
 }
 
+// DefineEmbedder registers the given embed function as an action, and returns an
+// [Embedder] whose Embed method runs it.
 func DefineEmbedder(name string, embed func(context.Context, *EmbedRequest) ([]float32, error)) Embedder {
 	return embedder{core.DefineAction(name, core.ActionTypeEmbedder, nil, embed)}
 }
