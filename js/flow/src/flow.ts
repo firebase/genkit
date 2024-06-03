@@ -64,7 +64,6 @@ import {
   runWithActiveContext,
 } from './utils.js';
 
-
 const streamDelimiter = '\n';
 
 const CREATED_FLOWS = 'genkit__CREATED_FLOWS';
