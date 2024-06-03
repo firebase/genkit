@@ -201,11 +201,6 @@ func NewGenerator(ctx context.Context, model, apiKey string) (ai.Generator, erro
 
 // Init registers all the actions in this package with [ai]'s Register calls.
 func Init(ctx context.Context, model, apiKey string) error {
-	e, err := NewEmbedder(ctx, model, apiKey)
-	if err != nil {
-		return err
-	}
-	ai.RegisterEmbedder("google-genai", e)
 	g, err := NewGenerator(ctx, model, apiKey)
 	if err != nil {
 		return err
