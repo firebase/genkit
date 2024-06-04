@@ -153,19 +153,20 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 	}
 }
 
+type partSchema struct {
+	Text     string          `json:"text,omitempty"`
+	Media    *mediaPartMedia `json:"media,omitempty"`
+	Data     string          `json:"data,omitempty"`
+	ToolReq  *ToolRequest    `json:"toolreq,omitempty"`
+	ToolResp *ToolResponse   `json:"toolresp,omitempty"`
+}
+
 // UnmarshalJSON is called by the JSON unmarshaler to read a Part.
 func (p *Part) UnmarshalJSON(b []byte) error {
 	// This is not handled by the schema generator because
 	// Part is defined in TypeScript as a union.
 
-	var s struct {
-		Text     string          `json:"text,omitempty"`
-		Media    *mediaPartMedia `json:"media,omitempty"`
-		Data     string          `json:"data,omitempty"`
-		ToolReq  *ToolRequest    `json:"toolreq,omitempty"`
-		ToolResp *ToolResponse   `json:"toolresp,omitempty"`
-	}
-
+	var s partSchema
 	if err := json.Unmarshal(b, &s); err != nil {
 		return err
 	}
@@ -192,6 +193,15 @@ func (p *Part) UnmarshalJSON(b []byte) error {
 		}
 	}
 	return nil
+}
+
+// JSONSchemaAlias tells the JSON schema reflection code to use a different
+// type for the schema for this type. This is needed because the JSON
+// marshaling of Part uses a schema that matches the TypeScript code,
+// rather than the natural JSON marshaling. This matters because the
+// current JSON validation code works by marshaling the JSON.
+func (Part) JSONSchemaAlias() any {
+	return partSchema{}
 }
 
 // DocumentFromText returns a [Document] containing a single plain text part.
