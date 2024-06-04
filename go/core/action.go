@@ -67,23 +67,23 @@ type Action[In, Out, Stream any] struct {
 // See js/core/src/action.ts
 
 // DefineAction creates a new Action and registers it.
-func DefineAction[In, Out any](name string, atype ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
-	return defineAction(globalRegistry, name, atype, metadata, fn)
+func DefineAction[In, Out any](provider, name string, atype ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
+	return defineAction(globalRegistry, provider, name, atype, metadata, fn)
 }
 
-func defineAction[In, Out any](r *registry, name string, atype ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
+func defineAction[In, Out any](r *registry, provider, name string, atype ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
 	a := NewAction(name, atype, metadata, fn)
-	r.registerAction(name, a)
+	r.registerAction(provider, a)
 	return a
 }
 
-func DefineStreamingAction[In, Out, Stream any](name string, atype ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
-	return defineStreamingAction(globalRegistry, name, atype, metadata, fn)
+func DefineStreamingAction[In, Out, Stream any](provider, name string, atype ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
+	return defineStreamingAction(globalRegistry, provider, name, atype, metadata, fn)
 }
 
-func defineStreamingAction[In, Out, Stream any](r *registry, name string, atype ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
+func defineStreamingAction[In, Out, Stream any](r *registry, provider, name string, atype ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
 	a := NewStreamingAction(name, atype, metadata, fn)
-	r.registerAction(name, a)
+	r.registerAction(provider, a)
 	return a
 }
 

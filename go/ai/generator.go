@@ -70,7 +70,7 @@ func DefineGenerator(provider, name string, metadata *GeneratorMetadata, generat
 		}
 		metadataMap["supports"] = supports
 	}
-	a := core.DefineStreamingAction(provider+"/"+name, core.ActionTypeModel, map[string]any{
+	a := core.DefineStreamingAction(provider, name, core.ActionTypeModel, map[string]any{
 		"model": metadataMap,
 	}, generate)
 	return generator{a}

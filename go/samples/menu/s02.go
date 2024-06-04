@@ -47,7 +47,7 @@ func menu(ctx context.Context, input map[string]any) (map[string]any, error) {
 }
 
 func setup02(ctx context.Context, g ai.Generator) error {
-	ai.RegisterTool("menu", menuToolDef, nil, menu)
+	ai.RegisterTool(menuToolDef, nil, menu)
 
 	dataMenuPrompt, err := dotprompt.Define("s02_dataMenu",
 		`You are acting as a helpful AI assistant named Walt that can answer

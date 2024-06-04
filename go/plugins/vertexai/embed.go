@@ -54,7 +54,7 @@ func NewEmbedder(ctx context.Context, model, projectID, location string) (ai.Emb
 
 	reqEndpoint := fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s", projectID, location, model)
 
-	e := ai.DefineEmbedder("google-vertexai", func(ctx context.Context, req *ai.EmbedRequest) ([]float32, error) {
+	e := ai.DefineEmbedder("google-vertexai", model, func(ctx context.Context, req *ai.EmbedRequest) ([]float32, error) {
 		preq, err := newPredictRequest(reqEndpoint, req)
 		if err != nil {
 			return nil, err

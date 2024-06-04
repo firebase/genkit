@@ -43,7 +43,7 @@ func New(ctx context.Context, dir, name string, embedder ai.Embedder, embedderOp
 	if err != nil {
 		return nil, err
 	}
-	return ai.DefineDocumentStore("devLocalVectorStore/"+name, r.Index, r.Retrieve), nil
+	return ai.DefineDocumentStore("devLocalVectorStore-"+name, r.Index, r.Retrieve), nil
 }
 
 // docStore implements the [ai.DocumentStore] interface
