@@ -29,7 +29,10 @@ func NewEmbedder(ctx context.Context, model, apiKey string) (ai.Embedder, error)
 	}
 	e := ai.DefineEmbedder("google-genai", func(ctx context.Context, input *ai.EmbedRequest) ([]float32, error) {
 		em := client.EmbeddingModel(model)
-		parts := convertParts(input.Document.Content)
+		parts, err := convertParts(input.Document.Content)
+		if err != nil {
+			return nil, err
+		}
 		res, err := em.EmbedContent(ctx, parts...)
 		if err != nil {
 			return nil, err

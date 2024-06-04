@@ -84,8 +84,9 @@ func setup05(ctx context.Context, gen, genVision ai.Generator) error {
 			if err != nil {
 				return "", err
 			}
-			b64 := base64.StdEncoding.AppendEncode(nil, image)
-			imageDataURL := "data:image/jpeg;base64," + string(b64)
+			data := make([]byte, base64.StdEncoding.EncodedLen(len(image)))
+			base64.StdEncoding.Encode(data, image)
+			imageDataURL := "data:image/jpeg;base64," + string(data)
 			preq := &ai.PromptRequest{
 				Variables: &imageURLInput{
 					ImageURL: imageDataURL,

@@ -20,6 +20,7 @@ import (
 
 	"cloud.google.com/go/vertexai/genai"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/plugins/internal/uri"
 )
 
 func newClient(ctx context.Context, projectID, location string) (*genai.Client, error) {
@@ -55,15 +56,23 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	for len(messages) > 1 {
 		m := messages[0]
 		messages = messages[1:]
+		parts, err := convertParts(m.Content)
+		if err != nil {
+			return nil, err
+		}
 		cs.History = append(cs.History, &genai.Content{
-			Parts: convertParts(m.Content),
+			Parts: parts,
 			Role:  string(m.Role),
 		})
 	}
 	// The last message gets added to the parts slice.
 	var parts []genai.Part
 	if len(messages) > 0 {
-		parts = convertParts(messages[0].Content)
+		var err error
+		parts, err = convertParts(messages[0].Content)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Convert input.Tools and append to gm.Tools.
@@ -180,35 +189,45 @@ func NewGenerator(ctx context.Context, model, projectID, location string) (ai.Ge
 }
 
 // convertParts converts a slice of *ai.Part to a slice of genai.Part.
-func convertParts(parts []*ai.Part) []genai.Part {
+func convertParts(parts []*ai.Part) ([]genai.Part, error) {
 	res := make([]genai.Part, 0, len(parts))
 	for _, p := range parts {
-		res = append(res, convertPart(p))
+		part, err := convertPart(p)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, part)
 	}
-	return res
+	return res, nil
 }
 
 // convertPart converts a *ai.Part to a genai.Part.
-func convertPart(p *ai.Part) genai.Part {
+func convertPart(p *ai.Part) (genai.Part, error) {
 	switch {
 	case p.IsText():
-		return genai.Text(p.Text)
+		return genai.Text(p.Text), nil
 	case p.IsMedia():
-		return genai.Blob{MIMEType: p.ContentType, Data: []byte(p.Text)}
+		contentType, data, err := uri.Data(p)
+		if err != nil {
+			return nil, err
+		}
+		return genai.Blob{MIMEType: contentType, Data: data}, nil
 	case p.IsData():
 		panic("vertexai does not support Data parts")
 	case p.IsToolResponse():
 		toolResp := p.ToolResponse
-		return genai.FunctionResponse{
+		fr := genai.FunctionResponse{
 			Name:     toolResp.Name,
 			Response: toolResp.Output,
 		}
+		return fr, nil
 	case p.IsToolRequest():
 		toolReq := p.ToolRequest
-		return genai.FunctionCall{
+		fc := genai.FunctionCall{
 			Name: toolReq.Name,
 			Args: toolReq.Input,
 		}
+		return fc, nil
 	default:
 		panic("unknown part type in a request")
 	}
