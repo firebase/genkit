@@ -41,7 +41,7 @@ func RegisterTool(definition *ToolDefinition, metadata map[string]any, fn func(c
 	}
 	metadata["type"] = "tool"
 
-	core.DefineAction("tool", definition.Name, core.ActionTypeTool, metadata, fn)
+	core.DefineAction("local", definition.Name, core.ActionTypeTool, metadata, fn)
 }
 
 // toolActionType is the instantiated core.Action type registered
@@ -51,7 +51,7 @@ type toolActionType = core.Action[map[string]any, map[string]any, struct{}]
 // RunTool looks up a tool registered by [RegisterTool],
 // runs it with the given input, and returns the result.
 func RunTool(ctx context.Context, name string, input map[string]any) (map[string]any, error) {
-	action := core.LookupAction(core.ActionTypeTool, "tool", name)
+	action := core.LookupAction(core.ActionTypeTool, "local", name)
 	if action == nil {
 		return nil, fmt.Errorf("no tool named %q", name)
 	}
