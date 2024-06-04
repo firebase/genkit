@@ -16,13 +16,11 @@ package vertexai
 
 import (
 	"context"
-	"encoding/base64"
-	"errors"
 	"fmt"
-	"strings"
 
 	"cloud.google.com/go/vertexai/genai"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/plugins/internal/uri"
 )
 
 func newClient(ctx context.Context, projectID, location string) (*genai.Client, error) {
@@ -209,38 +207,11 @@ func convertPart(p *ai.Part) (genai.Part, error) {
 	case p.IsText():
 		return genai.Text(p.Text), nil
 	case p.IsMedia():
-		url := p.Text
-		if strings.HasPrefix(url, "gs://") {
-			if p.ContentType == "" {
-				return nil, errors.New("must supply contentType when using media from gs:// URLs")
-			}
-			blob := genai.Blob{MIMEType: p.ContentType, Data: []byte(url)}
-			return blob, nil
+		contentType, data, err := uri.Data(p)
+		if err != nil {
+			return nil, err
 		}
-		if contents, isData := strings.CutPrefix(url, "data:"); isData {
-			prefix, data, found := strings.Cut(contents, ",")
-			if !found {
-				return nil, errors.New("failed to parse data URI: missing comma")
-			}
-			var dataBytes []byte
-			if p, found := strings.CutSuffix(prefix, ";base64"); found {
-				prefix = p
-				var err error
-				dataBytes, err = base64.StdEncoding.DecodeString(data)
-				if err != nil {
-					return nil, err
-				}
-			} else {
-				dataBytes = []byte(data)
-			}
-			contentType := p.ContentType
-			if contentType == "" {
-				contentType = prefix
-			}
-			blob := genai.Blob{MIMEType: contentType, Data: dataBytes}
-			return blob, nil
-		}
-		return nil, errors.New("could not convert genkit part to gemini part: missing file data")
+		return genai.Blob{MIMEType: contentType, Data: data}, nil
 	case p.IsData():
 		panic("vertexai does not support Data parts")
 	case p.IsToolResponse():
