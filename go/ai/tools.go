@@ -32,7 +32,7 @@ type Tool struct {
 }
 
 // RegisterTool registers a tool function.
-func RegisterTool(name string, definition *ToolDefinition, metadata map[string]any, fn func(ctx context.Context, input map[string]any) (map[string]any, error)) {
+func RegisterTool(definition *ToolDefinition, metadata map[string]any, fn func(ctx context.Context, input map[string]any) (map[string]any, error)) {
 	if len(metadata) > 0 {
 		metadata = maps.Clone(metadata)
 	}
@@ -41,7 +41,7 @@ func RegisterTool(name string, definition *ToolDefinition, metadata map[string]a
 	}
 	metadata["type"] = "tool"
 
-	core.DefineAction(definition.Name, core.ActionTypeTool, metadata, fn)
+	core.DefineAction("tool", definition.Name, core.ActionTypeTool, metadata, fn)
 }
 
 // toolActionType is the instantiated core.Action type registered
