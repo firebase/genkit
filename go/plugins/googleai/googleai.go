@@ -139,21 +139,15 @@ func defineEmbedder(name string, client *genai.Client) ai.Embedder {
 }
 
 // Generator returns the generator with the given name.
-// It panics if the generator was not configured.
+// It returns nil if the generator was not configured.
 func Generator(name string) ai.Generator {
-	if g, ok := state.models[name]; ok {
-		return g
-	}
-	panic(fmt.Sprintf("googleai: generator %q not configured", name))
+	return state.models[name]
 }
 
 // Embedder returns the embedder with the given name.
-// It panics if the embedder was not configured.
+// It returns nil if the embedder was not configured.
 func Embedder(name string) ai.Embedder {
-	if e, ok := state.embedders[name]; ok {
-		return e
-	}
-	panic(fmt.Sprintf("googleai: embedder %q not configured", name))
+	return state.embedders[name]
 }
 
 // Generators returns the names of the configured generators.

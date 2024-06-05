@@ -119,8 +119,9 @@ func TestLive(t *testing.T) {
 			t.Fatal(err)
 		}
 		out := resp.Candidates[0].Message.Content[0].Text
-		if out != "France" {
-			t.Errorf("got \"%s\", expecting \"France\"", out)
+		const want = "France"
+		if out != want {
+			t.Errorf("got %q, expecting %q", out, want)
 		}
 		if resp.Request != req {
 			t.Error("Request field not set properly")
@@ -147,8 +148,9 @@ func TestLive(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(out, "Golden") {
-			t.Errorf("got \"%s\", expecting it to contain \"Golden\"", out)
+		const want = "Golden"
+		if !strings.Contains(out, want) {
+			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 		if parts == 1 {
 			// Check if streaming actually occurred.
@@ -173,8 +175,9 @@ func TestLive(t *testing.T) {
 		}
 
 		out := resp.Candidates[0].Message.Content[0].Text
-		if !strings.Contains(out, "12.25") {
-			t.Errorf("got %s, expecting it to contain \"12.25\"", out)
+		const want = "12.25"
+		if !strings.Contains(out, want) {
+			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 	})
 }
