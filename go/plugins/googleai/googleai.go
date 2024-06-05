@@ -16,17 +16,154 @@ package googleai
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"path"
+	"slices"
+	"sync"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"github.com/google/generative-ai-go/genai"
+	"golang.org/x/exp/maps"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
 
-func newClient(ctx context.Context, apiKey string) (*genai.Client, error) {
-	return genai.NewClient(ctx, option.WithAPIKey(apiKey))
+var state struct {
+	mu        sync.Mutex
+	client    *genai.Client
+	models    map[string]ai.Generator
+	embedders map[string]ai.Embedder
+}
+
+// Config configures the plugin.
+type Config struct {
+	// API key. Required.
+	APIKey string
+	// Generative models to provide.
+	// If empty, a complete list will be obtained from the service.
+	Models []string
+	// Embedding models to provide.
+	// If empty, a complete list will be obtained from the service.
+	Embedders []string
+}
+
+func Init(ctx context.Context, cfg Config) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("googleai.Init: %w", err)
+		}
+	}()
+
+	if err := initClient(ctx, cfg.APIKey); err != nil {
+		return err
+	}
+
+	needModels := len(cfg.Models) == 0
+	needEmbedders := len(cfg.Embedders) == 0
+	if needModels || needEmbedders {
+		iter := state.client.ListModels(ctx)
+		for {
+			mi, err := iter.Next()
+			if err == iterator.Done {
+				break
+			}
+			if err != nil {
+				return err
+			}
+			// Model names are of the form "model/name".
+			name := path.Base(mi.Name)
+			if needModels && slices.Contains(mi.SupportedGenerationMethods, "generateContent") {
+				cfg.Models = append(cfg.Models, name)
+			}
+			if needEmbedders && slices.Contains(mi.SupportedGenerationMethods, "embedContent") {
+				cfg.Embedders = append(cfg.Embedders, name)
+			}
+		}
+	}
+	state.models = map[string]ai.Generator{}
+	for _, name := range cfg.Models {
+		state.models[name] = defineModel(name, state.client)
+	}
+
+	state.embedders = map[string]ai.Embedder{}
+	for _, name := range cfg.Embedders {
+		state.embedders[name] = defineEmbedder(name, state.client)
+	}
+	return nil
+}
+
+func initClient(ctx context.Context, apiKey string) error {
+	if apiKey == "" {
+		return errors.New("missing API key")
+	}
+
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if state.client != nil {
+		return errors.New("already initialized")
+	}
+	c, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
+	if err != nil {
+		return err
+	}
+	state.client = c
+	return nil
+}
+
+func defineModel(name string, client *genai.Client) ai.Generator {
+	meta := &ai.GeneratorMetadata{
+		Label: "Google AI - " + name,
+		Supports: ai.GeneratorCapabilities{
+			Multiturn: true,
+		},
+	}
+	g := generator{model: name, client: client}
+	return ai.DefineGenerator("google-genai", name, meta, g.Generate)
+}
+
+func defineEmbedder(name string, client *genai.Client) ai.Embedder {
+	return ai.DefineEmbedder("google-genai", name, func(ctx context.Context, input *ai.EmbedRequest) ([]float32, error) {
+		em := client.EmbeddingModel(name)
+		parts, err := convertParts(input.Document.Content)
+		if err != nil {
+			return nil, err
+		}
+		res, err := em.EmbedContent(ctx, parts...)
+		if err != nil {
+			return nil, err
+		}
+		return res.Embedding.Values, nil
+	})
+}
+
+// Generator returns the generator with the given name.
+// It panics if the generator was not configured.
+func Generator(name string) ai.Generator {
+	if g, ok := state.models[name]; ok {
+		return g
+	}
+	panic(fmt.Sprintf("googleai: generator %q not configured", name))
+}
+
+// Embedder returns the embedder with the given name.
+// It panics if the embedder was not configured.
+func Embedder(name string) ai.Embedder {
+	if e, ok := state.embedders[name]; ok {
+		return e
+	}
+	panic(fmt.Sprintf("googleai: embedder %q not configured", name))
+}
+
+// Generators returns the names of the configured generators.
+func Generators() []string {
+	return maps.Keys(state.models)
+}
+
+// Embedders returns the names of the configured embedders.
+func Embedders() []string {
+	return maps.Keys(state.embedders)
 }
 
 type generator struct {
@@ -193,23 +330,6 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.GenerateResponse
 		r.Candidates = append(r.Candidates, translateCandidate(c))
 	}
 	return r
-}
-
-// NewGenerator returns an [ai.Generator] which sends a request to
-// the google AI model and returns the response.
-func NewGenerator(ctx context.Context, model, apiKey string) (ai.Generator, error) {
-	client, err := newClient(ctx, apiKey)
-	if err != nil {
-		return nil, err
-	}
-	meta := &ai.GeneratorMetadata{
-		Label: "Google AI - " + model,
-		Supports: ai.GeneratorCapabilities{
-			Multiturn: true,
-		},
-	}
-	g := generator{model: model, client: client}
-	return ai.DefineGenerator("google-genai", model, meta, g.Generate), nil
 }
 
 // convertParts converts a slice of *ai.Part to a slice of genai.Part.
