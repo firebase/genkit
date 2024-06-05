@@ -84,8 +84,8 @@ type IndexData struct {
 	Host      string `json:"host"`      // index host name
 	Metric    string `json:"metric"`    // index metric: euclidean, cosine, dotproduct
 	Spec      struct {
-		Pod        *Pod        `json:"pod,omitempty"`       // for pod-based indexes
-		Serverless *Serverless `json:serverless,omitempty"` // for serverless indexes
+		Pod        *Pod        `json:"pod,omitempty"`        // for pod-based indexes
+		Serverless *Serverless `json:"serverless,omitempty"` // for serverless indexes
 	} `json:"spec"`
 	Status struct {
 		Ready bool   `json:"ready"` // whether the index is ready
@@ -97,7 +97,7 @@ type IndexData struct {
 // Pod-based indexes are associated with a set of hardware configurations.
 type Pod struct {
 	Environment      string       `json:"environment"` // index environment: hosting provider and region
-	Metadata         *PodMetadata `json:metadata_config,omitempty"`
+	Metadata         *PodMetadata `json:"metadata_config,omitempty"`
 	Type             string       `json:"pod_type"`                    // pod type and size
 	Pods             int          `json:"pods"`                        // number of pods in index
 	Replicas         int          `json:"replicas"`                    // number of replicas
