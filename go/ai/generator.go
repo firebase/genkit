@@ -40,13 +40,10 @@ type Generator interface {
 // Generator is the interface used to query an AI model.
 type GeneratorAction interface {
 	core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
-	// If the streaming callback is non-nil:
-	// - Each response candidate will be passed to that callback instead of
-	//   populating the result's Candidates field.
-	// - If the streaming callback returns a non-nil error, generation will stop
-	//   and Generate immediately returns that error (and a nil response).
-	Generate(context.Context, *GenerateRequest, func(context.Context, *GenerateResponseChunk) error) (*GenerateResponse, error)
 }
+
+// GeneratorStreamingCallback is the type for the streaming callback of a generator.
+type GeneratorStreamingCallback = func(context.Context, *GenerateResponseChunk) error
 
 // GeneratorCapabilities describes various capabilities of the generator.
 type GeneratorCapabilities struct {
@@ -62,8 +59,9 @@ type GeneratorMetadata struct {
 	Supports GeneratorCapabilities
 }
 
-// RegisterGenerator registers the generator in the global registry.
-func RegisterGenerator(provider, name string, metadata *GeneratorMetadata, generator Generator) {
+// DefineGenerator registers the given generate function as an action, and returns a
+// [Generator] whose Generate method runs it.
+func DefineGenerator(provider, name string, metadata *GeneratorMetadata, generate func(context.Context, *GenerateRequest, GeneratorStreamingCallback) (*GenerateResponse, error)) Generator {
 	metadataMap := map[string]any{}
 	if metadata != nil {
 		if metadata.Label != "" {
@@ -77,14 +75,22 @@ func RegisterGenerator(provider, name string, metadata *GeneratorMetadata, gener
 		}
 		metadataMap["supports"] = supports
 	}
-	act := core.NewStreamingAction(name, core.ActionTypeModel, map[string]any{
+	a := core.DefineStreamingAction(provider, name, core.ActionTypeModel, map[string]any{
 		"model": metadataMap,
-	}, generator.Generate)
-	core.RegisterAction(provider, &generatorAction{act})
+	}, generate)
+	return generator{a}
+}
+
+type generator struct {
+	generateAction *core.Action[*GenerateRequest, *GenerateResponse, *Candidate]
+}
+
+func (g generator) Generate(ctx context.Context, req *GenerateRequest, cb GeneratorStreamingCallback) (*GenerateResponse, error) {
+	return g.generateAction.Run(ctx, req, cb)
 }
 
 // Generate applies a [Generator] to some input, handling tool requests.
-func Generate(ctx context.Context, g GeneratorAction, req *GenerateRequest, cb func(context.Context, *GenerateResponseChunk) error) (*GenerateResponse, error) {
+func Generate(ctx context.Context, g Generator, req *GenerateRequest, cb GeneratorStreamingCallback) (*GenerateResponse, error) {
 	if err := conformOutput(req); err != nil {
 		return nil, err
 	}
@@ -113,60 +119,26 @@ func Generate(ctx context.Context, g GeneratorAction, req *GenerateRequest, cb f
 	}
 }
 
-// LookupGeneratorAction looks up an action registered by [RegisterGenerator]
-// and returns a generator that invokes the action.
-func LookupGeneratorAction(provider, name string) (GeneratorAction, error) {
+// generatorActionType is the instantiated core.Action type registered
+// by RegisterGenerator.
+type generatorActionType = core.Action[*GenerateRequest, *GenerateResponse, *Candidate]
+
+// LookupGenerator looks up a [Generator] registered by [DefineGenerator].
+func LookupGenerator(provider, name string) (Generator, error) {
 	action := core.LookupAction(core.ActionTypeModel, provider, name)
 	if action == nil {
-		return nil, fmt.Errorf("LookupGeneratorAction: no generator action named %q/%q", provider, name)
+		return nil, fmt.Errorf("LookupGenerator: no generator action named %q/%q", provider, name)
 	}
 	actionInst, ok := action.(Generator)
 	if !ok {
-		return nil, fmt.Errorf("LookupGeneratorAction: generator action %q has type %T, want Generator", name, action)
+		return nil, fmt.Errorf("LookupGenerator: generator action %q has type %T, want %T", name, action, &generatorActionType{})
 	}
-	return actionInst, nil
-}
-
-// generatorAction implements Generator by invoking an action.
-type generatorAction struct {
-	action core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
-}
-
-// Generate implements Generator. This is like the [Generate] function,
-// but invokes the [core.Action] rather than invoking the Generator
-// directly.
-func (ga *generatorAction) Generate(ctx context.Context, req *GenerateRequest, cb func(context.Context, *GenerateResponseChunk) error) (*GenerateResponse, error) {
-	if err := conformOutput(req); err != nil {
-		return nil, err
-	}
-
-	for {
-		resp, err := ga.action.Run(ctx, req, cb)
-		if err != nil {
-			return nil, err
-		}
-
-		candidates, err := validCandidates(ctx, resp)
-		if err != nil {
-			return nil, err
-		}
-		resp.Candidates = candidates
-
-		newReq, err := handleToolRequest(ctx, req, resp)
-		if err != nil {
-			return nil, err
-		}
-		if newReq == nil {
-			return resp, nil
-		}
-
-		req = newReq
-	}
+	return generator{actionInst}, nil
 }
 
 // conformOutput appends a message to the request indicating conformance to the expected schema.
 func conformOutput(req *GenerateRequest) error {
-	if req.Output.Format == OutputFormatJSON && len(req.Messages) > 0 {
+	if req.Output != nil && req.Output.Format == OutputFormatJSON && len(req.Messages) > 0 {
 		jsonBytes, err := json.Marshal(req.Output.Schema)
 		if err != nil {
 			return fmt.Errorf("expected schema is not valid: %w", err)
@@ -200,7 +172,7 @@ func validCandidates(ctx context.Context, resp *GenerateResponse) ([]*Candidate,
 // validCandidate will validate the candidate's response against the expected schema.
 // It will return an error if it does not match, otherwise it will return a candidate with JSON content and type.
 func validCandidate(c *Candidate, output *GenerateRequestOutput) (*Candidate, error) {
-	if output.Format == OutputFormatJSON {
+	if output != nil && output.Format == OutputFormatJSON {
 		text, err := c.Text()
 		if err != nil {
 			return nil, err

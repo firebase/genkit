@@ -72,8 +72,7 @@ var toolDef = &ai.ToolDefinition{
 }
 
 func init() {
-	ai.RegisterTool("exponentiation",
-		toolDef, nil,
+	ai.RegisterTool(toolDef, nil,
 		func(ctx context.Context, input map[string]any) (map[string]any, error) {
 			baseAny, ok := input["base"]
 			if !ok {

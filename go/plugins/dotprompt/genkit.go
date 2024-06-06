@@ -142,7 +142,7 @@ func (p *Prompt) Generate(ctx context.Context, pr *ai.PromptRequest, cb func(con
 		return nil, err
 	}
 
-	generator := p.generator
+	generator := p.Generator
 	if generator == nil {
 		model := p.Model
 		if pr.Model != "" {
@@ -156,7 +156,7 @@ func (p *Prompt) Generate(ctx context.Context, pr *ai.PromptRequest, cb func(con
 			return nil, errors.New("dotprompt model not in provider/name format")
 		}
 
-		generator, err = ai.LookupGeneratorAction(provider, name)
+		generator, err = ai.LookupGenerator(provider, name)
 		if err != nil {
 			return nil, err
 		}
