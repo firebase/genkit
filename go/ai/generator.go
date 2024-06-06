@@ -76,6 +76,16 @@ func DefineGenerator(provider, name string, metadata *GeneratorMetadata, generat
 	return generator{a}
 }
 
+// LookupGenerator looks up a [Generator] registered by [DefineGenerator].
+// It returns nil if the Generator was not defined.
+func LookupGenerator(provider, name string) Generator {
+	action := core.LookupActionFor[*GenerateRequest, *GenerateResponse, *Candidate](core.ActionTypeModel, provider, name)
+	if action == nil {
+		return nil
+	}
+	return generator{action}
+}
+
 type generator struct {
 	generateAction *core.Action[*GenerateRequest, *GenerateResponse, *Candidate]
 }
@@ -112,23 +122,6 @@ func Generate(ctx context.Context, g Generator, req *GenerateRequest, cb Generat
 
 		req = newReq
 	}
-}
-
-// generatorActionType is the instantiated core.Action type registered
-// by RegisterGenerator.
-type generatorActionType = core.Action[*GenerateRequest, *GenerateResponse, *Candidate]
-
-// LookupGenerator looks up a [Generator] registered by [DefineGenerator].
-func LookupGenerator(provider, name string) (Generator, error) {
-	action := core.LookupAction(core.ActionTypeModel, provider, name)
-	if action == nil {
-		return nil, fmt.Errorf("LookupGenerator: no generator action named %q/%q", provider, name)
-	}
-	actionInst, ok := action.(*generatorActionType)
-	if !ok {
-		return nil, fmt.Errorf("LookupGenerator: generator action %q has type %T, want %T", name, action, &generatorActionType{})
-	}
-	return generator{actionInst}, nil
 }
 
 // conformOutput appends a message to the request indicating conformance to the expected schema.

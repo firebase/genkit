@@ -20,22 +20,15 @@ import (
 	"fmt"
 	"path"
 	"slices"
-	"sync"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"github.com/google/generative-ai-go/genai"
-	"golang.org/x/exp/maps"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
 
-var state struct {
-	mu        sync.Mutex
-	client    *genai.Client
-	models    map[string]ai.Generator
-	embedders map[string]ai.Embedder
-}
+const provider = "google-genai"
 
 // Config configures the plugin.
 type Config struct {
@@ -56,14 +49,19 @@ func Init(ctx context.Context, cfg Config) (err error) {
 		}
 	}()
 
-	if err := initClient(ctx, cfg.APIKey); err != nil {
+	if cfg.APIKey == "" {
+		return errors.New("missing API key")
+	}
+
+	client, err := genai.NewClient(ctx, option.WithAPIKey(cfg.APIKey))
+	if err != nil {
 		return err
 	}
 
 	needModels := len(cfg.Models) == 0
 	needEmbedders := len(cfg.Embedders) == 0
 	if needModels || needEmbedders {
-		iter := state.client.ListModels(ctx)
+		iter := client.ListModels(ctx)
 		for {
 			mi, err := iter.Next()
 			if err == iterator.Done {
@@ -72,7 +70,7 @@ func Init(ctx context.Context, cfg Config) (err error) {
 			if err != nil {
 				return err
 			}
-			// Model names are of the form "model/name".
+			// Model names are of the form "models/name".
 			name := path.Base(mi.Name)
 			if needModels && slices.Contains(mi.SupportedGenerationMethods, "generateContent") {
 				cfg.Models = append(cfg.Models, name)
@@ -82,37 +80,16 @@ func Init(ctx context.Context, cfg Config) (err error) {
 			}
 		}
 	}
-	state.models = map[string]ai.Generator{}
 	for _, name := range cfg.Models {
-		state.models[name] = defineModel(name, state.client)
+		defineModel(name, client)
 	}
-
-	state.embedders = map[string]ai.Embedder{}
 	for _, name := range cfg.Embedders {
-		state.embedders[name] = defineEmbedder(name, state.client)
+		defineEmbedder(name, client)
 	}
 	return nil
 }
 
-func initClient(ctx context.Context, apiKey string) error {
-	if apiKey == "" {
-		return errors.New("missing API key")
-	}
-
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if state.client != nil {
-		return errors.New("already initialized")
-	}
-	c, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
-	if err != nil {
-		return err
-	}
-	state.client = c
-	return nil
-}
-
-func defineModel(name string, client *genai.Client) ai.Generator {
+func defineModel(name string, client *genai.Client) {
 	meta := &ai.GeneratorMetadata{
 		Label: "Google AI - " + name,
 		Supports: ai.GeneratorCapabilities{
@@ -120,11 +97,11 @@ func defineModel(name string, client *genai.Client) ai.Generator {
 		},
 	}
 	g := generator{model: name, client: client}
-	return ai.DefineGenerator("google-genai", name, meta, g.Generate)
+	ai.DefineGenerator(provider, name, meta, g.Generate)
 }
 
-func defineEmbedder(name string, client *genai.Client) ai.Embedder {
-	return ai.DefineEmbedder("google-genai", name, func(ctx context.Context, input *ai.EmbedRequest) ([]float32, error) {
+func defineEmbedder(name string, client *genai.Client) {
+	ai.DefineEmbedder(provider, name, func(ctx context.Context, input *ai.EmbedRequest) ([]float32, error) {
 		em := client.EmbeddingModel(name)
 		parts, err := convertParts(input.Document.Content)
 		if err != nil {
@@ -141,23 +118,13 @@ func defineEmbedder(name string, client *genai.Client) ai.Embedder {
 // Generator returns the generator with the given name.
 // It returns nil if the generator was not configured.
 func Generator(name string) ai.Generator {
-	return state.models[name]
+	return ai.LookupGenerator(provider, name)
 }
 
 // Embedder returns the embedder with the given name.
 // It returns nil if the embedder was not configured.
 func Embedder(name string) ai.Embedder {
-	return state.embedders[name]
-}
-
-// Generators returns the names of the configured generators.
-func Generators() []string {
-	return maps.Keys(state.models)
-}
-
-// Embedders returns the names of the configured embedders.
-func Embedders() []string {
-	return maps.Keys(state.embedders)
+	return ai.LookupEmbedder(provider, name)
 }
 
 type generator struct {
