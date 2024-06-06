@@ -114,7 +114,7 @@ func TestLive(t *testing.T) {
 			},
 		}
 
-		resp, err := g.Generate(ctx, req, nil)
+		resp, err := ai.Generate(ctx, g, req, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -140,7 +140,8 @@ func TestLive(t *testing.T) {
 
 		out := ""
 		parts := 0
-		_, err = googleai.Generator(generativeModel).Generate(ctx, req, func(ctx context.Context, c *ai.Candidate) error {
+		g := googleai.Generator(generativeModel)
+		_, err = ai.Generate(ctx, g, req, func(ctx context.Context, c *ai.Candidate) error {
 			parts++
 			out += c.Message.Content[0].Text
 			return nil

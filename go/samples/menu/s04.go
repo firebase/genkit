@@ -24,7 +24,7 @@ import (
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
 
-func setup04(ctx context.Context, docstore ai.DocumentStore, gen ai.Generator) error {
+func setup04(ctx context.Context, docstore ai.DocumentStore, gen *ai.GeneratorAction) error {
 	ragDataMenuPrompt, err := dotprompt.Define("s04_ragDataMenu",
 		`
 		  You are acting as Walt, a helpful AI assistant here at the restaurant.

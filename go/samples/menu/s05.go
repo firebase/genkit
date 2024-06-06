@@ -29,7 +29,7 @@ type imageURLInput struct {
 	ImageURL string `json:"imageUrl"`
 }
 
-func setup05(ctx context.Context, gen, genVision ai.Generator) error {
+func setup05(ctx context.Context, gen, genVision *ai.GeneratorAction) error {
 	readMenuPrompt, err := dotprompt.Define("s05_readMenu",
 		`
 		  Extract _all_ of the text, in order,
