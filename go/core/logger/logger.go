@@ -27,7 +27,7 @@ func init() {
 	// TODO: Remove this. The main program should be responsible for configuring logging.
 	// This is just a convenience during development.
 	h := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: slog.LevelDebug,
+		Level: slog.LevelInfo,
 	}))
 	slog.SetDefault(h)
 }

@@ -66,7 +66,7 @@ func newRegistry() (*registry, error) {
 	if err != nil {
 		return nil, err
 	}
-	r.registerTraceStore(EnvironmentDev, tstore)
+	r.setTraceStore(EnvironmentDev, tstore)
 	r.tstate = tracing.NewState()
 	r.tstate.AddTraceStoreImmediate(tstore)
 	return r, nil
@@ -175,6 +175,24 @@ func (r *registry) registerTraceStore(env Environment, ts tracing.Store) {
 	if _, ok := r.traceStores[env]; ok {
 		panic(fmt.Sprintf("RegisterTraceStore called twice for environment %q", env))
 	}
+	r.traceStores[env] = ts
+}
+
+// SetDevTraceStore establishes its argument as the [tracing.Store] for the dev environment.
+// It is intended for testing.
+// Call the returned function to remove the store when the test ends.
+func SetDevTraceStore(ts tracing.Store) (remove func()) {
+	globalRegistry.setTraceStore(EnvironmentDev, ts)
+	rem := globalRegistry.tstate.AddTraceStoreImmediate(ts)
+	return func() {
+		rem()
+		globalRegistry.setTraceStore(EnvironmentDev, nil)
+	}
+}
+
+func (r *registry) setTraceStore(env Environment, ts tracing.Store) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.traceStores[env] = ts
 }
 

@@ -1,0 +1,36 @@
+{
+    "traceId": "",
+    "displayName": "embedding-001",
+    "startTime": 1718521125809.9194,
+    "endTime": 1718521125811.092,
+    "spans": {
+        "edb1aba2f4e66854": {
+            "spanId": "edb1aba2f4e66854",
+            "traceId": "5a59c7e04a2abbe463d4e617009f0779",
+            "startTime": 1718521125809.9194,
+            "endTime": 1718521125811.092,
+            "attributes": {
+                "genkit:input": "{\"input\":{\"content\":[{\"text\":\"banana\"}]}}",
+                "genkit:metadata:subtype": "embedder",
+                "genkit:name": "embedding-001",
+                "genkit:output": "[0.25,0.25,0.5]",
+                "genkit:path": "/embedding-001",
+                "genkit:state": "success",
+                "genkit:type": "action"
+            },
+            "displayName": "embedding-001",
+            "instrumentationLibrary": {
+                "name": "genkit-tracer",
+                "version": "v1"
+            },
+            "spanKind": "INTERNAL",
+            "sameProcessAsParentSpan": {
+                "value": true
+            },
+            "status": {
+                "code": 0
+            },
+            "timeEvents": {}
+        }
+    }
+}

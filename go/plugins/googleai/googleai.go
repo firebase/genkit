@@ -40,6 +40,8 @@ type Config struct {
 	// Embedding models to provide.
 	// If empty, a complete list will be obtained from the service.
 	Embedders []string
+
+	ClientOptions []option.ClientOption
 }
 
 func Init(ctx context.Context, cfg Config) (err error) {
@@ -49,11 +51,15 @@ func Init(ctx context.Context, cfg Config) (err error) {
 		}
 	}()
 
-	if cfg.APIKey == "" {
+	if cfg.APIKey == "" && len(cfg.ClientOptions) == 0 {
 		return errors.New("missing API key")
 	}
 
-	client, err := genai.NewClient(ctx, option.WithAPIKey(cfg.APIKey))
+	opts := cfg.ClientOptions
+	if len(opts) == 0 {
+		opts = []option.ClientOption{option.WithAPIKey(cfg.APIKey)}
+	}
+	client, err := genai.NewClient(ctx, opts...)
 	if err != nil {
 		return err
 	}

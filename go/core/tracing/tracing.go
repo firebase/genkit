@@ -49,13 +49,18 @@ func (ts *State) RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
 // Traces are saved immediately as they are finshed.
 // Use this for a gtrace.Store with a fast Save method,
 // such as one that writes to a file.
-func (ts *State) AddTraceStoreImmediate(tstore Store) {
+// The return value is a function that will remove the trace store when called.
+func (ts *State) AddTraceStoreImmediate(tstore Store) (remove func()) {
 	e := newTraceStoreExporter(tstore)
 	// Adding a SimpleSpanProcessor is like using the WithSyncer option.
-	ts.RegisterSpanProcessor(sdktrace.NewSimpleSpanProcessor(e))
+	spp := sdktrace.NewSimpleSpanProcessor(e)
+	ts.RegisterSpanProcessor(spp)
 	// Ignore tracerProvider.Shutdown. It shouldn't be needed when using WithSyncer.
 	// Confirmed for OTel packages as of v1.24.0.
 	// Also requires traceStoreExporter.Shutdown to be a no-op.
+	return func() {
+		ts.tp.UnregisterSpanProcessor(spp)
+	}
 }
 
 // AddTraceStoreBatch adds ts to the tracingState.
