@@ -28,16 +28,6 @@ import (
 )
 
 // Generator is the interface used to query an AI model.
-type Generator interface {
-	// If the streaming callback is non-nil:
-	// - Each response candidate will be passed to that callback instead of
-	//   populating the result's Candidates field.
-	// - If the streaming callback returns a non-nil error, generation will stop
-	//   and Generate immediately returns that error (and a nil response).
-	Generate(context.Context, *GenerateRequest, GeneratorStreamingCallback) (*GenerateResponse, error)
-}
-
-// Generator is the interface used to query an AI model.
 type GeneratorAction interface {
 	core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
 
@@ -113,7 +103,7 @@ func (g generator) Generate(ctx context.Context, req *GenerateRequest, cb Genera
 }
 
 // Generate applies a [Generator] to some input, handling tool requests.
-func Generate(ctx context.Context, g Generator, req *GenerateRequest, cb GeneratorStreamingCallback) (*GenerateResponse, error) {
+func Generate(ctx context.Context, g GeneratorAction, req *GenerateRequest, cb GeneratorStreamingCallback) (*GenerateResponse, error) {
 	if err := conformOutput(req); err != nil {
 		return nil, err
 	}
