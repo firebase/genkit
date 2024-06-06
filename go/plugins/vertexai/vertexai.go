@@ -173,7 +173,7 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.GenerateResponse
 
 // NewGenerator returns an [ai.Generator] which sends a request to
 // the vertex AI model and returns the response.
-func NewGenerator(ctx context.Context, model, projectID, location string) (ai.Generator, error) {
+func NewGenerator(ctx context.Context, model, projectID, location string) (*ai.GeneratorAction, error) {
 	client, err := newClient(ctx, projectID, location)
 	if err != nil {
 		return nil, err

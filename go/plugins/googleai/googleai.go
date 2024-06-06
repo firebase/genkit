@@ -117,7 +117,7 @@ func defineEmbedder(name string, client *genai.Client) {
 
 // Generator returns the generator with the given name.
 // It returns nil if the generator was not configured.
-func Generator(name string) ai.Generator {
+func Generator(name string) *ai.GeneratorAction {
 	return ai.LookupGenerator(provider, name)
 }
 

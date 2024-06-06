@@ -80,7 +80,7 @@ type Config struct {
 
 	// The Generator to use.
 	// If this is non-nil, Model should be the empty string.
-	Generator ai.Generator
+	Generator *ai.GeneratorAction
 
 	// TODO(iant): document
 	Tools []*ai.ToolDefinition
