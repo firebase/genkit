@@ -59,7 +59,7 @@ func DefineDocumentStore(
 	ia := core.DefineAction("indexer", name, core.ActionTypeIndexer, nil, func(ctx context.Context, req *IndexerRequest) (struct{}, error) {
 		return struct{}{}, index(ctx, req)
 	})
-	ra := core.DefineAction("retreiver", name, core.ActionTypeRetriever, nil, retrieve)
+	ra := core.DefineAction("retriever", name, core.ActionTypeRetriever, nil, retrieve)
 	return &docStore{ia, ra}
 }
 
