@@ -68,6 +68,7 @@ type Action[In, Out, Stream any] interface {
 	Run(ctx context.Context, input In, cb func(context.Context, Stream) error) (output Out, err error)
 	Name() string
 	Description() string
+	ActionType() ActionType
 	Metadata() map[string]any
 }
 
@@ -127,7 +128,8 @@ func (a *action[In, Out, Stream]) Description() string { return a.description }
 // Metadata returns the Action's metadata.
 func (a *action[In, Out, Stream]) Metadata() map[string]any { return a.metadata }
 
-func (a *action[In, Out, Stream]) actionType() ActionType { return a.atype }
+// ActionType returns the Action's type.
+func (a *action[In, Out, Stream]) ActionType() ActionType { return a.atype }
 
 // setTracingState sets the action's tracing.State.
 func (a *action[In, Out, Stream]) setTracingState(tstate *tracing.State) { a.tstate = tstate }

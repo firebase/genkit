@@ -90,6 +90,9 @@ func (a *generator) Name() string { return a.generateAction.Name() }
 // Description returns the Action's description.
 func (a *generator) Description() string { return a.generateAction.Description() }
 
+// ActionType returns the Action's type.
+func (a *generator) ActionType() core.ActionType { return a.generateAction.ActionType() }
+
 // Metadata returns the Action's metadata.
 func (a *generator) Metadata() map[string]any { return a.generateAction.Metadata() }
 
