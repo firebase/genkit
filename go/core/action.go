@@ -52,7 +52,7 @@ type streamingCallback[Stream any] func(context.Context, Stream) error
 // and JSON Schemas for its input and output.
 //
 // Each time an Action is run, it results in a new trace span.
-type Action[In, Out, Stream any] struct {
+type action[In, Out, Stream any] struct {
 	name         string
 	atype        ActionType
 	fn           Func[In, Out, Stream]
@@ -60,35 +60,42 @@ type Action[In, Out, Stream any] struct {
 	inputSchema  *jsonschema.Schema
 	outputSchema *jsonschema.Schema
 	// optional
-	Description string
-	Metadata    map[string]any
+	description string
+	metadata    map[string]any
+}
+
+type Action[In, Out, Stream any] interface {
+	Run(ctx context.Context, input In, cb func(context.Context, Stream) error) (output Out, err error)
+	Name() string
+	Description() string
+	Metadata() map[string]any
 }
 
 // See js/core/src/action.ts
 
 // DefineAction creates a new Action and registers it.
-func DefineAction[In, Out any](name string, atype ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
+func DefineAction[In, Out any](name string, atype ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) Action[In, Out, struct{}] {
 	return defineAction(globalRegistry, name, atype, metadata, fn)
 }
 
-func defineAction[In, Out any](r *registry, name string, atype ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
+func defineAction[In, Out any](r *registry, name string, atype ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) Action[In, Out, struct{}] {
 	a := NewAction(name, atype, metadata, fn)
 	r.registerAction(name, a)
 	return a
 }
 
 // NewAction creates a new Action with the given name and non-streaming function.
-func NewAction[In, Out any](name string, atype ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
+func NewAction[In, Out any](name string, atype ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) Action[In, Out, struct{}] {
 	return NewStreamingAction(name, atype, metadata, func(ctx context.Context, in In, cb NoStream) (Out, error) {
 		return fn(ctx, in)
 	})
 }
 
 // NewStreamingAction creates a new Action with the given name and streaming function.
-func NewStreamingAction[In, Out, Stream any](name string, atype ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
+func NewStreamingAction[In, Out, Stream any](name string, atype ActionType, metadata map[string]any, fn Func[In, Out, Stream]) Action[In, Out, Stream] {
 	var i In
 	var o Out
-	return &Action[In, Out, Stream]{
+	return &action[In, Out, Stream]{
 		name:  name,
 		atype: atype,
 		fn: func(ctx context.Context, input In, sc func(context.Context, Stream) error) (Out, error) {
@@ -97,20 +104,26 @@ func NewStreamingAction[In, Out, Stream any](name string, atype ActionType, meta
 		},
 		inputSchema:  inferJSONSchema(i),
 		outputSchema: inferJSONSchema(o),
-		Metadata:     metadata,
+		metadata:     metadata,
 	}
 }
 
 // Name returns the Action's name.
-func (a *Action[In, Out, Stream]) Name() string { return a.name }
+func (a *action[In, Out, Stream]) Name() string { return a.name }
 
-func (a *Action[In, Out, Stream]) actionType() ActionType { return a.atype }
+// Description returns the Action's description.
+func (a *action[In, Out, Stream]) Description() string { return a.description }
+
+// Metadata returns the Action's metadata.
+func (a *action[In, Out, Stream]) Metadata() map[string]any { return a.metadata }
+
+func (a *action[In, Out, Stream]) actionType() ActionType { return a.atype }
 
 // setTracingState sets the action's tracing.State.
-func (a *Action[In, Out, Stream]) setTracingState(tstate *tracing.State) { a.tstate = tstate }
+func (a *action[In, Out, Stream]) setTracingState(tstate *tracing.State) { a.tstate = tstate }
 
 // Run executes the Action's function in a new trace span.
-func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(context.Context, Stream) error) (output Out, err error) {
+func (a *action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(context.Context, Stream) error) (output Out, err error) {
 	logger.FromContext(ctx).Debug("Action.Run",
 		"name", a.name,
 		"input", fmt.Sprintf("%#v", input))
@@ -151,7 +164,7 @@ func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(con
 		})
 }
 
-func (a *Action[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error) {
+func (a *action[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error) {
 	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
 	if err := ValidateJSON(input, a.inputSchema); err != nil {
 		return nil, err
@@ -181,24 +194,6 @@ func (a *Action[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMes
 	return json.RawMessage(bytes), nil
 }
 
-// action is the type that all Action[I, O, S] have in common.
-type action interface {
-	Name() string
-	actionType() ActionType
-
-	// runJSON uses encoding/json to unmarshal the input,
-	// calls Action.Run, then returns the marshaled result.
-	runJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error)
-
-	// desc returns a description of the action.
-	// It should set all fields of actionDesc except Key, which
-	// the registry will set.
-	desc() actionDesc
-
-	// setTracingState set's the action's tracing.State.
-	setTracingState(*tracing.State)
-}
-
 // An actionDesc is a description of an Action.
 // It is used to provide a list of registered actions.
 type actionDesc struct {
@@ -217,11 +212,11 @@ func (d1 actionDesc) equal(d2 actionDesc) bool {
 		maps.Equal(d1.Metadata, d2.Metadata)
 }
 
-func (a *Action[I, O, S]) desc() actionDesc {
+func (a *action[I, O, S]) desc() actionDesc {
 	ad := actionDesc{
 		Name:         a.name,
-		Description:  a.Description,
-		Metadata:     a.Metadata,
+		Description:  a.description,
+		Metadata:     a.metadata,
 		InputSchema:  a.inputSchema,
 		OutputSchema: a.outputSchema,
 	}

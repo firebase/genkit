@@ -34,7 +34,18 @@ type Generator interface {
 	//   populating the result's Candidates field.
 	// - If the streaming callback returns a non-nil error, generation will stop
 	//   and Generate immediately returns that error (and a nil response).
-	Generate(context.Context, *GenerateRequest, func(context.Context, *Candidate) error) (*GenerateResponse, error)
+	Generate(context.Context, *GenerateRequest, func(context.Context, *GenerateResponseChunk) error) (*GenerateResponse, error)
+}
+
+// Generator is the interface used to query an AI model.
+type GeneratorAction interface {
+	core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
+	// If the streaming callback is non-nil:
+	// - Each response candidate will be passed to that callback instead of
+	//   populating the result's Candidates field.
+	// - If the streaming callback returns a non-nil error, generation will stop
+	//   and Generate immediately returns that error (and a nil response).
+	Generate(context.Context, *GenerateRequest, func(context.Context, *GenerateResponseChunk) error) (*GenerateResponse, error)
 }
 
 // GeneratorCapabilities describes various capabilities of the generator.
@@ -66,14 +77,14 @@ func RegisterGenerator(provider, name string, metadata *GeneratorMetadata, gener
 		}
 		metadataMap["supports"] = supports
 	}
-	core.RegisterAction(provider,
-		core.NewStreamingAction(name, core.ActionTypeModel, map[string]any{
-			"model": metadataMap,
-		}, generator.Generate))
+	act := core.NewStreamingAction(name, core.ActionTypeModel, map[string]any{
+		"model": metadataMap,
+	}, generator.Generate)
+	core.RegisterAction(provider, &generatorAction{act})
 }
 
 // Generate applies a [Generator] to some input, handling tool requests.
-func Generate(ctx context.Context, g Generator, req *GenerateRequest, cb func(context.Context, *Candidate) error) (*GenerateResponse, error) {
+func Generate(ctx context.Context, g GeneratorAction, req *GenerateRequest, cb func(context.Context, *GenerateResponseChunk) error) (*GenerateResponse, error) {
 	if err := conformOutput(req); err != nil {
 		return nil, err
 	}
@@ -102,33 +113,29 @@ func Generate(ctx context.Context, g Generator, req *GenerateRequest, cb func(co
 	}
 }
 
-// generatorActionType is the instantiated core.Action type registered
-// by RegisterGenerator.
-type generatorActionType = core.Action[*GenerateRequest, *GenerateResponse, *Candidate]
-
 // LookupGeneratorAction looks up an action registered by [RegisterGenerator]
 // and returns a generator that invokes the action.
-func LookupGeneratorAction(provider, name string) (Generator, error) {
+func LookupGeneratorAction(provider, name string) (GeneratorAction, error) {
 	action := core.LookupAction(core.ActionTypeModel, provider, name)
 	if action == nil {
 		return nil, fmt.Errorf("LookupGeneratorAction: no generator action named %q/%q", provider, name)
 	}
-	actionInst, ok := action.(*generatorActionType)
+	actionInst, ok := action.(Generator)
 	if !ok {
-		return nil, fmt.Errorf("LookupGeneratorAction: generator action %q has type %T, want %T", name, action, &generatorActionType{})
+		return nil, fmt.Errorf("LookupGeneratorAction: generator action %q has type %T, want Generator", name, action)
 	}
-	return &generatorAction{actionInst}, nil
+	return actionInst, nil
 }
 
 // generatorAction implements Generator by invoking an action.
 type generatorAction struct {
-	action *generatorActionType
+	action core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
 }
 
 // Generate implements Generator. This is like the [Generate] function,
 // but invokes the [core.Action] rather than invoking the Generator
 // directly.
-func (ga *generatorAction) Generate(ctx context.Context, req *GenerateRequest, cb func(context.Context, *Candidate) error) (*GenerateResponse, error) {
+func (ga *generatorAction) Generate(ctx context.Context, req *GenerateRequest, cb func(context.Context, *GenerateResponseChunk) error) (*GenerateResponse, error) {
 	if err := conformOutput(req); err != nil {
 		return nil, err
 	}
