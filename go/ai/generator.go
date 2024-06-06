@@ -28,7 +28,9 @@ import (
 )
 
 // Generator is the interface used to query an AI model.
-type Generator interface {
+type GeneratorAction interface {
+	core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
+
 	// If the streaming callback is non-nil:
 	// - Each response candidate will be passed to that callback instead of
 	//   populating the result's Candidates field.
@@ -38,7 +40,7 @@ type Generator interface {
 }
 
 // GeneratorStreamingCallback is the type for the streaming callback of a generator.
-type GeneratorStreamingCallback = func(context.Context, *Candidate) error
+type GeneratorStreamingCallback = func(context.Context, *GenerateResponseChunk) error
 
 // GeneratorCapabilities describes various capabilities of the generator.
 type GeneratorCapabilities struct {
@@ -56,7 +58,7 @@ type GeneratorMetadata struct {
 
 // DefineGenerator registers the given generate function as an action, and returns a
 // [Generator] whose Generate method runs it.
-func DefineGenerator(provider, name string, metadata *GeneratorMetadata, generate func(context.Context, *GenerateRequest, GeneratorStreamingCallback) (*GenerateResponse, error)) Generator {
+func DefineGenerator(provider, name string, metadata *GeneratorMetadata, generate func(context.Context, *GenerateRequest, GeneratorStreamingCallback) (*GenerateResponse, error)) GeneratorAction {
 	metadataMap := map[string]any{}
 	if metadata != nil {
 		if metadata.Label != "" {
@@ -70,14 +72,33 @@ func DefineGenerator(provider, name string, metadata *GeneratorMetadata, generat
 		}
 		metadataMap["supports"] = supports
 	}
-	a := core.DefineStreamingAction(provider, name, core.ActionTypeModel, map[string]any{
+	act := core.NewStreamingAction(name, core.ActionTypeModel, map[string]any{
 		"model": metadataMap,
 	}, generate)
-	return generator{a}
+	ga := &generator{act}
+	core.RegisterAction(provider, ga)
+	return ga
 }
 
 type generator struct {
-	generateAction *core.Action[*GenerateRequest, *GenerateResponse, *Candidate]
+	generateAction core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
+}
+
+// Name returns the Action's name.
+func (a *generator) Name() string { return a.generateAction.Name() }
+
+// Description returns the Action's description.
+func (a *generator) Description() string { return a.generateAction.Description() }
+
+// ActionType returns the Action's type.
+func (a *generator) ActionType() core.ActionType { return a.generateAction.ActionType() }
+
+// Metadata returns the Action's metadata.
+func (a *generator) Metadata() map[string]any { return a.generateAction.Metadata() }
+
+// Run run the action...
+func (a *generator) Run(ctx context.Context, req *GenerateRequest, cb GeneratorStreamingCallback) (*GenerateResponse, error) {
+	return a.generateAction.Run(ctx, req, cb)
 }
 
 func (g generator) Generate(ctx context.Context, req *GenerateRequest, cb GeneratorStreamingCallback) (*GenerateResponse, error) {
@@ -85,7 +106,7 @@ func (g generator) Generate(ctx context.Context, req *GenerateRequest, cb Genera
 }
 
 // Generate applies a [Generator] to some input, handling tool requests.
-func Generate(ctx context.Context, g Generator, req *GenerateRequest, cb GeneratorStreamingCallback) (*GenerateResponse, error) {
+func Generate(ctx context.Context, g GeneratorAction, req *GenerateRequest, cb GeneratorStreamingCallback) (*GenerateResponse, error) {
 	if err := conformOutput(req); err != nil {
 		return nil, err
 	}
@@ -114,21 +135,17 @@ func Generate(ctx context.Context, g Generator, req *GenerateRequest, cb Generat
 	}
 }
 
-// generatorActionType is the instantiated core.Action type registered
-// by RegisterGenerator.
-type generatorActionType = core.Action[*GenerateRequest, *GenerateResponse, *Candidate]
-
 // LookupGenerator looks up a [Generator] registered by [DefineGenerator].
-func LookupGenerator(provider, name string) (Generator, error) {
+func LookupGenerator(provider, name string) (GeneratorAction, error) {
 	action := core.LookupAction(core.ActionTypeModel, provider, name)
 	if action == nil {
 		return nil, fmt.Errorf("LookupGenerator: no generator action named %q/%q", provider, name)
 	}
-	actionInst, ok := action.(*generatorActionType)
+	actionInst, ok := action.(GeneratorAction)
 	if !ok {
-		return nil, fmt.Errorf("LookupGenerator: generator action %q has type %T, want %T", name, action, &generatorActionType{})
+		return nil, fmt.Errorf("LookupGenerator: generator action %q has type %T, want %T", name, action, &generator{})
 	}
-	return generator{actionInst}, nil
+	return actionInst, nil
 }
 
 // conformOutput appends a message to the request indicating conformance to the expected schema.
