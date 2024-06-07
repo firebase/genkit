@@ -82,7 +82,7 @@ func TestLive(t *testing.T) {
 		},
 	)
 	t.Run("embedder", func(t *testing.T) {
-		out, err := googleai.Embedder(embeddingModel).Embed(ctx, &ai.EmbedRequest{
+		out, err := ai.Embed(ctx, googleai.Embedder(embeddingModel), &ai.EmbedRequest{
 			Document: ai.DocumentFromText("yellow banana", nil),
 		})
 		if err != nil {

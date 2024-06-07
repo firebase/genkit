@@ -38,7 +38,7 @@ import (
 // retriever with genkit, and also return it.
 // This retriever may only be used by a single goroutine at a time.
 // This is based on js/plugins/dev-local-vectorstore/src/index.ts.
-func New(ctx context.Context, dir, name string, embedder ai.Embedder, embedderOptions any) (ai.DocumentStore, error) {
+func New(ctx context.Context, dir, name string, embedder *ai.EmbedderAction, embedderOptions any) (ai.DocumentStore, error) {
 	r, err := newDocStore(ctx, dir, name, embedder, embedderOptions)
 	if err != nil {
 		return nil, err
@@ -50,7 +50,7 @@ func New(ctx context.Context, dir, name string, embedder ai.Embedder, embedderOp
 // for a local vector database.
 type docStore struct {
 	filename        string
-	embedder        ai.Embedder
+	embedder        *ai.EmbedderAction
 	embedderOptions any
 	data            map[string]dbValue
 }
@@ -62,7 +62,7 @@ type dbValue struct {
 }
 
 // newDocStore returns a new ai.DocumentStore to register.
-func newDocStore(ctx context.Context, dir, name string, embedder ai.Embedder, embedderOptions any) (ai.DocumentStore, error) {
+func newDocStore(ctx context.Context, dir, name string, embedder *ai.EmbedderAction, embedderOptions any) (ai.DocumentStore, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
@@ -98,7 +98,7 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 			Document: doc,
 			Options:  ds.embedderOptions,
 		}
-		vals, err := ds.embedder.Embed(ctx, ereq)
+		vals, err := ai.Embed(ctx, ds.embedder, ereq)
 		if err != nil {
 			return fmt.Errorf("localvec index embedding failed: %v", err)
 		}
@@ -160,7 +160,7 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 		Document: req.Document,
 		Options:  ds.embedderOptions,
 	}
-	vals, err := ds.embedder.Embed(ctx, ereq)
+	vals, err := ai.Embed(ctx, ds.embedder, ereq)
 	if err != nil {
 		return nil, fmt.Errorf("localvec retrieve embedding failed: %v", err)
 	}

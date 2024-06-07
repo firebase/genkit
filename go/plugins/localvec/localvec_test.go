@@ -50,8 +50,8 @@ func TestLocalVec(t *testing.T) {
 	embedder.Register(d1, v1)
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
-
-	ds, err := newDocStore(ctx, t.TempDir(), "testLocalVec", embedder, nil)
+	embedAction := ai.DefineEmbedder("fake", "embedder1", embedder.Embed)
+	ds, err := newDocStore(ctx, t.TempDir(), "testLocalVec", embedAction, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,10 +110,11 @@ func TestPersistentIndexing(t *testing.T) {
 	embedder.Register(d1, v1)
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
+	embedAction := ai.DefineEmbedder("fake", "embedder2", embedder.Embed)
 
 	tDir := t.TempDir()
 
-	ds, err := newDocStore(ctx, tDir, "testLocalVec", embedder, nil)
+	ds, err := newDocStore(ctx, tDir, "testLocalVec", embedAction, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -144,7 +145,7 @@ func TestPersistentIndexing(t *testing.T) {
 		t.Errorf("got %d results, expected 2", len(docs))
 	}
 
-	dsAnother, err := newDocStore(ctx, tDir, "testLocalVec", embedder, nil)
+	dsAnother, err := newDocStore(ctx, tDir, "testLocalVec", embedAction, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

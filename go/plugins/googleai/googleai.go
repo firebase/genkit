@@ -121,9 +121,9 @@ func Model(name string) *ai.ModelAction {
 	return ai.LookupModel(provider, name)
 }
 
-// Embedder returns the embedder with the given name.
+// Embedder returns the [ai.EmbedderAction] with the given name.
 // It returns nil if the embedder was not configured.
-func Embedder(name string) ai.Embedder {
+func Embedder(name string) *ai.EmbedderAction {
 	return ai.LookupEmbedder(provider, name)
 }
 

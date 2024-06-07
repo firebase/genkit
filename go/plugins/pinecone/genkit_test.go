@@ -71,8 +71,9 @@ func TestGenkit(t *testing.T) {
 	embedder.Register(d1, v1)
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
+	embedAction := ai.DefineEmbedder("fake", "embedder3", embedder.Embed)
 
-	r, err := New(ctx, *testAPIKey, indexData.Host, embedder, nil, "")
+	r, err := New(ctx, *testAPIKey, indexData.Host, embedAction, nil, "")
 	if err != nil {
 		t.Fatal(err)
 	}
