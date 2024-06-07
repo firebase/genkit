@@ -102,8 +102,9 @@ type Flow[In, Out, Stream any] struct {
 	// TODO(jba): middleware
 }
 
-// DefineFlow creates a Flow that runs fn, and registers it as an action.
-func DefineFlow[In, Out, Stream any](name string, fn Func[In, Out, Stream]) *Flow[In, Out, Stream] {
+// InternalDefineFlow is for use by genkit.DefineFlow exclusively.
+// It is not subject to any backwards compatibility guarantees.
+func InternalDefineFlow[In, Out, Stream any](name string, fn Func[In, Out, Stream]) *Flow[In, Out, Stream] {
 	return defineFlow(globalRegistry, name, fn)
 }
 
@@ -259,7 +260,7 @@ func (f *Flow[In, Out, Stream]) action() *Action[*flowInstruction[In], *flowStat
 		tracing.SetCustomMetadataAttr(ctx, "flow:wrapperAction", "true")
 		return f.runInstruction(ctx, inst, streamingCallback[Stream](cb))
 	}
-	return NewStreamingAction(f.name, atype.Flow, metadata, cback)
+	return newStreamingAction(f.name, atype.Flow, metadata, cback)
 }
 
 // runInstruction performs one of several actions on a flow, as determined by msg.
@@ -297,7 +298,7 @@ func (f *Flow[In, Out, Stream]) Name() string { return f.name }
 
 func (f *Flow[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMessage, cb streamingCallback[json.RawMessage]) (json.RawMessage, error) {
 	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
-	if err := ValidateJSON(input, f.inputSchema); err != nil {
+	if err := validateJSON(input, f.inputSchema); err != nil {
 		return nil, &httpError{http.StatusBadRequest, err}
 	}
 	var in In
@@ -380,14 +381,14 @@ func (f *Flow[In, Out, Stream]) execute(ctx context.Context, state *flowState[In
 		// TODO(jba): If input is missing, get it from state.input and overwrite metadata.input.
 		start := time.Now()
 		var err error
-		if err = ValidateValue(input, f.inputSchema); err != nil {
+		if err = validateValue(input, f.inputSchema); err != nil {
 			err = fmt.Errorf("invalid input: %w", err)
 		}
 		var output Out
 		if err == nil {
 			output, err = f.fn(ctx, input, cb)
 			if err == nil {
-				if err = ValidateValue(output, f.outputSchema); err != nil {
+				if err = validateValue(output, f.outputSchema); err != nil {
 					err = fmt.Errorf("invalid output: %w", err)
 				}
 			}
@@ -488,13 +489,9 @@ func (fc *flowContext[I, O]) uniqueStepName(name string) string {
 
 var flowContextKey = internal.NewContextKey[flowContexter]()
 
-// Run runs the function f in the context of the current flow.
-// It returns an error if no flow is active.
-//
-// Each call to Run results in a new step in the flow.
-// A step has its own span in the trace, and its result is cached so that if the flow
-// is restarted, f will not be called a second time.
-func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out, error) {
+// InternalRun is for use by genkit.Run exclusively.
+// It is not subject to any backwards compatibility guarantees.
+func InternalRun[Out any](ctx context.Context, name string, f func() (Out, error)) (Out, error) {
 	// from js/flow/src/steps.ts
 	fc := flowContextKey.FromContext(ctx)
 	if fc == nil {
@@ -541,9 +538,9 @@ func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out,
 	})
 }
 
-// RunFlow runs flow in the context of another flow. The flow must run to completion when started
-// (that is, it must not have interrupts).
-func RunFlow[In, Out, Stream any](ctx context.Context, flow *Flow[In, Out, Stream], input In) (Out, error) {
+// InternalRunFlow is for use by genkit.RunFlow exclusively.
+// It is not subject to any backwards compatibility guarantees.
+func InternalRunFlow[In, Out, Stream any](ctx context.Context, flow *Flow[In, Out, Stream], input In) (Out, error) {
 	state, err := flow.start(ctx, input, nil)
 	if err != nil {
 		return internal.Zero[Out](), err
