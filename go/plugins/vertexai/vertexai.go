@@ -16,15 +16,107 @@ package vertexai
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"runtime"
 
+	aiplatform "cloud.google.com/go/aiplatform/apiv1"
 	"cloud.google.com/go/vertexai/genai"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
+	"google.golang.org/api/option"
 )
 
-func newClient(ctx context.Context, projectID, location string) (*genai.Client, error) {
-	return genai.NewClient(ctx, projectID, location)
+const provider = "google-genai"
+
+// Config provides configuration options for the Init function.
+type Config struct {
+	// The project holding the resources.
+	ProjectID string
+	// The location of the resources.
+	// Defaults to "us-central1".
+	Location string
+	// Generative models to provide.
+	Models []string
+	// Embedding models to provide.
+	Embedders []string
+}
+
+func Init(ctx context.Context, cfg Config) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("vertexai.Init: %w", err)
+		}
+	}()
+
+	if cfg.ProjectID == "" {
+		return errors.New("missing ProjectID")
+	}
+	if cfg.Location == "" {
+		cfg.Location = "us-central1"
+	}
+	// TODO(#345): call ListModels. See googleai.go.
+	if len(cfg.Models) == 0 && len(cfg.Embedders) == 0 {
+		return errors.New("need at least one model or embedder")
+	}
+
+	if err := initModels(ctx, cfg); err != nil {
+		return err
+	}
+	return initEmbedders(ctx, cfg)
+}
+
+func initModels(ctx context.Context, cfg Config) error {
+	// Client for Gemini SDK.
+	gclient, err := genai.NewClient(ctx, cfg.ProjectID, cfg.Location)
+	if err != nil {
+		return err
+	}
+	for _, name := range cfg.Models {
+		meta := &ai.ModelMetadata{
+			Label: "Vertex AI - " + name,
+			Supports: ai.ModelCapabilities{
+				Multiturn: true,
+			},
+		}
+		g := &generator{model: name, client: gclient}
+		ai.DefineModel(provider, name, meta, g.generate)
+	}
+	return nil
+}
+
+func initEmbedders(ctx context.Context, cfg Config) error {
+	// Client for prediction SDK.
+	endpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", cfg.Location)
+	numConns := max(runtime.GOMAXPROCS(0), 4)
+	o := []option.ClientOption{
+		option.WithEndpoint(endpoint),
+		option.WithGRPCConnectionPool(numConns),
+	}
+
+	pclient, err := aiplatform.NewPredictionClient(ctx, o...)
+	if err != nil {
+		return err
+	}
+	for _, name := range cfg.Embedders {
+		fullName := fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s", cfg.ProjectID, cfg.Location, name)
+		ai.DefineEmbedder(provider, name, func(ctx context.Context, req *ai.EmbedRequest) ([]float32, error) {
+			return embed(ctx, fullName, pclient, req)
+		})
+	}
+	return nil
+}
+
+// Model returns the [ai.ModelAction] with the given name.
+// It returns nil if the model was not configured.
+func Model(name string) *ai.ModelAction {
+	return ai.LookupModel(provider, name)
+}
+
+// Embedder returns the embedder with the given name.
+// It returns nil if the embedder was not configured.
+func Embedder(name string) ai.Embedder {
+	return ai.LookupEmbedder(provider, name)
 }
 
 type generator struct {
@@ -169,23 +261,6 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.GenerateResponse
 		r.Candidates = append(r.Candidates, translateCandidate(c))
 	}
 	return r
-}
-
-// NewModel returns an [ai.ModelAction] which sends a request to
-// the vertex AI model and returns the response.
-func NewModel(ctx context.Context, model, projectID, location string) (*ai.ModelAction, error) {
-	client, err := newClient(ctx, projectID, location)
-	if err != nil {
-		return nil, err
-	}
-	g := &generator{model: model, client: client}
-	meta := &ai.ModelMetadata{
-		Label: "Vertex AI - " + model,
-		Supports: ai.ModelCapabilities{
-			Multiturn: true,
-		},
-	}
-	return ai.DefineModel("google-vertexai", model, meta, g.generate), nil
 }
 
 // convertParts converts a slice of *ai.Part to a slice of genai.Part.
