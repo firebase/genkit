@@ -133,7 +133,7 @@ type generator struct {
 	//session *genai.ChatSession // non-nil if we're in the middle of a chat
 }
 
-func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.Candidate) error) (*ai.GenerateResponse, error) {
+func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
 	gm := g.client.GenerativeModel(g.model)
 
 	// Translate from a ai.GenerateRequest to a genai request.
@@ -228,7 +228,11 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 		}
 		// Send candidates to the callback.
 		for _, c := range chunk.Candidates {
-			err := cb(ctx, translateCandidate(c))
+			tc := translateCandidate(c)
+			err := cb(ctx, &ai.GenerateResponseChunk{
+				Content: tc.Message.Content,
+				Index:   tc.Index,
+			})
 			if err != nil {
 				return nil, err
 			}

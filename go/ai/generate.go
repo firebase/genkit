@@ -29,10 +29,10 @@ import (
 )
 
 // A ModelAction is used to generate content from an AI model.
-type ModelAction = core.Action[*GenerateRequest, *GenerateResponse, *Candidate]
+type ModelAction = core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
 
 // ModelStreamingCallback is the type for the streaming callback of a model.
-type ModelStreamingCallback = func(context.Context, *Candidate) error
+type ModelStreamingCallback = func(context.Context, *GenerateResponseChunk) error
 
 // ModelCapabilities describes various capabilities of the model.
 type ModelCapabilities struct {
@@ -72,7 +72,7 @@ func DefineModel(provider, name string, metadata *ModelMetadata, generate func(c
 // LookupModel looks up a [ModelAction] registered by [DefineModel].
 // It returns nil if the model was not defined.
 func LookupModel(provider, name string) *ModelAction {
-	return core.LookupActionFor[*GenerateRequest, *GenerateResponse, *Candidate](atype.Model, provider, name)
+	return core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](atype.Model, provider, name)
 }
 
 // Generate applies a [ModelAction] to some input, handling tool requests.
@@ -229,6 +229,23 @@ func (gr *GenerateResponse) Text() (string, error) {
 	return gr.Candidates[0].Text()
 }
 
+// Text returns the text content of the [GenerateResponseChunk]
+// as a string. It returns an error if there is no Content
+// in the response chunk.
+func (c *GenerateResponseChunk) Text() (string, error) {
+	if len(c.Content) == 0 {
+		return "", errors.New("response chunk has no content")
+	}
+	if len(c.Content) == 1 {
+		return c.Content[0].Text, nil
+	}
+	var sb strings.Builder
+	for _, p := range c.Content {
+		sb.WriteString(p.Text)
+	}
+	return sb.String(), nil
+}
+
 // Text returns the contents of a [Candidate] as a string. It
 // returns an error if the candidate has no message.
 func (c *Candidate) Text() (string, error) {
@@ -241,11 +258,10 @@ func (c *Candidate) Text() (string, error) {
 	}
 	if len(msg.Content) == 1 {
 		return msg.Content[0].Text, nil
-	} else {
-		var sb strings.Builder
-		for _, p := range msg.Content {
-			sb.WriteString(p.Text)
-		}
-		return sb.String(), nil
 	}
+	var sb strings.Builder
+	for _, p := range msg.Content {
+		sb.WriteString(p.Text)
+	}
+	return sb.String(), nil
 }

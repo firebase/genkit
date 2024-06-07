@@ -22,7 +22,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 )
 
-func testGenerate(ctx context.Context, req *ai.GenerateRequest, cb func(context.Context, *ai.Candidate) error) (*ai.GenerateResponse, error) {
+func testGenerate(ctx context.Context, req *ai.GenerateRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
 	input := req.Messages[0].Content[0].Text
 	output := fmt.Sprintf("AI reply to %q", input)
 
