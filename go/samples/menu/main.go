@@ -102,7 +102,6 @@ func main() {
 
 	const localvecName = "go-menu-items"
 	if err := localvec.Init(ctx, localvec.Config{
-		Dir:      os.TempDir(),
 		Name:     localvecName,
 		Embedder: vertexai.Embedder(embeddingGecko),
 	}); err != nil {

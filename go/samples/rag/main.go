@@ -93,7 +93,6 @@ func main() {
 
 	const localvecName = "simpleQa"
 	if err := localvec.Init(context.Background(), localvec.Config{
-		Dir:      os.TempDir(),
 		Name:     localvecName,
 		Embedder: googleai.Embedder("embedding-001"),
 	}); err != nil {

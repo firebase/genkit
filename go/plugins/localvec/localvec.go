@@ -38,7 +38,7 @@ const provider = "devLocalVectorStore"
 
 // Config provides configuration options for the Init function.
 type Config struct {
-	// Where to store the data.
+	// Where to store the data. Defaults to os.TempDir.
 	Dir             string
 	Name            string
 	Embedder        *ai.EmbedderAction
@@ -90,6 +90,9 @@ type dbValue struct {
 
 // newDocStore returns a new ai.DocumentStore to register.
 func newDocStore(dir, name string, embedder *ai.EmbedderAction, embedderOptions any) (*docStore, error) {
+	if dir == "" {
+		dir = os.TempDir()
+	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
