@@ -738,6 +738,9 @@ importers:
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
+      firebase-admin:
+        specifier: ^12.1.0
+        version: 12.1.0(encoding@0.1.13)
       genkitx-chromadb:
         specifier: workspace:*
         version: link:../../plugins/chroma

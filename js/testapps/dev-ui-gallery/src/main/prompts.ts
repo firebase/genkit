@@ -16,7 +16,7 @@
 
 import { defineDotprompt, prompt } from '@genkit-ai/dotprompt';
 import { defineFlow } from '@genkit-ai/flow';
-import { geminiPro } from '@genkit-ai/googleai';
+import { gemini15Flash } from '@genkit-ai/googleai';
 import * as z from 'zod';
 import { HelloFullNameSchema, HelloSchema } from '../common/types.js';
 
@@ -30,7 +30,7 @@ const template = 'Say hello to {{name}} in the voice of a {{persona}}.';
 export const codeDefinedPrompt = defineDotprompt(
   {
     name: promptName,
-    model: geminiPro,
+    model: gemini15Flash,
     input: {
       schema: HelloSchema,
       default: {
@@ -75,7 +75,7 @@ export const codeDefinedPromptVariant = defineDotprompt(
   {
     name: promptName,
     variant: 'jsonOutput',
-    model: geminiPro,
+    model: gemini15Flash,
     input: {
       schema: HelloSchema,
       default: {
