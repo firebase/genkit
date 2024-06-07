@@ -28,6 +28,8 @@ import (
 	"github.com/firebase/genkit/go/ai"
 )
 
+const provider = "pinecone"
+
 // defaultTextKey is the default metadata key we use to store the
 // document text as metadata of the documented stored in pinecone.
 // This lets us map back from the document returned by a query to
@@ -36,40 +38,63 @@ import (
 // documents in pinecone.
 const defaultTextKey = "_content"
 
-// New returns an [ai.DocumentStore] that uses Pinecone.
-//
-// apiKey is the API key to use to access Pinecone.
-// If it is the empty string, it is read from the PINECONE_API_KEY
-// environment variable.
-//
-// host is the controller host name. This implies which index to use.
-// If it is the empty string, it is read from the PINECONE_CONTROLLER_HOST
-// environment variable.
-//
-// The caller must pass an Embedder to use.
-//
-// The textKey parameter is the metadata key to use to store document text
-// in Pinecone; the default is "_content".
-func New(ctx context.Context, apiKey, host string, embedder *ai.EmbedderAction, embedderOptions any, textKey string) (ai.DocumentStore, error) {
-	client, err := NewClient(ctx, apiKey)
+// Config configures the plugin.
+type Config struct {
+	// API key for Pinecone.
+	// If it is the empty string, it is read from the PINECONE_API_KEY
+	// environment variable.
+	APIKey string
+	// The controller host name. This implies which index to use.
+	// If it is the empty string, it is read from the PINECONE_CONTROLLER_HOST
+	// environment variable.
+	Host string
+	// Embedder to use. Required.
+	Embedder        *ai.EmbedderAction
+	EmbedderOptions any
+	// The metadata key to use to store document text
+	// in Pinecone; the default is "_content".
+	TextKey string
+}
+
+// Init initializes the Pinecone plugin.
+func Init(ctx context.Context, cfg Config) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("pinecone.Init: %w", err)
+		}
+	}()
+
+	client, err := NewClient(ctx, cfg.APIKey)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	index, err := client.Index(ctx, host)
+	index, err := client.Index(ctx, cfg.Host)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if textKey == "" {
-		textKey = defaultTextKey
+	if cfg.TextKey == "" {
+		cfg.TextKey = defaultTextKey
 	}
 	r := &docStore{
 		index:           index,
-		embedder:        embedder,
-		embedderOptions: embedderOptions,
-		textKey:         textKey,
+		embedder:        cfg.Embedder,
+		embedderOptions: cfg.EmbedderOptions,
+		textKey:         cfg.TextKey,
 	}
+	name := index.host // the resolved host
+	ai.DefineIndexer(provider, name, r.Index)
+	ai.DefineRetriever(provider, name, r.Retrieve)
+	return nil
+}
 
-	return ai.DefineDocumentStore("pinecone", r.Index, r.Retrieve), nil
+// Indexer returns the indexer with the given index name.
+func Indexer(name string) *ai.IndexerAction {
+	return ai.LookupIndexer(provider, name)
+}
+
+// Retriever returns the retriever with the given index name.
+func Retriever(name string) *ai.RetrieverAction {
+	return ai.LookupRetriever(provider, name)
 }
 
 // IndexerOptions may be passed in the Options field
