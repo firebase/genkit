@@ -29,6 +29,12 @@ import {
   SUPPORTED_EMBEDDER_MODELS,
   textEmbeddingGecko,
   textEmbeddingGeckoEmbedder,
+  textEmbeddingGecko001,
+  textEmbeddingGecko002,
+  textEmbeddingGecko003,
+  textEmbedding004,
+  textEmbeddingGeckoMultilingual001,
+  textMultilingualEmbedding002,
 } from './embedder.js';
 import {
   VertexAIEvaluationMetric,
@@ -55,6 +61,12 @@ export {
   geminiProVision,
   imagen2,
   textEmbeddingGecko,
+  textEmbeddingGecko001,
+  textEmbeddingGecko002,
+  textEmbeddingGecko003,
+  textEmbedding004,
+  textEmbeddingGeckoMultilingual001,
+  textMultilingualEmbedding002,
   VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
 };
 
