@@ -79,7 +79,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	simpleQaPrompt, err := dotprompt.Define("simpleQaPrompt",
+	simpleQaPrompt, err := dotprompt.Register("simpleQaPrompt",
 		simpleQaPromptTemplate,
 		dotprompt.Config{
 			ModelAction:  googleai.Model("gemini-1.0-pro"),
@@ -133,7 +133,7 @@ func main() {
 			Context: sb.String(),
 		}
 
-		resp, err := simpleQaPrompt.Generate(ctx,
+		resp, err := ai.Render(ctx, simpleQaPrompt,
 			&ai.PromptRequest{
 				Variables: promptInput,
 			},

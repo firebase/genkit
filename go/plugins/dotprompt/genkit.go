@@ -115,27 +115,37 @@ func (p *Prompt) buildRequest(pr *ai.PromptRequest) (*ai.GenerateRequest, error)
 	return req, nil
 }
 
-// Register registers an action to execute a prompt.
-func (p *Prompt) Register() error {
+// Register registers an action to execute a prompt,
+// and returns an [ai.PromptAction] that runs it.
+func (p *Prompt) Register() (*ai.PromptAction, error) {
 	name := p.Name
 	if name == "" {
-		return errors.New("attempt to register unnamed prompt")
+		return nil, errors.New("attempt to register unnamed prompt")
 	}
 	if p.Variant != "" {
 		name += "." + p.Variant
 	}
 
-	ai.RegisterPrompt("dotprompt", name, p)
+	pa := ai.DefinePrompt("dotprompt", name, p.render)
 
-	return nil
+	return pa, nil
 }
 
-// Generate executes a prompt. It does variable substitution and
+// Register creates and registers a new Prompt.
+// It returns an action that executes the prompt.
+// This can be called from code that doesn't have a prompt file.
+func Register(name, templateText string, cfg Config) (*ai.PromptAction, error) {
+	p, err := New(name, templateText, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return p.Register()
+}
+
+// render executes a prompt. It does variable substitution and
 // passes the rendered template to the AI model specified by
 // the prompt.
-//
-// This implements the [ai.Prompt] interface.
-func (p *Prompt) Generate(ctx context.Context, pr *ai.PromptRequest, cb func(context.Context, *ai.Candidate) error) (*ai.GenerateResponse, error) {
+func (p *Prompt) render(ctx context.Context, pr *ai.PromptRequest, cb ai.ModelStreamingCallback) (*ai.GenerateResponse, error) {
 	tracing.SetCustomMetadataAttr(ctx, "subtype", "prompt")
 
 	genReq, err := p.buildRequest(pr)
@@ -163,10 +173,5 @@ func (p *Prompt) Generate(ctx context.Context, pr *ai.PromptRequest, cb func(con
 		}
 	}
 
-	resp, err := ai.Generate(ctx, model, genReq, cb)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	return ai.Generate(ctx, model, genReq, cb)
 }

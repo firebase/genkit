@@ -56,7 +56,7 @@ func (ch *chatHistoryStore) Retrieve(sessionID string) chatHistory {
 }
 
 func setup03(ctx context.Context, model *ai.ModelAction) error {
-	chatPreamblePrompt, err := dotprompt.Define("s03_chatPreamble",
+	chatPreamblePrompt, err := dotprompt.New("s03_chatPreamble",
 		`
 		  {{ role "user" }}
 		  Hi. What's on the menu today?

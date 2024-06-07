@@ -267,17 +267,6 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 	return fy.Name, ret, data[end+len(footer):], nil
 }
 
-// Define creates and registers a new Prompt. This can be called from code that
-// doesn't have a prompt file.
-func Define(name, templateText string, cfg Config) (*Prompt, error) {
-	p, err := New(name, templateText, cfg)
-	if err != nil {
-		return nil, err
-	}
-	p.Register()
-	return p, nil
-}
-
 // New creates a new Prompt without registering it.
 // This may be used for testing or for direct calls not using the
 // genkit action and flow mechanisms.

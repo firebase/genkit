@@ -22,7 +22,7 @@ import (
 )
 
 func setup01(ctx context.Context, g *ai.ModelAction) error {
-	_, err := dotprompt.Define("s01_vanillaPrompt",
+	_, err := dotprompt.Register("s01_vanillaPrompt",
 		`You are acting as a helpful AI assistant named "Walt" that can answer
 		 questions about the food available on the menu at Walt's Burgers.
 		 Customer says: ${input.question}`,
@@ -35,7 +35,7 @@ func setup01(ctx context.Context, g *ai.ModelAction) error {
 		return err
 	}
 
-	_, err = dotprompt.Define("s01_staticMenuDotPrompt",
+	_, err = dotprompt.Register("s01_staticMenuDotPrompt",
 		`You are acting as a helpful AI assistant named "Walt" that can answer
 		 questions about the food available on the menu at Walt's Burgers.
 		 Here is today's menu:

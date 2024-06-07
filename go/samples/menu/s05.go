@@ -30,7 +30,7 @@ type imageURLInput struct {
 }
 
 func setup05(ctx context.Context, gen, genVision *ai.ModelAction) error {
-	readMenuPrompt, err := dotprompt.Define("s05_readMenu",
+	readMenuPrompt, err := dotprompt.Register("s05_readMenu",
 		`
 		  Extract _all_ of the text, in order,
 		  from the following image of a restaurant menu.
@@ -49,7 +49,7 @@ func setup05(ctx context.Context, gen, genVision *ai.ModelAction) error {
 		return err
 	}
 
-	textMenuPrompt, err := dotprompt.Define("s05_textMenu",
+	textMenuPrompt, err := dotprompt.Register("s05_textMenu",
 		`
 		  You are acting as Walt, a helpful AI assistant here at the restaurant.
 		  You can answer questions about the food on the menu or any other questions
@@ -92,7 +92,7 @@ func setup05(ctx context.Context, gen, genVision *ai.ModelAction) error {
 					ImageURL: imageDataURL,
 				},
 			}
-			presp, err := readMenuPrompt.Generate(ctx, preq, nil)
+			presp, err := ai.Render(ctx, readMenuPrompt, preq, nil)
 			if err != nil {
 				return "", err
 			}
@@ -110,7 +110,7 @@ func setup05(ctx context.Context, gen, genVision *ai.ModelAction) error {
 			preq := &ai.PromptRequest{
 				Variables: input,
 			}
-			presp, err := textMenuPrompt.Generate(ctx, preq, nil)
+			presp, err := ai.Render(ctx, textMenuPrompt, preq, nil)
 			if err != nil {
 				return nil, err
 			}

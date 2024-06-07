@@ -37,18 +37,26 @@ type PromptRequest struct {
 	Model string `json:"model,omitempty"`
 }
 
-// Prompt is the interface used to execute a prompt template and
-// pass the result to a [ModelAction].
-type Prompt interface {
-	Generate(context.Context, *PromptRequest, func(context.Context, *Candidate) error) (*GenerateResponse, error)
-}
+// A PromptAction is used to generate content from an AI model using a prompt.
+type PromptAction = core.Action[*PromptRequest, *GenerateResponse, *Candidate]
 
-// RegisterPrompt registers a prompt in the global registry.
-func RegisterPrompt(provider, name string, prompt Prompt) {
+// DefinePrompt register the given function as a prompt action,
+// and returns a [PromptAction] that runs it.
+func DefinePrompt(provider, name string, render func(context.Context, *PromptRequest, ModelStreamingCallback) (*GenerateResponse, error)) *PromptAction {
 	metadata := map[string]any{
 		"type":   "prompt",
-		"prompt": prompt,
+		"prompt": true, // required by genkit UI
 	}
-	core.RegisterAction(provider,
-		core.NewStreamingAction(name, core.ActionTypePrompt, metadata, prompt.Generate))
+	return core.DefineStreamingAction(provider, name, core.ActionTypePrompt, metadata, render)
+}
+
+// LookupPrompt looks up a [PromptAction] registered by [DefinePrompt].
+// It returns nil if the prompt was not defined.
+func LookupPrompt(provider, name string) *PromptAction {
+	return core.LookupActionFor[*PromptRequest, *GenerateResponse, *Candidate](core.ActionTypePrompt, provider, name)
+}
+
+// Render applies a [PromptAction] to some input variables.
+func Render(ctx context.Context, p *PromptAction, req *PromptRequest, cb ModelStreamingCallback) (*GenerateResponse, error) {
+	return p.Run(ctx, req, cb)
 }

@@ -49,7 +49,7 @@ func menu(ctx context.Context, input map[string]any) (map[string]any, error) {
 func setup02(ctx context.Context, m *ai.ModelAction) error {
 	ai.RegisterTool(menuToolDef, nil, menu)
 
-	dataMenuPrompt, err := dotprompt.Define("s02_dataMenu",
+	dataMenuPrompt, err := dotprompt.Register("s02_dataMenu",
 		`You are acting as a helpful AI assistant named Walt that can answer
 		 questions about the food available on the menu at Walt's Burgers.
 
@@ -75,7 +75,7 @@ func setup02(ctx context.Context, m *ai.ModelAction) error {
 
 	genkit.DefineFlow("s02_menuQuestion",
 		func(ctx context.Context, input *menuQuestionInput, _ genkit.NoStream) (*answerOutput, error) {
-			resp, err := dataMenuPrompt.Generate(ctx,
+			resp, err := ai.Render(ctx, dataMenuPrompt,
 				&ai.PromptRequest{
 					Variables: input,
 				},

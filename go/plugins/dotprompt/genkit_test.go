@@ -22,7 +22,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 )
 
-func testGenerate(ctx context.Context, req *ai.GenerateRequest, cb func(context.Context, *ai.Candidate) error) (*ai.GenerateResponse, error) {
+func testGenerate(ctx context.Context, req *ai.GenerateRequest, cb ai.ModelStreamingCallback) (*ai.GenerateResponse, error) {
 	input := req.Messages[0].Content[0].Text
 	output := fmt.Sprintf("AI reply to %q", input)
 
@@ -43,11 +43,12 @@ func testGenerate(ctx context.Context, req *ai.GenerateRequest, cb func(context.
 
 func TestExecute(t *testing.T) {
 	testModel := ai.DefineModel("test", "test", nil, testGenerate)
-	p, err := New("TestExecute", "TestExecute", Config{ModelAction: testModel})
+	const promptName = "TestExecute"
+	pa, err := Register(promptName, "Test prompt", Config{ModelAction: testModel})
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp, err := p.Generate(context.Background(), &ai.PromptRequest{}, nil)
+	resp, err := ai.Render(context.Background(), pa, &ai.PromptRequest{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +69,7 @@ func TestExecute(t *testing.T) {
 		}
 	}
 	got := msg.Content[0].Text
-	want := `AI reply to "TestExecute"`
+	want := `AI reply to "Test prompt"`
 	if got != want {
 		t.Errorf("fake model replied with %q, want %q", got, want)
 	}

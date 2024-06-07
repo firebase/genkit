@@ -25,7 +25,7 @@ import (
 )
 
 func setup04(ctx context.Context, indexer *ai.IndexerAction, retriever *ai.RetrieverAction, model *ai.ModelAction) error {
-	ragDataMenuPrompt, err := dotprompt.Define("s04_ragDataMenu",
+	ragDataMenuPrompt, err := dotprompt.Register("s04_ragDataMenu",
 		`
 		  You are acting as Walt, a helpful AI assistant here at the restaurant.
 		  You can answer questions about the food on the menu or any other questions
@@ -106,7 +106,7 @@ func setup04(ctx context.Context, indexer *ai.IndexerAction, retriever *ai.Retri
 			preq := &ai.PromptRequest{
 				Variables: questionInput,
 			}
-			presp, err := ragDataMenuPrompt.Generate(ctx, preq, nil)
+			presp, err := ai.Render(ctx, ragDataMenuPrompt, preq, nil)
 			if err != nil {
 				return nil, err
 			}
