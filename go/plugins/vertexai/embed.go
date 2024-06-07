@@ -17,13 +17,10 @@ package vertexai
 import (
 	"context"
 	"errors"
-	"fmt"
-	"runtime"
 
 	aiplatform "cloud.google.com/go/aiplatform/apiv1"
 	"cloud.google.com/go/aiplatform/apiv1/aiplatformpb"
 	"github.com/firebase/genkit/go/ai"
-	"google.golang.org/api/option"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -37,49 +34,30 @@ type EmbedOptions struct {
 	TaskType string `json:"task_type,omitempty"`
 }
 
-// NewEmbedder returns an [ai.Embedder] that can compute the embedding
-// of an input document.
-func NewEmbedder(ctx context.Context, model, projectID, location string) (ai.Embedder, error) {
-	endpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
-	numConns := max(runtime.GOMAXPROCS(0), 4)
-	o := []option.ClientOption{
-		option.WithEndpoint(endpoint),
-		option.WithGRPCConnectionPool(numConns),
+func embed(ctx context.Context, reqEndpoint string, client *aiplatform.PredictionClient, req *ai.EmbedRequest) ([]float32, error) {
+	preq, err := newPredictRequest(reqEndpoint, req)
+	if err != nil {
+		return nil, err
 	}
-
-	client, err := aiplatform.NewPredictionClient(ctx, o...)
+	resp, err := client.Predict(ctx, preq)
 	if err != nil {
 		return nil, err
 	}
 
-	reqEndpoint := fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s", projectID, location, model)
+	// TODO(ianlancetaylor): This can return multiple vectors.
+	// We just use the first one for now.
 
-	e := ai.DefineEmbedder("google-vertexai", model, func(ctx context.Context, req *ai.EmbedRequest) ([]float32, error) {
-		preq, err := newPredictRequest(reqEndpoint, req)
-		if err != nil {
-			return nil, err
-		}
-		resp, err := client.Predict(ctx, preq)
-		if err != nil {
-			return nil, err
-		}
+	if len(resp.Predictions) < 1 {
+		return nil, errors.New("vertexai: embed request returned no values")
+	}
 
-		// TODO(ianlancetaylor): This can return multiple vectors.
-		// We just use the first one for now.
+	values := resp.Predictions[0].GetStructValue().Fields["embeddings"].GetStructValue().Fields["values"].GetListValue().Values
+	ret := make([]float32, len(values))
+	for i, value := range values {
+		ret[i] = float32(value.GetNumberValue())
+	}
 
-		if len(resp.Predictions) < 1 {
-			return nil, errors.New("vertexai: embed request returned no values")
-		}
-
-		values := resp.Predictions[0].GetStructValue().Fields["embeddings"].GetStructValue().Fields["values"].GetListValue().Values
-		ret := make([]float32, len(values))
-		for i, value := range values {
-			ret[i] = float32(value.GetNumberValue())
-		}
-
-		return ret, nil
-	})
-	return e, nil
+	return ret, nil
 }
 
 func newPredictRequest(endpoint string, req *ai.EmbedRequest) (*aiplatformpb.PredictRequest, error) {
