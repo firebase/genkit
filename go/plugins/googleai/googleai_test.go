@@ -141,13 +141,22 @@ func TestLive(t *testing.T) {
 		out := ""
 		parts := 0
 		g := googleai.Model(generativeModel)
-		_, err = ai.Generate(ctx, g, req, func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+		final, err := ai.Generate(ctx, g, req, func(ctx context.Context, c *ai.GenerateResponseChunk) error {
 			parts++
 			out += c.Content[0].Text
 			return nil
 		})
 		if err != nil {
 			t.Fatal(err)
+		}
+		out2 := ""
+		for _, c := range final.Candidates {
+			for _, p := range c.Message.Content {
+				out2 += p.Text
+			}
+		}
+		if out != out2 {
+			t.Errorf("streaming and final should contain the same text.\nstreaming:%s\nfinal:%s", out, out2)
 		}
 		const want = "Golden"
 		if !strings.Contains(out, want) {
