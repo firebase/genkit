@@ -20,6 +20,8 @@ package googlecloud
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"os"
 	"time"
@@ -35,7 +37,10 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-type Options struct {
+// Config is configuration for this plugin.
+type Config struct {
+	// ID of the project to use. Required.
+	ProjectID string
 	// Export to Google Cloud even in the dev environment.
 	ForceExport bool
 
@@ -50,25 +55,31 @@ type Options struct {
 
 // Init initializes all telemetry in this package.
 // In the dev environment, this does nothing unless [Options.ForceExport] is true.
-func Init(ctx context.Context, projectID string, opts *Options) error {
-	if opts == nil {
-		opts = &Options{}
+func Init(ctx context.Context, cfg Config) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("googlecloud.Init: %w", err)
+		}
+	}()
+
+	if cfg.ProjectID == "" {
+		return errors.New("config missing ProjectID")
 	}
-	shouldExport := opts.ForceExport || os.Getenv("GENKIT_ENV") != "dev"
+	shouldExport := cfg.ForceExport || os.Getenv("GENKIT_ENV") != "dev"
 	if !shouldExport {
 		return nil
 	}
 	// Add a SpanProcessor for tracing.
-	texp, err := texporter.New(texporter.WithProjectID(projectID))
+	texp, err := texporter.New(texporter.WithProjectID(cfg.ProjectID))
 	if err != nil {
 		return err
 	}
 	aexp := &adjustingTraceExporter{texp}
 	core.RegisterSpanProcessor(sdktrace.NewBatchSpanProcessor(aexp))
-	if err := setMeterProvider(projectID, opts.MetricInterval); err != nil {
+	if err := setMeterProvider(cfg.ProjectID, cfg.MetricInterval); err != nil {
 		return err
 	}
-	return setLogHandler(projectID, opts.LogLevel)
+	return setLogHandler(cfg.ProjectID, cfg.LogLevel)
 }
 
 func setMeterProvider(projectID string, interval time.Duration) error {
