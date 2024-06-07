@@ -47,7 +47,7 @@ func TestExecute(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp, err := p.Generate(context.Background(), &ai.PromptRequest{}, nil)
+	resp, err := p.Generate(context.Background(), &PromptRequest{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

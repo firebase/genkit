@@ -92,6 +92,20 @@ func DefineCustomAction[In, Out, Stream any](provider, name string, metadata map
 	return DefineStreamingAction(provider, name, atype.Custom, metadata, fn)
 }
 
+// DefineActionWithInputSchema creates a new Action and registers it.
+// This differs from DefineAction in that the input schema is
+// defined dynamically; the static input type is "any".
+// This is used for prompts.
+func DefineActionWithInputSchema[Out any](provider, name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, any) (Out, error), inputSchema *jsonschema.Schema) *Action[any, Out, struct{}] {
+	return defineActionWithInputSchema(globalRegistry, provider, name, atype, metadata, fn, inputSchema)
+}
+
+func defineActionWithInputSchema[Out any](r *registry, provider, name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, any) (Out, error), inputSchema *jsonschema.Schema) *Action[any, Out, struct{}] {
+	a := newActionWithInputSchema(name, atype, metadata, fn, inputSchema)
+	r.registerAction(provider, a)
+	return a
+}
+
 // NewAction creates a new Action with the given name and non-streaming function.
 func NewAction[In, Out any](name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
 	return NewStreamingAction(name, atype, metadata, func(ctx context.Context, in In, cb NoStream) (Out, error) {
@@ -111,6 +125,21 @@ func NewStreamingAction[In, Out, Stream any](name string, atype atype.ActionType
 			return fn(ctx, input, sc)
 		},
 		inputSchema:  inferJSONSchema(i),
+		outputSchema: inferJSONSchema(o),
+		Metadata:     metadata,
+	}
+}
+
+func newActionWithInputSchema[Out any](name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, any) (Out, error), inputSchema *jsonschema.Schema) *Action[any, Out, struct{}] {
+	var o Out
+	return &Action[any, Out, struct{}]{
+		name:  name,
+		atype: atype,
+		fn: func(ctx context.Context, input any, sc func(context.Context, struct{}) error) (Out, error) {
+			tracing.SetCustomMetadataAttr(ctx, "subtype", string(atype))
+			return fn(ctx, input)
+		},
+		inputSchema:  inputSchema,
 		outputSchema: inferJSONSchema(o),
 		Metadata:     metadata,
 	}

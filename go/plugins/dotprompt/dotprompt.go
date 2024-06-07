@@ -68,6 +68,9 @@ type Prompt struct {
 
 	// A hash of the prompt contents.
 	hash string
+
+	// An action that renders the prompt.
+	action *ai.PromptAction
 }
 
 // Config is optional configuration for a [Prompt].
