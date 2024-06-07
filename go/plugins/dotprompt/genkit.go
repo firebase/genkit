@@ -17,6 +17,7 @@ package dotprompt
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -156,9 +157,9 @@ func (p *Prompt) Generate(ctx context.Context, pr *ai.PromptRequest, cb func(con
 			return nil, errors.New("dotprompt model not in provider/name format")
 		}
 
-		generator, err = ai.LookupGenerator(provider, name)
-		if err != nil {
-			return nil, err
+		generator := ai.LookupGenerator(provider, name)
+		if generator == nil {
+			return nil, fmt.Errorf("no generator named %q for provider %q", name, provider)
 		}
 	}
 

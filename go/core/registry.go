@@ -143,6 +143,13 @@ func LookupAction(typ ActionType, provider, name string) action {
 	return globalRegistry.lookupAction(key)
 }
 
+// LookupActionFor returns the action for the given key in the global registry,
+// or nil if there is none.
+// It panics if the action is of the wrong type.
+func LookupActionFor[In, Out, Stream any](typ ActionType, provider, name string) *Action[In, Out, Stream] {
+	return LookupAction(typ, provider, name).(*Action[In, Out, Stream])
+}
+
 // listActions returns a list of descriptions of all registered actions.
 // The list is sorted by action name.
 func (r *registry) listActions() []actionDesc {

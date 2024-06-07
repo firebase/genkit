@@ -75,16 +75,14 @@ func main() {
 		fmt.Fprintln(os.Stderr, "You can get an API key at https://ai.google.dev.")
 		os.Exit(1)
 	}
-
-	g, err := googleai.NewGenerator(context.Background(), "gemini-1.0-pro", apiKey)
+	err := googleai.Init(context.Background(), googleai.Config{APIKey: apiKey})
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	simpleQaPrompt, err := dotprompt.Define("simpleQaPrompt",
 		simpleQaPromptTemplate,
 		dotprompt.Config{
-			Generator:    g,
+			Generator:    googleai.Generator("gemini-1.0-pro"),
 			InputSchema:  jsonschema.Reflect(simpleQaPromptInput{}),
 			OutputFormat: ai.OutputFormatText,
 		},
@@ -93,11 +91,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	embedder, err := googleai.NewEmbedder(context.Background(), "embedding-001", apiKey)
-	if err != nil {
-		log.Fatal(err)
-	}
-	localDb, err := localvec.New(context.Background(), os.TempDir(), "simpleQa", embedder, nil)
+	localDb, err := localvec.New(context.Background(), os.TempDir(), "simpleQa", googleai.Embedder("embedding-001"), nil)
 	if err != nil {
 		log.Fatal(err)
 	}
