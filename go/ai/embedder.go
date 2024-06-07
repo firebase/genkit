@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/internal/atype"
 )
 
 // EmbedderAction is used to convert a document to a
@@ -34,13 +35,13 @@ type EmbedRequest struct {
 // DefineEmbedder registers the given embed function as an action, and returns an
 // [EmbedderAction] that runs it.
 func DefineEmbedder(provider, name string, embed func(context.Context, *EmbedRequest) ([]float32, error)) *EmbedderAction {
-	return core.DefineAction(provider, name, core.ActionTypeEmbedder, nil, embed)
+	return core.DefineAction(provider, name, atype.Embedder, nil, embed)
 }
 
 // LookupEmbedder looks up an [EmbedderAction] registered by [DefineEmbedder].
 // It returns nil if the embedder was not defined.
 func LookupEmbedder(provider, name string) *EmbedderAction {
-	action := core.LookupActionFor[*EmbedRequest, []float32, struct{}](core.ActionTypeEmbedder, provider, name)
+	action := core.LookupActionFor[*EmbedRequest, []float32, struct{}](atype.Embedder, provider, name)
 	if action == nil {
 		return nil
 	}

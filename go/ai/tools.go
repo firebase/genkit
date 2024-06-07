@@ -20,6 +20,7 @@ import (
 	"maps"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/internal/atype"
 )
 
 // A Tool is an implementation of a single tool.
@@ -41,7 +42,7 @@ func RegisterTool(definition *ToolDefinition, metadata map[string]any, fn func(c
 	}
 	metadata["type"] = "tool"
 
-	core.DefineAction("local", definition.Name, core.ActionTypeTool, metadata, fn)
+	core.DefineAction("local", definition.Name, atype.Tool, metadata, fn)
 }
 
 // toolActionType is the instantiated core.Action type registered
@@ -51,7 +52,7 @@ type toolActionType = core.Action[map[string]any, map[string]any, struct{}]
 // RunTool looks up a tool registered by [RegisterTool],
 // runs it with the given input, and returns the result.
 func RunTool(ctx context.Context, name string, input map[string]any) (map[string]any, error) {
-	action := core.LookupAction(core.ActionTypeTool, "local", name)
+	action := core.LookupAction(atype.Tool, "local", name)
 	if action == nil {
 		return nil, fmt.Errorf("no tool named %q", name)
 	}

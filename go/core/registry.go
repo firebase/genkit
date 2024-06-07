@@ -26,6 +26,7 @@ import (
 	"sync"
 
 	"github.com/firebase/genkit/go/core/tracing"
+	"github.com/firebase/genkit/go/internal/atype"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/exp/maps"
 )
@@ -90,23 +91,6 @@ const (
 	EnvironmentProd Environment = "prod" // production: user data, SLOs, etc.
 )
 
-// An ActionType is the kind of an action.
-type ActionType string
-
-const (
-	ActionTypeChatLLM   ActionType = "chat-llm"
-	ActionTypeTextLLM   ActionType = "text-llm"
-	ActionTypeRetriever ActionType = "retriever"
-	ActionTypeIndexer   ActionType = "indexer"
-	ActionTypeEmbedder  ActionType = "embedder"
-	ActionTypeEvaluator ActionType = "evaluator"
-	ActionTypeFlow      ActionType = "flow"
-	ActionTypeModel     ActionType = "model"
-	ActionTypePrompt    ActionType = "prompt"
-	ActionTypeTool      ActionType = "tool"
-	ActionTypeCustom    ActionType = "custom"
-)
-
 // RegisterAction records the action in the global registry.
 // It panics if an action with the same type, provider and name is already
 // registered.
@@ -138,7 +122,7 @@ func (r *registry) lookupAction(key string) action {
 
 // LookupAction returns the action for the given key in the global registry,
 // or nil if there is none.
-func LookupAction(typ ActionType, provider, name string) action {
+func LookupAction(typ atype.ActionType, provider, name string) action {
 	key := fmt.Sprintf("/%s/%s/%s", typ, provider, name)
 	return globalRegistry.lookupAction(key)
 }
@@ -146,7 +130,7 @@ func LookupAction(typ ActionType, provider, name string) action {
 // LookupActionFor returns the action for the given key in the global registry,
 // or nil if there is none.
 // It panics if the action is of the wrong type.
-func LookupActionFor[In, Out, Stream any](typ ActionType, provider, name string) *Action[In, Out, Stream] {
+func LookupActionFor[In, Out, Stream any](typ atype.ActionType, provider, name string) *Action[In, Out, Stream] {
 	a := LookupAction(typ, provider, name)
 	if a == nil {
 		return nil

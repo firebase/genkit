@@ -24,6 +24,7 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/invopop/jsonschema"
 )
 
@@ -54,7 +55,7 @@ type streamingCallback[Stream any] func(context.Context, Stream) error
 // Each time an Action is run, it results in a new trace span.
 type Action[In, Out, Stream any] struct {
 	name         string
-	atype        ActionType
+	atype        atype.ActionType
 	fn           Func[In, Out, Stream]
 	tstate       *tracing.State
 	inputSchema  *jsonschema.Schema
@@ -67,35 +68,39 @@ type Action[In, Out, Stream any] struct {
 // See js/core/src/action.ts
 
 // DefineAction creates a new Action and registers it.
-func DefineAction[In, Out any](provider, name string, atype ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
+func DefineAction[In, Out any](provider, name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
 	return defineAction(globalRegistry, provider, name, atype, metadata, fn)
 }
 
-func defineAction[In, Out any](r *registry, provider, name string, atype ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
+func defineAction[In, Out any](r *registry, provider, name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
 	a := NewAction(name, atype, metadata, fn)
 	r.registerAction(provider, a)
 	return a
 }
 
-func DefineStreamingAction[In, Out, Stream any](provider, name string, atype ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
+func DefineStreamingAction[In, Out, Stream any](provider, name string, atype atype.ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
 	return defineStreamingAction(globalRegistry, provider, name, atype, metadata, fn)
 }
 
-func defineStreamingAction[In, Out, Stream any](r *registry, provider, name string, atype ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
+func defineStreamingAction[In, Out, Stream any](r *registry, provider, name string, atype atype.ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
 	a := NewStreamingAction(name, atype, metadata, fn)
 	r.registerAction(provider, a)
 	return a
 }
 
+func DefineCustomAction[In, Out, Stream any](provider, name string, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
+	return DefineStreamingAction(provider, name, atype.Custom, metadata, fn)
+}
+
 // NewAction creates a new Action with the given name and non-streaming function.
-func NewAction[In, Out any](name string, atype ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
+func NewAction[In, Out any](name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
 	return NewStreamingAction(name, atype, metadata, func(ctx context.Context, in In, cb NoStream) (Out, error) {
 		return fn(ctx, in)
 	})
 }
 
 // NewStreamingAction creates a new Action with the given name and streaming function.
-func NewStreamingAction[In, Out, Stream any](name string, atype ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
+func NewStreamingAction[In, Out, Stream any](name string, atype atype.ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
 	var i In
 	var o Out
 	return &Action[In, Out, Stream]{
@@ -114,7 +119,7 @@ func NewStreamingAction[In, Out, Stream any](name string, atype ActionType, meta
 // Name returns the Action's name.
 func (a *Action[In, Out, Stream]) Name() string { return a.name }
 
-func (a *Action[In, Out, Stream]) actionType() ActionType { return a.atype }
+func (a *Action[In, Out, Stream]) actionType() atype.ActionType { return a.atype }
 
 // setTracingState sets the action's tracing.State.
 func (a *Action[In, Out, Stream]) setTracingState(tstate *tracing.State) { a.tstate = tstate }
@@ -194,7 +199,7 @@ func (a *Action[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMes
 // action is the type that all Action[I, O, S] have in common.
 type action interface {
 	Name() string
-	actionType() ActionType
+	actionType() atype.ActionType
 
 	// runJSON uses encoding/json to unmarshal the input,
 	// calls Action.Run, then returns the marshaled result.
