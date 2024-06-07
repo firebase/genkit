@@ -27,15 +27,8 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 )
 
-// Generator is the interface used to query an AI model.
-type Generator interface {
-	// If the streaming callback is non-nil:
-	// - Each response candidate will be passed to that callback instead of
-	//   populating the result's Candidates field.
-	// - If the streaming callback returns a non-nil error, generation will stop
-	//   and Generate immediately returns that error (and a nil response).
-	Generate(context.Context, *GenerateRequest, GeneratorStreamingCallback) (*GenerateResponse, error)
-}
+// A GeneratorAction is used to generate content from an AI model.
+type GeneratorAction = core.Action[*GenerateRequest, *GenerateResponse, *Candidate]
 
 // GeneratorStreamingCallback is the type for the streaming callback of a generator.
 type GeneratorStreamingCallback = func(context.Context, *Candidate) error
@@ -56,7 +49,7 @@ type GeneratorMetadata struct {
 
 // DefineGenerator registers the given generate function as an action, and returns a
 // [Generator] whose Generate method runs it.
-func DefineGenerator(provider, name string, metadata *GeneratorMetadata, generate func(context.Context, *GenerateRequest, GeneratorStreamingCallback) (*GenerateResponse, error)) Generator {
+func DefineGenerator(provider, name string, metadata *GeneratorMetadata, generate func(context.Context, *GenerateRequest, GeneratorStreamingCallback) (*GenerateResponse, error)) *GeneratorAction {
 	metadataMap := map[string]any{}
 	if metadata != nil {
 		if metadata.Label != "" {
@@ -70,38 +63,25 @@ func DefineGenerator(provider, name string, metadata *GeneratorMetadata, generat
 		}
 		metadataMap["supports"] = supports
 	}
-	a := core.DefineStreamingAction(provider, name, core.ActionTypeModel, map[string]any{
+	return core.DefineStreamingAction(provider, name, core.ActionTypeModel, map[string]any{
 		"model": metadataMap,
 	}, generate)
-	return generator{a}
 }
 
 // LookupGenerator looks up a [Generator] registered by [DefineGenerator].
 // It returns nil if the Generator was not defined.
-func LookupGenerator(provider, name string) Generator {
-	action := core.LookupActionFor[*GenerateRequest, *GenerateResponse, *Candidate](core.ActionTypeModel, provider, name)
-	if action == nil {
-		return nil
-	}
-	return generator{action}
-}
-
-type generator struct {
-	generateAction *core.Action[*GenerateRequest, *GenerateResponse, *Candidate]
-}
-
-func (g generator) Generate(ctx context.Context, req *GenerateRequest, cb GeneratorStreamingCallback) (*GenerateResponse, error) {
-	return g.generateAction.Run(ctx, req, cb)
+func LookupGenerator(provider, name string) *GeneratorAction {
+	return core.LookupActionFor[*GenerateRequest, *GenerateResponse, *Candidate](core.ActionTypeModel, provider, name)
 }
 
 // Generate applies a [Generator] to some input, handling tool requests.
-func Generate(ctx context.Context, g Generator, req *GenerateRequest, cb GeneratorStreamingCallback) (*GenerateResponse, error) {
+func Generate(ctx context.Context, g *GeneratorAction, req *GenerateRequest, cb GeneratorStreamingCallback) (*GenerateResponse, error) {
 	if err := conformOutput(req); err != nil {
 		return nil, err
 	}
 
 	for {
-		resp, err := g.Generate(ctx, req, cb)
+		resp, err := g.Run(ctx, req, cb)
 		if err != nil {
 			return nil, err
 		}

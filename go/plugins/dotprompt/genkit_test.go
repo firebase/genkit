@@ -22,9 +22,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 )
 
-type testGenerator struct{}
-
-func (testGenerator) Generate(ctx context.Context, req *ai.GenerateRequest, cb func(context.Context, *ai.Candidate) error) (*ai.GenerateResponse, error) {
+func testGenerate(ctx context.Context, req *ai.GenerateRequest, cb func(context.Context, *ai.Candidate) error) (*ai.GenerateResponse, error) {
 	input := req.Messages[0].Content[0].Text
 	output := fmt.Sprintf("AI reply to %q", input)
 
@@ -44,7 +42,8 @@ func (testGenerator) Generate(ctx context.Context, req *ai.GenerateRequest, cb f
 }
 
 func TestExecute(t *testing.T) {
-	p, err := New("TestExecute", "TestExecute", Config{Generator: testGenerator{}})
+	testGenerator := ai.DefineGenerator("test", "test", nil, testGenerate)
+	p, err := New("TestExecute", "TestExecute", Config{Generator: testGenerator})
 	if err != nil {
 		t.Fatal(err)
 	}

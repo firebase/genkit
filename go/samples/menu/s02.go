@@ -46,7 +46,7 @@ func menu(ctx context.Context, input map[string]any) (map[string]any, error) {
 	return map[string]any{"menu": s}, nil
 }
 
-func setup02(ctx context.Context, g ai.Generator) error {
+func setup02(ctx context.Context, g *ai.GeneratorAction) error {
 	ai.RegisterTool(menuToolDef, nil, menu)
 
 	dataMenuPrompt, err := dotprompt.Define("s02_dataMenu",
