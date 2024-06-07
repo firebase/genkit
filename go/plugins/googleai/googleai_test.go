@@ -53,7 +53,7 @@ func TestLive(t *testing.T) {
 		InputSchema:  map[string]any{"base": "float64", "exponent": "int"},
 		OutputSchema: map[string]any{"output": "float64"},
 	}
-	ai.RegisterTool(toolDef, nil,
+	ai.DefineTool(toolDef, nil,
 		func(ctx context.Context, input map[string]any) (map[string]any, error) {
 			baseAny, ok := input["base"]
 			if !ok {
