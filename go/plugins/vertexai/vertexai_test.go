@@ -33,12 +33,12 @@ import (
 var projectID = flag.String("projectid", "", "VertexAI project")
 var location = flag.String("location", "us-central1", "geographic location")
 
-func TestGenerator(t *testing.T) {
+func TestModel(t *testing.T) {
 	if *projectID == "" {
 		t.Skipf("no -projectid provided")
 	}
 	ctx := context.Background()
-	g, err := vertexai.NewGenerator(ctx, "gemini-1.0-pro", *projectID, *location)
+	g, err := vertexai.NewModel(ctx, "gemini-1.0-pro", *projectID, *location)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,12 +102,12 @@ func init() {
 	)
 }
 
-func TestGeneratorTool(t *testing.T) {
+func TestModelTool(t *testing.T) {
 	if *projectID == "" {
 		t.Skip("no -projectid provided")
 	}
 	ctx := context.Background()
-	g, err := vertexai.NewGenerator(ctx, "gemini-1.0-pro", *projectID, *location)
+	g, err := vertexai.NewModel(ctx, "gemini-1.0-pro", *projectID, *location)
 	if err != nil {
 		t.Fatal(err)
 	}

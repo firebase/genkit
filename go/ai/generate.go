@@ -27,29 +27,29 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 )
 
-// A GeneratorAction is used to generate content from an AI model.
-type GeneratorAction = core.Action[*GenerateRequest, *GenerateResponse, *Candidate]
+// A ModelAction is used to generate content from an AI model.
+type ModelAction = core.Action[*GenerateRequest, *GenerateResponse, *Candidate]
 
-// GeneratorStreamingCallback is the type for the streaming callback of a generator.
-type GeneratorStreamingCallback = func(context.Context, *Candidate) error
+// ModelStreamingCallback is the type for the streaming callback of a model.
+type ModelStreamingCallback = func(context.Context, *Candidate) error
 
-// GeneratorCapabilities describes various capabilities of the generator.
-type GeneratorCapabilities struct {
-	Multiturn  bool
-	Media      bool
-	Tools      bool
-	SystemRole bool
+// ModelCapabilities describes various capabilities of the model.
+type ModelCapabilities struct {
+	Multiturn  bool // the model can handle multiple request-response interactions
+	Media      bool // the model supports media as well as text input
+	Tools      bool // the model supports tools
+	SystemRole bool // the model supports a system prompt or role
 }
 
-// GeneratorMetadata is the metadata of the generator, specifying things like nice user visible label, capabilities, etc.
-type GeneratorMetadata struct {
+// ModelMetadata is the metadata of the model, specifying things like nice user-visible label, capabilities, etc.
+type ModelMetadata struct {
 	Label    string
-	Supports GeneratorCapabilities
+	Supports ModelCapabilities
 }
 
-// DefineGenerator registers the given generate function as an action, and returns a
-// [Generator] whose Generate method runs it.
-func DefineGenerator(provider, name string, metadata *GeneratorMetadata, generate func(context.Context, *GenerateRequest, GeneratorStreamingCallback) (*GenerateResponse, error)) *GeneratorAction {
+// DefineModel registers the given generate function as an action, and returns a
+// [ModelAction] that runs it.
+func DefineModel(provider, name string, metadata *ModelMetadata, generate func(context.Context, *GenerateRequest, ModelStreamingCallback) (*GenerateResponse, error)) *ModelAction {
 	metadataMap := map[string]any{}
 	if metadata != nil {
 		if metadata.Label != "" {
@@ -68,14 +68,14 @@ func DefineGenerator(provider, name string, metadata *GeneratorMetadata, generat
 	}, generate)
 }
 
-// LookupGenerator looks up a [Generator] registered by [DefineGenerator].
-// It returns nil if the Generator was not defined.
-func LookupGenerator(provider, name string) *GeneratorAction {
+// LookupModel looks up a [ModelAction] registered by [DefineModel].
+// It returns nil if the model was not defined.
+func LookupModel(provider, name string) *ModelAction {
 	return core.LookupActionFor[*GenerateRequest, *GenerateResponse, *Candidate](core.ActionTypeModel, provider, name)
 }
 
-// Generate applies a [Generator] to some input, handling tool requests.
-func Generate(ctx context.Context, g *GeneratorAction, req *GenerateRequest, cb GeneratorStreamingCallback) (*GenerateResponse, error) {
+// Generate applies a [ModelAction] to some input, handling tool requests.
+func Generate(ctx context.Context, g *ModelAction, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error) {
 	if err := conformOutput(req); err != nil {
 		return nil, err
 	}
@@ -179,7 +179,7 @@ func stripJSONDelimiters(s string) string {
 	return s
 }
 
-// handleToolRequest checks if a tool was requested by a generator.
+// handleToolRequest checks if a tool was requested by a model.
 // If a tool was requested, this runs the tool and returns an
 // updated GenerateRequest. If no tool was requested this returns nil.
 func handleToolRequest(ctx context.Context, req *GenerateRequest, resp *GenerateResponse) (*GenerateRequest, error) {

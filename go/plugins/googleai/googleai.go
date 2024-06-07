@@ -90,14 +90,14 @@ func Init(ctx context.Context, cfg Config) (err error) {
 }
 
 func defineModel(name string, client *genai.Client) {
-	meta := &ai.GeneratorMetadata{
+	meta := &ai.ModelMetadata{
 		Label: "Google AI - " + name,
-		Supports: ai.GeneratorCapabilities{
+		Supports: ai.ModelCapabilities{
 			Multiturn: true,
 		},
 	}
 	g := generator{model: name, client: client}
-	ai.DefineGenerator(provider, name, meta, g.Generate)
+	ai.DefineModel(provider, name, meta, g.Generate)
 }
 
 func defineEmbedder(name string, client *genai.Client) {
@@ -115,10 +115,10 @@ func defineEmbedder(name string, client *genai.Client) {
 	})
 }
 
-// Generator returns the generator with the given name.
-// It returns nil if the generator was not configured.
-func Generator(name string) *ai.GeneratorAction {
-	return ai.LookupGenerator(provider, name)
+// Model returns the [ai.ModelAction] with the given name.
+// It returns nil if the model was not configured.
+func Model(name string) *ai.ModelAction {
+	return ai.LookupModel(provider, name)
 }
 
 // Embedder returns the embedder with the given name.

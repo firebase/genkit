@@ -21,7 +21,7 @@ import (
 )
 
 // PromptRequest is a request to execute a prompt template and
-// pass the result to a [Generator].
+// pass the result to a [ModelAction].
 type PromptRequest struct {
 	// Input fields for the prompt. If not nil this should be a struct
 	// or pointer to a struct that matches the prompt's input schema.
@@ -29,7 +29,7 @@ type PromptRequest struct {
 	// Number of candidates to return; if 0, will be taken
 	// from the prompt config; if still 0, will use 1.
 	Candidates int `json:"candidates,omitempty"`
-	// Generator Configuration. If nil will be taken from the prompt config.
+	// Model configuration. If nil will be taken from the prompt config.
 	Config *GenerationCommonConfig `json:"config,omitempty"`
 	// Context to pass to model, if any.
 	Context []any `json:"context,omitempty"`
@@ -38,7 +38,7 @@ type PromptRequest struct {
 }
 
 // Prompt is the interface used to execute a prompt template and
-// pass the result to a [Generator].
+// pass the result to a [ModelAction].
 type Prompt interface {
 	Generate(context.Context, *PromptRequest, func(context.Context, *Candidate) error) (*GenerateResponse, error)
 }

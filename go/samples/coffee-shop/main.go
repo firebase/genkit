@@ -109,10 +109,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	g := googleai.Generator("gemini-1.5-pro")
+	g := googleai.Model("gemini-1.5-pro")
 	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting", simpleGreetingPromptTemplate,
 		dotprompt.Config{
-			Generator:    g,
+			ModelAction:  g,
 			InputSchema:  jsonschema.Reflect(simpleGreetingInput{}),
 			OutputFormat: ai.OutputFormatText,
 		},
@@ -147,7 +147,7 @@ func main() {
 
 	greetingWithHistoryPrompt, err := dotprompt.Define("greetingWithHistory", greetingWithHistoryPromptTemplate,
 		dotprompt.Config{
-			Generator:    g,
+			ModelAction:  g,
 			InputSchema:  jsonschema.Reflect(customerTimeAndHistoryInput{}),
 			OutputFormat: ai.OutputFormatText,
 		},
@@ -191,7 +191,7 @@ func main() {
 
 	simpleStructuredGreetingPrompt, err := dotprompt.Define("simpleStructuredGreeting", simpleStructuredGreetingPromptTemplate,
 		dotprompt.Config{
-			Generator:    g,
+			ModelAction:  g,
 			InputSchema:  jsonschema.Reflect(simpleGreetingInput{}),
 			OutputFormat: ai.OutputFormatJSON,
 			OutputSchema: outputSchema,

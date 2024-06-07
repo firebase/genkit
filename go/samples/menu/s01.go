@@ -21,13 +21,13 @@ import (
 	"github.com/firebase/genkit/go/plugins/dotprompt"
 )
 
-func setup01(ctx context.Context, g *ai.GeneratorAction) error {
+func setup01(ctx context.Context, g *ai.ModelAction) error {
 	_, err := dotprompt.Define("s01_vanillaPrompt",
 		`You are acting as a helpful AI assistant named "Walt" that can answer
 		 questions about the food available on the menu at Walt's Burgers.
 		 Customer says: ${input.question}`,
 		dotprompt.Config{
-			Generator:   g,
+			ModelAction: g,
 			InputSchema: menuQuestionInputSchema,
 		},
 	)
@@ -67,7 +67,7 @@ func setup01(ctx context.Context, g *ai.GeneratorAction) error {
 		 Question:
 		 {{question}} ?`,
 		dotprompt.Config{
-			Generator:    g,
+			ModelAction:  g,
 			InputSchema:  menuQuestionInputSchema,
 			OutputFormat: ai.OutputFormatText,
 		},
