@@ -36,7 +36,9 @@ import {
   vertexEvaluators,
 } from './evaluation.js';
 import {
+  gemini15Flash,
   gemini15FlashPreview,
+  gemini15Pro,
   gemini15ProPreview,
   geminiModel,
   geminiPro,
@@ -49,7 +51,9 @@ export {
   claude3Haiku,
   claude3Opus,
   claude3Sonnet,
+  gemini15Flash,
   gemini15FlashPreview,
+  gemini15Pro,
   gemini15ProPreview,
   geminiPro,
   geminiProVision,

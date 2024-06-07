@@ -34,7 +34,7 @@ export default configureGenkit({
   plugins: [
     dotprompt(),
     firebase(),
-    googleAI({ apiVersion: ['v1', 'v1beta'] }),
+    googleAI({ apiVersion: ['v1'] }),
     genkitEval({
       judge: geminiPro,
       judgeConfig: {
