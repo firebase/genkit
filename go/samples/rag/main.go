@@ -91,8 +91,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	localDb, err := localvec.New(context.Background(), os.TempDir(), "simpleQa", googleai.Embedder("embedding-001"), nil)
-	if err != nil {
+	const localvecName = "simpleQa"
+	if err := localvec.Init(context.Background(), localvec.Config{
+		Dir:      os.TempDir(),
+		Name:     localvecName,
+		Embedder: googleai.Embedder("embedding-001"),
+	}); err != nil {
 		log.Fatal(err)
 	}
 
@@ -104,7 +108,7 @@ func main() {
 		indexerReq := &ai.IndexerRequest{
 			Documents: []*ai.Document{d1, d2, d3},
 		}
-		err := localDb.Index(ctx, indexerReq)
+		err := ai.Index(ctx, localvec.Indexer(localvecName), indexerReq)
 		if err != nil {
 			return "", err
 		}
@@ -113,7 +117,7 @@ func main() {
 		retrieverReq := &ai.RetrieverRequest{
 			Document: dRequest,
 		}
-		response, err := localDb.Retrieve(ctx, retrieverReq)
+		response, err := ai.Retrieve(ctx, localvec.Retriever(localvecName), retrieverReq)
 		if err != nil {
 			return "", err
 		}

@@ -147,7 +147,11 @@ func LookupAction(typ ActionType, provider, name string) action {
 // or nil if there is none.
 // It panics if the action is of the wrong type.
 func LookupActionFor[In, Out, Stream any](typ ActionType, provider, name string) *Action[In, Out, Stream] {
-	return LookupAction(typ, provider, name).(*Action[In, Out, Stream])
+	a := LookupAction(typ, provider, name)
+	if a == nil {
+		return nil
+	}
+	return a.(*Action[In, Out, Stream])
 }
 
 // listActions returns a list of descriptions of all registered actions.

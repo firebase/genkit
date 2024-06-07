@@ -24,7 +24,7 @@ import (
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
 
-func setup04(ctx context.Context, docstore ai.DocumentStore, model *ai.ModelAction) error {
+func setup04(ctx context.Context, indexer *ai.IndexerAction, retriever *ai.RetrieverAction, model *ai.ModelAction) error {
 	ragDataMenuPrompt, err := dotprompt.Define("s04_ragDataMenu",
 		`
 		  You are acting as Walt, a helpful AI assistant here at the restaurant.
@@ -70,7 +70,7 @@ func setup04(ctx context.Context, docstore ai.DocumentStore, model *ai.ModelActi
 			req := &ai.IndexerRequest{
 				Documents: docs,
 			}
-			if err := docstore.Index(ctx, req); err != nil {
+			if err := ai.Index(ctx, indexer, req); err != nil {
 				return nil, err
 			}
 
@@ -89,7 +89,7 @@ func setup04(ctx context.Context, docstore ai.DocumentStore, model *ai.ModelActi
 					K: 3,
 				},
 			}
-			resp, err := docstore.Retrieve(ctx, req)
+			resp, err := ai.Retrieve(ctx, retriever, req)
 			if err != nil {
 				return nil, err
 			}

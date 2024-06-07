@@ -85,7 +85,9 @@ func main() {
 		Models:    []string{geminiPro, geminiPro + "-vision"},
 		Embedders: []string{embeddingGecko},
 	})
-
+	if err != nil {
+		log.Fatal(err)
+	}
 	model := vertexai.Model(geminiPro)
 	if err := setup01(ctx, model); err != nil {
 		log.Fatal(err)
@@ -98,12 +100,15 @@ func main() {
 		log.Fatal(err)
 	}
 
-	embedder := vertexai.Embedder(embeddingGecko)
-	ds, err := localvec.New(ctx, os.TempDir(), "go-menu-items", embedder, nil)
-	if err != nil {
+	const localvecName = "go-menu-items"
+	if err := localvec.Init(ctx, localvec.Config{
+		Dir:      os.TempDir(),
+		Name:     localvecName,
+		Embedder: vertexai.Embedder(embeddingGecko),
+	}); err != nil {
 		log.Fatal(err)
 	}
-	if err := setup04(ctx, ds, model); err != nil {
+	if err := setup04(ctx, localvec.Indexer(localvecName), localvec.Retriever(localvecName), model); err != nil {
 		log.Fatal(err)
 	}
 

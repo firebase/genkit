@@ -20,15 +20,12 @@ import (
 	"github.com/firebase/genkit/go/core"
 )
 
-// DocumentStore supports adding documents to a database, and
-// retrieving documents from the database that are similar to a query document.
-// Vector databases will implement this interface.
-type DocumentStore interface {
-	// Add a document to the database.
-	Index(context.Context, *IndexerRequest) error
-	// Retrieve matching documents from the database.
-	Retrieve(context.Context, *RetrieverRequest) (*RetrieverResponse, error)
-}
+type (
+	// An IndexerAction is used to index documents in a store.
+	IndexerAction = core.Action[*IndexerRequest, struct{}, struct{}]
+	// A RetrieverAction is used to retrieve indexed documents.
+	RetrieverAction = core.Action[*RetrieverRequest, *RetrieverResponse, struct{}]
+)
 
 // IndexerRequest is the data we pass to add documents to the database.
 // The Options field is specific to the actual retriever implementation.
@@ -49,30 +46,40 @@ type RetrieverResponse struct {
 	Documents []*Document `json:"documents"`
 }
 
-// DefineDocumentStore takes index and retrieve functions that access a document store
-// and returns a new [DocumentStore] that wraps them in registered actions.
-func DefineDocumentStore(
-	name string,
-	index func(context.Context, *IndexerRequest) error,
-	retrieve func(context.Context, *RetrieverRequest) (*RetrieverResponse, error),
-) DocumentStore {
-	ia := core.DefineAction("indexer", name, core.ActionTypeIndexer, nil, func(ctx context.Context, req *IndexerRequest) (struct{}, error) {
+// DefineIndexer registers the given index function as an action, and returns an
+// [IndexerAction] that runs it.
+func DefineIndexer(provider, name string, index func(context.Context, *IndexerRequest) error) *IndexerAction {
+	f := func(ctx context.Context, req *IndexerRequest) (struct{}, error) {
 		return struct{}{}, index(ctx, req)
-	})
-	ra := core.DefineAction("retriever", name, core.ActionTypeRetriever, nil, retrieve)
-	return &docStore{ia, ra}
+	}
+	return core.DefineAction(provider, name, core.ActionTypeIndexer, nil, f)
 }
 
-type docStore struct {
-	index    *core.Action[*IndexerRequest, struct{}, struct{}]
-	retrieve *core.Action[*RetrieverRequest, *RetrieverResponse, struct{}]
+// LookupIndexer looks up a [IndexerAction] registered by [DefineIndexer].
+// It returns nil if the model was not defined.
+func LookupIndexer(provider, name string) *IndexerAction {
+	return core.LookupActionFor[*IndexerRequest, struct{}, struct{}](core.ActionTypeIndexer, provider, name)
 }
 
-func (ds *docStore) Index(ctx context.Context, req *IndexerRequest) error {
-	_, err := ds.index.Run(ctx, req, nil)
+// DefineRetriever registers the given retrieve function as an action, and returns a
+// [RetrieverAction] that runs it.
+func DefineRetriever(provider, name string, ret func(context.Context, *RetrieverRequest) (*RetrieverResponse, error)) *RetrieverAction {
+	return core.DefineAction(provider, name, core.ActionTypeRetriever, nil, ret)
+}
+
+// LookupRetriever looks up a [RetrieverAction] registered by [DefineRetriever].
+// It returns nil if the model was not defined.
+func LookupRetriever(provider, name string) *RetrieverAction {
+	return core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](core.ActionTypeRetriever, provider, name)
+}
+
+// Index runs the given [IndexerAction].
+func Index(ctx context.Context, indexer *IndexerAction, req *IndexerRequest) error {
+	_, err := indexer.Run(ctx, req, nil)
 	return err
 }
 
-func (ds *docStore) Retrieve(ctx context.Context, req *RetrieverRequest) (*RetrieverResponse, error) {
-	return ds.retrieve.Run(ctx, req, nil)
+// Retrieve runs the given [RetrieverAction].
+func Retrieve(ctx context.Context, retriever *RetrieverAction, req *RetrieverRequest) (*RetrieverResponse, error) {
+	return retriever.Run(ctx, req, nil)
 }
