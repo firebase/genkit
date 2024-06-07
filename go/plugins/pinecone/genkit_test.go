@@ -71,10 +71,13 @@ func TestGenkit(t *testing.T) {
 	embedder.Register(d1, v1)
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
-	embedAction := ai.DefineEmbedder("fake", "embedder3", embedder.Embed)
 
-	r, err := New(ctx, *testAPIKey, indexData.Host, embedAction, nil, "")
-	if err != nil {
+	cfg := Config{
+		APIKey:   *testAPIKey,
+		Host:     indexData.Host,
+		Embedder: ai.DefineEmbedder("fake", "embedder3", embedder.Embed),
+	}
+	if err := Init(ctx, cfg); err != nil {
 		t.Fatal(err)
 	}
 
@@ -86,7 +89,8 @@ func TestGenkit(t *testing.T) {
 		Documents: []*ai.Document{d1, d2, d3},
 		Options:   indexerOptions,
 	}
-	err = r.Index(ctx, indexerReq)
+	t.Logf("index flag = %q, indexData.Host = %q", *testIndex, indexData.Host)
+	err = ai.Index(ctx, Indexer(indexData.Host), indexerReq)
 	if err != nil {
 		t.Fatalf("Index operation failed: %v", err)
 	}
@@ -123,7 +127,7 @@ func TestGenkit(t *testing.T) {
 		Document: d1,
 		Options:  retrieverOptions,
 	}
-	retrieverResp, err := r.Retrieve(ctx, retrieverReq)
+	retrieverResp, err := ai.Retrieve(ctx, Retriever(indexData.Host), retrieverReq)
 	if err != nil {
 		t.Fatalf("Retrieve operation failed: %v", err)
 	}

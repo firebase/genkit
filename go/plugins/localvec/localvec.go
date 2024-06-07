@@ -34,20 +34,47 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 )
 
-// New returns a new local vector database. This will register a new
-// retriever with genkit, and also return it.
-// This retriever may only be used by a single goroutine at a time.
-// This is based on js/plugins/dev-local-vectorstore/src/index.ts.
-func New(ctx context.Context, dir, name string, embedder *ai.EmbedderAction, embedderOptions any) (ai.DocumentStore, error) {
-	r, err := newDocStore(ctx, dir, name, embedder, embedderOptions)
-	if err != nil {
-		return nil, err
-	}
-	return ai.DefineDocumentStore("devLocalVectorStore-"+name, r.Index, r.Retrieve), nil
+const provider = "devLocalVectorStore"
+
+// Config configures the plugin.
+type Config struct {
+	// Where to store the data.
+	Dir             string
+	Name            string
+	Embedder        *ai.EmbedderAction
+	EmbedderOptions any
 }
 
-// docStore implements the [ai.DocumentStore] interface
-// for a local vector database.
+// Init initializes a new local vector database. This will register a new
+// indexer and retriever with genkit.
+// This retriever may only be used by a single goroutine at a time.
+func Init(ctx context.Context, cfg Config) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("localvec.Init: %w", err)
+		}
+	}()
+	ds, err := newDocStore(cfg.Dir, cfg.Name, cfg.Embedder, cfg.EmbedderOptions)
+	if err != nil {
+		return err
+	}
+	ai.DefineIndexer(provider, cfg.Name, ds.index)
+	ai.DefineRetriever(provider, cfg.Name, ds.retrieve)
+	return nil
+}
+
+// Indexer returns the indexer with the given name.
+func Indexer(name string) *ai.IndexerAction {
+	return ai.LookupIndexer(provider, name)
+}
+
+// Retriever returns the retriever with the given name.
+func Retriever(name string) *ai.RetrieverAction {
+	return ai.LookupRetriever(provider, name)
+}
+
+// docStore implements a local vector database.
+// This is based on js/plugins/dev-local-vectorstore/src/index.ts.
 type docStore struct {
 	filename        string
 	embedder        *ai.EmbedderAction
@@ -62,7 +89,7 @@ type dbValue struct {
 }
 
 // newDocStore returns a new ai.DocumentStore to register.
-func newDocStore(ctx context.Context, dir, name string, embedder *ai.EmbedderAction, embedderOptions any) (ai.DocumentStore, error) {
+func newDocStore(dir, name string, embedder *ai.EmbedderAction, embedderOptions any) (*docStore, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
@@ -91,8 +118,8 @@ func newDocStore(ctx context.Context, dir, name string, embedder *ai.EmbedderAct
 	return ds, nil
 }
 
-// Index implements the genkit [ai.DocumentStore.Index] method.
-func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
+// index indexes a document.
+func (ds *docStore) index(ctx context.Context, req *ai.IndexerRequest) error {
 	for _, doc := range req.Documents {
 		ereq := &ai.EmbedRequest{
 			Document: doc,
@@ -152,8 +179,8 @@ type RetrieverOptions struct {
 	K int `json:"k,omitempty"` // number of entries to return
 }
 
-// Retrieve implements the genkit [ai.DocumentStore.Retrieve] method.
-func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
+// retrieve retrieves documents close to the argument.
+func (ds *docStore) retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
 	// Use the embedder to convert the document we want to
 	// retrieve into a vector.
 	ereq := &ai.EmbedRequest{
