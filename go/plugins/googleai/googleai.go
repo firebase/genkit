@@ -97,7 +97,7 @@ func defineModel(name string, client *genai.Client) {
 		},
 	}
 	g := generator{model: name, client: client}
-	ai.DefineModel(provider, name, meta, g.Generate)
+	ai.DefineModel(provider, name, meta, g.generate)
 }
 
 func defineEmbedder(name string, client *genai.Client) {
@@ -133,7 +133,7 @@ type generator struct {
 	//session *genai.ChatSession // non-nil if we're in the middle of a chat
 }
 
-func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.Candidate) error) (*ai.GenerateResponse, error) {
+func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.Candidate) error) (*ai.GenerateResponse, error) {
 	gm := g.client.GenerativeModel(g.model)
 
 	// Translate from a ai.GenerateRequest to a genai request.

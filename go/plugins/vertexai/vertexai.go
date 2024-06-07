@@ -32,7 +32,7 @@ type generator struct {
 	client *genai.Client
 }
 
-func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.Candidate) error) (*ai.GenerateResponse, error) {
+func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.Candidate) error) (*ai.GenerateResponse, error) {
 	if cb != nil {
 		panic("streaming not supported yet") // TODO: streaming
 	}
@@ -185,7 +185,7 @@ func NewModel(ctx context.Context, model, projectID, location string) (*ai.Model
 			Multiturn: true,
 		},
 	}
-	return ai.DefineModel("google-vertexai", model, meta, g.Generate), nil
+	return ai.DefineModel("google-vertexai", model, meta, g.generate), nil
 }
 
 // convertParts converts a slice of *ai.Part to a slice of genai.Part.
