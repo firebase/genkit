@@ -27,12 +27,12 @@ import {
 } from './anthropic.js';
 import {
   SUPPORTED_EMBEDDER_MODELS,
+  textEmbedding004,
   textEmbeddingGecko,
-  textEmbeddingGeckoEmbedder,
   textEmbeddingGecko001,
   textEmbeddingGecko002,
   textEmbeddingGecko003,
-  textEmbedding004,
+  textEmbeddingGeckoEmbedder,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
 } from './embedder.js';
@@ -60,11 +60,11 @@ export {
   geminiPro,
   geminiProVision,
   imagen2,
+  textEmbedding004,
   textEmbeddingGecko,
   textEmbeddingGecko001,
   textEmbeddingGecko002,
   textEmbeddingGecko003,
-  textEmbedding004,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
   VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,

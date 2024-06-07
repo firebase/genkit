@@ -93,7 +93,7 @@ export const textEmbedding004 = embedderRef({
   },
 });
 
-export const textMultilingualEmbedding002	 = embedderRef({
+export const textMultilingualEmbedding002 = embedderRef({
   name: 'vertexai/text-multilingual-embedding-002',
   configSchema: TextEmbeddingGeckoConfigSchema,
   info: {
