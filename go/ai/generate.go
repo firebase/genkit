@@ -25,6 +25,7 @@ import (
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
+	"github.com/firebase/genkit/go/internal/atype"
 )
 
 // A ModelAction is used to generate content from an AI model.
@@ -63,7 +64,7 @@ func DefineModel(provider, name string, metadata *ModelMetadata, generate func(c
 		}
 		metadataMap["supports"] = supports
 	}
-	return core.DefineStreamingAction(provider, name, core.ActionTypeModel, map[string]any{
+	return core.DefineStreamingAction(provider, name, atype.Model, map[string]any{
 		"model": metadataMap,
 	}, generate)
 }
@@ -71,7 +72,7 @@ func DefineModel(provider, name string, metadata *ModelMetadata, generate func(c
 // LookupModel looks up a [ModelAction] registered by [DefineModel].
 // It returns nil if the model was not defined.
 func LookupModel(provider, name string) *ModelAction {
-	return core.LookupActionFor[*GenerateRequest, *GenerateResponse, *Candidate](core.ActionTypeModel, provider, name)
+	return core.LookupActionFor[*GenerateRequest, *GenerateResponse, *Candidate](atype.Model, provider, name)
 }
 
 // Generate applies a [ModelAction] to some input, handling tool requests.

@@ -24,6 +24,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/core/tracing"
+	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/invopop/jsonschema"
@@ -38,10 +39,10 @@ func TestDevServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.registerAction("devServer", NewAction("inc", ActionTypeCustom, map[string]any{
+	r.registerAction("devServer", NewAction("inc", atype.Custom, map[string]any{
 		"foo": "bar",
 	}, inc))
-	r.registerAction("devServer", NewAction("dec", ActionTypeCustom, map[string]any{
+	r.registerAction("devServer", NewAction("dec", atype.Custom, map[string]any{
 		"bar": "baz",
 	}, dec))
 	srv := httptest.NewServer(newDevServeMux(r))

@@ -18,6 +18,7 @@ import (
 	"context"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/internal/atype"
 )
 
 // PromptRequest is a request to execute a prompt template and
@@ -50,5 +51,5 @@ func RegisterPrompt(provider, name string, prompt Prompt) {
 		"prompt": prompt,
 	}
 	core.RegisterAction(provider,
-		core.NewStreamingAction(name, core.ActionTypePrompt, metadata, prompt.Generate))
+		core.NewStreamingAction(name, atype.Prompt, metadata, prompt.Generate))
 }

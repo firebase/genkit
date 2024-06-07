@@ -27,6 +27,7 @@ import (
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/google/uuid"
 	"github.com/invopop/jsonschema"
 	otrace "go.opentelemetry.io/otel/trace"
@@ -258,7 +259,7 @@ func (f *Flow[In, Out, Stream]) action() *Action[*flowInstruction[In], *flowStat
 		tracing.SetCustomMetadataAttr(ctx, "flow:wrapperAction", "true")
 		return f.runInstruction(ctx, inst, streamingCallback[Stream](cb))
 	}
-	return NewStreamingAction(f.name, ActionTypeFlow, metadata, cback)
+	return NewStreamingAction(f.name, atype.Flow, metadata, cback)
 }
 
 // runInstruction performs one of several actions on a flow, as determined by msg.
