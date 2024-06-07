@@ -37,7 +37,7 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-// Config is configuration for this plugin.
+// Config provides configuration options for the Init function.
 type Config struct {
 	// ID of the project to use. Required.
 	ProjectID string
