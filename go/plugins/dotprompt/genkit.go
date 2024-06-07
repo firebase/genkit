@@ -131,7 +131,7 @@ func (p *Prompt) Register() error {
 }
 
 // Generate executes a prompt. It does variable substitution and
-// passes the rendered template to the AI generator specified by
+// passes the rendered template to the AI model specified by
 // the prompt.
 //
 // This implements the [ai.Prompt] interface.
@@ -143,27 +143,27 @@ func (p *Prompt) Generate(ctx context.Context, pr *ai.PromptRequest, cb func(con
 		return nil, err
 	}
 
-	generator := p.Generator
-	if generator == nil {
-		model := p.Model
+	model := p.ModelAction
+	if model == nil {
+		modelName := p.Model
 		if pr.Model != "" {
-			model = pr.Model
+			modelName = pr.Model
 		}
-		if model == "" {
+		if modelName == "" {
 			return nil, errors.New("dotprompt execution: model not specified")
 		}
-		provider, name, found := strings.Cut(model, "/")
+		provider, name, found := strings.Cut(modelName, "/")
 		if !found {
 			return nil, errors.New("dotprompt model not in provider/name format")
 		}
 
-		generator := ai.LookupGenerator(provider, name)
-		if generator == nil {
-			return nil, fmt.Errorf("no generator named %q for provider %q", name, provider)
+		model := ai.LookupModel(provider, name)
+		if model == nil {
+			return nil, fmt.Errorf("no model named %q for provider %q", name, provider)
 		}
 	}
 
-	resp, err := ai.Generate(ctx, generator, genReq, cb)
+	resp, err := ai.Generate(ctx, model, genReq, cb)
 	if err != nil {
 		return nil, err
 	}

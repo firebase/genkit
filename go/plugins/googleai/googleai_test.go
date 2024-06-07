@@ -102,8 +102,8 @@ func TestLive(t *testing.T) {
 			t.Errorf("embedding vector not unit length: %f", normSquared)
 		}
 	})
-	t.Run("generator", func(t *testing.T) {
-		g := googleai.Generator(generativeModel)
+	t.Run("generate", func(t *testing.T) {
+		g := googleai.Model(generativeModel)
 		req := &ai.GenerateRequest{
 			Candidates: 1,
 			Messages: []*ai.Message{
@@ -140,7 +140,7 @@ func TestLive(t *testing.T) {
 
 		out := ""
 		parts := 0
-		g := googleai.Generator(generativeModel)
+		g := googleai.Model(generativeModel)
 		_, err = ai.Generate(ctx, g, req, func(ctx context.Context, c *ai.Candidate) error {
 			parts++
 			out += c.Message.Content[0].Text
@@ -170,7 +170,7 @@ func TestLive(t *testing.T) {
 			Tools: []*ai.ToolDefinition{toolDef},
 		}
 
-		resp, err := ai.Generate(ctx, googleai.Generator(generativeModel), req, nil)
+		resp, err := ai.Generate(ctx, googleai.Model(generativeModel), req, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

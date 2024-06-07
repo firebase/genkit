@@ -29,7 +29,7 @@ type imageURLInput struct {
 	ImageURL string `json:"imageUrl"`
 }
 
-func setup05(ctx context.Context, gen, genVision *ai.GeneratorAction) error {
+func setup05(ctx context.Context, gen, genVision *ai.ModelAction) error {
 	readMenuPrompt, err := dotprompt.Define("s05_readMenu",
 		`
 		  Extract _all_ of the text, in order,
@@ -37,7 +37,7 @@ func setup05(ctx context.Context, gen, genVision *ai.GeneratorAction) error {
 
 		  {{media url=imageUrl}}`,
 		dotprompt.Config{
-			Generator:    genVision,
+			ModelAction:  genVision,
 			InputSchema:  jsonschema.Reflect(imageURLInput{}),
 			OutputFormat: ai.OutputFormatText,
 			GenerationConfig: &ai.GenerationCommonConfig{
@@ -62,7 +62,7 @@ func setup05(ctx context.Context, gen, genVision *ai.GeneratorAction) error {
 		  {{question}}?
 		`,
 		dotprompt.Config{
-			Generator:    gen,
+			ModelAction:  gen,
 			InputSchema:  textMenuQuestionInputSchema,
 			OutputFormat: ai.OutputFormatText,
 			GenerationConfig: &ai.GenerationCommonConfig{

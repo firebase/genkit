@@ -32,7 +32,7 @@ type generator struct {
 	client *genai.Client
 }
 
-func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.Candidate) error) (*ai.GenerateResponse, error) {
+func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.Candidate) error) (*ai.GenerateResponse, error) {
 	if cb != nil {
 		panic("streaming not supported yet") // TODO: streaming
 	}
@@ -171,21 +171,21 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.GenerateResponse
 	return r
 }
 
-// NewGenerator returns an [ai.Generator] which sends a request to
+// NewModel returns an [ai.ModelAction] which sends a request to
 // the vertex AI model and returns the response.
-func NewGenerator(ctx context.Context, model, projectID, location string) (*ai.GeneratorAction, error) {
+func NewModel(ctx context.Context, model, projectID, location string) (*ai.ModelAction, error) {
 	client, err := newClient(ctx, projectID, location)
 	if err != nil {
 		return nil, err
 	}
 	g := &generator{model: model, client: client}
-	meta := &ai.GeneratorMetadata{
+	meta := &ai.ModelMetadata{
 		Label: "Vertex AI - " + model,
-		Supports: ai.GeneratorCapabilities{
+		Supports: ai.ModelCapabilities{
 			Multiturn: true,
 		},
 	}
-	return ai.DefineGenerator("google-vertexai", model, meta, g.Generate), nil
+	return ai.DefineModel("google-vertexai", model, meta, g.generate), nil
 }
 
 // convertParts converts a slice of *ai.Part to a slice of genai.Part.

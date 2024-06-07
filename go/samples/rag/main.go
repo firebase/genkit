@@ -82,7 +82,7 @@ func main() {
 	simpleQaPrompt, err := dotprompt.Define("simpleQaPrompt",
 		simpleQaPromptTemplate,
 		dotprompt.Config{
-			Generator:    googleai.Generator("gemini-1.0-pro"),
+			ModelAction:  googleai.Model("gemini-1.0-pro"),
 			InputSchema:  jsonschema.Reflect(simpleQaPromptInput{}),
 			OutputFormat: ai.OutputFormatText,
 		},

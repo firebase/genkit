@@ -75,18 +75,18 @@ type Config struct {
 	// The prompt variant.
 	Variant string
 	// The name of the model for which the prompt is input.
-	// If this is non-empty, Generator should be nil.
+	// If this is non-empty, ModelAction should be nil.
 	Model string
 
-	// The Generator to use.
+	// The ModelAction to use.
 	// If this is non-nil, Model should be the empty string.
-	Generator *ai.GeneratorAction
+	ModelAction *ai.ModelAction
 
 	// TODO(iant): document
 	Tools []*ai.ToolDefinition
 
 	// Number of candidates to generate when passing the prompt
-	// to a generator. If 0, uses 1.
+	// to a model. If 0, uses 1.
 	Candidates int
 
 	// Details for the model.
@@ -282,11 +282,11 @@ func Define(name, templateText string, cfg Config) (*Prompt, error) {
 // This may be used for testing or for direct calls not using the
 // genkit action and flow mechanisms.
 func New(name, templateText string, cfg Config) (*Prompt, error) {
-	if cfg.Model == "" && cfg.Generator == nil {
-		return nil, errors.New("dotprompt.New: config must specify either Model or Generator")
+	if cfg.Model == "" && cfg.ModelAction == nil {
+		return nil, errors.New("dotprompt.New: config must specify either Model or ModelAction")
 	}
-	if cfg.Model != "" && cfg.Generator != nil {
-		return nil, errors.New("dotprompt.New: config must specify exactly one of Model and Generator")
+	if cfg.Model != "" && cfg.ModelAction != nil {
+		return nil, errors.New("dotprompt.New: config must specify exactly one of Model and ModelAction")
 	}
 	hash := fmt.Sprintf("%02x", sha256.Sum256([]byte(templateText)))
 	return newPrompt(name, templateText, hash, cfg)

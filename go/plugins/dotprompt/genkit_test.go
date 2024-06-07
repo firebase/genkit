@@ -42,8 +42,8 @@ func testGenerate(ctx context.Context, req *ai.GenerateRequest, cb func(context.
 }
 
 func TestExecute(t *testing.T) {
-	testGenerator := ai.DefineGenerator("test", "test", nil, testGenerate)
-	p, err := New("TestExecute", "TestExecute", Config{Generator: testGenerator})
+	testModel := ai.DefineModel("test", "test", nil, testGenerate)
+	p, err := New("TestExecute", "TestExecute", Config{ModelAction: testModel})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,6 +70,6 @@ func TestExecute(t *testing.T) {
 	got := msg.Content[0].Text
 	want := `AI reply to "TestExecute"`
 	if got != want {
-		t.Errorf("fake generator replied with %q, want %q", got, want)
+		t.Errorf("fake model replied with %q, want %q", got, want)
 	}
 }

@@ -80,11 +80,11 @@ func main() {
 		location = env
 	}
 
-	gen, err := vertexai.NewGenerator(context.Background(), geminiPro, projectID, location)
+	gen, err := vertexai.NewModel(context.Background(), geminiPro, projectID, location)
 	if err != nil {
 		log.Fatal(err)
 	}
-	genVision, err := vertexai.NewGenerator(context.Background(), geminiPro+"-vision", projectID, location)
+	genVision, err := vertexai.NewModel(context.Background(), geminiPro+"-vision", projectID, location)
 
 	ctx := context.Background()
 	if err := setup01(ctx, gen); err != nil {
