@@ -50,7 +50,7 @@ const defaultTextKey = "_content"
 //
 // The textKey parameter is the metadata key to use to store document text
 // in Pinecone; the default is "_content".
-func New(ctx context.Context, apiKey, host string, embedder ai.Embedder, embedderOptions any, textKey string) (ai.DocumentStore, error) {
+func New(ctx context.Context, apiKey, host string, embedder *ai.EmbedderAction, embedderOptions any, textKey string) (ai.DocumentStore, error) {
 	client, err := NewClient(ctx, apiKey)
 	if err != nil {
 		return nil, err
@@ -90,7 +90,7 @@ type RetrieverOptions struct {
 // docStore implements the genkit [ai.DocumentStore] interface.
 type docStore struct {
 	index           *Index
-	embedder        ai.Embedder
+	embedder        *ai.EmbedderAction
 	embedderOptions any
 	textKey         string
 }
@@ -120,7 +120,7 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 			Document: doc,
 			Options:  ds.embedderOptions,
 		}
-		vals, err := ds.embedder.Embed(ctx, ereq)
+		vals, err := ai.Embed(ctx, ds.embedder, ereq)
 		if err != nil {
 			return fmt.Errorf("pinecone index embedding failed: %v", err)
 		}
@@ -215,7 +215,7 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 		Document: req.Document,
 		Options:  ds.embedderOptions,
 	}
-	vals, err := ds.embedder.Embed(ctx, ereq)
+	vals, err := ai.Embed(ctx, ds.embedder, ereq)
 	if err != nil {
 		return nil, fmt.Errorf("pinecone retrieve embedding failed: %v", err)
 	}

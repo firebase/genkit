@@ -129,7 +129,7 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("embedder", func(t *testing.T) {
-		out, err := vertexai.Embedder(embedderName).Embed(ctx, &ai.EmbedRequest{
+		out, err := ai.Embed(ctx, vertexai.Embedder(embedderName), &ai.EmbedRequest{
 			Document: ai.DocumentFromText("time flies like an arrow", nil),
 		})
 		if err != nil {

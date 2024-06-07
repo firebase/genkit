@@ -20,11 +20,9 @@ import (
 	"github.com/firebase/genkit/go/core"
 )
 
-// Embedder is the interface used to convert a document to a
-// multidimensional vector. A [DocumentStore] will use a value of this type.
-type Embedder interface {
-	Embed(context.Context, *EmbedRequest) ([]float32, error)
-}
+// EmbedderAction is used to convert a document to a
+// multidimensional vector.
+type EmbedderAction = core.Action[*EmbedRequest, []float32, struct{}]
 
 // EmbedRequest is the data we pass to convert a document
 // to a multidimensional vector.
@@ -34,25 +32,22 @@ type EmbedRequest struct {
 }
 
 // DefineEmbedder registers the given embed function as an action, and returns an
-// [Embedder] whose Embed method runs it.
-func DefineEmbedder(provider, name string, embed func(context.Context, *EmbedRequest) ([]float32, error)) Embedder {
-	return embedder{core.DefineAction(provider, name, core.ActionTypeEmbedder, nil, embed)}
+// [EmbedderAction] that runs it.
+func DefineEmbedder(provider, name string, embed func(context.Context, *EmbedRequest) ([]float32, error)) *EmbedderAction {
+	return core.DefineAction(provider, name, core.ActionTypeEmbedder, nil, embed)
 }
 
-// LookupEmbedder looks up an [Embedder] registered by [DefineEmbedder].
-// It returns nil if the Embedder was not defined.
-func LookupEmbedder(provider, name string) Embedder {
+// LookupEmbedder looks up an [EmbedderAction] registered by [DefineEmbedder].
+// It returns nil if the embedder was not defined.
+func LookupEmbedder(provider, name string) *EmbedderAction {
 	action := core.LookupActionFor[*EmbedRequest, []float32, struct{}](core.ActionTypeEmbedder, provider, name)
 	if action == nil {
 		return nil
 	}
-	return embedder{action}
+	return action
 }
 
-type embedder struct {
-	embedAction *core.Action[*EmbedRequest, []float32, struct{}]
-}
-
-func (e embedder) Embed(ctx context.Context, req *EmbedRequest) ([]float32, error) {
-	return e.embedAction.Run(ctx, req, nil)
+// Embed runs the given [EmbedderAction].
+func Embed(ctx context.Context, emb *EmbedderAction, req *EmbedRequest) ([]float32, error) {
+	return emb.Run(ctx, req, nil)
 }
