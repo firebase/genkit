@@ -38,7 +38,7 @@ const provider = "pinecone"
 // documents in pinecone.
 const defaultTextKey = "_content"
 
-// Config configures the plugin.
+// Config provides configuration options for the Init function.
 type Config struct {
 	// API key for Pinecone.
 	// If it is the empty string, it is read from the PINECONE_API_KEY
