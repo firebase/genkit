@@ -30,7 +30,7 @@ import (
 
 const provider = "google-genai"
 
-// Config configures the plugin.
+// Config provides configuration options for the Init function.
 type Config struct {
 	// API key. Required.
 	APIKey string

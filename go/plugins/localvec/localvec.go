@@ -36,7 +36,7 @@ import (
 
 const provider = "devLocalVectorStore"
 
-// Config configures the plugin.
+// Config provides configuration options for the Init function.
 type Config struct {
 	// Where to store the data.
 	Dir             string
