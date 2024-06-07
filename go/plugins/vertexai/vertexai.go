@@ -124,7 +124,7 @@ type generator struct {
 	client *genai.Client
 }
 
-func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.Candidate) error) (*ai.GenerateResponse, error) {
+func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
 	if cb != nil {
 		panic("streaming not supported yet") // TODO: streaming
 	}

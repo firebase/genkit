@@ -41,7 +41,7 @@ type PromptRequest struct {
 // Prompt is the interface used to execute a prompt template and
 // pass the result to a [ModelAction].
 type Prompt interface {
-	Generate(context.Context, *PromptRequest, func(context.Context, *Candidate) error) (*GenerateResponse, error)
+	Generate(context.Context, *PromptRequest, func(context.Context, *GenerateResponseChunk) error) (*GenerateResponse, error)
 }
 
 // RegisterPrompt registers a prompt in the global registry.

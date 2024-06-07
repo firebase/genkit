@@ -122,9 +122,9 @@ func main() {
 	}
 
 	simpleGreetingFlow := genkit.DefineFlow("simpleGreeting", func(ctx context.Context, input *simpleGreetingInput, cb func(context.Context, string) error) (string, error) {
-		var callback func(context.Context, *ai.Candidate) error
+		var callback func(context.Context, *ai.GenerateResponseChunk) error
 		if cb != nil {
-			callback = func(ctx context.Context, c *ai.Candidate) error {
+			callback = func(ctx context.Context, c *ai.GenerateResponseChunk) error {
 				text, err := c.Text()
 				if err != nil {
 					return err
@@ -205,9 +205,9 @@ func main() {
 	}
 
 	genkit.DefineFlow("simpleStructuredGreeting", func(ctx context.Context, input *simpleGreetingInput, cb func(context.Context, string) error) (string, error) {
-		var callback func(context.Context, *ai.Candidate) error
+		var callback func(context.Context, *ai.GenerateResponseChunk) error
 		if cb != nil {
-			callback = func(ctx context.Context, c *ai.Candidate) error {
+			callback = func(ctx context.Context, c *ai.GenerateResponseChunk) error {
 				text, err := c.Text()
 				if err != nil {
 					return err

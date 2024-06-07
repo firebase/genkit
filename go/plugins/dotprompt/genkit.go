@@ -135,7 +135,7 @@ func (p *Prompt) Register() error {
 // the prompt.
 //
 // This implements the [ai.Prompt] interface.
-func (p *Prompt) Generate(ctx context.Context, pr *ai.PromptRequest, cb func(context.Context, *ai.Candidate) error) (*ai.GenerateResponse, error) {
+func (p *Prompt) Generate(ctx context.Context, pr *ai.PromptRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
 	tracing.SetCustomMetadataAttr(ctx, "subtype", "prompt")
 
 	genReq, err := p.buildRequest(pr)
