@@ -29,7 +29,7 @@ import (
 
 const provider = "google-genai"
 
-// Config configures the plugin.
+// Config provides configuration options for the Init function.
 type Config struct {
 	// The project holding the resources.
 	ProjectID string
@@ -60,21 +60,15 @@ func Init(ctx context.Context, cfg Config) (err error) {
 		return errors.New("need at least one model or embedder")
 	}
 
-	// Client for Gemini SDK.
-	gclient, err := genai.NewClient(ctx, cfg.ProjectID, cfg.Location)
-	if err != nil {
+	if err := initModels(ctx, cfg); err != nil {
 		return err
 	}
+	return initEmbedders(ctx, cfg)
+}
 
-	// Client for prediction SDK, needed for embedders.
-	endpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", cfg.Location)
-	numConns := max(runtime.GOMAXPROCS(0), 4)
-	o := []option.ClientOption{
-		option.WithEndpoint(endpoint),
-		option.WithGRPCConnectionPool(numConns),
-	}
-
-	pclient, err := aiplatform.NewPredictionClient(ctx, o...)
+func initModels(ctx context.Context, cfg Config) error {
+	// Client for Gemini SDK.
+	gclient, err := genai.NewClient(ctx, cfg.ProjectID, cfg.Location)
 	if err != nil {
 		return err
 	}
@@ -87,6 +81,22 @@ func Init(ctx context.Context, cfg Config) (err error) {
 		}
 		g := &generator{model: name, client: gclient}
 		ai.DefineModel(provider, name, meta, g.generate)
+	}
+	return nil
+}
+
+func initEmbedders(ctx context.Context, cfg Config) error {
+	// Client for prediction SDK.
+	endpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", cfg.Location)
+	numConns := max(runtime.GOMAXPROCS(0), 4)
+	o := []option.ClientOption{
+		option.WithEndpoint(endpoint),
+		option.WithGRPCConnectionPool(numConns),
+	}
+
+	pclient, err := aiplatform.NewPredictionClient(ctx, o...)
+	if err != nil {
+		return err
 	}
 	for _, name := range cfg.Embedders {
 		fullName := fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s", cfg.ProjectID, cfg.Location, name)
