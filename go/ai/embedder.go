@@ -25,6 +25,8 @@ import (
 // multidimensional vector.
 type EmbedderAction = core.Action[*EmbedRequest, []float32, struct{}]
 
+const embedderAssoc = atype.Assoc[EmbedderAction](atype.Embedder)
+
 // EmbedRequest is the data we pass to convert a document
 // to a multidimensional vector.
 type EmbedRequest struct {
@@ -35,13 +37,13 @@ type EmbedRequest struct {
 // DefineEmbedder registers the given embed function as an action, and returns an
 // [EmbedderAction] that runs it.
 func DefineEmbedder(provider, name string, embed func(context.Context, *EmbedRequest) ([]float32, error)) *EmbedderAction {
-	return core.DefineAction(provider, name, atype.Embedder, nil, embed)
+	return core.DefineAction(provider, name, embedderAssoc, nil, embed)
 }
 
 // LookupEmbedder looks up an [EmbedderAction] registered by [DefineEmbedder].
 // It returns nil if the embedder was not defined.
 func LookupEmbedder(provider, name string) *EmbedderAction {
-	action := core.LookupActionFor[*EmbedRequest, []float32, struct{}](atype.Embedder, provider, name)
+	action := core.LookupAction(embedderAssoc, provider, name)
 	if action == nil {
 		return nil
 	}

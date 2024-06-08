@@ -116,10 +116,18 @@ func (r *registry) lookupAction(key string) action {
 	return r.actions[key]
 }
 
-// LookupActionFor returns the action for the given key in the global registry,
+func LookupAction[In, Out, Stream any](assoc atype.Assoc[Action[In, Out, Stream]], provider, name string) *Action[In, Out, Stream] {
+	return lookupAction[In, Out, Stream](atype.ActionType(assoc), provider, name)
+}
+
+func LookupCustomAction[In, Out, Stream any](provider, name string) *Action[In, Out, Stream] {
+	return lookupAction[In, Out, Stream](atype.Custom, provider, name)
+}
+
+// lookupAction returns the action for the given key in the global registry,
 // or nil if there is none.
 // It panics if the action is of the wrong type.
-func LookupActionFor[In, Out, Stream any](typ atype.ActionType, provider, name string) *Action[In, Out, Stream] {
+func lookupAction[In, Out, Stream any](typ atype.ActionType, provider, name string) *Action[In, Out, Stream] {
 	key := fmt.Sprintf("/%s/%s/%s", typ, provider, name)
 	a := globalRegistry.lookupAction(key)
 	if a == nil {

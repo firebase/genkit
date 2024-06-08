@@ -28,6 +28,11 @@ type (
 	RetrieverAction = core.Action[*RetrieverRequest, *RetrieverResponse, struct{}]
 )
 
+const (
+	indexerAssoc   = atype.Assoc[IndexerAction](atype.Indexer)
+	retrieverAssoc = atype.Assoc[RetrieverAction](atype.Retriever)
+)
+
 // IndexerRequest is the data we pass to add documents to the database.
 // The Options field is specific to the actual retriever implementation.
 type IndexerRequest struct {
@@ -53,25 +58,25 @@ func DefineIndexer(provider, name string, index func(context.Context, *IndexerRe
 	f := func(ctx context.Context, req *IndexerRequest) (struct{}, error) {
 		return struct{}{}, index(ctx, req)
 	}
-	return core.DefineAction(provider, name, atype.Indexer, nil, f)
+	return core.DefineAction(provider, name, indexerAssoc, nil, f)
 }
 
 // LookupIndexer looks up a [IndexerAction] registered by [DefineIndexer].
 // It returns nil if the model was not defined.
 func LookupIndexer(provider, name string) *IndexerAction {
-	return core.LookupActionFor[*IndexerRequest, struct{}, struct{}](atype.Indexer, provider, name)
+	return core.LookupAction(indexerAssoc, provider, name)
 }
 
 // DefineRetriever registers the given retrieve function as an action, and returns a
 // [RetrieverAction] that runs it.
 func DefineRetriever(provider, name string, ret func(context.Context, *RetrieverRequest) (*RetrieverResponse, error)) *RetrieverAction {
-	return core.DefineAction(provider, name, atype.Retriever, nil, ret)
+	return core.DefineAction(provider, name, retrieverAssoc, nil, ret)
 }
 
 // LookupRetriever looks up a [RetrieverAction] registered by [DefineRetriever].
 // It returns nil if the model was not defined.
 func LookupRetriever(provider, name string) *RetrieverAction {
-	return core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](atype.Retriever, provider, name)
+	return core.LookupAction(retrieverAssoc, provider, name)
 }
 
 // Index runs the given [IndexerAction].

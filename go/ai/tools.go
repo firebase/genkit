@@ -34,6 +34,10 @@ type Tool struct {
 	Fn         func(context.Context, map[string]any) (map[string]any, error)
 }
 
+type toolAction = core.Action[map[string]any, map[string]any, struct{}]
+
+const toolAssoc = atype.Assoc[toolAction](atype.Tool)
+
 // DefineTool defines a tool function.
 func DefineTool(definition *ToolDefinition, metadata map[string]any, fn func(ctx context.Context, input map[string]any) (map[string]any, error)) {
 	if len(metadata) > 0 {
@@ -44,13 +48,13 @@ func DefineTool(definition *ToolDefinition, metadata map[string]any, fn func(ctx
 	}
 	metadata["type"] = "tool"
 
-	core.DefineAction(provider, definition.Name, atype.Tool, metadata, fn)
+	core.DefineAction(provider, definition.Name, toolAssoc, metadata, fn)
 }
 
 // RunTool looks up a tool registered by [DefineTool],
 // runs it with the given input, and returns the result.
 func RunTool(ctx context.Context, name string, input map[string]any) (map[string]any, error) {
-	action := core.LookupActionFor[map[string]any, map[string]any, struct{}](atype.Tool, provider, name)
+	action := core.LookupAction(toolAssoc, provider, name)
 	if action == nil {
 		return nil, fmt.Errorf("no tool named %q", name)
 	}

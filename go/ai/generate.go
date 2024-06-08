@@ -31,6 +31,8 @@ import (
 // A ModelAction is used to generate content from an AI model.
 type ModelAction = core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
 
+const modelAssoc = atype.Assoc[ModelAction](atype.Model)
+
 // ModelStreamingCallback is the type for the streaming callback of a model.
 type ModelStreamingCallback = func(context.Context, *GenerateResponseChunk) error
 
@@ -64,7 +66,7 @@ func DefineModel(provider, name string, metadata *ModelMetadata, generate func(c
 		}
 		metadataMap["supports"] = supports
 	}
-	return core.DefineStreamingAction(provider, name, atype.Model, map[string]any{
+	return core.DefineStreamingAction(provider, name, modelAssoc, map[string]any{
 		"model": metadataMap,
 	}, generate)
 }
@@ -72,7 +74,7 @@ func DefineModel(provider, name string, metadata *ModelMetadata, generate func(c
 // LookupModel looks up a [ModelAction] registered by [DefineModel].
 // It returns nil if the model was not defined.
 func LookupModel(provider, name string) *ModelAction {
-	return core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](atype.Model, provider, name)
+	return core.LookupAction(modelAssoc, provider, name)
 }
 
 // Generate applies a [ModelAction] to some input, handling tool requests.

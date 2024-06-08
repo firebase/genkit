@@ -27,6 +27,8 @@ import (
 // producing a [GenerateRequest] that may be passed to a [ModelAction].
 type PromptAction = core.Action[any, *GenerateRequest, struct{}]
 
+const promptAssoc = atype.Assoc[PromptAction](atype.Prompt)
+
 // DefinePrompt takes a function that renders a prompt template
 // into a [GenerateRequest] that may be passed to a [ModelAction].
 // The prompt expects some input described by inputSchema.
@@ -39,13 +41,13 @@ func DefinePrompt(provider, name string, metadata map[string]any, render func(co
 	}
 	mm["type"] = "prompt"
 	mm["prompt"] = true // required by genkit ui
-	return core.DefineActionWithInputSchema(provider, name, atype.Prompt, mm, render, inputSchema)
+	return core.DefineActionWithInputSchema(provider, name, promptAssoc, mm, render, inputSchema)
 }
 
 // LookupPrompt looks up a [PromptAction] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
 func LookupPrompt(provider, name string) *PromptAction {
-	return core.LookupActionFor[any, *GenerateRequest, struct{}](atype.Prompt, provider, name)
+	return core.LookupAction(promptAssoc, provider, name)
 }
 
 // Render renders a [PromptAction] with some input data.

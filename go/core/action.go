@@ -68,8 +68,8 @@ type Action[In, Out, Stream any] struct {
 // See js/core/src/action.ts
 
 // DefineAction creates a new Action and registers it.
-func DefineAction[In, Out any](provider, name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
-	return defineAction(globalRegistry, provider, name, atype, metadata, fn)
+func DefineAction[In, Out any](provider, name string, assoc atype.Assoc[Action[In, Out, struct{}]], metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
+	return defineAction(globalRegistry, provider, name, atype.ActionType(assoc), metadata, fn)
 }
 
 func defineAction[In, Out any](r *registry, provider, name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
@@ -78,8 +78,8 @@ func defineAction[In, Out any](r *registry, provider, name string, atype atype.A
 	return a
 }
 
-func DefineStreamingAction[In, Out, Stream any](provider, name string, atype atype.ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
-	return defineStreamingAction(globalRegistry, provider, name, atype, metadata, fn)
+func DefineStreamingAction[In, Out, Stream any](provider, name string, assoc atype.Assoc[Action[In, Out, Stream]], metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
+	return defineStreamingAction(globalRegistry, provider, name, atype.ActionType(assoc), metadata, fn)
 }
 
 func defineStreamingAction[In, Out, Stream any](r *registry, provider, name string, atype atype.ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
@@ -89,15 +89,15 @@ func defineStreamingAction[In, Out, Stream any](r *registry, provider, name stri
 }
 
 func DefineCustomAction[In, Out, Stream any](provider, name string, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
-	return DefineStreamingAction(provider, name, atype.Custom, metadata, fn)
+	return defineStreamingAction(globalRegistry, provider, name, atype.Custom, metadata, fn)
 }
 
 // DefineActionWithInputSchema creates a new Action and registers it.
 // This differs from DefineAction in that the input schema is
 // defined dynamically; the static input type is "any".
 // This is used for prompts.
-func DefineActionWithInputSchema[Out any](provider, name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, any) (Out, error), inputSchema *jsonschema.Schema) *Action[any, Out, struct{}] {
-	return defineActionWithInputSchema(globalRegistry, provider, name, atype, metadata, fn, inputSchema)
+func DefineActionWithInputSchema[Out any](provider, name string, assoc atype.Assoc[Action[any, Out, struct{}]], metadata map[string]any, fn func(context.Context, any) (Out, error), inputSchema *jsonschema.Schema) *Action[any, Out, struct{}] {
+	return defineActionWithInputSchema(globalRegistry, provider, name, atype.ActionType(assoc), metadata, fn, inputSchema)
 }
 
 func defineActionWithInputSchema[Out any](r *registry, provider, name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, any) (Out, error), inputSchema *jsonschema.Schema) *Action[any, Out, struct{}] {

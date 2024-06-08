@@ -31,3 +31,9 @@ const (
 	Tool      ActionType = "tool"
 	Custom    ActionType = "custom"
 )
+
+// An Assoc associates the type parameters of an Action with an ActionType.
+//
+// Most ActionTypes correspond to Actions with a particular set of type
+// parameters. An Assoc makes that association explicit.
+type Assoc[A any] ActionType
