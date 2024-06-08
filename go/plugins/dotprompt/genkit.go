@@ -115,8 +115,8 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.GenerateReque
 	req.Config = p.GenerationConfig
 
 	req.Output = &ai.GenerateRequestOutput{
-			Format: p.OutputFormat,
-			Schema: p.OutputSchema,
+		Format: p.OutputFormat,
+		Schema: p.OutputSchema,
 	}
 
 	req.Tools = p.Tools
