@@ -46,9 +46,9 @@ type Config struct {
 }
 
 // Init initializes a new local vector database. This will register a new
-// indexer and retriever with genkit.
+// indexer and retriever with genkit, and return them.
 // This retriever may only be used by a single goroutine at a time.
-func Init(ctx context.Context, cfg Config) (err error) {
+func Init(ctx context.Context, cfg Config) (_ *ai.IndexerAction, _ *ai.RetrieverAction, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("localvec.Init: %w", err)
@@ -56,19 +56,21 @@ func Init(ctx context.Context, cfg Config) (err error) {
 	}()
 	ds, err := newDocStore(cfg.Dir, cfg.Name, cfg.Embedder, cfg.EmbedderOptions)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
-	ai.DefineIndexer(provider, cfg.Name, ds.index)
-	ai.DefineRetriever(provider, cfg.Name, ds.retrieve)
-	return nil
+	ia := ai.DefineIndexer(provider, cfg.Name, ds.index)
+	ra := ai.DefineRetriever(provider, cfg.Name, ds.retrieve)
+	return ia, ra, nil
 }
 
 // Indexer returns the indexer with the given name.
+// The name must match the [Config.Name] value passed to [Init].
 func Indexer(name string) *ai.IndexerAction {
 	return ai.LookupIndexer(provider, name)
 }
 
 // Retriever returns the retriever with the given name.
+// The name must match the [Config.Name] value passed to [Init].
 func Retriever(name string) *ai.RetrieverAction {
 	return ai.LookupRetriever(provider, name)
 }
