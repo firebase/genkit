@@ -103,7 +103,7 @@ func setup04(ctx context.Context, indexer *ai.IndexerAction, retriever *ai.Retri
 				Question: input.Question,
 			}
 
-			preq := &ai.PromptRequest{
+			preq := &dotprompt.PromptRequest{
 				Variables: questionInput,
 			}
 			presp, err := ragDataMenuPrompt.Generate(ctx, preq, nil)

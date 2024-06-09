@@ -133,7 +133,7 @@ func main() {
 		}
 
 		resp, err := simpleQaPrompt.Generate(ctx,
-			&ai.PromptRequest{
+			&dotprompt.PromptRequest{
 				Variables: promptInput,
 			},
 			nil,

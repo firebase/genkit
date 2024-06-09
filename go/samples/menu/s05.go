@@ -87,7 +87,7 @@ func setup05(ctx context.Context, gen, genVision *ai.ModelAction) error {
 			data := make([]byte, base64.StdEncoding.EncodedLen(len(image)))
 			base64.StdEncoding.Encode(data, image)
 			imageDataURL := "data:image/jpeg;base64," + string(data)
-			preq := &ai.PromptRequest{
+			preq := &dotprompt.PromptRequest{
 				Variables: &imageURLInput{
 					ImageURL: imageDataURL,
 				},
@@ -107,7 +107,7 @@ func setup05(ctx context.Context, gen, genVision *ai.ModelAction) error {
 
 	textMenuQuestionFlow := genkit.DefineFlow("s05_textMenuQuestion",
 		func(ctx context.Context, input *textMenuQuestionInput, _ genkit.NoStream) (*answerOutput, error) {
-			preq := &ai.PromptRequest{
+			preq := &dotprompt.PromptRequest{
 				Variables: input,
 			}
 			presp, err := textMenuPrompt.Generate(ctx, preq, nil)
