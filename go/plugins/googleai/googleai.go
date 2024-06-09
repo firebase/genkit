@@ -139,11 +139,21 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	// Translate from a ai.GenerateRequest to a genai request.
 	gm.SetCandidateCount(int32(input.Candidates))
 	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
-		gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
-		gm.StopSequences = c.StopSequences
-		gm.SetTemperature(float32(c.Temperature))
-		gm.SetTopK(int32(c.TopK))
-		gm.SetTopP(float32(c.TopP))
+		if c.MaxOutputTokens != 0 {
+			gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
+		}
+		if len(c.StopSequences) > 0 {
+			gm.StopSequences = c.StopSequences
+		}
+		if c.Temperature != 0 {
+			gm.SetTemperature(float32(c.Temperature))
+		}
+		if c.TopK != 0 {
+			gm.SetTopK(int32(c.TopK))
+		}
+		if c.TopP != 0 {
+			gm.SetTopP(float32(c.TopP))
+		}
 	}
 
 	// Start a "chat".
