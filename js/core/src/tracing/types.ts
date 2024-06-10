@@ -35,6 +35,11 @@ export interface TraceStore {
   list(query?: TraceQuery): Promise<TraceQueryResponse>;
 }
 
+export const TraceMetadataSchema = z.object({
+  paths: z.set(z.string()).optional(),
+});
+export type TraceMetadata = z.infer<typeof TraceMetadataSchema>;
+
 export const SpanMetadataSchema = z.object({
   name: z.string(),
   state: z.enum(['success', 'error']).optional(),
