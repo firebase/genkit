@@ -25,6 +25,7 @@ import (
 	"cloud.google.com/go/vertexai/genai"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
 
@@ -228,7 +229,7 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	for {
 		chunk, err := iter.Next()
 		if err != nil {
-			if err.Error() == "no more items in iterator" {
+			if err == iterator.Done {
 				break
 			}
 			return nil, err
@@ -267,7 +268,7 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 				c1.FinishReason = ai.FinishReasonUnknown
 				c2.FinishReason = ai.FinishReasonUnknown
 				if !reflect.DeepEqual(&c1, &c2) {
-					return nil, fmt.Errorf("some candidate fields unexpectedly changed")
+					return nil, fmt.Errorf("some candidate fields unexpectedly changed\n%#v\n%#v", c1, c2)
 				}
 
 				// Append the Parts to the final candidate.
