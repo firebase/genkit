@@ -28,7 +28,6 @@ import { Resource } from '@opentelemetry/resources';
 import {
   AggregationTemporality,
   InMemoryMetricExporter,
-  MetricReader,
   PeriodicExportingMetricReader,
   PushMetricExporter,
 } from '@opentelemetry/sdk-metrics';
@@ -41,6 +40,9 @@ import {
   SpanExporter,
 } from '@opentelemetry/sdk-trace-base';
 import { PluginOptions } from './index.js';
+
+let metricExporter: PushMetricExporter;
+let metricReader: PeriodicExportingMetricReader;
 
 /**
  * Provides a {TelemetryConfig} for exporting OpenTelemetry data (Traces,
@@ -128,27 +130,31 @@ export class GcpOpenTelemetry implements TelemetryConfig {
     const exporter: SpanExporter = this.shouldExport()
       ? new this.AdjustingTraceExporter()
       : new InMemorySpanExporter();
+    metricReader = this.createMetricReader();
     return {
       resource: this.resource,
       spanProcessor: new BatchSpanProcessor(exporter),
       sampler: this.options?.telemetryConfig?.sampler || new AlwaysOnSampler(),
       instrumentations: this.getInstrumentations(),
-      metricReader: this.createMetricReader(),
+      metricReader: metricReader,
     };
   }
 
   /**
    * Creates a {MetricReader} for pushing metrics out to GCP via OpenTelemetry.
    */
-  private createMetricReader(): MetricReader {
-    const exporter: PushMetricExporter = this.shouldExport()
+  private createMetricReader(): PeriodicExportingMetricReader {
+    const shouldExport = this.shouldExport();
+    metricExporter = this.shouldExport()
       ? new MetricExporter({ projectId: this.options.projectId })
       : new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
     return new PeriodicExportingMetricReader({
       exportIntervalMillis:
         this.options?.telemetryConfig?.metricExportIntervalMillis || 10_000,
-      exporter,
-    }) as MetricReader;
+      exportTimeoutMillis:
+        this.options?.telemetryConfig?.metricExportTimeoutMillis || 10_000,
+      exporter: metricExporter,
+    });
   }
 
   /** Gets all open telemetry instrumentations as configured by the plugin. */
@@ -172,4 +178,8 @@ export class GcpOpenTelemetry implements TelemetryConfig {
       new PinoInstrumentation({ logHook: this.gcpTraceLogHook }),
     ];
   }
+}
+
+export function __getMetricExporterForTesting(): InMemoryMetricExporter {
+  return metricExporter as InMemoryMetricExporter;
 }

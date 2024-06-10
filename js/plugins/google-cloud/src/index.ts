@@ -33,6 +33,7 @@ export interface TelemetryConfig {
   autoInstrumentation?: boolean;
   autoInstrumentationConfig?: InstrumentationConfigMap;
   metricExportIntervalMillis?: number;
+  metricExportTimeoutMillis?: number;
   instrumentations?: Instrumentation[];
 }
 
@@ -65,3 +66,4 @@ export const googleCloud: Plugin<[PluginOptions] | []> = genkitPlugin(
 );
 
 export default googleCloud;
+export * from './gcpOpenTelemetry.js';
