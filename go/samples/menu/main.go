@@ -100,14 +100,15 @@ func main() {
 		log.Fatal(err)
 	}
 
-	const localvecName = "go-menu-items"
-	if err := localvec.Init(ctx, localvec.Config{
-		Name:     localvecName,
-		Embedder: vertexai.Embedder(embeddingGecko),
-	}); err != nil {
+	indexers, retrievers, err := localvec.Init(ctx, localvec.Config{
+		Stores: []localvec.StoreConfig{
+			{Name: "go-menu-items", Embedder: vertexai.Embedder(embeddingGecko)},
+		},
+	})
+	if err != nil {
 		log.Fatal(err)
 	}
-	if err := setup04(ctx, localvec.Indexer(localvecName), localvec.Retriever(localvecName), model); err != nil {
+	if err := setup04(ctx, indexers[0], retrievers[0], model); err != nil {
 		log.Fatal(err)
 	}
 
