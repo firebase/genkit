@@ -55,10 +55,9 @@ export function writeActionFailure(
 ) {
   const dimensions = {
     name: actionName,
-    errorCode: err?.code,
-    errorMessage: err?.message,
     source: 'ts',
     sourceVersion: GENKIT_VERSION,
+    error: err?.name,
   };
   actionCounter.add(1, dimensions);
   actionLatencies.record(latencyMs, dimensions);

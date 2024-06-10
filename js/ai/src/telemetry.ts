@@ -322,8 +322,7 @@ function doRecordGenerateActionMetrics(
 
   generateActionCounter.add(1, {
     maxOutputTokens: dimensions.maxOutputTokens,
-    errorCode: dimensions.err?.code,
-    errorMessage: dimensions.err?.message,
+    error: dimensions.err?.name,
     ...shared,
   });
 

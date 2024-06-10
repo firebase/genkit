@@ -97,10 +97,9 @@ export function writeFlowFailure(
 ) {
   const dimensions = {
     name: flowName,
-    errorCode: err?.code,
-    errorMessage: err?.message,
     source: 'ts',
     sourceVersion: GENKIT_VERSION,
+    error: err.name,
   };
   flowCounter.add(1, dimensions);
   flowLatencies.record(latencyMs, dimensions);
