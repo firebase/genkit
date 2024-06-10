@@ -16,10 +16,10 @@ package googleai
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"path"
 	"slices"
+	"sync"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
@@ -30,79 +30,75 @@ import (
 
 const provider = "google-genai"
 
-// Config provides configuration options for the Init function.
-type Config struct {
-	// API key. Required.
-	APIKey string
-	// Generative models to provide.
-	// If empty, a complete list will be obtained from the service.
-	Models []string
-	// Embedding models to provide.
-	// If empty, a complete list will be obtained from the service.
-	Embedders []string
+var state struct {
+	mu      sync.Mutex
+	initted bool
+	client  *genai.Client
+	// Results from ListModels
+	modelNames    []string
+	embedderNames []string
 }
 
-func Init(ctx context.Context, cfg Config) (err error) {
+// Init initializes the plugin.
+// After calling Init, call [DefineModel] and [DefineEmbedder] to create and register
+// generative models and embedders.
+func Init(ctx context.Context, apiKey string) (err error) {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if state.initted {
+		panic("googleai.Init already called")
+	}
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("googleai.Init: %w", err)
 		}
 	}()
 
-	if cfg.APIKey == "" {
-		return errors.New("missing API key")
-	}
-
-	client, err := genai.NewClient(ctx, option.WithAPIKey(cfg.APIKey))
+	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
 	if err != nil {
 		return err
 	}
-
-	needModels := len(cfg.Models) == 0
-	needEmbedders := len(cfg.Embedders) == 0
-	if needModels || needEmbedders {
-		iter := client.ListModels(ctx)
-		for {
-			mi, err := iter.Next()
-			if err == iterator.Done {
-				break
-			}
-			if err != nil {
-				return err
-			}
-			// Model names are of the form "models/name".
-			name := path.Base(mi.Name)
-			if needModels && slices.Contains(mi.SupportedGenerationMethods, "generateContent") {
-				cfg.Models = append(cfg.Models, name)
-			}
-			if needEmbedders && slices.Contains(mi.SupportedGenerationMethods, "embedContent") {
-				cfg.Embedders = append(cfg.Embedders, name)
-			}
-		}
-	}
-	for _, name := range cfg.Models {
-		defineModel(name, client)
-	}
-	for _, name := range cfg.Embedders {
-		defineEmbedder(name, client)
-	}
+	state.client = client
+	state.initted = true
 	return nil
 }
 
-func defineModel(name string, client *genai.Client) {
+// DefineModel defines a model with the given name.
+func DefineModel(name string) *ai.ModelAction {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if !state.initted {
+		panic("googleai.Init not called")
+	}
+	return defineModel(name)
+}
+
+// requires state.mu
+func defineModel(name string) *ai.ModelAction {
 	meta := &ai.ModelMetadata{
 		Label: "Google AI - " + name,
 		Supports: ai.ModelCapabilities{
 			Multiturn: true,
 		},
 	}
-	g := generator{model: name, client: client}
-	ai.DefineModel(provider, name, meta, g.generate)
+	g := generator{model: name, client: state.client}
+	return ai.DefineModel(provider, name, meta, g.generate)
 }
 
-func defineEmbedder(name string, client *genai.Client) {
-	ai.DefineEmbedder(provider, name, func(ctx context.Context, input *ai.EmbedRequest) ([]float32, error) {
-		em := client.EmbeddingModel(name)
+// DefineEmbedder defines an embedder with a given name.
+func DefineEmbedder(name string) *ai.EmbedderAction {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if !state.initted {
+		panic("googleai.Init not called")
+	}
+	return defineEmbedder(name)
+}
+
+// requires state.mu
+func defineEmbedder(name string) *ai.EmbedderAction {
+	return ai.DefineEmbedder(provider, name, func(ctx context.Context, input *ai.EmbedRequest) ([]float32, error) {
+		em := state.client.EmbeddingModel(name)
 		parts, err := convertParts(input.Document.Content)
 		if err != nil {
 			return nil, err
@@ -113,6 +109,66 @@ func defineEmbedder(name string, client *genai.Client) {
 		}
 		return res.Embedding.Values, nil
 	})
+}
+
+// DefineAllModels defines all models known to the service.
+func DefineAllModels(ctx context.Context) ([]*ai.ModelAction, error) {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if !state.initted {
+		panic("googleai.Init not called")
+	}
+	if err := listModels(ctx); err != nil {
+		return nil, err
+	}
+	var mas []*ai.ModelAction
+	for _, mod := range state.modelNames {
+		mas = append(mas, defineModel(mod))
+	}
+	return mas, nil
+}
+
+// DefineAllEmbedders defines all embedders known to the service.
+func DefineAllEmbedders(ctx context.Context) ([]*ai.EmbedderAction, error) {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if !state.initted {
+		panic("googleai.Init not called")
+	}
+	if err := listModels(ctx); err != nil {
+		return nil, err
+	}
+	var eas []*ai.EmbedderAction
+	for _, em := range state.embedderNames {
+		eas = append(eas, defineEmbedder(em))
+	}
+	return eas, nil
+}
+
+// requires state.mu
+func listModels(ctx context.Context) error {
+	if len(state.modelNames) > 0 || len(state.embedderNames) > 0 {
+		// already called
+		return nil
+	}
+	iter := state.client.ListModels(ctx)
+	for {
+		mi, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		// Model names are of the form "models/name".
+		name := path.Base(mi.Name)
+		if slices.Contains(mi.SupportedGenerationMethods, "generateContent") {
+			state.modelNames = append(state.modelNames, name)
+		} else if slices.Contains(mi.SupportedGenerationMethods, "embedContent") {
+			state.embedderNames = append(state.embedderNames, name)
+		}
+	}
+	return nil
 }
 
 // Model returns the [ai.ModelAction] with the given name.

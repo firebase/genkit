@@ -52,13 +52,36 @@ import (
 //
 // StartFlowServer always returns a non-nil error, the one returned by http.ListenAndServe.
 func StartFlowServer(addr string) error {
+	return startProdServer(addr)
+}
+
+// InternalInit is for use by the genkit package only.
+// It is not subject to compatibility guarantees.
+func InternalInit(opts *Options) error {
+	if opts == nil {
+		opts = &Options{}
+	}
+	globalRegistry.freeze()
+
 	if currentEnvironment() == EnvironmentDev {
 		go func() {
-			err := startDevServer("")
+			err := startDevServer(opts.DevAddr)
 			slog.Error("dev server stopped", "err", err)
 		}()
 	}
-	return startProdServer(addr)
+	if opts.FlowAddr == "-" {
+		return nil
+	}
+	return StartFlowServer(opts.FlowAddr)
+}
+
+// Options are options to [InternalInit].
+type Options struct {
+	DevAddr string
+	// If "-", do not start a FlowServer.
+	// Otherwise, start a FlowServer on the given address, or the
+	// default if empty.
+	FlowAddr string
 }
 
 // startDevServer starts the development server (reflection API) listening at the given address.
