@@ -150,10 +150,8 @@ func TestLive(t *testing.T) {
 			t.Fatal(err)
 		}
 		out2 := ""
-		for _, c := range final.Candidates {
-			for _, p := range c.Message.Content {
-				out2 += p.Text
-			}
+		for _, p := range final.Candidates[0].Message.Content {
+			out2 += p.Text
 		}
 		if out != out2 {
 			t.Errorf("streaming and final should contain the same text.\nstreaming:%s\nfinal:%s", out, out2)
