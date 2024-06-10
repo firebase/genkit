@@ -37,7 +37,7 @@ func DefineFlow[In, Out, Stream any](
 	name string,
 	fn func(ctx context.Context, input In, callback func(context.Context, Stream) error) (Out, error),
 ) *core.Flow[In, Out, Stream] {
-	return core.DefineFlow(name, core.Func[In, Out, Stream](fn))
+	return core.InternalDefineFlow(name, core.Func[In, Out, Stream](fn))
 }
 
 // Run runs the function f in the context of the current flow
@@ -48,13 +48,13 @@ func DefineFlow[In, Out, Stream any](
 // A step has its own span in the trace, and its result is cached so that if the flow
 // is restarted, f will not be called a second time.
 func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out, error) {
-	return core.Run(ctx, name, f)
+	return core.InternalRun(ctx, name, f)
 }
 
 // RunFlow runs flow in the context of another flow. The flow must run to completion when started
 // (that is, it must not have interrupts).
 func RunFlow[In, Out, Stream any](ctx context.Context, flow *core.Flow[In, Out, Stream], input In) (Out, error) {
-	return core.RunFlow(ctx, flow, input)
+	return core.InternalRunFlow(ctx, flow, input)
 }
 
 // NoStream indicates that a flow does not support streaming.

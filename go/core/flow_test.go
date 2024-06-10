@@ -30,7 +30,7 @@ func incFlow(_ context.Context, i int, _ NoStream) (int, error) {
 }
 
 func TestFlowStart(t *testing.T) {
-	f := DefineFlow("inc", incFlow)
+	f := InternalDefineFlow("inc", incFlow)
 	ss, err := NewFileFlowStateStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -62,12 +62,12 @@ func TestFlowRun(t *testing.T) {
 		return n, nil
 	}
 
-	flow := DefineFlow("run", func(ctx context.Context, s string, _ NoStream) ([]int, error) {
-		g1, err := Run(ctx, "s1", stepf)
+	flow := InternalDefineFlow("run", func(ctx context.Context, s string, _ NoStream) ([]int, error) {
+		g1, err := InternalRun(ctx, "s1", stepf)
 		if err != nil {
 			return nil, err
 		}
-		g2, err := Run(ctx, "s2", stepf)
+		g2, err := InternalRun(ctx, "s2", stepf)
 		if err != nil {
 			return nil, err
 		}
@@ -94,7 +94,7 @@ func TestRunFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 	f := defineFlow(reg, "inc", incFlow)
-	got, err := RunFlow(context.Background(), f, 2)
+	got, err := InternalRunFlow(context.Background(), f, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
