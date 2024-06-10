@@ -69,7 +69,7 @@ func (c *command) run(ctx context.Context, input string) (string, error) {
 	case c.Append != nil:
 		return input + *c.Append, nil
 	case c.Run != nil:
-		return Run(ctx, c.Run.Name, func() (string, error) {
+		return InternalRun(ctx, c.Run.Name, func() (string, error) {
 			return c.Run.Command.run(ctx, input)
 		})
 	default:
