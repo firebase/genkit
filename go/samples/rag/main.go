@@ -75,7 +75,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "You can get an API key at https://ai.google.dev.")
 		os.Exit(1)
 	}
-	err := googleai.Init(context.Background(), googleai.Config{APIKey: apiKey})
+	_, _, err := googleai.Init(context.Background(), googleai.Config{APIKey: apiKey})
 	if err != nil {
 		log.Fatal(err)
 	}

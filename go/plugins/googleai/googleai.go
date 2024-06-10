@@ -42,7 +42,12 @@ type Config struct {
 	Embedders []string
 }
 
-func Init(ctx context.Context, cfg Config) (err error) {
+// Init initializes the plugin.
+// It defines all the configured models and embedders, and returns their actions.
+// If [Config.Models] or [Config.Embedders] is non-empty, the actions are returned in the same
+// order; otherwise the order is undefined. Call the [Model] or [Embedder] functions to get an action
+// from the registry by name, or call the Name method of the action to get its name.
+func Init(ctx context.Context, cfg Config) (models []*ai.ModelAction, embedders []*ai.EmbedderAction, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("googleai.Init: %w", err)
@@ -50,12 +55,12 @@ func Init(ctx context.Context, cfg Config) (err error) {
 	}()
 
 	if cfg.APIKey == "" {
-		return errors.New("missing API key")
+		return nil, nil, errors.New("missing API key")
 	}
 
 	client, err := genai.NewClient(ctx, option.WithAPIKey(cfg.APIKey))
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 
 	needModels := len(cfg.Models) == 0
@@ -68,7 +73,7 @@ func Init(ctx context.Context, cfg Config) (err error) {
 				break
 			}
 			if err != nil {
-				return err
+				return nil, nil, err
 			}
 			// Model names are of the form "models/name".
 			name := path.Base(mi.Name)
@@ -81,15 +86,15 @@ func Init(ctx context.Context, cfg Config) (err error) {
 		}
 	}
 	for _, name := range cfg.Models {
-		defineModel(name, client)
+		models = append(models, defineModel(name, client))
 	}
 	for _, name := range cfg.Embedders {
-		defineEmbedder(name, client)
+		embedders = append(embedders, defineEmbedder(name, client))
 	}
-	return nil
+	return models, embedders, nil
 }
 
-func defineModel(name string, client *genai.Client) {
+func defineModel(name string, client *genai.Client) *ai.ModelAction {
 	meta := &ai.ModelMetadata{
 		Label: "Google AI - " + name,
 		Supports: ai.ModelCapabilities{
@@ -97,11 +102,11 @@ func defineModel(name string, client *genai.Client) {
 		},
 	}
 	g := generator{model: name, client: client}
-	ai.DefineModel(provider, name, meta, g.generate)
+	return ai.DefineModel(provider, name, meta, g.generate)
 }
 
-func defineEmbedder(name string, client *genai.Client) {
-	ai.DefineEmbedder(provider, name, func(ctx context.Context, input *ai.EmbedRequest) ([]float32, error) {
+func defineEmbedder(name string, client *genai.Client) *ai.EmbedderAction {
+	return ai.DefineEmbedder(provider, name, func(ctx context.Context, input *ai.EmbedRequest) ([]float32, error) {
 		em := client.EmbeddingModel(name)
 		parts, err := convertParts(input.Document.Content)
 		if err != nil {

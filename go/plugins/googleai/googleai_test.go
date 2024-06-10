@@ -40,7 +40,7 @@ func TestLive(t *testing.T) {
 		t.Skipf("no -key provided")
 	}
 	ctx := context.Background()
-	err := googleai.Init(ctx, googleai.Config{
+	_, _, err := googleai.Init(ctx, googleai.Config{
 		APIKey:    *apiKey,
 		Embedders: []string{embeddingModel},
 		Models:    []string{generativeModel},
