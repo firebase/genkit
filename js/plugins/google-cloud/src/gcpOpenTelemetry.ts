@@ -150,9 +150,9 @@ export class GcpOpenTelemetry implements TelemetryConfig {
       : new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
     return new PeriodicExportingMetricReader({
       exportIntervalMillis:
-        this.options?.telemetryConfig?.metricExportIntervalMillis || 10_000,
+        this.options?.telemetryConfig?.metricExportIntervalMillis || 60_000,
       exportTimeoutMillis:
-        this.options?.telemetryConfig?.metricExportTimeoutMillis || 10_000,
+        this.options?.telemetryConfig?.metricExportTimeoutMillis || 60_000,
       exporter: metricExporter,
     });
   }
