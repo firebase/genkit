@@ -21,7 +21,8 @@ import {
   trace,
 } from '@opentelemetry/api';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { SpanMetadata, TraceMetadata } from './types.js';
+import { performance } from 'node:perf_hooks';
+import { PathMetadata, SpanMetadata, TraceMetadata } from './types.js';
 
 export const spanMetadataAls = new AsyncLocalStorage<SpanMetadata>();
 export const traceMetadataAls = new AsyncLocalStorage<TraceMetadata>();
@@ -43,7 +44,8 @@ export async function newTrace<T>(
   fn: (metadata: SpanMetadata, rootSpan: ApiSpan) => Promise<T>
 ) {
   const traceMetadata = traceMetadataAls.getStore() || {
-    paths: new Set<string>(),
+    paths: new Set<PathMetadata>(),
+    timestamp: performance.now(),
   };
   return await traceMetadataAls.run(traceMetadata, () =>
     runInNewSpan(
@@ -99,13 +101,23 @@ export async function runInNewSpan<T>(
 
         opts.metadata.path = decoratePathWithSubtype(opts.metadata);
         if (pathCount == getCurrentPathCount()) {
-          traceMetadataAls.getStore()?.paths?.add(opts.metadata.path);
+          const now = performance.now();
+          const start = traceMetadataAls.getStore()?.timestamp || now;
+          traceMetadataAls.getStore()?.paths?.add({
+            path: opts.metadata.path,
+            latency: now - start,
+          });
         }
 
         return output;
       } catch (e) {
         opts.metadata.path = decoratePathWithSubtype(opts.metadata);
-        traceMetadataAls.getStore()?.paths?.add(opts.metadata.path);
+        const now = performance.now();
+        const start = traceMetadataAls.getStore()?.timestamp || now;
+        traceMetadataAls.getStore()?.paths?.add({
+          path: opts.metadata.path,
+          latency: now - start,
+        });
         opts.metadata.state = 'error';
         otSpan.setStatus({
           code: SpanStatusCode.ERROR,

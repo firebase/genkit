@@ -35,8 +35,15 @@ export interface TraceStore {
   list(query?: TraceQuery): Promise<TraceQueryResponse>;
 }
 
+export const PathMetadataSchema = z.object({
+  path: z.string(),
+  latency: z.number(),
+});
+export type PathMetadata = z.infer<typeof PathMetadataSchema>;
+
 export const TraceMetadataSchema = z.object({
-  paths: z.set(z.string()).optional(),
+  paths: z.set(PathMetadataSchema).optional(),
+  timestamp: z.number(),
 });
 export type TraceMetadata = z.infer<typeof TraceMetadataSchema>;
 
