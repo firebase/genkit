@@ -101,7 +101,7 @@ export class MetricHistogram extends Metric<Histogram> {
  */
 function truncateDimensions(opts?: any) {
   if (opts) {
-    Object.keys(opts).forEach(k => {
+    Object.keys(opts).forEach((k) => {
       if (typeof opts[k] == 'string') {
         opts[k] = opts[k].substring(0, METRIC_DIMENSION_MAX_CHARS);
       }

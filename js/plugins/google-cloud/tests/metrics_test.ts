@@ -136,8 +136,14 @@ describe('GoogleCloudMetrics', () => {
 
     const requestCounter = await getCounterMetric('genkit/flow/requests');
     const latencyHistogram = await getHistogramMetric('genkit/flow/latency');
-    assert.equal(requestCounter.attributes.name, 'anExtremelyLongFlowNameThatIsToo');
-    assert.equal(latencyHistogram.attributes.name, 'anExtremelyLongFlowNameThatIsToo');
+    assert.equal(
+      requestCounter.attributes.name,
+      'anExtremelyLongFlowNameThatIsToo'
+    );
+    assert.equal(
+      latencyHistogram.attributes.name,
+      'anExtremelyLongFlowNameThatIsToo'
+    );
   });
 
   it('writes action failure metrics', async () => {
