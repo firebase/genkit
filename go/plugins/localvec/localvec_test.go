@@ -17,7 +17,6 @@ package localvec
 import (
 	"context"
 	"math"
-	"slices"
 	"strings"
 	"testing"
 
@@ -190,20 +189,19 @@ func TestSimilarity(t *testing.T) {
 
 func TestInit(t *testing.T) {
 	embedder := ai.DefineEmbedder("fake", "e", fakeembedder.New().Embed)
-	is, rs, err := Init(context.Background(), Config{Stores: []StoreConfig{
-		{Name: "a", Embedder: embedder},
-		{Name: "b", Embedder: embedder},
-	}})
+	if err := Init(); err != nil {
+		t.Fatal(err)
+	}
+	const name = "mystore"
+	ind, ret, err := DefineStore(name, Config{Embedder: embedder})
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"devLocalVectorStore/a", "devLocalVectorStore/b"}
-
-	if got := names(is); !slices.Equal(got, want) {
-		t.Errorf("got %v, want %v", got, want)
+	if g := ind.Name(); g != name {
+		t.Errorf("got %q, want %q", g, name)
 	}
-	if got := names(rs); !slices.Equal(got, want) {
-		t.Errorf("got %v, want %v", got, want)
+	if g := ret.Name(); g != name {
+		t.Errorf("got %q, want %q", g, name)
 	}
 }
 

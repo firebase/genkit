@@ -40,15 +40,12 @@ func TestLive(t *testing.T) {
 	ctx := context.Background()
 	const modelName = "gemini-1.0-pro"
 	const embedderName = "textembedding-gecko"
-	err := vertexai.Init(ctx, vertexai.Config{
-		ProjectID: *projectID,
-		Location:  *location,
-		Models:    []string{modelName},
-		Embedders: []string{embedderName},
-	})
+	err := vertexai.Init(ctx, *projectID, *location)
 	if err != nil {
 		t.Fatal(err)
 	}
+	model := vertexai.DefineModel(modelName)
+	embedder := vertexai.DefineEmbedder(embedderName)
 
 	toolDef := &ai.ToolDefinition{
 		Name:         "exponentiation",
@@ -94,7 +91,7 @@ func TestLive(t *testing.T) {
 			},
 		}
 
-		resp, err := ai.Generate(ctx, vertexai.Model(modelName), req, nil)
+		resp, err := ai.Generate(ctx, model, req, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -158,7 +155,7 @@ func TestLive(t *testing.T) {
 			Tools: []*ai.ToolDefinition{toolDef},
 		}
 
-		resp, err := ai.Generate(ctx, vertexai.Model(modelName), req, nil)
+		resp, err := ai.Generate(ctx, model, req, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -169,7 +166,7 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("embedder", func(t *testing.T) {
-		out, err := ai.Embed(ctx, vertexai.Embedder(embedderName), &ai.EmbedRequest{
+		out, err := ai.Embed(ctx, embedder, &ai.EmbedRequest{
 			Document: ai.DocumentFromText("time flies like an arrow", nil),
 		})
 		if err != nil {

@@ -36,47 +36,29 @@ import (
 
 const provider = "devLocalVectorStore"
 
-// Config provides configuration options for the Init function.
 type Config struct {
-	Stores []StoreConfig
-}
-
-type StoreConfig struct {
 	// Where to store the data. Defaults to os.TempDir.
-	Dir string
-	// A name that uniquely identifies the store.
-	Name            string
+	Dir             string
 	Embedder        *ai.EmbedderAction
 	EmbedderOptions any
 }
 
-// Init initializes a new local vector database. This will register new
-// indexers and retrievers, and return them in the same order as [Config.Stores].
-// You can also call the Name method on an indexer or retriever.
-// Each indexer and retriever may only be used by a single goroutine at a time.
-func Init(ctx context.Context, cfg Config) (_ []*ai.IndexerAction, _ []*ai.RetrieverAction, err error) {
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("localvec.Init: %w", err)
-		}
-	}()
-	var ias []*ai.IndexerAction
-	var ras []*ai.RetrieverAction
-	for _, sc := range cfg.Stores {
-		ds, err := newDocStore(sc.Dir, sc.Name, sc.Embedder, sc.EmbedderOptions)
-		if err != nil {
-			return nil, nil, err
-		}
-		ia := ai.DefineIndexer(provider, sc.Name, ds.index)
-		ra := ai.DefineRetriever(provider, sc.Name, ds.retrieve)
-		ias = append(ias, ia)
-		ras = append(ras, ra)
+// Init initializes the plugin.
+func Init() error { return nil }
+
+// DefineStore defines an indexer and retriever that share the same underlying storage.
+// The name uniquely identifies the the indexer and retriever in the registry.
+func DefineStore(name string, cfg Config) (*ai.IndexerAction, *ai.RetrieverAction, error) {
+	ds, err := newDocStore(cfg.Dir, name, cfg.Embedder, cfg.EmbedderOptions)
+	if err != nil {
+		return nil, nil, err
 	}
-	return ias, ras, nil
+	return ai.DefineIndexer(provider, name, ds.index),
+		ai.DefineRetriever(provider, name, ds.retrieve),
+		nil
 }
 
-// Indexer returns the indexer with the given name.
-// The name must match the [StoreConfig.Name] value passed to [Init].
+// Indexer returns the registered indexer with the given name.
 func Indexer(name string) *ai.IndexerAction {
 	return ai.LookupIndexer(provider, name)
 }
