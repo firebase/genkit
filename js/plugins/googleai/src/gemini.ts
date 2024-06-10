@@ -113,6 +113,7 @@ export const gemini15Pro = modelRef({
       tools: true,
       systemRole: true,
     },
+    versions: ['gemini-1.5-pro-001'],
   },
   configSchema: GeminiConfigSchema,
 });
@@ -127,6 +128,7 @@ export const gemini15Flash = modelRef({
       tools: true,
       systemRole: true,
     },
+    versions: ['gemini-1.5-flash-001'],
   },
   configSchema: GeminiConfigSchema,
 });
