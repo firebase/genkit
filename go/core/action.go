@@ -54,7 +54,7 @@ type streamingCallback[Stream any] func(context.Context, Stream) error
 //
 // Each time an Action is run, it results in a new trace span.
 type Action[In, Out, Stream any] struct {
-	aname        string
+	name         string
 	atype        atype.ActionType
 	fn           Func[In, Out, Stream]
 	tstate       *tracing.State
@@ -118,7 +118,7 @@ func newStreamingAction[In, Out, Stream any](name string, atype atype.ActionType
 	var i In
 	var o Out
 	return &Action[In, Out, Stream]{
-		aname: name,
+		name:  name,
 		atype: atype,
 		fn: func(ctx context.Context, input In, sc func(context.Context, Stream) error) (Out, error) {
 			tracing.SetCustomMetadataAttr(ctx, "subtype", string(atype))
@@ -133,7 +133,7 @@ func newStreamingAction[In, Out, Stream any](name string, atype atype.ActionType
 func newActionWithInputSchema[Out any](name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, any) (Out, error), inputSchema *jsonschema.Schema) *Action[any, Out, struct{}] {
 	var o Out
 	return &Action[any, Out, struct{}]{
-		aname: name,
+		name:  name,
 		atype: atype,
 		fn: func(ctx context.Context, input any, sc func(context.Context, struct{}) error) (Out, error) {
 			tracing.SetCustomMetadataAttr(ctx, "subtype", string(atype))
@@ -145,8 +145,8 @@ func newActionWithInputSchema[Out any](name string, atype atype.ActionType, meta
 	}
 }
 
-// name returns the Action's name.
-func (a *Action[In, Out, Stream]) name() string { return a.aname }
+// Name returns the Action's Name.
+func (a *Action[In, Out, Stream]) Name() string { return a.name }
 
 func (a *Action[In, Out, Stream]) actionType() atype.ActionType { return a.atype }
 
@@ -156,11 +156,11 @@ func (a *Action[In, Out, Stream]) setTracingState(tstate *tracing.State) { a.tst
 // Run executes the Action's function in a new trace span.
 func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(context.Context, Stream) error) (output Out, err error) {
 	logger.FromContext(ctx).Debug("Action.Run",
-		"name", a.name,
+		"name", a.Name,
 		"input", fmt.Sprintf("%#v", input))
 	defer func() {
 		logger.FromContext(ctx).Debug("Action.Run",
-			"name", a.name,
+			"name", a.Name,
 			"output", fmt.Sprintf("%#v", output),
 			"err", err)
 	}()
@@ -169,7 +169,7 @@ func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(con
 		// This action has probably not been registered.
 		tstate = globalRegistry.tstate
 	}
-	return tracing.RunInNewSpan(ctx, tstate, a.aname, "action", false, input,
+	return tracing.RunInNewSpan(ctx, tstate, a.name, "action", false, input,
 		func(ctx context.Context, input In) (Out, error) {
 			start := time.Now()
 			var err error
@@ -187,10 +187,10 @@ func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(con
 			}
 			latency := time.Since(start)
 			if err != nil {
-				writeActionFailure(ctx, a.aname, latency, err)
+				writeActionFailure(ctx, a.name, latency, err)
 				return internal.Zero[Out](), err
 			}
-			writeActionSuccess(ctx, a.aname, latency)
+			writeActionSuccess(ctx, a.name, latency)
 			return output, nil
 		})
 }
@@ -227,7 +227,7 @@ func (a *Action[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMes
 
 // action is the type that all Action[I, O, S] have in common.
 type action interface {
-	name() string
+	Name() string
 	actionType() atype.ActionType
 
 	// runJSON uses encoding/json to unmarshal the input,
@@ -263,7 +263,7 @@ func (d1 actionDesc) equal(d2 actionDesc) bool {
 
 func (a *Action[I, O, S]) desc() actionDesc {
 	ad := actionDesc{
-		Name:         a.aname,
+		Name:         a.name,
 		Description:  a.description,
 		Metadata:     a.metadata,
 		InputSchema:  a.inputSchema,
