@@ -147,6 +147,7 @@ func newActionWithInputSchema[Out any](name string, atype atype.ActionType, meta
 
 // name returns the Action's name.
 func (a *Action[In, Out, Stream]) name() string { return a.aname }
+func (a *Action[In, Out, Stream]) Name() string { return a.aname }
 
 func (a *Action[In, Out, Stream]) actionType() atype.ActionType { return a.atype }
 
