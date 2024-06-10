@@ -42,7 +42,7 @@ type Config struct {
 	Embedders []string
 }
 
-func Init(ctx context.Context, cfg Config) (err error) {
+func Init(ctx context.Context, cfg Config) (models []*ai.ModelAction, embedders []*ai.EmbedderAction, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("vertexai.Init: %w", err)
@@ -50,28 +50,34 @@ func Init(ctx context.Context, cfg Config) (err error) {
 	}()
 
 	if cfg.ProjectID == "" {
-		return errors.New("missing ProjectID")
+		return nil, nil, errors.New("missing ProjectID")
 	}
 	if cfg.Location == "" {
 		cfg.Location = "us-central1"
 	}
 	// TODO(#345): call ListModels. See googleai.go.
 	if len(cfg.Models) == 0 && len(cfg.Embedders) == 0 {
-		return errors.New("need at least one model or embedder")
+		return nil, nil, errors.New("need at least one model or embedder")
 	}
 
-	if err := initModels(ctx, cfg); err != nil {
-		return err
+	models, err = initModels(ctx, cfg)
+	if err != nil {
+		return nil, nil, err
 	}
-	return initEmbedders(ctx, cfg)
+	embedders, err = initEmbedders(ctx, cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	return models, embedders, nil
 }
 
-func initModels(ctx context.Context, cfg Config) error {
+func initModels(ctx context.Context, cfg Config) ([]*ai.ModelAction, error) {
 	// Client for Gemini SDK.
 	gclient, err := genai.NewClient(ctx, cfg.ProjectID, cfg.Location)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	var ms []*ai.ModelAction
 	for _, name := range cfg.Models {
 		meta := &ai.ModelMetadata{
 			Label: "Vertex AI - " + name,
@@ -80,12 +86,12 @@ func initModels(ctx context.Context, cfg Config) error {
 			},
 		}
 		g := &generator{model: name, client: gclient}
-		ai.DefineModel(provider, name, meta, g.generate)
+		ms = append(ms, ai.DefineModel(provider, name, meta, g.generate))
 	}
-	return nil
+	return ms, nil
 }
 
-func initEmbedders(ctx context.Context, cfg Config) error {
+func initEmbedders(ctx context.Context, cfg Config) ([]*ai.EmbedderAction, error) {
 	// Client for prediction SDK.
 	endpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", cfg.Location)
 	numConns := max(runtime.GOMAXPROCS(0), 4)
@@ -96,15 +102,17 @@ func initEmbedders(ctx context.Context, cfg Config) error {
 
 	pclient, err := aiplatform.NewPredictionClient(ctx, o...)
 	if err != nil {
-		return err
+		return nil, err
 	}
+	var es []*ai.EmbedderAction
 	for _, name := range cfg.Embedders {
 		fullName := fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s", cfg.ProjectID, cfg.Location, name)
-		ai.DefineEmbedder(provider, name, func(ctx context.Context, req *ai.EmbedRequest) ([]float32, error) {
+		e := ai.DefineEmbedder(provider, name, func(ctx context.Context, req *ai.EmbedRequest) ([]float32, error) {
 			return embed(ctx, fullName, pclient, req)
 		})
+		es = append(es, e)
 	}
-	return nil
+	return es, nil
 }
 
 // Model returns the [ai.ModelAction] with the given name.
