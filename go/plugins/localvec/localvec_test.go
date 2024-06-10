@@ -17,6 +17,7 @@ package localvec
 import (
 	"context"
 	"math"
+	"slices"
 	"strings"
 	"testing"
 
@@ -185,4 +186,31 @@ func TestSimilarity(t *testing.T) {
 	if math.Abs(got-want) > 0.001 {
 		t.Errorf("got %f, want %f", got, want)
 	}
+}
+
+func TestInit(t *testing.T) {
+	embedder := ai.DefineEmbedder("fake", "e", fakeembedder.New().Embed)
+	is, rs, err := Init(context.Background(), Config{Stores: []StoreConfig{
+		{Name: "a", Embedder: embedder},
+		{Name: "b", Embedder: embedder},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"a", "b"}
+
+	if got := names(is); !slices.Equal(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+	if got := names(rs); !slices.Equal(got, want) {
+		t.Errorf("got %v, want %v", got, want)
+	}
+}
+
+func names[T interface{ Name() string }](xs []T) []string {
+	var ns []string
+	for _, x := range xs {
+		ns = append(ns, x.Name())
+	}
+	return ns
 }

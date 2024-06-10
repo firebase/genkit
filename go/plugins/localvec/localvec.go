@@ -38,33 +38,45 @@ const provider = "devLocalVectorStore"
 
 // Config provides configuration options for the Init function.
 type Config struct {
+	Stores []StoreConfig
+}
+
+type StoreConfig struct {
 	// Where to store the data. Defaults to os.TempDir.
-	Dir             string
+	Dir string
+	// A name that uniquely identifies the store.
 	Name            string
 	Embedder        *ai.EmbedderAction
 	EmbedderOptions any
 }
 
-// Init initializes a new local vector database. This will register a new
-// indexer and retriever with genkit, and return them.
-// This retriever may only be used by a single goroutine at a time.
-func Init(ctx context.Context, cfg Config) (_ *ai.IndexerAction, _ *ai.RetrieverAction, err error) {
+// Init initializes a new local vector database. This will register new
+// indexers and retrievers, and return them in the same order as [Config.Stores].
+// You can also call the Name method on an indexer or retriever.
+// Each indexer and retriever may only be used by a single goroutine at a time.
+func Init(ctx context.Context, cfg Config) (_ []*ai.IndexerAction, _ []*ai.RetrieverAction, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("localvec.Init: %w", err)
 		}
 	}()
-	ds, err := newDocStore(cfg.Dir, cfg.Name, cfg.Embedder, cfg.EmbedderOptions)
-	if err != nil {
-		return nil, nil, err
+	var ias []*ai.IndexerAction
+	var ras []*ai.RetrieverAction
+	for _, sc := range cfg.Stores {
+		ds, err := newDocStore(sc.Dir, sc.Name, sc.Embedder, sc.EmbedderOptions)
+		if err != nil {
+			return nil, nil, err
+		}
+		ia := ai.DefineIndexer(provider, sc.Name, ds.index)
+		ra := ai.DefineRetriever(provider, sc.Name, ds.retrieve)
+		ias = append(ias, ia)
+		ras = append(ras, ra)
 	}
-	ia := ai.DefineIndexer(provider, cfg.Name, ds.index)
-	ra := ai.DefineRetriever(provider, cfg.Name, ds.retrieve)
-	return ia, ra, nil
+	return ias, ras, nil
 }
 
 // Indexer returns the indexer with the given name.
-// The name must match the [Config.Name] value passed to [Init].
+// The name must match the [StoreConfig.Name] value passed to [Init].
 func Indexer(name string) *ai.IndexerAction {
 	return ai.LookupIndexer(provider, name)
 }
