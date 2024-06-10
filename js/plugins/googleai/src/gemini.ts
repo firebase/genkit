@@ -500,7 +500,12 @@ export function googleAIModel(
         return {
           candidates: responseCandidates,
           custom: result.response,
-          usage: getBasicUsageStats(request.messages, responseCandidates),
+          usage: {
+            ...getBasicUsageStats(request.messages, responseCandidates),
+            inputTokens: result.response.usageMetadata?.promptTokenCount,
+            outputTokens: result.response.usageMetadata?.candidatesTokenCount,
+            totalTokens: result.response.usageMetadata?.totalTokenCount,
+          },
         };
       }
     }

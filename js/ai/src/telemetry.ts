@@ -28,6 +28,7 @@ import { GenerateOptions } from './generate.js';
 import {
   GenerateRequest,
   GenerateResponseData,
+  GenerationUsage,
   MediaPart,
   Part,
   ToolRequestPart,
@@ -77,6 +78,19 @@ const generateActionInputImages = new MetricCounter(
   }
 );
 
+const generateActionInputVideos = new MetricCounter(
+  _N('generate/input/videos'),
+  {
+    description: 'Counts input videos to a Genkit model.',
+    valueType: ValueType.INT,
+  }
+);
+
+const generateActionInputAudio = new MetricCounter(_N('generate/input/audio'), {
+  description: 'Counts input audio files to a Genkit model.',
+  valueType: ValueType.INT,
+});
+
 const generateActionOutputCharacters = new MetricCounter(
   _N('generate/output/characters'),
   {
@@ -101,6 +115,22 @@ const generateActionOutputImages = new MetricCounter(
   }
 );
 
+const generateActionOutputVideos = new MetricCounter(
+  _N('generate/output/videos'),
+  {
+    description: 'Count output videos from a Genkit model.',
+    valueType: ValueType.INT,
+  }
+);
+
+const generateActionOutputAudio = new MetricCounter(
+  _N('generate/output/audio'),
+  {
+    description: 'Count output audio files from a Genkit model.',
+    valueType: ValueType.INT,
+  }
+);
+
 type SharedDimensions = {
   modelName?: string;
   path?: string;
@@ -119,19 +149,12 @@ export function recordGenerateActionMetrics(
     err?: any;
   }
 ) {
-  doRecordGenerateActionMetrics(modelName, {
+  doRecordGenerateActionMetrics(modelName, opts.response?.usage || {}, {
     temperature: input.config?.temperature,
     topK: input.config?.topK,
     topP: input.config?.topP,
     maxOutputTokens: input.config?.maxOutputTokens,
     path: spanMetadataAls?.getStore()?.path,
-    inputTokens: opts.response?.usage?.inputTokens,
-    outputTokens: opts.response?.usage?.outputTokens,
-    totalTokens: opts.response?.usage?.totalTokens,
-    inputCharacters: opts.response?.usage?.inputCharacters,
-    outputCharacters: opts.response?.usage?.outputCharacters,
-    inputImages: opts.response?.usage?.inputImages,
-    outputImages: opts.response?.usage?.outputImages,
     latencyMs: opts.response?.latencyMs,
     err: opts.err,
     source: 'ts',
@@ -290,20 +313,13 @@ function toPartLogToolResponse(part: ToolResponsePart): string {
  */
 function doRecordGenerateActionMetrics(
   modelName: string,
+  usage: GenerationUsage,
   dimensions: {
     path?: string;
     temperature?: number;
     maxOutputTokens?: number;
     topK?: number;
     topP?: number;
-    inputTokens?: number;
-    outputTokens?: number;
-    totalTokens?: number;
-    inputCharacters?: number;
-    outputCharacters?: number;
-    totalCharacters?: number;
-    inputImages?: number;
-    outputImages?: number;
     latencyMs?: number;
     err?: any;
     source?: string;
@@ -329,12 +345,16 @@ function doRecordGenerateActionMetrics(
   generateActionLatencies.record(dimensions.latencyMs, shared);
 
   // inputs
-  generateActionInputTokens.add(dimensions.inputTokens, shared);
-  generateActionInputCharacters.add(dimensions.inputCharacters, shared);
-  generateActionInputImages.add(dimensions.inputImages, shared);
+  generateActionInputTokens.add(usage.inputTokens, shared);
+  generateActionInputCharacters.add(usage.inputCharacters, shared);
+  generateActionInputImages.add(usage.inputImages, shared);
+  generateActionInputVideos.add(usage.inputVideos, shared);
+  generateActionInputAudio.add(usage.inputAudioFiles, shared);
 
   // outputs
-  generateActionOutputTokens.add(dimensions.outputTokens, shared);
-  generateActionOutputCharacters.add(dimensions.outputCharacters, shared);
-  generateActionOutputImages.add(dimensions.outputImages, shared);
+  generateActionOutputTokens.add(usage.outputTokens, shared);
+  generateActionOutputCharacters.add(usage.outputCharacters, shared);
+  generateActionOutputImages.add(usage.outputImages, shared);
+  generateActionOutputVideos.add(usage.outputVideos, shared);
+  generateActionOutputAudio.add(usage.outputAudioFiles, shared);
 }
