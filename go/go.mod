@@ -3,9 +3,9 @@ module github.com/firebase/genkit/go
 go 1.22.0
 
 require (
-	cloud.google.com/go/aiplatform v1.66.0
+	cloud.google.com/go/aiplatform v1.67.0
 	cloud.google.com/go/logging v1.9.0
-	cloud.google.com/go/vertexai v0.7.1
+	cloud.google.com/go/vertexai v0.10.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.46.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.22.0
 	github.com/aymerick/raymond v2.0.2+incompatible
@@ -22,7 +22,7 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.26.0
 	go.opentelemetry.io/otel/trace v1.26.0
 	golang.org/x/exp v0.0.0-20240318143956-a85f2c67cd81
-	google.golang.org/api v0.178.0
+	google.golang.org/api v0.180.0
 	google.golang.org/protobuf v1.34.1
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -30,7 +30,7 @@ require (
 require (
 	cloud.google.com/go v0.113.0 // indirect
 	cloud.google.com/go/ai v0.5.0 // indirect
-	cloud.google.com/go/auth v0.4.0 // indirect
+	cloud.google.com/go/auth v0.4.1 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.2 // indirect
 	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	cloud.google.com/go/iam v1.1.7 // indirect

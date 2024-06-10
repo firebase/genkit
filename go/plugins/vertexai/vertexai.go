@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"runtime"
 
 	aiplatform "cloud.google.com/go/aiplatform/apiv1"
@@ -125,9 +126,6 @@ type generator struct {
 }
 
 func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
-	if cb != nil {
-		panic("streaming not supported yet") // TODO: streaming
-	}
 	gm := g.client.GenerativeModel(g.model)
 
 	// Translate from a ai.GenerateRequest to a genai request.
@@ -143,7 +141,7 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 			gm.SetTemperature(float32(c.Temperature))
 		}
 		if c.TopK != 0 {
-			gm.SetTopK(float32(c.TopK))
+			gm.SetTopK(int32(c.TopK))
 		}
 		if c.TopP != 0 {
 			gm.SetTopP(float32(c.TopP))
@@ -213,13 +211,77 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	// TODO: gm.ToolConfig?
 
 	// Send out the actual request.
-	resp, err := cs.SendMessage(ctx, parts...)
-	if err != nil {
-		return nil, err
+	if cb == nil {
+		resp, err := cs.SendMessage(ctx, parts...)
+		if err != nil {
+			return nil, err
+		}
+
+		r := translateResponse(resp)
+		r.Request = input
+		return r, nil
 	}
 
-	r := translateResponse(resp)
-	r.Request = input
+	// Streaming version.
+	iter := cs.SendMessageStream(ctx, parts...)
+	r := &ai.GenerateResponse{Request: input, Candidates: make([]*ai.Candidate, input.Candidates)}
+	for {
+		chunk, err := iter.Next()
+		if err != nil {
+			if err.Error() == "no more items in iterator" {
+				break
+			}
+			return nil, err
+		}
+
+		// Process each candidate.
+		for _, c := range chunk.Candidates {
+			tc := translateCandidate(c)
+
+			// Call callback with the candidate info.
+			err := cb(ctx, &ai.GenerateResponseChunk{
+				Content: tc.Message.Content,
+				Index:   tc.Index,
+			})
+			if err != nil {
+				return nil, err
+			}
+			// Save candidate in full response structure.
+			if old := r.Candidates[tc.Index]; old == nil {
+				r.Candidates[tc.Index] = tc
+			} else {
+				// Need to merge two "parts" of a candidate.
+				// Currently, we:
+				//  - append the Message content
+				//  - merge the FinishReason
+				//  - assert everything else is unchanged
+				// (We do that 3rd step first.)
+				c1 := *r.Candidates[tc.Index]
+				c2 := *tc
+				m1 := *c1.Message
+				m2 := *c2.Message
+				c1.Message = &m1
+				c2.Message = &m2
+				m1.Content = nil
+				m2.Content = nil
+				c1.FinishReason = ai.FinishReasonUnknown
+				c2.FinishReason = ai.FinishReasonUnknown
+				if !reflect.DeepEqual(&c1, &c2) {
+					return nil, fmt.Errorf("some candidate fields unexpectedly changed")
+				}
+
+				// Append the Parts to the final candidate.
+				old.Message.Content = append(old.Message.Content, tc.Message.Content...)
+				// Merge the FinishReasons.
+				if old.FinishReason == ai.FinishReasonUnknown {
+					old.FinishReason = tc.FinishReason
+				} else if old.FinishReason != tc.FinishReason {
+					return nil, fmt.Errorf("invalid finish reason transition: %s to %s", old.FinishReason, tc.FinishReason)
+				}
+			}
+		}
+		// TODO: use chunk.PromptFeedback, chunk.UsageMetadata
+	}
 	return r, nil
 }
 
@@ -242,23 +304,25 @@ func translateCandidate(cand *genai.Candidate) *ai.Candidate {
 		c.FinishReason = ai.FinishReasonUnknown
 	}
 	m := &ai.Message{}
-	m.Role = ai.Role(cand.Content.Role)
-	for _, part := range cand.Content.Parts {
-		var p *ai.Part
-		switch part := part.(type) {
-		case genai.Text:
-			p = ai.NewTextPart(string(part))
-		case genai.Blob:
-			p = ai.NewMediaPart(part.MIMEType, string(part.Data))
-		case genai.FunctionCall:
-			p = ai.NewToolRequestPart(&ai.ToolRequest{
-				Name:  part.Name,
-				Input: part.Args,
-			})
-		default:
-			panic(fmt.Sprintf("unknown part %#v", part))
+	if cand.Content != nil {
+		m.Role = ai.Role(cand.Content.Role)
+		for _, part := range cand.Content.Parts {
+			var p *ai.Part
+			switch part := part.(type) {
+			case genai.Text:
+				p = ai.NewTextPart(string(part))
+			case genai.Blob:
+				p = ai.NewMediaPart(part.MIMEType, string(part.Data))
+			case genai.FunctionCall:
+				p = ai.NewToolRequestPart(&ai.ToolRequest{
+					Name:  part.Name,
+					Input: part.Args,
+				})
+			default:
+				panic(fmt.Sprintf("unknown part %#v", part))
+			}
+			m.Content = append(m.Content, p)
 		}
-		m.Content = append(m.Content, p)
 	}
 	c.Message = m
 	return c
@@ -266,6 +330,7 @@ func translateCandidate(cand *genai.Candidate) *ai.Candidate {
 
 // Translate from a genai.GenerateContentResponse to a ai.GenerateResponse.
 func translateResponse(resp *genai.GenerateContentResponse) *ai.GenerateResponse {
+	// Note: this path doesn't get used when streaming.
 	r := &ai.GenerateResponse{}
 	for _, c := range resp.Candidates {
 		r.Candidates = append(r.Candidates, translateCandidate(c))
