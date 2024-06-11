@@ -163,7 +163,6 @@ func convertParts(role ai.Role, parts []*ai.Part) (map[string]string, error) {
 		case part.IsText():
 			partMap["content"] = part.Text()
 		default:
-			log.Println("Unknown content type:", part.ContentType())
 			return nil, errors.New("unknown content type")
 		}
 	}
