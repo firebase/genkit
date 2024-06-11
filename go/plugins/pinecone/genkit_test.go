@@ -90,7 +90,7 @@ func TestGenkit(t *testing.T) {
 		Options:   indexerOptions,
 	}
 	t.Logf("index flag = %q, indexData.Host = %q", *testIndex, indexData.Host)
-	err = ai.Index(ctx, Indexer(indexData.Host), indexerReq)
+	err = ai.Index(ctx, Indexer(*testIndex), indexerReq)
 	if err != nil {
 		t.Fatalf("Index operation failed: %v", err)
 	}
@@ -127,7 +127,7 @@ func TestGenkit(t *testing.T) {
 		Document: d1,
 		Options:  retrieverOptions,
 	}
-	retrieverResp, err := ai.Retrieve(ctx, Retriever(indexData.Host), retrieverReq)
+	retrieverResp, err := ai.Retrieve(ctx, Retriever(*testIndex), retrieverReq)
 	if err != nil {
 		t.Fatalf("Retrieve operation failed: %v", err)
 	}
