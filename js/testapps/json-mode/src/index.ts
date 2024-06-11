@@ -21,10 +21,7 @@ import { dotprompt, prompt } from '@genkit-ai/dotprompt';
 import { googleAI } from '@genkit-ai/googleai';
 
 configureGenkit({
-  plugins: [
-    googleAI({ apiKey: process.env.GOOGLE_API_KEY!, apiVersion: 'v1beta' }),
-    dotprompt(),
-  ],
+  plugins: [googleAI({ apiVersion: 'v1beta' }), dotprompt()],
   logLevel: 'debug',
 });
 
