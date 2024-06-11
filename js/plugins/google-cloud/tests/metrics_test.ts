@@ -27,6 +27,7 @@ import {
 import { registerFlowStateStore } from '@genkit-ai/core/registry';
 import { defineFlow, runAction, runFlow } from '@genkit-ai/flow';
 import {
+  GcpOpenTelemetry,
   __getMetricExporterForTesting,
   googleCloud,
 } from '@genkit-ai/google-cloud';
@@ -269,6 +270,31 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(requestCounter.attributes.source, 'ts');
     assert.equal(requestCounter.attributes.error, 'TypeError');
     assert.ok(requestCounter.attributes.sourceVersion);
+  });
+
+  describe('Configuration', () => {
+    it('should export only traces', async () => {
+      const telemetry = new GcpOpenTelemetry({
+        forceDevExport: true,
+        telemetryConfig: {
+          disableMetrics: true,
+        },
+      });
+      assert.equal(telemetry['shouldExportTraces'](), true);
+      assert.equal(telemetry['shouldExportMetrics'](), false);
+    });
+
+    it('should export only metrics', async () => {
+      const telemetry = new GcpOpenTelemetry({
+        forceDevExport: true,
+        telemetryConfig: {
+          disableTraces: true,
+          disableMetrics: false,
+        },
+      });
+      assert.equal(telemetry['shouldExportTraces'](), false);
+      assert.equal(telemetry['shouldExportMetrics'](), true);
+    });
   });
 
   /** Polls the in memory metric exporter until the genkit scope is found. */

@@ -42,7 +42,6 @@ import {
 import { PluginOptions } from './index.js';
 
 let metricExporter: PushMetricExporter;
-let metricReader: PeriodicExportingMetricReader;
 
 /**
  * Provides a {TelemetryConfig} for exporting OpenTelemetry data (Traces,
@@ -127,25 +126,26 @@ export class GcpOpenTelemetry implements TelemetryConfig {
   }
 
   getConfig(): Partial<NodeSDKConfiguration> {
-    const exporter: SpanExporter = this.shouldExport()
-      ? new this.AdjustingTraceExporter()
-      : new InMemorySpanExporter();
-    metricReader = this.createMetricReader();
     return {
       resource: this.resource,
-      spanProcessor: new BatchSpanProcessor(exporter),
+      spanProcessor: new BatchSpanProcessor(this.createSpanExporter()),
       sampler: this.options?.telemetryConfig?.sampler || new AlwaysOnSampler(),
       instrumentations: this.getInstrumentations(),
-      metricReader: metricReader,
+      metricReader: this.createMetricReader(),
     };
+  }
+
+  private createSpanExporter(): SpanExporter {
+    return this.shouldExportTraces()
+      ? new this.AdjustingTraceExporter()
+      : new InMemorySpanExporter();
   }
 
   /**
    * Creates a {MetricReader} for pushing metrics out to GCP via OpenTelemetry.
    */
   private createMetricReader(): PeriodicExportingMetricReader {
-    const shouldExport = this.shouldExport();
-    metricExporter = this.shouldExport()
+    metricExporter = this.shouldExportMetrics()
       ? new MetricExporter({ projectId: this.options.projectId })
       : new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
     return new PeriodicExportingMetricReader({
@@ -167,8 +167,18 @@ export class GcpOpenTelemetry implements TelemetryConfig {
     return this.getDefaultLoggingInstrumentations();
   }
 
-  private shouldExport(): boolean {
-    return this.options.forceDevExport || process.env.GENKIT_ENV !== 'dev';
+  private shouldExportTraces(): boolean {
+    return (
+      (this.options.forceDevExport || process.env.GENKIT_ENV !== 'dev') &&
+      !this.options.telemetryConfig?.disableTraces
+    );
+  }
+
+  private shouldExportMetrics(): boolean {
+    return (
+      (this.options.forceDevExport || process.env.GENKIT_ENV !== 'dev') &&
+      !this.options.telemetryConfig?.disableMetrics
+    );
   }
 
   /** Always configure the Pino and Winston instrumentations */
