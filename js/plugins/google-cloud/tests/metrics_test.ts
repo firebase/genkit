@@ -273,24 +273,24 @@ describe('GoogleCloudMetrics', () => {
   });
 
   describe('Configuration', () => {
-    it('should export only traces', async() => {
+    it('should export only traces', async () => {
       const telemetry = new GcpOpenTelemetry({
         forceDevExport: true,
         telemetryConfig: {
-          disableMetrics: true
-        }
+          disableMetrics: true,
+        },
       });
       assert.equal(telemetry['shouldExportTraces'](), true);
       assert.equal(telemetry['shouldExportMetrics'](), false);
     });
 
-    it('should export only metrics', async() => {
+    it('should export only metrics', async () => {
       const telemetry = new GcpOpenTelemetry({
         forceDevExport: true,
         telemetryConfig: {
           disableTraces: true,
-          disableMetrics: false
-        }
+          disableMetrics: false,
+        },
       });
       assert.equal(telemetry['shouldExportTraces'](), false);
       assert.equal(telemetry['shouldExportMetrics'](), true);
