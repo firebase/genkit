@@ -39,13 +39,13 @@ const flowCounter = new MetricCounter(_N('requests'), {
   valueType: ValueType.INT,
 });
 
-const variantCounter = new MetricCounter(_N('variants'), {
-  description: 'Tracks unique flow variants per flow.',
+const pathCounter = new MetricCounter(_N('path/requests'), {
+  description: 'Tracks unique flow paths per flow.',
   valueType: ValueType.INT,
 });
 
-const variantLatencies = new MetricHistogram(_N('variants/latency'), {
-  description: 'Latencies per flow variant.',
+const pathLatencies = new MetricHistogram(_N('path/latency'), {
+  description: 'Latencies per flow path.',
   ValueType: ValueType.DOUBLE,
   unit: 'ms',
 });
@@ -79,25 +79,25 @@ export function writeFlowSuccess(flowName: string, latencyMs: number) {
 
   const paths = traceMetadataAls.getStore()?.paths || new Set<PathMetadata>();
   if (paths) {
-    const relevantVariants = Array.from(paths).filter((meta) =>
+    const relevantPaths = Array.from(paths).filter((meta) =>
       meta.path.includes(flowName)
     );
 
-    logger.logStructured(`Variants[/${flowName}]`, {
+    logger.logStructured(`Paths[/${flowName}]`, {
       flowName: flowName,
-      variants: relevantVariants.map((variant) => variant.path),
+      paths: relevantPaths.map((p) => p.path),
     });
 
-    relevantVariants.forEach((variant) => {
-      variantCounter.add(1, {
+    relevantPaths.forEach((p) => {
+      pathCounter.add(1, {
         ...dimensions,
         success: 'success',
-        variant: variant.path,
+        path: p.path,
       });
 
-      variantLatencies.record(variant.latency, {
+      pathLatencies.record(p.latency, {
         ...dimensions,
-        variant: variant.path,
+        path: p.path,
       });
     });
   }
@@ -121,33 +121,33 @@ export function writeFlowFailure(
     traceMetadataAls.getStore()?.paths || new Set<PathMetadata>();
   if (allPaths) {
     const failPath = spanMetadataAls?.getStore()?.path;
-    const relevantVariants = Array.from(allPaths).filter(
+    const relevantPaths = Array.from(allPaths).filter(
       (meta) => meta.path.includes(flowName) && meta.path !== failPath
     );
 
-    logger.logStructured(`Variants[/${flowName}]`, {
+    logger.logStructured(`Paths[/${flowName}]`, {
       flowName: flowName,
-      variants: relevantVariants.map((variant) => variant.path),
+      paths: relevantPaths.map((p) => p.path),
     });
 
-    // All variants that have succeeded need to be tracked as succeeded.
-    relevantVariants.forEach((variant) => {
-      variantCounter.add(1, {
+    // All paths that have succeeded need to be tracked as succeeded.
+    relevantPaths.forEach((p) => {
+      pathCounter.add(1, {
         flowName: flowName,
         success: 'success',
-        variant: variant.path,
+        path: p.path,
       });
 
-      variantLatencies.record(variant.latency, {
+      pathLatencies.record(p.latency, {
         ...dimensions,
-        variant: variant.path,
+        path: p.path,
       });
     });
 
-    variantCounter.add(1, {
+    pathCounter.add(1, {
       flowName: flowName,
       success: 'failure',
-      variant: failPath,
+      path: failPath,
     });
   }
 }

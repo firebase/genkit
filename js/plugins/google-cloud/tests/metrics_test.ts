@@ -25,7 +25,7 @@ import {
   defineAction,
 } from '@genkit-ai/core';
 import { registerFlowStateStore } from '@genkit-ai/core/registry';
-import { defineFlow, runAction, runFlow } from '@genkit-ai/flow';
+import { defineFlow, run, runAction, runFlow } from '@genkit-ai/flow';
 import {
   GcpOpenTelemetry,
   __getMetricExporterForTesting,
@@ -289,6 +289,40 @@ describe('GoogleCloudMetrics', () => {
     assert.ok(requestCounter.attributes.sourceVersion);
   });
 
+  it('writes flow paths metrics', async () => {
+    const flow = createFlow('pathTestFlow', async () => {
+      const step1Result = await run('step1', async () => {
+        return await run('substep_a', async () => {
+          return await run('substep_b', async () => 'res1');
+        });
+      });
+      const step2Result = await run('step2', async () => 'res2');
+      return step1Result + step2Result;
+    });
+
+    await runFlow(flow);
+
+    const expectedPaths = new Set([
+      '/{pathTestFlow,t:flow}/{step2,t:flowStep}',
+      '/{pathTestFlow,t:flow}/{step1,t:flowStep}/{substep_a,t:flowStep}/{substep_b,t:flowStep}',
+    ]);
+    const pathCounterPoints = await getCounterDataPoints(
+      'genkit/flow/path/requests'
+    ).then((points) =>
+      points.filter((point) => point.attributes.name === 'pathTestFlow')
+    );
+    const paths = new Set(
+      pathCounterPoints.map((point) => point.attributes.path)
+    );
+    assert.deepEqual(paths, expectedPaths);
+    pathCounterPoints.forEach((point) => {
+      assert.equal(point.value, 1);
+      assert.equal(point.attributes.source, 'ts');
+      assert.equal(point.attributes.success, 'success');
+      assert.ok(point.attributes.sourceVersion);
+    });
+  });
+
   describe('Configuration', () => {
     it('should export only traces', async () => {
       const telemetry = new GcpOpenTelemetry({
@@ -332,20 +366,27 @@ describe('GoogleCloudMetrics', () => {
     assert.fail(`Waiting for metric ${name} but it has not been written.`);
   }
 
-  /** Finds a counter metric with the given name in the in memory exporter */
-  async function getCounterMetric(
+  /** Finds all datapoints for a counter metric with the given name in the in memory exporter */
+  async function getCounterDataPoints(
     metricName: string
-  ): Promise<DataPoint<Counter>> {
+  ): Promise<List<DataPoint<Counter>>> {
     const genkitMetrics = await getGenkitMetrics();
     const counterMetric: SumMetricData = genkitMetrics.metrics.find(
       (e) => e.descriptor.name === metricName && e.descriptor.type === 'COUNTER'
     );
     if (counterMetric) {
-      return counterMetric.dataPoints.at(-1);
+      return counterMetric.dataPoints;
     }
     assert.fail(
       `No counter metric named ${metricName} was found. Only found: ${genkitMetrics.metrics.map((e) => e.descriptor.name)}`
     );
+  }
+
+  /** Finds a counter metric with the given name in the in memory exporter */
+  async function getCounterMetric(
+    metricName: string
+  ): Promise<DataPoint<Counter>> {
+    return getCounterDataPoints(metricName).then((points) => points.at(-1));
   }
 
   /** Finds a histogram metric with the given name in the in memory exporter */

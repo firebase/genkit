@@ -102,7 +102,9 @@ export class MetricHistogram extends Metric<Histogram> {
 function truncateDimensions(opts?: any) {
   if (opts) {
     Object.keys(opts).forEach((k) => {
-      if (typeof opts[k] == 'string') {
+      // We don't want to truncate paths. They are known to be long but with
+      // relatively low cardinality, and are useful for downstream monitoring.
+      if (!k.startsWith('path') && typeof opts[k] == 'string') {
         opts[k] = opts[k].substring(0, METRIC_DIMENSION_MAX_CHARS);
       }
     });
