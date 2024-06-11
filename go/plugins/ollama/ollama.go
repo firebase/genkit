@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -124,9 +125,7 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	} else {
 		// Handle streaming response here
 		scanner := bufio.NewScanner(resp.Body) // Create a scanner to read lines
-		generateResponse := &ai.GenerateResponse{
-			Candidates: make([]*ai.Candidate, 0),
-		}
+		generateResponse := &ai.GenerateResponse{}
 		for scanner.Scan() {
 			line := scanner.Text()
 
@@ -148,7 +147,7 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	return &ai.GenerateResponse{}, nil
 }
 
-// convertParts serializes a slice of *ai.Part into a JSON byte array suitable for the Ollama API.
+// convertParts serializes a slice of *ai.Part into a a map (represent Ollama message type)
 func convertParts(role ai.Role, parts []*ai.Part) (map[string]string, error) {
 	roleMapping := map[ai.Role]string{
 		ai.RoleUser:   "user",
@@ -165,6 +164,7 @@ func convertParts(role ai.Role, parts []*ai.Part) (map[string]string, error) {
 			partMap["content"] = part.Text()
 		default:
 			log.Println("Unknown content type:", part.ContentType())
+			return nil, errors.New("unknown content type")
 		}
 	}
 	return partMap, nil
