@@ -77,8 +77,7 @@ func Init(ctx context.Context, cfg Config) (err error) {
 	if err != nil {
 		return err
 	}
-	host := indexData.Host
-	index, err := client.index(ctx, host)
+	index, err := client.index(ctx, indexData.Host)
 	if err != nil {
 		return err
 	}
@@ -91,8 +90,8 @@ func Init(ctx context.Context, cfg Config) (err error) {
 		embedderOptions: cfg.EmbedderOptions,
 		textKey:         cfg.TextKey,
 	}
-	ai.DefineIndexer(provider, host, r.Index)
-	ai.DefineRetriever(provider, host, r.Retrieve)
+	ai.DefineIndexer(provider, cfg.IndexID, r.Index)
+	ai.DefineRetriever(provider, cfg.IndexID, r.Retrieve)
 	return nil
 }
 
