@@ -44,10 +44,8 @@ type Config struct {
 	// If it is the empty string, it is read from the PINECONE_API_KEY
 	// environment variable.
 	APIKey string
-	// The controller host name. This implies which index to use.
-	// If it is the empty string, it is read from the PINECONE_CONTROLLER_HOST
-	// environment variable.
-	Host string
+	// The index ID to use.
+	IndexID string
 	// Embedder to use. Required.
 	Embedder        *ai.EmbedderAction
 	EmbedderOptions any
@@ -64,11 +62,23 @@ func Init(ctx context.Context, cfg Config) (err error) {
 		}
 	}()
 
-	client, err := NewClient(ctx, cfg.APIKey)
+	if cfg.IndexID == "" {
+		return errors.New("IndexID required")
+	}
+	if cfg.Embedder == nil {
+		return errors.New("Embedder required")
+	}
+
+	client, err := newClient(ctx, cfg.APIKey)
 	if err != nil {
 		return err
 	}
-	index, err := client.Index(ctx, cfg.Host)
+	indexData, err := client.indexData(ctx, cfg.IndexID)
+	if err != nil {
+		return err
+	}
+	host := indexData.Host
+	index, err := client.index(ctx, host)
 	if err != nil {
 		return err
 	}
@@ -81,9 +91,8 @@ func Init(ctx context.Context, cfg Config) (err error) {
 		embedderOptions: cfg.EmbedderOptions,
 		textKey:         cfg.TextKey,
 	}
-	name := index.host // the resolved host
-	ai.DefineIndexer(provider, name, r.Index)
-	ai.DefineRetriever(provider, name, r.Retrieve)
+	ai.DefineIndexer(provider, host, r.Index)
+	ai.DefineRetriever(provider, host, r.Retrieve)
 	return nil
 }
 
@@ -114,7 +123,7 @@ type RetrieverOptions struct {
 
 // docStore implements the genkit [ai.DocumentStore] interface.
 type docStore struct {
-	index           *Index
+	index           *index
 	embedder        *ai.EmbedderAction
 	embedderOptions any
 	textKey         string
@@ -139,7 +148,7 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 	}
 
 	// Use the embedder to convert each Document into a vector.
-	vecs := make([]Vector, 0, len(req.Documents))
+	vecs := make([]vector, 0, len(req.Documents))
 	for _, doc := range req.Documents {
 		ereq := &ai.EmbedRequest{
 			Document: doc,
@@ -169,7 +178,7 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 		}
 		metadata[ds.textKey] = sb.String()
 
-		v := Vector{
+		v := vector{
 			ID:       id,
 			Values:   vals,
 			Metadata: metadata,
@@ -177,7 +186,7 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 		vecs = append(vecs, v)
 	}
 
-	if err := ds.index.Upsert(ctx, vecs, namespace); err != nil {
+	if err := ds.index.upsert(ctx, vecs, namespace); err != nil {
 		return err
 	}
 
@@ -186,7 +195,7 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 	wait := func() (bool, error) {
 		delay := 10 * time.Millisecond
 		for i := 0; i < 20; i++ {
-			vec, err := ds.index.QueryByID(ctx, vecs[0].ID, WantValues, namespace)
+			vec, err := ds.index.queryByID(ctx, vecs[0].ID, wantValues, namespace)
 			if err != nil {
 				return false, err
 			}
@@ -245,7 +254,7 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 		return nil, fmt.Errorf("pinecone retrieve embedding failed: %v", err)
 	}
 
-	results, err := ds.index.Query(ctx, vals, count, WantMetadata, namespace)
+	results, err := ds.index.query(ctx, vals, count, wantMetadata, namespace)
 	if err != nil {
 		return nil, err
 	}

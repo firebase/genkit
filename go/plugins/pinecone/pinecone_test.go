@@ -41,17 +41,17 @@ func TestPinecone(t *testing.T) {
 
 	ctx := context.Background()
 
-	c, err := NewClient(ctx, *testAPIKey)
+	c, err := newClient(ctx, *testAPIKey)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	indexData, err := c.IndexData(ctx, *testIndex)
+	indexData, err := c.indexData(ctx, *testIndex)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	idx, err := c.Index(ctx, indexData.Host)
+	idx, err := c.index(ctx, indexData.Host)
 
 	// Make two very similar vectors and one different vector.
 
@@ -65,7 +65,7 @@ func TestPinecone(t *testing.T) {
 	}
 	v2[0] = 1
 
-	vectors := []Vector{
+	vectors := []vector{
 		{
 			ID:     "1",
 			Values: v1,
@@ -80,13 +80,13 @@ func TestPinecone(t *testing.T) {
 		},
 	}
 
-	err = idx.Upsert(ctx, vectors, namespace)
+	err = idx.upsert(ctx, vectors, namespace)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	defer func() {
-		if err := idx.DeleteByID(ctx, []string{"1", "2", "3"}, namespace); err != nil {
+		if err := idx.deleteByID(ctx, []string{"1", "2", "3"}, namespace); err != nil {
 			t.Errorf("error deleting test vectors: %v", err)
 		}
 	}()
@@ -99,7 +99,7 @@ func TestPinecone(t *testing.T) {
 	wait := func() bool {
 		delay := 10 * time.Millisecond
 		for i := 0; i < 20; i++ {
-			vec, err := idx.QueryByID(ctx, "1", 0, namespace)
+			vec, err := idx.queryByID(ctx, "1", 0, namespace)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -122,7 +122,7 @@ func TestPinecone(t *testing.T) {
 
 	// Looking up v1 should return both v1 and v2.
 
-	results, err := idx.Query(ctx, v1, 2, 0, namespace)
+	results, err := idx.query(ctx, v1, 2, 0, namespace)
 	if err != nil {
 		t.Fatal(err)
 	}

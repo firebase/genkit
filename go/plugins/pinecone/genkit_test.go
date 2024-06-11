@@ -38,11 +38,11 @@ func TestGenkit(t *testing.T) {
 
 	// Get information about the index.
 
-	client, err := NewClient(ctx, *testAPIKey)
+	client, err := newClient(ctx, *testAPIKey)
 	if err != nil {
 		t.Fatal(err)
 	}
-	indexData, err := client.IndexData(ctx, *testIndex)
+	indexData, err := client.indexData(ctx, *testIndex)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func TestGenkit(t *testing.T) {
 
 	cfg := Config{
 		APIKey:   *testAPIKey,
-		Host:     indexData.Host,
+		IndexID:  *testIndex,
 		Embedder: ai.DefineEmbedder("fake", "embedder3", embedder.Embed),
 	}
 	if err := Init(ctx, cfg); err != nil {
@@ -96,7 +96,7 @@ func TestGenkit(t *testing.T) {
 	}
 
 	defer func() {
-		idx, err := client.Index(ctx, indexData.Host)
+		idx, err := client.index(ctx, indexData.Host)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -113,7 +113,7 @@ func TestGenkit(t *testing.T) {
 		addID(d2)
 		addID(d3)
 
-		if err := idx.DeleteByID(ctx, ids, namespace); err != nil {
+		if err := idx.deleteByID(ctx, ids, namespace); err != nil {
 			t.Errorf("error deleting test vectors: %v", err)
 		}
 	}()
