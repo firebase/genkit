@@ -1,7 +1,7 @@
 <!-- NOTE: prettier-ignore used in some snippets to allow copy/paste into Firebase Functions which
 use https://github.com/firebase/firebase-tools/blob/master/templates/init/functions/javascript/_eslintrc -->
 
-# Genkit with Firebase Cloud Functions
+# Genkit with Cloud Functions for Firebase
 
 Firebase Genkit includes a plugin that helps you deploy your flows to Firebase
 Cloud Functions. This page, as an example, walks you through the process of

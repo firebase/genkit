@@ -33,7 +33,7 @@ Node.js 20 or later.
     ```
 
     1. Select `Node.js` as the deployment platform option (templates for
-       Firebase Cloud Functions and Google Cloud Run are also available).
+       Cloud Functions for Firebase and Google Cloud Run are also available).
 
     1. Select your model:
 
