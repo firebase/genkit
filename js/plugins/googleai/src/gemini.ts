@@ -466,6 +466,7 @@ export function googleAIModel(
           topK: request.config?.topK,
           topP: request.config?.topP,
           stopSequences: request.config?.stopSequences,
+          responseMimeType: request.config?.responseMimeType,
         },
         safetySettings: request.config?.safetySettings,
       } as StartChatParams;
