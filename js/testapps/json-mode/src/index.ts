@@ -36,7 +36,7 @@ prompt('recipe', { variant: 'jsonmode' })
     console.log(response.output());
   });
 
-export const jsonJokePrompt = definePrompt(
+const jsonJokePrompt = definePrompt(
   {
     name: 'json_joke',
   },
