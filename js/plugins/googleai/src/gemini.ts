@@ -44,6 +44,7 @@ import {
   Content as GeminiMessage,
   Part as GeminiPart,
   GenerateContentResponse,
+  GenerationConfig,
   GoogleGenerativeAI,
   InlineDataPart,
   RequestOptions,
@@ -451,6 +452,16 @@ export function googleAIModel(
         }
       }
 
+      const strictlyTypedGenerationConfig: GenerationConfig = {
+        candidateCount: request.candidates || undefined,
+        temperature: request.config?.temperature,
+        maxOutputTokens: request.config?.maxOutputTokens,
+        topK: request.config?.topK,
+        topP: request.config?.topP,
+        stopSequences: request.config?.stopSequences,
+        responseMimeType: request.config?.responseMimeType,
+      }
+
       const chatRequest = {
         systemInstruction,
         tools: request.tools?.length
@@ -459,15 +470,7 @@ export function googleAIModel(
         history: messages
           .slice(0, -1)
           .map((message) => toGeminiMessage(message, model)),
-        generationConfig: {
-          candidateCount: request.candidates || undefined,
-          temperature: request.config?.temperature,
-          maxOutputTokens: request.config?.maxOutputTokens,
-          topK: request.config?.topK,
-          topP: request.config?.topP,
-          stopSequences: request.config?.stopSequences,
-          responseMimeType: request.config?.responseMimeType,
-        },
+        generationConfig: strictlyTypedGenerationConfig,
         safetySettings: request.config?.safetySettings,
       } as StartChatParams;
       const msg = toGeminiMessage(messages[messages.length - 1], model);
