@@ -16,6 +16,29 @@
 
 const __flowStreamDelimiter = '\n';
 
+export async function runFlow({
+  url,
+  payload,
+  headers,
+}: {
+  url: string;
+  payload?: any;
+  headers?: Record<string, string>;
+}) {
+  const response = await fetch(url, {
+    method: 'POST',
+    body: JSON.stringify({
+      data: payload,
+    }),
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+  });
+  const wrappedDesult = await response.json();
+  return wrappedDesult.result;
+}
+
 export function streamFlow({
   url,
   payload,

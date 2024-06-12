@@ -26,5 +26,6 @@ configureGenkit({
 
 export * from "./jsonStreaming.js";
 export * from "./toolStreaming.js";
+export * from "./chatbot.js";
 
 startFlowsServer();

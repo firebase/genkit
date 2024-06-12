@@ -1,0 +1,39 @@
+.wrapper {
+  padding: 20px;
+  width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.user-bubble {
+  background-color: #eeddee;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  margin-left: auto;
+  margin-right: 0;
+  min-width: 300px;
+  padding: 20px;
+  white-space: pre-wrap;
+  width: 80%;
+}
+
+.model-bubble {
+  background-color: #ddddee;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  min-width: 300px;
+  padding: 20px;
+  width: 80%;
+
+  .text {
+    white-space: pre-wrap;
+  }
+}
+
+.input-field {
+  min-width: 400px;
+  vertical-align: top;
+  width: 730px;
+}
