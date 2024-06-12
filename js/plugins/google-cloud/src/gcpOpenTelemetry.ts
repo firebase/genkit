@@ -27,7 +27,10 @@ import { WinstonInstrumentation } from '@opentelemetry/instrumentation-winston';
 import { Resource } from '@opentelemetry/resources';
 import {
   AggregationTemporality,
+  DefaultAggregation,
+  ExponentialHistogramAggregation,
   InMemoryMetricExporter,
+  InstrumentType,
   PeriodicExportingMetricReader,
   PushMetricExporter,
 } from '@opentelemetry/sdk-metrics';
@@ -145,14 +148,12 @@ export class GcpOpenTelemetry implements TelemetryConfig {
    * Creates a {MetricReader} for pushing metrics out to GCP via OpenTelemetry.
    */
   private createMetricReader(): PeriodicExportingMetricReader {
-    metricExporter = this.shouldExportMetrics()
-      ? new MetricExporter({ projectId: this.options.projectId })
-      : new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
+    metricExporter = this.buildMetricExporter();
     return new PeriodicExportingMetricReader({
       exportIntervalMillis:
-        this.options?.telemetryConfig?.metricExportIntervalMillis || 60_000,
+        this.options?.telemetryConfig?.metricExportIntervalMillis || 300_000,
       exportTimeoutMillis:
-        this.options?.telemetryConfig?.metricExportTimeoutMillis || 60_000,
+        this.options?.telemetryConfig?.metricExportTimeoutMillis || 300_000,
       exporter: metricExporter,
     });
   }
@@ -187,6 +188,24 @@ export class GcpOpenTelemetry implements TelemetryConfig {
       new WinstonInstrumentation({ logHook: this.gcpTraceLogHook }),
       new PinoInstrumentation({ logHook: this.gcpTraceLogHook }),
     ];
+  }
+
+  private buildMetricExporter(): PushMetricExporter {
+    const exporter: PushMetricExporter = this.shouldExportMetrics()
+      ? new MetricExporter({ projectId: this.options.projectId })
+      : new InMemoryMetricExporter(AggregationTemporality.DELTA);
+    exporter.selectAggregation = (instrumentType: InstrumentType) => {
+      if (instrumentType === InstrumentType.HISTOGRAM) {
+        return new ExponentialHistogramAggregation(100, true);
+      }
+      return new DefaultAggregation();
+    };
+    exporter.selectAggregationTemporality = (
+      instrumentType: InstrumentType
+    ) => {
+      return AggregationTemporality.DELTA;
+    };
+    return exporter;
   }
 }
 
