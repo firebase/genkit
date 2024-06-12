@@ -196,7 +196,7 @@ export class GcpOpenTelemetry implements TelemetryConfig {
       : new InMemoryMetricExporter(AggregationTemporality.DELTA);
     exporter.selectAggregation = (instrumentType: InstrumentType) => {
       if (instrumentType === InstrumentType.HISTOGRAM) {
-        return new ExponentialHistogramAggregation(100, true);
+        return new ExponentialHistogramAggregation();
       }
       return new DefaultAggregation();
     };
