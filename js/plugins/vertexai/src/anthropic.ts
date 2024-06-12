@@ -28,6 +28,7 @@ import {
   GenerateResponseData,
   GenerationCommonConfigSchema,
   Part as GenkitPart,
+  ModelAction,
   ModelReference,
   defineModel,
   getBasicUsageStats,
@@ -96,7 +97,7 @@ export function anthropicModel(
   modelName: string,
   projectId: string,
   region: string
-) {
+): ModelAction<typeof GenerationCommonConfigSchema> {
   const client = new AnthropicVertex({
     region,
     projectId,

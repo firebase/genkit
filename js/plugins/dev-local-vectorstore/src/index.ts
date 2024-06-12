@@ -21,7 +21,9 @@ import {
   defineRetriever,
   Document,
   DocumentData,
+  IndexerAction,
   indexerRef,
+  RetrieverAction,
   retrieverRef,
 } from '@genkit-ai/ai/retriever';
 import { genkitPlugin, PluginProvider } from '@genkit-ai/core';
@@ -173,7 +175,7 @@ export function configureDevLocalRetriever<
   indexName: string;
   embedder: EmbedderArgument<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
-}) {
+}): RetrieverAction<typeof CommonRetrieverOptionsSchema> {
   const { embedder, embedderOptions } = params;
   const vectorstore = defineRetriever(
     {
@@ -209,7 +211,7 @@ export function configureDevLocalIndexer<
   indexName: string;
   embedder: EmbedderArgument<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
-}) {
+}): IndexerAction<z.ZodTypeAny> {
   const { embedder, embedderOptions } = params;
   const vectorstore = defineIndexer(
     { name: `devLocalVectorstore/${params.indexName}` },

@@ -20,7 +20,9 @@ import {
   defineIndexer,
   defineRetriever,
   Document,
+  IndexerAction,
   indexerRef,
+  RetrieverAction,
   retrieverRef,
 } from '@genkit-ai/ai/retriever';
 import { genkitPlugin, PluginProvider } from '@genkit-ai/core';
@@ -130,7 +132,7 @@ export function configurePineconeRetriever<
   textKey?: string;
   embedder: EmbedderArgument<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
-}) {
+}): RetrieverAction<typeof PineconeRetrieverOptionsSchema> {
   const { indexId, embedder, embedderOptions } = {
     ...params,
   };
@@ -185,7 +187,7 @@ export function configurePineconeIndexer<
   textKey?: string;
   embedder: EmbedderArgument<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
-}) {
+}): IndexerAction<z.ZodOptional<typeof PineconeIndexerOptionsSchema>> {
   const { indexId, embedder, embedderOptions } = {
     ...params,
   };

@@ -20,7 +20,9 @@ import {
   defineIndexer,
   defineRetriever,
   Document,
+  IndexerAction,
   indexerRef,
+  RetrieverAction,
   retrieverRef,
 } from '@genkit-ai/ai/retriever';
 import { genkitPlugin, PluginProvider } from '@genkit-ai/core';
@@ -120,7 +122,7 @@ export function chromaRetriever<
   createCollectionIfMissing?: boolean;
   embedder: EmbedderArgument<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
-}) {
+}): RetrieverAction<z.ZodOptional<typeof ChromaRetrieverOptionsSchema>> {
   const { embedder, collectionName, embedderOptions } = params;
   return defineRetriever(
     {
@@ -191,7 +193,7 @@ export function chromaIndexer<
   createCollectionIfMissing?: boolean;
   embedder: EmbedderArgument<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
-}) {
+}): IndexerAction<typeof ChromaIndexerOptionsSchema> {
   const { collectionName, embedder, embedderOptions } = {
     ...params,
   };
