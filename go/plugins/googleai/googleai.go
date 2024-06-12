@@ -28,7 +28,7 @@ import (
 	"google.golang.org/api/option"
 )
 
-const provider = "google-genai"
+const provider = "googleai"
 
 // Config provides configuration options for the Init function.
 type Config struct {
