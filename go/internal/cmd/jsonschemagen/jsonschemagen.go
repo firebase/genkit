@@ -136,7 +136,7 @@ func run(infile, defaultPkgPath, configFile, outRoot string) error {
 		if !*noFormat {
 			src, err = format.Source(src)
 			if err != nil {
-				return err
+				return fmt.Errorf("file for package %s: %w", pkgPath, err)
 			}
 		}
 
@@ -338,6 +338,9 @@ func (g *generator) generateStruct(name string, s *Schema, tcfg *itemConfig) err
 		if fcfg == nil {
 			fcfg = &itemConfig{}
 		}
+		if fcfg.omit {
+			continue
+		}
 		fs := s.Properties[field]
 		// Ignore properties with a non-empty "not" constraint.
 		// They are probably the result of inheriting from a base zod type with a "never" constraint.
@@ -409,8 +412,13 @@ func (g *generator) typeExpr(s *Schema) (string, error) {
 		if !ok {
 			return "", fmt.Errorf("ref %q does not begin with prefix %q", s.Ref, refPrefix)
 		}
+		ic := g.cfg.configFor(name)
 		s2, ok := g.schemas[name]
 		if !ok {
+			// If there is no schema, perhaps there is a config value.
+			if ic != nil && ic.name != "" {
+				return ic.name, nil
+			}
 			return "", fmt.Errorf("unknown type in reference: %q", name)
 		}
 		// Apply a config that changes the name.

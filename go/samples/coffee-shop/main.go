@@ -13,24 +13,37 @@
 // limitations under the License.
 
 // This program can be manually tested like so:
+//
+// In development mode (with the environment variable GENKIT_ENV="dev"):
 // Start the server listening on port 3100:
 //
 //	go run . &
 //
-// Tell it to run an action:
+// Tell it to run a flow:
 //
-//	curl -d '{"key":"/flow/testAllCoffeeFlows/testAllCoffeeFlows", "input":{"start": {"input":null}}}'  http://localhost:3100/api/runAction
+//	curl -d '{"key":"/flow/simpleGreeting/simpleGreeting", "input":{"start": {"input":{"customerName": "John Doe"}}}}' http://localhost:3100/api/runAction
+//
+// In production mode (GENKIT_ENV missing or set to "prod"):
+// Start the server listening on port 3400:
+//
+//	go run . &
+//
+// Tell it to run a flow:
+//
+//  curl -d '{"customerName": "Stimpy"}' http://localhost:3400/simpleGreeting
+
 package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
-	"github.com/firebase/genkit/go/genkit/dotprompt"
+	"github.com/firebase/genkit/go/plugins/dotprompt"
 	"github.com/firebase/genkit/go/plugins/googleai"
 	"github.com/invopop/jsonschema"
 )
@@ -41,8 +54,21 @@ A regular customer named {{customerName}} enters.
 Greet the customer in one sentence, and recommend a coffee drink.
 `
 
+const simpleStructuredGreetingPromptTemplate = `
+You're a barista at a nice coffee shop.
+A regular customer named {{customerName}} enters.
+Greet the customer in one sentence.
+Provide the name of the drink of the day, nothing else.
+`
+
 type simpleGreetingInput struct {
 	CustomerName string `json:"customerName"`
+}
+
+type simpleGreetingOutput struct {
+	CustomerName string `json:"customerName"`
+	Greeting     string `json:"greeting,omitempty"`
+	DrinkOfDay   string `json:"drinkOfDay"`
 }
 
 const greetingWithHistoryPromptTemplate = `
@@ -78,14 +104,15 @@ func main() {
 		fmt.Fprintln(os.Stderr, "You can get an API key at https://ai.google.dev.")
 		os.Exit(1)
 	}
-
-	if err := googleai.Init(context.Background(), "gemini-1.0-pro", apiKey); err != nil {
+	err := googleai.Init(context.Background(), googleai.Config{APIKey: apiKey})
+	if err != nil {
 		log.Fatal(err)
 	}
 
+	g := googleai.Model("gemini-1.5-pro")
 	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting", simpleGreetingPromptTemplate,
-		&dotprompt.Config{
-			Model:        "google-genai/gemini-1.0-pro",
+		dotprompt.Config{
+			ModelAction:  g,
 			InputSchema:  jsonschema.Reflect(simpleGreetingInput{}),
 			OutputFormat: ai.OutputFormatText,
 		},
@@ -94,13 +121,23 @@ func main() {
 		log.Fatal(err)
 	}
 
-	simpleGreetingFlow := genkit.DefineFlow("simpleGreeting", func(ctx context.Context, input *simpleGreetingInput, _ genkit.NoStream) (string, error) {
-		vars, err := simpleGreetingPrompt.BuildVariables(input)
-		if err != nil {
-			return "", err
+	simpleGreetingFlow := genkit.DefineFlow("simpleGreeting", func(ctx context.Context, input *simpleGreetingInput, cb func(context.Context, string) error) (string, error) {
+		var callback func(context.Context, *ai.GenerateResponseChunk) error
+		if cb != nil {
+			callback = func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+				text, err := c.Text()
+				if err != nil {
+					return err
+				}
+				return cb(ctx, text)
+			}
 		}
-		ai := &dotprompt.ActionInput{Variables: vars}
-		resp, err := simpleGreetingPrompt.Execute(ctx, ai)
+		resp, err := simpleGreetingPrompt.Generate(ctx,
+			&dotprompt.PromptRequest{
+				Variables: input,
+			},
+			callback,
+		)
 		if err != nil {
 			return "", err
 		}
@@ -112,8 +149,8 @@ func main() {
 	})
 
 	greetingWithHistoryPrompt, err := dotprompt.Define("greetingWithHistory", greetingWithHistoryPromptTemplate,
-		&dotprompt.Config{
-			Model:        "google-genai/gemini-1.0-pro",
+		dotprompt.Config{
+			ModelAction:  g,
 			InputSchema:  jsonschema.Reflect(customerTimeAndHistoryInput{}),
 			OutputFormat: ai.OutputFormatText,
 		},
@@ -123,18 +160,73 @@ func main() {
 	}
 
 	greetingWithHistoryFlow := genkit.DefineFlow("greetingWithHistory", func(ctx context.Context, input *customerTimeAndHistoryInput, _ genkit.NoStream) (string, error) {
-		vars, err := greetingWithHistoryPrompt.BuildVariables(input)
-		if err != nil {
-			return "", err
-		}
-		ai := &dotprompt.ActionInput{Variables: vars}
-		resp, err := greetingWithHistoryPrompt.Execute(ctx, ai)
+		resp, err := greetingWithHistoryPrompt.Generate(ctx,
+			&dotprompt.PromptRequest{
+				Variables: input,
+			},
+			nil,
+		)
 		if err != nil {
 			return "", err
 		}
 		text, err := resp.Text()
 		if err != nil {
 			return "", fmt.Errorf("greetingWithHistory: %v", err)
+		}
+		return text, nil
+	})
+
+	r := &jsonschema.Reflector{
+		AllowAdditionalProperties: false,
+		DoNotReference:            true,
+	}
+	schema := r.Reflect(simpleGreetingOutput{})
+	jsonBytes, err := schema.MarshalJSON()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var outputSchema map[string]any
+	err = json.Unmarshal(jsonBytes, &outputSchema)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	simpleStructuredGreetingPrompt, err := dotprompt.Define("simpleStructuredGreeting", simpleStructuredGreetingPromptTemplate,
+		dotprompt.Config{
+			ModelAction:  g,
+			InputSchema:  jsonschema.Reflect(simpleGreetingInput{}),
+			OutputFormat: ai.OutputFormatJSON,
+			OutputSchema: outputSchema,
+		},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	genkit.DefineFlow("simpleStructuredGreeting", func(ctx context.Context, input *simpleGreetingInput, cb func(context.Context, string) error) (string, error) {
+		var callback func(context.Context, *ai.GenerateResponseChunk) error
+		if cb != nil {
+			callback = func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+				text, err := c.Text()
+				if err != nil {
+					return err
+				}
+				return cb(ctx, text)
+			}
+		}
+		resp, err := simpleStructuredGreetingPrompt.Generate(ctx,
+			&dotprompt.PromptRequest{
+				Variables: input,
+			},
+			callback,
+		)
+		if err != nil {
+			return "", err
+		}
+		text, err := resp.Text()
+		if err != nil {
+			return "", fmt.Errorf("simpleStructuredGreeting: %v", err)
 		}
 		return text, nil
 	})
@@ -171,8 +263,7 @@ func main() {
 		}
 		return out, nil
 	})
-
-	if err := genkit.StartDevServer(""); err != nil {
+	if err := genkit.StartFlowServer(""); err != nil {
 		log.Fatal(err)
 	}
 }

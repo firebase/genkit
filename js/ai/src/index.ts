@@ -25,6 +25,7 @@ export {
   Candidate,
   GenerateResponse,
   Message,
+  NoValidCandidatesError,
   generate,
   generateStream,
   toGenerateRequest,

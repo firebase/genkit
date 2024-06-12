@@ -68,7 +68,9 @@ export default configureGenkit({
     firebase(),
 
     // model providers
-    googleAI({ apiVersion: ['v1', 'v1beta'] }),
+    googleAI({
+      apiVersion: ['v1', 'v1beta'],
+    }),
     ollama({
       models: [
         { name: 'llama2' },
@@ -140,7 +142,8 @@ export default configureGenkit({
   ],
 });
 
-export * from './main/durable-flows.js';
+export * from './main/flows-durable.js';
+export * from './main/flows-firebase-functions.js';
 export * from './main/flows.js';
 export * from './main/prompts.js';
 export * from './main/tools.js';

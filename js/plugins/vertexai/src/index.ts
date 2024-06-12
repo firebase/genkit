@@ -27,8 +27,14 @@ import {
 } from './anthropic.js';
 import {
   SUPPORTED_EMBEDDER_MODELS,
+  textEmbedding004,
   textEmbeddingGecko,
+  textEmbeddingGecko001,
+  textEmbeddingGecko002,
+  textEmbeddingGecko003,
   textEmbeddingGeckoEmbedder,
+  textEmbeddingGeckoMultilingual001,
+  textMultilingualEmbedding002,
 } from './embedder.js';
 import {
   VertexAIEvaluationMetric,
@@ -36,7 +42,9 @@ import {
   vertexEvaluators,
 } from './evaluation.js';
 import {
+  gemini15Flash,
   gemini15FlashPreview,
+  gemini15Pro,
   gemini15ProPreview,
   geminiModel,
   geminiPro,
@@ -49,12 +57,20 @@ export {
   claude3Haiku,
   claude3Opus,
   claude3Sonnet,
+  gemini15Flash,
   gemini15FlashPreview,
+  gemini15Pro,
   gemini15ProPreview,
   geminiPro,
   geminiProVision,
   imagen2,
+  textEmbedding004,
   textEmbeddingGecko,
+  textEmbeddingGecko001,
+  textEmbeddingGecko002,
+  textEmbeddingGecko003,
+  textEmbeddingGeckoMultilingual001,
+  textMultilingualEmbedding002,
   VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
 };
 

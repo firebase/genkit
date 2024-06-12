@@ -33,47 +33,29 @@ import (
 var projectID = flag.String("projectid", "", "VertexAI project")
 var location = flag.String("location", "us-central1", "geographic location")
 
-func TestGenerator(t *testing.T) {
+func TestLive(t *testing.T) {
 	if *projectID == "" {
 		t.Skipf("no -projectid provided")
 	}
 	ctx := context.Background()
-	g, err := vertexai.NewGenerator(ctx, "gemini-1.0-pro", *projectID, *location)
+	const modelName = "gemini-1.0-pro"
+	const embedderName = "textembedding-gecko"
+	err := vertexai.Init(ctx, vertexai.Config{
+		ProjectID: *projectID,
+		Location:  *location,
+		Models:    []string{modelName},
+		Embedders: []string{embedderName},
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	req := &ai.GenerateRequest{
-		Candidates: 1,
-		Messages: []*ai.Message{
-			&ai.Message{
-				Content: []*ai.Part{ai.NewTextPart("Which country was Napoleon the emperor of?")},
-				Role:    ai.RoleUser,
-			},
-		},
-	}
 
-	resp, err := g.Generate(ctx, req, nil)
-	if err != nil {
-		t.Fatal(err)
+	toolDef := &ai.ToolDefinition{
+		Name:         "exponentiation",
+		InputSchema:  map[string]any{"base": "float64", "exponent": "int"},
+		OutputSchema: map[string]any{"output": "float64"},
 	}
-	out := resp.Candidates[0].Message.Content[0].Text()
-	if !strings.Contains(out, "France") {
-		t.Errorf("got \"%s\", expecting it would contain \"France\"", out)
-	}
-	if resp.Request != req {
-		t.Error("Request field not set properly")
-	}
-}
-
-var toolDef = &ai.ToolDefinition{
-	Name:         "exponentiation",
-	InputSchema:  map[string]any{"base": "float64", "exponent": "int"},
-	OutputSchema: map[string]any{"output": "float64"},
-}
-
-func init() {
-	ai.RegisterTool("exponentiation",
-		toolDef, nil,
+	ai.DefineTool(toolDef, nil,
 		func(ctx context.Context, input map[string]any) (map[string]any, error) {
 			baseAny, ok := input["base"]
 			if !ok {
@@ -101,35 +83,70 @@ func init() {
 			return r, nil
 		},
 	)
-}
-
-func TestGeneratorTool(t *testing.T) {
-	if *projectID == "" {
-		t.Skip("no -projectid provided")
-	}
-	ctx := context.Background()
-	g, err := vertexai.NewGenerator(ctx, "gemini-1.0-pro", *projectID, *location)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req := &ai.GenerateRequest{
-		Candidates: 1,
-		Messages: []*ai.Message{
-			&ai.Message{
-				Content: []*ai.Part{ai.NewTextPart("what is 3.5 squared? Use the tool provided.")},
-				Role:    ai.RoleUser,
+	t.Run("model", func(t *testing.T) {
+		req := &ai.GenerateRequest{
+			Candidates: 1,
+			Messages: []*ai.Message{
+				&ai.Message{
+					Content: []*ai.Part{ai.NewTextPart("Which country was Napoleon the emperor of?")},
+					Role:    ai.RoleUser,
+				},
 			},
-		},
-		Tools: []*ai.ToolDefinition{toolDef},
-	}
+		}
 
-	resp, err := ai.Generate(ctx, g, req, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+		resp, err := ai.Generate(ctx, vertexai.Model(modelName), req, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := resp.Candidates[0].Message.Content[0].Text
+		if !strings.Contains(out, "France") {
+			t.Errorf("got \"%s\", expecting it would contain \"France\"", out)
+		}
+		if resp.Request != req {
+			t.Error("Request field not set properly")
+		}
+	})
+	t.Run("tool", func(t *testing.T) {
+		req := &ai.GenerateRequest{
+			Candidates: 1,
+			Messages: []*ai.Message{
+				&ai.Message{
+					Content: []*ai.Part{ai.NewTextPart("what is 3.5 squared? Use the tool provided.")},
+					Role:    ai.RoleUser,
+				},
+			},
+			Tools: []*ai.ToolDefinition{toolDef},
+		}
 
-	out := resp.Candidates[0].Message.Content[0].Text()
-	if !strings.Contains(out, "12.25") {
-		t.Errorf("got %s, expecting it to contain \"12.25\"", out)
-	}
+		resp, err := ai.Generate(ctx, vertexai.Model(modelName), req, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out := resp.Candidates[0].Message.Content[0].Text
+		if !strings.Contains(out, "12.25") {
+			t.Errorf("got %s, expecting it to contain \"12.25\"", out)
+		}
+	})
+	t.Run("embedder", func(t *testing.T) {
+		out, err := ai.Embed(ctx, vertexai.Embedder(embedderName), &ai.EmbedRequest{
+			Document: ai.DocumentFromText("time flies like an arrow", nil),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// There's not a whole lot we can test about the result.
+		// Just do a few sanity checks.
+		if len(out) < 100 {
+			t.Errorf("embedding vector looks too short: len(out)=%d", len(out))
+		}
+		var normSquared float32
+		for _, x := range out {
+			normSquared += x * x
+		}
+		if normSquared < 0.9 || normSquared > 1.1 {
+			t.Errorf("embedding vector not unit length: %f", normSquared)
+		}
+	})
 }

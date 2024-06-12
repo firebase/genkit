@@ -15,22 +15,17 @@
 // Package pinecone implements a genkit plugin for the Pinecone vector
 // database. This defines an indexer and a retriever.
 //
-// Accessing Pinecone requires an API key, which is passed as an argument
-// to the relevant functions. Passing the API key as the empty string
-// directs this package to use the PINECONE_API_KEY environment variable.
+// Accessing Pinecone requires an API key, passed via [Config].
+// If the API key is the empty string, the plugin will use the
+// PINECONE_API_KEY environment variable.
 //
 // All Pinecone data is stored in what Pinecone calls an index.
-// An index may be serverless, meaning that it scales based on usage,
-// or it may be pod-based, meaning that it uses a specified hardware
-// configuration (which Pinecone calls a pod).
-// Each index has an associated host URL.
-// Storing and retrieving data requires passing this URL.
-// The URL may be retrieved using the Indexes or IndexData function;
-// it's the Host field in the returned struct.
+// The Pinecone plugin supports a single index, passed via [Config].
 //
 // Indexes can be partitioned into namespaces.
 // Operations that use indexes pass a namespace argument,
-// where the empty string represents the default namespace.
+// via [IndexerOptions] or [RetrieverOptions].
+// If the namespace is not specified the code uses the default namespace.
 package pinecone
 
 import (
@@ -50,42 +45,39 @@ const pineconeDebug = false
 // apiServer is the Pinecone API server.
 const apiServer = "api.pinecone.io"
 
-// Environment variables to use for configuration parameters.
-const (
-	apiKeyEnv = "PINECONE_API_KEY"
-	hostEnv   = "PINECONE_CONTROLLER_HOST"
-)
+// apiKeyEnv is the environment variable to use for the API key.
+const apiKeyEnv = "PINECONE_API_KEY"
 
-// A Client is used to perform database operations.
-type Client struct {
+// A client is used to perform database operations.
+type client struct {
 	apiKey string
 }
 
-// NewClient builds a Client.
+// newClient builds a client.
 //
 // apiKey is the API key to use to access Pinecone.
-// If it is the empty string, it is read from the PINECONE_API_INDEX
+// If it is the empty string, it is read from the PINECONE_API_KEY
 // environment variable.
-func NewClient(ctx context.Context, apiKey string) (*Client, error) {
+func newClient(ctx context.Context, apiKey string) (*client, error) {
 	key, err := resolveAPIKey(apiKey)
 	if err != nil {
 		return nil, err
 	}
-	client := &Client{
+	client := &client{
 		apiKey: key,
 	}
 	return client, nil
 }
 
-// An IndexData contains information about a single Pinecone index.
-type IndexData struct {
+// An indexData contains information about a single Pinecone index.
+type indexData struct {
 	Name      string `json:"name"`      // index name
 	Dimension int    `json:"dimension"` // dimension of vectors in index
 	Host      string `json:"host"`      // index host name
 	Metric    string `json:"metric"`    // index metric: euclidean, cosine, dotproduct
 	Spec      struct {
-		Pod        *Pod        `json:"pod,omitempty"`       // for pod-based indexes
-		Serverless *Serverless `json:serverless,omitempty"` // for serverless indexes
+		Pod        *pod        `json:"pod,omitempty"`        // for pod-based indexes
+		Serverless *serverless `json:"serverless,omitempty"` // for serverless indexes
 	} `json:"spec"`
 	Status struct {
 		Ready bool   `json:"ready"` // whether the index is ready
@@ -93,11 +85,11 @@ type IndexData struct {
 	} `json:"status"`
 }
 
-// A Pod is information about a pod-based index.
+// A pod is information about a pod-based index.
 // Pod-based indexes are associated with a set of hardware configurations.
-type Pod struct {
+type pod struct {
 	Environment      string       `json:"environment"` // index environment: hosting provider and region
-	Metadata         *PodMetadata `json:metadata_config,omitempty"`
+	Metadata         *podMetadata `json:"metadata_config,omitempty"`
 	Type             string       `json:"pod_type"`                    // pod type and size
 	Pods             int          `json:"pods"`                        // number of pods in index
 	Replicas         int          `json:"replicas"`                    // number of replicas
@@ -105,22 +97,22 @@ type Pod struct {
 	SourceCollection string       `json:"source_collection,omitempty"` // name of collection from which to create an index
 }
 
-// PodMetadata configures the metadata index.
-type PodMetadata struct {
+// podMetadata configures the metadata index.
+type podMetadata struct {
 	Indexes []string `json:"indexes,omitempty"` // list of fields that should be indexed; nil for all
 }
 
-// A Serverless is information about a serverless index.
+// A serverless is information about a serverless index.
 // Serverless indexes scale automatically with usage.
-type Serverless struct {
+type serverless struct {
 	Cloud  string `json:"cloud"`  // Cloud name
 	Region string `json:"region"` // Cloud region
 }
 
-// Indexes fetches the available indexes.
-func (c *Client) Indexes(ctx context.Context) ([]IndexData, error) {
+// indexes fetches the available indexes.
+func (c *client) indexes(ctx context.Context) ([]indexData, error) {
 	var indexList struct {
-		Indexes []IndexData `json:"indexes,omitempty"`
+		Indexes []indexData `json:"indexes,omitempty"`
 	}
 	url := fmt.Sprintf("https://%s/indexes", apiServer)
 	err := c.fetchData(ctx, url, &indexList)
@@ -130,9 +122,9 @@ func (c *Client) Indexes(ctx context.Context) ([]IndexData, error) {
 	return indexList.Indexes, nil
 }
 
-// IndexData fetches the data for a specific index.
-func (c *Client) IndexData(ctx context.Context, index string) (*IndexData, error) {
-	var result IndexData
+// indexData fetches the data for a specific index.
+func (c *client) indexData(ctx context.Context, index string) (*indexData, error) {
+	var result indexData
 	url := fmt.Sprintf("https://%s/indexes/%s", apiServer, index)
 	err := c.fetchData(ctx, url, &result)
 	if err != nil {
@@ -142,27 +134,21 @@ func (c *Client) IndexData(ctx context.Context, index string) (*IndexData, error
 }
 
 // Index is used to access a specific Pinecone index.
-type Index struct {
-	client *Client
+type index struct {
+	client *client
 	host   string
 }
 
-// The Index method returns an [Index], used to access a specific
+// The index method returns an [Index], used to access a specific
 // Pinecone index.
 //
 // host is the controller host name. This implies which index to use.
 // This comes from the [IndexData.Host] field of the [IndexData] struct
 // describing the desired index.
-// If it is the empty string, it is read from the PINECONE_CONTROLLER_HOST
-// environment variable.
-func (c *Client) Index(ctx context.Context, host string) (*Index, error) {
-	h, err := resolveHost(host)
-	if err != nil {
-		return nil, err
-	}
-	index := &Index{
+func (c *client) index(ctx context.Context, host string) (*index, error) {
+	index := &index{
 		client: c,
-		host:   h,
+		host:   host,
 	}
 	return index, nil
 }
@@ -171,20 +157,20 @@ func (c *Client) Index(ctx context.Context, host string) (*Index, error) {
 type vectorData struct {
 	ID           string         `json:"id"`
 	Values       []float32      `json:"values,omitempty"`
-	SparseValues *SparseValues  `json:"sparse_values,omitempty"`
+	SparseValues *sparseValues  `json:"sparse_values,omitempty"`
 	Metadata     map[string]any `json:"metadata,omitempty"`
 }
 
-// Vector is a single vector stored in the index.
+// vector is a single vector stored in the index.
 // Either Values or SparseValues should hold the actual data.
-type Vector struct {
+type vector struct {
 	ID           string         `json:"id"`                      // vector ID
 	Values       []float32      `json:"values,omitempty"`        // vector values
-	SparseValues *SparseValues  `json:"sparse_values,omitempty"` // sparse vector values
+	SparseValues *sparseValues  `json:"sparse_values,omitempty"` // sparse vector values
 	Metadata     map[string]any `json:"metadata,omitempty"`      // associated metadata; may be nil
 }
 
-// SparseValues can be used if most values in a vector are zero.
+// sparseValues can be used if most values in a vector are zero.
 // Instead of listing all the values in the vector,
 // SparseValues uses two slices of the same length,
 // such that the real vector can be constructed with
@@ -192,18 +178,18 @@ type Vector struct {
 //	for i, ind := range sv.Indices {
 //		v[ind] = Values[i]
 //	}
-type SparseValues struct {
+type sparseValues struct {
 	Indices []uint32  `json:"indices,omitempty"`
 	Values  []float32 `json:"values,omitempty"`
 }
 
 // upsertData is the data written for an upsert request.
 type upsertData struct {
-	Vectors   []Vector `json:"vectors"`
+	Vectors   []vector `json:"vectors"`
 	Namespace string   `json:"namespace,omitempty"`
 }
 
-// Upsert writes a set of vector records into the index.
+// upsert writes a set of vector records into the index.
 // If a record ID already exists, the existing record is replaced
 // with the new one.
 // The namespace indicates which namespace to write to;
@@ -212,7 +198,7 @@ type upsertData struct {
 // The Pinecone docs say that after an Upsert operation,
 // the vectors may not be immediately visible.
 // The Stats method will report whether the vectors can be seen.
-func (idx *Index) Upsert(ctx context.Context, vectors []Vector, namespace string) error {
+func (idx *index) upsert(ctx context.Context, vectors []vector, namespace string) error {
 	url := fmt.Sprintf("https://%s/vectors/upsert", idx.host)
 	data := upsertData{
 		Vectors:   vectors,
@@ -229,31 +215,31 @@ type queryData struct {
 	IncludeValues   bool           `json:"include_values,omitempty"`
 	IncludeMetadata bool           `json:"include_metadata,omitempty"`
 	Vector          []float32      `json:"vector,omitempty"`
-	SparseVector    *SparseValues  `json:"sparse_vector,omitempty"`
+	SparseVector    *sparseValues  `json:"sparse_vector,omitempty"`
 	ID              string         `json:"id,omitempty"`
 }
 
 // WantData is a set of flags that indicates which information to return
 // when looking up a vector in the database.
-type WantData int
+type wantData int
 
 const (
-	WantValues   WantData = 1 << iota // return values of matching vectors
-	WantMetadata                      // return metadata of matching vectors
+	wantValues   wantData = 1 << iota // return values of matching vectors
+	wantMetadata                      // return metadata of matching vectors
 )
 
-// QueryResult is a single vector returned by a Query operation.
-type QueryResult struct {
+// queryResult is a single vector returned by a Query operation.
+type queryResult struct {
 	ID           string         `json:"id,omitempty"`
 	Score        float32        `json:"score,omitempty"` // A higher score is more similar
 	Values       []float32      `json:"values,omitempty"`
-	SparseValues *SparseValues  `json:"sparse_values,omitempty"`
+	SparseValues *sparseValues  `json:"sparse_values,omitempty"`
 	Metadata     map[string]any `json:"metadata,omitempty"`
 }
 
 // queryResponse is the value returned by a Query operation.
 type queryResponse struct {
-	Matches   []*QueryResult `json:"matches,omitempty"`
+	Matches   []*queryResult `json:"matches,omitempty"`
 	Namespace string         `json:"namespace,omitempty"`
 	Usage     *usage         `json:"usage,omitempty"`
 }
@@ -266,13 +252,13 @@ type usage struct {
 // Query looks up a vector in the database.
 // It returns a set of similar vectors.
 // The count parameter is the maximum number of vectors to return.
-func (idx *Index) Query(ctx context.Context, values []float32, count int, want WantData, namespace string) ([]*QueryResult, error) {
+func (idx *index) query(ctx context.Context, values []float32, count int, want wantData, namespace string) ([]*queryResult, error) {
 	url := fmt.Sprintf("https://%s/query", idx.host)
 	data := queryData{
 		Namespace:       namespace,
 		TopK:            count,
-		IncludeValues:   (want & WantValues) != 0,
-		IncludeMetadata: (want & WantMetadata) != 0,
+		IncludeValues:   (want & wantValues) != 0,
+		IncludeMetadata: (want & wantMetadata) != 0,
 		Vector:          values,
 	}
 	var result queryResponse
@@ -280,14 +266,14 @@ func (idx *Index) Query(ctx context.Context, values []float32, count int, want W
 	return result.Matches, err
 }
 
-// QueryByID looks up a vector in the database by ID.
-func (idx *Index) QueryByID(ctx context.Context, id string, want WantData, namespace string) (*QueryResult, error) {
+// queryByID looks up a vector in the database by ID.
+func (idx *index) queryByID(ctx context.Context, id string, want wantData, namespace string) (*queryResult, error) {
 	url := fmt.Sprintf("https://%s/query", idx.host)
 	data := queryData{
 		Namespace:       namespace,
 		TopK:            1,
-		IncludeValues:   (want & WantValues) != 0,
-		IncludeMetadata: (want & WantMetadata) != 0,
+		IncludeValues:   (want & wantValues) != 0,
+		IncludeMetadata: (want & wantMetadata) != 0,
 		ID:              id,
 	}
 	var result queryResponse
@@ -309,7 +295,7 @@ type deleteRequest struct {
 }
 
 // Delete deletes vectors from the database by ID.
-func (idx *Index) DeleteByID(ctx context.Context, ids []string, namespace string) error {
+func (idx *index) deleteByID(ctx context.Context, ids []string, namespace string) error {
 	url := fmt.Sprintf("https://%s/vectors/delete", idx.host)
 	data := &deleteRequest{
 		IDs:       ids,
@@ -318,26 +304,26 @@ func (idx *Index) DeleteByID(ctx context.Context, ids []string, namespace string
 	return idx.client.postData(ctx, url, &data, nil)
 }
 
-// Stats is the data returns by the [Index.Stats] method.
-type Stats struct {
+// stats is the data returns by the [Index.Stats] method.
+type stats struct {
 	Dimension  int                        `json:"dimension,omitempty"`        // index dimension
 	Fullness   float32                    `json:"indexFullness,omitempty"`    // fullness, only for pod-based indexes
 	Count      int                        `json:"totalVectorCount,omitempty"` // number of vectors in index
-	Namespaces map[string]*NamespaceStats `json:"namespaces,omitempty"`
+	Namespaces map[string]*namespaceStats `json:"namespaces,omitempty"`
 }
 
-// NamespaceStats is data returned by the [Index.Stats] method for a namespace.
-type NamespaceStats struct {
+// namespaceStats is data returned by the [Index.Stats] method for a namespace.
+type namespaceStats struct {
 	Count int `json:"vectorCount,omitempty"` // number of vectors in namespace
 }
 
-// Stats returns statistics about an index.
-func (idx *Index) Stats(ctx context.Context) (*Stats, error) {
+// stats returns statistics about an index.
+func (idx *index) stats(ctx context.Context) (*stats, error) {
 	url := fmt.Sprintf("https://%s/describe_index_stats", idx.host)
 	var data struct {
 		Filter map[string]any `json:"filter,omitempty"` // always empty for us
 	}
-	var result Stats
+	var result stats
 	if err := idx.client.postData(ctx, url, &data, &result); err != nil {
 		return nil, err
 	}
@@ -345,7 +331,7 @@ func (idx *Index) Stats(ctx context.Context) (*Stats, error) {
 }
 
 // fetchData fetches data from a Pinecone URL.
-func (c *Client) fetchData(ctx context.Context, url string, result any) error {
+func (c *client) fetchData(ctx context.Context, url string, result any) error {
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return err
@@ -374,7 +360,7 @@ func (c *Client) fetchData(ctx context.Context, url string, result any) error {
 }
 
 // postData posts data to a Pinecone URL.
-func (c *Client) postData(ctx context.Context, url string, post, result any) error {
+func (c *client) postData(ctx context.Context, url string, post, result any) error {
 	// bodyReader will be the body of the HTTP request.
 	// httpWriter writes to the body of the HTTP request.
 	bodyReader, httpWriter := io.Pipe()
@@ -461,7 +447,7 @@ func (c *Client) postData(ctx context.Context, url string, post, result any) err
 
 // serverError does its best to read a Pinecone server error message
 // out of an HTTP response.
-func (c *Client) serverError(r io.Reader) error {
+func (c *client) serverError(r io.Reader) error {
 	errData, err := io.ReadAll(r)
 	if err != nil {
 		return fmt.Errorf("failed to read pinecone error response: %v", err)
@@ -492,16 +478,4 @@ func resolveAPIKey(apiKey string) (string, error) {
 		return "", fmt.Errorf("pinecone API key not set; try setting %s", apiKeyEnv)
 	}
 	return key, nil
-}
-
-// resolveHost reads the host from the environment if necessary.
-func resolveHost(host string) (string, error) {
-	if host != "" {
-		return host, nil
-	}
-	h := os.Getenv(hostEnv)
-	if h == "" {
-		return "", fmt.Errorf("pinecone controller host not set; try setting %s", hostEnv)
-	}
-	return h, nil
 }

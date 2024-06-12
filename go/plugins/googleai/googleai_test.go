@@ -30,115 +30,30 @@ import (
 // The tests here only work with an API key set to a valid value.
 var apiKey = flag.String("key", "", "Gemini API key")
 
-func TestEmbedder(t *testing.T) {
+const (
+	embeddingModel  = "embedding-001"
+	generativeModel = "gemini-1.0-pro"
+)
+
+func TestLive(t *testing.T) {
 	if *apiKey == "" {
 		t.Skipf("no -key provided")
 	}
 	ctx := context.Background()
-	e, err := googleai.NewEmbedder(ctx, "embedding-001", *apiKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	out, err := e.Embed(ctx, &ai.EmbedRequest{
-		Document: ai.DocumentFromText("yellow banana", nil),
+	err := googleai.Init(ctx, googleai.Config{
+		APIKey:    *apiKey,
+		Embedders: []string{embeddingModel},
+		Models:    []string{generativeModel},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	// There's not a whole lot we can test about the result.
-	// Just do a few sanity checks.
-	if len(out) < 100 {
-		t.Errorf("embedding vector looks too short: len(out)=%d", len(out))
+	toolDef := &ai.ToolDefinition{
+		Name:         "exponentiation",
+		InputSchema:  map[string]any{"base": "float64", "exponent": "int"},
+		OutputSchema: map[string]any{"output": "float64"},
 	}
-	var normSquared float32
-	for _, x := range out {
-		normSquared += x * x
-	}
-	if normSquared < 0.9 || normSquared > 1.1 {
-		t.Errorf("embedding vector not unit length: %f", normSquared)
-	}
-}
-
-func TestGenerator(t *testing.T) {
-	if *apiKey == "" {
-		t.Skipf("no -key provided")
-	}
-	ctx := context.Background()
-	g, err := googleai.NewGenerator(ctx, "gemini-1.0-pro", *apiKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req := &ai.GenerateRequest{
-		Candidates: 1,
-		Messages: []*ai.Message{
-			&ai.Message{
-				Content: []*ai.Part{ai.NewTextPart("Which country was Napoleon the emperor of?")},
-				Role:    ai.RoleUser,
-			},
-		},
-	}
-
-	resp, err := g.Generate(ctx, req, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	out := resp.Candidates[0].Message.Content[0].Text()
-	if out != "France" {
-		t.Errorf("got \"%s\", expecting \"France\"", out)
-	}
-	if resp.Request != req {
-		t.Error("Request field not set properly")
-	}
-}
-
-func TestGeneratorStreaming(t *testing.T) {
-	if *apiKey == "" {
-		t.Skipf("no -key provided")
-	}
-	ctx := context.Background()
-	g, err := googleai.NewGenerator(ctx, "gemini-1.0-pro", *apiKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req := &ai.GenerateRequest{
-		Candidates: 1,
-		Messages: []*ai.Message{
-			&ai.Message{
-				Content: []*ai.Part{ai.NewTextPart("Write one paragraph about the Golden State Warriors.")},
-				Role:    ai.RoleUser,
-			},
-		},
-	}
-
-	out := ""
-	parts := 0
-	_, err = g.Generate(ctx, req, func(ctx context.Context, c *ai.Candidate) error {
-		parts++
-		out += c.Message.Content[0].Text()
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(out, "San Francisco") {
-		t.Errorf("got \"%s\", expecting it to contain \"San Francisco\"", out)
-	}
-	if parts == 1 {
-		// Check if streaming actually occurred.
-		t.Errorf("expecting more than one part")
-	}
-}
-
-var toolDef = &ai.ToolDefinition{
-	Name:         "exponentiation",
-	InputSchema:  map[string]any{"base": "float64", "exponent": "int"},
-	OutputSchema: map[string]any{"output": "float64"},
-}
-
-func init() {
-	ai.RegisterTool("exponentiation",
-		toolDef, nil,
+	ai.DefineTool(toolDef, nil,
 		func(ctx context.Context, input map[string]any) (map[string]any, error) {
 			baseAny, ok := input["base"]
 			if !ok {
@@ -166,35 +81,111 @@ func init() {
 			return r, nil
 		},
 	)
-}
+	t.Run("embedder", func(t *testing.T) {
+		out, err := ai.Embed(ctx, googleai.Embedder(embeddingModel), &ai.EmbedRequest{
+			Document: ai.DocumentFromText("yellow banana", nil),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
 
-func TestGeneratorTool(t *testing.T) {
-	if *apiKey == "" {
-		t.Skipf("no -key provided")
-	}
-	ctx := context.Background()
-	g, err := googleai.NewGenerator(ctx, "gemini-1.0-pro", *apiKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req := &ai.GenerateRequest{
-		Candidates: 1,
-		Messages: []*ai.Message{
-			&ai.Message{
-				Content: []*ai.Part{ai.NewTextPart("what is 3.5 squared? Use the tool provided.")},
-				Role:    ai.RoleUser,
+		// There's not a whole lot we can test about the result.
+		// Just do a few sanity checks.
+		if len(out) < 100 {
+			t.Errorf("embedding vector looks too short: len(out)=%d", len(out))
+		}
+		var normSquared float32
+		for _, x := range out {
+			normSquared += x * x
+		}
+		if normSquared < 0.9 || normSquared > 1.1 {
+			t.Errorf("embedding vector not unit length: %f", normSquared)
+		}
+	})
+	t.Run("generate", func(t *testing.T) {
+		g := googleai.Model(generativeModel)
+		req := &ai.GenerateRequest{
+			Candidates: 1,
+			Messages: []*ai.Message{
+				&ai.Message{
+					Content: []*ai.Part{ai.NewTextPart("Which country was Napoleon the emperor of?")},
+					Role:    ai.RoleUser,
+				},
 			},
-		},
-		Tools: []*ai.ToolDefinition{toolDef},
-	}
+		}
 
-	resp, err := ai.Generate(ctx, g, req, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+		resp, err := ai.Generate(ctx, g, req, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := resp.Candidates[0].Message.Content[0].Text
+		const want = "France"
+		if out != want {
+			t.Errorf("got %q, expecting %q", out, want)
+		}
+		if resp.Request != req {
+			t.Error("Request field not set properly")
+		}
+	})
+	t.Run("streaming", func(t *testing.T) {
+		req := &ai.GenerateRequest{
+			Candidates: 1,
+			Messages: []*ai.Message{
+				&ai.Message{
+					Content: []*ai.Part{ai.NewTextPart("Write one paragraph about the Golden State Warriors.")},
+					Role:    ai.RoleUser,
+				},
+			},
+		}
 
-	out := resp.Candidates[0].Message.Content[0].Text()
-	if !strings.Contains(out, "12.25") {
-		t.Errorf("got %s, expecting it to contain \"12.25\"", out)
-	}
+		out := ""
+		parts := 0
+		g := googleai.Model(generativeModel)
+		final, err := ai.Generate(ctx, g, req, func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+			parts++
+			out += c.Content[0].Text
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		out2 := ""
+		for _, p := range final.Candidates[0].Message.Content {
+			out2 += p.Text
+		}
+		if out != out2 {
+			t.Errorf("streaming and final should contain the same text.\nstreaming:%s\nfinal:%s", out, out2)
+		}
+		const want = "Golden"
+		if !strings.Contains(out, want) {
+			t.Errorf("got %q, expecting it to contain %q", out, want)
+		}
+		if parts == 1 {
+			// Check if streaming actually occurred.
+			t.Errorf("expecting more than one part")
+		}
+	})
+	t.Run("tool", func(t *testing.T) {
+		req := &ai.GenerateRequest{
+			Candidates: 1,
+			Messages: []*ai.Message{
+				&ai.Message{
+					Content: []*ai.Part{ai.NewTextPart("what is 3.5 squared? Use the tool provided.")},
+					Role:    ai.RoleUser,
+				},
+			},
+			Tools: []*ai.ToolDefinition{toolDef},
+		}
+
+		resp, err := ai.Generate(ctx, googleai.Model(generativeModel), req, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out := resp.Candidates[0].Message.Content[0].Text
+		const want = "12.25"
+		if !strings.Contains(out, want) {
+			t.Errorf("got %q, expecting it to contain %q", out, want)
+		}
+	})
 }

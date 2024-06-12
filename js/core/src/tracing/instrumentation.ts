@@ -21,9 +21,11 @@ import {
   trace,
 } from '@opentelemetry/api';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { SpanMetadata } from './types.js';
+import { performance } from 'node:perf_hooks';
+import { PathMetadata, SpanMetadata, TraceMetadata } from './types.js';
 
 export const spanMetadataAls = new AsyncLocalStorage<SpanMetadata>();
+export const traceMetadataAls = new AsyncLocalStorage<TraceMetadata>();
 
 export const ATTR_PREFIX = 'genkit';
 export const SPAN_TYPE_ATTR = ATTR_PREFIX + ':type';
@@ -41,18 +43,24 @@ export async function newTrace<T>(
   },
   fn: (metadata: SpanMetadata, rootSpan: ApiSpan) => Promise<T>
 ) {
-  return await runInNewSpan(
-    {
-      metadata: {
-        name: opts.name,
-        isRoot: true,
+  const traceMetadata = traceMetadataAls.getStore() || {
+    paths: new Set<PathMetadata>(),
+    timestamp: performance.now(),
+  };
+  return await traceMetadataAls.run(traceMetadata, () =>
+    runInNewSpan(
+      {
+        metadata: {
+          name: opts.name,
+          isRoot: true,
+        },
+        labels: opts.labels,
+        links: opts.links,
       },
-      labels: opts.labels,
-      links: opts.links,
-    },
-    async (metadata, otSpan) => {
-      return await fn(metadata, otSpan);
-    }
+      async (metadata, otSpan) => {
+        return await fn(metadata, otSpan);
+      }
+    )
   );
 }
 
@@ -77,15 +85,39 @@ export async function runInNewSpan<T>(
       if (opts.labels) otSpan.setAttributes(opts.labels);
       try {
         const parentPath = parentStep?.path || '';
-        opts.metadata.path = parentPath + '/' + opts.metadata.name;
+        const stepType =
+          opts.labels && opts.labels['genkit:type']
+            ? `,t:${opts.labels['genkit:type']}`
+            : '';
+        opts.metadata.path = parentPath + `/{${opts.metadata.name}${stepType}}`;
+
+        const pathCount = getCurrentPathCount();
         const output = await spanMetadataAls.run(opts.metadata, () =>
           fn(opts.metadata, otSpan, isInRoot)
         );
         if (opts.metadata.state !== 'error') {
           opts.metadata.state = 'success';
         }
+
+        opts.metadata.path = decoratePathWithSubtype(opts.metadata);
+        if (pathCount == getCurrentPathCount()) {
+          const now = performance.now();
+          const start = traceMetadataAls.getStore()?.timestamp || now;
+          traceMetadataAls.getStore()?.paths?.add({
+            path: opts.metadata.path,
+            latency: now - start,
+          });
+        }
+
         return output;
       } catch (e) {
+        opts.metadata.path = decoratePathWithSubtype(opts.metadata);
+        const now = performance.now();
+        const start = traceMetadataAls.getStore()?.timestamp || now;
+        traceMetadataAls.getStore()?.paths?.add({
+          path: opts.metadata.path,
+          latency: now - start,
+        });
         opts.metadata.state = 'error';
         otSpan.setStatus({
           code: SpanStatusCode.ERROR,
@@ -166,4 +198,28 @@ function getCurrentSpan(): SpanMetadata {
     throw new Error('running outside step context');
   }
   return step;
+}
+
+function getCurrentPathCount(): number {
+  return traceMetadataAls.getStore()?.paths?.size || 0;
+}
+
+function decoratePathWithSubtype(metadata: SpanMetadata): string {
+  if (!metadata.path) {
+    return '';
+  }
+
+  const pathComponents = metadata.path.split('}/{');
+
+  if (pathComponents.length == 1) {
+    return metadata.path;
+  }
+
+  const stepSubtype =
+    metadata.metadata && metadata.metadata['subtype']
+      ? `,s:${metadata.metadata['subtype']}`
+      : '';
+  const root = `${pathComponents.slice(0, -1).join('}/{')}}/`;
+  const decoratedStep = `{${pathComponents.at(-1)?.slice(0, -1)}${stepSubtype}}`;
+  return root + decoratedStep;
 }

@@ -16,9 +16,9 @@
 
 import { defineTool } from '@genkit-ai/ai';
 import * as z from 'zod';
-import { MenuItem, MenuItemSchema } from '../types';
+import { MenuItemSchema } from '../types.js';
 
-const menuData: Array<MenuItem> = require('../../data/menu.json');
+import menuData from '../../data/menu.json' assert { type: 'json' };
 
 export const menuTool = defineTool(
   {

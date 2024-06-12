@@ -418,20 +418,30 @@ export class Runner {
       stream.on('data', (data: string) => {
         buffer += data;
         while (buffer.includes(STREAM_DELIMITER)) {
-          streamingCallback(
-            JSON.parse(buffer.substring(0, buffer.indexOf(STREAM_DELIMITER)))
-          );
-          buffer = buffer.substring(
-            buffer.indexOf(STREAM_DELIMITER) + STREAM_DELIMITER.length
-          );
+          try {
+            streamingCallback(
+              JSON.parse(buffer.substring(0, buffer.indexOf(STREAM_DELIMITER)))
+            );
+            buffer = buffer.substring(
+              buffer.indexOf(STREAM_DELIMITER) + STREAM_DELIMITER.length
+            );
+          } catch (err) {
+            logger.error(`Bad stream: ${err}`);
+            break;
+          }
         }
       });
       let resolver: (op: RunActionResponse) => void;
-      const promise = new Promise<RunActionResponse>((r) => {
-        resolver = r;
+      let rejecter: (err: Error) => void;
+      const promise = new Promise<RunActionResponse>((resolve, reject) => {
+        resolver = resolve;
+        rejecter = reject;
       });
       stream.on('end', () => {
         resolver(RunActionResponseSchema.parse(JSON.parse(buffer)));
+      });
+      stream.on('error', (err: Error) => {
+        rejecter(err);
       });
       return promise;
     } else {

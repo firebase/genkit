@@ -26,3 +26,7 @@ export const HelloFullNameSchema = z.object({
   lastName: z.string(),
   persona: z.string(),
 });
+
+export const WeatherSchema = z.object({
+  cities: z.array(z.string()),
+});

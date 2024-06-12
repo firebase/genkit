@@ -112,6 +112,7 @@ deploying the default sample flow to Firebase.
 
 1.  If you'll access your flow from a web app (which you will be doing in the
     next section), in the `httpsOptions` parameter, set a CORS policy:
+
     <!--See note above on prettier-ignore -->
     <!-- prettier-ignore -->
     ```js

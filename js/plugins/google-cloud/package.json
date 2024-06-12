@@ -13,14 +13,15 @@
     "genai",
     "generative-ai"
   ],
-  "version": "0.5.1",
+  "version": "0.5.2",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
     "compile": "tsup-node",
     "build:clean": "rm -rf ./lib",
     "build": "npm-run-all build:clean check compile",
-    "build:watch": "tsup-node --watch"
+    "build:watch": "tsup-node --watch",
+    "test": "tsx --test ./tests/*_test.ts"
   },
   "repository": {
     "type": "git",
