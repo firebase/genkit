@@ -79,6 +79,11 @@ export function writeFlowSuccess(flowName: string, latencyMs: number) {
 
   const paths = traceMetadataAls.getStore()?.paths || new Set<PathMetadata>();
   if (paths) {
+    const pathDimensions = {
+      flowName: flowName,
+      source: 'ts',
+      sourceVersion: GENKIT_VERSION,
+    };
     const relevantPaths = Array.from(paths).filter((meta) =>
       meta.path.includes(flowName)
     );
@@ -90,13 +95,13 @@ export function writeFlowSuccess(flowName: string, latencyMs: number) {
 
     relevantPaths.forEach((p) => {
       pathCounter.add(1, {
-        ...dimensions,
+        ...pathDimensions,
         success: 'success',
         path: p.path,
       });
 
       pathLatencies.record(p.latency, {
-        ...dimensions,
+        ...pathDimensions,
         path: p.path,
       });
     });
@@ -130,23 +135,29 @@ export function writeFlowFailure(
       paths: relevantPaths.map((p) => p.path),
     });
 
+    const pathDimensions = {
+      flowName: flowName,
+      source: 'ts',
+      sourceVersion: GENKIT_VERSION,
+    };
     // All paths that have succeeded need to be tracked as succeeded.
     relevantPaths.forEach((p) => {
       pathCounter.add(1, {
-        flowName: flowName,
+        ...pathDimensions,
         success: 'success',
         path: p.path,
       });
 
       pathLatencies.record(p.latency, {
-        ...dimensions,
+        ...pathDimensions,
         path: p.path,
       });
     });
 
     pathCounter.add(1, {
-      flowName: flowName,
+      ...pathDimensions,
       success: 'failure',
+      error: err.name,
       path: failPath,
     });
   }
