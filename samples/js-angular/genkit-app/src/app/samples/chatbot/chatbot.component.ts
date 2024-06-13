@@ -7,16 +7,18 @@ import {
   Validators,
 } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { provideNativeDateAdapter } from '@angular/material/core';
+import {
+  MatDatepickerInputEvent,
+  MatDatepickerModule,
+} from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { streamFlow } from '../../../utils/flow';
-import { MatDatepickerInputEvent, MatDatepickerModule } from '@angular/material/datepicker';
-import { provideNativeDateAdapter } from '@angular/material/core';
 
 const url = 'http://127.0.0.1:3400/chatbotFlow';
-
 
 interface ToolResponse {
   name: string;
@@ -74,7 +76,7 @@ export class ChatbotComponent {
     this.history.push({ role: 'user', text: text });
     this.chatFormControl.setValue('');
     this.chatFormControl.disable();
-    this.callFlow({role: 'user', text});
+    this.callFlow({ role: 'user', text });
     this.loading = true;
   }
 
@@ -85,26 +87,28 @@ export class ChatbotComponent {
       const response = await streamFlow({
         url,
         payload: {
-          ...input,
-          id: this.id,
+          prompt: input,
+          conversationId: this.id,
         },
       });
 
       let textBlock: OutputSchema | undefined = undefined;
       for await (const chunk of response.stream()) {
-        if (chunk.text) {
-          if (!textBlock) {
-            textBlock = { role: 'model', text: chunk.text!};
-            this.history.push(textBlock);
-          } else {
-            textBlock.text += chunk.text!;
+        for (const content of chunk.content) {
+          if (content.text) {
+            if (!textBlock) {
+              textBlock = { role: 'model', text: content.text! };
+              this.history.push(textBlock);
+            } else {
+              textBlock.text += content.text!;
+            }
           }
-        }
-        if (chunk.toolRequest) {
-          this.history.push({
-            role: 'model',
-            toolRequest: chunk.toolRequest,
-          });
+          if (content.toolRequest) {
+            this.history.push({
+              role: 'model',
+              toolRequest: content.toolRequest,
+            });
+          }
         }
       }
 
@@ -126,10 +130,13 @@ export class ChatbotComponent {
   }
 
   datePicked(toolRequest: ToolRequest, event: MatDatepickerInputEvent<Date>) {
-    this.callFlow({role: 'user', toolResponse: {
-      name: toolRequest.name,
-      ref: toolRequest.ref,
-      output: `${event.value}`,
-    }});
+    this.callFlow({
+      role: 'user',
+      toolResponse: {
+        name: toolRequest.name,
+        ref: toolRequest.ref,
+        output: `${event.value}`,
+      },
+    });
   }
 }
