@@ -83,6 +83,7 @@ schema:
     updatedAt?: string, ISO timestamp of last update
     approvedBy?: integer, id of approver
   extra?: any, arbitrary extra data
+  (*): string, wildcard field
 ```
 
 The above schema is equivalent to the following TypeScript interface:
@@ -111,6 +112,8 @@ interface Article {
   } | null;
   /** arbitrary extra data */
   extra?: any;
+  /** wildcard field */
+  [additionalField: string]: string;
 }
 ```
 
