@@ -27,33 +27,44 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/genkit"
 )
 
-// Init registers all the actions in this package with ai.
-func Init(ctx context.Context, model string, serverAddress string) error {
-	g := NewGenerator(ctx, model, serverAddress)
-	ai.RegisterGenerator("ollama", model, &ai.GeneratorMetadata{
-		Label: "Ollama AI - " + model,
-		Supports: ai.GeneratorCapabilities{
+const provider = "ollama"
+
+func defineModel(name string, serverAddress string) {
+	meta := &ai.ModelMetadata{
+		Label: "Ollama - " + name,
+		Supports: ai.ModelCapabilities{
 			Multiturn: true,
 		},
-	}, g)
+	}
+	g := generator{model: name, serverAddress: serverAddress}
+	ai.DefineModel(provider, name, meta, g.generate)
+}
+
+// Model returns the [ai.ModelAction] with the given name.
+// It returns nil if the model was not configured.
+func Model(name string) *ai.ModelAction {
+	return ai.LookupModel(provider, name)
+}
+
+// Config provides configuration options for the Init function.
+type Config struct {
+	// API key. Required.
+	ServerAddress string
+	// Generative models to provide.
+	Model string
+}
+
+// Init registers all the actions in this package with ai.
+func Init(ctx context.Context, cfg Config) error {
+	defineModel(cfg.Model, cfg.ServerAddress)
 	return nil
 }
 
 type generator struct {
-	Model         string
-	ServerAddress string
-}
-
-// NewGenerator creates a new generator with the necessary configuration.
-func NewGenerator(ctx context.Context, model string, serverAddress string) ai.Generator {
-
-	return &generator{
-		Model:         model,
-		ServerAddress: serverAddress,
-	}
+	model         string
+	serverAddress string
 }
 
 /*
@@ -74,7 +85,7 @@ type OllamaRequest struct {
 }
 
 // Generate makes a request to the Ollama API and processes the response.
-func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb genkit.StreamingCallback[*ai.Candidate]) (*ai.GenerateResponse, error) {
+func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
 	// Step 1: Combine parts from all messages into a single payload slice
 	var messages []map[string]string
 
@@ -90,14 +101,14 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	stream := cb != nil
 	payload := OllamaRequest{
 		Messages: messages,
-		Model:    g.Model,
+		Model:    g.model,
 		Stream:   stream,
 	}
 	client := &http.Client{
 		Timeout: time.Second * 30,
 	}
 	payloadBytes, err := json.Marshal(payload)
-	req, err := http.NewRequest("POST", g.ServerAddress+"/api/chat", bytes.NewBuffer(payloadBytes))
+	req, err := http.NewRequest("POST", g.serverAddress+"/api/chat", bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
@@ -125,17 +136,15 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	} else {
 		// Handle streaming response here
 		scanner := bufio.NewScanner(resp.Body) // Create a scanner to read lines
-		generateResponse := &ai.GenerateResponse{}
 		for scanner.Scan() {
 			line := scanner.Text()
 
-			candidate, err := translateChunk(line)
+			chunk, err := translateChunk(line)
 			if err != nil {
 				// Handle parsing error (log, maybe send an error candidate?)
 				return nil, fmt.Errorf("error translating chunk: %v", err)
 			}
-			cb(ctx, candidate)
-			generateResponse.Candidates = append(generateResponse.Candidates, candidate)
+			cb(ctx, chunk)
 		}
 
 		if err := scanner.Err(); err != nil {
@@ -161,7 +170,7 @@ func convertParts(role ai.Role, parts []*ai.Part) (map[string]string, error) {
 		partMap["role"] = roleMapping[role]
 		switch {
 		case part.IsText():
-			partMap["content"] = part.Text()
+			partMap["content"] = part.Text
 		default:
 			return nil, errors.New("unknown content type")
 		}
@@ -169,24 +178,18 @@ func convertParts(role ai.Role, parts []*ai.Part) (map[string]string, error) {
 	return partMap, nil
 }
 
-func translateChunk(input string) (*ai.Candidate, error) {
+func translateChunk(input string) (*ai.GenerateResponseChunk, error) {
 	log.Printf("translating chunk")
 	var response GenerateResponse
 
 	if err := json.Unmarshal([]byte(input), &response); err != nil {
 		return nil, fmt.Errorf("error parsing response JSON: %v", err)
 	}
-	aiCandidate := &ai.Candidate{
-		Index:        0,
-		FinishReason: ai.FinishReason("stop"),
-		Message: &ai.Message{
-			Role:    ai.Role(response.Message.Role),
-			Content: make([]*ai.Part, 0, 1),
-		},
+	chunk := &ai.GenerateResponseChunk{
+		Index:   0,
+		Content: make([]*ai.Part, 0, 1),
 	}
-	aiPart := ai.NewTextPart(response.Message.Content)
-	aiCandidate.Message.Content = append(aiCandidate.Message.Content, aiPart)
-	return aiCandidate, nil
+	return chunk, nil
 }
 
 type GenerateResponse struct {
