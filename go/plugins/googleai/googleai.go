@@ -28,10 +28,6 @@ import (
 	"google.golang.org/api/option"
 )
 
-const (
-	provider = "googleai"
-)
-
 var (
 	defaultModelCapabilities = ai.ModelCapabilities{
 		Multiturn: true,
@@ -45,6 +41,8 @@ var (
 		"gemini-1.0-pro": basicText,
 	}
 )
+
+const provider = "googleai"
 
 // Config provides configuration options for the Init function.
 type Config struct {
