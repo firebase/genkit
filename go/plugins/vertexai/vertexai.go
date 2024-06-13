@@ -277,25 +277,23 @@ func translateCandidate(cand *genai.Candidate) *ai.Candidate {
 		c.FinishReason = ai.FinishReasonUnknown
 	}
 	m := &ai.Message{}
-	if cand.Content != nil {
-		m.Role = ai.Role(cand.Content.Role)
-		for _, part := range cand.Content.Parts {
-			var p *ai.Part
-			switch part := part.(type) {
-			case genai.Text:
-				p = ai.NewTextPart(string(part))
-			case genai.Blob:
-				p = ai.NewMediaPart(part.MIMEType, string(part.Data))
-			case genai.FunctionCall:
-				p = ai.NewToolRequestPart(&ai.ToolRequest{
-					Name:  part.Name,
-					Input: part.Args,
-				})
-			default:
-				panic(fmt.Sprintf("unknown part %#v", part))
-			}
-			m.Content = append(m.Content, p)
+	m.Role = ai.Role(cand.Content.Role)
+	for _, part := range cand.Content.Parts {
+		var p *ai.Part
+		switch part := part.(type) {
+		case genai.Text:
+			p = ai.NewTextPart(string(part))
+		case genai.Blob:
+			p = ai.NewMediaPart(part.MIMEType, string(part.Data))
+		case genai.FunctionCall:
+			p = ai.NewToolRequestPart(&ai.ToolRequest{
+				Name:  part.Name,
+				Input: part.Args,
+			})
+		default:
+			panic(fmt.Sprintf("unknown part %#v", part))
 		}
+		m.Content = append(m.Content, p)
 	}
 	c.Message = m
 	return c
@@ -303,7 +301,6 @@ func translateCandidate(cand *genai.Candidate) *ai.Candidate {
 
 // Translate from a genai.GenerateContentResponse to a ai.GenerateResponse.
 func translateResponse(resp *genai.GenerateContentResponse) *ai.GenerateResponse {
-	// Note: this path doesn't get used when streaming.
 	r := &ai.GenerateResponse{}
 	for _, c := range resp.Candidates {
 		r.Candidates = append(r.Candidates, translateCandidate(c))
