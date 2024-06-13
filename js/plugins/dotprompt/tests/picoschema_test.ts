@@ -74,7 +74,7 @@ describe('picoschema()', () => {
         additionalProperties: false,
         properties: {
           req: { type: 'string', description: 'required field' },
-          nonreq: { type: 'boolean', description: 'optional field' },
+          nonreq: { type: ['boolean', 'null'], description: 'optional field' },
         },
         required: ['req'],
       },
@@ -110,10 +110,10 @@ describe('picoschema()', () => {
         additionalProperties: false,
         properties: {
           obj: {
-            type: 'object',
+            type: ['object', 'null'],
             description: 'a nested object',
             additionalProperties: false,
-            properties: { nest1: { type: 'string' } },
+            properties: { nest1: { type: ['string', 'null'] } },
           },
           arr: {
             type: 'array',
@@ -121,7 +121,7 @@ describe('picoschema()', () => {
             items: {
               type: 'object',
               additionalProperties: false,
-              properties: { nest2: { type: 'boolean' } },
+              properties: { nest2: { type: ['boolean', 'null'] } },
             },
           },
         },
@@ -154,9 +154,24 @@ describe('picoschema()', () => {
       want: {
         type: 'object',
         properties: {
-          color: { description: 'the enum', enum: ['RED', 'BLUE', 'GREEN'] },
+          color: {
+            description: 'the enum',
+            enum: ['RED', 'BLUE', 'GREEN', null],
+          },
         },
         additionalProperties: false,
+      },
+    },
+    {
+      description: 'any field',
+      yaml: `schema:
+  first: any
+  second?: any, could be anything`,
+      want: {
+        type: 'object',
+        properties: { first: {}, second: { description: 'could be anything' } },
+        additionalProperties: false,
+        required: ['first'],
       },
     },
   ];

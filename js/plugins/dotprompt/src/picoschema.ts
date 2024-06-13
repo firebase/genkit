@@ -20,6 +20,7 @@ const JSON_SCHEMA_SCALAR_TYPES = [
   'null',
   'number',
   'integer',
+  'any',
 ];
 
 import { JSONSchema } from '@genkit-ai/core/schema';
@@ -55,6 +56,11 @@ function parsePico(obj: any, path: string[] = []): JSONSchema {
     if (!JSON_SCHEMA_SCALAR_TYPES.includes(type)) {
       throw new Error(`Picoschema: Unsupported scalar type '${type}'.`);
     }
+
+    if (type === 'any') {
+      return description ? { description } : {};
+    }
+
     return description ? { type, description } : { type };
   } else if (typeof obj !== 'object') {
     throw new Error(
@@ -79,7 +85,12 @@ function parsePico(obj: any, path: string[] = []): JSONSchema {
     }
 
     if (!typeInfo) {
-      schema.properties[propertyName] = parsePico(obj[key], [...path, key]);
+      const prop = parsePico(obj[key], [...path, key]);
+      // make all optional fields also nullable
+      if (isOptional && typeof prop.type === 'string') {
+        prop.type = [prop.type, 'null'];
+      }
+      schema.properties[propertyName] = prop;
       continue;
     }
 
@@ -88,13 +99,17 @@ function parsePico(obj: any, path: string[] = []): JSONSchema {
     );
     if (type === 'array') {
       schema.properties[propertyName] = {
-        type: 'array',
+        type: isOptional ? ['array', 'null'] : 'array',
         items: parsePico(obj[key], [...path, key]),
       };
     } else if (type === 'object') {
-      schema.properties[propertyName] = parsePico(obj[key], [...path, key]);
+      const prop = parsePico(obj[key], [...path, key]);
+      if (isOptional) prop.type = [prop.type, 'null'];
+      schema.properties[propertyName] = prop;
     } else if (type === 'enum') {
-      schema.properties[propertyName] = { enum: obj[key] };
+      const prop = { enum: obj[key] };
+      if (isOptional) prop.enum.push(null);
+      schema.properties[propertyName] = prop;
     } else {
       throw new Error(
         "Picoschema: parenthetical types must be 'object' or 'array', got: " +
