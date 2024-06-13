@@ -82,6 +82,7 @@ schema:
   metadata?(object): # objects are also denoted via parentheses
     updatedAt?: string, ISO timestamp of last update
     approvedBy?: integer, id of approver
+  extra?: any, arbitrary extra data
 ```
 
 The above schema is equivalent to the following TypeScript interface:
@@ -89,33 +90,37 @@ The above schema is equivalent to the following TypeScript interface:
 ```ts
 interface Article {
   title: string;
-  subtitle?: string;
+  subtitle?: string | null;
   /** true when in draft state */
-  draft?: boolean;
+  draft?: boolean | null;
   /** approval status */
-  status?: 'PENDING' | 'APPROVED';
+  status?: 'PENDING' | 'APPROVED' | null;
   /** the date of publication e.g. '2024-04-09' */
   date: string;
   /** relevant tags for article */
   tags: string[];
   authors: {
     name: string;
-    email?: string;
+    email?: string | null;
   }[];
   metadata?: {
     /** ISO timestamp of last update */
-    updatedAt?: string;
+    updatedAt?: string | null;
     /** id of approver */
-    approvedBy?: number;
-  };
+    approvedBy?: number | null;
+  } | null;
+  /** arbitrary extra data */
+  extra?: any;
 }
 ```
 
-Picoschema supports scalar types `string`, `integer`, `number`, and `boolean`. For
-objects, arrays, and enums they are denoted by a parenthetical after the field name.
+Picoschema supports scalar types `string`, `integer`, `number`, `boolean`, and `any`.
+For objects, arrays, and enums they are denoted by a parenthetical after the field name.
 
 Objects defined by Picoschema have all properties as required unless denoted optional
-by `?`, and do not allow additional properties.
+by `?`, and do not allow additional properties. When a property is marked as optional,
+it is also made nullable to provide more leniency for LLMs to return null instead of
+omitting a field.
 
 Picoschema does not support many of the capabilities of full JSON schema. If you
 require more robust schemas, you may supply a JSON Schema instead:
