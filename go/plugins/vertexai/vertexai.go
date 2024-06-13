@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"reflect"
 	"runtime"
 
 	aiplatform "cloud.google.com/go/aiplatform/apiv1"
@@ -225,11 +224,12 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 
 	// Streaming version.
 	iter := cs.SendMessageStream(ctx, parts...)
-	r := &ai.GenerateResponse{Request: input, Candidates: make([]*ai.Candidate, input.Candidates)}
+	var r *ai.GenerateResponse
 	for {
 		chunk, err := iter.Next()
 		if err != nil {
 			if err == iterator.Done {
+				r = translateResponse(iter.MergedResponse())
 				break
 			}
 			return nil, err
@@ -247,42 +247,14 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 			if err != nil {
 				return nil, err
 			}
-			// Save candidate in full response structure.
-			if old := r.Candidates[tc.Index]; old == nil {
-				r.Candidates[tc.Index] = tc
-			} else {
-				// Need to merge two "parts" of a candidate.
-				// Currently, we:
-				//  - append the Message content
-				//  - merge the FinishReason
-				//  - assert everything else is unchanged
-				// (We do that 3rd step first.)
-				c1 := *r.Candidates[tc.Index]
-				c2 := *tc
-				m1 := *c1.Message
-				m2 := *c2.Message
-				c1.Message = &m1
-				c2.Message = &m2
-				m1.Content = nil
-				m2.Content = nil
-				c1.FinishReason = ai.FinishReasonUnknown
-				c2.FinishReason = ai.FinishReasonUnknown
-				if !reflect.DeepEqual(&c1, &c2) {
-					return nil, fmt.Errorf("some candidate fields unexpectedly changed\n%#v\n%#v", c1, c2)
-				}
-
-				// Append the Parts to the final candidate.
-				old.Message.Content = append(old.Message.Content, tc.Message.Content...)
-				// Merge the FinishReasons.
-				if old.FinishReason == ai.FinishReasonUnknown {
-					old.FinishReason = tc.FinishReason
-				} else if old.FinishReason != tc.FinishReason {
-					return nil, fmt.Errorf("invalid finish reason transition: %s to %s", old.FinishReason, tc.FinishReason)
-				}
-			}
 		}
-		// TODO: use chunk.PromptFeedback, chunk.UsageMetadata
 	}
+	if r == nil {
+		// No candidates were returned. Probably rare, but it might avoid a NPE
+		// to return an empty instead of nil result.
+		r = &ai.GenerateResponse{}
+	}
+	r.Request = input
 	return r, nil
 }
 
