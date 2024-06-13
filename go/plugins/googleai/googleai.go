@@ -28,7 +28,23 @@ import (
 	"google.golang.org/api/option"
 )
 
-const provider = "googleai"
+const (
+	provider = "googleai"
+)
+
+var (
+	defaultModelCapabilities = ai.ModelCapabilities{
+		Multiturn: true,
+	}
+	basicText = ai.ModelCapabilities{
+		Multiturn:  true,
+		Tools:      true,
+		SystemRole: true,
+	}
+	knownModelsCapabilities = map[string]ai.ModelCapabilities{
+		"gemini-1.0-pro": basicText,
+	}
+)
 
 // Config provides configuration options for the Init function.
 type Config struct {
@@ -90,11 +106,13 @@ func Init(ctx context.Context, cfg Config) (err error) {
 }
 
 func defineModel(name string, client *genai.Client) {
+	capabilities, ok := knownModelsCapabilities[name]
+	if !ok {
+		capabilities = defaultModelCapabilities
+	}
 	meta := &ai.ModelMetadata{
-		Label: "Google AI - " + name,
-		Supports: ai.ModelCapabilities{
-			Multiturn: true,
-		},
+		Label:    "Google AI - " + name,
+		Supports: capabilities,
 	}
 	g := generator{model: name, client: client}
 	ai.DefineModel(provider, name, meta, g.generate)

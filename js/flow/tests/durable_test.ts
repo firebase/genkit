@@ -69,7 +69,7 @@ describe('durable', () => {
           name: 'testFlow',
           inputSchema: z.string(),
           outputSchema: z.string(),
-          experimentalDurable: true,
+          experimentalDurable: true,          
         },
         async (input) => {
           const response = await interrupt(
