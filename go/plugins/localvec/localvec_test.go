@@ -204,11 +204,3 @@ func TestInit(t *testing.T) {
 		t.Errorf("got %q, want %q", g, name)
 	}
 }
-
-func names[T interface{ Name() string }](xs []T) []string {
-	var ns []string
-	for _, x := range xs {
-		ns = append(ns, x.Name())
-	}
-	return ns
-}
