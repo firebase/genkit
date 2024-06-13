@@ -125,6 +125,10 @@ by `?`, and do not allow additional properties. When a property is marked as opt
 it is also made nullable to provide more leniency for LLMs to return null instead of
 omitting a field.
 
+In an object definition, the special key `(*)` can be used to declare a "wildcard"
+field definition. This will match any additional properties not supplied by an
+explicit key.
+
 Picoschema does not support many of the capabilities of full JSON schema. If you
 require more robust schemas, you may supply a JSON Schema instead:
 
