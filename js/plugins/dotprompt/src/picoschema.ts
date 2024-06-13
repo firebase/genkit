@@ -23,6 +23,8 @@ const JSON_SCHEMA_SCALAR_TYPES = [
   'any',
 ];
 
+const WILDCARD_PROPERTY_NAME = '(*)';
+
 import { JSONSchema } from '@genkit-ai/core/schema';
 
 export function picoschema(schema: unknown): JSONSchema | null {
@@ -77,9 +79,16 @@ function parsePico(obj: any, path: string[] = []): JSONSchema {
   };
 
   for (const key in obj) {
+    // wildcard property
+    if (key === WILDCARD_PROPERTY_NAME) {
+      schema.additionalProperties = parsePico(obj[key], [...path, key]);
+      continue;
+    }
+
     const [name, typeInfo] = key.split('(');
     const isOptional = name.endsWith('?');
     const propertyName = isOptional ? name.slice(0, -1) : name;
+
     if (!isOptional) {
       schema.required.push(propertyName);
     }

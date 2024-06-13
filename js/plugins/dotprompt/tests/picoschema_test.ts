@@ -174,6 +174,38 @@ describe('picoschema()', () => {
         required: ['first'],
       },
     },
+    {
+      description: 'wildcard fields with other fields',
+      yaml: `schema:
+  otherField: string, another string
+  (*): any, whatever you want`,
+      want: {
+        additionalProperties: {
+          description: 'whatever you want',
+        },
+        properties: {
+          otherField: {
+            description: 'another string',
+            type: 'string',
+          },
+        },
+        required: ['otherField'],
+        type: 'object',
+      },
+    },
+    {
+      description: 'wildcard fields with other fields',
+      yaml: `schema:
+  (*): number, lucky number`,
+      want: {
+        additionalProperties: {
+          type: 'number',
+          description: 'lucky number',
+        },
+        properties: {},
+        type: 'object',
+      },
+    },
   ];
 
   for (const test of tests) {
