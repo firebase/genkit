@@ -23,11 +23,13 @@ export {
 } from './evaluator.js';
 export {
   Candidate,
+  generate,
+  generateOutput,
   GenerateResponse,
+  generateStream,
+  generateText,
   Message,
   NoValidCandidatesError,
-  generate,
-  generateStream,
   toGenerateRequest,
   type GenerateOptions,
   type GenerateStreamOptions,

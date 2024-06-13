@@ -713,6 +713,29 @@ export async function generate<
   return await generate(resolvedOptions);
 }
 
+export async function generateText<
+  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+>(
+  options:
+    | GenerateOptions<z.ZodString, CustomOptions>
+    | PromiseLike<GenerateOptions<z.ZodString, CustomOptions>>
+): Promise<{ text: string; response: GenerateResponse<string> }> {
+  const response = await generate(options);
+  return { text: response.text(), response };
+}
+
+export async function generateOutput<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+>(
+  options:
+    | GenerateOptions<O, CustomOptions>
+    | PromiseLike<GenerateOptions<O, CustomOptions>>
+): Promise<{ output: O; response: GenerateResponse<z.infer<O>> }> {
+  const response = await generate(options);
+  return { output: response.output()!, response };
+}
+
 export type GenerateStreamOptions<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
