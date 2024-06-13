@@ -53,12 +53,14 @@ type Config struct {
 	// API key. Required.
 	ServerAddress string
 	// Generative models to provide.
-	Model string
+	Models []string
 }
 
 // Init registers all the actions in this package with ai.
 func Init(ctx context.Context, cfg Config) error {
-	defineModel(cfg.Model, cfg.ServerAddress)
+	for _, model := range cfg.Models {
+		defineModel(model, cfg.ServerAddress)
+	}
 	return nil
 }
 
@@ -78,7 +80,7 @@ stream: if false the response will be returned as a single response object, rath
 raw: if true no formatting will be applied to the prompt. You may choose to use the raw parameter if you are specifying a full templated prompt in your request to the API
 keep_alive: controls how long the model will stay loaded into memory following the request (default: 5m)
 */
-type OllamaRequest struct {
+type ollamaRequest struct {
 	Messages []map[string]string `json:"messages"`
 	Model    string              `json:"model"`
 	Stream   bool                `json:"stream"`
@@ -99,7 +101,7 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	}
 	fmt.Println("should stream", cb != nil)
 	stream := cb != nil
-	payload := OllamaRequest{
+	payload := ollamaRequest{
 		Messages: messages,
 		Model:    g.model,
 		Stream:   stream,
