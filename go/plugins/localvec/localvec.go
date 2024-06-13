@@ -48,7 +48,7 @@ func Init() error { return nil }
 
 // DefineStore defines an indexer and retriever that share the same underlying storage.
 // The name uniquely identifies the the indexer and retriever in the registry.
-func DefineStore(name string, cfg Config) (*ai.IndexerAction, *ai.RetrieverAction, error) {
+func DefineStore(name string, cfg Config) (*ai.Indexer, *ai.Retriever, error) {
 	ds, err := newDocStore(cfg.Dir, name, cfg.Embedder, cfg.EmbedderOptions)
 	if err != nil {
 		return nil, nil, err
@@ -59,13 +59,13 @@ func DefineStore(name string, cfg Config) (*ai.IndexerAction, *ai.RetrieverActio
 }
 
 // Indexer returns the registered indexer with the given name.
-func Indexer(name string) *ai.IndexerAction {
+func Indexer(name string) *ai.Indexer {
 	return ai.LookupIndexer(provider, name)
 }
 
 // Retriever returns the retriever with the given name.
 // The name must match the [Config.Name] value passed to [Init].
-func Retriever(name string) *ai.RetrieverAction {
+func Retriever(name string) *ai.Retriever {
 	return ai.LookupRetriever(provider, name)
 }
 

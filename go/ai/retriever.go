@@ -22,10 +22,15 @@ import (
 )
 
 type (
-	// An IndexerAction is used to index documents in a store.
-	IndexerAction = core.Action[*IndexerRequest, struct{}, struct{}]
-	// A RetrieverAction is used to retrieve indexed documents.
-	RetrieverAction = core.Action[*RetrieverRequest, *RetrieverResponse, struct{}]
+	// An Indexer is used to index documents in a store.
+	Indexer core.Action[*IndexerRequest, struct{}, struct{}]
+	// A Retriever is used to retrieve indexed documents.
+	Retriever core.Action[*RetrieverRequest, *RetrieverResponse, struct{}]
+)
+
+type (
+	indexerAction   = core.Action[*IndexerRequest, struct{}, struct{}]
+	retrieverAction = core.Action[*RetrieverRequest, *RetrieverResponse, struct{}]
 )
 
 // IndexerRequest is the data we pass to add documents to the database.
@@ -48,39 +53,43 @@ type RetrieverResponse struct {
 }
 
 // DefineIndexer registers the given index function as an action, and returns an
-// [IndexerAction] that runs it.
-func DefineIndexer(provider, name string, index func(context.Context, *IndexerRequest) error) *IndexerAction {
+// [Indexer] that runs it.
+func DefineIndexer(provider, name string, index func(context.Context, *IndexerRequest) error) *Indexer {
 	f := func(ctx context.Context, req *IndexerRequest) (struct{}, error) {
 		return struct{}{}, index(ctx, req)
 	}
-	return core.DefineAction(provider, name, atype.Indexer, nil, f)
+	return (*Indexer)(core.DefineAction(provider, name, atype.Indexer, nil, f))
 }
 
-// LookupIndexer looks up a [IndexerAction] registered by [DefineIndexer].
+// LookupIndexer looks up a [Indexer] registered by [DefineIndexer].
 // It returns nil if the model was not defined.
-func LookupIndexer(provider, name string) *IndexerAction {
-	return core.LookupActionFor[*IndexerRequest, struct{}, struct{}](atype.Indexer, provider, name)
+func LookupIndexer(provider, name string) *Indexer {
+	return (*Indexer)(core.LookupActionFor[*IndexerRequest, struct{}, struct{}](atype.Indexer, provider, name))
 }
 
 // DefineRetriever registers the given retrieve function as an action, and returns a
-// [RetrieverAction] that runs it.
-func DefineRetriever(provider, name string, ret func(context.Context, *RetrieverRequest) (*RetrieverResponse, error)) *RetrieverAction {
-	return core.DefineAction(provider, name, atype.Retriever, nil, ret)
+// [Retriever] that runs it.
+func DefineRetriever(provider, name string, ret func(context.Context, *RetrieverRequest) (*RetrieverResponse, error)) *Retriever {
+	return (*Retriever)(core.DefineAction(provider, name, atype.Retriever, nil, ret))
 }
 
-// LookupRetriever looks up a [RetrieverAction] registered by [DefineRetriever].
+// LookupRetriever looks up a [Retriever] registered by [DefineRetriever].
 // It returns nil if the model was not defined.
-func LookupRetriever(provider, name string) *RetrieverAction {
-	return core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](atype.Retriever, provider, name)
+func LookupRetriever(provider, name string) *Retriever {
+	return (*Retriever)(core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](atype.Retriever, provider, name))
 }
 
-// Index runs the given [IndexerAction].
-func Index(ctx context.Context, indexer *IndexerAction, req *IndexerRequest) error {
-	_, err := indexer.Run(ctx, req, nil)
+// Index runs the given [Indexer].
+func (i *Indexer) Index(ctx context.Context, req *IndexerRequest) error {
+	_, err := (*indexerAction)(i).Run(ctx, req, nil)
 	return err
 }
 
-// Retrieve runs the given [RetrieverAction].
-func Retrieve(ctx context.Context, retriever *RetrieverAction, req *RetrieverRequest) (*RetrieverResponse, error) {
-	return retriever.Run(ctx, req, nil)
+// Retrieve runs the given [Retriever].
+func (r *Retriever) Retrieve(ctx context.Context, req *RetrieverRequest) (*RetrieverResponse, error) {
+	return (*retrieverAction)(r).Run(ctx, req, nil)
 }
+
+func (i *Indexer) Name() string { return (*indexerAction)(i).Name() }
+
+func (r *Retriever) Name() string { return (*retrieverAction)(r).Name() }
