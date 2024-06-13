@@ -79,13 +79,15 @@ export function writeFlowSuccess(flowName: string, latencyMs: number) {
 
   const paths = traceMetadataAls.getStore()?.paths || new Set<PathMetadata>();
   if (paths) {
-    const relevantPaths = Array.from(paths).filter((meta) =>
-      meta.path.includes(flowName)
+    const relevantPaths = new Map(
+      Array.from(paths)
+        .filter((meta) => meta.path.includes(flowName))
+        .map((path) => [path.path, path])
     );
 
     logger.logStructured(`Paths[/${flowName}]`, {
       flowName: flowName,
-      paths: relevantPaths.map((p) => p.path),
+      paths: [...relevantPaths.keys()],
     });
 
     relevantPaths.forEach((p) => {
@@ -121,13 +123,17 @@ export function writeFlowFailure(
     traceMetadataAls.getStore()?.paths || new Set<PathMetadata>();
   if (allPaths) {
     const failPath = spanMetadataAls?.getStore()?.path;
-    const relevantPaths = Array.from(allPaths).filter(
-      (meta) => meta.path.includes(flowName) && meta.path !== failPath
+    const relevantPaths = new Map(
+      Array.from(allPaths)
+        .filter(
+          (meta) => meta.path.includes(flowName) && meta.path !== failPath
+        )
+        .map((path) => [path.path, path])
     );
 
     logger.logStructured(`Paths[/${flowName}]`, {
       flowName: flowName,
-      paths: relevantPaths.map((p) => p.path),
+      paths: [...relevantPaths.keys()],
     });
 
     // All paths that have succeeded need to be tracked as succeeded.
