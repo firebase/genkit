@@ -106,6 +106,46 @@ func TestLive(t *testing.T) {
 			t.Error("Request field not set properly")
 		}
 	})
+	t.Run("streaming", func(t *testing.T) {
+		req := &ai.GenerateRequest{
+			Candidates: 1,
+			Messages: []*ai.Message{
+				&ai.Message{
+					Content: []*ai.Part{ai.NewTextPart("Write one paragraph about the Golden State Warriors.")},
+					Role:    ai.RoleUser,
+				},
+			},
+		}
+
+		out := ""
+		parts := 0
+		model := vertexai.Model(modelName)
+		final, err := ai.Generate(ctx, model, req, func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+			parts++
+			for _, p := range c.Content {
+				out += p.Text
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		out2 := ""
+		for _, p := range final.Candidates[0].Message.Content {
+			out2 += p.Text
+		}
+		if out != out2 {
+			t.Errorf("streaming and final should contain the same text.\nstreaming:%s\nfinal:%s", out, out2)
+		}
+		const want = "Golden"
+		if !strings.Contains(out, want) {
+			t.Errorf("got %q, expecting it to contain %q", out, want)
+		}
+		if parts == 1 {
+			// Check if streaming actually occurred.
+			t.Errorf("expecting more than one part")
+		}
+	})
 	t.Run("tool", func(t *testing.T) {
 		req := &ai.GenerateRequest{
 			Candidates: 1,
