@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/internal/fakeembedder"
+	"github.com/firebase/genkit/go/testing/mockembedder"
 )
 
 func TestGenkit(t *testing.T) {
@@ -50,7 +50,7 @@ func TestGenkit(t *testing.T) {
 	dim := indexData.Dimension
 
 	// Make two very similar vectors and one different vector.
-	// Arrange for a fake embedder to return those vector
+	// Arrange for a mock embedder to return those vector
 	// when provided with documents.
 
 	v1 := make([]float32, dim)
@@ -67,7 +67,7 @@ func TestGenkit(t *testing.T) {
 	d2 := ai.DocumentFromText("hello2", nil)
 	d3 := ai.DocumentFromText("goodbye", nil)
 
-	embedder := fakeembedder.New()
+	embedder := mockembedder.New()
 	embedder.Register(d1, v1)
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
@@ -77,7 +77,7 @@ func TestGenkit(t *testing.T) {
 	}
 	cfg := Config{
 		IndexID:  *testIndex,
-		Embedder: ai.DefineEmbedder("fake", "embedder3", embedder.Embed),
+		Embedder: ai.DefineEmbedder("mock", "embedder3", embedder.Embed),
 	}
 	indexer, err := DefineIndexer(ctx, cfg)
 	if err != nil {

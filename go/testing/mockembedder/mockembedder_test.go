@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fakeembedder
+package mockembedder
 
 import (
 	"context"
@@ -22,13 +22,13 @@ import (
 	"github.com/firebase/genkit/go/ai"
 )
 
-func TestFakeEmbedder(t *testing.T) {
-	embed := New()
-	embedAction := ai.DefineEmbedder("fake", "embed", embed.Embed)
-	d := ai.DocumentFromText("fakeembedder test", nil)
+func TestMockEmbedder(t *testing.T) {
+	mock := New()
+	embedAction := ai.DefineEmbedder("mock", "embed", mock.Embed)
+	d := ai.DocumentFromText("mockembedder test", nil)
 
 	vals := []float32{1, 2}
-	embed.Register(d, vals)
+	mock.Register(d, vals)
 
 	req := &ai.EmbedRequest{
 		Document: d,

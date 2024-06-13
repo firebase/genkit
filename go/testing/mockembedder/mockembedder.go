@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package fakeembedder provides a fake implementation of
-// genkit.Embedder for testing purposes.
+// Package mockembedder provides a mock implementation of
+// ai.Embedder for testing purposes.
 // The caller must register the values that the fake embedder should
 // return for each document. Asking for the values of an unregistered
-// document panics.
-package fakeembedder
+// document returns an error.
+package mockembedder
 
 import (
 	"context"
@@ -26,12 +26,12 @@ import (
 	"github.com/firebase/genkit/go/ai"
 )
 
-// Embedder is a fake implementation of genkit.Embedder.
+// Embedder is a mock implementation of genkit.Embedder.
 type Embedder struct {
 	registry map[*ai.Document][]float32
 }
 
-// New returns a new fake embedder.
+// New returns a new mock embedder.
 func New() *Embedder {
 	return &Embedder{
 		registry: make(map[*ai.Document][]float32),
@@ -46,7 +46,7 @@ func (e *Embedder) Register(d *ai.Document, vals []float32) {
 func (e *Embedder) Embed(ctx context.Context, req *ai.EmbedRequest) ([]float32, error) {
 	vals, ok := e.registry[req.Document]
 	if !ok {
-		return nil, errors.New("fake embedder called with unregistered document")
+		return nil, errors.New("mock embedder called with unregistered document")
 	}
 	return vals, nil
 }
