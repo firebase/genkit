@@ -16,11 +16,12 @@ want to work with. Model configuration is performed by the plugin system. In
 this example you are configuring the Vertex AI plugin, which provides Gemini
 models.
 
-* {Go}
+- {Go}
 
   ```go
   import "github.com/firebase/genkit/go/plugins/vertexai"
   ```
+
   ```go
   projectID := os.Getenv("GCLOUD_PROJECT")
   err := vertexai.Init(context.Background(), vertexai.Config{
@@ -39,7 +40,7 @@ pull required credentials using Application Default Credentials.
 To use models provided by the plugin, you need a reference to the specific model
 and version:
 
-* {Go}
+- {Go}
 
   ```go
   gemini15pro := googleai.Model("gemini-1.5-pro")
@@ -71,7 +72,7 @@ Genkit provides a simple helper function for generating content with models.
 
 To just call the model:
 
-* {Go}
+- {Go}
 
   ```go
   request := ai.GenerateRequest{Messages: []*ai.Message{
@@ -86,7 +87,7 @@ To just call the model:
 You can pass options along with the model call. The options that are supported
 depend on the model and its API.
 
-* {Go}
+- {Go}
 
   ```go
   request := ai.GenerateRequest{
@@ -105,7 +106,7 @@ depend on the model and its API.
 
 Genkit supports chunked streaming of model responses:
 
-* {Go}
+- {Go}
 
   To use chunked streaming, pass a callback function to `Generate()`:
 
@@ -134,7 +135,7 @@ Genkit supports chunked streaming of model responses:
 
 If the model supports multimodal input, you can pass image prompts:
 
-* {Go}
+- {Go}
 
   ```go
   imageBytes, err := os.ReadFile("img.jpg")
@@ -159,7 +160,7 @@ model-dependent.
 Genkit models provide an interface for function calling, for models that support
 it.
 
-* {Go}
+- {Go}
 
   ```go
   myJoke := &ai.ToolDefinition{
@@ -216,7 +217,7 @@ Genkit models support maintaining a history of the messages sent to the model
 and its responses, which you can use to build interactive experiences, such as
 chatbots.
 
-* {Go}
+- {Go}
 
   In the first prompt of a session, the "history" is simply the user prompt:
 
@@ -253,7 +254,7 @@ chatbots.
 If the model you're using supports the system role, you can use the initial
 history to set the system message:
 
-* {Go}
+- {Go}
 
   ```go
   history := []&ai.Message{
