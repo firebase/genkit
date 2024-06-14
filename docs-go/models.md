@@ -23,13 +23,13 @@ models.
   ```
   ```go
   projectID := os.Getenv("GCLOUD_PROJECT")
-	err := vertexai.Init(context.Background(), vertexai.Config{
-		ProjectID: projectID,
-		Models: []string{
-			"gemini-1.5-pro",
-			"gemini-1.5-flash",
-		},
-	})
+  err := vertexai.Init(context.Background(), vertexai.Config{
+    ProjectID: projectID,
+    Models: []string{
+      "gemini-1.5-pro",
+      "gemini-1.5-flash",
+    },
+  })
   ```
 
 Note: Different plugins and models use different methods of
@@ -74,13 +74,13 @@ To just call the model:
 * {Go}
 
   ```go
-	request := ai.GenerateRequest{Messages: []*ai.Message{
-		{Content: []*ai.Part{ai.NewTextPart("Tell me a joke.")}},
-	}}
-	response, err := ai.Generate(context.Background(), gemini15pro, &request, nil)
+  request := ai.GenerateRequest{Messages: []*ai.Message{
+    {Content: []*ai.Part{ai.NewTextPart("Tell me a joke.")}},
+  }}
+  response, err := ai.Generate(context.Background(), gemini15pro, &request, nil)
 
-	responseText, err := response.Text()
-	fmt.Println(responseText)
+  responseText, err := response.Text()
+  fmt.Println(responseText)
   ```
 
 You can pass options along with the model call. The options that are supported
@@ -89,16 +89,16 @@ depend on the model and its API.
 * {Go}
 
   ```go
-	request := ai.GenerateRequest{
-		Messages: []*ai.Message{
-			{Content: []*ai.Part{ai.NewTextPart("Tell me a joke about dogs.")}},
-		},
-		Config: ai.GenerationCommonConfig{
-			Temperature:     1.67,
-			StopSequences:   []string{"abc"},
-			MaxOutputTokens: 3,
-		},
-	}
+  request := ai.GenerateRequest{
+    Messages: []*ai.Message{
+      {Content: []*ai.Part{ai.NewTextPart("Tell me a joke about dogs.")}},
+    },
+    Config: ai.GenerationCommonConfig{
+      Temperature:     1.67,
+      StopSequences:   []string{"abc"},
+      MaxOutputTokens: 3,
+    },
+  }
   ```
 
 ### Streaming responses
@@ -108,24 +108,24 @@ Genkit supports chunked streaming of model responses:
 * {Go}
 
   ```go
-	request := ai.GenerateRequest{Messages: []*ai.Message{
-		{Content: []*ai.Part{ai.NewTextPart("Tell a long story about robots and ninjas.")}},
-	}}
-	response, err := ai.Generate(
-		context.Background(),
-		gemini15pro,
-		&request,
-		func(ctx context.Context, grc *ai.GenerateResponseChunk) error {
-			text, err := grc.Text()
-			if err == nil {
-				fmt.Printf("Chunk: %s\n", text)
-			}
-			return err
-		})
+  request := ai.GenerateRequest{Messages: []*ai.Message{
+    {Content: []*ai.Part{ai.NewTextPart("Tell a long story about robots and ninjas.")}},
+  }}
+  response, err := ai.Generate(
+    context.Background(),
+    gemini15pro,
+    &request,
+    func(ctx context.Context, grc *ai.GenerateResponseChunk) error {
+      text, err := grc.Text()
+      if err == nil {
+        fmt.Printf("Chunk: %s\n", text)
+      }
+      return err
+    })
 
-	// You can also still get the full response.
+  // You can also still get the full response.
   responseText, err := response.Text()
-	fmt.Println(responseText)
+  fmt.Println(responseText)
   ```
 
 ## Multimodal input
@@ -135,16 +135,16 @@ If the model supports multimodal input, you can pass image prompts:
 * {Go}
 
   ```go
-	imageBytes, err := os.ReadFile("img.jpg")
-	encodedImage := base64.StdEncoding.EncodeToString(imageBytes)
+  imageBytes, err := os.ReadFile("img.jpg")
+  encodedImage := base64.StdEncoding.EncodeToString(imageBytes)
 
-	request := ai.GenerateRequest{Messages: []*ai.Message{
-		{Content: []*ai.Part{
-			ai.NewTextPart("Describe the following image."),
-			ai.NewMediaPart("", "data:image/jpeg;base64,"+encodedImage),
-		}},
-	}}
-	response, err := ai.Generate(context.Background(), gemini15pro, &request, nil)
+  request := ai.GenerateRequest{Messages: []*ai.Message{
+    {Content: []*ai.Part{
+      ai.NewTextPart("Describe the following image."),
+      ai.NewMediaPart("", "data:image/jpeg;base64,"+encodedImage),
+    }},
+  }}
+  response, err := ai.Generate(context.Background(), gemini15pro, &request, nil)
   ```
 
   <!-- TODO: gs:// wasn't working for me. HTTP? -->
@@ -159,31 +159,31 @@ it.
 
 * {Go}
 
-	```go
+  ```go
   myJoke := &ai.ToolDefinition{
-		Name:        "myJoke",
-		Description: "useful when you need a joke to tell",
-		InputSchema: make(map[string]any),
-		OutputSchema: map[string]any{
-			"joke": "string",
-		},
-	}
-	ai.DefineTool(
-		myJoke,
-		nil,
-		func(ctx context.Context, input map[string]any) (map[string]any, error) {
-			return map[string]any{"joke": "haha Just kidding no joke! got you"}, nil
-		},
-	)
+    Name:        "myJoke",
+    Description: "useful when you need a joke to tell",
+    InputSchema: make(map[string]any),
+    OutputSchema: map[string]any{
+      "joke": "string",
+    },
+  }
+  ai.DefineTool(
+    myJoke,
+    nil,
+    func(ctx context.Context, input map[string]any) (map[string]any, error) {
+      return map[string]any{"joke": "haha Just kidding no joke! got you"}, nil
+    },
+  )
 
-	request := ai.GenerateRequest{
-		Messages: []*ai.Message{
-			{Content: []*ai.Part{ai.NewTextPart("Tell me a joke.")},
-				Role: ai.RoleUser},
-		},
-		Tools: []*ai.ToolDefinition{myJoke},
-	}
-	response, err := ai.Generate(context.Background(), gemini15pro, &request, nil)
+  request := ai.GenerateRequest{
+    Messages: []*ai.Message{
+      {Content: []*ai.Part{ai.NewTextPart("Tell me a joke.")},
+        Role: ai.RoleUser},
+    },
+    Tools: []*ai.ToolDefinition{myJoke},
+  }
+  response, err := ai.Generate(context.Background(), gemini15pro, &request, nil)
   ```
 
 This will automatically call the tools in order to fulfill the user prompt.
