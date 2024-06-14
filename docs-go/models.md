@@ -30,9 +30,6 @@ models.
 			"gemini-1.5-flash",
 		},
 	})
-  if err != nil {
-    log.Fatal(err)
-  }
   ```
 
 Note: Different plugins and models use different methods of
@@ -81,14 +78,8 @@ To just call the model:
 		{Content: []*ai.Part{ai.NewTextPart("Tell me a joke.")}},
 	}}
 	response, err := ai.Generate(context.Background(), gemini15pro, &request, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	responseText, err := response.Text()
-	if err != nil {
-		log.Fatal(err)
-	}
 	fmt.Println(responseText)
   ```
 
@@ -131,15 +122,9 @@ Genkit supports chunked streaming of model responses:
 			}
 			return err
 		})
-	if err != nil {
-		log.Fatal(err)
-	}
 
 	// You can also still get the full response.
   responseText, err := response.Text()
-	if err != nil {
-		log.Fatal(err)
-	}
 	fmt.Println(responseText)
   ```
 
@@ -151,9 +136,6 @@ If the model supports multimodal input, you can pass image prompts:
 
   ```go
 	imageBytes, err := os.ReadFile("img.jpg")
-	if err != nil {
-		log.Fatal(err)
-	}
 	encodedImage := base64.StdEncoding.EncodeToString(imageBytes)
 
 	request := ai.GenerateRequest{Messages: []*ai.Message{
@@ -163,9 +145,6 @@ If the model supports multimodal input, you can pass image prompts:
 		}},
 	}}
 	response, err := ai.Generate(context.Background(), gemini15pro, &request, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
   ```
 
   <!-- TODO: gs:// wasn't working for me. HTTP? -->
@@ -247,18 +226,12 @@ chatbots.
 
   request := ai.GenerateRequest{Messages: history}
   response, err := ai.Generate(context.Background(), gemini15pro, &request, nil)
-  if err != nil {
-    log.Fatal(err)
-  }
   ```
 
   When you get a response, add it to the history:
 
   ```go
   responseText, err := response.Text()
-  if err != nil {
-    log.Fatal(err)
-  }
   fmt.Println(responseText)
 
   history = append(history, response.Candidates[0].Message)
