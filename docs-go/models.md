@@ -107,6 +107,8 @@ Genkit supports chunked streaming of model responses:
 
 * {Go}
 
+  To use chunked streaming, pass a callback function to `Generate()`:
+
   ```go
   request := ai.GenerateRequest{Messages: []*ai.Message{
     {Content: []*ai.Part{ai.NewTextPart("Tell a long story about robots and ninjas.")}},
