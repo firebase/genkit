@@ -101,7 +101,9 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	// Step 1: Combine parts from all messages into a single payload slice
 	var messages []*ollamaMessage
 
-	// Add all messages to history field.
+	// TODO: Handle system prompt.
+
+	// Translate all messages to ollama message format.
 	for _, m := range input.Messages {
 		message, err := convertParts(m.Role, m.Content)
 		if err != nil {
