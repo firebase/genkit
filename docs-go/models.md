@@ -233,9 +233,6 @@ chatbots.
   When you get a response, add it to the history:
 
   ```go
-  responseText, err := response.Text()
-  fmt.Println(responseText)
-
   history = append(history, response.Candidates[0].Message)
   ```
 
