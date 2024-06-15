@@ -19,6 +19,7 @@ import { GenerateRequest } from '@genkit-ai/ai/model';
 import { configureGenkit } from '@genkit-ai/core';
 import { dotprompt, prompt } from '@genkit-ai/dotprompt';
 import { googleAI } from '@genkit-ai/googleai';
+import z from 'zod';
 
 configureGenkit({
   plugins: [googleAI({ apiVersion: 'v1beta' }), dotprompt()],
@@ -30,32 +31,49 @@ configureGenkit({
 prompt('recipe', { variant: 'jsonmode' })
   .then((recipePrompt) => recipePrompt.generate({ input: { food: 'pizza' } }))
   .then((response) => {
-    console.log(response.output());
+    console.log(response.data());
   });
 
 const jsonJokePrompt = definePrompt(
-  {
-    name: 'json_joke',
-  },
+  { name: 'json_joke' },
   async (): Promise<GenerateRequest> => {
-    const promptText = `
+    const text = `
     You are acting as a genius comedy assistant with a deep interest in data structures, particularly obscure JSON syntax rules.
     Tell a funny JSON joke.
     `;
 
-    return {
-      messages: [{ role: 'user', content: [{ text: promptText }] }],
-      config: { temperature: 0.3, responseMimeType: 'application/json' },
-    };
+    return { messages: [{ role: 'user', content: [{ text }] }] };
   }
 );
 
-generate(
-  renderPrompt({
-    prompt: jsonJokePrompt,
-    input: null,
-    model: 'googleai/gemini-1.5-pro-latest',
-  })
-).then((response) => {
-  console.log(response.output());
+// Sets the output format to JSON, will return a semi-arbitrary JSON shape
+renderPrompt({
+  prompt: jsonJokePrompt,
+  input: null,
+  model: 'googleai/gemini-1.5-flash-latest',
+}).then((prompt) => {
+  generate({
+    ...prompt,
+    output: {
+      format: 'json',
+    },
+  }).then((response) => {
+    console.log(response.data());
+  });
+});
+
+// Includes an expected schema for the response, implying JSON mode.
+renderPrompt({
+  prompt: jsonJokePrompt,
+  input: null,
+  model: 'googleai/gemini-1.5-pro-latest',
+}).then((prompt) => {
+  generate({
+    ...prompt,
+    output: {
+      schema: z.object({ body: z.string(), punchline: z.string() }),
+    },
+  }).then((response) => {
+    console.log(response.data());
+  });
 });
