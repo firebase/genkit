@@ -984,6 +984,31 @@ importers:
         specifier: ^5.3.3
         version: 5.4.5
 
+  testapps/json-mode:
+    dependencies:
+      '@genkit-ai/ai':
+        specifier: workspace:*
+        version: link:../../ai
+      '@genkit-ai/core':
+        specifier: workspace:^
+        version: link:../../core
+      '@genkit-ai/dotprompt':
+        specifier: workspace:*
+        version: link:../../plugins/dotprompt
+      '@genkit-ai/flow':
+        specifier: workspace:*
+        version: link:../../flow
+      '@genkit-ai/googleai':
+        specifier: workspace:*
+        version: link:../../plugins/googleai
+      zod:
+        specifier: ^3.22.4
+        version: 3.22.4
+    devDependencies:
+      typescript:
+        specifier: ^5.3.3
+        version: 5.4.5
+
   testapps/langchain:
     dependencies:
       '@genkit-ai/ai':
