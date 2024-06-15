@@ -15,6 +15,7 @@
  */
 
 import { MessageData } from '@genkit-ai/ai/model';
+import { DocumentData } from '@genkit-ai/ai/retriever';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { compile } from '../src/template';
@@ -190,7 +191,7 @@ describe('compile', () => {
       assert.deepEqual(
         compile(test.template, { model: 'test/example' })(test.input, {
           history: test.options?.history as MessageData[],
-          // context: test.options?.context as DocumentData[],
+          context: test.options?.context as DocumentData[],
         }),
         test.want
       );
