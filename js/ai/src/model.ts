@@ -109,6 +109,7 @@ export type Role = z.infer<typeof RoleSchema>;
 export const MessageSchema = z.object({
   role: RoleSchema,
   content: z.array(PartSchema),
+  metadata: z.record(z.unknown()).optional(),
 });
 export type MessageData = z.infer<typeof MessageSchema>;
 

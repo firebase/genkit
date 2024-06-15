@@ -91,7 +91,7 @@ describe('Prompt', () => {
       }, ValidationError);
     });
 
-    it('should render with overrided fields', async () => {
+    it('should render with overridden fields', async () => {
       const prompt = testPrompt(`Hello {{name}}, how are you?`);
 
       const streamingCallback = (c) => console.log(c);

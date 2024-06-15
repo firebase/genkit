@@ -177,6 +177,7 @@ describe('conformOutput (default middleware)', () => {
     ) {
       throw new Error('too many output parts');
     }
+
     return treq.messages
       .at(-1)
       ?.content.find((p) => p.metadata?.purpose === 'output')!;
@@ -190,9 +191,10 @@ describe('conformOutput (default middleware)', () => {
         { role: 'user', content: [{ text: 'hello again' }] },
       ],
       output: { format: 'json', schema },
+      context: [{ content: [{ text: 'hi' }] }],
     });
     assert(
-      part.text?.includes(JSON.stringify(schema)),
+      part?.text?.includes(JSON.stringify(schema)),
       "schema wasn't found in output part"
     );
   });
@@ -208,6 +210,25 @@ describe('conformOutput (default middleware)', () => {
       output: { format: 'json', schema },
     });
     assert.equal(part.text, 'hello again');
+  });
+
+  it('augments a pending output part', async () => {
+    const part = await testRequest({
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { metadata: { purpose: 'output', pending: true } },
+            { text: 'after' },
+          ],
+        },
+      ],
+      output: { format: 'json', schema },
+    });
+    assert(
+      part?.text?.includes(JSON.stringify(schema)),
+      "schema wasn't found in output part"
+    );
   });
 
   it('does not add output instructions if no output schema is provided', async () => {
@@ -292,7 +313,7 @@ describe('augmentWithContext', () => {
     assert.deepEqual(await testRequest(messages, []), messages);
   });
 
-  it('should not change a message that already has a context part', async () => {
+  it('should not change a message that already has a context part with content', async () => {
     const messages: MessageData[] = [
       {
         role: 'user',
@@ -302,6 +323,31 @@ describe('augmentWithContext', () => {
     assert.deepEqual(
       await testRequest(messages, [{ content: [{ text: 'i am context' }] }]),
       messages
+    );
+  });
+
+  it('should augment a message that has a pending context part', async () => {
+    const messages: MessageData[] = [
+      {
+        role: 'user',
+        content: [{ metadata: { purpose: 'context', pending: true } }],
+      },
+    ];
+    assert.deepEqual(
+      await testRequest(messages, [{ content: [{ text: 'i am context' }] }]),
+      [
+        {
+          content: [
+            {
+              metadata: {
+                purpose: 'context',
+              },
+              text: `${CONTEXT_PREFACE}- [0]: i am context\n\n`,
+            },
+          ],
+          role: 'user',
+        },
+      ]
     );
   });
 
