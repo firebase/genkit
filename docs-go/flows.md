@@ -12,13 +12,13 @@ A flow wraps a function:
 * {Go}
 
   ```go
-	menuSuggestionFlow := genkit.DefineFlow(
-		"menuSuggestionFlow",
-		func(ctx context.Context, restaurantTheme string, _ genkit.NoStream) (string, error) {
-			suggestion := makeMenuItemSuggestion(restaurantTheme)
-			return suggestion, nil
-		},
-	)
+  menuSuggestionFlow := genkit.DefineFlow(
+    "menuSuggestionFlow",
+    func(ctx context.Context, restaurantTheme string, _ genkit.NoStream) (string, error) {
+      suggestion := makeMenuItemSuggestion(restaurantTheme)
+      return suggestion, nil
+    },
+  )
   ```
 
 You can define input and output schemas for a flow, which is useful when you
@@ -38,13 +38,13 @@ want type-safe structured output.
   ```
 
   ```go
-	menuSuggestionFlow := genkit.DefineFlow(
-		"menuSuggestionFlow",
-		func(ctx context.Context, restaurantTheme string, _ genkit.NoStream) (MenuSuggestion, error) {
-			suggestion := makeStructuredMenuItemSuggestion(restaurantTheme)
-			return suggestion, nil
-		},
-	)
+  menuSuggestionFlow := genkit.DefineFlow(
+    "menuSuggestionFlow",
+    func(ctx context.Context, restaurantTheme string, _ genkit.NoStream) (MenuSuggestion, error) {
+      suggestion := makeStructuredMenuItemSuggestion(restaurantTheme)
+      return suggestion, nil
+    },
+  )
   ```
 
 ## Running flows
@@ -68,34 +68,34 @@ Here's a simple example of a flow that can stream values:
 * {Go}
 
   ```go
-	// Types for illustrative purposes.
-	type inputType string
-	type outputType string
-	type streamType string
+  // Types for illustrative purposes.
+  type inputType string
+  type outputType string
+  type streamType string
 
-	menuSuggestionFlow := genkit.DefineFlow(
-		"menuSuggestionFlow",
-		func(
-			ctx context.Context,
-			restaurantTheme inputType,
-			callback func(context.Context, streamType) error,
-		) (outputType, error) {
-			var menu outputType = ""
-			menuChunks := make(chan streamType)
-			go makeFullMenuSuggestion(restaurantTheme, menuChunks)
-			for {
-				chunk, more := <-menuChunks
-				if !more {
-					break
-				}
-				if callback != nil {
-					callback(context.Background(), chunk)
-				}
-				menu += outputType(chunk)
-			}
-			return menu, nil
-		},
-	)
+  menuSuggestionFlow := genkit.DefineFlow(
+    "menuSuggestionFlow",
+    func(
+      ctx context.Context,
+      restaurantTheme inputType,
+      callback func(context.Context, streamType) error,
+    ) (outputType, error) {
+      var menu outputType = ""
+      menuChunks := make(chan streamType)
+      go makeFullMenuSuggestion(restaurantTheme, menuChunks)
+      for {
+        chunk, more := <-menuChunks
+        if !more {
+          break
+        }
+        if callback != nil {
+          callback(context.Background(), chunk)
+        }
+        menu += outputType(chunk)
+      }
+      return menu, nil
+    },
+  )
   ```
 
 Note that the streaming callback can be undefined. It's only defined if the
@@ -106,18 +106,18 @@ To invoke a flow in streaming mode:
 * {Go}
 
   ```go
-	genkit.StreamFlow(
-		context.Background(),
-		menuSuggestionFlow,
-		"French",
-	)(func(sfv *genkit.StreamFlowValue[outputType, streamType], err error) bool {
-		if !sfv.Done {
-			fmt.Print(sfv.Output)
-			return true
-		} else {
-			return false
-		}
-	})
+  genkit.StreamFlow(
+    context.Background(),
+    menuSuggestionFlow,
+    "French",
+  )(func(sfv *genkit.StreamFlowValue[outputType, streamType], err error) bool {
+    if !sfv.Done {
+      fmt.Print(sfv.Output)
+      return true
+    } else {
+      return false
+    }
+  })
   ```
 
   If the flow doesn't implement streaming, `StreamFlow()` behaves identically to
