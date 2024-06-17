@@ -53,11 +53,7 @@ func TestGoogleAI(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		valfunc := validateEmbedder
-		if *update {
-			valfunc = updateEmbedder
-		}
-		test.Run(t, func(text string) (embedderResult, error) {
+		testfunc := func(text string) (embedderResult, error) {
 			ts := &testTraceStore{}
 			remove := core.SetDevTraceStore(ts)
 			defer remove()
@@ -66,7 +62,12 @@ func TestGoogleAI(t *testing.T) {
 				return embedderResult{}, err
 			}
 			return embedderResult{vals, ts.td}, nil
-		}, valfunc)
+		}
+		valfunc := validateEmbedder
+		if *update {
+			valfunc = updateEmbedder
+		}
+		test.Run(t, testfunc, valfunc)
 	})
 }
 
@@ -109,7 +110,7 @@ func compareEmbedderResults(got, want embedderResult) error {
 	return nil
 }
 
-// renameSpans changes the keys of td.Spans to s0, s1, ... in order of the span start time,
+// renameSpans changes the keys of td.Spans to s000, s001, ... in order of the span start time,
 // as well as references to those IDs within the spans.
 // This makes it possible to compare two span maps with different span IDs.
 func renameSpans(td *tracing.Data) {
