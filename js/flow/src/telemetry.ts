@@ -21,7 +21,11 @@ import {
   MetricCounter,
   MetricHistogram,
 } from '@genkit-ai/core/metrics';
-import { spanMetadataAls } from '@genkit-ai/core/tracing';
+import {
+  PathMetadata,
+  spanMetadataAls,
+  traceMetadataAls,
+} from '@genkit-ai/core/tracing';
 import { ValueType } from '@opentelemetry/api';
 import express from 'express';
 
@@ -35,9 +39,15 @@ const flowCounter = new MetricCounter(_N('requests'), {
   valueType: ValueType.INT,
 });
 
-const variantCounter = new MetricCounter(_N('variants'), {
-  description: 'Tracks unique flow variants per flow.',
+const pathCounter = new MetricCounter(_N('path/requests'), {
+  description: 'Tracks unique flow paths per flow.',
   valueType: ValueType.INT,
+});
+
+const pathLatencies = new MetricHistogram(_N('path/latency'), {
+  description: 'Latencies per flow path.',
+  ValueType: ValueType.DOUBLE,
+  unit: 'ms',
 });
 
 const flowLatencies = new MetricHistogram(_N('latency'), {
@@ -58,11 +68,7 @@ export function recordError(err: any) {
   });
 }
 
-export function writeFlowSuccess(
-  flowName: string,
-  variants: Set<string>,
-  latencyMs: number
-) {
+export function writeFlowSuccess(flowName: string, latencyMs: number) {
   const dimensions = {
     name: flowName,
     source: 'ts',
@@ -71,59 +77,90 @@ export function writeFlowSuccess(
   flowCounter.add(1, dimensions);
   flowLatencies.record(latencyMs, dimensions);
 
-  const relevantVariants = Array.from(variants).filter((variant) =>
-    variant.includes(flowName)
-  );
+  const paths = traceMetadataAls.getStore()?.paths || new Set<PathMetadata>();
+  if (paths) {
+    const pathDimensions = {
+      flowName: flowName,
+      source: 'ts',
+      sourceVersion: GENKIT_VERSION,
+    };
+    const relevantPaths = Array.from(paths).filter((meta) =>
+      meta.path.includes(flowName)
+    );
 
-  logger.logStructured(`Variants[/${flowName}]`, {
-    flowName: flowName,
-    variants: relevantVariants,
-  });
+    logger.logStructured(`Paths[/${flowName}]`, {
+      flowName: flowName,
+      paths: relevantPaths.map((p) => p.path),
+    });
 
-  relevantVariants.forEach((variant) =>
-    variantCounter.add(1, {
-      ...dimensions,
-      success: 'success',
-      variant,
-    })
-  );
+    relevantPaths.forEach((p) => {
+      pathCounter.add(1, {
+        ...pathDimensions,
+        success: 'success',
+        path: p.path,
+      });
+
+      pathLatencies.record(p.latency, {
+        ...pathDimensions,
+        path: p.path,
+      });
+    });
+  }
 }
 
 export function writeFlowFailure(
   flowName: string,
-  variants: Set<string>,
   latencyMs: number,
   err: any
 ) {
   const dimensions = {
     name: flowName,
-    errorCode: err?.code,
-    errorMessage: err?.message,
     source: 'ts',
     sourceVersion: GENKIT_VERSION,
+    error: err.name,
   };
   flowCounter.add(1, dimensions);
   flowLatencies.record(latencyMs, dimensions);
 
-  const path = spanMetadataAls?.getStore()?.path;
-  const relevantVariants = Array.from(variants).filter(
-    (variant) => variant.includes(flowName) && variant !== path
-  );
+  const allPaths =
+    traceMetadataAls.getStore()?.paths || new Set<PathMetadata>();
+  if (allPaths) {
+    const failPath = spanMetadataAls?.getStore()?.path;
+    const relevantPaths = Array.from(allPaths).filter(
+      (meta) => meta.path.includes(flowName) && meta.path !== failPath
+    );
 
-  // All variants that have succeeded need to be tracked as succeeded.
-  relevantVariants.forEach((variant) =>
-    variantCounter.add(1, {
+    logger.logStructured(`Paths[/${flowName}]`, {
       flowName: flowName,
-      success: 'success',
-      variant: variant,
-    })
-  );
+      paths: relevantPaths.map((p) => p.path),
+    });
 
-  variantCounter.add(1, {
-    flowName: flowName,
-    success: 'failure',
-    variant: path,
-  });
+    const pathDimensions = {
+      flowName: flowName,
+      source: 'ts',
+      sourceVersion: GENKIT_VERSION,
+    };
+    // All paths that have succeeded need to be tracked as succeeded.
+    relevantPaths.forEach((p) => {
+      pathCounter.add(1, {
+        ...pathDimensions,
+        success: 'success',
+        path: p.path,
+      });
+
+      pathLatencies.record(p.latency, {
+        ...pathDimensions,
+        path: p.path,
+      });
+    });
+
+    pathCounter.add(1, {
+      ...pathDimensions,
+      success: 'failure',
+      error: err.name,
+      path: failPath,
+    });
+  }
 }
 
 export function logRequest(flowName: string, req: express.Request) {

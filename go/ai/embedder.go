@@ -18,13 +18,12 @@ import (
 	"context"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/internal/atype"
 )
 
-// Embedder is the interface used to convert a document to a
-// multidimensional vector. A [Retriever] will use a value of this type.
-type Embedder interface {
-	Embed(context.Context, *EmbedRequest) ([]float32, error)
-}
+// EmbedderAction is used to convert a document to a
+// multidimensional vector.
+type EmbedderAction = core.Action[*EmbedRequest, []float32, struct{}]
 
 // EmbedRequest is the data we pass to convert a document
 // to a multidimensional vector.
@@ -33,7 +32,23 @@ type EmbedRequest struct {
 	Options  any       `json:"options,omitempty"`
 }
 
-// RegisterEmbedder registers the actions for a specific embedder.
-func RegisterEmbedder(name string, embedder Embedder) {
-	core.RegisterAction(name, core.NewAction(name, core.ActionTypeEmbedder, nil, embedder.Embed))
+// DefineEmbedder registers the given embed function as an action, and returns an
+// [EmbedderAction] that runs it.
+func DefineEmbedder(provider, name string, embed func(context.Context, *EmbedRequest) ([]float32, error)) *EmbedderAction {
+	return core.DefineAction(provider, name, atype.Embedder, nil, embed)
+}
+
+// LookupEmbedder looks up an [EmbedderAction] registered by [DefineEmbedder].
+// It returns nil if the embedder was not defined.
+func LookupEmbedder(provider, name string) *EmbedderAction {
+	action := core.LookupActionFor[*EmbedRequest, []float32, struct{}](atype.Embedder, provider, name)
+	if action == nil {
+		return nil
+	}
+	return action
+}
+
+// Embed runs the given [EmbedderAction].
+func Embed(ctx context.Context, emb *EmbedderAction, req *EmbedRequest) ([]float32, error) {
+	return emb.Run(ctx, req, nil)
 }

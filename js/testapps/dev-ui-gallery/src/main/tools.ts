@@ -15,9 +15,13 @@
  */
 
 import { defineTool } from '@genkit-ai/ai/tool';
+import { defineDotprompt } from '@genkit-ai/dotprompt';
+import { defineFlow } from '@genkit-ai/flow';
+import { gemini15Flash } from '@genkit-ai/googleai';
 import * as z from 'zod';
+import { WeatherSchema } from '../common/types';
 
-defineTool(
+const getWeather = defineTool(
   {
     name: 'getWeather',
     description: 'Get the weather for the given location.',
@@ -28,14 +32,18 @@ defineTool(
     }),
   },
   async (input) => {
+    const conditions = ['Sunny', 'Cloudy', 'Partially Cloudy', 'Raining'];
+    const c = Math.floor(Math.random() * conditions.length);
+    const temp = Math.floor(Math.random() * (120 - 32) + 32);
+
     return {
-      temperatureF: 70,
-      conditions: 'sunny',
+      temperatureF: temp,
+      conditions: conditions[c],
     };
   }
 );
 
-defineTool(
+const getTime = defineTool(
   {
     name: 'getTime',
     description: 'Get the current time',
@@ -44,5 +52,53 @@ defineTool(
   },
   async (input) => {
     return { time: Date.now() };
+  }
+);
+
+const template = `
+  {{role "system"}}
+  Always try to be as efficient as possible, and request tool calls in batches.
+
+  {{role "user"}}
+  Help me decide which is a better place to visit today based on the weather. 
+  I want to be outside as much as possible. Here are the cities I am 
+  considering:\n\n{{#each cities}}{{this}}\n{{/each}}`;
+
+export const weatherPrompt = defineDotprompt(
+  {
+    name: 'weatherPrompt',
+    model: gemini15Flash,
+    input: {
+      schema: WeatherSchema,
+      default: {
+        persona: 'Space Pirate',
+      },
+    },
+    output: {
+      format: 'text',
+    },
+    config: {
+      maxOutputTokens: 2048,
+      temperature: 0.6,
+      topK: 16,
+      topP: 0.95,
+    },
+    tools: [getWeather],
+  },
+  template
+);
+
+defineFlow(
+  {
+    name: 'flowWeather',
+    inputSchema: WeatherSchema,
+    outputSchema: z.string(),
+  },
+  async (input) => {
+    const response = await weatherPrompt.generate({
+      input,
+    });
+
+    return response.text();
   }
 );

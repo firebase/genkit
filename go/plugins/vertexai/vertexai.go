@@ -16,14 +16,108 @@ package vertexai
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"runtime"
 
+	aiplatform "cloud.google.com/go/aiplatform/apiv1"
 	"cloud.google.com/go/vertexai/genai"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/plugins/internal/uri"
+	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
 )
 
-func newClient(ctx context.Context, projectID, location string) (*genai.Client, error) {
-	return genai.NewClient(ctx, projectID, location)
+const provider = "vertexai"
+
+// Config provides configuration options for the Init function.
+type Config struct {
+	// The project holding the resources.
+	ProjectID string
+	// The location of the resources.
+	// Defaults to "us-central1".
+	Location string
+	// Generative models to provide.
+	Models []string
+	// Embedding models to provide.
+	Embedders []string
+}
+
+func Init(ctx context.Context, cfg Config) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("vertexai.Init: %w", err)
+		}
+	}()
+
+	if cfg.ProjectID == "" {
+		return errors.New("missing ProjectID")
+	}
+	if cfg.Location == "" {
+		cfg.Location = "us-central1"
+	}
+	// TODO(#345): call ListModels. See googleai.go.
+	if len(cfg.Models) == 0 && len(cfg.Embedders) == 0 {
+		return errors.New("need at least one model or embedder")
+	}
+
+	if err := initModels(ctx, cfg); err != nil {
+		return err
+	}
+	return initEmbedders(ctx, cfg)
+}
+
+func initModels(ctx context.Context, cfg Config) error {
+	// Client for Gemini SDK.
+	gclient, err := genai.NewClient(ctx, cfg.ProjectID, cfg.Location)
+	if err != nil {
+		return err
+	}
+	for _, name := range cfg.Models {
+		meta := &ai.ModelMetadata{
+			Label: "Vertex AI - " + name,
+			Supports: ai.ModelCapabilities{
+				Multiturn: true,
+			},
+		}
+		g := &generator{model: name, client: gclient}
+		ai.DefineModel(provider, name, meta, g.generate)
+	}
+	return nil
+}
+
+func initEmbedders(ctx context.Context, cfg Config) error {
+	// Client for prediction SDK.
+	endpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", cfg.Location)
+	numConns := max(runtime.GOMAXPROCS(0), 4)
+	o := []option.ClientOption{
+		option.WithEndpoint(endpoint),
+		option.WithGRPCConnectionPool(numConns),
+	}
+
+	pclient, err := aiplatform.NewPredictionClient(ctx, o...)
+	if err != nil {
+		return err
+	}
+	for _, name := range cfg.Embedders {
+		fullName := fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s", cfg.ProjectID, cfg.Location, name)
+		ai.DefineEmbedder(provider, name, func(ctx context.Context, req *ai.EmbedRequest) ([]float32, error) {
+			return embed(ctx, fullName, pclient, req)
+		})
+	}
+	return nil
+}
+
+// Model returns the [ai.ModelAction] with the given name.
+// It returns nil if the model was not configured.
+func Model(name string) *ai.ModelAction {
+	return ai.LookupModel(provider, name)
+}
+
+// Embedder returns the [ai.EmbedderAction] with the given name.
+// It returns nil if the embedder was not configured.
+func Embedder(name string) *ai.EmbedderAction {
+	return ai.LookupEmbedder(provider, name)
 }
 
 type generator struct {
@@ -31,20 +125,27 @@ type generator struct {
 	client *genai.Client
 }
 
-func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.Candidate) error) (*ai.GenerateResponse, error) {
-	if cb != nil {
-		panic("streaming not supported yet") // TODO: streaming
-	}
+func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
 	gm := g.client.GenerativeModel(g.model)
 
 	// Translate from a ai.GenerateRequest to a genai request.
 	gm.SetCandidateCount(int32(input.Candidates))
 	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
-		gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
-		gm.StopSequences = c.StopSequences
-		gm.SetTemperature(float32(c.Temperature))
-		gm.SetTopK(float32(c.TopK))
-		gm.SetTopP(float32(c.TopP))
+		if c.MaxOutputTokens != 0 {
+			gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
+		}
+		if len(c.StopSequences) > 0 {
+			gm.StopSequences = c.StopSequences
+		}
+		if c.Temperature != 0 {
+			gm.SetTemperature(float32(c.Temperature))
+		}
+		if c.TopK != 0 {
+			gm.SetTopK(int32(c.TopK))
+		}
+		if c.TopP != 0 {
+			gm.SetTopP(float32(c.TopP))
+		}
 	}
 
 	// Start a "chat".
@@ -55,15 +156,23 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	for len(messages) > 1 {
 		m := messages[0]
 		messages = messages[1:]
+		parts, err := convertParts(m.Content)
+		if err != nil {
+			return nil, err
+		}
 		cs.History = append(cs.History, &genai.Content{
-			Parts: convertParts(m.Content),
+			Parts: parts,
 			Role:  string(m.Role),
 		})
 	}
 	// The last message gets added to the parts slice.
 	var parts []genai.Part
 	if len(messages) > 0 {
-		parts = convertParts(messages[0].Content)
+		var err error
+		parts, err = convertParts(messages[0].Content)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Convert input.Tools and append to gm.Tools.
@@ -102,12 +211,49 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	// TODO: gm.ToolConfig?
 
 	// Send out the actual request.
-	resp, err := cs.SendMessage(ctx, parts...)
-	if err != nil {
-		return nil, err
+	if cb == nil {
+		resp, err := cs.SendMessage(ctx, parts...)
+		if err != nil {
+			return nil, err
+		}
+
+		r := translateResponse(resp)
+		r.Request = input
+		return r, nil
 	}
 
-	r := translateResponse(resp)
+	// Streaming version.
+	iter := cs.SendMessageStream(ctx, parts...)
+	var r *ai.GenerateResponse
+	for {
+		chunk, err := iter.Next()
+		if err != nil {
+			if err == iterator.Done {
+				r = translateResponse(iter.MergedResponse())
+				break
+			}
+			return nil, err
+		}
+
+		// Process each candidate.
+		for _, c := range chunk.Candidates {
+			tc := translateCandidate(c)
+
+			// Call callback with the candidate info.
+			err := cb(ctx, &ai.GenerateResponseChunk{
+				Content: tc.Message.Content,
+				Index:   tc.Index,
+			})
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	if r == nil {
+		// No candidates were returned. Probably rare, but it might avoid a NPE
+		// to return an empty instead of nil result.
+		r = &ai.GenerateResponse{}
+	}
 	r.Request = input
 	return r, nil
 }
@@ -162,65 +308,46 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.GenerateResponse
 	return r
 }
 
-// NewGenerator returns an [ai.Generator] which sends a request to
-// the vertex AI model and returns the response.
-func NewGenerator(ctx context.Context, model, projectID, location string) (ai.Generator, error) {
-	client, err := newClient(ctx, projectID, location)
-	if err != nil {
-		return nil, err
-	}
-	return &generator{
-		model:  model,
-		client: client,
-	}, nil
-}
-
-// Init registers all the actions in this package with [ai]'s Register calls.
-func Init(ctx context.Context, model, projectID, location string) error {
-	g, err := NewGenerator(ctx, model, projectID, location)
-	if err != nil {
-		return err
-	}
-	ai.RegisterGenerator("google-vertexai", model, &ai.GeneratorMetadata{
-		Label: "Vertex AI - " + model,
-		Supports: ai.GeneratorCapabilities{
-			Multiturn: true,
-		},
-	}, g)
-
-	return nil
-}
-
 // convertParts converts a slice of *ai.Part to a slice of genai.Part.
-func convertParts(parts []*ai.Part) []genai.Part {
+func convertParts(parts []*ai.Part) ([]genai.Part, error) {
 	res := make([]genai.Part, 0, len(parts))
 	for _, p := range parts {
-		res = append(res, convertPart(p))
+		part, err := convertPart(p)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, part)
 	}
-	return res
+	return res, nil
 }
 
 // convertPart converts a *ai.Part to a genai.Part.
-func convertPart(p *ai.Part) genai.Part {
+func convertPart(p *ai.Part) (genai.Part, error) {
 	switch {
 	case p.IsText():
-		return genai.Text(p.Text)
+		return genai.Text(p.Text), nil
 	case p.IsMedia():
-		return genai.Blob{MIMEType: p.ContentType, Data: []byte(p.Text)}
+		contentType, data, err := uri.Data(p)
+		if err != nil {
+			return nil, err
+		}
+		return genai.Blob{MIMEType: contentType, Data: data}, nil
 	case p.IsData():
 		panic("vertexai does not support Data parts")
 	case p.IsToolResponse():
 		toolResp := p.ToolResponse
-		return genai.FunctionResponse{
+		fr := genai.FunctionResponse{
 			Name:     toolResp.Name,
 			Response: toolResp.Output,
 		}
+		return fr, nil
 	case p.IsToolRequest():
 		toolReq := p.ToolRequest
-		return genai.FunctionCall{
+		fc := genai.FunctionCall{
 			Name: toolReq.Name,
 			Args: toolReq.Input,
 		}
+		return fc, nil
 	default:
 		panic("unknown part type in a request")
 	}

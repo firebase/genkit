@@ -69,8 +69,8 @@ type Prompt struct {
 	// A hash of the prompt contents.
 	hash string
 
-	// A Generator to use. If not nil, this is used to execute the prompt.
-	generator ai.Generator
+	// An action that renders the prompt.
+	action *ai.PromptAction
 }
 
 // Config is optional configuration for a [Prompt].
@@ -78,13 +78,18 @@ type Config struct {
 	// The prompt variant.
 	Variant string
 	// The name of the model for which the prompt is input.
+	// If this is non-empty, ModelAction should be nil.
 	Model string
+
+	// The ModelAction to use.
+	// If this is non-nil, Model should be the empty string.
+	ModelAction *ai.ModelAction
 
 	// TODO(iant): document
 	Tools []*ai.ToolDefinition
 
 	// Number of candidates to generate when passing the prompt
-	// to a generator. If 0, uses 1.
+	// to a model. If 0, uses 1.
 	Candidates int
 
 	// Details for the model.
@@ -267,7 +272,7 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 
 // Define creates and registers a new Prompt. This can be called from code that
 // doesn't have a prompt file.
-func Define(name, templateText string, cfg *Config) (*Prompt, error) {
+func Define(name, templateText string, cfg Config) (*Prompt, error) {
 	p, err := New(name, templateText, cfg)
 	if err != nil {
 		return nil, err
@@ -279,12 +284,15 @@ func Define(name, templateText string, cfg *Config) (*Prompt, error) {
 // New creates a new Prompt without registering it.
 // This may be used for testing or for direct calls not using the
 // genkit action and flow mechanisms.
-func New(name, templateText string, cfg *Config) (*Prompt, error) {
-	if cfg == nil {
-		cfg = &Config{}
+func New(name, templateText string, cfg Config) (*Prompt, error) {
+	if cfg.Model == "" && cfg.ModelAction == nil {
+		return nil, errors.New("dotprompt.New: config must specify either Model or ModelAction")
+	}
+	if cfg.Model != "" && cfg.ModelAction != nil {
+		return nil, errors.New("dotprompt.New: config must specify exactly one of Model and ModelAction")
 	}
 	hash := fmt.Sprintf("%02x", sha256.Sum256([]byte(templateText)))
-	return newPrompt(name, templateText, hash, *cfg)
+	return newPrompt(name, templateText, hash, cfg)
 }
 
 // sortSchemaSlices sorts the slices in a jsonschema to permit

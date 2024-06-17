@@ -25,34 +25,32 @@ import (
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
+	"github.com/firebase/genkit/go/internal/atype"
 )
 
-// Generator is the interface used to query an AI model.
-type Generator interface {
-	// If the streaming callback is non-nil:
-	// - Each response candidate will be passed to that callback instead of
-	//   populating the result's Candidates field.
-	// - If the streaming callback returns a non-nil error, generation will stop
-	//   and Generate immediately returns that error (and a nil response).
-	Generate(context.Context, *GenerateRequest, func(context.Context, *Candidate) error) (*GenerateResponse, error)
+// A ModelAction is used to generate content from an AI model.
+type ModelAction = core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
+
+// ModelStreamingCallback is the type for the streaming callback of a model.
+type ModelStreamingCallback = func(context.Context, *GenerateResponseChunk) error
+
+// ModelCapabilities describes various capabilities of the model.
+type ModelCapabilities struct {
+	Multiturn  bool // the model can handle multiple request-response interactions
+	Media      bool // the model supports media as well as text input
+	Tools      bool // the model supports tools
+	SystemRole bool // the model supports a system prompt or role
 }
 
-// GeneratorCapabilities describes various capabilities of the generator.
-type GeneratorCapabilities struct {
-	Multiturn  bool
-	Media      bool
-	Tools      bool
-	SystemRole bool
-}
-
-// GeneratorMetadata is the metadata of the generator, specifying things like nice user visible label, capabilities, etc.
-type GeneratorMetadata struct {
+// ModelMetadata is the metadata of the model, specifying things like nice user-visible label, capabilities, etc.
+type ModelMetadata struct {
 	Label    string
-	Supports GeneratorCapabilities
+	Supports ModelCapabilities
 }
 
-// RegisterGenerator registers the generator in the global registry.
-func RegisterGenerator(provider, name string, metadata *GeneratorMetadata, generator Generator) {
+// DefineModel registers the given generate function as an action, and returns a
+// [ModelAction] that runs it.
+func DefineModel(provider, name string, metadata *ModelMetadata, generate func(context.Context, *GenerateRequest, ModelStreamingCallback) (*GenerateResponse, error)) *ModelAction {
 	metadataMap := map[string]any{}
 	if metadata != nil {
 		if metadata.Label != "" {
@@ -66,75 +64,25 @@ func RegisterGenerator(provider, name string, metadata *GeneratorMetadata, gener
 		}
 		metadataMap["supports"] = supports
 	}
-	core.RegisterAction(provider,
-		core.NewStreamingAction(name, core.ActionTypeModel, map[string]any{
-			"model": metadataMap,
-		}, generator.Generate))
+	return core.DefineStreamingAction(provider, name, atype.Model, map[string]any{
+		"model": metadataMap,
+	}, generate)
 }
 
-// Generate applies a [Generator] to some input, handling tool requests.
-func Generate(ctx context.Context, g Generator, req *GenerateRequest, cb func(context.Context, *Candidate) error) (*GenerateResponse, error) {
+// LookupModel looks up a [ModelAction] registered by [DefineModel].
+// It returns nil if the model was not defined.
+func LookupModel(provider, name string) *ModelAction {
+	return core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](atype.Model, provider, name)
+}
+
+// Generate applies a [ModelAction] to some input, handling tool requests.
+func Generate(ctx context.Context, g *ModelAction, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error) {
 	if err := conformOutput(req); err != nil {
 		return nil, err
 	}
 
 	for {
-		resp, err := g.Generate(ctx, req, cb)
-		if err != nil {
-			return nil, err
-		}
-
-		candidates, err := validCandidates(ctx, resp)
-		if err != nil {
-			return nil, err
-		}
-		resp.Candidates = candidates
-
-		newReq, err := handleToolRequest(ctx, req, resp)
-		if err != nil {
-			return nil, err
-		}
-		if newReq == nil {
-			return resp, nil
-		}
-
-		req = newReq
-	}
-}
-
-// generatorActionType is the instantiated core.Action type registered
-// by RegisterGenerator.
-type generatorActionType = core.Action[*GenerateRequest, *GenerateResponse, *Candidate]
-
-// LookupGeneratorAction looks up an action registered by [RegisterGenerator]
-// and returns a generator that invokes the action.
-func LookupGeneratorAction(provider, name string) (Generator, error) {
-	action := core.LookupAction(core.ActionTypeModel, provider, name)
-	if action == nil {
-		return nil, fmt.Errorf("LookupGeneratorAction: no generator action named %q/%q", provider, name)
-	}
-	actionInst, ok := action.(*generatorActionType)
-	if !ok {
-		return nil, fmt.Errorf("LookupGeneratorAction: generator action %q has type %T, want %T", name, action, &generatorActionType{})
-	}
-	return &generatorAction{actionInst}, nil
-}
-
-// generatorAction implements Generator by invoking an action.
-type generatorAction struct {
-	action *generatorActionType
-}
-
-// Generate implements Generator. This is like the [Generate] function,
-// but invokes the [core.Action] rather than invoking the Generator
-// directly.
-func (ga *generatorAction) Generate(ctx context.Context, req *GenerateRequest, cb func(context.Context, *Candidate) error) (*GenerateResponse, error) {
-	if err := conformOutput(req); err != nil {
-		return nil, err
-	}
-
-	for {
-		resp, err := ga.action.Run(ctx, req, cb)
+		resp, err := g.Run(ctx, req, cb)
 		if err != nil {
 			return nil, err
 		}
@@ -159,7 +107,7 @@ func (ga *generatorAction) Generate(ctx context.Context, req *GenerateRequest, c
 
 // conformOutput appends a message to the request indicating conformance to the expected schema.
 func conformOutput(req *GenerateRequest) error {
-	if req.Output.Format == OutputFormatJSON && len(req.Messages) > 0 {
+	if req.Output != nil && req.Output.Format == OutputFormatJSON && len(req.Messages) > 0 {
 		jsonBytes, err := json.Marshal(req.Output.Schema)
 		if err != nil {
 			return fmt.Errorf("expected schema is not valid: %w", err)
@@ -193,7 +141,7 @@ func validCandidates(ctx context.Context, resp *GenerateResponse) ([]*Candidate,
 // validCandidate will validate the candidate's response against the expected schema.
 // It will return an error if it does not match, otherwise it will return a candidate with JSON content and type.
 func validCandidate(c *Candidate, output *GenerateRequestOutput) (*Candidate, error) {
-	if output.Format == OutputFormatJSON {
+	if output != nil && output.Format == OutputFormatJSON {
 		text, err := c.Text()
 		if err != nil {
 			return nil, err
@@ -232,7 +180,7 @@ func stripJSONDelimiters(s string) string {
 	return s
 }
 
-// handleToolRequest checks if a tool was requested by a generator.
+// handleToolRequest checks if a tool was requested by a model.
 // If a tool was requested, this runs the tool and returns an
 // updated GenerateRequest. If no tool was requested this returns nil.
 func handleToolRequest(ctx context.Context, req *GenerateRequest, resp *GenerateResponse) (*GenerateRequest, error) {
@@ -281,6 +229,23 @@ func (gr *GenerateResponse) Text() (string, error) {
 	return gr.Candidates[0].Text()
 }
 
+// Text returns the text content of the [GenerateResponseChunk]
+// as a string. It returns an error if there is no Content
+// in the response chunk.
+func (c *GenerateResponseChunk) Text() (string, error) {
+	if len(c.Content) == 0 {
+		return "", errors.New("response chunk has no content")
+	}
+	if len(c.Content) == 1 {
+		return c.Content[0].Text, nil
+	}
+	var sb strings.Builder
+	for _, p := range c.Content {
+		sb.WriteString(p.Text)
+	}
+	return sb.String(), nil
+}
+
 // Text returns the contents of a [Candidate] as a string. It
 // returns an error if the candidate has no message.
 func (c *Candidate) Text() (string, error) {
@@ -293,11 +258,10 @@ func (c *Candidate) Text() (string, error) {
 	}
 	if len(msg.Content) == 1 {
 		return msg.Content[0].Text, nil
-	} else {
-		var sb strings.Builder
-		for _, p := range msg.Content {
-			sb.WriteString(p.Text)
-		}
-		return sb.String(), nil
 	}
+	var sb strings.Builder
+	for _, p := range msg.Content {
+		sb.WriteString(p.Text)
+	}
+	return sb.String(), nil
 }

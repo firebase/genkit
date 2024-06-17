@@ -20,6 +20,6 @@
 //go:generate go run ../internal/cmd/jsonschemagen -outdir .. -config schemas.config ../../genkit-tools/genkit-schema.json core
 
 // Package core implements Genkit actions, flows and other essential machinery.
-// This package is primarily intended for genkit internals and for plugins.
-// Applications using genkit should use the genkit package.
+// This package is primarily intended for Genkit internals and for plugins.
+// Genkit applications should use the genkit package.
 package core

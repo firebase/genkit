@@ -27,8 +27,10 @@ import { WinstonInstrumentation } from '@opentelemetry/instrumentation-winston';
 import { Resource } from '@opentelemetry/resources';
 import {
   AggregationTemporality,
+  DefaultAggregation,
+  ExponentialHistogramAggregation,
   InMemoryMetricExporter,
-  MetricReader,
+  InstrumentType,
   PeriodicExportingMetricReader,
   PushMetricExporter,
 } from '@opentelemetry/sdk-metrics';
@@ -41,6 +43,8 @@ import {
   SpanExporter,
 } from '@opentelemetry/sdk-trace-base';
 import { PluginOptions } from './index.js';
+
+let metricExporter: PushMetricExporter;
 
 /**
  * Provides a {TelemetryConfig} for exporting OpenTelemetry data (Traces,
@@ -125,30 +129,33 @@ export class GcpOpenTelemetry implements TelemetryConfig {
   }
 
   getConfig(): Partial<NodeSDKConfiguration> {
-    const exporter: SpanExporter = this.shouldExport()
-      ? new this.AdjustingTraceExporter()
-      : new InMemorySpanExporter();
     return {
       resource: this.resource,
-      spanProcessor: new BatchSpanProcessor(exporter),
+      spanProcessor: new BatchSpanProcessor(this.createSpanExporter()),
       sampler: this.options?.telemetryConfig?.sampler || new AlwaysOnSampler(),
       instrumentations: this.getInstrumentations(),
       metricReader: this.createMetricReader(),
     };
   }
 
+  private createSpanExporter(): SpanExporter {
+    return this.shouldExportTraces()
+      ? new this.AdjustingTraceExporter()
+      : new InMemorySpanExporter();
+  }
+
   /**
    * Creates a {MetricReader} for pushing metrics out to GCP via OpenTelemetry.
    */
-  private createMetricReader(): MetricReader {
-    const exporter: PushMetricExporter = this.shouldExport()
-      ? new MetricExporter({ projectId: this.options.projectId })
-      : new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
+  private createMetricReader(): PeriodicExportingMetricReader {
+    metricExporter = this.buildMetricExporter();
     return new PeriodicExportingMetricReader({
       exportIntervalMillis:
-        this.options?.telemetryConfig?.metricExportIntervalMillis || 10_000,
-      exporter,
-    }) as MetricReader;
+        this.options?.telemetryConfig?.metricExportIntervalMillis || 300_000,
+      exportTimeoutMillis:
+        this.options?.telemetryConfig?.metricExportTimeoutMillis || 300_000,
+      exporter: metricExporter,
+    });
   }
 
   /** Gets all open telemetry instrumentations as configured by the plugin. */
@@ -161,8 +168,18 @@ export class GcpOpenTelemetry implements TelemetryConfig {
     return this.getDefaultLoggingInstrumentations();
   }
 
-  private shouldExport(): boolean {
-    return this.options.forceDevExport || process.env.GENKIT_ENV !== 'dev';
+  private shouldExportTraces(): boolean {
+    return (
+      (this.options.forceDevExport || process.env.GENKIT_ENV !== 'dev') &&
+      !this.options.telemetryConfig?.disableTraces
+    );
+  }
+
+  private shouldExportMetrics(): boolean {
+    return (
+      (this.options.forceDevExport || process.env.GENKIT_ENV !== 'dev') &&
+      !this.options.telemetryConfig?.disableMetrics
+    );
   }
 
   /** Always configure the Pino and Winston instrumentations */
@@ -172,4 +189,26 @@ export class GcpOpenTelemetry implements TelemetryConfig {
       new PinoInstrumentation({ logHook: this.gcpTraceLogHook }),
     ];
   }
+
+  private buildMetricExporter(): PushMetricExporter {
+    const exporter: PushMetricExporter = this.shouldExportMetrics()
+      ? new MetricExporter({ projectId: this.options.projectId })
+      : new InMemoryMetricExporter(AggregationTemporality.DELTA);
+    exporter.selectAggregation = (instrumentType: InstrumentType) => {
+      if (instrumentType === InstrumentType.HISTOGRAM) {
+        return new ExponentialHistogramAggregation();
+      }
+      return new DefaultAggregation();
+    };
+    exporter.selectAggregationTemporality = (
+      instrumentType: InstrumentType
+    ) => {
+      return AggregationTemporality.DELTA;
+    };
+    return exporter;
+  }
+}
+
+export function __getMetricExporterForTesting(): InMemoryMetricExporter {
+  return metricExporter as InMemoryMetricExporter;
 }

@@ -18,6 +18,7 @@ import { Counter, Histogram, Meter, metrics } from '@opentelemetry/api';
 
 export const METER_NAME = 'genkit';
 export const METRIC_NAME_PREFIX = 'genkit';
+const METRIC_DIMENSION_MAX_CHARS = 32;
 
 export function internalMetricNamespaceWrap(...namespaces) {
   return [METRIC_NAME_PREFIX, ...namespaces].join('/');
@@ -68,6 +69,7 @@ export class MetricCounter extends Metric<Counter> {
 
   add(val?: number, opts?: any) {
     if (val) {
+      truncateDimensions(opts);
       this.get().add(val, opts);
     }
   }
@@ -87,7 +89,24 @@ export class MetricHistogram extends Metric<Histogram> {
 
   record(val?: number, opts?: any) {
     if (val) {
+      truncateDimensions(opts);
       this.get().record(val, opts);
     }
+  }
+}
+
+/**
+ * Truncates all of the metric dimensions to avoid long, high-cardinality
+ * dimensions being added to metrics.
+ */
+function truncateDimensions(opts?: any) {
+  if (opts) {
+    Object.keys(opts).forEach((k) => {
+      // We don't want to truncate paths. They are known to be long but with
+      // relatively low cardinality, and are useful for downstream monitoring.
+      if (!k.startsWith('path') && typeof opts[k] == 'string') {
+        opts[k] = opts[k].substring(0, METRIC_DIMENSION_MAX_CHARS);
+      }
+    });
   }
 }

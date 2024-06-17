@@ -17,23 +17,12 @@ package vertexai
 import (
 	"context"
 	"errors"
-	"fmt"
-	"runtime"
 
 	aiplatform "cloud.google.com/go/aiplatform/apiv1"
 	"cloud.google.com/go/aiplatform/apiv1/aiplatformpb"
 	"github.com/firebase/genkit/go/ai"
-	"google.golang.org/api/option"
 	"google.golang.org/protobuf/types/known/structpb"
 )
-
-// embedder implements ai.Embedder.
-type embedder struct {
-	projectID string
-	location  string
-	model     string
-	client    *aiplatform.PredictionClient
-}
 
 // EmbedOptions are options for the Vertex AI embedder.
 // Set [ai.EmbedRequest.Options] to a value of type *[EmbedOptions].
@@ -45,41 +34,12 @@ type EmbedOptions struct {
 	TaskType string `json:"task_type,omitempty"`
 }
 
-// Embed converts a document to a multi-dimensional vector.
-// This implements ai.Embedder.
-func (e *embedder) Embed(ctx context.Context, req *ai.EmbedRequest) ([]float32, error) {
-	var title, taskType string
-	if options, _ := req.Options.(*EmbedOptions); options != nil {
-		title = options.Title
-		taskType = options.TaskType
+func embed(ctx context.Context, reqEndpoint string, client *aiplatform.PredictionClient, req *ai.EmbedRequest) ([]float32, error) {
+	preq, err := newPredictRequest(reqEndpoint, req)
+	if err != nil {
+		return nil, err
 	}
-
-	endpoint := fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s", e.projectID, e.location, e.model)
-
-	instances := make([]*structpb.Value, 0, len(req.Document.Content))
-	for _, part := range req.Document.Content {
-		fields := map[string]any{
-			"content": part.Text,
-		}
-		if title != "" {
-			fields["title"] = title
-		}
-		if taskType != "" {
-			fields["task_type"] = taskType
-		}
-		str, err := structpb.NewStruct(fields)
-		if err != nil {
-			return nil, err
-		}
-		instance := structpb.NewStructValue(str)
-		instances = append(instances, instance)
-	}
-
-	preq := &aiplatformpb.PredictRequest{
-		Endpoint:  endpoint,
-		Instances: instances,
-	}
-	resp, err := e.client.Predict(ctx, preq)
+	resp, err := client.Predict(ctx, preq)
 	if err != nil {
 		return nil, err
 	}
@@ -100,25 +60,33 @@ func (e *embedder) Embed(ctx context.Context, req *ai.EmbedRequest) ([]float32, 
 	return ret, nil
 }
 
-// NewEmbedder returns an [ai.Embedder] that can compute the embedding
-// of an input document.
-func NewEmbedder(ctx context.Context, model, projectID, location string) (ai.Embedder, error) {
-	endpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
-	numConns := max(runtime.GOMAXPROCS(0), 4)
-	o := []option.ClientOption{
-		option.WithEndpoint(endpoint),
-		option.WithGRPCConnectionPool(numConns),
+func newPredictRequest(endpoint string, req *ai.EmbedRequest) (*aiplatformpb.PredictRequest, error) {
+	var title, taskType string
+	if options, _ := req.Options.(*EmbedOptions); options != nil {
+		title = options.Title
+		taskType = options.TaskType
+	}
+	instances := make([]*structpb.Value, 0, len(req.Document.Content))
+	for _, part := range req.Document.Content {
+		fields := map[string]any{
+			"content": part.Text,
+		}
+		if title != "" {
+			fields["title"] = title
+		}
+		if taskType != "" {
+			fields["task_type"] = taskType
+		}
+		str, err := structpb.NewStruct(fields)
+		if err != nil {
+			return nil, err
+		}
+		instance := structpb.NewStructValue(str)
+		instances = append(instances, instance)
 	}
 
-	client, err := aiplatform.NewPredictionClient(ctx, o...)
-	if err != nil {
-		return nil, err
-	}
-	embed := &embedder{
-		projectID: projectID,
-		location:  location,
-		model:     model,
-		client:    client,
-	}
-	return embed, nil
+	return &aiplatformpb.PredictRequest{
+		Endpoint:  endpoint,
+		Instances: instances,
+	}, nil
 }

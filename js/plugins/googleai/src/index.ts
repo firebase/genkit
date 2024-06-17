@@ -70,6 +70,9 @@ export const googleAI: Plugin<[PluginOptions] | []> = genkitPlugin(
         ...Object.keys(SUPPORTED_V1_MODELS).map((name) =>
           googleAIModel(name, options?.apiKey, undefined, options?.baseUrl)
         ),
+        ...Object.keys(SUPPORTED_V15_MODELS).map((name) =>
+          googleAIModel(name, options?.apiKey, 'v1beta', options?.baseUrl)
+        ),
       ];
       embedders = [
         ...Object.keys(EMBEDDER_MODELS).map((name) =>

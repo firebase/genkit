@@ -43,7 +43,6 @@ func (e *Embedder) Register(d *ai.Document, vals []float32) {
 	e.registry[d] = vals
 }
 
-// Embed implements genkit.Embedder.
 func (e *Embedder) Embed(ctx context.Context, req *ai.EmbedRequest) ([]float32, error) {
 	vals, ok := e.registry[req.Document]
 	if !ok {

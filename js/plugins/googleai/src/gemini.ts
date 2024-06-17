@@ -113,6 +113,7 @@ export const gemini15Pro = modelRef({
       tools: true,
       systemRole: true,
     },
+    versions: ['gemini-1.5-pro-001'],
   },
   configSchema: GeminiConfigSchema,
 });
@@ -127,6 +128,7 @@ export const gemini15Flash = modelRef({
       tools: true,
       systemRole: true,
     },
+    versions: ['gemini-1.5-flash-001'],
   },
   configSchema: GeminiConfigSchema,
 });
@@ -500,7 +502,12 @@ export function googleAIModel(
         return {
           candidates: responseCandidates,
           custom: result.response,
-          usage: getBasicUsageStats(request.messages, responseCandidates),
+          usage: {
+            ...getBasicUsageStats(request.messages, responseCandidates),
+            inputTokens: result.response.usageMetadata?.promptTokenCount,
+            outputTokens: result.response.usageMetadata?.candidatesTokenCount,
+            totalTokens: result.response.usageMetadata?.totalTokenCount,
+          },
         };
       }
     }

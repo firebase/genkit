@@ -75,15 +75,14 @@ func main() {
 		fmt.Fprintln(os.Stderr, "You can get an API key at https://ai.google.dev.")
 		os.Exit(1)
 	}
-
-	if err := googleai.Init(context.Background(), "gemini-1.0-pro", apiKey); err != nil {
+	err := googleai.Init(context.Background(), googleai.Config{APIKey: apiKey})
+	if err != nil {
 		log.Fatal(err)
 	}
-
 	simpleQaPrompt, err := dotprompt.Define("simpleQaPrompt",
 		simpleQaPromptTemplate,
-		&dotprompt.Config{
-			Model:        "google-genai/gemini-1.0-pro",
+		dotprompt.Config{
+			ModelAction:  googleai.Model("gemini-1.0-pro"),
 			InputSchema:  jsonschema.Reflect(simpleQaPromptInput{}),
 			OutputFormat: ai.OutputFormatText,
 		},
@@ -92,11 +91,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	embedder, err := googleai.NewEmbedder(context.Background(), "embedding-001", apiKey)
-	if err != nil {
-		log.Fatal(err)
-	}
-	localDb, err := localvec.New(context.Background(), os.TempDir(), "simpleQa", embedder, nil)
+	indexers, retrievers, err := localvec.Init(context.Background(), localvec.Config{
+		Stores: []localvec.StoreConfig{
+			{
+				Name:     "simpleQa",
+				Embedder: googleai.Embedder("embedding-001"),
+			},
+		},
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -109,7 +111,7 @@ func main() {
 		indexerReq := &ai.IndexerRequest{
 			Documents: []*ai.Document{d1, d2, d3},
 		}
-		err := localDb.Index(ctx, indexerReq)
+		err := ai.Index(ctx, indexers[0], indexerReq)
 		if err != nil {
 			return "", err
 		}
@@ -118,7 +120,7 @@ func main() {
 		retrieverReq := &ai.RetrieverRequest{
 			Document: dRequest,
 		}
-		response, err := localDb.Retrieve(ctx, retrieverReq)
+		response, err := ai.Retrieve(ctx, retrievers[0], retrieverReq)
 		if err != nil {
 			return "", err
 		}
@@ -135,7 +137,7 @@ func main() {
 		}
 
 		resp, err := simpleQaPrompt.Generate(ctx,
-			&ai.PromptRequest{
+			&dotprompt.PromptRequest{
 				Variables: promptInput,
 			},
 			nil,

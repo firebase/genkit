@@ -21,13 +21,14 @@ import {
   MetricCounter,
   MetricHistogram,
 } from '@genkit-ai/core/metrics';
-import { spanMetadataAls } from '@genkit-ai/core/tracing';
+import { spanMetadataAls, traceMetadataAls } from '@genkit-ai/core/tracing';
 import { ValueType } from '@opentelemetry/api';
 import { createHash } from 'crypto';
 import { GenerateOptions } from './generate.js';
 import {
   GenerateRequest,
   GenerateResponseData,
+  GenerationUsage,
   MediaPart,
   Part,
   ToolRequestPart,
@@ -77,6 +78,19 @@ const generateActionInputImages = new MetricCounter(
   }
 );
 
+const generateActionInputVideos = new MetricCounter(
+  _N('generate/input/videos'),
+  {
+    description: 'Counts input videos to a Genkit model.',
+    valueType: ValueType.INT,
+  }
+);
+
+const generateActionInputAudio = new MetricCounter(_N('generate/input/audio'), {
+  description: 'Counts input audio files to a Genkit model.',
+  valueType: ValueType.INT,
+});
+
 const generateActionOutputCharacters = new MetricCounter(
   _N('generate/output/characters'),
   {
@@ -101,8 +115,25 @@ const generateActionOutputImages = new MetricCounter(
   }
 );
 
+const generateActionOutputVideos = new MetricCounter(
+  _N('generate/output/videos'),
+  {
+    description: 'Count output videos from a Genkit model.',
+    valueType: ValueType.INT,
+  }
+);
+
+const generateActionOutputAudio = new MetricCounter(
+  _N('generate/output/audio'),
+  {
+    description: 'Count output audio files from a Genkit model.',
+    valueType: ValueType.INT,
+  }
+);
+
 type SharedDimensions = {
   modelName?: string;
+  flowName?: string;
   path?: string;
   temperature?: number;
   topK?: number;
@@ -119,19 +150,13 @@ export function recordGenerateActionMetrics(
     err?: any;
   }
 ) {
-  doRecordGenerateActionMetrics(modelName, {
+  doRecordGenerateActionMetrics(modelName, opts.response?.usage || {}, {
     temperature: input.config?.temperature,
     topK: input.config?.topK,
     topP: input.config?.topP,
     maxOutputTokens: input.config?.maxOutputTokens,
+    flowName: traceMetadataAls?.getStore()?.flowName,
     path: spanMetadataAls?.getStore()?.path,
-    inputTokens: opts.response?.usage?.inputTokens,
-    outputTokens: opts.response?.usage?.outputTokens,
-    totalTokens: opts.response?.usage?.totalTokens,
-    inputCharacters: opts.response?.usage?.inputCharacters,
-    outputCharacters: opts.response?.usage?.outputCharacters,
-    inputImages: opts.response?.usage?.inputImages,
-    outputImages: opts.response?.usage?.outputImages,
     latencyMs: opts.response?.latencyMs,
     err: opts.err,
     source: 'ts',
@@ -144,8 +169,9 @@ export function recordGenerateActionInputLogs(
   options: GenerateOptions,
   input: GenerateRequest
 ) {
+  const flowName = traceMetadataAls?.getStore()?.flowName;
   const path = spanMetadataAls?.getStore()?.path;
-  const sharedMetadata = { model, path };
+  const sharedMetadata = { model, path, flowName };
   logger.logStructured(`Config[${path}, ${model}]`, {
     ...sharedMetadata,
     temperature: options.config?.temperature,
@@ -179,8 +205,9 @@ export function recordGenerateActionOutputLogs(
   options: GenerateOptions,
   output: GenerateResponseData
 ) {
+  const flowName = traceMetadataAls?.getStore()?.flowName;
   const path = spanMetadataAls?.getStore()?.path;
-  const sharedMetadata = { model, path };
+  const sharedMetadata = { model, path, flowName };
   const candidates = output.candidates.length;
   output.candidates.forEach((cand, candIdx) => {
     const parts = cand.message.content.length;
@@ -290,20 +317,14 @@ function toPartLogToolResponse(part: ToolResponsePart): string {
  */
 function doRecordGenerateActionMetrics(
   modelName: string,
+  usage: GenerationUsage,
   dimensions: {
+    flowName?: string;
     path?: string;
     temperature?: number;
     maxOutputTokens?: number;
     topK?: number;
     topP?: number;
-    inputTokens?: number;
-    outputTokens?: number;
-    totalTokens?: number;
-    inputCharacters?: number;
-    outputCharacters?: number;
-    totalCharacters?: number;
-    inputImages?: number;
-    outputImages?: number;
     latencyMs?: number;
     err?: any;
     source?: string;
@@ -312,6 +333,7 @@ function doRecordGenerateActionMetrics(
 ) {
   const shared: SharedDimensions = {
     modelName: modelName,
+    flowName: dimensions.flowName,
     path: dimensions.path,
     temperature: dimensions.temperature,
     topK: dimensions.topK,
@@ -322,20 +344,23 @@ function doRecordGenerateActionMetrics(
 
   generateActionCounter.add(1, {
     maxOutputTokens: dimensions.maxOutputTokens,
-    errorCode: dimensions.err?.code,
-    errorMessage: dimensions.err?.message,
+    error: dimensions.err?.name,
     ...shared,
   });
 
   generateActionLatencies.record(dimensions.latencyMs, shared);
 
   // inputs
-  generateActionInputTokens.add(dimensions.inputTokens, shared);
-  generateActionInputCharacters.add(dimensions.inputCharacters, shared);
-  generateActionInputImages.add(dimensions.inputImages, shared);
+  generateActionInputTokens.add(usage.inputTokens, shared);
+  generateActionInputCharacters.add(usage.inputCharacters, shared);
+  generateActionInputImages.add(usage.inputImages, shared);
+  generateActionInputVideos.add(usage.inputVideos, shared);
+  generateActionInputAudio.add(usage.inputAudioFiles, shared);
 
   // outputs
-  generateActionOutputTokens.add(dimensions.outputTokens, shared);
-  generateActionOutputCharacters.add(dimensions.outputCharacters, shared);
-  generateActionOutputImages.add(dimensions.outputImages, shared);
+  generateActionOutputTokens.add(usage.outputTokens, shared);
+  generateActionOutputCharacters.add(usage.outputCharacters, shared);
+  generateActionOutputImages.add(usage.outputImages, shared);
+  generateActionOutputVideos.add(usage.outputVideos, shared);
+  generateActionOutputAudio.add(usage.outputAudioFiles, shared);
 }

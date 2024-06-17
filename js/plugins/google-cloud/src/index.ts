@@ -33,7 +33,14 @@ export interface TelemetryConfig {
   autoInstrumentation?: boolean;
   autoInstrumentationConfig?: InstrumentationConfigMap;
   metricExportIntervalMillis?: number;
+  metricExportTimeoutMillis?: number;
   instrumentations?: Instrumentation[];
+
+  /** When true, metrics are not sent to GCP. */
+  disableMetrics?: boolean;
+
+  /** When true, traces are not sent to GCP. */
+  disableTraces?: boolean;
 }
 
 /**
@@ -65,3 +72,4 @@ export const googleCloud: Plugin<[PluginOptions] | []> = genkitPlugin(
 );
 
 export default googleCloud;
+export * from './gcpOpenTelemetry.js';

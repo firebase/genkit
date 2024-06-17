@@ -16,39 +16,39 @@ package ai
 
 import (
 	"context"
+	"maps"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/internal/atype"
+	"github.com/invopop/jsonschema"
 )
 
-// PromptRequest is a request to execute a prompt template and
-// pass the result to a [Generator].
-type PromptRequest struct {
-	// Input fields for the prompt. If not nil this should be a struct
-	// or pointer to a struct that matches the prompt's input schema.
-	Variables any `json:"variables,omitempty"`
-	// Number of candidates to return; if 0, will be taken
-	// from the prompt config; if still 0, will use 1.
-	Candidates int `json:"candidates,omitempty"`
-	// Generator Configuration. If nil will be taken from the prompt config.
-	Config *GenerationCommonConfig `json:"config,omitempty"`
-	// Context to pass to model, if any.
-	Context []any `json:"context,omitempty"`
-	// The model to use. This overrides any model specified by the prompt.
-	Model string `json:"model,omitempty"`
-}
+// A PromptAction is used to render a prompt template,
+// producing a [GenerateRequest] that may be passed to a [ModelAction].
+type PromptAction = core.Action[any, *GenerateRequest, struct{}]
 
-// Prompt is the interface used to execute a prompt template and
-// pass the result to a [Generator].
-type Prompt interface {
-	Generate(context.Context, *PromptRequest, func(context.Context, *Candidate) error) (*GenerateResponse, error)
-}
-
-// RegisterPrompt registers a prompt in the global registry.
-func RegisterPrompt(provider, name string, prompt Prompt) {
-	metadata := map[string]any{
-		"type":   "prompt",
-		"prompt": prompt,
+// DefinePrompt takes a function that renders a prompt template
+// into a [GenerateRequest] that may be passed to a [ModelAction].
+// The prompt expects some input described by inputSchema.
+// DefinePrompt registers the function as an action,
+// and returns a [PromptAction] that runs it.
+func DefinePrompt(provider, name string, metadata map[string]any, render func(context.Context, any) (*GenerateRequest, error), inputSchema *jsonschema.Schema) *PromptAction {
+	mm := maps.Clone(metadata)
+	if mm == nil {
+		mm = make(map[string]any)
 	}
-	core.RegisterAction(provider,
-		core.NewStreamingAction(name, core.ActionTypePrompt, metadata, prompt.Generate))
+	mm["type"] = "prompt"
+	mm["prompt"] = true // required by genkit ui
+	return core.DefineActionWithInputSchema(provider, name, atype.Prompt, mm, render, inputSchema)
+}
+
+// LookupPrompt looks up a [PromptAction] registered by [DefinePrompt].
+// It returns nil if the prompt was not defined.
+func LookupPrompt(provider, name string) *PromptAction {
+	return core.LookupActionFor[any, *GenerateRequest, struct{}](atype.Prompt, provider, name)
+}
+
+// Render renders a [PromptAction] with some input data.
+func Render(ctx context.Context, p *PromptAction, input any) (*GenerateRequest, error) {
+	return p.Run(ctx, input, nil)
 }

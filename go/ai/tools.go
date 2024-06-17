@@ -20,7 +20,10 @@ import (
 	"maps"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/internal/atype"
 )
+
+const provider = "local"
 
 // A Tool is an implementation of a single tool.
 // The ToolDefinition has JSON schemas that describe the types.
@@ -31,8 +34,8 @@ type Tool struct {
 	Fn         func(context.Context, map[string]any) (map[string]any, error)
 }
 
-// RegisterTool registers a tool function.
-func RegisterTool(name string, definition *ToolDefinition, metadata map[string]any, fn func(ctx context.Context, input map[string]any) (map[string]any, error)) {
+// DefineTool defines a tool function.
+func DefineTool(definition *ToolDefinition, metadata map[string]any, fn func(ctx context.Context, input map[string]any) (map[string]any, error)) {
 	if len(metadata) > 0 {
 		metadata = maps.Clone(metadata)
 	}
@@ -41,24 +44,15 @@ func RegisterTool(name string, definition *ToolDefinition, metadata map[string]a
 	}
 	metadata["type"] = "tool"
 
-	// TODO: There is no provider for a tool.
-	core.RegisterAction("tool", core.NewAction(definition.Name, core.ActionTypeTool, metadata, fn))
+	core.DefineAction(provider, definition.Name, atype.Tool, metadata, fn)
 }
 
-// toolActionType is the instantiated core.Action type registered
-// by RegisterTool.
-type toolActionType = core.Action[map[string]any, map[string]any, struct{}]
-
-// RunTool looks up a tool registered by [RegisterTool],
+// RunTool looks up a tool registered by [DefineTool],
 // runs it with the given input, and returns the result.
 func RunTool(ctx context.Context, name string, input map[string]any) (map[string]any, error) {
-	action := core.LookupAction(core.ActionTypeTool, "tool", name)
+	action := core.LookupActionFor[map[string]any, map[string]any, struct{}](atype.Tool, provider, name)
 	if action == nil {
 		return nil, fmt.Errorf("no tool named %q", name)
 	}
-	toolInst, ok := action.(*toolActionType)
-	if !ok {
-		return nil, fmt.Errorf("RunTool: tool action %q has type %T, want %T", name, action, &toolActionType{})
-	}
-	return toolInst.Run(ctx, input, nil)
+	return action.Run(ctx, input, nil)
 }

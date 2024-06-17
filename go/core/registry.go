@@ -26,6 +26,7 @@ import (
 	"sync"
 
 	"github.com/firebase/genkit/go/core/tracing"
+	"github.com/firebase/genkit/go/internal/atype"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/exp/maps"
 )
@@ -90,34 +91,9 @@ const (
 	EnvironmentProd Environment = "prod" // production: user data, SLOs, etc.
 )
 
-// An ActionType is the kind of an action.
-type ActionType string
-
-const (
-	ActionTypeChatLLM   ActionType = "chat-llm"
-	ActionTypeTextLLM   ActionType = "text-llm"
-	ActionTypeRetriever ActionType = "retriever"
-	ActionTypeIndexer   ActionType = "indexer"
-	ActionTypeEmbedder  ActionType = "embedder"
-	ActionTypeEvaluator ActionType = "evaluator"
-	ActionTypeFlow      ActionType = "flow"
-	ActionTypeModel     ActionType = "model"
-	ActionTypePrompt    ActionType = "prompt"
-	ActionTypeTool      ActionType = "tool"
-	ActionTypeCustom    ActionType = "custom"
-)
-
-// RegisterAction records the action in the global registry.
+// registerAction records the action in the registry.
 // It panics if an action with the same type, provider and name is already
 // registered.
-func RegisterAction(provider string, a action) {
-	globalRegistry.registerAction(provider, a)
-	slog.Info("RegisterAction",
-		"type", a.actionType(),
-		"provider", provider,
-		"name", a.Name())
-}
-
 func (r *registry) registerAction(provider string, a action) {
 	key := fmt.Sprintf("/%s/%s/%s", a.actionType(), provider, a.Name())
 	r.mu.Lock()
@@ -127,6 +103,10 @@ func (r *registry) registerAction(provider string, a action) {
 	}
 	a.setTracingState(r.tstate)
 	r.actions[key] = a
+	slog.Info("RegisterAction",
+		"type", a.actionType(),
+		"provider", provider,
+		"name", a.Name())
 }
 
 // lookupAction returns the action for the given key, or nil if there is none.
@@ -136,11 +116,16 @@ func (r *registry) lookupAction(key string) action {
 	return r.actions[key]
 }
 
-// LookupAction returns the action for the given key in the global registry,
+// LookupActionFor returns the action for the given key in the global registry,
 // or nil if there is none.
-func LookupAction(typ ActionType, provider, name string) action {
+// It panics if the action is of the wrong type.
+func LookupActionFor[In, Out, Stream any](typ atype.ActionType, provider, name string) *Action[In, Out, Stream] {
 	key := fmt.Sprintf("/%s/%s/%s", typ, provider, name)
-	return globalRegistry.lookupAction(key)
+	a := globalRegistry.lookupAction(key)
+	if a == nil {
+		return nil
+	}
+	return a.(*Action[In, Out, Stream])
 }
 
 // listActions returns a list of descriptions of all registered actions.

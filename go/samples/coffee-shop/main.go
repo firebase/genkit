@@ -104,14 +104,15 @@ func main() {
 		fmt.Fprintln(os.Stderr, "You can get an API key at https://ai.google.dev.")
 		os.Exit(1)
 	}
-
-	if err := googleai.Init(context.Background(), "gemini-1.5-pro", apiKey); err != nil {
+	err := googleai.Init(context.Background(), googleai.Config{APIKey: apiKey})
+	if err != nil {
 		log.Fatal(err)
 	}
 
+	g := googleai.Model("gemini-1.5-pro")
 	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting", simpleGreetingPromptTemplate,
-		&dotprompt.Config{
-			Model:        "google-genai/gemini-1.5-pro",
+		dotprompt.Config{
+			ModelAction:  g,
 			InputSchema:  jsonschema.Reflect(simpleGreetingInput{}),
 			OutputFormat: ai.OutputFormatText,
 		},
@@ -121,15 +122,18 @@ func main() {
 	}
 
 	simpleGreetingFlow := genkit.DefineFlow("simpleGreeting", func(ctx context.Context, input *simpleGreetingInput, cb func(context.Context, string) error) (string, error) {
-		callback := func(ctx context.Context, c *ai.Candidate) error {
-			text, err := c.Text()
-			if err != nil {
-				return err
+		var callback func(context.Context, *ai.GenerateResponseChunk) error
+		if cb != nil {
+			callback = func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+				text, err := c.Text()
+				if err != nil {
+					return err
+				}
+				return cb(ctx, text)
 			}
-			return cb(ctx, text)
 		}
 		resp, err := simpleGreetingPrompt.Generate(ctx,
-			&ai.PromptRequest{
+			&dotprompt.PromptRequest{
 				Variables: input,
 			},
 			callback,
@@ -145,8 +149,8 @@ func main() {
 	})
 
 	greetingWithHistoryPrompt, err := dotprompt.Define("greetingWithHistory", greetingWithHistoryPromptTemplate,
-		&dotprompt.Config{
-			Model:        "google-genai/gemini-1.5-pro",
+		dotprompt.Config{
+			ModelAction:  g,
 			InputSchema:  jsonschema.Reflect(customerTimeAndHistoryInput{}),
 			OutputFormat: ai.OutputFormatText,
 		},
@@ -157,7 +161,7 @@ func main() {
 
 	greetingWithHistoryFlow := genkit.DefineFlow("greetingWithHistory", func(ctx context.Context, input *customerTimeAndHistoryInput, _ genkit.NoStream) (string, error) {
 		resp, err := greetingWithHistoryPrompt.Generate(ctx,
-			&ai.PromptRequest{
+			&dotprompt.PromptRequest{
 				Variables: input,
 			},
 			nil,
@@ -189,8 +193,8 @@ func main() {
 	}
 
 	simpleStructuredGreetingPrompt, err := dotprompt.Define("simpleStructuredGreeting", simpleStructuredGreetingPromptTemplate,
-		&dotprompt.Config{
-			Model:        "google-genai/gemini-1.5-pro",
+		dotprompt.Config{
+			ModelAction:  g,
 			InputSchema:  jsonschema.Reflect(simpleGreetingInput{}),
 			OutputFormat: ai.OutputFormatJSON,
 			OutputSchema: outputSchema,
@@ -201,15 +205,18 @@ func main() {
 	}
 
 	genkit.DefineFlow("simpleStructuredGreeting", func(ctx context.Context, input *simpleGreetingInput, cb func(context.Context, string) error) (string, error) {
-		callback := func(ctx context.Context, c *ai.Candidate) error {
-			text, err := c.Text()
-			if err != nil {
-				return err
+		var callback func(context.Context, *ai.GenerateResponseChunk) error
+		if cb != nil {
+			callback = func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+				text, err := c.Text()
+				if err != nil {
+					return err
+				}
+				return cb(ctx, text)
 			}
-			return cb(ctx, text)
 		}
 		resp, err := simpleStructuredGreetingPrompt.Generate(ctx,
-			&ai.PromptRequest{
+			&dotprompt.PromptRequest{
 				Variables: input,
 			},
 			callback,

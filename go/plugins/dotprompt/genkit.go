@@ -17,12 +17,30 @@ package dotprompt
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/core/tracing"
 )
+
+// PromptRequest is a request to execute a dotprompt template and
+// pass the result to a [ModelAction].
+type PromptRequest struct {
+	// Input fields for the prompt. If not nil this should be a struct
+	// or pointer to a struct that matches the prompt's input schema.
+	Variables any `json:"variables,omitempty"`
+	// Number of candidates to return; if 0, will be taken
+	// from the prompt config; if still 0, will use 1.
+	Candidates int `json:"candidates,omitempty"`
+	// Model configuration. If nil will be taken from the prompt config.
+	Config *ai.GenerationCommonConfig `json:"config,omitempty"`
+	// Context to pass to model, if any.
+	Context []any `json:"context,omitempty"`
+	// The model to use. This overrides any model specified by the prompt.
+	Model string `json:"model,omitempty"`
+}
 
 // buildVariables returns a map holding prompt field values based
 // on a struct or a pointer to a struct. The struct value should have
@@ -78,10 +96,10 @@ fieldLoop:
 
 // buildRequest prepares an [ai.GenerateRequest] based on the prompt,
 // using the input variables and other information in the [ai.PromptRequest].
-func (p *Prompt) buildRequest(pr *ai.PromptRequest) (*ai.GenerateRequest, error) {
+func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.GenerateRequest, error) {
 	req := &ai.GenerateRequest{}
 
-	m, err := p.buildVariables(pr.Variables)
+	m, err := p.buildVariables(input)
 	if err != nil {
 		return nil, err
 	}
@@ -89,20 +107,12 @@ func (p *Prompt) buildRequest(pr *ai.PromptRequest) (*ai.GenerateRequest, error)
 		return nil, err
 	}
 
-	req.Candidates = pr.Candidates
-	if req.Candidates == 0 {
-		req.Candidates = p.Candidates
-	}
+	req.Candidates = p.Candidates
 	if req.Candidates == 0 {
 		req.Candidates = 1
 	}
 
-	req.Config = pr.Config
-	if req.Config == nil {
-		req.Config = p.GenerationConfig
-	}
-
-	req.Context = pr.Context
+	req.Config = p.GenerationConfig
 
 	req.Output = &ai.GenerateRequestOutput{
 		Format: p.OutputFormat,
@@ -114,8 +124,12 @@ func (p *Prompt) buildRequest(pr *ai.PromptRequest) (*ai.GenerateRequest, error)
 	return req, nil
 }
 
-// Register registers an action to execute a prompt.
+// Register registers an action to render a prompt.
 func (p *Prompt) Register() error {
+	if p.action != nil {
+		return nil
+	}
+
 	name := p.Name
 	if name == "" {
 		return errors.New("attempt to register unnamed prompt")
@@ -124,45 +138,62 @@ func (p *Prompt) Register() error {
 		name += "." + p.Variant
 	}
 
-	ai.RegisterPrompt("dotprompt", name, p)
+	p.action = ai.DefinePrompt("dotprompt", name, nil, p.buildRequest, p.Config.InputSchema)
 
 	return nil
 }
 
 // Generate executes a prompt. It does variable substitution and
-// passes the rendered template to the AI generator specified by
+// passes the rendered template to the AI model specified by
 // the prompt.
 //
 // This implements the [ai.Prompt] interface.
-func (p *Prompt) Generate(ctx context.Context, pr *ai.PromptRequest, cb func(context.Context, *ai.Candidate) error) (*ai.GenerateResponse, error) {
+func (p *Prompt) Generate(ctx context.Context, pr *PromptRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
 	tracing.SetCustomMetadataAttr(ctx, "subtype", "prompt")
 
-	genReq, err := p.buildRequest(pr)
+	var genReq *ai.GenerateRequest
+	var err error
+	if p.action != nil {
+		genReq, err = ai.Render(ctx, p.action, pr.Variables)
+	} else {
+		genReq, err = p.buildRequest(ctx, pr.Variables)
+	}
 	if err != nil {
 		return nil, err
 	}
 
-	generator := p.generator
-	if generator == nil {
-		model := p.Model
+	// Let some fields in pr override those in the prompt config.
+	if pr.Candidates != 0 {
+		genReq.Candidates = pr.Candidates
+	}
+	if pr.Config != nil {
+		genReq.Config = pr.Config
+	}
+	if len(pr.Context) > 0 {
+		genReq.Context = pr.Context
+	}
+
+	model := p.ModelAction
+	if model == nil {
+		modelName := p.Model
 		if pr.Model != "" {
-			model = pr.Model
+			modelName = pr.Model
 		}
-		if model == "" {
+		if modelName == "" {
 			return nil, errors.New("dotprompt execution: model not specified")
 		}
-		provider, name, found := strings.Cut(model, "/")
+		provider, name, found := strings.Cut(modelName, "/")
 		if !found {
 			return nil, errors.New("dotprompt model not in provider/name format")
 		}
 
-		generator, err = ai.LookupGeneratorAction(provider, name)
-		if err != nil {
-			return nil, err
+		model := ai.LookupModel(provider, name)
+		if model == nil {
+			return nil, fmt.Errorf("no model named %q for provider %q", name, provider)
 		}
 	}
 
-	resp, err := ai.Generate(ctx, generator, genReq, cb)
+	resp, err := ai.Generate(ctx, model, genReq, cb)
 	if err != nil {
 		return nil, err
 	}

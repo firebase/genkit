@@ -1,6 +1,6 @@
 {
   "private": true,
-  "version": "0.5.2",
+  "version": "0.5.3",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "build": "pnpm install && pnpm build:common && pnpm build:cli && pnpm build:plugins",
@@ -20,5 +20,5 @@
     "zod": "^3.22.4",
     "zod-to-json-schema": "^3.22.4"
   },
-  "packageManager": "pnpm@9.1.3+sha256.7f63001edc077f1cff96cacba901f350796287a2800dfa83fe898f94183e4f5f"
+  "packageManager": "pnpm@9.3.0+sha256.e1f9e8d1a16607a46dd3c158b5f7a7dc7945501d1c6222d454d63d033d1d918f"
 }

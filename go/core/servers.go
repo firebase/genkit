@@ -95,7 +95,7 @@ func newDevServeMux(r *registry) *http.ServeMux {
 }
 
 // handleRunAction looks up an action by name in the registry, runs it with the
-// provded JSON input, and writes back the JSON-marshaled request.
+// provided JSON input, and writes back the JSON-marshaled request.
 func (s *devServer) handleRunAction(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 	var body struct {

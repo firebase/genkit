@@ -96,10 +96,12 @@ type GenerateResponse struct {
 	Usage      *GenerationUsage `json:"usage,omitempty"`
 }
 
+// A GenerateResponseChunk is the portion of the [GenerateResponse]
+// that is passed to a streaming callback.
 type GenerateResponseChunk struct {
 	Content []*Part `json:"content,omitempty"`
 	Custom  any     `json:"custom,omitempty"`
-	Index   float64 `json:"index,omitempty"`
+	Index   int     `json:"index,omitempty"`
 }
 
 // GenerationCommonConfig holds configuration for generation.
