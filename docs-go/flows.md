@@ -9,7 +9,7 @@ Firebase Genkit provides CLI and developer UI tooling for working with flows
 
 A flow wraps a function:
 
-* {Go}
+- {Go}
 
   ```go
   menuSuggestionFlow := genkit.DefineFlow(
@@ -24,7 +24,7 @@ A flow wraps a function:
 You can define input and output schemas for a flow, which is useful when you
 want type-safe structured output.
 
-* {Go}
+- {Go}
 
   Genkit converts Go types into JSON Schema using
   [`invopop/jsonschema`](https://pkg.go.dev/github.com/invopop/jsonschema):
@@ -49,7 +49,7 @@ want type-safe structured output.
 
 ## Running flows
 
-* {Go}
+- {Go}
 
   ```go
   suggestion, err := genkit.RunFlow(context.Background(), menuSuggestionFlow, "French")
@@ -65,7 +65,7 @@ genkit flow:run menuSuggestionFlow '"French"'
 
 Here's a simple example of a flow that can stream values:
 
-* {Go}
+- {Go}
 
   ```go
   // Types for illustrative purposes.
@@ -103,7 +103,7 @@ invoking client is requesting streamed response.
 
 To invoke a flow in streaming mode:
 
-* {Go}
+- {Go}
 
   ```go
   genkit.StreamFlow(
@@ -134,7 +134,7 @@ genkit flow:run menuSuggestionFlow '"French"' -s
 If you want to be able to access your flow over HTTP you will need to deploy it
 first.
 
-* {Go}
+- {Go}
 
   To deploy flows using Cloud Run and similar services, define your flows, and
   then call `StartFlowServer()`:
