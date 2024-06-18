@@ -67,9 +67,6 @@ func StartFlowServer(addr string) error {
 // startDevServer always returns a non-nil error, the one returned by http.ListenAndServe.
 func startDevServer(addr string) error {
 	slog.Info("starting dev server")
-	// Don't use "localhost" here. That only binds the IPv4 address, and the genkit tool
-	// wants to connect to the IPv6 address even when you tell it to use "localhost".
-	// Omitting the host works.
 	addr = serverAddress(addr, "GENKIT_REFLECTION_PORT", "127.0.0.1:3100")
 	mux := newDevServeMux(globalRegistry)
 	return listenAndServe(addr, mux)
