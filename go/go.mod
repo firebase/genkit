@@ -14,7 +14,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/invopop/jsonschema v0.12.0
 	github.com/jba/slog v0.2.0
-	github.com/jba/xltest/go/xltest v0.1.1
+	github.com/jba/xltest/go/xltest v0.1.2
 	github.com/wk8/go-ordered-map/v2 v2.1.8
 	github.com/xeipuuv/gojsonschema v1.2.0
 	go.opentelemetry.io/otel v1.26.0

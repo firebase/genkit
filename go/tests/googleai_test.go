@@ -37,6 +37,12 @@ import (
 
 var update = flag.Bool("update", false, "update golden files with results")
 
+type embedderResult struct {
+	Values    []float32
+	TraceFile string `yaml:"traceFile"`
+	trace     *tracing.Data
+}
+
 func TestGoogleAI(t *testing.T) {
 	ctx := context.Background()
 	err := googleai.Init(ctx, googleai.Config{
@@ -49,7 +55,7 @@ func TestGoogleAI(t *testing.T) {
 	}
 
 	t.Run("embed", func(t *testing.T) {
-		test, err := xltest.ReadFile(filepath.Join("testdata", "googleai-embedder.yaml"))
+		test, err := xltest.ReadFile[string, embedderResult](filepath.Join("testdata", "googleai-embedder.yaml"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -61,42 +67,25 @@ func TestGoogleAI(t *testing.T) {
 			if err != nil {
 				return embedderResult{}, err
 			}
-			return embedderResult{vals, ts.td}, nil
+			return embedderResult{Values: vals, trace: ts.td}, nil
 		}
 		valfunc := validateEmbedder
 		if *update {
 			valfunc = updateEmbedder
 		}
-		test.Run(t, testfunc, valfunc)
+		test.Run(t, testfunc, valfunc, nil)
 	})
-}
-
-type embedderResult struct {
-	values []float32
-	trace  *tracing.Data
 }
 
 // validateEmbedder compares the results from running an embedder with
 // the desired results. The latter are taken from a YAML file and so are in raw
 // unmarshalled form.
-func validateEmbedder(got embedderResult, rawWant map[string]any) error {
-	var want embedderResult
-	rawVals := rawWant["values"].([]any)
-	f32s := make([]float32, len(rawVals))
-	for i, v := range rawVals {
-		f32s[i] = float32(v.(float64))
-	}
-	want.values = f32s
-	traceFile := rawWant["traceFile"].(string)
-	if err := internal.ReadJSONFile(filepath.Join("testdata", traceFile), &want.trace); err != nil {
+func validateEmbedder(got, want embedderResult) error {
+	if err := internal.ReadJSONFile(filepath.Join("testdata", want.TraceFile), &want.trace); err != nil {
 		return err
 	}
-	return compareEmbedderResults(got, want)
-}
-
-func compareEmbedderResults(got, want embedderResult) error {
-	if !slices.Equal(got.values, want.values) {
-		return fmt.Errorf("values: got %v, want %v", got.values, want.values)
+	if !slices.Equal(got.Values, want.Values) {
+		return fmt.Errorf("values: got %v, want %v", got.Values, want.Values)
 	}
 	renameSpans(got.trace)
 	renameSpans(want.trace)
@@ -152,10 +141,9 @@ func renameSpans(td *tracing.Data) {
 	td.Spans = m
 }
 
-func updateEmbedder(got embedderResult, rawWant map[string]any) error {
-	filename := rawWant["traceFile"].(string)
-	fmt.Printf("writing %s\n", filename)
-	return internal.WriteJSONFile(filename, got.trace)
+func updateEmbedder(got, want embedderResult) error {
+	fmt.Printf("writing %s\n", want.TraceFile)
+	return internal.WriteJSONFile(want.TraceFile, got.trace)
 }
 
 func mockClient() *http.Client {
