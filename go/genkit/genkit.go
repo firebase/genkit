@@ -25,6 +25,18 @@ import (
 
 // DefineFlow creates a Flow that runs fn, and registers it as an action.
 //
+// fn takes an input of type In and returns an output of type Out.
+func DefineFlow[In, Out any](
+	name string,
+	fn func(ctx context.Context, input In) (Out, error),
+) *core.Flow[In, Out, any] {
+	return core.InternalDefineFlow(name, core.Func[In, Out, any](func(ctx context.Context, input In, cb func(ctx context.Context, _ any) error) (Out, error) {
+		return fn(ctx, input)
+	}))
+}
+
+// DefineStreamingFlow creates a streaming Flow that runs fn, and registers it as an action.
+//
 // fn takes an input of type In and returns an output of type Out, optionally
 // streaming values of type Stream incrementally by invoking a callback.
 // Pass [NoStream] for functions that do not support streaming.
@@ -33,7 +45,7 @@ import (
 // stream the results by invoking the callback periodically, ultimately returning
 // with a final return value. Otherwise, it should ignore the callback and
 // just return a result.
-func DefineFlow[In, Out, Stream any](
+func DefineStreamingFlow[In, Out, Stream any](
 	name string,
 	fn func(ctx context.Context, input In, callback func(context.Context, Stream) error) (Out, error),
 ) *core.Flow[In, Out, Stream] {
@@ -56,9 +68,6 @@ func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out,
 func RunFlow[In, Out, Stream any](ctx context.Context, flow *core.Flow[In, Out, Stream], input In) (Out, error) {
 	return core.InternalRunFlow(ctx, flow, input)
 }
-
-// NoStream indicates that a flow does not support streaming.
-type NoStream = core.NoStream
 
 // StreamFlowValue is either a streamed value or a final output of a flow.
 type StreamFlowValue[Out, Stream any] struct {
