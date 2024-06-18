@@ -28,6 +28,26 @@ import (
 	"github.com/invopop/jsonschema"
 )
 
+// Middleware is a functions that take in the request object, response object,
+// and the next middleware function for the action.
+//
+// Middleware functions can:
+//   - execute arbitrary code;
+//   - change the request and response;
+//   - terminate response by returning a response (or error);
+//   - call the next middleware function.
+//
+// If the current middleware function does not terminate the middlware chain it
+// must call next middlware in the chain to pass control to the next middleware
+// function, otherwise the request will be left hanging.
+type Middleware[I, O any] func(context.Context, I, func(ctx context.Context, input I) (O, error)) (O, error)
+
+// Middlewares returns an array of middlewares that are passes in as an argument.
+// `core.Middlewares(apple, banana)` is identical to `[]core.Middleware[InputType, OutputType]{apple, banana}`
+func Middlewares[I, O any](ms ...Middleware[I, O]) []Middleware[I, O] {
+	return ms
+}
+
 // Func is the type of function that Actions and Flows execute.
 // It takes an input of type Int and returns an output of type Out, optionally
 // streaming values of type Stream incrementally by invoking a callback.
@@ -63,6 +83,7 @@ type Action[In, Out, Stream any] struct {
 	// optional
 	description string
 	metadata    map[string]any
+	middleware  []Middleware[In, Out]
 }
 
 // See js/core/src/action.ts
@@ -78,18 +99,18 @@ func defineAction[In, Out any](r *registry, provider, name string, atype atype.A
 	return a
 }
 
-func DefineStreamingAction[In, Out, Stream any](provider, name string, atype atype.ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
-	return defineStreamingAction(globalRegistry, provider, name, atype, metadata, fn)
+func DefineStreamingAction[In, Out, Stream any](provider, name string, atype atype.ActionType, metadata map[string]any, middleware []Middleware[In, Out], fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
+	return defineStreamingAction(globalRegistry, provider, name, atype, metadata, middleware, fn)
 }
 
-func defineStreamingAction[In, Out, Stream any](r *registry, provider, name string, atype atype.ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
-	a := newStreamingAction(name, atype, metadata, fn)
+func defineStreamingAction[In, Out, Stream any](r *registry, provider, name string, atype atype.ActionType, metadata map[string]any, middleware []Middleware[In, Out], fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
+	a := newStreamingAction(name, atype, metadata, middleware, fn)
 	r.registerAction(provider, a)
 	return a
 }
 
 func DefineCustomAction[In, Out, Stream any](provider, name string, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
-	return DefineStreamingAction(provider, name, atype.Custom, metadata, fn)
+	return DefineStreamingAction(provider, name, atype.Custom, metadata, nil, fn)
 }
 
 // DefineActionWithInputSchema creates a new Action and registers it.
@@ -108,13 +129,13 @@ func defineActionWithInputSchema[Out any](r *registry, provider, name string, at
 
 // newAction creates a new Action with the given name and non-streaming function.
 func newAction[In, Out any](name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
-	return newStreamingAction(name, atype, metadata, func(ctx context.Context, in In, cb NoStream) (Out, error) {
+	return newStreamingAction(name, atype, metadata, nil, func(ctx context.Context, in In, cb NoStream) (Out, error) {
 		return fn(ctx, in)
 	})
 }
 
 // newStreamingAction creates a new Action with the given name and streaming function.
-func newStreamingAction[In, Out, Stream any](name string, atype atype.ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
+func newStreamingAction[In, Out, Stream any](name string, atype atype.ActionType, metadata map[string]any, middleware []Middleware[In, Out], fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
 	var i In
 	var o Out
 	return &Action[In, Out, Stream]{
@@ -127,6 +148,7 @@ func newStreamingAction[In, Out, Stream any](name string, atype atype.ActionType
 		inputSchema:  inferJSONSchema(i),
 		outputSchema: inferJSONSchema(o),
 		metadata:     metadata,
+		middleware:   middleware,
 	}
 }
 
@@ -169,6 +191,7 @@ func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(con
 		// This action has probably not been registered.
 		tstate = globalRegistry.tstate
 	}
+
 	return tracing.RunInNewSpan(ctx, tstate, a.name, "action", false, input,
 		func(ctx context.Context, input In) (Out, error) {
 			start := time.Now()
@@ -178,7 +201,18 @@ func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(con
 			}
 			var output Out
 			if err == nil {
-				output, err = a.fn(ctx, input, cb)
+				var dispatch func(context.Context, int, In) (Out, error)
+				dispatch = func(ctx context.Context, mi int, input In) (Out, error) {
+					if mi == len(a.middleware) {
+						return a.fn(ctx, input, cb)
+					}
+					var currentMiddleware = a.middleware[mi]
+					return currentMiddleware(ctx, input, func(ctx context.Context, modifiedInput In) (Out, error) {
+						return dispatch(ctx, mi+1, modifiedInput)
+					})
+				}
+
+				output, err = dispatch(ctx, 0, input)
 				if err == nil {
 					if err = validateValue(output, a.outputSchema); err != nil {
 						err = fmt.Errorf("invalid output: %w", err)

@@ -81,7 +81,7 @@ func initModels(ctx context.Context, cfg Config) error {
 			},
 		}
 		g := &generator{model: name, client: gclient}
-		ai.DefineModel(provider, name, meta, g.generate)
+		ai.DefineModel(provider, name, meta, nil, g.generate)
 	}
 	return nil
 }

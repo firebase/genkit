@@ -70,7 +70,7 @@ func count(ctx context.Context, n int, cb func(context.Context, int) error) (int
 
 func TestActionStreaming(t *testing.T) {
 	ctx := context.Background()
-	a := newStreamingAction("count", atype.Custom, nil, count)
+	a := newStreamingAction("count", atype.Custom, nil, nil, count)
 	const n = 3
 
 	// Non-streaming.
@@ -125,4 +125,37 @@ func TestActionTracing(t *testing.T) {
 		}
 	}
 	t.Fatalf("did not find trace named %q", actionName)
+}
+
+func TestActionMiddlware(t *testing.T) {
+	ctx := context.Background()
+
+	round := func(ctx context.Context, request string, next func(ctx context.Context, request string) (string, error)) (string, error) {
+		nextResponse, err := next(ctx, "("+request)
+		if err != nil {
+			return "", err
+		}
+		return nextResponse + ")", nil
+	}
+
+	square := func(ctx context.Context, request string, next func(ctx context.Context, request string) (string, error)) (string, error) {
+		nextResponse, err := next(ctx, "["+request)
+		if err != nil {
+			return "", err
+		}
+		return nextResponse + "]", nil
+	}
+
+	a := newStreamingAction("hello", atype.Custom, nil, Middlewares(round, square), func(ctx context.Context, input string, _ NoStream) (string, error) {
+		return "Hello " + input, nil
+	})
+
+	got, err := a.Run(ctx, "Pavel", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "Hello [(Pavel])"
+	if got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
 }
