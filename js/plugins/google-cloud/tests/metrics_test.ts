@@ -289,6 +289,71 @@ describe('GoogleCloudMetrics', () => {
     assert.ok(requestCounter.attributes.sourceVersion);
   });
 
+  it('writes flow label to action metrics when running inside flow', async () => {
+    const testAction = createAction('testAction');
+    const flow = createFlow('flowNameLabelTestFlow', async () => {
+      return await runAction(testAction);
+    });
+
+    await runFlow(flow);
+
+    const requestCounter = await getCounterMetric('genkit/action/requests');
+    const latencyHistogram = await getHistogramMetric('genkit/action/latency');
+    assert.equal(requestCounter.attributes.flowName, 'flowNameLabelTestFlow');
+    assert.equal(latencyHistogram.attributes.flowName, 'flowNameLabelTestFlow');
+  });
+
+  it('writes flow label to generate metrics when running inside flow', async () => {
+    const testModel = createModel('testModel', async () => {
+      return {
+        candidates: [
+          {
+            index: 0,
+            finishReason: 'stop',
+            message: {
+              role: 'user',
+              content: [
+                {
+                  text: 'response',
+                },
+              ],
+            },
+          },
+        ],
+        usage: {
+          inputTokens: 10,
+          outputTokens: 14,
+          inputCharacters: 8,
+          outputCharacters: 16,
+          inputImages: 1,
+          outputImages: 3,
+        },
+      };
+    });
+    const flow = createFlow('testFlow', async () => {
+      return await generate({
+        model: testModel,
+        prompt: 'test prompt',
+      });
+    });
+
+    await runFlow(flow);
+
+    const metrics = [
+      await getCounterMetric('genkit/ai/generate/requests'),
+      await getCounterMetric('genkit/ai/generate/input/tokens'),
+      await getCounterMetric('genkit/ai/generate/output/tokens'),
+      await getCounterMetric('genkit/ai/generate/input/characters'),
+      await getCounterMetric('genkit/ai/generate/output/characters'),
+      await getCounterMetric('genkit/ai/generate/input/images'),
+      await getCounterMetric('genkit/ai/generate/output/images'),
+      await getHistogramMetric('genkit/ai/generate/latency'),
+    ];
+    for (metric of metrics) {
+      assert.equal(metric.attributes.flowName, 'testFlow');
+    }
+  });
+
   it('writes flow paths metrics', async () => {
     const flow = createFlow('pathTestFlow', async () => {
       const step1Result = await run('step1', async () => {
@@ -308,8 +373,6 @@ describe('GoogleCloudMetrics', () => {
     ]);
     const pathCounterPoints = await getCounterDataPoints(
       'genkit/flow/path/requests'
-    ).then((points) =>
-      points.filter((point) => point.attributes.name === 'pathTestFlow')
     );
     const paths = new Set(
       pathCounterPoints.map((point) => point.attributes.path)
@@ -317,6 +380,7 @@ describe('GoogleCloudMetrics', () => {
     assert.deepEqual(paths, expectedPaths);
     pathCounterPoints.forEach((point) => {
       assert.equal(point.value, 1);
+      assert.equal(point.attributes.flowName, 'pathTestFlow');
       assert.equal(point.attributes.source, 'ts');
       assert.equal(point.attributes.success, 'success');
       assert.ok(point.attributes.sourceVersion);

@@ -47,6 +47,9 @@ export async function newTrace<T>(
     paths: new Set<PathMetadata>(),
     timestamp: performance.now(),
   };
+  if (opts.labels && opts.labels[SPAN_TYPE_ATTR] === 'flow') {
+    traceMetadata.flowName = opts.name;
+  }
   return await traceMetadataAls.run(traceMetadata, () =>
     runInNewSpan(
       {
