@@ -29,8 +29,8 @@ import (
 func DefineFlow[In, Out any](
 	name string,
 	fn func(ctx context.Context, input In) (Out, error),
-) *core.Flow[In, Out, any] {
-	return core.InternalDefineFlow(name, core.Func[In, Out, any](func(ctx context.Context, input In, cb func(ctx context.Context, _ any) error) (Out, error) {
+) *core.Flow[In, Out, struct{}] {
+	return core.InternalDefineFlow(name, core.Func[In, Out, struct{}](func(ctx context.Context, input In, cb func(ctx context.Context, _ struct{}) error) (Out, error) {
 		return fn(ctx, input)
 	}))
 }
