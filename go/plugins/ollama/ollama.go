@@ -15,6 +15,7 @@
 package ollama
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -111,7 +112,6 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 		}
 		messages = append(messages, message)
 	}
-	fmt.Println("should stream", cb != nil)
 	stream := cb != nil
 	payload := ollamaRequest{
 		Messages: messages,
@@ -148,29 +148,41 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 		}
 		return response, nil
 	} else {
-		// TODO: Handle Streaming
-		/*
-			// Handle streaming response here
-			scanner := bufio.NewScanner(resp.Body) // Create a scanner to read lines
-			for scanner.Scan() {
-				line := scanner.Text()
-
-				chunk, err := translateChunk(line)
-				if err != nil {
-					// Handle parsing error (log, maybe send an error candidate?)
-					return nil, fmt.Errorf("error translating chunk: %v", err)
-				}
-				cb(ctx, chunk)
+		// Handle streaming response here
+		var chunks []*ai.GenerateResponseChunk
+		scanner := bufio.NewScanner(resp.Body) // Create a scanner to read lines
+		for scanner.Scan() {
+			line := scanner.Text()
+			chunk, err := translateChunk(line)
+			if err != nil {
+				// Handle parsing error (log, maybe send an error candidate?)
+				return nil, fmt.Errorf("error translating chunk: %v", err)
 			}
+			chunks = append(chunks, chunk)
+			cb(ctx, chunk)
+		}
 
-			if err := scanner.Err(); err != nil {
-				return nil, fmt.Errorf("error reading stream: %v", err)
-			}
-			// TODO: Handle end of stream (optional: send a final candidate to signal completion)
-		*/
+		if err := scanner.Err(); err != nil {
+			return nil, fmt.Errorf("error reading stream: %v", err)
+		}
+		// Create a final response with the merged chunks
+		finalResponse := &ai.GenerateResponse{
+			Candidates: []*ai.Candidate{
+				{
+					FinishReason: ai.FinishReason("stop"),
+					Message: &ai.Message{
+						Role: ai.RoleModel, // Assuming the response is from the model
+					},
+				},
+			},
+		}
+		// Add all the merged content to the final response's candidate
+		for _, chunk := range chunks {
+			finalResponse.Candidates[0].Message.Content = append(finalResponse.Candidates[0].Message.Content, chunk.Content...)
+		}
+		return finalResponse, nil // Return the final merged response
+
 	}
-	//Return an empty generate response, since we use callback for streaming
-	return &ai.GenerateResponse{}, nil
 }
 
 // convertParts serializes a slice of *ai.Part into an ollamaMessage (represents Ollama message type)
