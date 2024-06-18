@@ -9,7 +9,7 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.46.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.22.0
 	github.com/aymerick/raymond v2.0.2+incompatible
-	github.com/google/generative-ai-go v0.13.1-0.20240530125111-8decc9df4add
+	github.com/google/generative-ai-go v0.14.1-0.20240618073058-6b2b0ac5749e
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/invopop/jsonschema v0.12.0
@@ -68,5 +68,3 @@ require (
 	google.golang.org/grpc v1.64.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
-
-replace github.com/google/generative-ai-go => /usr/local/google/home/jba/repos/github.com/google/generative-ai-go
