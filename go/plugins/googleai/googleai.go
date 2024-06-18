@@ -36,9 +36,17 @@ var (
 		Multiturn:  true,
 		Tools:      true,
 		SystemRole: true,
+		Media:      false,
+	}
+	multimodal = ai.ModelCapabilities{
+		Multiturn:  true,
+		Tools:      true,
+		SystemRole: true,
+		Media:      true,
 	}
 	knownModelsCapabilities = map[string]ai.ModelCapabilities{
-		"gemini-1.0-pro": basicText,
+		"gemini-1.0-pro":   basicText,
+		"gemini-1.5-flash": multimodal,
 	}
 )
 
