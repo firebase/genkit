@@ -1,33 +1,40 @@
 # Flows
 
-Flows are functions with some additional characteristics: they are strongly
-typed, streamable, locally and remotely callable, and fully observable.
-Firebase Genkit provides CLI and developer UI tooling for working with flows
-(running, debugging).
+Flows are runnable objects with some additional characteristics over simple
+function calls: they are strongly typed, streamable, locally and remotely
+callable, and fully observable.
+Firebase Genkit provides CLI and developer UI tooling for running and debugging flows.
 
 ## Defining flows
 
-A flow wraps a function:
+In its simplest form, a flow just wraps a function:
 
 - {Go}
 
   ```go
   menuSuggestionFlow := genkit.DefineFlow(
     "menuSuggestionFlow",
-    func(ctx context.Context, restaurantTheme string, _ genkit.NoStream) (string, error) {
+    func(ctx context.Context, restaurantTheme string) (string, error) {
       suggestion := makeMenuItemSuggestion(restaurantTheme)
       return suggestion, nil
     },
   )
   ```
 
-You can define input and output schemas for a flow, which is useful when you
-want type-safe structured output.
+Doing so lets you run the function from the Genkit CLI and developer UI, and is
+a requirement for many of Genkit's features, including deployment and
+observability.
+
+An important advantage Genkit flows have over directly calling a model API is
+type safety of both inputs and outputs:
 
 - {Go}
 
-  Genkit converts Go types into JSON Schema using
-  [`invopop/jsonschema`](https://pkg.go.dev/github.com/invopop/jsonschema):
+  The argument and result types of a flow can be simple or structured values.
+  Genkit will produce JSON schemas for these values using
+  [`invopop/jsonschema`](https://pkg.go.dev/github.com/invopop/jsonschema).
+
+  The following flow takes a `string` as input and outputs a `struct`:
 
   ```go
   type MenuSuggestion struct {
@@ -40,7 +47,7 @@ want type-safe structured output.
   ```go
   menuSuggestionFlow := genkit.DefineFlow(
     "menuSuggestionFlow",
-    func(ctx context.Context, restaurantTheme string, _ genkit.NoStream) (MenuSuggestion, error) {
+    func(ctx context.Context, restaurantTheme string) (MenuSuggestion, error) {
       suggestion := makeStructuredMenuItemSuggestion(restaurantTheme)
       return suggestion, nil
     },
@@ -48,6 +55,8 @@ want type-safe structured output.
   ```
 
 ## Running flows
+
+To run a flow in your code:
 
 - {Go}
 
@@ -80,20 +89,20 @@ Here's a simple example of a flow that can stream values:
       restaurantTheme inputType,
       callback func(context.Context, streamType) error,
     ) (outputType, error) {
-      var menu outputType = ""
+      var menu strings.Builder
       menuChunks := make(chan streamType)
       go makeFullMenuSuggestion(restaurantTheme, menuChunks)
       for {
-        chunk, more := <-menuChunks
-        if !more {
+        chunk, ok := <-menuChunks
+        if !ok {
           break
         }
         if callback != nil {
           callback(context.Background(), chunk)
         }
-        menu += outputType(chunk)
+        menu.WriteString(string(chunk))
       }
-      return menu, nil
+      return outputType(menu.String()), nil
     },
   )
   ```
@@ -143,7 +152,7 @@ first.
   func main() {
     genkit.DefineFlow(
       "menuSuggestionFlow",
-      func(ctx context.Context, restaurantTheme string, _ genkit.NoStream) (string, error) {
+      func(ctx context.Context, restaurantTheme string) (string, error) {
         // ...
       },
     )
@@ -176,7 +185,7 @@ need to do is wrap the code in the `run` function.
 ```go
 genkit.DefineFlow(
   "menuSuggestionFlow",
-  func(ctx context.Context, restaurantTheme string, _ genkit.NoStream) (string, error) {
+  func(ctx context.Context, restaurantTheme string) (string, error) {
     themes, err := genkit.Run(ctx, "find-similar-themes", func() (string, error) {
       // ...
     })
