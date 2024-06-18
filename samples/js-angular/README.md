@@ -5,13 +5,20 @@ This is a simple UI for streaming RPG character generator.
 To build:
 
 ```bash
+npm i
 npm run build
 ```
 
-Run:
+The sample is using Vertex AI, so you'll need to auth:
 
 ```bash
-npm run start -- --project YOUR_PROJECT_ID
+gcloud auth application-default login
 ```
 
-Point your browser to http://127.0.0.1:5000
+To run the sample:
+
+```bash
+npm start
+```
+
+Point your browser to http://localhost:4200/
