@@ -24,7 +24,13 @@ import (
 )
 
 // Options are options to [Init].
-type Options = core.Options
+type Options struct {
+	DevAddr string
+	// If "-", do not start a FlowServer.
+	// Otherwise, start a FlowServer on the given address, or the
+	// default of ":3400" if empty.
+	FlowAddr string
+}
 
 // Init initializes Genkit.
 // After it is called, no further actions can be defined.
@@ -32,10 +38,9 @@ type Options = core.Options
 // Init starts servers depending on the value of the GENKIT_ENV
 // environment variable and the provided options.
 //
-
 // If GENKIT_ENV = "dev", a development server is started
 // in a separate goroutine at the address in opts.DevAddr, or the default
-// if empty.
+// of ":3100" if empty.
 //
 // If opts.FlowAddr is a value other than "-", a flow server is started (see [StartFlowServer])
 // and the call to Init waits for the server to shut down.
@@ -44,7 +49,7 @@ type Options = core.Options
 // Thus Init(nil) will start a dev server in the "dev" environment, will always start
 // a flow server, and will pause execution until the flow server terminates.
 func Init(opts *Options) error {
-	return core.InternalInit(opts)
+	return core.InternalInit((*core.Options)(opts))
 }
 
 // DefineFlow creates a Flow that runs fn, and registers it as an action.
