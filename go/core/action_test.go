@@ -169,7 +169,7 @@ func TestActionInterruptedMiddlware(t *testing.T) {
 
 	interrupt := func(next MiddlewareHandler[string, string]) MiddlewareHandler[string, string] {
 		return func(ctx context.Context, request string) (string, error) {
-			return "banana", nil
+			return "interrupt (request: \"" + request + "\")", nil
 		}
 	}
 
@@ -181,7 +181,7 @@ func TestActionInterruptedMiddlware(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "banana"
+	want := "interrupt (request: \"(Pavel)\")"
 	if got != want {
 		t.Fatalf("got %v, want %v", got, want)
 	}
