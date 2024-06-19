@@ -25,11 +25,13 @@ import (
 
 // Options are options to [Init].
 type Options struct {
-	DevAddr string
 	// If "-", do not start a FlowServer.
 	// Otherwise, start a FlowServer on the given address, or the
 	// default of ":3400" if empty.
 	FlowAddr string
+	// The names of flows to serve.
+	// If empty, all registered flows are served.
+	Flows []string
 }
 
 // Init initializes Genkit.
@@ -149,11 +151,13 @@ var errStop = errors.New("stop")
 // a dev server.
 //
 // StartFlowServer always returns a non-nil error, the one returned by http.ListenAndServe.
-func StartFlowServer(addr string) error {
-	return core.StartFlowServer(addr)
+func StartFlowServer(addr string, flows []string) error {
+	return core.StartFlowServer(addr, flows)
 }
 
-// NewFlowServeMux constructs a [net/http.ServeMux] where each defined flow is a route.
+// NewFlowServeMux constructs a [net/http.ServeMux].
+// If flows is non-empty, the each of the named flows is registered as a route.
+// Otherwise, all defined flows are registered.
 // All routes take a single query parameter, "stream", which if true will stream the
 // flow's results back to the client. (Not all flows support streaming, however.)
 //
@@ -162,6 +166,6 @@ func StartFlowServer(addr string) error {
 //
 //	mainMux := http.NewServeMux()
 //	mainMux.Handle("POST /flow/", http.StripPrefix("/flow/", NewFlowServeMux()))
-func NewFlowServeMux() *http.ServeMux {
-	return core.NewFlowServeMux()
+func NewFlowServeMux(flows []string) *http.ServeMux {
+	return core.NewFlowServeMux(flows)
 }
