@@ -27,6 +27,26 @@ func inc(_ context.Context, x int) (int, error) {
 	return x + 1, nil
 }
 
+func wrapRequest(next MiddlewareHandler[string, string]) MiddlewareHandler[string, string] {
+	return func(ctx context.Context, request string) (string, error) {
+		nextResponse, err := next(ctx, "("+request+")")
+		if err != nil {
+			return "", err
+		}
+		return nextResponse, nil
+	}
+}
+
+func wrapResponse(next MiddlewareHandler[string, string]) MiddlewareHandler[string, string] {
+	return func(ctx context.Context, request string) (string, error) {
+		nextResponse, err := next(ctx, request)
+		if err != nil {
+			return "", err
+		}
+		return "[" + nextResponse + "]", nil
+	}
+}
+
 func TestActionRun(t *testing.T) {
 	a := newAction("inc", atype.Custom, nil, inc)
 	got, err := a.Run(context.Background(), 3, nil)
@@ -130,35 +150,15 @@ func TestActionTracing(t *testing.T) {
 func TestActionMiddlware(t *testing.T) {
 	ctx := context.Background()
 
-	round := func(next MiddlewareHandler[string, string]) MiddlewareHandler[string, string] {
-		return func(ctx context.Context, request string) (string, error) {
-			nextResponse, err := next(ctx, "("+request)
-			if err != nil {
-				return "", err
-			}
-			return nextResponse + ")", nil
-		}
-	}
-
-	square := func(next MiddlewareHandler[string, string]) MiddlewareHandler[string, string] {
-		return func(ctx context.Context, request string) (string, error) {
-			nextResponse, err := next(ctx, "["+request)
-			if err != nil {
-				return "", err
-			}
-			return nextResponse + "]", nil
-		}
-	}
-
-	a := newStreamingAction("hello", atype.Custom, nil, Middlewares(round, square), func(ctx context.Context, input string, _ NoStream) (string, error) {
+	sayHello := newStreamingAction("hello", atype.Custom, nil, Middlewares(wrapRequest, wrapResponse), func(ctx context.Context, input string, _ NoStream) (string, error) {
 		return "Hello " + input, nil
 	})
 
-	got, err := a.Run(ctx, "Pavel", nil)
+	got, err := sayHello.Run(ctx, "Pavel", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "Hello [(Pavel])"
+	want := "[Hello (Pavel)]"
 	if got != want {
 		t.Fatalf("got %v, want %v", got, want)
 	}
@@ -167,31 +167,13 @@ func TestActionMiddlware(t *testing.T) {
 func TestActionInterruptedMiddlware(t *testing.T) {
 	ctx := context.Background()
 
-	round := func(next MiddlewareHandler[string, string]) MiddlewareHandler[string, string] {
-		return func(ctx context.Context, request string) (string, error) {
-			nextResponse, err := next(ctx, "("+request)
-			if err != nil {
-				return "", err
-			}
-			return nextResponse + ")", nil
-		}
-	}
 	interrupt := func(next MiddlewareHandler[string, string]) MiddlewareHandler[string, string] {
 		return func(ctx context.Context, request string) (string, error) {
 			return "banana", nil
 		}
 	}
-	square := func(next MiddlewareHandler[string, string]) MiddlewareHandler[string, string] {
-		return func(ctx context.Context, request string) (string, error) {
-			nextResponse, err := next(ctx, "["+request)
-			if err != nil {
-				return "", err
-			}
-			return nextResponse + "]", nil
-		}
-	}
 
-	a := newStreamingAction("hello", atype.Custom, nil, Middlewares(round, interrupt, square), func(ctx context.Context, input string, _ NoStream) (string, error) {
+	a := newStreamingAction("hello", atype.Custom, nil, Middlewares(wrapRequest, interrupt, wrapResponse), func(ctx context.Context, input string, _ NoStream) (string, error) {
 		return "Hello " + input, nil
 	})
 
@@ -199,7 +181,7 @@ func TestActionInterruptedMiddlware(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "banana)"
+	want := "banana"
 	if got != want {
 		t.Fatalf("got %v, want %v", got, want)
 	}
