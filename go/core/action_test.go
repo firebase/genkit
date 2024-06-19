@@ -130,20 +130,24 @@ func TestActionTracing(t *testing.T) {
 func TestActionMiddlware(t *testing.T) {
 	ctx := context.Background()
 
-	round := func(ctx context.Context, request string, next func(ctx context.Context, request string) (string, error)) (string, error) {
-		nextResponse, err := next(ctx, "("+request)
-		if err != nil {
-			return "", err
+	round := func(next MiddlewareHandler[string, string]) MiddlewareHandler[string, string] {
+		return func(ctx context.Context, request string) (string, error) {
+			nextResponse, err := next(ctx, "("+request)
+			if err != nil {
+				return "", err
+			}
+			return nextResponse + ")", nil
 		}
-		return nextResponse + ")", nil
 	}
 
-	square := func(ctx context.Context, request string, next func(ctx context.Context, request string) (string, error)) (string, error) {
-		nextResponse, err := next(ctx, "["+request)
-		if err != nil {
-			return "", err
+	square := func(next MiddlewareHandler[string, string]) MiddlewareHandler[string, string] {
+		return func(ctx context.Context, request string) (string, error) {
+			nextResponse, err := next(ctx, "["+request)
+			if err != nil {
+				return "", err
+			}
+			return nextResponse + "]", nil
 		}
-		return nextResponse + "]", nil
 	}
 
 	a := newStreamingAction("hello", atype.Custom, nil, Middlewares(round, square), func(ctx context.Context, input string, _ NoStream) (string, error) {
@@ -155,6 +159,47 @@ func TestActionMiddlware(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := "Hello [(Pavel])"
+	if got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestActionInterruptedMiddlware(t *testing.T) {
+	ctx := context.Background()
+
+	round := func(next MiddlewareHandler[string, string]) MiddlewareHandler[string, string] {
+		return func(ctx context.Context, request string) (string, error) {
+			nextResponse, err := next(ctx, "("+request)
+			if err != nil {
+				return "", err
+			}
+			return nextResponse + ")", nil
+		}
+	}
+	interrupt := func(next MiddlewareHandler[string, string]) MiddlewareHandler[string, string] {
+		return func(ctx context.Context, request string) (string, error) {
+			return "banana", nil
+		}
+	}
+	square := func(next MiddlewareHandler[string, string]) MiddlewareHandler[string, string] {
+		return func(ctx context.Context, request string) (string, error) {
+			nextResponse, err := next(ctx, "["+request)
+			if err != nil {
+				return "", err
+			}
+			return nextResponse + "]", nil
+		}
+	}
+
+	a := newStreamingAction("hello", atype.Custom, nil, Middlewares(round, interrupt, square), func(ctx context.Context, input string, _ NoStream) (string, error) {
+		return "Hello " + input, nil
+	})
+
+	got, err := a.Run(ctx, "Pavel", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "banana)"
 	if got != want {
 		t.Fatalf("got %v, want %v", got, want)
 	}

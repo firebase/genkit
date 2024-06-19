@@ -28,24 +28,36 @@ import (
 	"github.com/invopop/jsonschema"
 )
 
-// Middleware is a functions that take in the request object, response object,
-// and the next middleware function for the action.
+// Middleware is a function that takes in an action handler function and
+// returns a new handler function that might be changing input/output in
+// some way.
 //
 // Middleware functions can:
 //   - execute arbitrary code;
 //   - change the request and response;
 //   - terminate response by returning a response (or error);
 //   - call the next middleware function.
-//
-// If the current middleware function does not terminate the middleware chain it
-// must call next middleware in the chain to pass control to the next middleware
-// function, otherwise the request will be left hanging.
-type Middleware[I, O any] func(context.Context, I, func(ctx context.Context, input I) (O, error)) (O, error)
+type Middleware[I, O any] func(MiddlewareHandler[I, O]) MiddlewareHandler[I, O]
+
+type MiddlewareHandler[I, O any] func(ctx context.Context, input I) (O, error)
 
 // Middlewares returns an array of middlewares that are passes in as an argument.
 // core.Middlewares(apple, banana) is identical to []core.Middleware[InputType, OutputType]{apple, banana}
 func Middlewares[I, O any](ms ...Middleware[I, O]) []Middleware[I, O] {
 	return ms
+}
+
+// Chain creates a new Middleware that applies a sequence of Middlewares, so
+// that they execute in the given order when handling action request.
+//
+// In other words, Chain(m1, m2)(handler) = m1(m2(handler))
+func ChainMiddleware[I, O any](middlewares ...Middleware[I, O]) Middleware[I, O] {
+	return func(h MiddlewareHandler[I, O]) MiddlewareHandler[I, O] {
+		for i := range middlewares {
+			h = middlewares[len(middlewares)-1-i](h)
+		}
+		return h
+	}
 }
 
 // Func is the type of function that Actions and Flows execute.
@@ -201,18 +213,11 @@ func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(con
 			}
 			var output Out
 			if err == nil {
-				var dispatch func(context.Context, int, In) (Out, error)
-				dispatch = func(ctx context.Context, mi int, input In) (Out, error) {
-					if mi == len(a.middleware) {
-						return a.fn(ctx, input, cb)
-					}
-					var currentMiddleware = a.middleware[mi]
-					return currentMiddleware(ctx, input, func(ctx context.Context, modifiedInput In) (Out, error) {
-						return dispatch(ctx, mi+1, modifiedInput)
-					})
-				}
 
-				output, err = dispatch(ctx, 0, input)
+				dispatch := ChainMiddleware(a.middleware...)
+				output, err = dispatch(func(ctx context.Context, di In) (Out, error) {
+					return a.fn(ctx, di, cb)
+				})(ctx, input)
 				if err == nil {
 					if err = validateValue(output, a.outputSchema); err != nil {
 						err = fmt.Errorf("invalid output: %w", err)
