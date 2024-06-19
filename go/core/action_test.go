@@ -143,7 +143,7 @@ func TestActionTracing(t *testing.T) {
 	t.Fatalf("did not find trace named %q", actionName)
 }
 
-func TestActionMiddlware(t *testing.T) {
+func TestActionMiddleware(t *testing.T) {
 	ctx := context.Background()
 
 	sayHello := newStreamingAction("hello", atype.Custom, nil, Middlewares(wrapRequest, wrapResponse), func(ctx context.Context, input string, _ NoStream) (string, error) {
@@ -160,7 +160,7 @@ func TestActionMiddlware(t *testing.T) {
 	}
 }
 
-func TestActionInterruptedMiddlware(t *testing.T) {
+func TestActionInterruptedMiddleware(t *testing.T) {
 	ctx := context.Background()
 
 	interrupt := func(next MiddlewareHandler[string, string]) MiddlewareHandler[string, string] {
