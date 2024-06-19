@@ -95,7 +95,7 @@ const (
 // It panics if an action with the same type, provider and name is already
 // registered.
 func (r *registry) registerAction(provider string, a action) {
-	key := fmt.Sprintf("/%s/%s/%s", a.actionType(), provider, a.Name())
+	key := fmt.Sprintf("/%s/%s", a.actionType(), a.Name())
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, ok := r.actions[key]; ok {
