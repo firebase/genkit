@@ -47,10 +47,10 @@ func Middlewares[I, O any](ms ...Middleware[I, O]) []Middleware[I, O] {
 	return ms
 }
 
-// Chain creates a new Middleware that applies a sequence of Middlewares, so
-// that they execute in the given order when handling action request.
-//
-// In other words, Chain(m1, m2)(handler) = m1(m2(handler))
+// ChainMiddleware creates a new Middleware that applies a sequence of
+// Middlewares, so that they execute in the given order when handling action
+// request.
+// In other words, ChainMiddleware(m1, m2)(handler) = m1(m2(handler))
 func ChainMiddleware[I, O any](middlewares ...Middleware[I, O]) Middleware[I, O] {
 	return func(h MiddlewareHandler[I, O]) MiddlewareHandler[I, O] {
 		for i := range middlewares {
