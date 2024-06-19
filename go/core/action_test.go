@@ -29,11 +29,7 @@ func inc(_ context.Context, x int) (int, error) {
 
 func wrapRequest(next MiddlewareHandler[string, string]) MiddlewareHandler[string, string] {
 	return func(ctx context.Context, request string) (string, error) {
-		nextResponse, err := next(ctx, "("+request+")")
-		if err != nil {
-			return "", err
-		}
-		return nextResponse, nil
+		return next(ctx, "("+request+")")
 	}
 }
 
