@@ -37,13 +37,13 @@ import (
 //   - terminate response by returning a response (or error);
 //   - call the next middleware function.
 //
-// If the current middleware function does not terminate the middlware chain it
-// must call next middlware in the chain to pass control to the next middleware
+// If the current middleware function does not terminate the middleware chain it
+// must call next middleware in the chain to pass control to the next middleware
 // function, otherwise the request will be left hanging.
 type Middleware[I, O any] func(context.Context, I, func(ctx context.Context, input I) (O, error)) (O, error)
 
 // Middlewares returns an array of middlewares that are passes in as an argument.
-// `core.Middlewares(apple, banana)` is identical to `[]core.Middleware[InputType, OutputType]{apple, banana}`
+// core.Middlewares(apple, banana) is identical to []core.Middleware[InputType, OutputType]{apple, banana}
 func Middlewares[I, O any](ms ...Middleware[I, O]) []Middleware[I, O] {
 	return ms
 }
