@@ -94,8 +94,8 @@ const (
 // registerAction records the action in the registry.
 // It panics if an action with the same type, provider and name is already
 // registered.
-func (r *registry) registerAction(provider string, a action) {
-	key := fmt.Sprintf("/%s/%s/%s", a.actionType(), provider, a.Name())
+func (r *registry) registerAction(a action) {
+	key := fmt.Sprintf("/%s/%s", a.actionType(), a.Name())
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, ok := r.actions[key]; ok {
@@ -105,7 +105,6 @@ func (r *registry) registerAction(provider string, a action) {
 	r.actions[key] = a
 	slog.Info("RegisterAction",
 		"type", a.actionType(),
-		"provider", provider,
 		"name", a.Name())
 }
 
