@@ -63,10 +63,10 @@ type Prompt struct {
 
 	Config
 
-	// The template for the prompt.
+	// The parsed prompt template.
 	Template *raymond.Template
 
-	// The template for the prompt.
+	// The original prompt template text.
 	TemplateText string
 
 	// A hash of the prompt contents.
