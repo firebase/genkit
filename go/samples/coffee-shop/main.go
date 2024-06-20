@@ -109,11 +109,15 @@ func main() {
 		log.Fatal(err)
 	}
 
+	r := &jsonschema.Reflector{
+		AllowAdditionalProperties: false,
+		DoNotReference:            true,
+	}
 	g := googleai.Model("gemini-1.5-pro")
 	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting", simpleGreetingPromptTemplate,
 		dotprompt.Config{
 			ModelAction:  g,
-			InputSchema:  jsonschema.Reflect(simpleGreetingInput{}),
+			InputSchema:  r.Reflect(simpleGreetingInput{}),
 			OutputFormat: ai.OutputFormatText,
 		},
 	)
@@ -176,10 +180,6 @@ func main() {
 		return text, nil
 	})
 
-	r := &jsonschema.Reflector{
-		AllowAdditionalProperties: false,
-		DoNotReference:            true,
-	}
 	schema := r.Reflect(simpleGreetingOutput{})
 	jsonBytes, err := schema.MarshalJSON()
 	if err != nil {
