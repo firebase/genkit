@@ -260,7 +260,7 @@ func (f *Flow[In, Out, Stream]) action() *Action[*flowInstruction[In], *flowStat
 		tracing.SetCustomMetadataAttr(ctx, "flow:wrapperAction", "true")
 		return f.runInstruction(ctx, inst, streamingCallback[Stream](cb))
 	}
-	return newStreamingAction(f.name, atype.Flow, metadata, cback)
+	return newStreamingAction(f.name, atype.Flow, metadata, nil, cback)
 }
 
 // runInstruction performs one of several actions on a flow, as determined by msg.

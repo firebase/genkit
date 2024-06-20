@@ -50,7 +50,7 @@ type ModelMetadata struct {
 
 // DefineModel registers the given generate function as an action, and returns a
 // [ModelAction] that runs it.
-func DefineModel(provider, name string, metadata *ModelMetadata, generate func(context.Context, *GenerateRequest, ModelStreamingCallback) (*GenerateResponse, error)) *ModelAction {
+func DefineModel(provider, name string, metadata *ModelMetadata, middleware []core.Middleware[*GenerateRequest, *GenerateResponse], generate func(context.Context, *GenerateRequest, ModelStreamingCallback) (*GenerateResponse, error)) *ModelAction {
 	metadataMap := map[string]any{}
 	if metadata != nil {
 		if metadata.Label != "" {
@@ -66,7 +66,7 @@ func DefineModel(provider, name string, metadata *ModelMetadata, generate func(c
 	}
 	return core.DefineStreamingAction(provider, name, atype.Model, map[string]any{
 		"model": metadataMap,
-	}, generate)
+	}, middleware, generate)
 }
 
 // LookupModel looks up a [ModelAction] registered by [DefineModel].

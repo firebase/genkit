@@ -97,7 +97,7 @@ func defineModel(name string, client *genai.Client) {
 		},
 	}
 	g := generator{model: name, client: client}
-	ai.DefineModel(provider, name, meta, g.generate)
+	ai.DefineModel(provider, name, meta, nil, g.generate)
 }
 
 func defineEmbedder(name string, client *genai.Client) {

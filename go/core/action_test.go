@@ -27,6 +27,22 @@ func inc(_ context.Context, x int) (int, error) {
 	return x + 1, nil
 }
 
+func wrapRequest(next MiddlewareHandler[string, string]) MiddlewareHandler[string, string] {
+	return func(ctx context.Context, request string) (string, error) {
+		return next(ctx, "("+request+")")
+	}
+}
+
+func wrapResponse(next MiddlewareHandler[string, string]) MiddlewareHandler[string, string] {
+	return func(ctx context.Context, request string) (string, error) {
+		nextResponse, err := next(ctx, request)
+		if err != nil {
+			return "", err
+		}
+		return "[" + nextResponse + "]", nil
+	}
+}
+
 func TestActionRun(t *testing.T) {
 	a := newAction("inc", atype.Custom, nil, inc)
 	got, err := a.Run(context.Background(), 3, nil)
@@ -70,7 +86,7 @@ func count(ctx context.Context, n int, cb func(context.Context, int) error) (int
 
 func TestActionStreaming(t *testing.T) {
 	ctx := context.Background()
-	a := newStreamingAction("count", atype.Custom, nil, count)
+	a := newStreamingAction("count", atype.Custom, nil, nil, count)
 	const n = 3
 
 	// Non-streaming.
@@ -125,4 +141,44 @@ func TestActionTracing(t *testing.T) {
 		}
 	}
 	t.Fatalf("did not find trace named %q", actionName)
+}
+
+func TestActionMiddleware(t *testing.T) {
+	ctx := context.Background()
+
+	sayHello := newStreamingAction("hello", atype.Custom, nil, Middlewares(wrapRequest, wrapResponse), func(ctx context.Context, input string, _ NoStream) (string, error) {
+		return "Hello " + input, nil
+	})
+
+	got, err := sayHello.Run(ctx, "Pavel", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "[Hello (Pavel)]"
+	if got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestActionInterruptedMiddleware(t *testing.T) {
+	ctx := context.Background()
+
+	interrupt := func(next MiddlewareHandler[string, string]) MiddlewareHandler[string, string] {
+		return func(ctx context.Context, request string) (string, error) {
+			return "interrupt (request: \"" + request + "\")", nil
+		}
+	}
+
+	a := newStreamingAction("hello", atype.Custom, nil, Middlewares(wrapRequest, interrupt, wrapResponse), func(ctx context.Context, input string, _ NoStream) (string, error) {
+		return "Hello " + input, nil
+	})
+
+	got, err := a.Run(ctx, "Pavel", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "interrupt (request: \"(Pavel)\")"
+	if got != want {
+		t.Fatalf("got %v, want %v", got, want)
+	}
 }

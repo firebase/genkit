@@ -850,7 +850,7 @@ export function startFlowsServer(params?: {
   flows.forEach((f) => {
     const flowPath = `/${pathPrefix}${f.name}`;
     logger.info(` - ${flowPath}`);
-    // Add middlware
+    // Add middleware
     f.middleware?.forEach((m) => {
       app.post(flowPath, m);
     });
