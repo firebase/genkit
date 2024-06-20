@@ -104,9 +104,26 @@ type ollamaRequest struct {
 }
 
 type ollamaGenerateRequest struct {
-	Prompt string `json:"prompt"`
+	System string `json:"system,omitempty"` // Optional System field
 	Model  string `json:"model"`
+	Prompt string `json:"prompt"`
 	Stream bool   `json:"stream"`
+}
+
+// TODO: Add optional parameters (images, format, options, etc.) based on your use case
+type ollamaResponse struct {
+	Model     string `json:"model"`
+	CreatedAt string `json:"created_at"`
+	Message   struct {
+		Role    string `json:"role"`
+		Content string `json:"content"`
+	} `json:"message"`
+}
+
+type ollamaGenerateResponse struct {
+	Model     string `json:"model"`
+	CreatedAt string `json:"created_at"`
+	Response  string `json:"response"`
 }
 
 // Generate makes a request to the Ollama API and processes the response.
@@ -114,12 +131,13 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 
 	stream := cb != nil
 	var payload any
-	if g.model.Type != "chat" {
+	isChatModel := g.model.Type == "chat"
+	if !isChatModel {
 		payload = ollamaGenerateRequest{
 			Model:  g.model.Name,
-			Prompt: getPrompt(input),
+			Prompt: concatMessages(input, ai.Role("user")),
+			System: concatMessages(input, ai.Role("system")),
 			Stream: stream,
-			// TODO: Add optional parameters (images, format, options, etc.) based on your use case
 		}
 	} else {
 		var messages []*ollamaMessage
@@ -159,6 +177,7 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	defer resp.Body.Close()
 	if cb == nil {
 		// Existing behavior for non-streaming responses
+		var err error
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read response body: %v", err)
@@ -166,7 +185,12 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("server returned non-200 status: %d, body: %s", resp.StatusCode, body)
 		}
-		response, err := translateResponse(body)
+		var response *ai.GenerateResponse
+		if isChatModel {
+			response, err = translateResponse(body)
+		} else {
+			response, err = translateGenerateResponse(body)
+		}
 		response.Request = input
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse response: %v", err)
@@ -178,7 +202,12 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 		scanner := bufio.NewScanner(resp.Body) // Create a scanner to read lines
 		for scanner.Scan() {
 			line := scanner.Text()
-			chunk, err := translateChunk(line)
+			var chunk *ai.GenerateResponseChunk
+			if isChatModel {
+				chunk, err = translateChunk(line)
+			} else {
+				chunk, err = translateGenerateChunk(line)
+			}
 			if err != nil {
 				// Handle parsing error (log, maybe send an error candidate?)
 				return nil, fmt.Errorf("error translating chunk: %v", err)
@@ -186,7 +215,6 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 			chunks = append(chunks, chunk)
 			cb(ctx, chunk)
 		}
-
 		if err := scanner.Err(); err != nil {
 			return nil, fmt.Errorf("error reading stream: %v", err)
 		}
@@ -228,24 +256,14 @@ func convertParts(role ai.Role, parts []*ai.Part) (*ollamaMessage, error) {
 	return message, nil
 }
 
-type generateResponse struct {
-	Model     string `json:"model"`
-	CreatedAt string `json:"created_at"`
-	Message   struct {
-		Role    string `json:"role"`
-		Content string `json:"content"`
-	} `json:"message"`
-}
-
 // translateResponse deserializes a JSON response from the Ollama API into a GenerateResponse.
 func translateResponse(responseData []byte) (*ai.GenerateResponse, error) {
-	var response generateResponse
+	var response ollamaResponse
 
 	if err := json.Unmarshal(responseData, &response); err != nil {
 		return nil, fmt.Errorf("error parsing response JSON: %v", err)
 	}
 	generateResponse := &ai.GenerateResponse{
-
 		Candidates: make([]*ai.Candidate, 0, 1),
 	}
 	aiCandidate := &ai.Candidate{
@@ -262,8 +280,32 @@ func translateResponse(responseData []byte) (*ai.GenerateResponse, error) {
 	return generateResponse, nil
 }
 
+// translateGenerateResponse deserializes a JSON response from the Ollama API into a GenerateResponse.
+func translateGenerateResponse(responseData []byte) (*ai.GenerateResponse, error) {
+	var response ollamaGenerateResponse
+
+	if err := json.Unmarshal(responseData, &response); err != nil {
+		return nil, fmt.Errorf("error parsing response JSON: %v", err)
+	}
+	generateResponse := &ai.GenerateResponse{
+		Candidates: make([]*ai.Candidate, 0, 1),
+	}
+	aiCandidate := &ai.Candidate{
+		Index:        0,
+		FinishReason: ai.FinishReason("stop"),
+		Message: &ai.Message{
+			Role:    ai.Role("model"),
+			Content: make([]*ai.Part, 0, 1),
+		},
+	}
+	aiPart := ai.NewTextPart(response.Response)
+	aiCandidate.Message.Content = append(aiCandidate.Message.Content, aiPart)
+	generateResponse.Candidates = append(generateResponse.Candidates, aiCandidate)
+	return generateResponse, nil
+}
+
 func translateChunk(input string) (*ai.GenerateResponseChunk, error) {
-	var response generateResponse
+	var response ollamaResponse
 
 	if err := json.Unmarshal([]byte(input), &response); err != nil {
 		return nil, fmt.Errorf("error parsing response JSON: %v", err)
@@ -274,12 +316,26 @@ func translateChunk(input string) (*ai.GenerateResponseChunk, error) {
 	return chunk, nil
 }
 
-// getPrompt extracts the text content from a GenerateRequest and concatenates it into a single string.
-func getPrompt(input *ai.GenerateRequest) string {
+func translateGenerateChunk(input string) (*ai.GenerateResponseChunk, error) {
+	var response ollamaGenerateResponse
+
+	if err := json.Unmarshal([]byte(input), &response); err != nil {
+		return nil, fmt.Errorf("error parsing response JSON: %v", err)
+	}
+	chunk := &ai.GenerateResponseChunk{}
+	aiPart := ai.NewTextPart(response.Response)
+	chunk.Content = append(chunk.Content, aiPart)
+	return chunk, nil
+}
+
+// concatMessages translates a list of messages into a prompt-style format
+func concatMessages(input *ai.GenerateRequest, role ai.Role) string {
 	prompt := ""
 	for _, message := range input.Messages {
-		for _, part := range message.Content {
-			prompt = prompt + part.Text
+		if message.Role == role {
+			for _, part := range message.Content {
+				prompt = prompt + part.Text
+			}
 		}
 	}
 	return prompt
