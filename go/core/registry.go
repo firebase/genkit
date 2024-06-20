@@ -17,7 +17,6 @@ package core
 import (
 	"context"
 	"crypto/md5"
-	"encoding/json"
 	"fmt"
 	"log"
 	"log/slog"
@@ -114,8 +113,6 @@ func (r *registry) registerAction(provider string, a action) {
 func (r *registry) lookupAction(key string) action {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	bs, _ := json.Marshal(r.actions)
-	fmt.Println(string(bs))
 	return r.actions[key]
 }
 
