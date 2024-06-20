@@ -102,8 +102,6 @@ fieldLoop:
 func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.GenerateRequest, error) {
 	req := &ai.GenerateRequest{}
 
-	fmt.Println(" - -  - - - -- - - - - -", input)
-
 	m, err := p.buildVariables(input)
 	if err != nil {
 		return nil, err
