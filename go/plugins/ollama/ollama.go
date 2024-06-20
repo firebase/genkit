@@ -36,15 +36,16 @@ var roleMapping = map[ai.Role]string{
 	ai.RoleSystem: "system",
 }
 
-func defineModel(name string, serverAddress string) {
+func defineModel(model ModelDefinition, serverAddress string) {
 	meta := &ai.ModelMetadata{
-		Label: "Ollama - " + name,
+		Label: "Ollama - " + model.Name,
 		Supports: ai.ModelCapabilities{
-			Multiturn: true,
+			Multiturn:  model.Type == "chat",
+			SystemRole: model.Type != "chat",
 		},
 	}
-	g := &generator{model: name, serverAddress: serverAddress}
-	ai.DefineModel(provider, name, meta, g.generate)
+	g := &generator{model: model, serverAddress: serverAddress}
+	ai.DefineModel(provider, model.Name, meta, g.generate)
 }
 
 // Model returns the [ai.ModelAction] with the given name.
@@ -53,12 +54,18 @@ func Model(name string) *ai.ModelAction {
 	return ai.LookupModel(provider, name)
 }
 
+// ModelDefinition represents a model with its name and type.
+type ModelDefinition struct {
+	Name string
+	Type string
+}
+
 // Config provides configuration options for the Init function.
 type Config struct {
 	// Server Address of oLLama.
 	ServerAddress string
 	// Generative models to provide.
-	Models []string
+	Models []ModelDefinition
 }
 
 // Init registers all the actions in this package with ai.
@@ -70,8 +77,13 @@ func Init(ctx context.Context, cfg Config) error {
 }
 
 type generator struct {
-	model         string
+	model         ModelDefinition
 	serverAddress string
+}
+
+type ollamaMessage struct {
+	Role    string // json:"role"
+	Content string // json:"content"
 }
 
 /*
@@ -85,44 +97,56 @@ stream: if false the response will be returned as a single response object, rath
 raw: if true no formatting will be applied to the prompt. You may choose to use the raw parameter if you are specifying a full templated prompt in your request to the API
 keep_alive: controls how long the model will stay loaded into memory following the request (default: 5m)
 */
-
-type ollamaMessage struct {
-	Role    string // json:"role"
-	Content string // json:"content"
-}
-
 type ollamaRequest struct {
 	Messages []*ollamaMessage `json:"messages"`
 	Model    string           `json:"model"`
 	Stream   bool             `json:"stream"`
 }
 
+type ollamaGenerateRequest struct {
+	Prompt string `json:"prompt"`
+	Model  string `json:"model"`
+	Stream bool   `json:"stream"`
+}
+
 // Generate makes a request to the Ollama API and processes the response.
 func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
-	// Step 1: Combine parts from all messages into a single payload slice
-	var messages []*ollamaMessage
 
-	// TODO: Handle system prompt.
-
-	// Translate all messages to ollama message format.
-	for _, m := range input.Messages {
-		message, err := convertParts(m.Role, m.Content)
-		if err != nil {
-			return nil, fmt.Errorf("error converting message parts: %v", err)
-		}
-		messages = append(messages, message)
-	}
 	stream := cb != nil
-	payload := ollamaRequest{
-		Messages: messages,
-		Model:    g.model,
-		Stream:   stream,
+	var payload any
+	if g.model.Type != "chat" {
+		payload = ollamaGenerateRequest{
+			Model:  g.model.Name,
+			Prompt: getPrompt(input),
+			Stream: stream,
+			// TODO: Add optional parameters (images, format, options, etc.) based on your use case
+		}
+	} else {
+		var messages []*ollamaMessage
+		// Translate all messages to ollama message format.
+		for _, m := range input.Messages {
+			message, err := convertParts(m.Role, m.Content)
+			if err != nil {
+				return nil, fmt.Errorf("error converting message parts: %v", err)
+			}
+			messages = append(messages, message)
+		}
+		payload = ollamaRequest{
+			Messages: messages,
+			Model:    g.model.Name,
+			Stream:   stream,
+		}
 	}
 	client := &http.Client{
 		Timeout: time.Second * 30,
 	}
 	payloadBytes, err := json.Marshal(payload)
-	req, err := http.NewRequest("POST", g.serverAddress+"/api/chat", bytes.NewBuffer(payloadBytes))
+	// Determine the correct endpoint
+	endpoint := g.serverAddress + "/api/chat"
+	if g.model.Type != "chat" {
+		endpoint = g.serverAddress + "/api/generate"
+	}
+	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
@@ -229,6 +253,7 @@ func translateResponse(responseData []byte) (*ai.GenerateResponse, error) {
 			Content: make([]*ai.Part, 0, 1),
 		},
 	}
+	fmt.Println("abc", response.Message.Content, response.Message.Role)
 	aiPart := ai.NewTextPart(response.Message.Content)
 	aiCandidate.Message.Content = append(aiCandidate.Message.Content, aiPart)
 	generateResponse.Candidates = append(generateResponse.Candidates, aiCandidate)
@@ -245,4 +270,15 @@ func translateChunk(input string) (*ai.GenerateResponseChunk, error) {
 	aiPart := ai.NewTextPart(response.Message.Content)
 	chunk.Content = append(chunk.Content, aiPart)
 	return chunk, nil
+}
+
+// getPrompt extracts the text content from a GenerateRequest and concatenates it into a single string.
+func getPrompt(input *ai.GenerateRequest) string {
+	prompt := ""
+	for _, message := range input.Messages {
+		for _, part := range message.Content {
+			prompt = prompt + part.Text
+		}
+	}
+	return prompt
 }
