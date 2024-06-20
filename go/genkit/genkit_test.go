@@ -20,7 +20,7 @@ import (
 )
 
 func TestStreamFlow(t *testing.T) {
-	f := DefineFlow("count", count)
+	f := DefineStreamingFlow("count", count)
 	iter := StreamFlow(context.Background(), f, 2)
 	want := 0
 	iter(func(val *StreamFlowValue[int, int], err error) bool {

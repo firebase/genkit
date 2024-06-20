@@ -103,7 +103,7 @@ func setup03(ctx context.Context, model *ai.ModelAction) error {
 	}
 
 	genkit.DefineFlow("s03_multiTurnChat",
-		func(ctx context.Context, input *chatSessionInput, _ genkit.NoStream) (*chatSessionOutput, error) {
+		func(ctx context.Context, input *chatSessionInput) (*chatSessionOutput, error) {
 			history := storedHistory.Retrieve(input.SessionID)
 			msg := &ai.Message{
 				Content: []*ai.Part{
