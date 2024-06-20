@@ -215,7 +215,7 @@ func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(con
 			}
 			var output Out
 			if err == nil {
-				dispatch := ChainMiddleware(a.middleware...)
+				dispatch := chainMiddleware(a.middleware...)
 				output, err = dispatch(func(ctx context.Context, di In) (Out, error) {
 					return a.fn(ctx, di, cb)
 				})(ctx, input)
