@@ -39,6 +39,8 @@ import (
 //   - call the next middleware function.
 type Middleware[I, O any] func(MiddlewareHandler[I, O]) MiddlewareHandler[I, O]
 
+// MiddlewareHandler is a function used as part of middleware definition that
+// contains input handling logic.
 type MiddlewareHandler[I, O any] func(ctx context.Context, input I) (O, error)
 
 // Middlewares returns an array of middlewares that are passes in as an argument.
@@ -47,11 +49,11 @@ func Middlewares[I, O any](ms ...Middleware[I, O]) []Middleware[I, O] {
 	return ms
 }
 
-// ChainMiddleware creates a new Middleware that applies a sequence of
+// chainMiddleware creates a new Middleware that applies a sequence of
 // Middlewares, so that they execute in the given order when handling action
 // request.
-// In other words, ChainMiddleware(m1, m2)(handler) = m1(m2(handler))
-func ChainMiddleware[I, O any](middlewares ...Middleware[I, O]) Middleware[I, O] {
+// In other words, chainMiddleware(m1, m2)(handler) = m1(m2(handler))
+func chainMiddleware[I, O any](middlewares ...Middleware[I, O]) Middleware[I, O] {
 	return func(h MiddlewareHandler[I, O]) MiddlewareHandler[I, O] {
 		for i := range middlewares {
 			h = middlewares[len(middlewares)-1-i](h)
