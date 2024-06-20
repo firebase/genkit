@@ -167,6 +167,7 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 			return nil, fmt.Errorf("server returned non-200 status: %d, body: %s", resp.StatusCode, body)
 		}
 		response, err := translateResponse(body)
+		response.Request = input
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse response: %v", err)
 		}
@@ -191,6 +192,7 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 		}
 		// Create a final response with the merged chunks
 		finalResponse := &ai.GenerateResponse{
+			Request: input,
 			Candidates: []*ai.Candidate{
 				{
 					FinishReason: ai.FinishReason("stop"),
@@ -243,6 +245,7 @@ func translateResponse(responseData []byte) (*ai.GenerateResponse, error) {
 		return nil, fmt.Errorf("error parsing response JSON: %v", err)
 	}
 	generateResponse := &ai.GenerateResponse{
+
 		Candidates: make([]*ai.Candidate, 0, 1),
 	}
 	aiCandidate := &ai.Candidate{
@@ -253,7 +256,6 @@ func translateResponse(responseData []byte) (*ai.GenerateResponse, error) {
 			Content: make([]*ai.Part, 0, 1),
 		},
 	}
-	fmt.Println("abc", response.Message.Content, response.Message.Role)
 	aiPart := ai.NewTextPart(response.Message.Content)
 	aiCandidate.Message.Content = append(aiCandidate.Message.Content, aiPart)
 	generateResponse.Candidates = append(generateResponse.Candidates, aiCandidate)
