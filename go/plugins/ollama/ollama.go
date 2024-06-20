@@ -267,7 +267,6 @@ func translateResponse(responseData []byte) (*ai.GenerateResponse, error) {
 		Candidates: make([]*ai.Candidate, 0, 1),
 	}
 	aiCandidate := &ai.Candidate{
-		Index:        0,
 		FinishReason: ai.FinishReason("stop"),
 		Message: &ai.Message{
 			Role:    ai.Role(response.Message.Role),
@@ -291,7 +290,6 @@ func translateGenerateResponse(responseData []byte) (*ai.GenerateResponse, error
 		Candidates: make([]*ai.Candidate, 0, 1),
 	}
 	aiCandidate := &ai.Candidate{
-		Index:        0,
 		FinishReason: ai.FinishReason("stop"),
 		Message: &ai.Message{
 			Role:    ai.Role("model"),
