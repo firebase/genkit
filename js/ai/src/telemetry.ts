@@ -21,7 +21,7 @@ import {
   MetricCounter,
   MetricHistogram,
 } from '@genkit-ai/core/metrics';
-import { spanMetadataAls } from '@genkit-ai/core/tracing';
+import { spanMetadataAls, traceMetadataAls } from '@genkit-ai/core/tracing';
 import { ValueType } from '@opentelemetry/api';
 import { createHash } from 'crypto';
 import { GenerateOptions } from './generate.js';
@@ -133,6 +133,7 @@ const generateActionOutputAudio = new MetricCounter(
 
 type SharedDimensions = {
   modelName?: string;
+  flowName?: string;
   path?: string;
   temperature?: number;
   topK?: number;
@@ -154,6 +155,7 @@ export function recordGenerateActionMetrics(
     topK: input.config?.topK,
     topP: input.config?.topP,
     maxOutputTokens: input.config?.maxOutputTokens,
+    flowName: traceMetadataAls?.getStore()?.flowName,
     path: spanMetadataAls?.getStore()?.path,
     latencyMs: opts.response?.latencyMs,
     err: opts.err,
@@ -167,8 +169,9 @@ export function recordGenerateActionInputLogs(
   options: GenerateOptions,
   input: GenerateRequest
 ) {
+  const flowName = traceMetadataAls?.getStore()?.flowName;
   const path = spanMetadataAls?.getStore()?.path;
-  const sharedMetadata = { model, path };
+  const sharedMetadata = { model, path, flowName };
   logger.logStructured(`Config[${path}, ${model}]`, {
     ...sharedMetadata,
     temperature: options.config?.temperature,
@@ -202,8 +205,9 @@ export function recordGenerateActionOutputLogs(
   options: GenerateOptions,
   output: GenerateResponseData
 ) {
+  const flowName = traceMetadataAls?.getStore()?.flowName;
   const path = spanMetadataAls?.getStore()?.path;
-  const sharedMetadata = { model, path };
+  const sharedMetadata = { model, path, flowName };
   const candidates = output.candidates.length;
   output.candidates.forEach((cand, candIdx) => {
     const parts = cand.message.content.length;
@@ -315,6 +319,7 @@ function doRecordGenerateActionMetrics(
   modelName: string,
   usage: GenerationUsage,
   dimensions: {
+    flowName?: string;
     path?: string;
     temperature?: number;
     maxOutputTokens?: number;
@@ -328,6 +333,7 @@ function doRecordGenerateActionMetrics(
 ) {
   const shared: SharedDimensions = {
     modelName: modelName,
+    flowName: dimensions.flowName,
     path: dimensions.path,
     temperature: dimensions.temperature,
     topK: dimensions.topK,

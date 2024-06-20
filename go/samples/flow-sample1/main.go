@@ -42,7 +42,7 @@ import (
 )
 
 func main() {
-	basic := genkit.DefineFlow("basic", func(ctx context.Context, subject string, _ genkit.NoStream) (string, error) {
+	basic := genkit.DefineFlow("basic", func(ctx context.Context, subject string) (string, error) {
 		foo, err := genkit.Run(ctx, "call-llm", func() (string, error) { return "subject: " + subject, nil })
 		if err != nil {
 			return "", err
@@ -50,7 +50,7 @@ func main() {
 		return genkit.Run(ctx, "call-llm", func() (string, error) { return "foo: " + foo, nil })
 	})
 
-	genkit.DefineFlow("parent", func(ctx context.Context, _ struct{}, _ genkit.NoStream) (string, error) {
+	genkit.DefineFlow("parent", func(ctx context.Context, _ struct{}) (string, error) {
 		return genkit.RunFlow(ctx, basic, "foo")
 	})
 
@@ -59,7 +59,7 @@ func main() {
 		Value int    `json:"value"`
 	}
 
-	genkit.DefineFlow("complex", func(ctx context.Context, c complex, _ genkit.NoStream) (string, error) {
+	genkit.DefineFlow("complex", func(ctx context.Context, c complex) (string, error) {
 		foo, err := genkit.Run(ctx, "call-llm", func() (string, error) { return c.Key + ": " + strconv.Itoa(c.Value), nil })
 		if err != nil {
 			return "", err
@@ -71,7 +71,7 @@ func main() {
 		Count int `json:"count"`
 	}
 
-	genkit.DefineFlow("streamy", func(ctx context.Context, count int, cb func(context.Context, chunk) error) (string, error) {
+	genkit.DefineStreamingFlow("streamy", func(ctx context.Context, count int, cb func(context.Context, chunk) error) (string, error) {
 		i := 0
 		if cb != nil {
 			for ; i < count; i++ {

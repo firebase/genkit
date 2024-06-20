@@ -192,7 +192,10 @@ output:
           additionalProperties: false,
           properties: {
             name: { type: 'string', description: 'the name of the person' },
-            date: { type: 'string', description: "ISO date like '2024-04-09'" },
+            date: {
+              type: ['string', 'null'],
+              description: "ISO date like '2024-04-09'",
+            },
           },
         },
       });
