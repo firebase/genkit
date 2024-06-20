@@ -66,6 +66,9 @@ type Prompt struct {
 	// The template for the prompt.
 	Template *raymond.Template
 
+	// The template for the prompt.
+	TemplateText string
+
 	// A hash of the prompt contents.
 	hash string
 
@@ -197,10 +200,11 @@ func newPrompt(name, templateText, hash string, config Config) (*Prompt, error) 
 	}
 	template.RegisterHelpers(templateHelpers)
 	return &Prompt{
-		Name:     name,
-		Config:   config,
-		hash:     hash,
-		Template: template,
+		Name:         name,
+		Config:       config,
+		hash:         hash,
+		Template:     template,
+		TemplateText: templateText,
 	}, nil
 }
 

@@ -52,6 +52,9 @@ func (p *Prompt) buildVariables(variables any) (map[string]any, error) {
 	}
 
 	v := reflect.Indirect(reflect.ValueOf(variables))
+	if v.Kind() == reflect.Map {
+		return variables.(map[string]any), nil
+	}
 	if v.Kind() != reflect.Struct {
 		return nil, errors.New("dotprompt: fields not a struct or pointer to a struct")
 	}
@@ -99,6 +102,8 @@ fieldLoop:
 func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.GenerateRequest, error) {
 	req := &ai.GenerateRequest{}
 
+	fmt.Println(" - -  - - - -- - - - - -", input)
+
 	m, err := p.buildVariables(input)
 	if err != nil {
 		return nil, err
@@ -137,8 +142,16 @@ func (p *Prompt) Register() error {
 	if p.Variant != "" {
 		name += "." + p.Variant
 	}
-
-	p.action = ai.DefinePrompt("dotprompt", name, nil, p.buildRequest, p.Config.InputSchema)
+	// TODO: Unwind this change once Monaco Editor supports newer than JSON schema draft-07.
+	p.InputSchema.Version = ""
+	p.action = ai.DefinePrompt("dotprompt", name, map[string]any{
+		"prompt": map[string]any{
+			"name":     p.Name,
+			"input":    map[string]any{"schema": p.InputSchema},
+			"output":   map[string]any{"format": p.OutputFormat},
+			"template": p.TemplateText,
+		},
+	}, p.buildRequest, p.Config.InputSchema)
 
 	return nil
 }
