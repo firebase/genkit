@@ -197,7 +197,7 @@ func TestInit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []string{"a", "b"}
+	want := []string{"devLocalVectorStore/a", "devLocalVectorStore/b"}
 
 	if got := names(is); !slices.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)
