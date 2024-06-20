@@ -123,7 +123,7 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
     this._render = compile(this.template, options);
   }
 
-  renderText(input: Variables, options: RenderMetadata): string {
+  renderText(input: Variables, options?: RenderMetadata): string {
     const result = this.renderMessages(input, options);
     if (result.length !== 1) {
       throw new Error("Multi-message prompt can't be rendered as text.");
