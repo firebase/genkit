@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+import { MessageData } from '@genkit-ai/ai/model';
+import { DocumentData } from '@genkit-ai/ai/retriever';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { compile } from '../src/template';
@@ -106,10 +108,91 @@ describe('compile', () => {
       template: '{{json . indent=2}}',
       want: [{ role: 'user', content: [{ text: '{\n  "test": true\n}' }] }],
     },
+    {
+      should: 'insert history after other messages before final user message',
+      input: {},
+      template: `{{role "system"}}You are a robot{{role "user"}}Hello there`,
+      options: {
+        history: [
+          { role: 'user', content: [{ text: 'Ping' }] },
+          { role: 'model', content: [{ text: 'Pong' }] },
+        ],
+      },
+      want: [
+        { role: 'system', content: [{ text: 'You are a robot' }] },
+        { role: 'user', content: [{ text: 'Ping' }] },
+        { role: 'model', content: [{ text: 'Pong' }] },
+        { role: 'user', content: [{ text: 'Hello there' }] },
+      ],
+    },
+    {
+      should: 'insert history in the specified location',
+      input: {},
+      template: `{{history}}{{role "system"}}You are a robot{{role "user"}}Hello there`,
+      options: {
+        history: [
+          { role: 'user', content: [{ text: 'Ping' }] },
+          { role: 'model', content: [{ text: 'Pong' }] },
+        ],
+      },
+      want: [
+        {
+          role: 'user',
+          content: [{ text: 'Ping' }],
+          metadata: { purpose: 'history' },
+        },
+        {
+          role: 'model',
+          content: [{ text: 'Pong' }],
+          metadata: { purpose: 'history' },
+        },
+        { role: 'system', content: [{ text: 'You are a robot' }] },
+        { role: 'user', content: [{ text: 'Hello there' }] },
+      ],
+    },
+    {
+      should: 'insert a blank context section when helper provided',
+      input: {},
+      template: `before{{section "context"}}after`,
+      options: {
+        context: [{ content: [{ text: 'doc content' }] }],
+      },
+      want: [
+        {
+          role: 'user',
+          content: [
+            { text: 'before' },
+            { metadata: { purpose: 'context', pending: true } },
+            { text: 'after' },
+          ],
+        },
+      ],
+    },
+    {
+      should: 'insert a blank ouptut section when helper provided',
+      input: {},
+      template: `before{{section "output"}}after`,
+      options: {
+        context: [{ content: [{ text: 'doc content' }] }],
+      },
+      want: [
+        {
+          role: 'user',
+          content: [
+            { text: 'before' },
+            { metadata: { purpose: 'output', pending: true } },
+            { text: 'after' },
+          ],
+        },
+      ],
+    },
   ]) {
     it(test.should, () => {
       assert.deepEqual(
-        compile(test.template, { model: 'test/example' })(test.input),
+        compile(test.template, { model: 'test/example' })(test.input, {
+          history: test.options?.history as MessageData[],
+          context: test.options?.context as DocumentData[],
+        }),
         test.want
       );
     });

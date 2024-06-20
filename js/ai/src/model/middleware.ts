@@ -119,27 +119,41 @@ export function validateSupport(options: {
 
 export function conformOutput(): ModelMiddleware {
   return async (req, next) => {
-    const lastMessage = req.messages[req.messages.length - 1];
-    if (
-      !req.output?.schema ||
-      req.messages
-        .at(-1)
-        ?.content.some((part) => part.metadata?.purpose === 'output')
-    ) {
+    const lastMessage = req.messages.at(-1)!;
+    const outputPartIndex = lastMessage.content.findIndex(
+      (p) => p.metadata?.purpose === 'output'
+    );
+    const outputPart =
+      outputPartIndex >= 0 ? lastMessage.content[outputPartIndex] : undefined;
+
+    if (!req.output?.schema || (outputPart && !outputPart?.metadata?.pending)) {
       return next(req);
     }
 
-    lastMessage?.content.push({
-      text: `
+    const instructions = `
 
 Output should be in JSON format and conform to the following schema:
 
 \`\`\`
 ${JSON.stringify(req.output!.schema!)}
 \`\`\`
-`,
-      metadata: { purpose: 'output', source: 'default' },
-    });
+`;
+
+    if (outputPart) {
+      lastMessage.content[outputPartIndex] = {
+        ...outputPart,
+        metadata: {
+          purpose: 'output',
+          source: 'default',
+        },
+        text: instructions,
+      } as Part;
+    } else {
+      lastMessage?.content.push({
+        text: instructions,
+        metadata: { purpose: 'output', source: 'default' },
+      });
+    }
 
     return next(req);
   };
@@ -212,14 +226,30 @@ export function augmentWithContext(
     // if there are no messages, no-op
     if (!userMessage) return next(req);
     // if there is already a context part, no-op
-    if (userMessage?.content.find((p) => p.metadata?.purpose === 'context'))
+    const contextPartIndex = userMessage?.content.findIndex(
+      (p) => p.metadata?.purpose === 'context'
+    );
+    const contextPart =
+      contextPartIndex >= 0 && userMessage.content[contextPartIndex];
+
+    if (contextPart && !contextPart.metadata?.pending) {
       return next(req);
+    }
     let out = `${preface || ''}`;
     req.context?.forEach((d, i) => {
       out += itemTemplate(new Document(d), i, options);
     });
     out += '\n';
-    userMessage.content.push({ text: out, metadata: { purpose: 'context' } });
+    if (contextPartIndex >= 0) {
+      userMessage.content[contextPartIndex] = {
+        ...contextPart,
+        text: out,
+        metadata: { purpose: 'context' },
+      } as Part;
+    } else {
+      userMessage.content.push({ text: out, metadata: { purpose: 'context' } });
+    }
+
     return next(req);
   };
 }
