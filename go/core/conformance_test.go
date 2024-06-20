@@ -97,7 +97,7 @@ func TestFlowConformance(t *testing.T) {
 				t.Fatal(err)
 			}
 			_ = defineFlow(r, test.Name, flowFunction(test.Commands))
-			key := fmt.Sprintf("/flow/%s/%[1]s", test.Name)
+			key := fmt.Sprintf("/flow/%s", test.Name)
 			resp, err := runAction(context.Background(), r, key, test.Input, nil)
 			if err != nil {
 				t.Fatal(err)

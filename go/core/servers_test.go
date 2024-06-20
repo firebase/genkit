@@ -39,10 +39,10 @@ func TestDevServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.registerAction("devServer", newAction("inc", atype.Custom, map[string]any{
+	r.registerAction("devServer", newAction("devServer/inc", atype.Custom, map[string]any{
 		"foo": "bar",
 	}, inc))
-	r.registerAction("devServer", newAction("dec", atype.Custom, map[string]any{
+	r.registerAction("devServer", newAction("devServer/dec", atype.Custom, map[string]any{
 		"bar": "baz",
 	}, dec))
 	srv := httptest.NewServer(newDevServeMux(r))
@@ -87,7 +87,7 @@ func TestDevServer(t *testing.T) {
 		want := map[string]actionDesc{
 			"/custom/devServer/inc": {
 				Key:          "/custom/devServer/inc",
-				Name:         "inc",
+				Name:         "devServer/inc",
 				InputSchema:  &jsonschema.Schema{Type: "integer"},
 				OutputSchema: &jsonschema.Schema{Type: "integer"},
 				Metadata:     map[string]any{"foo": "bar"},
@@ -96,7 +96,7 @@ func TestDevServer(t *testing.T) {
 				Key:          "/custom/devServer/dec",
 				InputSchema:  &jsonschema.Schema{Type: "integer"},
 				OutputSchema: &jsonschema.Schema{Type: "integer"},
-				Name:         "dec",
+				Name:         "devServer/dec",
 				Metadata:     map[string]any{"bar": "baz"},
 			},
 		}
