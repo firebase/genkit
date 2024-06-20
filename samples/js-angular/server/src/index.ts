@@ -24,7 +24,7 @@ configureGenkit({
   enableTracingAndMetrics: true,
 });
 
-export * from "./jsonStreaming.js";
-export * from "./chatbot.js";
+export * from './chatbot.js';
+export * from './jsonStreaming.js';
 
 startFlowsServer();

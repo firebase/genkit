@@ -22,7 +22,12 @@ import { defineFirestoreRetriever, firebase } from '@genkit-ai/firebase';
 import { defineFlow, run } from '@genkit-ai/flow';
 import { googleCloud } from '@genkit-ai/google-cloud';
 import { googleAI, geminiPro as googleGeminiPro } from '@genkit-ai/googleai';
-import { gemini15ProPreview, geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+import {
+  gemini15ProPreview,
+  geminiPro,
+  textEmbeddingGecko,
+  vertexAI,
+} from '@genkit-ai/vertexai';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -331,8 +336,6 @@ export const dotpromptContext = defineFlow(
     return result.output() as any;
   }
 );
-
-
 
 const jokeSubjectGenerator = defineTool(
   {

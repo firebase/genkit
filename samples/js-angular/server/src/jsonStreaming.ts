@@ -1,8 +1,24 @@
-import { generateStream } from "@genkit-ai/ai";
-import { defineFlow } from "@genkit-ai/flow";
-import { gemini15ProPreview } from "@genkit-ai/vertexai";
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { generateStream } from '@genkit-ai/ai';
+import { defineFlow } from '@genkit-ai/flow';
+import { gemini15ProPreview } from '@genkit-ai/vertexai';
 import { Allow, parse } from 'partial-json';
-import { z } from "zod";
+import { z } from 'zod';
 
 const GameCharactersSchema = z.object({
   characters: z
@@ -53,7 +69,6 @@ export const streamCharacters = defineFlow(
     return (await response()).text();
   }
 );
-
 
 const markdownRegex = /^\s*(```json)?((.|\n)*?)(```)?\s*$/i;
 function maybeStripMarkdown(withMarkdown: string) {
