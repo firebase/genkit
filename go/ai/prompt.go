@@ -38,7 +38,6 @@ func DefinePrompt(provider, name string, metadata map[string]any, render func(co
 		mm = make(map[string]any)
 	}
 	mm["type"] = "prompt"
-	mm["prompt"] = true // required by genkit ui
 	return core.DefineActionWithInputSchema(provider, name, atype.Prompt, mm, render, inputSchema)
 }
 
