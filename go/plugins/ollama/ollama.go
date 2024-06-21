@@ -86,6 +86,9 @@ type ollamaMessage struct {
 	Content string // json:"content"
 }
 
+// Ollama has two API endpoints, one with a chat interface and another with a generate response interface.
+// That's why have multiple request interfaces for the Ollama API below.
+
 /*
 TODO: Support optional, advanced parameters:
 format: the format to return a response in. Currently the only accepted value is json
@@ -97,7 +100,7 @@ stream: if false the response will be returned as a single response object, rath
 raw: if true no formatting will be applied to the prompt. You may choose to use the raw parameter if you are specifying a full templated prompt in your request to the API
 keep_alive: controls how long the model will stay loaded into memory following the request (default: 5m)
 */
-type ollamaRequest struct {
+type ollamaChatRequest struct {
 	Messages []*ollamaMessage `json:"messages"`
 	Model    string           `json:"model"`
 	Stream   bool             `json:"stream"`
@@ -111,7 +114,7 @@ type ollamaGenerateRequest struct {
 }
 
 // TODO: Add optional parameters (images, format, options, etc.) based on your use case
-type ollamaResponse struct {
+type ollamaChatResponse struct {
 	Model     string `json:"model"`
 	CreatedAt string `json:"created_at"`
 	Message   struct {
@@ -135,8 +138,8 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	if !isChatModel {
 		payload = ollamaGenerateRequest{
 			Model:  g.model.Name,
-			Prompt: concatMessages(input, ai.Role("user")),
-			System: concatMessages(input, ai.Role("system")),
+			Prompt: concatMessages(input, []ai.Role{ai.Role("user"), ai.Role("model"), ai.Role("tool")}),
+			System: concatMessages(input, []ai.Role{ai.Role("system")}),
 			Stream: stream,
 		}
 	} else {
@@ -149,7 +152,7 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 			}
 			messages = append(messages, message)
 		}
-		payload = ollamaRequest{
+		payload = ollamaChatRequest{
 			Messages: messages,
 			Model:    g.model.Name,
 			Stream:   stream,
@@ -161,7 +164,7 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	payloadBytes, err := json.Marshal(payload)
 	// Determine the correct endpoint
 	endpoint := g.serverAddress + "/api/chat"
-	if g.model.Type != "chat" {
+	if !isChatModel {
 		endpoint = g.serverAddress + "/api/generate"
 	}
 	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(payloadBytes))
@@ -258,19 +261,16 @@ func convertParts(role ai.Role, parts []*ai.Part) (*ollamaMessage, error) {
 
 // translateResponse deserializes a JSON response from the Ollama API into a GenerateResponse.
 func translateResponse(responseData []byte) (*ai.GenerateResponse, error) {
-	var response ollamaResponse
+	var response ollamaChatResponse
 
 	if err := json.Unmarshal(responseData, &response); err != nil {
 		return nil, fmt.Errorf("error parsing response JSON: %v", err)
 	}
-	generateResponse := &ai.GenerateResponse{
-		Candidates: make([]*ai.Candidate, 0, 1),
-	}
+	generateResponse := &ai.GenerateResponse{}
 	aiCandidate := &ai.Candidate{
 		FinishReason: ai.FinishReason("stop"),
 		Message: &ai.Message{
-			Role:    ai.Role(response.Message.Role),
-			Content: make([]*ai.Part, 0, 1),
+			Role: ai.Role(response.Message.Role),
 		},
 	}
 	aiPart := ai.NewTextPart(response.Message.Content)
@@ -286,14 +286,11 @@ func translateGenerateResponse(responseData []byte) (*ai.GenerateResponse, error
 	if err := json.Unmarshal(responseData, &response); err != nil {
 		return nil, fmt.Errorf("error parsing response JSON: %v", err)
 	}
-	generateResponse := &ai.GenerateResponse{
-		Candidates: make([]*ai.Candidate, 0, 1),
-	}
+	generateResponse := &ai.GenerateResponse{}
 	aiCandidate := &ai.Candidate{
 		FinishReason: ai.FinishReason("stop"),
 		Message: &ai.Message{
-			Role:    ai.Role("model"),
-			Content: make([]*ai.Part, 0, 1),
+			Role: ai.Role("model"),
 		},
 	}
 	aiPart := ai.NewTextPart(response.Response)
@@ -303,7 +300,7 @@ func translateGenerateResponse(responseData []byte) (*ai.GenerateResponse, error
 }
 
 func translateChunk(input string) (*ai.GenerateResponseChunk, error) {
-	var response ollamaResponse
+	var response ollamaChatResponse
 
 	if err := json.Unmarshal([]byte(input), &response); err != nil {
 		return nil, fmt.Errorf("error parsing response JSON: %v", err)
@@ -327,12 +324,18 @@ func translateGenerateChunk(input string) (*ai.GenerateResponseChunk, error) {
 }
 
 // concatMessages translates a list of messages into a prompt-style format
-func concatMessages(input *ai.GenerateRequest, role ai.Role) string {
+func concatMessages(input *ai.GenerateRequest, roles []ai.Role) string {
 	prompt := ""
+	roleSet := make(map[ai.Role]bool)
+
+	for _, role := range roles {
+		roleSet[role] = true
+	}
+
 	for _, message := range input.Messages {
-		if message.Role == role {
+		if roleSet[message.Role] {
 			for _, part := range message.Content {
-				prompt = prompt + part.Text
+				prompt += part.Text
 			}
 		}
 	}
