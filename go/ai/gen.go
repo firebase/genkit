@@ -28,20 +28,6 @@ type Candidate struct {
 	Usage         *GenerationUsage `json:"usage,omitempty"`
 }
 
-type CandidateError struct {
-	Code    CandidateErrorCode `json:"code,omitempty"`
-	Index   float64            `json:"index,omitempty"`
-	Message string             `json:"message,omitempty"`
-}
-
-type CandidateErrorCode string
-
-const (
-	CandidateErrorCodeBlocked CandidateErrorCode = "blocked"
-	CandidateErrorCodeOther   CandidateErrorCode = "other"
-	CandidateErrorCodeUnknown CandidateErrorCode = "unknown"
-)
-
 // FinishReason is the reason why a model stopped generating tokens.
 type FinishReason string
 
@@ -139,8 +125,9 @@ type mediaPartMedia struct {
 
 // Message is the contents of a model response.
 type Message struct {
-	Content []*Part `json:"content,omitempty"`
-	Role    Role    `json:"role,omitempty"`
+	Content  []*Part        `json:"content,omitempty"`
+	Metadata map[string]any `json:"metadata,omitempty"`
+	Role     Role           `json:"role,omitempty"`
 }
 
 type ModelInfo struct {
