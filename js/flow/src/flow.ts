@@ -563,6 +563,7 @@ export class Flow<
       };
       res.status(403).send(respBody).end();
       telemetry.logResponse(this.name, 403, respBody);
+      return;
     }
 
     if (stream === 'true') {
