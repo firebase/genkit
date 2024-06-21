@@ -119,7 +119,7 @@ func defineFlow[In, Out, Stream any](r *registry, name string, fn Func[In, Out, 
 		// TODO(jba): set stateStore?
 	}
 	a := f.action()
-	r.registerAction(name, a)
+	r.registerAction(a)
 	// TODO(jba): this is a roundabout way to transmit the tracing state. Is there a cleaner way?
 	f.tstate = a.tstate
 	r.registerFlow(f)

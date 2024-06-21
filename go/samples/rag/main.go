@@ -103,7 +103,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	genkit.DefineFlow("simpleQaFlow", func(ctx context.Context, input *simpleQaInput, _ genkit.NoStream) (string, error) {
+	genkit.DefineFlow("simpleQaFlow", func(ctx context.Context, input *simpleQaInput) (string, error) {
 		d1 := ai.DocumentFromText("Paris is the capital of France", nil)
 		d2 := ai.DocumentFromText("USA is the largest importer of coffee", nil)
 		d3 := ai.DocumentFromText("Water exists in 3 states - solid, liquid and gas", nil)

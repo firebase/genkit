@@ -91,7 +91,7 @@ export const gemini15Pro = modelRef({
   name: 'vertexai/gemini-1.5-pro',
   info: {
     label: 'Vertex AI - Gemini 1.5 Pro',
-    versions: ['gemini-1.0-pro-001'],
+    versions: ['gemini-1.5-pro-001'],
     supports: {
       multiturn: true,
       media: true,

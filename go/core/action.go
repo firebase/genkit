@@ -73,8 +73,8 @@ func DefineAction[In, Out any](provider, name string, atype atype.ActionType, me
 }
 
 func defineAction[In, Out any](r *registry, provider, name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
-	a := newAction(name, atype, metadata, fn)
-	r.registerAction(provider, a)
+	a := newAction(provider+"/"+name, atype, metadata, fn)
+	r.registerAction(a)
 	return a
 }
 
@@ -83,8 +83,8 @@ func DefineStreamingAction[In, Out, Stream any](provider, name string, atype aty
 }
 
 func defineStreamingAction[In, Out, Stream any](r *registry, provider, name string, atype atype.ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
-	a := newStreamingAction(name, atype, metadata, fn)
-	r.registerAction(provider, a)
+	a := newStreamingAction(provider+"/"+name, atype, metadata, fn)
+	r.registerAction(a)
 	return a
 }
 
@@ -101,8 +101,8 @@ func DefineActionWithInputSchema[Out any](provider, name string, atype atype.Act
 }
 
 func defineActionWithInputSchema[Out any](r *registry, provider, name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, any) (Out, error), inputSchema *jsonschema.Schema) *Action[any, Out, struct{}] {
-	a := newActionWithInputSchema(name, atype, metadata, fn, inputSchema)
-	r.registerAction(provider, a)
+	a := newActionWithInputSchema(provider+"/"+name, atype, metadata, fn, inputSchema)
+	r.registerAction(a)
 	return a
 }
 

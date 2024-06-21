@@ -24,10 +24,11 @@ import (
 	"cloud.google.com/go/vertexai/genai"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
+	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
 
-const provider = "google-genai"
+const provider = "vertexai"
 
 // Config provides configuration options for the Init function.
 type Config struct {
@@ -125,9 +126,6 @@ type generator struct {
 }
 
 func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
-	if cb != nil {
-		panic("streaming not supported yet") // TODO: streaming
-	}
 	gm := g.client.GenerativeModel(g.model)
 
 	// Translate from a ai.GenerateRequest to a genai request.
@@ -143,7 +141,7 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 			gm.SetTemperature(float32(c.Temperature))
 		}
 		if c.TopK != 0 {
-			gm.SetTopK(float32(c.TopK))
+			gm.SetTopK(int32(c.TopK))
 		}
 		if c.TopP != 0 {
 			gm.SetTopP(float32(c.TopP))
@@ -213,12 +211,49 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	// TODO: gm.ToolConfig?
 
 	// Send out the actual request.
-	resp, err := cs.SendMessage(ctx, parts...)
-	if err != nil {
-		return nil, err
+	if cb == nil {
+		resp, err := cs.SendMessage(ctx, parts...)
+		if err != nil {
+			return nil, err
+		}
+
+		r := translateResponse(resp)
+		r.Request = input
+		return r, nil
 	}
 
-	r := translateResponse(resp)
+	// Streaming version.
+	iter := cs.SendMessageStream(ctx, parts...)
+	var r *ai.GenerateResponse
+	for {
+		chunk, err := iter.Next()
+		if err != nil {
+			if err == iterator.Done {
+				r = translateResponse(iter.MergedResponse())
+				break
+			}
+			return nil, err
+		}
+
+		// Process each candidate.
+		for _, c := range chunk.Candidates {
+			tc := translateCandidate(c)
+
+			// Call callback with the candidate info.
+			err := cb(ctx, &ai.GenerateResponseChunk{
+				Content: tc.Message.Content,
+				Index:   tc.Index,
+			})
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	if r == nil {
+		// No candidates were returned. Probably rare, but it might avoid a NPE
+		// to return an empty instead of nil result.
+		r = &ai.GenerateResponse{}
+	}
 	r.Request = input
 	return r, nil
 }

@@ -58,7 +58,7 @@ func setup04(ctx context.Context, indexer *ai.IndexerAction, retriever *ai.Retri
 	}
 
 	genkit.DefineFlow("s04_indexMenuItems",
-		func(ctx context.Context, input []*menuItem, _ genkit.NoStream) (*flowOutput, error) {
+		func(ctx context.Context, input []*menuItem) (*flowOutput, error) {
 			var docs []*ai.Document
 			for _, m := range input {
 				s := fmt.Sprintf("%s %g \n %s", m.Title, m.Price, m.Description)
@@ -82,7 +82,7 @@ func setup04(ctx context.Context, indexer *ai.IndexerAction, retriever *ai.Retri
 	)
 
 	genkit.DefineFlow("s04_ragMenuQuestion",
-		func(ctx context.Context, input *menuQuestionInput, _ genkit.NoStream) (*answerOutput, error) {
+		func(ctx context.Context, input *menuQuestionInput) (*answerOutput, error) {
 			req := &ai.RetrieverRequest{
 				Document: ai.DocumentFromText(input.Question, nil),
 				Options: &localvec.RetrieverOptions{

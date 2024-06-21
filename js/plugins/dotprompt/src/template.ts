@@ -14,13 +14,7 @@
  * limitations under the License.
  */
 
-import {
-  MediaPart,
-  MessageData,
-  Part,
-  Role,
-  TextPart,
-} from '@genkit-ai/ai/model';
+import { MediaPart, MessageData, Part, Role } from '@genkit-ai/ai/model';
 import { DocumentData } from '@genkit-ai/ai/retriever';
 import Handlebars from 'handlebars';
 import { PromptMetadata } from './metadata.js';
@@ -39,6 +33,16 @@ function roleHelper(role: string) {
 }
 Promptbars.registerHelper('role', roleHelper);
 
+function historyHelper() {
+  return new Promptbars.SafeString('<<<dotprompt:history>>>');
+}
+Promptbars.registerHelper('history', historyHelper);
+
+function sectionHelper(name: string) {
+  return new Promptbars.SafeString(`<<<dotprompt:section ${name}>>>`);
+}
+Promptbars.registerHelper('section', sectionHelper);
+
 function mediaHelper(options: Handlebars.HelperOptions) {
   return new Promptbars.SafeString(
     `<<<dotprompt:media:url ${options.hash.url}${
@@ -48,35 +52,72 @@ function mediaHelper(options: Handlebars.HelperOptions) {
 }
 Promptbars.registerHelper('media', mediaHelper);
 
-const ROLE_REGEX = /(<<<dotprompt:role:[a-z]+)>>>/g;
+const ROLE_REGEX = /(<<<dotprompt:(?:role:[a-z]+|history))>>>/g;
 
-function toMessages(renderedString: string): MessageData[] {
+function toMessages(
+  renderedString: string,
+  options?: { context?: DocumentData[]; history?: MessageData[] }
+): MessageData[] {
   let currentMessage: { role: string; source: string } = {
     role: 'user',
     source: '',
   };
-  const messageSources: { role: string; source: string }[] = [currentMessage];
+  const messageSources: {
+    role: string;
+    source?: string;
+    content?: MessageData['content'];
+    metadata?: Record<string, unknown>;
+  }[] = [currentMessage];
 
   for (const piece of renderedString
     .split(ROLE_REGEX)
     .filter((s) => s.trim() !== '')) {
     if (piece.startsWith('<<<dotprompt:role:')) {
       const role = piece.substring(18);
-      if (currentMessage.source) {
+      if (currentMessage.source.trim()) {
         currentMessage = { role, source: '' };
         messageSources.push(currentMessage);
       } else {
         currentMessage.role = role;
       }
+    } else if (piece.startsWith('<<<dotprompt:history')) {
+      messageSources.push(
+        ...(options?.history?.map((m) => {
+          return {
+            ...m,
+            metadata: { ...(m.metadata || {}), purpose: 'history' },
+          };
+        }) || [])
+      );
+      currentMessage = { role: 'model', source: '' };
+      messageSources.push(currentMessage);
     } else {
       currentMessage.source += piece;
     }
   }
 
-  return messageSources.map((m) => ({
-    role: m.role as Role,
-    content: toParts(m.source),
-  }));
+  const messages: MessageData[] = messageSources
+    .filter((ms) => ms.content || ms.source)
+    .map((m) => {
+      const out: MessageData = {
+        role: m.role as Role,
+        content: m.content || toParts(m.source!),
+      };
+      if (m.metadata) out.metadata = m.metadata;
+      return out;
+    });
+
+  if (
+    !options?.history ||
+    messages.find((m) => m.metadata?.purpose === 'history')
+  )
+    return messages;
+
+  return [
+    ...messages.slice(0, -1),
+    ...options.history,
+    messages.at(-1),
+  ] as MessageData[];
 }
 
 const PART_REGEX = /(<<<dotprompt:(?:media:url|section).*?)>>>/g;
@@ -94,10 +135,7 @@ function toParts(source: string): Part[] {
       parts.push(part);
     } else if (piece.startsWith('<<<dotprompt:section')) {
       const [_, sectionType] = piece.split(' ');
-      i++;
-      const text = pieces[i];
-      const part: TextPart = { text, metadata: { purpose: sectionType } };
-      parts.push(part);
+      parts.push({ metadata: { purpose: sectionType, pending: true } });
     } else {
       parts.push({ text: piece });
     }
@@ -130,6 +168,6 @@ export function compile<Variables = any>(
         metadata: { prompt: metadata, context: options?.context || null },
       },
     });
-    return toMessages(renderedString);
+    return toMessages(renderedString, options);
   };
 }

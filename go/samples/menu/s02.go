@@ -74,7 +74,7 @@ func setup02(ctx context.Context, m *ai.ModelAction) error {
 	}
 
 	genkit.DefineFlow("s02_menuQuestion",
-		func(ctx context.Context, input *menuQuestionInput, _ genkit.NoStream) (*answerOutput, error) {
+		func(ctx context.Context, input *menuQuestionInput) (*answerOutput, error) {
 			resp, err := dataMenuPrompt.Generate(ctx,
 				&dotprompt.PromptRequest{
 					Variables: input,

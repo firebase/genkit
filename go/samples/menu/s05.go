@@ -79,7 +79,7 @@ func setup05(ctx context.Context, gen, genVision *ai.ModelAction) error {
 	// Note that this example uses a hard-coded image file, as image input
 	// is not currently available in the Development UI runners.
 	readMenuFlow := genkit.DefineFlow("s05_readMenuFlow",
-		func(ctx context.Context, _ struct{}, _ genkit.NoStream) (string, error) {
+		func(ctx context.Context, _ struct{}) (string, error) {
 			image, err := os.ReadFile("testdata/menu.jpeg")
 			if err != nil {
 				return "", err
@@ -106,7 +106,7 @@ func setup05(ctx context.Context, gen, genVision *ai.ModelAction) error {
 	// Just returns the LLM's text response to the question.
 
 	textMenuQuestionFlow := genkit.DefineFlow("s05_textMenuQuestion",
-		func(ctx context.Context, input *textMenuQuestionInput, _ genkit.NoStream) (*answerOutput, error) {
+		func(ctx context.Context, input *textMenuQuestionInput) (*answerOutput, error) {
 			preq := &dotprompt.PromptRequest{
 				Variables: input,
 			}
@@ -124,7 +124,7 @@ func setup05(ctx context.Context, gen, genVision *ai.ModelAction) error {
 	// Define a third composite flow that chains the first two flows.
 
 	genkit.DefineFlow("s05_visionMenuQuestion",
-		func(ctx context.Context, input *menuQuestionInput, _ genkit.NoStream) (*answerOutput, error) {
+		func(ctx context.Context, input *menuQuestionInput) (*answerOutput, error) {
 			menuText, err := genkit.RunFlow(ctx, readMenuFlow, struct{}{})
 			if err != nil {
 				return nil, err

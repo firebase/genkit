@@ -91,7 +91,7 @@ describe('Prompt', () => {
       }, ValidationError);
     });
 
-    it('should render with overrided fields', async () => {
+    it('should render with overridden fields', async () => {
       const prompt = testPrompt(`Hello {{name}}, how are you?`);
 
       const streamingCallback = (c) => console.log(c);
@@ -192,7 +192,10 @@ output:
           additionalProperties: false,
           properties: {
             name: { type: 'string', description: 'the name of the person' },
-            date: { type: 'string', description: "ISO date like '2024-04-09'" },
+            date: {
+              type: ['string', 'null'],
+              description: "ISO date like '2024-04-09'",
+            },
           },
         },
       });
