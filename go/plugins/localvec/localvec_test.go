@@ -197,11 +197,12 @@ func TestInit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if g := ind.Name(); g != name {
-		t.Errorf("got %q, want %q", g, name)
+	want := "devLocalVectorStore/" + name
+	if g := ind.Name(); g != want {
+		t.Errorf("got %q, want %q", g, want)
 	}
-	if g := ret.Name(); g != name {
-		t.Errorf("got %q, want %q", g, name)
+	if g := ret.Name(); g != want {
+		t.Errorf("got %q, want %q", g, want)
 	}
 }
 
