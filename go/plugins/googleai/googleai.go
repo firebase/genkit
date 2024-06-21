@@ -32,7 +32,7 @@ const provider = "googleai"
 
 // Config provides configuration options for the Init function.
 type Config struct {
-	// API key. Required.
+	// API key. Required unless ClientOptions is set.
 	APIKey string
 	// Generative models to provide.
 	// If empty, a complete list will be obtained from the service.
@@ -40,6 +40,8 @@ type Config struct {
 	// Embedding models to provide.
 	// If empty, a complete list will be obtained from the service.
 	Embedders []string
+	// Options to pass to the client. If non-empty, APIKey is not used.
+	ClientOptions []option.ClientOption
 }
 
 func Init(ctx context.Context, cfg Config) (err error) {
@@ -49,11 +51,15 @@ func Init(ctx context.Context, cfg Config) (err error) {
 		}
 	}()
 
-	if cfg.APIKey == "" {
+	if cfg.APIKey == "" && len(cfg.ClientOptions) == 0 {
 		return errors.New("missing API key")
 	}
 
-	client, err := genai.NewClient(ctx, option.WithAPIKey(cfg.APIKey))
+	opts := cfg.ClientOptions
+	if len(opts) == 0 {
+		opts = []option.ClientOption{option.WithAPIKey(cfg.APIKey)}
+	}
+	client, err := genai.NewClient(ctx, opts...)
 	if err != nil {
 		return err
 	}

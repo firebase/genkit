@@ -1,0 +1,22 @@
+# This is a cross-language test for embedders in the googlai plugin.
+# Its main purpose is to validate the trace resulting from
+# calling an embedder.
+#
+# Test function: call a mocked version of the googleai embedder
+# that returns the given output.
+#
+# Validation function:
+# - values: compare using equality
+# - traceFile:
+#   - read the file
+#   - canonicalize the span IDs
+#   - ignore or remove trace ids, start and end times
+#   - then compare for equality.
+
+name: googleai-embedder
+description: googleai plugin, embedder
+in: 'banana'
+want:
+  values: [0.25, 0.25, 0.5]
+  traceFile: 'googleai-embedder-trace.json'
+
