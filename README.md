@@ -108,4 +108,6 @@ Please use our GitHub [issue tracker](https://github.com/firebase/genkit/issues)
 
 You can also reach out to us using the GitHub [discussion](https://github.com/firebase/genkit/discussions) forums.
 
+You can also find several samples built by the Genkit community in this [repository](https://github.com/TheFireCo/genkit-plugins). Keep in mind these are not developed or supported by the Genkit core team.
+
 Firebase Genkit Team
