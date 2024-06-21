@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
@@ -325,19 +326,15 @@ func translateGenerateChunk(input string) (*ai.GenerateResponseChunk, error) {
 
 // concatMessages translates a list of messages into a prompt-style format
 func concatMessages(input *ai.GenerateRequest, roles []ai.Role) string {
-	prompt := ""
 	roleSet := make(map[ai.Role]bool)
-
 	for _, role := range roles {
 		roleSet[role] = true
 	}
-
+	var sb strings.Builder // Create a strings.Builder instance
 	for _, message := range input.Messages {
-		if roleSet[message.Role] {
-			for _, part := range message.Content {
-				prompt += part.Text
-			}
+		for _, part := range message.Content {
+			sb.WriteString(part.Text) // Write the text directly to the builder
 		}
 	}
-	return prompt
+	return sb.String() // Get the final concatenated string
 }
