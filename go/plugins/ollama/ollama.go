@@ -297,6 +297,7 @@ func translateGenerateResponse(responseData []byte) (*ai.GenerateResponse, error
 	aiPart := ai.NewTextPart(response.Response)
 	aiCandidate.Message.Content = append(aiCandidate.Message.Content, aiPart)
 	generateResponse.Candidates = append(generateResponse.Candidates, aiCandidate)
+	generateResponse.Usage = &ai.GenerationUsage{} // TODO: can we get any of this info?
 	return generateResponse, nil
 }
 

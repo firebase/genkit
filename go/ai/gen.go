@@ -117,13 +117,13 @@ type GenerationCommonConfig struct {
 // GenerationUsage provides information about the generation process.
 type GenerationUsage struct {
 	Custom           map[string]float64 `json:"custom,omitempty"`
-	InputCharacters  float64            `json:"inputCharacters,omitempty"`
-	InputImages      float64            `json:"inputImages,omitempty"`
-	InputTokens      float64            `json:"inputTokens,omitempty"`
-	OutputCharacters float64            `json:"outputCharacters,omitempty"`
-	OutputImages     float64            `json:"outputImages,omitempty"`
-	OutputTokens     float64            `json:"outputTokens,omitempty"`
-	TotalTokens      float64            `json:"totalTokens,omitempty"`
+	InputCharacters  int64              `json:"inputCharacters,omitempty"`
+	InputImages      int64              `json:"inputImages,omitempty"`
+	InputTokens      int64              `json:"inputTokens,omitempty"`
+	OutputCharacters int64              `json:"outputCharacters,omitempty"`
+	OutputImages     int64              `json:"outputImages,omitempty"`
+	OutputTokens     int64              `json:"outputTokens,omitempty"`
+	TotalTokens      int64              `json:"totalTokens,omitempty"`
 }
 
 type mediaPart struct {
@@ -139,8 +139,9 @@ type mediaPartMedia struct {
 
 // Message is the contents of a model response.
 type Message struct {
-	Content []*Part `json:"content,omitempty"`
-	Role    Role    `json:"role,omitempty"`
+	Content  []*Part        `json:"content,omitempty"`
+	Metadata map[string]any `json:"metadata,omitempty"`
+	Role     Role           `json:"role,omitempty"`
 }
 
 type ModelInfo struct {
