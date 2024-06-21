@@ -328,13 +328,18 @@ func translateGenerateChunk(input string) (*ai.GenerateResponseChunk, error) {
 func concatMessages(input *ai.GenerateRequest, roles []ai.Role) string {
 	roleSet := make(map[ai.Role]bool)
 	for _, role := range roles {
-		roleSet[role] = true
+		roleSet[role] = true // Create a set for faster lookup
 	}
-	var sb strings.Builder // Create a strings.Builder instance
+
+	var sb strings.Builder
+
 	for _, message := range input.Messages {
-		for _, part := range message.Content {
-			sb.WriteString(part.Text) // Write the text directly to the builder
+		// Check if the message role is in the allowed set
+		if roleSet[message.Role] {
+			for _, part := range message.Content {
+				sb.WriteString(part.Text)
+			}
 		}
 	}
-	return sb.String() // Get the final concatenated string
+	return sb.String()
 }
