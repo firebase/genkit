@@ -24,7 +24,7 @@ func TestConcatMessages(t *testing.T) {
 	tests := []struct {
 		name     string
 		messages []*ai.Message
-		role     ai.Role
+		roles    []ai.Role
 		want     string
 	}{
 		{
@@ -35,8 +35,8 @@ func TestConcatMessages(t *testing.T) {
 					Content: []*ai.Part{ai.NewTextPart("Hello, how are you?")},
 				},
 			},
-			role: ai.RoleUser,
-			want: "Hello, how are you?",
+			roles: []ai.Role{ai.RoleUser},
+			want:  "Hello, how are you?",
 		},
 		{
 			name: "Multiple messages with mixed roles",
@@ -50,8 +50,8 @@ func TestConcatMessages(t *testing.T) {
 					Content: []*ai.Part{ai.NewTextPart("Why did the scarecrow win an award? Because he was outstanding in his field!")},
 				},
 			},
-			role: ai.RoleModel,
-			want: "Why did the scarecrow win an award? Because he was outstanding in his field!",
+			roles: []ai.Role{ai.RoleModel},
+			want:  "Why did the scarecrow win an award? Because he was outstanding in his field!",
 		},
 		{
 			name: "No matching role",
@@ -61,15 +61,15 @@ func TestConcatMessages(t *testing.T) {
 					Content: []*ai.Part{ai.NewTextPart("Any suggestions?")},
 				},
 			},
-			role: ai.RoleSystem,
-			want: "",
+			roles: []ai.Role{ai.RoleSystem},
+			want:  "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			input := &ai.GenerateRequest{Messages: tt.messages}
-			got := concatMessages(input, tt.role)
+			got := concatMessages(input, tt.roles)
 			if got != tt.want {
 				t.Errorf("concatMessages() = %q, want %q", got, tt.want)
 			}
