@@ -298,6 +298,12 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.GenerateResponse
 	for _, c := range resp.Candidates {
 		r.Candidates = append(r.Candidates, translateCandidate(c))
 	}
+	r.Usage = &ai.GenerationUsage{}
+	if u := resp.UsageMetadata; u != nil {
+		r.Usage.InputTokens = int(u.PromptTokenCount)
+		r.Usage.OutputTokens = int(u.CandidatesTokenCount)
+		r.Usage.TotalTokens = int(u.TotalTokenCount)
+	}
 	return r
 }
 

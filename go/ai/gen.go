@@ -112,13 +112,13 @@ type GenerationCommonConfig struct {
 // GenerationUsage provides information about the generation process.
 type GenerationUsage struct {
 	Custom           map[string]float64 `json:"custom,omitempty"`
-	InputCharacters  float64            `json:"inputCharacters,omitempty"`
-	InputImages      float64            `json:"inputImages,omitempty"`
-	InputTokens      float64            `json:"inputTokens,omitempty"`
-	OutputCharacters float64            `json:"outputCharacters,omitempty"`
-	OutputImages     float64            `json:"outputImages,omitempty"`
-	OutputTokens     float64            `json:"outputTokens,omitempty"`
-	TotalTokens      float64            `json:"totalTokens,omitempty"`
+	InputCharacters  int                `json:"inputCharacters,omitempty"`
+	InputImages      int                `json:"inputImages,omitempty"`
+	InputTokens      int                `json:"inputTokens,omitempty"`
+	OutputCharacters int                `json:"outputCharacters,omitempty"`
+	OutputImages     int                `json:"outputImages,omitempty"`
+	OutputTokens     int                `json:"outputTokens,omitempty"`
+	TotalTokens      int                `json:"totalTokens,omitempty"`
 }
 
 type mediaPart struct {
