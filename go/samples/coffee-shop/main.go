@@ -104,7 +104,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "You can get an API key at https://ai.google.dev.")
 		os.Exit(1)
 	}
-	err := googleai.Init(context.Background(), googleai.Config{APIKey: apiKey})
+	err := googleai.Init(context.Background(), apiKey)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func main() {
 		AllowAdditionalProperties: false,
 		DoNotReference:            true,
 	}
-	g := googleai.Model("gemini-1.5-pro")
+	g := googleai.DefineModel("gemini-1.5-pro")
 	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting", simpleGreetingPromptTemplate,
 		dotprompt.Config{
 			ModelAction:  g,
@@ -263,7 +263,7 @@ func main() {
 		}
 		return out, nil
 	})
-	if err := genkit.StartFlowServer(""); err != nil {
+	if err := genkit.Init(nil); err != nil {
 		log.Fatal(err)
 	}
 }

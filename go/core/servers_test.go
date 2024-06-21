@@ -129,7 +129,7 @@ func TestProdServer(t *testing.T) {
 	defineFlow(r, "inc", func(_ context.Context, i int, _ NoStream) (int, error) {
 		return i + 1, nil
 	})
-	srv := httptest.NewServer(newFlowServeMux(r))
+	srv := httptest.NewServer(newFlowServeMux(r, nil))
 	defer srv.Close()
 
 	check := func(t *testing.T, input string, wantStatus, wantResult int) {

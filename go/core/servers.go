@@ -51,23 +51,51 @@ import (
 // a dev server.
 //
 // StartFlowServer always returns a non-nil error, the one returned by http.ListenAndServe.
-func StartFlowServer(addr string) error {
+func StartFlowServer(addr string, flows []string) error {
+	return startProdServer(addr, flows)
+}
+
+// InternalInit is for use by the genkit package only.
+// It is not subject to compatibility guarantees.
+func InternalInit(opts *Options) error {
+	if opts == nil {
+		opts = &Options{}
+	}
+	globalRegistry.freeze()
+
 	if currentEnvironment() == EnvironmentDev {
 		go func() {
-			err := startDevServer("")
+			err := startDevServer()
 			slog.Error("dev server stopped", "err", err)
 		}()
 	}
-	return startProdServer(addr)
+	if opts.FlowAddr == "-" {
+		return nil
+	}
+	return StartFlowServer(opts.FlowAddr, opts.Flows)
 }
 
-// startDevServer starts the development server (reflection API) listening at the given address.
-// If addr is "", it uses the value of the environment variable GENKIT_REFLECTION_PORT
-// for the port, and if that is empty it uses ":3100".
+// Options are options to [InternalInit].
+type Options struct {
+	// If "-", do not start a FlowServer.
+	// Otherwise, start a FlowServer on the given address, or the
+	// default if empty.
+	FlowAddr string
+	// The names of flows to serve.
+	// If empty, all registered flows are served.
+	Flows []string
+}
+
+// startDevServer starts the development server (reflection API) listening at the
+// value of the environment variable GENKIT_REFLECTION_PORT for the port, or ":3100"
+// if it is empty.
 // startDevServer always returns a non-nil error, the one returned by http.ListenAndServe.
-func startDevServer(addr string) error {
+func startDevServer() error {
 	slog.Info("starting dev server")
-	addr = serverAddress(addr, "GENKIT_REFLECTION_PORT", "127.0.0.1:3100")
+	// Don't use "localhost" here. That only binds the IPv4 address, and the genkit tool
+	// wants to connect to the IPv6 address even when you tell it to use "localhost".
+	// Omitting the host works.
+	addr := serverAddress("", "GENKIT_REFLECTION_PORT", "127.0.0.1:3100")
 	mux := newDevServeMux(globalRegistry)
 	return listenAndServe(addr, mux)
 }
@@ -243,14 +271,17 @@ type listFlowStatesResult struct {
 // startProdServer always returns a non-nil error, the one returned by http.ListenAndServe.
 //
 // To construct a server with additional routes, use [NewFlowServeMux].
-func startProdServer(addr string) error {
+func startProdServer(addr string, flows []string) error {
 	slog.Info("starting flow server")
 	addr = serverAddress(addr, "PORT", "127.0.0.1:3400")
-	mux := NewFlowServeMux()
+	mux := NewFlowServeMux(flows)
 	return listenAndServe(addr, mux)
 }
 
-// NewFlowServeMux constructs a [net/http.ServeMux] where each defined flow is a route.
+// NewFlowServeMux constructs a [net/http.ServeMux].
+// If flows is non-empty, the each of the named flows is registered as a route.
+// Otherwise, all defined flows are registered.
+//
 // All routes take a single query parameter, "stream", which if true will stream the
 // flow's results back to the client. (Not all flows support streaming, however.)
 //
@@ -259,14 +290,20 @@ func startProdServer(addr string) error {
 //
 //	mainMux := http.NewServeMux()
 //	mainMux.Handle("POST /flow/", http.StripPrefix("/flow/", NewFlowServeMux()))
-func NewFlowServeMux() *http.ServeMux {
-	return newFlowServeMux(globalRegistry)
+func NewFlowServeMux(flows []string) *http.ServeMux {
+	return newFlowServeMux(globalRegistry, flows)
 }
 
-func newFlowServeMux(r *registry) *http.ServeMux {
+func newFlowServeMux(r *registry, flows []string) *http.ServeMux {
 	mux := http.NewServeMux()
+	m := map[string]bool{}
+	for _, f := range flows {
+		m[f] = true
+	}
 	for _, f := range r.listFlows() {
-		handle(mux, "POST /"+f.Name(), nonDurableFlowHandler(f))
+		if len(flows) == 0 || m[f.Name()] {
+			handle(mux, "POST /"+f.Name(), nonDurableFlowHandler(f))
+		}
 	}
 	return mux
 }
