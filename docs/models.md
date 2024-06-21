@@ -123,6 +123,8 @@ const result = await generate({
 });
 ```
 
+### Tools and function calling
+
 `Model` also supports tools and function calling. Tool support depends on
 specific models.
 
