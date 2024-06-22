@@ -289,6 +289,7 @@ export function defineModel<
     configSchema?: CustomOptionsSchema;
     /** Descriptive name for this model e.g. 'Google AI - Gemini Pro'. */
     label?: string;
+    /** Middlewera to be used with this model. */
     use?: ModelMiddleware[];
   },
   runner: (

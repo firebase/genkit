@@ -96,14 +96,17 @@ describe('Prompt', () => {
       const prompt = testPrompt(`Hello {{name}}, how are you?`);
 
       const streamingCallback = (c) => console.log(c);
+      const middleware = []
 
       const rendered = await prompt.render({
         input: { name: 'Michael' },
         streamingCallback,
         returnToolRequests: true,
+        use: middleware,
       });
       assert.strictEqual(rendered.streamingCallback, streamingCallback);
       assert.strictEqual(rendered.returnToolRequests, true);
+      assert.strictEqual(rendered.use, middleware);
     });
 
     it('should support system prompt with history', async () => {

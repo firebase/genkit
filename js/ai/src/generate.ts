@@ -16,6 +16,7 @@
 
 import {
   Action,
+  actionWithMiddleware,
   config as genkitConfig,
   GenkitError,
   runWithStreamingCallback,
@@ -41,6 +42,7 @@ import {
   MessageData,
   ModelAction,
   ModelArgument,
+  ModelMiddleware,
   ModelReference,
   Part,
   ToolDefinition,
@@ -490,6 +492,8 @@ export interface GenerateOptions<
   returnToolRequests?: boolean;
   /** When provided, models supporting streaming will call the provided callback with chunks as generation progresses. */
   streamingCallback?: StreamingCallback<GenerateResponseChunk>;
+  /** Middlewera to be used with this model call. */
+  use?: ModelMiddleware[];
 }
 
 async function resolveModel(options: GenerateOptions): Promise<ModelAction> {
