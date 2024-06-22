@@ -16,6 +16,7 @@
 
 import {
   Action,
+  actionWithMiddleware,
   config as genkitConfig,
   GenkitError,
   runWithStreamingCallback,
@@ -36,6 +37,7 @@ import {
   MessageData,
   ModelAction,
   ModelArgument,
+  ModelMiddleware,
   ModelReference,
   Part,
   Role,
@@ -494,6 +496,8 @@ export interface GenerateOptions<
   returnToolRequests?: boolean;
   /** When provided, models supporting streaming will call the provided callback with chunks as generation progresses. */
   streamingCallback?: StreamingCallback<GenerateResponseChunk>;
+  /** Middlewera to be used with this model call. */
+  use?: ModelMiddleware[];
 }
 
 const isValidCandidate = (
@@ -619,7 +623,13 @@ export async function generate<
       ? (chunk: GenerateResponseChunkData) =>
           resolvedOptions.streamingCallback!(new GenerateResponseChunk(chunk))
       : undefined,
-    async () => new GenerateResponse<z.infer<O>>(await model(request), request)
+    async () => {
+      var modelAction = model;
+      if (resolvedOptions.use) {
+        modelAction = actionWithMiddleware(modelAction, resolvedOptions.use) as ModelAction;
+      }
+      return new GenerateResponse<z.infer<O>>(await modelAction(request), request)
+    }
   );
 
   // throw NoValidCandidates if all candidates are blocked or

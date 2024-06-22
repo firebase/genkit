@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
+import { __hardResetRegistryForTesting } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
-import { describe, it } from 'node:test';
+import { beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
 import {
   Candidate,
+  generate,
   GenerateOptions,
   GenerateResponse,
   Message,
@@ -26,8 +28,11 @@ import {
 } from '../../src/generate.js';
 import {
   CandidateData,
+  defineModel,
   GenerateRequest,
   MessageData,
+  ModelAction,
+  ModelMiddleware,
 } from '../../src/model.js';
 import { defineTool } from '../../src/tool.js';
 
@@ -505,4 +510,96 @@ describe('toGenerateRequest', () => {
       );
     });
   }
+});
+
+describe('generate', () => {
+  beforeEach(__hardResetRegistryForTesting);
+
+  var echoModel: ModelAction;
+
+  beforeEach(() => {
+    echoModel = defineModel(
+      {
+        name: 'echoModel',
+      },
+      async (request) => {
+        return {
+          candidates: [
+            {
+              index: 0,
+              finishReason: 'stop',
+              message: {
+                role: 'model',
+                content: [
+                  {
+                    text:
+                      'Echo: ' +
+                      request.messages
+                        .map((m) => m.content.map((c) => c.text).join())
+                        .join(),
+                  },
+                ],
+              },
+            },
+          ],
+        };
+      }
+    );
+  });
+
+  it('applies middleware', async () => {
+    const wrapRequest: ModelMiddleware = async (req, next) => {
+      return next({
+        ...req,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                text:
+                  '(' +
+                  req.messages
+                    .map((m) => m.content.map((c) => c.text).join())
+                    .join() +
+                  ')',
+              },
+            ],
+          },
+        ],
+      });
+    };
+    const wrapResponse: ModelMiddleware = async (req, next) => {
+      const res = await next(req);
+      return {
+        candidates: [
+          {
+            index: 0,
+            finishReason: 'stop',
+            message: {
+              role: 'model',
+              content: [
+                {
+                  text:
+                    '[' +
+                    res.candidates[0].message.content
+                      .map((c) => c.text)
+                      .join() +
+                    ']',
+                },
+              ],
+            },
+          },
+        ],
+      };
+    };
+
+    const response = await generate({
+      prompt: 'banana',
+      model: echoModel,
+      use: [wrapRequest, wrapResponse],
+    });
+
+    const want = '[Echo: (banana)]';
+    assert.deepStrictEqual(response.text(), want);
+  });
 });
