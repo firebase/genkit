@@ -17,12 +17,13 @@
 import { __hardResetRegistryForTesting } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
+import { z } from 'zod';
 import { generate } from '../../src/generate.js';
 import {
-  ModelAction,
-  ModelMiddleware,
   defineModel,
   defineWrappedModel,
+  ModelAction,
+  ModelMiddleware,
 } from '../../src/model.js';
 
 const wrapRequest: ModelMiddleware = async (req, next) => {
@@ -82,6 +83,9 @@ describe('defineWrappedModel', () => {
         supports: {
           multiturn: true,
         },
+        configSchema: z.object({
+          customField: z.string(),
+        }),
       },
       async (request) => {
         return {
@@ -119,8 +123,18 @@ describe('defineWrappedModel', () => {
   it('copies/overwrites metadata', async () => {
     assert.deepStrictEqual(wrappedEchoModel.__action.metadata, {
       model: {
+        customOptions: {
+          $schema: 'http://json-schema.org/draft-07/schema#',
+          additionalProperties: true,
+          properties: {
+            customField: {
+              type: 'string',
+            },
+          },
+          required: ['customField'],
+          type: 'object',
+        },
         label: 'Wrapped Echo',
-        customOptions: undefined,
         versions: undefined,
         supports: {
           multiturn: true,
