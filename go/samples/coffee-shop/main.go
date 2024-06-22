@@ -155,7 +155,7 @@ func main() {
 	greetingWithHistoryPrompt, err := dotprompt.Define("greetingWithHistory", greetingWithHistoryPromptTemplate,
 		dotprompt.Config{
 			ModelAction:  g,
-			InputSchema:  jsonschema.Reflect(customerTimeAndHistoryInput{}),
+			InputSchema:  r.Reflect(customerTimeAndHistoryInput{}),
 			OutputFormat: ai.OutputFormatText,
 		},
 	)
@@ -195,7 +195,7 @@ func main() {
 	simpleStructuredGreetingPrompt, err := dotprompt.Define("simpleStructuredGreeting", simpleStructuredGreetingPromptTemplate,
 		dotprompt.Config{
 			ModelAction:  g,
-			InputSchema:  jsonschema.Reflect(simpleGreetingInput{}),
+			InputSchema:  r.Reflect(simpleGreetingInput{}),
 			OutputFormat: ai.OutputFormatJSON,
 			OutputSchema: outputSchema,
 		},
