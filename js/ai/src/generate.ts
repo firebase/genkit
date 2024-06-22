@@ -16,7 +16,6 @@
 
 import {
   Action,
-  actionWithMiddleware,
   config as genkitConfig,
   GenkitError,
   runWithStreamingCallback,
