@@ -15,7 +15,6 @@
  */
 
 import { generate } from '@genkit-ai/ai';
-import { ModelMiddleware, defineWrappedModel } from '@genkit-ai/ai/model';
 import { Document, index, retrieve } from '@genkit-ai/ai/retriever';
 import {
   devLocalIndexerRef,
@@ -59,58 +58,6 @@ export const pdfQA = defineFlow(
       .then((r) => r.text());
   }
 );
-
-const wrapRequest: ModelMiddleware = async (req, next) => {
-  return next({
-    ...req,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            text:
-              '(' +
-              req.messages
-                .map((m) => m.content.map((c) => c.text).join())
-                .join() +
-              ')',
-          },
-        ],
-      },
-    ],
-  });
-};
-const wrapResponse: ModelMiddleware = async (req, next) => {
-  const res = await next(req);
-  return {
-    candidates: [
-      {
-        index: 0,
-        finishReason: 'stop',
-        message: {
-          role: 'model',
-          content: [
-            {
-              text:
-                '[' +
-                res.candidates[0].message.content.map((c) => c.text).join() +
-                ']',
-            },
-          ],
-        },
-      },
-    ],
-  };
-};
-
-defineWrappedModel({
-  name: 'wrappedGemini15Flash',
-  model: geminiPro,
-  info: {
-    label: 'banana',
-  },
-  use: [wrapRequest, wrapResponse],
-});
 
 const chunkingConfig = {
   minLength: 1000, // number of minimum characters into chunk
