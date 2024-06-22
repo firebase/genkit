@@ -15,6 +15,8 @@
 package ai
 
 import (
+	"context"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -187,6 +189,50 @@ func TestValidCandidate(t *testing.T) {
 		_, err := validCandidate(candidate, outputSchema)
 		errorContains(t, err, "failed to validate data against expected schema")
 	})
+}
+
+var echoModel = DefineModel("echo", "echo", nil, nil, func(ctx context.Context, req *GenerateRequest, cb func(context.Context, *GenerateResponseChunk) error) (*GenerateResponse, error) {
+	input := req.Messages[0].Content[0].Text
+	output := fmt.Sprintf("Echo: %q", input)
+
+	r := &GenerateResponse{
+		Candidates: []*Candidate{
+			{
+				Message: &Message{
+					Content: []*Part{
+						NewTextPart(output),
+					},
+				},
+			},
+		},
+		Request: req,
+	}
+	return r, nil
+})
+
+func TestGenerate(t *testing.T) {
+	response, err := Generate(context.Background(), echoModel, &GenerateRequest{
+		Messages: []*Message{
+			{
+				Role: RoleUser,
+				Content: []*Part{
+					NewTextPart("banana"),
+				},
+			},
+		},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := response.Text()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "Echo: \"banana\""
+	if got != want {
+		t.Errorf("Text() == %q, want %q", got, want)
+	}
 }
 
 func JSONMarkdown(text string) string {

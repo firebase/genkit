@@ -37,24 +37,20 @@ import (
 //   - change the request and response;
 //   - terminate response by returning a response (or error);
 //   - call the next middleware function.
-type Middleware[I, O any] func(MiddlewareHandler[I, O]) MiddlewareHandler[I, O]
-
-// MiddlewareHandler is a function used as part of middleware definition that
-// contains input handling logic.
-type MiddlewareHandler[I, O any] func(ctx context.Context, input I) (O, error)
+type Middleware[I, O, S any] func(Func[I, O, S]) Func[I, O, S]
 
 // Middlewares returns an array of middlewares that are passes in as an argument.
 // core.Middlewares(apple, banana) is identical to []core.Middleware[InputType, OutputType]{apple, banana}
-func Middlewares[I, O any](ms ...Middleware[I, O]) []Middleware[I, O] {
+func Middlewares[I, O, S any](ms ...Middleware[I, O, S]) []Middleware[I, O, S] {
 	return ms
 }
 
-// chainMiddleware creates a new Middleware that applies a sequence of
+// ChainMiddleware creates a new Middleware that applies a sequence of
 // Middlewares, so that they execute in the given order when handling action
 // request.
-// In other words, chainMiddleware(m1, m2)(handler) = m1(m2(handler))
-func chainMiddleware[I, O any](middlewares ...Middleware[I, O]) Middleware[I, O] {
-	return func(h MiddlewareHandler[I, O]) MiddlewareHandler[I, O] {
+// In other words, ChainMiddleware(m1, m2)(handler) = m1(m2(handler))
+func ChainMiddleware[I, O, S any](middlewares ...Middleware[I, O, S]) Middleware[I, O, S] {
+	return func(h Func[I, O, S]) Func[I, O, S] {
 		for i := range middlewares {
 			h = middlewares[len(middlewares)-1-i](h)
 		}
@@ -97,7 +93,7 @@ type Action[In, Out, Stream any] struct {
 	// optional
 	description string
 	metadata    map[string]any
-	middleware  []Middleware[In, Out]
+	middleware  []Middleware[In, Out, Stream]
 }
 
 // See js/core/src/action.ts
@@ -113,11 +109,11 @@ func defineAction[In, Out any](r *registry, provider, name string, atype atype.A
 	return a
 }
 
-func DefineStreamingAction[In, Out, Stream any](provider, name string, atype atype.ActionType, metadata map[string]any, middleware []Middleware[In, Out], fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
+func DefineStreamingAction[In, Out, Stream any](provider, name string, atype atype.ActionType, metadata map[string]any, middleware []Middleware[In, Out, Stream], fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
 	return defineStreamingAction(globalRegistry, provider, name, atype, metadata, middleware, fn)
 }
 
-func defineStreamingAction[In, Out, Stream any](r *registry, provider, name string, atype atype.ActionType, metadata map[string]any, middleware []Middleware[In, Out], fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
+func defineStreamingAction[In, Out, Stream any](r *registry, provider, name string, atype atype.ActionType, metadata map[string]any, middleware []Middleware[In, Out, Stream], fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
 	a := newStreamingAction(name, atype, metadata, middleware, fn)
 	r.registerAction(provider, a)
 	return a
@@ -149,7 +145,7 @@ func newAction[In, Out any](name string, atype atype.ActionType, metadata map[st
 }
 
 // newStreamingAction creates a new Action with the given name and streaming function.
-func newStreamingAction[In, Out, Stream any](name string, atype atype.ActionType, metadata map[string]any, middleware []Middleware[In, Out], fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
+func newStreamingAction[In, Out, Stream any](name string, atype atype.ActionType, metadata map[string]any, middleware []Middleware[In, Out, Stream], fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
 	var i In
 	var o Out
 	return &Action[In, Out, Stream]{
@@ -215,10 +211,8 @@ func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(con
 			}
 			var output Out
 			if err == nil {
-				dispatch := chainMiddleware(a.middleware...)
-				output, err = dispatch(func(ctx context.Context, di In) (Out, error) {
-					return a.fn(ctx, di, cb)
-				})(ctx, input)
+				dispatch := ChainMiddleware(a.middleware...)
+				output, err = dispatch(a.fn)(ctx, input, cb)
 				if err == nil {
 					if err = validateValue(output, a.outputSchema); err != nil {
 						err = fmt.Errorf("invalid output: %w", err)

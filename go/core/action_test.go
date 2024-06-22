@@ -27,15 +27,15 @@ func inc(_ context.Context, x int) (int, error) {
 	return x + 1, nil
 }
 
-func wrapRequest(next MiddlewareHandler[string, string]) MiddlewareHandler[string, string] {
-	return func(ctx context.Context, request string) (string, error) {
-		return next(ctx, "("+request+")")
+func wrapRequest(next Func[string, string, struct{}]) Func[string, string, struct{}] {
+	return func(ctx context.Context, request string, _ NoStream) (string, error) {
+		return next(ctx, "("+request+")", nil)
 	}
 }
 
-func wrapResponse(next MiddlewareHandler[string, string]) MiddlewareHandler[string, string] {
-	return func(ctx context.Context, request string) (string, error) {
-		nextResponse, err := next(ctx, request)
+func wrapResponse(next Func[string, string, struct{}]) Func[string, string, struct{}] {
+	return func(ctx context.Context, request string, _ NoStream) (string, error) {
+		nextResponse, err := next(ctx, request, nil)
 		if err != nil {
 			return "", err
 		}
@@ -163,8 +163,8 @@ func TestActionMiddleware(t *testing.T) {
 func TestActionInterruptedMiddleware(t *testing.T) {
 	ctx := context.Background()
 
-	interrupt := func(next MiddlewareHandler[string, string]) MiddlewareHandler[string, string] {
-		return func(ctx context.Context, request string) (string, error) {
+	interrupt := func(next Func[string, string, struct{}]) Func[string, string, struct{}] {
+		return func(ctx context.Context, request string, _ NoStream) (string, error) {
 			return "interrupt (request: \"" + request + "\")", nil
 		}
 	}

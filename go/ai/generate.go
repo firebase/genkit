@@ -48,9 +48,12 @@ type ModelMetadata struct {
 	Supports ModelCapabilities
 }
 
+type ModelMiddleware = core.Middleware[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
+type ModelFunc = core.Func[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
+
 // DefineModel registers the given generate function as an action, and returns a
 // [ModelAction] that runs it.
-func DefineModel(provider, name string, metadata *ModelMetadata, middleware []core.Middleware[*GenerateRequest, *GenerateResponse], generate func(context.Context, *GenerateRequest, ModelStreamingCallback) (*GenerateResponse, error)) *ModelAction {
+func DefineModel(provider, name string, metadata *ModelMetadata, middleware []ModelMiddleware, generate ModelFunc) *ModelAction {
 	metadataMap := map[string]any{}
 	if metadata != nil {
 		if metadata.Label != "" {
