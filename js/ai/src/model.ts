@@ -340,7 +340,7 @@ export function defineWrappedModel<
 }: {
   name: string;
   info?: ModelInfo;
-  model: ModelAction<CustomOptionsSchema> | ModelReference<CustomOptionsSchema>;
+  model: ModelArgument<CustomOptionsSchema>;
   configSchema?: CustomOptionsSchema;
   use: ModelMiddleware[];
 }): ModelAction<CustomOptionsSchema> {
@@ -360,7 +360,7 @@ export function defineWrappedModel<
     {
       ...originalInfo,
       ...info,
-      configSchema,
+      configSchema: configSchema || originalConfigSchema,
       name,
     },
     async (request) => {
