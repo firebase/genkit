@@ -95,7 +95,7 @@ describe('Prompt', () => {
       const prompt = testPrompt(`Hello {{name}}, how are you?`);
 
       const streamingCallback = (c) => console.log(c);
-      const middleware = []
+      const middleware = [];
 
       const rendered = await prompt.render({
         input: { name: 'Michael' },

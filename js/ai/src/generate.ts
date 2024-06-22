@@ -626,9 +626,15 @@ export async function generate<
     async () => {
       var modelAction = model;
       if (resolvedOptions.use) {
-        modelAction = actionWithMiddleware(modelAction, resolvedOptions.use) as ModelAction;
+        modelAction = actionWithMiddleware(
+          modelAction,
+          resolvedOptions.use
+        ) as ModelAction;
       }
-      return new GenerateResponse<z.infer<O>>(await modelAction(request), request)
+      return new GenerateResponse<z.infer<O>>(
+        await modelAction(request),
+        request
+      );
     }
   );
 
