@@ -21,7 +21,6 @@ import {
   runWithStreamingCallback,
   StreamingCallback,
 } from '@genkit-ai/core';
-import { lookupAction } from '@genkit-ai/core/registry';
 import { toJsonSchema, validateSchema } from '@genkit-ai/core/schema';
 import { z } from 'zod';
 import { DocumentData } from './document.js';
@@ -36,8 +35,8 @@ import {
   MessageData,
   ModelAction,
   ModelArgument,
-  ModelReference,
   Part,
+  resolveModel as resolveModelFromRegistry,
   Role,
   ToolRequestPart,
   ToolResponsePart,
@@ -538,14 +537,7 @@ async function resolveModel(options: GenerateOptions): Promise<ModelAction> {
       throw new Error('Unable to resolve model.');
     }
   }
-  if (typeof model === 'string') {
-    return (await lookupAction(`/model/${model}`)) as ModelAction;
-  } else if (model.hasOwnProperty('info')) {
-    const ref = model as ModelReference<any>;
-    return (await lookupAction(`/model/${ref.name}`)) as ModelAction;
-  } else {
-    return model as ModelAction;
-  }
+  return resolveModelFromRegistry(model);
 }
 
 export class NoValidCandidatesError extends GenkitError {
