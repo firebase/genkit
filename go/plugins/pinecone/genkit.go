@@ -82,7 +82,7 @@ type Config struct {
 	TextKey string
 }
 
-func DefineIndexer(ctx context.Context, cfg Config) (*ai.IndexerAction, error) {
+func DefineIndexer(ctx context.Context, cfg Config) (*ai.Indexer, error) {
 	ds, err := newDocStore(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -90,7 +90,7 @@ func DefineIndexer(ctx context.Context, cfg Config) (*ai.IndexerAction, error) {
 	return ai.DefineIndexer(provider, cfg.IndexID, ds.Index), nil
 }
 
-func DefineRetriever(ctx context.Context, cfg Config) (*ai.RetrieverAction, error) {
+func DefineRetriever(ctx context.Context, cfg Config) (*ai.Retriever, error) {
 	ds, err := newDocStore(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -131,12 +131,12 @@ func newDocStore(ctx context.Context, cfg Config) (*docStore, error) {
 }
 
 // Indexer returns the indexer with the given index name.
-func Indexer(name string) *ai.IndexerAction {
+func Indexer(name string) *ai.Indexer {
 	return ai.LookupIndexer(provider, name)
 }
 
 // Retriever returns the retriever with the given index name.
-func Retriever(name string) *ai.RetrieverAction {
+func Retriever(name string) *ai.Retriever {
 	return ai.LookupRetriever(provider, name)
 }
 

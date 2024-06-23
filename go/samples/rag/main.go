@@ -109,7 +109,7 @@ func main() {
 		indexerReq := &ai.IndexerRequest{
 			Documents: []*ai.Document{d1, d2, d3},
 		}
-		err := ai.Index(ctx, indexer, indexerReq)
+		err := indexer.Index(ctx, indexerReq)
 		if err != nil {
 			return "", err
 		}
@@ -118,7 +118,7 @@ func main() {
 		retrieverReq := &ai.RetrieverRequest{
 			Document: dRequest,
 		}
-		response, err := ai.Retrieve(ctx, retriever, retrieverReq)
+		response, err := retriever.Retrieve(ctx, retrieverReq)
 		if err != nil {
 			return "", err
 		}
