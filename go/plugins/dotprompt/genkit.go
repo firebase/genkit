@@ -187,9 +187,9 @@ func (p *Prompt) Generate(ctx context.Context, pr *PromptRequest, cb func(contex
 		genReq.Context = pr.Context
 	}
 
-	model := p.ModelAction
+	model := p.Model
 	if model == nil {
-		modelName := p.Model
+		modelName := p.ModelName
 		if pr.Model != "" {
 			modelName = pr.Model
 		}
@@ -207,7 +207,7 @@ func (p *Prompt) Generate(ctx context.Context, pr *PromptRequest, cb func(contex
 		}
 	}
 
-	resp, err := ai.Generate(ctx, model, genReq, cb)
+	resp, err := model.Generate(ctx, genReq, cb)
 	if err != nil {
 		return nil, err
 	}

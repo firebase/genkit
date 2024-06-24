@@ -116,7 +116,7 @@ func TestLive(t *testing.T) {
 			},
 		}
 
-		resp, err := ai.Generate(ctx, model, req, nil)
+		resp, err := model.Generate(ctx, req, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -145,7 +145,7 @@ func TestLive(t *testing.T) {
 
 		out := ""
 		parts := 0
-		final, err := ai.Generate(ctx, model, req, func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+		final, err := model.Generate(ctx, req, func(ctx context.Context, c *ai.GenerateResponseChunk) error {
 			parts++
 			out += c.Content[0].Text
 			return nil
@@ -184,7 +184,7 @@ func TestLive(t *testing.T) {
 			Tools: []*ai.ToolDefinition{toolDef},
 		}
 
-		resp, err := ai.Generate(ctx, model, req, nil)
+		resp, err := model.Generate(ctx, req, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

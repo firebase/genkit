@@ -81,12 +81,12 @@ type Config struct {
 	// The prompt variant.
 	Variant string
 	// The name of the model for which the prompt is input.
-	// If this is non-empty, ModelAction should be nil.
-	Model string
+	// If this is non-empty, Model should be nil.
+	ModelName string
 
-	// The ModelAction to use.
+	// The Model to use.
 	// If this is non-nil, Model should be the empty string.
-	ModelAction *ai.ModelAction
+	Model *ai.Model
 
 	// TODO(iant): document
 	Tools []*ai.ToolDefinition
@@ -224,7 +224,7 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 
 	ret := Config{
 		Variant:          fy.Variant,
-		Model:            fy.Model,
+		ModelName:        fy.Model,
 		Tools:            fy.Tools,
 		Candidates:       fy.Candidates,
 		GenerationConfig: fy.Config,
@@ -289,10 +289,10 @@ func Define(name, templateText string, cfg Config) (*Prompt, error) {
 // This may be used for testing or for direct calls not using the
 // genkit action and flow mechanisms.
 func New(name, templateText string, cfg Config) (*Prompt, error) {
-	if cfg.Model == "" && cfg.ModelAction == nil {
+	if cfg.ModelName == "" && cfg.Model == nil {
 		return nil, errors.New("dotprompt.New: config must specify either Model or ModelAction")
 	}
-	if cfg.Model != "" && cfg.ModelAction != nil {
+	if cfg.ModelName != "" && cfg.Model != nil {
 		return nil, errors.New("dotprompt.New: config must specify exactly one of Model and ModelAction")
 	}
 	hash := fmt.Sprintf("%02x", sha256.Sum256([]byte(templateText)))

@@ -110,8 +110,8 @@ func TestPrompts(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if prompt.Model != test.model {
-				t.Errorf("got model %q want %q", prompt.Model, test.model)
+			if prompt.ModelName != test.model {
+				t.Errorf("got model %q want %q", prompt.ModelName, test.model)
 			}
 			if diff := cmpSchema(t, prompt.InputSchema, test.input); diff != "" {
 				t.Errorf("input schema mismatch (-want, +got):\n%s", diff)
