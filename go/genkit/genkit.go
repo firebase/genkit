@@ -23,6 +23,37 @@ import (
 	"github.com/firebase/genkit/go/core"
 )
 
+// Options are options to [Init].
+type Options struct {
+	// If "-", do not start a FlowServer.
+	// Otherwise, start a FlowServer on the given address, or the
+	// default of ":3400" if empty.
+	FlowAddr string
+	// The names of flows to serve.
+	// If empty, all registered flows are served.
+	Flows []string
+}
+
+// Init initializes Genkit.
+// After it is called, no further actions can be defined.
+//
+// Init starts servers depending on the value of the GENKIT_ENV
+// environment variable and the provided options.
+//
+// If GENKIT_ENV = "dev", a development server is started
+// in a separate goroutine at the address in opts.DevAddr, or the default
+// of ":3100" if empty.
+//
+// If opts.FlowAddr is a value other than "-", a flow server is started (see [StartFlowServer])
+// and the call to Init waits for the server to shut down.
+// If opts.FlowAddr == "-", no flow server is started and Init returns immediately.
+//
+// Thus Init(nil) will start a dev server in the "dev" environment, will always start
+// a flow server, and will pause execution until the flow server terminates.
+func Init(opts *Options) error {
+	return core.InternalInit((*core.Options)(opts))
+}
+
 // DefineFlow creates a Flow that runs fn, and registers it as an action.
 //
 // fn takes an input of type In and returns an output of type Out.
@@ -120,11 +151,13 @@ var errStop = errors.New("stop")
 // a dev server.
 //
 // StartFlowServer always returns a non-nil error, the one returned by http.ListenAndServe.
-func StartFlowServer(addr string) error {
-	return core.StartFlowServer(addr)
+func StartFlowServer(addr string, flows []string) error {
+	return core.StartFlowServer(addr, flows)
 }
 
-// NewFlowServeMux constructs a [net/http.ServeMux] where each defined flow is a route.
+// NewFlowServeMux constructs a [net/http.ServeMux].
+// If flows is non-empty, the each of the named flows is registered as a route.
+// Otherwise, all defined flows are registered.
 // All routes take a single query parameter, "stream", which if true will stream the
 // flow's results back to the client. (Not all flows support streaming, however.)
 //
@@ -133,6 +166,6 @@ func StartFlowServer(addr string) error {
 //
 //	mainMux := http.NewServeMux()
 //	mainMux.Handle("POST /flow/", http.StripPrefix("/flow/", NewFlowServeMux()))
-func NewFlowServeMux() *http.ServeMux {
-	return core.NewFlowServeMux()
+func NewFlowServeMux(flows []string) *http.ServeMux {
+	return core.NewFlowServeMux(flows)
 }

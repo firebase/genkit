@@ -23,6 +23,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
@@ -38,12 +39,39 @@ const provider = "pinecone"
 // documents in pinecone.
 const defaultTextKey = "_content"
 
-// Config provides configuration options for the Init function.
+var state struct {
+	mu      sync.Mutex
+	initted bool
+	client  *client
+}
+
+// Init initializes the Pinecone plugin.
+// If apiKey is the empty string, it is read from the PINECONE_API_KEY
+// environment variable.
+func Init(ctx context.Context, apiKey string) (err error) {
+	// Init initializes the Pinecone plugin.
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if state.initted {
+		panic("pinecone.Init already called")
+	}
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("pinecone.Init: %w", err)
+		}
+	}()
+
+	client, err := newClient(ctx, apiKey)
+	if err != nil {
+		return err
+	}
+	state.client = client
+	state.initted = true
+	return nil
+}
+
+// Config provides configuration options for [DefineIndexer] and [DefineRetriever].
 type Config struct {
-	// API key for Pinecone.
-	// If it is the empty string, it is read from the PINECONE_API_KEY
-	// environment variable.
-	APIKey string
 	// The index ID to use.
 	IndexID string
 	// Embedder to use. Required.
@@ -54,54 +82,61 @@ type Config struct {
 	TextKey string
 }
 
-// Init initializes the Pinecone plugin.
-func Init(ctx context.Context, cfg Config) (err error) {
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("pinecone.Init: %w", err)
-		}
-	}()
+func DefineIndexer(ctx context.Context, cfg Config) (*ai.Indexer, error) {
+	ds, err := newDocStore(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return ai.DefineIndexer(provider, cfg.IndexID, ds.Index), nil
+}
 
+func DefineRetriever(ctx context.Context, cfg Config) (*ai.Retriever, error) {
+	ds, err := newDocStore(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	return ai.DefineRetriever(provider, cfg.IndexID, ds.Retrieve), nil
+}
+
+func newDocStore(ctx context.Context, cfg Config) (*docStore, error) {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if !state.initted {
+		panic("pinecone.Init not called")
+	}
 	if cfg.IndexID == "" {
-		return errors.New("IndexID required")
+		return nil, errors.New("IndexID required")
 	}
 	if cfg.Embedder == nil {
-		return errors.New("Embedder required")
+		return nil, errors.New("Embedder required")
 	}
-
-	client, err := newClient(ctx, cfg.APIKey)
+	// TODO(jba): cache these calls so we don't make them twice for the indexer and retriever.
+	indexData, err := state.client.indexData(ctx, cfg.IndexID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	indexData, err := client.indexData(ctx, cfg.IndexID)
+	index, err := state.client.index(ctx, indexData.Host)
 	if err != nil {
-		return err
-	}
-	index, err := client.index(ctx, indexData.Host)
-	if err != nil {
-		return err
+		return nil, err
 	}
 	if cfg.TextKey == "" {
 		cfg.TextKey = defaultTextKey
 	}
-	r := &docStore{
+	return &docStore{
 		index:           index,
 		embedder:        cfg.Embedder,
 		embedderOptions: cfg.EmbedderOptions,
 		textKey:         cfg.TextKey,
-	}
-	ai.DefineIndexer(provider, cfg.IndexID, r.Index)
-	ai.DefineRetriever(provider, cfg.IndexID, r.Retrieve)
-	return nil
+	}, nil
 }
 
 // Indexer returns the indexer with the given index name.
-func Indexer(name string) *ai.IndexerAction {
+func Indexer(name string) *ai.Indexer {
 	return ai.LookupIndexer(provider, name)
 }
 
 // Retriever returns the retriever with the given index name.
-func Retriever(name string) *ai.RetrieverAction {
+func Retriever(name string) *ai.Retriever {
 	return ai.LookupRetriever(provider, name)
 }
 

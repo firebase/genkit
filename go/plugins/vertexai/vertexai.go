@@ -16,9 +16,9 @@ package vertexai
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"runtime"
+	"sync"
 
 	aiplatform "cloud.google.com/go/aiplatform/apiv1"
 	"cloud.google.com/go/vertexai/genai"
@@ -30,82 +30,75 @@ import (
 
 const provider = "vertexai"
 
-// Config provides configuration options for the Init function.
-type Config struct {
-	// The project holding the resources.
-	ProjectID string
-	// The location of the resources.
-	// Defaults to "us-central1".
-	Location string
-	// Generative models to provide.
-	Models []string
-	// Embedding models to provide.
-	Embedders []string
+var state struct {
+	mu        sync.Mutex
+	initted   bool
+	projectID string
+	location  string
+	gclient   *genai.Client
+	pclient   *aiplatform.PredictionClient
 }
 
-func Init(ctx context.Context, cfg Config) (err error) {
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("vertexai.Init: %w", err)
-		}
-	}()
-
-	if cfg.ProjectID == "" {
-		return errors.New("missing ProjectID")
+// Init initializes the plugin.
+// After calling this function, call [DefineModel] and [DefineEmbedder] to create and register
+// generative models and embedders.
+func Init(ctx context.Context, projectID, location string) error {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if state.initted {
+		panic("vertexai.Init already called")
 	}
-	if cfg.Location == "" {
-		cfg.Location = "us-central1"
-	}
-	// TODO(#345): call ListModels. See googleai.go.
-	if len(cfg.Models) == 0 && len(cfg.Embedders) == 0 {
-		return errors.New("need at least one model or embedder")
-	}
-
-	if err := initModels(ctx, cfg); err != nil {
-		return err
-	}
-	return initEmbedders(ctx, cfg)
-}
-
-func initModels(ctx context.Context, cfg Config) error {
+	state.projectID = projectID
+	state.location = location
+	var err error
 	// Client for Gemini SDK.
-	gclient, err := genai.NewClient(ctx, cfg.ProjectID, cfg.Location)
+	state.gclient, err = genai.NewClient(ctx, projectID, location)
 	if err != nil {
 		return err
 	}
-	for _, name := range cfg.Models {
-		meta := &ai.ModelMetadata{
-			Label: "Vertex AI - " + name,
-			Supports: ai.ModelCapabilities{
-				Multiturn: true,
-			},
-		}
-		g := &generator{model: name, client: gclient}
-		ai.DefineModel(provider, name, meta, g.generate)
-	}
-	return nil
-}
-
-func initEmbedders(ctx context.Context, cfg Config) error {
-	// Client for prediction SDK.
-	endpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", cfg.Location)
+	endpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
 	numConns := max(runtime.GOMAXPROCS(0), 4)
 	o := []option.ClientOption{
 		option.WithEndpoint(endpoint),
 		option.WithGRPCConnectionPool(numConns),
 	}
 
-	pclient, err := aiplatform.NewPredictionClient(ctx, o...)
+	state.pclient, err = aiplatform.NewPredictionClient(ctx, o...)
 	if err != nil {
 		return err
 	}
-	for _, name := range cfg.Embedders {
-		fullName := fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s", cfg.ProjectID, cfg.Location, name)
-		ai.DefineEmbedder(provider, name, func(ctx context.Context, req *ai.EmbedRequest) ([]float32, error) {
-			return embed(ctx, fullName, pclient, req)
-		})
-	}
+	state.initted = true
 	return nil
+}
+
+// DefineModel defines a model with the given name.
+func DefineModel(name string) *ai.ModelAction {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if !state.initted {
+		panic("vertexai.Init not called")
+	}
+	meta := &ai.ModelMetadata{
+		Label: "Vertex AI - " + name,
+		Supports: ai.ModelCapabilities{
+			Multiturn: true,
+		},
+	}
+	g := &generator{model: name, client: state.gclient}
+	return ai.DefineModel(provider, name, meta, g.generate)
+}
+
+// DefineModel defines an embedder with the given name.
+func DefineEmbedder(name string) *ai.EmbedderAction {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if !state.initted {
+		panic("vertexai.Init not called")
+	}
+	fullName := fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s", state.projectID, state.location, name)
+	return ai.DefineEmbedder(provider, name, func(ctx context.Context, req *ai.EmbedRequest) ([]float32, error) {
+		return embed(ctx, fullName, state.pclient, req)
+	})
 }
 
 // Model returns the [ai.ModelAction] with the given name.
@@ -304,6 +297,12 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.GenerateResponse
 	r := &ai.GenerateResponse{}
 	for _, c := range resp.Candidates {
 		r.Candidates = append(r.Candidates, translateCandidate(c))
+	}
+	r.Usage = &ai.GenerationUsage{}
+	if u := resp.UsageMetadata; u != nil {
+		r.Usage.InputTokens = int(u.PromptTokenCount)
+		r.Usage.OutputTokens = int(u.CandidatesTokenCount)
+		r.Usage.TotalTokens = int(u.TotalTokenCount)
 	}
 	return r
 }

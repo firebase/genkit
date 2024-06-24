@@ -40,15 +40,12 @@ func TestLive(t *testing.T) {
 	ctx := context.Background()
 	const modelName = "gemini-1.0-pro"
 	const embedderName = "textembedding-gecko"
-	err := vertexai.Init(ctx, vertexai.Config{
-		ProjectID: *projectID,
-		Location:  *location,
-		Models:    []string{modelName},
-		Embedders: []string{embedderName},
-	})
+	err := vertexai.Init(ctx, *projectID, *location)
 	if err != nil {
 		t.Fatal(err)
 	}
+	model := vertexai.DefineModel(modelName)
+	embedder := vertexai.DefineEmbedder(embedderName)
 
 	toolDef := &ai.ToolDefinition{
 		Name:         "exponentiation",
@@ -94,7 +91,7 @@ func TestLive(t *testing.T) {
 			},
 		}
 
-		resp, err := ai.Generate(ctx, vertexai.Model(modelName), req, nil)
+		resp, err := ai.Generate(ctx, model, req, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -104,6 +101,9 @@ func TestLive(t *testing.T) {
 		}
 		if resp.Request != req {
 			t.Error("Request field not set properly")
+		}
+		if resp.Usage.InputTokens == 0 || resp.Usage.OutputTokens == 0 || resp.Usage.TotalTokens == 0 {
+			t.Errorf("Empty usage stats %#v", *resp.Usage)
 		}
 	})
 	t.Run("streaming", func(t *testing.T) {
@@ -145,6 +145,10 @@ func TestLive(t *testing.T) {
 			// Check if streaming actually occurred.
 			t.Errorf("expecting more than one part")
 		}
+		if final.Usage.InputTokens == 0 || final.Usage.OutputTokens == 0 || final.Usage.TotalTokens == 0 {
+			// TODO: vertexai client doesn't return stats in streaming mode.
+			//t.Errorf("Empty usage stats %#v", *final.Usage)
+		}
 	})
 	t.Run("tool", func(t *testing.T) {
 		req := &ai.GenerateRequest{
@@ -158,7 +162,7 @@ func TestLive(t *testing.T) {
 			Tools: []*ai.ToolDefinition{toolDef},
 		}
 
-		resp, err := ai.Generate(ctx, vertexai.Model(modelName), req, nil)
+		resp, err := ai.Generate(ctx, model, req, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -169,7 +173,7 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("embedder", func(t *testing.T) {
-		out, err := ai.Embed(ctx, vertexai.Embedder(embedderName), &ai.EmbedRequest{
+		out, err := ai.Embed(ctx, embedder, &ai.EmbedRequest{
 			Document: ai.DocumentFromText("time flies like an arrow", nil),
 		})
 		if err != nil {

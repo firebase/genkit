@@ -30,24 +30,24 @@ import (
 // The tests here only work with an API key set to a valid value.
 var apiKey = flag.String("key", "", "Gemini API key")
 
-const (
-	embeddingModel  = "embedding-001"
-	generativeModel = "gemini-1.0-pro"
-)
+// We can't test the DefineAll functions along with the other tests because
+// we get duplicate definitions of models.
+var testAll = flag.Bool("all", false, "test DefineAllXXX functions")
 
 func TestLive(t *testing.T) {
 	if *apiKey == "" {
 		t.Skipf("no -key provided")
 	}
+	if *testAll {
+		t.Skip("-all provided")
+	}
 	ctx := context.Background()
-	err := googleai.Init(ctx, googleai.Config{
-		APIKey:    *apiKey,
-		Embedders: []string{embeddingModel},
-		Models:    []string{generativeModel},
-	})
+	err := googleai.Init(ctx, *apiKey)
 	if err != nil {
 		t.Fatal(err)
 	}
+	embedder := googleai.DefineEmbedder("embedding-001")
+	model := googleai.DefineModel("gemini-1.0-pro")
 	toolDef := &ai.ToolDefinition{
 		Name:         "exponentiation",
 		InputSchema:  map[string]any{"base": "float64", "exponent": "int"},
@@ -82,7 +82,7 @@ func TestLive(t *testing.T) {
 		},
 	)
 	t.Run("embedder", func(t *testing.T) {
-		out, err := ai.Embed(ctx, googleai.Embedder(embeddingModel), &ai.EmbedRequest{
+		out, err := ai.Embed(ctx, embedder, &ai.EmbedRequest{
 			Document: ai.DocumentFromText("yellow banana", nil),
 		})
 		if err != nil {
@@ -103,7 +103,6 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("generate", func(t *testing.T) {
-		g := googleai.Model(generativeModel)
 		req := &ai.GenerateRequest{
 			Candidates: 1,
 			Messages: []*ai.Message{
@@ -114,7 +113,7 @@ func TestLive(t *testing.T) {
 			},
 		}
 
-		resp, err := ai.Generate(ctx, g, req, nil)
+		resp, err := ai.Generate(ctx, model, req, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -125,6 +124,9 @@ func TestLive(t *testing.T) {
 		}
 		if resp.Request != req {
 			t.Error("Request field not set properly")
+		}
+		if resp.Usage.InputTokens == 0 || resp.Usage.OutputTokens == 0 || resp.Usage.TotalTokens == 0 {
+			t.Errorf("Empty usage stats %#v", *resp.Usage)
 		}
 	})
 	t.Run("streaming", func(t *testing.T) {
@@ -140,8 +142,7 @@ func TestLive(t *testing.T) {
 
 		out := ""
 		parts := 0
-		g := googleai.Model(generativeModel)
-		final, err := ai.Generate(ctx, g, req, func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+		final, err := ai.Generate(ctx, model, req, func(ctx context.Context, c *ai.GenerateResponseChunk) error {
 			parts++
 			out += c.Content[0].Text
 			return nil
@@ -164,6 +165,9 @@ func TestLive(t *testing.T) {
 			// Check if streaming actually occurred.
 			t.Errorf("expecting more than one part")
 		}
+		if final.Usage.InputTokens == 0 || final.Usage.OutputTokens == 0 || final.Usage.TotalTokens == 0 {
+			t.Errorf("Empty usage stats %#v", *final.Usage)
+		}
 	})
 	t.Run("tool", func(t *testing.T) {
 		req := &ai.GenerateRequest{
@@ -177,7 +181,7 @@ func TestLive(t *testing.T) {
 			Tools: []*ai.ToolDefinition{toolDef},
 		}
 
-		resp, err := ai.Generate(ctx, googleai.Model(generativeModel), req, nil)
+		resp, err := ai.Generate(ctx, model, req, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -188,4 +192,22 @@ func TestLive(t *testing.T) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 	})
+}
+
+func TestAllModels(t *testing.T) {
+	if !*testAll {
+		t.Skip("-all not set")
+	}
+	ctx := context.Background()
+	if err := googleai.Init(ctx, *apiKey); err != nil {
+		t.Fatal(err)
+	}
+	mods, err := googleai.DefineAllModels(ctx)
+	if err != nil || len(mods) == 0 {
+		t.Fatalf("got %d, %v, want >0, nil", len(mods), err)
+	}
+	embs, err := googleai.DefineAllEmbedders(ctx)
+	if err != nil || len(embs) == 0 {
+		t.Fatalf("got %d, %v, want >0, nil", len(mods), err)
+	}
 }
