@@ -20,7 +20,9 @@ export const menuSuggestionFlow = onFlow(
     inputSchema: z.string(),
     outputSchema: z.string(),
     authPolicy: firebaseAuth((user) => {
-      // TODO: insert authorization logic. For example:
+      // Firebase Auth is required to call this flow using the Firebase Functions SDK.
+      // TODO: Write additional logic tailored to the needs of your app.
+      // For example:
       // if (!user.email_verified) {
       //   throw new Error("Verified email required to run flow");
       // }
