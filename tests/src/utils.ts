@@ -53,7 +53,7 @@ export async function startDevUi(testAppName: string): Promise<string> {
   fs.mkdirSync(testRoot, { recursive: true });
   fs.cpSync(testAppName, testRoot, { recursive: true });
   const distDir = path.resolve(process.cwd(), '../dist');
-  execSync(`npm i --save ${distDir}/*.tgz`, {
+  execSync(`pnpm i --save ${distDir}/*.tgz`, {
     stdio: 'inherit',
     cwd: testRoot,
   });
