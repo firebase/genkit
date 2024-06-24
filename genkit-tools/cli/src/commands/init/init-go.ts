@@ -17,9 +17,6 @@ interface ModelOption {
   lookup: string;
 }
 
-/** List of files that may be modified in this command. */
-const modifiedFiles = ['go.mod', 'go.sum', 'main.go', 'genkit.go'];
-
 /** Path to Genkit sample template. */
 const templatePath = '../../../config/main.go.template';
 
