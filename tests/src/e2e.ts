@@ -28,8 +28,8 @@ runDevUiTest('test_js_app', async (page, url) => {
   // it takes a sec for monaco to "focus"
   await new Promise((r) => setTimeout(r, 1000));
 
-  await editor!.press('Backspace')
-  await editor!.press('Backspace')
+  await editor!.press('Backspace');
+  await editor!.press('Backspace');
   await editor!.type('"hello world"');
 
   const runFlowButton = await page.waitForSelector('button ::-p-text(Run)');
@@ -37,9 +37,7 @@ runDevUiTest('test_js_app', async (page, url) => {
 
   await page.waitForSelector('text/Test flow passed');
 
-  const inspectFlowButton = await page.waitForSelector(
-    'text/View trace'
-  );
+  const inspectFlowButton = await page.waitForSelector('text/View trace');
   inspectFlowButton?.click();
 
   await page.waitForSelector('text/testFlow');
