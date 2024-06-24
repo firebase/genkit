@@ -18,7 +18,7 @@ func $GENKIT_FUNC_NAME() {
 
 	genkit.DefineFlow("menuSuggestionFlow", func(ctx context.Context, input string) (string, error) {
 		m := $GENKIT_MODEL_LOOKUP
-		resp, err := ai.Generate(ctx, m, &ai.GenerateRequest{
+		resp, err := m.Generate(ctx, &ai.GenerateRequest{
 			Messages: []*ai.Message{
 				{
 					Content: []*ai.Part{
