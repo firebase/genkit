@@ -57,6 +57,8 @@ For more information:
 - [Genkit plugins on npm](https://www.npmjs.com/search?q=keywords:genkit-plugin)
 - [Writing Genkit plugins](https://firebase.google.com/docs/genkit/plugin-authoring)
 
+You can also find several samples built by the Genkit community in this [repository](https://github.com/TheFireCo/genkit-plugins). Keep in mind these are not developed or supported by the Genkit core team.
+
 ### Deployment
 
 **Deploy your AI feature with a single command** through the Firebase or Google Cloud CLI to:
@@ -107,7 +109,5 @@ Genkit is an open source framework, and we welcome contributions. Information on
 Please use our GitHub [issue tracker](https://github.com/firebase/genkit/issues) to file feedback and feature requests.
 
 You can also reach out to us using the GitHub [discussion](https://github.com/firebase/genkit/discussions) forums.
-
-You can also find several samples built by the Genkit community in this [repository](https://github.com/TheFireCo/genkit-plugins). Keep in mind these are not developed or supported by the Genkit core team.
 
 Firebase Genkit Team
