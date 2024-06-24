@@ -145,24 +145,3 @@ export async function confirm(args: {
   });
   return answer.confirm;
 }
-
-/**
- * Copies files in the list between directories.
- */
-export function copyFiles(
-  sourceDir: string,
-  destDir: string,
-  fileList: string[]
-): void {
-  fs.mkdirSync(destDir, { recursive: true });
-
-  for (const file of fileList) {
-    const sourcePath = path.join(sourceDir, file);
-    const destPath = path.join(destDir, file);
-
-    if (fs.existsSync(sourcePath)) {
-      fs.mkdirSync(path.dirname(destPath), { recursive: true });
-      fs.copyFileSync(sourcePath, destPath);
-    }
-  }
-}
