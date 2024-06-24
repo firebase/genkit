@@ -96,7 +96,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	indexer, retriever, err := localvec.DefineStore("go-menu_items", localvec.Config{
+	indexer, retriever, err := localvec.DefineIndexerAndRetriever("go-menu_items", localvec.Config{
 		Embedder: embedder,
 	})
 	if err := setup04(ctx, indexer, retriever, model); err != nil {

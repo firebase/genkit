@@ -46,9 +46,9 @@ type Config struct {
 // Init initializes the plugin.
 func Init() error { return nil }
 
-// DefineStore defines an indexer and retriever that share the same underlying storage.
-// The name uniquely identifies the the indexer and retriever in the registry.
-func DefineStore(name string, cfg Config) (*ai.Indexer, *ai.Retriever, error) {
+// DefineIndexerAndRetriever defines an Indexer and Retriever that share the same underlying storage.
+// The name uniquely identifies the the Indexer and Retriever in the registry.
+func DefineIndexerAndRetriever(name string, cfg Config) (*ai.Indexer, *ai.Retriever, error) {
 	ds, err := newDocStore(cfg.Dir, name, cfg.Embedder, cfg.EmbedderOptions)
 	if err != nil {
 		return nil, nil, err

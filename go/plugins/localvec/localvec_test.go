@@ -193,7 +193,7 @@ func TestInit(t *testing.T) {
 		t.Fatal(err)
 	}
 	const name = "mystore"
-	ind, ret, err := DefineStore(name, Config{Embedder: embedder})
+	ind, ret, err := DefineIndexerAndRetriever(name, Config{Embedder: embedder})
 	if err != nil {
 		t.Fatal(err)
 	}
