@@ -23,7 +23,7 @@ import * as z from 'zod';
 
 defineModel(
   {
-    name: 'custom/reflector',
+    name: 'customReflector',
   },
   async (input) => {
     return {
@@ -57,7 +57,7 @@ export const testFlow = defineFlow(
   { name: 'testFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (subject) => {
     const response = await generate({
-      model: 'custom/reflector',
+      model: 'customReflector',
       prompt: subject,
     });
 
