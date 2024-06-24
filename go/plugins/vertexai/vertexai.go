@@ -72,7 +72,7 @@ func Init(ctx context.Context, projectID, location string) error {
 }
 
 // DefineModel defines a model with the given name.
-func DefineModel(name string) *ai.ModelAction {
+func DefineModel(name string) *ai.Model {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
@@ -89,7 +89,7 @@ func DefineModel(name string) *ai.ModelAction {
 }
 
 // DefineModel defines an embedder with the given name.
-func DefineEmbedder(name string) *ai.EmbedderAction {
+func DefineEmbedder(name string) *ai.Embedder {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
@@ -101,15 +101,15 @@ func DefineEmbedder(name string) *ai.EmbedderAction {
 	})
 }
 
-// Model returns the [ai.ModelAction] with the given name.
+// Model returns the [ai.Model] with the given name.
 // It returns nil if the model was not configured.
-func Model(name string) *ai.ModelAction {
+func Model(name string) *ai.Model {
 	return ai.LookupModel(provider, name)
 }
 
-// Embedder returns the [ai.EmbedderAction] with the given name.
+// Embedder returns the [ai.Embedder] with the given name.
 // It returns nil if the embedder was not configured.
-func Embedder(name string) *ai.EmbedderAction {
+func Embedder(name string) *ai.Embedder {
 	return ai.LookupEmbedder(provider, name)
 }
 

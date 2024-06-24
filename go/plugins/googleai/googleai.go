@@ -18,8 +18,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path"
-	"slices"
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
@@ -35,10 +33,28 @@ var state struct {
 	mu      sync.Mutex
 	initted bool
 	client  *genai.Client
-	// Results from ListModels
-	modelNames    []string
-	embedderNames []string
 }
+
+var (
+	basicText = ai.ModelCapabilities{
+		Multiturn:  true,
+		Tools:      true,
+		SystemRole: true,
+		Media:      false,
+	}
+
+	multimodal = ai.ModelCapabilities{
+		Multiturn:  true,
+		Tools:      true,
+		SystemRole: true,
+		Media:      true,
+	}
+
+	knownCaps = map[string]ai.ModelCapabilities{
+		"gemini-1.0-pro":   basicText,
+		"gemini-1.5-flash": multimodal,
+	}
+)
 
 // Init initializes the plugin.
 // After calling Init, call [DefineModel] and [DefineEmbedder] to create and register
@@ -71,30 +87,48 @@ func Init(ctx context.Context, apiKey string) (err error) {
 	return nil
 }
 
+// IsKnownModel reports whether a model is known to this plugin.
+func IsKnownModel(name string) bool {
+	_, ok := knownCaps[name]
+	return ok
+}
+
 // DefineModel defines a model with the given name.
-func DefineModel(name string) *ai.ModelAction {
+// The second argument describes the capability of the model.
+// For known models, it can be nil, or if non-nil it will override the known value.
+// It must be supplied for unknown models.
+// Use [IsKnownModel] to determine if a model is known.
+func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
 		panic("googleai.Init not called")
 	}
-	return defineModel(name)
+	var mc ai.ModelCapabilities
+	if caps == nil {
+		var ok bool
+		mc, ok = knownCaps[name]
+		if !ok {
+			return nil, fmt.Errorf("googleai.DefineModel: called with unknown model %q and nil ModelCapabilities", name)
+		}
+	} else {
+		mc = *caps
+	}
+	return defineModel(name, mc), nil
 }
 
 // requires state.mu
-func defineModel(name string) *ai.ModelAction {
+func defineModel(name string, caps ai.ModelCapabilities) *ai.Model {
 	meta := &ai.ModelMetadata{
-		Label: "Google AI - " + name,
-		Supports: ai.ModelCapabilities{
-			Multiturn: true,
-		},
+		Label:    "Google AI - " + name,
+		Supports: caps,
 	}
 	g := generator{model: name, client: state.client}
 	return ai.DefineModel(provider, name, meta, g.generate)
 }
 
 // DefineEmbedder defines an embedder with a given name.
-func DefineEmbedder(name string) *ai.EmbedderAction {
+func DefineEmbedder(name string) *ai.Embedder {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
@@ -104,7 +138,7 @@ func DefineEmbedder(name string) *ai.EmbedderAction {
 }
 
 // requires state.mu
-func defineEmbedder(name string) *ai.EmbedderAction {
+func defineEmbedder(name string) *ai.Embedder {
 	return ai.DefineEmbedder(provider, name, func(ctx context.Context, input *ai.EmbedRequest) ([]float32, error) {
 		em := state.client.EmbeddingModel(name)
 		parts, err := convertParts(input.Document.Content)
@@ -119,75 +153,15 @@ func defineEmbedder(name string) *ai.EmbedderAction {
 	})
 }
 
-// DefineAllModels defines all models known to the service.
-func DefineAllModels(ctx context.Context) ([]*ai.ModelAction, error) {
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if !state.initted {
-		panic("googleai.Init not called")
-	}
-	if err := listModels(ctx); err != nil {
-		return nil, err
-	}
-	var mas []*ai.ModelAction
-	for _, mod := range state.modelNames {
-		mas = append(mas, defineModel(mod))
-	}
-	return mas, nil
-}
-
-// DefineAllEmbedders defines all embedders known to the service.
-func DefineAllEmbedders(ctx context.Context) ([]*ai.EmbedderAction, error) {
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	if !state.initted {
-		panic("googleai.Init not called")
-	}
-	if err := listModels(ctx); err != nil {
-		return nil, err
-	}
-	var eas []*ai.EmbedderAction
-	for _, em := range state.embedderNames {
-		eas = append(eas, defineEmbedder(em))
-	}
-	return eas, nil
-}
-
-// requires state.mu
-func listModels(ctx context.Context) error {
-	if len(state.modelNames) > 0 || len(state.embedderNames) > 0 {
-		// already called
-		return nil
-	}
-	iter := state.client.ListModels(ctx)
-	for {
-		mi, err := iter.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			return err
-		}
-		// Model names are of the form "models/name".
-		name := path.Base(mi.Name)
-		if slices.Contains(mi.SupportedGenerationMethods, "generateContent") {
-			state.modelNames = append(state.modelNames, name)
-		} else if slices.Contains(mi.SupportedGenerationMethods, "embedContent") {
-			state.embedderNames = append(state.embedderNames, name)
-		}
-	}
-	return nil
-}
-
 // Model returns the [ai.ModelAction] with the given name.
 // It returns nil if the model was not configured.
-func Model(name string) *ai.ModelAction {
+func Model(name string) *ai.Model {
 	return ai.LookupModel(provider, name)
 }
 
-// Embedder returns the [ai.EmbedderAction] with the given name.
+// Embedder returns the [ai.Embedder] with the given name.
 // It returns nil if the embedder was not configured.
-func Embedder(name string) *ai.EmbedderAction {
+func Embedder(name string) *ai.Embedder {
 	return ai.LookupEmbedder(provider, name)
 }
 

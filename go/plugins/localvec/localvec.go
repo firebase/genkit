@@ -39,16 +39,16 @@ const provider = "devLocalVectorStore"
 type Config struct {
 	// Where to store the data. Defaults to os.TempDir.
 	Dir             string
-	Embedder        *ai.EmbedderAction
+	Embedder        *ai.Embedder
 	EmbedderOptions any
 }
 
 // Init initializes the plugin.
 func Init() error { return nil }
 
-// DefineStore defines an indexer and retriever that share the same underlying storage.
-// The name uniquely identifies the the indexer and retriever in the registry.
-func DefineStore(name string, cfg Config) (*ai.Indexer, *ai.Retriever, error) {
+// DefineIndexerAndRetriever defines an Indexer and Retriever that share the same underlying storage.
+// The name uniquely identifies the the Indexer and Retriever in the registry.
+func DefineIndexerAndRetriever(name string, cfg Config) (*ai.Indexer, *ai.Retriever, error) {
 	ds, err := newDocStore(cfg.Dir, name, cfg.Embedder, cfg.EmbedderOptions)
 	if err != nil {
 		return nil, nil, err
@@ -73,7 +73,7 @@ func Retriever(name string) *ai.Retriever {
 // This is based on js/plugins/dev-local-vectorstore/src/index.ts.
 type docStore struct {
 	filename        string
-	embedder        *ai.EmbedderAction
+	embedder        *ai.Embedder
 	embedderOptions any
 	data            map[string]dbValue
 }
@@ -85,7 +85,7 @@ type dbValue struct {
 }
 
 // newDocStore returns a new ai.DocumentStore to register.
-func newDocStore(dir, name string, embedder *ai.EmbedderAction, embedderOptions any) (*docStore, error) {
+func newDocStore(dir, name string, embedder *ai.Embedder, embedderOptions any) (*docStore, error) {
 	if dir == "" {
 		dir = os.TempDir()
 	}
@@ -124,7 +124,7 @@ func (ds *docStore) index(ctx context.Context, req *ai.IndexerRequest) error {
 			Document: doc,
 			Options:  ds.embedderOptions,
 		}
-		vals, err := ai.Embed(ctx, ds.embedder, ereq)
+		vals, err := ds.embedder.Embed(ctx, ereq)
 		if err != nil {
 			return fmt.Errorf("localvec index embedding failed: %v", err)
 		}
@@ -186,7 +186,7 @@ func (ds *docStore) retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 		Document: req.Document,
 		Options:  ds.embedderOptions,
 	}
-	vals, err := ai.Embed(ctx, ds.embedder, ereq)
+	vals, err := ds.embedder.Embed(ctx, ereq)
 	if err != nil {
 		return nil, fmt.Errorf("localvec retrieve embedding failed: %v", err)
 	}

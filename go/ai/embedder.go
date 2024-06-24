@@ -21,9 +21,9 @@ import (
 	"github.com/firebase/genkit/go/internal/atype"
 )
 
-// EmbedderAction is used to convert a document to a
+// An Embedder is used to convert a document to a
 // multidimensional vector.
-type EmbedderAction = core.Action[*EmbedRequest, []float32, struct{}]
+type Embedder core.Action[*EmbedRequest, []float32, struct{}]
 
 // EmbedRequest is the data we pass to convert a document
 // to a multidimensional vector.
@@ -34,21 +34,22 @@ type EmbedRequest struct {
 
 // DefineEmbedder registers the given embed function as an action, and returns an
 // [EmbedderAction] that runs it.
-func DefineEmbedder(provider, name string, embed func(context.Context, *EmbedRequest) ([]float32, error)) *EmbedderAction {
-	return core.DefineAction(provider, name, atype.Embedder, nil, embed)
+func DefineEmbedder(provider, name string, embed func(context.Context, *EmbedRequest) ([]float32, error)) *Embedder {
+	return (*Embedder)(core.DefineAction(provider, name, atype.Embedder, nil, embed))
 }
 
 // LookupEmbedder looks up an [EmbedderAction] registered by [DefineEmbedder].
 // It returns nil if the embedder was not defined.
-func LookupEmbedder(provider, name string) *EmbedderAction {
+func LookupEmbedder(provider, name string) *Embedder {
 	action := core.LookupActionFor[*EmbedRequest, []float32, struct{}](atype.Embedder, provider, name)
 	if action == nil {
 		return nil
 	}
-	return action
+	return (*Embedder)(action)
 }
 
-// Embed runs the given [EmbedderAction].
-func Embed(ctx context.Context, emb *EmbedderAction, req *EmbedRequest) ([]float32, error) {
-	return emb.Run(ctx, req, nil)
+// Embed runs the given [Embedder].
+func (e *Embedder) Embed(ctx context.Context, req *EmbedRequest) ([]float32, error) {
+	a := (*core.Action[*EmbedRequest, []float32, struct{}])(e)
+	return a.Run(ctx, req, nil)
 }

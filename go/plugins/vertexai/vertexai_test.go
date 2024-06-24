@@ -91,7 +91,7 @@ func TestLive(t *testing.T) {
 			},
 		}
 
-		resp, err := ai.Generate(ctx, model, req, nil)
+		resp, err := model.Generate(ctx, req, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -120,7 +120,7 @@ func TestLive(t *testing.T) {
 		out := ""
 		parts := 0
 		model := vertexai.Model(modelName)
-		final, err := ai.Generate(ctx, model, req, func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+		final, err := model.Generate(ctx, req, func(ctx context.Context, c *ai.GenerateResponseChunk) error {
 			parts++
 			for _, p := range c.Content {
 				out += p.Text
@@ -162,7 +162,7 @@ func TestLive(t *testing.T) {
 			Tools: []*ai.ToolDefinition{toolDef},
 		}
 
-		resp, err := ai.Generate(ctx, model, req, nil)
+		resp, err := model.Generate(ctx, req, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -173,7 +173,7 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("embedder", func(t *testing.T) {
-		out, err := ai.Embed(ctx, embedder, &ai.EmbedRequest{
+		out, err := embedder.Embed(ctx, &ai.EmbedRequest{
 			Document: ai.DocumentFromText("time flies like an arrow", nil),
 		})
 		if err != nil {

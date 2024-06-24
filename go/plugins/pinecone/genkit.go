@@ -75,13 +75,14 @@ type Config struct {
 	// The index ID to use.
 	IndexID string
 	// Embedder to use. Required.
-	Embedder        *ai.EmbedderAction
+	Embedder        *ai.Embedder
 	EmbedderOptions any
 	// The metadata key to use to store document text
 	// in Pinecone; the default is "_content".
 	TextKey string
 }
 
+// DefineIndexer defines an Indexer with the given configuration.
 func DefineIndexer(ctx context.Context, cfg Config) (*ai.Indexer, error) {
 	ds, err := newDocStore(ctx, cfg)
 	if err != nil {
@@ -90,6 +91,7 @@ func DefineIndexer(ctx context.Context, cfg Config) (*ai.Indexer, error) {
 	return ai.DefineIndexer(provider, cfg.IndexID, ds.Index), nil
 }
 
+// DefineRetriever defines a Retriever with the given configuration.
 func DefineRetriever(ctx context.Context, cfg Config) (*ai.Retriever, error) {
 	ds, err := newDocStore(ctx, cfg)
 	if err != nil {
@@ -158,7 +160,7 @@ type RetrieverOptions struct {
 // docStore implements the genkit [ai.DocumentStore] interface.
 type docStore struct {
 	index           *index
-	embedder        *ai.EmbedderAction
+	embedder        *ai.Embedder
 	embedderOptions any
 	textKey         string
 }
@@ -188,7 +190,7 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 			Document: doc,
 			Options:  ds.embedderOptions,
 		}
-		vals, err := ai.Embed(ctx, ds.embedder, ereq)
+		vals, err := ds.embedder.Embed(ctx, ereq)
 		if err != nil {
 			return fmt.Errorf("pinecone index embedding failed: %v", err)
 		}
@@ -283,7 +285,7 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 		Document: req.Document,
 		Options:  ds.embedderOptions,
 	}
-	vals, err := ai.Embed(ctx, ds.embedder, ereq)
+	vals, err := ds.embedder.Embed(ctx, ereq)
 	if err != nil {
 		return nil, fmt.Errorf("pinecone retrieve embedding failed: %v", err)
 	}

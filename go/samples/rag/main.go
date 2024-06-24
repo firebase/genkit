@@ -79,12 +79,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	model := googleai.DefineModel("gemini-1.0-pro")
+	model, err := googleai.DefineModel("gemini-1.0-pro", nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 	embedder := googleai.DefineEmbedder("embedding-001")
 	if err := localvec.Init(); err != nil {
 		log.Fatal(err)
 	}
-	indexer, retriever, err := localvec.DefineStore("simpleQa", localvec.Config{Embedder: embedder})
+	indexer, retriever, err := localvec.DefineIndexerAndRetriever("simpleQa", localvec.Config{Embedder: embedder})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -92,7 +95,7 @@ func main() {
 	simpleQaPrompt, err := dotprompt.Define("simpleQaPrompt",
 		simpleQaPromptTemplate,
 		dotprompt.Config{
-			ModelAction:  model,
+			Model:        model,
 			InputSchema:  jsonschema.Reflect(simpleQaPromptInput{}),
 			OutputFormat: ai.OutputFormatText,
 		},
