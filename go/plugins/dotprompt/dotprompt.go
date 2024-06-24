@@ -72,8 +72,8 @@ type Prompt struct {
 	// A hash of the prompt contents.
 	hash string
 
-	// An action that renders the prompt.
-	action *ai.PromptAction
+	// A prompt that renders the prompt.
+	prompt *ai.Prompt
 }
 
 // Config is optional configuration for a [Prompt].
@@ -290,10 +290,10 @@ func Define(name, templateText string, cfg Config) (*Prompt, error) {
 // genkit action and flow mechanisms.
 func New(name, templateText string, cfg Config) (*Prompt, error) {
 	if cfg.ModelName == "" && cfg.Model == nil {
-		return nil, errors.New("dotprompt.New: config must specify either Model or ModelAction")
+		return nil, errors.New("dotprompt.New: config must specify either ModelName or Model")
 	}
 	if cfg.ModelName != "" && cfg.Model != nil {
-		return nil, errors.New("dotprompt.New: config must specify exactly one of Model and ModelAction")
+		return nil, errors.New("dotprompt.New: config must specify exactly one of ModelName and Model")
 	}
 	hash := fmt.Sprintf("%02x", sha256.Sum256([]byte(templateText)))
 	return newPrompt(name, templateText, hash, cfg)

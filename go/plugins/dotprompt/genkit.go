@@ -26,7 +26,7 @@ import (
 )
 
 // PromptRequest is a request to execute a dotprompt template and
-// pass the result to a [ModelAction].
+// pass the result to a [Model].
 type PromptRequest struct {
 	// Input fields for the prompt. If not nil this should be a struct
 	// or pointer to a struct that matches the prompt's input schema.
@@ -129,7 +129,7 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.GenerateReque
 
 // Register registers an action to render a prompt.
 func (p *Prompt) Register() error {
-	if p.action != nil {
+	if p.prompt != nil {
 		return nil
 	}
 
@@ -152,7 +152,7 @@ func (p *Prompt) Register() error {
 			"template": p.TemplateText,
 		},
 	}
-	p.action = ai.DefinePrompt("dotprompt", name, metadata, p.buildRequest, p.Config.InputSchema)
+	p.prompt = ai.DefinePrompt("dotprompt", name, metadata, p.buildRequest, p.Config.InputSchema)
 
 	return nil
 }
@@ -167,8 +167,8 @@ func (p *Prompt) Generate(ctx context.Context, pr *PromptRequest, cb func(contex
 
 	var genReq *ai.GenerateRequest
 	var err error
-	if p.action != nil {
-		genReq, err = ai.Render(ctx, p.action, pr.Variables)
+	if p.prompt != nil {
+		genReq, err = p.prompt.Render(ctx, pr.Variables)
 	} else {
 		genReq, err = p.buildRequest(ctx, pr.Variables)
 	}
