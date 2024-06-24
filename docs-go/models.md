@@ -193,6 +193,8 @@ This will automatically call the tools in order to fulfill the user prompt.
 
 <!-- TODO: returnToolRequests: true` -->
 
+<!--
+
 ### Adding retriever context
 
 Documents from a retriever can be passed directly to `generate` to provide
@@ -210,6 +212,8 @@ await generate({
 
 The document context is automatically appended to the content of the prompt
 sent to the model.
+
+-->
 
 ### Recording message history
 
