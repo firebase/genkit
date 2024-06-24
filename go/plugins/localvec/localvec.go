@@ -39,7 +39,7 @@ const provider = "devLocalVectorStore"
 type Config struct {
 	// Where to store the data. Defaults to os.TempDir.
 	Dir             string
-	Embedder        *ai.EmbedderAction
+	Embedder        *ai.Embedder
 	EmbedderOptions any
 }
 
@@ -73,7 +73,7 @@ func Retriever(name string) *ai.Retriever {
 // This is based on js/plugins/dev-local-vectorstore/src/index.ts.
 type docStore struct {
 	filename        string
-	embedder        *ai.EmbedderAction
+	embedder        *ai.Embedder
 	embedderOptions any
 	data            map[string]dbValue
 }
@@ -85,7 +85,7 @@ type dbValue struct {
 }
 
 // newDocStore returns a new ai.DocumentStore to register.
-func newDocStore(dir, name string, embedder *ai.EmbedderAction, embedderOptions any) (*docStore, error) {
+func newDocStore(dir, name string, embedder *ai.Embedder, embedderOptions any) (*docStore, error) {
 	if dir == "" {
 		dir = os.TempDir()
 	}
@@ -124,7 +124,7 @@ func (ds *docStore) index(ctx context.Context, req *ai.IndexerRequest) error {
 			Document: doc,
 			Options:  ds.embedderOptions,
 		}
-		vals, err := ai.Embed(ctx, ds.embedder, ereq)
+		vals, err := ds.embedder.Embed(ctx, ereq)
 		if err != nil {
 			return fmt.Errorf("localvec index embedding failed: %v", err)
 		}
@@ -186,7 +186,7 @@ func (ds *docStore) retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 		Document: req.Document,
 		Options:  ds.embedderOptions,
 	}
-	vals, err := ai.Embed(ctx, ds.embedder, ereq)
+	vals, err := ds.embedder.Embed(ctx, ereq)
 	if err != nil {
 		return nil, fmt.Errorf("localvec retrieve embedding failed: %v", err)
 	}

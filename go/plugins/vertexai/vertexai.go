@@ -89,7 +89,7 @@ func DefineModel(name string) *ai.Model {
 }
 
 // DefineModel defines an embedder with the given name.
-func DefineEmbedder(name string) *ai.EmbedderAction {
+func DefineEmbedder(name string) *ai.Embedder {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
@@ -107,9 +107,9 @@ func Model(name string) *ai.Model {
 	return ai.LookupModel(provider, name)
 }
 
-// Embedder returns the [ai.EmbedderAction] with the given name.
+// Embedder returns the [ai.Embedder] with the given name.
 // It returns nil if the embedder was not configured.
-func Embedder(name string) *ai.EmbedderAction {
+func Embedder(name string) *ai.Embedder {
 	return ai.LookupEmbedder(provider, name)
 }
 

@@ -120,7 +120,7 @@ func defineModel(name string, caps ai.ModelCapabilities) *ai.Model {
 }
 
 // DefineEmbedder defines an embedder with a given name.
-func DefineEmbedder(name string) *ai.EmbedderAction {
+func DefineEmbedder(name string) *ai.Embedder {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
@@ -130,7 +130,7 @@ func DefineEmbedder(name string) *ai.EmbedderAction {
 }
 
 // requires state.mu
-func defineEmbedder(name string) *ai.EmbedderAction {
+func defineEmbedder(name string) *ai.Embedder {
 	return ai.DefineEmbedder(provider, name, func(ctx context.Context, input *ai.EmbedRequest) ([]float32, error) {
 		em := state.client.EmbeddingModel(name)
 		parts, err := convertParts(input.Document.Content)
@@ -151,9 +151,9 @@ func Model(name string) *ai.Model {
 	return ai.LookupModel(provider, name)
 }
 
-// Embedder returns the [ai.EmbedderAction] with the given name.
+// Embedder returns the [ai.Embedder] with the given name.
 // It returns nil if the embedder was not configured.
-func Embedder(name string) *ai.EmbedderAction {
+func Embedder(name string) *ai.Embedder {
 	return ai.LookupEmbedder(provider, name)
 }
 

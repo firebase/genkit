@@ -173,7 +173,7 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("embedder", func(t *testing.T) {
-		out, err := ai.Embed(ctx, embedder, &ai.EmbedRequest{
+		out, err := embedder.Embed(ctx, &ai.EmbedRequest{
 			Document: ai.DocumentFromText("time flies like an arrow", nil),
 		})
 		if err != nil {
