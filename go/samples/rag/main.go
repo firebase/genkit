@@ -87,7 +87,7 @@ func main() {
 	if err := localvec.Init(); err != nil {
 		log.Fatal(err)
 	}
-	indexer, retriever, err := localvec.DefineStore("simpleQa", localvec.Config{Embedder: embedder})
+	indexer, retriever, err := localvec.DefineIndexerAndRetriever("simpleQa", localvec.Config{Embedder: embedder})
 	if err != nil {
 		log.Fatal(err)
 	}

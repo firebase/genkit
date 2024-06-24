@@ -82,6 +82,7 @@ type Config struct {
 	TextKey string
 }
 
+// DefineIndexer defines an Indexer with the given configuration.
 func DefineIndexer(ctx context.Context, cfg Config) (*ai.Indexer, error) {
 	ds, err := newDocStore(ctx, cfg)
 	if err != nil {
@@ -90,6 +91,7 @@ func DefineIndexer(ctx context.Context, cfg Config) (*ai.Indexer, error) {
 	return ai.DefineIndexer(provider, cfg.IndexID, ds.Index), nil
 }
 
+// DefineRetriever defines a Retriever with the given configuration.
 func DefineRetriever(ctx context.Context, cfg Config) (*ai.Retriever, error) {
 	ds, err := newDocStore(ctx, cfg)
 	if err != nil {
