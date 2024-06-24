@@ -71,6 +71,7 @@ function ollamaModel(
       configSchema: GenerationCommonConfigSchema,
       supports: {
         multiturn: !model.type || model.type === 'chat',
+        systemRole: model.type !== 'chat',
       },
     },
     async (input, streamingCallback) => {
