@@ -21,6 +21,8 @@ import {
 } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import * as inquirer from 'inquirer';
+import fs from 'fs';
+import path from 'path';
 import { initGo } from './init/init-go';
 import { initNodejs } from './init/init-nodejs';
 
@@ -42,7 +44,7 @@ export interface InitOptions {
 /** Supported runtimes for the init command. */
 const supportedRuntimes: Record<string, string> = {
   nodejs: 'Node.js',
-  go: 'Go (experimental)',
+  go: 'Go (preview)',
 };
 
 export const init = new Command('init')
@@ -93,7 +95,7 @@ export const init = new Command('init')
           await initNodejs(options, isNew);
           break;
         case 'go':
-          await initGo(options);
+          await initGo(options, isNew);
           break;
       }
     } catch (err) {
@@ -128,29 +130,6 @@ export function showModelInfo(model: ModelProvider) {
 }
 
 /**
- * Prompts for what type of write to perform when there is a conflict.
- */
-export async function promptWriteMode(
-  message: string,
-  defaultOption: WriteMode = 'merge'
-): Promise<WriteMode> {
-  const answers = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'option',
-      message,
-      choices: [
-        { name: 'Set if unset', value: 'merge' },
-        { name: 'Overwrite', value: 'overwrite' },
-        { name: 'Keep unchanged', value: 'keep' },
-      ],
-      default: defaultOption,
-    },
-  ]);
-  return answers.option;
-}
-
-/**
  * Shows a confirmation prompt.
  */
 export async function confirm(args: {
@@ -165,4 +144,25 @@ export async function confirm(args: {
     default: args.default,
   });
   return answer.confirm;
+}
+
+/**
+ * Copies files in the list between directories.
+ */
+export function copyFiles(
+  sourceDir: string,
+  destDir: string,
+  fileList: string[]
+): void {
+  fs.mkdirSync(destDir, { recursive: true });
+
+  for (const file of fileList) {
+    const sourcePath = path.join(sourceDir, file);
+    const destPath = path.join(destDir, file);
+
+    if (fs.existsSync(sourcePath)) {
+      fs.mkdirSync(path.dirname(destPath), { recursive: true });
+      fs.copyFileSync(sourcePath, destPath);
+    }
+  }
 }

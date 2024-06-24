@@ -64,7 +64,7 @@ export function detectRuntime(directory: string): Runtime {
   for (const file of files) {
     const filePath = path.join(directory, file);
     const stat = fs.statSync(filePath);
-    if (stat.isFile() && path.extname(file) === '.go') {
+    if (stat.isFile() && (path.extname(file) === '.go' || file === 'go.mod')) {
       return 'go';
     }
   }

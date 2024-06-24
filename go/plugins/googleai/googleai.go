@@ -17,6 +17,7 @@ package googleai
 import (
 	"context"
 	"fmt"
+	"os"
 	"path"
 	"slices"
 	"sync"
@@ -53,6 +54,13 @@ func Init(ctx context.Context, apiKey string) (err error) {
 			err = fmt.Errorf("googleai.Init: %w", err)
 		}
 	}()
+
+	if apiKey != "" {
+		apiKey := os.Getenv("GOOGLE_GENAI_API_KEY")
+		if apiKey == "" {
+			return fmt.Errorf("googleai.Init: Google AI requires setting GOOGLE_GENAI_API_KEY in the environment. You can get an API key at https://ai.google.dev")
+		}
+	}
 
 	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
 	if err != nil {

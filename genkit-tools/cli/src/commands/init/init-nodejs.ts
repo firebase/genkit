@@ -3,17 +3,17 @@ import { execSync } from 'child_process';
 import extract from 'extract-zip';
 import fs from 'fs';
 import * as inquirer from 'inquirer';
+import ora from 'ora';
 import path from 'path';
 import {
   InitOptions,
   ModelProvider,
+  Platform,
   WriteMode,
   confirm,
-  promptWriteMode,
   showModelInfo,
 } from '../init';
 
-type Platform = 'firebase' | 'googlecloud' | 'other';
 type SampleTarget = 'firebase' | 'googlecloud' | 'nodejs' | 'nextjs';
 
 interface PluginInfo {
@@ -60,12 +60,6 @@ const platformOptions: Record<Platform, PromptOption> = {
     plugin: '@genkit-ai/google-cloud',
   },
   other: { label: 'Other platforms', plugin: undefined },
-};
-
-/** Supported framework to label. */
-const frameworkOptions: Record<string, string> = {
-  nodejs: 'Node.js (no framework)',
-  nextjs: 'Next.js',
 };
 
 /** Plugin name to descriptor. */
@@ -217,7 +211,14 @@ export async function initNodejs(options: InitOptions, isNew: boolean) {
 
   // Initialize and configure.
   if (isNew) {
-    execSync('npm init -y');
+    const spinner = ora('Initializing NPM project').start();
+    try {
+      execSync('npm init -y', { stdio: 'ignore' });
+      spinner.succeed('Successfully initialized NPM project');
+    } catch (err) {
+      spinner.fail(`Failed to initialize NPM project: ${err}`);
+      process.exit(1);
+    }
   }
   await installNpmPackages(packages, externalDevPackages, distArchive);
   if (!fs.existsSync('src')) {
@@ -250,62 +251,64 @@ export async function initNodejs(options: InitOptions, isNew: boolean) {
  * Updates tsconfig.json with required flags for Genkit.
  */
 async function updateTsConfig(nonInteractive: boolean) {
+  const tsConfigPath = path.join(process.cwd(), 'tsconfig.json');
+  let existingTsConfig = undefined;
+  if (fs.existsSync(tsConfigPath)) {
+    existingTsConfig = JSON.parse(fs.readFileSync(tsConfigPath, 'utf-8'));
+  }
+  let choice: WriteMode = 'overwrite';
+  if (!nonInteractive && existingTsConfig) {
+    choice = await promptWriteMode(
+      'Would you like to update your tsconfig.json with suggested settings?'
+    );
+  }
+  const tsConfig = {
+    compileOnSave: true,
+    include: ['src'],
+    compilerOptions: {
+      module: 'commonjs',
+      noImplicitReturns: true,
+      outDir: 'lib',
+      sourceMap: true,
+      strict: true,
+      target: 'es2017',
+      skipLibCheck: true,
+      esModuleInterop: true,
+    },
+  };
+  const spinner = ora('Updating tsconfig.json').start();
+  let newTsConfig = {};
+  switch (choice) {
+    case 'overwrite':
+      newTsConfig = {
+        ...existingTsConfig,
+        ...tsConfig,
+        compilerOptions: {
+          ...existingTsConfig?.compilerOptions,
+          ...tsConfig.compilerOptions,
+        },
+      };
+      break;
+    case 'merge':
+      newTsConfig = {
+        ...tsConfig,
+        ...existingTsConfig,
+        compilerOptions: {
+          ...tsConfig.compilerOptions,
+          ...existingTsConfig?.compilerOptions,
+        },
+      };
+      break;
+    case 'keep':
+      spinner.warn('Skipped updating tsconfig.json');
+      return;
+  }
   try {
-    const tsConfigPath = path.join(process.cwd(), 'tsconfig.json');
-    let existingTsConfig = undefined;
-    if (fs.existsSync(tsConfigPath)) {
-      existingTsConfig = JSON.parse(fs.readFileSync(tsConfigPath, 'utf-8'));
-    }
-    let choice: WriteMode = 'overwrite';
-    if (!nonInteractive && existingTsConfig) {
-      choice = await promptWriteMode(
-        'Would you like to update your tsconfig.json with suggested settings?'
-      );
-    }
-    const tsConfig = {
-      compileOnSave: true,
-      include: ['src'],
-      compilerOptions: {
-        module: 'commonjs',
-        noImplicitReturns: true,
-        outDir: 'lib',
-        sourceMap: true,
-        strict: true,
-        target: 'es2017',
-        skipLibCheck: true,
-        esModuleInterop: true,
-      },
-    };
-    let newTsConfig = {};
-    switch (choice) {
-      case 'overwrite':
-        newTsConfig = {
-          ...existingTsConfig,
-          ...tsConfig,
-          compilerOptions: {
-            ...existingTsConfig?.compilerOptions,
-            ...tsConfig.compilerOptions,
-          },
-        };
-        break;
-      case 'merge':
-        newTsConfig = {
-          ...tsConfig,
-          ...existingTsConfig,
-          compilerOptions: {
-            ...tsConfig.compilerOptions,
-            ...existingTsConfig?.compilerOptions,
-          },
-        };
-        break;
-      case 'keep':
-        logger.info('Leaving tsconfig.json unchanged.');
-        return;
-    }
-    logger.info('Updating tsconfig.json...');
     fs.writeFileSync(tsConfigPath, JSON.stringify(newTsConfig, null, 2));
-  } catch (error) {
-    throw new Error(`Failed to update tsconfig.json: ${error}`);
+    spinner.succeed('Successfully updated tsconfig.json');
+  } catch (err) {
+    spinner.fail(`Failed to update tsconfig.json: ${err}`);
+    process.exit(1);
   }
 }
 
@@ -319,16 +322,14 @@ async function installNpmPackages(
   devPackages?: string[],
   distArchive?: string
 ): Promise<void> {
+  const spinner = ora('Installing NPM packages').start();
   try {
-    logger.info('Installing packages...');
     if (packages.length) {
-      execSync(`npm install ${packages.join(' ')} --save`, {
-        stdio: 'inherit',
-      });
+      execSync(`npm install ${packages.join(' ')} --save`, { stdio: 'ignore' });
     }
     if (devPackages?.length) {
       execSync(`npm install ${devPackages.join(' ')} --save-dev`, {
-        stdio: 'inherit',
+        stdio: 'ignore',
       });
     }
     if (distArchive) {
@@ -338,10 +339,12 @@ async function installNpmPackages(
         fs.mkdirSync(distDir);
       }
       await extract(distArchive, { dir: outputPath });
-      execSync(`npm install ${outputPath}/*.tgz --save`);
+      execSync(`npm install ${outputPath}/*.tgz --save`, { stdio: 'ignore' });
     }
-  } catch (error) {
-    throw new Error(`Failed to install NPM packages: ${error}`);
+    spinner.succeed('Successfully installed NPM packages');
+  } catch (err) {
+    spinner.fail(`Failed to install NPM packages: ${err}`);
+    process.exit(1);
   }
 }
 
@@ -381,20 +384,26 @@ function generateSampleFile(
           : "'' /* TODO: Set a model. */"
       )
   );
-  logger.info('Generating sample file...');
-  let samplePath = 'src/index.ts';
-  if (sampleTarget === 'nextjs') {
-    if (fs.existsSync('src/app')) {
-      samplePath = 'src/app/genkit.ts';
-    } else if (fs.existsSync('app')) {
-      samplePath = 'app/genkit.ts';
-    } else {
-      throw new Error(
-        'Unable to resolve source folder (app or src/app) of you next.js app.'
-      );
+  const spinner = ora('Generating sample file').start();
+  try {
+    let samplePath = 'src/index.ts';
+    if (sampleTarget === 'nextjs') {
+      if (fs.existsSync('src/app')) {
+        samplePath = 'src/app/genkit.ts';
+      } else if (fs.existsSync('app')) {
+        samplePath = 'app/genkit.ts';
+      } else {
+        throw new Error(
+          'Unable to resolve source folder (app or src/app) of you next.js app.'
+        );
+      }
     }
+    fs.writeFileSync(path.join(process.cwd(), samplePath), sample, 'utf8');
+    spinner.succeed(`Successfully generated sample file (${samplePath})`);
+  } catch (err) {
+    spinner.fail(`Failed to generate sample file: ${err}`);
+    process.exit(1);
   }
-  fs.writeFileSync(samplePath, sample, 'utf8');
 }
 
 /**
@@ -422,6 +431,7 @@ async function updatePackageJson(nonInteractive: boolean) {
       'build:watch': 'tsc --watch',
     },
   };
+  const spinner = ora('Updating package.json').start();
   let newPackageJson = {};
   switch (choice) {
     case 'overwrite':
@@ -447,11 +457,16 @@ async function updatePackageJson(nonInteractive: boolean) {
       };
       break;
     case 'keep':
-      logger.info('Leaving package.json unchanged.');
+      spinner.warn('Skipped updating package.json');
       return;
   }
-  logger.info('Updating package.json...');
-  fs.writeFileSync(packageJsonPath, JSON.stringify(newPackageJson, null, 2));
+  try {
+    fs.writeFileSync(packageJsonPath, JSON.stringify(newPackageJson, null, 2));
+    spinner.succeed('Successfully updated package.json');
+  } catch (err) {
+    spinner.fail(`Failed to update package.json: ${err}`);
+    process.exit(1);
+  }
 }
 
 function renderConfig(
@@ -502,8 +517,14 @@ function generateToolsConfig(sampleTarget: SampleTarget) {
         'Unable to resolve source folder (app or src/app) of you next.js app.'
       );
     }
-    const configPath = path.join(process.cwd(), 'genkit-tools.conf.js');
-    fs.writeFileSync(configPath, template, 'utf8');
+    const spinner = ora('Updating genkit-tools.conf.js').start();
+    try {
+      fs.writeFileSync(path.join(process.cwd(), 'genkit-tools.conf.js'), template, 'utf8');
+      spinner.succeed('Successfully updated genkit-tools.conf.js');
+    } catch (err) {
+      spinner.fail(`Failed to update genkit-tools.conf.js: ${err}`);
+      process.exit(1);
+    }
   }
 }
 
@@ -523,4 +544,27 @@ function isNextJsProject(projectDir: string = process.cwd()): boolean {
   const hasNextDependency =
     packageJson.dependencies && packageJson.dependencies.next;
   return hasNextConfig || hasNextDependency;
+}
+
+/**
+ * Prompts for what type of write to perform when there is a conflict.
+ */
+export async function promptWriteMode(
+  message: string,
+  defaultOption: WriteMode = 'merge'
+): Promise<WriteMode> {
+  const answers = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'option',
+      message,
+      choices: [
+        { name: 'Set if unset', value: 'merge' },
+        { name: 'Overwrite', value: 'overwrite' },
+        { name: 'Keep unchanged', value: 'keep' },
+      ],
+      default: defaultOption,
+    },
+  ]);
+  return answers.option;
 }
