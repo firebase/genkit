@@ -90,7 +90,7 @@ func IsKnownModel(name string) bool {
 // For known models, it can be nil, or if non-nil it will override the known value.
 // It must be supplied for unknown models.
 // Use [IsKnownModel] to determine if a model is known.
-func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.ModelAction, error) {
+func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
@@ -110,7 +110,7 @@ func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.ModelAction, erro
 }
 
 // requires state.mu
-func defineModel(name string, caps ai.ModelCapabilities) *ai.ModelAction {
+func defineModel(name string, caps ai.ModelCapabilities) *ai.Model {
 	meta := &ai.ModelMetadata{
 		Label:    "Google AI - " + name,
 		Supports: caps,
@@ -147,7 +147,7 @@ func defineEmbedder(name string) *ai.EmbedderAction {
 
 // Model returns the [ai.ModelAction] with the given name.
 // It returns nil if the model was not configured.
-func Model(name string) *ai.ModelAction {
+func Model(name string) *ai.Model {
 	return ai.LookupModel(provider, name)
 }
 

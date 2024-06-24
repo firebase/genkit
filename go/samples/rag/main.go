@@ -95,7 +95,7 @@ func main() {
 	simpleQaPrompt, err := dotprompt.Define("simpleQaPrompt",
 		simpleQaPromptTemplate,
 		dotprompt.Config{
-			ModelAction:  model,
+			Model:        model,
 			InputSchema:  jsonschema.Reflect(simpleQaPromptInput{}),
 			OutputFormat: ai.OutputFormatText,
 		},

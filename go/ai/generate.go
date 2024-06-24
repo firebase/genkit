@@ -28,8 +28,8 @@ import (
 	"github.com/firebase/genkit/go/internal/atype"
 )
 
-// A ModelAction is used to generate content from an AI model.
-type ModelAction = core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
+// A Model is used to generate content from an AI model.
+type Model core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
 
 // ModelStreamingCallback is the type for the streaming callback of a model.
 type ModelStreamingCallback = func(context.Context, *GenerateResponseChunk) error
@@ -50,7 +50,7 @@ type ModelMetadata struct {
 
 // DefineModel registers the given generate function as an action, and returns a
 // [ModelAction] that runs it.
-func DefineModel(provider, name string, metadata *ModelMetadata, generate func(context.Context, *GenerateRequest, ModelStreamingCallback) (*GenerateResponse, error)) *ModelAction {
+func DefineModel(provider, name string, metadata *ModelMetadata, generate func(context.Context, *GenerateRequest, ModelStreamingCallback) (*GenerateResponse, error)) *Model {
 	metadataMap := map[string]any{}
 	if metadata != nil {
 		if metadata.Label != "" {
@@ -64,25 +64,26 @@ func DefineModel(provider, name string, metadata *ModelMetadata, generate func(c
 		}
 		metadataMap["supports"] = supports
 	}
-	return core.DefineStreamingAction(provider, name, atype.Model, map[string]any{
+	return (*Model)(core.DefineStreamingAction(provider, name, atype.Model, map[string]any{
 		"model": metadataMap,
-	}, generate)
+	}, generate))
 }
 
 // LookupModel looks up a [ModelAction] registered by [DefineModel].
 // It returns nil if the model was not defined.
-func LookupModel(provider, name string) *ModelAction {
-	return core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](atype.Model, provider, name)
+func LookupModel(provider, name string) *Model {
+	return (*Model)(core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](atype.Model, provider, name))
 }
 
-// Generate applies a [ModelAction] to some input, handling tool requests.
-func Generate(ctx context.Context, g *ModelAction, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error) {
+// Generate applies the [Model] to some input, handling tool requests.
+func (m *Model) Generate(ctx context.Context, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error) {
 	if err := conformOutput(req); err != nil {
 		return nil, err
 	}
 
+	a := (*core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk])(m)
 	for {
-		resp, err := g.Run(ctx, req, cb)
+		resp, err := a.Run(ctx, req, cb)
 		if err != nil {
 			return nil, err
 		}

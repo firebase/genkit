@@ -55,7 +55,7 @@ func (ch *chatHistoryStore) Retrieve(sessionID string) chatHistory {
 	return ch.preamble
 }
 
-func setup03(ctx context.Context, model *ai.ModelAction) error {
+func setup03(ctx context.Context, model *ai.Model) error {
 	chatPreamblePrompt, err := dotprompt.Define("s03_chatPreamble",
 		`
 		  {{ role "user" }}
@@ -72,7 +72,7 @@ func setup03(ctx context.Context, model *ai.ModelAction) error {
 		  {{~/each}}
 		  Do you have any questions about the menu?`,
 		dotprompt.Config{
-			ModelAction:  model,
+			Model:        model,
 			InputSchema:  dataMenuQuestionInputSchema,
 			OutputFormat: ai.OutputFormatText,
 			GenerationConfig: &ai.GenerationCommonConfig{
@@ -115,7 +115,7 @@ func setup03(ctx context.Context, model *ai.ModelAction) error {
 			req := &ai.GenerateRequest{
 				Messages: messages,
 			}
-			resp, err := ai.Generate(ctx, model, req, nil)
+			resp, err := model.Generate(ctx, req, nil)
 			if err != nil {
 				return nil, err
 			}

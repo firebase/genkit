@@ -49,9 +49,9 @@ func defineModel(model ModelDefinition, serverAddress string) {
 	ai.DefineModel(provider, model.Name, meta, g.generate)
 }
 
-// Model returns the [ai.ModelAction] with the given name.
+// Model returns the [ai.Model] with the given name.
 // It returns nil if the model was not configured.
-func Model(name string) *ai.ModelAction {
+func Model(name string) *ai.Model {
 	return ai.LookupModel(provider, name)
 }
 

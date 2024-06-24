@@ -46,7 +46,7 @@ func menu(ctx context.Context, input map[string]any) (map[string]any, error) {
 	return map[string]any{"menu": s}, nil
 }
 
-func setup02(ctx context.Context, m *ai.ModelAction) error {
+func setup02(ctx context.Context, m *ai.Model) error {
 	ai.DefineTool(menuToolDef, nil, menu)
 
 	dataMenuPrompt, err := dotprompt.Define("s02_dataMenu",
@@ -61,7 +61,7 @@ func setup02(ctx context.Context, m *ai.ModelAction) error {
 		 Question:
 		 {{question}} ?`,
 		dotprompt.Config{
-			ModelAction:  m,
+			Model:        m,
 			InputSchema:  menuQuestionInputSchema,
 			OutputFormat: ai.OutputFormatText,
 			Tools: []*ai.ToolDefinition{
