@@ -1,24 +1,23 @@
 {
-    "traceId": "",
-    "displayName": "embedding-001",
-    "startTime": 1718521125809.9194,
-    "endTime": 1718521125811.092,
+    "traceId": "d6b5a3f8a48f1277445c6c6c205d2f81",
     "spans": {
-        "edb1aba2f4e66854": {
-            "spanId": "edb1aba2f4e66854",
-            "traceId": "5a59c7e04a2abbe463d4e617009f0779",
-            "startTime": 1718521125809.9194,
-            "endTime": 1718521125811.092,
+        "5b80287f0f49c6e9": {
+            "spanId": "5b80287f0f49c6e9",
+            "traceId": "d6b5a3f8a48f1277445c6c6c205d2f81",
+            "startTime": 1719244014336,
+            "endTime": 1719244014841.5574,
+            "parentSpanId": "6327e0cd498e6e52",
             "attributes": {
-                "genkit:input": "{\"input\":{\"content\":[{\"text\":\"banana\"}]}}",
+                "genkit:input": "{\"input\":[{\"content\":[{\"text\":\"banana\"}]}]}",
                 "genkit:metadata:subtype": "embedder",
-                "genkit:name": "embedding-001",
-                "genkit:output": "[0.25,0.25,0.5]",
-                "genkit:path": "/embedding-001",
+                "genkit:name": "googleai/embedding-001",
+                "genkit:output": "{\"embeddings\":[{\"embedding\":[0.25,0.25,0.5]}]}",
+                "genkit:path": "/{dev-run-action-wrapper}/{googleai/embedding-001,t:action,s:embedder}",
                 "genkit:state": "success",
                 "genkit:type": "action"
             },
-            "displayName": "embedding-001",
+            "displayName": "googleai/embedding-001",
+            "links": [],
             "instrumentationLibrary": {
                 "name": "genkit-tracer",
                 "version": "v1"
@@ -30,7 +29,9 @@
             "status": {
                 "code": 0
             },
-            "timeEvents": {}
+            "timeEvents": {
+                "timeEvent": []
+            }
         }
     }
 }
