@@ -1,4 +1,20 @@
-import { InitEvent, logger, record } from '@genkit-ai/tools-common/utils';
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { InitEvent, record } from '@genkit-ai/tools-common/utils';
 import { execSync } from 'child_process';
 import extract from 'extract-zip';
 import fs from 'fs';
@@ -519,7 +535,11 @@ function generateToolsConfig(sampleTarget: SampleTarget) {
     }
     const spinner = ora('Updating genkit-tools.conf.js').start();
     try {
-      fs.writeFileSync(path.join(process.cwd(), 'genkit-tools.conf.js'), template, 'utf8');
+      fs.writeFileSync(
+        path.join(process.cwd(), 'genkit-tools.conf.js'),
+        template,
+        'utf8'
+      );
       spinner.succeed('Successfully updated genkit-tools.conf.js');
     } catch (err) {
       spinner.fail(`Failed to update genkit-tools.conf.js: ${err}`);

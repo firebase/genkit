@@ -15,14 +15,9 @@
  */
 
 import { Runtime } from '@genkit-ai/tools-common/runner';
-import {
-  detectRuntime,
-  logger,
-} from '@genkit-ai/tools-common/utils';
+import { detectRuntime, logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import * as inquirer from 'inquirer';
-import fs from 'fs';
-import path from 'path';
 import { initGo } from './init/init-go';
 import { initNodejs } from './init/init-nodejs';
 
