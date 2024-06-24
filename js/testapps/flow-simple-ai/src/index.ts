@@ -15,6 +15,7 @@
  */
 
 import { generate, generateStream, retrieve } from '@genkit-ai/ai';
+import { ModelMiddleware, defineWrappedModel } from '@genkit-ai/ai/model';
 import { defineTool } from '@genkit-ai/ai/tool';
 import { configureGenkit } from '@genkit-ai/core';
 import { dotprompt, prompt } from '@genkit-ai/dotprompt';
@@ -47,7 +48,6 @@ configureGenkit({
           '@opentelemetry/instrumentation-dns': { enabled: false },
           '@opentelemetry/instrumentation-net': { enabled: false },
         },
-        metricExportIntervalMillis: 5_000,
       },
     }),
     dotprompt(),
@@ -331,3 +331,55 @@ export const dotpromptContext = defineFlow(
     return result.output() as any;
   }
 );
+
+const wrapRequest: ModelMiddleware = async (req, next) => {
+  return next({
+    ...req,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            text:
+              '(' +
+              req.messages
+                .map((m) => m.content.map((c) => c.text).join())
+                .join() +
+              ')',
+          },
+        ],
+      },
+    ],
+  });
+};
+const wrapResponse: ModelMiddleware = async (req, next) => {
+  const res = await next(req);
+  return {
+    candidates: [
+      {
+        index: 0,
+        finishReason: 'stop',
+        message: {
+          role: 'model',
+          content: [
+            {
+              text:
+                '[' +
+                res.candidates[0].message.content.map((c) => c.text).join() +
+                ']',
+            },
+          ],
+        },
+      },
+    ],
+  };
+};
+
+defineWrappedModel({
+  name: 'wrappedGemini15Flash',
+  model: geminiPro,
+  info: {
+    label: 'wrappedGemini15Flash',
+  },
+  use: [wrapRequest, wrapResponse],
+});

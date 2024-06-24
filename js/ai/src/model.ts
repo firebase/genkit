@@ -16,11 +16,13 @@
 
 import {
   Action,
+  actionWithMiddleware,
   defineAction,
   getStreamingCallback,
   Middleware,
   StreamingCallback,
 } from '@genkit-ai/core';
+import { lookupAction } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { performance } from 'node:perf_hooks';
 import { z } from 'zod';
@@ -325,6 +327,61 @@ export function defineModel<
     __configSchema: options.configSchema || z.unknown(),
   });
   return act as ModelAction<CustomOptionsSchema>;
+}
+
+export function defineWrappedModel<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+>({
+  name,
+  model,
+  info,
+  configSchema,
+  use,
+}: {
+  name: string;
+  info?: ModelInfo;
+  model: ModelArgument<CustomOptionsSchema>;
+  configSchema?: CustomOptionsSchema;
+  use: ModelMiddleware[];
+}): ModelAction<CustomOptionsSchema> {
+  var originalInfo: ModelInfo | undefined;
+  var originalConfigSchema: CustomOptionsSchema | undefined;
+  if (model.hasOwnProperty('info')) {
+    const ref = model as ModelReference<any>;
+    originalInfo = ref.info;
+    originalConfigSchema = ref.configSchema;
+  } else {
+    const ma = model as ModelAction;
+    originalInfo = ma.__action?.metadata?.model as ModelInfo;
+    originalConfigSchema = ma.__configSchema as CustomOptionsSchema;
+  }
+
+  return defineModel(
+    {
+      ...originalInfo,
+      ...info,
+      configSchema: configSchema || originalConfigSchema,
+      name,
+    },
+    async (request) => {
+      const resolvedModel = await resolveModel(model);
+      const wrapped = actionWithMiddleware(resolvedModel, use);
+      return wrapped(request);
+    }
+  ) as ModelAction<CustomOptionsSchema>;
+}
+
+export async function resolveModel(
+  model: ModelArgument<any>
+): Promise<ModelAction> {
+  if (typeof model === 'string') {
+    return (await lookupAction(`/model/${model}`)) as ModelAction;
+  } else if (model.hasOwnProperty('info')) {
+    const ref = model as ModelReference<any>;
+    return (await lookupAction(`/model/${ref.name}`)) as ModelAction;
+  } else {
+    return model as ModelAction;
+  }
 }
 
 export interface ModelReference<CustomOptions extends z.ZodTypeAny> {
