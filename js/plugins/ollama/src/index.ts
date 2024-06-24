@@ -282,15 +282,15 @@ function readChunks(reader) {
 
 function getPrompt(input: GenerateRequest): string {
   return input.messages
-    .filter(m => m.role !== "system") // Exclude system messages
-    .map(m => m.content.map(c => c.text).join())
+    .filter((m) => m.role !== 'system') // Exclude system messages
+    .map((m) => m.content.map((c) => c.text).join())
     .join();
 }
 
 function getSystemMessage(input: GenerateRequest): string {
   return input.messages
-    .filter(m => m.role === "system") // Exclude system messages
-    .map(m => m.content.map(c => c.text).join())
+    .filter((m) => m.role === 'system') // Exclude system messages
+    .map((m) => m.content.map((c) => c.text).join())
     .join();
 }
 
