@@ -199,7 +199,10 @@ async function generateSampleFile(model: ModelProvider) {
         '$GENKIT_FUNC_NAME',
         filename === 'genkit.go' ? 'initGenkit' : 'main'
       )
-      .replace('$GENKIT_MODEL_IMPORT', modelOption.package ? `"${modelOption.package}"` : '')
+      .replace(
+        '$GENKIT_MODEL_IMPORT',
+        modelOption.package ? `"${modelOption.package}"` : ''
+      )
       .replace('$GENKIT_MODEL_INIT', modelOption.init)
       .replace('$GENKIT_MODEL_LOOKUP', modelOption.lookup);
     if (write) {
