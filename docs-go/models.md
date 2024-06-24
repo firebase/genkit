@@ -23,8 +23,8 @@ models.
   ```
 
   ```go
-	projectID := os.Getenv("GCLOUD_PROJECT")
-	err := vertexai.Init(context.Background(), projectID, "us-central1")
+  projectID := os.Getenv("GCLOUD_PROJECT")
+  err := vertexai.Init(context.Background(), projectID, "us-central1")
   ```
 
 Note: Different plugins and models use different methods of
