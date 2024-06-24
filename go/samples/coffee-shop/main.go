@@ -113,7 +113,10 @@ func main() {
 		AllowAdditionalProperties: false,
 		DoNotReference:            true,
 	}
-	g := googleai.DefineModel("gemini-1.5-pro")
+	g, err := googleai.DefineModel("gemini-1.5-pro", nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting", simpleGreetingPromptTemplate,
 		dotprompt.Config{
 			ModelAction:  g,

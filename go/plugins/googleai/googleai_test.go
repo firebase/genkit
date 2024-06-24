@@ -47,7 +47,10 @@ func TestLive(t *testing.T) {
 		t.Fatal(err)
 	}
 	embedder := googleai.DefineEmbedder("embedding-001")
-	model := googleai.DefineModel("gemini-1.0-pro")
+	model, err := googleai.DefineModel("gemini-1.0-pro", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	toolDef := &ai.ToolDefinition{
 		Name:         "exponentiation",
 		InputSchema:  map[string]any{"base": "float64", "exponent": "int"},
@@ -106,7 +109,7 @@ func TestLive(t *testing.T) {
 		req := &ai.GenerateRequest{
 			Candidates: 1,
 			Messages: []*ai.Message{
-				&ai.Message{
+				{
 					Content: []*ai.Part{ai.NewTextPart("Which country was Napoleon the emperor of?")},
 					Role:    ai.RoleUser,
 				},
@@ -133,7 +136,7 @@ func TestLive(t *testing.T) {
 		req := &ai.GenerateRequest{
 			Candidates: 1,
 			Messages: []*ai.Message{
-				&ai.Message{
+				{
 					Content: []*ai.Part{ai.NewTextPart("Write one paragraph about the Golden State Warriors.")},
 					Role:    ai.RoleUser,
 				},
@@ -173,7 +176,7 @@ func TestLive(t *testing.T) {
 		req := &ai.GenerateRequest{
 			Candidates: 1,
 			Messages: []*ai.Message{
-				&ai.Message{
+				{
 					Content: []*ai.Part{ai.NewTextPart("what is 3.5 squared? Use the tool provided.")},
 					Role:    ai.RoleUser,
 				},
@@ -192,22 +195,4 @@ func TestLive(t *testing.T) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 	})
-}
-
-func TestAllModels(t *testing.T) {
-	if !*testAll {
-		t.Skip("-all not set")
-	}
-	ctx := context.Background()
-	if err := googleai.Init(ctx, *apiKey); err != nil {
-		t.Fatal(err)
-	}
-	mods, err := googleai.DefineAllModels(ctx)
-	if err != nil || len(mods) == 0 {
-		t.Fatalf("got %d, %v, want >0, nil", len(mods), err)
-	}
-	embs, err := googleai.DefineAllEmbedders(ctx)
-	if err != nil || len(embs) == 0 {
-		t.Fatalf("got %d, %v, want >0, nil", len(mods), err)
-	}
 }
