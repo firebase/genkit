@@ -156,16 +156,22 @@ first.
         // ...
       },
     )
-    genkit.StartFlowServer(":1234")
+	err := genkit.StartFlowServer(":1234", []string{})
+
+	// startProdServer always returns a non-nil error, the one returned by
+	// http.ListenAndServe.
   }
   ```
 
-  `StartFlowsServer` starts a `net/http` server that exposes each of the flows
-  you defined as HTTP endpoints
-  (for example, `http://localhost:3400/menuSuggestionFlow`).
-  You can optionally specify the address and port to listen on. If you don't,
-  the server listens on any address and the port specified by the PORT
-  environment variable; if that is empty, it uses the default of port 3400.
+  `StartFlowsServer` starts a `net/http` server that exposes your flows as HTTP
+  endpoints (for example, `http://localhost:3400/menuSuggestionFlow`). Both
+  parameters are optional:
+
+  - You can specify the address and port to listen on. If you don't,
+    the server listens on any address and the port specified by the PORT
+    environment variable; if that is empty, it uses the default of port 3400.
+  - You can specify which flows to serve. If you don't, `StartFlowsServer`
+    serves all of your defined flows.
 
   If you want to serve flows on the same host and port as other endpoints, you
   can call `NewFlowServeMux()` to get a handler for your Genkit flows, which you

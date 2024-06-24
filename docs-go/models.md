@@ -23,14 +23,8 @@ models.
   ```
 
   ```go
-  projectID := os.Getenv("GCLOUD_PROJECT")
-  err := vertexai.Init(context.Background(), vertexai.Config{
-    ProjectID: projectID,
-    Models: []string{
-      "gemini-1.5-pro",
-      "gemini-1.5-flash",
-    },
-  })
+	projectID := os.Getenv("GCLOUD_PROJECT")
+	err := vertexai.Init(context.Background(), projectID, "us-central1")
   ```
 
 Note: Different plugins and models use different methods of
@@ -78,7 +72,7 @@ To just call the model:
   request := ai.GenerateRequest{Messages: []*ai.Message{
     {Content: []*ai.Part{ai.NewTextPart("Tell me a joke.")}},
   }}
-  response, err := ai.Generate(context.Background(), gemini15pro, &request, nil)
+  gemini15pro.Generate(context.Background(), &request, nil)
 
   responseText, err := response.Text()
   fmt.Println(responseText)
@@ -114,9 +108,8 @@ Genkit supports chunked streaming of model responses:
   request := ai.GenerateRequest{Messages: []*ai.Message{
     {Content: []*ai.Part{ai.NewTextPart("Tell a long story about robots and ninjas.")}},
   }}
-  response, err := ai.Generate(
+  response, err := gemini15pro.Generate(
     context.Background(),
-    gemini15pro,
     &request,
     func(ctx context.Context, grc *ai.GenerateResponseChunk) error {
       text, err := grc.Text()
@@ -147,7 +140,7 @@ If the model supports multimodal input, you can pass image prompts:
       ai.NewMediaPart("", "data:image/jpeg;base64,"+encodedImage),
     }},
   }}
-  response, err := ai.Generate(context.Background(), gemini15pro, &request, nil)
+  gemini15pro.Generate(context.Background(), &request, nil)
   ```
 
   <!-- TODO: gs:// wasn't working for me. HTTP? -->
@@ -186,7 +179,7 @@ it.
     },
     Tools: []*ai.ToolDefinition{myJoke},
   }
-  response, err := ai.Generate(context.Background(), gemini15pro, &request, nil)
+  gemini15pro.Generate(context.Background(), &request, nil)
   ```
 
 This will automatically call the tools in order to fulfill the user prompt.
@@ -232,7 +225,7 @@ chatbots.
   }
 
   request := ai.GenerateRequest{Messages: history}
-  response, err := ai.Generate(context.Background(), gemini15pro, &request, nil)
+  gemini15pro.Generate(context.Background(), &request, nil)
   ```
 
   When you get a response, add it to the history:
@@ -252,7 +245,7 @@ chatbots.
   })
 
   request := ai.GenerateRequest{Messages: history}
-  response, err := ai.Generate(context.Background(), gemini15pro, &request, nil)
+  gemini15pro.Generate(context.Background(), &request, nil)
   ```
 
 If the model you're using supports the system role, you can use the initial
