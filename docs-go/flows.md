@@ -158,7 +158,7 @@ first.
     )
 	err := genkit.StartFlowServer(":1234", []string{})
 
-	// startProdServer always returns a non-nil error, the one returned by
+	// startProdServer always returns a non-nil error: the one returned by
 	// http.ListenAndServe.
   }
   ```
