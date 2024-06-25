@@ -170,14 +170,16 @@ export class GcpOpenTelemetry implements TelemetryConfig {
 
   private shouldExportTraces(): boolean {
     return (
-      (this.options.forceDevExport || process.env.GENKIT_ENV !== 'dev') &&
+      (this.options.telemetryConfig?.forceDevExport ||
+        process.env.GENKIT_ENV !== 'dev') &&
       !this.options.telemetryConfig?.disableTraces
     );
   }
 
   private shouldExportMetrics(): boolean {
     return (
-      (this.options.forceDevExport || process.env.GENKIT_ENV !== 'dev') &&
+      (this.options.telemetryConfig?.forceDevExport ||
+        process.env.GENKIT_ENV !== 'dev') &&
       !this.options.telemetryConfig?.disableMetrics
     );
   }

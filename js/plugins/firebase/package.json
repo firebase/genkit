@@ -34,6 +34,7 @@
     "@genkit-ai/ai": "workspace:*",
     "@genkit-ai/core": "workspace:*",
     "@genkit-ai/flow": "workspace:*",
+    "@genkit-ai/google-cloud": "workspace:*",
     "express": "^4.19.2",
     "google-auth-library": "^9.6.3",
     "zod": "^3.22.4"
