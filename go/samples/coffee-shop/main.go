@@ -107,8 +107,11 @@ func main() {
 	if err := googleai.Init(context.Background(), apiKey); err != nil {
 		log.Fatal(err)
 	}
-	if err := googleai.DefineAllKnownModels(); err != nil {
-		log.Fatal(err)
+	for _, mname := range googleai.KnownModels() {
+		_, err := googleai.DefineModel(mname, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	r := &jsonschema.Reflector{

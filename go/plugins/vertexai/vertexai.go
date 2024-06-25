@@ -119,15 +119,21 @@ func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
 	return ai.DefineModel(provider, name, meta, g.generate), nil
 }
 
-// DefineAllKnownModels initializes and registers all known models.
-func DefineAllKnownModels() error {
-	for modelName, caps := range knownCaps {
-		_, err := DefineModel(modelName, &caps)
-		if err != nil {
-			return err
-		}
+// IsKnownModel reports whether a model is known to this plugin.
+func IsKnownModel(name string) bool {
+	_, ok := knownCaps[name]
+	return ok
+}
+
+// KnownModels returns a slice of all known model names.
+func KnownModels() []string {
+	keys := make([]string, len(knownCaps))
+	i := 0
+	for k := range knownCaps {
+		keys[i] = k
+		i++
 	}
-	return nil
+	return keys
 }
 
 // DefineModel defines an embedder with the given name.
