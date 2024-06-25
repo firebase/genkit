@@ -63,6 +63,8 @@ To get started with Firebase Genkit, install the Genkit CLI and run
 
          See https://cloud.google.com/vertex-ai/generative-ai/pricing for Vertex AI pricing.
 
+    1. Specify anything for the module name. For example: `example/genkit-intro`
+
     1. Choose default answers to the rest of the questions, which will
        initialize your project folder with some sample code.
 
