@@ -66,7 +66,7 @@ To get started with Firebase Genkit, install the Genkit CLI and run
     1. Choose default answers to the rest of the questions, which will
        initialize your project folder with some sample code.
 
-    The `genkit init` command creates a sample source file, `main.go`. This is your project's entry point, where you configure Genkit for your project, configure the plugins you want to load and export your AI flows and other resources you've defined. The sample file contains a config that loads a plugin to support the model provider you chose earlier. It also contains a single flow, `menuSuggestionFlow`, that prompts an LLM to suggest an item for a restaurant with a given theme.
+    The `genkit init` command creates a sample source file, `main.go`. This file demonstrates how you configure Genkit for your project, configure the plugins you want to load and export your AI flows and other resources you've defined. The sample file contains a config that loads a plugin to support the model provider you chose earlier. It also contains a single flow, `menuSuggestionFlow`, that prompts an LLM to suggest an item for a restaurant with a given theme.
 
     ```go
     err := googleai.Init(context.Background(), "")
