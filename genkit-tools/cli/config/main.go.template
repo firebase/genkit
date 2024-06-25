@@ -21,6 +21,7 @@ func $GENKIT_FUNC_NAME() {
 		resp, err := m.Generate(ctx, &ai.GenerateRequest{
 			Messages: []*ai.Message{
 				{
+					Role: ai.RoleUser,
 					Content: []*ai.Part{
 						ai.NewTextPart(fmt.Sprintf(`Suggest an item for the menu of a %s themed restaurant`, input)),
 					},
