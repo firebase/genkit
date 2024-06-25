@@ -219,6 +219,7 @@ func cleanListing(text, indent string) string {
 	return strings.Join(lines, "\n")
 }
 
+// leadingTabs counts the number of tabs that start s.
 func leadingTabs(s string) int {
 	var i int
 	for i = 0; i < len(s); i++ {
