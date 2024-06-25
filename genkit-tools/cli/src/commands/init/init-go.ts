@@ -53,7 +53,7 @@ const modelOptions: Record<ModelProvider, ModelOption> = {
   ollama: {
     label: 'Ollama (e.g. Gemma)',
     package: 'github.com/firebase/genkit/go/plugins/ollama',
-    init: `ollama.Init(context.Background(), ollama.Config{ ServerAddress: "http://127.0.0.1:11434" })`,
+    init: `ollama.Init(context.Background(), ollama.Config{ServerAddress: "http://127.0.0.1:11434", Models: []ollama.ModelDefinition{{Name: "gemma"}}})`,
     lookup: 'ollama.Model("gemma")',
   },
   none: {
