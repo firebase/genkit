@@ -42,7 +42,7 @@ const modelOptions: Record<ModelProvider, ModelOption> = {
     label: 'Google AI',
     package: 'github.com/firebase/genkit/go/plugins/googleai',
     init: 'googleai.Init(context.Background(), "")',
-    lookup: 'googleai.Model("gemini-1.5-pro")',
+    lookup: 'googleai.Model("gemini-1.5-flash")',
   },
   vertexai: {
     label: 'Google Cloud Vertex AI',
