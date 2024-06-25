@@ -1,0 +1,317 @@
+# Managing prompts with Dotprompt
+
+Firebase Genkit provides the Dotprompt plugin and text format to help you write
+and organize your generative AI prompts.
+
+Dotprompt is designed around the premise that _prompts are code_. You write and
+maintain your prompts in specially-formatted files called dotprompt files, track
+changes to them using the same version control system that you use for your
+code, and you deploy them along with the code that calls your generative AI
+models.
+
+To use Dotprompt, first create a `prompts` directory in your project root and
+then create a `.prompt` file in that directory. Here's a simple example you
+might call `greeting.prompt`:
+
+```none
+---
+model: vertexai/gemini-1.5-pro
+config:
+  temperature: 0.9
+input:
+  schema:
+    location: string
+    style?: string
+    name?: string
+  default:
+    location: a restaurant
+---
+
+You are the world's most welcoming AI assistant and are currently working at {{location}}.
+
+Greet a guest{{#if name}} named {{name}}{{/if}}{{#if style}} in the style of {{style}}{{/if}}.
+```
+
+To use this prompt:
+
+- {Go}
+
+  Install the `dotprompt` plugin:
+
+  ```posix-terminal
+  go get github.com/firebase/genkit/go/plugins/dotprompt
+  ```
+
+  Then, load the prompt using `Open`:
+
+  ```go
+  import "github.com/firebase/genkit/go/plugins/dotprompt"
+  ```
+
+  ```go
+	dotprompt.SetDirectory("prompts")
+	prompt, err := dotprompt.Open("greeting")
+  ```
+
+  You can call the prompt's `Generate` method to render the template and pass it
+  to the model API in one step:
+
+  ```go
+  // The .prompt file specifies vertexai/gemini-1.5-pro, so make sure it's set
+  // up:
+	projectID := os.Getenv("GCLOUD_PROJECT")
+	vertexai.Init(context.Background(), projectID, "us-central1")
+	vertexai.DefineModel("gemini-1.5-pro")
+
+	type GreetingPromptInput struct {
+		Location string `json:"location"`
+		Style    string `json:"style"`
+		Name     string `json:"name"`
+	}
+	response, err := prompt.Generate(
+		context.Background(),
+		&dotprompt.PromptRequest{
+			Variables: GreetingPromptInput{
+				Location: "the beach",
+				Style:    "a fancy pirate",
+				Name:     "Ed",
+			},
+		},
+		nil,
+	)
+
+	responseText, err := response.Text()
+	fmt.Println(responseText)
+  ```
+
+  Or just render the template to a string:
+
+  ```go
+	renderedPrompt, err := prompt.RenderText(map[string]any{
+		"location": "a restaurant",
+		"style":    "a pirate",
+	})
+  ```
+
+Dotprompt's syntax is based on the [Handlebars](https://handlebarsjs.com/guide/)
+templating language. You can use the `if`, `unless`, and `each` helpers to add
+conditional portions to your prompt or iterate through structured content. The
+file format utilizes YAML frontmatter to provide metadata for a prompt inline
+with the template.
+
+## Defining Input/Output Schemas with Picoschema
+
+Dotprompt includes a compact, YAML-based schema definition format called
+Picoschema to make it easy to define the most important attributs of a schema
+for LLM usage. Here's an example of a schema for an article:
+
+```yaml
+schema:
+  title: string # string, number, and boolean types are defined like this
+  subtitle?: string # optional fields are marked with a `?`
+  draft?: boolean, true when in draft state
+  status?(enum, approval status): [PENDING, APPROVED]
+  date: string, the date of publication e.g. '2024-04-09' # descriptions follow a comma
+  tags(array, relevant tags for article): string # arrays are denoted via parentheses
+  authors(array):
+    name: string
+    email?: string
+  metadata?(object): # objects are also denoted via parentheses
+    updatedAt?: string, ISO timestamp of last update
+    approvedBy?: integer, id of approver
+  extra?: any, arbitrary extra data
+  (*): string, wildcard field
+```
+
+The above schema is equivalent to the following TypeScript interface:
+
+```ts
+interface Article {
+  title: string;
+  subtitle?: string | null;
+  /** true when in draft state */
+  draft?: boolean | null;
+  /** approval status */
+  status?: 'PENDING' | 'APPROVED' | null;
+  /** the date of publication e.g. '2024-04-09' */
+  date: string;
+  /** relevant tags for article */
+  tags: string[];
+  authors: {
+    name: string;
+    email?: string | null;
+  }[];
+  metadata?: {
+    /** ISO timestamp of last update */
+    updatedAt?: string | null;
+    /** id of approver */
+    approvedBy?: number | null;
+  } | null;
+  /** arbitrary extra data */
+  extra?: any;
+  /** wildcard field */
+  [additionalField: string]: string;
+}
+```
+
+Picoschema supports scalar types `string`, `integer`, `number`, `boolean`, and `any`.
+For objects, arrays, and enums they are denoted by a parenthetical after the field name.
+
+Objects defined by Picoschema have all properties as required unless denoted optional
+by `?`, and do not allow additional properties. When a property is marked as optional,
+it is also made nullable to provide more leniency for LLMs to return null instead of
+omitting a field.
+
+In an object definition, the special key `(*)` can be used to declare a "wildcard"
+field definition. This will match any additional properties not supplied by an
+explicit key.
+
+Picoschema does not support many of the capabilities of full JSON schema. If you
+require more robust schemas, you may supply a JSON Schema instead:
+
+```yaml
+output:
+  schema:
+    type: object
+    properties:
+      field1:
+        type: number
+        minimum: 20
+```
+
+## Overriding Prompt Metadata
+
+While `.prompt` files allow you to embed metadata such as model configuration in
+the file itself, you can also override these values on a per-call basis:
+
+- {Go}
+
+  ```go
+  // Make sure you set up the model you're using.
+	vertexai.DefineModel("gemini-1.5-flash")
+
+	response, err := prompt.Generate(
+		context.Background(),
+		&dotprompt.PromptRequest{
+			Variables: GreetingPromptInput{
+				Location: "the beach",
+				Style:    "a fancy pirate",
+				Name:     "Ed",
+			},
+			Model: "vertexai/gemini-1.5-flash",
+			Config: &ai.GenerationCommonConfig{
+				Temperature: 1.0,
+			},
+		},
+		nil,
+	)
+  ```
+
+<!-- TODO: structured output unimplemented? -->
+
+## Multi-message prompts
+
+By default, Dotprompt constructs a single message with a `"user"` role. Some
+prompts are best expressed as a combination of multiple messages, such as a
+system prompt.
+
+The `{{role}}` helper provides a simple way to construct multi-message prompts:
+
+```none
+---
+model: vertexai/gemini-1.0-pro
+input:
+  schema:
+    userQuestion: string
+---
+
+{{role "system"}}
+You are a helpful AI assistant that really loves to talk about food. Try to work
+food items into all of your conversations.
+{{role "user"}}
+{{userQuestion}}
+```
+
+<!-- TODO: Multi-Turn Prompts and History unimplemented? -->
+
+## Multi-modal prompts
+
+For models that support multimodal input such as images alongside text, you can
+use the `{{media}}` helper:
+
+```none
+---
+model: vertexai/gemini-1.0-pro-vision
+input:
+  schema:
+    photoUrl: string
+---
+
+Describe this image in a detailed paragraph:
+
+{{media url=photoUrl}}
+```
+
+The URL can be `https://` or base64-encoded `data:` URIs for "inline" image
+usage. In code, this would be:
+
+- {Go}
+
+  ```go
+	dotprompt.SetDirectory("prompts")
+	describeImagePrompt, err := dotprompt.Open("describe_image")
+
+  imageBytes, err := os.ReadFile("img.jpg")
+	encodedImage := base64.StdEncoding.EncodeToString(imageBytes)
+	dataUri := fmt.Sprintf("data:image/jpeg;base64,%s", encodedImage)
+
+	type DescribeImagePromptInput struct {
+		PhotoUrl string `json:"photo_url"`
+	}
+	response, err := describeImagePrompt.Generate(
+		context.Background(),
+		&dotprompt.PromptRequest{Variables: DescribeImagePromptInput{
+			PhotoUrl: dataUri,
+		}},
+		nil,
+	)
+  ```
+
+## Prompt Variants
+
+Because prompt files are just text, you can (and should!) commit them to your
+version control system, allowing you to compare changes over time easily.
+Often times, tweaked versions of prompts can only be fully tested in a
+production environment side-by-side with existing versions. Dotprompt supports
+this through its **variants** feature.
+
+To create a variant, create a `[name].[variant].prompt` file. For instance, if
+you were using Gemini 1.0 Pro in your prompt but wanted to see if Gemini 1.5 Pro
+would perform better, you might create two files:
+
+- `my_prompt.prompt`: the "baseline" prompt
+- `my_prompt.gemini15.prompt`: a variant named "gemini"
+
+To use a prompt variant, specify the variant when loading:
+
+- {Go}
+
+  ```go
+	describeImagePrompt, err := dotprompt.OpenVariant("describe_image", "gemini15")
+  ```
+
+The prompt loader will attempt to load the variant of that name, and fall back
+to the baseline if none exists. This means you can use conditional loading based
+on whatever criteria makes sense for your application:
+
+```ts
+const myPrompt = await prompt('my_prompt', {
+  variant: isBetaTester(user) ? 'gemini15' : null,
+});
+```
+
+The name of the variant is included in the metadata of generation traces, so you
+can compare and contrast actual performance between variants in the Genkit trace
+inspector.
+
+<!-- TODO: Alternate ways to load and define prompts -->

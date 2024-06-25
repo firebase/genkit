@@ -1,0 +1,111 @@
+# Prompts
+
+Prompt manipulation is the primary way that you, as an app developer, influence
+the output of generative AI models. For example, when using LLMs, you can craft
+prompts that influence the tone, format, length, and other characteristics of
+the models’ responses.
+
+Genkit is designed around the premise that _prompts are code_. You write and
+maintain your prompts in source files, track changes to them using the same version
+control system that you use for your code, and you deploy them along with the code
+that calls your generative AI models.
+
+Most developers will find that the included [Dotprompt](./dotprompt.md) library
+meets their needs for working with prompts in Genkit. However, alternative
+approaches are also supported by working with prompts directly.
+
+## Defining prompts
+
+Genkit's generation helper functions accept string prompts, and you can
+call models this way for straight-forward use cases.
+
+- {Go}
+
+  ```go
+  request := ai.GenerateRequest{Messages: []*ai.Message{
+    {Content: []*ai.Part{ai.NewTextPart("You are a helpful AI assistant named Walt.")}},
+  }}
+  model.Generate(context.Background(), &request, nil)
+  ```
+
+In most cases, you'll need to include some user-provided inputs in your prompt.
+You could define a function to render them like this:
+
+- {Go}
+
+  ```go
+  func helloPrompt(name string) *ai.Part {
+    prompt := fmt.Sprintf("You are a helpful AI assistant named Walt. Say hello to %s.", name)
+    return ai.NewTextPart(prompt)
+  }
+  ```
+
+  ```go
+	request := ai.GenerateRequest{Messages: []*ai.Message{
+		{Content: []*ai.Part{helloPrompt("Fred")}},
+	}}
+	response, err := model.Generate(context.Background(), &request, nil)
+  ```
+
+However, one shortcoming of defining prompts in your code is that testing requires executing
+them as part of a flow. To facilitate more rapid iteration, Genkit provides a facility
+to define your prompts and run them in the Developer UI.
+
+- {Go}
+
+  Use the `DefinePrompt` function to register your prompts with Genkit.
+
+  ```go
+	type HelloPromptInput struct {
+		UserName string
+	}
+	helloPrompt := ai.DefinePrompt(
+		"myApp", // Prompt namespace
+		"helloPrompt",
+		nil, // Additional model config
+		jsonschema.Reflect(&HelloPromptInput{}),
+		func(ctx context.Context, input any) (*ai.GenerateRequest, error) {
+			params, ok := input.(HelloPromptInput)
+			if !ok {
+				return nil, errors.New("Input doesn't satisfy schema.")
+			}
+			prompt := fmt.Sprintf(
+				"You are a helpful AI assistant named Walt. Say hello to %s.",
+				params.UserName)
+			return &ai.GenerateRequest{Messages: []*ai.Message{
+				{Content: []*ai.Part{ai.NewTextPart(prompt)}},
+			}}, nil
+		},
+	)
+  ```
+
+A prompt action defines a function that returns a `GenerateRequest`,
+which can be used with any model. Optionally, you can also define an input schema
+for the prompt, which is analagous to the input schema for a flow.
+Prompts can also define any of the common model configuration options, such as
+temperature or number of output tokens.
+
+You can render this prompt to a model request with the provided helper function.
+Provide the input variables expected by the prompt, and the model to call.
+
+- {Go}
+
+  ```go
+  request, err := helloPrompt.Render(context.Background(), HelloPromptInput{UserName: "Fred"})
+  response, err := gemini15pro.Generate(context.Background(), request, nil)
+  ```
+
+In the Genkit Developer UI, you can run any prompt you have defined in this way.
+This allows you to experiment with individual prompts outside of the scope of
+the flows in which they might be used.
+
+## Dotprompt
+
+Genkit includes the [Dotprompt](./dotprompt.md) library which adds additional
+functionality to prompts.
+
+- Loading prompts from `.prompt` source files
+- Handlebars-based templates
+- Support for multi-turn prompt templates and multimedia content
+- Concise input and output schema definitions
+- Fluent usage with `generate()`
