@@ -39,19 +39,20 @@ var (
 	basicText = ai.ModelCapabilities{
 		Multiturn:  true,
 		Tools:      true,
-		SystemRole: true,
+		SystemRole: false,
 		Media:      false,
 	}
 
 	multimodal = ai.ModelCapabilities{
 		Multiturn:  true,
 		Tools:      true,
-		SystemRole: true,
+		SystemRole: false,
 		Media:      true,
 	}
 
 	knownCaps = map[string]ai.ModelCapabilities{
 		"gemini-1.0-pro":   basicText,
+		"gemini-1.5-pro":   multimodal,
 		"gemini-1.5-flash": multimodal,
 	}
 )
@@ -115,6 +116,17 @@ func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
 		mc = *caps
 	}
 	return defineModel(name, mc), nil
+}
+
+// KnownModels returns a slice of all known model names.
+func KnownModels() []string {
+	keys := make([]string, len(knownCaps))
+	i := 0
+	for k := range knownCaps {
+		keys[i] = k
+		i++
+	}
+	return keys
 }
 
 // requires state.mu

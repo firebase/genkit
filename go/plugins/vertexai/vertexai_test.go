@@ -44,7 +44,10 @@ func TestLive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	model := vertexai.DefineModel(modelName)
+	model, err := vertexai.DefineModel(modelName, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	embedder := vertexai.DefineEmbedder(embedderName)
 
 	toolDef := &ai.ToolDefinition{

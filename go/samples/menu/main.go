@@ -78,8 +78,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	model := vertexai.DefineModel("gemini-1.0-pro")
-	visionModel := vertexai.DefineModel("gemini-1.0-pro-vision")
+	model, err := vertexai.DefineModel("gemini-1.0-pro", nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	visionModel, err := vertexai.DefineModel("gemini-1.5-flash", nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 	embedder := vertexai.DefineEmbedder("textembedding-gecko")
 	if err := setup01(ctx, model); err != nil {
 		log.Fatal(err)
@@ -99,6 +105,9 @@ func main() {
 	indexer, retriever, err := localvec.DefineIndexerAndRetriever("go-menu_items", localvec.Config{
 		Embedder: embedder,
 	})
+	if err != nil {
+		log.Fatal(err)
+	}
 	if err := setup04(ctx, indexer, retriever, model); err != nil {
 		log.Fatal(err)
 	}
