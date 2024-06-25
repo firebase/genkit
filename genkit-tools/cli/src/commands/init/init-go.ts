@@ -36,24 +36,48 @@ interface ModelOption {
 /** Path to Genkit sample template. */
 const templatePath = '../../../config/main.go.template';
 
+const googleaiInitTmpl = `if err := googleai.Init(context.Background(), ""); err != nil {
+		log.Fatal(err)
+	}
+	for _, mname := range googleai.KnownModels() {
+		_, err := googleai.DefineModel(mname, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}`;
+
+const vertexaiInitTmpl = `if err := vertexai.Init(context.Background(), "" /* TODO: Set project ID. */, "us-central1"); err != nil {
+		log.Fatal(err)
+	}
+	for _, mname := range vertexai.KnownModels() {
+		_, err := vertexai.DefineModel(mname, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}`;
+
+const ollamaInitTmpl = `if err := ollama.Init(context.Background(), ollama.Config{ServerAddress: "http://127.0.0.1:11434", Models: []ollama.ModelDefinition{{Name: "gemma"}}}); err != nil {
+		log.Fatal(err)
+	}`;
+
 /** Model to plugin name. */
 const modelOptions: Record<ModelProvider, ModelOption> = {
   googleai: {
     label: 'Google AI',
     package: 'github.com/firebase/genkit/go/plugins/googleai',
-    init: 'googleai.Init(context.Background(), "")',
+    init: googleaiInitTmpl,
     lookup: 'googleai.Model("gemini-1.5-flash")',
   },
   vertexai: {
     label: 'Google Cloud Vertex AI',
     package: 'github.com/firebase/genkit/go/plugins/vertexai',
-    init: 'vertexai.Init(context.Background(), "" /* TODO: Set project ID. */, "us-central1")',
+    init: vertexaiInitTmpl,
     lookup: 'vertexai.Model("gemini-1.5-flash")',
   },
   ollama: {
     label: 'Ollama (e.g. Gemma)',
     package: 'github.com/firebase/genkit/go/plugins/ollama',
-    init: `ollama.Init(context.Background(), ollama.Config{ServerAddress: "http://127.0.0.1:11434", Models: []ollama.ModelDefinition{{Name: "gemma"}}})`,
+    init: ollamaInitTmpl,
     lookup: 'ollama.Model("gemma")',
   },
   none: {
