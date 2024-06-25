@@ -6,6 +6,6 @@ if [[ ! -f $weave ]]; then
   go -C ../go install ./internal/cmd/weave
 fi
 
-$weave _flows.md > flows.md
+$weave flows > flows.md
 
 

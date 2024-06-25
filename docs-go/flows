@@ -55,7 +55,6 @@ Here's a simple example of a flow that can stream values:
   %include ../go/internal/doc-snippets/flows.go streaming-types
 
   %include ../go/internal/doc-snippets/flows.go streaming
-  
 
 Note that the streaming callback can be undefined. It's only defined if the
 invoking client is requesting streamed response.
