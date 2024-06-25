@@ -57,10 +57,12 @@ To use this prompt:
   to the model API in one step:
 
   ```go
+  ctx := context.Background()
+
   // The .prompt file specifies vertexai/gemini-1.5-pro, so make sure it's set
   // up:
   projectID := os.Getenv("GCLOUD_PROJECT")
-  vertexai.Init(context.Background(), projectID, "us-central1")
+  vertexai.Init(ctx, projectID, "us-central1")
   vertexai.DefineModel("gemini-1.5-pro")
 
   type GreetingPromptInput struct {
@@ -69,7 +71,7 @@ To use this prompt:
   	Name     string `json:"name"`
   }
   response, err := prompt.Generate(
-  	context.Background(),
+  	ctx,
   	&dotprompt.PromptRequest{
   		Variables: GreetingPromptInput{
   			Location: "the beach",
@@ -79,19 +81,25 @@ To use this prompt:
   	},
   	nil,
   )
+  if err != nil {
+    log.Fatal(err)
+  }
 
-  responseText, err := response.Text()
-  fmt.Println(responseText)
+  if responseText, err := response.Text(); err == nil {
+    fmt.Println(responseText)
+  }
   ```
 
 Or just render the template to a string:
 
-```go
-	renderedPrompt, err := prompt.RenderText(map[string]any{
-		"location": "a restaurant",
-		"style":    "a pirate",
-	})
-```
+- {Go}
+
+  ```go
+  renderedPrompt, err := prompt.RenderText(map[string]any{
+    "location": "a restaurant",
+    "style":    "a pirate",
+  })
+  ```
 
 Dotprompt's syntax is based on the [Handlebars](https://handlebarsjs.com/guide/)
 templating language. You can use the `if`, `unless`, and `each` helpers to add
@@ -123,34 +131,70 @@ schema:
   (*): string, wildcard field
 ```
 
-The above schema is equivalent to the following TypeScript interface:
+The above schema is equivalent to the following JSON schema:
 
-```ts
-interface Article {
-  title: string;
-  subtitle?: string | null;
-  /** true when in draft state */
-  draft?: boolean | null;
-  /** approval status */
-  status?: 'PENDING' | 'APPROVED' | null;
-  /** the date of publication e.g. '2024-04-09' */
-  date: string;
-  /** relevant tags for article */
-  tags: string[];
-  authors: {
-    name: string;
-    email?: string | null;
-  }[];
-  metadata?: {
-    /** ISO timestamp of last update */
-    updatedAt?: string | null;
-    /** id of approver */
-    approvedBy?: number | null;
-  } | null;
-  /** arbitrary extra data */
-  extra?: any;
-  /** wildcard field */
-  [additionalField: string]: string;
+```json
+{
+    "properties": {
+        "metadata": {
+            "properties": {
+                "updatedAt": {
+                    "type": "string",
+                    "description": "ISO timestamp of last update"
+                },
+                "approvedBy": {
+                    "type": "integer",
+                    "description": "id of approver"
+                }
+            },
+            "type": "object"
+        },
+        "title": {
+            "type": "string"
+        },
+        "subtitle": {
+            "type": "string"
+        },
+        "draft": {
+            "type": "boolean",
+            "description": "true when in draft state"
+        },
+        "date": {
+            "type": "string",
+            "description": "the date of publication e.g. '2024-04-09'"
+        },
+        "tags": {
+            "items": {
+                "type": "string"
+            },
+            "type": "array",
+            "description": "relevant tags for article"
+        },
+        "authors": {
+            "items": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "name"
+                ]
+            },
+            "type": "array"
+        }
+    },
+    "type": "object",
+    "required": [
+        "title",
+        "date",
+        "tags",
+        "authors"
+    ]
 }
 ```
 
@@ -260,10 +304,16 @@ usage. In code, this would be:
   ```go
   dotprompt.SetDirectory("prompts")
   describeImagePrompt, err := dotprompt.Open("describe_image")
+	if err != nil {
+		log.Fatal(err)
+	}
 
   imageBytes, err := os.ReadFile("img.jpg")
+	if err != nil {
+		log.Fatal(err)
+	}
   encodedImage := base64.StdEncoding.EncodeToString(imageBytes)
-  dataUri := fmt.Sprintf("data:image/jpeg;base64,%s", encodedImage)
+  dataURI := "data:image/jpeg;base64," + encodedImage
 
   type DescribeImagePromptInput struct {
   	PhotoUrl string `json:"photo_url"`
