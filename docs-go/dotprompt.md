@@ -137,66 +137,59 @@ The above schema is equivalent to the following JSON schema:
 
 ```json
 {
-    "properties": {
-        "metadata": {
-            "properties": {
-                "updatedAt": {
-                    "type": "string",
-                    "description": "ISO timestamp of last update"
-                },
-                "approvedBy": {
-                    "type": "integer",
-                    "description": "id of approver"
-                }
-            },
-            "type": "object"
+  "properties": {
+    "metadata": {
+      "properties": {
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update"
         },
-        "title": {
-            "type": "string"
-        },
-        "subtitle": {
-            "type": "string"
-        },
-        "draft": {
-            "type": "boolean",
-            "description": "true when in draft state"
-        },
-        "date": {
-            "type": "string",
-            "description": "the date of publication e.g. '2024-04-09'"
-        },
-        "tags": {
-            "items": {
-                "type": "string"
-            },
-            "type": "array",
-            "description": "relevant tags for article"
-        },
-        "authors": {
-            "items": {
-                "properties": {
-                    "name": {
-                        "type": "string"
-                    },
-                    "email": {
-                        "type": "string"
-                    }
-                },
-                "type": "object",
-                "required": [
-                    "name"
-                ]
-            },
-            "type": "array"
+        "approvedBy": {
+          "type": "integer",
+          "description": "id of approver"
         }
+      },
+      "type": "object"
     },
-    "type": "object",
-    "required": [
-        "title",
-        "date",
-        "tags",
-        "authors"
-    ]
+    "title": {
+      "type": "string"
+    },
+    "subtitle": {
+      "type": "string"
+    },
+    "draft": {
+      "type": "boolean",
+      "description": "true when in draft state"
+    },
+    "date": {
+      "type": "string",
+      "description": "the date of publication e.g. '2024-04-09'"
+    },
+    "tags": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "description": "relevant tags for article"
+    },
+    "authors": {
+      "items": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          }
+        },
+        "type": "object",
+        "required": ["name"]
+      },
+      "type": "array"
+    }
+  },
+  "type": "object",
+  "required": ["title", "date", "tags", "authors"]
 }
 ```
 
