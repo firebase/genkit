@@ -6,6 +6,7 @@ if [[ ! -f $weave ]]; then
   go -C ../go install ./internal/cmd/weave
 fi
 
-$weave flows > flows.md
-
+for file in flows models; do
+  $weave $file > $file.md
+done
 
