@@ -48,7 +48,7 @@ const modelOptions: Record<ModelProvider, ModelOption> = {
     label: 'Google Cloud Vertex AI',
     package: 'github.com/firebase/genkit/go/plugins/vertexai',
     init: 'vertexai.Init(context.Background(), "" /* TODO: Set project ID. */, "us-central1")',
-    lookup: 'vertexai.Model("gemini-1.5-pro")',
+    lookup: 'vertexai.Model("gemini-1.5-flash")',
   },
   ollama: {
     label: 'Ollama (e.g. Gemma)',
