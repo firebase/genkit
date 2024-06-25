@@ -60,7 +60,7 @@ to define your prompts and run them in the Developer UI.
   	UserName string
   }
   helloPrompt := ai.DefinePrompt(
-  	"myApp", // Prompt namespace
+  	"prompts",
   	"helloPrompt",
   	nil, // Additional model config
   	jsonschema.Reflect(&HelloPromptInput{}),
