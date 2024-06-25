@@ -11,10 +11,7 @@ import (
 )
 
 func $GENKIT_FUNC_NAME() {
-	err := $GENKIT_MODEL_INIT
-	if err != nil {
-		log.Fatal(err)
-	}
+	$GENKIT_MODEL_INIT
 
 	genkit.DefineFlow("menuSuggestionFlow", func(ctx context.Context, input string) (string, error) {
 		m := $GENKIT_MODEL_LOOKUP
