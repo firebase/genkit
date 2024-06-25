@@ -30,6 +30,28 @@ import (
 
 const provider = "vertexai"
 
+var (
+	basicText = ai.ModelCapabilities{
+		Multiturn:  true,
+		Tools:      true,
+		SystemRole: false,
+		Media:      false,
+	}
+
+	multimodal = ai.ModelCapabilities{
+		Multiturn:  true,
+		Tools:      true,
+		SystemRole: false,
+		Media:      true,
+	}
+
+	knownCaps = map[string]ai.ModelCapabilities{
+		"gemini-1.0-pro":   basicText,
+		"gemini-1.5-pro":   multimodal,
+		"gemini-1.5-flash": multimodal,
+	}
+)
+
 var state struct {
 	mu        sync.Mutex
 	initted   bool
@@ -72,20 +94,40 @@ func Init(ctx context.Context, projectID, location string) error {
 }
 
 // DefineModel defines a model with the given name.
-func DefineModel(name string) *ai.Model {
+func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
 		panic("vertexai.Init not called")
 	}
+	var mc ai.ModelCapabilities
+	if caps == nil {
+		var ok bool
+		mc, ok = knownCaps[name]
+		if !ok {
+			return nil, fmt.Errorf("vertextai.DefineModel: called with unknown model %q and nil ModelCapabilities", name)
+		}
+	} else {
+		mc = *caps
+	}
+
 	meta := &ai.ModelMetadata{
-		Label: "Vertex AI - " + name,
-		Supports: ai.ModelCapabilities{
-			Multiturn: true,
-		},
+		Label:    "Vertex AI - " + name,
+		Supports: mc,
 	}
 	g := &generator{model: name, client: state.gclient}
-	return ai.DefineModel(provider, name, meta, g.generate)
+	return ai.DefineModel(provider, name, meta, g.generate), nil
+}
+
+// DefineAllKnownModels initializes and registers all known models.
+func DefineAllKnownModels() error {
+	for modelName, caps := range knownCaps {
+		_, err := DefineModel(modelName, &caps)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // DefineModel defines an embedder with the given name.

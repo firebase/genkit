@@ -39,19 +39,20 @@ var (
 	basicText = ai.ModelCapabilities{
 		Multiturn:  true,
 		Tools:      true,
-		SystemRole: true,
+		SystemRole: false,
 		Media:      false,
 	}
 
 	multimodal = ai.ModelCapabilities{
 		Multiturn:  true,
 		Tools:      true,
-		SystemRole: true,
+		SystemRole: false,
 		Media:      true,
 	}
 
 	knownCaps = map[string]ai.ModelCapabilities{
 		"gemini-1.0-pro":   basicText,
+		"gemini-1.5-pro":   multimodal,
 		"gemini-1.5-flash": multimodal,
 	}
 )
@@ -115,6 +116,17 @@ func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
 		mc = *caps
 	}
 	return defineModel(name, mc), nil
+}
+
+// DefineAllKnownModels initializes and registers all known models.
+func DefineAllKnownModels() error {
+	for modelName, caps := range knownCaps {
+		_, err := DefineModel(modelName, &caps)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // requires state.mu
