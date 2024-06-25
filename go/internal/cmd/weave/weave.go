@@ -180,7 +180,7 @@ func indented(line string) bool {
 
 // cleanListing removes entirely blank leading and trailing lines from
 // text, and removes n leading tabs.
-// It then prefixes each line with indent.
+// It then prefixes each non-blank line with indent.
 func cleanListing(text, indent string) string {
 	lines := strings.Split(text, "\n")
 
@@ -212,7 +212,9 @@ func cleanListing(text, indent string) string {
 	}
 	// add indent
 	for i, ln := range lines {
-		lines[i] = indent + ln
+		if ln != "" {
+			lines[i] = indent + ln
+		}
 	}
 	return strings.Join(lines, "\n")
 }

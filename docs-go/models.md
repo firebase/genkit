@@ -81,7 +81,7 @@ To just call the model:
   if err != nil {
   	return err
   }
-  
+
   responseText, err := response.Text()
   if err != nil {
   	return err
@@ -133,7 +133,7 @@ Genkit supports chunked streaming of model responses:
   if err != nil {
   	return err
   }
-  
+
   // You can also still get the full response.
   responseText, err := response.Text()
   if err != nil {
@@ -141,7 +141,7 @@ Genkit supports chunked streaming of model responses:
   }
   fmt.Println(responseText)
   ```
-  
+
 ## Multimodal input
 
 If the model supports multimodal input, you can pass image prompts:
@@ -154,7 +154,7 @@ If the model supports multimodal input, you can pass image prompts:
   	return err
   }
   encodedImage := base64.StdEncoding.EncodeToString(imageBytes)
-  
+
   request := ai.GenerateRequest{Messages: []*ai.Message{
   	{Content: []*ai.Part{
   		ai.NewTextPart("Describe the following image."),
@@ -192,7 +192,7 @@ it.
   		return map[string]any{"joke": "haha Just kidding no joke! got you"}, nil
   	},
   )
-  
+
   request := ai.GenerateRequest{
   	Messages: []*ai.Message{
   		{Content: []*ai.Part{ai.NewTextPart("Tell me a joke.")},
@@ -220,6 +220,7 @@ const docs = await companyPolicyRetriever({ query: question });
 await generate({
   model: geminiPro,
   prompt: `Answer using the available context from company policy: ${question}`,
+
   context: docs,
 });
 ```
@@ -244,7 +245,7 @@ chatbots.
   	Content: []*ai.Part{ai.NewTextPart(prompt)},
   	Role:    ai.RoleUser,
   }}
-  
+
   request := ai.GenerateRequest{Messages: history}
   response, err := gemini15pro.Generate(context.Background(), &request, nil)
   ```
@@ -264,7 +265,7 @@ chatbots.
   	Content: []*ai.Part{ai.NewTextPart(prompt)},
   	Role:    ai.RoleUser,
   })
-  
+
   request = ai.GenerateRequest{Messages: history}
   response, err = gemini15pro.Generate(ctx, &request, nil)
   ```

@@ -79,7 +79,7 @@ Genkit supports chunked streaming of model responses:
   To use chunked streaming, pass a callback function to `Generate()`:
 
   %include ../go/internal/doc-snippets/models.go streaming
-  
+
 ## Multimodal input
 
 If the model supports multimodal input, you can pass image prompts:
@@ -119,6 +119,7 @@ const docs = await companyPolicyRetriever({ query: question });
 await generate({
   model: geminiPro,
   prompt: `Answer using the available context from company policy: ${question}`,
+
   context: docs,
 });
 ```
