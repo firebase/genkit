@@ -49,8 +49,8 @@ To use this prompt:
   ```
 
   ```go
-	dotprompt.SetDirectory("prompts")
-	prompt, err := dotprompt.Open("greeting")
+  dotprompt.SetDirectory("prompts")
+  prompt, err := dotprompt.Open("greeting")
   ```
 
   You can call the prompt's `Generate` method to render the template and pass it
@@ -59,39 +59,39 @@ To use this prompt:
   ```go
   // The .prompt file specifies vertexai/gemini-1.5-pro, so make sure it's set
   // up:
-	projectID := os.Getenv("GCLOUD_PROJECT")
-	vertexai.Init(context.Background(), projectID, "us-central1")
-	vertexai.DefineModel("gemini-1.5-pro")
+  projectID := os.Getenv("GCLOUD_PROJECT")
+  vertexai.Init(context.Background(), projectID, "us-central1")
+  vertexai.DefineModel("gemini-1.5-pro")
 
-	type GreetingPromptInput struct {
-		Location string `json:"location"`
-		Style    string `json:"style"`
-		Name     string `json:"name"`
-	}
-	response, err := prompt.Generate(
-		context.Background(),
-		&dotprompt.PromptRequest{
-			Variables: GreetingPromptInput{
-				Location: "the beach",
-				Style:    "a fancy pirate",
-				Name:     "Ed",
-			},
-		},
-		nil,
-	)
+  type GreetingPromptInput struct {
+  	Location string `json:"location"`
+  	Style    string `json:"style"`
+  	Name     string `json:"name"`
+  }
+  response, err := prompt.Generate(
+  	context.Background(),
+  	&dotprompt.PromptRequest{
+  		Variables: GreetingPromptInput{
+  			Location: "the beach",
+  			Style:    "a fancy pirate",
+  			Name:     "Ed",
+  		},
+  	},
+  	nil,
+  )
 
-	responseText, err := response.Text()
-	fmt.Println(responseText)
+  responseText, err := response.Text()
+  fmt.Println(responseText)
   ```
 
-  Or just render the template to a string:
+Or just render the template to a string:
 
-  ```go
+```go
 	renderedPrompt, err := prompt.RenderText(map[string]any{
 		"location": "a restaurant",
 		"style":    "a pirate",
 	})
-  ```
+```
 
 Dotprompt's syntax is based on the [Handlebars](https://handlebarsjs.com/guide/)
 templating language. You can use the `if`, `unless`, and `each` helpers to add
@@ -188,23 +188,23 @@ the file itself, you can also override these values on a per-call basis:
 
   ```go
   // Make sure you set up the model you're using.
-	vertexai.DefineModel("gemini-1.5-flash")
+  vertexai.DefineModel("gemini-1.5-flash")
 
-	response, err := prompt.Generate(
-		context.Background(),
-		&dotprompt.PromptRequest{
-			Variables: GreetingPromptInput{
-				Location: "the beach",
-				Style:    "a fancy pirate",
-				Name:     "Ed",
-			},
-			Model: "vertexai/gemini-1.5-flash",
-			Config: &ai.GenerationCommonConfig{
-				Temperature: 1.0,
-			},
-		},
-		nil,
-	)
+  response, err := prompt.Generate(
+  	context.Background(),
+  	&dotprompt.PromptRequest{
+  		Variables: GreetingPromptInput{
+  			Location: "the beach",
+  			Style:    "a fancy pirate",
+  			Name:     "Ed",
+  		},
+  		Model: "vertexai/gemini-1.5-flash",
+  		Config: &ai.GenerationCommonConfig{
+  			Temperature: 1.0,
+  		},
+  	},
+  	nil,
+  )
   ```
 
 <!-- TODO: structured output unimplemented? -->
@@ -258,23 +258,23 @@ usage. In code, this would be:
 - {Go}
 
   ```go
-	dotprompt.SetDirectory("prompts")
-	describeImagePrompt, err := dotprompt.Open("describe_image")
+  dotprompt.SetDirectory("prompts")
+  describeImagePrompt, err := dotprompt.Open("describe_image")
 
   imageBytes, err := os.ReadFile("img.jpg")
-	encodedImage := base64.StdEncoding.EncodeToString(imageBytes)
-	dataUri := fmt.Sprintf("data:image/jpeg;base64,%s", encodedImage)
+  encodedImage := base64.StdEncoding.EncodeToString(imageBytes)
+  dataUri := fmt.Sprintf("data:image/jpeg;base64,%s", encodedImage)
 
-	type DescribeImagePromptInput struct {
-		PhotoUrl string `json:"photo_url"`
-	}
-	response, err := describeImagePrompt.Generate(
-		context.Background(),
-		&dotprompt.PromptRequest{Variables: DescribeImagePromptInput{
-			PhotoUrl: dataUri,
-		}},
-		nil,
-	)
+  type DescribeImagePromptInput struct {
+  	PhotoUrl string `json:"photo_url"`
+  }
+  response, err := describeImagePrompt.Generate(
+  	context.Background(),
+  	&dotprompt.PromptRequest{Variables: DescribeImagePromptInput{
+  		PhotoUrl: dataUri,
+  	}},
+  	nil,
+  )
   ```
 
 ## Prompt Variants
@@ -297,7 +297,7 @@ To use a prompt variant, specify the variant when loading:
 - {Go}
 
   ```go
-	describeImagePrompt, err := dotprompt.OpenVariant("describe_image", "gemini15")
+  describeImagePrompt, err := dotprompt.OpenVariant("describe_image", "gemini15")
   ```
 
 The prompt loader will attempt to load the variant of that name, and fall back

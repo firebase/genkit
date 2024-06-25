@@ -41,10 +41,10 @@ You could define a function to render them like this:
   ```
 
   ```go
-	request := ai.GenerateRequest{Messages: []*ai.Message{
-		{Content: []*ai.Part{helloPrompt("Fred")}},
-	}}
-	response, err := model.Generate(context.Background(), &request, nil)
+  request := ai.GenerateRequest{Messages: []*ai.Message{
+  	{Content: []*ai.Part{helloPrompt("Fred")}},
+  }}
+  response, err := model.Generate(context.Background(), &request, nil)
   ```
 
 However, one shortcoming of defining prompts in your code is that testing requires executing
@@ -56,27 +56,27 @@ to define your prompts and run them in the Developer UI.
   Use the `DefinePrompt` function to register your prompts with Genkit.
 
   ```go
-	type HelloPromptInput struct {
-		UserName string
-	}
-	helloPrompt := ai.DefinePrompt(
-		"myApp", // Prompt namespace
-		"helloPrompt",
-		nil, // Additional model config
-		jsonschema.Reflect(&HelloPromptInput{}),
-		func(ctx context.Context, input any) (*ai.GenerateRequest, error) {
-			params, ok := input.(HelloPromptInput)
-			if !ok {
-				return nil, errors.New("Input doesn't satisfy schema.")
-			}
-			prompt := fmt.Sprintf(
-				"You are a helpful AI assistant named Walt. Say hello to %s.",
-				params.UserName)
-			return &ai.GenerateRequest{Messages: []*ai.Message{
-				{Content: []*ai.Part{ai.NewTextPart(prompt)}},
-			}}, nil
-		},
-	)
+  type HelloPromptInput struct {
+  	UserName string
+  }
+  helloPrompt := ai.DefinePrompt(
+  	"myApp", // Prompt namespace
+  	"helloPrompt",
+  	nil, // Additional model config
+  	jsonschema.Reflect(&HelloPromptInput{}),
+  	func(ctx context.Context, input any) (*ai.GenerateRequest, error) {
+  		params, ok := input.(HelloPromptInput)
+  		if !ok {
+  			return nil, errors.New("Input doesn't satisfy schema.")
+  		}
+  		prompt := fmt.Sprintf(
+  			"You are a helpful AI assistant named Walt. Say hello to %s.",
+  			params.UserName)
+  		return &ai.GenerateRequest{Messages: []*ai.Message{
+  			{Content: []*ai.Part{ai.NewTextPart(prompt)}},
+  		}}, nil
+  	},
+  )
   ```
 
 A prompt action defines a function that returns a `GenerateRequest`,
