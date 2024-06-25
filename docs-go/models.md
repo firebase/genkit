@@ -30,6 +30,11 @@ models.
   if err := vertexai.Init(ctx, projectID, "us-central1"); err != nil {
   	return err
   }
+
+  // Declare the models you want to use:
+  vertexai.DefineModel("gemini-1.0-pro", nil)
+  vertexai.DefineModel("gemini-1.5-pro", nil)
+  vertexai.DefineModel("gemini-1.5-flash", nil)
   ```
 
 Note: Different plugins and models use different methods of
