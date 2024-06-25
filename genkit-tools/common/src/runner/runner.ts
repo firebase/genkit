@@ -112,7 +112,7 @@ export class Runner {
       const config = await findToolsConfig();
       if (config?.runner?.mode !== 'harness') {
         this.buildCommand = config?.builder?.cmd;
-        if (!this.buildCommand && detectRuntime(process.cwd()) === 'node') {
+        if (!this.buildCommand && detectRuntime(process.cwd()) === 'nodejs') {
           this.buildCommand = 'npm run build';
         }
         this.build();
@@ -164,7 +164,7 @@ export class Runner {
     let command = '';
     let args: string[] = [];
     switch (runtime) {
-      case 'node':
+      case 'nodejs':
         command =
           config?.runner?.mode === 'harness'
             ? path.join(__dirname, '../../../node_modules/.bin/tsx')

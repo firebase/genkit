@@ -41,6 +41,9 @@ importers:
       inquirer:
         specifier: ^8.2.0
         version: 8.2.6
+      ora:
+        specifier: ^5.4.1
+        version: 5.4.1
     devDependencies:
       '@jest/globals':
         specifier: ^29.7.0

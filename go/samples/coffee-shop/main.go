@@ -104,19 +104,21 @@ func main() {
 		fmt.Fprintln(os.Stderr, "You can get an API key at https://ai.google.dev.")
 		os.Exit(1)
 	}
-	err := googleai.Init(context.Background(), apiKey)
-	if err != nil {
+	if err := googleai.Init(context.Background(), apiKey); err != nil {
 		log.Fatal(err)
+	}
+	for _, mname := range googleai.KnownModels() {
+		_, err := googleai.DefineModel(mname, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	r := &jsonschema.Reflector{
 		AllowAdditionalProperties: false,
 		DoNotReference:            true,
 	}
-	g, err := googleai.DefineModel("gemini-1.5-pro", nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+	g := googleai.Model("gemini-1.5-flash")
 	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting", simpleGreetingPromptTemplate,
 		dotprompt.Config{
 			Model:        g,
