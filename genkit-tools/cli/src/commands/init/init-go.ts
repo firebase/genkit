@@ -167,7 +167,9 @@ export async function initGo(options: InitOptions, isNew: boolean) {
 function installPackages(packages: string[]) {
   const spinner = ora('Installing Go packages').start();
   try {
-    execSync(`go get ${packages.map(p => p + '@latest').join(' ')}`, { stdio: 'ignore' });
+    execSync(`go get ${packages.map((p) => p + '@latest').join(' ')}`, {
+      stdio: 'ignore',
+    });
     spinner.succeed('Successfully installed Go packages');
   } catch (err) {
     spinner.fail(`Error installing packages: ${err}`);
