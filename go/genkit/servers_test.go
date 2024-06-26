@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package core
+package genkit
 
 import (
 	"context"
@@ -23,26 +23,33 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/atype"
+	"github.com/firebase/genkit/go/internal/common"
+	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/invopop/jsonschema"
 )
+
+func inc(_ context.Context, x int) (int, error) {
+	return x + 1, nil
+}
 
 func dec(_ context.Context, x int) (int, error) {
 	return x - 1, nil
 }
 
 func TestDevServer(t *testing.T) {
-	r, err := newRegistry()
+	r, err := registry.New()
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.registerAction(newAction("devServer/inc", atype.Custom, map[string]any{
+	r.RegisterAction(atype.Custom, core.NewAction("devServer/inc", atype.Custom, map[string]any{
 		"foo": "bar",
 	}, inc))
-	r.registerAction(newAction("devServer/dec", atype.Custom, map[string]any{
+	r.RegisterAction(atype.Custom, core.NewAction("devServer/dec", atype.Custom, map[string]any{
 		"bar": "baz",
 	}, dec))
 	srv := httptest.NewServer(newDevServeMux(r))
@@ -80,11 +87,11 @@ func TestDevServer(t *testing.T) {
 		if res.StatusCode != 200 {
 			t.Fatalf("got status %d, wanted 200", res.StatusCode)
 		}
-		got, err := readJSON[map[string]actionDesc](res.Body)
+		got, err := readJSON[map[string]common.ActionDesc](res.Body)
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := map[string]actionDesc{
+		want := map[string]common.ActionDesc{
 			"/custom/devServer/inc": {
 				Key:          "/custom/devServer/inc",
 				Name:         "devServer/inc",
@@ -122,11 +129,11 @@ func TestDevServer(t *testing.T) {
 }
 
 func TestProdServer(t *testing.T) {
-	r, err := newRegistry()
+	r, err := registry.New()
 	if err != nil {
 		t.Fatal(err)
 	}
-	defineFlow(r, "inc", func(_ context.Context, i int, _ NoStream) (int, error) {
+	defineFlow(r, "inc", func(_ context.Context, i int, _ noStream) (int, error) {
 		return i + 1, nil
 	})
 	srv := httptest.NewServer(newFlowServeMux(r, nil))
@@ -160,8 +167,8 @@ func TestProdServer(t *testing.T) {
 	t.Run("bad", func(t *testing.T) { check(t, "true", 400, 0) })
 }
 
-func checkActionTrace(t *testing.T, reg *registry, tid, name string) {
-	ts := reg.lookupTraceStore(EnvironmentDev)
+func checkActionTrace(t *testing.T, reg *registry.Registry, tid, name string) {
+	ts := reg.LookupTraceStore(common.EnvironmentDev)
 	td, err := ts.Load(context.Background(), tid)
 	if err != nil {
 		t.Fatal(err)

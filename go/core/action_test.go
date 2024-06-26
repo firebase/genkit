@@ -21,6 +21,8 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/internal/atype"
+	"github.com/firebase/genkit/go/internal/common"
+	"github.com/firebase/genkit/go/internal/registry"
 )
 
 func inc(_ context.Context, x int) (int, error) {
@@ -28,7 +30,7 @@ func inc(_ context.Context, x int) (int, error) {
 }
 
 func TestActionRun(t *testing.T) {
-	a := newAction("inc", atype.Custom, nil, inc)
+	a := NewAction("inc", atype.Custom, nil, inc)
 	got, err := a.Run(context.Background(), 3, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -39,10 +41,10 @@ func TestActionRun(t *testing.T) {
 }
 
 func TestActionRunJSON(t *testing.T) {
-	a := newAction("inc", atype.Custom, nil, inc)
+	a := NewAction("inc", atype.Custom, nil, inc)
 	input := []byte("3")
 	want := []byte("4")
-	got, err := a.runJSON(context.Background(), input, nil)
+	got, err := a.RunJSON(context.Background(), input, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +55,7 @@ func TestActionRunJSON(t *testing.T) {
 
 func TestNewAction(t *testing.T) {
 	// Verify that struct{} can occur in the function signature.
-	_ = newAction("f", atype.Custom, nil, func(context.Context, int) (struct{}, error) { return struct{}{}, nil })
+	_ = NewAction("f", atype.Custom, nil, func(context.Context, int) (struct{}, error) { return struct{}{}, nil })
 }
 
 // count streams the numbers from 0 to n-1, then returns n.
@@ -70,7 +72,7 @@ func count(ctx context.Context, n int, cb func(context.Context, int) error) (int
 
 func TestActionStreaming(t *testing.T) {
 	ctx := context.Background()
-	a := newStreamingAction("count", atype.Custom, nil, count)
+	a := NewStreamingAction("count", atype.Custom, nil, count)
 	const n = 3
 
 	// Non-streaming.
@@ -103,12 +105,12 @@ func TestActionStreaming(t *testing.T) {
 func TestActionTracing(t *testing.T) {
 	ctx := context.Background()
 	const actionName = "TestTracing-inc"
-	a := newAction(actionName, atype.Custom, nil, inc)
+	a := NewAction(actionName, atype.Custom, nil, inc)
 	if _, err := a.Run(context.Background(), 3, nil); err != nil {
 		t.Fatal(err)
 	}
 	// The dev TraceStore is registered by Init, called from TestMain.
-	ts := globalRegistry.lookupTraceStore(EnvironmentDev)
+	ts := registry.Global.LookupTraceStore(common.EnvironmentDev)
 	tds, _, err := ts.List(ctx, nil)
 	if err != nil {
 		t.Fatal(err)

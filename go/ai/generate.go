@@ -25,6 +25,7 @@ import (
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
+	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/internal/atype"
 )
 
@@ -153,7 +154,7 @@ func validCandidate(c *Candidate, output *GenerateRequestOutput) (*Candidate, er
 		if err != nil {
 			return nil, fmt.Errorf("expected schema is not valid: %w", err)
 		}
-		if err = core.ValidateRaw([]byte(text), schemaBytes); err != nil {
+		if err = internal.ValidateRaw([]byte(text), schemaBytes); err != nil {
 			return nil, err
 		}
 		// TODO: Verify that it okay to replace all content with JSON.

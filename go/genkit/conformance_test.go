@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package core
+package genkit
 
 import (
 	"cmp"
@@ -27,7 +27,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/internal/common"
+	"github.com/firebase/genkit/go/internal/registry"
 	"golang.org/x/exp/maps"
 )
 
@@ -69,7 +72,7 @@ func (c *command) run(ctx context.Context, input string) (string, error) {
 	case c.Append != nil:
 		return input + *c.Append, nil
 	case c.Run != nil:
-		return InternalRun(ctx, c.Run.Name, func() (string, error) {
+		return Run(ctx, c.Run.Name, func() (string, error) {
 			return c.Run.Command.run(ctx, input)
 		})
 	default:
@@ -92,7 +95,7 @@ func TestFlowConformance(t *testing.T) {
 				t.Fatal(err)
 			}
 			// Each test uses its own registry to avoid interference.
-			r, err := newRegistry()
+			r, err := registry.New()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -113,7 +116,7 @@ func TestFlowConformance(t *testing.T) {
 			if test.Trace == nil {
 				return
 			}
-			ts := r.lookupTraceStore(EnvironmentDev)
+			ts := r.LookupTraceStore(common.EnvironmentDev)
 			var gotTrace any
 			if err := ts.LoadAny(resp.Telemetry.TraceID, &gotTrace); err != nil {
 				t.Fatal(err)
@@ -128,8 +131,8 @@ func TestFlowConformance(t *testing.T) {
 }
 
 // flowFunction returns a function that runs the list of commands.
-func flowFunction(commands []command) Func[string, string, struct{}] {
-	return func(ctx context.Context, input string, cb NoStream) (string, error) {
+func flowFunction(commands []command) core.Func[string, string, struct{}] {
+	return func(ctx context.Context, input string, cb noStream) (string, error) {
 		result := input
 		var err error
 		for i, cmd := range commands {

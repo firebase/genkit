@@ -19,6 +19,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+
+	"github.com/invopop/jsonschema"
 )
 
 // JSONString returns json.Marshal(x) as a string. If json.Marshal returns
@@ -54,4 +56,14 @@ func ReadJSONFile(filename string, pvalue any) error {
 	}
 	defer f.Close()
 	return json.NewDecoder(f).Decode(pvalue)
+}
+
+func InferJSONSchema(x any) (s *jsonschema.Schema) {
+	r := jsonschema.Reflector{
+		DoNotReference: true,
+	}
+	s = r.Reflect(x)
+	// TODO: Unwind this change once Monaco Editor supports newer than JSON schema draft-07.
+	s.Version = ""
+	return s
 }
