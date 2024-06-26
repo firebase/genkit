@@ -79,11 +79,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	model, err := googleai.DefineModel("gemini-1.0-pro", nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	embedder := googleai.DefineEmbedder("embedding-001")
+	model := googleai.Model("gemini-1.0-pro")
+	embedder := googleai.Embedder("embedding-001")
 	if err := localvec.Init(); err != nil {
 		log.Fatal(err)
 	}
