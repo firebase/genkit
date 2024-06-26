@@ -55,6 +55,8 @@ var (
 		"gemini-1.5-pro":   multimodal,
 		"gemini-1.5-flash": multimodal,
 	}
+
+	knownEmbedders = []string{"text-embedding-004", "embedding-001"}
 )
 
 // Init initializes the plugin.
@@ -89,6 +91,9 @@ func Init(ctx context.Context, apiKey string) (err error) {
 		if _, err := DefineModel(model, &caps); err != nil {
 			return fmt.Errorf("googleai.Init: failed to define known model %q: %w", model, err)
 		}
+	}
+	for _, e := range knownEmbedders {
+		DefineEmbedder(e)
 	}
 	return nil
 }

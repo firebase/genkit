@@ -51,6 +51,8 @@ var (
 		"gemini-1.5-pro":   multimodal,
 		"gemini-1.5-flash": multimodal,
 	}
+
+	knownEmbedders = []string{"text-embedding-004", "multimodalembedding"}
 )
 
 var state struct {
@@ -106,6 +108,9 @@ func Init(ctx context.Context, projectID, location string) error {
 		if _, err := DefineModel(model, &caps); err != nil {
 			return fmt.Errorf("vertexai.Init: failed to define known model %q: %w", model, err)
 		}
+	}
+	for _, e := range knownEmbedders {
+		DefineEmbedder(e)
 	}
 	state.initted = true
 	return nil
