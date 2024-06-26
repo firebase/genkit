@@ -16,6 +16,11 @@
 
 import { genkitPlugin, Plugin } from '@genkit-ai/core';
 import { FirestoreStateStore } from '@genkit-ai/flow';
+import {
+  GcpLogger,
+  GcpOpenTelemetry,
+  TelemetryConfig,
+} from '@genkit-ai/google-cloud';
 import { FirestoreTraceStore } from './firestoreTraceStore.js';
 export { defineFirestoreRetriever } from './firestoreRetriever.js';
 
@@ -29,6 +34,7 @@ interface FirestorePluginParams {
     collection?: string;
     databaseId?: string;
   };
+  telemetryConfig?: TelemetryConfig;
 }
 
 export const firebase: Plugin<[FirestorePluginParams] | []> = genkitPlugin(
@@ -41,6 +47,16 @@ export const firebase: Plugin<[FirestorePluginParams] | []> = genkitPlugin(
     traceStore: {
       id: 'firestore',
       value: new FirestoreTraceStore(params?.traceStore),
+    },
+    telemetry: {
+      instrumentation: {
+        id: 'firebase',
+        value: new GcpOpenTelemetry(params),
+      },
+      logger: {
+        id: 'firebase',
+        value: new GcpLogger(params),
+      },
     },
   })
 );

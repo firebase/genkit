@@ -49,8 +49,8 @@ describe('GoogleCloudMetrics', () => {
       // Force GCP Plugin to use in-memory metrics exporter
       plugins: [
         googleCloud({
-          forceDevExport: false,
           telemetryConfig: {
+            forceDevExport: false,
             metricExportIntervalMillis: 100,
             metricExportTimeoutMillis: 100,
           },
@@ -390,8 +390,8 @@ describe('GoogleCloudMetrics', () => {
   describe('Configuration', () => {
     it('should export only traces', async () => {
       const telemetry = new GcpOpenTelemetry({
-        forceDevExport: true,
         telemetryConfig: {
+          forceDevExport: true,
           disableMetrics: true,
         },
       });
@@ -401,8 +401,8 @@ describe('GoogleCloudMetrics', () => {
 
     it('should export only metrics', async () => {
       const telemetry = new GcpOpenTelemetry({
-        forceDevExport: true,
         telemetryConfig: {
+          forceDevExport: true,
           disableTraces: true,
           disableMetrics: false,
         },

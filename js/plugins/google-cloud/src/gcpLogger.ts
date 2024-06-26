@@ -60,6 +60,6 @@ export class GcpLogger implements LoggerConfig {
   }
 
   private shouldExport(env: string) {
-    return this.options.forceDevExport || env !== 'dev';
+    return this.options.telemetryConfig?.forceDevExport || env !== 'dev';
   }
 }
