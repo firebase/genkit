@@ -38,6 +38,7 @@ func NewGenerateRequest(config map[string]any, messages ...*Message) *GenerateRe
 }
 
 // NewUserMessage creates a new Message with role "user" and provided parts.
+// Use NewUserTextMessage if you have a text-only message.
 func NewUserMessage(parts ...*Part) *Message {
 	return NewMessage(RoleUser, nil, parts...)
 }
