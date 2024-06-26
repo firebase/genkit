@@ -324,6 +324,9 @@ importers:
       '@genkit-ai/flow':
         specifier: workspace:*
         version: link:../../flow
+      '@genkit-ai/google-cloud':
+        specifier: workspace:*
+        version: link:../google-cloud
       '@google-cloud/firestore':
         specifier: ^7.6.0
         version: 7.6.0(encoding@0.1.13)

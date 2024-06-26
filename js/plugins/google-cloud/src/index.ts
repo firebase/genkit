@@ -24,7 +24,6 @@ import { GcpOpenTelemetry } from './gcpOpenTelemetry.js';
 
 export interface PluginOptions {
   projectId?: string;
-  forceDevExport?: boolean;
   telemetryConfig?: TelemetryConfig;
 }
 
@@ -41,6 +40,9 @@ export interface TelemetryConfig {
 
   /** When true, traces are not sent to GCP. */
   disableTraces?: boolean;
+
+  /** When true, telemetry data will be exported, even for local runs */
+  forceDevExport?: boolean;
 }
 
 /**
@@ -72,4 +74,5 @@ export const googleCloud: Plugin<[PluginOptions] | []> = genkitPlugin(
 );
 
 export default googleCloud;
+export * from './gcpLogger.js';
 export * from './gcpOpenTelemetry.js';

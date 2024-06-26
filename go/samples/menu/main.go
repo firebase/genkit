@@ -78,15 +78,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	model, err := vertexai.DefineModel("gemini-1.0-pro", nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	visionModel, err := vertexai.DefineModel("gemini-1.5-flash", nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	embedder := vertexai.DefineEmbedder("textembedding-gecko")
+	model := vertexai.Model("gemini-1.0-pro")
+	visionModel := vertexai.Model("gemini-1.5-flash")
+	embedder := vertexai.Embedder("text-embedding-004")
 	if err := setup01(ctx, model); err != nil {
 		log.Fatal(err)
 	}

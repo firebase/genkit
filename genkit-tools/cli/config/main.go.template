@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 
@@ -11,19 +12,18 @@ import (
 )
 
 func $GENKIT_FUNC_NAME() {
-	$GENKIT_MODEL_INIT
+	ctx := context.Background()
+	if err := $GENKIT_MODEL_INIT; err != nil {
+		log.Fatal(err)
+	}
 
 	genkit.DefineFlow("menuSuggestionFlow", func(ctx context.Context, input string) (string, error) {
 		m := $GENKIT_MODEL_LOOKUP
+		if m == nil {
+			return "", errors.New("menuSuggestionFlow: failed to find model")
+		}
 		resp, err := m.Generate(ctx, &ai.GenerateRequest{
-			Messages: []*ai.Message{
-				{
-					Role: ai.RoleUser,
-					Content: []*ai.Part{
-						ai.NewTextPart(fmt.Sprintf(`Suggest an item for the menu of a %s themed restaurant`, input)),
-					},
-				},
-			},
+			Messages: ai.NewTextMessages(ai.RoleUser, fmt.Sprintf(`Suggest an item for the menu of a %s themed restaurant`, input)),
 			Config: &ai.GenerationCommonConfig{
 				Temperature: 1,
 			},

@@ -51,7 +51,7 @@ func main() {
 	})
 
 	genkit.DefineFlow("parent", func(ctx context.Context, _ struct{}) (string, error) {
-		return genkit.RunFlow(ctx, basic, "foo")
+		return basic.Run(ctx, "foo")
 	})
 
 	type complex struct {

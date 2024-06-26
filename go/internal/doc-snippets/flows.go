@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 )
 
@@ -59,7 +60,7 @@ func f2() {
 	)
 	// !-flow2
 	// !+run1
-	suggestion, err := genkit.RunFlow(context.Background(), menuSuggestionFlow, "French")
+	suggestion, err := menuSuggestionFlow.Run(context.Background(), "French")
 	// !-run1
 	_ = suggestion
 	_ = err
@@ -101,11 +102,10 @@ func f3() {
 	// !-streaming
 
 	// !+invoke-streaming
-	genkit.StreamFlow(
+	menuSuggestionFlow.Stream(
 		context.Background(),
-		menuSuggestionFlow,
 		"French",
-	)(func(sfv *genkit.StreamFlowValue[OutputType, StreamType], err error) bool {
+	)(func(sfv *core.StreamFlowValue[OutputType, StreamType], err error) bool {
 		if !sfv.Done {
 			fmt.Print(sfv.Output)
 			return true

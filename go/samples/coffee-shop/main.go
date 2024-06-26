@@ -237,7 +237,7 @@ func main() {
 	})
 
 	genkit.DefineFlow("testAllCoffeeFlows", func(ctx context.Context, _ struct{}) (*testAllCoffeeFlowsOutput, error) {
-		test1, err := genkit.RunFlow(ctx, simpleGreetingFlow, &simpleGreetingInput{
+		test1, err := simpleGreetingFlow.Run(ctx, &simpleGreetingInput{
 			CustomerName: "Sam",
 		})
 		if err != nil {
@@ -247,7 +247,7 @@ func main() {
 			}
 			return out, nil
 		}
-		test2, err := genkit.RunFlow(ctx, greetingWithHistoryFlow, &customerTimeAndHistoryInput{
+		test2, err := greetingWithHistoryFlow.Run(ctx, &customerTimeAndHistoryInput{
 			CustomerName:  "Sam",
 			CurrentTime:   "09:45am",
 			PreviousOrder: "Caramel Macchiato",
