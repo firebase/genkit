@@ -56,7 +56,7 @@ func NewModelMessage(parts ...*Part) *Message {
 // NewUserTextMessage creates a new Message with role "model" and content with
 // a single text part with the content of provided text.
 func NewModelTextMessage(text string) *Message {
-	return NewMessage(RoleModel, nil, NewTextPart(text))
+	return NewTextMessage(RoleModel, text)
 }
 
 // NewModelMessage creates a new Message with role "system" and provided parts.
