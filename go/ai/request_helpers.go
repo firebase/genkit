@@ -15,7 +15,7 @@
 package ai
 
 // NewGenerateRequest create a new GenerateRequest with provided config and
-// messages.
+// messages. Use NewUserTextGenerateRequest if you have a simple text-only user message.
 func NewGenerateRequest(config map[string]any, messages ...*Message) *GenerateRequest {
 	return &GenerateRequest{
 		Config:   config,
@@ -24,6 +24,7 @@ func NewGenerateRequest(config map[string]any, messages ...*Message) *GenerateRe
 }
 
 // NewUserMessage creates a new Message with role "user" and provided parts.
+// Use NewUserTextMessage if you have a text-only message.
 func NewUserMessage(parts ...*Part) *Message {
 	return NewMessage(RoleUser, nil, parts...)
 }
@@ -35,6 +36,7 @@ func NewUserTextMessage(text string) *Message {
 }
 
 // NewModelMessage creates a new Message with role "model" and provided parts.
+// Use NewModelTextMessage if you have a text-only message.
 func NewModelMessage(parts ...*Part) *Message {
 	return NewMessage(RoleModel, nil, parts...)
 }
@@ -45,7 +47,8 @@ func NewModelTextMessage(text string) *Message {
 	return NewTextMessage(RoleModel, text)
 }
 
-// NewModelMessage creates a new Message with role "system" and provided parts.
+// NewSystemMessage creates a new Message with role "system" and provided parts.
+// Use NewSystemTextMessage if you have a text-only message.
 func NewSystemMessage(parts ...*Part) *Message {
 	return NewMessage(RoleSystem, nil, parts...)
 }
@@ -57,6 +60,7 @@ func NewSystemTextMessage(text string) *Message {
 }
 
 // NewMessage creates a new Message with the provided role, metadata and parts.
+// Use NewTextMessage if you have a text-only message.
 func NewMessage(role Role, metadata map[string]any, parts ...*Part) *Message {
 	return &Message{
 		Role:     role,
