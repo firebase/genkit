@@ -48,12 +48,11 @@ func main() {
 		}
 
 		// Construct a request and send it to the model API (Google AI).
-		resp, err := m.Generate(ctx, &ai.GenerateRequest{
-			Messages: ai.NewTextMessages(ai.RoleUser, fmt.Sprintf(`Suggest an item for the menu of a %s themed restaurant`, input)),
-			Config: &ai.GenerationCommonConfig{
-				Temperature: 1,
-			},
-		}, nil)
+		resp, err := m.Generate(ctx,
+			ai.NewGenerateRequest(
+				&ai.GenerationCommonConfig{Temperature: 1},
+				ai.NewUserTextMessage(fmt.Sprintf(`Suggest an item for the menu of a %s themed restaurant`, input))),
+			nil)
 		if err != nil {
 			return "", err
 		}
@@ -77,4 +76,5 @@ func main() {
 		log.Fatal(err)
 	}
 }
+
 //!-main
