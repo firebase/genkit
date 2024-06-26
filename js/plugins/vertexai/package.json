@@ -37,8 +37,13 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.3",
     "@anthropic-ai/vertex-sdk": "^0.4.0",
+    "@genkit-ai/ai": "workspace:*",
+    "@genkit-ai/core": "workspace:*",
+    "@genkit-ai/flow": "workspace:*",
+    "@google-cloud/aiplatform": "^3.23.0",
     "@google-cloud/vertexai": "^1.1.0",
     "google-auth-library": "^9.6.3",
+    "googleapis": "^140.0.1",
     "node-fetch": "^3.3.2",
     "openai": "^4.52.7"
   },

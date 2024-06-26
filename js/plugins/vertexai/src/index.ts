@@ -14,10 +14,17 @@
  * limitations under the License.
  */
 
+import { EmbedderArgument } from '@genkit-ai/ai/embedder';
 import { ModelReference } from '@genkit-ai/ai/model';
+import {
+  Document,
+  IndexerAction,
+  RetrieverAction,
+} from '@genkit-ai/ai/retriever';
 import { genkitPlugin, Plugin } from '@genkit-ai/core';
 import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
+import z from 'zod';
 import {
   anthropicModel,
   claude35Sonnet,
@@ -60,6 +67,13 @@ import {
 } from './model_garden.js';
 
 export {
+  vertexAiIndexerRef,
+  vertexAiRetrieverRef,
+  vertexIndexers,
+  vertexRetrievers,
+} from './vector-search/index.js';
+export { Neighbor } from './vector-search/types.js';
+export {
   claude35Sonnet,
   claude3Haiku,
   claude3Opus,
@@ -82,6 +96,20 @@ export {
   VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
 };
 
+import { vertexIndexers } from './vector-search/indexers.js';
+import { vertexRetrievers } from './vector-search/retrievers.js';
+import { Neighbor } from './vector-search/types.js';
+interface VectorSearchIndexOption<EmbedderCustomOptions extends z.ZodTypeAny> {
+  deployedIndexId: string;
+  indexEndpointId: string;
+  documentRetriever: (docIds: Neighbor[]) => Promise<Document[]>;
+  documentIndexer: (docs: Document[]) => Promise<string[]>;
+  publicEndpoint: string;
+  indexId: string;
+  embedder?: EmbedderArgument<EmbedderCustomOptions>;
+  embedderOptions?: z.infer<EmbedderCustomOptions>;
+}
+
 export interface PluginOptions {
   /** The Google Cloud project id to call. */
   projectId?: string;
@@ -101,6 +129,18 @@ export interface PluginOptions {
     models: ModelReference<any>[];
     openAiBaseUrlTemplate?: string;
   };
+  vectorSearchOptions?: {
+    projectNumber: string;
+    deployedIndexId: string;
+    indexEndpointId: string;
+    documentRetriever: (docIds: string[]) => Promise<Document[]>;
+    documentIndexer: (docs: Document[]) => Promise<void>;
+    documentIdField: string;
+    indexId: string;
+    publicEndpoint: string;
+  };
+  projectNumber?: string;
+  vectorSearchIndexOptions?: VectorSearchIndexOption<z.ZodTypeAny>[];
 }
 
 const CLOUD_PLATFROM_OAUTH_SCOPE =
@@ -116,8 +156,8 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       options?.googleAuth ?? { scopes: [CLOUD_PLATFROM_OAUTH_SCOPE] }
     );
     const projectId = options?.projectId || (await authClient.getProjectId());
-    const location = options?.location || 'us-central1';
 
+    const location = options?.location || 'us-central1';
     const confError = (parameter: string, envVariableName: string) => {
       return new Error(
         `VertexAI Plugin is missing the '${parameter}' configuration. Please set the '${envVariableName}' environment variable or explicitly pass '${parameter}' into genkit config.`
@@ -177,14 +217,37 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       });
     }
 
+    const embedders = [
+      ...Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
+        textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
+      ),
+    ];
+
+    let indexers: IndexerAction<z.ZodTypeAny>[] = [];
+    let retrievers: RetrieverAction<z.ZodTypeAny>[] = [];
+
+    if (options?.vectorSearchIndexOptions) {
+      const defaultEmbedder = embedders[0];
+
+      indexers = vertexIndexers({
+        pluginOptions: options,
+        authClient,
+        defaultEmbedder,
+      });
+
+      retrievers = vertexRetrievers({
+        pluginOptions: options,
+        authClient,
+        defaultEmbedder,
+      });
+    }
+
     return {
       models,
-      embedders: [
-        ...Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
-          textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
-        ),
-      ],
+      embedders,
       evaluators: vertexEvaluators(authClient, metrics, projectId, location),
+      retrievers,
+      indexers,
     };
   }
 );
