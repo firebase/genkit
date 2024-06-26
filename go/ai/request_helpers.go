@@ -14,20 +14,6 @@
 
 package ai
 
-// NewUserTextGenerateRequest creates a new GenerateRequest with a message with
-// role set to "user" and context to single text part with the content of
-// provided text.
-func NewUserTextGenerateRequest(text string) *GenerateRequest {
-	return &GenerateRequest{
-		Messages: []*Message{
-			{
-				Role:    RoleUser,
-				Content: []*Part{NewTextPart(text)},
-			},
-		},
-	}
-}
-
 // NewGenerateRequest create a new GenerateRequest with provided config and
 // messages.
 func NewGenerateRequest(config map[string]any, messages ...*Message) *GenerateRequest {
