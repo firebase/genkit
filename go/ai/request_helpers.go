@@ -73,6 +73,7 @@ func NewSystemTextMessage(text string) *Message {
 }
 
 // NewMessage creates a new Message with the provided role, metadata and parts.
+// Use NewTextMessage if you have a text-only message.
 func NewMessage(role Role, metadata map[string]any, parts ...*Part) *Message {
 	return &Message{
 		Role:     role,
