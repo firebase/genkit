@@ -55,11 +55,13 @@ var (
 		"gemini-1.5-pro":   multimodal,
 		"gemini-1.5-flash": multimodal,
 	}
+
+	knownEmbedders = []string{"text-embedding-004", "embedding-001"}
 )
 
-// Init initializes the plugin.
-// After calling Init, call [DefineModel] and [DefineEmbedder] to create and register
-// generative models and embedders.
+// Init initializes the plugin and all known models and embedders.
+// After calling Init, you may call [DefineModel] and [DefineEmbedder] to create
+// and register any additional generative models and embedders
 func Init(ctx context.Context, apiKey string) (err error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
@@ -85,6 +87,14 @@ func Init(ctx context.Context, apiKey string) (err error) {
 	}
 	state.client = client
 	state.initted = true
+	for model, caps := range knownCaps {
+		if _, err := DefineModel(model, &caps); err != nil {
+			return fmt.Errorf("googleai.Init: failed to define known model %q: %w", model, err)
+		}
+	}
+	for _, e := range knownEmbedders {
+		DefineEmbedder(e)
+	}
 	return nil
 }
 
@@ -94,10 +104,8 @@ func IsKnownModel(name string) bool {
 	return ok
 }
 
-// DefineModel defines a model with the given name.
+// DefineModel defines an unknown model with the given name.
 // The second argument describes the capability of the model.
-// For known models, it can be nil, or if non-nil it will override the known value.
-// It must be supplied for unknown models.
 // Use [IsKnownModel] to determine if a model is known.
 func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
 	state.mu.Lock()

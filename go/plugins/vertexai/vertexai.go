@@ -17,6 +17,7 @@ package vertexai
 import (
 	"context"
 	"fmt"
+	"os"
 	"runtime"
 	"sync"
 
@@ -50,6 +51,16 @@ var (
 		"gemini-1.5-pro":   multimodal,
 		"gemini-1.5-flash": multimodal,
 	}
+
+	knownEmbedders = []string{
+		"textembedding-gecko@003",
+		"textembedding-gecko@002",
+		"textembedding-gecko@001",
+		"text-embedding-004",
+		"textembedding-gecko-multilingual@001",
+		"text-multilingual-embedding-002",
+		"multimodalembedding",
+	}
 )
 
 var state struct {
@@ -61,16 +72,28 @@ var state struct {
 	pclient   *aiplatform.PredictionClient
 }
 
-// Init initializes the plugin.
-// After calling this function, call [DefineModel] and [DefineEmbedder] to create and register
-// generative models and embedders.
+// Init initializes the plugin and all known models and embedders.
+// After calling Init, you may call [DefineModel] and [DefineEmbedder] to create
+// and register any additional generative models and embedders
 func Init(ctx context.Context, projectID, location string) error {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if state.initted {
 		panic("vertexai.Init already called")
 	}
+	if projectID == "" {
+		projectID = os.Getenv("GCLOUD_PROJECT")
+		if projectID == "" {
+			projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
+		}
+		if projectID == "" {
+			return fmt.Errorf("vertexai.Init: Vertex AI requires setting GCLOUD_PROJECT or GOOGLE_CLOUD_PROJECT in the environment")
+		}
+	}
 	state.projectID = projectID
+	if location == "" {
+		location = "us-central1"
+	}
 	state.location = location
 	var err error
 	// Client for Gemini SDK.
@@ -89,11 +112,21 @@ func Init(ctx context.Context, projectID, location string) error {
 	if err != nil {
 		return err
 	}
+	for model, caps := range knownCaps {
+		if _, err := DefineModel(model, &caps); err != nil {
+			return fmt.Errorf("vertexai.Init: failed to define known model %q: %w", model, err)
+		}
+	}
+	for _, e := range knownEmbedders {
+		DefineEmbedder(e)
+	}
 	state.initted = true
 	return nil
 }
 
-// DefineModel defines a model with the given name.
+// DefineModel defines an unknown model with the given name.
+// The second argument describes the capability of the model.
+// Use [IsKnownModel] to determine if a model is known.
 func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
