@@ -59,9 +59,9 @@ var (
 	knownEmbedders = []string{"text-embedding-004", "embedding-001"}
 )
 
-// Init initializes the plugin.
-// After calling Init, call [DefineModel] and [DefineEmbedder] to create and register
-// generative models and embedders.
+// Init initializes the plugin and all known models and embedders.
+// After calling Init, you may call [DefineModel] and [DefineEmbedder] to create
+// and register any additional generative models and embedders
 func Init(ctx context.Context, apiKey string) (err error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()

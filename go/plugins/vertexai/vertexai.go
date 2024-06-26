@@ -64,9 +64,9 @@ var state struct {
 	pclient   *aiplatform.PredictionClient
 }
 
-// Init initializes the plugin.
-// After calling this function, call [DefineModel] and [DefineEmbedder] to create and register
-// generative models and embedders.
+// Init initializes the plugin and all known models and embedders.
+// After calling Init, you may call [DefineModel] and [DefineEmbedder] to create
+// and register any additional generative models and embedders
 func Init(ctx context.Context, projectID, location string) error {
 	state.mu.Lock()
 	defer state.mu.Unlock()
