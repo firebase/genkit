@@ -80,10 +80,12 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(requestCounter.value, 2);
     assert.equal(requestCounter.attributes.name, 'testFlow');
     assert.equal(requestCounter.attributes.source, 'ts');
+    assert.equal(requestCounter.attributes.status, 'success');
     assert.ok(requestCounter.attributes.sourceVersion);
     assert.equal(latencyHistogram.value.count, 2);
     assert.equal(latencyHistogram.attributes.name, 'testFlow');
     assert.equal(latencyHistogram.attributes.source, 'ts');
+    assert.equal(latencyHistogram.attributes.status, 'success');
     assert.ok(latencyHistogram.attributes.sourceVersion);
   });
 
@@ -102,6 +104,7 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(requestCounter.attributes.name, 'testFlow');
     assert.equal(requestCounter.attributes.source, 'ts');
     assert.equal(requestCounter.attributes.error, 'TypeError');
+    assert.equal(requestCounter.attributes.status, 'failure');
   });
 
   it('writes action metrics', async () => {
@@ -122,10 +125,12 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(requestCounter.value, 6);
     assert.equal(requestCounter.attributes.name, 'testAction');
     assert.equal(requestCounter.attributes.source, 'ts');
+    assert.equal(requestCounter.attributes.status, 'success');
     assert.ok(requestCounter.attributes.sourceVersion);
     assert.equal(latencyHistogram.value.count, 6);
     assert.equal(latencyHistogram.attributes.name, 'testAction');
     assert.equal(latencyHistogram.attributes.source, 'ts');
+    assert.equal(latencyHistogram.attributes.status, 'success');
     assert.ok(latencyHistogram.attributes.sourceVersion);
   });
 
@@ -163,6 +168,7 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(requestCounter.value, 1);
     assert.equal(requestCounter.attributes.name, 'testActionWithFailure');
     assert.equal(requestCounter.attributes.source, 'ts');
+    assert.equal(requestCounter.attributes.status, 'failure');
     assert.equal(requestCounter.attributes.error, 'TypeError');
   });
 
@@ -253,6 +259,7 @@ describe('GoogleCloudMetrics', () => {
       assert.equal(metric.attributes.topK, 3);
       assert.equal(metric.attributes.topP, 5);
       assert.equal(metric.attributes.source, 'ts');
+      assert.equal(metric.attributes.status, 'success');
       assert.ok(metric.attributes.sourceVersion);
     }
   });
@@ -285,6 +292,7 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(requestCounter.attributes.topK, 3);
     assert.equal(requestCounter.attributes.topP, 5);
     assert.equal(requestCounter.attributes.source, 'ts');
+    assert.equal(requestCounter.attributes.status, 'failure');
     assert.equal(requestCounter.attributes.error, 'TypeError');
     assert.ok(requestCounter.attributes.sourceVersion);
   });
@@ -382,7 +390,7 @@ describe('GoogleCloudMetrics', () => {
       assert.equal(point.value, 1);
       assert.equal(point.attributes.flowName, 'pathTestFlow');
       assert.equal(point.attributes.source, 'ts');
-      assert.equal(point.attributes.success, 'success');
+      assert.equal(point.attributes.status, 'success');
       assert.ok(point.attributes.sourceVersion);
     });
   });
