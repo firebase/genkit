@@ -112,6 +112,7 @@ func Init(ctx context.Context, projectID, location string) error {
 	if err != nil {
 		return err
 	}
+	state.initted = true
 	for model, caps := range knownCaps {
 		if _, err := DefineModel(model, &caps); err != nil {
 			return fmt.Errorf("vertexai.Init: failed to define known model %q: %w", model, err)
@@ -120,7 +121,6 @@ func Init(ctx context.Context, projectID, location string) error {
 	for _, e := range knownEmbedders {
 		DefineEmbedder(e)
 	}
-	state.initted = true
 	return nil
 }
 
