@@ -62,7 +62,7 @@ To run a flow in your code:
 - {Go}
 
   ```go
-  suggestion, err := genkit.RunFlow(context.Background(), menuSuggestionFlow, "French")
+  suggestion, err := menuSuggestionFlow.Run(context.Background(), "French")
   ```
 
 You can use the CLI to run flows as well:
@@ -118,11 +118,10 @@ To invoke a flow in streaming mode:
 - {Go}
 
   ```go
-  genkit.StreamFlow(
+  menuSuggestionFlow.Stream(
   	context.Background(),
-  	menuSuggestionFlow,
   	"French",
-  )(func(sfv *genkit.StreamFlowValue[OutputType, StreamType], err error) bool {
+  )(func(sfv *core.StreamFlowValue[OutputType, StreamType], err error) bool {
   	if !sfv.Done {
   		fmt.Print(sfv.Output)
   		return true
