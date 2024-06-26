@@ -6,7 +6,28 @@ To get started with Firebase Genkit, install the Genkit CLI and run
 ## Requirements
 
 - Go 1.22 or later
+
 - Node.js 20 or later (for the Genkit CLI and UI)
+
+  Recommendation: The [`nvm`](https://github.com/nvm-sh/nvm) and
+  [`nvm-windows`](https://github.com/coreybutler/nvm-windows) tools are a
+  convenient way to install specific versions of Node if it's not already
+  installed on your system. These tools install Node on a per-user basis, so you
+  don't need to make system-wide changes.
+
+  To install `nvm` on a Unix-like system, like macOS or Linux, run the following
+  command:
+
+  ```posix-terminal
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+  ```
+
+  Then, to install Node using `nvm`, open a new shell and run the following
+  command:
+
+  ```posix-terminal
+  nvm install 20
+  ```
 
 ## Procedure
 
@@ -15,6 +36,9 @@ To get started with Firebase Genkit, install the Genkit CLI and run
     ```posix-terminal
     npm i -g genkit
     ```
+
+  This command installs the Genkit CLI into your Node installation directory so
+  that it can be used outside of a Node project.
 
 1.  Create a new project directory:
 
