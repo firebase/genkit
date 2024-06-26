@@ -94,7 +94,7 @@ func TestRunFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 	f := defineFlow(reg, "inc", incFlow)
-	got, err := InternalRunFlow(context.Background(), f, 2)
+	got, err := f.Run(context.Background(), 2)
 	if err != nil {
 		t.Fatal(err)
 	}
