@@ -60,7 +60,8 @@ func NewModelTextMessage(text string) *Message {
 	return NewTextMessage(RoleModel, text)
 }
 
-// NewModelMessage creates a new Message with role "system" and provided parts.
+// NewSystemMessage creates a new Message with role "system" and provided parts.
+// Use NewSystemTextMessage if you have a text-only message.
 func NewSystemMessage(parts ...*Part) *Message {
 	return NewMessage(RoleSystem, nil, parts...)
 }
