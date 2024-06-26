@@ -30,7 +30,10 @@ import {
   sleep,
   waitFor,
 } from '@genkit-ai/flow/experimental';
+import { initializeApp } from 'firebase-admin';
 import * as z from 'zod';
+
+initializeApp();
 
 configureGenkit({
   plugins: [firebase()],

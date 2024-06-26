@@ -21,8 +21,11 @@ import { firebaseAuth } from '@genkit-ai/firebase/auth';
 import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
 import { run, runFlow, streamFlow } from '@genkit-ai/flow';
 import { geminiPro, vertexAI } from '@genkit-ai/vertexai';
+import { initializeApp } from 'firebase-admin';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as z from 'zod';
+
+initializeApp();
 
 configureGenkit({
   plugins: [firebase(), vertexAI()],
