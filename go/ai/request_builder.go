@@ -27,6 +27,26 @@ func (req *GenerateRequest) AddMessage(msg *Message) *GenerateRequest {
 	return req
 }
 
+func (req *GenerateRequest) SetConfig(config any) *GenerateRequest {
+	req.Config = config
+	return req
+}
+
+func (req *GenerateRequest) SetContext(context []any) *GenerateRequest {
+	req.Context = context
+	return req
+}
+
+func (req *GenerateRequest) SetTools(tools []*ToolDefinition) *GenerateRequest {
+	req.Tools = tools
+	return req
+}
+
+func (req *GenerateRequest) SetOutput(output *GenerateRequestOutput) *GenerateRequest {
+	req.Output = output
+	return req
+}
+
 func (req *GenerateRequest) AddUserTextMessage(text string) *GenerateRequest {
 	req.AddMessage(NewMessage(RoleUser).AddPart(NewTextPart(text)))
 	return req
@@ -35,12 +55,6 @@ func (req *GenerateRequest) AddUserTextMessage(text string) *GenerateRequest {
 func NewMessage(role Role) *Message {
 	return &Message{
 		Role: role,
-	}
-}
-
-func NewUserMessage() *Message {
-	return &Message{
-		Role: RoleUser,
 	}
 }
 
