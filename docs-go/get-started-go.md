@@ -39,8 +39,8 @@ To get started with Firebase Genkit, install the Genkit CLI and run
     npm i -g genkit
     ```
 
-  This command installs the Genkit CLI into your Node installation directory so
-  that it can be used outside of a Node project.
+This command installs the Genkit CLI into your Node installation directory so
+that it can be used outside of a Node project.
 
 1.  Create a new project directory:
 
@@ -100,7 +100,7 @@ To get started with Firebase Genkit, install the Genkit CLI and run
     restaurant with a given theme.
 
     This file looks something like the following (the plugin configuration steps
-    might look different. if you selected Vertex AI):    
+    might look different. if you selected Vertex AI):
 
     ```go
     package main
