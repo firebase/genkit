@@ -128,8 +128,8 @@ func Init(ctx context.Context, projectID, location string) error {
 // The second argument describes the capability of the model.
 // Use [IsKnownModel] to determine if a model is known.
 func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
-	state.mu.Lock()
-	defer state.mu.Unlock()
+	// state.mu.Lock()
+	// defer state.mu.Unlock()
 	if !state.initted {
 		panic("vertexai.Init not called")
 	}
@@ -171,8 +171,8 @@ func KnownModels() []string {
 
 // DefineModel defines an embedder with the given name.
 func DefineEmbedder(name string) *ai.Embedder {
-	state.mu.Lock()
-	defer state.mu.Unlock()
+	// state.mu.Lock()
+	// defer state.mu.Unlock()
 	if !state.initted {
 		panic("vertexai.Init not called")
 	}
