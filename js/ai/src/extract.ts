@@ -15,6 +15,7 @@
  */
 
 import JSON5 from 'json5';
+import untruncateJson from 'untruncate-json';
 
 /**
  * Extracts JSON from string with lenient parsing rules to improve likelihood of successful extraction.
@@ -55,4 +56,43 @@ export function extractJson<T = unknown>(text: string): T | null {
     }
   }
   throw new Error(`No JSON object or array found in model output: ${text}`);
+}
+
+export function extractAndUntruncateJson<T = unknown>(text: string): T | null {
+  let openingChar: '{' | '[' | undefined;
+  let closingChar: '}' | ']' | undefined;
+  let startPos: number | undefined;
+  let nestingCount = 0;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i].replace(/\u00A0/g, ' ');
+
+    if (!openingChar && (char === '{' || char === '[')) {
+      openingChar = char;
+      closingChar = char === '{' ? '}' : ']';
+      startPos = i;
+      nestingCount++;
+    } else if (char === openingChar) {
+      // Increment nesting for matching opening character
+      nestingCount++;
+    } else if (char === closingChar) {
+      // Decrement nesting for matching closing character
+      nestingCount--;
+      if (!nestingCount) {
+        // Reached end of target element
+        return JSON5.parse(
+          untruncateJson(text.substring(startPos || 0, i + 1))
+        ) as T;
+      }
+    }
+  }
+
+  if (startPos !== undefined && nestingCount > 0) {
+    try {
+      return JSON5.parse(untruncateJson(text.substring(startPos))) as T;
+    } catch (e) {
+      return null;
+    }
+  }
+  return {} as T;
 }

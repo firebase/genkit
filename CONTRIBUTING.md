@@ -131,7 +131,7 @@ genkit eval:flow pdfQA '"What's a brief description of MapReduce?"'
 
 FYI: `js` and `genkit-tools` are in two separate workspaces.
 
-As you make changes you may want to build an test things by running test apps.
+As you make changes you may want to build and test things by running test apps.
 You can reduce the scope of what you're building by running a specific build command:
 
 ```
