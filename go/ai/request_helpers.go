@@ -29,7 +29,7 @@ func NewUserTextGenerateRequest(text string) *GenerateRequest {
 }
 
 // NewGenerateRequest create a new GenerateRequest with provided config and
-// messages.
+// messages. Use NewUserTextGenerateRequest if you have a simple text-only user message.
 func NewGenerateRequest(config map[string]any, messages ...*Message) *GenerateRequest {
 	return &GenerateRequest{
 		Config:   config,
