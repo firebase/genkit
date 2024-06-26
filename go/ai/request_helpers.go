@@ -49,6 +49,7 @@ func NewUserTextMessage(text string) *Message {
 }
 
 // NewModelMessage creates a new Message with role "model" and provided parts.
+// Use NewModelTextMessage if you have a text-only message.
 func NewModelMessage(parts ...*Part) *Message {
 	return NewMessage(RoleModel, nil, parts...)
 }
