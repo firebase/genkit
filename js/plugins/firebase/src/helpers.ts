@@ -15,7 +15,7 @@
  */
 
 import { StreamingCallback } from '@genkit-ai/core';
-import { getApps, initializeApp } from 'firebase-admin/app';
+import { App, getApps } from 'firebase-admin/app';
 import { GoogleAuth } from 'google-auth-library';
 
 // cached `GoogleAuth` client.
@@ -131,8 +131,16 @@ export function getLocation() {
   return process.env['GCLOUD_LOCATION'] || 'us-central1';
 }
 
-export function initializeAppIfNecessary() {
-  if (!getApps().length) {
-    initializeApp();
+export function requireDefaultFirebaseApp(
+  feature: string = 'Firebase plugin'
+): App {
+  const apps: App[] = getApps();
+  if (apps.length) {
+    return apps[0];
+  } else {
+    const errorMessage =
+      `A Firebase application must be initialized first.` +
+      `Call initializeApp() before configuring the ${feature}.`;
+    throw new Error(errorMessage);
   }
 }

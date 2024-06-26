@@ -34,7 +34,7 @@ import * as z from 'zod';
 import {
   callHttpsFunction,
   getLocation,
-  initializeAppIfNecessary,
+  requireDefaultFirebaseApp,
 } from './helpers.js';
 
 export type FunctionFlow<
@@ -157,7 +157,7 @@ async function appCheckValid(
   consume: boolean
 ): Promise<boolean> {
   if (typeof tok !== 'string') return false;
-  initializeAppIfNecessary();
+  requireDefaultFirebaseApp('Firebase app check');
   try {
     const appCheckClaims = await getAppCheck().verifyToken(tok, { consume });
 
