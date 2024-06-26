@@ -67,7 +67,7 @@ func NewSystemMessage(parts ...*Part) *Message {
 // NewUserTextMessage creates a new Message with role "system" and content with
 // a single text part with the content of provided text.
 func NewSystemTextMessage(text string) *Message {
-	return NewMessage(RoleSystem, nil, NewTextPart(text))
+	return NewTextMessage(RoleSystem, text)
 }
 
 // NewMessage creates a new Message with the provided role, metadata and parts.
