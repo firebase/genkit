@@ -382,6 +382,9 @@ describe('GoogleCloudMetrics', () => {
     const pathCounterPoints = await getCounterDataPoints(
       'genkit/flow/path/requests'
     );
+    const pathLatencyPoints = await getHistogramDataPoints(
+      'genkit/flow/path/latency'
+    );
     const paths = new Set(
       pathCounterPoints.map((point) => point.attributes.path)
     );
@@ -393,6 +396,47 @@ describe('GoogleCloudMetrics', () => {
       assert.equal(point.attributes.status, 'success');
       assert.ok(point.attributes.sourceVersion);
     });
+    pathLatencyPoints.forEach((point) => {
+      assert.equal(point.value.count, 1);
+      assert.equal(point.attributes.flowName, 'pathTestFlow');
+      assert.equal(point.attributes.source, 'ts');
+      assert.equal(point.attributes.status, 'success');
+      assert.ok(point.attributes.sourceVersion);
+    });
+  });
+
+  it('writes flow path failure metrics', async () => {
+    const flow = createFlow('testFlow', async () => {
+      const subPath = await run('sub-action', async () => {
+        return 'done';
+      });
+      return Promise.reject(new Error('failed'));
+    });
+
+    assert.rejects(async () => {
+      await runFlow(flow);
+    });
+
+    const reqPoints = await getCounterDataPoints('genkit/flow/path/requests');
+    const reqStatuses = reqPoints.map((p) => [
+      p.attributes.path,
+      p.attributes.status,
+    ]);
+    assert.deepEqual(reqStatuses, [
+      ['/{testFlow,t:flow}/{sub-action,t:flowStep}', 'success'],
+      ['/{testFlow,t:flow}', 'failure'],
+    ]);
+    const latencyPoints = await getHistogramDataPoints(
+      'genkit/flow/path/latency'
+    );
+    const latencyStatuses = latencyPoints.map((p) => [
+      p.attributes.path,
+      p.attributes.status,
+    ]);
+    assert.deepEqual(latencyStatuses, [
+      ['/{testFlow,t:flow}/{sub-action,t:flowStep}', 'success'],
+      ['/{testFlow,t:flow}', 'failure'],
+    ]);
   });
 
   describe('Configuration', () => {
@@ -461,21 +505,31 @@ describe('GoogleCloudMetrics', () => {
     return getCounterDataPoints(metricName).then((points) => points.at(-1));
   }
 
-  /** Finds a histogram metric with the given name in the in memory exporter */
-  async function getHistogramMetric(
+  /**
+   * Finds all datapoints for a histogram metric with the given name in the in
+   * memory exporter.
+   */
+  async function getHistogramDataPoints(
     metricName: string
-  ): Promise<DataPoint<Histogram>> {
+  ): Promise<List<DataPoint<Histogram>>> {
     const genkitMetrics = await getGenkitMetrics();
     const histogramMetric: HistogramMetricData = genkitMetrics.metrics.find(
       (e) =>
         e.descriptor.name === metricName && e.descriptor.type === 'HISTOGRAM'
     );
     if (histogramMetric) {
-      return histogramMetric.dataPoints.at(-1);
+      return histogramMetric.dataPoints;
     }
     assert.fail(
       `No histogram metric named ${metricName} was found. Only found: ${genkitMetrics.metrics.map((e) => e.descriptor.name)}`
     );
+  }
+
+  /** Finds a histogram metric with the given name in the in memory exporter */
+  async function getHistogramMetric(
+    metricName: string
+  ): Promise<DataPoint<Histogram>> {
+    return getHistogramDataPoints(metricName).then((points) => points.at(-1));
   }
 
   /** Helper to create a flow with no inputs or outputs */

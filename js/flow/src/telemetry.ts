@@ -163,6 +163,13 @@ export function writeFlowFailure(
       error: err.name,
       path: failPath,
     });
+
+    pathLatencies.record(latencyMs, {
+      ...pathDimensions,
+      status: 'failure',
+      error: err.name,
+      path: failPath,
+    });
   }
 }
 
