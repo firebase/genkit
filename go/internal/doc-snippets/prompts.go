@@ -24,15 +24,15 @@ import (
 	"github.com/invopop/jsonschema"
 )
 
-func ex01() {
+func pr01() {
 	model := ai.Model{}
 
-	//!+ex01
+	//!+pr01
 	request := ai.GenerateRequest{Messages: []*ai.Message{
 		{Content: []*ai.Part{ai.NewTextPart("You are a helpful AI assistant named Walt.")}},
 	}}
 	model.Generate(context.Background(), &request, nil)
-	//!-ex01
+	//!-pr01
 }
 
 // !+hello
@@ -43,23 +43,23 @@ func helloPrompt(name string) *ai.Part {
 
 //!-hello
 
-func ex02() {
+func pr02() {
 	model := ai.Model{}
 
-	//!+ex02
+	//!+pr02
 	request := ai.GenerateRequest{Messages: []*ai.Message{
 		{Content: []*ai.Part{helloPrompt("Fred")}},
 	}}
 	response, err := model.Generate(context.Background(), &request, nil)
-	//!-ex02
+	//!-pr02
 
 	if err == nil {
 		_ = response
 	}
 }
 
-func ex03() {
-	//!+ex03.1
+func pr03() {
+	//!+pr03.1
 	type HelloPromptInput struct {
 		UserName string
 	}
@@ -81,15 +81,15 @@ func ex03() {
 			}}, nil
 		},
 	)
-	//!-ex03.1
+	//!-pr03.1
 
-	//!+ex03.2
+	//!+pr03.2
 	request, err := helloPrompt.Render(context.Background(), HelloPromptInput{UserName: "Fred"})
 	if err != nil {
 		log.Fatal(err)
 	}
 	response, err := gemini15pro.Generate(context.Background(), request, nil)
-	//!-ex03.2
+	//!-pr03.2
 
 	_ = response
 }

@@ -21,7 +21,7 @@ call models this way for straight-forward use cases.
 
 - {Go}
 
-  %include ../go/internal/doc-snippets/prompts.go ex01
+  %include ../go/internal/doc-snippets/prompts.go pr01
 
 In most cases, you'll need to include some user-provided inputs in your prompt.
 You could define a function to render them like this:
@@ -30,7 +30,7 @@ You could define a function to render them like this:
 
   %include ../go/internal/doc-snippets/prompts.go hello
 
-  %include ../go/internal/doc-snippets/prompts.go ex02
+  %include ../go/internal/doc-snippets/prompts.go pr02
 
 However, one shortcoming of defining prompts in your code is that testing requires executing
 them as part of a flow. To facilitate more rapid iteration, Genkit provides a facility
@@ -40,7 +40,7 @@ to define your prompts and run them in the Developer UI.
 
   Use the `DefinePrompt` function to register your prompts with Genkit.
 
-  %include ../go/internal/doc-snippets/prompts.go ex03.1
+  %include ../go/internal/doc-snippets/prompts.go pr03.1
 
 A prompt action defines a function that returns a `GenerateRequest`,
 which can be used with any model. Optionally, you can also define an input schema
@@ -53,7 +53,7 @@ Provide the input variables expected by the prompt, and the model to call.
 
 - {Go}
 
-  %include ../go/internal/doc-snippets/prompts.go ex03.2
+  %include ../go/internal/doc-snippets/prompts.go pr03.2
 
 In the Genkit Developer UI, you can run any prompt you have defined in this way.
 This allows you to experiment with individual prompts outside of the scope of
