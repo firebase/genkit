@@ -17,6 +17,7 @@ package vertexai
 import (
 	"context"
 	"fmt"
+	"os"
 	"runtime"
 	"sync"
 
@@ -70,7 +71,19 @@ func Init(ctx context.Context, projectID, location string) error {
 	if state.initted {
 		panic("vertexai.Init already called")
 	}
+	if projectID == "" {
+		projectID = os.Getenv("GCLOUD_PROJECT")
+		if projectID == "" {
+			projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
+		}
+		if projectID == "" {
+			return fmt.Errorf("vertexai.Init: Vertex AI requires setting GCLOUD_PROJECT or GOOGLE_CLOUD_PROJECT in the environment")
+		}
+	}
 	state.projectID = projectID
+	if location == "" {
+		location = "us-central1"
+	}
 	state.location = location
 	var err error
 	// Client for Gemini SDK.
@@ -88,6 +101,9 @@ func Init(ctx context.Context, projectID, location string) error {
 	state.pclient, err = aiplatform.NewPredictionClient(ctx, o...)
 	if err != nil {
 		return err
+	}
+	for model, caps := range knownCaps {
+		DefineModel(model, &caps)
 	}
 	state.initted = true
 	return nil

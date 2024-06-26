@@ -85,6 +85,9 @@ func Init(ctx context.Context, apiKey string) (err error) {
 	}
 	state.client = client
 	state.initted = true
+	for model, caps := range knownCaps {
+		DefineModel(model, &caps)
+	}
 	return nil
 }
 
