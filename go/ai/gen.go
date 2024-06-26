@@ -203,3 +203,13 @@ type ToolResponse struct {
 	// An example might be map[string]any{"name":"Thomas Jefferson", "born":1743}.
 	Output map[string]any `json:"output,omitempty"`
 }
+
+// NewTextMessages is a helper function that creates a slice of [Message] from one role and string.
+func NewTextMessages(r Role, m string) []*Message {
+	return []*Message{
+		{
+			Role: r,
+			Content: []*Part{ NewTextPart(m) },
+		},
+	}
+}

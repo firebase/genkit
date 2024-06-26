@@ -17,13 +17,15 @@ package genkit
 import (
 	"context"
 	"testing"
+
+	"github.com/firebase/genkit/go/core"
 )
 
 func TestStreamFlow(t *testing.T) {
 	f := DefineStreamingFlow("count", count)
-	iter := StreamFlow(context.Background(), f, 2)
+	iter := f.Stream(context.Background(), 2)
 	want := 0
-	iter(func(val *StreamFlowValue[int, int], err error) bool {
+	iter(func(val *core.StreamFlowValue[int, int], err error) bool {
 		if err != nil {
 			t.Fatal(err)
 		}

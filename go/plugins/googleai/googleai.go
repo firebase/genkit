@@ -17,6 +17,7 @@ package googleai
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
@@ -38,26 +39,29 @@ var (
 	basicText = ai.ModelCapabilities{
 		Multiturn:  true,
 		Tools:      true,
-		SystemRole: true,
+		SystemRole: false,
 		Media:      false,
 	}
 
 	multimodal = ai.ModelCapabilities{
 		Multiturn:  true,
 		Tools:      true,
-		SystemRole: true,
+		SystemRole: false,
 		Media:      true,
 	}
 
 	knownCaps = map[string]ai.ModelCapabilities{
 		"gemini-1.0-pro":   basicText,
+		"gemini-1.5-pro":   multimodal,
 		"gemini-1.5-flash": multimodal,
 	}
+
+	knownEmbedders = []string{"text-embedding-004", "embedding-001"}
 )
 
-// Init initializes the plugin.
-// After calling Init, call [DefineModel] and [DefineEmbedder] to create and register
-// generative models and embedders.
+// Init initializes the plugin and all known models and embedders.
+// After calling Init, you may call [DefineModel] and [DefineEmbedder] to create
+// and register any additional generative models and embedders
 func Init(ctx context.Context, apiKey string) (err error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
@@ -70,12 +74,27 @@ func Init(ctx context.Context, apiKey string) (err error) {
 		}
 	}()
 
+	if apiKey == "" {
+		apiKey = os.Getenv("GOOGLE_GENAI_API_KEY")
+		if apiKey == "" {
+			return fmt.Errorf("googleai.Init: Google AI requires setting GOOGLE_GENAI_API_KEY in the environment. You can get an API key at https://ai.google.dev")
+		}
+	}
+
 	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
 	if err != nil {
 		return err
 	}
 	state.client = client
 	state.initted = true
+	for model, caps := range knownCaps {
+		if _, err := DefineModel(model, &caps); err != nil {
+			return fmt.Errorf("googleai.Init: failed to define known model %q: %w", model, err)
+		}
+	}
+	for _, e := range knownEmbedders {
+		DefineEmbedder(e)
+	}
 	return nil
 }
 
@@ -85,10 +104,8 @@ func IsKnownModel(name string) bool {
 	return ok
 }
 
-// DefineModel defines a model with the given name.
+// DefineModel defines an unknown model with the given name.
 // The second argument describes the capability of the model.
-// For known models, it can be nil, or if non-nil it will override the known value.
-// It must be supplied for unknown models.
 // Use [IsKnownModel] to determine if a model is known.
 func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
 	state.mu.Lock()
@@ -107,6 +124,17 @@ func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
 		mc = *caps
 	}
 	return defineModel(name, mc), nil
+}
+
+// KnownModels returns a slice of all known model names.
+func KnownModels() []string {
+	keys := make([]string, len(knownCaps))
+	i := 0
+	for k := range knownCaps {
+		keys[i] = k
+		i++
+	}
+	return keys
 }
 
 // requires state.mu

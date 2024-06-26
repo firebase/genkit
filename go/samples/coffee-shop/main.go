@@ -104,19 +104,21 @@ func main() {
 		fmt.Fprintln(os.Stderr, "You can get an API key at https://ai.google.dev.")
 		os.Exit(1)
 	}
-	err := googleai.Init(context.Background(), apiKey)
-	if err != nil {
+	if err := googleai.Init(context.Background(), apiKey); err != nil {
 		log.Fatal(err)
+	}
+	for _, mname := range googleai.KnownModels() {
+		_, err := googleai.DefineModel(mname, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	r := &jsonschema.Reflector{
 		AllowAdditionalProperties: false,
 		DoNotReference:            true,
 	}
-	g, err := googleai.DefineModel("gemini-1.5-pro", nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+	g := googleai.Model("gemini-1.5-flash")
 	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting", simpleGreetingPromptTemplate,
 		dotprompt.Config{
 			Model:        g,
@@ -235,7 +237,7 @@ func main() {
 	})
 
 	genkit.DefineFlow("testAllCoffeeFlows", func(ctx context.Context, _ struct{}) (*testAllCoffeeFlowsOutput, error) {
-		test1, err := genkit.RunFlow(ctx, simpleGreetingFlow, &simpleGreetingInput{
+		test1, err := simpleGreetingFlow.Run(ctx, &simpleGreetingInput{
 			CustomerName: "Sam",
 		})
 		if err != nil {
@@ -245,7 +247,7 @@ func main() {
 			}
 			return out, nil
 		}
-		test2, err := genkit.RunFlow(ctx, greetingWithHistoryFlow, &customerTimeAndHistoryInput{
+		test2, err := greetingWithHistoryFlow.Run(ctx, &customerTimeAndHistoryInput{
 			CustomerName:  "Sam",
 			CurrentTime:   "09:45am",
 			PreviousOrder: "Caramel Macchiato",
