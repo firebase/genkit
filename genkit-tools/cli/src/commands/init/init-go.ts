@@ -37,7 +37,7 @@ interface ModelOption {
 const templatePath = '../../../config/main.go.template';
 
 /** Ollama init call template. Keep indenting to for expected output. */
-const ollamaInit = `ollama.Init(context.Background(), ollama.Config{
+const ollamaInit = `ollama.Init(ctx, ollama.Config{
         ServerAddress: "http://127.0.0.1:11434", 
         Models: []ollama.ModelDefinition{{Name: "gemma"}},
     })`;
@@ -47,13 +47,13 @@ const modelOptions: Record<ModelProvider, ModelOption> = {
   googleai: {
     label: 'Google AI',
     package: 'github.com/firebase/genkit/go/plugins/googleai',
-    init: 'googleai.Init(context.Background(), "")',
+    init: 'googleai.Init(ctx, "")',
     lookup: 'googleai.Model("gemini-1.5-flash")',
   },
   vertexai: {
     label: 'Google Cloud Vertex AI',
     package: 'github.com/firebase/genkit/go/plugins/vertexai',
-    init: 'vertexai.Init(context.Background(), "", "")',
+    init: 'vertexai.Init(ctx, "", "")',
     lookup: 'vertexai.Model("gemini-1.5-flash")',
   },
   ollama: {

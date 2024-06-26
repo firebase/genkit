@@ -86,9 +86,8 @@ func Init(ctx context.Context, apiKey string) (err error) {
 	state.client = client
 	state.initted = true
 	for model, caps := range knownCaps {
-		_, err := DefineModel(model, &caps)
-		if err != nil {
-			return fmt.Errorf("googleai.Init: failed to define known model %s: %w", model, err)
+		if _, err := DefineModel(model, &caps); err != nil {
+			return fmt.Errorf("googleai.Init: failed to define known model %q: %w", model, err)
 		}
 	}
 	return nil
@@ -100,10 +99,8 @@ func IsKnownModel(name string) bool {
 	return ok
 }
 
-// DefineModel defines a model with the given name.
+// DefineModel defines an unknown model with the given name.
 // The second argument describes the capability of the model.
-// For known models, it can be nil, or if non-nil it will override the known value.
-// It must be supplied for unknown models.
 // Use [IsKnownModel] to determine if a model is known.
 func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
 	state.mu.Lock()

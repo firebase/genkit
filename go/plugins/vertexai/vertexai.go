@@ -103,16 +103,17 @@ func Init(ctx context.Context, projectID, location string) error {
 		return err
 	}
 	for model, caps := range knownCaps {
-		_, err := DefineModel(model, &caps)
-		if err != nil {
-			return fmt.Errorf("vertexai.Init: failed to define known model %s: %w", model, err)
+		if _, err := DefineModel(model, &caps); err != nil {
+			return fmt.Errorf("vertexai.Init: failed to define known model %q: %w", model, err)
 		}
 	}
 	state.initted = true
 	return nil
 }
 
-// DefineModel defines a model with the given name.
+// DefineModel defines an unknown model with the given name.
+// The second argument describes the capability of the model.
+// Use [IsKnownModel] to determine if a model is known.
 func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
