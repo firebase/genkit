@@ -22,12 +22,11 @@ func $GENKIT_FUNC_NAME() {
 		if m == nil {
 			return "", errors.New("menuSuggestionFlow: failed to find model")
 		}
-		resp, err := m.Generate(ctx, &ai.GenerateRequest{
-			Messages: ai.NewTextMessages(ai.RoleUser, fmt.Sprintf(`Suggest an item for the menu of a %s themed restaurant`, input)),
-			Config: &ai.GenerationCommonConfig{
-				Temperature: 1,
-			},
-		}, nil)
+		resp, err := m.Generate(ctx,
+			ai.NewGenerateRequest(
+				&ai.GenerationCommonConfig{Temperature: 1},
+				ai.NewUserTextMessage(fmt.Sprintf(`Suggest an item for the menu of a %s themed restaurant`, input))),
+			nil)
 		if err != nil {
 			return "", err
 		}

@@ -16,7 +16,7 @@ package ai
 
 // NewGenerateRequest create a new GenerateRequest with provided config and
 // messages. Use NewUserTextGenerateRequest if you have a simple text-only user message.
-func NewGenerateRequest(config map[string]any, messages ...*Message) *GenerateRequest {
+func NewGenerateRequest(config any, messages ...*Message) *GenerateRequest {
 	return &GenerateRequest{
 		Config:   config,
 		Messages: messages,
