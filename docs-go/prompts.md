@@ -95,7 +95,7 @@ Provide the input variables expected by the prompt, and the model to call.
   ```go
   request, err := helloPrompt.Render(context.Background(), HelloPromptInput{UserName: "Fred"})
   if err != nil {
-  	log.Fatal(err)
+  	return err
   }
   response, err := gemini15pro.Generate(context.Background(), request, nil)
   ```

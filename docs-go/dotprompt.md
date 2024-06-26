@@ -84,7 +84,7 @@ To use this prompt:
   	nil,
   )
   if err != nil {
-  	log.Fatal(err)
+  	return err
   }
 
   if responseText, err := response.Text(); err == nil {
@@ -300,12 +300,12 @@ usage. In code, this would be:
   dotprompt.SetDirectory("prompts")
   describeImagePrompt, err := dotprompt.Open("describe_image")
   if err != nil {
-  	log.Fatal(err)
+  	return err
   }
 
   imageBytes, err := os.ReadFile("img.jpg")
   if err != nil {
-  	log.Fatal(err)
+  	return err
   }
   encodedImage := base64.StdEncoding.EncodeToString(imageBytes)
   dataURI := "data:image/jpeg;base64," + encodedImage

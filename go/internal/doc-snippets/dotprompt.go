@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/firebase/genkit/go/ai"
@@ -26,7 +25,7 @@ import (
 	"github.com/firebase/genkit/go/plugins/vertexai"
 )
 
-func dot01() {
+func dot01() error {
 	//!+dot01.1
 	dotprompt.SetDirectory("prompts")
 	prompt, err := dotprompt.Open("greeting")
@@ -58,7 +57,7 @@ func dot01() {
 		nil,
 	)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	if responseText, err := response.Text(); err == nil {
@@ -74,6 +73,7 @@ func dot01() {
 	//!-dot01.3
 
 	_ = renderedPrompt
+	return nil
 }
 
 func dot02() {
@@ -109,17 +109,17 @@ func dot02() {
 	_ = response
 }
 
-func dot03() {
+func dot03() error {
 	//!+dot03
 	dotprompt.SetDirectory("prompts")
 	describeImagePrompt, err := dotprompt.Open("describe_image")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	imageBytes, err := os.ReadFile("img.jpg")
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	encodedImage := base64.StdEncoding.EncodeToString(imageBytes)
 	dataURI := "data:image/jpeg;base64," + encodedImage
@@ -137,6 +137,7 @@ func dot03() {
 	//!-dot03
 
 	_ = response
+	return nil
 }
 
 func dot04() {

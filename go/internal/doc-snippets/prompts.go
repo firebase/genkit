@@ -18,7 +18,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/invopop/jsonschema"
@@ -58,7 +57,7 @@ func pr02() {
 	}
 }
 
-func pr03() {
+func pr03() error {
 	//!+pr03.1
 	type HelloPromptInput struct {
 		UserName string
@@ -86,10 +85,11 @@ func pr03() {
 	//!+pr03.2
 	request, err := helloPrompt.Render(context.Background(), HelloPromptInput{UserName: "Fred"})
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	response, err := gemini15pro.Generate(context.Background(), request, nil)
 	//!-pr03.2
 
 	_ = response
+	return nil
 }
