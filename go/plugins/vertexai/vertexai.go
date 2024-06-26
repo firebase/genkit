@@ -52,7 +52,15 @@ var (
 		"gemini-1.5-flash": multimodal,
 	}
 
-	knownEmbedders = []string{"text-embedding-004", "multimodalembedding"}
+	knownEmbedders = []string{
+		"textembedding-gecko@003",
+		"textembedding-gecko@002",
+		"textembedding-gecko@001",
+		"text-embedding-004",
+		"textembedding-gecko-multilingual@001",
+		"text-multilingual-embedding-002",
+		"multimodalembedding",
+	}
 )
 
 var state struct {
