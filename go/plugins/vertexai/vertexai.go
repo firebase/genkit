@@ -103,7 +103,10 @@ func Init(ctx context.Context, projectID, location string) error {
 		return err
 	}
 	for model, caps := range knownCaps {
-		DefineModel(model, &caps)
+		_, err := DefineModel(model, &caps)
+		if err != nil {
+			return fmt.Errorf("vertexai.Init: failed to define known model %s: %w", model, err)
+		}
 	}
 	state.initted = true
 	return nil

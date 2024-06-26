@@ -86,7 +86,10 @@ func Init(ctx context.Context, apiKey string) (err error) {
 	state.client = client
 	state.initted = true
 	for model, caps := range knownCaps {
-		DefineModel(model, &caps)
+		_, err := DefineModel(model, &caps)
+		if err != nil {
+			return fmt.Errorf("googleai.Init: failed to define known model %s: %w", model, err)
+		}
 	}
 	return nil
 }
