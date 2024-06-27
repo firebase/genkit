@@ -182,7 +182,7 @@ func shutdownServers(servers []*http.Server) error {
 	case <-done:
 		slog.Info("all servers shut down successfully")
 	case <-ctx.Done():
-		slog.Error("shutdown timed out")
+		return errors.New("server shutdown timed out")
 	}
 
 	return nil
