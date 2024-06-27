@@ -243,6 +243,7 @@ class AdjustingTraceExporter implements SpanExporter {
     }
     return {
       ...span,
+      spanContext: span.spanContext,
       attributes: normalized,
     };
   }
