@@ -171,3 +171,7 @@ export function compile<Variables = any>(
     return toMessages(renderedString, options);
   };
 }
+
+export function defineHelper(name: string, fn: Handlebars.HelperDelegate) {
+  Promptbars.registerHelper(name, fn);
+}
