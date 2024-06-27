@@ -71,6 +71,7 @@ export function recordError(err: any) {
 export function writeFlowSuccess(flowName: string, latencyMs: number) {
   const dimensions = {
     name: flowName,
+    status: 'success',
     source: 'ts',
     sourceVersion: GENKIT_VERSION,
   };
@@ -81,6 +82,7 @@ export function writeFlowSuccess(flowName: string, latencyMs: number) {
   if (paths) {
     const pathDimensions = {
       flowName: flowName,
+      status: 'success',
       source: 'ts',
       sourceVersion: GENKIT_VERSION,
     };
@@ -96,7 +98,6 @@ export function writeFlowSuccess(flowName: string, latencyMs: number) {
     relevantPaths.forEach((p) => {
       pathCounter.add(1, {
         ...pathDimensions,
-        success: 'success',
         path: p.path,
       });
 
@@ -115,6 +116,7 @@ export function writeFlowFailure(
 ) {
   const dimensions = {
     name: flowName,
+    status: 'failure',
     source: 'ts',
     sourceVersion: GENKIT_VERSION,
     error: err.name,
@@ -144,19 +146,27 @@ export function writeFlowFailure(
     relevantPaths.forEach((p) => {
       pathCounter.add(1, {
         ...pathDimensions,
-        success: 'success',
+        status: 'success',
         path: p.path,
       });
 
       pathLatencies.record(p.latency, {
         ...pathDimensions,
+        status: 'success',
         path: p.path,
       });
     });
 
     pathCounter.add(1, {
       ...pathDimensions,
-      success: 'failure',
+      status: 'failure',
+      error: err.name,
+      path: failPath,
+    });
+
+    pathLatencies.record(latencyMs, {
+      ...pathDimensions,
+      status: 'failure',
       error: err.name,
       path: failPath,
     });

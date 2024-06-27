@@ -80,10 +80,12 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(requestCounter.value, 2);
     assert.equal(requestCounter.attributes.name, 'testFlow');
     assert.equal(requestCounter.attributes.source, 'ts');
+    assert.equal(requestCounter.attributes.status, 'success');
     assert.ok(requestCounter.attributes.sourceVersion);
     assert.equal(latencyHistogram.value.count, 2);
     assert.equal(latencyHistogram.attributes.name, 'testFlow');
     assert.equal(latencyHistogram.attributes.source, 'ts');
+    assert.equal(latencyHistogram.attributes.status, 'success');
     assert.ok(latencyHistogram.attributes.sourceVersion);
   });
 
@@ -102,6 +104,7 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(requestCounter.attributes.name, 'testFlow');
     assert.equal(requestCounter.attributes.source, 'ts');
     assert.equal(requestCounter.attributes.error, 'TypeError');
+    assert.equal(requestCounter.attributes.status, 'failure');
   });
 
   it('writes action metrics', async () => {
@@ -122,10 +125,12 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(requestCounter.value, 6);
     assert.equal(requestCounter.attributes.name, 'testAction');
     assert.equal(requestCounter.attributes.source, 'ts');
+    assert.equal(requestCounter.attributes.status, 'success');
     assert.ok(requestCounter.attributes.sourceVersion);
     assert.equal(latencyHistogram.value.count, 6);
     assert.equal(latencyHistogram.attributes.name, 'testAction');
     assert.equal(latencyHistogram.attributes.source, 'ts');
+    assert.equal(latencyHistogram.attributes.status, 'success');
     assert.ok(latencyHistogram.attributes.sourceVersion);
   });
 
@@ -163,6 +168,7 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(requestCounter.value, 1);
     assert.equal(requestCounter.attributes.name, 'testActionWithFailure');
     assert.equal(requestCounter.attributes.source, 'ts');
+    assert.equal(requestCounter.attributes.status, 'failure');
     assert.equal(requestCounter.attributes.error, 'TypeError');
   });
 
@@ -253,6 +259,7 @@ describe('GoogleCloudMetrics', () => {
       assert.equal(metric.attributes.topK, 3);
       assert.equal(metric.attributes.topP, 5);
       assert.equal(metric.attributes.source, 'ts');
+      assert.equal(metric.attributes.status, 'success');
       assert.ok(metric.attributes.sourceVersion);
     }
   });
@@ -285,6 +292,7 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(requestCounter.attributes.topK, 3);
     assert.equal(requestCounter.attributes.topP, 5);
     assert.equal(requestCounter.attributes.source, 'ts');
+    assert.equal(requestCounter.attributes.status, 'failure');
     assert.equal(requestCounter.attributes.error, 'TypeError');
     assert.ok(requestCounter.attributes.sourceVersion);
   });
@@ -374,6 +382,9 @@ describe('GoogleCloudMetrics', () => {
     const pathCounterPoints = await getCounterDataPoints(
       'genkit/flow/path/requests'
     );
+    const pathLatencyPoints = await getHistogramDataPoints(
+      'genkit/flow/path/latency'
+    );
     const paths = new Set(
       pathCounterPoints.map((point) => point.attributes.path)
     );
@@ -382,9 +393,50 @@ describe('GoogleCloudMetrics', () => {
       assert.equal(point.value, 1);
       assert.equal(point.attributes.flowName, 'pathTestFlow');
       assert.equal(point.attributes.source, 'ts');
-      assert.equal(point.attributes.success, 'success');
+      assert.equal(point.attributes.status, 'success');
       assert.ok(point.attributes.sourceVersion);
     });
+    pathLatencyPoints.forEach((point) => {
+      assert.equal(point.value.count, 1);
+      assert.equal(point.attributes.flowName, 'pathTestFlow');
+      assert.equal(point.attributes.source, 'ts');
+      assert.equal(point.attributes.status, 'success');
+      assert.ok(point.attributes.sourceVersion);
+    });
+  });
+
+  it('writes flow path failure metrics', async () => {
+    const flow = createFlow('testFlow', async () => {
+      const subPath = await run('sub-action', async () => {
+        return 'done';
+      });
+      return Promise.reject(new Error('failed'));
+    });
+
+    assert.rejects(async () => {
+      await runFlow(flow);
+    });
+
+    const reqPoints = await getCounterDataPoints('genkit/flow/path/requests');
+    const reqStatuses = reqPoints.map((p) => [
+      p.attributes.path,
+      p.attributes.status,
+    ]);
+    assert.deepEqual(reqStatuses, [
+      ['/{testFlow,t:flow}/{sub-action,t:flowStep}', 'success'],
+      ['/{testFlow,t:flow}', 'failure'],
+    ]);
+    const latencyPoints = await getHistogramDataPoints(
+      'genkit/flow/path/latency'
+    );
+    const latencyStatuses = latencyPoints.map((p) => [
+      p.attributes.path,
+      p.attributes.status,
+    ]);
+    assert.deepEqual(latencyStatuses, [
+      ['/{testFlow,t:flow}/{sub-action,t:flowStep}', 'success'],
+      ['/{testFlow,t:flow}', 'failure'],
+    ]);
   });
 
   describe('Configuration', () => {
@@ -453,21 +505,31 @@ describe('GoogleCloudMetrics', () => {
     return getCounterDataPoints(metricName).then((points) => points.at(-1));
   }
 
-  /** Finds a histogram metric with the given name in the in memory exporter */
-  async function getHistogramMetric(
+  /**
+   * Finds all datapoints for a histogram metric with the given name in the in
+   * memory exporter.
+   */
+  async function getHistogramDataPoints(
     metricName: string
-  ): Promise<DataPoint<Histogram>> {
+  ): Promise<List<DataPoint<Histogram>>> {
     const genkitMetrics = await getGenkitMetrics();
     const histogramMetric: HistogramMetricData = genkitMetrics.metrics.find(
       (e) =>
         e.descriptor.name === metricName && e.descriptor.type === 'HISTOGRAM'
     );
     if (histogramMetric) {
-      return histogramMetric.dataPoints.at(-1);
+      return histogramMetric.dataPoints;
     }
     assert.fail(
       `No histogram metric named ${metricName} was found. Only found: ${genkitMetrics.metrics.map((e) => e.descriptor.name)}`
     );
+  }
+
+  /** Finds a histogram metric with the given name in the in memory exporter */
+  async function getHistogramMetric(
+    metricName: string
+  ): Promise<DataPoint<Histogram>> {
+    return getHistogramDataPoints(metricName).then((points) => points.at(-1));
   }
 
   /** Helper to create a flow with no inputs or outputs */
