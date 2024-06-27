@@ -131,10 +131,9 @@ func main() {
 			return "", nil
 		},
 	)
-	// StartFlowServer always returns a non-nil error: the one returned by
-	// http.ListenAndServe.
-	err := genkit.StartFlowServer(":1234", []string{})
-	log.Fatal(err)
+	if err := genkit.Init(context.Background(), nil); err != nil {
+		log.Fatal(err)
+	}
 }
 
 // !-main

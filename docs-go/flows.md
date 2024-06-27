@@ -148,7 +148,7 @@ first.
 - {Go}
 
   To deploy flows using Cloud Run and similar services, define your flows, and
-  then call `StartFlowServer()`:
+  then call `Init()`:
 
   ```go
   func main() {
@@ -159,10 +159,9 @@ first.
   			return "", nil
   		},
   	)
-  	// StartFlowServer always returns a non-nil error: the one returned by
-  	// http.ListenAndServe.
-  	err := genkit.StartFlowServer(":1234", []string{})
-  	log.Fatal(err)
+  	if err := genkit.Init(context.Background(), nil); err != nil {
+		log.Fatal(err)
+	}
   }
   ```
 

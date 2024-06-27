@@ -82,7 +82,7 @@ first.
 - {Go}
 
   To deploy flows using Cloud Run and similar services, define your flows, and
-  then call `StartFlowServer()`:
+  then call `Init()`:
 
   %include ../go/internal/doc-snippets/flows.go main
 
