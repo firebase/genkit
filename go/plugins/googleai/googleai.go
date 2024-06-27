@@ -77,7 +77,10 @@ func Init(ctx context.Context, apiKey string) (err error) {
 	if apiKey == "" {
 		apiKey = os.Getenv("GOOGLE_GENAI_API_KEY")
 		if apiKey == "" {
-			return fmt.Errorf("googleai.Init: Google AI requires setting GOOGLE_GENAI_API_KEY in the environment. You can get an API key at https://ai.google.dev")
+			apiKey = os.Getenv("GOOGLE_API_KEY")
+		}
+		if apiKey == "" {
+			return fmt.Errorf("googleai.Init: Google AI requires setting GOOGLE_GENAI_API_KEY or GOOGLE_API_KEY in the environment. You can get an API key at https://ai.google.dev")
 		}
 	}
 
