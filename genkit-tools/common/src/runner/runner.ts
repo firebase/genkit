@@ -123,7 +123,7 @@ export class Runner {
     const handleInterrupt = async () => {
       await this.stopApp();
       process.exit(0);
-    }
+    };
     process.addListener('SIGINT', handleInterrupt);
     process.addListener('SIGTERM', handleInterrupt);
     return this.startApp();
