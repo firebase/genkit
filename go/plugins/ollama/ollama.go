@@ -18,35 +18,67 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/plugins/internal/uri"
 )
 
 const provider = "ollama"
 
+var knownModels = []ModelDefinition{}
+var mediaSupportedModels = []string{"llava"}
 var roleMapping = map[ai.Role]string{
 	ai.RoleUser:   "user",
 	ai.RoleModel:  "assistant",
 	ai.RoleSystem: "system",
 }
+var state struct {
+	mu            sync.Mutex
+	initted       bool
+	serverAddress string
+}
 
-func defineModel(model ModelDefinition, serverAddress string) {
-	meta := &ai.ModelMetadata{
-		Label: "Ollama - " + model.Name,
-		Supports: ai.ModelCapabilities{
-			Multiturn:  model.Type == "chat",
-			SystemRole: model.Type != "chat",
-		},
+func contains(slice []string, item string) bool {
+	for _, s := range slice { // Iterate through the slice
+		if s == item { // Direct comparison for string equality
+			return true // Early return if found
+		}
 	}
-	g := &generator{model: model, serverAddress: serverAddress}
-	ai.DefineModel(provider, model.Name, meta, g.generate)
+	return false // Item not found in the slice
+}
+
+func DefineModel(model ModelDefinition, caps *ai.ModelCapabilities) *ai.Model {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if !state.initted {
+		panic("ollama.Init not called")
+	}
+	var mc ai.ModelCapabilities
+	if caps != nil {
+		mc = *caps
+	} else {
+		mc = ai.ModelCapabilities{
+			Multiturn:  true,
+			SystemRole: true,
+			Media:      contains(mediaSupportedModels, model.Name),
+		}
+	}
+	meta := &ai.ModelMetadata{
+		Label:    "Ollama - " + model.Name,
+		Supports: mc,
+	}
+	g := &generator{model: model, serverAddress: state.serverAddress}
+	return ai.DefineModel(provider, model.Name, meta, g.generate)
+
 }
 
 // Model returns the [ai.Model] with the given name.
@@ -69,22 +101,15 @@ type Config struct {
 	Models []ModelDefinition
 }
 
-// Init registers all the actions in this package with ai.
-func Init(ctx context.Context, cfg Config) error {
-	for _, model := range cfg.Models {
-		defineModel(model, cfg.ServerAddress)
-	}
-	return nil
-}
-
 type generator struct {
 	model         ModelDefinition
 	serverAddress string
 }
 
 type ollamaMessage struct {
-	Role    string // json:"role"
-	Content string // json:"content"
+	Role    string   `json:"role"`
+	Content string   `json:"content"`
+	Images  []string `json:"images,omitempty"`
 }
 
 // Ollama has two API endpoints, one with a chat interface and another with a generate response interface.
@@ -108,10 +133,11 @@ type ollamaChatRequest struct {
 }
 
 type ollamaGenerateRequest struct {
-	System string `json:"system,omitempty"` // Optional System field
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-	Stream bool   `json:"stream"`
+	System string   `json:"system,omitempty"`
+	Images []string `json:"images,omitempty"`
+	Model  string   `json:"model"`
+	Prompt string   `json:"prompt"`
+	Stream bool     `json:"stream"`
 }
 
 // TODO: Add optional parameters (images, format, options, etc.) based on your use case
@@ -130,6 +156,24 @@ type ollamaGenerateResponse struct {
 	Response  string `json:"response"`
 }
 
+// Note: Since Ollama models are locally hosted, the plugin doesn't initialize any default models.
+// The user has to explicitly decide which model to pull down.
+func Init(ctx context.Context, serverAddress string) (err error) {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if state.initted {
+		panic("ollama.Init already called")
+	}
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("ollama.Init: %w", err)
+		}
+	}()
+	state.serverAddress = serverAddress
+	state.initted = true
+	return nil
+}
+
 // Generate makes a request to the Ollama API and processes the response.
 func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
 
@@ -137,10 +181,15 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	var payload any
 	isChatModel := g.model.Type == "chat"
 	if !isChatModel {
+		images, err := concatImages(input, []ai.Role{ai.Role("user"), ai.Role("model")})
+		if err != nil {
+			return nil, fmt.Errorf("error grabbing image parts: %v", err)
+		}
 		payload = ollamaGenerateRequest{
 			Model:  g.model.Name,
 			Prompt: concatMessages(input, []ai.Role{ai.Role("user"), ai.Role("model"), ai.Role("tool")}),
 			System: concatMessages(input, []ai.Role{ai.Role("system")}),
+			Images: images,
 			Stream: stream,
 		}
 	} else {
@@ -253,6 +302,13 @@ func convertParts(role ai.Role, parts []*ai.Part) (*ollamaMessage, error) {
 	for _, part := range parts {
 		if part.IsText() {
 			message.Content += part.Text
+		} else if part.IsMedia() {
+			_, data, err := uri.Data(part)
+			if err != nil {
+				return nil, err
+			}
+			base64Encoded := base64.StdEncoding.EncodeToString(data)
+			message.Images = append(message.Images, base64Encoded)
 		} else {
 			return nil, errors.New("unknown content type")
 		}
@@ -343,4 +399,33 @@ func concatMessages(input *ai.GenerateRequest, roles []ai.Role) string {
 		}
 	}
 	return sb.String()
+}
+
+// concatMessages translates a list of messages into a prompt-style format
+func concatImages(input *ai.GenerateRequest, roles []ai.Role) ([]string, error) {
+	roleSet := make(map[ai.Role]bool)
+	for _, role := range roles {
+		roleSet[role] = true // Create a set for faster lookup
+	}
+
+	var images []string
+
+	for _, message := range input.Messages {
+		// Check if the message role is in the allowed set
+		if roleSet[message.Role] {
+			for _, part := range message.Content {
+				if part.IsMedia() {
+					_, data, err := uri.Data(part)
+					if err != nil {
+						return nil, err
+					}
+					base64Encoded := base64.StdEncoding.EncodeToString(data)
+					images = append(images, base64Encoded)
+				} else {
+					return nil, errors.New("unknown content type")
+				}
+			}
+		}
+	}
+	return images, nil
 }
