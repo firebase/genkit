@@ -16,7 +16,13 @@
 
 import { LoggerConfig } from '@genkit-ai/core';
 import { LoggingWinston } from '@google-cloud/logging-winston';
+import { Writable } from 'stream';
 import { PluginOptions } from './index.js';
+
+/**
+ * Additional streams for writing log data to. Useful for unit testing.
+ */
+let additionalStream: Writable;
 
 /**
  * Provides a {LoggerConfig} for exporting Genkit debug logs to GCP Cloud
@@ -44,17 +50,25 @@ export class GcpLogger implements LoggerConfig {
           }),
         };
 
-    const transport = this.shouldExport(env)
-      ? new LoggingWinston({
-          projectId: this.options.projectId,
-          labels: { module: 'genkit' },
-          prefix: 'genkit',
-          logName: 'genkit_log',
-        })
-      : new winston.transports.Console();
+    let transports: any[] = [];
+    transports.push(
+      this.shouldExport(env)
+        ? new LoggingWinston({
+            projectId: this.options.projectId,
+            labels: { module: 'genkit' },
+            prefix: 'genkit',
+            logName: 'genkit_log',
+          })
+        : new winston.transports.Console()
+    );
+    if (additionalStream) {
+      transports.push(
+        new winston.transports.Stream({ stream: additionalStream })
+      );
+    }
 
     return winston.createLogger({
-      transports: [transport],
+      transports: transports,
       ...format,
     });
   }
@@ -62,4 +76,8 @@ export class GcpLogger implements LoggerConfig {
   private shouldExport(env: string) {
     return this.options.telemetryConfig?.forceDevExport || env !== 'dev';
   }
+}
+
+export function __addTransportStreamForTesting(stream: Writable) {
+  additionalStream = stream;
 }
