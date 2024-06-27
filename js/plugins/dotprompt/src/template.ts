@@ -156,7 +156,6 @@ export function compile<Variables = any>(
       role: true,
       history: true,
     },
-    knownHelpersOnly: true,
   });
 
   return (
