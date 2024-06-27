@@ -119,6 +119,13 @@ export class Runner {
       }
       this.watchForChanges();
     }
+    // Apps are started as detached processes so interrupt signals won't automatically reach them.
+    const handleInterrupt = async () => {
+      await this.stopApp();
+      process.exit(0);
+    }
+    process.addListener('SIGINT', handleInterrupt);
+    process.addListener('SIGTERM', handleInterrupt);
     return this.startApp();
   }
 

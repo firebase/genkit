@@ -52,6 +52,7 @@ func InternalInit(ctx context.Context, opts *Options) error {
 	}
 	globalRegistry.freeze()
 
+	var mu sync.Mutex
 	var servers []*http.Server
 	var wg sync.WaitGroup
 	errCh := make(chan error, 2)
@@ -60,12 +61,10 @@ func InternalInit(ctx context.Context, opts *Options) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			s, err := startReflectionServer(errCh)
-			if err != nil {
-				errCh <- fmt.Errorf("failed to start reflection server: %w", err)
-				return
-			}
+			s := startReflectionServer(errCh)
+			mu.Lock()
 			servers = append(servers, s)
+			mu.Unlock()
 		}()
 	}
 
@@ -73,12 +72,10 @@ func InternalInit(ctx context.Context, opts *Options) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			s, err := startFlowServer(opts.FlowAddr, opts.Flows, errCh)
-			if err != nil {
-				errCh <- fmt.Errorf("failed to start flow server: %w", err)
-				return
-			}
+			s := startFlowServer(opts.FlowAddr, opts.Flows, errCh)
+			mu.Lock()
 			servers = append(servers, s)
+			mu.Unlock()
 		}()
 	}
 
@@ -88,6 +85,7 @@ func InternalInit(ctx context.Context, opts *Options) error {
 		close(serverStartCh)
 	}()
 
+	// It will block here until either all servers start up or there is an error in starting one.
 	select {
 	case <-serverStartCh:
 		slog.Info("all servers started successfully")
@@ -98,8 +96,9 @@ func InternalInit(ctx context.Context, opts *Options) error {
 	}
 
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
+	// It will block here (i.e. servers will run) until we get an interrupt signal.
 	select {
 	case sig := <-sigCh:
 		slog.Info("received signal, initiating shutdown", "signal", sig)
@@ -116,7 +115,7 @@ func InternalInit(ctx context.Context, opts *Options) error {
 // startReflectionServer starts the Reflection API server listening at the
 // value of the environment variable GENKIT_REFLECTION_PORT for the port,
 // or ":3100" if it is empty.
-func startReflectionServer(errCh chan<- error) (*http.Server, error) {
+func startReflectionServer(errCh chan<- error) *http.Server {
 	slog.Info("starting reflection server")
 	addr := serverAddress("", "GENKIT_REFLECTION_PORT", "127.0.0.1:3100")
 	mux := newDevServeMux(globalRegistry)
@@ -129,7 +128,7 @@ func startReflectionServer(errCh chan<- error) (*http.Server, error) {
 // for the port, and if that is empty it uses ":3400".
 //
 // To construct a server with additional routes, use [NewFlowServeMux].
-func startFlowServer(addr string, flows []string, errCh chan<- error) (*http.Server, error) {
+func startFlowServer(addr string, flows []string, errCh chan<- error) *http.Server {
 	slog.Info("starting flow server")
 	addr = serverAddress(addr, "PORT", "127.0.0.1:3400")
 	mux := NewFlowServeMux(flows)
@@ -138,7 +137,7 @@ func startFlowServer(addr string, flows []string, errCh chan<- error) (*http.Ser
 
 // startServer starts an HTTP server listening on the address.
 // It returns the server an
-func startServer(addr string, handler http.Handler, errCh chan<- error) (*http.Server, error) {
+func startServer(addr string, handler http.Handler, errCh chan<- error) *http.Server {
 	server := &http.Server{
 		Addr:    addr,
 		Handler: handler,
@@ -151,7 +150,7 @@ func startServer(addr string, handler http.Handler, errCh chan<- error) (*http.S
 		}
 	}()
 
-	return server, nil
+	return server
 }
 
 // shutdownServers initiates shutdown of the servers and waits for the shutdown to complete.
