@@ -363,7 +363,6 @@ export class Runner {
       if ((error as AxiosError).code === 'ECONNREFUSED') {
         return false;
       }
-      logger.error(error)
       throw new Error('Code failed to load, please check log messages above.');
     }
   }
