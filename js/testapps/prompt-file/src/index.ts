@@ -63,14 +63,17 @@ prompt('story').then((storyPrompt) => {
   defineFlow(
     {
       name: 'tellStory',
-      inputSchema: z.string(),
+      inputSchema: z.object({
+        subject: z.string(),
+        personality: z.string().optional(),
+      }),
       outputSchema: z.string(),
       streamSchema: z.string(),
     },
-    async (subject, streamingCallback) => {
+    async ({ subject, personality }, streamingCallback) => {
       if (streamingCallback) {
         const { response, stream } = await storyPrompt.generateStream({
-          input: { subject },
+          input: { subject, personality },
         });
         for await (const chunk of stream()) {
           streamingCallback(chunk.content[0]?.text!);

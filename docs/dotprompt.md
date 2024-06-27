@@ -299,6 +299,70 @@ const result = await describeImagePrompt.generate({
 console.log(result.text());
 ```
 
+## Partials
+
+Partials are reusable templates that can be included inside any prompt. Partials
+can be especially helpful for related prompts that share common behavior.
+
+When loading a prompt directory, any file prefixed with `_` is considered a
+partial. So a file `_personality.prompt` might contain:
+
+```none
+You should speak like a {{#if style}}{{style}}{{else}}helpful assistant.{{/else}}.
+```
+
+This can then be included in other prompts:
+
+```none
+---
+model: vertexai/gemini-1.5-flash
+input:
+  schema:
+    name: string
+    style?: string
+---
+
+{{ role "system" }}
+{{>personality style=style}}
+
+{{ role "user" }}
+Give the user a friendly greeting.
+
+User's Name: {{name}}
+```
+
+Partials are inserted using the `{{>NAME_OF_PARTIAL args...}}` syntax. If no
+arguments are provided to the partial, it executes with the same context as the
+parent prompt.
+
+Partials accept both named arguments as above or a single positional argument
+representing the context. This can be helpful for e.g. rendering members of a list.
+
+```
+# _destination.prompt
+- {{name}} ({{country}})
+
+# chooseDestination.prompt
+Help the user decide between these vacation destinations:
+{{#each destinations}}
+{{>destination this}}{{/each}}
+```
+
+### Defining Partials in Code
+
+You may also define partials in code using `definePartial`:
+
+```ts
+import { definePartial } from '@genkit-ai/dotprompt';
+
+definePartial(
+  'personality',
+  'Talk like a {{#if style}}{{style}}{{else}}helpful assistant{{/if}}.'
+);
+```
+
+Code-defined partials are available in all prompts.
+
 ## Prompt Variants
 
 Because prompt files are just text, you can (and should!) commit them to your
