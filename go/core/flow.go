@@ -538,28 +538,62 @@ func InternalRun[Out any](ctx context.Context, name string, f func() (Out, error
 	})
 }
 
-// InternalRunFlow is for use by genkit.RunFlow exclusively.
-// It is not subject to any backwards compatibility guarantees.
-func InternalRunFlow[In, Out, Stream any](ctx context.Context, flow *Flow[In, Out, Stream], input In) (Out, error) {
-	state, err := flow.start(ctx, input, nil)
+// Run runs the flow in the context of another flow. The flow must run to completion when started
+// (that is, it must not have interrupts).
+func (f *Flow[In, Out, Stream]) Run(ctx context.Context, input In) (Out, error) {
+	return f.run(ctx, input, nil)
+}
+
+func (f *Flow[In, Out, Stream]) run(ctx context.Context, input In, cb func(context.Context, Stream) error) (Out, error) {
+	state, err := f.start(ctx, input, cb)
 	if err != nil {
 		return internal.Zero[Out](), err
 	}
 	return finishedOpResponse(state.Operation)
 }
 
-// InternalStreamFlow is for use by genkit.StreamFlow exclusively.
-// It is not subject to any backwards compatibility guarantees.
-func InternalStreamFlow[In, Out, Stream any](ctx context.Context, flow *Flow[In, Out, Stream], input In, callback func(context.Context, Stream) error) (Out, error) {
-	state, err := flow.start(ctx, input, callback)
-	if err != nil {
-		return internal.Zero[Out](), err
-	}
-	if ctx.Err() != nil {
-		return internal.Zero[Out](), ctx.Err()
-	}
-	return finishedOpResponse(state.Operation)
+// StreamFlowValue is either a streamed value or a final output of a flow.
+type StreamFlowValue[Out, Stream any] struct {
+	Done   bool
+	Output Out    // valid if Done is true
+	Stream Stream // valid if Done is false
 }
+
+// Stream runs the flow on input and delivers both the streamed values and the final output.
+// It returns a function whose argument function (the "yield function") will be repeatedly
+// called with the results.
+//
+// If the yield function is passed a non-nil error, the flow has failed with that
+// error; the yield function will not be called again. An error is also passed if
+// the flow fails to complete (that is, it has an interrupt).
+// Genkit Go does not yet support interrupts.
+//
+// If the yield function's [StreamFlowValue] argument has Done == true, the value's
+// Output field contains the final output; the yield function will not be called
+// again.
+//
+// Otherwise the Stream field of the passed [StreamFlowValue] holds a streamed result.
+func (f *Flow[In, Out, Stream]) Stream(ctx context.Context, input In) func(func(*StreamFlowValue[Out, Stream], error) bool) {
+	return func(yield func(*StreamFlowValue[Out, Stream], error) bool) {
+		cb := func(ctx context.Context, s Stream) error {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			if !yield(&StreamFlowValue[Out, Stream]{Stream: s}, nil) {
+				return errStop
+			}
+			return nil
+		}
+		output, err := f.run(ctx, input, cb)
+		if err != nil {
+			yield(nil, err)
+		} else {
+			yield(&StreamFlowValue[Out, Stream]{Done: true, Output: output}, nil)
+		}
+	}
+}
+
+var errStop = errors.New("stop")
 
 func finishedOpResponse[O any](op *operation[O]) (O, error) {
 	if !op.Done {

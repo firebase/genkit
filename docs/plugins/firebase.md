@@ -121,6 +121,12 @@ const docs = await retrieve({
 });
 ```
 
+Available retrieval options include:
+
+- `limit`: Specify the number of matching results to return.
+- `where`: Field/value pairs to match (e.g. `{category: 'food'}`) in addition to vector search.
+- `collection`: Override the default collection to search for e.g. subcollection search.
+
 To populate your Firestore collection, use an embedding generator along with the
 Admin SDK. For example, the menu ingestion script from the
 [Retrieval-augmented generation](../rag.md) page could be adapted for Firestore

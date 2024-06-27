@@ -96,11 +96,24 @@ func DefineCustomAction[In, Out, Stream any](provider, name string, metadata map
 // This differs from DefineAction in that the input schema is
 // defined dynamically; the static input type is "any".
 // This is used for prompts.
-func DefineActionWithInputSchema[Out any](provider, name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, any) (Out, error), inputSchema *jsonschema.Schema) *Action[any, Out, struct{}] {
-	return defineActionWithInputSchema(globalRegistry, provider, name, atype, metadata, fn, inputSchema)
+func DefineActionWithInputSchema[Out any](
+	provider, name string,
+	atype atype.ActionType,
+	metadata map[string]any,
+	inputSchema *jsonschema.Schema,
+	fn func(context.Context, any) (Out, error),
+) *Action[any, Out, struct{}] {
+	return defineActionWithInputSchema(globalRegistry, provider, name, atype, metadata, inputSchema, fn)
 }
 
-func defineActionWithInputSchema[Out any](r *registry, provider, name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, any) (Out, error), inputSchema *jsonschema.Schema) *Action[any, Out, struct{}] {
+func defineActionWithInputSchema[Out any](
+	r *registry,
+	provider, name string,
+	atype atype.ActionType,
+	metadata map[string]any,
+	inputSchema *jsonschema.Schema,
+	fn func(context.Context, any) (Out, error),
+) *Action[any, Out, struct{}] {
 	a := newActionWithInputSchema(provider+"/"+name, atype, metadata, fn, inputSchema)
 	r.registerAction(a)
 	return a

@@ -24,7 +24,7 @@ import (
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
 
-func setup04(ctx context.Context, indexer *ai.IndexerAction, retriever *ai.RetrieverAction, model *ai.ModelAction) error {
+func setup04(ctx context.Context, indexer *ai.Indexer, retriever *ai.Retriever, model *ai.Model) error {
 	ragDataMenuPrompt, err := dotprompt.Define("s04_ragDataMenu",
 		`
 		  You are acting as Walt, a helpful AI assistant here at the restaurant.
@@ -41,7 +41,7 @@ func setup04(ctx context.Context, indexer *ai.IndexerAction, retriever *ai.Retri
 		  Answer this customer's question:
 		  {{question}}?`,
 		dotprompt.Config{
-			ModelAction:  model,
+			Model:        model,
 			InputSchema:  dataMenuQuestionInputSchema,
 			OutputFormat: ai.OutputFormatText,
 			GenerationConfig: &ai.GenerationCommonConfig{
@@ -70,7 +70,7 @@ func setup04(ctx context.Context, indexer *ai.IndexerAction, retriever *ai.Retri
 			req := &ai.IndexerRequest{
 				Documents: docs,
 			}
-			if err := ai.Index(ctx, indexer, req); err != nil {
+			if err := indexer.Index(ctx, req); err != nil {
 				return nil, err
 			}
 
@@ -89,7 +89,7 @@ func setup04(ctx context.Context, indexer *ai.IndexerAction, retriever *ai.Retri
 					K: 3,
 				},
 			}
-			resp, err := ai.Retrieve(ctx, retriever, req)
+			resp, err := retriever.Retrieve(ctx, req)
 			if err != nil {
 				return nil, err
 			}

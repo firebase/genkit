@@ -75,30 +75,28 @@ func main() {
 		fmt.Fprintln(os.Stderr, "You can get an API key at https://ai.google.dev.")
 		os.Exit(1)
 	}
-	err := googleai.Init(context.Background(), googleai.Config{APIKey: apiKey})
+	err := googleai.Init(context.Background(), apiKey)
 	if err != nil {
 		log.Fatal(err)
 	}
-	simpleQaPrompt, err := dotprompt.Define("simpleQaPrompt",
-		simpleQaPromptTemplate,
-		dotprompt.Config{
-			ModelAction:  googleai.Model("gemini-1.0-pro"),
-			InputSchema:  jsonschema.Reflect(simpleQaPromptInput{}),
-			OutputFormat: ai.OutputFormatText,
-		},
-	)
+	model := googleai.Model("gemini-1.0-pro")
+	embedder := googleai.Embedder("embedding-001")
+	if err := localvec.Init(); err != nil {
+		log.Fatal(err)
+	}
+	indexer, retriever, err := localvec.DefineIndexerAndRetriever("simpleQa", localvec.Config{Embedder: embedder})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	indexers, retrievers, err := localvec.Init(context.Background(), localvec.Config{
-		Stores: []localvec.StoreConfig{
-			{
-				Name:     "simpleQa",
-				Embedder: googleai.Embedder("embedding-001"),
-			},
+	simpleQaPrompt, err := dotprompt.Define("simpleQaPrompt",
+		simpleQaPromptTemplate,
+		dotprompt.Config{
+			Model:        model,
+			InputSchema:  jsonschema.Reflect(simpleQaPromptInput{}),
+			OutputFormat: ai.OutputFormatText,
 		},
-	})
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -111,7 +109,7 @@ func main() {
 		indexerReq := &ai.IndexerRequest{
 			Documents: []*ai.Document{d1, d2, d3},
 		}
-		err := ai.Index(ctx, indexers[0], indexerReq)
+		err := indexer.Index(ctx, indexerReq)
 		if err != nil {
 			return "", err
 		}
@@ -120,7 +118,7 @@ func main() {
 		retrieverReq := &ai.RetrieverRequest{
 			Document: dRequest,
 		}
-		response, err := ai.Retrieve(ctx, retrievers[0], retrieverReq)
+		response, err := retriever.Retrieve(ctx, retrieverReq)
 		if err != nil {
 			return "", err
 		}
@@ -152,7 +150,7 @@ func main() {
 		return text, nil
 	})
 
-	if err := genkit.StartFlowServer(""); err != nil {
+	if err := genkit.Init(nil); err != nil {
 		log.Fatal(err)
 	}
 }

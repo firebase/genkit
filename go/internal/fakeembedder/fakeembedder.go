@@ -26,7 +26,7 @@ import (
 	"github.com/firebase/genkit/go/ai"
 )
 
-// Embedder is a fake implementation of genkit.Embedder.
+// Embedder is a fake implementation of an Embedder.
 type Embedder struct {
 	registry map[*ai.Document][]float32
 }

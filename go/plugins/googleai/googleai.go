@@ -16,10 +16,9 @@ package googleai
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"path"
-	"slices"
+	"os"
+	"sync"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
@@ -30,79 +29,141 @@ import (
 
 const provider = "googleai"
 
-// Config provides configuration options for the Init function.
-type Config struct {
-	// API key. Required.
-	APIKey string
-	// Generative models to provide.
-	// If empty, a complete list will be obtained from the service.
-	Models []string
-	// Embedding models to provide.
-	// If empty, a complete list will be obtained from the service.
-	Embedders []string
+var state struct {
+	mu      sync.Mutex
+	initted bool
+	client  *genai.Client
 }
 
-func Init(ctx context.Context, cfg Config) (err error) {
+var (
+	basicText = ai.ModelCapabilities{
+		Multiturn:  true,
+		Tools:      true,
+		SystemRole: false,
+		Media:      false,
+	}
+
+	multimodal = ai.ModelCapabilities{
+		Multiturn:  true,
+		Tools:      true,
+		SystemRole: false,
+		Media:      true,
+	}
+
+	knownCaps = map[string]ai.ModelCapabilities{
+		"gemini-1.0-pro":   basicText,
+		"gemini-1.5-pro":   multimodal,
+		"gemini-1.5-flash": multimodal,
+	}
+
+	knownEmbedders = []string{"text-embedding-004", "embedding-001"}
+)
+
+// Init initializes the plugin and all known models and embedders.
+// After calling Init, you may call [DefineModel] and [DefineEmbedder] to create
+// and register any additional generative models and embedders
+func Init(ctx context.Context, apiKey string) (err error) {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if state.initted {
+		panic("googleai.Init already called")
+	}
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("googleai.Init: %w", err)
 		}
 	}()
 
-	if cfg.APIKey == "" {
-		return errors.New("missing API key")
+	if apiKey == "" {
+		apiKey = os.Getenv("GOOGLE_GENAI_API_KEY")
+		if apiKey == "" {
+			apiKey = os.Getenv("GOOGLE_API_KEY")
+		}
+		if apiKey == "" {
+			return fmt.Errorf("googleai.Init: Google AI requires setting GOOGLE_GENAI_API_KEY or GOOGLE_API_KEY in the environment. You can get an API key at https://ai.google.dev")
+		}
 	}
 
-	client, err := genai.NewClient(ctx, option.WithAPIKey(cfg.APIKey))
+	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
 	if err != nil {
 		return err
 	}
-
-	needModels := len(cfg.Models) == 0
-	needEmbedders := len(cfg.Embedders) == 0
-	if needModels || needEmbedders {
-		iter := client.ListModels(ctx)
-		for {
-			mi, err := iter.Next()
-			if err == iterator.Done {
-				break
-			}
-			if err != nil {
-				return err
-			}
-			// Model names are of the form "models/name".
-			name := path.Base(mi.Name)
-			if needModels && slices.Contains(mi.SupportedGenerationMethods, "generateContent") {
-				cfg.Models = append(cfg.Models, name)
-			}
-			if needEmbedders && slices.Contains(mi.SupportedGenerationMethods, "embedContent") {
-				cfg.Embedders = append(cfg.Embedders, name)
-			}
+	state.client = client
+	state.initted = true
+	for model, caps := range knownCaps {
+		if _, err := DefineModel(model, &caps); err != nil {
+			return fmt.Errorf("googleai.Init: failed to define known model %q: %w", model, err)
 		}
 	}
-	for _, name := range cfg.Models {
-		defineModel(name, client)
-	}
-	for _, name := range cfg.Embedders {
-		defineEmbedder(name, client)
+	for _, e := range knownEmbedders {
+		DefineEmbedder(e)
 	}
 	return nil
 }
 
-func defineModel(name string, client *genai.Client) {
-	meta := &ai.ModelMetadata{
-		Label: "Google AI - " + name,
-		Supports: ai.ModelCapabilities{
-			Multiturn: true,
-		},
-	}
-	g := generator{model: name, client: client}
-	ai.DefineModel(provider, name, meta, g.generate)
+// IsKnownModel reports whether a model is known to this plugin.
+func IsKnownModel(name string) bool {
+	_, ok := knownCaps[name]
+	return ok
 }
 
-func defineEmbedder(name string, client *genai.Client) {
-	ai.DefineEmbedder(provider, name, func(ctx context.Context, input *ai.EmbedRequest) ([]float32, error) {
-		em := client.EmbeddingModel(name)
+// DefineModel defines an unknown model with the given name.
+// The second argument describes the capability of the model.
+// Use [IsKnownModel] to determine if a model is known.
+func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
+	// state.mu.Lock()
+	// defer state.mu.Unlock()
+	if !state.initted {
+		panic("googleai.Init not called")
+	}
+	var mc ai.ModelCapabilities
+	if caps == nil {
+		var ok bool
+		mc, ok = knownCaps[name]
+		if !ok {
+			return nil, fmt.Errorf("googleai.DefineModel: called with unknown model %q and nil ModelCapabilities", name)
+		}
+	} else {
+		mc = *caps
+	}
+	return defineModel(name, mc), nil
+}
+
+// KnownModels returns a slice of all known model names.
+func KnownModels() []string {
+	keys := make([]string, len(knownCaps))
+	i := 0
+	for k := range knownCaps {
+		keys[i] = k
+		i++
+	}
+	return keys
+}
+
+// requires state.mu
+func defineModel(name string, caps ai.ModelCapabilities) *ai.Model {
+	meta := &ai.ModelMetadata{
+		Label:    "Google AI - " + name,
+		Supports: caps,
+	}
+	g := generator{model: name, client: state.client}
+	return ai.DefineModel(provider, name, meta, g.generate)
+}
+
+// DefineEmbedder defines an embedder with a given name.
+func DefineEmbedder(name string) *ai.Embedder {
+	// state.mu.Lock()
+	// defer state.mu.Unlock()
+	if !state.initted {
+		panic("googleai.Init not called")
+	}
+	return defineEmbedder(name)
+}
+
+// requires state.mu
+func defineEmbedder(name string) *ai.Embedder {
+	return ai.DefineEmbedder(provider, name, func(ctx context.Context, input *ai.EmbedRequest) ([]float32, error) {
+		em := state.client.EmbeddingModel(name)
 		parts, err := convertParts(input.Document.Content)
 		if err != nil {
 			return nil, err
@@ -117,13 +178,13 @@ func defineEmbedder(name string, client *genai.Client) {
 
 // Model returns the [ai.ModelAction] with the given name.
 // It returns nil if the model was not configured.
-func Model(name string) *ai.ModelAction {
+func Model(name string) *ai.Model {
 	return ai.LookupModel(provider, name)
 }
 
-// Embedder returns the [ai.EmbedderAction] with the given name.
+// Embedder returns the [ai.Embedder] with the given name.
 // It returns nil if the embedder was not configured.
-func Embedder(name string) *ai.EmbedderAction {
+func Embedder(name string) *ai.Embedder {
 	return ai.LookupEmbedder(provider, name)
 }
 
@@ -303,6 +364,12 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.GenerateResponse
 	r := &ai.GenerateResponse{}
 	for _, c := range resp.Candidates {
 		r.Candidates = append(r.Candidates, translateCandidate(c))
+	}
+	r.Usage = &ai.GenerationUsage{}
+	if u := resp.UsageMetadata; u != nil {
+		r.Usage.InputTokens = int(u.PromptTokenCount)
+		r.Usage.OutputTokens = int(u.CandidatesTokenCount)
+		r.Usage.TotalTokens = int(u.TotalTokenCount)
 	}
 	return r
 }

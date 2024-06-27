@@ -49,6 +49,7 @@ func init() {
 type registry struct {
 	tstate  *tracing.State
 	mu      sync.Mutex
+	frozen  bool // when true, no more additions
 	actions map[string]action
 	flows   []flow
 	// TraceStores, at most one for each [Environment].
@@ -98,6 +99,9 @@ func (r *registry) registerAction(a action) {
 	key := fmt.Sprintf("/%s/%s", a.actionType(), a.Name())
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.frozen {
+		panic(fmt.Sprintf("attempt to register action %s in a frozen registry. Register before calling genkit.Init", key))
+	}
 	if _, ok := r.actions[key]; ok {
 		panic(fmt.Sprintf("action %q is already registered", key))
 	}
@@ -106,6 +110,12 @@ func (r *registry) registerAction(a action) {
 	slog.Info("RegisterAction",
 		"type", a.actionType(),
 		"name", a.Name())
+}
+
+func (r *registry) freeze() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.frozen = true
 }
 
 // lookupAction returns the action for the given key, or nil if there is none.

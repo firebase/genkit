@@ -17,11 +17,41 @@ package genkit
 
 import (
 	"context"
-	"errors"
 	"net/http"
 
 	"github.com/firebase/genkit/go/core"
 )
+
+// Options are options to [Init].
+type Options struct {
+	// If "-", do not start a FlowServer.
+	// Otherwise, start a FlowServer on the given address, or the
+	// default of ":3400" if empty.
+	FlowAddr string
+	// The names of flows to serve.
+	// If empty, all registered flows are served.
+	Flows []string
+}
+
+// Init initializes Genkit.
+// After it is called, no further actions can be defined.
+//
+// Init starts servers depending on the value of the GENKIT_ENV
+// environment variable and the provided options.
+//
+// If GENKIT_ENV = "dev", a development server is started
+// in a separate goroutine at the address in opts.DevAddr, or the default
+// of ":3100" if empty.
+//
+// If opts.FlowAddr is a value other than "-", a flow server is started (see [StartFlowServer])
+// and the call to Init waits for the server to shut down.
+// If opts.FlowAddr == "-", no flow server is started and Init returns immediately.
+//
+// Thus Init(nil) will start a dev server in the "dev" environment, will always start
+// a flow server, and will pause execution until the flow server terminates.
+func Init(opts *Options) error {
+	return core.InternalInit((*core.Options)(opts))
+}
 
 // DefineFlow creates a Flow that runs fn, and registers it as an action.
 //
@@ -63,55 +93,6 @@ func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out,
 	return core.InternalRun(ctx, name, f)
 }
 
-// RunFlow runs flow in the context of another flow. The flow must run to completion when started
-// (that is, it must not have interrupts).
-func RunFlow[In, Out, Stream any](ctx context.Context, flow *core.Flow[In, Out, Stream], input In) (Out, error) {
-	return core.InternalRunFlow(ctx, flow, input)
-}
-
-// StreamFlowValue is either a streamed value or a final output of a flow.
-type StreamFlowValue[Out, Stream any] struct {
-	Done   bool
-	Output Out    // valid if Done is true
-	Stream Stream // valid if Done is false
-}
-
-// StreamFlow runs flow on input and delivers both the streamed values and the final output.
-// It returns a function whose argument function (the "yield function") will be repeatedly
-// called with the results.
-//
-// If the yield function is passed a non-nil error, the flow has failed with that
-// error; the yield function will not be called again. An error is also passed if
-// the flow fails to complete (that is, it has an interrupt).
-// Genkit Go does not yet support interrupts.
-//
-// If the yield function's [StreamFlowValue] argument has Done == true, the value's
-// Output field contains the final output; the yield function will not be called
-// again.
-//
-// Otherwise the Stream field of the passed [StreamFlowValue] holds a streamed result.
-func StreamFlow[In, Out, Stream any](ctx context.Context, flow *core.Flow[In, Out, Stream], input In) func(func(*StreamFlowValue[Out, Stream], error) bool) {
-	return func(yield func(*StreamFlowValue[Out, Stream], error) bool) {
-		cb := func(ctx context.Context, s Stream) error {
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			if !yield(&StreamFlowValue[Out, Stream]{Stream: s}, nil) {
-				return errStop
-			}
-			return nil
-		}
-		output, err := core.InternalStreamFlow(ctx, flow, input, cb)
-		if err != nil {
-			yield(nil, err)
-		} else {
-			yield(&StreamFlowValue[Out, Stream]{Done: true, Output: output}, nil)
-		}
-	}
-}
-
-var errStop = errors.New("stop")
-
 // StartFlowServer starts a server serving the routes described in [NewFlowServeMux].
 // It listens on addr, or if empty, the value of the PORT environment variable,
 // or if that is empty, ":3400".
@@ -120,11 +101,13 @@ var errStop = errors.New("stop")
 // a dev server.
 //
 // StartFlowServer always returns a non-nil error, the one returned by http.ListenAndServe.
-func StartFlowServer(addr string) error {
-	return core.StartFlowServer(addr)
+func StartFlowServer(addr string, flows []string) error {
+	return core.StartFlowServer(addr, flows)
 }
 
-// NewFlowServeMux constructs a [net/http.ServeMux] where each defined flow is a route.
+// NewFlowServeMux constructs a [net/http.ServeMux].
+// If flows is non-empty, the each of the named flows is registered as a route.
+// Otherwise, all defined flows are registered.
 // All routes take a single query parameter, "stream", which if true will stream the
 // flow's results back to the client. (Not all flows support streaming, however.)
 //
@@ -133,6 +116,6 @@ func StartFlowServer(addr string) error {
 //
 //	mainMux := http.NewServeMux()
 //	mainMux.Handle("POST /flow/", http.StripPrefix("/flow/", NewFlowServeMux()))
-func NewFlowServeMux() *http.ServeMux {
-	return core.NewFlowServeMux()
+func NewFlowServeMux(flows []string) *http.ServeMux {
+	return core.NewFlowServeMux(flows)
 }

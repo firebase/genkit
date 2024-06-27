@@ -138,6 +138,7 @@ type SharedDimensions = {
   temperature?: number;
   topK?: number;
   topP?: number;
+  status?: string;
   source?: string;
   sourceVersion?: string;
 };
@@ -340,6 +341,7 @@ function doRecordGenerateActionMetrics(
     topP: dimensions.topP,
     source: dimensions.source,
     sourceVersion: dimensions.sourceVersion,
+    status: dimensions.err ? 'failure' : 'success',
   };
 
   generateActionCounter.add(1, {

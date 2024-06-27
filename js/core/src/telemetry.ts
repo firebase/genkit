@@ -47,6 +47,7 @@ export function writeActionSuccess(actionName: string, latencyMs: number) {
     name: actionName,
     flowName: traceMetadataAls?.getStore()?.flowName,
     path: spanMetadataAls?.getStore()?.path,
+    status: 'success',
     source: 'ts',
     sourceVersion: GENKIT_VERSION,
   };
@@ -65,6 +66,7 @@ export function writeActionFailure(
     path: spanMetadataAls?.getStore()?.path,
     source: 'ts',
     sourceVersion: GENKIT_VERSION,
+    status: 'failure',
     error: err?.name,
   };
   actionCounter.add(1, dimensions);

@@ -43,7 +43,7 @@ export function getNodeEntryPoint(directory: string): string {
 export function getEntryPoint(directory: string): string | undefined {
   const runtime = detectRuntime(directory);
   switch (runtime) {
-    case 'node':
+    case 'nodejs':
       return getNodeEntryPoint(directory);
     case 'go':
       return '.';
@@ -58,13 +58,13 @@ export function getEntryPoint(directory: string): string | undefined {
  */
 export function detectRuntime(directory: string): Runtime {
   if (fs.existsSync(path.join(directory, 'package.json'))) {
-    return 'node';
+    return 'nodejs';
   }
   const files = fs.readdirSync(directory);
   for (const file of files) {
     const filePath = path.join(directory, file);
     const stat = fs.statSync(filePath);
-    if (stat.isFile() && path.extname(file) === '.go') {
+    if (stat.isFile() && (path.extname(file) === '.go' || file === 'go.mod')) {
       return 'go';
     }
   }

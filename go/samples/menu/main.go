@@ -26,11 +26,6 @@ import (
 	"github.com/invopop/jsonschema"
 )
 
-const (
-	geminiPro      = "gemini-1.0-pro"
-	embeddingGecko = "textembedding-gecko"
-)
-
 // menuItem is the data model for an item on the menu.
 type menuItem struct {
 	Title       string  `json:"title" jsonschema_description:"The name of the menu item"`
@@ -79,16 +74,13 @@ func main() {
 	}
 
 	ctx := context.Background()
-	err := vertexai.Init(ctx, vertexai.Config{
-		ProjectID: projectID,
-		Location:  os.Getenv("GCLOUD_LOCATION"),
-		Models:    []string{geminiPro, geminiPro + "-vision"},
-		Embedders: []string{embeddingGecko},
-	})
+	err := vertexai.Init(ctx, projectID, os.Getenv("GCLOUD_LOCATION"))
 	if err != nil {
 		log.Fatal(err)
 	}
-	model := vertexai.Model(geminiPro)
+	model := vertexai.Model("gemini-1.0-pro")
+	visionModel := vertexai.Model("gemini-1.5-flash")
+	embedder := vertexai.Embedder("text-embedding-004")
 	if err := setup01(ctx, model); err != nil {
 		log.Fatal(err)
 	}
@@ -100,23 +92,25 @@ func main() {
 		log.Fatal(err)
 	}
 
-	indexers, retrievers, err := localvec.Init(ctx, localvec.Config{
-		Stores: []localvec.StoreConfig{
-			{Name: "go-menu-items", Embedder: vertexai.Embedder(embeddingGecko)},
-		},
+	err = localvec.Init()
+	if err != nil {
+		log.Fatal(err)
+	}
+	indexer, retriever, err := localvec.DefineIndexerAndRetriever("go-menu_items", localvec.Config{
+		Embedder: embedder,
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	if err := setup04(ctx, indexers[0], retrievers[0], model); err != nil {
+	if err := setup04(ctx, indexer, retriever, model); err != nil {
 		log.Fatal(err)
 	}
 
-	if err := setup05(ctx, model, vertexai.Model(geminiPro+"-vision")); err != nil {
+	if err := setup05(ctx, model, visionModel); err != nil {
 		log.Fatal(err)
 	}
 
-	if err := genkit.StartFlowServer(""); err != nil {
+	if err := genkit.Init(nil); err != nil {
 		log.Fatal(err)
 	}
 }

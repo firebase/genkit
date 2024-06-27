@@ -45,6 +45,8 @@ import {
 import { PluginOptions } from './index.js';
 
 let metricExporter: PushMetricExporter;
+let spanProcessor: BatchSpanProcessor;
+let spanExporter: AdjustingTraceExporter;
 
 /**
  * Provides a {TelemetryConfig} for exporting OpenTelemetry data (Traces,
@@ -53,60 +55,6 @@ let metricExporter: PushMetricExporter;
 export class GcpOpenTelemetry implements TelemetryConfig {
   private readonly options: PluginOptions;
   private readonly resource: Resource;
-
-  /**
-   * Adjusts spans before exporting to GCP. In particular, redacts PII
-   * (input prompts and outputs), and adds a workaround attribute to
-   * error spans that marks them as error in GCP.
-   */
-  private AdjustingTraceExporter = class extends TraceExporter {
-    export(
-      spans: ReadableSpan[],
-      resultCallback: (result: ExportResult) => void
-    ): Promise<void> {
-      return super.export(this.adjust(spans), resultCallback);
-    }
-
-    private adjust(spans: ReadableSpan[]): ReadableSpan[] {
-      return spans.map((span) => {
-        span = this.redactPii(span);
-        span = this.markErrorSpanAsError(span);
-        return span;
-      });
-    }
-
-    private redactPii(span: ReadableSpan): ReadableSpan {
-      const hasInput = 'genkit:input' in span.attributes;
-      const hasOutput = 'genkit:output' in span.attributes;
-
-      return !hasInput && !hasOutput
-        ? span
-        : {
-            ...span,
-            spanContext: span.spanContext,
-            attributes: {
-              ...span.attributes,
-              'genkit:input': '<redacted>',
-              'genkit:output': '<redacted>',
-            },
-          };
-    }
-
-    // This is a workaround for GCP Trace to mark a span with a red
-    // exclamation mark indicating that it is an error.
-    private markErrorSpanAsError(span: ReadableSpan): ReadableSpan {
-      return span.status.code !== SpanStatusCode.ERROR
-        ? span
-        : {
-            ...span,
-            spanContext: span.spanContext,
-            attributes: {
-              ...span.attributes,
-              '/http/status_code': '599',
-            },
-          };
-    }
-  };
 
   /**
    * Log hook for writing trace and span metadata to log messages in the format
@@ -129,9 +77,10 @@ export class GcpOpenTelemetry implements TelemetryConfig {
   }
 
   getConfig(): Partial<NodeSDKConfiguration> {
+    spanProcessor = new BatchSpanProcessor(this.createSpanExporter());
     return {
       resource: this.resource,
-      spanProcessor: new BatchSpanProcessor(this.createSpanExporter()),
+      spanProcessor: spanProcessor,
       sampler: this.options?.telemetryConfig?.sampler || new AlwaysOnSampler(),
       instrumentations: this.getInstrumentations(),
       metricReader: this.createMetricReader(),
@@ -139,9 +88,12 @@ export class GcpOpenTelemetry implements TelemetryConfig {
   }
 
   private createSpanExporter(): SpanExporter {
-    return this.shouldExportTraces()
-      ? new this.AdjustingTraceExporter()
-      : new InMemorySpanExporter();
+    spanExporter = new AdjustingTraceExporter(
+      this.shouldExportTraces()
+        ? new TraceExporter()
+        : new InMemorySpanExporter()
+    );
+    return spanExporter;
   }
 
   /**
@@ -170,14 +122,16 @@ export class GcpOpenTelemetry implements TelemetryConfig {
 
   private shouldExportTraces(): boolean {
     return (
-      (this.options.forceDevExport || process.env.GENKIT_ENV !== 'dev') &&
+      (this.options.telemetryConfig?.forceDevExport ||
+        process.env.GENKIT_ENV !== 'dev') &&
       !this.options.telemetryConfig?.disableTraces
     );
   }
 
   private shouldExportMetrics(): boolean {
     return (
-      (this.options.forceDevExport || process.env.GENKIT_ENV !== 'dev') &&
+      (this.options.telemetryConfig?.forceDevExport ||
+        process.env.GENKIT_ENV !== 'dev') &&
       !this.options.telemetryConfig?.disableMetrics
     );
   }
@@ -209,6 +163,100 @@ export class GcpOpenTelemetry implements TelemetryConfig {
   }
 }
 
+/**
+ * Adjusts spans before exporting to GCP. In particular, redacts PII
+ * (input prompts and outputs), and adds a workaround attribute to
+ * error spans that marks them as error in GCP.
+ */
+class AdjustingTraceExporter implements SpanExporter {
+  constructor(private exporter: SpanExporter) {}
+
+  export(
+    spans: ReadableSpan[],
+    resultCallback: (result: ExportResult) => void
+  ): void {
+    this.exporter?.export(this.adjust(spans), resultCallback);
+  }
+
+  shutdown(): Promise<void> {
+    return this.exporter?.shutdown();
+  }
+
+  getExporter(): SpanExporter {
+    return this.exporter;
+  }
+
+  forceFlush(): Promise<void> {
+    if (this.exporter?.forceFlush) {
+      return this.exporter.forceFlush();
+    }
+    return Promise.resolve();
+  }
+
+  private adjust(spans: ReadableSpan[]): ReadableSpan[] {
+    return spans.map((span) => {
+      span = this.redactPii(span);
+      span = this.markErrorSpanAsError(span);
+      span = this.normalizeLabels(span);
+      return span;
+    });
+  }
+
+  private redactPii(span: ReadableSpan): ReadableSpan {
+    const hasInput = 'genkit:input' in span.attributes;
+    const hasOutput = 'genkit:output' in span.attributes;
+
+    return !hasInput && !hasOutput
+      ? span
+      : {
+          ...span,
+          spanContext: span.spanContext,
+          attributes: {
+            ...span.attributes,
+            'genkit:input': '<redacted>',
+            'genkit:output': '<redacted>',
+          },
+        };
+  }
+
+  // This is a workaround for GCP Trace to mark a span with a red
+  // exclamation mark indicating that it is an error.
+  private markErrorSpanAsError(span: ReadableSpan): ReadableSpan {
+    return span.status.code !== SpanStatusCode.ERROR
+      ? span
+      : {
+          ...span,
+          spanContext: span.spanContext,
+          attributes: {
+            ...span.attributes,
+            '/http/status_code': '599',
+          },
+        };
+  }
+
+  // This is a workaround for GCP Trace to mark a span with a red
+  // exclamation mark indicating that it is an error.
+  private normalizeLabels(span: ReadableSpan): ReadableSpan {
+    const normalized = {} as Record<string, any>;
+    for (const [key, value] of Object.entries(span.attributes)) {
+      normalized[key.replace(/\:/g, '/')] = value;
+    }
+    return {
+      ...span,
+      spanContext: span.spanContext,
+      attributes: normalized,
+    };
+  }
+}
+
 export function __getMetricExporterForTesting(): InMemoryMetricExporter {
   return metricExporter as InMemoryMetricExporter;
+}
+
+export function __getSpanExporterForTesting(): InMemorySpanExporter {
+  return spanExporter.getExporter() as InMemorySpanExporter;
+}
+
+export function __forceFlushSpansForTesting() {
+  spanProcessor.forceFlush();
 }

@@ -23,31 +23,31 @@ import (
 	"github.com/invopop/jsonschema"
 )
 
-// A PromptAction is used to render a prompt template,
-// producing a [GenerateRequest] that may be passed to a [ModelAction].
-type PromptAction = core.Action[any, *GenerateRequest, struct{}]
+// A Prompt is used to render a prompt template,
+// producing a [GenerateRequest] that may be passed to a [Model].
+type Prompt core.Action[any, *GenerateRequest, struct{}]
 
 // DefinePrompt takes a function that renders a prompt template
-// into a [GenerateRequest] that may be passed to a [ModelAction].
+// into a [GenerateRequest] that may be passed to a [Model].
 // The prompt expects some input described by inputSchema.
 // DefinePrompt registers the function as an action,
-// and returns a [PromptAction] that runs it.
-func DefinePrompt(provider, name string, metadata map[string]any, render func(context.Context, any) (*GenerateRequest, error), inputSchema *jsonschema.Schema) *PromptAction {
+// and returns a [Prompt] that runs it.
+func DefinePrompt(provider, name string, metadata map[string]any, inputSchema *jsonschema.Schema, render func(context.Context, any) (*GenerateRequest, error)) *Prompt {
 	mm := maps.Clone(metadata)
 	if mm == nil {
 		mm = make(map[string]any)
 	}
 	mm["type"] = "prompt"
-	return core.DefineActionWithInputSchema(provider, name, atype.Prompt, mm, render, inputSchema)
+	return (*Prompt)(core.DefineActionWithInputSchema(provider, name, atype.Prompt, mm, inputSchema, render))
 }
 
-// LookupPrompt looks up a [PromptAction] registered by [DefinePrompt].
+// LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
-func LookupPrompt(provider, name string) *PromptAction {
-	return core.LookupActionFor[any, *GenerateRequest, struct{}](atype.Prompt, provider, name)
+func LookupPrompt(provider, name string) *Prompt {
+	return (*Prompt)(core.LookupActionFor[any, *GenerateRequest, struct{}](atype.Prompt, provider, name))
 }
 
-// Render renders a [PromptAction] with some input data.
-func Render(ctx context.Context, p *PromptAction, input any) (*GenerateRequest, error) {
-	return p.Run(ctx, input, nil)
+// Render renders the [Prompt] with some input data.
+func (p *Prompt) Render(ctx context.Context, input any) (*GenerateRequest, error) {
+	return (*core.Action[any, *GenerateRequest, struct{}])(p).Run(ctx, input, nil)
 }

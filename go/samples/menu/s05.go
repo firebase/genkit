@@ -29,7 +29,7 @@ type imageURLInput struct {
 	ImageURL string `json:"imageUrl"`
 }
 
-func setup05(ctx context.Context, gen, genVision *ai.ModelAction) error {
+func setup05(ctx context.Context, gen, genVision *ai.Model) error {
 	readMenuPrompt, err := dotprompt.Define("s05_readMenu",
 		`
 		  Extract _all_ of the text, in order,
@@ -37,7 +37,7 @@ func setup05(ctx context.Context, gen, genVision *ai.ModelAction) error {
 
 		  {{media url=imageUrl}}`,
 		dotprompt.Config{
-			ModelAction:  genVision,
+			Model:        genVision,
 			InputSchema:  jsonschema.Reflect(imageURLInput{}),
 			OutputFormat: ai.OutputFormatText,
 			GenerationConfig: &ai.GenerationCommonConfig{
@@ -62,7 +62,7 @@ func setup05(ctx context.Context, gen, genVision *ai.ModelAction) error {
 		  {{question}}?
 		`,
 		dotprompt.Config{
-			ModelAction:  gen,
+			Model:        gen,
 			InputSchema:  textMenuQuestionInputSchema,
 			OutputFormat: ai.OutputFormatText,
 			GenerationConfig: &ai.GenerationCommonConfig{
@@ -125,7 +125,7 @@ func setup05(ctx context.Context, gen, genVision *ai.ModelAction) error {
 
 	genkit.DefineFlow("s05_visionMenuQuestion",
 		func(ctx context.Context, input *menuQuestionInput) (*answerOutput, error) {
-			menuText, err := genkit.RunFlow(ctx, readMenuFlow, struct{}{})
+			menuText, err := readMenuFlow.Run(ctx, struct{}{})
 			if err != nil {
 				return nil, err
 			}
@@ -134,7 +134,7 @@ func setup05(ctx context.Context, gen, genVision *ai.ModelAction) error {
 				MenuText: menuText,
 				Question: input.Question,
 			}
-			return genkit.RunFlow(ctx, textMenuQuestionFlow, questionInput)
+			return textMenuQuestionFlow.Run(ctx, questionInput)
 		},
 	)
 
