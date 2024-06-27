@@ -165,14 +165,14 @@ first.
   }
   ```
 
-  `StartFlowsServer` starts a `net/http` server that exposes your flows as HTTP
+  `Init` starts a `net/http` server that exposes your flows as HTTP
   endpoints (for example, `http://localhost:3400/menuSuggestionFlow`). Both
   parameters are optional:
 
   - You can specify the address and port to listen on. If you don't,
     the server listens on any address and the port specified by the PORT
     environment variable; if that is empty, it uses the default of port 3400.
-  - You can specify which flows to serve. If you don't, `StartFlowsServer`
+  - You can specify which flows to serve. If you don't, `Init`
     serves all of your defined flows.
 
   If you want to serve flows on the same host and port as other endpoints, you
