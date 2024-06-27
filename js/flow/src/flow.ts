@@ -699,12 +699,13 @@ export function streamFlow<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
-  payload?: z.infer<I>
+  flowOrFlowWrapper: Flow<I, O, S> | FlowWrapper<I, O, S>,
+  payload?: z.infer<I>,
+  opts?: { withLocalAuthContext?: unknown }
 ): StreamingResponse<O, S> {
-  if (!(flow instanceof Flow)) {
-    flow = flow.flow;
-  }
+  const flow = !(flowOrFlowWrapper instanceof Flow)
+    ? flowOrFlowWrapper.flow
+    : flowOrFlowWrapper;
 
   let chunkStreamController: ReadableStreamController<z.infer<S>>;
   const chunkStream = new ReadableStream<z.infer<S>>({
@@ -715,16 +716,21 @@ export function streamFlow<
     cancel() {},
   });
 
-  const operationPromise = flow
-    .runEnvelope(
-      {
-        start: {
-          input: flow.inputSchema ? flow.inputSchema.parse(payload) : payload,
+  const authPromise =
+    flow.authPolicy?.(opts?.withLocalAuthContext, payload) ?? Promise.resolve();
+
+  const operationPromise = authPromise
+    .then(() =>
+      flow.runEnvelope(
+        {
+          start: {
+            input: flow.inputSchema ? flow.inputSchema.parse(payload) : payload,
+          },
         },
-      },
-      (c) => {
-        chunkStreamController.enqueue(c);
-      }
+        (c) => {
+          chunkStreamController.enqueue(c);
+        }
+      )
     )
     .then((s) => s.operation);
   operationPromise.then((o) => {
