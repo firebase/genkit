@@ -21,6 +21,7 @@ import * as clc from 'colorette';
 import * as fs from 'fs';
 import getPort, { makeRange } from 'get-port';
 import * as path from 'path';
+import terminate from 'terminate';
 import { findToolsConfig } from '../plugin/config';
 import {
   Action,
@@ -119,13 +120,6 @@ export class Runner {
       }
       this.watchForChanges();
     }
-    // Apps are started as detached processes so interrupt signals won't automatically reach them.
-    const handleInterrupt = async () => {
-      await this.stopApp();
-      process.exit(0);
-    };
-    process.addListener('SIGINT', handleInterrupt);
-    process.addListener('SIGTERM', handleInterrupt);
     return this.startApp();
   }
 
@@ -168,7 +162,6 @@ export class Runner {
   private async startApp(): Promise<boolean> {
     const config = await findToolsConfig();
     const runtime = detectRuntime(process.cwd());
-    let label = '';
     let command = '';
     let args: string[] = [];
     switch (runtime) {
@@ -177,12 +170,10 @@ export class Runner {
           config?.runner?.mode === 'harness'
             ? path.join(__dirname, '../../../node_modules/.bin/tsx')
             : 'node';
-        label = '[Node.js]';
         break;
       case 'go':
         command = 'go';
         args.push('run');
-        label = '[Go]';
         break;
       default:
         throw Error(`Unexpected runtime while starting app code: ${runtime}`);
@@ -230,8 +221,7 @@ export class Runner {
       args.push(files.join(','));
     }
     this.appProcess = spawn(command, args, {
-      stdio: 'pipe', // stdio must be 'pipe' when detached is true
-      detached: true, // detached must be true to spawn Go as process groups which will be killed together
+      stdio: 'inherit',
       env: {
         ...process.env,
         GENKIT_ENV: 'dev',
@@ -239,20 +229,12 @@ export class Runner {
       },
     });
 
-    this.appProcess.stdout?.on('data', (data) => {
-      logger.info(`${label} ${data}`);
-    });
-
-    this.appProcess.stderr?.on('data', (data) => {
-      logger.info(`${label} ${data}`);
-    });
-
     this.appProcess.on('error', (error): void => {
-      logger.error(`${label} ${error.message}`);
+      logger.error(error.message);
     });
 
-    this.appProcess.on('exit', (code) => {
-      logger.info(`${label} App process exited with code ${code}`);
+    this.appProcess.on('exit', (code, signal) => {
+      logger.info(`App process exited with code ${code}, signal ${signal}`);
       this.appProcess = null;
     });
 
@@ -269,16 +251,7 @@ export class Runner {
           this.appProcess = null;
           resolve();
         });
-        if (process.platform === 'win32') {
-          spawn('taskkill', [
-            '/pid',
-            this.appProcess.pid!.toString(),
-            '/T',
-            '/F',
-          ]);
-        } else {
-          process.kill(-this.appProcess.pid!, 'SIGTERM');
-        }
+        terminate(this.appProcess.pid!, 'SIGTERM');
       } else {
         resolve();
       }
