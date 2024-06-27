@@ -230,7 +230,7 @@ export class Runner {
     });
 
     this.appProcess.on('error', (error): void => {
-      logger.error(error.message);
+      logger.error(`Error in app process: ${error.message}`);
     });
 
     this.appProcess.on('exit', (code, signal) => {
