@@ -160,8 +160,8 @@ first.
   		},
   	)
   	if err := genkit.Init(context.Background(), nil); err != nil {
-		log.Fatal(err)
-	}
+  		log.Fatal(err)
+  	}
   }
   ```
 
