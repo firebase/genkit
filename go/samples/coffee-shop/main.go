@@ -112,8 +112,8 @@ func main() {
 		AllowAdditionalProperties: false,
 		DoNotReference:            true,
 	}
-	g := googleai.Model("gemini-1.5-flash")
-	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting", simpleGreetingPromptTemplate,
+	g := googleai.Model("gemini-1.5-pro")
+	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting2", simpleGreetingPromptTemplate,
 		dotprompt.Config{
 			Model:        g,
 			InputSchema:  r.Reflect(simpleGreetingInput{}),
@@ -262,7 +262,7 @@ func main() {
 		}
 		return out, nil
 	})
-	if err := genkit.Init(nil); err != nil {
+	if err := genkit.Init(context.Background(), nil); err != nil {
 		log.Fatal(err)
 	}
 }

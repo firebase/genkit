@@ -34,6 +34,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -43,36 +44,149 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// StartFlowServer starts a server serving the routes described in [NewFlowServeMux].
-// It listens on addr, or if empty, the value of the PORT environment variable,
-// or if that is empty, ":3400".
-//
-// In development mode (if the environment variable GENKIT_ENV=dev), it also starts
-// a dev server.
-//
-// StartFlowServer always returns a non-nil error, the one returned by http.ListenAndServe.
-func StartFlowServer(addr string, flows []string) error {
-	return startProdServer(addr, flows)
-}
-
 // InternalInit is for use by the genkit package only.
 // It is not subject to compatibility guarantees.
-func InternalInit(opts *Options) error {
+func InternalInit(ctx context.Context, opts *Options) error {
 	if opts == nil {
 		opts = &Options{}
 	}
 	globalRegistry.freeze()
 
+	var servers []*http.Server
+	var wg sync.WaitGroup
+	errCh := make(chan error, 2)
+
 	if currentEnvironment() == EnvironmentDev {
+		wg.Add(1)
 		go func() {
-			err := startDevServer()
-			slog.Error("dev server stopped", "err", err)
+			defer wg.Done()
+			s, err := startReflectionServer(errCh)
+			if err != nil {
+				errCh <- fmt.Errorf("failed to start reflection server: %w", err)
+				return
+			}
+			servers = append(servers, s)
 		}()
 	}
-	if opts.FlowAddr == "-" {
-		return nil
+
+	if opts.FlowAddr != "-" {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s, err := startFlowServer(opts.FlowAddr, opts.Flows, errCh)
+			if err != nil {
+				errCh <- fmt.Errorf("failed to start flow server: %w", err)
+				return
+			}
+			servers = append(servers, s)
+		}()
 	}
-	return StartFlowServer(opts.FlowAddr, opts.Flows)
+
+	serverStartCh := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(serverStartCh)
+	}()
+
+	select {
+	case <-serverStartCh:
+		slog.Info("all servers started successfully")
+	case err := <-errCh:
+		return fmt.Errorf("failed to start servers: %w", err)
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	select {
+	case sig := <-sigCh:
+		slog.Info("received signal, initiating shutdown", "signal", sig)
+	case err := <-errCh:
+		slog.Error("server error", "err", err)
+		return err
+	case <-ctx.Done():
+		slog.Info("context cancelled, initiating shutdown")
+	}
+
+	return shutdownServers(servers)
+}
+
+// startReflectionServer starts the Reflection API server listening at the
+// value of the environment variable GENKIT_REFLECTION_PORT for the port,
+// or ":3100" if it is empty.
+func startReflectionServer(errCh chan<- error) (*http.Server, error) {
+	slog.Info("starting reflection server")
+	addr := serverAddress("", "GENKIT_REFLECTION_PORT", "127.0.0.1:3100")
+	mux := newDevServeMux(globalRegistry)
+	return startServer(addr, mux, errCh)
+}
+
+// startFlowServer starts a production server listening at the given address.
+// The Server has a route for each defined flow.
+// If addr is "", it uses the value of the environment variable PORT
+// for the port, and if that is empty it uses ":3400".
+//
+// To construct a server with additional routes, use [NewFlowServeMux].
+func startFlowServer(addr string, flows []string, errCh chan<- error) (*http.Server, error) {
+	slog.Info("starting flow server")
+	addr = serverAddress(addr, "PORT", "127.0.0.1:3400")
+	mux := NewFlowServeMux(flows)
+	return startServer(addr, mux, errCh)
+}
+
+// startServer starts an HTTP server listening on the address.
+// It returns the server an
+func startServer(addr string, handler http.Handler, errCh chan<- error) (*http.Server, error) {
+	server := &http.Server{
+		Addr:    addr,
+		Handler: handler,
+	}
+
+	go func() {
+		slog.Info("server listening", "addr", addr)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			errCh <- fmt.Errorf("server error on %s: %w", addr, err)
+		}
+	}()
+
+	return server, nil
+}
+
+// shutdownServers initiates shutdown of the servers and waits for the shutdown to complete.
+// After 5 seconds, it will timeout.
+func shutdownServers(servers []*http.Server) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var wg sync.WaitGroup
+	for _, server := range servers {
+		wg.Add(1)
+		go func(srv *http.Server) {
+			defer wg.Done()
+			if err := srv.Shutdown(ctx); err != nil {
+				slog.Error("server shutdown failed", "addr", srv.Addr, "err", err)
+			} else {
+				slog.Info("server shutdown successfully", "addr", srv.Addr)
+			}
+		}(server)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		slog.Info("all servers shut down successfully")
+	case <-ctx.Done():
+		slog.Error("shutdown timed out")
+	}
+
+	return nil
 }
 
 // Options are options to [InternalInit].
@@ -84,20 +198,6 @@ type Options struct {
 	// The names of flows to serve.
 	// If empty, all registered flows are served.
 	Flows []string
-}
-
-// startDevServer starts the development server (reflection API) listening at the
-// value of the environment variable GENKIT_REFLECTION_PORT for the port, or ":3100"
-// if it is empty.
-// startDevServer always returns a non-nil error, the one returned by http.ListenAndServe.
-func startDevServer() error {
-	slog.Info("starting dev server")
-	// Don't use "localhost" here. That only binds the IPv4 address, and the genkit tool
-	// wants to connect to the IPv6 address even when you tell it to use "localhost".
-	// Omitting the host works.
-	addr := serverAddress("", "GENKIT_REFLECTION_PORT", "127.0.0.1:3100")
-	mux := newDevServeMux(globalRegistry)
-	return listenAndServe(addr, mux)
 }
 
 type devServer struct {
@@ -262,20 +362,6 @@ func (s *devServer) handleListFlowStates(w http.ResponseWriter, r *http.Request)
 type listFlowStatesResult struct {
 	FlowStates        []flowStater `json:"flowStates"`
 	ContinuationToken string       `json:"continuationToken"`
-}
-
-// startProdServer starts a production server listening at the given address.
-// The Server has a route for each defined flow.
-// If addr is "", it uses the value of the environment variable PORT
-// for the port, and if that is empty it uses ":3400".
-// startProdServer always returns a non-nil error, the one returned by http.ListenAndServe.
-//
-// To construct a server with additional routes, use [NewFlowServeMux].
-func startProdServer(addr string, flows []string) error {
-	slog.Info("starting flow server")
-	addr = serverAddress(addr, "PORT", "127.0.0.1:3400")
-	mux := NewFlowServeMux(flows)
-	return listenAndServe(addr, mux)
 }
 
 // NewFlowServeMux constructs a [net/http.ServeMux].

@@ -161,6 +161,7 @@ export class Runner {
   private async startApp(): Promise<boolean> {
     const config = await findToolsConfig();
     const runtime = detectRuntime(process.cwd());
+    let label = '';
     let command = '';
     let args: string[] = [];
     switch (runtime) {
@@ -169,10 +170,12 @@ export class Runner {
           config?.runner?.mode === 'harness'
             ? path.join(__dirname, '../../../node_modules/.bin/tsx')
             : 'node';
+        label = '[Node.js]';
         break;
       case 'go':
         command = 'go';
         args.push('run');
+        label = '[Go]';
         break;
       default:
         throw Error(`Unexpected runtime while starting app code: ${runtime}`);
@@ -220,7 +223,8 @@ export class Runner {
       args.push(files.join(','));
     }
     this.appProcess = spawn(command, args, {
-      stdio: 'inherit',
+      stdio: 'pipe', // stdio must be 'pipe' when detached is true
+      detached: true, // detached must be true to spawn Go as process groups which will be killed together
       env: {
         ...process.env,
         GENKIT_ENV: 'dev',
@@ -229,19 +233,19 @@ export class Runner {
     });
 
     this.appProcess.stdout?.on('data', (data) => {
-      logger.info(data);
+      logger.info(`${label} ${data}`);
     });
 
     this.appProcess.stderr?.on('data', (data) => {
-      logger.error(data);
+      logger.info(`${label} ${data}`);
     });
 
     this.appProcess.on('error', (error): void => {
-      logger.error(`Error in app process: ${error.message}`);
+      logger.error(`${label} ${error.message}`);
     });
 
     this.appProcess.on('exit', (code) => {
-      logger.info(`App process exited with code ${code}`);
+      logger.info(`${label} App process exited with code ${code}`);
       this.appProcess = null;
     });
 
@@ -258,7 +262,11 @@ export class Runner {
           this.appProcess = null;
           resolve();
         });
-        this.appProcess.kill();
+        if (process.platform === 'win32') {
+          spawn('taskkill', ['/pid', this.appProcess.pid!.toString(), '/T', '/F']);
+        } else {
+          process.kill(-this.appProcess.pid!, 'SIGTERM');
+        }
       } else {
         resolve();
       }
@@ -355,6 +363,7 @@ export class Runner {
       if ((error as AxiosError).code === 'ECONNREFUSED') {
         return false;
       }
+      logger.error(error)
       throw new Error('Code failed to load, please check log messages above.');
     }
   }
@@ -372,7 +381,8 @@ export class Runner {
       if ((error as AxiosError).code === 'ECONNREFUSED') {
         return false;
       }
-      throw new Error('Failed to send quit call.');
+      logger.debug('Failed to send quit call.');
+      return false;
     }
   }
 
