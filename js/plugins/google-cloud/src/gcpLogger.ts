@@ -20,9 +20,7 @@ import { Writable } from 'stream';
 import { PluginOptions } from './index.js';
 
 /**
- * The winston transports used for writing logs. Note that we can't import the
- * type yet since that needs to be deferred to allow for log instrumentation.
- * See note below.
+ * Additional streams for writing log data to. Useful for unit testing.
  */
 let additionalStream: Writable;
 
