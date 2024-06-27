@@ -20,6 +20,7 @@ import { FlowStateStore } from './flowTypes.js';
 import { logger } from './logging.js';
 import { PluginProvider } from './plugin.js';
 import { startReflectionApi } from './reflectionApi.js';
+import { JSONSchema } from './schema.js';
 import { TraceStore } from './tracing/types.js';
 
 export type AsyncProvider<T> = () => Promise<T>;
@@ -28,6 +29,7 @@ const ACTIONS_BY_ID = 'genkit__ACTIONS_BY_ID';
 const TRACE_STORES_BY_ENV = 'genkit__TRACE_STORES_BY_ENV';
 const FLOW_STATE_STORES_BY_ENV = 'genkit__FLOW_STATE_STORES_BY_ENV';
 const PLUGINS_BY_NAME = 'genkit__PLUGINS_BY_NAME';
+const SCHEMAS_BY_NAME = 'genkit__SCHEMAS_BY_NAME';
 
 function actionsById(): Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>> {
   if (global[ACTIONS_BY_ID] === undefined) {
@@ -52,6 +54,15 @@ function pluginsByName(): Record<string, PluginProvider> {
     global[PLUGINS_BY_NAME] = {};
   }
   return global[PLUGINS_BY_NAME];
+}
+function schemasByName(): Record<
+  string,
+  { schema?: z.ZodTypeAny; jsonSchema?: JSONSchema }
+> {
+  if (global[SCHEMAS_BY_NAME] === undefined) {
+    global[SCHEMAS_BY_NAME] = {};
+  }
+  return global[SCHEMAS_BY_NAME];
 }
 
 /**
@@ -209,6 +220,17 @@ export async function initializePlugin(name: string) {
     return await pluginsByName()[name].initializer();
   }
   return undefined;
+}
+
+export function registerSchema(
+  name: string,
+  data: { schema?: z.ZodTypeAny; jsonSchema?: JSONSchema }
+) {
+  schemasByName()[name] = data;
+}
+
+export function lookupSchema(name: string) {
+  return schemasByName()[name];
 }
 
 /**

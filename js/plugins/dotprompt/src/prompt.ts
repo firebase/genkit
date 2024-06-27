@@ -89,7 +89,7 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
       throw new GenkitError({
         source: 'Dotprompt',
         status: 'INVALID_ARGUMENT',
-        message: `Error parsing YAML frontmatter of '${name}' prompt: ${e.message}`,
+        message: `Error parsing YAML frontmatter of '${name}' prompt: ${e.stack}`,
       });
     }
   }
@@ -166,9 +166,9 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
     );
   }
 
-  private _generateOptions(
+  private _generateOptions<O extends z.ZodTypeAny = z.ZodTypeAny>(
     options: PromptGenerateOptions<Variables>
-  ): GenerateOptions {
+  ): GenerateOptions<z.ZodTypeAny, O> {
     const messages = this.renderMessages(options.input, {
       history: options.history,
       context: options.context,
@@ -188,17 +188,19 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
       tools: (options.tools || []).concat(this.tools || []),
       streamingCallback: options.streamingCallback,
       returnToolRequests: options.returnToolRequests,
-    };
+    } as GenerateOptions<z.ZodTypeAny, O>;
   }
 
-  render(opt: PromptGenerateOptions<Variables>): GenerateOptions {
-    return this._generateOptions(opt);
-  }
-
-  async generate(
+  render<O extends z.ZodTypeAny = z.ZodTypeAny>(
     opt: PromptGenerateOptions<Variables>
-  ): Promise<GenerateResponse> {
-    return generate(this.render(opt));
+  ): GenerateOptions<z.ZodTypeAny, O> {
+    return this._generateOptions<O>(opt);
+  }
+
+  async generate<O extends z.ZodTypeAny = z.ZodTypeAny>(
+    opt: PromptGenerateOptions<Variables>
+  ): Promise<GenerateResponse<O>> {
+    return generate<z.ZodTypeAny, O>(this.render<O>(opt));
   }
 
   async generateStream(
