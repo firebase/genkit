@@ -53,6 +53,8 @@ import {
   SUPPORTED_GEMINI_MODELS,
 } from './gemini.js';
 import { imagen2, imagen2Model } from './imagen.js';
+import { configureVVSIndexer, configureVVSRetriever } from './vector_search.js';
+export { vertexAiIndexerRef, vertexAiRetrieverRef } from './vector_search.js';
 export {
   claude3Haiku,
   claude3Opus,
@@ -87,10 +89,13 @@ export interface PluginOptions {
   };
   modelGardenModels?: ModelReference<any>[];
   vectorSearchOptions?: {
+    projectNumber: string;
+    deployedIndexId: string;
+    indexEndpointId: string;
     documentRetriever: (docIds: string[]) => Promise<Document[]>;
     documentIndexer: (docs: Document[]) => Promise<void>;
     documentIdField: string;
-    index: string;
+    indexId: string;
     publicEndpoint: string;
   };
 }
@@ -103,7 +108,14 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
   async (options?: PluginOptions) => {
     const authClient = new GoogleAuth(options?.googleAuth);
     const projectId = options?.projectId || (await authClient.getProjectId());
+
     const location = options?.location || 'us-central1';
+
+    const updatedOptions = {
+      ...options,
+      projectId,
+      location,
+    };
 
     const confError = (parameter: string, envVariableName: string) => {
       return new Error(
@@ -146,14 +158,30 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       });
     }
 
+    const embedders = [
+      ...Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
+        textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
+      ),
+    ];
+
     return {
       models,
-      embedders: [
-        ...Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
-          textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
-        ),
-      ],
+      embedders,
       evaluators: vertexEvaluators(authClient, metrics, projectId, location),
+      retrievers: [
+        configureVVSRetriever({
+          pluginOptions: updatedOptions,
+          authClient,
+          embedder: embedders[0],
+        }),
+      ],
+      indexers: [
+        configureVVSIndexer({
+          pluginOptions: updatedOptions,
+          authClient,
+          embedder: embedders[0],
+        }),
+      ],
     };
   }
 );
