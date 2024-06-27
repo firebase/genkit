@@ -263,7 +263,12 @@ export class Runner {
           resolve();
         });
         if (process.platform === 'win32') {
-          spawn('taskkill', ['/pid', this.appProcess.pid!.toString(), '/T', '/F']);
+          spawn('taskkill', [
+            '/pid',
+            this.appProcess.pid!.toString(),
+            '/T',
+            '/F',
+          ]);
         } else {
           process.kill(-this.appProcess.pid!, 'SIGTERM');
         }
