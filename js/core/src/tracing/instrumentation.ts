@@ -195,6 +195,11 @@ export function setCustomMetadataAttributes(values: Record<string, string>) {
   }
 }
 
+export function toDisplayPath(path: string): string {
+  const pathPartRegex = /\{([^\,}]+),[^\}]+\}/g;
+  return Array.from(path.matchAll(pathPartRegex), (m) => m[1]).join(' > ');
+}
+
 function getCurrentSpan(): SpanMetadata {
   const step = spanMetadataAls.getStore();
   if (!step) {
