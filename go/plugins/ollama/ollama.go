@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -34,7 +35,6 @@ import (
 
 const provider = "ollama"
 
-var knownModels = []ModelDefinition{}
 var mediaSupportedModels = []string{"llava"}
 var roleMapping = map[ai.Role]string{
 	ai.RoleUser:   "user",
@@ -45,15 +45,6 @@ var state struct {
 	mu            sync.Mutex
 	initted       bool
 	serverAddress string
-}
-
-func contains(slice []string, item string) bool {
-	for _, s := range slice { // Iterate through the slice
-		if s == item { // Direct comparison for string equality
-			return true // Early return if found
-		}
-	}
-	return false // Item not found in the slice
 }
 
 func DefineModel(model ModelDefinition, caps *ai.ModelCapabilities) *ai.Model {
@@ -69,7 +60,7 @@ func DefineModel(model ModelDefinition, caps *ai.ModelCapabilities) *ai.Model {
 		mc = ai.ModelCapabilities{
 			Multiturn:  true,
 			SystemRole: true,
-			Media:      contains(mediaSupportedModels, model.Name),
+			Media:      slices.Contains(mediaSupportedModels, model.Name),
 		}
 	}
 	meta := &ai.ModelMetadata{
