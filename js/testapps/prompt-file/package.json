@@ -10,6 +10,7 @@
     "@genkit-ai/googleai": "workspace:*",
     "zod": "^3.22.4"
   },
+  "main": "lib/index.js",
   "scripts": {
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"

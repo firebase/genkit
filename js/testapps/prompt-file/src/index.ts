@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
+import { configureGenkit, defineSchema } from '@genkit-ai/core';
 import { dotprompt, prompt } from '@genkit-ai/dotprompt';
 import { defineFlow } from '@genkit-ai/flow';
 import { googleAI } from '@genkit-ai/googleai';
@@ -25,6 +25,24 @@ configureGenkit({
   enableTracingAndMetrics: true,
   logLevel: 'debug',
 });
+
+/*
+title: string, recipe title
+    ingredients(array): 
+      name: string
+      quantity: string
+    steps(array, the steps required to complete the recipe): string
+    */
+const RecipeSchema = defineSchema(
+  'Recipe',
+  z.object({
+    title: z.string().describe('recipe title'),
+    ingredients: z.array(z.object({ name: z.string(), quantity: z.string() })),
+    steps: z
+      .array(z.string())
+      .describe('the steps required to complete the recipe'),
+  })
+);
 
 // This example demonstrates using prompt files in a flow
 // Load the prompt file during initialization.
@@ -38,9 +56,12 @@ prompt('recipe').then((recipePrompt) => {
       inputSchema: z.object({
         food: z.string(),
       }),
-      outputSchema: z.any(),
+      outputSchema: RecipeSchema,
     },
-    async (input) => (await recipePrompt.generate({ input: input })).output()
+    async (input) =>
+      (
+        await recipePrompt.generate<typeof RecipeSchema>({ input: input })
+      ).output()!
   );
 });
 

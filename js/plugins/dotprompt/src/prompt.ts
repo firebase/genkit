@@ -199,7 +199,7 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
 
   async generate<O extends z.ZodTypeAny = z.ZodTypeAny>(
     opt: PromptGenerateOptions<Variables>
-  ): Promise<GenerateResponse<O>> {
+  ): Promise<GenerateResponse<z.infer<O>>> {
     return generate<z.ZodTypeAny, O>(this.render<O>(opt));
   }
 
