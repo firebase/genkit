@@ -25,7 +25,7 @@ import { basename } from 'path';
 import { defineDotprompt, Dotprompt } from './prompt.js';
 import { loadPromptFolder, lookupPrompt } from './registry.js';
 
-export { defineHelper } from './template.js';
+export { defineHelper, definePartial } from './template.js';
 export { defineDotprompt, Dotprompt };
 
 export interface DotpromptPluginOptions {
@@ -37,13 +37,14 @@ export interface DotpromptPluginOptions {
   dir: string;
 }
 
-export function dotprompt<IP extends InitializedPlugin>(
+export function dotprompt(
   params: DotpromptPluginOptions = { dir: './prompts' }
 ): PluginProvider {
   const plugin = genkitPlugin(
     'dotprompt',
-    async (options: DotpromptPluginOptions): Promise<IP> => {
-      return loadPromptFolder(options.dir).then((unused) => ({}) as IP);
+    async (options: DotpromptPluginOptions): Promise<InitializedPlugin> => {
+      await loadPromptFolder(options.dir);
+      return {};
     }
   );
   return plugin(params);

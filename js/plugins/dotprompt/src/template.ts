@@ -174,3 +174,7 @@ export function compile<Variables = any>(
 export function defineHelper(name: string, fn: Handlebars.HelperDelegate) {
   Promptbars.registerHelper(name, fn);
 }
+
+export function definePartial(name: string, source: string) {
+  Promptbars.registerPartial(name, source);
+}
