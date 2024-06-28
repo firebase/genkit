@@ -21,12 +21,17 @@ import { existsSync, readdir, readFileSync } from 'fs';
 import { basename, join, resolve } from 'path';
 import { Dotprompt } from './prompt.js';
 
-export function registryDefinitionKey(name: string, variant?: string) {
-  return `dotprompt/${name}${variant ? `.${variant}` : ''}`;
+export function registryDefinitionKey(
+  name: string,
+  variant?: string,
+  ns?: string
+) {
+  // "ns/prompt.variant" where ns and variant are optional
+  return `${ns ? `${ns}/` : ''}${name}${variant ? `.${variant}` : ''}`;
 }
 
-export function registryLookupKey(name: string, variant?: string) {
-  return `/prompt/${registryDefinitionKey(name, variant)}`;
+export function registryLookupKey(name: string, variant?: string, ns?: string) {
+  return `/prompt/${registryDefinitionKey(name, variant, ns)}`;
 }
 
 export async function lookupPrompt(
@@ -34,12 +39,11 @@ export async function lookupPrompt(
   variant?: string,
   dir: string = './prompts'
 ): Promise<Dotprompt> {
-  // Expect to find the prompt in the registry
-  const registryPrompt = (await lookupAction(
-    registryLookupKey(name, variant)
-  )) as PromptAction;
+  let registryPrompt =
+    (await lookupAction(registryLookupKey(name, variant))) ||
+    (await lookupAction(registryLookupKey(name, variant, 'dotprompt')));
   if (registryPrompt) {
-    return Dotprompt.fromAction(registryPrompt);
+    return Dotprompt.fromAction(registryPrompt as PromptAction);
   } else {
     // Handle the case where initialization isn't complete
     // or a file was added after the prompt folder was loaded.
@@ -76,7 +80,7 @@ export async function loadPromptFolder(
         promptsPath,
         {
           withFileTypes: true,
-          recursive: false,
+          recursive: true,
         },
         (err, dirEnts) => {
           if (err) {
@@ -84,7 +88,15 @@ export async function loadPromptFolder(
           } else {
             dirEnts.forEach(async (dirEnt) => {
               if (dirEnt.isFile() && dirEnt.name.endsWith('.prompt')) {
-                loadPrompt(dirEnt.path, dirEnt.name);
+                // If this prompt is in a subdirectory, we need to include that
+                // in the namespace to prevent naming conflicts.
+                let prefix = '';
+                if (promptsPath !== dirEnt.path) {
+                  prefix = dirEnt.path
+                    .replace(`${promptsPath}/`, '')
+                    .replace(/\//g, '-');
+                }
+                loadPrompt(dirEnt.path, dirEnt.name, prefix);
               }
             });
             resolve();
@@ -97,8 +109,12 @@ export async function loadPromptFolder(
   });
 }
 
-export function loadPrompt(path: string, filename: string): Dotprompt {
-  let name = basename(filename, '.prompt');
+export function loadPrompt(
+  path: string,
+  filename: string,
+  prefix = ''
+): Dotprompt {
+  let name = `${prefix ? `${prefix}-` : ''}${basename(filename, '.prompt')}`;
   let variant: string | null = null;
   if (name.includes('.')) {
     const parts = name.split('.');
@@ -110,6 +126,6 @@ export function loadPrompt(path: string, filename: string): Dotprompt {
   if (variant) {
     prompt.variant = variant;
   }
-  prompt.define();
+  prompt.define({ ns: `dotprompt` });
   return prompt;
 }

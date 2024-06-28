@@ -1,7 +1,7 @@
 {
   "name": "genkit",
   "private": true,
-  "version": "0.5.1",
+  "version": "0.5.3",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "setup": "npm-run-all pnpm-install-js pnpm-install-genkit-tools build link-genkit-cli",
@@ -35,5 +35,5 @@
     "prettier-plugin-organize-imports": "^3.2.4",
     "ts-node": "^10.9.2"
   },
-  "packageManager": "pnpm@9.1.1+sha256.9551e803dcb7a1839fdf5416153a844060c7bce013218ce823410532504ac10b"
+  "packageManager": "pnpm@9.4.0+sha256.b6fd0bfda555e7e584ad7e56b30c68b01d5a04f9ee93989f4b93ca8473c49c74"
 }

@@ -563,6 +563,7 @@ export class Flow<
       };
       res.status(403).send(respBody).end();
       telemetry.logResponse(this.name, 403, respBody);
+      return;
     }
 
     if (stream === 'true') {
@@ -698,12 +699,13 @@ export function streamFlow<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
-  payload?: z.infer<I>
+  flowOrFlowWrapper: Flow<I, O, S> | FlowWrapper<I, O, S>,
+  payload?: z.infer<I>,
+  opts?: { withLocalAuthContext?: unknown }
 ): StreamingResponse<O, S> {
-  if (!(flow instanceof Flow)) {
-    flow = flow.flow;
-  }
+  const flow = !(flowOrFlowWrapper instanceof Flow)
+    ? flowOrFlowWrapper.flow
+    : flowOrFlowWrapper;
 
   let chunkStreamController: ReadableStreamController<z.infer<S>>;
   const chunkStream = new ReadableStream<z.infer<S>>({
@@ -714,16 +716,21 @@ export function streamFlow<
     cancel() {},
   });
 
-  const operationPromise = flow
-    .runEnvelope(
-      {
-        start: {
-          input: flow.inputSchema ? flow.inputSchema.parse(payload) : payload,
+  const authPromise =
+    flow.authPolicy?.(opts?.withLocalAuthContext, payload) ?? Promise.resolve();
+
+  const operationPromise = authPromise
+    .then(() =>
+      flow.runEnvelope(
+        {
+          start: {
+            input: flow.inputSchema ? flow.inputSchema.parse(payload) : payload,
+          },
         },
-      },
-      (c) => {
-        chunkStreamController.enqueue(c);
-      }
+        (c) => {
+          chunkStreamController.enqueue(c);
+        }
+      )
     )
     .then((s) => s.operation);
   operationPromise.then((o) => {
@@ -812,6 +819,7 @@ function wrapAsAction<
         inputSchema: toJsonSchema({ schema: flow.inputSchema }),
         outputSchema: toJsonSchema({ schema: flow.outputSchema }),
         experimentalDurable: !!flow.experimentalDurable,
+        requiresAuth: !!flow.authPolicy,
       },
     },
     async (envelope) => {
@@ -835,9 +843,11 @@ export function startFlowsServer(params?: {
   flows?: Flow<any, any, any>[];
   port?: number;
   cors?: CorsOptions;
+  pathPrefix?: string;
 }) {
   const port =
     params?.port || (process.env.PORT ? parseInt(process.env.PORT) : 0) || 3400;
+  const pathPrefix = params?.pathPrefix ?? '';
   const app = express();
   app.use(bodyParser.json());
   app.use(cors(params?.cors));
@@ -845,12 +855,13 @@ export function startFlowsServer(params?: {
   const flows = params?.flows || createdFlows();
   logger.info(`Starting flows server on port ${port}`);
   flows.forEach((f) => {
-    logger.info(` - /${f.name}`);
+    const flowPath = `/${pathPrefix}${f.name}`;
+    logger.info(` - ${flowPath}`);
     // Add middlware
     f.middleware?.forEach((m) => {
-      app.post(`/${f.name}`, m);
+      app.post(flowPath, m);
     });
-    app.post(`/${f.name}`, f.expressHandler);
+    app.post(flowPath, f.expressHandler);
   });
 
   app.listen(port, () => {

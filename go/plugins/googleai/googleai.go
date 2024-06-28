@@ -17,16 +17,175 @@ package googleai
 import (
 	"context"
 	"fmt"
+	"os"
+	"sync"
 
 	"github.com/firebase/genkit/go/ai"
-	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"github.com/google/generative-ai-go/genai"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
 
-func newClient(ctx context.Context, apiKey string) (*genai.Client, error) {
-	return genai.NewClient(ctx, option.WithAPIKey(apiKey))
+const provider = "googleai"
+
+var state struct {
+	mu      sync.Mutex
+	initted bool
+	client  *genai.Client
+}
+
+var (
+	basicText = ai.ModelCapabilities{
+		Multiturn:  true,
+		Tools:      true,
+		SystemRole: false,
+		Media:      false,
+	}
+
+	multimodal = ai.ModelCapabilities{
+		Multiturn:  true,
+		Tools:      true,
+		SystemRole: false,
+		Media:      true,
+	}
+
+	knownCaps = map[string]ai.ModelCapabilities{
+		"gemini-1.0-pro":   basicText,
+		"gemini-1.5-pro":   multimodal,
+		"gemini-1.5-flash": multimodal,
+	}
+
+	knownEmbedders = []string{"text-embedding-004", "embedding-001"}
+)
+
+// Init initializes the plugin and all known models and embedders.
+// After calling Init, you may call [DefineModel] and [DefineEmbedder] to create
+// and register any additional generative models and embedders
+func Init(ctx context.Context, apiKey string) (err error) {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	if state.initted {
+		panic("googleai.Init already called")
+	}
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("googleai.Init: %w", err)
+		}
+	}()
+
+	if apiKey == "" {
+		apiKey = os.Getenv("GOOGLE_GENAI_API_KEY")
+		if apiKey == "" {
+			apiKey = os.Getenv("GOOGLE_API_KEY")
+		}
+		if apiKey == "" {
+			return fmt.Errorf("googleai.Init: Google AI requires setting GOOGLE_GENAI_API_KEY or GOOGLE_API_KEY in the environment. You can get an API key at https://ai.google.dev")
+		}
+	}
+
+	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
+	if err != nil {
+		return err
+	}
+	state.client = client
+	state.initted = true
+	for model, caps := range knownCaps {
+		if _, err := DefineModel(model, &caps); err != nil {
+			return fmt.Errorf("googleai.Init: failed to define known model %q: %w", model, err)
+		}
+	}
+	for _, e := range knownEmbedders {
+		DefineEmbedder(e)
+	}
+	return nil
+}
+
+// IsKnownModel reports whether a model is known to this plugin.
+func IsKnownModel(name string) bool {
+	_, ok := knownCaps[name]
+	return ok
+}
+
+// DefineModel defines an unknown model with the given name.
+// The second argument describes the capability of the model.
+// Use [IsKnownModel] to determine if a model is known.
+func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
+	// state.mu.Lock()
+	// defer state.mu.Unlock()
+	if !state.initted {
+		panic("googleai.Init not called")
+	}
+	var mc ai.ModelCapabilities
+	if caps == nil {
+		var ok bool
+		mc, ok = knownCaps[name]
+		if !ok {
+			return nil, fmt.Errorf("googleai.DefineModel: called with unknown model %q and nil ModelCapabilities", name)
+		}
+	} else {
+		mc = *caps
+	}
+	return defineModel(name, mc), nil
+}
+
+// KnownModels returns a slice of all known model names.
+func KnownModels() []string {
+	keys := make([]string, len(knownCaps))
+	i := 0
+	for k := range knownCaps {
+		keys[i] = k
+		i++
+	}
+	return keys
+}
+
+// requires state.mu
+func defineModel(name string, caps ai.ModelCapabilities) *ai.Model {
+	meta := &ai.ModelMetadata{
+		Label:    "Google AI - " + name,
+		Supports: caps,
+	}
+	g := generator{model: name, client: state.client}
+	return ai.DefineModel(provider, name, meta, g.generate)
+}
+
+// DefineEmbedder defines an embedder with a given name.
+func DefineEmbedder(name string) *ai.Embedder {
+	// state.mu.Lock()
+	// defer state.mu.Unlock()
+	if !state.initted {
+		panic("googleai.Init not called")
+	}
+	return defineEmbedder(name)
+}
+
+// requires state.mu
+func defineEmbedder(name string) *ai.Embedder {
+	return ai.DefineEmbedder(provider, name, func(ctx context.Context, input *ai.EmbedRequest) ([]float32, error) {
+		em := state.client.EmbeddingModel(name)
+		parts, err := convertParts(input.Document.Content)
+		if err != nil {
+			return nil, err
+		}
+		res, err := em.EmbedContent(ctx, parts...)
+		if err != nil {
+			return nil, err
+		}
+		return res.Embedding.Values, nil
+	})
+}
+
+// Model returns the [ai.ModelAction] with the given name.
+// It returns nil if the model was not configured.
+func Model(name string) *ai.Model {
+	return ai.LookupModel(provider, name)
+}
+
+// Embedder returns the [ai.Embedder] with the given name.
+// It returns nil if the embedder was not configured.
+func Embedder(name string) *ai.Embedder {
+	return ai.LookupEmbedder(provider, name)
 }
 
 type generator struct {
@@ -35,17 +194,27 @@ type generator struct {
 	//session *genai.ChatSession // non-nil if we're in the middle of a chat
 }
 
-func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb genkit.StreamingCallback[*ai.Candidate]) (*ai.GenerateResponse, error) {
+func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
 	gm := g.client.GenerativeModel(g.model)
 
 	// Translate from a ai.GenerateRequest to a genai request.
 	gm.SetCandidateCount(int32(input.Candidates))
 	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
-		gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
-		gm.StopSequences = c.StopSequences
-		gm.SetTemperature(float32(c.Temperature))
-		gm.SetTopK(int32(c.TopK))
-		gm.SetTopP(float32(c.TopP))
+		if c.MaxOutputTokens != 0 {
+			gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
+		}
+		if len(c.StopSequences) > 0 {
+			gm.StopSequences = c.StopSequences
+		}
+		if c.Temperature != 0 {
+			gm.SetTemperature(float32(c.Temperature))
+		}
+		if c.TopK != 0 {
+			gm.SetTopK(int32(c.TopK))
+		}
+		if c.TopP != 0 {
+			gm.SetTopP(float32(c.TopP))
+		}
 	}
 
 	// Start a "chat".
@@ -56,15 +225,23 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	for len(messages) > 1 {
 		m := messages[0]
 		messages = messages[1:]
+		parts, err := convertParts(m.Content)
+		if err != nil {
+			return nil, err
+		}
 		cs.History = append(cs.History, &genai.Content{
-			Parts: convertParts(m.Content),
+			Parts: parts,
 			Role:  string(m.Role),
 		})
 	}
 	// The last message gets added to the parts slice.
 	var parts []genai.Part
 	if len(messages) > 0 {
-		parts = convertParts(messages[0].Content)
+		var err error
+		parts, err = convertParts(messages[0].Content)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Convert input.Tools and append to gm.Tools
@@ -88,7 +265,11 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 			}
 			schema.Properties[k] = &genai.Schema{Type: typ}
 		}
-		fd := &genai.FunctionDeclaration{Name: t.Name, Parameters: schema}
+		fd := &genai.FunctionDeclaration{
+			Name:        t.Name,
+			Parameters:  schema,
+			Description: t.Description,
+		}
 		gm.Tools = append(gm.Tools, &genai.Tool{FunctionDeclarations: []*genai.FunctionDeclaration{fd}})
 	}
 	// TODO: gm.ToolConfig?
@@ -110,6 +291,7 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	for {
 		chunk, err := iter.Next()
 		if err == iterator.Done {
+			r = translateResponse(iter.MergedResponse())
 			break
 		}
 		if err != nil {
@@ -117,17 +299,14 @@ func (g *generator) Generate(ctx context.Context, input *ai.GenerateRequest, cb 
 		}
 		// Send candidates to the callback.
 		for _, c := range chunk.Candidates {
-			err := cb(ctx, translateCandidate(c))
+			tc := translateCandidate(c)
+			err := cb(ctx, &ai.GenerateResponseChunk{
+				Content: tc.Message.Content,
+				Index:   tc.Index,
+			})
 			if err != nil {
 				return nil, err
 			}
-		}
-		if r == nil {
-			// Save all other fields of first response
-			// so we can surface them at the end.
-			// TODO: necessary? Use last instead of first? merge somehow?
-			chunk.Candidates = nil
-			r = translateResponse(chunk)
 		}
 	}
 	if r == nil {
@@ -165,7 +344,7 @@ func translateCandidate(cand *genai.Candidate) *ai.Candidate {
 		case genai.Text:
 			p = ai.NewTextPart(string(part))
 		case genai.Blob:
-			p = ai.NewBlobPart(part.MIMEType, string(part.Data))
+			p = ai.NewMediaPart(part.MIMEType, string(part.Data))
 		case genai.FunctionCall:
 			p = ai.NewToolRequestPart(&ai.ToolRequest{
 				Name:  part.Name,
@@ -186,71 +365,55 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.GenerateResponse
 	for _, c := range resp.Candidates {
 		r.Candidates = append(r.Candidates, translateCandidate(c))
 	}
+	r.Usage = &ai.GenerationUsage{}
+	if u := resp.UsageMetadata; u != nil {
+		r.Usage.InputTokens = int(u.PromptTokenCount)
+		r.Usage.OutputTokens = int(u.CandidatesTokenCount)
+		r.Usage.TotalTokens = int(u.TotalTokenCount)
+	}
 	return r
 }
 
-// NewGenerator returns an action which sends a request to
-// the google AI model and returns the response.
-func NewGenerator(ctx context.Context, model, apiKey string) (ai.Generator, error) {
-	client, err := newClient(ctx, apiKey)
-	if err != nil {
-		return nil, err
-	}
-	return &generator{
-		model:  model,
-		client: client,
-	}, nil
-}
-
-// Init registers all the actions in this package with ai.
-func Init(ctx context.Context, model, apiKey string) error {
-	e, err := NewEmbedder(ctx, model, apiKey)
-	if err != nil {
-		return err
-	}
-	ai.RegisterEmbedder("google-genai", e)
-	g, err := NewGenerator(ctx, model, apiKey)
-	if err != nil {
-		return err
-	}
-	ai.RegisterGenerator("google-genai", model, &ai.GeneratorMetadata{
-		Label: "Google AI - " + model,
-		Supports: ai.GeneratorCapabilities{
-			Multiturn: true,
-		},
-	}, g)
-
-	return nil
-}
-
 // convertParts converts a slice of *ai.Part to a slice of genai.Part.
-func convertParts(parts []*ai.Part) []genai.Part {
+func convertParts(parts []*ai.Part) ([]genai.Part, error) {
 	res := make([]genai.Part, 0, len(parts))
 	for _, p := range parts {
-		res = append(res, convertPart(p))
+		part, err := convertPart(p)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, part)
 	}
-	return res
+	return res, nil
 }
 
 // convertPart converts a *ai.Part to a genai.Part.
-func convertPart(p *ai.Part) genai.Part {
+func convertPart(p *ai.Part) (genai.Part, error) {
 	switch {
 	case p.IsText():
-		return genai.Text(p.Text())
-	case p.IsBlob():
-		return genai.Blob{MIMEType: p.ContentType(), Data: []byte(p.Text())}
+		return genai.Text(p.Text), nil
+	case p.IsMedia():
+		contentType, data, err := uri.Data(p)
+		if err != nil {
+			return nil, err
+		}
+		return genai.Blob{MIMEType: contentType, Data: data}, nil
+	case p.IsData():
+		panic("googleai does not support Data parts")
 	case p.IsToolResponse():
-		toolResp := p.ToolResponse()
-		return genai.FunctionResponse{
+		toolResp := p.ToolResponse
+		fr := genai.FunctionResponse{
 			Name:     toolResp.Name,
 			Response: toolResp.Output,
 		}
+		return fr, nil
 	case p.IsToolRequest():
-		toolReq := p.ToolRequest()
-		return genai.FunctionCall{
+		toolReq := p.ToolRequest
+		fc := genai.FunctionCall{
 			Name: toolReq.Name,
 			Args: toolReq.Input,
 		}
+		return fc, nil
 	default:
 		panic("unknown part type in a request")
 	}

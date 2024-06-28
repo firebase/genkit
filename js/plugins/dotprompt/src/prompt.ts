@@ -44,11 +44,16 @@ export type PromptData = PromptFrontmatter & { template: string };
 
 export type PromptGenerateOptions<V = unknown> = Omit<
   GenerateOptions<z.ZodTypeAny, typeof GenerationCommonConfigSchema>,
-  'prompt' | 'history' | 'model'
+  'prompt' | 'model'
 > & {
   model?: string;
   input?: V;
 };
+
+interface RenderMetadata {
+  context?: DocumentData[];
+  history?: MessageData[];
+}
 
 export class Dotprompt<Variables = unknown> implements PromptMetadata {
   name: string;
@@ -65,7 +70,10 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
   config?: PromptMetadata['config'];
   candidates?: PromptMetadata['candidates'];
 
-  private _render: (input: Variables) => MessageData[];
+  private _render: (
+    input: Variables,
+    options?: RenderMetadata
+  ) => MessageData[];
 
   static parse(name: string, source: string) {
     try {
@@ -115,8 +123,8 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
     this._render = compile(this.template, options);
   }
 
-  renderText(input: Variables, context?: DocumentData[]): string {
-    const result = this.renderMessages(input, context);
+  renderText(input: Variables, options?: RenderMetadata): string {
+    const result = this.renderMessages(input, options);
     if (result.length !== 1) {
       throw new Error("Multi-message prompt can't be rendered as text.");
     }
@@ -130,22 +138,22 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
     return out;
   }
 
-  renderMessages(input?: Variables, context?: DocumentData[]): MessageData[] {
+  renderMessages(input?: Variables, options?: RenderMetadata): MessageData[] {
     input = parseSchema(input, {
       schema: this.input?.schema,
       jsonSchema: this.input?.jsonSchema,
     });
-    return this._render({ ...this.input?.default, ...input });
+    return this._render({ ...this.input?.default, ...input }, options);
   }
 
   toJSON(): PromptData {
     return { ...toFrontmatter(this), template: this.template };
   }
 
-  define(): void {
+  define(options?: { ns: string }): void {
     definePrompt(
       {
-        name: registryDefinitionKey(this.name, this.variant),
+        name: registryDefinitionKey(this.name, this.variant, options?.ns),
         description: 'Defined by Dotprompt',
         inputSchema: this.input?.schema,
         inputJsonSchema: this.input?.jsonSchema,
@@ -161,7 +169,10 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
   private _generateOptions(
     options: PromptGenerateOptions<Variables>
   ): GenerateOptions {
-    const messages = this.renderMessages(options.input);
+    const messages = this.renderMessages(options.input, {
+      history: options.history,
+      context: options.context,
+    });
     return {
       model: options.model || this.model!,
       config: { ...this.config, ...options.config } || {},
@@ -175,6 +186,8 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
         jsonSchema: options.output?.jsonSchema || this.output?.jsonSchema,
       },
       tools: (options.tools || []).concat(this.tools || []),
+      streamingCallback: options.streamingCallback,
+      returnToolRequests: options.returnToolRequests,
     };
   }
 

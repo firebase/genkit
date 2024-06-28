@@ -15,8 +15,8 @@
  */
 
 import { defineFlow } from '@genkit-ai/flow';
-import { AnswerOutputSchema, MenuQuestionInputSchema } from '../types';
-import { s02_dataMenuPrompt } from './prompts';
+import { AnswerOutputSchema, MenuQuestionInputSchema } from '../types.js';
+import { s02_dataMenuPrompt } from './prompts.js';
 
 // Define a flow which generates a response from the prompt.
 

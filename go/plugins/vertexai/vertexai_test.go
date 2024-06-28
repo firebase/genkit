@@ -33,47 +33,29 @@ import (
 var projectID = flag.String("projectid", "", "VertexAI project")
 var location = flag.String("location", "us-central1", "geographic location")
 
-func TestGenerator(t *testing.T) {
+func TestLive(t *testing.T) {
 	if *projectID == "" {
 		t.Skipf("no -projectid provided")
 	}
 	ctx := context.Background()
-	g, err := vertexai.NewGenerator(ctx, "gemini-1.0-pro", *projectID, *location)
+	const modelName = "gemini-1.0-pro"
+	const embedderName = "textembedding-gecko"
+	err := vertexai.Init(ctx, *projectID, *location)
 	if err != nil {
 		t.Fatal(err)
 	}
-	req := &ai.GenerateRequest{
-		Candidates: 1,
-		Messages: []*ai.Message{
-			&ai.Message{
-				Content: []*ai.Part{ai.NewTextPart("Which country was Napoleon the emperor of?")},
-				Role:    ai.RoleUser,
-			},
-		},
-	}
-
-	resp, err := g.Generate(ctx, req, nil)
+	model, err := vertexai.DefineModel(modelName, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	out := resp.Candidates[0].Message.Content[0].Text()
-	if !strings.Contains(out, "France") {
-		t.Errorf("got \"%s\", expecting it would contain \"France\"", out)
-	}
-	if resp.Request != req {
-		t.Error("Request field not set properly")
-	}
-}
+	embedder := vertexai.DefineEmbedder(embedderName)
 
-var toolDef = &ai.ToolDefinition{
-	Name:         "exponentiation",
-	InputSchema:  map[string]any{"base": "float64", "exponent": "int"},
-	OutputSchema: map[string]any{"output": "float64"},
-}
-
-func init() {
-	ai.RegisterTool("exponentiation",
-		toolDef, nil,
+	toolDef := &ai.ToolDefinition{
+		Name:         "exponentiation",
+		InputSchema:  map[string]any{"base": "float64", "exponent": "int"},
+		OutputSchema: map[string]any{"output": "float64"},
+	}
+	ai.DefineTool(toolDef, nil,
 		func(ctx context.Context, input map[string]any) (map[string]any, error) {
 			baseAny, ok := input["base"]
 			if !ok {
@@ -101,35 +83,117 @@ func init() {
 			return r, nil
 		},
 	)
-}
-
-func TestGeneratorTool(t *testing.T) {
-	if *projectID == "" {
-		t.Skip("no -projectid provided")
-	}
-	ctx := context.Background()
-	g, err := vertexai.NewGenerator(ctx, "gemini-1.0-pro", *projectID, *location)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req := &ai.GenerateRequest{
-		Candidates: 1,
-		Messages: []*ai.Message{
-			&ai.Message{
-				Content: []*ai.Part{ai.NewTextPart("what is 3.5 squared? Use the tool provided.")},
-				Role:    ai.RoleUser,
+	t.Run("model", func(t *testing.T) {
+		req := &ai.GenerateRequest{
+			Candidates: 1,
+			Messages: []*ai.Message{
+				&ai.Message{
+					Content: []*ai.Part{ai.NewTextPart("Which country was Napoleon the emperor of?")},
+					Role:    ai.RoleUser,
+				},
 			},
-		},
-		Tools: []*ai.ToolDefinition{toolDef},
-	}
+		}
 
-	resp, err := ai.Generate(ctx, g, req, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+		resp, err := model.Generate(ctx, req, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := resp.Candidates[0].Message.Content[0].Text
+		if !strings.Contains(out, "France") {
+			t.Errorf("got \"%s\", expecting it would contain \"France\"", out)
+		}
+		if resp.Request != req {
+			t.Error("Request field not set properly")
+		}
+		if resp.Usage.InputTokens == 0 || resp.Usage.OutputTokens == 0 || resp.Usage.TotalTokens == 0 {
+			t.Errorf("Empty usage stats %#v", *resp.Usage)
+		}
+	})
+	t.Run("streaming", func(t *testing.T) {
+		req := &ai.GenerateRequest{
+			Candidates: 1,
+			Messages: []*ai.Message{
+				&ai.Message{
+					Content: []*ai.Part{ai.NewTextPart("Write one paragraph about the Golden State Warriors.")},
+					Role:    ai.RoleUser,
+				},
+			},
+		}
 
-	out := resp.Candidates[0].Message.Content[0].Text()
-	if !strings.Contains(out, "12.25") {
-		t.Errorf("got %s, expecting it to contain \"12.25\"", out)
-	}
+		out := ""
+		parts := 0
+		model := vertexai.Model(modelName)
+		final, err := model.Generate(ctx, req, func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+			parts++
+			for _, p := range c.Content {
+				out += p.Text
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		out2 := ""
+		for _, p := range final.Candidates[0].Message.Content {
+			out2 += p.Text
+		}
+		if out != out2 {
+			t.Errorf("streaming and final should contain the same text.\nstreaming:%s\nfinal:%s", out, out2)
+		}
+		const want = "Golden"
+		if !strings.Contains(out, want) {
+			t.Errorf("got %q, expecting it to contain %q", out, want)
+		}
+		if parts == 1 {
+			// Check if streaming actually occurred.
+			t.Errorf("expecting more than one part")
+		}
+		if final.Usage.InputTokens == 0 || final.Usage.OutputTokens == 0 || final.Usage.TotalTokens == 0 {
+			// TODO: vertexai client doesn't return stats in streaming mode.
+			//t.Errorf("Empty usage stats %#v", *final.Usage)
+		}
+	})
+	t.Run("tool", func(t *testing.T) {
+		req := &ai.GenerateRequest{
+			Candidates: 1,
+			Messages: []*ai.Message{
+				&ai.Message{
+					Content: []*ai.Part{ai.NewTextPart("what is 3.5 squared? Use the tool provided.")},
+					Role:    ai.RoleUser,
+				},
+			},
+			Tools: []*ai.ToolDefinition{toolDef},
+		}
+
+		resp, err := model.Generate(ctx, req, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out := resp.Candidates[0].Message.Content[0].Text
+		if !strings.Contains(out, "12.25") {
+			t.Errorf("got %s, expecting it to contain \"12.25\"", out)
+		}
+	})
+	t.Run("embedder", func(t *testing.T) {
+		out, err := embedder.Embed(ctx, &ai.EmbedRequest{
+			Document: ai.DocumentFromText("time flies like an arrow", nil),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// There's not a whole lot we can test about the result.
+		// Just do a few sanity checks.
+		if len(out) < 100 {
+			t.Errorf("embedding vector looks too short: len(out)=%d", len(out))
+		}
+		var normSquared float32
+		for _, x := range out {
+			normSquared += x * x
+		}
+		if normSquared < 0.9 || normSquared > 1.1 {
+			t.Errorf("embedding vector not unit length: %f", normSquared)
+		}
+	})
 }

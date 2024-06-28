@@ -24,19 +24,17 @@ import (
 
 func TestFakeEmbedder(t *testing.T) {
 	embed := New()
-
+	emb := ai.DefineEmbedder("fake", "embed", embed.Embed)
 	d := ai.DocumentFromText("fakeembedder test", nil)
 
 	vals := []float32{1, 2}
 	embed.Register(d, vals)
 
-	var genkitEmbedder ai.Embedder
-	genkitEmbedder = embed
 	req := &ai.EmbedRequest{
 		Document: d,
 	}
 	ctx := context.Background()
-	got, err := genkitEmbedder.Embed(ctx, req)
+	got, err := emb.Embed(ctx, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +43,7 @@ func TestFakeEmbedder(t *testing.T) {
 	}
 
 	req.Document = ai.DocumentFromText("missing document", nil)
-	if _, err = genkitEmbedder.Embed(ctx, req); err == nil {
+	if _, err = emb.Embed(ctx, req); err == nil {
 		t.Error("embedding unknown document succeeded unexpectedly")
 	}
 }

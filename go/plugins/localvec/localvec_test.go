@@ -50,8 +50,8 @@ func TestLocalVec(t *testing.T) {
 	embedder.Register(d1, v1)
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
-
-	r, err := newRetriever(ctx, t.TempDir(), "testLocalVec", embedder, nil)
+	embedAction := ai.DefineEmbedder("fake", "embedder1", embedder.Embed)
+	ds, err := newDocStore(t.TempDir(), "testLocalVec", embedAction, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestLocalVec(t *testing.T) {
 	indexerReq := &ai.IndexerRequest{
 		Documents: []*ai.Document{d1, d2, d3},
 	}
-	err = r.Index(ctx, indexerReq)
+	err = ds.index(ctx, indexerReq)
 	if err != nil {
 		t.Fatalf("Index operation failed: %v", err)
 	}
@@ -72,7 +72,7 @@ func TestLocalVec(t *testing.T) {
 		Document: d1,
 		Options:  retrieverOptions,
 	}
-	retrieverResp, err := r.Retrieve(ctx, retrieverReq)
+	retrieverResp, err := ds.retrieve(ctx, retrieverReq)
 	if err != nil {
 		t.Fatalf("Retrieve operation failed: %v", err)
 	}
@@ -82,10 +82,98 @@ func TestLocalVec(t *testing.T) {
 		t.Errorf("got %d results, expected 2", len(docs))
 	}
 	for _, d := range docs {
-		text := d.Content[0].Text()
+		text := d.Content[0].Text
 		if !strings.HasPrefix(text, "hello") {
 			t.Errorf("returned doc text %q does not start with %q", text, "hello")
 		}
+	}
+}
+
+func TestPersistentIndexing(t *testing.T) {
+	ctx := context.Background()
+
+	const dim = 32
+	v1 := make([]float32, dim)
+	v2 := make([]float32, dim)
+	v3 := make([]float32, dim)
+	for i := range v1 {
+		v1[i] = float32(i)
+		v2[i] = float32(i)
+		v3[i] = float32(i)
+	}
+
+	d1 := ai.DocumentFromText("hello1", nil)
+	d2 := ai.DocumentFromText("hello2", nil)
+	d3 := ai.DocumentFromText("goodbye", nil)
+
+	embedder := fakeembedder.New()
+	embedder.Register(d1, v1)
+	embedder.Register(d2, v2)
+	embedder.Register(d3, v3)
+	embedAction := ai.DefineEmbedder("fake", "embedder2", embedder.Embed)
+
+	tDir := t.TempDir()
+
+	ds, err := newDocStore(tDir, "testLocalVec", embedAction, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	indexerReq := &ai.IndexerRequest{
+		Documents: []*ai.Document{d1, d2},
+	}
+	err = ds.index(ctx, indexerReq)
+	if err != nil {
+		t.Fatalf("Index operation failed: %v", err)
+	}
+
+	retrieverOptions := &RetrieverOptions{
+		K: 100, // fetch all docs
+	}
+
+	retrieverReq := &ai.RetrieverRequest{
+		Document: d1,
+		Options:  retrieverOptions,
+	}
+	retrieverResp, err := ds.retrieve(ctx, retrieverReq)
+	if err != nil {
+		t.Fatalf("Retrieve operation failed: %v", err)
+	}
+
+	docs := retrieverResp.Documents
+	if len(docs) != 2 {
+		t.Errorf("got %d results, expected 2", len(docs))
+	}
+
+	dsAnother, err := newDocStore(tDir, "testLocalVec", embedAction, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	indexerReq = &ai.IndexerRequest{
+		Documents: []*ai.Document{d3},
+	}
+	err = dsAnother.index(ctx, indexerReq)
+	if err != nil {
+		t.Fatalf("Index operation failed: %v", err)
+	}
+
+	retrieverOptions = &RetrieverOptions{
+		K: 100, // fetch all docs
+	}
+
+	retrieverReq = &ai.RetrieverRequest{
+		Document: d1,
+		Options:  retrieverOptions,
+	}
+	retrieverResp, err = dsAnother.retrieve(ctx, retrieverReq)
+	if err != nil {
+		t.Fatalf("Retrieve operation failed: %v", err)
+	}
+
+	docs = retrieverResp.Documents
+	if len(docs) != 3 {
+		t.Errorf("got %d results, expected 3", len(docs))
 	}
 }
 
@@ -96,5 +184,24 @@ func TestSimilarity(t *testing.T) {
 	want := 0.975
 	if math.Abs(got-want) > 0.001 {
 		t.Errorf("got %f, want %f", got, want)
+	}
+}
+
+func TestInit(t *testing.T) {
+	embedder := ai.DefineEmbedder("fake", "e", fakeembedder.New().Embed)
+	if err := Init(); err != nil {
+		t.Fatal(err)
+	}
+	const name = "mystore"
+	ind, ret, err := DefineIndexerAndRetriever(name, Config{Embedder: embedder})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "devLocalVectorStore/" + name
+	if g := ind.Name(); g != want {
+		t.Errorf("got %q, want %q", g, want)
+	}
+	if g := ret.Name(); g != want {
+		t.Errorf("got %q, want %q", g, want)
 	}
 }

@@ -1,0 +1,10 @@
+---
+model: googleai/gemini-1.5-flash-latest
+input:
+  schema:
+    firstName: string
+    lastName: string
+    persona: string
+---
+
+You are a {{persona}}. Say hello to {{firstName}} {{lastName}}.

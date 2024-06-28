@@ -75,6 +75,9 @@ importers:
       ajv:
         specifier: ^8.12.0
         version: 8.12.0
+      ajv-formats:
+        specifier: ^3.0.1
+        version: 3.0.1(ajv@8.12.0)
       async-mutex:
         specifier: ^0.5.0
         version: 0.5.0
@@ -321,6 +324,9 @@ importers:
       '@genkit-ai/flow':
         specifier: workspace:*
         version: link:../../flow
+      '@genkit-ai/google-cloud':
+        specifier: workspace:*
+        version: link:../google-cloud
       '@google-cloud/firestore':
         specifier: ^7.6.0
         version: 7.6.0(encoding@0.1.13)
@@ -328,11 +334,11 @@ importers:
         specifier: ^4.19.2
         version: 4.19.2
       firebase-admin:
-        specifier: ^12.1.0
-        version: 12.1.0(encoding@0.1.13)
+        specifier: ^12.2.0
+        version: 12.2.0(encoding@0.1.13)
       firebase-functions:
         specifier: ^4.8.0 || ^5.0.0
-        version: 4.8.1(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))
+        version: 4.8.1(encoding@0.1.13)(firebase-admin@12.2.0(encoding@0.1.13))
       google-auth-library:
         specifier: ^9.6.3
         version: 9.7.0(encoding@0.1.13)
@@ -485,7 +491,7 @@ importers:
         version: link:../../flow
       '@langchain/community':
         specifier: ^0.0.53
-        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
+        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.2.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
       '@langchain/core':
         specifier: ^0.1.61
         version: 0.1.61
@@ -494,7 +500,7 @@ importers:
         version: 1.8.0
       langchain:
         specifier: ^0.1.36
-        version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
+        version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.2.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -735,6 +741,9 @@ importers:
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
+      firebase-admin:
+        specifier: ^12.1.0
+        version: 12.1.0(encoding@0.1.13)
       genkitx-chromadb:
         specifier: workspace:*
         version: link:../../plugins/chroma
@@ -1000,7 +1009,7 @@ importers:
         version: link:../../plugins/vertexai
       '@langchain/community':
         specifier: ^0.0.53
-        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
+        version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.2.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
       '@langchain/core':
         specifier: ^0.1.61
         version: 0.1.61
@@ -1018,7 +1027,7 @@ importers:
         version: link:../../plugins/ollama
       langchain:
         specifier: ^0.1.36
-        version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
+        version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.2.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
       pdf-parse:
         specifier: ^1.1.1
         version: 1.1.1
@@ -1373,6 +1382,10 @@ packages:
     resolution: {integrity: sha512-WUDbaLY8UnPxgwsyIaxj6uxCtSDAaUyvzWJykNH5rZ9i92/SZCsPNNMN0ajrVpAR81hPIL4amXTaMJ40y5L+Yg==}
     engines: {node: '>=14.0.0'}
 
+  '@google-cloud/firestore@7.8.0':
+    resolution: {integrity: sha512-m21BWVZLz7H7NF8HZ5hCGUSCEJKNwYB5yzQqDTuE9YUzNDRMDei3BwVDht5k4xF636sGlnobyBL+dcbthSGONg==}
+    engines: {node: '>=14.0.0'}
+
   '@google-cloud/logging-winston@6.0.0':
     resolution: {integrity: sha512-/lVp7CyT3nFOr+AjQlZnJhTIOf+kcNGB4JTziL0fkX6Ov/2qNKtRGS/NqE6cD+VSPiv5jLOty3LgkRsXMpYxQQ==}
     engines: {node: '>=14.0.0'}
@@ -1436,12 +1449,21 @@ packages:
     resolution: {integrity: sha512-fZJEL8DcDgvBCguLdaAdBBEoh+83LDXK3m9rVh5iksvwVJDgZqkpsLGKJuM5FEBKltWhbJ62WSyMEUGgy8eMUg==}
     engines: {node: '>=18.0.0'}
 
+  '@grpc/grpc-js@1.10.10':
+    resolution: {integrity: sha512-HPa/K5NX6ahMoeBv15njAc/sfF4/jmiXLar9UlC2UfHFKZzsCVLc3wbe7+7qua7w9VPh2/L6EBxyAV7/E8Wftg==}
+    engines: {node: '>=12.10.0'}
+
   '@grpc/grpc-js@1.10.4':
     resolution: {integrity: sha512-MqBisuxTkYvPFnEiu+dag3xG/NBUDzSbAFAWlzfkGnQkjVZ6by3h4atbBc+Ikqup1z5BfB4BN18gKWR1YyppNw==}
     engines: {node: '>=12.10.0'}
 
   '@grpc/proto-loader@0.7.12':
     resolution: {integrity: sha512-DCVwMxqYzpUCiDMl7hQ384FqP4T3DbNpXU8pt681l3UWCip1WUiD5JrkImUwCB9a7f2cq4CUTmi5r/xIMRPY1Q==}
+    engines: {node: '>=6'}
+    hasBin: true
+
+  '@grpc/proto-loader@0.7.13':
+    resolution: {integrity: sha512-AiXO/bfe9bmxBjxxtYxFAXGZvMaN5s8kO+jBHAJCON8rJoB5YS/D6X7ZNc6XQkuHNmyl4CYaMI1fJ/Gn27RGGw==}
     engines: {node: '>=6'}
     hasBin: true
 
@@ -2522,6 +2544,14 @@ packages:
     resolution: {integrity: sha512-5GG/5IbQQpC9FpkRGsSvZI5QYeSCzlJHdpBQntCsuTOxhKD8lqKhrleg2Yi7yvMIf82Ycmmqln9U8V9qwEiJew==}
     engines: {node: '>= 8.0.0'}
 
+  ajv-formats@3.0.1:
+    resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
+    peerDependencies:
+      ajv: ^8.0.0
+    peerDependenciesMeta:
+      ajv:
+        optional: true
+
   ajv@8.12.0:
     resolution: {integrity: sha512-sRu1kpcO9yLtYxBKvqfTeh9KzZEwO3STyX1HT+4CaDzC6HpTGYhIhPIzj9XuKU7KYDwnaeh5hcOwjy1QuJzBPA==}
 
@@ -3008,6 +3038,10 @@ packages:
   extend@3.0.2:
     resolution: {integrity: sha512-fjquC59cD7CyW6urNXK0FBufkZcoiGG80wTuPujX590cB5Ttln20E2UB4S/WARVqhXffZl2LNgS+gQdPIIim/g==}
 
+  farmhash-modern@1.1.0:
+    resolution: {integrity: sha512-6ypT4XfgqJk/F3Yuv4SX26I3doUjt0GTG4a+JgWxXQpxXzTBq8fPUeGHfcYMMDPHJHm3yPOSjaeBwBGAHWXCdA==}
+    engines: {node: '>=18.0.0'}
+
   farmhash@3.3.1:
     resolution: {integrity: sha512-XUizHanzlr/v7suBr/o85HSakOoWh6HKXZjFYl5C2+Gj0f0rkw+XTUZzrd9odDsgI9G5tRUcF4wSbKaX04T0DQ==}
     engines: {node: '>=10'}
@@ -3050,6 +3084,10 @@ packages:
 
   firebase-admin@12.1.0:
     resolution: {integrity: sha512-bU7uPKMmIXAihWxntpY/Ma9zucn5y3ec+HQPqFQ/zcEfP9Avk9E/6D8u+yT/VwKHNZyg7yDVWOoJi73TIdR4Ww==}
+    engines: {node: '>=14'}
+
+  firebase-admin@12.2.0:
+    resolution: {integrity: sha512-R9xxENvPA/19XJ3mv0Kxfbz9kPXd9/HrM4083LZWOO0qAQGheRzcCQamYRe+JSrV2cdKXP3ZsfFGTYMrFM0pJg==}
     engines: {node: '>=14'}
 
   firebase-functions@4.8.1:
@@ -3222,6 +3260,10 @@ packages:
 
   google-gax@4.3.2:
     resolution: {integrity: sha512-2mw7qgei2LPdtGrmd1zvxQviOcduTnsvAWYzCxhOWXK4IQKmQztHnDQwD0ApB690fBQJemFKSU7DnceAy3RLzw==}
+    engines: {node: '>=14'}
+
+  google-gax@4.3.7:
+    resolution: {integrity: sha512-3bnD8RASQyaxOYTdWLgwpQco/aytTxFavoI/UN5QN5txDLp8QRrBHNtCUJ5+Ago+551GD92jG8jJduwvmaneUw==}
     engines: {node: '>=14'}
 
   google-p12-pem@3.1.4:
@@ -4203,8 +4245,16 @@ packages:
     resolution: {integrity: sha512-8awBvjO+FwkMd6gNoGFZyqkHZXCFd54CIYTb6De7dPaufGJ2XNW+QUNqbMr8MaAocMdb+KpsD4rxEOaTBDCffA==}
     engines: {node: '>=14.0.0'}
 
+  proto3-json-serializer@2.0.2:
+    resolution: {integrity: sha512-SAzp/O4Yh02jGdRc+uIrGoe87dkN/XtwxfZ4ZyafJHymd79ozp5VG5nyZ7ygqPM5+cpLDjjGnYFUkngonyDPOQ==}
+    engines: {node: '>=14.0.0'}
+
   protobufjs@7.2.6:
     resolution: {integrity: sha512-dgJaEDDL6x8ASUZ1YqWciTRrdOuYNzoOf27oHNfdyvKqHr5i0FV7FSLU+aIeFjyFgVxrpTOtQUi0BLLBymZaBw==}
+    engines: {node: '>=12.0.0'}
+
+  protobufjs@7.3.2:
+    resolution: {integrity: sha512-RXyHaACeqXeqAKGLDl68rQKbmObRsTIn4TYVUUug1KfS47YWCo5MacGITEryugIgZqORCvJWEk4l449POg5Txg==}
     engines: {node: '>=12.0.0'}
 
   proxy-addr@2.0.7:
@@ -4658,6 +4708,10 @@ packages:
     resolution: {integrity: sha512-pMZTvIkT1d+TFGvDOqodOclx0QWkkgi6Tdoa8gC8ffGAAqz9pzPTZWAybbsHHoED/ztMtkv/VoYTYyShUn81hA==}
     engines: {node: '>= 0.4.0'}
 
+  uuid@10.0.0:
+    resolution: {integrity: sha512-8XkAphELsDnEGrDxUOHB3RGvXz6TeuYSGEZBOjtTtPm2lwhGBjLgOzLHB63IUWfBpNucQjND6d3AOudO+H3RWQ==}
+    hasBin: true
+
   uuid@8.3.2:
     resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
     hasBin: true
@@ -4982,6 +5036,17 @@ snapshots:
       - encoding
       - supports-color
 
+  '@google-cloud/firestore@7.8.0(encoding@0.1.13)':
+    dependencies:
+      fast-deep-equal: 3.1.3
+      functional-red-black-tree: 1.0.1
+      google-gax: 4.3.7(encoding@0.1.13)
+      protobufjs: 7.2.6
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
+    optional: true
+
   '@google-cloud/logging-winston@6.0.0(encoding@0.1.13)(winston@3.13.0)':
     dependencies:
       '@google-cloud/logging': 11.0.0(encoding@0.1.13)
@@ -5096,6 +5161,12 @@ snapshots:
 
   '@google/generative-ai@0.10.0': {}
 
+  '@grpc/grpc-js@1.10.10':
+    dependencies:
+      '@grpc/proto-loader': 0.7.13
+      '@js-sdsl/ordered-map': 4.4.2
+    optional: true
+
   '@grpc/grpc-js@1.10.4':
     dependencies:
       '@grpc/proto-loader': 0.7.12
@@ -5107,6 +5178,14 @@ snapshots:
       long: 5.2.3
       protobufjs: 7.2.6
       yargs: 17.7.2
+
+  '@grpc/proto-loader@0.7.13':
+    dependencies:
+      lodash.camelcase: 4.3.0
+      long: 5.2.3
+      protobufjs: 7.3.2
+      yargs: 17.7.2
+    optional: true
 
   '@hapi/b64@5.0.0':
     dependencies:
@@ -5177,7 +5256,7 @@ snapshots:
 
   '@js-sdsl/ordered-map@4.4.2': {}
 
-  '@langchain/community@0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)':
+  '@langchain/community@0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.2.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)':
     dependencies:
       '@langchain/core': 0.1.61
       '@langchain/openai': 0.0.28(encoding@0.1.13)
@@ -5190,7 +5269,7 @@ snapshots:
     optionalDependencies:
       '@pinecone-database/pinecone': 2.2.0
       chromadb: 1.8.1(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13))
-      firebase-admin: 12.1.0(encoding@0.1.13)
+      firebase-admin: 12.2.0(encoding@0.1.13)
       google-auth-library: 8.9.0(encoding@0.1.13)
       jsonwebtoken: 9.0.2
     transitivePeerDependencies:
@@ -6153,6 +6232,10 @@ snapshots:
     dependencies:
       humanize-ms: 1.2.1
 
+  ajv-formats@3.0.1(ajv@8.12.0):
+    optionalDependencies:
+      ajv: 8.12.0
+
   ajv@8.12.0:
     dependencies:
       fast-deep-equal: 3.1.3
@@ -6747,6 +6830,8 @@ snapshots:
 
   extend@3.0.2: {}
 
+  farmhash-modern@1.1.0: {}
+
   farmhash@3.3.1:
     dependencies:
       node-addon-api: 5.1.0
@@ -6819,13 +6904,32 @@ snapshots:
       - encoding
       - supports-color
 
-  firebase-functions@4.8.1(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13)):
+  firebase-admin@12.2.0(encoding@0.1.13):
+    dependencies:
+      '@fastify/busboy': 2.1.1
+      '@firebase/database-compat': 1.0.4
+      '@firebase/database-types': 1.0.2
+      '@types/node': 20.11.30
+      farmhash-modern: 1.1.0
+      jsonwebtoken: 9.0.2
+      jwks-rsa: 3.1.0
+      long: 5.2.3
+      node-forge: 1.3.1
+      uuid: 10.0.0
+    optionalDependencies:
+      '@google-cloud/firestore': 7.8.0(encoding@0.1.13)
+      '@google-cloud/storage': 7.10.1(encoding@0.1.13)
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
+
+  firebase-functions@4.8.1(encoding@0.1.13)(firebase-admin@12.2.0(encoding@0.1.13)):
     dependencies:
       '@types/cors': 2.8.17
       '@types/express': 4.17.3
       cors: 2.8.5
       express: 4.19.2
-      firebase-admin: 12.1.0(encoding@0.1.13)
+      firebase-admin: 12.2.0(encoding@0.1.13)
       node-fetch: 2.7.0(encoding@0.1.13)
       protobufjs: 7.2.6
     transitivePeerDependencies:
@@ -7100,6 +7204,25 @@ snapshots:
     transitivePeerDependencies:
       - encoding
       - supports-color
+
+  google-gax@4.3.7(encoding@0.1.13):
+    dependencies:
+      '@grpc/grpc-js': 1.10.10
+      '@grpc/proto-loader': 0.7.13
+      '@types/long': 4.0.2
+      abort-controller: 3.0.0
+      duplexify: 4.1.3
+      google-auth-library: 9.7.0(encoding@0.1.13)
+      node-fetch: 2.7.0(encoding@0.1.13)
+      object-hash: 3.0.0
+      proto3-json-serializer: 2.0.2
+      protobufjs: 7.3.2
+      retry-request: 7.0.2(encoding@0.1.13)
+      uuid: 9.0.1
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
+    optional: true
 
   google-p12-pem@3.1.4:
     dependencies:
@@ -7468,10 +7591,10 @@ snapshots:
 
   kuler@2.0.0: {}
 
-  langchain@0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1):
+  langchain@0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.2.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1):
     dependencies:
       '@anthropic-ai/sdk': 0.9.1(encoding@0.1.13)
-      '@langchain/community': 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.1.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
+      '@langchain/community': 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13))(encoding@0.1.13)(firebase-admin@12.2.0(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
       '@langchain/core': 0.1.61
       '@langchain/openai': 0.0.28(encoding@0.1.13)
       '@langchain/textsplitters': 0.0.0
@@ -8024,6 +8147,11 @@ snapshots:
     dependencies:
       protobufjs: 7.2.6
 
+  proto3-json-serializer@2.0.2:
+    dependencies:
+      protobufjs: 7.3.2
+    optional: true
+
   protobufjs@7.2.6:
     dependencies:
       '@protobufjs/aspromise': 1.1.2
@@ -8038,6 +8166,22 @@ snapshots:
       '@protobufjs/utf8': 1.1.0
       '@types/node': 20.11.30
       long: 5.2.3
+
+  protobufjs@7.3.2:
+    dependencies:
+      '@protobufjs/aspromise': 1.1.2
+      '@protobufjs/base64': 1.1.2
+      '@protobufjs/codegen': 2.0.4
+      '@protobufjs/eventemitter': 1.1.0
+      '@protobufjs/fetch': 1.1.0
+      '@protobufjs/float': 1.0.2
+      '@protobufjs/inquire': 1.1.0
+      '@protobufjs/path': 1.1.2
+      '@protobufjs/pool': 1.1.0
+      '@protobufjs/utf8': 1.1.0
+      '@types/node': 20.11.30
+      long: 5.2.3
+    optional: true
 
   proxy-addr@2.0.7:
     dependencies:
@@ -8575,6 +8719,8 @@ snapshots:
       inherits: 2.0.3
 
   utils-merge@1.0.1: {}
+
+  uuid@10.0.0: {}
 
   uuid@8.3.2: {}
 

@@ -90,6 +90,20 @@ describe('Prompt', () => {
         await invalidSchemaPrompt.render({ input: { foo: 'baz' } });
       }, ValidationError);
     });
+
+    it('should render with overridden fields', async () => {
+      const prompt = testPrompt(`Hello {{name}}, how are you?`);
+
+      const streamingCallback = (c) => console.log(c);
+
+      const rendered = await prompt.render({
+        input: { name: 'Michael' },
+        streamingCallback,
+        returnToolRequests: true,
+      });
+      assert.strictEqual(rendered.streamingCallback, streamingCallback);
+      assert.strictEqual(rendered.returnToolRequests, true);
+    });
   });
 
   describe('#generate', () => {
@@ -178,14 +192,17 @@ output:
           additionalProperties: false,
           properties: {
             name: { type: 'string', description: 'the name of the person' },
-            date: { type: 'string', description: "ISO date like '2024-04-09'" },
+            date: {
+              type: ['string', 'null'],
+              description: "ISO date like '2024-04-09'",
+            },
           },
         },
       });
     });
   });
 
-  describe('definePrompt', () => {
+  describe('defineDotprompt', () => {
     it('registers a prompt and its variant', async () => {
       registerDotprompt();
       defineDotprompt(

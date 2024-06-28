@@ -230,6 +230,88 @@ describe('GenerateResponse', () => {
       assert.deepStrictEqual(response.output(0), { abc: '123' });
     });
   });
+  describe('#toolRequests()', () => {
+    it('returns empty array if no tools requests found', () => {
+      const response = new GenerateResponse({
+        candidates: [
+          {
+            index: 0,
+            finishReason: 'stop',
+            message: { role: 'model', content: [{ text: '{"abc":"123"}' }] },
+          },
+          {
+            index: 0,
+            finishReason: 'stop',
+            message: { role: 'model', content: [{ text: '{"abc":123}' }] },
+          },
+        ],
+      });
+      assert.deepStrictEqual(response.toolRequests(), []);
+      assert.deepStrictEqual(response.toolRequests(0), []);
+    });
+    it('picks the first candidate if no index provided', () => {
+      const toolCall = {
+        toolRequest: {
+          name: 'foo',
+          ref: 'abc',
+          input: 'banana',
+        },
+      };
+      const response = new GenerateResponse({
+        candidates: [
+          {
+            index: 0,
+            finishReason: 'stop',
+            message: {
+              role: 'model',
+              content: [toolCall],
+            },
+          },
+          {
+            index: 0,
+            finishReason: 'stop',
+            message: { role: 'model', content: [{ text: '{"abc":123}' }] },
+          },
+        ],
+      });
+      assert.deepStrictEqual(response.toolRequests(), [toolCall]);
+      assert.deepStrictEqual(response.toolRequests(0), [toolCall]);
+    });
+    it('returns all tool call', () => {
+      const toolCall1 = {
+        toolRequest: {
+          name: 'foo',
+          ref: 'abc',
+          input: 'banana',
+        },
+      };
+      const toolCall2 = {
+        toolRequest: {
+          name: 'bar',
+          ref: 'bcd',
+          input: 'apple',
+        },
+      };
+      const response = new GenerateResponse({
+        candidates: [
+          {
+            index: 0,
+            finishReason: 'stop',
+            message: {
+              role: 'model',
+              content: [toolCall1, toolCall2],
+            },
+          },
+          {
+            index: 0,
+            finishReason: 'stop',
+            message: { role: 'model', content: [{ text: '{"abc":123}' }] },
+          },
+        ],
+      });
+      assert.deepStrictEqual(response.toolRequests(), [toolCall1, toolCall2]);
+    });
+  });
 });
 
 describe('toGenerateRequest', () => {

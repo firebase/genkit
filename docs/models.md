@@ -53,7 +53,9 @@ are officially supported:
 [2]: plugins/vertex-ai.md
 [3]: plugins/ollama.md
 
-See the docs for each plugin for setup and usage information.
+See the docs for each plugin for setup and usage information. There's also
+a wide variety of community supported models available you can discover by
+[searching for packages starting with `genkitx-` on npmjs.org](https://www.npmjs.com/search?q=genkitx).
 
 ## How to generate content
 
@@ -120,6 +122,8 @@ const result = await generate({
   ],
 });
 ```
+
+### Tools and function calling
 
 `Model` also supports tools and function calling. Tool support depends on
 specific models.
