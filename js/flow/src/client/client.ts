@@ -147,7 +147,7 @@ async function __flowRunEnvelope({
 }
 
 /**
- * Invoke and stream response from a deployed flow.
+ * Invoke a deployed flow over HTTP(s).
  *
  * For example:
  *
