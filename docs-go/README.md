@@ -8,7 +8,7 @@ started:
 - [Generating content](models.md)
 - [Defining flows](flows.md)
 - [Prompting models](prompts.md)
-- [Managing models with prompt](dotprompt.md)
+- [Managing models with dotprompt](dotprompt.md)
 
 Also, we have library reference on pkg.go.dev:
 
