@@ -60,6 +60,12 @@
       "import": "./lib/index.mjs",
       "default": "./lib/index.js"
     },
+    "./client": {
+      "types": "./lib/client/index.d.ts",
+      "require": "./lib/client/index.js",
+      "import": "./lib/client/index.mjs",
+      "default": "./lib/client/index.js"
+    },
     "./experimental": {
       "types": "./lib/experimental.d.ts",
       "require": "./lib/experimental.js",
@@ -71,6 +77,9 @@
     "*": {
       "experimental": [
         "lib/experimental"
+      ],
+      "client": [
+        "lib/client"
       ]
     }
   }
