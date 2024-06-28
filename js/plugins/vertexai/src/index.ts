@@ -14,11 +14,17 @@
  * limitations under the License.
  */
 
+import { EmbedderArgument } from '@genkit-ai/ai/embedder';
 import { ModelReference } from '@genkit-ai/ai/model';
-import { Document } from '@genkit-ai/ai/retriever';
+import {
+  Document,
+  IndexerAction,
+  RetrieverAction,
+} from '@genkit-ai/ai/retriever';
 import { genkitPlugin, Plugin } from '@genkit-ai/core';
 import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
+import z from 'zod';
 import {
   anthropicModel,
   claude3Haiku,
@@ -53,8 +59,14 @@ import {
   SUPPORTED_GEMINI_MODELS,
 } from './gemini.js';
 import { imagen2, imagen2Model } from './imagen.js';
-import { configureVVSIndexer, configureVVSRetriever } from './vector_search.js';
-export { vertexAiIndexerRef, vertexAiRetrieverRef } from './vector_search.js';
+import { vertexIndexers } from './vector-search/indexers.js';
+import { vertexRetrievers } from './vector-search/retrievers.js';
+export {
+  vertexAiIndexerRef,
+  vertexAiRetrieverRef,
+  vertexIndexers,
+  vertexRetrievers,
+} from './vector-search/index.js';
 export {
   claude3Haiku,
   claude3Opus,
@@ -76,6 +88,18 @@ export {
   VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
 };
 
+interface VectorSearchIndexOption<EmbedderCustomOptions extends z.ZodTypeAny> {
+  deployedIndexId: string;
+  indexEndpointId: string;
+  documentRetriever: (docIds: string[]) => Promise<Document[]>;
+  documentIndexer: (docs: Document[]) => Promise<void>;
+  publicEndpoint: string;
+  documentIdField: string;
+  indexId: string;
+  embedder?: EmbedderArgument<EmbedderCustomOptions>;
+  embedderOptions?: z.infer<EmbedderCustomOptions>;
+}
+
 export interface PluginOptions {
   /** The Google Cloud project id to call. */
   projectId?: string;
@@ -88,16 +112,8 @@ export interface PluginOptions {
     metrics: VertexAIEvaluationMetric[];
   };
   modelGardenModels?: ModelReference<any>[];
-  vectorSearchOptions?: {
-    projectNumber: string;
-    deployedIndexId: string;
-    indexEndpointId: string;
-    documentRetriever: (docIds: string[]) => Promise<Document[]>;
-    documentIndexer: (docs: Document[]) => Promise<void>;
-    documentIdField: string;
-    indexId: string;
-    publicEndpoint: string;
-  };
+  projectNumber?: string;
+  vectorSearchIndexOptions?: VectorSearchIndexOption<z.ZodTypeAny>[];
 }
 
 /**
@@ -110,13 +126,6 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
     const projectId = options?.projectId || (await authClient.getProjectId());
 
     const location = options?.location || 'us-central1';
-
-    const updatedOptions = {
-      ...options,
-      projectId,
-      location,
-    };
-
     const confError = (parameter: string, envVariableName: string) => {
       return new Error(
         `VertexAI Plugin is missing the '${parameter}' configuration. Please set the '${envVariableName}' environment variable or explicitly pass '${parameter}' into genkit config.`
@@ -164,24 +173,31 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       ),
     ];
 
+    let indexers: IndexerAction<z.ZodTypeAny>[] = [];
+    let retrievers: RetrieverAction<z.ZodTypeAny>[] = [];
+
+    if (options?.vectorSearchIndexOptions) {
+      const defaultEmbedder = embedders[0];
+
+      indexers = vertexIndexers({
+        pluginOptions: options,
+        authClient,
+        defaultEmbedder,
+      });
+
+      retrievers = vertexRetrievers({
+        pluginOptions: options,
+        authClient,
+        defaultEmbedder,
+      });
+    }
+
     return {
       models,
       embedders,
       evaluators: vertexEvaluators(authClient, metrics, projectId, location),
-      retrievers: [
-        configureVVSRetriever({
-          pluginOptions: updatedOptions,
-          authClient,
-          embedder: embedders[0],
-        }),
-      ],
-      indexers: [
-        configureVVSIndexer({
-          pluginOptions: updatedOptions,
-          authClient,
-          embedder: embedders[0],
-        }),
-      ],
+      retrievers,
+      indexers,
     };
   }
 );

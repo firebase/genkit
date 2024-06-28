@@ -35,21 +35,24 @@ configureGenkit({
       googleAuth: {
         scopes: ['https://www.googleapis.com/auth/cloud-platform'],
       },
-      vectorSearchOptions: {
-        projectNumber: '67051307990',
-        publicEndpoint:
-          'https://1394123153.us-central1-67051307990.vdb.vertexai.goog',
-        indexEndpointId: '2682724808889729024',
-        indexId: '8639016791063920640',
-        documentRetriever: async (docIds) => {
-          return [];
+      // projectNumber: '67051307990',
+      vectorSearchIndexOptions: [
+        {
+          // embedder: 'textEmbeddingGecko',
+          publicEndpoint:
+            'https://1394123153.us-central1-67051307990.vdb.vertexai.goog',
+          indexEndpointId: '2682724808889729024',
+          indexId: '8639016791063920640',
+          documentRetriever: async (docIds: any) => {
+            return [];
+          },
+          documentIndexer: async (docs: any) => {
+            return;
+          },
+          documentIdField: 'id',
+          deployedIndexId: 'genkit_test_1719476368682',
         },
-        documentIndexer: async (docs) => {
-          return;
-        },
-        documentIdField: 'id',
-        deployedIndexId: 'genkit_test_1719476368682',
-      },
+      ],
     }),
   ],
   logLevel: 'debug',
