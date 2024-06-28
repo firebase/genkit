@@ -171,3 +171,7 @@ export function compile<Variables = any>(
     return toMessages(renderedString, options);
   };
 }
+
+export function definePartial(name: string, source: string) {
+  Promptbars.registerPartial(name, source);
+}
