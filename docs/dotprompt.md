@@ -62,7 +62,7 @@ conditional portions to your prompt or iterate through structured content. The
 file format utilizes YAML frontmatter to provide metadata for a prompt inline
 with the template.
 
-## Defining Input/Output Schemas with Picoschema
+## Defining Input/Output Schemas
 
 Dotprompt includes a compact, YAML-optimized schema definition format called
 Picoschema to make it easy to define the most important attributs of a schema
@@ -140,6 +140,50 @@ output:
       field1:
         type: number
         minimum: 20
+```
+
+### Leveraging Reusable Schemas
+
+In addition to directly defining schemas in the `.prompt` file, you can reference
+a schema registered with `defineSchema` by name. To register a schema:
+
+```ts
+import { defineSchema } from '@genkit-ai/core';
+import { z } from 'zod';
+
+const MySchema = defineSchema(
+  'MySchema',
+  z.object({
+    field1: z.string(),
+    field2: z.number(),
+  })
+);
+```
+
+Within your prompt, you can provide the name of the registered schema:
+
+```yaml
+# myPrompt.prompt
+---
+model: vertexai/gemini-1.5-flash
+output:
+  schema: MySchema
+---
+```
+
+The Dotprompt library will automatically resolve the name to the underlying
+registered Zod schema. You can then utilize the schema to strongly type the
+output of a Dotprompt:
+
+```ts
+import { prompt } from "@genkit-ai/dotprompt";
+
+const myPrompt = await prompt("myPrompt");
+
+const result = await myPrompt.generate<typeof MySchema>({...});
+
+// now strongly typed as MySchema
+result.output();
 ```
 
 ## Overriding Prompt Metadata

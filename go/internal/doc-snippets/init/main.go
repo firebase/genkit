@@ -72,7 +72,7 @@ func main() {
 	// after all of your plug-in configuration and flow definitions. When you
 	// pass a nil configuration to Init, Genkit starts a local flow server,
 	// which you can interact with using the developer UI.
-	if err := genkit.Init(nil); err != nil {
+	if err := genkit.Init(ctx, nil); err != nil {
 		log.Fatal(err)
 	}
 }

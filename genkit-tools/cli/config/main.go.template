@@ -37,7 +37,7 @@ func $GENKIT_FUNC_NAME() {
 		return text, nil
 	})
 
-	if err := genkit.Init(nil); err != nil {
+	if err := genkit.Init(ctx, nil); err != nil {
 		log.Fatal(err)
 	}
 }
