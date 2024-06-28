@@ -21,6 +21,7 @@ import { defineModel } from '@genkit-ai/ai/model';
 import { toJsonSchema, ValidationError } from '@genkit-ai/core/schema';
 import z from 'zod';
 import { registerPluginProvider } from '../../../core/src/registry.js';
+import { defineJsonSchema, defineSchema } from '../../../core/src/schema.js';
 import { defineDotprompt, Dotprompt, prompt } from '../src/index.js';
 import { PromptMetadata } from '../src/metadata.js';
 
@@ -199,6 +200,24 @@ output:
           },
         },
       });
+    });
+
+    it('should use registered schemas', () => {
+      const MyInput = defineSchema('MyInput', z.number());
+      defineJsonSchema('MyOutput', { type: 'boolean' });
+
+      const p = Dotprompt.parse(
+        'example2',
+        `---
+input:
+  schema: MyInput
+output:
+  schema: MyOutput
+---`
+      );
+
+      assert.deepEqual(p.input, { schema: MyInput });
+      assert.deepEqual(p.output, { jsonSchema: { type: 'boolean' } });
     });
   });
 

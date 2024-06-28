@@ -21,7 +21,11 @@ import {
   MetricCounter,
   MetricHistogram,
 } from '@genkit-ai/core/metrics';
-import { spanMetadataAls, traceMetadataAls } from '@genkit-ai/core/tracing';
+import {
+  spanMetadataAls,
+  toDisplayPath,
+  traceMetadataAls,
+} from '@genkit-ai/core/tracing';
 import { ValueType } from '@opentelemetry/api';
 import { createHash } from 'crypto';
 import { GenerateOptions } from './generate.js';
@@ -138,6 +142,7 @@ type SharedDimensions = {
   temperature?: number;
   topK?: number;
   topP?: number;
+  status?: string;
   source?: string;
   sourceVersion?: string;
 };
@@ -170,8 +175,9 @@ export function recordGenerateActionInputLogs(
   input: GenerateRequest
 ) {
   const flowName = traceMetadataAls?.getStore()?.flowName;
-  const path = spanMetadataAls?.getStore()?.path;
-  const sharedMetadata = { model, path, flowName };
+  const qualifiedPath = spanMetadataAls?.getStore()?.path || '';
+  const path = toDisplayPath(qualifiedPath);
+  const sharedMetadata = { model, path, qualifiedPath, flowName };
   logger.logStructured(`Config[${path}, ${model}]`, {
     ...sharedMetadata,
     temperature: options.config?.temperature,
@@ -206,8 +212,9 @@ export function recordGenerateActionOutputLogs(
   output: GenerateResponseData
 ) {
   const flowName = traceMetadataAls?.getStore()?.flowName;
-  const path = spanMetadataAls?.getStore()?.path;
-  const sharedMetadata = { model, path, flowName };
+  const qualifiedPath = spanMetadataAls?.getStore()?.path || '';
+  const path = toDisplayPath(qualifiedPath);
+  const sharedMetadata = { model, path, qualifiedPath, flowName };
   const candidates = output.candidates.length;
   output.candidates.forEach((cand, candIdx) => {
     const parts = cand.message.content.length;
@@ -340,6 +347,7 @@ function doRecordGenerateActionMetrics(
     topP: dimensions.topP,
     source: dimensions.source,
     sourceVersion: dimensions.sourceVersion,
+    status: dimensions.err ? 'failure' : 'success',
   };
 
   generateActionCounter.add(1, {

@@ -22,7 +22,12 @@ import { defineFirestoreRetriever, firebase } from '@genkit-ai/firebase';
 import { defineFlow, run } from '@genkit-ai/flow';
 import { googleCloud } from '@genkit-ai/google-cloud';
 import { googleAI, geminiPro as googleGeminiPro } from '@genkit-ai/googleai';
-import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+import {
+  gemini15ProPreview,
+  geminiPro,
+  textEmbeddingGecko,
+  vertexAI,
+} from '@genkit-ai/vertexai';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -329,5 +334,42 @@ export const dotpromptContext = defineFlow(
       context: docs,
     });
     return result.output() as any;
+  }
+);
+
+const jokeSubjectGenerator = defineTool(
+  {
+    name: 'jokeSubjectGenerator',
+    description: 'can be called to generate a subject for a joke',
+  },
+  async () => {
+    return 'banana';
+  }
+);
+
+export const toolCaller = defineFlow(
+  {
+    name: 'toolCaller',
+    outputSchema: z.string(),
+  },
+  async (_, streamingCallback) => {
+    if (!streamingCallback) {
+      throw new Error('this flow only works in streaming mode');
+    }
+
+    const { response, stream } = await generateStream({
+      model: gemini15ProPreview,
+      config: {
+        temperature: 1,
+      },
+      tools: [jokeSubjectGenerator],
+      prompt: `tell me a joke`,
+    });
+
+    for await (const chunk of stream()) {
+      streamingCallback(chunk);
+    }
+
+    return (await response()).text();
   }
 );

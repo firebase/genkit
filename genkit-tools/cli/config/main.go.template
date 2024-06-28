@@ -1,0 +1,43 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log"
+
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/genkit"
+	$GENKIT_MODEL_IMPORT
+)
+
+func $GENKIT_FUNC_NAME() {
+	ctx := context.Background()
+	if err := $GENKIT_MODEL_INIT; err != nil {
+		log.Fatal(err)
+	}
+
+	genkit.DefineFlow("menuSuggestionFlow", func(ctx context.Context, input string) (string, error) {
+		m := $GENKIT_MODEL_LOOKUP
+		if m == nil {
+			return "", errors.New("menuSuggestionFlow: failed to find model")
+		}
+		resp, err := m.Generate(ctx,
+			ai.NewGenerateRequest(
+				&ai.GenerationCommonConfig{Temperature: 1},
+				ai.NewUserTextMessage(fmt.Sprintf(`Suggest an item for the menu of a %s themed restaurant`, input))),
+			nil)
+		if err != nil {
+			return "", err
+		}
+		text, err := resp.Text()
+		if err != nil {
+			return "", fmt.Errorf("menuSuggestionFlow: %v", err)
+		}
+		return text, nil
+	})
+
+	if err := genkit.Init(ctx, nil); err != nil {
+		log.Fatal(err)
+	}
+}

@@ -62,7 +62,7 @@ conditional portions to your prompt or iterate through structured content. The
 file format utilizes YAML frontmatter to provide metadata for a prompt inline
 with the template.
 
-## Defining Input/Output Schemas with Picoschema
+## Defining Input/Output Schemas
 
 Dotprompt includes a compact, YAML-optimized schema definition format called
 Picoschema to make it easy to define the most important attributs of a schema
@@ -140,6 +140,50 @@ output:
       field1:
         type: number
         minimum: 20
+```
+
+### Leveraging Reusable Schemas
+
+In addition to directly defining schemas in the `.prompt` file, you can reference
+a schema registered with `defineSchema` by name. To register a schema:
+
+```ts
+import { defineSchema } from '@genkit-ai/core';
+import { z } from 'zod';
+
+const MySchema = defineSchema(
+  'MySchema',
+  z.object({
+    field1: z.string(),
+    field2: z.number(),
+  })
+);
+```
+
+Within your prompt, you can provide the name of the registered schema:
+
+```yaml
+# myPrompt.prompt
+---
+model: vertexai/gemini-1.5-flash
+output:
+  schema: MySchema
+---
+```
+
+The Dotprompt library will automatically resolve the name to the underlying
+registered Zod schema. You can then utilize the schema to strongly type the
+output of a Dotprompt:
+
+```ts
+import { prompt } from "@genkit-ai/dotprompt";
+
+const myPrompt = await prompt("myPrompt");
+
+const result = await myPrompt.generate<typeof MySchema>({...});
+
+// now strongly typed as MySchema
+result.output();
 ```
 
 ## Overriding Prompt Metadata
@@ -299,6 +343,70 @@ const result = await describeImagePrompt.generate({
 console.log(result.text());
 ```
 
+## Partials
+
+Partials are reusable templates that can be included inside any prompt. Partials
+can be especially helpful for related prompts that share common behavior.
+
+When loading a prompt directory, any file prefixed with `_` is considered a
+partial. So a file `_personality.prompt` might contain:
+
+```none
+You should speak like a {{#if style}}{{style}}{{else}}helpful assistant.{{/else}}.
+```
+
+This can then be included in other prompts:
+
+```none
+---
+model: vertexai/gemini-1.5-flash
+input:
+  schema:
+    name: string
+    style?: string
+---
+
+{{ role "system" }}
+{{>personality style=style}}
+
+{{ role "user" }}
+Give the user a friendly greeting.
+
+User's Name: {{name}}
+```
+
+Partials are inserted using the `{{>NAME_OF_PARTIAL args...}}` syntax. If no
+arguments are provided to the partial, it executes with the same context as the
+parent prompt.
+
+Partials accept both named arguments as above or a single positional argument
+representing the context. This can be helpful for e.g. rendering members of a list.
+
+```
+# _destination.prompt
+- {{name}} ({{country}})
+
+# chooseDestination.prompt
+Help the user decide between these vacation destinations:
+{{#each destinations}}
+{{>destination this}}{{/each}}
+```
+
+### Defining Partials in Code
+
+You may also define partials in code using `definePartial`:
+
+```ts
+import { definePartial } from '@genkit-ai/dotprompt';
+
+definePartial(
+  'personality',
+  'Talk like a {{#if style}}{{style}}{{else}}helpful assistant{{/if}}.'
+);
+```
+
+Code-defined partials are available in all prompts.
+
 ## Prompt Variants
 
 Because prompt files are just text, you can (and should!) commit them to your
@@ -333,6 +441,34 @@ const myPrompt = await prompt('my_prompt', {
 The name of the variant is included in the metadata of generation traces, so you
 can compare and contrast actual performance between variants in the Genkit trace
 inspector.
+
+## Defining Custom Helpers
+
+You can define custom helpers to process and manage data inside of a prompt. Helpers
+are registered globally using `defineHelper`:
+
+```ts
+import { defineHelper } from '@genkit-ai/dotprompt';
+
+defineHelper('shout', (text: string) => text.toUpperCase());
+```
+
+Once a helper is defined you can use it in any prompt:
+
+```none
+---
+model: vertexai/gemini-1.5-pro
+input:
+  schema:
+    name: string
+---
+
+HELLO, {{shout name}}!!!
+```
+
+For more information about the arguments passed into helpers, see the
+[Handlebars documentation](https://handlebarsjs.com/guide/#custom-helpers) on creating
+custom helpers.
 
 ## Alternate ways to load and define prompts
 

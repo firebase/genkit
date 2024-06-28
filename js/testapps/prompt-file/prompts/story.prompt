@@ -3,8 +3,10 @@ model: googleai/gemini-pro
 input:
   schema:
     subject: string
+    personality?: string
 output:
   format: text
 ---
+{{>style personality=personality}}
 
 Tell me a story about {{subject}}.
