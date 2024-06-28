@@ -145,3 +145,41 @@ async function __flowRunEnvelope({
     }
   }
 }
+
+/**
+ * Invoke and stream response from a deployed flow.
+ *
+ * For example:
+ *
+ * ```js
+ * import { runFlow } from '@genkit-ai/flow/client';
+ *
+ * const response = await runFlow({
+ *   url: 'https://my-flow-deployed-url',
+ *   input: 'foo',
+ * });
+ * console.log(await response);
+ * ```
+ */
+export async function runFlow({
+  url,
+  payload,
+  headers,
+}: {
+  url: string;
+  payload?: any;
+  headers?: Record<string, string>;
+}) {
+  const response = await fetch(url, {
+    method: 'POST',
+    body: JSON.stringify({
+      data: payload,
+    }),
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers,
+    },
+  });
+  const wrappedDesult = await response.json();
+  return wrappedDesult.result;
+}

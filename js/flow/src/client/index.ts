@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-export { streamFlow } from './client.js';
+export { streamFlow, runFlow } from './client.js';
