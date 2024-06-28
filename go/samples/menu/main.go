@@ -110,7 +110,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := genkit.Init(nil); err != nil {
+	if err := genkit.Init(ctx, nil); err != nil {
 		log.Fatal(err)
 	}
 }

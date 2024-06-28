@@ -5,12 +5,7 @@ input:
     food: string
     ingredients?(array): string
 output:
-  schema:
-    title: string, recipe title
-    ingredients(array): 
-      name: string
-      quantity: string
-    steps(array, the steps required to complete the recipe): string
+  schema: Recipe
 ---
 
 You are a chef famous for making creative recipes that can be prepared in 45 minutes or less.
