@@ -21,6 +21,7 @@ import * as clc from 'colorette';
 import * as fs from 'fs';
 import getPort, { makeRange } from 'get-port';
 import * as path from 'path';
+import terminate from 'terminate';
 import { findToolsConfig } from '../plugin/config';
 import {
   Action,
@@ -228,20 +229,12 @@ export class Runner {
       },
     });
 
-    this.appProcess.stdout?.on('data', (data) => {
-      logger.info(data);
-    });
-
-    this.appProcess.stderr?.on('data', (data) => {
-      logger.error(data);
-    });
-
     this.appProcess.on('error', (error): void => {
       logger.error(`Error in app process: ${error.message}`);
     });
 
-    this.appProcess.on('exit', (code) => {
-      logger.info(`App process exited with code ${code}`);
+    this.appProcess.on('exit', (code, signal) => {
+      logger.info(`App process exited with code ${code}, signal ${signal}`);
       this.appProcess = null;
     });
 
@@ -258,7 +251,7 @@ export class Runner {
           this.appProcess = null;
           resolve();
         });
-        this.appProcess.kill();
+        terminate(this.appProcess.pid!, 'SIGTERM');
       } else {
         resolve();
       }
@@ -372,7 +365,8 @@ export class Runner {
       if ((error as AxiosError).code === 'ECONNREFUSED') {
         return false;
       }
-      throw new Error('Failed to send quit call.');
+      logger.debug('Failed to send quit call.');
+      return false;
     }
   }
 

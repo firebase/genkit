@@ -39,7 +39,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -98,13 +97,7 @@ type testAllCoffeeFlowsOutput struct {
 }
 
 func main() {
-	apiKey := os.Getenv("GOOGLE_GENAI_API_KEY")
-	if apiKey == "" {
-		fmt.Fprintln(os.Stderr, "coffee-shop example requires setting GOOGLE_GENAI_API_KEY in the environment.")
-		fmt.Fprintln(os.Stderr, "You can get an API key at https://ai.google.dev.")
-		os.Exit(1)
-	}
-	if err := googleai.Init(context.Background(), apiKey); err != nil {
+	if err := googleai.Init(context.Background(), ""); err != nil {
 		log.Fatal(err)
 	}
 
@@ -112,8 +105,8 @@ func main() {
 		AllowAdditionalProperties: false,
 		DoNotReference:            true,
 	}
-	g := googleai.Model("gemini-1.5-flash")
-	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting", simpleGreetingPromptTemplate,
+	g := googleai.Model("gemini-1.5-pro")
+	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting2", simpleGreetingPromptTemplate,
 		dotprompt.Config{
 			Model:        g,
 			InputSchema:  r.Reflect(simpleGreetingInput{}),
@@ -262,7 +255,7 @@ func main() {
 		}
 		return out, nil
 	})
-	if err := genkit.Init(nil); err != nil {
+	if err := genkit.Init(context.Background(), nil); err != nil {
 		log.Fatal(err)
 	}
 }

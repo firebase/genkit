@@ -49,8 +49,8 @@ type Options struct {
 //
 // Thus Init(nil) will start a dev server in the "dev" environment, will always start
 // a flow server, and will pause execution until the flow server terminates.
-func Init(opts *Options) error {
-	return core.InternalInit((*core.Options)(opts))
+func Init(ctx context.Context, opts *Options) error {
+	return core.InternalInit(ctx, (*core.Options)(opts))
 }
 
 // DefineFlow creates a Flow that runs fn, and registers it as an action.
@@ -91,18 +91,6 @@ func DefineStreamingFlow[In, Out, Stream any](
 // is restarted, f will not be called a second time.
 func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out, error) {
 	return core.InternalRun(ctx, name, f)
-}
-
-// StartFlowServer starts a server serving the routes described in [NewFlowServeMux].
-// It listens on addr, or if empty, the value of the PORT environment variable,
-// or if that is empty, ":3400".
-//
-// In development mode (if the environment variable GENKIT_ENV=dev), it also starts
-// a dev server.
-//
-// StartFlowServer always returns a non-nil error, the one returned by http.ListenAndServe.
-func StartFlowServer(addr string, flows []string) error {
-	return core.StartFlowServer(addr, flows)
 }
 
 // NewFlowServeMux constructs a [net/http.ServeMux].

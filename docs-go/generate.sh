@@ -7,6 +7,6 @@ if [[ ! -f $weave ]]; then
 fi
 
 for file in flows models; do
-  $weave $file > $file.md
+  $weave $file.src > $file.md
 done
 

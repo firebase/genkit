@@ -150,7 +150,7 @@ func main() {
 		return text, nil
 	})
 
-	if err := genkit.Init(nil); err != nil {
+	if err := genkit.Init(context.Background(), nil); err != nil {
 		log.Fatal(err)
 	}
 }
