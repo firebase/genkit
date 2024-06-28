@@ -25,7 +25,7 @@ import { basename } from 'path';
 import { defineDotprompt, Dotprompt } from './prompt.js';
 import { loadPromptFolder, lookupPrompt } from './registry.js';
 
-export { definePartial } from './template.js';
+export { defineHelper, definePartial } from './template.js';
 export { defineDotprompt, Dotprompt };
 
 export interface DotpromptPluginOptions {

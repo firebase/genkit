@@ -442,6 +442,34 @@ The name of the variant is included in the metadata of generation traces, so you
 can compare and contrast actual performance between variants in the Genkit trace
 inspector.
 
+## Defining Custom Helpers
+
+You can define custom helpers to process and manage data inside of a prompt. Helpers
+are registered globally using `defineHelper`:
+
+```ts
+import { defineHelper } from '@genkit-ai/dotprompt';
+
+defineHelper('shout', (text: string) => text.toUpperCase());
+```
+
+Once a helper is defined you can use it in any prompt:
+
+```none
+---
+model: vertexai/gemini-1.5-pro
+input:
+  schema:
+    name: string
+---
+
+HELLO, {{shout name}}!!!
+```
+
+For more information about the arguments passed into helpers, see the
+[Handlebars documentation](https://handlebarsjs.com/guide/#custom-helpers) on creating
+custom helpers.
+
 ## Alternate ways to load and define prompts
 
 Dotprompt is optimized for organization in the prompt directory. However, there

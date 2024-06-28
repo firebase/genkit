@@ -15,7 +15,7 @@
  */
 
 import { configureGenkit, defineSchema } from '@genkit-ai/core';
-import { dotprompt, prompt } from '@genkit-ai/dotprompt';
+import { defineHelper, dotprompt, prompt } from '@genkit-ai/dotprompt';
 import { defineFlow } from '@genkit-ai/flow';
 import { googleAI } from '@genkit-ai/googleai';
 import * as z from 'zod';
@@ -48,6 +48,13 @@ const RecipeSchema = defineSchema(
 // Load the prompt file during initialization.
 // If it fails, due to the prompt file being invalid, the process will crash,
 // instead of us getting a more mysterious failure later when the flow runs.
+
+defineHelper('list', (data: any) => {
+  if (!Array.isArray(data)) {
+    return '';
+  }
+  return data.map((item) => `- ${item}`).join('\n');
+});
 
 prompt('recipe').then((recipePrompt) => {
   defineFlow(
