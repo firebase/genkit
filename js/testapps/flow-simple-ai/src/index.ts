@@ -34,14 +34,14 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { Allow, parse } from 'partial-json';
 import * as z from 'zod';
 
+const app = initializeApp();
+
 configureGenkit({
   plugins: [
     firebase(),
     googleAI(),
     vertexAI(),
     googleCloud({
-      // Forces telemetry export in 'dev'
-      forceDevExport: true,
       // These are configured for demonstration purposes. Sensible defaults are
       // in place in the event that telemetryConfig is absent.
       telemetryConfig: {
@@ -66,8 +66,6 @@ configureGenkit({
     logger: 'googleCloud',
   },
 });
-
-const app = initializeApp();
 
 export const jokeFlow = defineFlow(
   {
