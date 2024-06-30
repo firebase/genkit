@@ -198,7 +198,7 @@ export type RetrieverArgument<
 > = RetrieverAction<CustomOptions> | RetrieverReference<CustomOptions> | string;
 
 /**
- * Retrieves documents from a {@link RetrieverAction} based on the provided query.
+ * Retrieves documents from a {@link RetrieverArgument} based on the provided query.
  */
 export async function retrieve<CustomOptions extends z.ZodTypeAny>(
   params: RetrieverParams<CustomOptions>
@@ -229,7 +229,7 @@ export type IndexerArgument<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> =
   IndexerReference<CustomOptions> | IndexerAction<CustomOptions> | string;
 
 /**
- * Indexes documents using a {@link IndexerAction} or a {@link DocumentStore}.
+ * Indexes documents using a {@link IndexerArgument}.
  */
 export async function index<IndexerOptions extends z.ZodTypeAny>(params: {
   indexer: IndexerArgument<IndexerOptions>;
