@@ -172,14 +172,14 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	var payload any
 	isChatModel := g.model.Type == "chat"
 	if !isChatModel {
-		images, err := concatImages(input, []ai.Role{ai.Role("user"), ai.Role("model")})
+		images, err := concatImages(input, []ai.Role{ai.RoleUser, ai.RoleModel})
 		if err != nil {
-			return nil, fmt.Errorf("error grabbing image parts: %v", err)
+			return nil, fmt.Errorf("failed to grab image parts: %v", err)
 		}
 		payload = ollamaGenerateRequest{
 			Model:  g.model.Name,
-			Prompt: concatMessages(input, []ai.Role{ai.Role("user"), ai.Role("model"), ai.Role("tool")}),
-			System: concatMessages(input, []ai.Role{ai.Role("system")}),
+			Prompt: concatMessages(input, []ai.Role{ai.RoleUser, ai.RoleModel, ai.RoleTool}),
+			System: concatMessages(input, []ai.Role{ai.RoleSystem}),
 			Images: images,
 			Stream: stream,
 		}
@@ -189,7 +189,7 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 		for _, m := range input.Messages {
 			message, err := convertParts(m.Role, m.Content)
 			if err != nil {
-				return nil, fmt.Errorf("error converting message parts: %v", err)
+				return nil, fmt.Errorf("failed to convert message parts: %v", err)
 			}
 			messages = append(messages, message)
 		}
@@ -241,9 +241,8 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 		}
 		return response, nil
 	} else {
-		// Handle streaming response here
 		var chunks []*ai.GenerateResponseChunk
-		scanner := bufio.NewScanner(resp.Body) // Create a scanner to read lines
+		scanner := bufio.NewScanner(resp.Body)
 		for scanner.Scan() {
 			line := scanner.Text()
 			var chunk *ai.GenerateResponseChunk
@@ -253,14 +252,13 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 				chunk, err = translateGenerateChunk(line)
 			}
 			if err != nil {
-				// Handle parsing error (log, maybe send an error candidate?)
-				return nil, fmt.Errorf("error translating chunk: %v", err)
+				return nil, fmt.Errorf("failed to translate chunk: %v", err)
 			}
 			chunks = append(chunks, chunk)
 			cb(ctx, chunk)
 		}
 		if err := scanner.Err(); err != nil {
-			return nil, fmt.Errorf("error reading stream: %v", err)
+			return nil, fmt.Errorf("failed to read stream: %v", err)
 		}
 		// Create a final response with the merged chunks
 		finalResponse := &ai.GenerateResponse{
@@ -269,7 +267,7 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 				{
 					FinishReason: ai.FinishReason("stop"),
 					Message: &ai.Message{
-						Role: ai.RoleModel, // Assuming the response is from the model
+						Role: ai.RoleModel,
 					},
 				},
 			},
@@ -283,16 +281,14 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	}
 }
 
-// convertParts serializes a slice of *ai.Part into an ollamaMessage (represents Ollama message type)
 func convertParts(role ai.Role, parts []*ai.Part) (*ollamaMessage, error) {
-	// Initialize the message with the correct role from the mapping
 	message := &ollamaMessage{
 		Role: roleMapping[role],
 	}
-	// Concatenate content from all parts
+	var contentBuilder strings.Builder
 	for _, part := range parts {
 		if part.IsText() {
-			message.Content += part.Text
+			contentBuilder.WriteString(part.Text)
 		} else if part.IsMedia() {
 			_, data, err := uri.Data(part)
 			if err != nil {
@@ -304,6 +300,7 @@ func convertParts(role ai.Role, parts []*ai.Part) (*ollamaMessage, error) {
 			return nil, errors.New("unknown content type")
 		}
 	}
+	message.Content = contentBuilder.String()
 	return message, nil
 }
 
@@ -312,7 +309,7 @@ func translateResponse(responseData []byte) (*ai.GenerateResponse, error) {
 	var response ollamaChatResponse
 
 	if err := json.Unmarshal(responseData, &response); err != nil {
-		return nil, fmt.Errorf("error parsing response JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse response JSON: %v", err)
 	}
 	generateResponse := &ai.GenerateResponse{}
 	aiCandidate := &ai.Candidate{
@@ -332,13 +329,13 @@ func translateGenerateResponse(responseData []byte) (*ai.GenerateResponse, error
 	var response ollamaGenerateResponse
 
 	if err := json.Unmarshal(responseData, &response); err != nil {
-		return nil, fmt.Errorf("error parsing response JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse response JSON: %v", err)
 	}
 	generateResponse := &ai.GenerateResponse{}
 	aiCandidate := &ai.Candidate{
 		FinishReason: ai.FinishReason("stop"),
 		Message: &ai.Message{
-			Role: ai.Role("model"),
+			Role: ai.RoleUser,
 		},
 	}
 	aiPart := ai.NewTextPart(response.Response)
@@ -352,7 +349,7 @@ func translateChunk(input string) (*ai.GenerateResponseChunk, error) {
 	var response ollamaChatResponse
 
 	if err := json.Unmarshal([]byte(input), &response); err != nil {
-		return nil, fmt.Errorf("error parsing response JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse response JSON: %v", err)
 	}
 	chunk := &ai.GenerateResponseChunk{}
 	aiPart := ai.NewTextPart(response.Message.Content)
@@ -364,7 +361,7 @@ func translateGenerateChunk(input string) (*ai.GenerateResponseChunk, error) {
 	var response ollamaGenerateResponse
 
 	if err := json.Unmarshal([]byte(input), &response); err != nil {
-		return nil, fmt.Errorf("error parsing response JSON: %v", err)
+		return nil, fmt.Errorf("failed to parse response JSON: %v", err)
 	}
 	chunk := &ai.GenerateResponseChunk{}
 	aiPart := ai.NewTextPart(response.Response)
@@ -405,16 +402,15 @@ func concatImages(input *ai.GenerateRequest, roles []ai.Role) ([]string, error) 
 		// Check if the message role is in the allowed set
 		if roleSet[message.Role] {
 			for _, part := range message.Content {
-				if part.IsMedia() {
-					_, data, err := uri.Data(part)
-					if err != nil {
-						return nil, err
-					}
-					base64Encoded := base64.StdEncoding.EncodeToString(data)
-					images = append(images, base64Encoded)
-				} else {
+				if !part.IsMedia() {
 					return nil, errors.New("unknown content type")
 				}
+				_, data, err := uri.Data(part)
+				if err != nil {
+					return nil, err
+				}
+				base64Encoded := base64.StdEncoding.EncodeToString(data)
+				images = append(images, base64Encoded)
 			}
 		}
 	}
