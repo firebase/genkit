@@ -181,7 +181,7 @@ deploying the default sample flow to Firebase.
         genkit start
         ```
 
-    2.  In the developer UI (http://localhost:4000/), run the flow:
+    1.  In the developer UI (http://localhost:4000/), run the flow:
 
         1.  Click **menuSuggestionFlow**.
 
