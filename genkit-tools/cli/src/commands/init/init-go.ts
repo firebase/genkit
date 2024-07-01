@@ -38,9 +38,8 @@ const templatePath = '../../../config/main.go.template';
 
 /** Ollama init call template. Keep indenting to for expected output. */
 const ollamaInit = `ollama.Init(ctx, ollama.Config{
-        ServerAddress: "http://127.0.0.1:11434", 
-        Models: []ollama.ModelDefinition{{Name: "gemma"}},
-    })`;
+  ServerAddress: "http://127.0.0.1:11434",
+})`;
 
 /** Model to plugin name. */
 const modelOptions: Record<ModelProvider, ModelOption> = {
