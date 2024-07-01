@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 
+	// Import the Genkit core libraries.
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	$GENKIT_MODEL_IMPORT
@@ -13,15 +14,17 @@ import (
 
 func $GENKIT_FUNC_NAME() {
 	ctx := context.Background()
-	if err := $GENKIT_MODEL_INIT; err != nil {
-		log.Fatal(err)
-	}
 
+	$GENKIT_MODEL_INIT
+
+	// Define a simple flow that prompts an LLM to generate menu suggestions.
 	genkit.DefineFlow("menuSuggestionFlow", func(ctx context.Context, input string) (string, error) {
-		m := $GENKIT_MODEL_LOOKUP
+		$GENKIT_MODEL_LOOKUP
 		if m == nil {
 			return "", errors.New("menuSuggestionFlow: failed to find model")
 		}
+
+		// Construct a request and send it to the model API.
 		resp, err := m.Generate(ctx,
 			ai.NewGenerateRequest(
 				&ai.GenerationCommonConfig{Temperature: 1},
@@ -30,6 +33,11 @@ func $GENKIT_FUNC_NAME() {
 		if err != nil {
 			return "", err
 		}
+
+		// Handle the response from the model API. In this sample, we just
+		// convert it to a string, but more complicated flows might coerce the
+		// response into structured output or chain the response into another
+		// LLM call, etc.
 		text, err := resp.Text()
 		if err != nil {
 			return "", fmt.Errorf("menuSuggestionFlow: %v", err)
@@ -37,6 +45,10 @@ func $GENKIT_FUNC_NAME() {
 		return text, nil
 	})
 
+	// Initialize Genkit and start a flow server. This call must come last,
+	// after all of your plug-in configuration and flow definitions. When you
+	// pass a nil configuration to Init, Genkit starts a local flow server,
+	// which you can interact with using the developer UI.
 	if err := genkit.Init(ctx, nil); err != nil {
 		log.Fatal(err)
 	}
