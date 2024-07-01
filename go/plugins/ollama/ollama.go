@@ -231,7 +231,7 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 		}
 		var response *ai.GenerateResponse
 		if isChatModel {
-			response, err = translateResponse(body)
+			response, err = translateChatResponse(body)
 		} else {
 			response, err = translateGenerateResponse(body)
 		}
@@ -247,7 +247,7 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 			line := scanner.Text()
 			var chunk *ai.GenerateResponseChunk
 			if isChatModel {
-				chunk, err = translateChunk(line)
+				chunk, err = translateChatChunk(line)
 			} else {
 				chunk, err = translateGenerateChunk(line)
 			}
@@ -304,8 +304,8 @@ func convertParts(role ai.Role, parts []*ai.Part) (*ollamaMessage, error) {
 	return message, nil
 }
 
-// translateResponse deserializes a JSON response from the Ollama API into a GenerateResponse.
-func translateResponse(responseData []byte) (*ai.GenerateResponse, error) {
+// translateChatResponse translates Ollama chat response into a genkit response.
+func translateChatResponse(responseData []byte) (*ai.GenerateResponse, error) {
 	var response ollamaChatResponse
 
 	if err := json.Unmarshal(responseData, &response); err != nil {
@@ -324,7 +324,7 @@ func translateResponse(responseData []byte) (*ai.GenerateResponse, error) {
 	return generateResponse, nil
 }
 
-// translateGenerateResponse deserializes a JSON response from the Ollama API into a GenerateResponse.
+// translateResponse translates Ollama generate response into a genkit response.
 func translateGenerateResponse(responseData []byte) (*ai.GenerateResponse, error) {
 	var response ollamaGenerateResponse
 
@@ -345,7 +345,7 @@ func translateGenerateResponse(responseData []byte) (*ai.GenerateResponse, error
 	return generateResponse, nil
 }
 
-func translateChunk(input string) (*ai.GenerateResponseChunk, error) {
+func translateChatChunk(input string) (*ai.GenerateResponseChunk, error) {
 	var response ollamaChatResponse
 
 	if err := json.Unmarshal([]byte(input), &response); err != nil {
