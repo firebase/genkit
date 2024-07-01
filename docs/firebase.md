@@ -64,20 +64,46 @@ deploying the default sample flow to Firebase.
       1.  [Generate an API key](https://aistudio.google.com/app/apikey) for the
           Gemini API using Google AI Studio.
 
-      1.  Set the `GOOGLE_GENAI_API_KEY` environment variable to your key:
+      1.  Store your API key in Cloud Secret Manager:
 
           ```posix-terminal
-          export GOOGLE_GENAI_API_KEY=<your API key>
+          firebase functions:secrets:set GOOGLE_GENAI_API_KEY
           ```
+
+          This step is important to prevent accidentally leaking your API key,
+          which grants access to a potentially metered service.
+
+          See [Store and access sensitive configuration information](https://firebase.google.com/docs/functions/config-env?gen=2nd#secret-manager)
+          for more information on managing secrets.
 
       1.  Edit `src/index.ts` and add the following after the existing imports:
 
-      <!--See note above on prettier-ignore -->
-      <!-- prettier-ignore -->
-      ```js
-      import {defineSecret} from "firebase-functions/params";
-      defineSecret("GOOGLE_GENAI_API_KEY");
-      ```
+          <!--See note above on prettier-ignore -->
+          <!-- prettier-ignore -->
+          ```js
+          import {defineSecret} from "firebase-functions/params";
+          const googleAIapiKey = defineSecret("GOOGLE_GENAI_API_KEY");
+          ```
+
+          Then, in the flow definition, declare that the cloud function needs
+          access to this secret value:
+
+          <!--See note above on prettier-ignore -->
+          <!-- prettier-ignore -->
+          ```js
+          export const menuSuggestionFlow = onFlow(
+            {
+              name: "menuSuggestionFlow",
+              // ...
+              httpsOptions: {
+                secrets: [googleAIapiKey],  // Add this line.
+              },
+            },
+            async (subject) => {
+              // ...
+            }
+          );
+          ```
 
       Now, when you deploy this function, your API key will be stored in
       Cloud Secret Manager, and available from the Cloud Functions
@@ -93,19 +119,6 @@ deploying the default sample flow to Firebase.
           page, ensure that the **Default compute service account** is granted
           the **Vertex AI User** role.
 
-      1.  **Optional**: If you want to run your flow locally, as in the next
-          step, set some additional environment variables and use the
-          [`gcloud`](https://cloud.google.com/sdk/gcloud) tool to set up
-          application default credentials:
-
-          ```posix-terminal
-          export GCLOUD_PROJECT=<your project ID>
-
-          export GCLOUD_LOCATION=us-central1
-
-          gcloud auth application-default login
-          ```
-
     The only secret you need to set up for this tutorial is for the model
     provider, but in general, you must do something similar for each service
     your flow uses.
@@ -120,7 +133,9 @@ deploying the default sample flow to Firebase.
       {
         name: "menuSuggestionFlow",
         // ...
-        httpsOptions: {cors: true}, // Add this line.
+        httpsOptions: {
+          cors: true,  // Add this line.
+        },
       },
       async (subject) => {
         // ...
@@ -132,6 +147,31 @@ deploying the default sample flow to Firebase.
     will do for this tutorial.
 
 1.  **Optional**: Try your flow in the developer UI:
+
+    1.  Make API credentials available locally. Do one of the following,
+        depending on the model provider you chose:
+
+        - {Gemini (Google AI)}
+
+          Set the `GOOGLE_GENAI_API_KEY` environment variable to your key:
+
+          ```posix-terminal
+          export GOOGLE_GENAI_API_KEY=<your API key>
+          ```
+
+        - {Gemini (Vertex AI)}
+
+          Set some additional environment variables and use the
+          [`gcloud`](https://cloud.google.com/sdk/gcloud) tool to set up
+          application default credentials locally:
+
+          ```posix-terminal
+          export GCLOUD_PROJECT=<your project ID>
+
+          export GCLOUD_LOCATION=us-central1
+
+          gcloud auth application-default login
+          ```
 
     1.  Start the UI:
 
