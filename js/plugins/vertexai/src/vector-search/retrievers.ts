@@ -1,55 +1,77 @@
 import { embed } from '@genkit-ai/ai/embedder';
-
 import {
+  CommonRetrieverOptionsSchema,
   defineRetriever,
   RetrieverAction,
   retrieverRef,
 } from '@genkit-ai/ai/retriever';
-
 import { logger } from '@genkit-ai/core/logging';
 import z from 'zod';
 import { queryPublicEndpoint } from './query_public_endpoint';
 import { vertexVectorSearchOptions } from './types';
 import { getProjectNumber } from './utils';
+const VVSRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend(
+  {}
+).optional();
+
+const DEFAULT_K = 10;
 
 export function vertexRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
   params: vertexVectorSearchOptions<EmbedderCustomOptions>
 ) {
   const vectorSearchOptions = params.pluginOptions.vectorSearchIndexOptions;
-
   const defaultEmbedder = params.defaultEmbedder;
 
-  // TODO remove ! after fixing the type
   const retrievers: RetrieverAction<z.ZodTypeAny>[] = [];
-  for (const vectorSearchOption of vectorSearchOptions!) {
-    const { documentRetriever, documentIdField, indexId, publicEndpoint } =
-      vectorSearchOption;
 
+  for (const vectorSearchOption of vectorSearchOptions!) {
+    const { documentRetriever, indexId, publicEndpoint } = vectorSearchOption;
     const embedder = vectorSearchOption.embedder ?? defaultEmbedder;
     const embedderOptions = vectorSearchOption.embedderOptions;
 
     const retriever = defineRetriever(
       {
         name: `vertexai/${indexId}`,
-        configSchema: z.any(),
+        configSchema: VVSRetrieverOptionsSchema,
       },
       async (content, options) => {
+        logger.info(`Starting embedding process for index: ${indexId}`);
         const queryEmbeddings = await embed({
           embedder,
           options: embedderOptions,
           content,
         });
+        logger.info(`Embeddings created successfully for index: ${indexId}`);
 
         const accessToken = await params.authClient.getAccessToken();
-        const projectId = params.pluginOptions.projectId!;
-        const location = params.pluginOptions.location!;
+
+        if (!accessToken) {
+          throw new Error(
+            'Access token is required to define Vertex AI retriever'
+          );
+        }
+
+        const projectId = params.pluginOptions.projectId;
+        if (!projectId) {
+          throw new Error(
+            'Project ID is required to define Vertex AI retriever'
+          );
+        }
+        const location = params.pluginOptions.location;
+        if (!location) {
+          throw new Error('Location is required to define Vertex AI retriever');
+        }
         const publicEndpointDomainName = publicEndpoint;
 
+        logger.info(
+          `Defining Vertex AI Vector Search retriever, using project ID: ${projectId}, location: ${location}, endpoint: ${publicEndpointDomainName}`
+        );
+
         try {
-          const queryResponse = await queryPublicEndpoint({
+          let res = await queryPublicEndpoint({
             featureVector: queryEmbeddings,
-            neighborCount: options.k,
-            accessToken: accessToken!,
+            neighborCount: options?.k || DEFAULT_K,
+            accessToken,
             projectId,
             location,
             publicEndpointDomainName,
@@ -57,38 +79,53 @@ export function vertexRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
               params.pluginOptions.projectNumber ||
               (await getProjectNumber(projectId)),
             indexEndpointId: vectorSearchOption.indexEndpointId,
-            deployedIndexId: indexId,
+            deployedIndexId: vectorSearchOption.deployedIndexId,
           });
+          logger.info(`Query response received for index: ${indexId}`);
 
-          logger.info(queryResponse);
+          logger.info(JSON.stringify(res, null, 2));
 
-          const docIds = queryResponse.queries[0].neighbors.map((n) => {
-            return n.datapoint.datapointId;
-          });
+          const nearestNeighbors = res.nearestNeighbors;
 
-          const documentResponse = await documentRetriever(docIds);
+          const queryRes = nearestNeighbors ? nearestNeighbors[0] : null;
+          const neighbors = queryRes ? queryRes.neighbors : null;
+          if (!nearestNeighbors || !queryRes || !neighbors) {
+            logger.warn('No nearest neighbors found in query response');
+            return { documents: [] };
+          }
 
-          logger.error(docIds);
+          if (neighbors.some((n) => !n.datapoint || !n.datapoint.datapointId)) {
+            logger.warn('Some neighbors do not have datapoints');
+          }
 
-          return {
-            documents: [
-              {
-                content: [{ text: 'test' }],
-              },
-            ],
-          };
+          const documents = await documentRetriever(neighbors);
+
+          logger.info(`Documents retrieved for index: ${indexId}`);
+          return { documents };
         } catch (error) {
-          console.error(error);
-          return {
-            documents: [],
-          };
+          handleRetrieverError(error, indexId);
         }
       }
     );
 
     retrievers.push(retriever);
   }
+
   return retrievers;
+}
+
+function handleRetrieverError(error: unknown, indexId: string): never {
+  if (error instanceof Error) {
+    logger.error(
+      `Error in retriever process for index: ${indexId} - ${error.message}`
+    );
+    throw new Error(`Error: ${error}, ${error.message}`);
+  } else {
+    logger.error(
+      `Unknown error in retriever process for index: ${indexId} - ${error}`
+    );
+    throw new Error(`Error: ${error}`);
+  }
 }
 
 export const vertexAiRetrieverRef = (params: {

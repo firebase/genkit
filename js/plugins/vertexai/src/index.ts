@@ -61,12 +61,14 @@ import {
 import { imagen2, imagen2Model } from './imagen.js';
 import { vertexIndexers } from './vector-search/indexers.js';
 import { vertexRetrievers } from './vector-search/retrievers.js';
+import { Neighbor } from './vector-search/types.js';
 export {
   vertexAiIndexerRef,
   vertexAiRetrieverRef,
   vertexIndexers,
   vertexRetrievers,
 } from './vector-search/index.js';
+export { Neighbor } from './vector-search/types.js';
 export {
   claude3Haiku,
   claude3Opus,
@@ -87,14 +89,12 @@ export {
   textMultilingualEmbedding002,
   VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
 };
-
 interface VectorSearchIndexOption<EmbedderCustomOptions extends z.ZodTypeAny> {
   deployedIndexId: string;
   indexEndpointId: string;
-  documentRetriever: (docIds: string[]) => Promise<Document[]>;
-  documentIndexer: (docs: Document[]) => Promise<void>;
+  documentRetriever: (docIds: Neighbor[]) => Promise<Document[]>;
+  documentIndexer: (docs: Document[]) => Promise<string[]>;
   publicEndpoint: string;
-  documentIdField: string;
   indexId: string;
   embedder?: EmbedderArgument<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;

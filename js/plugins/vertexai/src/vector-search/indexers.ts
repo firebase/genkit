@@ -31,10 +31,9 @@ export function vertexIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
 
   const defaultEmbedder = params.defaultEmbedder;
 
-  // TODO remove ! after fixing the type, fix ZodTypeAny
   const indexers: IndexerAction<z.ZodTypeAny>[] = [];
   for (const vectorSearchOption of vectorSearchOptions!) {
-    const { documentIndexer, documentIdField, indexId } = vectorSearchOption;
+    const { documentIndexer, indexId } = vectorSearchOption;
     const embedder = vectorSearchOption.embedder ?? defaultEmbedder;
     const embedderOptions = vectorSearchOption.embedderOptions;
 
@@ -44,7 +43,16 @@ export function vertexIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
         configSchema: z.any(),
       },
       async (docs, options) => {
-        const ids = docs.map((doc) => doc.metadata![documentIdField!]);
+        let docIds: string[] = [];
+
+        try {
+          docIds = await documentIndexer(docs);
+        } catch (error) {
+          logger.error(
+            `Error storing your document content/metadata: ${error}`
+          );
+          throw new Error(`Error: ${error}`);
+        }
 
         const embeddings = await embedMany({
           embedder,
@@ -55,17 +63,18 @@ export function vertexIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
         const datapoints = embeddings.map(
           ({ embedding }, i) =>
             new Datapoint({
-              datapointId: ids[i],
+              datapointId: docIds[i],
               featureVector: embedding,
             })
         );
 
         try {
-          logger.info(`Attempting to upsert ${datapoints.length} datapoints`);
-          logger.info(`Project ID: ${params.pluginOptions.projectId}`);
-          logger.info(`Location: ${params.pluginOptions.location}`);
-          logger.info(`Index ID: ${indexId}`);
-
+          logger.info(
+            `Attempting to upsert ${datapoints.length} datapoints to Vertex AI, into index: ${indexId}`
+          );
+          logger.debug(`Project ID: ${params.pluginOptions.projectId}`);
+          logger.debug(`Location: ${params.pluginOptions.location}`);
+          logger.debug(`Index ID: ${indexId}`);
           await upsertDatapoints({
             datapoints,
             authClient: params.authClient,
@@ -74,10 +83,13 @@ export function vertexIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
             indexId: indexId,
           });
 
-          logger.info('Successfully indexed documents');
-          await documentIndexer(docs);
+          logger.info(
+            `Successfully indexed documents in Vertex AI index ${indexId}`
+          );
         } catch (error) {
-          logger.error(`Error during upsert: ${error}`);
+          logger.error(
+            `Error during upsert to index ${indexId}, error: ${error}`
+          );
           throw new Error(`Error: ${error}`);
         }
       }
