@@ -149,13 +149,19 @@ export const gemini15Flash = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
-export const SUPPORTED_V1_MODELS = {
+export const SUPPORTED_V1_MODELS: Record<
+  string,
+  ModelReference<typeof GeminiConfigSchema>
+> = {
   'gemini-1.0-pro': geminiPro,
   'gemini-1.0-pro-vision': geminiProVision,
   // 'gemini-ultra': geminiUltra,
 };
 
-export const SUPPORTED_V15_MODELS = {
+export const SUPPORTED_V15_MODELS: Record<
+  string,
+  ModelReference<typeof GeminiConfigSchema>
+> = {
   'gemini-1.5-pro': gemini15Pro,
   'gemini-1.5-flash': gemini15Flash,
   'gemini-1.5-pro-preview': gemini15ProPreview,
@@ -169,7 +175,7 @@ export const SUPPORTED_GEMINI_MODELS = {
 
 function toGeminiRole(
   role: MessageData['role'],
-  model?: ModelReference<z.ZodTypeAny>
+  model?: ModelReference<typeof GeminiConfigSchema>
 ): string {
   switch (role) {
     case 'user':
@@ -271,7 +277,7 @@ export function toGeminiSystemInstruction(message: MessageData): Content {
 
 export function toGeminiMessage(
   message: MessageData,
-  model?: ModelReference<z.ZodTypeAny>
+  model?: ModelReference<typeof GeminiConfigSchema>
 ): Content {
   return {
     role: toGeminiRole(message.role, model),
@@ -441,10 +447,14 @@ const convertSchemaProperty = (property) => {
 /**
  *
  */
-export function geminiModel(name: string, vertex: VertexAI): ModelAction {
+export function geminiModel(
+  name: string,
+  vertex: VertexAI
+): ModelAction<typeof GeminiConfigSchema> {
   const modelName = `vertexai/${name}`;
 
-  const model: ModelReference<z.ZodTypeAny> = SUPPORTED_GEMINI_MODELS[name];
+  const model: ModelReference<typeof GeminiConfigSchema> =
+    SUPPORTED_GEMINI_MODELS[name];
   if (!model) throw new Error(`Unsupported model: ${name}`);
 
   const middlewares: ModelMiddleware[] = [];

@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-import { ModelReference } from '@genkit-ai/ai/model';
-import { genkitPlugin, Plugin } from '@genkit-ai/core';
+import { ModelAction, ModelReference } from '@genkit-ai/ai/model';
+import { Plugin, genkitPlugin } from '@genkit-ai/core';
 import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
 import {
+  SUPPORTED_ANTHROPIC_MODELS,
   anthropicModel,
   claude3Haiku,
   claude3Opus,
   claude3Sonnet,
-  SUPPORTED_ANTHROPIC_MODELS,
 } from './anthropic.js';
 import {
   SUPPORTED_EMBEDDER_MODELS,
@@ -42,6 +42,7 @@ import {
   vertexEvaluators,
 } from './evaluation.js';
 import {
+  SUPPORTED_GEMINI_MODELS,
   gemini15Flash,
   gemini15FlashPreview,
   gemini15Pro,
@@ -49,11 +50,11 @@ import {
   geminiModel,
   geminiPro,
   geminiProVision,
-  SUPPORTED_GEMINI_MODELS,
 } from './gemini.js';
 import { imagen2, imagen2Model } from './imagen.js';
 
 export {
+  VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
   claude3Haiku,
   claude3Opus,
   claude3Sonnet,
@@ -71,7 +72,6 @@ export {
   textEmbeddingGecko003,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
-  VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
 };
 
 export interface PluginOptions {
@@ -120,7 +120,7 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
         ? options.evaluation.metrics
         : [];
 
-    const models = [
+    const models: ModelAction<any>[] = [
       imagen2Model(authClient, { projectId, location }),
       ...Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
         geminiModel(name, vertexClient)

@@ -16,6 +16,7 @@
 
 import {
   defineEmbedder,
+  EmbedderAction,
   embedderRef,
   EmbedderReference,
 } from '@genkit-ai/ai/embedder';
@@ -119,7 +120,10 @@ export const textEmbeddingGeckoMultilingual001 = embedderRef({
 
 export const textEmbeddingGecko = textEmbeddingGecko003;
 
-export const SUPPORTED_EMBEDDER_MODELS: Record<string, EmbedderReference> = {
+export const SUPPORTED_EMBEDDER_MODELS: Record<
+  string,
+  EmbedderReference<typeof TextEmbeddingGeckoConfigSchema>
+> = {
   'textembedding-gecko@003': textEmbeddingGecko003,
   'textembedding-gecko@002': textEmbeddingGecko002,
   'textembedding-gecko@001': textEmbeddingGecko001,
@@ -147,7 +151,7 @@ export function textEmbeddingGeckoEmbedder(
   name: string,
   client: GoogleAuth,
   options: PluginOptions
-) {
+): EmbedderAction<typeof TextEmbeddingGeckoConfigSchema> {
   const embedder = SUPPORTED_EMBEDDER_MODELS[name];
   // TODO: Figure out how to allow different versions while still sharing a single implementation.
   const predict = predictModel<EmbeddingInstance, EmbeddingPrediction>(

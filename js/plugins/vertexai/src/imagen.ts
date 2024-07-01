@@ -20,6 +20,7 @@ import {
   GenerateRequest,
   GenerationCommonConfigSchema,
   getBasicUsageStats,
+  ModelAction,
   modelRef,
 } from '@genkit-ai/ai/model';
 import { GoogleAuth } from 'google-auth-library';
@@ -39,7 +40,6 @@ const ImagenConfigSchema = GenerationCommonConfigSchema.extend({
   /** Any non-negative integer you provide to make output images deterministic. Providing the same seed number always results in the same output images. Accepted integer values: 1 - 2147483647. */
   seed: z.number().optional(),
 });
-type ImagenConfig = z.infer<typeof ImagenConfigSchema>;
 
 export const imagen2 = modelRef({
   name: 'vertexai/imagen2',
@@ -109,7 +109,10 @@ interface ImagenInstance {
 /**
  *
  */
-export function imagen2Model(client: GoogleAuth, options: PluginOptions) {
+export function imagen2Model(
+  client: GoogleAuth,
+  options: PluginOptions
+): ModelAction<typeof ImagenConfigSchema> {
   const predict = predictModel<
     ImagenInstance,
     ImagenPrediction,

@@ -22,6 +22,7 @@ import {
   GenerationCommonConfigSchema,
   getBasicUsageStats,
   MessageData,
+  ModelAction,
 } from '@genkit-ai/ai/model';
 import { genkitPlugin, Plugin } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
@@ -63,7 +64,7 @@ function ollamaModel(
   model: ModelDefinition,
   serverAddress: string,
   requestHeaders?: RequestHeaders
-) {
+): ModelAction<typeof GenerationCommonConfigSchema> {
   return defineModel(
     {
       name: `ollama/${model.name}`,

@@ -150,7 +150,7 @@ export const geminiUltra = modelRef({
 
 export const SUPPORTED_V1_MODELS: Record<
   string,
-  ModelReference<z.ZodTypeAny>
+  ModelReference<typeof GeminiConfigSchema>
 > = {
   'gemini-pro': geminiPro,
   'gemini-pro-vision': geminiProVision,
@@ -159,7 +159,7 @@ export const SUPPORTED_V1_MODELS: Record<
 
 export const SUPPORTED_V15_MODELS: Record<
   string,
-  ModelReference<z.ZodTypeAny>
+  ModelReference<typeof GeminiConfigSchema>
 > = {
   'gemini-1.5-pro-latest': gemini15Pro,
   'gemini-1.5-flash-latest': gemini15Flash,
@@ -172,7 +172,7 @@ const SUPPORTED_MODELS = {
 
 function toGeminiRole(
   role: MessageData['role'],
-  model?: ModelReference<z.ZodTypeAny>
+  model?: ModelReference<typeof GeminiConfigSchema>
 ): string {
   switch (role) {
     case 'user':
@@ -331,7 +331,7 @@ function fromGeminiPart(part: GeminiPart): Part {
 
 export function toGeminiMessage(
   message: MessageData,
-  model?: ModelReference<z.ZodTypeAny>
+  model?: ModelReference<typeof GeminiConfigSchema>
 ): GeminiMessage {
   return {
     role: toGeminiRole(message.role, model),
@@ -387,7 +387,7 @@ export function googleAIModel(
   apiKey?: string,
   apiVersion?: string,
   baseUrl?: string
-): ModelAction {
+): ModelAction<typeof GeminiConfigSchema> {
   const modelName = `googleai/${name}`;
 
   if (!apiKey) {
@@ -400,7 +400,8 @@ export function googleAIModel(
     );
   }
 
-  const model: ModelReference<z.ZodTypeAny> = SUPPORTED_MODELS[name];
+  const model: ModelReference<typeof GeminiConfigSchema> =
+    SUPPORTED_MODELS[name];
   if (!model) throw new Error(`Unsupported model: ${name}`);
 
   const middleware: ModelMiddleware[] = [];
