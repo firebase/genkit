@@ -232,7 +232,9 @@ async function generateSampleFile(model: ModelProvider) {
       )
       .replace(
         '$GENKIT_MODEL_IMPORT',
-        modelOption.package ? `\n\t// Import the ${modelOption.label} plugin.\n\t"${modelOption.package}"` : ''
+        modelOption.package
+          ? `\n\t// Import the ${modelOption.label} plugin.\n\t"${modelOption.package}"`
+          : ''
       )
       .replace('$GENKIT_MODEL_INIT', modelOption.init)
       .replace('$GENKIT_MODEL_LOOKUP', modelOption.lookup);
