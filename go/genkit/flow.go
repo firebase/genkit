@@ -28,8 +28,8 @@ import (
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
-	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/internal/atype"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/common"
 	"github.com/firebase/genkit/go/internal/metrics"
 	"github.com/firebase/genkit/go/internal/registry"
@@ -142,8 +142,8 @@ func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.
 	f := &Flow[In, Out, Stream]{
 		name:         name,
 		fn:           fn,
-		inputSchema:  internal.InferJSONSchema(i),
-		outputSchema: internal.InferJSONSchema(o),
+		inputSchema:  base.InferJSONSchema(i),
+		outputSchema: base.InferJSONSchema(o),
 		// TODO(jba): set stateStore?
 	}
 	metadata := map[string]any{
@@ -324,12 +324,12 @@ func (f *Flow[In, Out, Stream]) Name() string { return f.name }
 
 func (f *Flow[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMessage, cb common.StreamingCallback[json.RawMessage]) (json.RawMessage, error) {
 	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
-	if err := internal.ValidateJSON(input, f.inputSchema); err != nil {
-		return nil, &internal.HTTPError{Code: http.StatusBadRequest, Err: err}
+	if err := base.ValidateJSON(input, f.inputSchema); err != nil {
+		return nil, &base.HTTPError{Code: http.StatusBadRequest, Err: err}
 	}
 	var in In
 	if err := json.Unmarshal(input, &in); err != nil {
-		return nil, &internal.HTTPError{Code: http.StatusBadRequest, Err: err}
+		return nil, &base.HTTPError{Code: http.StatusBadRequest, Err: err}
 	}
 	// If there is a callback, wrap it to turn an S into a json.RawMessage.
 	var callback common.StreamingCallback[Stream]
@@ -407,14 +407,14 @@ func (f *Flow[In, Out, Stream]) execute(ctx context.Context, state *flowState[In
 		// TODO(jba): If input is missing, get it from state.input and overwrite metadata.input.
 		start := time.Now()
 		var err error
-		if err = internal.ValidateValue(input, f.inputSchema); err != nil {
+		if err = base.ValidateValue(input, f.inputSchema); err != nil {
 			err = fmt.Errorf("invalid input: %w", err)
 		}
 		var output Out
 		if err == nil {
 			output, err = f.fn(ctx, input, cb)
 			if err == nil {
-				if err = internal.ValidateValue(output, f.outputSchema); err != nil {
+				if err = base.ValidateValue(output, f.outputSchema); err != nil {
 					err = fmt.Errorf("invalid output: %w", err)
 				}
 			}
@@ -513,7 +513,7 @@ func (fc *flowContext[I, O]) uniqueStepName(name string) string {
 	return fmt.Sprintf("%s-%d", name, n)
 }
 
-var flowContextKey = internal.NewContextKey[flowContexter]()
+var flowContextKey = base.NewContextKey[flowContexter]()
 
 // Run runs the function f in the context of the current flow
 // and returns what f returns.
@@ -546,18 +546,18 @@ func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out,
 		if j != nil {
 			var t Out
 			if err := json.Unmarshal(j, &t); err != nil {
-				return internal.Zero[Out](), err
+				return base.Zero[Out](), err
 			}
 			tracing.SetCustomMetadataAttr(ctx, "flow:state", "cached")
 			return t, nil
 		}
 		t, err := f()
 		if err != nil {
-			return internal.Zero[Out](), err
+			return base.Zero[Out](), err
 		}
 		bytes, err := json.Marshal(t)
 		if err != nil {
-			return internal.Zero[Out](), err
+			return base.Zero[Out](), err
 		}
 		fs.CacheSet(uName, json.RawMessage(bytes))
 		tracing.SetCustomMetadataAttr(ctx, "flow:state", "run")
@@ -574,7 +574,7 @@ func (f *Flow[In, Out, Stream]) Run(ctx context.Context, input In) (Out, error) 
 func (f *Flow[In, Out, Stream]) run(ctx context.Context, input In, cb func(context.Context, Stream) error) (Out, error) {
 	state, err := f.start(ctx, input, cb)
 	if err != nil {
-		return internal.Zero[Out](), err
+		return base.Zero[Out](), err
 	}
 	return finishedOpResponse(state.Operation)
 }
@@ -624,10 +624,10 @@ var errStop = errors.New("stop")
 
 func finishedOpResponse[O any](op *operation[O]) (O, error) {
 	if !op.Done {
-		return internal.Zero[O](), fmt.Errorf("flow %s did not finish execution", op.FlowID)
+		return base.Zero[O](), fmt.Errorf("flow %s did not finish execution", op.FlowID)
 	}
 	if op.Result.err != nil {
-		return internal.Zero[O](), fmt.Errorf("flow %s: %w", op.FlowID, op.Result.err)
+		return base.Zero[O](), fmt.Errorf("flow %s: %w", op.FlowID, op.Result.err)
 	}
 	return op.Result.Response, nil
 }

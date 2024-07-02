@@ -19,7 +19,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/common"
 )
 
@@ -42,9 +42,9 @@ func (s *FileFlowStateStore) Save(ctx context.Context, id string, fs common.Flow
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(s.dir, internal.Clean(id)), data, 0666)
+	return os.WriteFile(filepath.Join(s.dir, base.Clean(id)), data, 0666)
 }
 
 func (s *FileFlowStateStore) Load(ctx context.Context, id string, pfs any) error {
-	return internal.ReadJSONFile(filepath.Join(s.dir, internal.Clean(id)), pfs)
+	return base.ReadJSONFile(filepath.Join(s.dir, base.Clean(id)), pfs)
 }

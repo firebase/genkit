@@ -20,7 +20,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/internal/base"
 )
 
 func init() {
@@ -32,7 +32,7 @@ func init() {
 	slog.SetDefault(h)
 }
 
-var loggerKey = internal.NewContextKey[*slog.Logger]()
+var loggerKey = base.NewContextKey[*slog.Logger]()
 
 // FromContext returns the Logger in ctx, or the default Logger
 // if there is none.

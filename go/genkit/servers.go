@@ -41,7 +41,7 @@ import (
 
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
-	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/common"
 	"github.com/firebase/genkit/go/internal/registry"
 	"go.opentelemetry.io/otel/trace"
@@ -161,7 +161,7 @@ func (s *devServer) handleRunAction(w http.ResponseWriter, r *http.Request) erro
 	}
 	defer r.Body.Close()
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		return &internal.HTTPError{Code: http.StatusBadRequest, Err: err}
+		return &base.HTTPError{Code: http.StatusBadRequest, Err: err}
 	}
 	stream := false
 	if s := r.FormValue("stream"); s != "" {
@@ -207,7 +207,7 @@ type telemetry struct {
 func runAction(ctx context.Context, reg *registry.Registry, key string, input json.RawMessage, cb common.StreamingCallback[json.RawMessage]) (*runActionResponse, error) {
 	action := reg.LookupAction(key)
 	if action == nil {
-		return nil, &internal.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no action with key %q", key)}
+		return nil, &base.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no action with key %q", key)}
 	}
 	var traceID string
 	output, err := tracing.RunInNewSpan(ctx, reg.TracingState(), "dev-run-action-wrapper", "", true, input, func(ctx context.Context, input json.RawMessage) (json.RawMessage, error) {
@@ -239,12 +239,12 @@ func (s *devServer) handleGetTrace(w http.ResponseWriter, r *http.Request) error
 	env := r.PathValue("env")
 	ts := s.reg.LookupTraceStore(common.Environment(env))
 	if ts == nil {
-		return &internal.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no TraceStore for environment %q", env)}
+		return &base.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no TraceStore for environment %q", env)}
 	}
 	tid := r.PathValue("traceID")
 	td, err := ts.Load(r.Context(), tid)
 	if errors.Is(err, fs.ErrNotExist) {
-		return &internal.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no %s trace with ID %q", env, tid)}
+		return &base.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no %s trace with ID %q", env, tid)}
 	}
 	if err != nil {
 		return err
@@ -257,20 +257,20 @@ func (s *devServer) handleListTraces(w http.ResponseWriter, r *http.Request) err
 	env := r.PathValue("env")
 	ts := s.reg.LookupTraceStore(common.Environment(env))
 	if ts == nil {
-		return &internal.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no TraceStore for environment %q", env)}
+		return &base.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no TraceStore for environment %q", env)}
 	}
 	limit := 0
 	if lim := r.FormValue("limit"); lim != "" {
 		var err error
 		limit, err = strconv.Atoi(lim)
 		if err != nil {
-			return &internal.HTTPError{Code: http.StatusBadRequest, Err: err}
+			return &base.HTTPError{Code: http.StatusBadRequest, Err: err}
 		}
 	}
 	ctoken := r.FormValue("continuationToken")
 	tds, ctoken, err := ts.List(r.Context(), &tracing.Query{Limit: limit, ContinuationToken: ctoken})
 	if errors.Is(err, tracing.ErrBadQuery) {
-		return &internal.HTTPError{Code: http.StatusBadRequest, Err: err}
+		return &base.HTTPError{Code: http.StatusBadRequest, Err: err}
 	}
 	if err != nil {
 		return err
@@ -339,7 +339,7 @@ func nonDurableFlowHandler(f flow) func(http.ResponseWriter, *http.Request) erro
 		}
 		if stream {
 			// TODO(jba): implement streaming.
-			return &internal.HTTPError{Code: http.StatusNotImplemented, Err: errors.New("streaming")}
+			return &base.HTTPError{Code: http.StatusNotImplemented, Err: errors.New("streaming")}
 		} else {
 			// TODO(jba): telemetry
 			out, err := f.runJSON(r.Context(), json.RawMessage(input), nil)
@@ -414,7 +414,7 @@ func handle(mux *http.ServeMux, pattern string, f func(w http.ResponseWriter, r 
 		if err != nil {
 			// If the error is an httpError, serve the status code it contains.
 			// Otherwise, assume this is an unexpected error and serve a 500.
-			var herr *internal.HTTPError
+			var herr *base.HTTPError
 			if errors.As(err, &herr) {
 				http.Error(w, herr.Error(), herr.Code)
 			} else {
@@ -430,7 +430,7 @@ func parseBoolQueryParam(r *http.Request, name string) (bool, error) {
 		var err error
 		b, err = strconv.ParseBool(s)
 		if err != nil {
-			return false, &internal.HTTPError{Code: http.StatusBadRequest, Err: err}
+			return false, &base.HTTPError{Code: http.StatusBadRequest, Err: err}
 		}
 	}
 	return b, nil

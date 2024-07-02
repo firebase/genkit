@@ -25,8 +25,8 @@ import (
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
-	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/internal/atype"
+	"github.com/firebase/genkit/go/internal/base"
 )
 
 // A Model is used to generate content from an AI model.
@@ -154,7 +154,7 @@ func validCandidate(c *Candidate, output *GenerateRequestOutput) (*Candidate, er
 		if err != nil {
 			return nil, fmt.Errorf("expected schema is not valid: %w", err)
 		}
-		if err = internal.ValidateRaw([]byte(text), schemaBytes); err != nil {
+		if err = base.ValidateRaw([]byte(text), schemaBytes); err != nil {
 			return nil, err
 		}
 		// TODO: Verify that it okay to replace all content with JSON.
