@@ -18,13 +18,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"maps"
 	"time"
 
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/internal/atype"
+	"github.com/firebase/genkit/go/internal/common"
+	"github.com/firebase/genkit/go/internal/metrics"
+	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/invopop/jsonschema"
 )
 
@@ -38,13 +40,6 @@ import (
 type Func[In, Out, Stream any] func(context.Context, In, func(context.Context, Stream) error) (Out, error)
 
 // TODO(jba): use a generic type alias for the above when they become available?
-
-// NoStream indicates that the action or flow does not support streaming.
-// A Func[I, O, NoStream] will ignore its streaming callback.
-// Such a function corresponds to a Flow[I, O, struct{}].
-type NoStream = func(context.Context, struct{}) error
-
-type streamingCallback[Stream any] func(context.Context, Stream) error
 
 // An Action is a named, observable operation.
 // It consists of a function that takes an input of type I and returns an output
@@ -69,22 +64,22 @@ type Action[In, Out, Stream any] struct {
 
 // DefineAction creates a new Action and registers it.
 func DefineAction[In, Out any](provider, name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
-	return defineAction(globalRegistry, provider, name, atype, metadata, fn)
+	return defineAction(registry.Global, provider, name, atype, metadata, fn)
 }
 
-func defineAction[In, Out any](r *registry, provider, name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
-	a := newAction(provider+"/"+name, atype, metadata, fn)
-	r.registerAction(a)
+func defineAction[In, Out any](r *registry.Registry, provider, name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
+	a := NewAction(provider+"/"+name, atype, metadata, fn)
+	r.RegisterAction(atype, a)
 	return a
 }
 
 func DefineStreamingAction[In, Out, Stream any](provider, name string, atype atype.ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
-	return defineStreamingAction(globalRegistry, provider, name, atype, metadata, fn)
+	return defineStreamingAction(registry.Global, provider, name, atype, metadata, fn)
 }
 
-func defineStreamingAction[In, Out, Stream any](r *registry, provider, name string, atype atype.ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
-	a := newStreamingAction(provider+"/"+name, atype, metadata, fn)
-	r.registerAction(a)
+func defineStreamingAction[In, Out, Stream any](r *registry.Registry, provider, name string, atype atype.ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
+	a := NewStreamingAction(provider+"/"+name, atype, metadata, fn)
+	r.RegisterAction(atype, a)
 	return a
 }
 
@@ -103,11 +98,11 @@ func DefineActionWithInputSchema[Out any](
 	inputSchema *jsonschema.Schema,
 	fn func(context.Context, any) (Out, error),
 ) *Action[any, Out, struct{}] {
-	return defineActionWithInputSchema(globalRegistry, provider, name, atype, metadata, inputSchema, fn)
+	return defineActionWithInputSchema(registry.Global, provider, name, atype, metadata, inputSchema, fn)
 }
 
 func defineActionWithInputSchema[Out any](
-	r *registry,
+	r *registry.Registry,
 	provider, name string,
 	atype atype.ActionType,
 	metadata map[string]any,
@@ -115,19 +110,21 @@ func defineActionWithInputSchema[Out any](
 	fn func(context.Context, any) (Out, error),
 ) *Action[any, Out, struct{}] {
 	a := newActionWithInputSchema(provider+"/"+name, atype, metadata, fn, inputSchema)
-	r.registerAction(a)
+	r.RegisterAction(atype, a)
 	return a
 }
 
-// newAction creates a new Action with the given name and non-streaming function.
-func newAction[In, Out any](name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
-	return newStreamingAction(name, atype, metadata, func(ctx context.Context, in In, cb NoStream) (Out, error) {
+type noStream = func(context.Context, struct{}) error
+
+// NewAction creates a new Action with the given name and non-streaming function.
+func NewAction[In, Out any](name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
+	return NewStreamingAction(name, atype, metadata, func(ctx context.Context, in In, cb noStream) (Out, error) {
 		return fn(ctx, in)
 	})
 }
 
-// newStreamingAction creates a new Action with the given name and streaming function.
-func newStreamingAction[In, Out, Stream any](name string, atype atype.ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
+// NewStreamingAction creates a new Action with the given name and streaming function.
+func NewStreamingAction[In, Out, Stream any](name string, atype atype.ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
 	var i In
 	var o Out
 	return &Action[In, Out, Stream]{
@@ -137,8 +134,8 @@ func newStreamingAction[In, Out, Stream any](name string, atype atype.ActionType
 			tracing.SetCustomMetadataAttr(ctx, "subtype", string(atype))
 			return fn(ctx, input, sc)
 		},
-		inputSchema:  inferJSONSchema(i),
-		outputSchema: inferJSONSchema(o),
+		inputSchema:  internal.InferJSONSchema(i),
+		outputSchema: internal.InferJSONSchema(o),
 		metadata:     metadata,
 	}
 }
@@ -153,7 +150,7 @@ func newActionWithInputSchema[Out any](name string, atype atype.ActionType, meta
 			return fn(ctx, input)
 		},
 		inputSchema:  inputSchema,
-		outputSchema: inferJSONSchema(o),
+		outputSchema: internal.InferJSONSchema(o),
 		metadata:     metadata,
 	}
 }
@@ -161,10 +158,8 @@ func newActionWithInputSchema[Out any](name string, atype atype.ActionType, meta
 // Name returns the Action's Name.
 func (a *Action[In, Out, Stream]) Name() string { return a.name }
 
-func (a *Action[In, Out, Stream]) actionType() atype.ActionType { return a.atype }
-
 // setTracingState sets the action's tracing.State.
-func (a *Action[In, Out, Stream]) setTracingState(tstate *tracing.State) { a.tstate = tstate }
+func (a *Action[In, Out, Stream]) SetTracingState(tstate *tracing.State) { a.tstate = tstate }
 
 // Run executes the Action's function in a new trace span.
 func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(context.Context, Stream) error) (output Out, err error) {
@@ -180,37 +175,38 @@ func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(con
 	tstate := a.tstate
 	if tstate == nil {
 		// This action has probably not been registered.
-		tstate = globalRegistry.tstate
+		tstate = registry.Global.TracingState()
 	}
 	return tracing.RunInNewSpan(ctx, tstate, a.name, "action", false, input,
 		func(ctx context.Context, input In) (Out, error) {
 			start := time.Now()
 			var err error
-			if err = validateValue(input, a.inputSchema); err != nil {
+			if err = internal.ValidateValue(input, a.inputSchema); err != nil {
 				err = fmt.Errorf("invalid input: %w", err)
 			}
 			var output Out
 			if err == nil {
 				output, err = a.fn(ctx, input, cb)
 				if err == nil {
-					if err = validateValue(output, a.outputSchema); err != nil {
+					if err = internal.ValidateValue(output, a.outputSchema); err != nil {
 						err = fmt.Errorf("invalid output: %w", err)
 					}
 				}
 			}
 			latency := time.Since(start)
 			if err != nil {
-				writeActionFailure(ctx, a.name, latency, err)
+				metrics.WriteActionFailure(ctx, a.name, latency, err)
 				return internal.Zero[Out](), err
 			}
-			writeActionSuccess(ctx, a.name, latency)
+			metrics.WriteActionSuccess(ctx, a.name, latency)
 			return output, nil
 		})
 }
 
-func (a *Action[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error) {
+// RunJSON runs the action with a JSON input, and returns a JSON result.
+func (a *Action[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error) {
 	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
-	if err := validateJSON(input, a.inputSchema); err != nil {
+	if err := internal.ValidateJSON(input, a.inputSchema); err != nil {
 		return nil, err
 	}
 	var in In
@@ -238,44 +234,9 @@ func (a *Action[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMes
 	return json.RawMessage(bytes), nil
 }
 
-// action is the type that all Action[I, O, S] have in common.
-type action interface {
-	Name() string
-	actionType() atype.ActionType
-
-	// runJSON uses encoding/json to unmarshal the input,
-	// calls Action.Run, then returns the marshaled result.
-	runJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error)
-
-	// desc returns a description of the action.
-	// It should set all fields of actionDesc except Key, which
-	// the registry will set.
-	desc() actionDesc
-
-	// setTracingState set's the action's tracing.State.
-	setTracingState(*tracing.State)
-}
-
-// An actionDesc is a description of an Action.
-// It is used to provide a list of registered actions.
-type actionDesc struct {
-	Key          string             `json:"key"` // full key from the registry
-	Name         string             `json:"name"`
-	Description  string             `json:"description"`
-	Metadata     map[string]any     `json:"metadata"`
-	InputSchema  *jsonschema.Schema `json:"inputSchema"`
-	OutputSchema *jsonschema.Schema `json:"outputSchema"`
-}
-
-func (d1 actionDesc) equal(d2 actionDesc) bool {
-	return d1.Key == d2.Key &&
-		d1.Name == d2.Name &&
-		d1.Description == d2.Description &&
-		maps.Equal(d1.Metadata, d2.Metadata)
-}
-
-func (a *Action[I, O, S]) desc() actionDesc {
-	ad := actionDesc{
+// Desc returns a description of the action.
+func (a *Action[I, O, S]) Desc() common.ActionDesc {
+	ad := common.ActionDesc{
 		Name:         a.name,
 		Description:  a.description,
 		Metadata:     a.metadata,
@@ -292,12 +253,14 @@ func (a *Action[I, O, S]) desc() actionDesc {
 	return ad
 }
 
-func inferJSONSchema(x any) (s *jsonschema.Schema) {
-	r := jsonschema.Reflector{
-		DoNotReference: true,
+// LookupActionFor returns the action for the given key in the global registry,
+// or nil if there is none.
+// It panics if the action is of the wrong type.
+func LookupActionFor[In, Out, Stream any](typ atype.ActionType, provider, name string) *Action[In, Out, Stream] {
+	key := fmt.Sprintf("/%s/%s/%s", typ, provider, name)
+	a := registry.Global.LookupAction(key)
+	if a == nil {
+		return nil
 	}
-	s = r.Reflect(x)
-	// TODO: Unwind this change once Monaco Editor supports newer than JSON schema draft-07.
-	s.Version = ""
-	return s
+	return a.(*Action[In, Out, Stream])
 }

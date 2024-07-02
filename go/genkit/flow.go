@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package core
+package genkit
 
 import (
 	"context"
@@ -24,10 +24,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/internal/atype"
+	"github.com/firebase/genkit/go/internal/common"
+	"github.com/firebase/genkit/go/internal/metrics"
+	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/uuid"
 	"github.com/invopop/jsonschema"
 	otrace "go.opentelemetry.io/otel/trace"
@@ -81,8 +85,6 @@ import (
 // the flow invokes a callback repeatedly. When streaming is complete, the flow
 // returns a final result in the usual way.
 //
-// A flow that doesn't support streaming can use [NoStream] as its third type parameter.
-//
 // Streaming is only supported for the "start" flow instruction. Currently there is
 // no way to schedule or resume a flow with streaming.
 
@@ -90,39 +92,63 @@ import (
 // A Flow[In, Out, Stream] represents a function from In to Out. The Stream parameter is for
 // flows that support streaming: providing their results incrementally.
 type Flow[In, Out, Stream any] struct {
-	name         string                // The last component of the flow's key in the registry.
-	fn           Func[In, Out, Stream] // The function to run.
-	stateStore   FlowStateStore        // Where FlowStates are stored, to support resumption.
-	tstate       *tracing.State        // set from the action when the flow is defined
-	inputSchema  *jsonschema.Schema    // Schema of the input to the flow
-	outputSchema *jsonschema.Schema    // Schema of the output out of the flow
+	name         string                     // The last component of the flow's key in the registry.
+	fn           core.Func[In, Out, Stream] // The function to run.
+	stateStore   core.FlowStateStore        // Where FlowStates are stored, to support resumption.
+	tstate       *tracing.State             // set from the action when the flow is defined
+	inputSchema  *jsonschema.Schema         // Schema of the input to the flow
+	outputSchema *jsonschema.Schema         // Schema of the output out of the flow
 	// TODO(jba): scheduler
 	// TODO(jba): experimentalDurable
 	// TODO(jba): authPolicy
 	// TODO(jba): middleware
 }
 
-// InternalDefineFlow is for use by genkit.DefineFlow exclusively.
-// It is not subject to any backwards compatibility guarantees.
-func InternalDefineFlow[In, Out, Stream any](name string, fn Func[In, Out, Stream]) *Flow[In, Out, Stream] {
-	return defineFlow(globalRegistry, name, fn)
+type noStream = func(context.Context, struct{}) error
+
+// DefineFlow creates a Flow that runs fn, and registers it as an action.
+//
+// fn takes an input of type In and returns an output of type Out.
+func DefineFlow[In, Out any](
+	name string,
+	fn func(ctx context.Context, input In) (Out, error),
+) *Flow[In, Out, struct{}] {
+	return defineFlow(registry.Global, name, core.Func[In, Out, struct{}](
+		func(ctx context.Context, input In, cb func(ctx context.Context, _ struct{}) error) (Out, error) {
+			return fn(ctx, input)
+		}))
 }
 
-func defineFlow[In, Out, Stream any](r *registry, name string, fn Func[In, Out, Stream]) *Flow[In, Out, Stream] {
+// DefineStreamingFlow creates a streaming Flow that runs fn, and registers it as an action.
+//
+// fn takes an input of type In and returns an output of type Out, optionally
+// streaming values of type Stream incrementally by invoking a callback.
+//
+// If the function supports streaming and the callback is non-nil, it should
+// stream the results by invoking the callback periodically, ultimately returning
+// with a final return value that includes all the streamed data.
+// Otherwise, it should ignore the callback and just return a result.
+func DefineStreamingFlow[In, Out, Stream any](
+	name string,
+	fn func(ctx context.Context, input In, callback func(context.Context, Stream) error) (Out, error),
+) *Flow[In, Out, Stream] {
+	return defineFlow(registry.Global, name, core.Func[In, Out, Stream](fn))
+}
+
+func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.Func[In, Out, Stream]) *Flow[In, Out, Stream] {
 	var i In
 	var o Out
 	f := &Flow[In, Out, Stream]{
 		name:         name,
 		fn:           fn,
-		inputSchema:  inferJSONSchema(i),
-		outputSchema: inferJSONSchema(o),
+		inputSchema:  internal.InferJSONSchema(i),
+		outputSchema: internal.InferJSONSchema(o),
 		// TODO(jba): set stateStore?
 	}
 	a := f.action()
-	r.registerAction(a)
-	// TODO(jba): this is a roundabout way to transmit the tracing state. Is there a cleaner way?
-	f.tstate = a.tstate
-	r.registerFlow(f)
+	r.RegisterAction(atype.Flow, a)
+	f.tstate = r.TracingState()
+	r.RegisterFlow(f)
 	return f
 }
 
@@ -205,19 +231,11 @@ func newFlowState[In, Out any](id, name string, input In) *flowState[In, Out] {
 	}
 }
 
-// flowStater is the common type of all flowState[I, O] types.
-type flowStater interface {
-	isFlowState()
-	lock()
-	unlock()
-	cache() map[string]json.RawMessage
-}
-
-// isFlowState implements flowStater.
-func (fs *flowState[In, Out]) isFlowState()                      {}
-func (fs *flowState[In, Out]) lock()                             { fs.mu.Lock() }
-func (fs *flowState[In, Out]) unlock()                           { fs.mu.Unlock() }
-func (fs *flowState[In, Out]) cache() map[string]json.RawMessage { return fs.Cache }
+// flowState implements common.FlowStater.
+func (fs *flowState[In, Out]) IsFlowState()                         {}
+func (fs *flowState[In, Out]) Lock()                                { fs.mu.Lock() }
+func (fs *flowState[In, Out]) Unlock()                              { fs.mu.Unlock() }
+func (fs *flowState[In, Out]) GetCache() map[string]json.RawMessage { return fs.Cache }
 
 // An operation describes the state of a Flow that may still be in progress.
 type operation[Out any] struct {
@@ -251,21 +269,21 @@ type FlowResult[Out any] struct {
 // FlowResult is called FlowResponse in the javascript.
 
 // action creates an action for the flow. See the comment at the top of this file for more information.
-func (f *Flow[In, Out, Stream]) action() *Action[*flowInstruction[In], *flowState[In, Out], Stream] {
+func (f *Flow[In, Out, Stream]) action() *core.Action[*flowInstruction[In], *flowState[In, Out], Stream] {
 	metadata := map[string]any{
 		"inputSchema":  f.inputSchema,
 		"outputSchema": f.outputSchema,
 	}
 	cback := func(ctx context.Context, inst *flowInstruction[In], cb func(context.Context, Stream) error) (*flowState[In, Out], error) {
 		tracing.SetCustomMetadataAttr(ctx, "flow:wrapperAction", "true")
-		return f.runInstruction(ctx, inst, streamingCallback[Stream](cb))
+		return f.runInstruction(ctx, inst, common.StreamingCallback[Stream](cb))
 	}
-	return newStreamingAction(f.name, atype.Flow, metadata, cback)
+	return core.NewStreamingAction(f.name, atype.Flow, metadata, cback)
 }
 
 // runInstruction performs one of several actions on a flow, as determined by msg.
 // (Called runEnvelope in the js.)
-func (f *Flow[In, Out, Stream]) runInstruction(ctx context.Context, inst *flowInstruction[In], cb streamingCallback[Stream]) (*flowState[In, Out], error) {
+func (f *Flow[In, Out, Stream]) runInstruction(ctx context.Context, inst *flowInstruction[In], cb common.StreamingCallback[Stream]) (*flowState[In, Out], error) {
 	switch {
 	case inst.Start != nil:
 		// TODO(jba): pass msg.Start.Labels.
@@ -285,28 +303,22 @@ func (f *Flow[In, Out, Stream]) runInstruction(ctx context.Context, inst *flowIn
 	}
 }
 
-// flow is the type that all Flow[In, Out, Stream] have in common.
-type flow interface {
-	Name() string
+// The following methods make Flow[I, O, S] implement the flow interface, define in servers.go.
 
-	// runJSON uses encoding/json to unmarshal the input,
-	// calls Flow.start, then returns the marshaled result.
-	runJSON(ctx context.Context, input json.RawMessage, cb streamingCallback[json.RawMessage]) (json.RawMessage, error)
-}
-
+// Name returns the name that the flow was defined with.
 func (f *Flow[In, Out, Stream]) Name() string { return f.name }
 
-func (f *Flow[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMessage, cb streamingCallback[json.RawMessage]) (json.RawMessage, error) {
+func (f *Flow[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMessage, cb common.StreamingCallback[json.RawMessage]) (json.RawMessage, error) {
 	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
-	if err := validateJSON(input, f.inputSchema); err != nil {
-		return nil, &httpError{http.StatusBadRequest, err}
+	if err := internal.ValidateJSON(input, f.inputSchema); err != nil {
+		return nil, &internal.HTTPError{Code: http.StatusBadRequest, Err: err}
 	}
 	var in In
 	if err := json.Unmarshal(input, &in); err != nil {
-		return nil, &httpError{http.StatusBadRequest, err}
+		return nil, &internal.HTTPError{Code: http.StatusBadRequest, Err: err}
 	}
 	// If there is a callback, wrap it to turn an S into a json.RawMessage.
-	var callback streamingCallback[Stream]
+	var callback common.StreamingCallback[Stream]
 	if cb != nil {
 		callback = func(ctx context.Context, s Stream) error {
 			bytes, err := json.Marshal(s)
@@ -334,7 +346,7 @@ func (f *Flow[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMessa
 }
 
 // start starts executing the flow with the given input.
-func (f *Flow[In, Out, Stream]) start(ctx context.Context, input In, cb streamingCallback[Stream]) (_ *flowState[In, Out], err error) {
+func (f *Flow[In, Out, Stream]) start(ctx context.Context, input In, cb common.StreamingCallback[Stream]) (_ *flowState[In, Out], err error) {
 	flowID, err := generateFlowID()
 	if err != nil {
 		return nil, err
@@ -351,7 +363,7 @@ func (f *Flow[In, Out, Stream]) start(ctx context.Context, input In, cb streamin
 //
 // This function corresponds to Flow.executeSteps in the js, but does more:
 // it creates the flowContext and saves the state.
-func (f *Flow[In, Out, Stream]) execute(ctx context.Context, state *flowState[In, Out], dispatchType string, cb streamingCallback[Stream]) {
+func (f *Flow[In, Out, Stream]) execute(ctx context.Context, state *flowState[In, Out], dispatchType string, cb common.StreamingCallback[Stream]) {
 	fctx := newFlowContext(state, f.stateStore, f.tstate)
 	defer func() {
 		if err := fctx.finish(ctx); err != nil {
@@ -381,14 +393,14 @@ func (f *Flow[In, Out, Stream]) execute(ctx context.Context, state *flowState[In
 		// TODO(jba): If input is missing, get it from state.input and overwrite metadata.input.
 		start := time.Now()
 		var err error
-		if err = validateValue(input, f.inputSchema); err != nil {
+		if err = internal.ValidateValue(input, f.inputSchema); err != nil {
 			err = fmt.Errorf("invalid input: %w", err)
 		}
 		var output Out
 		if err == nil {
 			output, err = f.fn(ctx, input, cb)
 			if err == nil {
-				if err = validateValue(output, f.outputSchema); err != nil {
+				if err = internal.ValidateValue(output, f.outputSchema); err != nil {
 					err = fmt.Errorf("invalid output: %w", err)
 				}
 			}
@@ -400,11 +412,11 @@ func (f *Flow[In, Out, Stream]) execute(ctx context.Context, state *flowState[In
 				"path", tracing.SpanPath(ctx),
 				"err", err.Error(),
 			)
-			writeFlowFailure(ctx, f.name, latency, err)
+			metrics.WriteFlowFailure(ctx, f.name, latency, err)
 			tracing.SetCustomMetadataAttr(ctx, "flow:state", "error")
 		} else {
 			logger.FromContext(ctx).Info("flow succeeded", "path", tracing.SpanPath(ctx))
-			writeFlowSuccess(ctx, f.name, latency)
+			metrics.WriteFlowSuccess(ctx, f.name, latency)
 			tracing.SetCustomMetadataAttr(ctx, "flow:state", "done")
 
 		}
@@ -441,7 +453,7 @@ func generateFlowID() (string, error) {
 // in a context.Context so it can be accessed from within the currrently active flow.
 type flowContext[I, O any] struct {
 	state      *flowState[I, O]
-	stateStore FlowStateStore
+	stateStore core.FlowStateStore
 	tstate     *tracing.State
 	mu         sync.Mutex
 	seenSteps  map[string]int // number of times each name appears, to avoid duplicate names
@@ -451,11 +463,11 @@ type flowContext[I, O any] struct {
 // flowContexter is the type of all flowContext[I, O].
 type flowContexter interface {
 	uniqueStepName(string) string
-	stater() flowStater
+	stater() common.FlowStater
 	tracingState() *tracing.State
 }
 
-func newFlowContext[I, O any](state *flowState[I, O], store FlowStateStore, tstate *tracing.State) *flowContext[I, O] {
+func newFlowContext[I, O any](state *flowState[I, O], store core.FlowStateStore, tstate *tracing.State) *flowContext[I, O] {
 	return &flowContext[I, O]{
 		state:      state,
 		stateStore: store,
@@ -463,7 +475,7 @@ func newFlowContext[I, O any](state *flowState[I, O], store FlowStateStore, tsta
 		seenSteps:  map[string]int{},
 	}
 }
-func (fc *flowContext[I, O]) stater() flowStater           { return fc.state }
+func (fc *flowContext[I, O]) stater() common.FlowStater    { return fc.state }
 func (fc *flowContext[I, O]) tracingState() *tracing.State { return fc.tstate }
 
 // finish is called at the end of a flow execution.
@@ -489,9 +501,14 @@ func (fc *flowContext[I, O]) uniqueStepName(name string) string {
 
 var flowContextKey = internal.NewContextKey[flowContexter]()
 
-// InternalRun is for use by genkit.Run exclusively.
-// It is not subject to any backwards compatibility guarantees.
-func InternalRun[Out any](ctx context.Context, name string, f func() (Out, error)) (Out, error) {
+// Run runs the function f in the context of the current flow
+// and returns what f returns.
+// It returns an error if no flow is active.
+//
+// Each call to Run results in a new step in the flow.
+// A step has its own span in the trace, and its result is cached so that if the flow
+// is restarted, f will not be called a second time.
+func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out, error) {
 	// from js/flow/src/steps.ts
 	fc := flowContextKey.FromContext(ctx)
 	if fc == nil {
@@ -511,9 +528,9 @@ func InternalRun[Out any](ctx context.Context, name string, f func() (Out, error
 		// happen because every step has a unique cache key.
 		// TODO(jba): don't memoize a nested flow (see context.ts)
 		fs := fc.stater()
-		fs.lock()
-		j, ok := fs.cache()[uName]
-		fs.unlock()
+		fs.Lock()
+		j, ok := fs.GetCache()[uName]
+		fs.Unlock()
 		if ok {
 			var t Out
 			if err := json.Unmarshal(j, &t); err != nil {
@@ -530,9 +547,9 @@ func InternalRun[Out any](ctx context.Context, name string, f func() (Out, error
 		if err != nil {
 			return internal.Zero[Out](), err
 		}
-		fs.lock()
-		fs.cache()[uName] = json.RawMessage(bytes)
-		fs.unlock()
+		fs.Lock()
+		fs.GetCache()[uName] = json.RawMessage(bytes)
+		fs.Unlock()
 		tracing.SetCustomMetadataAttr(ctx, "flow:state", "run")
 		return t, nil
 	})

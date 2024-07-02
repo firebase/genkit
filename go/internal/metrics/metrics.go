@@ -12,14 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package core
+package metrics
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 	"time"
 
-	"github.com/firebase/genkit/go/core/logger"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -38,7 +38,7 @@ var fetchInstruments = sync.OnceValue(func() *metricInstruments {
 	insts, err := initInstruments()
 	if err != nil {
 		// Do not stop the program because we can't collect metrics.
-		logger.FromContext(context.Background()).Error("metric initialization failed; no metrics will be collected", "err", err)
+		slog.Default().Error("metric initialization failed; no metrics will be collected", "err", err)
 		return nil
 	}
 	return insts
@@ -67,13 +67,13 @@ func initInstruments() (*metricInstruments, error) {
 	return insts, nil
 }
 
-func writeActionSuccess(ctx context.Context, actionName string, latency time.Duration) {
+func WriteActionSuccess(ctx context.Context, actionName string, latency time.Duration) {
 	recordAction(ctx, latency,
 		attribute.String("name", actionName),
 		attribute.String("source", "go"))
 }
 
-func writeActionFailure(ctx context.Context, actionName string, latency time.Duration, err error) {
+func WriteActionFailure(ctx context.Context, actionName string, latency time.Duration, err error) {
 	recordAction(ctx, latency, attribute.String("name", actionName),
 		attribute.Int("errorCode", errorCode(err)),
 		// TODO(jba): Mitigate against high-cardinality dimensions that arise from
@@ -97,13 +97,13 @@ func recordAction(ctx context.Context, latency time.Duration, attrs ...attribute
 	}
 }
 
-func writeFlowSuccess(ctx context.Context, flowName string, latency time.Duration) {
+func WriteFlowSuccess(ctx context.Context, flowName string, latency time.Duration) {
 	recordFlow(ctx, latency,
 		attribute.String("name", flowName),
 		attribute.String("source", "go"))
 }
 
-func writeFlowFailure(ctx context.Context, flowName string, latency time.Duration, err error) {
+func WriteFlowFailure(ctx context.Context, flowName string, latency time.Duration, err error) {
 	recordAction(ctx, latency, attribute.String("name", flowName),
 		attribute.Int("errorCode", errorCode(err)),
 		// TODO(jba): Mitigate against high-cardinality dimensions that arise from

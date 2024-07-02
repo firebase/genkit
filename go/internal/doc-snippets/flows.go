@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/genkit"
 )
 
@@ -105,7 +104,7 @@ func f3() {
 	menuSuggestionFlow.Stream(
 		context.Background(),
 		"French",
-	)(func(sfv *core.StreamFlowValue[OutputType, StreamType], err error) bool {
+	)(func(sfv *genkit.StreamFlowValue[OutputType, StreamType], err error) bool {
 		if !sfv.Done {
 			fmt.Print(sfv.Output)
 			return true
