@@ -146,8 +146,15 @@ func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.
 		outputSchema: internal.InferJSONSchema(o),
 		// TODO(jba): set stateStore?
 	}
-	a := f.action()
-	r.RegisterAction(atype.Flow, a)
+	metadata := map[string]any{
+		"inputSchema":  f.inputSchema,
+		"outputSchema": f.outputSchema,
+	}
+	afunc := func(ctx context.Context, inst *flowInstruction[In], cb func(context.Context, Stream) error) (*flowState[In, Out], error) {
+		tracing.SetCustomMetadataAttr(ctx, "flow:wrapperAction", "true")
+		return f.runInstruction(ctx, inst, common.StreamingCallback[Stream](cb))
+	}
+	core.DefineActionInRegistry(r, "", f.name, atype.Flow, metadata, nil, afunc)
 	f.tstate = r.TracingState()
 	r.RegisterFlow(f)
 	return f
@@ -287,19 +294,6 @@ type FlowResult[Out any] struct {
 }
 
 // FlowResult is called FlowResponse in the javascript.
-
-// action creates an action for the flow. See the comment at the top of this file for more information.
-func (f *Flow[In, Out, Stream]) action() *core.Action[*flowInstruction[In], *flowState[In, Out], Stream] {
-	metadata := map[string]any{
-		"inputSchema":  f.inputSchema,
-		"outputSchema": f.outputSchema,
-	}
-	cback := func(ctx context.Context, inst *flowInstruction[In], cb func(context.Context, Stream) error) (*flowState[In, Out], error) {
-		tracing.SetCustomMetadataAttr(ctx, "flow:wrapperAction", "true")
-		return f.runInstruction(ctx, inst, common.StreamingCallback[Stream](cb))
-	}
-	return core.NewStreamingAction(f.name, atype.Flow, metadata, cback)
-}
 
 // runInstruction performs one of several actions on a flow, as determined by msg.
 // (Called runEnvelope in the js.)
