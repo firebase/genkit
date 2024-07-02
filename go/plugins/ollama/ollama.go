@@ -335,7 +335,7 @@ func translateGenerateResponse(responseData []byte) (*ai.GenerateResponse, error
 	aiCandidate := &ai.Candidate{
 		FinishReason: ai.FinishReason("stop"),
 		Message: &ai.Message{
-			Role: ai.RoleUser,
+			Role: ai.RoleModel,
 		},
 	}
 	aiPart := ai.NewTextPart(response.Response)
