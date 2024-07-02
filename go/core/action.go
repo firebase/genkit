@@ -60,29 +60,34 @@ type Action[In, Out, Stream any] struct {
 	metadata    map[string]any
 }
 
+type noStream = func(context.Context, struct{}) error
+
 // See js/core/src/action.ts
 
-// DefineAction creates a new Action and registers it.
-func DefineAction[In, Out any](provider, name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
-	return defineAction(registry.Global, provider, name, atype, metadata, fn)
+// DefineAction creates a new non-streaming Action and registers it.
+func DefineAction[In, Out any](
+	provider, name string,
+	atype atype.ActionType,
+	metadata map[string]any,
+	fn func(context.Context, In) (Out, error),
+) *Action[In, Out, struct{}] {
+	return DefineActionInRegistry(registry.Global, provider, name, atype, metadata, nil,
+		func(ctx context.Context, in In, _ noStream) (Out, error) {
+			return fn(ctx, in)
+		})
 }
 
-func defineAction[In, Out any](r *registry.Registry, provider, name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
-	a := NewAction(provider+"/"+name, atype, metadata, fn)
-	r.RegisterAction(atype, a)
-	return a
+// DefineStreamingAction creates a new streaming action and registers it.
+func DefineStreamingAction[In, Out, Stream any](
+	provider, name string,
+	atype atype.ActionType,
+	metadata map[string]any,
+	fn Func[In, Out, Stream],
+) *Action[In, Out, Stream] {
+	return DefineActionInRegistry(registry.Global, provider, name, atype, metadata, nil, fn)
 }
 
-func DefineStreamingAction[In, Out, Stream any](provider, name string, atype atype.ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
-	return defineStreamingAction(registry.Global, provider, name, atype, metadata, fn)
-}
-
-func defineStreamingAction[In, Out, Stream any](r *registry.Registry, provider, name string, atype atype.ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
-	a := NewStreamingAction(provider+"/"+name, atype, metadata, fn)
-	r.RegisterAction(atype, a)
-	return a
-}
-
+// DefineCustomAction defines a streaming action with type Custom.
 func DefineCustomAction[In, Out, Stream any](provider, name string, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
 	return DefineStreamingAction(provider, name, atype.Custom, metadata, fn)
 }
@@ -98,56 +103,51 @@ func DefineActionWithInputSchema[Out any](
 	inputSchema *jsonschema.Schema,
 	fn func(context.Context, any) (Out, error),
 ) *Action[any, Out, struct{}] {
-	return defineActionWithInputSchema(registry.Global, provider, name, atype, metadata, inputSchema, fn)
+	return DefineActionInRegistry(registry.Global, provider, name, atype, metadata, inputSchema,
+		func(ctx context.Context, in any, _ noStream) (Out, error) {
+			return fn(ctx, in)
+		})
 }
 
-func defineActionWithInputSchema[Out any](
+// DefineActionInRegistry creates an action and registers it with the given Registry.
+// For use by the Genkit module only.
+func DefineActionInRegistry[In, Out, Stream any](
 	r *registry.Registry,
 	provider, name string,
 	atype atype.ActionType,
 	metadata map[string]any,
 	inputSchema *jsonschema.Schema,
-	fn func(context.Context, any) (Out, error),
-) *Action[any, Out, struct{}] {
-	a := newActionWithInputSchema(provider+"/"+name, atype, metadata, fn, inputSchema)
+	fn Func[In, Out, Stream],
+) *Action[In, Out, Stream] {
+	fullName := name
+	if provider != "" {
+		fullName = provider + "/" + name
+	}
+	a := newAction(fullName, atype, metadata, inputSchema, fn)
 	r.RegisterAction(atype, a)
 	return a
 }
 
-type noStream = func(context.Context, struct{}) error
-
-// NewAction creates a new Action with the given name and non-streaming function.
-func NewAction[In, Out any](name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, In) (Out, error)) *Action[In, Out, struct{}] {
-	return NewStreamingAction(name, atype, metadata, func(ctx context.Context, in In, cb noStream) (Out, error) {
-		return fn(ctx, in)
-	})
-}
-
-// NewStreamingAction creates a new Action with the given name and streaming function.
-func NewStreamingAction[In, Out, Stream any](name string, atype atype.ActionType, metadata map[string]any, fn Func[In, Out, Stream]) *Action[In, Out, Stream] {
+// newAction creates a new Action with the given name and arguments.
+// If inputSchema is nil, it is inferred from In.
+func newAction[In, Out, Stream any](
+	name string,
+	atype atype.ActionType,
+	metadata map[string]any,
+	inputSchema *jsonschema.Schema,
+	fn Func[In, Out, Stream],
+) *Action[In, Out, Stream] {
 	var i In
 	var o Out
+	if inputSchema == nil {
+		inputSchema = internal.InferJSONSchema(i)
+	}
 	return &Action[In, Out, Stream]{
 		name:  name,
 		atype: atype,
 		fn: func(ctx context.Context, input In, sc func(context.Context, Stream) error) (Out, error) {
 			tracing.SetCustomMetadataAttr(ctx, "subtype", string(atype))
 			return fn(ctx, input, sc)
-		},
-		inputSchema:  internal.InferJSONSchema(i),
-		outputSchema: internal.InferJSONSchema(o),
-		metadata:     metadata,
-	}
-}
-
-func newActionWithInputSchema[Out any](name string, atype atype.ActionType, metadata map[string]any, fn func(context.Context, any) (Out, error), inputSchema *jsonschema.Schema) *Action[any, Out, struct{}] {
-	var o Out
-	return &Action[any, Out, struct{}]{
-		name:  name,
-		atype: atype,
-		fn: func(ctx context.Context, input any, sc func(context.Context, struct{}) error) (Out, error) {
-			tracing.SetCustomMetadataAttr(ctx, "subtype", string(atype))
-			return fn(ctx, input)
 		},
 		inputSchema:  inputSchema,
 		outputSchema: internal.InferJSONSchema(o),

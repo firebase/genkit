@@ -33,11 +33,11 @@ import (
 	"github.com/invopop/jsonschema"
 )
 
-func inc(_ context.Context, x int) (int, error) {
+func inc(_ context.Context, x int, _ noStream) (int, error) {
 	return x + 1, nil
 }
 
-func dec(_ context.Context, x int) (int, error) {
+func dec(_ context.Context, x int, _ noStream) (int, error) {
 	return x - 1, nil
 }
 
@@ -46,12 +46,12 @@ func TestDevServer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	r.RegisterAction(atype.Custom, core.NewAction("devServer/inc", atype.Custom, map[string]any{
+	core.DefineActionInRegistry(r, "devServer", "inc", atype.Custom, map[string]any{
 		"foo": "bar",
-	}, inc))
-	r.RegisterAction(atype.Custom, core.NewAction("devServer/dec", atype.Custom, map[string]any{
+	}, nil, inc)
+	core.DefineActionInRegistry(r, "devServer", "dec", atype.Custom, map[string]any{
 		"bar": "baz",
-	}, dec))
+	}, nil, dec)
 	srv := httptest.NewServer(newDevServeMux(r))
 	defer srv.Close()
 
