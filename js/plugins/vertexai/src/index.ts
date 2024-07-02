@@ -66,15 +66,22 @@ import {
   SUPPORTED_OPENAI_FORMAT_MODELS,
 } from './model_garden.js';
 
+import {
+  Neighbor,
+  VVSIndexerOptionsSchema,
+  VVSRetrieverOptionsSchema,
+} from './vector-search';
+import { vertexIndexers } from './vector-search/indexers.js';
+import { vertexRetrievers } from './vector-search/retrievers.js';
 export {
   vertexAiIndexerRef,
   vertexAiRetrieverRef,
   vertexIndexers,
   vertexRetrievers,
 } from './vector-search/index.js';
-export { Neighbor } from './vector-search/types.js';
 export {
   claude35Sonnet,
+  VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
   claude3Haiku,
   claude3Opus,
   claude3Sonnet,
@@ -93,17 +100,19 @@ export {
   textEmbeddingGecko003,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
-  VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
 };
 
-import { vertexIndexers } from './vector-search/indexers.js';
-import { vertexRetrievers } from './vector-search/retrievers.js';
-import { Neighbor } from './vector-search/types.js';
 interface VectorSearchIndexOption<EmbedderCustomOptions extends z.ZodTypeAny> {
   deployedIndexId: string;
   indexEndpointId: string;
-  documentRetriever: (docIds: Neighbor[]) => Promise<Document[]>;
-  documentIndexer: (docs: Document[]) => Promise<string[]>;
+  documentRetriever: (
+    docIds: Neighbor[],
+    options?: z.infer<typeof VVSRetrieverOptionsSchema>
+  ) => Promise<Document[]>;
+  documentIndexer: (
+    docs: Document[],
+    options: z.infer<typeof VVSIndexerOptionsSchema>
+  ) => Promise<string[]>;
   publicEndpoint: string;
   indexId: string;
   embedder?: EmbedderArgument<EmbedderCustomOptions>;

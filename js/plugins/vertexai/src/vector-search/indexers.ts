@@ -1,3 +1,19 @@
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import { embedMany } from '@genkit-ai/ai/embedder';
 
 import {
@@ -8,7 +24,11 @@ import {
 
 import { logger } from '@genkit-ai/core/logging';
 import z from 'zod';
-import { Datapoint, vertexVectorSearchOptions } from './types';
+import {
+  Datapoint,
+  vertexVectorSearchOptions,
+  VVSIndexerOptionsSchema,
+} from './types';
 import { upsertDatapoints } from './upsert_datapoints';
 
 export const vertexAiIndexerRef = (params: {
@@ -40,13 +60,14 @@ export function vertexIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
     const indexer = defineIndexer(
       {
         name: `vertexai/${indexId}`,
-        configSchema: z.any(),
+        configSchema: VVSIndexerOptionsSchema,
       },
+      // TODO: fix custom options types
       async (docs, options) => {
         let docIds: string[] = [];
 
         try {
-          docIds = await documentIndexer(docs);
+          docIds = await documentIndexer(docs, options);
         } catch (error) {
           logger.error(
             `Error storing your document content/metadata: ${error}`
