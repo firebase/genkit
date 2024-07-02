@@ -15,6 +15,7 @@
 package genkit
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -232,10 +233,29 @@ func newFlowState[In, Out any](id, name string, input In) *flowState[In, Out] {
 }
 
 // flowState implements common.FlowStater.
-func (fs *flowState[In, Out]) IsFlowState()                         {}
-func (fs *flowState[In, Out]) Lock()                                { fs.mu.Lock() }
-func (fs *flowState[In, Out]) Unlock()                              { fs.mu.Unlock() }
-func (fs *flowState[In, Out]) GetCache() map[string]json.RawMessage { return fs.Cache }
+func (fs *flowState[In, Out]) IsFlowState() {}
+
+func (fs *flowState[In, Out]) ToJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetIndent("", "    ") // make the value easy to read for debugging
+	if err := enc.Encode(fs); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+func (fs *flowState[In, Out]) CacheAt(key string) json.RawMessage {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	return fs.Cache[key]
+}
+
+func (fs *flowState[In, Out]) CacheSet(key string, val json.RawMessage) {
+	fs.mu.Lock()
+	defer fs.mu.Unlock()
+	fs.Cache[key] = val
+}
 
 // An operation describes the state of a Flow that may still be in progress.
 type operation[Out any] struct {
@@ -528,10 +548,8 @@ func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out,
 		// happen because every step has a unique cache key.
 		// TODO(jba): don't memoize a nested flow (see context.ts)
 		fs := fc.stater()
-		fs.Lock()
-		j, ok := fs.GetCache()[uName]
-		fs.Unlock()
-		if ok {
+		j := fs.CacheAt(uName)
+		if j != nil {
 			var t Out
 			if err := json.Unmarshal(j, &t); err != nil {
 				return internal.Zero[Out](), err
@@ -547,9 +565,7 @@ func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out,
 		if err != nil {
 			return internal.Zero[Out](), err
 		}
-		fs.Lock()
-		fs.GetCache()[uName] = json.RawMessage(bytes)
-		fs.Unlock()
+		fs.CacheSet(uName, json.RawMessage(bytes))
 		tracing.SetCustomMetadataAttr(ctx, "flow:state", "run")
 		return t, nil
 	})

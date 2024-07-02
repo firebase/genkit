@@ -70,9 +70,9 @@ func CurrentEnvironment() Environment {
 // FlowStater is the common type of all flowState[I, O] types.
 type FlowStater interface {
 	IsFlowState()
-	Lock()
-	Unlock()
-	GetCache() map[string]json.RawMessage
+	ToJSON() ([]byte, error)
+	CacheAt(key string) json.RawMessage
+	CacheSet(key string, val json.RawMessage)
 }
 
 // StreamingCallback is the type of streaming callbacks.
