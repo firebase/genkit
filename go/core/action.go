@@ -22,8 +22,8 @@ import (
 
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
-	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/internal/atype"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/common"
 	"github.com/firebase/genkit/go/internal/metrics"
 	"github.com/firebase/genkit/go/internal/registry"
@@ -140,7 +140,7 @@ func newAction[In, Out, Stream any](
 	var i In
 	var o Out
 	if inputSchema == nil {
-		inputSchema = internal.InferJSONSchema(i)
+		inputSchema = base.InferJSONSchema(i)
 	}
 	return &Action[In, Out, Stream]{
 		name:  name,
@@ -150,7 +150,7 @@ func newAction[In, Out, Stream any](
 			return fn(ctx, input, sc)
 		},
 		inputSchema:  inputSchema,
-		outputSchema: internal.InferJSONSchema(o),
+		outputSchema: base.InferJSONSchema(o),
 		metadata:     metadata,
 	}
 }
@@ -181,14 +181,14 @@ func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(con
 		func(ctx context.Context, input In) (Out, error) {
 			start := time.Now()
 			var err error
-			if err = internal.ValidateValue(input, a.inputSchema); err != nil {
+			if err = base.ValidateValue(input, a.inputSchema); err != nil {
 				err = fmt.Errorf("invalid input: %w", err)
 			}
 			var output Out
 			if err == nil {
 				output, err = a.fn(ctx, input, cb)
 				if err == nil {
-					if err = internal.ValidateValue(output, a.outputSchema); err != nil {
+					if err = base.ValidateValue(output, a.outputSchema); err != nil {
 						err = fmt.Errorf("invalid output: %w", err)
 					}
 				}
@@ -196,7 +196,7 @@ func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(con
 			latency := time.Since(start)
 			if err != nil {
 				metrics.WriteActionFailure(ctx, a.name, latency, err)
-				return internal.Zero[Out](), err
+				return base.Zero[Out](), err
 			}
 			metrics.WriteActionSuccess(ctx, a.name, latency)
 			return output, nil
@@ -206,7 +206,7 @@ func (a *Action[In, Out, Stream]) Run(ctx context.Context, input In, cb func(con
 // RunJSON runs the action with a JSON input, and returns a JSON result.
 func (a *Action[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMessage, cb func(context.Context, json.RawMessage) error) (json.RawMessage, error) {
 	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
-	if err := internal.ValidateJSON(input, a.inputSchema); err != nil {
+	if err := base.ValidateJSON(input, a.inputSchema); err != nil {
 		return nil, err
 	}
 	var in In

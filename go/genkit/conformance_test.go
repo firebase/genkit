@@ -28,7 +28,7 @@ import (
 	"time"
 
 	"github.com/firebase/genkit/go/core"
-	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/internal/base"
 	"github.com/firebase/genkit/go/internal/common"
 	"github.com/firebase/genkit/go/internal/registry"
 	"golang.org/x/exp/maps"
@@ -91,7 +91,7 @@ func TestFlowConformance(t *testing.T) {
 	for _, filename := range testFiles {
 		t.Run(strings.TrimSuffix(filepath.Base(filename), ".json"), func(t *testing.T) {
 			var test conformanceTest
-			if err := internal.ReadJSONFile(filename, &test); err != nil {
+			if err := base.ReadJSONFile(filename, &test); err != nil {
 				t.Fatal(err)
 			}
 			// Each test uses its own registry to avoid interference.
