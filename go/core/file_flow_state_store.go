@@ -38,9 +38,11 @@ func NewFileFlowStateStore(dir string) (*FileFlowStateStore, error) {
 }
 
 func (s *FileFlowStateStore) Save(ctx context.Context, id string, fs common.FlowStater) error {
-	fs.Lock()
-	defer fs.Unlock()
-	return internal.WriteJSONFile(filepath.Join(s.dir, internal.Clean(id)), fs)
+	data, err := fs.ToJSON()
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(s.dir, internal.Clean(id)), data, 0666)
 }
 
 func (s *FileFlowStateStore) Load(ctx context.Context, id string, pfs any) error {
