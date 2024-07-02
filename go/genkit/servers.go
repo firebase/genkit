@@ -47,9 +47,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// InternalInit is for use by the genkit package only.
-// It is not subject to compatibility guarantees.
-
 // startReflectionServer starts the Reflection API server listening at the
 // value of the environment variable GENKIT_REFLECTION_PORT for the port,
 // or ":3100" if it is empty.

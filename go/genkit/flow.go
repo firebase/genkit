@@ -126,8 +126,8 @@ func DefineFlow[In, Out any](
 //
 // If the function supports streaming and the callback is non-nil, it should
 // stream the results by invoking the callback periodically, ultimately returning
-// with a final return value. Otherwise, it should ignore the callback and
-// just return a result.
+// with a final return value that includes all the streamed data.
+// Otherwise, it should ignore the callback and just return a result.
 func DefineStreamingFlow[In, Out, Stream any](
 	name string,
 	fn func(ctx context.Context, input In, callback func(context.Context, Stream) error) (Out, error),
@@ -303,7 +303,7 @@ func (f *Flow[In, Out, Stream]) runInstruction(ctx context.Context, inst *flowIn
 	}
 }
 
-// Flow[I, O, S] implements the flow interface.
+// The following methods make Flow[I, O, S] implement the flow interface, define in servers.go.
 
 // Name returns the name that the flow was defined with.
 func (f *Flow[In, Out, Stream]) Name() string { return f.name }
