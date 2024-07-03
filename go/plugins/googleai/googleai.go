@@ -162,17 +162,22 @@ func DefineEmbedder(name string) *ai.Embedder {
 
 // requires state.mu
 func defineEmbedder(name string) *ai.Embedder {
-	return ai.DefineEmbedder(provider, name, func(ctx context.Context, input *ai.EmbedRequest) ([]float32, error) {
+	return ai.DefineEmbedder(provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+		// TODO: use the batch embedding API.
 		em := state.client.EmbeddingModel(name)
-		parts, err := convertParts(input.Document.Content)
-		if err != nil {
-			return nil, err
+		var res ai.EmbedResponse
+		for _, doc := range input.Documents {
+			parts, err := convertParts(doc.Content)
+			if err != nil {
+				return nil, err
+			}
+			eres, err := em.EmbedContent(ctx, parts...)
+			if err != nil {
+				return nil, err
+			}
+			res.Embeddings = append(res.Embeddings, &ai.DocumentEmbedding{Embedding: eres.Embedding.Values})
 		}
-		res, err := em.EmbedContent(ctx, parts...)
-		if err != nil {
-			return nil, err
-		}
-		return res.Embedding.Values, nil
+		return &res, nil
 	})
 }
 

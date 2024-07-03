@@ -23,25 +23,36 @@ import (
 
 // An Embedder is used to convert a document to a
 // multidimensional vector.
-type Embedder core.Action[*EmbedRequest, []float32, struct{}]
+type Embedder core.Action[*EmbedRequest, *EmbedResponse, struct{}]
 
-// EmbedRequest is the data we pass to convert a document
+// EmbedRequest is the data we pass to convert one or more documents
 // to a multidimensional vector.
 type EmbedRequest struct {
-	Document *Document `json:"input"`
-	Options  any       `json:"options,omitempty"`
+	Documents []*Document `json:"input"`
+	Options   any         `json:"options,omitempty"`
+}
+
+type EmbedResponse struct {
+	// One embedding for each Document in the request, in the same order.
+	Embeddings []*DocumentEmbedding `json:"embeddings"`
+}
+
+// DocumentEmbedding holds emdedding information about a single document.
+type DocumentEmbedding struct {
+	// The vector for the embedding.
+	Embedding []float32 `json:"embedding"`
 }
 
 // DefineEmbedder registers the given embed function as an action, and returns an
 // [EmbedderAction] that runs it.
-func DefineEmbedder(provider, name string, embed func(context.Context, *EmbedRequest) ([]float32, error)) *Embedder {
+func DefineEmbedder(provider, name string, embed func(context.Context, *EmbedRequest) (*EmbedResponse, error)) *Embedder {
 	return (*Embedder)(core.DefineAction(provider, name, atype.Embedder, nil, embed))
 }
 
 // LookupEmbedder looks up an [EmbedderAction] registered by [DefineEmbedder].
 // It returns nil if the embedder was not defined.
 func LookupEmbedder(provider, name string) *Embedder {
-	action := core.LookupActionFor[*EmbedRequest, []float32, struct{}](atype.Embedder, provider, name)
+	action := core.LookupActionFor[*EmbedRequest, *EmbedResponse, struct{}](atype.Embedder, provider, name)
 	if action == nil {
 		return nil
 	}
@@ -49,7 +60,7 @@ func LookupEmbedder(provider, name string) *Embedder {
 }
 
 // Embed runs the given [Embedder].
-func (e *Embedder) Embed(ctx context.Context, req *EmbedRequest) ([]float32, error) {
-	a := (*core.Action[*EmbedRequest, []float32, struct{}])(e)
+func (e *Embedder) Embed(ctx context.Context, req *EmbedRequest) (*EmbedResponse, error) {
+	a := (*core.Action[*EmbedRequest, *EmbedResponse, struct{}])(e)
 	return a.Run(ctx, req, nil)
 }
