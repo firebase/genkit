@@ -13,10 +13,7 @@
 - description: simple scalar, with description (comma in description)
   yaml: 'schema: number,the description, which has, multiple commas'
   want:
-    {
-      type: number,
-      description: 'the description, which has, multiple commas',
-    }
+    { type: number, description: 'the description, which has, multiple commas' }
 
 - description: simple scalar, with description (extra whitespace)
   yaml: 'schema: number,    the description'
