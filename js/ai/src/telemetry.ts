@@ -28,7 +28,6 @@ import {
 } from '@genkit-ai/core/tracing';
 import { ValueType } from '@opentelemetry/api';
 import { createHash } from 'crypto';
-import { GenerateOptions } from './generate.js';
 import {
   GenerateRequest,
   GenerateResponseData,
@@ -171,7 +170,6 @@ export function recordGenerateActionMetrics(
 
 export function recordGenerateActionInputLogs(
   model: string,
-  options: GenerateOptions,
   input: GenerateRequest
 ) {
   const flowName = traceMetadataAls?.getStore()?.flowName;
@@ -180,11 +178,11 @@ export function recordGenerateActionInputLogs(
   const sharedMetadata = { model, path, qualifiedPath, flowName };
   logger.logStructured(`Config[${path}, ${model}]`, {
     ...sharedMetadata,
-    temperature: options.config?.temperature,
-    topK: options.config?.topK,
-    topP: options.config?.topP,
-    maxOutputTokens: options.config?.maxOutputTokens,
-    stopSequences: options.config?.stopSequences,
+    temperature: input.config?.temperature,
+    topK: input.config?.topK,
+    topP: input.config?.topP,
+    maxOutputTokens: input.config?.maxOutputTokens,
+    stopSequences: input.config?.stopSequences,
     source: 'ts',
     sourceVersion: GENKIT_VERSION,
   });
@@ -208,7 +206,6 @@ export function recordGenerateActionInputLogs(
 
 export function recordGenerateActionOutputLogs(
   model: string,
-  options: GenerateOptions,
   output: GenerateResponseData
 ) {
   const flowName = traceMetadataAls?.getStore()?.flowName;

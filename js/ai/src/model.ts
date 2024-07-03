@@ -304,12 +304,15 @@ export function defineModel<
     },
     (input) => {
       const startTimeMs = performance.now();
+      telemetry.recordGenerateActionInputLogs(options.name, input);
+
       return runner(input, getStreamingCallback())
         .then((response) => {
           const timedResponse = {
             ...response,
             latencyMs: performance.now() - startTimeMs,
           };
+          telemetry.recordGenerateActionOutputLogs(options.name, response);
           telemetry.recordGenerateActionMetrics(options.name, input, {
             response: timedResponse,
           });
