@@ -155,11 +155,6 @@ func Init(ctx context.Context, serverAddress string) (err error) {
 	if state.initted {
 		panic("ollama.Init already called")
 	}
-	defer func() {
-		if err != nil {
-			err = fmt.Errorf("ollama.Init: %w", err)
-		}
-	}()
 	state.serverAddress = serverAddress
 	state.initted = true
 	return nil
@@ -375,13 +370,14 @@ func concatMessages(input *ai.GenerateRequest, roles []ai.Role) string {
 	for _, role := range roles {
 		roleSet[role] = true // Create a set for faster lookup
 	}
-
 	var sb strings.Builder
-
 	for _, message := range input.Messages {
 		// Check if the message role is in the allowed set
-		if roleSet[message.Role] {
-			for _, part := range message.Content {
+		if !roleSet[message.Role] {
+			continue
+		}
+		for _, part := range message.Content {
+			if !part.IsText() {
 				sb.WriteString(part.Text)
 			}
 		}
@@ -389,11 +385,11 @@ func concatMessages(input *ai.GenerateRequest, roles []ai.Role) string {
 	return sb.String()
 }
 
-// concatMessages translates a list of messages into a prompt-style format
-func concatImages(input *ai.GenerateRequest, roles []ai.Role) ([]string, error) {
+// concatImages grabs the images from genkit message parts
+func concatImages(input *ai.GenerateRequest, roleFilter []ai.Role) ([]string, error) {
 	roleSet := make(map[ai.Role]bool)
-	for _, role := range roles {
-		roleSet[role] = true // Create a set for faster lookup
+	for _, role := range roleFilter {
+		roleSet[role] = true
 	}
 
 	var images []string
@@ -403,7 +399,7 @@ func concatImages(input *ai.GenerateRequest, roles []ai.Role) ([]string, error) 
 		if roleSet[message.Role] {
 			for _, part := range message.Content {
 				if !part.IsMedia() {
-					return nil, errors.New("unknown content type")
+					continue
 				}
 				_, data, err := uri.Data(part)
 				if err != nil {
