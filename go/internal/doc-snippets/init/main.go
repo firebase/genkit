@@ -30,11 +30,11 @@ import (
 func main() {
 	ctx := context.Background()
 
-	// Initialize the Google AI plugin. When you pass an empty string for the
-	// apiKey parameter, the Google AI plugin will use the value from the
+	// Initialize the Google AI plugin. When you pass nil for the
+	// Config parameter, the Google AI plugin will get the API key from the
 	// GOOGLE_GENAI_API_KEY environment variable, which is the recommended
 	// practice.
-	if err := googleai.Init(ctx, ""); err != nil {
+	if err := googleai.Init(ctx, nil); err != nil {
 		log.Fatal(err)
 	}
 
