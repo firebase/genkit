@@ -22,9 +22,9 @@ import (
 
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
+	"github.com/firebase/genkit/go/internal/action"
 	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/base"
-	"github.com/firebase/genkit/go/internal/common"
 	"github.com/firebase/genkit/go/internal/metrics"
 	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/invopop/jsonschema"
@@ -235,8 +235,8 @@ func (a *Action[In, Out, Stream]) RunJSON(ctx context.Context, input json.RawMes
 }
 
 // Desc returns a description of the action.
-func (a *Action[I, O, S]) Desc() common.ActionDesc {
-	ad := common.ActionDesc{
+func (a *Action[I, O, S]) Desc() action.Desc {
+	ad := action.Desc{
 		Name:         a.name,
 		Description:  a.description,
 		Metadata:     a.metadata,

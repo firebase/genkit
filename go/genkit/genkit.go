@@ -25,7 +25,6 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/firebase/genkit/go/internal/common"
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
@@ -67,7 +66,7 @@ func Init(ctx context.Context, opts *Options) error {
 	var wg sync.WaitGroup
 	errCh := make(chan error, 2)
 
-	if common.CurrentEnvironment() == common.EnvironmentDev {
+	if registry.CurrentEnvironment() == registry.EnvironmentDev {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

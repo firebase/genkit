@@ -41,8 +41,8 @@ import (
 
 	"github.com/firebase/genkit/go/core/logger"
 	"github.com/firebase/genkit/go/core/tracing"
+	"github.com/firebase/genkit/go/internal/action"
 	"github.com/firebase/genkit/go/internal/base"
-	"github.com/firebase/genkit/go/internal/common"
 	"github.com/firebase/genkit/go/internal/registry"
 	"go.opentelemetry.io/otel/trace"
 )
@@ -76,7 +76,7 @@ type flow interface {
 
 	// runJSON uses encoding/json to unmarshal the input,
 	// calls Flow.start, then returns the marshaled result.
-	runJSON(ctx context.Context, input json.RawMessage, cb common.StreamingCallback[json.RawMessage]) (json.RawMessage, error)
+	runJSON(ctx context.Context, input json.RawMessage, cb streamingCallback[json.RawMessage]) (json.RawMessage, error)
 }
 
 // startServer starts an HTTP server listening on the address.
@@ -174,7 +174,7 @@ func (s *devServer) handleRunAction(w http.ResponseWriter, r *http.Request) erro
 	logger.FromContext(ctx).Debug("running action",
 		"key", body.Key,
 		"stream", stream)
-	var callback common.StreamingCallback[json.RawMessage]
+	var callback streamingCallback[json.RawMessage]
 	if stream {
 		// Stream results are newline-separated JSON.
 		callback = func(ctx context.Context, msg json.RawMessage) error {
@@ -204,7 +204,7 @@ type telemetry struct {
 	TraceID string `json:"traceId"`
 }
 
-func runAction(ctx context.Context, reg *registry.Registry, key string, input json.RawMessage, cb common.StreamingCallback[json.RawMessage]) (*runActionResponse, error) {
+func runAction(ctx context.Context, reg *registry.Registry, key string, input json.RawMessage, cb streamingCallback[json.RawMessage]) (*runActionResponse, error) {
 	action := reg.LookupAction(key)
 	if action == nil {
 		return nil, &base.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no action with key %q", key)}
@@ -227,7 +227,7 @@ func runAction(ctx context.Context, reg *registry.Registry, key string, input js
 // handleListActions lists all the registered actions.
 func (s *devServer) handleListActions(w http.ResponseWriter, r *http.Request) error {
 	descs := s.reg.ListActions()
-	descMap := map[string]common.ActionDesc{}
+	descMap := map[string]action.Desc{}
 	for _, d := range descs {
 		descMap[d.Key] = d
 	}
@@ -237,7 +237,7 @@ func (s *devServer) handleListActions(w http.ResponseWriter, r *http.Request) er
 // handleGetTrace returns a single trace from a TraceStore.
 func (s *devServer) handleGetTrace(w http.ResponseWriter, r *http.Request) error {
 	env := r.PathValue("env")
-	ts := s.reg.LookupTraceStore(common.Environment(env))
+	ts := s.reg.LookupTraceStore(registry.Environment(env))
 	if ts == nil {
 		return &base.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no TraceStore for environment %q", env)}
 	}
@@ -255,7 +255,7 @@ func (s *devServer) handleGetTrace(w http.ResponseWriter, r *http.Request) error
 // handleListTraces returns a list of traces from a TraceStore.
 func (s *devServer) handleListTraces(w http.ResponseWriter, r *http.Request) error {
 	env := r.PathValue("env")
-	ts := s.reg.LookupTraceStore(common.Environment(env))
+	ts := s.reg.LookupTraceStore(registry.Environment(env))
 	if ts == nil {
 		return &base.HTTPError{Code: http.StatusNotFound, Err: fmt.Errorf("no TraceStore for environment %q", env)}
 	}
@@ -287,12 +287,12 @@ type listTracesResult struct {
 }
 
 func (s *devServer) handleListFlowStates(w http.ResponseWriter, r *http.Request) error {
-	return writeJSON(r.Context(), w, listFlowStatesResult{[]common.FlowStater{}, ""})
+	return writeJSON(r.Context(), w, listFlowStatesResult{[]base.FlowStater{}, ""})
 }
 
 type listFlowStatesResult struct {
-	FlowStates        []common.FlowStater `json:"flowStates"`
-	ContinuationToken string              `json:"continuationToken"`
+	FlowStates        []base.FlowStater `json:"flowStates"`
+	ContinuationToken string            `json:"continuationToken"`
 }
 
 // NewFlowServeMux constructs a [net/http.ServeMux].

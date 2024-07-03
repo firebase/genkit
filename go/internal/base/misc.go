@@ -15,6 +15,7 @@
 package base
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -47,4 +48,12 @@ type HTTPError struct {
 
 func (e *HTTPError) Error() string {
 	return fmt.Sprintf("%s: %s", http.StatusText(e.Code), e.Err)
+}
+
+// FlowStater is the common type of all flowState[I, O] types.
+type FlowStater interface {
+	IsFlowState()
+	ToJSON() ([]byte, error)
+	CacheAt(key string) json.RawMessage
+	CacheSet(key string, val json.RawMessage)
 }

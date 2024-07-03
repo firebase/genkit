@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package common
+package action
 
 import (
 	"context"
 	"encoding/json"
-	"os"
 
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/invopop/jsonschema"
@@ -34,15 +33,15 @@ type Action interface {
 	// Desc returns a description of the action.
 	// It should set all fields of actionDesc except Key, which
 	// the registry will set.
-	Desc() ActionDesc
+	Desc() Desc
 
 	// SetTracingState set's the action's tracing.State.
 	SetTracingState(*tracing.State)
 }
 
-// An ActionDesc is a description of an Action.
+// A Desc is a description of an Action.
 // It is used to provide a list of registered actions.
-type ActionDesc struct {
+type Desc struct {
 	Key          string             `json:"key"` // full key from the registry
 	Name         string             `json:"name"`
 	Description  string             `json:"description"`
@@ -50,30 +49,3 @@ type ActionDesc struct {
 	InputSchema  *jsonschema.Schema `json:"inputSchema"`
 	OutputSchema *jsonschema.Schema `json:"outputSchema"`
 }
-
-// An Environment is the execution context in which the program is running.
-type Environment string
-
-const (
-	EnvironmentDev  Environment = "dev"  // development: testing, debugging, etc.
-	EnvironmentProd Environment = "prod" // production: user data, SLOs, etc.
-)
-
-// CurentEnvironment returns the currently active environment.
-func CurrentEnvironment() Environment {
-	if v := os.Getenv("GENKIT_ENV"); v != "" {
-		return Environment(v)
-	}
-	return EnvironmentProd
-}
-
-// FlowStater is the common type of all flowState[I, O] types.
-type FlowStater interface {
-	IsFlowState()
-	ToJSON() ([]byte, error)
-	CacheAt(key string) json.RawMessage
-	CacheSet(key string, val json.RawMessage)
-}
-
-// StreamingCallback is the type of streaming callbacks.
-type StreamingCallback[Stream any] func(context.Context, Stream) error

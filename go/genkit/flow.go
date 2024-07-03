@@ -30,7 +30,6 @@ import (
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/atype"
 	"github.com/firebase/genkit/go/internal/base"
-	"github.com/firebase/genkit/go/internal/common"
 	"github.com/firebase/genkit/go/internal/metrics"
 	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/uuid"
@@ -107,6 +106,9 @@ type Flow[In, Out, Stream any] struct {
 
 type noStream = func(context.Context, struct{}) error
 
+// streamingCallback is the type of streaming callbacks.
+type streamingCallback[Stream any] func(context.Context, Stream) error
+
 // DefineFlow creates a Flow that runs fn, and registers it as an action.
 //
 // fn takes an input of type In and returns an output of type Out.
@@ -152,7 +154,7 @@ func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.
 	}
 	afunc := func(ctx context.Context, inst *flowInstruction[In], cb func(context.Context, Stream) error) (*flowState[In, Out], error) {
 		tracing.SetCustomMetadataAttr(ctx, "flow:wrapperAction", "true")
-		return f.runInstruction(ctx, inst, common.StreamingCallback[Stream](cb))
+		return f.runInstruction(ctx, inst, streamingCallback[Stream](cb))
 	}
 	core.DefineActionInRegistry(r, "", f.name, atype.Flow, metadata, nil, afunc)
 	f.tstate = r.TracingState()
@@ -239,7 +241,7 @@ func newFlowState[In, Out any](id, name string, input In) *flowState[In, Out] {
 	}
 }
 
-// flowState implements common.FlowStater.
+// flowState implements base.FlowStater.
 func (fs *flowState[In, Out]) IsFlowState() {}
 
 func (fs *flowState[In, Out]) ToJSON() ([]byte, error) {
@@ -297,7 +299,7 @@ type FlowResult[Out any] struct {
 
 // runInstruction performs one of several actions on a flow, as determined by msg.
 // (Called runEnvelope in the js.)
-func (f *Flow[In, Out, Stream]) runInstruction(ctx context.Context, inst *flowInstruction[In], cb common.StreamingCallback[Stream]) (*flowState[In, Out], error) {
+func (f *Flow[In, Out, Stream]) runInstruction(ctx context.Context, inst *flowInstruction[In], cb streamingCallback[Stream]) (*flowState[In, Out], error) {
 	switch {
 	case inst.Start != nil:
 		// TODO(jba): pass msg.Start.Labels.
@@ -322,7 +324,7 @@ func (f *Flow[In, Out, Stream]) runInstruction(ctx context.Context, inst *flowIn
 // Name returns the name that the flow was defined with.
 func (f *Flow[In, Out, Stream]) Name() string { return f.name }
 
-func (f *Flow[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMessage, cb common.StreamingCallback[json.RawMessage]) (json.RawMessage, error) {
+func (f *Flow[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMessage, cb streamingCallback[json.RawMessage]) (json.RawMessage, error) {
 	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
 	if err := base.ValidateJSON(input, f.inputSchema); err != nil {
 		return nil, &base.HTTPError{Code: http.StatusBadRequest, Err: err}
@@ -332,7 +334,7 @@ func (f *Flow[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMessa
 		return nil, &base.HTTPError{Code: http.StatusBadRequest, Err: err}
 	}
 	// If there is a callback, wrap it to turn an S into a json.RawMessage.
-	var callback common.StreamingCallback[Stream]
+	var callback streamingCallback[Stream]
 	if cb != nil {
 		callback = func(ctx context.Context, s Stream) error {
 			bytes, err := json.Marshal(s)
@@ -360,7 +362,7 @@ func (f *Flow[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMessa
 }
 
 // start starts executing the flow with the given input.
-func (f *Flow[In, Out, Stream]) start(ctx context.Context, input In, cb common.StreamingCallback[Stream]) (_ *flowState[In, Out], err error) {
+func (f *Flow[In, Out, Stream]) start(ctx context.Context, input In, cb streamingCallback[Stream]) (_ *flowState[In, Out], err error) {
 	flowID, err := generateFlowID()
 	if err != nil {
 		return nil, err
@@ -377,7 +379,7 @@ func (f *Flow[In, Out, Stream]) start(ctx context.Context, input In, cb common.S
 //
 // This function corresponds to Flow.executeSteps in the js, but does more:
 // it creates the flowContext and saves the state.
-func (f *Flow[In, Out, Stream]) execute(ctx context.Context, state *flowState[In, Out], dispatchType string, cb common.StreamingCallback[Stream]) {
+func (f *Flow[In, Out, Stream]) execute(ctx context.Context, state *flowState[In, Out], dispatchType string, cb streamingCallback[Stream]) {
 	fctx := newFlowContext(state, f.stateStore, f.tstate)
 	defer func() {
 		if err := fctx.finish(ctx); err != nil {
@@ -477,7 +479,7 @@ type flowContext[I, O any] struct {
 // flowContexter is the type of all flowContext[I, O].
 type flowContexter interface {
 	uniqueStepName(string) string
-	stater() common.FlowStater
+	stater() base.FlowStater
 	tracingState() *tracing.State
 }
 
@@ -489,7 +491,7 @@ func newFlowContext[I, O any](state *flowState[I, O], store core.FlowStateStore,
 		seenSteps:  map[string]int{},
 	}
 }
-func (fc *flowContext[I, O]) stater() common.FlowStater    { return fc.state }
+func (fc *flowContext[I, O]) stater() base.FlowStater      { return fc.state }
 func (fc *flowContext[I, O]) tracingState() *tracing.State { return fc.tstate }
 
 // finish is called at the end of a flow execution.
