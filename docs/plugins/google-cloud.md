@@ -119,6 +119,10 @@ This field specifies the metrics export interval in milliseconds.
 
 > Note: The minimum export interval for Google Cloud Monitoring is 5000ms.
 
+## Test your integration
+
+When configuring the plugin, use `forceDevExport: true` to enable telemetry export for local runs. This is a quick way to send your first events for monitoring in Google Cloud.
+
 # Production monitoring via Google Cloud's operations suite
 
 Once a flow is deployed, navigate to [Google Cloud's operations suite](https://console.cloud.google.com/) and select your project.

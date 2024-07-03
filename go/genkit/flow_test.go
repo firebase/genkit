@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package core
+package genkit
 
 import (
 	"context"
@@ -21,17 +21,19 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-func incFlow(_ context.Context, i int, _ NoStream) (int, error) {
+func incFlow(_ context.Context, i int, _ noStream) (int, error) {
 	return i + 1, nil
 }
 
 func TestFlowStart(t *testing.T) {
-	f := InternalDefineFlow("inc", incFlow)
-	ss, err := NewFileFlowStateStore(t.TempDir())
+	f := DefineStreamingFlow("inc", incFlow)
+	ss, err := core.NewFileFlowStateStore(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,12 +64,12 @@ func TestFlowRun(t *testing.T) {
 		return n, nil
 	}
 
-	flow := InternalDefineFlow("run", func(ctx context.Context, s string, _ NoStream) ([]int, error) {
-		g1, err := InternalRun(ctx, "s1", stepf)
+	flow := DefineFlow("run", func(ctx context.Context, s string) ([]int, error) {
+		g1, err := Run(ctx, "s1", stepf)
 		if err != nil {
 			return nil, err
 		}
-		g2, err := InternalRun(ctx, "s2", stepf)
+		g2, err := Run(ctx, "s2", stepf)
 		if err != nil {
 			return nil, err
 		}
@@ -89,7 +91,7 @@ func TestFlowRun(t *testing.T) {
 }
 
 func TestRunFlow(t *testing.T) {
-	reg, err := newRegistry()
+	reg, err := registry.New()
 	if err != nil {
 		t.Fatal(err)
 	}

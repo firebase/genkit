@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package core
+package base
 
 import (
 	"encoding/json"
@@ -23,19 +23,19 @@ import (
 	"github.com/xeipuuv/gojsonschema"
 )
 
-// validateValue will validate any value against the expected schema.
+// ValidateValue will validate any value against the expected schema.
 // It will return an error if it doesn't match the schema, otherwise it will return nil.
-func validateValue(data any, schema *jsonschema.Schema) error {
+func ValidateValue(data any, schema *jsonschema.Schema) error {
 	dataBytes, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("data is not a valid JSON type: %w", err)
 	}
-	return validateJSON(dataBytes, schema)
+	return ValidateJSON(dataBytes, schema)
 }
 
-// validateJSON will validate JSON against the expected schema.
+// ValidateJSON will validate JSON against the expected schema.
 // It will return an error if it doesn't match the schema, otherwise it will return nil.
-func validateJSON(dataBytes json.RawMessage, schema *jsonschema.Schema) error {
+func ValidateJSON(dataBytes json.RawMessage, schema *jsonschema.Schema) error {
 	schemaBytes, err := schema.MarshalJSON()
 	if err != nil {
 		return fmt.Errorf("expected schema is not valid: %w", err)

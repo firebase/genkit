@@ -217,7 +217,7 @@ The prior example requires the `embedding` field to be indexed to
 work. To create the index:
 
 - Run the `gcloud` command described in the
-  [Create a single-field vector index](https://firebase.google.com/docs/firestore/vector-search?hl=en&authuser=0#create_and_manage_vector_indexes)
+  [Create a single-field vector index](https://firebase.google.com/docs/firestore/vector-search?authuser=0#create_and_manage_vector_indexes)
   section of the Firestore docs.
 
   The command looks like the following:

@@ -36,30 +36,57 @@ interface ModelOption {
 /** Path to Genkit sample template. */
 const templatePath = '../../../config/main.go.template';
 
-/** Ollama init call template. Keep indenting to for expected output. */
-const ollamaInit = `ollama.Init(ctx, ollama.Config{
-  ServerAddress: "http://127.0.0.1:11434",
-})`;
-
 /** Model to plugin name. */
 const modelOptions: Record<ModelProvider, ModelOption> = {
   googleai: {
     label: 'Google AI',
     package: 'github.com/firebase/genkit/go/plugins/googleai',
-    init: 'googleai.Init(ctx, "")',
-    lookup: 'googleai.Model("gemini-1.5-flash")',
+    init: `// Initialize the Google AI plugin. When you pass an empty string for the
+\t// apiKey parameter, the Google AI plugin will use the value from the
+\t// GOOGLE_GENAI_API_KEY environment variable, which is the recommended
+\t// practice.
+\tif err := googleai.Init(ctx, ""); err != nil {
+\t\tlog.Fatal(err)
+\t}`,
+    lookup: `// The Google AI API provides access to several generative models. Here,
+\t\t// we specify gemini-1.5-flash.
+\t\tm := googleai.Model("gemini-1.5-flash")`,
   },
   vertexai: {
     label: 'Google Cloud Vertex AI',
     package: 'github.com/firebase/genkit/go/plugins/vertexai',
-    init: 'vertexai.Init(ctx, "", "")',
-    lookup: 'vertexai.Model("gemini-1.5-flash")',
+    init: `// Initialize the Vertex AI plugin. When you pass an empty string for the
+\t// projectID parameter, the Vertex AI plugin will use the value from the
+\t// GCLOUD_PROJECT environment variable. When you pass an empty string for
+\t// the location parameter, the plugin uses the default value, us-central1.
+\tif err := vertexai.Init(ctx, "", ""); err != nil {
+\t\tlog.Fatal(err)
+\t}`,
+    lookup: `// The Vertex AI API provides access to several generative models. Here,
+\t\t// we specify gemini-1.5-flash.
+\t\tm := vertexai.Model("gemini-1.5-flash")`,
   },
   ollama: {
     label: 'Ollama (e.g. Gemma)',
     package: 'github.com/firebase/genkit/go/plugins/ollama',
-    init: ollamaInit,
-    lookup: 'ollama.Model("gemma")',
+    init: `// Initialize the Ollama plugin.
+\terr := ollama.Init(ctx, ollama.Config{
+\t\t// The address of your Ollama API server. This is often a different host
+\t\t// from your app backend (which runs Genkit), in order to run Ollama on
+\t\t// a GPU-accelerated machine.
+        ServerAddress: "http://127.0.0.1:11434",
+
+\t\t// The models you want to use. These must already be downloaded and
+\t\t// available to the Ollama server.
+\t\tModels: []ollama.ModelDefinition{{Name: "gemma"}},
+\t})
+\tif err != nil {
+\t\tlog.Fatal(err)
+\t}`,
+    lookup: `// Ollama provides an interface to many open generative models. Here,
+\t\t// we specify Google's Gemma model, which we configured the Ollama
+\t\t// plugin to provide, above.
+\t\tm := ollama.Model("gemma")`,
   },
   none: {
     label: 'None',
@@ -205,7 +232,9 @@ async function generateSampleFile(model: ModelProvider) {
       )
       .replace(
         '$GENKIT_MODEL_IMPORT',
-        modelOption.package ? `"${modelOption.package}"` : ''
+        modelOption.package
+          ? `\n\t// Import the ${modelOption.label} plugin.\n\t"${modelOption.package}"`
+          : ''
       )
       .replace('$GENKIT_MODEL_INIT', modelOption.init)
       .replace('$GENKIT_MODEL_LOOKUP', modelOption.lookup);
