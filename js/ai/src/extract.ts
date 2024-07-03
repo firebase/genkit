@@ -15,7 +15,10 @@
  */
 
 import JSON5 from 'json5';
-import untruncateJson from 'untruncate-json';
+import { Allow, parse } from 'partial-json';
+
+const parsePartialJson = (jsonString: string) =>
+  JSON.stringify(parse(jsonString, Allow.ALL));
 
 /**
  * Extracts JSON from string with lenient parsing rules to improve likelihood of successful extraction.
@@ -80,19 +83,23 @@ export function extractAndUntruncateJson<T = unknown>(text: string): T | null {
       nestingCount--;
       if (!nestingCount) {
         // Reached end of target element
-        return JSON5.parse(
-          untruncateJson(text.substring(startPos || 0, i + 1))
-        ) as T;
+        try {
+          return JSON5.parse(
+            parsePartialJson(text.substring(startPos || 0, i + 1))
+          ) as T;
+        } catch {
+          throw new Error(text.substring(startPos || 0, i + 1));
+        }
       }
     }
   }
 
   if (startPos !== undefined && nestingCount > 0) {
     try {
-      return JSON5.parse(untruncateJson(text.substring(startPos))) as T;
-    } catch (e) {
-      return null;
+      return JSON5.parse(parsePartialJson(text.substring(startPos))) as T;
+    } catch {
+      throw new Error(text.substring(startPos));
     }
   }
-  return {} as T;
+  return null as T;
 }

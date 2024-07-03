@@ -515,12 +515,17 @@ describe('GenerateResponseChunk', () => {
       {
         should: 'parse ``` correctly',
         accumulatedChunksTexts: ['```'],
-        correctJson: {},
+        correctJson: null,
       },
       {
         should: 'parse valid json correctly',
         accumulatedChunksTexts: [`{"foo":"bar"}`],
         correctJson: { foo: 'bar' },
+      },
+      {
+        should: 'if json invalid, return null',
+        accumulatedChunksTexts: [`invalid json`],
+        correctJson: null,
       },
       {
         should: 'handle missing closing brace',

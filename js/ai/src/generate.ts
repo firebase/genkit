@@ -631,11 +631,6 @@ export async function generate<
   }
 
   const request = await toGenerateRequest(resolvedOptions);
-  telemetry.recordGenerateActionInputLogs(
-    model.__action.name,
-    resolvedOptions,
-    request
-  );
 
   const accumulatedChunks: GenerateResponseChunkData[] = [];
 
