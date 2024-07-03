@@ -58,6 +58,8 @@ func pr02() {
 }
 
 func pr03() error {
+	model := ai.Model{}
+
 	//!+pr03.1
 	type HelloPromptInput struct {
 		UserName string
@@ -70,7 +72,7 @@ func pr03() error {
 		func(ctx context.Context, input any) (*ai.GenerateRequest, error) {
 			params, ok := input.(HelloPromptInput)
 			if !ok {
-				return nil, errors.New("Input doesn't satisfy schema.")
+				return nil, errors.New("input doesn't satisfy schema")
 			}
 			prompt := fmt.Sprintf(
 				"You are a helpful AI assistant named Walt. Say hello to %s.",
@@ -87,9 +89,10 @@ func pr03() error {
 	if err != nil {
 		return err
 	}
-	response, err := gemini15pro.Generate(context.Background(), request, nil)
+	response, err := model.Generate(context.Background(), request, nil)
 	//!-pr03.2
 
 	_ = response
+	_ = err
 	return nil
 }
