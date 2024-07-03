@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/invopop/jsonschema"
 	"gopkg.in/yaml.v3"
 )
 
@@ -32,7 +31,6 @@ func TestPicoschema(t *testing.T) {
 		Want        map[string]any
 	}
 
-	convertSchema(&jsonschema.Schema{})
 	data, err := os.ReadFile(filepath.FromSlash("../../../js/plugins/dotprompt/tests/picoschema_tests.yaml"))
 	if err != nil {
 		t.Fatal(err)
@@ -58,7 +56,7 @@ func TestPicoschema(t *testing.T) {
 				t.Fatalf("YAML unmarshal failure: %v", err)
 			}
 
-			// The tests, copied from TypeScript, use a schema field.
+			// The tests use a schema field.
 			val = val.(map[string]any)["schema"]
 
 			schema, err := picoschemaToJSONSchema(val)
