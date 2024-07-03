@@ -35,6 +35,8 @@ type SampleTarget = 'firebase' | 'googlecloud' | 'nodejs' | 'nextjs';
 interface PluginInfo {
   // Imported items from `name` (can be comma list).
   imports: string;
+  // Comment for 'the model import line.
+  modelImportComment?: string;
   // Initializer call.
   init: string;
   // Model name as an imported reference.
@@ -82,7 +84,10 @@ const platformOptions: Record<Platform, PromptOption> = {
 const pluginToInfo: Record<string, PluginInfo> = {
   '@genkit-ai/firebase': {
     imports: 'firebase',
-    init: 'firebase()',
+    init: `
+    // Load the Firebase plugin, which provides integrations with several
+    // Firebase services.
+    firebase()`.trimStart(),
   },
   '@genkit-ai/google-cloud': {
     imports: 'googleCloud',
@@ -90,21 +95,43 @@ const pluginToInfo: Record<string, PluginInfo> = {
   },
   '@genkit-ai/vertexai': {
     imports: 'vertexAI',
-    init: "vertexAI({ location: 'us-central1' })",
-    model: 'geminiPro',
+    modelImportComment: `
+// Import models from the Vertex AI plugin. The Vertex AI API provides access to
+// several generative models. Here, we import Gemini 1.5 Flash.`.trimStart(),
+    init: `
+    // Load the Vertex AI plugin. You can optionally specify your project ID
+    // by passing in a config object; if you don't, the Vertex AI plugin uses
+    // the value from the GCLOUD_PROJECT environment variable.
+    vertexAI({ location: 'us-central1' })`.trimStart(),
+    model: 'gemini15Flash',
   },
   'genkitx-ollama': {
     imports: 'ollama',
-    init: `ollama({
+    init: `
+    ollama({
+      // Ollama provides an interface to many open generative models. Here,
+      // we specify Google's Gemma model. The models you specify must already be
+      // downloaded and available to the Ollama server.
       models: [{ name: 'gemma' }],
-      serverAddress: 'http://127.0.0.1:11434', // default ollama local address
-    })`,
+      // The address of your Ollama API server. This is often a different host
+      // from your app backend (which runs Genkit), in order to run Ollama on
+      // a GPU-accelerated machine.
+      serverAddress: 'http://127.0.0.1:11434',
+    })`.trimStart(),
     modelStr: "'ollama/gemma'",
   },
   '@genkit-ai/googleai': {
     imports: 'googleAI',
-    init: 'googleAI()',
-    model: 'geminiPro',
+    modelImportComment: `
+// Import models from the Google AI plugin. The Google AI API provides access to
+// several generative models. Here, we import Gemini 1.5 Flash.`.trimStart(),
+    init: `
+    // Load the Google AI plugin. You can optionally specify your API key
+    // by passing in a config object; if you don't, the Google AI plugin uses
+    // the value from the GOOGLE_GENAI_API_KEY environment variable, which is
+    // the recommended practice.
+    googleAI()`.trimStart(),
+    model: 'gemini15Flash',
   },
 };
 
@@ -378,19 +405,26 @@ function generateSampleFile(
 ) {
   const modelImport =
     modelPlugin && pluginToInfo[modelPlugin].model
-      ? generateImportStatement(
+      ? '\n' +
+        generateImportStatement(
           pluginToInfo[modelPlugin].model!,
           modelPlugin,
           platformImportOptions[platform]
-        )
+        ) +
+        '\n'
       : '';
+  const modelImportComment =
+    modelPlugin && pluginToInfo[modelPlugin].modelImportComment
+      ? `\n${pluginToInfo[modelPlugin].modelImportComment}`
+      : '';
+  const commentedModelImport = `${modelImportComment}${modelImport}`;
   const templatePath = path.join(__dirname, sampleTemplatePaths[sampleTarget]);
   let template = fs.readFileSync(templatePath, 'utf8');
   const sample = renderConfig(
     configPlugins,
     platform,
     template
-      .replace('$GENKIT_MODEL_IMPORT', modelImport)
+      .replace('$GENKIT_MODEL_IMPORT\n', commentedModelImport)
       .replace(
         '$GENKIT_MODEL',
         modelPlugin

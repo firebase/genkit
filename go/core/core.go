@@ -19,7 +19,31 @@
 // Run the Go code generator on the file just created.
 //go:generate go run ../internal/cmd/jsonschemagen -outdir .. -config schemas.config ../../genkit-tools/genkit-schema.json core
 
-// Package core implements Genkit actions, flows and other essential machinery.
+// Package core implements Genkit actions and other essential machinery.
 // This package is primarily intended for Genkit internals and for plugins.
 // Genkit applications should use the genkit package.
 package core
+
+import (
+	"context"
+
+	"github.com/firebase/genkit/go/core/tracing"
+	"github.com/firebase/genkit/go/internal/common"
+	"github.com/firebase/genkit/go/internal/registry"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+)
+
+// RegisterTraceStore uses the given trace.Store to record traces in the prod environment.
+// (A trace.Store that writes to the local filesystem is always installed in the dev environment.)
+// The returned function should be called before the program ends to ensure that
+// all pending data is stored.
+// RegisterTraceStore panics if called more than once.
+func RegisterTraceStore(ts tracing.Store) (shutdown func(context.Context) error) {
+	registry.Global.RegisterTraceStore(common.EnvironmentProd, ts)
+	return registry.Global.TracingState().AddTraceStoreBatch(ts)
+}
+
+// RegisterSpanProcessor registers an OpenTelemetry SpanProcessor for tracing.
+func RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
+	registry.Global.RegisterSpanProcessor(sp)
+}

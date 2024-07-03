@@ -17,9 +17,16 @@ package genkit
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/internal/common"
+	"github.com/firebase/genkit/go/internal/registry"
 )
 
 // Options are options to [Init].
@@ -50,60 +57,67 @@ type Options struct {
 // Thus Init(nil) will start a dev server in the "dev" environment, will always start
 // a flow server, and will pause execution until the flow server terminates.
 func Init(ctx context.Context, opts *Options) error {
-	return core.InternalInit(ctx, (*core.Options)(opts))
-}
+	if opts == nil {
+		opts = &Options{}
+	}
+	registry.Global.Freeze()
 
-// DefineFlow creates a Flow that runs fn, and registers it as an action.
-//
-// fn takes an input of type In and returns an output of type Out.
-func DefineFlow[In, Out any](
-	name string,
-	fn func(ctx context.Context, input In) (Out, error),
-) *core.Flow[In, Out, struct{}] {
-	return core.InternalDefineFlow(name, core.Func[In, Out, struct{}](func(ctx context.Context, input In, cb func(ctx context.Context, _ struct{}) error) (Out, error) {
-		return fn(ctx, input)
-	}))
-}
+	var mu sync.Mutex
+	var servers []*http.Server
+	var wg sync.WaitGroup
+	errCh := make(chan error, 2)
 
-// DefineStreamingFlow creates a streaming Flow that runs fn, and registers it as an action.
-//
-// fn takes an input of type In and returns an output of type Out, optionally
-// streaming values of type Stream incrementally by invoking a callback.
-// Pass [NoStream] for functions that do not support streaming.
-//
-// If the function supports streaming and the callback is non-nil, it should
-// stream the results by invoking the callback periodically, ultimately returning
-// with a final return value. Otherwise, it should ignore the callback and
-// just return a result.
-func DefineStreamingFlow[In, Out, Stream any](
-	name string,
-	fn func(ctx context.Context, input In, callback func(context.Context, Stream) error) (Out, error),
-) *core.Flow[In, Out, Stream] {
-	return core.InternalDefineFlow(name, core.Func[In, Out, Stream](fn))
-}
+	if common.CurrentEnvironment() == common.EnvironmentDev {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s := startReflectionServer(errCh)
+			mu.Lock()
+			servers = append(servers, s)
+			mu.Unlock()
+		}()
+	}
 
-// Run runs the function f in the context of the current flow
-// and returns what f returns.
-// It returns an error if no flow is active.
-//
-// Each call to Run results in a new step in the flow.
-// A step has its own span in the trace, and its result is cached so that if the flow
-// is restarted, f will not be called a second time.
-func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out, error) {
-	return core.InternalRun(ctx, name, f)
-}
+	if opts.FlowAddr != "-" {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s := startFlowServer(opts.FlowAddr, opts.Flows, errCh)
+			mu.Lock()
+			servers = append(servers, s)
+			mu.Unlock()
+		}()
+	}
 
-// NewFlowServeMux constructs a [net/http.ServeMux].
-// If flows is non-empty, the each of the named flows is registered as a route.
-// Otherwise, all defined flows are registered.
-// All routes take a single query parameter, "stream", which if true will stream the
-// flow's results back to the client. (Not all flows support streaming, however.)
-//
-// To use the returned ServeMux as part of a server with other routes, either add routes
-// to it, or install it as part of another ServeMux, like so:
-//
-//	mainMux := http.NewServeMux()
-//	mainMux.Handle("POST /flow/", http.StripPrefix("/flow/", NewFlowServeMux()))
-func NewFlowServeMux(flows []string) *http.ServeMux {
-	return core.NewFlowServeMux(flows)
+	serverStartCh := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(serverStartCh)
+	}()
+
+	// It will block here until either all servers start up or there is an error in starting one.
+	select {
+	case <-serverStartCh:
+		slog.Info("all servers started successfully")
+	case err := <-errCh:
+		return fmt.Errorf("failed to start servers: %w", err)
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	// It will block here (i.e. servers will run) until we get an interrupt signal.
+	select {
+	case sig := <-sigCh:
+		slog.Info("received signal, initiating shutdown", "signal", sig)
+	case err := <-errCh:
+		slog.Error("server error", "err", err)
+		return err
+	case <-ctx.Done():
+		slog.Info("context cancelled, initiating shutdown")
+	}
+
+	return shutdownServers(servers)
 }

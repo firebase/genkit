@@ -19,7 +19,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/internal/base"
+	"github.com/firebase/genkit/go/internal/common"
 )
 
 // A FileFlowStateStore is a FlowStateStore that writes flowStates to files.
@@ -36,12 +37,14 @@ func NewFileFlowStateStore(dir string) (*FileFlowStateStore, error) {
 	return &FileFlowStateStore{dir: dir}, nil
 }
 
-func (s *FileFlowStateStore) Save(ctx context.Context, id string, fs flowStater) error {
-	fs.lock()
-	defer fs.unlock()
-	return internal.WriteJSONFile(filepath.Join(s.dir, internal.Clean(id)), fs)
+func (s *FileFlowStateStore) Save(ctx context.Context, id string, fs common.FlowStater) error {
+	data, err := fs.ToJSON()
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(s.dir, base.Clean(id)), data, 0666)
 }
 
 func (s *FileFlowStateStore) Load(ctx context.Context, id string, pfs any) error {
-	return internal.ReadJSONFile(filepath.Join(s.dir, internal.Clean(id)), pfs)
+	return base.ReadJSONFile(filepath.Join(s.dir, base.Clean(id)), pfs)
 }

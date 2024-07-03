@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package core
+package registry
 
 import (
-	"context"
 	"crypto/md5"
 	"fmt"
 	"log"
@@ -27,6 +26,7 @@ import (
 
 	"github.com/firebase/genkit/go/core/tracing"
 	"github.com/firebase/genkit/go/internal/atype"
+	"github.com/firebase/genkit/go/internal/common"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/exp/maps"
 )
@@ -35,43 +35,45 @@ import (
 
 // The global registry, used in non-test code.
 // A test may create their own registries to avoid conflicting with other tests.
-var globalRegistry *registry
+var Global *Registry
 
 func init() {
 	// Initialize the global registry, along with a dev tracer, at program startup.
 	var err error
-	globalRegistry, err = newRegistry()
+	Global, err = New()
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-type registry struct {
+type Registry struct {
 	tstate  *tracing.State
 	mu      sync.Mutex
 	frozen  bool // when true, no more additions
-	actions map[string]action
-	flows   []flow
-	// TraceStores, at most one for each [Environment].
+	actions map[string]common.Action
+	flows   []Flow
+	// TraceStores, at most one for each [common.Environment].
 	// Only the prod trace store is actually registered; the dev one is
 	// always created automatically. But it's simpler if we keep them together here.
-	traceStores map[Environment]tracing.Store
+	traceStores map[common.Environment]tracing.Store
 }
 
-func newRegistry() (*registry, error) {
-	r := &registry{
-		actions:     map[string]action{},
-		traceStores: map[Environment]tracing.Store{},
+func New() (*Registry, error) {
+	r := &Registry{
+		actions:     map[string]common.Action{},
+		traceStores: map[common.Environment]tracing.Store{},
 	}
 	tstore, err := newDevStore()
 	if err != nil {
 		return nil, err
 	}
-	r.registerTraceStore(EnvironmentDev, tstore)
+	r.RegisterTraceStore(common.EnvironmentDev, tstore)
 	r.tstate = tracing.NewState()
 	r.tstate.AddTraceStoreImmediate(tstore)
 	return r, nil
 }
+
+func (r *Registry) TracingState() *tracing.State { return r.tstate }
 
 func newDevStore() (tracing.Store, error) {
 	programName := filepath.Base(os.Args[0])
@@ -84,19 +86,11 @@ func newDevStore() (tracing.Store, error) {
 	return tracing.NewFileStore(dir)
 }
 
-// An Environment is the execution context in which the program is running.
-type Environment string
-
-const (
-	EnvironmentDev  Environment = "dev"  // development: testing, debugging, etc.
-	EnvironmentProd Environment = "prod" // production: user data, SLOs, etc.
-)
-
-// registerAction records the action in the registry.
+// RegisterAction records the action in the registry.
 // It panics if an action with the same type, provider and name is already
 // registered.
-func (r *registry) registerAction(a action) {
-	key := fmt.Sprintf("/%s/%s", a.actionType(), a.Name())
+func (r *Registry) RegisterAction(typ atype.ActionType, a common.Action) {
+	key := fmt.Sprintf("/%s/%s", typ, a.Name())
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.frozen {
@@ -105,80 +99,63 @@ func (r *registry) registerAction(a action) {
 	if _, ok := r.actions[key]; ok {
 		panic(fmt.Sprintf("action %q is already registered", key))
 	}
-	a.setTracingState(r.tstate)
+	a.SetTracingState(r.tstate)
 	r.actions[key] = a
 	slog.Info("RegisterAction",
-		"type", a.actionType(),
+		"type", typ,
 		"name", a.Name())
 }
 
-func (r *registry) freeze() {
+func (r *Registry) Freeze() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.frozen = true
 }
 
-// lookupAction returns the action for the given key, or nil if there is none.
-func (r *registry) lookupAction(key string) action {
+// LookupAction returns the action for the given key, or nil if there is none.
+func (r *Registry) LookupAction(key string) common.Action {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.actions[key]
 }
 
-// LookupActionFor returns the action for the given key in the global registry,
-// or nil if there is none.
-// It panics if the action is of the wrong type.
-func LookupActionFor[In, Out, Stream any](typ atype.ActionType, provider, name string) *Action[In, Out, Stream] {
-	key := fmt.Sprintf("/%s/%s/%s", typ, provider, name)
-	a := globalRegistry.lookupAction(key)
-	if a == nil {
-		return nil
-	}
-	return a.(*Action[In, Out, Stream])
-}
-
-// listActions returns a list of descriptions of all registered actions.
+// ListActions returns a list of descriptions of all registered actions.
 // The list is sorted by action name.
-func (r *registry) listActions() []actionDesc {
-	var ads []actionDesc
+func (r *Registry) ListActions() []common.ActionDesc {
+	var ads []common.ActionDesc
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	keys := maps.Keys(r.actions)
 	slices.Sort(keys)
 	for _, key := range keys {
 		a := r.actions[key]
-		ad := a.desc()
+		ad := a.Desc()
 		ad.Key = key
 		ads = append(ads, ad)
 	}
 	return ads
 }
 
-// registerFlow stores the flow for use by the production server (see [NewFlowServeMux]).
+// Flow is the type for the flows stored in a registry.
+// Since a registry just remembers flows and returns them,
+// this interface is empty.
+type Flow interface{}
+
+// RegisterFlow stores the flow for use by the production server (see [NewFlowServeMux]).
 // It doesn't check for duplicates because registerAction will do that.
-func (r *registry) registerFlow(f flow) {
+func (r *Registry) RegisterFlow(f Flow) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.flows = append(r.flows, f)
 }
 
-func (r *registry) listFlows() []flow {
+func (r *Registry) ListFlows() []Flow {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.flows
 }
 
-// RegisterTraceStore uses the given trace.Store to record traces in the prod environment.
-// (A trace.Store that writes to the local filesystem is always installed in the dev environment.)
-// The returned function should be called before the program ends to ensure that
-// all pending data is stored.
-// RegisterTraceStore panics if called more than once.
-func RegisterTraceStore(ts tracing.Store) (shutdown func(context.Context) error) {
-	globalRegistry.registerTraceStore(EnvironmentProd, ts)
-	return globalRegistry.tstate.AddTraceStoreBatch(ts)
-}
-
-func (r *registry) registerTraceStore(env Environment, ts tracing.Store) {
+func (r *Registry) RegisterTraceStore(env common.Environment, ts tracing.Store) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, ok := r.traceStores[env]; ok {
@@ -187,19 +164,12 @@ func (r *registry) registerTraceStore(env Environment, ts tracing.Store) {
 	r.traceStores[env] = ts
 }
 
-func (r *registry) lookupTraceStore(env Environment) tracing.Store {
+func (r *Registry) LookupTraceStore(env common.Environment) tracing.Store {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.traceStores[env]
 }
 
-// RegisterSpanProcessor registers an OpenTelemetry SpanProcessor for tracing.
-func RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
-	globalRegistry.registerSpanProcessor(sp)
-}
-
-func (r *registry) registerSpanProcessor(sp sdktrace.SpanProcessor) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+func (r *Registry) RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
 	r.tstate.RegisterSpanProcessor(sp)
 }

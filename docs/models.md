@@ -165,18 +165,6 @@ const llmResponse = await generate({
 });
 ```
 
-And you can stream output from models that support it:
-
-```javascript
-await generate({
-  model: geminiPro,
-  prompt: 'Tell me a very long joke.',
-  streamingCallback: (chunk) => {
-    console.log(chunk);
-  },
-});
-```
-
 ### Adding retriever context
 
 Documents from a retriever can be passed directly to `generate` to provide
