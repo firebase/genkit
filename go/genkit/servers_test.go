@@ -25,8 +25,8 @@ import (
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/core/tracing"
+	"github.com/firebase/genkit/go/internal/action"
 	"github.com/firebase/genkit/go/internal/atype"
-	"github.com/firebase/genkit/go/internal/common"
 	"github.com/firebase/genkit/go/internal/registry"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -87,11 +87,11 @@ func TestDevServer(t *testing.T) {
 		if res.StatusCode != 200 {
 			t.Fatalf("got status %d, wanted 200", res.StatusCode)
 		}
-		got, err := readJSON[map[string]common.ActionDesc](res.Body)
+		got, err := readJSON[map[string]action.Desc](res.Body)
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := map[string]common.ActionDesc{
+		want := map[string]action.Desc{
 			"/custom/devServer/inc": {
 				Key:          "/custom/devServer/inc",
 				Name:         "devServer/inc",
@@ -168,7 +168,7 @@ func TestProdServer(t *testing.T) {
 }
 
 func checkActionTrace(t *testing.T, reg *registry.Registry, tid, name string) {
-	ts := reg.LookupTraceStore(common.EnvironmentDev)
+	ts := reg.LookupTraceStore(registry.EnvironmentDev)
 	td, err := ts.Load(context.Background(), tid)
 	if err != nil {
 		t.Fatal(err)

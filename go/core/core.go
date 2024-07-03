@@ -28,7 +28,6 @@ import (
 	"context"
 
 	"github.com/firebase/genkit/go/core/tracing"
-	"github.com/firebase/genkit/go/internal/common"
 	"github.com/firebase/genkit/go/internal/registry"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
@@ -39,7 +38,7 @@ import (
 // all pending data is stored.
 // RegisterTraceStore panics if called more than once.
 func RegisterTraceStore(ts tracing.Store) (shutdown func(context.Context) error) {
-	registry.Global.RegisterTraceStore(common.EnvironmentProd, ts)
+	registry.Global.RegisterTraceStore(registry.EnvironmentProd, ts)
 	return registry.Global.TracingState().AddTraceStoreBatch(ts)
 }
 

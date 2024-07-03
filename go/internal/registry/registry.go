@@ -25,8 +25,8 @@ import (
 	"sync"
 
 	"github.com/firebase/genkit/go/core/tracing"
+	"github.com/firebase/genkit/go/internal/action"
 	"github.com/firebase/genkit/go/internal/atype"
-	"github.com/firebase/genkit/go/internal/common"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"golang.org/x/exp/maps"
 )
@@ -50,24 +50,24 @@ type Registry struct {
 	tstate  *tracing.State
 	mu      sync.Mutex
 	frozen  bool // when true, no more additions
-	actions map[string]common.Action
+	actions map[string]action.Action
 	flows   []Flow
-	// TraceStores, at most one for each [common.Environment].
+	// TraceStores, at most one for each [Environment].
 	// Only the prod trace store is actually registered; the dev one is
 	// always created automatically. But it's simpler if we keep them together here.
-	traceStores map[common.Environment]tracing.Store
+	traceStores map[Environment]tracing.Store
 }
 
 func New() (*Registry, error) {
 	r := &Registry{
-		actions:     map[string]common.Action{},
-		traceStores: map[common.Environment]tracing.Store{},
+		actions:     map[string]action.Action{},
+		traceStores: map[Environment]tracing.Store{},
 	}
 	tstore, err := newDevStore()
 	if err != nil {
 		return nil, err
 	}
-	r.RegisterTraceStore(common.EnvironmentDev, tstore)
+	r.RegisterTraceStore(EnvironmentDev, tstore)
 	r.tstate = tracing.NewState()
 	r.tstate.AddTraceStoreImmediate(tstore)
 	return r, nil
@@ -89,7 +89,7 @@ func newDevStore() (tracing.Store, error) {
 // RegisterAction records the action in the registry.
 // It panics if an action with the same type, provider and name is already
 // registered.
-func (r *Registry) RegisterAction(typ atype.ActionType, a common.Action) {
+func (r *Registry) RegisterAction(typ atype.ActionType, a action.Action) {
 	key := fmt.Sprintf("/%s/%s", typ, a.Name())
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -113,7 +113,7 @@ func (r *Registry) Freeze() {
 }
 
 // LookupAction returns the action for the given key, or nil if there is none.
-func (r *Registry) LookupAction(key string) common.Action {
+func (r *Registry) LookupAction(key string) action.Action {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.actions[key]
@@ -121,8 +121,8 @@ func (r *Registry) LookupAction(key string) common.Action {
 
 // ListActions returns a list of descriptions of all registered actions.
 // The list is sorted by action name.
-func (r *Registry) ListActions() []common.ActionDesc {
-	var ads []common.ActionDesc
+func (r *Registry) ListActions() []action.Desc {
+	var ads []action.Desc
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	keys := maps.Keys(r.actions)
@@ -155,7 +155,7 @@ func (r *Registry) ListFlows() []Flow {
 	return r.flows
 }
 
-func (r *Registry) RegisterTraceStore(env common.Environment, ts tracing.Store) {
+func (r *Registry) RegisterTraceStore(env Environment, ts tracing.Store) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, ok := r.traceStores[env]; ok {
@@ -164,7 +164,7 @@ func (r *Registry) RegisterTraceStore(env common.Environment, ts tracing.Store) 
 	r.traceStores[env] = ts
 }
 
-func (r *Registry) LookupTraceStore(env common.Environment) tracing.Store {
+func (r *Registry) LookupTraceStore(env Environment) tracing.Store {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.traceStores[env]
@@ -172,4 +172,20 @@ func (r *Registry) LookupTraceStore(env common.Environment) tracing.Store {
 
 func (r *Registry) RegisterSpanProcessor(sp sdktrace.SpanProcessor) {
 	r.tstate.RegisterSpanProcessor(sp)
+}
+
+// An Environment is the execution context in which the program is running.
+type Environment string
+
+const (
+	EnvironmentDev  Environment = "dev"  // development: testing, debugging, etc.
+	EnvironmentProd Environment = "prod" // production: user data, SLOs, etc.
+)
+
+// CurentEnvironment returns the currently active environment.
+func CurrentEnvironment() Environment {
+	if v := os.Getenv("GENKIT_ENV"); v != "" {
+		return Environment(v)
+	}
+	return EnvironmentProd
 }

@@ -29,7 +29,6 @@ import (
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/base"
-	"github.com/firebase/genkit/go/internal/common"
 	"github.com/firebase/genkit/go/internal/registry"
 	"golang.org/x/exp/maps"
 )
@@ -116,7 +115,7 @@ func TestFlowConformance(t *testing.T) {
 			if test.Trace == nil {
 				return
 			}
-			ts := r.LookupTraceStore(common.EnvironmentDev)
+			ts := r.LookupTraceStore(registry.EnvironmentDev)
 			var gotTrace any
 			if err := ts.LoadAny(resp.Telemetry.TraceID, &gotTrace); err != nil {
 				t.Fatal(err)

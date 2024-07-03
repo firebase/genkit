@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/internal/atype"
-	"github.com/firebase/genkit/go/internal/common"
 	"github.com/firebase/genkit/go/internal/registry"
 )
 
@@ -105,7 +104,7 @@ func TestActionTracing(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The dev TraceStore is registered by Init, called from TestMain.
-	ts := registry.Global.LookupTraceStore(common.EnvironmentDev)
+	ts := registry.Global.LookupTraceStore(registry.EnvironmentDev)
 	tds, _, err := ts.List(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
