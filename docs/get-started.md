@@ -71,7 +71,12 @@ Node.js 20 or later.
     1. Choose default answers to the rest of the questions, which will
        initialize your project folder with some sample code.
 
-    The `genkit init` command creates a sample source file, `index.ts`. This is your project's entry point, where you configure Genkit for your project, configure the plugins you want to load and export your AI flows and other resources you've defined. The sample file contains a config that loads a plugin to support the model provider you chose earlier. It also contains a single flow, `menuSuggestionFlow`, that prompts an LLM to suggest an item for a restaurant with a given theme.
+    The `genkit init` command creates a sample source file, `index.ts`, which
+    defines a single flow, `menuSuggestionFlow`, that prompts an LLM to suggest
+    an item for a restaurant with a given theme.
+
+    This file looks something like the following (the plugin configuration steps
+    might look different if you selected Vertex AI):
 
     ```ts
     import * as z from 'zod';
