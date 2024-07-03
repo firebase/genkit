@@ -378,8 +378,9 @@ func concatMessages(input *ai.GenerateRequest, roles []ai.Role) string {
 		}
 		for _, part := range message.Content {
 			if !part.IsText() {
-				sb.WriteString(part.Text)
+				continue
 			}
+			sb.WriteString(part.Text)
 		}
 	}
 	return sb.String()
