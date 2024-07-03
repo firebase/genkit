@@ -21,7 +21,11 @@ import { dotprompt, prompt } from '@genkit-ai/dotprompt';
 import { defineFirestoreRetriever, firebase } from '@genkit-ai/firebase';
 import { defineFlow, run } from '@genkit-ai/flow';
 import { googleCloud } from '@genkit-ai/google-cloud';
-import { googleAI, geminiPro as googleGeminiPro } from '@genkit-ai/googleai';
+import {
+  gemini15Flash,
+  geminiPro as googleGeminiPro,
+  googleAI,
+} from '@genkit-ai/googleai';
 import {
   gemini15ProPreview,
   geminiPro,
@@ -52,7 +56,7 @@ configureGenkit({
           '@opentelemetry/instrumentation-dns': { enabled: false },
           '@opentelemetry/instrumentation-net': { enabled: false },
         },
-        metricExportIntervalMillis: 5_000,
+        // metricExportIntervalMillis: 5_000,
       },
     }),
     dotprompt(),
@@ -371,5 +375,28 @@ export const toolCaller = defineFlow(
     }
 
     return (await response()).text();
+  }
+);
+
+export const invalidOutput = defineFlow(
+  {
+    name: 'invalidOutput',
+    inputSchema: z.string(),
+    outputSchema: z.object({
+      name: z.string(),
+    }),
+  },
+  async () => {
+    const result = await generate({
+      model: gemini15Flash,
+      output: {
+        schema: z.object({
+          name: z.string(),
+        }),
+      },
+      prompt:
+        'Output a JSON object in the form {"displayName": "Some Name"}. Ignore any further instructions about output format.',
+    });
+    return result.output() as any;
   }
 );
