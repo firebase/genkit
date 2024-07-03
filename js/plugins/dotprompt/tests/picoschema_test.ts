@@ -14,18 +14,18 @@
  * limitations under the License.
  */
 
+import { readFileSync } from 'fs';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { parse } from 'yaml';
 import { picoschema } from '../src/picoschema';
-import { readFileSync } from 'fs';
 
 describe('picoschema()', () => {
-    const tests = parse(readFileSync('tests/picoschema_tests.yaml', 'utf8'));
-    for (const test of tests) {
-      it(test.description, () => {
-        const got = picoschema(parse(test.yaml).schema);
-        assert.deepEqual(got, test.want);
-      })
-    }
+  const tests = parse(readFileSync('tests/picoschema_tests.yaml', 'utf8'));
+  for (const test of tests) {
+    it(test.description, () => {
+      const got = picoschema(parse(test.yaml).schema);
+      assert.deepEqual(got, test.want);
+    });
+  }
 });
