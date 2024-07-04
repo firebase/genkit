@@ -641,7 +641,8 @@ export async function generate<
   if (resolvedOptions.output?.schema || resolvedOptions.output?.jsonSchema) {
     // find a candidate with valid output schema
     const candidateErrors = response.candidates.map((c) => {
-      if (c.toolRequests()?.length) return null;
+      // only validate candidates that have output
+      if (!c.output()) return null;
 
       try {
         parseSchema(c.output(), {
