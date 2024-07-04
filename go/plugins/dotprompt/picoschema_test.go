@@ -15,158 +15,85 @@
 package dotprompt
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"gopkg.in/yaml.v3"
 )
 
 // TestPicoschema tests the same cases as picoschema_test.ts.
 func TestPicoschema(t *testing.T) {
-	tests := []struct {
-		description string
-		yaml        string
-		want        string
-	}{
-		{
-			description: "simple scalar, no description",
-			yaml:        `schema: string`,
-			want:        `{ "type": "string" }`,
-		},
-		{
-			description: "simple scalar, with description",
-			yaml:        `schema: number, the description`,
-			want:        `{ "type": "number", "description": "the description" }`,
-		},
-		{
-			description: "simple scalar, with description (no whitespace)",
-			yaml:        `schema: number,the description`,
-			want:        `{ "type": "number", "description": "the description" }`,
-		},
-		{
-			description: "simple scalar, with description (comma in description)",
-			yaml:        `schema: number,the description, which has, multiple commas`,
-			want: `{
-			        "type": "number",
-			        "description": "the description, which has, multiple commas"
-			}`,
-		},
-		{
-			description: "simple scalar, with description (extra whitespace)",
-			yaml:        `schema: number,    the description`,
-			want:        `{ "type": "number", "description": "the description" }`,
-		},
-		{
-			description: "simple object",
-			yaml: `schema:
-  field1: boolean
-  field2: string`,
-			want: `{
-			        "type": "object",
-			        "properties": {
-			          "field1": { "type": "boolean" },
-			          "field2": { "type": "string" }
-			        },
-			        "required": ["field1", "field2"]
-			}`,
-		},
-		{
-			description: "required field",
-			yaml: `schema:
-  req: string, required field
-  nonreq?: boolean, optional field`,
-			want: `{
-			        "type": "object",
-			        "properties": {
-			          "req": { "type": "string", "description": "required field" },
-			          "nonreq": { "type": "boolean", "description": "optional field" }
-			        },
-			        "required": ["req"]
-			}`,
-		},
-		{
-			description: "array of scalars, with and without description",
-			yaml: `schema:
-  tags(array, list of tags): string, the tag
-  vector(array): number`,
-			want: `{
-			        "type": "object",
-			        "properties": {
-			          "tags": {
-			            "type": "array",
-			            "description": "list of tags",
-			            "items": { "type": "string", "description": "the tag" }
-			          },
-			          "vector": { "type": "array", "items": { "type": "number" } }
-			        },
-			        "required": ["tags", "vector"]
-			}`,
-		},
-		{
-			description: "nested object in array and out",
-			yaml: `schema:
-  obj?(object, a nested object):
-    nest1?: string
-  arr(array, array of objects):
-    nest2?: boolean`,
-			want: `{
-			        "type": "object",
-			        "properties": {
-			          "obj": {
-			            "type": "object",
-			            "description": "a nested object",
-			            "properties": { "nest1": { "type": "string" } }
-			          },
-			          "arr": {
-			            "type": "array",
-			            "description": "array of objects",
-			            "items": {
-			              "type": "object",
-			              "properties": { "nest2": { "type": "boolean" } }
-			            }
-			          }
-			        },
-			        "required": ["arr"]
-			}`,
-		},
-		{
-			description: "simple json schema type",
-			yaml: `schema:
-  type: string`,
-			want: `{ "type": "string" }`,
-		},
-		{
-			description: "simple json schema type",
-			yaml: `schema:
-  type: string`,
-			want: `{ "type": "string" }`,
-		},
-		{
-			description: "inferred json schema from properties",
-			yaml: `schema:
-  properties:
-    foo: {type: string}`,
-			want: `{ "type": "object", "properties": { "foo": { "type": "string" } } }`,
-		},
+	type test struct {
+		Description string
+		YAML        string
+		Want        map[string]any
+	}
+
+	data, err := os.ReadFile(filepath.FromSlash("../../../js/plugins/dotprompt/tests/picoschema_tests.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var tests []test
+	if err := yaml.Unmarshal(data, &tests); err != nil {
+		t.Fatal(err)
+	}
+
+	skip := map[string]bool{
+		"required field":                 true,
+		"nested object in array and out": true,
 	}
 
 	for _, test := range tests {
-		var val any
-		if err := yaml.Unmarshal([]byte(test.yaml), &val); err != nil {
-			t.Errorf("%s YAML unmarshal failure: %v", test.description, err)
-			continue
-		}
+		t.Run(test.Description, func(t *testing.T) {
+			if skip[test.Description] {
+				t.Skip("no support for type as an array")
+			}
+			var val any
+			if err := yaml.Unmarshal([]byte(test.YAML), &val); err != nil {
+				t.Fatalf("YAML unmarshal failure: %v", err)
+			}
 
-		// The tests, copied from TypeScript, use a schema field.
-		val = val.(map[string]any)["schema"]
+			// The tests use a schema field.
+			val = val.(map[string]any)["schema"]
 
-		schema, err := picoschemaToJSONSchema(val)
-		if err != nil {
-			t.Errorf("%s: %v", test.description, err)
-			continue
-		}
+			schema, err := picoschemaToJSONSchema(val)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := convertSchema(schema)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := replaceEmptySchemas(test.Want)
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Errorf("mismatch (-want, +got):\n%s", diff)
+			}
+		})
+	}
+}
 
-		if diff := cmpSchema(t, schema, test.want); diff != "" {
-			t.Errorf("%s: mismatch (-want, +got):\n%s", test.description, diff)
+// replaceEmptySchemas replaces empty maps in m, which represent
+// empty JSON schemas, with the value true.
+// It transforms the expected values taken from the suite of JS test cases
+// into a form that matches the JSON marshalling of jsonschema.Schema,
+// which marshals empty schemas as "true".
+func replaceEmptySchemas(m map[string]any) any {
+	if m == nil {
+		return nil
+	}
+	if len(m) == 0 {
+		return true
+	}
+	if p, ok := m["properties"]; ok {
+		pm := p.(map[string]any)
+		for k, v := range pm {
+			if vm, ok := v.(map[string]any); ok && len(vm) == 0 {
+				pm[k] = true
+			}
 		}
 	}
+	return m
 }

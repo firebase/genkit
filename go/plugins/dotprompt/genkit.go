@@ -152,7 +152,7 @@ func (p *Prompt) Register() error {
 			"template": p.TemplateText,
 		},
 	}
-	p.prompt = ai.DefinePrompt("dotprompt", name, metadata, p.buildRequest, p.Config.InputSchema)
+	p.prompt = ai.DefinePrompt("dotprompt", name, metadata, p.Config.InputSchema, p.buildRequest)
 
 	return nil
 }

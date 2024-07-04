@@ -21,10 +21,13 @@ import {
   MetricCounter,
   MetricHistogram,
 } from '@genkit-ai/core/metrics';
-import { spanMetadataAls, traceMetadataAls } from '@genkit-ai/core/tracing';
+import {
+  spanMetadataAls,
+  toDisplayPath,
+  traceMetadataAls,
+} from '@genkit-ai/core/tracing';
 import { ValueType } from '@opentelemetry/api';
 import { createHash } from 'crypto';
-import { GenerateOptions } from './generate.js';
 import {
   GenerateRequest,
   GenerateResponseData,
@@ -138,6 +141,7 @@ type SharedDimensions = {
   temperature?: number;
   topK?: number;
   topP?: number;
+  status?: string;
   source?: string;
   sourceVersion?: string;
 };
@@ -166,19 +170,19 @@ export function recordGenerateActionMetrics(
 
 export function recordGenerateActionInputLogs(
   model: string,
-  options: GenerateOptions,
   input: GenerateRequest
 ) {
   const flowName = traceMetadataAls?.getStore()?.flowName;
-  const path = spanMetadataAls?.getStore()?.path;
-  const sharedMetadata = { model, path, flowName };
+  const qualifiedPath = spanMetadataAls?.getStore()?.path || '';
+  const path = toDisplayPath(qualifiedPath);
+  const sharedMetadata = { model, path, qualifiedPath, flowName };
   logger.logStructured(`Config[${path}, ${model}]`, {
     ...sharedMetadata,
-    temperature: options.config?.temperature,
-    topK: options.config?.topK,
-    topP: options.config?.topP,
-    maxOutputTokens: options.config?.maxOutputTokens,
-    stopSequences: options.config?.stopSequences,
+    temperature: input.config?.temperature,
+    topK: input.config?.topK,
+    topP: input.config?.topP,
+    maxOutputTokens: input.config?.maxOutputTokens,
+    stopSequences: input.config?.stopSequences,
     source: 'ts',
     sourceVersion: GENKIT_VERSION,
   });
@@ -202,12 +206,12 @@ export function recordGenerateActionInputLogs(
 
 export function recordGenerateActionOutputLogs(
   model: string,
-  options: GenerateOptions,
   output: GenerateResponseData
 ) {
   const flowName = traceMetadataAls?.getStore()?.flowName;
-  const path = spanMetadataAls?.getStore()?.path;
-  const sharedMetadata = { model, path, flowName };
+  const qualifiedPath = spanMetadataAls?.getStore()?.path || '';
+  const path = toDisplayPath(qualifiedPath);
+  const sharedMetadata = { model, path, qualifiedPath, flowName };
   const candidates = output.candidates.length;
   output.candidates.forEach((cand, candIdx) => {
     const parts = cand.message.content.length;
@@ -340,6 +344,7 @@ function doRecordGenerateActionMetrics(
     topP: dimensions.topP,
     source: dimensions.source,
     sourceVersion: dimensions.sourceVersion,
+    status: dimensions.err ? 'failure' : 'success',
   };
 
   generateActionCounter.add(1, {

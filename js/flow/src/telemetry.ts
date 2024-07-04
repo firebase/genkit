@@ -24,6 +24,7 @@ import {
 import {
   PathMetadata,
   spanMetadataAls,
+  toDisplayPath,
   traceMetadataAls,
 } from '@genkit-ai/core/tracing';
 import { ValueType } from '@opentelemetry/api';
@@ -57,9 +58,11 @@ const flowLatencies = new MetricHistogram(_N('latency'), {
 });
 
 export function recordError(err: any) {
-  const path = spanMetadataAls?.getStore()?.path;
+  const qualifiedPath = spanMetadataAls?.getStore()?.path || '';
+  const path = toDisplayPath(qualifiedPath);
   logger.logStructuredError(`Error[${path}, ${err.name}]`, {
-    path: path,
+    path,
+    qualifiedPath,
     name: err.name,
     message: err.message,
     stack: err.stack,
@@ -71,6 +74,7 @@ export function recordError(err: any) {
 export function writeFlowSuccess(flowName: string, latencyMs: number) {
   const dimensions = {
     name: flowName,
+    status: 'success',
     source: 'ts',
     sourceVersion: GENKIT_VERSION,
   };
@@ -81,6 +85,7 @@ export function writeFlowSuccess(flowName: string, latencyMs: number) {
   if (paths) {
     const pathDimensions = {
       flowName: flowName,
+      status: 'success',
       source: 'ts',
       sourceVersion: GENKIT_VERSION,
     };
@@ -88,7 +93,7 @@ export function writeFlowSuccess(flowName: string, latencyMs: number) {
       meta.path.includes(flowName)
     );
 
-    logger.logStructured(`Paths[/${flowName}]`, {
+    logger.logStructured(`Paths[${flowName}]`, {
       flowName: flowName,
       paths: relevantPaths.map((p) => p.path),
     });
@@ -96,7 +101,6 @@ export function writeFlowSuccess(flowName: string, latencyMs: number) {
     relevantPaths.forEach((p) => {
       pathCounter.add(1, {
         ...pathDimensions,
-        success: 'success',
         path: p.path,
       });
 
@@ -115,6 +119,7 @@ export function writeFlowFailure(
 ) {
   const dimensions = {
     name: flowName,
+    status: 'failure',
     source: 'ts',
     sourceVersion: GENKIT_VERSION,
     error: err.name,
@@ -122,17 +127,18 @@ export function writeFlowFailure(
   flowCounter.add(1, dimensions);
   flowLatencies.record(latencyMs, dimensions);
 
-  const allPaths =
+  const allQualifiedPaths =
     traceMetadataAls.getStore()?.paths || new Set<PathMetadata>();
-  if (allPaths) {
-    const failPath = spanMetadataAls?.getStore()?.path;
-    const relevantPaths = Array.from(allPaths).filter(
-      (meta) => meta.path.includes(flowName) && meta.path !== failPath
+  if (allQualifiedPaths) {
+    const qualifiedFailPath = spanMetadataAls?.getStore()?.path || '';
+    const failPath = toDisplayPath(qualifiedFailPath);
+    const relevantPaths = Array.from(allQualifiedPaths).filter(
+      (meta) => meta.path.includes(flowName) && meta.path !== qualifiedFailPath
     );
 
-    logger.logStructured(`Paths[/${flowName}]`, {
+    logger.logStructured(`Paths[${flowName}]`, {
       flowName: flowName,
-      paths: relevantPaths.map((p) => p.path),
+      paths: relevantPaths.map((p) => toDisplayPath(p.path)),
     });
 
     const pathDimensions = {
@@ -142,29 +148,40 @@ export function writeFlowFailure(
     };
     // All paths that have succeeded need to be tracked as succeeded.
     relevantPaths.forEach((p) => {
+      const path = toDisplayPath(p.path);
       pathCounter.add(1, {
         ...pathDimensions,
-        success: 'success',
+        status: 'success',
         path: p.path,
       });
 
       pathLatencies.record(p.latency, {
         ...pathDimensions,
+        status: 'success',
         path: p.path,
       });
     });
 
     pathCounter.add(1, {
       ...pathDimensions,
-      success: 'failure',
+      status: 'failure',
       error: err.name,
-      path: failPath,
+      path: qualifiedFailPath,
+    });
+
+    pathLatencies.record(latencyMs, {
+      ...pathDimensions,
+      status: 'failure',
+      error: err.name,
+      path: qualifiedFailPath,
     });
   }
 }
 
 export function logRequest(flowName: string, req: express.Request) {
-  logger.logStructured(`Request[/${flowName}]`, {
+  const qualifiedPath = spanMetadataAls?.getStore()?.path || '';
+  const path = toDisplayPath(qualifiedPath);
+  logger.logStructured(`Request[${flowName}]`, {
     flowName: flowName,
     headers: {
       ...req.headers,
@@ -174,16 +191,20 @@ export function logRequest(flowName: string, req: express.Request) {
     body: req.body,
     query: req.query,
     originalUrl: req.originalUrl,
-    path: `/${flowName}`,
+    path,
+    qualifiedPath,
     source: 'ts',
     sourceVersion: GENKIT_VERSION,
   });
 }
 
 export function logResponse(flowName: string, respCode: number, respBody: any) {
-  logger.logStructured(`Response[/${flowName}]`, {
+  const qualifiedPath = spanMetadataAls?.getStore()?.path || '';
+  const path = toDisplayPath(qualifiedPath);
+  logger.logStructured(`Response[${flowName}]`, {
     flowName: flowName,
-    path: `/${flowName}`,
+    path,
+    qualifiedPath,
     code: respCode,
     body: respBody,
     source: 'ts',

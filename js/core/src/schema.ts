@@ -19,6 +19,7 @@ import addFormats from 'ajv-formats';
 import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 import { GenkitError } from './error.js';
+import { registerSchema } from './registry.js';
 const ajv = new Ajv();
 addFormats(ajv);
 
@@ -108,4 +109,17 @@ export function parseSchema<T = unknown>(
   const { valid, errors, schema } = validateSchema(data, options);
   if (!valid) throw new ValidationError({ data, errors: errors!, schema });
   return data as T;
+}
+
+export function defineSchema<T extends z.ZodTypeAny>(
+  name: string,
+  schema: T
+): T {
+  registerSchema(name, { schema });
+  return schema;
+}
+
+export function defineJsonSchema(name: string, jsonSchema: JSONSchema) {
+  registerSchema(name, { jsonSchema });
+  return jsonSchema;
 }

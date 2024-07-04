@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	"github.com/invopop/jsonschema"
-	"github.com/wk8/go-ordered-map/v2"
+	orderedmap "github.com/wk8/go-ordered-map/v2"
 )
 
 // picoschemaToJSONSchema turns picoschema input into a JSONSchema.
@@ -57,12 +57,19 @@ func picoschemaToJSONSchema(val any) (*jsonschema.Schema, error) {
 
 // parsePico parses picoschema from the result of the YAML parser.
 func parsePico(val any) (*jsonschema.Schema, error) {
-	if str, ok := val.(string); ok {
-		typ, desc, found := strings.Cut(str, ",")
+	switch val := val.(type) {
+	default:
+		return nil, fmt.Errorf("picoschema: value %v of type %[1]T is not an object, slice or string", val)
+
+	case string:
+		typ, desc, found := strings.Cut(val, ",")
 		switch typ {
-		case "string", "boolean", "null", "number", "integer":
+		case "string", "boolean", "null", "number", "integer", "any":
 		default:
 			return nil, fmt.Errorf("picoschema: unsupported scalar type %q", typ)
+		}
+		if typ == "any" {
+			typ = ""
 		}
 		ret := &jsonschema.Schema{
 			Type: typ,
@@ -71,57 +78,68 @@ func parsePico(val any) (*jsonschema.Schema, error) {
 			ret.Description = strings.TrimSpace(desc)
 		}
 		return ret, nil
-	}
 
-	m, ok := val.(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("picoschema: value %v of type %T is not an object or a string", val, val)
-	}
+	case []any: // assume enum
+		return &jsonschema.Schema{Enum: val}, nil
 
-	ret := &jsonschema.Schema{
-		Type:       "object",
-		Properties: orderedmap.New[string, *jsonschema.Schema](),
-	}
-	for k, v := range m {
-		name, typ, found := strings.Cut(k, "(")
-		propertyName, isOptional := strings.CutSuffix(name, "?")
-		if !isOptional {
-			ret.Required = append(ret.Required, propertyName)
+	case map[string]any:
+		ret := &jsonschema.Schema{
+			Type:                 "object",
+			Properties:           orderedmap.New[string, *jsonschema.Schema](),
+			AdditionalProperties: jsonschema.FalseSchema,
 		}
-
-		property, err := parsePico(v)
-		if err != nil {
-			return nil, err
-		}
-
-		if !found {
-			ret.Properties.Set(propertyName, property)
-			continue
-		}
-
-		typ = strings.TrimSuffix(typ, ")")
-		typ, desc, found := strings.Cut(strings.TrimSuffix(typ, ")"), ",")
-		switch typ {
-		case "array":
-			property = &jsonschema.Schema{
-				Type:  "array",
-				Items: property,
+		for k, v := range val {
+			name, typ, found := strings.Cut(k, "(")
+			propertyName, isOptional := strings.CutSuffix(name, "?")
+			if name != "" && !isOptional {
+				ret.Required = append(ret.Required, propertyName)
 			}
-		case "object":
-			// Use property unchanged.
-		default:
-			return nil, fmt.Errorf("picoschema: parenthetical type %q is neither %q nor %q", typ, "object", "array")
 
+			property, err := parsePico(v)
+			if err != nil {
+				return nil, err
+			}
+
+			if !found {
+				ret.Properties.Set(propertyName, property)
+				continue
+			}
+
+			typ = strings.TrimSuffix(typ, ")")
+			typ, desc, found := strings.Cut(strings.TrimSuffix(typ, ")"), ",")
+			switch typ {
+			case "array":
+				property = &jsonschema.Schema{
+					Type:  "array",
+					Items: property,
+				}
+			case "object":
+				// Use property unchanged.
+			case "enum":
+				if property.Enum == nil {
+					return nil, fmt.Errorf("picoschema: enum value %v is not an array", property)
+				}
+				if isOptional {
+					property.Enum = append(property.Enum, nil)
+				}
+
+			case "*":
+				ret.AdditionalProperties = property
+				continue
+			default:
+				return nil, fmt.Errorf("picoschema: parenthetical type %q is none of %q", typ,
+					[]string{"object", "array", "enum", "*"})
+
+			}
+
+			if found {
+				property.Description = strings.TrimSpace(desc)
+			}
+
+			ret.Properties.Set(propertyName, property)
 		}
-
-		if found {
-			property.Description = strings.TrimSpace(desc)
-		}
-
-		ret.Properties.Set(propertyName, property)
+		return ret, nil
 	}
-
-	return ret, nil
 }
 
 // mapToJSONSchema converts a YAML value to a JSONSchema.

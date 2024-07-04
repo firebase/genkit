@@ -78,9 +78,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	model := vertexai.DefineModel("gemini-1.0-pro")
-	visionModel := vertexai.DefineModel("gemini-1.0-pro-vision")
-	embedder := vertexai.DefineEmbedder("textembedding-gecko")
+	model := vertexai.Model("gemini-1.0-pro")
+	visionModel := vertexai.Model("gemini-1.5-flash")
+	embedder := vertexai.Embedder("text-embedding-004")
 	if err := setup01(ctx, model); err != nil {
 		log.Fatal(err)
 	}
@@ -99,6 +99,9 @@ func main() {
 	indexer, retriever, err := localvec.DefineIndexerAndRetriever("go-menu_items", localvec.Config{
 		Embedder: embedder,
 	})
+	if err != nil {
+		log.Fatal(err)
+	}
 	if err := setup04(ctx, indexer, retriever, model); err != nil {
 		log.Fatal(err)
 	}
@@ -107,7 +110,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := genkit.Init(nil); err != nil {
+	if err := genkit.Init(ctx, nil); err != nil {
 		log.Fatal(err)
 	}
 }

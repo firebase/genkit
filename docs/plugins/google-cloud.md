@@ -62,7 +62,6 @@ The `googleCloud()` plugin takes an optional configuration object:
 ```ts
 {
     projectId?: string,
-    forceDevExport?: boolean,
     telemetryConfig?: TelemetryConfig
 }
 ```
@@ -70,12 +69,6 @@ The `googleCloud()` plugin takes an optional configuration object:
 ### projectId
 
 This option allows specifying the Google Cloud project ID explicitly. In most cases, this is unnecessary.
-
-### forceDevExport
-
-This option will force Genkit to export telemetry and log data when running in the `dev` environment (e.g. locally).
-
-> Note: When running locally, internal telemetry buffers may not fully flush prior to the process exiting, resulting in an incomplete telemetry export.
 
 ### telemetryConfig
 
@@ -85,8 +78,8 @@ This option configures the [OpenTelemetry NodeSDK](https://open-telemetry.github
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 
 googleCloud({
-  forceDevExport: false, // Set this to true to export telemetry for local runs
   telemetryConfig: {
+    forceDevExport: false, // Set this to true to export telemetry for local runs
     sampler: new AlwaysOnSampler(),
     autoInstrumentation: true,
     autoInstrumentationConfig: {
@@ -98,6 +91,12 @@ googleCloud({
   },
 });
 ```
+
+#### forceDevExport
+
+This option will force Genkit to export telemetry and log data when running in the `dev` environment (e.g. locally).
+
+> Note: When running locally, internal telemetry buffers may not fully flush prior to the process exiting, resulting in an incomplete telemetry export.
 
 #### sampler
 
@@ -119,6 +118,10 @@ Enabling [automatic instrumentation](https://opentelemetry.io/docs/languages/js/
 This field specifies the metrics export interval in milliseconds.
 
 > Note: The minimum export interval for Google Cloud Monitoring is 5000ms.
+
+## Test your integration
+
+When configuring the plugin, use `forceDevExport: true` to enable telemetry export for local runs. This is a quick way to send your first events for monitoring in Google Cloud.
 
 # Production monitoring via Google Cloud's operations suite
 

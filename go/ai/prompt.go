@@ -32,13 +32,13 @@ type Prompt core.Action[any, *GenerateRequest, struct{}]
 // The prompt expects some input described by inputSchema.
 // DefinePrompt registers the function as an action,
 // and returns a [Prompt] that runs it.
-func DefinePrompt(provider, name string, metadata map[string]any, render func(context.Context, any) (*GenerateRequest, error), inputSchema *jsonschema.Schema) *Prompt {
+func DefinePrompt(provider, name string, metadata map[string]any, inputSchema *jsonschema.Schema, render func(context.Context, any) (*GenerateRequest, error)) *Prompt {
 	mm := maps.Clone(metadata)
 	if mm == nil {
 		mm = make(map[string]any)
 	}
 	mm["type"] = "prompt"
-	return (*Prompt)(core.DefineActionWithInputSchema(provider, name, atype.Prompt, mm, render, inputSchema))
+	return (*Prompt)(core.DefineActionWithInputSchema(provider, name, atype.Prompt, mm, inputSchema, render))
 }
 
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].

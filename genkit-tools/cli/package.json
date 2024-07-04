@@ -1,6 +1,6 @@
 {
   "name": "genkit",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "CLI for interacting with the Google GenKit AI framework",
   "license": "Apache-2.0",
   "keywords": [
@@ -30,7 +30,8 @@
     "colorette": "^2.0.20",
     "commander": "^11.1.0",
     "extract-zip": "^2.0.1",
-    "inquirer": "^8.2.0"
+    "inquirer": "^8.2.0",
+    "ora": "^5.4.1"
   },
   "devDependencies": {
     "@jest/globals": "^29.7.0",

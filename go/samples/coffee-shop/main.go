@@ -39,7 +39,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -98,14 +97,7 @@ type testAllCoffeeFlowsOutput struct {
 }
 
 func main() {
-	apiKey := os.Getenv("GOOGLE_GENAI_API_KEY")
-	if apiKey == "" {
-		fmt.Fprintln(os.Stderr, "coffee-shop example requires setting GOOGLE_GENAI_API_KEY in the environment.")
-		fmt.Fprintln(os.Stderr, "You can get an API key at https://ai.google.dev.")
-		os.Exit(1)
-	}
-	err := googleai.Init(context.Background(), apiKey)
-	if err != nil {
+	if err := googleai.Init(context.Background(), ""); err != nil {
 		log.Fatal(err)
 	}
 
@@ -113,11 +105,8 @@ func main() {
 		AllowAdditionalProperties: false,
 		DoNotReference:            true,
 	}
-	g, err := googleai.DefineModel("gemini-1.5-pro", nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting", simpleGreetingPromptTemplate,
+	g := googleai.Model("gemini-1.5-pro")
+	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting2", simpleGreetingPromptTemplate,
 		dotprompt.Config{
 			Model:        g,
 			InputSchema:  r.Reflect(simpleGreetingInput{}),
@@ -235,7 +224,7 @@ func main() {
 	})
 
 	genkit.DefineFlow("testAllCoffeeFlows", func(ctx context.Context, _ struct{}) (*testAllCoffeeFlowsOutput, error) {
-		test1, err := genkit.RunFlow(ctx, simpleGreetingFlow, &simpleGreetingInput{
+		test1, err := simpleGreetingFlow.Run(ctx, &simpleGreetingInput{
 			CustomerName: "Sam",
 		})
 		if err != nil {
@@ -245,7 +234,7 @@ func main() {
 			}
 			return out, nil
 		}
-		test2, err := genkit.RunFlow(ctx, greetingWithHistoryFlow, &customerTimeAndHistoryInput{
+		test2, err := greetingWithHistoryFlow.Run(ctx, &customerTimeAndHistoryInput{
 			CustomerName:  "Sam",
 			CurrentTime:   "09:45am",
 			PreviousOrder: "Caramel Macchiato",
@@ -266,7 +255,7 @@ func main() {
 		}
 		return out, nil
 	})
-	if err := genkit.Init(nil); err != nil {
+	if err := genkit.Init(context.Background(), nil); err != nil {
 		log.Fatal(err)
 	}
 }
