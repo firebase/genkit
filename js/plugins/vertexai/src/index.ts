@@ -66,11 +66,7 @@ import {
   SUPPORTED_OPENAI_FORMAT_MODELS,
 } from './model_garden.js';
 
-import {
-  Neighbor,
-  VVSIndexerOptionsSchema,
-  VVSRetrieverOptionsSchema,
-} from './vector-search';
+import { Neighbor } from './vector-search';
 import { vertexIndexers } from './vector-search/indexers.js';
 import { vertexRetrievers } from './vector-search/retrievers.js';
 export {
@@ -80,8 +76,8 @@ export {
   vertexRetrievers,
 } from './vector-search/index.js';
 export {
-  claude35Sonnet,
   VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
+  claude35Sonnet,
   claude3Haiku,
   claude3Opus,
   claude3Sonnet,
@@ -102,19 +98,40 @@ export {
   textMultilingualEmbedding002,
 };
 
-interface VectorSearchIndexOption<EmbedderCustomOptions extends z.ZodTypeAny> {
+/**
+ * A document retriever function that takes an array of Neighbors from Vertex AI Vector Search query result, and resolves to a list of documents.
+ * Also takes an options object that can be used to configure the retriever.
+ */
+export type DocumentRetriever<Options extends { k?: number } = { k?: number }> =
+  (docIds: Neighbor[], options?: Options) => Promise<Document[]>;
+
+/**
+ * Indexer function that takes an array of documents, stores them in a database of the user's choice, and resolves to a list of document ids.
+ * Also takes an options object that can be used to configure the indexer.
+ */
+export type DocumentIndexer<Options extends {} = {}> = (
+  docs: Document[],
+  options?: Options
+) => Promise<string[]>;
+
+/**
+ * Options for configuring the Vector Search Index. As in other plugins, the plugin can an array of options
+ * allowing an options object per index.
+ */
+interface VectorSearchIndexOption<
+  EmbedderCustomOptions extends z.ZodTypeAny,
+  IndexerOptions extends {},
+  RetrieverOptions extends { k?: number },
+> {
+  // Specify the Vertex AI Index and IndexEndpoint to use for indexing and retrieval
   deployedIndexId: string;
   indexEndpointId: string;
-  documentRetriever: (
-    docIds: Neighbor[],
-    options?: z.infer<typeof VVSRetrieverOptionsSchema>
-  ) => Promise<Document[]>;
-  documentIndexer: (
-    docs: Document[],
-    options: z.infer<typeof VVSIndexerOptionsSchema>
-  ) => Promise<string[]>;
   publicEndpoint: string;
   indexId: string;
+  // Document retriever and indexer functions to use for indexing and retrieval by the plugin's own indexers and retrievers
+  documentRetriever: DocumentRetriever<RetrieverOptions>;
+  documentIndexer: DocumentIndexer<IndexerOptions>;
+  // Embedder and default options to use for indexing and retrieval
   embedder?: EmbedderArgument<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
 }
@@ -149,7 +166,7 @@ export interface PluginOptions {
     publicEndpoint: string;
   };
   projectNumber?: string;
-  vectorSearchIndexOptions?: VectorSearchIndexOption<z.ZodTypeAny>[];
+  vectorSearchIndexOptions?: VectorSearchIndexOption<z.ZodTypeAny, any, any>[];
 }
 
 const CLOUD_PLATFROM_OAUTH_SCOPE =

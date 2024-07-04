@@ -24,6 +24,8 @@ import {
 import { configureGenkit } from '@genkit-ai/core';
 import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
 import {
+  DocumentIndexer,
+  DocumentRetriever,
   Neighbor,
   vertexAI,
   vertexAiIndexerRef,
@@ -51,119 +53,133 @@ initializeApp({ projectId: PROJECT_ID });
 
 const db = getFirestore();
 
-// Firestore client for document storage and retrieval
-const firestoreClient = {
-  get: async (neighbors: Neighbor[]): Promise<Document[]> => {
-    const docs: Document[] = [];
-    for (const neighbor of neighbors) {
-      const docRef = db
-        .collection(FIREBASE_COLLECTION)
-        .doc(neighbor.datapoint?.datapointId!);
-      const docSnapshot = await docRef.get();
-      if (docSnapshot.exists) {
-        const docData = { ...docSnapshot.data(), metadata: { ...neighbor } };
-        const parsedDocData = DocumentDataSchema.safeParse(docData);
-        if (parsedDocData.success) {
-          docs.push(new Document(parsedDocData.data));
-        }
-      }
-    }
-    return docs;
-  },
-  add: async (docs: Document[]): Promise<string[]> => {
-    const batch = db.batch();
-    const ids: string[] = [];
-    docs.forEach((doc) => {
-      const docRef = db.collection(FIREBASE_COLLECTION).doc();
-      batch.set(docRef, { content: doc.content });
-      ids.push(docRef.id);
-    });
-    await batch.commit();
-    return ids;
-  },
-};
-
 const bigQuery = new BigQuery({
   projectId: PROJECT_ID,
   location: LOCATION,
 });
 
-const generateId = () => {
+const generateId = (): string => {
   return Math.random().toString(36).substring(2, 15);
 };
 
-// BigQuery client for document storage and retrieval
-const bigQueryClient = {
-  get: async (neighbors: Neighbor[]): Promise<Document[]> => {
-    const docs: Document[] = [];
-    for (const neighbor of neighbors) {
-      const query = `
-        SELECT * FROM \`${DATASET_ID}.${TABLE_ID}\`
-        WHERE id = @id
-        LIMIT 1
-      `;
-      const options = {
-        query,
-        params: { id: neighbor.datapoint?.datapointId },
-      };
-      const [rows] = await bigQuery.query(options);
-      for (const row of rows) {
-        const docData = {
-          content: JSON.parse(row.content),
-          metadata: { ...neighbor },
-        };
-        const parsedDocData = DocumentDataSchema.safeParse(docData);
-        if (parsedDocData.success) {
-          docs.push(new Document(parsedDocData.data));
-        }
+// Firestore Document Retriever
+const firestoreRetriever = async (
+  neighbors: Neighbor[]
+): Promise<Document[]> => {
+  const docs: Document[] = [];
+  for (const neighbor of neighbors) {
+    const docRef = db
+      .collection(FIREBASE_COLLECTION)
+      .doc(neighbor.datapoint?.datapointId!);
+    const docSnapshot = await docRef.get();
+
+    if (docSnapshot.exists) {
+      const docData = { ...docSnapshot.data(), metadata: { ...neighbor } };
+      const parsedDocData = DocumentDataSchema.safeParse(docData);
+      if (parsedDocData.success) {
+        docs.push(new Document(parsedDocData.data));
       }
     }
-    return docs;
-  },
-  add: async (docs: Document[]): Promise<string[]> => {
-    const ids: string[] = [];
-    const rows = docs.map((doc) => {
-      const id = generateId();
-      ids.push(id);
-      return { id, content: JSON.stringify(doc.content) };
-    });
-    await bigQuery.dataset(DATASET_ID).table(TABLE_ID).insert(rows);
-    return ids;
-  },
+  }
+  return docs;
 };
 
-// Multi-client document store
-const multiClientDocStore = {
-  add: async (docs: Document[], options: any): Promise<string[]> => {
-    switch (options?.client) {
-      case 'firestore':
-        return firestoreClient.add(docs);
-      case 'bigquery':
-        return bigQueryClient.add(docs);
-      default:
-        throw new Error('Invalid client, choose ONE of firestore or bigquery');
+// Firestore Document Indexer
+const firestoreIndexer = async (docs: Document[]): Promise<string[]> => {
+  const batch = db.batch();
+  const ids: string[] = [];
+  docs.forEach((doc) => {
+    const docRef = db.collection(FIREBASE_COLLECTION).doc();
+    batch.set(docRef, { content: doc.content });
+    ids.push(docRef.id);
+  });
+  await batch.commit();
+  return ids;
+};
+
+// BigQuery Document Retriever
+const bigQueryRetriever = async (
+  neighbors: Neighbor[]
+): Promise<Document[]> => {
+  const docs: Document[] = [];
+  for (const neighbor of neighbors) {
+    const query = `
+      SELECT * FROM \`${DATASET_ID}.${TABLE_ID}\`
+      WHERE id = @id
+      LIMIT 1
+    `;
+    const options = {
+      query,
+      params: { id: neighbor.datapoint?.datapointId },
+    };
+    const [rows] = await bigQuery.query(options);
+    for (const row of rows) {
+      const docData = {
+        content: JSON.parse(row.content),
+        metadata: { ...neighbor },
+      };
+      const parsedDocData = DocumentDataSchema.safeParse(docData);
+      if (parsedDocData.success) {
+        docs.push(new Document(parsedDocData.data));
+      }
     }
-  },
-  get: async (neighbors: Neighbor[], options: any): Promise<Document[]> => {
-    switch (options?.client) {
-      case 'firestore':
-        return firestoreClient.get(neighbors);
-      case 'bigquery':
-        return bigQueryClient.get(neighbors);
-      default:
-        const firestoreResults = await firestoreClient.get(neighbors);
-        const bigQueryResults = await bigQueryClient.get(neighbors);
-        const firestoreResultsWithSource = firestoreResults.map((doc) => {
-          doc.metadata = { ...doc.metadata, source: 'firestore' };
-          return doc;
-        });
-        const bigQueryResultsWithSource = bigQueryResults.map((doc) => {
-          doc.metadata = { ...doc.metadata, source: 'bigquery' };
-          return doc;
-        });
-        return [...firestoreResultsWithSource, ...bigQueryResultsWithSource];
-    }
-  },
+  }
+  return docs;
+};
+
+// BigQuery Document Indexer
+const bigQueryIndexer = async (docs: Document[]): Promise<string[]> => {
+  const ids: string[] = [];
+  const rows = docs.map((doc) => {
+    const id = generateId();
+    ids.push(id);
+    return { id, content: JSON.stringify(doc.content) };
+  });
+  await bigQuery.dataset(DATASET_ID).table(TABLE_ID).insert(rows);
+  return ids;
+};
+
+// Combined Document Retriever
+const combinedRetriever: DocumentRetriever<{
+  k?: number;
+  source: 'firestore' | 'bigquery' | 'both';
+}> = async (neighbors, options): Promise<Document[]> => {
+  switch (options?.source) {
+    case 'firestore':
+      return firestoreRetriever(neighbors);
+    case 'bigquery':
+      return bigQueryRetriever(neighbors);
+    case 'both':
+      const firestoreResults = await firestoreRetriever(neighbors);
+      const bigQueryResults = await bigQueryRetriever(neighbors);
+      const firestoreResultsWithSource = firestoreResults.map((doc) => {
+        doc.metadata = { ...doc.metadata, source: 'firestore' };
+        return doc;
+      });
+      const bigQueryResultsWithSource = bigQueryResults.map((doc) => {
+        doc.metadata = { ...doc.metadata, source: 'bigquery' };
+        return doc;
+      });
+      return [...firestoreResultsWithSource, ...bigQueryResultsWithSource];
+    default:
+      throw new Error(
+        'Invalid source, choose ONE of firestore, bigquery or both'
+      );
+  }
+};
+
+// Combined Document Indexer
+const combinedIndexer: DocumentIndexer<{
+  target: 'firestore' | 'bigquery';
+}> = async (docs: Document[], options): Promise<string[]> => {
+  switch (options?.target) {
+    case 'firestore':
+      return firestoreIndexer(docs);
+    case 'bigquery':
+      return bigQueryIndexer(docs);
+    default:
+      throw new Error('Invalid target, choose ONE of firestore or bigquery');
+  }
 };
 
 // Configure Genkit with Vertex AI plugin
@@ -181,8 +197,8 @@ configureGenkit({
           indexEndpointId: VECTOR_SEARCH_INDEX_ENDPOINT_ID,
           indexId: VECTOR_SEARCH_INDEX_ID,
           deployedIndexId: VECTOR_SEARCH_DEPLOYED_INDEX_ID,
-          documentRetriever: multiClientDocStore.get,
-          documentIndexer: multiClientDocStore.add,
+          documentRetriever: combinedRetriever,
+          documentIndexer: combinedIndexer,
         },
       ],
     }),
@@ -208,7 +224,7 @@ export const indexFlow = defineFlow(
         indexId: VECTOR_SEARCH_INDEX_ID,
         displayName: 'test_index',
       }),
-      options: { client: target },
+      options: { target },
       documents,
     });
     return { result: 'success' };
@@ -245,7 +261,7 @@ export const queryFlow = defineFlow(
         displayName: 'test_index',
       }),
       query: queryDocument,
-      options: { client: source, k },
+      options: { source, k },
     });
     const endTime = performance.now();
     return {

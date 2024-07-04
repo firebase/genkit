@@ -1245,37 +1245,6 @@ importers:
         specifier: ^5.3.3
         version: 5.4.5
 
-  testapps/vertex-vector-search:
-    dependencies:
-      '@genkit-ai/ai':
-        specifier: ^0.5.3
-        version: 0.5.3
-      '@genkit-ai/core':
-        specifier: ^0.5.3
-        version: 0.5.3
-      '@genkit-ai/dotprompt':
-        specifier: ^0.5.3
-        version: 0.5.3
-      '@genkit-ai/flow':
-        specifier: ^0.5.3
-        version: 0.5.3(encoding@0.1.13)
-      '@genkit-ai/vertexai':
-        specifier: file:../../../dist/genkit-ai-vertexai-0.5.3.tgz
-        version: file:../dist/genkit-ai-vertexai-0.5.3.tgz(encoding@0.1.13)
-      express:
-        specifier: ^4.19.2
-        version: 4.19.2
-      google-auth-library:
-        specifier: ^9.11.0
-        version: 9.11.0(encoding@0.1.13)
-      zod:
-        specifier: ^3.23.8
-        version: 3.23.8
-    devDependencies:
-      typescript:
-        specifier: ^5.5.2
-        version: 5.5.2
-
 packages:
 
   '@anthropic-ai/sdk@0.24.3':
@@ -1462,22 +1431,6 @@ packages:
 
   '@firebase/util@1.9.5':
     resolution: {integrity: sha512-PP4pAFISDxsf70l3pEy34Mf3GkkUcVQ3MdKp6aSVb7tcpfUQxnsdV7twDd8EkfB6zZylH6wpUAoangQDmCUMqw==}
-
-  '@genkit-ai/ai@0.5.3':
-    resolution: {integrity: sha512-wmpRkgjReVRAZoR63nuDq5moLRpva3dRzCyK8XzE5kNgWuIlTXgoFbUc/PzA4nzzPWk9+w8Q+Fumd0lJf8Vufw==}
-
-  '@genkit-ai/core@0.5.3':
-    resolution: {integrity: sha512-e7y0lUlwdJSl3ijlV6eT/CFU0SHaAnW3wScpVh8/64cBal7/mvrbxihgdd1UNpzHn1RRdI1N5DWvf97XEdbrzw==}
-
-  '@genkit-ai/dotprompt@0.5.3':
-    resolution: {integrity: sha512-c14ZZiZvrhHa6Hb6/9psY6h0cPF3Og7zljbf/yehffodrVq0PGsgNbNMA1J4PkpPh0JFJbDo4sNzMEk3sZiq4g==}
-
-  '@genkit-ai/flow@0.5.3':
-    resolution: {integrity: sha512-Tj8zI5kZfeLiZmrbMebmbgQAgipN/cAC8u2afspzSOd83K8aTuGWuUH5CQS3P8O/nsgcbKYIi23SA56j+JR1nQ==}
-
-  '@genkit-ai/vertexai@file:../dist/genkit-ai-vertexai-0.5.3.tgz':
-    resolution: {integrity: sha512-B0O3v0JtHodtA2c5MinBmLBdMvd9bTQUZ+IMsK/2kxqx6Bmo0ijnDVAdVQUALFsWvHjwF7+6DtLpRl6vkceVog==, tarball: file:../dist/genkit-ai-vertexai-0.5.3.tgz}
-    version: 0.5.3
 
   '@google-cloud/aiplatform@3.23.0':
     resolution: {integrity: sha512-FtnWppxJJLBA7yfhTqjPSiNx47e3BmJp510i9OGM0Ngv67Xbv6jb6sp6sIXMegLPCqGrMU8tPmAy/E0vGCh/Zw==}
@@ -4876,11 +4829,14 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
+<<<<<<< HEAD
   typescript@5.5.3:
     resolution: {integrity: sha512-/hreyEujaB0w76zKo6717l3L0o/qEUtRgdvUBvlkhoWeOVMjMuHNHk0BRBzikzuGDqNmPQbg5ifMEqsHLiIUcQ==}
     engines: {node: '>=14.17'}
     hasBin: true
 
+=======
+>>>>>>> bc1327b2 (feat: add firestore-only sample to vertexai vector search ext)
   uglify-js@3.17.4:
     resolution: {integrity: sha512-T9q82TJI9e/C1TAxYvfb16xO120tMVFZrGA3f9/P4424DNu6ypK103y0GPFVa17yotwSyZW5iYXgjYHkGrJW/g==}
     engines: {node: '>=0.8.0'}
@@ -5218,80 +5174,6 @@ snapshots:
     dependencies:
       tslib: 2.6.2
 
-  '@genkit-ai/ai@0.5.3':
-    dependencies:
-      '@genkit-ai/core': 0.5.3
-      '@opentelemetry/api': 1.8.0
-      '@types/node': 20.11.30
-      json5: 2.2.3
-      node-fetch: 3.3.2
-      zod: 3.23.8
-    transitivePeerDependencies:
-      - supports-color
-
-  '@genkit-ai/core@0.5.3':
-    dependencies:
-      '@opentelemetry/api': 1.8.0
-      '@opentelemetry/context-async-hooks': 1.22.0(@opentelemetry/api@1.8.0)
-      '@opentelemetry/core': 1.22.0(@opentelemetry/api@1.8.0)
-      '@opentelemetry/sdk-metrics': 1.22.0(@opentelemetry/api@1.8.0)
-      '@opentelemetry/sdk-node': 0.49.1(@opentelemetry/api@1.8.0)
-      '@opentelemetry/sdk-trace-base': 1.22.0(@opentelemetry/api@1.8.0)
-      ajv: 8.12.0
-      ajv-formats: 3.0.1(ajv@8.12.0)
-      async-mutex: 0.5.0
-      express: 4.19.2
-      json-schema: 0.4.0
-      zod: 3.23.8
-      zod-to-json-schema: 3.22.5(zod@3.23.8)
-    transitivePeerDependencies:
-      - supports-color
-
-  '@genkit-ai/dotprompt@0.5.3':
-    dependencies:
-      '@genkit-ai/ai': 0.5.3
-      '@genkit-ai/core': 0.5.3
-      front-matter: 4.0.2
-      handlebars: 4.7.8
-      node-fetch: 3.3.2
-      zod: 3.23.8
-    transitivePeerDependencies:
-      - supports-color
-
-  '@genkit-ai/flow@0.5.3(encoding@0.1.13)':
-    dependencies:
-      '@genkit-ai/core': 0.5.3
-      '@google-cloud/firestore': 7.8.0(encoding@0.1.13)
-      '@opentelemetry/api': 1.8.0
-      '@types/cors': 2.8.17
-      body-parser: 1.20.2
-      cors: 2.8.5
-      express: 4.19.2
-      firebase-admin: 12.2.0(encoding@0.1.13)
-      firebase-functions: 5.0.1(firebase-admin@12.2.0(encoding@0.1.13))
-      uuid: 9.0.1
-      zod: 3.23.8
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-
-  '@genkit-ai/vertexai@file:../dist/genkit-ai-vertexai-0.5.3.tgz(encoding@0.1.13)':
-    dependencies:
-      '@anthropic-ai/sdk': 0.20.7(encoding@0.1.13)
-      '@anthropic-ai/vertex-sdk': 0.3.5(encoding@0.1.13)
-      '@genkit-ai/ai': 0.5.3
-      '@genkit-ai/core': 0.5.3
-      '@genkit-ai/flow': 0.5.3(encoding@0.1.13)
-      '@google-cloud/aiplatform': 3.23.0(encoding@0.1.13)
-      '@google-cloud/vertexai': 1.1.0(encoding@0.1.13)
-      google-auth-library: 9.11.0(encoding@0.1.13)
-      googleapis: 140.0.1(encoding@0.1.13)
-      node-fetch: 3.3.2
-      zod: 3.23.8
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-
   '@google-cloud/aiplatform@3.23.0(encoding@0.1.13)':
     dependencies:
       google-gax: 4.3.7(encoding@0.1.13)
@@ -5334,6 +5216,7 @@ snapshots:
     transitivePeerDependencies:
       - encoding
       - supports-color
+    optional: true
 
   '@google-cloud/logging-winston@6.0.0(encoding@0.1.13)(winston@3.13.0)':
     dependencies:
@@ -7264,17 +7147,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  firebase-functions@5.0.1(firebase-admin@12.2.0(encoding@0.1.13)):
-    dependencies:
-      '@types/cors': 2.8.17
-      '@types/express': 4.17.3
-      cors: 2.8.5
-      express: 4.19.2
-      firebase-admin: 12.2.0(encoding@0.1.13)
-      protobufjs: 7.2.6
-    transitivePeerDependencies:
-      - supports-color
-
   flat@5.0.2: {}
 
   fn.name@1.1.0: {}
@@ -9089,8 +8961,11 @@ snapshots:
 
   typescript@5.4.5: {}
 
+<<<<<<< HEAD
   typescript@5.5.3: {}
 
+=======
+>>>>>>> bc1327b2 (feat: add firestore-only sample to vertexai vector search ext)
   uglify-js@3.17.4:
     optional: true
 
