@@ -161,7 +161,7 @@
       type: object,
     }
 
-- description: wildcard fields with other fields
+- description: wildcard fields without other fields
   yaml: |
     schema:
       (*): number, lucky number
