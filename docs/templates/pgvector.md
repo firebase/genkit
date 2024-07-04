@@ -1,8 +1,11 @@
 # pgvector retriever template
 
 You can use PostgreSQL and `pgvector` as your retriever implementation. Use the
-following example as a starting point and modify it to work with your database
+following examples as a starting point and modify it to work with your database
 schema.
+
+For the Golang snippet, we use [pgx](https://github.com/jackc/pgx) as the 
+Postgres client, but you may use another client libaray of your choice.
 
 <section>
   <devsite-selector>
@@ -174,7 +177,7 @@ And here's how to use the retriever in a flow:
           // ...
           // Setup genkit and get the pgvector retriever as shown above
 
-          // Use your retriever.  
+          // Use your retriever.
           tvShowSuggestionFlow := genkit.DefineFlow(
           "tvShowSuggestionFlow",
           func(ctx context.Context, inputQuery string) (string, error) {
@@ -189,10 +192,10 @@ And here's how to use the retriever in a flow:
 
             // Use retrieved docs in `response` for RAG
             // ...
-            
+
             return suggestion, nil
           },
-        ) 
+        )
         }
         ```
       </p>
