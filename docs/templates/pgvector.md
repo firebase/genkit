@@ -4,7 +4,7 @@ You can use PostgreSQL and `pgvector` as your retriever implementation. Use the
 following examples as a starting point and modify it to work with your database
 schema.
 
-For the Golang snippet, we use [pgx](https://github.com/jackc/pgx) as the 
+For the Golang snippet, we use [pgx](https://github.com/jackc/pgx) as the
 Postgres client, but you may use another client libaray of your choice.
 
 <section>
@@ -133,6 +133,7 @@ Postgres client, but you may use another client libaray of your choice.
       ```
       </p>
     </section>
+
   </devsite-selector>
 </section>
 
@@ -200,5 +201,6 @@ And here's how to use the retriever in a flow:
         ```
       </p>
     </section>
+
   </devsite-selector>
 </section>
