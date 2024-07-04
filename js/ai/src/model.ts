@@ -303,8 +303,8 @@ export function defineModel<
       use: middleware,
     },
     (input) => {
-      const startTimeMs = performance.now();
       telemetry.recordGenerateActionInputLogs(options.name, input);
+      const startTimeMs = performance.now();
 
       return runner(input, getStreamingCallback())
         .then((response) => {
