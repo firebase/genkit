@@ -33,7 +33,8 @@
     "prettier": "^3.2.5",
     "prettier-plugin-css-order": "2.0.1",
     "prettier-plugin-organize-imports": "^3.2.4",
-    "ts-node": "^10.9.2"
+    "ts-node": "^10.9.2",
+    "tsx": "^4.7.1"
   },
   "packageManager": "pnpm@9.4.0+sha256.b6fd0bfda555e7e584ad7e56b30c68b01d5a04f9ee93989f4b93ca8473c49c74"
 }

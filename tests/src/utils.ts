@@ -87,3 +87,33 @@ export async function startDevUi(testAppName: string): Promise<string> {
     });
   });
 }
+
+// Compares two values and returns a list of differences.
+// If got and want are both objects (including arrays), then each key in
+// want is compared recursively with the corresponding key in got.
+// If neither got nor want is an object, they are compared with '=='.
+export function compare(got: any, want: any): string[] {
+  return compare1('', got, want);
+}
+
+function compare1(prefix: string, got: any, want: any): string[] {
+  if (want instanceof Object) {
+    if (!(got instanceof Object)) {
+      return [`${prefix}: want object but got '${got}'`];
+    }
+    let res = [];
+    for (const [key, value] of Object.entries(want)) {
+      const r = compare1(
+        prefix == '' ? key : prefix + '.' + key,
+        got[key],
+        value
+      );
+      res.push(...r);
+    }
+    return res;
+  } else if (got != want) {
+    return [`${prefix}:\n  got  ${got}\n  want ${want}`];
+  } else {
+    return [];
+  }
+}
