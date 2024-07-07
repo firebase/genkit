@@ -91,12 +91,10 @@ func Init(ctx context.Context, apiKey string) (err error) {
 	state.client = client
 	state.initted = true
 	for model, caps := range knownCaps {
-		if _, err := DefineModel(model, &caps); err != nil {
-			return fmt.Errorf("googleai.Init: failed to define known model %q: %w", model, err)
-		}
+		defineModel(model, caps)
 	}
 	for _, e := range knownEmbedders {
-		DefineEmbedder(e)
+		defineEmbedder(e)
 	}
 	return nil
 }
@@ -111,8 +109,8 @@ func IsKnownModel(name string) bool {
 // The second argument describes the capability of the model.
 // Use [IsKnownModel] to determine if a model is known.
 func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
-	// state.mu.Lock()
-	// defer state.mu.Unlock()
+	state.mu.Lock()
+	defer state.mu.Unlock()
 	if !state.initted {
 		panic("googleai.Init not called")
 	}
@@ -152,8 +150,8 @@ func defineModel(name string, caps ai.ModelCapabilities) *ai.Model {
 
 // DefineEmbedder defines an embedder with a given name.
 func DefineEmbedder(name string) *ai.Embedder {
-	// state.mu.Lock()
-	// defer state.mu.Unlock()
+	state.mu.Lock()
+	defer state.mu.Unlock()
 	if !state.initted {
 		panic("googleai.Init not called")
 	}
