@@ -46,8 +46,8 @@ func TestLive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	embedder := googleai.DefineEmbedder("embedding-001")
-	model, err := googleai.DefineModel("gemini-1.0-pro", nil)
+	embedder := googleai.Embedder("embedding-001")
+	model := googleai.Model("gemini-1.0-pro")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,13 +85,13 @@ func TestLive(t *testing.T) {
 		},
 	)
 	t.Run("embedder", func(t *testing.T) {
-		out, err := embedder.Embed(ctx, &ai.EmbedRequest{
-			Document: ai.DocumentFromText("yellow banana", nil),
+		res, err := embedder.Embed(ctx, &ai.EmbedRequest{
+			Documents: []*ai.Document{ai.DocumentFromText("yellow banana", nil)},
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
-
+		out := res.Embeddings[0].Embedding
 		// There's not a whole lot we can test about the result.
 		// Just do a few sanity checks.
 		if len(out) < 100 {
@@ -137,7 +137,7 @@ func TestLive(t *testing.T) {
 			Candidates: 1,
 			Messages: []*ai.Message{
 				{
-					Content: []*ai.Part{ai.NewTextPart("Write one paragraph about the Golden State Warriors.")},
+					Content: []*ai.Part{ai.NewTextPart("Write one paragraph about the North Pole.")},
 					Role:    ai.RoleUser,
 				},
 			},
@@ -160,7 +160,7 @@ func TestLive(t *testing.T) {
 		if out != out2 {
 			t.Errorf("streaming and final should contain the same text.\nstreaming:%s\nfinal:%s", out, out2)
 		}
-		const want = "Golden"
+		const want = "North"
 		if !strings.Contains(out, want) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}

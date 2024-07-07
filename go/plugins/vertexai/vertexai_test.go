@@ -39,16 +39,12 @@ func TestLive(t *testing.T) {
 	}
 	ctx := context.Background()
 	const modelName = "gemini-1.0-pro"
-	const embedderName = "textembedding-gecko"
 	err := vertexai.Init(ctx, *projectID, *location)
 	if err != nil {
 		t.Fatal(err)
 	}
-	model, err := vertexai.DefineModel(modelName, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	embedder := vertexai.DefineEmbedder(embedderName)
+	model := vertexai.Model(modelName)
+	embedder := vertexai.Embedder("textembedding-gecko@003")
 
 	toolDef := &ai.ToolDefinition{
 		Name:         "exponentiation",
@@ -176,8 +172,11 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("embedder", func(t *testing.T) {
-		out, err := embedder.Embed(ctx, &ai.EmbedRequest{
-			Document: ai.DocumentFromText("time flies like an arrow", nil),
+		res, err := embedder.Embed(ctx, &ai.EmbedRequest{
+			Documents: []*ai.Document{
+				ai.DocumentFromText("time flies like an arrow", nil),
+				ai.DocumentFromText("fruit flies like a banana", nil),
+			},
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -185,15 +184,18 @@ func TestLive(t *testing.T) {
 
 		// There's not a whole lot we can test about the result.
 		// Just do a few sanity checks.
-		if len(out) < 100 {
-			t.Errorf("embedding vector looks too short: len(out)=%d", len(out))
-		}
-		var normSquared float32
-		for _, x := range out {
-			normSquared += x * x
-		}
-		if normSquared < 0.9 || normSquared > 1.1 {
-			t.Errorf("embedding vector not unit length: %f", normSquared)
+		for _, de := range res.Embeddings {
+			out := de.Embedding
+			if len(out) < 100 {
+				t.Errorf("embedding vector looks too short: len(out)=%d", len(out))
+			}
+			var normSquared float32
+			for _, x := range out {
+				normSquared += x * x
+			}
+			if normSquared < 0.9 || normSquared > 1.1 {
+				t.Errorf("embedding vector not unit length: %f", normSquared)
+			}
 		}
 	})
 }

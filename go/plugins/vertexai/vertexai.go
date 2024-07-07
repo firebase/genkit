@@ -177,7 +177,7 @@ func DefineEmbedder(name string) *ai.Embedder {
 		panic("vertexai.Init not called")
 	}
 	fullName := fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s", state.projectID, state.location, name)
-	return ai.DefineEmbedder(provider, name, func(ctx context.Context, req *ai.EmbedRequest) ([]float32, error) {
+	return ai.DefineEmbedder(provider, name, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		return embed(ctx, fullName, state.pclient, req)
 	})
 }
