@@ -428,16 +428,6 @@ To use a prompt variant, specify the `variant` option when loading:
 const myPrompt = await prompt('my_prompt', { variant: 'gemini15' });
 ```
 
-The prompt loader will attempt to load the variant of that name, and fall back
-to the baseline if none exists. This means you can use conditional loading based
-on whatever criteria makes sense for your application:
-
-```ts
-const myPrompt = await prompt('my_prompt', {
-  variant: isBetaTester(user) ? 'gemini15' : null,
-});
-```
-
 The name of the variant is included in the metadata of generation traces, so you
 can compare and contrast actual performance between variants in the Genkit trace
 inspector.
