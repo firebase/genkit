@@ -92,6 +92,13 @@ export class Message<T = unknown> implements MessageData {
   }
 
   /**
+   * @returns true if the message contains at least one text part
+   */
+  hasText(): boolean {
+    return this.content.some((part) => !!part.text);
+  }
+
+  /**
    * Returns the first media part detected in the message. Useful for extracting
    * (for example) an image from a generation expected to create one.
    * @returns The first detected `media` part in the message.
@@ -106,6 +113,13 @@ export class Message<T = unknown> implements MessageData {
    */
   data(): T | null {
     return this.content.find((part) => part.data)?.data as T | null;
+  }
+
+  /**
+   * @returns true if the message contains at least one data part
+   */
+  hasData(): boolean {
+    return this.content.some((p) => p.data);
   }
 
   /**
@@ -635,8 +649,8 @@ export async function generate<
   if (resolvedOptions.output?.schema || resolvedOptions.output?.jsonSchema) {
     // find a candidate with valid output schema
     const candidateErrors = response.candidates.map((c) => {
-      // only validate candidates that have output
-      if (!c.output()) return null;
+      // don't validate messages without text / data content
+      if (!c.message.hasData() && !c.message.hasText()) return null;
 
       try {
         parseSchema(c.output(), {
