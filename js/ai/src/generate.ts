@@ -84,6 +84,13 @@ export class Message<T = unknown> implements MessageData {
   }
 
   /**
+   * @returns true if the message has at least one tool response
+   */
+  hasToolResponse(): boolean {
+    return this.content.some((part) => !!part.toolResponse);
+  }
+
+  /**
    * Concatenates all `text` parts present in the message with no delimiter.
    * @returns A string of all concatenated text parts.
    */
@@ -130,6 +137,13 @@ export class Message<T = unknown> implements MessageData {
     return this.content.filter(
       (part) => !!part.toolRequest
     ) as ToolRequestPart[];
+  }
+
+  /**
+   * @returns true if the message has at least one tool request
+   */
+  hasToolRequest(): boolean {
+    return this.content.some((p) => !!p.toolRequest);
   }
 
   /**
