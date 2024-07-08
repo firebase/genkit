@@ -170,17 +170,21 @@ describe('conformOutput (default middleware)', () => {
     const response = await echoModel(req);
     const treq = response.candidates[0].message.content[0]
       .data as GenerateRequest;
+
+    const lastUserMessage = treq.messages
+      .reverse()
+      .find((m) => m.role === 'user');
     if (
-      treq.messages
-        .at(-1)!
-        ?.content.filter((p) => p.metadata?.purpose === 'output').length > 1
+      lastUserMessage &&
+      lastUserMessage.content.filter((p) => p.metadata?.purpose === 'output')
+        .length > 1
     ) {
       throw new Error('too many output parts');
     }
 
-    return treq.messages
-      .at(-1)
-      ?.content.find((p) => p.metadata?.purpose === 'output')!;
+    return lastUserMessage?.content.find(
+      (p) => p.metadata?.purpose === 'output'
+    )!;
   }
 
   it('adds output instructions to the last message', async () => {
@@ -193,6 +197,51 @@ describe('conformOutput (default middleware)', () => {
       output: { format: 'json', schema },
       context: [{ content: [{ text: 'hi' }] }],
     });
+    assert(
+      part?.text?.includes(JSON.stringify(schema)),
+      "schema wasn't found in output part"
+    );
+  });
+
+  it('adds output to the last message with "user" role', async () => {
+    const part = await testRequest({
+      messages: [
+        {
+          content: [
+            {
+              text: 'First message.',
+            },
+          ],
+          role: 'user',
+        },
+        {
+          content: [
+            {
+              toolRequest: {
+                name: 'localRestaurant',
+                input: {
+                  location: 'wtf',
+                },
+              },
+            },
+          ],
+          role: 'model',
+        },
+        {
+          content: [
+            {
+              toolResponse: {
+                name: 'localRestaurant',
+                output: 'McDonalds',
+              },
+            },
+          ],
+          role: 'tool',
+        },
+      ],
+      output: { format: 'json', schema },
+    });
+
     assert(
       part?.text?.includes(JSON.stringify(schema)),
       "schema wasn't found in output part"

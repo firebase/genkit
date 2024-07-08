@@ -15,7 +15,7 @@
  */
 
 import { Document } from '../document.js';
-import { ModelInfo, ModelMiddleware, Part } from '../model.js';
+import { MessageData, ModelInfo, ModelMiddleware, Part } from '../model.js';
 
 /**
  * Preprocess a GenerateRequest to download referenced http(s) media URLs and
@@ -117,9 +117,18 @@ export function validateSupport(options: {
   };
 }
 
+function lastUserMessage(messages: MessageData[]) {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'user') {
+      return messages[i];
+    }
+  }
+}
+
 export function conformOutput(): ModelMiddleware {
   return async (req, next) => {
-    const lastMessage = req.messages.at(-1)!;
+    const lastMessage = lastUserMessage(req.messages);
+    if (!lastMessage) return next(req);
     const outputPartIndex = lastMessage.content.findIndex(
       (p) => p.metadata?.purpose === 'output'
     );

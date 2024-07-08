@@ -215,15 +215,16 @@ export const jokeWithToolsFlow = defineFlow(
       modelName: z.enum([geminiPro.name, googleGeminiPro.name]),
       subject: z.string(),
     }),
-    outputSchema: z.string(),
+    outputSchema: z.object({ model: z.string(), joke: z.string() }),
   },
   async (input) => {
     const llmResponse = await generate({
       model: input.modelName,
       tools,
+      output: { schema: z.object({ joke: z.string() }) },
       prompt: `Tell a joke about ${input.subject}.`,
     });
-    return `From ${input.modelName}: ${llmResponse.text()}`;
+    return { ...llmResponse.output()!, model: input.modelName };
   }
 );
 
