@@ -84,25 +84,11 @@ export class Message<T = unknown> implements MessageData {
   }
 
   /**
-   * @returns true if the message has at least one tool response
-   */
-  hasToolResponse(): boolean {
-    return this.content.some((part) => !!part.toolResponse);
-  }
-
-  /**
    * Concatenates all `text` parts present in the message with no delimiter.
    * @returns A string of all concatenated text parts.
    */
   text(): string {
     return this.content.map((part) => part.text || '').join('');
-  }
-
-  /**
-   * @returns true if the message contains at least one text part
-   */
-  hasText(): boolean {
-    return this.content.some((part) => !!part.text);
   }
 
   /**
@@ -123,13 +109,6 @@ export class Message<T = unknown> implements MessageData {
   }
 
   /**
-   * @returns true if the message contains at least one data part
-   */
-  hasData(): boolean {
-    return this.content.some((p) => p.data);
-  }
-
-  /**
    * Returns all tool request found in this message.
    * @returns Array of all tool request found in this message.
    */
@@ -137,13 +116,6 @@ export class Message<T = unknown> implements MessageData {
     return this.content.filter(
       (part) => !!part.toolRequest
     ) as ToolRequestPart[];
-  }
-
-  /**
-   * @returns true if the message has at least one tool request
-   */
-  hasToolRequest(): boolean {
-    return this.content.some((p) => !!p.toolRequest);
   }
 
   /**
@@ -663,8 +635,8 @@ export async function generate<
   if (resolvedOptions.output?.schema || resolvedOptions.output?.jsonSchema) {
     // find a candidate with valid output schema
     const candidateErrors = response.candidates.map((c) => {
-      // don't validate messages without text / data content
-      if (!c.message.hasData() && !c.message.hasText()) return null;
+      // don't validate messages that have no text or data
+      if (c.text() === '' && c.data() === null) return null;
 
       try {
         parseSchema(c.output(), {
