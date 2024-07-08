@@ -201,4 +201,28 @@ describe('eval utils', () => {
       JSON.stringify(['Hello', 'World'])
     );
   });
+
+  it('returns runs default extractors when trace fails', async () => {
+    const spy = jest.spyOn(configModule, 'findToolsConfig');
+    spy.mockReturnValue(Promise.resolve(null));
+    const trace = new MockTrace('My input', 'My output', 'error')
+      .addSpan({
+        stepName: 'retrieverStep',
+        spanType: 'action',
+        retrieverConfig: {
+          query: 'What are cats?',
+          text: CONTEXT_TEXTS,
+        },
+      })
+      .getTrace();
+
+    const extractors = await getEvalExtractors('multiSteps');
+
+    expect(Object.keys(extractors).sort()).toEqual(
+      ['input', 'output', 'context'].sort()
+    );
+    expect(extractors.input(trace)).toEqual(JSON.stringify('My input'));
+    expect(extractors.output(trace)).toEqual(JSON.stringify(''));
+    expect(extractors.context(trace)).toEqual(JSON.stringify(CONTEXT_TEXTS));
+  });
 });
