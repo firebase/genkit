@@ -29,6 +29,8 @@ npm i --save @genkit-ai/firebase
 
 ## Configuration
 
+### Project ID
+
 To use this plugin, specify it when you call `configureGenkit()`:
 
 <!--See note above on prettier-ignore -->
@@ -68,6 +70,28 @@ Application Default Credentials. To specify your credentials:
       page of the Firebase console.
   1.  Set the environment variable `GOOGLE_APPLICATION_CREDENTIALS` to the file
       path of the JSON file that contains your service account key.
+
+### Telemetry
+
+The plugin has a direct dependency on the [Google Cloud plugin](google-cloud.md) and thus has provisions to enable telemetry export to Google's Cloud operations suite. To enable telemetry export, set the `enableTracingAndMetrics` to `true` and add a telemetry section to the Genkit configuration:
+
+<!--See note above on prettier-ignore -->
+<!-- prettier-ignore -->
+```js
+import {configureGenkit} from "@genkit-ai/core";
+import {firebase} from "@genkit-ai/firebase";
+
+configureGenkit({
+  plugins: [firebase()],
+  enableTracingAndMetrics: true,
+  telemetry: {
+    instrumentation: 'firebase',
+    logger: 'firebase',
+  },
+});
+```
+
+Refer the the [Google Cloud plugin](google-cloud.md) documentation for all configuration options and the necessary APIs that need to be enabled on the project.
 
 ## Usage
 
