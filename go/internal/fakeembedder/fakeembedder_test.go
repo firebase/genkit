@@ -31,18 +31,19 @@ func TestFakeEmbedder(t *testing.T) {
 	embed.Register(d, vals)
 
 	req := &ai.EmbedRequest{
-		Document: d,
+		Documents: []*ai.Document{d},
 	}
 	ctx := context.Background()
-	got, err := emb.Embed(ctx, req)
+	res, err := emb.Embed(ctx, req)
 	if err != nil {
 		t.Fatal(err)
 	}
+	got := res.Embeddings[0].Embedding
 	if !slices.Equal(got, vals) {
 		t.Errorf("lookup returned %v, want %v", got, vals)
 	}
 
-	req.Document = ai.DocumentFromText("missing document", nil)
+	req.Documents[0] = ai.DocumentFromText("missing document", nil)
 	if _, err = emb.Embed(ctx, req); err == nil {
 		t.Error("embedding unknown document succeeded unexpectedly")
 	}

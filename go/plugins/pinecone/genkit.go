@@ -185,16 +185,16 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 
 	// Use the embedder to convert each Document into a vector.
 	vecs := make([]vector, 0, len(req.Documents))
-	for _, doc := range req.Documents {
-		ereq := &ai.EmbedRequest{
-			Document: doc,
-			Options:  ds.embedderOptions,
-		}
-		vals, err := ds.embedder.Embed(ctx, ereq)
-		if err != nil {
-			return fmt.Errorf("pinecone index embedding failed: %v", err)
-		}
-
+	ereq := &ai.EmbedRequest{
+		Documents: req.Documents,
+		Options:   ds.embedderOptions,
+	}
+	eres, err := ds.embedder.Embed(ctx, ereq)
+	if err != nil {
+		return fmt.Errorf("pinecone index embedding failed: %v", err)
+	}
+	for i, de := range eres.Embeddings {
+		doc := req.Documents[i]
 		id, err := docID(doc)
 		if err != nil {
 			return err
@@ -216,7 +216,7 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 
 		v := vector{
 			ID:       id,
-			Values:   vals,
+			Values:   de.Embedding,
 			Metadata: metadata,
 		}
 		vecs = append(vecs, v)
@@ -282,15 +282,15 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 	// Use the embedder to convert the document we want to
 	// retrieve into a vector.
 	ereq := &ai.EmbedRequest{
-		Document: req.Document,
-		Options:  ds.embedderOptions,
+		Documents: []*ai.Document{req.Document},
+		Options:   ds.embedderOptions,
 	}
-	vals, err := ds.embedder.Embed(ctx, ereq)
+	eres, err := ds.embedder.Embed(ctx, ereq)
 	if err != nil {
 		return nil, fmt.Errorf("pinecone retrieve embedding failed: %v", err)
 	}
 
-	results, err := ds.index.query(ctx, vals, count, wantMetadata, namespace)
+	results, err := ds.index.query(ctx, eres.Embeddings[0].Embedding, count, wantMetadata, namespace)
 	if err != nil {
 		return nil, err
 	}

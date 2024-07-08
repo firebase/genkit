@@ -16,7 +16,8 @@ package vertexai
 
 import (
 	"context"
-	"errors"
+	"fmt"
+	"strings"
 
 	aiplatform "cloud.google.com/go/aiplatform/apiv1"
 	"cloud.google.com/go/aiplatform/apiv1/aiplatformpb"
@@ -34,7 +35,7 @@ type EmbedOptions struct {
 	TaskType string `json:"task_type,omitempty"`
 }
 
-func embed(ctx context.Context, reqEndpoint string, client *aiplatform.PredictionClient, req *ai.EmbedRequest) ([]float32, error) {
+func embed(ctx context.Context, reqEndpoint string, client *aiplatform.PredictionClient, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 	preq, err := newPredictRequest(reqEndpoint, req)
 	if err != nil {
 		return nil, err
@@ -44,32 +45,34 @@ func embed(ctx context.Context, reqEndpoint string, client *aiplatform.Predictio
 		return nil, err
 	}
 
-	// TODO(ianlancetaylor): This can return multiple vectors.
-	// We just use the first one for now.
-
-	if len(resp.Predictions) < 1 {
-		return nil, errors.New("vertexai: embed request returned no values")
+	if g, w := len(resp.Predictions), len(req.Documents); g != w {
+		return nil, fmt.Errorf("vertexai: got %d embeddings, expected %d", g, w)
 	}
 
-	values := resp.Predictions[0].GetStructValue().Fields["embeddings"].GetStructValue().Fields["values"].GetListValue().Values
-	ret := make([]float32, len(values))
-	for i, value := range values {
-		ret[i] = float32(value.GetNumberValue())
+	ret := &ai.EmbedResponse{}
+	for _, pred := range resp.Predictions {
+		values := pred.GetStructValue().Fields["embeddings"].GetStructValue().Fields["values"].GetListValue().Values
+		vals := make([]float32, len(values))
+		for i, value := range values {
+			vals[i] = float32(value.GetNumberValue())
+		}
+		ret.Embeddings = append(ret.Embeddings, &ai.DocumentEmbedding{Embedding: vals})
 	}
-
 	return ret, nil
 }
 
+// newPredictRequest creates a PredictRequest from an EmbedRequest.
+// Each Document in the EmbedRequest becomes a separate instance in the PredictRequest.
 func newPredictRequest(endpoint string, req *ai.EmbedRequest) (*aiplatformpb.PredictRequest, error) {
 	var title, taskType string
 	if options, _ := req.Options.(*EmbedOptions); options != nil {
 		title = options.Title
 		taskType = options.TaskType
 	}
-	instances := make([]*structpb.Value, 0, len(req.Document.Content))
-	for _, part := range req.Document.Content {
+	instances := make([]*structpb.Value, 0, len(req.Documents))
+	for _, doc := range req.Documents {
 		fields := map[string]any{
-			"content": part.Text,
+			"content": text(doc),
 		}
 		if title != "" {
 			fields["title"] = title
@@ -89,4 +92,16 @@ func newPredictRequest(endpoint string, req *ai.EmbedRequest) (*aiplatformpb.Pre
 		Endpoint:  endpoint,
 		Instances: instances,
 	}, nil
+}
+
+// text concatenates all the text parts of the document together,
+// with no delimiter.
+func text(d *ai.Document) string {
+	var b strings.Builder
+	for _, p := range d.Content {
+		if p.IsText() {
+			b.WriteString(p.Text)
+		}
+	}
+	return b.String()
 }

@@ -91,12 +91,10 @@ func Init(ctx context.Context, apiKey string) (err error) {
 	state.client = client
 	state.initted = true
 	for model, caps := range knownCaps {
-		if _, err := DefineModel(model, &caps); err != nil {
-			return fmt.Errorf("googleai.Init: failed to define known model %q: %w", model, err)
-		}
+		defineModel(model, caps)
 	}
 	for _, e := range knownEmbedders {
-		DefineEmbedder(e)
+		defineEmbedder(e)
 	}
 	return nil
 }
@@ -111,8 +109,8 @@ func IsKnownModel(name string) bool {
 // The second argument describes the capability of the model.
 // Use [IsKnownModel] to determine if a model is known.
 func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
-	// state.mu.Lock()
-	// defer state.mu.Unlock()
+	state.mu.Lock()
+	defer state.mu.Unlock()
 	if !state.initted {
 		panic("googleai.Init not called")
 	}
@@ -152,8 +150,8 @@ func defineModel(name string, caps ai.ModelCapabilities) *ai.Model {
 
 // DefineEmbedder defines an embedder with a given name.
 func DefineEmbedder(name string) *ai.Embedder {
-	// state.mu.Lock()
-	// defer state.mu.Unlock()
+	state.mu.Lock()
+	defer state.mu.Unlock()
 	if !state.initted {
 		panic("googleai.Init not called")
 	}
@@ -162,17 +160,26 @@ func DefineEmbedder(name string) *ai.Embedder {
 
 // requires state.mu
 func defineEmbedder(name string) *ai.Embedder {
-	return ai.DefineEmbedder(provider, name, func(ctx context.Context, input *ai.EmbedRequest) ([]float32, error) {
+	return ai.DefineEmbedder(provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		em := state.client.EmbeddingModel(name)
-		parts, err := convertParts(input.Document.Content)
+		// TODO: set em.TaskType from EmbedRequest.Options?
+		batch := em.NewBatch()
+		for _, doc := range input.Documents {
+			parts, err := convertParts(doc.Content)
+			if err != nil {
+				return nil, err
+			}
+			batch.AddContent(parts...)
+		}
+		bres, err := em.BatchEmbedContents(ctx, batch)
 		if err != nil {
 			return nil, err
 		}
-		res, err := em.EmbedContent(ctx, parts...)
-		if err != nil {
-			return nil, err
+		var res ai.EmbedResponse
+		for _, emb := range bres.Embeddings {
+			res.Embeddings = append(res.Embeddings, &ai.DocumentEmbedding{Embedding: emb.Values})
 		}
-		return res.Embedding.Values, nil
+		return &res, nil
 	})
 }
 

@@ -119,21 +119,19 @@ func newDocStore(dir, name string, embedder *ai.Embedder, embedderOptions any) (
 
 // index indexes a document.
 func (ds *docStore) index(ctx context.Context, req *ai.IndexerRequest) error {
-	for _, doc := range req.Documents {
-		ereq := &ai.EmbedRequest{
-			Document: doc,
-			Options:  ds.embedderOptions,
-		}
-		vals, err := ds.embedder.Embed(ctx, ereq)
-		if err != nil {
-			return fmt.Errorf("localvec index embedding failed: %v", err)
-		}
-
-		id, err := docID(doc)
+	ereq := &ai.EmbedRequest{
+		Documents: req.Documents,
+		Options:   ds.embedderOptions,
+	}
+	eres, err := ds.embedder.Embed(ctx, ereq)
+	if err != nil {
+		return fmt.Errorf("localvec index embedding failed: %v", err)
+	}
+	for i, de := range eres.Embeddings {
+		id, err := docID(req.Documents[i])
 		if err != nil {
 			return err
 		}
-
 		if _, ok := ds.data[id]; ok {
 			logger.FromContext(ctx).Debug("localvec skipping document because already present", "id", id)
 			continue
@@ -144,8 +142,8 @@ func (ds *docStore) index(ctx context.Context, req *ai.IndexerRequest) error {
 		}
 
 		ds.data[id] = dbValue{
-			Doc:       doc,
-			Embedding: vals,
+			Doc:       req.Documents[i],
+			Embedding: de.Embedding,
 		}
 	}
 
@@ -183,13 +181,14 @@ func (ds *docStore) retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 	// Use the embedder to convert the document we want to
 	// retrieve into a vector.
 	ereq := &ai.EmbedRequest{
-		Document: req.Document,
-		Options:  ds.embedderOptions,
+		Documents: []*ai.Document{req.Document},
+		Options:   ds.embedderOptions,
 	}
-	vals, err := ds.embedder.Embed(ctx, ereq)
+	eres, err := ds.embedder.Embed(ctx, ereq)
 	if err != nil {
 		return nil, fmt.Errorf("localvec retrieve embedding failed: %v", err)
 	}
+	vals := eres.Embeddings[0].Embedding
 
 	type scoredDoc struct {
 		score float64

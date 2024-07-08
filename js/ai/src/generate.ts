@@ -46,7 +46,6 @@ import {
   ToolRequestPart,
   ToolResponsePart,
 } from './model.js';
-import * as telemetry from './telemetry.js';
 import {
   resolveTools,
   ToolAction,
@@ -613,11 +612,6 @@ export async function generate<
   }
 
   const request = await toGenerateRequest(resolvedOptions);
-  telemetry.recordGenerateActionInputLogs(
-    model.__action.name,
-    resolvedOptions,
-    request
-  );
   const response = await runWithStreamingCallback(
     resolvedOptions.streamingCallback
       ? (chunk: GenerateResponseChunkData) =>
@@ -683,11 +677,6 @@ export async function generate<
     (part) => !!part.toolRequest
   );
   if (resolvedOptions.returnToolRequests || toolCalls.length === 0) {
-    telemetry.recordGenerateActionOutputLogs(
-      model.__action.name,
-      resolvedOptions,
-      response
-    );
     return response;
   }
   const toolResponses: ToolResponsePart[] = await Promise.all(
