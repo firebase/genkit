@@ -31,21 +31,17 @@ Note: The configuration above requires installing the `@genkit-ai/evaluator` and
   npm install @genkit-ai/evaluator @genkit-ai/vertexai
 ```
 
-Start by defining a set of inputs that you want to use as an input dataset called `testQuestions.json`. This input dataset represents the test cases you will use to generate output for evaluation.
+Start by defining a set of inputs that you want to use as an input dataset called `testInputs.json`. This input dataset represents the test cases you will use to generate output for evaluation.
 
 ```json
-[
-  "What is on the menu?",
-  "Does the restaurant have clams?",
-  "What is the special of the day?"
-]
+["Cheese", "Broccoli", "Spinach and Kale"]
 ```
 
 You can then use the `eval:flow` command to evaluate your flow against the test
-cases provided in `testQuestions.json`.
+cases provided in `testInputs.json`.
 
 ```posix-terminal
-genkit eval:flow menuQA --input testQuestions.json
+genkit eval:flow menuSuggestionFlow --input testInputs.json
 ```
 
 You can then see evaluation results in the Developer UI by running:
@@ -59,7 +55,7 @@ Then navigate to `localhost:4000/evaluate`.
 Alternatively, you can provide an output file to inspect the output in a json file.
 
 ```posix-terminal
-genkit eval:flow menuQA --input testQuestions.json --output eval-result.json
+genkit eval:flow menuSuggestionFlow --input testInputs.json --output eval-result.json
 ```
 
 Note: Below you can see an example of how an LLM can help you generate the test
@@ -171,7 +167,7 @@ genkit eval:run customLabel_dataset.json
 To output to a different location, use the `--output` flag.
 
 ```posix-terminal
-genkit eval:flow menuQA --input testQuestions.json --output customLabel_evalresult.json
+genkit eval:flow menuSuggestionFlow --input testInputs.json --output customLabel_evalresult.json
 ```
 
 To run on a subset of the configured evaluators, use the `--evaluators` flag and provide a comma separated list of evaluators by name:
