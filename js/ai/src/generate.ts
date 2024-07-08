@@ -22,7 +22,11 @@ import {
   StreamingCallback,
 } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
-import { toJsonSchema, validateSchema } from '@genkit-ai/core/schema';
+import {
+  parseSchema,
+  toJsonSchema,
+  validateSchema,
+} from '@genkit-ai/core/schema';
 import { z } from 'zod';
 import { DocumentData } from './document.js';
 import { extractJson } from './extract.js';
@@ -630,26 +634,24 @@ export async function generate<
 
   if (resolvedOptions.output?.schema || resolvedOptions.output?.jsonSchema) {
     // find a candidate with valid output schema
-    const candidateValidations = response.candidates.map((c) => {
+    const candidateErrors = response.candidates.map((c) => {
       try {
-        return validateSchema(c.output(), {
+        parseSchema(c.output(), {
           jsonSchema: resolvedOptions.output?.jsonSchema,
           schema: resolvedOptions.output?.schema,
         });
+        return null;
       } catch (e) {
-        return {
-          valid: false,
-          errors: [{ path: '', error: (e as Error).message }],
-        };
+        return e as Error;
       }
     });
-    if (!candidateValidations.some((c) => c.valid)) {
+    // if all candidates have a non-null error...
+    if (candidateErrors.every((c) => !!c)) {
       throw new NoValidCandidatesError({
-        message:
-          'Generation resulted in no candidates matching provided output schema.',
+        message: `Generation resulted in no candidates matching provided output schema.${candidateErrors.map((e, i) => `\n\nCandidate[${i}] ${e!.toString()}`)}`,
         response,
         detail: {
-          candidateErrors: candidateValidations,
+          candidateErrors: candidateErrors,
         },
       });
     }
