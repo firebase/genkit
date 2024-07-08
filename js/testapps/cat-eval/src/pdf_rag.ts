@@ -24,6 +24,7 @@ import { defineFlow, run } from '@genkit-ai/flow';
 import { geminiPro } from '@genkit-ai/googleai';
 import { chunk } from 'llm-chunk';
 import path from 'path';
+import { getDocument } from 'pdfjs-dist-legacy';
 import * as z from 'zod';
 
 export const pdfChatRetriever = devLocalRetrieverRef('pdfQA');
@@ -67,26 +68,26 @@ export const pdfQA = defineFlow(
     const llmResponse = await generate({
       model: geminiPro,
       prompt: augmentedPrompt,
-      config: {
-        safetySettings: [
-          {
-            category: 'HARM_CATEGORY_HATE_SPEECH',
-            threshold: 'BLOCK_NONE',
-          },
-          {
-            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-            threshold: 'BLOCK_NONE',
-          },
-          {
-            category: 'HARM_CATEGORY_HARASSMENT',
-            threshold: 'BLOCK_NONE',
-          },
-          {
-            category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-            threshold: 'BLOCK_NONE',
-          },
-        ],
-      },
+      // config: {
+      //   safetySettings: [
+      //     {
+      //       category: 'HARM_CATEGORY_HATE_SPEECH',
+      //       threshold: 'BLOCK_NONE',
+      //     },
+      //     {
+      //       category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+      //       threshold: 'BLOCK_NONE',
+      //     },
+      //     {
+      //       category: 'HARM_CATEGORY_HARASSMENT',
+      //       threshold: 'BLOCK_NONE',
+      //     },
+      //     {
+      //       category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+      //       threshold: 'BLOCK_NONE',
+      //     },
+      //   ],
+      // },
     });
     return llmResponse.text();
   }
@@ -127,8 +128,8 @@ export const indexPdf = defineFlow(
 );
 
 async function extractText(filePath: string): Promise<string> {
-  const pdfjsLib = await import('pdfjs-dist');
-  let doc = await pdfjsLib.getDocument(filePath).promise;
+  // const pdfjsLib = await import('pdfjs-dist-legacy');
+  let doc = await getDocument(filePath).promise;
 
   let pdfTxt = '';
   const numPages = doc.numPages;
