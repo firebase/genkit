@@ -80,16 +80,21 @@ export async function confirmLlmUse(
   return answers.confirm;
 }
 
-function getRootSpan(trace: TraceData): SpanData | undefined {
+function getRootSpan(
+  trace: TraceData,
+  shouldSucceed: boolean = true
+): SpanData | undefined {
   return Object.values(trace.spans).find(
     (s) =>
       s.attributes['genkit:type'] === 'flow' &&
-      s.attributes['genkit:metadata:flow:state'] === 'done'
+      (shouldSucceed
+        ? s.attributes['genkit:metadata:flow:state'] === 'done'
+        : true)
   );
 }
 
 const DEFAULT_INPUT_EXTRACTOR: EvalExtractorFn = (trace: TraceData) => {
-  const rootSpan = getRootSpan(trace);
+  const rootSpan = getRootSpan(trace, /* shouldSucceed= */ false);
   return (rootSpan?.attributes['genkit:input'] as string) || JSON_EMPTY_STRING;
 };
 const DEFAULT_OUTPUT_EXTRACTOR: EvalExtractorFn = (trace: TraceData) => {
