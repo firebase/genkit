@@ -21,6 +21,7 @@ import {
   GcpOpenTelemetry,
   TelemetryConfig,
 } from '@genkit-ai/google-cloud';
+import { GoogleAuth } from 'google-auth-library';
 import { FirestoreTraceStore } from './firestoreTraceStore.js';
 export { defineFirestoreRetriever } from './firestoreRetriever.js';
 
@@ -39,24 +40,31 @@ interface FirestorePluginParams {
 
 export const firebase: Plugin<[FirestorePluginParams] | []> = genkitPlugin(
   'firebase',
-  async (params?: FirestorePluginParams) => ({
-    flowStateStore: {
-      id: 'firestore',
-      value: new FirestoreStateStore(params?.flowStateStore),
-    },
-    traceStore: {
-      id: 'firestore',
-      value: new FirestoreTraceStore(params?.traceStore),
-    },
-    telemetry: {
-      instrumentation: {
-        id: 'firebase',
-        value: new GcpOpenTelemetry(params),
+  async (params?: FirestorePluginParams) => {
+    const authClient = new GoogleAuth();
+    const gcpOptions = {
+      projectId: params?.projectId || (await authClient.getProjectId()),
+      telemetryConfig: params?.telemetryConfig,
+    };
+    return {
+      flowStateStore: {
+        id: 'firestore',
+        value: new FirestoreStateStore(params?.flowStateStore),
       },
-      logger: {
-        id: 'firebase',
-        value: new GcpLogger(params),
+      traceStore: {
+        id: 'firestore',
+        value: new FirestoreTraceStore(params?.traceStore),
       },
-    },
-  })
+      telemetry: {
+        instrumentation: {
+          id: 'firebase',
+          value: new GcpOpenTelemetry(gcpOptions),
+        },
+        logger: {
+          id: 'firebase',
+          value: new GcpLogger(gcpOptions),
+        },
+      },
+    };
+  }
 );
