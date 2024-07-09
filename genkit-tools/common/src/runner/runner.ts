@@ -64,6 +64,11 @@ export class Runner {
   readonly autoReload: boolean;
 
   /**
+   * Whether to builder should be invoked when runner first starts.
+   */
+  readonly buildOnStart: boolean;
+
+  /**
    * Subprocess for the app code. May not be running.
    */
   private appProcess: ChildProcess | null = null;
@@ -95,10 +100,12 @@ export class Runner {
     options: {
       directory?: string;
       autoReload?: boolean;
+      buildOnStart?: boolean;
     } = {}
   ) {
     this.directory = options.directory || process.cwd();
     this.autoReload = options.autoReload ?? true;
+    this.buildOnStart = !!options.buildOnStart;
   }
 
   /**
@@ -109,7 +116,7 @@ export class Runner {
       logger.info('Runner is already running.');
       return Promise.resolve(true);
     }
-    if (this.autoReload) {
+    if (this.autoReload || this.buildOnStart) {
       const config = await findToolsConfig();
       if (config?.runner?.mode !== 'harness') {
         this.buildCommand = config?.builder?.cmd;
@@ -118,6 +125,8 @@ export class Runner {
         }
         this.build();
       }
+    }
+    if (this.autoReload) {
       this.watchForChanges();
     }
     return this.startApp();
