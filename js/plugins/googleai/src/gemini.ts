@@ -431,7 +431,6 @@ export function googleAIModel(
       use: middleware,
     },
     async (request, streamingCallback) => {
-      console.log("generating");
       const options: RequestOptions = { apiClient: GENKIT_CLIENT_HEADER };
       if (apiVersion) {
         options.apiVersion = apiVersion;
@@ -488,7 +487,6 @@ export function googleAIModel(
       const msg = toGeminiMessage(messages[messages.length - 1], model);
       const jsonMode =
         request.output?.format === 'json' || !!request.output?.schema;
-      console.log("jsonmode", jsonMode);
       const fromJSONModeScopedGeminiCandidate = (
         candidate: GeminiCandidate
       ) => {
