@@ -15,8 +15,8 @@
  */
 
 import {
-  Link,
   Span as ApiSpan,
+  Link,
   SpanStatusCode,
   trace,
 } from '@opentelemetry/api';
