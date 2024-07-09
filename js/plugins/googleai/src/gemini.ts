@@ -44,11 +44,11 @@ import {
   Content as GeminiMessage,
   Part as GeminiPart,
   GenerateContentResponse,
+  GenerationConfig,
   GoogleGenerativeAI,
   InlineDataPart,
   RequestOptions,
   StartChatParams,
-  GenerationConfig,
 } from '@google/generative-ai';
 import process from 'process';
 import z from 'zod';
@@ -468,10 +468,10 @@ export function googleAIModel(
         topK: request.config?.topK,
         topP: request.config?.topP,
         stopSequences: request.config?.stopSequences,
-        responseMimeType: 
-        request.output?.format === 'json' || request.output?.schema
-          ? 'application/json'
-          : undefined,
+        responseMimeType:
+          request.output?.format === 'json' || request.output?.schema
+            ? 'application/json'
+            : undefined,
       };
       const chatRequest = {
         systemInstruction,
@@ -510,7 +510,7 @@ export function googleAIModel(
           throw new Error('No valid candidates returned.');
         }
         return {
-          candidates: 
+          candidates:
             response.candidates?.map(fromJSONModeScopedGeminiCandidate) || [],
           custom: response,
         };
@@ -521,7 +521,8 @@ export function googleAIModel(
         if (!result.response.candidates?.length)
           throw new Error('No valid candidates returned.');
         const responseCandidates =
-          result.response.candidates?.map(fromJSONModeScopedGeminiCandidate) || [];
+          result.response.candidates?.map(fromJSONModeScopedGeminiCandidate) ||
+          [];
         return {
           candidates: responseCandidates,
           custom: result.response,

@@ -249,7 +249,7 @@ export const jokeWithOutputFlow = defineFlow(
       },
       prompt: `Tell a joke about ${input.subject}.`,
     });
-    return { ...llmResponse.output()!};
+    return { ...llmResponse.output()! };
   }
 );
 
