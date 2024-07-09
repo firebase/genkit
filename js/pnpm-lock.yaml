@@ -583,11 +583,11 @@ importers:
   plugins/vertexai:
     dependencies:
       '@anthropic-ai/sdk':
-        specifier: ^0.20.7
-        version: 0.20.7(encoding@0.1.13)
+        specifier: ^0.24.3
+        version: 0.24.3(encoding@0.1.13)
       '@anthropic-ai/vertex-sdk':
-        specifier: ^0.3.5
-        version: 0.3.5(encoding@0.1.13)
+        specifier: ^0.4.0
+        version: 0.4.0(encoding@0.1.13)
       '@genkit-ai/ai':
         specifier: workspace:*
         version: link:../../ai
@@ -1192,14 +1192,14 @@ importers:
 
 packages:
 
-  '@anthropic-ai/sdk@0.20.7':
-    resolution: {integrity: sha512-uyc+3WGLpe8ur6mSIKSab7P9JdBerTdmqb7popc/yROYLLCW/Ykyw4ZfjmN/cLmxjnAKnv5YUngzbPM0BJuGjg==}
+  '@anthropic-ai/sdk@0.24.3':
+    resolution: {integrity: sha512-916wJXO6T6k8R6BAAcLhLPv/pnLGy7YSEBZXZ1XTFbLcTZE8oTy3oDW9WJf9KKZwMvVcePIfoTSvzXHRcGxkQQ==}
 
   '@anthropic-ai/sdk@0.9.1':
     resolution: {integrity: sha512-wa1meQ2WSfoY8Uor3EdrJq0jTiZJoKoSii2ZVWRY1oN4Tlr5s59pADg9T79FTbPe1/se5c3pBeZgJL63wmuoBA==}
 
-  '@anthropic-ai/vertex-sdk@0.3.5':
-    resolution: {integrity: sha512-pn2PNWuPbmDZbOSb2gSE6mckQpoS/JunTEV5v+KfVsDAAoD7eE78eaoZWZSWZAnASGe2keyFV5s9fp5+GZ0sEw==}
+  '@anthropic-ai/vertex-sdk@0.4.0':
+    resolution: {integrity: sha512-E/FL/P1+wDNrhuVg7DYmbiLdW6+xU9d2Vn/dmpJbKF7Vt81SnGxUFYn9zjDk2QOptvQFSOcUb5OCtpEvej+daQ==}
 
   '@colors/colors@1.6.0':
     resolution: {integrity: sha512-Ir+AOibqzrIsL6ajt3Rz3LskB7OiMVHqltZmspbW/TJuTVuyOMirVqAkjfY6JISiLHgyNqicAC8AyHHGzNd/dA==}
@@ -2595,6 +2595,7 @@ packages:
   are-we-there-yet@2.0.0:
     resolution: {integrity: sha512-Ci/qENmwHnsYo9xKIcUJN5LeDKdJ6R1Z1j9V/J5wyq8nh/mYPEpIKJbBZXtZjG04HiK7zV/p6Vs9952MrMeUIw==}
     engines: {node: '>=10'}
+    deprecated: This package is no longer supported.
 
   argparse@1.0.10:
     resolution: {integrity: sha512-o5Roy6tNG4SL/FOkCAN6RzjiakZS25RLYFrcMttJqbdd8BWrnA+fGz57iN5Pb06pvBGvl5gQ0B48dJlslXvoTg==}
@@ -3186,6 +3187,7 @@ packages:
   gauge@3.0.2:
     resolution: {integrity: sha512-+5J6MS/5XksCuXq++uFRsnUd7Ovu1XenbeuIuNRJxYWjgQbPuFhT14lAvsWfqfAmnwluf1OwMjz39HjfLPci0Q==}
     engines: {node: '>=10'}
+    deprecated: This package is no longer supported.
 
   gaxios@4.3.3:
     resolution: {integrity: sha512-gSaYYIO1Y3wUtdfHmjDUZ8LWaxJQpiavzbF5Kq53akSzvmVg0RfyOcFDbO1KJ/KCGRFz2qG+lS81F0nkr7cRJA==}
@@ -3244,6 +3246,7 @@ packages:
 
   glob@7.2.3:
     resolution: {integrity: sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==}
+    deprecated: Glob versions prior to v9 are no longer supported
 
   globalthis@1.0.3:
     resolution: {integrity: sha512-sFdI5LyBiNTHjRd7cGPWapiHWMOXKyuBNX/cWJ3NfzrZQVa8GI/8cofCl74AOVqq9W5kNmguTIzJ/1s2gyI9wA==}
@@ -3396,6 +3399,7 @@ packages:
 
   inflight@1.0.6:
     resolution: {integrity: sha512-k92I/b08q4wvFscXCLvqfsHCrjrF7yiXsQuIVvVE7N82W3+aqpzuUdBbfhWcy/FZR3/4IgflMgKLOsvPDrGCJA==}
+    deprecated: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
 
   inherits@2.0.3:
     resolution: {integrity: sha512-x00IRNXNy63jwGkJmzPigoySHbaqpNuzKbBOmzK+g2OdZpQ9w+sxCN+VSB3ja7IAge2OP2qpfxTjeNcyjmW1uw==}
@@ -4036,6 +4040,7 @@ packages:
 
   npmlog@5.0.1:
     resolution: {integrity: sha512-AqZtDUWOMKs1G/8lwylVjrdYgqA4d9nu8hc+0gzRxlDb1I10+FHBGMXs6aiQHFdCUUlqH99MUMuLfzWDNDtfxw==}
+    deprecated: This package is no longer supported.
 
   num-sort@2.1.0:
     resolution: {integrity: sha512-1MQz1Ed8z2yckoBeSfkQHHO9K1yDRxxtotKSJ9yvcTUUxSvfvzEq5GwBrjjHEpMlq/k5gvXdmJ1SbYxWtpNoVg==}
@@ -4360,6 +4365,7 @@ packages:
 
   rimraf@3.0.2:
     resolution: {integrity: sha512-JZkJMZkAGFFPP2YqXZXPbMlMBgsxzE8ILs4lMIX/2o0L9UBw9O/Y3o6wFw/i9YLapcUJWwqbi3kdxIPdC62TIA==}
+    deprecated: Rimraf versions prior to v4 are no longer supported
     hasBin: true
 
   rollup@4.13.2:
@@ -4864,7 +4870,7 @@ packages:
 
 snapshots:
 
-  '@anthropic-ai/sdk@0.20.7(encoding@0.1.13)':
+  '@anthropic-ai/sdk@0.24.3(encoding@0.1.13)':
     dependencies:
       '@types/node': 18.19.31
       '@types/node-fetch': 2.6.11
@@ -4891,9 +4897,9 @@ snapshots:
     transitivePeerDependencies:
       - encoding
 
-  '@anthropic-ai/vertex-sdk@0.3.5(encoding@0.1.13)':
+  '@anthropic-ai/vertex-sdk@0.4.0(encoding@0.1.13)':
     dependencies:
-      '@anthropic-ai/sdk': 0.20.7(encoding@0.1.13)
+      '@anthropic-ai/sdk': 0.24.3(encoding@0.1.13)
       google-auth-library: 9.7.0(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding

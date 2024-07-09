@@ -19,7 +19,9 @@ import {
   Message,
   MessageCreateParamsBase,
   MessageParam,
+  TextBlock,
   TextBlockParam,
+  TextDelta,
 } from '@anthropic-ai/sdk/resources/messages';
 import { AnthropicVertex } from '@anthropic-ai/vertex-sdk';
 import {
@@ -34,6 +36,22 @@ import {
   modelRef,
 } from '@genkit-ai/ai/model';
 import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
+
+export const claude35Sonnet = modelRef({
+  name: 'vertexai/claude-3-5-sonnet',
+  info: {
+    label: 'Vertex AI Model Garden - Claude 35 Sonnet',
+    versions: ['claude-3-5-sonnet@20240620'],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: false,
+      systemRole: true,
+      output: ['text'],
+    },
+  },
+  configSchema: GenerationCommonConfigSchema,
+});
 
 export const claude3Sonnet = modelRef({
   name: 'vertexai/claude-3-sonnet',
@@ -87,6 +105,7 @@ export const SUPPORTED_ANTHROPIC_MODELS: Record<
   string,
   ModelReference<typeof GenerationCommonConfigSchema>
 > = {
+  'claude-3-5-sonnet': claude35Sonnet,
   'claude-3-sonnet': claude3Sonnet,
   'claude-3-opus': claude3Opus,
   'claude-3-haiku': claude3Haiku,
@@ -134,7 +153,7 @@ export function anthropicModel(
               index: 0,
               content: [
                 {
-                  text: event.delta.text,
+                  text: (event.delta as TextDelta).text,
                 },
               ],
             });
@@ -245,7 +264,9 @@ export function fromAnthropicResponse(
   const candidates: CandidateData[] = [
     {
       index: 0,
-      finishReason: toGenkitFinishReason(response.stop_reason),
+      finishReason: toGenkitFinishReason(
+        response.stop_reason as 'end_turn' | 'max_tokens' | 'stop_sequence'
+      ),
       custom: {
         id: response.id,
         model: response.model,
@@ -253,7 +274,7 @@ export function fromAnthropicResponse(
       },
       message: {
         role: 'model',
-        content: response.content.map((c) => ({ text: c.text })),
+        content: response.content.map((c) => ({ text: (c as TextBlock).text })),
       },
     },
   ];

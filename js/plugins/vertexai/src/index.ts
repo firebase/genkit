@@ -20,6 +20,7 @@ import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
 import {
   anthropicModel,
+  claude35Sonnet,
   claude3Haiku,
   claude3Opus,
   claude3Sonnet,
@@ -54,6 +55,7 @@ import {
 import { imagen2, imagen2Model } from './imagen.js';
 
 export {
+  claude35Sonnet,
   claude3Haiku,
   claude3Opus,
   claude3Sonnet,
