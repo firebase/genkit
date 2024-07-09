@@ -58,11 +58,15 @@ const flowLatencies = new MetricHistogram(_N('latency'), {
 });
 
 export function recordError(err: any) {
-  const qualifiedPath = spanMetadataAls?.getStore()?.path || '';
-  const path = toDisplayPath(qualifiedPath);
-  logger.logStructuredError(`Error[${path}, ${err.name}]`, {
-    path,
-    qualifiedPath,
+  const paths = traceMetadataAls?.getStore()?.paths || new Set<PathMetadata>();
+  const failedPath =
+    Array.from(paths).find((p) => p.status === 'failure')?.path ||
+    spanMetadataAls?.getStore()?.path ||
+    '';
+  const displayPath = toDisplayPath(failedPath);
+  logger.logStructuredError(`Error[${displayPath}, ${err.name}]`, {
+    path: displayPath,
+    qualifiedPath: failedPath,
     name: err.name,
     message: err.message,
     stack: err.stack,
