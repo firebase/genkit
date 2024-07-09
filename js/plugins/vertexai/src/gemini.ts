@@ -279,6 +279,61 @@ export function toGeminiMessage(
   };
 }
 
+export function toGeminiMessages(
+  messages: MessageData[],
+  model?: ModelReference<z.ZodTypeAny>
+): Content[] {
+  const geminiMessages: Content[] = [];
+
+  for (let i = 0; i < messages.length; i++) {
+    if (messages[i].content.some((part) => part.toolResponse)) {
+      const toolResponseMessage = messages[i];
+
+      // get the most recent user message in the history
+      const previousUserMessageIndex = messages
+        .slice(0, i)
+        .reverse()
+        .findIndex((m) => m.role === toGeminiRole('user', model));
+
+      if (previousUserMessageIndex === -1) {
+        throw new Error(
+          'Tool response message must be preceded by a user message'
+        );
+      }
+
+      const actualPreviousUserMessageIndex = i - 1 - previousUserMessageIndex;
+      const previousUserMessage = messages[actualPreviousUserMessageIndex];
+
+      const newToolResponseMessage = {
+        role: toGeminiRole(toolResponseMessage.role, model),
+        parts: [toGeminiToolResponsePart(toolResponseMessage.content[0])],
+      };
+
+      const otherParts = toolResponseMessage.content.filter(
+        (part) => !part.toolResponse
+      );
+
+      if (otherParts.length > 0) {
+        const newPreviousUserMessage = {
+          role: toGeminiRole(previousUserMessage.role, model),
+          parts: [...previousUserMessage.content, ...otherParts].map(
+            toGeminiPart
+          ),
+        };
+
+        // Modify geminiMessages in place to replace the previous user message
+        geminiMessages[actualPreviousUserMessageIndex] = newPreviousUserMessage;
+      }
+
+      geminiMessages.push(newToolResponseMessage);
+    } else {
+      geminiMessages.push(toGeminiMessage(messages[i], model));
+    }
+  }
+
+  return geminiMessages;
+}
+
 function fromGeminiFinishReason(
   reason: GenerateContentCandidate['finishReason']
 ): CandidateData['finishReason'] {
@@ -490,14 +545,14 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
         }
       }
 
+      const geminiMessages = toGeminiMessages(messages, model);
+
       const chatRequest: StartChatParams = {
         systemInstruction,
         tools: request.tools?.length
           ? [{ functionDeclarations: request.tools?.map(toGeminiTool) }]
           : [],
-        history: messages
-          .slice(0, -1)
-          .map((message) => toGeminiMessage(message, model)),
+        history: geminiMessages.slice(0, -1),
         generationConfig: {
           candidateCount: request.candidates || undefined,
           temperature: request.config?.temperature,
@@ -508,7 +563,7 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
         },
         safetySettings: request.config?.safetySettings,
       };
-      const msg = toGeminiMessage(messages[messages.length - 1], model);
+      const msg = geminiMessages[geminiMessages.length - 1];
       if (streamingCallback) {
         const result = await client
           .startChat(chatRequest)

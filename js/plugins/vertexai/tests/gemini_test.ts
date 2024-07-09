@@ -21,10 +21,11 @@ import { describe, it } from 'node:test';
 import {
   fromGeminiCandidate,
   toGeminiMessage,
+  toGeminiMessages,
   toGeminiSystemInstruction,
 } from '../src/gemini.js';
 
-describe('toGeminiMessages', () => {
+describe('toGeminiMessage', () => {
   const testCases = [
     {
       should: 'should transform genkit message (text content) correctly',
@@ -344,4 +345,80 @@ describe('fromGeminiCandidate', () => {
       );
     });
   }
+});
+
+describe('toGeminiMessages', () => {
+  it('should handle tool request messages correctly', () => {
+    const messages = [
+      {
+        role: 'user',
+        content: [{ text: 'What is the weather like today?.' }],
+      },
+      {
+        role: 'model',
+        content: [
+          {
+            toolRequest: {
+              name: 'tellMeTheWeather',
+              input: { request: 'tell me the weather' },
+            },
+          },
+        ],
+      },
+      {
+        role: 'tool',
+        content: [
+          {
+            toolResponse: {
+              name: 'tellMeTheWeather',
+              output: 'it is sunny today',
+            },
+          },
+          { text: 'This is extra context', metadata: { purpose: 'context' } },
+        ],
+      },
+    ];
+
+    const expectedOutput = [
+      {
+        role: 'user',
+        parts: [
+          {
+            text: 'What is the weather like today?.',
+          },
+          { text: 'This is extra context' },
+        ],
+      },
+      {
+        role: 'model',
+        parts: [
+          {
+            functionCall: {
+              name: 'tellMeTheWeather',
+              args: {
+                request: 'tell me the weather',
+              },
+            },
+          },
+        ],
+      },
+      {
+        role: 'function',
+        parts: [
+          {
+            functionResponse: {
+              name: 'tellMeTheWeather',
+              response: {
+                name: 'tellMeTheWeather',
+                content: 'it is sunny today',
+              },
+            },
+          },
+        ],
+      },
+    ];
+    const output = toGeminiMessages(messages as MessageData[]);
+
+    assert.deepEqual(output, expectedOutput);
+  });
 });
