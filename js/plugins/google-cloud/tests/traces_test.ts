@@ -40,6 +40,7 @@ describe('GoogleCloudTracing', () => {
       // Force GCP Plugin to use in-memory metrics exporter
       plugins: [
         googleCloud({
+          projectId: 'test',
           telemetryConfig: {
             forceDevExport: false,
           },

@@ -17,11 +17,11 @@
 import { generate } from '@genkit-ai/ai';
 import { defineModel } from '@genkit-ai/ai/model';
 import {
+  configureGenkit,
   FlowState,
   FlowStateQuery,
   FlowStateQueryResponse,
   FlowStateStore,
-  configureGenkit,
 } from '@genkit-ai/core';
 import { registerFlowStateStore } from '@genkit-ai/core/registry';
 import { defineFlow, run, runFlow } from '@genkit-ai/flow';
@@ -49,6 +49,7 @@ describe('GoogleCloudLogs', () => {
       // Force GCP Plugin to use in-memory metrics exporter
       plugins: [
         googleCloud({
+          projectId: 'test',
           telemetryConfig: {
             forceDevExport: false,
             metricExportIntervalMillis: 100,
@@ -148,15 +149,21 @@ describe('GoogleCloudLogs', () => {
 
     const logMessages = await getLogs();
     assert.equal(
-      logMessages.includes('[info] Config[testFlow > sub1 > sub2, testModel]'),
+      logMessages.includes(
+        '[info] Config[testFlow > sub1 > sub2 > testModel, testModel]'
+      ),
       true
     );
     assert.equal(
-      logMessages.includes('[info] Input[testFlow > sub1 > sub2, testModel]'),
+      logMessages.includes(
+        '[info] Input[testFlow > sub1 > sub2 > testModel, testModel]'
+      ),
       true
     );
     assert.equal(
-      logMessages.includes('[info] Output[testFlow > sub1 > sub2, testModel]'),
+      logMessages.includes(
+        '[info] Output[testFlow > sub1 > sub2 > testModel, testModel]'
+      ),
       true
     );
   });
