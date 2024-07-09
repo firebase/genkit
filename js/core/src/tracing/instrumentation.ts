@@ -15,8 +15,8 @@
  */
 
 import {
-  Span as ApiSpan,
   Link,
+  Span as ApiSpan,
   SpanStatusCode,
   trace,
 } from '@opentelemetry/api';
@@ -108,6 +108,7 @@ export async function runInNewSpan<T>(
           const start = traceMetadataAls.getStore()?.timestamp || now;
           traceMetadataAls.getStore()?.paths?.add({
             path: opts.metadata.path,
+            status: 'success',
             latency: now - start,
           });
         }
@@ -119,6 +120,8 @@ export async function runInNewSpan<T>(
         const start = traceMetadataAls.getStore()?.timestamp || now;
         traceMetadataAls.getStore()?.paths?.add({
           path: opts.metadata.path,
+          status: 'failure',
+          error: (e as any).name,
           latency: now - start,
         });
         opts.metadata.state = 'error';
