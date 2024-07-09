@@ -26,8 +26,8 @@ import {
 import { registerFlowStateStore } from '@genkit-ai/core/registry';
 import { defineFlow, run, runFlow } from '@genkit-ai/flow';
 import {
-  __addTransportStreamForTesting,
   googleCloud,
+  __addTransportStreamForTesting,
 } from '@genkit-ai/google-cloud';
 import assert from 'node:assert';
 import { before, beforeEach, describe, it } from 'node:test';
@@ -49,6 +49,7 @@ describe('GoogleCloudLogs', () => {
       // Force GCP Plugin to use in-memory metrics exporter
       plugins: [
         googleCloud({
+          projectId: 'test',
           telemetryConfig: {
             forceDevExport: false,
             metricExportIntervalMillis: 100,
