@@ -26,8 +26,8 @@ import {
 import { registerFlowStateStore } from '@genkit-ai/core/registry';
 import { defineFlow, run, runFlow } from '@genkit-ai/flow';
 import {
-  googleCloud,
   __addTransportStreamForTesting,
+  googleCloud,
 } from '@genkit-ai/google-cloud';
 import assert from 'node:assert';
 import { before, beforeEach, describe, it } from 'node:test';
