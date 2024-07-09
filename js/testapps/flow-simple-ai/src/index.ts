@@ -227,6 +227,32 @@ export const jokeWithToolsFlow = defineFlow(
   }
 );
 
+export const jokeWithOutputFlow = defineFlow(
+  {
+    name: 'jokeWithOutputFlow',
+    inputSchema: z.object({
+      modelName: z.enum([gemini15Flash.name]),
+      subject: z.string(),
+    }),
+    outputSchema: z.object({
+      joke: z.string(),
+    }),
+  },
+  async (input) => {
+    const llmResponse = await generate({
+      model: input.modelName,
+      output: {
+        format: 'json',
+        schema: z.object({
+          joke: z.string(),
+        }),
+      },
+      prompt: `Tell a joke about ${input.subject}.`,
+    });
+    return { ...llmResponse.output()!};
+  }
+);
+
 export const vertexStreamer = defineFlow(
   {
     name: 'vertexStreamer',
