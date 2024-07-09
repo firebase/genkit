@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { NodeSDKConfiguration } from '@opentelemetry/sdk-node/build/src/types';
 import {
@@ -28,9 +27,6 @@ import { TelemetryConfig } from './telemetryTypes.js';
 import { TraceStore } from './tracing.js';
 import { TraceStoreExporter } from './tracing/exporter.js';
 import { MultiSpanProcessor } from './tracing/multiSpanProcessor.js';
-
-// For troubleshooting, set the log level to DiagLogLevel.DEBUG
-diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
 
 export * from './tracing/exporter.js';
 export * from './tracing/instrumentation.js';
@@ -81,7 +77,6 @@ export async function cleanUpTracing(): Promise<void> {
       return metricFlush.then(() => {
         return telemetrySDK!.shutdown().then(() => {
           logger.debug('OpenTelemetry SDK shut down.');
-          console.log('SHUTTING DOWN3');
           telemetrySDK = null;
           resolve();
         });
