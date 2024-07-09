@@ -44,11 +44,11 @@ configureGenkit({
     googleAI(),
     vertexAI(),
     googleCloud({
-      // Forces telemetry export in 'dev'
-      forceDevExport: true,
       // These are configured for demonstration purposes. Sensible defaults are
       // in place in the event that telemetryConfig is absent.
       telemetryConfig: {
+        // Forces telemetry export in 'dev'
+        forceDevExport: true,
         sampler: new AlwaysOnSampler(),
         autoInstrumentation: true,
         autoInstrumentationConfig: {
@@ -56,7 +56,8 @@ configureGenkit({
           '@opentelemetry/instrumentation-dns': { enabled: false },
           '@opentelemetry/instrumentation-net': { enabled: false },
         },
-        // metricExportIntervalMillis: 5_000,
+        metricExportIntervalMillis: 5_000,
+        metricExportTimeoutMillis: 5_000,
       },
     }),
     dotprompt(),
@@ -289,7 +290,7 @@ export const searchDestinations = defineFlow(
     const result = await generate({
       model: geminiPro,
       prompt: `Give me a list of vacation options based on the provided context. Use only the options provided below, and describe how it fits with my query.
-      
+
 Query: ${input}
 
 Available Options:\n- ${docs.map((d) => `${d.metadata!.name}: ${d.text()}`).join('\n- ')}`,

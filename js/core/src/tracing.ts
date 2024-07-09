@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
+import { DiagConsoleLogger, DiagLogLevel, diag } from '@opentelemetry/api';
 import { NodeSDK } from '@opentelemetry/sdk-node';
+import { NodeSDKConfiguration } from '@opentelemetry/sdk-node/build/src/types';
 import {
   BatchSpanProcessor,
   SimpleSpanProcessor,
@@ -27,6 +29,9 @@ import { TraceStore } from './tracing.js';
 import { TraceStoreExporter } from './tracing/exporter.js';
 import { MultiSpanProcessor } from './tracing/multiSpanProcessor.js';
 
+// For troubleshooting, set the log level to DiagLogLevel.DEBUG
+diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
+
 export * from './tracing/exporter.js';
 export * from './tracing/instrumentation.js';
 export * from './tracing/localFileTraceStore.js';
@@ -35,6 +40,7 @@ export * from './tracing/types.js';
 
 const processors: SpanProcessor[] = [];
 let telemetrySDK: NodeSDK | null = null;
+let nodeOtelConfig: Partial<NodeSDKConfiguration> | null = null;
 
 /**
  * Enables trace spans to be written to the trace store.
@@ -55,7 +61,7 @@ export function enableTracingAndMetrics(
     );
   }
 
-  const nodeOtelConfig = telemetryConfig.getConfig() || {};
+  nodeOtelConfig = telemetryConfig.getConfig() || {};
 
   addProcessor(nodeOtelConfig.spanProcessor);
   nodeOtelConfig.spanProcessor = new MultiSpanProcessor(processors);
@@ -67,10 +73,18 @@ export function enableTracingAndMetrics(
 export async function cleanUpTracing(): Promise<void> {
   return new Promise((resolve) => {
     if (telemetrySDK) {
-      return telemetrySDK.shutdown().then(() => {
-        logger.debug('OpenTelemetry SDK shut down.');
-        telemetrySDK = null;
-        resolve();
+      // Metrics are not flushed as part of the shutdown operation. If metrics
+      // are enabled, we need to manually flush them *before* the reader
+      // receives shutdown order.
+      const metricFlush = maybeFlushMetrics();
+
+      return metricFlush.then(() => {
+        return telemetrySDK!.shutdown().then(() => {
+          logger.debug('OpenTelemetry SDK shut down.');
+          console.log('SHUTTING DOWN3');
+          telemetrySDK = null;
+          resolve();
+        });
       });
     } else {
       resolve();
@@ -96,6 +110,14 @@ function createTraceStoreProcessor(
 /** Adds the given {SpanProcessor} to the list of processors */
 function addProcessor(processor: SpanProcessor | undefined) {
   if (processor) processors.push(processor);
+}
+
+/** Flush metrics if in dev mode. */
+function maybeFlushMetrics(): Promise<void> {
+  if (process.env.GENKIT_ENV === 'dev' && nodeOtelConfig?.metricReader) {
+    return nodeOtelConfig.metricReader.forceFlush();
+  }
+  return Promise.resolve();
 }
 
 /**
