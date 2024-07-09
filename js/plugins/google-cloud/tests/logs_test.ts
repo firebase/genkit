@@ -17,17 +17,17 @@
 import { generate } from '@genkit-ai/ai';
 import { defineModel } from '@genkit-ai/ai/model';
 import {
+  configureGenkit,
   FlowState,
   FlowStateQuery,
   FlowStateQueryResponse,
   FlowStateStore,
-  configureGenkit,
 } from '@genkit-ai/core';
 import { registerFlowStateStore } from '@genkit-ai/core/registry';
 import { defineFlow, run, runFlow } from '@genkit-ai/flow';
 import {
-  __addTransportStreamForTesting,
   googleCloud,
+  __addTransportStreamForTesting,
 } from '@genkit-ai/google-cloud';
 import assert from 'node:assert';
 import { before, beforeEach, describe, it } from 'node:test';
@@ -148,15 +148,21 @@ describe('GoogleCloudLogs', () => {
 
     const logMessages = await getLogs();
     assert.equal(
-      logMessages.includes('[info] Config[testFlow > sub1 > sub2, testModel]'),
+      logMessages.includes(
+        '[info] Config[testFlow > sub1 > sub2 > testModel, testModel]'
+      ),
       true
     );
     assert.equal(
-      logMessages.includes('[info] Input[testFlow > sub1 > sub2, testModel]'),
+      logMessages.includes(
+        '[info] Input[testFlow > sub1 > sub2 > testModel, testModel]'
+      ),
       true
     );
     assert.equal(
-      logMessages.includes('[info] Output[testFlow > sub1 > sub2, testModel]'),
+      logMessages.includes(
+        '[info] Output[testFlow > sub1 > sub2 > testModel, testModel]'
+      ),
       true
     );
   });
