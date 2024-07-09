@@ -52,6 +52,12 @@ interface EvalFlowRunOptions {
   outputFormat: string;
 }
 
+interface FlowRunState {
+  state: FlowState;
+  hasErrored: boolean;
+  error?: string;
+}
+
 const EVAL_FLOW_SCHEMA = '{samples: Array<{input: any; reference?: any;}>}';
 
 /** Command to run a flow and evaluate the output */
@@ -136,19 +142,21 @@ export const evalFlow = new Command('eval:flow')
 
         const states = await runFlows(runner, flowName, parsedData);
 
-        const errors = states
-          .filter((s) => s.operation.result?.error)
-          .map((s) => s.operation.result?.error);
-        if (errors.length > 0) {
-          logger.error('Some flows failed with the following errors');
-          logger.error(errors);
-          return;
+        const runStates: FlowRunState[] = states.map((s) => {
+          return {
+            state: s,
+            hasErrored: !!s.operation.result?.error,
+            error: s.operation.result?.error,
+          } as FlowRunState;
+        });
+        if (runStates.some((s) => s.hasErrored)) {
+          logger.error('Some flows failed with errors');
         }
 
         const evalDataset = await fetchDataSet(
           runner,
           flowName,
-          states,
+          runStates,
           parsedData
         );
         const evalRunId = randomUUID();
@@ -159,7 +167,7 @@ export const evalFlow = new Command('eval:flow')
           const response = await runner.runAction({
             key: name,
             input: {
-              dataset: evalDataset,
+              dataset: evalDataset.filter((row) => !row.error),
               evalRunId,
               auth: options.auth ? JSON.parse(options.auth) : undefined,
             },
@@ -251,7 +259,7 @@ async function runFlows(
 async function fetchDataSet(
   runner: Runner,
   flowName: string,
-  states: FlowState[],
+  states: FlowRunState[],
   parsedData: EvalFlowInput
 ): Promise<EvalInput[]> {
   let references: any[] | undefined = undefined;
@@ -268,7 +276,7 @@ async function fetchDataSet(
   const extractors = await getEvalExtractors(flowName);
   return await Promise.all(
     states.map(async (s, i) => {
-      const traceIds = s.executions.flatMap((e) => e.traceIds);
+      const traceIds = s.state.executions.flatMap((e) => e.traceIds);
       if (traceIds.length > 1) {
         logger.warn('The flow is split across multiple traces');
       }
@@ -288,8 +296,23 @@ async function fetchDataSet(
       let inputs: string[] = [];
       let outputs: string[] = [];
       let contexts: string[] = [];
+
+      // First extract inputs for all traces
       traces.forEach((trace) => {
         inputs.push(extractors.input(trace));
+      });
+
+      if (s.hasErrored) {
+        return {
+          testCaseId: randomUUID(),
+          input: inputs[0],
+          error: s.error,
+          reference: references?.at(i),
+          traceIds,
+        };
+      }
+
+      traces.forEach((trace) => {
         outputs.push(extractors.output(trace));
         contexts.push(extractors.context(trace));
       });

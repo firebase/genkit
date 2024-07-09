@@ -704,6 +704,9 @@ importers:
       pdfjs-dist:
         specifier: ^4.0.379
         version: 4.2.67(encoding@0.1.13)
+      pdfjs-dist-legacy:
+        specifier: ^1.0.1
+        version: 1.0.1
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -2919,6 +2922,10 @@ packages:
     resolution: {integrity: sha512-WkrWp9GR4KXfKGYzOLmTuGVi1UWFfws377n9cc55/tb6DuqyF6pcQ5AbiHEshaDpY9v6oaSr2XCDidGmMwdzIA==}
     engines: {node: '>=8'}
 
+  dommatrix@1.0.3:
+    resolution: {integrity: sha512-l32Xp/TLgWb8ReqbVJAFIvXmY7go4nTxxlWiAFyhoQw9RKEOHBZNnyGvJWqDVSPmq3Y9HlM4npqF/T6VMOXhww==}
+    deprecated: dommatrix is no longer maintained. Please use @thednp/dommatrix.
+
   dot-prop@6.0.1:
     resolution: {integrity: sha512-tE7ztYzXHIeyvc7N+hR3oi7FIbf/NIjVP9hmAt3yMXzrQ072/fpjGLx2GxNxGxUl5V73MEqYzioOMoVhGMJ5cA==}
     engines: {node: '>=10'}
@@ -4149,6 +4156,9 @@ packages:
   pdf-parse@1.1.1:
     resolution: {integrity: sha512-v6ZJ/efsBpGrGGknjtq9J/oC8tZWq0KWL5vQrk2GlzLEQPUDB1ex+13Rmidl1neNN358Jn9EHZw5y07FFtaC7A==}
     engines: {node: '>=6.8.1'}
+
+  pdfjs-dist-legacy@1.0.1:
+    resolution: {integrity: sha512-kZQ7eiHsm1uxImngh56yi4Cd2qL7eQauQYzvqLgVIDEuO0ruDEbRTZ1GRmv5SkqkRkJwI09tdowgTin7Smusqg==}
 
   pdfjs-dist@4.2.67:
     resolution: {integrity: sha512-rJmuBDFpD7cqC8WIkQUEClyB4UAH05K4AsyewToMTp2gSy3Rrx8c1ydAVqlJlGv3yZSOrhEERQU/4ScQQFlLHA==}
@@ -6620,6 +6630,8 @@ snapshots:
     dependencies:
       path-type: 4.0.0
 
+  dommatrix@1.0.3: {}
+
   dot-prop@6.0.1:
     dependencies:
       is-obj: 2.0.0
@@ -8073,6 +8085,11 @@ snapshots:
       node-ensure: 0.0.0
     transitivePeerDependencies:
       - supports-color
+
+  pdfjs-dist-legacy@1.0.1:
+    dependencies:
+      dommatrix: 1.0.3
+      web-streams-polyfill: 3.3.3
 
   pdfjs-dist@4.2.67(encoding@0.1.13):
     optionalDependencies:
