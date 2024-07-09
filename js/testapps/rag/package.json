@@ -27,6 +27,7 @@
     "genkitx-langchain": "workspace:*",
     "genkitx-pinecone": "workspace:*",
     "llm-chunk": "^0.0.1",
+    "p-debounce": "^4.0.0",
     "pdf-parse": "^1.1.1",
     "zod": "^3.22.4"
   },

@@ -28,6 +28,7 @@ import path from 'path';
 import pdf from 'pdf-parse';
 import * as z from 'zod';
 import { augmentedPrompt } from './prompt.js';
+const pDebounce = import('p-debounce');
 
 export const pdfChatRetriever = devLocalRetrieverRef('pdfQA');
 
@@ -86,10 +87,17 @@ export const indexPdf = defineFlow(
       return Document.fromText(text, { filePath });
     });
 
-    await index({
-      indexer: pdfChatIndexer,
-      documents,
-    });
+    const debounce = (await pDebounce).default; // ugh
+    const debouncedIndexer = debounce(async (document: Document) => {
+      await index({
+        indexer: pdfChatIndexer,
+        documents: [document],
+      });
+    }, 1000);
+
+    for (const document of documents) {
+      await debouncedIndexer(document);
+    }
   }
 );
 
@@ -117,14 +125,19 @@ export const synthesizeQuestions = defineFlow(
     );
 
     const questions: string[] = [];
-    for (let i = 0; i < chunks.length; i++) {
+    const debounce = (await pDebounce).default; // ugh
+    const debouncedIndexer = debounce(async (chunk: string) => {
       const qResponse = await generate({
         model: geminiPro,
         prompt: {
-          text: `Generate one question about the text below: ${chunks[i]}`,
+          text: `Generate one question about the text below: ${chunk}`,
         },
       });
-      questions.push(qResponse.text());
+      return qResponse.text();
+    }, 1000);
+
+    for (const chunk of chunks) {
+      questions.push(await debouncedIndexer(chunk)!);
     }
     return questions;
   }
