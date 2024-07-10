@@ -107,9 +107,9 @@ function addProcessor(processor: SpanProcessor | undefined) {
   if (processor) processors.push(processor);
 }
 
-/** Flush metrics if in dev mode. */
+/** Flush metrics if present. */
 function maybeFlushMetrics(): Promise<void> {
-  if (process.env.GENKIT_ENV === 'dev' && nodeOtelConfig?.metricReader) {
+  if (nodeOtelConfig?.metricReader) {
     return nodeOtelConfig.metricReader.forceFlush();
   }
   return Promise.resolve();
