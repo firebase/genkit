@@ -104,11 +104,11 @@ func main() {
 // https://github.com/ledongthuc/pdf
 func readPDF(path string) (string, error) {
 	f, r, err := pdf.Open(path)
-	if err != nil {
-		return "", err
-	}
 	if f != nil {
 		defer f.Close()
+	}
+	if err != nil {
+		return "", err
 	}
 
 	reader, err := r.GetPlainText()
