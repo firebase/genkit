@@ -1,6 +1,6 @@
 {
   "private": true,
-  "version": "0.5.4",
+  "version": "0.5.5",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "build": "pnpm install && pnpm build:core && pnpm build:noncore",
