@@ -29,15 +29,15 @@ import {
 import { AnthropicVertex } from '@anthropic-ai/vertex-sdk';
 import {
   CandidateData,
-  defineModel,
   GenerateRequest,
   GenerateResponseData,
   GenerationCommonConfigSchema,
+  Part as GenkitPart,
+  ModelReference,
+  Part,
+  defineModel,
   getBasicUsageStats,
   modelRef,
-  ModelReference,
-  Part as GenkitPart,
-  Part,
 } from '@genkit-ai/ai/model';
 import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
 
