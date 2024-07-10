@@ -158,7 +158,7 @@ import "github.com/firebase/genkit/go/plugins/vertexai"
 ```go
 ctx := context.Background()
 
-err := vertexai.Init(ctx, "", "")
+err := vertexai.Init(ctx, &vertexai.Config{})
 if err != nil {
 	log.Fatal(err)
 }
@@ -238,10 +238,12 @@ genkit.DefineFlow(
 // https://github.com/ledongthuc/pdf
 func readPDF(path string) (string, error) {
 	f, r, err := pdf.Open(path)
+	if f != nil {
+		defer f.Close()
+	}
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
 
 	reader, err := r.GetPlainText()
 	if err != nil {
@@ -272,7 +274,7 @@ which you should not use in production.
 ```go
 	ctx := context.Background()
 
-	err := vertexai.Init(ctx, "", "")
+	err := vertexai.Init(ctx, &vertexai.Config{})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -356,6 +358,7 @@ advancedMenuRetriever := ai.DefineRetriever(
 		k := 3
 		preRerankK := 10
 		if opts, ok := req.Options.(CustomMenuRetrieverOptions); ok {
+			k = opts.K
 			preRerankK = opts.PreRerankK
 		}
 
