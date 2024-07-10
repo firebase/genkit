@@ -227,6 +227,10 @@ export const jokeWithToolsFlow = defineFlow(
   }
 );
 
+const outputSchema = z.object({
+  joke: z.string(),
+})
+
 export const jokeWithOutputFlow = defineFlow(
   {
     name: 'jokeWithOutputFlow',
@@ -234,18 +238,14 @@ export const jokeWithOutputFlow = defineFlow(
       modelName: z.enum([gemini15Flash.name]),
       subject: z.string(),
     }),
-    outputSchema: z.object({
-      joke: z.string(),
-    }),
+    outputSchema,
   },
   async (input) => {
     const llmResponse = await generate({
       model: input.modelName,
       output: {
         format: 'json',
-        schema: z.object({
-          joke: z.string(),
-        }),
+        schema: outputSchema,
       },
       prompt: `Tell a joke about ${input.subject}.`,
     });
