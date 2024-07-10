@@ -107,7 +107,9 @@ func readPDF(path string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
+	if f != nil {
+		defer f.Close()
+	}
 
 	reader, err := r.GetPlainText()
 	if err != nil {
@@ -203,6 +205,7 @@ func customret() {
 			k := 3
 			preRerankK := 10
 			if opts, ok := req.Options.(CustomMenuRetrieverOptions); ok {
+				k = opts.K
 				preRerankK = opts.PreRerankK
 			}
 
