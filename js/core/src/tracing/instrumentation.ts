@@ -210,14 +210,15 @@ function recordPath(spanMeta: SpanMetadata, err?: any) {
   const paths = Array.from(
     traceMetadataAls.getStore()?.paths || new Set<PathMetadata>()
   );
-  if (!paths.some((p) => p.path.startsWith(path))) {
+  const status = err ? 'failure' : 'success';
+  if (!paths.some((p) => p.path.startsWith(path) && p.status === status)) {
     const now = performance.now();
     const start = traceMetadataAls.getStore()?.timestamp || now;
     traceMetadataAls.getStore()?.paths?.add({
       path: decoratedPath,
-      status: err ? 'failure' : 'success',
       error: err?.name,
       latency: now - start,
+      status,
     });
   }
   spanMeta.path = decoratedPath;
