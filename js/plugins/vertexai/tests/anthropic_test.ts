@@ -209,6 +209,108 @@ describe('fromAnthropicResponse', () => {
         },
       },
     },
+    {
+      should: 'should transform genkit tool call correctly',
+      input: {
+        messages: [
+          {
+            role: 'user',
+            content: [{ text: "What's the weather like today?" }],
+          },
+        ],
+        tools: [
+          {
+            name: 'get_weather',
+            description: 'Get the weather for a location.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                location: {
+                  type: 'string',
+                  description: 'The city and state, e.g. San Francisco, CA',
+                },
+              },
+              required: ['location'],
+            },
+          },
+        ],
+      },
+      response: {
+        id: 'abcd1234',
+        model: MODEL_ID,
+        role: 'assistant',
+        type: 'message',
+        stop_reason: 'tool_use',
+        stop_sequence: null,
+        usage: {
+          input_tokens: 123,
+          output_tokens: 234,
+        },
+        content: [
+          {
+            id: 'toolu_get_weather',
+            name: 'get_weather',
+            type: 'tool_use',
+            input: {
+              type: 'object',
+              properties: {
+                location: {
+                  type: 'string',
+                  description: 'The city and state, e.g. San Francisco, CA',
+                },
+              },
+              required: ['location'],
+            },
+          },
+        ],
+      },
+      expectedOutput: {
+        candidates: [
+          {
+            custom: {
+              id: 'abcd1234',
+              model: MODEL_ID,
+              type: 'message',
+            },
+            finishReason: 'other',
+            index: 0,
+            message: {
+              role: 'model',
+              content: [
+                {
+                  toolRequest: {
+                    name: 'get_weather',
+                    input: {
+                      type: 'object',
+                      properties: {
+                        location: {
+                          type: 'string',
+                          description:
+                            'The city and state, e.g. San Francisco, CA',
+                        },
+                      },
+                      required: ['location'],
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        ],
+        usage: {
+          inputAudioFiles: 0,
+          inputCharacters: 30,
+          inputImages: 0,
+          inputTokens: 123,
+          inputVideos: 0,
+          outputAudioFiles: 0,
+          outputCharacters: 0,
+          outputImages: 0,
+          outputTokens: 234,
+          outputVideos: 0,
+        },
+      },
+    },
   ];
   for (const test of testCases) {
     it(test.should, () => {

@@ -15,6 +15,7 @@
  */
 
 import {
+  ContentBlock as AnthropicContent,
   ImageBlockParam,
   Message,
   MessageCreateParamsBase,
@@ -22,18 +23,21 @@ import {
   TextBlock,
   TextBlockParam,
   TextDelta,
+  ToolUseBlock,
+  ToolUseBlockParam,
 } from '@anthropic-ai/sdk/resources/messages';
 import { AnthropicVertex } from '@anthropic-ai/vertex-sdk';
 import {
   CandidateData,
+  defineModel,
   GenerateRequest,
   GenerateResponseData,
   GenerationCommonConfigSchema,
-  Part as GenkitPart,
-  ModelReference,
-  defineModel,
   getBasicUsageStats,
   modelRef,
+  ModelReference,
+  Part as GenkitPart,
+  Part,
 } from '@genkit-ai/ai/model';
 import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
 
@@ -45,7 +49,7 @@ export const claude35Sonnet = modelRef({
     supports: {
       multiturn: true,
       media: true,
-      tools: false,
+      tools: true,
       systemRole: true,
       output: ['text'],
     },
@@ -61,7 +65,7 @@ export const claude3Sonnet = modelRef({
     supports: {
       multiturn: true,
       media: true,
-      tools: false,
+      tools: true,
       systemRole: true,
       output: ['text'],
     },
@@ -77,7 +81,7 @@ export const claude3Haiku = modelRef({
     supports: {
       multiturn: true,
       media: true,
-      tools: false,
+      tools: true,
       systemRole: true,
       output: ['text'],
     },
@@ -93,7 +97,7 @@ export const claude3Opus = modelRef({
     supports: {
       multiturn: true,
       media: true,
-      tools: false,
+      tools: true,
       systemRole: true,
       output: ['text'],
     },
@@ -110,6 +114,200 @@ export const SUPPORTED_ANTHROPIC_MODELS: Record<
   'claude-3-opus': claude3Opus,
   'claude-3-haiku': claude3Haiku,
 };
+
+export function toAnthropicRequest(
+  model: string,
+  input: GenerateRequest<typeof GenerationCommonConfigSchema>
+): MessageCreateParamsBase {
+  let system: string | undefined = undefined;
+  const messages: MessageParam[] = [];
+  for (const msg of input.messages) {
+    if (msg.role === 'system') {
+      system = msg.content
+        .map((c) => {
+          if (!c.text) {
+            throw new Error(
+              'Only text context is supported for system messages.'
+            );
+          }
+          return c.text;
+        })
+        .join();
+    } else {
+      messages.push({
+        role: toAnthropicRole(msg.role),
+        content: toAnthropicContent(msg.content),
+      });
+    }
+  }
+  const request = {
+    model,
+    messages,
+    // https://docs.anthropic.com/claude/docs/models-overview#model-comparison
+    max_tokens: input.config?.maxOutputTokens ?? 4096,
+  } as MessageCreateParamsBase;
+  if (system) {
+    request['system'] = system;
+  }
+  if (input.config?.stopSequences) {
+    request.stop_sequences = input.config?.stopSequences;
+  }
+  if (input.config?.temperature) {
+    request.temperature = input.config?.temperature;
+  }
+  if (input.config?.topK) {
+    request.top_k = input.config?.topK;
+  }
+  if (input.config?.topP) {
+    request.top_p = input.config?.topP;
+  }
+  return request;
+}
+
+function toAnthropicContent(
+  content: GenkitPart[]
+): Array<TextBlockParam | ImageBlockParam | ToolUseBlockParam> {
+  return content.map((p) => {
+    if (p.text) {
+      return {
+        type: 'text',
+        text: p.text,
+      };
+    }
+    if (p.media) {
+      let b64Data = p.media.url;
+      if (b64Data.startsWith('data:')) {
+        b64Data = b64Data.substring(b64Data.indexOf(',')! + 1);
+      }
+
+      return {
+        type: 'image',
+        source: {
+          type: 'base64',
+          data: b64Data,
+          media_type: p.media.contentType as
+            | 'image/jpeg'
+            | 'image/png'
+            | 'image/gif'
+            | 'image/webp',
+        },
+      };
+    }
+    if (p.toolRequest) {
+      return toAnthropicToolRequest(p.toolRequest);
+    }
+    throw new Error(`Unsupported content type: ${p}`);
+  });
+}
+
+function toAnthropicRole(role): 'user' | 'assistant' {
+  if (role === 'model') {
+    return 'assistant';
+  }
+  if (role === 'user') {
+    return 'user';
+  }
+  throw new Error(`Unsupported role type ${role}`);
+}
+
+function fromAnthropicTextPart(part: TextBlock): Part {
+  return {
+    text: part.text,
+  };
+}
+
+function fromAnthropicToolCallPart(part: ToolUseBlock): Part {
+  return {
+    toolRequest: {
+      name: part.name,
+      input: part.input,
+    },
+  };
+}
+
+// Converts an Anthropic part to a Genkit part.
+function fromAnthropicPart(part: AnthropicContent): Part {
+  if (part.type === 'text') return fromAnthropicTextPart(part);
+  if (part.type === 'tool_use') return fromAnthropicToolCallPart(part);
+  throw new Error(
+    'Part type is unsupported/corrupted. Either data is missing or type cannot be inferred from type.'
+  );
+}
+
+// Converts an Anthropic candidate to a Genkit candidate.
+function fromAnthropicCandidate(candidate: Message): CandidateData {
+  const parts = candidate.content as AnthropicContent[];
+  const genkitCandidate: CandidateData = {
+    index: 0,
+    message: {
+      role: 'model',
+      content: parts.map(fromAnthropicPart),
+    },
+    finishReason: toGenkitFinishReason(
+      candidate.stop_reason as 'end_turn' | 'max_tokens' | 'stop_sequence'
+    ),
+    custom: {
+      id: candidate.id,
+      model: candidate.model,
+      type: candidate.type,
+    },
+  };
+  return genkitCandidate;
+}
+
+export function fromAnthropicResponse(
+  input: GenerateRequest<typeof GenerationCommonConfigSchema>,
+  response: Message
+): GenerateResponseData {
+  const candidates: CandidateData[] = [fromAnthropicCandidate(response)];
+  return {
+    candidates,
+    usage: {
+      ...getBasicUsageStats(input.messages, candidates),
+      inputTokens: response.usage.input_tokens,
+      outputTokens: response.usage.output_tokens,
+    },
+  };
+}
+
+function toGenkitFinishReason(
+  reason: 'end_turn' | 'max_tokens' | 'stop_sequence' | null
+): CandidateData['finishReason'] {
+  switch (reason) {
+    case 'end_turn':
+      return 'stop';
+    case 'max_tokens':
+      return 'length';
+    case 'stop_sequence':
+      return 'stop';
+    case null:
+      return 'unknown';
+    default:
+      return 'other';
+  }
+}
+
+function toAnthropicToolRequest(tool: Record<string, any>): ToolUseBlock {
+  if (!tool.name) {
+    throw new Error('Tool name is required');
+  }
+  // Validate the tool name, Anthropic only supports letters, numbers, and underscores.
+  // https://docs.anthropic.com/en/docs/build-with-claude/tool-use#specifying-tools
+  if (!/^[a-zA-Z0-9_-]{1,64}$/.test(tool.name)) {
+    throw new Error(
+      `Tool name ${tool.name} contains invalid characters. 
+      Only letters, numbers, and underscores are allowed, 
+      and the name must be between 1 and 64 characters long.`
+    );
+  }
+  const declaration: ToolUseBlock = {
+    type: 'tool_use',
+    id: `toolu_${tool.name}`,
+    name: tool.name,
+    input: tool.inputSchema,
+  };
+  return declaration;
+}
 
 export function anthropicModel(
   modelName: string,
@@ -163,144 +361,4 @@ export function anthropicModel(
       }
     }
   );
-}
-
-export function toAnthropicRequest(
-  model: string,
-  input: GenerateRequest<typeof GenerationCommonConfigSchema>
-): MessageCreateParamsBase {
-  let system: string | undefined = undefined;
-  const messages: MessageParam[] = [];
-  for (const msg of input.messages) {
-    if (msg.role === 'system') {
-      system = msg.content
-        .map((c) => {
-          if (!c.text) {
-            throw new Error(
-              'Only text context is supported for system messages.'
-            );
-          }
-          return c.text;
-        })
-        .join();
-    } else {
-      messages.push({
-        role: toAnthropicRole(msg.role),
-        content: toAnthropicContent(msg.content),
-      });
-    }
-  }
-  const request = {
-    model,
-    messages,
-    // https://docs.anthropic.com/claude/docs/models-overview#model-comparison
-    max_tokens: input.config?.maxOutputTokens ?? 4096,
-  } as MessageCreateParamsBase;
-  if (system) {
-    request['system'] = system;
-  }
-  if (input.config?.stopSequences) {
-    request.stop_sequences = input.config?.stopSequences;
-  }
-  if (input.config?.temperature) {
-    request.temperature = input.config?.temperature;
-  }
-  if (input.config?.topK) {
-    request.top_k = input.config?.topK;
-  }
-  if (input.config?.topP) {
-    request.top_p = input.config?.topP;
-  }
-  return request;
-}
-
-function toAnthropicContent(
-  content: GenkitPart[]
-): Array<TextBlockParam | ImageBlockParam> {
-  return content.map((p) => {
-    if (p.text) {
-      return {
-        type: 'text',
-        text: p.text,
-      };
-    }
-    if (p.media) {
-      let b64Data = p.media.url;
-      if (b64Data.startsWith('data:')) {
-        b64Data = b64Data.substring(b64Data.indexOf(',')! + 1);
-      }
-
-      return {
-        type: 'image',
-        source: {
-          type: 'base64',
-          data: b64Data,
-          media_type: p.media.contentType as
-            | 'image/jpeg'
-            | 'image/png'
-            | 'image/gif'
-            | 'image/webp',
-        },
-      };
-    }
-    throw new Error(`Unsupported content type: ${p}`);
-  });
-}
-
-function toAnthropicRole(role): 'user' | 'assistant' {
-  if (role === 'model') {
-    return 'assistant';
-  }
-  if (role === 'user') {
-    return 'user';
-  }
-  throw new Error(`Unsupported role type ${role}`);
-}
-
-export function fromAnthropicResponse(
-  input: GenerateRequest<typeof GenerationCommonConfigSchema>,
-  response: Message
-): GenerateResponseData {
-  const candidates: CandidateData[] = [
-    {
-      index: 0,
-      finishReason: toGenkitFinishReason(
-        response.stop_reason as 'end_turn' | 'max_tokens' | 'stop_sequence'
-      ),
-      custom: {
-        id: response.id,
-        model: response.model,
-        type: response.type,
-      },
-      message: {
-        role: 'model',
-        content: response.content.map((c) => ({ text: (c as TextBlock).text })),
-      },
-    },
-  ];
-  return {
-    candidates,
-    usage: {
-      ...getBasicUsageStats(input.messages, candidates),
-      inputTokens: response.usage.input_tokens,
-      outputTokens: response.usage.output_tokens,
-    },
-  };
-}
-
-function toGenkitFinishReason(
-  reason: 'end_turn' | 'max_tokens' | 'stop_sequence' | null
-): CandidateData['finishReason'] {
-  switch (reason) {
-    case 'end_turn':
-      return 'stop';
-    case 'max_tokens':
-      return 'length';
-    case 'stop_sequence':
-      return 'stop';
-    case null:
-      return 'unknown';
-    default:
-      return 'other';
-  }
 }
