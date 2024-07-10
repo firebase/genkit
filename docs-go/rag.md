@@ -234,7 +234,7 @@ genkit.DefineFlow(
 ```
 
 ```go
-// Helper function to extract plain text from a PDF. Excerpted from 
+// Helper function to extract plain text from a PDF. Excerpted from
 // https://github.com/ledongthuc/pdf
 func readPdf(path string) (string, error) {
 	f, r, err := pdf.Open(path)
