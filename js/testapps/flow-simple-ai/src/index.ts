@@ -229,7 +229,7 @@ export const jokeWithToolsFlow = defineFlow(
 
 const outputSchema = z.object({
   joke: z.string(),
-})
+});
 
 export const jokeWithOutputFlow = defineFlow(
   {
