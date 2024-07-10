@@ -39,7 +39,8 @@ func TestLive(t *testing.T) {
 	}
 	ctx := context.Background()
 	const modelName = "gemini-1.0-pro"
-	err := vertexai.Init(ctx, *projectID, *location)
+	const embedderName = "textembedding-gecko"
+	err := vertexai.Init(ctx, &vertexai.Config{ProjectID: *projectID, Location: *location})
 	if err != nil {
 		t.Fatal(err)
 	}

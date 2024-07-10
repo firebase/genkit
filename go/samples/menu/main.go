@@ -16,7 +16,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 
@@ -67,14 +66,8 @@ type textMenuQuestionInput struct {
 var textMenuQuestionInputSchema = jsonschema.Reflect(textMenuQuestionInput{})
 
 func main() {
-	projectID := os.Getenv("GCLOUD_PROJECT")
-	if projectID == "" {
-		fmt.Fprintln(os.Stderr, "menu example requires setting GCLOUD_PROJECT in the environment.")
-		os.Exit(1)
-	}
-
 	ctx := context.Background()
-	err := vertexai.Init(ctx, projectID, os.Getenv("GCLOUD_LOCATION"))
+	err := vertexai.Init(ctx, &vertexai.Config{Location: os.Getenv("GCLOUD_LOCATION")})
 	if err != nil {
 		log.Fatal(err)
 	}
