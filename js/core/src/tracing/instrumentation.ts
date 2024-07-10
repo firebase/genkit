@@ -87,14 +87,12 @@ export async function runInNewSpan<T>(
     async (otSpan) => {
       if (opts.labels) otSpan.setAttributes(opts.labels);
       try {
-        const parentPath = parentStep?.path || '';
-        const stepType =
-          opts.labels && opts.labels['genkit:type']
-            ? `,t:${opts.labels['genkit:type']}`
-            : '';
-        opts.metadata.path = parentPath + `/{${opts.metadata.name}${stepType}}`;
+        opts.metadata.path = buildPath(
+          opts.metadata.name,
+          parentStep?.path || '',
+          opts.labels
+        );
 
-        const pathCount = getCurrentPathCount();
         const output = await spanMetadataAls.run(opts.metadata, () =>
           fn(opts.metadata, otSpan, isInRoot)
         );
@@ -103,27 +101,12 @@ export async function runInNewSpan<T>(
         }
 
         opts.metadata.path = decoratePathWithSubtype(opts.metadata);
-        if (pathCount == getCurrentPathCount()) {
-          const now = performance.now();
-          const start = traceMetadataAls.getStore()?.timestamp || now;
-          traceMetadataAls.getStore()?.paths?.add({
-            path: opts.metadata.path,
-            status: 'success',
-            latency: now - start,
-          });
-        }
+        recordPath(opts.metadata.path);
 
         return output;
       } catch (e) {
         opts.metadata.path = decoratePathWithSubtype(opts.metadata);
-        const now = performance.now();
-        const start = traceMetadataAls.getStore()?.timestamp || now;
-        traceMetadataAls.getStore()?.paths?.add({
-          path: opts.metadata.path,
-          status: 'failure',
-          error: (e as any).name,
-          latency: now - start,
-        });
+        recordPath(opts.metadata.path, e);
         opts.metadata.state = 'error';
         otSpan.setStatus({
           code: SpanStatusCode.ERROR,
@@ -214,6 +197,34 @@ function getCurrentSpan(): SpanMetadata {
 
 function getCurrentPathCount(): number {
   return traceMetadataAls.getStore()?.paths?.size || 0;
+}
+
+function buildPath(
+  name: string,
+  parentPath: string,
+  labels?: Record<string, string>
+) {
+  const stepType =
+    labels && labels['genkit:type'] ? `,t:${labels['genkit:type']}` : '';
+  return parentPath + `/{${name}${stepType}}`;
+}
+
+function recordPath(path: string, err?: any) {
+  // Only add the path if a child has not already been added. In the event that
+  // an error is rethrown, we don't want to add each step in the unwind.
+  const paths = Array.from(
+    traceMetadataAls.getStore()?.paths || new Set<PathMetadata>()
+  );
+  if (!paths.some((p) => p.path.startsWith(path))) {
+    const now = performance.now();
+    const start = traceMetadataAls.getStore()?.timestamp || now;
+    traceMetadataAls.getStore()?.paths?.add({
+      path,
+      status: err ? 'failure' : 'success',
+      error: err?.name,
+      latency: now - start,
+    });
+  }
 }
 
 function decoratePathWithSubtype(metadata: SpanMetadata): string {
