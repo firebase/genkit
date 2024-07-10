@@ -170,20 +170,12 @@ function writePathMetrics(flowName: string, latencyMs: number, err?: any) {
 function writePathMetric(flowName: string, meta: PathMetadata) {
   const pathDimensions = {
     flowName: flowName,
+    status: meta.status,
+    error: meta.error,
+    path: meta.path,
     source: 'ts',
     sourceVersion: GENKIT_VERSION,
   };
-  pathCounter.add(1, {
-    ...pathDimensions,
-    status: meta.status,
-    error: meta.error,
-    path: meta.path,
-  });
-
-  pathLatencies.record(meta.latency, {
-    ...pathDimensions,
-    status: meta.status,
-    error: meta.error,
-    path: meta.path,
-  });
+  pathCounter.add(1, pathDimensions);
+  pathLatencies.record(meta.latency, pathDimensions);
 }
