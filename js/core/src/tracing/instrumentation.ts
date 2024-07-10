@@ -100,13 +100,10 @@ export async function runInNewSpan<T>(
           opts.metadata.state = 'success';
         }
 
-        opts.metadata.path = decoratePathWithSubtype(opts.metadata);
-        recordPath(opts.metadata.path);
-
+        recordPath(opts.metadata);
         return output;
       } catch (e) {
-        opts.metadata.path = decoratePathWithSubtype(opts.metadata);
-        recordPath(opts.metadata.path, e);
+        recordPath(opts.metadata, e);
         opts.metadata.state = 'error';
         otSpan.setStatus({
           code: SpanStatusCode.ERROR,
@@ -205,7 +202,9 @@ function buildPath(
   return parentPath + `/{${name}${stepType}}`;
 }
 
-function recordPath(path: string, err?: any) {
+function recordPath(spanMeta: SpanMetadata, err?: any) {
+  const path = spanMeta.path || '';
+  const decoratedPath = decoratePathWithSubtype(spanMeta);
   // Only add the path if a child has not already been added. In the event that
   // an error is rethrown, we don't want to add each step in the unwind.
   const paths = Array.from(
@@ -215,12 +214,13 @@ function recordPath(path: string, err?: any) {
     const now = performance.now();
     const start = traceMetadataAls.getStore()?.timestamp || now;
     traceMetadataAls.getStore()?.paths?.add({
-      path,
+      path: decoratedPath,
       status: err ? 'failure' : 'success',
       error: err?.name,
       latency: now - start,
     });
   }
+  spanMeta.path = decoratedPath;
 }
 
 function decoratePathWithSubtype(metadata: SpanMetadata): string {
