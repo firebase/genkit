@@ -16,28 +16,28 @@
 
 import {
   Action,
+  defineAction,
   FlowError,
   FlowState,
   FlowStateSchema,
   FlowStateStore,
-  Operation,
-  StreamingCallback,
-  defineAction,
   getStreamingCallback,
   config as globalConfig,
   isDevEnv,
+  Operation,
+  StreamingCallback,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import {
-  SPAN_TYPE_ATTR,
   newTrace,
   setCustomMetadataAttribute,
   setCustomMetadataAttributes,
+  SPAN_TYPE_ATTR,
 } from '@genkit-ai/core/tracing';
 import { SpanStatusCode } from '@opentelemetry/api';
 import * as bodyParser from 'body-parser';
-import { CorsOptions, default as cors } from 'cors';
+import { default as cors, CorsOptions } from 'cors';
 import express from 'express';
 import { performance } from 'node:perf_hooks';
 import * as z from 'zod';
@@ -45,9 +45,9 @@ import { Context } from './context.js';
 import {
   FlowExecutionError,
   FlowStillRunningError,
-  InterruptError,
   getErrorMessage,
   getErrorStack,
+  InterruptError,
 } from './errors.js';
 import * as telemetry from './telemetry.js';
 import {
@@ -844,12 +844,13 @@ export function startFlowsServer(params?: {
   port?: number;
   cors?: CorsOptions;
   pathPrefix?: string;
+  jsonParserOptions?: bodyParser.OptionsJson;
 }) {
   const port =
     params?.port || (process.env.PORT ? parseInt(process.env.PORT) : 0) || 3400;
   const pathPrefix = params?.pathPrefix ?? '';
   const app = express();
-  app.use(bodyParser.json());
+  app.use(bodyParser.json(params?.jsonParserOptions));
   app.use(cors(params?.cors));
 
   const flows = params?.flows || createdFlows();
