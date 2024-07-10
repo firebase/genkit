@@ -15,7 +15,6 @@
 package rag
 
 import (
-	"bytes"
 	"context"
 	"log"
 
@@ -43,7 +42,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	menuPdfIndexer, _, err := localvec.DefineIndexerAndRetriever(
+	menuPDFIndexer, _, err := localvec.DefineIndexerAndRetriever(
 		"menuQA",
 		localvec.Config{
 			Embedder: vertexai.Embedder("text-embedding-004"),
@@ -60,15 +59,17 @@ func main() {
 	genkit.DefineFlow(
 		"indexMenu",
 		func(ctx context.Context, path string) (any, error) {
-			// Extract plain text from the PDF.
+			// Extract plain text from the PDF. Wrap the logic in Tun so it
+			// appears as a step in your traces.
 			pdfText, err := genkit.Run(ctx, "extract", func() (string, error) {
-				return readPdf(path)
+				return readPDF(path)
 			})
 			if err != nil {
 				return nil, err
 			}
 
-			// Split the text into chunks.
+			// Split the text into chunks. Wrap the logic in Tun so it
+			// appears as a step in your traces.
 			docs, err := genkit.Run(ctx, "chunk", func() ([]*ai.Document, error) {
 				chunks, err := splitter.SplitText(pdfText)
 				if err != nil {
@@ -76,8 +77,8 @@ func main() {
 				}
 
 				var docs []*ai.Document
-				for i := range len(chunks) {
-					docs = append(docs, ai.DocumentFromText(chunks[i], nil))
+				for _, chunk := range chunks {
+					docs = append(docs, ai.DocumentFromText(chunk, nil))
 				}
 				return docs, nil
 			})
@@ -86,35 +87,38 @@ func main() {
 			}
 
 			// Add chunks to the index.
-			err = menuPdfIndexer.Index(ctx, &ai.IndexerRequest{
-				Documents: docs, Options: nil,
-			})
+			err = menuPDFIndexer.Index(ctx, &ai.IndexerRequest{Documents: docs})
 			return nil, err
 		},
 	)
 	//!-indexflow
-	
-	genkit.Init(ctx, nil)
+
+	err = genkit.Init(ctx, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
-//!+readpdf
-// Helper function to extract plain text from a PDF. Excerpted from 
+// !+readpdf
+// Helper function to extract plain text from a PDF. Excerpted from
 // https://github.com/ledongthuc/pdf
-func readPdf(path string) (string, error) {
+func readPDF(path string) (string, error) {
 	f, r, err := pdf.Open(path)
-    defer f.Close()
 	if err != nil {
 		return "", err
 	}
-	
-	buf := bytes.Buffer{}
-    b, err := r.GetPlainText()
-    if err != nil {
-        return "", err
-    }
-    buf.ReadFrom(b)
-	return buf.String(), nil
+	defer f.Close()
+
+	reader, err := r.GetPlainText()
+	if err != nil {
+		return "", err
+	}
+
+	var buf []byte
+	_, err = reader.Read(buf)
+	return string(buf), err
 }
+
 //!-readpdf
 
 func menuQA() {
@@ -130,7 +134,7 @@ func menuQA() {
 		log.Fatal(err)
 	}
 
-	gemini15Pro := vertexai.Model("gemini-1.5-pro")
+	model := vertexai.Model("gemini-1.5-pro")
 
 	_, menuPdfRetriever, err := localvec.DefineIndexerAndRetriever(
 		"menuQA",
@@ -153,13 +157,12 @@ func menuQA() {
 			// Construct a system message containing the menu excerpts you just
 			// retrieved.
 			menuInfo := ai.NewSystemTextMessage("Here's the menu context:")
-			for i := range len(docs.Documents) {
-				menuInfo.Content = append(menuInfo.Content,
-					docs.Documents[i].Content...)
+			for _, doc := range docs.Documents {
+				menuInfo.Content = append(menuInfo.Content, doc.Content...)
 			}
 
 			// Call Generate, including the menu information in your prompt.
-			resp, err := gemini15Pro.Generate(ctx, &ai.GenerateRequest{
+			resp, err := model.Generate(ctx, &ai.GenerateRequest{
 				Messages: []*ai.Message{
 					ai.NewSystemTextMessage(`
 You are acting as a helpful AI assistant that can answer questions about the
@@ -176,11 +179,11 @@ make up an answer. Do not add or change items on the menu.`),
 
 			return resp.Text()
 		})
-		//!-retrieve
+	//!-retrieve
 }
 
 func customret() {
-	_, menuPdfRetriever, _ := localvec.DefineIndexerAndRetriever(
+	_, menuPDFRetriever, _ := localvec.DefineIndexerAndRetriever(
 		"menuQA",
 		localvec.Config{
 			Embedder: vertexai.Embedder("text-embedding-004"),
@@ -189,7 +192,7 @@ func customret() {
 
 	//!+customret
 	type CustomMenuRetrieverOptions struct {
-		K int
+		K          int
 		PreRerankK int
 	}
 	advancedMenuRetriever := ai.DefineRetriever(
@@ -204,9 +207,9 @@ func customret() {
 			}
 
 			// Call the retriever as in the simple case.
-			response, err := menuPdfRetriever.Retrieve(ctx, &ai.RetrieverRequest{
+			response, err := menuPDFRetriever.Retrieve(ctx, &ai.RetrieverRequest{
 				Document: req.Document,
-				Options: localvec.RetrieverOptions{K: preRerankK},
+				Options:  localvec.RetrieverOptions{K: preRerankK},
 			})
 			if err != nil {
 				return nil, err
