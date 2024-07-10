@@ -59,7 +59,7 @@ func main() {
 	genkit.DefineFlow(
 		"indexMenu",
 		func(ctx context.Context, path string) (any, error) {
-			// Extract plain text from the PDF. Wrap the logic in Tun so it
+			// Extract plain text from the PDF. Wrap the logic in Run so it
 			// appears as a step in your traces.
 			pdfText, err := genkit.Run(ctx, "extract", func() (string, error) {
 				return readPDF(path)
@@ -68,7 +68,7 @@ func main() {
 				return nil, err
 			}
 
-			// Split the text into chunks. Wrap the logic in Tun so it
+			// Split the text into chunks. Wrap the logic in Run so it
 			// appears as a step in your traces.
 			docs, err := genkit.Run(ctx, "chunk", func() ([]*ai.Document, error) {
 				chunks, err := splitter.SplitText(pdfText)
