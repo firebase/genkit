@@ -195,10 +195,6 @@ function getCurrentSpan(): SpanMetadata {
   return step;
 }
 
-function getCurrentPathCount(): number {
-  return traceMetadataAls.getStore()?.paths?.size || 0;
-}
-
 function buildPath(
   name: string,
   parentPath: string,
