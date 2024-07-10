@@ -33,7 +33,7 @@ func main() {
 	//!+vec
 	ctx := context.Background()
 
-	err := vertexai.Init(ctx, "", "")
+	err := vertexai.Init(ctx, &vertexai.Config{})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -125,7 +125,7 @@ func menuQA() {
 	//!+retrieve
 	ctx := context.Background()
 
-	err := vertexai.Init(ctx, "", "")
+	err := vertexai.Init(ctx, &vertexai.Config{})
 	if err != nil {
 		log.Fatal(err)
 	}
