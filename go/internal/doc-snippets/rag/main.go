@@ -24,8 +24,10 @@ import (
 	"github.com/firebase/genkit/go/plugins/localvec"
 	"github.com/firebase/genkit/go/plugins/vertexai"
 
-	"github.com/ledongthuc/pdf"
-	"github.com/tmc/langchaingo/textsplitter"
+	// "github.com/ledongthuc/pdf"
+	// "github.com/tmc/langchaingo/textsplitter"
+	"github.com/firebase/genkit/go/internal/doc-snippets/rag/pdf"
+	"github.com/firebase/genkit/go/internal/doc-snippets/rag/textsplitter"
 )
 
 func main() {
