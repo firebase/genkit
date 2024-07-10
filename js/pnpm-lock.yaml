@@ -146,6 +146,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      '@types/body-parser':
+        specifier: ^1.19.5
+        version: 1.19.5
       '@types/express':
         specifier: ^4.17.21
         version: 4.17.21
@@ -450,8 +453,8 @@ importers:
         specifier: workspace:*
         version: link:../../core
       '@google/generative-ai':
-        specifier: ^0.10.0
-        version: 0.10.0
+        specifier: ^0.14.1
+        version: 0.14.1
       google-auth-library:
         specifier: ^9.6.3
         version: 9.7.0(encoding@0.1.13)
@@ -1448,8 +1451,8 @@ packages:
     resolution: {integrity: sha512-hfwfdlVpJ+kM6o2b5UFfPnweBcz8tgHAFRswnqUKYqLJsvKU0DDD0Z2/YKoHyAUoPJAv20qg6KlC3msNeUKUiw==}
     engines: {node: '>=18.0.0'}
 
-  '@google/generative-ai@0.10.0':
-    resolution: {integrity: sha512-fZJEL8DcDgvBCguLdaAdBBEoh+83LDXK3m9rVh5iksvwVJDgZqkpsLGKJuM5FEBKltWhbJ62WSyMEUGgy8eMUg==}
+  '@google/generative-ai@0.14.1':
+    resolution: {integrity: sha512-pevEyZCb0Oc+dYNlSberW8oZBm4ofeTD5wN01TowQMhTwdAbGAnJMtQzoklh6Blq2AKsx8Ox6FWa44KioZLZiA==}
     engines: {node: '>=18.0.0'}
 
   '@grpc/grpc-js@1.10.10':
@@ -5175,7 +5178,7 @@ snapshots:
       - encoding
       - supports-color
 
-  '@google/generative-ai@0.10.0': {}
+  '@google/generative-ai@0.14.1': {}
 
   '@grpc/grpc-js@1.10.10':
     dependencies:

@@ -38,7 +38,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"strings"
 
 	"github.com/firebase/genkit/go/ai"
@@ -69,13 +68,7 @@ type simpleQaPromptInput struct {
 }
 
 func main() {
-	apiKey := os.Getenv("GOOGLE_GENAI_API_KEY")
-	if apiKey == "" {
-		fmt.Fprintln(os.Stderr, "rag example requires setting GOOGLE_GENAI_API_KEY in the environment.")
-		fmt.Fprintln(os.Stderr, "You can get an API key at https://ai.google.dev.")
-		os.Exit(1)
-	}
-	err := googleai.Init(context.Background(), apiKey)
+	err := googleai.Init(context.Background(), nil)
 	if err != nil {
 		log.Fatal(err)
 	}

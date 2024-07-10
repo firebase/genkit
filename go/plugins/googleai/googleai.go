@@ -59,10 +59,23 @@ var (
 	knownEmbedders = []string{"text-embedding-004", "embedding-001"}
 )
 
+// Config is the configuration for the plugin.
+type Config struct {
+	// The API key to access the service.
+	// If empty, the values of the environment variables GOOGLE_GENAI_API_KEY
+	// and GOOGLE_API_KEY will be consulted, in that order.
+	APIKey string
+	// Options to the Google AI client.
+	ClientOptions []option.ClientOption
+}
+
 // Init initializes the plugin and all known models and embedders.
 // After calling Init, you may call [DefineModel] and [DefineEmbedder] to create
 // and register any additional generative models and embedders
-func Init(ctx context.Context, apiKey string) (err error) {
+func Init(ctx context.Context, cfg *Config) (err error) {
+	if cfg == nil {
+		cfg = &Config{}
+	}
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if state.initted {
@@ -74,6 +87,7 @@ func Init(ctx context.Context, apiKey string) (err error) {
 		}
 	}()
 
+	apiKey := cfg.APIKey
 	if apiKey == "" {
 		apiKey = os.Getenv("GOOGLE_GENAI_API_KEY")
 		if apiKey == "" {
@@ -84,7 +98,8 @@ func Init(ctx context.Context, apiKey string) (err error) {
 		}
 	}
 
-	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
+	opts := append([]option.ClientOption{option.WithAPIKey(apiKey)}, cfg.ClientOptions...)
+	client, err := genai.NewClient(ctx, opts...)
 	if err != nil {
 		return err
 	}
