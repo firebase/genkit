@@ -231,7 +231,7 @@ export function augmentWithContext(
   return (req, next) => {
     // if there is no context in the request, no-op
     if (!req.context?.length) return next(req);
-    const userMessage = req.messages.at(-1);
+    const userMessage = lastUserMessage(req.messages);
     // if there are no messages, no-op
     if (!userMessage) return next(req);
     // if there is already a context part, no-op

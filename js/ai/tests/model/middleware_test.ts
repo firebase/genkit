@@ -18,16 +18,16 @@ import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { DocumentData } from '../../src/document.js';
 import {
+  defineModel,
   GenerateRequest,
   GenerateResponseData,
   MessageData,
   Part,
-  defineModel,
 } from '../../src/model.js';
 import {
+  augmentWithContext,
   AugmentWithContextOptions,
   CONTEXT_PREFACE,
-  augmentWithContext,
   simulateSystemPrompt,
   validateSupport,
 } from '../../src/model/middleware.js';
@@ -403,6 +403,24 @@ describe('augmentWithContext', () => {
   it('should append a new text part', async () => {
     const messages: MessageData[] = [
       { role: 'user', content: [{ text: 'first part' }] },
+    ];
+    const result = await testRequest(messages, [
+      { content: [{ text: 'i am context' }] },
+      { content: [{ text: 'i am more context' }] },
+    ]);
+    assert.deepEqual(result[0].content.at(-1), {
+      text: `${CONTEXT_PREFACE}- [0]: i am context\n- [1]: i am more context\n\n`,
+      metadata: { purpose: 'context' },
+    });
+  });
+
+  it('should append to the last user message', async () => {
+    const messages: MessageData[] = [
+      { role: 'user', content: [{ text: 'first part' }] },
+      {
+        role: 'tool',
+        content: [{ toolResponse: { name: 'testTool', output: { abc: 123 } } }],
+      },
     ];
     const result = await testRequest(messages, [
       { content: [{ text: 'i am context' }] },
