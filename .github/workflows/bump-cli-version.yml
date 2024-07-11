@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Bump and Tag CLI Version
+name: Bump CLI Version
 
 on:
   workflow_dispatch:
@@ -44,15 +44,15 @@ jobs:
         working-directory: ./genkit-tools/common
       - run: pnpm version ${{ inputs.releaseType }}
         working-directory: ./genkit-tools/cli
-      # commit new versions, tag and push
+      # commit new versions
       # assumption is that genkit and @genkit-ai/tools-common package versions are always in sync.
       - name: Commit version bump
         working-directory: ./genkit-tools/cli
         run: |
           CLI_VERSION=$(node -e "console.log(require('./package.json')['version'])")
+          BRANCH_NAME=releaser/cli-$CLI_VERSION
           git config --global user.name 'Genkit releaser'
+          git branch $BRANCH_NAME
           git commit -am "chore: bump CLI version to $CLI_VERSION"
-          git tag genkit@$CLI_VERSION
-          git tag @genkit-ai/tools-common@$CLI_VERSION
-          git push
-          git push --tags
+          git push $BRANCH_NAME
+          git request-pull origin/main $BRANCH_NAME
