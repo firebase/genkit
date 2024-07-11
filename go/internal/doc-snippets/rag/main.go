@@ -16,6 +16,7 @@ package rag
 
 import (
 	"context"
+	"io"
 	"log"
 
 	"github.com/firebase/genkit/go/ai"
@@ -48,6 +49,9 @@ func main() {
 			Embedder: vertexai.Embedder("text-embedding-004"),
 		},
 	)
+	if err != nil {
+		log.Fatal(err)
+	}
 	//!-vec
 	//!+splitcfg
 	splitter := textsplitter.NewRecursiveCharacter(
@@ -116,9 +120,11 @@ func readPDF(path string) (string, error) {
 		return "", err
 	}
 
-	var buf []byte
-	_, err = reader.Read(buf)
-	return string(buf), err
+	bytes, err := io.ReadAll(reader)
+	if err != nil {
+		return "", err
+	}
+	return string(bytes), nil
 }
 
 //!-readpdf
@@ -144,6 +150,9 @@ func menuQA() {
 			Embedder: vertexai.Embedder("text-embedding-004"),
 		},
 	)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	genkit.DefineFlow(
 		"menuQA",
@@ -202,17 +211,20 @@ func customret() {
 		"advancedMenuRetriever",
 		func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
 			// Handle options passed using our custom type.
-			k := 3
-			preRerankK := 10
-			if opts, ok := req.Options.(CustomMenuRetrieverOptions); ok {
-				k = opts.K
-				preRerankK = opts.PreRerankK
+			opts, _ := req.Options.(CustomMenuRetrieverOptions)
+			// Set fields to default values when either the field was undefined
+			// or when req.Options is not a CustomMenuRetrieverOptions.
+			if opts.K == 0 {
+				opts.K = 3
+			}
+			if opts.PreRerankK == 0 {
+				opts.PreRerankK = 10
 			}
 
 			// Call the retriever as in the simple case.
 			response, err := menuPDFRetriever.Retrieve(ctx, &ai.RetrieverRequest{
 				Document: req.Document,
-				Options:  localvec.RetrieverOptions{K: preRerankK},
+				Options:  localvec.RetrieverOptions{K: opts.PreRerankK},
 			})
 			if err != nil {
 				return nil, err
@@ -220,7 +232,7 @@ func customret() {
 
 			// Re-rank the returned documents using your custom function.
 			rerankedDocs := rerank(response.Documents)
-			response.Documents = rerankedDocs[:k]
+			response.Documents = rerankedDocs[:opts.K]
 
 			return response, nil
 		},
