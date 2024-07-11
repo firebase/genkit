@@ -19,7 +19,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -115,12 +114,10 @@ func runTest(t *testing.T, test test) {
 		if res.StatusCode != http.StatusOK {
 			t.Fatalf("got status %s", res.Status)
 		}
-		body, err := io.ReadAll(res.Body)
-		if err != nil {
-			t.Fatal(err)
-		}
 		var got any
-		if err := json.Unmarshal(body, &got); err != nil {
+		dec := json.NewDecoder(res.Body)
+		dec.UseNumber()
+		if err := dec.Decode(&got); err != nil {
 			t.Fatal(err)
 		}
 		want := yamlToJSON(test.Body)
@@ -168,6 +165,12 @@ func compare(got, want any) []string {
 }
 
 func compare1(path []string, got, want any, add func([]string, string, ...any)) {
+	check := func() {
+		if got != want {
+			add(path, "\ngot  %v (%[1]T)\nwant %v (%[2]T)", got, want)
+		}
+	}
+
 	switch w := want.(type) {
 	case map[string]any:
 		g, ok := got.(map[string]any)
@@ -183,6 +186,32 @@ func compare1(path []string, got, want any, add func([]string, string, ...any)) 
 				compare1(append(path, k), gv, wv, add)
 			}
 		}
+	case int:
+		if n, ok := got.(json.Number); ok {
+			g, err := n.Int64()
+			if err != nil {
+				add(path, "got number %s, want %d (%[2]T)", n, w)
+			}
+			if g != int64(w) {
+				add(path, "got %d, want %d", g, w)
+			}
+		} else {
+			check()
+		}
+
+	case float64:
+		if n, ok := got.(json.Number); ok {
+			g, err := n.Float64()
+			if err != nil {
+				add(path, "got number %s, want %f (%[2]T)", n, w)
+			}
+			if g != w {
+				add(path, "got %f, want %f", g, w)
+			}
+		} else {
+			check()
+		}
+
 	case []any:
 		g, ok := got.([]any)
 		if !ok {
@@ -197,9 +226,7 @@ func compare1(path []string, got, want any, add func([]string, string, ...any)) 
 			compare1(append(path, strconv.Itoa(i)), g[i], ew, add)
 		}
 	default:
-		if got != want {
-			add(path, "\ngot  %v (%[1]T)\nwant %v (%[2]T)", got, want)
-		}
+		check()
 	}
 }
 
