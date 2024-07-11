@@ -26,6 +26,7 @@
 //	curl -d '{"Show": "Best Friends", "Question": "Who does Alice love?"}' http://localhost:3400/askQuestion
 package main
 
+// !+imports
 import (
 	"context"
 	"database/sql"
@@ -40,6 +41,8 @@ import (
 	_ "github.com/lib/pq"
 	pgv "github.com/pgvector/pgvector-go"
 )
+
+// !-imports
 
 var (
 	connString = flag.String("dbconn", "", "database connection string")
@@ -84,6 +87,7 @@ func run() error {
 		}
 	}
 
+	// !+use-retr
 	retriever := defineRetriever(db, embedder)
 
 	type input struct {
@@ -105,12 +109,14 @@ func run() error {
 		// Use documents in RAG prompts.
 		return "", nil
 	})
+	// !-use-retr
 
 	return genkit.Init(ctx, nil)
 }
 
 const provider = "pgvector"
 
+// !+retr
 func defineRetriever(db *sql.DB, embedder *ai.Embedder) *ai.Retriever {
 	f := func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
 		eres, err := embedder.Embed(ctx, &ai.EmbedRequest{Documents: []*ai.Document{req.Document}})
@@ -153,6 +159,8 @@ func defineRetriever(db *sql.DB, embedder *ai.Embedder) *ai.Retriever {
 	}
 	return ai.DefineRetriever(provider, "shows", f)
 }
+
+// !-retr
 
 func defineIndexer(db *sql.DB, embedder *ai.Embedder) *ai.Indexer {
 	// The indexer assumes that each Document has a single part, to be embedded, and metadata fields
