@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// This program doesn't do anything interesting.
+// It is used by go/tests/api_test.go.
 package main
 
 import (
@@ -30,9 +32,7 @@ func main() {
 		if err != nil {
 			return "", err
 		}
-		// got := res.Candidates[0].Message.Content[0]
 		_ = res
-		// fmt.Print
 		return "TBD", nil
 	})
 	if err := genkit.Init(context.Background(), nil); err != nil {

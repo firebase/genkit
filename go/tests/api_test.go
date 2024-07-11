@@ -73,7 +73,6 @@ func TestReflectionAPI(t *testing.T) {
 				cancel()
 				err := wait()
 				t.Logf("wait returned %v", err)
-				// pause("after wait")
 			}()
 			for {
 				time.Sleep(50 * time.Millisecond)
@@ -110,7 +109,7 @@ func runTest(t *testing.T, test test) {
 			t.Fatal(err)
 		}
 		defer res.Body.Close()
-		if res.StatusCode != 200 {
+		if res.StatusCode != http.StatusOK {
 			t.Fatalf("got status %s", res.Status)
 		}
 		body, err := io.ReadAll(res.Body)
@@ -141,10 +140,10 @@ func startGenkitApp(ctx context.Context, dir string) (func() error, error) {
 		return nil, fmt.Errorf("build: %w", err)
 	}
 
+	// `go build .` will use the working directory as the name the executable.
 	cmd = exec.CommandContext(ctx, "./"+dir)
 	cmd.Dir = tmp
-	cmd.Env = []string{"GENKIT_ENV=dev"}
-	cmd.Env = append(cmd.Env, os.Environ()...)
+	cmd.Env = append(os.Environ(), "GENKIT_ENV=dev")
 	cmd.WaitDelay = time.Second
 	if err := cmd.Start(); err != nil {
 		return nil, err
@@ -223,11 +222,11 @@ func yamlToJSON(y any) any {
 }
 
 func prettyJSON(x any) string {
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
+	var sb strings.Builder
+	enc := json.NewEncoder(&sb)
 	enc.SetIndent("", "    ")
 	if err := enc.Encode(x); err != nil {
 		panic(err)
 	}
-	return buf.String()
+	return sb.String()
 }
