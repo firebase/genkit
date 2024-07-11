@@ -103,5 +103,6 @@ And here's how to use the retriever in a flow:
       %include ../go/samples/pgvector/main.go use-retr
       </p>
     </section>
+
   </devsite-selector>
 </section>
