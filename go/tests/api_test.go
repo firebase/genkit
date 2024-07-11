@@ -143,7 +143,7 @@ func startGenkitApp(ctx context.Context, dir string) (func() error, error) {
 		return nil, fmt.Errorf("build: %w", err)
 	}
 
-	// `go build .` will use the working directory as the name the executable.
+	// `go build .` will use the working directory as the name of the executable.
 	cmd = exec.CommandContext(ctx, "./"+dir)
 	cmd.Dir = tmp
 	cmd.Env = append(os.Environ(), "GENKIT_ENV=dev")
