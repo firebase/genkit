@@ -32,8 +32,15 @@ jobs:
     name: Version bump
     runs-on: ubuntu-latest
     steps:
-      - name:  'genkit-tools/common version bump'
-        uses:  'phips28/gh-action-bump-version@master'
+      - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v3
+      - name: Set up node v20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'pnpm'
+      - name: 'genkit-tools/common version bump'
+        uses: 'phips28/gh-action-bump-version@master'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PACKAGEJSON_DIR: genkit-tools/common
@@ -41,8 +48,8 @@ jobs:
           default: ${{ inputs.releaseType }}
           commit-message: 'chore: bump @genkit-ai/tools-common version to {{version}}'
           tag-prefix:  '@genkit-ai/tools-common@'
-      - name:  'genkit-tools/common version bump'
-        uses:  'phips28/gh-action-bump-version@master'
+      - name: 'genkit-tools/cli version bump'
+        uses: 'phips28/gh-action-bump-version@master'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PACKAGEJSON_DIR: genkit-tools/cli
