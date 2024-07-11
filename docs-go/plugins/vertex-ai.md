@@ -109,8 +109,8 @@ embeddingModel := vertexai.Embedder("text-embedding-004")
 ```
 
 The following models are supported: `textembedding-gecko@003`,
-`textembedding-gecko@002`, `textembedding-gecko@001`, `text-embedding-004`, 
-`textembedding-gecko-multilingual@001`, `text-multilingual-embedding-002`, and 
+`textembedding-gecko@002`, `textembedding-gecko@001`, `text-embedding-004`,
+`textembedding-gecko-multilingual@001`, `text-multilingual-embedding-002`, and
 `multimodalembedding`.
 
 Embedder references have an `Embed()` method that calls the Vertex AI API:
