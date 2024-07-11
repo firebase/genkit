@@ -48,7 +48,7 @@ jobs:
           default: ${{ inputs.releaseType }}
           commit-message: 'chore: bump @genkit-ai/tools-common version to {{version}}'
           tag-prefix:  '@genkit-ai/tools-common@'
-      - name: 'genkit-tools/common version bump'
+      - name: 'genkit-tools/cli version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
