@@ -32,27 +32,21 @@ jobs:
     name: Version bump
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: pnpm/action-setup@v3
-      - name: Set up node v20
-        uses: actions/setup-node@v4
+      - name:  'genkit-tools/common version bump'
+        uses:  'phips28/gh-action-bump-version@master'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGEJSON_DIR: genkit-tools/common
         with:
-          node-version: 20.x
-          cache: 'pnpm'
-      # bump version
-      - run: pnpm version ${{ inputs.releaseType }}
-        working-directory: ./genkit-tools/common
-      - run: pnpm version ${{ inputs.releaseType }}
-        working-directory: ./genkit-tools/cli
-      # commit new versions
-      # assumption is that genkit and @genkit-ai/tools-common package versions are always in sync.
-      - name: Commit version bump
-        working-directory: ./genkit-tools/cli
-        run: |
-          CLI_VERSION=$(node -e "console.log(require('./package.json')['version'])")
-          BRANCH_NAME=releaser/cli-$CLI_VERSION
-          git config --global user.name 'Genkit releaser'
-          git branch $BRANCH_NAME
-          git commit -am "chore: bump CLI version to $CLI_VERSION"
-          git push $BRANCH_NAME
-          git request-pull origin/main $BRANCH_NAME
+          default: ${{ inputs.releaseType }}
+          commit-message: 'chore: bump @genkit-ai/tools-common version to {{version}}'
+          tag-prefix:  '@genkit-ai/tools-common@'
+      - name:  'genkit-tools/common version bump'
+        uses:  'phips28/gh-action-bump-version@master'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGEJSON_DIR: genkit-tools/cli
+        with:
+          default: ${{ inputs.releaseType }}
+          commit-message: 'chore: bump CLI version to {{version}}'
+          tag-prefix:  'genkit@'
