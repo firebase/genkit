@@ -26,7 +26,6 @@
 //	curl -d '{"Show": "Best Friends", "Question": "Who does Alice love?"}' http://localhost:3400/askQuestion
 package main
 
-// !+imports
 import (
 	"context"
 	"database/sql"
@@ -41,8 +40,6 @@ import (
 	_ "github.com/lib/pq"
 	pgv "github.com/pgvector/pgvector-go"
 )
-
-// !-imports
 
 var (
 	connString = flag.String("dbconn", "", "database connection string")
