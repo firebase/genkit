@@ -29,8 +29,8 @@ defineModel(
     // In Go, JSON object properties are output in sorted order.
     // JSON.stringify uses the order they appear in the program.
     // So swap the order here to match Go.
-    const m =     input.messages[0];
-    input.messages[0] = {content: m.content, role: m.role};
+    const m = input.messages[0];
+    input.messages[0] = { content: m.content, role: m.role };
     return {
       candidates: [
         {
