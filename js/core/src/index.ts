@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-export const GENKIT_VERSION = '0.5.5';
+import { version } from './__codegen/version.js';
+
+export const GENKIT_VERSION = version;
 export const GENKIT_CLIENT_HEADER = `genkit-node/${GENKIT_VERSION} gl-node/${process.versions.node}`;
 
 export * from './action.js';
