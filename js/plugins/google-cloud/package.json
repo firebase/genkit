@@ -13,7 +13,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "0.5.5",
+  "version": "0.5.6",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
@@ -34,7 +34,7 @@
     "@genkit-ai/ai": "workspace:*",
     "@genkit-ai/core": "workspace:*",
     "@google-cloud/logging-winston": "^6.0.0",
-    "@google-cloud/opentelemetry-cloud-monitoring-exporter": "^0.17.0",
+    "@google-cloud/opentelemetry-cloud-monitoring-exporter": "^0.19.0",
     "@google-cloud/opentelemetry-cloud-trace-exporter": "^2.1.0",
     "@google-cloud/opentelemetry-resource-util": "^2.1.0",
     "@opentelemetry/api": "^1.7.0",
