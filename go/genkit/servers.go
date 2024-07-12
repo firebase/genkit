@@ -338,10 +338,10 @@ func nonDurableFlowHandler(f flow) func(http.ResponseWriter, *http.Request) erro
 			return err
 		}
 		if stream {
-			// TODO(jba): implement streaming.
+			// TODO: implement streaming.
 			return &base.HTTPError{Code: http.StatusNotImplemented, Err: errors.New("streaming")}
 		} else {
-			// TODO(jba): telemetry
+			// TODO: telemetry
 			out, err := f.runJSON(r.Context(), json.RawMessage(input), nil)
 			if err != nil {
 				return err

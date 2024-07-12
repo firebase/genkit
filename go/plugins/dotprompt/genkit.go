@@ -60,7 +60,7 @@ func (p *Prompt) buildVariables(variables any) (map[string]any, error) {
 	}
 	vt := v.Type()
 
-	// TODO(ianlancetaylor): Verify the struct with p.Config.InputSchema.
+	// TODO: Verify the struct with p.Config.InputSchema.
 
 	m := make(map[string]any)
 

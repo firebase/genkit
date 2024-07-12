@@ -22,7 +22,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
-// TODO(jba): add tests that compare tracing data saved to disk with goldens.
+// TODO: add tests that compare tracing data saved to disk with goldens.
 
 func TestSpanMetadata(t *testing.T) {
 	const (
