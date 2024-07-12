@@ -1,0 +1,59 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Bump CLI Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      releaseType:
+        description: Release type
+        type: choice
+        default: patch
+        required: true
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  build:
+    name: Version bump
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: pnpm/action-setup@v3
+      - name: Set up node v20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'pnpm'
+      - name: 'genkit-tools/common version bump'
+        uses: 'phips28/gh-action-bump-version@master'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGEJSON_DIR: genkit-tools/common
+        with:
+          default: ${{ inputs.releaseType }}
+          commit-message: 'chore: bump @genkit-ai/tools-common version to {{version}}'
+          tag-prefix:  '@genkit-ai/tools-common@'
+      - name: 'genkit-tools/cli version bump'
+        uses: 'phips28/gh-action-bump-version@master'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PACKAGEJSON_DIR: genkit-tools/cli
+        with:
+          default: ${{ inputs.releaseType }}
+          commit-message: 'chore: bump CLI version to {{version}}'
+          tag-prefix:  'genkit@'

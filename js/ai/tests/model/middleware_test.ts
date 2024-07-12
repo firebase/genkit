@@ -414,6 +414,24 @@ describe('augmentWithContext', () => {
     });
   });
 
+  it('should append to the last user message', async () => {
+    const messages: MessageData[] = [
+      { role: 'user', content: [{ text: 'first part' }] },
+      {
+        role: 'tool',
+        content: [{ toolResponse: { name: 'testTool', output: { abc: 123 } } }],
+      },
+    ];
+    const result = await testRequest(messages, [
+      { content: [{ text: 'i am context' }] },
+      { content: [{ text: 'i am more context' }] },
+    ]);
+    assert.deepEqual(result[0].content.at(-1), {
+      text: `${CONTEXT_PREFACE}- [0]: i am context\n- [1]: i am more context\n\n`,
+      metadata: { purpose: 'context' },
+    });
+  });
+
   it('should use a custom preface', async () => {
     const messages: MessageData[] = [
       { role: 'user', content: [{ text: 'first part' }] },

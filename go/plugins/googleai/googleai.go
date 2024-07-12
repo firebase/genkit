@@ -98,7 +98,11 @@ func Init(ctx context.Context, cfg *Config) (err error) {
 		}
 	}
 
-	opts := append([]option.ClientOption{option.WithAPIKey(apiKey)}, cfg.ClientOptions...)
+	opts := append([]option.ClientOption{
+		option.WithAPIKey(apiKey),
+		genai.WithClientInfo("genkit-go", "alpha")},
+		cfg.ClientOptions...,
+	)
 	client, err := genai.NewClient(ctx, opts...)
 	if err != nil {
 		return err
