@@ -19,7 +19,7 @@ if err := pinecone.Init(ctx, ""); err != nil {
 }
 ```
 
-The plugin requires your Pinecone API key. 
+The plugin requires your Pinecone API key.
 Configure the plugin to use your API key by doing one of the following:
 
 - Set the `PINECONE_API_KEY` environment variable to your API key.
