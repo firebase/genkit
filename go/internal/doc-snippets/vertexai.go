@@ -25,23 +25,20 @@ func vertexaiEx(ctx context.Context) error {
 	var err error
 
 	//!+init
-	err = vertexai.Init(ctx, nil)
-	if err != nil {
+	if err := vertexai.Init(ctx, nil); err != nil {
 		return err
 	}
 	//!-init
 
 	yourProjectID := ""
 	//!+initproj
-	err = vertexai.Init(ctx, &vertexai.Config{ProjectID: yourProjectID})
-	if err != nil {
+	if err := vertexai.Init(ctx, &vertexai.Config{ProjectID: yourProjectID}); err != nil {
 		return err
 	}
 	//!-initproj
 
 	//!+initloc
-	err = vertexai.Init(ctx, &vertexai.Config{Location: "asia-south1"})
-	if err != nil {
+	if err := vertexai.Init(ctx, &vertexai.Config{Location: "asia-south1"}); err != nil {
 		return err
 	}
 	//!-initloc
@@ -94,8 +91,7 @@ func vertexaiEx(ctx context.Context) error {
 	var docsToIndex []*ai.Document
 
 	//!+index
-	err = myIndexer.Index(ctx, &ai.IndexerRequest{Documents: docsToIndex})
-	if err != nil {
+	if err := myIndexer.Index(ctx, &ai.IndexerRequest{Documents: docsToIndex}); err != nil {
 		return err
 	}
 	//!-index

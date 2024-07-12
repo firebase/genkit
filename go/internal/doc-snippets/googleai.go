@@ -25,16 +25,14 @@ func googleaiEx(ctx context.Context) error {
 	var err error
 
 	//!+init
-	err = googleai.Init(ctx, nil)
-	if err != nil {
+	if err := googleai.Init(ctx, nil); err != nil {
 		return err
 	}
 	//!-init
 
 	yourKey := ""
 	//!+initkey
-	err = googleai.Init(ctx, &googleai.Config{APIKey: yourKey})
-	if err != nil {
+	if err := googleai.Init(ctx, &googleai.Config{APIKey: yourKey}); err != nil {
 		return err
 	}
 	//!-initkey
@@ -87,8 +85,7 @@ func googleaiEx(ctx context.Context) error {
 	var docsToIndex []*ai.Document
 
 	//!+index
-	err = myIndexer.Index(ctx, &ai.IndexerRequest{Documents: docsToIndex})
-	if err != nil {
+	if err := myIndexer.Index(ctx, &ai.IndexerRequest{Documents: docsToIndex}); err != nil {
 		return err
 	}
 	//!-index
