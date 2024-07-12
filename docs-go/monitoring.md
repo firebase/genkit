@@ -18,5 +18,5 @@ Cloud's operations suite.
 The trace store feature is complementary to the telemetry instrumentation. It
 lets you inspect your traces for your flow runs in the Genkit Developer UI.
 
-This feature is enabled whenever you run a Genkit flow in a dev environment 
+This feature is enabled whenever you run a Genkit flow in a dev environment
 (such as when using `genkit start` or `genkit flow:run`).
