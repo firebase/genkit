@@ -90,13 +90,18 @@ export interface PluginOptions {
   modelGardenModels?: ModelReference<any>[];
 }
 
+const CLOUD_PLATFROM_OAUTH_SCOPE =
+  'https://www.googleapis.com/auth/cloud-platform';
+
 /**
  * Add Google Cloud Vertex AI to Genkit. Includes Gemini and Imagen models and text embedder.
  */
 export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
   'vertexai',
   async (options?: PluginOptions) => {
-    const authClient = new GoogleAuth(options?.googleAuth);
+    const authClient = new GoogleAuth(
+      options?.googleAuth ?? { scopes: [CLOUD_PLATFROM_OAUTH_SCOPE] }
+    );
     const projectId = options?.projectId || (await authClient.getProjectId());
     const location = options?.location || 'us-central1';
 
