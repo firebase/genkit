@@ -4,7 +4,7 @@
 # TODO: add more about the flow in the /api/actions test.
 # TODO: add more test cases.
 
-app: test_js_app
+app: test_app
 tests:
   - path: /api/runAction
     post:
@@ -19,7 +19,7 @@ tests:
             message:
               role: model
               content:
-                - text: '{"messages":[{"role":"user","content":[{"text":"hello"}]}]}'
+                - text: '{"messages":[{"content":[{"text":"hello"}],"role":"user"}]}'
 
   - path: /api/actions
     body:
