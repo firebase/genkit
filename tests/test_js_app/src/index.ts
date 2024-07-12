@@ -26,6 +26,11 @@ defineModel(
     name: 'customReflector',
   },
   async (input) => {
+    // In Go, JSON object properties are output in sorted order.
+    // JSON.stringify uses the order they appear in the program.
+    // So swap the order here to match Go.
+    const m = input.messages[0];
+    input.messages[0] = { content: m.content, role: m.role };
     return {
       candidates: [
         {
@@ -61,7 +66,7 @@ export const testFlow = defineFlow(
       prompt: subject,
     });
 
-    const want = `{"messages":[{"role":"user","content":[{"text":"${subject}"}]}],"tools":[],"output":{"format":"text"}}`;
+    const want = `{"messages":[{"content":[{"text":"${subject}"}],"role":"user"}],"tools":[],"output":{"format":"text"}}`;
     if (response.text() !== want) {
       throw new Error(`Expected ${want} but got ${response.text()}`);
     }
