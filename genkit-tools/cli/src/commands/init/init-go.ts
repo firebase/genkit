@@ -45,7 +45,7 @@ const modelOptions: Record<ModelProvider, ModelOption> = {
 \t// apiKey parameter, the Google AI plugin will use the value from the
 \t// GOOGLE_GENAI_API_KEY environment variable, which is the recommended
 \t// practice.
-\tif err := googleai.Init(ctx, ""); err != nil {
+\tif err := googleai.Init(ctx, nil); err != nil {
 \t\tlog.Fatal(err)
 \t}`,
     lookup: `// The Google AI API provides access to several generative models. Here,
@@ -59,7 +59,7 @@ const modelOptions: Record<ModelProvider, ModelOption> = {
 \t// projectID parameter, the Vertex AI plugin will use the value from the
 \t// GCLOUD_PROJECT environment variable. When you pass an empty string for
 \t// the location parameter, the plugin uses the default value, us-central1.
-\tif err := vertexai.Init(ctx, "", ""); err != nil {
+\tif err := vertexai.Init(ctx, nil); err != nil {
 \t\tlog.Fatal(err)
 \t}`,
     lookup: `// The Vertex AI API provides access to several generative models. Here,
@@ -70,19 +70,17 @@ const modelOptions: Record<ModelProvider, ModelOption> = {
     label: 'Ollama (e.g. Gemma)',
     package: 'github.com/firebase/genkit/go/plugins/ollama',
     init: `// Initialize the Ollama plugin.
-\terr := ollama.Init(ctx, ollama.Config{
+\terr := ollama.Init(ctx,
 \t\t// The address of your Ollama API server. This is often a different host
 \t\t// from your app backend (which runs Genkit), in order to run Ollama on
 \t\t// a GPU-accelerated machine.
-        ServerAddress: "http://127.0.0.1:11434",
-
-\t\t// The models you want to use. These must already be downloaded and
-\t\t// available to the Ollama server.
-\t\tModels: []ollama.ModelDefinition{{Name: "gemma"}},
-\t})
+\t\t"http://127.0.0.1:11434")
 \tif err != nil {
 \t\tlog.Fatal(err)
-\t}`,
+\t}
+\t// The models you want to use. These must already be downloaded and
+\t// available to the Ollama server.
+\tollama.DefineModel(ollama.ModelDefinition{Name: "gemma"}, nil)`,
     lookup: `// Ollama provides an interface to many open generative models. Here,
 \t\t// we specify Google's Gemma model, which we configured the Ollama
 \t\t// plugin to provide, above.
