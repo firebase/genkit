@@ -14,8 +14,7 @@ import "github.com/firebase/genkit/go/plugins/googleai"
 ```
 
 ```go
-err = googleai.Init(ctx, nil)
-if err != nil {
+if err := googleai.Init(ctx, nil); err != nil {
 	return err
 }
 ```
@@ -30,8 +29,7 @@ Configure the plugin to use your API key by doing one of the following:
 - Specify the API key when you initialize the plugin:
 
   ```go
-  err = googleai.Init(ctx, &googleai.Config{APIKey: yourKey})
-  if err != nil {
+  if err := googleai.Init(ctx, &googleai.Config{APIKey: yourKey}); err != nil {
   	return err
   }
   ```
@@ -89,8 +87,7 @@ You can also pass an Embedder to an indexer's `Index()` method and a retriever's
 `Retrieve()` method:
 
 ```go
-err = myIndexer.Index(ctx, &ai.IndexerRequest{Documents: docsToIndex})
-if err != nil {
+if err := myIndexer.Index(ctx, &ai.IndexerRequest{Documents: docsToIndex}); err != nil {
 	return err
 }
 ```

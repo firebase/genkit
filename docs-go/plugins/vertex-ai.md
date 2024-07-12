@@ -19,8 +19,7 @@ import "github.com/firebase/genkit/go/plugins/vertexai"
 ```
 
 ```go
-err = vertexai.Init(ctx, nil)
-if err != nil {
+if err := vertexai.Init(ctx, nil); err != nil {
 	return err
 }
 ```
@@ -36,8 +35,7 @@ credentials.
   You can also pass this value directly:
 
   ```go
-  err = vertexai.Init(ctx, &vertexai.Config{ProjectID: yourProjectID})
-  if err != nil {
+  if err := vertexai.Init(ctx, &vertexai.Config{ProjectID: yourProjectID}); err != nil {
   	return err
   }
   ```
@@ -48,8 +46,7 @@ credentials.
   You can also pass this value directly:
 
   ```go
-  err = vertexai.Init(ctx, &vertexai.Config{Location: "asia-south1"})
-  if err != nil {
+  if err := vertexai.Init(ctx, &vertexai.Config{Location: "asia-south1"}); err != nil {
   	return err
   }
   ```
@@ -109,8 +106,8 @@ embeddingModel := vertexai.Embedder("text-embedding-004")
 ```
 
 The following models are supported: `textembedding-gecko@003`,
-`textembedding-gecko@002`, `textembedding-gecko@001`, `text-embedding-004`,
-`textembedding-gecko-multilingual@001`, `text-multilingual-embedding-002`, and
+`textembedding-gecko@002`, `textembedding-gecko@001`, `text-embedding-004`, 
+`textembedding-gecko-multilingual@001`, `text-multilingual-embedding-002`, and 
 `multimodalembedding`.
 
 Embedder references have an `Embed()` method that calls the Vertex AI API:
@@ -128,8 +125,7 @@ You can also pass an Embedder to an indexer's `Index()` method and a retriever's
 `Retrieve()` method:
 
 ```go
-err = myIndexer.Index(ctx, &ai.IndexerRequest{Documents: docsToIndex})
-if err != nil {
+if err := myIndexer.Index(ctx, &ai.IndexerRequest{Documents: docsToIndex}); err != nil {
 	return err
 }
 ```
