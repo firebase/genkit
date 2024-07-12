@@ -60,19 +60,22 @@ import {
   modelGardenOpenaiCompatibleModel,
   SUPPORTED_OPENAI_FORMAT_MODELS,
 } from './model_garden.js';
-
-import { vertexIndexers } from './vector-search/indexers.js';
-import { vertexRetrievers } from './vector-search/retrievers.js';
+import { vertexAiIndexers, vertexAiRetrievers } from './vector-search';
 import { VectorSearchIndexOption } from './vector-search/types.js';
-export { Neighbor } from './vector-search';
 export {
   DocumentIndexer,
   DocumentRetriever,
+  getBigQueryDocumentIndexer,
+  getBigQueryDocumentRetriever,
+  getFirestoreDocumentIndexer,
+  getFirestoreDocumentRetriever,
+  Neighbor,
+  VectorSearchIndexOption,
   vertexAiIndexerRef,
+  vertexAiIndexers,
   vertexAiRetrieverRef,
-  vertexIndexers,
-  vertexRetrievers,
-} from './vector-search/index.js';
+  vertexAiRetrievers,
+} from './vector-search';
 export {
   VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
   claude35Sonnet,
@@ -213,13 +216,13 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
     if (options?.vectorSearchIndexOptions) {
       const defaultEmbedder = embedders[0];
 
-      indexers = vertexIndexers({
+      indexers = vertexAiIndexers({
         pluginOptions: options,
         authClient,
         defaultEmbedder,
       });
 
-      retrievers = vertexRetrievers({
+      retrievers = vertexAiRetrievers({
         pluginOptions: options,
         authClient,
         defaultEmbedder,

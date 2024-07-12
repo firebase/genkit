@@ -31,9 +31,18 @@ import { getProjectNumber } from './utils';
 
 const DEFAULT_K = 10;
 
-export function vertexRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
+/**
+ * Creates Vertex AI retrievers.
+ *
+ * This function returns a list of retriever actions for Vertex AI based on the provided
+ * vector search options and embedder configurations.
+ *
+ * @param {VertexVectorSearchOptions<EmbedderCustomOptions>} params - The parameters for creating the retrievers.
+ * @returns {RetrieverAction<z.ZodTypeAny>[]} - An array of retriever actions.
+ */
+export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
   params: VertexVectorSearchOptions<EmbedderCustomOptions>
-) {
+): RetrieverAction<z.ZodTypeAny>[] {
   const vectorSearchOptions = params.pluginOptions.vectorSearchIndexOptions;
   const defaultEmbedder = params.defaultEmbedder;
 
@@ -116,6 +125,13 @@ export function vertexRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
   return retrievers;
 }
 
+/**
+ * Handles errors that occur during the retriever process.
+ *
+ * @param {unknown} error - The error that occurred.
+ * @param {string} indexId - The ID of the index being queried.
+ * @throws {Error} - Throws the error after logging it.
+ */
 function handleRetrieverError(error: unknown, indexId: string): never {
   if (error instanceof Error) {
     logger.error(`Error querying index: ${indexId}`);
@@ -125,6 +141,14 @@ function handleRetrieverError(error: unknown, indexId: string): never {
   }
 }
 
+/**
+ * Creates a reference to a Vertex AI retriever.
+ *
+ * @param {Object} params - The parameters for the retriever reference.
+ * @param {string} params.indexId - The ID of the Vertex AI index.
+ * @param {string} [params.displayName] - An optional display name for the retriever.
+ * @returns {Object} - The retriever reference object.
+ */
 export const vertexAiRetrieverRef = (params: {
   indexId: string;
   displayName?: string;

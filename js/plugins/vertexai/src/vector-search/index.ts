@@ -14,12 +14,24 @@
  * limitations under the License.
  */
 
-export { vertexAiIndexerRef, vertexIndexers } from './indexers';
-export { vertexAiRetrieverRef, vertexRetrievers } from './retrievers';
+export {
+  getBigQueryDocumentIndexer,
+  getBigQueryDocumentRetriever,
+} from './bigquery';
+export {
+  getFirestoreDocumentIndexer,
+  getFirestoreDocumentRetriever,
+} from './firestore';
+export { vertexAiIndexerRef, vertexAiIndexers } from './indexers';
+export { vertexAiRetrieverRef, vertexAiRetrievers } from './retrievers';
 export {
   DocumentIndexer,
   DocumentRetriever,
   Neighbor,
+  VectorSearchIndexOption,
+  VertexAIVectorIndexerOptions,
   VertexAIVectorIndexerOptionsSchema,
+  VertexAIVectorRetrieverOptions,
   VertexAIVectorRetrieverOptionsSchema,
+  VertexVectorSearchOptions,
 } from './types';

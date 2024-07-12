@@ -15,8 +15,7 @@
  */
 
 import { logger } from '@genkit-ai/core/logging';
-import z from 'zod';
-import { FindNeighborsResponseSchema } from './types';
+import { FindNeighborsResponse } from './types';
 
 interface QueryPublicEndpointParams {
   featureVector: number[];
@@ -29,10 +28,27 @@ interface QueryPublicEndpointParams {
   projectNumber: string;
   deployedIndexId: string;
 }
-
+/**
+ * Queries a public index endpoint to find neighbors for a given feature vector.
+ *
+ * This function sends a request to a specified public endpoint to find neighbors
+ * for a given feature vector using the provided parameters.
+ *
+ * @param {QueryPublicEndpointParams} params - The parameters required to query the public endpoint.
+ * @param {number[]} params.featureVector - The feature vector for which to find neighbors.
+ * @param {number} params.neighborCount - The number of neighbors to retrieve.
+ * @param {string} params.accessToken - The access token for authorization.
+ * @param {string} params.projectId - The ID of the Google Cloud project.
+ * @param {string} params.location - The location of the index endpoint.
+ * @param {string} params.indexEndpointId - The ID of the index endpoint.
+ * @param {string} params.publicEndpointDomainName - The domain name of the public endpoint.
+ * @param {string} params.projectNumber - The project number.
+ * @param {string} params.deployedIndexId - The ID of the deployed index.
+ * @returns {Promise<FindNeighborsResponse>} - The response from the public endpoint.
+ */
 export async function queryPublicEndpoint(
   params: QueryPublicEndpointParams
-): Promise<z.infer<typeof FindNeighborsResponseSchema>> {
+): Promise<FindNeighborsResponse> {
   const {
     featureVector,
     neighborCount,

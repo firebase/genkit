@@ -53,6 +53,10 @@
     "@genkit-ai/flow": "workspace:*",
     "zod": "^3.22.4"
   },
+  "optionalDependencies": {
+    "firebase-admin": "^12.1.0",
+    "@google-cloud/bigquery": "^7.8.0"
+  },
   "devDependencies": {
     "@types/node": "^20.11.16",
     "npm-run-all": "^4.1.5",

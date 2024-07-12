@@ -15,13 +15,11 @@
  */
 
 import { embedMany } from '@genkit-ai/ai/embedder';
-
 import {
   defineIndexer,
   IndexerAction,
   indexerRef,
 } from '@genkit-ai/ai/retriever';
-
 import z from 'zod';
 import {
   Datapoint,
@@ -30,6 +28,14 @@ import {
 } from './types';
 import { upsertDatapoints } from './upsert_datapoints';
 
+/**
+ * Creates a reference to a Vertex AI indexer.
+ *
+ * @param {Object} params - The parameters for the indexer reference.
+ * @param {string} params.indexId - The ID of the Vertex AI index.
+ * @param {string} [params.displayName] - An optional display name for the indexer.
+ * @returns {Object} - The indexer reference object.
+ */
 export const vertexAiIndexerRef = (params: {
   indexId: string;
   displayName?: string;
@@ -43,13 +49,20 @@ export const vertexAiIndexerRef = (params: {
   });
 };
 
-export function vertexIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
+/**
+ * Creates Vertex AI indexers.
+ *
+ * This function returns a list of indexer actions for Vertex AI based on the provided
+ * vector search options and embedder configurations.
+ *
+ * @param {VertexVectorSearchOptions<EmbedderCustomOptions>} params - The parameters for creating the indexers.
+ * @returns {IndexerAction<z.ZodTypeAny>[]} - An array of indexer actions.
+ */
+export function vertexAiIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
   params: VertexVectorSearchOptions<EmbedderCustomOptions>
-) {
+): IndexerAction<z.ZodTypeAny>[] {
   const vectorSearchOptions = params.pluginOptions.vectorSearchIndexOptions;
-
   const defaultEmbedder = params.defaultEmbedder;
-
   const indexers: IndexerAction<z.ZodTypeAny>[] = [];
 
   if (!vectorSearchOptions || vectorSearchOptions.length === 0) {

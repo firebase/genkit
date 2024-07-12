@@ -26,7 +26,24 @@ interface UpsertDatapointsParams {
   indexId: string;
 }
 
-export async function upsertDatapoints(params: UpsertDatapointsParams) {
+/**
+ * Upserts datapoints into a specified index.
+ *
+ * This function sends a request to the Google AI Platform to upsert datapoints
+ * into a specified index using the provided parameters.
+ *
+ * @param {UpsertDatapointsParams} params - The parameters required to upsert datapoints.
+ * @param {IIndexDatapoint[]} params.datapoints - The datapoints to be upserted.
+ * @param {GoogleAuth} params.authClient - The GoogleAuth client for authorization.
+ * @param {string} params.projectId - The ID of the Google Cloud project.
+ * @param {string} params.location - The location of the AI Platform index.
+ * @param {string} params.indexId - The ID of the index.
+ * @returns {Promise<void>} - A promise that resolves when the upsert is complete.
+ * @throws {Error} - Throws an error if the upsert fails.
+ */
+export async function upsertDatapoints(
+  params: UpsertDatapointsParams
+): Promise<void> {
   const { datapoints, authClient, projectId, location, indexId } = params;
   const accessToken = await authClient.getAccessToken();
   const url = `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}/locations/${location}/indexes/${indexId}:upsertDatapoints`;

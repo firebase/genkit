@@ -17,12 +17,28 @@
 import { GoogleAuth } from 'google-auth-library';
 import { google } from 'googleapis';
 
-export async function getAccessToken(auth: GoogleAuth) {
+/**
+ * Retrieves an access token using the provided GoogleAuth client.
+ *
+ * @param {GoogleAuth} auth - The GoogleAuth client.
+ * @returns {Promise<string | null>} - A promise that resolves to the access token.
+ */
+export async function getAccessToken(auth: GoogleAuth): Promise<string | null> {
   const client = await auth.getClient();
   const _accessToken = await client.getAccessToken();
-  return _accessToken.token;
+  return _accessToken.token || null;
 }
 
+/**
+ * Retrieves the project number for a given project ID.
+ *
+ * This function sends a request to the Google Cloud Resource Manager API to
+ * fetch the project number for the specified project ID.
+ *
+ * @param {string} projectId - The ID of the Google Cloud project.
+ * @returns {Promise<string>} - A promise that resolves to the project number.
+ * @throws {Error} - Throws an error if the project number cannot be fetched.
+ */
 export async function getProjectNumber(projectId: string): Promise<string> {
   const client = google.cloudresourcemanager('v1');
   const authClient = await google.auth.getClient({
@@ -42,7 +58,6 @@ export async function getProjectNumber(projectId: string): Promise<string> {
     }
     return response.data['projectNumber'];
   } catch (error) {
-    // console.error('Error fetching project number:', error);
     throw new Error(
       `Error fetching project number for Vertex AI plugin for project ${projectId}`
     );

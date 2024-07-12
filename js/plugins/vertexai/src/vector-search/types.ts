@@ -55,20 +55,24 @@ export type INumericRestriction =
   aiplatform.protos.google.cloud.aiplatform.v1.IndexDatapoint.INumericRestriction;
 
 // Define the Zod schema for ISparseEmbedding
-const SparseEmbeddingSchema = z.object({
+export const SparseEmbeddingSchema = z.object({
   values: z.array(z.number()).optional(),
   dimensions: z.array(z.union([z.number(), z.string()])).optional(),
 });
 
+export type SparseEmbedding = z.infer<typeof SparseEmbeddingSchema>;
+
 // Define the Zod schema for IRestriction
-const RestrictionSchema = z.object({
+export const RestrictionSchema = z.object({
   namespace: z.string().optional(),
   allowList: z.array(z.string()).optional(),
   denyList: z.array(z.string()).optional(),
 });
 
+export type Restriction = z.infer<typeof RestrictionSchema>;
+
 // Define the Zod schema for INumericRestriction
-const NumericRestrictionSchema = z.object({
+export const NumericRestrictionSchema = z.object({
   valueInt: z.union([z.number(), z.string()]).optional(),
   valueFloat: z.number().optional(),
   valueDouble: z.number().optional(),
@@ -89,10 +93,14 @@ const NumericRestrictionSchema = z.object({
     .optional(),
 });
 
+export type NumericRestriction = z.infer<typeof NumericRestrictionSchema>;
+
 // Define the Zod schema for ICrowdingTag
-const CrowdingTagSchema = z.object({
+export const CrowdingTagSchema = z.object({
   crowdingAttribute: z.string().optional(),
 });
+
+export type CrowdingTag = z.infer<typeof CrowdingTagSchema>;
 
 // Define the Zod schema for IIndexDatapoint
 const IndexDatapointSchema = z.object({
@@ -120,13 +128,14 @@ const NearestNeighborsSchema = z.object({
 });
 
 // Define the Zod schema for IFindNeighborsResponse
-const FindNeighborsResponseSchema = z.object({
+export const FindNeighborsResponseSchema = z.object({
   nearestNeighbors: z.array(NearestNeighborsSchema).optional(),
 });
 
+export type FindNeighborsResponse = z.infer<typeof FindNeighborsResponseSchema>;
+
 // TypeScript types for Zod schemas
 type IndexDatapoint = z.infer<typeof IndexDatapointSchema>;
-type FindNeighborsResponse = z.infer<typeof FindNeighborsResponseSchema>;
 
 // Function to assert type equality
 function assertTypeEquality<T>(value: T): void {}
@@ -135,12 +144,18 @@ function assertTypeEquality<T>(value: T): void {}
 assertTypeEquality<IIndexDatapoint>({} as IndexDatapoint);
 assertTypeEquality<IFindNeighborsResponse>({} as FindNeighborsResponse);
 
-export { FindNeighborsResponseSchema };
-
 export const VertexAIVectorRetrieverOptionsSchema =
   CommonRetrieverOptionsSchema.extend({}).optional();
 
+export type VertexAIVectorRetrieverOptions = z.infer<
+  typeof VertexAIVectorRetrieverOptionsSchema
+>;
+
 export const VertexAIVectorIndexerOptionsSchema = z.any();
+
+export type VertexAIVectorIndexerOptions = z.infer<
+  typeof VertexAIVectorIndexerOptionsSchema
+>;
 
 /**
  * A document retriever function that takes an array of Neighbors from Vertex AI Vector Search query result, and resolves to a list of documents.
