@@ -14,8 +14,7 @@ import "github.com/firebase/genkit/go/plugins/pinecone"
 ```
 
 ```go
-err = pinecone.Init(ctx, "")
-if err != nil {
+if err := pinecone.Init(ctx, ""); err != nil {
 	return err
 }
 ```
@@ -28,8 +27,7 @@ Configure the plugin to use your API key by doing one of the following:
 - Specify the API key when you initialize the plugin:
 
   ```go
-  err = pinecone.Init(ctx, pineconeAPIKey)
-  if err != nil {
+  if err := pinecone.Init(ctx, pineconeAPIKey); err != nil {
   	return err
   }
   ```
@@ -59,8 +57,10 @@ Then, call the index's `Index()` method, passing it a list of the documents you
 want to add:
 
 ```go
-err = menuIndexer.Index(ctx, &ai.IndexerRequest{Documents: docChunks, Options: nil})
-if err != nil {
+if err := menuIndexer.Index(
+	ctx,
+	&ai.IndexerRequest{Documents: docChunks, Options: nil},
+); err != nil {
 	return err
 }
 ```
@@ -83,7 +83,7 @@ Then, call the retriever's `Retrieve()` method, passing it a text query:
 ```go
 resp, err := menuRetriever.Retrieve(ctx, &ai.RetrieverRequest{
 	Document: ai.DocumentFromText(userInput, nil),
-	Options: nil,
+	Options:  nil,
 })
 if err != nil {
 	return err

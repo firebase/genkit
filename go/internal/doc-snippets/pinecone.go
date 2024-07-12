@@ -12,16 +12,14 @@ func pineconeEx(ctx context.Context) error {
 	var err error
 
 	//!+init
-	err = pinecone.Init(ctx, "")
-	if err != nil {
+	if err := pinecone.Init(ctx, ""); err != nil {
 		return err
 	}
 	//!-init
 
 	var pineconeAPIKey string
 	//!+initkey
-	err = pinecone.Init(ctx, pineconeAPIKey)
-	if err != nil {
+	if err := pinecone.Init(ctx, pineconeAPIKey); err != nil {
 		return err
 	}
 	//!-initkey
@@ -39,8 +37,10 @@ func pineconeEx(ctx context.Context) error {
 	var docChunks []*ai.Document
 
 	//!+index
-	err = menuIndexer.Index(ctx, &ai.IndexerRequest{Documents: docChunks, Options: nil})
-	if err != nil {
+	if err := menuIndexer.Index(
+		ctx,
+		&ai.IndexerRequest{Documents: docChunks, Options: nil},
+	); err != nil {
 		return err
 	}
 	//!-index
@@ -60,7 +60,7 @@ func pineconeEx(ctx context.Context) error {
 	//!+retrieve
 	resp, err := menuRetriever.Retrieve(ctx, &ai.RetrieverRequest{
 		Document: ai.DocumentFromText(userInput, nil),
-		Options: nil,
+		Options:  nil,
 	})
 	if err != nil {
 		return err
