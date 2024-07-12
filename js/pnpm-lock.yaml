@@ -377,8 +377,8 @@ importers:
         specifier: ^6.0.0
         version: 6.0.0(encoding@0.1.13)(winston@3.13.0)
       '@google-cloud/opentelemetry-cloud-monitoring-exporter':
-        specifier: ^0.17.0
-        version: 0.17.0(@opentelemetry/api@1.8.0)(@opentelemetry/core@1.22.0(@opentelemetry/api@1.8.0))(@opentelemetry/resources@1.22.0(@opentelemetry/api@1.8.0))(@opentelemetry/sdk-metrics@1.22.0(@opentelemetry/api@1.8.0))(encoding@0.1.13)
+        specifier: ^0.19.0
+        version: 0.19.0(@opentelemetry/api@1.8.0)(@opentelemetry/core@1.22.0(@opentelemetry/api@1.8.0))(@opentelemetry/resources@1.22.0(@opentelemetry/api@1.8.0))(@opentelemetry/sdk-metrics@1.22.0(@opentelemetry/api@1.8.0))(encoding@0.1.13)
       '@google-cloud/opentelemetry-cloud-trace-exporter':
         specifier: ^2.1.0
         version: 2.1.0(@opentelemetry/api@1.8.0)(@opentelemetry/core@1.22.0(@opentelemetry/api@1.8.0))(@opentelemetry/resources@1.22.0(@opentelemetry/api@1.8.0))(@opentelemetry/sdk-trace-base@1.22.0(@opentelemetry/api@1.8.0))(@opentelemetry/semantic-conventions@1.22.0)(encoding@0.1.13)
@@ -1402,8 +1402,8 @@ packages:
     resolution: {integrity: sha512-uQeReiVICoV5yt9J/cczNxHxqzTkLLG7yGHXCMAk/wQNVZGevT4Bi7CBWpt0aXxm044a76Aj6V08cCAlBj7UZw==}
     engines: {node: '>=14.0.0'}
 
-  '@google-cloud/opentelemetry-cloud-monitoring-exporter@0.17.0':
-    resolution: {integrity: sha512-S746IricqkGgyZ95Sdv6RhBYlxtJc1LQ6OGOBZ1W0je4Dll0BY529LaE97o6MSN1awjYeZkILNCe0nA6YseHdA==}
+  '@google-cloud/opentelemetry-cloud-monitoring-exporter@0.19.0':
+    resolution: {integrity: sha512-5SOPXwC6RET4ZvXxw5D97dp8fWpqWEunHrzrUUGXhG4UAeedQe1KvYV8CK+fnaAbN2l2ha6QDYspT6z40TVY0g==}
     engines: {node: '>=14'}
     peerDependencies:
       '@opentelemetry/api': ^1.0.0
@@ -1427,13 +1427,19 @@ packages:
       '@opentelemetry/resources': ^1.0.0
       '@opentelemetry/semantic-conventions': ^1.0.0
 
+  '@google-cloud/opentelemetry-resource-util@2.3.0':
+    resolution: {integrity: sha512-3yyG2IiOWXy23IIGW4rRaqVf0efsgkUyXLvDpCxiZPPIgSAevYVdfcJ2cQSp4d1y+2NCpS2Wq0XLbTLzTw/j5Q==}
+    engines: {node: '>=14'}
+    peerDependencies:
+      '@opentelemetry/resources': ^1.0.0
+
   '@google-cloud/paginator@5.0.0':
     resolution: {integrity: sha512-87aeg6QQcEPxGCOthnpUjvw4xAZ57G7pL8FS0C4e/81fr3FjkpUpibf1s2v5XGyGhUVGF4Jfg7yEcxqn2iUw1w==}
     engines: {node: '>=14.0.0'}
 
-  '@google-cloud/precise-date@3.0.1':
-    resolution: {integrity: sha512-crK2rgNFfvLoSgcKJY7ZBOLW91IimVNmPfi1CL+kMTf78pTJYd29XqEVedAeBu4DwCJc0EDIp1MpctLgoPq+Uw==}
-    engines: {node: '>=12.0.0'}
+  '@google-cloud/precise-date@4.0.0':
+    resolution: {integrity: sha512-1TUx3KdaU3cN7nfCdNf+UVqA/PSX29Cjcox3fZZBtINlRrXVTmUkQnCKv2MbBUbCopbK4olAT1IHl76uZyCiVA==}
+    engines: {node: '>=14.0.0'}
 
   '@google-cloud/projectify@4.0.0':
     resolution: {integrity: sha512-MmaX6HeSvyPbWGwFq7mXdo0uQZLGBYCwziiLIGq5JVX+/bdI3SAq6bP98trV5eTWfLuvsMcIC1YJOF2vfteLFA==}
@@ -3293,13 +3299,13 @@ packages:
     resolution: {integrity: sha512-7JaU/smPA/FpNsCaXyVjitwiQyn5zYC/ETA+xag3ziovBojIWvzevyrbVqhxgnQdgMJ0p1RVSvpzQL6hkg6yGw==}
     engines: {node: '>=12.0.0'}
 
-  googleapis-common@5.1.0:
-    resolution: {integrity: sha512-RXrif+Gzhq1QAzfjxulbGvAY3FPj8zq/CYcvgjzDbaBNCD6bUl+86I7mUs4DKWHGruuK26ijjR/eDpWIDgNROA==}
-    engines: {node: '>=10.10.0'}
+  googleapis-common@7.2.0:
+    resolution: {integrity: sha512-/fhDZEJZvOV3X5jmD+fKxMqma5q2Q9nZNSF3kn1F18tpxmA86BcTxAGBQdM0N89Z3bEaIs+HVznSmFJEAmMTjA==}
+    engines: {node: '>=14.0.0'}
 
-  googleapis@97.0.0:
-    resolution: {integrity: sha512-npfVjA4unKsyKvlBC7nhKq6ReH/lsSkSl+0AcW9/TrjT4Uc5QUyJCd1vhH54k5SGDpVQ0xMyyC06dVRMsNarRw==}
-    engines: {node: '>=10'}
+  googleapis@137.1.0:
+    resolution: {integrity: sha512-2L7SzN0FLHyQtFmyIxrcXhgust77067pkkduqkbIpDuj9JzVnByxsRrcRfUMFQam3rQkWW2B0f1i40IwKDWIVQ==}
+    engines: {node: '>=14.0.0'}
 
   gopd@1.0.1:
     resolution: {integrity: sha512-d65bNlIadxvpb/A2abVdlqKqV563juRnZ1Wtk6s1sIR8uNsXR70xqIzVqxVf1eTqDunwT2MkczEeaezCKTZhwA==}
@@ -5098,17 +5104,16 @@ snapshots:
       - encoding
       - supports-color
 
-  '@google-cloud/opentelemetry-cloud-monitoring-exporter@0.17.0(@opentelemetry/api@1.8.0)(@opentelemetry/core@1.22.0(@opentelemetry/api@1.8.0))(@opentelemetry/resources@1.22.0(@opentelemetry/api@1.8.0))(@opentelemetry/sdk-metrics@1.22.0(@opentelemetry/api@1.8.0))(encoding@0.1.13)':
+  '@google-cloud/opentelemetry-cloud-monitoring-exporter@0.19.0(@opentelemetry/api@1.8.0)(@opentelemetry/core@1.22.0(@opentelemetry/api@1.8.0))(@opentelemetry/resources@1.22.0(@opentelemetry/api@1.8.0))(@opentelemetry/sdk-metrics@1.22.0(@opentelemetry/api@1.8.0))(encoding@0.1.13)':
     dependencies:
-      '@google-cloud/opentelemetry-resource-util': 2.1.0(@opentelemetry/resources@1.22.0(@opentelemetry/api@1.8.0))(@opentelemetry/semantic-conventions@1.22.0)(encoding@0.1.13)
-      '@google-cloud/precise-date': 3.0.1
+      '@google-cloud/opentelemetry-resource-util': 2.3.0(@opentelemetry/resources@1.22.0(@opentelemetry/api@1.8.0))(encoding@0.1.13)
+      '@google-cloud/precise-date': 4.0.0
       '@opentelemetry/api': 1.8.0
       '@opentelemetry/core': 1.22.0(@opentelemetry/api@1.8.0)
       '@opentelemetry/resources': 1.22.0(@opentelemetry/api@1.8.0)
       '@opentelemetry/sdk-metrics': 1.22.0(@opentelemetry/api@1.8.0)
-      '@opentelemetry/semantic-conventions': 1.22.0
-      google-auth-library: 7.14.1(encoding@0.1.13)
-      googleapis: 97.0.0(encoding@0.1.13)
+      google-auth-library: 9.7.0(encoding@0.1.13)
+      googleapis: 137.1.0(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -5138,12 +5143,21 @@ snapshots:
       - encoding
       - supports-color
 
+  '@google-cloud/opentelemetry-resource-util@2.3.0(@opentelemetry/resources@1.22.0(@opentelemetry/api@1.8.0))(encoding@0.1.13)':
+    dependencies:
+      '@opentelemetry/resources': 1.22.0(@opentelemetry/api@1.8.0)
+      '@opentelemetry/semantic-conventions': 1.22.0
+      gcp-metadata: 6.1.0(encoding@0.1.13)
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
+
   '@google-cloud/paginator@5.0.0':
     dependencies:
       arrify: 2.0.1
       extend: 3.0.2
 
-  '@google-cloud/precise-date@3.0.1': {}
+  '@google-cloud/precise-date@4.0.0': {}
 
   '@google-cloud/projectify@4.0.0': {}
 
@@ -7259,22 +7273,22 @@ snapshots:
       protobufjs: 7.2.6
       walkdir: 0.4.1
 
-  googleapis-common@5.1.0(encoding@0.1.13):
+  googleapis-common@7.2.0(encoding@0.1.13):
     dependencies:
       extend: 3.0.2
-      gaxios: 4.3.3(encoding@0.1.13)
-      google-auth-library: 7.14.1(encoding@0.1.13)
+      gaxios: 6.3.0(encoding@0.1.13)
+      google-auth-library: 9.7.0(encoding@0.1.13)
       qs: 6.12.0
       url-template: 2.0.8
-      uuid: 8.3.2
+      uuid: 9.0.1
     transitivePeerDependencies:
       - encoding
       - supports-color
 
-  googleapis@97.0.0(encoding@0.1.13):
+  googleapis@137.1.0(encoding@0.1.13):
     dependencies:
-      google-auth-library: 7.14.1(encoding@0.1.13)
-      googleapis-common: 5.1.0(encoding@0.1.13)
+      google-auth-library: 9.7.0(encoding@0.1.13)
+      googleapis-common: 7.2.0(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
       - supports-color
