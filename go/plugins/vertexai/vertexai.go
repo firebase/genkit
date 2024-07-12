@@ -114,7 +114,8 @@ func Init(ctx context.Context, cfg *Config) error {
 	}
 	var err error
 	// Client for Gemini SDK.
-	state.gclient, err = genai.NewClient(ctx, state.projectID, state.location, cfg.ClientOptions...)
+	opts := append([]option.ClientOption{genai.WithClientInfo("genkit-go", "alpha")}, cfg.ClientOptions...)
+	state.gclient, err = genai.NewClient(ctx, state.projectID, state.location, opts...)
 	if err != nil {
 		return err
 	}
