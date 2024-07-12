@@ -14,13 +14,8 @@
  * limitations under the License.
  */
 
-import { EmbedderArgument } from '@genkit-ai/ai/embedder';
 import { ModelReference } from '@genkit-ai/ai/model';
-import {
-  Document,
-  IndexerAction,
-  RetrieverAction,
-} from '@genkit-ai/ai/retriever';
+import { IndexerAction, RetrieverAction } from '@genkit-ai/ai/retriever';
 import { genkitPlugin, Plugin } from '@genkit-ai/core';
 import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
@@ -66,10 +61,13 @@ import {
   SUPPORTED_OPENAI_FORMAT_MODELS,
 } from './model_garden.js';
 
-import { Neighbor } from './vector-search';
 import { vertexIndexers } from './vector-search/indexers.js';
 import { vertexRetrievers } from './vector-search/retrievers.js';
+import { VectorSearchIndexOption } from './vector-search/types.js';
+export { Neighbor } from './vector-search';
 export {
+  DocumentIndexer,
+  DocumentRetriever,
   vertexAiIndexerRef,
   vertexAiRetrieverRef,
   vertexIndexers,
@@ -97,44 +95,6 @@ export {
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
 };
-
-/**
- * A document retriever function that takes an array of Neighbors from Vertex AI Vector Search query result, and resolves to a list of documents.
- * Also takes an options object that can be used to configure the retriever.
- */
-export type DocumentRetriever<Options extends { k?: number } = { k?: number }> =
-  (docIds: Neighbor[], options?: Options) => Promise<Document[]>;
-
-/**
- * Indexer function that takes an array of documents, stores them in a database of the user's choice, and resolves to a list of document ids.
- * Also takes an options object that can be used to configure the indexer.
- */
-export type DocumentIndexer<Options extends {} = {}> = (
-  docs: Document[],
-  options?: Options
-) => Promise<string[]>;
-
-/**
- * Options for configuring the Vector Search Index. As in other plugins, the plugin can an array of options
- * allowing an options object per index.
- */
-interface VectorSearchIndexOption<
-  EmbedderCustomOptions extends z.ZodTypeAny,
-  IndexerOptions extends {},
-  RetrieverOptions extends { k?: number },
-> {
-  // Specify the Vertex AI Index and IndexEndpoint to use for indexing and retrieval
-  deployedIndexId: string;
-  indexEndpointId: string;
-  publicEndpoint: string;
-  indexId: string;
-  // Document retriever and indexer functions to use for indexing and retrieval by the plugin's own indexers and retrievers
-  documentRetriever: DocumentRetriever<RetrieverOptions>;
-  documentIndexer: DocumentIndexer<IndexerOptions>;
-  // Embedder and default options to use for indexing and retrieval
-  embedder?: EmbedderArgument<EmbedderCustomOptions>;
-  embedderOptions?: z.infer<EmbedderCustomOptions>;
-}
 
 export interface PluginOptions {
   /** The Google Cloud project id to call. */
@@ -243,11 +203,9 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       });
     }
 
-    const embedders = [
-      ...Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
-        textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
-      ),
-    ];
+    const embedders = Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
+      textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
+    );
 
     let indexers: IndexerAction<z.ZodTypeAny>[] = [];
     let retrievers: RetrieverAction<z.ZodTypeAny>[] = [];

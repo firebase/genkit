@@ -17,7 +17,9 @@
 export { vertexAiIndexerRef, vertexIndexers } from './indexers';
 export { vertexAiRetrieverRef, vertexRetrievers } from './retrievers';
 export {
+  DocumentIndexer,
+  DocumentRetriever,
   Neighbor,
-  VVSIndexerOptionsSchema,
-  VVSRetrieverOptionsSchema,
+  VertexAIVectorIndexerOptionsSchema,
+  VertexAIVectorRetrieverOptionsSchema,
 } from './types';

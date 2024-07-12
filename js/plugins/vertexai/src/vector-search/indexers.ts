@@ -22,12 +22,11 @@ import {
   indexerRef,
 } from '@genkit-ai/ai/retriever';
 
-import { logger } from '@genkit-ai/core/logging';
 import z from 'zod';
 import {
   Datapoint,
-  vertexVectorSearchOptions,
-  VVSIndexerOptionsSchema,
+  VertexAIVectorIndexerOptionsSchema,
+  VertexVectorSearchOptions,
 } from './types';
 import { upsertDatapoints } from './upsert_datapoints';
 
@@ -40,19 +39,24 @@ export const vertexAiIndexerRef = (params: {
     info: {
       label: params.displayName ?? `vertexAi - ${params.indexId}`,
     },
-    configSchema: z.any().optional(),
+    configSchema: VertexAIVectorIndexerOptionsSchema.optional(),
   });
 };
 
 export function vertexIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
-  params: vertexVectorSearchOptions<EmbedderCustomOptions>
+  params: VertexVectorSearchOptions<EmbedderCustomOptions>
 ) {
-  const vectorSearchOptions = params.pluginOptions.vectorSearchIndexOptions!;
+  const vectorSearchOptions = params.pluginOptions.vectorSearchIndexOptions;
 
   const defaultEmbedder = params.defaultEmbedder;
 
   const indexers: IndexerAction<z.ZodTypeAny>[] = [];
-  for (const vectorSearchOption of vectorSearchOptions!) {
+
+  if (!vectorSearchOptions || vectorSearchOptions.length === 0) {
+    return indexers;
+  }
+
+  for (const vectorSearchOption of vectorSearchOptions) {
     const { documentIndexer, indexId } = vectorSearchOption;
     const embedder = vectorSearchOption.embedder ?? defaultEmbedder;
     const embedderOptions = vectorSearchOption.embedderOptions;
@@ -60,19 +64,17 @@ export function vertexIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
     const indexer = defineIndexer(
       {
         name: `vertexai/${indexId}`,
-        configSchema: VVSIndexerOptionsSchema,
+        configSchema: VertexAIVectorIndexerOptionsSchema,
       },
-      // TODO: fix custom options types
       async (docs, options) => {
         let docIds: string[] = [];
 
         try {
           docIds = await documentIndexer(docs, options);
         } catch (error) {
-          logger.error(
+          throw new Error(
             `Error storing your document content/metadata: ${error}`
           );
-          throw new Error(`Error: ${error}`);
         }
 
         const embeddings = await embedMany({
@@ -97,15 +99,8 @@ export function vertexIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
             location: params.pluginOptions.location!,
             indexId: indexId,
           });
-
-          logger.info(
-            `Successfully indexed documents in Vertex AI index ${indexId}`
-          );
         } catch (error) {
-          logger.error(
-            `Error during upsert to index ${indexId}, error: ${error}`
-          );
-          throw new Error(`Error: ${error}`);
+          throw error;
         }
       }
     );

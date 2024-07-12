@@ -51,6 +51,4 @@ export async function upsertDatapoints(params: UpsertDatapointsParams) {
     logger.error(response);
     throw new Error(`Error: ${JSON.stringify(response.body, null, 2)}`);
   }
-
-  return await response.json();
 }

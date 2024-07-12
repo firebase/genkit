@@ -23,20 +23,27 @@ import {
 import { logger } from '@genkit-ai/core/logging';
 import z from 'zod';
 import { queryPublicEndpoint } from './query_public_endpoint';
-import { vertexVectorSearchOptions, VVSRetrieverOptionsSchema } from './types';
+import {
+  VertexAIVectorRetrieverOptionsSchema,
+  VertexVectorSearchOptions,
+} from './types';
 import { getProjectNumber } from './utils';
 
 const DEFAULT_K = 10;
 
 export function vertexRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
-  params: vertexVectorSearchOptions<EmbedderCustomOptions>
+  params: VertexVectorSearchOptions<EmbedderCustomOptions>
 ) {
   const vectorSearchOptions = params.pluginOptions.vectorSearchIndexOptions;
   const defaultEmbedder = params.defaultEmbedder;
 
   const retrievers: RetrieverAction<z.ZodTypeAny>[] = [];
 
-  for (const vectorSearchOption of vectorSearchOptions!) {
+  if (!vectorSearchOptions || vectorSearchOptions.length === 0) {
+    return retrievers;
+  }
+
+  for (const vectorSearchOption of vectorSearchOptions) {
     const { documentRetriever, indexId, publicEndpoint } = vectorSearchOption;
     const embedder = vectorSearchOption.embedder ?? defaultEmbedder;
     const embedderOptions = vectorSearchOption.embedderOptions;
@@ -44,7 +51,7 @@ export function vertexRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
     const retriever = defineRetriever(
       {
         name: `vertexai/${indexId}`,
-        configSchema: VVSRetrieverOptionsSchema,
+        configSchema: VertexAIVectorRetrieverOptionsSchema,
       },
       async (content, options) => {
         const queryEmbeddings = await embed({
@@ -52,7 +59,6 @@ export function vertexRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
           options: embedderOptions,
           content,
         });
-        logger.info(`Embeddings created successfully for index: ${indexId}`);
 
         const accessToken = await params.authClient.getAccessToken();
 
@@ -68,15 +74,12 @@ export function vertexRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
             'Project ID is required to define Vertex AI retriever'
           );
         }
+        const projectNumber = await getProjectNumber(projectId);
         const location = params.pluginOptions.location;
         if (!location) {
           throw new Error('Location is required to define Vertex AI retriever');
         }
         const publicEndpointDomainName = publicEndpoint;
-
-        logger.info(
-          `Defining Vertex AI Vector Search retriever, using project ID: ${projectId}, location: ${location}, endpoint: ${publicEndpointDomainName}`
-        );
 
         try {
           let res = await queryPublicEndpoint({
@@ -86,9 +89,7 @@ export function vertexRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
             projectId,
             location,
             publicEndpointDomainName,
-            projectNumber:
-              params.pluginOptions.projectNumber ||
-              (await getProjectNumber(projectId)),
+            projectNumber,
             indexEndpointId: vectorSearchOption.indexEndpointId,
             deployedIndexId: vectorSearchOption.deployedIndexId,
           });
@@ -97,17 +98,11 @@ export function vertexRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
           const queryRes = nearestNeighbors ? nearestNeighbors[0] : null;
           const neighbors = queryRes ? queryRes.neighbors : null;
           if (!nearestNeighbors || !queryRes || !neighbors) {
-            logger.warn('No nearest neighbors found in query response');
             return { documents: [] };
-          }
-
-          if (neighbors.some((n) => !n.datapoint || !n.datapoint.datapointId)) {
-            logger.warn('Some neighbors do not have datapoints');
           }
 
           const documents = await documentRetriever(neighbors, options);
 
-          logger.info(`Documents retrieved for index: ${indexId}`);
           return { documents };
         } catch (error) {
           handleRetrieverError(error, indexId);
@@ -123,14 +118,9 @@ export function vertexRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
 
 function handleRetrieverError(error: unknown, indexId: string): never {
   if (error instanceof Error) {
-    logger.error(
-      `Error in retriever process for index: ${indexId} - ${error.message}`
-    );
-    throw new Error(`Error: ${error}, ${error.message}`);
+    logger.error(`Error querying index: ${indexId}`);
+    throw error;
   } else {
-    logger.error(
-      `Unknown error in retriever process for index: ${indexId} - ${error}`
-    );
     throw error;
   }
 }
@@ -144,6 +134,6 @@ export const vertexAiRetrieverRef = (params: {
     info: {
       label: params.displayName ?? `vertexAi - ${params.indexId}`,
     },
-    configSchema: z.any().optional(),
+    configSchema: VertexAIVectorRetrieverOptionsSchema.optional(),
   });
 };

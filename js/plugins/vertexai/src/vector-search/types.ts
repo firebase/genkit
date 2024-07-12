@@ -15,18 +15,17 @@
  */
 
 import { EmbedderArgument } from '@genkit-ai/ai/embedder';
-import { CommonRetrieverOptionsSchema } from '@genkit-ai/ai/retriever';
+import {
+  CommonRetrieverOptionsSchema,
+  Document,
+} from '@genkit-ai/ai/retriever';
 import * as aiplatform from '@google-cloud/aiplatform';
 import { GoogleAuth } from 'google-auth-library';
 import z from 'zod';
 import { PluginOptions } from '..';
 
-export type MakeRequired<T, K extends keyof T> = T & {
-  [P in K]-?: T[P];
-};
-
 // This internal interface will be passed to the vertexIndexers and vertexRetrievers functions
-export interface vertexVectorSearchOptions<
+export interface VertexVectorSearchOptions<
   EmbedderCustomOptions extends z.ZodTypeAny,
 > {
   pluginOptions: PluginOptions;
@@ -121,13 +120,13 @@ const NearestNeighborsSchema = z.object({
 });
 
 // Define the Zod schema for IFindNeighborsResponse
-const findNeighborsResponseSchema = z.object({
+const FindNeighborsResponseSchema = z.object({
   nearestNeighbors: z.array(NearestNeighborsSchema).optional(),
 });
 
 // TypeScript types for Zod schemas
 type IndexDatapoint = z.infer<typeof IndexDatapointSchema>;
-type FindNeighborsResponse = z.infer<typeof findNeighborsResponseSchema>;
+type FindNeighborsResponse = z.infer<typeof FindNeighborsResponseSchema>;
 
 // Function to assert type equality
 function assertTypeEquality<T>(value: T): void {}
@@ -136,10 +135,43 @@ function assertTypeEquality<T>(value: T): void {}
 assertTypeEquality<IIndexDatapoint>({} as IndexDatapoint);
 assertTypeEquality<IFindNeighborsResponse>({} as FindNeighborsResponse);
 
-export { findNeighborsResponseSchema };
+export { FindNeighborsResponseSchema };
 
-export const VVSRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend(
-  {}
-).optional();
+export const VertexAIVectorRetrieverOptionsSchema =
+  CommonRetrieverOptionsSchema.extend({}).optional();
 
-export const VVSIndexerOptionsSchema = z.object({}).extend({}).optional();
+export const VertexAIVectorIndexerOptionsSchema = z.any();
+
+/**
+ * A document retriever function that takes an array of Neighbors from Vertex AI Vector Search query result, and resolves to a list of documents.
+ * Also takes an options object that can be used to configure the retriever.
+ */
+export type DocumentRetriever<Options extends { k?: number } = { k?: number }> =
+  (docIds: Neighbor[], options?: Options) => Promise<Document[]>;
+
+/**
+ * Indexer function that takes an array of documents, stores them in a database of the user's choice, and resolves to a list of document ids.
+ * Also takes an options object that can be used to configure the indexer.
+ */
+export type DocumentIndexer<Options extends {} = {}> = (
+  docs: Document[],
+  options?: Options
+) => Promise<string[]>;
+
+export interface VectorSearchIndexOption<
+  EmbedderCustomOptions extends z.ZodTypeAny,
+  IndexerOptions extends {},
+  RetrieverOptions extends { k?: number },
+> {
+  // Specify the Vertex AI Index and IndexEndpoint to use for indexing and retrieval
+  deployedIndexId: string;
+  indexEndpointId: string;
+  publicEndpoint: string;
+  indexId: string;
+  // Document retriever and indexer functions to use for indexing and retrieval by the plugin's own indexers and retrievers
+  documentRetriever: DocumentRetriever<RetrieverOptions>;
+  documentIndexer: DocumentIndexer<IndexerOptions>;
+  // Embedder and default options to use for indexing and retrieval
+  embedder?: EmbedderArgument<EmbedderCustomOptions>;
+  embedderOptions?: z.infer<EmbedderCustomOptions>;
+}

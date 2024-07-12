@@ -16,7 +16,7 @@
 
 import { logger } from '@genkit-ai/core/logging';
 import z from 'zod';
-import { findNeighborsResponseSchema } from './types';
+import { FindNeighborsResponseSchema } from './types';
 
 interface QueryPublicEndpointParams {
   featureVector: number[];
@@ -32,7 +32,7 @@ interface QueryPublicEndpointParams {
 
 export async function queryPublicEndpoint(
   params: QueryPublicEndpointParams
-): Promise<z.infer<typeof findNeighborsResponseSchema>> {
+): Promise<z.infer<typeof FindNeighborsResponseSchema>> {
   const {
     featureVector,
     neighborCount,
@@ -70,19 +70,5 @@ export async function queryPublicEndpoint(
   if (!response.ok) {
     logger.error('Error querying index: ', response.statusText);
   }
-  const body = await response.json();
-
-  let parsedBody: z.infer<typeof findNeighborsResponseSchema>;
-
-  try {
-    parsedBody = findNeighborsResponseSchema.parse(body);
-  } catch (error) {
-    logger.error(
-      'Could not parse findNeighbors response from Vertex AI: ',
-      error
-    );
-    throw error;
-  }
-
-  return parsedBody;
+  return response.json();
 }
