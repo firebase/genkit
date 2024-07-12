@@ -21,6 +21,7 @@ import (
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"github.com/google/generative-ai-go/genai"
 	"google.golang.org/api/iterator"
@@ -94,13 +95,13 @@ func Init(ctx context.Context, cfg *Config) (err error) {
 			apiKey = os.Getenv("GOOGLE_API_KEY")
 		}
 		if apiKey == "" {
-			return fmt.Errorf("googleai.Init: Google AI requires setting GOOGLE_GENAI_API_KEY or GOOGLE_API_KEY in the environment. You can get an API key at https://ai.google.dev")
+			return fmt.Errorf("Google AI requires setting GOOGLE_GENAI_API_KEY or GOOGLE_API_KEY in the environment. You can get an API key at https://ai.google.dev")
 		}
 	}
 
 	opts := append([]option.ClientOption{
 		option.WithAPIKey(apiKey),
-		genai.WithClientInfo("genkit-go", "alpha")},
+		genai.WithClientInfo("genkit-go", internal.Version)},
 		cfg.ClientOptions...,
 	)
 	client, err := genai.NewClient(ctx, opts...)

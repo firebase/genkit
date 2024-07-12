@@ -20,11 +20,16 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"net/http"
+	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/plugins/googleai"
+	"google.golang.org/api/option"
 )
 
 // The tests here only work with an API key set to a valid value.
@@ -195,4 +200,26 @@ func TestLive(t *testing.T) {
 			t.Errorf("got %q, expecting it to contain %q", out, want)
 		}
 	})
+}
+
+func TestHeader(t *testing.T) {
+	ctx := context.Background()
+	var header http.Header
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		header = r.Header
+		http.Error(w, "test", http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+
+	opts := []option.ClientOption{option.WithHTTPClient(server.Client()), option.WithEndpoint(server.URL)}
+	if err := googleai.Init(ctx, &googleai.Config{APIKey: "x", ClientOptions: opts}); err != nil {
+		t.Fatal(err)
+	}
+	model := googleai.Model("gemini-1.0-pro")
+	_, _ = model.Generate(ctx, ai.NewGenerateRequest(nil, ai.NewTextMessage(ai.RoleUser, "hi")), nil)
+	got := header.Get("x-goog-api-client")
+	want := regexp.MustCompile(fmt.Sprintf(`\bgenkit-go/%s\b`, internal.Version))
+	if !want.MatchString(got) {
+		t.Errorf("got x-goog-api-client header value\n%s\nwanted it to match regexp %s", got, want)
+	}
 }
