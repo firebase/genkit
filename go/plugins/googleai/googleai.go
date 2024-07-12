@@ -39,14 +39,14 @@ var (
 	basicText = ai.ModelCapabilities{
 		Multiturn:  true,
 		Tools:      true,
-		SystemRole: false,
+		SystemRole: true,
 		Media:      false,
 	}
 
 	multimodal = ai.ModelCapabilities{
 		Multiturn:  true,
 		Tools:      true,
-		SystemRole: false,
+		SystemRole: true,
 		Media:      true,
 	}
 

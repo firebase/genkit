@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { TelemetryConfig } from '@genkit-ai/core';
+import { GENKIT_VERSION, TelemetryConfig } from '@genkit-ai/core';
 import { MetricExporter } from '@google-cloud/opentelemetry-cloud-monitoring-exporter';
 import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
@@ -146,7 +146,13 @@ export class GcpOpenTelemetry implements TelemetryConfig {
 
   private buildMetricExporter(): PushMetricExporter {
     const exporter: PushMetricExporter = this.shouldExportMetrics()
-      ? new MetricExporter({ projectId: this.options.projectId })
+      ? new MetricExporter({
+          projectId: this.options.projectId,
+          userAgent: {
+            product: 'genkit',
+            version: GENKIT_VERSION,
+          },
+        })
       : new InMemoryMetricExporter(AggregationTemporality.DELTA);
     exporter.selectAggregation = (instrumentType: InstrumentType) => {
       if (instrumentType === InstrumentType.HISTOGRAM) {

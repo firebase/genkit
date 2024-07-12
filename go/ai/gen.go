@@ -23,7 +23,7 @@ type Candidate struct {
 	Custom        any              `json:"custom,omitempty"`
 	FinishMessage string           `json:"finishMessage,omitempty"`
 	FinishReason  FinishReason     `json:"finishReason,omitempty"`
-	Index         int              `json:"index,omitempty"`
+	Index         int              `json:"index"`
 	Message       *Message         `json:"message,omitempty"`
 	Usage         *GenerationUsage `json:"usage,omitempty"`
 }
