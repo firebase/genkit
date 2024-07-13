@@ -26,7 +26,9 @@ func ollamaEx(ctx context.Context) error {
 
 	//!+init
 	// Init with Ollama's default local address.
-	if err := ollama.Init(ctx, "http://127.0.0.1:11434"); err != nil {
+	if err := ollama.Init(ctx, &ollama.Config{
+		ServerAddress: "http://127.0.0.1:11434",
+	}); err != nil {
 		return err
 	}
 	//!-init
