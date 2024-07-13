@@ -50,7 +50,7 @@ type ModelMetadata struct {
 }
 
 // DefineModel registers the given generate function as an action, and returns a
-// [ModelAction] that runs it.
+// [Model] that runs it.
 func DefineModel(provider, name string, metadata *ModelMetadata, generate func(context.Context, *GenerateRequest, ModelStreamingCallback) (*GenerateResponse, error)) *Model {
 	metadataMap := map[string]any{}
 	if metadata == nil {
@@ -75,7 +75,12 @@ func DefineModel(provider, name string, metadata *ModelMetadata, generate func(c
 	}, generate))
 }
 
-// LookupModel looks up a [ModelAction] registered by [DefineModel].
+// IsDefinedModel reports whether a model is defined.
+func IsDefinedModel(provider, name string) bool {
+	return LookupModel(provider, name) != nil
+}
+
+// LookupModel looks up a [Model] registered by [DefineModel].
 // It returns nil if the model was not defined.
 func LookupModel(provider, name string) *Model {
 	return (*Model)(core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](atype.Model, provider, name))
