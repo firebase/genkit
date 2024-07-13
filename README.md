@@ -1,22 +1,24 @@
 ![Firebase Genkit logo](docs/resources/genkit-logo-dark.png#gh-dark-mode-only 'Firebase Genkit')
 ![Firebase Genkit logo](docs/resources/genkit-logo.png#gh-light-mode-only 'Firebase Genkit')
 
-Firebase Genkit (beta) is a framework with powerful tooling to help app developers build, test, deploy, and monitor AI-powered features with confidence. Genkit is also built from the ground up to be cloud optimized and code-centric, designed to feel familiar to most developers with less new concepts to learn. The Genkit framework itself is free and [open source](./LICENSE), and integrates with many services that have free tiers to get started.
+Firebase Genkit is a framework for TypeScript and Go, designed to help you build and iterate on AI-powered applications and features.
 
-Genkit is available for [TypeScript (Node.js)](https://www.npmjs.com/package/genkit), with [Go support](https://github.com/firebase/genkit/tree/main/go) in active development.
+## Who is Genkit for?
 
-To be notified when Genkit for Go is ready for early community testing and get invited to our testers chat, [submit this form](https://docs.google.com/forms/d/e/1FAIpQLSeMYYFlH7bpsTZLWYDFSrgUG-64gkB3w_zXuF7NdTrZG04BLQ/viewform?resourcekey=0-eu_VfD8prb0igHZY5-oQKQ).
+Genkit is for any developer who wants to integrate generative AI capabilities into their apps using TypeScript or Go. Code written with Genkit libraries can be deployed anywhere that supports Node.js and Go runtimes.
+
+Genkit is built by Firebase, Google's app development platform, but does not require you to be a Firebase or Google Cloud user.
+
+## Why use Genkit?
+
+Integrating generative AI into apps is complicated. You may need to tie together many components and APIs like gen AI models (LLMs), prompts, vector stores, embedders, and tools - each with provider-specific implementations and quirks. Once you've built a simple prototype, refining it to production quality can be a difficult process due to the non-deterministic nature of gen AI models.
+
+If you're a developer who's used to building apps and services, learning to work with generative AI models can be intimidating! There's a lot to learn 
+
+Genkit helps building apps with generative AI APIs by idiomatic patterns, observability, type-safety, integrated tooling, and lighweight, composable abstractions.
 
 > [!NOTE]
-> Since Genkit is currently in beta, this means that the public API and framework design may change in backward-incompatible ways.
-
-Getting started is easy:
-
-Install Genkit:
-
-```bash
-npm i -g genkit
-```
+> Genkit for Go is currently in Alpha, so we only recommend using it for prototyping and exploration. 
 
 Review the [documentation](https://firebase.google.com/docs/genkit) for details and samples.
 
