@@ -25,6 +25,7 @@ import (
 	"cloud.google.com/go/vertexai/genai"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/plugins/internal/gemini"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
@@ -33,24 +34,10 @@ import (
 const provider = "vertexai"
 
 var (
-	basicText = ai.ModelCapabilities{
-		Multiturn:  true,
-		Tools:      true,
-		SystemRole: true,
-		Media:      false,
-	}
-
-	multimodal = ai.ModelCapabilities{
-		Multiturn:  true,
-		Tools:      true,
-		SystemRole: true,
-		Media:      true,
-	}
-
 	knownCaps = map[string]ai.ModelCapabilities{
-		"gemini-1.0-pro":   basicText,
-		"gemini-1.5-pro":   multimodal,
-		"gemini-1.5-flash": multimodal,
+		"gemini-1.0-pro":   gemini.BasicText,
+		"gemini-1.5-pro":   gemini.Multimodal,
+		"gemini-1.5-flash": gemini.Multimodal,
 	}
 
 	knownEmbedders = []string{
