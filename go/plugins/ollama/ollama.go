@@ -196,7 +196,7 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 			Stream:   stream,
 		}
 	}
-	client := &http.Client{Timeout: time.Second * 30}
+	client := &http.Client{Timeout: 30 * time.Second}
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return nil, err
