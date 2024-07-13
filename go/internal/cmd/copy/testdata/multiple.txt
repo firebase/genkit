@@ -1,0 +1,45 @@
+In this test, there are more than one sink with the same name in the
+destination, and more than one source with that name in the source file.
+-- source --
+//copy:start dest one
+a
+b
+c
+//copy:stop
+d
+//copy:start dest two
+e
+//copy:stop
+//copy:start dest one
+f
+g
+//copy:stop
+h
+-- dest --
+//copy:sink one
+//copy:sink two
+//copy:sink one
+-- want --
+//copy:sink one from source
+// DO NOT MODIFY below vvvv
+a
+b
+c
+f
+g
+// DO NOT MODIFY above ^^^^
+//copy:endsink one
+//copy:sink two from source
+// DO NOT MODIFY below vvvv
+e
+// DO NOT MODIFY above ^^^^
+//copy:endsink two
+//copy:sink one from source
+// DO NOT MODIFY below vvvv
+a
+b
+c
+f
+g
+// DO NOT MODIFY above ^^^^
+//copy:endsink one

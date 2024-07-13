@@ -357,6 +357,9 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	return r, nil
 }
 
+//copy:sink translateCandidate from ../googleai/googleai.go
+// DO NOT MODIFY below vvvv
+
 // translateCandidate translates from a genai.GenerateContentResponse to an ai.GenerateResponse.
 func translateCandidate(cand *genai.Candidate) *ai.Candidate {
 	c := &ai.Candidate{}
@@ -398,6 +401,12 @@ func translateCandidate(cand *genai.Candidate) *ai.Candidate {
 	return c
 }
 
+// DO NOT MODIFY above ^^^^
+//copy:endsink translateCandidate
+
+//copy:sink translateResponse from ../googleai/googleai.go
+// DO NOT MODIFY below vvvv
+
 // Translate from a genai.GenerateContentResponse to a ai.GenerateResponse.
 func translateResponse(resp *genai.GenerateContentResponse) *ai.GenerateResponse {
 	r := &ai.GenerateResponse{}
@@ -412,6 +421,12 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.GenerateResponse
 	}
 	return r
 }
+
+// DO NOT MODIFY above ^^^^
+//copy:endsink translateResponse
+
+//copy:sink convertParts from ../googleai/googleai.go
+// DO NOT MODIFY below vvvv
 
 // convertParts converts a slice of *ai.Part to a slice of genai.Part.
 func convertParts(parts []*ai.Part) ([]genai.Part, error) {
@@ -438,7 +453,7 @@ func convertPart(p *ai.Part) (genai.Part, error) {
 		}
 		return genai.Blob{MIMEType: contentType, Data: data}, nil
 	case p.IsData():
-		panic("vertexai does not support Data parts")
+		panic(fmt.Sprintf("%s does not support Data parts", provider))
 	case p.IsToolResponse():
 		toolResp := p.ToolResponse
 		fr := genai.FunctionResponse{
@@ -457,3 +472,6 @@ func convertPart(p *ai.Part) (genai.Part, error) {
 		panic("unknown part type in a request")
 	}
 }
+
+// DO NOT MODIFY above ^^^^
+//copy:endsink convertParts
