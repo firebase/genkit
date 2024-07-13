@@ -16,6 +16,7 @@ package ai
 
 import (
 	"context"
+	"errors"
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/atype"
@@ -81,12 +82,18 @@ func LookupRetriever(provider, name string) *Retriever {
 
 // Index runs the given [Indexer].
 func (i *Indexer) Index(ctx context.Context, req *IndexerRequest) error {
+	if i == nil {
+		return errors.New("Index called on a nil Indexer; check that all indexers are defined")
+	}
 	_, err := (*indexerAction)(i).Run(ctx, req, nil)
 	return err
 }
 
 // Retrieve runs the given [Retriever].
 func (r *Retriever) Retrieve(ctx context.Context, req *RetrieverRequest) (*RetrieverResponse, error) {
+	if r == nil {
+		return nil, errors.New("Retriever called on a nil Retriever; check that all retrievers are defined")
+	}
 	return (*retrieverAction)(r).Run(ctx, req, nil)
 }
 

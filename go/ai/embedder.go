@@ -16,6 +16,7 @@ package ai
 
 import (
 	"context"
+	"errors"
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/atype"
@@ -61,6 +62,9 @@ func LookupEmbedder(provider, name string) *Embedder {
 
 // Embed runs the given [Embedder].
 func (e *Embedder) Embed(ctx context.Context, req *EmbedRequest) (*EmbedResponse, error) {
+	if e == nil {
+		return nil, errors.New("Embed called on a nil Embedder; check that all embedders are defined")
+	}
 	a := (*core.Action[*EmbedRequest, *EmbedResponse, struct{}])(e)
 	return a.Run(ctx, req, nil)
 }

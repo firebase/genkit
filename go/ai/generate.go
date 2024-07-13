@@ -78,6 +78,9 @@ func LookupModel(provider, name string) *Model {
 
 // Generate applies the [Model] to some input, handling tool requests.
 func (m *Model) Generate(ctx context.Context, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error) {
+	if m == nil {
+		return nil, errors.New("Generate called on a nil Model; check that all models are defined")
+	}
 	if err := conformOutput(req); err != nil {
 		return nil, err
 	}
