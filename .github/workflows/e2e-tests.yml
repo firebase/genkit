@@ -34,10 +34,6 @@ jobs:
         cache: 'pnpm'
     - name: Install dependencies
       run: pnpm install
-    - name: Run build script
-      run: pnpm build
-    - name: Run pack script
-      run: pnpm pack:all
     - name: Run e2e tests
       run: pnpm test:e2e
     - name: Validate working directory is clean
