@@ -12,17 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Build Check (Run npm run build everywhere locally if this fails)
+name: Run e2e tests
 
-on: pull_request
-
-env:
-  GITHUB_PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-  GITHUB_PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+on:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
-    name: Run build tasks
+    name: Run e2e tests
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -36,7 +35,11 @@ jobs:
       run: pnpm install
     - name: Run build script
       run: pnpm build
+    - name: Run pack:all script
+      run: pnpm pack:all
     - name: Run js tests
       run: pnpm test:js
+    - name: Run e2e tests
+      run: pnpm test:e2e
     - name: Validate working directory is clean
       run: .github/workflows/scripts/ensure-clean-working-tree.sh
