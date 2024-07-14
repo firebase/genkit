@@ -151,7 +151,7 @@ export async function genkitStart(
   });
 }
 
-export function diffJson(
+export function diffJSON(
   lhs: any,
   rhs: any,
   options?: DiffStringOptions

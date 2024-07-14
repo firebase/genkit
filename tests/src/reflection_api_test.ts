@@ -16,7 +16,7 @@
 
 import { readFileSync } from 'fs';
 import * as yaml from 'yaml';
-import { diffJson, runTestsForApp, setupNodeTestApp } from './utils.js';
+import { diffJSON, runTestsForApp, setupNodeTestApp } from './utils.js';
 
 (async () => {
   // Run for nodejs test app
@@ -48,7 +48,7 @@ async function testReflectionApi() {
       throw new Error(`${test.path}: got status ${res.status}`);
     }
     const gotBody = await res.json();
-    const diff = diffJson(gotBody, test.body, {
+    const diff = diffJSON(gotBody, test.body, {
       sort: true,
       excludeKeys: [
         // TODO: Go and JS JSON schema generation is very different.
