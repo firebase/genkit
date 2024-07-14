@@ -49,18 +49,24 @@ export async function runTestsForApp(
   testAppPath: string,
   testFn: (devUiUrl: string) => Promise<void>
 ) {
-  const { url, process } = await genkitStart(testAppPath);
-  try {
-    await testFn(url);
-    console.log('Test passed');
-  } finally {
-    return new Promise((resolver) => {
-      terminate(process.pid!, (error) => {
-        console.log('terminate done', error);
-        resolver(undefined);
-      });
-    });
-  }
+  return new Promise(async (resolver, reject) => {
+    var gsProcess;
+    try {
+      const { url, process } = await genkitStart(testAppPath);
+      gsProcess = process;
+      await testFn(url);
+      console.log('Test passed');
+    } catch (e) {
+      reject(e);
+    } finally {
+      if (gsProcess) {
+        terminate(gsProcess.pid!, (error) => {
+          console.log('terminate done', error);
+          resolver(undefined);
+        });
+      }
+    }
+  });
 }
 
 export async function setupNodeTestApp(testAppPath: string): Promise<string> {
@@ -97,7 +103,7 @@ export async function genkitStart(
     }
   );
 
-  return new Promise((urlResolver) => {
+  return new Promise((urlResolver, reject) => {
     const appProcess = spawn(
       'npm',
       ['exec', '--prefix', cliInstallRoot, 'genkit', 'start'],
@@ -106,14 +112,25 @@ export async function genkitStart(
       }
     );
 
+    var done = false;
     appProcess.stdin.write('\n');
+
+    setTimeout(() => {
+      if (!done) {
+        done = true;
+        reject(new Error('timeout waiting for genkit start to start'));
+      }
+    }, 10000);
 
     appProcess.stdout?.on('data', (data) => {
       console.log('stdout: ' + data.toString());
       const match = data.toString().match(/Genkit Tools UI: ([^ ]*)/);
       if (match && match.length > 1) {
         console.log('Developer UI ready, launching test ' + match[1]);
-
+        if (done) {
+          return;
+        }
+        done = true;
         urlResolver({
           url: match[1],
           process: appProcess,
