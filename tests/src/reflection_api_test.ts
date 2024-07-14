@@ -53,7 +53,7 @@ async function testReflectionApi() {
       sort: true,
       excludeKeys: [
         // TODO: Go and JS JSON schema generation is very different.
-        // Maybe figure out some kinds of schema compatibility test?
+        // Maybe figure out some kind of schema compatibility test?
         'outputSchema', 
         'inputSchema',
         // FIXME: Go does not set description field

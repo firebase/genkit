@@ -80,8 +80,22 @@ export async function setupNodeTestApp(testAppPath: string): Promise<string> {
 export async function genkitStart(
   testRoot: string
 ): Promise<{ url: string; process: ChildProcess }> {
+  const cliInstallRoot = path.resolve(os.tmpdir(), `./test-cli-${Date.now()}`);
+  console.log(`cliInstallRoot=${cliInstallRoot} pwd=${process.cwd()}`);
+  fs.mkdirSync(cliInstallRoot, { recursive: true });
+
+  execSync(`npm init -y`, {
+    stdio: 'inherit',
+    cwd: cliInstallRoot,
+  });
+  const distDir = path.resolve(process.cwd(), '../dist');
+  execSync(`pnpm i --save ${distDir}/genkit-?.?*.?*.tgz ${distDir}/genkit-ai-tools-common-*.tgz`, {
+    stdio: 'inherit',
+    cwd: cliInstallRoot,
+  });
+
   return new Promise((urlResolver) => {
-    const appProcess = spawn('npx', ['genkit', 'start'], {
+    const appProcess = spawn('npm', ['exec', '--prefix', cliInstallRoot, 'genkit', 'start'], {
       cwd: testRoot,
     });
 
