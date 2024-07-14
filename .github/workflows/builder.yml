@@ -36,6 +36,8 @@ jobs:
       run: pnpm install
     - name: Run build script
       run: pnpm build
+    - name: Run build script
+      run: pnpm pack:all
     - name: Run js tests
       run: pnpm test:js
     - name: Run e2e tests
