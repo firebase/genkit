@@ -106,6 +106,8 @@ export async function genkitStart(
       }
     );
 
+    appProcess.stdin.write('\n');
+
     appProcess.stdout?.on('data', (data) => {
       console.log('stdout: ' + data.toString());
       const match = data.toString().match(/Genkit Tools UI: ([^ ]*)/);
