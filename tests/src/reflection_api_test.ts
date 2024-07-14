@@ -25,7 +25,6 @@ import { diffJson, runTestsForApp, setupNodeTestApp } from './utils.js';
     await testReflectionApi();
   });
   // Run same tests for go test app
-  // TODO: do similar setup as for JS to allow testing agsints CLI from HEAD.
   await runTestsForApp('../go/tests/test_app', async () => {
     await testReflectionApi();
   });
