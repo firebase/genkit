@@ -38,5 +38,7 @@ jobs:
       run: pnpm build
     - name: Run js tests
       run: pnpm test:js
+    - name: Run e2e tests
+      run: pnpm test:e2e
     - name: Validate working directory is clean
       run: .github/workflows/scripts/ensure-clean-working-tree.sh
