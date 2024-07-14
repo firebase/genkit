@@ -112,9 +112,10 @@ export async function genkitStart(
       }
     );
 
-    var done = false;
+    // Press enter in case of cookie ack prompt.
     appProcess.stdin.write('\n');
 
+    var done = false;
     setTimeout(() => {
       if (!done) {
         done = true;
@@ -124,8 +125,8 @@ export async function genkitStart(
 
     appProcess.stdout?.on('data', (data) => {
       console.log('stdout: ' + data.toString());
-      const match = data.toString().match(/Genkit Tools UI: ([^ ]*)/);
-      console.log(" - - - ", match && match.length > 1)
+      const match = data.toString().match(/Genkit Tools UI:[^ ]*([^ ]*)/);
+      console.log(' - - - ', match && match.length > 1);
       if (match && match.length > 1) {
         console.log('Developer UI ready, launching test ' + match[1]);
         if (done) {
