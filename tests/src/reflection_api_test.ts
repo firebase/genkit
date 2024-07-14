@@ -20,9 +20,9 @@ import { diffJson, runTestsForApp, setupNodeTestApp } from './utils.js';
 
 (async () => {
   // Run for nodejs test app
-  const testAppRoot = await setupNodeTestApp("test_js_app");
+  const testAppRoot = await setupNodeTestApp('test_js_app');
   await runTestsForApp(testAppRoot, async () => {
-    await testReflectionApi()
+    await testReflectionApi();
   });
   // Run same tests for go test app
   // TODO: do similar setup as for JS to allow testing agsints CLI from HEAD.
@@ -54,12 +54,12 @@ async function testReflectionApi() {
       excludeKeys: [
         // TODO: Go and JS JSON schema generation is very different.
         // Maybe figure out some kind of schema compatibility test?
-        'outputSchema', 
+        'outputSchema',
         'inputSchema',
         // FIXME: Go does not set description field
         'description',
         // FIXME: Go does not set telemetry/latencyMs fields.
-        'telemetry', 
+        'telemetry',
         'latencyMs',
       ],
     });

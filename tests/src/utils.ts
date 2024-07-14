@@ -16,12 +16,12 @@
 
 import { ChildProcess, execSync, spawn } from 'child_process';
 import fs from 'fs';
+import { DiffStringOptions, diffString } from 'json-diff';
 import os from 'os';
 import path from 'path';
 import puppeteer, { Page } from 'puppeteer';
 import { PuppeteerScreenRecorder } from 'puppeteer-screen-recorder';
 import terminate from 'terminate';
-import { diffString, DiffStringOptions } from 'json-diff';
 
 export async function runDevUiTest(
   testAppName: string,
@@ -42,7 +42,7 @@ export async function runDevUiTest(
     } finally {
       await recorder.stop();
     }
-  })
+  });
 }
 
 export async function runTestsForApp(
@@ -58,8 +58,8 @@ export async function runTestsForApp(
       terminate(process.pid!, (error) => {
         console.log('terminate done', error);
         resolver(undefined);
-      })
-    })
+      });
+    });
   }
 }
 
@@ -89,15 +89,22 @@ export async function genkitStart(
     cwd: cliInstallRoot,
   });
   const distDir = path.resolve(process.cwd(), '../dist');
-  execSync(`pnpm i --save ${distDir}/genkit-?.?*.?*.tgz ${distDir}/genkit-ai-tools-common-*.tgz`, {
-    stdio: 'inherit',
-    cwd: cliInstallRoot,
-  });
+  execSync(
+    `pnpm i --save ${distDir}/genkit-?.?*.?*.tgz ${distDir}/genkit-ai-tools-common-*.tgz`,
+    {
+      stdio: 'inherit',
+      cwd: cliInstallRoot,
+    }
+  );
 
   return new Promise((urlResolver) => {
-    const appProcess = spawn('npm', ['exec', '--prefix', cliInstallRoot, 'genkit', 'start'], {
-      cwd: testRoot,
-    });
+    const appProcess = spawn(
+      'npm',
+      ['exec', '--prefix', cliInstallRoot, 'genkit', 'start'],
+      {
+        cwd: testRoot,
+      }
+    );
 
     appProcess.stdout?.on('data', (data) => {
       console.log('stdout: ' + data.toString());
@@ -124,8 +131,16 @@ export async function genkitStart(
   });
 }
 
-export function diffJson(lhs: any, rhs: any, options?: DiffStringOptions): string {
-  return diffString(normalizeForComparison(lhs), normalizeForComparison(rhs), options)
+export function diffJson(
+  lhs: any,
+  rhs: any,
+  options?: DiffStringOptions
+): string {
+  return diffString(
+    normalizeForComparison(lhs),
+    normalizeForComparison(rhs),
+    options
+  );
 }
 
 /**
@@ -146,7 +161,7 @@ function normalizeForComparison(body: any): any {
       if (Object.keys(normalizedObject).length === 0) {
         continue;
       }
-      out[key] = normalizedObject
+      out[key] = normalizedObject;
       continue;
     }
     out[key] = body[key];
