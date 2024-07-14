@@ -26,6 +26,11 @@ tests:
       /model/customReflector:
         key: /model/customReflector
         name: customReflector
+        metadata: {
+          model: {
+            label: "customReflector"
+          }
+        }
         inputSchema:
           {
             'type': 'object',
@@ -877,3 +882,8 @@ tests:
       /flow/testFlow:
         key: /flow/testFlow
         name: testFlow
+        metadata:
+          inputSchema:
+            type: string
+          outputSchema:
+            type: string

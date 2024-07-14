@@ -14,20 +14,20 @@
  * limitations under the License.
  */
 
-import { execSync, spawn } from 'child_process';
+import { ChildProcess, execSync, spawn } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import puppeteer, { Page } from 'puppeteer';
 import { PuppeteerScreenRecorder } from 'puppeteer-screen-recorder';
 import terminate from 'terminate';
+import { diffString, DiffStringOptions } from 'json-diff';
 
 export async function runDevUiTest(
   testAppName: string,
   testFn: (page: Page, devUiUrl: string) => Promise<void>
 ) {
-  const url = await startDevUi(testAppName);
-  try {
+  await runTestsForApp(testAppName, async (devUiUrl: string) => {
     const browser = await puppeteer.launch({
       slowMo: 50,
     });
@@ -37,27 +37,49 @@ export async function runDevUiTest(
     await recorder.start(savePath);
 
     try {
-      await testFn(page, url);
+      await testFn(page, devUiUrl);
       console.log('Test passed');
     } finally {
       await recorder.stop();
     }
+  })
+}
+
+export async function runTestsForApp(
+  testAppPath: string,
+  testFn: (devUiUrl: string) => Promise<void>
+) {
+  const { url, process } = await genkitStart(testAppPath);
+  try {
+    await testFn(url);
+    console.log('Test passed');
   } finally {
-    terminate(process.pid);
+    return new Promise((resolver) => {
+      terminate(process.pid!, (error) => {
+        console.log('terminate done', error);
+        resolver(undefined);
+      })
+    })
   }
 }
 
-export async function startDevUi(testAppName: string): Promise<string> {
+export async function setupNodeTestApp(testAppPath: string): Promise<string> {
   const testRoot = path.resolve(os.tmpdir(), `./e2e-run-${Date.now()}`);
   console.log(`testRoot=${testRoot} pwd=${process.cwd()}`);
   fs.mkdirSync(testRoot, { recursive: true });
-  fs.cpSync(testAppName, testRoot, { recursive: true });
+  fs.cpSync(testAppPath, testRoot, { recursive: true });
   const distDir = path.resolve(process.cwd(), '../dist');
   execSync(`pnpm i --save ${distDir}/*.tgz`, {
     stdio: 'inherit',
     cwd: testRoot,
   });
   execSync(`npm run build`, { stdio: 'inherit', cwd: testRoot });
+  return testRoot;
+}
+
+export async function genkitStart(
+  testRoot: string
+): Promise<{ url: string; process: ChildProcess }> {
   return new Promise((urlResolver) => {
     const appProcess = spawn('npx', ['genkit', 'start'], {
       cwd: testRoot,
@@ -69,7 +91,10 @@ export async function startDevUi(testAppName: string): Promise<string> {
       if (match && match.length > 1) {
         console.log('Developer UI ready, launching test ' + match[1]);
 
-        urlResolver(match[1]);
+        urlResolver({
+          url: match[1],
+          process: appProcess,
+        });
       }
     });
     appProcess.stderr?.on('data', (data) => {
@@ -78,42 +103,39 @@ export async function startDevUi(testAppName: string): Promise<string> {
     appProcess.on('error', (error): void => {
       console.log(`Error in app process: ${error}`);
       process.exitCode = 22;
-      terminate(process.pid);
     });
     appProcess.on('exit', (code) => {
       console.log(`Developer UI exited with code ${code}`);
-      process.exitCode = 23;
-      terminate(process.pid);
     });
   });
 }
 
-// Compares two values and returns a list of differences.
-// If got and want are both objects (including arrays), then each key in
-// want is compared recursively with the corresponding key in got.
-// If neither got nor want is an object, they are compared with '=='.
-export function compare(got: any, want: any): string[] {
-  return compare1('', got, want);
+export function diffJson(lhs: any, rhs: any, options?: DiffStringOptions): string {
+  return diffString(normalizeForComparison(lhs), normalizeForComparison(rhs), options)
 }
 
-function compare1(prefix: string, got: any, want: any): string[] {
-  if (want instanceof Object) {
-    if (!(got instanceof Object)) {
-      return [`${prefix}: want object but got '${got}'`];
+/**
+ * Normalized JSON blob before comparison. Removes fields that contain default
+ * values, for example: false booleans and empty string.
+ */
+function normalizeForComparison(body: any): any {
+  const out = {} as any;
+  for (const key in body) {
+    if (typeof body[key] === 'boolean' && body[key] === false) {
+      continue;
     }
-    let res = [];
-    for (const [key, value] of Object.entries(want)) {
-      const r = compare1(
-        prefix == '' ? key : prefix + '.' + key,
-        got[key],
-        value
-      );
-      res.push(...r);
+    if (typeof body[key] === 'string' && body[key] === '') {
+      continue;
     }
-    return res;
-  } else if (got != want) {
-    return [`${prefix}:\n  got  ${got}\n  want ${want}`];
-  } else {
-    return [];
+    if (typeof body[key] === 'object') {
+      const normalizedObject = normalizeForComparison(body[key]);
+      if (Object.keys(normalizedObject).length === 0) {
+        continue;
+      }
+      out[key] = normalizedObject
+      continue;
+    }
+    out[key] = body[key];
   }
+  return out;
 }

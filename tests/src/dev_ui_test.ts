@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-import { readFileSync } from 'fs';
-import * as yaml from 'yaml';
-import { compare, runDevUiTest } from './utils.js';
+import { runDevUiTest } from './utils.js';
 
 runDevUiTest('test_js_app', async (page, url) => {
   await page.goto(url);
@@ -43,35 +41,4 @@ runDevUiTest('test_js_app', async (page, url) => {
   inspectFlowButton?.click();
 
   await page.waitForSelector('text/testFlow');
-
-  await testReflectionApi();
 });
-
-async function testReflectionApi() {
-  const url = 'http://localhost:3100';
-  const t = yaml.parse(readFileSync('test_js_app.yaml', 'utf8'));
-  for (const test of t.tests) {
-    console.log('path', test.path);
-    let fetchopts = {
-      method: 'GET',
-    };
-    if (test.hasOwnProperty('post')) {
-      fetchopts.method = 'POST';
-      fetchopts.headers = { 'Content-Type': 'application/json' };
-      fetchopts.body = JSON.stringify(test.post);
-    }
-    const res = await fetch(url + test.path, fetchopts);
-    if (res.status != 200) {
-      throw new Error(`${test.path}: got status ${res.status}`);
-    }
-    const gotBody = await res.json();
-    const msgs = compare(gotBody, test.body);
-    if (msgs.length > 0) {
-      console.log(`FAIL: ${test.path}: bodies do not match:`);
-      for (const msg of msgs) {
-        console.log(msg);
-      }
-      throw new Error(`${test.path}: see messages above`);
-    }
-  }
-}
