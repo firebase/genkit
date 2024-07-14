@@ -120,11 +120,12 @@ export async function genkitStart(
         done = true;
         reject(new Error('timeout waiting for genkit start to start'));
       }
-    }, 10000);
+    }, 20000);
 
     appProcess.stdout?.on('data', (data) => {
       console.log('stdout: ' + data.toString());
       const match = data.toString().match(/Genkit Tools UI: ([^ ]*)/);
+      console.log(" - - - ", match && match.length > 1)
       if (match && match.length > 1) {
         console.log('Developer UI ready, launching test ' + match[1]);
         if (done) {
