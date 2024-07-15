@@ -11,14 +11,14 @@ Genkit is built by Firebase, Google's app development platform, but does not req
 
 ## Why use Genkit?
 
-Integrating generative AI into apps is complicated. You may need to tie together many components and APIs like gen AI models (LLMs), prompts, vector stores, embedders, and tools - each with provider-specific implementations and quirks. Refining AI apps for production canalso be difficult due to the non-deterministic nature of generative AI models.
+Integrating generative AI into apps is complicated. You may need to tie together many components like generative AI models (LLMs), prompts, vector stores, embedders, and tools - each with provider-specific implementations and quirks. The non-deterministic nature of generative AI models also makes refining AI apps for production challenging.
 
-Genkit libraries provide lightweight abstractions and unified APIs that make it easy to define and compose AI app components from any provider into cohesive workflows with built-in type-safety and observability, without sacrificing flexibility. Genkit's integrated tooling accelerates your iteration speed by helping you quickly test, visualize, and debug your app's AI logic.
+Genkit libraries provide lightweight abstractions and unified APIs that make it easy to define and compose AI app components from any provider into cohesive workflows with built-in type-safety and observability. Genkit's integrated tooling accelerates your iteration speed by helping you quickly test, visualize, and debug your app's AI logic.
 
 ## Get started
 
-- [Node.js documentation](https://firebase.google.com/docs/genkit/get-started)
-- [Go documentation](https://github.com/firebase/genkit/blob/main/docs-go/get-started-go.md)
+- [Genkit TypeScript (Node.js) documentation](https://firebase.google.com/docs/genkit/get-started)
+- [Genkit Go documentation](https://github.com/firebase/genkit/blob/main/docs-go/get-started-go.md)
 
 > [!NOTE]
 > Genkit for Go is currently in Alpha, so we only recommend using it for prototyping and exploration. 
@@ -54,16 +54,8 @@ The Genkit Developer UI helps you rapidly test, debug, and iterate on your AI ap
 - **Run:** Invoke and iterate on Genkit flows, prompts, queries, and more in dedicated playgrounds for Genkit components.
 - **Inpsect:** View detailed traces for previous exeuctions of flows and components, including step-by-step views of complex flows.
 - **Evaluate:** See the results of evaluations run on flows against test sets, including scored metrics and links to the traces for evaluation runs. 
-- [Genkit plugins on npm](https://www.npmjs.com/search?q=keywords:genkit-plugin)
-- [Writing Genkit plugins](https://firebase.google.com/docs/genkit/plugin-authoring)
 
-You can also find several plugins built by the Genkit community in this [repository](https://github.com/TheFireCo/genkit-plugins). Keep in mind these are not developed or supported by the Genkit team.
-
-### Deployment
-
-**Deploy your AI feature with a single command** through the Firebase or Google Cloud CLI to:
-
-Interested in trying Genkit without needing to set up a local environment? [Try it out on Project IDX](https://idx.google.com/new/genkit), Google's AI-assisted workspace for full-stack app development.
+<img src="docs/resources/readme-ui-traces-screenshot.png" width="700" alt="Screenshot of Genkit Developer UI showing traces">
 
 ## Plugin ecosystem
 
@@ -77,6 +69,12 @@ You can contribute to the Genkit ecosystem by:
 - Writing Go plugins (docs in progress)
 
 Great examples of community-built plugins for OpenAI, Anthropic, Cohere, and more can be found in this [repository](https://github.com/TheFireCo/genkit-plugins).
+
+## Try Genkit on IDX
+
+<img src="docs/resources/idx-logo.png" width="50" alt="Project IDX logo">
+
+Interested in trying Genkit without needing to set up a local environment? [Try it out on Project IDX](https://idx.google.com/new/genkit), Google's AI-assisted workspace for full-stack app development.
 
 ## Community
 
