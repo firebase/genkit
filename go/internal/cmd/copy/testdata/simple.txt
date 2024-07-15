@@ -1,0 +1,31 @@
+-- source --
+first
+second
+//copy:start dest foo
+third
+fourth
+//copy:stop
+fifth
+//copy:start dest bar
+sixth
+//copy:stop
+seventh
+-- dest --
+line1
+//copy:sink bar
+line2
+//copy:sink foo
+-- want --
+line1
+//copy:sink bar from source
+// DO NOT MODIFY below vvvv
+sixth
+// DO NOT MODIFY above ^^^^
+//copy:endsink bar
+line2
+//copy:sink foo from source
+// DO NOT MODIFY below vvvv
+third
+fourth
+// DO NOT MODIFY above ^^^^
+//copy:endsink foo

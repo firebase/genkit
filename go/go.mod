@@ -24,6 +24,7 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.26.0
 	go.opentelemetry.io/otel/trace v1.26.0
 	golang.org/x/exp v0.0.0-20240318143956-a85f2c67cd81
+	golang.org/x/tools v0.23.0
 	google.golang.org/api v0.188.0
 	google.golang.org/protobuf v1.34.2
 	gopkg.in/yaml.v2 v2.4.0

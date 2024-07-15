@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Parts of this file are copied into vertexai, because the code is identical
+// except for the import path of the Gemini SDK.
+//go:generate go run ../../internal/cmd/copy -dest ../vertexai googleai.go
+
 package googleai
 
 import (
@@ -345,6 +349,8 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	return r, nil
 }
 
+//copy:start vertexai.go translateCandidate
+
 // translateCandidate translates from a genai.GenerateContentResponse to an ai.GenerateResponse.
 func translateCandidate(cand *genai.Candidate) *ai.Candidate {
 	c := &ai.Candidate{}
@@ -386,6 +392,10 @@ func translateCandidate(cand *genai.Candidate) *ai.Candidate {
 	return c
 }
 
+//copy:stop
+
+//copy:start vertexai.go translateResponse
+
 // Translate from a genai.GenerateContentResponse to a ai.GenerateResponse.
 func translateResponse(resp *genai.GenerateContentResponse) *ai.GenerateResponse {
 	r := &ai.GenerateResponse{}
@@ -400,6 +410,10 @@ func translateResponse(resp *genai.GenerateContentResponse) *ai.GenerateResponse
 	}
 	return r
 }
+
+//copy:stop
+
+//copy:start vertexai.go convertParts
 
 // convertParts converts a slice of *ai.Part to a slice of genai.Part.
 func convertParts(parts []*ai.Part) ([]genai.Part, error) {
@@ -426,7 +440,7 @@ func convertPart(p *ai.Part) (genai.Part, error) {
 		}
 		return genai.Blob{MIMEType: contentType, Data: data}, nil
 	case p.IsData():
-		panic("googleai does not support Data parts")
+		panic(fmt.Sprintf("%s does not support Data parts", provider))
 	case p.IsToolResponse():
 		toolResp := p.ToolResponse
 		fr := genai.FunctionResponse{
@@ -445,3 +459,5 @@ func convertPart(p *ai.Part) (genai.Part, error) {
 		panic("unknown part type in a request")
 	}
 }
+
+//copy:stop
