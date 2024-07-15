@@ -17,11 +17,12 @@ import { config } from 'dotenv';
 config();
 export const PROJECT_ID = process.env.PROJECT_ID!;
 export const LOCATION = process.env.LOCATION!;
-export const DATASET_ID = process.env.DATASET_ID!;
-export const TABLE_ID = process.env.TABLE_ID!;
-export const FIRESTORE_COLLECTION = process.env.FIRESTORE_COLLECTION!;
-export const VECTOR_SEARCH_PUBLIC_ENDPOINT =
-  process.env.VECTOR_SEARCH_PUBLIC_ENDPOINT!;
+
+export const BIGQUERY_TABLE = process.env.BIGQUERY_TABLE!;
+export const BIGQUERY_DATASET = process.env.BIGQUERY_DATASET!;
+
+export const VECTOR_SEARCH_PUBLIC_DOMAIN_NAME =
+  process.env.VECTOR_SEARCH_PUBLIC_DOMAIN_NAME!;
 export const VECTOR_SEARCH_INDEX_ENDPOINT_ID =
   process.env.VECTOR_SEARCH_INDEX_ENDPOINT_ID!;
 export const VECTOR_SEARCH_INDEX_ID = process.env.VECTOR_SEARCH_INDEX_ID!;

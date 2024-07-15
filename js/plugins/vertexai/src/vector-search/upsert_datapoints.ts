@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { logger } from '@genkit-ai/core/logging';
 import { GoogleAuth } from 'google-auth-library';
 import { IIndexDatapoint } from './types';
 
@@ -65,7 +64,8 @@ export async function upsertDatapoints(
   });
 
   if (!response.ok) {
-    logger.error(response);
-    throw new Error(`Error: ${JSON.stringify(response.body, null, 2)}`);
+    throw new Error(
+      `Error upserting datapoints into index ${indexId}: ${response.statusText}`
+    );
   }
 }

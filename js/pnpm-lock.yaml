@@ -1252,6 +1252,180 @@ importers:
         specifier: ^5.3.3
         version: 5.4.5
 
+  testapps/vertexai-vector-search-bigquery:
+    dependencies:
+      '@genkit-ai/ai':
+        specifier: workspace:*
+        version: link:../../ai
+      '@genkit-ai/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@genkit-ai/dev-local-vectorstore':
+        specifier: workspace:*
+        version: link:../../plugins/dev-local-vectorstore
+      '@genkit-ai/dotprompt':
+        specifier: workspace:*
+        version: link:../../plugins/dotprompt
+      '@genkit-ai/evaluator':
+        specifier: workspace:*
+        version: link:../../plugins/evaluators
+      '@genkit-ai/firebase':
+        specifier: workspace:*
+        version: link:../../plugins/firebase
+      '@genkit-ai/flow':
+        specifier: workspace:*
+        version: link:../../flow
+      '@genkit-ai/googleai':
+        specifier: workspace:*
+        version: link:../../plugins/googleai
+      '@genkit-ai/vertexai':
+        specifier: workspace:*
+        version: link:../../plugins/vertexai
+      '@google-cloud/bigquery':
+        specifier: ^7.8.0
+        version: 7.8.0(encoding@0.1.13)
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.4.5
+      express:
+        specifier: ^4.19.2
+        version: 4.19.2
+      genkitx-chromadb:
+        specifier: workspace:*
+        version: link:../../plugins/chroma
+      genkitx-langchain:
+        specifier: workspace:*
+        version: link:../../plugins/langchain
+      genkitx-pinecone:
+        specifier: workspace:*
+        version: link:../../plugins/pinecone
+      google-auth-library:
+        specifier: ^9.11.0
+        version: 9.11.0(encoding@0.1.13)
+      zod:
+        specifier: 3.22.4
+        version: 3.22.4
+    devDependencies:
+      typescript:
+        specifier: ^5.5.2
+        version: 5.5.3
+
+  testapps/vertexai-vector-search-custom:
+    dependencies:
+      '@genkit-ai/ai':
+        specifier: workspace:*
+        version: link:../../ai
+      '@genkit-ai/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@genkit-ai/dev-local-vectorstore':
+        specifier: workspace:*
+        version: link:../../plugins/dev-local-vectorstore
+      '@genkit-ai/dotprompt':
+        specifier: workspace:*
+        version: link:../../plugins/dotprompt
+      '@genkit-ai/evaluator':
+        specifier: workspace:*
+        version: link:../../plugins/evaluators
+      '@genkit-ai/firebase':
+        specifier: workspace:*
+        version: link:../../plugins/firebase
+      '@genkit-ai/flow':
+        specifier: workspace:*
+        version: link:../../flow
+      '@genkit-ai/googleai':
+        specifier: workspace:*
+        version: link:../../plugins/googleai
+      '@genkit-ai/vertexai':
+        specifier: workspace:*
+        version: link:../../plugins/vertexai
+      '@google-cloud/bigquery':
+        specifier: ^7.8.0
+        version: 7.8.0(encoding@0.1.13)
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.4.5
+      express:
+        specifier: ^4.19.2
+        version: 4.19.2
+      genkitx-chromadb:
+        specifier: workspace:*
+        version: link:../../plugins/chroma
+      genkitx-langchain:
+        specifier: workspace:*
+        version: link:../../plugins/langchain
+      genkitx-pinecone:
+        specifier: workspace:*
+        version: link:../../plugins/pinecone
+      google-auth-library:
+        specifier: ^9.11.0
+        version: 9.11.0(encoding@0.1.13)
+      zod:
+        specifier: 3.22.4
+        version: 3.22.4
+    devDependencies:
+      typescript:
+        specifier: ^5.5.2
+        version: 5.5.3
+
+  testapps/vertexai-vector-search-firestore:
+    dependencies:
+      '@genkit-ai/ai':
+        specifier: workspace:*
+        version: link:../../ai
+      '@genkit-ai/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@genkit-ai/dev-local-vectorstore':
+        specifier: workspace:*
+        version: link:../../plugins/dev-local-vectorstore
+      '@genkit-ai/dotprompt':
+        specifier: workspace:*
+        version: link:../../plugins/dotprompt
+      '@genkit-ai/evaluator':
+        specifier: workspace:*
+        version: link:../../plugins/evaluators
+      '@genkit-ai/firebase':
+        specifier: workspace:*
+        version: link:../../plugins/firebase
+      '@genkit-ai/flow':
+        specifier: workspace:*
+        version: link:../../flow
+      '@genkit-ai/googleai':
+        specifier: workspace:*
+        version: link:../../plugins/googleai
+      '@genkit-ai/vertexai':
+        specifier: workspace:*
+        version: link:../../plugins/vertexai
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.4.5
+      express:
+        specifier: ^4.19.2
+        version: 4.19.2
+      firebase-admin:
+        specifier: ^12.1.0
+        version: 12.2.0(encoding@0.1.13)
+      genkitx-chromadb:
+        specifier: workspace:*
+        version: link:../../plugins/chroma
+      genkitx-langchain:
+        specifier: workspace:*
+        version: link:../../plugins/langchain
+      genkitx-pinecone:
+        specifier: workspace:*
+        version: link:../../plugins/pinecone
+      google-auth-library:
+        specifier: ^9.11.0
+        version: 9.11.0(encoding@0.1.13)
+      zod:
+        specifier: 3.22.4
+        version: 3.22.4
+    devDependencies:
+      typescript:
+        specifier: ^5.5.2
+        version: 5.5.3
+
 packages:
 
   '@anthropic-ai/sdk@0.24.3':
@@ -3375,6 +3549,10 @@ packages:
     resolution: {integrity: sha512-f7aQCJODJFmYWN6PeNKzgvy9LI2tYmXnzpNDHEjG5sDNPgGb2FXQyTBnXeSH+PAtpKESFD+LmHw3Ox3mN7e1Fg==}
     engines: {node: '>=12'}
 
+  google-auth-library@9.11.0:
+    resolution: {integrity: sha512-epX3ww/mNnhl6tL45EQ/oixsY8JLEgUFoT4A5E/5iAR4esld9Kqv6IJGk7EmGuOgDvaarwF95hU2+v7Irql9lw==}
+    engines: {node: '>=14'}
+
   google-auth-library@9.7.0:
     resolution: {integrity: sha512-I/AvzBiUXDzLOy4iIZ2W+Zq33W4lcukQv1nl7C8WUA6SQwyQwUwu3waNmWNAvzds//FG8SZ+DnKnW/2k6mQS8A==}
     engines: {node: '>=14'}
@@ -5205,7 +5383,6 @@ snapshots:
     transitivePeerDependencies:
       - encoding
       - supports-color
-    optional: true
 
   '@google-cloud/common@5.0.1(encoding@0.1.13)':
     dependencies:
@@ -5215,7 +5392,7 @@ snapshots:
       duplexify: 4.1.3
       ent: 2.2.0
       extend: 3.0.2
-      google-auth-library: 9.7.0(encoding@0.1.13)
+      google-auth-library: 9.11.0(encoding@0.1.13)
       retry-request: 7.0.2(encoding@0.1.13)
       teeny-request: 9.0.0(encoding@0.1.13)
     transitivePeerDependencies:
@@ -5265,7 +5442,7 @@ snapshots:
       eventid: 2.0.1
       extend: 3.0.2
       gcp-metadata: 6.1.0(encoding@0.1.13)
-      google-auth-library: 9.7.0(encoding@0.1.13)
+      google-auth-library: 9.11.0(encoding@0.1.13)
       google-gax: 4.3.2(encoding@0.1.13)
       on-finished: 2.4.1
       pumpify: 2.0.1
@@ -5332,7 +5509,6 @@ snapshots:
     dependencies:
       arrify: 2.0.1
       extend: 3.0.2
-    optional: true
 
   '@google-cloud/precise-date@4.0.0': {}
 
@@ -5351,7 +5527,7 @@ snapshots:
       ent: 2.2.0
       fast-xml-parser: 4.3.6
       gaxios: 6.3.0(encoding@0.1.13)
-      google-auth-library: 9.7.0(encoding@0.1.13)
+      google-auth-library: 9.11.0(encoding@0.1.13)
       mime: 3.0.0
       p-limit: 3.1.0
       retry-request: 7.0.2(encoding@0.1.13)
@@ -6534,8 +6710,7 @@ snapshots:
 
   base64-js@1.5.1: {}
 
-  big.js@6.2.1:
-    optional: true
+  big.js@6.2.1: {}
 
   bignumber.js@9.1.2: {}
 
@@ -7415,6 +7590,18 @@ snapshots:
       - supports-color
     optional: true
 
+  google-auth-library@9.11.0(encoding@0.1.13):
+    dependencies:
+      base64-js: 1.5.1
+      ecdsa-sig-formatter: 1.0.11
+      gaxios: 6.3.0(encoding@0.1.13)
+      gcp-metadata: 6.1.0(encoding@0.1.13)
+      gtoken: 7.1.0(encoding@0.1.13)
+      jws: 4.0.0
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
+
   google-auth-library@9.7.0(encoding@0.1.13):
     dependencies:
       base64-js: 1.5.1
@@ -7434,7 +7621,7 @@ snapshots:
       '@types/long': 4.0.2
       abort-controller: 3.0.0
       duplexify: 4.1.3
-      google-auth-library: 9.7.0(encoding@0.1.13)
+      google-auth-library: 9.11.0(encoding@0.1.13)
       node-fetch: 2.7.0(encoding@0.1.13)
       object-hash: 3.0.0
       proto3-json-serializer: 2.0.1
@@ -7452,7 +7639,7 @@ snapshots:
       '@types/long': 4.0.2
       abort-controller: 3.0.0
       duplexify: 4.1.3
-      google-auth-library: 9.7.0(encoding@0.1.13)
+      google-auth-library: 9.11.0(encoding@0.1.13)
       node-fetch: 2.7.0(encoding@0.1.13)
       object-hash: 3.0.0
       proto3-json-serializer: 2.0.2
@@ -7481,7 +7668,7 @@ snapshots:
     dependencies:
       extend: 3.0.2
       gaxios: 6.3.0(encoding@0.1.13)
-      google-auth-library: 9.7.0(encoding@0.1.13)
+      google-auth-library: 9.11.0(encoding@0.1.13)
       qs: 6.12.0
       url-template: 2.0.8
       uuid: 9.0.1
@@ -7491,7 +7678,7 @@ snapshots:
 
   googleapis@137.1.0(encoding@0.1.13):
     dependencies:
-      google-auth-library: 9.7.0(encoding@0.1.13)
+      google-auth-library: 9.11.0(encoding@0.1.13)
       googleapis-common: 7.2.0(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
@@ -7736,8 +7923,7 @@ snapshots:
     dependencies:
       call-bind: 1.0.7
 
-  is@3.3.0:
-    optional: true
+  is@3.3.0: {}
 
   isarray@2.0.5: {}
 

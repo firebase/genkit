@@ -181,7 +181,7 @@ export interface VectorSearchIndexOption<
   // Specify the Vertex AI Index and IndexEndpoint to use for indexing and retrieval
   deployedIndexId: string;
   indexEndpointId: string;
-  publicEndpoint: string;
+  publicDomainName: string;
   indexId: string;
   // Document retriever and indexer functions to use for indexing and retrieval by the plugin's own indexers and retrievers
   documentRetriever: DocumentRetriever<RetrieverOptions>;

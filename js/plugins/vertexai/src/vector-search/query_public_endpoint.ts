@@ -24,7 +24,7 @@ interface QueryPublicEndpointParams {
   projectId: string;
   location: string;
   indexEndpointId: string;
-  publicEndpointDomainName: string;
+  publicDomainName: string;
   projectNumber: string;
   deployedIndexId: string;
 }
@@ -41,7 +41,7 @@ interface QueryPublicEndpointParams {
  * @param {string} params.projectId - The ID of the Google Cloud project.
  * @param {string} params.location - The location of the index endpoint.
  * @param {string} params.indexEndpointId - The ID of the index endpoint.
- * @param {string} params.publicEndpointDomainName - The domain name of the public endpoint.
+ * @param {string} params.publicDomainName - The domain name of the public endpoint.
  * @param {string} params.projectNumber - The project number.
  * @param {string} params.deployedIndexId - The ID of the deployed index.
  * @returns {Promise<FindNeighborsResponse>} - The response from the public endpoint.
@@ -54,12 +54,14 @@ export async function queryPublicEndpoint(
     neighborCount,
     accessToken,
     indexEndpointId,
-    publicEndpointDomainName,
+    publicDomainName,
     projectNumber,
     deployedIndexId,
     location,
   } = params;
-  const url = `${publicEndpointDomainName}/v1/projects/${projectNumber}/locations/${location}/indexEndpoints/${indexEndpointId}:findNeighbors`;
+  const url = new URL(
+    `https://${publicDomainName}/v1/projects/${projectNumber}/locations/${location}/indexEndpoints/${indexEndpointId}:findNeighbors`
+  );
 
   const requestBody = {
     deployed_index_id: deployedIndexId,

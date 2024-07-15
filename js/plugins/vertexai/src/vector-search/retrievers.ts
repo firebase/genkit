@@ -53,7 +53,7 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
   }
 
   for (const vectorSearchOption of vectorSearchOptions) {
-    const { documentRetriever, indexId, publicEndpoint } = vectorSearchOption;
+    const { documentRetriever, indexId, publicDomainName } = vectorSearchOption;
     const embedder = vectorSearchOption.embedder ?? defaultEmbedder;
     const embedderOptions = vectorSearchOption.embedderOptions;
 
@@ -88,7 +88,6 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
         if (!location) {
           throw new Error('Location is required to define Vertex AI retriever');
         }
-        const publicEndpointDomainName = publicEndpoint;
 
         try {
           let res = await queryPublicEndpoint({
@@ -97,7 +96,7 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
             accessToken,
             projectId,
             location,
-            publicEndpointDomainName,
+            publicDomainName,
             projectNumber,
             indexEndpointId: vectorSearchOption.indexEndpointId,
             deployedIndexId: vectorSearchOption.deployedIndexId,

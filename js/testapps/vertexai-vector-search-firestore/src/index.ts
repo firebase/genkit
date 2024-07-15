@@ -16,30 +16,24 @@
 
 //  Sample app for using the proposed Vertex AI plugin retriever and indexer with Firestore.
 
-//  NOTE: This particular uses Firestore as the document store, but the plugin is unopinionated about the document store.
-
-import {
-  Document,
-  DocumentDataSchema,
-  index,
-  retrieve,
-} from '@genkit-ai/ai/retriever';
 import { configureGenkit } from '@genkit-ai/core';
 import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
+import { initializeApp } from 'firebase-admin/app';
 // important imports for this sample:
 import {
   DocumentIndexer,
   DocumentRetriever,
-  Neighbor,
+  getFirestoreDocumentIndexer,
+  getFirestoreDocumentRetriever,
   vertexAI,
   vertexAiIndexerRef,
   vertexAiRetrieverRef,
 } from '@genkit-ai/vertexai';
-import { initializeApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-import * as z from 'zod';
+import { z } from 'zod';
 
-// Environment variables set with dotenv for simplicity of sample
+// // Environment variables set with dotenv for simplicity of sample
+import { Document, index, retrieve } from '@genkit-ai/ai/retriever';
+import { getFirestore } from 'firebase-admin/firestore';
 import {
   FIRESTORE_COLLECTION,
   LOCATION,
@@ -47,7 +41,7 @@ import {
   VECTOR_SEARCH_DEPLOYED_INDEX_ID,
   VECTOR_SEARCH_INDEX_ENDPOINT_ID,
   VECTOR_SEARCH_INDEX_ID,
-  VECTOR_SEARCH_PUBLIC_ENDPOINT,
+  VECTOR_SEARCH_PUBLIC_DOMAIN_NAME,
 } from './config';
 
 if (
@@ -58,7 +52,7 @@ if (
     VECTOR_SEARCH_DEPLOYED_INDEX_ID,
     VECTOR_SEARCH_INDEX_ENDPOINT_ID,
     VECTOR_SEARCH_INDEX_ID,
-    VECTOR_SEARCH_PUBLIC_ENDPOINT,
+    VECTOR_SEARCH_PUBLIC_DOMAIN_NAME,
   ].some((envVar) => !envVar)
 ) {
   throw new Error(
@@ -66,50 +60,18 @@ if (
   );
 }
 
-// Initialize Firebase app
+// // Initialize Firebase app
 initializeApp({ projectId: PROJECT_ID });
 
 const db = getFirestore();
 
-// Firestore Document Retriever
-const firestoreRetriever: DocumentRetriever = async (
-  neighbors: Neighbor[]
-): Promise<Document[]> => {
-  const docs: Document[] = [];
-  for (const neighbor of neighbors) {
-    const docRef = db
-      .collection(FIRESTORE_COLLECTION)
-      .doc(neighbor.datapoint?.datapointId!);
-    const docSnapshot = await docRef.get();
-
-    // If this retriever fails to retrieve a document from a given id, it will not be included in the results.
-    // We could have included a placeholder document with an error message, but for simplicity we are just ignoring it.
-    // We could change it so DocumentRetriever returns a Promise.allSettled instead. The current behavior keeps types simpler though.
-    if (docSnapshot.exists) {
-      const docData = { ...docSnapshot.data(), metadata: { ...neighbor } };
-      const parsedDocData = DocumentDataSchema.safeParse(docData);
-      if (parsedDocData.success) {
-        docs.push(new Document(parsedDocData.data));
-      }
-    }
-  }
-  return docs;
-};
-
-// Firestore Document Indexer
-const firestoreIndexer: DocumentIndexer = async (
-  docs: Document[]
-): Promise<string[]> => {
-  const batch = db.batch();
-  const ids: string[] = [];
-  docs.forEach((doc) => {
-    const docRef = db.collection(FIRESTORE_COLLECTION).doc();
-    batch.set(docRef, { content: doc.content });
-    ids.push(docRef.id);
-  });
-  await batch.commit();
-  return ids;
-};
+// Use our helper functions here, or define your own document retriever and document indexer
+const firestoreDocumentRetriever: DocumentRetriever =
+  getFirestoreDocumentRetriever(db, FIRESTORE_COLLECTION);
+const firestoreDocumentIndexer: DocumentIndexer = getFirestoreDocumentIndexer(
+  db,
+  FIRESTORE_COLLECTION
+);
 
 // Configure Genkit with Vertex AI plugin
 configureGenkit({
@@ -122,12 +84,12 @@ configureGenkit({
       },
       vectorSearchIndexOptions: [
         {
-          publicEndpoint: VECTOR_SEARCH_PUBLIC_ENDPOINT,
+          publicDomainName: VECTOR_SEARCH_PUBLIC_DOMAIN_NAME,
           indexEndpointId: VECTOR_SEARCH_INDEX_ENDPOINT_ID,
           indexId: VECTOR_SEARCH_INDEX_ID,
           deployedIndexId: VECTOR_SEARCH_DEPLOYED_INDEX_ID,
-          documentRetriever: firestoreRetriever,
-          documentIndexer: firestoreIndexer,
+          documentRetriever: firestoreDocumentRetriever,
+          documentIndexer: firestoreDocumentIndexer,
         },
       ],
     }),
@@ -136,7 +98,7 @@ configureGenkit({
   enableTracingAndMetrics: true,
 });
 
-// Define indexing flow
+// // Define indexing flow
 export const indexFlow = defineFlow(
   {
     name: 'indexFlow',
@@ -150,7 +112,7 @@ export const indexFlow = defineFlow(
     await index({
       indexer: vertexAiIndexerRef({
         indexId: VECTOR_SEARCH_INDEX_ID,
-        displayName: 'test_index',
+        displayName: 'firestore_index',
       }),
       documents,
     });
@@ -170,7 +132,6 @@ export const queryFlow = defineFlow(
       result: z.array(
         z.object({
           text: z.string(),
-          source: z.string(),
           distance: z.number(),
         })
       ),
@@ -184,17 +145,16 @@ export const queryFlow = defineFlow(
     const res = await retrieve({
       retriever: vertexAiRetrieverRef({
         indexId: VECTOR_SEARCH_INDEX_ID,
-        displayName: 'test_index',
+        displayName: 'firestore_index',
       }),
       query: queryDocument,
-      options: { client: 'firestore', k },
+      options: { k },
     });
     const endTime = performance.now();
     return {
       result: res
         .map((doc) => ({
           text: doc.content[0].text!,
-          source: 'firestore',
           distance: doc.metadata?.distance,
         }))
         .sort((a, b) => b.distance - a.distance),

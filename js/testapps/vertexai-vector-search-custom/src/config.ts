@@ -17,11 +17,11 @@ import { config } from 'dotenv';
 config();
 export const PROJECT_ID = process.env.PROJECT_ID!;
 export const LOCATION = process.env.LOCATION!;
-export const DATASET_ID = process.env.DATASET_ID!;
-export const TABLE_ID = process.env.TABLE_ID!;
-export const FIREBASE_COLLECTION = process.env.FIREBASE_COLLECTION!;
-export const VECTOR_SEARCH_PUBLIC_ENDPOINT =
-  process.env.VECTOR_SEARCH_PUBLIC_ENDPOINT!;
+
+export const LOCAL_DIR = process.env.LOCAL_DIR!;
+
+export const VECTOR_SEARCH_PUBLIC_DOMAIN_NAME =
+  process.env.VECTOR_SEARCH_PUBLIC_DOMAIN_NAME!;
 export const VECTOR_SEARCH_INDEX_ENDPOINT_ID =
   process.env.VECTOR_SEARCH_INDEX_ENDPOINT_ID!;
 export const VECTOR_SEARCH_INDEX_ID = process.env.VECTOR_SEARCH_INDEX_ID!;
