@@ -70,7 +70,9 @@ Access models, vector stores, evaluators, and platform integrations from specifi
 - [Genkit Node.js plugins](https://www.npmjs.com/search?q=keywords:genkit-plugin)
 - [Genkit Go plugins](https://pkg.go.dev/github.com/firebase/genkit/go#section-directories)
 
-You can contribute to the Genkit ecosystem by [writing Genkit plugins](https://firebase.google.com/docs/genkit/plugin-authoring).
+You can contribute to the Genkit ecosystem by:
+- [Writing Node.js plugins](https://firebase.google.com/docs/genkit/plugin-authoring)
+- Writing Go plugins (docs in progress)
 
 Great examples of community-built plugins for OpenAI, Anthropic, Cohere, and more can be found in this [repository](https://github.com/TheFireCo/genkit-plugins).
 
