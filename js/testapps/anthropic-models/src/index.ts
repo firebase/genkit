@@ -50,7 +50,7 @@ export const menuSuggestionFlow = defineFlow(
   {
     name: 'menuSuggestionFlow',
     inputSchema: z.string(),
-    outputSchema: z.string(),
+    outputSchema: z.array(z.any()),
   },
   async (subject) => {
     defineTool(
@@ -64,18 +64,13 @@ export const menuSuggestionFlow = defineFlow(
           menuItems: z.array(z.string()),
         }),
       },
-      async (subject) => {
+      async (input) => {
         return {
-          menuItems: [
-            `Appetizer: ${subject} Salad`,
-            `Main Course: ${subject} Burger`,
-            `Dessert: ${subject} Pie`,
-          ],
+          menuItems: [`Appetizer: Meow Salad`],
         };
       }
     );
 
-    // Construct a request and send it to the model API.
     const prompt = `Suggest an item for the menu of a ${subject} themed restaurant`;
     const llmResponse = await generate({
       model: claude35Sonnet,
@@ -84,12 +79,9 @@ export const menuSuggestionFlow = defineFlow(
       config: {
         temperature: 1,
       },
+      returnToolRequests: true,
     });
 
-    // Handle the response from the model API. In this sample, we just
-    // convert it to a string, but more complicated flows might coerce the
-    // response into structured output or chain the response into another
-    // LLM call, etc.
-    return llmResponse.text();
+    return llmResponse.toolRequests();
   }
 );
