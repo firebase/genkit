@@ -7,15 +7,16 @@
     "genai",
     "generative-ai"
   ],
-  "version": "0.5.4",
+  "version": "0.5.6",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
     "compile": "tsup-node",
     "build:clean": "rm -rf ./lib",
-    "build": "npm-run-all build:clean check compile",
+    "build": "npm-run-all genversion build:clean check compile",
     "build:watch": "tsup-node --watch",
-    "test": "node --import tsx --test tests/*_test.ts"
+    "test": "node --import tsx --test tests/*_test.ts",
+    "genversion": "genversion -es src/__codegen/version.ts"
   },
   "repository": {
     "type": "git",
@@ -41,6 +42,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.30",
+    "genversion": "^3.2.0",
     "npm-run-all": "^4.1.5",
     "tsup": "^8.0.2",
     "tsx": "^4.7.0",

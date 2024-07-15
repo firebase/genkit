@@ -157,3 +157,13 @@ func f4() {
 	// !-run
 
 }
+
+func deploy(ctx context.Context) {
+	//!+init
+	if err := genkit.Init(ctx,
+		&genkit.Options{FlowAddr: ":3400"}, // Add this parameter.
+	); err != nil {
+		log.Fatal(err)
+	}
+	//!-init
+}

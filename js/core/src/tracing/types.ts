@@ -37,6 +37,8 @@ export interface TraceStore {
 
 export const PathMetadataSchema = z.object({
   path: z.string(),
+  status: z.string(),
+  error: z.string().optional(),
   latency: z.number(),
 });
 export type PathMetadata = z.infer<typeof PathMetadataSchema>;

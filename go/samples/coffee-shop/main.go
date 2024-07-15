@@ -97,7 +97,7 @@ type testAllCoffeeFlowsOutput struct {
 }
 
 func main() {
-	if err := googleai.Init(context.Background(), ""); err != nil {
+	if err := googleai.Init(context.Background(), nil); err != nil {
 		log.Fatal(err)
 	}
 

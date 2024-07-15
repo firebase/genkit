@@ -42,7 +42,7 @@ func TestLive(t *testing.T) {
 		t.Skip("-all provided")
 	}
 	ctx := context.Background()
-	err := googleai.Init(ctx, *apiKey)
+	err := googleai.Init(ctx, &googleai.Config{APIKey: *apiKey})
 	if err != nil {
 		t.Fatal(err)
 	}

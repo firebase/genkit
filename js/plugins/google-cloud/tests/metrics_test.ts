@@ -17,18 +17,18 @@
 import { generate } from '@genkit-ai/ai';
 import { defineModel } from '@genkit-ai/ai/model';
 import {
+  configureGenkit,
+  defineAction,
   FlowState,
   FlowStateQuery,
   FlowStateQueryResponse,
   FlowStateStore,
-  configureGenkit,
-  defineAction,
 } from '@genkit-ai/core';
 import { registerFlowStateStore } from '@genkit-ai/core/registry';
 import { defineFlow, run, runAction, runFlow } from '@genkit-ai/flow';
 import {
-  GcpOpenTelemetry,
   __getMetricExporterForTesting,
+  GcpOpenTelemetry,
   googleCloud,
 } from '@genkit-ai/google-cloud';
 import {
@@ -406,7 +406,7 @@ describe('GoogleCloudMetrics', () => {
     });
   });
 
-  it('writes flow path failure metrics', async () => {
+  it('writes flow path failure metrics in root', async () => {
     const flow = createFlow('testFlow', async () => {
       const subPath = await run('sub-action', async () => {
         return 'done';
@@ -437,6 +437,127 @@ describe('GoogleCloudMetrics', () => {
     assert.deepEqual(latencyStatuses, [
       ['/{testFlow,t:flow}/{sub-action,t:flowStep}', 'success'],
       ['/{testFlow,t:flow}', 'failure'],
+    ]);
+  });
+
+  it('writes flow path failure metrics in subaction', async () => {
+    const flow = createFlow('testFlow', async () => {
+      const subPath1 = await run('sub-action-1', async () => {
+        const subPath2 = await run('sub-action-2', async () => {
+          return Promise.reject(new Error('failed'));
+        });
+        return 'done';
+      });
+      return 'done';
+    });
+
+    assert.rejects(async () => {
+      await runFlow(flow);
+    });
+
+    const reqPoints = await getCounterDataPoints('genkit/flow/path/requests');
+    const reqStatuses = reqPoints.map((p) => [
+      p.attributes.path,
+      p.attributes.status,
+    ]);
+    assert.deepEqual(reqStatuses, [
+      [
+        '/{testFlow,t:flow}/{sub-action-1,t:flowStep}/{sub-action-2,t:flowStep}',
+        'failure',
+      ],
+    ]);
+    const latencyPoints = await getHistogramDataPoints(
+      'genkit/flow/path/latency'
+    );
+    const latencyStatuses = latencyPoints.map((p) => [
+      p.attributes.path,
+      p.attributes.status,
+    ]);
+    assert.deepEqual(latencyStatuses, [
+      [
+        '/{testFlow,t:flow}/{sub-action-1,t:flowStep}/{sub-action-2,t:flowStep}',
+        'failure',
+      ],
+    ]);
+  });
+
+  it('writes flow path failure metrics in subaction', async () => {
+    const flow = createFlow('testFlow', async () => {
+      const subPath1 = await run('sub-action-1', async () => {
+        const subPath2 = await run('sub-action-2', async () => {
+          return 'done';
+        });
+        return Promise.reject(new Error('failed'));
+      });
+      return 'done';
+    });
+
+    assert.rejects(async () => {
+      await runFlow(flow);
+    });
+
+    const reqPoints = await getCounterDataPoints('genkit/flow/path/requests');
+    const reqStatuses = reqPoints.map((p) => [
+      p.attributes.path,
+      p.attributes.status,
+    ]);
+    assert.deepEqual(reqStatuses, [
+      [
+        '/{testFlow,t:flow}/{sub-action-1,t:flowStep}/{sub-action-2,t:flowStep}',
+        'success',
+      ],
+      ['/{testFlow,t:flow}/{sub-action-1,t:flowStep}', 'failure'],
+    ]);
+    const latencyPoints = await getHistogramDataPoints(
+      'genkit/flow/path/latency'
+    );
+    const latencyStatuses = latencyPoints.map((p) => [
+      p.attributes.path,
+      p.attributes.status,
+    ]);
+    assert.deepEqual(latencyStatuses, [
+      [
+        '/{testFlow,t:flow}/{sub-action-1,t:flowStep}/{sub-action-2,t:flowStep}',
+        'success',
+      ],
+      ['/{testFlow,t:flow}/{sub-action-1,t:flowStep}', 'failure'],
+    ]);
+  });
+
+  it('writes flow path failure in sub-action metrics', async () => {
+    const flow = createFlow('testFlow', async () => {
+      const subPath1 = await run('sub-action-1', async () => {
+        return 'done';
+      });
+      const subPath2 = await run('sub-action-2', async () => {
+        return Promise.reject(new Error('failed'));
+      });
+      return 'done';
+    });
+
+    assert.rejects(async () => {
+      await runFlow(flow);
+    });
+
+    const reqPoints = await getCounterDataPoints('genkit/flow/path/requests');
+    const reqStatuses = reqPoints.map((p) => [
+      p.attributes.path,
+      p.attributes.status,
+    ]);
+    assert.deepEqual(reqStatuses, [
+      ['/{testFlow,t:flow}/{sub-action-1,t:flowStep}', 'success'],
+      ['/{testFlow,t:flow}/{sub-action-2,t:flowStep}', 'failure'],
+    ]);
+    const latencyPoints = await getHistogramDataPoints(
+      'genkit/flow/path/latency'
+    );
+    const latencyStatuses = latencyPoints.map((p) => [
+      p.attributes.path,
+      p.attributes.status,
+    ]);
+    assert.deepEqual(latencyStatuses, [
+      ['/{testFlow,t:flow}/{sub-action-1,t:flowStep}', 'success'],
+      ['/{testFlow,t:flow}/{sub-action-2,t:flowStep}', 'failure'],
     ]);
   });
 

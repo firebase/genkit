@@ -35,14 +35,14 @@ var (
 	basicText = ai.ModelCapabilities{
 		Multiturn:  true,
 		Tools:      true,
-		SystemRole: false,
+		SystemRole: true,
 		Media:      false,
 	}
 
 	multimodal = ai.ModelCapabilities{
 		Multiturn:  true,
 		Tools:      true,
-		SystemRole: false,
+		SystemRole: true,
 		Media:      true,
 	}
 
@@ -72,36 +72,54 @@ var state struct {
 	pclient   *aiplatform.PredictionClient
 }
 
+// Config is the configuration for the plugin.
+type Config struct {
+	// The cloud project to use for Vertex AI.
+	// If empty, the values of the environment variables GCLOUD_PROJECT
+	// and GOOGLE_CLOUD_PROJECT will be consulted, in that order.
+	ProjectID string
+	// The location of the Vertex AI service. The default is "us-central1".
+	Location string
+	// Options to the Vertex AI client.
+	ClientOptions []option.ClientOption
+}
+
 // Init initializes the plugin and all known models and embedders.
 // After calling Init, you may call [DefineModel] and [DefineEmbedder] to create
 // and register any additional generative models and embedders
-func Init(ctx context.Context, projectID, location string) error {
+func Init(ctx context.Context, cfg *Config) error {
+	if cfg == nil {
+		cfg = &Config{}
+	}
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if state.initted {
 		panic("vertexai.Init already called")
 	}
-	if projectID == "" {
-		projectID = os.Getenv("GCLOUD_PROJECT")
-		if projectID == "" {
-			projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
-		}
-		if projectID == "" {
-			return fmt.Errorf("vertexai.Init: Vertex AI requires setting GCLOUD_PROJECT or GOOGLE_CLOUD_PROJECT in the environment")
-		}
+
+	state.projectID = cfg.ProjectID
+	if state.projectID == "" {
+		state.projectID = os.Getenv("GCLOUD_PROJECT")
 	}
-	state.projectID = projectID
-	if location == "" {
-		location = "us-central1"
+	if state.projectID == "" {
+		state.projectID = os.Getenv("GOOGLE_CLOUD_PROJECT")
 	}
-	state.location = location
+	if state.projectID == "" {
+		return fmt.Errorf("vertexai.Init: Vertex AI requires setting GCLOUD_PROJECT or GOOGLE_CLOUD_PROJECT in the environment")
+	}
+
+	state.location = cfg.Location
+	if state.location == "" {
+		state.location = "us-central1"
+	}
 	var err error
 	// Client for Gemini SDK.
-	state.gclient, err = genai.NewClient(ctx, projectID, location)
+	opts := append([]option.ClientOption{genai.WithClientInfo("genkit-go", "alpha")}, cfg.ClientOptions...)
+	state.gclient, err = genai.NewClient(ctx, state.projectID, state.location, opts...)
 	if err != nil {
 		return err
 	}
-	endpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", location)
+	endpoint := fmt.Sprintf("%s-aiplatform.googleapis.com:443", state.location)
 	numConns := max(runtime.GOMAXPROCS(0), 4)
 	o := []option.ClientOption{
 		option.WithEndpoint(endpoint),
