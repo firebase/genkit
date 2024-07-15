@@ -1,7 +1,7 @@
 ![Firebase Genkit logo](docs/resources/genkit-logo-dark.png#gh-dark-mode-only 'Firebase Genkit')
 ![Firebase Genkit logo](docs/resources/genkit-logo.png#gh-light-mode-only 'Firebase Genkit')
 
-Firebase Genkit is a framework for TypeScript and Go, designed to help you build and iterate on AI-powered applications and features.
+Firebase Genkit is a framework for TypeScript and Go, designed to help you build and iterate on AI-powered applications and features. It provides open source libraries and integrated tooling to support your AI app development.
 
 ## Who is Genkit for?
 
@@ -11,104 +11,81 @@ Genkit is built by Firebase, Google's app development platform, but does not req
 
 ## Why use Genkit?
 
-Integrating generative AI into apps is complicated. You may need to tie together many components and APIs like gen AI models (LLMs), prompts, vector stores, embedders, and tools - each with provider-specific implementations and quirks. Once you've built a prototype, refining it to production quality can be a difficult process due to the non-deterministic nature of gen AI models.
+Integrating generative AI into apps is complicated. You may need to tie together many components and APIs like gen AI models (LLMs), prompts, vector stores, embedders, and tools - each with provider-specific implementations and quirks. Refining AI apps for production canalso be difficult due to the non-deterministic nature of generative AI models.
 
-Genkit libraries provide lightweight abstractions and unified APIs that make it easy to define and compose AI app components from any provider into cohesive workflows with builtin type-safety and observability, without sacrificing flexibility. Genkit's integrated tooling accelerates your iteration speed by helping you quickly test, visualize, and debug your app's AI logic.
+Genkit libraries provide lightweight abstractions and unified APIs that make it easy to define and compose AI app components from any provider into cohesive workflows with built-in type-safety and observability, without sacrificing flexibility. Genkit's integrated tooling accelerates your iteration speed by helping you quickly test, visualize, and debug your app's AI logic.
 
 ## Get started
 
-* [Genkit for Node.js quickstart](https://firebase.google.com/docs/genkit/get-started)
-* [Genkit for Go quickstart](https://github.com/firebase/genkit/blob/main/docs-go/get-started-go.md)
+- [Node.js documentation](https://firebase.google.com/docs/genkit/get-started)
+- [Go documentation](https://github.com/firebase/genkit/blob/main/docs-go/get-started-go.md)
 
 > [!NOTE]
 > Genkit for Go is currently in Alpha, so we only recommend using it for prototyping and exploration. 
 
-## Key features
+## Framework key features
 
-### GenAI models
+- **Unified APIs for generation and retrieval:** Use standardized APIs to generate, embed, index, and retrieve content with multiple AI model and vector store providers. The generation API supports streaming, structured output with custom schemas, multimodal input and output, function calling with tools, and custom configuration options. Make your code more flexible without sacrificing any provider-specific capabilities.
 
-**Unified API for generation** across AI models built by Google (Gemini, Gemma) and third party providers. Supports multimodal input, multimedia content generation, and custom options.
+- **Flows for multistep logic:** Write your AI app logic within observable, type-safe, streamable functions, called [flows](https://firebase.google.com/docs/genkit/flows). Flows are just like regular functions, but are integrated with Genkit tooling, group traces for multiple steps, are deployable as HTTP endpoints with minimal boilerplate, and have additional properties that make them well-suited to working with generative AI APIs. 
 
-**Generate structured output** as strongly-typed objects with custom schemas for easy integration into your app.
+- **Enhanced prompt engineering and management:** Your choice of model, configurations, input prompt, output schema, and more all impact your generation outcomes. streamline your prompt engineering process with [Dotprompt](https://firebase.google.com/docs/genkit/dotprompt), a prompt standard that encapsulates rich prompt text and formatting with model and generation metadata. Organize, test, version, and deploy your prompts alongside your code.
 
-**Define custom tools for your AI models** to fetch data, display UI, write to a database, and more.
+- **Easy streaming:** Stream content from your deployed Genkit endpoints directly to your client app to create user experiences that feel faster and more responsive.
 
-**Write well structured prompts** with all relevant metadata encapsulated in a single [dotprompt](https://firebase.google.com/docs/genkit/dotprompt) file. Supports handlebars templating, history, multimedia, and more.
+- **Extensibile with plugins:** Use plugins built by the Genkit team and community to access components from specific AI model and vector store providers, and integrate with platforms like Firebase, Google Cloud, and more. 
 
-![Screenshot of IDE showing Firebase Genkit RAG sample code](docs/resources/readme-rag-screenshot.png)
+## Tooling
 
-### Retrieval
+Genkit provides a dedicated CLI and UI that help you get started quickly and rapidly iterate on your AI app.
 
-**Build context-aware AI features** by indexing your data and dynamically retrieving relevant information from your database. Genkit provides flexible, light-weight abstractions for indexers and retrievers that work with any database provider.
+### CLI
 
-### Evaluation
+The Genkit CLI is the fastest way to initialize a Genkit app and comes with commands to help you run and evaluate Genkit functions, called flows. 
 
-**Evaluate your end-to-end AI workflow** using a variety of pre-built and custom evaluators. As easy as:
+**Intall the CLI:** `npm i -g genkit`
 
-```bash
-genkit eval:flow myAiWorkflow --input testQuestions.json
-```
+**Initialize a Genkit app:** `genkit init`
 
-### Extensibility with plugins
+### Developer UI
 
-**Access pre-built components and integrations** for models, vector stores, tools, evaluators, observability, and more through Genkit’s open ecosystem of plugins built by Google and the community. For a list of existing plugins from Google and the community, explore the #genkit-plugin keyword [on npm](https://www.npmjs.com/search?q=keywords:genkit-plugin).
+The Genkit Developer UI helps you rapidly test, debug, and iterate on your AI app using a rich web interface. Key features include:
 
-You can also use this extensibility to easily define custom components whenever existing plugins don’t fit your needs.
+- **Run:** Invoke and iterate on Genkit flows, prompts, queries, and more in dedicated playgrounds for Genkit components.
+- **Inpsect:** View detailed traces for previous exeuctions of flows and components, including step-by-step views of complex flows.
+- **Evaluate:** See the results of evaluations run on flows against test sets, including scored metrics and links to the traces for evaluation runs. 
 
-For more information:
+<img src="docs/resources/readme-ui-traces-screenshot.png" width="700" alt="Screenshot of Genkit Developer UI showing traces">
 
-- [Genkit plugins on npm](https://www.npmjs.com/search?q=keywords:genkit-plugin)
-- [Writing Genkit plugins](https://firebase.google.com/docs/genkit/plugin-authoring)
-
-### Deployment
-
-**Deploy your AI feature with a single command** through the Firebase or Google Cloud CLI to:
-
-- Cloud Functions for Firebase (Node.js only)
-- Firebase App Hosting as a Next.js app (Early preview, Node.js only)
-- Google Cloud Run (Node.js or Go)
-
-You can also deploy to any container platform where your chosen runtime is supported.
-
-### Observability and monitoring
-
-Genkit is **fully instrumented with OpenTelemetry** and provides hooks to export telemetry data. Easily log traces and telemetry to Google Cloud using pre-built plugins or set up with a custom provider for full end-to-end observability and monitoring in production.
-
-## Genkit Developer UI
-
-Genkit's developer UI enables developers to prototype, develop, and test their AI features locally, resulting in quick turn-around times, key features include:
-
-Key features:
-
-- **Action Runners:** Sandboxed environments that let developers run Genkit flows and perform other actions like chatting with models, running structured prompts or testing retrievers.
-- **Trace Viewer:** View previous executions of flows and actions, including step-by-step views of complex flows.
-- **Evaluations:** See the results of running evaluations of flows against test sets, including scored metrics and links to the traces for those evaluation runs. For more information see the [evaluation documentation](https://firebase.google.com/docs/genkit/evaluation).
-
-![Screenshot of IDE showing Firebase Genkit RAG sample code](docs/resources/readme-ui-screenshot.png)
-
-## Google Cloud and Firebase integrations
-
-Genkit works great out-of-the-box with Firebase or Google Cloud projects thanks to official plugins and templates that make it easy to integrate Google Cloud and Firebase services for AI, databases, monitoring, authentication, and deployment. These include:
-
-- [Google Cloud plugin](https://firebase.google.com/docs/genkit/plugins/google-cloud): Export logs, metrics, and traces from your AI-powered feature to Cloud Logging, Cloud Tracing, and Firestore.
-- [Firebase plugin](https://firebase.google.com/docs/genkit/plugins/firebase): Integrate with Cloud Functions for Firebase, Firebase Authentication, App Check, Firestore, and more.
-- [Google Cloud Vertex AI plugin](https://firebase.google.com/docs/genkit/plugins/vertex-ai): Integrate with Vertex AI models (Gemini, Imagen, …), evaluators, and more.
-- [Google AI plugin](https://firebase.google.com/docs/genkit/plugins/google-genai): Integrate with Google AI Gemini APIs.
-- [Ollama plugin](https://firebase.google.com/docs/genkit/plugins/ollama): Integrate with Ollama to access popular OSS models like Google’s Gemma.
-- [pgvector template](https://firebase.google.com/docs/genkit/templates/pgvector): See our template for integrating with pgvector for CloudSQL and AlloyDB.
-
-## Try it out on IDX
+## Try Genkit on IDX
 
 <img src="docs/resources/idx-logo.png" width="50" alt="Project IDX logo">
 
-Interested in trying Genkit? [Try it out on Project IDX](https://idx.google.com/new/genkit), Google's AI-assisted workspace for full-stack app development.
+Interested in trying Genkit without needing to set up a local environment? [Try it out on Project IDX](https://idx.google.com/new/genkit), Google's AI-assisted workspace for full-stack app development.
 
-## Contributing
+## Plugin ecosystem
 
-Genkit is an open source framework, and we welcome contributions. Information on how to get started can be found in our [contributor guide](CONTRIBUTING.md).
+Access models, vector stores, evaluators, and platform integrations from specific providers like, Google and OpenAI, through Genkit plugins. Plugins are built by the Genkit team, partners, and the community.
+
+- [Genkit Node.js plugins](https://www.npmjs.com/search?q=keywords:genkit-plugin)
+- [Genkit Go plugins](https://pkg.go.dev/github.com/firebase/genkit/go#section-directories)
+
+You can contribute to the Genkit ecosystem by [writing Genkit plugins](https://firebase.google.com/docs/genkit/plugin-authoring).
+
+Great examples of community-built plugins for OpenAI, Anthropic, Cohere, and more can be found in this [repository](https://github.com/TheFireCo/genkit-plugins).
+
+## Community
+
+Join the [Genkit community on Discord](https://discord.gg/qXt5zzQKpc) to keep up with the latest announcements, ask questions, participate in discussions, and showcase any apps or content you've built with Genkit.
 
 Please use our GitHub [issue tracker](https://github.com/firebase/genkit/issues) to file feedback and feature requests.
 
-You can also reach out to us using the GitHub [discussion](https://github.com/firebase/genkit/discussions) forums.
+You can also start and engage in discussions on the [GitHub Discussion](https://github.com/firebase/genkit/discussions) forums.
 
-Firebase Genkit Team
+## Contributing
+
+Genkit is an open source framework, and we welcome contributions. Information on how to get started can be found in our [Contribution Guide](CONTRIBUTING.md).
+
+## Authors
+
+Genkit is built by [Firebase](https://firebase.google.com/products/genkit) with contributions from the [Open Source Community](https://github.com/firebase/genkit/graphs/contributors).
