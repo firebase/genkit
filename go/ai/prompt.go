@@ -16,6 +16,7 @@ package ai
 
 import (
 	"context"
+	"errors"
 	"maps"
 
 	"github.com/firebase/genkit/go/core"
@@ -49,5 +50,8 @@ func LookupPrompt(provider, name string) *Prompt {
 
 // Render renders the [Prompt] with some input data.
 func (p *Prompt) Render(ctx context.Context, input any) (*GenerateRequest, error) {
+	if p == nil {
+		return nil, errors.New("Render called on a nil Prompt; check that all prompts are defined")
+	}
 	return (*core.Action[any, *GenerateRequest, struct{}])(p).Run(ctx, input, nil)
 }
