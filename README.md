@@ -54,12 +54,14 @@ The Genkit Developer UI helps you rapidly test, debug, and iterate on your AI ap
 - **Run:** Invoke and iterate on Genkit flows, prompts, queries, and more in dedicated playgrounds for Genkit components.
 - **Inpsect:** View detailed traces for previous exeuctions of flows and components, including step-by-step views of complex flows.
 - **Evaluate:** See the results of evaluations run on flows against test sets, including scored metrics and links to the traces for evaluation runs. 
+- [Genkit plugins on npm](https://www.npmjs.com/search?q=keywords:genkit-plugin)
+- [Writing Genkit plugins](https://firebase.google.com/docs/genkit/plugin-authoring)
 
-<img src="docs/resources/readme-ui-traces-screenshot.png" width="700" alt="Screenshot of Genkit Developer UI showing traces">
+You can also find several plugins built by the Genkit community in this [repository](https://github.com/TheFireCo/genkit-plugins). Keep in mind these are not developed or supported by the Genkit team.
 
-## Try Genkit on IDX
+### Deployment
 
-<img src="docs/resources/idx-logo.png" width="50" alt="Project IDX logo">
+**Deploy your AI feature with a single command** through the Firebase or Google Cloud CLI to:
 
 Interested in trying Genkit without needing to set up a local environment? [Try it out on Project IDX](https://idx.google.com/new/genkit), Google's AI-assisted workspace for full-stack app development.
 

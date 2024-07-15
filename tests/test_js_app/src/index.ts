@@ -17,7 +17,6 @@
 import { generate } from '@genkit-ai/ai';
 import { defineModel } from '@genkit-ai/ai/model';
 import { configureGenkit } from '@genkit-ai/core';
-import { firebase } from '@genkit-ai/firebase';
 import { defineFlow } from '@genkit-ai/flow';
 import * as z from 'zod';
 
@@ -51,9 +50,7 @@ defineModel(
 );
 
 export default configureGenkit({
-  plugins: [firebase()],
-  flowStateStore: 'firebase',
-  traceStore: 'firebase',
+  plugins: [],
   enableTracingAndMetrics: true,
   logLevel: 'debug',
 });

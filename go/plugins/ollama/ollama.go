@@ -84,14 +84,6 @@ type ModelDefinition struct {
 	Type string
 }
 
-// Config provides configuration options for the Init function.
-type Config struct {
-	// Server Address of oLLama.
-	ServerAddress string
-	// Generative models to provide.
-	Models []ModelDefinition
-}
-
 type generator struct {
 	model         ModelDefinition
 	serverAddress string
@@ -147,15 +139,25 @@ type ollamaGenerateResponse struct {
 	Response  string `json:"response"`
 }
 
-// Note: Since Ollama models are locally hosted, the plugin doesn't initialize any default models.
-// The user has to explicitly decide which model to pull down.
-func Init(ctx context.Context, serverAddress string) (err error) {
+// Config provides configuration options for the Init function.
+type Config struct {
+	// Server Address of oLLama.
+	ServerAddress string
+}
+
+// Init initializes the plugin.
+// Since Ollama models are locally hosted, the plugin doesn't initialize any default models.
+// After downloading a model, call [DefineModel] to use it.
+func Init(ctx context.Context, cfg *Config) (err error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if state.initted {
 		panic("ollama.Init already called")
 	}
-	state.serverAddress = serverAddress
+	if cfg == nil || cfg.ServerAddress == "" {
+		return errors.New("ollama: need ServerAddress")
+	}
+	state.serverAddress = cfg.ServerAddress
 	state.initted = true
 	return nil
 }
@@ -194,16 +196,17 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 			Stream:   stream,
 		}
 	}
-	client := &http.Client{
-		Timeout: time.Second * 30,
-	}
+	client := &http.Client{Timeout: 30 * time.Second}
 	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
 	// Determine the correct endpoint
 	endpoint := g.serverAddress + "/api/chat"
 	if !isChatModel {
 		endpoint = g.serverAddress + "/api/generate"
 	}
-	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(payloadBytes))
+	req, err := http.NewRequest("POST", endpoint, bytes.NewReader(payloadBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
@@ -253,7 +256,7 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 			cb(ctx, chunk)
 		}
 		if err := scanner.Err(); err != nil {
-			return nil, fmt.Errorf("failed to read stream: %v", err)
+			return nil, fmt.Errorf("reading response stream: %v", err)
 		}
 		// Create a final response with the merged chunks
 		finalResponse := &ai.GenerateResponse{
