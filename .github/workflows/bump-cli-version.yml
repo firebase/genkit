@@ -33,6 +33,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
       - uses: pnpm/action-setup@v3
       - name: Set up node v20
         uses: actions/setup-node@v4
