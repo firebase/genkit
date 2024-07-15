@@ -57,9 +57,6 @@ export function getEntryPoint(directory: string): string | undefined {
  * @returns Runtime of the project directory.
  */
 export function detectRuntime(directory: string): Runtime {
-  if (fs.existsSync(path.join(directory, 'package.json'))) {
-    return 'nodejs';
-  }
   const files = fs.readdirSync(directory);
   for (const file of files) {
     const filePath = path.join(directory, file);
@@ -67,6 +64,9 @@ export function detectRuntime(directory: string): Runtime {
     if (stat.isFile() && (path.extname(file) === '.go' || file === 'go.mod')) {
       return 'go';
     }
+  }
+  if (fs.existsSync(path.join(directory, 'package.json'))) {
+    return 'nodejs';
   }
   return undefined;
 }
