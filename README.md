@@ -11,7 +11,7 @@ Genkit is built by Firebase, Google's app development platform, but does not req
 
 ## Why use Genkit?
 
-Integrating generative AI into apps is complicated. You may need to tie together many components like generative AI models (LLMs), prompts, vector stores, embedders, and tools - each with provider-specific implementations and quirks. The non-deterministic nature of generative AI models also makes refining AI apps for production challenging.
+Integrating generative AI into apps is complicated. You may need to tie together various components like generative AI models (LLMs), prompts, vector stores, embedders, and tools - each with provider-specific implementations and quirks. The non-deterministic nature of generative AI models also makes refining AI apps for production challenging.
 
 Genkit libraries provide lightweight abstractions and unified APIs that make it easy to define and compose AI app components from any provider into cohesive workflows with built-in type-safety and observability. Genkit's integrated tooling accelerates your iteration speed by helping you quickly test, visualize, and debug your app's AI logic.
 
