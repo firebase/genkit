@@ -53,18 +53,23 @@ type ModelMetadata struct {
 // [ModelAction] that runs it.
 func DefineModel(provider, name string, metadata *ModelMetadata, generate func(context.Context, *GenerateRequest, ModelStreamingCallback) (*GenerateResponse, error)) *Model {
 	metadataMap := map[string]any{}
-	if metadata != nil {
-		if metadata.Label != "" {
-			metadataMap["label"] = metadata.Label
+	if metadata == nil {
+		// Always make sure there's at least minimal metadata.
+		metadata = &ModelMetadata{
+			Label: name,
 		}
-		supports := map[string]bool{
-			"media":      metadata.Supports.Media,
-			"multiturn":  metadata.Supports.Multiturn,
-			"systemRole": metadata.Supports.SystemRole,
-			"tools":      metadata.Supports.Tools,
-		}
-		metadataMap["supports"] = supports
 	}
+	if metadata.Label != "" {
+		metadataMap["label"] = metadata.Label
+	}
+	supports := map[string]bool{
+		"media":      metadata.Supports.Media,
+		"multiturn":  metadata.Supports.Multiturn,
+		"systemRole": metadata.Supports.SystemRole,
+		"tools":      metadata.Supports.Tools,
+	}
+	metadataMap["supports"] = supports
+
 	return (*Model)(core.DefineStreamingAction(provider, name, atype.Model, map[string]any{
 		"model": metadataMap,
 	}, generate))

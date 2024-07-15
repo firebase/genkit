@@ -276,7 +276,7 @@ export function defineModel<
     streamingCallback?: StreamingCallback<GenerateResponseChunkData>
   ) => Promise<GenerateResponseData>
 ): ModelAction<CustomOptionsSchema> {
-  const label = options.label || `${options.name} GenAI model`;
+  const label = options.label || options.name;
   const middleware: ModelMiddleware[] = [
     ...(options.use || []),
     validateSupport(options),
