@@ -50,6 +50,11 @@ func DefineEmbedder(provider, name string, embed func(context.Context, *EmbedReq
 	return (*Embedder)(core.DefineAction(provider, name, atype.Embedder, nil, embed))
 }
 
+// IsDefinedEmbedder reports whether an embedder is defined.
+func IsDefinedEmbedder(provider, name string) bool {
+	return LookupEmbedder(provider, name) != nil
+}
+
 // LookupEmbedder looks up an [EmbedderAction] registered by [DefineEmbedder].
 // It returns nil if the embedder was not defined.
 func LookupEmbedder(provider, name string) *Embedder {

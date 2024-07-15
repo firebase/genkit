@@ -110,15 +110,15 @@ func Init(ctx context.Context, cfg *Config) (err error) {
 	return nil
 }
 
-// IsKnownModel reports whether a model is known to this plugin.
-func IsKnownModel(name string) bool {
-	_, ok := knownCaps[name]
-	return ok
+// IsDefinedModel reports whether a model is defined in this plugin.
+func IsDefinedModel(name string) bool {
+	return ai.IsDefinedModel(provider, name)
 }
 
 // DefineModel defines an unknown model with the given name.
 // The second argument describes the capability of the model.
-// Use [IsKnownModel] to determine if a model is known.
+// Use [IsDefinedModel] to determine if a model is already defined.
+// After [Init] is called, only the known models are defined.
 func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
@@ -136,17 +136,6 @@ func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
 		mc = *caps
 	}
 	return defineModel(name, mc), nil
-}
-
-// KnownModels returns a slice of all known model names.
-func KnownModels() []string {
-	keys := make([]string, len(knownCaps))
-	i := 0
-	for k := range knownCaps {
-		keys[i] = k
-		i++
-	}
-	return keys
 }
 
 // requires state.mu
@@ -167,6 +156,11 @@ func DefineEmbedder(name string) *ai.Embedder {
 		panic("googleai.Init not called")
 	}
 	return defineEmbedder(name)
+}
+
+// IsDefinedEmbedder reports whether a model is defined in this plugin.
+func IsDefinedEmbedder(name string) bool {
+	return ai.IsDefinedEmbedder(provider, name)
 }
 
 // requires state.mu
