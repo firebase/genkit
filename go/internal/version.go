@@ -16,4 +16,4 @@ package internal
 
 // Version is the current tagged release of this module.
 // That is, it should match the value of the latest `go/v*` git tag.
-const Version = "0.0.1"
+const Version = "0.0.2"
