@@ -1,6 +1,14 @@
-# Get started with Genkit using Go
+# Get started with Genkit using Go (alpha)
 
-To get started with Firebase Genkit, install the Genkit CLI and run
+The Firebase Genkit libraries for Go are now available for preview! Because the
+Go libraries are currently in Alpha, you might see API and functional changes as
+development progresses. We recommend using it only for prototyping and
+exploration.
+
+If you discover issues with the libraries or this documentation please report
+them in our [GitHub repository](https://github.com/firebase/genkit/).
+
+To get started with Genkit, install the Genkit CLI and run
 `genkit init` in a Go project. The rest of this page shows you how.
 
 ## Requirements

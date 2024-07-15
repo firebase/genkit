@@ -121,7 +121,7 @@ To invoke a flow in streaming mode:
   menuSuggestionFlow.Stream(
   	context.Background(),
   	"French",
-  )(func(sfv *core.StreamFlowValue[OutputType, StreamType], err error) bool {
+  )(func(sfv *genkit.StreamFlowValue[OutputType, StreamType], err error) bool {
   	if !sfv.Done {
   		fmt.Print(sfv.Output)
   		return true

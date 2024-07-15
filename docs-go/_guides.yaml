@@ -1,0 +1,65 @@
+# Copyright 2024 Google LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+toc:
+  - title: Get started
+    path: /docs/genkit-go/get-started-go
+
+  - heading: Building AI workflows
+  - title: Generating content
+    path: /docs/genkit-go/models
+  - title: Creating flows
+    path: /docs/genkit-go/flows
+  - title: Prompting models
+    path: /docs/genkit-go/prompts
+  - title: Managing prompts
+    path: /docs/genkit-go/dotprompt
+  - title: Retrieval-augmented generation (RAG)
+    path: /docs/genkit-go/rag
+  - title: Observability & monitoring
+    path: /docs/genkit-go/monitoring
+
+  - heading: Deploying AI workflows
+  - title: Deploy with Cloud Run
+    path: /docs/genkit-go/cloud-run
+
+  # - heading: Writing plugins
+  # - title: Overview
+  #   path: /docs/genkit-go/plugin-authoring
+  # - title: Writing a Telemetry Plugin
+  #   path: /docs/genkit-go/plugin-authoring-telemetry
+  # - title: Writing an Evaluator Plugin
+  #   path: /docs/genkit-go/plugin-authoring-evaluator
+
+  - heading: Official plugins
+  - title: Google AI for Developers
+    path: /docs/genkit-go/plugins/google-genai
+  - title: Google Cloud Vertex AI
+    path: /docs/genkit-go/plugins/vertex-ai
+  - title: Ollama
+    path: /docs/genkit-go/plugins/ollama
+  - title: Pinecone
+    path: /docs/genkit-go/plugins/pinecone
+  - title: pgvector (code template)
+    path: /docs/genkit-go/pgvector
+  - title: Google Cloud
+    path: /docs/genkit-go/plugins/google-cloud
+
+  - heading: Reference
+  - title: Genkit packages
+    path: https://pkg.go.dev/github.com/firebase/genkit/go
+    status: external
+# reference:
+#   - title: Resource summary
+#     path: /docs/genkit-go/reference/coming-soon

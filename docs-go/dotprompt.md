@@ -62,9 +62,9 @@ To use this prompt:
   ctx := context.Background()
 
   // The .prompt file specifies vertexai/gemini-1.5-pro, so make sure it's set
-  // up:
-  projectID := os.Getenv("GCLOUD_PROJECT")
-  vertexai.Init(ctx, projectID, "us-central1")
+  // up.
+  // Default to the project in GCLOUD_PROJECT and the location "us-central1".
+  vertexai.Init(ctx, nil)
   vertexai.DefineModel("gemini-1.5-pro", nil)
 
   type GreetingPromptInput struct {

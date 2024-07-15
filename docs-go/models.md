@@ -26,8 +26,10 @@ models.
   ```
 
   ```go
-  projectID := os.Getenv("GCLOUD_PROJECT")
-  if err := vertexai.Init(ctx, projectID, "us-central1"); err != nil {
+  // Default to the value of GCLOUD_PROJECT for the project,
+  // and "us-central1" for the location.
+  // To specify these values directly, pass a vertexai.Config value to Init.
+  if err := vertexai.Init(ctx, nil); err != nil {
   	return err
   }
   ```

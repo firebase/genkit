@@ -69,7 +69,7 @@ to define your prompts and run them in the Developer UI.
   	func(ctx context.Context, input any) (*ai.GenerateRequest, error) {
   		params, ok := input.(HelloPromptInput)
   		if !ok {
-  			return nil, errors.New("Input doesn't satisfy schema.")
+  			return nil, errors.New("input doesn't satisfy schema")
   		}
   		prompt := fmt.Sprintf(
   			"You are a helpful AI assistant named Walt. Say hello to %s.",
@@ -97,7 +97,7 @@ Provide the input variables expected by the prompt, and the model to call.
   if err != nil {
   	return err
   }
-  response, err := gemini15pro.Generate(context.Background(), request, nil)
+  response, err := model.Generate(context.Background(), request, nil)
   ```
 
 In the Genkit Developer UI, you can run any prompt you have defined in this way.
