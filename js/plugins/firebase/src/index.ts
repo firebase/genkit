@@ -15,6 +15,7 @@
  */
 
 import { genkitPlugin, Plugin } from '@genkit-ai/core';
+import { logger } from '@genkit-ai/core/logging';
 import { FirestoreStateStore } from '@genkit-ai/flow';
 import {
   GcpLogger,
@@ -43,7 +44,7 @@ export const firebase: Plugin<[FirestorePluginParams] | []> = genkitPlugin(
   async (params?: FirestorePluginParams) => {
     const authClient = new GoogleAuth();
     const gcpOptions = {
-      projectId: params?.projectId || (await authClient.getProjectId()),
+      projectId: params?.projectId || (await getProjectId(authClient)),
       telemetryConfig: params?.telemetryConfig,
     };
     return {
@@ -68,3 +69,14 @@ export const firebase: Plugin<[FirestorePluginParams] | []> = genkitPlugin(
     };
   }
 );
+
+async function getProjectId(authClient: GoogleAuth): Promise<string> {
+  if (process.env.GENKIT_ENV === 'dev') {
+    return await authClient.getProjectId().catch((err) => {
+      logger.warn('run gcloud auth application-default login');
+      return '';
+    });
+  }
+
+  return await authClient.getProjectId();
+}
