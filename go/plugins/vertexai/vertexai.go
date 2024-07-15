@@ -31,7 +31,10 @@ import (
 	"google.golang.org/api/option"
 )
 
-const provider = "vertexai"
+const (
+	provider    = "vertexai"
+	labelPrefix = "Vertex AI"
+)
 
 var (
 	knownCaps = map[string]ai.ModelCapabilities{
@@ -128,21 +131,25 @@ func Init(ctx context.Context, cfg *Config) error {
 	return nil
 }
 
+//copy:sink defineModel from ../googleai/googleai.go
+// DO NOT MODIFY below vvvv
+
 // DefineModel defines an unknown model with the given name.
 // The second argument describes the capability of the model.
-// Use [IsKnownModel] to determine if a model is known.
+// Use [IsDefinedModel] to determine if a model is already defined.
+// After [Init] is called, only the known models are defined.
 func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
-		panic("vertexai.Init not called")
+		panic(provider + ".Init not called")
 	}
 	var mc ai.ModelCapabilities
 	if caps == nil {
 		var ok bool
 		mc, ok = knownCaps[name]
 		if !ok {
-			return nil, fmt.Errorf("vertextai.DefineModel: called with unknown model %q and nil ModelCapabilities", name)
+			return nil, fmt.Errorf("%s.DefineModel: called with unknown model %q and nil ModelCapabilities", provider, name)
 		}
 	} else {
 		mc = *caps
@@ -151,31 +158,22 @@ func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
 }
 
 // requires state.mu
-func defineModel(name string, mc ai.ModelCapabilities) *ai.Model {
+func defineModel(name string, caps ai.ModelCapabilities) *ai.Model {
 	meta := &ai.ModelMetadata{
-		Label:    "Vertex AI - " + name,
-		Supports: mc,
+		Label:    labelPrefix + " - " + name,
+		Supports: caps,
 	}
-	g := &generator{model: name, client: state.gclient}
+	g := generator{model: name, client: state.gclient}
 	return ai.DefineModel(provider, name, meta, g.generate)
 }
 
-// IsKnownModel reports whether a model is known to this plugin.
-func IsKnownModel(name string) bool {
-	_, ok := knownCaps[name]
-	return ok
+// IsDefinedModel reports whether the named [Model] is defined by this plugin.
+func IsDefinedModel(name string) bool {
+	return ai.IsDefinedModel(provider, name)
 }
 
-// KnownModels returns a slice of all known model names.
-func KnownModels() []string {
-	keys := make([]string, len(knownCaps))
-	i := 0
-	for k := range knownCaps {
-		keys[i] = k
-		i++
-	}
-	return keys
-}
+// DO NOT MODIFY above ^^^^
+//copy:endsink defineModel
 
 // DefineEmbedder defines an embedder with the given name.
 func DefineEmbedder(name string) *ai.Embedder {
@@ -195,17 +193,23 @@ func defineEmbedder(name string) *ai.Embedder {
 	})
 }
 
+//copy:sink lookups from ../googleai/googleai.go
+// DO NOT MODIFY below vvvv
+
 // Model returns the [ai.Model] with the given name.
-// It returns nil if the model was not configured.
+// It returns nil if the model was not defined.
 func Model(name string) *ai.Model {
 	return ai.LookupModel(provider, name)
 }
 
 // Embedder returns the [ai.Embedder] with the given name.
-// It returns nil if the embedder was not configured.
+// It returns nil if the embedder was not defined.
 func Embedder(name string) *ai.Embedder {
 	return ai.LookupEmbedder(provider, name)
 }
+
+// DO NOT MODIFY above ^^^^
+//copy:endsink lookups
 
 type generator struct {
 	model  string
