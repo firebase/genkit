@@ -24,6 +24,7 @@ import (
 	aiplatform "cloud.google.com/go/aiplatform/apiv1"
 	"cloud.google.com/go/vertexai/genai"
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/plugins/internal/uri"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
@@ -114,7 +115,7 @@ func Init(ctx context.Context, cfg *Config) error {
 	}
 	var err error
 	// Client for Gemini SDK.
-	opts := append([]option.ClientOption{genai.WithClientInfo("genkit-go", "alpha")}, cfg.ClientOptions...)
+	opts := append([]option.ClientOption{genai.WithClientInfo("genkit-go", internal.Version)}, cfg.ClientOptions...)
 	state.gclient, err = genai.NewClient(ctx, state.projectID, state.location, opts...)
 	if err != nil {
 		return err
