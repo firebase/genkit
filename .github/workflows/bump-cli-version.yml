@@ -42,7 +42,7 @@ jobs:
       - name: 'genkit-tools/common version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
           PACKAGEJSON_DIR: genkit-tools/common
         with:
           default: ${{ inputs.releaseType }}
@@ -51,7 +51,7 @@ jobs:
       - name: 'genkit-tools/cli version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
           PACKAGEJSON_DIR: genkit-tools/cli
         with:
           default: ${{ inputs.releaseType }}
