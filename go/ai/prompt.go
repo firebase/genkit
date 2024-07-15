@@ -42,6 +42,11 @@ func DefinePrompt(provider, name string, metadata map[string]any, inputSchema *j
 	return (*Prompt)(core.DefineActionWithInputSchema(provider, name, atype.Prompt, mm, inputSchema, render))
 }
 
+// IsDefinedPrompt reports whether a [Prompt] is defined.
+func IsDefinedPrompt(provider, name string) bool {
+	return LookupPrompt(provider, name) != nil
+}
+
 // LookupPrompt looks up a [Prompt] registered by [DefinePrompt].
 // It returns nil if the prompt was not defined.
 func LookupPrompt(provider, name string) *Prompt {

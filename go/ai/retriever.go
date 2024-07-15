@@ -62,6 +62,11 @@ func DefineIndexer(provider, name string, index func(context.Context, *IndexerRe
 	return (*Indexer)(core.DefineAction(provider, name, atype.Indexer, nil, f))
 }
 
+// IsDefinedIndexer reports whether an [Indexer] is defined.
+func IsDefinedIndexer(provider, name string) bool {
+	return LookupIndexer(provider, name) != nil
+}
+
 // LookupIndexer looks up a [Indexer] registered by [DefineIndexer].
 // It returns nil if the model was not defined.
 func LookupIndexer(provider, name string) *Indexer {
@@ -72,6 +77,11 @@ func LookupIndexer(provider, name string) *Indexer {
 // [Retriever] that runs it.
 func DefineRetriever(provider, name string, ret func(context.Context, *RetrieverRequest) (*RetrieverResponse, error)) *Retriever {
 	return (*Retriever)(core.DefineAction(provider, name, atype.Retriever, nil, ret))
+}
+
+// IsDefinedRetriever reports whether a [Retriever] is defined.
+func IsDefinedRetriever(provider, name string) bool {
+	return LookupRetriever(provider, name) != nil
 }
 
 // LookupRetriever looks up a [Retriever] registered by [DefineRetriever].
