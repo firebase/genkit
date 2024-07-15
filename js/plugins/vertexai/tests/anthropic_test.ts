@@ -272,7 +272,7 @@ describe('fromAnthropicResponse', () => {
               model: MODEL_ID,
               type: 'message',
             },
-            finishReason: 'other',
+            finishReason: 'stop',
             index: 0,
             message: {
               role: 'model',
@@ -280,6 +280,7 @@ describe('fromAnthropicResponse', () => {
                 {
                   toolRequest: {
                     name: 'get_weather',
+                    ref: 'toolu_get_weather',
                     input: {
                       type: 'object',
                       properties: {

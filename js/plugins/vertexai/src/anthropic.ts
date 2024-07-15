@@ -23,28 +23,30 @@ import {
   TextBlock,
   TextBlockParam,
   TextDelta,
+  Tool,
+  ToolResultBlockParam,
   ToolUseBlock,
   ToolUseBlockParam,
 } from '@anthropic-ai/sdk/resources/messages';
 import { AnthropicVertex } from '@anthropic-ai/vertex-sdk';
 import {
   CandidateData,
+  defineModel,
   GenerateRequest,
   GenerateResponseData,
   GenerationCommonConfigSchema,
-  Part as GenkitPart,
-  ModelReference,
-  Part,
-  defineModel,
   getBasicUsageStats,
   modelRef,
+  ModelReference,
+  Part as GenkitPart,
+  Part,
 } from '@genkit-ai/ai/model';
 import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
 
 export const claude35Sonnet = modelRef({
   name: 'vertexai/claude-3-5-sonnet',
   info: {
-    label: 'Vertex AI Model Garden - Claude 35 Sonnet',
+    label: 'Vertex AI Model Garden - Claude 3.5 Sonnet',
     versions: ['claude-3-5-sonnet@20240620'],
     supports: {
       multiturn: true,
@@ -133,6 +135,14 @@ export function toAnthropicRequest(
           return c.text;
         })
         .join();
+    }
+    // If the last message is a tool response, we need to add a user message.
+    // https://docs.anthropic.com/en/docs/build-with-claude/tool-use#handling-tool-use-and-tool-result-content-blocks
+    else if (msg.content[msg.content.length - 1].toolResponse) {
+      messages.push({
+        role: 'user',
+        content: toAnthropicContent(msg.content),
+      });
     } else {
       messages.push({
         role: toAnthropicRole(msg.role),
@@ -148,6 +158,15 @@ export function toAnthropicRequest(
   } as MessageCreateParamsBase;
   if (system) {
     request['system'] = system;
+  }
+  if (input.tools) {
+    request.tools = input.tools?.map((tool) => {
+      return {
+        name: tool.name,
+        description: tool.description,
+        input_schema: tool.inputSchema,
+      };
+    }) as Array<Tool>;
   }
   if (input.config?.stopSequences) {
     request.stop_sequences = input.config?.stopSequences;
@@ -166,7 +185,9 @@ export function toAnthropicRequest(
 
 function toAnthropicContent(
   content: GenkitPart[]
-): Array<TextBlockParam | ImageBlockParam | ToolUseBlockParam> {
+): Array<
+  TextBlockParam | ImageBlockParam | ToolUseBlockParam | ToolResultBlockParam
+> {
   return content.map((p) => {
     if (p.text) {
       return {
@@ -196,7 +217,10 @@ function toAnthropicContent(
     if (p.toolRequest) {
       return toAnthropicToolRequest(p.toolRequest);
     }
-    throw new Error(`Unsupported content type: ${p}`);
+    if (p.toolResponse) {
+      return toAnthropicToolResponse(p);
+    }
+    throw new Error(`Unsupported content type: ${JSON.stringify(p)}`);
   });
 }
 
@@ -206,6 +230,9 @@ function toAnthropicRole(role): 'user' | 'assistant' {
   }
   if (role === 'user') {
     return 'user';
+  }
+  if (role === 'tool') {
+    return 'assistant';
   }
   throw new Error(`Unsupported role type ${role}`);
 }
@@ -221,6 +248,7 @@ function fromAnthropicToolCallPart(part: ToolUseBlock): Part {
     toolRequest: {
       name: part.name,
       input: part.input,
+      ref: part.id,
     },
   };
 }
@@ -244,7 +272,12 @@ function fromAnthropicCandidate(candidate: Message): CandidateData {
       content: parts.map(fromAnthropicPart),
     },
     finishReason: toGenkitFinishReason(
-      candidate.stop_reason as 'end_turn' | 'max_tokens' | 'stop_sequence'
+      candidate.stop_reason as
+        | 'end_turn'
+        | 'max_tokens'
+        | 'stop_sequence'
+        | 'tool_use'
+        | null
     ),
     custom: {
       id: candidate.id,
@@ -271,7 +304,7 @@ export function fromAnthropicResponse(
 }
 
 function toGenkitFinishReason(
-  reason: 'end_turn' | 'max_tokens' | 'stop_sequence' | null
+  reason: 'end_turn' | 'max_tokens' | 'stop_sequence' | 'tool_use' | null
 ): CandidateData['finishReason'] {
   switch (reason) {
     case 'end_turn':
@@ -279,6 +312,8 @@ function toGenkitFinishReason(
     case 'max_tokens':
       return 'length';
     case 'stop_sequence':
+      return 'stop';
+    case 'tool_use':
       return 'stop';
     case null:
       return 'unknown';
@@ -302,11 +337,27 @@ function toAnthropicToolRequest(tool: Record<string, any>): ToolUseBlock {
   }
   const declaration: ToolUseBlock = {
     type: 'tool_use',
-    id: `toolu_${tool.name}`,
+    id: tool.ref,
     name: tool.name,
-    input: tool.inputSchema,
+    input: tool.input,
   };
   return declaration;
+}
+
+function toAnthropicToolResponse(part: Part): ToolResultBlockParam {
+  if (!part.toolResponse?.ref) {
+    throw new Error('Tool response reference is required');
+  }
+
+  if (!part.toolResponse.output) {
+    throw new Error('Tool response output is required');
+  }
+
+  return {
+    type: 'tool_result',
+    tool_use_id: part.toolResponse.ref,
+    content: JSON.stringify(part.toolResponse.output),
+  };
 }
 
 export function anthropicModel(
