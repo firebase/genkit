@@ -37,13 +37,13 @@ export const catFactsIndexer = pineconeIndexerRef({
 });
 
 export const dogFactsRetriever = chromaRetrieverRef({
-  collectionName: 'dogfacts_collection',
-  displayName: 'Dog facts retriever',
+  collectionName: 'my_collection',
+  displayName: 'my_collection retriever',
 });
 
 export const dogFactsIndexer = chromaIndexerRef({
-  collectionName: 'dogfacts_collection',
-  displayName: 'Dog facts indexer',
+  collectionName: 'my_collection',
+  displayName: 'my_collection indexer',
 });
 
 // Simple aliases for readability
@@ -84,7 +84,7 @@ export const askQuestionsAboutDogsFlow = defineFlow(
   },
   async (query) => {
     const docs = await retrieve({
-      retriever: nfsDogFactsRetriever,
+      retriever: dogFactsRetriever,
       query,
       options: { k: 3 },
     });
@@ -130,7 +130,7 @@ export const indexDogFactsDocumentsFlow = defineFlow(
       return Document.fromText(text, { type: 'animal' });
     });
     await index({
-      indexer: nfsDogFactsIndexer,
+      indexer: dogFactsIndexer,
       documents,
     });
   }

@@ -1173,6 +1173,9 @@ importers:
       genkitx-pinecone:
         specifier: workspace:*
         version: link:../../plugins/pinecone
+      google-auth-library:
+        specifier: ^9.6.3
+        version: 9.7.0(encoding@0.1.13)
       llm-chunk:
         specifier: ^0.0.1
         version: 0.0.1

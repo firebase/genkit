@@ -29,6 +29,8 @@ import {
 import { chroma } from 'genkitx-chromadb';
 import { langchain } from 'genkitx-langchain';
 import { pinecone } from 'genkitx-pinecone';
+import { GoogleAuth } from 'google-auth-library';
+const auth = new GoogleAuth();
 
 export default configureGenkit({
   plugins: [
@@ -82,8 +84,27 @@ export default configureGenkit({
     ]),
     chroma([
       {
-        collectionName: 'dogfacts_collection',
+        collectionName: 'my_collection',
         embedder: textEmbeddingGecko,
+        createCollectionIfMissing: true,
+        clientParams: async () => {
+          const host = 'https://chroma-974125110527.us-central1.run.app';
+          const authClient = await auth.getIdTokenClient(
+            host
+          );
+
+          const idToken = await authClient.idTokenProvider.fetchIdToken(
+            host
+          );
+          return {
+            path: `${host}:443`,
+            fetchOptions: {
+              headers: {
+                Authorization: 'Bearer ' + idToken,
+              },
+            },
+          };
+        },
       },
     ]),
     devLocalVectorstore([
