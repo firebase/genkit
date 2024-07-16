@@ -183,10 +183,6 @@ export async function initNodejs(options: InitOptions, isNew: boolean) {
     );
   }
 
-  if (!platform && isFirebaseProject()) {
-    platform = 'firebase';
-  }
-
   let sampleTarget: SampleTarget = 'nodejs';
   if (!platform) {
     if (
