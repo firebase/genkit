@@ -25,20 +25,20 @@ import (
 func pineconeEx(ctx context.Context) error {
 	var err error
 
-	//!+init
+	// [START init]
 	if err := pinecone.Init(ctx, ""); err != nil {
 		return err
 	}
-	//!-init
+	// [END init]
 
 	var pineconeAPIKey string
-	//!+initkey
+	// [START initkey]
 	if err := pinecone.Init(ctx, pineconeAPIKey); err != nil {
 		return err
 	}
-	//!-initkey
+	// [END initkey]
 
-	//!+defineindex
+	// [START defineindex]
 	menuIndexer, err := pinecone.DefineIndexer(ctx, pinecone.Config{
 		IndexID:  "menu_data",                             // Your Pinecone index
 		Embedder: googleai.Embedder("text-embedding-004"), // Embedding model of your choice
@@ -46,20 +46,20 @@ func pineconeEx(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	//!-defineindex
+	// [END defineindex]
 
 	var docChunks []*ai.Document
 
-	//!+index
+	// [START index]
 	if err := menuIndexer.Index(
 		ctx,
 		&ai.IndexerRequest{Documents: docChunks, Options: nil},
 	); err != nil {
 		return err
 	}
-	//!-index
+	// [END index]
 
-	//!+defineretriever
+	// [START defineretriever]
 	menuRetriever, err := pinecone.DefineRetriever(ctx, pinecone.Config{
 		IndexID:  "menu_data",                             // Your Pinecone index
 		Embedder: googleai.Embedder("text-embedding-004"), // Embedding model of your choice
@@ -67,11 +67,11 @@ func pineconeEx(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	//!-defineretriever
+	// [END defineretriever]
 
 	var userInput string
 
-	//!+retrieve
+	// [START retrieve]
 	resp, err := menuRetriever.Retrieve(ctx, &ai.RetrieverRequest{
 		Document: ai.DocumentFromText(userInput, nil),
 		Options:  nil,
@@ -80,7 +80,7 @@ func pineconeEx(ctx context.Context) error {
 		return err
 	}
 	menuInfo := resp.Documents
-	//!-retrieve
+	// [END retrieve]
 
 	_ = menuInfo
 

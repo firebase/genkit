@@ -22,14 +22,14 @@ import (
 )
 
 func gcpEx(ctx context.Context) error {
-	//!+init
+	// [START init]
 	if err := googlecloud.Init(
 		ctx,
 		googlecloud.Config{ProjectID: "your-google-cloud-project"},
 	); err != nil {
 		return err
 	}
-	//!-init
+	// [END init]
 
 	_ = googlecloud.Config{
 		ProjectID:      "your-google-cloud-project",

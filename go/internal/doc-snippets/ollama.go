@@ -24,16 +24,16 @@ import (
 func ollamaEx(ctx context.Context) error {
 	var err error
 
-	//!+init
+	// [START init]
 	// Init with Ollama's default local address.
 	if err := ollama.Init(ctx, &ollama.Config{
 		ServerAddress: "http://127.0.0.1:11434",
 	}); err != nil {
 		return err
 	}
-	//!-init
+	// [END init]
 
-	//!+definemodel
+	// [START definemodel]
 	model := ollama.DefineModel(
 		ollama.ModelDefinition{
 			Name: "gemma2",
@@ -46,15 +46,15 @@ func ollamaEx(ctx context.Context) error {
 			Media:      false,
 		},
 	)
-	//!-definemodel
+	// [END definemodel]
 
-	//!+gen
+	// [START gen]
 	genRes, err := model.Generate(ctx, ai.NewGenerateRequest(
 		nil, ai.NewUserTextMessage("Tell me a joke.")), nil)
 	if err != nil {
 		return err
 	}
-	//!-gen
+	// [END gen]
 
 	_ = genRes
 

@@ -71,7 +71,7 @@ type InputType string
 type OutputType string
 type StreamType string
 
-//!-streaming-types
+// [END streaming-types]
 
 func f3() {
 	// !+streaming
@@ -159,11 +159,11 @@ func f4() {
 }
 
 func deploy(ctx context.Context) {
-	//!+init
+	// [START init]
 	if err := genkit.Init(ctx,
 		&genkit.Options{FlowAddr: ":3400"}, // Add this parameter.
 	); err != nil {
 		log.Fatal(err)
 	}
-	//!-init
+	// [END init]
 }
