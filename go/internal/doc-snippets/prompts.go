@@ -34,7 +34,7 @@ func pr01() {
 	// [END pr01]
 }
 
-// !+hello
+// [START hello]
 func helloPrompt(name string) *ai.Part {
 	prompt := fmt.Sprintf("You are a helpful AI assistant named Walt. Say hello to %s.", name)
 	return ai.NewTextPart(prompt)

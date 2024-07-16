@@ -103,7 +103,7 @@ func main() {
 	}
 }
 
-// !+readpdf
+// [START readpdf]
 // Helper function to extract plain text from a PDF. Excerpted from
 // https://github.com/ledongthuc/pdf
 func readPDF(path string) (string, error) {

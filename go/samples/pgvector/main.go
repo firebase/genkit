@@ -84,7 +84,7 @@ func run() error {
 		}
 	}
 
-	// !+use-retr
+	// [START use-retr]
 	retriever := defineRetriever(db, embedder)
 
 	type input struct {
@@ -106,14 +106,14 @@ func run() error {
 		// Use documents in RAG prompts.
 		return "", nil
 	})
-	// !-use-retr
+	// [END use-retr]
 
 	return genkit.Init(ctx, nil)
 }
 
 const provider = "pgvector"
 
-// !+retr
+// [START retr]
 func defineRetriever(db *sql.DB, embedder *ai.Embedder) *ai.Retriever {
 	f := func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
 		eres, err := embedder.Embed(ctx, &ai.EmbedRequest{Documents: []*ai.Document{req.Document}})
@@ -157,7 +157,7 @@ func defineRetriever(db *sql.DB, embedder *ai.Embedder) *ai.Retriever {
 	return ai.DefineRetriever(provider, "shows", f)
 }
 
-// !-retr
+// [END retr]
 
 func defineIndexer(db *sql.DB, embedder *ai.Embedder) *ai.Indexer {
 	// The indexer assumes that each Document has a single part, to be embedded, and metadata fields
