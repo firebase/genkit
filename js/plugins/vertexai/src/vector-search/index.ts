@@ -28,10 +28,9 @@ export {
   DocumentIndexer,
   DocumentRetriever,
   Neighbor,
-  VectorSearchIndexOption,
+  VectorSearchOptions,
   VertexAIVectorIndexerOptions,
   VertexAIVectorIndexerOptionsSchema,
   VertexAIVectorRetrieverOptions,
   VertexAIVectorRetrieverOptionsSchema,
-  VertexVectorSearchOptions,
 } from './types';

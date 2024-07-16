@@ -20,7 +20,6 @@ import {
   RetrieverAction,
   retrieverRef,
 } from '@genkit-ai/ai/retriever';
-import { logger } from '@genkit-ai/core/logging';
 import z from 'zod';
 import { queryPublicEndpoint } from './query_public_endpoint';
 import {
@@ -43,7 +42,7 @@ const DEFAULT_K = 10;
 export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
   params: VertexVectorSearchOptions<EmbedderCustomOptions>
 ): RetrieverAction<z.ZodTypeAny>[] {
-  const vectorSearchOptions = params.pluginOptions.vectorSearchIndexOptions;
+  const vectorSearchOptions = params.pluginOptions.vectorSearchOptions;
   const defaultEmbedder = params.defaultEmbedder;
 
   const retrievers: RetrieverAction<z.ZodTypeAny>[] = [];
@@ -60,7 +59,7 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
     const retriever = defineRetriever(
       {
         name: `vertexai/${indexId}`,
-        configSchema: VertexAIVectorRetrieverOptionsSchema,
+        configSchema: VertexAIVectorRetrieverOptionsSchema.optional(),
       },
       async (content, options) => {
         const queryEmbeddings = await embed({
@@ -73,7 +72,7 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
 
         if (!accessToken) {
           throw new Error(
-            'Access token is required to define Vertex AI retriever'
+            'Error generating access token when defining Vertex AI retriever'
           );
         }
 
@@ -89,32 +88,28 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
           throw new Error('Location is required to define Vertex AI retriever');
         }
 
-        try {
-          let res = await queryPublicEndpoint({
-            featureVector: queryEmbeddings,
-            neighborCount: options?.k || DEFAULT_K,
-            accessToken,
-            projectId,
-            location,
-            publicDomainName,
-            projectNumber,
-            indexEndpointId: vectorSearchOption.indexEndpointId,
-            deployedIndexId: vectorSearchOption.deployedIndexId,
-          });
-          const nearestNeighbors = res.nearestNeighbors;
+        let res = await queryPublicEndpoint({
+          featureVector: queryEmbeddings,
+          neighborCount: options?.k || DEFAULT_K,
+          accessToken,
+          projectId,
+          location,
+          publicDomainName,
+          projectNumber,
+          indexEndpointId: vectorSearchOption.indexEndpointId,
+          deployedIndexId: vectorSearchOption.deployedIndexId,
+        });
+        const nearestNeighbors = res.nearestNeighbors;
 
-          const queryRes = nearestNeighbors ? nearestNeighbors[0] : null;
-          const neighbors = queryRes ? queryRes.neighbors : null;
-          if (!nearestNeighbors || !queryRes || !neighbors) {
-            return { documents: [] };
-          }
-
-          const documents = await documentRetriever(neighbors, options);
-
-          return { documents };
-        } catch (error) {
-          handleRetrieverError(error, indexId);
+        const queryRes = nearestNeighbors ? nearestNeighbors[0] : null;
+        const neighbors = queryRes ? queryRes.neighbors : null;
+        if (!neighbors) {
+          return { documents: [] };
         }
+
+        const documents = await documentRetriever(neighbors, options);
+
+        return { documents };
       }
     );
 
@@ -122,22 +117,6 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
   }
 
   return retrievers;
-}
-
-/**
- * Handles errors that occur during the retriever process.
- *
- * @param {unknown} error - The error that occurred.
- * @param {string} indexId - The ID of the index being queried.
- * @throws {Error} - Throws the error after logging it.
- */
-function handleRetrieverError(error: unknown, indexId: string): never {
-  if (error instanceof Error) {
-    logger.error(`Error querying index: ${indexId}`);
-    throw error;
-  } else {
-    throw error;
-  }
 }
 
 /**
@@ -155,7 +134,7 @@ export const vertexAiRetrieverRef = (params: {
   return retrieverRef({
     name: `vertexai/${params.indexId}`,
     info: {
-      label: params.displayName ?? `vertexAi - ${params.indexId}`,
+      label: params.displayName ?? `ertex AI - ${params.indexId}`,
     },
     configSchema: VertexAIVectorRetrieverOptionsSchema.optional(),
   });

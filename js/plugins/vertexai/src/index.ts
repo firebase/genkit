@@ -16,17 +16,17 @@
 
 import { ModelReference } from '@genkit-ai/ai/model';
 import { IndexerAction, RetrieverAction } from '@genkit-ai/ai/retriever';
-import { genkitPlugin, Plugin } from '@genkit-ai/core';
+import { Plugin, genkitPlugin } from '@genkit-ai/core';
 import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
 import z from 'zod';
 import {
+  SUPPORTED_ANTHROPIC_MODELS,
   anthropicModel,
   claude35Sonnet,
   claude3Haiku,
   claude3Opus,
   claude3Sonnet,
-  SUPPORTED_ANTHROPIC_MODELS,
 } from './anthropic.js';
 import {
   SUPPORTED_EMBEDDER_MODELS,
@@ -45,6 +45,7 @@ import {
   vertexEvaluators,
 } from './evaluation.js';
 import {
+  SUPPORTED_GEMINI_MODELS,
   gemini15Flash,
   gemini15FlashPreview,
   gemini15Pro,
@@ -52,25 +53,27 @@ import {
   geminiModel,
   geminiPro,
   geminiProVision,
-  SUPPORTED_GEMINI_MODELS,
 } from './gemini.js';
 import { imagen2, imagen2Model } from './imagen.js';
 import {
+  SUPPORTED_OPENAI_FORMAT_MODELS,
   llama3,
   modelGardenOpenaiCompatibleModel,
-  SUPPORTED_OPENAI_FORMAT_MODELS,
 } from './model_garden.js';
-import { vertexAiIndexers, vertexAiRetrievers } from './vector-search';
-import { VectorSearchIndexOption } from './vector-search/types.js';
+import {
+  VectorSearchOptions,
+  vertexAiIndexers,
+  vertexAiRetrievers,
+} from './vector-search';
 export {
   DocumentIndexer,
   DocumentRetriever,
+  Neighbor,
+  VectorSearchOptions,
   getBigQueryDocumentIndexer,
   getBigQueryDocumentRetriever,
   getFirestoreDocumentIndexer,
   getFirestoreDocumentRetriever,
-  Neighbor,
-  VectorSearchIndexOption,
   vertexAiIndexerRef,
   vertexAiIndexers,
   vertexAiRetrieverRef,
@@ -118,18 +121,8 @@ export interface PluginOptions {
     models: ModelReference<any>[];
     openAiBaseUrlTemplate?: string;
   };
-  vectorSearchOptions?: {
-    projectNumber: string;
-    deployedIndexId: string;
-    indexEndpointId: string;
-    documentRetriever: (docIds: string[]) => Promise<Document[]>;
-    documentIndexer: (docs: Document[]) => Promise<void>;
-    documentIdField: string;
-    indexId: string;
-    publicEndpoint: string;
-  };
-  projectNumber?: string;
-  vectorSearchIndexOptions?: VectorSearchIndexOption<z.ZodTypeAny, any, any>[];
+  /** Configure Vertex AI vector search index options */
+  vectorSearchOptions?: VectorSearchOptions<z.ZodTypeAny, any, any>[];
 }
 
 const CLOUD_PLATFROM_OAUTH_SCOPE =
@@ -213,7 +206,10 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
     let indexers: IndexerAction<z.ZodTypeAny>[] = [];
     let retrievers: RetrieverAction<z.ZodTypeAny>[] = [];
 
-    if (options?.vectorSearchIndexOptions) {
+    if (
+      options?.vectorSearchOptions &&
+      options.vectorSearchOptions.length > 0
+    ) {
       const defaultEmbedder = embedders[0];
 
       indexers = vertexAiIndexers({

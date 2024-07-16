@@ -15,69 +15,71 @@
  */
 
 import assert from 'assert';
-import test, { Mock } from 'node:test';
-import { queryPublicEndpoint } from '../../src/vector-search/query_public_endpoint'; // Replace with the actual path to your module
+import { describe, it, Mock } from 'node:test';
+import { queryPublicEndpoint } from '../../src/vector-search/query_public_endpoint';
 
-test('queryPublicEndpoint sends the correct request and retrieves neighbors', async (t) => {
-  t.mock.method(global, 'fetch', async (url, options) => {
-    return {
-      ok: true,
-      json: async () => ({ neighbors: ['neighbor1', 'neighbor2'] }),
-    } as any;
-  });
+describe('queryPublicEndpoint', () => {
+  it('queryPublicEndpoint sends the correct request and retrieves neighbors', async (t) => {
+    t.mock.method(global, 'fetch', async (url, options) => {
+      return {
+        ok: true,
+        json: async () => ({ neighbors: ['neighbor1', 'neighbor2'] }),
+      } as any;
+    });
 
-  const params = {
-    featureVector: [0.1, 0.2, 0.3],
-    neighborCount: 5,
-    accessToken: 'test-access-token',
-    projectId: 'test-project-id',
-    location: 'us-central1',
-    indexEndpointId: 'idx123',
-    publicDomainName: 'example.com',
-    projectNumber: '123456789',
-    deployedIndexId: 'deployed-idx123',
-  };
+    const params = {
+      featureVector: [0.1, 0.2, 0.3],
+      neighborCount: 5,
+      accessToken: 'test-access-token',
+      projectId: 'test-project-id',
+      location: 'us-central1',
+      indexEndpointId: 'idx123',
+      publicDomainName: 'example.com',
+      projectNumber: '123456789',
+      deployedIndexId: 'deployed-idx123',
+    };
 
-  const expectedResponse = { neighbors: ['neighbor1', 'neighbor2'] };
+    const expectedResponse = { neighbors: ['neighbor1', 'neighbor2'] };
 
-  const response = await queryPublicEndpoint(params);
+    const response = await queryPublicEndpoint(params);
 
-  const calls = (
-    global.fetch as Mock<
-      (url: string, options: Record<string, any>) => Promise<Response>
-    >
-  ).mock.calls;
+    const calls = (
+      global.fetch as Mock<
+        (url: string, options: Record<string, any>) => Promise<Response>
+      >
+    ).mock.calls;
 
-  assert.strictEqual(calls.length, 1);
+    assert.strictEqual(calls.length, 1);
 
-  const [url, options] = calls[0].arguments;
+    const [url, options] = calls[0].arguments;
 
-  const expectedUrl = `https://example.com/v1/projects/123456789/locations/us-central1/indexEndpoints/idx123:findNeighbors`;
+    const expectedUrl = `https://example.com/v1/projects/123456789/locations/us-central1/indexEndpoints/idx123:findNeighbors`;
 
-  assert.strictEqual(url.toString(), expectedUrl);
+    assert.strictEqual(url.toString(), expectedUrl);
 
-  assert.strictEqual(options.method, 'POST');
+    assert.strictEqual(options.method, 'POST');
 
-  assert.strictEqual(options.headers['Content-Type'], 'application/json');
-  assert.strictEqual(
-    options.headers['Authorization'],
-    'Bearer test-access-token'
-  );
+    assert.strictEqual(options.headers['Content-Type'], 'application/json');
+    assert.strictEqual(
+      options.headers['Authorization'],
+      'Bearer test-access-token'
+    );
 
-  const body = JSON.parse(options.body);
-  assert.deepStrictEqual(body, {
-    deployed_index_id: 'deployed-idx123',
-    queries: [
-      {
-        datapoint: {
-          datapoint_id: '0',
-          feature_vector: [0.1, 0.2, 0.3],
+    const body = JSON.parse(options.body);
+    assert.deepStrictEqual(body, {
+      deployed_index_id: 'deployed-idx123',
+      queries: [
+        {
+          datapoint: {
+            datapoint_id: '0',
+            feature_vector: [0.1, 0.2, 0.3],
+          },
+          neighbor_count: 5,
         },
-        neighbor_count: 5,
-      },
-    ],
-  });
+      ],
+    });
 
-  // Verifying the response
-  assert.deepStrictEqual(response, expectedResponse);
+    // Verifying the response
+    assert.deepStrictEqual(response, expectedResponse);
+  });
 });

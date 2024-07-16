@@ -16,11 +16,11 @@
 
 import assert from 'assert';
 import { google } from 'googleapis';
-import test from 'node:test';
+import { describe, it } from 'node:test';
 import {
   getAccessToken,
   getProjectNumber,
-} from '../../src/vector-search/utils'; // Replace with the actual path to your module
+} from '../../src/vector-search/utils';
 
 // Mocking the google.auth.getClient method
 google.auth.getClient = async () => {
@@ -44,25 +44,27 @@ google.cloudresourcemanager = () => {
   } as any; // Using `any` to bypass type checks for the mock
 };
 
-test('getProjectNumber retrieves the project number', async () => {
-  const projectId = 'test-project-id';
-  const expectedProjectNumber = '123456789';
+describe('utils', () => {
+  it('getProjectNumber retrieves the project number', async () => {
+    const projectId = 'test-project-id';
+    const expectedProjectNumber = '123456789';
 
-  const projectNumber = await getProjectNumber(projectId);
-  assert.strictEqual(projectNumber, expectedProjectNumber);
-});
+    const projectNumber = await getProjectNumber(projectId);
+    assert.strictEqual(projectNumber, expectedProjectNumber);
+  });
 
-// Mocking the GoogleAuth client
-const mockAuthClient = {
-  getAccessToken: async () => ({ token: 'test-access-token' }),
-};
+  // Mocking the GoogleAuth client
+  const mockAuthClient = {
+    getAccessToken: async () => ({ token: 'test-access-token' }),
+  };
 
-test('getAccessToken retrieves the access token', async () => {
-  // Mocking the GoogleAuth.getClient method to return the mockAuthClient
-  const auth = {
-    getClient: async () => mockAuthClient,
-  } as any; // Using `any` to bypass type checks for the mock
+  it('getAccessToken retrieves the access token', async () => {
+    // Mocking the GoogleAuth.getClient method to return the mockAuthClient
+    const auth = {
+      getClient: async () => mockAuthClient,
+    } as any; // Using `any` to bypass type checks for the mock
 
-  const accessToken = await getAccessToken(auth);
-  assert.strictEqual(accessToken, 'test-access-token');
+    const accessToken = await getAccessToken(auth);
+    assert.strictEqual(accessToken, 'test-access-token');
+  });
 });

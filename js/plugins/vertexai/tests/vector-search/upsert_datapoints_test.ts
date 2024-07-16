@@ -16,63 +16,65 @@
 
 import assert from 'assert';
 import { GoogleAuth } from 'google-auth-library';
-import test, { Mock } from 'node:test';
-import { IIndexDatapoint } from '../../src/vector-search/types'; // Replace with the actual path to your types
-import { upsertDatapoints } from '../../src/vector-search/upsert_datapoints'; // Replace with the actual path to your module
+import { describe, it, Mock } from 'node:test';
+import { IIndexDatapoint } from '../../src/vector-search/types';
+import { upsertDatapoints } from '../../src/vector-search/upsert_datapoints';
 
-test('upsertDatapoints sends the correct request and handles response', async (t) => {
-  // Mocking the fetch method within the test scope
-  t.mock.method(global, 'fetch', async (url, options) => {
-    return {
-      ok: true,
-      json: async () => ({}),
-    } as any;
-  });
+describe('upsertDatapoints', () => {
+  it('upsertDatapoints sends the correct request and handles response', async (t) => {
+    // Mocking the fetch method within the test scope
+    t.mock.method(global, 'fetch', async (url, options) => {
+      return {
+        ok: true,
+        json: async () => ({}),
+      } as any;
+    });
 
-  // Mocking the GoogleAuth client
-  const mockAuthClient = {
-    getAccessToken: async () => 'test-access-token',
-  } as GoogleAuth;
+    // Mocking the GoogleAuth client
+    const mockAuthClient = {
+      getAccessToken: async () => 'test-access-token',
+    } as GoogleAuth;
 
-  const params = {
-    datapoints: [
-      { datapointId: 'dp1', featureVector: [0.1, 0.2, 0.3] },
-      { datapointId: 'dp2', featureVector: [0.4, 0.5, 0.6] },
-    ] as IIndexDatapoint[],
-    authClient: mockAuthClient,
-    projectId: 'test-project-id',
-    location: 'us-central1',
-    indexId: 'idx123',
-  };
+    const params = {
+      datapoints: [
+        { datapointId: 'dp1', featureVector: [0.1, 0.2, 0.3] },
+        { datapointId: 'dp2', featureVector: [0.4, 0.5, 0.6] },
+      ] as IIndexDatapoint[],
+      authClient: mockAuthClient,
+      projectId: 'test-project-id',
+      location: 'us-central1',
+      indexId: 'idx123',
+    };
 
-  await upsertDatapoints(params);
+    await upsertDatapoints(params);
 
-  // Verifying the fetch call
-  const calls = (
-    global.fetch as Mock<
-      (url: string, options: Record<string, any>) => Promise<Response>
-    >
-  ).mock.calls;
+    // Verifying the fetch call
+    const calls = (
+      global.fetch as Mock<
+        (url: string, options: Record<string, any>) => Promise<Response>
+      >
+    ).mock.calls;
 
-  assert.strictEqual(calls.length, 1);
-  const [url, options] = calls[0].arguments;
+    assert.strictEqual(calls.length, 1);
+    const [url, options] = calls[0].arguments;
 
-  assert.strictEqual(
-    url.toString(),
-    'https://us-central1-aiplatform.googleapis.com/v1/projects/test-project-id/locations/us-central1/indexes/idx123:upsertDatapoints'
-  );
-  assert.strictEqual(options.method, 'POST');
-  assert.strictEqual(options.headers['Content-Type'], 'application/json');
-  assert.strictEqual(
-    options.headers['Authorization'],
-    'Bearer test-access-token'
-  );
+    assert.strictEqual(
+      url.toString(),
+      'https://us-central1-aiplatform.googleapis.com/v1/projects/test-project-id/locations/us-central1/indexes/idx123:upsertDatapoints'
+    );
+    assert.strictEqual(options.method, 'POST');
+    assert.strictEqual(options.headers['Content-Type'], 'application/json');
+    assert.strictEqual(
+      options.headers['Authorization'],
+      'Bearer test-access-token'
+    );
 
-  const body = JSON.parse(options.body);
-  assert.deepStrictEqual(body, {
-    datapoints: [
-      { datapoint_id: 'dp1', feature_vector: [0.1, 0.2, 0.3] },
-      { datapoint_id: 'dp2', feature_vector: [0.4, 0.5, 0.6] },
-    ],
+    const body = JSON.parse(options.body);
+    assert.deepStrictEqual(body, {
+      datapoints: [
+        { datapoint_id: 'dp1', feature_vector: [0.1, 0.2, 0.3] },
+        { datapoint_id: 'dp2', feature_vector: [0.4, 0.5, 0.6] },
+      ],
+    });
   });
 });

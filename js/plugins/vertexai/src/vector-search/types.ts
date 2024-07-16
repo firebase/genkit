@@ -173,7 +173,7 @@ export type DocumentIndexer<Options extends {} = {}> = (
   options?: Options
 ) => Promise<string[]>;
 
-export interface VectorSearchIndexOption<
+export interface VectorSearchOptions<
   EmbedderCustomOptions extends z.ZodTypeAny,
   IndexerOptions extends {},
   RetrieverOptions extends { k?: number },

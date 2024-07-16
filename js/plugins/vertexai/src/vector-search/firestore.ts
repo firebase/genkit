@@ -74,7 +74,10 @@ export const getFirestoreDocumentIndexer = (
     const ids: string[] = [];
     docs.forEach((doc) => {
       const docRef = db.collection(collectionName).doc();
-      batch.set(docRef, { content: doc.content });
+      batch.set(docRef, {
+        content: doc.content,
+        metadata: doc.metadata || null,
+      });
       ids.push(docRef.id);
     });
     await batch.commit();

@@ -21,7 +21,8 @@ import { DocumentIndexer, DocumentRetriever, Neighbor } from './types';
  * Creates a BigQuery Document Retriever.
  *
  * This function returns a DocumentRetriever function that retrieves documents
- * from a BigQuery table based on the provided neighbors.
+ * from a BigQuery table based on the provided neighbors. Note this indexer does not handle duplicate
+ * documents.
  *
  * @param {BigQuery} bq - The BigQuery instance.
  * @param {string} tableId - The ID of the BigQuery table.
@@ -48,15 +49,11 @@ export const getBigQueryDocumentRetriever = (
       params: { ids },
     };
     const [rows] = await bq.query(options);
-    const docs: (Document | null)[] = rows
+    const docs: Document[] = rows
       .map((row) => {
         const docData = {
           content: JSON.parse(row.content),
-          metadata: {
-            ...neighbors.find(
-              (neighbor) => neighbor.datapoint?.datapointId === row.id
-            ),
-          },
+          metadata: JSON.parse(row.metadata),
         };
         const parsedDocData = DocumentDataSchema.safeParse(docData);
         if (parsedDocData.success) {
@@ -64,8 +61,9 @@ export const getBigQueryDocumentRetriever = (
         }
         return null;
       })
-      .filter((doc) => doc !== null) as Document[];
-    return docs as Document[];
+      .filter((doc): doc is Document => !!doc);
+
+    return docs;
   };
   return bigQueryRetriever;
 };
