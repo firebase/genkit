@@ -18,12 +18,13 @@ import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { action } from '../src/action.js';
 import {
-  Registry,
-  __hardResetRegistryForTesting,
   listActions,
   lookupAction,
   registerAction,
   registerPluginProvider,
+  Registry,
+  runWithRegistry,
+  __hardResetRegistryForTesting,
 } from '../src/registry.js';
 
 describe('global registry', () => {
@@ -381,6 +382,37 @@ describe('registry class', () => {
         await childRegistry.lookupAction('/model/foo_something'),
         fooSomethingAction
       );
+    });
+  });
+
+  describe('runWithRegistry', () => {
+    it('should lookup parent registry when child missing action', async () => {
+      const childRegistry = new Registry(registry);
+
+      const fooSomethingAction = action(
+        { name: 'foo_something' },
+        async () => null
+      );
+
+      runWithRegistry(childRegistry, () => {
+        registerAction('model', fooSomethingAction);
+      });
+
+      assert.strictEqual(
+        await registry.lookupAction('/model/foo_something'),
+        undefined
+      );
+      assert.strictEqual(
+        await childRegistry.lookupAction('/model/foo_something'),
+        fooSomethingAction
+      );
+      assert.strictEqual(await lookupAction('/model/foo_something'), undefined);
+      await runWithRegistry(childRegistry, async () => {
+        assert.strictEqual(
+          await lookupAction('/model/foo_something'),
+          fooSomethingAction
+        );
+      });
     });
   });
 });
