@@ -42,8 +42,6 @@ test('queryPublicEndpoint sends the correct request and retrieves neighbors', as
 
   const response = await queryPublicEndpoint(params);
 
-  type mockResponse = { neighbors: string[] };
-
   const calls = (
     global.fetch as Mock<
       (url: string, options: Record<string, any>) => Promise<Response>

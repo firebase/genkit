@@ -68,6 +68,7 @@ const db = getFirestore();
 // Use our helper functions here, or define your own document retriever and document indexer
 const firestoreDocumentRetriever: DocumentRetriever =
   getFirestoreDocumentRetriever(db, FIRESTORE_COLLECTION);
+
 const firestoreDocumentIndexer: DocumentIndexer = getFirestoreDocumentIndexer(
   db,
   FIRESTORE_COLLECTION
