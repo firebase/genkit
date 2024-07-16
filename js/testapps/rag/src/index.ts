@@ -89,13 +89,9 @@ export default configureGenkit({
         createCollectionIfMissing: true,
         clientParams: async () => {
           const host = 'https://chroma-974125110527.us-central1.run.app';
-          const authClient = await auth.getIdTokenClient(
-            host
-          );
+          const authClient = await auth.getIdTokenClient(host);
 
-          const idToken = await authClient.idTokenProvider.fetchIdToken(
-            host
-          );
+          const idToken = await authClient.idTokenProvider.fetchIdToken(host);
           return {
             path: `${host}:443`,
             fetchOptions: {
