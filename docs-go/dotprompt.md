@@ -14,7 +14,7 @@ then create a `.prompt` file in that directory. Here's a simple example you
 might call `greeting.prompt`:
 
 ```none
----
+{% verbatim %}---
 model: vertexai/gemini-1.5-pro
 config:
   temperature: 0.9
@@ -29,7 +29,7 @@ input:
 
 You are the world's most welcoming AI assistant and are currently working at {{location}}.
 
-Greet a guest{{#if name}} named {{name}}{{/if}}{{#if style}} in the style of {{style}}{{/if}}.
+Greet a guest{{#if name}} named {{name}}{{/if}}{{#if style}} in the style of {{style}}{{/if}}.{% endverbatim %}
 ```
 
 To use this prompt:
@@ -201,10 +201,10 @@ By default, Dotprompt constructs a single message with a `"user"` role. Some
 prompts are best expressed as a combination of multiple messages, such as a
 system prompt.
 
-The `{{role}}` helper provides a simple way to construct multi-message prompts:
+The `{% verbatim %}{{role}}{% endverbatim %}` helper provides a simple way to construct multi-message prompts:
 
 ```none
----
+{% verbatim %}---
 model: vertexai/gemini-1.0-pro
 input:
   schema:
@@ -215,7 +215,7 @@ input:
 You are a helpful AI assistant that really loves to talk about food. Try to work
 food items into all of your conversations.
 {{role "user"}}
-{{userQuestion}}
+{{userQuestion}}{% endverbatim %}
 ```
 
 <!-- TODO: Multi-Turn Prompts and History unimplemented? -->
@@ -223,10 +223,10 @@ food items into all of your conversations.
 ## Multi-modal prompts
 
 For models that support multimodal input such as images alongside text, you can
-use the `{{media}}` helper:
+use the `{% verbatim %}{{media}}{% endverbatim %}` helper:
 
 ```none
----
+{% verbatim %}---
 model: vertexai/gemini-1.0-pro-vision
 input:
   schema:
@@ -235,7 +235,7 @@ input:
 
 Describe this image in a detailed paragraph:
 
-{{media url=photoUrl}}
+{{media url=photoUrl}}{% endverbatim %}
 ```
 
 The URL can be `https://` or base64-encoded `data:` URIs for "inline" image
