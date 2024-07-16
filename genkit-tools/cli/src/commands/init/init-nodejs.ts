@@ -30,7 +30,7 @@ import {
   showModelInfo,
 } from '../init';
 
-type SampleTarget = 'firebase' | 'googlecloud' | 'nodejs' | 'nextjs';
+type SampleTarget = 'firebase' | 'nodejs' | 'nextjs';
 
 interface PluginInfo {
   // Imported items from `name` (can be comma list).
@@ -73,10 +73,6 @@ const modelOptions: Record<ModelProvider, PromptOption> = {
 /** Supported platform to plugin name. */
 const platformOptions: Record<Platform, PromptOption> = {
   firebase: { label: 'Firebase', plugin: '@genkit-ai/firebase' },
-  googlecloud: {
-    label: 'Google Cloud',
-    plugin: '@genkit-ai/google-cloud',
-  },
   other: { label: 'Other platforms', plugin: undefined },
 };
 
@@ -138,8 +134,7 @@ const pluginToInfo: Record<string, PluginInfo> = {
 /** Platform to sample flow template paths. */
 const sampleTemplatePaths: Record<SampleTarget, string> = {
   firebase: '../../../config/firebase.index.ts.template',
-  googlecloud: '../../../config/googleCloud.index.ts.template',
-  nodejs: '../../../config/googleCloud.index.ts.template', // This can deviate from GCP template in the future as needed.
+  nodejs: '../../../config/nodejs.index.ts.template',
   nextjs: '../../../config/nextjs.genkit.ts.template',
 };
 
@@ -162,7 +157,6 @@ const internalPackages = [
 
 const platformImportOptions: Record<Platform, ImportOptions> = {
   firebase: { spacer: '', quotes: '"' },
-  googlecloud: { spacer: ' ', quotes: "'" },
   other: { spacer: ' ', quotes: "'" },
 };
 
@@ -189,23 +183,22 @@ export async function initNodejs(options: InitOptions, isNew: boolean) {
     );
   }
 
-  // Prompt for left-over arguments.
-  if (!platform) {
-    const answer = await inquirer.prompt<{ platform: Platform }>([
-      {
-        type: 'list',
-        name: 'platform',
-        message: 'Select a deployment platform:',
-        choices: supportedPlatforms.map((platform) => ({
-          name: platformOptions[platform].label,
-          value: platform,
-        })),
-      },
-    ]);
-    platform = answer.platform;
+  if (!platform && isFirebaseProject()) {
+    platform = 'firebase';
   }
-  var sampleTarget: SampleTarget;
-  if (platform === 'other') {
+
+  let sampleTarget: SampleTarget = 'nodejs';
+  if (!platform) {
+    if (
+      isFirebaseProject() &&
+      (await confirm({
+        message:
+          'Detected a Firebase project. Would you like to configure Genkit for Firebase?',
+        default: true,
+      }))
+    ) {
+      sampleTarget = 'firebase';
+    }
     if (
       isNextJsProject() &&
       (await confirm({
@@ -215,12 +208,11 @@ export async function initNodejs(options: InitOptions, isNew: boolean) {
       }))
     ) {
       sampleTarget = 'nextjs';
-    } else {
-      sampleTarget = 'nodejs';
     }
-  } else {
-    sampleTarget = platform;
+  } else if (platform === 'firebase') {
+    sampleTarget = 'firebase';
   }
+
   if (!model) {
     const answer = await inquirer.prompt<{ model: ModelProvider }>([
       {
@@ -598,6 +590,17 @@ function isNextJsProject(projectDir: string = process.cwd()): boolean {
   const hasNextDependency =
     packageJson.dependencies && packageJson.dependencies.next;
   return hasNextConfig || hasNextDependency;
+}
+
+/**
+ * Detects whether the project directory is a Firebase app.
+ */
+function isFirebaseProject(projectDir: string = process.cwd()): boolean {
+  const filename = 'firebase.json';
+  return (
+    fs.existsSync(path.join(projectDir, filename)) ||
+    fs.existsSync(path.join(projectDir, '..', filename))
+  );
 }
 
 /**
