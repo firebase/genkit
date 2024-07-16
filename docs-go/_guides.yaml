@@ -33,6 +33,8 @@ toc:
   - heading: Deploying AI workflows
   - title: Deploy with Cloud Run
     path: /docs/genkit-go/cloud-run
+  - title: Deploy with any hosting service
+    path: /docs/genkit-go/deploy
 
   # - heading: Writing plugins
   # - title: Overview
