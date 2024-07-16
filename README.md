@@ -43,7 +43,7 @@ Genkit provides a dedicated CLI and UI that help you get started quickly and rap
 
 The Genkit CLI is the fastest way to initialize a Genkit app and comes with commands to help you run and evaluate Genkit functions, called flows. 
 
-**Intall the CLI:** `npm i -g genkit`
+**Install the CLI:** `npm i -g genkit`
 
 **Initialize a Genkit app:** `genkit init`
 
