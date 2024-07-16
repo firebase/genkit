@@ -44,6 +44,14 @@ actions.
     If your provider requires you to listen on a specific port, be sure to
     configure Genkit accordingly.
 
+1.  Implement some form of authentication and authorization to gate access to
+    the flows you plan to deploy.
+
+    Because most generative AI services are metered, you most likely do not want
+    to allow open access to any endpoints that call them. Some hosting services
+    provide an authentication layer as a frontend to apps deployed on them,
+    which you can use for this purpose.
+
 1.  Make API credentials available to your deployed function. Do one of the
     following, depending on the model provider you chose:
 
@@ -128,13 +136,4 @@ actions.
         1.  Click **Run**.
 
 1.  If everything's working as expected so far, you can build and deploy the
-    flow
-
-After deployment finishes, the tool will print the service URL. You can test
-it with `curl`:
-
-```posix-terminal
-curl -X POST https://<service-url>/menuSuggestionFlow \
-  -H "Authorization: Bearer <>" \
-  -H "Content-Type: application/json" -d '"banana"'
-```
+    flow using your provider's tools.
