@@ -106,7 +106,7 @@ To get started with Genkit, install the Genkit CLI and run
     restaurant with a given theme.
 
     This file looks something like the following (the plugin configuration steps
-    might look different if you selected Vertex AI):    
+    might look different if you selected Vertex AI):
 
     ```golang
     {% includecode github_path="firebase/genkit/go/internal/doc-snippets/init/main.go" region_tag="main" adjust_indentation="auto" %}
