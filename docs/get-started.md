@@ -32,9 +32,6 @@ Node.js 20 or later.
     genkit init
     ```
 
-    1. Select **Other platform** as the deployment platform option (templates for
-       Firebase Cloud Functions and Google Cloud Run are also available).
-
     1. Select your model:
 
        - {Gemini (Google AI)}
