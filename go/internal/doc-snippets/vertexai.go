@@ -24,77 +24,77 @@ import (
 func vertexaiEx(ctx context.Context) error {
 	var err error
 
-	//!+init
+	// [START init]
 	if err := vertexai.Init(ctx, nil); err != nil {
 		return err
 	}
-	//!-init
+	// [END init]
 
 	yourProjectID := ""
-	//!+initproj
+	// [START initproj]
 	if err := vertexai.Init(ctx, &vertexai.Config{ProjectID: yourProjectID}); err != nil {
 		return err
 	}
-	//!-initproj
+	// [END initproj]
 
-	//!+initloc
+	// [START initloc]
 	if err := vertexai.Init(ctx, &vertexai.Config{Location: "asia-south1"}); err != nil {
 		return err
 	}
-	//!-initloc
+	// [END initloc]
 
-	//!+model
+	// [START model]
 	langModel := vertexai.Model("gemini-1.5-pro")
-	//!-model
+	// [END model]
 
-	//!+gen
+	// [START gen]
 	genRes, err := langModel.Generate(ctx, ai.NewGenerateRequest(
 		nil, ai.NewUserTextMessage("Tell me a joke.")), nil)
 	if err != nil {
 		return err
 	}
-	//!-gen
+	// [END gen]
 
 	_ = genRes
 
 	var userInput string
 
-	//!+embedder
+	// [START embedder]
 	embeddingModel := vertexai.Embedder("text-embedding-004")
-	//!-embedder
+	// [END embedder]
 
-	//!+embed
+	// [START embed]
 	embedRes, err := embeddingModel.Embed(ctx, &ai.EmbedRequest{
 		Documents: []*ai.Document{ai.DocumentFromText(userInput, nil)},
 	})
 	if err != nil {
 		return err
 	}
-	//!-embed
+	// [END embed]
 
 	_ = embedRes
 
 	var myRetriever *ai.Retriever
 
-	//!+retrieve
+	// [START retrieve]
 	retrieveRes, err := myRetriever.Retrieve(ctx, &ai.RetrieverRequest{
 		Document: ai.DocumentFromText(userInput, nil),
 	})
 	if err != nil {
 		return err
 	}
-	//!-retrieve
+	// [END retrieve]
 
 	_ = retrieveRes
 
 	var myIndexer *ai.Indexer
 	var docsToIndex []*ai.Document
 
-	//!+index
+	// [START index]
 	if err := myIndexer.Index(ctx, &ai.IndexerRequest{Documents: docsToIndex}); err != nil {
 		return err
 	}
-	//!-index
+	// [END index]
 
 	return nil
 }

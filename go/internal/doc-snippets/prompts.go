@@ -26,31 +26,31 @@ import (
 func pr01() {
 	model := ai.Model{}
 
-	//!+pr01
+	// [START pr01]
 	request := ai.GenerateRequest{Messages: []*ai.Message{
 		{Content: []*ai.Part{ai.NewTextPart("You are a helpful AI assistant named Walt.")}},
 	}}
 	model.Generate(context.Background(), &request, nil)
-	//!-pr01
+	// [END pr01]
 }
 
-// !+hello
+// [START hello]
 func helloPrompt(name string) *ai.Part {
 	prompt := fmt.Sprintf("You are a helpful AI assistant named Walt. Say hello to %s.", name)
 	return ai.NewTextPart(prompt)
 }
 
-//!-hello
+// [END hello]
 
 func pr02() {
 	model := ai.Model{}
 
-	//!+pr02
+	// [START pr02]
 	request := ai.GenerateRequest{Messages: []*ai.Message{
 		{Content: []*ai.Part{helloPrompt("Fred")}},
 	}}
 	response, err := model.Generate(context.Background(), &request, nil)
-	//!-pr02
+	// [END pr02]
 
 	if err == nil {
 		_ = response
@@ -60,7 +60,7 @@ func pr02() {
 func pr03() error {
 	model := ai.Model{}
 
-	//!+pr03.1
+	// [START pr03.1]
 	type HelloPromptInput struct {
 		UserName string
 	}
@@ -82,15 +82,15 @@ func pr03() error {
 			}}, nil
 		},
 	)
-	//!-pr03.1
+	// [END pr03.1]
 
-	//!+pr03.2
+	// [START pr03.2]
 	request, err := helloPrompt.Render(context.Background(), HelloPromptInput{UserName: "Fred"})
 	if err != nil {
 		return err
 	}
 	response, err := model.Generate(context.Background(), request, nil)
-	//!-pr03.2
+	// [END pr03.2]
 
 	_ = response
 	_ = err

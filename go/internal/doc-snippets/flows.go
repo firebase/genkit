@@ -25,31 +25,31 @@ import (
 )
 
 func f1() {
-	// !+flow1
+	// [START flow1]
 	menuSuggestionFlow := genkit.DefineFlow(
 		"menuSuggestionFlow",
 		func(ctx context.Context, restaurantTheme string) (string, error) {
 			suggestion := makeMenuItemSuggestion(restaurantTheme)
 			return suggestion, nil
 		})
-	// !-flow1
+	// [END flow1]
 	_ = menuSuggestionFlow
 
 }
 
-// !+msug
+// [START msug]
 type MenuSuggestion struct {
 	ItemName    string `json:"item_name"`
 	Description string `json:"description"`
 	Calories    int    `json:"calories"`
 }
 
-// !-msug
+// [END msug]
 
 func makeMenuItemSuggestion(string) string { return "" }
 
 func f2() {
-	// !+flow2
+	// [START flow2]
 	menuSuggestionFlow := genkit.DefineFlow(
 		"menuSuggestionFlow",
 		func(ctx context.Context, restaurantTheme string) (MenuSuggestion, error) {
@@ -57,24 +57,24 @@ func f2() {
 			return suggestion, nil
 		},
 	)
-	// !-flow2
-	// !+run1
+	// [END flow2]
+	// [START run1]
 	suggestion, err := menuSuggestionFlow.Run(context.Background(), "French")
-	// !-run1
+	// [END run1]
 	_ = suggestion
 	_ = err
 }
 
-// !+streaming-types
+// [START streaming-types]
 // Types for illustrative purposes.
 type InputType string
 type OutputType string
 type StreamType string
 
-//!-streaming-types
+// [END streaming-types]
 
 func f3() {
-	// !+streaming
+	// [START streaming]
 	menuSuggestionFlow := genkit.DefineStreamingFlow(
 		"menuSuggestionFlow",
 		func(
@@ -98,9 +98,9 @@ func f3() {
 			return OutputType(menu.String()), nil
 		},
 	)
-	// !-streaming
+	// [END streaming]
 
-	// !+invoke-streaming
+	// [START invoke-streaming]
 	menuSuggestionFlow.Stream(
 		context.Background(),
 		"French",
@@ -112,7 +112,7 @@ func f3() {
 			return false
 		}
 	})
-	// !-invoke-streaming
+	// [END invoke-streaming]
 }
 
 func makeStructuredMenuItemSuggestion(string) MenuSuggestion { return MenuSuggestion{} }
@@ -121,7 +121,7 @@ func makeFullMenuSuggestion(restaurantTheme InputType, menuChunks chan StreamTyp
 
 }
 
-// !+main
+// [START main]
 func main() {
 	genkit.DefineFlow(
 		"menuSuggestionFlow",
@@ -135,14 +135,14 @@ func main() {
 	}
 }
 
-// !-main
+// [END main]
 
 func f4() {
-	// !+mux
+	// [START mux]
 	mainMux := http.NewServeMux()
 	mainMux.Handle("POST /flow/", http.StripPrefix("/flow/", genkit.NewFlowServeMux(nil)))
-	// !-mux
-	// !+run
+	// [END mux]
+	// [START run]
 	genkit.DefineFlow(
 		"menuSuggestionFlow",
 		func(ctx context.Context, restaurantTheme string) (string, error) {
@@ -154,16 +154,16 @@ func f4() {
 			// ...
 			return themes, err
 		})
-	// !-run
+	// [END run]
 
 }
 
 func deploy(ctx context.Context) {
-	//!+init
+	// [START init]
 	if err := genkit.Init(ctx,
 		&genkit.Options{FlowAddr: ":3400"}, // Add this parameter.
 	); err != nil {
 		log.Fatal(err)
 	}
-	//!-init
+	// [END init]
 }

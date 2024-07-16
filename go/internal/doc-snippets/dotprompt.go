@@ -26,12 +26,12 @@ import (
 )
 
 func dot01() error {
-	//!+dot01.1
+	// [START dot01.1]
 	dotprompt.SetDirectory("prompts")
 	prompt, err := dotprompt.Open("greeting")
-	//!-dot01.1
+	// [END dot01.1]
 
-	//!+dot01.2
+	// [START dot01.2]
 	ctx := context.Background()
 
 	// The .prompt file specifies vertexai/gemini-1.5-pro, so make sure it's set
@@ -63,14 +63,14 @@ func dot01() error {
 	if responseText, err := response.Text(); err == nil {
 		fmt.Println(responseText)
 	}
-	//!-dot01.2
+	// [END dot01.2]
 
-	//!+dot01.3
+	// [START dot01.3]
 	renderedPrompt, err := prompt.RenderText(map[string]any{
 		"location": "a restaurant",
 		"style":    "a pirate",
 	})
-	//!-dot01.3
+	// [END dot01.3]
 
 	_ = renderedPrompt
 	return nil
@@ -84,7 +84,7 @@ func dot02() {
 		Name     string `json:"name"`
 	}
 
-	//!+dot02
+	// [START dot02]
 	// Make sure you set up the model you're using.
 	vertexai.DefineModel("gemini-1.5-flash", nil)
 
@@ -103,14 +103,14 @@ func dot02() {
 		},
 		nil,
 	)
-	//!-dot02
+	// [END dot02]
 
 	_ = err
 	_ = response
 }
 
 func dot03() error {
-	//!+dot03
+	// [START dot03]
 	dotprompt.SetDirectory("prompts")
 	describeImagePrompt, err := dotprompt.Open("describe_image")
 	if err != nil {
@@ -134,16 +134,16 @@ func dot03() error {
 		}},
 		nil,
 	)
-	//!-dot03
+	// [END dot03]
 
 	_ = response
 	return nil
 }
 
 func dot04() {
-	//!+dot04
+	// [START dot04]
 	describeImagePrompt, err := dotprompt.OpenVariant("describe_image", "gemini15")
-	//!-dot04
+	// [END dot04]
 	_ = err
 	_ = describeImagePrompt
 }
@@ -154,7 +154,7 @@ func dot05() {
 	}
 	user := "ken"
 
-	//!+dot05
+	// [START dot05]
 	var myPrompt *dotprompt.Prompt
 	var err error
 	if isBetaTester(user) {
@@ -162,7 +162,7 @@ func dot05() {
 	} else {
 		myPrompt, err = dotprompt.Open("describe_image")
 	}
-	//!-dot05
+	// [END dot05]
 
 	_ = err
 	_ = myPrompt

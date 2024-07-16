@@ -19,13 +19,12 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+
+	// [START import]
+	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/plugins/vertexai"
+	// [END import]
 )
-
-// !+import
-import "github.com/firebase/genkit/go/ai"
-import "github.com/firebase/genkit/go/plugins/vertexai"
-
-// !-import
 
 // Globals for simplification only.
 // Bad style: don't do this.
@@ -33,20 +32,20 @@ var ctx = context.Background()
 var gemini15pro *ai.Model
 
 func m1() error {
-	// !+init
+	// [START init]
 	// Default to the value of GCLOUD_PROJECT for the project,
 	// and "us-central1" for the location.
 	// To specify these values directly, pass a vertexai.Config value to Init.
 	if err := vertexai.Init(ctx, nil); err != nil {
 		return err
 	}
-	// !-init
+	// [END init]
 
-	// !+model
+	// [START model]
 	gemini15pro := vertexai.Model("gemini-1.5-pro")
-	// !-model
+	// [END model]
 
-	// !+call
+	// [START call]
 	request := ai.GenerateRequest{Messages: []*ai.Message{
 		{Content: []*ai.Part{ai.NewTextPart("Tell me a joke.")}},
 	}}
@@ -60,12 +59,12 @@ func m1() error {
 		return err
 	}
 	fmt.Println(responseText)
-	// !-call
+	// [END call]
 	return nil
 }
 
 func opts() error {
-	// !+options
+	// [START options]
 	request := ai.GenerateRequest{
 		Messages: []*ai.Message{
 			{Content: []*ai.Part{ai.NewTextPart("Tell me a joke about dogs.")}},
@@ -76,13 +75,13 @@ func opts() error {
 			MaxOutputTokens: 3,
 		},
 	}
-	// !-options
+	// [END options]
 	_ = request
 	return nil
 }
 
 func streaming() error {
-	// !+streaming
+	// [START streaming]
 	request := ai.GenerateRequest{Messages: []*ai.Message{
 		{Content: []*ai.Part{ai.NewTextPart("Tell a long story about robots and ninjas.")}},
 	}}
@@ -108,12 +107,12 @@ func streaming() error {
 	}
 	fmt.Println(responseText)
 
-	// !-streaming
+	// [END streaming]
 	return nil
 }
 
 func multi() error {
-	// !+multimodal
+	// [START multimodal]
 	imageBytes, err := os.ReadFile("img.jpg")
 	if err != nil {
 		return err
@@ -127,12 +126,12 @@ func multi() error {
 		}},
 	}}
 	gemini15pro.Generate(ctx, &request, nil)
-	// !-multimodal
+	// [END multimodal]
 	return nil
 }
 
 func tools() error {
-	// !+tools
+	// [START tools]
 	myJoke := &ai.ToolDefinition{
 		Name:        "myJoke",
 		Description: "useful when you need a joke to tell",
@@ -157,14 +156,14 @@ func tools() error {
 		Tools: []*ai.ToolDefinition{myJoke},
 	}
 	response, err := gemini15pro.Generate(ctx, &request, nil)
-	// !-tools
+	// [END tools]
 	_ = response
 	return err
 }
 
 func history() error {
 	var prompt string
-	// !+hist1
+	// [START hist1]
 	history := []*ai.Message{{
 		Content: []*ai.Part{ai.NewTextPart(prompt)},
 		Role:    ai.RoleUser,
@@ -172,13 +171,13 @@ func history() error {
 
 	request := ai.GenerateRequest{Messages: history}
 	response, err := gemini15pro.Generate(context.Background(), &request, nil)
-	// !-hist1
+	// [END hist1]
 	_ = err
-	// !+hist2
+	// [START hist2]
 	history = append(history, response.Candidates[0].Message)
-	// !-hist2
+	// [END hist2]
 
-	// !+hist3
+	// [START hist3]
 	history = append(history, &ai.Message{
 		Content: []*ai.Part{ai.NewTextPart(prompt)},
 		Role:    ai.RoleUser,
@@ -186,12 +185,12 @@ func history() error {
 
 	request = ai.GenerateRequest{Messages: history}
 	response, err = gemini15pro.Generate(ctx, &request, nil)
-	// !-hist3
-	// !+hist4
+	// [END hist3]
+	// [START hist4]
 	history = []*ai.Message{{
 		Content: []*ai.Part{ai.NewTextPart("Talk like a pirate.")},
 		Role:    ai.RoleSystem,
 	}}
-	// !-hist4
+	// [END hist4]
 	return nil
 }

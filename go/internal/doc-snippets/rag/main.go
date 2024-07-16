@@ -31,7 +31,7 @@ import (
 )
 
 func main() {
-	//!+vec
+	// [START vec]
 	ctx := context.Background()
 
 	err := vertexai.Init(ctx, &vertexai.Config{})
@@ -52,14 +52,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	//!-vec
-	//!+splitcfg
+	// [END vec]
+	// [START splitcfg]
 	splitter := textsplitter.NewRecursiveCharacter(
 		textsplitter.WithChunkSize(200),
 		textsplitter.WithChunkOverlap(20),
 	)
-	//!-splitcfg
-	//!+indexflow
+	// [END splitcfg]
+	// [START indexflow]
 	genkit.DefineFlow(
 		"indexMenu",
 		func(ctx context.Context, path string) (any, error) {
@@ -95,7 +95,7 @@ func main() {
 			return nil, err
 		},
 	)
-	//!-indexflow
+	// [END indexflow]
 
 	err = genkit.Init(ctx, nil)
 	if err != nil {
@@ -103,7 +103,7 @@ func main() {
 	}
 }
 
-// !+readpdf
+// [START readpdf]
 // Helper function to extract plain text from a PDF. Excerpted from
 // https://github.com/ledongthuc/pdf
 func readPDF(path string) (string, error) {
@@ -127,10 +127,10 @@ func readPDF(path string) (string, error) {
 	return string(bytes), nil
 }
 
-//!-readpdf
+// [END readpdf]
 
 func menuQA() {
-	//!+retrieve
+	// [START retrieve]
 	ctx := context.Background()
 
 	err := vertexai.Init(ctx, &vertexai.Config{})
@@ -190,7 +190,7 @@ make up an answer. Do not add or change items on the menu.`),
 
 			return resp.Text()
 		})
-	//!-retrieve
+	// [END retrieve]
 }
 
 func customret() {
@@ -201,7 +201,7 @@ func customret() {
 		},
 	)
 
-	//!+customret
+	// [START customret]
 	type CustomMenuRetrieverOptions struct {
 		K          int
 		PreRerankK int
@@ -237,7 +237,7 @@ func customret() {
 			return response, nil
 		},
 	)
-	//!-customret
+	// [END customret]
 
 	_ = advancedMenuRetriever
 }
