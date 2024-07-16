@@ -18,13 +18,13 @@ import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { action } from '../src/action.js';
 import {
+  Registry,
+  __hardResetRegistryForTesting,
   listActions,
   lookupAction,
   registerAction,
   registerPluginProvider,
-  Registry,
   runWithRegistry,
-  __hardResetRegistryForTesting,
 } from '../src/registry.js';
 
 describe('global registry', () => {

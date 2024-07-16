@@ -349,6 +349,14 @@ export function runWithRegistry<O>(registry: Registry, fn: () => O): O {
 }
 
 /**
+ * Executes provided function with within a child/ephemeral registry.
+ */
+export function runInEphemeralRegistry<O>(fn: (registry: Registry) => O): O {
+  const registry = Registry.withCurrent();
+  return registryAls.run(registry, () => fn(registry));
+}
+
+/**
  * Returns the current registry instance:
  *  - if running within `runWithRegistry` then return that registry
  *  - else return the global registry.
