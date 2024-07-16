@@ -49,14 +49,14 @@ To use this prompt:
   ```
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot01.1" adjust_indentation="auto" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot01_1" adjust_indentation="auto" %}
   ```
 
   You can call the prompt's `Generate` method to render the template and pass it
   to the model API in one step:
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot01.2" adjust_indentation="auto" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot01_2" adjust_indentation="auto" %}
   ```
 
 Or just render the template to a string:
@@ -64,7 +64,7 @@ Or just render the template to a string:
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot01.3" adjust_indentation="auto" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot01_3" adjust_indentation="auto" %}
   ```
 
 Dotprompt's syntax is based on the [Handlebars](https://handlebarsjs.com/guide/)

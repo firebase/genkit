@@ -60,7 +60,7 @@ func pr02() {
 func pr03() error {
 	model := ai.Model{}
 
-	// [START pr03.1]
+	// [START pr03_1]
 	type HelloPromptInput struct {
 		UserName string
 	}
@@ -82,15 +82,15 @@ func pr03() error {
 			}}, nil
 		},
 	)
-	// [END pr03.1]
+	// [END pr03_1]
 
-	// [START pr03.2]
+	// [START pr03_2]
 	request, err := helloPrompt.Render(context.Background(), HelloPromptInput{UserName: "Fred"})
 	if err != nil {
 		return err
 	}
 	response, err := model.Generate(context.Background(), request, nil)
-	// [END pr03.2]
+	// [END pr03_2]
 
 	_ = response
 	_ = err

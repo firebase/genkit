@@ -47,7 +47,7 @@ to define your prompts and run them in the Developer UI.
   Use the `DefinePrompt` function to register your prompts with Genkit.
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="pr03.1" adjust_indentation="auto" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="pr03_1" adjust_indentation="auto" %}
   ```
 
 A prompt action defines a function that returns a `GenerateRequest`,
@@ -62,7 +62,7 @@ Provide the input variables expected by the prompt, and the model to call.
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="pr03.2" adjust_indentation="auto" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="pr03_2" adjust_indentation="auto" %}
   ```
 
 In the Genkit Developer UI, you can run any prompt you have defined in this way.
