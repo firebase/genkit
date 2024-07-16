@@ -72,6 +72,11 @@ func DefineModel(model ModelDefinition, caps *ai.ModelCapabilities) *ai.Model {
 
 }
 
+// IsDefinedModel reports whether a model is defined.
+func IsDefinedModel(name string) bool {
+	return ai.IsDefinedModel(provider, name)
+}
+
 // Model returns the [ai.Model] with the given name.
 // It returns nil if the model was not configured.
 func Model(name string) *ai.Model {

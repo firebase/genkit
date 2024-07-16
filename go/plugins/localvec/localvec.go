@@ -58,9 +58,19 @@ func DefineIndexerAndRetriever(name string, cfg Config) (*ai.Indexer, *ai.Retrie
 		nil
 }
 
+// IsDefinedIndexer reports whether the named [Indexer] is defined by this plugin.
+func IsDefinedIndexer(name string) bool {
+	return ai.IsDefinedIndexer(provider, name)
+}
+
 // Indexer returns the registered indexer with the given name.
 func Indexer(name string) *ai.Indexer {
 	return ai.LookupIndexer(provider, name)
+}
+
+// IsDefinedRetriever reports whether the named [Retriever] is defined by this plugin.
+func IsDefinedRetriever(name string) bool {
+	return ai.IsDefinedRetriever(provider, name)
 }
 
 // Retriever returns the retriever with the given name.

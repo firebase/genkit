@@ -100,6 +100,16 @@ func DefineRetriever(ctx context.Context, cfg Config) (*ai.Retriever, error) {
 	return ai.DefineRetriever(provider, cfg.IndexID, ds.Retrieve), nil
 }
 
+// IsDefinedIndexer reports whether the named [Indexer] is defined by this plugin.
+func IsDefinedIndexer(name string) bool {
+	return ai.IsDefinedIndexer(provider, name)
+}
+
+// IsDefinedRetriever reports whether the named [Retriever] is defined by this plugin.
+func IsDefinedRetriever(name string) bool {
+	return ai.IsDefinedRetriever(provider, name)
+}
+
 func newDocStore(ctx context.Context, cfg Config) (*docStore, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
