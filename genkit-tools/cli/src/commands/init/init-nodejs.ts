@@ -183,8 +183,12 @@ export async function initNodejs(options: InitOptions, isNew: boolean) {
     );
   }
 
+  platform = platform || 'other';
+
   let sampleTarget: SampleTarget = 'nodejs';
-  if (!platform) {
+  if (platform === 'firebase') {
+    sampleTarget = 'firebase';
+  } else {
     if (
       isFirebaseProject() &&
       (await confirm({
@@ -194,8 +198,7 @@ export async function initNodejs(options: InitOptions, isNew: boolean) {
       }))
     ) {
       sampleTarget = 'firebase';
-    }
-    if (
+    } else if (
       isNextJsProject() &&
       (await confirm({
         message:
@@ -205,8 +208,6 @@ export async function initNodejs(options: InitOptions, isNew: boolean) {
     ) {
       sampleTarget = 'nextjs';
     }
-  } else if (platform === 'firebase') {
-    sampleTarget = 'firebase';
   }
 
   if (!model) {

@@ -1,9 +1,9 @@
 import * as z from 'zod';
 
 // Import the Genkit core libraries and plugins.
-import {generate} from '@genkit-ai/ai';
-import {configureGenkit} from '@genkit-ai/core';
-import {defineFlow, startFlowsServer} from '@genkit-ai/flow';
+import { generate } from '@genkit-ai/ai';
+import { configureGenkit } from '@genkit-ai/core';
+import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
 $GENKIT_CONFIG_IMPORTS
 $GENKIT_MODEL_IMPORT
 
@@ -12,7 +12,7 @@ configureGenkit({
 $GENKIT_CONFIG_PLUGINS
   ],
   // Log debug output to tbe console.
-  logLevel: "debug",
+  logLevel: 'debug',
   // Perform OpenTelemetry instrumentation and enable trace collection.
   enableTracingAndMetrics: true,
 });
