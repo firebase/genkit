@@ -26,12 +26,12 @@ import (
 )
 
 func dot01() error {
-	// [START dot01.1]
+	// [START dot01_1]
 	dotprompt.SetDirectory("prompts")
 	prompt, err := dotprompt.Open("greeting")
-	// [END dot01.1]
+	// [END dot01_1]
 
-	// [START dot01.2]
+	// [START dot01_2]
 	ctx := context.Background()
 
 	// The .prompt file specifies vertexai/gemini-1.5-pro, so make sure it's set
@@ -63,14 +63,14 @@ func dot01() error {
 	if responseText, err := response.Text(); err == nil {
 		fmt.Println(responseText)
 	}
-	// [END dot01.2]
+	// [END dot01_2]
 
-	// [START dot01.3]
+	// [START dot01_3]
 	renderedPrompt, err := prompt.RenderText(map[string]any{
 		"location": "a restaurant",
 		"style":    "a pirate",
 	})
-	// [END dot01.3]
+	// [END dot01_3]
 
 	_ = renderedPrompt
 	return nil
