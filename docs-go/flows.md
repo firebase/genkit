@@ -12,7 +12,7 @@ In its simplest form, a flow just wraps a function:
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="flow1" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="flow1" adjust_indentation="auto" %}
   ```
 
 Doing so lets you run the function from the Genkit CLI and developer UI, and is
@@ -31,11 +31,11 @@ type safety of both inputs and outputs:
   The following flow takes a `string` as input and outputs a `struct`:
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="msug" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="msug" adjust_indentation="auto" %}
   ```
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="flow2" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="flow2" adjust_indentation="auto" %}
   ```
 
 ## Running flows
@@ -45,7 +45,7 @@ To run a flow in your code:
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="run1" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="run1" adjust_indentation="auto" %}
   ```
 
 You can use the CLI to run flows as well:
@@ -61,11 +61,11 @@ Here's a simple example of a flow that can stream values:
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="streaming-types" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="streaming-types" adjust_indentation="auto" %}
   ```
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="streaming" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="streaming" adjust_indentation="auto" %}
   ```
 
 Note that the streaming callback can be undefined. It's only defined if the
@@ -76,7 +76,7 @@ To invoke a flow in streaming mode:
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="invoke-streaming" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="invoke-streaming" adjust_indentation="auto" %}
   ```
 
   If the flow doesn't implement streaming, `StreamFlow()` behaves identically to
@@ -99,7 +99,7 @@ first.
   then call `Init()`:
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="main" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="main" adjust_indentation="auto" %}
   ```
 
   `Init` starts a `net/http` server that exposes your flows as HTTP
@@ -118,7 +118,7 @@ first.
   for your Genkit flows, which you can multiplex with your other route handlers:
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="mux" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="mux" adjust_indentation="auto" %}
   ```
 
 ## Flow observability
@@ -128,5 +128,5 @@ you might want to see them as a separate trace step in the Developer UI. All you
 need to do is wrap the code in the `run` function.
 
 ```golang
-{% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="run" %}
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="run" adjust_indentation="auto" %}
 ```

@@ -22,7 +22,7 @@ call models this way for straight-forward use cases.
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="pr01" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="pr01" adjust_indentation="auto" %}
   ```
 
 In most cases, you'll need to include some user-provided inputs in your prompt.
@@ -31,11 +31,11 @@ You could define a function to render them like this:
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="hello" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="hello" adjust_indentation="auto" %}
   ```
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="pr02" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="pr02" adjust_indentation="auto" %}
   ```
 
 However, one shortcoming of defining prompts in your code is that testing requires executing
@@ -47,7 +47,7 @@ to define your prompts and run them in the Developer UI.
   Use the `DefinePrompt` function to register your prompts with Genkit.
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="pr03.1" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="pr03.1" adjust_indentation="auto" %}
   ```
 
 A prompt action defines a function that returns a `GenerateRequest`,
@@ -62,7 +62,7 @@ Provide the input variables expected by the prompt, and the model to call.
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="pr03.2" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="pr03.2" adjust_indentation="auto" %}
   ```
 
 In the Genkit Developer UI, you can run any prompt you have defined in this way.

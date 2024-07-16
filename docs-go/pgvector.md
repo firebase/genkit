@@ -9,7 +9,7 @@ We use [database/sql](https://pkg.go.dev/database/sql) to connect to the Postgre
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/samples/pgvector/main.go" region_tag="retr" %}
+  {% includecode github_path="firebase/genkit/go/samples/pgvector/main.go" region_tag="retr" adjust_indentation="auto" %}
   ```
 
 And here's how to use the retriever in a flow:
@@ -17,5 +17,5 @@ And here's how to use the retriever in a flow:
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/samples/pgvector/main.go" region_tag="use-retr" %}
+  {% includecode github_path="firebase/genkit/go/samples/pgvector/main.go" region_tag="use-retr" adjust_indentation="auto" %}
   ```

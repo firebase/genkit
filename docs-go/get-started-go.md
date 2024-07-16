@@ -109,7 +109,7 @@ To get started with Genkit, install the Genkit CLI and run
     might look different if you selected Vertex AI):    
 
     ```golang
-    {% includecode github_path="firebase/genkit/go/internal/doc-snippets/init/main.go" region_tag="main" %}
+    {% includecode github_path="firebase/genkit/go/internal/doc-snippets/init/main.go" region_tag="main" adjust_indentation="auto" %}
     ```
 
     As you build out your app's AI features with Genkit, you will likely create

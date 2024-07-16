@@ -19,11 +19,11 @@ models.
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="import" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="import" adjust_indentation="auto" %}
   ```
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="init" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="init" adjust_indentation="auto" %}
   ```
 
 Note: Different plugins and models use different methods of
@@ -36,7 +36,7 @@ and version:
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="model" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="model" adjust_indentation="auto" %}
   ```
 
 ## Supported models
@@ -68,7 +68,7 @@ To just call the model:
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="call" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="call" adjust_indentation="auto" %}
   ```
 
 You can pass options along with the model call. The options that are supported
@@ -77,7 +77,7 @@ depend on the model and its API.
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="options" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="options" adjust_indentation="auto" %}
   ```
 
 ### Streaming responses
@@ -89,7 +89,7 @@ Genkit supports chunked streaming of model responses:
   To use chunked streaming, pass a callback function to `Generate()`:
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="streaming" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="streaming" adjust_indentation="auto" %}
   ```
 
 ## Multimodal input
@@ -99,7 +99,7 @@ If the model supports multimodal input, you can pass image prompts:
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="multimodal" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="multimodal" adjust_indentation="auto" %}
   ```
 
   <!-- TODO: gs:// wasn't working for me. HTTP? -->
@@ -115,7 +115,7 @@ it.
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="tools" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="tools" adjust_indentation="auto" %}
   ```
 
 This will automatically call the tools in order to fulfill the user prompt.
@@ -156,13 +156,13 @@ chatbots.
   In the first prompt of a session, the "history" is simply the user prompt:
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="hist1" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="hist1" adjust_indentation="auto" %}
   ```
 
   When you get a response, add it to the history:
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="hist2" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="hist2" adjust_indentation="auto" %}
   ```
 
   You can serialize this history and persist it in a database or session storage.
@@ -170,7 +170,7 @@ chatbots.
   `Generate()`:
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="hist3" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="hist3" adjust_indentation="auto" %}
   ```
 
 If the model you're using supports the system role, you can use the initial
@@ -179,5 +179,5 @@ history to set the system message:
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="hist4" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="hist4" adjust_indentation="auto" %}
   ```

@@ -49,14 +49,14 @@ To use this prompt:
   ```
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot01.1" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot01.1" adjust_indentation="auto" %}
   ```
 
   You can call the prompt's `Generate` method to render the template and pass it
   to the model API in one step:
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot01.2" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot01.2" adjust_indentation="auto" %}
   ```
 
 Or just render the template to a string:
@@ -64,7 +64,7 @@ Or just render the template to a string:
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot01.3" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot01.3" adjust_indentation="auto" %}
   ```
 
 Dotprompt's syntax is based on the [Handlebars](https://handlebarsjs.com/guide/)
@@ -197,7 +197,7 @@ the file itself, you can also override these values on a per-call basis:
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot02" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot02" adjust_indentation="auto" %}
   ```
 
 <!-- TODO: structured output unimplemented? -->
@@ -251,7 +251,7 @@ usage. In code, this would be:
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot03" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot03" adjust_indentation="auto" %}
   ```
 
 ## Prompt Variants
@@ -274,7 +274,7 @@ To use a prompt variant, specify the variant when loading:
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot04" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot04" adjust_indentation="auto" %}
   ```
 
 The prompt loader will attempt to load the variant of that name, and fall back
@@ -284,7 +284,7 @@ on whatever criteria makes sense for your application:
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot05" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot05" adjust_indentation="auto" %}
   ```
 
 The name of the variant is included in the metadata of generation traces, so you

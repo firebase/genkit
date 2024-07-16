@@ -37,7 +37,7 @@ import "github.com/firebase/genkit/go/plugins/googlecloud"
 ```
 
 ```golang
-{% includecode github_path="firebase/genkit/go/internal/doc-snippets/gcp.go" region_tag="init" %}
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/gcp.go" region_tag="init" adjust_indentation="auto" %}
 ```
 
 You must specify the Google Cloud project to which you want to export telemetry

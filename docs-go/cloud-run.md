@@ -52,7 +52,7 @@ flow.
     port the flow server should listen on:
 
     ```golang
-    {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="init" %}
+    {% includecode github_path="firebase/genkit/go/internal/doc-snippets/flows.go" region_tag="init" adjust_indentation="auto" %}
     ```
 
 1.  Make API credentials available to your deployed function. Do one of the

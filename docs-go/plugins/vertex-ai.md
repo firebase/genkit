@@ -17,7 +17,7 @@ import "github.com/firebase/genkit/go/plugins/vertexai"
 ```
 
 ```golang
-{% includecode github_path="firebase/genkit/go/internal/doc-snippets/vertexai.go" region_tag="init" %}
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/vertexai.go" region_tag="init" adjust_indentation="auto" %}
 ```
 
 The plugin requires you to specify your Google Cloud project ID, the
@@ -31,7 +31,7 @@ credentials.
   You can also pass this value directly:
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/vertexai.go" region_tag="initproj" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/vertexai.go" region_tag="initproj" adjust_indentation="auto" %}
   ```
 
 - By default, `vertexai.Init()` gets the Vertex AI API location from the
@@ -40,7 +40,7 @@ credentials.
   You can also pass this value directly:
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/vertexai.go" region_tag="initloc" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/vertexai.go" region_tag="initloc" adjust_indentation="auto" %}
   ```
 
 - To provide API credentials, you need to set up Google Cloud Application
@@ -71,7 +71,7 @@ credentials.
 To get a reference to a supported model, specify its identifier:
 
 ```golang
-{% includecode github_path="firebase/genkit/go/internal/doc-snippets/vertexai.go" region_tag="model" %}
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/vertexai.go" region_tag="model" adjust_indentation="auto" %}
 ```
 
 The following models are supported: `gemini-1.0-pro`, `gemini-1.5-pro`, and
@@ -80,7 +80,7 @@ The following models are supported: `gemini-1.0-pro`, `gemini-1.5-pro`, and
 Model references have a `Generate()` method that calls the Vertex AI API:
 
 ```golang
-{% includecode github_path="firebase/genkit/go/internal/doc-snippets/vertexai.go" region_tag="gen" %}
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/vertexai.go" region_tag="gen" adjust_indentation="auto" %}
 ```
 
 See [Generating content](models.md) for more information.
@@ -90,7 +90,7 @@ See [Generating content](models.md) for more information.
 To get a reference to a supported embedding model, specify its identifier:
 
 ```golang
-{% includecode github_path="firebase/genkit/go/internal/doc-snippets/vertexai.go" region_tag="embedder" %}
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/vertexai.go" region_tag="embedder" adjust_indentation="auto" %}
 ```
 
 The following models are supported: `textembedding-gecko@003`,
@@ -101,18 +101,18 @@ The following models are supported: `textembedding-gecko@003`,
 Embedder references have an `Embed()` method that calls the Vertex AI API:
 
 ```golang
-{% includecode github_path="firebase/genkit/go/internal/doc-snippets/vertexai.go" region_tag="embed" %}
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/vertexai.go" region_tag="embed" adjust_indentation="auto" %}
 ```
 
 You can also pass an Embedder to an indexer's `Index()` method and a retriever's
 `Retrieve()` method:
 
 ```golang
-{% includecode github_path="firebase/genkit/go/internal/doc-snippets/vertexai.go" region_tag="index" %}
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/vertexai.go" region_tag="index" adjust_indentation="auto" %}
 ```
 
 ```golang
-{% includecode github_path="firebase/genkit/go/internal/doc-snippets/vertexai.go" region_tag="retrieve" %}
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/vertexai.go" region_tag="retrieve" adjust_indentation="auto" %}
 ```
 
 See [Retrieval-augmented generation (RAG)](rag.md) for more information.

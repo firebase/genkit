@@ -153,7 +153,7 @@ import "github.com/firebase/genkit/go/plugins/vertexai"
 ```
 
 ```golang
-{% includecode github_path="firebase/genkit/go/internal/doc-snippets/rag/main.go" region_tag="vec" %}
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/rag/main.go" region_tag="vec" adjust_indentation="auto" %}
 ```
 
 #### Create chunking config
@@ -165,7 +165,7 @@ The following definition configures the chunking function to return document
 segments of 200 characters, with an overlap between chunks of 20 characters.
 
 ```golang
-{% includecode github_path="firebase/genkit/go/internal/doc-snippets/rag/main.go" region_tag="splitcfg" %}
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/rag/main.go" region_tag="splitcfg" adjust_indentation="auto" %}
 ```
 
 More chunking options for this library can be found in the
@@ -174,11 +174,11 @@ More chunking options for this library can be found in the
 #### Define your indexer flow
 
 ```golang
-{% includecode github_path="firebase/genkit/go/internal/doc-snippets/rag/main.go" region_tag="indexflow" %}
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/rag/main.go" region_tag="indexflow" adjust_indentation="auto" %}
 ```
 
 ```golang
-{% includecode github_path="firebase/genkit/go/internal/doc-snippets/rag/main.go" region_tag="readpdf" %}
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/rag/main.go" region_tag="readpdf" adjust_indentation="auto" %}
 ```
 
 #### Run the indexer flow
@@ -197,7 +197,7 @@ the indexer example, this example uses Genkit's file-based vector retriever,
 which you should not use in production.
 
 ```golang
-{% includecode github_path="firebase/genkit/go/internal/doc-snippets/rag/main.go" region_tag="retrieve" %}
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/rag/main.go" region_tag="retrieve" adjust_indentation="auto" %}
 ```
 
 ## Write your own indexers and retrievers
@@ -216,5 +216,5 @@ following example defines a custom retriever that applies your function to the
 menu retriever defined earlier:
 
 ```golang
-{% includecode github_path="firebase/genkit/go/internal/doc-snippets/rag/main.go" region_tag="customret" %}
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/rag/main.go" region_tag="customret" adjust_indentation="auto" %}
 ```
