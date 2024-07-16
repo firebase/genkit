@@ -20,13 +20,11 @@ import (
 	"fmt"
 	"os"
 
+	// [START import]
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/plugins/vertexai"
+	// [END import]
 )
-
-// [START import]
-
-// [END import]
 
 // Globals for simplification only.
 // Bad style: don't do this.

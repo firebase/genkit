@@ -19,7 +19,9 @@ models.
 - {Go}
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="import" adjust_indentation="auto" %}
+  import {
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/models.go" region_tag="import" %}
+  }
   ```
 
   ```golang
