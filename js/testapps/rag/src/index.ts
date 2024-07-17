@@ -29,8 +29,18 @@ import {
 import { chroma } from 'genkitx-chromadb';
 import { langchain } from 'genkitx-langchain';
 import { pinecone } from 'genkitx-pinecone';
-import { GoogleAuth } from 'google-auth-library';
+import { GoogleAuth, IdTokenClient } from 'google-auth-library';
+
 const auth = new GoogleAuth();
+let authClient: IdTokenClient | undefined = undefined;
+
+/** Helper method to cache {@link IdTokenClient} instance */
+async function getCloudRunAuthClient(aud: string) {
+  if (!authClient) {
+    authClient = await auth.getIdTokenClient(aud);
+  }
+  return authClient;
+}
 
 export default configureGenkit({
   plugins: [
@@ -88,12 +98,12 @@ export default configureGenkit({
         embedder: textEmbeddingGecko,
         createCollectionIfMissing: true,
         clientParams: async () => {
-          const host = 'https://chroma-974125110527.us-central1.run.app';
-          const authClient = await auth.getIdTokenClient(host);
-
-          const idToken = await authClient.idTokenProvider.fetchIdToken(host);
+          // Replace this with your Cloud Run Instance URL
+          const host = 'https://<my-cloud-run-url>.run.app';
+          const client = await getCloudRunAuthClient(host);
+          const idToken = await client.idTokenProvider.fetchIdToken(host);
           return {
-            path: `${host}:443`,
+            path: host,
             fetchOptions: {
               headers: {
                 Authorization: 'Bearer ' + idToken,
