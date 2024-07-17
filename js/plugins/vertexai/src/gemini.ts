@@ -97,7 +97,10 @@ export const geminiProVision = modelRef({
       systemRole: false,
     },
   },
-  configSchema: GeminiConfigSchema,
+  configSchema: GeminiConfigSchema.omit({
+    googleSearchRetrieval: true,
+    vertexRetrieval: true,
+  }),
 });
 
 export const gemini15Pro = modelRef({
