@@ -334,7 +334,8 @@ global[REGISTRY_KEY] = new Registry();
 const registryAls = new AsyncLocalStorage<Registry>();
 
 /**
- * Executes provided function with within an isolated registry that has no visibility into global namespace.
+ * Executes provided function with within an isolated registry that has no
+ * visibility into global namespace.
  */
 export function runInIsolatedRegistry<O>(fn: (registry: Registry) => O): O {
   const registry = new Registry();
@@ -342,7 +343,9 @@ export function runInIsolatedRegistry<O>(fn: (registry: Registry) => O): O {
 }
 
 /**
- * Executes provided function with within a temporary registry that inherits from global/parent.
+ * Executes provided function within a temporary registry overlaid onto the
+ * provided registry that will be immediately discarded at the end with no
+ * changes to the original.
  */
 export function runInTempRegistry<O>(fn: (registry: Registry) => O): O {
   const registry = Registry.withCurrent();
