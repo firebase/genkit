@@ -44,6 +44,7 @@ const EmptyPartSchema = z.object({
   toolResponse: z.never().optional(),
   data: z.unknown().optional(),
   metadata: z.record(z.unknown()).optional(),
+  custom: z.record(z.unknown()).optional(),
 });
 
 export const TextPartSchema = EmptyPartSchema.extend({
@@ -94,13 +95,20 @@ export const DataPartSchema = EmptyPartSchema.extend({
 
 export type DataPart = z.infer<typeof DataPartSchema>;
 
+export const CustomPartSchema = EmptyPartSchema.extend({
+  custom: z.record(z.any()),
+});
+export type CustomPart = z.infer<typeof CustomPartSchema>;
+
 export const PartSchema = z.union([
   TextPartSchema,
   MediaPartSchema,
   ToolRequestPartSchema,
   ToolResponsePartSchema,
   DataPartSchema,
+  CustomPartSchema,
 ]);
+
 export type Part = z.infer<typeof PartSchema>;
 
 export const RoleSchema = z.enum(['system', 'user', 'model', 'tool']);

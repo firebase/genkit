@@ -36,19 +36,20 @@ import {
 } from '@genkit-ai/ai/model/middleware';
 import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
 import {
+  Content as GeminiMessage,
   FunctionCallPart,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
   FunctionResponsePart,
   GenerateContentCandidate as GeminiCandidate,
-  Content as GeminiMessage,
-  Part as GeminiPart,
   GenerateContentResponse,
   GenerationConfig,
   GoogleGenerativeAI,
   InlineDataPart,
+  Part as GeminiPart,
   RequestOptions,
   StartChatParams,
+  Tool,
 } from '@google/generative-ai';
 import process from 'process';
 import z from 'zod';
@@ -71,6 +72,7 @@ const SafetySettingsSchema = z.object({
 
 const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   safetySettings: z.array(SafetySettingsSchema).optional(),
+  codeExecution: z.union([z.boolean(), z.object({}).strict()]).optional(),
 });
 
 export const geminiPro = modelRef({
@@ -316,11 +318,43 @@ function fromFunctionResponse(part: FunctionResponsePart): ToolResponsePart {
   };
 }
 
+function fromExecutableCode(part: GeminiPart): Part {
+  if (!part.executableCode) {
+    throw new Error('Invalid GeminiPart: missing executableCode');
+  }
+  return {
+    custom: part.executableCode,
+  };
+}
+
+function fromCodeExecutionResult(part: GeminiPart): Part {
+  if (!part.codeExecutionResult) {
+    throw new Error('Invalid GeminiPart: missing codeExecutionResult');
+  }
+  return {
+    custom: part.codeExecutionResult,
+  };
+}
+
+function toCustomPart(part: Part): GeminiPart {
+  if (!part.custom) {
+    throw new Error('Invalid GeminiPart: missing custom');
+  }
+  if (part.custom.codeExecutionResult) {
+    return { codeExecutionResult: part.custom.codeExecutionResult };
+  }
+  if (part.custom.executableCode) {
+    return { executableCode: part.custom.executableCode };
+  }
+  throw new Error('Unsupported Custom Part type');
+}
+
 function toGeminiPart(part: Part): GeminiPart {
   if (part.text !== undefined) return { text: part.text };
   if (part.media) return toInlineData(part);
   if (part.toolRequest) return toFunctionCall(part);
   if (part.toolResponse) return toFunctionResponse(part);
+  if (part.custom) return toCustomPart(part);
   throw new Error('Unsupported Part type');
 }
 
@@ -332,6 +366,8 @@ function fromGeminiPart(part: GeminiPart, jsonMode: boolean): Part {
   if (part.inlineData) return fromInlineData(part);
   if (part.functionCall) return fromFunctionCall(part);
   if (part.functionResponse) return fromFunctionResponse(part);
+  if (part.executableCode) return fromExecutableCode(part);
+  if (part.codeExecutionResult) return fromCodeExecutionResult(part);
   throw new Error('Unsupported GeminiPart type');
 }
 
@@ -473,12 +509,28 @@ export function googleAIModel(
             ? 'application/json'
             : undefined,
       };
+
+      const tools: Tool[] = [];
+
+      if (request.tools?.length) {
+        tools.push({
+          functionDeclarations: request.tools.map(toGeminiTool),
+        });
+      }
+
+      if (request.config?.codeExecution) {
+        tools.push({
+          codeExecution:
+            request.config.codeExecution === true
+              ? {}
+              : request.config.codeExecution,
+        });
+      }
+
       const chatRequest = {
         systemInstruction,
         generationConfig,
-        tools: request.tools?.length
-          ? [{ functionDeclarations: request.tools?.map(toGeminiTool) }]
-          : [],
+        tools,
         history: messages
           .slice(0, -1)
           .map((message) => toGeminiMessage(message, model)),
