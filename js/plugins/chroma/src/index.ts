@@ -26,12 +26,12 @@ import {
 import { genkitPlugin, PluginProvider } from '@genkit-ai/core';
 import {
   ChromaClient,
-  ChromaClientParams,
   Collection,
   CollectionMetadata,
   IEmbeddingFunction,
   IncludeEnum,
   Metadata,
+  ChromaClientParams as NativeChromaClientParams,
   Where,
   WhereDocument,
 } from 'chromadb';
@@ -50,6 +50,10 @@ const ChromaRetrieverOptionsSchema = CommonRetrieverOptionsSchema.extend({
 });
 
 export const ChromaIndexerOptionsSchema = z.null().optional();
+
+type ChromaClientParams =
+  | NativeChromaClientParams
+  | (() => Promise<NativeChromaClientParams>);
 
 /**
  * Chroma plugin that provides the Chroma retriever and indexer
@@ -128,7 +132,8 @@ export function chromaRetriever<
       configSchema: ChromaRetrieverOptionsSchema.optional(),
     },
     async (content, options) => {
-      const client = new ChromaClient(params.clientParams);
+      const clientParams = await resolve(params.clientParams);
+      const client = new ChromaClient(clientParams);
       let collection: Collection;
       if (params.createCollectionIfMissing) {
         collection = await client.getOrCreateCollection({
@@ -187,7 +192,6 @@ export function chromaIndexer<
 >(params: {
   clientParams?: ChromaClientParams;
   collectionName: string;
-  textKey?: string;
   createCollectionIfMissing?: boolean;
   embedder: EmbedderArgument<EmbedderCustomOptions>;
   embedderOptions?: z.infer<EmbedderCustomOptions>;
@@ -195,7 +199,6 @@ export function chromaIndexer<
   const { collectionName, embedder, embedderOptions } = {
     ...params,
   };
-  const client = new ChromaClient(params.clientParams);
 
   return defineIndexer(
     {
@@ -203,6 +206,9 @@ export function chromaIndexer<
       configSchema: ChromaIndexerOptionsSchema,
     },
     async (docs) => {
+      const clientParams = await resolve(params.clientParams);
+      const client = new ChromaClient(clientParams);
+
       let collection: Collection;
       if (params.createCollectionIfMissing) {
         collection = await client.getOrCreateCollection({
@@ -276,7 +282,8 @@ export async function createChromaCollection<
       },
     };
   }
-  const client = new ChromaClient(params.clientParams);
+  const clientParams = await resolve(params.clientParams);
+  const client = new ChromaClient(clientParams);
   return await client.createCollection({
     ...params,
     embeddingFunction: chromaEmbedder,
@@ -290,8 +297,21 @@ export async function deleteChromaCollection(params: {
   name: string;
   clientParams?: ChromaClientParams;
 }) {
-  const client = new ChromaClient(params.clientParams);
+  const clientParams = await resolve(params.clientParams);
+  const client = new ChromaClient(clientParams);
   return await client.deleteCollection({
     ...params,
   });
+}
+
+async function resolve(
+  params?: ChromaClientParams
+): Promise<NativeChromaClientParams | undefined> {
+  if (!params) {
+    return undefined;
+  }
+  if (typeof params === 'function') {
+    return await params();
+  }
+  return params;
 }
