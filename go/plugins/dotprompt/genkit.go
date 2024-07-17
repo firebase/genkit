@@ -16,6 +16,7 @@ package dotprompt
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -117,9 +118,20 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.GenerateReque
 
 	req.Config = p.GenerationConfig
 
+	jsonBytes, err := p.OutputSchema.MarshalJSON()
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal output schema JSON: %w", err)
+	}
+
+	var outputSchema map[string]any
+	err = json.Unmarshal(jsonBytes, &outputSchema)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal output schema JSON: %w", err)
+	}
+
 	req.Output = &ai.GenerateRequestOutput{
 		Format: p.OutputFormat,
-		Schema: p.OutputSchema,
+		Schema: outputSchema,
 	}
 
 	req.Tools = p.Tools

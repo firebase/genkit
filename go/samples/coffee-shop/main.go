@@ -36,7 +36,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 
@@ -172,24 +171,12 @@ func main() {
 		return text, nil
 	})
 
-	schema := r.Reflect(simpleGreetingOutput{})
-	jsonBytes, err := schema.MarshalJSON()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	var outputSchema map[string]any
-	err = json.Unmarshal(jsonBytes, &outputSchema)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	simpleStructuredGreetingPrompt, err := dotprompt.Define("simpleStructuredGreeting", simpleStructuredGreetingPromptTemplate,
 		dotprompt.Config{
 			Model:        g,
-			InputSchema:  jsonschema.Reflect(simpleGreetingInput{}),
+			InputSchema:  r.Reflect(simpleGreetingInput{}),
 			OutputFormat: ai.OutputFormatJSON,
-			OutputSchema: outputSchema,
+			OutputSchema: r.Reflect(simpleGreetingOutput{}),
 		},
 	)
 	if err != nil {
