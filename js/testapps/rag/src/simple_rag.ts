@@ -37,13 +37,13 @@ export const catFactsIndexer = pineconeIndexerRef({
 });
 
 export const dogFactsRetriever = chromaRetrieverRef({
-  collectionName: 'my_collection',
-  displayName: 'my_collection retriever',
+  collectionName: 'dogfacts_collection',
+  displayName: 'Dog facts retriever',
 });
 
 export const dogFactsIndexer = chromaIndexerRef({
-  collectionName: 'my_collection',
-  displayName: 'my_collection indexer',
+  collectionName: 'dogfacts_collection',
+  displayName: 'Dog facts indexer',
 });
 
 // Simple aliases for readability

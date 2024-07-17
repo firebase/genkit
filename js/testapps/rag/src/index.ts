@@ -94,7 +94,7 @@ export default configureGenkit({
     ]),
     chroma([
       {
-        collectionName: 'my_collection',
+        collectionName: 'dogfacts_collection',
         embedder: textEmbeddingGecko,
         createCollectionIfMissing: true,
         clientParams: async () => {
