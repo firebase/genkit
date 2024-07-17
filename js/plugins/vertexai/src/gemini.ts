@@ -53,13 +53,12 @@ const SafetySettingsSchema = z.object({
   threshold: z.nativeEnum(HarmBlockThreshold),
 });
 
-const VertexRetrieverSchema = z.object({
-  datastore: z
-    .string()
-    .regex(
-      /^projects\/[^/]+\/locations\/[^/]+\/datasets\/[^/]+\/datastores\/[^/]+$/,
-      'Invalid datastore reference, expected format: projects/{project}/locations/{location}/datasets/{dataset}/datastores/{datastore}'
-    ),
+const VertexRetrievalSchema = z.object({
+  datastore: z.object({
+    projectId: z.string(),
+    location: z.string(),
+    dataStoreId: z.string(),
+  }),
   disableAttribution: z.boolean().optional(),
 });
 
@@ -67,7 +66,7 @@ const GoogleSearchRetrievalSchema = z.object({});
 
 const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   safetySettings: z.array(SafetySettingsSchema).optional(),
-  vertexRetriever: VertexRetrieverSchema.optional(),
+  vertexRetrieval: VertexRetrievalSchema.optional(),
   googleSearchRetrieval: GoogleSearchRetrievalSchema.optional(),
 });
 
@@ -527,9 +526,21 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
           googleSearchRetrieval: request.config.googleSearchRetrieval,
         });
       }
-      if (request.config?.vertexRetriever) {
+      if (request.config?.vertexRetrieval) {
+        // https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/ground-gemini#ground-gemini
+        const projectId = request.config.vertexRetrieval.datastore.projectId;
+        const location = request.config.vertexRetrieval.datastore.location;
+        const dataStoreId =
+          request.config.vertexRetrieval.datastore.dataStoreId;
+        const datastore = `projects/${projectId}/locations/${location}/collections/default_collection/dataStores/${dataStoreId}`;
         chatRequest.tools?.push({
-          retrieval: request.config.vertexRetriever,
+          retrieval: {
+            vertexAiSearch: {
+              datastore: datastore,
+            },
+            disableAttribution:
+              request.config.vertexRetrieval.disableAttribution,
+          },
         });
       }
       const msg = toGeminiMessage(messages[messages.length - 1], model);
