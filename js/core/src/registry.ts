@@ -273,7 +273,7 @@ export class Registry {
     );
   }
 
-  private async _lookupFlowStateStore(
+  private async lookupOverlaidFlowStateStore(
     env: string
   ): Promise<FlowStateStore | undefined> {
     if (!this.flowStateStoresByEnv[env]) {
