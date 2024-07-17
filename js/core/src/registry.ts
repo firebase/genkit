@@ -334,12 +334,22 @@ global[REGISTRY_KEY] = new Registry();
 const registryAls = new AsyncLocalStorage<Registry>();
 
 /**
+ * Executes provided function with within the provided registry.
+ */
+export function runInRegistry<O>(
+  registry: Registry,
+  fn: (registry: Registry) => O
+): O {
+  return registryAls.run(registry, () => fn(registry));
+}
+
+/**
  * Executes provided function with within an isolated registry that has no
  * visibility into global namespace.
  */
 export function runInIsolatedRegistry<O>(fn: (registry: Registry) => O): O {
   const registry = new Registry();
-  return registryAls.run(registry, () => fn(registry));
+  return runInRegistry(registry, fn);
 }
 
 /**
@@ -349,7 +359,7 @@ export function runInIsolatedRegistry<O>(fn: (registry: Registry) => O): O {
  */
 export function runInTempRegistry<O>(fn: (registry: Registry) => O): O {
   const registry = Registry.withCurrent();
-  return registryAls.run(registry, () => fn(registry));
+  return runInRegistry(registry, fn);
 }
 
 /**
