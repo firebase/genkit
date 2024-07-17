@@ -118,15 +118,16 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.GenerateReque
 
 	req.Config = p.GenerationConfig
 
-	jsonBytes, err := p.OutputSchema.MarshalJSON()
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal output schema JSON: %w", err)
-	}
-
 	var outputSchema map[string]any
-	err = json.Unmarshal(jsonBytes, &outputSchema)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal output schema JSON: %w", err)
+	if p.OutputSchema != nil {
+		jsonBytes, err := p.OutputSchema.MarshalJSON()
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal output schema JSON: %w", err)
+		}
+		err = json.Unmarshal(jsonBytes, &outputSchema)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal output schema JSON: %w", err)
+		}
 	}
 
 	req.Output = &ai.GenerateRequestOutput{
