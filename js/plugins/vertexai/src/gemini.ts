@@ -37,12 +37,12 @@ import {
   Content,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
-  Part as GeminiPart,
   GenerateContentCandidate,
   GenerateContentResponse,
   GenerateContentResult,
   HarmBlockThreshold,
   HarmCategory,
+  Part as GeminiPart,
   StartChatParams,
   VertexAI,
 } from '@google-cloud/vertexai';
@@ -53,8 +53,22 @@ const SafetySettingsSchema = z.object({
   threshold: z.nativeEnum(HarmBlockThreshold),
 });
 
+const VertexRetrieverSchema = z.object({
+  datastore: z
+    .string()
+    .regex(
+      /^projects\/[^/]+\/locations\/[^/]+\/datasets\/[^/]+\/datastores\/[^/]+$/,
+      'Invalid datastore reference, expected format: projects/{project}/locations/{location}/datasets/{dataset}/datastores/{datastore}'
+    ),
+  disableAttribution: z.boolean().optional(),
+});
+
+const GoogleSearchRetrievalSchema = z.object({});
+
 const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   safetySettings: z.array(SafetySettingsSchema).optional(),
+  vertexRetriever: VertexRetrieverSchema.optional(),
+  googleSearchRetrieval: GoogleSearchRetrievalSchema.optional(),
 });
 
 export const geminiPro = modelRef({
@@ -508,6 +522,16 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
         },
         safetySettings: request.config?.safetySettings,
       };
+      if (request.config?.googleSearchRetrieval) {
+        chatRequest.tools?.push({
+          googleSearchRetrieval: request.config.googleSearchRetrieval,
+        });
+      }
+      if (request.config?.vertexRetriever) {
+        chatRequest.tools?.push({
+          retrieval: request.config.vertexRetriever,
+        });
+      }
       const msg = toGeminiMessage(messages[messages.length - 1], model);
       if (streamingCallback) {
         const result = await client
