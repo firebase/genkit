@@ -47,6 +47,7 @@ import {
   VertexAI,
 } from '@google-cloud/vertexai';
 import { z } from 'zod';
+import { PluginOptions } from './index.js';
 
 const SafetySettingsSchema = z.object({
   category: z.nativeEnum(HarmCategory),
@@ -55,8 +56,8 @@ const SafetySettingsSchema = z.object({
 
 const VertexRetrievalSchema = z.object({
   datastore: z.object({
-    projectId: z.string(),
-    location: z.string(),
+    projectId: z.string().optional(),
+    location: z.string().optional(),
     dataStoreId: z.string(),
   }),
   disableAttribution: z.boolean().optional(),
@@ -457,7 +458,11 @@ const convertSchemaProperty = (property) => {
 /**
  *
  */
-export function geminiModel(name: string, vertex: VertexAI): ModelAction {
+export function geminiModel(
+  name: string,
+  vertex: VertexAI,
+  options: PluginOptions
+): ModelAction {
   const modelName = `vertexai/${name}`;
 
   const model: ModelReference<z.ZodTypeAny> = SUPPORTED_GEMINI_MODELS[name];
@@ -531,18 +536,19 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
       }
       if (request.config?.vertexRetrieval) {
         // https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/ground-gemini#ground-gemini
-        const projectId = request.config.vertexRetrieval.datastore.projectId;
-        const location = request.config.vertexRetrieval.datastore.location;
-        const dataStoreId =
-          request.config.vertexRetrieval.datastore.dataStoreId;
-        const datastore = `projects/${projectId}/locations/${location}/collections/default_collection/dataStores/${dataStoreId}`;
+        const vertexRetrieval = request.config.vertexRetrieval;
+        const _projectId =
+          vertexRetrieval.datastore.projectId || options.projectId;
+        const _location =
+          vertexRetrieval.datastore.location || options.location;
+        const _dataStoreId = vertexRetrieval.datastore.dataStoreId;
+        const datastore = `projects/${_projectId}/locations/${_location}/collections/default_collection/dataStores/${_dataStoreId}`;
         chatRequest.tools?.push({
           retrieval: {
             vertexAiSearch: {
               datastore: datastore,
             },
-            disableAttribution:
-              request.config.vertexRetrieval.disableAttribution,
+            disableAttribution: vertexRetrieval.disableAttribution,
           },
         });
       }

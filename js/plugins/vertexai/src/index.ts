@@ -130,7 +130,7 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
     const models = [
       imagen2Model(authClient, { projectId, location }),
       ...Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
-        geminiModel(name, vertexClient)
+        geminiModel(name, vertexClient, { projectId, location })
       ),
     ];
 
