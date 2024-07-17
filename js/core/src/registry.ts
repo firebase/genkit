@@ -190,20 +190,12 @@ export class Registry {
     O extends z.ZodTypeAny,
     R extends Action<I, O>,
   >(key: string): Promise<R> {
-    return (await this._lookupAction(key)) || this.parent?.lookupAction(key);
-  }
-
-  private async _lookupAction<
-    I extends z.ZodTypeAny,
-    O extends z.ZodTypeAny,
-    R extends Action<I, O>,
-  >(key: string): Promise<R> {
     // If we don't see the key in the registry we try to initialize the plugin first.
     const pluginName = parsePluginName(key);
     if (!this.actionsById[key] && pluginName) {
       await this.initializePlugin(pluginName);
     }
-    return this.actionsById[key] as R;
+    return (this.actionsById[key] as R) || this.parent?.lookupAction(key);
   }
 
   registerAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
@@ -342,16 +334,17 @@ global[REGISTRY_KEY] = new Registry();
 const registryAls = new AsyncLocalStorage<Registry>();
 
 /**
- * Executes provided function with within the provided registry.
+ * Executes provided function with within an isolated registry that has no visibility into global namespace.
  */
-export function runWithRegistry<O>(registry: Registry, fn: () => O): O {
-  return registryAls.run(registry, fn);
+export function runInIsolatedRegistry<O>(fn: (registry: Registry) => O): O {
+  const registry = new Registry();
+  return registryAls.run(registry, () => fn(registry));
 }
 
 /**
- * Executes provided function with within a child/ephemeral registry.
+ * Executes provided function with within a temporary registry that inherits from global/parent.
  */
-export function runInEphemeralRegistry<O>(fn: (registry: Registry) => O): O {
+export function runInTempRegistry<O>(fn: (registry: Registry) => O): O {
   const registry = Registry.withCurrent();
   return registryAls.run(registry, () => fn(registry));
 }

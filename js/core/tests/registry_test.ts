@@ -24,7 +24,8 @@ import {
   lookupAction,
   registerAction,
   registerPluginProvider,
-  runWithRegistry,
+  runInIsolatedRegistry,
+  runInTempRegistry,
 } from '../src/registry.js';
 
 describe('global registry', () => {
@@ -385,34 +386,57 @@ describe('registry class', () => {
     });
   });
 
-  describe('runWithRegistry', () => {
+  describe('runInTempRegistry', () => {
     it('should lookup parent registry when child missing action', async () => {
-      const childRegistry = new Registry(registry);
-
       const fooSomethingAction = action(
         { name: 'foo_something' },
         async () => null
       );
+      const barSomethingAction = action(
+        { name: 'bar_something' },
+        async () => null
+      );
+      registerAction('model', barSomethingAction);
 
-      runWithRegistry(childRegistry, () => {
+      await runInTempRegistry(async () => {
         registerAction('model', fooSomethingAction);
-      });
-
-      assert.strictEqual(
-        await registry.lookupAction('/model/foo_something'),
-        undefined
-      );
-      assert.strictEqual(
-        await childRegistry.lookupAction('/model/foo_something'),
-        fooSomethingAction
-      );
-      assert.strictEqual(await lookupAction('/model/foo_something'), undefined);
-      await runWithRegistry(childRegistry, async () => {
+        assert.strictEqual(
+          await lookupAction('/model/bar_something'),
+          barSomethingAction
+        );
         assert.strictEqual(
           await lookupAction('/model/foo_something'),
           fooSomethingAction
         );
       });
+      assert.strictEqual(await lookupAction('/model/foo_something'), undefined);
+    });
+  });
+
+  describe('runInIsolatedRegistry', () => {
+    it('should lookup parent registry when child missing action', async () => {
+      const fooSomethingAction = action(
+        { name: 'foo_something' },
+        async () => null
+      );
+      const barSomethingAction = action(
+        { name: 'bar_something' },
+        async () => null
+      );
+      registerAction('model', barSomethingAction);
+
+      await runInIsolatedRegistry(async () => {
+        registerAction('model', fooSomethingAction);
+        assert.strictEqual(
+          await lookupAction('/model/bar_something'),
+          undefined
+        );
+        assert.strictEqual(
+          await lookupAction('/model/foo_something'),
+          fooSomethingAction
+        );
+      });
+      assert.strictEqual(await lookupAction('/model/foo_something'), undefined);
     });
   });
 });
