@@ -45,7 +45,7 @@ type DocumentEmbedding struct {
 }
 
 // DefineEmbedder registers the given embed function as an action, and returns an
-// [EmbedderAction] that runs it.
+// [Embedder] that runs it.
 func DefineEmbedder(provider, name string, embed func(context.Context, *EmbedRequest) (*EmbedResponse, error)) *Embedder {
 	return (*Embedder)(core.DefineAction(provider, name, atype.Embedder, nil, embed))
 }
@@ -55,7 +55,7 @@ func IsDefinedEmbedder(provider, name string) bool {
 	return LookupEmbedder(provider, name) != nil
 }
 
-// LookupEmbedder looks up an [EmbedderAction] registered by [DefineEmbedder].
+// LookupEmbedder looks up an [Embedder] registered by [DefineEmbedder].
 // It returns nil if the embedder was not defined.
 func LookupEmbedder(provider, name string) *Embedder {
 	action := core.LookupActionFor[*EmbedRequest, *EmbedResponse, struct{}](atype.Embedder, provider, name)
