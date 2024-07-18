@@ -88,7 +88,7 @@ type Config struct {
 	// If this is non-nil, Model should be the empty string.
 	Model *ai.Model
 
-	// TODO(iant): document
+	// TODO: document
 	Tools []*ai.ToolDefinition
 
 	// Number of candidates to generate when passing the prompt
@@ -245,7 +245,7 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 
 	if outputSchema != nil {
 		// We have a jsonschema.Schema and we want a map[string]any.
-		// TODO(iant): This conversion is useless.
+		// TODO: This conversion is useless.
 
 		// Sort so that testing is reliable.
 		// This is not required if not testing.
@@ -260,7 +260,7 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 		}
 	}
 
-	// TODO(iant): The TypeScript codes supports media also,
+	// TODO: The TypeScript codes supports media also,
 	// but there is no ai.OutputFormatMedia.
 	switch fy.Output.Format {
 	case "":

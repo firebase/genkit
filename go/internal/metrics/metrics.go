@@ -76,7 +76,7 @@ func WriteActionSuccess(ctx context.Context, actionName string, latency time.Dur
 func WriteActionFailure(ctx context.Context, actionName string, latency time.Duration, err error) {
 	recordAction(ctx, latency, attribute.String("name", actionName),
 		attribute.Int("errorCode", errorCode(err)),
-		// TODO(jba): Mitigate against high-cardinality dimensions that arise from
+		// TODO: Mitigate against high-cardinality dimensions that arise from
 		// many different error messages, perhaps by taking a prefix of the error
 		// message.
 		attribute.String("errorMessage", err.Error()),
@@ -106,7 +106,7 @@ func WriteFlowSuccess(ctx context.Context, flowName string, latency time.Duratio
 func WriteFlowFailure(ctx context.Context, flowName string, latency time.Duration, err error) {
 	recordAction(ctx, latency, attribute.String("name", flowName),
 		attribute.Int("errorCode", errorCode(err)),
-		// TODO(jba): Mitigate against high-cardinality dimensions that arise from
+		// TODO: Mitigate against high-cardinality dimensions that arise from
 		// many different error messages, perhaps by taking a prefix of the error
 		// message.
 		attribute.String("errorMessage", err.Error()),

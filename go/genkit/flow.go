@@ -37,8 +37,8 @@ import (
 	otrace "go.opentelemetry.io/otel/trace"
 )
 
-// TODO(jba): support auth
-// TODO(jba): provide a way to start a Flow from user code.
+// TODO: support auth
+// TODO: provide a way to start a Flow from user code.
 
 // A Flow is a kind of Action that can be interrupted and resumed.
 // (Resumption is an experimental feature in the Javascript implementation,
@@ -98,10 +98,10 @@ type Flow[In, Out, Stream any] struct {
 	tstate       *tracing.State             // set from the action when the flow is defined
 	inputSchema  *jsonschema.Schema         // Schema of the input to the flow
 	outputSchema *jsonschema.Schema         // Schema of the output out of the flow
-	// TODO(jba): scheduler
-	// TODO(jba): experimentalDurable
-	// TODO(jba): authPolicy
-	// TODO(jba): middleware
+	// TODO: scheduler
+	// TODO: experimentalDurable
+	// TODO: authPolicy
+	// TODO: middleware
 }
 
 type noStream = func(context.Context, struct{}) error
@@ -146,7 +146,7 @@ func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.
 		fn:           fn,
 		inputSchema:  base.InferJSONSchema(i),
 		outputSchema: base.InferJSONSchema(o),
-		// TODO(jba): set stateStore?
+		// TODO: set stateStore?
 	}
 	metadata := map[string]any{
 		"inputSchema":  f.inputSchema,
@@ -162,7 +162,7 @@ func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.
 	return f
 }
 
-// TODO(jba): use flowError?
+// TODO: use flowError?
 
 // A flowInstruction is an instruction to follow with a flow.
 // It is the input for the flow's action.
@@ -204,7 +204,7 @@ type stateInstruction struct {
 	FlowID string `json:"flowId,omitempty"`
 }
 
-// TODO(jba): document
+// TODO: document
 type retryInstruction struct {
 	FlowID string `json:"flowId,omitempty"`
 }
@@ -290,7 +290,7 @@ type FlowResult[Out any] struct {
 	Error    string `json:"error,omitempty"`
 	// The Error field above is not used in the code, but it gets marshaled
 	// into JSON.
-	// TODO(jba): replace with  a type that implements error and json.Marshaler.
+	// TODO: replace with  a type that implements error and json.Marshaler.
 	err        error
 	StackTrace string `json:"stacktrace,omitempty"`
 }
@@ -302,7 +302,7 @@ type FlowResult[Out any] struct {
 func (f *Flow[In, Out, Stream]) runInstruction(ctx context.Context, inst *flowInstruction[In], cb streamingCallback[Stream]) (*flowState[In, Out], error) {
 	switch {
 	case inst.Start != nil:
-		// TODO(jba): pass msg.Start.Labels.
+		// TODO: pass msg.Start.Labels.
 		return f.start(ctx, inst.Start.Input, cb)
 	case inst.Resume != nil:
 		return nil, errors.ErrUnsupported
@@ -383,7 +383,7 @@ func (f *Flow[In, Out, Stream]) execute(ctx context.Context, state *flowState[In
 	fctx := newFlowContext(state, f.stateStore, f.tstate)
 	defer func() {
 		if err := fctx.finish(ctx); err != nil {
-			// TODO(jba): do something more with this error?
+			// TODO: do something more with this error?
 			logger.FromContext(ctx).Error("flowContext.finish", "err", err.Error())
 		}
 	}()
@@ -394,19 +394,19 @@ func (f *Flow[In, Out, Stream]) execute(ctx context.Context, state *flowState[In
 	state.mu.Lock()
 	state.Executions = append(state.Executions, exec)
 	state.mu.Unlock()
-	// TODO(jba): retrieve the JSON-marshaled SpanContext from state.traceContext.
-	// TODO(jba): add a span link to the context.
+	// TODO: retrieve the JSON-marshaled SpanContext from state.traceContext.
+	// TODO: add a span link to the context.
 	output, err := tracing.RunInNewSpan(ctx, fctx.tracingState(), f.name, "flow", true, state.Input, func(ctx context.Context, input In) (Out, error) {
 		tracing.SetCustomMetadataAttr(ctx, "flow:execution", strconv.Itoa(len(state.Executions)-1))
-		// TODO(jba): put labels into span metadata.
+		// TODO: put labels into span metadata.
 		tracing.SetCustomMetadataAttr(ctx, "flow:name", f.name)
 		tracing.SetCustomMetadataAttr(ctx, "flow:id", state.FlowID)
 		tracing.SetCustomMetadataAttr(ctx, "flow:dispatchType", dispatchType)
 		rootSpanContext := otrace.SpanContextFromContext(ctx)
 		traceID := rootSpanContext.TraceID().String()
 		exec.TraceIDs = append(exec.TraceIDs, traceID)
-		// TODO(jba): Save rootSpanContext in the state.
-		// TODO(jba): If input is missing, get it from state.input and overwrite metadata.input.
+		// TODO: Save rootSpanContext in the state.
+		// TODO: If input is missing, get it from state.input and overwrite metadata.input.
 		start := time.Now()
 		var err error
 		if err = base.ValidateValue(input, f.inputSchema); err != nil {
@@ -423,7 +423,7 @@ func (f *Flow[In, Out, Stream]) execute(ctx context.Context, state *flowState[In
 		}
 		latency := time.Since(start)
 		if err != nil {
-			// TODO(jba): handle InterruptError
+			// TODO: handle InterruptError
 			logger.FromContext(ctx).Error("flow failed",
 				"path", tracing.SpanPath(ctx),
 				"err", err.Error(),
@@ -436,10 +436,10 @@ func (f *Flow[In, Out, Stream]) execute(ctx context.Context, state *flowState[In
 			tracing.SetCustomMetadataAttr(ctx, "flow:state", "done")
 
 		}
-		// TODO(jba): telemetry
+		// TODO: telemetry
 		return output, err
 	})
-	// TODO(jba): perhaps this should be in a defer, to handle panics?
+	// TODO: perhaps this should be in a defer, to handle panics?
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	state.Operation.Done = true
@@ -447,7 +447,7 @@ func (f *Flow[In, Out, Stream]) execute(ctx context.Context, state *flowState[In
 		state.Operation.Result = &FlowResult[Out]{
 			err:   err,
 			Error: err.Error(),
-			// TODO(jba): stack trace?
+			// TODO: stack trace?
 		}
 	} else {
 		state.Operation.Result = &FlowResult[Out]{Response: output}
@@ -473,7 +473,7 @@ type flowContext[I, O any] struct {
 	tstate     *tracing.State
 	mu         sync.Mutex
 	seenSteps  map[string]int // number of times each name appears, to avoid duplicate names
-	// TODO(jba): auth
+	// TODO: auth
 }
 
 // flowContexter is the type of all flowContext[I, O].
@@ -499,7 +499,7 @@ func (fc *flowContext[I, O]) finish(ctx context.Context) error {
 	if fc.stateStore == nil {
 		return nil
 	}
-	// TODO(jba): In the js, start saves the state only under certain conditions. Duplicate?
+	// TODO: In the js, start saves the state only under certain conditions. Duplicate?
 	return fc.stateStore.Save(ctx, fc.state.FlowID, fc.state)
 }
 
@@ -531,7 +531,7 @@ func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out,
 		var z Out
 		return z, fmt.Errorf("genkit.Run(%q): must be called from a flow", name)
 	}
-	// TODO(jba): The input here is irrelevant. Perhaps runInNewSpan should have only a result type param,
+	// TODO: The input here is irrelevant. Perhaps runInNewSpan should have only a result type param,
 	// as in the js.
 	return tracing.RunInNewSpan(ctx, fc.tracingState(), name, "flowStep", false, 0, func(ctx context.Context, _ int) (Out, error) {
 		uName := fc.uniqueStepName(name)
@@ -542,7 +542,7 @@ func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out,
 		// The locking here prevents corruption of the cache from concurrent access, but doesn't
 		// prevent two goroutines racing to check the cache and call f. However, that shouldn't
 		// happen because every step has a unique cache key.
-		// TODO(jba): don't memoize a nested flow (see context.ts)
+		// TODO: don't memoize a nested flow (see context.ts)
 		fs := fc.stater()
 		j := fs.CacheAt(uName)
 		if j != nil {

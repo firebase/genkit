@@ -37,7 +37,7 @@ func TestDocumentFromText(t *testing.T) {
 	}
 }
 
-// TODO(iant): verify that this works with the data that genkit passes.
+// TODO: verify that this works with the data that genkit passes.
 func TestDocumentJSON(t *testing.T) {
 	d := Document{
 		Content: []*Part{

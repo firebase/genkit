@@ -88,7 +88,7 @@ func RunInNewSpan[I, O any](
 	input I,
 	f func(context.Context, I) (O, error),
 ) (O, error) {
-	// TODO(jba): support span links.
+	// TODO: support span links.
 	log := logger.FromContext(ctx)
 	log.Debug("span start", "name", name)
 	defer log.Debug("span end", "name", name)
@@ -121,7 +121,7 @@ func RunInNewSpan[I, O any](
 		span.SetStatus(codes.Error, err.Error())
 		return base.Zero[O](), err
 	}
-	// TODO(jba): the typescript code checks if sm.State == error here. Can that happen?
+	// TODO: the typescript code checks if sm.State == error here. Can that happen?
 	sm.State = spanStateSuccess
 	sm.Output = output
 	return output, nil

@@ -130,7 +130,7 @@ func listRange(q *Query, total int) (start, end int, err error) {
 		// This doesn't work well with newest-first order if files are added during listing,
 		// because the indexes will change.
 		// But we use it for consistency with the javascript implementation.
-		// TODO(jba): consider using distance from the end (len(entries) - end).
+		// TODO: consider using distance from the end (len(entries) - end).
 		start, err = strconv.Atoi(ctoken)
 		if err != nil {
 			return 0, 0, fmt.Errorf("%w: parsing continuation token: %v", ErrBadQuery, err)
