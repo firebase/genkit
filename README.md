@@ -1,27 +1,26 @@
 ![Firebase Genkit logo](docs/resources/genkit-logo-dark.png#gh-dark-mode-only 'Firebase Genkit')
 ![Firebase Genkit logo](docs/resources/genkit-logo.png#gh-light-mode-only 'Firebase Genkit')
 
-Firebase Genkit is a framework for building and refining AI-powered applications. It provides open source libraries for Node.js and Go, plus integrated devtools to support developing with generative AI.
+Genkit is a framework for developing AI-powered applications. It provides open-source libraries for Node.js and Go, complemented by integrated devtools that streamline your development process with generative AI.
 
 ## What can you build with Genkit?
 
-- **Intelligent assistants** that understand complex requests and autonomously execute tasks like booking travel or creating itineraries tailored to your user’s preferences. Example: [Compass Travel Planning App](https://developers.google.com/solutions/compass) | [Tutorial](https://firebase.google.com/codelabs/ai-genkit-rag#0)
+Genkit is versatile enough to support various AI applications. Common use cases include:
 
-- **Powerful data transformation** tools that convert unstructured data like natural language into structured formats (SQL queries, tables) for deeper analysis and insights. Example: [Add Natural Language AI Data Filters with Genkit](https://medium.com/firebase-developers/how-to-add-natural-language-ai-data-filters-to-your-app-71d64a79624d)
+- **Intelligent agents:** Create agents that understand user requests and perform tasks autonomously, such as personalized travel planning or itinerary generation.
+    - Example: [Compass Travel Planning App](https://developers.google.com/solutions/compass)
 
-- **Customer support** agents that use retrieval-augmented generation (RAG) to provide fast, accurate, personalized responses grounded in your company’s knowledge base and policies.
+- **Data transformation:** Convert unstructured data, like natural language, into structured formats (e.g., objects, SQL queries, tables) for integration into your app or data pipeline.
+    - Example: [Add Natural Language AI Data Filters with Genkit](https://medium.com/firebase-developers/how-to-add-natural-language-ai-data-filters-to-your-app-71d64a79624d)
+
+- **Retrieval-augmented generation:** Create apps that provide accurate and contextually relevant responses by grounding generation with your own data sources.
+    - Example: [Build AI features powered by your data](https://firebase.google.com/codelabs/ai-genkit-rag#0)
 
 ## Who should use Genkit?
 
-Genkit is built for developers adding generative AI to their apps with Node.js or Go, and can run anywhere these runtimes are supported. It works with any generative model API or vector database, and has pre-built implementations through [plugins](#plugin-ecosystem).
+Genkit is built for developers adding generative AI to their apps with Node.js or Go, and can run anywhere these runtimes are supported. It works with any generative model API or vector database through [plugins](#plugin-ecosystem).
 
-While built by the [Firebase](https://firebase.google.com) team, Genkit doesn't require using Firebase or Google Cloud.
-
-## Why use Genkit?
-
-Building AI-powered apps is complex. You need to manage and optimize model configurations, prompts, vector databases, and more, each with their own quirks. The non-deterministic nature of generative models also makes refining your app for production a challenge.
-
-Genkit simplifies this process. Our libraries provide simple abstractions and consistent APIs, making it easy to combine AI building blocks into cohesive workflows. Plus, Genkit's devtools help you efficiently test, debug, and iterate on your AI app.
+Developed by the [Firebase](https://firebase.google.com) team, Genkit can be used independently of Firebase or Google Cloud services.
 
 ## Get started
 
@@ -32,7 +31,7 @@ Genkit simplifies this process. Our libraries provide simple abstractions and co
 > [!NOTE]
 > Genkit for Go is in alpha, so we only recommend it for prototyping.
 
-## Framework key features
+## Library key features
 
 - **Unified generation API:** Generate text, media, structured objects, and tool calls from any generative model using a single, adaptable API.
 
