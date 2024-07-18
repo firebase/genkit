@@ -8,13 +8,15 @@ Genkit is a framework for building AI-powered applications. It provides open sou
 Genkit is a versatile framework, which you can use to build many different types of AI applications. Common use cases include:
 
 - **Intelligent agents:** Create agents that understand user requests and perform tasks autonomously, such as personalized travel planning or itinerary generation.
-    - Example: [Compass Travel Planning App](https://developers.google.com/solutions/compass)
+
+  - Example: [Compass Travel Planning App](https://developers.google.com/solutions/compass)
 
 - **Data transformation:** Convert unstructured data, like natural language, into structured formats (e.g., objects, SQL queries, tables) for integration into your app or data pipeline.
-    - Example: [Add Natural Language AI Data Filters with Genkit](https://medium.com/firebase-developers/how-to-add-natural-language-ai-data-filters-to-your-app-71d64a79624d)
+
+  - Example: [Add Natural Language AI Data Filters with Genkit](https://medium.com/firebase-developers/how-to-add-natural-language-ai-data-filters-to-your-app-71d64a79624d)
 
 - **Retrieval-augmented generation:** Create apps that provide accurate and contextually relevant responses by grounding generation with your own data sources, such as chatbots or question answering systems.
-    - Example: [Build AI features powered by your data](https://firebase.google.com/codelabs/ai-genkit-rag#0)
+  - Example: [Build AI features powered by your data](https://firebase.google.com/codelabs/ai-genkit-rag#0)
 
 ## Who should use Genkit?
 
