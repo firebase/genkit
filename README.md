@@ -5,7 +5,7 @@ Genkit is a framework for building AI-powered applications. It provides open sou
 
 ## What can you build with Genkit?
 
-Genkit is a versatile framework, which you can use to build many different types of AI apps. Common use cases include:
+Genkit is a versatile framework, which you can use to build many different types of AI applications. Common use cases include:
 
 - **Intelligent agents:** Create agents that understand user requests and perform tasks autonomously, such as personalized travel planning or itinerary generation.
     - Example: [Compass Travel Planning App](https://developers.google.com/solutions/compass)
