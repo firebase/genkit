@@ -1,11 +1,11 @@
 ![Firebase Genkit logo](docs/resources/genkit-logo-dark.png#gh-dark-mode-only 'Firebase Genkit')
 ![Firebase Genkit logo](docs/resources/genkit-logo.png#gh-light-mode-only 'Firebase Genkit')
 
-Genkit is a framework for developing AI-powered applications. It provides open-source libraries for Node.js and Go, complemented by integrated devtools that streamline your development process with generative AI.
+Genkit is a framework for building AI-powered applications. It provides open-source libraries for Node.js and Go, along with integrated tools that streamline your development workflow.
 
 ## What can you build with Genkit?
 
-Genkit is versatile enough to support various AI applications. Common use cases include:
+Genkit is versatile to support many AI applications. Common use cases include:
 
 - **Intelligent agents:** Create agents that understand user requests and perform tasks autonomously, such as personalized travel planning or itinerary generation.
     - Example: [Compass Travel Planning App](https://developers.google.com/solutions/compass)
