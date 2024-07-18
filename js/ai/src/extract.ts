@@ -17,13 +17,25 @@
 import JSON5 from 'json5';
 import { Allow, parse } from 'partial-json';
 
-const parsePartialJson = (jsonString: string) =>
-  JSON.stringify(parse(jsonString, Allow.ALL));
+export function parsePartialJson<T = unknown>(jsonString: string): T {
+  return JSON5.parse<T>(JSON.stringify(parse(jsonString, Allow.ALL)));
+}
 
 /**
  * Extracts JSON from string with lenient parsing rules to improve likelihood of successful extraction.
  */
-export function extractJson<T = unknown>(text: string): T | null {
+export function extractJson<T = unknown>(
+  text: string,
+  throwOnBadJson?: true
+): T;
+export function extractJson<T = unknown>(
+  text: string,
+  throwOnBadJson?: false
+): T | null;
+export function extractJson<T = unknown>(
+  text: string,
+  throwOnBadJson?: boolean
+): T | null {
   let openingChar: '{' | '[' | undefined;
   let closingChar: '}' | ']' | undefined;
   let startPos: number | undefined;
@@ -52,54 +64,21 @@ export function extractJson<T = unknown>(text: string): T | null {
   }
 
   if (startPos !== undefined && nestingCount > 0) {
+    // If an incomplete JSON structure is detected
     try {
-      return JSON5.parse(text.substring(startPos) + (closingChar || '')) as T;
-    } catch (e) {
-      throw new Error(`Invalid JSON extracted from model output: ${text}`);
-    }
-  }
-  throw new Error(`No JSON object or array found in model output: ${text}`);
-}
-
-export function extractAndUntruncateJson<T = unknown>(text: string): T | null {
-  let openingChar: '{' | '[' | undefined;
-  let closingChar: '}' | ']' | undefined;
-  let startPos: number | undefined;
-  let nestingCount = 0;
-
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i].replace(/\u00A0/g, ' ');
-
-    if (!openingChar && (char === '{' || char === '[')) {
-      openingChar = char;
-      closingChar = char === '{' ? '}' : ']';
-      startPos = i;
-      nestingCount++;
-    } else if (char === openingChar) {
-      // Increment nesting for matching opening character
-      nestingCount++;
-    } else if (char === closingChar) {
-      // Decrement nesting for matching closing character
-      nestingCount--;
-      if (!nestingCount) {
-        // Reached end of target element
-        try {
-          return JSON5.parse(
-            parsePartialJson(text.substring(startPos || 0, i + 1))
-          ) as T;
-        } catch {
-          throw new Error(text.substring(startPos || 0, i + 1));
-        }
-      }
-    }
-  }
-
-  if (startPos !== undefined && nestingCount > 0) {
-    try {
-      return JSON5.parse(parsePartialJson(text.substring(startPos))) as T;
+      // Parse the incomplete JSON structure using partial-json for lenient parsing
+      // Note: partial-json automatically handles adding the closing character
+      return parsePartialJson<T>(text.substring(startPos));
     } catch {
-      throw new Error(text.substring(startPos));
+      // If parsing fails, throw an error
+      if (throwOnBadJson) {
+        throw new Error(`Invalid JSON extracted from model output: ${text}`);
+      }
+      return null; // Return null if no JSON structure is found    }
     }
   }
-  return null as T;
+  if (throwOnBadJson) {
+    throw new Error(`Invalid JSON extracted from model output: ${text}`);
+  }
+  return null; // Return null if no JSON structure is found
 }

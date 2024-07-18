@@ -547,6 +547,16 @@ describe('GenerateResponseChunk', () => {
         accumulatedChunksTexts: [`\`\`\`json{"foo": {"bar"`, `: {"baz": "qux`],
         correctJson: { foo: { bar: { baz: 'qux' } } },
       },
+      {
+        should: 'handle array nested in object',
+        accumulatedChunksTexts: [`{"foo": ["bar`],
+        correctJson: { foo: ['bar'] },
+      },
+      {
+        should: 'handle array nested in object with multiple chunks',
+        accumulatedChunksTexts: [`\`\`\`json{"foo": {"bar"`, `: ["baz`],
+        correctJson: { foo: { bar: ['baz'] } },
+      },
     ];
 
     for (const test of testCases) {

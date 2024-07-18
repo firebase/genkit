@@ -29,7 +29,7 @@ import {
 } from '@genkit-ai/core/schema';
 import { z } from 'zod';
 import { DocumentData } from './document.js';
-import { extractAndUntruncateJson, extractJson } from './extract.js';
+import { extractJson } from './extract.js';
 import {
   CandidateData,
   GenerateRequest,
@@ -74,7 +74,7 @@ export class Message<T = unknown> implements MessageData {
    *
    * @returns The structured output contained in the message.
    */
-  output(): T | null {
+  output(): T {
     return this.data() || extractJson<T>(this.text());
   }
 
@@ -417,7 +417,7 @@ export class GenerateResponseChunk<T = unknown>
     const accumulatedText = this.accumulatedChunks
       .map((chunk) => chunk.content.map((part) => part.text || '').join(''))
       .join('');
-    return extractAndUntruncateJson(accumulatedText);
+    return extractJson<T>(accumulatedText, false);
   }
 
   toJSON(): GenerateResponseChunkData {
