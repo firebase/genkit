@@ -20,7 +20,7 @@ Genkit is versatile to support many AI applications. Common use cases include:
 
 Genkit is built for developers seeking to add generative AI to their apps with Node.js or Go, and can run anywhere these runtimes are supported. It works with any generative model API or vector database through [plugins](#plugin-ecosystem).
 
-Developed by the [Firebase](https://firebase.google.com) team, Genkit can be used independently of Firebase or Google Cloud services.
+While developed by the [Firebase](https://firebase.google.com) team, Genkit can be used independently of Firebase or Google Cloud services.
 
 ## Get started
 
