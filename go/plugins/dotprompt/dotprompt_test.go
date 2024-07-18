@@ -125,12 +125,8 @@ func TestPrompts(t *testing.T) {
 					t.Errorf("unexpected output schema: %v", prompt.OutputSchema)
 				}
 			} else {
-				var output map[string]any
-				if err := json.Unmarshal([]byte(test.output), &output); err != nil {
-					t.Fatalf("JSON unmarshal of %q failed: %v", test.output, err)
-				}
-				if diff := cmp.Diff(output, prompt.OutputSchema); diff != "" {
-					t.Errorf("output schema mismatch (-want, +got):\n%s", diff)
+				if diff := cmpSchema(t, prompt.OutputSchema, test.output); diff != "" {
+					t.Errorf("input schema mismatch (-want, +got):\n%s", diff)
 				}
 			}
 		})
