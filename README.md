@@ -18,7 +18,7 @@ Genkit is a versatile framework, which you can use to build many different types
 
 ## Who should use Genkit?
 
-Genkit is built for developers seeking to add generative AI to their apps with Node.js or Go, and can run anywhere these runtimes are supported. It works with any generative model API or vector database through [plugins](#plugin-ecosystem).
+Genkit is built for developers seeking to add generative AI to their apps with Node.js or Go, and can run anywhere these runtimes are supported. It's designed around a plugin architecture that can work with any generative model API or vector database, with many integrations [already available](#plugin-ecosystem).
 
 While developed by the [Firebase](https://firebase.google.com) team, Genkit can be used independently of Firebase or Google Cloud services.
 
@@ -39,7 +39,7 @@ While developed by the [Firebase](https://firebase.google.com) team, Genkit can 
 
 - **Enhanced prompt engineering:** Define rich prompt templates, model configurations, input/output schemas, and tools all within a single, runnable [.prompt](https://firebase.google.com/docs/genkit/dotprompt) file.
 
-- **AI [work]flows:** Organize your AI app logic into [Flows](https://firebase.google.com/docs/genkit/flows) - functions designed for observability, streaming, integration with Genkit devtools, and easy deployment as API endpoints.
+- **AI workflows:** Organize your AI app logic into [Flows](https://firebase.google.com/docs/genkit/flows) - functions designed for observability, streaming, integration with Genkit devtools, and easy deployment as API endpoints.
 
 - **Built-in streaming:** Stream content from your Genkit API endpoints to your client app to create snappy user experiences.
 
