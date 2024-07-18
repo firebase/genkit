@@ -21,7 +21,7 @@ A model definition consists of three components:
 
 1.  Metadata declaring the model's capabilities.
 2.  A configuration type with any specific parameters supported by the model.
-3.  A generation function that accepts a `ai.GenerateRequest` and returns a 
+3.  A generation function that accepts a `ai.GenerateRequest` and returns a
     `ai.GenerateResponse`, presumably using an AI model to generate the latter.
 
 At a high level, here's what it looks like in code:
@@ -69,7 +69,7 @@ your model into the `ai.GenerateResponse` format used by Genkit.
 
 Sometimes, this may require massaging or manipulating data to work around model
 limitations. For example, if your model does not natively support a `system`
-message, you may need to transform a prompt's system message into a user-model 
+message, you may need to transform a prompt's system message into a user-model
 message pair.
 
 ## Exports
@@ -100,7 +100,7 @@ following:
     `DefineModel` for each model they want to use.
 
   - To give your users the ability to use newly-released models that you have
-    not yet added to your plugin. 
+    not yet added to your plugin.
 
   A plugin's `DefineModel` function is typically a frontend to `ai.DefineModel`
   that defines a generation function, but lets the user specify the model name
