@@ -3,6 +3,8 @@
 
 Genkit is a framework for building AI-powered applications. It provides open source libraries for Node.js and Go, along with tools to help you debug and iterate quickly.
 
+Learn more in our documentation for [Node.js](https://firebase.google.com/docs/genkit) and [Go](https://firebase.google.com/docs/genkit-go/get-started-go).
+
 ## What can you build with Genkit?
 
 Genkit is a versatile framework, which you can use to build many different types of AI applications. Common use cases include:
@@ -51,7 +53,7 @@ Genkit provides a CLI and a local UI to streamline your AI development workflow.
 
 ### CLI
 
-The Genkit CLI is the quickest way to start a new Genkit project. It also includes commands for running and assessing your Genkit functions (flows).
+The Genkit CLI is the quickest way to start a new Genkit project. It also includes commands for running and evaluating your Genkit functions (flows).
 
 - **Install:** `npm i -g genkit`
 - **Initialize a new project:** `genkit init`
