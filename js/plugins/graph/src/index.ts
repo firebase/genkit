@@ -326,7 +326,7 @@ export const getAppSync = (params: ComposeServerParams) => {
     {
       name: 'totalFlow',
       inputSchema: totalInputSchema,
-      outputSchema: totalOutputSchema,
+      outputSchema: z.any(),
     },
     async (input) => {
       Object.entries(input).forEach(([node, values]) => {
@@ -340,6 +340,8 @@ export const getAppSync = (params: ComposeServerParams) => {
       await runGraph(executionOrder, graph);
 
       const totalOutputValues = getTotalOutput(graph);
+
+      console.log('totalOutputValues', totalOutputValues);
 
       return totalOutputValues;
     }

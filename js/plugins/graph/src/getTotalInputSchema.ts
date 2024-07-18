@@ -150,10 +150,8 @@ export const getTotalOutput = (graph: FlowGraph) => {
 
     const outputValues = graph.getNodeAttributes(node).outputValues;
 
-    console.log('outputValues', node, outputValues);
-
     for (const key of keysWithoutOutputsPiped) {
-      if (outputValues && outputValues[key]) {
+      if (outputValues && outputValues.hasOwnProperty(key)) {
         totalOutput = {
           ...totalOutput,
           [node]: {
@@ -164,5 +162,6 @@ export const getTotalOutput = (graph: FlowGraph) => {
       }
     }
   }
+  console.log('totalOutput', totalOutput);
   return totalOutput;
 };
