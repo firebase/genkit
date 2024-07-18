@@ -146,8 +146,13 @@ func defineModel(name string, caps ai.ModelCapabilities) *ai.Model {
 		Label:    labelPrefix + " - " + name,
 		Supports: caps,
 	}
-	g := generator{model: name, client: state.gclient}
-	return ai.DefineModel(provider, name, meta, g.generate)
+	return ai.DefineModel(provider, name, meta, func(
+		ctx context.Context,
+		input *ai.GenerateRequest,
+		cb func(context.Context, *ai.GenerateResponseChunk) error,
+	) (*ai.GenerateResponse, error) {
+		return generate(ctx, state.gclient, name, input, cb)
+	})
 }
 
 // IsDefinedModel reports whether the named [Model] is defined by this plugin.
@@ -156,6 +161,8 @@ func IsDefinedModel(name string) bool {
 }
 
 //copy:stop
+
+//copy:start vertexai.go defineEmbedder
 
 // DefineEmbedder defines an embedder with a given name.
 func DefineEmbedder(name string) *ai.Embedder {
@@ -171,6 +178,8 @@ func DefineEmbedder(name string) *ai.Embedder {
 func IsDefinedEmbedder(name string) bool {
 	return ai.IsDefinedEmbedder(provider, name)
 }
+
+//copy:stop
 
 // requires state.mu
 func defineEmbedder(name string) *ai.Embedder {
@@ -213,90 +222,37 @@ func Embedder(name string) *ai.Embedder {
 
 //copy:stop
 
-type generator struct {
-	model  string
-	client *genai.Client
-	//session *genai.ChatSession // non-nil if we're in the middle of a chat
-}
+//copy:start vertexai.go generate
 
-func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
-	gm := g.client.GenerativeModel(g.model)
-
-	// Translate from a ai.GenerateRequest to a genai request.
-	gm.SetCandidateCount(int32(input.Candidates))
-	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
-		if c.MaxOutputTokens != 0 {
-			gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
-		}
-		if len(c.StopSequences) > 0 {
-			gm.StopSequences = c.StopSequences
-		}
-		if c.Temperature != 0 {
-			gm.SetTemperature(float32(c.Temperature))
-		}
-		if c.TopK != 0 {
-			gm.SetTopK(int32(c.TopK))
-		}
-		if c.TopP != 0 {
-			gm.SetTopP(float32(c.TopP))
-		}
-	}
-
-	// Start a "chat".
-	cs := gm.StartChat()
-
-	// All but the last message goes in the history field.
-	messages := input.Messages
-	for len(messages) > 1 {
-		m := messages[0]
-		messages = messages[1:]
-		parts, err := convertParts(m.Content)
-		if err != nil {
-			return nil, err
-		}
-		cs.History = append(cs.History, &genai.Content{
-			Parts: parts,
-			Role:  string(m.Role),
-		})
+func generate(
+	ctx context.Context,
+	client *genai.Client,
+	model string,
+	input *ai.GenerateRequest,
+	cb func(context.Context, *ai.GenerateResponseChunk) error,
+) (*ai.GenerateResponse, error) {
+	gm := newModel(client, model, input)
+	cs, err := startChat(gm, input)
+	if err != nil {
+		return nil, err
 	}
 	// The last message gets added to the parts slice.
 	var parts []genai.Part
-	if len(messages) > 0 {
+	if len(input.Messages) > 0 {
+		last := input.Messages[len(input.Messages)-1]
 		var err error
-		parts, err = convertParts(messages[0].Content)
+		parts, err = convertParts(last.Content)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	// Convert input.Tools and append to gm.Tools
-	for _, t := range input.Tools {
-		schema := &genai.Schema{}
-		schema.Type = genai.TypeObject
-		schema.Properties = map[string]*genai.Schema{}
-		for k, v := range t.InputSchema {
-			typ := genai.TypeUnspecified
-			switch v {
-			case "string":
-				typ = genai.TypeString
-			case "float64":
-				typ = genai.TypeNumber
-			case "int":
-				typ = genai.TypeInteger
-			case "bool":
-				typ = genai.TypeBoolean
-			default:
-				return nil, fmt.Errorf("schema value \"%s\" not allowed", v)
-			}
-			schema.Properties[k] = &genai.Schema{Type: typ}
-		}
-		fd := &genai.FunctionDeclaration{
-			Name:        t.Name,
-			Parameters:  schema,
-			Description: t.Description,
-		}
-		gm.Tools = append(gm.Tools, &genai.Tool{FunctionDeclarations: []*genai.FunctionDeclaration{fd}})
+	gm.Tools, err = convertTools(input.Tools)
+	if err != nil {
+		return nil, err
 	}
+	// Convert input.Tools and append to gm.Tools
+
 	// TODO: gm.ToolConfig?
 
 	// Send out the actual request.
@@ -342,6 +298,83 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	r.Request = input
 	return r, nil
 }
+
+func newModel(client *genai.Client, model string, input *ai.GenerateRequest) *genai.GenerativeModel {
+	gm := client.GenerativeModel(model)
+	gm.SetCandidateCount(int32(input.Candidates))
+	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
+		if c.MaxOutputTokens != 0 {
+			gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
+		}
+		if len(c.StopSequences) > 0 {
+			gm.StopSequences = c.StopSequences
+		}
+		if c.Temperature != 0 {
+			gm.SetTemperature(float32(c.Temperature))
+		}
+		if c.TopK != 0 {
+			gm.SetTopK(int32(c.TopK))
+		}
+		if c.TopP != 0 {
+			gm.SetTopP(float32(c.TopP))
+		}
+	}
+	return gm
+}
+
+// startChat starts a chat session and configures it with the input messages.
+func startChat(gm *genai.GenerativeModel, input *ai.GenerateRequest) (*genai.ChatSession, error) {
+	cs := gm.StartChat()
+
+	// All but the last message goes in the history field.
+	messages := input.Messages
+	for len(messages) > 1 {
+		m := messages[0]
+		messages = messages[1:]
+		parts, err := convertParts(m.Content)
+		if err != nil {
+			return nil, err
+		}
+		cs.History = append(cs.History, &genai.Content{
+			Parts: parts,
+			Role:  string(m.Role),
+		})
+	}
+	return cs, nil
+}
+func convertTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
+	var outTools []*genai.Tool
+	for _, t := range inTools {
+		schema := &genai.Schema{}
+		schema.Type = genai.TypeObject
+		schema.Properties = map[string]*genai.Schema{}
+		for k, v := range t.InputSchema {
+			typ := genai.TypeUnspecified
+			switch v {
+			case "string":
+				typ = genai.TypeString
+			case "float64":
+				typ = genai.TypeNumber
+			case "int":
+				typ = genai.TypeInteger
+			case "bool":
+				typ = genai.TypeBoolean
+			default:
+				return nil, fmt.Errorf("schema value %q not allowed", v)
+			}
+			schema.Properties[k] = &genai.Schema{Type: typ}
+		}
+		fd := &genai.FunctionDeclaration{
+			Name:        t.Name,
+			Parameters:  schema,
+			Description: t.Description,
+		}
+		outTools = append(outTools, &genai.Tool{FunctionDeclarations: []*genai.FunctionDeclaration{fd}})
+	}
+	return outTools, nil
+}
+
+//copy:stop
 
 //copy:start vertexai.go translateCandidate
 
