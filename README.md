@@ -9,7 +9,7 @@ Firebase Genkit is a framework for building and refining AI-powered applications
 
 - **Powerful data transformation** tools that convert unstructured data like natural language into structured formats (SQL queries, tables) for deeper analysis and insights. Example: [Add Natural Language AI Data Filters with Genkit](https://medium.com/firebase-developers/how-to-add-natural-language-ai-data-filters-to-your-app-71d64a79624d)
 
-- **Customer support** agents that use retrieval-augmented generation (RAG) to provide fast, accurate, personalized responses grounded in your company’s knowledge base and policies. Example: [Genkit Dash Agents](https://medium.com/firebase-developers/build-firebase-genkit-nodejs-apps-with-dash-agents-skip-the-docs-258e067b3fdc)
+- **Customer support** agents that use retrieval-augmented generation (RAG) to provide fast, accurate, personalized responses grounded in your company’s knowledge base and policies.
 
 ## Who should use Genkit?
 
