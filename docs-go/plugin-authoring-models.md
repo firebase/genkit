@@ -65,7 +65,7 @@ options type.
 The generation function carries out the primary work of a Genkit model plugin:
 transforming the `ai.GenerateRequest` from Genkit's common format into a format
 that is supported by your model's API, and then transforming the response from
-your model into the `GenerateResponseData` format used by Genkit.
+your model into the `ai.GenerateResponse` format used by Genkit.
 
 Sometimes, this may require massaging or manipulating data to work around model
 limitations. For example, if your model does not natively support a `system`
@@ -80,7 +80,7 @@ following:
 
 - A generation config type, as discussed [earlier](#config-schema).
 
-- A `Model` function, which returns references to your plugvin's defined models.
+- A `Model` function, which returns references to your plugin's defined models.
   Often, this can simply be:
 
   ```golang
