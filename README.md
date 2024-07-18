@@ -1,6 +1,8 @@
 ![Firebase Genkit logo](docs/resources/genkit-logo-dark.png#gh-dark-mode-only 'Firebase Genkit')
 ![Firebase Genkit logo](docs/resources/genkit-logo.png#gh-light-mode-only 'Firebase Genkit')
 
+[![Discord](https://img.shields.io/discord/server/1255578482214305893.svg?style=flat-square)](https://discord.gg/qXt5zzQKpc)
+
 Firebase Genkit is a framework for building and refining AI-powered applications. It provides open source libraries for Node.js and Go, plus integrated devtools to support developing with generative AI.
 
 ## What can you build with Genkit?
@@ -15,7 +17,7 @@ Firebase Genkit is a framework for building and refining AI-powered applications
 
 Genkit is built for developers adding generative AI to their apps with Node.js or Go, and can run anywhere these runtimes are supported. It works with any generative model API or vector database, and has pre-built implementations through [plugins](#plugin-ecosystem).
 
-While built by [Firebase](https://firebase.google.com), Genkit doesn't require using Firebase or Google Cloud.
+While built by the [Firebase](https://firebase.google.com) team, Genkit doesn't require using Firebase or Google Cloud.
 
 ## Why use Genkit?
 
@@ -30,7 +32,7 @@ Genkit simplifies this process. Our libraries provide simple abstractions and co
 - [Go quickstart](https://firebase.google.com/docs/genkit-go/get-started-go)
 
 > [!NOTE]
-> Genkit for Go is in alpha, so we only recommend using it for prototyping.
+> Genkit for Go is in alpha, so we only recommend it for prototyping.
 
 ## Framework key features
 
