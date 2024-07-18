@@ -1,11 +1,9 @@
 ![Firebase Genkit logo](docs/resources/genkit-logo-dark.png#gh-dark-mode-only 'Firebase Genkit')
 ![Firebase Genkit logo](docs/resources/genkit-logo.png#gh-light-mode-only 'Firebase Genkit')
 
-Genkit is a framework for building AI-powered applications. It provides open-source libraries for Node.js and Go, along with integrated tools to streamline your development workflow.
+Genkit is a framework for building AI-powered applications. It provides open source libraries for Node.js and Go, along with tools to help debug and iterate quickly.
 
 ## What can you build with Genkit?
-
-Genkit is versatile to support many AI applications. Common use cases include:
 
 - **Intelligent agents:** Create agents that understand user requests and perform tasks autonomously, such as personalized travel planning or itinerary generation.
     - Example: [Compass Travel Planning App](https://developers.google.com/solutions/compass)
@@ -15,6 +13,8 @@ Genkit is versatile to support many AI applications. Common use cases include:
 
 - **Retrieval-augmented generation:** Create apps that provide accurate and contextually relevant responses by grounding generation with your own data sources.
     - Example: [Build AI features powered by your data](https://firebase.google.com/codelabs/ai-genkit-rag#0)
+
+- **Other use cases:** Conversational interfaces, creative generation, text summarization, language translation, and more!
 
 ## Who should use Genkit?
 
@@ -45,7 +45,7 @@ While developed by the [Firebase](https://firebase.google.com) team, Genkit can 
 
 ## Development tools
 
-Genkit provides a CLI and a web-based Studio to streamline your AI development workflow.
+Genkit provides a CLI and a local UI to streamline your AI development workflow.
 
 ### CLI
 
@@ -54,9 +54,9 @@ The Genkit CLI is the quickest way to start a new Genkit project. It also includ
 - **Install:** `npm i -g genkit`
 - **Initialize a new project:** `genkit init`
 
-### Genkit Studio
+### Developer UI
 
-Genkit Studio offers a web interface for testing, debugging, and iterating on your AI application.
+The Genkit developer UI is a local interface for testing, debugging, and iterating on your AI application.
 
 Key features:
 
