@@ -16,8 +16,8 @@
 
 import { genkitPlugin, Plugin } from '@genkit-ai/core';
 import {
-  defineFlow as originalDefineFlow,
   Flow,
+  defineFlow as originalDefineFlow,
   runFlow,
   StepsFunction,
 } from '@genkit-ai/flow';

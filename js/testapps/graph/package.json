@@ -1,0 +1,31 @@
+{
+  "name": "flow-simple-ai",
+  "version": "1.0.0",
+  "description": "",
+  "main": "lib/index.js",
+  "scripts": {
+    "start": "node lib/index.js",
+    "compile": "tsc",
+    "build": "pnpm build:clean && pnpm compile",
+    "build:clean": "rm -rf ./lib",
+    "build:watch": "tsc --watch",
+    "build-and-run": "pnpm build && node lib/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@genkit-ai/ai": "^0.5.7",
+    "@genkit-ai/core": "^0.5.7",
+    "@genkit-ai/flow": "^0.5.7",
+    "@genkit-ai/vertexai": "^0.5.7",
+    "@opentelemetry/sdk-trace-base": "^1.22.0",
+    "firebase-admin": "^12.1.0",
+    "genkitx-graph": "workspace:*",
+    "partial-json": "^0.1.7",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
