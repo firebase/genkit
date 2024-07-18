@@ -1,8 +1,6 @@
 ![Firebase Genkit logo](docs/resources/genkit-logo-dark.png#gh-dark-mode-only 'Firebase Genkit')
 ![Firebase Genkit logo](docs/resources/genkit-logo.png#gh-light-mode-only 'Firebase Genkit')
 
-[![Discord](https://img.shields.io/discord/server/1255578482214305893.svg?style=flat-square)](https://discord.gg/qXt5zzQKpc)
-
 Firebase Genkit is a framework for building and refining AI-powered applications. It provides open source libraries for Node.js and Go, plus integrated devtools to support developing with generative AI.
 
 ## What can you build with Genkit?
