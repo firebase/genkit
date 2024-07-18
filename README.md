@@ -1,7 +1,7 @@
 ![Firebase Genkit logo](docs/resources/genkit-logo-dark.png#gh-dark-mode-only 'Firebase Genkit')
 ![Firebase Genkit logo](docs/resources/genkit-logo.png#gh-light-mode-only 'Firebase Genkit')
 
-Genkit is a framework for building AI-powered applications. It provides open-source libraries for Node.js and Go, along with integrated tools that streamline your development workflow.
+Genkit is a framework for building AI-powered applications. It provides open-source libraries for Node.js and Go, along with integrated tools to streamline your development workflow.
 
 ## What can you build with Genkit?
 
