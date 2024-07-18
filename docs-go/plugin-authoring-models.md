@@ -7,8 +7,9 @@ prompt as input and generating text, media, or data as output.
 ## Before you begin
 
 Read [Writing Genkit plugins](plugin-authoring) for information about writing
-any kind of Genkit plug-in, including model plugins. In particular note that
-every plugin must export an `Init` function, which users are expected to
+any kind of Genkit plug-in, including model plugins. In particular, note that
+every plugin must export an `Init` function, which users are expected to call
+before using the plugin.
 
 ## Model definitions
 
