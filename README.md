@@ -52,14 +52,14 @@ Genkit provides a CLI and a web-based Studio to streamline your AI development w
 
 The Genkit CLI is the quickest way to start a new Genkit project. It also includes commands for running and assessing your Genkit functions (flows).
 
-* **Install:** `npm i -g genkit`
-* **Initialize a new project:** `genkit init`
+- **Install:** `npm i -g genkit`
+- **Initialize a new project:** `genkit init`
 
 ### Genkit Studio
 
 Genkit Studio offers a web interface for testing, debugging, and iterating on your AI application.
 
- Key features:
+Key features:
 
 - **Run:** Execute and experiment with Genkit flows, prompts, queries, and more in dedicated playgrounds.
 - **Inspect:** Analyze detailed traces of past executions, including step-by-step breakdowns of complex flows.
@@ -75,6 +75,7 @@ Extend Genkit with plugins for specific AI models, vector databases, and platfor
 - **Go plugins:** [Explore on pkg.go.dev](https://pkg.go.dev/github.com/firebase/genkit/go#section-directories)
 
 Create and share your own plugins:
+
 - **Write Node.js plugins:** [Plugin Authoring Guide](https://firebase.google.com/docs/genkit/plugin-authoring)
 - **Write Go plugins:** (Documentation coming soon)
 
