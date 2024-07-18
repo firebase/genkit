@@ -26,7 +26,7 @@ Genkit simplifies this process. Our libraries provide simple abstractions and co
 ## Get started
 
 - [Node.js quickstart](https://firebase.google.com/docs/genkit/get-started)
-- [Next.js quickstart](hhttps://firebase.google.com/docs/genkit/nextjs)
+- [Next.js quickstart](https://firebase.google.com/docs/genkit/nextjs)
 - [Go quickstart](https://firebase.google.com/docs/genkit-go/get-started-go)
 
 > [!NOTE]
