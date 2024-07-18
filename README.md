@@ -1,7 +1,15 @@
 ![Firebase Genkit logo](docs/resources/genkit-logo-dark.png#gh-dark-mode-only 'Firebase Genkit')
 ![Firebase Genkit logo](docs/resources/genkit-logo.png#gh-light-mode-only 'Firebase Genkit')
 
-Firebase Genkit is a framework for building and refining AI-powered applications. It provides open source libraries for Node.js and Go, plus integrated devtools to support developing with AI.
+Firebase Genkit is a framework for building and refining AI-powered applications. It provides open source libraries for Node.js and Go, plus integrated devtools to support developing with generative AI.
+
+## What can you build with Genkit?
+
+- **Intelligent assistants** that understand complex requests and autonomously execute tasks like booking travel or creating itineraries tailored to your user’s preferences. Example: [Compass Travel Planning App](https://developers.google.com/solutions/compass) | [Tutorial](https://firebase.google.com/codelabs/ai-genkit-rag#0)
+
+- **Powerful data transformation** tools that convert unstructured data like natural language into structured formats (SQL queries, tables) for deeper analysis and insights. Example: [Add Natural Language AI Data Filters with Genkit](https://medium.com/firebase-developers/how-to-add-natural-language-ai-data-filters-to-your-app-71d64a79624d)
+
+- **Customer support** agents that use retrieval-augmented generation (RAG) to provide fast, accurate, personalized responses grounded in your company’s knowledge base and policies. Example: [Genkit Dash Agents](https://medium.com/firebase-developers/build-firebase-genkit-nodejs-apps-with-dash-agents-skip-the-docs-258e067b3fdc)
 
 ## Who should use Genkit?
 
@@ -36,58 +44,59 @@ Genkit simplifies this process. Our libraries provide simple abstractions and co
 
 - **Built-in streaming:** Stream content from your Genkit API endpoints to your client app to create snappy user experiences.
 
-## Devtools
+## Development tools
 
-Genkit provides a dedicated CLI and UI that help you get started quickly and rapidly iterate on your AI app.
+Genkit provides a CLI and a web-based Studio to streamline your AI development workflow.
 
 ### CLI
 
-The Genkit CLI is the fastest way to initialize a Genkit app and comes with commands to help you run and evaluate Genkit functions, called flows. 
+The Genkit CLI is the quickest way to start a new Genkit project. It also includes commands for running and assessing your Genkit functions (flows).
 
-**Install the CLI:** `npm i -g genkit`
-
-**Initialize a Genkit app:** `genkit init`
+* **Install:** `npm i -g genkit`
+* **Initialize a new project:** `genkit init`
 
 ### Genkit Studio
 
-The Genkit Developer UI helps you rapidly test, debug, and iterate on your AI app using a rich web interface. Key features include:
+Genkit Studio offers a web interface for testing, debugging, and iterating on your AI application.
 
-- **Run:** Invoke and iterate on Genkit flows, prompts, queries, and more in dedicated playgrounds for Genkit components.
-- **Inspect:** View detailed traces for previous executions of flows and components, including step-by-step views of complex flows.
-- **Evaluate:** See the results of evaluations run on flows against test sets, including scored metrics and links to the traces for evaluation runs. 
+ Key features:
+
+- **Run:** Execute and experiment with Genkit flows, prompts, queries, and more in dedicated playgrounds.
+- **Inspect:** Analyze detailed traces of past executions, including step-by-step breakdowns of complex flows.
+- **Evaluate:** Review the results of evaluations run against your flows, including performance metrics and links to relevant traces.
 
 <img src="docs/resources/readme-ui-traces-screenshot.png" width="700" alt="Screenshot of Genkit Developer UI showing traces">
 
 ## Plugin ecosystem
 
-Access models, vector stores, evaluators, and platform integrations from specific providers like, Google and OpenAI, through Genkit plugins. Plugins are built by the Genkit team, partners, and the community.
+Extend Genkit with plugins for specific AI models, vector databases, and platform integrations from providers like Google and OpenAI.
 
-- [Genkit Node.js plugins](https://www.npmjs.com/search?q=keywords:genkit-plugin)
-- [Genkit Go plugins](https://pkg.go.dev/github.com/firebase/genkit/go#section-directories)
+- **Node.js plugins:** [Explore on npm](https://www.npmjs.com/search?q=keywords:genkit-plugin)
+- **Go plugins:** [Explore on pkg.go.dev](https://pkg.go.dev/github.com/firebase/genkit/go#section-directories)
 
-You can contribute to the Genkit ecosystem by:
-- [Writing Node.js plugins](https://firebase.google.com/docs/genkit/plugin-authoring)
-- Writing Go plugins (docs in progress)
+Create and share your own plugins:
+- **Write Node.js plugins:** [Plugin Authoring Guide](https://firebase.google.com/docs/genkit/plugin-authoring)
+- **Write Go plugins:** (Documentation coming soon)
 
-Great examples of community-built plugins for OpenAI, Anthropic, Cohere, and more can be found in this [repository](https://github.com/TheFireCo/genkit-plugins).
+Find excellent examples of community-built plugins for OpenAI, Anthropic, Cohere, and more in this [repository](https://github.com/TheFireCo/genkit-plugins).
 
 ## Try Genkit on IDX
 
 <img src="docs/resources/idx-logo.png" width="50" alt="Project IDX logo">
 
-Interested in trying Genkit without needing to set up a local environment? [Try it out on Project IDX](https://idx.google.com/new/genkit), Google's AI-assisted workspace for full-stack app development.
+Want to try Genkit without a local setup? [Explore it on Project IDX](https://idx.google.com/new/genkit), Google's AI-assisted workspace for full-stack app development in the cloud.
 
-## Community
+## Connect with us
 
-Join the [Genkit community on Discord](https://discord.gg/qXt5zzQKpc) to keep up with the latest announcements, ask questions, participate in discussions, and showcase any apps or content you've built with Genkit.
+- **Join the community:** Stay updated, ask questions, and share your work with other Genkit users on our [Discord server](https://discord.gg/qXt5zzQKpc).
 
-Please use our GitHub [issue tracker](https://github.com/firebase/genkit/issues) to file feedback and feature requests.
+- **Provide feedback:** Report issues or suggest new features using our GitHub [issue tracker](https://github.com/firebase/genkit/issues).
 
-You can also start and engage in discussions on the [GitHub Discussion](https://github.com/firebase/genkit/discussions) forums.
+- **Engage in discussions:** Participate in conversations about Genkit on our [GitHub Discussions](https://github.com/firebase/genkit/discussions) forum.
 
 ## Contributing
 
-Genkit is an open source framework, and we welcome contributions. Information on how to get started can be found in our [Contribution Guide](CONTRIBUTING.md).
+Contributions to Genkit are welcome and highly appreciated! See our [Contribution Guide](CONTRIBUTING.md) to get started.
 
 ## Authors
 
