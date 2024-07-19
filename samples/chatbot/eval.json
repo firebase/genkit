@@ -1,0 +1,14 @@
+[
+  {
+    "commentaryMode": "snarky",
+    "conversationId": "1234",
+    "prompt": "tell me a joke",
+    "llmIndex": 0
+  },
+  {
+    "commentaryMode": "normal",
+    "conversationId": "2345",
+    "prompt": "wtite a python program that prints out weather for the current location",
+    "llmIndex": 1
+  }
+]

@@ -1,0 +1,98 @@
+<!--
+ Copyright 2024 Google LLC
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+
+<div class="wrapper">
+  <h3>Chat with commentary</h3>
+
+  <div *ngFor="let entry of history; let i = index">
+    <div *ngIf="entry.role === 'user'" class="user-bubble">
+      {{ entry.text }}
+    </div>
+    <div
+      *ngIf="entry.role === 'model'"
+      class="model-bubble llm-{{ entry.llmIndex }}">
+      <div class="model-name">{{ llms[entry.llmIndex] }}</div>
+      <span *ngIf="entry.text" class="text">
+        <markdown class="variable-binding" [data]="entry.text"></markdown>
+      </span>
+      <div *ngIf="entry.toolRequest">
+        <div [ngSwitch]="entry.toolRequest.name">
+          <div *ngSwitchCase="'weatherTool'" class="weather-tool">
+            <h4>
+              <mat-icon class="weather-icon">sunny_snowing</mat-icon>
+              {{ getWeatherLocation(entry.toolRequest) }} 27°C
+            </h4>
+            <div>Warn sunny day with a mix of sun and snow.</div>
+          </div>
+          <div *ngSwitchCase="'datePicker'">
+            <mat-form-field class="example-form-field">
+              <mat-label>Choose a date</mat-label>
+              <input
+                matInput
+                [matDatepicker]="datepicker"
+                (dateChange)="datePicked(entry.toolRequest, $event)" />
+              <mat-hint>MM/DD/YYYY</mat-hint>
+              <mat-datepicker-toggle
+                matIconSuffix
+                [for]="datepicker"></mat-datepicker-toggle>
+              <mat-datepicker #datepicker>
+                <mat-datepicker-actions>
+                  <button mat-button matDatepickerCancel>Cancel</button>
+                  <button mat-raised-button color="primary" matDatepickerApply>
+                    Apply
+                  </button>
+                </mat-datepicker-actions>
+              </mat-datepicker>
+            </mat-form-field>
+          </div>
+          <div *ngSwitchDefault>
+            Oops... unknown tool {{ entry.toolRequest.name }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @if (error) {
+    <pre class="error">{{ error }}</pre>
+  }
+
+  <form>
+    Commentary mode:
+    <mat-radio-group
+      aria-label="Commentary mode"
+      [formControl]="commentaryMode">
+      <mat-radio-button value="normal" [checked]="true"
+        >Constructive</mat-radio-button
+      >
+      <mat-radio-button value="nitpicky">Nitpicky</mat-radio-button>
+      <mat-radio-button value="snarky">Bring the heat!</mat-radio-button>
+    </mat-radio-group>
+
+    <mat-form-field class="input-field">
+      <mat-label
+        >Chat input. Press Enter to submit (Shift+Enter for line
+        break)</mat-label
+      >
+      <textarea
+        matInput
+        (keypress)="keyPress($event)"
+        [formControl]="chatFormControl"
+        placeholder="Hi..."></textarea>
+      <mat-progress-bar mode="indeterminate" *ngIf="loading"></mat-progress-bar>
+    </mat-form-field>
+  </form>
+</div>
