@@ -32,7 +32,7 @@ Every plugin must have a unique identifier string that distinguishes it from
 other plugins. Genkit uses this identifier as a namespace for every resource
 your plugin defines, to prevent naming conflicts with other plugins.
 
-For example if your plugin has an ID `yourplugin` and provides a model called
+For example, if your plugin has an ID `yourplugin` and provides a model called
 `text-generator`, the full model identifier will be `yourplugin/text-generator`.
 
 You don't need to export your provider ID, but you should define it once for

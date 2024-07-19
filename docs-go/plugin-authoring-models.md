@@ -21,7 +21,7 @@ A model definition consists of three components:
 
 1.  Metadata declaring the model's capabilities.
 2.  A configuration type with any specific parameters supported by the model.
-3.  A generation function that accepts a `ai.GenerateRequest` and returns a
+3.  A generation function that accepts an `ai.GenerateRequest` and returns an
     `ai.GenerateResponse`, presumably using an AI model to generate the latter.
 
 At a high level, here's what it looks like in code:
@@ -53,7 +53,7 @@ inserts system messages into the user prompt.
 ### Defining your model's config schema {:#config-schema}
 
 To specify the generation options a model supports, define and export a
-configuration type. Genkit has a `ai.GenerationCommonConfig` type that contains
+configuration type. Genkit has an `ai.GenerationCommonConfig` type that contains
 options frequently supported by generative AI model services, which you can
 embed or use outright.
 
