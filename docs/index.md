@@ -186,7 +186,7 @@ into a single file for easier testing and organization.
 
 ```none
 ---
-model: vertexai/gemini-1.0-pro
+model: vertexai/gemini-1.5-flash
 config:
   temperature: 0.9
 input:
