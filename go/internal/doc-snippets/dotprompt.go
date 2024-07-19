@@ -34,11 +34,19 @@ func dot01() error {
 	// [START dot01_2]
 	ctx := context.Background()
 
-	// The .prompt file specifies vertexai/gemini-1.5-pro, so make sure it's set
-	// up.
 	// Default to the project in GCLOUD_PROJECT and the location "us-central1".
 	vertexai.Init(ctx, nil)
-	vertexai.DefineModel("gemini-1.5-pro", nil)
+
+	// The .prompt file specifies vertexai/gemini-1.5-flash, which is
+	// automatically defined by Init(). However, if it specified a model that
+	// isn't automatically loaded (such as a specific version), you would need
+	// to define it here:
+	// vertexai.DefineModel("gemini-1.0-pro-002", &ai.ModelCapabilities{
+	// 	Multiturn:  true,
+	// 	Tools:      true,
+	// 	SystemRole: true,
+	// 	Media:      false,
+	// })
 
 	type GreetingPromptInput struct {
 		Location string `json:"location"`
@@ -142,7 +150,7 @@ func dot03() error {
 
 func dot04() {
 	// [START dot04]
-	describeImagePrompt, err := dotprompt.OpenVariant("describe_image", "gemini15")
+	describeImagePrompt, err := dotprompt.OpenVariant("describe_image", "geminipro")
 	// [END dot04]
 	_ = err
 	_ = describeImagePrompt
@@ -158,7 +166,7 @@ func dot05() {
 	var myPrompt *dotprompt.Prompt
 	var err error
 	if isBetaTester(user) {
-		myPrompt, err = dotprompt.OpenVariant("describe_image", "gemini15")
+		myPrompt, err = dotprompt.OpenVariant("describe_image", "geminipro")
 	} else {
 		myPrompt, err = dotprompt.Open("describe_image")
 	}
