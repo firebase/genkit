@@ -44,7 +44,7 @@ func vertexaiEx(ctx context.Context) error {
 	// [END initloc]
 
 	// [START model]
-	langModel := vertexai.Model("gemini-1.5-pro")
+	langModel := vertexai.Model("gemini-1.5-flash")
 	// [END model]
 
 	// [START gen]
