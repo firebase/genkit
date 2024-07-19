@@ -297,13 +297,13 @@ Add the newly defined plugin to your Genkit configuration.
 For evaluation with Gemini, disable safety settings so that the evaluator can accept, detect, and score potentially harmful content.
 
 ```ts
-import { geminiPro } from '@genkit-ai/googleai';
+import { gemini15Flash } from '@genkit-ai/googleai';
 
 export default configureGenkit({
   plugins: [
     ...
     myAwesomeEval({
-      judge: geminiPro,
+      judge: gemini15Flash,
       judgeConfig: {
         safetySettings: [
           {
