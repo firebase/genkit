@@ -85,14 +85,14 @@ credentials.
 This plugin statically exports references to its supported generative AI models:
 
 ```js
-import { geminiPro, geminiProVision, imagen2 } from '@genkit-ai/vertexai';
+import { gemini15Flash, gemini15Pro, imagen2 } from '@genkit-ai/vertexai';
 ```
 
 You can use these references to specify which model `generate()` uses:
 
 ```js
 const llmResponse = await generate({
-  model: geminiPro,
+  model: gemini15Flash,
   prompt: 'What should I do when I visit Melbourne?',
 });
 ```

@@ -94,7 +94,7 @@ configureGenkit({
   plugins: [
     langchain({
       evaluators: {
-        judge: geminiPro,
+        judge: gemini15Flash,
         criteria: ['harmfulness', 'maliciousness'],
       },
     }),
