@@ -23,7 +23,7 @@ call models this way for straight-forward use cases.
 import { generate } from '@genkit-ai/ai';
 
 generate({
-  model: 'googleai/gemini-pro',
+  model: 'googleai/gemini-1.5-flash-latest',
   prompt: 'You are a helpful AI assistant named Walt.',
 });
 ```
@@ -37,7 +37,7 @@ function helloPrompt(name: string) {
 }
 
 generate({
-  model: 'googleai/gemini-pro',
+  model: 'googleai/gemini-1.5-flash-latest',
   prompt: helloPrompt('Fred'),
 });
 ```
@@ -85,7 +85,7 @@ generate(
   renderPrompt({
     prompt: helloPrompt,
     input: { name: 'Fred' },
-    model: 'googleai/gemini-pro',
+    model: 'googleai/gemini-1.5-flash-latest',
   })
 );
 ```

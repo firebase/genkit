@@ -31,7 +31,7 @@ authentication. For example, Vertex API uses the Google Auth Library so it can
 pull required credentials using Application Default Credentials.
 
 To use models provided by the plugin, you can either refer to them by name (e.g.
-`'vertexai/gemini-1.0-pro'`) or some plugins export model ref objects which
+`'vertexai/gemini-1.5-flash'`) or some plugins export model ref objects which
 provide additional type info about the model capabilities and options.
 
 ```js
