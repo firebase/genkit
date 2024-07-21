@@ -15,6 +15,11 @@ gcloud auth login
 gcloud auth application-default login --project YOUR_PROJECT
 ```
 
+you may need to run:
+```bash
+gcloud auth application-default set-quota-project YOUR_PROJECT
+```
+
 ```bash
 npm run setup
 npm start
