@@ -48,7 +48,6 @@ configureGenkit({
   plugins: [
     vertexAI({
       location: 'us-central1',
-      projectId: 'tiayang-fs-test',
       modelGardenModels: [llama3],
       evaluation: {
         metrics: [VertexAIEvaluationMetricType.SAFETY, VertexAIEvaluationMetricType.FLUENCY]
