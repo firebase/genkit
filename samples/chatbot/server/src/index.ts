@@ -18,11 +18,12 @@ import { generate } from '@genkit-ai/ai';
 import {
   GenerateResponseChunkSchema,
   MessageData,
+  ModelReference,
   Part,
 } from '@genkit-ai/ai/model';
 import { StreamingCallback, configureGenkit } from '@genkit-ai/core';
 import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
-import { claude35Sonnet, gemini15Flash, vertexAI, VertexAIEvaluationMetricType } from '@genkit-ai/vertexai';
+import { gemini15Flash, llama3, vertexAI, VertexAIEvaluationMetricType } from '@genkit-ai/vertexai';
 import { inMemoryStore } from './memory.js';
 
 import { GenerateResponseChunk } from '@genkit-ai/ai/lib/generate.js';
@@ -39,15 +40,16 @@ export const AgentInput = z.object({
 
 const commentaryPrompts: Record<string, string> = {
   normal: "You are a critic. Check the last messsage for errors or bugs. Be polite. If no obvious errors just make a short complement, for example: Great job, I don't see any bugs.",
-  nitpicky: "You are a nitpicky critic. Check the last messsage for errors or bugs. Be polite.",
-  snarky: "You are a snarky critic. Check the last messsage for errors or bugs. Don't be polite.",
+  tutor: "You are tutor. Explain the previous response.",
+  translator: "You are a French translator. Translate the previous response only.",
 }
 
 configureGenkit({
   plugins: [
     vertexAI({
-      location: 'us-east5',
-      modelGardenModels: [claude35Sonnet],
+      location: 'us-central1',
+      projectId: 'tiayang-fs-test',
+      modelGardenModels: [llama3],
       evaluation: {
         metrics: [VertexAIEvaluationMetricType.SAFETY, VertexAIEvaluationMetricType.FLUENCY]
       }
@@ -64,7 +66,7 @@ type ChatbotStreamChunk = z.infer<typeof ChatbotStreamChunkSchema>;
 
 const historyStore = inMemoryStore();
 
-const llms = [gemini15Flash, claude35Sonnet];
+const llms: ModelReference<any>[] = [gemini15Flash, llama3];
 
 export const chatbotFlow = defineFlow(
   {

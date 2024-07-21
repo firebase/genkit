@@ -17,7 +17,7 @@
     "@genkit-ai/core": "^0.5.2",
     "@genkit-ai/dotprompt": "^0.5.2",
     "@genkit-ai/flow": "^0.5.2",
-    "@genkit-ai/vertexai": "^0.5.2",
+    "@genkit-ai/vertexai": "file:genkit-ai-vertexai-0.5.7.tgz",
     "express": "^4.19.2",
     "partial-json": "^0.1.7",
     "zod": "^3.23.8"

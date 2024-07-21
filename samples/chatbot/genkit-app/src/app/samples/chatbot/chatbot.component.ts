@@ -93,7 +93,7 @@ export class ChatbotComponent {
   commentaryMode = new FormControl('normal', [Validators.required]);
   llmIndex = 0;
 
-  llms = ['Gemini 1.5 Flash', 'Claude 3.5 Sonnet']
+  llms = ['Gemini 1.5 Flash', 'Llama 3 405b']
 
   ask(input?: string) {
     const text = this.chatFormControl.value!.trim();
