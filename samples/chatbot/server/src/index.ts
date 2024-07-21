@@ -31,7 +31,7 @@ import { PartSchema } from '@genkit-ai/ai/model';
 import { z } from 'zod';
 
 export const AgentInput = z.object({
-  commentaryMode: z.enum(['normal', 'nitpicky', 'snarky']),
+  commentaryMode: z.enum(['normal', 'tutor', 'translator']),
   conversationId: z.string(),
   prompt: z.union([z.string(), PartSchema, z.array(PartSchema)]),
   config: z.record(z.string(), z.any()).optional(),
@@ -41,7 +41,7 @@ export const AgentInput = z.object({
 const commentaryPrompts: Record<string, string> = {
   normal: "You are a critic. Check the last messsage for errors or bugs. Be polite. If no obvious errors just make a short complement, for example: Great job, I don't see any bugs.",
   tutor: "You are tutor. Explain the previous response.",
-  translator: "You are a French translator. Translate the previous response only.",
+  translator: "You are a French translator. Translate eveything.",
 }
 
 configureGenkit({
@@ -66,7 +66,7 @@ type ChatbotStreamChunk = z.infer<typeof ChatbotStreamChunkSchema>;
 
 const historyStore = inMemoryStore();
 
-const llms: ModelReference<any>[] = [gemini15Flash, llama3];
+const llms: ModelReference<any>[] = [llama3, llama3];
 
 export const chatbotFlow = defineFlow(
   {
