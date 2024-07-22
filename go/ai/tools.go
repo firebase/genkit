@@ -16,11 +16,15 @@ package ai
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"maps"
 
 	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/internal/action"
 	"github.com/firebase/genkit/go/internal/atype"
+	"github.com/firebase/genkit/go/internal/base"
+	"github.com/firebase/genkit/go/internal/registry"
 )
 
 const provider = "local"
@@ -30,12 +34,11 @@ const provider = "local"
 // TODO: This should be generic over the function input and output types,
 // and something in the general code should handle the JSON conversion.
 type Tool struct {
-	Definition *ToolDefinition
-	Fn         func(context.Context, map[string]any) (map[string]any, error)
+	Action action.Action
 }
 
 // DefineTool defines a tool function.
-func DefineTool(definition *ToolDefinition, metadata map[string]any, fn func(ctx context.Context, input map[string]any) (map[string]any, error)) {
+func DefineTool[In, Out any](name, description string, metadata map[string]any, fn func(ctx context.Context, input In) (Out, error)) *Tool {
 	if len(metadata) > 0 {
 		metadata = maps.Clone(metadata)
 	}
@@ -43,16 +46,46 @@ func DefineTool(definition *ToolDefinition, metadata map[string]any, fn func(ctx
 		metadata = make(map[string]any)
 	}
 	metadata["type"] = "tool"
+	metadata["name"] = name
+	metadata["description"] = description
 
-	core.DefineAction(provider, definition.Name, atype.Tool, metadata, fn)
+	toolAction := core.DefineAction(provider, name, atype.Tool, metadata, fn)
+
+	return &Tool{
+		Action: toolAction,
+	}
 }
 
-// RunTool looks up a tool registered by [DefineTool],
-// runs it with the given input, and returns the result.
-func RunTool(ctx context.Context, name string, input map[string]any) (map[string]any, error) {
-	action := core.LookupActionFor[map[string]any, map[string]any, struct{}](atype.Tool, provider, name)
-	if action == nil {
-		return nil, fmt.Errorf("no tool named %q", name)
+func (tool *Tool) Definition() *ToolDefinition {
+	return &ToolDefinition{
+		Name:         tool.Action.Desc().Metadata["name"].(string),
+		Description:  tool.Action.Desc().Metadata["description"].(string),
+		InputSchema:  base.SchemaAsMap(tool.Action.Desc().InputSchema),
+		OutputSchema: base.SchemaAsMap(tool.Action.Desc().OutputSchema),
 	}
-	return action.Run(ctx, input, nil)
+}
+
+func (tool *Tool) Run(ctx context.Context, input map[string]any) (any, error) {
+	mi, err := json.Marshal(input)
+	if err != nil {
+		return nil, fmt.Errorf("error marshalling tool input for %v: %v", tool.Action.Name(), err)
+	}
+	output, err := tool.Action.RunJSON(ctx, mi, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error calling tool %v: %v", tool.Action.Name(), err)
+	}
+
+	var uo any
+	err = json.Unmarshal(output, &uo)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing tool input for %v: %v", tool.Action.Name(), err)
+	}
+	return uo, nil
+}
+
+func LookupTool(name string) *Tool {
+	action := registry.Global.LookupAction(fmt.Sprintf("/tool/local/%s", name))
+	return &Tool{
+		Action: action,
+	}
 }

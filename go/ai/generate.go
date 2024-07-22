@@ -212,7 +212,11 @@ func handleToolRequest(ctx context.Context, req *GenerateRequest, resp *Generate
 	}
 
 	toolReq := part.ToolRequest
-	output, err := RunTool(ctx, toolReq.Name, toolReq.Input)
+	tool := LookupTool(toolReq.Name)
+	if tool == nil {
+		return nil, fmt.Errorf("tool %v not found", toolReq.Name)
+	}
+	to, err := tool.Run(ctx, toolReq.Input)
 	if err != nil {
 		return nil, err
 	}
@@ -220,8 +224,10 @@ func handleToolRequest(ctx context.Context, req *GenerateRequest, resp *Generate
 	toolResp := &Message{
 		Content: []*Part{
 			NewToolResponsePart(&ToolResponse{
-				Name:   toolReq.Name,
-				Output: output,
+				Name: toolReq.Name,
+				Output: map[string]any{
+					"response": to,
+				},
 			}),
 		},
 		Role: RoleTool,
