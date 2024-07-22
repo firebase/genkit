@@ -1,6 +1,6 @@
 # Writing a Genkit telemetry plugin
 
-The Firebase Genkit libraries are instrumented with [OpenTelemetry](http://opentelemetry.io) 
+The Firebase Genkit libraries are instrumented with [OpenTelemetry](http://opentelemetry.io)
 to support collecting traces, metrics, and logs. Genkit users can export this
 telemetry data to monitoring and visualization tools by installing a plugin that
 configures the [OpenTelemetry Go SDK](https://opentelemetry.io/docs/languages/go/getting-started/)
@@ -133,7 +133,7 @@ into it.
 
 If you're building your plugin around an existing OpenTelemetry integration, you
 can wrap the provided span exporter with a custom exporter that carries out this
-task. For example, the `googlecloud` plugin removes the `genkit:input` and 
+task. For example, the `googlecloud` plugin removes the `genkit:input` and
 `genkit:output` attributes from every span before exporting them using a wrapper
 similar to the following:
 
