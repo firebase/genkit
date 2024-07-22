@@ -15,16 +15,12 @@
 -->
 
 <div class="wrapper">
-  <h3>Chat with commentary</h3>
-
+  <h3>Chat with Llama 3 405b</h3>
   <div *ngFor="let entry of history; let i = index">
     <div *ngIf="entry.role === 'user'" class="user-bubble">
       {{ entry.text }}
     </div>
-    <div
-      *ngIf="entry.role === 'model'"
-      class="model-bubble llm-{{ entry.llmIndex }}">
-      <div class="model-name">{{ llms[entry.llmIndex] }}</div>
+    <div *ngIf="entry.role === 'model'" class="model-bubble">
       <span *ngIf="entry.text" class="text">
         <markdown class="variable-binding" [data]="entry.text"></markdown>
       </span>
@@ -71,17 +67,6 @@
   }
 
   <form>
-    Commentary mode:
-    <mat-radio-group
-      aria-label="Commentary mode"
-      [formControl]="commentaryMode">
-      <mat-radio-button value="normal" [checked]="true"
-        >Constructive</mat-radio-button
-      >
-      <mat-radio-button value="tutor">Tutor</mat-radio-button>
-      <mat-radio-button value="translator">Translate to French</mat-radio-button>
-    </mat-radio-group>
-
     <mat-form-field class="input-field">
       <mat-label
         >Chat input. Press Enter to submit (Shift+Enter for line

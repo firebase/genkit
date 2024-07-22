@@ -56,7 +56,6 @@ interface ToolRequest {
   input?: unknown;
 }
 interface OutputSchema {
-  llmIndex: number;
   role: 'model';
   text?: string;
   toolRequest?: ToolRequest;
@@ -90,10 +89,6 @@ export class ChatbotComponent {
   id = Date.now() + '' + Math.floor(Math.random() * 1000000000);
 
   chatFormControl = new FormControl('write a function that adds two number together', [Validators.required]);
-  commentaryMode = new FormControl('normal', [Validators.required]);
-  llmIndex = 0;
-
-  llms = ['Llama 3 405b', 'Llama 3 405b']
 
   ask(input?: string) {
     const text = this.chatFormControl.value!.trim();
@@ -114,23 +109,15 @@ export class ChatbotComponent {
         payload: {
           prompt: input,
           conversationId: this.id,
-          llmIndex: parseInt(`${this.llmIndex}`),
-          commentaryMode: this.commentaryMode.value,
         },
       });
 
       let textBlock: OutputSchema | undefined = undefined;
-      let previousLlmIndex = parseInt(`${this.llmIndex}`);
       for await (const chunk of response.stream()) {
-        if (chunk.llmIndex != previousLlmIndex) {
-          previousLlmIndex = chunk.llmIndex;
-          textBlock = { llmIndex: chunk.llmIndex, role: 'model', text: '' };
-          this.history.push(textBlock);
-        }
         for (const content of chunk.content) {
           if (content.text) {
             if (!textBlock) {
-              textBlock = { llmIndex: chunk.llmIndex, role: 'model', text: content.text! };
+              textBlock = { role: 'model', text: content.text! };
               this.history.push(textBlock);
             } else {
               textBlock.text += content.text!;
@@ -138,7 +125,6 @@ export class ChatbotComponent {
           }
           if (content.toolRequest) {
             this.history.push({
-              llmIndex: chunk.llmIndex, 
               role: 'model',
               toolRequest: content.toolRequest,
             });
@@ -158,9 +144,6 @@ export class ChatbotComponent {
       } else {
         this.error = `${e}`;
       }
-    } finally {
-      // switch roles
-      this.llmIndex = (this.llmIndex + 1) % 2;
     }
   }
 
