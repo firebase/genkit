@@ -53,6 +53,11 @@ import {
   SUPPORTED_GEMINI_MODELS,
 } from './gemini.js';
 import { imagen2, imagen2Model } from './imagen.js';
+import {
+  llama3,
+  modelGardenOpenaiCompatibleModel,
+  SUPPORTED_OPENAI_FORMAT_MODELS,
+} from './model_garden.js';
 
 export {
   claude35Sonnet,
@@ -66,6 +71,7 @@ export {
   geminiPro,
   geminiProVision,
   imagen2,
+  llama3,
   textEmbedding004,
   textEmbeddingGecko,
   textEmbeddingGecko001,
@@ -136,13 +142,28 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
 
     if (options?.modelGardenModels) {
       options?.modelGardenModels.forEach((m) => {
-        const entry = Object.entries(SUPPORTED_ANTHROPIC_MODELS).find(
+        const anthropicEntry = Object.entries(SUPPORTED_ANTHROPIC_MODELS).find(
           ([_, value]) => value.name === m.name
         );
-        if (!entry) {
-          throw new Error(`Unsupported model garden model: ${m.name}`);
+        if (anthropicEntry) {
+          models.push(anthropicModel(anthropicEntry[0], projectId, location));
+          return;
         }
-        models.push(anthropicModel(entry[0], projectId, location));
+        const openaiModel = Object.entries(SUPPORTED_OPENAI_FORMAT_MODELS).find(
+          ([_, value]) => value.name === m.name
+        );
+        if (openaiModel) {
+          models.push(
+            modelGardenOpenaiCompatibleModel(
+              openaiModel[0],
+              projectId,
+              location,
+              authClient
+            )
+          );
+          return;
+        }
+        throw new Error(`Unsupported model garden model: ${m.name}`);
       });
     }
 
