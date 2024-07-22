@@ -548,7 +548,7 @@ export function geminiModel(
         chatRequest.tools?.push({
           retrieval: {
             vertexAiSearch: {
-              datastore: datastore,
+              datastore,
             },
             disableAttribution: vertexRetrieval.disableAttribution,
           },
