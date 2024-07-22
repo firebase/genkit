@@ -86,6 +86,7 @@ exporting to (API key, project name, and so on).
 
 ### `Init()`
 
+The `Init()` function of a telemetry plugin should do all of the following:
 
 - Return early if Genkit is running in a development environment (such as when
   running with with `genkit start`) and the `Config.ForceExport` option isn't
