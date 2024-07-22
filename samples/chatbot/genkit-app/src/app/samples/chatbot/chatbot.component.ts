@@ -171,4 +171,11 @@ export class ChatbotComponent {
       }
     }
   }
+
+  hackProcessResponse(input: string): string {
+    if (input.startsWith('assistant')) {
+      input = input.substring('assistant'.length);
+    }
+    return input.replace(/\\n/g, '\n').replace(/\\"/g, '"');
+  }
 }

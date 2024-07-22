@@ -15,9 +15,7 @@
  */
 
 import { generate } from '@genkit-ai/ai';
-import {
-  GenerateResponseChunkSchema
-} from '@genkit-ai/ai/model';
+import { GenerateResponseChunkSchema } from '@genkit-ai/ai/model';
 import { configureGenkit } from '@genkit-ai/core';
 import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
 import {
@@ -60,7 +58,6 @@ const ChatbotStreamChunkSchema = GenerateResponseChunkSchema.extend({
 type ChatbotStreamChunk = z.infer<typeof ChatbotStreamChunkSchema>;
 
 const historyStore = inMemoryStore();
-
 
 export const chatbotFlow = defineFlow(
   {

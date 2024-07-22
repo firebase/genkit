@@ -15,14 +15,13 @@
 -->
 
 <div class="wrapper">
-  <h3>Chat with Llama 3 405b</h3>
   <div *ngFor="let entry of history; let i = index">
     <div *ngIf="entry.role === 'user'" class="user-bubble">
       {{ entry.text }}
     </div>
     <div *ngIf="entry.role === 'model'" class="model-bubble">
       <span *ngIf="entry.text" class="text">
-        <markdown class="variable-binding" [data]="entry.text"></markdown>
+        <markdown class="variable-binding" [data]="hackProcessResponse(entry.text)"></markdown>
       </span>
       <div *ngIf="entry.toolRequest">
         <div [ngSwitch]="entry.toolRequest.name">
