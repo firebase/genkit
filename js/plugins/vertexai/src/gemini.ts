@@ -63,7 +63,9 @@ const VertexRetrievalSchema = z.object({
   disableAttribution: z.boolean().optional(),
 });
 
-const GoogleSearchRetrievalSchema = z.object({});
+const GoogleSearchRetrievalSchema = z.object({
+  disableAttribution: z.boolean().optional(),
+});
 
 const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   safetySettings: z.array(SafetySettingsSchema).optional(),
