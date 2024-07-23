@@ -17,10 +17,38 @@
 import { generate } from '@genkit-ai/ai';
 import { firebaseAuth } from '@genkit-ai/firebase/auth';
 import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
-import { run } from '@genkit-ai/flow';
+import { defineFlow, run } from '@genkit-ai/flow';
 import { gemini15Flash } from '@genkit-ai/googleai';
 import { DecodedIdToken } from 'firebase-admin/auth';
 import * as z from 'zod';
+
+export const flowBasicAuth = defineFlow(
+  {
+    name: 'flowBasicAuth',
+    inputSchema: z.object({ language: z.string(), uid: z.string() }),
+    outputSchema: z.string(),
+    authPolicy: (auth, input) => {
+      if (!auth) {
+        throw new Error('Authorization required.');
+      }
+      if (input.uid !== auth.uid) {
+        throw new Error('You may only summarize your own profile data.');
+      }
+    },
+  },
+  async (input) => {
+    const prompt = `Say hello in language ${input.language}`;
+
+    return await run('call-llm', async () => {
+      const llmResponse = await generate({
+        model: gemini15Flash,
+        prompt: prompt,
+      });
+
+      return llmResponse.text();
+    });
+  }
+);
 
 export const flowAuth = onFlow(
   {

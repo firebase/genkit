@@ -163,8 +163,13 @@ func defineModel(name string, caps ai.ModelCapabilities) *ai.Model {
 		Label:    labelPrefix + " - " + name,
 		Supports: caps,
 	}
-	g := generator{model: name, client: state.gclient}
-	return ai.DefineModel(provider, name, meta, g.generate)
+	return ai.DefineModel(provider, name, meta, func(
+		ctx context.Context,
+		input *ai.GenerateRequest,
+		cb func(context.Context, *ai.GenerateResponseChunk) error,
+	) (*ai.GenerateResponse, error) {
+		return generate(ctx, state.gclient, name, input, cb)
+	})
 }
 
 // IsDefinedModel reports whether the named [Model] is defined by this plugin.
@@ -175,15 +180,26 @@ func IsDefinedModel(name string) bool {
 // DO NOT MODIFY above ^^^^
 //copy:endsink defineModel
 
-// DefineEmbedder defines an embedder with the given name.
+//copy:sink defineEmbedder from ../googleai/googleai.go
+// DO NOT MODIFY below vvvv
+
+// DefineEmbedder defines an embedder with a given name.
 func DefineEmbedder(name string) *ai.Embedder {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
-		panic("vertexai.Init not called")
+		panic(provider + ".Init not called")
 	}
 	return defineEmbedder(name)
 }
+
+// IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.
+func IsDefinedEmbedder(name string) bool {
+	return ai.IsDefinedEmbedder(provider, name)
+}
+
+// DO NOT MODIFY above ^^^^
+//copy:endsink defineEmbedder
 
 // requires state.mu
 func defineEmbedder(name string) *ai.Embedder {
@@ -211,15 +227,86 @@ func Embedder(name string) *ai.Embedder {
 // DO NOT MODIFY above ^^^^
 //copy:endsink lookups
 
-type generator struct {
-	model  string
-	client *genai.Client
+//copy:sink generate from ../googleai/googleai.go
+// DO NOT MODIFY below vvvv
+
+func generate(
+	ctx context.Context,
+	client *genai.Client,
+	model string,
+	input *ai.GenerateRequest,
+	cb func(context.Context, *ai.GenerateResponseChunk) error,
+) (*ai.GenerateResponse, error) {
+	gm := newModel(client, model, input)
+	cs, err := startChat(gm, input)
+	if err != nil {
+		return nil, err
+	}
+	// The last message gets added to the parts slice.
+	var parts []genai.Part
+	if len(input.Messages) > 0 {
+		last := input.Messages[len(input.Messages)-1]
+		var err error
+		parts, err = convertParts(last.Content)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	gm.Tools, err = convertTools(input.Tools)
+	if err != nil {
+		return nil, err
+	}
+	// Convert input.Tools and append to gm.Tools
+
+	// TODO: gm.ToolConfig?
+
+	// Send out the actual request.
+	if cb == nil {
+		resp, err := cs.SendMessage(ctx, parts...)
+		if err != nil {
+			return nil, err
+		}
+		r := translateResponse(resp)
+		r.Request = input
+		return r, nil
+	}
+
+	// Streaming version.
+	iter := cs.SendMessageStream(ctx, parts...)
+	var r *ai.GenerateResponse
+	for {
+		chunk, err := iter.Next()
+		if err == iterator.Done {
+			r = translateResponse(iter.MergedResponse())
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		// Send candidates to the callback.
+		for _, c := range chunk.Candidates {
+			tc := translateCandidate(c)
+			err := cb(ctx, &ai.GenerateResponseChunk{
+				Content: tc.Message.Content,
+				Index:   tc.Index,
+			})
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	if r == nil {
+		// No candidates were returned. Probably rare, but it might avoid a NPE
+		// to return an empty instead of nil result.
+		r = &ai.GenerateResponse{}
+	}
+	r.Request = input
+	return r, nil
 }
 
-func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
-	gm := g.client.GenerativeModel(g.model)
-
-	// Translate from a ai.GenerateRequest to a genai request.
+func newModel(client *genai.Client, model string, input *ai.GenerateRequest) *genai.GenerativeModel {
+	gm := client.GenerativeModel(model)
 	gm.SetCandidateCount(int32(input.Candidates))
 	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
 		if c.MaxOutputTokens != 0 {
@@ -238,8 +325,11 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 			gm.SetTopP(float32(c.TopP))
 		}
 	}
+	return gm
+}
 
-	// Start a "chat".
+// startChat starts a chat session and configures it with the input messages.
+func startChat(gm *genai.GenerativeModel, input *ai.GenerateRequest) (*genai.ChatSession, error) {
 	cs := gm.StartChat()
 
 	// All but the last message goes in the history field.
@@ -256,22 +346,14 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 			Role:  string(m.Role),
 		})
 	}
-	// The last message gets added to the parts slice.
-	var parts []genai.Part
-	if len(messages) > 0 {
-		var err error
-		parts, err = convertParts(messages[0].Content)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// Convert input.Tools and append to gm.Tools.
-	for _, t := range input.Tools {
-		schema := &genai.Schema{
-			Type:       genai.TypeObject,
-			Properties: make(map[string]*genai.Schema),
-		}
+	return cs, nil
+}
+func convertTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
+	var outTools []*genai.Tool
+	for _, t := range inTools {
+		schema := &genai.Schema{}
+		schema.Type = genai.TypeObject
+		schema.Properties = map[string]*genai.Schema{}
 		for k, v := range t.InputSchema {
 			typ := genai.TypeUnspecified
 			switch v {
@@ -284,70 +366,22 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 			case "bool":
 				typ = genai.TypeBoolean
 			default:
-				return nil, fmt.Errorf("schema value %q not supported", v)
+				return nil, fmt.Errorf("schema value %q not allowed", v)
 			}
 			schema.Properties[k] = &genai.Schema{Type: typ}
 		}
-
 		fd := &genai.FunctionDeclaration{
 			Name:        t.Name,
 			Parameters:  schema,
 			Description: t.Description,
 		}
-
-		gm.Tools = append(gm.Tools, &genai.Tool{
-			FunctionDeclarations: []*genai.FunctionDeclaration{fd},
-		})
+		outTools = append(outTools, &genai.Tool{FunctionDeclarations: []*genai.FunctionDeclaration{fd}})
 	}
-	// TODO: gm.ToolConfig?
-
-	// Send out the actual request.
-	if cb == nil {
-		resp, err := cs.SendMessage(ctx, parts...)
-		if err != nil {
-			return nil, err
-		}
-
-		r := translateResponse(resp)
-		r.Request = input
-		return r, nil
-	}
-
-	// Streaming version.
-	iter := cs.SendMessageStream(ctx, parts...)
-	var r *ai.GenerateResponse
-	for {
-		chunk, err := iter.Next()
-		if err != nil {
-			if err == iterator.Done {
-				r = translateResponse(iter.MergedResponse())
-				break
-			}
-			return nil, err
-		}
-
-		// Process each candidate.
-		for _, c := range chunk.Candidates {
-			tc := translateCandidate(c)
-
-			// Call callback with the candidate info.
-			err := cb(ctx, &ai.GenerateResponseChunk{
-				Content: tc.Message.Content,
-				Index:   tc.Index,
-			})
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-	if r == nil {
-		// No candidates were returned. Probably rare, but it might avoid a NPE
-		// to return an empty instead of nil result.
-		r = &ai.GenerateResponse{}
-	}
-	r.Request = input
-	return r, nil
+	return outTools, nil
 }
+
+// DO NOT MODIFY above ^^^^
+//copy:endsink generate
 
 //copy:sink translateCandidate from ../googleai/googleai.go
 // DO NOT MODIFY below vvvv

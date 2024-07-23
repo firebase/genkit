@@ -263,7 +263,7 @@ import { generate } from '@genkit-ai/ai';
 import { retrieve } from '@genkit-ai/ai/retriever';
 import { devLocalRetrieverRef } from '@genkit-ai/dev-local-vectorstore';
 import { defineFlow } from '@genkit-ai/flow';
-import { geminiPro } from '@genkit-ai/vertexai';
+import { gemini15Flash } from '@genkit-ai/vertexai';
 import * as z from 'zod';
 
 // Define the retriever reference
@@ -281,7 +281,7 @@ export const menuQAFlow = defineFlow(
 
     // generate a response
     const llmResponse = await generate({
-      model: geminiPro,
+      model: gemini15Flash,
       prompt: `
     You are acting as a helpful AI assistant that can answer 
     questions about the food available on the menu at Genkit Grub Pub.

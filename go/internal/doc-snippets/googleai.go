@@ -38,7 +38,7 @@ func googleaiEx(ctx context.Context) error {
 	// [END initkey]
 
 	// [START model]
-	langModel := googleai.Model("gemini-1.5-pro")
+	langModel := googleai.Model("gemini-1.5-flash")
 	// [END model]
 
 	// [START gen]

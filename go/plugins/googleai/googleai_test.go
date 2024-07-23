@@ -35,6 +35,8 @@ import (
 // The tests here only work with an API key set to a valid value.
 var apiKey = flag.String("key", "", "Gemini API key")
 
+var header = flag.Bool("header", false, "run test for x-goog-client-api header")
+
 // We can't test the DefineAll functions along with the other tests because
 // we get duplicate definitions of models.
 var testAll = flag.Bool("all", false, "test DefineAllXXX functions")
@@ -203,6 +205,9 @@ func TestLive(t *testing.T) {
 }
 
 func TestHeader(t *testing.T) {
+	if !*header {
+		t.Skip("skipped; to run, pass -header and don't run the live test")
+	}
 	ctx := context.Background()
 	var header http.Header
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

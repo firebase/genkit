@@ -15,7 +15,7 @@ might call `greeting.prompt`:
 
 ```none
 {% verbatim %}---
-model: vertexai/gemini-1.5-pro
+model: vertexai/gemini-1.5-flash
 config:
   temperature: 0.9
 input:
@@ -205,7 +205,7 @@ The `{% verbatim %}{{role}}{% endverbatim %}` helper provides a simple way to co
 
 ```none
 {% verbatim %}---
-model: vertexai/gemini-1.0-pro
+model: vertexai/gemini-1.5-flash
 input:
   schema:
     userQuestion: string
@@ -227,7 +227,7 @@ use the `{% verbatim %}{{media}}{% endverbatim %}` helper:
 
 ```none
 {% verbatim %}---
-model: vertexai/gemini-1.0-pro-vision
+model: vertexai/gemini-1.5-flash
 input:
   schema:
     photoUrl: string
@@ -256,11 +256,11 @@ production environment side-by-side with existing versions. Dotprompt supports
 this through its **variants** feature.
 
 To create a variant, create a `[name].[variant].prompt` file. For instance, if
-you were using Gemini 1.0 Pro in your prompt but wanted to see if Gemini 1.5 Pro
-would perform better, you might create two files:
+you were using Gemini 1.5 Flash in your prompt but wanted to see if Gemini 1.5
+Pro would perform better, you might create two files:
 
 - `my_prompt.prompt`: the "baseline" prompt
-- `my_prompt.gemini15.prompt`: a variant named "gemini"
+- `my_prompt.geminipro.prompt`: a variant named "geminipro"
 
 To use a prompt variant, specify the variant when loading:
 

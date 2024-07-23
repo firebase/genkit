@@ -98,14 +98,17 @@ type Config struct {
 	// Details for the model.
 	GenerationConfig *ai.GenerationCommonConfig
 
-	InputSchema      *jsonschema.Schema // schema for input variables
-	VariableDefaults map[string]any     // default input variable values
+	// Schema for input variables.
+	InputSchema *jsonschema.Schema
+
+	// Default input variable values
+	VariableDefaults map[string]any
 
 	// Desired output format.
 	OutputFormat ai.OutputFormat
 
 	// Desired output schema, for JSON output.
-	OutputSchema map[string]any // TODO: use *jsonschema.Schema
+	OutputSchema *jsonschema.Schema
 
 	// Arbitrary metadata.
 	Metadata map[string]any

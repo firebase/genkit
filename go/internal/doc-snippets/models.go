@@ -42,14 +42,14 @@ func m1() error {
 	// [END init]
 
 	// [START model]
-	gemini15pro := vertexai.Model("gemini-1.5-pro")
+	model := vertexai.Model("gemini-1.5-flash")
 	// [END model]
 
 	// [START call]
 	request := ai.GenerateRequest{Messages: []*ai.Message{
 		{Content: []*ai.Part{ai.NewTextPart("Tell me a joke.")}},
 	}}
-	response, err := gemini15pro.Generate(ctx, &request, nil)
+	response, err := model.Generate(ctx, &request, nil)
 	if err != nil {
 		return err
 	}

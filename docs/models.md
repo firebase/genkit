@@ -31,11 +31,11 @@ authentication. For example, Vertex API uses the Google Auth Library so it can
 pull required credentials using Application Default Credentials.
 
 To use models provided by the plugin, you can either refer to them by name (e.g.
-`'vertexai/gemini-1.0-pro'`) or some plugins export model ref objects which
+`'vertexai/gemini-1.5-flash'`) or some plugins export model ref objects which
 provide additional type info about the model capabilities and options.
 
 ```js
-import { geminiPro } from '@genkit-ai/vertexai';
+import { gemini15Flash } from '@genkit-ai/vertexai';
 ```
 
 ## Supported models
@@ -65,11 +65,11 @@ To just call the model:
 
 ```javascript
 import { generate } from '@genkit-ai/ai';
-import { geminiPro } from '@genkit-ai/vertexai';
+import { gemini15Flash } from '@genkit-ai/vertexai';
 
 (async () => {
   const llmResponse = await generate({
-    model: geminiPro,
+    model: gemini15Flash,
     prompt: 'Tell me a joke.',
   });
 
@@ -82,7 +82,7 @@ custom model for specific LLMs.
 
 ```javascript
 const response = await generate({
-  model: geminiPro,
+  model: gemini15Flash,
   prompt,
   config: {
     temperature: 1,
@@ -95,7 +95,7 @@ If the model supports multimodal input, you can pass in images as input:
 
 ```javascript
 const result = await generate({
-  model: geminiProVision,
+  model: gemini15Flash,
   prompt: [
     { text: 'describe the following image:' },
     { media: { url: imageUrl, contentType: 'image/jpeg' } },
@@ -107,7 +107,7 @@ Or from a local file:
 
 ```javascript
 const result = await generate({
-  model: geminiProVision,
+  model: gemini15Flash,
   prompt: [
     { text: 'describe the following image:' },
     {
@@ -140,7 +140,7 @@ const myTool = action(
 );
 
 const llmResponse = await generate({
-  model: geminiPro,
+  model: gemini15Flash,
   prompt: 'Tell me a joke.',
   tools: [myTool],
   config: {
@@ -155,7 +155,7 @@ You can specify `returnToolRequests: true` for manual control of tool calling.
 
 ```javascript
 const llmResponse = await generate({
-  model: geminiPro,
+  model: gemini15Flash,
   prompt: 'Tell me a joke.',
   tools: [myTool],
   returnToolRequests: true,
@@ -174,7 +174,7 @@ grounding context:
 const docs = await companyPolicyRetriever({ query: question });
 
 await generate({
-  model: geminiPro,
+  model: gemini15Flash,
   prompt: `Answer using the available context from company policy: ${question}`,
   context: docs,
 });
@@ -194,7 +194,7 @@ method:
 
 ```js
 let response = await generate({
-  model: geminiPro,
+  model: gemini15Flash,
   prompt: "How do you say 'dog' in French?",
 });
 let history = response.toHistory();
@@ -205,7 +205,7 @@ Then, pass the history along with the prompt on future calls to `generate()`:
 
 ```js
 response = await generate({
-  model: geminiPro,
+  model: gemini15Flash,
   prompt: 'How about in Spanish?',
   history,
 });
@@ -220,7 +220,7 @@ let history: MessageData[] = [
   { role: 'system', content: [{ text: 'Talk like a pirate.' }] },
 ];
 let response = await generate({
-  model: geminiPro,
+  model: gemini15Flash,
   prompt: "How do you say 'dog' in French?",
   history,
 });
@@ -234,7 +234,7 @@ Genkit supports chunked streaming of model responses via the `generateStream()` 
 ```ts
 // import { generateStream } from '@genkit-ai/ai';
 const { response, stream } = await generateStream({
-  model: geminiPro,
+  model: gemini15Flash,
   prompt: 'Tell a long story about robots and ninjas.',
 });
 

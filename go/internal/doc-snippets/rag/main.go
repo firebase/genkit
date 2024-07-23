@@ -142,7 +142,7 @@ func menuQA() {
 		log.Fatal(err)
 	}
 
-	model := vertexai.Model("gemini-1.5-pro")
+	model := vertexai.Model("gemini-1.5-flash")
 
 	_, menuPdfRetriever, err := localvec.DefineIndexerAndRetriever(
 		"menuQA",
