@@ -1,3 +1,5 @@
+[![Run e2e tests](https://github.com/firebase/genkit/actions/workflows/e2e-tests.yml/badge.svg)](https://github.com/firebase/genkit/actions/workflows/e2e-tests.yml)
+
 ![Firebase Genkit logo](docs/resources/genkit-logo-dark.png#gh-dark-mode-only 'Firebase Genkit')
 ![Firebase Genkit logo](docs/resources/genkit-logo.png#gh-light-mode-only 'Firebase Genkit')
 
