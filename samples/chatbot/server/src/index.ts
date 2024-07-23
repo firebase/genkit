@@ -15,13 +15,16 @@
  */
 
 import { generate } from '@genkit-ai/ai';
-import { GenerateResponseChunkSchema } from '@genkit-ai/ai/model';
+import {
+  GenerateResponseChunkSchema,
+  ModelReference,
+} from '@genkit-ai/ai/model';
 import { configureGenkit } from '@genkit-ai/core';
 import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
 import {
   VertexAIEvaluationMetricType,
-  claude35Sonnet,
   gemini15Flash,
+  llama3,
   vertexAI,
 } from '@genkit-ai/vertexai';
 import { inMemoryStore } from './memory.js';
@@ -40,7 +43,7 @@ configureGenkit({
   plugins: [
     vertexAI({
       location: 'us-central1',
-      modelGardenModels: [claude35Sonnet],
+      modelGardenModels: [llama3],
       evaluation: {
         metrics: [
           VertexAIEvaluationMetricType.SAFETY,
@@ -53,7 +56,7 @@ configureGenkit({
   enableTracingAndMetrics: true,
 });
 
-const llms = [gemini15Flash];
+const llms: ModelReference<any>[] = [gemini15Flash, llama3];
 
 const historyStore = inMemoryStore();
 

@@ -86,6 +86,8 @@ export class ChatbotComponent {
   id = Date.now() + '' + Math.floor(Math.random() * 1000000000);
   llmIndex: number | undefined;
 
+  llmNames = ['Gemini 1.5 Flash', 'Llama 3.1 405b'];
+
   chatFormControl = new FormControl(
     'write a function that adds two number together',
     [Validators.required]

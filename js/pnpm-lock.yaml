@@ -181,7 +181,7 @@ importers:
         version: link:../../core
       chromadb:
         specifier: ^1.7.3
-        version: 1.8.1(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13))
+        version: 1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13))
       ts-md5:
         specifier: ^1.3.1
         version: 1.3.1
@@ -612,6 +612,9 @@ importers:
       node-fetch:
         specifier: ^3.3.2
         version: 3.3.2
+      openai:
+        specifier: ^4.52.7
+        version: 4.53.0(encoding@0.1.13)
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -4135,8 +4138,8 @@ packages:
     resolution: {integrity: sha512-M7CJbmv7UCopc0neRKdzfoGWaVZC+xC1925GitKH9EAqYFzX9//25Q7oX4+jw0tiCCj+t5l6VZh8UPH23NZkMA==}
     hasBin: true
 
-  openai@4.37.0:
-    resolution: {integrity: sha512-dB0XXg6k0TPIC/QgmsDfcbpxxPCNRrG4sB13Ut/6RER0t5eifBRqC/5U6KQS4D6DRxXzQhtiizDxDwy1o67xfQ==}
+  openai@4.53.0:
+    resolution: {integrity: sha512-XoMaJsSLuedW5eoMEMmZbdNoXgML3ujcU5KfwRnC6rnbmZkHE2Q4J/SArwhqCxQRqJwHnQUj1LpiROmKPExZJA==}
     hasBin: true
 
   openapi-types@12.1.3:
@@ -5355,7 +5358,7 @@ snapshots:
       zod-to-json-schema: 3.22.5(zod@3.22.4)
     optionalDependencies:
       '@pinecone-database/pinecone': 2.2.0
-      chromadb: 1.8.1(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13))
+      chromadb: 1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13))
       firebase-admin: 12.2.0(encoding@0.1.13)
       google-auth-library: 8.9.0(encoding@0.1.13)
       jsonwebtoken: 9.0.2
@@ -5381,7 +5384,7 @@ snapshots:
     dependencies:
       '@langchain/core': 0.1.61
       js-tiktoken: 1.0.11
-      openai: 4.37.0(encoding@0.1.13)
+      openai: 4.53.0(encoding@0.1.13)
       zod: 3.22.4
       zod-to-json-schema: 3.22.5(zod@3.22.4)
     transitivePeerDependencies:
@@ -6521,12 +6524,12 @@ snapshots:
   chownr@2.0.0:
     optional: true
 
-  chromadb@1.8.1(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13)):
+  chromadb@1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)):
     dependencies:
       cliui: 8.0.1
       isomorphic-fetch: 3.0.0(encoding@0.1.13)
     optionalDependencies:
-      openai: 4.37.0(encoding@0.1.13)
+      openai: 4.53.0(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
 
@@ -7737,7 +7740,7 @@ snapshots:
     optionalDependencies:
       '@google-cloud/storage': 7.10.1(encoding@0.1.13)
       '@pinecone-database/pinecone': 2.2.0
-      chromadb: 1.8.1(encoding@0.1.13)(openai@4.37.0(encoding@0.1.13))
+      chromadb: 1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13))
       fast-xml-parser: 4.3.6
       google-auth-library: 8.9.0(encoding@0.1.13)
       handlebars: 4.7.8
@@ -8119,7 +8122,7 @@ snapshots:
     dependencies:
       which-pm-runs: 1.1.0
 
-  openai@4.37.0(encoding@0.1.13):
+  openai@4.53.0(encoding@0.1.13):
     dependencies:
       '@types/node': 18.19.31
       '@types/node-fetch': 2.6.11
