@@ -38,8 +38,12 @@ configureGenkit({
   plugins: [
     vertexAI({
       location: 'us-central1',
-      projectId: 'tiayang-fs-test',
-      modelGardenModels: [llama3],
+      modelGarden: {
+        models: [llama3],
+        openAiBaseUrlTemplate:
+          //'https://{location}-autopush-aiplatform.sandbox.googleapis.com/v1beta1/projects/{projectId}/locations/{location}/endpoints/openapi',
+          'https://{location}-staging-aiplatform.sandbox.googleapis.com/v1beta1/projects/{projectId}/locations/{location}/endpoints/openapi'
+      },
       evaluation: {
         metrics: [
           VertexAIEvaluationMetricType.SAFETY,
