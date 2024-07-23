@@ -165,6 +165,36 @@ const llmResponse = await generate({
 });
 ```
 
+#### Llama 3.1 405b on Vertex AI Model Garden
+
+If you have access to Llama 3.1 405b in Vertex AI Model Garden you can use it with Genkit.
+
+Here's sample configuration for enabling Vertex AI Model Garden models:
+
+```js
+import { vertexAI, llama3 } from '@genkit-ai/vertexai';
+
+export default configureGenkit({
+  plugins: [
+    vertexAI({
+      location: 'us-central1',
+      modelGarden: {
+        models: [llama3],
+      },
+    }),
+  ],
+});
+```
+
+Then use it as regular models:
+
+```js
+const llmResponse = await generate({
+  model: llama3,
+  prompt: 'Write a function that adds two numbers together',
+});
+```
+
 ### Evaluators
 
 To use the evaluators from Vertex AI Rapid Evaluation, add an `evaluation` block to your `vertexAI` plugin configuration.

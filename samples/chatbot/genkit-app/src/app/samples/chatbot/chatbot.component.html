@@ -22,7 +22,7 @@
     }
   } @else {
     <h2>Chat with {{ llmNames[llmIndex] }}</h2>
-    
+
     <div *ngFor="let entry of history; let i = index">
       <div *ngIf="entry.role === 'user'" class="user-bubble">
         {{ entry.text }}

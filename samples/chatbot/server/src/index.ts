@@ -15,14 +15,17 @@
  */
 
 import { generate } from '@genkit-ai/ai';
-import { GenerateResponseChunkSchema, ModelReference } from '@genkit-ai/ai/model';
+import {
+  GenerateResponseChunkSchema,
+  ModelReference,
+} from '@genkit-ai/ai/model';
 import { configureGenkit } from '@genkit-ai/core';
 import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
 import {
   VertexAIEvaluationMetricType,
   gemini15Flash,
-  vertexAI,
   llama3,
+  vertexAI,
 } from '@genkit-ai/vertexai';
 import { inMemoryStore } from './memory.js';
 
