@@ -34,3 +34,5 @@ last_recording.mp4
 
 # auto-generated
 /js/core/src/__codegen
+
+!samples/chatbot/server/genkit-ai-vertexai-*.tgz
