@@ -371,9 +371,6 @@ export function getBasicUsageStats(
   input: MessageData[],
   candidates: CandidateData[]
 ): GenerationUsage {
-  const responseCandidateParts = candidates.flatMap(
-    (candidate) => candidate.message.content
-  );
   const inputCounts = getPartCounts(input.flatMap((md) => md.content));
   const outputCounts = getPartCounts(
     candidates.flatMap((c) => c.message.content)
