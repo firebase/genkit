@@ -17,8 +17,12 @@
 <div class="wrapper">
   @if (llmIndex === undefined) {
     <h2>Choose an LLM</h2>
-    <button (click)="llmIndex = 0" mat-raised-button>Gemini 1.5 Flash</button>
+    @for (name of llmNames; track name; let index = $index) {
+      <button (click)="llmIndex = index" mat-raised-button>{{ name }}</button>
+    }
   } @else {
+    <h2>Chat with {{ llmNames[llmIndex] }}</h2>
+    
     <div *ngFor="let entry of history; let i = index">
       <div *ngIf="entry.role === 'user'" class="user-bubble">
         {{ entry.text }}
