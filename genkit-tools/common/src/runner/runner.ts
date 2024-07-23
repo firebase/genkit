@@ -177,7 +177,7 @@ export class Runner {
       case 'nodejs':
         command =
           config?.runner?.mode === 'harness'
-            ? path.join(__dirname, '../../../node_modules/.bin/tsx')
+            ? path.join(__dirname, '../../../../../.bin/tsx')
             : 'node';
         break;
       case 'go':
