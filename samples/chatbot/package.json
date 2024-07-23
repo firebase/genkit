@@ -15,7 +15,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "genkit": "^0.5.2",
+    "genkit": "^0.5.8",
     "@angular/cli": "^18.0.2",
     "concurrently": "^8.2.2",
     "typescript": "^5.4.5"
