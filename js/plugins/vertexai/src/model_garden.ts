@@ -51,10 +51,15 @@ export function modelGardenOpenaiCompatibleModel(
   name: string,
   projectId: string,
   location: string,
-  googleAuth: GoogleAuth
+  googleAuth: GoogleAuth,
+  baseUrlTemplate: string | undefined
 ): ModelAction<typeof OpenAIConfigSchema> {
   const model = SUPPORTED_OPENAI_FORMAT_MODELS[name];
   if (!model) throw new Error(`Unsupported model: ${name}`);
+  if (!baseUrlTemplate) {
+    baseUrlTemplate =
+      'https://{location}-aiplatform.googleapis.com/v1beta1/projects/{projectId}/locations/{location}/endpoints/openapi';
+  }
 
   let accessToken: string | null | undefined;
   let accessTokenFetchTime = 0;
@@ -68,7 +73,9 @@ export function modelGardenOpenaiCompatibleModel(
       accessToken = await googleAuth.getAccessToken();
       accessTokenFetchTime = Date.now();
       clientCache = new OpenAI({
-        baseURL: `https://${location}-aiplatform.googleapis.com/v1beta1/projects/${projectId}/locations/${location}/endpoints/openapi`,
+        baseURL: baseUrlTemplate!
+          .replace(/{location}/g, location)
+          .replace(/{projectId}/g, projectId),
         apiKey: accessToken!,
         defaultHeaders: {
           'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,

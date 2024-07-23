@@ -93,7 +93,14 @@ export interface PluginOptions {
   evaluation?: {
     metrics: VertexAIEvaluationMetric[];
   };
+  /**
+   * @deprecated use `modelGarden.models`
+   */
   modelGardenModels?: ModelReference<any>[];
+  modelGarden?: {
+    models: ModelReference<any>[];
+    openApiBaseUrlTemplate?: string;
+  };
 }
 
 const CLOUD_PLATFROM_OAUTH_SCOPE =
@@ -140,8 +147,10 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       ),
     ];
 
-    if (options?.modelGardenModels) {
-      options?.modelGardenModels.forEach((m) => {
+    if (options?.modelGardenModels || options?.modelGarden?.models) {
+      const mgModels =
+        options?.modelGardenModels || options?.modelGarden?.models;
+      mgModels!.forEach((m) => {
         const anthropicEntry = Object.entries(SUPPORTED_ANTHROPIC_MODELS).find(
           ([_, value]) => value.name === m.name
         );
@@ -158,7 +167,8 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
               openaiModel[0],
               projectId,
               location,
-              authClient
+              authClient,
+              options.modelGarden?.openApiBaseUrlTemplate
             )
           );
           return;

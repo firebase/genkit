@@ -148,7 +148,9 @@ export default configureGenkit({
   plugins: [
     vertexAI({
       location: 'us-central1',
-      modelGardenModels: [claude3Haiku, claude3Sonnet, claude3Opus],
+      modelGarden: {
+        models: [claude3Haiku, claude3Sonnet, claude3Opus],
+      },
     }),
   ],
 });
