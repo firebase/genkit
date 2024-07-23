@@ -20,7 +20,8 @@ import { configureGenkit } from '@genkit-ai/core';
 import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
 import {
   VertexAIEvaluationMetricType,
-  llama3,
+  claude35Sonnet,
+  gemini15Flash,
   vertexAI,
 } from '@genkit-ai/vertexai';
 import { inMemoryStore } from './memory.js';
@@ -32,18 +33,14 @@ export const AgentInput = z.object({
   conversationId: z.string(),
   prompt: z.union([z.string(), PartSchema, z.array(PartSchema)]),
   config: z.record(z.string(), z.any()).optional(),
+  llmIndex: z.number(),
 });
 
 configureGenkit({
   plugins: [
     vertexAI({
       location: 'us-central1',
-      modelGarden: {
-        models: [llama3],
-        openAiBaseUrlTemplate:
-          //'https://{location}-autopush-aiplatform.sandbox.googleapis.com/v1beta1/projects/{projectId}/locations/{location}/endpoints/openapi',
-          'https://{location}-staging-aiplatform.sandbox.googleapis.com/v1beta1/projects/{projectId}/locations/{location}/endpoints/openapi'
-      },
+      modelGardenModels: [claude35Sonnet],
       evaluation: {
         metrics: [
           VertexAIEvaluationMetricType.SAFETY,
@@ -56,10 +53,7 @@ configureGenkit({
   enableTracingAndMetrics: true,
 });
 
-const ChatbotStreamChunkSchema = GenerateResponseChunkSchema.extend({
-  llmIndex: z.number(),
-});
-type ChatbotStreamChunk = z.infer<typeof ChatbotStreamChunkSchema>;
+const llms = [gemini15Flash]
 
 const historyStore = inMemoryStore();
 
@@ -84,7 +78,7 @@ export const chatbotFlow = defineFlow(
     const mainResp = await generate({
       prompt: request.prompt,
       history: history,
-      model: llama3,
+      model: llms[request.llmIndex],
       streamingCallback,
     });
 

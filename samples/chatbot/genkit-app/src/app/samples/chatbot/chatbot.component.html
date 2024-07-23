@@ -15,68 +15,42 @@
 -->
 
 <div class="wrapper">
-  <div *ngFor="let entry of history; let i = index">
-    <div *ngIf="entry.role === 'user'" class="user-bubble">
-      {{ entry.text }}
-    </div>
-    <div *ngIf="entry.role === 'model'" class="model-bubble">
-      <span *ngIf="entry.text" class="text">
-        <markdown class="variable-binding" [data]="hackProcessResponse(entry.text)"></markdown>
-      </span>
-      <div *ngIf="entry.toolRequest">
-        <div [ngSwitch]="entry.toolRequest.name">
-          <div *ngSwitchCase="'weatherTool'" class="weather-tool">
-            <h4>
-              <mat-icon class="weather-icon">sunny_snowing</mat-icon>
-              {{ getWeatherLocation(entry.toolRequest) }} 27°C
-            </h4>
-            <div>Warn sunny day with a mix of sun and snow.</div>
-          </div>
-          <div *ngSwitchCase="'datePicker'">
-            <mat-form-field class="example-form-field">
-              <mat-label>Choose a date</mat-label>
-              <input
-                matInput
-                [matDatepicker]="datepicker"
-                (dateChange)="datePicked(entry.toolRequest, $event)" />
-              <mat-hint>MM/DD/YYYY</mat-hint>
-              <mat-datepicker-toggle
-                matIconSuffix
-                [for]="datepicker"></mat-datepicker-toggle>
-              <mat-datepicker #datepicker>
-                <mat-datepicker-actions>
-                  <button mat-button matDatepickerCancel>Cancel</button>
-                  <button mat-raised-button color="primary" matDatepickerApply>
-                    Apply
-                  </button>
-                </mat-datepicker-actions>
-              </mat-datepicker>
-            </mat-form-field>
-          </div>
-          <div *ngSwitchDefault>
-            Oops... unknown tool {{ entry.toolRequest.name }}
-          </div>
-        </div>
+  @if (llmIndex === undefined) {
+    <h2>Choose an LLM</h2>
+    <button (click)="llmIndex = 0" mat-raised-button>Gemini 1.5 Flash</button>
+  } @else {
+    <div *ngFor="let entry of history; let i = index">
+      <div *ngIf="entry.role === 'user'" class="user-bubble">
+        {{ entry.text }}
+      </div>
+      <div *ngIf="entry.role === 'model'" class="model-bubble">
+        <span *ngIf="entry.text" class="text">
+          <markdown
+            class="variable-binding"
+            [data]="hackProcessResponse(entry.text)"></markdown>
+        </span>
       </div>
     </div>
-  </div>
 
-  @if (error) {
-    <pre class="error">{{ error }}</pre>
+    @if (error) {
+      <pre class="error">{{ error }}</pre>
+    }
+
+    <form>
+      <mat-form-field class="input-field">
+        <mat-label
+          >Chat input. Press Enter to submit (Shift+Enter for line
+          break)</mat-label
+        >
+        <textarea
+          matInput
+          (keypress)="keyPress($event)"
+          [formControl]="chatFormControl"
+          placeholder="Hi..."></textarea>
+        <mat-progress-bar
+          mode="indeterminate"
+          *ngIf="loading"></mat-progress-bar>
+      </mat-form-field>
+    </form>
   }
-
-  <form>
-    <mat-form-field class="input-field">
-      <mat-label
-        >Chat input. Press Enter to submit (Shift+Enter for line
-        break)</mat-label
-      >
-      <textarea
-        matInput
-        (keypress)="keyPress($event)"
-        [formControl]="chatFormControl"
-        placeholder="Hi..."></textarea>
-      <mat-progress-bar mode="indeterminate" *ngIf="loading"></mat-progress-bar>
-    </mat-form-field>
-  </form>
 </div>

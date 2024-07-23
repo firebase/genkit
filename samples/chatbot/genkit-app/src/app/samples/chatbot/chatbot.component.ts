@@ -25,8 +25,7 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import {
-  MatDatepickerInputEvent,
-  MatDatepickerModule,
+  MatDatepickerModule
 } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -87,6 +86,7 @@ export class ChatbotComponent {
   input?: string;
   loading = false;
   id = Date.now() + '' + Math.floor(Math.random() * 1000000000);
+  llmIndex: number | undefined;
 
   chatFormControl = new FormControl('write a function that adds two number together', [Validators.required]);
 
@@ -109,6 +109,7 @@ export class ChatbotComponent {
         payload: {
           prompt: input,
           conversationId: this.id,
+          llmIndex: this.llmIndex,
         },
       });
 
@@ -122,12 +123,6 @@ export class ChatbotComponent {
             } else {
               textBlock.text += content.text!;
             }
-          }
-          if (content.toolRequest) {
-            this.history.push({
-              role: 'model',
-              toolRequest: content.toolRequest,
-            });
           }
         }
       }
@@ -145,21 +140,6 @@ export class ChatbotComponent {
         this.error = `${e}`;
       }
     }
-  }
-
-  getWeatherLocation(toolRequest: ToolRequest) {
-    return (toolRequest.input as any).location;
-  }
-
-  datePicked(toolRequest: ToolRequest, event: MatDatepickerInputEvent<Date>) {
-    this.callFlow({
-      role: 'user',
-      toolResponse: {
-        name: toolRequest.name,
-        ref: toolRequest.ref,
-        output: `${event.value}`,
-      },
-    });
   }
 
   keyPress(event: KeyboardEvent) {
