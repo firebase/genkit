@@ -22,7 +22,7 @@ js/testapps/firebase-functions-sample1/public/bundle.js
 js/testapps/firebase-functions-sample1/public/config.js
 ui-debug.log
 firebase-debug.log
-
+**/*.env
 # RAG sample files
 !js/testapps/rag/package.json
 js/testapps/rag/*.json
