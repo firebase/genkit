@@ -420,12 +420,12 @@ you were using Gemini 1.5 Flash in your prompt but wanted to see if Gemini 1.5
 Pro would perform better, you might create two files:
 
 - `my_prompt.prompt`: the "baseline" prompt
-- `my_prompt.geminipro.prompt`: a variant named "geminipro"
+- `my_prompt.gemini15pro.prompt`: a variant named "gemini15pro"
 
 To use a prompt variant, specify the `variant` option when loading:
 
 ```ts
-const myPrompt = await prompt('my_prompt', { variant: 'geminipro' });
+const myPrompt = await prompt('my_prompt', { variant: 'gemini15pro' });
 ```
 
 The name of the variant is included in the metadata of generation traces, so you
