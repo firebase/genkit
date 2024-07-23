@@ -33,12 +33,22 @@ const provider = "local"
 // The ToolDefinition has JSON schemas that describe the types.
 // TODO: This should be generic over the function input and output types,
 // and something in the general code should handle the JSON conversion.
-type Tool struct {
-	Action action.Action
+type Tool[In, Out any] struct {
+	action *core.Action[In, Out, struct{}]
+}
+
+type toolAction struct {
+	action action.Action
+}
+
+type ToolAction interface {
+	Definition() *ToolDefinition
+	Action() action.Action
+	Run(ctx context.Context, input map[string]any) (any, error)
 }
 
 // DefineTool defines a tool function.
-func DefineTool[In, Out any](name, description string, metadata map[string]any, fn func(ctx context.Context, input In) (Out, error)) *Tool {
+func DefineTool[In, Out any](name, description string, metadata map[string]any, fn func(ctx context.Context, input In) (Out, error)) *Tool[In, Out] {
 	if len(metadata) > 0 {
 		metadata = maps.Clone(metadata)
 	}
@@ -51,41 +61,63 @@ func DefineTool[In, Out any](name, description string, metadata map[string]any, 
 
 	toolAction := core.DefineAction(provider, name, atype.Tool, metadata, fn)
 
-	return &Tool{
-		Action: toolAction,
+	return &Tool[In, Out]{
+		action: toolAction,
 	}
 }
 
-func (tool *Tool) Definition() *ToolDefinition {
+func (ta *Tool[In, Out]) Action() action.Action {
+	return ta.action
+}
+
+func (ta *toolAction) Action() action.Action {
+	return ta.action
+}
+
+func (ta *Tool[In, Out]) Definition() *ToolDefinition {
+	return definition(ta)
+}
+
+func (ta *toolAction) Definition() *ToolDefinition {
+	return definition(ta)
+}
+
+func definition(ta ToolAction) *ToolDefinition {
 	return &ToolDefinition{
-		Name:         tool.Action.Desc().Metadata["name"].(string),
-		Description:  tool.Action.Desc().Metadata["description"].(string),
-		InputSchema:  base.SchemaAsMap(tool.Action.Desc().InputSchema),
-		OutputSchema: base.SchemaAsMap(tool.Action.Desc().OutputSchema),
+		Name:         ta.Action().Desc().Metadata["name"].(string),
+		Description:  ta.Action().Desc().Metadata["description"].(string),
+		InputSchema:  base.SchemaAsMap(ta.Action().Desc().InputSchema),
+		OutputSchema: base.SchemaAsMap(ta.Action().Desc().OutputSchema),
 	}
 }
 
-func (tool *Tool) Run(ctx context.Context, input map[string]any) (any, error) {
+func (ta *toolAction) Run(ctx context.Context, input map[string]any) (any, error) {
+	return runAction(ctx, ta, input)
+
+}
+
+func (ta *Tool[In, Out]) Run(ctx context.Context, input map[string]any) (any, error) {
+	return runAction(ctx, ta, input)
+}
+
+func runAction(ctx context.Context, action ToolAction, input map[string]any) (any, error) {
 	mi, err := json.Marshal(input)
 	if err != nil {
-		return nil, fmt.Errorf("error marshalling tool input for %v: %v", tool.Action.Name(), err)
+		return nil, fmt.Errorf("error marshalling tool input for %v: %v", action.Definition().Name, err)
 	}
-	output, err := tool.Action.RunJSON(ctx, mi, nil)
+	output, err := action.Action().RunJSON(ctx, mi, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error calling tool %v: %v", tool.Action.Name(), err)
+		return nil, fmt.Errorf("error calling tool %v: %v", action.Definition().Name, err)
 	}
 
 	var uo any
 	err = json.Unmarshal(output, &uo)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing tool input for %v: %v", tool.Action.Name(), err)
+		return nil, fmt.Errorf("error parsing tool input for %v: %v", action.Definition().Name, err)
 	}
 	return uo, nil
 }
 
-func LookupTool(name string) *Tool {
-	action := registry.Global.LookupAction(fmt.Sprintf("/tool/local/%s", name))
-	return &Tool{
-		Action: action,
-	}
+func LookupToolAction(name string) ToolAction {
+	return &toolAction{action: registry.Global.LookupAction(fmt.Sprintf("/tool/local/%s", name))}
 }

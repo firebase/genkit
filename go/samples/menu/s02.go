@@ -56,7 +56,7 @@ func setup02(_ context.Context, m *ai.Model) error {
 			Model:        m,
 			InputSchema:  menuQuestionInputSchema,
 			OutputFormat: ai.OutputFormatText,
-			Tools:        []*ai.Tool{menuTool},
+			Tools:        []ai.ToolAction{menuTool},
 		},
 	)
 	if err != nil {
