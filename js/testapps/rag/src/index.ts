@@ -83,8 +83,6 @@ export default configureGenkit({
       location: 'us-central1',
       modelGarden: {
         models: [claude3Sonnet, llama3],
-        openAiBaseUrlTemplate:
-          'https://{location}-staging-aiplatform.sandbox.googleapis.com/v1beta1/projects/{projectId}/locations/{location}/endpoints/openapi',
       },
     }),
     pinecone([
