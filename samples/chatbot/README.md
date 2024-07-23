@@ -17,12 +17,14 @@ gcloud auth application-default login --project YOUR_PROJECT
 ```
 
 Clone this code
+
 ```
 git clone https://github.com/firebase/genkit
 cd genkit/samples/chatbot
 ```
 
 Install deps and run the chatbot app
+
 ```bash
 npm run setup
 npm start
