@@ -79,14 +79,14 @@ func InferJSONSchemaNonReferencing(x any) (s *jsonschema.Schema) {
 
 // SchemaAsMap convers json schema struct to a map (JSON representation).
 func SchemaAsMap(s *jsonschema.Schema) map[string]any {
-	jsb, err := json.Marshal(s)
+	jsb, err := s.MarshalJSON()
 	if err != nil {
-		log.Fatalf("failed to marshal schema: %v", err)
+		log.Panicf("failed to marshal schema: %v", err)
 	}
 	var m map[string]any
 	err = json.Unmarshal(jsb, &m)
 	if err != nil {
-		log.Fatalf("failed to unmarshal schema: %v", err)
+		log.Panicf("failed to unmarshal schema: %v", err)
 	}
 	return m
 }
