@@ -99,7 +99,7 @@ export interface PluginOptions {
   modelGardenModels?: ModelReference<any>[];
   modelGarden?: {
     models: ModelReference<any>[];
-    openApiBaseUrlTemplate?: string;
+    openAiBaseUrlTemplate?: string;
   };
 }
 
@@ -168,7 +168,7 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
               projectId,
               location,
               authClient,
-              options.modelGarden?.openApiBaseUrlTemplate
+              options.modelGarden?.openAiBaseUrlTemplate
             )
           );
           return;

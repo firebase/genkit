@@ -81,11 +81,10 @@ export default configureGenkit({
     }),
     vertexAI({
       location: 'us-central1',
-      projectId: 'tiayang-fs-test',
       modelGarden: {
         models: [claude3Sonnet, llama3],
-        openApiBaseUrlTemplate:
-          'https://{location}-autopush-aiplatform.sandbox.googleapis.com/v1beta1/projects/{projectId}/locations/{location}/endpoints/openapi',
+        openAiBaseUrlTemplate:
+          'https://{location}-staging-aiplatform.sandbox.googleapis.com/v1beta1/projects/{projectId}/locations/{location}/endpoints/openapi',
       },
     }),
     pinecone([
