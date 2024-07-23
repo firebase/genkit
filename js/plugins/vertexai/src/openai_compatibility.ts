@@ -283,9 +283,10 @@ export function toRequestBody(
       response_format === 'text' &&
       model.info?.supports?.output?.includes('text')
     ) {
-      body.response_format = {
-        type: 'text',
-      };
+      // this is default format, don't need to set it
+      // body.response_format = {
+      //   type: 'text',
+      // };
     } else {
       throw new Error(`${response_format} format is not supported currently`);
     }
