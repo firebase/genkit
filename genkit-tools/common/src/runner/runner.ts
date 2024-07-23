@@ -23,6 +23,7 @@ import getPort, { makeRange } from 'get-port';
 import * as path from 'path';
 import terminate from 'terminate';
 import { findToolsConfig } from '../plugin/config';
+
 import {
   Action,
   RunActionResponse,
@@ -175,10 +176,27 @@ export class Runner {
     let args: string[] = [];
     switch (runtime) {
       case 'nodejs':
-        command =
-          config?.runner?.mode === 'harness'
-            ? path.join(__dirname, '../../../../../.bin/tsx')
-            : 'node';
+        if (config?.runner?.mode === 'harness') {
+          const localLinkedTsPath = path.join(
+            __dirname,
+            '../../../node_modules/.bin/tsx'
+          );
+          const globallyInstalledTsxPath = path.join(
+            __dirname,
+            '../../../../../.bin/tsx'
+          );
+          if (fs.existsSync(localLinkedTsPath)) {
+            command = localLinkedTsPath;
+          } else if (globallyInstalledTsxPath) {
+            command = globallyInstalledTsxPath;
+          } else {
+            throw Error(
+              'Could not find tsx binary whilst running with harness.'
+            );
+          }
+        } else {
+          command = 'node';
+        }
         break;
       case 'go':
         command = 'go';
