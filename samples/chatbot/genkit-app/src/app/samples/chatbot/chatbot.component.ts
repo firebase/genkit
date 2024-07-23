@@ -24,9 +24,7 @@ import {
 } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { provideNativeDateAdapter } from '@angular/material/core';
-import {
-  MatDatepickerModule
-} from '@angular/material/datepicker';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -88,7 +86,10 @@ export class ChatbotComponent {
   id = Date.now() + '' + Math.floor(Math.random() * 1000000000);
   llmIndex: number | undefined;
 
-  chatFormControl = new FormControl('write a function that adds two number together', [Validators.required]);
+  chatFormControl = new FormControl(
+    'write a function that adds two number together',
+    [Validators.required]
+  );
 
   ask(input?: string) {
     const text = this.chatFormControl.value!.trim();
@@ -150,12 +151,5 @@ export class ChatbotComponent {
         this.ask(this.input);
       }
     }
-  }
-
-  hackProcessResponse(input: string): string {
-    if (input.startsWith('assistant')) {
-      input = input.substring('assistant'.length);
-    }
-    return input.replace(/\\n/g, '\n').replace(/\\"/g, '"');
   }
 }

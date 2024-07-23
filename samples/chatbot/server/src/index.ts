@@ -53,7 +53,7 @@ configureGenkit({
   enableTracingAndMetrics: true,
 });
 
-const llms = [gemini15Flash]
+const llms = [gemini15Flash];
 
 const historyStore = inMemoryStore();
 

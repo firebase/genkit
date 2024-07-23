@@ -25,9 +25,7 @@
       </div>
       <div *ngIf="entry.role === 'model'" class="model-bubble">
         <span *ngIf="entry.text" class="text">
-          <markdown
-            class="variable-binding"
-            [data]="hackProcessResponse(entry.text)"></markdown>
+          <markdown class="variable-binding" [data]="entry.text"></markdown>
         </span>
       </div>
     </div>

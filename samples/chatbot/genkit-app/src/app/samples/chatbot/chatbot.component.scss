@@ -35,18 +35,18 @@
 }
 
 .model-bubble {
-  &.llm-0 {
-    background-color: rgb(218, 247, 237);
-  }
-  &.llm-1 {
-    background-color: rgb(244, 216, 247);
-  }
   border: 1px solid #ccc;
   border-radius: 10px;
   margin-bottom: 20px;
   min-width: 300px;
   padding: 20px;
   width: 80%;
+  &.llm-0 {
+    background-color: rgb(218, 247, 237);
+  }
+  &.llm-1 {
+    background-color: rgb(244, 216, 247);
+  }
 
   .text {
     white-space: pre-wrap;

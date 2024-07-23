@@ -33,7 +33,6 @@
               "@angular/material/prebuilt-themes/azure-blue.css",
               "src/styles.scss",
               "node_modules/prismjs/plugins/line-numbers/prism-line-numbers.css"
-
             ],
             "scripts": [
               "node_modules/prismjs/prism.js",
