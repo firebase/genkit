@@ -36,17 +36,17 @@ import {
 } from '@genkit-ai/ai/model/middleware';
 import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
 import {
-  Content as GeminiMessage,
   FunctionCallPart,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
   FunctionResponsePart,
   GenerateContentCandidate as GeminiCandidate,
+  Content as GeminiMessage,
+  Part as GeminiPart,
   GenerateContentResponse,
   GenerationConfig,
   GoogleGenerativeAI,
   InlineDataPart,
-  Part as GeminiPart,
   RequestOptions,
   StartChatParams,
   Tool,
@@ -323,7 +323,12 @@ function fromExecutableCode(part: GeminiPart): Part {
     throw new Error('Invalid GeminiPart: missing executableCode');
   }
   return {
-    custom: part.executableCode,
+    custom: {
+      executableCode: {
+        language: part.executableCode.language,
+        code: part.executableCode.code,
+      },
+    },
   };
 }
 
@@ -332,7 +337,12 @@ function fromCodeExecutionResult(part: GeminiPart): Part {
     throw new Error('Invalid GeminiPart: missing codeExecutionResult');
   }
   return {
-    custom: part.codeExecutionResult,
+    custom: {
+      codeExecutionResult: {
+        outcome: part.codeExecutionResult.outcome,
+        output: part.codeExecutionResult.output,
+      },
+    },
   };
 }
 

@@ -20,7 +20,6 @@ config();
 // Import the Genkit core libraries and plugins.
 import { generate } from '@genkit-ai/ai';
 import { configureGenkit } from '@genkit-ai/core';
-import { firebase } from '@genkit-ai/firebase';
 import { googleAI } from '@genkit-ai/googleai';
 
 // Import models from the Google AI plugin. The Google AI API provides access to
@@ -35,7 +34,6 @@ configureGenkit({
   plugins: [
     // Load the Firebase plugin, which provides integrations with several
     // Firebase services.
-    firebase(),
     // Load the Google AI plugin. You can optionally specify your API key
     // by passing in a config object; if you don't, the Google AI plugin uses
     // the value from the GOOGLE_GENAI_API_KEY environment variable, which is
@@ -53,11 +51,21 @@ export const menuSuggestionFlow = defineFlow(
   {
     name: 'menuSuggestionFlow',
     inputSchema: z.string(),
-    outputSchema: z.string(),
+    outputSchema: z.object({
+      executableCode: z.object({
+        code: z.string(),
+        language: z.string(),
+      }),
+      codeExecutionResult: z.object({
+        outcome: z.string(),
+        output: z.string(),
+      }),
+      text: z.string(),
+    }),
   },
-  async (subject) => {
+  async (task: string) => {
     // Construct a request and send it to the model API.
-    const prompt = `Write and execute some code for generating the first 3 Fibonacci numbers.`;
+    const prompt = `Write and execute some code for ${task}`;
     const llmResponse = await generate({
       model: gemini15Flash,
       prompt: prompt,
@@ -67,10 +75,34 @@ export const menuSuggestionFlow = defineFlow(
       },
     });
 
-    // Handle the response from the model API. In this sample, we just
-    // convert it to a string, but more complicated flows might coerce the
-    // response into structured output or chain the response into another
-    // LLM call, etc.
-    return llmResponse.text();
+    const parts = llmResponse.candidates[0].message.content;
+
+    const executableCodePart = parts.find(
+      (part) => part.custom && part.custom.executableCode
+    );
+    const codeExecutionResultPart = parts.find(
+      (part) => part.custom && part.custom.codeExecutionResult
+    );
+
+    //  these are typed as any, because the custom part schema is loosely typed...
+    const code = executableCodePart?.custom?.executableCode.code;
+    const language = executableCodePart?.custom?.executableCode.language;
+
+    const codeExecutionResult =
+      codeExecutionResultPart?.custom?.codeExecutionResult;
+    const outcome = codeExecutionResult.outcome;
+    const output = codeExecutionResult.output;
+
+    return {
+      executableCode: {
+        code,
+        language,
+      },
+      codeExecutionResult: {
+        outcome,
+        output,
+      },
+      text: llmResponse.text(),
+    };
   }
 );

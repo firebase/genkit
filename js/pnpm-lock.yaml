@@ -1007,9 +1007,6 @@ importers:
       '@genkit-ai/dotprompt':
         specifier: workspace:*
         version: link:../../plugins/dotprompt
-      '@genkit-ai/firebase':
-        specifier: workspace:*
-        version: link:../../plugins/firebase
       '@genkit-ai/flow':
         specifier: workspace:*
         version: link:../../flow
