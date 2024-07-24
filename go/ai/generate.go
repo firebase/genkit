@@ -135,7 +135,7 @@ func WithTools(tools ...Tool) generateRequestEditor {
 }
 
 // WithConfig adds provided output schema to GenerateRequest
-func WithOutputSchema(schema struct{}) generateRequestEditor {
+func WithOutputSchema[T any](schema T) generateRequestEditor {
 	return func(req *GenerateRequest) {
 		req.Output.Schema = base.SchemaAsMap(base.InferJSONSchema(schema))
 	}
@@ -354,6 +354,12 @@ func (gr *GenerateResponse) Text() (string, error) {
 		return "", errors.New("no candidates returned")
 	}
 	return gr.Candidates[0].Text()
+}
+
+// UnmarshalOutput unmarshals structured JSON output into the provided
+// struct pointer.
+func (gr *GenerateResponse) UnmarshalOutput(v any) error {
+	return fmt.Errorf("implement me!")
 }
 
 // Text returns the text content of the [GenerateResponseChunk]
