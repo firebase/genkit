@@ -35,6 +35,9 @@ importers:
       node-fetch:
         specifier: ^3.3.2
         version: 3.3.2
+      partial-json:
+        specifier: ^0.1.7
+        version: 0.1.7
       zod:
         specifier: ^3.22.4
         version: 3.22.4

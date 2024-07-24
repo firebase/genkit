@@ -15,7 +15,8 @@
     "build:clean": "rm -rf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
-    "test": "node --import tsx --test ./tests/**/*_test.ts"
+    "test": "node --import tsx --test ./tests/**/*_test.ts",
+    "test:single": "node --import tsx --test"
   },
   "repository": {
     "type": "git",
@@ -30,6 +31,7 @@
     "@types/node": "^20.11.19",
     "json5": "^2.2.3",
     "node-fetch": "^3.3.2",
+    "partial-json": "^0.1.7",
     "zod": "^3.22.4"
   },
   "devDependencies": {
