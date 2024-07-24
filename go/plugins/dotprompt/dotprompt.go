@@ -89,7 +89,7 @@ type Config struct {
 	Model *ai.Model
 
 	// TODO: document
-	Tools []ai.ToolAction
+	Tools []ai.Tool
 
 	// Number of candidates to generate when passing the prompt
 	// to a model. If 0, uses 1.
@@ -225,7 +225,7 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 		return "", Config{}, nil, fmt.Errorf("dotprompt: failed to parse YAML frontmatter: %w", err)
 	}
 
-	var tools []ai.ToolAction
+	var tools []ai.Tool
 	for _, tn := range fy.Tools {
 		tools = append(tools, ai.LookupTool(tn))
 	}
