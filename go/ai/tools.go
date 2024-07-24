@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"maps"
 
 	"github.com/firebase/genkit/go/core"
 	"github.com/firebase/genkit/go/internal/action"
@@ -48,13 +47,8 @@ type ToolAction interface {
 }
 
 // DefineTool defines a tool function.
-func DefineTool[In, Out any](name, description string, metadata map[string]any, fn func(ctx context.Context, input In) (Out, error)) *Tool[In, Out] {
-	if len(metadata) > 0 {
-		metadata = maps.Clone(metadata)
-	}
-	if metadata == nil {
-		metadata = make(map[string]any)
-	}
+func DefineTool[In, Out any](name, description string, fn func(ctx context.Context, input In) (Out, error)) *Tool[In, Out] {
+	metadata := make(map[string]any)
 	metadata["type"] = "tool"
 	metadata["name"] = name
 	metadata["description"] = description

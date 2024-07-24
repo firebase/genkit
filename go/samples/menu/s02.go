@@ -39,7 +39,7 @@ func menu(ctx context.Context, _ *any) ([]*menuItem, error) {
 }
 
 func setup02(_ context.Context, m *ai.Model) error {
-	menuTool := ai.DefineTool("todaysMenu", "Use this tool to retrieve all the items on today's menu", nil, menu)
+	menuTool := ai.DefineTool("todaysMenu", "Use this tool to retrieve all the items on today's menu", menu)
 
 	dataMenuPrompt, err := dotprompt.Define("s02_dataMenu",
 		`You are acting as a helpful AI assistant named Walt that can answer

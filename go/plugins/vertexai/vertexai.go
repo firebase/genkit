@@ -350,6 +350,7 @@ func startChat(gm *genai.GenerativeModel, input *ai.GenerateRequest) (*genai.Cha
 	}
 	return cs, nil
 }
+
 func convertTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
 	var outTools []*genai.Tool
 	for _, t := range inTools {

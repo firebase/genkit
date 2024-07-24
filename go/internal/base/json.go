@@ -34,6 +34,17 @@ func JSONString(x any) string {
 	return string(bytes)
 }
 
+// PrettyJSONString returns json.MarshalIndent(x, "", "  ") as a string.
+// If json.MarshalIndent returns an error, jsonString returns the error text as
+// a JSON string beginning "ERROR:".
+func PrettyJSONString(x any) string {
+	bytes, err := json.MarshalIndent(x, "", "  ")
+	if err != nil {
+		bytes, _ = json.MarshalIndent(fmt.Sprintf("ERROR: %v", err), "", "  ")
+	}
+	return string(bytes)
+}
+
 // WriteJSONFile writes value to filename as JSON.
 func WriteJSONFile(filename string, value any) error {
 	f, err := os.Create(filename)
