@@ -85,7 +85,7 @@ func TestValidCandidate(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if text != json {
+		if strings.TrimSpace(text) != strings.TrimSpace(json) {
 			t.Fatalf("got %q, want %q", json, text)
 		}
 	})

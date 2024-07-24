@@ -145,7 +145,11 @@ func WithTools(tools ...Tool) GenerateRequestBuilder {
 // WithConfig adds provided output schema to GenerateRequest
 func WithOutputSchema[T any](schema T) GenerateRequestBuilder {
 	return func(req *GenerateRequest) {
-		req.Output.Schema = base.SchemaAsMap(base.InferJSONSchema(schema))
+		if req.Output == nil {
+			req.Output = &GenerateRequestOutput{}
+			req.Output.Format = OutputFormatJSON
+		}
+		req.Output.Schema = base.SchemaAsMap(base.InferJSONSchemaNonReferencing(schema))
 	}
 }
 
@@ -164,6 +168,21 @@ func (m *Model) Generate(ctx context.Context, withs ...GenerateRequestBuilder) (
 // GenerateText run generate request for this model. Returns generated text only.
 func (m *Model) GenerateText(ctx context.Context, withs ...GenerateRequestBuilder) (string, error) {
 	return m.StreamGenerateText(ctx, nil, withs...)
+}
+
+// Generate run generate request for this model. Returns GenerateResponse struct.
+// TODO: StreamGenerateData with partial JSON
+func (m *Model) GenerateData(ctx context.Context, value any, withs ...GenerateRequestBuilder) (*GenerateResponse, error) {
+	withs = append(withs, WithOutputSchema(value))
+	resp, err := m.StreamGenerate(ctx, nil, withs...)
+	if err != nil {
+		return nil, err
+	}
+	err = resp.UnmarshalOutput(value)
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 // StreamGenerate run generate request for this model, handles streaming.
@@ -243,7 +262,7 @@ func conformOutput(req *GenerateRequest) error {
 		}
 
 		escapedJSON := strconv.Quote(string(jsonBytes))
-		part := NewTextPart(fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", escapedJSON))
+		part := NewTextPart(fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```\n\ndo not repeat this schema back.", escapedJSON))
 		req.Messages[len(req.Messages)-1].Content = append(req.Messages[len(req.Messages)-1].Content, part)
 	}
 	return nil
@@ -275,7 +294,7 @@ func validCandidate(c *Candidate, output *GenerateRequestOutput) (*Candidate, er
 		if err != nil {
 			return nil, err
 		}
-		text = stripJSONDelimiters(text)
+		text = base.ExtractJsonFromMarkdown(text)
 		var schemaBytes []byte
 		schemaBytes, err = json.Marshal(output.Schema)
 		if err != nil {
@@ -288,25 +307,6 @@ func validCandidate(c *Candidate, output *GenerateRequestOutput) (*Candidate, er
 		c.Message.Content = []*Part{NewJSONPart(text)}
 	}
 	return c, nil
-}
-
-// stripJSONDelimiters strips Markdown JSON delimiters that may come back in the response.
-func stripJSONDelimiters(s string) string {
-	s = strings.TrimSpace(s)
-	delimiters := []string{"```", "~~~"}
-	for _, delimiter := range delimiters {
-		if strings.HasPrefix(s, delimiter) && strings.HasSuffix(s, delimiter) {
-			s = strings.TrimPrefix(s, delimiter)
-			s = strings.TrimSuffix(s, delimiter)
-			s = strings.TrimSpace(s)
-			if strings.HasPrefix(s, "json") {
-				s = strings.TrimPrefix(s, "json")
-				s = strings.TrimSpace(s)
-			}
-			break
-		}
-	}
-	return s
 }
 
 // handleToolRequest checks if a tool was requested by a model.
@@ -367,7 +367,16 @@ func (gr *GenerateResponse) Text() (string, error) {
 // UnmarshalOutput unmarshals structured JSON output into the provided
 // struct pointer.
 func (gr *GenerateResponse) UnmarshalOutput(v any) error {
-	return fmt.Errorf("implement me!")
+	txt, err := gr.Text()
+	if err != nil {
+		return err
+	}
+	j := base.ExtractJsonFromMarkdown(txt)
+	if j == "" {
+		return errors.New("unable to parse JSON from response text")
+	}
+	json.Unmarshal([]byte(j), v)
+	return nil
 }
 
 // Text returns the text content of the [GenerateResponseChunk]
