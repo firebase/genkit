@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/invopop/jsonschema"
@@ -29,6 +30,17 @@ func JSONString(x any) string {
 	bytes, err := json.Marshal(x)
 	if err != nil {
 		bytes, _ = json.Marshal(fmt.Sprintf("ERROR: %v", err))
+	}
+	return string(bytes)
+}
+
+// PrettyJSONString returns json.MarshalIndent(x, "", "  ") as a string.
+// If json.MarshalIndent returns an error, jsonString returns the error text as
+// a JSON string beginning "ERROR:".
+func PrettyJSONString(x any) string {
+	bytes, err := json.MarshalIndent(x, "", "  ")
+	if err != nil {
+		bytes, _ = json.MarshalIndent(fmt.Sprintf("ERROR: %v", err), "", "  ")
 	}
 	return string(bytes)
 }
@@ -59,6 +71,14 @@ func ReadJSONFile(filename string, pvalue any) error {
 }
 
 func InferJSONSchema(x any) (s *jsonschema.Schema) {
+	r := jsonschema.Reflector{}
+	s = r.Reflect(x)
+	// TODO: Unwind this change once Monaco Editor supports newer than JSON schema draft-07.
+	s.Version = ""
+	return s
+}
+
+func InferJSONSchemaNonReferencing(x any) (s *jsonschema.Schema) {
 	r := jsonschema.Reflector{
 		DoNotReference: true,
 	}
@@ -66,4 +86,18 @@ func InferJSONSchema(x any) (s *jsonschema.Schema) {
 	// TODO: Unwind this change once Monaco Editor supports newer than JSON schema draft-07.
 	s.Version = ""
 	return s
+}
+
+// SchemaAsMap convers json schema struct to a map (JSON representation).
+func SchemaAsMap(s *jsonschema.Schema) map[string]any {
+	jsb, err := s.MarshalJSON()
+	if err != nil {
+		log.Panicf("failed to marshal schema: %v", err)
+	}
+	var m map[string]any
+	err = json.Unmarshal(jsb, &m)
+	if err != nil {
+		log.Panicf("failed to unmarshal schema: %v", err)
+	}
+	return m
 }

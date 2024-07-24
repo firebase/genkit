@@ -132,19 +132,11 @@ func multi() error {
 
 func tools() error {
 	// [START tools]
-	myJoke := &ai.ToolDefinition{
-		Name:        "myJoke",
-		Description: "useful when you need a joke to tell",
-		InputSchema: make(map[string]any),
-		OutputSchema: map[string]any{
-			"joke": "string",
-		},
-	}
-	ai.DefineTool(
-		myJoke,
-		nil,
-		func(ctx context.Context, input map[string]any) (map[string]any, error) {
-			return map[string]any{"joke": "haha Just kidding no joke! got you"}, nil
+	myJokeTool := ai.DefineTool(
+		"myJoke",
+		"useful when you need a joke to tell",
+		func(ctx context.Context, input *any) (string, error) {
+			return "haha Just kidding no joke! got you", nil
 		},
 	)
 
@@ -153,7 +145,7 @@ func tools() error {
 			{Content: []*ai.Part{ai.NewTextPart("Tell me a joke.")},
 				Role: ai.RoleUser},
 		},
-		Tools: []*ai.ToolDefinition{myJoke},
+		Tools: []*ai.ToolDefinition{myJokeTool.Definition()},
 	}
 	response, err := gemini15pro.Generate(ctx, &request, nil)
 	// [END tools]

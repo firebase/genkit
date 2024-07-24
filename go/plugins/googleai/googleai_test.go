@@ -16,7 +16,6 @@ package googleai_test
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"math"
@@ -58,37 +57,12 @@ func TestLive(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	toolDef := &ai.ToolDefinition{
-		Name:         "exponentiation",
-		InputSchema:  map[string]any{"base": "float64", "exponent": "int"},
-		OutputSchema: map[string]any{"output": "float64"},
-	}
-	ai.DefineTool(toolDef, nil,
-		func(ctx context.Context, input map[string]any) (map[string]any, error) {
-			baseAny, ok := input["base"]
-			if !ok {
-				return nil, errors.New("exponentiation tool: missing base")
-			}
-			base, ok := baseAny.(float64)
-			if !ok {
-				return nil, fmt.Errorf("exponentiation tool: base is %T, want %T", baseAny, float64(0))
-			}
-
-			expAny, ok := input["exponent"]
-			if !ok {
-				return nil, errors.New("exponentiation tool: missing exponent")
-			}
-			exp, ok := expAny.(float64)
-			if !ok {
-				expInt, ok := expAny.(int)
-				if !ok {
-					return nil, fmt.Errorf("exponentiation tool: exponent is %T, want %T or %T", expAny, float64(0), int(0))
-				}
-				exp = float64(expInt)
-			}
-
-			r := map[string]any{"output": math.Pow(base, exp)}
-			return r, nil
+	gablorkenTool := ai.DefineTool("gablorken", "use when need to calculate a gablorken",
+		func(ctx context.Context, input struct {
+			Value float64
+			Over  float64
+		}) (float64, error) {
+			return math.Pow(input.Value, input.Over), nil
 		},
 	)
 	t.Run("embedder", func(t *testing.T) {
@@ -184,11 +158,11 @@ func TestLive(t *testing.T) {
 			Candidates: 1,
 			Messages: []*ai.Message{
 				{
-					Content: []*ai.Part{ai.NewTextPart("what is 3.5 squared? Use the tool provided.")},
+					Content: []*ai.Part{ai.NewTextPart("what is a gablorken of 2 over 3.5?")},
 					Role:    ai.RoleUser,
 				},
 			},
-			Tools: []*ai.ToolDefinition{toolDef},
+			Tools: []*ai.ToolDefinition{gablorkenTool.Definition()},
 		}
 
 		resp, err := model.Generate(ctx, req, nil)

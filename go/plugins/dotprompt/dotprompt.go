@@ -89,7 +89,7 @@ type Config struct {
 	Model *ai.Model
 
 	// TODO: document
-	Tools []*ai.ToolDefinition
+	Tools []ai.Tool
 
 	// Number of candidates to generate when passing the prompt
 	// to a model. If 0, uses 1.
@@ -159,7 +159,7 @@ type frontmatterYAML struct {
 	Name       string                     `yaml:"name,omitempty"`
 	Variant    string                     `yaml:"variant,omitempty"`
 	Model      string                     `yaml:"model,omitempty"`
-	Tools      []*ai.ToolDefinition       `yaml:"tools,omitempty"`
+	Tools      []string                   `yaml:"tools,omitempty"`
 	Candidates int                        `yaml:"candidates,omitempty"`
 	Config     *ai.GenerationCommonConfig `yaml:"config,omitempty"`
 	Input      struct {
@@ -225,10 +225,15 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 		return "", Config{}, nil, fmt.Errorf("dotprompt: failed to parse YAML frontmatter: %w", err)
 	}
 
+	var tools []ai.Tool
+	for _, tn := range fy.Tools {
+		tools = append(tools, ai.LookupTool(tn))
+	}
+
 	ret := Config{
 		Variant:          fy.Variant,
 		ModelName:        fy.Model,
-		Tools:            fy.Tools,
+		Tools:            tools,
 		Candidates:       fy.Candidates,
 		GenerationConfig: fy.Config,
 		VariableDefaults: fy.Input.Default,

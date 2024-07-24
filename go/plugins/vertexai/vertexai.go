@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strconv"
+	"strings"
 	"sync"
 
 	aiplatform "cloud.google.com/go/aiplatform/apiv1"
@@ -348,36 +350,150 @@ func startChat(gm *genai.GenerativeModel, input *ai.GenerateRequest) (*genai.Cha
 	}
 	return cs, nil
 }
+
 func convertTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
 	var outTools []*genai.Tool
 	for _, t := range inTools {
-		schema := &genai.Schema{}
-		schema.Type = genai.TypeObject
-		schema.Properties = map[string]*genai.Schema{}
-		for k, v := range t.InputSchema {
-			typ := genai.TypeUnspecified
-			switch v {
-			case "string":
-				typ = genai.TypeString
-			case "float64":
-				typ = genai.TypeNumber
-			case "int":
-				typ = genai.TypeInteger
-			case "bool":
-				typ = genai.TypeBoolean
-			default:
-				return nil, fmt.Errorf("schema value %q not allowed", v)
-			}
-			schema.Properties[k] = &genai.Schema{Type: typ}
+		inputSchema, err := convertSchema(t.InputSchema, t.InputSchema)
+		if err != err {
+			return nil, err
+		}
+		outputSchema, err := convertSchema(t.OutputSchema, t.OutputSchema)
+		if err != err {
+			return nil, err
 		}
 		fd := &genai.FunctionDeclaration{
 			Name:        t.Name,
-			Parameters:  schema,
+			Parameters:  inputSchema,
+			Response:    outputSchema,
 			Description: t.Description,
 		}
 		outTools = append(outTools, &genai.Tool{FunctionDeclarations: []*genai.FunctionDeclaration{fd}})
 	}
 	return outTools, nil
+}
+
+func convertSchema(originalSchema map[string]any, genkitSchema map[string]any) (*genai.Schema, error) {
+	// this covers genkitSchema == nil and {}
+	// genkitSchema will be {} if it's any
+	if len(genkitSchema) == 0 {
+		return nil, nil
+	}
+	if v, ok := genkitSchema["$ref"]; ok {
+		ref := v.(string)
+		return convertSchema(originalSchema, resolveRef(originalSchema, ref))
+	}
+	schema := &genai.Schema{}
+
+	switch genkitSchema["type"].(string) {
+	case "string":
+		schema.Type = genai.TypeString
+	case "float64":
+		schema.Type = genai.TypeNumber
+	case "number":
+		schema.Type = genai.TypeNumber
+	case "int":
+		schema.Type = genai.TypeInteger
+	case "bool":
+		schema.Type = genai.TypeBoolean
+	case "object":
+		schema.Type = genai.TypeObject
+	case "array":
+		schema.Type = genai.TypeArray
+	default:
+		return nil, fmt.Errorf("schema type %q not allowed", genkitSchema["type"])
+	}
+	if v, ok := genkitSchema["required"]; ok {
+		schema.Required = castToStringArray(v.([]any))
+	}
+	if v, ok := genkitSchema["description"]; ok {
+		schema.Description = v.(string)
+	}
+	if v, ok := genkitSchema["format"]; ok {
+		schema.Format = v.(string)
+	}
+	if v, ok := genkitSchema["pattern"]; ok {
+		schema.Pattern = v.(string)
+	}
+	if v, ok := genkitSchema["title"]; ok {
+		schema.Title = v.(string)
+	}
+	if v, ok := genkitSchema["minItems"]; ok {
+		schema.MinItems = v.(int64)
+	}
+	if v, ok := genkitSchema["maxItems"]; ok {
+		schema.MaxItems = v.(int64)
+	}
+	if v, ok := genkitSchema["minItems"]; ok {
+		schema.MinItems = v.(int64)
+	}
+	if v, ok := genkitSchema["maxProperties"]; ok {
+		schema.MaxProperties = v.(int64)
+	}
+	if v, ok := genkitSchema["minProperties"]; ok {
+		schema.MinProperties = v.(int64)
+	}
+	if v, ok := genkitSchema["maxLength"]; ok {
+		schema.MaxLength = v.(int64)
+	}
+	if v, ok := genkitSchema["minLength"]; ok {
+		schema.MinLength = v.(int64)
+	}
+	if v, ok := genkitSchema["enum"]; ok {
+		schema.Enum = castToStringArray(v.([]any))
+	}
+	if v, ok := genkitSchema["maximum"]; ok {
+		m, err := strconv.ParseFloat(v.(string), 64)
+		if err != nil {
+			return nil, err
+		}
+		schema.Maximum = m
+	}
+	if v, ok := genkitSchema["minimum"]; ok {
+		m, err := strconv.ParseFloat(v.(string), 64)
+		if err != nil {
+			return nil, err
+		}
+		schema.Minimum = m
+	}
+	if v, ok := genkitSchema["items"]; ok {
+		items, err := convertSchema(originalSchema, v.(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		schema.Items = items
+	}
+	if val, ok := genkitSchema["properties"]; ok {
+		props := map[string]*genai.Schema{}
+		for k, v := range val.(map[string]any) {
+			p, err := convertSchema(originalSchema, v.(map[string]any))
+			if err != nil {
+				return nil, err
+			}
+			props[k] = p
+		}
+		schema.Properties = props
+	}
+	// Nullable -- not supported in jsonschema.Schema
+
+	return schema, nil
+}
+
+func resolveRef(originalSchema map[string]any, ref string) map[string]any {
+	tkns := strings.Split(ref, "/")
+	// refs look like: $/ref/foo -- we need the foo part
+	name := tkns[len(tkns)-1]
+	defs := originalSchema["$defs"].(map[string]any)
+	return defs[name].(map[string]any)
+}
+
+func castToStringArray(i []any) []string {
+	// Is there a better way to do this??
+	var r []string
+	for _, v := range i {
+		r = append(r, v.(string))
+	}
+	return r
 }
 
 // DO NOT MODIFY above ^^^^
