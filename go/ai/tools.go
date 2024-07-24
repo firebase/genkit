@@ -112,6 +112,6 @@ func runAction(ctx context.Context, action ToolAction, input map[string]any) (an
 	return uo, nil
 }
 
-func LookupToolAction(name string) ToolAction {
+func LookupTool(name string) ToolAction {
 	return &toolAction{action: registry.Global.LookupAction(fmt.Sprintf("/tool/local/%s", name))}
 }

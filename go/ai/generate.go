@@ -212,7 +212,7 @@ func handleToolRequest(ctx context.Context, req *GenerateRequest, resp *Generate
 	}
 
 	toolReq := part.ToolRequest
-	tool := LookupToolAction(toolReq.Name)
+	tool := LookupTool(toolReq.Name)
 	if tool == nil {
 		return nil, fmt.Errorf("tool %v not found", toolReq.Name)
 	}

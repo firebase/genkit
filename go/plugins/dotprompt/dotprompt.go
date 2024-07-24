@@ -227,7 +227,7 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 
 	var tools []ai.ToolAction
 	for _, tn := range fy.Tools {
-		tools = append(tools, ai.LookupToolAction(tn))
+		tools = append(tools, ai.LookupTool(tn))
 	}
 
 	ret := Config{
