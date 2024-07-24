@@ -42,14 +42,13 @@ func googleaiEx(ctx context.Context) error {
 	// [END model]
 
 	// [START gen]
-	genRes, err := langModel.Generate(ctx, ai.NewGenerateRequest(
-		nil, ai.NewUserTextMessage("Tell me a joke.")), nil)
+	text, err := langModel.GenerateText(ctx, ai.WithSimpleTextPrompt("Tell me a joke."))
 	if err != nil {
 		return err
 	}
 	// [END gen]
 
-	_ = genRes
+	_ = text
 
 	var userInput string
 

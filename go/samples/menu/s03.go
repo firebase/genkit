@@ -112,10 +112,7 @@ func setup03(ctx context.Context, model *ai.Model) error {
 				Role: ai.RoleUser,
 			}
 			messages := append(slices.Clip(history), msg)
-			req := &ai.GenerateRequest{
-				Messages: messages,
-			}
-			resp, err := model.Generate(ctx, req, nil)
+			resp, err := model.Generate(ctx, ai.WithMessages(messages...))
 			if err != nil {
 				return nil, err
 			}

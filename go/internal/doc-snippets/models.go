@@ -46,15 +46,7 @@ func m1() error {
 	// [END model]
 
 	// [START call]
-	request := ai.GenerateRequest{Messages: []*ai.Message{
-		{Content: []*ai.Part{ai.NewTextPart("Tell me a joke.")}},
-	}}
-	response, err := model.Generate(ctx, &request, nil)
-	if err != nil {
-		return err
-	}
-
-	responseText, err := response.Text()
+	responseText, err := model.GenerateText(ctx, ai.WithSimpleTextPrompt("Tell me a joke."))
 	if err != nil {
 		return err
 	}
@@ -82,12 +74,9 @@ func opts() error {
 
 func streaming() error {
 	// [START streaming]
-	request := ai.GenerateRequest{Messages: []*ai.Message{
-		{Content: []*ai.Part{ai.NewTextPart("Tell a long story about robots and ninjas.")}},
-	}}
-	response, err := gemini15pro.Generate(
+	response, err := gemini15pro.StreamGenerate(
 		ctx,
-		&request,
+		// stream callback
 		func(ctx context.Context, grc *ai.GenerateResponseChunk) error {
 			text, err := grc.Text()
 			if err != nil {
@@ -95,7 +84,7 @@ func streaming() error {
 			}
 			fmt.Printf("Chunk: %s\n", text)
 			return nil
-		})
+		}, ai.WithSimpleTextPrompt("Tell a long story about robots and ninjas."))
 	if err != nil {
 		return err
 	}
@@ -119,13 +108,10 @@ func multi() error {
 	}
 	encodedImage := base64.StdEncoding.EncodeToString(imageBytes)
 
-	request := ai.GenerateRequest{Messages: []*ai.Message{
-		{Content: []*ai.Part{
-			ai.NewTextPart("Describe the following image."),
-			ai.NewMediaPart("", "data:image/jpeg;base64,"+encodedImage),
-		}},
-	}}
-	gemini15pro.Generate(ctx, &request, nil)
+	gemini15pro.Generate(ctx, ai.WithMessages(&ai.Message{Content: []*ai.Part{
+		ai.NewTextPart("Describe the following image."),
+		ai.NewMediaPart("", "data:image/jpeg;base64,"+encodedImage),
+	}}))
 	// [END multimodal]
 	return nil
 }
@@ -140,14 +126,9 @@ func tools() error {
 		},
 	)
 
-	request := ai.GenerateRequest{
-		Messages: []*ai.Message{
-			{Content: []*ai.Part{ai.NewTextPart("Tell me a joke.")},
-				Role: ai.RoleUser},
-		},
-		Tools: []*ai.ToolDefinition{myJokeTool.Definition()},
-	}
-	response, err := gemini15pro.Generate(ctx, &request, nil)
+	response, err := gemini15pro.Generate(ctx,
+		ai.WithSimpleTextPrompt("Tell me a joke."),
+		ai.WithTools(myJokeTool))
 	// [END tools]
 	_ = response
 	return err
@@ -161,8 +142,7 @@ func history() error {
 		Role:    ai.RoleUser,
 	}}
 
-	request := ai.GenerateRequest{Messages: history}
-	response, err := gemini15pro.Generate(context.Background(), &request, nil)
+	response, err := gemini15pro.Generate(context.Background(), ai.WithMessages(history...))
 	// [END hist1]
 	_ = err
 	// [START hist2]
@@ -175,8 +155,7 @@ func history() error {
 		Role:    ai.RoleUser,
 	})
 
-	request = ai.GenerateRequest{Messages: history}
-	response, err = gemini15pro.Generate(ctx, &request, nil)
+	response, err = gemini15pro.Generate(ctx, ai.WithMessages(history...))
 	// [END hist3]
 	// [START hist4]
 	history = []*ai.Message{{

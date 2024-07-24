@@ -87,17 +87,7 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("generate", func(t *testing.T) {
-		req := &ai.GenerateRequest{
-			Candidates: 1,
-			Messages: []*ai.Message{
-				{
-					Content: []*ai.Part{ai.NewTextPart("Which country was Napoleon the emperor of?")},
-					Role:    ai.RoleUser,
-				},
-			},
-		}
-
-		resp, err := model.Generate(ctx, req, nil)
+		resp, err := model.Generate(ctx, ai.WithCandidates(1), ai.WithSimpleTextPrompt("Which country was Napoleon the emperor of?"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -106,7 +96,7 @@ func TestLive(t *testing.T) {
 		if out != want {
 			t.Errorf("got %q, expecting %q", out, want)
 		}
-		if resp.Request != req {
+		if resp.Request == nil {
 			t.Error("Request field not set properly")
 		}
 		if resp.Usage.InputTokens == 0 || resp.Usage.OutputTokens == 0 || resp.Usage.TotalTokens == 0 {
@@ -114,23 +104,13 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("streaming", func(t *testing.T) {
-		req := &ai.GenerateRequest{
-			Candidates: 1,
-			Messages: []*ai.Message{
-				{
-					Content: []*ai.Part{ai.NewTextPart("Write one paragraph about the North Pole.")},
-					Role:    ai.RoleUser,
-				},
-			},
-		}
-
 		out := ""
 		parts := 0
-		final, err := model.Generate(ctx, req, func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+		final, err := model.StreamGenerate(ctx, func(ctx context.Context, c *ai.GenerateResponseChunk) error {
 			parts++
 			out += c.Content[0].Text
 			return nil
-		})
+		}, ai.WithCandidates(1), ai.WithSimpleTextPrompt("Write one paragraph about the North Pole."))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -154,18 +134,11 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("tool", func(t *testing.T) {
-		req := &ai.GenerateRequest{
-			Candidates: 1,
-			Messages: []*ai.Message{
-				{
-					Content: []*ai.Part{ai.NewTextPart("what is a gablorken of 2 over 3.5?")},
-					Role:    ai.RoleUser,
-				},
-			},
-			Tools: []*ai.ToolDefinition{gablorkenTool.Definition()},
-		}
+		resp, err := model.Generate(ctx,
+			ai.WithCandidates(1),
+			ai.WithSimpleTextPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithTools(gablorkenTool))
 
-		resp, err := model.Generate(ctx, req, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -195,7 +168,7 @@ func TestHeader(t *testing.T) {
 		t.Fatal(err)
 	}
 	model := googleai.Model("gemini-1.0-pro")
-	_, _ = model.Generate(ctx, ai.NewGenerateRequest(nil, ai.NewTextMessage(ai.RoleUser, "hi")), nil)
+	_, _ = model.Generate(ctx, ai.WithSimpleTextPrompt("hi"))
 	got := header.Get("x-goog-api-client")
 	want := regexp.MustCompile(fmt.Sprintf(`\bgenkit-go/%s\b`, internal.Version))
 	if !want.MatchString(got) {
