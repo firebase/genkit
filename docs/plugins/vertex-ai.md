@@ -148,7 +148,9 @@ export default configureGenkit({
   plugins: [
     vertexAI({
       location: 'us-central1',
-      modelGardenModels: [claude3Haiku, claude3Sonnet, claude3Opus],
+      modelGarden: {
+        models: [claude3Haiku, claude3Sonnet, claude3Opus],
+      },
     }),
   ],
 });
@@ -160,6 +162,36 @@ Then use them as regular models:
 const llmResponse = await generate({
   model: claude3Sonnet,
   prompt: 'What should I do when I visit Melbourne?',
+});
+```
+
+#### Llama 3.1 405b on Vertex AI Model Garden
+
+First you'll need to enable [Llama 3.1 API Service](https://console.cloud.google.com/vertex-ai/publishers/meta/model-garden/llama3-405b-instruct-maas) in Vertex AI Model Garden.
+
+Here's sample configuration for Llama 3.1 405b in Vertex AI plugin:
+
+```js
+import { vertexAI, llama3 } from '@genkit-ai/vertexai';
+
+export default configureGenkit({
+  plugins: [
+    vertexAI({
+      location: 'us-central1',
+      modelGarden: {
+        models: [llama3],
+      },
+    }),
+  ],
+});
+```
+
+Then use it as regular models:
+
+```js
+const llmResponse = await generate({
+  model: llama3,
+  prompt: 'Write a function that adds two numbers together',
 });
 ```
 
