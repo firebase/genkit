@@ -29,21 +29,25 @@ import (
 const provider = "local"
 
 // A ToolDef is an implementation of a single tool.
-// The ToolDefinition has JSON schemas that describe the types.
-// TODO: This should be generic over the function input and output types,
-// and something in the general code should handle the JSON conversion.
 type ToolDef[In, Out any] struct {
 	action *core.Action[In, Out, struct{}]
 }
 
+// toolAction is genericless version of ToolDef. It's required to make
+// LookupTool possible.
 type toolAction struct {
 	action action.Action
 }
 
+// Tool represents an instance of a tool.
 type Tool interface {
+	// Definition returns ToolDefinition for for this tool.
 	Definition() *ToolDefinition
+	// Action returns the action instance that backs this tools.
 	Action() action.Action
-	Run(ctx context.Context, input map[string]any) (any, error)
+	// RunRaw runs this tool using the provided raw map format data (JSON parsed
+	// as map[string]any).
+	RunRaw(ctx context.Context, input map[string]any) (any, error)
 }
 
 // DefineTool defines a tool function.
@@ -60,18 +64,22 @@ func DefineTool[In, Out any](name, description string, fn func(ctx context.Conte
 	}
 }
 
+// Action returns the action instance that backs this tools.
 func (ta *ToolDef[In, Out]) Action() action.Action {
 	return ta.action
 }
 
+// Action returns the action instance that backs this tools.
 func (ta *toolAction) Action() action.Action {
 	return ta.action
 }
 
+// Definition returns ToolDefinition for for this tool.
 func (ta *ToolDef[In, Out]) Definition() *ToolDefinition {
 	return definition(ta)
 }
 
+// Definition returns ToolDefinition for for this tool.
 func (ta *toolAction) Definition() *ToolDefinition {
 	return definition(ta)
 }
@@ -85,12 +93,16 @@ func definition(ta Tool) *ToolDefinition {
 	}
 }
 
-func (ta *toolAction) Run(ctx context.Context, input map[string]any) (any, error) {
+// RunRaw runs this tool using the provided raw map format data (JSON parsed
+// as map[string]any).
+func (ta *toolAction) RunRaw(ctx context.Context, input map[string]any) (any, error) {
 	return runAction(ctx, ta, input)
 
 }
 
-func (ta *ToolDef[In, Out]) Run(ctx context.Context, input map[string]any) (any, error) {
+// RunRaw runs this tool using the provided raw map format data (JSON parsed
+// as map[string]any).
+func (ta *ToolDef[In, Out]) RunRaw(ctx context.Context, input map[string]any) (any, error) {
 	return runAction(ctx, ta, input)
 }
 
@@ -112,6 +124,7 @@ func runAction(ctx context.Context, action Tool, input map[string]any) (any, err
 	return uo, nil
 }
 
+// LookupTool looks up the tool in the registry by provided name and returns it.
 func LookupTool(name string) Tool {
 	return &toolAction{action: registry.Global.LookupAction(fmt.Sprintf("/tool/local/%s", name))}
 }

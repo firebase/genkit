@@ -216,7 +216,7 @@ func handleToolRequest(ctx context.Context, req *GenerateRequest, resp *Generate
 	if tool == nil {
 		return nil, fmt.Errorf("tool %v not found", toolReq.Name)
 	}
-	to, err := tool.Run(ctx, toolReq.Input)
+	to, err := tool.RunRaw(ctx, toolReq.Input)
 	if err != nil {
 		return nil, err
 	}
