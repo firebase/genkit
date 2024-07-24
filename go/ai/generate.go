@@ -86,39 +86,45 @@ func LookupModel(provider, name string) *Model {
 	return (*Model)(core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](atype.Model, provider, name))
 }
 
-type GenerateRequestEditor func(req *GenerateRequest)
+type generateRequestEditor func(req *GenerateRequest)
 
-func WithSimpleTextPrompt(prompt string) GenerateRequestEditor {
+// WithSimpleTextPrompt adds a simple text user prompt to GenerateRequest
+func WithSimpleTextPrompt(prompt string) generateRequestEditor {
 	return func(req *GenerateRequest) {
 		req.Messages = append(req.Messages, NewUserTextMessage(prompt))
 	}
 }
 
-func WithMessages(messages ...*Message) GenerateRequestEditor {
+// WithMessages adds provided messages to GenerateRequest
+func WithMessages(messages ...*Message) generateRequestEditor {
 	return func(req *GenerateRequest) {
 		req.Messages = append(req.Messages, messages...)
 	}
 }
 
-func WithConfig(config any) GenerateRequestEditor {
+// WithConfig adds provided config to GenerateRequest
+func WithConfig(config any) generateRequestEditor {
 	return func(req *GenerateRequest) {
 		req.Config = config
 	}
 }
 
-func WithCandidates(c int) GenerateRequestEditor {
+// WithConfig adds provided candidate count to GenerateRequest
+func WithCandidates(c int) generateRequestEditor {
 	return func(req *GenerateRequest) {
 		req.Candidates = c
 	}
 }
 
-func WithContext(c ...any) GenerateRequestEditor {
+// WithConfig adds provided context to GenerateRequest
+func WithContext(c ...any) generateRequestEditor {
 	return func(req *GenerateRequest) {
 		req.Context = c
 	}
 }
 
-func WithTools(tools ...Tool) GenerateRequestEditor {
+// WithConfig adds provided tools to GenerateRequest
+func WithTools(tools ...Tool) generateRequestEditor {
 	return func(req *GenerateRequest) {
 		var toolDefs []*ToolDefinition
 		for _, t := range tools {
@@ -128,27 +134,32 @@ func WithTools(tools ...Tool) GenerateRequestEditor {
 	}
 }
 
-func WithOutputSchema(schema struct{}) GenerateRequestEditor {
+// WithConfig adds provided output schema to GenerateRequest
+func WithOutputSchema(schema struct{}) generateRequestEditor {
 	return func(req *GenerateRequest) {
 		req.Output.Schema = base.SchemaAsMap(base.InferJSONSchema(schema))
 	}
 }
 
-func WithOutputFormat(format OutputFormat) GenerateRequestEditor {
+// WithConfig adds provided output format to GenerateRequest
+func WithOutputFormat(format OutputFormat) generateRequestEditor {
 	return func(req *GenerateRequest) {
 		req.Output.Format = format
 	}
 }
 
-func (m *Model) Generate(ctx context.Context, withs ...GenerateRequestEditor) (*GenerateResponse, error) {
+// Generate run generate request for this model. Returns GenerateResponse struct.
+func (m *Model) Generate(ctx context.Context, withs ...generateRequestEditor) (*GenerateResponse, error) {
 	return m.StreamGenerate(ctx, nil, withs...)
 }
 
-func (m *Model) GenerateText(ctx context.Context, withs ...GenerateRequestEditor) (string, error) {
+// GenerateText run generate request for this model. Returns generated text only.
+func (m *Model) GenerateText(ctx context.Context, withs ...generateRequestEditor) (string, error) {
 	return m.StreamGenerateText(ctx, nil, withs...)
 }
 
-func (m *Model) StreamGenerate(ctx context.Context, cb ModelStreamingCallback, withs ...GenerateRequestEditor) (*GenerateResponse, error) {
+// StreamGenerate run generate request for this model, handles streaming.
+func (m *Model) StreamGenerate(ctx context.Context, cb ModelStreamingCallback, withs ...generateRequestEditor) (*GenerateResponse, error) {
 	req := &GenerateRequest{}
 	for _, with := range withs {
 		with(req)
@@ -157,7 +168,8 @@ func (m *Model) StreamGenerate(ctx context.Context, cb ModelStreamingCallback, w
 	return m.StreamGenerateRaw(ctx, req, cb)
 }
 
-func (m *Model) StreamGenerateText(ctx context.Context, cb ModelStreamingCallback, withs ...GenerateRequestEditor) (string, error) {
+// StreamGenerateText run generate request for this model and returns text output, handles streaming.
+func (m *Model) StreamGenerateText(ctx context.Context, cb ModelStreamingCallback, withs ...generateRequestEditor) (string, error) {
 	req := &GenerateRequest{}
 	for _, with := range withs {
 		with(req)
@@ -175,12 +187,12 @@ func (m *Model) StreamGenerateText(ctx context.Context, cb ModelStreamingCallbac
 	return res.Text()
 }
 
-// GenerateRaw applies the [Model] to some input, handling tool requests.
+// GenerateRaw applies the [Model] to provided request, handling tool requests.
 func (m *Model) GenerateRaw(ctx context.Context, req *GenerateRequest) (*GenerateResponse, error) {
 	return m.StreamGenerateRaw(ctx, req, nil)
 }
 
-// StreamGenerateRaw applies the [Model] to some input, handling tool requests and handles streaming.
+// StreamGenerateRaw applies the [Model] to provided request, handling tool requests and handles streaming.
 func (m *Model) StreamGenerateRaw(ctx context.Context, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error) {
 	if m == nil {
 		return nil, errors.New("Generate called on a nil Model; check that all models are defined")
