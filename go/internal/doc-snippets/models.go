@@ -108,11 +108,15 @@ func multi() error {
 	}
 	encodedImage := base64.StdEncoding.EncodeToString(imageBytes)
 
-	gemini15pro.Generate(ctx, ai.WithMessages(&ai.Message{Content: []*ai.Part{
-		ai.NewTextPart("Describe the following image."),
-		ai.NewMediaPart("", "data:image/jpeg;base64,"+encodedImage),
-	}}))
+	resp, err := gemini15pro.Generate(ctx, ai.WithMessages(
+		ai.NewUserMessage(
+			ai.NewTextPart("Describe the following image."),
+			ai.NewMediaPart("", "data:image/jpeg;base64,"+encodedImage))))
 	// [END multimodal]
+	if err != nil {
+		return err
+	}
+	_ = resp
 	return nil
 }
 

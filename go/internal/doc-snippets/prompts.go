@@ -44,7 +44,7 @@ func pr02() {
 
 	// [START pr02]
 	response, err := model.GenerateText(context.Background(),
-		ai.WithMessages(&ai.Message{Content: []*ai.Part{helloPrompt("Fred")}}))
+		ai.WithMessages(ai.NewUserMessage(helloPrompt("Fred"))))
 	// [END pr02]
 
 	if err == nil {
