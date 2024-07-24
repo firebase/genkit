@@ -87,7 +87,7 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("generate", func(t *testing.T) {
-		resp, err := model.Generate(ctx, ai.WithCandidates(1), ai.WithSimpleTextPrompt("Which country was Napoleon the emperor of?"))
+		resp, err := model.Generate(ctx, ai.WithCandidates(1), ai.WithTextPrompt("Which country was Napoleon the emperor of?"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -110,7 +110,7 @@ func TestLive(t *testing.T) {
 			parts++
 			out += c.Content[0].Text
 			return nil
-		}, ai.WithCandidates(1), ai.WithSimpleTextPrompt("Write one paragraph about the North Pole."))
+		}, ai.WithCandidates(1), ai.WithTextPrompt("Write one paragraph about the North Pole."))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -136,7 +136,7 @@ func TestLive(t *testing.T) {
 	t.Run("tool", func(t *testing.T) {
 		resp, err := model.Generate(ctx,
 			ai.WithCandidates(1),
-			ai.WithSimpleTextPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithTextPrompt("what is a gablorken of 2 over 3.5?"),
 			ai.WithTools(gablorkenTool))
 
 		if err != nil {
@@ -168,7 +168,7 @@ func TestHeader(t *testing.T) {
 		t.Fatal(err)
 	}
 	model := googleai.Model("gemini-1.0-pro")
-	_, _ = model.Generate(ctx, ai.WithSimpleTextPrompt("hi"))
+	_, _ = model.Generate(ctx, ai.WithTextPrompt("hi"))
 	got := header.Get("x-goog-api-client")
 	want := regexp.MustCompile(fmt.Sprintf(`\bgenkit-go/%s\b`, internal.Version))
 	if !want.MatchString(got) {

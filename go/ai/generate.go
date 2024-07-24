@@ -88,8 +88,8 @@ func LookupModel(provider, name string) *Model {
 
 type generateRequestEditor func(req *GenerateRequest)
 
-// WithSimpleTextPrompt adds a simple text user prompt to GenerateRequest
-func WithSimpleTextPrompt(prompt string) generateRequestEditor {
+// WithTextPrompt adds a simple text user prompt to GenerateRequest
+func WithTextPrompt(prompt string) generateRequestEditor {
 	return func(req *GenerateRequest) {
 		req.Messages = append(req.Messages, NewUserTextMessage(prompt))
 	}

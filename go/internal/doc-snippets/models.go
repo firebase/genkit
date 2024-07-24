@@ -46,7 +46,7 @@ func m1() error {
 	// [END model]
 
 	// [START call]
-	responseText, err := model.GenerateText(ctx, ai.WithSimpleTextPrompt("Tell me a joke."))
+	responseText, err := model.GenerateText(ctx, ai.WithTextPrompt("Tell me a joke."))
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func streaming() error {
 			}
 			fmt.Printf("Chunk: %s\n", text)
 			return nil
-		}, ai.WithSimpleTextPrompt("Tell a long story about robots and ninjas."))
+		}, ai.WithTextPrompt("Tell a long story about robots and ninjas."))
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func tools() error {
 	)
 
 	response, err := gemini15pro.Generate(ctx,
-		ai.WithSimpleTextPrompt("Tell me a joke."),
+		ai.WithTextPrompt("Tell me a joke."),
 		ai.WithTools(myJokeTool))
 	// [END tools]
 	_ = response

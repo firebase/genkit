@@ -27,7 +27,7 @@ func pr01() {
 	model := ai.Model{}
 
 	// [START pr01]
-	model.Generate(context.Background(), ai.WithSimpleTextPrompt("You are a helpful AI assistant named Walt."))
+	model.Generate(context.Background(), ai.WithTextPrompt("You are a helpful AI assistant named Walt."))
 	// [END pr01]
 }
 

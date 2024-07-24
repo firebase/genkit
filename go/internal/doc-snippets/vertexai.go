@@ -48,7 +48,7 @@ func vertexaiEx(ctx context.Context) error {
 	// [END model]
 
 	// [START gen]
-	genRes, err := langModel.GenerateText(ctx, ai.WithSimpleTextPrompt("Tell me a joke."))
+	genRes, err := langModel.GenerateText(ctx, ai.WithTextPrompt("Tell me a joke."))
 	if err != nil {
 		return err
 	}

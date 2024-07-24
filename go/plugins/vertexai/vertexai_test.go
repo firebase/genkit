@@ -53,7 +53,7 @@ func TestLive(t *testing.T) {
 		},
 	)
 	t.Run("model", func(t *testing.T) {
-		resp, err := model.Generate(ctx, ai.WithCandidates(1), ai.WithSimpleTextPrompt("Which country was Napoleon the emperor of?"))
+		resp, err := model.Generate(ctx, ai.WithCandidates(1), ai.WithTextPrompt("Which country was Napoleon the emperor of?"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -78,7 +78,7 @@ func TestLive(t *testing.T) {
 				out += p.Text
 			}
 			return nil
-		}, ai.WithCandidates(1), ai.WithSimpleTextPrompt("Write one paragraph about the Golden State Warriors."))
+		}, ai.WithCandidates(1), ai.WithTextPrompt("Write one paragraph about the Golden State Warriors."))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -105,7 +105,7 @@ func TestLive(t *testing.T) {
 	t.Run("tool", func(t *testing.T) {
 		resp, err := model.Generate(ctx,
 			ai.WithCandidates(1),
-			ai.WithSimpleTextPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithTextPrompt("what is a gablorken of 2 over 3.5?"),
 			ai.WithTools(gablorkenTool))
 		if err != nil {
 			t.Fatal(err)
