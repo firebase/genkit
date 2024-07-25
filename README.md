@@ -82,7 +82,7 @@ Extend Genkit with plugins for specific AI models, vector databases, and platfor
 Create and share your own plugins:
 
 - **Write Node.js plugins:** [Plugin Authoring Guide](https://firebase.google.com/docs/genkit/plugin-authoring)
-- **Write Go plugins:** (Documentation coming soon)
+- **Write Go plugins:** [Plugin Authoring Guide](https://firebase.google.com/docs/genkit-go/plugin-authoring)
 
 Find excellent examples of community-built plugins for OpenAI, Anthropic, Cohere, and more in this [repository](https://github.com/TheFireCo/genkit-plugins).
 
