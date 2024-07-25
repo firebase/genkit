@@ -15,16 +15,18 @@
  */
 
 import { ModelReference } from '@genkit-ai/ai/model';
-import { genkitPlugin, Plugin } from '@genkit-ai/core';
+import { IndexerAction, RetrieverAction } from '@genkit-ai/ai/retriever';
+import { Plugin, genkitPlugin } from '@genkit-ai/core';
 import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
+import z from 'zod';
 import {
+  SUPPORTED_ANTHROPIC_MODELS,
   anthropicModel,
   claude35Sonnet,
   claude3Haiku,
   claude3Opus,
   claude3Sonnet,
-  SUPPORTED_ANTHROPIC_MODELS,
 } from './anthropic.js';
 import {
   SUPPORTED_EMBEDDER_MODELS,
@@ -43,6 +45,7 @@ import {
   vertexEvaluators,
 } from './evaluation.js';
 import {
+  SUPPORTED_GEMINI_MODELS,
   gemini15Flash,
   gemini15FlashPreview,
   gemini15Pro,
@@ -50,16 +53,34 @@ import {
   geminiModel,
   geminiPro,
   geminiProVision,
-  SUPPORTED_GEMINI_MODELS,
 } from './gemini.js';
 import { imagen2, imagen2Model } from './imagen.js';
 import {
+  SUPPORTED_OPENAI_FORMAT_MODELS,
   llama3,
   modelGardenOpenaiCompatibleModel,
-  SUPPORTED_OPENAI_FORMAT_MODELS,
 } from './model_garden.js';
-
+import {
+  VectorSearchOptions,
+  vertexAiIndexers,
+  vertexAiRetrievers,
+} from './vector-search';
 export {
+  DocumentIndexer,
+  DocumentRetriever,
+  Neighbor,
+  VectorSearchOptions,
+  getBigQueryDocumentIndexer,
+  getBigQueryDocumentRetriever,
+  getFirestoreDocumentIndexer,
+  getFirestoreDocumentRetriever,
+  vertexAiIndexerRef,
+  vertexAiIndexers,
+  vertexAiRetrieverRef,
+  vertexAiRetrievers,
+} from './vector-search';
+export {
+  VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
   claude35Sonnet,
   claude3Haiku,
   claude3Opus,
@@ -79,7 +100,6 @@ export {
   textEmbeddingGecko003,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
-  VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
 };
 
 export interface PluginOptions {
@@ -101,6 +121,8 @@ export interface PluginOptions {
     models: ModelReference<any>[];
     openAiBaseUrlTemplate?: string;
   };
+  /** Configure Vertex AI vector search index options */
+  vectorSearchOptions?: VectorSearchOptions<z.ZodTypeAny, any, any>[];
 }
 
 const CLOUD_PLATFROM_OAUTH_SCOPE =
@@ -116,8 +138,8 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       options?.googleAuth ?? { scopes: [CLOUD_PLATFROM_OAUTH_SCOPE] }
     );
     const projectId = options?.projectId || (await authClient.getProjectId());
-    const location = options?.location || 'us-central1';
 
+    const location = options?.location || 'us-central1';
     const confError = (parameter: string, envVariableName: string) => {
       return new Error(
         `VertexAI Plugin is missing the '${parameter}' configuration. Please set the '${envVariableName}' environment variable or explicitly pass '${parameter}' into genkit config.`
@@ -177,14 +199,38 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       });
     }
 
+    const embedders = Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
+      textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
+    );
+
+    let indexers: IndexerAction<z.ZodTypeAny>[] = [];
+    let retrievers: RetrieverAction<z.ZodTypeAny>[] = [];
+
+    if (
+      options?.vectorSearchOptions &&
+      options.vectorSearchOptions.length > 0
+    ) {
+      const defaultEmbedder = embedders[0];
+
+      indexers = vertexAiIndexers({
+        pluginOptions: options,
+        authClient,
+        defaultEmbedder,
+      });
+
+      retrievers = vertexAiRetrievers({
+        pluginOptions: options,
+        authClient,
+        defaultEmbedder,
+      });
+    }
+
     return {
       models,
-      embedders: [
-        ...Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
-          textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
-        ),
-      ],
+      embedders,
       evaluators: vertexEvaluators(authClient, metrics, projectId, location),
+      retrievers,
+      indexers,
     };
   }
 );
