@@ -9,9 +9,6 @@ other Genkit users on the [Genkit Discord server](https://discord.gg/qXt5zzQKpc)
 **Provide feedback:** Report issues with Genkit or the docs, or suggest new
 features using our [GitHub issue tracker](https://github.com/firebase/genkit/issues).
 
-**Engage in discussions:** Participate in conversations about Genkit on our
-[GitHub Discussions](https://github.com/firebase/genkit/discussions) forum.
-
 **We're interested in learning things like:**
 
 - Was it straightforward to set up and make your first `generate` call? If not,
