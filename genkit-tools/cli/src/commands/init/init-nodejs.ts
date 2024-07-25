@@ -15,12 +15,13 @@
  */
 
 import { InitEvent, record } from '@genkit-ai/tools-common/utils';
-import { execSync } from 'child_process';
+import { exec } from 'child_process';
 import extract from 'extract-zip';
 import fs from 'fs';
 import * as inquirer from 'inquirer';
 import ora from 'ora';
 import path from 'path';
+import { promisify } from 'util';
 import {
   InitOptions,
   ModelProvider,
@@ -31,6 +32,8 @@ import {
 } from '../init';
 
 type SampleTarget = 'firebase' | 'nodejs' | 'nextjs';
+
+const execAsync = promisify(exec);
 
 interface PluginInfo {
   // Imported items from `name` (can be comma list).
@@ -245,7 +248,7 @@ export async function initNodejs(options: InitOptions, isNew: boolean) {
   if (isNew) {
     const spinner = ora('Initializing NPM project').start();
     try {
-      execSync('npm init -y', { stdio: 'ignore' });
+      await execAsync('npm init -y');
       spinner.succeed('Successfully initialized NPM project');
     } catch (err) {
       spinner.fail(`Failed to initialize NPM project: ${err}`);
@@ -357,12 +360,10 @@ async function installNpmPackages(
   const spinner = ora('Installing NPM packages').start();
   try {
     if (packages.length) {
-      execSync(`npm install ${packages.join(' ')} --save`, { stdio: 'ignore' });
+      await execAsync(`npm install ${packages.join(' ')} --save`);
     }
     if (devPackages?.length) {
-      execSync(`npm install ${devPackages.join(' ')} --save-dev`, {
-        stdio: 'ignore',
-      });
+      await execAsync(`npm install ${devPackages.join(' ')} --save-dev`);
     }
     if (distArchive) {
       const distDir = 'genkit-dist';
@@ -371,7 +372,7 @@ async function installNpmPackages(
         fs.mkdirSync(distDir);
       }
       await extract(distArchive, { dir: outputPath });
-      execSync(`npm install ${outputPath}/*.tgz --save`, { stdio: 'ignore' });
+      await execAsync(`npm install ${outputPath}/*.tgz --save`);
     }
     spinner.succeed('Successfully installed NPM packages');
   } catch (err) {
