@@ -357,6 +357,15 @@ func (gr *GenerateResponse) Text() string {
 	return gr.Candidates[0].Text()
 }
 
+// History returns messages from the request combined with the reponse message
+// to represent the conversation history.
+func (gr *GenerateResponse) History() []*Message {
+	if len(gr.Candidates) == 0 {
+		return gr.Request.Messages
+	}
+	return append(gr.Request.Messages, gr.Candidates[0].Message)
+}
+
 // UnmarshalOutput unmarshals structured JSON output into the provided
 // struct pointer.
 func (gr *GenerateResponse) UnmarshalOutput(v any) error {
