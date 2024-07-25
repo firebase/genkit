@@ -94,90 +94,107 @@ type GenerateParams struct {
 }
 
 // GenerateParamsBuilder adds.
-type GenerateParamsBuilder func(req *GenerateParams)
+type GenerateParamsBuilder func(req *GenerateParams) error
 
 // WithTextPrompt adds a simple text user prompt to GenerateRequest.
 func WithTextPrompt(prompt string) GenerateParamsBuilder {
-	return func(req *GenerateParams) {
+	return func(req *GenerateParams) error {
 		req.Request.Messages = append(req.Request.Messages, NewUserTextMessage(prompt))
+		return nil
 	}
 }
 
 // WithSystemPrompt adds a simple text system prompt as the first message in GenerateRequest.
 func WithSystemPrompt(prompt string) GenerateParamsBuilder {
-	return func(req *GenerateParams) {
+	return func(req *GenerateParams) error {
 		req.SystemPrompt = NewSystemTextMessage(prompt)
+		return nil
 	}
 }
 
 // WithMessages adds provided messages to GenerateRequest.
 func WithMessages(messages ...*Message) GenerateParamsBuilder {
-	return func(req *GenerateParams) {
+	return func(req *GenerateParams) error {
 		req.Request.Messages = append(req.Request.Messages, messages...)
+		return nil
 	}
 }
 
 // WithHistory adds provided history messages to the begining of GenerateRequest.Messages.
 func WithHistory(history ...*Message) GenerateParamsBuilder {
-	return func(req *GenerateParams) {
+	return func(req *GenerateParams) error {
 		req.History = history
+		return nil
 	}
 }
 
 // WithConfig adds provided config to GenerateRequest.
 func WithConfig(config any) GenerateParamsBuilder {
-	return func(req *GenerateParams) {
+	return func(req *GenerateParams) error {
 		req.Request.Config = config
+		return nil
 	}
 }
 
 // WithCandidates adds provided candidate count to GenerateRequest.
 func WithCandidates(c int) GenerateParamsBuilder {
-	return func(req *GenerateParams) {
+	return func(req *GenerateParams) error {
 		req.Request.Candidates = c
+		return nil
 	}
 }
 
 // WithContext adds provided context to GenerateRequest.
 func WithContext(c ...any) GenerateParamsBuilder {
-	return func(req *GenerateParams) {
+	return func(req *GenerateParams) error {
 		req.Request.Context = c
+		return nil
 	}
 }
 
 // WithTools adds provided tools to GenerateRequest.
 func WithTools(tools ...Tool) GenerateParamsBuilder {
-	return func(req *GenerateParams) {
+	return func(req *GenerateParams) error {
 		var toolDefs []*ToolDefinition
 		for _, t := range tools {
 			toolDefs = append(toolDefs, t.Definition())
 		}
 		req.Request.Tools = toolDefs
+		return nil
 	}
 }
 
 // WithOutputSchema adds provided output schema to GenerateRequest.
-func WithOutputSchema[T any](schema T) GenerateParamsBuilder {
-	return func(req *GenerateParams) {
+func WithOutputSchema(schema any) GenerateParamsBuilder {
+	return func(req *GenerateParams) error {
+		if req.Request.Output != nil && req.Request.Output.Schema != nil {
+			return errors.New("cannot set Request.Output.Schema (WithOutputSchema) more than once")
+		}
 		if req.Request.Output == nil {
 			req.Request.Output = &GenerateRequestOutput{}
 			req.Request.Output.Format = OutputFormatJSON
 		}
 		req.Request.Output.Schema = base.SchemaAsMap(base.InferJSONSchemaNonReferencing(schema))
+		return nil
 	}
 }
 
 // WithOutputFormat adds provided output format to GenerateRequest.
 func WithOutputFormat(format OutputFormat) GenerateParamsBuilder {
-	return func(req *GenerateParams) {
+	return func(req *GenerateParams) error {
+		if req.Request.Output == nil {
+			req.Request.Output = &GenerateRequestOutput{}
+		}
 		req.Request.Output.Format = format
+		return nil
 	}
 }
 
 // WithStreaming adds a streaming callback to the generate request.
 func WithStreaming(cb ModelStreamingCallback) GenerateParamsBuilder {
-	return func(req *GenerateParams) {
+	return func(req *GenerateParams) error {
 		req.Stream = cb
+		return nil
 	}
 }
 
@@ -187,7 +204,10 @@ func (m *Model) Generate(ctx context.Context, withs ...GenerateParamsBuilder) (*
 		Request: &GenerateRequest{},
 	}
 	for _, with := range withs {
-		with(req)
+		err := with(req)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if req.History != nil {
 		prev := req.Request.Messages
