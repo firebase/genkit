@@ -132,7 +132,7 @@ sent to the model.
 
 -->
 
-### Recording message history
+## Recording message history
 
 Genkit models support maintaining a history of the messages sent to the model
 and its responses, which you can use to build interactive experiences, such as
