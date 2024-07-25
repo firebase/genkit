@@ -14,14 +14,14 @@ features using our [GitHub issue tracker](https://github.com/firebase/genkit/iss
 
 **We're interested in learning things like:**
 
-* Was it straightforward to set up and make your first `generate` call? If not,
+- Was it straightforward to set up and make your first `generate` call? If not,
   how could we make it better?
 
-* Were you able to build what you wanted? If not, what could we do to help?
+- Were you able to build what you wanted? If not, what could we do to help?
 
-* Is there any specific feature, documentation, or resource that's missing?
+- Is there any specific feature, documentation, or resource that's missing?
 
-* Is there anything that's working particularly well for you?
+- Is there anything that's working particularly well for you?
   Anything that isn't?
 
-* Anything else that you'd like to share with us about your experience!
+- Anything else that you'd like to share with us about your experience!
