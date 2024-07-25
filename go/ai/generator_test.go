@@ -37,11 +37,17 @@ var echoModel = DefineModel("test", "echo", nil, func(ctx context.Context, gr *G
 			Content: []*Part{NewTextPart("stream!")},
 		})
 	}
+	textResponse := ""
+	for _, m := range gr.Messages {
+		if m.Role == RoleUser {
+			textResponse += m.Content[0].Text
+		}
+	}
 	return &GenerateResponse{
 		Request: gr,
 		Candidates: []*Candidate{
 			{
-				Message: NewUserTextMessage(gr.Messages[0].Content[0].Text),
+				Message: NewUserTextMessage(textResponse),
 			},
 		},
 	}, nil
@@ -227,17 +233,46 @@ func TestValidCandidate(t *testing.T) {
 func TestGenerate(t *testing.T) {
 	t.Run("constructs request", func(t *testing.T) {
 		charJson := "{\"Name\": \"foo\", \"Backstory\": \"bar\"}"
+		charJsonMd := "```json" + charJson + "```"
 		wantText := charJson
 		wantRequest := &GenerateRequest{
 			Messages: []*Message{
+				// system prompt -- always first
 				{
+					Role:    RoleSystem,
+					Content: []*Part{{ContentType: "plain/text", Text: "you are"}},
+				},
+				// then history
+				{
+					Role: "user",
 					Content: []*Part{
-						{ContentType: "plain/text", Text: charJson},
+						{ContentType: "plain/text", Text: "banana"},
+					},
+				},
+				{
+					Role: "model",
+					Content: []*Part{
+						{ContentType: "plain/text", Text: "yes, banana"},
+					},
+				},
+				// then messages in order specified
+				{
+					Role: "user",
+					Content: []*Part{
+						{ContentType: "plain/text", Text: charJsonMd},
+					},
+				},
+				{
+					Role: "model",
+					Content: []*Part{
+						{ContentType: "plain/text", Text: "banana again"},
+						// structured output prompt
 						{
 							ContentType: "plain/text",
 							Text:        "!!Ignored!!", // structured output prompt, noisy, ignored
 						},
-					}, Role: "user"},
+					},
+				},
 			},
 			Config:     GenerationCommonConfig{Temperature: 1},
 			Candidates: 3,
@@ -279,10 +314,13 @@ func TestGenerate(t *testing.T) {
 		wantStreamText := "stream!"
 		streamText := ""
 		res, err := echoModel.Generate(context.Background(),
-			WithTextPrompt(charJson),
+			WithTextPrompt(charJsonMd),
+			WithMessages(NewModelTextMessage("banana again")),
+			WithSystemPrompt("you are"),
 			WithConfig(GenerationCommonConfig{
 				Temperature: 1,
 			}),
+			WithHistory(NewUserTextMessage("banana"), NewModelTextMessage("yes, banana")),
 			WithCandidates(3),
 			WithContext([]any{"Banana"}),
 			WithOutputSchema(&GameCharacter{}),
@@ -303,7 +341,7 @@ func TestGenerate(t *testing.T) {
 			t.Errorf("Text() diff (+got -want):\n%s", diff)
 		}
 		if diff := cmp.Diff(res.Request, wantRequest, test_utils.IgnoreNoisyParts([]string{
-			"{*ai.GenerateRequest}.Messages[0].Content[1].Text",
+			"{*ai.GenerateRequest}.Messages[4].Content[1].Text",
 		})); diff != "" {
 			t.Errorf("Request diff (+got -want):\n%s", diff)
 		}

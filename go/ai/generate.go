@@ -87,8 +87,10 @@ func LookupModel(provider, name string) *Model {
 }
 
 type GenerateParams struct {
-	Request *GenerateRequest
-	Stream  ModelStreamingCallback
+	Request      *GenerateRequest
+	Stream       ModelStreamingCallback
+	History      []*Message
+	SystemPrompt *Message
 }
 
 // GenerateParamsBuilder adds.
@@ -101,10 +103,10 @@ func WithTextPrompt(prompt string) GenerateParamsBuilder {
 	}
 }
 
-// WithSystemPrompt adds a simple text system prompt to GenerateRequest.
+// WithSystemPrompt adds a simple text system prompt as the first message in GenerateRequest.
 func WithSystemPrompt(prompt string) GenerateParamsBuilder {
 	return func(req *GenerateParams) {
-		req.Request.Messages = append(req.Request.Messages, NewSystemTextMessage(prompt))
+		req.SystemPrompt = NewSystemTextMessage(prompt)
 	}
 }
 
@@ -112,6 +114,13 @@ func WithSystemPrompt(prompt string) GenerateParamsBuilder {
 func WithMessages(messages ...*Message) GenerateParamsBuilder {
 	return func(req *GenerateParams) {
 		req.Request.Messages = append(req.Request.Messages, messages...)
+	}
+}
+
+// WithHistory adds provided history messages to the begining of GenerateRequest.Messages.
+func WithHistory(history ...*Message) GenerateParamsBuilder {
+	return func(req *GenerateParams) {
+		req.History = history
 	}
 }
 
@@ -179,6 +188,16 @@ func (m *Model) Generate(ctx context.Context, withs ...GenerateParamsBuilder) (*
 	}
 	for _, with := range withs {
 		with(req)
+	}
+	if req.History != nil {
+		prev := req.Request.Messages
+		req.Request.Messages = req.History
+		req.Request.Messages = append(req.Request.Messages, prev...)
+	}
+	if req.SystemPrompt != nil {
+		prev := req.Request.Messages
+		req.Request.Messages = []*Message{req.SystemPrompt}
+		req.Request.Messages = append(req.Request.Messages, prev...)
 	}
 
 	return m.GenerateRaw(ctx, req.Request, req.Stream)
