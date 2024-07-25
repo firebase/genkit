@@ -94,10 +94,10 @@ Want to try Genkit without a local setup? [Explore it on Project IDX](https://id
 
 ## Sample apps
 
-Take a look at some samples of Genkit in useL
+Take a look at some samples of Genkit in use:
 
 - ["AI barista"](samples/js-coffee-shop/) -- demonstrates simple LLM usage
-- [A simple chatbot](samples/chatbot/) -- add history to LLM sessions
+- [A simple chatbot with a JavaScript frontend](samples/chatbot/) -- add history to LLM sessions
 - [Restaurant menu Q&A app](samples/js-menu/) -- this sample shows progressively
   more sophisticated versions of a menu understanding app.
 - [Streaming to an Angular frontend](samples/js-angular/)
