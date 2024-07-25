@@ -93,11 +93,11 @@ type GenerateParams struct {
 	SystemPrompt *Message
 }
 
-// GenerateParamsBuilder adds.
-type GenerateParamsBuilder func(req *GenerateParams) error
+// GenerateOption configures params of the Generate call.
+type GenerateOption func(req *GenerateParams) error
 
 // WithTextPrompt adds a simple text user prompt to GenerateRequest.
-func WithTextPrompt(prompt string) GenerateParamsBuilder {
+func WithTextPrompt(prompt string) GenerateOption {
 	return func(req *GenerateParams) error {
 		req.Request.Messages = append(req.Request.Messages, NewUserTextMessage(prompt))
 		return nil
@@ -105,7 +105,7 @@ func WithTextPrompt(prompt string) GenerateParamsBuilder {
 }
 
 // WithSystemPrompt adds a simple text system prompt as the first message in GenerateRequest.
-func WithSystemPrompt(prompt string) GenerateParamsBuilder {
+func WithSystemPrompt(prompt string) GenerateOption {
 	return func(req *GenerateParams) error {
 		req.SystemPrompt = NewSystemTextMessage(prompt)
 		return nil
@@ -113,7 +113,7 @@ func WithSystemPrompt(prompt string) GenerateParamsBuilder {
 }
 
 // WithMessages adds provided messages to GenerateRequest.
-func WithMessages(messages ...*Message) GenerateParamsBuilder {
+func WithMessages(messages ...*Message) GenerateOption {
 	return func(req *GenerateParams) error {
 		req.Request.Messages = append(req.Request.Messages, messages...)
 		return nil
@@ -121,7 +121,7 @@ func WithMessages(messages ...*Message) GenerateParamsBuilder {
 }
 
 // WithHistory adds provided history messages to the begining of GenerateRequest.Messages.
-func WithHistory(history ...*Message) GenerateParamsBuilder {
+func WithHistory(history ...*Message) GenerateOption {
 	return func(req *GenerateParams) error {
 		req.History = history
 		return nil
@@ -129,7 +129,7 @@ func WithHistory(history ...*Message) GenerateParamsBuilder {
 }
 
 // WithConfig adds provided config to GenerateRequest.
-func WithConfig(config any) GenerateParamsBuilder {
+func WithConfig(config any) GenerateOption {
 	return func(req *GenerateParams) error {
 		req.Request.Config = config
 		return nil
@@ -137,7 +137,7 @@ func WithConfig(config any) GenerateParamsBuilder {
 }
 
 // WithCandidates adds provided candidate count to GenerateRequest.
-func WithCandidates(c int) GenerateParamsBuilder {
+func WithCandidates(c int) GenerateOption {
 	return func(req *GenerateParams) error {
 		req.Request.Candidates = c
 		return nil
@@ -145,7 +145,7 @@ func WithCandidates(c int) GenerateParamsBuilder {
 }
 
 // WithContext adds provided context to GenerateRequest.
-func WithContext(c ...any) GenerateParamsBuilder {
+func WithContext(c ...any) GenerateOption {
 	return func(req *GenerateParams) error {
 		req.Request.Context = c
 		return nil
@@ -153,7 +153,7 @@ func WithContext(c ...any) GenerateParamsBuilder {
 }
 
 // WithTools adds provided tools to GenerateRequest.
-func WithTools(tools ...Tool) GenerateParamsBuilder {
+func WithTools(tools ...Tool) GenerateOption {
 	return func(req *GenerateParams) error {
 		var toolDefs []*ToolDefinition
 		for _, t := range tools {
@@ -165,7 +165,7 @@ func WithTools(tools ...Tool) GenerateParamsBuilder {
 }
 
 // WithOutputSchema adds provided output schema to GenerateRequest.
-func WithOutputSchema(schema any) GenerateParamsBuilder {
+func WithOutputSchema(schema any) GenerateOption {
 	return func(req *GenerateParams) error {
 		if req.Request.Output != nil && req.Request.Output.Schema != nil {
 			return errors.New("cannot set Request.Output.Schema (WithOutputSchema) more than once")
@@ -180,7 +180,7 @@ func WithOutputSchema(schema any) GenerateParamsBuilder {
 }
 
 // WithOutputFormat adds provided output format to GenerateRequest.
-func WithOutputFormat(format OutputFormat) GenerateParamsBuilder {
+func WithOutputFormat(format OutputFormat) GenerateOption {
 	return func(req *GenerateParams) error {
 		if req.Request.Output == nil {
 			req.Request.Output = &GenerateRequestOutput{}
@@ -191,7 +191,7 @@ func WithOutputFormat(format OutputFormat) GenerateParamsBuilder {
 }
 
 // WithStreaming adds a streaming callback to the generate request.
-func WithStreaming(cb ModelStreamingCallback) GenerateParamsBuilder {
+func WithStreaming(cb ModelStreamingCallback) GenerateOption {
 	return func(req *GenerateParams) error {
 		req.Stream = cb
 		return nil
@@ -199,11 +199,11 @@ func WithStreaming(cb ModelStreamingCallback) GenerateParamsBuilder {
 }
 
 // Generate run generate request for this model. Returns GenerateResponse struct.
-func (m *Model) Generate(ctx context.Context, withs ...GenerateParamsBuilder) (*GenerateResponse, error) {
+func (m *Model) Generate(ctx context.Context, opts ...GenerateOption) (*GenerateResponse, error) {
 	req := &GenerateParams{
 		Request: &GenerateRequest{},
 	}
-	for _, with := range withs {
+	for _, with := range opts {
 		err := with(req)
 		if err != nil {
 			return nil, err
@@ -224,7 +224,7 @@ func (m *Model) Generate(ctx context.Context, withs ...GenerateParamsBuilder) (*
 }
 
 // GenerateText run generate request for this model. Returns generated text only.
-func (m *Model) GenerateText(ctx context.Context, withs ...GenerateParamsBuilder) (string, error) {
+func (m *Model) GenerateText(ctx context.Context, withs ...GenerateOption) (string, error) {
 	res, err := m.Generate(ctx, withs...)
 	if err != nil {
 		return "", err
@@ -235,7 +235,7 @@ func (m *Model) GenerateText(ctx context.Context, withs ...GenerateParamsBuilder
 
 // Generate run generate request for this model. Returns GenerateResponse struct.
 // TODO: Stream GenerateData with partial JSON
-func (m *Model) GenerateData(ctx context.Context, value any, withs ...GenerateParamsBuilder) (*GenerateResponse, error) {
+func (m *Model) GenerateData(ctx context.Context, value any, withs ...GenerateOption) (*GenerateResponse, error) {
 	withs = append(withs, WithOutputSchema(value))
 	resp, err := m.Generate(ctx, withs...)
 	if err != nil {
