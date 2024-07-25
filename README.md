@@ -92,6 +92,16 @@ Find excellent examples of community-built plugins for OpenAI, Anthropic, Cohere
 
 Want to try Genkit without a local setup? [Explore it on Project IDX](https://idx.google.com/new/genkit), Google's AI-assisted workspace for full-stack app development in the cloud.
 
+## Sample apps
+
+Take a look at some samples of Genkit in useL
+
+- ["AI barista"](samples/js-coffee-shop/) -- demonstrates simple LLM usage
+- [A simple chatbot](samples/chatbot/) -- add history to LLM sessions
+- [Restaurant menu Q&A app](samples/js-menu/) -- this sample shows progressively
+  more sophisticated versions of a menu understanding app.
+- [Streaming to an Angular frontend](samples/js-angular/)
+
 ## Connect with us
 
 - **Join the community:** Stay updated, ask questions, and share your work with other Genkit users on our [Discord server](https://discord.gg/qXt5zzQKpc).
