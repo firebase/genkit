@@ -21,8 +21,7 @@ import { DocumentIndexer, DocumentRetriever, Neighbor } from './types';
  * Creates a BigQuery Document Retriever.
  *
  * This function returns a DocumentRetriever function that retrieves documents
- * from a BigQuery table based on the provided neighbors. Note this indexer does not handle duplicate
- * documents.
+ * from a BigQuery table based on the provided neighbors.
  *
  * @param {BigQuery} bq - The BigQuery instance.
  * @param {string} tableId - The ID of the BigQuery table.
@@ -72,7 +71,8 @@ export const getBigQueryDocumentRetriever = (
  * Creates a BigQuery Document Indexer.
  *
  * This function returns a DocumentIndexer function that indexes documents
- * into a BigQuery table.
+ * into a BigQuery table. Note this indexer does not handle duplicate
+ * documents.
  *
  * @param {BigQuery} bq - The BigQuery instance.
  * @param {string} tableId - The ID of the BigQuery table.
