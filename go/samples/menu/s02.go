@@ -17,7 +17,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 
 	"github.com/firebase/genkit/go/ai"
@@ -75,11 +74,7 @@ func setup02(_ context.Context, m *ai.Model) error {
 				return nil, err
 			}
 
-			text, err := resp.Text()
-			if err != nil {
-				return nil, fmt.Errorf("s02MenuQuestionFlow: %v", err)
-			}
-			return &answerOutput{Answer: text}, nil
+			return &answerOutput{Answer: resp.Text()}, nil
 		},
 	)
 

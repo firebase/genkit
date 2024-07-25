@@ -86,95 +86,119 @@ func LookupModel(provider, name string) *Model {
 	return (*Model)(core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](atype.Model, provider, name))
 }
 
-// GenerateRequestBuilder adds
-type GenerateRequestBuilder func(req *GenerateRequest)
+type GenerateParams struct {
+	Request *GenerateRequest
+	Stream  ModelStreamingCallback
+}
 
-// WithTextPrompt adds a simple text user prompt to GenerateRequest
-func WithTextPrompt(prompt string) GenerateRequestBuilder {
-	return func(req *GenerateRequest) {
-		req.Messages = append(req.Messages, NewUserTextMessage(prompt))
+// GenerateParamsBuilder adds.
+type GenerateParamsBuilder func(req *GenerateParams)
+
+// WithTextPrompt adds a simple text user prompt to GenerateRequest.
+func WithTextPrompt(prompt string) GenerateParamsBuilder {
+	return func(req *GenerateParams) {
+		req.Request.Messages = append(req.Request.Messages, NewUserTextMessage(prompt))
 	}
 }
 
-// WithSystemPrompt adds a simple text system prompt to GenerateRequest
-func WithSystemPrompt(prompt string) GenerateRequestBuilder {
-	return func(req *GenerateRequest) {
-		req.Messages = append(req.Messages, NewSystemTextMessage(prompt))
+// WithSystemPrompt adds a simple text system prompt to GenerateRequest.
+func WithSystemPrompt(prompt string) GenerateParamsBuilder {
+	return func(req *GenerateParams) {
+		req.Request.Messages = append(req.Request.Messages, NewSystemTextMessage(prompt))
 	}
 }
 
-// WithMessages adds provided messages to GenerateRequest
-func WithMessages(messages ...*Message) GenerateRequestBuilder {
-	return func(req *GenerateRequest) {
-		req.Messages = append(req.Messages, messages...)
+// WithMessages adds provided messages to GenerateRequest.
+func WithMessages(messages ...*Message) GenerateParamsBuilder {
+	return func(req *GenerateParams) {
+		req.Request.Messages = append(req.Request.Messages, messages...)
 	}
 }
 
-// WithConfig adds provided config to GenerateRequest
-func WithConfig(config any) GenerateRequestBuilder {
-	return func(req *GenerateRequest) {
-		req.Config = config
+// WithConfig adds provided config to GenerateRequest.
+func WithConfig(config any) GenerateParamsBuilder {
+	return func(req *GenerateParams) {
+		req.Request.Config = config
 	}
 }
 
-// WithConfig adds provided candidate count to GenerateRequest
-func WithCandidates(c int) GenerateRequestBuilder {
-	return func(req *GenerateRequest) {
-		req.Candidates = c
+// WithCandidates adds provided candidate count to GenerateRequest.
+func WithCandidates(c int) GenerateParamsBuilder {
+	return func(req *GenerateParams) {
+		req.Request.Candidates = c
 	}
 }
 
-// WithConfig adds provided context to GenerateRequest
-func WithContext(c ...any) GenerateRequestBuilder {
-	return func(req *GenerateRequest) {
-		req.Context = c
+// WithContext adds provided context to GenerateRequest.
+func WithContext(c ...any) GenerateParamsBuilder {
+	return func(req *GenerateParams) {
+		req.Request.Context = c
 	}
 }
 
-// WithConfig adds provided tools to GenerateRequest
-func WithTools(tools ...Tool) GenerateRequestBuilder {
-	return func(req *GenerateRequest) {
+// WithTools adds provided tools to GenerateRequest.
+func WithTools(tools ...Tool) GenerateParamsBuilder {
+	return func(req *GenerateParams) {
 		var toolDefs []*ToolDefinition
 		for _, t := range tools {
 			toolDefs = append(toolDefs, t.Definition())
 		}
-		req.Tools = toolDefs
+		req.Request.Tools = toolDefs
 	}
 }
 
-// WithConfig adds provided output schema to GenerateRequest
-func WithOutputSchema[T any](schema T) GenerateRequestBuilder {
-	return func(req *GenerateRequest) {
-		if req.Output == nil {
-			req.Output = &GenerateRequestOutput{}
-			req.Output.Format = OutputFormatJSON
+// WithOutputSchema adds provided output schema to GenerateRequest.
+func WithOutputSchema[T any](schema T) GenerateParamsBuilder {
+	return func(req *GenerateParams) {
+		if req.Request.Output == nil {
+			req.Request.Output = &GenerateRequestOutput{}
+			req.Request.Output.Format = OutputFormatJSON
 		}
-		req.Output.Schema = base.SchemaAsMap(base.InferJSONSchemaNonReferencing(schema))
+		req.Request.Output.Schema = base.SchemaAsMap(base.InferJSONSchemaNonReferencing(schema))
 	}
 }
 
-// WithConfig adds provided output format to GenerateRequest
-func WithOutputFormat(format OutputFormat) GenerateRequestBuilder {
-	return func(req *GenerateRequest) {
-		req.Output.Format = format
+// WithOutputFormat adds provided output format to GenerateRequest.
+func WithOutputFormat(format OutputFormat) GenerateParamsBuilder {
+	return func(req *GenerateParams) {
+		req.Request.Output.Format = format
+	}
+}
+
+// WithStreaming adds a streaming callback to the generate request.
+func WithStreaming(cb ModelStreamingCallback) GenerateParamsBuilder {
+	return func(req *GenerateParams) {
+		req.Stream = cb
 	}
 }
 
 // Generate run generate request for this model. Returns GenerateResponse struct.
-func (m *Model) Generate(ctx context.Context, withs ...GenerateRequestBuilder) (*GenerateResponse, error) {
-	return m.StreamGenerate(ctx, nil, withs...)
+func (m *Model) Generate(ctx context.Context, withs ...GenerateParamsBuilder) (*GenerateResponse, error) {
+	req := &GenerateParams{
+		Request: &GenerateRequest{},
+	}
+	for _, with := range withs {
+		with(req)
+	}
+
+	return m.GenerateRaw(ctx, req.Request, req.Stream)
 }
 
 // GenerateText run generate request for this model. Returns generated text only.
-func (m *Model) GenerateText(ctx context.Context, withs ...GenerateRequestBuilder) (string, error) {
-	return m.StreamGenerateText(ctx, nil, withs...)
+func (m *Model) GenerateText(ctx context.Context, withs ...GenerateParamsBuilder) (string, error) {
+	res, err := m.Generate(ctx, withs...)
+	if err != nil {
+		return "", err
+	}
+
+	return res.Text(), nil
 }
 
 // Generate run generate request for this model. Returns GenerateResponse struct.
-// TODO: StreamGenerateData with partial JSON
-func (m *Model) GenerateData(ctx context.Context, value any, withs ...GenerateRequestBuilder) (*GenerateResponse, error) {
+// TODO: Stream GenerateData with partial JSON
+func (m *Model) GenerateData(ctx context.Context, value any, withs ...GenerateParamsBuilder) (*GenerateResponse, error) {
 	withs = append(withs, WithOutputSchema(value))
-	resp, err := m.StreamGenerate(ctx, nil, withs...)
+	resp, err := m.Generate(ctx, withs...)
 	if err != nil {
 		return nil, err
 	}
@@ -185,42 +209,8 @@ func (m *Model) GenerateData(ctx context.Context, value any, withs ...GenerateRe
 	return resp, nil
 }
 
-// StreamGenerate run generate request for this model, handles streaming.
-func (m *Model) StreamGenerate(ctx context.Context, cb ModelStreamingCallback, withs ...GenerateRequestBuilder) (*GenerateResponse, error) {
-	req := &GenerateRequest{}
-	for _, with := range withs {
-		with(req)
-	}
-
-	return m.StreamGenerateRaw(ctx, req, cb)
-}
-
-// StreamGenerateText run generate request for this model and returns text output, handles streaming.
-func (m *Model) StreamGenerateText(ctx context.Context, cb ModelStreamingCallback, withs ...GenerateRequestBuilder) (string, error) {
-	req := &GenerateRequest{}
-	for _, with := range withs {
-		with(req)
-	}
-
-	if req.Candidates > 1 {
-		return "", fmt.Errorf("StreamGenerateText can only be called with 1 candidate")
-	}
-
-	res, err := m.StreamGenerateRaw(ctx, req, cb)
-	if err != nil {
-		return "", err
-	}
-
-	return res.Text()
-}
-
-// GenerateRaw applies the [Model] to provided request, handling tool requests.
-func (m *Model) GenerateRaw(ctx context.Context, req *GenerateRequest) (*GenerateResponse, error) {
-	return m.StreamGenerateRaw(ctx, req, nil)
-}
-
-// StreamGenerateRaw applies the [Model] to provided request, handling tool requests and handles streaming.
-func (m *Model) StreamGenerateRaw(ctx context.Context, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error) {
+// GenerateRaw applies the [Model] to provided request, handling tool requests and handles streaming.
+func (m *Model) GenerateRaw(ctx context.Context, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error) {
 	if m == nil {
 		return nil, errors.New("Generate called on a nil Model; check that all models are defined")
 	}
@@ -262,7 +252,7 @@ func conformOutput(req *GenerateRequest) error {
 		}
 
 		escapedJSON := strconv.Quote(string(jsonBytes))
-		part := NewTextPart(fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```\n\ndo not repeat this schema back.", escapedJSON))
+		part := NewTextPart(fmt.Sprintf("Output should be in JSON format and conform to the following schema:\n\n```%s```", escapedJSON))
 		req.Messages[len(req.Messages)-1].Content = append(req.Messages[len(req.Messages)-1].Content, part)
 	}
 	return nil
@@ -290,13 +280,16 @@ func validCandidates(ctx context.Context, resp *GenerateResponse) ([]*Candidate,
 // It will return an error if it does not match, otherwise it will return a candidate with JSON content and type.
 func validCandidate(c *Candidate, output *GenerateRequestOutput) (*Candidate, error) {
 	if output != nil && output.Format == OutputFormatJSON {
-		text, err := c.Text()
-		if err != nil {
-			return nil, err
+		if c.Message == nil {
+			return nil, errors.New("candidate has no message")
 		}
-		text = base.ExtractJsonFromMarkdown(text)
+		if len(c.Message.Content) == 0 {
+			return nil, errors.New("candidate message has no content")
+		}
+
+		text := base.ExtractJsonFromMarkdown(c.Text())
 		var schemaBytes []byte
-		schemaBytes, err = json.Marshal(output.Schema)
+		schemaBytes, err := json.Marshal(output.Schema)
 		if err != nil {
 			return nil, fmt.Errorf("expected schema is not valid: %w", err)
 		}
@@ -355,11 +348,11 @@ func handleToolRequest(ctx context.Context, req *GenerateRequest, resp *Generate
 }
 
 // Text returns the contents of the first candidate in a
-// [GenerateResponse] as a string. It returns an error if there
+// [GenerateResponse] as a string. It returns an empty string if there
 // are no candidates or if the candidate has no message.
-func (gr *GenerateResponse) Text() (string, error) {
+func (gr *GenerateResponse) Text() string {
 	if len(gr.Candidates) == 0 {
-		return "", errors.New("no candidates returned")
+		return ""
 	}
 	return gr.Candidates[0].Text()
 }
@@ -367,11 +360,7 @@ func (gr *GenerateResponse) Text() (string, error) {
 // UnmarshalOutput unmarshals structured JSON output into the provided
 // struct pointer.
 func (gr *GenerateResponse) UnmarshalOutput(v any) error {
-	txt, err := gr.Text()
-	if err != nil {
-		return err
-	}
-	j := base.ExtractJsonFromMarkdown(txt)
+	j := base.ExtractJsonFromMarkdown(gr.Text())
 	if j == "" {
 		return errors.New("unable to parse JSON from response text")
 	}
@@ -382,36 +371,36 @@ func (gr *GenerateResponse) UnmarshalOutput(v any) error {
 // Text returns the text content of the [GenerateResponseChunk]
 // as a string. It returns an error if there is no Content
 // in the response chunk.
-func (c *GenerateResponseChunk) Text() (string, error) {
+func (c *GenerateResponseChunk) Text() string {
 	if len(c.Content) == 0 {
-		return "", errors.New("response chunk has no content")
+		return ""
 	}
 	if len(c.Content) == 1 {
-		return c.Content[0].Text, nil
+		return c.Content[0].Text
 	}
 	var sb strings.Builder
 	for _, p := range c.Content {
 		sb.WriteString(p.Text)
 	}
-	return sb.String(), nil
+	return sb.String()
 }
 
 // Text returns the contents of a [Candidate] as a string. It
-// returns an error if the candidate has no message.
-func (c *Candidate) Text() (string, error) {
+// returns an empty string if the candidate has no message.
+func (c *Candidate) Text() string {
 	msg := c.Message
 	if msg == nil {
-		return "", errors.New("candidate has no message")
+		return ""
 	}
 	if len(msg.Content) == 0 {
-		return "", errors.New("candidate message has no content")
+		return ""
 	}
 	if len(msg.Content) == 1 {
-		return msg.Content[0].Text, nil
+		return msg.Content[0].Text
 	}
 	var sb strings.Builder
 	for _, p := range msg.Content {
 		sb.WriteString(p.Text)
 	}
-	return sb.String(), nil
+	return sb.String()
 }

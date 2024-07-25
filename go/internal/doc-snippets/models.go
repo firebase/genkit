@@ -74,27 +74,21 @@ func opts() error {
 
 func streaming() error {
 	// [START streaming]
-	response, err := gemini15pro.StreamGenerate(
+	response, err := gemini15pro.Generate(
 		ctx,
+		ai.WithTextPrompt("Tell a long story about robots and ninjas."),
 		// stream callback
-		func(ctx context.Context, grc *ai.GenerateResponseChunk) error {
-			text, err := grc.Text()
-			if err != nil {
-				return err
-			}
-			fmt.Printf("Chunk: %s\n", text)
-			return nil
-		}, ai.WithTextPrompt("Tell a long story about robots and ninjas."))
+		ai.WithStreaming(
+			func(ctx context.Context, grc *ai.GenerateResponseChunk) error {
+				fmt.Printf("Chunk: %s\n", grc.Text())
+				return nil
+			}))
 	if err != nil {
 		return err
 	}
 
 	// You can also still get the full response.
-	responseText, err := response.Text()
-	if err != nil {
-		return err
-	}
-	fmt.Println(responseText)
+	fmt.Println(response.Text())
 
 	// [END streaming]
 	return nil

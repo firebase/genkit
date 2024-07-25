@@ -72,13 +72,16 @@ func TestLive(t *testing.T) {
 		out := ""
 		parts := 0
 		model := vertexai.Model(modelName)
-		final, err := model.StreamGenerate(ctx, func(ctx context.Context, c *ai.GenerateResponseChunk) error {
-			parts++
-			for _, p := range c.Content {
-				out += p.Text
-			}
-			return nil
-		}, ai.WithCandidates(1), ai.WithTextPrompt("Write one paragraph about the Golden State Warriors."))
+		final, err := model.Generate(ctx,
+			ai.WithCandidates(1),
+			ai.WithTextPrompt("Write one paragraph about the Golden State Warriors."),
+			ai.WithStreaming(func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+				parts++
+				for _, p := range c.Content {
+					out += p.Text
+				}
+				return nil
+			}))
 		if err != nil {
 			t.Fatal(err)
 		}

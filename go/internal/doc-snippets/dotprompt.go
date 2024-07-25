@@ -68,9 +68,7 @@ func dot01() error {
 		return err
 	}
 
-	if responseText, err := response.Text(); err == nil {
-		fmt.Println(responseText)
-	}
+	fmt.Println(response.Text())
 	// [END dot01_2]
 
 	// [START dot01_3]

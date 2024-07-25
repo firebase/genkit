@@ -59,10 +59,7 @@ func main() {
 		// convert it to a string. but more complicated flows might coerce the
 		// response into structured output or chain the response into another
 		// LLM call.
-		text, err := resp.Text()
-		if err != nil {
-			return "", fmt.Errorf("menuSuggestionFlow: %v", err)
-		}
+		text := resp.Text()
 		return text, nil
 	})
 

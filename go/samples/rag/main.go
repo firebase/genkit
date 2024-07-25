@@ -36,7 +36,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"strings"
 
@@ -136,11 +135,7 @@ func main() {
 		if err != nil {
 			return "", err
 		}
-		text, err := resp.Text()
-		if err != nil {
-			return "", fmt.Errorf("simpleQa: %v", err)
-		}
-		return text, nil
+		return resp.Text(), nil
 	})
 
 	if err := genkit.Init(context.Background(), nil); err != nil {

@@ -84,7 +84,7 @@ func pr03() error {
 	if err != nil {
 		return err
 	}
-	response, err := model.GenerateRaw(context.Background(), request)
+	response, err := model.GenerateRaw(context.Background(), request, nil)
 	// [END pr03_2]
 
 	_ = response

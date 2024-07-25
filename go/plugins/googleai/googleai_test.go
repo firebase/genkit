@@ -106,11 +106,14 @@ func TestLive(t *testing.T) {
 	t.Run("streaming", func(t *testing.T) {
 		out := ""
 		parts := 0
-		final, err := model.StreamGenerate(ctx, func(ctx context.Context, c *ai.GenerateResponseChunk) error {
-			parts++
-			out += c.Content[0].Text
-			return nil
-		}, ai.WithCandidates(1), ai.WithTextPrompt("Write one paragraph about the North Pole."))
+		final, err := model.Generate(ctx,
+			ai.WithCandidates(1),
+			ai.WithTextPrompt("Write one paragraph about the North Pole."),
+			ai.WithStreaming(func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+				parts++
+				out += c.Content[0].Text
+				return nil
+			}))
 		if err != nil {
 			t.Fatal(err)
 		}
