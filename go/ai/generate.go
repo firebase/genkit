@@ -86,6 +86,7 @@ func LookupModel(provider, name string) *Model {
 	return (*Model)(core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](atype.Model, provider, name))
 }
 
+// GenerateParams represents various params of the Generate call.
 type GenerateParams struct {
 	Request      *GenerateRequest
 	Stream       ModelStreamingCallback
@@ -107,6 +108,9 @@ func WithTextPrompt(prompt string) GenerateOption {
 // WithSystemPrompt adds a simple text system prompt as the first message in GenerateRequest.
 func WithSystemPrompt(prompt string) GenerateOption {
 	return func(req *GenerateParams) error {
+		if req.SystemPrompt != nil {
+			return errors.New("cannot set system prompt (WithSystemPrompt) more than once")
+		}
 		req.SystemPrompt = NewSystemTextMessage(prompt)
 		return nil
 	}
@@ -123,6 +127,9 @@ func WithMessages(messages ...*Message) GenerateOption {
 // WithHistory adds provided history messages to the begining of GenerateRequest.Messages.
 func WithHistory(history ...*Message) GenerateOption {
 	return func(req *GenerateParams) error {
+		if req.History != nil {
+			return errors.New("cannot set history (WithHistory) more than once")
+		}
 		req.History = history
 		return nil
 	}
@@ -131,6 +138,9 @@ func WithHistory(history ...*Message) GenerateOption {
 // WithConfig adds provided config to GenerateRequest.
 func WithConfig(config any) GenerateOption {
 	return func(req *GenerateParams) error {
+		if req.Request.Config != nil {
+			return errors.New("cannot set Request.Config (WithConfig) more than once")
+		}
 		req.Request.Config = config
 		return nil
 	}
@@ -147,7 +157,7 @@ func WithCandidates(c int) GenerateOption {
 // WithContext adds provided context to GenerateRequest.
 func WithContext(c ...any) GenerateOption {
 	return func(req *GenerateParams) error {
-		req.Request.Context = c
+		req.Request.Context = append(req.Request.Context, c)
 		return nil
 	}
 }
@@ -193,6 +203,9 @@ func WithOutputFormat(format OutputFormat) GenerateOption {
 // WithStreaming adds a streaming callback to the generate request.
 func WithStreaming(cb ModelStreamingCallback) GenerateOption {
 	return func(req *GenerateParams) error {
+		if req.Stream != nil {
+			return errors.New("cannot set streaming callback (WithStreaming) more than once")
+		}
 		req.Stream = cb
 		return nil
 	}
