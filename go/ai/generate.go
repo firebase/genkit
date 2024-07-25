@@ -157,7 +157,7 @@ func WithCandidates(c int) GenerateOption {
 // WithContext adds provided context to GenerateRequest.
 func WithContext(c ...any) GenerateOption {
 	return func(req *GenerateParams) error {
-		req.Request.Context = append(req.Request.Context, c)
+		req.Request.Context = append(req.Request.Context, c...)
 		return nil
 	}
 }
