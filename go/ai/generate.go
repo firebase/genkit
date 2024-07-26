@@ -29,7 +29,9 @@ import (
 	"github.com/firebase/genkit/go/internal/base"
 )
 
+// Model represents a model that can perform content generation tasks.
 type Model interface {
+	// Generate applies the [Model] to provided request, handling tool requests and handles streaming.
 	Generate(ctx context.Context, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error)
 }
 
@@ -54,7 +56,7 @@ type ModelMetadata struct {
 }
 
 // DefineModel registers the given generate function as an action, and returns a
-// [ModelAction] that runs it.
+// [Model] that runs it.
 func DefineModel(provider, name string, metadata *ModelMetadata, generate func(context.Context, *GenerateRequest, ModelStreamingCallback) (*GenerateResponse, error)) Model {
 	metadataMap := map[string]any{}
 	if metadata == nil {
