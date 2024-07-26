@@ -173,7 +173,7 @@ func menuQA() {
 			}
 
 			// Call Generate, including the menu information in your prompt.
-			return model.GenerateText(ctx,
+			return ai.GenerateText(ctx, model,
 				ai.WithMessages(
 					ai.NewSystemTextMessage(`
 You are acting as a helpful AI assistant that can answer questions about the

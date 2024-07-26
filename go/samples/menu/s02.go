@@ -37,7 +37,7 @@ func menu(ctx context.Context, _ *any) ([]*menuItem, error) {
 	return s, nil
 }
 
-func setup02(_ context.Context, m *ai.Model) error {
+func setup02(_ context.Context, m ai.Model) error {
 	menuTool := ai.DefineTool("todaysMenu", "Use this tool to retrieve all the items on today's menu", menu)
 
 	dataMenuPrompt, err := dotprompt.Define("s02_dataMenu",

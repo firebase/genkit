@@ -313,7 +313,7 @@ func TestGenerate(t *testing.T) {
 
 		wantStreamText := "stream!"
 		streamText := ""
-		res, err := echoModel.Generate(context.Background(),
+		res, err := Generate(context.Background(), echoModel,
 			WithTextPrompt(charJsonMd),
 			WithMessages(NewModelTextMessage("banana again")),
 			WithSystemPrompt("you are"),
@@ -344,6 +344,19 @@ func TestGenerate(t *testing.T) {
 			"{*ai.GenerateRequest}.Messages[4].Content[1].Text",
 		})); diff != "" {
 			t.Errorf("Request diff (+got -want):\n%s", diff)
+		}
+	})
+}
+
+func TestIsDefinedModel(t *testing.T) {
+	t.Run("should return true", func(t *testing.T) {
+		if IsDefinedModel("test", "echo") != true {
+			t.Errorf("IsDefinedModel did not return true")
+		}
+	})
+	t.Run("should return false", func(t *testing.T) {
+		if IsDefinedModel("foo", "bar") != false {
+			t.Errorf("IsDefinedModel did not return false")
 		}
 	})
 }

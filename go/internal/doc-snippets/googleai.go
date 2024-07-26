@@ -38,11 +38,11 @@ func googleaiEx(ctx context.Context) error {
 	// [END initkey]
 
 	// [START model]
-	langModel := googleai.Model("gemini-1.5-flash")
+	model := googleai.Model("gemini-1.5-flash")
 	// [END model]
 
 	// [START gen]
-	text, err := langModel.GenerateText(ctx, ai.WithTextPrompt("Tell me a joke."))
+	text, err := ai.GenerateText(ctx, model, ai.WithTextPrompt("Tell me a joke."))
 	if err != nil {
 		return err
 	}

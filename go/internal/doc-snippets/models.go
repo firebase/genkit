@@ -29,7 +29,7 @@ import (
 // Globals for simplification only.
 // Bad style: don't do this.
 var ctx = context.Background()
-var gemini15pro *ai.Model
+var gemini15pro ai.Model
 
 func m1() error {
 	// [START init]
@@ -46,7 +46,7 @@ func m1() error {
 	// [END model]
 
 	// [START call]
-	responseText, err := model.GenerateText(ctx, ai.WithTextPrompt("Tell me a joke."))
+	responseText, err := ai.GenerateText(ctx, model, ai.WithTextPrompt("Tell me a joke."))
 	if err != nil {
 		return err
 	}
@@ -74,8 +74,7 @@ func opts() error {
 
 func streaming() error {
 	// [START streaming]
-	response, err := gemini15pro.Generate(
-		ctx,
+	response, err := ai.Generate(ctx, gemini15pro,
 		ai.WithTextPrompt("Tell a long story about robots and ninjas."),
 		// stream callback
 		ai.WithStreaming(
@@ -102,7 +101,7 @@ func multi() error {
 	}
 	encodedImage := base64.StdEncoding.EncodeToString(imageBytes)
 
-	resp, err := gemini15pro.Generate(ctx, ai.WithMessages(
+	resp, err := ai.Generate(ctx, gemini15pro, ai.WithMessages(
 		ai.NewUserMessage(
 			ai.NewTextPart("Describe the following image."),
 			ai.NewMediaPart("", "data:image/jpeg;base64,"+encodedImage))))
@@ -124,7 +123,7 @@ func tools() error {
 		},
 	)
 
-	response, err := gemini15pro.Generate(ctx,
+	response, err := ai.Generate(ctx, gemini15pro,
 		ai.WithTextPrompt("Tell me a joke."),
 		ai.WithTools(myJokeTool))
 	// [END tools]
@@ -140,7 +139,7 @@ func history() error {
 		Role:    ai.RoleUser,
 	}}
 
-	response, err := gemini15pro.Generate(context.Background(), ai.WithMessages(history...))
+	response, err := ai.Generate(context.Background(), gemini15pro, ai.WithMessages(history...))
 	// [END hist1]
 	_ = err
 	// [START hist2]
@@ -153,7 +152,7 @@ func history() error {
 		Role:    ai.RoleUser,
 	})
 
-	response, err = gemini15pro.Generate(ctx, ai.WithMessages(history...))
+	response, err = ai.Generate(ctx, gemini15pro, ai.WithMessages(history...))
 	// [END hist3]
 	// [START hist4]
 	history = []*ai.Message{{

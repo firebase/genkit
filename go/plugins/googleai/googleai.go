@@ -122,7 +122,7 @@ func Init(ctx context.Context, cfg *Config) (err error) {
 // The second argument describes the capability of the model.
 // Use [IsDefinedModel] to determine if a model is already defined.
 // After [Init] is called, only the known models are defined.
-func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
+func DefineModel(name string, caps *ai.ModelCapabilities) (ai.Model, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
@@ -142,7 +142,7 @@ func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
 }
 
 // requires state.mu
-func defineModel(name string, caps ai.ModelCapabilities) *ai.Model {
+func defineModel(name string, caps ai.ModelCapabilities) ai.Model {
 	meta := &ai.ModelMetadata{
 		Label:    labelPrefix + " - " + name,
 		Supports: caps,
@@ -209,9 +209,9 @@ func defineEmbedder(name string) *ai.Embedder {
 
 //copy:start vertexai.go lookups
 
-// Model returns the [ai.Model] with the given name.
+// Model returns the [ai.ModelAction] with the given name.
 // It returns nil if the model was not defined.
-func Model(name string) *ai.Model {
+func Model(name string) ai.Model {
 	return ai.LookupModel(provider, name)
 }
 

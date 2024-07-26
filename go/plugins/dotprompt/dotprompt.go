@@ -86,7 +86,7 @@ type Config struct {
 
 	// The Model to use.
 	// If this is non-nil, Model should be the empty string.
-	Model *ai.Model
+	Model ai.Model
 
 	// TODO: document
 	Tools []ai.Tool

@@ -48,7 +48,7 @@ func main() {
 		}
 
 		// Construct a request and send it to the model API (Google AI).
-		resp, err := m.Generate(ctx,
+		resp, err := ai.Generate(ctx, m,
 			ai.WithConfig(&ai.GenerationCommonConfig{Temperature: 1}),
 			ai.WithTextPrompt(fmt.Sprintf(`Suggest an item for the menu of a %s themed restaurant`, input)))
 		if err != nil {
