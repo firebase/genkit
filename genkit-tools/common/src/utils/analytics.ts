@@ -58,6 +58,15 @@ export class PageViewEvent extends GAEvent {
   }
 }
 
+export class FirstUsageEvent extends GAEvent {
+  name = 'first_visit';
+  duration = 1;
+
+  constructor() {
+    super();
+  }
+}
+
 export class ToolsRequestEvent extends GAEvent {
   name = 'tools_request';
   duration = 1;
@@ -121,6 +130,9 @@ export async function notifyAnalyticsIfFirstRun(): Promise<void> {
   await readline.question('Press "Enter" to continue');
 
   configstore.set(NOTIFICATION_ACKED, true);
+
+  await record( new FirstUsageEvent());
+
 }
 
 /** Gets session information for the UI. */
