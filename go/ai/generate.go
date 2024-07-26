@@ -29,8 +29,12 @@ import (
 	"github.com/firebase/genkit/go/internal/base"
 )
 
-// A Model is used to generate content from an AI model.
-type Model core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
+type Model interface {
+	Generate(ctx context.Context, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error)
+}
+
+// A ModelAction is used to generate content from an AI model.
+type ModelAction core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
 
 // ModelStreamingCallback is the type for the streaming callback of a model.
 type ModelStreamingCallback = func(context.Context, *GenerateResponseChunk) error
@@ -50,8 +54,8 @@ type ModelMetadata struct {
 }
 
 // DefineModel registers the given generate function as an action, and returns a
-// [Model] that runs it.
-func DefineModel(provider, name string, metadata *ModelMetadata, generate func(context.Context, *GenerateRequest, ModelStreamingCallback) (*GenerateResponse, error)) *Model {
+// [ModelAction] that runs it.
+func DefineModel(provider, name string, metadata *ModelMetadata, generate func(context.Context, *GenerateRequest, ModelStreamingCallback) (*GenerateResponse, error)) Model {
 	metadataMap := map[string]any{}
 	if metadata == nil {
 		// Always make sure there's at least minimal metadata.
@@ -70,20 +74,20 @@ func DefineModel(provider, name string, metadata *ModelMetadata, generate func(c
 	}
 	metadataMap["supports"] = supports
 
-	return (*Model)(core.DefineStreamingAction(provider, name, atype.Model, map[string]any{
+	return (*ModelAction)(core.DefineStreamingAction(provider, name, atype.Model, map[string]any{
 		"model": metadataMap,
 	}, generate))
 }
 
 // IsDefinedModel reports whether a model is defined.
 func IsDefinedModel(provider, name string) bool {
-	return LookupModel(provider, name) != nil
+	return core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](atype.Model, provider, name) != nil
 }
 
 // LookupModel looks up a [Model] registered by [DefineModel].
 // It returns nil if the model was not defined.
-func LookupModel(provider, name string) *Model {
-	return (*Model)(core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](atype.Model, provider, name))
+func LookupModel(provider, name string) Model {
+	return (*ModelAction)(core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](atype.Model, provider, name))
 }
 
 // generateParams represents various params of the Generate call.
@@ -216,7 +220,7 @@ func WithStreaming(cb ModelStreamingCallback) generateOption {
 }
 
 // Generate run generate request for this model. Returns GenerateResponse struct.
-func (m *Model) Generate(ctx context.Context, opts ...generateOption) (*GenerateResponse, error) {
+func Generate(ctx context.Context, m Model, opts ...generateOption) (*GenerateResponse, error) {
 	req := &generateParams{
 		Request: &GenerateRequest{},
 	}
@@ -237,12 +241,12 @@ func (m *Model) Generate(ctx context.Context, opts ...generateOption) (*Generate
 		req.Request.Messages = append(req.Request.Messages, prev...)
 	}
 
-	return m.GenerateRaw(ctx, req.Request, req.Stream)
+	return m.Generate(ctx, req.Request, req.Stream)
 }
 
 // GenerateText run generate request for this model. Returns generated text only.
-func (m *Model) GenerateText(ctx context.Context, opts ...generateOption) (string, error) {
-	res, err := m.Generate(ctx, opts...)
+func GenerateText(ctx context.Context, m Model, opts ...generateOption) (string, error) {
+	res, err := Generate(ctx, m, opts...)
 	if err != nil {
 		return "", err
 	}
@@ -252,9 +256,9 @@ func (m *Model) GenerateText(ctx context.Context, opts ...generateOption) (strin
 
 // Generate run generate request for this model. Returns GenerateResponse struct.
 // TODO: Stream GenerateData with partial JSON
-func (m *Model) GenerateData(ctx context.Context, value any, opts ...generateOption) (*GenerateResponse, error) {
+func GenerateData(ctx context.Context, m Model, value any, opts ...generateOption) (*GenerateResponse, error) {
 	opts = append(opts, WithOutputSchema(value))
-	resp, err := m.Generate(ctx, opts...)
+	resp, err := Generate(ctx, m, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -265,8 +269,8 @@ func (m *Model) GenerateData(ctx context.Context, value any, opts ...generateOpt
 	return resp, nil
 }
 
-// GenerateRaw applies the [Model] to provided request, handling tool requests and handles streaming.
-func (m *Model) GenerateRaw(ctx context.Context, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error) {
+// Generate applies the [ModelAction] to provided request, handling tool requests and handles streaming.
+func (m *ModelAction) Generate(ctx context.Context, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error) {
 	if m == nil {
 		return nil, errors.New("Generate called on a nil Model; check that all models are defined")
 	}

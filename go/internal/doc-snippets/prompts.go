@@ -24,10 +24,10 @@ import (
 )
 
 func pr01() {
-	model := ai.Model{}
+	model := ai.LookupModel("googleai", "gemini-1.5-flash")
 
 	// [START pr01]
-	model.Generate(context.Background(), ai.WithTextPrompt("You are a helpful AI assistant named Walt."))
+	ai.Generate(context.Background(), model, ai.WithTextPrompt("You are a helpful AI assistant named Walt."))
 	// [END pr01]
 }
 
@@ -40,10 +40,10 @@ func helloPrompt(name string) *ai.Part {
 // [END hello]
 
 func pr02() {
-	model := ai.Model{}
+	model := ai.LookupModel("googleai", "gemini-1.5-flash")
 
 	// [START pr02]
-	response, err := model.GenerateText(context.Background(),
+	response, err := ai.GenerateText(context.Background(), model,
 		ai.WithMessages(ai.NewUserMessage(helloPrompt("Fred"))))
 	// [END pr02]
 
@@ -53,7 +53,7 @@ func pr02() {
 }
 
 func pr03() error {
-	model := ai.Model{}
+	model := ai.LookupModel("googleai", "gemini-1.5-flash")
 
 	// [START pr03_1]
 	type HelloPromptInput struct {
@@ -84,7 +84,7 @@ func pr03() error {
 	if err != nil {
 		return err
 	}
-	response, err := model.GenerateRaw(context.Background(), request, nil)
+	response, err := model.Generate(context.Background(), request, nil)
 	// [END pr03_2]
 
 	_ = response

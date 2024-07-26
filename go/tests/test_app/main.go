@@ -28,7 +28,7 @@ import (
 func main() {
 	model := ai.DefineModel("", "customReflector", nil, echo)
 	genkit.DefineFlow("testFlow", func(ctx context.Context, in string) (string, error) {
-		res, err := model.Generate(ctx, ai.WithTextPrompt(in))
+		res, err := ai.Generate(ctx, model, ai.WithTextPrompt(in))
 		if err != nil {
 			return "", err
 		}
