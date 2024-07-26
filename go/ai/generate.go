@@ -241,8 +241,8 @@ func (m *Model) Generate(ctx context.Context, opts ...generateOption) (*Generate
 }
 
 // GenerateText run generate request for this model. Returns generated text only.
-func (m *Model) GenerateText(ctx context.Context, withs ...generateOption) (string, error) {
-	res, err := m.Generate(ctx, withs...)
+func (m *Model) GenerateText(ctx context.Context, opts ...generateOption) (string, error) {
+	res, err := m.Generate(ctx, opts...)
 	if err != nil {
 		return "", err
 	}
@@ -252,9 +252,9 @@ func (m *Model) GenerateText(ctx context.Context, withs ...generateOption) (stri
 
 // Generate run generate request for this model. Returns GenerateResponse struct.
 // TODO: Stream GenerateData with partial JSON
-func (m *Model) GenerateData(ctx context.Context, value any, withs ...generateOption) (*GenerateResponse, error) {
-	withs = append(withs, WithOutputSchema(value))
-	resp, err := m.Generate(ctx, withs...)
+func (m *Model) GenerateData(ctx context.Context, value any, opts ...generateOption) (*GenerateResponse, error) {
+	opts = append(opts, WithOutputSchema(value))
+	resp, err := m.Generate(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
