@@ -106,6 +106,7 @@ func WithTextPrompt(prompt string) generateOption {
 }
 
 // WithSystemPrompt adds a simple text system prompt as the first message in GenerateRequest.
+// System prompt will always be put first in the list of messages.
 func WithSystemPrompt(prompt string) generateOption {
 	return func(req *generateParams) error {
 		if req.SystemPrompt != nil {
@@ -125,6 +126,9 @@ func WithMessages(messages ...*Message) generateOption {
 }
 
 // WithHistory adds provided history messages to the begining of GenerateRequest.Messages.
+// History messages will always be put first in the list of messages, with the
+// exception of system prompt which will always be first.
+// [WithMessages] and [WithTextPrompt] will insert messages after system prompt and history.
 func WithHistory(history ...*Message) generateOption {
 	return func(req *generateParams) error {
 		if req.History != nil {
