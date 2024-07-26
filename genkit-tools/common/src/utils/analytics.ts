@@ -131,8 +131,7 @@ export async function notifyAnalyticsIfFirstRun(): Promise<void> {
 
   configstore.set(NOTIFICATION_ACKED, true);
 
-  await record( new FirstUsageEvent());
-
+  await record(new FirstUsageEvent());
 }
 
 /** Gets session information for the UI. */
