@@ -28,6 +28,7 @@ import {
   vertexAI,
   VertexAIEvaluationMetricType,
 } from '@genkit-ai/vertexai';
+import { initializeApp } from 'firebase-admin/app';
 import { chroma } from 'genkitx-chromadb';
 import { ollama } from 'genkitx-ollama';
 import { pinecone } from 'genkitx-pinecone';
@@ -54,6 +55,9 @@ export const PERMISSIVE_SAFETY_SETTINGS: any = {
     },
   ],
 };
+
+// Initialize Firebase SDKs
+initializeApp();
 
 export default configureGenkit({
   // settings

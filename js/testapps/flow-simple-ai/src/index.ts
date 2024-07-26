@@ -38,6 +38,8 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { Allow, parse } from 'partial-json';
 import * as z from 'zod';
 
+const app = initializeApp();
+
 configureGenkit({
   plugins: [
     firebase(),
@@ -71,8 +73,6 @@ configureGenkit({
     logger: 'googleCloud',
   },
 });
-
-const app = initializeApp();
 
 export const jokeFlow = defineFlow(
   {

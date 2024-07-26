@@ -19,7 +19,7 @@ import { Response } from 'express';
 import { DecodedIdToken, getAuth } from 'firebase-admin/auth';
 import * as z from 'zod';
 import { FunctionFlowAuth } from './functions.js';
-import { initializeAppIfNecessary } from './helpers.js';
+import { requireDefaultFirebaseApp } from './helpers.js';
 
 export function firebaseAuth<I extends z.ZodTypeAny>(
   policy: (user: DecodedIdToken, input: z.infer<I>) => void | Promise<void>
@@ -39,7 +39,7 @@ export function firebaseAuth<I extends z.ZodTypeAny>(
   policy: (user: DecodedIdToken, input: z.infer<I>) => void | Promise<void>,
   config?: { required: boolean }
 ): FunctionFlowAuth<I> {
-  initializeAppIfNecessary();
+  requireDefaultFirebaseApp('Firebase authorization');
   const required = config?.required || true;
   return {
     async policy(auth: unknown | undefined, input: z.infer<I>) {
