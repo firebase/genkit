@@ -40,7 +40,7 @@ export function firebaseAuth<I extends z.ZodTypeAny>(
   config?: { required: boolean }
 ): FunctionFlowAuth<I> {
   initializeAppIfNecessary();
-  const required = config?.required || true;
+  const required = config?.required ?? true;
   return {
     async policy(auth: unknown | undefined, input: z.infer<I>) {
       // If required is true, then auth will always be set when called from
