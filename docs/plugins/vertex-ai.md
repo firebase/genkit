@@ -322,7 +322,7 @@ To use Vertex AI Vector Search:
     }
     ```
 
-    For an example, see [Sample Vertex AI Plugin Retriever and Indexer with Local File](https://github.com/firebase/genkit/tree/ee5dbb20f1a7e03a54b66af4e305c68d871526ad/js/testapps/vertexai-vector-search-custom).
+    For an example, see [Sample Vertex AI Plugin Retriever and Indexer with Local File](https://github.com/firebase/genkit/tree/main/js/testapps/vertexai-vector-search-custom).
 
 1.  Add a `vectorSearchOptions` block to your `vertexAI` plugin configuration:
 
@@ -393,3 +393,9 @@ To use Vertex AI Vector Search:
       query: queryDocument,
     });
     ```
+
+See the code samples for:
+
+- [Vertex Vector Search + BigQuery](https://github.com/firebase/genkit/tree/main/js/testapps/vertexai-vector-search-bigquery)
+- [Vertex Vector Search + Firestore](https://github.com/firebase/genkit/tree/main/js/testapps/vertexai-vector-search-firestore)
+- [Vertex Vector Search + a custom DB](https://github.com/firebase/genkit/tree/main/js/testapps/vertexai-vector-search-custom)
