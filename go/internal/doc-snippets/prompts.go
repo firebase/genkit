@@ -27,10 +27,7 @@ func pr01() {
 	model := ai.Model{}
 
 	// [START pr01]
-	request := ai.GenerateRequest{Messages: []*ai.Message{
-		{Content: []*ai.Part{ai.NewTextPart("You are a helpful AI assistant named Walt.")}},
-	}}
-	model.Generate(context.Background(), &request, nil)
+	model.Generate(context.Background(), ai.WithTextPrompt("You are a helpful AI assistant named Walt."))
 	// [END pr01]
 }
 
@@ -46,10 +43,8 @@ func pr02() {
 	model := ai.Model{}
 
 	// [START pr02]
-	request := ai.GenerateRequest{Messages: []*ai.Message{
-		{Content: []*ai.Part{helloPrompt("Fred")}},
-	}}
-	response, err := model.Generate(context.Background(), &request, nil)
+	response, err := model.GenerateText(context.Background(),
+		ai.WithMessages(ai.NewUserMessage(helloPrompt("Fred"))))
 	// [END pr02]
 
 	if err == nil {
@@ -89,7 +84,7 @@ func pr03() error {
 	if err != nil {
 		return err
 	}
-	response, err := model.Generate(context.Background(), request, nil)
+	response, err := model.GenerateRaw(context.Background(), request, nil)
 	// [END pr03_2]
 
 	_ = response

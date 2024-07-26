@@ -49,10 +49,8 @@ func main() {
 
 		// Construct a request and send it to the model API (Google AI).
 		resp, err := m.Generate(ctx,
-			ai.NewGenerateRequest(
-				&ai.GenerationCommonConfig{Temperature: 1},
-				ai.NewUserTextMessage(fmt.Sprintf(`Suggest an item for the menu of a %s themed restaurant`, input))),
-			nil)
+			ai.WithConfig(&ai.GenerationCommonConfig{Temperature: 1}),
+			ai.WithTextPrompt(fmt.Sprintf(`Suggest an item for the menu of a %s themed restaurant`, input)))
 		if err != nil {
 			return "", err
 		}
@@ -61,10 +59,7 @@ func main() {
 		// convert it to a string. but more complicated flows might coerce the
 		// response into structured output or chain the response into another
 		// LLM call.
-		text, err := resp.Text()
-		if err != nil {
-			return "", fmt.Errorf("menuSuggestionFlow: %v", err)
-		}
+		text := resp.Text()
 		return text, nil
 	})
 

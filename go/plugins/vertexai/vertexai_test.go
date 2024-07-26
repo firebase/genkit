@@ -53,17 +53,7 @@ func TestLive(t *testing.T) {
 		},
 	)
 	t.Run("model", func(t *testing.T) {
-		req := &ai.GenerateRequest{
-			Candidates: 1,
-			Messages: []*ai.Message{
-				{
-					Content: []*ai.Part{ai.NewTextPart("Which country was Napoleon the emperor of?")},
-					Role:    ai.RoleUser,
-				},
-			},
-		}
-
-		resp, err := model.Generate(ctx, req, nil)
+		resp, err := model.Generate(ctx, ai.WithCandidates(1), ai.WithTextPrompt("Which country was Napoleon the emperor of?"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -71,7 +61,7 @@ func TestLive(t *testing.T) {
 		if !strings.Contains(out, "France") {
 			t.Errorf("got \"%s\", expecting it would contain \"France\"", out)
 		}
-		if resp.Request != req {
+		if resp.Request == nil {
 			t.Error("Request field not set properly")
 		}
 		if resp.Usage.InputTokens == 0 || resp.Usage.OutputTokens == 0 || resp.Usage.TotalTokens == 0 {
@@ -79,26 +69,19 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("streaming", func(t *testing.T) {
-		req := &ai.GenerateRequest{
-			Candidates: 1,
-			Messages: []*ai.Message{
-				{
-					Content: []*ai.Part{ai.NewTextPart("Write one paragraph about the Golden State Warriors.")},
-					Role:    ai.RoleUser,
-				},
-			},
-		}
-
 		out := ""
 		parts := 0
 		model := vertexai.Model(modelName)
-		final, err := model.Generate(ctx, req, func(ctx context.Context, c *ai.GenerateResponseChunk) error {
-			parts++
-			for _, p := range c.Content {
-				out += p.Text
-			}
-			return nil
-		})
+		final, err := model.Generate(ctx,
+			ai.WithCandidates(1),
+			ai.WithTextPrompt("Write one paragraph about the Golden State Warriors."),
+			ai.WithStreaming(func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+				parts++
+				for _, p := range c.Content {
+					out += p.Text
+				}
+				return nil
+			}))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -123,18 +106,10 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("tool", func(t *testing.T) {
-		req := &ai.GenerateRequest{
-			Candidates: 1,
-			Messages: []*ai.Message{
-				{
-					Content: []*ai.Part{ai.NewTextPart("what is a gablorken of 2 over 3.5?")},
-					Role:    ai.RoleUser,
-				},
-			},
-			Tools: []*ai.ToolDefinition{gablorkenTool.Definition()},
-		}
-
-		resp, err := model.Generate(ctx, req, nil)
+		resp, err := model.Generate(ctx,
+			ai.WithCandidates(1),
+			ai.WithTextPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithTools(gablorkenTool))
 		if err != nil {
 			t.Fatal(err)
 		}

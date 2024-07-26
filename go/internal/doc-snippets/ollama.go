@@ -49,14 +49,13 @@ func ollamaEx(ctx context.Context) error {
 	// [END definemodel]
 
 	// [START gen]
-	genRes, err := model.Generate(ctx, ai.NewGenerateRequest(
-		nil, ai.NewUserTextMessage("Tell me a joke.")), nil)
+	text, err := model.GenerateText(ctx, ai.WithTextPrompt("Tell me a joke."))
 	if err != nil {
 		return err
 	}
 	// [END gen]
 
-	_ = genRes
+	_ = text
 
 	return nil
 }

@@ -15,8 +15,52 @@
 package ai
 
 import (
+	"context"
+	"math"
 	"strings"
 	"testing"
+
+	test_utils "github.com/firebase/genkit/go/tests/utils"
+	"github.com/google/go-cmp/cmp"
+)
+
+// structured output
+type GameCharacter struct {
+	Name      string
+	Backstory string
+}
+
+var echoModel = DefineModel("test", "echo", nil, func(ctx context.Context, gr *GenerateRequest, msc ModelStreamingCallback) (*GenerateResponse, error) {
+	if msc != nil {
+		msc(ctx, &GenerateResponseChunk{
+			Index:   0,
+			Content: []*Part{NewTextPart("stream!")},
+		})
+	}
+	textResponse := ""
+	for _, m := range gr.Messages {
+		if m.Role == RoleUser {
+			textResponse += m.Content[0].Text
+		}
+	}
+	return &GenerateResponse{
+		Request: gr,
+		Candidates: []*Candidate{
+			{
+				Message: NewUserTextMessage(textResponse),
+			},
+		},
+	}, nil
+})
+
+// with tools
+var gablorkenTool = DefineTool("gablorken", "use when need to calculate a gablorken",
+	func(ctx context.Context, input struct {
+		Value float64
+		Over  float64
+	}) (float64, error) {
+		return math.Pow(input.Value, input.Over), nil
+	},
 )
 
 func TestValidCandidate(t *testing.T) {
@@ -81,11 +125,8 @@ func TestValidCandidate(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		text, err := candidate.Text()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if text != json {
+		text := candidate.Text()
+		if strings.TrimSpace(text) != strings.TrimSpace(json) {
 			t.Fatalf("got %q, want %q", json, text)
 		}
 	})
@@ -186,6 +227,124 @@ func TestValidCandidate(t *testing.T) {
 		}
 		_, err := validCandidate(candidate, outputSchema)
 		errorContains(t, err, "failed to validate data against expected schema")
+	})
+}
+
+func TestGenerate(t *testing.T) {
+	t.Run("constructs request", func(t *testing.T) {
+		charJson := "{\"Name\": \"foo\", \"Backstory\": \"bar\"}"
+		charJsonMd := "```json" + charJson + "```"
+		wantText := charJson
+		wantRequest := &GenerateRequest{
+			Messages: []*Message{
+				// system prompt -- always first
+				{
+					Role:    RoleSystem,
+					Content: []*Part{{ContentType: "plain/text", Text: "you are"}},
+				},
+				// then history
+				{
+					Role: "user",
+					Content: []*Part{
+						{ContentType: "plain/text", Text: "banana"},
+					},
+				},
+				{
+					Role: "model",
+					Content: []*Part{
+						{ContentType: "plain/text", Text: "yes, banana"},
+					},
+				},
+				// then messages in order specified
+				{
+					Role: "user",
+					Content: []*Part{
+						{ContentType: "plain/text", Text: charJsonMd},
+					},
+				},
+				{
+					Role: "model",
+					Content: []*Part{
+						{ContentType: "plain/text", Text: "banana again"},
+						// structured output prompt
+						{
+							ContentType: "plain/text",
+							Text:        "!!Ignored!!", // structured output prompt, noisy, ignored
+						},
+					},
+				},
+			},
+			Config:     GenerationCommonConfig{Temperature: 1},
+			Candidates: 3,
+			Context:    []any{[]any{string("Banana")}},
+			Output: &GenerateRequestOutput{
+				Format: "json",
+				Schema: map[string]any{
+					"$id":                  string("https://github.com/firebase/genkit/go/ai/game-character"),
+					"additionalProperties": bool(false),
+					"properties": map[string]any{
+						"Backstory": map[string]any{"type": string("string")},
+						"Name":      map[string]any{"type": string("string")},
+					},
+					"required": []any{string("Name"), string("Backstory")},
+					"type":     string("object"),
+				},
+			},
+			Tools: []*ToolDefinition{
+				{
+					Description: "use when need to calculate a gablorken",
+					InputSchema: map[string]any{
+						"additionalProperties": bool(false),
+						"properties": map[string]any{
+							"Over":  map[string]any{"type": string("number")},
+							"Value": map[string]any{"type": string("number")},
+						},
+						"required": []any{
+							string("Value"),
+							string("Over"),
+						},
+						"type": string("object"),
+					},
+					Name:         "gablorken",
+					OutputSchema: map[string]any{"type": string("number")},
+				},
+			},
+		}
+
+		wantStreamText := "stream!"
+		streamText := ""
+		res, err := echoModel.Generate(context.Background(),
+			WithTextPrompt(charJsonMd),
+			WithMessages(NewModelTextMessage("banana again")),
+			WithSystemPrompt("you are"),
+			WithConfig(GenerationCommonConfig{
+				Temperature: 1,
+			}),
+			WithHistory(NewUserTextMessage("banana"), NewModelTextMessage("yes, banana")),
+			WithCandidates(3),
+			WithContext([]any{"Banana"}),
+			WithOutputSchema(&GameCharacter{}),
+			WithTools(gablorkenTool),
+			WithStreaming(func(ctx context.Context, grc *GenerateResponseChunk) error {
+				streamText += grc.Text()
+				return nil
+			}),
+		)
+		if err != nil {
+			t.Error(err)
+		}
+		gotText := res.Text()
+		if diff := cmp.Diff(gotText, wantText); diff != "" {
+			t.Errorf("Text() diff (+got -want):\n%s", diff)
+		}
+		if diff := cmp.Diff(streamText, wantStreamText); diff != "" {
+			t.Errorf("Text() diff (+got -want):\n%s", diff)
+		}
+		if diff := cmp.Diff(res.Request, wantRequest, test_utils.IgnoreNoisyParts([]string{
+			"{*ai.GenerateRequest}.Messages[4].Content[1].Text",
+		})); diff != "" {
+			t.Errorf("Request diff (+got -want):\n%s", diff)
+		}
 	})
 }
 

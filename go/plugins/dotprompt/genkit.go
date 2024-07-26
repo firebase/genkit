@@ -224,7 +224,7 @@ func (p *Prompt) Generate(ctx context.Context, pr *PromptRequest, cb func(contex
 		}
 	}
 
-	resp, err := model.Generate(ctx, genReq, cb)
+	resp, err := model.GenerateRaw(ctx, genReq, cb)
 	if err != nil {
 		return nil, err
 	}
