@@ -31,26 +31,18 @@ interface PredictionResponse<R> {
   predictions: R[];
 }
 
-const ACCESS_TOKEN_TTL = 50 * 60 * 1000; // cache access token for 50 minutes
-
 export function predictModel<I = unknown, R = unknown, P = unknown>(
   auth: GoogleAuth,
   { location, projectId }: PluginOptions,
   model: string
 ) {
-  let accessToken: string | null | undefined;
-  let accessTokenFetchTime = 0;
-
   return async (
     instances: I[],
     parameters?: P
   ): Promise<PredictionResponse<R>> => {
     const fetch = (await import('node-fetch')).default;
 
-    if (!accessToken || accessTokenFetchTime + ACCESS_TOKEN_TTL < Date.now()) {
-      accessToken = await auth.getAccessToken();
-      accessTokenFetchTime = Date.now();
-    }
+    const accessToken = await auth.getAccessToken();
 
     const req = {
       instances,
