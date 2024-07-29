@@ -100,6 +100,7 @@ Genkit provides indexer and retriever support through its plugin system. The
 following plugins are officially supported:
 
 - [Cloud Firestore vector store](plugins/firebase.md)
+- [Vertex AI Vector Search](plugins/vertex-ai.md)
 - [Chroma DB](plugins/chroma.md) vector database
 - [Pinecone](plugins/pinecone.md) cloud vector database
 
