@@ -32,19 +32,19 @@ You are the world's most welcoming AI assistant and are currently working at {{l
 Greet a guest{{#if name}} named {{name}}{{/if}}{{#if style}} in the style of {{style}}{{/if}}.
 ```
 
-To use this prompt, install the `dotprompt` plugin, and import the `prompt` function from
+To use this prompt, install the `dotprompt` plugin, and import the `promptRef` function from
 the `@genkit-ai/dotprompt` library:
 
 ```ts
-import { dotprompt, prompt } from '@genkit-ai/dotprompt';
+import { dotprompt, promptRef } from '@genkit-ai/dotprompt';
 
 configureGenkit({ plugins: [dotprompt()] });
 ```
 
-Then, load the prompt using `prompt('file_name')`:
+Then, load the prompt using `promptRef('file_name')`:
 
 ```ts
-const greetingPrompt = await prompt('greeting');
+const greetingPrompt = promptRef('greeting');
 
 const result = await greetingPrompt.generate({
   input: {
@@ -176,9 +176,9 @@ registered Zod schema. You can then utilize the schema to strongly type the
 output of a Dotprompt:
 
 ```ts
-import { prompt } from "@genkit-ai/dotprompt";
+import { promptRef } from "@genkit-ai/dotprompt";
 
-const myPrompt = await prompt("myPrompt");
+const myPrompt = promptRef("myPrompt");
 
 const result = await myPrompt.generate<typeof MySchema>({...});
 
@@ -229,7 +229,7 @@ When generating a prompt with structured output, use the `output()` helper to
 retrieve and validate it:
 
 ```ts
-const createMenuPrompt = await prompt('create_menu');
+const createMenuPrompt = promptRef('create_menu');
 
 const menu = await createMenuPrompt.generate({
   input: {
@@ -332,7 +332,7 @@ The URL can be `https://` or base64-encoded `data:` URIs for "inline" image
 usage. In code, this would be:
 
 ```ts
-const describeImagePrompt = await prompt('describe_image');
+const describeImagePrompt = promptRef('describe_image');
 
 const result = await describeImagePrompt.generate({
   input: {
@@ -425,7 +425,7 @@ Pro would perform better, you might create two files:
 To use a prompt variant, specify the `variant` option when loading:
 
 ```ts
-const myPrompt = await prompt('my_prompt', { variant: 'gemini15pro' });
+const myPrompt = promptRef('my_prompt', { variant: 'gemini15pro' });
 ```
 
 The name of the variant is included in the metadata of generation traces, so you
