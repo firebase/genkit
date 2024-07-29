@@ -246,6 +246,13 @@ The indexer and retriever implementations provided by the Vertex AI plugin use
 either Cloud Firestore or BigQuery as the document store. The plugin also
 includes interfaces you can implement to support other document stores.
 
+Important: Pricing for Vector Search consists of both a charge for every
+gigabyte of data you ingest and an hourly charge for the VMs that host your
+deployed indexes. See [Vertex AI pricing](https://cloud.google.com/vertex-ai/pricing#vectorsearch).
+This is likely to be most cost-effective when you are serving high volumes of
+traffic. Be sure to understand that billing implications the service will have
+on your project before using it.
+
 To use Vertex AI Vector Search:
 
 1.  Choose an embedding model. This model is responsible for creating vector
