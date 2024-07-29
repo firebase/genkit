@@ -250,7 +250,7 @@ Important: Pricing for Vector Search consists of both a charge for every
 gigabyte of data you ingest and an hourly charge for the VMs that host your
 deployed indexes. See [Vertex AI pricing](https://cloud.google.com/vertex-ai/pricing#vectorsearch).
 This is likely to be most cost-effective when you are serving high volumes of
-traffic. Be sure to understand that billing implications the service will have
+traffic. Be sure to understand the billing implications the service will have
 on your project before using it.
 
 To use Vertex AI Vector Search:
