@@ -190,9 +190,9 @@ func WithIndexerText(prompts ...string) indexerOption {
 }
 
 // WithIndexerDoc adds a document to IndexRequest.
-func WithIndexerDocs(doc []*Document) indexerOption {
+func WithIndexerDocs(docs ...*Document) indexerOption {
 	return func(req *indexerParams) error {
-		req.request.Documents = doc
+		req.request.Documents = docs
 		return nil
 	}
 }

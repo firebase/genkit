@@ -67,10 +67,7 @@ func setup04(ctx context.Context, indexer ai.Indexer, retriever ai.Retriever, mo
 				}
 				docs = append(docs, ai.DocumentFromText(s, metadata))
 			}
-			req := &ai.IndexerRequest{
-				Documents: docs,
-			}
-			if err := indexer.Index(ctx, req); err != nil {
+			if err := ai.Index(ctx, indexer, ai.WithIndexerDocs(docs...)); err != nil {
 				return nil, err
 			}
 

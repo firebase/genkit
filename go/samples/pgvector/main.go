@@ -93,10 +93,9 @@ func run() error {
 	}
 
 	genkit.DefineFlow("askQuestion", func(ctx context.Context, in input) (string, error) {
-		res, err := retriever.Retrieve(ctx, &ai.RetrieverRequest{
-			Document: &ai.Document{Content: []*ai.Part{ai.NewTextPart(in.Question)}},
-			Options:  in.Show,
-		})
+		res, err := ai.Retrieve(ctx, retriever,
+			ai.WithRetrieverOpts(in.Show),
+			ai.WithRetrieverText(in.Question))
 		if err != nil {
 			return "", err
 		}
@@ -200,14 +199,14 @@ func indexExistingRows(ctx context.Context, db *sql.DB, indexer ai.Indexer) erro
 	}
 	defer rows.Close()
 
-	req := &ai.IndexerRequest{}
+	var docs []*ai.Document
 	for rows.Next() {
 		var sid, chunk string
 		var sn, eid int
 		if err := rows.Scan(&sid, &sn, &eid, &chunk); err != nil {
 			return err
 		}
-		req.Documents = append(req.Documents, &ai.Document{
+		docs = append(docs, &ai.Document{
 			Content: []*ai.Part{ai.NewTextPart(chunk)},
 			Metadata: map[string]any{
 				"show_id":       sid,
@@ -219,5 +218,5 @@ func indexExistingRows(ctx context.Context, db *sql.DB, indexer ai.Indexer) erro
 	if err := rows.Err(); err != nil {
 		return err
 	}
-	return indexer.Index(ctx, req)
+	return ai.Index(ctx, indexer, ai.WithIndexerDocs(docs...))
 }
