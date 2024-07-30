@@ -30,9 +30,9 @@ type Embedder interface {
 	Embed(ctx context.Context, req *EmbedRequest) (*EmbedResponse, error)
 }
 
-// An EmbedderActionDef is used to convert a document to a
+// An embedderActionDef is used to convert a document to a
 // multidimensional vector.
-type EmbedderActionDef core.Action[*EmbedRequest, *EmbedResponse, struct{}]
+type embedderActionDef core.Action[*EmbedRequest, *EmbedResponse, struct{}]
 
 type embedderAction = core.Action[*EmbedRequest, *EmbedResponse, struct{}]
 
@@ -57,7 +57,7 @@ type DocumentEmbedding struct {
 // DefineEmbedder registers the given embed function as an action, and returns an
 // [Embedder] that runs it.
 func DefineEmbedder(provider, name string, embed func(context.Context, *EmbedRequest) (*EmbedResponse, error)) Embedder {
-	return (*EmbedderActionDef)(core.DefineAction(provider, name, atype.Embedder, nil, embed))
+	return (*embedderActionDef)(core.DefineAction(provider, name, atype.Embedder, nil, embed))
 }
 
 // IsDefinedEmbedder reports whether an embedder is defined.
@@ -72,11 +72,11 @@ func LookupEmbedder(provider, name string) Embedder {
 	if action == nil {
 		return nil
 	}
-	return (*EmbedderActionDef)(action)
+	return (*embedderActionDef)(action)
 }
 
 // Embed runs the given [Embedder].
-func (e *EmbedderActionDef) Embed(ctx context.Context, req *EmbedRequest) (*EmbedResponse, error) {
+func (e *embedderActionDef) Embed(ctx context.Context, req *EmbedRequest) (*EmbedResponse, error) {
 	if e == nil {
 		return nil, errors.New("Embed called on a nil Embedder; check that all embedders are defined")
 	}
@@ -84,7 +84,7 @@ func (e *EmbedderActionDef) Embed(ctx context.Context, req *EmbedRequest) (*Embe
 	return a.Run(ctx, req, nil)
 }
 
-func (e *EmbedderActionDef) Name() string {
+func (e *embedderActionDef) Name() string {
 	return (*embedderAction)(e).Name()
 }
 
