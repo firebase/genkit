@@ -166,7 +166,7 @@ func IsDefinedModel(name string) bool {
 //copy:start vertexai.go defineEmbedder
 
 // DefineEmbedder defines an embedder with a given name.
-func DefineEmbedder(name string) *ai.Embedder {
+func DefineEmbedder(name string) ai.Embedder {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
@@ -183,7 +183,7 @@ func IsDefinedEmbedder(name string) bool {
 //copy:stop
 
 // requires state.mu
-func defineEmbedder(name string) *ai.Embedder {
+func defineEmbedder(name string) ai.Embedder {
 	return ai.DefineEmbedder(provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		em := state.pclient.EmbeddingModel(name)
 		// TODO: set em.TaskType from EmbedRequest.Options?
@@ -217,7 +217,7 @@ func Model(name string) ai.Model {
 
 // Embedder returns the [ai.Embedder] with the given name.
 // It returns nil if the embedder was not defined.
-func Embedder(name string) *ai.Embedder {
+func Embedder(name string) ai.Embedder {
 	return ai.LookupEmbedder(provider, name)
 }
 

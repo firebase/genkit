@@ -39,7 +39,7 @@ const provider = "devLocalVectorStore"
 type Config struct {
 	// Where to store the data. Defaults to os.TempDir.
 	Dir             string
-	Embedder        *ai.Embedder
+	Embedder        ai.Embedder
 	EmbedderOptions any
 }
 
@@ -83,7 +83,7 @@ func Retriever(name string) ai.Retriever {
 // This is based on js/plugins/dev-local-vectorstore/src/index.ts.
 type docStore struct {
 	filename        string
-	embedder        *ai.Embedder
+	embedder        ai.Embedder
 	embedderOptions any
 	data            map[string]dbValue
 }
@@ -95,7 +95,7 @@ type dbValue struct {
 }
 
 // newDocStore returns a new ai.DocumentStore to register.
-func newDocStore(dir, name string, embedder *ai.Embedder, embedderOptions any) (*docStore, error) {
+func newDocStore(dir, name string, embedder ai.Embedder, embedderOptions any) (*docStore, error) {
 	if dir == "" {
 		dir = os.TempDir()
 	}

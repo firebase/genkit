@@ -66,9 +66,7 @@ func TestLive(t *testing.T) {
 		},
 	)
 	t.Run("embedder", func(t *testing.T) {
-		res, err := embedder.Embed(ctx, &ai.EmbedRequest{
-			Documents: []*ai.Document{ai.DocumentFromText("yellow banana", nil)},
-		})
+		res, err := ai.Embed(ctx, embedder, ai.WithEmbedText("yellow banana"))
 		if err != nil {
 			t.Fatal(err)
 		}

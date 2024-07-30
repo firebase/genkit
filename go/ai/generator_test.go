@@ -232,9 +232,9 @@ func TestValidCandidate(t *testing.T) {
 
 func TestGenerate(t *testing.T) {
 	t.Run("constructs request", func(t *testing.T) {
-		charJson := "{\"Name\": \"foo\", \"Backstory\": \"bar\"}"
-		charJsonMd := "```json" + charJson + "```"
-		wantText := charJson
+		charJSON := "{\"Name\": \"foo\", \"Backstory\": \"bar\"}"
+		charJSONmd := "```json" + charJSON + "```"
+		wantText := charJSON
 		wantRequest := &GenerateRequest{
 			Messages: []*Message{
 				// system prompt -- always first
@@ -259,7 +259,7 @@ func TestGenerate(t *testing.T) {
 				{
 					Role: "user",
 					Content: []*Part{
-						{ContentType: "plain/text", Text: charJsonMd},
+						{ContentType: "plain/text", Text: charJSONmd},
 					},
 				},
 				{
@@ -314,7 +314,7 @@ func TestGenerate(t *testing.T) {
 		wantStreamText := "stream!"
 		streamText := ""
 		res, err := Generate(context.Background(), echoModel,
-			WithTextPrompt(charJsonMd),
+			WithTextPrompt(charJSONmd),
 			WithMessages(NewModelTextMessage("banana again")),
 			WithSystemPrompt("you are"),
 			WithConfig(GenerationCommonConfig{

@@ -93,7 +93,7 @@ The `Init()` function of a telemetry plugin should do all of the following:
   set:
 
   ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/telemetryplugin/telemetryplugin.go" region_tag="config" adjust_indentation="auto" %}
+  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/telemetryplugin/telemetryplugin.go" region_tag="shouldexport" adjust_indentation="auto" %}
   ```
 
 - Initialize your trace span exporter and register it with Genkit:

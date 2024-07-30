@@ -354,7 +354,7 @@ func validCandidate(c *Candidate, output *GenerateRequestOutput) (*Candidate, er
 			return nil, errors.New("candidate message has no content")
 		}
 
-		text := base.ExtractJsonFromMarkdown(c.Text())
+		text := base.ExtractJSONFromMarkdown(c.Text())
 		var schemaBytes []byte
 		schemaBytes, err := json.Marshal(output.Schema)
 		if err != nil {
@@ -436,7 +436,7 @@ func (gr *GenerateResponse) History() []*Message {
 // UnmarshalOutput unmarshals structured JSON output into the provided
 // struct pointer.
 func (gr *GenerateResponse) UnmarshalOutput(v any) error {
-	j := base.ExtractJsonFromMarkdown(gr.Text())
+	j := base.ExtractJSONFromMarkdown(gr.Text())
 	if j == "" {
 		return errors.New("unable to parse JSON from response text")
 	}
