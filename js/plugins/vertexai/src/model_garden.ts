@@ -25,12 +25,33 @@ import {
   OpenAIConfigSchema,
 } from './openai_compatibility.js';
 
-const ACCESS_TOKEN_TTL = 50 * 60 * 1000; // cache access token for 50 minutes
-
 export const ModelGardenModelConfigSchema = OpenAIConfigSchema.extend({
   location: z.string().optional(),
 });
 
+export const llama31 = modelRef({
+  name: 'vertexai/llama-3.1',
+  info: {
+    label: 'Llama 3.1',
+    supports: {
+      multiturn: true,
+      tools: true,
+      media: false,
+      systemRole: true,
+      output: ['text', 'json'],
+    },
+    versions: [
+      'meta/llama3-405b-instruct-maas',
+      // 8b and 70b versions are coming soon
+    ],
+  },
+  configSchema: ModelGardenModelConfigSchema,
+  version: 'meta/llama3-405b-instruct-maas',
+});
+
+/**
+ * @deprecated use `llama31` instead
+ */
 export const llama3 = modelRef({
   name: 'vertexai/llama3-405b',
   info: {
@@ -50,6 +71,7 @@ export const llama3 = modelRef({
 
 export const SUPPORTED_OPENAI_FORMAT_MODELS = {
   'llama3-405b': llama3,
+  'llama-3.1': llama31,
 };
 
 export function modelGardenOpenaiCompatibleModel(
