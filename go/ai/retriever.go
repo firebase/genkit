@@ -119,88 +119,74 @@ func (r *retrieverActionDef) Retrieve(ctx context.Context, req *RetrieverRequest
 	return (*retrieverAction)(r).Run(ctx, req, nil)
 }
 
-// retrieveParams represents various params of the Retrieve call.
-type retrieveParams struct {
-	request *RetrieverRequest
-}
-
-// generateOption configures params of the Retrieve call.
-type retrieveOption func(req *retrieveParams) error
+// RetrieveOption configures params of the Retrieve call.
+type RetrieveOption func(req *RetrieverRequest) error
 
 // WithRetrieverText adds a simple text as document to RetrieveRequest.
-func WithRetrieverText(prompt string) retrieveOption {
-	return func(req *retrieveParams) error {
-		req.request.Document = DocumentFromText(prompt, nil)
+func WithRetrieverText(text string) RetrieveOption {
+	return func(req *RetrieverRequest) error {
+		req.Document = DocumentFromText(text, nil)
 		return nil
 	}
 }
 
 // WithRetrieverDoc adds a document to RetrieveRequest.
-func WithRetrieverDoc(doc *Document) retrieveOption {
-	return func(req *retrieveParams) error {
-		req.request.Document = doc
+func WithRetrieverDoc(doc *Document) RetrieveOption {
+	return func(req *RetrieverRequest) error {
+		req.Document = doc
 		return nil
 	}
 }
 
 // WithRetrieverOpts retriever options to RetrieveRequest.
-func WithRetrieverOpts(opts any) retrieveOption {
-	return func(req *retrieveParams) error {
-		req.request.Options = opts
+func WithRetrieverOpts(opts any) RetrieveOption {
+	return func(req *RetrieverRequest) error {
+		req.Options = opts
 		return nil
 	}
 }
 
 // Retrieve calls the retrivers with provided options.
-func Retrieve(ctx context.Context, r Retriever, opts ...retrieveOption) (*RetrieverResponse, error) {
-	req := &retrieveParams{
-		request: &RetrieverRequest{},
-	}
+func Retrieve(ctx context.Context, r Retriever, opts ...RetrieveOption) (*RetrieverResponse, error) {
+	req := &RetrieverRequest{}
 	for _, with := range opts {
 		err := with(req)
 		if err != nil {
 			return nil, err
 		}
 	}
-	return r.Retrieve(ctx, req.request)
+	return r.Retrieve(ctx, req)
 }
 
-// indexerParams represents various params of the Index call.
-type indexerParams struct {
-	request *IndexerRequest
-}
-
-// generateOption configures params of the Index call.
-type indexerOption func(req *indexerParams) error
+// IndexerOption configures params of the Index call.
+type IndexerOption func(req *IndexerRequest) error
 
 // WithIndexerDoc adds a document to IndexRequest.
-func WithIndexerDocs(docs ...*Document) indexerOption {
-	return func(req *indexerParams) error {
-		req.request.Documents = docs
+func WithIndexerDocs(docs ...*Document) IndexerOption {
+	return func(req *IndexerRequest) error {
+		req.Documents = docs
 		return nil
 	}
 }
 
 // WithIndexerOpts sets indexer options on IndexRequest.
-func WithIndexerOpts(opts any) indexerOption {
-	return func(req *indexerParams) error {
-		req.request.Options = opts
+func WithIndexerOpts(opts any) IndexerOption {
+	return func(req *IndexerRequest) error {
+		req.Options = opts
 		return nil
 	}
 }
 
 // Index calls the retrivers with provided options.
-func Index(ctx context.Context, r Indexer, opts ...indexerOption) error {
-	req := &indexerParams{
-		request: &IndexerRequest{},
-	}
+func Index(ctx context.Context, r Indexer, opts ...IndexerOption) error {
+	req := &IndexerRequest{}
 	for _, with := range opts {
 		err := with(req)
 		if err != nil {
 			return err
 		}
 	}
-	return r.Index(ctx, req.request)
+	return r.Index(ctx, req)
 }
 
 func (i *indexerActionDef) Name() string { return (*indexerAction)(i).Name() }
