@@ -56,7 +56,7 @@ const SafetySettingsSchema = z.object({
 
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   safetySettings: z.array(SafetySettingsSchema).optional(),
-  locationOverride: z.string().optional(),
+  location: z.string().optional(),
 });
 
 export const geminiPro = modelRef({

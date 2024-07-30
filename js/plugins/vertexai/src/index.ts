@@ -157,7 +157,7 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
     const vertexClientFactory = (
       request: GenerateRequest<typeof GeminiConfigSchema>
     ): VertexAI => {
-      const requestLocation = request.config?.locationOverride || location;
+      const requestLocation = request.config?.location || location;
       if (!vertexClientFactoryCache[requestLocation]) {
         vertexClientFactoryCache[requestLocation] = new VertexAI({
           project: projectId,

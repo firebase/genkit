@@ -28,7 +28,7 @@ import {
 const ACCESS_TOKEN_TTL = 50 * 60 * 1000; // cache access token for 50 minutes
 
 export const ModelGardenModelConfigSchema = OpenAIConfigSchema.extend({
-  locationOverride: z.string().optional(),
+  location: z.string().optional(),
 });
 
 export const llama3 = modelRef({
@@ -75,7 +75,7 @@ export function modelGardenOpenaiCompatibleModel(
   const clientFactory = async (
     request: GenerateRequest<typeof ModelGardenModelConfigSchema>
   ): Promise<OpenAI> => {
-    const requestLocation = request.config?.locationOverride || location;
+    const requestLocation = request.config?.location || location;
     if (
       !clientCache[requestLocation] ||
       clientCache[requestLocation].accessTokenFetchTime + ACCESS_TOKEN_TTL <

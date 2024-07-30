@@ -45,7 +45,7 @@ import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
 import z from 'zod';
 
 export const AnthropicConfigSchema = GenerationCommonConfigSchema.extend({
-  locationOverride: z.string().optional(),
+  location: z.string().optional(),
 });
 
 export const claude35Sonnet = modelRef({
@@ -397,7 +397,7 @@ export function anthropicModel(
       versions: model.info?.versions,
     },
     async (input, streamingCallback) => {
-      const client = clientFactory(input.config?.locationOverride || region);
+      const client = clientFactory(input.config?.location || region);
       if (!streamingCallback) {
         const response = await client.messages.create({
           ...toAnthropicRequest(input.config?.version ?? modelName, input),

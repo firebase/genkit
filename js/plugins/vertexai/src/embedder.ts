@@ -40,7 +40,7 @@ export const TextEmbeddingGeckoConfigSchema = z.object({
    **/
   taskType: TaskTypeSchema.optional(),
   title: z.string().optional(),
-  locationOverride: z.string().optional(),
+  location: z.string().optional(),
 });
 export type TextEmbeddingGeckoConfig = z.infer<
   typeof TextEmbeddingGeckoConfigSchema
@@ -157,7 +157,7 @@ export function textEmbeddingGeckoEmbedder(
   const predictClientFactory = (
     config: TextEmbeddingGeckoConfig
   ): PredictClient<EmbeddingInstance, EmbeddingPrediction> => {
-    const requestLocation = config?.locationOverride || options.location;
+    const requestLocation = config?.location || options.location;
     if (!predictClients[requestLocation]) {
       // TODO: Figure out how to allow different versions while still sharing a single implementation.
       predictClients[requestLocation] = predictModel<

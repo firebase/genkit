@@ -38,7 +38,7 @@ const ImagenConfigSchema = GenerationCommonConfigSchema.extend({
   negativePrompt: z.string().optional(),
   /** Any non-negative integer you provide to make output images deterministic. Providing the same seed number always results in the same output images. Accepted integer values: 1 - 2147483647. */
   seed: z.number().optional(),
-  locationOverride: z.string().optional(),
+  location: z.string().optional(),
 });
 
 export const imagen2 = modelRef({
@@ -114,8 +114,7 @@ export function imagen2Model(client: GoogleAuth, options: PluginOptions) {
   const predictClientFactory = (
     request: GenerateRequest<typeof ImagenConfigSchema>
   ): PredictClient<ImagenInstance, ImagenPrediction, ImagenParameters> => {
-    const requestLocation =
-      request.config?.locationOverride || options.location;
+    const requestLocation = request.config?.location || options.location;
     if (!predictClients[requestLocation]) {
       predictClients[requestLocation] = predictModel<
         ImagenInstance,
