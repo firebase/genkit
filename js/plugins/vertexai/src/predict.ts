@@ -43,20 +43,13 @@ export function predictModel<I = unknown, R = unknown, P = unknown>(
   { location, projectId }: PluginOptions,
   model: string
 ): PredictClient<I, R, P> {
-  let accessToken: string | null | undefined;
-  let accessTokenFetchTime = 0;
-
   return async (
     instances: I[],
     parameters?: P
   ): Promise<PredictionResponse<R>> => {
     const fetch = (await import('node-fetch')).default;
 
-    if (!accessToken || accessTokenFetchTime + ACCESS_TOKEN_TTL < Date.now()) {
-      accessToken = await auth.getAccessToken();
-      accessTokenFetchTime = Date.now();
-    }
-
+    const accessToken = await auth.getAccessToken();
     const req = {
       instances,
       parameters: parameters || {},
