@@ -42,7 +42,7 @@ your plugin and use it consistently when required by a Genkit function.
 const providerID = "yourplugin"
 ```
 
-### Standsrd exports
+### Standard exports
 
 Every plugin should define and export the following symbols:
 

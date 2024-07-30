@@ -31,7 +31,7 @@ To get started with Genkit, install the Genkit CLI and run
 
     To install `nvm`:
 
-    - {Linux, macOS, and similar}
+    - {Linux, macOS, etc.}
 
       Run the following command:
 
