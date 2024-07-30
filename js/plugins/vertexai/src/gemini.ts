@@ -38,12 +38,12 @@ import {
   Content,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
+  Part as GeminiPart,
   GenerateContentCandidate,
   GenerateContentResponse,
   GenerateContentResult,
   HarmBlockThreshold,
   HarmCategory,
-  Part as GeminiPart,
   StartChatParams,
   VertexAI,
 } from '@google-cloud/vertexai';
@@ -468,7 +468,7 @@ export function geminiModel(
       use: middlewares,
     },
     async (request, streamingCallback) => {
-      const vertex = vertexClientFactory(request)
+      const vertex = vertexClientFactory(request);
       const client = vertex.preview.getGenerativeModel(
         {
           model: request.config?.version || model.version || name,

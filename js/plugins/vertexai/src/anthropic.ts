@@ -46,7 +46,7 @@ import z from 'zod';
 
 export const AnthropicConfigSchema = GenerationCommonConfigSchema.extend({
   locationOverride: z.string().optional(),
-})
+});
 
 export const claude35Sonnet = modelRef({
   name: 'vertexai/claude-3-5-sonnet',
@@ -370,7 +370,7 @@ export function anthropicModel(
   projectId: string,
   region: string
 ) {
-  const clients: Record<string, AnthropicVertex> = {  }
+  const clients: Record<string, AnthropicVertex> = {};
   const clientFactory = (region: string): AnthropicVertex => {
     if (!clients[region]) {
       clients[region] = new AnthropicVertex({
@@ -382,7 +382,7 @@ export function anthropicModel(
       });
     }
     return clients[region];
-  }
+  };
   const model = SUPPORTED_ANTHROPIC_MODELS[modelName];
   if (!model) {
     throw new Error(`unsupported Anthropic model name ${modelName}`);
@@ -397,7 +397,7 @@ export function anthropicModel(
       versions: model.info?.versions,
     },
     async (input, streamingCallback) => {
-      const client = clientFactory(input.config?.locationOverride || region)
+      const client = clientFactory(input.config?.locationOverride || region);
       if (!streamingCallback) {
         const response = await client.messages.create({
           ...toAnthropicRequest(input.config?.version ?? modelName, input),
