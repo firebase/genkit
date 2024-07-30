@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { ModelReference } from '@genkit-ai/ai/model';
+import { GenerateRequest, ModelReference } from '@genkit-ai/ai/model';
 import { IndexerAction, RetrieverAction } from '@genkit-ai/ai/retriever';
 import { Plugin, genkitPlugin } from '@genkit-ai/core';
 import { VertexAI } from '@google-cloud/vertexai';
@@ -45,6 +45,7 @@ import {
   vertexEvaluators,
 } from './evaluation.js';
 import {
+  GeminiConfigSchema,
   SUPPORTED_GEMINI_MODELS,
   gemini15Flash,
   gemini15FlashPreview,
@@ -152,11 +153,20 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       throw confError('project', 'GCLOUD_PROJECT');
     }
 
-    const vertexClient = new VertexAI({
-      project: projectId,
-      location,
-      googleAuthOptions: options?.googleAuth,
-    });
+    const vertexClientFactoryCache: Record<string, VertexAI> = {};
+    const vertexClientFactory = (
+      request: GenerateRequest<typeof GeminiConfigSchema>
+    ): VertexAI => {
+      const requestLocation = request.config?.location || location;
+      if (!vertexClientFactoryCache[requestLocation]) {
+        vertexClientFactoryCache[requestLocation] = new VertexAI({
+          project: projectId,
+          location: requestLocation,
+          googleAuthOptions: options?.googleAuth,
+        });
+      }
+      return vertexClientFactoryCache[requestLocation];
+    };
     const metrics =
       options?.evaluation && options.evaluation.metrics.length > 0
         ? options.evaluation.metrics
@@ -165,7 +175,7 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
     const models = [
       imagen2Model(authClient, { projectId, location }),
       ...Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
-        geminiModel(name, vertexClient)
+        geminiModel(name, vertexClientFactory)
       ),
     ];
 

@@ -18,21 +18,21 @@ import {
   Message,
   MessageCreateParamsBase,
 } from '@anthropic-ai/sdk/resources/messages.mjs';
-import {
-  GenerateRequest,
-  GenerateResponseData,
-  GenerationCommonConfigSchema,
-} from '@genkit-ai/ai/model';
+import { GenerateRequest, GenerateResponseData } from '@genkit-ai/ai/model';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { fromAnthropicResponse, toAnthropicRequest } from '../src/anthropic.js';
+import {
+  AnthropicConfigSchema,
+  fromAnthropicResponse,
+  toAnthropicRequest,
+} from '../src/anthropic.js';
 
 const MODEL_ID = 'modelid';
 
 describe('toAnthropicRequest', () => {
   const testCases: {
     should: string;
-    input: GenerateRequest<typeof GenerationCommonConfigSchema>;
+    input: GenerateRequest<typeof AnthropicConfigSchema>;
     expectedOutput: MessageCreateParamsBase;
   }[] = [
     {
@@ -136,7 +136,7 @@ describe('toAnthropicRequest', () => {
 describe('fromAnthropicResponse', () => {
   const testCases: {
     should: string;
-    input: GenerateRequest<typeof GenerationCommonConfigSchema>;
+    input: GenerateRequest<typeof AnthropicConfigSchema>;
     response: Message;
     expectedOutput: GenerateResponseData;
   }[] = [

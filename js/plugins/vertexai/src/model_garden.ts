@@ -14,17 +14,22 @@
  * limitations under the License.
  */
 
-import { ModelAction, modelRef } from '@genkit-ai/ai/model';
+import { GenerateRequest, ModelAction, modelRef } from '@genkit-ai/ai/model';
 import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
 import { GoogleAuth } from 'google-auth-library';
 import OpenAI from 'openai';
 
+import z from 'zod';
 import {
   openaiCompatibleModel,
   OpenAIConfigSchema,
 } from './openai_compatibility.js';
 
 const ACCESS_TOKEN_TTL = 50 * 60 * 1000; // cache access token for 50 minutes
+
+export const ModelGardenModelConfigSchema = OpenAIConfigSchema.extend({
+  location: z.string().optional(),
+});
 
 export const llama3 = modelRef({
   name: 'vertexai/llama3-405b',
@@ -39,7 +44,7 @@ export const llama3 = modelRef({
     },
     versions: ['meta/llama3-405b-instruct-maas'],
   },
-  configSchema: OpenAIConfigSchema,
+  configSchema: ModelGardenModelConfigSchema,
   version: 'meta/llama3-405b-instruct-maas',
 });
 
@@ -53,7 +58,7 @@ export function modelGardenOpenaiCompatibleModel(
   location: string,
   googleAuth: GoogleAuth,
   baseUrlTemplate: string | undefined
-): ModelAction<typeof OpenAIConfigSchema> {
+): ModelAction<typeof ModelGardenModelConfigSchema> {
   const model = SUPPORTED_OPENAI_FORMAT_MODELS[name];
   if (!model) throw new Error(`Unsupported model: ${name}`);
   if (!baseUrlTemplate) {
@@ -61,29 +66,19 @@ export function modelGardenOpenaiCompatibleModel(
       'https://{location}-aiplatform.googleapis.com/v1beta1/projects/{projectId}/locations/{location}/endpoints/openapi';
   }
 
-  let accessToken: string | null | undefined;
-  let accessTokenFetchTime = 0;
-  var clientCache: OpenAI;
-  const clientFactory = async () => {
-    if (
-      !clientCache ||
-      !accessToken ||
-      accessTokenFetchTime + ACCESS_TOKEN_TTL < Date.now()
-    ) {
-      accessToken = await googleAuth.getAccessToken();
-      accessTokenFetchTime = Date.now();
-      clientCache = new OpenAI({
-        baseURL: baseUrlTemplate!
-          .replace(/{location}/g, location)
-          .replace(/{projectId}/g, projectId),
-        apiKey: accessToken!,
-        defaultHeaders: {
-          'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
-        },
-      });
-    }
-
-    return clientCache;
+  const clientFactory = async (
+    request: GenerateRequest<typeof ModelGardenModelConfigSchema>
+  ): Promise<OpenAI> => {
+    const requestLocation = request.config?.location || location;
+    return new OpenAI({
+      baseURL: baseUrlTemplate!
+        .replace(/{location}/g, requestLocation)
+        .replace(/{projectId}/g, projectId),
+      apiKey: (await googleAuth.getAccessToken())!,
+      defaultHeaders: {
+        'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
+      },
+    });
   };
   return openaiCompatibleModel(model, clientFactory);
 }
