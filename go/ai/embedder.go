@@ -22,9 +22,19 @@ import (
 	"github.com/firebase/genkit/go/internal/atype"
 )
 
-// An Embedder is used to convert a document to a
+// Embedder represents an embedder that can perform content embedding.
+type Embedder interface {
+	// Name returns the registry name of the embedder.
+	Name() string
+	// Embed embeds to content as part of the [EmbedRequest].
+	Embed(ctx context.Context, req *EmbedRequest) (*EmbedResponse, error)
+}
+
+// An EmbedderActionDef is used to convert a document to a
 // multidimensional vector.
-type Embedder core.Action[*EmbedRequest, *EmbedResponse, struct{}]
+type EmbedderActionDef core.Action[*EmbedRequest, *EmbedResponse, struct{}]
+
+type embedderAction = core.Action[*EmbedRequest, *EmbedResponse, struct{}]
 
 // EmbedRequest is the data we pass to convert one or more documents
 // to a multidimensional vector.
@@ -46,8 +56,8 @@ type DocumentEmbedding struct {
 
 // DefineEmbedder registers the given embed function as an action, and returns an
 // [Embedder] that runs it.
-func DefineEmbedder(provider, name string, embed func(context.Context, *EmbedRequest) (*EmbedResponse, error)) *Embedder {
-	return (*Embedder)(core.DefineAction(provider, name, atype.Embedder, nil, embed))
+func DefineEmbedder(provider, name string, embed func(context.Context, *EmbedRequest) (*EmbedResponse, error)) Embedder {
+	return (*EmbedderActionDef)(core.DefineAction(provider, name, atype.Embedder, nil, embed))
 }
 
 // IsDefinedEmbedder reports whether an embedder is defined.
@@ -57,19 +67,38 @@ func IsDefinedEmbedder(provider, name string) bool {
 
 // LookupEmbedder looks up an [Embedder] registered by [DefineEmbedder].
 // It returns nil if the embedder was not defined.
-func LookupEmbedder(provider, name string) *Embedder {
+func LookupEmbedder(provider, name string) Embedder {
 	action := core.LookupActionFor[*EmbedRequest, *EmbedResponse, struct{}](atype.Embedder, provider, name)
 	if action == nil {
 		return nil
 	}
-	return (*Embedder)(action)
+	return (*EmbedderActionDef)(action)
 }
 
 // Embed runs the given [Embedder].
-func (e *Embedder) Embed(ctx context.Context, req *EmbedRequest) (*EmbedResponse, error) {
+func (e *EmbedderActionDef) Embed(ctx context.Context, req *EmbedRequest) (*EmbedResponse, error) {
 	if e == nil {
 		return nil, errors.New("Embed called on a nil Embedder; check that all embedders are defined")
 	}
 	a := (*core.Action[*EmbedRequest, *EmbedResponse, struct{}])(e)
 	return a.Run(ctx, req, nil)
+}
+
+func (e *EmbedderActionDef) Name() string {
+	return (*embedderAction)(e).Name()
+}
+
+// EmbedOption configures params of the Embed call.
+type EmbedOption func(req *EmbedRequest) error
+
+// Embed invokes the embedder with provided options.
+func Embed(ctx context.Context, e Embedder, opts ...EmbedOption) (*EmbedResponse, error) {
+	req := &EmbedRequest{}
+	for _, with := range opts {
+		err := with(req)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return e.Embed(ctx, req)
 }
