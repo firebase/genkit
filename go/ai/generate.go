@@ -31,12 +31,15 @@ import (
 
 // Model represents a model that can perform content generation tasks.
 type Model interface {
+	// Name returns the registry name of the model.
+	Name() string
 	// Generate applies the [Model] to provided request, handling tool requests and handles streaming.
 	Generate(ctx context.Context, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error)
 }
 
-// A ModelAction is used to generate content from an AI model.
-type ModelAction core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
+type modelActionDef core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
+
+type modelAction = core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
 
 // ModelStreamingCallback is the type for the streaming callback of a model.
 type ModelStreamingCallback = func(context.Context, *GenerateResponseChunk) error
@@ -76,7 +79,7 @@ func DefineModel(provider, name string, metadata *ModelMetadata, generate func(c
 	}
 	metadataMap["supports"] = supports
 
-	return (*ModelAction)(core.DefineStreamingAction(provider, name, atype.Model, map[string]any{
+	return (*modelActionDef)(core.DefineStreamingAction(provider, name, atype.Model, map[string]any{
 		"model": metadataMap,
 	}, generate))
 }
@@ -89,7 +92,7 @@ func IsDefinedModel(provider, name string) bool {
 // LookupModel looks up a [Model] registered by [DefineModel].
 // It returns nil if the model was not defined.
 func LookupModel(provider, name string) Model {
-	return (*ModelAction)(core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](atype.Model, provider, name))
+	return (*modelActionDef)(core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](atype.Model, provider, name))
 }
 
 // generateParams represents various params of the Generate call.
@@ -271,8 +274,8 @@ func GenerateData(ctx context.Context, m Model, value any, opts ...generateOptio
 	return resp, nil
 }
 
-// Generate applies the [ModelAction] to provided request, handling tool requests and handles streaming.
-func (m *ModelAction) Generate(ctx context.Context, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error) {
+// Generate applies the [Action] to provided request, handling tool requests and handles streaming.
+func (m *modelActionDef) Generate(ctx context.Context, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error) {
 	if m == nil {
 		return nil, errors.New("Generate called on a nil Model; check that all models are defined")
 	}
@@ -304,6 +307,8 @@ func (m *ModelAction) Generate(ctx context.Context, req *GenerateRequest, cb Mod
 		req = newReq
 	}
 }
+
+func (i *modelActionDef) Name() string { return (*modelAction)(i).Name() }
 
 // conformOutput appends a message to the request indicating conformance to the expected schema.
 func conformOutput(req *GenerateRequest) error {

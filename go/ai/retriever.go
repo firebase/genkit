@@ -22,13 +22,6 @@ import (
 	"github.com/firebase/genkit/go/internal/atype"
 )
 
-type (
-	// An IndexerAction is used to index documents in a store.
-	IndexerAction core.Action[*IndexerRequest, struct{}, struct{}]
-	// A RetrieverAction is used to retrieve indexed documents.
-	RetrieverAction core.Action[*RetrieverRequest, *RetrieverResponse, struct{}]
-)
-
 // Retriever represents a document retriever.
 type Retriever interface {
 	// Name returns the name of the retriever.
@@ -46,6 +39,9 @@ type Indexer interface {
 }
 
 type (
+	indexerActionDef   core.Action[*IndexerRequest, struct{}, struct{}]
+	retrieverActionDef core.Action[*RetrieverRequest, *RetrieverResponse, struct{}]
+
 	indexerAction   = core.Action[*IndexerRequest, struct{}, struct{}]
 	retrieverAction = core.Action[*RetrieverRequest, *RetrieverResponse, struct{}]
 )
@@ -75,39 +71,39 @@ func DefineIndexer(provider, name string, index func(context.Context, *IndexerRe
 	f := func(ctx context.Context, req *IndexerRequest) (struct{}, error) {
 		return struct{}{}, index(ctx, req)
 	}
-	return (*IndexerAction)(core.DefineAction(provider, name, atype.Indexer, nil, f))
+	return (*indexerActionDef)(core.DefineAction(provider, name, atype.Indexer, nil, f))
 }
 
-// IsDefinedIndexer reports whether an [IndexerAction] is defined.
+// IsDefinedIndexer reports whether an [Indexer] is defined.
 func IsDefinedIndexer(provider, name string) bool {
-	return (*IndexerAction)(core.LookupActionFor[*IndexerRequest, struct{}, struct{}](atype.Indexer, provider, name)) != nil
+	return (*indexerActionDef)(core.LookupActionFor[*IndexerRequest, struct{}, struct{}](atype.Indexer, provider, name)) != nil
 }
 
 // LookupIndexer looks up an [Indexer] registered by [DefineIndexer].
 // It returns nil if the model was not defined.
 func LookupIndexer(provider, name string) Indexer {
-	return (*IndexerAction)(core.LookupActionFor[*IndexerRequest, struct{}, struct{}](atype.Indexer, provider, name))
+	return (*indexerActionDef)(core.LookupActionFor[*IndexerRequest, struct{}, struct{}](atype.Indexer, provider, name))
 }
 
 // DefineRetriever registers the given retrieve function as an action, and returns a
-// [RetrieverAction] that runs it.
-func DefineRetriever(provider, name string, ret func(context.Context, *RetrieverRequest) (*RetrieverResponse, error)) *RetrieverAction {
-	return (*RetrieverAction)(core.DefineAction(provider, name, atype.Retriever, nil, ret))
+// [Retriever] that runs it.
+func DefineRetriever(provider, name string, ret func(context.Context, *RetrieverRequest) (*RetrieverResponse, error)) *retrieverActionDef {
+	return (*retrieverActionDef)(core.DefineAction(provider, name, atype.Retriever, nil, ret))
 }
 
 // IsDefinedRetriever reports whether a [Retriever] is defined.
 func IsDefinedRetriever(provider, name string) bool {
-	return (*RetrieverAction)(core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](atype.Retriever, provider, name)) != nil
+	return (*retrieverActionDef)(core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](atype.Retriever, provider, name)) != nil
 }
 
 // LookupRetriever looks up a [Retriever] registered by [DefineRetriever].
 // It returns nil if the model was not defined.
 func LookupRetriever(provider, name string) Retriever {
-	return (*RetrieverAction)(core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](atype.Retriever, provider, name))
+	return (*retrieverActionDef)(core.LookupActionFor[*RetrieverRequest, *RetrieverResponse, struct{}](atype.Retriever, provider, name))
 }
 
-// Index runs the given [IndexerAction].
-func (i *IndexerAction) Index(ctx context.Context, req *IndexerRequest) error {
+// Index runs the given [Indexer].
+func (i *indexerActionDef) Index(ctx context.Context, req *IndexerRequest) error {
 	if i == nil {
 		return errors.New("Index called on a nil Indexer; check that all indexers are defined")
 	}
@@ -115,8 +111,8 @@ func (i *IndexerAction) Index(ctx context.Context, req *IndexerRequest) error {
 	return err
 }
 
-// Retrieve runs the given [RetrieverAction].
-func (r *RetrieverAction) Retrieve(ctx context.Context, req *RetrieverRequest) (*RetrieverResponse, error) {
+// Retrieve runs the given [Retriever].
+func (r *retrieverActionDef) Retrieve(ctx context.Context, req *RetrieverRequest) (*RetrieverResponse, error) {
 	if r == nil {
 		return nil, errors.New("Retriever called on a nil Retriever; check that all retrievers are defined")
 	}
@@ -177,18 +173,6 @@ type indexerParams struct {
 // generateOption configures params of the Index call.
 type indexerOption func(req *indexerParams) error
 
-// WithIndexerText adds a simple text as document to IndexRequest.
-func WithIndexerText(prompts ...string) indexerOption {
-	return func(req *indexerParams) error {
-		var docs []*Document
-		for _, p := range prompts {
-			docs = append(docs, DocumentFromText(p, nil))
-		}
-		req.request.Documents = append(req.request.Documents, docs...)
-		return nil
-	}
-}
-
 // WithIndexerDoc adds a document to IndexRequest.
 func WithIndexerDocs(docs ...*Document) indexerOption {
 	return func(req *indexerParams) error {
@@ -197,7 +181,7 @@ func WithIndexerDocs(docs ...*Document) indexerOption {
 	}
 }
 
-// WithIndexerOpts indexerr options to IndexRequest.
+// WithIndexerOpts sets indexer options on IndexRequest.
 func WithIndexerOpts(opts any) indexerOption {
 	return func(req *indexerParams) error {
 		req.request.Options = opts
@@ -219,6 +203,6 @@ func Index(ctx context.Context, r Indexer, opts ...indexerOption) error {
 	return r.Index(ctx, req.request)
 }
 
-func (i *IndexerAction) Name() string { return (*indexerAction)(i).Name() }
+func (i *indexerActionDef) Name() string { return (*indexerAction)(i).Name() }
 
-func (r *RetrieverAction) Name() string { return (*retrieverAction)(r).Name() }
+func (r *retrieverActionDef) Name() string { return (*retrieverAction)(r).Name() }
