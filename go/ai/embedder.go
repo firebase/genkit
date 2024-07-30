@@ -91,6 +91,34 @@ func (e *embedderActionDef) Name() string {
 // EmbedOption configures params of the Embed call.
 type EmbedOption func(req *EmbedRequest) error
 
+// WithEmbedOptions set embedder options on [EmbedRequest]
+func WithEmbedOptions(opts any) EmbedOption {
+	return func(req *EmbedRequest) error {
+		req.Options = opts
+		return nil
+	}
+}
+
+// WithEmbedText adds simple text documents to [EmbedRequest]
+func WithEmbedText(text ...string) EmbedOption {
+	return func(req *EmbedRequest) error {
+		var docs []*Document
+		for _, p := range text {
+			docs = append(docs, DocumentFromText(p, nil))
+		}
+		req.Documents = append(req.Documents, docs...)
+		return nil
+	}
+}
+
+// WithEmbedDocs adds documents to [EmbedRequest]
+func WithEmbedDocs(docs ...*Document) EmbedOption {
+	return func(req *EmbedRequest) error {
+		req.Documents = append(req.Documents, docs...)
+		return nil
+	}
+}
+
 // Embed invokes the embedder with provided options.
 func Embed(ctx context.Context, e Embedder, opts ...EmbedOption) (*EmbedResponse, error) {
 	req := &EmbedRequest{}
