@@ -67,12 +67,10 @@ func googleaiEx(ctx context.Context) error {
 
 	_ = embedRes
 
-	var myRetriever *ai.Retriever
+	var myRetriever ai.Retriever
 
 	// [START retrieve]
-	retrieveRes, err := myRetriever.Retrieve(ctx, &ai.RetrieverRequest{
-		Document: ai.DocumentFromText(userInput, nil),
-	})
+	retrieveRes, err := ai.Retrieve(ctx, myRetriever, ai.WithRetrieverText(userInput))
 	if err != nil {
 		return err
 	}
@@ -80,7 +78,7 @@ func googleaiEx(ctx context.Context) error {
 
 	_ = retrieveRes
 
-	var myIndexer *ai.Indexer
+	var myIndexer ai.Indexer
 	var docsToIndex []*ai.Document
 
 	// [START index]
