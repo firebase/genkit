@@ -90,6 +90,9 @@ export const geminiPro = modelRef({
   configSchema: GeminiConfigSchema,
 });
 
+/**
+ * @deprecated Use `gemini15Pro` or `gemini15Flash` instead.
+ */
 export const geminiProVision = modelRef({
   name: 'googleai/gemini-pro-vision',
   info: {
@@ -102,6 +105,7 @@ export const geminiProVision = modelRef({
       tools: false,
       systemRole: false,
     },
+    deprecated: true,
   },
   configSchema: GeminiConfigSchema,
 });

@@ -22,6 +22,7 @@ import {
   StreamingCallback,
 } from '@genkit-ai/core';
 import { toJsonSchema } from '@genkit-ai/core/schema';
+import * as clc from 'colorette';
 import { performance } from 'node:perf_hooks';
 import { z } from 'zod';
 import { DocumentDataSchema } from './document.js';
@@ -145,6 +146,8 @@ export const ModelInfoSchema = z.object({
       context: z.boolean().optional(),
     })
     .optional(),
+  /** Mark the model as deprecated. */
+  deprecated: z.boolean().optional(),
 });
 export type ModelInfo = z.infer<typeof ModelInfoSchema>;
 
@@ -353,7 +356,20 @@ export function modelRef<
 >(
   options: ModelReference<CustomOptionsSchema>
 ): ModelReference<CustomOptionsSchema> {
+  if (options.info?.deprecated) {
+    deprecateModel({ name: options.name });
+  }
   return { ...options };
+}
+
+/**
+ * Warns when a model is deprecated.
+ */
+export function deprecateModel(options: { name: string }) {
+  console.warn(
+    `${clc.bold(clc.yellow('Warning:'))} ` +
+      `Model '${options.name}' is deprecated and may be removed in a future release.`
+  );
 }
 
 /** Container for counting usage stats for a single input/output {Part} */
