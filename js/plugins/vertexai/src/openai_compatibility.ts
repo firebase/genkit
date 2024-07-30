@@ -298,10 +298,10 @@ export function toRequestBody(
   return body;
 }
 
-export function openaiCompatibleModel(
+export function openaiCompatibleModel<C extends typeof OpenAIConfigSchema>(
   model: ModelReference<any>,
-  clientFactory: () => Promise<OpenAI>
-): ModelAction<typeof OpenAIConfigSchema> {
+  clientFactory: (request: GenerateRequest<C>) => Promise<OpenAI>
+): ModelAction<C> {
   const modelId = model.name;
   if (!model) throw new Error(`Unsupported model: ${name}`);
 
@@ -312,11 +312,11 @@ export function openaiCompatibleModel(
       configSchema: model.configSchema,
     },
     async (
-      request: GenerateRequest<typeof OpenAIConfigSchema>,
+      request: GenerateRequest<C>,
       streamingCallback?: StreamingCallback<GenerateResponseChunkData>
     ): Promise<GenerateResponseData> => {
       let response: ChatCompletion;
-      const client = await clientFactory();
+      const client = await clientFactory(request);
       const body = toRequestBody(model, request);
       if (streamingCallback) {
         const stream = client.beta.chat.completions.stream({

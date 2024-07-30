@@ -42,6 +42,11 @@ import {
   modelRef,
 } from '@genkit-ai/ai/model';
 import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
+import z from 'zod';
+
+export const AnthropicConfigSchema = GenerationCommonConfigSchema.extend({
+  locationOverride: z.string().optional(),
+})
 
 export const claude35Sonnet = modelRef({
   name: 'vertexai/claude-3-5-sonnet',
@@ -56,7 +61,7 @@ export const claude35Sonnet = modelRef({
       output: ['text'],
     },
   },
-  configSchema: GenerationCommonConfigSchema,
+  configSchema: AnthropicConfigSchema,
 });
 
 export const claude3Sonnet = modelRef({
@@ -72,7 +77,7 @@ export const claude3Sonnet = modelRef({
       output: ['text'],
     },
   },
-  configSchema: GenerationCommonConfigSchema,
+  configSchema: AnthropicConfigSchema,
 });
 
 export const claude3Haiku = modelRef({
@@ -88,7 +93,7 @@ export const claude3Haiku = modelRef({
       output: ['text'],
     },
   },
-  configSchema: GenerationCommonConfigSchema,
+  configSchema: AnthropicConfigSchema,
 });
 
 export const claude3Opus = modelRef({
@@ -104,12 +109,12 @@ export const claude3Opus = modelRef({
       output: ['text'],
     },
   },
-  configSchema: GenerationCommonConfigSchema,
+  configSchema: AnthropicConfigSchema,
 });
 
 export const SUPPORTED_ANTHROPIC_MODELS: Record<
   string,
-  ModelReference<typeof GenerationCommonConfigSchema>
+  ModelReference<typeof AnthropicConfigSchema>
 > = {
   'claude-3-5-sonnet': claude35Sonnet,
   'claude-3-sonnet': claude3Sonnet,
@@ -119,7 +124,7 @@ export const SUPPORTED_ANTHROPIC_MODELS: Record<
 
 export function toAnthropicRequest(
   model: string,
-  input: GenerateRequest<typeof GenerationCommonConfigSchema>
+  input: GenerateRequest<typeof AnthropicConfigSchema>
 ): MessageCreateParamsBase {
   let system: string | undefined = undefined;
   const messages: MessageParam[] = [];
@@ -289,7 +294,7 @@ function fromAnthropicCandidate(candidate: Message): CandidateData {
 }
 
 export function fromAnthropicResponse(
-  input: GenerateRequest<typeof GenerationCommonConfigSchema>,
+  input: GenerateRequest<typeof AnthropicConfigSchema>,
   response: Message
 ): GenerateResponseData {
   const candidates: CandidateData[] = [fromAnthropicCandidate(response)];
@@ -365,13 +370,19 @@ export function anthropicModel(
   projectId: string,
   region: string
 ) {
-  const client = new AnthropicVertex({
-    region,
-    projectId,
-    defaultHeaders: {
-      'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
-    },
-  });
+  const clients: Record<string, AnthropicVertex> = {  }
+  const clientFactory = (region: string): AnthropicVertex => {
+    if (!clients[region]) {
+      clients[region] = new AnthropicVertex({
+        region,
+        projectId,
+        defaultHeaders: {
+          'X-Goog-Api-Client': GENKIT_CLIENT_HEADER,
+        },
+      });
+    }
+    return clients[region];
+  }
   const model = SUPPORTED_ANTHROPIC_MODELS[modelName];
   if (!model) {
     throw new Error(`unsupported Anthropic model name ${modelName}`);
@@ -381,11 +392,12 @@ export function anthropicModel(
     {
       name: model.name,
       label: model.info?.label,
-      configSchema: GenerationCommonConfigSchema,
+      configSchema: AnthropicConfigSchema,
       supports: model.info?.supports,
       versions: model.info?.versions,
     },
     async (input, streamingCallback) => {
+      const client = clientFactory(input.config?.locationOverride || region)
       if (!streamingCallback) {
         const response = await client.messages.create({
           ...toAnthropicRequest(input.config?.version ?? modelName, input),

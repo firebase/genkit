@@ -17,6 +17,7 @@
 import {
   CandidateData,
   defineModel,
+  GenerateRequest,
   GenerationCommonConfigSchema,
   getBasicUsageStats,
   MediaPart,
@@ -37,12 +38,12 @@ import {
   Content,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
-  Part as GeminiPart,
   GenerateContentCandidate,
   GenerateContentResponse,
   GenerateContentResult,
   HarmBlockThreshold,
   HarmCategory,
+  Part as GeminiPart,
   StartChatParams,
   VertexAI,
 } from '@google-cloud/vertexai';
@@ -53,8 +54,9 @@ const SafetySettingsSchema = z.object({
   threshold: z.nativeEnum(HarmBlockThreshold),
 });
 
-const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
+export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   safetySettings: z.array(SafetySettingsSchema).optional(),
+  locationOverride: z.string().optional(),
 });
 
 export const geminiPro = modelRef({
@@ -438,10 +440,12 @@ const convertSchemaProperty = (property) => {
   }
 };
 
-/**
- *
- */
-export function geminiModel(name: string, vertex: VertexAI): ModelAction {
+export function geminiModel(
+  name: string,
+  vertexClientFactory: (
+    request: GenerateRequest<typeof GeminiConfigSchema>
+  ) => VertexAI
+): ModelAction {
   const modelName = `vertexai/${name}`;
 
   const model: ModelReference<z.ZodTypeAny> = SUPPORTED_GEMINI_MODELS[name];
@@ -464,6 +468,7 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
       use: middlewares,
     },
     async (request, streamingCallback) => {
+      const vertex = vertexClientFactory(request)
       const client = vertex.preview.getGenerativeModel(
         {
           model: request.config?.version || model.version || name,

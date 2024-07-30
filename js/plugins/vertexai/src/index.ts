@@ -14,19 +14,19 @@
  * limitations under the License.
  */
 
-import { ModelReference } from '@genkit-ai/ai/model';
+import { GenerateRequest, ModelReference } from '@genkit-ai/ai/model';
 import { IndexerAction, RetrieverAction } from '@genkit-ai/ai/retriever';
-import { Plugin, genkitPlugin } from '@genkit-ai/core';
+import { genkitPlugin, Plugin } from '@genkit-ai/core';
 import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
 import z from 'zod';
 import {
-  SUPPORTED_ANTHROPIC_MODELS,
   anthropicModel,
   claude35Sonnet,
   claude3Haiku,
   claude3Opus,
   claude3Sonnet,
+  SUPPORTED_ANTHROPIC_MODELS,
 } from './anthropic.js';
 import {
   SUPPORTED_EMBEDDER_MODELS,
@@ -45,20 +45,21 @@ import {
   vertexEvaluators,
 } from './evaluation.js';
 import {
-  SUPPORTED_GEMINI_MODELS,
   gemini15Flash,
   gemini15FlashPreview,
   gemini15Pro,
   gemini15ProPreview,
+  GeminiConfigSchema,
   geminiModel,
   geminiPro,
   geminiProVision,
+  SUPPORTED_GEMINI_MODELS,
 } from './gemini.js';
 import { imagen2, imagen2Model } from './imagen.js';
 import {
-  SUPPORTED_OPENAI_FORMAT_MODELS,
   llama3,
   modelGardenOpenaiCompatibleModel,
+  SUPPORTED_OPENAI_FORMAT_MODELS,
 } from './model_garden.js';
 import {
   VectorSearchOptions,
@@ -68,12 +69,12 @@ import {
 export {
   DocumentIndexer,
   DocumentRetriever,
-  Neighbor,
-  VectorSearchOptions,
   getBigQueryDocumentIndexer,
   getBigQueryDocumentRetriever,
   getFirestoreDocumentIndexer,
   getFirestoreDocumentRetriever,
+  Neighbor,
+  VectorSearchOptions,
   vertexAiIndexerRef,
   vertexAiIndexers,
   vertexAiRetrieverRef,
@@ -152,11 +153,20 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       throw confError('project', 'GCLOUD_PROJECT');
     }
 
-    const vertexClient = new VertexAI({
-      project: projectId,
-      location,
-      googleAuthOptions: options?.googleAuth,
-    });
+    const vertexClientFactoryCache: Record<string, VertexAI> = {}
+    const vertexClientFactory = (
+      request: GenerateRequest<typeof GeminiConfigSchema>
+    ): VertexAI => {
+      const requestLocation = request.config?.locationOverride || location;
+      if (!vertexClientFactoryCache[requestLocation]) {
+        vertexClientFactoryCache[requestLocation] = new VertexAI({
+          project: projectId,
+          location: requestLocation,
+          googleAuthOptions: options?.googleAuth,
+        })
+      }
+      return vertexClientFactoryCache[requestLocation];
+    };
     const metrics =
       options?.evaluation && options.evaluation.metrics.length > 0
         ? options.evaluation.metrics
@@ -165,7 +175,7 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
     const models = [
       imagen2Model(authClient, { projectId, location }),
       ...Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
-        geminiModel(name, vertexClient)
+        geminiModel(name, vertexClientFactory)
       ),
     ];
 

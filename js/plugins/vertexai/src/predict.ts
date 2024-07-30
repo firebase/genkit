@@ -33,11 +33,16 @@ interface PredictionResponse<R> {
 
 const ACCESS_TOKEN_TTL = 50 * 60 * 1000; // cache access token for 50 minutes
 
+export type PredictClient<I = unknown, R = unknown, P = unknown> = (
+  instances: I[],
+  parameters?: P
+) => Promise<PredictionResponse<R>>;
+
 export function predictModel<I = unknown, R = unknown, P = unknown>(
   auth: GoogleAuth,
   { location, projectId }: PluginOptions,
   model: string
-) {
+): PredictClient<I, R, P> {
   let accessToken: string | null | undefined;
   let accessTokenFetchTime = 0;
 

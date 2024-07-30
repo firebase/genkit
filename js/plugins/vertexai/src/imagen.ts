@@ -25,7 +25,7 @@ import {
 import { GoogleAuth } from 'google-auth-library';
 import z from 'zod';
 import { PluginOptions } from './index.js';
-import { predictModel } from './predict.js';
+import { PredictClient, predictModel } from './predict.js';
 
 const ImagenConfigSchema = GenerationCommonConfigSchema.extend({
   /** Language of the prompt text. */
@@ -38,8 +38,8 @@ const ImagenConfigSchema = GenerationCommonConfigSchema.extend({
   negativePrompt: z.string().optional(),
   /** Any non-negative integer you provide to make output images deterministic. Providing the same seed number always results in the same output images. Accepted integer values: 1 - 2147483647. */
   seed: z.number().optional(),
+  locationOverride: z.string().optional(),
 });
-type ImagenConfig = z.infer<typeof ImagenConfigSchema>;
 
 export const imagen2 = modelRef({
   name: 'vertexai/imagen2',
@@ -106,15 +106,32 @@ interface ImagenInstance {
   image?: { bytesBase64Encoded: string };
 }
 
-/**
- *
- */
 export function imagen2Model(client: GoogleAuth, options: PluginOptions) {
-  const predict = predictModel<
-    ImagenInstance,
-    ImagenPrediction,
-    ImagenParameters
-  >(client, options, 'imagegeneration@005');
+  const predictClients: Record<
+    string,
+    PredictClient<ImagenInstance, ImagenPrediction, ImagenParameters>
+  > = {};
+  const predictClientFactory = (
+    request: GenerateRequest<typeof ImagenConfigSchema>
+  ): PredictClient<ImagenInstance, ImagenPrediction, ImagenParameters> => {
+    const requestLocation =
+      request.config?.locationOverride || options.location;
+    if (!predictClients[requestLocation]) {
+      predictClients[requestLocation] = predictModel<
+        ImagenInstance,
+        ImagenPrediction,
+        ImagenParameters
+      >(
+        client,
+        {
+          ...options,
+          location: requestLocation,
+        },
+        'imagegeneration@005'
+      );
+    }
+    return predictClients[requestLocation];
+  };
 
   return defineModel(
     {
@@ -134,7 +151,8 @@ export function imagen2Model(client: GoogleAuth, options: PluginOptions) {
         parameters: toParameters(request),
       };
 
-      const response = await predict([instance], toParameters(request));
+      const predictClient = predictClientFactory(request);
+      const response = await predictClient([instance], toParameters(request));
 
       const candidates: CandidateData[] = response.predictions.map((p, i) => {
         const b64data = p.bytesBase64Encoded;
