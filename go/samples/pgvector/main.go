@@ -114,9 +114,9 @@ func run() error {
 const provider = "pgvector"
 
 // [START retr]
-func defineRetriever(db *sql.DB, embedder *ai.Embedder) *ai.Retriever {
+func defineRetriever(db *sql.DB, embedder ai.Embedder) *ai.Retriever {
 	f := func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
-		eres, err := embedder.Embed(ctx, &ai.EmbedRequest{Documents: []*ai.Document{req.Document}})
+		eres, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(req.Document))
 		if err != nil {
 			return nil, err
 		}
@@ -159,7 +159,7 @@ func defineRetriever(db *sql.DB, embedder *ai.Embedder) *ai.Retriever {
 
 // [END retr]
 
-func defineIndexer(db *sql.DB, embedder *ai.Embedder) *ai.Indexer {
+func defineIndexer(db *sql.DB, embedder ai.Embedder) *ai.Indexer {
 	// The indexer assumes that each Document has a single part, to be embedded, and metadata fields
 	// for the table primary key: show_id, season_number, episode_id.
 	const query = `
@@ -168,7 +168,7 @@ func defineIndexer(db *sql.DB, embedder *ai.Embedder) *ai.Indexer {
 			WHERE show_id = $1 AND season_number = $2 AND episode_id = $3
 		`
 	return ai.DefineIndexer(provider, "shows", func(ctx context.Context, req *ai.IndexerRequest) error {
-		res, err := embedder.Embed(ctx, &ai.EmbedRequest{Documents: req.Documents})
+		res, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(req.Documents...))
 		if err != nil {
 			return err
 		}

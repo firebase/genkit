@@ -75,7 +75,7 @@ type Config struct {
 	// The index ID to use.
 	IndexID string
 	// Embedder to use. Required.
-	Embedder        *ai.Embedder
+	Embedder        ai.Embedder
 	EmbedderOptions any
 	// The metadata key to use to store document text
 	// in Pinecone; the default is "_content".
@@ -170,7 +170,7 @@ type RetrieverOptions struct {
 // docStore implements the genkit [ai.DocumentStore] interface.
 type docStore struct {
 	index           *index
-	embedder        *ai.Embedder
+	embedder        ai.Embedder
 	embedderOptions any
 	textKey         string
 }

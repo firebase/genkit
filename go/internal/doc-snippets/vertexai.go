@@ -63,9 +63,7 @@ func vertexaiEx(ctx context.Context) error {
 	// [END embedder]
 
 	// [START embed]
-	embedRes, err := embeddingModel.Embed(ctx, &ai.EmbedRequest{
-		Documents: []*ai.Document{ai.DocumentFromText(userInput, nil)},
-	})
+	embedRes, err := ai.Embed(ctx, embeddingModel, ai.WithEmbedText(userInput))
 	if err != nil {
 		return err
 	}
