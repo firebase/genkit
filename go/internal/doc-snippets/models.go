@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"log"
 	"os"
 
 	// [START import]
@@ -56,19 +57,22 @@ func m1() error {
 }
 
 func opts() error {
+	model := vertexai.Model("gemini-1.5-flash")
+
 	// [START options]
-	request := ai.GenerateRequest{
-		Messages: []*ai.Message{
-			{Content: []*ai.Part{ai.NewTextPart("Tell me a joke about dogs.")}},
-		},
-		Config: ai.GenerationCommonConfig{
+	response, err := ai.Generate(ctx, model,
+		ai.WithTextPrompt("Tell me a joke about dogs."),
+		ai.WithConfig(ai.GenerationCommonConfig{
 			Temperature:     1.67,
-			StopSequences:   []string{"abc"},
+			StopSequences:   []string{"cat"},
 			MaxOutputTokens: 3,
-		},
-	}
+		}))
 	// [END options]
-	_ = request
+
+	_ = response
+	if err != nil {
+		log.Fatal(err)
+	}
 	return nil
 }
 
