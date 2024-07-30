@@ -105,7 +105,9 @@ func SchemaAsMap(s *jsonschema.Schema) map[string]any {
 
 var jsonMarkdownRegex = regexp.MustCompile("```(json)?((\n|.)*?)```")
 
-func ExtractJsonFromMarkdown(md string) string {
+// ExtractJSONFromMarkdown returns the contents of the first fenced code block in
+// the markdown text md. If there is none, it returns md.
+func ExtractJSONFromMarkdown(md string) string {
 	// TODO: improve this
 	matches := jsonMarkdownRegex.FindStringSubmatch(md)
 	if matches == nil {
