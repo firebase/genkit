@@ -95,20 +95,20 @@ func LookupModel(provider, name string) Model {
 	return (*modelActionDef)(core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](atype.Model, provider, name))
 }
 
-// generateParams represents various params of the Generate call.
-type generateParams struct {
+// GenerateParams represents various params of the Generate call.
+type GenerateParams struct {
 	Request      *GenerateRequest
 	Stream       ModelStreamingCallback
 	History      []*Message
 	SystemPrompt *Message
 }
 
-// generateOption configures params of the Generate call.
-type generateOption func(req *generateParams) error
+// GenerateOption configures params of the Generate call.
+type GenerateOption func(req *GenerateParams) error
 
 // WithTextPrompt adds a simple text user prompt to GenerateRequest.
-func WithTextPrompt(prompt string) generateOption {
-	return func(req *generateParams) error {
+func WithTextPrompt(prompt string) GenerateOption {
+	return func(req *GenerateParams) error {
 		req.Request.Messages = append(req.Request.Messages, NewUserTextMessage(prompt))
 		return nil
 	}
@@ -116,8 +116,8 @@ func WithTextPrompt(prompt string) generateOption {
 
 // WithSystemPrompt adds a simple text system prompt as the first message in GenerateRequest.
 // System prompt will always be put first in the list of messages.
-func WithSystemPrompt(prompt string) generateOption {
-	return func(req *generateParams) error {
+func WithSystemPrompt(prompt string) GenerateOption {
+	return func(req *GenerateParams) error {
 		if req.SystemPrompt != nil {
 			return errors.New("cannot set system prompt (WithSystemPrompt) more than once")
 		}
@@ -127,8 +127,8 @@ func WithSystemPrompt(prompt string) generateOption {
 }
 
 // WithMessages adds provided messages to GenerateRequest.
-func WithMessages(messages ...*Message) generateOption {
-	return func(req *generateParams) error {
+func WithMessages(messages ...*Message) GenerateOption {
+	return func(req *GenerateParams) error {
 		req.Request.Messages = append(req.Request.Messages, messages...)
 		return nil
 	}
@@ -138,8 +138,8 @@ func WithMessages(messages ...*Message) generateOption {
 // History messages will always be put first in the list of messages, with the
 // exception of system prompt which will always be first.
 // [WithMessages] and [WithTextPrompt] will insert messages after system prompt and history.
-func WithHistory(history ...*Message) generateOption {
-	return func(req *generateParams) error {
+func WithHistory(history ...*Message) GenerateOption {
+	return func(req *GenerateParams) error {
 		if req.History != nil {
 			return errors.New("cannot set history (WithHistory) more than once")
 		}
@@ -149,8 +149,8 @@ func WithHistory(history ...*Message) generateOption {
 }
 
 // WithConfig adds provided config to GenerateRequest.
-func WithConfig(config any) generateOption {
-	return func(req *generateParams) error {
+func WithConfig(config any) GenerateOption {
+	return func(req *GenerateParams) error {
 		if req.Request.Config != nil {
 			return errors.New("cannot set Request.Config (WithConfig) more than once")
 		}
@@ -160,24 +160,24 @@ func WithConfig(config any) generateOption {
 }
 
 // WithCandidates adds provided candidate count to GenerateRequest.
-func WithCandidates(c int) generateOption {
-	return func(req *generateParams) error {
+func WithCandidates(c int) GenerateOption {
+	return func(req *GenerateParams) error {
 		req.Request.Candidates = c
 		return nil
 	}
 }
 
 // WithContext adds provided context to GenerateRequest.
-func WithContext(c ...any) generateOption {
-	return func(req *generateParams) error {
+func WithContext(c ...any) GenerateOption {
+	return func(req *GenerateParams) error {
 		req.Request.Context = append(req.Request.Context, c...)
 		return nil
 	}
 }
 
 // WithTools adds provided tools to GenerateRequest.
-func WithTools(tools ...Tool) generateOption {
-	return func(req *generateParams) error {
+func WithTools(tools ...Tool) GenerateOption {
+	return func(req *GenerateParams) error {
 		var toolDefs []*ToolDefinition
 		for _, t := range tools {
 			toolDefs = append(toolDefs, t.Definition())
@@ -188,8 +188,8 @@ func WithTools(tools ...Tool) generateOption {
 }
 
 // WithOutputSchema adds provided output schema to GenerateRequest.
-func WithOutputSchema(schema any) generateOption {
-	return func(req *generateParams) error {
+func WithOutputSchema(schema any) GenerateOption {
+	return func(req *GenerateParams) error {
 		if req.Request.Output != nil && req.Request.Output.Schema != nil {
 			return errors.New("cannot set Request.Output.Schema (WithOutputSchema) more than once")
 		}
@@ -203,8 +203,8 @@ func WithOutputSchema(schema any) generateOption {
 }
 
 // WithOutputFormat adds provided output format to GenerateRequest.
-func WithOutputFormat(format OutputFormat) generateOption {
-	return func(req *generateParams) error {
+func WithOutputFormat(format OutputFormat) GenerateOption {
+	return func(req *GenerateParams) error {
 		if req.Request.Output == nil {
 			req.Request.Output = &GenerateRequestOutput{}
 		}
@@ -214,8 +214,8 @@ func WithOutputFormat(format OutputFormat) generateOption {
 }
 
 // WithStreaming adds a streaming callback to the generate request.
-func WithStreaming(cb ModelStreamingCallback) generateOption {
-	return func(req *generateParams) error {
+func WithStreaming(cb ModelStreamingCallback) GenerateOption {
+	return func(req *GenerateParams) error {
 		if req.Stream != nil {
 			return errors.New("cannot set streaming callback (WithStreaming) more than once")
 		}
@@ -225,8 +225,8 @@ func WithStreaming(cb ModelStreamingCallback) generateOption {
 }
 
 // Generate run generate request for this model. Returns GenerateResponse struct.
-func Generate(ctx context.Context, m Model, opts ...generateOption) (*GenerateResponse, error) {
-	req := &generateParams{
+func Generate(ctx context.Context, m Model, opts ...GenerateOption) (*GenerateResponse, error) {
+	req := &GenerateParams{
 		Request: &GenerateRequest{},
 	}
 	for _, with := range opts {
@@ -250,7 +250,7 @@ func Generate(ctx context.Context, m Model, opts ...generateOption) (*GenerateRe
 }
 
 // GenerateText run generate request for this model. Returns generated text only.
-func GenerateText(ctx context.Context, m Model, opts ...generateOption) (string, error) {
+func GenerateText(ctx context.Context, m Model, opts ...GenerateOption) (string, error) {
 	res, err := Generate(ctx, m, opts...)
 	if err != nil {
 		return "", err
@@ -261,7 +261,7 @@ func GenerateText(ctx context.Context, m Model, opts ...generateOption) (string,
 
 // Generate run generate request for this model. Returns GenerateResponse struct.
 // TODO: Stream GenerateData with partial JSON
-func GenerateData(ctx context.Context, m Model, value any, opts ...generateOption) (*GenerateResponse, error) {
+func GenerateData(ctx context.Context, m Model, value any, opts ...GenerateOption) (*GenerateResponse, error) {
 	opts = append(opts, WithOutputSchema(value))
 	resp, err := Generate(ctx, m, opts...)
 	if err != nil {
