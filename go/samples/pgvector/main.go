@@ -93,10 +93,9 @@ func run() error {
 	}
 
 	genkit.DefineFlow("askQuestion", func(ctx context.Context, in input) (string, error) {
-		res, err := retriever.Retrieve(ctx, &ai.RetrieverRequest{
-			Document: &ai.Document{Content: []*ai.Part{ai.NewTextPart(in.Question)}},
-			Options:  in.Show,
-		})
+		res, err := ai.Retrieve(ctx, retriever,
+			ai.WithRetrieverOpts(in.Show),
+			ai.WithRetrieverText(in.Question))
 		if err != nil {
 			return "", err
 		}
@@ -114,7 +113,7 @@ func run() error {
 const provider = "pgvector"
 
 // [START retr]
-func defineRetriever(db *sql.DB, embedder ai.Embedder) *ai.Retriever {
+func defineRetriever(db *sql.DB, embedder ai.Embedder) ai.Retriever {
 	f := func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
 		eres, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(req.Document))
 		if err != nil {
@@ -159,7 +158,7 @@ func defineRetriever(db *sql.DB, embedder ai.Embedder) *ai.Retriever {
 
 // [END retr]
 
-func defineIndexer(db *sql.DB, embedder ai.Embedder) *ai.Indexer {
+func defineIndexer(db *sql.DB, embedder ai.Embedder) ai.Indexer {
 	// The indexer assumes that each Document has a single part, to be embedded, and metadata fields
 	// for the table primary key: show_id, season_number, episode_id.
 	const query = `
@@ -193,21 +192,21 @@ func defineIndexer(db *sql.DB, embedder ai.Embedder) *ai.Indexer {
 	})
 }
 
-func indexExistingRows(ctx context.Context, db *sql.DB, indexer *ai.Indexer) error {
+func indexExistingRows(ctx context.Context, db *sql.DB, indexer ai.Indexer) error {
 	rows, err := db.QueryContext(ctx, `SELECT show_id, season_number, episode_id, chunk FROM embeddings`)
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
 
-	req := &ai.IndexerRequest{}
+	var docs []*ai.Document
 	for rows.Next() {
 		var sid, chunk string
 		var sn, eid int
 		if err := rows.Scan(&sid, &sn, &eid, &chunk); err != nil {
 			return err
 		}
-		req.Documents = append(req.Documents, &ai.Document{
+		docs = append(docs, &ai.Document{
 			Content: []*ai.Part{ai.NewTextPart(chunk)},
 			Metadata: map[string]any{
 				"show_id":       sid,
@@ -219,5 +218,5 @@ func indexExistingRows(ctx context.Context, db *sql.DB, indexer *ai.Indexer) err
 	if err := rows.Err(); err != nil {
 		return err
 	}
-	return indexer.Index(ctx, req)
+	return ai.Index(ctx, indexer, ai.WithIndexerDocs(docs...))
 }

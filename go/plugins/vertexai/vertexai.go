@@ -214,7 +214,7 @@ func defineEmbedder(name string) ai.Embedder {
 //copy:sink lookups from ../googleai/googleai.go
 // DO NOT MODIFY below vvvv
 
-// Model returns the [ai.ModelAction] with the given name.
+// Model returns the [ai.Model] with the given name.
 // It returns nil if the model was not defined.
 func Model(name string) ai.Model {
 	return ai.LookupModel(provider, name)

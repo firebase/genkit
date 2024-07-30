@@ -83,7 +83,7 @@ type Config struct {
 }
 
 // DefineIndexer defines an Indexer with the given configuration.
-func DefineIndexer(ctx context.Context, cfg Config) (*ai.Indexer, error) {
+func DefineIndexer(ctx context.Context, cfg Config) (ai.Indexer, error) {
 	ds, err := newDocStore(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -92,7 +92,7 @@ func DefineIndexer(ctx context.Context, cfg Config) (*ai.Indexer, error) {
 }
 
 // DefineRetriever defines a Retriever with the given configuration.
-func DefineRetriever(ctx context.Context, cfg Config) (*ai.Retriever, error) {
+func DefineRetriever(ctx context.Context, cfg Config) (ai.Retriever, error) {
 	ds, err := newDocStore(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -143,12 +143,12 @@ func newDocStore(ctx context.Context, cfg Config) (*docStore, error) {
 }
 
 // Indexer returns the indexer with the given index name.
-func Indexer(name string) *ai.Indexer {
+func Indexer(name string) ai.Indexer {
 	return ai.LookupIndexer(provider, name)
 }
 
 // Retriever returns the retriever with the given index name.
-func Retriever(name string) *ai.Retriever {
+func Retriever(name string) ai.Retriever {
 	return ai.LookupRetriever(provider, name)
 }
 

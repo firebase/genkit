@@ -31,12 +31,15 @@ import (
 
 // Model represents a model that can perform content generation tasks.
 type Model interface {
+	// Name returns the registry name of the model.
+	Name() string
 	// Generate applies the [Model] to provided request, handling tool requests and handles streaming.
 	Generate(ctx context.Context, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error)
 }
 
-// A ModelAction is used to generate content from an AI model.
-type ModelAction core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
+type modelActionDef core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
+
+type modelAction = core.Action[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk]
 
 // ModelStreamingCallback is the type for the streaming callback of a model.
 type ModelStreamingCallback = func(context.Context, *GenerateResponseChunk) error
@@ -76,7 +79,7 @@ func DefineModel(provider, name string, metadata *ModelMetadata, generate func(c
 	}
 	metadataMap["supports"] = supports
 
-	return (*ModelAction)(core.DefineStreamingAction(provider, name, atype.Model, map[string]any{
+	return (*modelActionDef)(core.DefineStreamingAction(provider, name, atype.Model, map[string]any{
 		"model": metadataMap,
 	}, generate))
 }
@@ -89,7 +92,7 @@ func IsDefinedModel(provider, name string) bool {
 // LookupModel looks up a [Model] registered by [DefineModel].
 // It returns nil if the model was not defined.
 func LookupModel(provider, name string) Model {
-	return (*ModelAction)(core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](atype.Model, provider, name))
+	return (*modelActionDef)(core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](atype.Model, provider, name))
 }
 
 // generateParams represents various params of the Generate call.
@@ -100,11 +103,11 @@ type generateParams struct {
 	SystemPrompt *Message
 }
 
-// generateOption configures params of the Generate call.
-type generateOption func(req *generateParams) error
+// GenerateOption configures params of the Generate call.
+type GenerateOption func(req *generateParams) error
 
 // WithTextPrompt adds a simple text user prompt to GenerateRequest.
-func WithTextPrompt(prompt string) generateOption {
+func WithTextPrompt(prompt string) GenerateOption {
 	return func(req *generateParams) error {
 		req.Request.Messages = append(req.Request.Messages, NewUserTextMessage(prompt))
 		return nil
@@ -113,7 +116,7 @@ func WithTextPrompt(prompt string) generateOption {
 
 // WithSystemPrompt adds a simple text system prompt as the first message in GenerateRequest.
 // System prompt will always be put first in the list of messages.
-func WithSystemPrompt(prompt string) generateOption {
+func WithSystemPrompt(prompt string) GenerateOption {
 	return func(req *generateParams) error {
 		if req.SystemPrompt != nil {
 			return errors.New("cannot set system prompt (WithSystemPrompt) more than once")
@@ -124,7 +127,7 @@ func WithSystemPrompt(prompt string) generateOption {
 }
 
 // WithMessages adds provided messages to GenerateRequest.
-func WithMessages(messages ...*Message) generateOption {
+func WithMessages(messages ...*Message) GenerateOption {
 	return func(req *generateParams) error {
 		req.Request.Messages = append(req.Request.Messages, messages...)
 		return nil
@@ -135,7 +138,7 @@ func WithMessages(messages ...*Message) generateOption {
 // History messages will always be put first in the list of messages, with the
 // exception of system prompt which will always be first.
 // [WithMessages] and [WithTextPrompt] will insert messages after system prompt and history.
-func WithHistory(history ...*Message) generateOption {
+func WithHistory(history ...*Message) GenerateOption {
 	return func(req *generateParams) error {
 		if req.History != nil {
 			return errors.New("cannot set history (WithHistory) more than once")
@@ -146,7 +149,7 @@ func WithHistory(history ...*Message) generateOption {
 }
 
 // WithConfig adds provided config to GenerateRequest.
-func WithConfig(config any) generateOption {
+func WithConfig(config any) GenerateOption {
 	return func(req *generateParams) error {
 		if req.Request.Config != nil {
 			return errors.New("cannot set Request.Config (WithConfig) more than once")
@@ -157,7 +160,7 @@ func WithConfig(config any) generateOption {
 }
 
 // WithCandidates adds provided candidate count to GenerateRequest.
-func WithCandidates(c int) generateOption {
+func WithCandidates(c int) GenerateOption {
 	return func(req *generateParams) error {
 		req.Request.Candidates = c
 		return nil
@@ -165,7 +168,7 @@ func WithCandidates(c int) generateOption {
 }
 
 // WithContext adds provided context to GenerateRequest.
-func WithContext(c ...any) generateOption {
+func WithContext(c ...any) GenerateOption {
 	return func(req *generateParams) error {
 		req.Request.Context = append(req.Request.Context, c...)
 		return nil
@@ -173,7 +176,7 @@ func WithContext(c ...any) generateOption {
 }
 
 // WithTools adds provided tools to GenerateRequest.
-func WithTools(tools ...Tool) generateOption {
+func WithTools(tools ...Tool) GenerateOption {
 	return func(req *generateParams) error {
 		var toolDefs []*ToolDefinition
 		for _, t := range tools {
@@ -185,7 +188,7 @@ func WithTools(tools ...Tool) generateOption {
 }
 
 // WithOutputSchema adds provided output schema to GenerateRequest.
-func WithOutputSchema(schema any) generateOption {
+func WithOutputSchema(schema any) GenerateOption {
 	return func(req *generateParams) error {
 		if req.Request.Output != nil && req.Request.Output.Schema != nil {
 			return errors.New("cannot set Request.Output.Schema (WithOutputSchema) more than once")
@@ -200,7 +203,7 @@ func WithOutputSchema(schema any) generateOption {
 }
 
 // WithOutputFormat adds provided output format to GenerateRequest.
-func WithOutputFormat(format OutputFormat) generateOption {
+func WithOutputFormat(format OutputFormat) GenerateOption {
 	return func(req *generateParams) error {
 		if req.Request.Output == nil {
 			req.Request.Output = &GenerateRequestOutput{}
@@ -211,7 +214,7 @@ func WithOutputFormat(format OutputFormat) generateOption {
 }
 
 // WithStreaming adds a streaming callback to the generate request.
-func WithStreaming(cb ModelStreamingCallback) generateOption {
+func WithStreaming(cb ModelStreamingCallback) GenerateOption {
 	return func(req *generateParams) error {
 		if req.Stream != nil {
 			return errors.New("cannot set streaming callback (WithStreaming) more than once")
@@ -222,7 +225,7 @@ func WithStreaming(cb ModelStreamingCallback) generateOption {
 }
 
 // Generate run generate request for this model. Returns GenerateResponse struct.
-func Generate(ctx context.Context, m Model, opts ...generateOption) (*GenerateResponse, error) {
+func Generate(ctx context.Context, m Model, opts ...GenerateOption) (*GenerateResponse, error) {
 	req := &generateParams{
 		Request: &GenerateRequest{},
 	}
@@ -247,7 +250,7 @@ func Generate(ctx context.Context, m Model, opts ...generateOption) (*GenerateRe
 }
 
 // GenerateText run generate request for this model. Returns generated text only.
-func GenerateText(ctx context.Context, m Model, opts ...generateOption) (string, error) {
+func GenerateText(ctx context.Context, m Model, opts ...GenerateOption) (string, error) {
 	res, err := Generate(ctx, m, opts...)
 	if err != nil {
 		return "", err
@@ -258,7 +261,7 @@ func GenerateText(ctx context.Context, m Model, opts ...generateOption) (string,
 
 // Generate run generate request for this model. Returns GenerateResponse struct.
 // TODO: Stream GenerateData with partial JSON
-func GenerateData(ctx context.Context, m Model, value any, opts ...generateOption) (*GenerateResponse, error) {
+func GenerateData(ctx context.Context, m Model, value any, opts ...GenerateOption) (*GenerateResponse, error) {
 	opts = append(opts, WithOutputSchema(value))
 	resp, err := Generate(ctx, m, opts...)
 	if err != nil {
@@ -271,8 +274,8 @@ func GenerateData(ctx context.Context, m Model, value any, opts ...generateOptio
 	return resp, nil
 }
 
-// Generate applies the [ModelAction] to provided request, handling tool requests and handles streaming.
-func (m *ModelAction) Generate(ctx context.Context, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error) {
+// Generate applies the [Action] to provided request, handling tool requests and handles streaming.
+func (m *modelActionDef) Generate(ctx context.Context, req *GenerateRequest, cb ModelStreamingCallback) (*GenerateResponse, error) {
 	if m == nil {
 		return nil, errors.New("Generate called on a nil Model; check that all models are defined")
 	}
@@ -304,6 +307,8 @@ func (m *ModelAction) Generate(ctx context.Context, req *GenerateRequest, cb Mod
 		req = newReq
 	}
 }
+
+func (i *modelActionDef) Name() string { return (*modelAction)(i).Name() }
 
 // conformOutput appends a message to the request indicating conformance to the expected schema.
 func conformOutput(req *GenerateRequest) error {
