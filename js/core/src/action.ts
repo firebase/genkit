@@ -216,9 +216,15 @@ export function defineAction<
   },
   fn: (input: z.infer<I>) => Promise<z.infer<O>>
 ): Action<I, O> {
+  if (isInRuntimeContext()) {
+    throw new Error(
+      'Cannot define new actions at runtime.\n' +
+        'See: https://github.com/firebase/genkit/blob/main/docs/errors/no_new_actions_at_runtime.md'
+    );
+  }
   const act = action(config, (i: I): Promise<z.infer<O>> => {
     setCustomMetadataAttributes({ subtype: config.actionType });
-    return fn(i);
+    return runInActionRuntimeContext(() => fn(i));
   });
   act.__action.actionType = config.actionType;
   registerAction(config.actionType, act);
@@ -251,4 +257,20 @@ export function getStreamingCallback<S>(): StreamingCallback<S> | undefined {
     return undefined;
   }
   return cb;
+}
+
+const runtimeCtxAls = new AsyncLocalStorage<any>();
+
+/**
+ * Checks whether the caller is currently in the runtime context of an action.
+ */
+function isInRuntimeContext() {
+  return !!runtimeCtxAls.getStore();
+}
+
+/**
+ * Execute the provided function in the action runtime context.
+ */
+export function runInActionRuntimeContext<R>(fn: () => R) {
+  return runtimeCtxAls.run('runtime', fn);
 }

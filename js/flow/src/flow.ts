@@ -153,7 +153,7 @@ export function defineFlow<
         setTimeout(() => flow.runEnvelope(msg), delay * 1000);
       },
     },
-    steps
+    (input, streamingCallback) => steps(input, streamingCallback)
   );
   createdFlows().push(f);
   wrapAsAction(f);
