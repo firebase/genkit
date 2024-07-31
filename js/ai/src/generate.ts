@@ -74,7 +74,7 @@ export class Message<T = unknown> implements MessageData {
    *
    * @returns The structured output contained in the message.
    */
-  output(): T | null {
+  output(): T {
     return this.data() || extractJson<T>(this.text());
   }
 
@@ -360,11 +360,17 @@ export class GenerateResponseChunk<T = unknown>
   content: Part[];
   /** Custom model-specific data for this chunk. */
   custom?: unknown;
+  /** Accumulated chunks for partial output extraction. */
+  accumulatedChunks?: GenerateResponseChunkData[];
 
-  constructor(data: GenerateResponseChunkData) {
+  constructor(
+    data: GenerateResponseChunkData,
+    accumulatedChunks?: GenerateResponseChunkData[]
+  ) {
     this.index = data.index;
     this.content = data.content || [];
     this.custom = data.custom;
+    this.accumulatedChunks = accumulatedChunks;
   }
 
   /**
@@ -400,6 +406,18 @@ export class GenerateResponseChunk<T = unknown>
     return this.content.filter(
       (part) => !!part.toolRequest
     ) as ToolRequestPart[];
+  }
+
+  /**
+   * Attempts to extract the longest valid JSON substring from the accumulated chunks.
+   * @returns The longest valid JSON substring found in the accumulated chunks.
+   */
+  output(): T | null {
+    if (!this.accumulatedChunks) return null;
+    const accumulatedText = this.accumulatedChunks
+      .map((chunk) => chunk.content.map((part) => part.text || '').join(''))
+      .join('');
+    return extractJson<T>(accumulatedText, false);
   }
 
   toJSON(): GenerateResponseChunkData {
@@ -586,6 +604,7 @@ export class NoValidCandidatesError extends GenkitError {
  * @param options The options for this generation request.
  * @returns The generated response based on the provided parameters.
  */
+
 export async function generate<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
@@ -612,10 +631,20 @@ export async function generate<
   }
 
   const request = await toGenerateRequest(resolvedOptions);
+
+  const accumulatedChunks: GenerateResponseChunkData[] = [];
+
   const response = await runWithStreamingCallback(
     resolvedOptions.streamingCallback
-      ? (chunk: GenerateResponseChunkData) =>
-          resolvedOptions.streamingCallback!(new GenerateResponseChunk(chunk))
+      ? (chunk: GenerateResponseChunkData) => {
+          // Store accumulated chunk data
+          accumulatedChunks.push(chunk);
+          if (resolvedOptions.streamingCallback) {
+            resolvedOptions.streamingCallback!(
+              new GenerateResponseChunk(chunk, accumulatedChunks)
+            );
+          }
+        }
       : undefined,
     async () => new GenerateResponse<z.infer<O>>(await model(request), request)
   );

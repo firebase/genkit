@@ -38,18 +38,17 @@ func googleaiEx(ctx context.Context) error {
 	// [END initkey]
 
 	// [START model]
-	langModel := googleai.Model("gemini-1.5-flash")
+	model := googleai.Model("gemini-1.5-flash")
 	// [END model]
 
 	// [START gen]
-	genRes, err := langModel.Generate(ctx, ai.NewGenerateRequest(
-		nil, ai.NewUserTextMessage("Tell me a joke.")), nil)
+	text, err := ai.GenerateText(ctx, model, ai.WithTextPrompt("Tell me a joke."))
 	if err != nil {
 		return err
 	}
 	// [END gen]
 
-	_ = genRes
+	_ = text
 
 	var userInput string
 
@@ -58,9 +57,7 @@ func googleaiEx(ctx context.Context) error {
 	// [END embedder]
 
 	// [START embed]
-	embedRes, err := embeddingModel.Embed(ctx, &ai.EmbedRequest{
-		Documents: []*ai.Document{ai.DocumentFromText(userInput, nil)},
-	})
+	embedRes, err := ai.Embed(ctx, embeddingModel, ai.WithEmbedText(userInput))
 	if err != nil {
 		return err
 	}
@@ -68,12 +65,10 @@ func googleaiEx(ctx context.Context) error {
 
 	_ = embedRes
 
-	var myRetriever *ai.Retriever
+	var myRetriever ai.Retriever
 
 	// [START retrieve]
-	retrieveRes, err := myRetriever.Retrieve(ctx, &ai.RetrieverRequest{
-		Document: ai.DocumentFromText(userInput, nil),
-	})
+	retrieveRes, err := ai.Retrieve(ctx, myRetriever, ai.WithRetrieverText(userInput))
 	if err != nil {
 		return err
 	}
@@ -81,11 +76,11 @@ func googleaiEx(ctx context.Context) error {
 
 	_ = retrieveRes
 
-	var myIndexer *ai.Indexer
+	var myIndexer ai.Indexer
 	var docsToIndex []*ai.Document
 
 	// [START index]
-	if err := myIndexer.Index(ctx, &ai.IndexerRequest{Documents: docsToIndex}); err != nil {
+	if err := ai.Index(ctx, myIndexer, ai.WithIndexerDocs(docsToIndex...)); err != nil {
 		return err
 	}
 	// [END index]

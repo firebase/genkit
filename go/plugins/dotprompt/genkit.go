@@ -135,7 +135,11 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.GenerateReque
 		Schema: outputSchema,
 	}
 
-	req.Tools = p.Tools
+	var tds []*ai.ToolDefinition
+	for _, t := range p.Tools {
+		tds = append(tds, t.Definition())
+	}
+	req.Tools = tds
 
 	return req, nil
 }

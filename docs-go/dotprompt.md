@@ -32,40 +32,34 @@ You are the world's most welcoming AI assistant and are currently working at {{l
 Greet a guest{{#if name}} named {{name}}{{/if}}{{#if style}} in the style of {{style}}{{/if}}.{% endverbatim %}
 ```
 
-To use this prompt:
+To use this prompt, install the `dotprompt` plugin:
 
-- {Go}
+```posix-terminal
+go get github.com/firebase/genkit/go/plugins/dotprompt
+```
 
-  Install the `dotprompt` plugin:
+Then, load the prompt using `Open`:
 
-  ```posix-terminal
-  go get github.com/firebase/genkit/go/plugins/dotprompt
-  ```
+```go
+import "github.com/firebase/genkit/go/plugins/dotprompt"
+```
 
-  Then, load the prompt using `Open`:
+```golang
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot01_1" adjust_indentation="auto" %}
+```
 
-  ```go
-  import "github.com/firebase/genkit/go/plugins/dotprompt"
-  ```
+You can call the prompt's `Generate` method to render the template and pass it
+to the model API in one step:
 
-  ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot01_1" adjust_indentation="auto" %}
-  ```
-
-  You can call the prompt's `Generate` method to render the template and pass it
-  to the model API in one step:
-
-  ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot01_2" adjust_indentation="auto" %}
-  ```
+```golang
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot01_2" adjust_indentation="auto" %}
+```
 
 Or just render the template to a string:
 
-- {Go}
-
-  ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot01_3" adjust_indentation="auto" %}
-  ```
+```golang
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot01_3" adjust_indentation="auto" %}
+```
 
 Dotprompt's syntax is based on the [Handlebars](https://handlebarsjs.com/guide/)
 templating language. You can use the `if`, `unless`, and `each` helpers to add
@@ -187,11 +181,9 @@ output:
 While `.prompt` files allow you to embed metadata such as model configuration in
 the file itself, you can also override these values on a per-call basis:
 
-- {Go}
-
-  ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot02" adjust_indentation="auto" %}
-  ```
+```golang
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot02" adjust_indentation="auto" %}
+```
 
 <!-- TODO: structured output unimplemented? -->
 
@@ -241,11 +233,9 @@ Describe this image in a detailed paragraph:
 The URL can be `https://` or base64-encoded `data:` URIs for "inline" image
 usage. In code, this would be:
 
-- {Go}
-
-  ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot03" adjust_indentation="auto" %}
-  ```
+```golang
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot03" adjust_indentation="auto" %}
+```
 
 ## Prompt Variants
 
@@ -264,21 +254,17 @@ Pro would perform better, you might create two files:
 
 To use a prompt variant, specify the variant when loading:
 
-- {Go}
-
-  ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot04" adjust_indentation="auto" %}
-  ```
+```golang
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot04" adjust_indentation="auto" %}
+```
 
 The prompt loader will attempt to load the variant of that name, and fall back
 to the baseline if none exists. This means you can use conditional loading based
 on whatever criteria makes sense for your application:
 
-- {Go}
-
-  ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot05" adjust_indentation="auto" %}
-  ```
+```golang
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/dotprompt.go" region_tag="dot05" adjust_indentation="auto" %}
+```
 
 The name of the variant is included in the metadata of generation traces, so you
 can compare and contrast actual performance between variants in the Genkit trace

@@ -37,7 +37,7 @@ import {
   toFrontmatter,
   toMetadata,
 } from './metadata.js';
-import { registryDefinitionKey } from './registry.js';
+import { lookupPrompt, registryDefinitionKey } from './registry.js';
 import { compile } from './template.js';
 
 export type PromptData = PromptFrontmatter & { template: string };
@@ -175,7 +175,7 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
     });
     return {
       model: options.model || this.model!,
-      config: { ...this.config, ...options.config } || {},
+      config: { ...this.config, ...options.config },
       history: messages.slice(0, messages.length - 1),
       prompt: messages[messages.length - 1].content,
       context: options.context,
@@ -207,6 +207,49 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
     opt: PromptGenerateOptions<Variables>
   ): Promise<GenerateStreamResponse> {
     return generateStream(this.render(opt));
+  }
+}
+
+export class DotpromptRef<Variables = unknown> {
+  name: string;
+  variant?: string;
+  dir?: string;
+  private _prompt?: Dotprompt<Variables>;
+
+  constructor(
+    name: string,
+    options?: {
+      variant?: string;
+      dir?: string;
+    }
+  ) {
+    this.name = name;
+    this.variant = options?.variant;
+    this.dir = options?.dir;
+  }
+
+  async loadPrompt(): Promise<Dotprompt<Variables>> {
+    if (this._prompt) return this._prompt;
+    this._prompt = (await lookupPrompt(
+      this.name,
+      this.variant,
+      this.dir
+    )) as Dotprompt<Variables>;
+    return this._prompt;
+  }
+
+  async generate<O extends z.ZodTypeAny = z.ZodTypeAny>(
+    opt: PromptGenerateOptions<Variables>
+  ): Promise<GenerateResponse<z.infer<O>>> {
+    const prompt = await this.loadPrompt();
+    return prompt.generate<O>(opt);
+  }
+
+  async render<O extends z.ZodTypeAny = z.ZodTypeAny>(
+    opt: PromptGenerateOptions<Variables>
+  ): Promise<GenerateOptions<z.ZodTypeAny, O>> {
+    const prompt = await this.loadPrompt();
+    return prompt.render<O>(opt);
   }
 }
 

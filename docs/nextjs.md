@@ -31,7 +31,7 @@ Node.js 20 or later.
     genkit init
     ```
 
-    - Select **Next.js** as the deployment platform.
+    - Confirm _yes_ when prompted whether to automatically configure Genkit for Next.js.
     - Select the model provider you want to use.
 
     Accept the defaults for the remaining prompts. The `genkit` tool will create

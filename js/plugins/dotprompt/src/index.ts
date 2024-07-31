@@ -22,7 +22,7 @@ import {
 
 import { readFileSync } from 'fs';
 import { basename } from 'path';
-import { defineDotprompt, Dotprompt } from './prompt.js';
+import { defineDotprompt, Dotprompt, DotpromptRef } from './prompt.js';
 import { loadPromptFolder, lookupPrompt } from './registry.js';
 
 export { defineHelper, definePartial } from './template.js';
@@ -55,6 +55,13 @@ export async function prompt<Variables = unknown>(
   options?: { variant?: string }
 ): Promise<Dotprompt<Variables>> {
   return (await lookupPrompt(name, options?.variant)) as Dotprompt<Variables>;
+}
+
+export function promptRef<Variables = unknown>(
+  name: string,
+  options?: { variant?: string; dir?: string }
+): DotpromptRef<Variables> {
+  return new DotpromptRef(name, options);
 }
 
 export function loadPromptFile(path: string): Dotprompt {

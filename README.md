@@ -1,3 +1,5 @@
+[![Run e2e tests](https://github.com/firebase/genkit/actions/workflows/e2e-tests.yml/badge.svg)](https://github.com/firebase/genkit/actions/workflows/e2e-tests.yml)
+
 ![Firebase Genkit logo](docs/resources/genkit-logo-dark.png#gh-dark-mode-only 'Firebase Genkit')
 ![Firebase Genkit logo](docs/resources/genkit-logo.png#gh-light-mode-only 'Firebase Genkit')
 
@@ -80,7 +82,7 @@ Extend Genkit with plugins for specific AI models, vector databases, and platfor
 Create and share your own plugins:
 
 - **Write Node.js plugins:** [Plugin Authoring Guide](https://firebase.google.com/docs/genkit/plugin-authoring)
-- **Write Go plugins:** (Documentation coming soon)
+- **Write Go plugins:** [Plugin Authoring Guide](https://firebase.google.com/docs/genkit-go/plugin-authoring)
 
 Find excellent examples of community-built plugins for OpenAI, Anthropic, Cohere, and more in this [repository](https://github.com/TheFireCo/genkit-plugins).
 
@@ -89,6 +91,16 @@ Find excellent examples of community-built plugins for OpenAI, Anthropic, Cohere
 <img src="docs/resources/idx-logo.png" width="50" alt="Project IDX logo">
 
 Want to try Genkit without a local setup? [Explore it on Project IDX](https://idx.google.com/new/genkit), Google's AI-assisted workspace for full-stack app development in the cloud.
+
+## Sample apps
+
+Take a look at some samples of Genkit in use:
+
+- ["AI barista"](samples/js-coffee-shop/) -- demonstrates simple LLM usage
+- [A simple chatbot with a JavaScript frontend](samples/chatbot/) -- add history to LLM sessions
+- [Restaurant menu Q&A app](samples/js-menu/) -- this sample shows progressively
+  more sophisticated versions of a menu understanding app.
+- [Streaming to an Angular frontend](samples/js-angular/)
 
 ## Connect with us
 

@@ -36,7 +36,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 
 	"github.com/firebase/genkit/go/ai"
@@ -120,11 +119,7 @@ func main() {
 		var callback func(context.Context, *ai.GenerateResponseChunk) error
 		if cb != nil {
 			callback = func(ctx context.Context, c *ai.GenerateResponseChunk) error {
-				text, err := c.Text()
-				if err != nil {
-					return err
-				}
-				return cb(ctx, text)
+				return cb(ctx, c.Text())
 			}
 		}
 		resp, err := simpleGreetingPrompt.Generate(ctx,
@@ -136,11 +131,7 @@ func main() {
 		if err != nil {
 			return "", err
 		}
-		text, err := resp.Text()
-		if err != nil {
-			return "", fmt.Errorf("simpleGreeting: %v", err)
-		}
-		return text, nil
+		return resp.Text(), nil
 	})
 
 	greetingWithHistoryPrompt, err := dotprompt.Define("greetingWithHistory", greetingWithHistoryPromptTemplate,
@@ -164,11 +155,7 @@ func main() {
 		if err != nil {
 			return "", err
 		}
-		text, err := resp.Text()
-		if err != nil {
-			return "", fmt.Errorf("greetingWithHistory: %v", err)
-		}
-		return text, nil
+		return resp.Text(), nil
 	})
 
 	simpleStructuredGreetingPrompt, err := dotprompt.Define("simpleStructuredGreeting", simpleStructuredGreetingPromptTemplate,
@@ -187,11 +174,7 @@ func main() {
 		var callback func(context.Context, *ai.GenerateResponseChunk) error
 		if cb != nil {
 			callback = func(ctx context.Context, c *ai.GenerateResponseChunk) error {
-				text, err := c.Text()
-				if err != nil {
-					return err
-				}
-				return cb(ctx, text)
+				return cb(ctx, c.Text())
 			}
 		}
 		resp, err := simpleStructuredGreetingPrompt.Generate(ctx,
@@ -203,11 +186,7 @@ func main() {
 		if err != nil {
 			return "", err
 		}
-		text, err := resp.Text()
-		if err != nil {
-			return "", fmt.Errorf("simpleStructuredGreeting: %v", err)
-		}
-		return text, nil
+		return resp.Text(), nil
 	})
 
 	genkit.DefineFlow("testAllCoffeeFlows", func(ctx context.Context, _ struct{}) (*testAllCoffeeFlowsOutput, error) {

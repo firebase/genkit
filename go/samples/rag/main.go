@@ -36,7 +36,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"strings"
 
@@ -99,19 +98,13 @@ func main() {
 		d2 := ai.DocumentFromText("USA is the largest importer of coffee", nil)
 		d3 := ai.DocumentFromText("Water exists in 3 states - solid, liquid and gas", nil)
 
-		indexerReq := &ai.IndexerRequest{
-			Documents: []*ai.Document{d1, d2, d3},
-		}
-		err := indexer.Index(ctx, indexerReq)
+		err := ai.Index(ctx, indexer, ai.WithIndexerDocs(d1, d2, d3))
 		if err != nil {
 			return "", err
 		}
 
 		dRequest := ai.DocumentFromText(input.Question, nil)
-		retrieverReq := &ai.RetrieverRequest{
-			Document: dRequest,
-		}
-		response, err := retriever.Retrieve(ctx, retrieverReq)
+		response, err := ai.Retrieve(ctx, retriever, ai.WithRetrieverDoc(dRequest))
 		if err != nil {
 			return "", err
 		}
@@ -136,11 +129,7 @@ func main() {
 		if err != nil {
 			return "", err
 		}
-		text, err := resp.Text()
-		if err != nil {
-			return "", fmt.Errorf("simpleQa: %v", err)
-		}
-		return text, nil
+		return resp.Text(), nil
 	})
 
 	if err := genkit.Init(context.Background(), nil); err != nil {

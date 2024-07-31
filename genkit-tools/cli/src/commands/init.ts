@@ -21,7 +21,7 @@ import * as inquirer from 'inquirer';
 import { initGo } from './init/init-go';
 import { initNodejs } from './init/init-nodejs';
 
-export type Platform = 'firebase' | 'googlecloud' | 'other';
+export type Platform = 'firebase' | 'other';
 export type ModelProvider = 'googleai' | 'vertexai' | 'ollama' | 'none';
 export type WriteMode = 'keep' | 'overwrite' | 'merge';
 

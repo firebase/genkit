@@ -42,7 +42,7 @@ your plugin and use it consistently when required by a Genkit function.
 const providerID = "yourplugin"
 ```
 
-### Standsrd exports
+### Standard exports
 
 Every plugin should define and export the following symbols:
 
@@ -96,6 +96,14 @@ registry. A model represents any generative model that is capable of receiving a
 prompt as input and generating text, media, or data as output.
 
 See [Writing a Genkit model plugin](plugin-authoring-models).
+
+### Telemetry plugins
+
+Genkit telemetry plugins configure Genkit's OpenTelemetry instrumentation to
+export traces, metrics, and logs to a particular monitoring or visualization
+tool.
+
+See [Writing a Genkit telemetry plugin](plugin-authoring-telemetry).
 
 ## Publishing a plugin
 

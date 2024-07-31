@@ -36,13 +36,13 @@ toc:
   - title: Deploy with any hosting service
     path: /docs/genkit-go/deploy
 
-  # - heading: Writing plugins
-  # - title: Overview
-  #   path: /docs/genkit-go/plugin-authoring
-  # - title: Writing a Telemetry Plugin
-  #   path: /docs/genkit-go/plugin-authoring-telemetry
-  # - title: Writing an Evaluator Plugin
-  #   path: /docs/genkit-go/plugin-authoring-evaluator
+  - heading: Writing plugins
+  - title: Overview
+    path: /docs/genkit-go/plugin-authoring
+  - title: Writing a model plugin
+    path: /docs/genkit-go/plugin-authoring-models
+  - title: Writing a telemetry plugin
+    path: /docs/genkit-go/plugin-authoring-telemetry
 
   - heading: Official plugins
   - title: Google AI for Developers

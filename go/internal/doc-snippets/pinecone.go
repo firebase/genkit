@@ -51,10 +51,10 @@ func pineconeEx(ctx context.Context) error {
 	var docChunks []*ai.Document
 
 	// [START index]
-	if err := menuIndexer.Index(
+	if err := ai.Index(
 		ctx,
-		&ai.IndexerRequest{Documents: docChunks, Options: nil},
-	); err != nil {
+		menuIndexer,
+		ai.WithIndexerDocs(docChunks...)); err != nil {
 		return err
 	}
 	// [END index]

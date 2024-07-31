@@ -17,7 +17,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 
 	"github.com/firebase/genkit/go/ai"
@@ -25,29 +24,21 @@ import (
 	"github.com/firebase/genkit/go/plugins/dotprompt"
 )
 
-var menuToolDef = &ai.ToolDefinition{
-	Name: "todaysMenu",
-	OutputSchema: map[string]any{
-		"menuData": []menuItem{},
-	},
-	Description: "Use this tool to retrieve all the items on today's menu",
-}
-
-func menu(ctx context.Context, input map[string]any) (map[string]any, error) {
+func menu(ctx context.Context, _ *any) ([]*menuItem, error) {
 	f, err := os.Open("testdata/menu.json")
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	var s []any
+	var s []*menuItem
 	if err := json.NewDecoder(f).Decode(&s); err != nil {
 		return nil, err
 	}
-	return map[string]any{"menu": s}, nil
+	return s, nil
 }
 
-func setup02(ctx context.Context, m *ai.Model) error {
-	ai.DefineTool(menuToolDef, nil, menu)
+func setup02(_ context.Context, m ai.Model) error {
+	menuTool := ai.DefineTool("todaysMenu", "Use this tool to retrieve all the items on today's menu", menu)
 
 	dataMenuPrompt, err := dotprompt.Define("s02_dataMenu",
 		`You are acting as a helpful AI assistant named Walt that can answer
@@ -64,9 +55,7 @@ func setup02(ctx context.Context, m *ai.Model) error {
 			Model:        m,
 			InputSchema:  menuQuestionInputSchema,
 			OutputFormat: ai.OutputFormatText,
-			Tools: []*ai.ToolDefinition{
-				menuToolDef,
-			},
+			Tools:        []ai.Tool{menuTool},
 		},
 	)
 	if err != nil {
@@ -85,11 +74,7 @@ func setup02(ctx context.Context, m *ai.Model) error {
 				return nil, err
 			}
 
-			text, err := resp.Text()
-			if err != nil {
-				return nil, fmt.Errorf("s02MenuQuestionFlow: %v", err)
-			}
-			return &answerOutput{Answer: text}, nil
+			return &answerOutput{Answer: resp.Text()}, nil
 		},
 	)
 
