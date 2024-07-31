@@ -105,8 +105,9 @@ type Flow[In, Out, Stream any] struct {
 	// TODO: middleware
 }
 
+// runOptions configures a single flow run.
 type runOptions struct {
-	localAuth any
+	localAuth any // Auth context to pass to auth policy checker when calling a flow directly.
 }
 
 type noStream = func(context.Context, struct{}) error
@@ -123,7 +124,7 @@ type streamingCallback[Stream any] func(context.Context, Stream) error
 // flowOption modifies the flow with the provided option.
 type flowOption[In, Out, Stream any] func(f *Flow[In, Out, Stream]) error
 
-// flowRunOption modifies the flow run with the provided option.
+// flowRunOption modifies a flow run with the provided option.
 type flowRunOption func(opts runOptions) error
 
 // WithAuth sets auth policy and provider in the flow.
