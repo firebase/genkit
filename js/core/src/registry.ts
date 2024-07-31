@@ -15,7 +15,7 @@
  */
 
 import * as z from 'zod';
-import { Action } from './action.js';
+import { Action, isInRuntimeContext } from './action.js';
 import { FlowStateStore } from './flowTypes.js';
 import { logger } from './logging.js';
 import { PluginProvider } from './plugin.js';
@@ -126,10 +126,19 @@ type ActionsRecord = Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>>;
  * Returns all actions in the registry.
  */
 export async function listActions(): Promise<ActionsRecord> {
+  maybeInitializeAllPlugins();
+  return Object.assign({}, actionsById());
+}
+
+let initializedAllPlugins = false;
+export async function maybeInitializeAllPlugins() {
+  if (initializedAllPlugins) {
+    return;
+  }
   for (const pluginName of Object.keys(pluginsByName())) {
     await initializePlugin(pluginName);
   }
-  return Object.assign({}, actionsById());
+  initializedAllPlugins = true;
 }
 
 /**
@@ -196,13 +205,15 @@ export async function lookupFlowStateStore(
  */
 export function registerPluginProvider(name: string, provider: PluginProvider) {
   let cached;
+  let isInitialized = false;
   pluginsByName()[name] = {
     name: provider.name,
     initializer: () => {
-      if (cached) {
+      if (isInitialized) {
         return cached;
       }
       cached = provider.initializer();
+      isInitialized = true;
       return cached;
     },
   };

@@ -18,7 +18,7 @@ import { JSONSchema7 } from 'json-schema';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { performance } from 'node:perf_hooks';
 import * as z from 'zod';
-import { ActionType, lookupPlugin, registerAction } from './registry.js';
+import { ActionType, lookupPlugin, maybeInitializeAllPlugins, registerAction } from './registry.js';
 import { parseSchema } from './schema.js';
 import * as telemetry from './telemetry.js';
 import {
@@ -222,9 +222,10 @@ export function defineAction<
         'See: https://github.com/firebase/genkit/blob/main/docs/errors/no_new_actions_at_runtime.md'
     );
   }
-  const act = action(config, (i: I): Promise<z.infer<O>> => {
+  const act = action(config, async (i: I): Promise<z.infer<O>> => {
     setCustomMetadataAttributes({ subtype: config.actionType });
-    return runInActionRuntimeContext(() => fn(i));
+    await maybeInitializeAllPlugins();
+    return await runInActionRuntimeContext(() => fn(i));
   });
   act.__action.actionType = config.actionType;
   registerAction(config.actionType, act);
@@ -264,7 +265,7 @@ const runtimeCtxAls = new AsyncLocalStorage<any>();
 /**
  * Checks whether the caller is currently in the runtime context of an action.
  */
-function isInRuntimeContext() {
+export function isInRuntimeContext() {
   return !!runtimeCtxAls.getStore();
 }
 
