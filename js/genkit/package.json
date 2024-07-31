@@ -115,10 +115,10 @@
       "default": "./lib/ai/model.js"
     },
     "./ai/model/middleware": {
-      "types": "./lib/ai/model/middleware.d.ts",
-      "require": "./lib/ai/model/middleware.js",
-      "import": "./lib/ai/model/middleware.mjs",
-      "default": "./lib/ai/model/middleware.js"
+      "types": "./lib/ai/middleware.d.ts",
+      "require": "./lib/ai/middleware.js",
+      "import": "./lib/ai/middleware.mjs",
+      "default": "./lib/ai/middleware.js"
     },
     "./ai/extract": {
       "types": "./lib/ai/extract.d.ts",
