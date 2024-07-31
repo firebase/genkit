@@ -47,7 +47,7 @@ var state struct {
 	serverAddress string
 }
 
-func DefineModel(model ModelDefinition, caps *ai.ModelCapabilities) *ai.Model {
+func DefineModel(model ModelDefinition, caps *ai.ModelCapabilities) ai.Model {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
@@ -79,7 +79,7 @@ func IsDefinedModel(name string) bool {
 
 // Model returns the [ai.Model] with the given name.
 // It returns nil if the model was not configured.
-func Model(name string) *ai.Model {
+func Model(name string) ai.Model {
 	return ai.LookupModel(provider, name)
 }
 

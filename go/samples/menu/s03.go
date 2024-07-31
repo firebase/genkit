@@ -55,7 +55,7 @@ func (ch *chatHistoryStore) Retrieve(sessionID string) chatHistory {
 	return ch.preamble
 }
 
-func setup03(ctx context.Context, model *ai.Model) error {
+func setup03(ctx context.Context, model ai.Model) error {
 	chatPreamblePrompt, err := dotprompt.Define("s03_chatPreamble",
 		`
 		  {{ role "user" }}
@@ -112,10 +112,7 @@ func setup03(ctx context.Context, model *ai.Model) error {
 				Role: ai.RoleUser,
 			}
 			messages := append(slices.Clip(history), msg)
-			req := &ai.GenerateRequest{
-				Messages: messages,
-			}
-			resp, err := model.Generate(ctx, req, nil)
+			resp, err := ai.Generate(ctx, model, ai.WithMessages(messages...))
 			if err != nil {
 				return nil, err
 			}

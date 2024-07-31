@@ -22,7 +22,7 @@ import {
 import { GoogleAuth } from 'google-auth-library';
 import { z } from 'zod';
 import { PluginOptions } from './index.js';
-import { predictModel } from './predict.js';
+import { PredictClient, predictModel } from './predict.js';
 
 export const TaskTypeSchema = z.enum([
   'RETRIEVAL_DOCUMENT',
@@ -40,6 +40,7 @@ export const TextEmbeddingGeckoConfigSchema = z.object({
    **/
   taskType: TaskTypeSchema.optional(),
   title: z.string().optional(),
+  location: z.string().optional(),
 });
 export type TextEmbeddingGeckoConfig = z.infer<
   typeof TextEmbeddingGeckoConfigSchema
@@ -149,12 +150,31 @@ export function textEmbeddingGeckoEmbedder(
   options: PluginOptions
 ) {
   const embedder = SUPPORTED_EMBEDDER_MODELS[name];
-  // TODO: Figure out how to allow different versions while still sharing a single implementation.
-  const predict = predictModel<EmbeddingInstance, EmbeddingPrediction>(
-    client,
-    options,
-    name
-  );
+  const predictClients: Record<
+    string,
+    PredictClient<EmbeddingInstance, EmbeddingPrediction>
+  > = {};
+  const predictClientFactory = (
+    config: TextEmbeddingGeckoConfig
+  ): PredictClient<EmbeddingInstance, EmbeddingPrediction> => {
+    const requestLocation = config?.location || options.location;
+    if (!predictClients[requestLocation]) {
+      // TODO: Figure out how to allow different versions while still sharing a single implementation.
+      predictClients[requestLocation] = predictModel<
+        EmbeddingInstance,
+        EmbeddingPrediction
+      >(
+        client,
+        {
+          ...options,
+          location: requestLocation,
+        },
+        name
+      );
+    }
+    return predictClients[requestLocation];
+  };
+
   return defineEmbedder(
     {
       name: embedder.name,
@@ -162,7 +182,8 @@ export function textEmbeddingGeckoEmbedder(
       info: embedder.info!,
     },
     async (input, options) => {
-      const response = await predict(
+      const predictClient = predictClientFactory(options);
+      const response = await predictClient(
         input.map((i) => {
           return {
             content: i.text(),

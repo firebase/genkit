@@ -7,13 +7,22 @@ To get started with Firebase Genkit, install the Genkit CLI and run
 
 Node.js 20 or later.
 
-## Procedure
+Recommendation: The [`nvm`](https://github.com/nvm-sh/nvm) and
+[`nvm-windows`](https://github.com/coreybutler/nvm-windows) tools are a
+convenient way to install Node.
 
-1.  Install the Genkit CLI by running the following command:
+## Install Genkit {:#install}
 
-    ```posix-terminal
-    npm i -g genkit
-    ```
+Install the Genkit CLI by running the following command:
+
+```posix-terminal
+npm i -g genkit
+```
+
+This command installs the Genkit CLI into your Node installation directory
+so that it can be used outside of a Node project.
+
+## Create and explore a sample project {:#explore}
 
 1.  Create a new Node project:
 
@@ -31,9 +40,6 @@ Node.js 20 or later.
     ```posix-terminal
     genkit init
     ```
-
-    1. Select **Other platform** as the deployment platform option (templates for
-       Firebase Cloud Functions and Google Cloud Run are also available).
 
     1. Select your model:
 

@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-import { ModelReference } from '@genkit-ai/ai/model';
+import { GenerateRequest, ModelReference } from '@genkit-ai/ai/model';
+import { IndexerAction, RetrieverAction } from '@genkit-ai/ai/retriever';
 import { genkitPlugin, Plugin } from '@genkit-ai/core';
 import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
+import z from 'zod';
 import {
   anthropicModel,
   claude35Sonnet,
@@ -47,14 +49,40 @@ import {
   gemini15FlashPreview,
   gemini15Pro,
   gemini15ProPreview,
+  GeminiConfigSchema,
   geminiModel,
   geminiPro,
   geminiProVision,
   SUPPORTED_GEMINI_MODELS,
 } from './gemini.js';
 import { imagen2, imagen2Model } from './imagen.js';
-
+import {
+  llama3,
+  llama31,
+  modelGardenOpenaiCompatibleModel,
+  SUPPORTED_OPENAI_FORMAT_MODELS,
+} from './model_garden.js';
+import {
+  VectorSearchOptions,
+  vertexAiIndexers,
+  vertexAiRetrievers,
+} from './vector-search';
 export {
+  DocumentIndexer,
+  DocumentRetriever,
+  getBigQueryDocumentIndexer,
+  getBigQueryDocumentRetriever,
+  getFirestoreDocumentIndexer,
+  getFirestoreDocumentRetriever,
+  Neighbor,
+  VectorSearchOptions,
+  vertexAiIndexerRef,
+  vertexAiIndexers,
+  vertexAiRetrieverRef,
+  vertexAiRetrievers,
+} from './vector-search';
+export {
+  VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
   claude35Sonnet,
   claude3Haiku,
   claude3Opus,
@@ -66,6 +94,8 @@ export {
   geminiPro,
   geminiProVision,
   imagen2,
+  llama3,
+  llama31,
   textEmbedding004,
   textEmbeddingGecko,
   textEmbeddingGecko001,
@@ -73,7 +103,6 @@ export {
   textEmbeddingGecko003,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
-  VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
 };
 
 export interface PluginOptions {
@@ -87,7 +116,16 @@ export interface PluginOptions {
   evaluation?: {
     metrics: VertexAIEvaluationMetric[];
   };
+  /**
+   * @deprecated use `modelGarden.models`
+   */
   modelGardenModels?: ModelReference<any>[];
+  modelGarden?: {
+    models: ModelReference<any>[];
+    openAiBaseUrlTemplate?: string;
+  };
+  /** Configure Vertex AI vector search index options */
+  vectorSearchOptions?: VectorSearchOptions<z.ZodTypeAny, any, any>[];
 }
 
 const CLOUD_PLATFROM_OAUTH_SCOPE =
@@ -103,8 +141,8 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       options?.googleAuth ?? { scopes: [CLOUD_PLATFROM_OAUTH_SCOPE] }
     );
     const projectId = options?.projectId || (await authClient.getProjectId());
-    const location = options?.location || 'us-central1';
 
+    const location = options?.location || 'us-central1';
     const confError = (parameter: string, envVariableName: string) => {
       return new Error(
         `VertexAI Plugin is missing the '${parameter}' configuration. Please set the '${envVariableName}' environment variable or explicitly pass '${parameter}' into genkit config.`
@@ -117,11 +155,20 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       throw confError('project', 'GCLOUD_PROJECT');
     }
 
-    const vertexClient = new VertexAI({
-      project: projectId,
-      location,
-      googleAuthOptions: options?.googleAuth,
-    });
+    const vertexClientFactoryCache: Record<string, VertexAI> = {};
+    const vertexClientFactory = (
+      request: GenerateRequest<typeof GeminiConfigSchema>
+    ): VertexAI => {
+      const requestLocation = request.config?.location || location;
+      if (!vertexClientFactoryCache[requestLocation]) {
+        vertexClientFactoryCache[requestLocation] = new VertexAI({
+          project: projectId,
+          location: requestLocation,
+          googleAuthOptions: options?.googleAuth,
+        });
+      }
+      return vertexClientFactoryCache[requestLocation];
+    };
     const metrics =
       options?.evaluation && options.evaluation.metrics.length > 0
         ? options.evaluation.metrics
@@ -130,30 +177,72 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
     const models = [
       imagen2Model(authClient, { projectId, location }),
       ...Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
-        geminiModel(name, vertexClient, { projectId, location })
+        geminiModel(name, vertexClientFactory, { projectId, location })
       ),
     ];
 
-    if (options?.modelGardenModels) {
-      options?.modelGardenModels.forEach((m) => {
-        const entry = Object.entries(SUPPORTED_ANTHROPIC_MODELS).find(
+    if (options?.modelGardenModels || options?.modelGarden?.models) {
+      const mgModels =
+        options?.modelGardenModels || options?.modelGarden?.models;
+      mgModels!.forEach((m) => {
+        const anthropicEntry = Object.entries(SUPPORTED_ANTHROPIC_MODELS).find(
           ([_, value]) => value.name === m.name
         );
-        if (!entry) {
-          throw new Error(`Unsupported model garden model: ${m.name}`);
+        if (anthropicEntry) {
+          models.push(anthropicModel(anthropicEntry[0], projectId, location));
+          return;
         }
-        models.push(anthropicModel(entry[0], projectId, location));
+        const openaiModel = Object.entries(SUPPORTED_OPENAI_FORMAT_MODELS).find(
+          ([_, value]) => value.name === m.name
+        );
+        if (openaiModel) {
+          models.push(
+            modelGardenOpenaiCompatibleModel(
+              openaiModel[0],
+              projectId,
+              location,
+              authClient,
+              options.modelGarden?.openAiBaseUrlTemplate
+            )
+          );
+          return;
+        }
+        throw new Error(`Unsupported model garden model: ${m.name}`);
+      });
+    }
+
+    const embedders = Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
+      textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
+    );
+
+    let indexers: IndexerAction<z.ZodTypeAny>[] = [];
+    let retrievers: RetrieverAction<z.ZodTypeAny>[] = [];
+
+    if (
+      options?.vectorSearchOptions &&
+      options.vectorSearchOptions.length > 0
+    ) {
+      const defaultEmbedder = embedders[0];
+
+      indexers = vertexAiIndexers({
+        pluginOptions: options,
+        authClient,
+        defaultEmbedder,
+      });
+
+      retrievers = vertexAiRetrievers({
+        pluginOptions: options,
+        authClient,
+        defaultEmbedder,
       });
     }
 
     return {
       models,
-      embedders: [
-        ...Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
-          textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
-        ),
-      ],
+      embedders,
       evaluators: vertexEvaluators(authClient, metrics, projectId, location),
+      retrievers,
+      indexers,
     };
   }
 );

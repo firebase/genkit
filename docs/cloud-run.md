@@ -45,12 +45,10 @@ flow.
     genkit init
     ```
 
-    - Select **Google Cloud** as the deployment platform.
-    - Select the model provider you want to use.
-
-    Accept the defaults for the remaining prompts. The `genkit` tool will create
-    some sample source files to get you started developing your own AI flows.
-    For the rest of this tutorial, however, you'll just deploy the sample flow.
+    Select the model provider you want to use. Accept the defaults for the
+    remaining prompts. The `genkit` tool will create some sample source files
+    to get you started developing your own AI flows. For the rest of this
+    tutorial, however, you'll just deploy the sample flow.
 
 1.  Make API credentials available to your deployed function. Do one of the
     following, depending on the model provider you chose:

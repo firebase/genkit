@@ -17,7 +17,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "0.5.7",
+  "version": "0.5.8",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
@@ -25,7 +25,7 @@
     "build:clean": "rm -rf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
-    "test": "tsx --test ./tests/*_test.ts"
+    "test": "tsx --test ./tests/**/*_test.ts"
   },
   "repository": {
     "type": "git",
@@ -40,10 +40,22 @@
     "@genkit-ai/ai": "workspace:*",
     "@genkit-ai/core": "workspace:*",
     "@genkit-ai/flow": "workspace:*",
+    "@google-cloud/aiplatform": "^3.23.0",
     "@google-cloud/vertexai": "^1.1.0",
     "google-auth-library": "^9.6.3",
+    "googleapis": "^140.0.1",
     "node-fetch": "^3.3.2",
+    "openai": "^4.52.7"
+  },
+  "peerDependencies": {
+    "@genkit-ai/ai": "workspace:*",
+    "@genkit-ai/core": "workspace:*",
+    "@genkit-ai/flow": "workspace:*",
     "zod": "^3.22.4"
+  },
+  "optionalDependencies": {
+    "firebase-admin": "^12.1.0",
+    "@google-cloud/bigquery": "^7.8.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.16",

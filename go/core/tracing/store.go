@@ -39,7 +39,7 @@ type Store interface {
 
 	// LoadAny is like Load, but accepts a pointer to any type.
 	// It is for testing (see conformance_test.go).
-	// TODO(jba): replace Load with this.
+	// TODO: replace Load with this.
 	LoadAny(id string, p any) error
 }
 

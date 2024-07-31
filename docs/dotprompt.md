@@ -15,7 +15,7 @@ might call `greeting.prompt`:
 
 ```none
 ---
-model: vertexai/gemini-1.0-pro
+model: vertexai/gemini-1.5-flash
 config:
   temperature: 0.9
 input:
@@ -32,19 +32,19 @@ You are the world's most welcoming AI assistant and are currently working at {{l
 Greet a guest{{#if name}} named {{name}}{{/if}}{{#if style}} in the style of {{style}}{{/if}}.
 ```
 
-To use this prompt, install the `dotprompt` plugin, and import the `prompt` function from
+To use this prompt, install the `dotprompt` plugin, and import the `promptRef` function from
 the `@genkit-ai/dotprompt` library:
 
 ```ts
-import { dotprompt, prompt } from '@genkit-ai/dotprompt';
+import { dotprompt, promptRef } from '@genkit-ai/dotprompt';
 
 configureGenkit({ plugins: [dotprompt()] });
 ```
 
-Then, load the prompt using `prompt('file_name')`:
+Then, load the prompt using `promptRef('file_name')`:
 
 ```ts
-const greetingPrompt = await prompt('greeting');
+const greetingPrompt = promptRef('greeting');
 
 const result = await greetingPrompt.generate({
   input: {
@@ -176,9 +176,9 @@ registered Zod schema. You can then utilize the schema to strongly type the
 output of a Dotprompt:
 
 ```ts
-import { prompt } from "@genkit-ai/dotprompt";
+import { promptRef } from "@genkit-ai/dotprompt";
 
-const myPrompt = await prompt("myPrompt");
+const myPrompt = promptRef("myPrompt");
 
 const result = await myPrompt.generate<typeof MySchema>({...});
 
@@ -193,7 +193,7 @@ the file itself, you can also override these values on a per-call basis:
 
 ```ts
 const result = await greetingPrompt.generate({
-  model: 'google-genai/gemini-pro',
+  model: 'vertexai/gemini-1.5-pro',
   config: {
     temperature: 1.0,
   },
@@ -210,7 +210,7 @@ You can set the format and output schema of a prompt to coerce into JSON:
 
 ```none
 ---
-model: vertexai/gemini-1.0-pro
+model: vertexai/gemini-1.5-flash
 input:
   schema:
     theme: string
@@ -229,7 +229,7 @@ When generating a prompt with structured output, use the `output()` helper to
 retrieve and validate it:
 
 ```ts
-const createMenuPrompt = await prompt('create_menu');
+const createMenuPrompt = promptRef('create_menu');
 
 const menu = await createMenuPrompt.generate({
   input: {
@@ -267,7 +267,7 @@ The `{{role}}` helper provides a simple way to construct multi-message prompts:
 
 ```none
 ---
-model: vertexai/gemini-1.0-pro
+model: vertexai/gemini-1.5-flash
 input:
   schema:
     userQuestion: string
@@ -317,7 +317,7 @@ use the `{{media}}` helper:
 
 ```none
 ---
-model: vertexai/gemini-1.0-pro-vision
+model: vertexai/gemini-1.5-flash
 input:
   schema:
     photoUrl: string
@@ -332,7 +332,7 @@ The URL can be `https://` or base64-encoded `data:` URIs for "inline" image
 usage. In code, this would be:
 
 ```ts
-const describeImagePrompt = await prompt('describe_image');
+const describeImagePrompt = promptRef('describe_image');
 
 const result = await describeImagePrompt.generate({
   input: {
@@ -416,16 +416,16 @@ production environment side-by-side with existing versions. Dotprompt supports
 this through its **variants** feature.
 
 To create a variant, create a `[name].[variant].prompt` file. For instance, if
-you were using Gemini 1.0 Pro in your prompt but wanted to see if Gemini 1.5 Pro
-would perform better, you might create two files:
+you were using Gemini 1.5 Flash in your prompt but wanted to see if Gemini 1.5
+Pro would perform better, you might create two files:
 
 - `my_prompt.prompt`: the "baseline" prompt
-- `my_prompt.gemini15.prompt`: a variant named "gemini"
+- `my_prompt.gemini15pro.prompt`: a variant named "gemini15pro"
 
 To use a prompt variant, specify the `variant` option when loading:
 
 ```ts
-const myPrompt = await prompt('my_prompt', { variant: 'gemini15' });
+const myPrompt = promptRef('my_prompt', { variant: 'gemini15pro' });
 ```
 
 The name of the variant is included in the metadata of generation traces, so you
@@ -447,7 +447,7 @@ Once a helper is defined you can use it in any prompt:
 
 ```none
 ---
-model: vertexai/gemini-1.5-pro
+model: vertexai/gemini-1.5-flash
 input:
   schema:
     name: string
@@ -491,7 +491,7 @@ const myPrompt = await loadPromptUrl('https://example.com/my_prompt.prompt');
 // Define a prompt in code
 const myPrompt = defineDotprompt(
   {
-    model: 'vertexai/gemini-1.0-pro',
+    model: 'vertexai/gemini-1.5-flash',
     input: {
       schema: z.object({
         name: z.string(),

@@ -24,7 +24,7 @@ import (
 	"github.com/firebase/genkit/go/plugins/localvec"
 )
 
-func setup04(ctx context.Context, indexer *ai.Indexer, retriever *ai.Retriever, model *ai.Model) error {
+func setup04(ctx context.Context, indexer ai.Indexer, retriever ai.Retriever, model ai.Model) error {
 	ragDataMenuPrompt, err := dotprompt.Define("s04_ragDataMenu",
 		`
 		  You are acting as Walt, a helpful AI assistant here at the restaurant.
@@ -67,10 +67,7 @@ func setup04(ctx context.Context, indexer *ai.Indexer, retriever *ai.Retriever, 
 				}
 				docs = append(docs, ai.DocumentFromText(s, metadata))
 			}
-			req := &ai.IndexerRequest{
-				Documents: docs,
-			}
-			if err := indexer.Index(ctx, req); err != nil {
+			if err := ai.Index(ctx, indexer, ai.WithIndexerDocs(docs...)); err != nil {
 				return nil, err
 			}
 
@@ -83,13 +80,11 @@ func setup04(ctx context.Context, indexer *ai.Indexer, retriever *ai.Retriever, 
 
 	genkit.DefineFlow("s04_ragMenuQuestion",
 		func(ctx context.Context, input *menuQuestionInput) (*answerOutput, error) {
-			req := &ai.RetrieverRequest{
-				Document: ai.DocumentFromText(input.Question, nil),
-				Options: &localvec.RetrieverOptions{
+			resp, err := ai.Retrieve(ctx, retriever,
+				ai.WithRetrieverText(input.Question),
+				ai.WithRetrieverOpts(&localvec.RetrieverOptions{
 					K: 3,
-				},
-			}
-			resp, err := retriever.Retrieve(ctx, req)
+				}))
 			if err != nil {
 				return nil, err
 			}

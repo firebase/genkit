@@ -86,10 +86,10 @@ type Config struct {
 
 	// The Model to use.
 	// If this is non-nil, Model should be the empty string.
-	Model *ai.Model
+	Model ai.Model
 
-	// TODO(iant): document
-	Tools []*ai.ToolDefinition
+	// TODO: document
+	Tools []ai.Tool
 
 	// Number of candidates to generate when passing the prompt
 	// to a model. If 0, uses 1.
@@ -98,14 +98,17 @@ type Config struct {
 	// Details for the model.
 	GenerationConfig *ai.GenerationCommonConfig
 
-	InputSchema      *jsonschema.Schema // schema for input variables
-	VariableDefaults map[string]any     // default input variable values
+	// Schema for input variables.
+	InputSchema *jsonschema.Schema
+
+	// Default input variable values
+	VariableDefaults map[string]any
 
 	// Desired output format.
 	OutputFormat ai.OutputFormat
 
 	// Desired output schema, for JSON output.
-	OutputSchema map[string]any // TODO: use *jsonschema.Schema
+	OutputSchema *jsonschema.Schema
 
 	// Arbitrary metadata.
 	Metadata map[string]any
@@ -156,7 +159,7 @@ type frontmatterYAML struct {
 	Name       string                     `yaml:"name,omitempty"`
 	Variant    string                     `yaml:"variant,omitempty"`
 	Model      string                     `yaml:"model,omitempty"`
-	Tools      []*ai.ToolDefinition       `yaml:"tools,omitempty"`
+	Tools      []string                   `yaml:"tools,omitempty"`
 	Candidates int                        `yaml:"candidates,omitempty"`
 	Config     *ai.GenerationCommonConfig `yaml:"config,omitempty"`
 	Input      struct {
@@ -222,10 +225,15 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 		return "", Config{}, nil, fmt.Errorf("dotprompt: failed to parse YAML frontmatter: %w", err)
 	}
 
+	var tools []ai.Tool
+	for _, tn := range fy.Tools {
+		tools = append(tools, ai.LookupTool(tn))
+	}
+
 	ret := Config{
 		Variant:          fy.Variant,
 		ModelName:        fy.Model,
-		Tools:            fy.Tools,
+		Tools:            tools,
 		Candidates:       fy.Candidates,
 		GenerationConfig: fy.Config,
 		VariableDefaults: fy.Input.Default,
@@ -245,7 +253,7 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 
 	if outputSchema != nil {
 		// We have a jsonschema.Schema and we want a map[string]any.
-		// TODO(iant): This conversion is useless.
+		// TODO: This conversion is useless.
 
 		// Sort so that testing is reliable.
 		// This is not required if not testing.
@@ -260,7 +268,7 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 		}
 	}
 
-	// TODO(iant): The TypeScript codes supports media also,
+	// TODO: The TypeScript codes supports media also,
 	// but there is no ai.OutputFormatMedia.
 	switch fy.Output.Format {
 	case "":

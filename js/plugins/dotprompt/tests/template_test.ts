@@ -169,7 +169,7 @@ describe('compile', () => {
       ],
     },
     {
-      should: 'insert a blank ouptut section when helper provided',
+      should: 'insert a blank output section when helper provided',
       input: {},
       template: `before{{section "output"}}after`,
       options: {

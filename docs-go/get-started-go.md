@@ -13,31 +13,42 @@ To get started with Genkit, install the Genkit CLI and run
 
 ## Requirements
 
-- Go 1.22 or later
+- Go 1.22 or later. See [Download and install](https://go.dev/doc/install) in
+  the official Go docs.
 
-- Node.js 20 or later (for the Genkit CLI and UI)
+- Node.js 20 or later (for the Genkit CLI and UI). See the next section for a
+  brief guide on installing Node.
 
-  Recommendation: The [`nvm`](https://github.com/nvm-sh/nvm) and
-  [`nvm-windows`](https://github.com/coreybutler/nvm-windows) tools are a
-  convenient way to install specific versions of Node if it's not already
-  installed on your system. These tools install Node on a per-user basis, so you
-  don't need to make system-wide changes.
+## Install Genkit {:#install}
 
-  To install `nvm` on a Unix-like system, like macOS or Linux, run the following
-  command:
+1.  If you don't already have Node 20 or newer on your system, install it now.
 
-  ```posix-terminal
-  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-  ```
+    Recommendation: The [`nvm`](https://github.com/nvm-sh/nvm) and
+    [`nvm-windows`](https://github.com/coreybutler/nvm-windows) tools are a
+    convenient way to install specific versions of Node if it's not already
+    installed on your system. These tools install Node on a per-user basis, so you
+    don't need to make system-wide changes.
 
-  Then, to install Node using `nvm`, open a new shell and run the following
-  command:
+    To install `nvm`:
 
-  ```posix-terminal
-  nvm install 20
-  ```
+    - {Linux, macOS, etc.}
 
-## Procedure
+      Run the following command:
+
+      ```posix-terminal
+      curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+      ```
+
+    - {Windows}
+
+      Download and run the installer as described in the [nvm-windows docs](https://github.com/coreybutler/nvm-windows?tab=readme-ov-file#install-nvm-windows).
+
+    Then, to install Node and `npm`, open a new shell and run the following
+    command:
+
+    ```posix-terminal
+    nvm install 20
+    ```
 
 1.  Install the Genkit CLI by running the following command:
 
@@ -47,6 +58,8 @@ To get started with Genkit, install the Genkit CLI and run
 
     This command installs the Genkit CLI into your Node installation directory
     so that it can be used outside of a Node project.
+
+## Create and explore a sample project {:#explore}
 
 1.  Create a new project directory:
 

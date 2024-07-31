@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/firebase/genkit/go/ai"
@@ -121,7 +122,7 @@ func Init(ctx context.Context, cfg *Config) (err error) {
 // The second argument describes the capability of the model.
 // Use [IsDefinedModel] to determine if a model is already defined.
 // After [Init] is called, only the known models are defined.
-func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
+func DefineModel(name string, caps *ai.ModelCapabilities) (ai.Model, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
@@ -141,13 +142,18 @@ func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
 }
 
 // requires state.mu
-func defineModel(name string, caps ai.ModelCapabilities) *ai.Model {
+func defineModel(name string, caps ai.ModelCapabilities) ai.Model {
 	meta := &ai.ModelMetadata{
 		Label:    labelPrefix + " - " + name,
 		Supports: caps,
 	}
-	g := generator{model: name, client: state.gclient}
-	return ai.DefineModel(provider, name, meta, g.generate)
+	return ai.DefineModel(provider, name, meta, func(
+		ctx context.Context,
+		input *ai.GenerateRequest,
+		cb func(context.Context, *ai.GenerateResponseChunk) error,
+	) (*ai.GenerateResponse, error) {
+		return generate(ctx, state.gclient, name, input, cb)
+	})
 }
 
 // IsDefinedModel reports whether the named [Model] is defined by this plugin.
@@ -157,8 +163,10 @@ func IsDefinedModel(name string) bool {
 
 //copy:stop
 
+//copy:start vertexai.go defineEmbedder
+
 // DefineEmbedder defines an embedder with a given name.
-func DefineEmbedder(name string) *ai.Embedder {
+func DefineEmbedder(name string) ai.Embedder {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
@@ -172,8 +180,10 @@ func IsDefinedEmbedder(name string) bool {
 	return ai.IsDefinedEmbedder(provider, name)
 }
 
+//copy:stop
+
 // requires state.mu
-func defineEmbedder(name string) *ai.Embedder {
+func defineEmbedder(name string) ai.Embedder {
 	return ai.DefineEmbedder(provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		em := state.pclient.EmbeddingModel(name)
 		// TODO: set em.TaskType from EmbedRequest.Options?
@@ -201,102 +211,49 @@ func defineEmbedder(name string) *ai.Embedder {
 
 // Model returns the [ai.Model] with the given name.
 // It returns nil if the model was not defined.
-func Model(name string) *ai.Model {
+func Model(name string) ai.Model {
 	return ai.LookupModel(provider, name)
 }
 
 // Embedder returns the [ai.Embedder] with the given name.
 // It returns nil if the embedder was not defined.
-func Embedder(name string) *ai.Embedder {
+func Embedder(name string) ai.Embedder {
 	return ai.LookupEmbedder(provider, name)
 }
 
 //copy:stop
 
-type generator struct {
-	model  string
-	client *genai.Client
-	//session *genai.ChatSession // non-nil if we're in the middle of a chat
-}
+//copy:start vertexai.go generate
 
-func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
-	gm := g.client.GenerativeModel(g.model)
-
-	// Translate from a ai.GenerateRequest to a genai request.
-	gm.SetCandidateCount(int32(input.Candidates))
-	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
-		if c.MaxOutputTokens != 0 {
-			gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
-		}
-		if len(c.StopSequences) > 0 {
-			gm.StopSequences = c.StopSequences
-		}
-		if c.Temperature != 0 {
-			gm.SetTemperature(float32(c.Temperature))
-		}
-		if c.TopK != 0 {
-			gm.SetTopK(int32(c.TopK))
-		}
-		if c.TopP != 0 {
-			gm.SetTopP(float32(c.TopP))
-		}
-	}
-
-	// Start a "chat".
-	cs := gm.StartChat()
-
-	// All but the last message goes in the history field.
-	messages := input.Messages
-	for len(messages) > 1 {
-		m := messages[0]
-		messages = messages[1:]
-		parts, err := convertParts(m.Content)
-		if err != nil {
-			return nil, err
-		}
-		cs.History = append(cs.History, &genai.Content{
-			Parts: parts,
-			Role:  string(m.Role),
-		})
+func generate(
+	ctx context.Context,
+	client *genai.Client,
+	model string,
+	input *ai.GenerateRequest,
+	cb func(context.Context, *ai.GenerateResponseChunk) error,
+) (*ai.GenerateResponse, error) {
+	gm := newModel(client, model, input)
+	cs, err := startChat(gm, input)
+	if err != nil {
+		return nil, err
 	}
 	// The last message gets added to the parts slice.
 	var parts []genai.Part
-	if len(messages) > 0 {
+	if len(input.Messages) > 0 {
+		last := input.Messages[len(input.Messages)-1]
 		var err error
-		parts, err = convertParts(messages[0].Content)
+		parts, err = convertParts(last.Content)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	// Convert input.Tools and append to gm.Tools
-	for _, t := range input.Tools {
-		schema := &genai.Schema{}
-		schema.Type = genai.TypeObject
-		schema.Properties = map[string]*genai.Schema{}
-		for k, v := range t.InputSchema {
-			typ := genai.TypeUnspecified
-			switch v {
-			case "string":
-				typ = genai.TypeString
-			case "float64":
-				typ = genai.TypeNumber
-			case "int":
-				typ = genai.TypeInteger
-			case "bool":
-				typ = genai.TypeBoolean
-			default:
-				return nil, fmt.Errorf("schema value \"%s\" not allowed", v)
-			}
-			schema.Properties[k] = &genai.Schema{Type: typ}
-		}
-		fd := &genai.FunctionDeclaration{
-			Name:        t.Name,
-			Parameters:  schema,
-			Description: t.Description,
-		}
-		gm.Tools = append(gm.Tools, &genai.Tool{FunctionDeclarations: []*genai.FunctionDeclaration{fd}})
+	gm.Tools, err = convertTools(input.Tools)
+	if err != nil {
+		return nil, err
 	}
+	// Convert input.Tools and append to gm.Tools
+
 	// TODO: gm.ToolConfig?
 
 	// Send out the actual request.
@@ -342,6 +299,151 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 	r.Request = input
 	return r, nil
 }
+
+func newModel(client *genai.Client, model string, input *ai.GenerateRequest) *genai.GenerativeModel {
+	gm := client.GenerativeModel(model)
+	gm.SetCandidateCount(int32(input.Candidates))
+	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
+		if c.MaxOutputTokens != 0 {
+			gm.SetMaxOutputTokens(int32(c.MaxOutputTokens))
+		}
+		if len(c.StopSequences) > 0 {
+			gm.StopSequences = c.StopSequences
+		}
+		if c.Temperature != 0 {
+			gm.SetTemperature(float32(c.Temperature))
+		}
+		if c.TopK != 0 {
+			gm.SetTopK(int32(c.TopK))
+		}
+		if c.TopP != 0 {
+			gm.SetTopP(float32(c.TopP))
+		}
+	}
+	return gm
+}
+
+// startChat starts a chat session and configures it with the input messages.
+func startChat(gm *genai.GenerativeModel, input *ai.GenerateRequest) (*genai.ChatSession, error) {
+	cs := gm.StartChat()
+
+	// All but the last message goes in the history field.
+	messages := input.Messages
+	for len(messages) > 1 {
+		m := messages[0]
+		messages = messages[1:]
+		parts, err := convertParts(m.Content)
+		if err != nil {
+			return nil, err
+		}
+		cs.History = append(cs.History, &genai.Content{
+			Parts: parts,
+			Role:  string(m.Role),
+		})
+	}
+	return cs, nil
+}
+
+func convertTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
+	var outTools []*genai.Tool
+	for _, t := range inTools {
+		inputSchema, err := convertSchema(t.InputSchema, t.InputSchema)
+		if err != err {
+			return nil, err
+		}
+		fd := &genai.FunctionDeclaration{
+			Name:        t.Name,
+			Parameters:  inputSchema,
+			Description: t.Description,
+		}
+		outTools = append(outTools, &genai.Tool{FunctionDeclarations: []*genai.FunctionDeclaration{fd}})
+	}
+	return outTools, nil
+}
+
+func convertSchema(originalSchema map[string]any, genkitSchema map[string]any) (*genai.Schema, error) {
+	// this covers genkitSchema == nil and {}
+	// genkitSchema will be {} if it's any
+	if len(genkitSchema) == 0 {
+		return nil, nil
+	}
+	if v, ok := genkitSchema["$ref"]; ok {
+		ref := v.(string)
+		return convertSchema(originalSchema, resolveRef(originalSchema, ref))
+	}
+	schema := &genai.Schema{}
+
+	switch genkitSchema["type"].(string) {
+	case "string":
+		schema.Type = genai.TypeString
+	case "float64":
+		schema.Type = genai.TypeNumber
+	case "number":
+		schema.Type = genai.TypeNumber
+	case "int":
+		schema.Type = genai.TypeInteger
+	case "bool":
+		schema.Type = genai.TypeBoolean
+	case "object":
+		schema.Type = genai.TypeObject
+	case "array":
+		schema.Type = genai.TypeArray
+	default:
+		return nil, fmt.Errorf("schema type %q not allowed", genkitSchema["type"])
+	}
+	if v, ok := genkitSchema["required"]; ok {
+		schema.Required = castToStringArray(v.([]any))
+	}
+	if v, ok := genkitSchema["description"]; ok {
+		schema.Description = v.(string)
+	}
+	if v, ok := genkitSchema["format"]; ok {
+		schema.Format = v.(string)
+	}
+	if v, ok := genkitSchema["enum"]; ok {
+		schema.Enum = castToStringArray(v.([]any))
+	}
+	if v, ok := genkitSchema["items"]; ok {
+		items, err := convertSchema(originalSchema, v.(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		schema.Items = items
+	}
+	if val, ok := genkitSchema["properties"]; ok {
+		props := map[string]*genai.Schema{}
+		for k, v := range val.(map[string]any) {
+			p, err := convertSchema(originalSchema, v.(map[string]any))
+			if err != nil {
+				return nil, err
+			}
+			props[k] = p
+		}
+		schema.Properties = props
+	}
+	// Nullable -- not supported in jsonschema.Schema
+
+	return schema, nil
+}
+
+func resolveRef(originalSchema map[string]any, ref string) map[string]any {
+	tkns := strings.Split(ref, "/")
+	// refs look like: $/ref/foo -- we need the foo part
+	name := tkns[len(tkns)-1]
+	defs := originalSchema["$defs"].(map[string]any)
+	return defs[name].(map[string]any)
+}
+
+func castToStringArray(i []any) []string {
+	// Is there a better way to do this??
+	var r []string
+	for _, v := range i {
+		r = append(r, v.(string))
+	}
+	return r
+}
+
+//copy:stop
 
 //copy:start vertexai.go translateCandidate
 

@@ -84,7 +84,7 @@ export const askQuestionsAboutDogsFlow = defineFlow(
   },
   async (query) => {
     const docs = await retrieve({
-      retriever: nfsDogFactsRetriever,
+      retriever: dogFactsRetriever,
       query,
       options: { k: 3 },
     });
@@ -130,7 +130,7 @@ export const indexDogFactsDocumentsFlow = defineFlow(
       return Document.fromText(text, { type: 'animal' });
     });
     await index({
-      indexer: nfsDogFactsIndexer,
+      indexer: dogFactsIndexer,
       documents,
     });
   }

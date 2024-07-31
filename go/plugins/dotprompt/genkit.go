@@ -16,6 +16,7 @@ package dotprompt
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -60,7 +61,7 @@ func (p *Prompt) buildVariables(variables any) (map[string]any, error) {
 	}
 	vt := v.Type()
 
-	// TODO(ianlancetaylor): Verify the struct with p.Config.InputSchema.
+	// TODO: Verify the struct with p.Config.InputSchema.
 
 	m := make(map[string]any)
 
@@ -117,12 +118,28 @@ func (p *Prompt) buildRequest(ctx context.Context, input any) (*ai.GenerateReque
 
 	req.Config = p.GenerationConfig
 
-	req.Output = &ai.GenerateRequestOutput{
-		Format: p.OutputFormat,
-		Schema: p.OutputSchema,
+	var outputSchema map[string]any
+	if p.OutputSchema != nil {
+		jsonBytes, err := p.OutputSchema.MarshalJSON()
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal output schema JSON: %w", err)
+		}
+		err = json.Unmarshal(jsonBytes, &outputSchema)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal output schema JSON: %w", err)
+		}
 	}
 
-	req.Tools = p.Tools
+	req.Output = &ai.GenerateRequestOutput{
+		Format: p.OutputFormat,
+		Schema: outputSchema,
+	}
+
+	var tds []*ai.ToolDefinition
+	for _, t := range p.Tools {
+		tds = append(tds, t.Definition())
+	}
+	req.Tools = tds
 
 	return req, nil
 }

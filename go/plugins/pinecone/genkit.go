@@ -75,7 +75,7 @@ type Config struct {
 	// The index ID to use.
 	IndexID string
 	// Embedder to use. Required.
-	Embedder        *ai.Embedder
+	Embedder        ai.Embedder
 	EmbedderOptions any
 	// The metadata key to use to store document text
 	// in Pinecone; the default is "_content".
@@ -83,7 +83,7 @@ type Config struct {
 }
 
 // DefineIndexer defines an Indexer with the given configuration.
-func DefineIndexer(ctx context.Context, cfg Config) (*ai.Indexer, error) {
+func DefineIndexer(ctx context.Context, cfg Config) (ai.Indexer, error) {
 	ds, err := newDocStore(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -92,7 +92,7 @@ func DefineIndexer(ctx context.Context, cfg Config) (*ai.Indexer, error) {
 }
 
 // DefineRetriever defines a Retriever with the given configuration.
-func DefineRetriever(ctx context.Context, cfg Config) (*ai.Retriever, error) {
+func DefineRetriever(ctx context.Context, cfg Config) (ai.Retriever, error) {
 	ds, err := newDocStore(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -122,7 +122,7 @@ func newDocStore(ctx context.Context, cfg Config) (*docStore, error) {
 	if cfg.Embedder == nil {
 		return nil, errors.New("Embedder required")
 	}
-	// TODO(jba): cache these calls so we don't make them twice for the indexer and retriever.
+	// TODO: cache these calls so we don't make them twice for the indexer and retriever.
 	indexData, err := state.client.indexData(ctx, cfg.IndexID)
 	if err != nil {
 		return nil, err
@@ -143,12 +143,12 @@ func newDocStore(ctx context.Context, cfg Config) (*docStore, error) {
 }
 
 // Indexer returns the indexer with the given index name.
-func Indexer(name string) *ai.Indexer {
+func Indexer(name string) ai.Indexer {
 	return ai.LookupIndexer(provider, name)
 }
 
 // Retriever returns the retriever with the given index name.
-func Retriever(name string) *ai.Retriever {
+func Retriever(name string) ai.Retriever {
 	return ai.LookupRetriever(provider, name)
 }
 
@@ -170,7 +170,7 @@ type RetrieverOptions struct {
 // docStore implements the genkit [ai.DocumentStore] interface.
 type docStore struct {
 	index           *index
-	embedder        *ai.Embedder
+	embedder        ai.Embedder
 	embedderOptions any
 	textKey         string
 }
@@ -183,7 +183,7 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 
 	namespace := ""
 	if req.Options != nil {
-		// TODO(iant): This is plausible when called directly
+		// TODO: This is plausible when called directly
 		// from Go code, but what will it look like when
 		// run from a resumed flow?
 		options, ok := req.Options.(*IndexerOptions)
@@ -216,7 +216,7 @@ func (ds *docStore) Index(ctx context.Context, req *ai.IndexerRequest) error {
 		} else {
 			metadata = maps.Clone(doc.Metadata)
 		}
-		// TODO(iant): This seems to be what the TypeScript code does,
+		// TODO: This seems to be what the TypeScript code does,
 		// but it loses the structure of the document.
 		var sb strings.Builder
 		for _, p := range doc.Content {
@@ -278,7 +278,7 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 		count     int
 	)
 	if req.Options != nil {
-		// TODO(iant): This is plausible when called directly
+		// TODO: This is plausible when called directly
 		// from Go code, but what will it look like when
 		// run from a resumed flow?
 		ropt, ok := req.Options.(*RetrieverOptions)
@@ -312,7 +312,7 @@ func (ds *docStore) Retrieve(ctx context.Context, req *ai.RetrieverRequest) (*ai
 			return nil, errors.New("Pinecone retrieve failed to fetch original document text")
 		}
 		delete(result.Metadata, ds.textKey)
-		// TODO(iant): This is what the TypeScript code does,
+		// TODO: This is what the TypeScript code does,
 		// but it loses information for multimedia documents.
 		d := ai.DocumentFromText(text, result.Metadata)
 		docs = append(docs, d)

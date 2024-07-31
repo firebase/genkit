@@ -16,9 +16,7 @@ package vertexai_test
 
 import (
 	"context"
-	"errors"
 	"flag"
-	"fmt"
 	"math"
 	"strings"
 	"testing"
@@ -39,7 +37,6 @@ func TestLive(t *testing.T) {
 	}
 	ctx := context.Background()
 	const modelName = "gemini-1.0-pro"
-	const embedderName = "textembedding-gecko"
 	err := vertexai.Init(ctx, &vertexai.Config{ProjectID: *projectID, Location: *location})
 	if err != nil {
 		t.Fatal(err)
@@ -47,51 +44,16 @@ func TestLive(t *testing.T) {
 	model := vertexai.Model(modelName)
 	embedder := vertexai.Embedder("textembedding-gecko@003")
 
-	toolDef := &ai.ToolDefinition{
-		Name:         "exponentiation",
-		InputSchema:  map[string]any{"base": "float64", "exponent": "int"},
-		OutputSchema: map[string]any{"output": "float64"},
-	}
-	ai.DefineTool(toolDef, nil,
-		func(ctx context.Context, input map[string]any) (map[string]any, error) {
-			baseAny, ok := input["base"]
-			if !ok {
-				return nil, errors.New("exponentiation tool: missing base")
-			}
-			base, ok := baseAny.(float64)
-			if !ok {
-				return nil, fmt.Errorf("exponentiation tool: base is %T, want %T", baseAny, float64(0))
-			}
-
-			expAny, ok := input["exponent"]
-			if !ok {
-				return nil, errors.New("exponentiation tool: missing exponent")
-			}
-			exp, ok := expAny.(float64)
-			if !ok {
-				expInt, ok := expAny.(int)
-				if !ok {
-					return nil, fmt.Errorf("exponentiation tool: exponent is %T, want %T or %T", expAny, float64(0), int(0))
-				}
-				exp = float64(expInt)
-			}
-
-			r := map[string]any{"output": math.Pow(base, exp)}
-			return r, nil
+	gablorkenTool := ai.DefineTool("gablorken", "use when need to calculate a gablorken",
+		func(ctx context.Context, input struct {
+			Value float64
+			Over  float64
+		}) (float64, error) {
+			return math.Pow(input.Value, input.Over), nil
 		},
 	)
 	t.Run("model", func(t *testing.T) {
-		req := &ai.GenerateRequest{
-			Candidates: 1,
-			Messages: []*ai.Message{
-				&ai.Message{
-					Content: []*ai.Part{ai.NewTextPart("Which country was Napoleon the emperor of?")},
-					Role:    ai.RoleUser,
-				},
-			},
-		}
-
-		resp, err := model.Generate(ctx, req, nil)
+		resp, err := ai.Generate(ctx, model, ai.WithCandidates(1), ai.WithTextPrompt("Which country was Napoleon the emperor of?"))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -99,7 +61,7 @@ func TestLive(t *testing.T) {
 		if !strings.Contains(out, "France") {
 			t.Errorf("got \"%s\", expecting it would contain \"France\"", out)
 		}
-		if resp.Request != req {
+		if resp.Request == nil {
 			t.Error("Request field not set properly")
 		}
 		if resp.Usage.InputTokens == 0 || resp.Usage.OutputTokens == 0 || resp.Usage.TotalTokens == 0 {
@@ -107,26 +69,19 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("streaming", func(t *testing.T) {
-		req := &ai.GenerateRequest{
-			Candidates: 1,
-			Messages: []*ai.Message{
-				&ai.Message{
-					Content: []*ai.Part{ai.NewTextPart("Write one paragraph about the Golden State Warriors.")},
-					Role:    ai.RoleUser,
-				},
-			},
-		}
-
 		out := ""
 		parts := 0
 		model := vertexai.Model(modelName)
-		final, err := model.Generate(ctx, req, func(ctx context.Context, c *ai.GenerateResponseChunk) error {
-			parts++
-			for _, p := range c.Content {
-				out += p.Text
-			}
-			return nil
-		})
+		final, err := ai.Generate(ctx, model,
+			ai.WithCandidates(1),
+			ai.WithTextPrompt("Write one paragraph about the Golden State Warriors."),
+			ai.WithStreaming(func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+				parts++
+				for _, p := range c.Content {
+					out += p.Text
+				}
+				return nil
+			}))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -151,18 +106,10 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("tool", func(t *testing.T) {
-		req := &ai.GenerateRequest{
-			Candidates: 1,
-			Messages: []*ai.Message{
-				&ai.Message{
-					Content: []*ai.Part{ai.NewTextPart("what is 3.5 squared? Use the tool provided.")},
-					Role:    ai.RoleUser,
-				},
-			},
-			Tools: []*ai.ToolDefinition{toolDef},
-		}
-
-		resp, err := model.Generate(ctx, req, nil)
+		resp, err := ai.Generate(ctx, model,
+			ai.WithCandidates(1),
+			ai.WithTextPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithTools(gablorkenTool))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -173,12 +120,10 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("embedder", func(t *testing.T) {
-		res, err := embedder.Embed(ctx, &ai.EmbedRequest{
-			Documents: []*ai.Document{
-				ai.DocumentFromText("time flies like an arrow", nil),
-				ai.DocumentFromText("fruit flies like a banana", nil),
-			},
-		})
+		res, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(
+			ai.DocumentFromText("time flies like an arrow", nil),
+			ai.DocumentFromText("fruit flies like a banana", nil),
+		))
 		if err != nil {
 			t.Fatal(err)
 		}

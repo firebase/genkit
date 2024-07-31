@@ -39,7 +39,7 @@ import (
 // just return a result.
 type Func[In, Out, Stream any] func(context.Context, In, func(context.Context, Stream) error) (Out, error)
 
-// TODO(jba): use a generic type alias for the above when they become available?
+// TODO: use a generic type alias for the above when they become available?
 
 // An Action is a named, observable operation.
 // It consists of a function that takes an input of type I and returns an output

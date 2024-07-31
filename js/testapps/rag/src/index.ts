@@ -23,12 +23,25 @@ import { googleAI } from '@genkit-ai/googleai';
 import {
   claude3Sonnet,
   geminiPro,
+  llama31,
   textEmbeddingGecko,
   vertexAI,
 } from '@genkit-ai/vertexai';
 import { chroma } from 'genkitx-chromadb';
 import { langchain } from 'genkitx-langchain';
 import { pinecone } from 'genkitx-pinecone';
+import { GoogleAuth, IdTokenClient } from 'google-auth-library';
+
+const auth = new GoogleAuth();
+let authClient: IdTokenClient | undefined = undefined;
+
+/** Helper method to cache {@link IdTokenClient} instance */
+async function getCloudRunAuthClient(aud: string) {
+  if (!authClient) {
+    authClient = await auth.getIdTokenClient(aud);
+  }
+  return authClient;
+}
 
 export default configureGenkit({
   plugins: [
@@ -68,7 +81,9 @@ export default configureGenkit({
     }),
     vertexAI({
       location: 'us-central1',
-      modelGardenModels: [claude3Sonnet],
+      modelGarden: {
+        models: [claude3Sonnet, llama31],
+      },
     }),
     pinecone([
       {
@@ -84,6 +99,21 @@ export default configureGenkit({
       {
         collectionName: 'dogfacts_collection',
         embedder: textEmbeddingGecko,
+        createCollectionIfMissing: true,
+        clientParams: async () => {
+          // Replace this with your Cloud Run Instance URL
+          const host = 'https://<my-cloud-run-url>.run.app';
+          const client = await getCloudRunAuthClient(host);
+          const idToken = await client.idTokenProvider.fetchIdToken(host);
+          return {
+            path: host,
+            fetchOptions: {
+              headers: {
+                Authorization: 'Bearer ' + idToken,
+              },
+            },
+          };
+        },
       },
     ]),
     devLocalVectorstore([

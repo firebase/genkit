@@ -22,7 +22,7 @@ import { toJsonSchema, ValidationError } from '@genkit-ai/core/schema';
 import z from 'zod';
 import { registerPluginProvider } from '../../../core/src/registry.js';
 import { defineJsonSchema, defineSchema } from '../../../core/src/schema.js';
-import { defineDotprompt, Dotprompt, prompt } from '../src/index.js';
+import { defineDotprompt, Dotprompt, prompt, promptRef } from '../src/index.js';
 import { PromptMetadata } from '../src/metadata.js';
 
 function registerDotprompt() {
@@ -249,5 +249,130 @@ output:
       });
       assert.equal('And this is its variant.', variantPrompt.template);
     });
+  });
+});
+
+describe('DotpromptRef', () => {
+  it('Should load a prompt correctly', async () => {
+    registerDotprompt();
+    defineDotprompt(
+      {
+        name: 'promptName',
+        model: 'echo',
+      },
+      `This is a prompt.`
+    );
+
+    const ref = promptRef('promptName');
+
+    const p = await ref.loadPrompt();
+
+    const isDotprompt = p instanceof Dotprompt;
+
+    assert.equal(isDotprompt, true);
+    assert.equal(p.template, 'This is a prompt.');
+  });
+
+  it('Should generate output correctly using DotpromptRef', async () => {
+    registerDotprompt();
+    defineDotprompt(
+      {
+        name: 'generatePrompt',
+        model: 'echo',
+      },
+      `Hello {{name}}, this is a test prompt.`
+    );
+
+    const ref = promptRef('generatePrompt');
+    const response = await ref.generate({ input: { name: 'Alice' } });
+
+    assert.equal(response.text(), 'Hello Alice, this is a test prompt.');
+  });
+
+  it('Should render correctly using DotpromptRef', async () => {
+    registerDotprompt();
+    defineDotprompt(
+      {
+        name: 'renderPrompt',
+        model: 'echo',
+      },
+      `Hi {{name}}, welcome to the system.`
+    );
+
+    const ref = promptRef('renderPrompt');
+    const rendered = await ref.render({ input: { name: 'Bob' } });
+
+    assert.deepStrictEqual(rendered.prompt, [
+      { text: 'Hi Bob, welcome to the system.' },
+    ]);
+  });
+
+  it('Should handle invalid schema input in DotpromptRef', async () => {
+    registerDotprompt();
+    defineDotprompt(
+      {
+        name: 'invalidSchemaPromptRef',
+        model: 'echo',
+        input: {
+          jsonSchema: {
+            properties: { foo: { type: 'boolean' } },
+            required: ['foo'],
+          },
+        },
+      },
+      `This is the prompt with foo={{foo}}.`
+    );
+
+    const ref = promptRef('invalidSchemaPromptRef');
+
+    await assert.rejects(async () => {
+      await ref.generate({ input: { foo: 'not_a_boolean' } });
+    }, ValidationError);
+  });
+
+  it('Should support streamingCallback in DotpromptRef', async () => {
+    registerDotprompt();
+    defineDotprompt(
+      {
+        name: 'streamingCallbackPrompt',
+        model: 'echo',
+      },
+      `Hello {{name}}, streaming test.`
+    );
+
+    const ref = promptRef('streamingCallbackPrompt');
+
+    const streamingCallback = (chunk) => console.log(chunk);
+    const options = {
+      input: { name: 'Charlie' },
+      streamingCallback,
+      returnToolRequests: true,
+    };
+
+    const rendered = await ref.render(options);
+
+    assert.strictEqual(rendered.streamingCallback, streamingCallback);
+    assert.strictEqual(rendered.returnToolRequests, true);
+  });
+
+  it('Should cache loaded prompt in DotpromptRef', async () => {
+    registerDotprompt();
+    defineDotprompt(
+      {
+        name: 'cacheTestPrompt',
+        model: 'echo',
+      },
+      `This is a prompt for cache test.`
+    );
+
+    const ref = promptRef('cacheTestPrompt');
+    const firstLoad = await ref.loadPrompt();
+    const secondLoad = await ref.loadPrompt();
+
+    assert.strictEqual(
+      firstLoad,
+      secondLoad,
+      'Loaded prompts should be identical (cached).'
+    );
   });
 });

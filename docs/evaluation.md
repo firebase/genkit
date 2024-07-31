@@ -16,7 +16,7 @@ import { textEmbeddingGecko } from '@genkit-ai/vertexai';
 export default configureGenkit({
   plugins: [
     genkitEval({
-      judge: geminiPro,
+      judge: gemini15Flash,
       metrics: [GenkitMetric.FAITHFULNESS, GenkitMetric.ANSWER_RELEVANCY],
       embedder: textEmbeddingGecko, // GenkitMetric.ANSWER_RELEVANCY requires an embedder
     }),
@@ -199,7 +199,7 @@ export const synthesizeQuestions = defineFlow(
     const questions: string[] = [];
     for (var i = 0; i < chunks.length; i++) {
       const qResponse = await generate({
-        model: geminiPro,
+        model: gemini15Flash,
         prompt: {
           text: `Generate one question about the text below: ${chunks[i]}`,
         },

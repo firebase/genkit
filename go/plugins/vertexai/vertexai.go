@@ -19,6 +19,8 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strconv"
+	"strings"
 	"sync"
 
 	aiplatform "cloud.google.com/go/aiplatform/apiv1"
@@ -138,7 +140,7 @@ func Init(ctx context.Context, cfg *Config) error {
 // The second argument describes the capability of the model.
 // Use [IsDefinedModel] to determine if a model is already defined.
 // After [Init] is called, only the known models are defined.
-func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
+func DefineModel(name string, caps *ai.ModelCapabilities) (ai.Model, error) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
@@ -158,13 +160,18 @@ func DefineModel(name string, caps *ai.ModelCapabilities) (*ai.Model, error) {
 }
 
 // requires state.mu
-func defineModel(name string, caps ai.ModelCapabilities) *ai.Model {
+func defineModel(name string, caps ai.ModelCapabilities) ai.Model {
 	meta := &ai.ModelMetadata{
 		Label:    labelPrefix + " - " + name,
 		Supports: caps,
 	}
-	g := generator{model: name, client: state.gclient}
-	return ai.DefineModel(provider, name, meta, g.generate)
+	return ai.DefineModel(provider, name, meta, func(
+		ctx context.Context,
+		input *ai.GenerateRequest,
+		cb func(context.Context, *ai.GenerateResponseChunk) error,
+	) (*ai.GenerateResponse, error) {
+		return generate(ctx, state.gclient, name, input, cb)
+	})
 }
 
 // IsDefinedModel reports whether the named [Model] is defined by this plugin.
@@ -175,18 +182,29 @@ func IsDefinedModel(name string) bool {
 // DO NOT MODIFY above ^^^^
 //copy:endsink defineModel
 
-// DefineEmbedder defines an embedder with the given name.
-func DefineEmbedder(name string) *ai.Embedder {
+//copy:sink defineEmbedder from ../googleai/googleai.go
+// DO NOT MODIFY below vvvv
+
+// DefineEmbedder defines an embedder with a given name.
+func DefineEmbedder(name string) ai.Embedder {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
-		panic("vertexai.Init not called")
+		panic(provider + ".Init not called")
 	}
 	return defineEmbedder(name)
 }
 
+// IsDefinedEmbedder reports whether the named [Embedder] is defined by this plugin.
+func IsDefinedEmbedder(name string) bool {
+	return ai.IsDefinedEmbedder(provider, name)
+}
+
+// DO NOT MODIFY above ^^^^
+//copy:endsink defineEmbedder
+
 // requires state.mu
-func defineEmbedder(name string) *ai.Embedder {
+func defineEmbedder(name string) ai.Embedder {
 	fullName := fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s", state.projectID, state.location, name)
 	return ai.DefineEmbedder(provider, name, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		return embed(ctx, fullName, state.pclient, req)
@@ -198,28 +216,99 @@ func defineEmbedder(name string) *ai.Embedder {
 
 // Model returns the [ai.Model] with the given name.
 // It returns nil if the model was not defined.
-func Model(name string) *ai.Model {
+func Model(name string) ai.Model {
 	return ai.LookupModel(provider, name)
 }
 
 // Embedder returns the [ai.Embedder] with the given name.
 // It returns nil if the embedder was not defined.
-func Embedder(name string) *ai.Embedder {
+func Embedder(name string) ai.Embedder {
 	return ai.LookupEmbedder(provider, name)
 }
 
 // DO NOT MODIFY above ^^^^
 //copy:endsink lookups
 
-type generator struct {
-	model  string
-	client *genai.Client
+//copy:sink generate from ../googleai/googleai.go
+// DO NOT MODIFY below vvvv
+
+func generate(
+	ctx context.Context,
+	client *genai.Client,
+	model string,
+	input *ai.GenerateRequest,
+	cb func(context.Context, *ai.GenerateResponseChunk) error,
+) (*ai.GenerateResponse, error) {
+	gm := newModel(client, model, input)
+	cs, err := startChat(gm, input)
+	if err != nil {
+		return nil, err
+	}
+	// The last message gets added to the parts slice.
+	var parts []genai.Part
+	if len(input.Messages) > 0 {
+		last := input.Messages[len(input.Messages)-1]
+		var err error
+		parts, err = convertParts(last.Content)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	gm.Tools, err = convertTools(input.Tools)
+	if err != nil {
+		return nil, err
+	}
+	// Convert input.Tools and append to gm.Tools
+
+	// TODO: gm.ToolConfig?
+
+	// Send out the actual request.
+	if cb == nil {
+		resp, err := cs.SendMessage(ctx, parts...)
+		if err != nil {
+			return nil, err
+		}
+		r := translateResponse(resp)
+		r.Request = input
+		return r, nil
+	}
+
+	// Streaming version.
+	iter := cs.SendMessageStream(ctx, parts...)
+	var r *ai.GenerateResponse
+	for {
+		chunk, err := iter.Next()
+		if err == iterator.Done {
+			r = translateResponse(iter.MergedResponse())
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		// Send candidates to the callback.
+		for _, c := range chunk.Candidates {
+			tc := translateCandidate(c)
+			err := cb(ctx, &ai.GenerateResponseChunk{
+				Content: tc.Message.Content,
+				Index:   tc.Index,
+			})
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	if r == nil {
+		// No candidates were returned. Probably rare, but it might avoid a NPE
+		// to return an empty instead of nil result.
+		r = &ai.GenerateResponse{}
+	}
+	r.Request = input
+	return r, nil
 }
 
-func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
-	gm := g.client.GenerativeModel(g.model)
-
-	// Translate from a ai.GenerateRequest to a genai request.
+func newModel(client *genai.Client, model string, input *ai.GenerateRequest) *genai.GenerativeModel {
+	gm := client.GenerativeModel(model)
 	gm.SetCandidateCount(int32(input.Candidates))
 	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
 		if c.MaxOutputTokens != 0 {
@@ -238,8 +327,11 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 			gm.SetTopP(float32(c.TopP))
 		}
 	}
+	return gm
+}
 
-	// Start a "chat".
+// startChat starts a chat session and configures it with the input messages.
+func startChat(gm *genai.GenerativeModel, input *ai.GenerateRequest) (*genai.ChatSession, error) {
 	cs := gm.StartChat()
 
 	// All but the last message goes in the history field.
@@ -256,98 +348,156 @@ func (g *generator) generate(ctx context.Context, input *ai.GenerateRequest, cb 
 			Role:  string(m.Role),
 		})
 	}
-	// The last message gets added to the parts slice.
-	var parts []genai.Part
-	if len(messages) > 0 {
-		var err error
-		parts, err = convertParts(messages[0].Content)
-		if err != nil {
+	return cs, nil
+}
+
+func convertTools(inTools []*ai.ToolDefinition) ([]*genai.Tool, error) {
+	var outTools []*genai.Tool
+	for _, t := range inTools {
+		inputSchema, err := convertSchema(t.InputSchema, t.InputSchema)
+		if err != err {
 			return nil, err
 		}
-	}
-
-	// Convert input.Tools and append to gm.Tools.
-	for _, t := range input.Tools {
-		schema := &genai.Schema{
-			Type:       genai.TypeObject,
-			Properties: make(map[string]*genai.Schema),
+		outputSchema, err := convertSchema(t.OutputSchema, t.OutputSchema)
+		if err != err {
+			return nil, err
 		}
-		for k, v := range t.InputSchema {
-			typ := genai.TypeUnspecified
-			switch v {
-			case "string":
-				typ = genai.TypeString
-			case "float64":
-				typ = genai.TypeNumber
-			case "int":
-				typ = genai.TypeInteger
-			case "bool":
-				typ = genai.TypeBoolean
-			default:
-				return nil, fmt.Errorf("schema value %q not supported", v)
-			}
-			schema.Properties[k] = &genai.Schema{Type: typ}
-		}
-
 		fd := &genai.FunctionDeclaration{
 			Name:        t.Name,
-			Parameters:  schema,
+			Parameters:  inputSchema,
+			Response:    outputSchema,
 			Description: t.Description,
 		}
-
-		gm.Tools = append(gm.Tools, &genai.Tool{
-			FunctionDeclarations: []*genai.FunctionDeclaration{fd},
-		})
+		outTools = append(outTools, &genai.Tool{FunctionDeclarations: []*genai.FunctionDeclaration{fd}})
 	}
-	// TODO: gm.ToolConfig?
+	return outTools, nil
+}
 
-	// Send out the actual request.
-	if cb == nil {
-		resp, err := cs.SendMessage(ctx, parts...)
+func convertSchema(originalSchema map[string]any, genkitSchema map[string]any) (*genai.Schema, error) {
+	// this covers genkitSchema == nil and {}
+	// genkitSchema will be {} if it's any
+	if len(genkitSchema) == 0 {
+		return nil, nil
+	}
+	if v, ok := genkitSchema["$ref"]; ok {
+		ref := v.(string)
+		return convertSchema(originalSchema, resolveRef(originalSchema, ref))
+	}
+	schema := &genai.Schema{}
+
+	switch genkitSchema["type"].(string) {
+	case "string":
+		schema.Type = genai.TypeString
+	case "float64":
+		schema.Type = genai.TypeNumber
+	case "number":
+		schema.Type = genai.TypeNumber
+	case "int":
+		schema.Type = genai.TypeInteger
+	case "bool":
+		schema.Type = genai.TypeBoolean
+	case "object":
+		schema.Type = genai.TypeObject
+	case "array":
+		schema.Type = genai.TypeArray
+	default:
+		return nil, fmt.Errorf("schema type %q not allowed", genkitSchema["type"])
+	}
+	if v, ok := genkitSchema["required"]; ok {
+		schema.Required = castToStringArray(v.([]any))
+	}
+	if v, ok := genkitSchema["description"]; ok {
+		schema.Description = v.(string)
+	}
+	if v, ok := genkitSchema["format"]; ok {
+		schema.Format = v.(string)
+	}
+	if v, ok := genkitSchema["pattern"]; ok {
+		schema.Pattern = v.(string)
+	}
+	if v, ok := genkitSchema["title"]; ok {
+		schema.Title = v.(string)
+	}
+	if v, ok := genkitSchema["minItems"]; ok {
+		schema.MinItems = v.(int64)
+	}
+	if v, ok := genkitSchema["maxItems"]; ok {
+		schema.MaxItems = v.(int64)
+	}
+	if v, ok := genkitSchema["minItems"]; ok {
+		schema.MinItems = v.(int64)
+	}
+	if v, ok := genkitSchema["maxProperties"]; ok {
+		schema.MaxProperties = v.(int64)
+	}
+	if v, ok := genkitSchema["minProperties"]; ok {
+		schema.MinProperties = v.(int64)
+	}
+	if v, ok := genkitSchema["maxLength"]; ok {
+		schema.MaxLength = v.(int64)
+	}
+	if v, ok := genkitSchema["minLength"]; ok {
+		schema.MinLength = v.(int64)
+	}
+	if v, ok := genkitSchema["enum"]; ok {
+		schema.Enum = castToStringArray(v.([]any))
+	}
+	if v, ok := genkitSchema["maximum"]; ok {
+		m, err := strconv.ParseFloat(v.(string), 64)
 		if err != nil {
 			return nil, err
 		}
-
-		r := translateResponse(resp)
-		r.Request = input
-		return r, nil
+		schema.Maximum = m
 	}
-
-	// Streaming version.
-	iter := cs.SendMessageStream(ctx, parts...)
-	var r *ai.GenerateResponse
-	for {
-		chunk, err := iter.Next()
+	if v, ok := genkitSchema["minimum"]; ok {
+		m, err := strconv.ParseFloat(v.(string), 64)
 		if err != nil {
-			if err == iterator.Done {
-				r = translateResponse(iter.MergedResponse())
-				break
-			}
 			return nil, err
 		}
-
-		// Process each candidate.
-		for _, c := range chunk.Candidates {
-			tc := translateCandidate(c)
-
-			// Call callback with the candidate info.
-			err := cb(ctx, &ai.GenerateResponseChunk{
-				Content: tc.Message.Content,
-				Index:   tc.Index,
-			})
+		schema.Minimum = m
+	}
+	if v, ok := genkitSchema["items"]; ok {
+		items, err := convertSchema(originalSchema, v.(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		schema.Items = items
+	}
+	if val, ok := genkitSchema["properties"]; ok {
+		props := map[string]*genai.Schema{}
+		for k, v := range val.(map[string]any) {
+			p, err := convertSchema(originalSchema, v.(map[string]any))
 			if err != nil {
 				return nil, err
 			}
+			props[k] = p
 		}
+		schema.Properties = props
 	}
-	if r == nil {
-		// No candidates were returned. Probably rare, but it might avoid a NPE
-		// to return an empty instead of nil result.
-		r = &ai.GenerateResponse{}
-	}
-	r.Request = input
-	return r, nil
+	// Nullable -- not supported in jsonschema.Schema
+
+	return schema, nil
 }
+
+func resolveRef(originalSchema map[string]any, ref string) map[string]any {
+	tkns := strings.Split(ref, "/")
+	// refs look like: $/ref/foo -- we need the foo part
+	name := tkns[len(tkns)-1]
+	defs := originalSchema["$defs"].(map[string]any)
+	return defs[name].(map[string]any)
+}
+
+func castToStringArray(i []any) []string {
+	// Is there a better way to do this??
+	var r []string
+	for _, v := range i {
+		r = append(r, v.(string))
+	}
+	return r
+}
+
+// DO NOT MODIFY above ^^^^
+//copy:endsink generate
 
 //copy:sink translateCandidate from ../googleai/googleai.go
 // DO NOT MODIFY below vvvv

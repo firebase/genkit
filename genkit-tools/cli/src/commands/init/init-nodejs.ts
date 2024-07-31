@@ -15,12 +15,13 @@
  */
 
 import { InitEvent, record } from '@genkit-ai/tools-common/utils';
-import { execSync } from 'child_process';
+import { exec } from 'child_process';
 import extract from 'extract-zip';
 import fs from 'fs';
 import * as inquirer from 'inquirer';
 import ora from 'ora';
 import path from 'path';
+import { promisify } from 'util';
 import {
   InitOptions,
   ModelProvider,
@@ -30,7 +31,9 @@ import {
   showModelInfo,
 } from '../init';
 
-type SampleTarget = 'firebase' | 'googlecloud' | 'nodejs' | 'nextjs';
+type SampleTarget = 'firebase' | 'nodejs' | 'nextjs';
+
+const execAsync = promisify(exec);
 
 interface PluginInfo {
   // Imported items from `name` (can be comma list).
@@ -73,10 +76,6 @@ const modelOptions: Record<ModelProvider, PromptOption> = {
 /** Supported platform to plugin name. */
 const platformOptions: Record<Platform, PromptOption> = {
   firebase: { label: 'Firebase', plugin: '@genkit-ai/firebase' },
-  googlecloud: {
-    label: 'Google Cloud',
-    plugin: '@genkit-ai/google-cloud',
-  },
   other: { label: 'Other platforms', plugin: undefined },
 };
 
@@ -138,8 +137,7 @@ const pluginToInfo: Record<string, PluginInfo> = {
 /** Platform to sample flow template paths. */
 const sampleTemplatePaths: Record<SampleTarget, string> = {
   firebase: '../../../config/firebase.index.ts.template',
-  googlecloud: '../../../config/googleCloud.index.ts.template',
-  nodejs: '../../../config/googleCloud.index.ts.template', // This can deviate from GCP template in the future as needed.
+  nodejs: '../../../config/nodejs.index.ts.template',
   nextjs: '../../../config/nextjs.genkit.ts.template',
 };
 
@@ -162,7 +160,6 @@ const internalPackages = [
 
 const platformImportOptions: Record<Platform, ImportOptions> = {
   firebase: { spacer: '', quotes: '"' },
-  googlecloud: { spacer: ' ', quotes: "'" },
   other: { spacer: ' ', quotes: "'" },
 };
 
@@ -189,24 +186,22 @@ export async function initNodejs(options: InitOptions, isNew: boolean) {
     );
   }
 
-  // Prompt for left-over arguments.
-  if (!platform) {
-    const answer = await inquirer.prompt<{ platform: Platform }>([
-      {
-        type: 'list',
-        name: 'platform',
-        message: 'Select a deployment platform:',
-        choices: supportedPlatforms.map((platform) => ({
-          name: platformOptions[platform].label,
-          value: platform,
-        })),
-      },
-    ]);
-    platform = answer.platform;
-  }
-  var sampleTarget: SampleTarget;
-  if (platform === 'other') {
+  platform = platform || 'other';
+
+  let sampleTarget: SampleTarget = 'nodejs';
+  if (platform === 'firebase') {
+    sampleTarget = 'firebase';
+  } else {
     if (
+      isFirebaseProject() &&
+      (await confirm({
+        message:
+          'Detected a Firebase project. Would you like to configure Genkit for Firebase?',
+        default: true,
+      }))
+    ) {
+      sampleTarget = 'firebase';
+    } else if (
       isNextJsProject() &&
       (await confirm({
         message:
@@ -215,12 +210,9 @@ export async function initNodejs(options: InitOptions, isNew: boolean) {
       }))
     ) {
       sampleTarget = 'nextjs';
-    } else {
-      sampleTarget = 'nodejs';
     }
-  } else {
-    sampleTarget = platform;
   }
+
   if (!model) {
     const answer = await inquirer.prompt<{ model: ModelProvider }>([
       {
@@ -256,7 +248,7 @@ export async function initNodejs(options: InitOptions, isNew: boolean) {
   if (isNew) {
     const spinner = ora('Initializing NPM project').start();
     try {
-      execSync('npm init -y', { stdio: 'ignore' });
+      await execAsync('npm init -y');
       spinner.succeed('Successfully initialized NPM project');
     } catch (err) {
       spinner.fail(`Failed to initialize NPM project: ${err}`);
@@ -368,12 +360,10 @@ async function installNpmPackages(
   const spinner = ora('Installing NPM packages').start();
   try {
     if (packages.length) {
-      execSync(`npm install ${packages.join(' ')} --save`, { stdio: 'ignore' });
+      await execAsync(`npm install ${packages.join(' ')} --save`);
     }
     if (devPackages?.length) {
-      execSync(`npm install ${devPackages.join(' ')} --save-dev`, {
-        stdio: 'ignore',
-      });
+      await execAsync(`npm install ${devPackages.join(' ')} --save-dev`);
     }
     if (distArchive) {
       const distDir = 'genkit-dist';
@@ -382,7 +372,7 @@ async function installNpmPackages(
         fs.mkdirSync(distDir);
       }
       await extract(distArchive, { dir: outputPath });
-      execSync(`npm install ${outputPath}/*.tgz --save`, { stdio: 'ignore' });
+      await execAsync(`npm install ${outputPath}/*.tgz --save`);
     }
     spinner.succeed('Successfully installed NPM packages');
   } catch (err) {
@@ -598,6 +588,17 @@ function isNextJsProject(projectDir: string = process.cwd()): boolean {
   const hasNextDependency =
     packageJson.dependencies && packageJson.dependencies.next;
   return hasNextConfig || hasNextDependency;
+}
+
+/**
+ * Detects whether the project directory is a Firebase app.
+ */
+function isFirebaseProject(projectDir: string = process.cwd()): boolean {
+  const filename = 'firebase.json';
+  return (
+    fs.existsSync(path.join(projectDir, filename)) ||
+    fs.existsSync(path.join(projectDir, '..', filename))
+  );
 }
 
 /**

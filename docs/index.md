@@ -44,7 +44,7 @@ Trying out a new model is as easy as changing a single argument, but each model
 can specify custom configurations.
 
 ```js
-import { geminiPro } from '@genkit-ai/vertexai';
+import { gemini15Flash } from '@genkit-ai/vertexai';
 import { ollama } from 'genkitx-ollama';
 import { generate } from '@genkit-ai/ai';
 
@@ -53,7 +53,7 @@ function flipACoin(a, b) {
 }
 
 const result = await generate({
-  model: flipACoin(geminiPro, 'ollama/gemma'),
+  model: flipACoin(gemini15Flash, 'ollama/gemma'),
   config: { temperature: 0.3, maxOutputTokens: 200 },
   prompt: 'What makes you the best LLM out there?',
 });
@@ -69,7 +69,7 @@ results back to your app as structured type-safe objects.
 
 ```js
 import { generate } from "@genkit-ai/ai";
-import { geminiPro } from "@genkit-ai/vertexai";
+import { gemini15Flash } from "@genkit-ai/vertexai";
 import { z } from "zod";
 
 const CreatureSchema = z.object({
@@ -88,7 +88,7 @@ const createCreature = defineFlow({
   },
   (habitat) => {
     const result = await generate({
-      model: geminiPro,
+      model: gemini15Flash,
       prompt: `You are a brilliant RPG designer. Generate a creature that lives in ${habitat}.`,
       output: {schema: CreatureSchema}
     });
@@ -107,7 +107,7 @@ data, and arbitrary media. This lets you use Genkit for models that perform any
 generative task (such as image generation), not just LLMs.
 
 ```js
-import { imagen2, geminiProVision } from '@genkit-ai/vertexai';
+import { imagen2, gemini15Flash } from '@genkit-ai/vertexai';
 import { generate } from '@genkit-ai/ai';
 
 const imageResult = await generate({
@@ -117,7 +117,7 @@ const imageResult = await generate({
 const generatedImage = imageResult.media();
 
 const descriptionResult = await generate({
-  model: geminiProVision,
+  model: gemini15Flash,
   prompt: [
     {
       text: 'What is the historical time and place represented in this picture?',
@@ -136,7 +136,7 @@ any other action you can code up.
 
 ```js
 import { generate, defineTool } from '@genkit-ai/ai';
-import { geminiPro } from '@genkit-ai/vertexai';
+import { gemini15Flash } from '@genkit-ai/vertexai';
 import { z } from 'zod';
 
 const createReminder = defineTool(
@@ -165,7 +165,7 @@ const searchNotes = defineTool(
 );
 
 const result = await generate({
-  model: geminiPro,
+  model: gemini15Flash,
   tools: [createReminder, searchNotes],
   prompt: `
   You are a note-taking assistant. Using the tools available, try to answer the provided query.
@@ -186,7 +186,7 @@ into a single file for easier testing and organization.
 
 ```none
 ---
-model: vertexai/gemini-1.0-pro
+model: vertexai/gemini-1.5-flash
 config:
   temperature: 0.9
 input:

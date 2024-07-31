@@ -91,7 +91,7 @@ func main() {
 			}
 
 			// Add chunks to the index.
-			err = menuPDFIndexer.Index(ctx, &ai.IndexerRequest{Documents: docs})
+			err = ai.Index(ctx, menuPDFIndexer, ai.WithIndexerDocs(docs...))
 			return nil, err
 		},
 	)
@@ -142,7 +142,7 @@ func menuQA() {
 		log.Fatal(err)
 	}
 
-	model := vertexai.Model("gemini-1.5-pro")
+	model := vertexai.Model("gemini-1.5-flash")
 
 	_, menuPdfRetriever, err := localvec.DefineIndexerAndRetriever(
 		"menuQA",
@@ -173,22 +173,15 @@ func menuQA() {
 			}
 
 			// Call Generate, including the menu information in your prompt.
-			resp, err := model.Generate(ctx, &ai.GenerateRequest{
-				Messages: []*ai.Message{
+			return ai.GenerateText(ctx, model,
+				ai.WithMessages(
 					ai.NewSystemTextMessage(`
 You are acting as a helpful AI assistant that can answer questions about the
 food available on the menu at Genkit Grub Pub.
 Use only the context provided to answer the question. If you don't know, do not
 make up an answer. Do not add or change items on the menu.`),
 					menuInfo,
-					ai.NewUserTextMessage(question),
-				},
-			}, nil)
-			if err != nil {
-				return "", err
-			}
-
-			return resp.Text()
+					ai.NewUserTextMessage(question)))
 		})
 	// [END retrieve]
 }

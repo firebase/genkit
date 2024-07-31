@@ -62,8 +62,8 @@ This plugin statically exports references to its supported models:
 
 ```js
 import {
-  geminiPro,
-  geminiProVision,
+  gemini15Flash,
+  gemini15Pro,
   textEmbeddingGecko001,
 } from '@genkit-ai/googleai';
 ```
@@ -72,7 +72,7 @@ You can use these references to specify which model `generate()` uses:
 
 ```js
 const llmResponse = await generate({
-  model: geminiPro,
+  model: gemini15Flash,
   prompt: 'Tell me a joke.',
 });
 ```
