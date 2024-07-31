@@ -15,4 +15,6 @@
  */
 
 export * from '@genkit-ai/core';
+export * from '@genkit-ai/ai';
+export * from '@genkit-ai/flow';
 export { z } from 'zod';
