@@ -16,15 +16,18 @@ package ollama_test
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"testing"
 
+	"github.com/docker/docker/client"
+	"github.com/docker/go-connections/nat"
 	"github.com/firebase/genkit/go/ai"
 	ollamaPlugin "github.com/firebase/genkit/go/plugins/ollama"
 	ollamaTestContainers "github.com/testcontainers/testcontainers-go/modules/ollama"
 )
 
-func TestWithOllama(t *testing.T) {
+func TestWithOllamaContainer(t *testing.T) {
 	ctx := context.Background()
 
 	// Start the Ollama container
@@ -38,6 +41,24 @@ func TestWithOllama(t *testing.T) {
 		}
 	}()
 
+	// Get the container information
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		t.Fatalf("failed to create docker client: %s", err)
+	}
+	containerID := ollamaContainer.GetContainerID()
+	containerInfo, err := cli.ContainerInspect(ctx, containerID)
+	if err != nil {
+		t.Fatalf("failed to inspect container: %s", err)
+	}
+
+	// Retrieve the host port for the container's port 11434
+	portBindings := containerInfo.NetworkSettings.Ports[nat.Port("11434/tcp")]
+	if len(portBindings) == 0 {
+		t.Fatalf("no port bindings found for port 11434/tcp")
+	}
+	hostPort := portBindings[0].HostPort
+
 	// Pull the model
 	_, _, err = ollamaContainer.Exec(ctx, []string{"ollama", "pull", "tinyllama"})
 	if err != nil {
@@ -45,8 +66,9 @@ func TestWithOllama(t *testing.T) {
 	}
 
 	// Initialize the Ollama plugin
+	serverAddress := fmt.Sprintf("http://localhost:%s", hostPort)
 	err = ollamaPlugin.Init(ctx, &ollamaPlugin.Config{
-		ServerAddress: "http://localhost:11434",
+		ServerAddress: serverAddress,
 	})
 	if err != nil {
 		t.Fatalf("failed to initialize Ollama plugin: %s", err)
