@@ -15,7 +15,7 @@
  */
 
 import * as z from 'zod';
-import { Action, isInRuntimeContext } from './action.js';
+import { Action } from './action.js';
 import { FlowStateStore } from './flowTypes.js';
 import { logger } from './logging.js';
 import { PluginProvider } from './plugin.js';

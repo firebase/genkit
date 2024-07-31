@@ -18,7 +18,12 @@ import { JSONSchema7 } from 'json-schema';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { performance } from 'node:perf_hooks';
 import * as z from 'zod';
-import { ActionType, lookupPlugin, maybeInitializeAllPlugins, registerAction } from './registry.js';
+import {
+  ActionType,
+  lookupPlugin,
+  maybeInitializeAllPlugins,
+  registerAction,
+} from './registry.js';
 import { parseSchema } from './schema.js';
 import * as telemetry from './telemetry.js';
 import {
