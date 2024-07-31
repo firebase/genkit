@@ -126,7 +126,7 @@ type ActionsRecord = Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>>;
  * Returns all actions in the registry.
  */
 export async function listActions(): Promise<ActionsRecord> {
-  maybeInitializeAllPlugins();
+  await maybeInitializeAllPlugins();
   return Object.assign({}, actionsById());
 }
 
