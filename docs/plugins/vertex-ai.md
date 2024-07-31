@@ -171,14 +171,14 @@ First you'll need to enable [Llama 3.1 API Service](https://console.cloud.google
 Here's sample configuration for Llama 3.1 405b in Vertex AI plugin:
 
 ```js
-import { vertexAI, llama3 } from '@genkit-ai/vertexai';
+import { vertexAI, llama31 } from '@genkit-ai/vertexai';
 
 export default configureGenkit({
   plugins: [
     vertexAI({
       location: 'us-central1',
       modelGarden: {
-        models: [llama3],
+        models: [llama31],
       },
     }),
   ],
@@ -189,7 +189,7 @@ Then use it as regular models:
 
 ```js
 const llmResponse = await generate({
-  model: llama3,
+  model: llama31,
   prompt: 'Write a function that adds two numbers together',
 });
 ```
