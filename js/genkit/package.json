@@ -1,0 +1,196 @@
+{
+  "name": "@genkit-ai/genkit",
+  "description": "Genkit AI framework",
+  "keywords": [
+    "genkit",
+    "ai",
+    "genai",
+    "generative-ai"
+  ],
+  "version": "0.5.8",
+  "type": "commonjs",
+  "main": "./lib/cjs/index.js",
+  "scripts": {
+    "check": "tsc",
+    "compile": "tsup-node",
+    "build:clean": "rm -rf ./lib",
+    "build": "npm-run-all build:clean check compile",
+    "build:watch": "tsup-node --watch",
+    "test": "node --import tsx --test tests/*_test.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/firebase/genkit.git",
+    "directory": "js/flow"
+  },
+  "author": "genkit",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@genkit-ai/core": "workspace:*",
+    "@genkit-ai/ai": "workspace:*",
+    "@genkit-ai/flow": "workspace:*",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/uuid": "^9.0.6",
+    "npm-run-all": "^4.1.5",
+    "tsup": "^8.0.2",
+    "typescript": "^4.9.0",
+    "tsx": "^4.7.1",
+    "@types/body-parser": "^1.19.5"
+  },
+  "files": [
+    "genkit-ui",
+    "lib",
+    "src",
+    "*"
+  ],
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "require": "./lib/index.js",
+      "import": "./lib/index.mjs",
+      "default": "./lib/index.js"
+    },
+    "./metrics": {
+      "types": "./lib/metrics.d.ts",
+      "require": "./lib/metrics.js",
+      "import": "./lib/metrics.mjs",
+      "default": "./lib/metrics.js"
+    },
+    "./registry": {
+      "types": "./lib/registry.d.ts",
+      "require": "./lib/registry.js",
+      "import": "./lib/registry.mjs",
+      "default": "./lib/registry.js"
+    },
+    "./tracing": {
+      "types": "./lib/tracing.d.ts",
+      "require": "./lib/tracing.js",
+      "import": "./lib/tracing.mjs",
+      "default": "./lib/tracing.js"
+    },
+    "./logging": {
+      "types": "./lib/logging.d.ts",
+      "require": "./lib/logging.js",
+      "import": "./lib/logging.mjs",
+      "default": "./lib/logging.js"
+    },
+    "./schema": {
+      "types": "./lib/schema.d.ts",
+      "require": "./lib/schema.js",
+      "import": "./lib/schema.mjs",
+      "default": "./lib/schema.js"
+    },
+
+    "./ai": {
+      "types": "./lib/ai/index.d.ts",
+      "require": "./lib/ai/index.js",
+      "import": "./lib/ai/index.mjs",
+      "default": "./lib/ai/index.js"
+    },
+    "./ai/retriever": {
+      "types": "./lib/ai/retriever.d.ts",
+      "require": "./lib/ai/retriever.js",
+      "import": "./lib/ai/retriever.mjs",
+      "default": "./lib/ai/retriever.js"
+    },
+    "./ai/embedder": {
+      "types": "./lib/ai/embedder.d.ts",
+      "require": "./lib/ai/embedder.js",
+      "import": "./lib/ai/embedder.mjs",
+      "default": "./lib/ai/embedder.js"
+    },
+    "./ai/evaluator": {
+      "types": "./lib/ai/evaluator.d.ts",
+      "require": "./lib/ai/evaluator.js",
+      "import": "./lib/ai/evaluator.mjs",
+      "default": "./lib/ai/evaluator.js"
+    },
+    "./ai/model": {
+      "types": "./lib/ai/model.d.ts",
+      "require": "./lib/ai/model.js",
+      "import": "./lib/ai/model.mjs",
+      "default": "./lib/ai/model.js"
+    },
+    "./ai/model/middleware": {
+      "types": "./lib/ai/model/middleware.d.ts",
+      "require": "./lib/ai/model/middleware.js",
+      "import": "./lib/ai/model/middleware.mjs",
+      "default": "./lib/ai/model/middleware.js"
+    },
+    "./ai/extract": {
+      "types": "./lib/ai/extract.d.ts",
+      "require": "./lib/ai/extract.js",
+      "import": "./lib/ai/extract.mjs",
+      "default": "./lib/ai/extract.js"
+    },
+    "./ai/tool": {
+      "types": "./lib/ai/tool.d.ts",
+      "require": "./lib/ai/tool.js",
+      "import": "./lib/ai/tool.mjs",
+      "default": "./lib/ai/tool.js"
+    },
+
+    "./flow": {
+      "types": "./lib/flow/index.d.ts",
+      "require": "./lib/flow/index.js",
+      "import": "./lib/flow/index.mjs",
+      "default": "./lib/flow/index.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "metrics": [
+        "lib/metrics"
+      ],
+      "registry": [
+        "lib/registry"
+      ],
+      "tracing": [
+        "lib/tracing"
+      ],
+      "logging": [
+        "lib/logging"
+      ],
+      "config": [
+        "lib/config"
+      ],
+      "runtime": [
+        "lib/runtime"
+      ],
+      "schema": [
+        "lib/schema"
+      ],
+      "ai": [
+        "lib/ai"
+      ],
+      "ai/retriever": [
+        "lib/ai/retriever"
+      ],
+      "ai/embedder": [
+        "lib/ai/embedder"
+      ],
+      "ai/evaluator": [
+        "lib/ai/evaluator"
+      ],
+      "ai/model": [
+        "lib/ai/model"
+      ],
+      "ai/model/middleware": [
+        "lib/ai/middleware"
+      ],
+      "ai/extract": [
+        "lib/ai/extract"
+      ],
+      "ai/tool": [
+        "lib/ai/tool"
+      ],
+      "flow": [
+        "lib/flow"
+      ]
+    }
+  }
+}

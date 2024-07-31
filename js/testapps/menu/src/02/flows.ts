@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { defineFlow } from '@genkit-ai/flow';
+import { defineFlow } from '@genkit-ai/genkit/flow';
 import { AnswerOutputSchema, MenuQuestionInputSchema } from '../types.js';
 import { s02_dataMenuPrompt } from './prompts.js';
 

@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
-import { MessageData } from '@genkit-ai/ai/model';
-import { defineFlow, run } from '@genkit-ai/flow';
+import { generate } from '@genkit-ai/genkit/ai';
+import { MessageData } from '@genkit-ai/genkit/ai/model';
+import { defineFlow, run } from '@genkit-ai/genkit/flow';
 import { geminiPro } from '@genkit-ai/vertexai';
 
 import {

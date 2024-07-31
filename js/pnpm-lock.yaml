@@ -174,6 +174,43 @@ importers:
         specifier: ^4.9.0
         version: 4.9.5
 
+  genkit:
+    dependencies:
+      '@genkit-ai/ai':
+        specifier: workspace:*
+        version: link:../ai
+      '@genkit-ai/core':
+        specifier: workspace:*
+        version: link:../core
+      '@genkit-ai/flow':
+        specifier: workspace:*
+        version: link:../flow
+      zod:
+        specifier: ^3.22.4
+        version: 3.22.4
+    devDependencies:
+      '@types/body-parser':
+        specifier: ^1.19.5
+        version: 1.19.5
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.21
+      '@types/uuid':
+        specifier: ^9.0.6
+        version: 9.0.8
+      npm-run-all:
+        specifier: ^4.1.5
+        version: 4.1.5
+      tsup:
+        specifier: ^8.0.2
+        version: 8.0.2(typescript@4.9.5)
+      tsx:
+        specifier: ^4.7.1
+        version: 4.7.1
+      typescript:
+        specifier: ^4.9.0
+        version: 4.9.5
+
   plugins/chroma:
     dependencies:
       '@genkit-ai/ai':
@@ -1162,12 +1199,6 @@ importers:
 
   testapps/menu:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@genkit-ai/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
@@ -1180,15 +1211,12 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
+      '@genkit-ai/genkit':
         specifier: workspace:*
-        version: link:../../flow
+        version: link:../../genkit
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
     devDependencies:
       typescript:
         specifier: ^5.3.3
@@ -3604,6 +3632,7 @@ packages:
   google-p12-pem@4.0.1:
     resolution: {integrity: sha512-WPkN4yGtz05WZ5EhtlxNDWPhC4JIic6G8ePitwUWy4l+XPVYec+a0j0Ts47PDtW59y3RwAhUd9/h9ZZ63px6RQ==}
     engines: {node: '>=12.0.0'}
+    deprecated: Package is no longer maintained
     hasBin: true
 
   google-proto-files@3.0.3:

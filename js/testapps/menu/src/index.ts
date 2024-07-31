@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { configureGenkit } from '@genkit-ai/core';
+import { configureGenkit } from '@genkit-ai/genkit';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 
@@ -54,6 +54,7 @@ export { s04_ragDataMenuPrompt } from './04/prompts.js';
 export {
   s05_readMenuFlow,
   s05_textMenuQuestionFlow,
-  s05_visionMenuQuestionFlow,
+  s05_visionMenuQuestionFlow
 } from './05/flows.js';
 export { s05_readMenuPrompt, s05_textMenuPrompt } from './05/prompts.js';
+
