@@ -38,12 +38,12 @@ import {
   Content,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
+  Part as GeminiPart,
   GenerateContentCandidate,
   GenerateContentResponse,
   GenerateContentResult,
   HarmBlockThreshold,
   HarmCategory,
-  Part as GeminiPart,
   StartChatParams,
   VertexAI,
 } from '@google-cloud/vertexai';
