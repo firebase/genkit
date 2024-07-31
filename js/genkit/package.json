@@ -84,7 +84,6 @@
       "import": "./lib/schema.mjs",
       "default": "./lib/schema.js"
     },
-
     "./ai": {
       "types": "./lib/ai/index.d.ts",
       "require": "./lib/ai/index.js",
@@ -133,7 +132,6 @@
       "import": "./lib/ai/tool.mjs",
       "default": "./lib/ai/tool.js"
     },
-
     "./flow": {
       "types": "./lib/flow/index.d.ts",
       "require": "./lib/flow/index.js",
