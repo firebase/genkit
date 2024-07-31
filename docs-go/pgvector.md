@@ -6,16 +6,12 @@ schema.
 
 We use [database/sql](https://pkg.go.dev/database/sql) to connect to the Postgres server, but you may use another client library of your choice.
 
-- {Go}
-
-  ```golang
-  {% includecode github_path="firebase/genkit/go/samples/pgvector/main.go" region_tag="retr" adjust_indentation="auto" %}
-  ```
+```golang
+{% includecode github_path="firebase/genkit/go/samples/pgvector/main.go" region_tag="retr" adjust_indentation="auto" %}
+```
 
 And here's how to use the retriever in a flow:
 
-- {Go}
-
-  ```golang
-  {% includecode github_path="firebase/genkit/go/samples/pgvector/main.go" region_tag="use-retr" adjust_indentation="auto" %}
-  ```
+```golang
+{% includecode github_path="firebase/genkit/go/samples/pgvector/main.go" region_tag="use-retr" adjust_indentation="auto" %}
+```

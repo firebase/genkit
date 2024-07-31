@@ -186,7 +186,7 @@ func IsDefinedModel(name string) bool {
 // DO NOT MODIFY below vvvv
 
 // DefineEmbedder defines an embedder with a given name.
-func DefineEmbedder(name string) *ai.Embedder {
+func DefineEmbedder(name string) ai.Embedder {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
@@ -204,7 +204,7 @@ func IsDefinedEmbedder(name string) bool {
 //copy:endsink defineEmbedder
 
 // requires state.mu
-func defineEmbedder(name string) *ai.Embedder {
+func defineEmbedder(name string) ai.Embedder {
 	fullName := fmt.Sprintf("projects/%s/locations/%s/publishers/google/models/%s", state.projectID, state.location, name)
 	return ai.DefineEmbedder(provider, name, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		return embed(ctx, fullName, state.pclient, req)
@@ -214,7 +214,7 @@ func defineEmbedder(name string) *ai.Embedder {
 //copy:sink lookups from ../googleai/googleai.go
 // DO NOT MODIFY below vvvv
 
-// Model returns the [ai.ModelAction] with the given name.
+// Model returns the [ai.Model] with the given name.
 // It returns nil if the model was not defined.
 func Model(name string) ai.Model {
 	return ai.LookupModel(provider, name)
@@ -222,7 +222,7 @@ func Model(name string) ai.Model {
 
 // Embedder returns the [ai.Embedder] with the given name.
 // It returns nil if the embedder was not defined.
-func Embedder(name string) *ai.Embedder {
+func Embedder(name string) ai.Embedder {
 	return ai.LookupEmbedder(provider, name)
 }
 

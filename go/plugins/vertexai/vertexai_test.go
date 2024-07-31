@@ -120,12 +120,10 @@ func TestLive(t *testing.T) {
 		}
 	})
 	t.Run("embedder", func(t *testing.T) {
-		res, err := embedder.Embed(ctx, &ai.EmbedRequest{
-			Documents: []*ai.Document{
-				ai.DocumentFromText("time flies like an arrow", nil),
-				ai.DocumentFromText("fruit flies like a banana", nil),
-			},
-		})
+		res, err := ai.Embed(ctx, embedder, ai.WithEmbedDocs(
+			ai.DocumentFromText("time flies like an arrow", nil),
+			ai.DocumentFromText("fruit flies like a banana", nil),
+		))
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -20,7 +20,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestExtractJsonFromMarkdown(t *testing.T) {
+func TestExtractJSONFromMarkdown(t *testing.T) {
 	tests := []struct {
 		desc string
 		in   string
@@ -59,8 +59,8 @@ func TestExtractJsonFromMarkdown(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
-			if diff := cmp.Diff(ExtractJsonFromMarkdown(tc.in), tc.want); diff != "" {
-				t.Errorf("ExtractJsonFromMarkdown diff (+got -want):\n%s", diff)
+			if diff := cmp.Diff(ExtractJSONFromMarkdown(tc.in), tc.want); diff != "" {
+				t.Errorf("ExtractJSONFromMarkdown diff (+got -want):\n%s", diff)
 			}
 		})
 	}

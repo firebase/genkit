@@ -39,7 +39,7 @@ const provider = "devLocalVectorStore"
 type Config struct {
 	// Where to store the data. Defaults to os.TempDir.
 	Dir             string
-	Embedder        *ai.Embedder
+	Embedder        ai.Embedder
 	EmbedderOptions any
 }
 
@@ -48,7 +48,7 @@ func Init() error { return nil }
 
 // DefineIndexerAndRetriever defines an Indexer and Retriever that share the same underlying storage.
 // The name uniquely identifies the the Indexer and Retriever in the registry.
-func DefineIndexerAndRetriever(name string, cfg Config) (*ai.Indexer, *ai.Retriever, error) {
+func DefineIndexerAndRetriever(name string, cfg Config) (ai.Indexer, ai.Retriever, error) {
 	ds, err := newDocStore(cfg.Dir, name, cfg.Embedder, cfg.EmbedderOptions)
 	if err != nil {
 		return nil, nil, err
@@ -64,7 +64,7 @@ func IsDefinedIndexer(name string) bool {
 }
 
 // Indexer returns the registered indexer with the given name.
-func Indexer(name string) *ai.Indexer {
+func Indexer(name string) ai.Indexer {
 	return ai.LookupIndexer(provider, name)
 }
 
@@ -75,7 +75,7 @@ func IsDefinedRetriever(name string) bool {
 
 // Retriever returns the retriever with the given name.
 // The name must match the [Config.Name] value passed to [Init].
-func Retriever(name string) *ai.Retriever {
+func Retriever(name string) ai.Retriever {
 	return ai.LookupRetriever(provider, name)
 }
 
@@ -83,7 +83,7 @@ func Retriever(name string) *ai.Retriever {
 // This is based on js/plugins/dev-local-vectorstore/src/index.ts.
 type docStore struct {
 	filename        string
-	embedder        *ai.Embedder
+	embedder        ai.Embedder
 	embedderOptions any
 	data            map[string]dbValue
 }
@@ -95,7 +95,7 @@ type dbValue struct {
 }
 
 // newDocStore returns a new ai.DocumentStore to register.
-func newDocStore(dir, name string, embedder *ai.Embedder, embedderOptions any) (*docStore, error) {
+func newDocStore(dir, name string, embedder ai.Embedder, embedderOptions any) (*docStore, error) {
 	if dir == "" {
 		dir = os.TempDir()
 	}

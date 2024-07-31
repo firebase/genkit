@@ -19,36 +19,30 @@ approaches are also supported by working with prompts directly.
 Genkit's generation helper functions accept string prompts, and you can
 call models this way for straight-forward use cases.
 
-- {Go}
-
-  ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="pr01" adjust_indentation="auto" %}
-  ```
+```golang
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="pr01" adjust_indentation="auto" %}
+```
 
 In most cases, you'll need to include some user-provided inputs in your prompt.
 You could define a function to render them like this:
 
-- {Go}
+```golang
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="hello" adjust_indentation="auto" %}
+```
 
-  ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="hello" adjust_indentation="auto" %}
-  ```
-
-  ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="pr02" adjust_indentation="auto" %}
-  ```
+```golang
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="pr02" adjust_indentation="auto" %}
+```
 
 However, one shortcoming of defining prompts in your code is that testing requires executing
 them as part of a flow. To facilitate more rapid iteration, Genkit provides a facility
 to define your prompts and run them in the Developer UI.
 
-- {Go}
+Use the `DefinePrompt` function to register your prompts with Genkit.
 
-  Use the `DefinePrompt` function to register your prompts with Genkit.
-
-  ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="pr03_1" adjust_indentation="auto" %}
-  ```
+```golang
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="pr03_1" adjust_indentation="auto" %}
+```
 
 A prompt action defines a function that returns a `GenerateRequest`,
 which can be used with any model. Optionally, you can also define an input schema
@@ -59,11 +53,9 @@ temperature or number of output tokens.
 You can render this prompt to a model request with the provided helper function.
 Provide the input variables expected by the prompt, and the model to call.
 
-- {Go}
-
-  ```golang
-  {% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="pr03_2" adjust_indentation="auto" %}
-  ```
+```golang
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/prompts.go" region_tag="pr03_2" adjust_indentation="auto" %}
+```
 
 In the Genkit Developer UI, you can run any prompt you have defined in this way.
 This allows you to experiment with individual prompts outside of the scope of

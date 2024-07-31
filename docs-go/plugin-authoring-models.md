@@ -27,11 +27,11 @@ A model definition consists of three components:
 At a high level, here's what it looks like in code:
 
 ```golang
-{% includecode github_path="firebase/genkit/go/internal/doc-snippets/plugin/plugin.go" region_tag="cfg" adjust_indentation="auto" %}
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/modelplugin/modelplugin.go" region_tag="cfg" adjust_indentation="auto" %}
 ```
 
 ```golang
-{% includecode github_path="firebase/genkit/go/internal/doc-snippets/plugin/plugin.go" region_tag="definemodel" adjust_indentation="auto" %}
+{% includecode github_path="firebase/genkit/go/internal/doc-snippets/modelplugin/modelplugin.go" region_tag="definemodel" adjust_indentation="auto" %}
 ```
 
 ### Declaring model capabilities
