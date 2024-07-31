@@ -204,6 +204,7 @@ export async function lookupFlowStateStore(
  * Registers a flow state store for the given environment.
  */
 export function registerPluginProvider(name: string, provider: PluginProvider) {
+  initializedAllPlugins = false;
   let cached;
   let isInitialized = false;
   pluginsByName()[name] = {
