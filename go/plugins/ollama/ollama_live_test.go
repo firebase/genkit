@@ -27,46 +27,64 @@ import (
 	ollamaTestContainers "github.com/testcontainers/testcontainers-go/modules/ollama"
 )
 
-func TestWithOllamaContainer(t *testing.T) {
-	ctx := context.Background()
-
+// setupOllamaContainer sets up the Ollama container and returns the server address.
+func setupOllamaContainer(ctx context.Context) (string, func(), error) {
 	// Start the Ollama container
 	ollamaContainer, err := ollamaTestContainers.Run(ctx, "ollama/ollama:0.1.26")
 	if err != nil {
-		t.Fatalf("failed to start container: %s", err)
+		return "", nil, fmt.Errorf("failed to start container: %w", err)
 	}
-	defer func() {
+
+	cleanup := func() {
 		if err := ollamaContainer.Terminate(ctx); err != nil {
 			log.Printf("failed to terminate container: %s", err)
 		}
-	}()
+	}
 
 	// Get the container information
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
-		t.Fatalf("failed to create docker client: %s", err)
+		cleanup()
+		return "", nil, fmt.Errorf("failed to create docker client: %w", err)
 	}
 	containerID := ollamaContainer.GetContainerID()
 	containerInfo, err := cli.ContainerInspect(ctx, containerID)
 	if err != nil {
-		t.Fatalf("failed to inspect container: %s", err)
+		cleanup()
+		return "", nil, fmt.Errorf("failed to inspect container: %w", err)
 	}
 
 	// Retrieve the host port for the container's port 11434
 	portBindings := containerInfo.NetworkSettings.Ports[nat.Port("11434/tcp")]
 	if len(portBindings) == 0 {
-		t.Fatalf("no port bindings found for port 11434/tcp")
+		cleanup()
+		return "", nil, fmt.Errorf("no port bindings found for port 11434/tcp")
 	}
 	hostPort := portBindings[0].HostPort
 
 	// Pull the model
 	_, _, err = ollamaContainer.Exec(ctx, []string{"ollama", "pull", "tinyllama"})
 	if err != nil {
-		t.Fatalf("failed to pull model: %s", err)
+		cleanup()
+		return "", nil, fmt.Errorf("failed to pull model: %w", err)
 	}
 
-	// Initialize the Ollama plugin
+	// Return the server address and cleanup function
 	serverAddress := fmt.Sprintf("http://localhost:%s", hostPort)
+	return serverAddress, cleanup, nil
+}
+
+func TestWithOllamaContainer(t *testing.T) {
+	ctx := context.Background()
+
+	// Setup the Ollama container
+	serverAddress, cleanup, err := setupOllamaContainer(ctx)
+	if err != nil {
+		t.Fatalf("setupOllamaContainer failed: %s", err)
+	}
+	defer cleanup()
+
+	// Initialize the Ollama plugin
 	err = ollamaPlugin.Init(ctx, &ollamaPlugin.Config{
 		ServerAddress: serverAddress,
 	})
