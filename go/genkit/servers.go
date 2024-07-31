@@ -27,16 +27,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
-	"os/signal"
 	"strconv"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"github.com/firebase/genkit/go/core/logger"
@@ -77,6 +74,10 @@ type flow interface {
 	// runJSON uses encoding/json to unmarshal the input,
 	// calls Flow.start, then returns the marshaled result.
 	runJSON(ctx context.Context, input json.RawMessage, cb streamingCallback[json.RawMessage]) (json.RawMessage, error)
+
+	provideAuth(ctx context.Context, token any) (any, error)
+
+	checkAuthPolicy(ctx context.Context, auth any, input any) error
 }
 
 // startServer starts an HTTP server listening on the address.
@@ -163,19 +164,17 @@ func (s *devServer) handleRunAction(w http.ResponseWriter, r *http.Request) erro
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		return &base.HTTPError{Code: http.StatusBadRequest, Err: err}
 	}
-	stream := false
-	if s := r.FormValue("stream"); s != "" {
-		var err error
-		stream, err = strconv.ParseBool(s)
-		if err != nil {
-			return err
-		}
+	stream, err := parseBoolQueryParam(r, "stream")
+	if err != nil {
+		return err
 	}
 	logger.FromContext(ctx).Debug("running action",
 		"key", body.Key,
 		"stream", stream)
 	var callback streamingCallback[json.RawMessage]
 	if stream {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Transfer-Encoding", "chunked")
 		// Stream results are newline-separated JSON.
 		callback = func(ctx context.Context, msg json.RawMessage) error {
 			_, err := fmt.Fprintf(w, "%s\n", msg)
@@ -328,29 +327,49 @@ func newFlowServeMux(r *registry.Registry, flows []string) *http.ServeMux {
 
 func nonDurableFlowHandler(f flow) func(http.ResponseWriter, *http.Request) error {
 	return func(w http.ResponseWriter, r *http.Request) error {
+		var body struct {
+			Data json.RawMessage `json:"data"`
+		}
 		defer r.Body.Close()
-		input, err := io.ReadAll(r.Body)
-		if err != nil {
-			return err
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			return &base.HTTPError{Code: http.StatusBadRequest, Err: err}
 		}
 		stream, err := parseBoolQueryParam(r, "stream")
 		if err != nil {
 			return err
 		}
+		auth, err := f.provideAuth(r.Context(), r.Header.Get("Authorization"))
+		if err != nil {
+			return &base.HTTPError{Code: http.StatusUnauthorized, Err: err}
+		}
+		if err := f.checkAuthPolicy(r.Context(), auth, body.Data); err != nil {
+			return &base.HTTPError{Code: http.StatusForbidden, Err: err}
+		}
+		var callback streamingCallback[json.RawMessage]
 		if stream {
-			// TODO: implement streaming.
-			return &base.HTTPError{Code: http.StatusNotImplemented, Err: errors.New("streaming")}
-		} else {
-			// TODO: telemetry
-			out, err := f.runJSON(r.Context(), json.RawMessage(input), nil)
-			if err != nil {
-				return err
+			w.Header().Set("Content-Type", "text/plain")
+			w.Header().Set("Transfer-Encoding", "chunked")
+			// Stream results are newline-separated JSON.
+			callback = func(ctx context.Context, msg json.RawMessage) error {
+				_, err := fmt.Fprintf(w, "%s\n", msg)
+				if err != nil {
+					return err
+				}
+				if f, ok := w.(http.Flusher); ok {
+					f.Flush()
+				}
+				return nil
 			}
-			// Responses for non-streaming, non-durable flows are passed back
-			// with the flow result stored in a field called "result."
-			_, err = fmt.Fprintf(w, `{"result": %s}\n`, out)
+		}
+		// TODO: telemetry
+		out, err := f.runJSON(r.Context(), body.Data, callback)
+		if err != nil {
 			return err
 		}
+		// Responses for non-streaming, non-durable flows are passed back
+		// with the flow result stored in a field called "result."
+		_, err = fmt.Fprintf(w, `{"result": %s}\n`, out)
+		return err
 	}
 }
 
@@ -363,28 +382,6 @@ func serverAddress(arg, envVar, defaultValue string) string {
 		return "127.0.0.1:" + port
 	}
 	return defaultValue
-}
-
-func listenAndServe(addr string, mux *http.ServeMux) error {
-	server := &http.Server{
-		Addr:    addr,
-		Handler: mux,
-	}
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGTERM)
-	go func() {
-		<-sigCh
-		slog.Info("received SIGTERM, shutting down server")
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if err := server.Shutdown(ctx); err != nil {
-			slog.Error("server shutdown failed", "err", err)
-		} else {
-			slog.Info("server shutdown successfully")
-		}
-	}()
-	slog.Info("listening", "addr", addr)
-	return server.ListenAndServe()
 }
 
 // requestID is a unique ID for each request.
