@@ -1,6 +1,6 @@
 # No new actions at runtime error
 
-Defining new action at runtime is not alowed.
+Defining new actions at runtime is not allowed.
 
 ✅ DO:
 
