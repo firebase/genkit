@@ -28,46 +28,41 @@ var (
 	a *firebase.App
 )
 
-const AuthTokenKey contextKey = "firebaseAuthToken"
-
-type contextKey string
-
 type firebaseAuth[In any] struct {
-	client   *auth.Client                                 // Firebase Auth client.
-	policy   func(context.Context, *auth.Token, In) error // Auth policy to check against.
-	required bool                                         // Auth required even for direct calls.
-}
-
-// CheckAuthPolicy checks auth context against policy.
-func (f *firebaseAuth[In]) CheckAuthPolicy(ctx context.Context, input In) error {
-	if f.required {
-		authContext := context.Context.Value(ctx, AuthTokenKey).(*auth.Token)
-		return f.policy(ctx, authContext, input)
-	}
-	return nil
+	client   *auth.Client                // Firebase Auth client.
+	policy   func(*auth.Token, In) error // Auth policy to check against.
+	required bool                        // Auth required even for direct calls.
 }
 
 // ProvideAuthContext provides auth context from an auth header.
-func (f *firebaseAuth[In]) ProvideAuthContext(ctx context.Context, authHeader string) (context.Context, error) {
+func (f *firebaseAuth[In]) ProvideAuthContext(ctx context.Context, authHeader string) (*auth.Token, error) {
 	if authHeader == "" {
 		if f.required {
-			return ctx, errors.New("authorization header is required but not provided")
+			return nil, errors.New("authorization header is required but not provided")
 		}
-		return ctx, nil
+		return nil, nil
 	}
 
 	const bearerPrefix = "bearer "
 	if !strings.HasPrefix(strings.ToLower(authHeader), bearerPrefix) {
-		return ctx, errors.New("invalid authorization header format")
+		return nil, errors.New("invalid authorization header format")
 	}
 	token := authHeader[len(bearerPrefix):]
 
 	authToken, err := f.client.VerifyIDToken(ctx, token)
 	if err != nil {
-		return ctx, fmt.Errorf("error verifying ID token: %v", err)
+		return nil, fmt.Errorf("error verifying ID token: %v", err)
 	}
 
-	return context.WithValue(ctx, AuthTokenKey, authToken), nil
+	return authToken, nil
+}
+
+// CheckAuthPolicy checks auth context against policy.
+func (f *firebaseAuth[In]) CheckAuthPolicy(authContext *auth.Token, input In) error {
+	if f.required && authContext == nil {
+		return errors.New("auth is required")
+	}
+	return f.policy(authContext, input)
 }
 
 // NewFirebaseAuth creates a Firebase auth check.
