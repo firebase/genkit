@@ -66,7 +66,7 @@ func (f *firebaseAuth[In]) CheckAuthPolicy(authContext *auth.Token, input In) er
 }
 
 // NewFirebaseAuth creates a Firebase auth check.
-func NewFirebaseAuth[In, Out, Stream any](ctx context.Context, policy func(context.Context, *auth.Token, In) error, required bool) (*firebaseAuth[In], error) {
+func NewFirebaseAuth[In, Out, Stream any](ctx context.Context, policy func(*auth.Token, In) error, required bool) (*firebaseAuth[In], error) {
 	app, err := app(ctx)
 	if err != nil {
 		return nil, err
