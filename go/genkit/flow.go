@@ -379,7 +379,7 @@ func (f *Flow[In, Out, Stream]) runInstruction(ctx context.Context, inst *flowIn
 // Name returns the name that the flow was defined with.
 func (f *Flow[In, Out, Stream]) Name() string { return f.name }
 
-func (f *Flow[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMessage, cb streamingCallback[json.RawMessage]) (json.RawMessage, error) {
+func (f *Flow[In, Out, Stream]) runJSON(ctx context.Context, authHeader string, input json.RawMessage, cb streamingCallback[json.RawMessage]) (json.RawMessage, error) {
 	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
 	if err := base.ValidateJSON(input, f.inputSchema); err != nil {
 		return nil, &base.HTTPError{Code: http.StatusBadRequest, Err: err}
@@ -387,6 +387,13 @@ func (f *Flow[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMessa
 	var in In
 	if err := json.Unmarshal(input, &in); err != nil {
 		return nil, &base.HTTPError{Code: http.StatusBadRequest, Err: err}
+	}
+	authContext, err := f.provideAuthContext(ctx, authHeader)
+	if err != nil {
+		return nil, &base.HTTPError{Code: http.StatusUnauthorized, Err: err}
+	}
+	if err := f.checkAuthPolicy(authContext, in); err != nil {
+		return nil, &base.HTTPError{Code: http.StatusForbidden, Err: err}
 	}
 	// If there is a callback, wrap it to turn an S into a json.RawMessage.
 	var callback streamingCallback[Stream]

@@ -73,13 +73,7 @@ type flow interface {
 
 	// runJSON uses encoding/json to unmarshal the input,
 	// calls Flow.start, then returns the marshaled result.
-	runJSON(ctx context.Context, input json.RawMessage, cb streamingCallback[json.RawMessage]) (json.RawMessage, error)
-
-	// provideAuthContext provides auth context for the given auth header if flow auth is configured.
-	provideAuthContext(ctx context.Context, authHeader string) (any, error)
-
-	// checkAuthPolicy checks auth context against the policy if flow auth is configured.
-	checkAuthPolicy(authContext any, input any) error
+	runJSON(ctx context.Context, authHeader string, input json.RawMessage, cb streamingCallback[json.RawMessage]) (json.RawMessage, error)
 }
 
 // startServer starts an HTTP server listening on the address.
@@ -340,13 +334,6 @@ func nonDurableFlowHandler(f flow) func(http.ResponseWriter, *http.Request) erro
 		if err != nil {
 			return err
 		}
-		authContext, err := f.provideAuthContext(r.Context(), r.Header.Get("Authorization"))
-		if err != nil {
-			return &base.HTTPError{Code: http.StatusUnauthorized, Err: err}
-		}
-		if err := f.checkAuthPolicy(authContext, body.Data); err != nil {
-			return &base.HTTPError{Code: http.StatusForbidden, Err: err}
-		}
 		var callback streamingCallback[json.RawMessage]
 		if stream {
 			w.Header().Set("Content-Type", "text/plain")
@@ -364,7 +351,7 @@ func nonDurableFlowHandler(f flow) func(http.ResponseWriter, *http.Request) erro
 			}
 		}
 		// TODO: telemetry
-		out, err := f.runJSON(r.Context(), body.Data, callback)
+		out, err := f.runJSON(r.Context(), r.Header.Get("Authorization"), body.Data, callback)
 		if err != nil {
 			return err
 		}
