@@ -22,6 +22,7 @@ import (
 
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 var (
@@ -32,6 +33,26 @@ type firebaseAuth[In any] struct {
 	client   *auth.Client                // Firebase Auth client.
 	policy   func(*auth.Token, In) error // Auth policy to check against.
 	required bool                        // Auth required even for direct calls.
+}
+
+// NewFirebaseAuth creates a Firebase auth check.
+func NewFirebaseAuth[In any](ctx context.Context, policy func(*auth.Token, In) error, required bool) (genkit.FlowAuth[In, auth.Token], error) {
+	app, err := app(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := app.Auth(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	auth := &firebaseAuth[In]{
+		client:   client,
+		policy:   policy,
+		required: required,
+	}
+	return auth, nil
 }
 
 // ProvideAuthContext provides auth context from an auth header.
@@ -63,26 +84,6 @@ func (f *firebaseAuth[In]) CheckAuthPolicy(authContext *auth.Token, input In) er
 		return errors.New("auth is required")
 	}
 	return f.policy(authContext, input)
-}
-
-// NewFirebaseAuth creates a Firebase auth check.
-func NewFirebaseAuth[In, Out, Stream any](ctx context.Context, policy func(*auth.Token, In) error, required bool) (*firebaseAuth[In], error) {
-	app, err := app(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	client, err := app.Auth(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	auth := &firebaseAuth[In]{
-		client:   client,
-		policy:   policy,
-		required: required,
-	}
-	return auth, nil
 }
 
 // app returns a cached Firebase app.
