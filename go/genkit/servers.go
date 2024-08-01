@@ -75,9 +75,9 @@ type flow interface {
 	// calls Flow.start, then returns the marshaled result.
 	runJSON(ctx context.Context, input json.RawMessage, cb streamingCallback[json.RawMessage]) (json.RawMessage, error)
 
-	provideAuth(ctx context.Context, token any) (any, error)
+	provideAuthContext(ctx context.Context, token any) (context.Context, error)
 
-	checkAuthPolicy(ctx context.Context, auth any, input any) error
+	checkAuthPolicy(ctx context.Context, input any) error
 }
 
 // startServer starts an HTTP server listening on the address.
@@ -338,11 +338,11 @@ func nonDurableFlowHandler(f flow) func(http.ResponseWriter, *http.Request) erro
 		if err != nil {
 			return err
 		}
-		auth, err := f.provideAuth(r.Context(), r.Header.Get("Authorization"))
+		ctx, err := f.provideAuthContext(r.Context(), r.Header.Get("Authorization"))
 		if err != nil {
 			return &base.HTTPError{Code: http.StatusUnauthorized, Err: err}
 		}
-		if err := f.checkAuthPolicy(r.Context(), auth, body.Data); err != nil {
+		if err := f.checkAuthPolicy(ctx, body.Data); err != nil {
 			return &base.HTTPError{Code: http.StatusForbidden, Err: err}
 		}
 		var callback streamingCallback[json.RawMessage]

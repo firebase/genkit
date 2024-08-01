@@ -98,8 +98,7 @@ type Flow[In, Out, Stream any] struct {
 	tstate       *tracing.State             // set from the action when the flow is defined
 	inputSchema  *jsonschema.Schema         // Schema of the input to the flow
 	outputSchema *jsonschema.Schema         // Schema of the output out of the flow
-	authPolicy   *AuthPolicy[In]            // Checks auth token against policy.
-	authProvider *AuthProvider[In]          // Provides the parsed auth object.
+	auth         *FlowAuth[In]
 	// TODO: scheduler
 	// TODO: experimentalDurable
 	// TODO: middleware
@@ -112,11 +111,14 @@ type runOptions struct {
 
 type noStream = func(context.Context, struct{}) error
 
-// AuthPolicy checks auth context against policy.
-type AuthPolicy[In any] func(context.Context, any, In) error
+// FlowAuth configures a auth context provider and a auth policy check for a flow.
+type FlowAuth[In any] interface {
+	// ProvideAuthContext provides auth context from an auth header.
+	ProvideAuthContext(ctx context.Context, authHeader string) (context.Context, error)
 
-// AuthProvider provides auth context from an auth token.
-type AuthProvider[In any] func(context.Context, string) (any, error)
+	// CheckAuthPolicy checks auth context against policy.
+	CheckAuthPolicy(ctx context.Context, input In) error
+}
 
 // streamingCallback is the type of streaming callbacks.
 type streamingCallback[Stream any] func(context.Context, Stream) error
@@ -128,13 +130,12 @@ type flowOption[In, Out, Stream any] func(f *Flow[In, Out, Stream]) error
 type flowRunOption func(opts runOptions) error
 
 // WithAuth sets auth policy and provider in the flow.
-func WithAuth[In, Out, Stream any](policy *AuthPolicy[In], provider *AuthProvider[In]) flowOption[In, Out, Stream] {
+func WithAuth[In, Out, Stream any](auth *FlowAuth[In]) flowOption[In, Out, Stream] {
 	return func(f *Flow[In, Out, Stream]) error {
-		if f.authPolicy != nil || f.authProvider != nil {
+		if f.auth != nil {
 			return errors.New("auth already set in flow")
 		}
-		f.authPolicy = policy
-		f.authProvider = provider
+		f.auth = auth
 		return nil
 	}
 }
@@ -143,7 +144,7 @@ func WithAuth[In, Out, Stream any](policy *AuthPolicy[In], provider *AuthProvide
 func WithLocalAuth(auth any) flowRunOption {
 	return func(opts runOptions) error {
 		if opts.localAuth != nil {
-			return errors.New("localAuth already set in run options")
+			return errors.New("localAuth already set in runOptions")
 		}
 		opts.localAuth = auth
 		return nil
@@ -197,7 +198,7 @@ func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.
 	metadata := map[string]any{
 		"inputSchema":  f.inputSchema,
 		"outputSchema": f.outputSchema,
-		"requiresAuth": f.authPolicy != nil,
+		"requiresAuth": f.auth != nil,
 	}
 	afunc := func(ctx context.Context, inst *flowInstruction[In], cb func(context.Context, Stream) error) (*flowState[In, Out], error) {
 		tracing.SetCustomMetadataAttr(ctx, "flow:wrapperAction", "true")
@@ -415,20 +416,22 @@ func (f *Flow[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMessa
 	return json.Marshal(res.Response)
 }
 
-func (f *Flow[In, Out, Stream]) provideAuth(ctx context.Context, token string) (any, error) {
-	if f.authProvider != nil {
-		auth, err := (*f.authProvider)(ctx, token)
+// provideAuthContext provides auth context for the given auth header if flow auth is configured.
+func (f *Flow[In, Out, Stream]) provideAuthContext(ctx context.Context, authHeader string) (context.Context, error) {
+	if f.auth != nil {
+		ctx, err := (*f.auth).ProvideAuthContext(ctx, authHeader)
 		if err != nil {
 			return nil, fmt.Errorf("unauthorized: %w", err)
 		}
-		return auth, nil
+		return ctx, nil
 	}
-	return nil, nil
+	return ctx, nil
 }
 
-func (f *Flow[In, Out, Stream]) checkAuthPolicy(ctx context.Context, auth any, input In) error {
-	if f.authPolicy != nil {
-		if err := (*f.authPolicy)(ctx, auth, input); err != nil {
+// checkAuthPolicy checks auth context against the policy if flow auth is configured.
+func (f *Flow[In, Out, Stream]) checkAuthPolicy(ctx context.Context, input In) error {
+	if f.auth != nil {
+		if err := (*f.auth).CheckAuthPolicy(ctx, input); err != nil {
 			return fmt.Errorf("permission denied for resource: %w", err)
 		}
 	}
