@@ -21,7 +21,9 @@ import * as clc from 'colorette';
 import * as fs from 'fs';
 import getPort, { makeRange } from 'get-port';
 import * as path from 'path';
+import terminate from 'terminate';
 import { findToolsConfig } from '../plugin/config';
+
 import {
   Action,
   RunActionResponse,
@@ -63,6 +65,11 @@ export class Runner {
   readonly autoReload: boolean;
 
   /**
+   * Whether to builder should be invoked when runner first starts.
+   */
+  readonly buildOnStart: boolean;
+
+  /**
    * Subprocess for the app code. May not be running.
    */
   private appProcess: ChildProcess | null = null;
@@ -94,10 +101,12 @@ export class Runner {
     options: {
       directory?: string;
       autoReload?: boolean;
+      buildOnStart?: boolean;
     } = {}
   ) {
     this.directory = options.directory || process.cwd();
     this.autoReload = options.autoReload ?? true;
+    this.buildOnStart = !!options.buildOnStart;
   }
 
   /**
@@ -108,15 +117,17 @@ export class Runner {
       logger.info('Runner is already running.');
       return Promise.resolve(true);
     }
-    if (this.autoReload) {
+    if (this.autoReload || this.buildOnStart) {
       const config = await findToolsConfig();
       if (config?.runner?.mode !== 'harness') {
         this.buildCommand = config?.builder?.cmd;
-        if (!this.buildCommand && detectRuntime(process.cwd()) === 'node') {
+        if (!this.buildCommand && detectRuntime(process.cwd()) === 'nodejs') {
           this.buildCommand = 'npm run build';
         }
         this.build();
       }
+    }
+    if (this.autoReload) {
       this.watchForChanges();
     }
     return this.startApp();
@@ -164,11 +175,28 @@ export class Runner {
     let command = '';
     let args: string[] = [];
     switch (runtime) {
-      case 'node':
-        command =
-          config?.runner?.mode === 'harness'
-            ? path.join(__dirname, '../../../node_modules/.bin/tsx')
-            : 'node';
+      case 'nodejs':
+        if (config?.runner?.mode === 'harness') {
+          const localLinkedTsPath = path.join(
+            __dirname,
+            '../../../node_modules/.bin/tsx'
+          );
+          const globallyInstalledTsxPath = path.join(
+            __dirname,
+            '../../../../../.bin/tsx'
+          );
+          if (fs.existsSync(localLinkedTsPath)) {
+            command = localLinkedTsPath;
+          } else if (globallyInstalledTsxPath) {
+            command = globallyInstalledTsxPath;
+          } else {
+            throw Error(
+              'Could not find tsx binary whilst running with harness.'
+            );
+          }
+        } else {
+          command = 'node';
+        }
         break;
       case 'go':
         command = 'go';
@@ -228,20 +256,12 @@ export class Runner {
       },
     });
 
-    this.appProcess.stdout?.on('data', (data) => {
-      logger.info(data);
-    });
-
-    this.appProcess.stderr?.on('data', (data) => {
-      logger.error(data);
-    });
-
     this.appProcess.on('error', (error): void => {
       logger.error(`Error in app process: ${error.message}`);
     });
 
-    this.appProcess.on('exit', (code) => {
-      logger.info(`App process exited with code ${code}`);
+    this.appProcess.on('exit', (code, signal) => {
+      logger.info(`App process exited with code ${code}, signal ${signal}`);
       this.appProcess = null;
     });
 
@@ -258,7 +278,7 @@ export class Runner {
           this.appProcess = null;
           resolve();
         });
-        this.appProcess.kill();
+        terminate(this.appProcess.pid!, 'SIGTERM');
       } else {
         resolve();
       }
@@ -372,7 +392,8 @@ export class Runner {
       if ((error as AxiosError).code === 'ECONNREFUSED') {
         return false;
       }
-      throw new Error('Failed to send quit call.');
+      logger.debug('Failed to send quit call.');
+      return false;
     }
   }
 
@@ -418,20 +439,30 @@ export class Runner {
       stream.on('data', (data: string) => {
         buffer += data;
         while (buffer.includes(STREAM_DELIMITER)) {
-          streamingCallback(
-            JSON.parse(buffer.substring(0, buffer.indexOf(STREAM_DELIMITER)))
-          );
-          buffer = buffer.substring(
-            buffer.indexOf(STREAM_DELIMITER) + STREAM_DELIMITER.length
-          );
+          try {
+            streamingCallback(
+              JSON.parse(buffer.substring(0, buffer.indexOf(STREAM_DELIMITER)))
+            );
+            buffer = buffer.substring(
+              buffer.indexOf(STREAM_DELIMITER) + STREAM_DELIMITER.length
+            );
+          } catch (err) {
+            logger.error(`Bad stream: ${err}`);
+            break;
+          }
         }
       });
       let resolver: (op: RunActionResponse) => void;
-      const promise = new Promise<RunActionResponse>((r) => {
-        resolver = r;
+      let rejecter: (err: Error) => void;
+      const promise = new Promise<RunActionResponse>((resolve, reject) => {
+        resolver = resolve;
+        rejecter = reject;
       });
       stream.on('end', () => {
         resolver(RunActionResponseSchema.parse(JSON.parse(buffer)));
+      });
+      stream.on('error', (err: Error) => {
+        rejecter(err);
       });
       return promise;
     } else {

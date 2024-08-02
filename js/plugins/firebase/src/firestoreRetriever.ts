@@ -83,7 +83,7 @@ export function defineFirestoreRetriever(config: {
   /** The Firestore database instance from which to query. */
   firestore: Firestore;
   /** The name of the collection from which to query. */
-  collection: string;
+  collection?: string;
   /** The embedder to use with this retriever. */
   embedder: EmbedderArgument;
   /** The name of the field within the collection containing the vector data. */
@@ -121,11 +121,20 @@ export function defineFirestoreRetriever(config: {
       configSchema: z.object({
         where: z.record(z.any()).optional(),
         limit: z.number(),
+        /* Supply or override the collection for retrieval. */
+        collection: z.string().optional(),
       }),
     },
     async (input, options) => {
       const embedding = await embed({ embedder, content: input });
-      let query: Query = firestore.collection(collection);
+      if (!options.collection && !collection) {
+        throw new Error(
+          'Must specify a collection to query in Firestore retriever.'
+        );
+      }
+      let query: Query = firestore.collection(
+        options.collection || collection!
+      );
       for (const field in options.where || {}) {
         query = query.where(field, '==', options.where![field]);
       }

@@ -84,9 +84,6 @@ export class LocalFileTraceStore implements TraceStore {
     await mutex.waitForUnlock();
     const release = await mutex.acquire();
     try {
-      logger.debug(
-        `acquired lock to write trace ${id} for trace name ${trace.displayName}`
-      );
       const existing = await this.load(id);
       if (existing) {
         Object.keys(trace.spans).forEach(
@@ -97,10 +94,6 @@ export class LocalFileTraceStore implements TraceStore {
         existing.endTime = trace.endTime;
         trace = existing;
       }
-      logger.debug(
-        `save trace ${id} with name ${trace.displayName} to ` +
-          path.resolve(this.storeRoot, `${id}`)
-      );
       fs.writeFileSync(
         path.resolve(this.storeRoot, `${id}`),
         JSON.stringify(trace)

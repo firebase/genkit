@@ -16,185 +16,163 @@ package googleai_test
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"math"
+	"net/http"
+	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
+	"github.com/firebase/genkit/go/internal"
 	"github.com/firebase/genkit/go/plugins/googleai"
+	"google.golang.org/api/option"
 )
 
 // The tests here only work with an API key set to a valid value.
 var apiKey = flag.String("key", "", "Gemini API key")
 
-func TestEmbedder(t *testing.T) {
+var header = flag.Bool("header", false, "run test for x-goog-client-api header")
+
+// We can't test the DefineAll functions along with the other tests because
+// we get duplicate definitions of models.
+var testAll = flag.Bool("all", false, "test DefineAllXXX functions")
+
+func TestLive(t *testing.T) {
 	if *apiKey == "" {
 		t.Skipf("no -key provided")
 	}
-	ctx := context.Background()
-	e, err := googleai.NewEmbedder(ctx, "embedding-001", *apiKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	out, err := e.Embed(ctx, &ai.EmbedRequest{
-		Document: ai.DocumentFromText("yellow banana", nil),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// There's not a whole lot we can test about the result.
-	// Just do a few sanity checks.
-	if len(out) < 100 {
-		t.Errorf("embedding vector looks too short: len(out)=%d", len(out))
-	}
-	var normSquared float32
-	for _, x := range out {
-		normSquared += x * x
-	}
-	if normSquared < 0.9 || normSquared > 1.1 {
-		t.Errorf("embedding vector not unit length: %f", normSquared)
-	}
-}
-
-func TestGenerator(t *testing.T) {
-	if *apiKey == "" {
-		t.Skipf("no -key provided")
+	if *testAll {
+		t.Skip("-all provided")
 	}
 	ctx := context.Background()
-	g, err := googleai.NewGenerator(ctx, "gemini-1.0-pro", *apiKey)
+	err := googleai.Init(ctx, &googleai.Config{APIKey: *apiKey})
 	if err != nil {
 		t.Fatal(err)
 	}
-	req := &ai.GenerateRequest{
-		Candidates: 1,
-		Messages: []*ai.Message{
-			&ai.Message{
-				Content: []*ai.Part{ai.NewTextPart("Which country was Napoleon the emperor of?")},
-				Role:    ai.RoleUser,
-			},
-		},
-	}
-
-	resp, err := g.Generate(ctx, req, nil)
+	embedder := googleai.Embedder("embedding-001")
+	model := googleai.Model("gemini-1.0-pro")
 	if err != nil {
 		t.Fatal(err)
 	}
-	out := resp.Candidates[0].Message.Content[0].Text()
-	if out != "France" {
-		t.Errorf("got \"%s\", expecting \"France\"", out)
-	}
-	if resp.Request != req {
-		t.Error("Request field not set properly")
-	}
-}
-
-func TestGeneratorStreaming(t *testing.T) {
-	if *apiKey == "" {
-		t.Skipf("no -key provided")
-	}
-	ctx := context.Background()
-	g, err := googleai.NewGenerator(ctx, "gemini-1.0-pro", *apiKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	req := &ai.GenerateRequest{
-		Candidates: 1,
-		Messages: []*ai.Message{
-			&ai.Message{
-				Content: []*ai.Part{ai.NewTextPart("Write one paragraph about the Golden State Warriors.")},
-				Role:    ai.RoleUser,
-			},
-		},
-	}
-
-	out := ""
-	parts := 0
-	_, err = g.Generate(ctx, req, func(ctx context.Context, c *ai.Candidate) error {
-		parts++
-		out += c.Message.Content[0].Text()
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(out, "San Francisco") {
-		t.Errorf("got \"%s\", expecting it to contain \"San Francisco\"", out)
-	}
-	if parts == 1 {
-		// Check if streaming actually occurred.
-		t.Errorf("expecting more than one part")
-	}
-}
-
-var toolDef = &ai.ToolDefinition{
-	Name:         "exponentiation",
-	InputSchema:  map[string]any{"base": "float64", "exponent": "int"},
-	OutputSchema: map[string]any{"output": "float64"},
-}
-
-func init() {
-	ai.RegisterTool("exponentiation",
-		toolDef, nil,
-		func(ctx context.Context, input map[string]any) (map[string]any, error) {
-			baseAny, ok := input["base"]
-			if !ok {
-				return nil, errors.New("exponentiation tool: missing base")
-			}
-			base, ok := baseAny.(float64)
-			if !ok {
-				return nil, fmt.Errorf("exponentiation tool: base is %T, want %T", baseAny, float64(0))
-			}
-
-			expAny, ok := input["exponent"]
-			if !ok {
-				return nil, errors.New("exponentiation tool: missing exponent")
-			}
-			exp, ok := expAny.(float64)
-			if !ok {
-				expInt, ok := expAny.(int)
-				if !ok {
-					return nil, fmt.Errorf("exponentiation tool: exponent is %T, want %T or %T", expAny, float64(0), int(0))
-				}
-				exp = float64(expInt)
-			}
-
-			r := map[string]any{"output": math.Pow(base, exp)}
-			return r, nil
+	gablorkenTool := ai.DefineTool("gablorken", "use when need to calculate a gablorken",
+		func(ctx context.Context, input struct {
+			Value float64
+			Over  float64
+		}) (float64, error) {
+			return math.Pow(input.Value, input.Over), nil
 		},
 	)
+	t.Run("embedder", func(t *testing.T) {
+		res, err := ai.Embed(ctx, embedder, ai.WithEmbedText("yellow banana"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := res.Embeddings[0].Embedding
+		// There's not a whole lot we can test about the result.
+		// Just do a few sanity checks.
+		if len(out) < 100 {
+			t.Errorf("embedding vector looks too short: len(out)=%d", len(out))
+		}
+		var normSquared float32
+		for _, x := range out {
+			normSquared += x * x
+		}
+		if normSquared < 0.9 || normSquared > 1.1 {
+			t.Errorf("embedding vector not unit length: %f", normSquared)
+		}
+	})
+	t.Run("generate", func(t *testing.T) {
+		resp, err := ai.Generate(ctx, model, ai.WithCandidates(1), ai.WithTextPrompt("Which country was Napoleon the emperor of?"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := resp.Candidates[0].Message.Content[0].Text
+		const want = "France"
+		if out != want {
+			t.Errorf("got %q, expecting %q", out, want)
+		}
+		if resp.Request == nil {
+			t.Error("Request field not set properly")
+		}
+		if resp.Usage.InputTokens == 0 || resp.Usage.OutputTokens == 0 || resp.Usage.TotalTokens == 0 {
+			t.Errorf("Empty usage stats %#v", *resp.Usage)
+		}
+	})
+	t.Run("streaming", func(t *testing.T) {
+		out := ""
+		parts := 0
+		final, err := ai.Generate(ctx, model,
+			ai.WithCandidates(1),
+			ai.WithTextPrompt("Write one paragraph about the North Pole."),
+			ai.WithStreaming(func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+				parts++
+				out += c.Content[0].Text
+				return nil
+			}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out2 := ""
+		for _, p := range final.Candidates[0].Message.Content {
+			out2 += p.Text
+		}
+		if out != out2 {
+			t.Errorf("streaming and final should contain the same text.\nstreaming:%s\nfinal:%s", out, out2)
+		}
+		const want = "North"
+		if !strings.Contains(out, want) {
+			t.Errorf("got %q, expecting it to contain %q", out, want)
+		}
+		if parts == 1 {
+			// Check if streaming actually occurred.
+			t.Errorf("expecting more than one part")
+		}
+		if final.Usage.InputTokens == 0 || final.Usage.OutputTokens == 0 || final.Usage.TotalTokens == 0 {
+			t.Errorf("Empty usage stats %#v", *final.Usage)
+		}
+	})
+	t.Run("tool", func(t *testing.T) {
+		resp, err := ai.Generate(ctx, model,
+			ai.WithCandidates(1),
+			ai.WithTextPrompt("what is a gablorken of 2 over 3.5?"),
+			ai.WithTools(gablorkenTool))
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out := resp.Candidates[0].Message.Content[0].Text
+		const want = "12.25"
+		if !strings.Contains(out, want) {
+			t.Errorf("got %q, expecting it to contain %q", out, want)
+		}
+	})
 }
 
-func TestGeneratorTool(t *testing.T) {
-	if *apiKey == "" {
-		t.Skipf("no -key provided")
+func TestHeader(t *testing.T) {
+	if !*header {
+		t.Skip("skipped; to run, pass -header and don't run the live test")
 	}
 	ctx := context.Background()
-	g, err := googleai.NewGenerator(ctx, "gemini-1.0-pro", *apiKey)
-	if err != nil {
+	var header http.Header
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		header = r.Header
+		http.Error(w, "test", http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+
+	opts := []option.ClientOption{option.WithHTTPClient(server.Client()), option.WithEndpoint(server.URL)}
+	if err := googleai.Init(ctx, &googleai.Config{APIKey: "x", ClientOptions: opts}); err != nil {
 		t.Fatal(err)
 	}
-	req := &ai.GenerateRequest{
-		Candidates: 1,
-		Messages: []*ai.Message{
-			&ai.Message{
-				Content: []*ai.Part{ai.NewTextPart("what is 3.5 squared? Use the tool provided.")},
-				Role:    ai.RoleUser,
-			},
-		},
-		Tools: []*ai.ToolDefinition{toolDef},
-	}
-
-	resp, err := ai.Generate(ctx, g, req, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	out := resp.Candidates[0].Message.Content[0].Text()
-	if !strings.Contains(out, "12.25") {
-		t.Errorf("got %s, expecting it to contain \"12.25\"", out)
+	model := googleai.Model("gemini-1.0-pro")
+	_, _ = ai.Generate(ctx, model, ai.WithTextPrompt("hi"))
+	got := header.Get("x-goog-api-client")
+	want := regexp.MustCompile(fmt.Sprintf(`\bgenkit-go/%s\b`, internal.Version))
+	if !want.MatchString(got) {
+		t.Errorf("got x-goog-api-client header value\n%s\nwanted it to match regexp %s", got, want)
 	}
 }

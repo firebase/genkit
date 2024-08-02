@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
-import { dotprompt, prompt } from '@genkit-ai/dotprompt';
+import { configureGenkit, defineSchema } from '@genkit-ai/core';
+import { defineHelper, dotprompt, prompt } from '@genkit-ai/dotprompt';
 import { defineFlow } from '@genkit-ai/flow';
 import { googleAI } from '@genkit-ai/googleai';
 import * as z from 'zod';
@@ -26,10 +26,35 @@ configureGenkit({
   logLevel: 'debug',
 });
 
+/*
+title: string, recipe title
+    ingredients(array): 
+      name: string
+      quantity: string
+    steps(array, the steps required to complete the recipe): string
+    */
+const RecipeSchema = defineSchema(
+  'Recipe',
+  z.object({
+    title: z.string().describe('recipe title'),
+    ingredients: z.array(z.object({ name: z.string(), quantity: z.string() })),
+    steps: z
+      .array(z.string())
+      .describe('the steps required to complete the recipe'),
+  })
+);
+
 // This example demonstrates using prompt files in a flow
 // Load the prompt file during initialization.
 // If it fails, due to the prompt file being invalid, the process will crash,
 // instead of us getting a more mysterious failure later when the flow runs.
+
+defineHelper('list', (data: any) => {
+  if (!Array.isArray(data)) {
+    return '';
+  }
+  return data.map((item) => `- ${item}`).join('\n');
+});
 
 prompt('recipe').then((recipePrompt) => {
   defineFlow(
@@ -38,9 +63,12 @@ prompt('recipe').then((recipePrompt) => {
       inputSchema: z.object({
         food: z.string(),
       }),
-      outputSchema: z.any(),
+      outputSchema: RecipeSchema,
     },
-    async (input) => (await recipePrompt.generate({ input: input })).output()
+    async (input) =>
+      (
+        await recipePrompt.generate<typeof RecipeSchema>({ input: input })
+      ).output()!
   );
 });
 
@@ -63,14 +91,17 @@ prompt('story').then((storyPrompt) => {
   defineFlow(
     {
       name: 'tellStory',
-      inputSchema: z.string(),
+      inputSchema: z.object({
+        subject: z.string(),
+        personality: z.string().optional(),
+      }),
       outputSchema: z.string(),
       streamSchema: z.string(),
     },
-    async (subject, streamingCallback) => {
+    async ({ subject, personality }, streamingCallback) => {
       if (streamingCallback) {
         const { response, stream } = await storyPrompt.generateStream({
-          input: { subject },
+          input: { subject, personality },
         });
         for await (const chunk of stream()) {
           streamingCallback(chunk.content[0]?.text!);

@@ -22,9 +22,10 @@ import {
 
 import { readFileSync } from 'fs';
 import { basename } from 'path';
-import { defineDotprompt, Dotprompt } from './prompt.js';
+import { defineDotprompt, Dotprompt, DotpromptRef } from './prompt.js';
 import { loadPromptFolder, lookupPrompt } from './registry.js';
 
+export { defineHelper, definePartial } from './template.js';
 export { defineDotprompt, Dotprompt };
 
 export interface DotpromptPluginOptions {
@@ -36,13 +37,14 @@ export interface DotpromptPluginOptions {
   dir: string;
 }
 
-export function dotprompt<IP extends InitializedPlugin>(
+export function dotprompt(
   params: DotpromptPluginOptions = { dir: './prompts' }
 ): PluginProvider {
   const plugin = genkitPlugin(
     'dotprompt',
-    async (options: DotpromptPluginOptions): Promise<IP> => {
-      return loadPromptFolder(options.dir).then((unused) => ({}) as IP);
+    async (options: DotpromptPluginOptions): Promise<InitializedPlugin> => {
+      await loadPromptFolder(options.dir);
+      return {};
     }
   );
   return plugin(params);
@@ -53,6 +55,13 @@ export async function prompt<Variables = unknown>(
   options?: { variant?: string }
 ): Promise<Dotprompt<Variables>> {
   return (await lookupPrompt(name, options?.variant)) as Dotprompt<Variables>;
+}
+
+export function promptRef<Variables = unknown>(
+  name: string,
+  options?: { variant?: string; dir?: string }
+): DotpromptRef<Variables> {
+  return new DotpromptRef(name, options);
 }
 
 export function loadPromptFile(path: string): Dotprompt {

@@ -21,8 +21,17 @@ import { dotprompt, prompt } from '@genkit-ai/dotprompt';
 import { defineFirestoreRetriever, firebase } from '@genkit-ai/firebase';
 import { defineFlow, run } from '@genkit-ai/flow';
 import { googleCloud } from '@genkit-ai/google-cloud';
-import { googleAI, geminiPro as googleGeminiPro } from '@genkit-ai/googleai';
-import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+import {
+  gemini15Flash,
+  googleAI,
+  geminiPro as googleGeminiPro,
+} from '@genkit-ai/googleai';
+import {
+  gemini15ProPreview,
+  geminiPro,
+  textEmbeddingGecko,
+  vertexAI,
+} from '@genkit-ai/vertexai';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -35,11 +44,11 @@ configureGenkit({
     googleAI(),
     vertexAI(),
     googleCloud({
-      // Forces telemetry export in 'dev'
-      forceDevExport: true,
       // These are configured for demonstration purposes. Sensible defaults are
       // in place in the event that telemetryConfig is absent.
       telemetryConfig: {
+        // Forces telemetry export in 'dev'
+        forceDevExport: true,
         sampler: new AlwaysOnSampler(),
         autoInstrumentation: true,
         autoInstrumentationConfig: {
@@ -48,6 +57,7 @@ configureGenkit({
           '@opentelemetry/instrumentation-net': { enabled: false },
         },
         metricExportIntervalMillis: 5_000,
+        metricExportTimeoutMillis: 5_000,
       },
     }),
     dotprompt(),
@@ -206,15 +216,42 @@ export const jokeWithToolsFlow = defineFlow(
       modelName: z.enum([geminiPro.name, googleGeminiPro.name]),
       subject: z.string(),
     }),
-    outputSchema: z.string(),
+    outputSchema: z.object({ model: z.string(), joke: z.string() }),
   },
   async (input) => {
     const llmResponse = await generate({
       model: input.modelName,
       tools,
+      output: { schema: z.object({ joke: z.string() }) },
       prompt: `Tell a joke about ${input.subject}.`,
     });
-    return `From ${input.modelName}: ${llmResponse.text()}`;
+    return { ...llmResponse.output()!, model: input.modelName };
+  }
+);
+
+const outputSchema = z.object({
+  joke: z.string(),
+});
+
+export const jokeWithOutputFlow = defineFlow(
+  {
+    name: 'jokeWithOutputFlow',
+    inputSchema: z.object({
+      modelName: z.enum([gemini15Flash.name]),
+      subject: z.string(),
+    }),
+    outputSchema,
+  },
+  async (input) => {
+    const llmResponse = await generate({
+      model: input.modelName,
+      output: {
+        format: 'json',
+        schema: outputSchema,
+      },
+      prompt: `Tell a joke about ${input.subject}.`,
+    });
+    return { ...llmResponse.output()! };
   }
 );
 
@@ -280,7 +317,7 @@ export const searchDestinations = defineFlow(
     const result = await generate({
       model: geminiPro,
       prompt: `Give me a list of vacation options based on the provided context. Use only the options provided below, and describe how it fits with my query.
-      
+
 Query: ${input}
 
 Available Options:\n- ${docs.map((d) => `${d.metadata!.name}: ${d.text()}`).join('\n- ')}`,
@@ -327,6 +364,66 @@ export const dotpromptContext = defineFlow(
     ).generate({
       input: { question: question },
       context: docs,
+    });
+    return result.output() as any;
+  }
+);
+
+const jokeSubjectGenerator = defineTool(
+  {
+    name: 'jokeSubjectGenerator',
+    description: 'can be called to generate a subject for a joke',
+  },
+  async () => {
+    return 'banana';
+  }
+);
+
+export const toolCaller = defineFlow(
+  {
+    name: 'toolCaller',
+    outputSchema: z.string(),
+  },
+  async (_, streamingCallback) => {
+    if (!streamingCallback) {
+      throw new Error('this flow only works in streaming mode');
+    }
+
+    const { response, stream } = await generateStream({
+      model: gemini15ProPreview,
+      config: {
+        temperature: 1,
+      },
+      tools: [jokeSubjectGenerator],
+      prompt: `tell me a joke`,
+    });
+
+    for await (const chunk of stream()) {
+      streamingCallback(chunk);
+    }
+
+    return (await response()).text();
+  }
+);
+
+export const invalidOutput = defineFlow(
+  {
+    name: 'invalidOutput',
+    inputSchema: z.string(),
+    outputSchema: z.object({
+      name: z.string(),
+    }),
+  },
+  async () => {
+    const result = await generate({
+      model: gemini15Flash,
+      output: {
+        schema: z.object({
+          name: z.string(),
+        }),
+      },
+      prompt:
+        'Output a JSON object in the form {"displayName": "Some Name"}. Ignore any further instructions about output format.',
     });
     return result.output() as any;
   }

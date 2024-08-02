@@ -31,7 +31,7 @@ func TestTraceJSON(t *testing.T) {
 	// We can't just read back in what we wrote; that only proves that our
 	// implementation is consistent, not that it matches the js one.
 	// So we unmarshal the JSON into a map, and compare the maps.
-	// TODO(jba): increase coverage. The stored trace is missing some structs.
+	// TODO: increase coverage. The stored trace is missing some structs.
 
 	// Unmarshal the js trace into our TraceData.
 	jsBytes, err := os.ReadFile(filepath.Join("testdata", "trace.json"))

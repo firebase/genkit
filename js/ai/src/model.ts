@@ -44,6 +44,7 @@ const EmptyPartSchema = z.object({
   toolResponse: z.never().optional(),
   data: z.unknown().optional(),
   metadata: z.record(z.unknown()).optional(),
+  custom: z.record(z.unknown()).optional(),
 });
 
 export const TextPartSchema = EmptyPartSchema.extend({
@@ -94,13 +95,20 @@ export const DataPartSchema = EmptyPartSchema.extend({
 
 export type DataPart = z.infer<typeof DataPartSchema>;
 
+export const CustomPartSchema = EmptyPartSchema.extend({
+  custom: z.record(z.any()),
+});
+export type CustomPart = z.infer<typeof CustomPartSchema>;
+
 export const PartSchema = z.union([
   TextPartSchema,
   MediaPartSchema,
   ToolRequestPartSchema,
   ToolResponsePartSchema,
   DataPartSchema,
+  CustomPartSchema,
 ]);
+
 export type Part = z.infer<typeof PartSchema>;
 
 export const RoleSchema = z.enum(['system', 'user', 'model', 'tool']);
@@ -109,6 +117,7 @@ export type Role = z.infer<typeof RoleSchema>;
 export const MessageSchema = z.object({
   role: RoleSchema,
   content: z.array(PartSchema),
+  metadata: z.record(z.unknown()).optional(),
 });
 export type MessageData = z.infer<typeof MessageSchema>;
 
@@ -191,6 +200,10 @@ export const GenerationUsageSchema = z.object({
   outputCharacters: z.number().optional(),
   inputImages: z.number().optional(),
   outputImages: z.number().optional(),
+  inputVideos: z.number().optional(),
+  outputVideos: z.number().optional(),
+  inputAudioFiles: z.number().optional(),
+  outputAudioFiles: z.number().optional(),
   custom: z.record(z.number()).optional(),
 });
 export type GenerationUsage = z.infer<typeof GenerationUsageSchema>;
@@ -271,7 +284,7 @@ export function defineModel<
     streamingCallback?: StreamingCallback<GenerateResponseChunkData>
   ) => Promise<GenerateResponseData>
 ): ModelAction<CustomOptionsSchema> {
-  const label = options.label || `${options.name} GenAI model`;
+  const label = options.label || options.name;
   const middleware: ModelMiddleware[] = [
     ...(options.use || []),
     validateSupport(options),
@@ -298,13 +311,16 @@ export function defineModel<
       use: middleware,
     },
     (input) => {
+      telemetry.recordGenerateActionInputLogs(options.name, input);
       const startTimeMs = performance.now();
+
       return runner(input, getStreamingCallback())
         .then((response) => {
           const timedResponse = {
             ...response,
             latencyMs: performance.now() - startTimeMs,
           };
+          telemetry.recordGenerateActionOutputLogs(options.name, response);
           telemetry.recordGenerateActionMetrics(options.name, input, {
             response: timedResponse,
           });
@@ -344,6 +360,8 @@ export function modelRef<
 type PartCounts = {
   characters: number;
   images: number;
+  videos: number;
+  audio: number;
 };
 
 /**
@@ -353,9 +371,6 @@ export function getBasicUsageStats(
   input: MessageData[],
   candidates: CandidateData[]
 ): GenerationUsage {
-  const responseCandidateParts = candidates.flatMap(
-    (candidate) => candidate.message.content
-  );
   const inputCounts = getPartCounts(input.flatMap((md) => md.content));
   const outputCounts = getPartCounts(
     candidates.flatMap((c) => c.message.content)
@@ -363,8 +378,12 @@ export function getBasicUsageStats(
   return {
     inputCharacters: inputCounts.characters,
     inputImages: inputCounts.images,
+    inputVideos: inputCounts.videos,
+    inputAudioFiles: inputCounts.audio,
     outputCharacters: outputCounts.characters,
     outputImages: outputCounts.images,
+    outputVideos: outputCounts.videos,
+    outputAudioFiles: outputCounts.audio,
   };
 }
 
@@ -373,10 +392,17 @@ function getPartCounts(parts: Part[]): PartCounts {
     (counts, part) => {
       return {
         characters: counts.characters + (part.text?.length || 0),
-        images: counts.images + (part.media ? 1 : 0),
+        images:
+          counts.images +
+          (part.media?.contentType?.startsWith('image') ? 1 : 0),
+        videos:
+          counts.videos +
+          (part.media?.contentType?.startsWith('video') ? 1 : 0),
+        audio:
+          counts.audio + (part.media?.contentType?.startsWith('audio') ? 1 : 0),
       };
     },
-    { characters: 0, images: 0 }
+    { characters: 0, images: 0, videos: 0, audio: 0 }
   );
 }
 

@@ -23,24 +23,10 @@ type Candidate struct {
 	Custom        any              `json:"custom,omitempty"`
 	FinishMessage string           `json:"finishMessage,omitempty"`
 	FinishReason  FinishReason     `json:"finishReason,omitempty"`
-	Index         int              `json:"index,omitempty"`
+	Index         int              `json:"index"`
 	Message       *Message         `json:"message,omitempty"`
 	Usage         *GenerationUsage `json:"usage,omitempty"`
 }
-
-type CandidateError struct {
-	Code    CandidateErrorCode `json:"code,omitempty"`
-	Index   float64            `json:"index,omitempty"`
-	Message string             `json:"message,omitempty"`
-}
-
-type CandidateErrorCode string
-
-const (
-	CandidateErrorCodeBlocked CandidateErrorCode = "blocked"
-	CandidateErrorCodeOther   CandidateErrorCode = "other"
-	CandidateErrorCodeUnknown CandidateErrorCode = "unknown"
-)
 
 // FinishReason is the reason why a model stopped generating tokens.
 type FinishReason string
@@ -60,14 +46,18 @@ type dataPart struct {
 
 // A GenerateRequest is a request to generate completions from a model.
 type GenerateRequest struct {
+	// Candidates indicates the number of responses the model should generate.
+	// Normally this would be set to 1.
 	Candidates int   `json:"candidates,omitempty"`
 	Config     any   `json:"config,omitempty"`
 	Context    []any `json:"context,omitempty"`
 	// Messages is a list of messages to pass to the model. The first n-1 Messages
 	// are treated as history. The last Message is the current request.
-	Messages []*Message             `json:"messages,omitempty"`
-	Output   *GenerateRequestOutput `json:"output,omitempty"`
-	Tools    []*ToolDefinition      `json:"tools,omitempty"`
+	Messages []*Message `json:"messages,omitempty"`
+	// Output describes the desired response format.
+	Output *GenerateRequestOutput `json:"output,omitempty"`
+	// Tools lists the available tools that the model can ask the client to run.
+	Tools []*ToolDefinition `json:"tools,omitempty"`
 }
 
 // GenerateRequestOutput describes the structure that the model's output
@@ -89,17 +79,24 @@ const (
 
 // A GenerateResponse is a model's response to a [GenerateRequest].
 type GenerateResponse struct {
-	Candidates []*Candidate     `json:"candidates,omitempty"`
-	Custom     any              `json:"custom,omitempty"`
-	LatencyMs  float64          `json:"latencyMs,omitempty"`
-	Request    *GenerateRequest `json:"request,omitempty"`
-	Usage      *GenerationUsage `json:"usage,omitempty"`
+	// Candidates are the requested responses from the model. The length of this
+	// slice will be equal to [GenerateRequest.Candidates].
+	Candidates []*Candidate `json:"candidates,omitempty"`
+	Custom     any          `json:"custom,omitempty"`
+	// LatencyMs is the time the request took in milliseconds.
+	LatencyMs float64 `json:"latencyMs,omitempty"`
+	// Request is the [GenerateRequest] struct used to trigger this response.
+	Request *GenerateRequest `json:"request,omitempty"`
+	// Usage describes how many resources were used by this generation request.
+	Usage *GenerationUsage `json:"usage,omitempty"`
 }
 
+// A GenerateResponseChunk is the portion of the [GenerateResponse]
+// that is passed to a streaming callback.
 type GenerateResponseChunk struct {
 	Content []*Part `json:"content,omitempty"`
 	Custom  any     `json:"custom,omitempty"`
-	Index   float64 `json:"index,omitempty"`
+	Index   int     `json:"index,omitempty"`
 }
 
 // GenerationCommonConfig holds configuration for generation.
@@ -115,13 +112,13 @@ type GenerationCommonConfig struct {
 // GenerationUsage provides information about the generation process.
 type GenerationUsage struct {
 	Custom           map[string]float64 `json:"custom,omitempty"`
-	InputCharacters  float64            `json:"inputCharacters,omitempty"`
-	InputImages      float64            `json:"inputImages,omitempty"`
-	InputTokens      float64            `json:"inputTokens,omitempty"`
-	OutputCharacters float64            `json:"outputCharacters,omitempty"`
-	OutputImages     float64            `json:"outputImages,omitempty"`
-	OutputTokens     float64            `json:"outputTokens,omitempty"`
-	TotalTokens      float64            `json:"totalTokens,omitempty"`
+	InputCharacters  int                `json:"inputCharacters,omitempty"`
+	InputImages      int                `json:"inputImages,omitempty"`
+	InputTokens      int                `json:"inputTokens,omitempty"`
+	OutputCharacters int                `json:"outputCharacters,omitempty"`
+	OutputImages     int                `json:"outputImages,omitempty"`
+	OutputTokens     int                `json:"outputTokens,omitempty"`
+	TotalTokens      int                `json:"totalTokens,omitempty"`
 }
 
 type mediaPart struct {
@@ -137,8 +134,9 @@ type mediaPartMedia struct {
 
 // Message is the contents of a model response.
 type Message struct {
-	Content []*Part `json:"content,omitempty"`
-	Role    Role    `json:"role,omitempty"`
+	Content  []*Part        `json:"content,omitempty"`
+	Metadata map[string]any `json:"metadata,omitempty"`
+	Role     Role           `json:"role,omitempty"`
 }
 
 type ModelInfo struct {

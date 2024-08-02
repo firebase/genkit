@@ -21,6 +21,10 @@ import {
   MetricCounter,
   MetricHistogram,
 } from './metrics.js';
+import {
+  spanMetadataAls,
+  traceMetadataAls,
+} from './tracing/instrumentation.js';
 
 /**
  * Wraps the declared metrics in a Genkit-specific, internal namespace.
@@ -41,6 +45,9 @@ const actionLatencies = new MetricHistogram(_N('latency'), {
 export function writeActionSuccess(actionName: string, latencyMs: number) {
   const dimensions = {
     name: actionName,
+    flowName: traceMetadataAls?.getStore()?.flowName,
+    path: spanMetadataAls?.getStore()?.path,
+    status: 'success',
     source: 'ts',
     sourceVersion: GENKIT_VERSION,
   };
@@ -55,10 +62,12 @@ export function writeActionFailure(
 ) {
   const dimensions = {
     name: actionName,
-    errorCode: err?.code,
-    errorMessage: err?.message,
+    flowName: traceMetadataAls?.getStore()?.flowName,
+    path: spanMetadataAls?.getStore()?.path,
     source: 'ts',
     sourceVersion: GENKIT_VERSION,
+    status: 'failure',
+    error: err?.name,
   };
   actionCounter.add(1, dimensions);
   actionLatencies.record(latencyMs, dimensions);

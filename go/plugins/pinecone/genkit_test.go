@@ -38,11 +38,11 @@ func TestGenkit(t *testing.T) {
 
 	// Get information about the index.
 
-	client, err := NewClient(ctx, *testAPIKey)
+	client, err := newClient(ctx, *testAPIKey)
 	if err != nil {
 		t.Fatal(err)
 	}
-	indexData, err := client.IndexData(ctx, *testIndex)
+	indexData, err := client.indexData(ctx, *testIndex)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +72,18 @@ func TestGenkit(t *testing.T) {
 	embedder.Register(d2, v2)
 	embedder.Register(d3, v3)
 
-	r, err := newRetriever(ctx, *testAPIKey, indexData.Host, embedder, nil, "")
+	if err := Init(ctx, *testAPIKey); err != nil {
+		t.Fatal(err)
+	}
+	cfg := Config{
+		IndexID:  *testIndex,
+		Embedder: ai.DefineEmbedder("fake", "embedder3", embedder.Embed),
+	}
+	indexer, err := DefineIndexer(ctx, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	retriever, err := DefineRetriever(ctx, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,17 +92,14 @@ func TestGenkit(t *testing.T) {
 		Namespace: namespace,
 	}
 
-	indexerReq := &ai.IndexerRequest{
-		Documents: []*ai.Document{d1, d2, d3},
-		Options:   indexerOptions,
-	}
-	err = r.Index(ctx, indexerReq)
+	t.Logf("index flag = %q, indexData.Host = %q", *testIndex, indexData.Host)
+	err = ai.Index(ctx, indexer, ai.WithIndexerOpts(indexerOptions), ai.WithIndexerDocs(d1, d2, d3))
 	if err != nil {
 		t.Fatalf("Index operation failed: %v", err)
 	}
 
 	defer func() {
-		idx, err := client.Index(ctx, indexData.Host)
+		idx, err := client.index(ctx, indexData.Host)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -108,7 +116,7 @@ func TestGenkit(t *testing.T) {
 		addID(d2)
 		addID(d3)
 
-		if err := idx.DeleteByID(ctx, ids, namespace); err != nil {
+		if err := idx.deleteByID(ctx, ids, namespace); err != nil {
 			t.Errorf("error deleting test vectors: %v", err)
 		}
 	}()
@@ -117,12 +125,9 @@ func TestGenkit(t *testing.T) {
 		Count:     2,
 		Namespace: namespace,
 	}
-
-	retrieverReq := &ai.RetrieverRequest{
-		Document: d1,
-		Options:  retrieverOptions,
-	}
-	retrieverResp, err := r.Retrieve(ctx, retrieverReq)
+	retrieverResp, err := ai.Retrieve(ctx, retriever,
+		ai.WithRetrieverDoc(d1),
+		ai.WithRetrieverOpts(retrieverOptions))
 	if err != nil {
 		t.Fatalf("Retrieve operation failed: %v", err)
 	}
@@ -132,7 +137,7 @@ func TestGenkit(t *testing.T) {
 		t.Errorf("got %d results, expected 2", len(docs))
 	}
 	for _, d := range docs {
-		text := d.Content[0].Text()
+		text := d.Content[0].Text
 		if !strings.HasPrefix(text, "hello") {
 			t.Errorf("returned doc text %q does not start with %q", text, "hello")
 		}

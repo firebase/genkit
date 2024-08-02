@@ -13,14 +13,15 @@
     "genai",
     "generative-ai"
   ],
-  "version": "0.5.1",
+  "version": "0.5.9",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
     "compile": "tsup-node",
     "build:clean": "rm -rf ./lib",
     "build": "npm-run-all build:clean check compile",
-    "build:watch": "tsup-node --watch"
+    "build:watch": "tsup-node --watch",
+    "test": "tsx --test ./tests/*_test.ts"
   },
   "repository": {
     "type": "git",
@@ -30,10 +31,8 @@
   "author": "genkit",
   "license": "Apache-2.0",
   "dependencies": {
-    "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/core": "workspace:*",
     "@google-cloud/logging-winston": "^6.0.0",
-    "@google-cloud/opentelemetry-cloud-monitoring-exporter": "^0.17.0",
+    "@google-cloud/opentelemetry-cloud-monitoring-exporter": "^0.19.0",
     "@google-cloud/opentelemetry-cloud-trace-exporter": "^2.1.0",
     "@google-cloud/opentelemetry-resource-util": "^2.1.0",
     "@opentelemetry/api": "^1.7.0",
@@ -50,6 +49,10 @@
     "node-fetch": "^3.3.2",
     "prettier-plugin-organize-imports": "^3.2.4",
     "winston": "^3.12.0"
+  },
+  "peerDependencies": {
+    "@genkit-ai/ai": "workspace:*",
+    "@genkit-ai/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.16",

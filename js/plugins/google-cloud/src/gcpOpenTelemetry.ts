@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { TelemetryConfig } from '@genkit-ai/core';
+import { GENKIT_VERSION, TelemetryConfig } from '@genkit-ai/core';
 import { MetricExporter } from '@google-cloud/opentelemetry-cloud-monitoring-exporter';
 import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
@@ -27,8 +27,10 @@ import { WinstonInstrumentation } from '@opentelemetry/instrumentation-winston';
 import { Resource } from '@opentelemetry/resources';
 import {
   AggregationTemporality,
+  DefaultAggregation,
+  ExponentialHistogramAggregation,
   InMemoryMetricExporter,
-  MetricReader,
+  InstrumentType,
   PeriodicExportingMetricReader,
   PushMetricExporter,
 } from '@opentelemetry/sdk-metrics';
@@ -42,6 +44,10 @@ import {
 } from '@opentelemetry/sdk-trace-base';
 import { PluginOptions } from './index.js';
 
+let metricExporter: PushMetricExporter;
+let spanProcessor: BatchSpanProcessor;
+let spanExporter: AdjustingTraceExporter;
+
 /**
  * Provides a {TelemetryConfig} for exporting OpenTelemetry data (Traces,
  * Metrics, and Logs) to the Google Cloud Operations Suite.
@@ -49,60 +55,6 @@ import { PluginOptions } from './index.js';
 export class GcpOpenTelemetry implements TelemetryConfig {
   private readonly options: PluginOptions;
   private readonly resource: Resource;
-
-  /**
-   * Adjusts spans before exporting to GCP. In particular, redacts PII
-   * (input prompts and outputs), and adds a workaround attribute to
-   * error spans that marks them as error in GCP.
-   */
-  private AdjustingTraceExporter = class extends TraceExporter {
-    export(
-      spans: ReadableSpan[],
-      resultCallback: (result: ExportResult) => void
-    ): Promise<void> {
-      return super.export(this.adjust(spans), resultCallback);
-    }
-
-    private adjust(spans: ReadableSpan[]): ReadableSpan[] {
-      return spans.map((span) => {
-        span = this.redactPii(span);
-        span = this.markErrorSpanAsError(span);
-        return span;
-      });
-    }
-
-    private redactPii(span: ReadableSpan): ReadableSpan {
-      const hasInput = 'genkit:input' in span.attributes;
-      const hasOutput = 'genkit:output' in span.attributes;
-
-      return !hasInput && !hasOutput
-        ? span
-        : {
-            ...span,
-            spanContext: span.spanContext,
-            attributes: {
-              ...span.attributes,
-              'genkit:input': '<redacted>',
-              'genkit:output': '<redacted>',
-            },
-          };
-    }
-
-    // This is a workaround for GCP Trace to mark a span with a red
-    // exclamation mark indicating that it is an error.
-    private markErrorSpanAsError(span: ReadableSpan): ReadableSpan {
-      return span.status.code !== SpanStatusCode.ERROR
-        ? span
-        : {
-            ...span,
-            spanContext: span.spanContext,
-            attributes: {
-              ...span.attributes,
-              '/http/status_code': '599',
-            },
-          };
-    }
-  };
 
   /**
    * Log hook for writing trace and span metadata to log messages in the format
@@ -125,30 +77,37 @@ export class GcpOpenTelemetry implements TelemetryConfig {
   }
 
   getConfig(): Partial<NodeSDKConfiguration> {
-    const exporter: SpanExporter = this.shouldExport()
-      ? new this.AdjustingTraceExporter()
-      : new InMemorySpanExporter();
+    spanProcessor = new BatchSpanProcessor(this.createSpanExporter());
     return {
       resource: this.resource,
-      spanProcessor: new BatchSpanProcessor(exporter),
+      spanProcessor: spanProcessor,
       sampler: this.options?.telemetryConfig?.sampler || new AlwaysOnSampler(),
       instrumentations: this.getInstrumentations(),
       metricReader: this.createMetricReader(),
     };
   }
 
+  private createSpanExporter(): SpanExporter {
+    spanExporter = new AdjustingTraceExporter(
+      this.shouldExportTraces()
+        ? new TraceExporter()
+        : new InMemorySpanExporter()
+    );
+    return spanExporter;
+  }
+
   /**
    * Creates a {MetricReader} for pushing metrics out to GCP via OpenTelemetry.
    */
-  private createMetricReader(): MetricReader {
-    const exporter: PushMetricExporter = this.shouldExport()
-      ? new MetricExporter({ projectId: this.options.projectId })
-      : new InMemoryMetricExporter(AggregationTemporality.CUMULATIVE);
+  private createMetricReader(): PeriodicExportingMetricReader {
+    metricExporter = this.buildMetricExporter();
     return new PeriodicExportingMetricReader({
       exportIntervalMillis:
-        this.options?.telemetryConfig?.metricExportIntervalMillis || 10_000,
-      exporter,
-    }) as MetricReader;
+        this.options?.telemetryConfig?.metricExportIntervalMillis || 300_000,
+      exportTimeoutMillis:
+        this.options?.telemetryConfig?.metricExportTimeoutMillis || 300_000,
+      exporter: metricExporter,
+    });
   }
 
   /** Gets all open telemetry instrumentations as configured by the plugin. */
@@ -161,8 +120,20 @@ export class GcpOpenTelemetry implements TelemetryConfig {
     return this.getDefaultLoggingInstrumentations();
   }
 
-  private shouldExport(): boolean {
-    return this.options.forceDevExport || process.env.GENKIT_ENV !== 'dev';
+  private shouldExportTraces(): boolean {
+    return (
+      (this.options.telemetryConfig?.forceDevExport ||
+        process.env.GENKIT_ENV !== 'dev') &&
+      !this.options.telemetryConfig?.disableTraces
+    );
+  }
+
+  private shouldExportMetrics(): boolean {
+    return (
+      (this.options.telemetryConfig?.forceDevExport ||
+        process.env.GENKIT_ENV !== 'dev') &&
+      !this.options.telemetryConfig?.disableMetrics
+    );
   }
 
   /** Always configure the Pino and Winston instrumentations */
@@ -172,4 +143,126 @@ export class GcpOpenTelemetry implements TelemetryConfig {
       new PinoInstrumentation({ logHook: this.gcpTraceLogHook }),
     ];
   }
+
+  private buildMetricExporter(): PushMetricExporter {
+    const exporter: PushMetricExporter = this.shouldExportMetrics()
+      ? new MetricExporter({
+          projectId: this.options.projectId,
+          userAgent: {
+            product: 'genkit',
+            version: GENKIT_VERSION,
+          },
+        })
+      : new InMemoryMetricExporter(AggregationTemporality.DELTA);
+    exporter.selectAggregation = (instrumentType: InstrumentType) => {
+      if (instrumentType === InstrumentType.HISTOGRAM) {
+        return new ExponentialHistogramAggregation();
+      }
+      return new DefaultAggregation();
+    };
+    exporter.selectAggregationTemporality = (
+      instrumentType: InstrumentType
+    ) => {
+      return AggregationTemporality.DELTA;
+    };
+    return exporter;
+  }
+}
+
+/**
+ * Adjusts spans before exporting to GCP. In particular, redacts PII
+ * (input prompts and outputs), and adds a workaround attribute to
+ * error spans that marks them as error in GCP.
+ */
+class AdjustingTraceExporter implements SpanExporter {
+  constructor(private exporter: SpanExporter) {}
+
+  export(
+    spans: ReadableSpan[],
+    resultCallback: (result: ExportResult) => void
+  ): void {
+    this.exporter?.export(this.adjust(spans), resultCallback);
+  }
+
+  shutdown(): Promise<void> {
+    return this.exporter?.shutdown();
+  }
+
+  getExporter(): SpanExporter {
+    return this.exporter;
+  }
+
+  forceFlush(): Promise<void> {
+    if (this.exporter?.forceFlush) {
+      return this.exporter.forceFlush();
+    }
+    return Promise.resolve();
+  }
+
+  private adjust(spans: ReadableSpan[]): ReadableSpan[] {
+    return spans.map((span) => {
+      span = this.redactPii(span);
+      span = this.markErrorSpanAsError(span);
+      span = this.normalizeLabels(span);
+      return span;
+    });
+  }
+
+  private redactPii(span: ReadableSpan): ReadableSpan {
+    const hasInput = 'genkit:input' in span.attributes;
+    const hasOutput = 'genkit:output' in span.attributes;
+
+    return !hasInput && !hasOutput
+      ? span
+      : {
+          ...span,
+          spanContext: span.spanContext,
+          attributes: {
+            ...span.attributes,
+            'genkit:input': '<redacted>',
+            'genkit:output': '<redacted>',
+          },
+        };
+  }
+
+  // This is a workaround for GCP Trace to mark a span with a red
+  // exclamation mark indicating that it is an error.
+  private markErrorSpanAsError(span: ReadableSpan): ReadableSpan {
+    return span.status.code !== SpanStatusCode.ERROR
+      ? span
+      : {
+          ...span,
+          spanContext: span.spanContext,
+          attributes: {
+            ...span.attributes,
+            '/http/status_code': '599',
+          },
+        };
+  }
+
+  // This is a workaround for GCP Trace to mark a span with a red
+  // exclamation mark indicating that it is an error.
+  private normalizeLabels(span: ReadableSpan): ReadableSpan {
+    const normalized = {} as Record<string, any>;
+    for (const [key, value] of Object.entries(span.attributes)) {
+      normalized[key.replace(/\:/g, '/')] = value;
+    }
+    return {
+      ...span,
+      spanContext: span.spanContext,
+      attributes: normalized,
+    };
+  }
+}
+
+export function __getMetricExporterForTesting(): InMemoryMetricExporter {
+  return metricExporter as InMemoryMetricExporter;
+}
+
+export function __getSpanExporterForTesting(): InMemorySpanExporter {
+  return spanExporter.getExporter() as InMemorySpanExporter;
+}
+
+export function __forceFlushSpansForTesting() {
+  spanProcessor.forceFlush();
 }

@@ -63,15 +63,17 @@ type Prompt struct {
 
 	Config
 
-	// The template for the prompt.
+	// The parsed prompt template.
 	Template *raymond.Template
+
+	// The original prompt template text.
+	TemplateText string
 
 	// A hash of the prompt contents.
 	hash string
 
-	// A Generator to use. If not nil, this is used by the
-	// [genkit.Action] returned by [Prompt.Action] to execute the prompt.
-	generator ai.Generator
+	// A prompt that renders the prompt.
+	prompt *ai.Prompt
 }
 
 // Config is optional configuration for a [Prompt].
@@ -79,26 +81,34 @@ type Config struct {
 	// The prompt variant.
 	Variant string
 	// The name of the model for which the prompt is input.
-	Model string
+	// If this is non-empty, Model should be nil.
+	ModelName string
 
-	// TODO(iant): document
-	Tools []*ai.ToolDefinition
+	// The Model to use.
+	// If this is non-nil, Model should be the empty string.
+	Model ai.Model
+
+	// TODO: document
+	Tools []ai.Tool
 
 	// Number of candidates to generate when passing the prompt
-	// to a generator. If 0, uses 1.
+	// to a model. If 0, uses 1.
 	Candidates int
 
 	// Details for the model.
 	GenerationConfig *ai.GenerationCommonConfig
 
-	InputSchema      *jsonschema.Schema // schema for input variables
-	VariableDefaults map[string]any     // default input variable values
+	// Schema for input variables.
+	InputSchema *jsonschema.Schema
+
+	// Default input variable values
+	VariableDefaults map[string]any
 
 	// Desired output format.
 	OutputFormat ai.OutputFormat
 
 	// Desired output schema, for JSON output.
-	OutputSchema map[string]any // TODO: use *jsonschema.Schema
+	OutputSchema *jsonschema.Schema
 
 	// Arbitrary metadata.
 	Metadata map[string]any
@@ -149,7 +159,7 @@ type frontmatterYAML struct {
 	Name       string                     `yaml:"name,omitempty"`
 	Variant    string                     `yaml:"variant,omitempty"`
 	Model      string                     `yaml:"model,omitempty"`
-	Tools      []*ai.ToolDefinition       `yaml:"tools,omitempty"`
+	Tools      []string                   `yaml:"tools,omitempty"`
 	Candidates int                        `yaml:"candidates,omitempty"`
 	Config     *ai.GenerationCommonConfig `yaml:"config,omitempty"`
 	Input      struct {
@@ -193,10 +203,11 @@ func newPrompt(name, templateText, hash string, config Config) (*Prompt, error) 
 	}
 	template.RegisterHelpers(templateHelpers)
 	return &Prompt{
-		Name:     name,
-		Config:   config,
-		hash:     hash,
-		Template: template,
+		Name:         name,
+		Config:       config,
+		hash:         hash,
+		Template:     template,
+		TemplateText: templateText,
 	}, nil
 }
 
@@ -214,10 +225,15 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 		return "", Config{}, nil, fmt.Errorf("dotprompt: failed to parse YAML frontmatter: %w", err)
 	}
 
+	var tools []ai.Tool
+	for _, tn := range fy.Tools {
+		tools = append(tools, ai.LookupTool(tn))
+	}
+
 	ret := Config{
 		Variant:          fy.Variant,
-		Model:            fy.Model,
-		Tools:            fy.Tools,
+		ModelName:        fy.Model,
+		Tools:            tools,
 		Candidates:       fy.Candidates,
 		GenerationConfig: fy.Config,
 		VariableDefaults: fy.Input.Default,
@@ -237,7 +253,7 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 
 	if outputSchema != nil {
 		// We have a jsonschema.Schema and we want a map[string]any.
-		// TODO(iant): This conversion is useless.
+		// TODO: This conversion is useless.
 
 		// Sort so that testing is reliable.
 		// This is not required if not testing.
@@ -252,7 +268,7 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 		}
 	}
 
-	// TODO(iant): The TypeScript codes supports media also,
+	// TODO: The TypeScript codes supports media also,
 	// but there is no ai.OutputFormatMedia.
 	switch fy.Output.Format {
 	case "":
@@ -268,7 +284,7 @@ func parseFrontmatter(data []byte) (name string, c Config, rest []byte, err erro
 
 // Define creates and registers a new Prompt. This can be called from code that
 // doesn't have a prompt file.
-func Define(name, templateText string, cfg *Config) (*Prompt, error) {
+func Define(name, templateText string, cfg Config) (*Prompt, error) {
 	p, err := New(name, templateText, cfg)
 	if err != nil {
 		return nil, err
@@ -280,12 +296,15 @@ func Define(name, templateText string, cfg *Config) (*Prompt, error) {
 // New creates a new Prompt without registering it.
 // This may be used for testing or for direct calls not using the
 // genkit action and flow mechanisms.
-func New(name, templateText string, cfg *Config) (*Prompt, error) {
-	if cfg == nil {
-		cfg = &Config{}
+func New(name, templateText string, cfg Config) (*Prompt, error) {
+	if cfg.ModelName == "" && cfg.Model == nil {
+		return nil, errors.New("dotprompt.New: config must specify either ModelName or Model")
+	}
+	if cfg.ModelName != "" && cfg.Model != nil {
+		return nil, errors.New("dotprompt.New: config must specify exactly one of ModelName and Model")
 	}
 	hash := fmt.Sprintf("%02x", sha256.Sum256([]byte(templateText)))
-	return newPrompt(name, templateText, hash, *cfg)
+	return newPrompt(name, templateText, hash, cfg)
 }
 
 // sortSchemaSlices sorts the slices in a jsonschema to permit

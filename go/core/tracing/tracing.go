@@ -20,7 +20,7 @@ import (
 	"sync"
 
 	"github.com/firebase/genkit/go/core/logger"
-	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/internal/base"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -88,7 +88,7 @@ func RunInNewSpan[I, O any](
 	input I,
 	f func(context.Context, I) (O, error),
 ) (O, error) {
-	// TODO(jba): support span links.
+	// TODO: support span links.
 	log := logger.FromContext(ctx)
 	log.Debug("span start", "name", name)
 	defer log.Debug("span end", "name", name)
@@ -119,9 +119,9 @@ func RunInNewSpan[I, O any](
 	if err != nil {
 		sm.State = spanStateError
 		span.SetStatus(codes.Error, err.Error())
-		return internal.Zero[O](), err
+		return base.Zero[O](), err
 	}
-	// TODO(jba): the typescript code checks if sm.State == error here. Can that happen?
+	// TODO: the typescript code checks if sm.State == error here. Can that happen?
 	sm.State = spanStateSuccess
 	sm.Output = output
 	return output, nil
@@ -170,9 +170,9 @@ func (sm *spanMetadata) attributes() []attribute.KeyValue {
 	kvs := []attribute.KeyValue{
 		attribute.String("genkit:name", sm.Name),
 		attribute.String("genkit:state", string(sm.State)),
-		attribute.String("genkit:input", internal.JSONString(sm.Input)),
+		attribute.String("genkit:input", base.JSONString(sm.Input)),
 		attribute.String("genkit:path", sm.Path),
-		attribute.String("genkit:output", internal.JSONString(sm.Output)),
+		attribute.String("genkit:output", base.JSONString(sm.Output)),
 	}
 	if sm.IsRoot {
 		kvs = append(kvs, attribute.Bool("genkit:isRoot", sm.IsRoot))
@@ -184,7 +184,7 @@ func (sm *spanMetadata) attributes() []attribute.KeyValue {
 }
 
 // spanMetaKey is for storing spanMetadatas in a context.
-var spanMetaKey = internal.NewContextKey[*spanMetadata]()
+var spanMetaKey = base.NewContextKey[*spanMetadata]()
 
 // SetCustomMetadataAttr records a key in the current span metadata.
 func SetCustomMetadataAttr(ctx context.Context, key, value string) {

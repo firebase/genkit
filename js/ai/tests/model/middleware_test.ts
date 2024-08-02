@@ -170,16 +170,21 @@ describe('conformOutput (default middleware)', () => {
     const response = await echoModel(req);
     const treq = response.candidates[0].message.content[0]
       .data as GenerateRequest;
+
+    const lastUserMessage = treq.messages
+      .reverse()
+      .find((m) => m.role === 'user');
     if (
-      treq.messages
-        .at(-1)!
-        ?.content.filter((p) => p.metadata?.purpose === 'output').length > 1
+      lastUserMessage &&
+      lastUserMessage.content.filter((p) => p.metadata?.purpose === 'output')
+        .length > 1
     ) {
       throw new Error('too many output parts');
     }
-    return treq.messages
-      .at(-1)
-      ?.content.find((p) => p.metadata?.purpose === 'output')!;
+
+    return lastUserMessage?.content.find(
+      (p) => p.metadata?.purpose === 'output'
+    )!;
   }
 
   it('adds output instructions to the last message', async () => {
@@ -190,9 +195,55 @@ describe('conformOutput (default middleware)', () => {
         { role: 'user', content: [{ text: 'hello again' }] },
       ],
       output: { format: 'json', schema },
+      context: [{ content: [{ text: 'hi' }] }],
     });
     assert(
-      part.text?.includes(JSON.stringify(schema)),
+      part?.text?.includes(JSON.stringify(schema)),
+      "schema wasn't found in output part"
+    );
+  });
+
+  it('adds output to the last message with "user" role', async () => {
+    const part = await testRequest({
+      messages: [
+        {
+          content: [
+            {
+              text: 'First message.',
+            },
+          ],
+          role: 'user',
+        },
+        {
+          content: [
+            {
+              toolRequest: {
+                name: 'localRestaurant',
+                input: {
+                  location: 'wtf',
+                },
+              },
+            },
+          ],
+          role: 'model',
+        },
+        {
+          content: [
+            {
+              toolResponse: {
+                name: 'localRestaurant',
+                output: 'McDonalds',
+              },
+            },
+          ],
+          role: 'tool',
+        },
+      ],
+      output: { format: 'json', schema },
+    });
+
+    assert(
+      part?.text?.includes(JSON.stringify(schema)),
       "schema wasn't found in output part"
     );
   });
@@ -208,6 +259,25 @@ describe('conformOutput (default middleware)', () => {
       output: { format: 'json', schema },
     });
     assert.equal(part.text, 'hello again');
+  });
+
+  it('augments a pending output part', async () => {
+    const part = await testRequest({
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { metadata: { purpose: 'output', pending: true } },
+            { text: 'after' },
+          ],
+        },
+      ],
+      output: { format: 'json', schema },
+    });
+    assert(
+      part?.text?.includes(JSON.stringify(schema)),
+      "schema wasn't found in output part"
+    );
   });
 
   it('does not add output instructions if no output schema is provided', async () => {
@@ -292,7 +362,7 @@ describe('augmentWithContext', () => {
     assert.deepEqual(await testRequest(messages, []), messages);
   });
 
-  it('should not change a message that already has a context part', async () => {
+  it('should not change a message that already has a context part with content', async () => {
     const messages: MessageData[] = [
       {
         role: 'user',
@@ -305,9 +375,52 @@ describe('augmentWithContext', () => {
     );
   });
 
+  it('should augment a message that has a pending context part', async () => {
+    const messages: MessageData[] = [
+      {
+        role: 'user',
+        content: [{ metadata: { purpose: 'context', pending: true } }],
+      },
+    ];
+    assert.deepEqual(
+      await testRequest(messages, [{ content: [{ text: 'i am context' }] }]),
+      [
+        {
+          content: [
+            {
+              metadata: {
+                purpose: 'context',
+              },
+              text: `${CONTEXT_PREFACE}- [0]: i am context\n\n`,
+            },
+          ],
+          role: 'user',
+        },
+      ]
+    );
+  });
+
   it('should append a new text part', async () => {
     const messages: MessageData[] = [
       { role: 'user', content: [{ text: 'first part' }] },
+    ];
+    const result = await testRequest(messages, [
+      { content: [{ text: 'i am context' }] },
+      { content: [{ text: 'i am more context' }] },
+    ]);
+    assert.deepEqual(result[0].content.at(-1), {
+      text: `${CONTEXT_PREFACE}- [0]: i am context\n- [1]: i am more context\n\n`,
+      metadata: { purpose: 'context' },
+    });
+  });
+
+  it('should append to the last user message', async () => {
+    const messages: MessageData[] = [
+      { role: 'user', content: [{ text: 'first part' }] },
+      {
+        role: 'tool',
+        content: [{ toolResponse: { name: 'testTool', output: { abc: 123 } } }],
+      },
     ];
     const result = await testRequest(messages, [
       { content: [{ text: 'i am context' }] },

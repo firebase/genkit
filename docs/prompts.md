@@ -23,7 +23,7 @@ call models this way for straight-forward use cases.
 import { generate } from '@genkit-ai/ai';
 
 generate({
-  model: 'googleai/gemini-pro',
+  model: 'googleai/gemini-1.5-flash-latest',
   prompt: 'You are a helpful AI assistant named Walt.',
 });
 ```
@@ -37,13 +37,13 @@ function helloPrompt(name: string) {
 }
 
 generate({
-  model: 'googleai/gemini-pro',
+  model: 'googleai/gemini-1.5-flash-latest',
   prompt: helloPrompt('Fred'),
 });
 ```
 
 One shortcoming of defining prompts in your code is that testing requires executing
-them as part of a flow. To faciliate more rapid iteration, Genkit provides a facility
+them as part of a flow. To facilitate more rapid iteration, Genkit provides a facility
 to define your prompts and run them in the Developer UI.
 
 Use the `definePrompt` function to register your prompts with Genkit.
@@ -85,7 +85,7 @@ generate(
   renderPrompt({
     prompt: helloPrompt,
     input: { name: 'Fred' },
-    model: 'googleai/gemini-pro',
+    model: 'googleai/gemini-1.5-flash-latest',
   })
 );
 ```

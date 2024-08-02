@@ -17,6 +17,7 @@
 import {
   CandidateData,
   defineModel,
+  GenerateRequest,
   GenerationCommonConfigSchema,
   getBasicUsageStats,
   MediaPart,
@@ -47,14 +48,31 @@ import {
   VertexAI,
 } from '@google-cloud/vertexai';
 import { z } from 'zod';
+import { PluginOptions } from './index.js';
 
 const SafetySettingsSchema = z.object({
   category: z.nativeEnum(HarmCategory),
   threshold: z.nativeEnum(HarmBlockThreshold),
 });
 
-const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
+const VertexRetrievalSchema = z.object({
+  datastore: z.object({
+    projectId: z.string().optional(),
+    location: z.string().optional(),
+    dataStoreId: z.string(),
+  }),
+  disableAttribution: z.boolean().optional(),
+});
+
+const GoogleSearchRetrievalSchema = z.object({
+  disableAttribution: z.boolean().optional(),
+});
+
+export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   safetySettings: z.array(SafetySettingsSchema).optional(),
+  location: z.string().optional(),
+  vertexRetrieval: VertexRetrievalSchema.optional(),
+  googleSearchRetrieval: GoogleSearchRetrievalSchema.optional(),
 });
 
 export const geminiPro = modelRef({
@@ -82,6 +100,24 @@ export const geminiProVision = modelRef({
       media: true,
       tools: false,
       systemRole: false,
+    },
+  },
+  configSchema: GeminiConfigSchema.omit({
+    googleSearchRetrieval: true,
+    vertexRetrieval: true,
+  }),
+});
+
+export const gemini15Pro = modelRef({
+  name: 'vertexai/gemini-1.5-pro',
+  info: {
+    label: 'Vertex AI - Gemini 1.5 Pro',
+    versions: ['gemini-1.5-pro-001'],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      systemRole: true,
     },
   },
   configSchema: GeminiConfigSchema,
@@ -119,6 +155,21 @@ export const gemini15FlashPreview = modelRef({
   version: 'gemini-1.5-flash-preview-0514',
 });
 
+export const gemini15Flash = modelRef({
+  name: 'vertexai/gemini-1.5-flash',
+  info: {
+    label: 'Vertex AI - Gemini 1.5 Flash',
+    versions: ['gemini-1.5-flash-001'],
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      systemRole: true,
+    },
+  },
+  configSchema: GeminiConfigSchema,
+});
+
 export const SUPPORTED_V1_MODELS = {
   'gemini-1.0-pro': geminiPro,
   'gemini-1.0-pro-vision': geminiProVision,
@@ -126,6 +177,8 @@ export const SUPPORTED_V1_MODELS = {
 };
 
 export const SUPPORTED_V15_MODELS = {
+  'gemini-1.5-pro': gemini15Pro,
+  'gemini-1.5-flash': gemini15Flash,
   'gemini-1.5-pro-preview': gemini15ProPreview,
   'gemini-1.5-flash-preview': gemini15FlashPreview,
 };
@@ -409,7 +462,13 @@ const convertSchemaProperty = (property) => {
 /**
  *
  */
-export function geminiModel(name: string, vertex: VertexAI): ModelAction {
+export function geminiModel(
+  name: string,
+  vertexClientFactory: (
+    request: GenerateRequest<typeof GeminiConfigSchema>
+  ) => VertexAI,
+  options: PluginOptions
+): ModelAction {
   const modelName = `vertexai/${name}`;
 
   const model: ModelReference<z.ZodTypeAny> = SUPPORTED_GEMINI_MODELS[name];
@@ -432,6 +491,7 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
       use: middlewares,
     },
     async (request, streamingCallback) => {
+      const vertex = vertexClientFactory(request);
       const client = vertex.preview.getGenerativeModel(
         {
           model: request.config?.version || model.version || name,
@@ -476,6 +536,29 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
         },
         safetySettings: request.config?.safetySettings,
       };
+      if (request.config?.googleSearchRetrieval) {
+        chatRequest.tools?.push({
+          googleSearchRetrieval: request.config.googleSearchRetrieval,
+        });
+      }
+      if (request.config?.vertexRetrieval) {
+        // https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/ground-gemini#ground-gemini
+        const vertexRetrieval = request.config.vertexRetrieval;
+        const _projectId =
+          vertexRetrieval.datastore.projectId || options.projectId;
+        const _location =
+          vertexRetrieval.datastore.location || options.location;
+        const _dataStoreId = vertexRetrieval.datastore.dataStoreId;
+        const datastore = `projects/${_projectId}/locations/${_location}/collections/default_collection/dataStores/${_dataStoreId}`;
+        chatRequest.tools?.push({
+          retrieval: {
+            vertexAiSearch: {
+              datastore,
+            },
+            disableAttribution: vertexRetrieval.disableAttribution,
+          },
+        });
+      }
       const msg = toGeminiMessage(messages[messages.length - 1], model);
       if (streamingCallback) {
         const result = await client
@@ -513,7 +596,12 @@ export function geminiModel(name: string, vertex: VertexAI): ModelAction {
         return {
           candidates: responseCandidates,
           custom: result.response,
-          usage: getBasicUsageStats(request.messages, responseCandidates),
+          usage: {
+            ...getBasicUsageStats(request.messages, responseCandidates),
+            inputTokens: result.response.usageMetadata?.promptTokenCount,
+            outputTokens: result.response.usageMetadata?.candidatesTokenCount,
+            totalTokens: result.response.usageMetadata?.totalTokenCount,
+          },
         };
       }
     }

@@ -9,7 +9,7 @@
     "prompting",
     "templating"
   ],
-  "version": "0.5.1",
+  "version": "0.5.9",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
@@ -27,12 +27,14 @@
   "author": "genkit",
   "license": "Apache-2.0",
   "dependencies": {
-    "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/core": "workspace:*",
     "front-matter": "^4.0.2",
     "handlebars": "^4.7.8",
     "node-fetch": "^3.3.2",
     "zod": "^3.22.4"
+  },
+  "peerDependencies": {
+    "@genkit-ai/ai": "workspace:*",
+    "@genkit-ai/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.16",

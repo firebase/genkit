@@ -17,7 +17,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "0.5.1",
+  "version": "0.5.9",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
@@ -25,7 +25,7 @@
     "build:clean": "rm -rf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
-    "test": "tsx --test ./tests/*_test.ts"
+    "test": "tsx --test ./tests/**/*_test.ts"
   },
   "repository": {
     "type": "git",
@@ -35,15 +35,24 @@
   "author": "genkit",
   "license": "Apache-2.0",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.20.7",
-    "@anthropic-ai/vertex-sdk": "^0.3.5",
-    "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/core": "workspace:*",
-    "@genkit-ai/flow": "workspace:*",
+    "@anthropic-ai/sdk": "^0.24.3",
+    "@anthropic-ai/vertex-sdk": "^0.4.0",
+    "@google-cloud/aiplatform": "^3.23.0",
     "@google-cloud/vertexai": "^1.1.0",
     "google-auth-library": "^9.6.3",
+    "googleapis": "^140.0.1",
     "node-fetch": "^3.3.2",
+    "openai": "^4.52.7",
     "zod": "^3.22.4"
+  },
+  "peerDependencies": {
+    "@genkit-ai/ai": "workspace:*",
+    "@genkit-ai/core": "workspace:*",
+    "@genkit-ai/flow": "workspace:*"
+  },
+  "optionalDependencies": {
+    "firebase-admin": "^12.1.0",
+    "@google-cloud/bigquery": "^7.8.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.16",

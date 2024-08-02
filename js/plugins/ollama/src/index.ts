@@ -71,6 +71,7 @@ function ollamaModel(
       configSchema: GenerationCommonConfigSchema,
       supports: {
         multiturn: !model.type || model.type === 'chat',
+        systemRole: true,
       },
     },
     async (input, streamingCallback) => {
@@ -249,6 +250,7 @@ function toOllamaRequest(
     request.messages = messages;
   } else {
     request.prompt = getPrompt(input);
+    request.system = getSystemMessage(input);
   }
   return request;
 }
@@ -279,8 +281,18 @@ function readChunks(reader) {
   };
 }
 
-function getPrompt(input: GenerateRequest) {
-  return input.messages.map((m) => m.content.map((c) => c.text).join()).join();
+function getPrompt(input: GenerateRequest): string {
+  return input.messages
+    .filter((m) => m.role !== 'system')
+    .map((m) => m.content.map((c) => c.text).join())
+    .join();
+}
+
+function getSystemMessage(input: GenerateRequest): string {
+  return input.messages
+    .filter((m) => m.role === 'system')
+    .map((m) => m.content.map((c) => c.text).join())
+    .join();
 }
 
 interface Message {

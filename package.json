@@ -1,7 +1,7 @@
 {
   "name": "genkit",
   "private": true,
-  "version": "0.5.1",
+  "version": "0.5.9",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
     "setup": "npm-run-all pnpm-install-js pnpm-install-genkit-tools build link-genkit-cli",
@@ -19,8 +19,11 @@
     "dist:zip": "cd dist && zip genkit-dist.zip *.tgz",
     "test:all": "npm-run-all test:js test:genkit-tools",
     "test:js": "cd js && pnpm i && pnpm test:all",
-    "test:genkit-tools": "cd genkit-tools/cli && pnpm i && pnpm test",
-    "test:e2e": "pnpm build && pnpm pack:all && cd tests && pnpm test"
+    "test:genkit-tools": "pnpm test:genkit-tools-cli && pnpm test:genkit-tools-common",
+    "test:genkit-tools-cli": "cd genkit-tools/cli && pnpm i && pnpm test",
+    "test:genkit-tools-common": "cd genkit-tools/common && pnpm i && pnpm test",
+    "test:e2e-local": "pnpm build && pnpm pack:all && cd tests && pnpm install && pnpm test",
+    "test:e2e": "cd tests && pnpm install && pnpm test"
   },
   "pre-commit": [
     "format:check"
@@ -33,7 +36,8 @@
     "prettier": "^3.2.5",
     "prettier-plugin-css-order": "2.0.1",
     "prettier-plugin-organize-imports": "^3.2.4",
-    "ts-node": "^10.9.2"
+    "ts-node": "^10.9.2",
+    "tsx": "^4.7.1"
   },
-  "packageManager": "pnpm@9.1.1+sha256.9551e803dcb7a1839fdf5416153a844060c7bce013218ce823410532504ac10b"
+  "packageManager": "pnpm@9.6.0+sha256.dae0f7e822c56b20979bb5965e3b73b8bdabb6b8b8ef121da6d857508599ca35"
 }

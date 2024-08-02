@@ -21,9 +21,11 @@ import {
   trace,
 } from '@opentelemetry/api';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { SpanMetadata } from './types.js';
+import { performance } from 'node:perf_hooks';
+import { PathMetadata, SpanMetadata, TraceMetadata } from './types.js';
 
 export const spanMetadataAls = new AsyncLocalStorage<SpanMetadata>();
+export const traceMetadataAls = new AsyncLocalStorage<TraceMetadata>();
 
 export const ATTR_PREFIX = 'genkit';
 export const SPAN_TYPE_ATTR = ATTR_PREFIX + ':type';
@@ -41,18 +43,27 @@ export async function newTrace<T>(
   },
   fn: (metadata: SpanMetadata, rootSpan: ApiSpan) => Promise<T>
 ) {
-  return await runInNewSpan(
-    {
-      metadata: {
-        name: opts.name,
-        isRoot: true,
+  const traceMetadata = traceMetadataAls.getStore() || {
+    paths: new Set<PathMetadata>(),
+    timestamp: performance.now(),
+  };
+  if (opts.labels && opts.labels[SPAN_TYPE_ATTR] === 'flow') {
+    traceMetadata.flowName = opts.name;
+  }
+  return await traceMetadataAls.run(traceMetadata, () =>
+    runInNewSpan(
+      {
+        metadata: {
+          name: opts.name,
+          isRoot: true,
+        },
+        labels: opts.labels,
+        links: opts.links,
       },
-      labels: opts.labels,
-      links: opts.links,
-    },
-    async (metadata, otSpan) => {
-      return await fn(metadata, otSpan);
-    }
+      async (metadata, otSpan) => {
+        return await fn(metadata, otSpan);
+      }
+    )
   );
 }
 
@@ -76,16 +87,23 @@ export async function runInNewSpan<T>(
     async (otSpan) => {
       if (opts.labels) otSpan.setAttributes(opts.labels);
       try {
-        const parentPath = parentStep?.path || '';
-        opts.metadata.path = parentPath + '/' + opts.metadata.name;
+        opts.metadata.path = buildPath(
+          opts.metadata.name,
+          parentStep?.path || '',
+          opts.labels
+        );
+
         const output = await spanMetadataAls.run(opts.metadata, () =>
           fn(opts.metadata, otSpan, isInRoot)
         );
         if (opts.metadata.state !== 'error') {
           opts.metadata.state = 'success';
         }
+
+        recordPath(opts.metadata);
         return output;
       } catch (e) {
+        recordPath(opts.metadata, e);
         opts.metadata.state = 'error';
         otSpan.setStatus({
           code: SpanStatusCode.ERROR,
@@ -160,10 +178,68 @@ export function setCustomMetadataAttributes(values: Record<string, string>) {
   }
 }
 
+/** Converts a fully annotated path to a friendly display version for logs */
+export function toDisplayPath(path: string): string {
+  const pathPartRegex = /\{([^\,}]+),[^\}]+\}/g;
+  return Array.from(path.matchAll(pathPartRegex), (m) => m[1]).join(' > ');
+}
+
 function getCurrentSpan(): SpanMetadata {
   const step = spanMetadataAls.getStore();
   if (!step) {
     throw new Error('running outside step context');
   }
   return step;
+}
+
+function buildPath(
+  name: string,
+  parentPath: string,
+  labels?: Record<string, string>
+) {
+  const stepType =
+    labels && labels['genkit:type'] ? `,t:${labels['genkit:type']}` : '';
+  return parentPath + `/{${name}${stepType}}`;
+}
+
+function recordPath(spanMeta: SpanMetadata, err?: any) {
+  const path = spanMeta.path || '';
+  const decoratedPath = decoratePathWithSubtype(spanMeta);
+  // Only add the path if a child has not already been added. In the event that
+  // an error is rethrown, we don't want to add each step in the unwind.
+  const paths = Array.from(
+    traceMetadataAls.getStore()?.paths || new Set<PathMetadata>()
+  );
+  const status = err ? 'failure' : 'success';
+  if (!paths.some((p) => p.path.startsWith(path) && p.status === status)) {
+    const now = performance.now();
+    const start = traceMetadataAls.getStore()?.timestamp || now;
+    traceMetadataAls.getStore()?.paths?.add({
+      path: decoratedPath,
+      error: err?.name,
+      latency: now - start,
+      status,
+    });
+  }
+  spanMeta.path = decoratedPath;
+}
+
+function decoratePathWithSubtype(metadata: SpanMetadata): string {
+  if (!metadata.path) {
+    return '';
+  }
+
+  const pathComponents = metadata.path.split('}/{');
+
+  if (pathComponents.length == 1) {
+    return metadata.path;
+  }
+
+  const stepSubtype =
+    metadata.metadata && metadata.metadata['subtype']
+      ? `,s:${metadata.metadata['subtype']}`
+      : '';
+  const root = `${pathComponents.slice(0, -1).join('}/{')}}/`;
+  const decoratedStep = `{${pathComponents.at(-1)?.slice(0, -1)}${stepSubtype}}`;
+  return root + decoratedStep;
 }

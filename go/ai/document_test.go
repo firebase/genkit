@@ -32,38 +32,38 @@ func TestDocumentFromText(t *testing.T) {
 	if !p.IsText() {
 		t.Errorf("IsText() == %t, want %t", p.IsText(), true)
 	}
-	if got := p.Text(); got != data {
+	if got := p.Text; got != data {
 		t.Errorf("Data() == %q, want %q", got, data)
 	}
 }
 
-// TODO(iant): verify that this works with the data that genkit passes.
+// TODO: verify that this works with the data that genkit passes.
 func TestDocumentJSON(t *testing.T) {
 	d := Document{
 		Content: []*Part{
 			&Part{
-				kind: partText,
-				text: "hi",
+				Kind: PartText,
+				Text: "hi",
 			},
 			&Part{
-				kind:        partMedia,
-				contentType: "text/plain",
-				text:        "data:,bye",
+				Kind:        PartMedia,
+				ContentType: "text/plain",
+				Text:        "data:,bye",
 			},
 			&Part{
-				kind: partData,
-				text: "somedata\x00string",
+				Kind: PartData,
+				Text: "somedata\x00string",
 			},
 			&Part{
-				kind: partToolRequest,
-				toolRequest: &ToolRequest{
+				Kind: PartToolRequest,
+				ToolRequest: &ToolRequest{
 					Name:  "tool1",
 					Input: map[string]any{"arg1": 3.3, "arg2": "foo"},
 				},
 			},
 			&Part{
-				kind: partToolResponse,
-				toolResponse: &ToolResponse{
+				Kind: PartToolResponse,
+				ToolResponse: &ToolResponse{
 					Name:   "tool1",
 					Output: map[string]any{"res1": 4.4, "res2": "bar"},
 				},
@@ -83,22 +83,22 @@ func TestDocumentJSON(t *testing.T) {
 	}
 
 	cmpPart := func(a, b *Part) bool {
-		if a.kind != b.kind {
+		if a.Kind != b.Kind {
 			return false
 		}
-		switch a.kind {
-		case partText:
-			return a.text == b.text
-		case partMedia:
-			return a.contentType == b.contentType && a.text == b.text
-		case partData:
-			return a.text == b.text
-		case partToolRequest:
-			return reflect.DeepEqual(a.toolRequest, b.toolRequest)
-		case partToolResponse:
-			return reflect.DeepEqual(a.toolResponse, b.toolResponse)
+		switch a.Kind {
+		case PartText:
+			return a.Text == b.Text
+		case PartMedia:
+			return a.ContentType == b.ContentType && a.Text == b.Text
+		case PartData:
+			return a.Text == b.Text
+		case PartToolRequest:
+			return reflect.DeepEqual(a.ToolRequest, b.ToolRequest)
+		case PartToolResponse:
+			return reflect.DeepEqual(a.ToolResponse, b.ToolResponse)
 		default:
-			t.Fatalf("bad part kind %v", a.kind)
+			t.Fatalf("bad part kind %v", a.Kind)
 			return false
 		}
 	}

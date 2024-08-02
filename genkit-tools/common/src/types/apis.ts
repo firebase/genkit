@@ -17,7 +17,11 @@
 import { z } from 'zod';
 import { EvalRunKeySchema } from './eval';
 import { FlowStateSchema } from './flow';
-import { GenerationCommonConfigSchema, MessageSchema } from './model';
+import {
+  GenerationCommonConfigSchema,
+  MessageSchema,
+  ToolDefinitionSchema,
+} from './model';
 import { TraceDataSchema } from './trace';
 
 /**
@@ -93,6 +97,7 @@ export const CreatePromptRequestSchema = z.object({
   model: z.string(),
   messages: z.array(MessageSchema),
   config: GenerationCommonConfigSchema.passthrough().optional(),
+  tools: z.array(ToolDefinitionSchema).optional(),
 });
 
 export type CreatePromptRequest = z.infer<typeof CreatePromptRequestSchema>;

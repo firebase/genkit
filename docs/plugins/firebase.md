@@ -29,6 +29,8 @@ npm i --save @genkit-ai/firebase
 
 ## Configuration
 
+### Project ID
+
 To use this plugin, specify it when you call `configureGenkit()`:
 
 <!--See note above on prettier-ignore -->
@@ -68,6 +70,28 @@ Application Default Credentials. To specify your credentials:
       page of the Firebase console.
   1.  Set the environment variable `GOOGLE_APPLICATION_CREDENTIALS` to the file
       path of the JSON file that contains your service account key.
+
+### Telemetry
+
+The plugin has a direct dependency on the [Google Cloud plugin](google-cloud.md) and thus has provisions to enable telemetry export to Google's Cloud operations suite. To enable telemetry export, set the `enableTracingAndMetrics` to `true` and add a telemetry section to the Genkit configuration:
+
+<!--See note above on prettier-ignore -->
+<!-- prettier-ignore -->
+```js
+import {configureGenkit} from "@genkit-ai/core";
+import {firebase} from "@genkit-ai/firebase";
+
+configureGenkit({
+  plugins: [firebase()],
+  enableTracingAndMetrics: true,
+  telemetry: {
+    instrumentation: 'firebase',
+    logger: 'firebase',
+  },
+});
+```
+
+Refer the the [Google Cloud plugin](google-cloud.md) documentation for all configuration options and the necessary APIs that need to be enabled on the project.
 
 ## Usage
 
@@ -120,6 +144,12 @@ const docs = await retrieve({
   options: {limit: 5},
 });
 ```
+
+Available retrieval options include:
+
+- `limit`: Specify the number of matching results to return.
+- `where`: Field/value pairs to match (e.g. `{category: 'food'}`) in addition to vector search.
+- `collection`: Override the default collection to search for e.g. subcollection search.
 
 To populate your Firestore collection, use an embedding generator along with the
 Admin SDK. For example, the menu ingestion script from the
@@ -211,7 +241,7 @@ The prior example requires the `embedding` field to be indexed to
 work. To create the index:
 
 - Run the `gcloud` command described in the
-  [Create a single-field vector index](https://firebase.google.com/docs/firestore/vector-search?hl=en&authuser=0#create_and_manage_vector_indexes)
+  [Create a single-field vector index](https://firebase.google.com/docs/firestore/vector-search?authuser=0#create_and_manage_vector_indexes)
   section of the Firestore docs.
 
   The command looks like the following:

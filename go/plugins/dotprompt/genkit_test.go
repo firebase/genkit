@@ -22,15 +22,13 @@ import (
 	"github.com/firebase/genkit/go/ai"
 )
 
-type testGenerator struct{}
-
-func (testGenerator) Generate(ctx context.Context, req *ai.GenerateRequest, cb func(context.Context, *ai.Candidate) error) (*ai.GenerateResponse, error) {
-	input := req.Messages[0].Content[0].Text()
+func testGenerate(ctx context.Context, req *ai.GenerateRequest, cb func(context.Context, *ai.GenerateResponseChunk) error) (*ai.GenerateResponse, error) {
+	input := req.Messages[0].Content[0].Text
 	output := fmt.Sprintf("AI reply to %q", input)
 
 	r := &ai.GenerateResponse{
 		Candidates: []*ai.Candidate{
-			&ai.Candidate{
+			{
 				Message: &ai.Message{
 					Content: []*ai.Part{
 						ai.NewTextPart(output),
@@ -44,12 +42,12 @@ func (testGenerator) Generate(ctx context.Context, req *ai.GenerateRequest, cb f
 }
 
 func TestExecute(t *testing.T) {
-	p, err := New("TestExecute", "TestExecute", nil)
+	testModel := ai.DefineModel("test", "test", nil, testGenerate)
+	p, err := New("TestExecute", "TestExecute", Config{Model: testModel})
 	if err != nil {
 		t.Fatal(err)
 	}
-	p.generator = testGenerator{}
-	resp, err := p.Execute(context.Background(), &ActionInput{})
+	resp, err := p.Generate(context.Background(), &PromptRequest{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,9 +67,9 @@ func TestExecute(t *testing.T) {
 			t.FailNow()
 		}
 	}
-	got := msg.Content[0].Text()
+	got := msg.Content[0].Text
 	want := `AI reply to "TestExecute"`
 	if got != want {
-		t.Errorf("fake generator replied with %q, want %q", got, want)
+		t.Errorf("fake model replied with %q, want %q", got, want)
 	}
 }

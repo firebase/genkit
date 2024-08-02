@@ -24,28 +24,23 @@ import (
 
 func TestFakeEmbedder(t *testing.T) {
 	embed := New()
-
+	emb := ai.DefineEmbedder("fake", "embed", embed.Embed)
 	d := ai.DocumentFromText("fakeembedder test", nil)
 
 	vals := []float32{1, 2}
 	embed.Register(d, vals)
 
-	var genkitEmbedder ai.Embedder
-	genkitEmbedder = embed
-	req := &ai.EmbedRequest{
-		Document: d,
-	}
 	ctx := context.Background()
-	got, err := genkitEmbedder.Embed(ctx, req)
+	res, err := ai.Embed(ctx, emb, ai.WithEmbedDocs(d))
 	if err != nil {
 		t.Fatal(err)
 	}
+	got := res.Embeddings[0].Embedding
 	if !slices.Equal(got, vals) {
 		t.Errorf("lookup returned %v, want %v", got, vals)
 	}
 
-	req.Document = ai.DocumentFromText("missing document", nil)
-	if _, err = genkitEmbedder.Embed(ctx, req); err == nil {
+	if _, err = ai.Embed(ctx, emb, ai.WithEmbedText("missing document")); err == nil {
 		t.Error("embedding unknown document succeeded unexpectedly")
 	}
 }

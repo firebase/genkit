@@ -31,101 +31,80 @@ type Document struct {
 // A Part is one part of a [Document]. This may be plain text or it
 // may be a URL (possibly a "data:" URL with embedded data).
 type Part struct {
-	kind         partKind
-	contentType  string        // valid for kind==blob
-	text         string        // valid for kind∈{text,blob}
-	toolRequest  *ToolRequest  // valid for kind==partToolRequest
-	toolResponse *ToolResponse // valid for kind==partToolResponse
+	Kind         PartKind      `json:"kind,omitempty"`
+	ContentType  string        `json:"contentType,omitempty"` // valid for kind==blob
+	Text         string        `json:"text,omitempty"`        // valid for kind∈{text,blob}
+	ToolRequest  *ToolRequest  `json:"toolreq,omitempty"`     // valid for kind==partToolRequest
+	ToolResponse *ToolResponse `json:"toolresp,omitempty"`    // valid for kind==partToolResponse
 }
 
-type partKind int8
+type PartKind int8
 
 const (
-	partText partKind = iota
-	partMedia
-	partData
-	partToolRequest
-	partToolResponse
+	PartText PartKind = iota
+	PartMedia
+	PartData
+	PartToolRequest
+	PartToolResponse
 )
 
 // NewTextPart returns a Part containing text.
 func NewTextPart(text string) *Part {
-	return &Part{kind: partText, text: text}
+	return &Part{Kind: PartText, ContentType: "plain/text", Text: text}
+}
+
+// NewJSONPart returns a Part containing JSON.
+func NewJSONPart(text string) *Part {
+	return &Part{Kind: PartText, ContentType: "application/json", Text: text}
 }
 
 // NewMediaPart returns a Part containing structured data described
 // by the given mimeType.
 func NewMediaPart(mimeType, contents string) *Part {
-	return &Part{kind: partMedia, contentType: mimeType, text: contents}
+	return &Part{Kind: PartMedia, ContentType: mimeType, Text: contents}
 }
 
 // NewDataPart returns a Part containing raw string data.
 func NewDataPart(contents string) *Part {
-	return &Part{kind: partData, text: contents}
+	return &Part{Kind: PartData, Text: contents}
 }
 
 // NewToolRequestPart returns a Part containing a request from
 // the model to the client to run a Tool.
 // (Only genkit plugins should need to use this function.)
 func NewToolRequestPart(r *ToolRequest) *Part {
-	return &Part{kind: partToolRequest, toolRequest: r}
+	return &Part{Kind: PartToolRequest, ToolRequest: r}
 }
 
 // NewToolResponsePart returns a Part containing the results
 // of applying a Tool that the model requested.
 func NewToolResponsePart(r *ToolResponse) *Part {
-	return &Part{kind: partToolResponse, toolResponse: r}
+	return &Part{Kind: PartToolResponse, ToolResponse: r}
 }
 
 // IsText reports whether the [Part] contains plain text.
 func (p *Part) IsText() bool {
-	return p.kind == partText
+	return p.Kind == PartText
 }
 
 // IsMedia reports whether the [Part] contains structured media data.
 func (p *Part) IsMedia() bool {
-	return p.kind == partMedia
+	return p.Kind == PartMedia
 }
 
 // IsData reports whether the [Part] contains unstructured data.
 func (p *Part) IsData() bool {
-	return p.kind == partData
+	return p.Kind == PartData
 }
 
 // IsToolRequest reports whether the [Part] contains a request to run a tool.
 func (p *Part) IsToolRequest() bool {
-	return p.kind == partToolRequest
+	return p.Kind == PartToolRequest
 }
 
 // IsToolResponse reports whether the [Part] contains the result of running a tool.
 func (p *Part) IsToolResponse() bool {
-	return p.kind == partToolResponse
-}
-
-// Text returns the text. This is either plain text or a URL.
-func (p *Part) Text() string {
-	return p.text
-}
-
-// ContentType returns the type of the content.
-// This is only interesting if IsBlob() is true.
-func (p *Part) ContentType() string {
-	if p.kind == partText {
-		return "text/plain"
-	}
-	return p.contentType
-}
-
-// ToolRequest returns a request from the model for the client to run a tool.
-// Valid only if [IsToolRequest] is true.
-func (p *Part) ToolRequest() *ToolRequest {
-	return p.toolRequest
-}
-
-// ToolResponse returns the tool response the client is sending to the model.
-// Valid only if [IsToolResponse] is true.
-func (p *Part) ToolResponse() *ToolResponse {
-	return p.toolResponse
+	return p.Kind == PartToolResponse
 }
 
 // MarshalJSON is called by the JSON marshaler to write out a Part.
@@ -133,45 +112,53 @@ func (p *Part) MarshalJSON() ([]byte, error) {
 	// This is not handled by the schema generator because
 	// Part is defined in TypeScript as a union.
 
-	switch p.kind {
-	case partText:
+	switch p.Kind {
+	case PartText:
 		v := textPart{
-			Text: p.text,
+			Text: p.Text,
 		}
 		return json.Marshal(v)
-	case partMedia:
+	case PartMedia:
 		v := mediaPart{
 			Media: &mediaPartMedia{
-				ContentType: p.contentType,
-				Url:         p.text,
+				ContentType: p.ContentType,
+				Url:         p.Text,
 			},
 		}
 		return json.Marshal(v)
-	case partData:
+	case PartData:
 		v := dataPart{
-			Data: p.text,
+			Data: p.Text,
 		}
 		return json.Marshal(v)
-	case partToolRequest:
+	case PartToolRequest:
 		// TODO: make sure these types marshal/unmarshal nicely
 		// between Go and javascript. At the very least the
 		// field name needs to change (here and in UnmarshalJSON).
 		v := struct {
 			ToolReq *ToolRequest `json:"toolreq,omitempty"`
 		}{
-			ToolReq: p.toolRequest,
+			ToolReq: p.ToolRequest,
 		}
 		return json.Marshal(v)
-	case partToolResponse:
+	case PartToolResponse:
 		v := struct {
 			ToolResp *ToolResponse `json:"toolresp,omitempty"`
 		}{
-			ToolResp: p.toolResponse,
+			ToolResp: p.ToolResponse,
 		}
 		return json.Marshal(v)
 	default:
-		return nil, fmt.Errorf("invalid part kind %v", p.kind)
+		return nil, fmt.Errorf("invalid part kind %v", p.Kind)
 	}
+}
+
+type partSchema struct {
+	Text     string          `json:"text,omitempty"`
+	Media    *mediaPartMedia `json:"media,omitempty"`
+	Data     string          `json:"data,omitempty"`
+	ToolReq  *ToolRequest    `json:"toolreq,omitempty"`
+	ToolResp *ToolResponse   `json:"toolresp,omitempty"`
 }
 
 // UnmarshalJSON is called by the JSON unmarshaler to read a Part.
@@ -179,40 +166,42 @@ func (p *Part) UnmarshalJSON(b []byte) error {
 	// This is not handled by the schema generator because
 	// Part is defined in TypeScript as a union.
 
-	var s struct {
-		Text     string          `json:"text,omitempty"`
-		Media    *mediaPartMedia `json:"media,omitempty"`
-		Data     string          `json:"data,omitempty"`
-		ToolReq  *ToolRequest    `json:"toolreq,omitempty"`
-		ToolResp *ToolResponse   `json:"toolresp,omitempty"`
-	}
-
+	var s partSchema
 	if err := json.Unmarshal(b, &s); err != nil {
 		return err
 	}
 
 	switch {
 	case s.Media != nil:
-		p.kind = partMedia
-		p.text = s.Media.Url
-		p.contentType = s.Media.ContentType
+		p.Kind = PartMedia
+		p.Text = s.Media.Url
+		p.ContentType = s.Media.ContentType
 	case s.ToolReq != nil:
-		p.kind = partToolRequest
-		p.toolRequest = s.ToolReq
+		p.Kind = PartToolRequest
+		p.ToolRequest = s.ToolReq
 	case s.ToolResp != nil:
-		p.kind = partToolResponse
-		p.toolResponse = s.ToolResp
+		p.Kind = PartToolResponse
+		p.ToolResponse = s.ToolResp
 	default:
-		p.kind = partText
-		p.text = s.Text
-		p.contentType = ""
+		p.Kind = PartText
+		p.Text = s.Text
+		p.ContentType = ""
 		if s.Data != "" {
 			// Note: if part is completely empty, we use text by default.
-			p.kind = partData
-			p.text = s.Data
+			p.Kind = PartData
+			p.Text = s.Data
 		}
 	}
 	return nil
+}
+
+// JSONSchemaAlias tells the JSON schema reflection code to use a different
+// type for the schema for this type. This is needed because the JSON
+// marshaling of Part uses a schema that matches the TypeScript code,
+// rather than the natural JSON marshaling. This matters because the
+// current JSON validation code works by marshaling the JSON.
+func (Part) JSONSchemaAlias() any {
+	return partSchema{}
 }
 
 // DocumentFromText returns a [Document] containing a single plain text part.
@@ -220,9 +209,9 @@ func (p *Part) UnmarshalJSON(b []byte) error {
 func DocumentFromText(text string, metadata map[string]any) *Document {
 	return &Document{
 		Content: []*Part{
-			&Part{
-				kind: partText,
-				text: text,
+			{
+				Kind: PartText,
+				Text: text,
 			},
 		},
 		Metadata: metadata,

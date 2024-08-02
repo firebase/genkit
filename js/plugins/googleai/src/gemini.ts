@@ -44,10 +44,12 @@ import {
   Content as GeminiMessage,
   Part as GeminiPart,
   GenerateContentResponse,
+  GenerationConfig,
   GoogleGenerativeAI,
   InlineDataPart,
   RequestOptions,
   StartChatParams,
+  Tool,
 } from '@google/generative-ai';
 import process from 'process';
 import z from 'zod';
@@ -70,6 +72,7 @@ const SafetySettingsSchema = z.object({
 
 const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   safetySettings: z.array(SafetySettingsSchema).optional(),
+  codeExecution: z.union([z.boolean(), z.object({}).strict()]).optional(),
 });
 
 export const geminiPro = modelRef({
@@ -112,7 +115,9 @@ export const gemini15Pro = modelRef({
       media: true,
       tools: true,
       systemRole: true,
+      output: ['text', 'json'],
     },
+    versions: ['gemini-1.5-pro-001'],
   },
   configSchema: GeminiConfigSchema,
 });
@@ -126,7 +131,9 @@ export const gemini15Flash = modelRef({
       media: true,
       tools: true,
       systemRole: true,
+      output: ['text', 'json'],
     },
+    versions: ['gemini-1.5-flash-001'],
   },
   configSchema: GeminiConfigSchema,
 });
@@ -311,19 +318,66 @@ function fromFunctionResponse(part: FunctionResponsePart): ToolResponsePart {
   };
 }
 
+function fromExecutableCode(part: GeminiPart): Part {
+  if (!part.executableCode) {
+    throw new Error('Invalid GeminiPart: missing executableCode');
+  }
+  return {
+    custom: {
+      executableCode: {
+        language: part.executableCode.language,
+        code: part.executableCode.code,
+      },
+    },
+  };
+}
+
+function fromCodeExecutionResult(part: GeminiPart): Part {
+  if (!part.codeExecutionResult) {
+    throw new Error('Invalid GeminiPart: missing codeExecutionResult');
+  }
+  return {
+    custom: {
+      codeExecutionResult: {
+        outcome: part.codeExecutionResult.outcome,
+        output: part.codeExecutionResult.output,
+      },
+    },
+  };
+}
+
+function toCustomPart(part: Part): GeminiPart {
+  if (!part.custom) {
+    throw new Error('Invalid GeminiPart: missing custom');
+  }
+  if (part.custom.codeExecutionResult) {
+    return { codeExecutionResult: part.custom.codeExecutionResult };
+  }
+  if (part.custom.executableCode) {
+    return { executableCode: part.custom.executableCode };
+  }
+  throw new Error('Unsupported Custom Part type');
+}
+
 function toGeminiPart(part: Part): GeminiPart {
   if (part.text !== undefined) return { text: part.text };
   if (part.media) return toInlineData(part);
   if (part.toolRequest) return toFunctionCall(part);
   if (part.toolResponse) return toFunctionResponse(part);
+  if (part.custom) return toCustomPart(part);
   throw new Error('Unsupported Part type');
 }
 
-function fromGeminiPart(part: GeminiPart): Part {
+function fromGeminiPart(part: GeminiPart, jsonMode: boolean): Part {
+  if (jsonMode && part.text !== undefined) {
+    return { data: JSON.parse(part.text) };
+  }
   if (part.text !== undefined) return { text: part.text };
   if (part.inlineData) return fromInlineData(part);
   if (part.functionCall) return fromFunctionCall(part);
   if (part.functionResponse) return fromFunctionResponse(part);
+  if (part.executableCode) return fromExecutableCode(part);
+  if (part.codeExecutionResult) return fromCodeExecutionResult(part);
   throw new Error('Unsupported GeminiPart type');
 }
 
@@ -361,12 +415,17 @@ function fromGeminiFinishReason(
   }
 }
 
-export function fromGeminiCandidate(candidate: GeminiCandidate): CandidateData {
+export function fromGeminiCandidate(
+  candidate: GeminiCandidate,
+  jsonMode: boolean = false
+): CandidateData {
   return {
     index: candidate.index || 0, // reasonable default?
     message: {
       role: 'model',
-      content: (candidate.content?.parts || []).map(fromGeminiPart),
+      content: (candidate.content?.parts || []).map((part) =>
+        fromGeminiPart(part, jsonMode)
+      ),
     },
     finishReason: fromGeminiFinishReason(candidate.finishReason),
     finishMessage: candidate.finishMessage,
@@ -448,33 +507,60 @@ export function googleAIModel(
           systemInstruction = toGeminiSystemInstruction(systemMessage);
         }
       }
+      const generationConfig: GenerationConfig = {
+        candidateCount: request.candidates || undefined,
+        temperature: request.config?.temperature,
+        maxOutputTokens: request.config?.maxOutputTokens,
+        topK: request.config?.topK,
+        topP: request.config?.topP,
+        stopSequences: request.config?.stopSequences,
+        responseMimeType:
+          request.output?.format === 'json' || request.output?.schema
+            ? 'application/json'
+            : undefined,
+      };
+
+      const tools: Tool[] = [];
+
+      if (request.tools?.length) {
+        tools.push({
+          functionDeclarations: request.tools.map(toGeminiTool),
+        });
+      }
+
+      if (request.config?.codeExecution) {
+        tools.push({
+          codeExecution:
+            request.config.codeExecution === true
+              ? {}
+              : request.config.codeExecution,
+        });
+      }
 
       const chatRequest = {
         systemInstruction,
-        tools: request.tools?.length
-          ? [{ functionDeclarations: request.tools?.map(toGeminiTool) }]
-          : [],
+        generationConfig,
+        tools,
         history: messages
           .slice(0, -1)
           .map((message) => toGeminiMessage(message, model)),
-        generationConfig: {
-          candidateCount: request.candidates || undefined,
-          temperature: request.config?.temperature,
-          maxOutputTokens: request.config?.maxOutputTokens,
-          topK: request.config?.topK,
-          topP: request.config?.topP,
-          stopSequences: request.config?.stopSequences,
-        },
         safetySettings: request.config?.safetySettings,
       } as StartChatParams;
       const msg = toGeminiMessage(messages[messages.length - 1], model);
+      const jsonMode =
+        request.output?.format === 'json' || !!request.output?.schema;
+      const fromJSONModeScopedGeminiCandidate = (
+        candidate: GeminiCandidate
+      ) => {
+        return fromGeminiCandidate(candidate, jsonMode);
+      };
       if (streamingCallback) {
         const result = await client
           .startChat(chatRequest)
           .sendMessageStream(msg.parts);
         for await (const item of result.stream) {
           (item as GenerateContentResponse).candidates?.forEach((candidate) => {
-            const c = fromGeminiCandidate(candidate);
+            const c = fromJSONModeScopedGeminiCandidate(candidate);
             streamingCallback({
               index: c.index,
               content: c.message.content,
@@ -486,7 +572,8 @@ export function googleAIModel(
           throw new Error('No valid candidates returned.');
         }
         return {
-          candidates: response.candidates?.map(fromGeminiCandidate) || [],
+          candidates:
+            response.candidates?.map(fromJSONModeScopedGeminiCandidate) || [],
           custom: response,
         };
       } else {
@@ -496,11 +583,17 @@ export function googleAIModel(
         if (!result.response.candidates?.length)
           throw new Error('No valid candidates returned.');
         const responseCandidates =
-          result.response.candidates?.map(fromGeminiCandidate) || [];
+          result.response.candidates?.map(fromJSONModeScopedGeminiCandidate) ||
+          [];
         return {
           candidates: responseCandidates,
           custom: result.response,
-          usage: getBasicUsageStats(request.messages, responseCandidates),
+          usage: {
+            ...getBasicUsageStats(request.messages, responseCandidates),
+            inputTokens: result.response.usageMetadata?.promptTokenCount,
+            outputTokens: result.response.usageMetadata?.candidatesTokenCount,
+            totalTokens: result.response.usageMetadata?.totalTokenCount,
+          },
         };
       }
     }

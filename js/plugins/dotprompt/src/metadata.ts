@@ -24,6 +24,7 @@ import {
   ModelArgument,
 } from '@genkit-ai/ai/model';
 import { ToolArgument } from '@genkit-ai/ai/tool';
+import { lookupSchema } from '@genkit-ai/core/registry';
 import { JSONSchema, parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
 import z from 'zod';
 import { picoschema } from './picoschema.js';
@@ -92,8 +93,8 @@ export const PromptFrontmatterSchema = z.object({
   config: GenerationCommonConfigSchema.passthrough().optional(),
   input: z
     .object({
-      schema: z.unknown(),
       default: z.any(),
+      schema: z.unknown(),
     })
     .optional(),
   output: z
@@ -122,21 +123,37 @@ function stripUndefinedOrNull(obj: any) {
   return obj;
 }
 
+function fmSchemaToSchema(fmSchema: any) {
+  if (!fmSchema) return {};
+  if (typeof fmSchema === 'string') return lookupSchema(fmSchema);
+  return { jsonSchema: picoschema(fmSchema) };
+}
+
 export function toMetadata(attributes: unknown): Partial<PromptMetadata> {
   const fm = parseSchema<z.infer<typeof PromptFrontmatterSchema>>(attributes, {
     schema: PromptFrontmatterSchema,
   });
+
+  let input: PromptMetadata['input'] | undefined;
+  if (fm.input) {
+    input = { default: fm.input.default, ...fmSchemaToSchema(fm.input.schema) };
+  }
+
+  let output: PromptMetadata['output'] | undefined;
+  if (fm.output) {
+    output = {
+      format: fm.output.format,
+      ...fmSchemaToSchema(fm.output.schema),
+    };
+  }
+
   return stripUndefinedOrNull({
     name: fm.name,
     variant: fm.variant,
     model: fm.model,
     config: fm.config,
-    input: fm.input
-      ? { default: fm.input.default, jsonSchema: picoschema(fm.input.schema) }
-      : undefined,
-    output: fm.output
-      ? { format: fm.output.format, jsonSchema: picoschema(fm.output.schema) }
-      : undefined,
+    input,
+    output,
     metadata: fm.metadata,
     tools: fm.tools,
     candidates: fm.candidates,

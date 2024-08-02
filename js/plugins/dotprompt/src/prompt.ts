@@ -37,18 +37,23 @@ import {
   toFrontmatter,
   toMetadata,
 } from './metadata.js';
-import { registryDefinitionKey } from './registry.js';
+import { lookupPrompt, registryDefinitionKey } from './registry.js';
 import { compile } from './template.js';
 
 export type PromptData = PromptFrontmatter & { template: string };
 
 export type PromptGenerateOptions<V = unknown> = Omit<
   GenerateOptions<z.ZodTypeAny, typeof GenerationCommonConfigSchema>,
-  'prompt' | 'history' | 'model'
+  'prompt' | 'model'
 > & {
   model?: string;
   input?: V;
 };
+
+interface RenderMetadata {
+  context?: DocumentData[];
+  history?: MessageData[];
+}
 
 export class Dotprompt<Variables = unknown> implements PromptMetadata {
   name: string;
@@ -65,7 +70,10 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
   config?: PromptMetadata['config'];
   candidates?: PromptMetadata['candidates'];
 
-  private _render: (input: Variables) => MessageData[];
+  private _render: (
+    input: Variables,
+    options?: RenderMetadata
+  ) => MessageData[];
 
   static parse(name: string, source: string) {
     try {
@@ -81,7 +89,7 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
       throw new GenkitError({
         source: 'Dotprompt',
         status: 'INVALID_ARGUMENT',
-        message: `Error parsing YAML frontmatter of '${name}' prompt: ${e.message}`,
+        message: `Error parsing YAML frontmatter of '${name}' prompt: ${e.stack}`,
       });
     }
   }
@@ -115,8 +123,8 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
     this._render = compile(this.template, options);
   }
 
-  renderText(input: Variables, context?: DocumentData[]): string {
-    const result = this.renderMessages(input, context);
+  renderText(input: Variables, options?: RenderMetadata): string {
+    const result = this.renderMessages(input, options);
     if (result.length !== 1) {
       throw new Error("Multi-message prompt can't be rendered as text.");
     }
@@ -130,12 +138,12 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
     return out;
   }
 
-  renderMessages(input?: Variables, context?: DocumentData[]): MessageData[] {
+  renderMessages(input?: Variables, options?: RenderMetadata): MessageData[] {
     input = parseSchema(input, {
       schema: this.input?.schema,
       jsonSchema: this.input?.jsonSchema,
     });
-    return this._render({ ...this.input?.default, ...input });
+    return this._render({ ...this.input?.default, ...input }, options);
   }
 
   toJSON(): PromptData {
@@ -158,13 +166,16 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
     );
   }
 
-  private _generateOptions(
+  private _generateOptions<O extends z.ZodTypeAny = z.ZodTypeAny>(
     options: PromptGenerateOptions<Variables>
-  ): GenerateOptions {
-    const messages = this.renderMessages(options.input);
+  ): GenerateOptions<z.ZodTypeAny, O> {
+    const messages = this.renderMessages(options.input, {
+      history: options.history,
+      context: options.context,
+    });
     return {
       model: options.model || this.model!,
-      config: { ...this.config, ...options.config } || {},
+      config: { ...this.config, ...options.config },
       history: messages.slice(0, messages.length - 1),
       prompt: messages[messages.length - 1].content,
       context: options.context,
@@ -175,23 +186,70 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
         jsonSchema: options.output?.jsonSchema || this.output?.jsonSchema,
       },
       tools: (options.tools || []).concat(this.tools || []),
-    };
+      streamingCallback: options.streamingCallback,
+      returnToolRequests: options.returnToolRequests,
+    } as GenerateOptions<z.ZodTypeAny, O>;
   }
 
-  render(opt: PromptGenerateOptions<Variables>): GenerateOptions {
-    return this._generateOptions(opt);
-  }
-
-  async generate(
+  render<O extends z.ZodTypeAny = z.ZodTypeAny>(
     opt: PromptGenerateOptions<Variables>
-  ): Promise<GenerateResponse> {
-    return generate(this.render(opt));
+  ): GenerateOptions<z.ZodTypeAny, O> {
+    return this._generateOptions<O>(opt);
+  }
+
+  async generate<O extends z.ZodTypeAny = z.ZodTypeAny>(
+    opt: PromptGenerateOptions<Variables>
+  ): Promise<GenerateResponse<z.infer<O>>> {
+    return generate<z.ZodTypeAny, O>(this.render<O>(opt));
   }
 
   async generateStream(
     opt: PromptGenerateOptions<Variables>
   ): Promise<GenerateStreamResponse> {
     return generateStream(this.render(opt));
+  }
+}
+
+export class DotpromptRef<Variables = unknown> {
+  name: string;
+  variant?: string;
+  dir?: string;
+  private _prompt?: Dotprompt<Variables>;
+
+  constructor(
+    name: string,
+    options?: {
+      variant?: string;
+      dir?: string;
+    }
+  ) {
+    this.name = name;
+    this.variant = options?.variant;
+    this.dir = options?.dir;
+  }
+
+  async loadPrompt(): Promise<Dotprompt<Variables>> {
+    if (this._prompt) return this._prompt;
+    this._prompt = (await lookupPrompt(
+      this.name,
+      this.variant,
+      this.dir
+    )) as Dotprompt<Variables>;
+    return this._prompt;
+  }
+
+  async generate<O extends z.ZodTypeAny = z.ZodTypeAny>(
+    opt: PromptGenerateOptions<Variables>
+  ): Promise<GenerateResponse<z.infer<O>>> {
+    const prompt = await this.loadPrompt();
+    return prompt.generate<O>(opt);
+  }
+
+  async render<O extends z.ZodTypeAny = z.ZodTypeAny>(
+    opt: PromptGenerateOptions<Variables>
+  ): Promise<GenerateOptions<z.ZodTypeAny, O>> {
+    const prompt = await this.loadPrompt();
+    return prompt.render<O>(opt);
   }
 }
 

@@ -16,10 +16,12 @@
 
 import { PromptAction } from '@genkit-ai/ai';
 import { GenkitError } from '@genkit-ai/core';
+import { logger } from '@genkit-ai/core/logging';
 import { lookupAction } from '@genkit-ai/core/registry';
 import { existsSync, readdir, readFileSync } from 'fs';
 import { basename, join, resolve } from 'path';
 import { Dotprompt } from './prompt.js';
+import { definePartial } from './template.js';
 
 export function registryDefinitionKey(
   name: string,
@@ -88,15 +90,32 @@ export async function loadPromptFolder(
           } else {
             dirEnts.forEach(async (dirEnt) => {
               if (dirEnt.isFile() && dirEnt.name.endsWith('.prompt')) {
-                // If this prompt is in a subdirectory, we need to include that
-                // in the namespace to prevent naming conflicts.
-                let prefix = '';
-                if (promptsPath !== dirEnt.path) {
-                  prefix = dirEnt.path
-                    .replace(`${promptsPath}/`, '')
-                    .replace(/\//g, '-');
+                if (dirEnt.name.startsWith('_')) {
+                  console.log(dirEnt.name);
+                  const partialName = dirEnt.name.substring(
+                    1,
+                    dirEnt.name.length - 7
+                  );
+                  definePartial(
+                    partialName,
+                    readFileSync(join(dirEnt.path, dirEnt.name), {
+                      encoding: 'utf8',
+                    })
+                  );
+                  logger.debug(
+                    `Registered Dotprompt partial "${partialName}" from "${join(dirEnt.path, dirEnt.name)}"`
+                  );
+                } else {
+                  // If this prompt is in a subdirectory, we need to include that
+                  // in the namespace to prevent naming conflicts.
+                  let prefix = '';
+                  if (promptsPath !== dirEnt.path) {
+                    prefix = dirEnt.path
+                      .replace(`${promptsPath}/`, '')
+                      .replace(/\//g, '-');
+                  }
+                  loadPrompt(dirEnt.path, dirEnt.name, prefix);
                 }
-                loadPrompt(dirEnt.path, dirEnt.name, prefix);
               }
             });
             resolve();

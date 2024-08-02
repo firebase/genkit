@@ -24,7 +24,7 @@ import { logger } from './logger';
  * Start the runner and waits for it to fully load -- reflection API to become avaialble.
  */
 export async function startRunner(): Promise<Runner> {
-  const runner = new Runner({ autoReload: false });
+  const runner = new Runner({ autoReload: false, buildOnStart: true });
   if (!(await runner.start())) {
     throw new Error('Failed to load app code.');
   }

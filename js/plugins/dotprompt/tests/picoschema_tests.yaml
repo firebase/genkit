@@ -1,0 +1,173 @@
+- description: simple scalar, no description
+  yaml: 'schema: string'
+  want: { type: string }
+
+- description: simple scalar, with description
+  yaml: 'schema: number, the description'
+  want: { type: number, description: 'the description' }
+
+- description: simple scalar, with description (no whitespace)
+  yaml: 'schema: number,the description'
+  want: { type: number, description: 'the description' }
+
+- description: simple scalar, with description (comma in description)
+  yaml: 'schema: number,the description, which has, multiple commas'
+  want:
+    { type: number, description: 'the description, which has, multiple commas' }
+
+- description: simple scalar, with description (extra whitespace)
+  yaml: 'schema: number,    the description'
+  want: { type: number, description: 'the description' }
+
+- description: simple object
+  yaml: |
+    schema:
+      field1: boolean
+      field2: string
+  want:
+    {
+      type: object,
+      additionalProperties: false,
+      properties: { field1: { type: boolean }, field2: { type: string } },
+      required: ['field1', 'field2'],
+    }
+
+- description: required field
+  yaml: |
+    schema:
+      req: string, required field
+      nonreq?: boolean, optional field
+  want:
+    {
+      type: object,
+      additionalProperties: false,
+      properties:
+        {
+          req: { type: string, description: 'required field' },
+          nonreq: { type: [boolean, 'null'], description: 'optional field' },
+        },
+      required: ['req'],
+    }
+
+- description: array of scalars, with and without description
+  yaml: |
+    schema:
+      tags(array, list of tags): string, the tag
+      vector(array): number
+  want:
+    {
+      type: object,
+      additionalProperties: false,
+      properties:
+        {
+          tags:
+            {
+              type: array,
+              description: 'list of tags',
+              items: { type: string, description: 'the tag' },
+            },
+          vector: { type: array, items: { type: number } },
+        },
+      required: ['tags', 'vector'],
+    }
+
+- description: nested object in array and out
+  yaml: |
+    schema:
+      obj?(object, a nested object):
+        nest1?: string
+      arr(array, array of objects):
+        nest2?: boolean
+  want:
+    {
+      type: object,
+      additionalProperties: false,
+      properties:
+        {
+          obj:
+            {
+              type: [object, 'null'],
+              description: 'a nested object',
+              additionalProperties: false,
+              properties: { nest1: { type: [string, 'null'] } },
+            },
+          arr:
+            {
+              type: array,
+              description: 'array of objects',
+              items:
+                {
+                  type: object,
+                  additionalProperties: false,
+                  properties: { nest2: { type: [boolean, 'null'] } },
+                },
+            },
+        },
+      required: ['arr'],
+    }
+
+- description: simple json schema type
+  yaml: |
+    schema:
+      type: string
+  want: { type: string }
+
+- description: inferred json schema from properties
+  yaml: |
+    schema:
+      properties:
+        foo: {type: string}
+  want: { type: object, properties: { foo: { type: string } } }
+
+- description: enum field
+  yaml: |
+    schema:
+      color?(enum, the enum): [RED, BLUE, GREEN]
+  want:
+    {
+      type: object,
+      properties:
+        {
+          color:
+            { description: 'the enum', enum: ['RED', 'BLUE', 'GREEN', null] },
+        },
+      additionalProperties: false,
+    }
+
+- description: any field
+  yaml: |
+    schema:
+      first: any
+      second?: any, could be anything
+  want:
+    {
+      type: object,
+      properties: { first: {}, second: { description: 'could be anything' } },
+      additionalProperties: false,
+      required: ['first'],
+    }
+
+- description: wildcard fields with other fields
+  yaml: |
+    schema:
+      otherField: string, another string
+      (*): any, whatever you want
+  want:
+    {
+      additionalProperties: { description: 'whatever you want' },
+      properties:
+        { otherField: { description: 'another string', type: string } },
+      required: ['otherField'],
+      type: object,
+    }
+
+- description: wildcard fields without other fields
+  yaml: |
+    schema:
+      (*): number, lucky number
+  want:
+    {
+      additionalProperties: { type: number, description: 'lucky number' },
+      properties: {},
+      type: object,
+    }

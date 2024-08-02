@@ -77,7 +77,11 @@ toc:
     path: /docs/genkit/plugins/google-cloud
   - title: LangChain
     path: /docs/genkit/plugins/langchain
-#
+  
+  - break: true
+  - title: Connect with us
+    path: /docs/genkit/feedback
+
 # reference:
 #   - title: Resource summary
 #     path: /docs/genkit/reference/coming-soon

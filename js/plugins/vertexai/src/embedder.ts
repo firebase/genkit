@@ -22,7 +22,7 @@ import {
 import { GoogleAuth } from 'google-auth-library';
 import { z } from 'zod';
 import { PluginOptions } from './index.js';
-import { predictModel } from './predict.js';
+import { PredictClient, predictModel } from './predict.js';
 
 export const TaskTypeSchema = z.enum([
   'RETRIEVAL_DOCUMENT',
@@ -40,6 +40,7 @@ export const TextEmbeddingGeckoConfigSchema = z.object({
    **/
   taskType: TaskTypeSchema.optional(),
   title: z.string().optional(),
+  location: z.string().optional(),
 });
 export type TextEmbeddingGeckoConfig = z.infer<
   typeof TextEmbeddingGeckoConfigSchema
@@ -81,23 +82,41 @@ export const textEmbeddingGecko001 = embedderRef({
   },
 });
 
-/*
-// @TODO(huangjeff): Fix multilingual text embedding gecko
-// For some reason this model returns 404 but it exists in the reference docs:
-// https://cloud.google.com/vertex-ai/generative-ai/docs/embeddings/get-text-embeddings
+export const textEmbedding004 = embedderRef({
+  name: 'vertexai/text-embedding-004',
+  configSchema: TextEmbeddingGeckoConfigSchema,
+  info: {
+    dimensions: 768,
+    label: 'Vertex AI - Text Embedding 004',
+    supports: {
+      input: ['text'],
+    },
+  },
+});
+
+export const textMultilingualEmbedding002 = embedderRef({
+  name: 'vertexai/text-multilingual-embedding-002',
+  configSchema: TextEmbeddingGeckoConfigSchema,
+  info: {
+    dimensions: 768,
+    label: 'Vertex AI - Text Multilingual Embedding 002',
+    supports: {
+      input: ['text'],
+    },
+  },
+});
 
 export const textEmbeddingGeckoMultilingual001 = embedderRef({
   name: 'vertexai/textembedding-gecko-multilingual@001',
   configSchema: TextEmbeddingGeckoConfigSchema,
   info: {
     dimensions: 768,
-    label: 'Vertex AI - Multilingual Text Embedding Gecko',
+    label: 'Vertex AI - Multilingual Text Embedding Gecko 001',
     supports: {
       input: ['text'],
     },
   },
 });
-*/
 
 export const textEmbeddingGecko = textEmbeddingGecko003;
 
@@ -105,7 +124,9 @@ export const SUPPORTED_EMBEDDER_MODELS: Record<string, EmbedderReference> = {
   'textembedding-gecko@003': textEmbeddingGecko003,
   'textembedding-gecko@002': textEmbeddingGecko002,
   'textembedding-gecko@001': textEmbeddingGecko001,
-  //'textembeddding-gecko-multilingual@001': textEmbeddingGeckoMultilingual001,
+  'text-embedding-004': textEmbedding004,
+  'textembedding-gecko-multilingual@001': textEmbeddingGeckoMultilingual001,
+  'text-multilingual-embedding-002': textMultilingualEmbedding002,
 };
 
 interface EmbeddingInstance {
@@ -129,12 +150,31 @@ export function textEmbeddingGeckoEmbedder(
   options: PluginOptions
 ) {
   const embedder = SUPPORTED_EMBEDDER_MODELS[name];
-  // TODO: Figure out how to allow different versions while still sharing a single implementation.
-  const predict = predictModel<EmbeddingInstance, EmbeddingPrediction>(
-    client,
-    options,
-    name
-  );
+  const predictClients: Record<
+    string,
+    PredictClient<EmbeddingInstance, EmbeddingPrediction>
+  > = {};
+  const predictClientFactory = (
+    config: TextEmbeddingGeckoConfig
+  ): PredictClient<EmbeddingInstance, EmbeddingPrediction> => {
+    const requestLocation = config?.location || options.location;
+    if (!predictClients[requestLocation]) {
+      // TODO: Figure out how to allow different versions while still sharing a single implementation.
+      predictClients[requestLocation] = predictModel<
+        EmbeddingInstance,
+        EmbeddingPrediction
+      >(
+        client,
+        {
+          ...options,
+          location: requestLocation,
+        },
+        name
+      );
+    }
+    return predictClients[requestLocation];
+  };
+
   return defineEmbedder(
     {
       name: embedder.name,
@@ -142,7 +182,8 @@ export function textEmbeddingGeckoEmbedder(
       info: embedder.info!,
     },
     async (input, options) => {
-      const response = await predict(
+      const predictClient = predictClientFactory(options);
+      const response = await predictClient(
         input.map((i) => {
           return {
             content: i.text(),

@@ -17,15 +17,19 @@
 import { generate } from '@genkit-ai/ai';
 import { defineModel } from '@genkit-ai/ai/model';
 import { configureGenkit } from '@genkit-ai/core';
-import { firebase } from '@genkit-ai/firebase';
 import { defineFlow } from '@genkit-ai/flow';
 import * as z from 'zod';
 
 defineModel(
   {
-    name: 'custom/reflector',
+    name: 'customReflector',
   },
   async (input) => {
+    // In Go, JSON object properties are output in sorted order.
+    // JSON.stringify uses the order they appear in the program.
+    // So swap the order here to match Go.
+    const m = input.messages[0];
+    input.messages[0] = { content: m.content, role: m.role };
     return {
       candidates: [
         {
@@ -46,9 +50,7 @@ defineModel(
 );
 
 export default configureGenkit({
-  plugins: [firebase()],
-  flowStateStore: 'firebase',
-  traceStore: 'firebase',
+  plugins: [],
   enableTracingAndMetrics: true,
   logLevel: 'debug',
 });
@@ -57,11 +59,11 @@ export const testFlow = defineFlow(
   { name: 'testFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (subject) => {
     const response = await generate({
-      model: 'custom/reflector',
+      model: 'customReflector',
       prompt: subject,
     });
 
-    const want = `{"messages":[{"role":"user","content":[{"text":"${subject}"}]}],"tools":[],"output":{"format":"text"}}`;
+    const want = `{"messages":[{"content":[{"text":"${subject}"}],"role":"user"}],"tools":[],"output":{"format":"text"}}`;
     if (response.text() !== want) {
       throw new Error(`Expected ${want} but got ${response.text()}`);
     }

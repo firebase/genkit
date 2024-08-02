@@ -19,14 +19,17 @@ import (
 	"context"
 	"slices"
 	"testing"
+
+	"github.com/firebase/genkit/go/internal/atype"
+	"github.com/firebase/genkit/go/internal/registry"
 )
 
-func inc(_ context.Context, x int) (int, error) {
+func inc(_ context.Context, x int, _ noStream) (int, error) {
 	return x + 1, nil
 }
 
 func TestActionRun(t *testing.T) {
-	a := NewAction("inc", ActionTypeCustom, nil, inc)
+	a := newAction("inc", atype.Custom, nil, nil, inc)
 	got, err := a.Run(context.Background(), 3, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -37,21 +40,16 @@ func TestActionRun(t *testing.T) {
 }
 
 func TestActionRunJSON(t *testing.T) {
-	a := NewAction("inc", ActionTypeCustom, nil, inc)
+	a := newAction("inc", atype.Custom, nil, nil, inc)
 	input := []byte("3")
 	want := []byte("4")
-	got, err := a.runJSON(context.Background(), input, nil)
+	got, err := a.RunJSON(context.Background(), input, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !bytes.Equal(got, want) {
 		t.Errorf("got %v, want %v", got, want)
 	}
-}
-
-func TestNewAction(t *testing.T) {
-	// Verify that struct{} can occur in the function signature.
-	_ = NewAction("f", ActionTypeCustom, nil, func(context.Context, int) (struct{}, error) { return struct{}{}, nil })
 }
 
 // count streams the numbers from 0 to n-1, then returns n.
@@ -68,7 +66,7 @@ func count(ctx context.Context, n int, cb func(context.Context, int) error) (int
 
 func TestActionStreaming(t *testing.T) {
 	ctx := context.Background()
-	a := NewStreamingAction("count", ActionTypeCustom, nil, count)
+	a := newAction("count", atype.Custom, nil, nil, count)
 	const n = 3
 
 	// Non-streaming.
@@ -101,12 +99,12 @@ func TestActionStreaming(t *testing.T) {
 func TestActionTracing(t *testing.T) {
 	ctx := context.Background()
 	const actionName = "TestTracing-inc"
-	a := NewAction(actionName, ActionTypeCustom, nil, inc)
+	a := newAction(actionName, atype.Custom, nil, nil, inc)
 	if _, err := a.Run(context.Background(), 3, nil); err != nil {
 		t.Fatal(err)
 	}
 	// The dev TraceStore is registered by Init, called from TestMain.
-	ts := globalRegistry.lookupTraceStore(EnvironmentDev)
+	ts := registry.Global.LookupTraceStore(registry.EnvironmentDev)
 	tds, _, err := ts.List(ctx, nil)
 	if err != nil {
 		t.Fatal(err)

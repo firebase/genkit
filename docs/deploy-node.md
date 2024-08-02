@@ -37,9 +37,6 @@ sample flow.
     genkit init
     ```
 
-    1. Select `Node.js` as the deployment platform option (templates for
-       Cloud Functions for Firebase and Google Cloud Run are also available).
-
     1. Select your model:
 
        - {Gemini (Google AI)}

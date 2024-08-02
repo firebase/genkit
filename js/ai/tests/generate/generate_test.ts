@@ -17,6 +17,7 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { z } from 'zod';
+import { GenerateResponseChunk } from '../../src/generate';
 import {
   Candidate,
   GenerateOptions,
@@ -24,6 +25,7 @@ import {
   Message,
   toGenerateRequest,
 } from '../../src/generate.js';
+import { GenerateResponseChunkData } from '../../src/model';
 import {
   CandidateData,
   GenerateRequest,
@@ -230,6 +232,88 @@ describe('GenerateResponse', () => {
       assert.deepStrictEqual(response.output(0), { abc: '123' });
     });
   });
+  describe('#toolRequests()', () => {
+    it('returns empty array if no tools requests found', () => {
+      const response = new GenerateResponse({
+        candidates: [
+          {
+            index: 0,
+            finishReason: 'stop',
+            message: { role: 'model', content: [{ text: '{"abc":"123"}' }] },
+          },
+          {
+            index: 0,
+            finishReason: 'stop',
+            message: { role: 'model', content: [{ text: '{"abc":123}' }] },
+          },
+        ],
+      });
+      assert.deepStrictEqual(response.toolRequests(), []);
+      assert.deepStrictEqual(response.toolRequests(0), []);
+    });
+    it('picks the first candidate if no index provided', () => {
+      const toolCall = {
+        toolRequest: {
+          name: 'foo',
+          ref: 'abc',
+          input: 'banana',
+        },
+      };
+      const response = new GenerateResponse({
+        candidates: [
+          {
+            index: 0,
+            finishReason: 'stop',
+            message: {
+              role: 'model',
+              content: [toolCall],
+            },
+          },
+          {
+            index: 0,
+            finishReason: 'stop',
+            message: { role: 'model', content: [{ text: '{"abc":123}' }] },
+          },
+        ],
+      });
+      assert.deepStrictEqual(response.toolRequests(), [toolCall]);
+      assert.deepStrictEqual(response.toolRequests(0), [toolCall]);
+    });
+    it('returns all tool call', () => {
+      const toolCall1 = {
+        toolRequest: {
+          name: 'foo',
+          ref: 'abc',
+          input: 'banana',
+        },
+      };
+      const toolCall2 = {
+        toolRequest: {
+          name: 'bar',
+          ref: 'bcd',
+          input: 'apple',
+        },
+      };
+      const response = new GenerateResponse({
+        candidates: [
+          {
+            index: 0,
+            finishReason: 'stop',
+            message: {
+              role: 'model',
+              content: [toolCall1, toolCall2],
+            },
+          },
+          {
+            index: 0,
+            finishReason: 'stop',
+            message: { role: 'model', content: [{ text: '{"abc":123}' }] },
+          },
+        ],
+      });
+      assert.deepStrictEqual(response.toolRequests(), [toolCall1, toolCall2]);
+    });
+  });
 });
 
 describe('toGenerateRequest', () => {
@@ -423,4 +507,77 @@ describe('toGenerateRequest', () => {
       );
     });
   }
+});
+
+describe('GenerateResponseChunk', () => {
+  describe('#output()', () => {
+    const testCases = [
+      {
+        should: 'parse ``` correctly',
+        accumulatedChunksTexts: ['```'],
+        correctJson: null,
+      },
+      {
+        should: 'parse valid json correctly',
+        accumulatedChunksTexts: [`{"foo":"bar"}`],
+        correctJson: { foo: 'bar' },
+      },
+      {
+        should: 'if json invalid, return null',
+        accumulatedChunksTexts: [`invalid json`],
+        correctJson: null,
+      },
+      {
+        should: 'handle missing closing brace',
+        accumulatedChunksTexts: [`{"foo":"bar"`],
+        correctJson: { foo: 'bar' },
+      },
+      {
+        should: 'handle missing closing bracket in nested object',
+        accumulatedChunksTexts: [`{"foo": {"bar": "baz"`],
+        correctJson: { foo: { bar: 'baz' } },
+      },
+      {
+        should: 'handle multiple chunks',
+        accumulatedChunksTexts: [`{"foo": {"bar"`, `: "baz`],
+        correctJson: { foo: { bar: 'baz' } },
+      },
+      {
+        should: 'handle multiple chunks with nested objects',
+        accumulatedChunksTexts: [`\`\`\`json{"foo": {"bar"`, `: {"baz": "qux`],
+        correctJson: { foo: { bar: { baz: 'qux' } } },
+      },
+      {
+        should: 'handle array nested in object',
+        accumulatedChunksTexts: [`{"foo": ["bar`],
+        correctJson: { foo: ['bar'] },
+      },
+      {
+        should: 'handle array nested in object with multiple chunks',
+        accumulatedChunksTexts: [`\`\`\`json{"foo": {"bar"`, `: ["baz`],
+        correctJson: { foo: { bar: ['baz'] } },
+      },
+    ];
+
+    for (const test of testCases) {
+      if (test.should) {
+        it(test.should, () => {
+          const accumulatedChunks: GenerateResponseChunkData[] =
+            test.accumulatedChunksTexts.map((text, index) => ({
+              index,
+              content: [{ text }],
+            }));
+
+          const chunkData = accumulatedChunks[accumulatedChunks.length - 1];
+
+          const responseChunk: GenerateResponseChunk =
+            new GenerateResponseChunk(chunkData, accumulatedChunks);
+
+          const output = responseChunk.output();
+
+          assert.deepStrictEqual(output, test.correctJson);
+        });
+      }
+    }
+  });
 });

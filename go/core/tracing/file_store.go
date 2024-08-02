@@ -25,7 +25,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/firebase/genkit/go/internal"
+	"github.com/firebase/genkit/go/internal/base"
 )
 
 // A FileStore is a Store that writes traces to files.
@@ -60,13 +60,13 @@ func (s *FileStore) Save(ctx context.Context, id string, td *Data) error {
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return err
 	}
-	return internal.WriteJSONFile(filepath.Join(s.dir, internal.Clean(id)), td)
+	return base.WriteJSONFile(filepath.Join(s.dir, base.Clean(id)), td)
 }
 
 // Load implements [Store.Load].
 func (s *FileStore) Load(ctx context.Context, id string) (*Data, error) {
 	var td *Data
-	if err := internal.ReadJSONFile(filepath.Join(s.dir, internal.Clean(id)), &td); err != nil {
+	if err := base.ReadJSONFile(filepath.Join(s.dir, base.Clean(id)), &td); err != nil {
 		return nil, err
 	}
 	return td, nil
@@ -102,7 +102,7 @@ func (s *FileStore) List(ctx context.Context, q *Query) ([]*Data, string, error)
 	var ts []*Data
 	for _, e := range entries[start:end] {
 		var t *Data
-		if err := internal.ReadJSONFile(filepath.Join(s.dir, e.Name()), &t); err != nil {
+		if err := base.ReadJSONFile(filepath.Join(s.dir, e.Name()), &t); err != nil {
 			return nil, "", err
 		}
 		ts = append(ts, t)
@@ -130,7 +130,7 @@ func listRange(q *Query, total int) (start, end int, err error) {
 		// This doesn't work well with newest-first order if files are added during listing,
 		// because the indexes will change.
 		// But we use it for consistency with the javascript implementation.
-		// TODO(jba): consider using distance from the end (len(entries) - end).
+		// TODO: consider using distance from the end (len(entries) - end).
 		start, err = strconv.Atoi(ctoken)
 		if err != nil {
 			return 0, 0, fmt.Errorf("%w: parsing continuation token: %v", ErrBadQuery, err)
@@ -153,5 +153,5 @@ func listRange(q *Query, total int) (start, end int, err error) {
 }
 
 func (s *FileStore) LoadAny(id string, p any) error {
-	return internal.ReadJSONFile(filepath.Join(s.dir, internal.Clean(id)), p)
+	return base.ReadJSONFile(filepath.Join(s.dir, base.Clean(id)), p)
 }

@@ -7,13 +7,22 @@ To get started with Firebase Genkit, install the Genkit CLI and run
 
 Node.js 20 or later.
 
-## Procedure
+Recommendation: The [`nvm`](https://github.com/nvm-sh/nvm) and
+[`nvm-windows`](https://github.com/coreybutler/nvm-windows) tools are a
+convenient way to install Node.
 
-1.  Install the Genkit CLI by running the following command:
+## Install Genkit {:#install}
 
-    ```posix-terminal
-    npm i -g genkit
-    ```
+Install the Genkit CLI by running the following command:
+
+```posix-terminal
+npm i -g genkit
+```
+
+This command installs the Genkit CLI into your Node installation directory
+so that it can be used outside of a Node project.
+
+## Create and explore a sample project {:#explore}
 
 1.  Create a new Node project:
 
@@ -31,9 +40,6 @@ Node.js 20 or later.
     ```posix-terminal
     genkit init
     ```
-
-    1. Select `Node.js` as the deployment platform option (templates for
-       Cloud Functions for Firebase and Google Cloud Run are also available).
 
     1. Select your model:
 
@@ -71,15 +77,41 @@ Node.js 20 or later.
     1. Choose default answers to the rest of the questions, which will
        initialize your project folder with some sample code.
 
-    The `genkit init` command creates a sample source file, `index.ts`. This is your project's entry point, where you configure Genkit for your project, configure the plugins you want to load and export your AI flows and other resources you've defined. The sample file contains a config that loads a plugin to support the model provider you chose earlier. It also contains a single flow, `menuSuggestionFlow`, that prompts an LLM to suggest an item for a restaurant with a given theme.
+    The `genkit init` command creates a sample source file, `index.ts`, which
+    defines a single flow, `menuSuggestionFlow`, that prompts an LLM to suggest
+    an item for a restaurant with a given theme.
 
-    ```js
+    This file looks something like the following (the plugin configuration steps
+    might look different if you selected Vertex AI):
+
+    ```ts
+    import * as z from 'zod';
+
+    // Import the Genkit core libraries and plugins.
+    import { generate } from '@genkit-ai/ai';
+    import { configureGenkit } from '@genkit-ai/core';
+    import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
+    import { googleAI } from '@genkit-ai/googleai';
+
+    // Import models from the Google AI plugin. The Google AI API provides access to
+    // several generative models. Here, we import Gemini 1.5 Flash.
+    import { gemini15Flash } from '@genkit-ai/googleai';
+
     configureGenkit({
-      plugins: [googleAI()],
+      plugins: [
+        // Load the Google AI plugin. You can optionally specify your API key
+        // by passing in a config object; if you don't, the Google AI plugin uses
+        // the value from the GOOGLE_GENAI_API_KEY environment variable, which is
+        // the recommended practice.
+        googleAI(),
+      ],
+      // Log debug output to tbe console.
       logLevel: 'debug',
+      // Perform OpenTelemetry instrumentation and enable trace collection.
       enableTracingAndMetrics: true,
     });
 
+    // Define a simple flow that prompts an LLM to generate menu suggestions.
     export const menuSuggestionFlow = defineFlow(
       {
         name: 'menuSuggestionFlow',
@@ -87,18 +119,26 @@ Node.js 20 or later.
         outputSchema: z.string(),
       },
       async (subject) => {
+        // Construct a request and send it to the model API.
         const llmResponse = await generate({
-          prompt: `Suggest an item for the menu of a {subject} themed restaurant`,
-          model: geminiPro,
+          prompt: `Suggest an item for the menu of a ${subject} themed restaurant`,
+          model: gemini15Flash,
           config: {
             temperature: 1,
           },
         });
 
+        // Handle the response from the model API. In this sample, we just convert
+        // it to a string, but more complicated flows might coerce the response into
+        // structured output or chain the response into another LLM call, etc.
         return llmResponse.text();
       }
     );
 
+    // Start a flow server, which exposes your flows as HTTP endpoints. This call
+    // must come last, after all of your plug-in configuration and flow definitions.
+    // You can optionally specify a subset of flows to serve, and configure some
+    // HTTP server options, but by default, the flow server serves all defined flows.
     startFlowsServer();
     ```
 

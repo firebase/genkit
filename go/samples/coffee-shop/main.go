@@ -19,12 +19,7 @@
 //
 //	go run . &
 //
-// Tell it to run an action. Here are some examples:
-//
-//  Flow without input:
-//
-//	curl -d '{"key":"/flow/testAllCoffeeFlows/testAllCoffeeFlows", "input":{"start": {"input":null}}}'  http://localhost:3100/api/runAction
-//  Flow with input:
+// Tell it to run a flow:
 //
 //	curl -d '{"key":"/flow/simpleGreeting/simpleGreeting", "input":{"start": {"input":{"customerName": "John Doe"}}}}' http://localhost:3100/api/runAction
 //
@@ -41,9 +36,7 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"os"
 
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
@@ -58,8 +51,21 @@ A regular customer named {{customerName}} enters.
 Greet the customer in one sentence, and recommend a coffee drink.
 `
 
+const simpleStructuredGreetingPromptTemplate = `
+You're a barista at a nice coffee shop.
+A regular customer named {{customerName}} enters.
+Greet the customer in one sentence.
+Provide the name of the drink of the day, nothing else.
+`
+
 type simpleGreetingInput struct {
 	CustomerName string `json:"customerName"`
+}
+
+type simpleGreetingOutput struct {
+	CustomerName string `json:"customerName"`
+	Greeting     string `json:"greeting,omitempty"`
+	DrinkOfDay   string `json:"drinkOfDay"`
 }
 
 const greetingWithHistoryPromptTemplate = `
@@ -89,21 +95,19 @@ type testAllCoffeeFlowsOutput struct {
 }
 
 func main() {
-	apiKey := os.Getenv("GOOGLE_GENAI_API_KEY")
-	if apiKey == "" {
-		fmt.Fprintln(os.Stderr, "coffee-shop example requires setting GOOGLE_GENAI_API_KEY in the environment.")
-		fmt.Fprintln(os.Stderr, "You can get an API key at https://ai.google.dev.")
-		os.Exit(1)
-	}
-
-	if err := googleai.Init(context.Background(), "gemini-1.0-pro", apiKey); err != nil {
+	if err := googleai.Init(context.Background(), nil); err != nil {
 		log.Fatal(err)
 	}
 
-	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting", simpleGreetingPromptTemplate,
-		&dotprompt.Config{
-			Model:        "google-genai/gemini-1.0-pro",
-			InputSchema:  jsonschema.Reflect(simpleGreetingInput{}),
+	r := &jsonschema.Reflector{
+		AllowAdditionalProperties: false,
+		DoNotReference:            true,
+	}
+	g := googleai.Model("gemini-1.5-pro")
+	simpleGreetingPrompt, err := dotprompt.Define("simpleGreeting2", simpleGreetingPromptTemplate,
+		dotprompt.Config{
+			Model:        g,
+			InputSchema:  r.Reflect(simpleGreetingInput{}),
 			OutputFormat: ai.OutputFormatText,
 		},
 	)
@@ -111,26 +115,28 @@ func main() {
 		log.Fatal(err)
 	}
 
-	simpleGreetingFlow := genkit.DefineFlow("simpleGreeting", func(ctx context.Context, input *simpleGreetingInput, _ genkit.NoStream) (string, error) {
-		vars, err := simpleGreetingPrompt.BuildVariables(input)
+	simpleGreetingFlow := genkit.DefineStreamingFlow("simpleGreeting", func(ctx context.Context, input *simpleGreetingInput, cb func(context.Context, string) error) (string, error) {
+		var callback func(context.Context, *ai.GenerateResponseChunk) error
+		if cb != nil {
+			callback = func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+				return cb(ctx, c.Text())
+			}
+		}
+		resp, err := simpleGreetingPrompt.Generate(ctx,
+			&dotprompt.PromptRequest{
+				Variables: input,
+			},
+			callback,
+		)
 		if err != nil {
 			return "", err
 		}
-		ai := &dotprompt.ActionInput{Variables: vars}
-		resp, err := simpleGreetingPrompt.Execute(ctx, ai)
-		if err != nil {
-			return "", err
-		}
-		text, err := resp.Text()
-		if err != nil {
-			return "", fmt.Errorf("simpleGreeting: %v", err)
-		}
-		return text, nil
+		return resp.Text(), nil
 	})
 
 	greetingWithHistoryPrompt, err := dotprompt.Define("greetingWithHistory", greetingWithHistoryPromptTemplate,
-		&dotprompt.Config{
-			Model:        "google-genai/gemini-1.0-pro",
+		dotprompt.Config{
+			Model:        g,
 			InputSchema:  jsonschema.Reflect(customerTimeAndHistoryInput{}),
 			OutputFormat: ai.OutputFormatText,
 		},
@@ -139,25 +145,52 @@ func main() {
 		log.Fatal(err)
 	}
 
-	greetingWithHistoryFlow := genkit.DefineFlow("greetingWithHistory", func(ctx context.Context, input *customerTimeAndHistoryInput, _ genkit.NoStream) (string, error) {
-		vars, err := greetingWithHistoryPrompt.BuildVariables(input)
+	greetingWithHistoryFlow := genkit.DefineFlow("greetingWithHistory", func(ctx context.Context, input *customerTimeAndHistoryInput) (string, error) {
+		resp, err := greetingWithHistoryPrompt.Generate(ctx,
+			&dotprompt.PromptRequest{
+				Variables: input,
+			},
+			nil,
+		)
 		if err != nil {
 			return "", err
 		}
-		ai := &dotprompt.ActionInput{Variables: vars}
-		resp, err := greetingWithHistoryPrompt.Execute(ctx, ai)
-		if err != nil {
-			return "", err
-		}
-		text, err := resp.Text()
-		if err != nil {
-			return "", fmt.Errorf("greetingWithHistory: %v", err)
-		}
-		return text, nil
+		return resp.Text(), nil
 	})
 
-	genkit.DefineFlow("testAllCoffeeFlows", func(ctx context.Context, _ struct{}, _ genkit.NoStream) (*testAllCoffeeFlowsOutput, error) {
-		test1, err := genkit.RunFlow(ctx, simpleGreetingFlow, &simpleGreetingInput{
+	simpleStructuredGreetingPrompt, err := dotprompt.Define("simpleStructuredGreeting", simpleStructuredGreetingPromptTemplate,
+		dotprompt.Config{
+			Model:        g,
+			InputSchema:  r.Reflect(simpleGreetingInput{}),
+			OutputFormat: ai.OutputFormatJSON,
+			OutputSchema: r.Reflect(simpleGreetingOutput{}),
+		},
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	genkit.DefineStreamingFlow("simpleStructuredGreeting", func(ctx context.Context, input *simpleGreetingInput, cb func(context.Context, string) error) (string, error) {
+		var callback func(context.Context, *ai.GenerateResponseChunk) error
+		if cb != nil {
+			callback = func(ctx context.Context, c *ai.GenerateResponseChunk) error {
+				return cb(ctx, c.Text())
+			}
+		}
+		resp, err := simpleStructuredGreetingPrompt.Generate(ctx,
+			&dotprompt.PromptRequest{
+				Variables: input,
+			},
+			callback,
+		)
+		if err != nil {
+			return "", err
+		}
+		return resp.Text(), nil
+	})
+
+	genkit.DefineFlow("testAllCoffeeFlows", func(ctx context.Context, _ struct{}) (*testAllCoffeeFlowsOutput, error) {
+		test1, err := simpleGreetingFlow.Run(ctx, &simpleGreetingInput{
 			CustomerName: "Sam",
 		})
 		if err != nil {
@@ -167,7 +200,7 @@ func main() {
 			}
 			return out, nil
 		}
-		test2, err := genkit.RunFlow(ctx, greetingWithHistoryFlow, &customerTimeAndHistoryInput{
+		test2, err := greetingWithHistoryFlow.Run(ctx, &customerTimeAndHistoryInput{
 			CustomerName:  "Sam",
 			CurrentTime:   "09:45am",
 			PreviousOrder: "Caramel Macchiato",
@@ -188,7 +221,7 @@ func main() {
 		}
 		return out, nil
 	})
-	if err := genkit.StartFlowServer(""); err != nil {
+	if err := genkit.Init(context.Background(), nil); err != nil {
 		log.Fatal(err)
 	}
 }

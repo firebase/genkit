@@ -17,109 +17,106 @@ package genkit
 
 import (
 	"context"
-	"errors"
+	"fmt"
+	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 
-	"github.com/firebase/genkit/go/core"
+	"github.com/firebase/genkit/go/internal/registry"
 )
 
-// DefineFlow creates a Flow that runs fn, and registers it as an action.
-//
-// fn takes an input of type I and returns an output of type O, optionally
-// streaming values of type S incrementally by invoking a callback.
-// If the callback is non-nil and the function supports streaming, it should
-// stream the results by invoking the callback periodically, ultimately returning
-// with a final return value. Otherwise, it should ignore the StreamingCallback and
-// just return a result.
-func DefineFlow[I, O, S any](
-	name string,
-	fn func(ctx context.Context, input I, callback func(context.Context, S) error) (O, error),
-) *core.Flow[I, O, S] {
-	return core.DefineFlow(name, core.Func[I, O, S](fn))
+// Options are options to [Init].
+type Options struct {
+	// If "-", do not start a FlowServer.
+	// Otherwise, start a FlowServer on the given address, or the
+	// default of ":3400" if empty.
+	FlowAddr string
+	// The names of flows to serve.
+	// If empty, all registered flows are served.
+	Flows []string
 }
 
-// Run runs the function f in the context of the current flow.
-// It returns an error if no flow is active.
+// Init initializes Genkit.
+// After it is called, no further actions can be defined.
 //
-// Each call to Run results in a new step in the flow.
-// A step has its own span in the trace, and its result is cached so that if the flow
-// is restarted, f will not be called a second time.
-func Run[T any](ctx context.Context, name string, f func() (T, error)) (T, error) {
-	return core.Run(ctx, name, f)
-}
-
-// RunFlow runs flow in the context of another flow. The flow must run to completion when started
-// (that is, it must not have interrupts).
-func RunFlow[I, O, S any](ctx context.Context, flow *core.Flow[I, O, S], input I) (O, error) {
-	return core.RunFlow(ctx, flow, input)
-}
-
-type NoStream = core.NoStream
-
-// StreamFlowValue is either a streamed value or a final output of a flow.
-type StreamFlowValue[O, S any] struct {
-	Done   bool
-	Output O // valid if Done is true
-	Stream S // valid if Done is false
-}
-
-// StreamFlow runs flow on input and delivers both the streamed values and the final output.
-// It returns a function whose argument function (the "yield function") will be repeatedly
-// called with the results.
+// Init starts servers depending on the value of the GENKIT_ENV
+// environment variable and the provided options.
 //
-// If the yield function is passed a non-nil error, the flow has failed with that
-// error; the yield function will not be called again. An error is also passed if
-// the flow fails to complete (that is, it has an interrupt).
-// Genkit Go does not yet support interrupts.
+// If GENKIT_ENV = "dev", a development server is started
+// in a separate goroutine at the address in opts.DevAddr, or the default
+// of ":3100" if empty.
 //
-// If the yield function's [StreamFlowValue] argument has Done == true, the value's
-// Output field contains the final output; the yield function will not be called
-// again.
+// If opts.FlowAddr is a value other than "-", a flow server is started (see [StartFlowServer])
+// and the call to Init waits for the server to shut down.
+// If opts.FlowAddr == "-", no flow server is started and Init returns immediately.
 //
-// Otherwise the Stream field of the passed [StreamFlowValue] holds a streamed result.
-func StreamFlow[I, O, S any](ctx context.Context, flow *core.Flow[I, O, S], input I) func(func(*StreamFlowValue[O, S], error) bool) {
-	return func(yield func(*StreamFlowValue[O, S], error) bool) {
-		cb := func(ctx context.Context, s S) error {
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			if !yield(&StreamFlowValue[O, S]{Stream: s}, nil) {
-				return errStop
-			}
-			return nil
-		}
-		output, err := core.InternalStreamFlow(ctx, flow, input, cb)
-		if err != nil {
-			yield(nil, err)
-		} else {
-			yield(&StreamFlowValue[O, S]{Done: true, Output: output}, nil)
-		}
+// Thus Init(nil) will start a dev server in the "dev" environment, will always start
+// a flow server, and will pause execution until the flow server terminates.
+func Init(ctx context.Context, opts *Options) error {
+	if opts == nil {
+		opts = &Options{}
 	}
-}
+	registry.Global.Freeze()
 
-var errStop = errors.New("stop")
+	var mu sync.Mutex
+	var servers []*http.Server
+	var wg sync.WaitGroup
+	errCh := make(chan error, 2)
 
-// StartFlowServer starts a server serving the routes described in [NewFlowServeMux].
-// It listens on addr, or if empty, the value of the PORT environment variable,
-// or if that is empty, ":3400".
-//
-// In development mode (if the environment variable GENKIT_ENV=dev), it also starts
-// a dev server.
-//
-// StartFlowServer always returns a non-nil error, the one returned by http.ListenAndServe.
-func StartFlowServer(addr string) error {
-	return core.StartFlowServer(addr)
-}
+	if registry.CurrentEnvironment() == registry.EnvironmentDev {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s := startReflectionServer(errCh)
+			mu.Lock()
+			servers = append(servers, s)
+			mu.Unlock()
+		}()
+	}
 
-// NewFlowServeMux constructs a [net/http.ServeMux] where each defined flow is a route.
-// All routes take a single query parameter, "stream", which if true will stream the
-// flow's results back to the client. (Not all flows support streaming, however.)
-//
-// To use the returned ServeMux as part of a server with other routes, either add routes
-// to it, or install it as part of another ServeMux, like so:
-//
-//	mainMux := http.NewServeMux()
-//	mainMux.Handle("POST /flow/", http.StripPrefix("/flow/", NewFlowServeMux()))
-func NewFlowServeMux() *http.ServeMux {
-	return core.NewFlowServeMux()
+	if opts.FlowAddr != "-" {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			s := startFlowServer(opts.FlowAddr, opts.Flows, errCh)
+			mu.Lock()
+			servers = append(servers, s)
+			mu.Unlock()
+		}()
+	}
+
+	serverStartCh := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(serverStartCh)
+	}()
+
+	// It will block here until either all servers start up or there is an error in starting one.
+	select {
+	case <-serverStartCh:
+		slog.Info("all servers started successfully")
+	case err := <-errCh:
+		return fmt.Errorf("failed to start servers: %w", err)
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+
+	// It will block here (i.e. servers will run) until we get an interrupt signal.
+	select {
+	case sig := <-sigCh:
+		slog.Info("received signal, initiating shutdown", "signal", sig)
+	case err := <-errCh:
+		slog.Error("server error", "err", err)
+		return err
+	case <-ctx.Done():
+		slog.Info("context cancelled, initiating shutdown")
+	}
+
+	return shutdownServers(servers)
 }

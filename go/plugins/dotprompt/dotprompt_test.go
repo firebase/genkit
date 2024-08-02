@@ -43,7 +43,8 @@ func TestPrompts(t *testing.T) {
  "type": "object",
  "required": [
   "food"
- ]
+ ],
+ "additionalProperties": false
 }`,
 			output: `{
  "properties": {
@@ -72,11 +73,13 @@ func TestPrompts(t *testing.T) {
     "required": [
      "name",
      "quantity"
-    ]
+    ],
+    "additionalProperties": false
    },
    "type": "array"
   }
  },
+ "additionalProperties": false,
  "type": "object",
  "required": [
   "ingredients",
@@ -110,8 +113,8 @@ func TestPrompts(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			if prompt.Model != test.model {
-				t.Errorf("got model %q want %q", prompt.Model, test.model)
+			if prompt.ModelName != test.model {
+				t.Errorf("got model %q want %q", prompt.ModelName, test.model)
 			}
 			if diff := cmpSchema(t, prompt.InputSchema, test.input); diff != "" {
 				t.Errorf("input schema mismatch (-want, +got):\n%s", diff)
@@ -122,12 +125,8 @@ func TestPrompts(t *testing.T) {
 					t.Errorf("unexpected output schema: %v", prompt.OutputSchema)
 				}
 			} else {
-				var output map[string]any
-				if err := json.Unmarshal([]byte(test.output), &output); err != nil {
-					t.Fatalf("JSON unmarshal of %q failed: %v", test.output, err)
-				}
-				if diff := cmp.Diff(output, prompt.OutputSchema); diff != "" {
-					t.Errorf("output schema mismatch (-want, +got):\n%s", diff)
+				if diff := cmpSchema(t, prompt.OutputSchema, test.output); diff != "" {
+					t.Errorf("input schema mismatch (-want, +got):\n%s", diff)
 				}
 			}
 		})
@@ -150,20 +149,29 @@ func cmpSchema(t *testing.T, got *jsonschema.Schema, want string) string {
 		return ""
 	}
 
-	// JSON sorts maps but not slices.
-	// jsonschema slices are not sorted consistently.
-	sortSchemaSlices(got)
-
-	data, err := json.Marshal(got)
+	jsonGot, err := convertSchema(got)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var jsonGot, jsonWant any
-	if err := json.Unmarshal(data, &jsonGot); err != nil {
-		t.Fatal(err)
-	}
+	var jsonWant any
 	if err := json.Unmarshal([]byte(want), &jsonWant); err != nil {
 		t.Fatalf("unmarshaling %q failed: %v", want, err)
 	}
 	return cmp.Diff(jsonWant, jsonGot)
+}
+
+// convertSchema marshals s to JSON, then unmarshals the result.
+func convertSchema(s *jsonschema.Schema) (any, error) {
+	// JSON sorts maps but not slices.
+	// jsonschema slices are not sorted consistently.
+	sortSchemaSlices(s)
+	data, err := json.Marshal(s)
+	if err != nil {
+		return nil, err
+	}
+	var a any
+	if err := json.Unmarshal(data, &a); err != nil {
+		return nil, err
+	}
+	return a, nil
 }

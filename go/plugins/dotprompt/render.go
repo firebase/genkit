@@ -26,8 +26,9 @@ import (
 	"github.com/firebase/genkit/go/ai"
 )
 
-// RenderText returns the Prompt as a string.
-// It may contain only a single, text, message.
+// RenderText executes the prompt's template and returns the result
+// as a string. The result may contain only a single, text, message.
+// This just runs the template; it does not call a model.
 func (p *Prompt) RenderText(variables map[string]any) (string, error) {
 	msgs, err := p.RenderMessages(variables)
 	if err != nil {
@@ -41,12 +42,13 @@ func (p *Prompt) RenderText(variables map[string]any) (string, error) {
 		if !part.IsText() {
 			return "", errors.New("RenderText: multi-modal prompt can't be rendered as text")
 		}
-		sb.WriteString(part.Text())
+		sb.WriteString(part.Text)
 	}
 	return sb.String(), nil
 }
 
 // RenderMessages executes the prompt's template and converts it into messages.
+// This just runs the template; it does not call a model.
 func (p *Prompt) RenderMessages(variables map[string]any) ([]*ai.Message, error) {
 	if p.VariableDefaults != nil {
 		nv := make(map[string]any)
