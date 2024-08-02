@@ -34,14 +34,13 @@ func main() {
 		}
 		return nil
 	}
-
 	firebaseAuth, err := firebase.NewFirebaseAuth(ctx, policy, true)
 	if err != nil {
 		log.Fatalf("failed to set up Firebase auth: %v", err)
 	}
 
 	flowWithRequiredAuth := genkit.DefineFlow("flow-with-required-auth", func(ctx context.Context, user string) (string, error) {
-		return fmt.Sprintf("secret about user %s", user), nil
+		return fmt.Sprintf("info about user %q", user), nil
 	}, genkit.WithFlowAuth(firebaseAuth))
 
 	firebaseAuth, err = firebase.NewFirebaseAuth(ctx, policy, false)
@@ -50,20 +49,22 @@ func main() {
 	}
 
 	flowWithAuth := genkit.DefineFlow("flow-with-auth", func(ctx context.Context, user string) (string, error) {
-		return fmt.Sprintf("secret about user %s", user), nil
+		return fmt.Sprintf("info about user %q", user), nil
 	}, genkit.WithFlowAuth(firebaseAuth))
 
 	genkit.DefineFlow("super-caller", func(ctx context.Context, _ struct{}) (string, error) {
+		// Auth is required so we have to pass local credentials.
 		resp1, err := flowWithRequiredAuth.Run(ctx, "admin-user", genkit.WithLocalAuth(&auth.Token{UID: "admin-user"}))
 		if err != nil {
 			return "", fmt.Errorf("flowWithRequiredAuth: %w", err)
 		}
+		// Auth is not required so we can just run the flow.
 		resp2, err := flowWithAuth.Run(ctx, "admin-user-2")
 		if err != nil {
 			return "", fmt.Errorf("flowWithAuth: %w", err)
 		}
 		return resp1 + ", " + resp2, nil
-	}, genkit.NoAuth[struct{}]())
+	}, genkit.NoAuth[struct{}]()) // This sucks, how to fix?
 
 	if err := genkit.Init(context.Background(), nil); err != nil {
 		log.Fatal(err)
