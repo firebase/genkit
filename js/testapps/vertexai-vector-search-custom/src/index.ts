@@ -151,7 +151,7 @@ configureGenkit({
       googleAuth: {
         scopes: ['https://www.googleapis.com/auth/cloud-platform'],
       },
-      vectorSearchIndexOptions: [
+      vectorSearchOptions: [
         {
           publicDomainName: VECTOR_SEARCH_PUBLIC_DOMAIN_NAME,
           indexEndpointId: VECTOR_SEARCH_INDEX_ENDPOINT_ID,
