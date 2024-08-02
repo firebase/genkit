@@ -14,20 +14,24 @@
  * limitations under the License.
  */
 
+import { toJsonSchema } from '@genkit-ai/core/schema';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
+import { z } from 'zod';
 import { DocumentData } from '../../src/document.js';
+import { Message } from '../../src/generate.js';
 import {
+  defineModel,
   GenerateRequest,
   GenerateResponseData,
   MessageData,
   Part,
-  defineModel,
 } from '../../src/model.js';
 import {
+  augmentWithContext,
   AugmentWithContextOptions,
   CONTEXT_PREFACE,
-  augmentWithContext,
+  healOutput,
   simulateSystemPrompt,
   validateSupport,
 } from '../../src/model/middleware.js';
@@ -531,5 +535,117 @@ describe('augmentWithContext', () => {
       text: `${CONTEXT_PREFACE}* (first) -- i am context\n* (second) -- i am more context\n\n`,
       metadata: { purpose: 'context' },
     });
+  });
+});
+
+describe('healOutput', () => {
+  const heal = healOutput();
+  const schema = z.object({ string: z.string() });
+  const makeNext = (...responses: any[]) => {
+    const requests: GenerateRequest[] = [];
+    return async (req?: GenerateRequest): Promise<GenerateResponseData> => {
+      requests.push(req!);
+      let content = responses.shift();
+      return {
+        candidates: [
+          {
+            message: {
+              role: 'model',
+              content: [content],
+            },
+            finishReason: 'stop',
+            index: 0,
+          },
+        ],
+        custom: { requests },
+      };
+    };
+  };
+  const makeReq = (
+    part: Part,
+    options: Partial<GenerateRequest> = {}
+  ): GenerateRequest => {
+    return {
+      output: { format: 'json', schema: toJsonSchema({ schema }) },
+      messages: [{ role: 'user', content: [part] }],
+      ...options,
+    };
+  };
+  const getContent = (res: GenerateResponseData) => {
+    return res.candidates[0].message.content[0];
+  };
+
+  it('should do nothing for a text response type', async () => {
+    const response = await heal(
+      makeReq({ text: 'hello world' }, { output: { format: 'text' } }),
+      makeNext({ text: 'hi there' })
+    );
+
+    assert.deepEqual(getContent(response), { text: 'hi there' });
+  });
+
+  it('should do nothing for json with no schema', async () => {
+    const response = await heal(
+      makeReq({ text: 'hello world' }, { output: { format: 'json' } }),
+      makeNext({ text: 'hi there' })
+    );
+
+    assert.deepEqual(getContent(response), { text: 'hi there' });
+  });
+
+  it('should do nothing for a valid data response', async () => {
+    const response = await heal(
+      makeReq({ text: 'hello world' }),
+      makeNext({ data: { string: 'foo' } })
+    );
+
+    assert.equal((response.custom as any).requests.length, 1);
+  });
+
+  it('should inject the validation errors in a retry request', async () => {
+    const response = await heal(
+      makeReq({ text: 'hello world' }),
+      makeNext({ data: { string: 123 } }, { data: { string: 'second' } })
+    );
+
+    const msg = new Message(
+      (response.custom as any).requests[1].messages.at(-1)
+    );
+
+    assert(
+      msg.text().includes('must be string'),
+      'expected second request to include validation error message but was:\n\n' +
+        msg.text()
+    );
+  });
+
+  it('should return on a valid retry', async () => {
+    const response = await heal(
+      makeReq({ text: 'hello world' }),
+      makeNext(
+        { data: { string: 123 } }, // 1st fail
+        { data: { string: true } }, // 2nd fail
+        { data: { string: 'second' } } // success
+      )
+    );
+
+    assert.equal((response.custom as any).requests.length, 3);
+    assert.deepEqual(getContent(response), { data: { string: 'second' } });
+  });
+
+  it('should return the last response after exhausting retries', async () => {
+    const response = await heal(
+      makeReq({ text: 'hello world' }),
+      makeNext(
+        { data: { string: 0 } }, // original request
+        { data: { string: 1 } }, // 1st attempt
+        { data: { string: 2 } }, // 2nd attempt
+        { data: { string: 3 } }, // 3rd attempt
+        { data: { string: 4 } } // never reaches
+      )
+    );
+
+    // assert.equal((response.custom as any).requests.length, 3);
+    assert.deepEqual(getContent(response), { data: { string: 3 } });
   });
 });

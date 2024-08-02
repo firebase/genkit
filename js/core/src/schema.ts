@@ -34,6 +34,12 @@ export interface ProvidedSchema {
 }
 
 export class ValidationError extends GenkitError {
+  detail: {
+    schema: JSONSchema;
+    errors: ValidationErrorDetail[];
+    [otherDetails: string]: any;
+  };
+
   constructor({
     data,
     errors,
@@ -48,6 +54,7 @@ export class ValidationError extends GenkitError {
       message: `Schema validation failed. Parse Errors:\n\n${errors.map((e) => `- ${e.path}: ${e.message}`).join('\n')}\n\nProvided data:\n\n${JSON.stringify(data, null, 2)}\n\nRequired JSON schema:\n\n${JSON.stringify(schema, null, 2)}`,
       detail: { errors, schema },
     });
+    this.detail = { errors, schema };
   }
 }
 

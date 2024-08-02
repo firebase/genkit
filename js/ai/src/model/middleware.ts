@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
+import { logger } from '@genkit-ai/core/logging';
+import { validateSchema } from '@genkit-ai/core/schema';
 import { Document } from '../document.js';
+import { Message } from '../generate.js';
 import { MessageData, ModelInfo, ModelMiddleware, Part } from '../model.js';
 
 /**
@@ -260,5 +263,63 @@ export function augmentWithContext(
     }
 
     return next(req);
+  };
+}
+
+/**
+ * healOutput will try to automatically correct schema validation errors in the
+ * generated model response by feeding validation errors back to the model and
+ * requesting corrections.
+ */
+export function healOutput(options?: {
+  /** Maximum number of times to correct output. Defaults to 3. */
+  maxAttempts: number;
+}): ModelMiddleware {
+  const maxAttempts = options?.maxAttempts || 3;
+
+  return async (originalReq, next) => {
+    // don't do anything if there's no output schema to correct
+    if (originalReq.output?.format === 'text' || !originalReq.output?.schema) {
+      return next(originalReq);
+    }
+
+    let attempts = 0;
+    let req = { ...originalReq, messages: [...originalReq.messages] };
+
+    while (true) {
+      const response = await next(req);
+
+      const message = new Message(response.candidates[0].message);
+      const { valid, errors } = validateSchema(message.output(), {
+        jsonSchema: req.output?.schema,
+      });
+      if (valid) return response;
+      if (attempts >= maxAttempts) {
+        logger.debug('[healOutput] exhausted attempts to heal output');
+        return response;
+      }
+      attempts++;
+
+      req.messages = [
+        ...req.messages,
+        message.toJSON(),
+        {
+          role: 'user',
+          content: [
+            {
+              text: 'The provided output did not conform to the specified schema. It contained the following schema validation errors:\n\n',
+            },
+            { text: JSON.stringify(errors) },
+            {
+              text: '\n\nPlease correct your output to address these errors and properly conform to the schema. Do not modify the original data other than to correct the schema errors.',
+            },
+          ],
+          metadata: { source: 'healOutput' },
+        },
+      ];
+      logger.debug(
+        `[healOutput] attempt ${attempts} to correct invalid output`
+      );
+    }
   };
 }
