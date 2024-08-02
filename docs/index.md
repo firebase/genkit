@@ -1,16 +1,11 @@
 # Firebase Genkit
 
+<div class="video-wrapper">
+  <devsite-video video-id="M8rfDySBBvM"></devsite-video>
+</div>
+
 Firebase Genkit is an **open source framework** that helps you build, deploy,
 and monitor **production-ready** **AI-powered apps**.
-
-<picture class="attempt-right">
-  <source
-    srcset="/docs/genkit/resources/logo-vertical-dark.png"
-    media="(prefers-color-scheme: light)"
-    class="devsite-dark-theme"
-    alt="Genkit logo">
-  <img src="/docs/genkit/resources/logo-vertical-light.png" width="350px" height="197px" alt="Genkit logo">
-</picture>
 
 Genkit is **designed for app developers**, to help you easily integrate
 powerful AI capabilities into your apps with familiar patterns and paradigms.
