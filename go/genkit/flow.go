@@ -109,6 +109,7 @@ type runOptions[AuthContext any] struct {
 	localAuth *AuthContext // Auth context to pass to auth policy checker when calling a flow directly.
 }
 
+// flowOptions configures a flow.
 type flowOptions[In, AuthContext any] struct {
 	auth FlowAuth[In, AuthContext]
 }
@@ -124,6 +125,17 @@ type FlowAuth[In, AuthContext any] interface {
 	CheckAuthPolicy(auth *AuthContext, input In) error
 }
 
+// NoAuth is a type that implements FlowAuth for cases where no authentication is needed.
+type noAuth struct{}
+
+// ProvideAuthContext returns nil for both the AuthContext and error, indicating no auth is needed.
+func (noAuth) ProvideAuthContext(_ context.Context, _ string) (*struct{}, error) {
+	return nil, nil
+}
+
+// CheckAuthPolicy always returns nil, indicating no policy check is needed.
+func (noAuth) CheckAuthPolicy(_ *struct{}, _ struct{}) error { return nil }
+
 // streamingCallback is the type of streaming callbacks.
 type streamingCallback[Stream any] func(context.Context, Stream) error
 
@@ -133,8 +145,19 @@ type flowOption[In, AuthContext any] func(opts *flowOptions[In, AuthContext]) er
 // flowRunOption modifies a flow run with the provided option.
 type flowRunOption[AuthContext any] func(opts *runOptions[AuthContext]) error
 
-// WithAuth sets auth policy and provider in the flow.
-func WithAuth[In, AuthContext any](auth FlowAuth[In, AuthContext]) flowOption[In, AuthContext] {
+// NoAuth skips auth in the flow.
+func NoAuth() flowOption[struct{}, struct{}] {
+	return func(f *flowOptions[struct{}, struct{}]) error {
+		if f.auth != nil {
+			return errors.New("auth already set in flow")
+		}
+		f.auth = &noAuth{}
+		return nil
+	}
+}
+
+// WithFlowAuth sets an auth provider and policy checker for the flow.
+func WithFlowAuth[In, AuthContext any](auth FlowAuth[In, AuthContext]) flowOption[In, AuthContext] {
 	return func(f *flowOptions[In, AuthContext]) error {
 		if f.auth != nil {
 			return errors.New("auth already set in flow")
@@ -228,10 +251,10 @@ func defineFlow[In, Out, Stream, AuthContext any](r *registry.Registry, name str
 // A flowInstruction is an instruction to follow with a flow.
 // It is the input for the flow's action.
 // Exactly one field will be non-nil.
-type flowInstruction[I, AuthContext any] struct {
-	Start        *startInstruction[I]     `json:"start,omitempty"`
+type flowInstruction[In, AuthContext any] struct {
+	Start        *startInstruction[In]    `json:"start,omitempty"`
 	Resume       *resumeInstruction       `json:"resume,omitempty"`
-	Schedule     *scheduleInstruction[I]  `json:"schedule,omitempty"`
+	Schedule     *scheduleInstruction[In] `json:"schedule,omitempty"`
 	RunScheduled *runScheduledInstruction `json:"runScheduled,omitempty"`
 	State        *stateInstruction        `json:"state,omitempty"`
 	Retry        *retryInstruction        `json:"retry,omitempty"`
@@ -239,8 +262,8 @@ type flowInstruction[I, AuthContext any] struct {
 }
 
 // A startInstruction starts a flow.
-type startInstruction[I any] struct {
-	Input  I                 `json:"input,omitempty"`
+type startInstruction[In any] struct {
+	Input  In                `json:"input,omitempty"`
 	Labels map[string]string `json:"labels,omitempty"`
 }
 
@@ -251,9 +274,9 @@ type resumeInstruction struct {
 }
 
 // A scheduleInstruction schedules a flow to start at a later time.
-type scheduleInstruction[I any] struct {
+type scheduleInstruction[In any] struct {
 	DelaySecs float64 `json:"delay,omitempty"`
-	Input     I       `json:"input,omitempty"`
+	Input     In      `json:"input,omitempty"`
 }
 
 // A runScheduledInstruction starts a scheduled flow.
