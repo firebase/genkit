@@ -29,14 +29,14 @@ var (
 	a *firebase.App
 )
 
-type firebaseAuth[In any] struct {
-	client   *auth.Client                // Firebase Auth client.
-	policy   func(*auth.Token, In) error // Auth policy to check against.
-	required bool                        // Auth required even for direct calls.
+type firebaseAuth struct {
+	client   *auth.Client                 // Firebase Auth client.
+	policy   func(*auth.Token, any) error // Auth policy to check against.
+	required bool                         // Auth required even for direct calls.
 }
 
 // NewFirebaseAuth creates a Firebase auth check.
-func NewFirebaseAuth[In any](ctx context.Context, policy func(*auth.Token, In) error, required bool) (genkit.FlowAuth[In, auth.Token], error) {
+func NewFirebaseAuth(ctx context.Context, policy func(*auth.Token, any) error, required bool) (genkit.FlowAuth[auth.Token], error) {
 	app, err := app(ctx)
 	if err != nil {
 		return nil, err
@@ -47,7 +47,7 @@ func NewFirebaseAuth[In any](ctx context.Context, policy func(*auth.Token, In) e
 		return nil, err
 	}
 
-	auth := &firebaseAuth[In]{
+	auth := &firebaseAuth{
 		client:   client,
 		policy:   policy,
 		required: required,
@@ -56,7 +56,7 @@ func NewFirebaseAuth[In any](ctx context.Context, policy func(*auth.Token, In) e
 }
 
 // ProvideAuthContext provides auth context from an auth header.
-func (f *firebaseAuth[In]) ProvideAuthContext(ctx context.Context, authHeader string) (*auth.Token, error) {
+func (f *firebaseAuth) ProvideAuthContext(ctx context.Context, authHeader string) (*auth.Token, error) {
 	if authHeader == "" {
 		if f.required {
 			return nil, errors.New("authorization header is required but not provided")
@@ -79,7 +79,7 @@ func (f *firebaseAuth[In]) ProvideAuthContext(ctx context.Context, authHeader st
 }
 
 // CheckAuthPolicy checks auth context against policy.
-func (f *firebaseAuth[In]) CheckAuthPolicy(authContext *auth.Token, input In) error {
+func (f *firebaseAuth) CheckAuthPolicy(authContext *auth.Token, input any) error {
 	if authContext == nil {
 		if f.required {
 			return errors.New("auth is required")

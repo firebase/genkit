@@ -28,8 +28,8 @@ import (
 func main() {
 	ctx := context.Background()
 
-	policy := func(authToken *auth.Token, user string) error {
-		if authToken == nil || authToken.UID != user {
+	policy := func(authToken *auth.Token, input any) error {
+		if authToken == nil {
 			return errors.New("user ID does not match")
 		}
 		return nil
@@ -52,7 +52,7 @@ func main() {
 		return fmt.Sprintf("info about user %q", user), nil
 	}, genkit.WithFlowAuth(firebaseAuth))
 
-	genkit.DefineFlow("super-caller", func(ctx context.Context, _ struct{}) (string, error) {
+	genkit.DefineFlowWithOpts("super-caller", func(ctx context.Context, _ struct{}) (string, error) {
 		// Auth is required so we have to pass local credentials.
 		resp1, err := flowWithRequiredAuth.Run(ctx, "admin-user", genkit.WithLocalAuth(&auth.Token{UID: "admin-user"}))
 		if err != nil {
@@ -64,7 +64,7 @@ func main() {
 			return "", fmt.Errorf("flowWithAuth: %w", err)
 		}
 		return resp1 + ", " + resp2, nil
-	})
+	}, genkit.NoAuth())
 
 	if err := genkit.Init(context.Background(), nil); err != nil {
 		log.Fatal(err)
