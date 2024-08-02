@@ -191,7 +191,7 @@ func DefineFlow[In, Out any](
 		}))
 }
 
-// DefineFlow creates a Flow that runs fn, and registers it as an action.
+// DefineFlowWithOpts creates a Flow that runs fn, and registers it as an action.
 //
 // fn takes an input of type In and returns an output of type Out.
 func DefineFlowWithOpts[In, Out, Auth any](
@@ -221,7 +221,7 @@ func DefineStreamingFlow[In, Out, Stream any](
 	return defineFlow[In, Out, Stream, struct{}](registry.Global, name, core.Func[In, Out, Stream](fn))
 }
 
-// DefineStreamingFlow creates a streaming Flow that runs fn, and registers it as an action.
+// DefineStreamingFlowWithOpts creates a streaming Flow that runs fn, and registers it as an action.
 //
 // fn takes an input of type In and returns an output of type Out, optionally
 // streaming values of type Stream incrementally by invoking a callback.
