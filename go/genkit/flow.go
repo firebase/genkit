@@ -181,7 +181,20 @@ func WithLocalAuth[Auth any](auth *Auth) flowRunOption[Auth] {
 // DefineFlow creates a Flow that runs fn, and registers it as an action.
 //
 // fn takes an input of type In and returns an output of type Out.
-func DefineFlow[In, Out, Auth any](
+func DefineFlow[In, Out any](
+	name string,
+	fn func(ctx context.Context, input In) (Out, error),
+) *Flow[In, Out, struct{}, struct{}] {
+	return defineFlow[In, Out, struct{}, struct{}](registry.Global, name, core.Func[In, Out, struct{}](
+		func(ctx context.Context, input In, cb func(ctx context.Context, _ struct{}) error) (Out, error) {
+			return fn(ctx, input)
+		}))
+}
+
+// DefineFlow creates a Flow that runs fn, and registers it as an action.
+//
+// fn takes an input of type In and returns an output of type Out.
+func DefineFlowWithOpts[In, Out, Auth any](
 	name string,
 	fn func(ctx context.Context, input In) (Out, error),
 	opts ...flowOption[In, Auth],
@@ -201,7 +214,23 @@ func DefineFlow[In, Out, Auth any](
 // stream the results by invoking the callback periodically, ultimately returning
 // with a final return value that includes all the streamed data.
 // Otherwise, it should ignore the callback and just return a result.
-func DefineStreamingFlow[In, Out, Stream, Auth any](
+func DefineStreamingFlow[In, Out, Stream any](
+	name string,
+	fn func(ctx context.Context, input In, callback func(context.Context, Stream) error) (Out, error),
+) *Flow[In, Out, Stream, struct{}] {
+	return defineFlow[In, Out, Stream, struct{}](registry.Global, name, core.Func[In, Out, Stream](fn))
+}
+
+// DefineStreamingFlow creates a streaming Flow that runs fn, and registers it as an action.
+//
+// fn takes an input of type In and returns an output of type Out, optionally
+// streaming values of type Stream incrementally by invoking a callback.
+//
+// If the function supports streaming and the callback is non-nil, it should
+// stream the results by invoking the callback periodically, ultimately returning
+// with a final return value that includes all the streamed data.
+// Otherwise, it should ignore the callback and just return a result.
+func DefineStreamingFlowWithOpts[In, Out, Stream, Auth any](
 	name string,
 	fn func(ctx context.Context, input In, callback func(context.Context, Stream) error) (Out, error),
 	opts ...flowOption[In, Auth],

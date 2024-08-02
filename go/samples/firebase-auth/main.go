@@ -39,7 +39,7 @@ func main() {
 		log.Fatalf("failed to set up Firebase auth: %v", err)
 	}
 
-	flowWithRequiredAuth := genkit.DefineFlow("flow-with-required-auth", func(ctx context.Context, user string) (string, error) {
+	flowWithRequiredAuth := genkit.DefineFlowWithOpts("flow-with-required-auth", func(ctx context.Context, user string) (string, error) {
 		return fmt.Sprintf("info about user %q", user), nil
 	}, genkit.WithFlowAuth(firebaseAuth))
 
@@ -48,7 +48,7 @@ func main() {
 		log.Fatalf("failed to set up Firebase auth: %v", err)
 	}
 
-	flowWithAuth := genkit.DefineFlow("flow-with-auth", func(ctx context.Context, user string) (string, error) {
+	flowWithAuth := genkit.DefineFlowWithOpts("flow-with-auth", func(ctx context.Context, user string) (string, error) {
 		return fmt.Sprintf("info about user %q", user), nil
 	}, genkit.WithFlowAuth(firebaseAuth))
 
@@ -64,7 +64,7 @@ func main() {
 			return "", fmt.Errorf("flowWithAuth: %w", err)
 		}
 		return resp1 + ", " + resp2, nil
-	}, genkit.NoAuth[struct{}]()) // This sucks, how to fix?
+	})
 
 	if err := genkit.Init(context.Background(), nil); err != nil {
 		log.Fatal(err)
