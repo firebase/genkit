@@ -80,8 +80,11 @@ func (f *firebaseAuth[In]) ProvideAuthContext(ctx context.Context, authHeader st
 
 // CheckAuthPolicy checks auth context against policy.
 func (f *firebaseAuth[In]) CheckAuthPolicy(authContext *auth.Token, input In) error {
-	if f.required && authContext == nil {
-		return errors.New("auth is required")
+	if authContext == nil {
+		if f.required {
+			return errors.New("auth is required")
+		}
+		return nil
 	}
 	return f.policy(authContext, input)
 }

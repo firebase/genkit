@@ -132,7 +132,7 @@ func main() {
 			return "", err
 		}
 		return resp.Text(), nil
-	})
+	}, genkit.NoAuth[*simpleGreetingInput]())
 
 	greetingWithHistoryPrompt, err := dotprompt.Define("greetingWithHistory", greetingWithHistoryPromptTemplate,
 		dotprompt.Config{
