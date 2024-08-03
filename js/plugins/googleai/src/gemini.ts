@@ -35,18 +35,19 @@ import {
   simulateSystemPrompt,
 } from '@genkit-ai/ai/model/middleware';
 import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
+import { logger } from '@genkit-ai/core/logging';
 import {
+  Content as GeminiMessage,
   FunctionCallPart,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
   FunctionResponsePart,
   GenerateContentCandidate as GeminiCandidate,
-  Content as GeminiMessage,
-  Part as GeminiPart,
   GenerateContentResponse,
   GenerationConfig,
   GoogleGenerativeAI,
   InlineDataPart,
+  Part as GeminiPart,
   RequestOptions,
   StartChatParams,
   Tool,
@@ -370,7 +371,13 @@ function toGeminiPart(part: Part): GeminiPart {
 
 function fromGeminiPart(part: GeminiPart, jsonMode: boolean): Part {
   if (jsonMode && part.text !== undefined) {
-    return { data: JSON.parse(part.text) };
+    try {
+      return { data: JSON.parse(part.text) };
+    } catch (e) {
+      logger.warn(
+        '[googleai] JSON mode emitted invalid JSON, returning as text'
+      );
+    }
   }
   if (part.text !== undefined) return { text: part.text };
   if (part.inlineData) return fromInlineData(part);

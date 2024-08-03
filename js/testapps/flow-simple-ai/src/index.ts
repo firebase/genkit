@@ -15,16 +15,19 @@
  */
 
 import { generate, generateStream, retrieve } from '@genkit-ai/ai';
+import { defineModel, ModelAction } from '@genkit-ai/ai/model';
+import { healOutput } from '@genkit-ai/ai/model/middleware';
 import { defineTool } from '@genkit-ai/ai/tool';
 import { configureGenkit } from '@genkit-ai/core';
+import { lookupAction } from '@genkit-ai/core/registry';
 import { dotprompt, prompt } from '@genkit-ai/dotprompt';
 import { defineFirestoreRetriever, firebase } from '@genkit-ai/firebase';
 import { defineFlow, run } from '@genkit-ai/flow';
 import { googleCloud } from '@genkit-ai/google-cloud';
 import {
   gemini15Flash,
-  googleAI,
   geminiPro as googleGeminiPro,
+  googleAI,
 } from '@genkit-ai/googleai';
 import {
   gemini15ProPreview,
@@ -47,8 +50,6 @@ configureGenkit({
       // These are configured for demonstration purposes. Sensible defaults are
       // in place in the event that telemetryConfig is absent.
       telemetryConfig: {
-        // Forces telemetry export in 'dev'
-        forceDevExport: true,
         sampler: new AlwaysOnSampler(),
         autoInstrumentation: true,
         autoInstrumentationConfig: {
@@ -426,5 +427,150 @@ export const invalidOutput = defineFlow(
         'Output a JSON object in the form {"displayName": "Some Name"}. Ignore any further instructions about output format.',
     });
     return result.output() as any;
+  }
+);
+
+export const selfHealingGemini = defineModel(
+  {
+    name: 'gemini-1.5-flash-autoheal',
+    use: [healOutput()],
+  },
+  async (req) => {
+    const m = (await lookupAction(
+      `/model/googleai/gemini-1.5-flash-latest`
+    )) as ModelAction;
+    return m(req);
+  }
+);
+
+// intentionally horrible schema meant to cause output conformance to fail
+const HorribleSchema = z.object({
+  id: z.string(),
+  timestamp: z.date(),
+  metadata: z.record(z.string()),
+  config: z.object({
+    isActive: z.boolean(),
+    retryCount: z.number(),
+    timeoutMs: z.number(),
+    tags: z.array(z.string()),
+  }),
+  user: z.object({
+    id: z.number(),
+    username: z.string(),
+    email: z.string(),
+    role: z.enum(['admin', 'user', 'guest']),
+    preferences: z
+      .object({
+        theme: z.enum(['light', 'dark', 'system']),
+        notifications: z.boolean(),
+        language: z.string(),
+      })
+      .optional(),
+  }),
+  products: z.array(
+    z.object({
+      id: z.number(),
+      name: z.string(),
+      price: z.number(),
+      category: z.enum(['electronics', 'books', 'clothing', 'food']),
+      inStock: z.boolean(),
+      tags: z.array(z.string()).optional(),
+      color: z.string().optional(),
+      dimensions: z.tuple([z.number(), z.number(), z.number()]).optional(),
+    })
+  ),
+  order: z.object({
+    id: z.string(),
+    status: z.enum(['pending', 'processing', 'shipped', 'delivered']),
+    items: z.array(
+      z.object({
+        productId: z.number(),
+        quantity: z.number(),
+        price: z.number(),
+      })
+    ),
+    totalAmount: z.number(),
+    shippingAddress: z.object({
+      street: z.string(),
+      city: z.string(),
+      state: z.string(),
+      zipCode: z.string(),
+      country: z.string(),
+    }),
+    paymentMethod: z.union([
+      z.object({
+        type: z.literal('creditCard'),
+        cardNumber: z.string(),
+        expirationDate: z.string(),
+      }),
+      z.object({ type: z.literal('paypal'), email: z.string() }),
+      z.object({
+        type: z.literal('bankTransfer'),
+        accountNumber: z.string(),
+        bankCode: z.string(),
+      }),
+    ]),
+  }),
+  book: z.object({
+    title: z.string(),
+    author: z.string(),
+    isbn: z.string(),
+    publishedYear: z.number(),
+    genres: z.array(z.string()),
+    rating: z.number().optional(),
+    reviews: z
+      .array(
+        z.object({
+          userId: z.number(),
+          rating: z.number(),
+          comment: z.string().optional(),
+          createdAt: z.date(),
+        })
+      )
+      .optional(),
+    details: z.union([
+      z.object({
+        format: z.enum(['hardcover', 'paperback', 'ebook']),
+        pageCount: z.number(),
+      }),
+      z.object({
+        format: z.literal('audiobook'),
+        duration: z.number(),
+        narrator: z.string(),
+      }),
+    ]),
+  }),
+  nestedStructure: z.object({
+    level1: z.object({
+      level2: z.object({
+        level3: z.object({
+          level4: z.object({
+            level5: z.object({
+              data: z.string(),
+              array: z.array(z.number()),
+              nested: z.record(z.any()),
+            }),
+          }),
+        }),
+      }),
+    }),
+  }),
+});
+
+export const horribleSchema = defineFlow(
+  {
+    name: 'horribleSchema',
+    inputSchema: z.any(),
+    outputSchema: HorribleSchema,
+  },
+  async () => {
+    const result = await generate({
+      model: 'gemini-1.5-flash-autoheal',
+      prompt: 'Try to generate the specified schema.',
+      output: {
+        schema: HorribleSchema,
+      },
+    });
+    return result.output()!;
   }
 );

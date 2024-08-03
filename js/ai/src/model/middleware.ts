@@ -307,14 +307,17 @@ export function healOutput(options?: {
           role: 'user',
           content: [
             {
-              text: 'The provided output did not conform to the specified schema. It contained the following schema validation errors:\n\n',
-            },
-            { text: JSON.stringify(errors) },
-            {
-              text: '\n\nPlease correct your output to address these errors and properly conform to the schema. Do not modify the original data other than to correct the schema errors.',
+              text:
+                'The provided output did not conform to the specified schema. It contained the following schema validation errors:\n\n' +
+                JSON.stringify(errors) +
+                '\n\nPlease correct your output to address these errors and properly conform to the schema. Do not modify the original data other than to correct the schema errors.',
+              metadata: {
+                source: 'healOutput',
+                purpose: 'output',
+                pending: false,
+              },
             },
           ],
-          metadata: { source: 'healOutput' },
         },
       ];
       logger.debug(
