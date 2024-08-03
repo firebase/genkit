@@ -16,6 +16,7 @@ package firebase
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -30,13 +31,13 @@ var (
 )
 
 type firebaseAuth struct {
-	client   *auth.Client                 // Firebase Auth client.
-	policy   func(*auth.Token, any) error // Auth policy to check against.
-	required bool                         // Auth required even for direct calls.
+	client   *auth.Client                    // Firebase Auth client.
+	policy   func(map[string]any, any) error // Auth policy to check against.
+	required bool                            // Auth required even for direct calls.
 }
 
 // NewFirebaseAuth creates a Firebase auth check.
-func NewFirebaseAuth(ctx context.Context, policy func(*auth.Token, any) error, required bool) (genkit.FlowAuth[auth.Token], error) {
+func NewFirebaseAuth(ctx context.Context, policy func(map[string]any, any) error, required bool) (genkit.FlowAuth, error) {
 	app, err := app(ctx)
 	if err != nil {
 		return nil, err
@@ -56,7 +57,7 @@ func NewFirebaseAuth(ctx context.Context, policy func(*auth.Token, any) error, r
 }
 
 // ProvideAuthContext provides auth context from an auth header.
-func (f *firebaseAuth) ProvideAuthContext(ctx context.Context, authHeader string) (*auth.Token, error) {
+func (f *firebaseAuth) ProvideAuthContext(ctx context.Context, authHeader string) (map[string]any, error) {
 	if authHeader == "" {
 		if f.required {
 			return nil, errors.New("authorization header is required but not provided")
@@ -75,11 +76,21 @@ func (f *firebaseAuth) ProvideAuthContext(ctx context.Context, authHeader string
 		return nil, fmt.Errorf("error verifying ID token: %v", err)
 	}
 
-	return authToken, nil
+	authBytes, err := json.Marshal(authToken)
+	if err != nil {
+		return nil, err
+	}
+
+	var authContext map[string]any
+	if err = json.Unmarshal(authBytes, &authContext); err != nil {
+		return nil, err
+	}
+
+	return authContext, nil
 }
 
 // CheckAuthPolicy checks auth context against policy.
-func (f *firebaseAuth) CheckAuthPolicy(authContext *auth.Token, input any) error {
+func (f *firebaseAuth) CheckAuthPolicy(authContext map[string]any, input any) error {
 	if authContext == nil {
 		if f.required {
 			return errors.New("auth is required")
