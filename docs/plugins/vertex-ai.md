@@ -96,8 +96,8 @@ const llmResponse = await generate({
 });
 ```
 
-This plugin also supports grounding Gemini text responses using 
-[Google Search](https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/ground-gemini#web-ground-gemini) 
+This plugin also supports grounding Gemini text responses using
+[Google Search](https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/ground-gemini#web-ground-gemini)
 and/or [your own data](https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/ground-gemini#private-ground-gemini):
 
 ```js
