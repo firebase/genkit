@@ -24,6 +24,7 @@ import (
 
 const provider = "firebase"
 
+// RetrieverOptions defines the configuration for the retriever.
 type RetrieverOptions struct {
 	Name            string
 	Label           string
@@ -32,7 +33,7 @@ type RetrieverOptions struct {
 	EmbedderOptions ai.EmbedOption
 	Collection      string
 	VectorField     string
-	MetadataField   string
+	MetadataFields  []string // Optional: if empty, metadata will not be retrieved
 	ContentField    string
 	DistanceMeasure firestore.DistanceMeasure
 }
@@ -45,6 +46,10 @@ type RetrieverRequestOptions struct {
 func DefineFirestoreRetriever(cfg RetrieverOptions) (ai.Retriever, error) {
 
 	Retrieve := func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
+		if req == nil {
+			return nil, fmt.Errorf("retriever request is nil")
+		}
+
 		options := RetrieverRequestOptions{Limit: 10, DistanceMeasure: cfg.DistanceMeasure}
 
 		if req.Options != nil {
@@ -56,10 +61,13 @@ func DefineFirestoreRetriever(cfg RetrieverOptions) (ai.Retriever, error) {
 			options = parsedOptions
 		}
 
+		if cfg.Embedder == nil {
+			return nil, fmt.Errorf("embedder is nil in config")
+		}
+
 		// Use the embedder to convert the document we want to retrieve into a vector.
 		ereq := &ai.EmbedRequest{
 			Documents: []*ai.Document{req.Document},
-			Options:   cfg.EmbedderOptions,
 		}
 
 		eres, err := cfg.Embedder.Embed(ctx, ereq)
@@ -67,7 +75,15 @@ func DefineFirestoreRetriever(cfg RetrieverOptions) (ai.Retriever, error) {
 			return nil, fmt.Errorf("%s index embedding failed: %v", provider, err)
 		}
 
+		if eres == nil || len(eres.Embeddings) == 0 {
+			return nil, fmt.Errorf("embedding result is nil or empty")
+		}
+
 		coll := cfg.Client.Collection(cfg.Collection)
+		if coll == nil {
+			return nil, fmt.Errorf("collection is nil")
+		}
+
 		embedding := eres.Embeddings[0].Embedding
 
 		distanceMeasure := options.DistanceMeasure | cfg.DistanceMeasure
@@ -76,12 +92,42 @@ func DefineFirestoreRetriever(cfg RetrieverOptions) (ai.Retriever, error) {
 
 		// Execute the query
 		iter := query.Documents(ctx)
-		gotDocs, _ := iter.GetAll()
+		if iter == nil {
+			return nil, fmt.Errorf("document iterator is nil")
+		}
+
+		gotDocs, err := iter.GetAll()
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to get documents: %v", err)
+		}
 
 		genkitDocs := make([]*ai.Document, len(gotDocs))
+
 		for i, doc := range gotDocs {
-			content := doc.Data()[cfg.ContentField].(string)
-			metadata := doc.Data()[cfg.MetadataField].(map[string]any)
+			content, ok := doc.Data()[cfg.ContentField].(string)
+			if !ok {
+				fmt.Printf("content field is missing or not a string in document %v", doc.Ref.ID)
+				continue
+			}
+
+			out := make(map[string]any)
+			out["content"] = content
+
+			metadata := make(map[string]any)
+			if len(cfg.MetadataFields) > 0 {
+				for _, field := range cfg.MetadataFields {
+					metadata[field] = doc.Data()[field]
+				}
+			} else {
+				for k, v := range doc.Data() {
+					if k != cfg.VectorField && k != cfg.ContentField {
+						metadata[k] = v
+					}
+				}
+			}
+
+			out["metadata"] = metadata
 			genkitDocs[i] = ai.DocumentFromText(content, metadata)
 		}
 
