@@ -36,17 +36,17 @@ import {
 } from '@genkit-ai/ai/model/middleware';
 import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
 import {
+  Content as GeminiMessage,
   FunctionCallPart,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
   FunctionResponsePart,
   GenerateContentCandidate as GeminiCandidate,
-  Content as GeminiMessage,
-  Part as GeminiPart,
   GenerateContentResponse,
   GenerationConfig,
   GoogleGenerativeAI,
   InlineDataPart,
+  Part as GeminiPart,
   RequestOptions,
   StartChatParams,
   Tool,
@@ -105,7 +105,7 @@ export const geminiProVision = modelRef({
       tools: false,
       systemRole: false,
     },
-    deprecated: true,
+    stage: 'deprecated',
   },
   configSchema: GeminiConfigSchema,
 });

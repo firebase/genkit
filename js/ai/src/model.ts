@@ -146,8 +146,16 @@ export const ModelInfoSchema = z.object({
       context: z.boolean().optional(),
     })
     .optional(),
-  /** Mark the model as deprecated. */
-  deprecated: z.boolean().optional(),
+  /** At which stage of development this model is.
+   * - `featured` models are recommended for general use.
+   * - `stable` models are well-tested and reliable.
+   * - `unstable` models are experimental and may change.
+   * - `legacy` models are no longer recommended for new projects.
+   * - `deprecated` models are deprecated by the provider and may be removed in future versions.
+   */
+  stage: z
+    .enum(['featured', 'stable', 'unstable', 'legacy', 'deprecated'])
+    .optional(),
 });
 export type ModelInfo = z.infer<typeof ModelInfoSchema>;
 
@@ -356,7 +364,7 @@ export function modelRef<
 >(
   options: ModelReference<CustomOptionsSchema>
 ): ModelReference<CustomOptionsSchema> {
-  if (options.info?.deprecated) {
+  if (options.info?.stage === 'deprecated') {
     deprecateModel({ name: options.name });
   }
   return { ...options };
