@@ -37,7 +37,7 @@ func TestLive(t *testing.T) {
 	}
 	ctx := context.Background()
 	const modelName = "gemini-1.0-pro"
-	err := vertexai.Init(ctx, &vertexai.Config{ProjectID: *projectID, Location: *location})
+	err := vertexai.Init(ctx, &vertexai.Config{ProjectId: *projectID, Location: *location})
 	if err != nil {
 		t.Fatal(err)
 	}

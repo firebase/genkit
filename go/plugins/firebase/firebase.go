@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/logging"
@@ -59,6 +60,12 @@ type Config struct {
 	CollectionName  string
 }
 
+var state struct {
+	mu        sync.Mutex
+	initted   bool
+	ProjectID string
+}
+
 // Init initializes all telemetry in this package.
 // In the dev environment, this does nothing unless [Options.ForceExport] is true.
 func Init(ctx context.Context, cfg Config) (err error) {
@@ -67,7 +74,6 @@ func Init(ctx context.Context, cfg Config) (err error) {
 			err = fmt.Errorf("firebasecloud.Init: %w", err)
 		}
 	}()
-	projectId := cfg.ProjectId
 
 	if cfg.ProjectId == "" {
 		return errors.New("config missing ProjectID")
@@ -77,18 +83,28 @@ func Init(ctx context.Context, cfg Config) (err error) {
 	if !shouldExport {
 		return nil
 	}
+
+	state.mu.Lock()
+	if state.initted {
+		state.mu.Unlock()
+		return nil
+	}
+	state.initted = true
+	state.ProjectID = cfg.ProjectId
+	state.mu.Unlock()
+
 	// Initialize Firebase app
 	_, err = firebase.NewApp(ctx, nil)
 	if err != nil {
 		return err
 	}
-	if err := setMeterProvider(projectId, cfg.MetricInterval); err != nil {
+	if err := setMeterProvider(cfg.ProjectId, cfg.MetricInterval); err != nil {
 		return err
 	}
-	if err := setLogHandler(projectId, cfg.LogLevel); err != nil {
+	if err := setLogHandler(cfg.ProjectId, cfg.LogLevel); err != nil {
 		return err
 	}
-	return setTraceProvider(projectId)
+	return setTraceProvider(cfg.ProjectId)
 }
 
 // setMeterProvider sets the global meter provider to a new instance that exports

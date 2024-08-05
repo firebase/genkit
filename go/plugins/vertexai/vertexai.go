@@ -70,7 +70,7 @@ type Config struct {
 	// The cloud project to use for Vertex AI.
 	// If empty, the values of the environment variables GCLOUD_PROJECT
 	// and GOOGLE_CLOUD_PROJECT will be consulted, in that order.
-	ProjectID string
+	ProjectId string
 	// The location of the Vertex AI service. The default is "us-central1".
 	Location string
 	// Options to the Vertex AI client.
@@ -90,7 +90,7 @@ func Init(ctx context.Context, cfg *Config) error {
 		panic("vertexai.Init already called")
 	}
 
-	state.projectID = cfg.ProjectID
+	state.projectID = cfg.ProjectId
 	if state.projectID == "" {
 		state.projectID = os.Getenv("GCLOUD_PROJECT")
 	}

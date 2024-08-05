@@ -32,7 +32,7 @@ func vertexaiEx(ctx context.Context) error {
 
 	yourProjectID := ""
 	// [START initproj]
-	if err := vertexai.Init(ctx, &vertexai.Config{ProjectID: yourProjectID}); err != nil {
+	if err := vertexai.Init(ctx, &vertexai.Config{ProjectId: yourProjectID}); err != nil {
 		return err
 	}
 	// [END initproj]

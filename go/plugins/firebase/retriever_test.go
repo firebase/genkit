@@ -26,7 +26,7 @@ import (
 )
 
 var (
-	testProjectID   = flag.String("test-project-id", "", "GCP Project ID to use for tests")
+	testProjectId   = flag.String("test-project-id", "", "GCP Project ID to use for tests")
 	testCollection  = flag.String("test-collection", "", "Firestore collection to use for tests")
 	testVectorField = flag.String("test-vector-field", "", "Firestore vector field to use for tests")
 	testLocation    = flag.String("test-location", "us-central1", "Firestore location to use for tests")
@@ -38,7 +38,7 @@ var (
 You will also need to have Application Default Credentials set up for Vertex AI
 */
 func TestFirestoreRetriever(t *testing.T) {
-	if *testProjectID == "" {
+	if *testProjectId == "" {
 		t.Skip("skipping test because -test-project-id flag not used")
 	}
 	if *testCollection == "" {
@@ -50,7 +50,7 @@ func TestFirestoreRetriever(t *testing.T) {
 	ctx := context.Background()
 
 	vertexAiConfig := vertexai.Config{
-		ProjectID: *testProjectID,
+		ProjectId: *testProjectId,
 		Location:  *testLocation,
 	}
 
@@ -66,7 +66,7 @@ func TestFirestoreRetriever(t *testing.T) {
 	}
 
 	Config := Config{
-		ProjectId:      *testProjectID,
+		ProjectId:      *testProjectId,
 		Embedder:       testEmbedder,
 		ContentField:   "text",
 		VectorField:    "embedding",
@@ -75,7 +75,7 @@ func TestFirestoreRetriever(t *testing.T) {
 
 	Init(ctx, Config)
 
-	client, err := firestore.NewClient(ctx, *testProjectID)
+	client, err := firestore.NewClient(ctx, *testProjectId)
 	if err != nil {
 		t.Fatal(err)
 	}
