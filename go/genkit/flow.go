@@ -112,7 +112,7 @@ type runOptions struct {
 
 // flowOptions configures a flow.
 type flowOptions struct {
-	auth FlowAuth
+	auth FlowAuth // Auth provider and policy checker for the flow.
 }
 
 type noStream = func(context.Context, struct{}) error
