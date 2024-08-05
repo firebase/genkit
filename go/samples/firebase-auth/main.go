@@ -54,7 +54,7 @@ func main() {
 
 	genkit.DefineFlow("super-caller", func(ctx context.Context, _ struct{}) (string, error) {
 		// Auth is required so we have to pass local credentials.
-		resp1, err := flowWithRequiredAuth.Run(ctx, "admin-user")
+		resp1, err := flowWithRequiredAuth.Run(ctx, "admin-user", genkit.WithLocalAuth(map[string]any{"UID": "admin-user"}))
 		if err != nil {
 			return "", fmt.Errorf("flowWithRequiredAuth: %w", err)
 		}
@@ -66,7 +66,7 @@ func main() {
 		return resp1 + ", " + resp2, nil
 	})
 
-	if err := genkit.Init(context.Background(), nil); err != nil {
+	if err := genkit.Init(ctx, nil); err != nil {
 		log.Fatal(err)
 	}
 }
