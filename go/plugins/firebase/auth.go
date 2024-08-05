@@ -21,33 +21,30 @@ import (
 	"fmt"
 	"strings"
 
-	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
 	"github.com/firebase/genkit/go/genkit"
 )
 
-var (
-	a *firebase.App
-)
-
-type firebaseAuth struct {
-	client   *auth.Client                    // Firebase Auth client.
-	policy   func(map[string]any, any) error // Auth policy to check against.
-	required bool                            // Auth required even for direct calls.
+type AuthClient interface {
+	VerifyIDToken(context.Context, string) (*auth.Token, error)
 }
 
-// NewFirebaseAuth creates a Firebase auth check.
-func NewFirebaseAuth(ctx context.Context, policy func(map[string]any, any) error, required bool) (genkit.FlowAuth, error) {
-	app, err := app(ctx)
+type firebaseAuth struct {
+	client   AuthClient
+	policy   func(map[string]any, any) error
+	required bool
+}
+
+// NewAuth creates a Firebase auth check.
+func NewAuth(ctx context.Context, policy func(map[string]any, any) error, required bool) (genkit.FlowAuth, error) {
+	app, err := App(ctx)
 	if err != nil {
 		return nil, err
 	}
-
 	client, err := app.Auth(ctx)
 	if err != nil {
 		return nil, err
 	}
-
 	auth := &firebaseAuth{
 		client:   client,
 		policy:   policy,
@@ -64,28 +61,23 @@ func (f *firebaseAuth) ProvideAuthContext(ctx context.Context, authHeader string
 		}
 		return nil, nil
 	}
-
 	const bearerPrefix = "bearer "
 	if !strings.HasPrefix(strings.ToLower(authHeader), bearerPrefix) {
 		return nil, errors.New("invalid authorization header format")
 	}
 	token := authHeader[len(bearerPrefix):]
-
 	authToken, err := f.client.VerifyIDToken(ctx, token)
 	if err != nil {
 		return nil, fmt.Errorf("error verifying ID token: %v", err)
 	}
-
 	authBytes, err := json.Marshal(authToken)
 	if err != nil {
 		return nil, err
 	}
-
 	var authContext map[string]any
 	if err = json.Unmarshal(authBytes, &authContext); err != nil {
 		return nil, err
 	}
-
 	return authContext, nil
 }
 
@@ -98,16 +90,4 @@ func (f *firebaseAuth) CheckAuthPolicy(authContext map[string]any, input any) er
 		return nil
 	}
 	return f.policy(authContext, input)
-}
-
-// app returns a cached Firebase app.
-func app(ctx context.Context) (*firebase.App, error) {
-	if a == nil {
-		app, err := firebase.NewApp(ctx, nil)
-		if err != nil {
-			return nil, err
-		}
-		a = app
-	}
-	return a, nil
 }

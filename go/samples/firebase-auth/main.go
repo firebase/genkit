@@ -34,7 +34,7 @@ func main() {
 		}
 		return nil
 	}
-	firebaseAuth, err := firebase.NewFirebaseAuth(ctx, policy, true)
+	firebaseAuth, err := firebase.NewAuth(ctx, policy, true)
 	if err != nil {
 		log.Fatalf("failed to set up Firebase auth: %v", err)
 	}
@@ -43,7 +43,7 @@ func main() {
 		return fmt.Sprintf("info about user %q", user), nil
 	}, genkit.WithFlowAuth(firebaseAuth))
 
-	firebaseAuth, err = firebase.NewFirebaseAuth(ctx, policy, false)
+	firebaseAuth, err = firebase.NewAuth(ctx, policy, false)
 	if err != nil {
 		log.Fatalf("failed to set up Firebase auth: %v", err)
 	}
