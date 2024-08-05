@@ -177,7 +177,7 @@ func WithIndexerOpts(opts any) IndexerOption {
 	}
 }
 
-// Index calls the retrivers with provided options.
+// Index calls the indexer with provided options.
 func Index(ctx context.Context, r Indexer, opts ...IndexerOption) error {
 	req := &IndexerRequest{}
 	for _, with := range opts {

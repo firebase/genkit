@@ -56,11 +56,11 @@ func (h *handler) WithGroup(name string) slog.Handler {
 }
 
 func (h *handler) Handle(ctx context.Context, r slog.Record) error {
-	h.handleEntry(h.recordToEntry(ctx, r))
+	h.handleEntry(h.recordToEntry(r))
 	return nil
 }
 
-func (h *handler) recordToEntry(ctx context.Context, r slog.Record) logging.Entry {
+func (h *handler) recordToEntry(r slog.Record) logging.Entry {
 	return logging.Entry{
 		Timestamp: r.Time,
 		Severity:  levelToSeverity(r.Level),

@@ -3,6 +3,7 @@
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
@@ -11,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The firebase package supports telemetry (tracing, metrics and logging) using
-// Firebase services.
+// The firebase package supports telemetry (tracing, metrics and logging) using Firebase services.
 package firebase
 
 import (
@@ -25,6 +25,8 @@ import (
 
 	"cloud.google.com/go/logging"
 	mexporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
+	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
+	"github.com/firebase/genkit/go/ai"
 
 	firebase "firebase.google.com/go"
 	"go.opentelemetry.io/otel"
@@ -32,13 +34,10 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"google.golang.org/api/option"
 )
 
 // Config provides configuration options for the Init function.
 type Config struct {
-	// Path to the Firebase service account key file. Required.
-	ServiceAccountKey string
 	// Export to Firebase even in the dev environment.
 	ForceExport bool
 
@@ -51,7 +50,13 @@ type Config struct {
 	LogLevel slog.Leveler
 
 	// ID of the project to use. Required.
-	projectId string
+	ProjectId string
+	//  TODO: put the following in a separate struct or array of structs
+	Embedder        ai.Embedder
+	EmbedderOptions any
+	ContentField    string
+	VectorField     string
+	CollectionName  string
 }
 
 // Init initializes all telemetry in this package.
@@ -62,32 +67,34 @@ func Init(ctx context.Context, cfg Config) (err error) {
 			err = fmt.Errorf("firebasecloud.Init: %w", err)
 		}
 	}()
+	projectId := cfg.ProjectId
 
-	if cfg.ServiceAccountKey == "" {
-		return errors.New("config missing ServiceAccountKey")
+	if cfg.ProjectId == "" {
+		return errors.New("config missing ProjectID")
 	}
+
 	shouldExport := cfg.ForceExport || os.Getenv("GENKIT_ENV") != "dev"
 	if !shouldExport {
 		return nil
 	}
 	// Initialize Firebase app
-	_, err = firebase.NewApp(ctx, nil, option.WithCredentialsFile(cfg.ServiceAccountKey))
+	_, err = firebase.NewApp(ctx, nil)
 	if err != nil {
 		return err
 	}
-	if err := setMeterProvider(cfg.ServiceAccountKey, cfg.MetricInterval); err != nil {
+	if err := setMeterProvider(projectId, cfg.MetricInterval); err != nil {
 		return err
 	}
-	projectId := cfg.projectId
-	return setLogHandler(projectId, cfg.LogLevel)
+	if err := setLogHandler(projectId, cfg.LogLevel); err != nil {
+		return err
+	}
+	return setTraceProvider(projectId)
 }
 
-/*
 // setMeterProvider sets the global meter provider to a new instance that exports
 // metrics to Firebase.
-*/
-func setMeterProvider(serviceAccountKey string, interval time.Duration) error {
-	mexp, err := mexporter.New(mexporter.WithProjectID(serviceAccountKey))
+func setMeterProvider(projectId string, interval time.Duration) error {
+	mexp, err := mexporter.New(mexporter.WithProjectID(projectId))
 	if err != nil {
 		return err
 	}
@@ -97,10 +104,31 @@ func setMeterProvider(serviceAccountKey string, interval time.Duration) error {
 	return nil
 }
 
+// setTraceProvider sets the global trace provider to a new instance that exports
+// traces to Firebase with adjusted spans.
+func setTraceProvider(projectId string) error {
+	// Create a new trace exporter for Google Cloud Trace
+	texp, err := texporter.New(texporter.WithProjectID(projectId))
+	if err != nil {
+		return err
+	}
+	// Wrap the exporter with the adjusting trace exporter
+	exporter := &adjustingTraceExporter{e: texp}
+
+	// Create a new tracer provider with the exporter
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+	)
+	otel.SetTracerProvider(tp)
+	return nil
+}
+
+// adjustingTraceExporter is a custom trace exporter that adjusts span data before exporting.
 type adjustingTraceExporter struct {
 	e sdktrace.SpanExporter
 }
 
+// ExportSpans exports the provided span data after adjusting it.
 func (e *adjustingTraceExporter) ExportSpans(ctx context.Context, spanData []sdktrace.ReadOnlySpan) error {
 	var adjusted []sdktrace.ReadOnlySpan
 	for _, s := range spanData {
@@ -109,16 +137,18 @@ func (e *adjustingTraceExporter) ExportSpans(ctx context.Context, spanData []sdk
 	return e.e.ExportSpans(ctx, adjusted)
 }
 
+// Shutdown shuts down the trace exporter.
 func (e *adjustingTraceExporter) Shutdown(ctx context.Context) error {
 	return e.e.Shutdown(ctx)
 }
 
+// adjustedSpan is a wrapper around sdktrace.ReadOnlySpan that adjusts span attributes.
 type adjustedSpan struct {
 	sdktrace.ReadOnlySpan
 }
 
+// Attributes returns the adjusted attributes of the span.
 func (s adjustedSpan) Attributes() []attribute.KeyValue {
-	// Omit input and output, which may contain PII.
 	var ts []attribute.KeyValue
 	for _, a := range s.ReadOnlySpan.Attributes() {
 		if a.Key == "genkit:input" || a.Key == "genkit:output" {
@@ -126,13 +156,13 @@ func (s adjustedSpan) Attributes() []attribute.KeyValue {
 		}
 		ts = append(ts, a)
 	}
-	// Add an attribute if there is an error.
 	if s.ReadOnlySpan.Status().Code == codes.Error {
 		ts = append(ts, attribute.String("/http/status_code", "599"))
 	}
 	return ts
 }
 
+// setLogHandler sets up the logging handler for Firebase.
 func setLogHandler(projectID string, level slog.Leveler) error {
 	c, err := logging.NewClient(context.Background(), "projects/"+projectID)
 	if err != nil {
