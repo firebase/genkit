@@ -19,10 +19,10 @@ import { ChildProcess, execSync, spawn } from 'child_process';
 import * as chokidar from 'chokidar';
 import * as clc from 'colorette';
 import * as fs from 'fs';
-import getPort, { makeRange } from 'get-port';
+import getPort, { portNumbers } from 'get-port';
 import * as path from 'path';
 import terminate from 'terminate';
-import { findToolsConfig } from '../plugin/config';
+import { ToolsConfig, findToolsConfig } from '../plugin/config';
 
 import {
   Action,
@@ -36,9 +36,16 @@ import { logger } from '../utils/logger';
 import {
   detectRuntime,
   getNodeEntryPoint,
+  getPackageJson,
   getTsxBinaryPath,
 } from '../utils/utils';
 import { GenkitToolsError, StreamingCallback } from './types';
+
+/** A command and arguments to start an app. */
+interface Runnable {
+  command: string;
+  args: string[];
+}
 
 /** Files in these directories will be excluded from being watched for changes. */
 const EXCLUDED_WATCHER_DIRS = ['node_modules'];
@@ -155,62 +162,14 @@ export class Runner {
 
   /** Starts the app code in a subprocess. */
   private async startApp(): Promise<boolean> {
-    const config = await findToolsConfig();
-    const runtime = detectRuntime(process.cwd());
-    let command = '';
-    let args: string[] = [];
-    switch (runtime) {
-      case 'nodejs':
-        if (config?.runner?.mode === 'harness') {
-          command = getTsxBinaryPath();
-          const harness = path.join(__dirname, './harness.js');
-          const files = config?.runner?.files || [];
-          if (files.length === 0) {
-            throw new Error('No files provided for harness mode.');
-          }
-          args.push(harness, files.join(','));
-          logger.info(
-            `Starting harness with file paths:\n - ${files?.join('\n - ') || ' - None'}`
-          );
-        } else {
-          command = 'node';
-          const entryPoint = getNodeEntryPoint(process.cwd());
-          if (!fs.existsSync(entryPoint)) {
-            throw new Error(`Node entry point \`${entryPoint}\` not found.`);
-          }
-          args.push(entryPoint);
-          logger.info(`Starting Node app at entry point \`${entryPoint}\`...`);
-        }
-        break;
-      case 'go':
-        command = 'go';
-        args.push('run', '.');
-        logger.info('Starting Go app in current directory...');
-        break;
-      default:
-        throw new Error(
-          `App not found in current directory. Please run \`genkit start\` from the root of your project.`
-        );
-    }
-
-    // Try the desired port first then fall back to default range.
-    let port = await getPort({ port: this.reflectionApiPort });
-    if (port !== this.reflectionApiPort) {
-      port = await getPort({
-        port: makeRange(DEFAULT_REFLECTION_PORT, DEFAULT_REFLECTION_PORT + 100),
-      });
-      logger.warn(
-        `Port ${this.reflectionApiPort} not available, using ${port} instead.`
-      );
-    }
-
-    this.reflectionApiPort = port;
+    const { command, args } = await this.getRunnable();
+    const port = await this.getAvailablePort();
     const appProcess = spawn(command, args, {
       stdio: 'inherit',
       env: {
         ...process.env,
         GENKIT_ENV: 'dev',
-        GENKIT_REFLECTION_PORT: `${this.reflectionApiPort}`,
+        GENKIT_REFLECTION_PORT: `${port}`,
       },
     });
     appProcess.on('error', (error): void => {
@@ -221,8 +180,69 @@ export class Runner {
       this.appProcess = null;
     });
     this.appProcess = appProcess;
-
     return true;
+  }
+
+  /** Returns the command and arguments to start the app. */
+  private async getRunnable(): Promise<Runnable> {
+    const runtime = detectRuntime();
+    const config = await findToolsConfig();
+    switch (runtime) {
+      case 'nodejs':
+        return config?.runner?.mode === 'harness'
+          ? this.getHarnessRunnable(config)
+          : this.getNodeRunnable();
+      case 'go':
+        return { command: 'go', args: ['run', '.'] };
+      default:
+        throw new Error(
+          'App not found. Please run `genkit start` from the root of your project.'
+        );
+    }
+  }
+
+  /** Returns the command and arguments to start a harness. */
+  private getHarnessRunnable(config: ToolsConfig | null): Runnable {
+    const files = config?.runner?.files || [];
+    if (files.length === 0) {
+      throw new Error('No files provided for harness mode.');
+    }
+    logger.info(`Starting harness with file paths:\n - ${files.join('\n - ')}`);
+    return {
+      command: getTsxBinaryPath(),
+      args: [path.join(__dirname, './harness.js'), files.join(',')],
+    };
+  }
+
+  /** Returns the command and arguments to start a Node.js app. */
+  private getNodeRunnable(): Runnable {
+    const packageJson = getPackageJson();
+    const scripts = packageJson?.scripts || {};
+    for (const script of ['genkit:start', 'dev', 'start']) {
+      if (scripts[script]) {
+        logger.info(`Starting Node app using \`${script}\` script...`);
+        return { command: 'npm', args: ['run', script] };
+      }
+    }
+    const entryPoint = getNodeEntryPoint();
+    if (!fs.existsSync(entryPoint)) {
+      throw new Error(`Node entry point \`${entryPoint}\` not found.`);
+    }
+    logger.info(`Starting Node app at entry point \`${entryPoint}\`...`);
+    return { command: 'node', args: [entryPoint] };
+  }
+
+  /** Returns a port that is available for the Reflection API. */
+  private async getAvailablePort(): Promise<number> {
+    const port = await getPort({
+      port: portNumbers(this.reflectionApiPort, this.reflectionApiPort + 10),
+    });
+    if (port !== this.reflectionApiPort) {
+      logger.warn(
+        `Port ${this.reflectionApiPort} not available, using ${port} instead.`
+      );
+    }
+    return port;
   }
 
   /** Stops the app code process. */
