@@ -33,60 +33,50 @@ import * as apis from '../types/apis';
 import { FlowState } from '../types/flow';
 import { TraceData } from '../types/trace';
 import { logger } from '../utils/logger';
-import { detectRuntime, getEntryPoint } from '../utils/utils';
+import { detectRuntime, getNodeEntryPoint } from '../utils/utils';
 import { GenkitToolsError, StreamingCallback } from './types';
 
-/**
- * Files in these directories will be excluded from being watched for changes.
- */
+/** Files in these directories will be excluded from being watched for changes. */
 const EXCLUDED_WATCHER_DIRS = ['node_modules'];
 
-/**
- * Delay after detecting changes in files before triggering app reload.
- */
+/** Delay after detecting changes in files before triggering app reload. */
 const RELOAD_DELAY_MS = 500;
 
+/** Delimiter for streaming responses. */
 const STREAM_DELIMITER = '\n';
 
+/** Default port for the Reflection API. */
 const DEFAULT_REFLECTION_PORT = 3100;
 
 /**
  * Runner is responsible for watching, building, and running app code and exposing an API to control actions on that app code.
  */
 export class Runner {
-  /**
-   * Directory that contains the app code.
-   */
+  /** Directory that contains the app code. */
   readonly directory: string;
 
-  /**
-   * Whether to watch for changes and automatically rebuild/reload the app code.
-   */
+  /** Whether to watch for changes and automatically rebuild/reload the app code. */
   readonly autoReload: boolean;
 
-  /**
-   * Whether to builder should be invoked when runner first starts.
-   */
+  /** Whether to builder should be invoked when runner first starts. */
   readonly buildOnStart: boolean;
 
-  /**
-   * Subprocess for the app code. May not be running.
-   */
+  /** Subprocess for the app code. May not be running. */
   private appProcess: ChildProcess | null = null;
 
-  /**
-   * Watches and triggers reloads on code changes.
-   */
+  /** Watches and triggers reloads on code changes. */
   private watcher: chokidar.FSWatcher | null = null;
 
-  /**
-   * Delay before triggering on code changes.
-   */
+  /** Delay before triggering on code changes. */
   private changeTimeout: NodeJS.Timeout | null = null;
 
+  /** Command to build the app code. */
   private buildCommand?: string;
 
+  /** Port for the Reflection API. */
   private reflectionApiPort: number = DEFAULT_REFLECTION_PORT;
+
+  /** URL for the Reflection API. */
   private reflectionApiUrl = () =>
     `http://localhost:${this.reflectionApiPort}/api`;
 
@@ -109,13 +99,11 @@ export class Runner {
     this.buildOnStart = !!options.buildOnStart;
   }
 
-  /**
-   * Starts the runner.
-   */
-  async start(): Promise<boolean> {
+  /** Starts the runner (code watcher, app process, builder, etc) and waits until healthy. */
+  async start(): Promise<void> {
     if (this.appProcess) {
-      logger.info('Runner is already running.');
-      return Promise.resolve(true);
+      logger.warn('Runner is already running.');
+      return;
     }
     if (this.autoReload || this.buildOnStart) {
       const config = await findToolsConfig();
@@ -130,12 +118,19 @@ export class Runner {
     if (this.autoReload) {
       this.watchForChanges();
     }
-    return this.startApp();
+    await this.startApp();
+    await this.waitUntilHealthy();
   }
 
-  /**
-   * Attach to an already running process at the provided address.
-   */
+  /** Stops the runner. */
+  async stop(): Promise<void> {
+    if (this.autoReload) {
+      await this.watcher?.close();
+    }
+    await this.stopApp();
+  }
+
+  /** Attach to an already running process at the provided address. */
   async attach(attachAddress: string): Promise<void> {
     this.reflectionApiPort = parseInt(new URL(attachAddress).port, 10) || 80;
     if (!(await this.healthCheck())) {
@@ -145,30 +140,16 @@ export class Runner {
     }
   }
 
-  /**
-   * Stops the runner.
-   */
-  async stop(): Promise<void> {
-    if (this.autoReload) {
-      await this.watcher?.close();
-    }
-    await this.stopApp();
-  }
-
-  /**
-   * Reloads the app code. If it's not running, it will be started.
-   */
+  /** Reloads the app code. If it's not running, it will be started. */
   async reloadApp(): Promise<void> {
-    logger.info('Reloading app code.');
+    logger.info('Reloading app code...');
     if (this.appProcess) {
       await this.stopApp();
     }
     await this.startApp();
   }
 
-  /**
-   * Starts the app code in a subprocess.
-   */
+  /** Starts the app code in a subprocess. */
   private async startApp(): Promise<boolean> {
     const config = await findToolsConfig();
     const runtime = detectRuntime(process.cwd());
@@ -177,7 +158,7 @@ export class Runner {
     switch (runtime) {
       case 'nodejs':
         if (config?.runner?.mode === 'harness') {
-          const localLinkedTsPath = path.join(
+          const localLinkedTsxPath = path.join(
             __dirname,
             '../../../node_modules/.bin/tsx'
           );
@@ -185,50 +166,40 @@ export class Runner {
             __dirname,
             '../../../../../.bin/tsx'
           );
-          if (fs.existsSync(localLinkedTsPath)) {
-            command = localLinkedTsPath;
-          } else if (globallyInstalledTsxPath) {
+          if (fs.existsSync(localLinkedTsxPath)) {
+            command = localLinkedTsxPath;
+          } else if (fs.existsSync(globallyInstalledTsxPath)) {
             command = globallyInstalledTsxPath;
           } else {
-            throw Error(
-              'Could not find tsx binary whilst running with harness.'
+            throw new Error(
+              'Failed to find tsx binary whilst running with harness.'
             );
           }
+          const harness = path.join(__dirname, '../runner/harness.js');
+          const files = config?.runner?.files || [];
+          args.push(harness, files.join(','));
+          logger.info(
+            `Starting harness with file paths:\n - ${files?.join('\n - ') || ' - None'}`
+          );
         } else {
           command = 'node';
+          const entryPoint = getNodeEntryPoint(process.cwd());
+          if (!fs.existsSync(entryPoint)) {
+            throw new Error(`Node entry point \`${entryPoint}\` not found.`);
+          }
+          args.push(entryPoint);
+          logger.info(`Starting Node app at entry point \`${entryPoint}\`...`);
         }
         break;
       case 'go':
         command = 'go';
-        args.push('run');
+        args.push('run', '.');
+        logger.info('Starting Go app in current directory...');
         break;
       default:
-        throw Error(`Unexpected runtime while starting app code: ${runtime}`);
-    }
-
-    const harnessEntryPoint = path.join(__dirname, '../runner/harness.js');
-    const entryPoint =
-      config?.runner?.mode === 'harness'
-        ? harnessEntryPoint
-        : getEntryPoint(process.cwd());
-    if (!entryPoint) {
-      logger.error(
-        'Could not detect entry point for app. Make sure you are at the root of your project directory.'
-      );
-      return false;
-    }
-    if (!fs.existsSync(entryPoint)) {
-      logger.error(`Could not find \`${entryPoint}\`. App not started.`);
-      return false;
-    }
-
-    const files = config?.runner?.files;
-    if (config?.runner?.mode === 'harness') {
-      logger.info(
-        `Running harness with file paths:\n - ${files?.join('\n - ') || ' - None'}`
-      );
-    } else {
-      logger.info(`Starting app at \`${entryPoint}\`...`);
+        throw new Error(
+          `App not found in current directory. Please run \`genkit start\` from the root of your project.`
+        );
     }
 
     // Try the desired port first then fall back to default range.
@@ -241,13 +212,9 @@ export class Runner {
         `Port ${this.reflectionApiPort} not available, using ${port} instead.`
       );
     }
-    this.reflectionApiPort = port;
 
-    args.push(entryPoint);
-    if (config?.runner?.mode === 'harness' && files) {
-      args.push(files.join(','));
-    }
-    this.appProcess = spawn(command, args, {
+    this.reflectionApiPort = port;
+    const appProcess = spawn(command, args, {
       stdio: 'inherit',
       env: {
         ...process.env,
@@ -255,22 +222,19 @@ export class Runner {
         GENKIT_REFLECTION_PORT: `${this.reflectionApiPort}`,
       },
     });
-
-    this.appProcess.on('error', (error): void => {
+    appProcess.on('error', (error): void => {
       logger.error(`Error in app process: ${error.message}`);
     });
-
-    this.appProcess.on('exit', (code, signal) => {
-      logger.info(`App process exited with code ${code}, signal ${signal}`);
+    appProcess.on('exit', (code, signal) => {
+      logger.info(`App process exited with code ${code}, signal ${signal}.`);
       this.appProcess = null;
     });
+    this.appProcess = appProcess;
 
     return true;
   }
 
-  /**
-   * Stops the app code process.
-   */
+  /** Stops the app code process. */
   private async stopApp(): Promise<void> {
     return new Promise((resolve) => {
       if (this.appProcess) {
@@ -285,9 +249,7 @@ export class Runner {
     });
   }
 
-  /**
-   * Starts watching the app directory for code changes.
-   */
+  /** Starts watching the app directory for code changes. */
   private watchForChanges(): void {
     this.watcher = chokidar
       .watch(this.directory, {
@@ -303,10 +265,7 @@ export class Runner {
       .on('change', this.handleFileChange.bind(this));
   }
 
-  /**
-   * Handles file changes in the watched directory.
-   * @param filePath - path of the changed file
-   */
+  /** Handles file changes in the watched directory. */
   private handleFileChange(filePath: string): void {
     const extension = path.extname(filePath);
     const relativeFilePath = path.relative(this.directory, filePath);
@@ -375,28 +334,14 @@ export class Runner {
       if ((error as AxiosError).code === 'ECONNREFUSED') {
         return false;
       }
-      throw new Error('Code failed to load, please check log messages above.');
-    }
-  }
-
-  async sendQuit(): Promise<boolean> {
-    try {
-      const response = await axios.get(
-        `${this.reflectionApiUrl()}/__quitquitquit`
+      throw new Error(
+        'App code failed to load, please check log messages above.' +
+          'If there are no messages, make sure that you included `configureGenkit()` in your app code.'
       );
-      if (response.status !== 200) {
-        return false;
-      }
-      return true;
-    } catch (error) {
-      if ((error as AxiosError).code === 'ECONNREFUSED') {
-        return false;
-      }
-      logger.debug('Failed to send quit call.');
-      return false;
     }
   }
 
+  /** Waits until the runner is healthy. */
   async waitUntilHealthy(): Promise<void> {
     logger.debug(`Checking health of ${this.reflectionApiUrl()}...`);
     for (let i = 0; i < 200; i++) {
@@ -407,7 +352,7 @@ export class Runner {
       }
       await new Promise((r) => setTimeout(r, 300));
     }
-    throw new Error('Timed out while waiting for code to load.');
+    throw new Error('Timed out while waiting for app code to load.');
   }
 
   /** Retrieves all runnable actions. */

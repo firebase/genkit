@@ -38,21 +38,6 @@ export function getNodeEntryPoint(directory: string): string {
 }
 
 /**
- * Returns the entry point of any supported runtime.
- */
-export function getEntryPoint(directory: string): string | undefined {
-  const runtime = detectRuntime(directory);
-  switch (runtime) {
-    case 'nodejs':
-      return getNodeEntryPoint(directory);
-    case 'go':
-      return '.';
-    default:
-      return;
-  }
-}
-
-/**
  * Detects what runtime is used in the current directory.
  * @returns Runtime of the project directory.
  */
