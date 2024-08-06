@@ -88,7 +88,8 @@ export type EvalResult = z.infer<typeof EvalResultSchema>;
  * A unique identifier for an Evaluation Run.
  */
 export const EvalRunKeySchema = z.object({
-  actionId: z.string().optional(),
+  actionRef: z.string().optional(),
+  datasetRef: z.string().optional(),
   evalRunId: z.string(),
   createdAt: z.string(),
 });
@@ -125,9 +126,8 @@ export interface EvalStore {
   /**
    * Load a single EvalRun from storage
    * @param evalRunId the ID of the EvalRun
-   * @param actionId (optional) the ID of the action used to generate output.
    */
-  load(evalRunId: string, actionId?: string): Promise<EvalRun | undefined>;
+  load(evalRunId: string): Promise<EvalRun | undefined>;
 
   /**
    * List the keys of all EvalRuns from storage
