@@ -55,3 +55,24 @@ export function detectRuntime(directory: string): Runtime {
   }
   return undefined;
 }
+
+/**
+ * Returns the path to the tsx binary.
+ */
+export function getTsxBinaryPath(): string {
+  const localLinkedTsxPath = path.join(
+    __dirname,
+    '../../../node_modules/.bin/tsx'
+  );
+  const globallyInstalledTsxPath = path.join(
+    __dirname,
+    '../../../../../.bin/tsx'
+  );
+  if (fs.existsSync(localLinkedTsxPath)) {
+    return localLinkedTsxPath;
+  } else if (fs.existsSync(globallyInstalledTsxPath)) {
+    return globallyInstalledTsxPath;
+  } else {
+    throw new Error('Failed to find tsx binary.');
+  }
+}

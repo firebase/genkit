@@ -33,7 +33,11 @@ import * as apis from '../types/apis';
 import { FlowState } from '../types/flow';
 import { TraceData } from '../types/trace';
 import { logger } from '../utils/logger';
-import { detectRuntime, getNodeEntryPoint } from '../utils/utils';
+import {
+  detectRuntime,
+  getNodeEntryPoint,
+  getTsxBinaryPath,
+} from '../utils/utils';
 import { GenkitToolsError, StreamingCallback } from './types';
 
 /** Files in these directories will be excluded from being watched for changes. */
@@ -158,25 +162,12 @@ export class Runner {
     switch (runtime) {
       case 'nodejs':
         if (config?.runner?.mode === 'harness') {
-          const localLinkedTsxPath = path.join(
-            __dirname,
-            '../../../node_modules/.bin/tsx'
-          );
-          const globallyInstalledTsxPath = path.join(
-            __dirname,
-            '../../../../../.bin/tsx'
-          );
-          if (fs.existsSync(localLinkedTsxPath)) {
-            command = localLinkedTsxPath;
-          } else if (fs.existsSync(globallyInstalledTsxPath)) {
-            command = globallyInstalledTsxPath;
-          } else {
-            throw new Error(
-              'Failed to find tsx binary whilst running with harness.'
-            );
-          }
-          const harness = path.join(__dirname, '../runner/harness.js');
+          command = getTsxBinaryPath();
+          const harness = path.join(__dirname, './harness.js');
           const files = config?.runner?.files || [];
+          if (files.length === 0) {
+            throw new Error('No files provided for harness mode.');
+          }
           args.push(harness, files.join(','));
           logger.info(
             `Starting harness with file paths:\n - ${files?.join('\n - ') || ' - None'}`
