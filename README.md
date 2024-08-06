@@ -100,7 +100,7 @@ Take a look at some samples of Genkit in use:
 - [A simple chatbot with a JavaScript frontend](samples/chatbot/) -- add history to LLM sessions
 - [Restaurant menu Q&A app](samples/js-menu/) -- this sample shows progressively
   more sophisticated versions of a menu understanding app.
-- [Streaming to an Angular frontend](samples/js-angular/)
+- [Copmpass Travel Agent](https://github.com/FirebaseExtended/compass-ai-travel-planning-sample-flutter )-- AI powerered travel agent built using Genkit, Firebase Data Connect. and Flutter
 
 ## Connect with us
 
