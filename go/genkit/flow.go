@@ -129,14 +129,14 @@ type FlowAuth interface {
 // streamingCallback is the type of streaming callbacks.
 type streamingCallback[Stream any] func(context.Context, Stream) error
 
-// flowOption modifies the flow with the provided option.
-type flowOption func(opts *flowOptions)
+// FlowOption modifies the flow with the provided option.
+type FlowOption func(opts *flowOptions)
 
-// flowRunOption modifies a flow run with the provided option.
-type flowRunOption func(opts *runOptions)
+// FlowRunOption modifies a flow run with the provided option.
+type FlowRunOption func(opts *runOptions)
 
 // WithFlowAuth sets an auth provider and policy checker for the flow.
-func WithFlowAuth(auth FlowAuth) flowOption {
+func WithFlowAuth(auth FlowAuth) FlowOption {
 	return func(f *flowOptions) {
 		if f.auth != nil {
 			log.Panic("auth already set in flow")
@@ -146,7 +146,7 @@ func WithFlowAuth(auth FlowAuth) flowOption {
 }
 
 // WithLocalAuth configures an option to run or stream a flow with a local auth value.
-func WithLocalAuth(authContext map[string]any) flowRunOption {
+func WithLocalAuth(authContext map[string]any) FlowRunOption {
 	return func(opts *runOptions) {
 		if opts.authContext != nil {
 			log.Panic("authContext already set in runOptions")
@@ -161,7 +161,7 @@ func WithLocalAuth(authContext map[string]any) flowRunOption {
 func DefineFlow[In, Out any](
 	name string,
 	fn func(ctx context.Context, input In) (Out, error),
-	opts ...flowOption,
+	opts ...FlowOption,
 ) *Flow[In, Out, struct{}] {
 	return defineFlow(registry.Global, name, core.Func[In, Out, struct{}](
 		func(ctx context.Context, input In, cb func(ctx context.Context, _ struct{}) error) (Out, error) {
@@ -181,12 +181,12 @@ func DefineFlow[In, Out any](
 func DefineStreamingFlow[In, Out, Stream any](
 	name string,
 	fn func(ctx context.Context, input In, callback func(context.Context, Stream) error) (Out, error),
-	opts ...flowOption,
+	opts ...FlowOption,
 ) *Flow[In, Out, Stream] {
 	return defineFlow(registry.Global, name, core.Func[In, Out, Stream](fn), opts...)
 }
 
-func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.Func[In, Out, Stream], opts ...flowOption) *Flow[In, Out, Stream] {
+func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.Func[In, Out, Stream], opts ...FlowOption) *Flow[In, Out, Stream] {
 	var i In
 	var o Out
 	f := &Flow[In, Out, Stream]{
@@ -659,11 +659,11 @@ func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out,
 
 // Run runs the flow in the context of another flow. The flow must run to completion when started
 // (that is, it must not have interrupts).
-func (f *Flow[In, Out, Stream]) Run(ctx context.Context, input In, opts ...flowRunOption) (Out, error) {
+func (f *Flow[In, Out, Stream]) Run(ctx context.Context, input In, opts ...FlowRunOption) (Out, error) {
 	return f.run(ctx, input, nil, opts...)
 }
 
-func (f *Flow[In, Out, Stream]) run(ctx context.Context, input In, cb func(context.Context, Stream) error, opts ...flowRunOption) (Out, error) {
+func (f *Flow[In, Out, Stream]) run(ctx context.Context, input In, cb func(context.Context, Stream) error, opts ...FlowRunOption) (Out, error) {
 	runOpts := &runOptions{}
 	for _, opt := range opts {
 		opt(runOpts)
@@ -699,7 +699,7 @@ type StreamFlowValue[Out, Stream any] struct {
 // again.
 //
 // Otherwise the Stream field of the passed [StreamFlowValue] holds a streamed result.
-func (f *Flow[In, Out, Stream]) Stream(ctx context.Context, input In, opts ...flowRunOption) func(func(*StreamFlowValue[Out, Stream], error) bool) {
+func (f *Flow[In, Out, Stream]) Stream(ctx context.Context, input In, opts ...FlowRunOption) func(func(*StreamFlowValue[Out, Stream], error) bool) {
 	return func(yield func(*StreamFlowValue[Out, Stream], error) bool) {
 		cb := func(ctx context.Context, s Stream) error {
 			if ctx.Err() != nil {
