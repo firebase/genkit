@@ -16,6 +16,7 @@ require (
 	github.com/invopop/jsonschema v0.12.0
 	github.com/jba/slog v0.2.0
 	github.com/lib/pq v1.10.9
+	github.com/ollama/ollama v0.3.4
 	github.com/pgvector/pgvector-go v0.2.0
 	github.com/weaviate/weaviate v1.26.0-rc.1
 	github.com/weaviate/weaviate-go-client/v4 v4.15.0

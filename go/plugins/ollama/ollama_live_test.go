@@ -32,7 +32,6 @@ To run this test, you need to have the Ollama server running. You can set the se
 If the environment variable is not set, the test will default to http://localhost:11434 (the default address for the Ollama server).
 */
 func TestLive(t *testing.T) {
-
 	if !*testLive {
 		t.Skip("skipping go/plugins/ollama live test")
 	}
@@ -53,15 +52,33 @@ func TestLive(t *testing.T) {
 	// Use the Ollama model
 	m := ollamaPlugin.Model(*modelName)
 	if m == nil {
-		t.Fatalf(`failed to find model: %s`, *modelName)
+		t.Fatalf("failed to find model: %s", *modelName)
+	}
+
+	// type GenerateRequestOutput struct {
+	// 	Format OutputFormat   `json:"format,omitempty"`
+	// 	Schema map[string]any `json:"schema,omitempty"`
+	// }
+
+	// schema should be {suggestion: string}
+
+	request, err := ai.NewGenerateRequestWithOutput(
+		&ai.GenerationCommonConfig{Temperature: 1},
+		&ai.GenerateRequestOutput{
+			Format: ai.OutputFormatJSON,
+			Schema: map[string]interface{}{
+				"suggestion": "string",
+			},
+		},
+		ai.NewUserTextMessage("I'm hungry, what should I eat?"),
+	)
+
+	if err != nil {
+		t.Fatalf("failed to create generate request: %s", err)
 	}
 
 	// Generate a response from the model
-	resp, err := m.Generate(ctx,
-		ai.NewGenerateRequest(
-			&ai.GenerationCommonConfig{Temperature: 1},
-			ai.NewUserTextMessage("I'm hungry, what should I eat?")),
-		nil)
+	resp, err := m.Generate(ctx, request, nil)
 	if err != nil {
 		t.Fatalf("failed to generate response: %s", err)
 	}
@@ -72,7 +89,6 @@ func TestLive(t *testing.T) {
 
 	// Get the text from the response
 	text := resp.Text()
-	// log.Println("Response:", text)
 
 	// Assert that the response text is as expected
 	if text == "" {

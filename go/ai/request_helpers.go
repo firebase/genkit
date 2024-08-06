@@ -14,13 +14,27 @@
 
 package ai
 
-// NewGenerateRequest create a new GenerateRequest with provided config and
+import "errors"
+
+// NewGenerateRequest create a new GenerateRequest with provided config, output and
 // messages.
 func NewGenerateRequest(config any, messages ...*Message) *GenerateRequest {
 	return &GenerateRequest{
 		Config:   config,
 		Messages: messages,
 	}
+}
+
+func NewGenerateRequestWithOutput(config any, output *GenerateRequestOutput, messages ...*Message) (*GenerateRequest, error) {
+
+	if output == nil {
+		return nil, errors.New("output cannot be nil")
+	}
+	return &GenerateRequest{
+		Config:   config,
+		Messages: messages,
+		Output:   output,
+	}, nil
 }
 
 // NewUserMessage creates a new Message with role "user" and provided parts.

@@ -329,6 +329,16 @@ func conformOutput(req *GenerateRequest) error {
 // It will strip JSON markdown delimiters from the response.
 func validCandidates(ctx context.Context, resp *GenerateResponse) ([]*Candidate, error) {
 	var candidates []*Candidate
+
+	if resp.Request == nil {
+		return nil, errors.New("cannot validate candidates, response has no request information")
+	}
+
+	// check if resp.Request.Output is nil first. if it is then just respond with the candidates
+	if resp.Request.Output == nil {
+		return resp.Candidates, nil
+	}
+
 	for i, c := range resp.Candidates {
 		c, err := validCandidate(c, resp.Request.Output)
 		if err == nil {
