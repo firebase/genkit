@@ -16,6 +16,8 @@ package firebase
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"sync"
 
 	firebase "firebase.google.com/go/v4"
@@ -43,4 +45,37 @@ func App(ctx context.Context) (FirebaseApp, error) {
 		app = newApp
 	}
 	return app, nil
+}
+
+type Config struct {
+	ProjectId string
+}
+
+var state struct {
+	mu        sync.Mutex
+	initted   bool
+	ProjectID string
+}
+
+func Init(ctx context.Context, cfg Config) (err error) {
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("firebasecloud.Init: %w", err)
+		}
+	}()
+
+	if cfg.ProjectId == "" {
+		return errors.New("config missing ProjectID")
+	}
+
+	state.mu.Lock()
+	defer state.mu.Unlock() // Ensure the mutex is unlocked regardless of return path
+
+	if state.initted {
+		return nil
+	}
+	state.initted = true
+	state.ProjectID = cfg.ProjectId
+
+	return nil
 }
