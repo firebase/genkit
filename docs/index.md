@@ -39,13 +39,13 @@ You can deploy and run Genkit libraries anywhere Node.js is supported. It's desi
 
 See the following code samples for a concrete idea of how to use these capabilities in code:
 
-* {Basic generation}
+- {Basic generation}
 
   ```javascript
   import { generate } from `@genkit-ai/ai`;
   import { gemini15Flash, claude3Sonnet, llama31 } from '@genkit-ai/vertexai';
   import { gpt4o } from 'genkitx-openai';
-  
+
   // Use the same API to generate content from many models
   const result = await generate({
       model: gemini15Flash // Or use claude3Sonnet, llama31, gpt4o
@@ -53,7 +53,7 @@ See the following code samples for a concrete idea of how to use these capabilit
   });
   ```
 
-* {Structured generation}
+- {Structured generation}
 
   ```javascript
   import { generate } from `@genkit-ai/ai`;
@@ -77,7 +77,7 @@ See the following code samples for a concrete idea of how to use these capabilit
   });
   ```
 
-* {Tool calling}
+- {Tool calling}
 
   ```javascript
   import { generate, defineTool } from `@genkit-ai/ai`;
@@ -108,7 +108,7 @@ See the following code samples for a concrete idea of how to use these capabilit
   });
   ```
 
-* {Retrieval}
+- {Retrieval}
 
   ```javascript
   import { generate, retrieve } from `@genkit-ai/ai`;
@@ -134,7 +134,7 @@ See the following code samples for a concrete idea of how to use these capabilit
   });
   ```
 
-* {Prompt template}
+- {Prompt template}
 
   ```none
   ---
@@ -161,9 +161,9 @@ See the following code samples for a concrete idea of how to use these capabilit
 
 Genkit provides a command-line interface (CLI) and a local Developer UI to make building AI applications easier. These tools help you:
 
-* **Experiment:** Test and refine your AI functions, prompts, and queries.
-* **Debug:** Find and fix issues with detailed execution traces.
-* **Evaluate:** Assess generated results across multiple test cases.
+- **Experiment:** Test and refine your AI functions, prompts, and queries.
+- **Debug:** Find and fix issues with detailed execution traces.
+- **Evaluate:** Assess generated results across multiple test cases.
 
 <div>
   <devsite-carousel data-items-per-slide="auto">
@@ -177,9 +177,9 @@ Genkit provides a command-line interface (CLI) and a local Developer UI to make 
 
 ## Connect with us
 
-* **Join the community:** Stay updated, ask questions, and share your work on our [Discord server](https://discord.gg/qXt5zzQKpc).  
-* **Provide feedback:** Report issues or suggest new features using our GitHub [issue tracker](https://github.com/firebase/genkit/issues).
+- **Join the community:** Stay updated, ask questions, and share your work on our [Discord server](https://discord.gg/qXt5zzQKpc).
+- **Provide feedback:** Report issues or suggest new features using our GitHub [issue tracker](https://github.com/firebase/genkit/issues).
 
 ## Next steps
 
-Learn how to build your first AI application with Genkit in our [Get started](https://firebase.google.com/docs/genkit/get-started) guide.  
+Learn how to build your first AI application with Genkit in our [Get started](https://firebase.google.com/docs/genkit/get-started) guide.
