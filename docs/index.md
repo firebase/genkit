@@ -1,16 +1,30 @@
-# Firebase Genkit
+{% extends "_internal/templates/intro.html" %}
+{% block variables %}
+  {% setvar pageTitle %}{{firebase_genkit}}{% endsetvar %}
+  {% setvar custom_project %}/docs/genkit/_project.yaml{% endsetvar %}
+  {% setvar supportsNode %}true{% endsetvar %}
+  {% setvar supportsGolang %}true{% endsetvar %}
+  {% setvar youtubeID %}M8rfDySBBvM{% endsetvar %}
+{% endblock variables %}
 
-<div class="video-wrapper">
-  <devsite-video video-id="M8rfDySBBvM"></devsite-video>
-</div>
+{% block extraMeta %}
+<meta name="page_type" value="Product" />
+<meta name="keywords" value="docType:Product" />
+{% endblock %}
+
+{% block intro %}
 
 Genkit is a framework designed to help you build AI-powered applications and features. It provides open source libraries for Node.js and Go, plus developer tools for testing and debugging.
 
-This documentation covers Genkit for Node.js. If you're a Go developer, see the [Genkit Go documentation](https://firebase.google.com/docs/genkit-go/get-started-go).
+This documentation covers Genkit for Node.js. If you're a Go developer, see the [Genkit Go documentation](/docs/genkit-go/get-started-go).
 
 You can deploy and run Genkit libraries anywhere Node.js is supported. It's designed to work with any generative AI model API or vector database. While we offer integrations for Firebase and Google Cloud, you can use Genkit independently of any Google services.
 
-[Get started](http:///docs/genkit/get-started){: .button}
+[Get started](/docs/genkit/get-started){: .button}
+
+{% endblock intro %}
+
+{% block body %}
 
 ## Key capabilities
 
@@ -182,4 +196,6 @@ Genkit provides a command-line interface (CLI) and a local Developer UI to make 
 
 ## Next steps
 
-Learn how to build your first AI application with Genkit in our [Get started](https://firebase.google.com/docs/genkit/get-started) guide.
+Learn how to build your first AI application with Genkit in our [Get started](/docs/genkit/get-started) guide.
+
+{% endblock %}
