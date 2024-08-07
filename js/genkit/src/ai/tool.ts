@@ -14,22 +14,4 @@
  * limitations under the License.
  */
 
-import { z } from '@genkit-ai/genkit';
-import { defineTool } from '@genkit-ai/genkit/ai';
-import { MenuItemSchema } from '../types.js';
-
-import menuData from '../../data/menu.json' assert { type: 'json' };
-
-export const menuTool = defineTool(
-  {
-    name: 'todaysMenu',
-    description: "Use this tool to retrieve all the items on today's menu",
-    inputSchema: z.object({}),
-    outputSchema: z.object({
-      menuData: z
-        .array(MenuItemSchema)
-        .describe('A list of all the items on the menu'),
-    }),
-  },
-  async () => Promise.resolve({ menuData: menuData })
-);
+export * from '@genkit-ai/ai/tool';

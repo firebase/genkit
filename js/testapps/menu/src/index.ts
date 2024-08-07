@@ -13,8 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { configureGenkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
+import { configureGenkit } from '@genkit-ai/genkit';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 
 // Initialize Genkit
