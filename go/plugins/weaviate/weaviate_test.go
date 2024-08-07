@@ -42,7 +42,7 @@ func TestGenkit(t *testing.T) {
 	ctx := context.Background()
 
 	// Make two very similar vectors and one different vector.
-	// Arrange for a fake embedder to return those vector
+	// Arrange for a fake embedder to return those vectors
 	// when provided with documents.
 
 	const dim = 768
@@ -81,7 +81,7 @@ func TestGenkit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	classCfg := &ClassConfig{
+	classCfg := ClassConfig{
 		Class:    *testClass,
 		Embedder: ai.DefineEmbedder("fake", "embedder3", embedder.Embed),
 	}

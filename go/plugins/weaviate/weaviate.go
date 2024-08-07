@@ -62,7 +62,7 @@ type ClientConfig struct {
 	// If not set, the default is https.
 	Scheme string
 	// The API key to use with the Weaviate database.
-	// If not set, the default is read from the WEAVIATE_API environment variable.
+	// If not set, the default is read from the WEAVIATE_API_KEY environment variable.
 	APIKey string
 }
 
@@ -98,7 +98,7 @@ func Init(ctx context.Context, cfg *ClientConfig) (*weaviate.Client, error) {
 		apiKey = cfg.APIKey
 	}
 	if apiKey == "" {
-		apiKey = os.Getenv("WEAVIATE_API")
+		apiKey = os.Getenv("WEAVIATE_API_KEY")
 	}
 
 	config := weaviate.Config{
@@ -127,6 +127,8 @@ func Init(ctx context.Context, cfg *ClientConfig) (*weaviate.Client, error) {
 }
 
 // ClassConfig holds configuration options for an indexer/retriever pair.
+// Weaviate stores data in collections, and each collection has a class name.
+// Use a separate genkit Indexer/Retriever for each different class.
 type ClassConfig struct {
 	// The weaviate class name. May not be the empty string.
 	Class string
@@ -141,7 +143,7 @@ type ClassConfig struct {
 // that use the same class.
 // The name uniquely identifies the Indexer and Retriever
 // in the registry.
-func DefineIndexerAndRetriever(ctx context.Context, cfg *ClassConfig) (ai.Indexer, ai.Retriever, error) {
+func DefineIndexerAndRetriever(ctx context.Context, cfg ClassConfig) (ai.Indexer, ai.Retriever, error) {
 	if cfg.Embedder == nil {
 		return nil, nil, errors.New("weaviate: Embedder required")
 	}
@@ -149,7 +151,7 @@ func DefineIndexerAndRetriever(ctx context.Context, cfg *ClassConfig) (ai.Indexe
 		return nil, nil, errors.New("weaviate: class required")
 	}
 
-	ds, err := newDocStore(ctx, cfg)
+	ds, err := newDocStore(ctx, &cfg)
 	if err != nil {
 		return nil, nil, err
 	}
