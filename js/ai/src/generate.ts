@@ -16,12 +16,12 @@
 
 import {
   Action,
-  config as genkitConfig,
-  defineAction,
   GenkitError,
+  StreamingCallback,
+  defineAction,
+  config as genkitConfig,
   getStreamingCallback,
   runWithStreamingCallback,
-  StreamingCallback,
 } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
 import {
@@ -53,12 +53,7 @@ import {
   ToolRequestPart,
   ToolResponsePart,
 } from './model.js';
-import {
-  resolveTools,
-  ToolAction,
-  ToolArgument,
-  toToolDefinition,
-} from './tool.js';
+import { ToolAction, ToolArgument, toToolDefinition } from './tool.js';
 
 /**
  * Message represents a single role's contribution to a generation. Each message
@@ -455,7 +450,7 @@ function inferRoleFromParts(parts: Part[]): Role {
 
 export async function toGenerateRequest(
   options: z.infer<typeof GenerateUtilParamSchema>,
-  resolvedTools?: ToolAction[],
+  resolvedTools?: ToolAction[]
 ): Promise<GenerateRequest> {
   const promptMessage: MessageData = { role: 'user', content: [] };
   if (typeof options.prompt === 'string') {
@@ -595,7 +590,7 @@ export class NoValidCandidatesError extends GenkitError {
 }
 
 export const GenerateUtilParamSchema = z.object({
-  /** A model name (e.g. `vertexai/gemini-1.0-pro`) or reference. */
+  /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
   model: z.string(),
   /** The prompt for which to generate a response. Can be a string for a simple text prompt or one or more parts for multi-modal prompts. */
   prompt: z.union([z.string(), PartSchema, z.array(PartSchema)]),
@@ -603,7 +598,7 @@ export const GenerateUtilParamSchema = z.object({
   context: z.array(DocumentDataSchema).optional(),
   /** Conversation history for multi-turn prompting when supported by the underlying model. */
   history: z.array(MessageSchema).optional(),
-  /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
+  /** List of registered tool names for this generation if supported by the underlying model. */
   tools: z.array(z.union([z.string(), ToolDefinitionSchema])).optional(),
   /** Number of candidate messages to generate. */
   candidates: z.number().optional(),
@@ -642,16 +637,18 @@ const generateAction = defineAction(
           `Model ${input.model} does not support tools, but some tools were supplied to generate(). Please call generate() without tools if you would like to use this model.`
         );
       }
-      tools = await Promise.all(input.tools.map(async (toolRef) => {
-        if (typeof toolRef === 'string') {
-          const tool = await lookupAction(toolRef) as ToolAction
-          if (!tool) {
-            throw new Error(`Tool ${toolRef} not found`);
+      tools = await Promise.all(
+        input.tools.map(async (toolRef) => {
+          if (typeof toolRef === 'string') {
+            const tool = (await lookupAction(toolRef)) as ToolAction;
+            if (!tool) {
+              throw new Error(`Tool ${toolRef} not found`);
+            }
+            return tool;
           }
-          return tool
-        }
-        throw ''
-      }));
+          throw '';
+        })
+      );
     }
 
     const request = await toGenerateRequest(input, tools);
@@ -824,8 +821,9 @@ export async function generate<
     returnToolRequests: resolvedOptions.returnToolRequests,
   };
 
-  return await runWithStreamingCallback(resolvedOptions.streamingCallback, async () =>
-    new GenerateResponse<O>(await generateAction(params))
+  return await runWithStreamingCallback(
+    resolvedOptions.streamingCallback,
+    async () => new GenerateResponse<O>(await generateAction(params))
   );
 }
 
