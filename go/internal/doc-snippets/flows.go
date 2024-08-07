@@ -16,12 +16,14 @@ package snippets
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"strings"
 
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/plugins/firebase"
 )
 
 func f1() {
@@ -166,4 +168,55 @@ func deploy(ctx context.Context) {
 		log.Fatal(err)
 	}
 	// [END init]
+}
+
+func f5() {
+	// [START auth]
+	ctx := context.Background()
+	// Define an auth policy and create a Firebase auth provider
+	firebaseAuth, err := firebase.NewAuth(ctx, func(authContext genkit.AuthContext, input any) error {
+		// The type must match the input type of the flow.
+		userID := input.(string)
+		if authContext == nil || authContext["UID"] != userID {
+			return errors.New("user ID does not match")
+		}
+		return nil
+	}, true)
+	if err != nil {
+		log.Fatalf("failed to set up Firebase auth: %v", err)
+	}
+	// Define a flow with authentication
+	authenticatedFlow := genkit.DefineFlow(
+		"authenticated-flow",
+		func(ctx context.Context, userID string) (string, error) {
+			return fmt.Sprintf("Secure data for user %s", userID), nil
+		},
+		genkit.WithFlowAuth(firebaseAuth),
+	)
+	// [END auth]
+	_ = authenticatedFlow
+}
+
+func f6() {
+	ctx := context.Background()
+	var policy func(authContext genkit.AuthContext, input any) error
+	required := true
+	// [START auth-create]
+	firebaseAuth, err := firebase.NewAuth(ctx, policy, required)
+	// [END auth-create]
+	_ = firebaseAuth
+	_ = err
+	yourFlowFunction := func(ctx context.Context, userID string) (string, error) {
+		return fmt.Sprintf("Secure data for user %s", userID), nil
+	}
+	// [START auth-define]
+	genkit.DefineFlow("your-flow", yourFlowFunction, genkit.WithFlowAuth(firebaseAuth))
+	// [END auth-define]
+	authenticatedFlow := genkit.DefineFlow("your-flow", yourFlowFunction, genkit.WithFlowAuth(firebaseAuth))
+	// [START auth-run]
+	response, err := authenticatedFlow.Run(ctx, "user123",
+		genkit.WithLocalAuth(map[string]any{"UID": "user123"}))
+	// [END auth-run]
+	_ = response
+	_ = err
 }
