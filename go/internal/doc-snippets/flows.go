@@ -206,13 +206,13 @@ func f6() {
 	// [END auth-create]
 	_ = firebaseAuth
 	_ = err
-	yourFlowFunction := func(ctx context.Context, userID string) (string, error) {
+	userDataFunc := func(ctx context.Context, userID string) (string, error) {
 		return fmt.Sprintf("Secure data for user %s", userID), nil
 	}
 	// [START auth-define]
-	genkit.DefineFlow("your-flow", yourFlowFunction, genkit.WithFlowAuth(firebaseAuth))
+	genkit.DefineFlow("secureUserFlow", userDataFunc, genkit.WithFlowAuth(firebaseAuth))
 	// [END auth-define]
-	authenticatedFlow := genkit.DefineFlow("your-flow", yourFlowFunction, genkit.WithFlowAuth(firebaseAuth))
+	authenticatedFlow := genkit.DefineFlow("your-flow", userDataFunc, genkit.WithFlowAuth(firebaseAuth))
 	// [START auth-run]
 	response, err := authenticatedFlow.Run(ctx, "user123",
 		genkit.WithLocalAuth(map[string]any{"UID": "user123"}))
