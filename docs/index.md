@@ -48,7 +48,7 @@ See the following code samples for a concrete idea of how to use these capabilit
 
   // Use the same API to generate content from many models
   const result = await generate({
-      model: gemini15Flash // Or use claude3Sonnet, llama31, gpt4o
+      model: gemini15Flash, // Or use claude3Sonnet, llama31, gpt4o
       prompt: 'What makes you the best LLM out there?',
   });
   ```
