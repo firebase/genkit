@@ -42,12 +42,12 @@ You can deploy and run Genkit libraries anywhere Node.js is supported. It's desi
   <td>Let AI models call your functions and APIs as tools to complete tasks. The model decides when and which tools to use.</td>
 </tr>
 <tr>
-  <td><strong>Prompt templating</strong></td>
-  <td>Create effective prompts using rich text templating, model settings, multimodal support, and tool integration - all within a runnable prompt file.</td>
-</tr>
-<tr>
   <td><strong>Retrieval-augmented generation</strong></td>
   <td>Improve the accuracy and relevance of generated output by integrating your data. Simple APIs help you embed, index, and retrieve information from various sources.</td>
+</tr>
+<tr>
+  <td><strong>Prompt templating</strong></td>
+  <td>Create effective prompts using rich text templating, model settings, multimodal support, and tool integration - all within a runnable prompt file.</td>
 </tr>
 </table>
 
