@@ -99,7 +99,7 @@ type Flow[In, Out, Stream any] struct {
 	tstate       *tracing.State             // set from the action when the flow is defined
 	inputSchema  *jsonschema.Schema         // Schema of the input to the flow
 	outputSchema *jsonschema.Schema         // Schema of the output out of the flow
-	auth         FlowAuth
+	auth         FlowAuth                   // Auth provider and policy checker for the flow.
 	// TODO: scheduler
 	// TODO: experimentalDurable
 	// TODO: middleware
