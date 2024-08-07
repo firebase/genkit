@@ -117,7 +117,7 @@ func TestProvideAuthContext(t *testing.T) {
 			}
 
 			if tt.expectedUID != "" {
-				authContext := auth.AuthContext(newCtx)
+				authContext := auth.FromContext(newCtx)
 				if authContext == nil {
 					t.Errorf("Expected non-nil auth context")
 				} else {
@@ -128,7 +128,7 @@ func TestProvideAuthContext(t *testing.T) {
 						t.Errorf("Expected UID %q, got %q", tt.expectedUID, uid)
 					}
 				}
-			} else if auth.AuthContext(newCtx) != nil && tt.authHeader != "" {
+			} else if auth.FromContext(newCtx) != nil && tt.authHeader != "" {
 				t.Errorf("Expected nil auth context, but got non-nil")
 			}
 		})
@@ -193,7 +193,7 @@ func TestCheckAuthPolicy(t *testing.T) {
 
 			ctx := context.Background()
 			if tt.authContext != nil {
-				ctx = auth.SetAuthContext(ctx, tt.authContext)
+				ctx = auth.NewContext(ctx, tt.authContext)
 			}
 
 			err := auth.CheckAuthPolicy(ctx, tt.input)

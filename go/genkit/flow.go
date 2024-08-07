@@ -117,18 +117,20 @@ type flowOptions struct {
 
 type noStream = func(context.Context, struct{}) error
 
-// FlowAuth configures an auth context provider and a auth policy check for a flow.
+// FlowAuth configures an auth context provider and an auth policy check for a flow.
 type FlowAuth interface {
-	// ProvideAuthContext provides auth context from an auth header and sets it on the context.
+	// ProvideAuthContext sets the auth context on the given context by parsing an auth header.
+	// The parsing logic is provided by the auth provider.
 	ProvideAuthContext(ctx context.Context, authHeader string) (context.Context, error)
 
-	// SetAuthContext sets the auth context on the given context.
-	SetAuthContext(ctx context.Context, authContext map[string]any) context.Context
+	// NewContext sets the auth context on the given context. This is used when
+	// the auth context is provided by the user, rather than by the auth provider.
+	NewContext(ctx context.Context, authContext map[string]any) context.Context
 
-	// AuthContext retrieves the auth context from the given context.
-	AuthContext(ctx context.Context) map[string]any
+	// FromContext retrieves the auth context from the given context.
+	FromContext(ctx context.Context) map[string]any
 
-	// CheckAuthPolicy checks auth context against policy.
+	// CheckAuthPolicy checks the auth context against policy.
 	CheckAuthPolicy(ctx context.Context, input any) error
 }
 
@@ -217,7 +219,7 @@ func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.
 		// Only non-durable flows have an auth policy so can safely assume Start.Input.
 		if inst.Start != nil {
 			if f.auth != nil {
-				ctx = f.auth.SetAuthContext(ctx, inst.Auth)
+				ctx = f.auth.NewContext(ctx, inst.Auth)
 			}
 			if err := f.checkAuthPolicy(ctx, any(inst.Start.Input)); err != nil {
 				return nil, err
@@ -443,7 +445,7 @@ func (f *Flow[In, Out, Stream]) provideAuthContext(ctx context.Context, authHead
 	if f.auth != nil {
 		newCtx, err := f.auth.ProvideAuthContext(ctx, authHeader)
 		if err != nil {
-			return ctx, fmt.Errorf("unauthorized: %w", err)
+			return nil, fmt.Errorf("unauthorized: %w", err)
 		}
 		return newCtx, nil
 	}
@@ -678,7 +680,7 @@ func (f *Flow[In, Out, Stream]) run(ctx context.Context, input In, cb func(conte
 		opt(runOpts)
 	}
 	if runOpts.authContext != nil && f.auth != nil {
-		ctx = f.auth.SetAuthContext(ctx, runOpts.authContext)
+		ctx = f.auth.NewContext(ctx, runOpts.authContext)
 	}
 	if err := f.checkAuthPolicy(ctx, input); err != nil {
 		return base.Zero[Out](), err

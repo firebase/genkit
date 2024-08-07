@@ -32,10 +32,11 @@ type AuthClient interface {
 	VerifyIDToken(context.Context, string) (*auth.Token, error)
 }
 
+// firebaseAuth is a Firebase auth provider.
 type firebaseAuth struct {
-	client   AuthClient
-	policy   func(map[string]any, any) error
-	required bool
+	client   AuthClient                      // Auth client for verifying ID tokens.
+	policy   func(map[string]any, any) error // Auth policy for checking auth context.
+	required bool                            // Whether auth is required for direct calls.
 }
 
 // NewAuth creates a Firebase auth check.
@@ -81,19 +82,19 @@ func (f *firebaseAuth) ProvideAuthContext(ctx context.Context, authHeader string
 	if err = json.Unmarshal(authBytes, &authContext); err != nil {
 		return nil, err
 	}
-	return f.SetAuthContext(ctx, authContext), nil
+	return f.NewContext(ctx, authContext), nil
 }
 
-// SetAuthContext sets the auth context on the given context.
-func (f *firebaseAuth) SetAuthContext(ctx context.Context, authContext map[string]any) context.Context {
+// NewContext sets the auth context on the given context.
+func (f *firebaseAuth) NewContext(ctx context.Context, authContext map[string]any) context.Context {
 	if ctx == nil {
 		return nil
 	}
 	return authContextKey.NewContext(ctx, authContext)
 }
 
-// AuthContext retrieves the auth context from the given context.
-func (*firebaseAuth) AuthContext(ctx context.Context) map[string]any {
+// FromContext retrieves the auth context from the given context.
+func (*firebaseAuth) FromContext(ctx context.Context) map[string]any {
 	if ctx == nil {
 		return nil
 	}
@@ -102,7 +103,7 @@ func (*firebaseAuth) AuthContext(ctx context.Context) map[string]any {
 
 // CheckAuthPolicy checks auth context against policy.
 func (f *firebaseAuth) CheckAuthPolicy(ctx context.Context, input any) error {
-	authContext := f.AuthContext(ctx)
+	authContext := f.FromContext(ctx)
 	if authContext == nil {
 		if f.required {
 			return errors.New("auth is required")
