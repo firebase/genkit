@@ -76,16 +76,17 @@ See the following code samples for a concrete idea of how to use these capabilit
 
   const result = await generate({
       model: gemini15Flash,
-      prompt: 'Recommend a restaurant in San Francisco for a romantic dinner.',
+      prompt: 'Create a brief profile for a character in a fantasy video game.',
       // Specify output structure using Zod schema
       output: {
           schema: z.object({
-              restaurantName: z.string(),
-              cuisine: z.string(),
-              address: z.string(),
-              rating: z.number().min(1).max(5),
-              priceTier: z.enum(['$', '$$', '$$$', '$$$$']),
-              highlights: z.array(z.string())
+              name: z.string(),
+              role: z.enum(['knight', 'mage', 'archer']),
+              backstory: z.string(),
+              attacks: z.array(z.object({
+                name: z.string(),
+                damage: z.number().describe('amount of damage, between 2 and 25'),
+              })).describe('3 attacks the character can use')
           })
       }
   });
