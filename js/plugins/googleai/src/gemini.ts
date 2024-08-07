@@ -36,6 +36,7 @@ import {
 } from '@genkit-ai/ai/model/middleware';
 import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
 import {
+  FileDataPart,
   FunctionCallPart,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
@@ -247,6 +248,16 @@ function toInlineData(part: MediaPart): InlineDataPart {
   return { inlineData: { mimeType: contentType, data: b64Data } };
 }
 
+function toFileData(part: MediaPart): FileDataPart {
+  if (!part.media.contentType)
+    throw new Error(
+      'Must supply a `contentType` when sending File URIs to Gemini.'
+    );
+  return {
+    fileData: { mimeType: part.media.contentType, fileUri: part.media.url },
+  };
+}
+
 function fromInlineData(inlinePart: InlineDataPart): MediaPart {
   // Check if the required properties exist
   if (
@@ -361,7 +372,10 @@ function toCustomPart(part: Part): GeminiPart {
 
 function toGeminiPart(part: Part): GeminiPart {
   if (part.text !== undefined) return { text: part.text };
-  if (part.media) return toInlineData(part);
+  if (part.media) {
+    if (part.media.url.startsWith('data:')) return toInlineData(part);
+    return toFileData(part);
+  }
   if (part.toolRequest) return toFunctionCall(part);
   if (part.toolResponse) return toFunctionResponse(part);
   if (part.custom) return toCustomPart(part);
@@ -466,7 +480,16 @@ export function googleAIModel(
   }
   if (model?.info?.supports?.media) {
     // the gemini api doesn't support downloading media from http(s)
-    middleware.push(downloadRequestMedia({ maxBytes: 1024 * 1024 * 10 }));
+    middleware.push(
+      downloadRequestMedia({
+        maxBytes: 1024 * 1024 * 10,
+        // don't downlaod files that have been uploaded using the Files API
+        filter: (part) =>
+          !part.media.url.startsWith(
+            'https://generativelanguage.googleapis.com/'
+          ),
+      })
+    );
   }
 
   return defineModel(

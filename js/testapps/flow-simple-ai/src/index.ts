@@ -428,3 +428,40 @@ export const invalidOutput = defineFlow(
     return result.output() as any;
   }
 );
+
+import { GoogleAIFileManager } from '@google/generative-ai/server';
+const fileManager = new GoogleAIFileManager(
+  process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY!
+);
+export const fileApi = defineFlow(
+  {
+    name: 'fileApi',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+  },
+  async () => {
+    const uploadResult = await fileManager.uploadFile(
+      '../menu/data/menu.jpeg',
+      {
+        mimeType: 'image/jpeg',
+        displayName: 'Restaurant Menu',
+      }
+    );
+    console.log(uploadResult.file);
+
+    const result = await generate({
+      model: gemini15Flash,
+      prompt: [
+        { text: 'Describe this image:' },
+        {
+          media: {
+            contentType: uploadResult.file.mimeType,
+            url: uploadResult.file.uri,
+          },
+        },
+      ],
+    });
+
+    return result.text();
+  }
+);
