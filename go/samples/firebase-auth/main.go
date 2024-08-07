@@ -27,9 +27,9 @@ import (
 func main() {
 	ctx := context.Background()
 
-	policy := func(authToken map[string]any, input any) error {
+	policy := func(authContext map[string]any, input any) error {
 		user := input.(string)
-		if authToken == nil || authToken["UID"] != user {
+		if authContext == nil || authContext["UID"] != user {
 			return errors.New("user ID does not match")
 		}
 		return nil

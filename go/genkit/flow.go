@@ -117,13 +117,19 @@ type flowOptions struct {
 
 type noStream = func(context.Context, struct{}) error
 
-// FlowAuth configures a auth context provider and a auth policy check for a flow.
+// FlowAuth configures an auth context provider and a auth policy check for a flow.
 type FlowAuth interface {
-	// ProvideAuthContext provides auth context from an auth header.
-	ProvideAuthContext(ctx context.Context, authHeader string) (map[string]any, error)
+	// ProvideAuthContext provides auth context from an auth header and sets it on the context.
+	ProvideAuthContext(ctx context.Context, authHeader string) (context.Context, error)
+
+	// SetAuthContext sets the auth context on the given context.
+	SetAuthContext(ctx context.Context, authContext map[string]any) context.Context
+
+	// AuthContext retrieves the auth context from the given context.
+	AuthContext(ctx context.Context) map[string]any
 
 	// CheckAuthPolicy checks auth context against policy.
-	CheckAuthPolicy(auth map[string]any, input any) error
+	CheckAuthPolicy(ctx context.Context, input any) error
 }
 
 // streamingCallback is the type of streaming callbacks.
@@ -210,7 +216,10 @@ func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.
 		tracing.SetCustomMetadataAttr(ctx, "flow:wrapperAction", "true")
 		// Only non-durable flows have an auth policy so can safely assume Start.Input.
 		if inst.Start != nil {
-			if err := f.checkAuthPolicy(inst.Auth, any(inst.Start.Input)); err != nil {
+			if f.auth != nil {
+				ctx = f.auth.SetAuthContext(ctx, inst.Auth)
+			}
+			if err := f.checkAuthPolicy(ctx, any(inst.Start.Input)); err != nil {
 				return nil, err
 			}
 		}
@@ -394,11 +403,11 @@ func (f *Flow[In, Out, Stream]) runJSON(ctx context.Context, authHeader string, 
 	if err := json.Unmarshal(input, &in); err != nil {
 		return nil, &base.HTTPError{Code: http.StatusBadRequest, Err: err}
 	}
-	authContext, err := f.provideAuthContext(ctx, authHeader)
+	newCtx, err := f.provideAuthContext(ctx, authHeader)
 	if err != nil {
 		return nil, &base.HTTPError{Code: http.StatusUnauthorized, Err: err}
 	}
-	if err := f.checkAuthPolicy(authContext, in); err != nil {
+	if err := f.checkAuthPolicy(newCtx, in); err != nil {
 		return nil, &base.HTTPError{Code: http.StatusForbidden, Err: err}
 	}
 	// If there is a callback, wrap it to turn an S into a json.RawMessage.
@@ -430,21 +439,21 @@ func (f *Flow[In, Out, Stream]) runJSON(ctx context.Context, authHeader string, 
 }
 
 // provideAuthContext provides auth context for the given auth header if flow auth is configured.
-func (f *Flow[In, Out, Stream]) provideAuthContext(ctx context.Context, authHeader string) (map[string]any, error) {
+func (f *Flow[In, Out, Stream]) provideAuthContext(ctx context.Context, authHeader string) (context.Context, error) {
 	if f.auth != nil {
-		authContext, err := f.auth.ProvideAuthContext(ctx, authHeader)
+		newCtx, err := f.auth.ProvideAuthContext(ctx, authHeader)
 		if err != nil {
-			return nil, fmt.Errorf("unauthorized: %w", err)
+			return ctx, fmt.Errorf("unauthorized: %w", err)
 		}
-		return authContext, nil
+		return newCtx, nil
 	}
-	return nil, nil
+	return ctx, nil
 }
 
 // checkAuthPolicy checks auth context against the policy if flow auth is configured.
-func (f *Flow[In, Out, Stream]) checkAuthPolicy(authContext map[string]any, input any) error {
+func (f *Flow[In, Out, Stream]) checkAuthPolicy(ctx context.Context, input any) error {
 	if f.auth != nil {
-		if err := f.auth.CheckAuthPolicy(authContext, input); err != nil {
+		if err := f.auth.CheckAuthPolicy(ctx, input); err != nil {
 			return fmt.Errorf("permission denied for resource: %w", err)
 		}
 	}
@@ -668,7 +677,10 @@ func (f *Flow[In, Out, Stream]) run(ctx context.Context, input In, cb func(conte
 	for _, opt := range opts {
 		opt(runOpts)
 	}
-	if err := f.checkAuthPolicy(runOpts.authContext, input); err != nil {
+	if runOpts.authContext != nil && f.auth != nil {
+		ctx = f.auth.SetAuthContext(ctx, runOpts.authContext)
+	}
+	if err := f.checkAuthPolicy(ctx, input); err != nil {
 		return base.Zero[Out](), err
 	}
 	state, err := f.start(ctx, input, cb)

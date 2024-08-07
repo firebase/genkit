@@ -23,7 +23,10 @@ import (
 
 	"firebase.google.com/go/v4/auth"
 	"github.com/firebase/genkit/go/genkit"
+	"github.com/firebase/genkit/go/internal/base"
 )
+
+var authContextKey = base.NewContextKey[map[string]any]()
 
 type AuthClient interface {
 	VerifyIDToken(context.Context, string) (*auth.Token, error)
@@ -53,13 +56,13 @@ func NewAuth(ctx context.Context, policy func(map[string]any, any) error, requir
 	return auth, nil
 }
 
-// ProvideAuthContext provides auth context from an auth header.
-func (f *firebaseAuth) ProvideAuthContext(ctx context.Context, authHeader string) (map[string]any, error) {
+// ProvideAuthContext provides auth context from an auth header and sets it on the context.
+func (f *firebaseAuth) ProvideAuthContext(ctx context.Context, authHeader string) (context.Context, error) {
 	if authHeader == "" {
 		if f.required {
 			return nil, errors.New("authorization header is required but not provided")
 		}
-		return nil, nil
+		return ctx, nil
 	}
 	const bearerPrefix = "bearer "
 	if !strings.HasPrefix(strings.ToLower(authHeader), bearerPrefix) {
@@ -78,11 +81,28 @@ func (f *firebaseAuth) ProvideAuthContext(ctx context.Context, authHeader string
 	if err = json.Unmarshal(authBytes, &authContext); err != nil {
 		return nil, err
 	}
-	return authContext, nil
+	return f.SetAuthContext(ctx, authContext), nil
+}
+
+// SetAuthContext sets the auth context on the given context.
+func (f *firebaseAuth) SetAuthContext(ctx context.Context, authContext map[string]any) context.Context {
+	if ctx == nil {
+		return nil
+	}
+	return authContextKey.NewContext(ctx, authContext)
+}
+
+// AuthContext retrieves the auth context from the given context.
+func (*firebaseAuth) AuthContext(ctx context.Context) map[string]any {
+	if ctx == nil {
+		return nil
+	}
+	return authContextKey.FromContext(ctx)
 }
 
 // CheckAuthPolicy checks auth context against policy.
-func (f *firebaseAuth) CheckAuthPolicy(authContext map[string]any, input any) error {
+func (f *firebaseAuth) CheckAuthPolicy(ctx context.Context, input any) error {
+	authContext := f.AuthContext(ctx)
 	if authContext == nil {
 		if f.required {
 			return errors.New("auth is required")

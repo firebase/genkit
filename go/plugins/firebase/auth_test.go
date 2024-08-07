@@ -106,7 +106,7 @@ func TestProvideAuthContext(t *testing.T) {
 				required: tt.required,
 			}
 
-			result, err := auth.ProvideAuthContext(ctx, tt.authHeader)
+			newCtx, err := auth.ProvideAuthContext(ctx, tt.authHeader)
 
 			if tt.expectedError != "" {
 				if err == nil || err.Error() != tt.expectedError {
@@ -116,15 +116,20 @@ func TestProvideAuthContext(t *testing.T) {
 				t.Errorf("Unexpected error: %v", err)
 			}
 
-			if result != nil {
-				uid, ok := result["uid"].(string)
-				if !ok {
-					t.Errorf("Expected 'uid' to be a string, got %T", result["uid"])
-				} else if uid != tt.expectedUID {
-					t.Errorf("Expected UID %q, got %q", tt.expectedUID, uid)
+			if tt.expectedUID != "" {
+				authContext := auth.AuthContext(newCtx)
+				if authContext == nil {
+					t.Errorf("Expected non-nil auth context")
+				} else {
+					uid, ok := authContext["uid"].(string)
+					if !ok {
+						t.Errorf("Expected 'uid' to be a string, got %T", authContext["uid"])
+					} else if uid != tt.expectedUID {
+						t.Errorf("Expected UID %q, got %q", tt.expectedUID, uid)
+					}
 				}
-			} else if tt.expectedUID != "" {
-				t.Errorf("Expected UID %q, but result was nil", tt.expectedUID)
+			} else if auth.AuthContext(newCtx) != nil && tt.authHeader != "" {
+				t.Errorf("Expected nil auth context, but got non-nil")
 			}
 		})
 	}
@@ -146,7 +151,7 @@ func TestCheckAuthPolicy(t *testing.T) {
 			authContext: map[string]any{"uid": "user123"},
 			input:       "test input",
 			required:    true,
-			policy: func(ac map[string]any, in any) error {
+			policy: func(authContext map[string]any, in any) error {
 				return nil
 			},
 			expectedError: "",
@@ -156,7 +161,7 @@ func TestCheckAuthPolicy(t *testing.T) {
 			authContext: map[string]any{"uid": "user123"},
 			input:       "test input",
 			required:    true,
-			policy: func(ac map[string]any, in any) error {
+			policy: func(authContext map[string]any, in any) error {
 				return errors.New("policy error")
 			},
 			expectedError: "policy error",
@@ -186,7 +191,12 @@ func TestCheckAuthPolicy(t *testing.T) {
 				policy:   tt.policy,
 			}
 
-			err := auth.CheckAuthPolicy(tt.authContext, tt.input)
+			ctx := context.Background()
+			if tt.authContext != nil {
+				ctx = auth.SetAuthContext(ctx, tt.authContext)
+			}
+
+			err := auth.CheckAuthPolicy(ctx, tt.input)
 
 			if tt.expectedError != "" {
 				if err == nil || err.Error() != tt.expectedError {
