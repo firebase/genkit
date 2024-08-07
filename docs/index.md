@@ -136,7 +136,7 @@ See the following code samples for a concrete idea of how to use these capabilit
 
 * {Prompt template}
 
-  ```
+  ```none
   ---
   model: vertexai/gemini-1.5-flash
   config:
