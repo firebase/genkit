@@ -373,7 +373,7 @@ export function modelRef<
 /**
  * Warns when a model is deprecated.
  */
-export function deprecateModel(options: { name: string }) {
+function deprecateModel(options: { name: string }) {
   console.warn(
     `${clc.bold(clc.yellow('Warning:'))} ` +
       `Model '${options.name}' is deprecated and may be removed in a future release.`
