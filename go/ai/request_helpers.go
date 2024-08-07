@@ -14,12 +14,18 @@
 
 package ai
 
-// NewGenerateRequest create a new GenerateRequest with provided config and
+// NewGenerateRequest create a new GenerateRequest with provided config, output and
 // messages.
-func NewGenerateRequest(config any, messages ...*Message) *GenerateRequest {
+func NewGenerateRequest(config any, output *GenerateRequestOutput, messages ...*Message) *GenerateRequest {
+
+	//  TODO: handle nil output, is this correct?
+	if output == nil {
+		output = &GenerateRequestOutput{}
+	}
 	return &GenerateRequest{
 		Config:   config,
 		Messages: messages,
+		Output:   output,
 	}
 }
 
