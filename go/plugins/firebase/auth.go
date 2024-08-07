@@ -34,13 +34,13 @@ type AuthClient interface {
 
 // firebaseAuth is a Firebase auth provider.
 type firebaseAuth struct {
-	client   AuthClient                      // Auth client for verifying ID tokens.
-	policy   func(map[string]any, any) error // Auth policy for checking auth context.
-	required bool                            // Whether auth is required for direct calls.
+	client   AuthClient                          // Auth client for verifying ID tokens.
+	policy   func(genkit.AuthContext, any) error // Auth policy for checking auth context.
+	required bool                                // Whether auth is required for direct calls.
 }
 
 // NewAuth creates a Firebase auth check.
-func NewAuth(ctx context.Context, policy func(map[string]any, any) error, required bool) (genkit.FlowAuth, error) {
+func NewAuth(ctx context.Context, policy func(genkit.AuthContext, any) error, required bool) (genkit.FlowAuth, error) {
 	app, err := App(ctx)
 	if err != nil {
 		return nil, err
@@ -78,7 +78,7 @@ func (f *firebaseAuth) ProvideAuthContext(ctx context.Context, authHeader string
 	if err != nil {
 		return nil, err
 	}
-	var authContext map[string]any
+	var authContext genkit.AuthContext
 	if err = json.Unmarshal(authBytes, &authContext); err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (f *firebaseAuth) ProvideAuthContext(ctx context.Context, authHeader string
 }
 
 // NewContext sets the auth context on the given context.
-func (f *firebaseAuth) NewContext(ctx context.Context, authContext map[string]any) context.Context {
+func (f *firebaseAuth) NewContext(ctx context.Context, authContext genkit.AuthContext) context.Context {
 	if ctx == nil {
 		return nil
 	}
@@ -94,7 +94,7 @@ func (f *firebaseAuth) NewContext(ctx context.Context, authContext map[string]an
 }
 
 // FromContext retrieves the auth context from the given context.
-func (*firebaseAuth) FromContext(ctx context.Context) map[string]any {
+func (*firebaseAuth) FromContext(ctx context.Context) genkit.AuthContext {
 	if ctx == nil {
 		return nil
 	}

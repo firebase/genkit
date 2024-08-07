@@ -27,7 +27,7 @@ import (
 func main() {
 	ctx := context.Background()
 
-	policy := func(authContext map[string]any, input any) error {
+	policy := func(authContext genkit.AuthContext, input any) error {
 		user := input.(string)
 		if authContext == nil || authContext["UID"] != user {
 			return errors.New("user ID does not match")

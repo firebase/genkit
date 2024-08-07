@@ -117,6 +117,8 @@ type flowOptions struct {
 
 type noStream = func(context.Context, struct{}) error
 
+type AuthContext map[string]any
+
 // FlowAuth configures an auth context provider and an auth policy check for a flow.
 type FlowAuth interface {
 	// ProvideAuthContext sets the auth context on the given context by parsing an auth header.
@@ -125,10 +127,10 @@ type FlowAuth interface {
 
 	// NewContext sets the auth context on the given context. This is used when
 	// the auth context is provided by the user, rather than by the auth provider.
-	NewContext(ctx context.Context, authContext map[string]any) context.Context
+	NewContext(ctx context.Context, authContext AuthContext) context.Context
 
 	// FromContext retrieves the auth context from the given context.
-	FromContext(ctx context.Context) map[string]any
+	FromContext(ctx context.Context) AuthContext
 
 	// CheckAuthPolicy checks the auth context against policy.
 	CheckAuthPolicy(ctx context.Context, input any) error
