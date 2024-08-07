@@ -53,7 +53,12 @@ import {
   ToolRequestPart,
   ToolResponsePart,
 } from './model.js';
-import { ToolAction, ToolArgument, toToolDefinition } from './tool.js';
+import {
+  ToolAction,
+  ToolArgument,
+  resolveTools,
+  toToolDefinition,
+} from './tool.js';
 
 /**
  * Message represents a single role's contribution to a generation. Each message
@@ -448,7 +453,7 @@ function inferRoleFromParts(parts: Part[]): Role {
   return Array.from(uniqueRoles)[0];
 }
 
-export async function toGenerateRequest(
+async function actionToGenerateRequest(
   options: z.infer<typeof GenerateUtilParamSchema>,
   resolvedTools?: ToolAction[]
 ): Promise<GenerateRequest> {
@@ -475,6 +480,47 @@ export async function toGenerateRequest(
         options.output?.format ||
         (options.output?.jsonSchema ? 'json' : 'text'),
       schema: toJsonSchema({
+        jsonSchema: options.output?.jsonSchema,
+      }),
+    },
+  };
+  if (!out.output.schema) delete out.output.schema;
+  return out;
+}
+
+export async function toGenerateRequest(
+  options: GenerateOptions
+): Promise<GenerateRequest> {
+  const promptMessage: MessageData = { role: 'user', content: [] };
+  if (typeof options.prompt === 'string') {
+    promptMessage.content.push({ text: options.prompt });
+  } else if (Array.isArray(options.prompt)) {
+    promptMessage.role = inferRoleFromParts(options.prompt);
+    promptMessage.content.push(...options.prompt);
+  } else {
+    promptMessage.role = inferRoleFromParts([options.prompt]);
+    promptMessage.content.push(options.prompt);
+  }
+  const messages: MessageData[] = [...(options.history || []), promptMessage];
+  let tools: Action<any, any>[] | undefined;
+  if (options.tools) {
+    tools = await resolveTools(options.tools);
+  }
+
+  const out = {
+    messages,
+    candidates: options.candidates,
+    config: options.config,
+    context: options.context,
+    tools: tools?.map((tool) => toToolDefinition(tool)) || [],
+    output: {
+      format:
+        options.output?.format ||
+        (options.output?.schema || options.output?.jsonSchema
+          ? 'json'
+          : 'text'),
+      schema: toJsonSchema({
+        schema: options.output?.schema,
         jsonSchema: options.output?.jsonSchema,
       }),
     },
@@ -651,7 +697,7 @@ const generateAction = defineAction(
       );
     }
 
-    const request = await toGenerateRequest(input, tools);
+    const request = await actionToGenerateRequest(input, tools);
 
     const accumulatedChunks: GenerateResponseChunkData[] = [];
 
