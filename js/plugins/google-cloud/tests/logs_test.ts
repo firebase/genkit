@@ -150,19 +150,19 @@ describe('GoogleCloudLogs', () => {
     const logMessages = await getLogs();
     assert.equal(
       logMessages.includes(
-        '[info] Config[testFlow > sub1 > sub2 > testModel, testModel]'
+        '[info] Config[testFlow > sub1 > sub2 > generate > testModel, testModel]'
       ),
       true
     );
     assert.equal(
       logMessages.includes(
-        '[info] Input[testFlow > sub1 > sub2 > testModel, testModel]'
+        '[info] Input[testFlow > sub1 > sub2 > generate > testModel, testModel]'
       ),
       true
     );
     assert.equal(
       logMessages.includes(
-        '[info] Output[testFlow > sub1 > sub2 > testModel, testModel]'
+        '[info] Output[testFlow > sub1 > sub2 > generate > testModel, testModel]'
       ),
       true
     );
