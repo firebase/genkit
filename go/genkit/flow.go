@@ -107,7 +107,7 @@ type Flow[In, Out, Stream any] struct {
 
 // runOptions configures a single flow run.
 type runOptions struct {
-	authContext map[string]any // Auth context to pass to auth policy checker when calling a flow directly.
+	authContext AuthContext // Auth context to pass to auth policy checker when calling a flow directly.
 }
 
 // flowOptions configures a flow.
@@ -117,6 +117,7 @@ type flowOptions struct {
 
 type noStream = func(context.Context, struct{}) error
 
+// AuthContext is the type of the auth context passed to the auth policy checker.
 type AuthContext map[string]any
 
 // FlowAuth configures an auth context provider and an auth policy check for a flow.
@@ -156,7 +157,7 @@ func WithFlowAuth(auth FlowAuth) FlowOption {
 }
 
 // WithLocalAuth configures an option to run or stream a flow with a local auth value.
-func WithLocalAuth(authContext map[string]any) FlowRunOption {
+func WithLocalAuth(authContext AuthContext) FlowRunOption {
 	return func(opts *runOptions) {
 		if opts.authContext != nil {
 			log.Panic("authContext already set in runOptions")
