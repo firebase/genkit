@@ -130,12 +130,15 @@ See the following code samples for a concrete idea of how to use these capabilit
   import { devLocalRetrieverRef } from '@genkit-ai/dev-local-vectorstore';
   import { gemini15Flash } from `@genkit-ai/googleai`;
 
+  // Sample assumes Genkit documentation has been chunked, stored, and indexed in 
+  // local vectorstore in previous step.
+
   // Reference to a local vector database storing Genkit documentation
   const retriever = devLocalRetrieverRef('genkitQA');
 
   const query = 'How do I retrieve relevant documents in Genkit?'
 
-  // Consistent API to retrieve documents
+  // Consistent API to retrieve most relevant documents based on semantic similarity to query
   const docs = await retrieve({
       retriever: retriever,
       query: query,
@@ -144,7 +147,7 @@ See the following code samples for a concrete idea of how to use these capabilit
 
   const result = await generate({
       model: gemini15Flash
-      prompt: 'Use the provided context from the Genkit documentation to answer the following query: ${query}',
+      prompt: 'Use the provided context from the Genkit documentation to answer this query: ${query}',
       context: docs // Pass retrieved documents to the model
   });
   ```
