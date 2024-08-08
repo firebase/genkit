@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"firebase.google.com/go/v4/auth"
+	"github.com/firebase/genkit/go/genkit"
 )
 
 type mockAuthClient struct {
@@ -140,10 +141,10 @@ func TestCheckAuthPolicy(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		authContext   map[string]any
+		authContext   genkit.AuthContext
 		input         any
 		required      bool
-		policy        func(map[string]any, any) error
+		policy        func(genkit.AuthContext, any) error
 		expectedError string
 	}{
 		{
@@ -151,7 +152,7 @@ func TestCheckAuthPolicy(t *testing.T) {
 			authContext: map[string]any{"uid": "user123"},
 			input:       "test input",
 			required:    true,
-			policy: func(authContext map[string]any, in any) error {
+			policy: func(authContext genkit.AuthContext, in any) error {
 				return nil
 			},
 			expectedError: "",
@@ -161,7 +162,7 @@ func TestCheckAuthPolicy(t *testing.T) {
 			authContext: map[string]any{"uid": "user123"},
 			input:       "test input",
 			required:    true,
-			policy: func(authContext map[string]any, in any) error {
+			policy: func(authContext genkit.AuthContext, in any) error {
 				return errors.New("policy error")
 			},
 			expectedError: "policy error",
