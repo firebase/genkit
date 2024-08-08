@@ -459,8 +459,8 @@ importers:
         specifier: workspace:*
         version: link:../../core
       '@google/generative-ai':
-        specifier: ^0.15.0
-        version: 0.15.0
+        specifier: ^0.16.0
+        version: 0.16.0
       google-auth-library:
         specifier: ^9.6.3
         version: 9.7.0(encoding@0.1.13)
@@ -1029,6 +1029,9 @@ importers:
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
+      '@google/generative-ai':
+        specifier: ^0.15.0
+        version: 0.15.0
       '@opentelemetry/sdk-trace-base':
         specifier: ^1.22.0
         version: 1.22.0(@opentelemetry/api@1.8.0)
@@ -1735,6 +1738,10 @@ packages:
 
   '@google/generative-ai@0.15.0':
     resolution: {integrity: sha512-zs37judcTYFJf1U7tnuqnh7gdzF6dcWj9pNRxjA5JTONRoiQ0htrRdbefRFiewOIfXwhun5t9hbd2ray7812eQ==}
+    engines: {node: '>=18.0.0'}
+
+  '@google/generative-ai@0.16.0':
+    resolution: {integrity: sha512-doB5ZNxS6m+jUZqaLCeYXfBZCdq6Ho0ibkq5/17xe1qAUZpCLWlvCDGtqFPqqO+yezNmvGatS0KhV22yiOT3DA==}
     engines: {node: '>=18.0.0'}
 
   '@grpc/grpc-js@1.10.10':
@@ -3599,11 +3606,13 @@ packages:
   google-p12-pem@3.1.4:
     resolution: {integrity: sha512-HHuHmkLgwjdmVRngf5+gSmpkyaRI6QmOg77J8tkNBHhNEI62sGHyw4/+UkgyZEI7h84NbWprXDJ+sa3xOYFvTg==}
     engines: {node: '>=10'}
+    deprecated: Package is no longer maintained
     hasBin: true
 
   google-p12-pem@4.0.1:
     resolution: {integrity: sha512-WPkN4yGtz05WZ5EhtlxNDWPhC4JIic6G8ePitwUWy4l+XPVYec+a0j0Ts47PDtW59y3RwAhUd9/h9ZZ63px6RQ==}
     engines: {node: '>=12.0.0'}
+    deprecated: Package is no longer maintained
     hasBin: true
 
   google-proto-files@3.0.3:
@@ -5577,6 +5586,8 @@ snapshots:
       - supports-color
 
   '@google/generative-ai@0.15.0': {}
+
+  '@google/generative-ai@0.16.0': {}
 
   '@grpc/grpc-js@1.10.10':
     dependencies:
