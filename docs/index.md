@@ -47,7 +47,7 @@ You can deploy and run Genkit libraries anywhere Node.js is supported. It's desi
 </tr>
 <tr>
   <td><strong>Prompt templating</strong></td>
-  <td>Create effective prompts using rich text templating, model settings, multimodal support, and tool integration - all within a runnable prompt file.</td>
+  <td>Create effective prompts that include rich text templating, model settings, multimodal support, and tool integration - all within a compact, runnable <a href="/docs/genkit/dotprompt">prompt file</a>.</td>
 </tr>
 </table>
 
