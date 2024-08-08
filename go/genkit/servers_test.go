@@ -15,6 +15,7 @@
 package genkit
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"io"
@@ -140,7 +141,17 @@ func TestProdServer(t *testing.T) {
 	defer srv.Close()
 
 	check := func(t *testing.T, input string, wantStatus, wantResult int) {
-		res, err := http.Post(srv.URL+"/inc", "application/json", strings.NewReader(input))
+		type body struct {
+			Data json.RawMessage `json:"data"`
+		}
+		payload := body{
+			Data: json.RawMessage([]byte(input)),
+		}
+		jsonPayload, err := json.Marshal(payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res, err := http.Post(srv.URL+"/inc", "application/json", bytes.NewBuffer(jsonPayload))
 		if err != nil {
 			t.Fatal(err)
 		}

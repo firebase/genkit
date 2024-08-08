@@ -89,7 +89,7 @@ then call `Init()`:
 ```
 
 `Init` starts a `net/http` server that exposes your flows as HTTP
-endpoints (for example, `http://localhost:3400/menuSuggestionFlow`).
+endpoints (for example, `http://localhost:3400/menuSuggestionFlow`).
 
 The second parameter is an optional `Options` that specifies the following:
 
