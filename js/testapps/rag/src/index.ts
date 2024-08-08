@@ -23,7 +23,7 @@ import { googleAI } from '@genkit-ai/googleai';
 import {
   claude3Sonnet,
   geminiPro,
-  llama3,
+  llama31,
   textEmbeddingGecko,
   vertexAI,
 } from '@genkit-ai/vertexai';
@@ -82,7 +82,7 @@ export default configureGenkit({
     vertexAI({
       location: 'us-central1',
       modelGarden: {
-        models: [claude3Sonnet, llama3],
+        models: [claude3Sonnet, llama31],
       },
     }),
     pinecone([

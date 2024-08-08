@@ -31,8 +31,6 @@ interface PredictionResponse<R> {
   predictions: R[];
 }
 
-const ACCESS_TOKEN_TTL = 50 * 60 * 1000; // cache access token for 50 minutes
-
 export type PredictClient<I = unknown, R = unknown, P = unknown> = (
   instances: I[],
   parameters?: P

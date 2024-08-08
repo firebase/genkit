@@ -85,3 +85,28 @@ const embedding = await embed({
   content: input,
 });
 ```
+
+## Gemini Files API
+
+You can use files uploaded to the Gemini Files API with Genkit:
+
+```js
+import { GoogleAIFileManager } from '@google/generative-ai/server';
+
+const fileManager = new GoogleAIFileManager(process.env.GOOGLE_GENAI_API_KEY);
+const uploadResult = await fileManager.uploadFile(
+  'path/to/file.jpg',
+  {
+    mimeType: 'image/jpeg',
+    displayName: 'Your Image',
+  }
+);
+
+const response = await generate({
+  model: gemini15Flash,
+  prompt: [
+    {text: "Describe this image:},
+    {media: {contentType: uploadResult.file.mimeType, url: uploadResult.file.uri}}
+  ]
+});
+```

@@ -15,7 +15,13 @@
  */
 
 import { Document } from '../document.js';
-import { MessageData, ModelInfo, ModelMiddleware, Part } from '../model.js';
+import {
+  MediaPart,
+  MessageData,
+  ModelInfo,
+  ModelMiddleware,
+  Part,
+} from '../model.js';
 
 /**
  * Preprocess a GenerateRequest to download referenced http(s) media URLs and
@@ -23,6 +29,7 @@ import { MessageData, ModelInfo, ModelMiddleware, Part } from '../model.js';
  */
 export function downloadRequestMedia(options?: {
   maxBytes?: number;
+  filter?: (part: MediaPart) => boolean;
 }): ModelMiddleware {
   return async (req, next) => {
     const { default: fetch } = await import('node-fetch');
@@ -33,8 +40,13 @@ export function downloadRequestMedia(options?: {
         req.messages.map(async (message) => {
           const content: Part[] = await Promise.all(
             message.content.map(async (part) => {
-              // skip non-media parts and non-http urls
-              if (!part.media || !part.media.url.startsWith('http')) {
+              // skip non-media parts and non-http urls, or parts that have been
+              // filtered out by user config
+              if (
+                !part.media ||
+                !part.media.url.startsWith('http') ||
+                (options?.filter && !options?.filter(part))
+              ) {
                 return part;
               }
 

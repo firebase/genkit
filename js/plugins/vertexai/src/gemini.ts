@@ -48,15 +48,31 @@ import {
   VertexAI,
 } from '@google-cloud/vertexai';
 import { z } from 'zod';
+import { PluginOptions } from './index.js';
 
 const SafetySettingsSchema = z.object({
   category: z.nativeEnum(HarmCategory),
   threshold: z.nativeEnum(HarmBlockThreshold),
 });
 
+const VertexRetrievalSchema = z.object({
+  datastore: z.object({
+    projectId: z.string().optional(),
+    location: z.string().optional(),
+    dataStoreId: z.string(),
+  }),
+  disableAttribution: z.boolean().optional(),
+});
+
+const GoogleSearchRetrievalSchema = z.object({
+  disableAttribution: z.boolean().optional(),
+});
+
 export const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   safetySettings: z.array(SafetySettingsSchema).optional(),
   location: z.string().optional(),
+  vertexRetrieval: VertexRetrievalSchema.optional(),
+  googleSearchRetrieval: GoogleSearchRetrievalSchema.optional(),
 });
 
 export const geminiPro = modelRef({
@@ -86,7 +102,10 @@ export const geminiProVision = modelRef({
       systemRole: false,
     },
   },
-  configSchema: GeminiConfigSchema,
+  configSchema: GeminiConfigSchema.omit({
+    googleSearchRetrieval: true,
+    vertexRetrieval: true,
+  }),
 });
 
 export const gemini15Pro = modelRef({
@@ -440,11 +459,15 @@ const convertSchemaProperty = (property) => {
   }
 };
 
+/**
+ *
+ */
 export function geminiModel(
   name: string,
   vertexClientFactory: (
     request: GenerateRequest<typeof GeminiConfigSchema>
-  ) => VertexAI
+  ) => VertexAI,
+  options: PluginOptions
 ): ModelAction {
   const modelName = `vertexai/${name}`;
 
@@ -513,6 +536,29 @@ export function geminiModel(
         },
         safetySettings: request.config?.safetySettings,
       };
+      if (request.config?.googleSearchRetrieval) {
+        chatRequest.tools?.push({
+          googleSearchRetrieval: request.config.googleSearchRetrieval,
+        });
+      }
+      if (request.config?.vertexRetrieval) {
+        // https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/ground-gemini#ground-gemini
+        const vertexRetrieval = request.config.vertexRetrieval;
+        const _projectId =
+          vertexRetrieval.datastore.projectId || options.projectId;
+        const _location =
+          vertexRetrieval.datastore.location || options.location;
+        const _dataStoreId = vertexRetrieval.datastore.dataStoreId;
+        const datastore = `projects/${_projectId}/locations/${_location}/collections/default_collection/dataStores/${_dataStoreId}`;
+        chatRequest.tools?.push({
+          retrieval: {
+            vertexAiSearch: {
+              datastore,
+            },
+            disableAttribution: vertexRetrieval.disableAttribution,
+          },
+        });
+      }
       const msg = toGeminiMessage(messages[messages.length - 1], model);
       if (streamingCallback) {
         const result = await client

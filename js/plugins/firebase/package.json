@@ -13,7 +13,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "0.5.8",
+  "version": "0.5.9",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
@@ -31,9 +31,6 @@
   "author": "genkit",
   "license": "Apache-2.0",
   "dependencies": {
-    "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/core": "workspace:*",
-    "@genkit-ai/flow": "workspace:*",
     "@genkit-ai/google-cloud": "workspace:*",
     "express": "^4.19.2",
     "google-auth-library": "^9.6.3",
@@ -42,7 +39,10 @@
   "peerDependencies": {
     "@google-cloud/firestore": "^7.6.0",
     "firebase-admin": "^12.2.0",
-    "firebase-functions": "^4.8.0 || ^5.0.0"
+    "firebase-functions": "^4.8.0 || ^5.0.0",
+    "@genkit-ai/ai": "workspace:*",
+    "@genkit-ai/core": "workspace:*",
+    "@genkit-ai/flow": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.16",

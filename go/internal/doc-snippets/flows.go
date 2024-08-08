@@ -107,10 +107,15 @@ func f3() {
 		context.Background(),
 		"French",
 	)(func(sfv *genkit.StreamFlowValue[OutputType, StreamType], err error) bool {
+		if err != nil {
+			// handle err
+			return false
+		}
 		if !sfv.Done {
-			fmt.Print(sfv.Output)
+			fmt.Print(sfv.Stream)
 			return true
 		} else {
+			fmt.Print(sfv.Output)
 			return false
 		}
 	})

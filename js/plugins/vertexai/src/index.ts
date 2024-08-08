@@ -59,6 +59,7 @@ import { imagen2, imagen2Model } from './imagen.js';
 import {
   SUPPORTED_OPENAI_FORMAT_MODELS,
   llama3,
+  llama31,
   modelGardenOpenaiCompatibleModel,
 } from './model_garden.js';
 import {
@@ -94,6 +95,7 @@ export {
   geminiProVision,
   imagen2,
   llama3,
+  llama31,
   textEmbedding004,
   textEmbeddingGecko,
   textEmbeddingGecko001,
@@ -175,7 +177,7 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
     const models = [
       imagen2Model(authClient, { projectId, location }),
       ...Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
-        geminiModel(name, vertexClientFactory)
+        geminiModel(name, vertexClientFactory, { projectId, location })
       ),
     ];
 
