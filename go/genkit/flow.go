@@ -697,20 +697,23 @@ func (f *Flow[In, Out, Stream]) run(ctx context.Context, input In, cb func(conte
 
 // FlowIterator defines the interface for iterating over flow results.
 type FlowIterator[Out, Stream any] interface {
+	// Next returns the next streamed value and a boolean indicating whether the flow has completed.
 	Next() (Stream, bool)
+	// FinalOutput returns the final output of the flow if it has completed.
 	FinalOutput() (Out, error)
 }
 
 // flowIterator implements the FlowIterator interface.
 type flowIterator[Out, Stream any] struct {
-	done     bool
-	output   Out
-	err      error
-	streamCh chan Stream
-	doneCh   chan struct{}
+	done     bool          // true if the flow has completed
+	output   Out           // the final output of the flow
+	err      error         // the error that occurred, if any
+	streamCh chan Stream   // channel to receive streamed values
+	doneCh   chan struct{} // channel to indicate that the flow has completed
 }
 
-// Next returns the next streamed value or an error if the flow has completed or failed.
+// Next returns the next streamed value and a boolean indicating whether the flow has completed.
+// If the flow has completed, the returned Stream pointer will be nil and the boolean will be true.
 func (fi *flowIterator[Out, Stream]) Next() (*Stream, bool) {
 	select {
 	case stream := <-fi.streamCh:
@@ -721,6 +724,8 @@ func (fi *flowIterator[Out, Stream]) Next() (*Stream, bool) {
 }
 
 // FinalOutput returns the final output of the flow if it has completed.
+// If the flow has not completed, it returns an error.
+// If the flow completed with an error, it returns that error.
 func (fi *flowIterator[Out, Stream]) FinalOutput() (*Out, error) {
 	if !fi.done {
 		return nil, errors.New("flow has not completed")
@@ -764,8 +769,6 @@ func (f *Flow[In, Out, Stream]) Stream(ctx context.Context, input In, opts ...Fl
 
 	return fi
 }
-
-var errStop = errors.New("stop")
 
 func finishedOpResponse[O any](op *operation[O]) (O, error) {
 	if !op.Done {

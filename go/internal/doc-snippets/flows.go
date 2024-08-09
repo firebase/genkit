@@ -103,22 +103,20 @@ func f3() {
 	// [END streaming]
 
 	// [START invoke-streaming]
-	menuSuggestionFlow.Stream(
-		context.Background(),
-		"French",
-	)(func(sfv *genkit.StreamFlowValue[OutputType, StreamType], err error) bool {
-		if err != nil {
-			// handle err
-			return false
+	iter := menuSuggestionFlow.Stream(context.Background(), InputType("French"))
+	for {
+		stream, done := iter.Next()
+		if done {
+			break
 		}
-		if !sfv.Done {
-			fmt.Print(sfv.Stream)
-			return true
-		} else {
-			fmt.Print(sfv.Output)
-			return false
-		}
-	})
+		fmt.Print(*stream)
+	}
+	finalOutput, err := iter.FinalOutput()
+	if err != nil {
+		// handle error
+	} else {
+		fmt.Print(*finalOutput)
+	}
 	// [END invoke-streaming]
 }
 
