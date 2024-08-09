@@ -697,35 +697,26 @@ func (f *Flow[In, Out, Stream]) run(ctx context.Context, input In, cb func(conte
 
 // FlowIterator defines the interface for iterating over flow results.
 type FlowIterator[Out, Stream any] interface {
-	IsDone() bool
-	Next() (Stream, error)
+	Next() (Stream, bool)
 	FinalOutput() (Out, error)
 }
 
 // flowIterator implements the FlowIterator interface.
 type flowIterator[Out, Stream any] struct {
-	ctx      context.Context
 	done     bool
 	output   Out
+	err      error
 	streamCh chan Stream
 	doneCh   chan struct{}
-	errCh    chan error
-}
-
-// IsDone returns true if the flow has completed.
-func (fi *flowIterator[Out, Stream]) IsDone() bool {
-	return fi.done
 }
 
 // Next returns the next streamed value or an error if the flow has completed or failed.
-func (fi *flowIterator[Out, Stream]) Next() (*Stream, error) {
+func (fi *flowIterator[Out, Stream]) Next() (*Stream, bool) {
 	select {
 	case stream := <-fi.streamCh:
-		return &stream, nil
-	case err := <-fi.errCh:
-		return nil, err
+		return &stream, false
 	case <-fi.doneCh:
-		return nil, errors.New("flow has completed")
+		return nil, true
 	}
 }
 
@@ -734,23 +725,24 @@ func (fi *flowIterator[Out, Stream]) FinalOutput() (*Out, error) {
 	if !fi.done {
 		return nil, errors.New("flow has not completed")
 	}
+	if fi.err != nil {
+		return nil, fi.err
+	}
 	return &fi.output, nil
 }
 
 // Stream returns a FlowIterator for the flow.
 func (f *Flow[In, Out, Stream]) Stream(ctx context.Context, input In, opts ...FlowRunOption) FlowIterator[*Out, *Stream] {
 	fi := &flowIterator[Out, Stream]{
-		ctx:      ctx,
 		done:     false,
 		streamCh: make(chan Stream),
 		doneCh:   make(chan struct{}),
-		errCh:    make(chan error),
 	}
 
 	go func() {
 		cb := func(ctx context.Context, s Stream) error {
 			if ctx.Err() != nil {
-				fi.errCh <- ctx.Err()
+				fi.err = ctx.Err()
 				return ctx.Err()
 			}
 			select {
@@ -762,12 +754,12 @@ func (f *Flow[In, Out, Stream]) Stream(ctx context.Context, input In, opts ...Fl
 		}
 		output, err := f.run(ctx, input, cb, opts...)
 		if err != nil {
-			fi.errCh <- err
+			fi.err = err
 		} else {
 			fi.output = output
-			fi.done = true
-			close(fi.doneCh)
 		}
+		fi.done = true
+		close(fi.doneCh)
 	}()
 
 	return fi

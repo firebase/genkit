@@ -24,9 +24,9 @@ func TestStreamFlow(t *testing.T) {
 	iter := f.Stream(context.Background(), 2)
 	want := 0
 
-	for !iter.IsDone() {
-		got, err := iter.Next()
-		if err != nil {
+	for {
+		got, done := iter.Next()
+		if done {
 			break
 		}
 		if *got != want {
