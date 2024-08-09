@@ -28,6 +28,7 @@ import {
   StreamingCallback,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
+import { initializeAllPlugins } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import {
   newTrace,
@@ -391,6 +392,7 @@ export class Flow<
     labels: Record<string, string> | undefined
   ) {
     const startTimeMs = performance.now();
+    await initializeAllPlugins();
     await runWithActiveContext(ctx, async () => {
       let traceContext;
       if (ctx.state.traceContext) {

@@ -126,10 +126,19 @@ type ActionsRecord = Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>>;
  * Returns all actions in the registry.
  */
 export async function listActions(): Promise<ActionsRecord> {
+  await initializeAllPlugins();
+  return Object.assign({}, actionsById());
+}
+
+let allPluginsInitialized = false;
+export async function initializeAllPlugins() {
+  if (allPluginsInitialized) {
+    return;
+  }
   for (const pluginName of Object.keys(pluginsByName())) {
     await initializePlugin(pluginName);
   }
-  return Object.assign({}, actionsById());
+  allPluginsInitialized = true;
 }
 
 /**
@@ -195,14 +204,17 @@ export async function lookupFlowStateStore(
  * Registers a flow state store for the given environment.
  */
 export function registerPluginProvider(name: string, provider: PluginProvider) {
+  allPluginsInitialized = false;
   let cached;
+  let isInitialized = false;
   pluginsByName()[name] = {
     name: provider.name,
     initializer: () => {
-      if (cached) {
+      if (isInitialized) {
         return cached;
       }
       cached = provider.initializer();
+      isInitialized = true;
       return cached;
     },
   };
