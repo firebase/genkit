@@ -20,8 +20,8 @@ import { performance } from 'node:perf_hooks';
 import * as z from 'zod';
 import {
   ActionType,
+  initializeAllPlugins,
   lookupPlugin,
-  maybeInitializeAllPlugins,
   registerAction,
 } from './registry.js';
 import { parseSchema } from './schema.js';
@@ -229,7 +229,7 @@ export function defineAction<
   }
   const act = action(config, async (i: I): Promise<z.infer<O>> => {
     setCustomMetadataAttributes({ subtype: config.actionType });
-    await maybeInitializeAllPlugins();
+    await initializeAllPlugins();
     return await runInActionRuntimeContext(() => fn(i));
   });
   act.__action.actionType = config.actionType;
