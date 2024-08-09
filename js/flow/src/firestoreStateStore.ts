@@ -24,6 +24,12 @@ import {
 import { logger } from '@genkit-ai/core/logging';
 import { Firestore } from '@google-cloud/firestore';
 
+/** Allow customers to set service account credentials via an environment variable. */
+interface Credentials {
+  client_email?: string;
+  private_key?: string;
+}
+
 /**
  * Implementation of flow state store that persistes flow state in Firestore.
  */
@@ -37,6 +43,7 @@ export class FirestoreStateStore implements FlowStateStore {
       collection?: string;
       databaseId?: string;
       projectId?: string;
+      credentials?: Credentials;
     } = {}
   ) {
     this.collection = params.collection || 'genkit-flows';
@@ -44,6 +51,7 @@ export class FirestoreStateStore implements FlowStateStore {
     this.db = new Firestore({
       databaseId: this.databaseId,
       ignoreUndefinedProperties: true,
+      credentials: params.credentials,
     });
   }
 

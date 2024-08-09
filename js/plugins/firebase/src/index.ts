@@ -42,19 +42,51 @@ interface FirestorePluginParams {
 export const firebase: Plugin<[FirestorePluginParams] | []> = genkitPlugin(
   'firebase',
   async (params?: FirestorePluginParams) => {
-    const authClient = new GoogleAuth();
+    let projectId;
+    let credentials;
+
+    // Allow customers to pass in cloud credentials from environment variables
+    // following: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
+    if (process.env.GCLOUD_SERVICE_ACCOUNT) {
+      const serviceAccountCreds = JSON.parse(
+        process.env.GCLOUD_SERVICE_ACCOUNT
+      );
+      const authOptions = { credentials: serviceAccountCreds };
+      const authClient = new GoogleAuth(authOptions);
+
+      projectId = await authClient.getProjectId();
+      credentials = await authClient.getCredentials();
+    } else {
+      const authClient = new GoogleAuth();
+      projectId = params?.projectId || (await getProjectId(authClient));
+    }
+
     const gcpOptions = {
-      projectId: params?.projectId || (await getProjectId(authClient)),
+      projectId,
+      credentials,
       telemetryConfig: params?.telemetryConfig,
     };
+
+    const flowStateStoreOptions = {
+      projectId,
+      credentials,
+      ...params?.flowStateStore,
+    };
+
+    const traceStoreOptions = {
+      projectId,
+      credentials,
+      ...params?.traceStore,
+    };
+
     return {
       flowStateStore: {
         id: 'firestore',
-        value: new FirestoreStateStore(params?.flowStateStore),
+        value: new FirestoreStateStore(flowStateStoreOptions),
       },
       traceStore: {
         id: 'firestore',
-        value: new FirestoreTraceStore(params?.traceStore),
+        value: new FirestoreTraceStore(traceStoreOptions),
       },
       telemetry: {
         instrumentation: {

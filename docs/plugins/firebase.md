@@ -56,6 +56,8 @@ your Firebase project ID in either of the following ways:
   If you set `GCLOUD_PROJECT`, you can omit the configuration parameter:
   `firebase()`
 
+### Credentials
+
 To provide Firebase credentials, you also need to set up Google Cloud
 Application Default Credentials. To specify your credentials:
 
@@ -69,7 +71,7 @@ Application Default Credentials. To specify your credentials:
       [Service account](https://console.firebase.google.com/project/_/settings/serviceaccounts/adminsdk)
       page of the Firebase console.
   1.  Set the environment variable `GOOGLE_APPLICATION_CREDENTIALS` to the file
-      path of the JSON file that contains your service account key.
+      path of the JSON file that contains your service account key, or you can set the environment variable `GCLOUD_SERVICE_ACCOUNT` to the content of the JSON file.
 
 ### Telemetry
 
@@ -106,6 +108,26 @@ This section contains information specific to the `firebase` plugin and Cloud
 Firestore's vector search feature.
 See the [Retrieval-augmented generation](../rag.md) page for a more detailed
 discussion on implementing RAG using Genkit.
+
+#### Using GCLOUD_SERVICE_ACCOUNT and Firestore 
+
+If you are using service account credentials by passing credentials directly via `GCLOUD_SERVICE_ACCOUNT` and are also using Firestore as a vector store, you will need to pass credentials directly to the Firestore instance during initialization or the singleton may be initialized with application default credentials depending on plugin initialization order.
+
+```
+import {initializeApp} from "firebase-admin/app";
+import {getFirestore} from "firebase-admin/firestore";
+
+const app = initializeApp();
+let firestore = getFirestore(app);
+
+if (process.env.GCLOUD_SERVICE_ACCOUNT) {
+  const serviceAccountCreds = JSON.parse(process.env.GCLOUD_SERVICE_ACCOUNT);
+  const authOptions = { credentials: serviceAccountCreds };
+  firestore.settings(authOptions);
+}
+```
+
+#### Retrievers
 
 The `firebase` plugin provides a convenience function for defining Firestore
 retrievers, `defineFirestoreRetriever()`:
@@ -150,6 +172,8 @@ Available retrieval options include:
 - `limit`: Specify the number of matching results to return.
 - `where`: Field/value pairs to match (e.g. `{category: 'food'}`) in addition to vector search.
 - `collection`: Override the default collection to search for e.g. subcollection search.
+
+#### Indexing and Embedding
 
 To populate your Firestore collection, use an embedding generator along with the
 Admin SDK. For example, the menu ingestion script from the

@@ -47,13 +47,48 @@ export default configureGenkit({
 
 When running in production, your telemetry gets automatically exported.
 
-The plugin requires the Google Cloud project ID and your Google Cloud project credentials. If you're running your flow from a Google Cloud environment (Cloud Functions, Cloud Run, etc), the project ID and credentials are set automatically. Running in other environments requires setting the `GCLOUD_PROJECT` environment variable to your Google Cloud project and authenticating using the `gcloud` tool:
+### Authentication
+
+The plugin requires the Google Cloud project ID and your Google Cloud project credentials. If you're running your flow from a Google Cloud environment (Cloud Functions, Cloud Run, etc), the project ID and credentials are set automatically. 
+
+#### Application Default Credentials
+
+Running in other environments requires setting the `GCLOUD_PROJECT` environment variable to your Google Cloud project and authenticating using the `gcloud` tool:
 
 ```posix-terminal
 gcloud auth application-default login
 ```
 
 For more information, see the [Application Default Credentials](https://cloud.google.com/docs/authentication/provide-credentials-adc) docs.
+
+#### Service Account Credentials
+
+If you are using a service account and running outside of a Google Cloud environment, you can set your credentials as an environment variable. Follow instructions here to [set up your Google Cloud Service Account Key](https://cloud.google.com/iam/docs/keys-create-delete#creating).
+
+Once you have downloaded the key file, you can specify the credentials in two ways a file location using the `GOOGLE_APPLICATION_CREDENTIALS` environment variable or directly copy the contents of the json file to the environment variable `GCLOUD_SERVICE_ACCOUNT`.
+
+File path:
+
+```
+GOOGLE_APPLICATION_CREDENTIALS = "path/to/your/key/file"
+```
+
+Direct copy:
+
+```
+GCLOUD_SERVICE_ACCOUNT='{
+  "type": "service_account",
+  "project_id": "your-project-id",
+  "private_key_id": "your-private-key-id",
+  "private_key": "your-private-key",
+  "client_email": "your-client-email",
+  "client_id": "your-client-id",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://accounts.google.com/o/oauth2/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "your-cert-url"
+}'
+```
 
 ## Plugin configuration
 
