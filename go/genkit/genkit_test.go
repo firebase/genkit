@@ -23,22 +23,25 @@ func TestStreamFlow(t *testing.T) {
 	f := DefineStreamingFlow("count", count)
 	iter := f.Stream(context.Background(), 2)
 	want := 0
-	iter(func(val *StreamFlowValue[int, int], err error) bool {
-		if err != nil {
-			t.Fatal(err)
+
+	for {
+		got, done := iter.Next()
+		if done {
+			break
 		}
-		var got int
-		if val.Done {
-			got = val.Output
-		} else {
-			got = val.Stream
-		}
-		if got != want {
+		if *got != want {
 			t.Errorf("got %d, want %d", got, want)
 		}
 		want++
-		return true
-	})
+	}
+
+	finalOutput, err := iter.FinalOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if *finalOutput != want {
+		t.Errorf("got %d, want %d", finalOutput, want)
+	}
 }
 
 // count streams the numbers from 0 to n-1, then returns n.
