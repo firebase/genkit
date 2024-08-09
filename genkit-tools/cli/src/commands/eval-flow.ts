@@ -180,7 +180,7 @@ export const evalFlow = new Command('eval:flow')
 
         const evalRun = {
           key: {
-            actionId: flowName,
+            actionRef: `/flow/${flowName}`,
             evalRunId,
             createdAt: new Date().toISOString(),
           },

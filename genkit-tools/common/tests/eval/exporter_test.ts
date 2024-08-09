@@ -80,7 +80,7 @@ const EVAL_RESULTS: EvalResult[] = [
 ];
 
 const EVAL_RUN_KEY: EvalRunKey = {
-  actionId: 'flow/myAwesomeFlow',
+  actionRef: 'flow/myAwesomeFlow',
   evalRunId: 'abc1234',
   createdAt: new Date().toISOString(),
 };
