@@ -21,30 +21,23 @@ import { Status } from '../types/status';
 import { logger } from './logger';
 
 /**
- * Start the runner and waits for it to fully load -- reflection API to become avaialble.
+ * Run the function in the runner and then stop the runner.
  */
-export async function startRunner(): Promise<Runner> {
-  const runner = new Runner({ autoReload: false, buildOnStart: true });
-  if (!(await runner.start())) {
-    throw new Error('Failed to load app code.');
-  }
-  await runner.waitUntilHealthy();
-  return runner;
-}
-
 export async function runInRunnerThenStop(
   fn: (runner: Runner) => Promise<void>
-) {
+): Promise<void> {
   let runner: Runner;
   try {
-    runner = await startRunner();
-  } catch (e) {
-    process.exit(1);
+    runner = new Runner({ autoReload: false, buildOnStart: true });
+    await runner.start();
+  } catch (err) {
+    logger.error(`Failed to start the runner: ${err}`);
+    return process.exit(1);
   }
   try {
     await fn(runner);
   } catch (err) {
-    logger.info('Command exited with an Error:');
+    logger.error('Command exited with an error:');
     const error = err as GenkitToolsError;
     if (typeof error.data === 'object') {
       const errorStatus = error.data as Status;
@@ -55,10 +48,9 @@ export async function runInRunnerThenStop(
     } else {
       logger.info(`\tMessage: ${error.data}\n`);
     }
-    logger.error('Stacktrace:');
-    logger.error(`${error.stack}`);
+    logger.error(`Stack trace:\n${error.stack}`);
+    return process.exit(1);
   } finally {
-    await runner.sendQuit();
     await runner.stop();
   }
 }

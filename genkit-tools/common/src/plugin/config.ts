@@ -65,11 +65,6 @@ const EvaluatorConfig = z.object({
 const ToolsConfigSchema = z
   .object({
     cliPlugins: z.optional(z.array(ToolPluginSchema)),
-    builder: z
-      .object({
-        cmd: z.string().optional(),
-      })
-      .optional(),
     evaluators: z.array(EvaluatorConfig).optional(),
     runner: z
       .object({
