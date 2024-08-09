@@ -119,11 +119,19 @@ export class Runner {
     if (this.autoReload || this.buildOnStart) {
       const config = await findToolsConfig();
       if (config?.runner?.mode !== 'harness') {
-        this.buildCommand = config?.builder?.cmd;
-        if (!this.buildCommand && detectRuntime(process.cwd()) === 'nodejs') {
-          this.buildCommand = 'npm run build';
+        const packageJson = getPackageJson(this.directory);
+        const scripts = packageJson?.scripts || {};
+        for (const script of ['genkit:build', 'build']) {
+          if (scripts[script]) {
+            this.buildCommand = `npm run ${script}`;
+            break;
+          }
         }
-        this.build();
+        if (this.buildCommand) {
+          this.build();
+        } else {
+          logger.warn('No build command found. Skipping build step.');
+        }
       }
     }
     if (this.autoReload) {
@@ -135,9 +143,7 @@ export class Runner {
 
   /** Stops the runner. */
   async stop(): Promise<void> {
-    if (this.autoReload) {
-      await this.watcher?.close();
-    }
+    await this.watcher?.close();
     await this.stopApp();
   }
 
@@ -154,9 +160,7 @@ export class Runner {
   /** Reloads the app code. If it's not running, it will be started. */
   async reloadApp(): Promise<void> {
     logger.info('Reloading app code...');
-    if (this.appProcess) {
-      await this.stopApp();
-    }
+    await this.stopApp();
     await this.startApp();
   }
 
@@ -310,12 +314,15 @@ export class Runner {
     }
   }
 
+  /** Builds the app code. */
   private build() {
     if (this.buildCommand) {
+      logger.info(`Building app with command: ${this.buildCommand}`);
       execSync(this.buildCommand, { stdio: 'inherit' });
     }
   }
 
+  /** Handles HTTP errors. */
   private httpErrorHandler(error: AxiosError, message?: string): any {
     const newError = new GenkitToolsError(message || 'Internal Error');
 
@@ -334,7 +341,8 @@ export class Runner {
     });
   }
 
-  async healthCheck(): Promise<boolean> {
+  /** Checks if Reflection API is healthy. */
+  private async healthCheck(): Promise<boolean> {
     try {
       const response = await axios.get(`${this.reflectionApiUrl()}/__health`);
       if (response.status !== 200) {
@@ -353,7 +361,7 @@ export class Runner {
   }
 
   /** Waits until the runner is healthy. */
-  async waitUntilHealthy(): Promise<void> {
+  private async waitUntilHealthy(): Promise<void> {
     logger.debug(`Checking health of ${this.reflectionApiUrl()}...`);
     for (let i = 0; i < 200; i++) {
       const healthy = await this.healthCheck();
