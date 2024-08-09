@@ -239,7 +239,7 @@ const { response, stream } = await generateStream({
 });
 
 for await (const chunk of stream()) {
-  console.log(chunk.text());
+  console.log(chunk.content[0].text);
 }
 
 // you can also await the full response
