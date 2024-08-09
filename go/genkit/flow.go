@@ -695,45 +695,82 @@ func (f *Flow[In, Out, Stream]) run(ctx context.Context, input In, cb func(conte
 	return finishedOpResponse(state.Operation)
 }
 
-// StreamFlowValue is either a streamed value or a final output of a flow.
-type StreamFlowValue[Out, Stream any] struct {
-	Done   bool
-	Output Out    // valid if Done is true
-	Stream Stream // valid if Done is false
+// FlowIterator defines the interface for iterating over flow results.
+type FlowIterator[Out, Stream any] interface {
+	IsDone() bool
+	Next() (Stream, error)
+	FinalOutput() (Out, error)
 }
 
-// Stream runs the flow on input and delivers both the streamed values and the final output.
-// It returns a function whose argument function (the "yield function") will be repeatedly
-// called with the results.
-//
-// If the yield function is passed a non-nil error, the flow has failed with that
-// error; the yield function will not be called again. An error is also passed if
-// the flow fails to complete (that is, it has an interrupt).
-// Genkit Go does not yet support interrupts.
-//
-// If the yield function's [StreamFlowValue] argument has Done == true, the value's
-// Output field contains the final output; the yield function will not be called
-// again.
-//
-// Otherwise the Stream field of the passed [StreamFlowValue] holds a streamed result.
-func (f *Flow[In, Out, Stream]) Stream(ctx context.Context, input In, opts ...FlowRunOption) func(func(*StreamFlowValue[Out, Stream], error) bool) {
-	return func(yield func(*StreamFlowValue[Out, Stream], error) bool) {
+// flowIterator implements the FlowIterator interface.
+type flowIterator[Out, Stream any] struct {
+	ctx      context.Context
+	done     bool
+	output   Out
+	streamCh chan Stream
+	doneCh   chan struct{}
+	errCh    chan error
+}
+
+// IsDone returns true if the flow has completed.
+func (fi *flowIterator[Out, Stream]) IsDone() bool {
+	return fi.done
+}
+
+// Next returns the next streamed value or an error if the flow has completed or failed.
+func (fi *flowIterator[Out, Stream]) Next() (*Stream, error) {
+	select {
+	case stream := <-fi.streamCh:
+		return &stream, nil
+	case err := <-fi.errCh:
+		return nil, err
+	case <-fi.doneCh:
+		return nil, errors.New("flow has completed")
+	}
+}
+
+// FinalOutput returns the final output of the flow if it has completed.
+func (fi *flowIterator[Out, Stream]) FinalOutput() (*Out, error) {
+	if !fi.done {
+		return nil, errors.New("flow has not completed")
+	}
+	return &fi.output, nil
+}
+
+// Stream returns a FlowIterator for the flow.
+func (f *Flow[In, Out, Stream]) Stream(ctx context.Context, input In, opts ...FlowRunOption) FlowIterator[*Out, *Stream] {
+	fi := &flowIterator[Out, Stream]{
+		ctx:      ctx,
+		done:     false,
+		streamCh: make(chan Stream),
+		doneCh:   make(chan struct{}),
+		errCh:    make(chan error),
+	}
+
+	go func() {
 		cb := func(ctx context.Context, s Stream) error {
 			if ctx.Err() != nil {
+				fi.errCh <- ctx.Err()
 				return ctx.Err()
 			}
-			if !yield(&StreamFlowValue[Out, Stream]{Stream: s}, nil) {
-				return errStop
+			select {
+			case fi.streamCh <- s:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
 			}
-			return nil
 		}
 		output, err := f.run(ctx, input, cb, opts...)
 		if err != nil {
-			yield(nil, err)
+			fi.errCh <- err
 		} else {
-			yield(&StreamFlowValue[Out, Stream]{Done: true, Output: output}, nil)
+			fi.output = output
+			fi.done = true
+			close(fi.doneCh)
 		}
-	}
+	}()
+
+	return fi
 }
 
 var errStop = errors.New("stop")
