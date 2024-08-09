@@ -154,7 +154,7 @@ See the following code samples for a concrete idea of how to use these capabilit
 
 - {Prompt template}
 
-  ```none
+  ```yaml
   ---
   model: vertexai/gemini-1.5-flash
   config:
@@ -170,7 +170,7 @@ See the following code samples for a concrete idea of how to use these capabilit
       location: a restaurant
   ---
 
-  You are the world's most welcoming AI assistant and are currently working at {% verbatim %}{{location}}{% endverbatim %}.
+  You are the most welcoming AI assistant and are currently working at {% verbatim %}{{location}}{% endverbatim %}.
 
   Greet a guest{% verbatim %}{{#if name}}{% endverbatim %} named {% verbatim %}{{name}}{% endverbatim %}{% verbatim %}{{/if}}{% endverbatim %}{% verbatim %}{{#if style}}{% endverbatim %} in the style of {% verbatim %}{{style}}{% endverbatim %}{% verbatim %}{{/if}}{% endverbatim %}.
   ```
