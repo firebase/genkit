@@ -322,7 +322,7 @@ async function fetchDataSet(
         testCaseId: randomUUID(),
         input: inputs[0],
         output: outputs[0],
-        context: contexts,
+        context: JSON.parse(contexts[0]) as string[],
         reference: references?.at(i),
         traceIds,
       };
