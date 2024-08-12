@@ -77,6 +77,7 @@ export type ActionType =
   | 'flow'
   | 'model'
   | 'prompt'
+  | 'util'
   | 'tool';
 
 /**
