@@ -13,22 +13,6 @@ import { logger } from '@genkit-ai/core/logging';
 
 type ApiType = 'chat' | 'generate';
 
-// type RequestHeaders =
-//   | Record<string, string>
-//   | ((
-//       params: { serverAddress: string; model: ModelDefinitionDynamic },
-//       request: GenerateRequest
-//     ) => Promise<Record<string, string> | void>);
-
-// type ServerDynamic =
-//     | string
-//     | (( request: GenerateRequest
-//       ) => Promise<string>);
-
-// type ModelDefinitionDynamic = | { name: string; type?: ApiType }
-//                        | (( request: GenerateRequest
-//                        ) => Promise<{ name: string; type?: ApiType }>);
-
 type DynamicConfiguration = 
                       (
                         ( 
@@ -37,11 +21,6 @@ type DynamicConfiguration =
                         ) => Promise<{ serverAddress: string; name: string; type?: ApiType; authToken:Record<string, string>}>
                       );                  
 
-// export interface OllamaDynamicPluginParams {
-//   serverAddress: ServerDynamic;
-//   model: ModelDefinitionDynamic;
-//   requestHeaders?: RequestHeaders;
-// }
 
 export interface OllamaDynamicPluginParams {
   dynamicConfig: DynamicConfiguration;
@@ -52,7 +31,6 @@ export const ollamadynamic: Plugin<[OllamaDynamicPluginParams]> = genkitPlugin(
   async (params: OllamaDynamicPluginParams) => {
     return {
       models: [
-        //ollamadynamicModel(params.model, params.serverAddress, params.requestHeaders)
         ollamadynamicModel(params.dynamicConfig)
       ],
     };
@@ -61,11 +39,7 @@ export const ollamadynamic: Plugin<[OllamaDynamicPluginParams]> = genkitPlugin(
 
 
 
-// function ollamadynamicModel(
-//   modelDynamic: ModelDefinitionDynamic,
-//   serverAddressDynamic: ServerDynamic,
-//   requestHeaders?: RequestHeaders
-// ) {
+
   function ollamadynamicModel(
     dynamicConfig: DynamicConfiguration
   ) {
@@ -95,16 +69,7 @@ export const ollamadynamic: Plugin<[OllamaDynamicPluginParams]> = genkitPlugin(
 
       logger.debug(`ollama dynamic context (${JSON.stringify( input.context?.[0])})`);
 
-      let config: any;
-      // config = typeof dynamicConfig === 'function' ? 
-      // await dynamicConfig({modelName,requestId},input) : 
-      // dynamicConfig;
-
-      config = await dynamicConfig({modelName,requestId},input) as { serverAddress: string; name: string; type?: ApiType; authToken:Record<string, string>};
-
-
-
-
+      const config = await dynamicConfig({modelName,requestId},input) as { serverAddress: string; name: string; type?: ApiType; authToken:Record<string, string>};
 
 
       let model = {name:config.name, type:config.type};
