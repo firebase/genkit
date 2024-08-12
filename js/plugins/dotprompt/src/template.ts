@@ -19,7 +19,9 @@ import { DocumentData } from '@genkit-ai/ai/retriever';
 import Handlebars from 'handlebars';
 import { PromptMetadata } from './metadata.js';
 
-const Promptbars = Handlebars.create();
+const Promptbars: typeof Handlebars =
+  global['dotprompt.handlebars'] || Handlebars.create();
+global['dotprompt.handlebars'] = Promptbars;
 
 function jsonHelper(serializable: any, options: { hash: { indent?: number } }) {
   return new Promptbars.SafeString(

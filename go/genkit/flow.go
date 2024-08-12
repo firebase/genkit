@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"sync"
@@ -98,16 +99,72 @@ type Flow[In, Out, Stream any] struct {
 	tstate       *tracing.State             // set from the action when the flow is defined
 	inputSchema  *jsonschema.Schema         // Schema of the input to the flow
 	outputSchema *jsonschema.Schema         // Schema of the output out of the flow
+	auth         FlowAuth                   // Auth provider and policy checker for the flow.
 	// TODO: scheduler
 	// TODO: experimentalDurable
-	// TODO: authPolicy
 	// TODO: middleware
+}
+
+// runOptions configures a single flow run.
+type runOptions struct {
+	authContext AuthContext // Auth context to pass to auth policy checker when calling a flow directly.
+}
+
+// flowOptions configures a flow.
+type flowOptions struct {
+	auth FlowAuth // Auth provider and policy checker for the flow.
 }
 
 type noStream = func(context.Context, struct{}) error
 
+// AuthContext is the type of the auth context passed to the auth policy checker.
+type AuthContext map[string]any
+
+// FlowAuth configures an auth context provider and an auth policy check for a flow.
+type FlowAuth interface {
+	// ProvideAuthContext sets the auth context on the given context by parsing an auth header.
+	// The parsing logic is provided by the auth provider.
+	ProvideAuthContext(ctx context.Context, authHeader string) (context.Context, error)
+
+	// NewContext sets the auth context on the given context. This is used when
+	// the auth context is provided by the user, rather than by the auth provider.
+	NewContext(ctx context.Context, authContext AuthContext) context.Context
+
+	// FromContext retrieves the auth context from the given context.
+	FromContext(ctx context.Context) AuthContext
+
+	// CheckAuthPolicy checks the auth context against policy.
+	CheckAuthPolicy(ctx context.Context, input any) error
+}
+
 // streamingCallback is the type of streaming callbacks.
 type streamingCallback[Stream any] func(context.Context, Stream) error
+
+// FlowOption modifies the flow with the provided option.
+type FlowOption func(opts *flowOptions)
+
+// FlowRunOption modifies a flow run with the provided option.
+type FlowRunOption func(opts *runOptions)
+
+// WithFlowAuth sets an auth provider and policy checker for the flow.
+func WithFlowAuth(auth FlowAuth) FlowOption {
+	return func(f *flowOptions) {
+		if f.auth != nil {
+			log.Panic("auth already set in flow")
+		}
+		f.auth = auth
+	}
+}
+
+// WithLocalAuth configures an option to run or stream a flow with a local auth value.
+func WithLocalAuth(authContext AuthContext) FlowRunOption {
+	return func(opts *runOptions) {
+		if opts.authContext != nil {
+			log.Panic("authContext already set in runOptions")
+		}
+		opts.authContext = authContext
+	}
+}
 
 // DefineFlow creates a Flow that runs fn, and registers it as an action.
 //
@@ -115,11 +172,12 @@ type streamingCallback[Stream any] func(context.Context, Stream) error
 func DefineFlow[In, Out any](
 	name string,
 	fn func(ctx context.Context, input In) (Out, error),
+	opts ...FlowOption,
 ) *Flow[In, Out, struct{}] {
 	return defineFlow(registry.Global, name, core.Func[In, Out, struct{}](
 		func(ctx context.Context, input In, cb func(ctx context.Context, _ struct{}) error) (Out, error) {
 			return fn(ctx, input)
-		}))
+		}), opts...)
 }
 
 // DefineStreamingFlow creates a streaming Flow that runs fn, and registers it as an action.
@@ -134,11 +192,12 @@ func DefineFlow[In, Out any](
 func DefineStreamingFlow[In, Out, Stream any](
 	name string,
 	fn func(ctx context.Context, input In, callback func(context.Context, Stream) error) (Out, error),
+	opts ...FlowOption,
 ) *Flow[In, Out, Stream] {
-	return defineFlow(registry.Global, name, core.Func[In, Out, Stream](fn))
+	return defineFlow(registry.Global, name, core.Func[In, Out, Stream](fn), opts...)
 }
 
-func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.Func[In, Out, Stream]) *Flow[In, Out, Stream] {
+func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.Func[In, Out, Stream], opts ...FlowOption) *Flow[In, Out, Stream] {
 	var i In
 	var o Out
 	f := &Flow[In, Out, Stream]{
@@ -148,12 +207,27 @@ func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.
 		outputSchema: base.InferJSONSchema(o),
 		// TODO: set stateStore?
 	}
+	flowOpts := &flowOptions{}
+	for _, opt := range opts {
+		opt(flowOpts)
+	}
+	f.auth = flowOpts.auth
 	metadata := map[string]any{
 		"inputSchema":  f.inputSchema,
 		"outputSchema": f.outputSchema,
+		"requiresAuth": f.auth != nil,
 	}
 	afunc := func(ctx context.Context, inst *flowInstruction[In], cb func(context.Context, Stream) error) (*flowState[In, Out], error) {
 		tracing.SetCustomMetadataAttr(ctx, "flow:wrapperAction", "true")
+		// Only non-durable flows have an auth policy so can safely assume Start.Input.
+		if inst.Start != nil {
+			if f.auth != nil {
+				ctx = f.auth.NewContext(ctx, inst.Auth)
+			}
+			if err := f.checkAuthPolicy(ctx, any(inst.Start.Input)); err != nil {
+				return nil, err
+			}
+		}
 		return f.runInstruction(ctx, inst, streamingCallback[Stream](cb))
 	}
 	core.DefineActionInRegistry(r, "", f.name, atype.Flow, metadata, nil, afunc)
@@ -167,18 +241,19 @@ func defineFlow[In, Out, Stream any](r *registry.Registry, name string, fn core.
 // A flowInstruction is an instruction to follow with a flow.
 // It is the input for the flow's action.
 // Exactly one field will be non-nil.
-type flowInstruction[I any] struct {
-	Start        *startInstruction[I]     `json:"start,omitempty"`
+type flowInstruction[In any] struct {
+	Start        *startInstruction[In]    `json:"start,omitempty"`
 	Resume       *resumeInstruction       `json:"resume,omitempty"`
-	Schedule     *scheduleInstruction[I]  `json:"schedule,omitempty"`
+	Schedule     *scheduleInstruction[In] `json:"schedule,omitempty"`
 	RunScheduled *runScheduledInstruction `json:"runScheduled,omitempty"`
 	State        *stateInstruction        `json:"state,omitempty"`
 	Retry        *retryInstruction        `json:"retry,omitempty"`
+	Auth         map[string]any           `json:"auth,omitempty"`
 }
 
 // A startInstruction starts a flow.
-type startInstruction[I any] struct {
-	Input  I                 `json:"input,omitempty"`
+type startInstruction[In any] struct {
+	Input  In                `json:"input,omitempty"`
 	Labels map[string]string `json:"labels,omitempty"`
 }
 
@@ -189,9 +264,9 @@ type resumeInstruction struct {
 }
 
 // A scheduleInstruction schedules a flow to start at a later time.
-type scheduleInstruction[I any] struct {
+type scheduleInstruction[In any] struct {
 	DelaySecs float64 `json:"delay,omitempty"`
-	Input     I       `json:"input,omitempty"`
+	Input     In      `json:"input,omitempty"`
 }
 
 // A runScheduledInstruction starts a scheduled flow.
@@ -324,7 +399,7 @@ func (f *Flow[In, Out, Stream]) runInstruction(ctx context.Context, inst *flowIn
 // Name returns the name that the flow was defined with.
 func (f *Flow[In, Out, Stream]) Name() string { return f.name }
 
-func (f *Flow[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMessage, cb streamingCallback[json.RawMessage]) (json.RawMessage, error) {
+func (f *Flow[In, Out, Stream]) runJSON(ctx context.Context, authHeader string, input json.RawMessage, cb streamingCallback[json.RawMessage]) (json.RawMessage, error) {
 	// Validate input before unmarshaling it because invalid or unknown fields will be discarded in the process.
 	if err := base.ValidateJSON(input, f.inputSchema); err != nil {
 		return nil, &base.HTTPError{Code: http.StatusBadRequest, Err: err}
@@ -332,6 +407,13 @@ func (f *Flow[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMessa
 	var in In
 	if err := json.Unmarshal(input, &in); err != nil {
 		return nil, &base.HTTPError{Code: http.StatusBadRequest, Err: err}
+	}
+	newCtx, err := f.provideAuthContext(ctx, authHeader)
+	if err != nil {
+		return nil, &base.HTTPError{Code: http.StatusUnauthorized, Err: err}
+	}
+	if err := f.checkAuthPolicy(newCtx, in); err != nil {
+		return nil, &base.HTTPError{Code: http.StatusForbidden, Err: err}
 	}
 	// If there is a callback, wrap it to turn an S into a json.RawMessage.
 	var callback streamingCallback[Stream]
@@ -359,6 +441,28 @@ func (f *Flow[In, Out, Stream]) runJSON(ctx context.Context, input json.RawMessa
 		return nil, res.err
 	}
 	return json.Marshal(res.Response)
+}
+
+// provideAuthContext provides auth context for the given auth header if flow auth is configured.
+func (f *Flow[In, Out, Stream]) provideAuthContext(ctx context.Context, authHeader string) (context.Context, error) {
+	if f.auth != nil {
+		newCtx, err := f.auth.ProvideAuthContext(ctx, authHeader)
+		if err != nil {
+			return nil, fmt.Errorf("unauthorized: %w", err)
+		}
+		return newCtx, nil
+	}
+	return ctx, nil
+}
+
+// checkAuthPolicy checks auth context against the policy if flow auth is configured.
+func (f *Flow[In, Out, Stream]) checkAuthPolicy(ctx context.Context, input any) error {
+	if f.auth != nil {
+		if err := f.auth.CheckAuthPolicy(ctx, input); err != nil {
+			return fmt.Errorf("permission denied for resource: %w", err)
+		}
+	}
+	return nil
 }
 
 // start starts executing the flow with the given input.
@@ -569,11 +673,21 @@ func Run[Out any](ctx context.Context, name string, f func() (Out, error)) (Out,
 
 // Run runs the flow in the context of another flow. The flow must run to completion when started
 // (that is, it must not have interrupts).
-func (f *Flow[In, Out, Stream]) Run(ctx context.Context, input In) (Out, error) {
-	return f.run(ctx, input, nil)
+func (f *Flow[In, Out, Stream]) Run(ctx context.Context, input In, opts ...FlowRunOption) (Out, error) {
+	return f.run(ctx, input, nil, opts...)
 }
 
-func (f *Flow[In, Out, Stream]) run(ctx context.Context, input In, cb func(context.Context, Stream) error) (Out, error) {
+func (f *Flow[In, Out, Stream]) run(ctx context.Context, input In, cb func(context.Context, Stream) error, opts ...FlowRunOption) (Out, error) {
+	runOpts := &runOptions{}
+	for _, opt := range opts {
+		opt(runOpts)
+	}
+	if runOpts.authContext != nil && f.auth != nil {
+		ctx = f.auth.NewContext(ctx, runOpts.authContext)
+	}
+	if err := f.checkAuthPolicy(ctx, input); err != nil {
+		return base.Zero[Out](), err
+	}
 	state, err := f.start(ctx, input, cb)
 	if err != nil {
 		return base.Zero[Out](), err
@@ -602,7 +716,7 @@ type StreamFlowValue[Out, Stream any] struct {
 // again.
 //
 // Otherwise the Stream field of the passed [StreamFlowValue] holds a streamed result.
-func (f *Flow[In, Out, Stream]) Stream(ctx context.Context, input In) func(func(*StreamFlowValue[Out, Stream], error) bool) {
+func (f *Flow[In, Out, Stream]) Stream(ctx context.Context, input In, opts ...FlowRunOption) func(func(*StreamFlowValue[Out, Stream], error) bool) {
 	return func(yield func(*StreamFlowValue[Out, Stream], error) bool) {
 		cb := func(ctx context.Context, s Stream) error {
 			if ctx.Err() != nil {
@@ -613,7 +727,7 @@ func (f *Flow[In, Out, Stream]) Stream(ctx context.Context, input In) func(func(
 			}
 			return nil
 		}
-		output, err := f.run(ctx, input, cb)
+		output, err := f.run(ctx, input, cb, opts...)
 		if err != nil {
 			yield(nil, err)
 		} else {
