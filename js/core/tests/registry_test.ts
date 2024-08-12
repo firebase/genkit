@@ -15,7 +15,7 @@
  */
 
 import assert from 'node:assert';
-import { beforeEach, describe, it } from 'node:test';
+import { afterEach, beforeEach, describe, it } from 'node:test';
 import { action } from '../src/action.js';
 import {
   Registry,
@@ -24,13 +24,11 @@ import {
   lookupAction,
   registerAction,
   registerPluginProvider,
-  runInIsolatedRegistry,
-  runInRegistry,
-  runInTempRegistry,
 } from '../src/registry.js';
 
 describe('global registry', () => {
   beforeEach(__hardResetRegistryForTesting);
+  afterEach(__hardResetRegistryForTesting);
 
   describe('listActions', () => {
     it('returns all registered actions', async () => {
@@ -216,6 +214,7 @@ describe('registry class', () => {
         },
         async () => null
       );
+      registry.registerAction('custom', fooSomethingAction);
       registry.registerPluginProvider('bar', {
         name: 'bar',
         async initializer() {
@@ -232,10 +231,11 @@ describe('registry class', () => {
         },
         async () => null
       );
+      registry.registerAction('custom', barSomethingAction);
 
       assert.deepEqual(await registry.listActions(), {
-        '/model/foo/something': fooSomethingAction,
-        '/model/bar/something': barSomethingAction,
+        '/custom/foo/something': fooSomethingAction,
+        '/custom/bar/something': barSomethingAction,
       });
     });
 
@@ -372,58 +372,6 @@ describe('registry class', () => {
         await childRegistry.lookupAction('/model/foo'),
         fooAction
       );
-    });
-  });
-
-  describe('runInTempRegistry', () => {
-    it('should lookup parent registry when child missing action', async () => {
-      const fooAction = action({ name: 'foo' }, async () => null);
-      const barAction = action({ name: 'bar' }, async () => null);
-      registerAction('model', barAction);
-
-      await runInTempRegistry(async () => {
-        registerAction('model', fooAction);
-        assert.strictEqual(await lookupAction('/model/bar'), barAction);
-        assert.strictEqual(await lookupAction('/model/foo'), fooAction);
-      });
-      assert.strictEqual(await lookupAction('/model/foo'), undefined);
-    });
-  });
-
-  describe('runInIsolatedRegistry', () => {
-    it('should not lookup parent registry when child missing action', async () => {
-      const fooAction = action({ name: 'foo' }, async () => null);
-      const barAction = action({ name: 'bar' }, async () => null);
-      registerAction('model', barAction);
-
-      await runInIsolatedRegistry(async () => {
-        registerAction('model', fooAction);
-        assert.strictEqual(await lookupAction('/model/bar'), undefined);
-        assert.strictEqual(await lookupAction('/model/foo'), fooAction);
-      });
-      assert.strictEqual(await lookupAction('/model/foo'), undefined);
-    });
-  });
-
-  describe('runInRegistry', () => {
-    it('should use the provided registry', async () => {
-      const childRegistry = new Registry();
-
-      const fooAction = action({ name: 'foo' }, async () => null);
-
-      runInRegistry(childRegistry, () => {
-        registerAction('model', fooAction);
-      });
-
-      assert.strictEqual(await registry.lookupAction('/model/foo'), undefined);
-      assert.strictEqual(
-        await childRegistry.lookupAction('/model/foo'),
-        fooAction
-      );
-      assert.strictEqual(await lookupAction('/model/foo'), undefined);
-      await runInRegistry(childRegistry, async () => {
-        assert.strictEqual(await lookupAction('/model/foo'), fooAction);
-      });
     });
   });
 });

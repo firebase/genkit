@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { AsyncLocalStorage } from 'node:async_hooks';
 import * as z from 'zod';
 import { Action } from './action.js';
 import { FlowStateStore } from './flowTypes.js';
@@ -229,7 +228,6 @@ export class Registry {
     }
     this.allPluginsInitialized = true;
   }
-  
 
   registerTraceStore(
     env: string,
@@ -304,7 +302,7 @@ export class Registry {
         return cached;
       },
     };
-    }
+  }
 
   lookupPlugin(name: string) {
     return this.pluginsByName[name] || this.parent?.lookupPlugin(name);
@@ -332,42 +330,12 @@ export class Registry {
 // global regustry instance
 global[REGISTRY_KEY] = new Registry();
 
-const registryAls = new AsyncLocalStorage<Registry>();
-
-/**
- * Executes provided function with within the provided registry.
- */
-export function runInRegistry<O>(
-  registry: Registry,
-  fn: (registry: Registry) => O
-): O {
-  return registryAls.run(registry, () => fn(registry));
+/** Returns the current registry instance. */
+export function getRegistryInstance(): Registry {
+  return global[REGISTRY_KEY];
 }
 
-/**
- * Executes provided function with within an isolated registry that has no
- * visibility into global namespace.
- */
-export function runInIsolatedRegistry<O>(fn: (registry: Registry) => O): O {
-  const registry = new Registry();
-  return runInRegistry(registry, fn);
-}
-
-/**
- * Executes provided function within a temporary registry overlaid onto the
- * provided registry that will be immediately discarded at the end with no
- * changes to the original.
- */
-export function runInTempRegistry<O>(fn: (registry: Registry) => O): O {
-  const registry = Registry.withCurrent();
-  return runInRegistry(registry, fn);
-}
-
-/**
- * Returns the current registry instance:
- *  - if running within `runWithRegistry` then return that registry
- *  - else return the global registry.
- */
-function getRegistryInstance(): Registry {
-  return registryAls.getStore() || global[REGISTRY_KEY];
+/** Sets global registry instance. */
+export function setRegistryInstance(reg: Registry) {
+  global[REGISTRY_KEY] = reg;
 }
