@@ -216,7 +216,7 @@ export const generateAction = defineAction(
       ...input,
       history: [...request.messages, selected.message],
       prompt: toolResponses,
-    }
+    };
     return await generateAction(nextRequest);
   }
 );
