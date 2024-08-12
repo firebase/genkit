@@ -202,3 +202,4 @@ Genkit provides a command-line interface (CLI) and a local Developer UI to make 
 
 Learn how to build your first AI application with Genkit in our [Get started](/docs/genkit/get-started) guide.
 
+{% endblock %}
