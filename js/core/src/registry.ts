@@ -73,6 +73,13 @@ export function registerAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 type ActionsRecord = Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>>;
 
 /**
+ * Initialize all plugins in the registry.
+ */
+export async function initializeAllPlugins() {
+  await getRegistryInstance().initializeAllPlugins();
+}
+
+/**
  * Returns all actions in the registry.
  */
 export function listActions(): Promise<ActionsRecord> {
