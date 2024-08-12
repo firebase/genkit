@@ -212,10 +212,12 @@ export const generateAction = defineAction(
         };
       })
     );
-    input.history = request.messages;
-    input.history.push(selected.message);
-    input.prompt = toolResponses;
-    return await generateAction(input);
+    const nextRequest = {
+      ...input,
+      history: [...request.messages, selected.message],
+      prompt: toolResponses,
+    }
+    return await generateAction(nextRequest);
   }
 );
 
