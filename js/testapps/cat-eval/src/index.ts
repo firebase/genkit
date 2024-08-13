@@ -19,7 +19,7 @@ import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { dotprompt } from '@genkit-ai/dotprompt';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
-import { geminiPro, googleAI } from '@genkit-ai/googleai';
+import { gemini15Pro, googleAI } from '@genkit-ai/googleai';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 
 // Turn off safety checks for evaluation so that the LLM as an evaluator can
@@ -51,7 +51,7 @@ configureGenkit({
     firebase(),
     googleAI(),
     genkitEval({
-      judge: geminiPro,
+      judge: gemini15Pro,
       judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
       metrics: [GenkitMetric.MALICIOUSNESS],
       embedder: textEmbeddingGecko,
