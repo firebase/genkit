@@ -25,9 +25,10 @@ import {
   ModelArgument,
 } from './model.js';
 
-export type PromptFn<I extends z.ZodTypeAny = z.ZodTypeAny> = (
-  input: z.infer<I>
-) => Promise<GenerateRequest>;
+export type PromptFn<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+> = (input: z.infer<I>) => Promise<GenerateRequest<CustomOptionsSchema>>;
 
 export type PromptAction<I extends z.ZodTypeAny = z.ZodTypeAny> = Action<
   I,
@@ -87,6 +88,7 @@ export type PromptArgument<I extends z.ZodTypeAny = z.ZodTypeAny> =
 
 export async function renderPrompt<
   I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(params: {
   prompt: PromptArgument<I>;
@@ -94,19 +96,27 @@ export async function renderPrompt<
   context?: DocumentData[];
   model: ModelArgument<CustomOptions>;
   config?: z.infer<CustomOptions>;
-}): Promise<GenerateOptions> {
+}): Promise<GenerateOptions<O, CustomOptions>> {
   let prompt: PromptAction<I>;
   if (typeof params.prompt === 'string') {
     prompt = await lookupAction(`/prompt/${params.prompt}`);
   } else {
     prompt = params.prompt as PromptAction<I>;
   }
-  const rendered = await prompt(params.input);
+  const rendered = (await prompt(
+    params.input
+  )) as GenerateRequest<CustomOptions>;
   return {
     model: params.model,
     config: { ...(rendered.config || {}), ...params.config },
     history: rendered.messages.slice(0, rendered.messages.length - 1),
     prompt: rendered.messages[rendered.messages.length - 1].content,
     context: params.context,
-  };
+    candidates: rendered.candidates || 1,
+    output: {
+      format: rendered.output?.format,
+      schema: rendered.output?.schema,
+    },
+    tools: rendered.tools || [],
+  } as GenerateOptions<O, CustomOptions>;
 }
