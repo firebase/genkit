@@ -24,7 +24,7 @@ import {
   PromptAction,
   toGenerateRequest,
 } from '@genkit-ai/ai';
-import { GenerationCommonConfigSchema, MessageData } from '@genkit-ai/ai/model';
+import { MessageData, ModelArgument } from '@genkit-ai/ai/model';
 import { DocumentData } from '@genkit-ai/ai/retriever';
 import { GenkitError } from '@genkit-ai/core';
 import { parseSchema } from '@genkit-ai/core/schema';
@@ -42,11 +42,11 @@ import { compile } from './template.js';
 
 export type PromptData = PromptFrontmatter & { template: string };
 
-export type PromptGenerateOptions<V = unknown> = Omit<
-  GenerateOptions<z.ZodTypeAny, typeof GenerationCommonConfigSchema>,
-  'prompt' | 'model'
-> & {
-  model?: string;
+export type PromptGenerateOptions<
+  V = unknown,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+> = Omit<GenerateOptions<z.ZodTypeAny, CustomOptions>, 'prompt' | 'model'> & {
+  model?: ModelArgument<CustomOptions>;
   input?: V;
 };
 
@@ -55,7 +55,9 @@ interface RenderMetadata {
   history?: MessageData[];
 }
 
-export class Dotprompt<Variables = unknown> implements PromptMetadata {
+export class Dotprompt<Variables = unknown>
+  implements PromptMetadata<z.ZodTypeAny>
+{
   name: string;
   variant?: string;
   hash: string;
@@ -166,9 +168,12 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
     );
   }
 
-  private _generateOptions<O extends z.ZodTypeAny = z.ZodTypeAny>(
+  private _generateOptions<
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
     options: PromptGenerateOptions<Variables>
-  ): GenerateOptions<z.ZodTypeAny, O> {
+  ): GenerateOptions<O, CustomOptions> {
     const messages = this.renderMessages(options.input, {
       history: options.history,
       context: options.context,
@@ -188,25 +193,31 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
       tools: (options.tools || []).concat(this.tools || []),
       streamingCallback: options.streamingCallback,
       returnToolRequests: options.returnToolRequests,
-    } as GenerateOptions<z.ZodTypeAny, O>;
+    } as GenerateOptions<O, CustomOptions>;
   }
 
-  render<O extends z.ZodTypeAny = z.ZodTypeAny>(
-    opt: PromptGenerateOptions<Variables>
-  ): GenerateOptions<z.ZodTypeAny, O> {
-    return this._generateOptions<O>(opt);
+  render<
+    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    opt: PromptGenerateOptions<Variables, CustomOptions>
+  ): GenerateOptions<CustomOptions, O> {
+    return this._generateOptions(opt);
   }
 
-  async generate<O extends z.ZodTypeAny = z.ZodTypeAny>(
-    opt: PromptGenerateOptions<Variables>
+  async generate<
+    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    opt: PromptGenerateOptions<Variables, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> {
-    return generate<z.ZodTypeAny, O>(this.render<O>(opt));
+    return generate<CustomOptions, O>(this.render<CustomOptions, O>(opt));
   }
 
-  async generateStream(
-    opt: PromptGenerateOptions<Variables>
+  async generateStream<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny>(
+    opt: PromptGenerateOptions<Variables, CustomOptions>
   ): Promise<GenerateStreamResponse> {
-    return generateStream(this.render(opt));
+    return generateStream(this.render<CustomOptions>(opt));
   }
 }
 
@@ -238,23 +249,32 @@ export class DotpromptRef<Variables = unknown> {
     return this._prompt;
   }
 
-  async generate<O extends z.ZodTypeAny = z.ZodTypeAny>(
-    opt: PromptGenerateOptions<Variables>
+  async generate<
+    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    opt: PromptGenerateOptions<Variables, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> {
     const prompt = await this.loadPrompt();
-    return prompt.generate<O>(opt);
+    return prompt.generate<CustomOptions, O>(opt);
   }
 
-  async render<O extends z.ZodTypeAny = z.ZodTypeAny>(
-    opt: PromptGenerateOptions<Variables>
+  async render<
+    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    opt: PromptGenerateOptions<Variables, CustomOptions>
   ): Promise<GenerateOptions<z.ZodTypeAny, O>> {
     const prompt = await this.loadPrompt();
-    return prompt.render<O>(opt);
+    return prompt.render<CustomOptions, O>(opt);
   }
 }
 
-export function defineDotprompt<V extends z.ZodTypeAny = z.ZodTypeAny>(
-  options: PromptMetadata<V>,
+export function defineDotprompt<
+  V extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  options: PromptMetadata<V, CustomOptions>,
   template: string
 ): Dotprompt<z.infer<V>> {
   const prompt = new Dotprompt(options, template);
