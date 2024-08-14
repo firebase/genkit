@@ -229,10 +229,11 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
   >(opt: PromptGenerateOptions<I>): Promise<GenerateOptions<CustomOptions, O>> {
+    const spanName = this.variant ? `${this.name}.${this.variant}` : this.name;
     return runInNewSpan(
       {
         metadata: {
-          name: this.name,
+          name: spanName,
           input: opt,
         },
         labels: {
