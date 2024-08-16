@@ -133,7 +133,7 @@ export interface FlowConfig<
   /** Experimental. Whether the flow is durable. */
   experimentalDurable?: boolean;
   /** Experimental. Scheduler for a durable flow. `experimentalDurable` must be true. */
-  experimentalScheduler?: Scheduler<I, O, z.ZodVoid>;
+  experimentalScheduler?: Scheduler<I, O>;
 }
 
 /**

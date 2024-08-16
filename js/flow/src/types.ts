@@ -31,9 +31,8 @@ export type Invoker<
 export type Scheduler<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
 > = (
-  flow: Flow<I, O, S>,
+  flow: Flow<I, O, z.ZodVoid>,
   msg: FlowInvokeEnvelopeMessage,
   delaySeconds?: number
 ) => Promise<void>;

@@ -18,8 +18,8 @@ import { configureGenkit } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import {
   defineFlow,
+  defineStreamingFlow,
   run,
-  runFlow,
   runMap,
   startFlowsServer,
 } from '@genkit-ai/flow';
@@ -57,7 +57,7 @@ export const basic = defineFlow({ name: 'basic' }, async (subject) => {
 export const parent = defineFlow(
   { name: 'parent', outputSchema: z.string() },
   async () => {
-    return JSON.stringify(await runFlow(basic, 'foo'));
+    return JSON.stringify(await basic('foo'));
   }
 );
 
@@ -187,7 +187,7 @@ export const waity = durableFlow(
 );
 
 // genkit flow:run streamy 5 -s
-export const streamy = defineFlow(
+export const streamy = defineStreamingFlow(
   {
     name: 'streamy',
     inputSchema: z.number(),
@@ -207,7 +207,7 @@ export const streamy = defineFlow(
 );
 
 // genkit flow:run streamy 5 -s
-export const streamyThrowy = defineFlow(
+export const streamyThrowy = defineStreamingFlow(
   {
     name: 'streamyThrowy',
     inputSchema: z.number(),
