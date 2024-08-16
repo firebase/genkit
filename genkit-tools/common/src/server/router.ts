@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 import { initTRPC, TRPCError } from '@trpc/server';
-import { getEvalStore } from '../eval';
+import { z } from 'zod';
+import { getDatasetStore, getEvalStore } from '../eval';
 import { Runner } from '../runner/runner';
 import { GenkitToolsError } from '../runner/types';
 import { Action } from '../types/action';
@@ -200,6 +201,51 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
           });
         }
         return evalRun;
+      }),
+
+    /** Retrieves all eval datasets */
+    listDatasets: loggedProcedure
+      .input(z.void())
+      .output(z.array(evals.DatasetMetadataSchema))
+      .query(async () => {
+        const response = await getDatasetStore().listDatasets();
+        return response;
+      }),
+
+    /** Retrieves an existing dataset */
+    getDataset: loggedProcedure
+      .input(z.string())
+      .output(evals.EvalFlowInputSchema)
+      .query(async ({ input }) => {
+        const response = await getDatasetStore().getDataset(input);
+        return response;
+      }),
+
+    /** Creates a new dataset */
+    createDataset: loggedProcedure
+      .input(apis.CreateDatasetRequestSchema)
+      .output(evals.DatasetMetadataSchema)
+      .query(async ({ input }) => {
+        const response = await getDatasetStore().createDataset(input);
+        return response;
+      }),
+
+    /** Updates an exsting dataset */
+    updateDataset: loggedProcedure
+      .input(apis.UpdateDatasetRequestSchema)
+      .output(evals.DatasetMetadataSchema)
+      .query(async ({ input }) => {
+        const response = await getDatasetStore().updateDataset(input);
+        return response;
+      }),
+
+    /** Deletes an exsting dataset */
+    deleteDataset: loggedProcedure
+      .input(z.string())
+      .output(z.void())
+      .query(async ({ input }) => {
+        const response = await getDatasetStore().deleteDataset(input);
+        return response;
       }),
 
     /** Send a screen view analytics event */
