@@ -198,7 +198,7 @@ export type StepsFunction<
 > = (
   /** Input to the flow. */
   input: z.infer<I>,
-  /** Streaming callback for streaming flows only. */
+  /** Callback for streaming functions only. */
   streamingCallback?: S extends z.ZodVoid
     ? undefined
     : StreamingCallback<z.infer<S>>

@@ -17,10 +17,10 @@
 import { FlowState, FlowStateExecution, Operation } from '@genkit-ai/core';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import {
-  SPAN_TYPE_ATTR,
   runInNewSpan,
   setCustomMetadataAttribute,
   setCustomMetadataAttributes,
+  SPAN_TYPE_ATTR,
 } from '@genkit-ai/core/tracing';
 import { logger } from 'firebase-functions/v1';
 import { z } from 'zod';
@@ -73,7 +73,9 @@ export class Context<
     }
   }
 
-  // Runs provided function in the current context. The config can specify retry and other behaviors.
+  /**
+   * Runs provided function in the current context. The config can specify retry and other behaviors.
+   */
   async run<T>(
     config: RunStepConfig,
     input: any | undefined,
@@ -124,8 +126,10 @@ export class Context<
     return name;
   }
 
-  // Executes interrupt step in the current context.
-  async interrupt<I extends z.ZodTypeAny, O>(
+  /**
+   * Executes interrupt step.
+   */
+  async interrupt(
     stepName: string,
     func: (payload: I) => Promise<O>,
     responseSchema: I | null,
@@ -189,16 +193,20 @@ export class Context<
     );
   }
 
-  // Sleep for the specified number of seconds.
+  /**
+   * Sleep for the specified number of seconds.
+   */
   async sleep(stepName: string, seconds: number): Promise<O> {
+    if (!this.flow.scheduler) {
+      throw new Error('Cannot sleep in a flow with no scheduler.');
+    }
     const resolvedStepName = this.resolveStepName(stepName);
     if (this.isCached(resolvedStepName)) {
       setCustomMetadataAttribute(metadataPrefix('state'), 'skipped');
       return this.getCached(resolvedStepName);
     }
-
-    await this.flow.scheduler?.(
-      this.flow as unknown as Flow<I, O, z.ZodVoid>,
+    await this.flow.scheduler(
+      this.flow,
       {
         runScheduled: {
           flowId: this.flowId,
@@ -224,6 +232,9 @@ export class Context<
     flowIds: string[];
     pollingConfig?: PollingConfig;
   }): Promise<Operation[]> {
+    if (!this.flow.scheduler) {
+      throw new Error('Cannot wait for a flow with no scheduler.');
+    }
     const resolvedStepName = this.resolveStepName(opts.stepName);
     if (this.isCached(resolvedStepName)) {
       return this.getCached(resolvedStepName);
@@ -241,8 +252,8 @@ export class Context<
       this.updateCachedValue(resolvedStepName, states);
       return ops;
     }
-    await this.flow.scheduler?.(
-      this.flow as unknown as Flow<I, O, z.ZodVoid>,
+    await this.flow.scheduler(
+      this.flow,
       {
         runScheduled: {
           flowId: this.flowId,
