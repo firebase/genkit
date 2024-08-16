@@ -190,18 +190,15 @@ export class Context<
   }
 
   // Sleep for the specified number of seconds.
-  async sleep<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
-    stepName: string,
-    seconds: number
-  ): Promise<O> {
+  async sleep(stepName: string, seconds: number): Promise<O> {
     const resolvedStepName = this.resolveStepName(stepName);
     if (this.isCached(resolvedStepName)) {
       setCustomMetadataAttribute(metadataPrefix('state'), 'skipped');
       return this.getCached(resolvedStepName);
     }
 
-    await this.flow.scheduler(
-      this.flow,
+    await this.flow.scheduler?.(
+      this.flow as unknown as Flow<I, O, z.ZodVoid>,
       {
         runScheduled: {
           flowId: this.flowId,
@@ -244,8 +241,8 @@ export class Context<
       this.updateCachedValue(resolvedStepName, states);
       return ops;
     }
-    await this.flow.scheduler(
-      this.flow,
+    await this.flow.scheduler?.(
+      this.flow as unknown as Flow<I, O, z.ZodVoid>,
       {
         runScheduled: {
           flowId: this.flowId,

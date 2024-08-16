@@ -36,12 +36,10 @@ import { callHttpsFunction, getFunctionUrl, getLocation } from './helpers.js';
 interface ScheduledFlowConfig<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
 > {
   name: string;
   inputSchema?: I;
   outputSchema?: O;
-  streamSchema?: S;
   taskQueueOptions?: TaskQueueOptions;
 }
 
@@ -53,18 +51,17 @@ interface ScheduledFlowConfig<
 export function onScheduledFlow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  config: ScheduledFlowConfig<I, O, S>,
-  steps: StepsFunction<I, O, S>
-): FunctionFlow<I, O, S> {
+  config: ScheduledFlowConfig<I, O>,
+  steps: StepsFunction<I, O, z.ZodVoid>
+): FunctionFlow<I, O> {
   const f = durableFlow(
     {
       ...config,
       invoker: async (flow, data, streamingCallback) => {
         const responseJson = await callHttpsFunction(
           flow.name,
-          await getLocation(),
+          getLocation(),
           data,
           streamingCallback
         );
@@ -79,7 +76,7 @@ export function onScheduledFlow<
 
   const wrapped = wrapScheduledFlow(f, config);
 
-  const funcFlow = wrapped as FunctionFlow<I, O, S>;
+  const funcFlow = wrapped as FunctionFlow<I, O>;
   funcFlow.flow = f;
 
   return funcFlow;
@@ -88,8 +85,10 @@ export function onScheduledFlow<
 function wrapScheduledFlow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
->(flow: Flow<I, O, S>, config: ScheduledFlowConfig<I, O, S>): HttpsFunction {
+>(
+  flow: Flow<I, O, z.ZodVoid>,
+  config: ScheduledFlowConfig<I, O>
+): HttpsFunction {
   const tq = onTaskDispatched<FlowInvokeEnvelopeMessage>(
     {
       ...config.taskQueueOptions,

@@ -102,32 +102,67 @@ export interface __RequestWithAuth extends express.Request {
 }
 
 /**
- * Defines the flow.
+ * Base configuration for a flow.
+ */
+export interface BaseFlowConfig<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  /** Name of the flow. */
+  name: string;
+  /** Schema of the input to the flow. */
+  inputSchema?: I;
+  /** Schema of the output from the flow. */
+  outputSchema?: O;
+  /** Auth policy. */
+  authPolicy?: FlowAuthPolicy<I>;
+  /** Middleware for HTTP requests. Not called for direct invocations. */
+  middleware?: express.RequestHandler[];
+  /** Invoker for the flow. Defaults to local dispatcher. */
+  invoker?: Invoker<I, O, S>;
+}
+
+/**
+ * Configuration for a non-streaming flow.
+ */
+export interface FlowConfig<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+> extends BaseFlowConfig<I, O, z.ZodVoid> {
+  /** Experimental. Whether the flow is durable. */
+  experimentalDurable?: boolean;
+  /** Experimental. Scheduler for a durable flow. `experimentalDurable` must be true. */
+  experimentalScheduler?: Scheduler<I, O, z.ZodVoid>;
+}
+
+/**
+ * Configuration for a streaming flow.
+ */
+export interface StreamingFlowConfig<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> extends BaseFlowConfig<I, O, S> {
+  /** Schema of the streaming chunks from the flow. */
+  streamSchema?: S;
+}
+
+/**
+ * Defines a non-streaming flow.
  */
 export function defineFlow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  config: {
-    name: string;
-    inputSchema?: I;
-    outputSchema?: O;
-    streamSchema?: S;
-    authPolicy?: FlowAuthPolicy<I>;
-    middleware?: express.RequestHandler[];
-    invoker?: Invoker<I, O, S>;
-    experimentalDurable?: boolean;
-    experimentalScheduler?: Scheduler<I, O, S>;
-  },
-  steps: StepsFunction<I, O, S>
-): Flow<I, O, S> {
-  const f = new Flow(
+  config: FlowConfig<I, O>,
+  steps: StepsFunction<I, O, z.ZodVoid>
+): CallableFlow<I, O> {
+  const f = new Flow<I, O, z.ZodVoid>(
     {
       name: config.name,
       inputSchema: config.inputSchema,
       outputSchema: config.outputSchema,
-      streamSchema: config.streamSchema,
       experimentalDurable: !!config.experimentalDurable,
       stateStore: globalConfig
         ? () => globalConfig.getFlowStateStore()
@@ -135,11 +170,11 @@ export function defineFlow<
       authPolicy: config.authPolicy,
       middleware: config.middleware,
       // We always use local dispatcher in dev mode or when one is not provided.
-      invoker: async (flow, msg, streamingCallback) => {
+      invoker: async (flow, msg) => {
         if (!isDevEnv() && config.invoker) {
-          return config.invoker(flow, msg, streamingCallback);
+          return config.invoker(flow, msg);
         }
-        const state = await flow.runEnvelope(msg, streamingCallback);
+        const state = await flow.runEnvelope(msg);
         return state.operation;
       },
       scheduler: async (flow, msg, delay = 0) => {
@@ -158,14 +193,75 @@ export function defineFlow<
   );
   createdFlows().push(f);
   wrapAsAction(f);
-  return f;
+  const callableFlow: CallableFlow<I, O> = async (input, opts) => {
+    return runFlow(f, input, opts);
+  };
+  callableFlow.flow = f;
+  return callableFlow;
 }
 
-export interface FlowWrapper<
+/**
+ * Defines a streaming flow.
+ */
+export function defineStreamingFlow<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  config: StreamingFlowConfig<I, O, S>,
+  steps: StepsFunction<I, O, S>
+): StreamableFlow<I, O, S> {
+  const f = new Flow(
+    {
+      name: config.name,
+      inputSchema: config.inputSchema,
+      outputSchema: config.outputSchema,
+      experimentalDurable: false,
+      stateStore: globalConfig
+        ? () => globalConfig.getFlowStateStore()
+        : undefined,
+      authPolicy: config.authPolicy,
+      middleware: config.middleware,
+      // We always use local dispatcher in dev mode or when one is not provided.
+      invoker: async (flow, msg, streamingCallback) => {
+        if (!isDevEnv() && config.invoker) {
+          return config.invoker(flow, msg, streamingCallback);
+        }
+        const state = await flow.runEnvelope(msg, streamingCallback);
+        return state.operation;
+      },
+    },
+    steps
+  );
+  createdFlows().push(f);
+  wrapAsAction(f);
+  const streamableFlow: StreamableFlow<I, O, S> = (input, opts) => {
+    return streamFlow(f, input, opts);
+  };
+  streamableFlow.flow = f;
+  return streamableFlow;
+}
+
+export interface CallableFlow<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  (
+    input?: z.infer<I>,
+    opts?: { withLocalAuthContext?: unknown }
+  ): Promise<z.infer<O>>;
+  flow: Flow<I, O, z.ZodVoid>;
+}
+
+export interface StreamableFlow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 > {
+  (
+    input?: z.infer<I>,
+    opts?: { withLocalAuthContext?: unknown }
+  ): StreamingResponse<O, S>;
   flow: Flow<I, O, S>;
 }
 
@@ -180,7 +276,7 @@ export class Flow<
   readonly streamSchema?: S;
   readonly stateStore?: () => Promise<FlowStateStore>;
   readonly invoker: Invoker<I, O, S>;
-  readonly scheduler: Scheduler<I, O, S>;
+  readonly scheduler?: S extends z.ZodVoid ? Scheduler<I, O> : undefined;
   readonly experimentalDurable: boolean;
   readonly authPolicy?: FlowAuthPolicy<I>;
   readonly middleware?: express.RequestHandler[];
@@ -193,7 +289,7 @@ export class Flow<
       streamSchema?: S;
       stateStore?: () => Promise<FlowStateStore>;
       invoker: Invoker<I, O, S>;
-      scheduler: Scheduler<I, O, S>;
+      scheduler?: S extends z.ZodVoid ? Scheduler<I, O> : undefined;
       experimentalDurable: boolean;
       authPolicy?: FlowAuthPolicy<I>;
       middleware?: express.RequestHandler[];
@@ -282,8 +378,8 @@ export class Flow<
       const state = createNewState(flowId, this.name, req.schedule.input);
       try {
         await (await this.stateStore()).save(flowId, state);
-        await this.scheduler(
-          this,
+        await this.scheduler?.(
+          this as unknown as Flow<I, O, z.ZodVoid>, // TODO: Fix this hack?
           { runScheduled: { flowId } } as FlowInvokeEnvelopeMessage,
           req.schedule.delay
         );
@@ -388,8 +484,8 @@ export class Flow<
     ctx: Context<I, O, S>,
     handler: StepsFunction<I, O, S>,
     dispatchType: string,
-    streamingCallback: StreamingCallback<any> | undefined,
-    labels: Record<string, string> | undefined
+    streamingCallback?: StreamingCallback<any>,
+    labels?: Record<string, string>
   ) {
     const startTimeMs = performance.now();
     await initializeAllPlugins();
@@ -643,18 +739,17 @@ export class Flow<
 /**
  * Runs the flow. If the flow does not get interrupted may return a completed (done=true) operation.
  */
-export async function runFlow<
+async function runFlow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
+  flowOrWrapper: Flow<I, O, z.ZodVoid> | CallableFlow<I, O>,
   payload?: z.infer<I>,
   opts?: { withLocalAuthContext?: unknown }
 ): Promise<z.infer<O>> {
-  if (!(flow instanceof Flow)) {
-    flow = flow.flow;
-  }
+  const flow = !(flowOrWrapper instanceof Flow)
+    ? flowOrWrapper.flow
+    : flowOrWrapper;
 
   const input = flow.inputSchema ? flow.inputSchema.parse(payload) : payload;
   await flow.authPolicy?.(opts?.withLocalAuthContext, payload);
@@ -696,18 +791,18 @@ interface StreamingResponse<
 /**
  * Runs the flow and streams results. If the flow does not get interrupted may return a completed (done=true) operation.
  */
-export function streamFlow<
+function streamFlow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  flowOrFlowWrapper: Flow<I, O, S> | FlowWrapper<I, O, S>,
+  flowOrWrapper: Flow<I, O, S> | StreamableFlow<I, O, S>,
   payload?: z.infer<I>,
   opts?: { withLocalAuthContext?: unknown }
 ): StreamingResponse<O, S> {
-  const flow = !(flowOrFlowWrapper instanceof Flow)
-    ? flowOrFlowWrapper.flow
-    : flowOrFlowWrapper;
+  const flow = !(flowOrWrapper instanceof Flow)
+    ? flowOrWrapper.flow
+    : flowOrWrapper;
 
   let chunkStreamController: ReadableStreamController<z.infer<S>>;
   const chunkStream = new ReadableStream<z.infer<S>>({
@@ -741,7 +836,7 @@ export function streamFlow<
   });
 
   return {
-    output() {
+    async output() {
       return operationPromise.then((op) => {
         if (!op.done) {
           throw new FlowStillRunningError(
@@ -801,7 +896,7 @@ export type StepsFunction<
   S extends z.ZodTypeAny = z.ZodTypeAny,
 > = (
   input: z.infer<I>,
-  streamingCallback: StreamingCallback<z.infer<S>> | undefined
+  streamingCallback?: StreamingCallback<z.infer<S>>
 ) => Promise<z.infer<O>>;
 
 function wrapAsAction<
