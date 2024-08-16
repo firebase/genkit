@@ -1,11 +1,11 @@
 # Prompts
 
-Prompt manipulation is the primary way that you, as an app developer, influence
+Prompt engineering is the primary way that you, as an app developer, influence
 the output of generative AI models. For example, when using LLMs, you can craft
 prompts that influence the tone, format, length, and other characteristics of
 the models’ responses.
 
-Genkit is designed around the premise that _prompts are code_. You write and
+Genkit is designed around the premise that **prompts are code**. You write and
 maintain your prompts in source files, track changes to them using the same version
 control system that you use for your code, and you deploy them along with the code
 that calls your generative AI models.
@@ -17,18 +17,18 @@ approaches are also supported by working with prompts directly.
 ## Defining prompts
 
 Genkit's `generate()` helper function accepts string prompts, and you can
-call models this way for straight-forward use cases.
+call models this way for straightforward use cases.
 
 ```ts
 import { generate } from '@genkit-ai/ai';
 
 generate({
   model: 'googleai/gemini-1.5-flash-latest',
-  prompt: 'You are a helpful AI assistant named Walt.',
+  prompt: 'You are a helpful AI assistant named Walt, say hello',
 });
 ```
 
-In most cases, you will need to include some customer provided inputs in your prompt.
+In some cases you will need to include some customer provided inputs in your prompt.
 You could define a function to render them like this.
 
 ```ts
@@ -42,65 +42,81 @@ generate({
 });
 ```
 
-One shortcoming of defining prompts in your code is that testing requires executing
-them as part of a flow. To facilitate more rapid iteration, Genkit provides a facility
-to define your prompts and run them in the Developer UI.
+However, to facilitate more rapid iteration, Genkit provides a way to define your prompts in a standard format which enables this prompt templating as well as rapid testing in the Developer UI.
 
-Use the `definePrompt` function to register your prompts with Genkit.
+Use the `defineDotprompt` function to define these structred prompts.
 
 ```ts
-import { definePrompt } from '@genkit-ai/ai';
+import { defineDotprompt } from '@genkit-ai/dotprompt'
 import z from 'zod';
 
-export const helloPrompt = definePrompt(
+export const helloPrompt = defineDotprompt(
   {
     name: 'helloPrompt',
-    inputSchema: z.object({ name: z.string() }),
-  },
-  async (input) => {
-    const promptText = `You are a helpful AI assistant named Walt.
-    Say hello to ${input.name}.`;
-
-    return {
-      messages: [{ role: 'user', content: [{ text: promptText }] }],
-      config: { temperature: 0.3 }
-    });
-  }
-);
-```
-
-A prompt action defines a function that returns a `GenerateRequest` object
-which can be used with any model. Optionally, you can also define an input schema
-for the prompt, which is analagous to the input schema for a flow.
-Prompts can also define any of the common model configuration options, such as
-temperature or number of output tokens.
-
-You can use this prompt in your code with the `renderPrompt()` helper function.
-Provide the input variables expected by the prompt, and the model to call.
-
-```javascript
-import { generate, render } from '@genkit-ai/ai';
-
-generate(
-  renderPrompt({
-    prompt: helloPrompt,
-    input: { name: 'Fred' },
     model: 'googleai/gemini-1.5-flash-latest',
-  })
+    input: {
+      schema: z.object({ name: z.string() }),
+    },
+  },
+  `You are a helpful AI assistant named Walt. Say hello to {{name}}`
 );
 ```
 
-In the Genkit Developer UI, you can run any prompt you have defined in this way.
-This allows you to experiment with individual prompts outside of the scope of
+and then call the prompt via
+
+```ts
+helloPrompt.generate({ input: { name: 'Fred' } });
+// Example output: Hello Fred! 👋 It's nice to meet you. How can I help you today? 😊
+```
+
+As shown above, prompts defined this way can specify the structured inputs they accept through the `input.schema` configuration.  This allows you a typesafe way to ensure that prompts can only be invoked with valid sets of inputs.
+
+Dotprompts can also specify an output, which they will pass along to call to the LLM as a directive (either as an in-context message or as an API parameter for LLMs which support a structured output mode). This guarantees that you'll either get a conforming response, or an exception you can deal with cleanly.
+
+```ts
+export const threeGreetingsPrompt = defineDotprompt(
+  {
+    name: 'threeGreetingsPrompt',
+    model: 'googleai/gemini-1.5-flash-latest',
+    input: {
+      schema: z.object({ name: z.string() }),
+    },
+    output: {
+      schema: z.object({
+        short: z.string(),
+        friendly: z.string(),
+        likeAPirate: z.string()
+      })    
+    }
+  },
+  `You are a helpful AI assistant named Walt. Say hello to {{name}}, write a response for each of the styles requested`
+);
+```
+
+You can then call `generate` on that prompt and work with the structred output in the response
+
+```ts
+threeGreetingsPrompt.generate({
+   input: { name: 'Fred' } }).output();
+/* Example output
+{
+  "short": "Hello Fred.",
+  "friendly": "Hi Fred, how are you doing today?",
+  "likeAPirate": "Ahoy there, Fred!  May the winds be ever in your favor!"
+}
+*/
+```
+
+In the Genkit Developer UI, you can run any prompt you have defined in this way.  This allows you to experiment with individual prompts outside of the scope of
 the flows in which they might be used.
+
+<img src="resources/prompts-in-developer-ui.png" alt="The developer UI showing JSON response to the threeGreetingsPrompt" class="screenshot-attempt-right">
 
 ## Dotprompt
 
-Genkit includes the [Dotprompt](./dotprompt.md) library which adds additional
-functionality to prompts.
+See the [Dotprompt](./dotprompt.md) page for more features of the Dotprompt library, including
 
 - Loading prompts from `.prompt` source files
 - Handlebars-based templates
 - Support for multi-turn prompt templates and multimedia content
 - Concise input and output schema definitions
-- Fluent usage with `generate()`
