@@ -93,6 +93,7 @@ func TestProvideAuthContext(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+
 			mockClient := &mockAuthClient{
 				verifyIDTokenFunc: func(ctx context.Context, token string) (*auth.Token, error) {
 					if token == "validtoken" {

@@ -16,31 +16,69 @@ package firebase
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"sync"
 
 	firebase "firebase.google.com/go/v4"
-	"firebase.google.com/go/v4/auth"
 )
 
-type FirebaseApp interface {
-	Auth(ctx context.Context) (*auth.Client, error)
+var state struct {
+	mu      sync.Mutex
+	initted bool
+	app     *firebase.App
 }
 
-var (
-	app   *firebase.App
-	mutex sync.Mutex
-)
+// FirebasePluginConfig is the configuration for the Firebase plugin.
+type FirebasePluginConfig struct {
+	AuthOverride     *map[string]interface{} `json:"databaseAuthVariableOverride"`
+	DatabaseURL      string                  `json:"databaseURL"`
+	ProjectID        string                  `json:"projectId"`
+	ServiceAccountID string                  `json:"serviceAccountId"`
+	StorageBucket    string                  `json:"storageBucket"`
+}
 
-// app returns a cached Firebase app.
-func App(ctx context.Context) (FirebaseApp, error) {
-	mutex.Lock()
-	defer mutex.Unlock()
-	if app == nil {
-		newApp, err := firebase.NewApp(ctx, nil)
-		if err != nil {
-			return nil, err
-		}
-		app = newApp
+// Init initializes the Firebase app with the provided configuration.
+// If called more than once, it logs a message and returns nil.
+func Init(ctx context.Context, cfg *FirebasePluginConfig) error {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+
+	if state.initted {
+		log.Println("firebase.Init: already called, returning without reinitializing")
+		return nil
 	}
-	return app, nil
+
+	// Prepare the Firebase config
+	firebaseConfig := &firebase.Config{
+		AuthOverride:     cfg.AuthOverride,
+		DatabaseURL:      cfg.DatabaseURL,
+		ProjectID:        cfg.ProjectID, // Allow ProjectID to be empty
+		ServiceAccountID: cfg.ServiceAccountID,
+		StorageBucket:    cfg.StorageBucket,
+	}
+
+	// Initialize Firebase app with service account key if provided
+	app, err := firebase.NewApp(ctx, firebaseConfig)
+	if err != nil {
+		return fmt.Errorf("firebase.Init: %w", err)
+	}
+
+	state.app = app
+	state.initted = true
+
+	return nil
+}
+
+// App returns a cached Firebase app.
+// If the app is not initialized, it returns an error.
+func App(ctx context.Context) (*firebase.App, error) {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+
+	if !state.initted {
+		return nil, fmt.Errorf("firebase.App: Firebase app not initialized. Call Init first")
+	}
+
+	return state.app, nil
 }
