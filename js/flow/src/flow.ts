@@ -216,15 +216,10 @@ export function defineFlow<
 ): CallableFlow<I, O> {
   const f = new Flow<I, O, z.ZodVoid>(
     {
-      name: config.name,
-      inputSchema: config.inputSchema,
-      outputSchema: config.outputSchema,
-      experimentalDurable: !!config.experimentalDurable,
+      ...config,
       stateStore: globalConfig
         ? () => globalConfig.getFlowStateStore()
         : undefined,
-      authPolicy: config.authPolicy,
-      middleware: config.middleware,
       // We always use local dispatcher in dev mode or when one is not provided.
       invoker: async (flow, msg) => {
         if (!isDevEnv() && config.invoker) {
@@ -269,15 +264,10 @@ export function defineStreamingFlow<
 ): StreamableFlow<I, O, S> {
   const f = new Flow(
     {
-      name: config.name,
-      inputSchema: config.inputSchema,
-      outputSchema: config.outputSchema,
-      experimentalDurable: false,
+      ...config,
       stateStore: globalConfig
         ? () => globalConfig.getFlowStateStore()
         : undefined,
-      authPolicy: config.authPolicy,
-      middleware: config.middleware,
       // We always use local dispatcher in dev mode or when one is not provided.
       invoker: async (flow, msg, streamingCallback) => {
         if (!isDevEnv() && config.invoker) {
@@ -323,7 +313,7 @@ export class Flow<
       stateStore?: () => Promise<FlowStateStore>;
       invoker: Invoker<I, O, S>;
       scheduler?: S extends z.ZodVoid ? Scheduler<I, O> : undefined;
-      experimentalDurable: boolean;
+      experimentalDurable?: boolean;
       authPolicy?: FlowAuthPolicy<I>;
       middleware?: express.RequestHandler[];
     },
@@ -336,7 +326,7 @@ export class Flow<
     this.stateStore = config.stateStore;
     this.invoker = config.invoker;
     this.scheduler = config.scheduler;
-    this.experimentalDurable = config.experimentalDurable;
+    this.experimentalDurable = config.experimentalDurable ?? false;
     this.authPolicy = config.authPolicy;
     this.middleware = config.middleware;
 
@@ -539,7 +529,7 @@ export class Flow<
     });
     if (!state.operation.done) {
       throw new FlowStillRunningError(
-        `flow ${state.name} did not finish execution`
+        `Flow ${state.name} did not finish execution.`
       );
     }
     if (state.operation.result?.error) {
@@ -946,6 +936,9 @@ function wrapAsAction<
   );
 }
 
+/**
+ * Start the flows server.
+ */
 export function startFlowsServer(params?: {
   flows?: Flow<any, any, any>[];
   port?: number;

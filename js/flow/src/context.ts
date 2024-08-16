@@ -32,9 +32,9 @@ import { metadataPrefix } from './utils.js';
  * Context object encapsulates flow execution state at runtime.
  */
 export class Context<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 > {
   private seenSteps: Record<string, number> = {};
 
