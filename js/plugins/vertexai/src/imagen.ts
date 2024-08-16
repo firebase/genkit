@@ -21,6 +21,7 @@ import {
   GenerationCommonConfigSchema,
   getBasicUsageStats,
   modelRef,
+  ModelReference,
 } from '@genkit-ai/ai/model';
 import { GoogleAuth } from 'google-auth-library';
 import z from 'zod';
@@ -45,6 +46,11 @@ export const imagen2 = modelRef({
   name: 'vertexai/imagen2',
   info: {
     label: 'Vertex AI - Imagen2',
+    versions: [
+      'imagegeneration@006',
+      'imagegeneration@005',
+      'imagegeneration@002',
+    ],
     supports: {
       media: false,
       multiturn: false,
@@ -53,8 +59,49 @@ export const imagen2 = modelRef({
       output: ['media'],
     },
   },
+  version: 'imagegeneration@006',
   configSchema: ImagenConfigSchema,
 });
+
+export const imagen3 = modelRef({
+  name: 'vertexai/imagen3',
+  info: {
+    label: 'Vertex AI - Imagen3',
+    versions: ['imagen-3.0-generate-001'],
+    supports: {
+      media: false,
+      multiturn: false,
+      tools: false,
+      systemRole: false,
+      output: ['media'],
+    },
+  },
+  version: 'imagen-3.0-generate-001',
+  configSchema: ImagenConfigSchema,
+});
+
+export const imagen3Fast = modelRef({
+  name: 'vertexai/imagen3-fast',
+  info: {
+    label: 'Vertex AI - Imagen3 Fast',
+    versions: ['imagen-3.0-fast-generate-001'],
+    supports: {
+      media: false,
+      multiturn: false,
+      tools: false,
+      systemRole: false,
+      output: ['media'],
+    },
+  },
+  version: 'imagen-3.0-fast-generate-001',
+  configSchema: ImagenConfigSchema,
+});
+
+export const SUPPORTED_IMAGEN_MODELS = {
+  imagen2: imagen2,
+  imagen3: imagen3,
+  'imagen3-fast': imagen3Fast,
+};
 
 function extractText(request: GenerateRequest) {
   return request.messages
@@ -106,7 +153,15 @@ interface ImagenInstance {
   image?: { bytesBase64Encoded: string };
 }
 
-export function imagen2Model(client: GoogleAuth, options: PluginOptions) {
+export function imagenModel(
+  name: string,
+  client: GoogleAuth,
+  options: PluginOptions
+) {
+  const modelName = `vertexai/${name}`;
+  const model: ModelReference<z.ZodTypeAny> = SUPPORTED_IMAGEN_MODELS[name];
+  if (!model) throw new Error(`Unsupported model: ${name}`);
+
   const predictClients: Record<
     string,
     PredictClient<ImagenInstance, ImagenPrediction, ImagenParameters>
@@ -126,7 +181,7 @@ export function imagen2Model(client: GoogleAuth, options: PluginOptions) {
           ...options,
           location: requestLocation,
         },
-        'imagegeneration@005'
+        request.config?.version || model.version || name
       );
     }
     return predictClients[requestLocation];
@@ -134,8 +189,8 @@ export function imagen2Model(client: GoogleAuth, options: PluginOptions) {
 
   return defineModel(
     {
-      name: imagen2.name,
-      ...imagen2.info,
+      name: modelName,
+      ...model.info,
       configSchema: ImagenConfigSchema,
     },
     async (request) => {

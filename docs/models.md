@@ -43,11 +43,11 @@ import { gemini15Flash } from '@genkit-ai/vertexai';
 Genkit provides model support through its plugin system. The following plugins
 are officially supported:
 
-| Plugin                    | Models                                                                   |
-| ------------------------- | ------------------------------------------------------------------------ |
-| [Google Generative AI][1] | Gemini Pro, Gemini Pro Vision                                            |
-| [Google Vertex AI][2]     | Gemini Pro, Gemini Pro Vision, Gemini 1.5 Flash, Gemini 1.5 Pro, Imagen2 |
-| [Ollama][3]               | Many local models, including Gemma, Llama 2, Mistral, and more           |
+| Plugin                    | Models                                                                            |
+| ------------------------- | --------------------------------------------------------------------------------- |
+| [Google Generative AI][1] | Gemini Pro, Gemini Pro Vision                                                     |
+| [Google Vertex AI][2]     | Gemini Pro, Gemini Pro Vision, Gemini 1.5 Flash, Gemini 1.5 Pro, Imagen2, Imagen3 |
+| [Ollama][3]               | Many local models, including Gemma, Llama 2, Mistral, and more                    |
 
 [1]: plugins/google-genai.md
 [2]: plugins/vertex-ai.md
