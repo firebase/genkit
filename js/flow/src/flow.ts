@@ -149,6 +149,46 @@ export interface StreamingFlowConfig<
 }
 
 /**
+ * Non-streaming flow that can be called directly like a function.
+ */
+export interface CallableFlow<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  (
+    input?: z.infer<I>,
+    opts?: { withLocalAuthContext?: unknown }
+  ): Promise<z.infer<O>>;
+  flow: Flow<I, O, z.ZodVoid>;
+}
+
+/**
+ * Streaming flow that can be called directly like a function.
+ */
+export interface StreamableFlow<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  (
+    input?: z.infer<I>,
+    opts?: { withLocalAuthContext?: unknown }
+  ): StreamingResponse<O, S>;
+  flow: Flow<I, O, S>;
+}
+
+/**
+ * Streaming response from a streaming flow.
+ */
+interface StreamingResponse<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  stream(): AsyncGenerator<unknown, Operation, z.infer<S> | undefined>;
+  output(): Promise<z.infer<O>>;
+}
+
+/**
  * Function to be executed in the flow.
  */
 export type StepsFunction<
@@ -156,7 +196,9 @@ export type StepsFunction<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 > = (
+  /** Input to the flow. */
   input: z.infer<I>,
+  /** Streaming callback for streaming flows only. */
   streamingCallback?: S extends z.ZodVoid
     ? undefined
     : StreamingCallback<z.infer<S>>
@@ -254,29 +296,6 @@ export function defineStreamingFlow<
   };
   streamableFlow.flow = f;
   return streamableFlow;
-}
-
-export interface CallableFlow<
-  I extends z.ZodTypeAny = z.ZodTypeAny,
-  O extends z.ZodTypeAny = z.ZodTypeAny,
-> {
-  (
-    input?: z.infer<I>,
-    opts?: { withLocalAuthContext?: unknown }
-  ): Promise<z.infer<O>>;
-  flow: Flow<I, O, z.ZodVoid>;
-}
-
-export interface StreamableFlow<
-  I extends z.ZodTypeAny = z.ZodTypeAny,
-  O extends z.ZodTypeAny = z.ZodTypeAny,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
-> {
-  (
-    input?: z.infer<I>,
-    opts?: { withLocalAuthContext?: unknown }
-  ): StreamingResponse<O, S>;
-  flow: Flow<I, O, S>;
 }
 
 export class Flow<
@@ -798,14 +817,6 @@ async function runFlow<
     );
   }
   return state.operation.result?.response;
-}
-
-interface StreamingResponse<
-  O extends z.ZodTypeAny = z.ZodTypeAny,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
-> {
-  stream(): AsyncGenerator<unknown, Operation, z.infer<S> | undefined>;
-  output(): Promise<z.infer<O>>;
 }
 
 /**
