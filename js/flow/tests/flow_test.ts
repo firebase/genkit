@@ -125,11 +125,11 @@ describe('flow', () => {
       const response = testFlow(3);
 
       const gotChunks: any[] = [];
-      for await (const chunk of response.stream()) {
+      for await (const chunk of response.stream) {
         gotChunks.push(chunk);
       }
 
-      assert.equal(await response.output(), 'bar 3 true');
+      assert.equal(await response.output, 'bar 3 true');
       assert.deepEqual(gotChunks, [{ count: 0 }, { count: 1 }, { count: 2 }]);
     });
 
@@ -146,7 +146,7 @@ describe('flow', () => {
       );
 
       const response = testFlow('foo');
-      await assert.rejects(async () => await response.output(), {
+      await assert.rejects(async () => await response.output, {
         name: 'Error',
         message: 'bad happened: foo',
       });

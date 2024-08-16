@@ -178,14 +178,16 @@ export interface StreamableFlow<
 }
 
 /**
- * Streaming response from a streaming flow.
+ * Response from a streaming flow.
  */
 interface StreamingResponse<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 > {
-  stream(): AsyncGenerator<unknown, Operation, z.infer<S> | undefined>;
-  output(): Promise<z.infer<O>>;
+  /** Iterator over the streaming chunks. */
+  stream: AsyncGenerator<unknown, Operation, z.infer<S> | undefined>;
+  /** Final output of the flow. */
+  output: Promise<z.infer<O>>;
 }
 
 /**
@@ -584,24 +586,22 @@ export class Flow<
     });
 
     return {
-      async output() {
-        return operationPromise.then((op) => {
-          if (!op.done) {
-            throw new FlowStillRunningError(
-              `flow ${op.name} did not finish execution`
-            );
-          }
-          if (op.result?.error) {
-            throw new FlowExecutionError(
-              op.name,
-              op.result?.error,
-              op.result?.stacktrace
-            );
-          }
-          return op.result?.response;
-        });
-      },
-      async *stream() {
+      output: operationPromise.then((op) => {
+        if (!op.done) {
+          throw new FlowStillRunningError(
+            `flow ${op.name} did not finish execution`
+          );
+        }
+        if (op.result?.error) {
+          throw new FlowExecutionError(
+            op.name,
+            op.result?.error,
+            op.result?.stacktrace
+          );
+        }
+        return op.result?.response;
+      }),
+      stream: (async function* () {
         const reader = chunkStream.getReader();
         while (true) {
           const chunk = await reader.read();
@@ -613,7 +613,7 @@ export class Flow<
           }
         }
         return await operationPromise;
-      },
+      })(),
     };
   }
 
