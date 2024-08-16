@@ -70,6 +70,14 @@ func Init(ctx context.Context, cfg *FirebasePluginConfig) error {
 	return nil
 }
 
+func UnInit() {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+
+	state.initted = false
+	state.app = nil
+}
+
 // App returns a cached Firebase app.
 // If the app is not initialized, it returns an error.
 func App(ctx context.Context) (*firebase.App, error) {

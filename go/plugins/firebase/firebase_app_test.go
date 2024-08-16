@@ -52,6 +52,7 @@ func TestApp(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer UnInit()
 			// Execute setup
 			if err := tt.setup(); err != nil {
 				t.Fatalf("Setup failed: %v", err)
