@@ -149,6 +149,20 @@ export interface StreamingFlowConfig<
 }
 
 /**
+ * Function to be executed in the flow.
+ */
+export type StepsFunction<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> = (
+  input: z.infer<I>,
+  streamingCallback?: S extends z.ZodVoid
+    ? undefined
+    : StreamingCallback<z.infer<S>>
+) => Promise<z.infer<O>>;
+
+/**
  * Defines a non-streaming flow.
  */
 export function defineFlow<
@@ -323,7 +337,9 @@ export class Flow<
   async runDirectly(
     input: unknown,
     opts: {
-      streamingCallback?: StreamingCallback<unknown>;
+      streamingCallback?: S extends z.ZodVoid
+        ? undefined
+        : StreamingCallback<z.infer<S>>;
       labels?: Record<string, string>;
       auth?: unknown;
     }
@@ -352,7 +368,9 @@ export class Flow<
    */
   async runEnvelope(
     req: FlowInvokeEnvelopeMessage,
-    streamingCallback?: StreamingCallback<any>,
+    streamingCallback?: S extends z.ZodVoid
+      ? undefined
+      : StreamingCallback<z.infer<S>>,
     auth?: unknown
   ): Promise<FlowState> {
     logger.debug(req, 'runEnvelope');
@@ -484,7 +502,9 @@ export class Flow<
     ctx: Context<I, O, S>,
     handler: StepsFunction<I, O, S>,
     dispatchType: string,
-    streamingCallback?: StreamingCallback<any>,
+    streamingCallback?: S extends z.ZodVoid
+      ? undefined
+      : StreamingCallback<z.infer<S>>,
     labels?: Record<string, string>
   ) {
     const startTimeMs = performance.now();
@@ -671,9 +691,9 @@ export class Flow<
       });
       try {
         const state = await this.runDirectly(input, {
-          streamingCallback: (chunk) => {
+          streamingCallback: ((chunk: z.infer<S>) => {
             res.write(JSON.stringify(chunk) + streamDelimiter);
-          },
+          }) as S extends z.ZodVoid ? undefined : StreamingCallback<z.infer<S>>,
           auth,
         });
         res.write(JSON.stringify(state.operation));
@@ -824,9 +844,9 @@ function streamFlow<
             input: flow.inputSchema ? flow.inputSchema.parse(payload) : payload,
           },
         },
-        (c) => {
-          chunkStreamController.enqueue(c);
-        }
+        ((chunk: z.infer<S>) => {
+          chunkStreamController.enqueue(chunk);
+        }) as S extends z.ZodVoid ? undefined : StreamingCallback<z.infer<S>>
       )
     )
     .then((s) => s.operation);
@@ -890,15 +910,6 @@ function createNewState(
   };
 }
 
-export type StepsFunction<
-  I extends z.ZodTypeAny = z.ZodTypeAny,
-  O extends z.ZodTypeAny = z.ZodTypeAny,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
-> = (
-  input: z.infer<I>,
-  streamingCallback?: StreamingCallback<z.infer<S>>
-) => Promise<z.infer<O>>;
-
 function wrapAsAction<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
@@ -929,7 +940,9 @@ function wrapAsAction<
       setCustomMetadataAttribute(metadataPrefix('wrapperAction'), 'true');
       return await flow.runEnvelope(
         envelope,
-        getStreamingCallback(),
+        getStreamingCallback() as S extends z.ZodVoid
+          ? undefined
+          : StreamingCallback<z.infer<S>>,
         envelope.auth
       );
     }
