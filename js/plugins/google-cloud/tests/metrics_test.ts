@@ -25,7 +25,7 @@ import {
   FlowStateStore,
 } from '@genkit-ai/core';
 import { registerFlowStateStore } from '@genkit-ai/core/registry';
-import { defineFlow, run, runAction, runFlow } from '@genkit-ai/flow';
+import { defineFlow, run, runAction } from '@genkit-ai/flow';
 import {
   __getMetricExporterForTesting,
   GcpOpenTelemetry,
@@ -73,8 +73,8 @@ describe('GoogleCloudMetrics', () => {
   it('writes flow metrics', async () => {
     const testFlow = createFlow('testFlow');
 
-    await runFlow(testFlow);
-    await runFlow(testFlow);
+    await testFlow();
+    await testFlow();
 
     const requestCounter = await getCounterMetric('genkit/flow/requests');
     const latencyHistogram = await getHistogramMetric('genkit/flow/latency');
@@ -97,7 +97,7 @@ describe('GoogleCloudMetrics', () => {
     });
 
     assert.rejects(async () => {
-      await runFlow(testFlow);
+      await testFlow();
     });
 
     const requestCounter = await getCounterMetric('genkit/flow/requests');
@@ -118,8 +118,8 @@ describe('GoogleCloudMetrics', () => {
       ]);
     });
 
-    await runFlow(testFlow);
-    await runFlow(testFlow);
+    await testFlow();
+    await testFlow();
 
     const requestCounter = await getCounterMetric('genkit/action/requests');
     const latencyHistogram = await getHistogramMetric('genkit/action/latency');
@@ -138,7 +138,7 @@ describe('GoogleCloudMetrics', () => {
   it('truncates metric dimensions', async () => {
     const testFlow = createFlow('anExtremelyLongFlowNameThatIsTooBig');
 
-    await runFlow(testFlow);
+    await testFlow();
 
     const requestCounter = await getCounterMetric('genkit/flow/requests');
     const latencyHistogram = await getHistogramMetric('genkit/flow/latency');
@@ -162,7 +162,7 @@ describe('GoogleCloudMetrics', () => {
     });
 
     assert.rejects(async () => {
-      await runFlow(testFlow);
+      await testFlow();
     });
 
     const requestCounter = await getCounterMetric('genkit/action/requests');
@@ -304,7 +304,7 @@ describe('GoogleCloudMetrics', () => {
       return await runAction(testAction);
     });
 
-    await runFlow(flow);
+    await flow();
 
     const requestCounter = await getCounterMetric('genkit/action/requests');
     const latencyHistogram = await getHistogramMetric('genkit/action/latency');
@@ -346,7 +346,7 @@ describe('GoogleCloudMetrics', () => {
       });
     });
 
-    await runFlow(flow);
+    await flow();
 
     const metrics = [
       await getCounterMetric('genkit/ai/generate/requests'),
@@ -374,7 +374,7 @@ describe('GoogleCloudMetrics', () => {
       return step1Result + step2Result;
     });
 
-    await runFlow(flow);
+    await flow();
 
     const expectedPaths = new Set([
       '/{pathTestFlow,t:flow}/{step2,t:flowStep}',
@@ -415,7 +415,7 @@ describe('GoogleCloudMetrics', () => {
     });
 
     assert.rejects(async () => {
-      await runFlow(flow);
+      await flow();
     });
 
     const reqPoints = await getCounterDataPoints('genkit/flow/path/requests');
@@ -452,7 +452,7 @@ describe('GoogleCloudMetrics', () => {
     });
 
     assert.rejects(async () => {
-      await runFlow(flow);
+      await flow();
     });
 
     const reqPoints = await getCounterDataPoints('genkit/flow/path/requests');
@@ -493,7 +493,7 @@ describe('GoogleCloudMetrics', () => {
     });
 
     assert.rejects(async () => {
-      await runFlow(flow);
+      await flow();
     });
 
     const reqPoints = await getCounterDataPoints('genkit/flow/path/requests');
@@ -536,7 +536,7 @@ describe('GoogleCloudMetrics', () => {
     });
 
     assert.rejects(async () => {
-      await runFlow(flow);
+      await flow();
     });
 
     const reqPoints = await getCounterDataPoints('genkit/flow/path/requests');
@@ -590,7 +590,7 @@ describe('GoogleCloudMetrics', () => {
   async function getGenkitMetrics(
     name: string = 'genkit',
     maxAttempts: number = 100
-  ): promise<ScopeMetrics> {
+  ): Promise<ScopeMetrics> {
     var attempts = 0;
     while (attempts++ < maxAttempts) {
       await new Promise((resolve) => setTimeout(resolve, 50));

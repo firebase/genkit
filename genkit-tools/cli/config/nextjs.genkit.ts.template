@@ -5,7 +5,7 @@ import * as z from 'zod';
 // Import the Genkit core libraries and plugins.
 import { generate } from '@genkit-ai/ai';
 import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow, runFlow } from '@genkit-ai/flow';
+import { defineFlow } from '@genkit-ai/flow';
 $GENKIT_CONFIG_IMPORTS
 $GENKIT_MODEL_IMPORT
 
@@ -47,6 +47,6 @@ const menuSuggestionFlow = defineFlow(
 export async function callMenuSuggestionFlow() {
   // Invoke the flow. The value you pass as the second parameter must conform to
   // your flow's input schema.
-  const flowResponse = await runFlow(menuSuggestionFlow, 'banana');
+  const flowResponse = await menuSuggestionFlow('banana');
   console.log(flowResponse);
 }
