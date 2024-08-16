@@ -250,7 +250,7 @@ export function defineFlow<
   createdFlows().push(f);
   wrapAsAction(f);
   const callableFlow: CallableFlow<I, O> = async (input, opts) => {
-    return runFlow(f, input, opts);
+    return f.run(input, opts);
   };
   callableFlow.flow = f;
   return callableFlow;
@@ -292,7 +292,7 @@ export function defineStreamingFlow<
   createdFlows().push(f);
   wrapAsAction(f);
   const streamableFlow: StreamableFlow<I, O, S> = (input, opts) => {
-    return streamFlow(f, input, opts);
+    return f.stream(input, opts);
   };
   streamableFlow.flow = f;
   return streamableFlow;
@@ -514,6 +514,117 @@ export class Flow<
       'Unexpected envelope message case, must set one of: ' +
         'start, schedule, runScheduled, resume, retry, state'
     );
+  }
+
+  /**
+   * Runs the flow. This is used when calling a flow from another flow.
+   */
+  private async run(
+    payload?: z.infer<I>,
+    opts?: { withLocalAuthContext?: unknown }
+  ): Promise<z.infer<O>> {
+    const input = this.inputSchema ? this.inputSchema.parse(payload) : payload;
+    await this.authPolicy?.(opts?.withLocalAuthContext, payload);
+
+    if (this.middleware) {
+      logger.warn(
+        `Flow (${this.name}) middleware won't run when invoked with runFlow.`
+      );
+    }
+
+    const state = await this.runEnvelope({
+      start: {
+        input,
+      },
+    });
+    if (!state.operation.done) {
+      throw new FlowStillRunningError(
+        `flow ${state.name} did not finish execution`
+      );
+    }
+    if (state.operation.result?.error) {
+      throw new FlowExecutionError(
+        state.operation.name,
+        state.operation.result?.error,
+        state.operation.result?.stacktrace
+      );
+    }
+    return state.operation.result?.response;
+  }
+
+  /**
+   * Runs the flow and streams results. This is used when calling a flow from another flow.
+   */
+  private stream(
+    payload?: z.infer<I>,
+    opts?: { withLocalAuthContext?: unknown }
+  ): StreamingResponse<O, S> {
+    let chunkStreamController: ReadableStreamController<z.infer<S>>;
+    const chunkStream = new ReadableStream<z.infer<S>>({
+      start(controller) {
+        chunkStreamController = controller;
+      },
+      pull() {},
+      cancel() {},
+    });
+
+    const authPromise =
+      this.authPolicy?.(opts?.withLocalAuthContext, payload) ??
+      Promise.resolve();
+
+    const operationPromise = authPromise
+      .then(() =>
+        this.runEnvelope(
+          {
+            start: {
+              input: this.inputSchema
+                ? this.inputSchema.parse(payload)
+                : payload,
+            },
+          },
+          ((chunk: z.infer<S>) => {
+            chunkStreamController.enqueue(chunk);
+          }) as S extends z.ZodVoid ? undefined : StreamingCallback<z.infer<S>>
+        )
+      )
+      .then((s) => s.operation);
+    operationPromise.then((o) => {
+      chunkStreamController.close();
+      return o;
+    });
+
+    return {
+      async output() {
+        return operationPromise.then((op) => {
+          if (!op.done) {
+            throw new FlowStillRunningError(
+              `flow ${op.name} did not finish execution`
+            );
+          }
+          if (op.result?.error) {
+            throw new FlowExecutionError(
+              op.name,
+              op.result?.error,
+              op.result?.stacktrace
+            );
+          }
+          return op.result?.response;
+        });
+      },
+      async *stream() {
+        const reader = chunkStream.getReader();
+        while (true) {
+          const chunk = await reader.read();
+          if (chunk.value) {
+            yield chunk.value;
+          }
+          if (chunk.done) {
+            break;
+          }
+        }
+        return await operationPromise;
+      },
+    };
   }
 
   // TODO: refactor me... this is a mess!
@@ -773,131 +884,6 @@ export class Flow<
       ? this.durableExpressHandler.bind(this)
       : this.nonDurableExpressHandler.bind(this);
   }
-}
-
-/**
- * Runs the flow. If the flow does not get interrupted may return a completed (done=true) operation.
- */
-async function runFlow<
-  I extends z.ZodTypeAny = z.ZodTypeAny,
-  O extends z.ZodTypeAny = z.ZodTypeAny,
->(
-  flowOrWrapper: Flow<I, O, z.ZodVoid> | CallableFlow<I, O>,
-  payload?: z.infer<I>,
-  opts?: { withLocalAuthContext?: unknown }
-): Promise<z.infer<O>> {
-  const flow = !(flowOrWrapper instanceof Flow)
-    ? flowOrWrapper.flow
-    : flowOrWrapper;
-
-  const input = flow.inputSchema ? flow.inputSchema.parse(payload) : payload;
-  await flow.authPolicy?.(opts?.withLocalAuthContext, payload);
-
-  if (flow.middleware) {
-    logger.warn(
-      `Flow (${flow.name}) middleware won't run when invoked with runFlow.`
-    );
-  }
-
-  const state = await flow.runEnvelope({
-    start: {
-      input,
-    },
-  });
-  if (!state.operation.done) {
-    throw new FlowStillRunningError(
-      `flow ${state.name} did not finish execution`
-    );
-  }
-  if (state.operation.result?.error) {
-    throw new FlowExecutionError(
-      state.operation.name,
-      state.operation.result?.error,
-      state.operation.result?.stacktrace
-    );
-  }
-  return state.operation.result?.response;
-}
-
-/**
- * Runs the flow and streams results. If the flow does not get interrupted may return a completed (done=true) operation.
- */
-function streamFlow<
-  I extends z.ZodTypeAny = z.ZodTypeAny,
-  O extends z.ZodTypeAny = z.ZodTypeAny,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
->(
-  flowOrWrapper: Flow<I, O, S> | StreamableFlow<I, O, S>,
-  payload?: z.infer<I>,
-  opts?: { withLocalAuthContext?: unknown }
-): StreamingResponse<O, S> {
-  const flow = !(flowOrWrapper instanceof Flow)
-    ? flowOrWrapper.flow
-    : flowOrWrapper;
-
-  let chunkStreamController: ReadableStreamController<z.infer<S>>;
-  const chunkStream = new ReadableStream<z.infer<S>>({
-    start(controller) {
-      chunkStreamController = controller;
-    },
-    pull() {},
-    cancel() {},
-  });
-
-  const authPromise =
-    flow.authPolicy?.(opts?.withLocalAuthContext, payload) ?? Promise.resolve();
-
-  const operationPromise = authPromise
-    .then(() =>
-      flow.runEnvelope(
-        {
-          start: {
-            input: flow.inputSchema ? flow.inputSchema.parse(payload) : payload,
-          },
-        },
-        ((chunk: z.infer<S>) => {
-          chunkStreamController.enqueue(chunk);
-        }) as S extends z.ZodVoid ? undefined : StreamingCallback<z.infer<S>>
-      )
-    )
-    .then((s) => s.operation);
-  operationPromise.then((o) => {
-    chunkStreamController.close();
-    return o;
-  });
-
-  return {
-    async output() {
-      return operationPromise.then((op) => {
-        if (!op.done) {
-          throw new FlowStillRunningError(
-            `flow ${op.name} did not finish execution`
-          );
-        }
-        if (op.result?.error) {
-          throw new FlowExecutionError(
-            op.name,
-            op.result?.error,
-            op.result?.stacktrace
-          );
-        }
-        return op.result?.response;
-      });
-    },
-    async *stream() {
-      const reader = chunkStream.getReader();
-      while (true) {
-        const chunk = await reader.read();
-        if (chunk.value) {
-          yield chunk.value;
-        }
-        if (chunk.done) {
-          break;
-        }
-      }
-      return await operationPromise;
-    },
-  };
 }
 
 function createNewState(
