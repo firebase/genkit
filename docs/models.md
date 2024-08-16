@@ -74,12 +74,12 @@ Google Generative AI, and Ollama:
 In addition, there are also several community-supported plugins that provide
 interfaces to these models:
 
-- Claude 3 family of LLMs, through [Anthropic's APIs](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-anthropic){:.external}
-- GPT family of LLMs through [Azure OpenAI](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-azure-openai){:.external}
-- GPT family of LLMs through the [OpenAI APIs](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-openai){:.external}
-- Command R family of LLMs through the [Cohere APIs](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-cohere){:.external}
-- Mistral family of LLMs through the [Mistral APIs](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-mistral){:.external}
-- Gemma 2, Llama 3, and many more open models, hosted on [Groq](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-groq){:.external}
+- Claude 3 family of LLMs, through the [Anthropic plugin](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-anthropic){:.external}
+- GPT family of LLMs through the [OpenAI plugin](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-openai){:.external}
+- GPT family of LLMs through the [Azure OpenAI plugin](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-azure-openai){:.external}
+- Command R family of LLMs through the [Cohere plugin](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-cohere){:.external}
+- Mistral family of LLMs through the [Mistral plugin](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-mistral){:.external}
+- Gemma 2, Llama 3, and many more open models hosted on Groq, through the [Groq plugin](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-groq){:.external}
 
 You can discover more by searching for packages starting with [`genkitx-`
 on npmjs.org](https://www.npmjs.com/search?q=genkitx){:.external}.
