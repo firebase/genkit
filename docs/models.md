@@ -83,8 +83,8 @@ interfaces to these models:
 - Gemma 2, Llama 3, and many more open models hosted on Groq, through the
   [Groq plugin](https://thefireco.github.io/genkit-plugins/docs/plugins/genkitx-groq){:.external}
 
-You can discover more by searching for packages starting with [`genkitx-` on
-npmjs.org](https://www.npmjs.com/search?q=genkitx){:.external}.
+You can discover more by searching for [packages tagged with `genkit-model` on
+npmjs.org](https://www.npmjs.com/search?q=keywords%3Agenkit-model){:.external}.
 
 ### Loading and configuring model plugins {:#loading-plugins}
 
