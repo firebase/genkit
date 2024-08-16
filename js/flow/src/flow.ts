@@ -519,7 +519,7 @@ export class Flow<
   /**
    * Runs the flow. This is used when calling a flow from another flow.
    */
-  private async run(
+  async run(
     payload?: z.infer<I>,
     opts?: { withLocalAuthContext?: unknown }
   ): Promise<z.infer<O>> {
@@ -555,7 +555,7 @@ export class Flow<
   /**
    * Runs the flow and streams results. This is used when calling a flow from another flow.
    */
-  private stream(
+  stream(
     payload?: z.infer<I>,
     opts?: { withLocalAuthContext?: unknown }
   ): StreamingResponse<O, S> {
