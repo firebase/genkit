@@ -25,7 +25,7 @@ export type Invoker<
 > = (
   flow: Flow<I, O, S>,
   msg: FlowInvokeEnvelopeMessage,
-  streamingCallback?: StreamingCallback<any>
+  streamingCallback?: S extends z.ZodVoid ? undefined : StreamingCallback<any>
 ) => Promise<Operation>;
 
 export type Scheduler<

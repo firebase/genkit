@@ -25,12 +25,12 @@ export { FirestoreStateStore } from './firestoreStateStore.js';
 export {
   Flow,
   defineFlow,
-  runFlow,
+  defineStreamingFlow,
   startFlowsServer,
-  streamFlow,
+  type CallableFlow,
   type FlowAuthPolicy,
-  type FlowWrapper,
   type StepsFunction,
+  type StreamableFlow,
   type __RequestWithAuth,
 } from './flow.js';
 export { run, runAction, runMap } from './steps.js';
