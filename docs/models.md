@@ -88,8 +88,9 @@ on npmjs.org](https://www.npmjs.com/search?q=genkitx){:.external}.
 
 Before you can use Genkit to start generating content, you need to load and
 configure a model plugin. If you're coming from the Getting Started guide,
-you've already done this. Otherwise, see the Getting Started guide or the
-individual plugin's documentation and follow the steps there before continuing.
+you've already done this. Otherwise, see the [Getting Started](get-started)
+guide or the individual plugin's documentation and follow the steps there before
+continuing.
 
 ### The generate() function {:#generate}
 
@@ -176,18 +177,20 @@ generative models, which you will see in the sections that follow.
 
 ### Model parameters {:#model-parameters}
 
-The `generate()` function takes a config parameter, through which you can specify
+The `generate()` function takes a `config` parameter, through which you can specify
 optional settings that control how the model generates content:
 
 ```ts
 const llmResponse = await generate({
-  prompt: 'Suggest an item for the menu of a pirate themed restaurant',
-  model: gemini15Pro,
-  maxOutputTokens: 400,
-  stopSequences: ['<end>', '<fin>'],
-  temperature: 1.2,
-  topP: 0.4,
-  topK: 50,
+  prompt: "Suggest an item for the menu of a pirate themed restaurant",
+  model: gemini15Flash,
+  config: {
+    maxOutputTokens: 400,
+    stopSequences: ["<end>", "<fin>"],
+    temperature: 1.2,
+    topP: 0.4,
+    topK: 50,
+  },
 });
 ```
 
@@ -240,6 +243,10 @@ When using generative AI as a component in your application, you often want outp
 In Genkit, you can request structured output from a model by specifying a schema when you call `generate()`:
 
 ```ts
+import { z } from "zod";
+```
+
+```ts
 const MenuItemSchema = z.object({
   name: z.string(),
   description: z.string(),
@@ -248,9 +255,11 @@ const MenuItemSchema = z.object({
 });
 
 const llmResponse = await generate({
-  prompt: 'Suggest an item for the menu of a pirate themed restaurant',
+  prompt: "Suggest an item for the menu of a pirate themed restaurant",
   model: gemini15Flash,
-  schema: MenuItemSchema,
+  output: {
+    schema: MenuItemSchema,
+  },
 });
 ```
 
@@ -273,6 +282,10 @@ const output: MenuItem | null = llmResponse.output();
 #### Handling errors
 
 Note in the prior example that the output method can return `null`. This can happen when the model fails to generate output that conforms to the schema. You can also detect this condition by catching the `NoValidCandidatesError` exception thrown by generate:
+
+```ts
+import { NoValidCandidatesError } from "@genkit-ai/ai";
+```
 
 ```ts
 try {
@@ -323,6 +336,11 @@ When generating large amounts of text, you can improve the experience for your u
 In Genkit, you can stream output using the generateStream function. Its syntax is similar to the `generate()` function:
 
 ```ts
+import { generateStream } from "@genkit-ai/ai";
+import { GenerateResponseChunk } from "@genkit-ai/ai/lib/generate";
+```
+
+```ts
 const llmResponseStream = await generateStream({
   prompt: 'Suggest a complete menu for a pirate themed restaurant',
   model: gemini15Flash,
@@ -347,20 +365,58 @@ const llmResponse = await llmResponseStream.response();
 Streaming also works with structured output:
 
 ```ts
+const MenuSchema = z.object({
+  starters: z.array(MenuItemSchema),
+  mains: z.array(MenuItemSchema),
+  desserts: z.array(MenuItemSchema),
+});
+type Menu = z.infer<typeof MenuSchema>;
+
 const llmResponseStream = await generateStream({
-  prompt: 'Suggest a complete menu for a pirate themed restaurant',
+  prompt: "Suggest a complete menu for a pirate themed restaurant",
   model: gemini15Flash,
-  output: { schema: z.array(MenuItemSchema) },
+  output: { schema: MenuSchema },
 });
 
 for await (const responseChunkData of llmResponseStream.stream()) {
-  const responseChunk = responseChunkData as GenerateResponseChunk;
+  const responseChunk = responseChunkData as GenerateResponseChunk<Menu>;
   // output() returns an object representing the entire output so far
-  console.log(responseChunk.output());
+  const output: Menu | null = responseChunk.output();
+  console.log(output);
 }
 ```
 
 Streaming structured output works a little differently from streaming text. When you call the `output()` method of a response chunk, you get an object constructed from the accumulation of the chunks that have been produced so far, rather than an object representing a single chunk (which might not be valid on its own). **Every chunk of structured output in a sense supersedes the chunk that came before it**.
+
+For example, here are the first five outputs from the prior example:
+
+```none
+null
+{ starters: [ {} ] }
+{
+  starters: [ { name: "Captain's Treasure Chest", description: 'A' } ]
+}
+{
+  starters: [
+    {
+      name: "Captain's Treasure Chest",
+      description: 'A mix of spiced nuts, olives, and marinated cheese served in a treasure chest.',
+      calories: 350
+    }
+  ]
+}
+{
+  starters: [
+    {
+      name: "Captain's Treasure Chest",
+      description: 'A mix of spiced nuts, olives, and marinated cheese served in a treasure chest.',
+      calories: 350,
+      allergens: [Array]
+    },
+    { name: 'Shipwreck Salad', description: 'Fresh' }
+  ]
+}
+```
 
 ### Multimodal input {:#multimodal-input}
 
@@ -384,7 +440,9 @@ In the above example, you specified an image using a publicly-accessible HTTPS U
 
 ```ts
 import { readFile } from 'node:fs/promises';
+```
 
+```ts
 const b64Data = await readFile('output.png', { encoding: 'base64url' });
 const dataUrl = `data:image/png;base64,${b64Data}`;
 
@@ -406,9 +464,9 @@ So far, most of the examples on this page have dealt with generating text using 
 1.  Genkit uses `data:` URLs as the standard output format for generated media. This is a standard format with many libraries available to handle them. This example uses the `data-urls` package from `jsdom`:
 
 ```posix-terminal
-% npm i data-urls
+npm i data-urls
 
-% npm i --save-dev @types/data-urls
+npm i --save-dev @types/data-urls
 ```
 
 1.  To generate an image and save it to a file, call `generate()`, specifying an image generation model and the media type of output format:
@@ -416,7 +474,7 @@ So far, most of the examples on this page have dealt with generating text using 
 ```ts
 import { generate } from '@genkit-ai/ai';
 import { configureGenkit } from '@genkit-ai/core';
-import { imagen2 } from '@genkit-ai/vertexai';
+import { vertexAI, imagen2 } from '@genkit-ai/vertexai';
 import parseDataURL from 'data-urls';
 
 import { writeFile } from 'node:fs/promises';
@@ -473,6 +531,10 @@ If the model you're using supports the `system` role, you can use the initial
 history to set the system message:
 
 ```ts
+import { MessageData } from "@genkit-ai/ai/model";
+```
+
+```ts
 let history: MessageData[] = [
   { role: 'system', content: [{ text: 'Talk like a pirate.' }] },
 ];
@@ -487,6 +549,10 @@ history = response.toHistory();
 ### Tools and function calling
 
 One way to enhance the capabilities of LLMs is to prompt them with a list of ways they can request more information from you, or request you to perform some action. This is known as _function calling_ or _tool calling_. Models that are trained to support this capability can respond to a prompt with a specially-formatted response, which indicates to the calling application that it should perform some action and send the result back to the LLM along with the original prompt. Genkit has library functions that automate both the prompt generation and the call-response loop elements of a function calling implementation.
+
+```ts
+import { defineTool } from "@genkit-ai/ai";
+```
 
 ```ts
 const myTool = defineTool(
