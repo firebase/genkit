@@ -17,7 +17,6 @@ package firebase
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 
 	firebase "firebase.google.com/go/v4"
@@ -45,8 +44,8 @@ func Init(ctx context.Context, cfg *FirebasePluginConfig) error {
 	defer state.mu.Unlock()
 
 	if state.initted {
-		log.Println("firebase.Init: already called, returning without reinitializing")
-		return nil
+		// throw an error if the app is already initialized
+		return fmt.Errorf("firebase.Init: Firebase app already initialized")
 	}
 
 	// Prepare the Firebase config
@@ -68,6 +67,16 @@ func Init(ctx context.Context, cfg *FirebasePluginConfig) error {
 	state.initted = true
 
 	return nil
+}
+
+// UnInit uninitializes the Firebase app.
+
+func UnInit() {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+
+	state.initted = false
+	state.app = nil
 }
 
 // App returns a cached Firebase app.

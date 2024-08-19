@@ -24,7 +24,6 @@ import (
 var firebaseProjectID = flag.String("firebase-project-id", "demo-test", "Firebase project ID")
 
 func TestInit(t *testing.T) {
-	t.Parallel()
 
 	ctx := context.Background()
 
@@ -49,7 +48,7 @@ func TestInit(t *testing.T) {
 			config: &FirebasePluginConfig{
 				ProjectID: *firebaseProjectID,
 			},
-			expectedError: "",
+			expectedError: "firebase.Init: Firebase app already initialized",
 			setup: func() error {
 				return Init(ctx, &FirebasePluginConfig{ProjectID: *firebaseProjectID}) // Initialize once
 			},
@@ -68,6 +67,8 @@ func TestInit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			defer UnInit()
+
 			if err := tt.setup(); err != nil {
 				t.Fatalf("Setup failed: %v", err)
 			}
