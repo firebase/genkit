@@ -1,6 +1,6 @@
-# Sample Vertex AI Plugin Retriever and Indexer with Local File
+# Sample Vertex AI Plugin Reranker with Fake Document Content
 
-This sample app demonstrates the use of the Vertex AI plugin retriever and indexer with a local file for demonstration purposes. This guide will walk you through setting up and running the sample.
+This sample app demonstrates the use of the Vertex AI plugin for reranking a set of documents based on a query using fake document content. This guide will walk you through setting up and running the sample.
 
 ## Prerequisites
 
@@ -8,123 +8,95 @@ Before running this sample, ensure you have the following:
 
 1. **Node.js** installed.
 2. **PNPM** (Node Package Manager) installed.
-3. A deployed index to an index endpoint in **Vertex AI Vector Search**.
+3. A **Vertex AI** project with appropriate permissions for reranking models.
 
 ## Getting Started
 
 ### Step 1: Clone the Repository and Install Dependencies
 
-Clone this repository to your local machine, and follow the instructions in the root README.md to build
-the core packages. This sample uses `workspace:*` dependencies, so they will need to be accessible.
+Clone this repository to your local machine and navigate to the project directory. Then, install the necessary dependencies:
 
-Then
+\`\`\`bash
+pnpm install
+\`\`\`
 
-```bash
-cd js/testapps/vertex-vector-search-custom && pnpm i
-```
+### Step 2: Set Up Environment Variables
 
-### Step 3: Set Up Environment Variables
+Create a \`.env\` file in the root directory and set the following variables. You can use the provided \`.env.example\` as a reference.
 
-Ensure you have a deployed index in Vertex AI Vector Search.
+\`\`\`plaintext
+PROJECT_ID=your_project_id_here
+LOCATION=your_location_here
+\`\`\`
 
-Create a `.env` file in the root directory and set the following variables (see the .env.example as well if needed)
+These variables are required to configure the Vertex AI project and location for reranking.
 
-```plaintext
-PROJECT_ID=your-google-cloud-project-id
-LOCATION=your-vertex-ai-location
-LOCAL_DIR=./data
-VECTOR_SEARCH_PUBLIC_DOMAIN_NAME=your-vector-search-public-domain-name
-VECTOR_SEARCH_INDEX_ENDPOINT_ID=your-index-endpoint-id
-VECTOR_SEARCH_INDEX_ID=your-index-id
-VECTOR_SEARCH_DEPLOYED_INDEX_ID=your-deployed-index-id
-GOOGLE_APPLICATION_CREDENTIALS=path-to-your-service-account-key.json
-```
-
-### Step 4: Run the Sample
+### Step 3: Run the Sample
 
 Start the Genkit server:
 
-```bash
+\`\`\`bash
 genkit start
-```
+\`\`\`
+
+This will launch the server that hosts the reranking flow.
 
 ## Sample Explanation
 
 ### Overview
 
-This sample demonstrates how to define a custom document indexer and retriever using local JSON files. It integrates with Vertex AI for indexing and retrieval of documents.
+This sample demonstrates how to use the Vertex AI plugin to rerank a predefined list of fake document content based on a query input. It utilizes a semantic reranker model from Vertex AI.
 
 ### Key Components
 
-- **Custom Document Indexer**: Stores documents in a local JSON file.
-- **Custom Document Retriever**: Retrieves documents from the local JSON file based on neighbor IDs.
-- **Genkit Configuration**: Configures Genkit with the Vertex AI plugin, setting up the project, location, and vector search index options.
-- **Indexing Flow**: Defines a flow for indexing documents.
-- **Query Flow**: Defines a flow for querying indexed documents.
+- **Fake Document Content**: A hardcoded array of strings representing document content.
+- **Rerank Flow**: A flow that reranks the fake documents based on the provided query.
+- **Genkit Configuration**: Configures Genkit with the Vertex AI plugin, setting up the project and reranking model.
 
-### Custom Document Indexer
+### Rerank Flow
 
-The `localDocumentIndexer` function reads existing documents from a local file, adds new documents, and writes them back to the file:
+The \`rerankFlow\` function takes a query as input, reranks the predefined document content using the Vertex AI semantic reranker, and returns the documents sorted by relevance score.
 
-```typescript
-const localDocumentIndexer: DocumentIndexer = async (documents: Document[]) => {
-  const content = await fs.promises.readFile(localFilePath, 'utf-8');
-  const currentLocalFile = JSON.parse(content);
-  const docsWithIds = Object.fromEntries(
-    documents.map((doc) => [
-      generateRandomId(),
-      { content: JSON.stringify(doc.content) },
-    ])
-  );
-  const newLocalFile = { ...currentLocalFile, ...docsWithIds };
-  await fs.promises.writeFile(
-    localFilePath,
-    JSON.stringify(newLocalFile, null, 2)
-  );
-  return Object.keys(docsWithIds);
-};
-```
+\`\`\`typescript
+export const rerankFlow = defineFlow(
+{
+name: 'rerankFlow',
+inputSchema: z.object({ query: z.string() }),
+outputSchema: z.array(
+z.object({
+text: z.string(),
+score: z.number(),
+})
+),
+},
+async ({ query }) => {
+const documents = FAKE_DOCUMENT_CONTENT.map((text) =>
+Document.fromText(text)
+);
+const reranker = 'vertexai/reranker';
 
-### Custom Document Retriever
+    const rerankedDocuments = await rerank({
+      reranker,
+      query: Document.fromText(query),
+      documents,
+    });
 
-The `localDocumentRetriever` function reads the local file and retrieves documents based on neighbor IDs:
+    return rerankedDocuments.map((doc) => ({
+      text: doc.text(),
+      score: doc.metadata.score,
+    }));
 
-```typescript
-const localDocumentRetriever: DocumentRetriever = async (
-  neighbors: Neighbor[]
-) => {
-  const content = await fs.promises.readFile(localFilePath, 'utf-8');
-  const currentLocalFile = JSON.parse(content);
-  const ids = neighbors
-    .map((neighbor) => neighbor.datapoint?.datapointId)
-    .filter(Boolean) as string[];
-  const docs = ids
-    .map((id) => {
-      const doc = currentLocalFile[id];
-      if (!doc || !doc.content) return null;
-      const parsedContent = JSON.parse(doc.content);
-      const text = parsedContent[0]?.text;
-      return text ? Document.fromText(text) : null;
-    })
-    .filter(Boolean) as Document[];
-  return docs;
-};
-```
-
-### Defining Flows
-
-Two flows are defined: `indexFlow` for indexing documents and `queryFlow` for querying documents.
-
-- **Index Flow**: Converts text inputs to documents and indexes them.
-- **Query Flow**: Retrieves documents based on a query and returns the results sorted by distance.
+}
+);
+\`\`\`
 
 ### Running the Server
 
-The server is started using the `startFlowsServer` function, which sets up the Genkit server to handle flow requests.
+The server is started using the \`startFlowsServer\` function, which sets up the Genkit server to handle flow requests.
 
-```typescript
+\`\`\`typescript
 startFlowsServer();
-```
+\`\`\`
 
 ## License
 
@@ -132,6 +104,6 @@ This project is licensed under the Apache License, Version 2.0. See the [LICENSE
 
 ## Conclusion
 
-This sample provides a basic demonstration of using Vertex AI plugins with Genkit for document indexing and retrieval. It can be extended and adapted to suit more complex use cases and integrations with other data sources and services.
+This sample provides a basic demonstration of using the Vertex AI plugin with Genkit for reranking documents based on a query. It can be extended and adapted to suit more complex use cases and integrations with other data sources and services.
 
 For more information, please refer to the official [Firebase Genkit documentation](https://firebase.google.com/docs/genkit).
