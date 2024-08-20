@@ -46,51 +46,12 @@ export class RankedDocument extends Document implements RankedDocumentData {
     this.content = data.content;
     this.metadata = data.metadata;
   }
-
-  static fromText(
-    text: string,
-    metadata: { score: number } & Record<string, any>
-  ) {
-    // TODO: do we need validation here? I'm thinking in javascript we won't have type errors
-    if (metadata.score === undefined) {
-      throw new Error('Score is required');
-    }
-    return new RankedDocument({
-      content: [{ text }],
-      metadata,
-    });
-  }
-
-  /**
-   * Concatenates all `text` parts present in the document with no delimiter.
-   * @returns A string of all concatenated text parts.
-   */
-  text(): string {
-    return this.content.map((part) => part.text || '').join('');
-  }
-
   /**
    * Returns the score of the document.
    * @returns The score of the document.
    */
   score(): number {
     return this.metadata.score;
-  }
-
-  /**
-   * Returns the first media part detected in the document. Useful for extracting
-   * (for example) an image.
-   * @returns The first detected `media` part in the document.
-   */
-  media(): { url: string; contentType?: string } | null {
-    return this.content.find((part) => part.media)?.media || null;
-  }
-
-  toJSON(): DocumentData {
-    return {
-      content: this.content,
-      metadata: this.metadata,
-    };
   }
 }
 
