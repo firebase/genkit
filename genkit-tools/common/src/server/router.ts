@@ -190,9 +190,8 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
       .output(evals.EvalRunSchema)
       .query(async ({ input }) => {
         const parts = input.name.split('/');
-        const evalRunId = parts[3];
-        const actionId = parts[1] !== '-' ? parts[1] : undefined;
-        const evalRun = await getEvalStore().load(evalRunId, actionId);
+        const evalRunId = parts[1];
+        const evalRun = await getEvalStore().load(evalRunId);
         if (!evalRun) {
           throw new TRPCError({
             code: 'NOT_FOUND',
