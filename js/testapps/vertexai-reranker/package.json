@@ -1,0 +1,38 @@
+{
+  "name": "vertexai-reranker",
+  "version": "1.0.0",
+  "description": "",
+  "main": "lib/index.js",
+  "scripts": {
+    "start": "node lib/index.js",
+    "compile": "tsc",
+    "build": "pnpm build:clean && pnpm compile",
+    "build:clean": "rm -rf ./lib",
+    "build:watch": "tsc --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@genkit-ai/ai": "workspace:*",
+    "@genkit-ai/core": "workspace:*",
+    "@genkit-ai/dev-local-vectorstore": "workspace:*",
+    "@genkit-ai/dotprompt": "workspace:*",
+    "@genkit-ai/evaluator": "workspace:*",
+    "@genkit-ai/firebase": "workspace:*",
+    "@genkit-ai/flow": "workspace:*",
+    "@genkit-ai/googleai": "workspace:*",
+    "@genkit-ai/vertexai": "workspace:*",
+    "@google-cloud/bigquery": "^7.8.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "genkitx-chromadb": "workspace:*",
+    "genkitx-langchain": "workspace:*",
+    "genkitx-pinecone": "workspace:*",
+    "google-auth-library": "^9.11.0",
+    "zod": "3.22.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.2"
+  }
+}
