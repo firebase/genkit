@@ -223,6 +223,9 @@ func (g *generator) handleSingleResponse(ctx context.Context, payload any, isCha
 			resp = r
 			return nil
 		})
+		if err != nil {
+			return nil, err
+		}
 		body, err = json.Marshal(resp)
 	} else {
 		var request *api.GenerateRequest = payload.(*api.GenerateRequest)
@@ -231,6 +234,9 @@ func (g *generator) handleSingleResponse(ctx context.Context, payload any, isCha
 			resp = r
 			return nil
 		})
+		if err != nil {
+			return nil, err
+		}
 		body, err = json.Marshal(resp)
 	}
 	if err != nil {
