@@ -78,6 +78,14 @@ func Model(name string) ai.Model {
 	return ai.LookupModel(provider, name)
 }
 
+func uninit() {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+	state.initted = false
+	state.serverAddress = ""
+	state.client = nil
+}
+
 // ModelDefinition represents a model with its name and type.
 type ModelDefinition struct {
 	Name string
@@ -449,7 +457,6 @@ func IsDefinedEmbedder(name string) bool {
 	return ai.IsDefinedEmbedder(provider, name)
 }
 
-// requires state.mu
 func defineEmbedder(name string) ai.Embedder {
 	return ai.DefineEmbedder(provider, name, func(ctx context.Context, input *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		em := &embedder{model: ModelDefinition{Name: name, Type: "embedding"}, client: state.client}

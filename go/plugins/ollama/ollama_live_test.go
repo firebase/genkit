@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package ollama_test
+package ollama
 
 import (
 	"context"
@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/firebase/genkit/go/ai"
-	ollamaPlugin "github.com/firebase/genkit/go/plugins/ollama"
 )
 
 var serverAddress = flag.String("server-address", "http://localhost:11434", "Ollama server address")
@@ -30,6 +29,8 @@ var testLive = flag.Bool("test-live", false, "run live tests")
 /*
 To run this test, you need to have the Ollama server running. You can set the server address using the OLLAMA_SERVER_ADDRESS environment variable.
 If the environment variable is not set, the test will default to http://localhost:11434 (the default address for the Ollama server).
+
+Note sometimes this test will fail because the model isn't responding in the correct format.
 */
 func TestLive(t *testing.T) {
 	if !*testLive {
@@ -39,18 +40,20 @@ func TestLive(t *testing.T) {
 	ctx := context.Background()
 
 	// Initialize the Ollama plugin
-	err := ollamaPlugin.Init(ctx, &ollamaPlugin.Config{
+	err := Init(ctx, &Config{
 		ServerAddress: *serverAddress,
 	})
+	defer uninit()
+
 	if err != nil {
 		t.Fatalf("failed to initialize Ollama plugin: %s", err)
 	}
 
 	// Define the model
-	ollamaPlugin.DefineModel(ollamaPlugin.ModelDefinition{Name: *modelName}, nil)
+	DefineModel(ModelDefinition{Name: *modelName}, nil)
 
 	// Use the Ollama model
-	m := ollamaPlugin.Model(*modelName)
+	m := Model(*modelName)
 	if m == nil {
 		t.Fatalf("failed to find model: %s", *modelName)
 	}
