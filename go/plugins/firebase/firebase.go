@@ -45,7 +45,7 @@ func Init(ctx context.Context, cfg *FirebasePluginConfig) error {
 
 	if state.initted {
 		// throw an error if the app is already initialized
-		return fmt.Errorf("firebase.Init: Firebase app already initialized")
+		return errors.New("firebase.Init: Firebase app already initialized")
 	}
 
 	// Prepare the Firebase config
