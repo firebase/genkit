@@ -123,48 +123,6 @@ const result = await generate({
 });
 ```
 
-### Tools and function calling
-
-`Model` also supports tools and function calling. Tool support depends on
-specific models.
-
-```javascript
-const myTool = action(
-  {
-    name: 'myJoke',
-    description: 'useful when you need a joke to tell.',
-    inputSchema: z.object({ subject: z.string() }),
-    outputSchema: z.string(),
-  },
-  async (input) => 'haha Just kidding no joke! got you'
-);
-
-const llmResponse = await generate({
-  model: gemini15Flash,
-  prompt: 'Tell me a joke.',
-  tools: [myTool],
-  config: {
-    temperature: 0.5,
-  },
-});
-```
-
-This will automatically call the tools in order to fulfill the user prompt.
-
-You can specify `returnToolRequests: true` for manual control of tool calling.
-
-```javascript
-const llmResponse = await generate({
-  model: gemini15Flash,
-  prompt: 'Tell me a joke.',
-  tools: [myTool],
-  returnToolRequests: true,
-  config: {
-    temperature: 0.5,
-  },
-});
-```
-
 ### Adding retriever context
 
 Documents from a retriever can be passed directly to `generate` to provide
