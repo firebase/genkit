@@ -1,4 +1,20 @@
-import { defineEmbedder, EmbedderReference } from '@genkit-ai/ai/embedder';
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import { defineEmbedder } from '@genkit-ai/ai/embedder';
 import { logger } from '@genkit-ai/core/logging';
 import z from 'zod';
 import { OllamaPluginParams } from './index.js';
@@ -19,18 +35,26 @@ interface OllamaEmbeddingPrediction {
   embedding: number[];
 }
 
-export function defineOllamaEmbedder(
-  name: string,
-  modelName: string,
-  dimensions: number,
-  options: OllamaPluginParams
-): EmbedderReference<typeof OllamaEmbeddingConfigSchema> {
+interface DefineOllamaEmbeddingParams {
+  name: string;
+  modelName: string;
+  dimensions: number;
+  options: OllamaPluginParams;
+}
+
+export function defineOllamaEmbedder({
+  name,
+  modelName,
+  dimensions,
+  options,
+}: DefineOllamaEmbeddingParams) {
   return defineEmbedder(
     {
       name,
       configSchema: OllamaEmbeddingConfigSchema, // Use the Zod schema directly here
       info: {
-        label: 'Embedding using Ollama',
+        // TODO: do we want users to be able to specify the label when they call this method directly?
+        label: 'Embedding using Ollama - ' + modelName,
         dimensions,
         supports: {
           //  TODO: do any ollama models support other modalities?

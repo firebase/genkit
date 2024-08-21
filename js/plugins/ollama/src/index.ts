@@ -25,6 +25,7 @@ import {
 } from '@genkit-ai/ai/model';
 import { genkitPlugin, Plugin } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
+import { defineOllamaEmbedder } from './embeddings';
 
 type ApiType = 'chat' | 'generate';
 
@@ -37,8 +38,11 @@ type RequestHeaders =
 
 type ModelDefinition = { name: string; type?: ApiType };
 
+type EmbeddingModelDefinition = { name: string; dimensions: number };
+
 export interface OllamaPluginParams {
   models: ModelDefinition[];
+  embeddingModels?: EmbeddingModelDefinition[];
   /**
    *  ollama server address.
    */
@@ -51,9 +55,18 @@ export const ollama: Plugin<[OllamaPluginParams]> = genkitPlugin(
   'ollama',
   async (params: OllamaPluginParams) => {
     const serverAddress = params?.serverAddress;
+
     return {
       models: params.models.map((model) =>
         ollamaModel(model, serverAddress, params.requestHeaders)
+      ),
+      embedders: params.embeddingModels?.map((model) =>
+        defineOllamaEmbedder({
+          name: `${ollama}/model.name`,
+          modelName: model.name,
+          dimensions: model.dimensions,
+          options: params,
+        })
       ),
     };
   }
