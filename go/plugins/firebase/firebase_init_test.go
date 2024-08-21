@@ -20,6 +20,16 @@ import (
 	"testing"
 )
 
+// UnInit uninitializes the Firebase app.
+
+func uninit() {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+
+	state.initted = false
+	state.app = nil
+}
+
 // Define the flag with a default value of "demo-test"
 var firebaseProjectID = flag.String("firebase-project-id", "demo-test", "Firebase project ID")
 
@@ -67,7 +77,7 @@ func TestInit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			defer UnInit()
+			defer uninit()
 
 			if err := tt.setup(); err != nil {
 				t.Fatalf("Setup failed: %v", err)

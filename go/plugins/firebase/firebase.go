@@ -16,6 +16,7 @@ package firebase
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -60,23 +61,14 @@ func Init(ctx context.Context, cfg *FirebasePluginConfig) error {
 	// Initialize Firebase app with service account key if provided
 	app, err := firebase.NewApp(ctx, firebaseConfig)
 	if err != nil {
-		return fmt.Errorf("firebase.Init: %w", err)
+		errorStr := fmt.Sprintf("firebase.Init: %v", err)
+		return errors.New(errorStr)
 	}
 
 	state.app = app
 	state.initted = true
 
 	return nil
-}
-
-// UnInit uninitializes the Firebase app.
-
-func UnInit() {
-	state.mu.Lock()
-	defer state.mu.Unlock()
-
-	state.initted = false
-	state.app = nil
 }
 
 // App returns a cached Firebase app.
@@ -86,7 +78,7 @@ func App(ctx context.Context) (*firebase.App, error) {
 	defer state.mu.Unlock()
 
 	if !state.initted {
-		return nil, fmt.Errorf("firebase.App: Firebase app not initialized. Call Init first")
+		return nil, errors.New("firebase.App: Firebase app not initialized. Call Init first")
 	}
 
 	return state.app, nil
