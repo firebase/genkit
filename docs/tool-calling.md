@@ -122,7 +122,7 @@ effectively make use of the available tools.
 After you've defined your tools, specify them in the tools parameter of
 `generate()`:
 
-```Language
+```ts
 const llmResponse = await generate({
   model: gemini15Flash,
   prompt,
