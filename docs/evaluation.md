@@ -10,8 +10,8 @@ of documents that was returned by the retriever so that you can evaluate the
 quality of your retriever while it runs in the context of the flow as shown below with the Genkit faithfulness and answer relevancy metrics:
 
 ```js
-import { GenkitMetric, genkitEval } from '@genkit-ai/evaluator';
-import { textEmbeddingGecko } from '@genkit-ai/vertexai';
+import { GenkitMetric, genkitEval } from '@genkit/evaluator';
+import { textEmbeddingGecko } from '@genkit/vertexai';
 
 export default configureGenkit({
   plugins: [
@@ -25,10 +25,10 @@ export default configureGenkit({
 });
 ```
 
-Note: The configuration above requires installing the `@genkit-ai/evaluator` and `@genkit-ai/vertexai` packages.
+Note: The configuration above requires installing the `@genkit/evaluator` and `@genkit/vertexai` packages.
 
 ```posix-terminal
-  npm install @genkit-ai/evaluator @genkit-ai/vertexai
+  npm install @genkit/evaluator @genkit/vertexai
 ```
 
 Start by defining a set of inputs that you want to use as an input dataset called `testInputs.json`. This input dataset represents the test cases you will use to generate output for evaluation.

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Document, DocumentDataSchema } from '@genkit-ai/ai/retriever';
+import { Document, DocumentDataSchema } from '@genkit/ai/retriever';
 import { Firestore } from 'firebase-admin/firestore';
 import { DocumentIndexer, DocumentRetriever, Neighbor } from './types';
 /**

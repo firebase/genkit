@@ -20,7 +20,7 @@ The Vertex AI plugin provides interfaces to several AI services:
 ## Installation
 
 ```posix-terminal
-npm i --save @genkit-ai/vertexai
+npm i --save @genkit/vertexai
 ```
 
 If you want to locally run flows that use this plugin, you also need the
@@ -31,7 +31,7 @@ If you want to locally run flows that use this plugin, you also need the
 To use this plugin, specify it when you call `configureGenkit()`:
 
 ```js
-import { vertexAI } from '@genkit-ai/vertexai';
+import { vertexAI } from '@genkit/vertexai';
 
 export default configureGenkit({
   plugins: [
@@ -84,7 +84,7 @@ credentials.
 This plugin statically exports references to its supported generative AI models:
 
 ```js
-import { gemini15Flash, gemini15Pro, imagen2 } from '@genkit-ai/vertexai';
+import { gemini15Flash, gemini15Pro, imagen2 } from '@genkit/vertexai';
 ```
 
 You can use these references to specify which model `generate()` uses:
@@ -100,7 +100,7 @@ This plugin also statically exports a reference to the Gecko text embedding
 model:
 
 ```js
-import { textEmbeddingGecko } from '@genkit-ai/vertexai';
+import { textEmbeddingGecko } from '@genkit/vertexai';
 ```
 
 You can use this reference to specify which embedder an indexer or retriever
@@ -122,7 +122,7 @@ configureGenkit({
 Or you can generate an embedding directly:
 
 ```js
-// import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
+// import { embed, EmbedderArgument } from '@genkit/ai/embedder';
 const embedding = await embed({
   embedder: textEmbeddingGecko,
   content: 'How many widgets do you have in stock?',
@@ -141,7 +141,7 @@ import {
   claude3Haiku,
   claude3Sonnet,
   claude3Opus,
-} from '@genkit-ai/vertexai';
+} from '@genkit/vertexai';
 
 export default configureGenkit({
   plugins: [
@@ -171,7 +171,7 @@ First you'll need to enable [Llama 3.1 API Service](https://console.cloud.google
 Here's sample configuration for Llama 3.1 405b in Vertex AI plugin:
 
 ```js
-import { vertexAI, llama31 } from '@genkit-ai/vertexai';
+import { vertexAI, llama31 } from '@genkit/vertexai';
 
 export default configureGenkit({
   plugins: [
@@ -199,7 +199,7 @@ const llmResponse = await generate({
 To use the evaluators from Vertex AI Rapid Evaluation, add an `evaluation` block to your `vertexAI` plugin configuration.
 
 ```js
-import { vertexAI, VertexAIEvaluationMetricType } from '@genkit-ai/vertexai';
+import { vertexAI, VertexAIEvaluationMetricType } from '@genkit/vertexai';
 
 export default configureGenkit({
   plugins: [
@@ -282,7 +282,7 @@ To use Vertex AI Vector Search:
     import {
       getFirestoreDocumentIndexer,
       getFirestoreDocumentRetriever
-    } from '@genkit-ai/vertexai';
+    } from '@genkit/vertexai';
 
     import { initializeApp } from 'firebase-admin/app';
     import { getFirestore } from 'firebase-admin/firestore';
@@ -302,7 +302,7 @@ To use Vertex AI Vector Search:
     import {
       getBigQueryDocumentIndexer,
       getBigQueryDocumentRetriever,
-    } from '@genkit-ai/vertexai';
+    } from '@genkit/vertexai';
     import { BigQuery } from '@google-cloud/bigquery';
 
     const bq = new BigQuery({ projectId: PROJECT_ID });
@@ -334,8 +334,8 @@ To use Vertex AI Vector Search:
 1.  Add a `vectorSearchOptions` block to your `vertexAI` plugin configuration:
 
     ```js
-    import { configureGenkit } from '@genkit-ai/core';
-    import { vertexAI, textEmbedding004 } from '@genkit-ai/vertexai';
+    import { configureGenkit } from '@genkit/core';
+    import { vertexAI, textEmbedding004 } from '@genkit/vertexai';
 
     configureGenkit({
       plugins: [
@@ -378,7 +378,7 @@ To use Vertex AI Vector Search:
     import {
       vertexAiIndexerRef,
       vertexAiRetrieverRef,
-    } from '@genkit-ai/vertexai';
+    } from '@genkit/vertexai';
     ```
 
     Pass the references to `index()` and `retrieve()`:

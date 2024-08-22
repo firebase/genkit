@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { defineFlow, runFlow } from '@genkit-ai/flow';
+import { defineFlow, runFlow } from '@genkit/flow';
 import fs from 'fs';
 import path from 'path';
 

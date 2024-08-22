@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { InitEvent, logger, record } from '@genkit-ai/tools-common/utils';
+import { InitEvent, logger, record } from '@genkit/tools-common/utils';
 import { execSync } from 'child_process';
 import fs from 'fs';
 import * as inquirer from 'inquirer';

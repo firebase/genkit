@@ -35,7 +35,7 @@ Logging is provided separately so that a plugin can control where the data is
 written explicitly.
 
 ```ts
-import { genkitPlugin, Plugin } from '@genkit-ai/core';
+import { genkitPlugin, Plugin } from '@genkit/core';
 
 ...
 
@@ -92,7 +92,7 @@ import { AggregationTemporality, InMemoryMetricExporter, MetricReader, PeriodicE
 import { AlwaysOnSampler, BatchSpanProcessor, InMemorySpanExporter } from '@opentelemetry/sdk-trace-base';
 import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 import { Resource } from '@opentelemetry/resources';
-import { TelemetryConfig } from '@genkit-ai/core';
+import { TelemetryConfig } from '@genkit/core';
 
 ...
 
@@ -223,7 +223,7 @@ const myLogger: LoggerConfig = {
 ## Full Example
 
 The following is a full example of the telemetry plugin created above. For
-a real world example, take a look at the `@genkit-ai/google-cloud` plugin.
+a real world example, take a look at the `@genkit/google-cloud` plugin.
 
 ```ts
 import {
@@ -231,7 +231,7 @@ import {
   LoggerConfig,
   Plugin,
   TelemetryConfig,
-} from '@genkit-ai/core';
+} from '@genkit/core';
 import { Span } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { Instrumentation } from '@opentelemetry/instrumentation';

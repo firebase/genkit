@@ -20,7 +20,7 @@ importers:
 
   ai:
     dependencies:
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../core
       '@opentelemetry/api':
@@ -118,7 +118,7 @@ importers:
 
   flow:
     dependencies:
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../core
       '@google-cloud/firestore':
@@ -176,10 +176,10 @@ importers:
 
   plugins/chroma:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
       chromadb:
@@ -210,10 +210,10 @@ importers:
 
   plugins/dev-local-vectorstore:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
       compute-cosine-similarity:
@@ -244,10 +244,10 @@ importers:
 
   plugins/dotprompt:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
       front-matter:
@@ -284,13 +284,13 @@ importers:
 
   plugins/evaluators:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/dotprompt':
+      '@genkit/dotprompt':
         specifier: workspace:*
         version: link:../dotprompt
       compute-cosine-similarity:
@@ -324,16 +324,16 @@ importers:
 
   plugins/firebase:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/google-cloud':
+      '@genkit/google-cloud':
         specifier: workspace:*
         version: link:../google-cloud
       '@google-cloud/firestore':
@@ -373,10 +373,10 @@ importers:
 
   plugins/google-cloud:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
       '@google-cloud/logging-winston':
@@ -452,10 +452,10 @@ importers:
 
   plugins/googleai:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
       '@google/generative-ai':
@@ -489,13 +489,13 @@ importers:
 
   plugins/langchain:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
       '@langchain/community':
@@ -532,10 +532,10 @@ importers:
 
   plugins/ollama:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
     devDependencies:
@@ -557,10 +557,10 @@ importers:
 
   plugins/pinecone:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
       '@pinecone-database/pinecone':
@@ -597,13 +597,13 @@ importers:
       '@anthropic-ai/vertex-sdk':
         specifier: ^0.4.0
         version: 0.4.0(encoding@0.1.13)
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
       '@google-cloud/aiplatform':
@@ -653,22 +653,22 @@ importers:
 
   testapps/anthropic-models:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/dotprompt':
+      '@genkit/dotprompt':
         specifier: workspace:*
         version: link:../../plugins/dotprompt
-      '@genkit-ai/firebase':
+      '@genkit/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/vertexai':
+      '@genkit/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       express:
@@ -684,31 +684,31 @@ importers:
 
   testapps/byo-evaluator:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/dev-local-vectorstore':
+      '@genkit/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/dotprompt':
+      '@genkit/dotprompt':
         specifier: workspace:*
         version: link:../../plugins/dotprompt
-      '@genkit-ai/evaluator':
+      '@genkit/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
-      '@genkit-ai/firebase':
+      '@genkit/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/googleai':
+      '@genkit/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/vertexai':
+      '@genkit/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       path:
@@ -724,31 +724,31 @@ importers:
 
   testapps/cat-eval:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/dev-local-vectorstore':
+      '@genkit/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/dotprompt':
+      '@genkit/dotprompt':
         specifier: workspace:*
         version: link:../../plugins/dotprompt
-      '@genkit-ai/evaluator':
+      '@genkit/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
-      '@genkit-ai/firebase':
+      '@genkit/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/googleai':
+      '@genkit/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/vertexai':
+      '@genkit/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       genkitx-pinecone:
@@ -773,31 +773,31 @@ importers:
 
   testapps/dev-ui-gallery:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/dev-local-vectorstore':
+      '@genkit/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/dotprompt':
+      '@genkit/dotprompt':
         specifier: workspace:*
         version: link:../../plugins/dotprompt
-      '@genkit-ai/evaluator':
+      '@genkit/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
-      '@genkit-ai/firebase':
+      '@genkit/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/googleai':
+      '@genkit/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/vertexai':
+      '@genkit/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       firebase-admin:
@@ -822,19 +822,19 @@ importers:
 
   testapps/docs-menu-basic:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/firebase':
+      '@genkit/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/googleai':
+      '@genkit/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
       express:
@@ -850,22 +850,22 @@ importers:
 
   testapps/docs-menu-rag:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/dev-local-vectorstore':
+      '@genkit/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/firebase':
+      '@genkit/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/vertexai':
+      '@genkit/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       llm-chunk:
@@ -887,22 +887,22 @@ importers:
 
   testapps/eval:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/evaluator':
+      '@genkit/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
-      '@genkit-ai/firebase':
+      '@genkit/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/vertexai':
+      '@genkit/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       zod:
@@ -915,28 +915,28 @@ importers:
 
   testapps/evaluator-gut-check:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/dev-local-vectorstore':
+      '@genkit/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/evaluator':
+      '@genkit/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
-      '@genkit-ai/firebase':
+      '@genkit/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/googleai':
+      '@genkit/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/vertexai':
+      '@genkit/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       zod:
@@ -949,22 +949,22 @@ importers:
 
   testapps/express:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:^
         version: link:../../core
-      '@genkit-ai/firebase':
+      '@genkit/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/googleai':
+      '@genkit/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/vertexai':
+      '@genkit/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       express:
@@ -986,13 +986,13 @@ importers:
 
   testapps/flow-sample1:
     dependencies:
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:^
         version: link:../../core
-      '@genkit-ai/firebase':
+      '@genkit/firebase':
         specifier: workspace:^
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
       zod:
@@ -1005,28 +1005,28 @@ importers:
 
   testapps/flow-simple-ai:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:^
         version: link:../../core
-      '@genkit-ai/dotprompt':
+      '@genkit/dotprompt':
         specifier: workspace:*
         version: link:../../plugins/dotprompt
-      '@genkit-ai/firebase':
+      '@genkit/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/google-cloud':
+      '@genkit/google-cloud':
         specifier: workspace:*
         version: link:../../plugins/google-cloud
-      '@genkit-ai/googleai':
+      '@genkit/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/vertexai':
+      '@genkit/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       '@google/generative-ai':
@@ -1051,22 +1051,22 @@ importers:
 
   testapps/google-ai-code-execution:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:^
         version: link:../../core
-      '@genkit-ai/dotprompt':
+      '@genkit/dotprompt':
         specifier: workspace:*
         version: link:../../plugins/dotprompt
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/google-cloud':
+      '@genkit/google-cloud':
         specifier: workspace:*
         version: link:../../plugins/google-cloud
-      '@genkit-ai/googleai':
+      '@genkit/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
       dotenv:
@@ -1085,22 +1085,22 @@ importers:
 
   testapps/langchain:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:^
         version: link:../../core
-      '@genkit-ai/firebase':
+      '@genkit/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/googleai':
+      '@genkit/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/vertexai':
+      '@genkit/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       '@langchain/community':
@@ -1140,19 +1140,19 @@ importers:
 
   testapps/llm-human-in-the-loop:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:^
         version: link:../../core
-      '@genkit-ai/firebase':
+      '@genkit/firebase':
         specifier: workspace:^
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/googleai':
+      '@genkit/googleai':
         specifier: workspace:^
         version: link:../../plugins/googleai
       zod:
@@ -1165,28 +1165,28 @@ importers:
 
   testapps/menu:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/dev-local-vectorstore':
+      '@genkit/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/dotprompt':
+      '@genkit/dotprompt':
         specifier: workspace:*
         version: link:../../plugins/dotprompt
-      '@genkit-ai/evaluator':
+      '@genkit/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
-      '@genkit-ai/firebase':
+      '@genkit/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/vertexai':
+      '@genkit/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       zod:
@@ -1199,19 +1199,19 @@ importers:
 
   testapps/prompt-file:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:^
         version: link:../../core
-      '@genkit-ai/dotprompt':
+      '@genkit/dotprompt':
         specifier: workspace:*
         version: link:../../plugins/dotprompt
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/googleai':
+      '@genkit/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
       zod:
@@ -1224,31 +1224,31 @@ importers:
 
   testapps/rag:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/dev-local-vectorstore':
+      '@genkit/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/dotprompt':
+      '@genkit/dotprompt':
         specifier: workspace:*
         version: link:../../plugins/dotprompt
-      '@genkit-ai/evaluator':
+      '@genkit/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
-      '@genkit-ai/firebase':
+      '@genkit/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/googleai':
+      '@genkit/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/vertexai':
+      '@genkit/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       genkitx-chromadb:
@@ -1288,31 +1288,31 @@ importers:
 
   testapps/vertexai-vector-search-bigquery:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/dev-local-vectorstore':
+      '@genkit/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/dotprompt':
+      '@genkit/dotprompt':
         specifier: workspace:*
         version: link:../../plugins/dotprompt
-      '@genkit-ai/evaluator':
+      '@genkit/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
-      '@genkit-ai/firebase':
+      '@genkit/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/googleai':
+      '@genkit/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/vertexai':
+      '@genkit/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       '@google-cloud/bigquery':
@@ -1346,31 +1346,31 @@ importers:
 
   testapps/vertexai-vector-search-custom:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/dev-local-vectorstore':
+      '@genkit/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/dotprompt':
+      '@genkit/dotprompt':
         specifier: workspace:*
         version: link:../../plugins/dotprompt
-      '@genkit-ai/evaluator':
+      '@genkit/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
-      '@genkit-ai/firebase':
+      '@genkit/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/googleai':
+      '@genkit/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/vertexai':
+      '@genkit/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       '@google-cloud/bigquery':
@@ -1404,31 +1404,31 @@ importers:
 
   testapps/vertexai-vector-search-firestore:
     dependencies:
-      '@genkit-ai/ai':
+      '@genkit/ai':
         specifier: workspace:*
         version: link:../../ai
-      '@genkit-ai/core':
+      '@genkit/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/dev-local-vectorstore':
+      '@genkit/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/dotprompt':
+      '@genkit/dotprompt':
         specifier: workspace:*
         version: link:../../plugins/dotprompt
-      '@genkit-ai/evaluator':
+      '@genkit/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
-      '@genkit-ai/firebase':
+      '@genkit/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
+      '@genkit/flow':
         specifier: workspace:*
         version: link:../../flow
-      '@genkit-ai/googleai':
+      '@genkit/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/vertexai':
+      '@genkit/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       dotenv:

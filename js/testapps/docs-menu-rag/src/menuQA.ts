@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
-import { retrieve } from '@genkit-ai/ai/retriever';
-import { devLocalRetrieverRef } from '@genkit-ai/dev-local-vectorstore';
-import { defineFlow } from '@genkit-ai/flow';
-import { geminiPro } from '@genkit-ai/vertexai';
+import { generate } from '@genkit/ai';
+import { retrieve } from '@genkit/ai/retriever';
+import { devLocalRetrieverRef } from '@genkit/dev-local-vectorstore';
+import { defineFlow } from '@genkit/flow';
+import { geminiPro } from '@genkit/vertexai';
 import * as z from 'zod';
 
 // Define the retriever reference

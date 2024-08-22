@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
-import { Document, index, retrieve } from '@genkit-ai/ai/retriever';
+import { generate } from '@genkit/ai';
+import { Document, index, retrieve } from '@genkit/ai/retriever';
 import {
   devLocalIndexerRef,
   devLocalRetrieverRef,
-} from '@genkit-ai/dev-local-vectorstore';
-import { defineFlow, run } from '@genkit-ai/flow';
-import { geminiPro } from '@genkit-ai/googleai';
+} from '@genkit/dev-local-vectorstore';
+import { defineFlow, run } from '@genkit/flow';
+import { geminiPro } from '@genkit/googleai';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import { getDocument } from 'pdfjs-dist-legacy';

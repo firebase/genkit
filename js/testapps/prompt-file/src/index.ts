@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { configureGenkit, defineSchema } from '@genkit-ai/core';
-import { defineHelper, dotprompt, prompt } from '@genkit-ai/dotprompt';
-import { defineFlow } from '@genkit-ai/flow';
-import { googleAI } from '@genkit-ai/googleai';
+import { configureGenkit, defineSchema } from '@genkit/core';
+import { defineHelper, dotprompt, prompt } from '@genkit/dotprompt';
+import { defineFlow } from '@genkit/flow';
+import { googleAI } from '@genkit/googleai';
 import * as z from 'zod';
 
 configureGenkit({

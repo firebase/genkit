@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { FlowInvokeEnvelopeMessage, FlowState } from '@genkit-ai/tools-common';
+import { FlowInvokeEnvelopeMessage, FlowState } from '@genkit/tools-common';
 import {
   logger,
   runInRunnerThenStop,
   waitForFlowToComplete,
-} from '@genkit-ai/tools-common/utils';
+} from '@genkit/tools-common/utils';
 import { Command } from 'commander';
 import { writeFile } from 'fs/promises';
 

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { defineDotprompt } from '@genkit-ai/dotprompt';
-import { geminiPro } from '@genkit-ai/vertexai';
+import { defineDotprompt } from '@genkit/dotprompt';
+import { geminiPro } from '@genkit/vertexai';
 import { DataMenuQuestionInputSchema } from '../types.js';
 
 // This prompt will generate two messages when rendered.

@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { ToolPluginSubCommandsSchema } from '@genkit-ai/tools-common/plugin';
+import { ToolPluginSubCommandsSchema } from '@genkit/tools-common/plugin';
 import {
   RunCommandEvent,
   logger,
   notifyAnalyticsIfFirstRun,
   record,
-} from '@genkit-ai/tools-common/utils';
+} from '@genkit/tools-common/utils';
 import { Command, program } from 'commander';
 import { config } from './commands/config';
 import { evalExtractData } from './commands/eval-extract-data';

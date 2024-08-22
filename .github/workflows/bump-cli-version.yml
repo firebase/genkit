@@ -48,8 +48,8 @@ jobs:
           PACKAGEJSON_DIR: genkit-tools/common
         with:
           default: ${{ inputs.releaseType }}
-          commit-message: 'chore: bump @genkit-ai/tools-common version to {{version}}'
-          tag-prefix:  '@genkit-ai/tools-common@'
+          commit-message: 'chore: bump @genkit/tools-common version to {{version}}'
+          tag-prefix:  '@genkit/tools-common@'
       - name: 'genkit-tools/cli version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:

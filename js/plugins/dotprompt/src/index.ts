@@ -14,11 +14,7 @@
  * limitations under the License.
  */
 
-import {
-  genkitPlugin,
-  InitializedPlugin,
-  PluginProvider,
-} from '@genkit-ai/core';
+import { genkitPlugin, InitializedPlugin, PluginProvider } from '@genkit/core';
 
 import { readFileSync } from 'fs';
 import { basename } from 'path';

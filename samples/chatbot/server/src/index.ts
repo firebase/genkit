@@ -14,22 +14,19 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
-import {
-  GenerateResponseChunkSchema,
-  ModelReference,
-} from '@genkit-ai/ai/model';
-import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
+import { generate } from '@genkit/ai';
+import { GenerateResponseChunkSchema, ModelReference } from '@genkit/ai/model';
+import { configureGenkit } from '@genkit/core';
+import { defineFlow, run, startFlowsServer } from '@genkit/flow';
 import {
   VertexAIEvaluationMetricType,
   gemini15Flash,
   llama3,
   vertexAI,
-} from '@genkit-ai/vertexai';
+} from '@genkit/vertexai';
 import { inMemoryStore } from './memory.js';
 
-import { PartSchema } from '@genkit-ai/ai/model';
+import { PartSchema } from '@genkit/ai/model';
 import { z } from 'zod';
 
 export const AgentInput = z.object({

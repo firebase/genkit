@@ -20,8 +20,8 @@ import {
   SupportedFlagValues,
   ToolPlugin,
   findToolsConfig,
-} from '@genkit-ai/tools-common/plugin';
-import { logger } from '@genkit-ai/tools-common/utils';
+} from '@genkit/tools-common/plugin';
+import { logger } from '@genkit/tools-common/utils';
 import * as clc from 'colorette';
 import { Command } from 'commander';
 

@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
-import { ModelAction, ModelArgument } from '@genkit-ai/ai/model';
-import { logger } from '@genkit-ai/core/logging';
+import { generate } from '@genkit/ai';
+import { ModelAction, ModelArgument } from '@genkit/ai/model';
+import { logger } from '@genkit/core/logging';
 import { LLMResult } from '@langchain/core/outputs';
 import { CallbackManagerForLLMRun } from 'langchain/callbacks';
 import { BaseLLM } from 'langchain/llms/base';

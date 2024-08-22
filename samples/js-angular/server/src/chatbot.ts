@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { defineTool } from '@genkit-ai/ai';
-import { MessageData } from '@genkit-ai/ai/model';
-import { gemini15FlashPreview } from '@genkit-ai/vertexai';
+import { defineTool } from '@genkit/ai';
+import { MessageData } from '@genkit/ai/model';
+import { gemini15FlashPreview } from '@genkit/vertexai';
 import { z } from 'zod';
 import { HistoryStore, defineAgent } from './agent';
 

@@ -55,8 +55,8 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/dev-local-vectorstore
         with:
           default: ${{ inputs.releaseType }}
-          commit-message: 'chore: bump @genkit-ai/dev-local-vectorstore version to {{version}}'
-          tag-prefix:  '@genkit-ai/dev-local-vectorstore@'
+          commit-message: 'chore: bump @genkit/dev-local-vectorstore version to {{version}}'
+          tag-prefix:  '@genkit/dev-local-vectorstore@'
       - name: 'js/plugins/dotprompt version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
@@ -64,8 +64,8 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/dotprompt
         with:
           default: ${{ inputs.releaseType }}
-          commit-message: 'chore: bump @genkit-ai/dotprompt version to {{version}}'
-          tag-prefix:  '@genkit-ai/dotprompt@'
+          commit-message: 'chore: bump @genkit/dotprompt version to {{version}}'
+          tag-prefix:  '@genkit/dotprompt@'
       - name: 'js/plugins/evaluator version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
@@ -73,8 +73,8 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/evaluator
         with:
           default: ${{ inputs.releaseType }}
-          commit-message: 'chore: bump @genkit-ai/evaluator version to {{version}}'
-          tag-prefix:  '@genkit-ai/evaluator@'
+          commit-message: 'chore: bump @genkit/evaluator version to {{version}}'
+          tag-prefix:  '@genkit/evaluator@'
       - name: 'js/plugins/firebase version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
@@ -82,8 +82,8 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/firebase
         with:
           default: ${{ inputs.releaseType }}
-          commit-message: 'chore: bump @genkit-ai/firebase version to {{version}}'
-          tag-prefix:  '@genkit-ai/firebase@'
+          commit-message: 'chore: bump @genkit/firebase version to {{version}}'
+          tag-prefix:  '@genkit/firebase@'
       - name: 'js/plugins/google-cloud version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
@@ -91,8 +91,8 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/google-cloud
         with:
           default: ${{ inputs.releaseType }}
-          commit-message: 'chore: bump @genkit-ai/google-cloud version to {{version}}'
-          tag-prefix:  '@genkit-ai/google-cloud@'
+          commit-message: 'chore: bump @genkit/google-cloud version to {{version}}'
+          tag-prefix:  '@genkit/google-cloud@'
       - name: 'js/plugins/googleai version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
@@ -100,8 +100,8 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/googleai
         with:
           default: ${{ inputs.releaseType }}
-          commit-message: 'chore: bump @genkit-ai/googleai version to {{version}}'
-          tag-prefix:  '@genkit-ai/googleai@'
+          commit-message: 'chore: bump @genkit/googleai version to {{version}}'
+          tag-prefix:  '@genkit/googleai@'
       - name: 'js/plugins/langchain version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
@@ -136,5 +136,5 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/vertexai
         with:
           default: ${{ inputs.releaseType }}
-          commit-message: 'chore: bump @genkit-ai/vertexai version to {{version}}'
-          tag-prefix:  '@genkit-ai/vertexai@'
+          commit-message: 'chore: bump @genkit/vertexai version to {{version}}'
+          tag-prefix:  '@genkit/vertexai@'

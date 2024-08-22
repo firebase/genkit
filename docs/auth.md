@@ -21,7 +21,7 @@ All flows can define an `authPolicy` in their config. An auth policy is a functi
 If this field is set, it is executed before the flow is invoked:
 
 ```ts
-import { defineFlow, runFlow } from '@genkit-ai/flow';
+import { defineFlow, runFlow } from '@genkit/flow';
 
 export const selfSummaryFlow = defineFlow(
   {
@@ -73,7 +73,7 @@ You can also retrieve the auth context for the flow at any time within the flow
 by calling `getFlowAuth()`, including in functions invoked by the flow:
 
 ```ts
-import { getFlowAuth, defineFlow } from '@genkit-ai/flow';
+import { getFlowAuth, defineFlow } from '@genkit/flow';
 
 async function readDatabase(uid: string) {
   if (getFlowAuth().admin) {
@@ -123,8 +123,8 @@ You can use Firebase Auth to protect your flows defined with `onFlow()`:
 <!-- prettier-ignore: see note above -->
 
 ```ts
-import {firebaseAuth} from "@genkit-ai/firebase/auth";
-import {onFlow} from "@genkit-ai/firebase/functions";
+import {firebaseAuth} from "@genkit/firebase/auth";
+import {onFlow} from "@genkit/firebase/functions";
 
 export const selfSummaryFlow = onFlow({
     name: "selfSummaryFlow",
@@ -176,7 +176,7 @@ indicate to the library that you are forgoing authorization checks by using the
 <!-- prettier-ignore: see note above -->
 
 ```ts
-import {onFlow, noAuth} from "@genkit-ai/firebase/functions";
+import {onFlow, noAuth} from "@genkit/firebase/functions";
 
 export const selfSummaryFlow = onFlow({
     name: "selfSummaryFlow",
@@ -199,7 +199,7 @@ the following configuration options to your `onFlow()`:
 <!-- prettier-ignore: see note above -->
 
 ```ts
-import {onFlow} from "@genkit-ai/firebase/functions";
+import {onFlow} from "@genkit/firebase/functions";
 
 export const selfSummaryFlow = onFlow({
     name: "selfSummaryFlow",

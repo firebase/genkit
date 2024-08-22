@@ -22,9 +22,9 @@ import {
   GenerationCommonConfigSchema,
   getBasicUsageStats,
   MessageData,
-} from '@genkit-ai/ai/model';
-import { genkitPlugin, Plugin } from '@genkit-ai/core';
-import { logger } from '@genkit-ai/core/logging';
+} from '@genkit/ai/model';
+import { genkitPlugin, Plugin } from '@genkit/core';
+import { logger } from '@genkit/core/logging';
 
 type ApiType = 'chat' | 'generate';
 

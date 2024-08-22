@@ -14,11 +14,8 @@
  * limitations under the License.
  */
 
-import { EmbedderArgument } from '@genkit-ai/ai/embedder';
-import {
-  CommonRetrieverOptionsSchema,
-  Document,
-} from '@genkit-ai/ai/retriever';
+import { EmbedderArgument } from '@genkit/ai/embedder';
+import { CommonRetrieverOptionsSchema, Document } from '@genkit/ai/retriever';
 import * as aiplatform from '@google-cloud/aiplatform';
 import { GoogleAuth } from 'google-auth-library';
 import z from 'zod';

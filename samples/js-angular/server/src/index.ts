@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
-import { startFlowsServer } from '@genkit-ai/flow';
-import { vertexAI } from '@genkit-ai/vertexai';
+import { configureGenkit } from '@genkit/core';
+import { startFlowsServer } from '@genkit/flow';
+import { vertexAI } from '@genkit/vertexai';
 
 configureGenkit({
   plugins: [vertexAI()],

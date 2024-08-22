@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { Action } from '@genkit-ai/core';
-import { toJsonSchema } from '@genkit-ai/core/schema';
+import { Action } from '@genkit/core';
+import { toJsonSchema } from '@genkit/core/schema';
 import { z } from 'zod';
 
 export const ModelIdSchema = z.object({

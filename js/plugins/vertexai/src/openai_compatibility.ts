@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Message } from '@genkit-ai/ai';
+import { Message } from '@genkit/ai';
 import {
   defineModel,
   GenerateResponseChunkData,
@@ -29,8 +29,8 @@ import {
   type Role,
   type ToolDefinition,
   type ToolRequestPart,
-} from '@genkit-ai/ai/model';
-import { StreamingCallback } from '@genkit-ai/core';
+} from '@genkit/ai/model';
+import { StreamingCallback } from '@genkit/core';
 import OpenAI from 'openai';
 import {
   type ChatCompletion,

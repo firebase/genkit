@@ -1,5 +1,5 @@
 {
-  "name": "@genkit-ai/vertexai",
+  "name": "@genkit/vertexai",
   "description": "Genkit AI framework plugin for Google Cloud Vertex AI APIs including Gemini APIs, Imagen, and more.",
   "keywords": [
     "genkit",
@@ -46,9 +46,9 @@
     "zod": "^3.22.4"
   },
   "peerDependencies": {
-    "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/core": "workspace:*",
-    "@genkit-ai/flow": "workspace:*"
+    "@genkit/ai": "workspace:*",
+    "@genkit/core": "workspace:*",
+    "@genkit/flow": "workspace:*"
   },
   "optionalDependencies": {
     "firebase-admin": "^12.1.0",

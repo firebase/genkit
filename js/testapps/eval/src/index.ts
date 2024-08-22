@@ -19,12 +19,12 @@ import {
   EvalResponse,
   EvalResponseSchema,
   evaluate,
-} from '@genkit-ai/ai/evaluator';
-import { configureGenkit } from '@genkit-ai/core';
-import { GenkitMetric, genkitEval, genkitEvalRef } from '@genkit-ai/evaluator';
-import { firebase } from '@genkit-ai/firebase';
-import { defineFlow } from '@genkit-ai/flow';
-import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+} from '@genkit/ai/evaluator';
+import { configureGenkit } from '@genkit/core';
+import { GenkitMetric, genkitEval, genkitEvalRef } from '@genkit/evaluator';
+import { firebase } from '@genkit/firebase';
+import { defineFlow } from '@genkit/flow';
+import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit/vertexai';
 import * as z from 'zod';
 
 export default configureGenkit({

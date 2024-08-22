@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { Action, defineAction } from '@genkit-ai/core';
-import { logger } from '@genkit-ai/core/logging';
-import { lookupAction } from '@genkit-ai/core/registry';
-import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
+import { Action, defineAction } from '@genkit/core';
+import { logger } from '@genkit/core/logging';
+import { lookupAction } from '@genkit/core/registry';
+import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit/core/tracing';
 import * as z from 'zod';
 
 export const ATTR_PREFIX = 'genkit';

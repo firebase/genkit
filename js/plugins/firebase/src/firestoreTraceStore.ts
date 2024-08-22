@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { logger } from '@genkit-ai/core/logging';
+import { logger } from '@genkit/core/logging';
 import {
   SpanData,
   SpanDataSchema,
@@ -23,7 +23,7 @@ import {
   TraceQuery,
   TraceQueryResponse,
   TraceStore,
-} from '@genkit-ai/core/tracing';
+} from '@genkit/core/tracing';
 import { Firestore } from '@google-cloud/firestore';
 import { randomUUID } from 'crypto';
 

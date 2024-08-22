@@ -26,7 +26,7 @@ importers:
 
   cli:
     dependencies:
-      '@genkit-ai/tools-common':
+      '@genkit/tools-common':
         specifier: workspace:*
         version: link:../common
       colorette:
@@ -200,7 +200,7 @@ importers:
         specifier: ^2.0.20
         version: 2.0.20
     devDependencies:
-      '@genkit-ai/tools-common':
+      '@genkit/tools-common':
         specifier: workspace:*
         version: link:../../common
       '@types/node':
@@ -219,7 +219,7 @@ importers:
         specifier: ^2.0.20
         version: 2.0.20
     devDependencies:
-      '@genkit-ai/tools-common':
+      '@genkit/tools-common':
         specifier: workspace:*
         version: link:../../common
       '@types/node':

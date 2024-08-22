@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { EnvTypes, EvalInput, TraceData } from '@genkit-ai/tools-common';
+import { EnvTypes, EvalInput, TraceData } from '@genkit/tools-common';
 import {
   getEvalExtractors,
   logger,
   runInRunnerThenStop,
-} from '@genkit-ai/tools-common/utils';
+} from '@genkit/tools-common/utils';
 import { Command } from 'commander';
 import { randomUUID } from 'crypto';
 import { writeFile } from 'fs/promises';

@@ -14,21 +14,21 @@
  * limitations under the License.
  */
 
-import { EvalInput, EvalResponse } from '@genkit-ai/tools-common';
+import { EvalInput, EvalResponse } from '@genkit/tools-common';
 import {
   EvalExporter,
   enrichResultsWithScoring,
   extractMetricsMetadata,
   getEvalStore,
   getExporterForString,
-} from '@genkit-ai/tools-common/eval';
+} from '@genkit/tools-common/eval';
 import {
   confirmLlmUse,
   evaluatorName,
   isEvaluator,
   logger,
   runInRunnerThenStop,
-} from '@genkit-ai/tools-common/utils';
+} from '@genkit/tools-common/utils';
 import { Command } from 'commander';
 import { randomUUID } from 'crypto';
 import { readFile } from 'fs/promises';

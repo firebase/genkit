@@ -18,8 +18,8 @@ import {
   BaseDataPoint,
   EvaluatorAction,
   defineEvaluator,
-} from '@genkit-ai/ai/evaluator';
-import { ModelReference } from '@genkit-ai/ai/model';
+} from '@genkit/ai/evaluator';
+import { ModelReference } from '@genkit/ai/model';
 import * as z from 'zod';
 import { ByoMetric } from '..';
 import { funninessScore } from './funniness';

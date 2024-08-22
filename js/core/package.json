@@ -1,5 +1,5 @@
 {
-  "name": "@genkit-ai/core",
+  "name": "@genkit/core",
   "description": "Genkit AI framework core libraries.",
   "keywords": [
     "genkit",

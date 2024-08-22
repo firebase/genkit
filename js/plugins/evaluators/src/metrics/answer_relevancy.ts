@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
-import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
-import { BaseDataPoint, Score } from '@genkit-ai/ai/evaluator';
-import { ModelArgument } from '@genkit-ai/ai/model';
-import { loadPromptFile } from '@genkit-ai/dotprompt';
+import { generate } from '@genkit/ai';
+import { embed, EmbedderArgument } from '@genkit/ai/embedder';
+import { BaseDataPoint, Score } from '@genkit/ai/evaluator';
+import { ModelArgument } from '@genkit/ai/model';
+import { loadPromptFile } from '@genkit/dotprompt';
 import similarity from 'compute-cosine-similarity';
 import path from 'path';
 import * as z from 'zod';

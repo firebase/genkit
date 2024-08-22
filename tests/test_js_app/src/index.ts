@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
-import { defineModel } from '@genkit-ai/ai/model';
-import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow } from '@genkit-ai/flow';
+import { generate } from '@genkit/ai';
+import { defineModel } from '@genkit/ai/model';
+import { configureGenkit } from '@genkit/core';
+import { defineFlow } from '@genkit/flow';
 import * as z from 'zod';
 
 defineModel(

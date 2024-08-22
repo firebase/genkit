@@ -20,13 +20,9 @@ import {
   GenkitError,
   runWithStreamingCallback,
   StreamingCallback,
-} from '@genkit-ai/core';
-import { lookupAction } from '@genkit-ai/core/registry';
-import {
-  parseSchema,
-  toJsonSchema,
-  validateSchema,
-} from '@genkit-ai/core/schema';
+} from '@genkit/core';
+import { lookupAction } from '@genkit/core/registry';
+import { parseSchema, toJsonSchema, validateSchema } from '@genkit/core/schema';
 import { z } from 'zod';
 import { DocumentData } from './document.js';
 import { extractJson } from './extract.js';

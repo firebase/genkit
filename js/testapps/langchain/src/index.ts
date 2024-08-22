@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
-import { firebase } from '@genkit-ai/firebase';
-import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
-import { googleAI } from '@genkit-ai/googleai';
-import { vertexAI } from '@genkit-ai/vertexai';
+import { configureGenkit } from '@genkit/core';
+import { firebase } from '@genkit/firebase';
+import { defineFlow, run, startFlowsServer } from '@genkit/flow';
+import { googleAI } from '@genkit/googleai';
+import { vertexAI } from '@genkit/vertexai';
 import { GoogleVertexAIEmbeddings } from '@langchain/community/embeddings/googlevertexai';
 import { GoogleVertexAI } from '@langchain/community/llms/googlevertexai';
 import { StringOutputParser } from '@langchain/core/output_parsers';

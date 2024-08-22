@@ -15,7 +15,7 @@ The Firebase plugin provides several integrations with Firebase services:
 ## Installation
 
 ```posix-terminal
-npm i --save @genkit-ai/firebase
+npm i --save @genkit/firebase
 ```
 
 ## Prerequisites
@@ -36,8 +36,8 @@ To use this plugin, specify it when you call `configureGenkit()`:
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
-import {configureGenkit} from "@genkit-ai/core";
-import {firebase} from "@genkit-ai/firebase";
+import {configureGenkit} from "@genkit/core";
+import {firebase} from "@genkit/firebase";
 
 configureGenkit({
   plugins: [firebase({projectId: "your-firebase-project"})],
@@ -78,8 +78,8 @@ The plugin has a direct dependency on the [Google Cloud plugin](google-cloud.md)
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
-import {configureGenkit} from "@genkit-ai/core";
-import {firebase} from "@genkit-ai/firebase";
+import {configureGenkit} from "@genkit/core";
+import {firebase} from "@genkit/firebase";
 
 configureGenkit({
   plugins: [firebase()],
@@ -113,8 +113,8 @@ retrievers, `defineFirestoreRetriever()`:
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
-import {defineFirestoreRetriever} from "@genkit-ai/firebase";
-import {retrieve} from "@genkit-ai/ai/retriever";
+import {defineFirestoreRetriever} from "@genkit/firebase";
+import {retrieve} from "@genkit/ai/retriever";
 
 import {initializeApp} from "firebase-admin/app";
 import {getFirestore} from "firebase-admin/firestore";
@@ -128,7 +128,7 @@ const yourRetrieverRef = defineFirestoreRetriever({
   collection: "yourCollection",
   contentField: "yourDataChunks",
   vectorField: "embedding",
-  embedder: textEmbeddingGecko, // Import from '@genkit-ai/googleai' or '@genkit-ai/vertexai'
+  embedder: textEmbeddingGecko, // Import from '@genkit/googleai' or '@genkit/vertexai'
   distanceMeasure: "COSINE", // "EUCLIDEAN", "DOT_PRODUCT", or "COSINE" (default)
 });
 ```
@@ -159,10 +159,10 @@ in the following way:
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```ts
-import { configureGenkit } from "@genkit-ai/core";
-import { embed } from "@genkit-ai/ai/embedder";
-import { defineFlow, run } from "@genkit-ai/flow";
-import { textEmbeddingGecko, vertexAI } from "@genkit-ai/vertexai";
+import { configureGenkit } from "@genkit/core";
+import { embed } from "@genkit/ai/embedder";
+import { defineFlow, run } from "@genkit/flow";
+import { textEmbeddingGecko, vertexAI } from "@genkit/vertexai";
 
 import { applicationDefault, initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
@@ -272,7 +272,7 @@ You can use Cloud Firestore to store traces:
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
-import {firebase} from "@genkit-ai/firebase";
+import {firebase} from "@genkit/firebase";
 
 configureGenkit({
   plugins: [firebase()],
@@ -309,8 +309,8 @@ to call them.
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
-import {firebase} from "@genkit-ai/firebase";
-import {onFlow, noAuth} from "@genkit-ai/firebase/functions";
+import {firebase} from "@genkit/firebase";
+import {onFlow, noAuth} from "@genkit/firebase/functions";
 
 configureGenkit({
   plugins: [firebase()],
@@ -372,7 +372,7 @@ Firebase Auth:
 <!--See note above on prettier-ignore -->
 <!-- prettier-ignore -->
 ```js
-import {firebaseAuth} from "@genkit-ai/firebase/auth";
+import {firebaseAuth} from "@genkit/firebase/auth";
 
 export const exampleFlow = onFlow(
   {

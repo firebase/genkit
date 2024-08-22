@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { prompt } from '@genkit-ai/dotprompt';
-import { run } from '@genkit-ai/flow';
+import { prompt } from '@genkit/dotprompt';
+import { run } from '@genkit/flow';
 import {
   durableFlow,
   interrupt,
   scheduleFlow,
   sleep,
   waitFor,
-} from '@genkit-ai/flow/experimental';
+} from '@genkit/flow/experimental';
 import * as z from 'zod';
 import { HelloSchema } from '../common/types.js';
 

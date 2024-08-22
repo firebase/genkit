@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
-import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
-import { dotprompt } from '@genkit-ai/dotprompt';
-import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
-import { firebase } from '@genkit-ai/firebase';
-import { gemini15Pro, googleAI } from '@genkit-ai/googleai';
-import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+import { configureGenkit } from '@genkit/core';
+import { devLocalVectorstore } from '@genkit/dev-local-vectorstore';
+import { dotprompt } from '@genkit/dotprompt';
+import { genkitEval, GenkitMetric } from '@genkit/evaluator';
+import { firebase } from '@genkit/firebase';
+import { gemini15Pro, googleAI } from '@genkit/googleai';
+import { textEmbeddingGecko, vertexAI } from '@genkit/vertexai';
 
 // Turn off safety checks for evaluation so that the LLM as an evaluator can
 // respond appropriately to potentially harmful content without error.

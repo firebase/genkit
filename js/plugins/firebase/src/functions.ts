@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { OperationSchema } from '@genkit-ai/core';
-import { logger } from '@genkit-ai/core/logging';
+import { OperationSchema } from '@genkit/core';
+import { logger } from '@genkit/core/logging';
 import {
   defineFlow,
   Flow,
   FlowAuthPolicy,
   FlowWrapper,
   StepsFunction,
-} from '@genkit-ai/flow';
+} from '@genkit/flow';
 import * as express from 'express';
 import { getAppCheck } from 'firebase-admin/app-check';
 import {

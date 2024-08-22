@@ -18,12 +18,12 @@ import {
   FlowInvokeEnvelopeMessage,
   FlowState,
   Operation,
-} from '@genkit-ai/tools-common';
+} from '@genkit/tools-common';
 import {
   logger,
   runInRunnerThenStop,
   waitForFlowToComplete,
-} from '@genkit-ai/tools-common/utils';
+} from '@genkit/tools-common/utils';
 import { Command } from 'commander';
 import { readFile, writeFile } from 'fs/promises';
 

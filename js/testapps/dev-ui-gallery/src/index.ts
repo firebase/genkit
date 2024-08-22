@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
-import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
-import { dotprompt } from '@genkit-ai/dotprompt';
-import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
-import { firebase } from '@genkit-ai/firebase';
-import { geminiPro, googleAI } from '@genkit-ai/googleai';
+import { configureGenkit } from '@genkit/core';
+import { devLocalVectorstore } from '@genkit/dev-local-vectorstore';
+import { dotprompt } from '@genkit/dotprompt';
+import { genkitEval, GenkitMetric } from '@genkit/evaluator';
+import { firebase } from '@genkit/firebase';
+import { geminiPro, googleAI } from '@genkit/googleai';
 import {
   claude3Haiku,
   claude3Opus,
@@ -27,7 +27,7 @@ import {
   textEmbeddingGecko,
   vertexAI,
   VertexAIEvaluationMetricType,
-} from '@genkit-ai/vertexai';
+} from '@genkit/vertexai';
 import { chroma } from 'genkitx-chromadb';
 import { ollama } from 'genkitx-ollama';
 import { pinecone } from 'genkitx-pinecone';

@@ -46,8 +46,8 @@ jobs:
           PACKAGEJSON_DIR: js/core
         with:
           default: ${{ inputs.releaseType }}
-          commit-message: 'chore: bump @genkit-ai/tools-core version to {{version}}'
-          tag-prefix:  '@genkit-ai/core@'
+          commit-message: 'chore: bump @genkit/tools-core version to {{version}}'
+          tag-prefix:  '@genkit/core@'
       - name: 'js/ai version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
@@ -55,8 +55,8 @@ jobs:
           PACKAGEJSON_DIR: js/ai
         with:
           default: ${{ inputs.releaseType }}
-          commit-message: 'chore: bump @genkit-ai/ai version to {{version}}'
-          tag-prefix:  '@genkit-ai/ai@'
+          commit-message: 'chore: bump @genkit/ai version to {{version}}'
+          tag-prefix:  '@genkit/ai@'
       - name: 'js/flow version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
@@ -64,5 +64,5 @@ jobs:
           PACKAGEJSON_DIR: js/flow
         with:
           default: ${{ inputs.releaseType }}
-          commit-message: 'chore: bump @genkit-ai/flow version to {{version}}'
-          tag-prefix:  '@genkit-ai/flow@'
+          commit-message: 'chore: bump @genkit/flow version to {{version}}'
+          tag-prefix:  '@genkit/flow@'

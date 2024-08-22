@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { StreamingCallback } from '@genkit-ai/core';
+import { StreamingCallback } from '@genkit/core';
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { GoogleAuth } from 'google-auth-library';
 

@@ -6,7 +6,7 @@ through the [Gemini API](https://ai.google.dev/docs/gemini_api_overview).
 ## Installation
 
 ```posix-terminal
-npm i --save @genkit-ai/googleai
+npm i --save @genkit/googleai
 ```
 
 ## Configuration
@@ -14,7 +14,7 @@ npm i --save @genkit-ai/googleai
 To use this plugin, specify it when you call `configureGenkit()`:
 
 ```js
-import { googleAI } from '@genkit-ai/googleai';
+import { googleAI } from '@genkit/googleai';
 
 export default configureGenkit({
   plugins: [googleAI()],
@@ -65,7 +65,7 @@ import {
   gemini15Flash,
   gemini15Pro,
   textEmbeddingGecko001,
-} from '@genkit-ai/googleai';
+} from '@genkit/googleai';
 ```
 
 You can use these references to specify which model `generate()` uses:

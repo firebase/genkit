@@ -16,8 +16,8 @@
 
 //  Sample app for using the proposed Vertex AI plugin retriever and indexer with Firestore.
 
-import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
+import { configureGenkit } from '@genkit/core';
+import { defineFlow, startFlowsServer } from '@genkit/flow';
 import { initializeApp } from 'firebase-admin/app';
 // important imports for this sample:
 import {
@@ -28,11 +28,11 @@ import {
   vertexAI,
   vertexAiIndexerRef,
   vertexAiRetrieverRef,
-} from '@genkit-ai/vertexai';
+} from '@genkit/vertexai';
 import { z } from 'zod';
 
 // // Environment variables set with dotenv for simplicity of sample
-import { Document, index, retrieve } from '@genkit-ai/ai/retriever';
+import { Document, index, retrieve } from '@genkit/ai/retriever';
 import { getFirestore } from 'firebase-admin/firestore';
 import {
   FIRESTORE_COLLECTION,

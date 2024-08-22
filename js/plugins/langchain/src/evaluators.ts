@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { BaseDataPointSchema, defineEvaluator } from '@genkit-ai/ai/evaluator';
-import { ModelArgument } from '@genkit-ai/ai/model';
+import { BaseDataPointSchema, defineEvaluator } from '@genkit/ai/evaluator';
+import { ModelArgument } from '@genkit/ai/model';
 import { Criteria, loadEvaluator } from 'langchain/evaluation';
 import { genkitModel } from './model.js';
 import { GenkitTracer } from './tracing.js';

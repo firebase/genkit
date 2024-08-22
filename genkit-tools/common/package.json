@@ -1,5 +1,5 @@
 {
-  "name": "@genkit-ai/tools-common",
+  "name": "@genkit/tools-common",
   "version": "0.5.10",
   "scripts": {
     "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",

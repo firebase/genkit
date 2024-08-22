@@ -1,5 +1,5 @@
 {
-  "name": "@genkit-ai/dotprompt",
+  "name": "@genkit/dotprompt",
   "description": "Genkit AI framework `.prompt` file format and management library.",
   "keywords": [
     "genkit",
@@ -33,8 +33,8 @@
     "zod": "^3.22.4"
   },
   "peerDependencies": {
-    "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/core": "workspace:*"
+    "@genkit/ai": "workspace:*",
+    "@genkit/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.16",

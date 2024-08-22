@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { Document, index, retrieve } from '@genkit-ai/ai/retriever';
+import { Document, index, retrieve } from '@genkit/ai/retriever';
 import {
   devLocalIndexerRef,
   devLocalRetrieverRef,
-} from '@genkit-ai/dev-local-vectorstore';
-import { defineFlow } from '@genkit-ai/flow';
+} from '@genkit/dev-local-vectorstore';
+import { defineFlow } from '@genkit/flow';
 import * as z from 'zod';
 
 import {

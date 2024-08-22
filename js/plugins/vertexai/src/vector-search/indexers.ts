@@ -14,12 +14,8 @@
  * limitations under the License.
  */
 
-import { embedMany } from '@genkit-ai/ai/embedder';
-import {
-  defineIndexer,
-  IndexerAction,
-  indexerRef,
-} from '@genkit-ai/ai/retriever';
+import { embedMany } from '@genkit/ai/embedder';
+import { defineIndexer, IndexerAction, indexerRef } from '@genkit/ai/retriever';
 import z from 'zod';
 import {
   Datapoint,

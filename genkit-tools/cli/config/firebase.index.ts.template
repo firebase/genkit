@@ -1,15 +1,15 @@
 import * as z from "zod";
 
 // Import the Genkit core libraries and plugins.
-import {generate} from "@genkit-ai/ai";
-import {configureGenkit} from "@genkit-ai/core";
+import {generate} from "@genkit/ai";
+import {configureGenkit} from "@genkit/core";
 $GENKIT_CONFIG_IMPORTS
 $GENKIT_MODEL_IMPORT
 
 // From the Firebase plugin, import the functions needed to deploy flows using
 // Cloud Functions.
-import {firebaseAuth} from "@genkit-ai/firebase/auth";
-import {onFlow} from "@genkit-ai/firebase/functions";
+import {firebaseAuth} from "@genkit/firebase/auth";
+import {onFlow} from "@genkit/firebase/functions";
  
 configureGenkit({
   plugins: [

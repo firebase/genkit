@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Action } from '@genkit-ai/core';
+import { Action } from '@genkit/core';
 import * as z from 'zod';
 import { getActiveContext } from './utils.js';
 

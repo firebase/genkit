@@ -8,7 +8,7 @@ Firebase Genkit provides CLI and Developer UI tooling for working with flows
 ## Defining flows
 
 ```javascript
-import { defineFlow } from '@genkit-ai/flow';
+import { defineFlow } from '@genkit/flow';
 
 export const menuSuggestionFlow = defineFlow(
   {
@@ -25,7 +25,7 @@ export const menuSuggestionFlow = defineFlow(
 Input and output schemas for flows can be defined using `zod`.
 
 ```javascript
-import { defineFlow } from '@genkit-ai/flow';
+import { defineFlow } from '@genkit/flow';
 import * as z from 'zod';
 
 export const menuSuggestionFlow = defineFlow(
@@ -113,8 +113,8 @@ observability).
 To use flows with Cloud Functions for Firebase use the `firebase` plugin, replace `defineFlow` with `onFlow` and include an `authPolicy`.
 
 ```js
-import { onFlow } from '@genkit-ai/firebase/functions';
-import { firebaseAuth } from '@genkit-ai/firebase/auth';
+import { onFlow } from '@genkit/firebase/functions';
+import { firebaseAuth } from '@genkit/firebase/auth';
 
 export const menuSuggestionFlow = onFlow(
   {
@@ -136,7 +136,7 @@ export const menuSuggestionFlow = onFlow(
 To deploy flows using Cloud Run and similar services, define your flows using `defineFlow` and then call `startFlowsServer()`:
 
 ```js
-import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
+import { defineFlow, startFlowsServer } from '@genkit/flow';
 
 export const menuSuggestionFlow = defineFlow(
   {
@@ -155,7 +155,7 @@ By default `startFlowsServer` will serve all the flows that you have defined in 
 You can choose which flows are exposed via the flows server. You can specify a custom port (it will use the `PORT` environment variable if set). You can also set CORS settings.
 
 ```js
-import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
+import { defineFlow, startFlowsServer } from '@genkit/flow';
 
 export const flowA = defineFlow({ name: 'flowA' }, async (subject) => {
   // ....
@@ -179,7 +179,7 @@ startFlowsServer({
 Sometimes when using 3rd party SDKs that that are not instrumented for observability, you might want to see them as a separate trace step in the Developer UI. All you need to do is wrap the code in the `run` function.
 
 ```js
-import { defineFlow, run } from '@genkit-ai/flow';
+import { defineFlow, run } from '@genkit/flow';
 
 export const menuSuggestionFlow = defineFlow(
   {

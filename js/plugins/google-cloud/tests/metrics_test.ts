@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
-import { defineModel } from '@genkit-ai/ai/model';
+import { generate } from '@genkit/ai';
+import { defineModel } from '@genkit/ai/model';
 import {
   configureGenkit,
   defineAction,
@@ -23,14 +23,14 @@ import {
   FlowStateQuery,
   FlowStateQueryResponse,
   FlowStateStore,
-} from '@genkit-ai/core';
-import { registerFlowStateStore } from '@genkit-ai/core/registry';
-import { defineFlow, run, runAction, runFlow } from '@genkit-ai/flow';
+} from '@genkit/core';
+import { registerFlowStateStore } from '@genkit/core/registry';
+import { defineFlow, run, runAction, runFlow } from '@genkit/flow';
 import {
   __getMetricExporterForTesting,
   GcpOpenTelemetry,
   googleCloud,
-} from '@genkit-ai/google-cloud';
+} from '@genkit/google-cloud';
 import {
   Counter,
   DataPoint,

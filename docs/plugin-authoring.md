@@ -5,8 +5,8 @@ that can provide models, retrievers, indexers, trace stores, and more. You've al
 action just by using Genkit:
 
 ```ts
-import { configureGenkit } from '@genkit-ai/core';
-import { vertexAI } from '@genkit-ai/vertexai';
+import { configureGenkit } from '@genkit/core';
+import { vertexAI } from '@genkit/vertexai';
 
 configureGenkit({
   plugins: [vertexAI({ projectId: 'my-project' })],
@@ -30,7 +30,7 @@ cd genkitx-my-plugin
 
 npm init -y
 
-npm i --save @genkit-ai/core
+npm i --save @genkit/core
 
 npm i --save-dev typescript
 
@@ -40,7 +40,7 @@ npx tsc --init
 Then, define and export your plugin from your main entry point:
 
 ```ts
-import { genkitPlugin } from '@genkit-ai/core';
+import { genkitPlugin } from '@genkit/core';
 
 interface MyPluginOptions {
   // add any plugin configuration here
@@ -62,7 +62,7 @@ requires a secret value, such as API keys, you should offer both an option and a
 default environment variable to configure it:
 
 ```ts
-import { genkitPlugin, GenkitError } from '@genkit-ai/core';
+import { genkitPlugin, GenkitError } from '@genkit/core';
 
 interface MyPluginOptions {
   apiKey?: string;
@@ -101,18 +101,18 @@ A custom model generally consists of three components:
 3.  A function that implements the model accepting `GenerateRequest` and
     returning `GenerateResponse`.
 
-To build a model plugin, you'll need to use the `@genkit-ai/ai` package:
+To build a model plugin, you'll need to use the `@genkit/ai` package:
 
 ```posix-terminal
-npm i --save @genkit-ai/ai
+npm i --save @genkit/ai
 ```
 
 At a high level, a model plugin might look something like this:
 
 ```ts
-import { genkitPlugin, GenkitError } from '@genkit-ai/core';
-import { defineModel, GenerationCommonConfigSchema } from '@genkit-ai/ai/model';
-import { simulateSystemPrompt } from '@genkit-ai/ai/model/middleware';
+import { genkitPlugin, GenkitError } from '@genkit/core';
+import { defineModel, GenerationCommonConfigSchema } from '@genkit/ai/model';
+import { simulateSystemPrompt } from '@genkit/ai/model/middleware';
 import { z } from 'zod';
 
 export const myPlugin = genkitPlugin('my-plugin', async (options: {apiKey?: string}) => {
@@ -162,7 +162,7 @@ export a model reference from your package that includes only the metadata for a
 model but not its implementation:
 
 ```ts
-import { modelRef } from "@genkit-ai/ai/model";
+import { modelRef } from "@genkit/ai/model";
 
 export myModelRef = modelRef({
   name: "my-plugin/my-model",
@@ -177,7 +177,7 @@ When calling `generate()`, model references and string model names can be used i
 
 ```ts
 import { myModelRef } from 'genkitx-my-plugin';
-import { generate } from '@genkit-ai/ai';
+import { generate } from '@genkit/ai';
 
 generate({ model: myModelRef });
 // is equivalent to

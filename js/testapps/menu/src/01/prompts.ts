@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { definePrompt } from '@genkit-ai/ai';
-import { GenerateRequest } from '@genkit-ai/ai/model';
-import { defineDotprompt } from '@genkit-ai/dotprompt';
-import { geminiPro } from '@genkit-ai/vertexai';
+import { definePrompt } from '@genkit/ai';
+import { GenerateRequest } from '@genkit/ai/model';
+import { defineDotprompt } from '@genkit/dotprompt';
+import { geminiPro } from '@genkit/vertexai';
 import { MenuQuestionInput, MenuQuestionInputSchema } from '../types.js';
 
 // Define a prompt to handle a customer question about the menu.

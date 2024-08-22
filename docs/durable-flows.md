@@ -10,7 +10,7 @@ they are specifically designed for long-running background operations.
 Here's an example:
 
 ```js
-import { onScheduledFlow } from '@genkit-ai/firebase/functions/experimental';
+import { onScheduledFlow } from '@genkit/firebase/functions/experimental';
 
 export const jokeFlow = onScheduledFlow(
   { name: 'jokeFlow', inputSchema: z.string(), outputSchema: z.string() },
@@ -189,7 +189,7 @@ export const myFlow = onScheduledFlow(
 To resume the interrupted flow:
 
 ```js
-// import { resumeFlow } from '@genkit-ai/flow/experimental';
+// import { resumeFlow } from '@genkit/flow/experimental';
 await resumeFlow(myFlow, flowId, {
   approve: false,
 });
@@ -200,7 +200,7 @@ need to be careful to rethrow the error when wrapping the `interrupt` step in
 `try`-`catch`.
 
 ```js
-import { InterruptError } from '@genkit-ai/flow/experimental';
+import { InterruptError } from '@genkit/flow/experimental';
 
 export const myFlow = onScheduledFlow(
   { name: 'myFlow', outputSchema: z.boolean() },
@@ -302,7 +302,7 @@ export const myFlow = onScheduledFlow(
 Use `getFlowState()` to retrieve a flow's current state:
 
 ```javascript
-// import { getFlowState } from '@genkit-ai/flow/experimental';
+// import { getFlowState } from '@genkit/flow/experimental';
 
 const operation = await scheduleFlow(jokeFlow, 'banana');
 console.log('Operation', operation);

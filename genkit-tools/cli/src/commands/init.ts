@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { Runtime } from '@genkit-ai/tools-common/runner';
-import { detectRuntime, logger } from '@genkit-ai/tools-common/utils';
+import { Runtime } from '@genkit/tools-common/runner';
+import { detectRuntime, logger } from '@genkit/tools-common/utils';
 import { Command } from 'commander';
 import * as inquirer from 'inquirer';
 import { initGo } from './init/init-go';

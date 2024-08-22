@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { Action, defineAction, JSONSchema7 } from '@genkit-ai/core';
-import { lookupAction } from '@genkit-ai/core/registry';
-import { toJsonSchema } from '@genkit-ai/core/schema';
-import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
+import { Action, defineAction, JSONSchema7 } from '@genkit/core';
+import { lookupAction } from '@genkit/core/registry';
+import { toJsonSchema } from '@genkit/core/schema';
+import { setCustomMetadataAttributes } from '@genkit/core/tracing';
 import z from 'zod';
 import { ToolDefinition } from './model.js';
 

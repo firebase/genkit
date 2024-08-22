@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { EvaluatorAction } from '@genkit-ai/ai';
-import { ModelReference } from '@genkit-ai/ai/model';
-import { configureGenkit, genkitPlugin, PluginProvider } from '@genkit-ai/core';
-import { dotprompt } from '@genkit-ai/dotprompt';
-import { firebase } from '@genkit-ai/firebase';
-import { geminiPro, googleAI } from '@genkit-ai/googleai';
+import { EvaluatorAction } from '@genkit/ai';
+import { ModelReference } from '@genkit/ai/model';
+import { configureGenkit, genkitPlugin, PluginProvider } from '@genkit/core';
+import { dotprompt } from '@genkit/dotprompt';
+import { firebase } from '@genkit/firebase';
+import { geminiPro, googleAI } from '@genkit/googleai';
 import * as z from 'zod';
 import {
   PERMISSIVE_SAFETY_SETTINGS,

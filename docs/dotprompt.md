@@ -33,10 +33,10 @@ Greet a guest{{#if name}} named {{name}}{{/if}}{{#if style}} in the style of {{s
 ```
 
 To use this prompt, install the `dotprompt` plugin, and import the `promptRef` function from
-the `@genkit-ai/dotprompt` library:
+the `@genkit/dotprompt` library:
 
 ```ts
-import { dotprompt, promptRef } from '@genkit-ai/dotprompt';
+import { dotprompt, promptRef } from '@genkit/dotprompt';
 
 configureGenkit({ plugins: [dotprompt()] });
 ```
@@ -148,7 +148,7 @@ In addition to directly defining schemas in the `.prompt` file, you can referenc
 a schema registered with `defineSchema` by name. To register a schema:
 
 ```ts
-import { defineSchema } from '@genkit-ai/core';
+import { defineSchema } from '@genkit/core';
 import { z } from 'zod';
 
 const MySchema = defineSchema(
@@ -176,7 +176,7 @@ registered Zod schema. You can then utilize the schema to strongly type the
 output of a Dotprompt:
 
 ```ts
-import { promptRef } from "@genkit-ai/dotprompt";
+import { promptRef } from "@genkit/dotprompt";
 
 const myPrompt = promptRef("myPrompt");
 
@@ -397,7 +397,7 @@ Help the user decide between these vacation destinations:
 You may also define partials in code using `definePartial`:
 
 ```ts
-import { definePartial } from '@genkit-ai/dotprompt';
+import { definePartial } from '@genkit/dotprompt';
 
 definePartial(
   'personality',
@@ -438,7 +438,7 @@ You can define custom helpers to process and manage data inside of a prompt. Hel
 are registered globally using `defineHelper`:
 
 ```ts
-import { defineHelper } from '@genkit-ai/dotprompt';
+import { defineHelper } from '@genkit/dotprompt';
 
 defineHelper('shout', (text: string) => text.toUpperCase());
 ```
@@ -476,7 +476,7 @@ import {
   loadPromptFile,
   loadPromptUrl,
   defineDotprompt,
-} from '@genkit-ai/dotprompt';
+} from '@genkit/dotprompt';
 import path from 'path';
 import { z } from 'zod';
 

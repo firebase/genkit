@@ -21,7 +21,7 @@ import {
   logger,
   record,
   setUserSettings,
-} from '@genkit-ai/tools-common/utils';
+} from '@genkit/tools-common/utils';
 import * as clc from 'colorette';
 import { Command } from 'commander';
 

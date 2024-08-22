@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { GenerateRequest, ModelReference } from '@genkit-ai/ai/model';
-import { IndexerAction, RetrieverAction } from '@genkit-ai/ai/retriever';
-import { Plugin, genkitPlugin } from '@genkit-ai/core';
+import { GenerateRequest, ModelReference } from '@genkit/ai/model';
+import { IndexerAction, RetrieverAction } from '@genkit/ai/retriever';
+import { Plugin, genkitPlugin } from '@genkit/core';
 import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
 import z from 'zod';

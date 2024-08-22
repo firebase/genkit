@@ -139,8 +139,8 @@ npm i -D --save @types/pdf-parse
 import {
   devLocalIndexerRef,
   devLocalVectorstore,
-} from '@genkit-ai/dev-local-vectorstore';
-import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+} from '@genkit/dev-local-vectorstore';
+import { textEmbeddingGecko, vertexAI } from '@genkit/vertexai';
 
 configureGenkit({
   plugins: [
@@ -170,7 +170,7 @@ use in production_)
 #### Create the indexer
 
 ```ts
-import { devLocalIndexerRef } from '@genkit-ai/dev-local-vectorstore';
+import { devLocalIndexerRef } from '@genkit/dev-local-vectorstore';
 
 export const menuPdfIndexer = devLocalIndexerRef('menuQA');
 ```
@@ -196,9 +196,9 @@ More chunking options for this library can be found in the [llm-chunk documentat
 #### Define your indexer flow
 
 ```ts
-import { index } from '@genkit-ai/ai';
-import { Document } from '@genkit-ai/ai/retriever';
-import { defineFlow, run } from '@genkit-ai/flow';
+import { index } from '@genkit/ai';
+import { Document } from '@genkit/ai/retriever';
+import { defineFlow, run } from '@genkit/flow';
 import { readFile } from 'fs/promises';
 import { chunk } from 'llm-chunk';
 import path from 'path';
@@ -260,11 +260,11 @@ the indexer example, this example uses Genkit's file-based vector retriever,
 which you should not use in production.
 
 ```ts
-import { generate } from '@genkit-ai/ai';
-import { retrieve } from '@genkit-ai/ai/retriever';
-import { devLocalRetrieverRef } from '@genkit-ai/dev-local-vectorstore';
-import { defineFlow } from '@genkit-ai/flow';
-import { gemini15Flash } from '@genkit-ai/vertexai';
+import { generate } from '@genkit/ai';
+import { retrieve } from '@genkit/ai/retriever';
+import { devLocalRetrieverRef } from '@genkit/dev-local-vectorstore';
+import { defineFlow } from '@genkit/flow';
+import { gemini15Flash } from '@genkit/vertexai';
 import * as z from 'zod';
 
 // Define the retriever reference
@@ -319,7 +319,7 @@ Simple retrievers let you easily convert existing code into retrievers:
 import {
   defineSimpleRetriever,
   retrieve
-} from '@genkit-ai/ai/retriever';
+} from '@genkit/ai/retriever';
 import { searchEmails } from './db';
 import { z } from 'zod';
 
@@ -345,7 +345,7 @@ import {
   CommonRetrieverOptionsSchema,
   defineRetriever,
   retrieve,
-} from '@genkit-ai/ai/retriever';
+} from '@genkit/ai/retriever';
 import * as z from 'zod';
 
 export const menuRetriever = devLocalRetrieverRef('menuQA');

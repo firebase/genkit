@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { logger } from '@genkit-ai/core/logging';
+import { logger } from '@genkit/core/logging';
 import { FindNeighborsResponse } from './types';
 
 interface QueryPublicEndpointParams {

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { defineDotprompt } from '@genkit-ai/dotprompt';
+import { defineDotprompt } from '@genkit/dotprompt';
 import * as z from 'zod';
 
 // Define a prompt that includes the retrieved context documents

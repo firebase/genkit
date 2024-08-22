@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
-import { configureGenkit } from '@genkit-ai/core';
-import { firebase } from '@genkit-ai/firebase';
-import { durableFlow, interrupt, run } from '@genkit-ai/flow/experimental';
-import { geminiPro, googleAI } from '@genkit-ai/googleai';
+import { generate } from '@genkit/ai';
+import { configureGenkit } from '@genkit/core';
+import { firebase } from '@genkit/firebase';
+import { durableFlow, interrupt, run } from '@genkit/flow/experimental';
+import { geminiPro, googleAI } from '@genkit/googleai';
 import * as z from 'zod';
 // To run this sample use the following sample commands:
 //   genkit flow:run jokeFlow "\"apple\""

@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
-import { firebase } from '@genkit-ai/firebase';
+import { configureGenkit } from '@genkit/core';
+import { firebase } from '@genkit/firebase';
 import {
   defineFlow,
   run,
   runFlow,
   runMap,
   startFlowsServer,
-} from '@genkit-ai/flow';
+} from '@genkit/flow';
 import {
   durableFlow,
   interrupt,
   scheduleFlow,
   sleep,
   waitFor,
-} from '@genkit-ai/flow/experimental';
+} from '@genkit/flow/experimental';
 import * as z from 'zod';
 
 configureGenkit({

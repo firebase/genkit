@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { Action, Operation } from '@genkit-ai/core';
-import { logger } from '@genkit-ai/core/logging';
+import { Action, Operation } from '@genkit/core';
+import { logger } from '@genkit/core/logging';
 import * as z from 'zod';
 import { PollingConfig } from './context.js';
 import {

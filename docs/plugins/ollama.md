@@ -64,7 +64,7 @@ the Google Auth library:
 ```js
 import { GoogleAuth } from 'google-auth-library';
 import { ollama, OllamaPluginParams } from 'genkitx-ollama';
-import { configureGenkit, isDevEnv } from '@genkit-ai/core';
+import { configureGenkit, isDevEnv } from '@genkit/core';
 
 const ollamaCommon = {models: [{name: "gemma:2b"}]};
 const ollamaDev = {

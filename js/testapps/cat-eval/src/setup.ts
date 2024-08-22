@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { defineFlow, runFlow } from '@genkit-ai/flow';
+import { defineFlow, runFlow } from '@genkit/flow';
 import * as z from 'zod';
 import { indexPdf } from './pdf_rag.js';
 

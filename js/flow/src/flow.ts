@@ -26,15 +26,15 @@ import {
   isDevEnv,
   Operation,
   StreamingCallback,
-} from '@genkit-ai/core';
-import { logger } from '@genkit-ai/core/logging';
-import { toJsonSchema } from '@genkit-ai/core/schema';
+} from '@genkit/core';
+import { logger } from '@genkit/core/logging';
+import { toJsonSchema } from '@genkit/core/schema';
 import {
   newTrace,
   setCustomMetadataAttribute,
   setCustomMetadataAttributes,
   SPAN_TYPE_ATTR,
-} from '@genkit-ai/core/tracing';
+} from '@genkit/core/tracing';
 import { SpanStatusCode } from '@opentelemetry/api';
 import * as bodyParser from 'body-parser';
 import { default as cors, CorsOptions } from 'cors';

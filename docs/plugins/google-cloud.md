@@ -8,7 +8,7 @@ The Google Cloud plugin exports Firebase Genkit's telemetry and logging data to
 ## Installation
 
 ```posix-terminal
-npm i --save @genkit-ai/google-cloud
+npm i --save @genkit/google-cloud
 ```
 
 If you want to locally run flows that use this plugin, you also need the
@@ -33,7 +33,7 @@ Click [here](https://support.google.com/googleapi/answer/6158841) to learn more 
 To enable exporting to Google Cloud Tracing, Logging, and Monitoring, add the `googleCloud` plugin to your Genkit configuration:
 
 ```ts
-import { googleCloud } from '@genkit-ai/google-cloud';
+import { googleCloud } from '@genkit/google-cloud';
 
 export default configureGenkit({
   plugins: [googleCloud()],

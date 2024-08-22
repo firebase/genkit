@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
+import { embed, EmbedderArgument } from '@genkit/ai/embedder';
 import {
   defineRetriever,
   DocumentData,
   Part,
   RetrieverAction,
-} from '@genkit-ai/ai/retriever';
+} from '@genkit/ai/retriever';
 import {
   Firestore,
   Query,

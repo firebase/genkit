@@ -12,8 +12,8 @@ You can use most LangChain chains or utilities in Genkit flows as is. The exampl
 uses LangChain retrievers, document loaders, and chain constructs to build a naive RAG sample.
 
 ```js
-import { initializeGenkit } from '@genkit-ai/core';
-import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
+import { initializeGenkit } from '@genkit/core';
+import { defineFlow, run, startFlowsServer } from '@genkit/flow';
 import { GoogleVertexAIEmbeddings } from '@langchain/community/embeddings/googlevertexai';
 import { GoogleVertexAI } from '@langchain/community/llms/googlevertexai';
 import { StringOutputParser } from '@langchain/core/output_parsers';

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { MessageData, MessageSchema } from '@genkit-ai/ai/model';
+import { MessageData, MessageSchema } from '@genkit/ai/model';
 import * as z from 'zod';
 
 // Our flow will take a sessionId along with each question to track the chat history.

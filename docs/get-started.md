@@ -88,14 +88,14 @@ so that it can be used outside of a Node project.
     import * as z from 'zod';
 
     // Import the Genkit core libraries and plugins.
-    import { generate } from '@genkit-ai/ai';
-    import { configureGenkit } from '@genkit-ai/core';
-    import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
-    import { googleAI } from '@genkit-ai/googleai';
+    import { generate } from '@genkit/ai';
+    import { configureGenkit } from '@genkit/core';
+    import { defineFlow, startFlowsServer } from '@genkit/flow';
+    import { googleAI } from '@genkit/googleai';
 
     // Import models from the Google AI plugin. The Google AI API provides access to
     // several generative models. Here, we import Gemini 1.5 Flash.
-    import { gemini15Flash } from '@genkit-ai/googleai';
+    import { gemini15Flash } from '@genkit/googleai';
 
     configureGenkit({
       plugins: [

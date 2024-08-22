@@ -23,11 +23,11 @@ import {
   GenerateStreamResponse,
   PromptAction,
   toGenerateRequest,
-} from '@genkit-ai/ai';
-import { GenerationCommonConfigSchema, MessageData } from '@genkit-ai/ai/model';
-import { DocumentData } from '@genkit-ai/ai/retriever';
-import { GenkitError } from '@genkit-ai/core';
-import { parseSchema } from '@genkit-ai/core/schema';
+} from '@genkit/ai';
+import { GenerationCommonConfigSchema, MessageData } from '@genkit/ai/model';
+import { DocumentData } from '@genkit/ai/retriever';
+import { GenkitError } from '@genkit/core';
+import { parseSchema } from '@genkit/core/schema';
 import { createHash } from 'crypto';
 import fm, { FrontMatterResult } from 'front-matter';
 import z from 'zod';

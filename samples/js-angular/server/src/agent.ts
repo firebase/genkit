@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { GenerateResponse, generate } from '@genkit-ai/ai';
+import { GenerateResponse, generate } from '@genkit/ai';
 import {
   GenerateResponseSchema,
   MessageData,
   ModelArgument,
   PartSchema,
-} from '@genkit-ai/ai/model';
-import { ToolArgument } from '@genkit-ai/ai/tool';
-import { defineFlow, run } from '@genkit-ai/flow';
+} from '@genkit/ai/model';
+import { ToolArgument } from '@genkit/ai/tool';
+import { defineFlow, run } from '@genkit/flow';
 import { z } from 'zod';
 
 export interface HistoryStore {

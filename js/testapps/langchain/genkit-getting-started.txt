@@ -10,9 +10,9 @@ Genkit is here to help you through every step of your AI development journey, fr
 To get you started, here are 10 key Genkit features we think you'll love:
 1. Many models, one interface
 Genkit provides plugins that give you access to popular models out of the box and a flexible model abstraction that makes it easy to integrate any model API and use community-maintained models. Trying out a new model is as easy as changing a single argument, but each model can specify custom configurations.
-import { geminiPro } from '@genkit-ai/vertexai';
+import { geminiPro } from '@genkit/vertexai';
 import { ollama } from 'genkitx-ollama';
-import { generate } from '@genkit-ai/ai';
+import { generate } from '@genkit/ai';
 
 
 function flipACoin(a, b) {
@@ -30,8 +30,8 @@ const result = await generate({
 console.log(result.text());
 2. Structured output
 Generate strongly-typed data with Genkit using Zod schema. This can help you analyze unstructured text, generate creative content, select tasks, and send results back to your app as structured type-safe objects.
-import { generate } from "@genkit-ai/ai";
-import { geminiPro } from "@genkit-ai/vertexai";
+import { generate } from "@genkit/ai";
+import { geminiPro } from "@genkit/vertexai";
 import { z } from "zod";
 
 
@@ -65,8 +65,8 @@ const createCreature = defineFlow({
 console.log(await createCreature("a developer conference"));
 3. Multimodal, multimedia
 Genkit provides a common format for content that supports mixtures of text, data, and arbitrary media. This lets you use Genkit for models that perform any generative task (such as image generation), not just LLMs.
-import { imagen2, geminiProVision } from '@genkit-ai/vertexai';
-import { generate } from '@genkit-ai/ai';
+import { imagen2, geminiProVision } from '@genkit/vertexai';
+import { generate } from '@genkit/ai';
 
 
 const imageResult = await generate({
@@ -88,8 +88,8 @@ const descriptionResult = await generate({
 console.log(descriptionResult.text());
 4. Give LLMs tools
 Genkit makes it simple to do function calling with LLMs through tools. Tools make it possible for AI to fetch data, display UI, write to a database, or take any other action you can code up.
-import { generate, defineTool } from "@genkit-ai/ai";
-import { geminiPro } from "@genkit-ai/vertexai";
+import { generate, defineTool } from "@genkit/ai";
+import { geminiPro } from "@genkit/vertexai";
 import { z } from "zod";
 
 
@@ -155,9 +155,9 @@ Debugging complex, multi-step workflows with AI can be challenging due to random
 8. Open & extensible
 The AI ecosystem is growing faster than any one team can keep up with. Genkit has an open plugin model that provides pre-built integrations with new models, retrievers, and more. While the Genkit team maintains a small set of official plugins, anyone can feel free to publish their own Genkit plugins to NPM.
 Can't find a plugin for a particular integration you want? No problem. Genkit's abstractions are flexible and make it easy to build custom components that integrate into the framework, like this custom Firestore retriever:
-import { embed } from '@genkit-ai/ai/embedder';
-import { Document, defineRetriever } from '@genkit-ai/ai/retriever';
-import { textEmbeddingGecko } from '@genkit-ai/vertexai';
+import { embed } from '@genkit/ai/embedder';
+import { Document, defineRetriever } from '@genkit/ai/retriever';
+import { textEmbeddingGecko } from '@genkit/vertexai';
 import {
   FieldValue,
   VectorQuery,
@@ -218,7 +218,7 @@ There are also official plugins for Google Cloud and Firebase that help you expo
 10. Authorization & security handling
 When building any public-facing application, it's important to protect the data stored in your system. When it comes to LLMs, extra diligence is necessary to ensure that the model is only accessing data it should, tool calls are properly scoped to the user invoking the LLM, and the flow is being invoked only by verified client applications.
 Genkit provides mechanisms for managing authorization policies and contexts.
-import { defineFlow, runFlow } from '@genkit-ai/flow';
+import { defineFlow, runFlow } from '@genkit/flow';
 
 
 export const selfSummaryFlow = defineFlow(

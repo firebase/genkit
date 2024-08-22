@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
-import { defineDotprompt, dotprompt } from '@genkit-ai/dotprompt';
-import { firebase } from '@genkit-ai/firebase';
-import { defineFlow, runFlow } from '@genkit-ai/flow';
-import googleAI, { geminiPro } from '@genkit-ai/googleai';
+import { configureGenkit } from '@genkit/core';
+import { defineDotprompt, dotprompt } from '@genkit/dotprompt';
+import { firebase } from '@genkit/firebase';
+import { defineFlow, runFlow } from '@genkit/flow';
+import googleAI, { geminiPro } from '@genkit/googleai';
 import * as z from 'zod';
 
 configureGenkit({

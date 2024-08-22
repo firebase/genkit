@@ -15,12 +15,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/core": "workspace:*",
-    "@genkit-ai/firebase": "workspace:*",
-    "@genkit-ai/flow": "workspace:*",
-    "@genkit-ai/evaluator": "workspace:*",
-    "@genkit-ai/vertexai": "workspace:*",
+    "@genkit/ai": "workspace:*",
+    "@genkit/core": "workspace:*",
+    "@genkit/firebase": "workspace:*",
+    "@genkit/flow": "workspace:*",
+    "@genkit/evaluator": "workspace:*",
+    "@genkit/vertexai": "workspace:*",
     "zod": "^3.22.4"
   },
   "devDependencies": {

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { defineDotprompt } from '@genkit-ai/dotprompt';
-import { geminiPro, geminiProVision } from '@genkit-ai/vertexai';
+import { defineDotprompt } from '@genkit/dotprompt';
+import { geminiPro, geminiProVision } from '@genkit/vertexai';
 import * as z from 'zod';
 import { TextMenuQuestionInputSchema } from '../types.js';
 

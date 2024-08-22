@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { PromptAction } from '@genkit-ai/ai';
-import { GenkitError } from '@genkit-ai/core';
-import { logger } from '@genkit-ai/core/logging';
-import { lookupAction } from '@genkit-ai/core/registry';
+import { PromptAction } from '@genkit/ai';
+import { GenkitError } from '@genkit/core';
+import { logger } from '@genkit/core/logging';
+import { lookupAction } from '@genkit/core/registry';
 import { existsSync, readdir, readFileSync } from 'fs';
 import { basename, join, resolve } from 'path';
 import { Dotprompt } from './prompt.js';

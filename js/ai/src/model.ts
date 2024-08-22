@@ -20,8 +20,8 @@ import {
   getStreamingCallback,
   Middleware,
   StreamingCallback,
-} from '@genkit-ai/core';
-import { toJsonSchema } from '@genkit-ai/core/schema';
+} from '@genkit/core';
+import { toJsonSchema } from '@genkit/core/schema';
 import { performance } from 'node:perf_hooks';
 import { z } from 'zod';
 import { DocumentDataSchema } from './document.js';

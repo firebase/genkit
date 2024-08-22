@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { FlowInvokeEnvelopeMessage, FlowState } from '@genkit-ai/tools-common';
-import { logger, runInRunnerThenStop } from '@genkit-ai/tools-common/utils';
+import { FlowInvokeEnvelopeMessage, FlowState } from '@genkit/tools-common';
+import { logger, runInRunnerThenStop } from '@genkit/tools-common/utils';
 import { Command } from 'commander';
 
 /** Command to start GenKit server, optionally without static file serving */

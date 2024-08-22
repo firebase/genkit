@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Document } from '@genkit-ai/ai/retriever';
+import { Document } from '@genkit/ai/retriever';
 import { BigQuery } from '@google-cloud/bigquery';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';

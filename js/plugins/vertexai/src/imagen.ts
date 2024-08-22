@@ -21,7 +21,7 @@ import {
   GenerationCommonConfigSchema,
   getBasicUsageStats,
   modelRef,
-} from '@genkit-ai/ai/model';
+} from '@genkit/ai/model';
 import { GoogleAuth } from 'google-auth-library';
 import z from 'zod';
 import { PluginOptions } from './index.js';

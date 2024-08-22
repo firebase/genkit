@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { generateStream } from '@genkit-ai/ai';
-import { defineFlow } from '@genkit-ai/flow';
-import { gemini15ProPreview } from '@genkit-ai/vertexai';
+import { generateStream } from '@genkit/ai';
+import { defineFlow } from '@genkit/flow';
+import { gemini15ProPreview } from '@genkit/vertexai';
 import { Allow, parse } from 'partial-json';
 import { z } from 'zod';
 

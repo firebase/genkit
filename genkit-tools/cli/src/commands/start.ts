@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { Runner } from '@genkit-ai/tools-common/runner';
-import { startServer } from '@genkit-ai/tools-common/server';
-import { logger } from '@genkit-ai/tools-common/utils';
+import { Runner } from '@genkit/tools-common/runner';
+import { startServer } from '@genkit/tools-common/server';
+import { logger } from '@genkit/tools-common/utils';
 import * as clc from 'colorette';
 import { Command } from 'commander';
 

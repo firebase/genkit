@@ -13,12 +13,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/core": "workspace:^",
-    "@genkit-ai/dotprompt": "workspace:*",
-    "@genkit-ai/flow": "workspace:*",
-    "@genkit-ai/google-cloud": "workspace:*",
-    "@genkit-ai/googleai": "workspace:*",
+    "@genkit/ai": "workspace:*",
+    "@genkit/core": "workspace:^",
+    "@genkit/dotprompt": "workspace:*",
+    "@genkit/flow": "workspace:*",
+    "@genkit/google-cloud": "workspace:*",
+    "@genkit/googleai": "workspace:*",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "zod": "3.22.4"

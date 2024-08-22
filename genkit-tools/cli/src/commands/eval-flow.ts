@@ -18,7 +18,7 @@ import {
   EvalInput,
   FlowInvokeEnvelopeMessage,
   FlowState,
-} from '@genkit-ai/tools-common';
+} from '@genkit/tools-common';
 import {
   EvalExporter,
   EvalFlowInput,
@@ -27,8 +27,8 @@ import {
   extractMetricsMetadata,
   getEvalStore,
   getExporterForString,
-} from '@genkit-ai/tools-common/eval';
-import { Runner } from '@genkit-ai/tools-common/runner';
+} from '@genkit/tools-common/eval';
+import { Runner } from '@genkit/tools-common/runner';
 import {
   confirmLlmUse,
   evaluatorName,
@@ -37,7 +37,7 @@ import {
   logger,
   runInRunnerThenStop,
   waitForFlowToComplete,
-} from '@genkit-ai/tools-common/utils';
+} from '@genkit/tools-common/utils';
 import { Command } from 'commander';
 import { randomUUID } from 'crypto';
 import { readFile } from 'fs/promises';

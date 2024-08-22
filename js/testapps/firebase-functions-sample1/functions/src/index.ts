@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
-import { configureGenkit } from '@genkit-ai/core';
-import { firebase } from '@genkit-ai/firebase';
-import { firebaseAuth } from '@genkit-ai/firebase/auth';
-import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
-import { run, runFlow, streamFlow } from '@genkit-ai/flow';
-import { geminiPro, vertexAI } from '@genkit-ai/vertexai';
+import { generate } from '@genkit/ai';
+import { configureGenkit } from '@genkit/core';
+import { firebase } from '@genkit/firebase';
+import { firebaseAuth } from '@genkit/firebase/auth';
+import { noAuth, onFlow } from '@genkit/firebase/functions';
+import { run, runFlow, streamFlow } from '@genkit/flow';
+import { geminiPro, vertexAI } from '@genkit/vertexai';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as z from 'zod';
 

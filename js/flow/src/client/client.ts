@@ -22,7 +22,7 @@ const __flowStreamDelimiter = '\n';
  * For example:
  *
  * ```js
- * import { streamFlow } from '@genkit-ai/flow/client';
+ * import { streamFlow } from '@genkit/flow/client';
  *
  * const response = streamFlow({
  *   url: 'https://my-flow-deployed-url',
@@ -152,7 +152,7 @@ async function __flowRunEnvelope({
  * For example:
  *
  * ```js
- * import { runFlow } from '@genkit-ai/flow/client';
+ * import { runFlow } from '@genkit/flow/client';
  *
  * const response = await runFlow({
  *   url: 'https://my-flow-deployed-url',

@@ -16,8 +16,8 @@
 
 //  Sample app for using the proposed Vertex AI plugin retriever and indexer with BigQuery.
 
-import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
+import { configureGenkit } from '@genkit/core';
+import { defineFlow, startFlowsServer } from '@genkit/flow';
 // important imports for this sample:
 import {
   getBigQueryDocumentIndexer,
@@ -27,11 +27,11 @@ import {
   vertexAiRetrieverRef,
   type DocumentIndexer,
   type DocumentRetriever,
-} from '@genkit-ai/vertexai';
+} from '@genkit/vertexai';
 import { z } from 'zod';
 
 // // Environment variables set with dotenv for simplicity of sample
-import { Document, index, retrieve } from '@genkit-ai/ai/retriever';
+import { Document, index, retrieve } from '@genkit/ai/retriever';
 import {
   BIGQUERY_DATASET,
   BIGQUERY_TABLE,

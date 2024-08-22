@@ -29,12 +29,12 @@ import {
   ToolDefinitionSchema,
   ToolRequestPart,
   ToolResponsePart,
-} from '@genkit-ai/ai/model';
+} from '@genkit/ai/model';
 import {
   downloadRequestMedia,
   simulateSystemPrompt,
-} from '@genkit-ai/ai/model/middleware';
-import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
+} from '@genkit/ai/model/middleware';
+import { GENKIT_CLIENT_HEADER } from '@genkit/core';
 import {
   FileDataPart,
   FunctionCallPart,

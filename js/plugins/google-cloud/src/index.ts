@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { genkitPlugin, Plugin } from '@genkit-ai/core';
+import { genkitPlugin, Plugin } from '@genkit/core';
 import { InstrumentationConfigMap } from '@opentelemetry/auto-instrumentations-node';
 import { Instrumentation } from '@opentelemetry/instrumentation';
 import { Sampler } from '@opentelemetry/sdk-trace-base';

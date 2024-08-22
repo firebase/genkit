@@ -17,9 +17,9 @@ this example you are configuring the Vertex AI plugin, which provides Gemini
 models.
 
 ```js
-import { configureGenkit } from '@genkit-ai/core';
-import { firebase } from '@genkit-ai/firebase';
-import { vertexAI } from '@genkit-ai/vertexai';
+import { configureGenkit } from '@genkit/core';
+import { firebase } from '@genkit/firebase';
+import { vertexAI } from '@genkit/vertexai';
 
 configureGenkit({
   plugins: [vertexAI()],
@@ -35,7 +35,7 @@ To use models provided by the plugin, you can either refer to them by name (e.g.
 provide additional type info about the model capabilities and options.
 
 ```js
-import { gemini15Flash } from '@genkit-ai/vertexai';
+import { gemini15Flash } from '@genkit/vertexai';
 ```
 
 ## Supported models
@@ -64,8 +64,8 @@ a wide variety of community supported models available you can discover by
 To just call the model:
 
 ```javascript
-import { generate } from '@genkit-ai/ai';
-import { gemini15Flash } from '@genkit-ai/vertexai';
+import { generate } from '@genkit/ai';
+import { gemini15Flash } from '@genkit/vertexai';
 
 (async () => {
   const llmResponse = await generate({
@@ -232,7 +232,7 @@ history = response.toHistory();
 Genkit supports chunked streaming of model responses via the `generateStream()` method:
 
 ```ts
-// import { generateStream } from '@genkit-ai/ai';
+// import { generateStream } from '@genkit/ai';
 const { response, stream } = await generateStream({
   model: gemini15Flash,
   prompt: 'Tell a long story about robots and ninjas.',

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { InitEvent, record } from '@genkit-ai/tools-common/utils';
+import { InitEvent, record } from '@genkit/tools-common/utils';
 import { exec } from 'child_process';
 import extract from 'extract-zip';
 import fs from 'fs';
@@ -64,10 +64,10 @@ interface ImportOptions {
 
 /** Model to plugin name. */
 const modelOptions: Record<ModelProvider, PromptOption> = {
-  googleai: { label: 'Google AI', plugin: '@genkit-ai/googleai' },
+  googleai: { label: 'Google AI', plugin: '@genkit/googleai' },
   vertexai: {
     label: 'Google Cloud Vertex AI',
-    plugin: '@genkit-ai/vertexai',
+    plugin: '@genkit/vertexai',
   },
   ollama: { label: 'Ollama (e.g. Gemma)', plugin: 'genkitx-ollama' },
   none: { label: 'None', plugin: undefined },
@@ -75,24 +75,24 @@ const modelOptions: Record<ModelProvider, PromptOption> = {
 
 /** Supported platform to plugin name. */
 const platformOptions: Record<Platform, PromptOption> = {
-  firebase: { label: 'Firebase', plugin: '@genkit-ai/firebase' },
+  firebase: { label: 'Firebase', plugin: '@genkit/firebase' },
   other: { label: 'Other platforms', plugin: undefined },
 };
 
 /** Plugin name to descriptor. */
 const pluginToInfo: Record<string, PluginInfo> = {
-  '@genkit-ai/firebase': {
+  '@genkit/firebase': {
     imports: 'firebase',
     init: `
     // Load the Firebase plugin, which provides integrations with several
     // Firebase services.
     firebase()`.trimStart(),
   },
-  '@genkit-ai/google-cloud': {
+  '@genkit/google-cloud': {
     imports: 'googleCloud',
     init: 'googleCloud()',
   },
-  '@genkit-ai/vertexai': {
+  '@genkit/vertexai': {
     imports: 'vertexAI',
     modelImportComment: `
 // Import models from the Vertex AI plugin. The Vertex AI API provides access to
@@ -119,7 +119,7 @@ const pluginToInfo: Record<string, PluginInfo> = {
     })`.trimStart(),
     modelStr: "'ollama/gemma'",
   },
-  '@genkit-ai/googleai': {
+  '@genkit/googleai': {
     imports: 'googleAI',
     modelImportComment: `
 // Import models from the Google AI plugin. The Google AI API provides access to
@@ -152,10 +152,10 @@ const externalDevPackages = ['typescript'];
 
 /** Internal packages required to use Genkit. */
 const internalPackages = [
-  '@genkit-ai/core',
-  '@genkit-ai/ai',
-  '@genkit-ai/dotprompt',
-  '@genkit-ai/flow',
+  '@genkit/core',
+  '@genkit/ai',
+  '@genkit/dotprompt',
+  '@genkit/flow',
 ];
 
 const platformImportOptions: Record<Platform, ImportOptions> = {

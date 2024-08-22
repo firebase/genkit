@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { defineDotprompt, prompt } from '@genkit-ai/dotprompt';
-import { defineFlow } from '@genkit-ai/flow';
-import { gemini15Flash } from '@genkit-ai/googleai';
+import { defineDotprompt, prompt } from '@genkit/dotprompt';
+import { defineFlow } from '@genkit/flow';
+import { gemini15Flash } from '@genkit/googleai';
 import * as z from 'zod';
 import { HelloFullNameSchema, HelloSchema } from '../common/types.js';
 

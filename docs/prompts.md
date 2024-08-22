@@ -20,7 +20,7 @@ Genkit's `generate()` helper function accepts string prompts, and you can
 call models this way for straight-forward use cases.
 
 ```ts
-import { generate } from '@genkit-ai/ai';
+import { generate } from '@genkit/ai';
 
 generate({
   model: 'googleai/gemini-1.5-flash-latest',
@@ -49,7 +49,7 @@ to define your prompts and run them in the Developer UI.
 Use the `definePrompt` function to register your prompts with Genkit.
 
 ```ts
-import { definePrompt } from '@genkit-ai/ai';
+import { definePrompt } from '@genkit/ai';
 import z from 'zod';
 
 export const helloPrompt = definePrompt(
@@ -79,7 +79,7 @@ You can use this prompt in your code with the `renderPrompt()` helper function.
 Provide the input variables expected by the prompt, and the model to call.
 
 ```javascript
-import { generate, render } from '@genkit-ai/ai';
+import { generate, render } from '@genkit/ai';
 
 generate(
   renderPrompt({

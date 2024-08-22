@@ -23,7 +23,7 @@ For this example, the prompt is going to ask the LLM to judge how delicious the 
 Genkit comes with `dotprompt`, which provides an easy way to define and manage prompts with feautres such as input/output schema validation. Here is how you can use `dotprompt` to define an evaluation prompt.
 
 ```ts
-import { defineDotprompt } from '@genkit-ai/dotprompt';
+import { defineDotprompt } from '@genkit/dotprompt';
 
 // Define the expected output values
 const DELICIOUSNESS_VALUES = ['yes', 'no', 'maybe'] as const;
@@ -297,7 +297,7 @@ Add the newly defined plugin to your Genkit configuration.
 For evaluation with Gemini, disable safety settings so that the evaluator can accept, detect, and score potentially harmful content.
 
 ```ts
-import { gemini15Flash } from '@genkit-ai/googleai';
+import { gemini15Flash } from '@genkit/googleai';
 
 export default configureGenkit({
   plugins: [

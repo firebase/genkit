@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { index } from '@genkit-ai/ai';
-import { Document } from '@genkit-ai/ai/retriever';
-import { devLocalIndexerRef } from '@genkit-ai/dev-local-vectorstore';
-import { defineFlow, run } from '@genkit-ai/flow';
+import { index } from '@genkit/ai';
+import { Document } from '@genkit/ai/retriever';
+import { devLocalIndexerRef } from '@genkit/dev-local-vectorstore';
+import { defineFlow, run } from '@genkit/flow';
 import { readFile } from 'fs/promises';
 import { chunk } from 'llm-chunk';
 import path from 'path';

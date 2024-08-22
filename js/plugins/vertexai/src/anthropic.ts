@@ -40,8 +40,8 @@ import {
   defineModel,
   getBasicUsageStats,
   modelRef,
-} from '@genkit-ai/ai/model';
-import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
+} from '@genkit/ai/model';
+import { GENKIT_CLIENT_HEADER } from '@genkit/core';
 import z from 'zod';
 
 export const AnthropicConfigSchema = GenerationCommonConfigSchema.extend({

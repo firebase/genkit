@@ -20,7 +20,7 @@ export {
   type FlowState,
   type FlowStateStore,
   type Operation,
-} from '@genkit-ai/core';
+} from '@genkit/core';
 export { FirestoreStateStore } from './firestoreStateStore.js';
 export {
   Flow,

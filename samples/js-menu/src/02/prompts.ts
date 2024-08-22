@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { defineDotprompt } from '@genkit-ai/dotprompt';
-import { geminiPro } from '@genkit-ai/vertexai';
+import { defineDotprompt } from '@genkit/dotprompt';
+import { geminiPro } from '@genkit/vertexai';
 import { MenuQuestionInputSchema } from '../types';
 import { menuTool } from './tools';
 

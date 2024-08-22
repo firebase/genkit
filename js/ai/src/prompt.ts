@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { Action, defineAction, JSONSchema7 } from '@genkit-ai/core';
-import { lookupAction } from '@genkit-ai/core/registry';
+import { Action, defineAction, JSONSchema7 } from '@genkit/core';
+import { lookupAction } from '@genkit/core/registry';
 import z from 'zod';
 import { DocumentData } from './document.js';
 import { GenerateOptions } from './generate.js';

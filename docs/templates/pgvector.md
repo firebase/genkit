@@ -5,10 +5,10 @@ following example as a starting point and modify it to work with your database
 schema.
 
 ```js
-import { embed } from '@genkit-ai/ai/embedder';
-import { Document, defineRetriever, retrieve } from '@genkit-ai/ai/retriever';
-import { defineFlow } from '@genkit-ai/flow';
-import { textEmbeddingGecko } from '@genkit-ai/vertexai';
+import { embed } from '@genkit/ai/embedder';
+import { Document, defineRetriever, retrieve } from '@genkit/ai/retriever';
+import { defineFlow } from '@genkit/flow';
+import { textEmbeddingGecko } from '@genkit/vertexai';
 import { toSql } from 'pgvector';
 import postgres from 'postgres';
 import { z } from 'zod';

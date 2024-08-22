@@ -3,9 +3,9 @@
 import * as z from 'zod';
 
 // Import the Genkit core libraries and plugins.
-import { generate } from '@genkit-ai/ai';
-import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow, runFlow } from '@genkit-ai/flow';
+import { generate } from '@genkit/ai';
+import { configureGenkit } from '@genkit/core';
+import { defineFlow, runFlow } from '@genkit/flow';
 $GENKIT_CONFIG_IMPORTS
 $GENKIT_MODEL_IMPORT
 
