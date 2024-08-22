@@ -78,6 +78,17 @@ Each model plugin ensures that the last two of the above criteria are met, and
 the `generate()` function automatically carries out the tool calling loop
 described earlier.
 
+#### Model support
+
+Tool calling support depends on the model, the model API, and the Genkit plugin.
+Consult the relevant documentation to determine if tool calling is likely to be
+supported. In addition:
+
+- Genkit will throw an error if you try to provide tools to a model that doesn't
+  support it.
+- If the plugin exports model references, the `info.supports.tools` property
+  will indicate if it supports tool calling.
+
 #### Defining tools
 
 Use the `defineTool()` function to write tool definitions:
