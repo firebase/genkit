@@ -63,7 +63,7 @@ Helpful Answer:`;
 export const pdfChatRetrieverFirebase = defineFirestoreRetriever({
   name: 'pdfChatRetrieverFirebase',
   firestore,
-  collection: 'pdfQA',
+  collection: 'pdf-qa',
   contentField: 'facts',
   vectorField: 'embedding',
   embedder: textEmbeddingGecko,
