@@ -33,6 +33,8 @@ toc:
     path: /docs/genkit/prompts
   - title: Managing prompts
     path: /docs/genkit/dotprompt
+  - title: Tool calling
+    path: /docs/genkit/tool-calling
   - title: Retrieval-augmented generation (RAG)
     path: /docs/genkit/rag
   - title: Evaluation

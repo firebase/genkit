@@ -675,60 +675,6 @@ let response = await generate({
   prompt: "How do you say 'dog' in French?",
   history,
 });
-history = response.toHistory();
-```
-
-### Tools and function calling
-
-One way to enhance the capabilities of LLMs is to prompt them with a list of
-ways they can request more information from you, or request you to perform some
-action. This is known as _function calling_ or _tool calling_. Models that are
-trained to support this capability can respond to a prompt with a
-specially-formatted response, which indicates to the calling application that it
-should perform some action and send the result back to the LLM along with the
-original prompt. Genkit has library functions that automate both the prompt
-generation and the call-response loop elements of a function calling
-implementation.
-
-```ts
-import { defineTool } from "@genkit-ai/ai";
-```
-
-```ts
-const myTool = defineTool(
-  {
-    name: 'myJoke',
-    description: 'useful when you need a joke to tell.',
-    inputSchema: z.object({ subject: z.string() }),
-    outputSchema: z.string(),
-  },
-  async (input) => 'haha Just kidding no joke! got you'
-);
-
-const llmResponse = await generate({
-  model: gemini15Flash,
-  prompt: 'Tell me a joke.',
-  tools: [myTool],
-  config: {
-    temperature: 0.5,
-  },
-});
-```
-
-This will automatically call the tools in order to fulfill the user prompt.
-
-You can specify `returnToolRequests: true` for manual control of tool calling.
-
-```ts
-const llmResponse = await generate({
-  model: gemini15Flash,
-  prompt: 'Tell me a joke.',
-  tools: [myTool],
-  returnToolRequests: true,
-  config: {
-    temperature: 0.5,
-  },
-});
 ```
 
 ### Next steps {:#next-steps}
