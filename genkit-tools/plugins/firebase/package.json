@@ -1,6 +1,6 @@
 {
   "name": "@genkit-ai/tools-plugin-firebase",
-  "version": "0.5.8",
+  "version": "0.5.10",
   "scripts": {
     "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
     "build:clean": "rm -rf ./lib",

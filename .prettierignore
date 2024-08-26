@@ -3,5 +3,6 @@ public/
 .github/
 .prettierrc.yaml
 pnpm-lock.yaml
-docs/_guides.yaml
+docs/*
+docs-go/*
 genkit-tools/genkit-schema.json

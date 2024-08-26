@@ -23,7 +23,8 @@
     "@genkit-ai/google-cloud": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
-    "@opentelemetry/sdk-trace-base": "^1.22.0",
+    "@google/generative-ai": "^0.15.0",
+    "@opentelemetry/sdk-trace-base": "^1.25.0",
     "firebase-admin": "^12.1.0",
     "partial-json": "^0.1.7",
     "zod": "^3.22.4"

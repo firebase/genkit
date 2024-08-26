@@ -15,8 +15,11 @@
  */
 
 import { Document, DocumentDataSchema } from '@genkit-ai/ai/retriever';
-import { BigQuery } from '@google-cloud/bigquery';
+import { logger } from '@genkit-ai/core/logging';
+import { BigQuery, QueryRowsResponse } from '@google-cloud/bigquery';
+import { ZodError } from 'zod';
 import { DocumentIndexer, DocumentRetriever, Neighbor } from './types';
+
 /**
  * Creates a BigQuery Document Retriever.
  *
@@ -36,34 +39,58 @@ export const getBigQueryDocumentRetriever = (
   const bigQueryRetriever: DocumentRetriever = async (
     neighbors: Neighbor[]
   ): Promise<Document[]> => {
-    const ids = neighbors
+    const ids: string[] = neighbors
       .map((neighbor) => neighbor.datapoint?.datapointId)
-      .filter(Boolean);
+      .filter(Boolean) as string[];
+
     const query = `
       SELECT * FROM \`${datasetId}.${tableId}\`
       WHERE id IN UNNEST(@ids)
     `;
+
     const options = {
       query,
       params: { ids },
     };
-    const [rows] = await bq.query(options);
-    const docs: Document[] = rows
-      .map((row) => {
-        const docData = {
-          content: JSON.parse(row.content),
-          metadata: JSON.parse(row.metadata),
-        };
-        const parsedDocData = DocumentDataSchema.safeParse(docData);
-        if (parsedDocData.success) {
-          return new Document(parsedDocData.data);
-        }
-        return null;
-      })
-      .filter((doc): doc is Document => !!doc);
 
-    return docs;
+    let rows: QueryRowsResponse[0];
+
+    try {
+      [rows] = await bq.query(options);
+    } catch (queryError) {
+      logger.error('Failed to execute BigQuery query:', queryError);
+      return [];
+    }
+
+    const documents: Document[] = [];
+
+    for (const row of rows) {
+      try {
+        const docData: { content: any; metadata?: any } = {
+          content: JSON.parse(row.content),
+        };
+
+        if (row.metadata) {
+          docData.metadata = JSON.parse(row.metadata);
+        }
+
+        const parsedDocData = DocumentDataSchema.parse(docData);
+        documents.push(new Document(parsedDocData));
+      } catch (error) {
+        const id = row.id;
+        const errorPrefix = `Failed to parse document data for document with ID ${id}:`;
+
+        if (error instanceof ZodError || error instanceof Error) {
+          logger.warn(`${errorPrefix} ${error.message}`);
+        } else {
+          logger.warn(errorPrefix);
+        }
+      }
+    }
+
+    return documents;
   };
+
   return bigQueryRetriever;
 };
 

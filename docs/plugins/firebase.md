@@ -339,6 +339,7 @@ The `onFlow()` function has some options not present in `defineFlow()`:
 
 - `httpsOptions`: an [`HttpsOptions`](https://firebase.google.com/docs/reference/functions/2nd-gen/node/firebase-functions.https.httpsoptions)
   object used to configure your Cloud Function:
+
   <!--See note above on prettier-ignore -->
   <!-- prettier-ignore -->
   ```js

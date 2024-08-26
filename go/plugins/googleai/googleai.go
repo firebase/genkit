@@ -232,7 +232,10 @@ func generate(
 	input *ai.GenerateRequest,
 	cb func(context.Context, *ai.GenerateResponseChunk) error,
 ) (*ai.GenerateResponse, error) {
-	gm := newModel(client, model, input)
+	gm, err := newModel(client, model, input)
+	if err != nil {
+		return nil, err
+	}
 	cs, err := startChat(gm, input)
 	if err != nil {
 		return nil, err
@@ -300,7 +303,7 @@ func generate(
 	return r, nil
 }
 
-func newModel(client *genai.Client, model string, input *ai.GenerateRequest) *genai.GenerativeModel {
+func newModel(client *genai.Client, model string, input *ai.GenerateRequest) (*genai.GenerativeModel, error) {
 	gm := client.GenerativeModel(model)
 	gm.SetCandidateCount(int32(input.Candidates))
 	if c, ok := input.Config.(*ai.GenerationCommonConfig); ok && c != nil {
@@ -320,7 +323,21 @@ func newModel(client *genai.Client, model string, input *ai.GenerateRequest) *ge
 			gm.SetTopP(float32(c.TopP))
 		}
 	}
-	return gm
+	for _, m := range input.Messages {
+		systemParts, err := convertParts(m.Content)
+		if err != nil {
+			return nil, err
+
+		}
+		// system prompts go into GenerativeModel.SystemInstruction field.
+		if m.Role == ai.RoleSystem {
+			gm.SystemInstruction = &genai.Content{
+				Parts: systemParts,
+				Role:  string(m.Role),
+			}
+		}
+	}
+	return gm, nil
 }
 
 // startChat starts a chat session and configures it with the input messages.
@@ -332,6 +349,12 @@ func startChat(gm *genai.GenerativeModel, input *ai.GenerateRequest) (*genai.Cha
 	for len(messages) > 1 {
 		m := messages[0]
 		messages = messages[1:]
+
+		// skip system prompt message, it's handled separately.
+		if m.Role == ai.RoleSystem {
+			continue
+		}
+
 		parts, err := convertParts(m.Content)
 		if err != nil {
 			return nil, err

@@ -21,6 +21,8 @@ toc:
     path: /docs/genkit-go/models
   - title: Creating flows
     path: /docs/genkit-go/flows
+  - title: Adding authentication to flows
+    path: /docs/genkit-go/auth
   - title: Prompting models
     path: /docs/genkit-go/prompts
   - title: Managing prompts
