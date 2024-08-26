@@ -25,14 +25,8 @@ model has its own strengths and weaknesses and one model might excel at one task
 but perform less well at others. Apps making use of generative AI can often
 benefit from using multiple different models depending on the task at hand.
 
-The most capable generative AI models require extensive computing resources
-beyond those with which you would normally deploy an app backend. For this
-reason, as an app developer, you typically don't interact with generative AI
-models directly, but rather through services available as web APIs. Even when
-using smaller models, such as Gemma or Llama, you typically do so through a
-self-hosted service using Ollama or similar, so that your AI work can be
-performed on GPU-accelerated machines, optimized for AI.
-
+As an app developer, you typically don't interact with generative AI
+models directly, but rather through services available as web APIs.
 Although these services often have similar functionality, they all provide them
 through different and incompatible APIs. If you want to make use of multiple
 model services, you have to use each of their proprietary SDKs, potentially
@@ -280,17 +274,12 @@ want the model to consider, but this time by explicitly specifying the maximum
 number of tokens. Specifying a value of 1 means that the model should behave
 deterministically.
 
-Note: The astute reader might notice that the fact that these parameters are
-specific to individual models undermines the promise of being able to swap out
-models simply by passing a different value to generate. You're correct! If you
-make use of these advanced parameters, you will want to also take a look at the
-documentation on dotprompt, which provides a way to specify a model, a prompt,
-and a model configuration together as one unit.
+#### Experiment with model parameters
 
 You can experiment with the effect of these parameters on the output generated
 by different model and prompt combinations by using the Developer UI. Start the
-developer UI with the genkit start command and it will automatically load all of
-the models defined by the plugins configured in your project. You can quickly
+developer UI with the `genkit start` command and it will automatically load all
+of the models defined by the plugins configured in your project. You can quickly
 try different prompts and configuration values without having to repeatedly make
 these changes in code.
 
@@ -405,26 +394,6 @@ case, but here are some general hints:
   generate conformant output, you can treat the error as you would treat a
   network error, and simply retry the request using some kind of incremental
   back-off strategy.
-
-- **Generate more candidates**. Another strategy for dealing with intermittent
-  generation errors is to specify that `generate()` should generate multiple
-  response candidates with every request:
-
-  ```ts
-  const llmResponse = await generate({
-    prompt: `Suggest an item for the menu of a pirate themed restaurant`,
-    model: gemini15Flash,
-    output: { schema: MenuItemSchema },
-    candidates: 3,
-  });
-  ```
-
-  When you do so, every `generate()` call will request multiple responses from
-  the model API. The `output()` method will return the first candidate that
-  conforms with the schema, or `null` if no candidates conform.
-
-  Note that when using metered services, this will usually result in a greater
-  cost per `generate()` call.
 
 ### Streaming {:#streaming}
 
