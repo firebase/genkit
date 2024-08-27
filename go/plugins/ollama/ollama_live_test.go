@@ -52,9 +52,6 @@ func TestLive(t *testing.T) {
 
 	// Use the Ollama model
 	m := ollamaPlugin.Model(*modelName)
-	if m == nil {
-		t.Fatalf(`failed to find model: %s`, *modelName)
-	}
 
 	// Generate a response from the model
 	resp, err := m.Generate(ctx,

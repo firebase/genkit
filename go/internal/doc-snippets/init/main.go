@@ -17,7 +17,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 
@@ -43,9 +42,6 @@ func main() {
 		// The Google AI API provides access to several generative models. Here,
 		// we specify gemini-1.5-flash.
 		m := googleai.Model("gemini-1.5-flash")
-		if m == nil {
-			return "", errors.New("menuSuggestionFlow: failed to find model")
-		}
 
 		// Construct a request and send it to the model API (Google AI).
 		resp, err := ai.Generate(ctx, m,

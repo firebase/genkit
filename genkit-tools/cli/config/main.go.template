@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 
@@ -20,9 +19,6 @@ func $GENKIT_FUNC_NAME() {
 	// Define a simple flow that prompts an LLM to generate menu suggestions.
 	genkit.DefineFlow("menuSuggestionFlow", func(ctx context.Context, input string) (string, error) {
 		$GENKIT_MODEL_LOOKUP
-		if m == nil {
-			return "", errors.New("menuSuggestionFlow: failed to find model")
-		}
 
 		// Construct a request and send it to the model API.
 		resp, err := m.Generate(ctx,
