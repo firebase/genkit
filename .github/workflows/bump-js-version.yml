@@ -26,6 +26,7 @@ on:
           - patch
           - minor
           - major
+          - prerelease
       preid:
         description: Prerelease identifier
         type: string
