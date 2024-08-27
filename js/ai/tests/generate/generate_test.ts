@@ -17,7 +17,7 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { z } from 'zod';
-import { generate, GenerateResponseChunk } from '../../src/generate';
+import { GenerateResponseChunk, generate } from '../../src/generate';
 import {
   Candidate,
   GenerateOptions,
@@ -25,7 +25,7 @@ import {
   Message,
   toGenerateRequest,
 } from '../../src/generate.js';
-import { defineModel, GenerateResponseChunkData } from '../../src/model';
+import { GenerateResponseChunkData, defineModel } from '../../src/model';
 import {
   CandidateData,
   GenerateRequest,
