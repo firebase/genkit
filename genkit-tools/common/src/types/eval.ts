@@ -95,6 +95,7 @@ export type EvalResult = z.infer<typeof EvalResultSchema>;
  */
 export const EvalRunKeySchema = z.object({
   actionRef: z.string().optional(),
+  datasetId: z.string().optional(),
   evalRunId: z.string(),
   createdAt: z.string(),
 });
