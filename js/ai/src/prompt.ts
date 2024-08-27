@@ -48,6 +48,15 @@ export function isPrompt(arg: any): boolean {
   );
 }
 
+/**
+ * Defines and registers a prompt action. The action can be called to obtain
+ * a `GenerateRequest` which can be passed to a model action. The given
+ * `PromptFn` can perform any action needed to create the request such as rendering
+ * a template or fetching a prompt from a database.
+ *
+ * @returns The new `PromptAction`.
+ */
+
 export function definePrompt<I extends z.ZodTypeAny>(
   {
     name,
@@ -78,14 +87,15 @@ export function definePrompt<I extends z.ZodTypeAny>(
   return a as PromptAction<I>;
 }
 
-/**
- * A veneer for rendering a prompt action to GenerateOptions.
- */
-
 export type PromptArgument<I extends z.ZodTypeAny = z.ZodTypeAny> =
   | string
   | PromptAction<I>;
 
+/**
+ * This veneer renders a `PromptAction` into a `GenerateOptions` object.
+ *
+ * @returns A promise of an options object for use with the `generate()` function.
+ */
 export async function renderPrompt<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
