@@ -480,7 +480,7 @@ export const testTools = [
         'indigo',
         'violet',
       ];
-      return [Math.floor(Math.random() * colors.length)];
+      return colors[Math.floor(Math.random() * colors.length)];
     }
   ),
 ];

@@ -154,11 +154,11 @@ export const ToolDefinitionSchema = z.object({
   inputSchema: z
     .record(z.any())
     .describe('Valid JSON Schema representing the input of the tool.')
-    .optional(),
+    .nullish(),
   outputSchema: z
     .record(z.any())
     .describe('Valid JSON Schema describing the output of the tool.')
-    .optional(),
+    .nullish(),
 });
 export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
 
