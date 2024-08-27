@@ -24,7 +24,7 @@ import {
   PromptAction,
   toGenerateRequest,
 } from '@genkit-ai/ai';
-import { GenerationCommonConfigSchema, MessageData } from '@genkit-ai/ai/model';
+import { MessageData, ModelArgument } from '@genkit-ai/ai/model';
 import { DocumentData } from '@genkit-ai/ai/retriever';
 import { GenkitError } from '@genkit-ai/core';
 import { parseSchema } from '@genkit-ai/core/schema';
@@ -42,11 +42,11 @@ import { compile } from './template.js';
 
 export type PromptData = PromptFrontmatter & { template: string };
 
-export type PromptGenerateOptions<V = unknown> = Omit<
-  GenerateOptions<z.ZodTypeAny, typeof GenerationCommonConfigSchema>,
-  'prompt' | 'model'
-> & {
-  model?: string;
+export type PromptGenerateOptions<
+  V = unknown,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+> = Omit<GenerateOptions<z.ZodTypeAny, CustomOptions>, 'prompt' | 'model'> & {
+  model?: ModelArgument<CustomOptions>;
   input?: V;
 };
 
@@ -55,7 +55,7 @@ interface RenderMetadata {
   history?: MessageData[];
 }
 
-export class Dotprompt<Variables = unknown> implements PromptMetadata {
+export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
   name: string;
   variant?: string;
   hash: string;
@@ -70,10 +70,7 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
   config?: PromptMetadata['config'];
   candidates?: PromptMetadata['candidates'];
 
-  private _render: (
-    input: Variables,
-    options?: RenderMetadata
-  ) => MessageData[];
+  private _render: (input: I, options?: RenderMetadata) => MessageData[];
 
   static parse(name: string, source: string) {
     try {
@@ -123,7 +120,15 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
     this._render = compile(this.template, options);
   }
 
-  renderText(input: Variables, options?: RenderMetadata): string {
+  /**
+   * Renders all of the prompt's text parts into a raw string.
+   *
+   * @param input User input to the prompt template.
+   * @param options Optional context and/or history for the prompt template.
+   * @returns all of the text parts concatenated into a string.
+   */
+
+  renderText(input: I, options?: RenderMetadata): string {
     const result = this.renderMessages(input, options);
     if (result.length !== 1) {
       throw new Error("Multi-message prompt can't be rendered as text.");
@@ -138,7 +143,15 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
     return out;
   }
 
-  renderMessages(input?: Variables, options?: RenderMetadata): MessageData[] {
+  /**
+   * Renders the prompt template into an array of messages.
+   *
+   * @param input User input to the prompt template
+   * @param options optional context and/or history for the prompt template.
+   * @returns an array of messages representing an exchange between a user and a model.
+   */
+
+  renderMessages(input?: I, options?: RenderMetadata): MessageData[] {
     input = parseSchema(input, {
       schema: this.input?.schema,
       jsonSchema: this.input?.jsonSchema,
@@ -162,13 +175,14 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
           prompt: this.toJSON(),
         },
       },
-      async (input?: Variables) => toGenerateRequest(this.render({ input }))
+      async (input?: I) => toGenerateRequest(this.render({ input }))
     );
   }
 
-  private _generateOptions<O extends z.ZodTypeAny = z.ZodTypeAny>(
-    options: PromptGenerateOptions<Variables>
-  ): GenerateOptions<z.ZodTypeAny, O> {
+  private _generateOptions<
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+  >(options: PromptGenerateOptions<I>): GenerateOptions<O, CustomOptions> {
     const messages = this.renderMessages(options.input, {
       history: options.history,
       context: options.context,
@@ -188,25 +202,49 @@ export class Dotprompt<Variables = unknown> implements PromptMetadata {
       tools: (options.tools || []).concat(this.tools || []),
       streamingCallback: options.streamingCallback,
       returnToolRequests: options.returnToolRequests,
-    } as GenerateOptions<z.ZodTypeAny, O>;
+    } as GenerateOptions<O, CustomOptions>;
   }
 
-  render<O extends z.ZodTypeAny = z.ZodTypeAny>(
-    opt: PromptGenerateOptions<Variables>
-  ): GenerateOptions<z.ZodTypeAny, O> {
-    return this._generateOptions<O>(opt);
+  /**
+   * Renders the prompt template based on user input.
+   *
+   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
+   * @returns a `GenerateOptions` object to be used with the `generate()` function from @genkit-ai/ai.
+   */
+  render<
+    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    opt: PromptGenerateOptions<I, CustomOptions>
+  ): GenerateOptions<CustomOptions, O> {
+    return this._generateOptions(opt);
   }
 
-  async generate<O extends z.ZodTypeAny = z.ZodTypeAny>(
-    opt: PromptGenerateOptions<Variables>
+  /**
+   * Generates a response by rendering the prompt template with given user input and then calling the model.
+   *
+   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
+   * @returns the model response as a promise of `GenerateResponse`.
+   */
+  async generate<
+    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    opt: PromptGenerateOptions<I, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> {
-    return generate<z.ZodTypeAny, O>(this.render<O>(opt));
+    return generate<CustomOptions, O>(this.render<CustomOptions, O>(opt));
   }
 
-  async generateStream(
-    opt: PromptGenerateOptions<Variables>
+  /**
+   * Generates a streaming response by rendering the prompt template with given user input and then calling the model.
+   *
+   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
+   * @returns the model response as a promise of `GenerateStreamResponse`.
+   */
+  async generateStream<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny>(
+    opt: PromptGenerateOptions<I, CustomOptions>
   ): Promise<GenerateStreamResponse> {
-    return generateStream(this.render(opt));
+    return generateStream(this.render<CustomOptions>(opt));
   }
 }
 
@@ -228,6 +266,7 @@ export class DotpromptRef<Variables = unknown> {
     this.dir = options?.dir;
   }
 
+  /** Loads the prompt which is referenced. */
   async loadPrompt(): Promise<Dotprompt<Variables>> {
     if (this._prompt) return this._prompt;
     this._prompt = (await lookupPrompt(
@@ -238,25 +277,54 @@ export class DotpromptRef<Variables = unknown> {
     return this._prompt;
   }
 
-  async generate<O extends z.ZodTypeAny = z.ZodTypeAny>(
-    opt: PromptGenerateOptions<Variables>
+  /**
+   * Generates a response by rendering the prompt template with given user input and then calling the model.
+   *
+   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
+   * @returns the model response as a promise of `GenerateResponse`.
+   */
+
+  async generate<
+    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    opt: PromptGenerateOptions<Variables, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> {
     const prompt = await this.loadPrompt();
-    return prompt.generate<O>(opt);
+    return prompt.generate<CustomOptions, O>(opt);
   }
 
-  async render<O extends z.ZodTypeAny = z.ZodTypeAny>(
-    opt: PromptGenerateOptions<Variables>
+  /**
+   * Renders the prompt template based on user input.
+   *
+   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
+   * @returns a `GenerateOptions` object to be used with the `generate()` function from @genkit-ai/ai.
+   */
+  async render<
+    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    opt: PromptGenerateOptions<Variables, CustomOptions>
   ): Promise<GenerateOptions<z.ZodTypeAny, O>> {
     const prompt = await this.loadPrompt();
-    return prompt.render<O>(opt);
+    return prompt.render<CustomOptions, O>(opt);
   }
 }
 
-export function defineDotprompt<V extends z.ZodTypeAny = z.ZodTypeAny>(
-  options: PromptMetadata<V>,
+/**
+ * Define a dotprompt in code. This function is offered as an alternative to definitions in .prompt files.
+ *
+ * @param options the prompt definition, including its name, variant and model. Any options from .prompt file front matter are accepted.
+ * @param template a string template, comparable to the main body of a prompt file.
+ * @returns the newly defined prompt.
+ */
+export function defineDotprompt<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  options: PromptMetadata<I, CustomOptions>,
   template: string
-): Dotprompt<z.infer<V>> {
+): Dotprompt<z.infer<I>> {
   const prompt = new Dotprompt(options, template);
   prompt.define();
   return prompt;
