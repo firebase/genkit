@@ -153,7 +153,8 @@ export const ToolDefinitionSchema = z.object({
   description: z.string(),
   inputSchema: z
     .record(z.any())
-    .describe('Valid JSON Schema representing the input of the tool.'),
+    .describe('Valid JSON Schema representing the input of the tool.')
+    .optional(),
   outputSchema: z
     .record(z.any())
     .describe('Valid JSON Schema describing the output of the tool.')
