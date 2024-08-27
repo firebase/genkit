@@ -199,6 +199,7 @@ export function recordGenerateActionInputLogs(
         totalParts: parts,
         messageIndex: msgIdx,
         totalMessages: messages,
+        role: msg.role,
       });
     });
   });
@@ -230,6 +231,7 @@ export function recordGenerateActionOutputLogs(
         totalCandidates: candidates,
         messageIndex: cand.index,
         finishReason: cand.finishReason,
+        role: cand.message.role,
       });
     });
   });
