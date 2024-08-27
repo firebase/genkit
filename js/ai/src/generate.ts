@@ -16,10 +16,10 @@
 
 import {
   Action,
-  GenkitError,
-  StreamingCallback,
   config as genkitConfig,
+  GenkitError,
   runWithStreamingCallback,
+  StreamingCallback,
 } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
 import { toJsonSchema, validateSchema } from '@genkit-ai/core/schema';
@@ -27,8 +27,8 @@ import { z } from 'zod';
 import { DocumentData } from './document.js';
 import { extractJson } from './extract.js';
 import {
-  GenerateUtilParamSchema,
   generateAction,
+  GenerateUtilParamSchema,
   inferRoleFromParts,
 } from './generateAction.js';
 import {
@@ -47,7 +47,7 @@ import {
   ToolRequestPart,
   ToolResponsePart,
 } from './model.js';
-import { ToolArgument, resolveTools, toToolDefinition } from './tool.js';
+import { resolveTools, ToolArgument, toToolDefinition } from './tool.js';
 
 /**
  * Message represents a single role's contribution to a generation. Each message
@@ -610,7 +610,11 @@ export async function generate<
 
   return await runWithStreamingCallback(
     resolvedOptions.streamingCallback,
-    async () => new GenerateResponse<O>(await generateAction(params))
+    async () =>
+      new GenerateResponse<O>(
+        await generateAction(params),
+        await toGenerateRequest(resolvedOptions)
+      )
   );
 }
 
