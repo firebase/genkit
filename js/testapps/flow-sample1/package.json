@@ -15,10 +15,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@genkit-ai/core": "workspace:^",
-    "@genkit-ai/flow": "workspace:*",
-    "@genkit-ai/firebase": "workspace:^",
-    "zod": "^3.22.4"
+    "genkit": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.3.3"

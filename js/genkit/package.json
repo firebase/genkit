@@ -27,7 +27,8 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@genkit-ai/core": "workspace:*",
-    "@genkit-ai/flow": "workspace:*"
+    "@genkit-ai/flow": "workspace:*",
+    "@genkit-ai/ai": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.30",
@@ -40,40 +41,106 @@
   "types": "lib/index.d.ts",
   "exports": {
     ".": {
-      "types": "./lib/index.d.ts",
-      "require": "./lib/index.js",
-      "import": "./lib/index.mjs",
-      "default": "./lib/index.js"
+      "types": "./lib/core/index.d.ts",
+      "require": "./lib/core/index.js",
+      "import": "./lib/core/index.mjs",
+      "default": "./lib/core/index.js"
     },
     "./metrics": {
-      "types": "./lib/metrics.d.ts",
-      "require": "./lib/metrics.js",
+      "types": "./lib/core/metrics.d.ts",
+      "require": "./lib/core/metrics.js",
       "import": "./lib/metrics.mjs",
       "default": "./lib/metrics.js"
     },
     "./registry": {
-      "types": "./lib/registry.d.ts",
-      "require": "./lib/registry.js",
-      "import": "./lib/registry.mjs",
-      "default": "./lib/registry.js"
+      "types": "./lib/core/registry.d.ts",
+      "require": "./lib/core/registry.js",
+      "import": "./lib/core/registry.mjs",
+      "default": "./lib/core/registry.js"
     },
     "./tracing": {
-      "types": "./lib/tracing.d.ts",
-      "require": "./lib/tracing.js",
-      "import": "./lib/tracing.mjs",
-      "default": "./lib/tracing.js"
+      "types": "./lib/core/tracing.d.ts",
+      "require": "./lib/core/tracing.js",
+      "import": "./lib/core/tracing.mjs",
+      "default": "./lib/core/tracing.js"
     },
     "./logging": {
-      "types": "./lib/logging.d.ts",
-      "require": "./lib/logging.js",
-      "import": "./lib/logging.mjs",
-      "default": "./lib/logging.js"
+      "types": "./lib/core/logging.d.ts",
+      "require": "./lib/core/logging.js",
+      "import": "./lib/core/logging.mjs",
+      "default": "./lib/core/logging.js"
     },
     "./schema": {
-      "types": "./lib/schema.d.ts",
-      "require": "./lib/schema.js",
-      "import": "./lib/schema.mjs",
-      "default": "./lib/schema.js"
+      "types": "./lib/core/schema.d.ts",
+      "require": "./lib/core/schema.js",
+      "import": "./lib/core/schema.mjs",
+      "default": "./lib/core/schema.js"
+    },
+    "./flow": {
+      "types": "./lib/flow/index.d.ts",
+      "require": "./lib/flow/index.js",
+      "import": "./lib/flow/index.mjs",
+      "default": "./lib/flow/index.js"
+    },
+    "./flow/experimental": {
+      "types": "./lib/flow/experimental.d.ts",
+      "require": "./lib/flow/experimental.js",
+      "import": "./lib/flow/experimental.mjs",
+      "default": "./lib/flow/experimental.js"
+    },
+    "./flow/client": {
+      "types": "./lib/flow/client/index.d.ts",
+      "require": "./lib/flow/client/index.js",
+      "import": "./lib/flow/client/index.mjs",
+      "default": "./lib/flow/client/index.js"
+    },
+    "./ai": {
+      "types": "./lib/ai/index.d.ts",
+      "require": "./lib/ai/ai.js",
+      "import": "./lib/ai/ai.mjs",
+      "default": "./lib/ai/ai.js"
+    },
+    "./retriever": {
+      "types": "./lib/ai/retriever.d.ts",
+      "require": "./lib/ai/retriever.js",
+      "import": "./lib/ai/retriever.mjs",
+      "default": "./lib/ai/retriever.js"
+    },
+    "./embedder": {
+      "types": "./lib/ai/embedder.d.ts",
+      "require": "./lib/ai/embedder.js",
+      "import": "./lib/ai/embedder.mjs",
+      "default": "./lib/ai/embedder.js"
+    },
+    "./evaluator": {
+      "types": "./lib/ai/evaluator.d.ts",
+      "require": "./lib/ai/evaluator.js",
+      "import": "./lib/ai/evaluator.mjs",
+      "default": "./lib/ai/evaluator.js"
+    },
+    "./model": {
+      "types": "./lib/ai/model.d.ts",
+      "require": "./lib/ai/model.js",
+      "import": "./lib/ai/model.mjs",
+      "default": "./lib/ai/model.js"
+    },
+    "./model/middleware": {
+      "types": "./lib/ai/model/middleware.d.ts",
+      "require": "./lib/ai/model/middleware.js",
+      "import": "./lib/ai/model/middleware.mjs",
+      "default": "./lib/ai/model/middleware.js"
+    },
+    "./extract": {
+      "types": "./lib/ai/extract.d.ts",
+      "require": "./lib/ai/extract.js",
+      "import": "./lib/ai/extract.mjs",
+      "default": "./lib/ai/extract.js"
+    },
+    "./tool": {
+      "types": "./lib/ai/tool.d.ts",
+      "require": "./lib/ai/tool.js",
+      "import": "./lib/ai/tool.mjs",
+      "default": "./lib/ai/tool.js"
     }
   },
   "typesVersions": {
