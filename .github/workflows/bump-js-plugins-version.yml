@@ -26,6 +26,11 @@ on:
           - patch
           - minor
           - major
+      preid:
+        description: Prerelease identifier
+        type: string
+        default: rc
+        required: true
 
 jobs:
   build:
@@ -46,6 +51,7 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/chroma
         with:
           default: ${{ inputs.releaseType }}
+          preid: ${{ inputs.preid }}
           commit-message: 'chore: bump genkitx-chromadb version to {{version}}'
           tag-prefix:  'genkitx-chromadb'
       - name: 'js/plugins/dev-local-vectorstore version bump'
@@ -55,6 +61,7 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/dev-local-vectorstore
         with:
           default: ${{ inputs.releaseType }}
+          preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/dev-local-vectorstore version to {{version}}'
           tag-prefix:  '@genkit-ai/dev-local-vectorstore@'
       - name: 'js/plugins/dotprompt version bump'
@@ -64,6 +71,7 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/dotprompt
         with:
           default: ${{ inputs.releaseType }}
+          preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/dotprompt version to {{version}}'
           tag-prefix:  '@genkit-ai/dotprompt@'
       - name: 'js/plugins/evaluator version bump'
@@ -73,6 +81,7 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/evaluator
         with:
           default: ${{ inputs.releaseType }}
+          preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/evaluator version to {{version}}'
           tag-prefix:  '@genkit-ai/evaluator@'
       - name: 'js/plugins/firebase version bump'
@@ -82,6 +91,7 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/firebase
         with:
           default: ${{ inputs.releaseType }}
+          preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/firebase version to {{version}}'
           tag-prefix:  '@genkit-ai/firebase@'
       - name: 'js/plugins/google-cloud version bump'
@@ -91,6 +101,7 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/google-cloud
         with:
           default: ${{ inputs.releaseType }}
+          preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/google-cloud version to {{version}}'
           tag-prefix:  '@genkit-ai/google-cloud@'
       - name: 'js/plugins/googleai version bump'
@@ -100,6 +111,7 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/googleai
         with:
           default: ${{ inputs.releaseType }}
+          preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/googleai version to {{version}}'
           tag-prefix:  '@genkit-ai/googleai@'
       - name: 'js/plugins/langchain version bump'
@@ -109,6 +121,7 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/langchain
         with:
           default: ${{ inputs.releaseType }}
+          preid: ${{ inputs.preid }}
           commit-message: 'chore: bump genkitx-langchain version to {{version}}'
           tag-prefix:  'genkitx-langchain@'
       - name: 'js/plugins/ollama version bump'
@@ -118,6 +131,7 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/ollama
         with:
           default: ${{ inputs.releaseType }}
+          preid: ${{ inputs.preid }}
           commit-message: 'chore: bump genkitx-ollama version to {{version}}'
           tag-prefix:  'genkitx-ollama@'
       - name: 'js/plugins/pinecone version bump'
@@ -127,6 +141,7 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/pinecone
         with:
           default: ${{ inputs.releaseType }}
+          preid: ${{ inputs.preid }}
           commit-message: 'chore: bump genkitx-pinecone version to {{version}}'
           tag-prefix:  'genkitx-pinecone@'
       - name: 'js/plugins/vertexai version bump'
@@ -136,5 +151,6 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/vertexai
         with:
           default: ${{ inputs.releaseType }}
+          preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/vertexai version to {{version}}'
           tag-prefix:  '@genkit-ai/vertexai@'
