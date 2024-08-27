@@ -42,24 +42,24 @@ interface FirestorePluginParams {
 export const firebase: Plugin<[FirestorePluginParams] | []> = genkitPlugin(
   'firebase',
   async (params?: FirestorePluginParams) => {
-    let projectId;
+    let authClient;
     let credentials;
 
     // Allow customers to pass in cloud credentials from environment variables
     // following: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
-    if (process.env.GCLOUD_SERVICE_ACCOUNT) {
+    if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
       const serviceAccountCreds = JSON.parse(
-        process.env.GCLOUD_SERVICE_ACCOUNT
+        process.env.GCLOUD_SERVICE_ACCOUNT_CREDS
       );
       const authOptions = { credentials: serviceAccountCreds };
-      const authClient = new GoogleAuth(authOptions);
+      authClient = new GoogleAuth(authOptions);
 
-      projectId = await authClient.getProjectId();
       credentials = await authClient.getCredentials();
     } else {
-      const authClient = new GoogleAuth();
-      projectId = params?.projectId || (await getProjectId(authClient));
+      authClient = new GoogleAuth();
     }
+
+    const projectId = params?.projectId || (await authClient.getProjectId());
 
     const gcpOptions = {
       projectId,

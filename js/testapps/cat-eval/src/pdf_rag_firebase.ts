@@ -38,9 +38,11 @@ let firestore = getFirestore(app);
 // There's a race condition in initializing the Firestore singleton.
 // To avoid that, explicitly create an instance using the service account
 // from the environment variable.
-if (process.env.GCLOUD_SERVICE_ACCOUNT) {
+if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
   console.log(`Using service account credentials.`);
-  const serviceAccountCreds = JSON.parse(process.env.GCLOUD_SERVICE_ACCOUNT);
+  const serviceAccountCreds = JSON.parse(
+    process.env.GCLOUD_SERVICE_ACCOUNT_CREDS
+  );
   const authOptions = { credentials: serviceAccountCreds };
   firestore.settings(authOptions);
 }

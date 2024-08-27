@@ -71,7 +71,7 @@ Application Default Credentials. To specify your credentials:
       [Service account](https://console.firebase.google.com/project/_/settings/serviceaccounts/adminsdk)
       page of the Firebase console.
   1.  Set the environment variable `GOOGLE_APPLICATION_CREDENTIALS` to the file
-      path of the JSON file that contains your service account key, or you can set the environment variable `GCLOUD_SERVICE_ACCOUNT` to the content of the JSON file.
+      path of the JSON file that contains your service account key, or you can set the environment variable `GCLOUD_SERVICE_ACCOUNT_CREDS` to the content of the JSON file.
 
 ### Telemetry
 
@@ -109,9 +109,9 @@ Firestore's vector search feature.
 See the [Retrieval-augmented generation](../rag.md) page for a more detailed
 discussion on implementing RAG using Genkit.
 
-#### Using GCLOUD_SERVICE_ACCOUNT and Firestore 
+#### Using GCLOUD_SERVICE_ACCOUNT_CREDS and Firestore 
 
-If you are using service account credentials by passing credentials directly via `GCLOUD_SERVICE_ACCOUNT` and are also using Firestore as a vector store, you will need to pass credentials directly to the Firestore instance during initialization or the singleton may be initialized with application default credentials depending on plugin initialization order.
+If you are using service account credentials by passing credentials directly via `GCLOUD_SERVICE_ACCOUNT_CREDS` and are also using Firestore as a vector store, you will need to pass credentials directly to the Firestore instance during initialization or the singleton may be initialized with application default credentials depending on plugin initialization order.
 
 ```
 import {initializeApp} from "firebase-admin/app";
@@ -120,8 +120,8 @@ import {getFirestore} from "firebase-admin/firestore";
 const app = initializeApp();
 let firestore = getFirestore(app);
 
-if (process.env.GCLOUD_SERVICE_ACCOUNT) {
-  const serviceAccountCreds = JSON.parse(process.env.GCLOUD_SERVICE_ACCOUNT);
+if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
+  const serviceAccountCreds = JSON.parse(process.env.GCLOUD_SERVICE_ACCOUNT_CREDS);
   const authOptions = { credentials: serviceAccountCreds };
   firestore.settings(authOptions);
 }

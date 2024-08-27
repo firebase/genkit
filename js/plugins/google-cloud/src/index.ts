@@ -52,24 +52,24 @@ export interface TelemetryConfig {
 export const googleCloud: Plugin<[PluginOptions] | []> = genkitPlugin(
   'googleCloud',
   async (options?: PluginOptions) => {
-    let projectId;
+    let authClient;
     let credentials;
 
     // Allow customers to pass in cloud credentials from environment variables
     // following: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
-    if (process.env.GCLOUD_SERVICE_ACCOUNT) {
+    if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
       const serviceAccountCreds = JSON.parse(
-        process.env.GCLOUD_SERVICE_ACCOUNT
+        process.env.GCLOUD_SERVICE_ACCOUNT_CREDS
       );
       const authOptions = { credentials: serviceAccountCreds };
-      const authClient = new GoogleAuth(authOptions);
+      authClient = new GoogleAuth(authOptions);
 
-      projectId = await authClient.getProjectId();
       credentials = await authClient.getCredentials();
     } else {
-      const authClient = new GoogleAuth();
-      projectId = options?.projectId || (await authClient.getProjectId());
+      authClient = new GoogleAuth();
     }
+
+    const projectId = options?.projectId || (await authClient.getProjectId());
 
     const optionsWithProjectIdAndCreds = {
       ...options,

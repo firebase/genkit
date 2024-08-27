@@ -142,9 +142,9 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
 
     // Allow customers to pass in cloud credentials from environment variables
     // following: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
-    if (process.env.GCLOUD_SERVICE_ACCOUNT) {
+    if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
       const serviceAccountCreds = JSON.parse(
-        process.env.GCLOUD_SERVICE_ACCOUNT
+        process.env.GCLOUD_SERVICE_ACCOUNT_CREDS
       );
       authOptions = {
         credentials: serviceAccountCreds,

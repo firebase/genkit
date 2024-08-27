@@ -65,7 +65,7 @@ For more information, see the [Application Default Credentials](https://cloud.go
 
 If you are using a service account and running outside of a Google Cloud environment, you can set your credentials as an environment variable. Follow instructions here to [set up your Google Cloud Service Account Key](https://cloud.google.com/iam/docs/keys-create-delete#creating).
 
-Once you have downloaded the key file, you can specify the credentials in two ways a file location using the `GOOGLE_APPLICATION_CREDENTIALS` environment variable or directly copy the contents of the json file to the environment variable `GCLOUD_SERVICE_ACCOUNT`.
+Once you have downloaded the key file, you can specify the credentials in two ways a file location using the `GOOGLE_APPLICATION_CREDENTIALS` environment variable or directly copy the contents of the json file to the environment variable `GCLOUD_SERVICE_ACCOUNT_CREDS`.
 
 File path:
 
@@ -76,7 +76,7 @@ GOOGLE_APPLICATION_CREDENTIALS = "path/to/your/key/file"
 Direct copy:
 
 ```
-GCLOUD_SERVICE_ACCOUNT='{
+GCLOUD_SERVICE_ACCOUNT_CREDS='{
   "type": "service_account",
   "project_id": "your-project-id",
   "private_key_id": "your-private-key-id",
