@@ -690,27 +690,21 @@ importers:
 
   testapps/anthropic-models:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@genkit-ai/dotprompt':
         specifier: workspace:*
         version: link:../../plugins/dotprompt
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       express:
         specifier: ^4.19.2
         version: 4.19.2
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       zod:
         specifier: 3.22.4
         version: 3.22.4
@@ -721,12 +715,6 @@ importers:
 
   testapps/byo-evaluator:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@genkit-ai/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
@@ -739,15 +727,15 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
       path:
         specifier: ^0.12.7
         version: 0.12.7
@@ -797,6 +785,9 @@ importers:
       firebase-admin:
         specifier: ^12.3.0
         version: 12.3.1(encoding@0.1.13)
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
       genkitx-pinecone:
         specifier: workspace:*
         version: link:../../plugins/pinecone
@@ -855,6 +846,9 @@ importers:
       firebase-admin:
         specifier: ^12.1.0
         version: 12.1.0(encoding@0.1.13)
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
       genkitx-chromadb:
         specifier: workspace:*
         version: link:../../plugins/chroma
@@ -892,6 +886,9 @@ importers:
       express:
         specifier: ^4.19.2
         version: 4.19.2
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -920,6 +917,9 @@ importers:
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
       llm-chunk:
         specifier: ^0.0.1
         version: 0.0.1
@@ -957,6 +957,9 @@ importers:
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -991,6 +994,9 @@ importers:
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -1022,6 +1028,9 @@ importers:
       express:
         specifier: ~4.19.2
         version: 4.19.2
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
       genkitx-ollama:
         specifier: workspace:*
         version: link:../../plugins/ollama
@@ -1081,6 +1090,9 @@ importers:
       firebase-admin:
         specifier: ^12.1.0
         version: 12.1.0(encoding@0.1.13)
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
       partial-json:
         specifier: ^0.1.7
         version: 0.1.7
@@ -1118,6 +1130,9 @@ importers:
       express:
         specifier: ^4.19.2
         version: 4.19.2
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
       zod:
         specifier: 3.22.4
         version: 3.22.4
@@ -1158,6 +1173,9 @@ importers:
       express:
         specifier: ~4.19.2
         version: 4.19.2
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
       genkitx-langchain:
         specifier: workspace:*
         version: link:../../plugins/langchain
@@ -1198,6 +1216,9 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:^
         version: link:../../plugins/googleai
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -1232,6 +1253,9 @@ importers:
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -1257,6 +1281,9 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -1294,6 +1321,9 @@ importers:
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
       genkitx-chromadb:
         specifier: workspace:*
         version: link:../../plugins/chroma
@@ -1324,6 +1354,10 @@ importers:
         version: 5.4.5
 
   testapps/tools-config-test1:
+    dependencies:
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
     devDependencies:
       typescript:
         specifier: ^5.3.3
@@ -1367,6 +1401,9 @@ importers:
       express:
         specifier: ^4.19.2
         version: 4.19.2
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
       genkitx-chromadb:
         specifier: workspace:*
         version: link:../../plugins/chroma
@@ -1425,6 +1462,9 @@ importers:
       express:
         specifier: ^4.19.2
         version: 4.19.2
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
       genkitx-chromadb:
         specifier: workspace:*
         version: link:../../plugins/chroma
@@ -1483,6 +1523,9 @@ importers:
       firebase-admin:
         specifier: ^12.1.0
         version: 12.2.0(encoding@0.1.13)
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
       genkitx-chromadb:
         specifier: workspace:*
         version: link:../../plugins/chroma

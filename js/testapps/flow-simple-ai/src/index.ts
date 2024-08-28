@@ -14,16 +14,13 @@
  * limitations under the License.
  */
 
-import { defineTool, generate, generateStream, retrieve } from '@genkit-ai/ai';
-import { configureGenkit } from '@genkit-ai/core';
 import { dotprompt, prompt } from '@genkit-ai/dotprompt';
 import { defineFirestoreRetriever, firebase } from '@genkit-ai/firebase';
-import { defineFlow, run } from '@genkit-ai/flow';
 import { googleCloud } from '@genkit-ai/google-cloud';
 import {
   gemini15Flash,
-  googleAI,
   geminiPro as googleGeminiPro,
+  googleAI,
 } from '@genkit-ai/googleai';
 import {
   gemini15ProPreview,
@@ -34,6 +31,15 @@ import {
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import {
+  configureGenkit,
+  defineFlow,
+  generate,
+  generateStream,
+  retrieve,
+  run,
+} from 'genkit';
+import { defineTool } from 'genkit/tool';
 import { Allow, parse } from 'partial-json';
 import * as z from 'zod';
 

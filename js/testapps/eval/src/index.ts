@@ -14,17 +14,16 @@
  * limitations under the License.
  */
 
+import { genkitEval, genkitEvalRef, GenkitMetric } from '@genkit-ai/evaluator';
+import { firebase } from '@genkit-ai/firebase';
+import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+import { configureGenkit, defineFlow } from 'genkit';
 import {
   Dataset,
   EvalResponse,
   EvalResponseSchema,
   evaluate,
-} from '@genkit-ai/ai/evaluator';
-import { configureGenkit } from '@genkit-ai/core';
-import { GenkitMetric, genkitEval, genkitEvalRef } from '@genkit-ai/evaluator';
-import { firebase } from '@genkit-ai/firebase';
-import { defineFlow } from '@genkit-ai/flow';
-import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+} from 'genkit/evaluator';
 import * as z from 'zod';
 
 export default configureGenkit({

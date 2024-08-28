@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
-import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
 import { googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
 import { GoogleVertexAIEmbeddings } from '@langchain/community/embeddings/googlevertexai';
@@ -27,6 +25,7 @@ import {
   RunnablePassthrough,
   RunnableSequence,
 } from '@langchain/core/runnables';
+import { configureGenkit, defineFlow, run, startFlowsServer } from 'genkit';
 import { GenkitTracer } from 'genkitx-langchain';
 import { ollama } from 'genkitx-ollama';
 import { PDFLoader } from 'langchain/document_loaders/fs/pdf';

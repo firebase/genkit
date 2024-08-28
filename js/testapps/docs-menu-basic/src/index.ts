@@ -16,10 +16,13 @@
 
 // This sample is referenced by the genkit docs. Changes should be made to
 // both.
-import { generate } from '@genkit-ai/ai';
-import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
+import {
+  configureGenkit,
+  defineFlow,
+  generate,
+  startFlowsServer,
+} from 'genkit';
 import * as z from 'zod';
 
 configureGenkit({

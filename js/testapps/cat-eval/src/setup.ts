@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { defineFlow, runFlow } from '@genkit-ai/flow';
+import { defineFlow, runFlow } from 'genkit';
 import * as z from 'zod';
 import { indexPdf } from './pdf_rag.js';
 import { indexPdfFirebase } from './pdf_rag_firebase.js';
@@ -36,7 +36,7 @@ export const setup = defineFlow(
     }
 
     await Promise.all(
-      documentArr.map(async (document) => {
+      documentArr.map(async (document: string) => {
         console.log(`Indexed ${document}`);
         return runFlow(indexPdf, document);
       })

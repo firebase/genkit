@@ -14,13 +14,11 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
-import { configureGenkit } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
-import { defineFlow, run, runFlow } from '@genkit-ai/flow';
 import { googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
 import express, { Request, Response } from 'express';
+import { configureGenkit, defineFlow, generate, run, runFlow } from 'genkit';
 import { ollama } from 'genkitx-ollama';
 import * as z from 'zod';
 

@@ -16,10 +16,10 @@
 
 import {
   BaseDataPoint,
-  EvaluatorAction,
   defineEvaluator,
-} from '@genkit-ai/ai/evaluator';
-import { ModelReference } from '@genkit-ai/ai/model';
+  EvaluatorAction,
+} from 'genkit/evaluator';
+import { ModelReference } from 'genkit/model';
 import * as z from 'zod';
 import { ByoMetric } from '..';
 import { deliciousnessScore } from './deliciousness';

@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
 import { firebaseAuth } from '@genkit-ai/firebase/auth';
 import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
-import { defineFlow, run } from '@genkit-ai/flow';
 import { gemini15Flash } from '@genkit-ai/googleai';
 import { DecodedIdToken } from 'firebase-admin/auth';
+import { defineFlow, generate, run } from 'genkit';
 import * as z from 'zod';
 
 export const flowBasicAuth = defineFlow(

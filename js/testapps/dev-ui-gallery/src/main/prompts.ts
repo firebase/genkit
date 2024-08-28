@@ -15,8 +15,8 @@
  */
 
 import { defineDotprompt, prompt } from '@genkit-ai/dotprompt';
-import { defineFlow } from '@genkit-ai/flow';
 import { gemini15Flash } from '@genkit-ai/googleai';
+import { defineFlow } from 'genkit';
 import * as z from 'zod';
 import { HelloFullNameSchema, HelloSchema } from '../common/types.js';
 

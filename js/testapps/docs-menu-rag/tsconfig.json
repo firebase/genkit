@@ -8,7 +8,8 @@
     "strict": true,
     "target": "es2017",
     "skipLibCheck": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "moduleResolution": "NodeNext"
   },
   "compileOnSave": true,
   "include": ["src"]

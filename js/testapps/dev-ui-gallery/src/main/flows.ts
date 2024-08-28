@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { defineFlow, run, runFlow, runMap } from '@genkit-ai/flow';
+import { defineFlow, run, runFlow, runMap } from 'genkit';
 import * as z from 'zod';
 import { generateString } from '../common/util';
 

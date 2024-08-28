@@ -15,17 +15,15 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/core": "workspace:^",
     "@genkit-ai/dotprompt": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
-    "@genkit-ai/flow": "workspace:*",
     "@genkit-ai/google-cloud": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
     "@google/generative-ai": "^0.15.0",
     "@opentelemetry/sdk-trace-base": "^1.25.0",
     "firebase-admin": "^12.1.0",
+    "genkit": "workspace:*",
     "partial-json": "^0.1.7",
     "zod": "^3.22.4"
   },

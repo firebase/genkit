@@ -6,6 +6,7 @@
   "private": true,
   "dependencies": {
     "firebase": "^10.9.0",
+    "genkit": "workspace:^",
     "jquery": "^3.7.1"
   },
   "devDependencies": {

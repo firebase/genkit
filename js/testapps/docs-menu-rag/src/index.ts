@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
-import { defineFlow, runFlow } from '@genkit-ai/flow';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+import { configureGenkit, defineFlow, runFlow } from 'genkit';
 import * as z from 'zod';
 import { indexMenu } from './indexer';
 

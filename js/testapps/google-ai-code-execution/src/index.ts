@@ -18,10 +18,8 @@ import { config } from 'dotenv';
 import * as z from 'zod';
 config();
 // Import the Genkit core libraries and plugins.
-import { generate } from '@genkit-ai/ai';
-import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow } from '@genkit-ai/flow';
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
+import { configureGenkit, defineFlow, generate } from 'genkit';
 
 configureGenkit({
   plugins: [googleAI()],

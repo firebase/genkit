@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { defineTool } from '@genkit-ai/ai/tool';
 import { defineDotprompt } from '@genkit-ai/dotprompt';
-import { defineFlow } from '@genkit-ai/flow';
 import { gemini15Flash } from '@genkit-ai/googleai';
+import { defineFlow } from 'genkit';
+import { defineTool } from 'genkit/tool';
 import * as z from 'zod';
 import { WeatherSchema } from '../common/types';
 
