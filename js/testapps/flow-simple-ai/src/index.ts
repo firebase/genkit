@@ -19,8 +19,8 @@ import { defineFirestoreRetriever, firebase } from '@genkit-ai/firebase';
 import { googleCloud } from '@genkit-ai/google-cloud';
 import {
   gemini15Flash,
-  geminiPro as googleGeminiPro,
   googleAI,
+  geminiPro as googleGeminiPro,
 } from '@genkit-ai/googleai';
 import {
   gemini15ProPreview,

@@ -22,7 +22,7 @@ import {
   scheduleFlow,
   sleep,
   waitFor,
-} from 'genkit/flow/experimental';
+} from 'genkit/experimental';
 import * as z from 'zod';
 import { HelloSchema } from '../common/types.js';
 

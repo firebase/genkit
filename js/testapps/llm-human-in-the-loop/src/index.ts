@@ -17,7 +17,7 @@
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import { configureGenkit, generate } from 'genkit';
-import { durableFlow, interrupt, run } from 'genkit/flow/experimental';
+import { durableFlow, interrupt, run } from 'genkit/experimental';
 import * as z from 'zod';
 // To run this sample use the following sample commands:
 //   genkit flow:run jokeFlow "\"apple\""

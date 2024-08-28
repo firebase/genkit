@@ -26,9 +26,10 @@
   "author": "genkit",
   "license": "Apache-2.0",
   "dependencies": {
+    "@genkit-ai/ai": "workspace:*",
     "@genkit-ai/core": "workspace:*",
     "@genkit-ai/flow": "workspace:*",
-    "@genkit-ai/ai": "workspace:*"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^20.11.30",
@@ -82,11 +83,11 @@
       "import": "./lib/flow/index.mjs",
       "default": "./lib/flow/index.js"
     },
-    "./flow/experimental": {
-      "types": "./lib/flow/experimental.d.ts",
-      "require": "./lib/flow/experimental.js",
-      "import": "./lib/flow/experimental.mjs",
-      "default": "./lib/flow/experimental.js"
+    "./experimental": {
+      "types": "./lib/experimental/index.d.ts",
+      "require": "./lib/experimental/index.js",
+      "import": "./lib/experimental/index.mjs",
+      "default": "./lib/experimental/index.js"
     },
     "./flow/client": {
       "types": "./lib/flow/client/index.d.ts",
