@@ -64,6 +64,9 @@ function toDocuments(
     }
 
     out.metadata = d.data();
+    if (!out.metadata.id) {
+      out.metadata.id = d.id;
+    }
     delete out.metadata[vectorField];
     if (typeof contentField === 'string') delete out.metadata[contentField];
     return out;
