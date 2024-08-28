@@ -21,6 +21,7 @@ import {
   GenerationCommonConfigSchema,
   getBasicUsageStats,
   modelRef,
+  ModelReference,
 } from '@genkit-ai/ai/model';
 import { GoogleAuth } from 'google-auth-library';
 import z from 'zod';
@@ -33,18 +34,40 @@ const ImagenConfigSchema = GenerationCommonConfigSchema.extend({
     .enum(['auto', 'en', 'es', 'hi', 'ja', 'ko', 'pt', 'zh-TW', 'zh', 'zh-CN'])
     .optional(),
   /** Desired aspect ratio of output image. */
-  aspectRatio: z.enum(['1:1', '9:16', '16:9']).optional(),
-  /** A negative prompt to help generate the images. For example: "animals" (removes animals), "blurry" (makes the image clearer), "text" (removes text), or "cropped" (removes cropped images). */
+  aspectRatio: z.enum(['1:1', '9:16', '16:9', '3:4', '4:3']).optional(),
+  /**
+   * A negative prompt to help generate the images. For example: "animals"
+   * (removes animals), "blurry" (makes the image clearer), "text" (removes
+   * text), or "cropped" (removes cropped images).
+   **/
   negativePrompt: z.string().optional(),
-  /** Any non-negative integer you provide to make output images deterministic. Providing the same seed number always results in the same output images. Accepted integer values: 1 - 2147483647. */
+  /**
+   * Any non-negative integer you provide to make output images deterministic.
+   * Providing the same seed number always results in the same output images.
+   * Accepted integer values: 1 - 2147483647.
+   **/
   seed: z.number().optional(),
+  /** Your GCP project's region. e.g.) us-central1, europe-west2, etc. **/
   location: z.string().optional(),
+  /** Allow generation of people by the model. */
+  personGeneration: z
+    .enum(['dont_allow', 'allow_adult', 'allow_all'])
+    .optional(),
+  /** Adds a filter level to safety filtering. */
+  safetySetting: z
+    .enum(['block_most', 'block_some', 'block_few', 'block_fewest'])
+    .optional(),
+  /** Add an invisible watermark to the generated images. */
+  addWatermark: z.boolean().optional(),
+  /** Cloud Storage URI to store the generated images. **/
+  storageUri: z.string().optional(),
 });
 
 export const imagen2 = modelRef({
   name: 'vertexai/imagen2',
   info: {
     label: 'Vertex AI - Imagen2',
+    versions: ['imagegeneration@006', 'imagegeneration@005'],
     supports: {
       media: false,
       multiturn: false,
@@ -53,8 +76,49 @@ export const imagen2 = modelRef({
       output: ['media'],
     },
   },
+  version: 'imagegeneration@006',
   configSchema: ImagenConfigSchema,
 });
+
+export const imagen3 = modelRef({
+  name: 'vertexai/imagen3',
+  info: {
+    label: 'Vertex AI - Imagen3',
+    versions: ['imagen-3.0-generate-001'],
+    supports: {
+      media: false,
+      multiturn: false,
+      tools: false,
+      systemRole: false,
+      output: ['media'],
+    },
+  },
+  version: 'imagen-3.0-generate-001',
+  configSchema: ImagenConfigSchema,
+});
+
+export const imagen3Fast = modelRef({
+  name: 'vertexai/imagen3-fast',
+  info: {
+    label: 'Vertex AI - Imagen3 Fast',
+    versions: ['imagen-3.0-fast-generate-001'],
+    supports: {
+      media: false,
+      multiturn: false,
+      tools: false,
+      systemRole: false,
+      output: ['media'],
+    },
+  },
+  version: 'imagen-3.0-fast-generate-001',
+  configSchema: ImagenConfigSchema,
+});
+
+export const SUPPORTED_IMAGEN_MODELS = {
+  imagen2: imagen2,
+  imagen3: imagen3,
+  'imagen3-fast': imagen3Fast,
+};
 
 function extractText(request: GenerateRequest) {
   return request.messages
@@ -69,6 +133,10 @@ interface ImagenParameters {
   negativePrompt?: string;
   seed?: number;
   language?: string;
+  personGeneration?: string;
+  safetySetting?: string;
+  addWatermark?: boolean;
+  storageUri?: string;
 }
 
 function toParameters(
@@ -80,6 +148,10 @@ function toParameters(
     negativePrompt: request.config?.negativePrompt,
     seed: request.config?.seed,
     language: request.config?.language,
+    personGeneration: request.config?.personGeneration,
+    safetySetting: request.config?.safetySetting,
+    addWatermark: request.config?.addWatermark,
+    storageUri: request.config?.storageUri,
   };
 
   for (const k in out) {
@@ -106,7 +178,15 @@ interface ImagenInstance {
   image?: { bytesBase64Encoded: string };
 }
 
-export function imagen2Model(client: GoogleAuth, options: PluginOptions) {
+export function imagenModel(
+  name: string,
+  client: GoogleAuth,
+  options: PluginOptions
+) {
+  const modelName = `vertexai/${name}`;
+  const model: ModelReference<z.ZodTypeAny> = SUPPORTED_IMAGEN_MODELS[name];
+  if (!model) throw new Error(`Unsupported model: ${name}`);
+
   const predictClients: Record<
     string,
     PredictClient<ImagenInstance, ImagenPrediction, ImagenParameters>
@@ -126,7 +206,7 @@ export function imagen2Model(client: GoogleAuth, options: PluginOptions) {
           ...options,
           location: requestLocation,
         },
-        'imagegeneration@005'
+        request.config?.version || model.version || name
       );
     }
     return predictClients[requestLocation];
@@ -134,8 +214,8 @@ export function imagen2Model(client: GoogleAuth, options: PluginOptions) {
 
   return defineModel(
     {
-      name: imagen2.name,
-      ...imagen2.info,
+      name: modelName,
+      ...model.info,
       configSchema: ImagenConfigSchema,
     },
     async (request) => {

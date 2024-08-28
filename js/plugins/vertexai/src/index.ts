@@ -55,7 +55,13 @@ import {
   geminiPro,
   geminiProVision,
 } from './gemini.js';
-import { imagen2, imagen2Model } from './imagen.js';
+import {
+  SUPPORTED_IMAGEN_MODELS,
+  imagen2,
+  imagen3,
+  imagen3Fast,
+  imagenModel,
+} from './imagen.js';
 import {
   SUPPORTED_OPENAI_FORMAT_MODELS,
   llama3,
@@ -94,6 +100,8 @@ export {
   geminiPro,
   geminiProVision,
   imagen2,
+  imagen3,
+  imagen3Fast,
   llama3,
   llama31,
   textEmbedding004,
@@ -175,7 +183,9 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
         : [];
 
     const models = [
-      imagen2Model(authClient, { projectId, location }),
+      ...Object.keys(SUPPORTED_IMAGEN_MODELS).map((name) =>
+        imagenModel(name, authClient, { projectId, location })
+      ),
       ...Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
         geminiModel(name, vertexClientFactory, { projectId, location })
       ),
