@@ -11,7 +11,8 @@
   ],
   "author": "genkit",
   "bin": {
-    "genkit": "dist/bin/genkit.js"
+    "genkit": "dist/bin/genkit.js",
+    "create-genkit": "dist/bin/create-genkit.js"
   },
   "main": "dist/index.js",
   "scripts": {
