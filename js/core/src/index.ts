@@ -19,6 +19,7 @@ import { version } from './__codegen/version.js';
 export const GENKIT_VERSION = version;
 export const GENKIT_CLIENT_HEADER = `genkit-node/${GENKIT_VERSION} gl-node/${process.versions.node}`;
 
+export * as z from 'zod';
 export * from './action.js';
 export * from './config.js';
 export { GenkitError } from './error.js';

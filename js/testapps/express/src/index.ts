@@ -18,9 +18,8 @@ import { firebase } from '@genkit-ai/firebase';
 import { googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
 import express, { Request, Response } from 'express';
-import { configureGenkit, defineFlow, generate, run, runFlow } from 'genkit';
+import { configureGenkit, defineFlow, generate, run, runFlow, z } from 'genkit';
 import { ollama } from 'genkitx-ollama';
-import * as z from 'zod';
 
 configureGenkit({
   plugins: [

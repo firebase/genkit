@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import z from 'zod';
+import { z } from '@genkit-ai/core';
 
 const EmptyPartSchema = z.object({
   text: z.never().optional(),

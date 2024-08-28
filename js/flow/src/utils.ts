@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-import { runInActionRuntimeContext } from '@genkit-ai/core';
+import { runInActionRuntimeContext, z } from '@genkit-ai/core';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { v4 as uuidv4 } from 'uuid';
-import z from 'zod';
 import { Context } from './context.js';
 
 /**
