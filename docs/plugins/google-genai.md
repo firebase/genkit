@@ -105,7 +105,7 @@ const uploadResult = await fileManager.uploadFile(
 const response = await generate({
   model: gemini15Flash,
   prompt: [
-    {text: "Describe this image:},
+    {text: 'Describe this image:'},
     {media: {contentType: uploadResult.file.mimeType, url: uploadResult.file.uri}}
   ]
 });

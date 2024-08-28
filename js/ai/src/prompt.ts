@@ -25,9 +25,10 @@ import {
   ModelArgument,
 } from './model.js';
 
-export type PromptFn<I extends z.ZodTypeAny = z.ZodTypeAny> = (
-  input: z.infer<I>
-) => Promise<GenerateRequest>;
+export type PromptFn<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+> = (input: z.infer<I>) => Promise<GenerateRequest<CustomOptionsSchema>>;
 
 export type PromptAction<I extends z.ZodTypeAny = z.ZodTypeAny> = Action<
   I,
@@ -46,6 +47,15 @@ export function isPrompt(arg: any): boolean {
     (arg as any).__action?.metadata?.type === 'prompt'
   );
 }
+
+/**
+ * Defines and registers a prompt action. The action can be called to obtain
+ * a `GenerateRequest` which can be passed to a model action. The given
+ * `PromptFn` can perform any action needed to create the request such as rendering
+ * a template or fetching a prompt from a database.
+ *
+ * @returns The new `PromptAction`.
+ */
 
 export function definePrompt<I extends z.ZodTypeAny>(
   {
@@ -77,16 +87,18 @@ export function definePrompt<I extends z.ZodTypeAny>(
   return a as PromptAction<I>;
 }
 
-/**
- * A veneer for rendering a prompt action to GenerateOptions.
- */
-
 export type PromptArgument<I extends z.ZodTypeAny = z.ZodTypeAny> =
   | string
   | PromptAction<I>;
 
+/**
+ * This veneer renders a `PromptAction` into a `GenerateOptions` object.
+ *
+ * @returns A promise of an options object for use with the `generate()` function.
+ */
 export async function renderPrompt<
   I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(params: {
   prompt: PromptArgument<I>;
@@ -94,19 +106,27 @@ export async function renderPrompt<
   context?: DocumentData[];
   model: ModelArgument<CustomOptions>;
   config?: z.infer<CustomOptions>;
-}): Promise<GenerateOptions> {
+}): Promise<GenerateOptions<O, CustomOptions>> {
   let prompt: PromptAction<I>;
   if (typeof params.prompt === 'string') {
     prompt = await lookupAction(`/prompt/${params.prompt}`);
   } else {
     prompt = params.prompt as PromptAction<I>;
   }
-  const rendered = await prompt(params.input);
+  const rendered = (await prompt(
+    params.input
+  )) as GenerateRequest<CustomOptions>;
   return {
     model: params.model,
     config: { ...(rendered.config || {}), ...params.config },
     history: rendered.messages.slice(0, rendered.messages.length - 1),
     prompt: rendered.messages[rendered.messages.length - 1].content,
     context: params.context,
-  };
+    candidates: rendered.candidates || 1,
+    output: {
+      format: rendered.output?.format,
+      schema: rendered.output?.schema,
+    },
+    tools: rendered.tools || [],
+  } as GenerateOptions<O, CustomOptions>;
 }

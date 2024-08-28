@@ -26,6 +26,12 @@ on:
           - patch
           - minor
           - major
+          - prerelease
+      preid:
+        description: Prerelease identifier
+        type: string
+        default: rc
+        required: true
 
 jobs:
   build:
@@ -48,6 +54,7 @@ jobs:
           PACKAGEJSON_DIR: genkit-tools/common
         with:
           default: ${{ inputs.releaseType }}
+          preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/tools-common version to {{version}}'
           tag-prefix:  '@genkit-ai/tools-common@'
       - name: 'genkit-tools/cli version bump'
@@ -57,5 +64,6 @@ jobs:
           PACKAGEJSON_DIR: genkit-tools/cli
         with:
           default: ${{ inputs.releaseType }}
+          preid: ${{ inputs.preid }}
           commit-message: 'chore: bump CLI version to {{version}}'
           tag-prefix:  'genkit@'
