@@ -166,6 +166,12 @@ describe('GoogleCloudLogs', () => {
       ),
       true
     );
+    assert.equal(
+      logMessages.includes(
+        '[info] Output Candidate[testFlow > sub1 > sub2 > testModel, testModel]'
+      ),
+      true
+    );
   });
 
   /** Helper to create a flow with no inputs or outputs */

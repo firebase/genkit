@@ -216,6 +216,18 @@ export function recordGenerateActionOutputLogs(
   const candidates = output.candidates.length;
   output.candidates.forEach((cand, candIdx) => {
     const parts = cand.message.content.length;
+    const candCounts = parts > 1 ? ` (${candIdx + 1} of ${parts})` : '';
+    logger.logStructured(`Output Candidate[${path}, ${model}]${candCounts}`, {
+      ...sharedMetadata,
+      candidateIndex: candIdx,
+      totalCandidates: candidates,
+      messageIndex: cand.index,
+      finishReason: cand.finishReason,
+      finishMessage: cand.finishMessage,
+      role: cand.message.role,
+      usage: cand.usage,
+      custom: cand.custom,
+    });
     cand.message.content.forEach((part, partIdx) => {
       const partCounts = toPartCounts(partIdx, parts, candIdx, candidates);
       const initial = cand.finishMessage
@@ -234,6 +246,12 @@ export function recordGenerateActionOutputLogs(
         role: cand.message.role,
       });
     });
+    if (output.usage) {
+      logger.logStructured(`Usage[${path}, ${model}]`, {
+        ...sharedMetadata,
+        usage: output.usage,
+      });
+    }
   });
 }
 
