@@ -610,7 +610,11 @@ export async function generate<
 
   return await runWithStreamingCallback(
     resolvedOptions.streamingCallback,
-    async () => new GenerateResponse<O>(await generateAction(params))
+    async () =>
+      new GenerateResponse<O>(
+        await generateAction(params),
+        await toGenerateRequest(resolvedOptions)
+      )
   );
 }
 
