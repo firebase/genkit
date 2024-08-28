@@ -22,6 +22,7 @@ import {
   StreamingCallback,
 } from '@genkit-ai/core';
 import { toJsonSchema } from '@genkit-ai/core/schema';
+import * as clc from 'colorette';
 import { performance } from 'node:perf_hooks';
 import { z } from 'zod';
 import { DocumentDataSchema } from './document.js';
@@ -144,6 +145,16 @@ export const ModelInfoSchema = z.object({
       /** Model can natively support document-based context grounding. */
       context: z.boolean().optional(),
     })
+    .optional(),
+  /** At which stage of development this model is.
+   * - `featured` models are recommended for general use.
+   * - `stable` models are well-tested and reliable.
+   * - `unstable` models are experimental and may change.
+   * - `legacy` models are no longer recommended for new projects.
+   * - `deprecated` models are deprecated by the provider and may be removed in future versions.
+   */
+  stage: z
+    .enum(['featured', 'stable', 'unstable', 'legacy', 'deprecated'])
     .optional(),
 });
 export type ModelInfo = z.infer<typeof ModelInfoSchema>;
@@ -354,7 +365,20 @@ export function modelRef<
 >(
   options: ModelReference<CustomOptionsSchema>
 ): ModelReference<CustomOptionsSchema> {
+  if (options.info?.stage === 'deprecated') {
+    deprecateModel({ name: options.name });
+  }
   return { ...options };
+}
+
+/**
+ * Warns when a model is deprecated.
+ */
+function deprecateModel(options: { name: string }) {
+  console.warn(
+    `${clc.bold(clc.yellow('Warning:'))} ` +
+      `Model '${options.name}' is deprecated and may be removed in a future release.`
+  );
 }
 
 /** Container for counting usage stats for a single input/output {Part} */

@@ -43,11 +43,11 @@ import { gemini15Flash } from '@genkit-ai/vertexai';
 Genkit provides model support through its plugin system. The following plugins
 are officially supported:
 
-| Plugin                    | Models                                                                   |
-| ------------------------- | ------------------------------------------------------------------------ |
-| [Google Generative AI][1] | Gemini Pro, Gemini Pro Vision                                            |
-| [Google Vertex AI][2]     | Gemini Pro, Gemini Pro Vision, Gemini 1.5 Flash, Gemini 1.5 Pro, Imagen2 |
-| [Ollama][3]               | Many local models, including Gemma, Llama 2, Mistral, and more           |
+| Plugin                    | Models                                                                            |
+| ------------------------- | --------------------------------------------------------------------------------- |
+| [Google Generative AI][1] | Gemini Pro, Gemini Pro Vision                                                     |
+| [Google Vertex AI][2]     | Gemini Pro, Gemini Pro Vision, Gemini 1.5 Flash, Gemini 1.5 Pro, Imagen2, Imagen3 |
+| [Ollama][3]               | Many local models, including Gemma, Llama 2, Mistral, and more                    |
 
 [1]: plugins/google-genai.md
 [2]: plugins/vertex-ai.md
@@ -120,48 +120,6 @@ const result = await generate({
       },
     },
   ],
-});
-```
-
-### Tools and function calling
-
-`Model` also supports tools and function calling. Tool support depends on
-specific models.
-
-```javascript
-const myTool = action(
-  {
-    name: 'myJoke',
-    description: 'useful when you need a joke to tell.',
-    inputSchema: z.object({ subject: z.string() }),
-    outputSchema: z.string(),
-  },
-  async (input) => 'haha Just kidding no joke! got you'
-);
-
-const llmResponse = await generate({
-  model: gemini15Flash,
-  prompt: 'Tell me a joke.',
-  tools: [myTool],
-  config: {
-    temperature: 0.5,
-  },
-});
-```
-
-This will automatically call the tools in order to fulfill the user prompt.
-
-You can specify `returnToolRequests: true` for manual control of tool calling.
-
-```javascript
-const llmResponse = await generate({
-  model: gemini15Flash,
-  prompt: 'Tell me a joke.',
-  tools: [myTool],
-  returnToolRequests: true,
-  config: {
-    temperature: 0.5,
-  },
 });
 ```
 
