@@ -81,7 +81,7 @@ export function onFlow<
       invoker: async (flow, data, streamingCallback) => {
         const responseJson = await callHttpsFunction(
           flow.name,
-          await getLocation(),
+          getLocation(),
           data,
           streamingCallback
         );
@@ -124,7 +124,7 @@ function wrapHttpsFlow<
     async (req, res) => {
       if (config.enforceAppCheck) {
         if (
-          !(await appCheckValid(
+          !(await isAppCheckValid(
             req.headers['x-firebase-appcheck'],
             !!config.consumeAppCheckToken
           ))
@@ -152,16 +152,22 @@ function wrapHttpsFlow<
   );
 }
 
-async function appCheckValid(
-  tok: string | string[] | undefined,
+/**
+ * Checks if the App Check token is valid.
+ */
+async function isAppCheckValid(
+  token: string | string[] | undefined,
   consume: boolean
 ): Promise<boolean> {
-  if (typeof tok !== 'string') return false;
+  if (typeof token !== 'string') {
+    return false;
+  }
   initializeAppIfNecessary();
   try {
-    const appCheckClaims = await getAppCheck().verifyToken(tok, { consume });
-
-    if (consume && appCheckClaims.alreadyConsumed) return false;
+    const appCheckClaims = await getAppCheck().verifyToken(token, { consume });
+    if (consume && appCheckClaims.alreadyConsumed) {
+      return false;
+    }
     return true;
   } catch (e) {
     return false;

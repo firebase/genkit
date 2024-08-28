@@ -17,7 +17,7 @@
 import { LoggerConfig } from '@genkit-ai/core';
 import { LoggingWinston } from '@google-cloud/logging-winston';
 import { Writable } from 'stream';
-import { PluginOptions } from './index.js';
+import { GoogleCloudPluginParams } from './index.js';
 
 /**
  * Additional streams for writing log data to. Useful for unit testing.
@@ -29,10 +29,10 @@ let additionalStream: Writable;
  * logs.
  */
 export class GcpLogger implements LoggerConfig {
-  private readonly options: PluginOptions;
+  private readonly params: GoogleCloudPluginParams;
 
-  constructor(options?: PluginOptions) {
-    this.options = options || {};
+  constructor(params?: GoogleCloudPluginParams) {
+    this.params = params || {};
   }
 
   async getLogger(env: string) {
@@ -54,7 +54,7 @@ export class GcpLogger implements LoggerConfig {
     transports.push(
       this.shouldExport(env)
         ? new LoggingWinston({
-            projectId: this.options.projectId,
+            projectId: this.params.projectId,
             labels: { module: 'genkit' },
             prefix: 'genkit',
             logName: 'genkit_log',
@@ -74,7 +74,7 @@ export class GcpLogger implements LoggerConfig {
   }
 
   private shouldExport(env: string) {
-    return this.options.telemetryConfig?.forceDevExport || env !== 'dev';
+    return this.params.telemetryConfig?.forceDevExport || env !== 'dev';
   }
 }
 

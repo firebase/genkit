@@ -42,7 +42,7 @@ import {
   ReadableSpan,
   SpanExporter,
 } from '@opentelemetry/sdk-trace-base';
-import { PluginOptions } from './index.js';
+import { GoogleCloudPluginParams } from './index.js';
 
 let metricExporter: PushMetricExporter;
 let spanProcessor: BatchSpanProcessor;
@@ -53,7 +53,7 @@ let spanExporter: AdjustingTraceExporter;
  * Metrics, and Logs) to the Google Cloud Operations Suite.
  */
 export class GcpOpenTelemetry implements TelemetryConfig {
-  private readonly options: PluginOptions;
+  private readonly params: GoogleCloudPluginParams;
   private readonly resource: Resource;
 
   /**
@@ -63,14 +63,14 @@ export class GcpOpenTelemetry implements TelemetryConfig {
   private gcpTraceLogHook = (span: Span, record: any) => {
     const isSampled = !!(span.spanContext().traceFlags & TraceFlags.SAMPLED);
     record['logging.googleapis.com/trace'] = `projects/${
-      this.options.projectId
+      this.params.projectId
     }/traces/${span.spanContext().traceId}`;
     record['logging.googleapis.com/spanId'] = span.spanContext().spanId;
     record['logging.googleapis.com/trace_sampled'] = isSampled ? '1' : '0';
   };
 
-  constructor(options?: PluginOptions) {
-    this.options = options || {};
+  constructor(params?: GoogleCloudPluginParams) {
+    this.params = params || {};
     this.resource = new Resource({ type: 'global' }).merge(
       new GcpDetectorSync().detect()
     );
@@ -81,7 +81,7 @@ export class GcpOpenTelemetry implements TelemetryConfig {
     return {
       resource: this.resource,
       spanProcessor: spanProcessor,
-      sampler: this.options?.telemetryConfig?.sampler || new AlwaysOnSampler(),
+      sampler: this.params?.telemetryConfig?.sampler || new AlwaysOnSampler(),
       instrumentations: this.getInstrumentations(),
       metricReader: this.createMetricReader(),
     };
@@ -103,18 +103,18 @@ export class GcpOpenTelemetry implements TelemetryConfig {
     metricExporter = this.buildMetricExporter();
     return new PeriodicExportingMetricReader({
       exportIntervalMillis:
-        this.options?.telemetryConfig?.metricExportIntervalMillis || 300_000,
+        this.params?.telemetryConfig?.metricExportIntervalMillis || 300_000,
       exportTimeoutMillis:
-        this.options?.telemetryConfig?.metricExportTimeoutMillis || 300_000,
+        this.params?.telemetryConfig?.metricExportTimeoutMillis || 300_000,
       exporter: metricExporter,
     });
   }
 
   /** Gets all open telemetry instrumentations as configured by the plugin. */
   private getInstrumentations() {
-    if (this.options?.telemetryConfig?.autoInstrumentation) {
+    if (this.params?.telemetryConfig?.autoInstrumentation) {
       return getNodeAutoInstrumentations(
-        this.options?.telemetryConfig?.autoInstrumentationConfig || {}
+        this.params?.telemetryConfig?.autoInstrumentationConfig || {}
       ).concat(this.getDefaultLoggingInstrumentations());
     }
     return this.getDefaultLoggingInstrumentations();
@@ -122,17 +122,17 @@ export class GcpOpenTelemetry implements TelemetryConfig {
 
   private shouldExportTraces(): boolean {
     return (
-      (this.options.telemetryConfig?.forceDevExport ||
+      (this.params.telemetryConfig?.forceDevExport ||
         process.env.GENKIT_ENV !== 'dev') &&
-      !this.options.telemetryConfig?.disableTraces
+      !this.params.telemetryConfig?.disableTraces
     );
   }
 
   private shouldExportMetrics(): boolean {
     return (
-      (this.options.telemetryConfig?.forceDevExport ||
+      (this.params.telemetryConfig?.forceDevExport ||
         process.env.GENKIT_ENV !== 'dev') &&
-      !this.options.telemetryConfig?.disableMetrics
+      !this.params.telemetryConfig?.disableMetrics
     );
   }
 
@@ -147,7 +147,7 @@ export class GcpOpenTelemetry implements TelemetryConfig {
   private buildMetricExporter(): PushMetricExporter {
     const exporter: PushMetricExporter = this.shouldExportMetrics()
       ? new MetricExporter({
-          projectId: this.options.projectId,
+          projectId: this.params.projectId,
           userAgent: {
             product: 'genkit',
             version: GENKIT_VERSION,

@@ -15,58 +15,97 @@
  */
 
 import { genkitPlugin, Plugin } from '@genkit-ai/core';
+import { FirestoreStateStore } from '@genkit-ai/flow';
 import { InstrumentationConfigMap } from '@opentelemetry/auto-instrumentations-node';
 import { Instrumentation } from '@opentelemetry/instrumentation';
 import { Sampler } from '@opentelemetry/sdk-trace-base';
 import { GoogleAuth } from 'google-auth-library';
+import { FirestoreTraceStore } from './firestoreTraceStore.js';
 import { GcpLogger } from './gcpLogger.js';
 import { GcpOpenTelemetry } from './gcpOpenTelemetry.js';
 
-export interface PluginOptions {
+export { defineFirestoreRetriever } from './firestoreRetriever.js';
+export * from './gcpLogger.js';
+export * from './gcpOpenTelemetry.js';
+
+/**
+ * Parameters for the Google Cloud plugin.
+ */
+export interface GoogleCloudPluginParams {
+  /** GCP project ID to use. If not provided, the default project ID is used. */
   projectId?: string;
+  /** Configuration for the Firestore-based flow state store. */
+  flowStateStore?: {
+    /** Firestore collection to use. If not provided, the default collection is used. */
+    collection?: string;
+    /** Firestore database ID to use. If not provided, the default database ID is used. */
+    databaseId?: string;
+  };
+  /** Configuration for the Firestore-based trace store. */
+  traceStore?: {
+    /** Firestore collection to use. If not provided, the default collection is used. */
+    collection?: string;
+    /** Firestore database ID to use. If not provided, the default database ID is used. */
+    databaseId?: string;
+  };
+  /** Configuration for the OpenTelemetry telemetry exporter. */
   telemetryConfig?: TelemetryConfig;
 }
 
+/**
+ * Configuration for the OpenTelemetry telemetry exporter.
+ */
 export interface TelemetryConfig {
+  /** Sampler to use for tracing. */
   sampler?: Sampler;
+  /** Whether to automatically instrument the application. */
   autoInstrumentation?: boolean;
+  /** Configuration for auto-instrumentation. */
   autoInstrumentationConfig?: InstrumentationConfigMap;
+  /** Interval in milliseconds at which to export metrics. */
   metricExportIntervalMillis?: number;
+  /** Timeout in milliseconds for metric export. */
   metricExportTimeoutMillis?: number;
+  /** Instrumentations to use. */
   instrumentations?: Instrumentation[];
-
   /** When true, metrics are not sent to GCP. */
   disableMetrics?: boolean;
-
   /** When true, traces are not sent to GCP. */
   disableTraces?: boolean;
-
-  /** When true, telemetry data will be exported, even for local runs */
+  /** When true, telemetry data will be exported, even for local runs. */
   forceDevExport?: boolean;
 }
 
 /**
- * Provides a plugin for using Genkit with GCP.
+ * Provides a Google Cloud plugin for Genkit.
  */
-export const googleCloud: Plugin<[PluginOptions] | []> = genkitPlugin(
+export const googleCloud: Plugin<[GoogleCloudPluginParams] | []> = genkitPlugin(
   'googleCloud',
-  async (options?: PluginOptions) => {
+  async (params?: GoogleCloudPluginParams) => {
     const authClient = new GoogleAuth();
-    const projectId = options?.projectId || (await authClient.getProjectId());
-    const optionsWithProjectId = {
-      ...options,
+    const projectId = params?.projectId || (await authClient.getProjectId());
+    const paramsWithProjectId = {
+      ...params,
       projectId,
     };
 
     return {
+      flowStateStore: {
+        id: 'firestore',
+        value: new FirestoreStateStore(params?.flowStateStore),
+      },
+      traceStore: {
+        id: 'firestore',
+        value: new FirestoreTraceStore(params?.traceStore),
+      },
       telemetry: {
         instrumentation: {
           id: 'googleCloud',
-          value: new GcpOpenTelemetry(optionsWithProjectId),
+          value: new GcpOpenTelemetry(paramsWithProjectId),
         },
         logger: {
           id: 'googleCloud',
-          value: new GcpLogger(optionsWithProjectId),
+          value: new GcpLogger(paramsWithProjectId),
         },
       },
     };
@@ -74,5 +113,3 @@ export const googleCloud: Plugin<[PluginOptions] | []> = genkitPlugin(
 );
 
 export default googleCloud;
-export * from './gcpLogger.js';
-export * from './gcpOpenTelemetry.js';
