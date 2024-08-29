@@ -47,41 +47,41 @@ jobs:
         with:
           node-version: 20.x
           cache: 'pnpm'
-      - name: 'js/plugins/chroma version bump'
+      # - name: 'js/plugins/chroma version bump'
+      #   uses: 'phips28/gh-action-bump-version@master'
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
+      #     PACKAGEJSON_DIR: js/plugins/chroma
+      #   with:
+      #     default: ${{ inputs.releaseType }}
+      #     preid: ${{ inputs.preid }}
+      #     commit-message: 'chore: bump genkitx-chromadb version to {{version}}'
+      #     tag-prefix:  'genkitx-chromadb'
+      # - name: 'js/plugins/dev-local-vectorstore version bump'
+      #   uses: 'phips28/gh-action-bump-version@master'
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
+      #     PACKAGEJSON_DIR: js/plugins/dev-local-vectorstore
+      #   with:
+      #     default: ${{ inputs.releaseType }}
+      #     preid: ${{ inputs.preid }}
+      #     commit-message: 'chore: bump @genkit-ai/dev-local-vectorstore version to {{version}}'
+      #     tag-prefix:  '@genkit-ai/dev-local-vectorstore@'
+      # - name: 'js/plugins/dotprompt version bump'
+      #   uses: 'phips28/gh-action-bump-version@master'
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
+      #     PACKAGEJSON_DIR: js/plugins/dotprompt
+      #   with:
+      #     default: ${{ inputs.releaseType }}
+      #     preid: ${{ inputs.preid }}
+      #     commit-message: 'chore: bump @genkit-ai/dotprompt version to {{version}}'
+      #     tag-prefix:  '@genkit-ai/dotprompt@'
+      - name: 'js/plugins/evaluators version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
           GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/plugins/chroma
-        with:
-          default: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump genkitx-chromadb version to {{version}}'
-          tag-prefix:  'genkitx-chromadb'
-      - name: 'js/plugins/dev-local-vectorstore version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/plugins/dev-local-vectorstore
-        with:
-          default: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump @genkit-ai/dev-local-vectorstore version to {{version}}'
-          tag-prefix:  '@genkit-ai/dev-local-vectorstore@'
-      - name: 'js/plugins/dotprompt version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/plugins/dotprompt
-        with:
-          default: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump @genkit-ai/dotprompt version to {{version}}'
-          tag-prefix:  '@genkit-ai/dotprompt@'
-      - name: 'js/plugins/evaluator version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/plugins/evaluator
+          PACKAGEJSON_DIR: js/plugins/evaluators
         with:
           default: ${{ inputs.releaseType }}
           preid: ${{ inputs.preid }}
