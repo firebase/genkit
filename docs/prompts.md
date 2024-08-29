@@ -24,7 +24,7 @@ import { generate } from '@genkit-ai/ai';
 
 generate({
   model: 'googleai/gemini-1.5-flash-latest',
-  prompt: 'You are a helpful AI assistant named Walt, say hello',
+  prompt: 'You are a helpful AI assistant named Walt. Say hello.',
 });
 ```
 
