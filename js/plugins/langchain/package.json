@@ -32,9 +32,7 @@
     "zod": "^3.22.4"
   },
   "peerDependencies": {
-    "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/core": "workspace:*",
-    "@genkit-ai/flow": "workspace:*",
+    "genkit": "workspace:*",
     "langchain": "^0.1.36"
   },
   "devDependencies": {

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { MessageData } from '@genkit-ai/ai/model';
-import { DocumentData } from '@genkit-ai/ai/retriever';
+import { MessageData } from 'genkit/model';
+import { DocumentData } from 'genkit/retriever';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { compile } from '../src/template';

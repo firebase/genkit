@@ -25,7 +25,7 @@ const JSON_SCHEMA_SCALAR_TYPES = [
 
 const WILDCARD_PROPERTY_NAME = '(*)';
 
-import { JSONSchema } from '@genkit-ai/core/schema';
+import { JSONSchema } from 'genkit/schema';
 
 export function picoschema(schema: unknown): JSONSchema | null {
   if (!schema) return null;

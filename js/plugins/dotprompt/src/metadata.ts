@@ -19,13 +19,10 @@
 //   genkit-tools/src/types/prompt.ts
 //
 
-import {
-  GenerationCommonConfigSchema,
-  ModelArgument,
-} from '@genkit-ai/ai/model';
-import { ToolArgument } from '@genkit-ai/ai/tool';
-import { lookupSchema } from '@genkit-ai/core/registry';
-import { JSONSchema, parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
+import { GenerationCommonConfigSchema, ModelArgument } from 'genkit/model';
+import { lookupSchema } from 'genkit/registry';
+import { JSONSchema, parseSchema, toJsonSchema } from 'genkit/schema';
+import { ToolArgument } from 'genkit/tool';
 import z from 'zod';
 import { picoschema } from './picoschema.js';
 

@@ -29,6 +29,7 @@ import {
   ToolUseBlockParam,
 } from '@anthropic-ai/sdk/resources/messages';
 import { AnthropicVertex } from '@anthropic-ai/vertex-sdk';
+import { GENKIT_CLIENT_HEADER } from 'genkit';
 import {
   CandidateData,
   GenerateRequest,
@@ -40,8 +41,7 @@ import {
   defineModel,
   getBasicUsageStats,
   modelRef,
-} from '@genkit-ai/ai/model';
-import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
+} from 'genkit/model';
 import z from 'zod';
 
 export const AnthropicConfigSchema = GenerationCommonConfigSchema.extend({

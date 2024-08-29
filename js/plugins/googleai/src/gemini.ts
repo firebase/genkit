@@ -15,27 +15,6 @@
  */
 
 import {
-  CandidateData,
-  defineModel,
-  GenerationCommonConfigSchema,
-  getBasicUsageStats,
-  MediaPart,
-  MessageData,
-  ModelAction,
-  ModelMiddleware,
-  modelRef,
-  ModelReference,
-  Part,
-  ToolDefinitionSchema,
-  ToolRequestPart,
-  ToolResponsePart,
-} from '@genkit-ai/ai/model';
-import {
-  downloadRequestMedia,
-  simulateSystemPrompt,
-} from '@genkit-ai/ai/model/middleware';
-import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
-import {
   FileDataPart,
   FunctionCallPart,
   FunctionDeclaration,
@@ -52,6 +31,27 @@ import {
   StartChatParams,
   Tool,
 } from '@google/generative-ai';
+import { GENKIT_CLIENT_HEADER } from 'genkit';
+import {
+  CandidateData,
+  GenerationCommonConfigSchema,
+  MediaPart,
+  MessageData,
+  ModelAction,
+  ModelMiddleware,
+  ModelReference,
+  Part,
+  ToolDefinitionSchema,
+  ToolRequestPart,
+  ToolResponsePart,
+  defineModel,
+  getBasicUsageStats,
+  modelRef,
+} from 'genkit/model';
+import {
+  downloadRequestMedia,
+  simulateSystemPrompt,
+} from 'genkit/model/middleware';
 import process from 'process';
 import z from 'zod';
 

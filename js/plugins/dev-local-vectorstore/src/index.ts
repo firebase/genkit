@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
-import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
+import similarity from 'compute-cosine-similarity';
+import * as fs from 'fs';
+import { genkitPlugin, PluginProvider } from 'genkit';
+import { embed, EmbedderArgument } from 'genkit/embedder';
 import {
   CommonRetrieverOptionsSchema,
   defineIndexer,
@@ -23,10 +26,7 @@ import {
   DocumentData,
   indexerRef,
   retrieverRef,
-} from '@genkit-ai/ai/retriever';
-import { genkitPlugin, PluginProvider } from '@genkit-ai/core';
-import similarity from 'compute-cosine-similarity';
-import * as fs from 'fs';
+} from 'genkit/retriever';
 import { Md5 } from 'ts-md5';
 import * as z from 'zod';
 

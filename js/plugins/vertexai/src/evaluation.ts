@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Action } from '@genkit-ai/core';
+import { Action } from 'genkit';
 import { GoogleAuth } from 'google-auth-library';
 import z from 'zod';
 import { EvaluatorFactory } from './evaluator_factory.js';

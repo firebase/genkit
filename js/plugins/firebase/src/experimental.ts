@@ -14,21 +14,21 @@
  * limitations under the License.
  */
 
-import { OperationSchema } from '@genkit-ai/core';
-import {
-  Flow,
-  FlowInvokeEnvelopeMessage,
-  StepsFunction,
-} from '@genkit-ai/flow';
-import { durableFlow } from '@genkit-ai/flow/experimental';
 import { getFunctions } from 'firebase-admin/functions';
 import { logger } from 'firebase-functions/v2';
 import { HttpsFunction } from 'firebase-functions/v2/https';
 import {
+  onTaskDispatched,
   TaskQueueFunction,
   TaskQueueOptions,
-  onTaskDispatched,
 } from 'firebase-functions/v2/tasks';
+import {
+  Flow,
+  FlowInvokeEnvelopeMessage,
+  OperationSchema,
+  StepsFunction,
+} from 'genkit';
+import { durableFlow } from 'genkit/experimental';
 import * as z from 'zod';
 import { FunctionFlow } from './functions.js';
 import { callHttpsFunction, getFunctionUrl, getLocation } from './helpers.js';

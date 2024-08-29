@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { MediaPart, MessageData, Part, Role } from '@genkit-ai/ai/model';
-import { DocumentData } from '@genkit-ai/ai/retriever';
+import { MediaPart, MessageData, Part, Role } from 'genkit/model';
+import { DocumentData } from 'genkit/retriever';
 import Handlebars from 'handlebars';
 import { PromptMetadata } from './metadata.js';
 

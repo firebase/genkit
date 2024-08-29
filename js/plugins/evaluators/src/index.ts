@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-import { EmbedderReference } from '@genkit-ai/ai/embedder';
+import { genkitPlugin, PluginProvider } from 'genkit';
+import { EmbedderReference } from 'genkit/embedder';
 import {
   BaseDataPoint,
   defineEvaluator,
   EvalResponse,
   evaluatorRef,
   Score,
-} from '@genkit-ai/ai/evaluator';
-import { ModelReference } from '@genkit-ai/ai/model';
-import { genkitPlugin, PluginProvider } from '@genkit-ai/core';
+} from 'genkit/evaluator';
+import { ModelReference } from 'genkit/model';
 import * as z from 'zod';
 import {
   answerRelevancyScore,

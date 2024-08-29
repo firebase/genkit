@@ -14,21 +14,23 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
-import { defineModel } from '@genkit-ai/ai/model';
-import {
-  configureGenkit,
-  FlowState,
-  FlowStateQuery,
-  FlowStateQueryResponse,
-  FlowStateStore,
-} from '@genkit-ai/core';
-import { registerFlowStateStore } from '@genkit-ai/core/registry';
-import { defineFlow, run, runFlow } from '@genkit-ai/flow';
 import {
   __addTransportStreamForTesting,
   googleCloud,
 } from '@genkit-ai/google-cloud';
+import {
+  FlowState,
+  FlowStateQuery,
+  FlowStateQueryResponse,
+  FlowStateStore,
+  configureGenkit,
+  defineFlow,
+  generate,
+  run,
+  runFlow,
+} from 'genkit';
+import { defineModel } from 'genkit/model';
+import { registerFlowStateStore } from 'genkit/registry';
 import assert from 'node:assert';
 import { before, beforeEach, describe, it } from 'node:test';
 import { Writable } from 'stream';

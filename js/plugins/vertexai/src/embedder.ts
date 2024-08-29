@@ -18,7 +18,7 @@ import {
   defineEmbedder,
   embedderRef,
   EmbedderReference,
-} from '@genkit-ai/ai/embedder';
+} from 'genkit/embedder';
 import { GoogleAuth } from 'google-auth-library';
 import { z } from 'zod';
 import { PluginOptions } from './index.js';

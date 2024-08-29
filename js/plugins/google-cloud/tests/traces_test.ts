@@ -15,20 +15,22 @@
  */
 
 import {
-  FlowState,
-  FlowStateQuery,
-  FlowStateQueryResponse,
-  FlowStateStore,
-  configureGenkit,
-} from '@genkit-ai/core';
-import { registerFlowStateStore } from '@genkit-ai/core/registry';
-import { defineFlow, run, runFlow } from '@genkit-ai/flow';
-import {
   __forceFlushSpansForTesting,
   __getSpanExporterForTesting,
   googleCloud,
 } from '@genkit-ai/google-cloud';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import {
+  FlowState,
+  FlowStateQuery,
+  FlowStateQueryResponse,
+  FlowStateStore,
+  configureGenkit,
+  defineFlow,
+  run,
+  runFlow,
+} from 'genkit';
+import { registerFlowStateStore } from 'genkit/registry';
 import assert from 'node:assert';
 import { before, beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';

@@ -17,8 +17,8 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 
-import { defineModel } from '@genkit-ai/ai/model';
-import { toJsonSchema, ValidationError } from '@genkit-ai/core/schema';
+import { defineModel } from 'genkit/model';
+import { toJsonSchema, ValidationError } from 'genkit/schema';
 import z from 'zod';
 import { registerPluginProvider } from '../../../core/src/registry.js';
 import { defineJsonSchema, defineSchema } from '../../../core/src/schema.js';

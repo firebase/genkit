@@ -14,12 +14,8 @@
  * limitations under the License.
  */
 
-import { EvaluatorAction } from '@genkit-ai/ai';
-import {
-  GenerationCommonConfigSchema,
-  ModelArgument,
-} from '@genkit-ai/ai/model';
-import { Plugin, genkitPlugin } from '@genkit-ai/core';
+import { EvaluatorAction, genkitPlugin, Plugin } from 'genkit';
+import { GenerationCommonConfigSchema, ModelArgument } from 'genkit/model';
 import { Criteria } from 'langchain/evaluation';
 import z from 'zod';
 import { langchainEvaluator } from './evaluators';

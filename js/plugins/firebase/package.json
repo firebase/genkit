@@ -40,9 +40,7 @@
     "@google-cloud/firestore": "^7.6.0",
     "firebase-admin": "^12.2.0",
     "firebase-functions": "^4.8.0 || ^5.0.0",
-    "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/core": "workspace:*",
-    "@genkit-ai/flow": "workspace:*"
+    "genkit": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.16",

@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-import { embed } from '@genkit-ai/ai/embedder';
+import { embed } from 'genkit/embedder';
 import {
   defineRetriever,
   RetrieverAction,
   retrieverRef,
-} from '@genkit-ai/ai/retriever';
+} from 'genkit/retriever';
 import z from 'zod';
 import { queryPublicEndpoint } from './query_public_endpoint';
 import {

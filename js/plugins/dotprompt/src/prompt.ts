@@ -14,19 +14,8 @@
  * limitations under the License.
  */
 
-import {
-  definePrompt,
-  generate,
-  GenerateOptions,
-  GenerateResponse,
-  generateStream,
-  GenerateStreamResponse,
-  PromptAction,
-  toGenerateRequest,
-} from '@genkit-ai/ai';
 import { MessageData, ModelArgument } from '@genkit-ai/ai/model';
 import { DocumentData } from '@genkit-ai/ai/retriever';
-import { GenkitError } from '@genkit-ai/core';
 import { parseSchema } from '@genkit-ai/core/schema';
 import {
   runInNewSpan,
@@ -35,6 +24,17 @@ import {
 } from '@genkit-ai/core/tracing';
 import { createHash } from 'crypto';
 import fm, { FrontMatterResult } from 'front-matter';
+import {
+  definePrompt,
+  generate,
+  GenerateOptions,
+  GenerateResponse,
+  generateStream,
+  GenerateStreamResponse,
+  GenkitError,
+  PromptAction,
+  toGenerateRequest,
+} from 'genkit';
 import z from 'zod';
 import {
   PromptFrontmatter,
@@ -214,7 +214,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
    * Renders the prompt template based on user input.
    *
    * @param opt Options for the prompt template, including user input variables and custom model configuration options.
-   * @returns a `GenerateOptions` object to be used with the `generate()` function from @genkit-ai/ai.
+   * @returns a `GenerateOptions` object to be used with the `generate()` function from genkit.
    */
   render<
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
@@ -331,7 +331,7 @@ export class DotpromptRef<Variables = unknown> {
    * Renders the prompt template based on user input.
    *
    * @param opt Options for the prompt template, including user input variables and custom model configuration options.
-   * @returns a `GenerateOptions` object to be used with the `generate()` function from @genkit-ai/ai.
+   * @returns a `GenerateOptions` object to be used with the `generate()` function from genkit.
    */
   async render<
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,

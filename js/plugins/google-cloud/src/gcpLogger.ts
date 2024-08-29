@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { LoggerConfig } from '@genkit-ai/core';
 import { LoggingWinston } from '@google-cloud/logging-winston';
+import { LoggerConfig } from 'genkit';
 import { Writable } from 'stream';
 import { PluginOptions } from './index.js';
 

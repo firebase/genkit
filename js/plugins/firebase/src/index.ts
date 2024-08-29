@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-import { genkitPlugin, isDevEnv, Plugin } from '@genkit-ai/core';
-import { logger } from '@genkit-ai/core/logging';
-import { FirestoreStateStore } from '@genkit-ai/flow';
 import {
   GcpLogger,
   GcpOpenTelemetry,
   TelemetryConfig,
 } from '@genkit-ai/google-cloud';
+import { FirestoreStateStore, Plugin, genkitPlugin, isDevEnv } from 'genkit';
+import { logger } from 'genkit/logging';
 import { GoogleAuth } from 'google-auth-library';
 import { FirestoreTraceStore } from './firestoreTraceStore.js';
 export { defineFirestoreRetriever } from './firestoreRetriever.js';

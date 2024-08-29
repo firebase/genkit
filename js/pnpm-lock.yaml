@@ -213,15 +213,12 @@ importers:
 
   plugins/chroma:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       chromadb:
         specifier: ^1.7.3
         version: 1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13))
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       ts-md5:
         specifier: ^1.3.1
         version: 1.3.1
@@ -247,15 +244,12 @@ importers:
 
   plugins/dev-local-vectorstore:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       compute-cosine-similarity:
         specifier: ^1.1.0
         version: 1.1.0
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       ts-md5:
         specifier: ^1.3.1
         version: 1.3.1
@@ -281,15 +275,12 @@ importers:
 
   plugins/dotprompt:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       front-matter:
         specifier: ^4.0.2
         version: 4.0.2
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       handlebars:
         specifier: ^4.7.8
         version: 4.7.8
@@ -321,18 +312,15 @@ importers:
 
   plugins/evaluators:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@genkit-ai/dotprompt':
         specifier: workspace:*
         version: link:../dotprompt
       compute-cosine-similarity:
         specifier: ^1.1.0
         version: 1.1.0
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       node-fetch:
         specifier: ^3.3.2
         version: 3.3.2
@@ -361,15 +349,6 @@ importers:
 
   plugins/firebase:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/google-cloud':
         specifier: workspace:*
         version: link:../google-cloud
@@ -385,6 +364,9 @@ importers:
       firebase-functions:
         specifier: ^4.8.0 || ^5.0.0
         version: 4.8.1(encoding@0.1.13)(firebase-admin@12.2.0(encoding@0.1.13))
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       google-auth-library:
         specifier: ^9.6.3
         version: 9.7.0(encoding@0.1.13)
@@ -410,12 +392,6 @@ importers:
 
   plugins/google-cloud:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@google-cloud/logging-winston':
         specifier: ^6.0.0
         version: 6.0.0(encoding@0.1.13)(winston@3.13.0)
@@ -458,6 +434,9 @@ importers:
       '@opentelemetry/sdk-trace-base':
         specifier: ^1.25.0
         version: 1.25.1(@opentelemetry/api@1.9.0)
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       google-auth-library:
         specifier: ^9.6.3
         version: 9.7.0(encoding@0.1.13)
@@ -492,15 +471,12 @@ importers:
 
   plugins/googleai:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@google/generative-ai':
         specifier: ^0.16.0
         version: 0.16.0
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       google-auth-library:
         specifier: ^9.6.3
         version: 9.7.0(encoding@0.1.13)
@@ -529,15 +505,6 @@ importers:
 
   plugins/langchain:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@langchain/community':
         specifier: ^0.0.53
         version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
@@ -547,6 +514,9 @@ importers:
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.0
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       langchain:
         specifier: ^0.1.36
         version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
@@ -572,12 +542,9 @@ importers:
 
   plugins/ollama:
     dependencies:
-      '@genkit-ai/ai':
+      genkit:
         specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
+        version: link:../../genkit
     devDependencies:
       '@types/node':
         specifier: ^20.11.16
@@ -597,15 +564,12 @@ importers:
 
   plugins/pinecone:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@pinecone-database/pinecone':
         specifier: ^2.0.1
         version: 2.2.0
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       ts-md5:
         specifier: ^1.3.1
         version: 1.3.1
@@ -637,21 +601,15 @@ importers:
       '@anthropic-ai/vertex-sdk':
         specifier: ^0.4.0
         version: 0.4.0(encoding@0.1.13)
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@google-cloud/aiplatform':
         specifier: ^3.23.0
         version: 3.25.0(encoding@0.1.13)
       '@google-cloud/vertexai':
         specifier: ^1.1.0
         version: 1.1.0(encoding@0.1.13)
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       google-auth-library:
         specifier: ^9.6.3
         version: 9.7.0(encoding@0.1.13)

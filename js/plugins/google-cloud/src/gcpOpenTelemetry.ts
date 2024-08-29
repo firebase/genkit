@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { GENKIT_VERSION, TelemetryConfig } from '@genkit-ai/core';
 import { MetricExporter } from '@google-cloud/opentelemetry-cloud-monitoring-exporter';
 import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
@@ -42,6 +41,7 @@ import {
   ReadableSpan,
   SpanExporter,
 } from '@opentelemetry/sdk-trace-base';
+import { GENKIT_VERSION, TelemetryConfig } from 'genkit';
 import { PluginOptions } from './index.js';
 
 let metricExporter: PushMetricExporter;

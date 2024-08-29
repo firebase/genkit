@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-import { Message } from '@genkit-ai/ai';
+import { Message, StreamingCallback } from 'genkit';
 import {
-  defineModel,
   GenerateResponseChunkData,
   GenerateResponseData,
   GenerationCommonConfigSchema,
   ModelAction,
   ModelReference,
+  defineModel,
   type CandidateData,
   type GenerateRequest,
   type MessageData,
@@ -29,8 +29,7 @@ import {
   type Role,
   type ToolDefinition,
   type ToolRequestPart,
-} from '@genkit-ai/ai/model';
-import { StreamingCallback } from '@genkit-ai/core';
+} from 'genkit/model';
 import OpenAI from 'openai';
 import {
   type ChatCompletion,

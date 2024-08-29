@@ -14,15 +14,6 @@
  * limitations under the License.
  */
 
-import { OperationSchema } from '@genkit-ai/core';
-import { logger } from '@genkit-ai/core/logging';
-import {
-  defineFlow,
-  Flow,
-  FlowAuthPolicy,
-  FlowWrapper,
-  StepsFunction,
-} from '@genkit-ai/flow';
 import * as express from 'express';
 import { getAppCheck } from 'firebase-admin/app-check';
 import {
@@ -30,6 +21,15 @@ import {
   HttpsOptions,
   onRequest,
 } from 'firebase-functions/v2/https';
+import {
+  Flow,
+  FlowAuthPolicy,
+  FlowWrapper,
+  OperationSchema,
+  StepsFunction,
+  defineFlow,
+} from 'genkit';
+import { logger } from 'genkit/logging';
 import * as z from 'zod';
 import {
   callHttpsFunction,

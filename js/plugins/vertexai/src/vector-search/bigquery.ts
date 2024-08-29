@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { Document, DocumentDataSchema } from '@genkit-ai/ai/retriever';
-import { logger } from '@genkit-ai/core/logging';
 import { BigQuery, QueryRowsResponse } from '@google-cloud/bigquery';
+import { logger } from 'genkit/logging';
+import { Document, DocumentDataSchema } from 'genkit/retriever';
 import { ZodError } from 'zod';
 import { DocumentIndexer, DocumentRetriever, Neighbor } from './types';
 
