@@ -77,16 +77,16 @@ jobs:
       #     preid: ${{ inputs.preid }}
       #     commit-message: 'chore: bump @genkit-ai/dotprompt version to {{version}}'
       #     tag-prefix:  '@genkit-ai/dotprompt@'
-      - name: 'js/plugins/evaluators version bump'
-        uses: 'phips28/gh-action-bump-version@master'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/plugins/evaluators
-        with:
-          default: ${{ inputs.releaseType }}
-          preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump @genkit-ai/evaluator version to {{version}}'
-          tag-prefix:  '@genkit-ai/evaluator@'
+      # - name: 'js/plugins/evaluators version bump'
+      #   uses: 'phips28/gh-action-bump-version@master'
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
+      #     PACKAGEJSON_DIR: js/plugins/evaluators
+      #   with:
+      #     default: ${{ inputs.releaseType }}
+      #     preid: ${{ inputs.preid }}
+      #     commit-message: 'chore: bump @genkit-ai/evaluator version to {{version}}'
+      #     tag-prefix:  '@genkit-ai/evaluator@'
       - name: 'js/plugins/firebase version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
