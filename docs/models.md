@@ -60,7 +60,7 @@ Google Generative AI, and Ollama:
 - Gemini family of LLMs, through the
   [Google Cloud Vertex AI plugin](plugins/vertex-ai.md)
 - Gemini family of LLMs, through the [Google AI plugin](plugins/google-genai.md)
-- Imagen2 image generation model, through Google Cloud Vertex AI
+- Imagen2 and Imagen3 image generation models, through Google Cloud Vertex AI
 - Anthropic's Claude 3 family of LLMs, through Google Cloud Vertex AI's model
   garden
 - Gemma 2, Llama 3, and many more open models, through the [Ollama

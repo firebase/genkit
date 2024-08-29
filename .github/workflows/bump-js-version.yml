@@ -26,6 +26,12 @@ on:
           - patch
           - minor
           - major
+          - prerelease
+      preid:
+        description: Prerelease identifier
+        type: string
+        default: rc
+        required: true
 
 jobs:
   build:
@@ -46,7 +52,8 @@ jobs:
           PACKAGEJSON_DIR: js/core
         with:
           default: ${{ inputs.releaseType }}
-          commit-message: 'chore: bump @genkit-ai/tools-core version to {{version}}'
+          preid: ${{ inputs.preid }}
+          commit-message: 'chore: bump @genkit-ai/core version to {{version}}'
           tag-prefix:  '@genkit-ai/core@'
       - name: 'js/ai version bump'
         uses: 'phips28/gh-action-bump-version@master'
@@ -55,6 +62,7 @@ jobs:
           PACKAGEJSON_DIR: js/ai
         with:
           default: ${{ inputs.releaseType }}
+          preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/ai version to {{version}}'
           tag-prefix:  '@genkit-ai/ai@'
       - name: 'js/flow version bump'
@@ -64,5 +72,6 @@ jobs:
           PACKAGEJSON_DIR: js/flow
         with:
           default: ${{ inputs.releaseType }}
+          preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/flow version to {{version}}'
           tag-prefix:  '@genkit-ai/flow@'

@@ -23,13 +23,18 @@
     "@genkit-ai/flow": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
+    "@google-cloud/firestore": "^7.9.0",
+    "@opentelemetry/sdk-trace-base": "^1.22.0",
+    "firebase-admin": "^12.3.0",
     "genkitx-pinecone": "workspace:*",
     "llm-chunk": "^0.0.1",
+    "pdf-parse": "^1.1.1",
     "pdfjs-dist": "^4.0.379",
     "pdfjs-dist-legacy": "^1.0.1",
     "zod": "^3.22.4"
   },
   "devDependencies": {
+    "@types/pdf-parse": "^1.1.4",
     "typescript": "^5.3.3"
   }
 }

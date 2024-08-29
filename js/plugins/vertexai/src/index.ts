@@ -55,7 +55,13 @@ import {
   geminiPro,
   geminiProVision,
 } from './gemini.js';
-import { imagen2, imagen2Model } from './imagen.js';
+import {
+  SUPPORTED_IMAGEN_MODELS,
+  imagen2,
+  imagen3,
+  imagen3Fast,
+  imagenModel,
+} from './imagen.js';
 import {
   SUPPORTED_OPENAI_FORMAT_MODELS,
   llama3,
@@ -94,6 +100,8 @@ export {
   geminiPro,
   geminiProVision,
   imagen2,
+  imagen3,
+  imagen3Fast,
   llama3,
   llama31,
   textEmbedding004,
@@ -137,9 +145,26 @@ const CLOUD_PLATFROM_OAUTH_SCOPE =
 export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
   'vertexai',
   async (options?: PluginOptions) => {
-    const authClient = new GoogleAuth(
-      options?.googleAuth ?? { scopes: [CLOUD_PLATFROM_OAUTH_SCOPE] }
-    );
+    let authClient;
+    let authOptions = options?.googleAuth;
+
+    // Allow customers to pass in cloud credentials from environment variables
+    // following: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
+    if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
+      const serviceAccountCreds = JSON.parse(
+        process.env.GCLOUD_SERVICE_ACCOUNT_CREDS
+      );
+      authOptions = {
+        credentials: serviceAccountCreds,
+        scopes: [CLOUD_PLATFROM_OAUTH_SCOPE],
+      };
+      authClient = new GoogleAuth(authOptions);
+    } else {
+      authClient = new GoogleAuth(
+        authOptions ?? { scopes: [CLOUD_PLATFROM_OAUTH_SCOPE] }
+      );
+    }
+
     const projectId = options?.projectId || (await authClient.getProjectId());
 
     const location = options?.location || 'us-central1';
@@ -164,7 +189,7 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
         vertexClientFactoryCache[requestLocation] = new VertexAI({
           project: projectId,
           location: requestLocation,
-          googleAuthOptions: options?.googleAuth,
+          googleAuthOptions: authOptions,
         });
       }
       return vertexClientFactoryCache[requestLocation];
@@ -175,7 +200,9 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
         : [];
 
     const models = [
-      imagen2Model(authClient, { projectId, location }),
+      ...Object.keys(SUPPORTED_IMAGEN_MODELS).map((name) =>
+        imagenModel(name, authClient, { projectId, location })
+      ),
       ...Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
         geminiModel(name, vertexClientFactory, { projectId, location })
       ),
