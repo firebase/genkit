@@ -29,7 +29,7 @@ generate({
 ```
 
 In some cases you will need to include some customer provided inputs in your prompt.
-You could define a function to render them like this.
+You could use a template literal to render them like this:
 
 ```ts
 const name = "Fred";
