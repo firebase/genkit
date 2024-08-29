@@ -19,8 +19,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"log"
 	"net/http"
 	"strings"
 
@@ -83,8 +81,6 @@ func embed(ctx context.Context, serverAddress string, req *ai.EmbedRequest) (*ai
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		fmt.Printf("Ollama embed request failed with status code %d. Response body: %s\n", resp.StatusCode, string(body))
 		return nil, fmt.Errorf("ollama embed request failed with status code %d", resp.StatusCode)
 	}
 
@@ -115,7 +111,6 @@ func sendEmbedRequest(ctx context.Context, serverAddress string, jsonData []byte
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-
 	return client.Do(httpReq)
 }
 
@@ -150,12 +145,10 @@ func newEmbedResponse(embeddings [][]float32) *ai.EmbedResponse {
 // concatenateText combines all text content from a document into a single string.
 func concatenateText(doc *ai.Document) string {
 	var builder strings.Builder
-	fmt.Println("Concatenating text for document:")
 	for _, part := range doc.Content {
 		builder.WriteString(part.Text)
 	}
 	result := builder.String()
-	fmt.Printf("Concatenated result: %s\n", result)
 	return result
 }
 
@@ -166,15 +159,7 @@ func DefineEmbedder(serverAddress string) ai.Embedder {
 	if !state.initted {
 		panic("ollama.Init not called")
 	}
-	log.Printf("Defining embedder with server address: %s", serverAddress)
-	return defineEmbedder(serverAddress)
-}
-
-// defineEmbedder creates and returns an ai.Embedder for the given server address
-func defineEmbedder(serverAddress string) ai.Embedder {
-	log.Printf("Defining embedder function for server address: %s", serverAddress)
 	return ai.DefineEmbedder(provider, serverAddress, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
-		log.Printf("Embedding request received for server address: %s", serverAddress)
 		return embed(ctx, serverAddress, req)
 	})
 }
@@ -182,18 +167,11 @@ func defineEmbedder(serverAddress string) ai.Embedder {
 // IsDefinedEmbedder reports whether the embedder with the given server address is defined by this plugin.
 func IsDefinedEmbedder(serverAddress string) bool {
 	isDefined := ai.IsDefinedEmbedder(provider, serverAddress)
-	log.Printf("Checking if embedder is defined for server address %s: %v", serverAddress, isDefined)
 	return isDefined
 }
 
 // Embedder returns the [ai.Embedder] with the given server address.
 // It returns nil if the embedder was not defined.
 func Embedder(serverAddress string) ai.Embedder {
-	embedder := ai.LookupEmbedder(provider, serverAddress)
-	if embedder == nil {
-		log.Printf("No embedder found for server address: %s", serverAddress)
-	} else {
-		log.Printf("Found embedder for server address: %s", serverAddress)
-	}
-	return embedder
+	return ai.LookupEmbedder(provider, serverAddress)
 }
