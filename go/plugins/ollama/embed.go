@@ -25,11 +25,6 @@ import (
 	"github.com/firebase/genkit/go/ai"
 )
 
-const (
-	defaultEmbeddingModel = "all-minilm"
-	defaultOllamaAddress  = "http://localhost:11434"
-)
-
 var supportedEmbeddingModels = []string{
 	"mxbai-embed-large",
 	"nomic-embed-text",
