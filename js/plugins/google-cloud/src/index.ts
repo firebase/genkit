@@ -18,13 +18,14 @@ import { genkitPlugin, Plugin } from '@genkit-ai/core';
 import { InstrumentationConfigMap } from '@opentelemetry/auto-instrumentations-node';
 import { Instrumentation } from '@opentelemetry/instrumentation';
 import { Sampler } from '@opentelemetry/sdk-trace-base';
-import { GoogleAuth } from 'google-auth-library';
+import { GoogleAuth, JWTInput } from 'google-auth-library';
 import { GcpLogger } from './gcpLogger.js';
 import { GcpOpenTelemetry } from './gcpOpenTelemetry.js';
 
 export interface PluginOptions {
   projectId?: string;
   telemetryConfig?: TelemetryConfig;
+  credentials?: JWTInput;
 }
 
 export interface TelemetryConfig {
@@ -51,22 +52,40 @@ export interface TelemetryConfig {
 export const googleCloud: Plugin<[PluginOptions] | []> = genkitPlugin(
   'googleCloud',
   async (options?: PluginOptions) => {
-    const authClient = new GoogleAuth();
+    let authClient;
+    let credentials;
+
+    // Allow customers to pass in cloud credentials from environment variables
+    // following: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
+    if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
+      const serviceAccountCreds = JSON.parse(
+        process.env.GCLOUD_SERVICE_ACCOUNT_CREDS
+      );
+      const authOptions = { credentials: serviceAccountCreds };
+      authClient = new GoogleAuth(authOptions);
+
+      credentials = await authClient.getCredentials();
+    } else {
+      authClient = new GoogleAuth();
+    }
+
     const projectId = options?.projectId || (await authClient.getProjectId());
-    const optionsWithProjectId = {
+
+    const optionsWithProjectIdAndCreds = {
       ...options,
       projectId,
+      credentials,
     };
 
     return {
       telemetry: {
         instrumentation: {
           id: 'googleCloud',
-          value: new GcpOpenTelemetry(optionsWithProjectId),
+          value: new GcpOpenTelemetry(optionsWithProjectIdAndCreds),
         },
         logger: {
           id: 'googleCloud',
-          value: new GcpLogger(optionsWithProjectId),
+          value: new GcpLogger(optionsWithProjectIdAndCreds),
         },
       },
     };
