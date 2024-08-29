@@ -115,11 +115,15 @@ function toMessages(
   )
     return messages;
 
-  return [
-    ...messages.slice(0, -1),
-    ...options.history,
-    messages.at(-1),
-  ] as MessageData[];
+  if (messages.at(-1)?.role === 'user') {
+    return [
+      ...messages.slice(0, -1),
+      ...options.history,
+      messages.at(-1),
+    ] as MessageData[];
+  }
+
+  return [...messages, ...options.history] as MessageData[];
 }
 
 const PART_REGEX = /(<<<dotprompt:(?:media:url|section).*?)>>>/g;
