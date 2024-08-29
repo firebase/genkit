@@ -50,13 +50,11 @@ defineFlow(
     name: 'simpleTemplate',
   },
   () => {
-    function helloPrompt(name: string) {
-      return `You are a helpful AI assistant named Walt. Say hello to ${name}.`;
-    }
+    const name = "Fred"
 
     return generate({
       model: 'googleai/gemini-1.5-flash-latest',
-      prompt: helloPrompt('Fred'),
+      prompt: `You are a helpful AI assistant named Walt. Say hello to ${name}.`,
     });
   }
 );

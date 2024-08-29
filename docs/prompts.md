@@ -32,19 +32,17 @@ In some cases you will need to include some customer provided inputs in your pro
 You could define a function to render them like this.
 
 ```ts
-function helloPrompt(name: string) {
-  return `You are a helpful AI assistant named Walt. Say hello to ${name}.`;
-}
+const name = "Fred"
 
 generate({
   model: 'googleai/gemini-1.5-flash-latest',
-  prompt: helloPrompt('Fred'),
+  prompt: `You are a helpful AI assistant named Walt. Say hello to ${name}.`,
 });
 ```
 
-However, to facilitate more rapid iteration, Genkit provides a way to define your prompts in a standard format which enables this prompt templating as well as rapid testing in the Developer UI.
+However, Genkit provides a way to define your prompts in a standardized format that facilitates more advanced templating and rapid testing in the Developer UI.
 
-Use the `defineDotprompt` function to define these structred prompts.
+Use the `defineDotprompt` function to define these structured prompts.
 
 ```ts
 import { defineDotprompt } from '@genkit-ai/dotprompt'
