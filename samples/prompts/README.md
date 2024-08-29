@@ -7,4 +7,3 @@ These examples use Google Gemini, set your API key in the `GOOGLE_GENAI_API_KEY`
 You can run these prompts in the Developer UI with `genkit start`
 
 or invoke them with e.g. `genkit flow:run simplePrompt`
-

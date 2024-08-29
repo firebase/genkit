@@ -50,7 +50,7 @@ defineFlow(
     name: 'simpleTemplate',
   },
   () => {
-    const name = "Fred"
+    const name = 'Fred';
 
     return generate({
       model: 'googleai/gemini-1.5-flash-latest',
