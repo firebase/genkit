@@ -32,8 +32,7 @@ In some cases you will need to include some customer provided inputs in your pro
 You could define a function to render them like this.
 
 ```ts
-const name = "Fred"
-
+const name = "Fred";
 generate({
   model: 'googleai/gemini-1.5-flash-latest',
   prompt: `You are a helpful AI assistant named Walt. Say hello to ${name}.`,
@@ -72,6 +71,12 @@ As shown above, prompts defined this way can specify the structured inputs they 
 Dotprompts can also specify an output, which they will pass along to call to the LLM as a directive (either as an in-context message or as an API parameter for LLMs which support a structured output mode). This guarantees that you'll either get a conforming response, or an exception you can deal with cleanly.
 
 ```ts
+const outputSchema = z.object({
+  short: z.string(),
+  friendly: z.string(),
+  likeAPirate: z.string(),
+});
+
 const threeGreetingsPrompt = defineDotprompt(
   {
     name: 'threeGreetingsPrompt',
@@ -80,12 +85,9 @@ const threeGreetingsPrompt = defineDotprompt(
       schema: z.object({ name: z.string() }),
     },
     output: {
-      schema: z.object({
-        short: z.string(),
-        friendly: z.string(),
-        likeAPirate: z.string()
-      })    
-    }
+      format: 'json',
+      schema: outputSchema,
+    },    
   },
   `You are a helpful AI assistant named Walt. Say hello to {{name}}, write a response for each of the styles requested`
 );
@@ -94,19 +96,15 @@ const threeGreetingsPrompt = defineDotprompt(
 You can then call `generate` on that prompt and work with the structred output in the response
 
 ```ts
-threeGreetingsPrompt.generate({
-   input: { name: 'Fred' } }).output();
-/* Example output
-{
-  "short": "Hello Fred.",
-  "friendly": "Hi Fred, how are you doing today?",
-  "likeAPirate": "Ahoy there, Fred!  May the winds be ever in your favor!"
-}
-*/
+const response = await (threeGreetingsPrompt.generate<typeof outputSchema>(
+  { input: { name: 'Fred' } }
+));
+
+response.output()?.likeAPirate
+// "Ahoy there, Fred!  May the winds be ever in your favor!"
 ```
 
-In the Genkit Developer UI, you can run any prompt you have defined in this way.  This allows you to experiment with individual prompts outside of the scope of
-the flows in which they might be used.
+In the Genkit Developer UI, you can run any prompt you have defined in this way.  This allows you to experiment with individual prompts outside of the scope of places in your code where they might be used.
 
 <img src="resources/prompts-in-developer-ui.png" alt="The developer UI showing JSON response to the threeGreetingsPrompt" class="screenshot-attempt-right">
 

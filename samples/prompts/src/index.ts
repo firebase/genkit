@@ -51,7 +51,6 @@ defineFlow(
   },
   () => {
     const name = 'Fred';
-
     return generate({
       model: 'googleai/gemini-1.5-flash-latest',
       prompt: `You are a helpful AI assistant named Walt. Say hello to ${name}.`,
@@ -79,6 +78,12 @@ defineFlow(
   }
 );
 
+const outputSchema = z.object({
+  short: z.string(),
+  friendly: z.string(),
+  likeAPirate: z.string(),
+});
+
 const threeGreetingsPrompt = defineDotprompt(
   {
     name: 'threeGreetingsPrompt',
@@ -88,11 +93,7 @@ const threeGreetingsPrompt = defineDotprompt(
     },
     output: {
       format: 'json',
-      schema: z.object({
-        short: z.string(),
-        friendly: z.string(),
-        likeAPirate: z.string(),
-      }),
+      schema: outputSchema,
     },
   },
   `You are a helpful AI assistant named Walt. Say hello to {{name}}, write a response for each of the styles requested`
@@ -102,8 +103,11 @@ defineFlow(
   {
     name: 'threeGreetingsPrompt',
   },
-  () => {
-    return threeGreetingsPrompt.generate({ input: { name: 'Fred' } });
+  async () => {
+    const response = await threeGreetingsPrompt.generate<typeof outputSchema>({
+      input: { name: 'Fred' },
+    });
+    return response.output()?.likeAPirate;
   }
 );
 
