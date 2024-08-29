@@ -17,6 +17,7 @@
 import { defineFlow, runFlow } from '@genkit-ai/flow';
 import * as z from 'zod';
 import { indexPdf } from './pdf_rag.js';
+import { indexPdfFirebase } from './pdf_rag_firebase.js';
 
 const catFacts = ['./docs/sfspca-cat-adoption-handbook-2023.pdf'];
 
@@ -38,6 +39,26 @@ export const setup = defineFlow(
       documentArr.map(async (document) => {
         console.log(`Indexed ${document}`);
         return runFlow(indexPdf, document);
+      })
+    );
+  }
+);
+
+export const setupFirebase = defineFlow(
+  {
+    name: 'setupFirebase',
+    inputSchema: z.array(z.string()).optional(),
+  },
+  async (documentArr) => {
+    if (!documentArr) {
+      documentArr = catFacts;
+    } else {
+      documentArr.concat(catFacts);
+    }
+
+    await Promise.all(
+      documentArr.map(async (document) => {
+        return runFlow(indexPdfFirebase, document);
       })
     );
   }

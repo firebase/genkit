@@ -145,9 +145,26 @@ const CLOUD_PLATFROM_OAUTH_SCOPE =
 export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
   'vertexai',
   async (options?: PluginOptions) => {
-    const authClient = new GoogleAuth(
-      options?.googleAuth ?? { scopes: [CLOUD_PLATFROM_OAUTH_SCOPE] }
-    );
+    let authClient;
+    let authOptions = options?.googleAuth;
+
+    // Allow customers to pass in cloud credentials from environment variables
+    // following: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
+    if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
+      const serviceAccountCreds = JSON.parse(
+        process.env.GCLOUD_SERVICE_ACCOUNT_CREDS
+      );
+      authOptions = {
+        credentials: serviceAccountCreds,
+        scopes: [CLOUD_PLATFROM_OAUTH_SCOPE],
+      };
+      authClient = new GoogleAuth(authOptions);
+    } else {
+      authClient = new GoogleAuth(
+        authOptions ?? { scopes: [CLOUD_PLATFROM_OAUTH_SCOPE] }
+      );
+    }
+
     const projectId = options?.projectId || (await authClient.getProjectId());
 
     const location = options?.location || 'us-central1';
@@ -172,7 +189,7 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
         vertexClientFactoryCache[requestLocation] = new VertexAI({
           project: projectId,
           location: requestLocation,
-          googleAuthOptions: options?.googleAuth,
+          googleAuthOptions: authOptions,
         });
       }
       return vertexClientFactoryCache[requestLocation];
