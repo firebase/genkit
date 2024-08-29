@@ -10,9 +10,9 @@ maintain your prompts in source files, track changes to them using the same vers
 control system that you use for your code, and you deploy them along with the code
 that calls your generative AI models.
 
-Most developers will find that the included [Dotprompt](./dotprompt.md) library
-meets their needs for working with prompts in Genkit. However, alternative
-approaches are also supported by working with prompts directly.
+Genkit has a comprehensive tool for developing complex prompts called [Dotprompt](./dotprompt.md). See that documentation for the complete listing of features.
+
+This document shows several ways prompts can be used in Genkit, starting from the simpliest and moving toward more complex.
 
 ## Defining prompts
 
@@ -50,7 +50,7 @@ Use the `defineDotprompt` function to define these structred prompts.
 import { defineDotprompt } from '@genkit-ai/dotprompt'
 import z from 'zod';
 
-export const helloPrompt = defineDotprompt(
+const helloPrompt = defineDotprompt(
   {
     name: 'helloPrompt',
     model: 'googleai/gemini-1.5-flash-latest',
@@ -74,7 +74,7 @@ As shown above, prompts defined this way can specify the structured inputs they 
 Dotprompts can also specify an output, which they will pass along to call to the LLM as a directive (either as an in-context message or as an API parameter for LLMs which support a structured output mode). This guarantees that you'll either get a conforming response, or an exception you can deal with cleanly.
 
 ```ts
-export const threeGreetingsPrompt = defineDotprompt(
+const threeGreetingsPrompt = defineDotprompt(
   {
     name: 'threeGreetingsPrompt',
     model: 'googleai/gemini-1.5-flash-latest',
