@@ -59,7 +59,7 @@ const helloPrompt = defineDotprompt(
 );
 ```
 
-and then call the prompt via
+And then call the prompt using its `generate()` method:
 
 ```ts
 helloPrompt.generate({ input: { name: 'Fred' } });
