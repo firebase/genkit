@@ -15,7 +15,7 @@
  */
 
 //
-// IMPORTANT: Keep this file in sync with genkit/ai/src/retrievers.ts!
+// IMPORTANT: Keep this file in sync with js/ai/src/retriever.ts!
 //
 import { z } from 'zod';
 import { PartSchema } from './model';
@@ -25,6 +25,12 @@ export const DocumentDataSchema = z.object({
   metadata: z.record(z.string(), z.any()).optional(),
 });
 export type DocumentData = z.infer<typeof DocumentDataSchema>;
+
+const RetrieverRequestSchema = z.object({
+  query: DocumentDataSchema,
+  options: z.any().optional(),
+});
+export type RetrieverRequest = z.infer<typeof RetrieverRequestSchema>;
 
 const RetrieverResponseSchema = z.object({
   documents: z.array(DocumentDataSchema),
