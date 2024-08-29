@@ -105,6 +105,25 @@ describe('Prompt', () => {
       assert.strictEqual(rendered.streamingCallback, streamingCallback);
       assert.strictEqual(rendered.returnToolRequests, true);
     });
+
+    it('should support system prompt with history', async () => {
+      const prompt = testPrompt(`{{ role "system" }}Testing system {{name}}`);
+
+      const rendered = await prompt.render({
+        input: { name: 'Michael' },
+        history: [
+          { role: 'user', content: [{ text: 'history 1' }] },
+          { role: 'model', content: [{ text: 'history 2' }] },
+          { role: 'user', content: [{ text: 'history 3' }] },
+        ],
+      });
+      assert.deepStrictEqual(rendered.history, [
+        { role: 'system', content: [{ text: 'Testing system Michael' }] },
+        { role: 'user', content: [{ text: 'history 1' }] },
+        { role: 'model', content: [{ text: 'history 2' }] },
+      ]);
+      assert.deepStrictEqual(rendered.prompt, [{ text: 'history 3' }]);
+    });
   });
 
   describe('#generate', () => {
