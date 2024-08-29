@@ -93,7 +93,7 @@ const threeGreetingsPrompt = defineDotprompt(
 );
 ```
 
-You can then call `generate` on that prompt and work with the structred output in the response
+You can then call `generate` on that prompt and work with the structured output in the response:
 
 ```ts
 const response = await (threeGreetingsPrompt.generate<typeof outputSchema>(
