@@ -41,6 +41,13 @@ export async function lookupPrompt(
   variant?: string,
   dir: string = './prompts'
 ): Promise<Dotprompt> {
+  if (
+    process.env.NODE_ENV === 'development' ||
+    process.env.GENKIT_ENV === 'dev'
+  ) {
+    return await maybeLoadPrompt(dir, name, variant);
+  }
+
   let registryPrompt =
     (await lookupAction(registryLookupKey(name, variant))) ||
     (await lookupAction(registryLookupKey(name, variant, 'dotprompt')));
