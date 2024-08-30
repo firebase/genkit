@@ -166,7 +166,7 @@ export type DocumentRetriever<Options extends { k?: number } = { k?: number }> =
 
 /**
  * Indexer function that takes an array of documents, stores them in a database of the user's choice, and resolves to a list of document ids.
- * Also takes an options object that can be used to configure the indexer.
+ * Also takes an options object that can be used to configure the indexer. Only Streaming Update Indexers are supported.
  */
 export type DocumentIndexer<Options extends {} = {}> = (
   docs: Document[],
