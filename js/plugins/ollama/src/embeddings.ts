@@ -54,7 +54,7 @@ export function defineOllamaEmbedder({
       configSchema: OllamaEmbeddingConfigSchema, // Use the Zod schema directly here
       info: {
         // TODO: do we want users to be able to specify the label when they call this method directly?
-        label: 'Embedding using Ollama - ' + modelName,
+        label: 'Ollama Embedding - ' + modelName,
         dimensions,
         supports: {
           //  TODO: do any ollama models support other modalities?
