@@ -15,10 +15,10 @@
  */
 
 import { PromptAction } from '@genkit-ai/ai';
-import { GenkitError } from '@genkit-ai/core';
+import { GenkitError, isDevEnv } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { lookupAction } from '@genkit-ai/core/registry';
-import { existsSync, readdir, readFileSync } from 'fs';
+import { existsSync, readFileSync, readdir } from 'fs';
 import { basename, join, resolve } from 'path';
 import { Dotprompt } from './prompt.js';
 import { definePartial } from './template.js';
@@ -41,10 +41,7 @@ export async function lookupPrompt(
   variant?: string,
   dir: string = './prompts'
 ): Promise<Dotprompt> {
-  if (
-    process.env.NODE_ENV === 'development' ||
-    process.env.GENKIT_ENV === 'dev'
-  ) {
+  if (isDevEnv()) {
     return await maybeLoadPrompt(dir, name, variant);
   }
 
