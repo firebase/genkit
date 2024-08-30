@@ -44,7 +44,6 @@ import (
 	"github.com/firebase/genkit/go/plugins/dotprompt"
 	"github.com/firebase/genkit/go/plugins/googleai"
 	"github.com/firebase/genkit/go/plugins/localvec"
-	"github.com/firebase/genkit/go/plugins/ollama"
 	"github.com/invopop/jsonschema"
 )
 
@@ -73,15 +72,7 @@ func main() {
 		log.Fatal(err)
 	}
 	model := googleai.Model("gemini-1.0-pro")
-
-	err = ollama.Init(context.Background(), &ollama.Config{
-		ServerAddress: "http://localhost:11434",
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	embedder := ollama.DefineEmbedder("all-minilm")
-
+	embedder := googleai.Embedder("embedding-001")
 	if err := localvec.Init(); err != nil {
 		log.Fatal(err)
 	}
