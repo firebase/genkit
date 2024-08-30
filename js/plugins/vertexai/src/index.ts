@@ -256,7 +256,7 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       projectId,
     };
 
-    const rerankers = vertexAiRerankers(rerankOptions);
+    const rerankers = await vertexAiRerankers(rerankOptions);
 
     return {
       models,

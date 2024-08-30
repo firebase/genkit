@@ -75,9 +75,9 @@ export interface VertexRerankOptions {
  * @param {VertexRerankOptions<EmbedderCustomOptions>} params - The parameters for creating the rerankers.
  * @returns {RerankerAction<z.ZodTypeAny>[]} - An array of reranker actions.
  */
-export function vertexAiRerankers(
+export async function vertexAiRerankers(
   params: VertexRerankOptions
-): RerankerAction<z.ZodTypeAny>[] {
+): Promise<RerankerAction<z.ZodTypeAny>[]> {
   if (!params.pluginOptions) {
     throw new Error(
       'Plugin options are required to create Vertex AI rerankers'
@@ -94,6 +94,9 @@ export function vertexAiRerankers(
   if (!rerankOptions || rerankOptions.length === 0) {
     return rerankers;
   }
+  const auth = new GoogleAuth();
+  const client = await auth.getClient();
+  const projectId = await auth.getProjectId();
 
   for (const rerankOption of rerankOptions) {
     const reranker = defineReranker(
@@ -102,10 +105,6 @@ export function vertexAiRerankers(
         configSchema: VertexAIRerankerOptionsSchema.optional(),
       },
       async (query, documents, _options) => {
-        const auth = new GoogleAuth();
-        const client = await auth.getClient();
-        const projectId = await auth.getProjectId();
-
         const response = await client.request({
           method: 'POST',
           url: getRerankEndpoint(
