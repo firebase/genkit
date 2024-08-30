@@ -156,7 +156,7 @@ By default `startFlowsServer` will serve all the flows that you have defined in 
     curl -X POST "http://localhost:3400/menuSuggestionFlow" -H "Content-Type: application/json"  -d '{"data": "banana"}'
 ```
 
-If neededm you can customize the flows server to serve a specific list of flows, as shown below. You can also specify a custom port (it will use the `PORT` environment variable if set) or specify CORS settings.
+If needed, you can customize the flows server to serve a specific list of flows, as shown below. You can also specify a custom port (it will use the `PORT` environment variable if set) or specify CORS settings.
 
 ```js
 import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
