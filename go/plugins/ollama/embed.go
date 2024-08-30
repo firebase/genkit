@@ -28,7 +28,7 @@ import (
 var supportedEmbeddingModels = []string{
 	"mxbai-embed-large",
 	"nomic-embed-text",
-	"all-minilm", // Default if not specified
+	"all-minilm",
 }
 
 type EmbedOptions struct {
@@ -37,7 +37,7 @@ type EmbedOptions struct {
 
 type ollamaEmbedRequest struct {
 	Model   string                 `json:"model"`
-	Input   interface{}            `json:"input"` // Change to interface{} to handle both string and []string
+	Input   interface{}            `json:"input"` // todo: using interface{} to handle both string and []string, figure out better solution
 	Options map[string]interface{} `json:"options,omitempty"`
 }
 
@@ -45,7 +45,6 @@ type ollamaEmbedResponse struct {
 	Embeddings [][]float32 `json:"embeddings"`
 }
 
-// embed performs the actual embedding request to the Ollama server
 func embed(ctx context.Context, serverAddress string, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 	options, ok := req.Options.(*EmbedOptions)
 	if !ok && req.Options != nil {
@@ -87,7 +86,6 @@ func embed(ctx context.Context, serverAddress string, req *ai.EmbedRequest) (*ai
 	return newEmbedResponse(ollamaResp.Embeddings), nil
 }
 
-// getEmbeddingModel determines the appropriate embedding model to use
 func getEmbeddingModel(options *EmbedOptions) string {
 	model := options.Model
 	for _, supportedModel := range supportedEmbeddingModels {
@@ -98,7 +96,6 @@ func getEmbeddingModel(options *EmbedOptions) string {
 	return ""
 }
 
-// sendEmbedRequest sends the actual HTTP request to the Ollama server
 func sendEmbedRequest(ctx context.Context, serverAddress string, jsonData []byte) (*http.Response, error) {
 	client := &http.Client{}
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", serverAddress+"/api/embed", bytes.NewBuffer(jsonData))
@@ -137,7 +134,6 @@ func newEmbedResponse(embeddings [][]float32) *ai.EmbedResponse {
 	return resp
 }
 
-// concatenateText combines all text content from a document into a single string.
 func concatenateText(doc *ai.Document) string {
 	var builder strings.Builder
 	for _, part := range doc.Content {
