@@ -19,13 +19,13 @@ import { FirestoreStateStore } from '@genkit-ai/flow';
 import { InstrumentationConfigMap } from '@opentelemetry/auto-instrumentations-node';
 import { Instrumentation } from '@opentelemetry/instrumentation';
 import { Sampler } from '@opentelemetry/sdk-trace-base';
-import { GoogleAuth, JWTInput } from 'google-auth-library';
-import { FirestoreTraceStore } from './firestoreTraceStore.js';
+import { GoogleAuth } from 'google-auth-library';
+import { Credentials, FirestoreTraceStore } from './firestoreTraceStore.js';
 import { GcpLogger } from './gcpLogger.js';
 import { GcpOpenTelemetry } from './gcpOpenTelemetry.js';
 
 export { defineFirestoreRetriever } from './firestoreRetriever.js';
-export { FirestoreTraceStore } from './firestoreTraceStore.js';
+export { Credentials, FirestoreTraceStore } from './firestoreTraceStore.js';
 export * from './gcpLogger.js';
 export * from './gcpOpenTelemetry.js';
 
@@ -51,7 +51,8 @@ export interface GoogleCloudPluginParams {
   };
   /** Configuration for the OpenTelemetry telemetry exporter. */
   telemetryConfig?: TelemetryConfig;
-  credentials?: JWTInput;
+  /** Credentials to use for the Google Cloud API. */
+  credentials?: Credentials;
 }
 
 /**
@@ -83,7 +84,7 @@ export interface TelemetryConfig {
  */
 export const googleCloud: Plugin<[GoogleCloudPluginParams] | []> = genkitPlugin(
   'googleCloud',
-  async (options?: PluginOptions) => {
+  async (params?: GoogleCloudPluginParams) => {
     let authClient;
     let credentials;
 
@@ -101,31 +102,43 @@ export const googleCloud: Plugin<[GoogleCloudPluginParams] | []> = genkitPlugin(
       authClient = new GoogleAuth();
     }
 
-    const projectId = options?.projectId || (await authClient.getProjectId());
+    const projectId = params?.projectId || (await authClient.getProjectId());
 
-    const optionsWithProjectIdAndCreds = {
-      ...options,
+    const paramsWithProjectIdAndCreds = {
       projectId,
       credentials,
+      telemetryConfig: params?.telemetryConfig,
+    };
+
+    const flowStateStoreOptions = {
+      projectId,
+      credentials,
+      ...params?.flowStateStore,
+    };
+
+    const traceStoreOptions = {
+      projectId,
+      credentials,
+      ...params?.traceStore,
     };
 
     return {
       flowStateStore: {
         id: 'firestore',
-        value: new FirestoreStateStore(params?.flowStateStore),
+        value: new FirestoreStateStore(flowStateStoreOptions),
       },
       traceStore: {
         id: 'firestore',
-        value: new FirestoreTraceStore(params?.traceStore),
+        value: new FirestoreTraceStore(traceStoreOptions),
       },
       telemetry: {
         instrumentation: {
           id: 'googleCloud',
-          value: new GcpOpenTelemetry(paramsWithProjectId),
+          value: new GcpOpenTelemetry(paramsWithProjectIdAndCreds),
         },
         logger: {
           id: 'googleCloud',
-          value: new GcpLogger(optionsWithProjectIdAndCreds),
+          value: new GcpLogger(paramsWithProjectIdAndCreds),
         },
       },
     };

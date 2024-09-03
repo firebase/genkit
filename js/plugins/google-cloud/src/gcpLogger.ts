@@ -58,7 +58,7 @@ export class GcpLogger implements LoggerConfig {
             labels: { module: 'genkit' },
             prefix: 'genkit',
             logName: 'genkit_log',
-            credentials: this.options.credentials,
+            credentials: this.params.credentials,
           })
         : new winston.transports.Console()
     );

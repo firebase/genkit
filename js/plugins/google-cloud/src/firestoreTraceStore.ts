@@ -30,7 +30,7 @@ import { randomUUID } from 'crypto';
 const DOC_MAX_SIZE = 1_000_000;
 
 /** Allow customers to set service account credentials via an environment variable. */
-interface Credentials {
+export interface Credentials {
   client_email?: string;
   private_key?: string;
 }
