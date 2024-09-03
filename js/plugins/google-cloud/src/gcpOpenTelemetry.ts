@@ -90,7 +90,9 @@ export class GcpOpenTelemetry implements TelemetryConfig {
   private createSpanExporter(): SpanExporter {
     spanExporter = new AdjustingTraceExporter(
       this.shouldExportTraces()
-        ? new TraceExporter()
+        ? new TraceExporter({
+            credentials: this.options.credentials,
+          })
         : new InMemorySpanExporter()
     );
     return spanExporter;
@@ -152,6 +154,7 @@ export class GcpOpenTelemetry implements TelemetryConfig {
             product: 'genkit',
             version: GENKIT_VERSION,
           },
+          credentials: this.options.credentials,
         })
       : new InMemoryMetricExporter(AggregationTemporality.DELTA);
     exporter.selectAggregation = (instrumentType: InstrumentType) => {

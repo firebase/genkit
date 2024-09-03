@@ -19,7 +19,7 @@ import { FirestoreStateStore } from '@genkit-ai/flow';
 import { InstrumentationConfigMap } from '@opentelemetry/auto-instrumentations-node';
 import { Instrumentation } from '@opentelemetry/instrumentation';
 import { Sampler } from '@opentelemetry/sdk-trace-base';
-import { GoogleAuth } from 'google-auth-library';
+import { GoogleAuth, JWTInput } from 'google-auth-library';
 import { FirestoreTraceStore } from './firestoreTraceStore.js';
 import { GcpLogger } from './gcpLogger.js';
 import { GcpOpenTelemetry } from './gcpOpenTelemetry.js';
@@ -51,6 +51,7 @@ export interface GoogleCloudPluginParams {
   };
   /** Configuration for the OpenTelemetry telemetry exporter. */
   telemetryConfig?: TelemetryConfig;
+  credentials?: JWTInput;
 }
 
 /**
@@ -82,12 +83,30 @@ export interface TelemetryConfig {
  */
 export const googleCloud: Plugin<[GoogleCloudPluginParams] | []> = genkitPlugin(
   'googleCloud',
-  async (params?: GoogleCloudPluginParams) => {
-    const authClient = new GoogleAuth();
-    const projectId = params?.projectId || (await authClient.getProjectId());
-    const paramsWithProjectId = {
-      ...params,
+  async (options?: PluginOptions) => {
+    let authClient;
+    let credentials;
+
+    // Allow customers to pass in cloud credentials from environment variables
+    // following: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
+    if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
+      const serviceAccountCreds = JSON.parse(
+        process.env.GCLOUD_SERVICE_ACCOUNT_CREDS
+      );
+      const authOptions = { credentials: serviceAccountCreds };
+      authClient = new GoogleAuth(authOptions);
+
+      credentials = await authClient.getCredentials();
+    } else {
+      authClient = new GoogleAuth();
+    }
+
+    const projectId = options?.projectId || (await authClient.getProjectId());
+
+    const optionsWithProjectIdAndCreds = {
+      ...options,
       projectId,
+      credentials,
     };
 
     return {
@@ -106,7 +125,7 @@ export const googleCloud: Plugin<[GoogleCloudPluginParams] | []> = genkitPlugin(
         },
         logger: {
           id: 'googleCloud',
-          value: new GcpLogger(paramsWithProjectId),
+          value: new GcpLogger(optionsWithProjectIdAndCreds),
         },
       },
     };

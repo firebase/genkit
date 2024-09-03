@@ -58,6 +58,7 @@ export class GcpLogger implements LoggerConfig {
             labels: { module: 'genkit' },
             prefix: 'genkit',
             logName: 'genkit_log',
+            credentials: this.options.credentials,
           })
         : new winston.transports.Console()
     );
@@ -66,7 +67,6 @@ export class GcpLogger implements LoggerConfig {
         new winston.transports.Stream({ stream: additionalStream })
       );
     }
-
     return winston.createLogger({
       transports: transports,
       ...format,

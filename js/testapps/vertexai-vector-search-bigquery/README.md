@@ -28,6 +28,8 @@ cd js/testapps/vertex-vector-search-bigquery && pnpm i
 
 Ensure you have a deployed index in Vertex AI Vector Search.
 
+**Important**: This plugin only supports streaming update indexes, not batch update indexes.
+
 Create a `.env` file in the root directory and set the following variables (see the .env.example as well if needed)
 
 ```plaintext

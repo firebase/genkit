@@ -15,7 +15,7 @@
  */
 
 import { z } from 'zod';
-import { EvalRunKeySchema } from './eval';
+import { EvalFlowInputSchema, EvalRunKeySchema } from './eval';
 import { FlowStateSchema } from './flow';
 import {
   GenerationCommonConfigSchema,
@@ -131,3 +131,18 @@ export const GetEvalRunRequestSchema = z.object({
   name: z.string(),
 });
 export type GetEvalRunRequest = z.infer<typeof GetEvalRunRequestSchema>;
+
+export const CreateDatasetRequestSchema = z.object({
+  data: EvalFlowInputSchema,
+  displayName: z.string().optional(),
+});
+
+export type CreateDatasetRequest = z.infer<typeof CreateDatasetRequestSchema>;
+
+export const UpdateDatasetRequestSchema = z.object({
+  /** Supports upsert */
+  patch: EvalFlowInputSchema,
+  datasetId: z.string(),
+  displayName: z.string().optional(),
+});
+export type UpdateDatasetRequest = z.infer<typeof UpdateDatasetRequestSchema>;

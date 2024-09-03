@@ -28,6 +28,11 @@ import { MessageData, ModelArgument } from '@genkit-ai/ai/model';
 import { DocumentData } from '@genkit-ai/ai/retriever';
 import { GenkitError } from '@genkit-ai/core';
 import { parseSchema } from '@genkit-ai/core/schema';
+import {
+  runInNewSpan,
+  setCustomMetadataAttribute,
+  SPAN_TYPE_ATTR,
+} from '@genkit-ai/core/tracing';
 import { createHash } from 'crypto';
 import fm, { FrontMatterResult } from 'front-matter';
 import z from 'zod';
@@ -220,6 +225,30 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
     return this._generateOptions(opt);
   }
 
+  async renderInNewSpan<
+    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+  >(opt: PromptGenerateOptions<I>): Promise<GenerateOptions<CustomOptions, O>> {
+    const spanName = this.variant ? `${this.name}.${this.variant}` : this.name;
+    return runInNewSpan(
+      {
+        metadata: {
+          name: spanName,
+          input: opt,
+        },
+        labels: {
+          [SPAN_TYPE_ATTR]: 'dotprompt',
+        },
+      },
+      async (metadata) => {
+        setCustomMetadataAttribute('prompt_fingerprint', this.hash);
+        const generateOptions = this._generateOptions<CustomOptions, O>(opt);
+        metadata.output = generateOptions;
+        return generateOptions;
+      }
+    );
+  }
+
   /**
    * Generates a response by rendering the prompt template with given user input and then calling the model.
    *
@@ -232,7 +261,9 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
   >(
     opt: PromptGenerateOptions<I, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> {
-    return generate<CustomOptions, O>(this.render<CustomOptions, O>(opt));
+    return this.renderInNewSpan<CustomOptions, O>(opt).then((generateOptions) =>
+      generate<CustomOptions, O>(generateOptions)
+    );
   }
 
   /**
@@ -244,7 +275,9 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
   async generateStream<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny>(
     opt: PromptGenerateOptions<I, CustomOptions>
   ): Promise<GenerateStreamResponse> {
-    return generateStream(this.render<CustomOptions>(opt));
+    return this.renderInNewSpan<CustomOptions>(opt).then((generateOptions) =>
+      generateStream(generateOptions)
+    );
   }
 }
 
