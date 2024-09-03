@@ -25,6 +25,7 @@ import { GcpLogger } from './gcpLogger.js';
 import { GcpOpenTelemetry } from './gcpOpenTelemetry.js';
 
 export { defineFirestoreRetriever } from './firestoreRetriever.js';
+export { FirestoreTraceStore } from './firestoreTraceStore.js';
 export * from './gcpLogger.js';
 export * from './gcpOpenTelemetry.js';
 
