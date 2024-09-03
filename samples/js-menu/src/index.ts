@@ -32,7 +32,6 @@ configureGenkit({
       },
     ]),
   ],
-  enableTracingAndMetrics: true,
   flowStateStore: 'firebase',
   logLevel: 'debug',
   traceStore: 'firebase',

@@ -16,7 +16,6 @@ configureGenkit({
   ],
   flowStateStore: 'firebase',
   traceStore: 'firebase',
-  enableTracingAndMetrics: true,
   logLevel: 'info',
 });
 ```
@@ -33,8 +32,8 @@ The `firebase` plugin provides a Cloud Firestore implementation.
 persisting traces. The `firebase` plugin provides a Cloud Firestore
 implementation.
 
-`enableTracingAndMetrics` instructs the framework to perform OpenTelemetry
-instrumentation and enable trace collection.
+`disableTracingAndMetrics` instructs the framework to disable OpenTelemetry
+instrumentation and disable trace collection.
 
 `logLevel` specifies the verbosity of framework-level logging. Sometimes it's
 useful when troubleshooting to see more detailed log messages; set it to

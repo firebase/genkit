@@ -28,7 +28,7 @@ import {
   TelemetryConfig,
   TelemetryOptions,
 } from './telemetryTypes.js';
-import { TraceStore, enableTracingAndMetrics } from './tracing.js';
+import { enableTracingAndMetrics, TraceStore } from './tracing.js';
 import { LocalFileTraceStore } from './tracing/localFileTraceStore.js';
 
 export * from './plugin.js';
@@ -38,7 +38,7 @@ export interface ConfigOptions {
   plugins?: PluginProvider[];
   traceStore?: string;
   flowStateStore?: string;
-  enableTracingAndMetrics?: boolean;
+  disableTracingAndMetrics?: boolean;
   logLevel?: 'error' | 'warn' | 'info' | 'debug';
   promptDir?: string;
   telemetry?: TelemetryOptions;
@@ -180,7 +180,7 @@ class Config {
    * https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-instrumentation#limitations
    */
   async setupTracingAndLogging() {
-    if (this.options.enableTracingAndMetrics) {
+    if (!this.options.disableTracingAndMetrics) {
       enableTracingAndMetrics(
         await this.getTelemetryConfig(),
         await this.getTraceStore()

@@ -27,7 +27,6 @@ configureGenkit({
     firebase(),
     dotprompt(),
   ],
-  enableTracingAndMetrics: true,
   flowStateStore: 'firebase',
   logLevel: 'debug',
   traceStore: 'firebase',

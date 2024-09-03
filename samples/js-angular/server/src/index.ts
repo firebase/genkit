@@ -21,7 +21,6 @@ import { vertexAI } from '@genkit-ai/vertexai';
 configureGenkit({
   plugins: [vertexAI()],
   logLevel: 'debug',
-  enableTracingAndMetrics: true,
 });
 
 export * from './chatbot.js';

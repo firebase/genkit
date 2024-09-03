@@ -26,7 +26,6 @@ import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 configureGenkit({
   plugins: [googleAI()],
   logLevel: 'debug',
-  enableTracingAndMetrics: true,
 });
 
 export const codeExecutionFlow = defineFlow(

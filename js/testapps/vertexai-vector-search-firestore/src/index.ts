@@ -96,7 +96,6 @@ configureGenkit({
     }),
   ],
   logLevel: 'debug',
-  enableTracingAndMetrics: true,
 });
 
 // // Define indexing flow

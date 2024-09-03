@@ -57,7 +57,6 @@ export const PERMISSIVE_SAFETY_SETTINGS: any = {
 
 export default configureGenkit({
   // settings
-  enableTracingAndMetrics: true,
   flowStateStore: 'firebase',
   logLevel: 'debug',
   traceStore: 'firebase',

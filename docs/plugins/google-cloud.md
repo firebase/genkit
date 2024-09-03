@@ -37,7 +37,6 @@ import { googleCloud } from '@genkit-ai/google-cloud';
 
 export default configureGenkit({
   plugins: [googleCloud()],
-  enableTracingAndMetrics: true,
   telemetry: {
     instrumentation: 'googleCloud',
     logger: 'googleCloud',

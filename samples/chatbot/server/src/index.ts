@@ -53,7 +53,6 @@ configureGenkit({
     }),
   ],
   logLevel: 'debug',
-  enableTracingAndMetrics: true,
 });
 
 const llms: ModelReference<any>[] = [gemini15Flash, llama3];

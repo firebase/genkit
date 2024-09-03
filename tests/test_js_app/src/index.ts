@@ -51,7 +51,6 @@ defineModel(
 
 export default configureGenkit({
   plugins: [],
-  enableTracingAndMetrics: true,
   logLevel: 'debug',
 });
 

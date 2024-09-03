@@ -22,7 +22,6 @@ import * as z from 'zod';
 
 configureGenkit({
   plugins: [googleAI(), dotprompt()],
-  enableTracingAndMetrics: true,
   logLevel: 'debug',
 });
 

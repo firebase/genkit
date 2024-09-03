@@ -85,7 +85,6 @@ configureGenkit({
   ],
   flowStateStore: 'firebase',
   traceStore: 'firebase',
-  enableTracingAndMetrics: true,
   logLevel: 'debug',
   telemetry: {
     instrumentation: 'firebase',

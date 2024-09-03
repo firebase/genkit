@@ -57,7 +57,6 @@ describe('GoogleCloudMetrics', () => {
           },
         }),
       ],
-      enableTracingAndMetrics: true,
       telemetry: {
         instrumentation: 'googleCloud',
       },

@@ -25,7 +25,6 @@ import * as z from 'zod';
 configureGenkit({
   plugins: [googleAI()],
   logLevel: 'debug',
-  enableTracingAndMetrics: true,
 });
 
 export const menuSuggestionFlow = defineFlow(
