@@ -14,22 +14,27 @@
  * limitations under the License.
  */
 
+import { __hardResetRegistryForTesting } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
-import { describe, it } from 'node:test';
+import { beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
-import { GenerateResponseChunk, generate } from '../../src/generate';
+import { GenerateResponseChunk } from '../../lib/generate.js';
+import { GenerateResponseChunkData } from '../../lib/model.js';
 import {
   Candidate,
   GenerateOptions,
   GenerateResponse,
   Message,
+  generate,
   toGenerateRequest,
 } from '../../src/generate.js';
-import { GenerateResponseChunkData, defineModel } from '../../src/model';
 import {
   CandidateData,
   GenerateRequest,
   MessageData,
+  ModelAction,
+  ModelMiddleware,
+  defineModel,
 } from '../../src/model.js';
 import { defineTool } from '../../src/tool.js';
 
@@ -582,19 +587,109 @@ describe('GenerateResponseChunk', () => {
   });
 });
 
-const echo = defineModel(
-  { name: 'echo', supports: { tools: true } },
-  async (input) => ({
-    candidates: [
-      { index: 0, message: input.messages[0], finishReason: 'stop' },
-    ],
-  })
-);
+describe('generate', () => {
+  beforeEach(__hardResetRegistryForTesting);
+
+  var echoModel: ModelAction;
+
+  beforeEach(() => {
+    echoModel = defineModel(
+      {
+        name: 'echoModel',
+      },
+      async (request) => {
+        return {
+          candidates: [
+            {
+              index: 0,
+              finishReason: 'stop',
+              message: {
+                role: 'model',
+                content: [
+                  {
+                    text:
+                      'Echo: ' +
+                      request.messages
+                        .map((m) => m.content.map((c) => c.text).join())
+                        .join(),
+                  },
+                ],
+              },
+            },
+          ],
+        };
+      }
+    );
+  });
+
+  it('applies middleware', async () => {
+    const wrapRequest: ModelMiddleware = async (req, next) => {
+      return next({
+        ...req,
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                text:
+                  '(' +
+                  req.messages
+                    .map((m) => m.content.map((c) => c.text).join())
+                    .join() +
+                  ')',
+              },
+            ],
+          },
+        ],
+      });
+    };
+    const wrapResponse: ModelMiddleware = async (req, next) => {
+      const res = await next(req);
+      return {
+        candidates: [
+          {
+            index: 0,
+            finishReason: 'stop',
+            message: {
+              role: 'model',
+              content: [
+                {
+                  text:
+                    '[' +
+                    res.candidates[0].message.content
+                      .map((c) => c.text)
+                      .join() +
+                    ']',
+                },
+              ],
+            },
+          },
+        ],
+      };
+    };
+
+    const response = await generate({
+      prompt: 'banana',
+      model: echoModel,
+      use: [wrapRequest, wrapResponse],
+    });
+
+    const want = '[Echo: (banana)]';
+    assert.deepStrictEqual(response.text(), want);
+  });
+});
 
 describe('generate', () => {
+  beforeEach(() => {
+    defineModel({ name: 'echo', supports: { tools: true } }, async (input) => ({
+      candidates: [
+        { index: 0, message: input.messages[0], finishReason: 'stop' },
+      ],
+    }));
+  });
   it('should preserve the request in the returned response, enabling toHistory()', async () => {
     const response = await generate({
-      model: echo,
+      model: 'echo',
       prompt: 'Testing toHistory',
     });
 

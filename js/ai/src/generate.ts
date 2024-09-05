@@ -27,7 +27,7 @@ import { z } from 'zod';
 import { DocumentData } from './document.js';
 import { extractJson } from './extract.js';
 import {
-  generateAction,
+  generateHelper,
   GenerateUtilParamSchema,
   inferRoleFromParts,
 } from './generateAction.js';
@@ -41,6 +41,7 @@ import {
   MessageData,
   ModelAction,
   ModelArgument,
+  ModelMiddleware,
   ModelReference,
   Part,
   ToolDefinition,
@@ -490,6 +491,8 @@ export interface GenerateOptions<
   returnToolRequests?: boolean;
   /** When provided, models supporting streaming will call the provided callback with chunks as generation progresses. */
   streamingCallback?: StreamingCallback<GenerateResponseChunk>;
+  /** Middlewera to be used with this model call. */
+  use?: ModelMiddleware[];
 }
 
 async function resolveModel(options: GenerateOptions): Promise<ModelAction> {
@@ -612,7 +615,7 @@ export async function generate<
     resolvedOptions.streamingCallback,
     async () =>
       new GenerateResponse<O>(
-        await generateAction(params),
+        await generateHelper(params, resolvedOptions.use),
         await toGenerateRequest(resolvedOptions)
       )
   );

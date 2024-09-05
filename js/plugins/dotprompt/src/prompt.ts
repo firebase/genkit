@@ -207,6 +207,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
       tools: (options.tools || []).concat(this.tools || []),
       streamingCallback: options.streamingCallback,
       returnToolRequests: options.returnToolRequests,
+      use: options.use,
     } as GenerateOptions<O, CustomOptions>;
   }
 
