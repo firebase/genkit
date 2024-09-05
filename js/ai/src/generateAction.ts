@@ -27,6 +27,7 @@ import {
   toJsonSchema,
   validateSchema,
 } from '@genkit-ai/core/schema';
+import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
 import { z } from 'zod';
 import { DocumentDataSchema } from './document.js';
 import {
@@ -92,6 +93,30 @@ export const generateAction = defineAction(
 );
 
 export async function generateHelper(
+  input: z.infer<typeof GenerateUtilParamSchema>,
+  middleware?: Middleware[]
+): Promise<GenerateResponseData> {
+  // do tracing
+  return await runInNewSpan(
+    {
+      metadata: {
+        name: 'generate',
+      },
+      labels: {
+        [SPAN_TYPE_ATTR]: 'helper',
+      },
+    },
+    async (metadata) => {
+      metadata.name = 'generate';
+      metadata.input = input;
+      const output = await generate(input, middleware);
+      metadata.output = JSON.stringify(output);
+      return output;
+    }
+  );
+}
+
+async function generate(
   input: z.infer<typeof GenerateUtilParamSchema>,
   middleware?: Middleware[]
 ): Promise<GenerateResponseData> {
@@ -243,7 +268,7 @@ export async function generateHelper(
     history: [...request.messages, selected.message],
     prompt: toolResponses,
   };
-  return await generateHelper(nextRequest);
+  return await generateHelper(nextRequest, middleware);
 }
 
 async function actionToGenerateRequest(
