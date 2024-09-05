@@ -491,7 +491,7 @@ export interface GenerateOptions<
   returnToolRequests?: boolean;
   /** When provided, models supporting streaming will call the provided callback with chunks as generation progresses. */
   streamingCallback?: StreamingCallback<GenerateResponseChunk>;
-  /** Middlewera to be used with this model call. */
+  /** Middleware to be used with this model call. */
   use?: ModelMiddleware[];
 }
 
