@@ -27,7 +27,7 @@ import { z } from 'zod';
 import { DocumentData } from './document.js';
 import { extractJson } from './extract.js';
 import {
-  generateAction,
+  generateHelper,
   GenerateUtilParamSchema,
   inferRoleFromParts,
 } from './generateAction.js';
@@ -615,7 +615,7 @@ export async function generate<
     resolvedOptions.streamingCallback,
     async () =>
       new GenerateResponse<O>(
-        await generateAction(params),
+        await generateHelper(params, resolvedOptions.use),
         await toGenerateRequest(resolvedOptions)
       )
   );

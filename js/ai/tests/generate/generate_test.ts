@@ -18,7 +18,8 @@ import { __hardResetRegistryForTesting } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
-import { GenerateResponseChunk, generate } from '../../src/generate';
+import { GenerateResponseChunk } from '../../lib/generate.js';
+import { GenerateResponseChunkData } from '../../lib/model.js';
 import {
   Candidate,
   GenerateOptions,
@@ -27,7 +28,6 @@ import {
   generate,
   toGenerateRequest,
 } from '../../src/generate.js';
-import { GenerateResponseChunkData, defineModel } from '../../src/model';
 import {
   CandidateData,
   GenerateRequest,
@@ -584,6 +584,9 @@ describe('GenerateResponseChunk', () => {
         });
       }
     }
+  });
+});
+
 describe('generate', () => {
   beforeEach(__hardResetRegistryForTesting);
 
@@ -676,19 +679,17 @@ describe('generate', () => {
   });
 });
 
-const echo = defineModel(
-  { name: 'echo', supports: { tools: true } },
-  async (input) => ({
-    candidates: [
-      { index: 0, message: input.messages[0], finishReason: 'stop' },
-    ],
-  })
-);
-
 describe('generate', () => {
+  beforeEach(() => {
+    defineModel({ name: 'echo', supports: { tools: true } }, async (input) => ({
+      candidates: [
+        { index: 0, message: input.messages[0], finishReason: 'stop' },
+      ],
+    }));
+  });
   it('should preserve the request in the returned response, enabling toHistory()', async () => {
     const response = await generate({
-      model: echo,
+      model: 'echo',
       prompt: 'Testing toHistory',
     });
 
