@@ -584,7 +584,7 @@ export function googleAIModel(
       if (streamingCallback) {
         const result = await client
           .startChat(chatRequest)
-          .sendMessageStream(msg.parts);
+          .sendMessageStream(msg.parts, options);
         for await (const item of result.stream) {
           (item as GenerateContentResponse).candidates?.forEach((candidate) => {
             const c = fromJSONModeScopedGeminiCandidate(candidate);
@@ -606,7 +606,7 @@ export function googleAIModel(
       } else {
         const result = await client
           .startChat(chatRequest)
-          .sendMessage(msg.parts);
+          .sendMessage(msg.parts, options);
         if (!result.response.candidates?.length)
           throw new Error('No valid candidates returned.');
         const responseCandidates =
