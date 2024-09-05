@@ -32,9 +32,9 @@ import { metadataPrefix } from './utils.js';
  * Context object encapsulates flow execution state at runtime.
  */
 export class Context<
-  I extends z.ZodTypeAny,
-  O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
 > {
   private seenSteps: Record<string, number> = {};
 
@@ -73,7 +73,9 @@ export class Context<
     }
   }
 
-  // Runs provided function in the current context. The config can specify retry and other behaviors.
+  /**
+   * Runs provided function in the current context. The config can specify retry and other behaviors.
+   */
   async run<T>(
     config: RunStepConfig,
     input: any | undefined,
@@ -124,8 +126,10 @@ export class Context<
     return name;
   }
 
-  // Executes interrupt step in the current context.
-  async interrupt<I extends z.ZodTypeAny, O>(
+  /**
+   * Executes interrupt step.
+   */
+  async interrupt(
     stepName: string,
     func: (payload: I) => Promise<O>,
     responseSchema: I | null,
@@ -189,17 +193,18 @@ export class Context<
     );
   }
 
-  // Sleep for the specified number of seconds.
-  async sleep<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
-    stepName: string,
-    seconds: number
-  ): Promise<O> {
+  /**
+   * Sleep for the specified number of seconds.
+   */
+  async sleep(stepName: string, seconds: number): Promise<O> {
+    if (!this.flow.scheduler) {
+      throw new Error('Cannot sleep in a flow with no scheduler.');
+    }
     const resolvedStepName = this.resolveStepName(stepName);
     if (this.isCached(resolvedStepName)) {
       setCustomMetadataAttribute(metadataPrefix('state'), 'skipped');
       return this.getCached(resolvedStepName);
     }
-
     await this.flow.scheduler(
       this.flow,
       {
@@ -227,6 +232,9 @@ export class Context<
     flowIds: string[];
     pollingConfig?: PollingConfig;
   }): Promise<Operation[]> {
+    if (!this.flow.scheduler) {
+      throw new Error('Cannot wait for a flow with no scheduler.');
+    }
     const resolvedStepName = this.resolveStepName(opts.stepName);
     if (this.isCached(resolvedStepName)) {
       return this.getCached(resolvedStepName);

@@ -24,7 +24,7 @@ import {
   FlowStateStore,
 } from '@genkit-ai/core';
 import { registerFlowStateStore } from '@genkit-ai/core/registry';
-import { defineFlow, run, runFlow } from '@genkit-ai/flow';
+import { defineFlow, run } from '@genkit-ai/flow';
 import {
   __addTransportStreamForTesting,
   googleCloud,
@@ -75,7 +75,7 @@ describe('GoogleCloudLogs', () => {
   it('writes path logs', async () => {
     const testFlow = createFlow('testFlow');
 
-    await runFlow(testFlow);
+    await testFlow();
 
     const logMessages = await getLogs();
     assert.equal(logMessages.includes('[info] Paths[testFlow]'), true);
@@ -88,7 +88,7 @@ describe('GoogleCloudLogs', () => {
     });
 
     assert.rejects(async () => {
-      await runFlow(testFlow);
+      await testFlow();
     });
 
     const logMessages = await getLogs();
@@ -145,7 +145,7 @@ describe('GoogleCloudLogs', () => {
       });
     });
 
-    await runFlow(testFlow);
+    await testFlow();
 
     const logMessages = await getLogs();
     assert.equal(
@@ -194,14 +194,14 @@ describe('GoogleCloudLogs', () => {
   async function waitForLogsInit() {
     await import('winston');
     const testFlow = createFlow('testFlow');
-    await runFlow(testFlow);
+    await testFlow();
     await getLogs(1);
   }
 
   async function getLogs(
     logCount: number = 1,
     maxAttempts: number = 100
-  ): promise<String[]> {
+  ): Promise<String[]> {
     var attempts = 0;
     while (attempts++ < maxAttempts) {
       await new Promise((resolve) => setTimeout(resolve, 100));
