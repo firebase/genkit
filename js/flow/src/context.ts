@@ -17,10 +17,10 @@
 import { FlowState, FlowStateExecution, Operation } from '@genkit-ai/core';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import {
+  SPAN_TYPE_ATTR,
   runInNewSpan,
   setCustomMetadataAttribute,
   setCustomMetadataAttributes,
-  SPAN_TYPE_ATTR,
 } from '@genkit-ai/core/tracing';
 import { logger } from 'firebase-functions/v1';
 import { z } from 'zod';

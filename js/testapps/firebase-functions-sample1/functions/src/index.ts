@@ -105,11 +105,11 @@ export const streamConsumer = onFlow(
   async () => {
     const response = streamer(5);
 
-    for await (const chunk of response.stream()) {
+    for await (const chunk of response.stream) {
       console.log('chunk', chunk);
     }
 
-    console.log('streamConsumer done', await response.output());
+    console.log('streamConsumer done', await response.output);
   }
 );
 
