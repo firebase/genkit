@@ -89,7 +89,7 @@ export const generateAction = defineAction(
     inputSchema: GenerateUtilParamSchema,
     outputSchema: GenerateResponseSchema,
   },
-  async (input) => generateHelper(input)
+  async (input) => generate(input)
 );
 
 export async function generateHelper(
