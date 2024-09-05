@@ -191,7 +191,7 @@ export async function startReflectionApi(port?: number | undefined) {
       const trace = await tracestore?.load(traceId);
       return trace
         ? response.json(trace)
-        : response.status(400).send({
+        : response.status(404).send({
             code: StatusCodes.NOT_FOUND,
             message: `Trace with traceId=${traceId} not found.`,
           });
