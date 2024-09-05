@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import { genkitPlugin, Plugin } from '@genkit-ai/core';
+import { genkitPlugin, isDevEnv, Plugin } from '@genkit-ai/core';
+import { logger } from '@genkit-ai/core/logging';
 import { FirestoreStateStore } from '@genkit-ai/flow';
 import {
   Credentials,
@@ -24,6 +25,8 @@ import {
   TelemetryConfig,
 } from '@genkit-ai/google-cloud';
 import { GoogleAuth } from 'google-auth-library';
+
+export { defineFirestoreRetriever } from '@genkit-ai/google-cloud';
 
 /**
  * Parameters for the Firebase plugin.
@@ -74,7 +77,7 @@ export const firebase: Plugin<[FirebasePluginParams] | []> = genkitPlugin(
       authClient = new GoogleAuth();
     }
 
-    const projectId = params?.projectId || (await authClient.getProjectId());
+    const projectId = params?.projectId || (await getProjectId(authClient));
 
     const paramsWithProjectIdAndCreds = {
       projectId,
@@ -116,3 +119,18 @@ export const firebase: Plugin<[FirebasePluginParams] | []> = genkitPlugin(
     };
   }
 );
+
+async function getProjectId(authClient: GoogleAuth): Promise<string> {
+  if (isDevEnv()) {
+    return await authClient.getProjectId().catch((err) => {
+      logger.warn(
+        'WARNING: unable to determine Project ID, run "gcloud auth application-default login --project MY_PROJECT_ID"'
+      );
+      return '';
+    });
+  }
+
+  return await authClient.getProjectId();
+}
+
+export default firebase;

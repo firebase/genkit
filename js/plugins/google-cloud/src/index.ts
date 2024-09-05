@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import { genkitPlugin, Plugin } from '@genkit-ai/core';
+import { genkitPlugin, isDevEnv, Plugin } from '@genkit-ai/core';
+import { logger } from '@genkit-ai/core/logging';
 import { FirestoreStateStore } from '@genkit-ai/flow';
 import { InstrumentationConfigMap } from '@opentelemetry/auto-instrumentations-node';
 import { Instrumentation } from '@opentelemetry/instrumentation';
@@ -102,7 +103,7 @@ export const googleCloud: Plugin<[GoogleCloudPluginParams] | []> = genkitPlugin(
       authClient = new GoogleAuth();
     }
 
-    const projectId = params?.projectId || (await authClient.getProjectId());
+    const projectId = params?.projectId || (await getProjectId(authClient));
 
     const paramsWithProjectIdAndCreds = {
       projectId,
@@ -144,5 +145,18 @@ export const googleCloud: Plugin<[GoogleCloudPluginParams] | []> = genkitPlugin(
     };
   }
 );
+
+async function getProjectId(authClient: GoogleAuth): Promise<string> {
+  if (isDevEnv()) {
+    return await authClient.getProjectId().catch((err) => {
+      logger.warn(
+        'WARNING: unable to determine Project ID, run "gcloud auth application-default login --project MY_PROJECT_ID"'
+      );
+      return '';
+    });
+  }
+
+  return await authClient.getProjectId();
+}
 
 export default googleCloud;
