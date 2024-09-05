@@ -39,6 +39,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
       - uses: pnpm/action-setup@v3
       - name: Set up node v20
         uses: actions/setup-node@v4
@@ -48,7 +50,7 @@ jobs:
       - name: 'js/plugins/chroma version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
           PACKAGEJSON_DIR: js/plugins/chroma
         with:
           default: ${{ inputs.releaseType }}
@@ -58,7 +60,7 @@ jobs:
       - name: 'js/plugins/dev-local-vectorstore version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
           PACKAGEJSON_DIR: js/plugins/dev-local-vectorstore
         with:
           default: ${{ inputs.releaseType }}
@@ -68,18 +70,18 @@ jobs:
       - name: 'js/plugins/dotprompt version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
           PACKAGEJSON_DIR: js/plugins/dotprompt
         with:
           default: ${{ inputs.releaseType }}
           preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/dotprompt version to {{version}}'
           tag-prefix:  '@genkit-ai/dotprompt@'
-      - name: 'js/plugins/evaluator version bump'
+      - name: 'js/plugins/evaluators version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/plugins/evaluator
+          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
+          PACKAGEJSON_DIR: js/plugins/evaluators
         with:
           default: ${{ inputs.releaseType }}
           preid: ${{ inputs.preid }}
@@ -88,7 +90,7 @@ jobs:
       - name: 'js/plugins/firebase version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
           PACKAGEJSON_DIR: js/plugins/firebase
         with:
           default: ${{ inputs.releaseType }}
@@ -98,7 +100,7 @@ jobs:
       - name: 'js/plugins/google-cloud version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
           PACKAGEJSON_DIR: js/plugins/google-cloud
         with:
           default: ${{ inputs.releaseType }}
@@ -108,7 +110,7 @@ jobs:
       - name: 'js/plugins/googleai version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
           PACKAGEJSON_DIR: js/plugins/googleai
         with:
           default: ${{ inputs.releaseType }}
@@ -118,7 +120,7 @@ jobs:
       - name: 'js/plugins/langchain version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
           PACKAGEJSON_DIR: js/plugins/langchain
         with:
           default: ${{ inputs.releaseType }}
@@ -128,7 +130,7 @@ jobs:
       - name: 'js/plugins/ollama version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
           PACKAGEJSON_DIR: js/plugins/ollama
         with:
           default: ${{ inputs.releaseType }}
@@ -138,7 +140,7 @@ jobs:
       - name: 'js/plugins/pinecone version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
           PACKAGEJSON_DIR: js/plugins/pinecone
         with:
           default: ${{ inputs.releaseType }}
@@ -148,7 +150,7 @@ jobs:
       - name: 'js/plugins/vertexai version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
           PACKAGEJSON_DIR: js/plugins/vertexai
         with:
           default: ${{ inputs.releaseType }}

@@ -49,7 +49,7 @@ type Options struct {
 // in a separate goroutine at the address in opts.DevAddr, or the default
 // of ":3100" if empty.
 //
-// If opts.FlowAddr is a value other than "-", a flow server is started (see [StartFlowServer])
+// If opts.FlowAddr is a value other than "-", a flow server is started
 // and the call to Init waits for the server to shut down.
 // If opts.FlowAddr == "-", no flow server is started and Init returns immediately.
 //
