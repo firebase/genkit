@@ -21,7 +21,7 @@ All flows can define an `authPolicy` in their config. An auth policy is a functi
 If this field is set, it is executed before the flow is invoked:
 
 ```ts
-import { defineFlow, runFlow } from '@genkit-ai/flow';
+import { defineFlow } from '@genkit-ai/flow';
 
 export const selfSummaryFlow = defineFlow(
   {
@@ -45,11 +45,10 @@ receive an error:
 
 ```ts
 // Error: Authorization required.
-await runFlow(selfSummaryFlow, { uid: 'abc-def' });
+await selfSummaryFlow({ uid: 'abc-def' });
 
 // Error: You may only summarize your own profile data.
-await runFlow(
-  selfSummaryFlow,
+await selfSummaryFlow(
   { uid: 'abc-def' },
   {
     withLocalAuthContext: { uid: 'hij-klm' },
@@ -57,8 +56,7 @@ await runFlow(
 );
 
 // Success
-await runFlow(
-  selfSummaryFlow,
+await selfSummaryFlow(
   { uid: 'abc-def' },
   {
     withLocalAuthContext: { uid: 'abc-def' },
@@ -223,7 +221,7 @@ Firebase, you'll want to have a way to set up your own authorization checks
 alongside the native flows. You have two options:
 
 1.  Use whatever server framework you like, and pass the auth context through via
-    `runFlow()` as noted above.
+    the flow call as noted above.
 
 1.  Use the built-in `startFlowsServer()` and provide Express middleware in the
     flow config:
@@ -262,4 +260,4 @@ alongside the native flows. You have two options:
     instructions.
 
 Please note, if you go with (1), you the `middleware` configuration option will
-be ignored by `runFlow()`.
+be ignored by when the flow is invoked directly.
