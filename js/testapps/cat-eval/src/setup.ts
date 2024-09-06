@@ -58,7 +58,7 @@ export const setupFirebase = defineFlow(
 
     await Promise.all(
       documentArr.map(async (document) => {
-        return runFlow(indexPdfFirebase, document);
+        return indexPdfFirebase(document);
       })
     );
   }
