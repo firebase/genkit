@@ -7,7 +7,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "0.6.0-dev.1",
+  "version": "0.6.0-dev.0",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
@@ -90,6 +90,12 @@
       "require": "./lib/tool.js",
       "import": "./lib/tool.mjs",
       "default": "./lib/tool.js"
+    },
+    "./testing": {
+      "types": "./lib/testing/index.d.ts",
+      "require": "./lib/testing/index.js",
+      "import": "./lib/testing/index.mjs",
+      "default": "./lib/testing/index.js"
     }
   },
   "typesVersions": {
