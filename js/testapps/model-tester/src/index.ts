@@ -20,6 +20,7 @@ import { googleAI } from '@genkit-ai/googleai';
 import { claude3Sonnet, llama31, vertexAI } from '@genkit-ai/vertexai';
 import * as clc from 'colorette';
 import { ollama } from 'genkitx-ollama';
+import { openAI } from 'genkitx-openai';
 
 configureGenkit({
   plugins: [
@@ -39,6 +40,7 @@ configureGenkit({
       ],
       serverAddress: 'http://127.0.0.1:11434', // default local address
     }),
+    openAI(),
   ],
   enableTracingAndMetrics: true,
   logLevel: 'debug',
@@ -52,6 +54,8 @@ testModels([
   'vertexai/claude-3-sonnet',
   'vertexai/llama-3.1',
   'ollama/gemma2',
+  'openai/gpt-4o',
+  'openai/gpt-4o-mini',
 ]).then((r) => {
   let failed = false;
   for (const test of r) {

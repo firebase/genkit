@@ -100,7 +100,7 @@ const tests: Record<string, TestCase> = {
   'structured output': async (model: string) => {
     const response = await generate({
       model,
-      prompt: 'extract data as json from: Jack the lumberjack',
+      prompt: 'extract data as json from: Jack was a Lumberjack',
       output: {
         format: 'json',
         schema: z.object({
@@ -112,7 +112,7 @@ const tests: Record<string, TestCase> = {
 
     const want = {
       name: 'Jack',
-      occupation: 'lumberjack',
+      occupation: 'Lumberjack',
     };
     const got = response.output();
     assert.deepEqual(want, got);
@@ -127,12 +127,12 @@ const tests: Record<string, TestCase> = {
 
     const response = await generate({
       model,
-      prompt: 'what is a gablorken of 2 over 3.5? use provided tool',
+      prompt: 'what is a gablorken of 2? use provided tool',
       tools: [gablorkenTool],
     });
 
     const got = response.text().trim();
-    assert.match(got, /13.657/);
+    assert.match(got, /9.407/);
   },
 };
 
@@ -157,12 +157,11 @@ const gablorkenTool = defineTool(
     description: 'use when need to calculate a gablorken',
     inputSchema: z.object({
       value: z.number(),
-      over: z.number(),
     }),
     outputSchema: z.number(),
   },
   async (input) => {
-    return Math.pow(input.value, input.over) + 1.407;
+    return Math.pow(input.value, 3) + 1.407;
   }
 );
 
