@@ -15,13 +15,13 @@
  */
 
 import { FlowInvokeEnvelopeMessage, FlowState } from '@genkit-ai/tools-common';
-import {
-  logger,
-  runInRunnerThenStop,
-  waitForFlowToComplete,
-} from '@genkit-ai/tools-common/utils';
+import { logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { writeFile } from 'fs/promises';
+import {
+  runInRunnerThenStop,
+  waitForFlowToComplete,
+} from '../utils/runner-utils';
 
 interface FlowRunOptions {
   wait?: boolean;

@@ -14,17 +14,42 @@
  * limitations under the License.
  */
 
-import { Runner } from '../runner/runner';
-import { GenkitToolsError } from '../runner/types';
-import { FlowInvokeEnvelopeMessage, FlowState } from '../types/flow';
-import { Status } from '../types/status';
-import { logger } from './logger';
+import {
+  LocalFileTraceStore,
+  startTelemetryServer,
+} from '@genkit-ai/telemetry-server';
+import {
+  FlowInvokeEnvelopeMessage,
+  FlowState,
+  Status,
+} from '@genkit-ai/tools-common';
+import { GenkitToolsError, Runner } from '@genkit-ai/tools-common/runner';
+import { logger } from '@genkit-ai/tools-common/utils';
+import getPort, { makeRange } from 'get-port';
+
+export async function ensureTelemetryServer(): Promise<string> {
+  let telemetryServerUrl = process.env['GENKIT_TELEMETRY_SERVER'];
+  if (!telemetryServerUrl) {
+    const telemetryPort = await getPort({ port: makeRange(4033, 4999) });
+    telemetryServerUrl = `http://localhost:${telemetryPort}`;
+    startTelemetryServer({
+      port: telemetryPort,
+      traceStore: new LocalFileTraceStore(),
+    });
+  }
+  return telemetryServerUrl;
+}
 
 /**
  * Start the runner and waits for it to fully load -- reflection API to become avaialble.
  */
 export async function startRunner(): Promise<Runner> {
-  const runner = new Runner({ autoReload: false, buildOnStart: true });
+  const telemetryServerUrl = await ensureTelemetryServer();
+  const runner = new Runner({
+    autoReload: false,
+    buildOnStart: true,
+    telemetryServer: telemetryServerUrl,
+  });
   if (!(await runner.start())) {
     throw new Error('Failed to load app code.');
   }

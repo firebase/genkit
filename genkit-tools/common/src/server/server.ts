@@ -90,6 +90,12 @@ export function startServer(
     res.end();
   });
 
+  app.post('/api/checkin', bodyParser.json(), async (req, res) => {
+    const { address } = req.body;
+    console.log(`${Date.now()} Checkin ${address}`);
+    runner.attach(address);
+  });
+
   // Endpoints for CLI control
   app.use(
     API_BASE_PATH,

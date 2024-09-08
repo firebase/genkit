@@ -90,6 +90,8 @@ export class Runner {
   private reflectionApiUrl = () =>
     `http://localhost:${this.reflectionApiPort}/api`;
 
+  private telemetryServerUrl?;
+
   /**
    * Creates a Runner instance.
    *
@@ -102,11 +104,13 @@ export class Runner {
       directory?: string;
       autoReload?: boolean;
       buildOnStart?: boolean;
+      telemetryServer?: string;
     } = {}
   ) {
     this.directory = options.directory || process.cwd();
     this.autoReload = options.autoReload ?? true;
     this.buildOnStart = !!options.buildOnStart;
+    this.telemetryServerUrl = options.telemetryServer;
   }
 
   /**
@@ -253,6 +257,7 @@ export class Runner {
         ...process.env,
         GENKIT_ENV: 'dev',
         GENKIT_REFLECTION_PORT: `${this.reflectionApiPort}`,
+        GENKIT_TELEMETRY_SERVER: this.telemetryServerUrl,
       },
     });
 
@@ -496,7 +501,7 @@ export class Runner {
     }
 
     const response = await axios
-      .get(`${this.reflectionApiUrl()}/envs/${env}/traces?${query}`)
+      .get(`${this.telemetryServerUrl}/api/traces?${query}`)
       .catch((err) =>
         this.httpErrorHandler(
           err,
@@ -511,7 +516,7 @@ export class Runner {
   async getTrace(input: apis.GetTraceRequest): Promise<TraceData> {
     const { env, traceId } = input;
     const response = await axios
-      .get(`${this.reflectionApiUrl()}/envs/${env}/traces/${traceId}`)
+      .get(`${this.telemetryServerUrl}/api/traces/${traceId}`)
       .catch((err) =>
         this.httpErrorHandler(
           err,
