@@ -1,0 +1,55 @@
+{
+  "name": "@genkit-ai/telemetry-server",
+  "description": "Genkit AI telemetry server",
+  "keywords": [
+    "genkit",
+    "ai",
+    "genai",
+    "generative-ai"
+  ],
+  "version": "0.5.11",
+  "type": "commonjs",
+  "scripts": {
+    "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
+    "build:clean": "rm -rf ./lib",
+    "build": "npm-run-all build:clean compile",
+    "test": "node --import tsx --test tests/*_test.ts",
+    "build:watch": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/firebase/genkit.git",
+    "directory": "genkit-tools/telemetry-server"
+  },
+  "author": "genkit",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^7.0.0",
+    "@google-cloud/firestore": "^7.6.0",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/context-async-hooks": "^1.25.0",
+    "@opentelemetry/core": "^1.25.0",
+    "@opentelemetry/sdk-metrics": "^1.25.0",
+    "@opentelemetry/sdk-node": "^0.52.0",
+    "@opentelemetry/sdk-trace-base": "^1.25.0",
+    "async-mutex": "^0.5.0",
+    "express": "^4.19.2",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/express": "~4.17.21",
+    "npm-run-all": "^4.1.5",
+    "tsx": "^4.7.0",
+    "typescript": "^4.9.0"
+  },
+  "types": "./lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./lib/cjs/index.js",
+      "import": "./lib/esm/index.js",
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/esm/index.js"
+    }
+  }
+}
