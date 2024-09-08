@@ -23,7 +23,6 @@ import {
   TelemetryConfig,
 } from '@genkit-ai/google-cloud';
 import { GoogleAuth } from 'google-auth-library';
-import { FirestoreTraceStore } from './firestoreTraceStore.js';
 export { defineFirestoreRetriever } from './firestoreRetriever.js';
 
 interface FirestorePluginParams {
@@ -83,10 +82,6 @@ export const firebase: Plugin<[FirestorePluginParams] | []> = genkitPlugin(
       flowStateStore: {
         id: 'firestore',
         value: new FirestoreStateStore(flowStateStoreOptions),
-      },
-      traceStore: {
-        id: 'firestore',
-        value: new FirestoreTraceStore(traceStoreOptions),
       },
       telemetry: {
         instrumentation: {

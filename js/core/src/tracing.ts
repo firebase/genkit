@@ -24,13 +24,11 @@ import {
 import { getCurrentEnv } from './config.js';
 import { logger } from './logging.js';
 import { TelemetryConfig } from './telemetryTypes.js';
-import { TraceStore } from './tracing.js';
-import { TraceStoreExporter } from './tracing/exporter.js';
+import { TraceServerExporter } from './tracing/exporter.js';
 import { MultiSpanProcessor } from './tracing/multiSpanProcessor.js';
 
 export * from './tracing/exporter.js';
 export * from './tracing/instrumentation.js';
-export * from './tracing/localFileTraceStore.js';
 export * from './tracing/processor.js';
 export * from './tracing/types.js';
 
@@ -43,15 +41,14 @@ let nodeOtelConfig: Partial<NodeSDKConfiguration> | null = null;
  */
 export function enableTracingAndMetrics(
   telemetryConfig: TelemetryConfig,
-  traceStore?: TraceStore,
   traceStoreOptions: {
     processor?: 'batch' | 'simple';
   } = {}
 ) {
-  if (traceStore) {
+  if (process.env['GENKIT_TELEMETRY_SERVER']) {
     addProcessor(
       createTraceStoreProcessor(
-        traceStore,
+        process.env['GENKIT_TELEMETRY_SERVER'],
         traceStoreOptions.processor || 'batch'
       )
     );
@@ -93,10 +90,11 @@ export async function cleanUpTracing(): Promise<void> {
  * Returns `undefined` if no trace store implementation is configured.
  */
 function createTraceStoreProcessor(
-  traceStore: TraceStore,
+  url: string,
   processor: 'batch' | 'simple'
 ): SpanProcessor {
-  const exporter = new TraceStoreExporter(traceStore);
+  logger.debug(`Sending telemetry to ${url}`);
+  const exporter = new TraceServerExporter(url);
   return processor === 'simple' || getCurrentEnv() === 'dev'
     ? new SimpleSpanProcessor(exporter)
     : new BatchSpanProcessor(exporter);
