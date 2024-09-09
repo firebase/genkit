@@ -60,7 +60,11 @@ class FlowsTelemetry implements Telemetry {
     unit: 'ms',
   });
 
-  tick(span: ReadableSpan, paths?: Set<PathMetadata>): void {
+  tick(
+    span: ReadableSpan,
+    paths?: Set<PathMetadata>,
+    projectId?: string
+  ): void {
     const attributes = span.attributes;
     const name = attributes['genkit:name'] as string;
     const path = attributes['genkit:path'] as string;

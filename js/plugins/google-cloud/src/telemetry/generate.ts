@@ -126,14 +126,18 @@ class GenerateTelemetry implements Telemetry {
     valueType: ValueType.INT,
   });
 
-  tick(span: ReadableSpan, paths?: Set<PathMetadata>): void {
+  tick(
+    span: ReadableSpan,
+    paths?: Set<PathMetadata>,
+    projectId?: string
+  ): void {
     const attributes = span.attributes;
     const modelName = attributes['genkit:name'] as string;
     const path = (attributes['genkit:path'] as string) || '';
     const input =
       'genkit:input' in attributes
         ? (JSON.parse(
-            (attributes['genkit:input'] as string) || '{}'
+            attributes['genkit:input']! as string
           ) as GenerateRequestData)
         : undefined;
     const output =

@@ -104,7 +104,8 @@ export class GcpOpenTelemetry implements TelemetryConfig {
         ? new TraceExporter({
             credentials: this.options.credentials,
           })
-        : new InMemorySpanExporter()
+        : new InMemorySpanExporter(),
+      this.options.projectId
     );
     return spanExporter;
   }
@@ -189,7 +190,10 @@ export class GcpOpenTelemetry implements TelemetryConfig {
  * error spans that marks them as error in GCP.
  */
 class AdjustingTraceExporter implements SpanExporter {
-  constructor(private exporter: SpanExporter) {}
+  constructor(
+    private exporter: SpanExporter,
+    private projectId?: string
+  ) {}
 
   export(
     spans: ReadableSpan[],
@@ -263,18 +267,18 @@ class AdjustingTraceExporter implements SpanExporter {
     const type = attributes['genkit:type'] as string;
     const subtype = attributes['genkit:metadata:subtype'] as string;
 
-    if (type === 'flow' || type === 'flowStep') {
-      flowsTelemetry.tick(span, paths);
+    if (type === 'flow') {
+      flowsTelemetry.tick(span, paths, this.projectId);
       return;
     }
 
     if (type === 'action' && subtype === 'model') {
-      generateTelemetry.tick(span, paths);
+      generateTelemetry.tick(span, paths, this.projectId);
       return;
     }
 
-    if (type === 'action') {
-      actionTelemetry.tick(span, paths);
+    if (type === 'action' || type == 'flowStep') {
+      actionTelemetry.tick(span, paths, this.projectId);
     }
   }
 

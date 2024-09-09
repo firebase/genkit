@@ -46,7 +46,11 @@ class ActionTelemetry implements Telemetry {
     unit: 'ms',
   });
 
-  tick(span: ReadableSpan, paths?: Set<PathMetadata>): void {
+  tick(
+    span: ReadableSpan,
+    paths?: Set<PathMetadata>,
+    projectId?: string
+  ): void {
     const attributes = span.attributes;
 
     const actionName = (attributes['genkit:name'] as string) || '<unknown>';
