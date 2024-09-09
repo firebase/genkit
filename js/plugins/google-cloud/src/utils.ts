@@ -66,10 +66,11 @@ export function createCommonLogAttributes(
   span: ReadableSpan,
   projectId?: string
 ) {
-  const isSampled = !!(span.spanContext().traceFlags & TraceFlags.SAMPLED);
+  const spanContext = span.spanContext();
+  const isSampled = !!(spanContext.traceFlags & TraceFlags.SAMPLED);
   return {
-    'logging.googleapis.com/spanId': span.spanContext().spanId,
-    'logging.googleapis.com/trace': `projects/${projectId}/traces/${span.spanContext().traceId}`,
+    'logging.googleapis.com/spanId': spanContext.spanId,
+    'logging.googleapis.com/trace': `projects/${projectId}/traces/${spanContext.traceId}`,
     'logging.googleapis.com/trace_sampled': isSampled ? '1' : '0',
   };
 }

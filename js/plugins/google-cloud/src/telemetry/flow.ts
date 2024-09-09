@@ -17,7 +17,7 @@
 import { GENKIT_VERSION } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { PathMetadata, toDisplayPath } from '@genkit-ai/core/tracing';
-import { TraceFlags, ValueType } from '@opentelemetry/api';
+import { ValueType } from '@opentelemetry/api';
 import { hrTimeDuration, hrTimeToMilliseconds } from '@opentelemetry/core';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import {
@@ -126,7 +126,6 @@ class FlowsTelemetry implements Telemetry {
     projectId?: string
   ) {
     const displayPath = toDisplayPath(path);
-    const isSampled = !!(span.spanContext().traceFlags & TraceFlags.SAMPLED);
     logger.logStructuredError(`Error[${displayPath}, ${errorName}]`, {
       ...createCommonLogAttributes(span, projectId),
       path: displayPath,
@@ -158,7 +157,15 @@ class FlowsTelemetry implements Telemetry {
     this.flowLatencies.record(latencyMs, dimensions);
 
     if (isRoot) {
-      this.writePathMetrics(span, path, paths, flowName, latencyMs, projectId);
+      this.writePathMetrics(
+        span,
+        path,
+        paths,
+        flowName,
+        latencyMs,
+        undefined,
+        projectId
+      );
     }
   }
 
@@ -209,7 +216,6 @@ class FlowsTelemetry implements Telemetry {
       meta.path.includes(flowName)
     );
 
-    const isSampled = !!(span.spanContext().traceFlags & TraceFlags.SAMPLED);
     if (flowPaths) {
       logger.logStructured(`Paths[${flowName}]`, {
         ...createCommonLogAttributes(span, projectId),

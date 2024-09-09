@@ -34,7 +34,6 @@ import {
   internalMetricNamespaceWrap,
 } from '../metrics';
 
-import { TraceFlags } from '@opentelemetry/api';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { Telemetry } from '../metrics';
 import {
@@ -215,7 +214,6 @@ class GenerateTelemetry implements Telemetry {
     projectId?: string
   ) {
     const path = toDisplayPath(qualifiedPath);
-    const isSampled = !!(span.spanContext().traceFlags & TraceFlags.SAMPLED);
     const sharedMetadata = {
       ...createCommonLogAttributes(span, projectId),
       model,
@@ -260,7 +258,6 @@ class GenerateTelemetry implements Telemetry {
     projectId?: string
   ) {
     const path = toDisplayPath(qualifiedPath);
-    const isSampled = !!(span.spanContext().traceFlags & TraceFlags.SAMPLED);
     const sharedMetadata = {
       ...createCommonLogAttributes(span, projectId),
       model,
