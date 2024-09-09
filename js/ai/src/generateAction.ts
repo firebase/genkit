@@ -92,6 +92,9 @@ export const generateAction = defineAction(
   async (input) => generate(input)
 );
 
+/**
+ * Encapsulates all generate logic. This is similar to `generateAction` except not an action and can take middleware.
+ */
 export async function generateHelper(
   input: z.infer<typeof GenerateUtilParamSchema>,
   middleware?: Middleware[]
@@ -232,7 +235,10 @@ async function generate(
   }
 
   if (!selected) {
-    throw new Error('No valid candidates found');
+    throw new NoValidCandidatesError({
+      message: 'No valid candidates found',
+      response,
+    });
   }
 
   const toolCalls = selected.message.content.filter(
