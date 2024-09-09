@@ -42,7 +42,7 @@ export class LocalFileDatasetStore implements DatasetStore {
     this.indexFile = this.getIndexFilePath();
     fs.mkdirSync(this.storeRoot, { recursive: true });
     if (!fs.existsSync(this.indexFile)) {
-      fs.writeFileSync(path.resolve(this.indexFile), '');
+      fs.writeFileSync(path.resolve(this.indexFile), JSON.stringify({}));
     }
     logger.info(
       `Initialized local file dataset store at root: ${this.storeRoot}`
@@ -110,6 +110,9 @@ export class LocalFileDatasetStore implements DatasetStore {
 
   async updateDataset(req: UpdateDatasetRequest): Promise<DatasetMetadata> {
     const datasetId = req.datasetId;
+    if (!req.data) {
+      throw new Error('Error: `data` is required for updateDataset');
+    }
     const filePath = path.resolve(
       this.storeRoot,
       this.generateFileName(datasetId)
@@ -125,14 +128,12 @@ export class LocalFileDatasetStore implements DatasetStore {
     }
 
     logger.info(`Updating Dataset at ` + filePath);
-    await writeFile(filePath, JSON.stringify(req.patch));
+    await writeFile(filePath, JSON.stringify(req.data));
 
     const now = new Date().toString();
     const newMetadata = {
       datasetId: datasetId,
-      size: Array.isArray(req.patch)
-        ? req.patch.length
-        : req.patch.samples.length,
+      size: Array.isArray(req.data) ? req.data.length : req.data.samples.length,
       version: prevMetadata.version + 1,
       displayName: req.displayName,
       createTime: prevMetadata.createTime,

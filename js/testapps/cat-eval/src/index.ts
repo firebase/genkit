@@ -21,7 +21,6 @@ import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
 import { gemini15Pro, googleAI } from '@genkit-ai/googleai';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
-import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 
 // Turn off safety checks for evaluation so that the LLM as an evaluator can
 // respond appropriately to potentially harmful content without error.
@@ -49,23 +48,7 @@ export const PERMISSIVE_SAFETY_SETTINGS: any = {
 configureGenkit({
   plugins: [
     dotprompt(),
-    firebase({
-      telemetryConfig: {
-        forceDevExport: true,
-        sampler: new AlwaysOnSampler(),
-        autoInstrumentation: true,
-        autoInstrumentationConfig: {
-          '@opentelemetry/instrumentation-fs': { enabled: false },
-          '@opentelemetry/instrumentation-dns': { enabled: false },
-          '@opentelemetry/instrumentation-net': { enabled: false },
-        },
-        metricExportIntervalMillis: 5_000,
-        metricExportTimeoutMillis: 5_000,
-      },
-      traceStore: {
-        collection: 'pdfQA-traces',
-      },
-    }),
+    firebase(),
     googleAI(),
     genkitEval({
       judge: gemini15Pro,
@@ -85,12 +68,7 @@ configureGenkit({
   ],
   flowStateStore: 'firebase',
   traceStore: 'firebase',
-  enableTracingAndMetrics: true,
   logLevel: 'debug',
-  telemetry: {
-    instrumentation: 'firebase',
-    logger: 'firebase',
-  },
 });
 
 export * from './pdf_rag.js';
