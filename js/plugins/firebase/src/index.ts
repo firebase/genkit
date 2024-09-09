@@ -18,30 +18,48 @@ import { genkitPlugin, isDevEnv, Plugin } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { FirestoreStateStore } from '@genkit-ai/flow';
 import {
+  Credentials,
+  FirestoreTraceStore,
   GcpLogger,
   GcpOpenTelemetry,
   TelemetryConfig,
 } from '@genkit-ai/google-cloud';
 import { GoogleAuth } from 'google-auth-library';
-import { FirestoreTraceStore } from './firestoreTraceStore.js';
-export { defineFirestoreRetriever } from './firestoreRetriever.js';
 
-interface FirestorePluginParams {
+export { defineFirestoreRetriever } from '@genkit-ai/google-cloud';
+
+/**
+ * Parameters for the Firebase plugin.
+ */
+interface FirebasePluginParams {
+  /** Firebase project ID. */
   projectId?: string;
+  /** Configuration for the Firestore-based flow state store. */
   flowStateStore?: {
+    /** Firestore collection to use. If not provided, the default collection is used. */
     collection?: string;
+    /** Firestore database ID to use. If not provided, the default database ID is used. */
     databaseId?: string;
   };
+  /** Configuration for the Firestore-based trace store. */
   traceStore?: {
+    /** Firestore collection to use. If not provided, the default collection is used. */
     collection?: string;
+    /** Firestore database ID to use. If not provided, the default database ID is used. */
     databaseId?: string;
   };
+  /** Configuration for the OpenTelemetry telemetry exporter. */
   telemetryConfig?: TelemetryConfig;
+  /** Credentials to use for the Google Cloud API. */
+  credentials?: Credentials;
 }
 
-export const firebase: Plugin<[FirestorePluginParams] | []> = genkitPlugin(
+/**
+ * Provides a Firebase plugin for Genkit.
+ */
+export const firebase: Plugin<[FirebasePluginParams] | []> = genkitPlugin(
   'firebase',
-  async (params?: FirestorePluginParams) => {
+  async (params?: FirebasePluginParams) => {
     let authClient;
     let credentials;
 
@@ -59,9 +77,9 @@ export const firebase: Plugin<[FirestorePluginParams] | []> = genkitPlugin(
       authClient = new GoogleAuth();
     }
 
-    const projectId = params?.projectId || (await authClient.getProjectId());
+    const projectId = params?.projectId || (await getProjectId(authClient));
 
-    const gcpOptions = {
+    const paramsWithProjectIdAndCreds = {
       projectId,
       credentials,
       telemetryConfig: params?.telemetryConfig,
@@ -91,11 +109,11 @@ export const firebase: Plugin<[FirestorePluginParams] | []> = genkitPlugin(
       telemetry: {
         instrumentation: {
           id: 'firebase',
-          value: new GcpOpenTelemetry(gcpOptions),
+          value: new GcpOpenTelemetry(paramsWithProjectIdAndCreds),
         },
         logger: {
           id: 'firebase',
-          value: new GcpLogger(gcpOptions),
+          value: new GcpLogger(paramsWithProjectIdAndCreds),
         },
       },
     };
@@ -114,3 +132,5 @@ async function getProjectId(authClient: GoogleAuth): Promise<string> {
 
   return await authClient.getProjectId();
 }
+
+export default firebase;

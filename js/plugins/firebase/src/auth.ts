@@ -21,13 +21,24 @@ import * as z from 'zod';
 import { FunctionFlowAuth } from './functions.js';
 import { initializeAppIfNecessary } from './helpers.js';
 
+/**
+ * Provides a Firebase Auth implementation for Genkit with required auth for direct calls.
+ */
 export function firebaseAuth<I extends z.ZodTypeAny>(
   policy: (user: DecodedIdToken, input: z.infer<I>) => void | Promise<void>
 ): FunctionFlowAuth<I>;
+
+/**
+ * Provides a Firebase Auth implementation for Genkit with required auth for direct calls.
+ */
 export function firebaseAuth<I extends z.ZodTypeAny>(
   policy: (user: DecodedIdToken, input: z.infer<I>) => void | Promise<void>,
   config: { required: true }
 ): FunctionFlowAuth<I>;
+
+/**
+ * Provides a Firebase Auth implementation for Genkit with optional auth for direct calls.
+ */
 export function firebaseAuth<I extends z.ZodTypeAny>(
   policy: (
     user: DecodedIdToken | undefined,
@@ -35,6 +46,10 @@ export function firebaseAuth<I extends z.ZodTypeAny>(
   ) => void | Promise<void>,
   config: { required: false }
 ): FunctionFlowAuth<I>;
+
+/**
+ * Provides a Firebase Auth implementation for Genkit.
+ */
 export function firebaseAuth<I extends z.ZodTypeAny>(
   policy: (user: DecodedIdToken, input: z.infer<I>) => void | Promise<void>,
   config?: { required: boolean }

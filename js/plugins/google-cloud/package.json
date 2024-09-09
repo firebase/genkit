@@ -53,7 +53,9 @@
   },
   "peerDependencies": {
     "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/core": "workspace:*"
+    "@genkit-ai/core": "workspace:*",
+    "@genkit-ai/flow": "workspace:*",
+    "@google-cloud/firestore": "^7.6.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.16",

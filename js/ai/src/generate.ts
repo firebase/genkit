@@ -16,10 +16,10 @@
 
 import {
   Action,
-  config as genkitConfig,
   GenkitError,
-  runWithStreamingCallback,
   StreamingCallback,
+  config as genkitConfig,
+  runWithStreamingCallback,
 } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
 import { toJsonSchema, validateSchema } from '@genkit-ai/core/schema';
@@ -27,8 +27,8 @@ import { z } from 'zod';
 import { DocumentData } from './document.js';
 import { extractJson } from './extract.js';
 import {
-  generateAction,
   GenerateUtilParamSchema,
+  generateAction,
   inferRoleFromParts,
 } from './generateAction.js';
 import {
@@ -47,7 +47,7 @@ import {
   ToolRequestPart,
   ToolResponsePart,
 } from './model.js';
-import { resolveTools, ToolArgument, toToolDefinition } from './tool.js';
+import { ToolArgument, resolveTools, toToolDefinition } from './tool.js';
 
 /**
  * Message represents a single role's contribution to a generation. Each message

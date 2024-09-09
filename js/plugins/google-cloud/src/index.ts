@@ -14,44 +14,78 @@
  * limitations under the License.
  */
 
-import { genkitPlugin, Plugin } from '@genkit-ai/core';
+import { genkitPlugin, isDevEnv, Plugin } from '@genkit-ai/core';
+import { logger } from '@genkit-ai/core/logging';
+import { FirestoreStateStore } from '@genkit-ai/flow';
 import { InstrumentationConfigMap } from '@opentelemetry/auto-instrumentations-node';
 import { Instrumentation } from '@opentelemetry/instrumentation';
 import { Sampler } from '@opentelemetry/sdk-trace-base';
-import { GoogleAuth, JWTInput } from 'google-auth-library';
+import { GoogleAuth } from 'google-auth-library';
+import { Credentials, FirestoreTraceStore } from './firestoreTraceStore.js';
 import { GcpLogger } from './gcpLogger.js';
 import { GcpOpenTelemetry } from './gcpOpenTelemetry.js';
 
-export interface PluginOptions {
+export { defineFirestoreRetriever } from './firestoreRetriever.js';
+export { Credentials, FirestoreTraceStore } from './firestoreTraceStore.js';
+export * from './gcpLogger.js';
+export * from './gcpOpenTelemetry.js';
+
+/**
+ * Parameters for the Google Cloud plugin.
+ */
+export interface GoogleCloudPluginParams {
+  /** GCP project ID to use. If not provided, the default project ID is used. */
   projectId?: string;
+  /** Configuration for the Firestore-based flow state store. */
+  flowStateStore?: {
+    /** Firestore collection to use. If not provided, the default collection is used. */
+    collection?: string;
+    /** Firestore database ID to use. If not provided, the default database ID is used. */
+    databaseId?: string;
+  };
+  /** Configuration for the Firestore-based trace store. */
+  traceStore?: {
+    /** Firestore collection to use. If not provided, the default collection is used. */
+    collection?: string;
+    /** Firestore database ID to use. If not provided, the default database ID is used. */
+    databaseId?: string;
+  };
+  /** Configuration for the OpenTelemetry telemetry exporter. */
   telemetryConfig?: TelemetryConfig;
-  credentials?: JWTInput;
+  /** Credentials to use for the Google Cloud API. */
+  credentials?: Credentials;
 }
 
+/**
+ * Configuration for the OpenTelemetry telemetry exporter.
+ */
 export interface TelemetryConfig {
+  /** Sampler to use for tracing. */
   sampler?: Sampler;
+  /** Whether to automatically instrument the application. */
   autoInstrumentation?: boolean;
+  /** Configuration for auto-instrumentation. */
   autoInstrumentationConfig?: InstrumentationConfigMap;
+  /** Interval in milliseconds at which to export metrics. */
   metricExportIntervalMillis?: number;
+  /** Timeout in milliseconds for metric export. */
   metricExportTimeoutMillis?: number;
+  /** Instrumentations to use. */
   instrumentations?: Instrumentation[];
-
   /** When true, metrics are not sent to GCP. */
   disableMetrics?: boolean;
-
   /** When true, traces are not sent to GCP. */
   disableTraces?: boolean;
-
-  /** When true, telemetry data will be exported, even for local runs */
+  /** When true, telemetry data will be exported, even for local runs. */
   forceDevExport?: boolean;
 }
 
 /**
- * Provides a plugin for using Genkit with GCP.
+ * Provides a Google Cloud plugin for Genkit.
  */
-export const googleCloud: Plugin<[PluginOptions] | []> = genkitPlugin(
+export const googleCloud: Plugin<[GoogleCloudPluginParams] | []> = genkitPlugin(
   'googleCloud',
-  async (options?: PluginOptions) => {
+  async (params?: GoogleCloudPluginParams) => {
     let authClient;
     let credentials;
 
@@ -69,29 +103,60 @@ export const googleCloud: Plugin<[PluginOptions] | []> = genkitPlugin(
       authClient = new GoogleAuth();
     }
 
-    const projectId = options?.projectId || (await authClient.getProjectId());
+    const projectId = params?.projectId || (await getProjectId(authClient));
 
-    const optionsWithProjectIdAndCreds = {
-      ...options,
+    const paramsWithProjectIdAndCreds = {
       projectId,
       credentials,
+      telemetryConfig: params?.telemetryConfig,
+    };
+
+    const flowStateStoreOptions = {
+      projectId,
+      credentials,
+      ...params?.flowStateStore,
+    };
+
+    const traceStoreOptions = {
+      projectId,
+      credentials,
+      ...params?.traceStore,
     };
 
     return {
+      flowStateStore: {
+        id: 'firestore',
+        value: new FirestoreStateStore(flowStateStoreOptions),
+      },
+      traceStore: {
+        id: 'firestore',
+        value: new FirestoreTraceStore(traceStoreOptions),
+      },
       telemetry: {
         instrumentation: {
           id: 'googleCloud',
-          value: new GcpOpenTelemetry(optionsWithProjectIdAndCreds),
+          value: new GcpOpenTelemetry(paramsWithProjectIdAndCreds),
         },
         logger: {
           id: 'googleCloud',
-          value: new GcpLogger(optionsWithProjectIdAndCreds),
+          value: new GcpLogger(paramsWithProjectIdAndCreds),
         },
       },
     };
   }
 );
 
+async function getProjectId(authClient: GoogleAuth): Promise<string> {
+  if (isDevEnv()) {
+    return await authClient.getProjectId().catch((err) => {
+      logger.warn(
+        'WARNING: unable to determine Project ID, run "gcloud auth application-default login --project MY_PROJECT_ID"'
+      );
+      return '';
+    });
+  }
+
+  return await authClient.getProjectId();
+}
+
 export default googleCloud;
-export * from './gcpLogger.js';
-export * from './gcpOpenTelemetry.js';
