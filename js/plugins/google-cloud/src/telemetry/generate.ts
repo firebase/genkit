@@ -34,9 +34,14 @@ import {
   internalMetricNamespaceWrap,
 } from '../metrics';
 
+import { TraceFlags } from '@opentelemetry/api';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { Telemetry } from '../metrics';
-import { extractErrorName, extractOuterFlowNameFromPath } from '../utils';
+import {
+  createCommonLogAttributes,
+  extractErrorName,
+  extractOuterFlowNameFromPath,
+} from '../utils';
 
 type SharedDimensions = {
   modelName?: string;
@@ -155,11 +160,25 @@ class GenerateTelemetry implements Telemetry {
         response: output,
         errName,
       });
-      this.recordGenerateActionInputLogs(modelName, flowName, path, input);
+      this.recordGenerateActionInputLogs(
+        span,
+        modelName,
+        flowName,
+        path,
+        input,
+        projectId
+      );
     }
 
     if (output) {
-      this.recordGenerateActionOutputLogs(modelName, flowName, path, output);
+      this.recordGenerateActionOutputLogs(
+        span,
+        modelName,
+        flowName,
+        path,
+        output,
+        projectId
+      );
     }
   }
 
@@ -188,13 +207,22 @@ class GenerateTelemetry implements Telemetry {
   }
 
   private recordGenerateActionInputLogs(
+    span: ReadableSpan,
     model: string,
     flowName: string | undefined,
     qualifiedPath: string,
-    input: GenerateRequestData
+    input: GenerateRequestData,
+    projectId?: string
   ) {
     const path = toDisplayPath(qualifiedPath);
-    const sharedMetadata = { model, path, qualifiedPath, flowName };
+    const isSampled = !!(span.spanContext().traceFlags & TraceFlags.SAMPLED);
+    const sharedMetadata = {
+      ...createCommonLogAttributes(span, projectId),
+      model,
+      path,
+      qualifiedPath,
+      flowName,
+    };
     logger.logStructured(`Config[${path}, ${model}]`, {
       ...sharedMetadata,
       temperature: input.config?.temperature,
@@ -224,13 +252,22 @@ class GenerateTelemetry implements Telemetry {
   }
 
   private recordGenerateActionOutputLogs(
+    span: ReadableSpan,
     model: string,
     flowName: string | undefined,
     qualifiedPath: string,
-    output: GenerateResponseData
+    output: GenerateResponseData,
+    projectId?: string
   ) {
     const path = toDisplayPath(qualifiedPath);
-    const sharedMetadata = { model, path, qualifiedPath, flowName };
+    const isSampled = !!(span.spanContext().traceFlags & TraceFlags.SAMPLED);
+    const sharedMetadata = {
+      ...createCommonLogAttributes(span, projectId),
+      model,
+      path,
+      qualifiedPath,
+      flowName,
+    };
     const candidates = output.candidates.length;
 
     output.candidates.forEach((cand, candIdx) => {

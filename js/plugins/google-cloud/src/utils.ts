@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import { TimedEvent } from '@opentelemetry/sdk-trace-base';
+import { TraceFlags } from '@opentelemetry/api';
+import { ReadableSpan, TimedEvent } from '@opentelemetry/sdk-trace-base';
 
 export function extractOuterFlowNameFromPath(path: string) {
   if (!path || path === '<unknown>') {
@@ -59,4 +60,16 @@ export function extractErrorStack(events: TimedEvent[]): string | undefined {
         : '<unknown>';
     })
     .at(0);
+}
+
+export function createCommonLogAttributes(
+  span: ReadableSpan,
+  projectId?: string
+) {
+  const isSampled = !!(span.spanContext().traceFlags & TraceFlags.SAMPLED);
+  return {
+    'logging.googleapis.com/spanId': span.spanContext().spanId,
+    'logging.googleapis.com/trace': `projects/${projectId}/traces/${span.spanContext().traceId}`,
+    'logging.googleapis.com/trace_sampled': isSampled ? '1' : '0',
+  };
 }

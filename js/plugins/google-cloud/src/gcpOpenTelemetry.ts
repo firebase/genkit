@@ -73,11 +73,15 @@ export class GcpOpenTelemetry implements TelemetryConfig {
    */
   private gcpTraceLogHook = (span: Span, record: any) => {
     const isSampled = !!(span.spanContext().traceFlags & TraceFlags.SAMPLED);
-    record['logging.googleapis.com/trace'] = `projects/${
-      this.options.projectId
-    }/traces/${span.spanContext().traceId}`;
-    record['logging.googleapis.com/spanId'] = span.spanContext().spanId;
-    record['logging.googleapis.com/trace_sampled'] = isSampled ? '1' : '0';
+    if (!record['logging.googleapis.com/trace']) {
+      record['logging.googleapis.com/trace'] = `projects/${
+        this.options.projectId
+      }/traces/${span.spanContext().traceId}`;
+      record['logging.googleapis.com/trace_sampled'] = isSampled ? '1' : '0';
+    }
+    if (!record['logging.googleapis.com/spanId']) {
+      record['logging.googleapis.com/spanId'] = span.spanContext().spanId;
+    }
   };
 
   constructor(options?: PluginOptions) {

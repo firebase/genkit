@@ -17,7 +17,7 @@
 import { GENKIT_VERSION } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { PathMetadata, toDisplayPath } from '@genkit-ai/core/tracing';
-import { ValueType } from '@opentelemetry/api';
+import { TraceFlags, ValueType } from '@opentelemetry/api';
 import { hrTimeDuration, hrTimeToMilliseconds } from '@opentelemetry/core';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import {
@@ -27,6 +27,7 @@ import {
   internalMetricNamespaceWrap,
 } from '../metrics';
 import {
+  createCommonLogAttributes,
   extractErrorMessage,
   extractErrorName,
   extractErrorStack,
@@ -60,6 +61,44 @@ class FlowsTelemetry implements Telemetry {
     unit: 'ms',
   });
 
+  private printSpan(span: ReadableSpan) {
+    console.log('SPAN: ' + span.name);
+    console.log('\tattributes:');
+    for (const key of Object.keys(span.attributes)) {
+      console.log('\t\t' + key + ' => ' + span.attributes[key]);
+    }
+    console.log('\tdroppedAttributesCount: ' + span.droppedAttributesCount);
+    console.log('\tdroppedEventsCount: ' + span.droppedEventsCount);
+    console.log('\tdroppedLinksCount: ' + span.droppedLinksCount);
+    console.log('\tduration: ' + span.duration);
+    console.log('\tendTime: ' + span.endTime);
+    console.log('\tended: ' + span.ended);
+    console.log('\tevents: ');
+    span.events.map((event) => {
+      console.log('\t\tname: ' + event.name);
+      console.log('\t\ttime: ' + event.time);
+      console.log(
+        '\t\tdroppedAttributesCount: ' + event.droppedAttributesCount
+      );
+      console.log('\t\tattributes:');
+      if (event.attributes) {
+        for (const key of Object.keys(event.attributes)) {
+          console.log('\t\t\t' + key + ' => ' + event.attributes[key]);
+        }
+      }
+    });
+    console.log(
+      '\tinstrumentationLibrary: ' + span.instrumentationLibrary.name || 'None'
+    );
+    console.log('\tkind: ' + span.kind);
+    console.log('\tlinks: ' + span.links);
+    console.log('\tparentSpanId: ' + span.parentSpanId);
+    console.log('\tstartTime: ' + span.startTime);
+    console.log('\tstatus:');
+    console.log('\t\tcode: ' + span.status.code);
+    console.log('\t\tmessage: ' + span.status.message);
+  }
+
   tick(
     span: ReadableSpan,
     paths?: Set<PathMetadata>,
@@ -75,7 +114,15 @@ class FlowsTelemetry implements Telemetry {
     const state = attributes['genkit:state'] as string;
 
     if (state === 'success') {
-      this.writeFlowSuccess(paths!, name, path, latencyMs, isRoot);
+      this.writeFlowSuccess(
+        span,
+        paths!,
+        name,
+        path,
+        latencyMs,
+        isRoot,
+        projectId
+      );
       return;
     }
 
@@ -84,8 +131,24 @@ class FlowsTelemetry implements Telemetry {
       const errorMessage = extractErrorMessage(span.events) || '<unknown>';
       const errorStack = extractErrorStack(span.events) || '';
 
-      this.writeFlowFailure(paths!, name, path, latencyMs, errorName, isRoot);
-      this.recordError(path, errorName, errorMessage, errorStack);
+      this.writeFlowFailure(
+        span,
+        paths!,
+        name,
+        path,
+        latencyMs,
+        errorName,
+        isRoot,
+        projectId
+      );
+      this.recordError(
+        span,
+        path,
+        errorName,
+        errorMessage,
+        errorStack,
+        projectId
+      );
       return;
     }
 
@@ -93,13 +156,17 @@ class FlowsTelemetry implements Telemetry {
   }
 
   private recordError(
+    span: ReadableSpan,
     path: string,
     errorName: string,
     errorMessage: string,
-    errorStack: string
+    errorStack: string,
+    projectId?: string
   ) {
     const displayPath = toDisplayPath(path);
+    const isSampled = !!(span.spanContext().traceFlags & TraceFlags.SAMPLED);
     logger.logStructuredError(`Error[${displayPath}, ${errorName}]`, {
+      ...createCommonLogAttributes(span, projectId),
       path: displayPath,
       qualifiedPath: path,
       name: errorName,
@@ -111,11 +178,13 @@ class FlowsTelemetry implements Telemetry {
   }
 
   private writeFlowSuccess(
+    span: ReadableSpan,
     paths: Set<PathMetadata>,
     flowName: string,
     path: string,
     latencyMs: number,
-    isRoot: boolean
+    isRoot: boolean,
+    projectId?: string
   ) {
     const dimensions = {
       name: flowName,
@@ -127,17 +196,19 @@ class FlowsTelemetry implements Telemetry {
     this.flowLatencies.record(latencyMs, dimensions);
 
     if (isRoot) {
-      this.writePathMetrics(path, paths, flowName, latencyMs);
+      this.writePathMetrics(span, path, paths, flowName, latencyMs, projectId);
     }
   }
 
   private writeFlowFailure(
+    span: ReadableSpan,
     paths: Set<PathMetadata>,
     flowName: string,
     path: string,
     latencyMs: number,
     errorName: string,
-    isRoot: boolean
+    isRoot: boolean,
+    projectId?: string
   ) {
     const dimensions = {
       name: flowName,
@@ -150,24 +221,36 @@ class FlowsTelemetry implements Telemetry {
     this.flowLatencies.record(latencyMs, dimensions);
 
     if (isRoot) {
-      this.writePathMetrics(path, paths, flowName, latencyMs, errorName);
+      this.writePathMetrics(
+        span,
+        path,
+        paths,
+        flowName,
+        latencyMs,
+        errorName,
+        projectId
+      );
     }
   }
 
   /** Writes all path-level metrics stored in the current flow execution. */
   private writePathMetrics(
+    span: ReadableSpan,
     rootPath: string,
     paths: Set<PathMetadata>,
     flowName: string,
     latencyMs: number,
-    err?: string
+    err?: string,
+    projectId?: string
   ) {
     const flowPaths = Array.from(paths).filter((meta) =>
       meta.path.includes(flowName)
     );
 
+    const isSampled = !!(span.spanContext().traceFlags & TraceFlags.SAMPLED);
     if (flowPaths) {
       logger.logStructured(`Paths[${flowName}]`, {
+        ...createCommonLogAttributes(span, projectId),
         flowName: flowName,
         paths: flowPaths.map((p) => toDisplayPath(p.path)),
       });
