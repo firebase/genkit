@@ -121,6 +121,8 @@ describe('localFileDatasetStore', () => {
   let DatasetStore: DatasetStore;
 
   beforeEach(() => {
+    // For storeRoot setup
+    fs.existsSync = jest.fn(() => true);
     LocalFileDatasetStore.reset();
     DatasetStore = LocalFileDatasetStore.getDatasetStore() as DatasetStore;
   });
@@ -137,6 +139,7 @@ describe('localFileDatasetStore', () => {
       fs.promises.readFile = jest.fn(async () =>
         Promise.resolve(JSON.stringify({}) as any)
       );
+      fs.existsSync = jest.fn(() => false);
 
       const datasetMetadata = await DatasetStore.createDataset(
         CREATE_DATASET_REQUEST

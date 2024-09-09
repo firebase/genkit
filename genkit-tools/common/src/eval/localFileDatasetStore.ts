@@ -34,13 +34,14 @@ import { logger } from '../utils/logger';
 export class LocalFileDatasetStore implements DatasetStore {
   private readonly storeRoot;
   private readonly indexFile;
-  private readonly INDEX_DELIMITER = '\n';
   private static cachedDatasetStore: LocalFileDatasetStore | null = null;
 
   private constructor(storeRoot: string) {
     this.storeRoot = storeRoot;
     this.indexFile = this.getIndexFilePath();
-    fs.mkdirSync(this.storeRoot, { recursive: true });
+    if (!fs.existsSync(this.storeRoot)) {
+      fs.mkdirSync(this.storeRoot, { recursive: true });
+    }
     if (!fs.existsSync(this.indexFile)) {
       fs.writeFileSync(path.resolve(this.indexFile), JSON.stringify({}));
     }
