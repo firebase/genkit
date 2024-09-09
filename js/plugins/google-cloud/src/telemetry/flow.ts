@@ -61,44 +61,6 @@ class FlowsTelemetry implements Telemetry {
     unit: 'ms',
   });
 
-  private printSpan(span: ReadableSpan) {
-    console.log('SPAN: ' + span.name);
-    console.log('\tattributes:');
-    for (const key of Object.keys(span.attributes)) {
-      console.log('\t\t' + key + ' => ' + span.attributes[key]);
-    }
-    console.log('\tdroppedAttributesCount: ' + span.droppedAttributesCount);
-    console.log('\tdroppedEventsCount: ' + span.droppedEventsCount);
-    console.log('\tdroppedLinksCount: ' + span.droppedLinksCount);
-    console.log('\tduration: ' + span.duration);
-    console.log('\tendTime: ' + span.endTime);
-    console.log('\tended: ' + span.ended);
-    console.log('\tevents: ');
-    span.events.map((event) => {
-      console.log('\t\tname: ' + event.name);
-      console.log('\t\ttime: ' + event.time);
-      console.log(
-        '\t\tdroppedAttributesCount: ' + event.droppedAttributesCount
-      );
-      console.log('\t\tattributes:');
-      if (event.attributes) {
-        for (const key of Object.keys(event.attributes)) {
-          console.log('\t\t\t' + key + ' => ' + event.attributes[key]);
-        }
-      }
-    });
-    console.log(
-      '\tinstrumentationLibrary: ' + span.instrumentationLibrary.name || 'None'
-    );
-    console.log('\tkind: ' + span.kind);
-    console.log('\tlinks: ' + span.links);
-    console.log('\tparentSpanId: ' + span.parentSpanId);
-    console.log('\tstartTime: ' + span.startTime);
-    console.log('\tstatus:');
-    console.log('\t\tcode: ' + span.status.code);
-    console.log('\t\tmessage: ' + span.status.message);
-  }
-
   tick(
     span: ReadableSpan,
     paths?: Set<PathMetadata>,
