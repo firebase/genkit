@@ -27,6 +27,9 @@ on:
           - minor
           - major
           - prerelease
+          - premajor
+          - preminor
+          - prepatch
       preid:
         description: Prerelease identifier
         type: string
@@ -54,6 +57,7 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/chroma
         with:
           default: ${{ inputs.releaseType }}
+          version-type: ${{ inputs.releaseType }}
           preid: ${{ inputs.preid }}
           commit-message: 'chore: bump genkitx-chromadb version to {{version}}'
           tag-prefix:  'genkitx-chromadb'
@@ -64,6 +68,7 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/dev-local-vectorstore
         with:
           default: ${{ inputs.releaseType }}
+          version-type: ${{ inputs.releaseType }}
           preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/dev-local-vectorstore version to {{version}}'
           tag-prefix:  '@genkit-ai/dev-local-vectorstore@'
@@ -74,6 +79,7 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/dotprompt
         with:
           default: ${{ inputs.releaseType }}
+          version-type: ${{ inputs.releaseType }}
           preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/dotprompt version to {{version}}'
           tag-prefix:  '@genkit-ai/dotprompt@'
@@ -84,6 +90,7 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/evaluators
         with:
           default: ${{ inputs.releaseType }}
+          version-type: ${{ inputs.releaseType }}
           preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/evaluator version to {{version}}'
           tag-prefix:  '@genkit-ai/evaluator@'
@@ -94,6 +101,7 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/firebase
         with:
           default: ${{ inputs.releaseType }}
+          version-type: ${{ inputs.releaseType }}
           preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/firebase version to {{version}}'
           tag-prefix:  '@genkit-ai/firebase@'
@@ -104,6 +112,7 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/google-cloud
         with:
           default: ${{ inputs.releaseType }}
+          version-type: ${{ inputs.releaseType }}
           preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/google-cloud version to {{version}}'
           tag-prefix:  '@genkit-ai/google-cloud@'
@@ -114,6 +123,7 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/googleai
         with:
           default: ${{ inputs.releaseType }}
+          version-type: ${{ inputs.releaseType }}
           preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/googleai version to {{version}}'
           tag-prefix:  '@genkit-ai/googleai@'
@@ -124,6 +134,7 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/langchain
         with:
           default: ${{ inputs.releaseType }}
+          version-type: ${{ inputs.releaseType }}
           preid: ${{ inputs.preid }}
           commit-message: 'chore: bump genkitx-langchain version to {{version}}'
           tag-prefix:  'genkitx-langchain@'
@@ -134,6 +145,7 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/ollama
         with:
           default: ${{ inputs.releaseType }}
+          version-type: ${{ inputs.releaseType }}
           preid: ${{ inputs.preid }}
           commit-message: 'chore: bump genkitx-ollama version to {{version}}'
           tag-prefix:  'genkitx-ollama@'
@@ -144,6 +156,7 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/pinecone
         with:
           default: ${{ inputs.releaseType }}
+          version-type: ${{ inputs.releaseType }}
           preid: ${{ inputs.preid }}
           commit-message: 'chore: bump genkitx-pinecone version to {{version}}'
           tag-prefix:  'genkitx-pinecone@'
@@ -154,6 +167,7 @@ jobs:
           PACKAGEJSON_DIR: js/plugins/vertexai
         with:
           default: ${{ inputs.releaseType }}
+          version-type: ${{ inputs.releaseType }}
           preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/vertexai version to {{version}}'
           tag-prefix:  '@genkit-ai/vertexai@'
