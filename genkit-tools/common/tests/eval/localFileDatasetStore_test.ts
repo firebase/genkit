@@ -23,6 +23,7 @@ import {
   jest,
 } from '@jest/globals';
 import fs from 'fs';
+import * as uuid from 'uuid';
 import { LocalFileDatasetStore } from '../../src/eval/localFileDatasetStore';
 import {
   CreateDatasetRequestSchema,
@@ -59,8 +60,8 @@ const SAMPLE_DATASET_1_V2 = {
   ],
 };
 
-const SAMPLE_DATASET_ID_1 = '12345678';
 const SAMPLE_DATASET_NAME_1 = 'dataset-1';
+const SAMPLE_DATASET_ID_1 = 'dataset-1-123456';
 
 const SAMPLE_DATASET_METADATA_1_V1 = {
   datasetId: SAMPLE_DATASET_ID_1,
@@ -90,7 +91,7 @@ const UPDATE_DATASET_REQUEST = UpdateDatasetRequestSchema.parse({
   displayName: SAMPLE_DATASET_NAME_1,
 });
 
-const SAMPLE_DATASET_ID_2 = '22345678';
+const SAMPLE_DATASET_ID_2 = 'dataset-2-123456';
 const SAMPLE_DATASET_NAME_2 = 'dataset-2';
 
 const SAMPLE_DATASET_METADATA_2 = {
@@ -110,9 +111,8 @@ jest.mock('crypto', () => {
   };
 });
 
-jest.mock('uuid', () => ({
-  v4: () => SAMPLE_DATASET_ID_1,
-}));
+jest.mock('uuid');
+const uuidSpy = jest.spyOn(uuid, 'v4');
 
 jest.useFakeTimers({ advanceTimers: true });
 jest.setSystemTime(FAKE_TIME);
@@ -123,6 +123,7 @@ describe('localFileDatasetStore', () => {
   beforeEach(() => {
     // For storeRoot setup
     fs.existsSync = jest.fn(() => true);
+    uuidSpy.mockReturnValueOnce('12345678');
     LocalFileDatasetStore.reset();
     DatasetStore = LocalFileDatasetStore.getDatasetStore() as DatasetStore;
   });
@@ -148,7 +149,7 @@ describe('localFileDatasetStore', () => {
       expect(fs.promises.writeFile).toHaveBeenCalledTimes(2);
       expect(fs.promises.writeFile).toHaveBeenNthCalledWith(
         1,
-        expect.stringContaining('datasets/12345678.json'),
+        expect.stringContaining(`datasets/${SAMPLE_DATASET_ID_1}.json`),
         JSON.stringify(CREATE_DATASET_REQUEST.data)
       );
       const metadataMap = {
@@ -194,7 +195,7 @@ describe('localFileDatasetStore', () => {
       expect(fs.promises.writeFile).toHaveBeenCalledTimes(2);
       expect(fs.promises.writeFile).toHaveBeenNthCalledWith(
         1,
-        expect.stringContaining('datasets/12345678.json'),
+        expect.stringContaining(`datasets/${SAMPLE_DATASET_ID_1}.json`),
         JSON.stringify(SAMPLE_DATASET_1_V2)
       );
       const updatedMetadataMap = {
@@ -294,7 +295,7 @@ describe('localFileDatasetStore', () => {
       await DatasetStore.deleteDataset(SAMPLE_DATASET_ID_1);
 
       expect(fs.promises.rm).toHaveBeenCalledWith(
-        expect.stringContaining('datasets/12345678.json')
+        expect.stringContaining(`datasets/${SAMPLE_DATASET_ID_1}.json`)
       );
       let updatedMetadataMap = {
         [SAMPLE_DATASET_ID_2]: SAMPLE_DATASET_METADATA_2,
@@ -303,6 +304,69 @@ describe('localFileDatasetStore', () => {
         expect.stringContaining('datasets/index.json'),
         JSON.stringify(updatedMetadataMap)
       );
+    });
+  });
+
+  describe('generateDatasetId', () => {
+    it('returns ID if present', async () => {
+      const id = await (
+        DatasetStore as LocalFileDatasetStore
+      ).generateDatasetId(undefined, 'some-id');
+
+      expect(id).toBe('some-id');
+    });
+
+    it('returns full ID if only displayName is absent', async () => {
+      const id = await (
+        DatasetStore as LocalFileDatasetStore
+      ).generateDatasetId(undefined, undefined);
+
+      expect(id).toBe('12345678');
+    });
+
+    it('returns ID if only displayName is present', async () => {
+      const id = await (
+        DatasetStore as LocalFileDatasetStore
+      ).generateDatasetId('My awesome display!!!', undefined);
+
+      expect(id).toBe('Myawesomedisplay-123456');
+    });
+
+    it('returns ID if only unique ID is generated', async () => {
+      uuidSpy.mockRestore();
+
+      jest
+        .spyOn(uuid, 'v4')
+        .mockReturnValueOnce('12345678')
+        .mockReturnValueOnce('abcdefg');
+      let metadataMap = {
+        ['Myawesomedisplay-123456']: SAMPLE_DATASET_METADATA_1_V1,
+      };
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify(metadataMap) as any)
+      );
+
+      const id = await (
+        DatasetStore as LocalFileDatasetStore
+      ).generateDatasetId('My awesome display!!!', undefined);
+
+      expect(id).toBe('Myawesomedisplay-abcdef');
+    });
+
+    it('throws if no unique ID is generated', async () => {
+      let metadataMap = {
+        ['Myawesomedisplay-123456']: SAMPLE_DATASET_METADATA_1_V1,
+      };
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify(metadataMap) as any)
+      );
+
+      expect(async () => {
+        await (DatasetStore as LocalFileDatasetStore).generateDatasetId(
+          'My awesome display!!!',
+          undefined
+        );
+      }).rejects.toThrow();
     });
   });
 });

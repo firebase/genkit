@@ -32,6 +32,9 @@ import { logger } from '../utils/logger';
  * A local, file-based DatasetStore implementation.
  */
 export class LocalFileDatasetStore implements DatasetStore {
+  readonly SHORT_UUID_LENGTH = 6;
+  readonly ID_GEN_MAX_ATTEMPTS = 5;
+
   private readonly storeRoot;
   private readonly indexFile;
   private static cachedDatasetStore: LocalFileDatasetStore | null = null;
@@ -64,18 +67,16 @@ export class LocalFileDatasetStore implements DatasetStore {
   }
 
   async createDataset(req: CreateDatasetRequest): Promise<DatasetMetadata> {
-    return this.createDatasetInternal(req.data, req.displayName);
+    return this.createDatasetInternal(req.data, req.displayName, req.datasetId);
   }
 
   private async createDatasetInternal(
     data: Dataset,
-    displayName?: string
+    displayName?: string,
+    datasetId?: string
   ): Promise<DatasetMetadata> {
-    const datasetId = this.generateDatasetId();
-    const filePath = path.resolve(
-      this.storeRoot,
-      this.generateFileName(datasetId)
-    );
+    const id = await this.generateDatasetId(displayName, datasetId);
+    const filePath = path.resolve(this.storeRoot, this.generateFileName(id));
 
     if (fs.existsSync(filePath)) {
       logger.error(`Dataset already exists at ` + filePath);
@@ -89,7 +90,7 @@ export class LocalFileDatasetStore implements DatasetStore {
 
     const now = new Date().toString();
     const metadata = {
-      datasetId,
+      datasetId: id,
       size: Array.isArray(data) ? data.length : data.samples.length,
       version: 1,
       displayName: displayName,
@@ -98,11 +99,10 @@ export class LocalFileDatasetStore implements DatasetStore {
     };
 
     let metadataMap = await this.getMetadataMap();
-    metadataMap[datasetId] = metadata;
+    metadataMap[id] = metadata;
 
     logger.debug(
-      `Saving DatasetMetadata for ID ${datasetId} to ` +
-        path.resolve(this.indexFile)
+      `Saving DatasetMetadata for ID ${id} to ` + path.resolve(this.indexFile)
     );
 
     await writeFile(path.resolve(this.indexFile), JSON.stringify(metadataMap));
@@ -201,8 +201,34 @@ export class LocalFileDatasetStore implements DatasetStore {
     return path.resolve(process.cwd(), `.genkit/${rootHash}/datasets`);
   }
 
-  private generateDatasetId(): string {
-    return uuidv4();
+  /** Visible for testing */
+  async generateDatasetId(
+    displayName?: string,
+    datasetId?: string
+  ): Promise<string> {
+    if (datasetId) {
+      return datasetId;
+    }
+
+    const metadataMap = await this.getMetadataMap();
+    const keys = Object.keys(metadataMap);
+    const trimmedDisplayName =
+      displayName?.replaceAll(/[^A-Za-z0-9-_]/g, '') ?? '';
+    const uuidLength = displayName ? this.SHORT_UUID_LENGTH : undefined;
+
+    for (let i = 0; i < this.ID_GEN_MAX_ATTEMPTS; i++) {
+      const uid = uuidv4().slice(0, uuidLength);
+      const maybeDatasetId = trimmedDisplayName
+        ? `${trimmedDisplayName}-${uid}`
+        : uid;
+      if (!keys.some((i) => i === maybeDatasetId)) {
+        return maybeDatasetId;
+      }
+    }
+    // Should not happen.
+    throw new Error(
+      'Unable to generate a unique ID based on the provided information'
+    );
   }
 
   private generateFileName(datasetId: string): string {
