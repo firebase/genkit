@@ -39,7 +39,8 @@ export type ActionType =
   | 'model'
   | 'prompt'
   | 'util'
-  | 'tool';
+  | 'tool'
+  | 'reranker';
 
 /**
  * Looks up a registry key (action type and key) in the registry.

@@ -50,7 +50,6 @@ import {
   getErrorStack,
   InterruptError,
 } from './errors.js';
-import * as telemetry from './telemetry.js';
 import {
   FlowActionInputSchema,
   FlowInvokeEnvelopeMessage,
@@ -685,10 +684,6 @@ export class Flow<
             const output = await handler(input, streamingCallback);
             metadata.output = JSON.stringify(output);
             setCustomMetadataAttribute(metadataPrefix('state'), 'done');
-            telemetry.writeFlowSuccess(
-              ctx.flow.name,
-              performance.now() - startTimeMs
-            );
             return output;
           } catch (e) {
             if (e instanceof InterruptError) {
@@ -713,13 +708,6 @@ export class Flow<
                 error: getErrorMessage(e),
                 stacktrace: getErrorStack(e),
               } as FlowError;
-
-              telemetry.recordError(e);
-              telemetry.writeFlowFailure(
-                ctx.flow.name,
-                performance.now() - startTimeMs,
-                e
-              );
             }
             errored = true;
           }
@@ -737,7 +725,6 @@ export class Flow<
     req: express.Request,
     res: express.Response
   ): Promise<void> {
-    telemetry.logRequest(this.name, req);
     if (req.query.stream === 'true') {
       const respBody = {
         error: {
@@ -746,7 +733,6 @@ export class Flow<
         },
       };
       res.status(400).send(respBody).end();
-      telemetry.logResponse(this.name, 400, respBody);
       return;
     }
 
@@ -759,11 +745,9 @@ export class Flow<
     try {
       const state = await this.runEnvelope(envMsg);
       res.status(200).send(state.operation).end();
-      telemetry.logResponse(this.name, 200, state.operation);
     } catch (e) {
       // Pass errors as operations instead of a standard API error
       // (https://cloud.google.com/apis/design/errors#http_mapping)
-      telemetry.recordError(e);
       const respBody = {
         done: true,
         result: {
@@ -775,7 +759,6 @@ export class Flow<
         .status(500)
         .send(respBody as Operation)
         .end();
-      telemetry.logResponse(this.name, 500, respBody);
     }
   }
 
@@ -783,7 +766,6 @@ export class Flow<
     req: __RequestWithAuth,
     res: express.Response
   ): Promise<void> {
-    telemetry.logRequest(this.name, req);
     const { stream } = req.query;
     const auth = req.auth;
 
@@ -792,7 +774,6 @@ export class Flow<
     try {
       await this.authPolicy?.(auth, input);
     } catch (e: any) {
-      telemetry.recordError(e);
       const respBody = {
         error: {
           status: 'PERMISSION_DENIED',
@@ -800,7 +781,6 @@ export class Flow<
         },
       };
       res.status(403).send(respBody).end();
-      telemetry.logResponse(this.name, 403, respBody);
       return;
     }
 
@@ -818,10 +798,8 @@ export class Flow<
         });
         res.write(JSON.stringify(state.operation));
         res.end();
-        telemetry.logResponse(this.name, 200, state.operation);
       } catch (e) {
         // Errors while streaming are also passed back as operations
-        telemetry.recordError(e);
         const respBody = {
           done: true,
           result: {
@@ -831,7 +809,6 @@ export class Flow<
         };
         res.write(JSON.stringify(respBody as Operation));
         res.end();
-        telemetry.logResponse(this.name, 500, respBody);
       }
     } else {
       try {
@@ -847,11 +824,9 @@ export class Flow<
             result: state.operation.result?.response,
           })
           .end();
-        telemetry.logResponse(this.name, 200, state.operation);
       } catch (e) {
         // Errors for non-durable, non-streaming flows are passed back as
         // standard API errors.
-        telemetry.recordError(e);
         res
           .status(500)
           .send({
