@@ -33,6 +33,16 @@ export {
   type GenerateStreamOptions,
   type GenerateStreamResponse,
 } from './generate.js';
+export {
+  GenerateRequest,
+  GenerateRequestData,
+  GenerateResponseData,
+  GenerationUsage,
+  MediaPart,
+  Part,
+  ToolRequestPart,
+  ToolResponsePart,
+} from './model.js';
 export { definePrompt, renderPrompt, type PromptAction } from './prompt.js';
 export {
   index,

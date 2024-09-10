@@ -15,11 +15,11 @@
  */
 
 import {
+  configureGenkit,
   FlowState,
   FlowStateQuery,
   FlowStateQueryResponse,
   FlowStateStore,
-  configureGenkit,
 } from '@genkit-ai/core';
 import { registerFlowStateStore } from '@genkit-ai/core/registry';
 import { defineFlow, run } from '@genkit-ai/flow';
@@ -134,9 +134,8 @@ describe('GoogleCloudTracing', () => {
 
   /** Polls the in memory metric exporter until the genkit scope is found. */
   async function getExportedSpans(
-    name: string = 'genkit',
-    maxAttempts: number = 100
-  ): Promise<ReadableSpan[]> {
+    maxAttempts: number = 200
+  ): promise<ReadableSpan[]> {
     __forceFlushSpansForTesting();
     var attempts = 0;
     while (attempts++ < maxAttempts) {
@@ -146,7 +145,7 @@ describe('GoogleCloudTracing', () => {
         return found;
       }
     }
-    assert.fail(`Waiting for metric ${name} but it has not been written.`);
+    assert.fail(`Timed out while waiting for spans to be exported.`);
   }
 });
 
