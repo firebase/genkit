@@ -114,7 +114,7 @@ async function stopTelemetryApi() {
     new Promise<void>((resolve) => {
       if (server) {
         server.close(() => {
-          console.info('Reflection API has succesfully shut down.');
+          console.info('Telemetry API has succesfully shut down.');
           resolve();
         });
       } else {

@@ -27,9 +27,9 @@ import { GenkitToolsError, Runner } from '@genkit-ai/tools-common/runner';
 import { logger } from '@genkit-ai/tools-common/utils';
 import getPort, { makeRange } from 'get-port';
 
-/** 
+/**
  * Returns the telemetry server address either based on environment setup or starts one.
- * 
+ *
  * This function is not idempotent. Typicall you want to make sure it's called only once per cli instance.
  */
 export async function resolveTelemetryServer(): Promise<string> {
