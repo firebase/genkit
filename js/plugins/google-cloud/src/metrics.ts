@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
+import { PathMetadata } from '@genkit-ai/core/tracing';
 import { Counter, Histogram, Meter, metrics } from '@opentelemetry/api';
+import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 
 export const METER_NAME = 'genkit';
 export const METRIC_NAME_PREFIX = 'genkit';
@@ -109,4 +111,8 @@ function truncateDimensions(opts?: any) {
       }
     });
   }
+}
+
+export interface Telemetry {
+  tick(span: ReadableSpan, paths?: Set<PathMetadata>, projectId?: string): void;
 }
