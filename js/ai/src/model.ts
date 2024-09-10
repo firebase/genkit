@@ -31,7 +31,6 @@ import {
   conformOutput,
   validateSupport,
 } from './model/middleware.js';
-import * as telemetry from './telemetry.js';
 
 //
 // IMPORTANT: Please keep type definitions in sync with
@@ -197,6 +196,7 @@ export const GenerateRequestSchema = z.object({
   context: z.array(DocumentDataSchema).optional(),
   candidates: z.number().optional(),
 });
+export type GenerateRequestData = z.infer<typeof GenerateRequestSchema>;
 
 export interface GenerateRequest<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
@@ -289,6 +289,7 @@ export function defineModel<
     configSchema?: CustomOptionsSchema;
     /** Descriptive name for this model e.g. 'Google AI - Gemini Pro'. */
     label?: string;
+    /** Middleware to be used with this model. */
     use?: ModelMiddleware[];
   },
   runner: (
@@ -323,25 +324,15 @@ export function defineModel<
       use: middleware,
     },
     (input) => {
-      telemetry.recordGenerateActionInputLogs(options.name, input);
       const startTimeMs = performance.now();
 
-      return runner(input, getStreamingCallback())
-        .then((response) => {
-          const timedResponse = {
-            ...response,
-            latencyMs: performance.now() - startTimeMs,
-          };
-          telemetry.recordGenerateActionOutputLogs(options.name, response);
-          telemetry.recordGenerateActionMetrics(options.name, input, {
-            response: timedResponse,
-          });
-          return timedResponse;
-        })
-        .catch((err) => {
-          telemetry.recordGenerateActionMetrics(options.name, input, { err });
-          throw err;
-        });
+      return runner(input, getStreamingCallback()).then((response) => {
+        const timedResponse = {
+          ...response,
+          latencyMs: performance.now() - startTimeMs,
+        };
+        return timedResponse;
+      });
     }
   );
   Object.assign(act, {

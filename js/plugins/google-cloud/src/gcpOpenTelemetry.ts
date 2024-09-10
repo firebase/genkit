@@ -20,7 +20,11 @@ import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter'
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 import { Span, SpanStatusCode, TraceFlags } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
-import { ExportResult } from '@opentelemetry/core';
+import {
+  ExportResult,
+  hrTimeDuration,
+  hrTimeToMilliseconds,
+} from '@opentelemetry/core';
 import { Instrumentation } from '@opentelemetry/instrumentation';
 import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
 import { WinstonInstrumentation } from '@opentelemetry/instrumentation-winston';
@@ -42,7 +46,14 @@ import {
   ReadableSpan,
   SpanExporter,
 } from '@opentelemetry/sdk-trace-base';
+
+import { extractErrorName } from './utils';
+
+import { PathMetadata } from '@genkit-ai/core/tracing';
 import { PluginOptions } from './index.js';
+import { actionTelemetry } from './telemetry/action.js';
+import { flowsTelemetry } from './telemetry/flow.js';
+import { generateTelemetry } from './telemetry/generate.js';
 
 let metricExporter: PushMetricExporter;
 let spanProcessor: BatchSpanProcessor;
@@ -61,12 +72,14 @@ export class GcpOpenTelemetry implements TelemetryConfig {
    * required by GCP.
    */
   private gcpTraceLogHook = (span: Span, record: any) => {
-    const isSampled = !!(span.spanContext().traceFlags & TraceFlags.SAMPLED);
-    record['logging.googleapis.com/trace'] = `projects/${
-      this.options.projectId
-    }/traces/${span.spanContext().traceId}`;
-    record['logging.googleapis.com/spanId'] = span.spanContext().spanId;
-    record['logging.googleapis.com/trace_sampled'] = isSampled ? '1' : '0';
+    const spanContext = span.spanContext();
+    const isSampled = !!(spanContext.traceFlags & TraceFlags.SAMPLED);
+    const projectId = this.options.projectId;
+
+    record['logging.googleapis.com/trace'] ??=
+      `projects/${projectId}/traces/${spanContext.traceId}`;
+    record['logging.googleapis.com/trace_sampled'] ??= isSampled ? '1' : '0';
+    record['logging.googleapis.com/spanId'] ??= spanContext.spanId;
   };
 
   constructor(options?: PluginOptions) {
@@ -93,7 +106,8 @@ export class GcpOpenTelemetry implements TelemetryConfig {
         ? new TraceExporter({
             credentials: this.options.credentials,
           })
-        : new InMemorySpanExporter()
+        : new InMemorySpanExporter(),
+      this.options.projectId
     );
     return spanExporter;
   }
@@ -178,7 +192,10 @@ export class GcpOpenTelemetry implements TelemetryConfig {
  * error spans that marks them as error in GCP.
  */
 class AdjustingTraceExporter implements SpanExporter {
-  constructor(private exporter: SpanExporter) {}
+  constructor(
+    private exporter: SpanExporter,
+    private projectId?: string
+  ) {}
 
   export(
     spans: ReadableSpan[],
@@ -203,12 +220,68 @@ class AdjustingTraceExporter implements SpanExporter {
   }
 
   private adjust(spans: ReadableSpan[]): ReadableSpan[] {
+    const allPaths = spans
+      .filter((span) => span.attributes['genkit:path'])
+      .map(
+        (span) =>
+          ({
+            path: span.attributes['genkit:path'] as string,
+            status:
+              (span.attributes['genkit:state'] as string) === 'error'
+                ? 'failure'
+                : 'success',
+            error: extractErrorName(span.events),
+            latency: hrTimeToMilliseconds(
+              hrTimeDuration(span.startTime, span.endTime)
+            ),
+          }) as PathMetadata
+      );
+
+    const allLeafPaths = new Set<PathMetadata>(
+      allPaths.filter((leafPath) =>
+        allPaths.every(
+          (path) =>
+            path.path === leafPath.path ||
+            !path.path.startsWith(leafPath.path) ||
+            (path.path.startsWith(leafPath.path) &&
+              path.status !== leafPath.status)
+        )
+      )
+    );
+
     return spans.map((span) => {
+      this.tickTelemetry(span, allLeafPaths);
+
       span = this.redactPii(span);
       span = this.markErrorSpanAsError(span);
       span = this.normalizeLabels(span);
       return span;
     });
+  }
+
+  private tickTelemetry(span: ReadableSpan, paths: Set<PathMetadata>) {
+    const attributes = span.attributes;
+
+    if (!Object.keys(attributes).includes('genkit:type')) {
+      return;
+    }
+
+    const type = attributes['genkit:type'] as string;
+    const subtype = attributes['genkit:metadata:subtype'] as string;
+
+    if (type === 'flow') {
+      flowsTelemetry.tick(span, paths, this.projectId);
+      return;
+    }
+
+    if (type === 'action' && subtype === 'model') {
+      generateTelemetry.tick(span, paths, this.projectId);
+      return;
+    }
+
+    if (type === 'action' || type == 'flowStep') {
+      actionTelemetry.tick(span, paths, this.projectId);
+    }
   }
 
   private redactPii(span: ReadableSpan): ReadableSpan {
