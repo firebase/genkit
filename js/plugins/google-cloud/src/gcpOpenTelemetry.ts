@@ -101,12 +101,14 @@ export class GcpOpenTelemetry implements TelemetryConfig {
   }
 
   private createSpanExporter(): SpanExporter {
+    const logIO = this.options.telemetryConfig?.disableLoggingIO ? false : true;
     spanExporter = new AdjustingTraceExporter(
       this.shouldExportTraces()
         ? new TraceExporter({
             credentials: this.options.credentials,
           })
         : new InMemorySpanExporter(),
+      logIO,
       this.options.projectId
     );
     return spanExporter;
@@ -194,6 +196,7 @@ export class GcpOpenTelemetry implements TelemetryConfig {
 class AdjustingTraceExporter implements SpanExporter {
   constructor(
     private exporter: SpanExporter,
+    private logIO: boolean,
     private projectId?: string
   ) {}
 
@@ -270,17 +273,17 @@ class AdjustingTraceExporter implements SpanExporter {
     const subtype = attributes['genkit:metadata:subtype'] as string;
 
     if (type === 'flow') {
-      flowsTelemetry.tick(span, paths, this.projectId);
+      flowsTelemetry.tick(span, paths, this.logIO, this.projectId);
       return;
     }
 
     if (type === 'action' && subtype === 'model') {
-      generateTelemetry.tick(span, paths, this.projectId);
+      generateTelemetry.tick(span, paths, this.logIO, this.projectId);
       return;
     }
 
     if (type === 'action' || type == 'flowStep') {
-      actionTelemetry.tick(span, paths, this.projectId);
+      actionTelemetry.tick(span, paths, this.logIO, this.projectId);
     }
   }
 
