@@ -96,6 +96,12 @@
       "require": "./lib/testing/index.js",
       "import": "./lib/testing/index.mjs",
       "default": "./lib/testing/index.js"
+    },
+    "./reranker": {
+      "types": "./lib/reranker.d.ts",
+      "require": "./lib/reranker.js",
+      "import": "./lib/reranker.mjs",
+      "default": "./lib/reranker.js"
     }
   },
   "typesVersions": {
@@ -120,6 +126,9 @@
       ],
       "tool": [
         "lib/tool"
+      ],
+      "reranker": [
+        "lib/reranker"
       ]
     }
   }
