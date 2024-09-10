@@ -50,7 +50,6 @@ import {
   getErrorStack,
   InterruptError,
 } from './errors.js';
-import * as telemetry from './telemetry.js';
 import {
   FlowActionInputSchema,
   FlowInvokeEnvelopeMessage,
@@ -102,44 +101,132 @@ export interface __RequestWithAuth extends express.Request {
 }
 
 /**
- * Defines the flow.
+ * Base configuration for a flow.
+ */
+export interface BaseFlowConfig<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  /** Name of the flow. */
+  name: string;
+  /** Schema of the input to the flow. */
+  inputSchema?: I;
+  /** Schema of the output from the flow. */
+  outputSchema?: O;
+  /** Auth policy. */
+  authPolicy?: FlowAuthPolicy<I>;
+  /** Middleware for HTTP requests. Not called for direct invocations. */
+  middleware?: express.RequestHandler[];
+  /** Invoker for the flow. Defaults to local dispatcher. */
+  invoker?: Invoker<I, O, S>;
+}
+
+/**
+ * Configuration for a non-streaming flow.
+ */
+export interface FlowConfig<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+> extends BaseFlowConfig<I, O, z.ZodVoid> {
+  /** Experimental. Whether the flow is durable. */
+  experimentalDurable?: boolean;
+  /** Experimental. Scheduler for a durable flow. `experimentalDurable` must be true. */
+  experimentalScheduler?: Scheduler<I, O>;
+}
+
+/**
+ * Configuration for a streaming flow.
+ */
+export interface StreamingFlowConfig<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> extends BaseFlowConfig<I, O, S> {
+  /** Schema of the streaming chunks from the flow. */
+  streamSchema?: S;
+}
+
+/**
+ * Non-streaming flow that can be called directly like a function.
+ */
+export interface CallableFlow<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  (
+    input?: z.infer<I>,
+    opts?: { withLocalAuthContext?: unknown }
+  ): Promise<z.infer<O>>;
+  flow: Flow<I, O, z.ZodVoid>;
+}
+
+/**
+ * Streaming flow that can be called directly like a function.
+ */
+export interface StreamableFlow<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  (
+    input?: z.infer<I>,
+    opts?: { withLocalAuthContext?: unknown }
+  ): StreamingResponse<O, S>;
+  flow: Flow<I, O, S>;
+}
+
+/**
+ * Response from a streaming flow.
+ */
+interface StreamingResponse<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  /** Iterator over the streaming chunks. */
+  stream: AsyncGenerator<unknown, Operation, z.infer<S> | undefined>;
+  /** Final output of the flow. */
+  output: Promise<z.infer<O>>;
+}
+
+/**
+ * Function to be executed in the flow.
+ */
+export type StepsFunction<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> = (
+  /** Input to the flow. */
+  input: z.infer<I>,
+  /** Callback for streaming functions only. */
+  streamingCallback?: S extends z.ZodVoid
+    ? undefined
+    : StreamingCallback<z.infer<S>>
+) => Promise<z.infer<O>>;
+
+/**
+ * Defines a non-streaming flow.
  */
 export function defineFlow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  config: {
-    name: string;
-    inputSchema?: I;
-    outputSchema?: O;
-    streamSchema?: S;
-    authPolicy?: FlowAuthPolicy<I>;
-    middleware?: express.RequestHandler[];
-    invoker?: Invoker<I, O, S>;
-    experimentalDurable?: boolean;
-    experimentalScheduler?: Scheduler<I, O, S>;
-  },
-  steps: StepsFunction<I, O, S>
-): Flow<I, O, S> {
-  const f = new Flow(
+  config: FlowConfig<I, O>,
+  steps: StepsFunction<I, O, z.ZodVoid>
+): CallableFlow<I, O> {
+  const f = new Flow<I, O, z.ZodVoid>(
     {
-      name: config.name,
-      inputSchema: config.inputSchema,
-      outputSchema: config.outputSchema,
-      streamSchema: config.streamSchema,
-      experimentalDurable: !!config.experimentalDurable,
+      ...config,
       stateStore: globalConfig
         ? () => globalConfig.getFlowStateStore()
         : undefined,
-      authPolicy: config.authPolicy,
-      middleware: config.middleware,
       // We always use local dispatcher in dev mode or when one is not provided.
-      invoker: async (flow, msg, streamingCallback) => {
+      invoker: async (flow, msg) => {
         if (!isDevEnv() && config.invoker) {
-          return config.invoker(flow, msg, streamingCallback);
+          return config.invoker(flow, msg);
         }
-        const state = await flow.runEnvelope(msg, streamingCallback);
+        const state = await flow.runEnvelope(msg);
         return state.operation;
       },
       scheduler: async (flow, msg, delay = 0) => {
@@ -158,15 +245,48 @@ export function defineFlow<
   );
   createdFlows().push(f);
   wrapAsAction(f);
-  return f;
+  const callableFlow: CallableFlow<I, O> = async (input, opts) => {
+    return f.run(input, opts);
+  };
+  callableFlow.flow = f;
+  return callableFlow;
 }
 
-export interface FlowWrapper<
+/**
+ * Defines a streaming flow.
+ */
+export function defineStreamingFlow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
-> {
-  flow: Flow<I, O, S>;
+>(
+  config: StreamingFlowConfig<I, O, S>,
+  steps: StepsFunction<I, O, S>
+): StreamableFlow<I, O, S> {
+  const f = new Flow(
+    {
+      ...config,
+      stateStore: globalConfig
+        ? () => globalConfig.getFlowStateStore()
+        : undefined,
+      // We always use local dispatcher in dev mode or when one is not provided.
+      invoker: async (flow, msg, streamingCallback) => {
+        if (!isDevEnv() && config.invoker) {
+          return config.invoker(flow, msg, streamingCallback);
+        }
+        const state = await flow.runEnvelope(msg, streamingCallback);
+        return state.operation;
+      },
+    },
+    steps
+  );
+  createdFlows().push(f);
+  wrapAsAction(f);
+  const streamableFlow: StreamableFlow<I, O, S> = (input, opts) => {
+    return f.stream(input, opts);
+  };
+  streamableFlow.flow = f;
+  return streamableFlow;
 }
 
 export class Flow<
@@ -180,7 +300,7 @@ export class Flow<
   readonly streamSchema?: S;
   readonly stateStore?: () => Promise<FlowStateStore>;
   readonly invoker: Invoker<I, O, S>;
-  readonly scheduler: Scheduler<I, O, S>;
+  readonly scheduler?: S extends z.ZodVoid ? Scheduler<I, O> : undefined;
   readonly experimentalDurable: boolean;
   readonly authPolicy?: FlowAuthPolicy<I>;
   readonly middleware?: express.RequestHandler[];
@@ -193,8 +313,8 @@ export class Flow<
       streamSchema?: S;
       stateStore?: () => Promise<FlowStateStore>;
       invoker: Invoker<I, O, S>;
-      scheduler: Scheduler<I, O, S>;
-      experimentalDurable: boolean;
+      scheduler?: S extends z.ZodVoid ? Scheduler<I, O> : undefined;
+      experimentalDurable?: boolean;
       authPolicy?: FlowAuthPolicy<I>;
       middleware?: express.RequestHandler[];
     },
@@ -207,7 +327,7 @@ export class Flow<
     this.stateStore = config.stateStore;
     this.invoker = config.invoker;
     this.scheduler = config.scheduler;
-    this.experimentalDurable = config.experimentalDurable;
+    this.experimentalDurable = config.experimentalDurable ?? false;
     this.authPolicy = config.authPolicy;
     this.middleware = config.middleware;
 
@@ -227,7 +347,9 @@ export class Flow<
   async runDirectly(
     input: unknown,
     opts: {
-      streamingCallback?: StreamingCallback<unknown>;
+      streamingCallback?: S extends z.ZodVoid
+        ? undefined
+        : StreamingCallback<z.infer<S>>;
       labels?: Record<string, string>;
       auth?: unknown;
     }
@@ -256,7 +378,9 @@ export class Flow<
    */
   async runEnvelope(
     req: FlowInvokeEnvelopeMessage,
-    streamingCallback?: StreamingCallback<any>,
+    streamingCallback?: S extends z.ZodVoid
+      ? undefined
+      : StreamingCallback<z.infer<S>>,
     auth?: unknown
   ): Promise<FlowState> {
     logger.debug(req, 'runEnvelope');
@@ -282,8 +406,8 @@ export class Flow<
       const state = createNewState(flowId, this.name, req.schedule.input);
       try {
         await (await this.stateStore()).save(flowId, state);
-        await this.scheduler(
-          this,
+        await this.scheduler?.(
+          this as unknown as Flow<I, O, z.ZodVoid>, // TODO: Fix this hack?
           { runScheduled: { flowId } } as FlowInvokeEnvelopeMessage,
           req.schedule.delay
         );
@@ -383,13 +507,124 @@ export class Flow<
     );
   }
 
+  /**
+   * Runs the flow. This is used when calling a flow from another flow.
+   */
+  async run(
+    payload?: z.infer<I>,
+    opts?: { withLocalAuthContext?: unknown }
+  ): Promise<z.infer<O>> {
+    const input = this.inputSchema ? this.inputSchema.parse(payload) : payload;
+    await this.authPolicy?.(opts?.withLocalAuthContext, payload);
+
+    if (this.middleware) {
+      logger.warn(
+        `Flow (${this.name}) middleware won't run when invoked with runFlow.`
+      );
+    }
+
+    const state = await this.runEnvelope({
+      start: {
+        input,
+      },
+    });
+    if (!state.operation.done) {
+      throw new FlowStillRunningError(
+        `Flow ${state.name} did not finish execution.`
+      );
+    }
+    if (state.operation.result?.error) {
+      throw new FlowExecutionError(
+        state.operation.name,
+        state.operation.result?.error,
+        state.operation.result?.stacktrace
+      );
+    }
+    return state.operation.result?.response;
+  }
+
+  /**
+   * Runs the flow and streams results. This is used when calling a flow from another flow.
+   */
+  stream(
+    payload?: z.infer<I>,
+    opts?: { withLocalAuthContext?: unknown }
+  ): StreamingResponse<O, S> {
+    let chunkStreamController: ReadableStreamController<z.infer<S>>;
+    const chunkStream = new ReadableStream<z.infer<S>>({
+      start(controller) {
+        chunkStreamController = controller;
+      },
+      pull() {},
+      cancel() {},
+    });
+
+    const authPromise =
+      this.authPolicy?.(opts?.withLocalAuthContext, payload) ??
+      Promise.resolve();
+
+    const operationPromise = authPromise
+      .then(() =>
+        this.runEnvelope(
+          {
+            start: {
+              input: this.inputSchema
+                ? this.inputSchema.parse(payload)
+                : payload,
+            },
+          },
+          ((chunk: z.infer<S>) => {
+            chunkStreamController.enqueue(chunk);
+          }) as S extends z.ZodVoid ? undefined : StreamingCallback<z.infer<S>>
+        )
+      )
+      .then((s) => s.operation);
+    operationPromise.then((o) => {
+      chunkStreamController.close();
+      return o;
+    });
+
+    return {
+      output: operationPromise.then((op) => {
+        if (!op.done) {
+          throw new FlowStillRunningError(
+            `flow ${op.name} did not finish execution`
+          );
+        }
+        if (op.result?.error) {
+          throw new FlowExecutionError(
+            op.name,
+            op.result?.error,
+            op.result?.stacktrace
+          );
+        }
+        return op.result?.response;
+      }),
+      stream: (async function* () {
+        const reader = chunkStream.getReader();
+        while (true) {
+          const chunk = await reader.read();
+          if (chunk.value) {
+            yield chunk.value;
+          }
+          if (chunk.done) {
+            break;
+          }
+        }
+        return await operationPromise;
+      })(),
+    };
+  }
+
   // TODO: refactor me... this is a mess!
   private async executeSteps(
     ctx: Context<I, O, S>,
     handler: StepsFunction<I, O, S>,
     dispatchType: string,
-    streamingCallback: StreamingCallback<any> | undefined,
-    labels: Record<string, string> | undefined
+    streamingCallback?: S extends z.ZodVoid
+      ? undefined
+      : StreamingCallback<z.infer<S>>,
+    labels?: Record<string, string>
   ) {
     const startTimeMs = performance.now();
     await initializeAllPlugins();
@@ -449,10 +684,6 @@ export class Flow<
             const output = await handler(input, streamingCallback);
             metadata.output = JSON.stringify(output);
             setCustomMetadataAttribute(metadataPrefix('state'), 'done');
-            telemetry.writeFlowSuccess(
-              ctx.flow.name,
-              performance.now() - startTimeMs
-            );
             return output;
           } catch (e) {
             if (e instanceof InterruptError) {
@@ -477,13 +708,6 @@ export class Flow<
                 error: getErrorMessage(e),
                 stacktrace: getErrorStack(e),
               } as FlowError;
-
-              telemetry.recordError(e);
-              telemetry.writeFlowFailure(
-                ctx.flow.name,
-                performance.now() - startTimeMs,
-                e
-              );
             }
             errored = true;
           }
@@ -501,7 +725,6 @@ export class Flow<
     req: express.Request,
     res: express.Response
   ): Promise<void> {
-    telemetry.logRequest(this.name, req);
     if (req.query.stream === 'true') {
       const respBody = {
         error: {
@@ -510,7 +733,6 @@ export class Flow<
         },
       };
       res.status(400).send(respBody).end();
-      telemetry.logResponse(this.name, 400, respBody);
       return;
     }
 
@@ -523,11 +745,9 @@ export class Flow<
     try {
       const state = await this.runEnvelope(envMsg);
       res.status(200).send(state.operation).end();
-      telemetry.logResponse(this.name, 200, state.operation);
     } catch (e) {
       // Pass errors as operations instead of a standard API error
       // (https://cloud.google.com/apis/design/errors#http_mapping)
-      telemetry.recordError(e);
       const respBody = {
         done: true,
         result: {
@@ -539,7 +759,6 @@ export class Flow<
         .status(500)
         .send(respBody as Operation)
         .end();
-      telemetry.logResponse(this.name, 500, respBody);
     }
   }
 
@@ -547,7 +766,6 @@ export class Flow<
     req: __RequestWithAuth,
     res: express.Response
   ): Promise<void> {
-    telemetry.logRequest(this.name, req);
     const { stream } = req.query;
     const auth = req.auth;
 
@@ -556,7 +774,6 @@ export class Flow<
     try {
       await this.authPolicy?.(auth, input);
     } catch (e: any) {
-      telemetry.recordError(e);
       const respBody = {
         error: {
           status: 'PERMISSION_DENIED',
@@ -564,7 +781,6 @@ export class Flow<
         },
       };
       res.status(403).send(respBody).end();
-      telemetry.logResponse(this.name, 403, respBody);
       return;
     }
 
@@ -575,17 +791,15 @@ export class Flow<
       });
       try {
         const state = await this.runDirectly(input, {
-          streamingCallback: (chunk) => {
+          streamingCallback: ((chunk: z.infer<S>) => {
             res.write(JSON.stringify(chunk) + streamDelimiter);
-          },
+          }) as S extends z.ZodVoid ? undefined : StreamingCallback<z.infer<S>>,
           auth,
         });
         res.write(JSON.stringify(state.operation));
         res.end();
-        telemetry.logResponse(this.name, 200, state.operation);
       } catch (e) {
         // Errors while streaming are also passed back as operations
-        telemetry.recordError(e);
         const respBody = {
           done: true,
           result: {
@@ -595,7 +809,6 @@ export class Flow<
         };
         res.write(JSON.stringify(respBody as Operation));
         res.end();
-        telemetry.logResponse(this.name, 500, respBody);
       }
     } else {
       try {
@@ -611,11 +824,9 @@ export class Flow<
             result: state.operation.result?.response,
           })
           .end();
-        telemetry.logResponse(this.name, 200, state.operation);
       } catch (e) {
         // Errors for non-durable, non-streaming flows are passed back as
         // standard API errors.
-        telemetry.recordError(e);
         res
           .status(500)
           .send({
@@ -640,140 +851,6 @@ export class Flow<
   }
 }
 
-/**
- * Runs the flow. If the flow does not get interrupted may return a completed (done=true) operation.
- */
-export async function runFlow<
-  I extends z.ZodTypeAny = z.ZodTypeAny,
-  O extends z.ZodTypeAny = z.ZodTypeAny,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
->(
-  flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
-  payload?: z.infer<I>,
-  opts?: { withLocalAuthContext?: unknown }
-): Promise<z.infer<O>> {
-  if (!(flow instanceof Flow)) {
-    flow = flow.flow;
-  }
-
-  const input = flow.inputSchema ? flow.inputSchema.parse(payload) : payload;
-  await flow.authPolicy?.(opts?.withLocalAuthContext, payload);
-
-  if (flow.middleware) {
-    logger.warn(
-      `Flow (${flow.name}) middleware won't run when invoked with runFlow.`
-    );
-  }
-
-  const state = await flow.runEnvelope({
-    start: {
-      input,
-    },
-  });
-  if (!state.operation.done) {
-    throw new FlowStillRunningError(
-      `flow ${state.name} did not finish execution`
-    );
-  }
-  if (state.operation.result?.error) {
-    throw new FlowExecutionError(
-      state.operation.name,
-      state.operation.result?.error,
-      state.operation.result?.stacktrace
-    );
-  }
-  return state.operation.result?.response;
-}
-
-interface StreamingResponse<
-  O extends z.ZodTypeAny = z.ZodTypeAny,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
-> {
-  stream(): AsyncGenerator<unknown, Operation, z.infer<S> | undefined>;
-  output(): Promise<z.infer<O>>;
-}
-
-/**
- * Runs the flow and streams results. If the flow does not get interrupted may return a completed (done=true) operation.
- */
-export function streamFlow<
-  I extends z.ZodTypeAny = z.ZodTypeAny,
-  O extends z.ZodTypeAny = z.ZodTypeAny,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
->(
-  flowOrFlowWrapper: Flow<I, O, S> | FlowWrapper<I, O, S>,
-  payload?: z.infer<I>,
-  opts?: { withLocalAuthContext?: unknown }
-): StreamingResponse<O, S> {
-  const flow = !(flowOrFlowWrapper instanceof Flow)
-    ? flowOrFlowWrapper.flow
-    : flowOrFlowWrapper;
-
-  let chunkStreamController: ReadableStreamController<z.infer<S>>;
-  const chunkStream = new ReadableStream<z.infer<S>>({
-    start(controller) {
-      chunkStreamController = controller;
-    },
-    pull() {},
-    cancel() {},
-  });
-
-  const authPromise =
-    flow.authPolicy?.(opts?.withLocalAuthContext, payload) ?? Promise.resolve();
-
-  const operationPromise = authPromise
-    .then(() =>
-      flow.runEnvelope(
-        {
-          start: {
-            input: flow.inputSchema ? flow.inputSchema.parse(payload) : payload,
-          },
-        },
-        (c) => {
-          chunkStreamController.enqueue(c);
-        }
-      )
-    )
-    .then((s) => s.operation);
-  operationPromise.then((o) => {
-    chunkStreamController.close();
-    return o;
-  });
-
-  return {
-    output() {
-      return operationPromise.then((op) => {
-        if (!op.done) {
-          throw new FlowStillRunningError(
-            `flow ${op.name} did not finish execution`
-          );
-        }
-        if (op.result?.error) {
-          throw new FlowExecutionError(
-            op.name,
-            op.result?.error,
-            op.result?.stacktrace
-          );
-        }
-        return op.result?.response;
-      });
-    },
-    async *stream() {
-      const reader = chunkStream.getReader();
-      while (true) {
-        const chunk = await reader.read();
-        if (chunk.value) {
-          yield chunk.value;
-        }
-        if (chunk.done) {
-          break;
-        }
-      }
-      return await operationPromise;
-    },
-  };
-}
-
 function createNewState(
   flowId: string,
   name: string,
@@ -794,15 +871,6 @@ function createNewState(
     },
   };
 }
-
-export type StepsFunction<
-  I extends z.ZodTypeAny = z.ZodTypeAny,
-  O extends z.ZodTypeAny = z.ZodTypeAny,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
-> = (
-  input: z.infer<I>,
-  streamingCallback: StreamingCallback<z.infer<S>> | undefined
-) => Promise<z.infer<O>>;
 
 function wrapAsAction<
   I extends z.ZodTypeAny = z.ZodTypeAny,
@@ -834,13 +902,18 @@ function wrapAsAction<
       setCustomMetadataAttribute(metadataPrefix('wrapperAction'), 'true');
       return await flow.runEnvelope(
         envelope,
-        getStreamingCallback(),
+        getStreamingCallback() as S extends z.ZodVoid
+          ? undefined
+          : StreamingCallback<z.infer<S>>,
         envelope.auth
       );
     }
   );
 }
 
+/**
+ * Start the flows server.
+ */
 export function startFlowsServer(params?: {
   flows?: Flow<any, any, any>[];
   port?: number;

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { defineFlow, runFlow } from '@genkit-ai/flow';
+import { defineFlow } from '@genkit-ai/flow';
 import fs from 'fs';
 import path from 'path';
 
@@ -78,11 +78,11 @@ export const s05_visionMenuQuestionFlow = defineFlow(
   },
   async (input) => {
     // Run the first flow to read the menu image.
-    const menuResult = await runFlow(s05_readMenuFlow);
+    const menuResult = await s05_readMenuFlow();
 
     // Pass the text of the menu and the question to the second flow
     // and return the answer as this output.
-    return runFlow(s05_textMenuQuestionFlow, {
+    return s05_textMenuQuestionFlow({
       question: input.question,
       menuText: menuResult.menuText,
     });

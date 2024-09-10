@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { defineFlow, run, runFlow, runMap } from '@genkit-ai/flow';
+import { defineFlow, defineStreamingFlow, run, runMap } from '@genkit-ai/flow';
 import * as z from 'zod';
 import { generateString } from '../common/util';
 
@@ -55,8 +55,8 @@ const flowMultiStep = defineFlow({ name: 'flowMultiStep' }, async (input) => {
 defineFlow({ name: 'flowNested', outputSchema: z.string() }, async () => {
   return JSON.stringify(
     {
-      firstResult: await runFlow(flowSingleStep, 'hello, world!'),
-      secondResult: await runFlow(flowMultiStep, 'hello, world!'),
+      firstResult: await flowSingleStep('hello, world!'),
+      secondResult: await flowMultiStep('hello, world!'),
     },
     null,
     2
@@ -67,7 +67,7 @@ defineFlow({ name: 'flowNested', outputSchema: z.string() }, async () => {
 // Flow - streaming
 //
 
-defineFlow(
+defineStreamingFlow(
   {
     name: 'flowStreaming',
     inputSchema: z.number(),
@@ -167,7 +167,7 @@ defineFlow({ name: 'flowMultiStepCaughtError' }, async (input) => {
 // Flow - streamingThrows
 //
 
-defineFlow(
+defineStreamingFlow(
   {
     name: 'flowStreamingThrows',
     inputSchema: z.number(),

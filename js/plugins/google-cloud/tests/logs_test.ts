@@ -24,9 +24,11 @@ import {
   FlowStateStore,
 } from '@genkit-ai/core';
 import { registerFlowStateStore } from '@genkit-ai/core/registry';
-import { defineFlow, run, runFlow } from '@genkit-ai/flow';
+import { defineFlow, run } from '@genkit-ai/flow';
 import {
   __addTransportStreamForTesting,
+  __forceFlushSpansForTesting,
+  __getSpanExporterForTesting,
   googleCloud,
 } from '@genkit-ai/google-cloud';
 import assert from 'node:assert';
@@ -70,12 +72,15 @@ describe('GoogleCloudLogs', () => {
   });
   beforeEach(async () => {
     logLines = '';
+    __getSpanExporterForTesting().reset();
   });
 
   it('writes path logs', async () => {
     const testFlow = createFlow('testFlow');
 
-    await runFlow(testFlow);
+    await testFlow();
+
+    await getExportedSpans();
 
     const logMessages = await getLogs();
     assert.equal(logMessages.includes('[info] Paths[testFlow]'), true);
@@ -88,8 +93,10 @@ describe('GoogleCloudLogs', () => {
     });
 
     assert.rejects(async () => {
-      await runFlow(testFlow);
+      await testFlow();
     });
+
+    await getExportedSpans();
 
     const logMessages = await getLogs();
     assert.equal(
@@ -145,7 +152,9 @@ describe('GoogleCloudLogs', () => {
       });
     });
 
-    await runFlow(testFlow);
+    await testFlow();
+
+    await getExportedSpans();
 
     const logMessages = await getLogs();
     assert.equal(
@@ -194,14 +203,14 @@ describe('GoogleCloudLogs', () => {
   async function waitForLogsInit() {
     await import('winston');
     const testFlow = createFlow('testFlow');
-    await runFlow(testFlow);
+    await testFlow();
     await getLogs(1);
   }
 
   async function getLogs(
     logCount: number = 1,
     maxAttempts: number = 100
-  ): promise<String[]> {
+  ): Promise<String[]> {
     var attempts = 0;
     while (attempts++ < maxAttempts) {
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -216,6 +225,22 @@ describe('GoogleCloudLogs', () => {
     assert.fail(`Waiting for logs, but none have been written.`);
   }
 });
+
+/** Polls the in memory metric exporter until the genkit scope is found. */
+async function getExportedSpans(
+  maxAttempts: number = 200
+): promise<ReadableSpan[]> {
+  __forceFlushSpansForTesting();
+  var attempts = 0;
+  while (attempts++ < maxAttempts) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const found = __getSpanExporterForTesting().getFinishedSpans();
+    if (found.length > 0) {
+      return found;
+    }
+  }
+  assert.fail(`Timed out while waiting for spans to be exported.`);
+}
 
 class NoOpFlowStateStore implements FlowStateStore {
   state: Record<string, string> = {};

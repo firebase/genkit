@@ -19,7 +19,7 @@ import { __hardResetRegistryForTesting } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
-import { defineFlow, runFlow, streamFlow } from '../src/flow.js';
+import { defineFlow, defineStreamingFlow } from '../src/flow.js';
 import { configureInMemoryStateStore } from './testUtil.js';
 
 function createTestFlow() {
@@ -36,7 +36,7 @@ function createTestFlow() {
 }
 
 function createTestStreamingFlow() {
-  return defineFlow(
+  return defineStreamingFlow(
     {
       name: 'testFlow',
       inputSchema: z.number(),
@@ -66,7 +66,7 @@ describe('flow', () => {
       configureInMemoryStateStore('prod');
       const testFlow = createTestFlow();
 
-      const result = await runFlow(testFlow, 'foo');
+      const result = await testFlow('foo');
 
       assert.equal(result, 'bar foo');
     });
@@ -84,7 +84,7 @@ describe('flow', () => {
         }
       );
 
-      await assert.rejects(async () => await runFlow(testFlow, 'foo'), {
+      await assert.rejects(async () => await testFlow('foo'), {
         name: 'Error',
         message: 'bad happened: foo',
       });
@@ -104,7 +104,7 @@ describe('flow', () => {
       );
 
       await assert.rejects(
-        async () => await runFlow(testFlow, { foo: 'foo', bar: 'bar' } as any),
+        async () => await testFlow({ foo: 'foo', bar: 'bar' } as any),
         (err: Error) => {
           assert.strictEqual(err.name, 'ZodError');
           assert.equal(
@@ -122,20 +122,20 @@ describe('flow', () => {
       configureInMemoryStateStore('prod');
       const testFlow = createTestStreamingFlow();
 
-      const response = streamFlow(testFlow, 3);
+      const response = testFlow(3);
 
       const gotChunks: any[] = [];
-      for await (const chunk of response.stream()) {
+      for await (const chunk of response.stream) {
         gotChunks.push(chunk);
       }
 
-      assert.equal(await response.output(), 'bar 3 true');
+      assert.equal(await response.output, 'bar 3 true');
       assert.deepEqual(gotChunks, [{ count: 0 }, { count: 1 }, { count: 2 }]);
     });
 
     it('should rethrow the error', async () => {
       configureInMemoryStateStore('prod');
-      const testFlow = defineFlow(
+      const testFlow = defineStreamingFlow(
         {
           name: 'throwing',
           inputSchema: z.string(),
@@ -145,8 +145,8 @@ describe('flow', () => {
         }
       );
 
-      const response = streamFlow(testFlow, 'foo');
-      await assert.rejects(async () => await response.output(), {
+      const response = testFlow('foo');
+      await assert.rejects(async () => await response.output, {
         name: 'Error',
         message: 'bad happened: foo',
       });
@@ -163,7 +163,7 @@ describe('flow', () => {
         const stateStore = configureInMemoryStateStore('dev');
         const testFlow = createTestFlow();
 
-        const result = await runFlow(testFlow, 'foo');
+        const result = await testFlow('foo');
 
         assert.equal(result, 'bar foo');
         assert.equal(Object.keys(stateStore.state).length, 1);
@@ -190,7 +190,7 @@ describe('flow', () => {
         const stateStore = configureInMemoryStateStore('prod');
         const testFlow = createTestFlow();
 
-        const result = await runFlow(testFlow, 'foo');
+        const result = await testFlow('foo');
 
         assert.equal(result, 'bar foo');
         assert.equal(Object.keys(stateStore.state).length, 0);

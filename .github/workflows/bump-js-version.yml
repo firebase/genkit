@@ -27,6 +27,9 @@ on:
           - minor
           - major
           - prerelease
+          - premajor
+          - preminor
+          - prepatch
       preid:
         description: Prerelease identifier
         type: string
@@ -39,6 +42,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
       - uses: pnpm/action-setup@v3
       - name: Set up node v20
         uses: actions/setup-node@v4
@@ -48,30 +53,33 @@ jobs:
       - name: 'js/core version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
           PACKAGEJSON_DIR: js/core
         with:
           default: ${{ inputs.releaseType }}
+          version-type: ${{ inputs.releaseType }}
           preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/core version to {{version}}'
           tag-prefix:  '@genkit-ai/core@'
       - name: 'js/ai version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
           PACKAGEJSON_DIR: js/ai
         with:
           default: ${{ inputs.releaseType }}
+          version-type: ${{ inputs.releaseType }}
           preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/ai version to {{version}}'
           tag-prefix:  '@genkit-ai/ai@'
       - name: 'js/flow version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
           PACKAGEJSON_DIR: js/flow
         with:
           default: ${{ inputs.releaseType }}
+          version-type: ${{ inputs.releaseType }}
           preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/flow version to {{version}}'
           tag-prefix:  '@genkit-ai/flow@'

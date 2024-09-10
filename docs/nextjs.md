@@ -111,7 +111,7 @@ Node.js 20 or later.
 
         ```ts
         export async function callMenuSuggestionFlow(theme: string) {
-          const flowResponse = await runFlow(menuSuggestionFlow, theme);
+          const flowResponse = await menuSuggestionFlow(theme);
           console.log(flowResponse);
           return flowResponse;
         }
