@@ -27,7 +27,12 @@ import { GenkitToolsError, Runner } from '@genkit-ai/tools-common/runner';
 import { logger } from '@genkit-ai/tools-common/utils';
 import getPort, { makeRange } from 'get-port';
 
-export async function ensureTelemetryServer(): Promise<string> {
+/** 
+ * Returns the telemetry server address either based on environment setup or starts one.
+ * 
+ * This function is not idempotent. Typicall you want to make sure it's called only once per cli instance.
+ */
+export async function resolveTelemetryServer(): Promise<string> {
   let telemetryServerUrl = process.env['GENKIT_TELEMETRY_SERVER'];
   if (!telemetryServerUrl) {
     const telemetryPort = await getPort({ port: makeRange(4033, 4999) });
@@ -44,7 +49,7 @@ export async function ensureTelemetryServer(): Promise<string> {
  * Start the runner and waits for it to fully load -- reflection API to become avaialble.
  */
 export async function startRunner(): Promise<Runner> {
-  const telemetryServerUrl = await ensureTelemetryServer();
+  const telemetryServerUrl = await resolveTelemetryServer();
   const runner = new Runner({
     autoReload: false,
     buildOnStart: true,
