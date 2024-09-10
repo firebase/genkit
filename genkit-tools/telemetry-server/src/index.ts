@@ -43,10 +43,18 @@ let server: http.Server;
 export function startTelemetryServer(params: {
   port: number;
   traceStore: TraceStore;
+  /**
+   * Controls the maximum request body size. If this is a number,
+   * then the value specifies the number of bytes; if it is a string,
+   * the value is passed to the bytes library for parsing.
+   *
+   * Defaults to '5mb'.
+   */
+  maxRequestBodySize?: string | number;
 }) {
   const api = express();
 
-  api.use(express.json({ limit: '30mb' }));
+  api.use(express.json({ limit: params.maxRequestBodySize ?? '5mb' }));
 
   api.get('/api/__health', async (_, response) => {
     response.status(200).send('OK');
