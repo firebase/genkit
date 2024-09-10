@@ -19,7 +19,7 @@ import { startServer } from '@genkit-ai/tools-common/server';
 import { logger } from '@genkit-ai/tools-common/utils';
 import * as clc from 'colorette';
 import { Command } from 'commander';
-import { ensureTelemetryServer } from '../utils/runner-utils';
+import { resolveTelemetryServer } from '../utils/runner-utils';
 
 interface StartOptions {
   headless?: boolean;
@@ -49,7 +49,7 @@ export const start = new Command('start')
       return;
     }
 
-    const telemetryServerUrl = await ensureTelemetryServer();
+    const telemetryServerUrl = await resolveTelemetryServer();
     const runner = new Runner({
       telemetryServer: telemetryServerUrl,
     });
