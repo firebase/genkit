@@ -27,7 +27,9 @@ import {
 import { registerFlowStateStore } from '@genkit-ai/core/registry';
 import { defineFlow, run, runAction, runFlow } from '@genkit-ai/flow';
 import {
+  __forceFlushSpansForTesting,
   __getMetricExporterForTesting,
+  __getSpanExporterForTesting,
   GcpOpenTelemetry,
   googleCloud,
 } from '@genkit-ai/google-cloud';
@@ -68,6 +70,7 @@ describe('GoogleCloudMetrics', () => {
   });
   beforeEach(async () => {
     __getMetricExporterForTesting().reset();
+    __getSpanExporterForTesting().reset();
   });
 
   it('writes flow metrics', async () => {
@@ -75,6 +78,8 @@ describe('GoogleCloudMetrics', () => {
 
     await runFlow(testFlow);
     await runFlow(testFlow);
+
+    await getExportedSpans();
 
     const requestCounter = await getCounterMetric('genkit/flow/requests');
     const latencyHistogram = await getHistogramMetric('genkit/flow/latency');
@@ -100,6 +105,8 @@ describe('GoogleCloudMetrics', () => {
       await runFlow(testFlow);
     });
 
+    await getExportedSpans();
+
     const requestCounter = await getCounterMetric('genkit/flow/requests');
     assert.equal(requestCounter.value, 1);
     assert.equal(requestCounter.attributes.name, 'testFlow');
@@ -121,6 +128,8 @@ describe('GoogleCloudMetrics', () => {
     await runFlow(testFlow);
     await runFlow(testFlow);
 
+    await getExportedSpans();
+
     const requestCounter = await getCounterMetric('genkit/action/requests');
     const latencyHistogram = await getHistogramMetric('genkit/action/latency');
     assert.equal(requestCounter.value, 6);
@@ -139,6 +148,8 @@ describe('GoogleCloudMetrics', () => {
     const testFlow = createFlow('anExtremelyLongFlowNameThatIsTooBig');
 
     await runFlow(testFlow);
+
+    await getExportedSpans();
 
     const requestCounter = await getCounterMetric('genkit/flow/requests');
     const latencyHistogram = await getHistogramMetric('genkit/flow/latency');
@@ -164,6 +175,8 @@ describe('GoogleCloudMetrics', () => {
     assert.rejects(async () => {
       await runFlow(testFlow);
     });
+
+    await getExportedSpans();
 
     const requestCounter = await getCounterMetric('genkit/action/requests');
     assert.equal(requestCounter.value, 1);
@@ -211,6 +224,8 @@ describe('GoogleCloudMetrics', () => {
         maxOutputTokens: 7,
       },
     });
+
+    await getExportedSpans();
 
     const requestCounter = await getCounterMetric(
       'genkit/ai/generate/requests'
@@ -284,6 +299,8 @@ describe('GoogleCloudMetrics', () => {
       });
     });
 
+    await getExportedSpans();
+
     const requestCounter = await getCounterMetric(
       'genkit/ai/generate/requests'
     );
@@ -305,6 +322,8 @@ describe('GoogleCloudMetrics', () => {
     });
 
     await runFlow(flow);
+
+    await getExportedSpans();
 
     const requestCounter = await getCounterMetric('genkit/action/requests');
     const latencyHistogram = await getHistogramMetric('genkit/action/latency');
@@ -348,6 +367,8 @@ describe('GoogleCloudMetrics', () => {
 
     await runFlow(flow);
 
+    await getExportedSpans();
+
     const metrics = [
       await getCounterMetric('genkit/ai/generate/requests'),
       await getCounterMetric('genkit/ai/generate/input/tokens'),
@@ -375,6 +396,8 @@ describe('GoogleCloudMetrics', () => {
     });
 
     await runFlow(flow);
+
+    await getExportedSpans();
 
     const expectedPaths = new Set([
       '/{pathTestFlow,t:flow}/{step2,t:flowStep}',
@@ -418,6 +441,8 @@ describe('GoogleCloudMetrics', () => {
       await runFlow(flow);
     });
 
+    await getExportedSpans();
+
     const reqPoints = await getCounterDataPoints('genkit/flow/path/requests');
     const reqStatuses = reqPoints.map((p) => [
       p.attributes.path,
@@ -454,6 +479,8 @@ describe('GoogleCloudMetrics', () => {
     assert.rejects(async () => {
       await runFlow(flow);
     });
+
+    await getExportedSpans();
 
     const reqPoints = await getCounterDataPoints('genkit/flow/path/requests');
     const reqStatuses = reqPoints.map((p) => [
@@ -495,6 +522,8 @@ describe('GoogleCloudMetrics', () => {
     assert.rejects(async () => {
       await runFlow(flow);
     });
+
+    await getExportedSpans();
 
     const reqPoints = await getCounterDataPoints('genkit/flow/path/requests');
     const reqStatuses = reqPoints.map((p) => [
@@ -538,6 +567,8 @@ describe('GoogleCloudMetrics', () => {
     assert.rejects(async () => {
       await runFlow(flow);
     });
+
+    await getExportedSpans();
 
     const reqPoints = await getCounterDataPoints('genkit/flow/path/requests');
     const reqStatuses = reqPoints.map((p) => [
@@ -588,7 +619,7 @@ describe('GoogleCloudMetrics', () => {
 
   /** Polls the in memory metric exporter until the genkit scope is found. */
   async function getGenkitMetrics(
-    name: string = 'genkit',
+    name: string,
     maxAttempts: number = 100
   ): promise<ScopeMetrics> {
     var attempts = 0;
@@ -604,11 +635,27 @@ describe('GoogleCloudMetrics', () => {
     assert.fail(`Waiting for metric ${name} but it has not been written.`);
   }
 
+  /** Polls the in memory metric exporter until the genkit scope is found. */
+  async function getExportedSpans(
+    maxAttempts: number = 200
+  ): promise<ReadableSpan[]> {
+    __forceFlushSpansForTesting();
+    var attempts = 0;
+    while (attempts++ < maxAttempts) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      const found = __getSpanExporterForTesting().getFinishedSpans();
+      if (found.length > 0) {
+        return found;
+      }
+    }
+    assert.fail(`Timed out while waiting for spans to be exported.`);
+  }
+
   /** Finds all datapoints for a counter metric with the given name in the in memory exporter */
   async function getCounterDataPoints(
     metricName: string
   ): Promise<List<DataPoint<Counter>>> {
-    const genkitMetrics = await getGenkitMetrics();
+    const genkitMetrics = await getGenkitMetrics('genkit');
     const counterMetric: SumMetricData = genkitMetrics.metrics.find(
       (e) => e.descriptor.name === metricName && e.descriptor.type === 'COUNTER'
     );
@@ -634,7 +681,7 @@ describe('GoogleCloudMetrics', () => {
   async function getHistogramDataPoints(
     metricName: string
   ): Promise<List<DataPoint<Histogram>>> {
-    const genkitMetrics = await getGenkitMetrics();
+    const genkitMetrics = await getGenkitMetrics('genkit');
     const histogramMetric: HistogramMetricData = genkitMetrics.metrics.find(
       (e) =>
         e.descriptor.name === metricName && e.descriptor.type === 'HISTOGRAM'
