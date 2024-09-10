@@ -85,7 +85,7 @@ const CREATE_DATASET_REQUEST = CreateDatasetRequestSchema.parse({
 });
 
 const UPDATE_DATASET_REQUEST = UpdateDatasetRequestSchema.parse({
-  patch: SAMPLE_DATASET_1_V2,
+  data: SAMPLE_DATASET_1_V2,
   datasetId: SAMPLE_DATASET_ID_1,
   displayName: SAMPLE_DATASET_NAME_1,
 });
@@ -121,6 +121,8 @@ describe('localFileDatasetStore', () => {
   let DatasetStore: DatasetStore;
 
   beforeEach(() => {
+    // For storeRoot setup
+    fs.existsSync = jest.fn(() => true);
     LocalFileDatasetStore.reset();
     DatasetStore = LocalFileDatasetStore.getDatasetStore() as DatasetStore;
   });
@@ -137,6 +139,7 @@ describe('localFileDatasetStore', () => {
       fs.promises.readFile = jest.fn(async () =>
         Promise.resolve(JSON.stringify({}) as any)
       );
+      fs.existsSync = jest.fn(() => false);
 
       const datasetMetadata = await DatasetStore.createDataset(
         CREATE_DATASET_REQUEST
@@ -204,6 +207,21 @@ describe('localFileDatasetStore', () => {
         JSON.stringify(updatedMetadataMap)
       );
       expect(datasetMetadata).toMatchObject(SAMPLE_DATASET_METADATA_1_V2);
+    });
+
+    it('fails if data is not passed', async () => {
+      fs.existsSync = jest.fn(() => true);
+
+      expect(async () => {
+        await DatasetStore.updateDataset({
+          datasetId: SAMPLE_DATASET_ID_1,
+          displayName: SAMPLE_DATASET_NAME_1,
+        });
+      }).rejects.toThrow(
+        new Error('Error: `data` is required for updateDataset')
+      );
+
+      expect(fs.promises.writeFile).toBeCalledTimes(0);
     });
 
     it('fails for non existing dataset', async () => {
