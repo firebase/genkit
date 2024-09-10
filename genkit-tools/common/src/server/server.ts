@@ -128,18 +128,12 @@ export function startServer(
     logger.info(`Genkit Tools API: http://localhost:${port}/api`);
     if (!headless) {
       const uiUrl = 'http://localhost:' + port;
-      runner
-        .waitUntilHealthy()
-        .then(() => {
-          logger.info(`${clc.green(clc.bold('Genkit Tools UI:'))} ${uiUrl}`);
-          if (openBrowser) {
-            open(uiUrl);
-          }
-        })
-        .catch((e) => {
-          logger.error(e.message);
-          if (serverEnder) serverEnder();
-        });
+      logger.info(
+        `${clc.green(clc.bold('Genkit Tools UI:'))} 'http://localhost:'${uiUrl}`
+      );
+      if (openBrowser) {
+        open(uiUrl);
+      }
     }
   });
 

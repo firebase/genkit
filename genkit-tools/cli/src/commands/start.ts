@@ -17,7 +17,6 @@
 import { Runner } from '@genkit-ai/tools-common/runner';
 import { startServer } from '@genkit-ai/tools-common/server';
 import { logger } from '@genkit-ai/tools-common/utils';
-import * as clc from 'colorette';
 import { Command } from 'commander';
 
 interface StartOptions {
@@ -45,19 +44,18 @@ export const start = new Command('start')
     const port = Number(options.port);
     if (isNaN(port) || port < 0) {
       logger.error(`"${options.port}" is not a valid port number`);
-      return;
+      return process.exit(1);
     }
-
-    const runner = new Runner();
-    if (options.attach) {
-      try {
+    try {
+      const runner = new Runner();
+      if (options.attach) {
         await runner.attach(options.attach);
-      } catch (e) {
-        logger.error(clc.red(clc.bold((e as Error).message)));
-        return;
+      } else {
+        await runner.start();
       }
-    } else {
-      await runner.start();
+      return startServer(runner, !!options.headless, port, !!options.open);
+    } catch (err) {
+      logger.error(`Failed to start the runner: ${err}`);
+      return process.exit(1);
     }
-    return startServer(runner, options.headless ?? false, port, !!options.open);
   });
