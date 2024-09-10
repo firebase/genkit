@@ -37,20 +37,12 @@ let telemetrySDK: NodeSDK | null = null;
 let nodeOtelConfig: Partial<NodeSDKConfiguration> | null = null;
 
 /**
- * Enables trace spans to be written to the trace store.
+ * Enables tracing and metrics open telemetry configuration.
  */
-export function enableTracingAndMetrics(
-  telemetryConfig: TelemetryConfig,
-  traceStoreOptions: {
-    processor?: 'batch' | 'simple';
-  } = {}
-) {
+export function enableTracingAndMetrics(telemetryConfig: TelemetryConfig) {
   if (process.env['GENKIT_TELEMETRY_SERVER']) {
     addProcessor(
-      createTraceStoreProcessor(
-        process.env['GENKIT_TELEMETRY_SERVER'],
-        traceStoreOptions.processor || 'batch'
-      )
+      createTraceProcessor(process.env['GENKIT_TELEMETRY_SERVER'], 'batch')
     );
   }
 
@@ -85,11 +77,9 @@ export async function cleanUpTracing(): Promise<void> {
 }
 
 /**
- * Creates a new SpanProcessor for exporting data to the configured TraceStore.
- *
- * Returns `undefined` if no trace store implementation is configured.
+ * Creates a new SpanProcessor for exporting data to the telemetry server.
  */
-function createTraceStoreProcessor(
+function createTraceProcessor(
   url: string,
   processor: 'batch' | 'simple'
 ): SpanProcessor {
