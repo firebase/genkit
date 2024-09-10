@@ -27,11 +27,11 @@ import {
 import { registerFlowStateStore } from '@genkit-ai/core/registry';
 import { defineFlow, run, runAction, runFlow } from '@genkit-ai/flow';
 import {
-  GcpOpenTelemetry,
-  googleCloud,
   __forceFlushSpansForTesting,
   __getMetricExporterForTesting,
   __getSpanExporterForTesting,
+  build,
+  googleCloud,
 } from '@genkit-ai/google-cloud';
 import {
   DataPoint,
@@ -101,7 +101,7 @@ describe('GoogleCloudMetrics', () => {
     const testFlow = createFlow('testFlow', async () => {
       const nothing: { missing?: any } = { missing: 1 };
       delete nothing.missing;
-      nothing.missing.explode;
+      return nothing.missing.explode;
     });
 
     assert.rejects(async () => {
@@ -170,7 +170,7 @@ describe('GoogleCloudMetrics', () => {
     const testAction = createAction('testActionWithFailure', async () => {
       const nothing: { missing?: any } = { missing: 1 };
       delete nothing.missing;
-      nothing.missing.explode;
+      return nothing.missing.explode;
     });
     const testFlow = createFlow('testFlowWithFailingActions', async () => {
       await runAction(testAction, null);
@@ -599,26 +599,28 @@ describe('GoogleCloudMetrics', () => {
 
   describe('Configuration', () => {
     it('should export only traces', async () => {
-      const telemetry = new GcpOpenTelemetry({
+      const plug = await build({
         telemetryConfig: {
           forceDevExport: true,
           disableMetrics: true,
         },
       });
-      assert.equal(telemetry['shouldExportTraces'](), true);
-      assert.equal(telemetry['shouldExportMetrics'](), false);
+      const gcpOt = plug.telemetry.instrumentation.value;
+      assert.equal(gcpOt['shouldExportTraces'](), true);
+      assert.equal(gcpOt['shouldExportMetrics'](), false);
     });
 
     it('should export only metrics', async () => {
-      const telemetry = new GcpOpenTelemetry({
+      const plug = await build({
         telemetryConfig: {
           forceDevExport: true,
           disableTraces: true,
           disableMetrics: false,
         },
       });
-      assert.equal(telemetry['shouldExportTraces'](), false);
-      assert.equal(telemetry['shouldExportMetrics'](), true);
+      const gcpOt = plug.telemetry.instrumentation.value;
+      assert.equal(gcpOt['shouldExportTraces'](), false);
+      assert.equal(gcpOt['shouldExportMetrics'](), true);
     });
   });
 
