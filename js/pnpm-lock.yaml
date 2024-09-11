@@ -592,6 +592,31 @@ importers:
         specifier: ^5.5.3
         version: 5.5.3
 
+  testapps/basic-gemini:
+    dependencies:
+      '@genkit-ai/firebase':
+        specifier: workspace:*
+        version: link:../../plugins/firebase
+      '@genkit-ai/google-cloud':
+        specifier: workspace:*
+        version: link:../../plugins/google-cloud
+      '@genkit-ai/googleai':
+        specifier: workspace:*
+        version: link:../../plugins/googleai
+      '@genkit-ai/vertexai':
+        specifier: workspace:*
+        version: link:../../plugins/vertexai
+      express:
+        specifier: ^4.20.0
+        version: 4.21.0
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
+    devDependencies:
+      typescript:
+        specifier: ^5.6.2
+        version: 5.6.2
+
   testapps/byo-evaluator:
     dependencies:
       '@genkit-ai/dev-local-vectorstore':
@@ -4811,6 +4836,11 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
+  typescript@5.6.2:
+    resolution: {integrity: sha512-NW8ByodCSNCwZeghjN3o+JX5OFH0Ojg6sadjEKY4huZ52TqbJTJnDo5+Tw98lSy63NZvi4n+ez5m2u5d4PkZyw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
   uglify-js@3.17.4:
     resolution: {integrity: sha512-T9q82TJI9e/C1TAxYvfb16xO120tMVFZrGA3f9/P4424DNu6ypK103y0GPFVa17yotwSyZW5iYXgjYHkGrJW/g==}
     engines: {node: '>=0.8.0'}
@@ -8980,6 +9010,8 @@ snapshots:
   typescript@5.4.5: {}
 
   typescript@5.5.3: {}
+
+  typescript@5.6.2: {}
 
   uglify-js@3.17.4:
     optional: true
