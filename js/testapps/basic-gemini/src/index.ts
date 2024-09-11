@@ -20,20 +20,24 @@ import * as z from 'zod';
 import { defineTool, generate } from '@genkit-ai/ai';
 import { configureGenkit } from '@genkit-ai/core';
 import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
-import { googleAI } from '@genkit-ai/googleai';
+import {
+  gemini15Flash as gemini15FlashGoogleAi,
+  googleAI,
+} from '@genkit-ai/googleai';
 
 // Import models from the Google AI plugin. The Google AI API provides access to
-// several generative models. Here, we import Gemini 1.5 Flash.
-import { gemini15Flash } from '@genkit-ai/googleai';
+
+import {
+  gemini15Flash as gemini15FlashVertexAi,
+  vertexAI,
+} from '@genkit-ai/vertexai';
+
+const provider = process.env.PROVIDER || 'vertexai';
+
+const plugin = provider === 'vertexai' ? vertexAI : googleAI;
 
 configureGenkit({
-  plugins: [
-    // Load the Google AI plugin. You can optionally specify your API key
-    // by passing in a config object; if you don't, the Google AI plugin uses
-    // the value from the GOOGLE_GENAI_API_KEY environment variable, which is
-    // the recommended practice.
-    googleAI(),
-  ],
+  plugins: [plugin()],
   // Log debug output to tbe console.
   logLevel: 'debug',
   // Perform OpenTelemetry instrumentation and enable trace collection.
@@ -62,23 +66,37 @@ export const jokeFlow = defineFlow(
   },
   async () => {
     // Construct a request and send it to the model API.
+    if (provider === 'vertexai') {
+      const llmResponse = await generate({
+        model: gemini15FlashVertexAi,
+        config: {
+          temperature: 2,
+        },
+        output: {
+          schema: z.object({ jokeSubject: z.string() }),
+        },
+        tools: [jokeSubjectGenerator],
+        prompt: `come up with a subject to joke about (using the function provided)`,
+      });
 
-    const llmResponse = await generate({
-      model: gemini15Flash,
-      config: {
-        temperature: 2,
-      },
-      output: {
-        schema: z.object({ jokeSubject: z.string() }),
-      },
-      tools: [jokeSubjectGenerator],
-      prompt: `come up with a subject to joke about (using the function provided)`,
-    });
+      return llmResponse.output();
+    } else {
+      const llmResponse = await generate({
+        model: gemini15FlashGoogleAi,
+        config: {
+          temperature: 2,
+        },
+        output: {
+          schema: z.object({ jokeSubject: z.string() }),
+        },
+        tools: [jokeSubjectGenerator],
+        prompt: `come up with a subject to joke about (using the function provided)`,
+      });
+      return llmResponse.output();
+    }
 
     // Handle the response from the model API. In this sample, we just convert
     // it to a string, but more complicated flows might coerce the response into
-    // structured output or chain the response into another LLM call, etc.
-    return llmResponse.output();
   }
 );
 

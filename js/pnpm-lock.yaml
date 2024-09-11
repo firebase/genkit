@@ -622,11 +622,11 @@ importers:
         specifier: ^3.23.0
         version: 3.25.0(encoding@0.1.13)
       '@google-cloud/vertexai':
-        specifier: ^1.1.0
-        version: 1.1.0(encoding@0.1.13)
+        specifier: ^1.7.0
+        version: 1.7.0(encoding@0.1.13)
       google-auth-library:
-        specifier: ^9.6.3
-        version: 9.7.0(encoding@0.1.13)
+        specifier: ^9.14.1
+        version: 9.14.1(encoding@0.1.13)
       googleapis:
         specifier: ^140.0.1
         version: 140.0.1(encoding@0.1.13)
@@ -711,6 +711,9 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
+      '@genkit-ai/vertexai':
+        specifier: workspace:*
+        version: link:../../plugins/vertexai
       express:
         specifier: ^4.20.0
         version: 4.20.0
@@ -1794,8 +1797,8 @@ packages:
     resolution: {integrity: sha512-sZW14pfxEQZSIbBPs6doFYtcbK31Bs3E4jH5Ly3jJnBkYfkMPX8sXG3ZQXCJa88MKtUNPlgBdMN2OJUzmFe5/g==}
     engines: {node: '>=14'}
 
-  '@google-cloud/vertexai@1.1.0':
-    resolution: {integrity: sha512-hfwfdlVpJ+kM6o2b5UFfPnweBcz8tgHAFRswnqUKYqLJsvKU0DDD0Z2/YKoHyAUoPJAv20qg6KlC3msNeUKUiw==}
+  '@google-cloud/vertexai@1.7.0':
+    resolution: {integrity: sha512-N4YcVzFQ+sPN9c3SeMhbpLfWVbeaLxPbICKsJ6yKthcr4G7tdu9pCs3HUw+Mip0M2xgiKZ8/WWvq6FXbPnlrUA==}
     engines: {node: '>=18.0.0'}
 
   '@google/generative-ai@0.15.0':
@@ -3611,6 +3614,10 @@ packages:
     resolution: {integrity: sha512-epX3ww/mNnhl6tL45EQ/oixsY8JLEgUFoT4A5E/5iAR4esld9Kqv6IJGk7EmGuOgDvaarwF95hU2+v7Irql9lw==}
     engines: {node: '>=14'}
 
+  google-auth-library@9.14.1:
+    resolution: {integrity: sha512-Rj+PMjoNFGFTmtItH7gHfbHpGVSb3vmnGK3nwNBqxQF9NoBpttSZI/rc0WiM63ma2uGDQtYEkMHkK9U6937NiA==}
+    engines: {node: '>=14'}
+
   google-auth-library@9.7.0:
     resolution: {integrity: sha512-I/AvzBiUXDzLOy4iIZ2W+Zq33W4lcukQv1nl7C8WUA6SQwyQwUwu3waNmWNAvzds//FG8SZ+DnKnW/2k6mQS8A==}
     engines: {node: '>=14'}
@@ -5321,7 +5328,7 @@ snapshots:
   '@anthropic-ai/vertex-sdk@0.4.0(encoding@0.1.13)':
     dependencies:
       '@anthropic-ai/sdk': 0.24.3(encoding@0.1.13)
-      google-auth-library: 9.7.0(encoding@0.1.13)
+      google-auth-library: 9.14.1(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -5483,7 +5490,7 @@ snapshots:
       duplexify: 4.1.3
       ent: 2.2.0
       extend: 3.0.2
-      google-auth-library: 9.11.0(encoding@0.1.13)
+      google-auth-library: 9.14.1(encoding@0.1.13)
       retry-request: 7.0.2(encoding@0.1.13)
       teeny-request: 9.0.0(encoding@0.1.13)
     transitivePeerDependencies:
@@ -5562,7 +5569,7 @@ snapshots:
       '@opentelemetry/core': 1.25.1(@opentelemetry/api@1.9.0)
       '@opentelemetry/resources': 1.25.1(@opentelemetry/api@1.9.0)
       '@opentelemetry/sdk-metrics': 1.25.1(@opentelemetry/api@1.9.0)
-      google-auth-library: 9.7.0(encoding@0.1.13)
+      google-auth-library: 9.11.0(encoding@0.1.13)
       googleapis: 137.1.0(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
@@ -5630,7 +5637,7 @@ snapshots:
       ent: 2.2.0
       fast-xml-parser: 4.3.6
       gaxios: 6.3.0(encoding@0.1.13)
-      google-auth-library: 9.11.0(encoding@0.1.13)
+      google-auth-library: 9.14.1(encoding@0.1.13)
       mime: 3.0.0
       p-limit: 3.1.0
       retry-request: 7.0.2(encoding@0.1.13)
@@ -5641,9 +5648,9 @@ snapshots:
       - supports-color
     optional: true
 
-  '@google-cloud/vertexai@1.1.0(encoding@0.1.13)':
+  '@google-cloud/vertexai@1.7.0(encoding@0.1.13)':
     dependencies:
-      google-auth-library: 9.7.0(encoding@0.1.13)
+      google-auth-library: 9.14.1(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
       - supports-color
@@ -7693,6 +7700,18 @@ snapshots:
       - encoding
       - supports-color
 
+  google-auth-library@9.14.1(encoding@0.1.13):
+    dependencies:
+      base64-js: 1.5.1
+      ecdsa-sig-formatter: 1.0.11
+      gaxios: 6.3.0(encoding@0.1.13)
+      gcp-metadata: 6.1.0(encoding@0.1.13)
+      gtoken: 7.1.0(encoding@0.1.13)
+      jws: 4.0.0
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
+
   google-auth-library@9.7.0(encoding@0.1.13):
     dependencies:
       base64-js: 1.5.1
@@ -7730,7 +7749,7 @@ snapshots:
       '@types/long': 4.0.2
       abort-controller: 3.0.0
       duplexify: 4.1.3
-      google-auth-library: 9.11.0(encoding@0.1.13)
+      google-auth-library: 9.14.1(encoding@0.1.13)
       node-fetch: 2.7.0(encoding@0.1.13)
       object-hash: 3.0.0
       proto3-json-serializer: 2.0.2
@@ -7759,7 +7778,7 @@ snapshots:
     dependencies:
       extend: 3.0.2
       gaxios: 6.3.0(encoding@0.1.13)
-      google-auth-library: 9.11.0(encoding@0.1.13)
+      google-auth-library: 9.14.1(encoding@0.1.13)
       qs: 6.12.0
       url-template: 2.0.8
       uuid: 9.0.1
@@ -7777,7 +7796,7 @@ snapshots:
 
   googleapis@140.0.1(encoding@0.1.13):
     dependencies:
-      google-auth-library: 9.7.0(encoding@0.1.13)
+      google-auth-library: 9.14.1(encoding@0.1.13)
       googleapis-common: 7.2.0(encoding@0.1.13)
     transitivePeerDependencies:
       - encoding
