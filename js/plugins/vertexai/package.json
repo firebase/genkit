@@ -38,8 +38,8 @@
     "@anthropic-ai/sdk": "^0.24.3",
     "@anthropic-ai/vertex-sdk": "^0.4.0",
     "@google-cloud/aiplatform": "^3.23.0",
-    "@google-cloud/vertexai": "^1.1.0",
-    "google-auth-library": "^9.6.3",
+    "@google-cloud/vertexai": "^1.7.0",
+    "google-auth-library": "^9.14.1",
     "googleapis": "^140.0.1",
     "node-fetch": "^3.3.2",
     "openai": "^4.52.7"
@@ -48,8 +48,8 @@
     "genkit": "workspace:*"
   },
   "optionalDependencies": {
-    "firebase-admin": "^12.1.0",
-    "@google-cloud/bigquery": "^7.8.0"
+    "@google-cloud/bigquery": "^7.8.0",
+    "firebase-admin": "^12.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.16",

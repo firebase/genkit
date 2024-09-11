@@ -398,7 +398,10 @@ function fromGeminiFunctionResponsePart(part: GeminiPart): Part {
 }
 
 // Converts vertex part to genkit part
-function fromGeminiPart(part: GeminiPart): Part {
+function fromGeminiPart(part: GeminiPart, jsonMode: boolean): Part {
+  if (jsonMode && part.text !== undefined) {
+    return { data: JSON.parse(part.text) };
+  }
   if (part.text !== undefined) return { text: part.text };
   if (part.functionCall) return fromGeminiFunctionCallPart(part);
   if (part.functionResponse) return fromGeminiFunctionResponsePart(part);
@@ -410,14 +413,15 @@ function fromGeminiPart(part: GeminiPart): Part {
 }
 
 export function fromGeminiCandidate(
-  candidate: GenerateContentCandidate
+  candidate: GenerateContentCandidate,
+  jsonMode: boolean
 ): CandidateData {
   const parts = candidate.content.parts || [];
   const genkitCandidate: CandidateData = {
     index: candidate.index || 0, // reasonable default?
     message: {
       role: 'model',
-      content: parts.map(fromGeminiPart),
+      content: parts.map((p) => fromGeminiPart(p, jsonMode)),
     },
     finishReason: fromGeminiFinishReason(candidate.finishReason),
     finishMessage: candidate.finishMessage,
@@ -517,11 +521,18 @@ export function geminiModel(
         }
       }
 
+      const tools = request.tools?.length
+        ? [{ functionDeclarations: request.tools?.map(toGeminiTool) }]
+        : [];
+
+      // Cannot use tools and function calling at the same time
+      const jsonMode =
+        (request.output?.format === 'json' || !!request.output?.schema) &&
+        tools.length === 0;
+
       const chatRequest: StartChatParams = {
         systemInstruction,
-        tools: request.tools?.length
-          ? [{ functionDeclarations: request.tools?.map(toGeminiTool) }]
-          : [],
+        tools,
         history: messages
           .slice(0, -1)
           .map((message) => toGeminiMessage(message, model)),
@@ -531,6 +542,7 @@ export function geminiModel(
           maxOutputTokens: request.config?.maxOutputTokens,
           topK: request.config?.topK,
           topP: request.config?.topP,
+          responseMimeType: jsonMode ? 'application/json' : undefined,
           stopSequences: request.config?.stopSequences,
         },
         safetySettings: request.config?.safetySettings,
@@ -565,7 +577,7 @@ export function geminiModel(
           .sendMessageStream(msg.parts);
         for await (const item of result.stream) {
           (item as GenerateContentResponse).candidates?.forEach((candidate) => {
-            const c = fromGeminiCandidate(candidate);
+            const c = fromGeminiCandidate(candidate, jsonMode);
             streamingCallback({
               index: c.index,
               content: c.message.content,
@@ -577,7 +589,9 @@ export function geminiModel(
           throw new Error('No valid candidates returned.');
         }
         return {
-          candidates: response.candidates?.map(fromGeminiCandidate) || [],
+          candidates:
+            response.candidates?.map((c) => fromGeminiCandidate(c, jsonMode)) ||
+            [],
           custom: response,
         };
       } else {
@@ -591,7 +605,9 @@ export function geminiModel(
           throw new Error('No valid candidates returned.');
         }
         const responseCandidates =
-          result.response.candidates?.map(fromGeminiCandidate) || [];
+          result.response.candidates?.map((c) =>
+            fromGeminiCandidate(c, jsonMode)
+          ) || [];
         return {
           candidates: responseCandidates,
           custom: result.response,
