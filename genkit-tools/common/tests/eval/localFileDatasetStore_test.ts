@@ -172,6 +172,40 @@ describe('localFileDatasetStore', () => {
 
       expect(fs.promises.writeFile).toBeCalledTimes(0);
     });
+
+    it('fails if displayName is too long', async () => {
+      fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
+      fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
+      // For index file reads
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify({}) as any)
+      );
+      fs.existsSync = jest.fn(() => false);
+
+      expect(async () => {
+        await DatasetStore.createDataset({
+          ...CREATE_DATASET_REQUEST,
+          displayName: 'very long displayname'.repeat(5),
+        });
+      }).rejects.toThrow('Display name cannot be longer');
+    });
+
+    it('fails if datasetId is too long', async () => {
+      fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
+      fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
+      // For index file reads
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify({}) as any)
+      );
+      fs.existsSync = jest.fn(() => false);
+
+      expect(async () => {
+        await DatasetStore.createDataset({
+          ...CREATE_DATASET_REQUEST,
+          datasetId: 'ultracooldatasetid'.repeat(5),
+        });
+      }).rejects.toThrow('Dataset ID cannot be longer');
+    });
   });
 
   describe('updateDataset', () => {
@@ -221,6 +255,19 @@ describe('localFileDatasetStore', () => {
       }).rejects.toThrow(
         new Error('Error: `data` is required for updateDataset')
       );
+
+      expect(fs.promises.writeFile).toBeCalledTimes(0);
+    });
+
+    it('fails if displayName is not valid', async () => {
+      fs.existsSync = jest.fn(() => true);
+
+      expect(async () => {
+        await DatasetStore.updateDataset({
+          ...UPDATE_DATASET_REQUEST,
+          displayName: 'very long displayname'.repeat(5),
+        });
+      }).rejects.toThrow('Display name cannot be longer');
 
       expect(fs.promises.writeFile).toBeCalledTimes(0);
     });
@@ -316,7 +363,7 @@ describe('localFileDatasetStore', () => {
       expect(id).toBe('some-id');
     });
 
-    it('returns full ID if only displayName is absent', async () => {
+    it('returns full ID if nothing is provided', async () => {
       const id = await (
         DatasetStore as LocalFileDatasetStore
       ).generateDatasetId(undefined, undefined);
@@ -327,9 +374,17 @@ describe('localFileDatasetStore', () => {
     it('returns ID if only displayName is present', async () => {
       const id = await (
         DatasetStore as LocalFileDatasetStore
+      ).generateDatasetId('My display!!!', undefined);
+
+      expect(id).toBe('Mydisplay-123456');
+    });
+
+    it('returns ID with truncation if only displayName is present', async () => {
+      const id = await (
+        DatasetStore as LocalFileDatasetStore
       ).generateDatasetId('My awesome display!!!', undefined);
 
-      expect(id).toBe('Myawesomedisplay-123456');
+      expect(id).toBe('Myawesomedi-123456');
     });
 
     it('returns ID if only unique ID is generated', async () => {
@@ -340,7 +395,7 @@ describe('localFileDatasetStore', () => {
         .mockReturnValueOnce('12345678')
         .mockReturnValueOnce('abcdefg');
       let metadataMap = {
-        ['Myawesomedisplay-123456']: SAMPLE_DATASET_METADATA_1_V1,
+        ['Mydisplay-123456']: SAMPLE_DATASET_METADATA_1_V1,
       };
       fs.promises.readFile = jest.fn(async () =>
         Promise.resolve(JSON.stringify(metadataMap) as any)
@@ -348,14 +403,14 @@ describe('localFileDatasetStore', () => {
 
       const id = await (
         DatasetStore as LocalFileDatasetStore
-      ).generateDatasetId('My awesome display!!!', undefined);
+      ).generateDatasetId('My display!!!', undefined);
 
-      expect(id).toBe('Myawesomedisplay-abcdef');
+      expect(id).toBe('Mydisplay-abcdef');
     });
 
     it('throws if no unique ID is generated', async () => {
       let metadataMap = {
-        ['Myawesomedisplay-123456']: SAMPLE_DATASET_METADATA_1_V1,
+        ['Mydisplay-123456']: SAMPLE_DATASET_METADATA_1_V1,
       };
       fs.promises.readFile = jest.fn(async () =>
         Promise.resolve(JSON.stringify(metadataMap) as any)
@@ -363,10 +418,28 @@ describe('localFileDatasetStore', () => {
 
       expect(async () => {
         await (DatasetStore as LocalFileDatasetStore).generateDatasetId(
-          'My awesome display!!!',
+          'My display!!!',
           undefined
         );
       }).rejects.toThrow();
+    });
+
+    it('throws if datasetId too long', async () => {
+      expect(async () => {
+        await (DatasetStore as LocalFileDatasetStore).generateDatasetId(
+          undefined,
+          'toolongdatasetid'.repeat(5)
+        );
+      }).rejects.toThrow('Dataset ID cannot be longer');
+    });
+
+    it('throws if displayName too long', async () => {
+      expect(async () => {
+        await (DatasetStore as LocalFileDatasetStore).generateDatasetId(
+          'my very long display name that my grandpa gave me'.repeat(5),
+          undefined
+        );
+      }).rejects.toThrow('Display name cannot be longer');
     });
   });
 });

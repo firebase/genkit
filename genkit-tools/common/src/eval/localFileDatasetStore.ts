@@ -34,6 +34,8 @@ import { logger } from '../utils/logger';
 export class LocalFileDatasetStore implements DatasetStore {
   readonly SHORT_UUID_LENGTH = 6;
   readonly ID_GEN_MAX_ATTEMPTS = 5;
+  readonly DISPLAY_NAME_MAX_LENGTH = 36;
+  readonly DATASET_ID_MAX_LENGTH = 18;
 
   private readonly storeRoot;
   private readonly indexFile;
@@ -113,6 +115,9 @@ export class LocalFileDatasetStore implements DatasetStore {
     const datasetId = req.datasetId;
     if (!req.data) {
       throw new Error('Error: `data` is required for updateDataset');
+    }
+    if (req.displayName) {
+      this.validateDisplayName(req.displayName);
     }
     const filePath = path.resolve(
       this.storeRoot,
@@ -207,19 +212,33 @@ export class LocalFileDatasetStore implements DatasetStore {
     datasetId?: string
   ): Promise<string> {
     if (datasetId) {
+      this.validateDatasetId(datasetId);
       return datasetId;
+    }
+
+    if (displayName) {
+      this.validateDisplayName(displayName);
     }
 
     const metadataMap = await this.getMetadataMap();
     const keys = Object.keys(metadataMap);
     const trimmedDisplayName =
       displayName?.replaceAll(/[^A-Za-z0-9-_]/g, '') ?? '';
+    // to keep things consistent with datasetIds, truncate the part that we
+    // use from the displayName. This will be effectively ignored if
+    // displayName is undefined.
+    const maxTrimmedDisplayNameLength =
+      this.DATASET_ID_MAX_LENGTH - this.SHORT_UUID_LENGTH - 1;
+    const truncatedDisplayNamePart = trimmedDisplayName.substring(
+      0,
+      maxTrimmedDisplayNameLength
+    );
     const uuidLength = displayName ? this.SHORT_UUID_LENGTH : undefined;
 
     for (let i = 0; i < this.ID_GEN_MAX_ATTEMPTS; i++) {
       const uid = uuidv4().slice(0, uuidLength);
-      const maybeDatasetId = trimmedDisplayName
-        ? `${trimmedDisplayName}-${uid}`
+      const maybeDatasetId = truncatedDisplayNamePart
+        ? `${truncatedDisplayNamePart}-${uid}`
         : uid;
       if (!keys.some((i) => i === maybeDatasetId)) {
         return maybeDatasetId;
@@ -229,6 +248,22 @@ export class LocalFileDatasetStore implements DatasetStore {
     throw new Error(
       'Unable to generate a unique ID based on the provided information'
     );
+  }
+
+  private validateDisplayName(displayName: string) {
+    if (displayName.length > this.DISPLAY_NAME_MAX_LENGTH) {
+      throw new Error(
+        `Display name cannot be longer than ${this.DISPLAY_NAME_MAX_LENGTH} characters`
+      );
+    }
+  }
+
+  private validateDatasetId(datasetId: string) {
+    if (datasetId.length > this.DATASET_ID_MAX_LENGTH) {
+      throw new Error(
+        `Dataset ID cannot be longer than ${this.DATASET_ID_MAX_LENGTH} characters`
+      );
+    }
   }
 
   private generateFileName(datasetId: string): string {
