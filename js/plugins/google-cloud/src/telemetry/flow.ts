@@ -76,6 +76,17 @@ class FlowsTelemetry implements Telemetry {
     const isRoot = (attributes['genkit:isRoot'] as boolean) || false;
     const state = attributes['genkit:state'] as string;
 
+    const input = attributes['genkit:input'] as string;
+    const output = attributes['genkit:output'] as string;
+
+    if (input && logIO) {
+      this.recordIO(span, 'Input', name, path, input, projectId);
+    }
+
+    if (output && logIO) {
+      this.recordIO(span, 'Output', name, path, input, projectId);
+    }
+
     if (state === 'success') {
       this.writeFlowSuccess(
         span,
@@ -116,6 +127,27 @@ class FlowsTelemetry implements Telemetry {
     }
 
     logger.warn(`Unknown flow state; ${state}`);
+  }
+
+  private recordIO(
+    span: ReadableSpan,
+    tag: string,
+    flowName: string,
+    qualifiedPath: string,
+    input: string,
+    projectId?: string
+  ) {
+    const path = toDisplayPath(qualifiedPath);
+    const sharedMetadata = {
+      ...createCommonLogAttributes(span, projectId),
+      path,
+      qualifiedPath,
+      flowName,
+    };
+    logger.logStructured(`${tag}[${path}, ${flowName}]`, {
+      ...sharedMetadata,
+      content: input,
+    });
   }
 
   private recordError(

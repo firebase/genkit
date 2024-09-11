@@ -137,12 +137,12 @@ describe('GoogleCloudLogs no I/O', () => {
         },
       };
     });
-    const testFlow = createFlow('testFlow', async () => {
+    const testFlow = createFlowWithInput('testFlow', async (input) => {
       return await run('sub1', async () => {
         return await run('sub2', async () => {
           return await generate({
             model: testModel,
-            prompt: 'test prompt',
+            prompt: `${input} prompt`,
             config: {
               temperature: 1.0,
               topK: 3,
@@ -154,7 +154,7 @@ describe('GoogleCloudLogs no I/O', () => {
       });
     });
 
-    await runFlow(testFlow);
+    await runFlow(testFlow, 'test');
 
     await getExportedSpans();
 
@@ -175,6 +175,14 @@ describe('GoogleCloudLogs no I/O', () => {
       logMessages.includes(
         '[info] Output[testFlow > sub1 > sub2 > testModel, testModel]'
       ),
+      false
+    );
+    assert.equal(
+      logMessages.includes('[info] Input[testFlow, testModel]'),
+      false
+    );
+    assert.equal(
+      logMessages.includes('[info] Output[testFlow, testModel]'),
       false
     );
   });
@@ -280,12 +288,12 @@ describe('GoogleCloudLogs', () => {
         },
       };
     });
-    const testFlow = createFlow('testFlow', async () => {
+    const testFlow = createFlowWithInput('testFlow', async (input) => {
       return await run('sub1', async () => {
         return await run('sub2', async () => {
           return await generate({
             model: testModel,
-            prompt: 'test prompt',
+            prompt: `${input} prompt`,
             config: {
               temperature: 1.0,
               topK: 3,
@@ -297,7 +305,7 @@ describe('GoogleCloudLogs', () => {
       });
     });
 
-    await runFlow(testFlow);
+    await runFlow(testFlow, 'test');
 
     await getExportedSpans();
 
@@ -320,6 +328,14 @@ describe('GoogleCloudLogs', () => {
       ),
       true
     );
+    assert.equal(
+      logMessages.includes('[info] Input[testFlow, testFlow]'),
+      true
+    );
+    assert.equal(
+      logMessages.includes('[info] Output[testFlow, testFlow]'),
+      true
+    );
   });
 });
 
@@ -330,6 +346,20 @@ function createFlow(name: string, fn: () => Promise<any> = async () => {}) {
       name,
       inputSchema: z.void(),
       outputSchema: z.void(),
+    },
+    fn
+  );
+}
+
+function createFlowWithInput(
+  name: string,
+  fn: (input: string) => Promise<void>
+) {
+  return defineFlow(
+    {
+      name,
+      inputSchema: z.string(),
+      outputSchema: z.string(),
     },
     fn
   );
