@@ -1,0 +1,27 @@
+{
+  "name": "basic-gemini",
+  "version": "1.0.0",
+  "description": "",
+  "main": "lib/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node lib/index.js",
+    "build": "tsc",
+    "build:watch": "tsc --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@genkit-ai/ai": "workspace:*",
+    "@genkit-ai/core": "workspace:*",
+    "@genkit-ai/dotprompt": "workspace:*",
+    "@genkit-ai/flow": "workspace:*",
+    "@genkit-ai/googleai": "workspace:*",
+    "express": "^4.20.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.2"
+  }
+}
