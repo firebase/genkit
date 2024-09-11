@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
+import { generate, GenerateResponseData } from '@genkit-ai/ai';
 import { defineModel } from '@genkit-ai/ai/model';
 import {
   configureGenkit,
@@ -31,6 +31,7 @@ import {
   __getSpanExporterForTesting,
   googleCloud,
 } from '@genkit-ai/google-cloud';
+import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import assert from 'node:assert';
 import { before, beforeEach, describe, it } from 'node:test';
 import { Writable } from 'stream';
@@ -89,8 +90,9 @@ describe('GoogleCloudLogs no I/O', () => {
 
   it('writes error logs', async () => {
     const testFlow = createFlow('testFlow', async () => {
-      const nothing = null;
-      nothing.something;
+      const nothing: { missing?: any } = { missing: 1 };
+      delete nothing.missing;
+      return nothing.missing.explode;
     });
 
     assert.rejects(async () => {
@@ -102,8 +104,7 @@ describe('GoogleCloudLogs no I/O', () => {
     const logMessages = await getLogs(1, 100, logLines);
     assert.equal(
       logMessages.includes(
-        '[error] Error[testFlow, TypeError] Cannot read properties of null ' +
-          "(reading 'something')"
+        "[error] Error[testFlow, TypeError] Cannot read properties of undefined (reading 'explode')"
       ),
       true
     );
@@ -231,8 +232,9 @@ describe('GoogleCloudLogs', () => {
 
   it('writes error logs', async () => {
     const testFlow = createFlow('testFlow', async () => {
-      const nothing = null;
-      nothing.something;
+      const nothing: { missing?: any } = { missing: 1 };
+      delete nothing.missing;
+      return nothing.missing.explode;
     });
 
     assert.rejects(async () => {
@@ -242,10 +244,10 @@ describe('GoogleCloudLogs', () => {
     await getExportedSpans();
 
     const logMessages = await getLogs(1, 100, logLines);
+    console.log(logMessages);
     assert.equal(
       logMessages.includes(
-        '[error] Error[testFlow, TypeError] Cannot read properties of null ' +
-          "(reading 'something')"
+        "[error] Error[testFlow, TypeError] Cannot read properties of undefined (reading 'explode')"
       ),
       true
     );
@@ -322,7 +324,7 @@ describe('GoogleCloudLogs', () => {
 });
 
 /** Helper to create a flow with no inputs or outputs */
-function createFlow(name: string, fn: () => Promise<void> = async () => {}) {
+function createFlow(name: string, fn: () => Promise<any> = async () => {}) {
   return defineFlow(
     {
       name,
@@ -355,7 +357,7 @@ async function getLogs(
   logCount: number,
   maxAttempts: number,
   logLines: string
-): promise<String[]> {
+): Promise<String[]> {
   var attempts = 0;
   while (attempts++ < maxAttempts) {
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -373,7 +375,7 @@ async function getLogs(
 /** Polls the in memory metric exporter until the genkit scope is found. */
 async function getExportedSpans(
   maxAttempts: number = 200
-): promise<ReadableSpan[]> {
+): Promise<ReadableSpan[]> {
   __forceFlushSpansForTesting();
   var attempts = 0;
   while (attempts++ < maxAttempts) {
@@ -400,6 +402,6 @@ class NoOpFlowStateStore implements FlowStateStore {
   async list(
     query?: FlowStateQuery | undefined
   ): Promise<FlowStateQueryResponse> {
-    return {};
+    return { flowStates: [] };
   }
 }
