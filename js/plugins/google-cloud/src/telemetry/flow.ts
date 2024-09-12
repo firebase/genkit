@@ -84,7 +84,7 @@ class FlowsTelemetry implements Telemetry {
     }
 
     if (output && logIO) {
-      this.recordIO(span, 'Output', name, path, input, projectId);
+      this.recordIO(span, 'Output', name, path, output, projectId);
     }
 
     if (state === 'success') {
