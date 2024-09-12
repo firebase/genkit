@@ -110,3 +110,21 @@ const response = await generate({
   ]
 });
 ```
+
+## Fine-tuning models
+
+You can use models fine-tuned with the Google Gemini API.  Follow the instructions from the [Gemini API](https://ai.google.dev/gemini-api/docs/model-tuning/tutorial?_gl&lang=python) or fine-tune a model using [AI Studio](https://aistudio.corp.google.com/app/tune).
+
+The tuning process uses a Base Model, for example `Gemini 1.5 Flash` and your provided examples to create a new tuned model.  Rememer the based model used, and copy the new model's id.
+
+When calling the tuned model in Genkit, use the Base Model as the `model` parameter, and pass the tuned model's id as part of the `config` block. For example, if you used `Gemini 1.5 Flash` as the base model, and got model id `tunedModels/my-example-model-apbm8oqbvuv2` you can call it with a block like
+
+```
+const llmResponse = await generate({
+  prompt: `Suggest an item for the menu of fish themed restruant`,
+  model: gemini15Flash,
+  config: {
+    version: "tunedModels/my-example-model-apbm8oqbvuv2",
+  },
+});
+```
