@@ -20,7 +20,7 @@ import { configureGenkit } from '@genkit-ai/core';
 import { dotprompt, prompt } from '@genkit-ai/dotprompt';
 import { defineFirestoreRetriever, firebase } from '@genkit-ai/firebase';
 import { defineFlow, run } from '@genkit-ai/flow';
-import { googleCloud } from '@genkit-ai/google-cloud';
+import { googleCloudWithTelemetry } from '@genkit-ai/google-cloud';
 import {
   gemini15Flash,
   googleAI,
@@ -32,7 +32,6 @@ import {
   textEmbeddingGecko,
   vertexAI,
 } from '@genkit-ai/vertexai';
-import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { Allow, parse } from 'partial-json';
@@ -43,22 +42,22 @@ configureGenkit({
     firebase(),
     googleAI(),
     vertexAI(),
-    googleCloud({
+    googleCloudWithTelemetry({
       // These are configured for demonstration purposes. Sensible defaults are
       // in place in the event that telemetryConfig is absent.
-      telemetryConfig: {
-        // Forces telemetry export in 'dev'
-        forceDevExport: true,
-        sampler: new AlwaysOnSampler(),
-        autoInstrumentation: true,
-        autoInstrumentationConfig: {
-          '@opentelemetry/instrumentation-fs': { enabled: false },
-          '@opentelemetry/instrumentation-dns': { enabled: false },
-          '@opentelemetry/instrumentation-net': { enabled: false },
-        },
-        metricExportIntervalMillis: 5_000,
-        metricExportTimeoutMillis: 5_000,
-      },
+      //   telemetryConfig: {
+      //     // Forces telemetry export in 'dev'
+      //     forceDevExport: true,
+      //     sampler: new AlwaysOnSampler(),
+      //     autoInstrumentation: true,
+      //     autoInstrumentationConfig: {
+      //       '@opentelemetry/instrumentation-fs': { enabled: false },
+      //       '@opentelemetry/instrumentation-dns': { enabled: false },
+      //       '@opentelemetry/instrumentation-net': { enabled: false },
+      //     },
+      //     metricExportIntervalMillis: 5_000,
+      //     metricExportTimeoutMillis: 5_000,
+      //   },
     }),
     dotprompt(),
   ],
@@ -66,10 +65,10 @@ configureGenkit({
   traceStore: 'firebase',
   enableTracingAndMetrics: true,
   logLevel: 'debug',
-  telemetry: {
-    instrumentation: 'googleCloud',
-    logger: 'googleCloud',
-  },
+  //   telemetry: {
+  //     instrumentation: 'googleCloud',
+  //     logger: 'googleCloud',
+  //   },
 });
 
 const app = initializeApp();

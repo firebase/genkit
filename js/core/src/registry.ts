@@ -18,7 +18,7 @@ import * as z from 'zod';
 import { Action } from './action.js';
 import { FlowStateStore } from './flowTypes.js';
 import { logger } from './logging.js';
-import { PluginProvider } from './plugin.js';
+import { PluginProvider, PluginProvidesType } from './plugin.js';
 import { startReflectionApi } from './reflectionApi.js';
 import { JSONSchema } from './schema.js';
 import { TraceStore } from './tracing/types.js';
@@ -29,6 +29,7 @@ const ACTIONS_BY_ID = 'genkit__ACTIONS_BY_ID';
 const TRACE_STORES_BY_ENV = 'genkit__TRACE_STORES_BY_ENV';
 const FLOW_STATE_STORES_BY_ENV = 'genkit__FLOW_STATE_STORES_BY_ENV';
 const PLUGINS_BY_NAME = 'genkit__PLUGINS_BY_NAME';
+const PLUGINS_BY_ABILITY = 'genkit__PLUGINS_BY_ABILITY';
 const SCHEMAS_BY_NAME = 'genkit__SCHEMAS_BY_NAME';
 
 function actionsById(): Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>> {
@@ -54,6 +55,12 @@ function pluginsByName(): Record<string, PluginProvider> {
     global[PLUGINS_BY_NAME] = {};
   }
   return global[PLUGINS_BY_NAME];
+}
+function pluginsByAbility(): Record<PluginProvidesType, PluginProvider[]> {
+  if (global[PLUGINS_BY_ABILITY] === undefined) {
+    global[PLUGINS_BY_ABILITY] = {};
+  }
+  return global[PLUGINS_BY_ABILITY];
 }
 function schemasByName(): Record<
   string,
@@ -196,7 +203,8 @@ export async function lookupFlowStateStore(
  */
 export function registerPluginProvider(name: string, provider: PluginProvider) {
   let cached;
-  pluginsByName()[name] = {
+
+  const plugin = {
     name: provider.name,
     initializer: () => {
       if (cached) {
@@ -205,11 +213,25 @@ export function registerPluginProvider(name: string, provider: PluginProvider) {
       cached = provider.initializer();
       return cached;
     },
+    provides: () => {
+      return provider.provides();
+    },
   };
+
+  pluginsByName()[plugin.name] = plugin;
+
+  if (plugin.provides() !== PluginProvidesType.UNSPECIFIED) {
+    const plugins = pluginsByAbility()[plugin.provides()] || [];
+    pluginsByAbility()[plugin.provides()] = [...plugins, plugin];
+  }
 }
 
 export function lookupPlugin(name: string) {
   return pluginsByName()[name];
+}
+
+export function lookupPluginsByAbility(ability: PluginProvidesType) {
+  return pluginsByAbility()[ability];
 }
 
 /**

@@ -20,7 +20,7 @@ import path from 'path';
 import { FlowStateStore } from './flowTypes.js';
 import { LocalFileFlowStateStore } from './localFileFlowStateStore.js';
 import { logger } from './logging.js';
-import { PluginProvider } from './plugin.js';
+import { PluginProvider, PluginProvidesType } from './plugin.js';
 import * as registry from './registry.js';
 import { AsyncProvider } from './registry.js';
 import {
@@ -111,6 +111,9 @@ class Config {
           logger.info(`Initializing plugin ${plugin.name}:`);
           return await plugin.initializer();
         },
+        provides() {
+          return plugin.provides();
+        },
       });
     });
 
@@ -120,6 +123,23 @@ class Config {
       logger.debug(`  - all environments: ${loggerPluginName}`);
       this.loggerConfig = async () =>
         this.resolveLoggerConfig(loggerPluginName);
+    } else {
+      const capablePlugins = registry.lookupPluginsByAbility(
+        PluginProvidesType.TELEMETRY
+      );
+      if (capablePlugins) {
+        if (capablePlugins.length != 1) {
+          logger.error(`More than one plugin implicitly provides telemetry.`);
+          logger.error(
+            `Disambiguate by adding a telemetry {} block to your configuration and specifying one of ${capablePlugins.map((plugin) => plugin.name)}.`
+          );
+        } else {
+          logger.debug('Registering logging exporters...');
+          logger.debug(`  - all environments: ${capablePlugins[0].name}`);
+          this.loggerConfig = async () =>
+            this.resolveLoggerConfig(capablePlugins[0].name);
+        }
+      }
     }
 
     if (this.options.telemetry?.instrumentation) {
@@ -128,6 +148,23 @@ class Config {
       logger.debug(`  - all environments: ${telemetryPluginName}`);
       this.telemetryConfig = async () =>
         this.resolveTelemetryConfig(telemetryPluginName);
+    } else {
+      const capablePlugins = registry.lookupPluginsByAbility(
+        PluginProvidesType.TELEMETRY
+      );
+      if (capablePlugins) {
+        if (capablePlugins.length != 1) {
+          logger.error(`More than one plugin implicitly provides telemetry.`);
+          logger.error(
+            `Disambiguate by adding a telemetry {} block to your configuration and specifying one of ${capablePlugins.map((plugin) => plugin.name)}.`
+          );
+        } else {
+          logger.debug('Registering telemetry exporters...');
+          logger.debug(`  - all environments: ${capablePlugins[0].name}`);
+          this.telemetryConfig = async () =>
+            this.resolveTelemetryConfig(capablePlugins[0].name);
+        }
+      }
     }
 
     logger.debug('Registering flow state stores...');
