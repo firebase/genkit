@@ -15,14 +15,14 @@
  */
 
 import {
+  configureGenkit,
   FlowState,
   FlowStateQuery,
   FlowStateQueryResponse,
   FlowStateStore,
-  configureGenkit,
 } from '@genkit-ai/core';
 import { registerFlowStateStore } from '@genkit-ai/core/registry';
-import { defineFlow, run, runFlow } from '@genkit-ai/flow';
+import { defineFlow, run } from '@genkit-ai/flow';
 import {
   __forceFlushSpansForTesting,
   __getSpanExporterForTesting,
@@ -62,7 +62,7 @@ describe('GoogleCloudTracing', () => {
   it('writes traces', async () => {
     const testFlow = createFlow('testFlow');
 
-    await runFlow(testFlow);
+    await testFlow();
 
     const spans = await getExportedSpans();
     assert.equal(spans.length, 1);
@@ -72,7 +72,7 @@ describe('GoogleCloudTracing', () => {
   it('Adjusts attributes to support GCP trace filtering', async () => {
     const testFlow = createFlow('testFlow');
 
-    await runFlow(testFlow);
+    await testFlow();
 
     const spans = await getExportedSpans();
     // Check some common attributes
@@ -95,7 +95,7 @@ describe('GoogleCloudTracing', () => {
       });
     });
 
-    await runFlow(testFlow);
+    await testFlow();
 
     const spans = await getExportedSpans();
     assert.equal(spans.length, 3);
@@ -111,8 +111,8 @@ describe('GoogleCloudTracing', () => {
     const testFlow1 = createFlow('testFlow1');
     const testFlow2 = createFlow('testFlow2');
 
-    await runFlow(testFlow1);
-    await runFlow(testFlow2);
+    await testFlow1();
+    await testFlow2();
 
     const spans = await getExportedSpans();
     assert.equal(spans.length, 2);

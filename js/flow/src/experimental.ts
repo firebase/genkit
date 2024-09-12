@@ -24,8 +24,8 @@ import {
   FlowStillRunningError,
 } from './errors.js';
 import {
+  CallableFlow,
   Flow,
-  FlowWrapper,
   RunStepConfig,
   StepsFunction,
   defineFlow,
@@ -39,30 +39,27 @@ import { getActiveContext } from './utils.js';
 export function durableFlow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   config: {
     name: string;
     inputSchema?: I;
     outputSchema?: O;
-    streamSchema?: S;
-    invoker?: Invoker<I, O, S>;
-    scheduler?: Scheduler<I, O, S>;
+    invoker?: Invoker<I, O, z.ZodVoid>;
+    scheduler?: Scheduler<I, O>;
   },
-  steps: StepsFunction<I, O, S>
-): Flow<I, O, S> {
+  steps: StepsFunction<I, O, z.ZodVoid>
+): Flow<I, O, z.ZodVoid> {
   return defineFlow(
     {
       name: config.name,
       inputSchema: config.inputSchema,
       outputSchema: config.outputSchema,
-      streamSchema: config.streamSchema,
       invoker: config.invoker,
       experimentalScheduler: config.scheduler,
       experimentalDurable: true,
     },
     steps
-  );
+  ).flow;
 }
 
 /**
@@ -71,9 +68,8 @@ export function durableFlow<
 export async function scheduleFlow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
+  flow: Flow<I, O, z.ZodVoid> | CallableFlow<I, O>,
   payload: z.infer<I>,
   delaySeconds?: number
 ): Promise<Operation> {
@@ -97,7 +93,7 @@ export async function resumeFlow<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
+  flow: Flow<I, O, z.ZodVoid> | CallableFlow<I, O>,
   flowId: string,
   payload: any
 ): Promise<Operation> {
@@ -118,9 +114,8 @@ export async function resumeFlow<
 export async function getFlowState<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
-  S extends z.ZodTypeAny,
 >(
-  flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
+  flow: Flow<I, O, z.ZodVoid> | CallableFlow<I, O>,
   flowId: string
 ): Promise<Operation> {
   if (!(flow instanceof Flow)) {
@@ -163,9 +158,8 @@ export function runAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 export async function waitFlowToComplete<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  flow: Flow<I, O, S> | FlowWrapper<I, O, S>,
+  flow: Flow<I, O, z.ZodVoid> | CallableFlow<I, O>,
   flowId: string
 ): Promise<z.infer<O>> {
   if (!(flow instanceof Flow)) {

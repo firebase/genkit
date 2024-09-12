@@ -25,7 +25,7 @@ import {
   resumeFlow,
   scheduleFlow,
 } from '../src/experimental.js';
-import { defineFlow, runFlow } from '../src/flow.js';
+import { defineFlow } from '../src/flow.js';
 
 import { asyncTurn, configureInMemoryStateStore } from './testUtil.js';
 
@@ -55,7 +55,7 @@ describe('durable', () => {
       configureInMemoryStateStore('prod');
       const testFlow = createSimpleTestDurableFlow();
 
-      const result = await runFlow(testFlow, 'foo');
+      const result = await testFlow('foo');
 
       assert.equal(result, 'bar foo');
     });
@@ -114,7 +114,7 @@ describe('durable', () => {
         const stateStore = configureInMemoryStateStore('dev');
         const testFlow = createSimpleTestDurableFlow();
 
-        const result = await runFlow(testFlow, 'foo');
+        const result = await testFlow('foo');
 
         assert.equal(result, 'bar foo');
         assert.equal(Object.keys(stateStore.state).length, 1);
@@ -126,7 +126,7 @@ describe('durable', () => {
         const stateStore = configureInMemoryStateStore('prod');
         const testFlow = createSimpleTestDurableFlow();
 
-        const result = await runFlow(testFlow, 'foo');
+        const result = await testFlow('foo');
 
         assert.equal(result, 'bar foo');
         assert.equal(Object.keys(stateStore.state).length, 1);

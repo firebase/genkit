@@ -17,7 +17,12 @@
 import { JSONSchema7 } from 'json-schema';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import * as z from 'zod';
-import { ActionType, lookupPlugin, registerAction } from './registry.js';
+import {
+  ActionType,
+  initializeAllPlugins,
+  lookupPlugin,
+  registerAction,
+} from './registry.js';
 import { parseSchema } from './schema.js';
 import {
   SPAN_TYPE_ATTR,
@@ -202,9 +207,16 @@ export function defineAction<
   },
   fn: (input: z.infer<I>) => Promise<z.infer<O>>
 ): Action<I, O> {
-  const act = action(config, (i: I): Promise<z.infer<O>> => {
+  if (isInRuntimeContext()) {
+    throw new Error(
+      'Cannot define new actions at runtime.\n' +
+        'See: https://github.com/firebase/genkit/blob/main/docs/errors/no_new_actions_at_runtime.md'
+    );
+  }
+  const act = action(config, async (i: I): Promise<z.infer<O>> => {
     setCustomMetadataAttributes({ subtype: config.actionType });
-    return fn(i);
+    await initializeAllPlugins();
+    return await runInActionRuntimeContext(() => fn(i));
   });
   act.__action.actionType = config.actionType;
   registerAction(config.actionType, act);
@@ -237,4 +249,20 @@ export function getStreamingCallback<S>(): StreamingCallback<S> | undefined {
     return undefined;
   }
   return cb;
+}
+
+const runtimeCtxAls = new AsyncLocalStorage<any>();
+
+/**
+ * Checks whether the caller is currently in the runtime context of an action.
+ */
+export function isInRuntimeContext() {
+  return !!runtimeCtxAls.getStore();
+}
+
+/**
+ * Execute the provided function in the action runtime context.
+ */
+export function runInActionRuntimeContext<R>(fn: () => R) {
+  return runtimeCtxAls.run('runtime', fn);
 }

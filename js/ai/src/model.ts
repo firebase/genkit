@@ -163,11 +163,12 @@ export const ToolDefinitionSchema = z.object({
   description: z.string(),
   inputSchema: z
     .record(z.any())
-    .describe('Valid JSON Schema representing the input of the tool.'),
+    .describe('Valid JSON Schema representing the input of the tool.')
+    .nullish(),
   outputSchema: z
     .record(z.any())
     .describe('Valid JSON Schema describing the output of the tool.')
-    .optional(),
+    .nullish(),
 });
 export type ToolDefinition = z.infer<typeof ToolDefinitionSchema>;
 
@@ -288,6 +289,7 @@ export function defineModel<
     configSchema?: CustomOptionsSchema;
     /** Descriptive name for this model e.g. 'Google AI - Gemini Pro'. */
     label?: string;
+    /** Middleware to be used with this model. */
     use?: ModelMiddleware[];
   },
   runner: (

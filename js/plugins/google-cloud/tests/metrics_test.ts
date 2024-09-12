@@ -25,7 +25,7 @@ import {
   FlowStateStore,
 } from '@genkit-ai/core';
 import { registerFlowStateStore } from '@genkit-ai/core/registry';
-import { defineFlow, run, runAction, runFlow } from '@genkit-ai/flow';
+import { defineFlow, run, runAction } from '@genkit-ai/flow';
 import {
   __forceFlushSpansForTesting,
   __getMetricExporterForTesting,
@@ -78,8 +78,8 @@ describe('GoogleCloudMetrics', () => {
   it('writes flow metrics', async () => {
     const testFlow = createFlow('testFlow');
 
-    await runFlow(testFlow);
-    await runFlow(testFlow);
+    await testFlow();
+    await testFlow();
 
     await getExportedSpans();
 
@@ -105,7 +105,7 @@ describe('GoogleCloudMetrics', () => {
     });
 
     assert.rejects(async () => {
-      await runFlow(testFlow);
+      await testFlow();
     });
 
     await getExportedSpans();
@@ -128,8 +128,8 @@ describe('GoogleCloudMetrics', () => {
       ]);
     });
 
-    await runFlow(testFlow);
-    await runFlow(testFlow);
+    await testFlow();
+    await testFlow();
 
     await getExportedSpans();
 
@@ -150,7 +150,7 @@ describe('GoogleCloudMetrics', () => {
   it('truncates metric dimensions', async () => {
     const testFlow = createFlow('anExtremelyLongFlowNameThatIsTooBig');
 
-    await runFlow(testFlow);
+    await testFlow();
 
     await getExportedSpans();
 
@@ -177,7 +177,7 @@ describe('GoogleCloudMetrics', () => {
     });
 
     assert.rejects(async () => {
-      await runFlow(testFlow);
+      await testFlow();
     });
 
     await getExportedSpans();
@@ -326,7 +326,7 @@ describe('GoogleCloudMetrics', () => {
       return await runAction(testAction, null);
     });
 
-    await runFlow(flow);
+    await flow();
 
     await getExportedSpans();
 
@@ -370,7 +370,7 @@ describe('GoogleCloudMetrics', () => {
       });
     });
 
-    await runFlow(flow);
+    await flow();
 
     await getExportedSpans();
 
@@ -400,7 +400,7 @@ describe('GoogleCloudMetrics', () => {
       return;
     });
 
-    await runFlow(flow);
+    await flow();
 
     await getExportedSpans();
 
@@ -443,7 +443,7 @@ describe('GoogleCloudMetrics', () => {
     });
 
     assert.rejects(async () => {
-      await runFlow(flow);
+      await flow();
     });
 
     await getExportedSpans();
@@ -482,7 +482,7 @@ describe('GoogleCloudMetrics', () => {
     });
 
     assert.rejects(async () => {
-      await runFlow(flow);
+      await flow();
     });
 
     await getExportedSpans();
@@ -525,7 +525,7 @@ describe('GoogleCloudMetrics', () => {
     });
 
     assert.rejects(async () => {
-      await runFlow(flow);
+      await flow();
     });
 
     await getExportedSpans();
@@ -570,7 +570,7 @@ describe('GoogleCloudMetrics', () => {
     });
 
     assert.rejects(async () => {
-      await runFlow(flow);
+      await flow();
     });
 
     await getExportedSpans();

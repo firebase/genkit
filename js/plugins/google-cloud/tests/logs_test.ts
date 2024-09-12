@@ -24,7 +24,7 @@ import {
   FlowStateStore,
 } from '@genkit-ai/core';
 import { registerFlowStateStore } from '@genkit-ai/core/registry';
-import { defineFlow, run, runFlow } from '@genkit-ai/flow';
+import { defineFlow, run } from '@genkit-ai/flow';
 import {
   __addTransportStreamForTesting,
   __forceFlushSpansForTesting,
@@ -230,7 +230,7 @@ describe('GoogleCloudLogs', () => {
   it('writes path logs', async () => {
     const testFlow = createFlow('testFlow');
 
-    await runFlow(testFlow);
+    await testFlow();
 
     await getExportedSpans();
 
@@ -246,7 +246,7 @@ describe('GoogleCloudLogs', () => {
     });
 
     assert.rejects(async () => {
-      await runFlow(testFlow);
+      await testFlow();
     });
 
     await getExportedSpans();
@@ -312,19 +312,19 @@ describe('GoogleCloudLogs', () => {
     const logMessages = await getLogs(1, 100, logLines);
     assert.equal(
       logMessages.includes(
-        '[info] Config[testFlow > sub1 > sub2 > testModel, testModel]'
+        '[info] Config[testFlow > sub1 > sub2 > generate > testModel, testModel]'
       ),
       true
     );
     assert.equal(
       logMessages.includes(
-        '[info] Input[testFlow > sub1 > sub2 > testModel, testModel]'
+        '[info] Input[testFlow > sub1 > sub2 > generate > testModel, testModel]'
       ),
       true
     );
     assert.equal(
       logMessages.includes(
-        '[info] Output[testFlow > sub1 > sub2 > testModel, testModel]'
+        '[info] Output[testFlow > sub1 > sub2 > generate > testModel, testModel]'
       ),
       true
     );
