@@ -134,7 +134,6 @@ export type GetEvalRunRequest = z.infer<typeof GetEvalRunRequestSchema>;
 
 export const CreateDatasetRequestSchema = z.object({
   data: EvalFlowInputSchema,
-  displayName: z.string().optional(),
   datasetId: z.string().optional(),
 });
 
@@ -144,6 +143,5 @@ export const UpdateDatasetRequestSchema = z.object({
   /** Only supports replacement, throws if data is absent */
   data: EvalFlowInputSchema.optional(),
   datasetId: z.string(),
-  displayName: z.string().optional(),
 });
 export type UpdateDatasetRequest = z.infer<typeof UpdateDatasetRequestSchema>;
