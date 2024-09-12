@@ -105,12 +105,13 @@ export const evalRun = new Command('eval:run')
         `Using evaluators: ${filteredEvaluatorActions.map((action) => action.name).join(',')}`
       );
 
-      const confirmed = await confirmLlmUse(
-        filteredEvaluatorActions,
-        options.force
-      );
-      if (!confirmed) {
-        return;
+      if (options.force) {
+        const confirmed = await confirmLlmUse(
+          filteredEvaluatorActions,
+        );
+        if (!confirmed) {
+          return;
+        }
       }
 
       const scores: Record<string, EvalResponse> = {};

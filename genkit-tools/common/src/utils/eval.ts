@@ -49,7 +49,6 @@ export function isEvaluator(key: string) {
 
 export async function confirmLlmUse(
   evaluatorActions: Action[],
-  force: boolean | undefined
 ): Promise<boolean> {
   const isBilled = evaluatorActions.some(
     (action) =>
@@ -57,13 +56,6 @@ export async function confirmLlmUse(
   );
 
   if (!isBilled) {
-    return true;
-  }
-
-  if (force) {
-    logger.warn(
-      'For each example, the evaluation makes calls to APIs that may result in being charged.'
-    );
     return true;
   }
 

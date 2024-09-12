@@ -20,6 +20,7 @@ import { LocalFileEvalStore } from './localFileEvalStore';
 export { EvalFlowInput, EvalFlowInputSchema } from '../types/eval';
 export * from './exporter';
 export * from './parser';
+export * from './eval-flow';
 
 export function getEvalStore(): EvalStore {
   // TODO: This should provide EvalStore, based on tools config.
