@@ -128,7 +128,7 @@ into a vector database and retrieve them for use in a flow that determines what 
 ### Install dependencies for processing PDFs
 
 ```posix-terminal
-npm install llm-chunk pdf-parse
+npm install llm-chunk pdf-parse @genkit-ai/dev-local-vectorstore
 
 npm i -D --save @types/pdf-parse
 ```
