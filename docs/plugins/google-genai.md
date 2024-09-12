@@ -119,7 +119,7 @@ The tuning process uses a base model&mdash;for example, Gemini 1.5 Flash&mdash;a
 
 When calling the tuned model in Genkit, use the base model as the `model` parameter, and pass the tuned model's ID as part of the `config` block. For example, if you used Gemini 1.5 Flash as the base model, and got the model ID `tunedModels/my-example-model-apbm8oqbvuv2` you can call it with a block like the following:
 
-```
+```js
 const llmResponse = await generate({
   prompt: `Suggest an item for the menu of fish themed restruant`,
   model: gemini15Flash,
