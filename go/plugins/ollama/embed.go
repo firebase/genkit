@@ -25,12 +25,6 @@ import (
 	"github.com/firebase/genkit/go/ai"
 )
 
-var supportedEmbeddingModels = []string{
-	"mxbai-embed-large",
-	"nomic-embed-text",
-	"all-minilm",
-}
-
 type EmbedOptions struct {
 	Model string `json:"model,omitempty"`
 }
@@ -50,18 +44,15 @@ func embed(ctx context.Context, serverAddress string, req *ai.EmbedRequest) (*ai
 	if !ok && req.Options != nil {
 		return nil, fmt.Errorf("invalid options type: expected *EmbedOptions")
 	}
-
-	model := getEmbeddingModel(options)
-
-	if model == "" {
-		return nil, fmt.Errorf("invalid embedding model: model cannot be empty")
+	if options == nil || options.Model == "" {
+		return nil, fmt.Errorf("invalid embedding model: model must be specified")
 	}
 
 	if serverAddress == "" {
 		return nil, fmt.Errorf("invalid server address: address cannot be empty")
 	}
 
-	ollamaReq := newOllamaEmbedRequest(model, req.Documents)
+	ollamaReq := newOllamaEmbedRequest(options.Model, req.Documents)
 
 	jsonData, err := json.Marshal(ollamaReq)
 	if err != nil {
@@ -84,16 +75,6 @@ func embed(ctx context.Context, serverAddress string, req *ai.EmbedRequest) (*ai
 	}
 
 	return newEmbedResponse(ollamaResp.Embeddings), nil
-}
-
-func getEmbeddingModel(options *EmbedOptions) string {
-	model := options.Model
-	for _, supportedModel := range supportedEmbeddingModels {
-		if model == supportedModel {
-			return model
-		}
-	}
-	return ""
 }
 
 func sendEmbedRequest(ctx context.Context, serverAddress string, jsonData []byte) (*http.Response, error) {
@@ -144,13 +125,16 @@ func concatenateText(doc *ai.Document) string {
 }
 
 // DefineEmbedder defines an embedder with a given server address.
-func DefineEmbedder(serverAddress string) ai.Embedder {
+func DefineEmbedder(serverAddress string, model string) ai.Embedder {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	if !state.initted {
 		panic("ollama.Init not called")
 	}
 	return ai.DefineEmbedder(provider, serverAddress, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+		if req.Options == nil {
+			req.Options = &EmbedOptions{Model: model}
+		}
 		return embed(ctx, serverAddress, req)
 	})
 }
