@@ -26,7 +26,7 @@ import (
 )
 
 type EmbedOptions struct {
-	Model string `json:"model,omitempty"`
+	Model string `json:"model"`
 }
 
 type ollamaEmbedRequest struct {
@@ -134,6 +134,9 @@ func DefineEmbedder(serverAddress string, model string) ai.Embedder {
 	return ai.DefineEmbedder(provider, serverAddress, func(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 		if req.Options == nil {
 			req.Options = &EmbedOptions{Model: model}
+		}
+		if req.Options.(*EmbedOptions).Model == "" {
+			req.Options.(*EmbedOptions).Model = model
 		}
 		return embed(ctx, serverAddress, req)
 	})
