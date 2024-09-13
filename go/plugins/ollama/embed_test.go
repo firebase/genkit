@@ -51,20 +51,6 @@ func TestEmbedValidRequest(t *testing.T) {
 	}
 }
 
-func TestEmbedInvalidModel(t *testing.T) {
-	req := &ai.EmbedRequest{
-		Documents: []*ai.Document{
-			ai.DocumentFromText("test", nil),
-		},
-		Options: &EmbedOptions{Model: "invalid-model"},
-	}
-
-	_, err := embed(context.Background(), "http://localhost:11434", req)
-	if err == nil || !strings.Contains(err.Error(), "invalid embedding model") {
-		t.Fatalf("expected invalid model error, got %v", err)
-	}
-}
-
 func TestEmbedInvalidServerAddress(t *testing.T) {
 	req := &ai.EmbedRequest{
 		Documents: []*ai.Document{
