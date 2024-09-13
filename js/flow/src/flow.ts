@@ -467,12 +467,13 @@ function wrapAsAction<
         envelope.start?.input as I | undefined
       );
       setCustomMetadataAttribute(metadataPrefix('wrapperAction'), 'true');
-      return await flow.invoke(envelope.start?.input, {
+      const response = await flow.invoke(envelope.start?.input, {
         streamingCallback: getStreamingCallback() as S extends z.ZodVoid
           ? undefined
           : StreamingCallback<z.infer<S>>,
         auth: envelope.auth,
       });
+      return response.result;
     }
   );
 }
