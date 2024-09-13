@@ -100,6 +100,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.5(zod@3.22.4)
     devDependencies:
+      '@types/express':
+        specifier: ^4.17.21
+        version: 4.17.21
       '@types/node':
         specifier: ^20.11.30
         version: 20.11.30
@@ -764,8 +767,8 @@ importers:
         specifier: ^1.22.0
         version: 1.25.1(@opentelemetry/api@1.9.0)
       firebase-admin:
-        specifier: ^12.3.0
-        version: 12.3.1(encoding@0.1.13)
+        specifier: 12.3.0
+        version: 12.3.0(encoding@0.1.13)
       genkitx-pinecone:
         specifier: workspace:*
         version: link:../../plugins/pinecone
@@ -3427,6 +3430,10 @@ packages:
 
   firebase-admin@12.2.0:
     resolution: {integrity: sha512-R9xxENvPA/19XJ3mv0Kxfbz9kPXd9/HrM4083LZWOO0qAQGheRzcCQamYRe+JSrV2cdKXP3ZsfFGTYMrFM0pJg==}
+    engines: {node: '>=14'}
+
+  firebase-admin@12.3.0:
+    resolution: {integrity: sha512-AKJcFbOZ7W8Fwcqh6Ba7FThXVoXwPdsf+E9vyjk5Z1vN1Z9mnTw88EQWfIsR91YglQ0KvWu1rvMhW65bcB4sog==}
     engines: {node: '>=14'}
 
   firebase-admin@12.3.1:
@@ -6515,6 +6522,7 @@ snapshots:
   '@types/node@22.4.1':
     dependencies:
       undici-types: 6.19.8
+    optional: true
 
   '@types/pdf-parse@1.1.4': {}
 
@@ -7316,6 +7324,24 @@ snapshots:
       - encoding
       - supports-color
 
+  firebase-admin@12.3.0(encoding@0.1.13):
+    dependencies:
+      '@fastify/busboy': 3.0.0
+      '@firebase/database-compat': 1.0.4
+      '@firebase/database-types': 1.0.2
+      '@types/node': 20.11.30
+      farmhash-modern: 1.1.0
+      jsonwebtoken: 9.0.2
+      jwks-rsa: 3.1.0
+      node-forge: 1.3.1
+      uuid: 10.0.0
+    optionalDependencies:
+      '@google-cloud/firestore': 7.9.0(encoding@0.1.13)
+      '@google-cloud/storage': 7.10.1(encoding@0.1.13)
+    transitivePeerDependencies:
+      - encoding
+      - supports-color
+
   firebase-admin@12.3.1(encoding@0.1.13):
     dependencies:
       '@fastify/busboy': 3.0.0
@@ -7333,6 +7359,7 @@ snapshots:
     transitivePeerDependencies:
       - encoding
       - supports-color
+    optional: true
 
   firebase-functions@4.8.1(encoding@0.1.13)(firebase-admin@12.2.0(encoding@0.1.13)):
     dependencies:
@@ -9168,7 +9195,8 @@ snapshots:
 
   undici-types@5.26.5: {}
 
-  undici-types@6.19.8: {}
+  undici-types@6.19.8:
+    optional: true
 
   unpipe@1.0.0: {}
 

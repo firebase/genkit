@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { OperationSchema } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import {
   CallableFlow,
@@ -32,11 +31,7 @@ import {
   onRequest,
 } from 'firebase-functions/v2/https';
 import * as z from 'zod';
-import {
-  callHttpsFunction,
-  getLocation,
-  initializeAppIfNecessary,
-} from './helpers.js';
+import { initializeAppIfNecessary } from './helpers.js';
 
 export type FunctionFlow<
   I extends z.ZodTypeAny,
@@ -84,27 +79,6 @@ export function onFlow<
     {
       ...config,
       authPolicy: config.authPolicy.policy,
-      invoker: async (flow, data, streamingCallback) => {
-        const responseJson = await callHttpsFunction(
-          flow.name,
-          await getLocation(),
-          data,
-          streamingCallback
-        );
-
-        const res = JSON.parse(responseJson);
-        if (streamingCallback) {
-          return OperationSchema.parse(res);
-        } else {
-          return {
-            name: '',
-            done: true,
-            result: {
-              response: res,
-            },
-          };
-        }
-      },
     },
     steps
   ).flow;

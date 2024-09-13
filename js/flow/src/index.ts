@@ -15,25 +15,17 @@
  */
 
 export {
-  FlowStateExecutionSchema,
-  OperationSchema,
-  type FlowState,
-  type FlowStateStore,
-  type Operation,
-} from '@genkit-ai/core';
-export { FirestoreStateStore } from './firestoreStateStore.js';
-export {
   Flow,
   defineFlow,
   defineStreamingFlow,
   startFlowsServer,
   type CallableFlow,
   type FlowAuthPolicy,
-  type StepsFunction,
+  type FlowFn as StepsFunction,
   type StreamableFlow,
   type __RequestWithAuth,
 } from './flow.js';
-export { run, runAction, runMap } from './steps.js';
+export { run } from './steps.js';
 export {
   FlowInvokeEnvelopeMessageSchema,
   type FlowInvokeEnvelopeMessage,

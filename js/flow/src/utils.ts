@@ -16,9 +16,6 @@
 
 import { runInActionRuntimeContext } from '@genkit-ai/core';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { v4 as uuidv4 } from 'uuid';
-import z from 'zod';
-import { Context } from './context.js';
 
 /**
  * Adds flows specific prefix for OpenTelemetry span attributes.
@@ -27,42 +24,19 @@ export function metadataPrefix(name: string) {
   return `flow:${name}`;
 }
 
-const ctxAsyncLocalStorage = new AsyncLocalStorage<
-  Context<z.ZodTypeAny, z.ZodTypeAny, z.ZodTypeAny>
->();
+const authAsyncLocalStorage = new AsyncLocalStorage<any>();
 
 /**
- * Returns current active context.
+ * Execute the provided function in the auth context. Call {@link getFlowAuth()} anywhere
+ * within the async call stack to retrieve the auth.
  */
-export function getActiveContext() {
-  return ctxAsyncLocalStorage.getStore();
-}
-
-/**
- * Execute the provided function in the flow context. Call {@link getActiveContext()} anywhere
- * within the async call stack to retrieve the context.
- */
-export function runWithActiveContext<R>(
-  ctx: Context<z.ZodTypeAny, z.ZodTypeAny, z.ZodTypeAny>,
-  fn: () => R
-) {
-  return ctxAsyncLocalStorage.run(ctx, () => runInActionRuntimeContext(fn));
-}
-
-/**
- * Generates a flow ID.
- */
-export function generateFlowId() {
-  return uuidv4();
+export function runWithAuthContext<R>(auth: any, fn: () => R) {
+  return authAsyncLocalStorage.run(auth, () => runInActionRuntimeContext(fn));
 }
 
 /**
  * Gets the auth object from the current context.
  */
 export function getFlowAuth(): any {
-  const ctx = getActiveContext();
-  if (!ctx) {
-    throw new Error('Can only be run from a flow');
-  }
-  return ctx.auth;
+  return authAsyncLocalStorage.getStore();
 }
