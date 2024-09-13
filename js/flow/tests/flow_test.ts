@@ -81,7 +81,7 @@ describe('flow', () => {
         }
       );
 
-      await assert.rejects(async () => await testFlow('foo'), {
+      await assert.rejects(() => testFlow('foo'), {
         name: 'Error',
         message: 'bad happened: foo',
       });
@@ -135,14 +135,14 @@ describe('flow', () => {
           inputSchema: z.string(),
         },
         async (input) => {
-          throw new Error(`bad happened: ${input}`);
+          throw new Error(`stream bad happened: ${input}`);
         }
       );
 
       const response = testFlow('foo');
-      await assert.rejects(async () => await response.output, {
+      await assert.rejects(() => response.output, {
         name: 'Error',
-        message: 'bad happened: foo',
+        message: 'stream bad happened: foo',
       });
     });
   });

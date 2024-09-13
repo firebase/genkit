@@ -207,7 +207,7 @@ export class Registry {
       return;
     }
     for (const pluginName of Object.keys(this.pluginsByName)) {
-      await initializePlugin(pluginName);
+      await this.initializePlugin(pluginName);
     }
     this.allPluginsInitialized = true;
   }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { runInNewSpan } from '@genkit-ai/core/tracing';
+import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
 
 export function run<T>(name: string, func: () => Promise<T>): Promise<T>;
 export function run<T>(
@@ -36,10 +36,18 @@ export function run<T>(
   if (!func) {
     throw new Error('unable to resolve run function');
   }
-  return runInNewSpan({ metadata: { name } }, async (meta) => {
-    meta.input = input;
-    const output = arguments.length === 3 ? await func(input) : await func();
-    meta.output = JSON.stringify(output);
-    return output;
-  });
+  return runInNewSpan(
+    {
+      metadata: { name },
+      labels: {
+        [SPAN_TYPE_ATTR]: 'flowStep',
+      },
+    },
+    async (meta) => {
+      meta.input = input;
+      const output = arguments.length === 3 ? await func(input) : await func();
+      meta.output = JSON.stringify(output);
+      return output;
+    }
+  );
 }

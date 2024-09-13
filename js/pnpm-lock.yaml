@@ -443,6 +443,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      '@genkit-ai/flow':
+        specifier: workspace:*
+        version: link:../../flow
       '@types/node':
         specifier: ^20.11.16
         version: 20.11.30

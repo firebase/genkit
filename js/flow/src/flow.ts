@@ -243,51 +243,52 @@ export class Flow<
     }
   ): Promise<FlowResult<z.infer<O>>> {
     await initializeAllPlugins();
-    return await runWithAuthContext(
-      opts.auth,
-      async () =>
-        await newTrace(
-          {
-            name: this.name,
-            labels: {
-              [SPAN_TYPE_ATTR]: 'flow',
-            },
+    return await runWithAuthContext(opts.auth, () =>
+      newTrace(
+        {
+          name: this.name,
+          labels: {
+            [SPAN_TYPE_ATTR]: 'flow',
           },
-          async (metadata, rootSpan) => {
-            if (opts.labels) {
-              const labels = opts.labels;
-              Object.keys(opts.labels).forEach((label) => {
-                setCustomMetadataAttribute(
-                  metadataPrefix(`label:${label}`),
-                  labels[label]
-                );
-              });
-            }
-
-            setCustomMetadataAttributes({
-              [metadataPrefix('name')]: this.name,
+        },
+        async (metadata, rootSpan) => {
+          if (opts.labels) {
+            const labels = opts.labels;
+            Object.keys(opts.labels).forEach((label) => {
+              setCustomMetadataAttribute(
+                metadataPrefix(`label:${label}`),
+                labels[label]
+              );
             });
-            try {
-              metadata.input = input;
-              const output = await this.flowFn(input, opts.streamingCallback);
-              metadata.output = JSON.stringify(output);
-              setCustomMetadataAttribute(metadataPrefix('state'), 'done');
-              return output;
-            } catch (e) {
-              metadata.state = 'error';
-              rootSpan.setStatus({
-                code: SpanStatusCode.ERROR,
-                message: getErrorMessage(e),
-              });
-              if (e instanceof Error) {
-                rootSpan.recordException(e);
-              }
-
-              setCustomMetadataAttribute(metadataPrefix('state'), 'error');
-              throw e;
-            }
           }
-        )
+
+          setCustomMetadataAttributes({
+            [metadataPrefix('name')]: this.name,
+          });
+          try {
+            metadata.input = input;
+            const output = await this.flowFn(input, opts.streamingCallback);
+            metadata.output = JSON.stringify(output);
+            setCustomMetadataAttribute(metadataPrefix('state'), 'done');
+            return {
+              result: output,
+              traceId: rootSpan.spanContext().traceId,
+            };
+          } catch (e) {
+            metadata.state = 'error';
+            rootSpan.setStatus({
+              code: SpanStatusCode.ERROR,
+              message: getErrorMessage(e),
+            });
+            if (e instanceof Error) {
+              rootSpan.recordException(e);
+            }
+
+            setCustomMetadataAttribute(metadataPrefix('state'), 'error');
+            throw e;
+          }
+        }
+      )
     );
   }
 
@@ -344,13 +345,11 @@ export class Flow<
               ? undefined
               : StreamingCallback<z.infer<S>>,
           }
-        )
+        ).then((s) => s.result)
       )
-      .then((s) => s.result);
-    invocationPromise.then((o) => {
-      chunkStreamController.close();
-      return o;
-    });
+      .finally(() => {
+        chunkStreamController.close();
+      });
 
     return {
       output: invocationPromise,
