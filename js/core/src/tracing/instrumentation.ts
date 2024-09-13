@@ -43,6 +43,7 @@ export async function newTrace<T>(
   },
   fn: (metadata: SpanMetadata, rootSpan: ApiSpan) => Promise<T>
 ) {
+  // This is the root node only if we haven't previously started a trace.
   const isRoot = traceMetadataAls.getStore() ? false : true;
   const traceMetadata = traceMetadataAls.getStore() || {
     paths: new Set<PathMetadata>(),
