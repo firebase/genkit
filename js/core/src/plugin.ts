@@ -26,15 +26,10 @@ export interface Provider<T> {
 }
 
 export enum PluginProvidesType {
-  UNSPECIFIED = 0x0,
-  MODEL = 0x1,
-  RETRIEVER = 0x2,
-  EMBEDDER = 0x3,
-  INDEXER = 0x4,
-  EVALUATOR = 0x5,
-  FLOW_STATE_STORE = 0x6,
-  TRACE_STORE = 0x7,
-  TELEMETRY = 0x8,
+  UNSPECIFIED = 0,
+  FLOW_STATE_STORE = 1 << 0,
+  TRACE_STORE = 1 << 1,
+  TELEMETRY = 1 << 2,
 }
 
 export interface PluginProvider {

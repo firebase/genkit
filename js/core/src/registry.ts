@@ -221,8 +221,11 @@ export function registerPluginProvider(name: string, provider: PluginProvider) {
   pluginsByName()[plugin.name] = plugin;
 
   if (plugin.provides() !== PluginProvidesType.UNSPECIFIED) {
-    const plugins = pluginsByAbility()[plugin.provides()] || [];
-    pluginsByAbility()[plugin.provides()] = [...plugins, plugin];
+    getDiscreteAbilities(plugin.provides()).forEach((ability) => {
+      console.log(`>>>>>>> plugin: ${plugin.name} provides: ${ability}`);
+      const plugins = pluginsByAbility()[ability] || [];
+      pluginsByAbility()[ability] = [...plugins, plugin];
+    });
   }
 }
 
@@ -273,4 +276,33 @@ export function __hardResetRegistryForTesting() {
 
 function deleteAll(map: Record<any, any>) {
   Object.keys(map).forEach((key) => delete map[key]);
+}
+
+function getDiscreteAbilities(
+  provides: PluginProvidesType
+): PluginProvidesType[] {
+  let abilities: PluginProvidesType[] = [];
+
+  if (
+    (provides & PluginProvidesType.FLOW_STATE_STORE) ===
+    PluginProvidesType.FLOW_STATE_STORE
+  ) {
+    abilities.push(PluginProvidesType.FLOW_STATE_STORE);
+  }
+
+  if (
+    (provides & PluginProvidesType.TRACE_STORE) ===
+    PluginProvidesType.TRACE_STORE
+  ) {
+    abilities.push(PluginProvidesType.TRACE_STORE);
+  }
+
+  if (
+    (provides & PluginProvidesType.TELEMETRY) ===
+    PluginProvidesType.TELEMETRY
+  ) {
+    abilities.push(PluginProvidesType.TELEMETRY);
+  }
+
+  return abilities;
 }

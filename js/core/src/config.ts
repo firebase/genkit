@@ -95,6 +95,28 @@ class Config {
     return this.telemetryConfig();
   }
 
+  private registerImplicitPlugin(
+    ability: PluginProvidesType,
+    block: string,
+    registerFn: (name: string) => void
+  ): boolean {
+    const capablePlugins = registry.lookupPluginsByAbility(ability);
+    if (!capablePlugins) {
+      return false;
+    }
+
+    if (capablePlugins.length != 1) {
+      logger.error(`More than one plugin implicitly provides ${ability}`);
+      logger.error(
+        `Disambiguate by adding a ${block} block to your configuration and specifying one of ${capablePlugins.map((plugin) => plugin.name)}.`
+      );
+      return false;
+    }
+
+    registerFn(capablePlugins[0].name);
+    return true;
+  }
+
   /**
    * Configures the system.
    */
@@ -117,54 +139,40 @@ class Config {
       });
     });
 
-    if (this.options.telemetry?.logger) {
-      const loggerPluginName = this.options.telemetry.logger;
+    const registerLogger = (name: string) => {
       logger.debug('Registering logging exporters...');
-      logger.debug(`  - all environments: ${loggerPluginName}`);
-      this.loggerConfig = async () =>
-        this.resolveLoggerConfig(loggerPluginName);
+      logger.debug(`  - all environments: ${name}`);
+      this.loggerConfig = async () => this.resolveLoggerConfig(name);
+    };
+
+    if (this.options.telemetry?.logger) {
+      registerLogger(this.options.telemetry.logger);
     } else {
-      const capablePlugins = registry.lookupPluginsByAbility(
-        PluginProvidesType.TELEMETRY
-      );
-      if (capablePlugins) {
-        if (capablePlugins.length != 1) {
-          logger.error(`More than one plugin implicitly provides telemetry.`);
-          logger.error(
-            `Disambiguate by adding a telemetry {} block to your configuration and specifying one of ${capablePlugins.map((plugin) => plugin.name)}.`
-          );
-        } else {
-          logger.debug('Registering logging exporters...');
-          logger.debug(`  - all environments: ${capablePlugins[0].name}`);
-          this.loggerConfig = async () =>
-            this.resolveLoggerConfig(capablePlugins[0].name);
+      this.registerImplicitPlugin(
+        PluginProvidesType.TELEMETRY,
+        `telementry {}`,
+        (name: string) => {
+          registerLogger(name);
         }
-      }
+      );
     }
 
-    if (this.options.telemetry?.instrumentation) {
-      const telemetryPluginName = this.options.telemetry.instrumentation;
+    const registerTelemetry = (name: string) => {
       logger.debug('Registering telemetry exporters...');
-      logger.debug(`  - all environments: ${telemetryPluginName}`);
-      this.telemetryConfig = async () =>
-        this.resolveTelemetryConfig(telemetryPluginName);
+      logger.debug(`  - all environments: ${name}`);
+      this.telemetryConfig = async () => this.resolveTelemetryConfig(name);
+    };
+
+    if (this.options.telemetry?.instrumentation) {
+      registerTelemetry(this.options.telemetry.instrumentation);
     } else {
-      const capablePlugins = registry.lookupPluginsByAbility(
-        PluginProvidesType.TELEMETRY
-      );
-      if (capablePlugins) {
-        if (capablePlugins.length != 1) {
-          logger.error(`More than one plugin implicitly provides telemetry.`);
-          logger.error(
-            `Disambiguate by adding a telemetry {} block to your configuration and specifying one of ${capablePlugins.map((plugin) => plugin.name)}.`
-          );
-        } else {
-          logger.debug('Registering telemetry exporters...');
-          logger.debug(`  - all environments: ${capablePlugins[0].name}`);
-          this.telemetryConfig = async () =>
-            this.resolveTelemetryConfig(capablePlugins[0].name);
+      this.registerImplicitPlugin(
+        PluginProvidesType.TELEMETRY,
+        'telemetry {}',
+        (name: string) => {
+          registerTelemetry(name);
         }
-      }
+      );
     }
 
     logger.debug('Registering flow state stores...');
@@ -175,12 +183,24 @@ class Config {
       );
       logger.debug('Registered dev flow state store.');
     }
-    if (this.options.flowStateStore) {
-      const flowStorePluginName = this.options.flowStateStore;
-      logger.debug(`  - prod: ${flowStorePluginName}`);
+
+    const registerFlowStateStore = (name: string) => {
+      logger.debug(`  - prod: ${name}`);
       this.configuredEnvs.add('prod');
       registry.registerFlowStateStore('prod', () =>
-        this.resolveFlowStateStore(flowStorePluginName)
+        this.resolveFlowStateStore(name)
+      );
+    };
+
+    if (this.options.flowStateStore) {
+      registerFlowStateStore(this.options.flowStateStore);
+    } else {
+      this.registerImplicitPlugin(
+        PluginProvidesType.FLOW_STATE_STORE,
+        'flowStateStore',
+        (name: string) => {
+          registerFlowStateStore(name);
+        }
       );
     }
 
@@ -189,22 +209,34 @@ class Config {
       registry.registerTraceStore('dev', async () => new LocalFileTraceStore());
       logger.debug('Registered dev trace store.');
     }
-    if (this.options.traceStore) {
-      const traceStorePluginName = this.options.traceStore;
-      logger.debug(`  - prod: ${traceStorePluginName}`);
+
+    const registerTraceStore = (name: string) => {
+      logger.debug(`  - prod: ${name}`);
       this.configuredEnvs.add('prod');
-      registry.registerTraceStore('prod', () =>
-        this.resolveTraceStore(traceStorePluginName)
-      );
+      registry.registerTraceStore('prod', () => this.resolveTraceStore(name));
+    };
+
+    if (this.options.traceStore) {
+      registerTraceStore(this.options.traceStore);
       if (isDevEnv()) {
         logger.info(
           'In dev mode `traceStore` is defaulted to local file store.'
         );
       }
     } else {
-      logger.info(
-        '`traceStore` is not specified in the config; Traces are not going to be persisted in prod.'
-      );
+      if (
+        !this.registerImplicitPlugin(
+          PluginProvidesType.TRACE_STORE,
+          'traceStore',
+          (name: string) => {
+            registerTraceStore(name);
+          }
+        )
+      ) {
+        logger.info(
+          '`traceStore` is not specified in the config; Traces are not going to be persisted in prod.'
+        );
+      }
     }
   }
 

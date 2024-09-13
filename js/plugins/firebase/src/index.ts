@@ -14,7 +14,12 @@
  * limitations under the License.
  */
 
-import { genkitPlugin, isDevEnv, Plugin } from '@genkit-ai/core';
+import {
+  genkitPlugin,
+  isDevEnv,
+  Plugin,
+  PluginProvidesType,
+} from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { FirestoreStateStore } from '@genkit-ai/flow';
 import {
@@ -85,5 +90,9 @@ export const firebase: Plugin<[FirestorePluginParams] | []> = genkitPlugin(
         },
       },
     };
-  }
+  },
+  () =>
+    PluginProvidesType.FLOW_STATE_STORE |
+    PluginProvidesType.TRACE_STORE |
+    PluginProvidesType.TELEMETRY
 );

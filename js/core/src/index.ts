@@ -23,5 +23,6 @@ export * from './action.js';
 export * from './config.js';
 export { GenkitError } from './error.js';
 export * from './flowTypes.js';
+export { PluginProvidesType } from './plugin.js';
 export { defineJsonSchema, defineSchema } from './schema.js';
 export * from './telemetryTypes.js';
