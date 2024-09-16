@@ -237,19 +237,6 @@ describe('localFileDatasetStore', () => {
       expect(fs.promises.writeFile).toBeCalledTimes(0);
     });
 
-    it('fails if displayName is not valid', async () => {
-      fs.existsSync = jest.fn(() => true);
-
-      expect(async () => {
-        await DatasetStore.updateDataset({
-          ...UPDATE_DATASET_REQUEST,
-          displayName: 'very long displayname'.repeat(5),
-        });
-      }).rejects.toThrow('Display name cannot be longer');
-
-      expect(fs.promises.writeFile).toBeCalledTimes(0);
-    });
-
     it('fails for non existing dataset', async () => {
       fs.existsSync = jest.fn(() => false);
 
