@@ -70,7 +70,7 @@ const tests: Record<string, TestCase> = {
     });
     const response = await generate({
       model,
-      prompt: "What' my name?",
+      prompt: "What's my name?",
       history: response1.toHistory(),
     });
 
