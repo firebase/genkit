@@ -20,7 +20,7 @@ import {
   defineStreamingFlow,
   Flow,
   FlowAuthPolicy,
-  StepsFunction,
+  FlowFn,
   StreamableFlow,
 } from '@genkit-ai/flow';
 import * as express from 'express';
@@ -73,7 +73,7 @@ export function onFlow<
   S extends z.ZodTypeAny,
 >(
   config: FunctionFlowConfig<I, O, S>,
-  steps: StepsFunction<I, O, S>
+  steps: FlowFn<I, O, S>
 ): StreamingFunctionFlow<I, O, S> {
   const f = defineStreamingFlow(
     {
