@@ -42,6 +42,7 @@ describe('GoogleCloudTracing', () => {
       enableTracingAndMetrics: true,
       telemetry: {
         instrumentation: 'googleCloud',
+        logger: 'googleCloud',
       },
     });
     // Wait for the telemetry plugin to be initialized
@@ -113,7 +114,7 @@ describe('GoogleCloudTracing', () => {
   });
 
   /** Helper to create a flow with no inputs or outputs */
-  function createFlow(name: string, fn: () => Promise<void> = async () => {}) {
+  function createFlow(name: string, fn: () => Promise<any> = async () => {}) {
     return defineFlow(
       {
         name,

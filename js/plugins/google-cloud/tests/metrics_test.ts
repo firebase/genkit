@@ -14,21 +14,21 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
+import { generate, GenerateResponseData } from '@genkit-ai/ai';
 import { defineModel } from '@genkit-ai/ai/model';
 import { configureGenkit, defineAction } from '@genkit-ai/core';
 import { defineFlow, run } from '@genkit-ai/flow';
 import {
-  GcpOpenTelemetry,
   __forceFlushSpansForTesting,
   __getMetricExporterForTesting,
   __getSpanExporterForTesting,
+  GcpOpenTelemetry,
   googleCloud,
 } from '@genkit-ai/google-cloud';
 import {
-  Counter,
   DataPoint,
   Histogram,
+  HistogramMetricData,
   ScopeMetrics,
   SumMetricData,
 } from '@opentelemetry/sdk-metrics';
@@ -54,6 +54,7 @@ describe('GoogleCloudMetrics', () => {
       ],
       enableTracingAndMetrics: true,
       telemetry: {
+        logger: '',
         instrumentation: 'googleCloud',
       },
     });
@@ -89,8 +90,9 @@ describe('GoogleCloudMetrics', () => {
 
   it('writes flow failure metrics', async () => {
     const testFlow = createFlow('testFlow', async () => {
-      const nothing: any = null;
-      nothing.something;
+      const nothing: { missing?: any } = { missing: 1 };
+      delete nothing.missing;
+      return nothing.missing.explode;
     });
 
     assert.rejects(async () => {
@@ -157,8 +159,9 @@ describe('GoogleCloudMetrics', () => {
 
   it('writes action failure metrics', async () => {
     const testAction = createAction('testActionWithFailure', async () => {
-      const nothing: any = null;
-      nothing.something;
+      const nothing: { missing?: any } = { missing: 1 };
+      delete nothing.missing;
+      return nothing.missing.explode;
     });
     const testFlow = createFlow('testFlowWithFailingActions', async () => {
       await testAction(undefined);
@@ -274,8 +277,9 @@ describe('GoogleCloudMetrics', () => {
 
   it('writes generate failure metrics', async () => {
     const testModel = createModel('failingTestModel', async () => {
-      const nothing: any = null;
-      nothing.something;
+      const nothing: { missing?: any } = { missing: 1 };
+      delete nothing.missing;
+      return nothing.missing.explode;
     });
 
     assert.rejects(async () => {
@@ -378,13 +382,13 @@ describe('GoogleCloudMetrics', () => {
 
   it('writes flow paths metrics', async () => {
     const flow = createFlow('pathTestFlow', async () => {
-      const step1Result = await run('step1', async () => {
+      await run('step1', async () => {
         return await run('substep_a', async () => {
           return await run('substep_b', async () => 'res1');
         });
       });
-      const step2Result = await run('step2', async () => 'res2');
-      return step1Result + step2Result;
+      await run('step2', async () => 'res2');
+      return;
     });
 
     await flow();
@@ -587,9 +591,10 @@ describe('GoogleCloudMetrics', () => {
   describe('Configuration', () => {
     it('should export only traces', async () => {
       const telemetry = new GcpOpenTelemetry({
-        telemetryConfig: {
-          forceDevExport: true,
+        telemetry: {
+          export: true,
           disableMetrics: true,
+          disableTraces: false,
         },
       });
       assert.equal(telemetry['shouldExportTraces'](), true);
@@ -598,8 +603,8 @@ describe('GoogleCloudMetrics', () => {
 
     it('should export only metrics', async () => {
       const telemetry = new GcpOpenTelemetry({
-        telemetryConfig: {
-          forceDevExport: true,
+        telemetry: {
+          export: true,
           disableTraces: true,
           disableMetrics: false,
         },
@@ -611,9 +616,9 @@ describe('GoogleCloudMetrics', () => {
 
   /** Polls the in memory metric exporter until the genkit scope is found. */
   async function getGenkitMetrics(
-    name: string,
+    name: string = 'genkit',
     maxAttempts: number = 100
-  ): Promise<ScopeMetrics> {
+  ): Promise<ScopeMetrics | undefined> {
     var attempts = 0;
     while (attempts++ < maxAttempts) {
       await new Promise((resolve) => setTimeout(resolve, 50));
@@ -646,24 +651,36 @@ describe('GoogleCloudMetrics', () => {
   /** Finds all datapoints for a counter metric with the given name in the in memory exporter */
   async function getCounterDataPoints(
     metricName: string
-  ): Promise<DataPoint<Counter>[]> {
-    const genkitMetrics = await getGenkitMetrics('genkit');
-    const counterMetric: SumMetricData = genkitMetrics.metrics.find(
-      (e) => e.descriptor.name === metricName && e.descriptor.type === 'COUNTER'
-    );
-    if (counterMetric) {
-      return counterMetric.dataPoints;
+  ): Promise<Array<DataPoint<number>>> {
+    const genkitMetrics = await getGenkitMetrics();
+    if (genkitMetrics) {
+      const counterMetric: SumMetricData = genkitMetrics.metrics.find(
+        (e) =>
+          e.descriptor.name === metricName && e.descriptor.type === 'COUNTER'
+      ) as SumMetricData;
+      if (counterMetric) {
+        return counterMetric.dataPoints;
+      }
+      assert.fail(
+        `No counter metric named ${metricName} was found. Only found: ${genkitMetrics.metrics.map((e) => e.descriptor.name)}`
+      );
+    } else {
+      assert.fail(`No genkit metrics found.`);
     }
-    assert.fail(
-      `No counter metric named ${metricName} was found. Only found: ${genkitMetrics.metrics.map((e) => e.descriptor.name)}`
-    );
   }
 
   /** Finds a counter metric with the given name in the in memory exporter */
   async function getCounterMetric(
     metricName: string
-  ): Promise<DataPoint<Counter>> {
-    return getCounterDataPoints(metricName).then((points) => points.at(-1));
+  ): Promise<DataPoint<number>> {
+    const counter = await getCounterDataPoints(metricName).then((points) =>
+      points.at(-1)
+    );
+    if (counter === undefined) {
+      assert.fail(`Counter not found`);
+    } else {
+      return counter;
+    }
   }
 
   /**
@@ -672,25 +689,37 @@ describe('GoogleCloudMetrics', () => {
    */
   async function getHistogramDataPoints(
     metricName: string
-  ): Promise<List<DataPoint<Histogram>>> {
-    const genkitMetrics = await getGenkitMetrics('genkit');
-    const histogramMetric: HistogramMetricData = genkitMetrics.metrics.find(
-      (e) =>
-        e.descriptor.name === metricName && e.descriptor.type === 'HISTOGRAM'
-    );
-    if (histogramMetric) {
-      return histogramMetric.dataPoints;
+  ): Promise<Array<DataPoint<Histogram>>> {
+    const genkitMetrics = await getGenkitMetrics();
+    if (genkitMetrics === undefined) {
+      assert.fail('Genkit metrics not found');
+    } else {
+      const histogramMetric = genkitMetrics.metrics.find(
+        (e) =>
+          e.descriptor.name === metricName && e.descriptor.type === 'HISTOGRAM'
+      ) as HistogramMetricData;
+      if (histogramMetric === undefined) {
+        assert.fail(
+          `No histogram metric named ${metricName} was found. Only found: ${genkitMetrics.metrics.map((e) => e.descriptor.name)}`
+        );
+      } else {
+        return histogramMetric.dataPoints;
+      }
     }
-    assert.fail(
-      `No histogram metric named ${metricName} was found. Only found: ${genkitMetrics.metrics.map((e) => e.descriptor.name)}`
-    );
   }
 
   /** Finds a histogram metric with the given name in the in memory exporter */
   async function getHistogramMetric(
     metricName: string
   ): Promise<DataPoint<Histogram>> {
-    return getHistogramDataPoints(metricName).then((points) => points.at(-1));
+    const metric = await getHistogramDataPoints(metricName).then((points) =>
+      points.at(-1)
+    );
+    if (metric === undefined) {
+      assert.fail('Metric not found');
+    } else {
+      return metric;
+    }
   }
 
   /** Helper to create a flow with no inputs or outputs */
@@ -699,7 +728,7 @@ describe('GoogleCloudMetrics', () => {
       {
         name,
         inputSchema: z.void(),
-        outputSchema: z.void(),
+        outputSchema: z.any(),
       },
       fn
     );
@@ -713,7 +742,7 @@ describe('GoogleCloudMetrics', () => {
     return defineAction(
       {
         name,
-        actionType: 'test',
+        actionType: 'custom',
       },
       fn
     );

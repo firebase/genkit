@@ -48,7 +48,8 @@ class ActionTelemetry implements Telemetry {
 
   tick(
     span: ReadableSpan,
-    paths?: Set<PathMetadata>,
+    paths: Set<PathMetadata>,
+    logIO: boolean,
     projectId?: string
   ): void {
     const attributes = span.attributes;

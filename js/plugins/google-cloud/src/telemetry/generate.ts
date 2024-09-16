@@ -132,7 +132,8 @@ class GenerateTelemetry implements Telemetry {
 
   tick(
     span: ReadableSpan,
-    paths?: Set<PathMetadata>,
+    paths: Set<PathMetadata>,
+    logIO: boolean,
     projectId?: string
   ): void {
     const attributes = span.attributes;
@@ -159,7 +160,7 @@ class GenerateTelemetry implements Telemetry {
         response: output,
         errName,
       });
-      this.recordGenerateActionInputLogs(
+      this.recordGenerateActionConfigLogs(
         span,
         modelName,
         flowName,
@@ -167,9 +168,20 @@ class GenerateTelemetry implements Telemetry {
         input,
         projectId
       );
+
+      if (logIO) {
+        this.recordGenerateActionInputLogs(
+          span,
+          modelName,
+          flowName,
+          path,
+          input,
+          projectId
+        );
+      }
     }
 
-    if (output) {
+    if (output && logIO) {
       this.recordGenerateActionOutputLogs(
         span,
         modelName,
@@ -205,7 +217,7 @@ class GenerateTelemetry implements Telemetry {
     });
   }
 
-  private recordGenerateActionInputLogs(
+  private recordGenerateActionConfigLogs(
     span: ReadableSpan,
     model: string,
     flowName: string | undefined,
@@ -231,6 +243,24 @@ class GenerateTelemetry implements Telemetry {
       source: 'ts',
       sourceVersion: GENKIT_VERSION,
     });
+  }
+
+  private recordGenerateActionInputLogs(
+    span: ReadableSpan,
+    model: string,
+    flowName: string | undefined,
+    qualifiedPath: string,
+    input: GenerateRequestData,
+    projectId?: string
+  ) {
+    const path = toDisplayPath(qualifiedPath);
+    const sharedMetadata = {
+      ...createCommonLogAttributes(span, projectId),
+      model,
+      path,
+      qualifiedPath,
+      flowName,
+    };
 
     const messages = input.messages.length;
     input.messages.forEach((msg, msgIdx) => {
