@@ -25,7 +25,7 @@ export interface Provider<T> {
   value: T;
 }
 
-export enum PluginProvidesType {
+export enum PluginAbilityType {
   UNSPECIFIED = 0,
   FLOW_STATE_STORE = 1 << 0,
   TRACE_STORE = 1 << 1,
@@ -38,7 +38,7 @@ export interface PluginProvider {
     | InitializedPlugin
     | void
     | Promise<InitializedPlugin | void>;
-  provides: () => PluginProvidesType;
+  provides: () => PluginAbilityType;
 }
 
 export interface InitializedPlugin {
@@ -67,7 +67,7 @@ export type Plugin<T extends any[]> = (...args: T) => PluginProvider;
 export function genkitPlugin<T extends PluginInit>(
   pluginName: string,
   initFn: T,
-  providesFn: () => PluginProvidesType = () => PluginProvidesType.UNSPECIFIED
+  providesFn: () => PluginAbilityType = () => PluginAbilityType.UNSPECIFIED
 ): Plugin<Parameters<T>> {
   return (...args: Parameters<T>) => ({
     name: pluginName,

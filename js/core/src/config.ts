@@ -20,7 +20,7 @@ import path from 'path';
 import { FlowStateStore } from './flowTypes.js';
 import { LocalFileFlowStateStore } from './localFileFlowStateStore.js';
 import { logger } from './logging.js';
-import { PluginProvider, PluginProvidesType } from './plugin.js';
+import { PluginAbilityType, PluginProvider } from './plugin.js';
 import * as registry from './registry.js';
 import { AsyncProvider } from './registry.js';
 import {
@@ -95,8 +95,12 @@ class Config {
     return this.telemetryConfig();
   }
 
+  /**
+   * Registers plugins that provide capabilities not explicitly specified in
+   * the config.
+   */
   private registerImplicitPlugin(
-    ability: PluginProvidesType,
+    ability: PluginAbilityType,
     block: string,
     registerFn: (name: string) => void
   ): boolean {
@@ -149,7 +153,7 @@ class Config {
       registerLogger(this.options.telemetry.logger);
     } else {
       this.registerImplicitPlugin(
-        PluginProvidesType.TELEMETRY,
+        PluginAbilityType.TELEMETRY,
         `telementry {}`,
         (name: string) => {
           registerLogger(name);
@@ -167,7 +171,7 @@ class Config {
       registerTelemetry(this.options.telemetry.instrumentation);
     } else {
       this.registerImplicitPlugin(
-        PluginProvidesType.TELEMETRY,
+        PluginAbilityType.TELEMETRY,
         'telemetry {}',
         (name: string) => {
           registerTelemetry(name);
@@ -196,7 +200,7 @@ class Config {
       registerFlowStateStore(this.options.flowStateStore);
     } else {
       this.registerImplicitPlugin(
-        PluginProvidesType.FLOW_STATE_STORE,
+        PluginAbilityType.FLOW_STATE_STORE,
         'flowStateStore',
         (name: string) => {
           registerFlowStateStore(name);
@@ -226,7 +230,7 @@ class Config {
     } else {
       if (
         !this.registerImplicitPlugin(
-          PluginProvidesType.TRACE_STORE,
+          PluginAbilityType.TRACE_STORE,
           'traceStore',
           (name: string) => {
             registerTraceStore(name);

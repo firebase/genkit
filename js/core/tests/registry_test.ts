@@ -16,8 +16,8 @@
 
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
-import { PluginProvidesType } from '../lib/config.js';
 import { action } from '../src/action.js';
+import { PluginAbilityType } from '../src/config.js';
 import {
   __hardResetRegistryForTesting,
   listActions,
@@ -56,7 +56,7 @@ describe('registry', () => {
           return {};
         },
         provides() {
-          return PluginProvidesType.UNSPECIFIED;
+          return PluginAbilityType.UNSPECIFIED;
         },
       });
       const fooSomethingAction = action(
@@ -75,7 +75,7 @@ describe('registry', () => {
           return {};
         },
         provides() {
-          return PluginProvidesType.UNSPECIFIED;
+          return PluginAbilityType.UNSPECIFIED;
         },
       });
       const barSomethingAction = action(
@@ -105,7 +105,7 @@ describe('registry', () => {
           return {};
         },
         provides() {
-          return PluginProvidesType.UNSPECIFIED;
+          return PluginAbilityType.UNSPECIFIED;
         },
       });
       let barInitialized = false;
@@ -116,7 +116,7 @@ describe('registry', () => {
           return {};
         },
         provides() {
-          return PluginProvidesType.UNSPECIFIED;
+          return PluginAbilityType.UNSPECIFIED;
         },
       });
 
@@ -162,7 +162,7 @@ describe('registry', () => {
         return {};
       },
       provides() {
-        return PluginProvidesType.UNSPECIFIED;
+        return PluginAbilityType.UNSPECIFIED;
       },
     });
     const somethingAction = action(

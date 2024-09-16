@@ -18,7 +18,7 @@ import {
   genkitPlugin,
   isDevEnv,
   Plugin,
-  PluginProvidesType,
+  PluginAbilityType,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { FirestoreStateStore } from '@genkit-ai/flow';
@@ -92,7 +92,7 @@ export const firebase: Plugin<[FirestorePluginParams] | []> = genkitPlugin(
     };
   },
   () =>
-    PluginProvidesType.FLOW_STATE_STORE |
-    PluginProvidesType.TRACE_STORE |
-    PluginProvidesType.TELEMETRY
+    PluginAbilityType.FLOW_STATE_STORE |
+    PluginAbilityType.TRACE_STORE |
+    PluginAbilityType.TELEMETRY
 );

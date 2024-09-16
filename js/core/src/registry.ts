@@ -18,7 +18,7 @@ import * as z from 'zod';
 import { Action } from './action.js';
 import { FlowStateStore } from './flowTypes.js';
 import { logger } from './logging.js';
-import { PluginProvider, PluginProvidesType } from './plugin.js';
+import { PluginAbilityType, PluginProvider } from './plugin.js';
 import { startReflectionApi } from './reflectionApi.js';
 import { JSONSchema } from './schema.js';
 import { TraceStore } from './tracing/types.js';
@@ -56,7 +56,7 @@ function pluginsByName(): Record<string, PluginProvider> {
   }
   return global[PLUGINS_BY_NAME];
 }
-function pluginsByAbility(): Record<PluginProvidesType, PluginProvider[]> {
+function pluginsByAbility(): Record<PluginAbilityType, PluginProvider[]> {
   if (global[PLUGINS_BY_ABILITY] === undefined) {
     global[PLUGINS_BY_ABILITY] = {};
   }
@@ -220,9 +220,8 @@ export function registerPluginProvider(name: string, provider: PluginProvider) {
 
   pluginsByName()[plugin.name] = plugin;
 
-  if (plugin.provides() !== PluginProvidesType.UNSPECIFIED) {
+  if (plugin.provides() !== PluginAbilityType.UNSPECIFIED) {
     getDiscreteAbilities(plugin.provides()).forEach((ability) => {
-      console.log(`>>>>>>> plugin: ${plugin.name} provides: ${ability}`);
       const plugins = pluginsByAbility()[ability] || [];
       pluginsByAbility()[ability] = [...plugins, plugin];
     });
@@ -233,7 +232,7 @@ export function lookupPlugin(name: string) {
   return pluginsByName()[name];
 }
 
-export function lookupPluginsByAbility(ability: PluginProvidesType) {
+export function lookupPluginsByAbility(ability: PluginAbilityType) {
   return pluginsByAbility()[ability];
 }
 
@@ -279,29 +278,29 @@ function deleteAll(map: Record<any, any>) {
 }
 
 function getDiscreteAbilities(
-  provides: PluginProvidesType
-): PluginProvidesType[] {
-  let abilities: PluginProvidesType[] = [];
+  provides: PluginAbilityType
+): PluginAbilityType[] {
+  let abilities: PluginAbilityType[] = [];
 
   if (
-    (provides & PluginProvidesType.FLOW_STATE_STORE) ===
-    PluginProvidesType.FLOW_STATE_STORE
+    (provides & PluginAbilityType.FLOW_STATE_STORE) ===
+    PluginAbilityType.FLOW_STATE_STORE
   ) {
-    abilities.push(PluginProvidesType.FLOW_STATE_STORE);
+    abilities.push(PluginAbilityType.FLOW_STATE_STORE);
   }
 
   if (
-    (provides & PluginProvidesType.TRACE_STORE) ===
-    PluginProvidesType.TRACE_STORE
+    (provides & PluginAbilityType.TRACE_STORE) ===
+    PluginAbilityType.TRACE_STORE
   ) {
-    abilities.push(PluginProvidesType.TRACE_STORE);
+    abilities.push(PluginAbilityType.TRACE_STORE);
   }
 
   if (
-    (provides & PluginProvidesType.TELEMETRY) ===
-    PluginProvidesType.TELEMETRY
+    (provides & PluginAbilityType.TELEMETRY) ===
+    PluginAbilityType.TELEMETRY
   ) {
-    abilities.push(PluginProvidesType.TELEMETRY);
+    abilities.push(PluginAbilityType.TELEMETRY);
   }
 
   return abilities;
