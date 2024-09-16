@@ -15,7 +15,7 @@
  */
 
 import { z } from 'zod';
-import { EvalRunKeySchema } from './eval';
+import { EvalFlowInputSchema, EvalRunKeySchema } from './eval';
 import { FlowStateSchema } from './flow';
 import {
   GenerationCommonConfigSchema,
@@ -113,7 +113,7 @@ export type PageView = z.infer<typeof PageViewSchema>;
 export const ListEvalKeysRequestSchema = z.object({
   filter: z
     .object({
-      actionId: z.string().optional(),
+      actionRef: z.string().optional(),
     })
     .optional(),
 });
@@ -127,8 +127,22 @@ export const ListEvalKeysResponseSchema = z.object({
 export type ListEvalKeysResponse = z.infer<typeof ListEvalKeysResponseSchema>;
 
 export const GetEvalRunRequestSchema = z.object({
-  // Eval run name in the form actions/{action}/evalRun/{evalRun}
-  // where `action` can be blank e.g. actions/-/evalRun/{evalRun}
+  // Eval run name in the form evalRuns/{evalRunId}
   name: z.string(),
 });
 export type GetEvalRunRequest = z.infer<typeof GetEvalRunRequestSchema>;
+
+export const CreateDatasetRequestSchema = z.object({
+  data: EvalFlowInputSchema,
+  displayName: z.string().optional(),
+});
+
+export type CreateDatasetRequest = z.infer<typeof CreateDatasetRequestSchema>;
+
+export const UpdateDatasetRequestSchema = z.object({
+  /** Supports upsert */
+  patch: EvalFlowInputSchema,
+  datasetId: z.string(),
+  displayName: z.string().optional(),
+});
+export type UpdateDatasetRequest = z.infer<typeof UpdateDatasetRequestSchema>;

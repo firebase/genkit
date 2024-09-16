@@ -17,7 +17,9 @@
     "compile": "tsup-node",
     "build:clean": "rm -rf ./lib",
     "build": "npm-run-all build:clean check compile",
-    "build:watch": "tsup-node --watch"
+    "build:watch": "tsup-node --watch",
+    "test": "find tests -name '*_test.ts' ! -name '*_live_test.ts' -exec node --import tsx --test {} +",
+    "test:live": "node --import tsx --test tests/*_test.ts"
   },
   "repository": {
     "type": "git",
@@ -26,6 +28,9 @@
   },
   "author": "genkit",
   "license": "Apache-2.0",
+  "dependencies": {
+    "zod": "^3.22.4"
+  },
   "peerDependencies": {
     "@genkit-ai/ai": "workspace:*",
     "@genkit-ai/core": "workspace:*"

@@ -86,7 +86,7 @@ const METRICS_METADATA = {
 
 const EVAL_RUN_WITH_ACTION = EvalRunSchema.parse({
   key: {
-    actionId: 'flow/tellMeAJoke',
+    actionRef: 'flow/tellMeAJoke',
     evalRunId: 'abc1234',
     createdAt: new Date().toISOString(),
   },
@@ -125,7 +125,7 @@ describe('localFileEvalStore', () => {
       await evalStore.save(EVAL_RUN_WITH_ACTION);
 
       expect(fs.promises.writeFile).toHaveBeenCalledWith(
-        `/tmp/.genkit/store-root/evals/flow_tellMeAJoke-abc1234.json`,
+        `/tmp/.genkit/store-root/evals/abc1234.json`,
         JSON.stringify(EVAL_RUN_WITH_ACTION)
       );
       expect(fs.promises.appendFile).toHaveBeenCalledWith(
@@ -155,8 +155,7 @@ describe('localFileEvalStore', () => {
         Promise.resolve(JSON.stringify(EVAL_RUN_WITH_ACTION) as any)
       );
       const fetchedEvalRun = await evalStore.load(
-        EVAL_RUN_WITH_ACTION.key.evalRunId,
-        EVAL_RUN_WITH_ACTION.key.actionId
+        EVAL_RUN_WITH_ACTION.key.evalRunId
       );
       expect(fetchedEvalRun).toMatchObject(EVAL_RUN_WITH_ACTION);
     });
@@ -167,8 +166,7 @@ describe('localFileEvalStore', () => {
         Promise.resolve(JSON.stringify(EVAL_RUN_WITHOUT_ACTION) as any)
       );
       const fetchedEvalRun = await evalStore.load(
-        EVAL_RUN_WITHOUT_ACTION.key.evalRunId,
-        EVAL_RUN_WITHOUT_ACTION.key.actionId
+        EVAL_RUN_WITHOUT_ACTION.key.evalRunId
       );
       expect(fetchedEvalRun).toMatchObject(EVAL_RUN_WITHOUT_ACTION);
     });
@@ -177,8 +175,7 @@ describe('localFileEvalStore', () => {
       fs.existsSync = jest.fn(() => false);
 
       const fetchedEvalRun = await evalStore.load(
-        EVAL_RUN_WITH_ACTION.key.evalRunId,
-        EVAL_RUN_WITH_ACTION.key.actionId
+        EVAL_RUN_WITH_ACTION.key.evalRunId
       );
       expect(fetchedEvalRun).toBeUndefined();
     });
@@ -208,7 +205,7 @@ describe('localFileEvalStore', () => {
       );
 
       const fetchedEvalKeys = await evalStore.list({
-        filter: { actionId: EVAL_RUN_WITH_ACTION.key.actionId },
+        filter: { actionRef: EVAL_RUN_WITH_ACTION.key.actionRef },
       });
 
       const expectedKeys = { evalRunKeys: [EVAL_RUN_WITH_ACTION.key] };

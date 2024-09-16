@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { runInActionRuntimeContext } from '@genkit-ai/core';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { v4 as uuidv4 } from 'uuid';
 import z from 'zod';
@@ -45,7 +46,7 @@ export function runWithActiveContext<R>(
   ctx: Context<z.ZodTypeAny, z.ZodTypeAny, z.ZodTypeAny>,
   fn: () => R
 ) {
-  return ctxAsyncLocalStorage.run(ctx, fn);
+  return ctxAsyncLocalStorage.run(ctx, () => runInActionRuntimeContext(fn));
 }
 
 /**
