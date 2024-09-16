@@ -15,7 +15,7 @@
  */
 
 import { z } from 'zod';
-import { Action, isInRuntimeContext } from './action.js';
+import { Action } from './action.js';
 import { FlowStateStore } from './flowTypes.js';
 import { LoggerConfig, TelemetryConfig } from './telemetryTypes.js';
 import { TraceStore } from './tracing.js';
@@ -60,12 +60,6 @@ export function genkitPlugin<T extends PluginInit>(
   pluginName: string,
   initFn: T
 ): Plugin<Parameters<T>> {
-  if (isInRuntimeContext()) {
-    throw new Error(
-      'Cannot define new plugins at runtime.\n' +
-        'See: https://github.com/firebase/genkit/blob/main/docs/errors/no_new_actions_at_runtime.md'
-    );
-  }
   return (...args: Parameters<T>) => ({
     name: pluginName,
     initializer: async () => {
