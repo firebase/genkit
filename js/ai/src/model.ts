@@ -22,6 +22,7 @@ import {
   StreamingCallback,
 } from '@genkit-ai/core';
 import { toJsonSchema } from '@genkit-ai/core/schema';
+import * as clc from 'colorette';
 import { performance } from 'node:perf_hooks';
 import { z } from 'zod';
 import { DocumentDataSchema } from './document.js';
@@ -30,7 +31,6 @@ import {
   conformOutput,
   validateSupport,
 } from './model/middleware.js';
-import * as telemetry from './telemetry.js';
 
 //
 // IMPORTANT: Please keep type definitions in sync with
@@ -145,6 +145,16 @@ export const ModelInfoSchema = z.object({
       context: z.boolean().optional(),
     })
     .optional(),
+  /** At which stage of development this model is.
+   * - `featured` models are recommended for general use.
+   * - `stable` models are well-tested and reliable.
+   * - `unstable` models are experimental and may change.
+   * - `legacy` models are no longer recommended for new projects.
+   * - `deprecated` models are deprecated by the provider and may be removed in future versions.
+   */
+  stage: z
+    .enum(['featured', 'stable', 'unstable', 'legacy', 'deprecated'])
+    .optional(),
 });
 export type ModelInfo = z.infer<typeof ModelInfoSchema>;
 
@@ -185,6 +195,7 @@ export const GenerateRequestSchema = z.object({
   context: z.array(DocumentDataSchema).optional(),
   candidates: z.number().optional(),
 });
+export type GenerateRequestData = z.infer<typeof GenerateRequestSchema>;
 
 export interface GenerateRequest<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
@@ -311,25 +322,15 @@ export function defineModel<
       use: middleware,
     },
     (input) => {
-      telemetry.recordGenerateActionInputLogs(options.name, input);
       const startTimeMs = performance.now();
 
-      return runner(input, getStreamingCallback())
-        .then((response) => {
-          const timedResponse = {
-            ...response,
-            latencyMs: performance.now() - startTimeMs,
-          };
-          telemetry.recordGenerateActionOutputLogs(options.name, response);
-          telemetry.recordGenerateActionMetrics(options.name, input, {
-            response: timedResponse,
-          });
-          return timedResponse;
-        })
-        .catch((err) => {
-          telemetry.recordGenerateActionMetrics(options.name, input, { err });
-          throw err;
-        });
+      return runner(input, getStreamingCallback()).then((response) => {
+        const timedResponse = {
+          ...response,
+          latencyMs: performance.now() - startTimeMs,
+        };
+        return timedResponse;
+      });
     }
   );
   Object.assign(act, {
@@ -353,7 +354,20 @@ export function modelRef<
 >(
   options: ModelReference<CustomOptionsSchema>
 ): ModelReference<CustomOptionsSchema> {
+  if (options.info?.stage === 'deprecated') {
+    deprecateModel({ name: options.name });
+  }
   return { ...options };
+}
+
+/**
+ * Warns when a model is deprecated.
+ */
+function deprecateModel(options: { name: string }) {
+  console.warn(
+    `${clc.bold(clc.yellow('Warning:'))} ` +
+      `Model '${options.name}' is deprecated and may be removed in a future release.`
+  );
 }
 
 /** Container for counting usage stats for a single input/output {Part} */

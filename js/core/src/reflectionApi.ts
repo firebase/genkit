@@ -188,7 +188,13 @@ export async function startReflectionApi(port?: number | undefined) {
     // TODO: Remove try/catch when upgrading to Express 5; error is sent to `next` automatically
     // in that version
     try {
-      response.json(await tracestore?.load(traceId));
+      const trace = await tracestore?.load(traceId);
+      return trace
+        ? response.json(trace)
+        : response.status(404).send({
+            code: StatusCodes.NOT_FOUND,
+            message: `Trace with traceId=${traceId} not found.`,
+          });
     } catch (err) {
       const error = err as Error;
       const { message, stack } = error;

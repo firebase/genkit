@@ -29,6 +29,12 @@ import { randomUUID } from 'crypto';
 
 const DOC_MAX_SIZE = 1_000_000;
 
+/** Allow customers to set service account credentials via an environment variable. */
+interface Credentials {
+  client_email?: string;
+  private_key?: string;
+}
+
 /**
  * Firestore implementation of a trace store.
  */
@@ -44,6 +50,7 @@ export class FirestoreTraceStore implements TraceStore {
       databaseId?: string;
       projectId?: string;
       expireAfterDays?: number;
+      credentials?: Credentials;
     } = {}
   ) {
     this.collection = params.collection || 'genkit-traces';
@@ -52,6 +59,7 @@ export class FirestoreTraceStore implements TraceStore {
     this.db = new Firestore({
       databaseId: this.databaseId,
       ignoreUndefinedProperties: true,
+      credentials: params.credentials,
     });
   }
 

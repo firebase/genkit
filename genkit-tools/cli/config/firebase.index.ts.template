@@ -31,7 +31,7 @@ export const menuSuggestionFlow = onFlow(
       // By default, the firebaseAuth policy requires that all requests have an
       // `Authorization: Bearer` header containing the user's Firebase
       // Authentication ID token. All other requests are rejected with error
-      // 403. If your app client uses the Firebase Cloud Functions callable
+      // 403. If your app client uses the Cloud Functions for Firebase callable
       // functions feature, the library automatically attaches this header to
       // requests.
 

@@ -18,16 +18,19 @@ import { genkitPlugin, isDevEnv, Plugin } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { FirestoreStateStore } from '@genkit-ai/flow';
 import {
+  configureGcpPlugin,
   GcpLogger,
   GcpOpenTelemetry,
-  TelemetryConfig,
+  GcpTelemetryConfigOptions,
 } from '@genkit-ai/google-cloud';
-import { GoogleAuth } from 'google-auth-library';
+import { JWTInput } from 'google-auth-library';
+import { GcpPluginConfig } from '../../google-cloud/lib/types.js';
 import { FirestoreTraceStore } from './firestoreTraceStore.js';
 export { defineFirestoreRetriever } from './firestoreRetriever.js';
 
-interface FirestorePluginParams {
+export interface FirestorePluginParams {
   projectId?: string;
+  credentials?: JWTInput;
   flowStateStore?: {
     collection?: string;
     databaseId?: string;
@@ -36,49 +39,51 @@ interface FirestorePluginParams {
     collection?: string;
     databaseId?: string;
   };
-  telemetryConfig?: TelemetryConfig;
+  telemetryConfig?: GcpTelemetryConfigOptions;
 }
 
 export const firebase: Plugin<[FirestorePluginParams] | []> = genkitPlugin(
   'firebase',
   async (params?: FirestorePluginParams) => {
-    const authClient = new GoogleAuth();
-    const gcpOptions = {
-      projectId: params?.projectId || (await getProjectId(authClient)),
-      telemetryConfig: params?.telemetryConfig,
+    const gcpConfig: GcpPluginConfig = await configureGcpPlugin(params);
+
+    if (isDevEnv() && !gcpConfig.projectId) {
+      // Helpful warning, since Cloud SDKs probably will not work
+      logger.warn(
+        'WARNING: unable to determine Firebase Project ID. Run "gcloud auth application-default login --project MY_PROJECT_ID"'
+      );
+    }
+
+    const flowStateStoreOptions = {
+      projectId: gcpConfig.projectId,
+      credentials: gcpConfig.credentials,
+      ...params?.flowStateStore,
     };
+    const traceStoreOptions = {
+      projectId: gcpConfig.projectId,
+      credentials: gcpConfig.credentials,
+      ...params?.traceStore,
+    };
+
     return {
       flowStateStore: {
         id: 'firestore',
-        value: new FirestoreStateStore(params?.flowStateStore),
+        value: new FirestoreStateStore(flowStateStoreOptions),
       },
       traceStore: {
         id: 'firestore',
-        value: new FirestoreTraceStore(params?.traceStore),
+        value: new FirestoreTraceStore(traceStoreOptions),
       },
       telemetry: {
         instrumentation: {
           id: 'firebase',
-          value: new GcpOpenTelemetry(gcpOptions),
+          value: new GcpOpenTelemetry(gcpConfig),
         },
         logger: {
           id: 'firebase',
-          value: new GcpLogger(gcpOptions),
+          value: new GcpLogger(gcpConfig),
         },
       },
     };
   }
 );
-
-async function getProjectId(authClient: GoogleAuth): Promise<string> {
-  if (isDevEnv()) {
-    return await authClient.getProjectId().catch((err) => {
-      logger.warn(
-        'WARNING: unable to determine Project ID, run "gcloud auth application-default login --project MY_PROJECT_ID"'
-      );
-      return '';
-    });
-  }
-
-  return await authClient.getProjectId();
-}

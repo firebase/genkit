@@ -134,8 +134,7 @@ describe('GoogleCloudTracing', () => {
 
   /** Polls the in memory metric exporter until the genkit scope is found. */
   async function getExportedSpans(
-    name: string = 'genkit',
-    maxAttempts: number = 100
+    maxAttempts: number = 200
   ): promise<ReadableSpan[]> {
     __forceFlushSpansForTesting();
     var attempts = 0;
@@ -146,7 +145,7 @@ describe('GoogleCloudTracing', () => {
         return found;
       }
     }
-    assert.fail(`Waiting for metric ${name} but it has not been written.`);
+    assert.fail(`Timed out while waiting for spans to be exported.`);
   }
 });
 

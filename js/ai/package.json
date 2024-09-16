@@ -7,7 +7,7 @@
     "genai",
     "generative-ai"
   ],
-  "version": "0.5.9",
+  "version": "0.5.13",
   "type": "commonjs",
   "scripts": {
     "check": "tsc",
@@ -27,8 +27,9 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@genkit-ai/core": "workspace:*",
-    "@opentelemetry/api": "^1.7.0",
+    "@opentelemetry/api": "^1.9.0",
     "@types/node": "^20.11.19",
+    "colorette": "^2.0.20",
     "json5": "^2.2.3",
     "node-fetch": "^3.3.2",
     "partial-json": "^0.1.7",

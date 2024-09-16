@@ -16,11 +16,9 @@
 
 import { JSONSchema7 } from 'json-schema';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { performance } from 'node:perf_hooks';
 import * as z from 'zod';
 import { ActionType, lookupPlugin, registerAction } from './registry.js';
 import { parseSchema } from './schema.js';
-import * as telemetry from './telemetry.js';
 import {
   SPAN_TYPE_ATTR,
   runInNewSpan,
@@ -138,23 +136,11 @@ export function action<
       async (metadata) => {
         metadata.name = actionName;
         metadata.input = input;
-        const startTimeMs = performance.now();
-        try {
-          const output = await fn(input);
-          metadata.output = JSON.stringify(output);
-          telemetry.writeActionSuccess(
-            metadata.name,
-            performance.now() - startTimeMs
-          );
-          return output;
-        } catch (e) {
-          telemetry.writeActionFailure(
-            metadata.name,
-            performance.now() - startTimeMs,
-            e
-          );
-          throw e;
-        }
+
+        const output = await fn(input);
+
+        metadata.output = JSON.stringify(output);
+        return output;
       }
     );
     output = parseSchema(output, {

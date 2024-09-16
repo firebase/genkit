@@ -65,7 +65,7 @@ with the template.
 ## Defining Input/Output Schemas
 
 Dotprompt includes a compact, YAML-optimized schema definition format called
-Picoschema to make it easy to define the most important attributs of a schema
+Picoschema to make it easy to define the most important attributes of a schema
 for LLM usage. Here's an example of a schema for an article:
 
 ```yaml

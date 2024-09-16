@@ -15,64 +15,56 @@
  */
 
 import { genkitPlugin, Plugin } from '@genkit-ai/core';
-import { InstrumentationConfigMap } from '@opentelemetry/auto-instrumentations-node';
-import { Instrumentation } from '@opentelemetry/instrumentation';
-import { Sampler } from '@opentelemetry/sdk-trace-base';
-import { GoogleAuth } from 'google-auth-library';
+import { credentialsFromEnvironment } from './auth.js';
 import { GcpLogger } from './gcpLogger.js';
 import { GcpOpenTelemetry } from './gcpOpenTelemetry.js';
-
-export interface PluginOptions {
-  projectId?: string;
-  telemetryConfig?: TelemetryConfig;
-}
-
-export interface TelemetryConfig {
-  sampler?: Sampler;
-  autoInstrumentation?: boolean;
-  autoInstrumentationConfig?: InstrumentationConfigMap;
-  metricExportIntervalMillis?: number;
-  metricExportTimeoutMillis?: number;
-  instrumentations?: Instrumentation[];
-
-  /** When true, metrics are not sent to GCP. */
-  disableMetrics?: boolean;
-
-  /** When true, traces are not sent to GCP. */
-  disableTraces?: boolean;
-
-  /** When true, telemetry data will be exported, even for local runs */
-  forceDevExport?: boolean;
-}
+import { TelemetryConfigs } from './telemetry/defaults.js';
+import { GcpPluginConfig, GcpPluginOptions } from './types.js';
 
 /**
  * Provides a plugin for using Genkit with GCP.
  */
-export const googleCloud: Plugin<[PluginOptions] | []> = genkitPlugin(
+export const googleCloud: Plugin<[GcpPluginOptions] | []> = genkitPlugin(
   'googleCloud',
-  async (options?: PluginOptions) => {
-    const authClient = new GoogleAuth();
-    const projectId = options?.projectId || (await authClient.getProjectId());
-    const optionsWithProjectId = {
-      ...options,
-      projectId,
-    };
-
-    return {
-      telemetry: {
-        instrumentation: {
-          id: 'googleCloud',
-          value: new GcpOpenTelemetry(optionsWithProjectId),
-        },
-        logger: {
-          id: 'googleCloud',
-          value: new GcpLogger(optionsWithProjectId),
-        },
-      },
-    };
-  }
+  async (options?: GcpPluginOptions) => build(options)
 );
+
+/**
+ * Configures and builds the plugin.
+ * Not normally needed, but exposed for use by the firebase plugin.
+ */
+export async function build(options?: GcpPluginOptions) {
+  const pluginConfig = await configureGcpPlugin(options);
+  return {
+    telemetry: {
+      instrumentation: {
+        id: 'googleCloud',
+        value: new GcpOpenTelemetry(pluginConfig),
+      },
+      logger: {
+        id: 'googleCloud',
+        value: new GcpLogger(pluginConfig),
+      },
+    },
+  };
+}
+
+/**
+ * Create a configuration object for the plugin.
+ * Not normally needed, but exposed for use by the firebase plugin.
+ */
+export async function configureGcpPlugin(
+  options?: GcpPluginOptions
+): Promise<GcpPluginConfig> {
+  const envOptions = await credentialsFromEnvironment();
+  return {
+    projectId: options?.projectId || envOptions.projectId,
+    credentials: options?.credentials || envOptions.credentials,
+    telemetry: TelemetryConfigs.defaults(options?.telemetryConfig),
+  };
+}
 
 export default googleCloud;
 export * from './gcpLogger.js';
 export * from './gcpOpenTelemetry.js';
+export { GcpPluginOptions, GcpTelemetryConfigOptions } from './types.js';
