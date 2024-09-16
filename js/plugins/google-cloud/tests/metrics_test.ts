@@ -19,10 +19,10 @@ import { defineModel } from '@genkit-ai/ai/model';
 import { configureGenkit, defineAction } from '@genkit-ai/core';
 import { defineFlow, run } from '@genkit-ai/flow';
 import {
-  GcpOpenTelemetry,
   __forceFlushSpansForTesting,
   __getMetricExporterForTesting,
   __getSpanExporterForTesting,
+  GcpOpenTelemetry,
   googleCloud,
 } from '@genkit-ai/google-cloud';
 import {
@@ -590,28 +590,27 @@ describe('GoogleCloudMetrics', () => {
 
   describe('Configuration', () => {
     it('should export only traces', async () => {
-      const plug = await build({
-        telemetryConfig: {
-          forceDevExport: true,
+      const telemetry = new GcpOpenTelemetry({
+        telemetry: {
+          export: true,
           disableMetrics: true,
+          disableTraces: false,
         },
       });
-      const gcpOt = plug.telemetry.instrumentation.value;
-      assert.equal(gcpOt['shouldExportTraces'](), true);
-      assert.equal(gcpOt['shouldExportMetrics'](), false);
+      assert.equal(telemetry['shouldExportTraces'](), true);
+      assert.equal(telemetry['shouldExportMetrics'](), false);
     });
 
     it('should export only metrics', async () => {
-      const plug = await build({
-        telemetryConfig: {
-          forceDevExport: true,
+      const telemetry = new GcpOpenTelemetry({
+        telemetry: {
+          export: true,
           disableTraces: true,
           disableMetrics: false,
         },
       });
-      const gcpOt = plug.telemetry.instrumentation.value;
-      assert.equal(gcpOt['shouldExportTraces'](), false);
-      assert.equal(gcpOt['shouldExportMetrics'](), true);
+      assert.equal(telemetry['shouldExportTraces'](), false);
+      assert.equal(telemetry['shouldExportMetrics'](), true);
     });
   });
 
@@ -743,7 +742,7 @@ describe('GoogleCloudMetrics', () => {
     return defineAction(
       {
         name,
-        actionType: 'model',
+        actionType: 'custom',
       },
       fn
     );

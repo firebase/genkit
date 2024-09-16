@@ -209,7 +209,6 @@ describe('GoogleCloudLogs', () => {
         logger: 'googleCloud',
       },
     });
-    registerFlowStateStore('dev', async () => new NoOpFlowStateStore());
     // Wait for the telemetry plugin to be initialized
     await config.getTelemetryConfig();
     await waitForLogsInit(logLines);
