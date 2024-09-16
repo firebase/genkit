@@ -65,5 +65,6 @@ export const RunActionResponseSchema = z.object({
       traceId: z.string().optional(),
     })
     .optional(),
+  genkitVersion: z.string().optional(),
 });
 export type RunActionResponse = z.infer<typeof RunActionResponseSchema>;

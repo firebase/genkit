@@ -14,14 +14,7 @@
  * limitations under the License.
  */
 
-import {
-  configureGenkit,
-  FlowState,
-  FlowStateQuery,
-  FlowStateQueryResponse,
-  FlowStateStore,
-} from '@genkit-ai/core';
-import { registerFlowStateStore } from '@genkit-ai/core/registry';
+import { configureGenkit } from '@genkit-ai/core';
 import { defineFlow, run } from '@genkit-ai/flow';
 import {
   __forceFlushSpansForTesting,
@@ -51,7 +44,6 @@ describe('GoogleCloudTracing', () => {
         instrumentation: 'googleCloud',
       },
     });
-    registerFlowStateStore('dev', async () => new NoOpFlowStateStore());
     // Wait for the telemetry plugin to be initialized
     await config.getTelemetryConfig();
   });
@@ -81,7 +73,7 @@ describe('GoogleCloudTracing', () => {
     // Ensure we have no attributes with ':' because these are awkward to use in
     // Cloud Trace.
     const spanAttrKeys = Object.entries(spans[0].attributes).map(([k, v]) => k);
-    for (key in spanAttrKeys) {
+    for (const key in spanAttrKeys) {
       assert.equal(key.indexOf(':'), -1);
     }
   });
@@ -135,7 +127,7 @@ describe('GoogleCloudTracing', () => {
   /** Polls the in memory metric exporter until the genkit scope is found. */
   async function getExportedSpans(
     maxAttempts: number = 200
-  ): promise<ReadableSpan[]> {
+  ): Promise<ReadableSpan[]> {
     __forceFlushSpansForTesting();
     var attempts = 0;
     while (attempts++ < maxAttempts) {
@@ -148,21 +140,3 @@ describe('GoogleCloudTracing', () => {
     assert.fail(`Timed out while waiting for spans to be exported.`);
   }
 });
-
-class NoOpFlowStateStore implements FlowStateStore {
-  state: Record<string, string> = {};
-
-  load(id: string): Promise<FlowState | undefined> {
-    return Promise.resolve(undefined);
-  }
-
-  save(id: string, state: FlowState): Promise<void> {
-    return Promise.resolve();
-  }
-
-  async list(
-    query?: FlowStateQuery | undefined
-  ): Promise<FlowStateQueryResponse> {
-    return {};
-  }
-}

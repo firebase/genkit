@@ -15,15 +15,8 @@
  */
 
 import { generate } from '@genkit-ai/ai';
-import { defineModel } from '@genkit-ai/ai/model';
-import {
-  configureGenkit,
-  FlowState,
-  FlowStateQuery,
-  FlowStateQueryResponse,
-  FlowStateStore,
-} from '@genkit-ai/core';
-import { registerFlowStateStore } from '@genkit-ai/core/registry';
+import { defineModel, GenerateResponseData } from '@genkit-ai/ai/model';
+import { configureGenkit } from '@genkit-ai/core';
 import { defineFlow, run } from '@genkit-ai/flow';
 import {
   __addTransportStreamForTesting,
@@ -31,6 +24,7 @@ import {
   __getSpanExporterForTesting,
   googleCloud,
 } from '@genkit-ai/google-cloud';
+import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import assert from 'node:assert';
 import { before, beforeEach, describe, it } from 'node:test';
 import { Writable } from 'stream';
@@ -65,7 +59,6 @@ describe('GoogleCloudLogs', () => {
         logger: 'googleCloud',
       },
     });
-    registerFlowStateStore('dev', async () => new NoOpFlowStateStore());
     // Wait for the telemetry plugin to be initialized
     await config.getTelemetryConfig();
     await waitForLogsInit();
@@ -88,7 +81,7 @@ describe('GoogleCloudLogs', () => {
 
   it('writes error logs', async () => {
     const testFlow = createFlow('testFlow', async () => {
-      const nothing = null;
+      const nothing: any = null;
       nothing.something;
     });
 
@@ -178,7 +171,7 @@ describe('GoogleCloudLogs', () => {
   });
 
   /** Helper to create a flow with no inputs or outputs */
-  function createFlow(name: string, fn: () => Promise<void> = async () => {}) {
+  function createFlow(name: string, fn: () => Promise<any> = async () => {}) {
     return defineFlow(
       {
         name,
@@ -229,7 +222,7 @@ describe('GoogleCloudLogs', () => {
 /** Polls the in memory metric exporter until the genkit scope is found. */
 async function getExportedSpans(
   maxAttempts: number = 200
-): promise<ReadableSpan[]> {
+): Promise<ReadableSpan[]> {
   __forceFlushSpansForTesting();
   var attempts = 0;
   while (attempts++ < maxAttempts) {
@@ -240,22 +233,4 @@ async function getExportedSpans(
     }
   }
   assert.fail(`Timed out while waiting for spans to be exported.`);
-}
-
-class NoOpFlowStateStore implements FlowStateStore {
-  state: Record<string, string> = {};
-
-  load(id: string): Promise<FlowState | undefined> {
-    return Promise.resolve(undefined);
-  }
-
-  save(id: string, state: FlowState): Promise<void> {
-    return Promise.resolve();
-  }
-
-  async list(
-    query?: FlowStateQuery | undefined
-  ): Promise<FlowStateQueryResponse> {
-    return {};
-  }
 }

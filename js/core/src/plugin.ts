@@ -16,7 +16,6 @@
 
 import { z } from 'zod';
 import { Action, isInRuntimeContext } from './action.js';
-import { FlowStateStore } from './flowTypes.js';
 import { LoggerConfig, TelemetryConfig } from './telemetryTypes.js';
 import { TraceStore } from './tracing.js';
 
@@ -39,7 +38,8 @@ export interface InitializedPlugin {
   embedders?: Action<z.ZodTypeAny, z.ZodTypeAny>[];
   indexers?: Action<z.ZodTypeAny, z.ZodTypeAny>[];
   evaluators?: Action<z.ZodTypeAny, z.ZodTypeAny>[];
-  flowStateStore?: Provider<FlowStateStore> | Provider<FlowStateStore>[];
+  /** @deprecated */
+  flowStateStore?: Provider<any> | Provider<any>[];
   traceStore?: Provider<TraceStore> | Provider<TraceStore>[];
   telemetry?: {
     instrumentation?: Provider<TelemetryConfig>;

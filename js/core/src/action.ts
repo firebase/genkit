@@ -123,7 +123,7 @@ export function action<
   const actionName =
     typeof config.name === 'string'
       ? validateActionName(config.name)
-      : `${validatePluginName(config.name.pluginId)}/${validateActionId(config.name.actionId)}`;
+      : `${config.name.pluginId}/${validateActionId(config.name.actionId)}`;
   const actionFn = async (input: I) => {
     input = parseSchema(input, {
       schema: config.inputSchema,
