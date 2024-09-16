@@ -47,7 +47,7 @@ export async function runInference(
   const runStates: BulkRunResponse[] = runResponses.map((r) => {
     return {
       traceId: r.telemetry?.traceId,
-      // todo: how to track errors
+      // TODO(ssbushi): Track errors from the trace
       hasErrored: !r.telemetry?.traceId,
       response: r.result,
     } as BulkRunResponse;
