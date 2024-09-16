@@ -48,7 +48,7 @@ export function isEvaluator(key: string) {
 }
 
 export async function confirmLlmUse(
-  evaluatorActions: Action[],
+  evaluatorActions: Action[]
 ): Promise<boolean> {
   const isBilled = evaluatorActions.some(
     (action) =>

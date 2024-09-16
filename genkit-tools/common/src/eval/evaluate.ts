@@ -18,7 +18,13 @@ import { randomUUID } from 'crypto';
 import { readFile } from 'fs/promises';
 import { EvalFlowInput, EvalFlowInputSchema, getEvalStore } from '.';
 import { Runner } from '../runner';
-import { EvalInput, FlowInvokeEnvelopeMessage, FlowState } from '../types';
+import {
+  Action,
+  EvalInput,
+  EvalRun,
+  FlowInvokeEnvelopeMessage,
+  FlowState,
+} from '../types';
 import {
   confirmLlmUse,
   evaluatorName,
@@ -39,9 +45,22 @@ export interface EvalFlowRunOptions {
   outputFormat: string;
 }
 
+interface EvalRunOptions {
+  output?: string;
+  evaluators?: string;
+  interactive?: boolean;
+  outputFormat: string;
+}
+
 interface FlowRunState {
   state: FlowState;
   hasErrored: boolean;
+  error?: string;
+}
+
+interface EvaluationResponse {
+  evalRunId?: string;
+  success: boolean;
   error?: string;
 }
 
@@ -51,58 +70,45 @@ export async function evalFlow(
   flowName: string,
   data: string,
   options: EvalFlowRunOptions
-) {
-  const evalStore = getEvalStore();
-  let exportFn: EvalExporter = getExporterForString(options.outputFormat);
-  const allActions = await runner.listActions();
-  const allEvaluatorActions = [];
-  for (const key in allActions) {
-    if (isEvaluator(key)) {
-      allEvaluatorActions.push(allActions[key]);
-    }
-  }
-  const filteredEvaluatorActions = allEvaluatorActions.filter(
-    (action) =>
-      !options.evaluators || options.evaluators.split(',').includes(action.name)
-  );
-  if (filteredEvaluatorActions.length === 0) {
-    if (allEvaluatorActions.length == 0) {
-      logger.error('No evaluators installed');
-    } else {
-      logger.error(
-        `No evaluators matched your specifed filter: ${options.evaluators}`
-      );
-      logger.info(
-        `All available evaluators: ${allEvaluatorActions.map((action) => action.name).join(',')}`
-      );
-    }
-    return;
-  }
-
+): Promise<EvaluationResponse> {
   if (!data && !options.input) {
-    logger.error(
-      'No input data passed. Specify input data using [data] argument or --input <filename> option'
-    );
-    return;
+    return {
+      success: false,
+      error:
+        'No input data passed. Specify input data using [data] argument or --input <filename> option',
+    };
   }
 
-  logger.info(
+  const evalStore = getEvalStore();
+  let filteredEvaluatorActions: Action[];
+  try {
+    filteredEvaluatorActions = await getMatchingEvaluators(
+      runner,
+      options.evaluators
+    );
+  } catch (e) {
+    if (e instanceof Error) {
+      return { success: false, error: e.message };
+    }
+    return { success: false, error: 'Error during extracting evaluators' };
+  }
+
+  logger.debug(
     `Using evaluators: ${filteredEvaluatorActions.map((action) => action.name).join(',')}`
   );
 
   if (options.interactive) {
     const confirmed = await confirmLlmUse(filteredEvaluatorActions);
     if (!confirmed) {
-      return;
+      return {
+        success: false,
+        error: 'User declined using billed evaluators.',
+      };
     }
-  } else {
-    logger.warn('Skipping user confirmation for running evaluators...');
   }
 
   const parsedData = await readInputs(data, options.input!);
-
   const states = await runFlows(runner, flowName, parsedData);
-
   const runStates: FlowRunState[] = states.map((s) => {
     return {
       state: s,
@@ -111,7 +117,7 @@ export async function evalFlow(
     } as FlowRunState;
   });
   if (runStates.some((s) => s.hasErrored)) {
-    logger.error('Some flows failed with errors');
+    logger.debug('Some flows failed with errors');
   }
 
   const evalDataset = await fetchDataSet(
@@ -120,17 +126,103 @@ export async function evalFlow(
     runStates,
     parsedData
   );
+
+  const evalRun = await runEvaluators(
+    runner,
+    filteredEvaluatorActions,
+    evalDataset,
+    options.auth,
+    `/flow/${flowName}`
+  );
+  await evalStore.save(evalRun);
+
+  if (options.output) {
+    const exportFn: EvalExporter = getExporterForString(options.outputFormat);
+    await exportFn(evalRun, options.output);
+  }
+
+  return { evalRunId: evalRun.key.evalRunId, success: true };
+}
+
+export async function evalRun(
+  runner: Runner,
+  dataset: string,
+  options: EvalRunOptions
+): Promise<EvaluationResponse> {
+  const evalStore = getEvalStore();
+  const exportFn: EvalExporter = getExporterForString(options.outputFormat);
+
+  logger.debug(`Loading data from '${dataset}'...`);
+  const evalDataset: EvalInput[] = JSON.parse(
+    (await readFile(dataset)).toString('utf-8')
+  ).map((testCase: any) => ({
+    ...testCase,
+    testCaseId: testCase.testCaseId || randomUUID(),
+    traceIds: testCase.traceIds || [],
+  }));
+
+  let filteredEvaluatorActions: Action[];
+  try {
+    filteredEvaluatorActions = await getMatchingEvaluators(
+      runner,
+      options.evaluators
+    );
+  } catch (e) {
+    if (e instanceof Error) {
+      return { success: false, error: e.message };
+    }
+    return { success: false, error: 'Error during extracting evaluators' };
+  }
+  logger.info(
+    `Using evaluators: ${filteredEvaluatorActions.map((action) => action.name).join(',')}`
+  );
+
+  if (options.interactive) {
+    const confirmed = await confirmLlmUse(filteredEvaluatorActions);
+    if (!confirmed) {
+      return {
+        success: false,
+        error: 'User declined using billed evaluators.',
+      };
+    }
+  }
+
+  const evalRun = await runEvaluators(
+    runner,
+    filteredEvaluatorActions,
+    evalDataset
+  );
+
+  logger.info(`Writing results to EvalStore...`);
+  await evalStore.save(evalRun);
+
+  if (options.output) {
+    await exportFn(evalRun, options.output);
+  }
+
+  return {
+    success: true,
+    evalRunId: evalRun.key.evalRunId,
+  };
+}
+
+async function runEvaluators(
+  runner: Runner,
+  filteredEvaluatorActions: Action[],
+  evalDataset: EvalInput[],
+  actionRef?: string,
+  auth?: string
+): Promise<EvalRun> {
   const evalRunId = randomUUID();
   const scores: Record<string, any> = {};
   for (const action of filteredEvaluatorActions) {
     const name = evaluatorName(action);
-    logger.info(`Running evaluator '${name}'...`);
     const response = await runner.runAction({
       key: name,
       input: {
         dataset: evalDataset.filter((row) => !row.error),
         evalRunId,
-        auth: options.auth ? JSON.parse(options.auth) : undefined,
+        auth: auth ? JSON.parse(auth) : undefined,
       },
     });
     scores[name] = response.result;
@@ -141,20 +233,43 @@ export async function evalFlow(
 
   const evalRun = {
     key: {
-      actionRef: `/flow/${flowName}`,
+      actionRef,
       evalRunId,
       createdAt: new Date().toISOString(),
     },
     results: scoredResults,
     metricsMetadata: metadata,
   };
+  return evalRun;
+}
 
-  logger.info(`Writing results to EvalStore...`);
-  await evalStore.save(evalRun);
-
-  if (options.output) {
-    await exportFn(evalRun, options.output);
+async function getMatchingEvaluators(
+  runner: Runner,
+  evaluators?: string
+): Promise<Action[]> {
+  const allActions = await runner.listActions();
+  const allEvaluatorActions = [];
+  for (const key in allActions) {
+    if (isEvaluator(key)) {
+      allEvaluatorActions.push(allActions[key]);
+    }
   }
+  const filteredEvaluatorActions = allEvaluatorActions.filter(
+    (action) => !evaluators || evaluators.split(',').includes(action.name)
+  );
+  if (filteredEvaluatorActions.length === 0) {
+    if (allEvaluatorActions.length == 0) {
+      throw new Error('No evaluators installed');
+    } else {
+      const availableActions = allEvaluatorActions
+        .map((action) => action.name)
+        .join(',');
+      throw new Error(
+        `No evaluators matched your specifed filter: ${evaluators}. All available evaluators: '${availableActions}'`
+      );
+    }
+  }
+  return filteredEvaluatorActions;
 }
 
 async function readInputs(
