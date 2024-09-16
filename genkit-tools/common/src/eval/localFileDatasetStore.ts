@@ -32,11 +32,6 @@ import { logger } from '../utils/logger';
  * A local, file-based DatasetStore implementation.
  */
 export class LocalFileDatasetStore implements DatasetStore {
-  readonly SHORT_UUID_LENGTH = 6;
-  readonly ID_GEN_MAX_ATTEMPTS = 5;
-  readonly DISPLAY_NAME_MAX_LENGTH = 36;
-  readonly DATASET_ID_MAX_LENGTH = 18;
-
   private readonly storeRoot;
   private readonly indexFile;
   private static cachedDatasetStore: LocalFileDatasetStore | null = null;
