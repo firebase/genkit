@@ -18,20 +18,13 @@ import { randomUUID } from 'crypto';
 import { readFile } from 'fs/promises';
 import { EvalFlowInput, EvalFlowInputSchema, getEvalStore } from '.';
 import { Runner } from '../runner';
-import {
-  Action,
-  EvalInput,
-  EvalRun,
-  FlowInvokeEnvelopeMessage,
-  FlowState,
-} from '../types';
+import { Action, EvalInput, EvalRun, RunActionResponse } from '../types';
 import {
   confirmLlmUse,
   evaluatorName,
   getEvalExtractors,
   isEvaluator,
   logger,
-  waitForFlowToComplete,
 } from '../utils';
 import { EvalExporter, getExporterForString } from './exporter';
 import { enrichResultsWithScoring, extractMetricsMetadata } from './parser';
@@ -50,12 +43,13 @@ interface EvalRunOptions {
   evaluators?: string;
   interactive?: boolean;
   outputFormat: string;
+  auth?: string;
 }
 
-interface FlowRunState {
-  state: FlowState;
+interface BulkRunResponse {
+  traceId?: string;
   hasErrored: boolean;
-  error?: string;
+  response: any;
 }
 
 interface EvaluationResponse {
@@ -79,7 +73,6 @@ export async function evalFlow(
     };
   }
 
-  const evalStore = getEvalStore();
   let filteredEvaluatorActions: Action[];
   try {
     filteredEvaluatorActions = await getMatchingEvaluators(
@@ -92,7 +85,6 @@ export async function evalFlow(
     }
     return { success: false, error: 'Error during extracting evaluators' };
   }
-
   logger.debug(
     `Using evaluators: ${filteredEvaluatorActions.map((action) => action.name).join(',')}`
   );
@@ -107,33 +99,19 @@ export async function evalFlow(
     }
   }
 
+  const actionRef = `/flow/${flowName}`;
   const parsedData = await readInputs(data, options.input!);
-  const states = await runFlows(runner, flowName, parsedData);
-  const runStates: FlowRunState[] = states.map((s) => {
-    return {
-      state: s,
-      hasErrored: !!s.operation.result?.error,
-      error: s.operation.result?.error,
-    } as FlowRunState;
-  });
-  if (runStates.some((s) => s.hasErrored)) {
-    logger.debug('Some flows failed with errors');
-  }
+  const evalDataset = await runInference(runner, actionRef, parsedData);
 
-  const evalDataset = await fetchDataSet(
-    runner,
-    flowName,
-    runStates,
-    parsedData
-  );
-
-  const evalRun = await runEvaluators(
+  const evalRun = await runEvaluation(
     runner,
     filteredEvaluatorActions,
     evalDataset,
     options.auth,
     `/flow/${flowName}`
   );
+
+  const evalStore = getEvalStore();
   await evalStore.save(evalRun);
 
   if (options.output) {
@@ -149,17 +127,12 @@ export async function evalRun(
   dataset: string,
   options: EvalRunOptions
 ): Promise<EvaluationResponse> {
-  const evalStore = getEvalStore();
-  const exportFn: EvalExporter = getExporterForString(options.outputFormat);
-
-  logger.debug(`Loading data from '${dataset}'...`);
-  const evalDataset: EvalInput[] = JSON.parse(
-    (await readFile(dataset)).toString('utf-8')
-  ).map((testCase: any) => ({
-    ...testCase,
-    testCaseId: testCase.testCaseId || randomUUID(),
-    traceIds: testCase.traceIds || [],
-  }));
+  if (!dataset) {
+    return {
+      success: false,
+      error: 'No input data passed. Specify input data using [data] argument',
+    };
+  }
 
   let filteredEvaluatorActions: Action[];
   try {
@@ -187,16 +160,27 @@ export async function evalRun(
     }
   }
 
-  const evalRun = await runEvaluators(
+  const evalDataset: EvalInput[] = JSON.parse(
+    (await readFile(dataset)).toString('utf-8')
+  ).map((testCase: any) => ({
+    ...testCase,
+    testCaseId: testCase.testCaseId || randomUUID(),
+    traceIds: testCase.traceIds || [],
+  }));
+  const evalRun = await runEvaluation(
     runner,
     filteredEvaluatorActions,
-    evalDataset
+    evalDataset,
+    options.auth,
+    undefined
   );
 
   logger.info(`Writing results to EvalStore...`);
+  const evalStore = getEvalStore();
   await evalStore.save(evalRun);
 
   if (options.output) {
+    const exportFn: EvalExporter = getExporterForString(options.outputFormat);
     await exportFn(evalRun, options.output);
   }
 
@@ -206,12 +190,45 @@ export async function evalRun(
   };
 }
 
-async function runEvaluators(
+/** Handles the Inference part of Inference-Evaluation cycle */
+async function runInference(
+  runner: Runner,
+  actionRef: string,
+  evalFlowInput: EvalFlowInput
+): Promise<EvalInput[]> {
+  let inputs: any[] = Array.isArray(evalFlowInput)
+    ? (evalFlowInput as any[])
+    : evalFlowInput.samples.map((c) => c.input);
+
+  const runResponses = await bulkRunAction(runner, actionRef, inputs);
+  const runStates: BulkRunResponse[] = runResponses.map((r) => {
+    return {
+      traceId: r.telemetry?.traceId,
+      // todo: how to track errors
+      hasErrored: !r.telemetry?.traceId,
+      response: r.result,
+    } as BulkRunResponse;
+  });
+  if (runStates.some((s) => s.hasErrored)) {
+    logger.debug('Some flows failed with errors');
+  }
+
+  const evalDataset = await fetchDataSet(
+    runner,
+    actionRef,
+    runStates,
+    evalFlowInput
+  );
+  return evalDataset;
+}
+
+/** Handles the Evaluation part of Inference-Evaluation cycle */
+async function runEvaluation(
   runner: Runner,
   filteredEvaluatorActions: Action[],
   evalDataset: EvalInput[],
-  actionRef?: string,
-  auth?: string
+  auth?: string,
+  actionRef?: string
 ): Promise<EvalRun> {
   const evalRunId = randomUUID();
   const scores: Record<string, any> = {};
@@ -292,48 +309,32 @@ async function readInputs(
   }
 }
 
-async function runFlows(
+async function bulkRunAction(
   runner: Runner,
-  flowName: string,
-  data: EvalFlowInput
-): Promise<FlowState[]> {
-  const states: FlowState[] = [];
-  let inputs: any[] = Array.isArray(data)
-    ? (data as any[])
-    : data.samples.map((c) => c.input);
-
+  actionRef: string,
+  inputs: any[]
+): Promise<RunActionResponse[]> {
+  let responses: RunActionResponse[] = [];
   for (const d of inputs) {
-    logger.info(`Running '/flow/${flowName}' ...`);
-    let state = (
-      await runner.runAction({
-        key: `/flow/${flowName}`,
-        input: {
-          start: {
-            input: d,
-          },
-        } as FlowInvokeEnvelopeMessage,
-      })
-    ).result as FlowState;
-
-    if (!state?.operation.done) {
-      logger.info('Started flow run, waiting for it to complete...');
-      state = await waitForFlowToComplete(runner, flowName, state.flowId);
-    }
-
-    logger.info(
-      'Flow operation:\n' + JSON.stringify(state.operation, undefined, '  ')
-    );
-
-    states.push(state);
+    logger.info(`Running '${actionRef}' ...`);
+    let response = await runner.runAction({
+      key: actionRef,
+      input: {
+        start: {
+          input: d,
+        },
+      },
+    });
+    responses.push(response);
   }
 
-  return states;
+  return responses;
 }
 
 async function fetchDataSet(
   runner: Runner,
   flowName: string,
-  states: FlowRunState[],
+  states: BulkRunResponse[],
   parsedData: EvalFlowInput
 ): Promise<EvalInput[]> {
   let references: any[] | undefined = undefined;
@@ -350,46 +351,41 @@ async function fetchDataSet(
   const extractors = await getEvalExtractors(flowName);
   return await Promise.all(
     states.map(async (s, i) => {
-      const traceIds = s.state.executions.flatMap((e) => e.traceIds);
-      if (traceIds.length > 1) {
-        logger.warn('The flow is split across multiple traces');
+      const traceId = s.traceId;
+      if (!traceId) {
+        logger.warn('No traceId available...');
+        return {
+          // TODO Replace this with unified trace class
+          testCaseId: randomUUID(),
+          traceIds: [],
+        };
       }
 
-      const traces = await Promise.all(
-        traceIds.map(async (traceId) =>
-          runner.getTrace({
-            // TODO: We should consider making this a argument and using it to
-            // to control which tracestore environment is being used when
-            // running a flow.
-            env: 'dev',
-            traceId,
-          })
-        )
-      );
+      const trace = await runner.getTrace({
+        // TODO: We should consider making this a argument and using it to
+        // to control which tracestore environment is being used when
+        // running a flow.
+        env: 'dev',
+        traceId,
+      });
 
       let inputs: string[] = [];
       let outputs: string[] = [];
       let contexts: string[] = [];
 
-      // First extract inputs for all traces
-      traces.forEach((trace) => {
-        inputs.push(extractors.input(trace));
-      });
+      inputs.push(extractors.input(trace));
+      outputs.push(extractors.output(trace));
+      contexts.push(extractors.context(trace));
 
       if (s.hasErrored) {
         return {
           testCaseId: randomUUID(),
           input: inputs[0],
-          error: s.error,
+          error: 'Inference error',
           reference: references?.at(i),
-          traceIds,
+          traceIds: [traceId],
         };
       }
-
-      traces.forEach((trace) => {
-        outputs.push(extractors.output(trace));
-        contexts.push(extractors.context(trace));
-      });
 
       return {
         // TODO Replace this with unified trace class
@@ -398,7 +394,7 @@ async function fetchDataSet(
         output: outputs[0],
         context: JSON.parse(contexts[0]) as string[],
         reference: references?.at(i),
-        traceIds,
+        traceIds: [traceId],
       };
     })
   );
