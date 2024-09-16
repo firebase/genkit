@@ -69,15 +69,14 @@ export class LocalFileDatasetStore implements DatasetStore {
   }
 
   async createDataset(req: CreateDatasetRequest): Promise<DatasetMetadata> {
-    return this.createDatasetInternal(req.data, req.displayName, req.datasetId);
+    return this.createDatasetInternal(req.data, req.datasetId);
   }
 
   private async createDatasetInternal(
     data: Dataset,
-    displayName?: string,
     datasetId?: string
   ): Promise<DatasetMetadata> {
-    const id = await this.generateDatasetId(displayName, datasetId);
+    const id = await this.generateDatasetId(datasetId);
     const filePath = path.resolve(this.storeRoot, this.generateFileName(id));
 
     if (fs.existsSync(filePath)) {
@@ -95,7 +94,6 @@ export class LocalFileDatasetStore implements DatasetStore {
       datasetId: id,
       size: Array.isArray(data) ? data.length : data.samples.length,
       version: 1,
-      displayName: displayName,
       createTime: now,
       updateTime: now,
     };
@@ -115,9 +113,6 @@ export class LocalFileDatasetStore implements DatasetStore {
     const datasetId = req.datasetId;
     if (!req.data) {
       throw new Error('Error: `data` is required for updateDataset');
-    }
-    if (req.displayName) {
-      this.validateDisplayName(req.displayName);
     }
     const filePath = path.resolve(
       this.storeRoot,
@@ -141,7 +136,6 @@ export class LocalFileDatasetStore implements DatasetStore {
       datasetId: datasetId,
       size: Array.isArray(req.data) ? req.data.length : req.data.samples.length,
       version: prevMetadata.version + 1,
-      displayName: req.displayName,
       createTime: prevMetadata.createTime,
       updateTime: now,
     };
@@ -207,63 +201,28 @@ export class LocalFileDatasetStore implements DatasetStore {
   }
 
   /** Visible for testing */
-  async generateDatasetId(
-    displayName?: string,
-    datasetId?: string
-  ): Promise<string> {
-    if (datasetId) {
-      this.validateDatasetId(datasetId);
-      return datasetId;
-    }
-
-    if (displayName) {
-      this.validateDisplayName(displayName);
-    }
-
+  async generateDatasetId(datasetId?: string): Promise<string> {
     const metadataMap = await this.getMetadataMap();
     const keys = Object.keys(metadataMap);
-    const trimmedDisplayName =
-      displayName?.replaceAll(/[^A-Za-z0-9-_]/g, '') ?? '';
-    // to keep things consistent with datasetIds, truncate the part that we
-    // use from the displayName. This will be effectively ignored if
-    // displayName is undefined.
-    const maxTrimmedDisplayNameLength =
-      this.DATASET_ID_MAX_LENGTH - this.SHORT_UUID_LENGTH - 1;
-    const truncatedDisplayNamePart = trimmedDisplayName.substring(
-      0,
-      maxTrimmedDisplayNameLength
-    );
-    const uuidLength = displayName ? this.SHORT_UUID_LENGTH : undefined;
-
-    for (let i = 0; i < this.ID_GEN_MAX_ATTEMPTS; i++) {
-      const uid = uuidv4().slice(0, uuidLength);
-      const maybeDatasetId = truncatedDisplayNamePart
-        ? `${truncatedDisplayNamePart}-${uid}`
-        : uid;
-      if (!keys.some((i) => i === maybeDatasetId)) {
-        return maybeDatasetId;
+    if (datasetId) {
+      const isValid = /^[a-z][A-Za-z0-9_.-]{4,34}[A-Za-z0-9]$/g.test(datasetId);
+      if (!isValid) {
+        throw new Error(
+          'Invalid datasetId provided. ID must be alphanumeric, with hyphens, dots and dashes. Is must start with an alphabet, end with an alphabet or a number, and must be 6-36 characters long.'
+        );
       }
+      return this.testUniqueness(datasetId, keys);
     }
-    // Should not happen.
-    throw new Error(
-      'Unable to generate a unique ID based on the provided information'
-    );
+
+    const id = uuidv4();
+    return this.testUniqueness(id, keys);
   }
 
-  private validateDisplayName(displayName: string) {
-    if (displayName.length > this.DISPLAY_NAME_MAX_LENGTH) {
-      throw new Error(
-        `Display name cannot be longer than ${this.DISPLAY_NAME_MAX_LENGTH} characters`
-      );
+  private testUniqueness(datasetId: string, keys: string[]) {
+    if (!keys.some((i) => i === datasetId)) {
+      return datasetId;
     }
-  }
-
-  private validateDatasetId(datasetId: string) {
-    if (datasetId.length > this.DATASET_ID_MAX_LENGTH) {
-      throw new Error(
-        `Dataset ID cannot be longer than ${this.DATASET_ID_MAX_LENGTH} characters`
-      );
-    }
+    throw new Error(`Dataset ID not unique: ${datasetId}`);
   }
 
   private generateFileName(datasetId: string): string {
