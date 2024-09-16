@@ -17,7 +17,6 @@ package firebase
 import (
 	"context"
 	"flag"
-	"fmt"
 	"testing"
 
 	"cloud.google.com/go/firestore"
@@ -70,7 +69,7 @@ func TestFirestoreRetriever(t *testing.T) {
 	}
 
 	Init(ctx, &pluginConfig)
-	defer UnInit()
+	defer unInit()
 
 	client, err := firestore.NewClient(ctx, *testProjectID)
 	if err != nil {
@@ -101,11 +100,8 @@ func TestFirestoreRetriever(t *testing.T) {
 		Options:  RetrieverRequestOptions{Limit: 2, DistanceMeasure: firestore.DistanceMeasureEuclidean},
 	}
 
-	fmt.Print(&retriever, &req)
-
 	resp, err := retriever.Retrieve(ctx, req)
 
-	fmt.Print(&resp, &err)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +119,7 @@ func TestFirestoreRetriever(t *testing.T) {
 			t.Error("retrieved document is nil")
 		}
 	}
-	fmt.Printf("Doc with content \n\n %s \n\n retrieved \n\n", resp.Documents[0].Content[0].Text)
-	fmt.Printf("Doc with content \n\n %s \n\n retrieved \n\n", resp.Documents[1].Content[0].Text)
+	t.Logf("Doc with content \n\n %s \n\n retrieved \n\n", resp.Documents[0].Content[0].Text)
+	t.Logf("Doc with content \n\n %s \n\n retrieved \n\n", resp.Documents[1].Content[0].Text)
 
 }

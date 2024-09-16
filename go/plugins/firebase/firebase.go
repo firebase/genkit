@@ -70,7 +70,7 @@ func Init(ctx context.Context, cfg *FirebasePluginConfig) error {
 	return nil
 }
 
-func UnInit() {
+func unInit() {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 
