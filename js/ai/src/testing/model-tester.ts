@@ -149,7 +149,7 @@ type TestReport = {
   }[];
 }[];
 
-type TestCase = (model: string) => void;
+type TestCase = (model: string) => Promise<void>;
 
 const gablorkenTool = defineTool(
   {
