@@ -1199,6 +1199,43 @@ importers:
         specifier: ^5.3.3
         version: 5.4.5
 
+  testapps/model-tester:
+    dependencies:
+      '@genkit-ai/ai':
+        specifier: workspace:*
+        version: link:../../ai
+      '@genkit-ai/core':
+        specifier: workspace:^
+        version: link:../../core
+      '@genkit-ai/flow':
+        specifier: workspace:*
+        version: link:../../flow
+      '@genkit-ai/googleai':
+        specifier: workspace:*
+        version: link:../../plugins/googleai
+      '@genkit-ai/vertexai':
+        specifier: workspace:*
+        version: link:../../plugins/vertexai
+      '@google/generative-ai':
+        specifier: ^0.15.0
+        version: 0.15.0
+      colorette:
+        specifier: ^2.0.20
+        version: 2.0.20
+      genkitx-ollama:
+        specifier: workspace:*
+        version: link:../../plugins/ollama
+      genkitx-openai:
+        specifier: ^0.10.1
+        version: 0.10.1(@genkit-ai/ai@ai)(@genkit-ai/core@core)
+      zod:
+        specifier: ^3.22.4
+        version: 3.22.4
+    devDependencies:
+      typescript:
+        specifier: ^5.3.3
+        version: 5.5.3
+
   testapps/prompt-file:
     dependencies:
       '@genkit-ai/ai':
@@ -3529,6 +3566,12 @@ packages:
     resolution: {integrity: sha512-Jh/AIwwgaxan+7ZUUmRLCjtchyDiqh4KjBJ5tW3plBZb5iL/BPcso8A5DlzeD9qlw0duCamnNdpFjxwaT0KyKg==}
     engines: {node: '>=14'}
 
+  genkitx-openai@0.10.1:
+    resolution: {integrity: sha512-E9/DzyQcBUSTy81xT2pvEmdnn9Q/cKoojEt6lD/EdOeinhqE9oa59d/kuXTokCMekTrj3Rk7LtNBQIDjnyjNOA==}
+    peerDependencies:
+      '@genkit-ai/ai': ^0.5.0
+      '@genkit-ai/core': ^0.5.0
+
   genversion@3.2.0:
     resolution: {integrity: sha512-OIYSX6XYA8PHecLDCTri30hadSZfAjZ8Iq1+BBDXqLWP4dRLuJNLoNjsSWtTpw97IccK2LDWzkEstxAB8GdN7g==}
     engines: {node: '>=10.0.0'}
@@ -5237,6 +5280,9 @@ packages:
 
   zod@3.22.4:
     resolution: {integrity: sha512-iC+8Io04lddc+mVqQ9AZ7OQ2MrUKGN+oIQyq1vemgt46jwCwLfhq7/pwnBnNXXXZb8VTVLKwp9EDkx+ryxIWmg==}
+
+  zod@3.23.8:
+    resolution: {integrity: sha512-XBx9AXhXktjUqnepgTiE5flcKIYWi/rme0Eaj+5Y0lftuGBq+jyRu/md4WnuxqgP1ubdpNCsYEYPxrzVHD8d6g==}
 
 snapshots:
 
@@ -7477,6 +7523,15 @@ snapshots:
       - encoding
       - supports-color
 
+  genkitx-openai@0.10.1(@genkit-ai/ai@ai)(@genkit-ai/core@core):
+    dependencies:
+      '@genkit-ai/ai': link:ai
+      '@genkit-ai/core': link:core
+      openai: 4.53.0(encoding@0.1.13)
+      zod: 3.23.8
+    transitivePeerDependencies:
+      - encoding
+
   genversion@3.2.0:
     dependencies:
       commander: 7.2.0
@@ -9312,3 +9367,5 @@ snapshots:
       zod: 3.22.4
 
   zod@3.22.4: {}
+
+  zod@3.23.8: {}
