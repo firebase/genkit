@@ -64,18 +64,15 @@ export class LocalFileDatasetStore implements DatasetStore {
   }
 
   async createDataset(req: CreateDatasetRequest): Promise<DatasetMetadata> {
-    return this.createDatasetInternal(req.data, req.displayName);
+    return this.createDatasetInternal(req.data, req.datasetId);
   }
 
   private async createDatasetInternal(
     data: Dataset,
-    displayName?: string
+    datasetId?: string
   ): Promise<DatasetMetadata> {
-    const datasetId = this.generateDatasetId();
-    const filePath = path.resolve(
-      this.storeRoot,
-      this.generateFileName(datasetId)
-    );
+    const id = await this.generateDatasetId(datasetId);
+    const filePath = path.resolve(this.storeRoot, this.generateFileName(id));
 
     if (fs.existsSync(filePath)) {
       logger.error(`Dataset already exists at ` + filePath);
@@ -89,20 +86,18 @@ export class LocalFileDatasetStore implements DatasetStore {
 
     const now = new Date().toString();
     const metadata = {
-      datasetId,
+      datasetId: id,
       size: Array.isArray(data) ? data.length : data.samples.length,
       version: 1,
-      displayName: displayName,
       createTime: now,
       updateTime: now,
     };
 
     let metadataMap = await this.getMetadataMap();
-    metadataMap[datasetId] = metadata;
+    metadataMap[id] = metadata;
 
     logger.debug(
-      `Saving DatasetMetadata for ID ${datasetId} to ` +
-        path.resolve(this.indexFile)
+      `Saving DatasetMetadata for ID ${id} to ` + path.resolve(this.indexFile)
     );
 
     await writeFile(path.resolve(this.indexFile), JSON.stringify(metadataMap));
@@ -136,7 +131,6 @@ export class LocalFileDatasetStore implements DatasetStore {
       datasetId: datasetId,
       size: Array.isArray(req.data) ? req.data.length : req.data.samples.length,
       version: prevMetadata.version + 1,
-      displayName: req.displayName,
       createTime: prevMetadata.createTime,
       updateTime: now,
     };
@@ -201,8 +195,29 @@ export class LocalFileDatasetStore implements DatasetStore {
     return path.resolve(process.cwd(), `.genkit/${rootHash}/datasets`);
   }
 
-  private generateDatasetId(): string {
-    return uuidv4();
+  /** Visible for testing */
+  async generateDatasetId(datasetId?: string): Promise<string> {
+    const metadataMap = await this.getMetadataMap();
+    const keys = Object.keys(metadataMap);
+    if (datasetId) {
+      const isValid = /^[a-z][A-Za-z0-9_.-]{4,34}[A-Za-z0-9]$/g.test(datasetId);
+      if (!isValid) {
+        throw new Error(
+          'Invalid datasetId provided. ID must be alphanumeric, with hyphens, dots and dashes. Is must start with an alphabet, end with an alphabet or a number, and must be 6-36 characters long.'
+        );
+      }
+      return this.testUniqueness(datasetId, keys);
+    }
+
+    const id = uuidv4();
+    return this.testUniqueness(id, keys);
+  }
+
+  private testUniqueness(datasetId: string, keys: string[]) {
+    if (!keys.some((i) => i === datasetId)) {
+      return datasetId;
+    }
+    throw new Error(`Dataset ID not unique: ${datasetId}`);
   }
 
   private generateFileName(datasetId: string): string {

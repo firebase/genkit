@@ -14,16 +14,9 @@
  * limitations under the License.
  */
 
-import { generate, GenerateResponseData } from '@genkit-ai/ai';
-import { defineModel } from '@genkit-ai/ai/model';
-import {
-  configureGenkit,
-  FlowState,
-  FlowStateQuery,
-  FlowStateQueryResponse,
-  FlowStateStore,
-} from '@genkit-ai/core';
-import { registerFlowStateStore } from '@genkit-ai/core/registry';
+import { generate } from '@genkit-ai/ai';
+import { defineModel, GenerateResponseData } from '@genkit-ai/ai/model';
+import { configureGenkit } from '@genkit-ai/core';
 import { defineFlow, run } from '@genkit-ai/flow';
 import {
   __addTransportStreamForTesting,
@@ -67,7 +60,6 @@ describe('GoogleCloudLogs no I/O', () => {
         logger: 'googleCloud',
       },
     });
-    registerFlowStateStore('dev', async () => new NoOpFlowStateStore());
     // Wait for the telemetry plugin to be initialized
     await config.getTelemetryConfig();
     await waitForLogsInit(logLines);
@@ -416,22 +408,4 @@ async function getExportedSpans(
     }
   }
   assert.fail(`Timed out while waiting for spans to be exported.`);
-}
-
-class NoOpFlowStateStore implements FlowStateStore {
-  state: Record<string, string> = {};
-
-  load(id: string): Promise<FlowState | undefined> {
-    return Promise.resolve(undefined);
-  }
-
-  save(id: string, state: FlowState): Promise<void> {
-    return Promise.resolve();
-  }
-
-  async list(
-    query?: FlowStateQuery | undefined
-  ): Promise<FlowStateQueryResponse> {
-    return { flowStates: [] };
-  }
 }

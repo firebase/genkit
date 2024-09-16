@@ -16,21 +16,13 @@
 
 import { generate, GenerateResponseData } from '@genkit-ai/ai';
 import { defineModel } from '@genkit-ai/ai/model';
+import { configureGenkit, defineAction } from '@genkit-ai/core';
+import { defineFlow, run } from '@genkit-ai/flow';
 import {
-  configureGenkit,
-  defineAction,
-  FlowState,
-  FlowStateQuery,
-  FlowStateQueryResponse,
-  FlowStateStore,
-} from '@genkit-ai/core';
-import { registerFlowStateStore } from '@genkit-ai/core/registry';
-import { defineFlow, run, runAction } from '@genkit-ai/flow';
-import {
+  GcpOpenTelemetry,
   __forceFlushSpansForTesting,
   __getMetricExporterForTesting,
   __getSpanExporterForTesting,
-  build,
   googleCloud,
 } from '@genkit-ai/google-cloud';
 import {
@@ -66,7 +58,6 @@ describe('GoogleCloudMetrics', () => {
         instrumentation: 'googleCloud',
       },
     });
-    registerFlowStateStore('dev', async () => new NoOpFlowStateStore());
     // Wait for the telemetry plugin to be initialized
     await config.getTelemetryConfig();
   });
@@ -122,9 +113,9 @@ describe('GoogleCloudMetrics', () => {
     const testAction = createAction('testAction');
     const testFlow = createFlow('testFlowWithActions', async () => {
       await Promise.all([
-        runAction(testAction, null),
-        runAction(testAction, null),
-        runAction(testAction, null),
+        testAction(undefined),
+        testAction(undefined),
+        testAction(undefined),
       ]);
     });
 
@@ -173,7 +164,7 @@ describe('GoogleCloudMetrics', () => {
       return nothing.missing.explode;
     });
     const testFlow = createFlow('testFlowWithFailingActions', async () => {
-      await runAction(testAction, null);
+      await testAction(undefined);
     });
 
     assert.rejects(async () => {
@@ -264,7 +255,7 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(inputImageCounter.value, 1);
     assert.equal(outputImageCounter.value, 3);
     assert.equal(latencyHistogram.value.count, 1);
-    for (let metric of [
+    for (const metric of [
       requestCounter,
       inputTokenCounter,
       outputTokenCounter,
@@ -323,7 +314,7 @@ describe('GoogleCloudMetrics', () => {
   it('writes flow label to action metrics when running inside flow', async () => {
     const testAction = createAction('testAction');
     const flow = createFlow('flowNameLabelTestFlow', async () => {
-      return await runAction(testAction, null);
+      return await testAction(undefined);
     });
 
     await flow();
@@ -384,7 +375,7 @@ describe('GoogleCloudMetrics', () => {
       await getCounterMetric('genkit/ai/generate/output/images'),
       await getHistogramMetric('genkit/ai/generate/latency'),
     ];
-    for (let metric of metrics) {
+    for (const metric of metrics) {
       assert.equal(metric.attributes.flowName, 'testFlow');
     }
   });
@@ -767,21 +758,3 @@ describe('GoogleCloudMetrics', () => {
     return defineModel({ name }, (req) => respFn());
   }
 });
-
-class NoOpFlowStateStore implements FlowStateStore {
-  state: Record<string, string> = {};
-
-  load(id: string): Promise<FlowState | undefined> {
-    return Promise.resolve(undefined);
-  }
-
-  save(id: string, state: FlowState): Promise<void> {
-    return Promise.resolve();
-  }
-
-  async list(
-    query?: FlowStateQuery | undefined
-  ): Promise<FlowStateQueryResponse> {
-    return { flowStates: [] };
-  }
-}

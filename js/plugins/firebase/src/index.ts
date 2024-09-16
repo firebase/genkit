@@ -16,7 +16,6 @@
 
 import { genkitPlugin, isDevEnv, Plugin } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
-import { FirestoreStateStore } from '@genkit-ai/flow';
 import {
   configureGcpPlugin,
   GcpLogger,
@@ -66,10 +65,6 @@ export const firebase: Plugin<[FirestorePluginParams] | []> = genkitPlugin(
     };
 
     return {
-      flowStateStore: {
-        id: 'firestore',
-        value: new FirestoreStateStore(flowStateStoreOptions),
-      },
       traceStore: {
         id: 'firestore',
         value: new FirestoreTraceStore(traceStoreOptions),
