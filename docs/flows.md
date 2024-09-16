@@ -153,7 +153,7 @@ startFlowsServer();
 By default `startFlowsServer` will serve all the flows that you have defined in your codebase as HTTP endpoints (e.g. `http://localhost:3400/menuSuggestionFlow`). You can call a flow via a POST request as follows:
 
 ```posix-terminal
-    curl -X POST "http://localhost:3400/menuSuggestionFlow" -H "Content-Type: application/json"  -d '{"data": "banana"}'
+curl -X POST "http://localhost:3400/menuSuggestionFlow" -H "Content-Type: application/json"  -d '{"data": "banana"}'
 ```
 
 If needed, you can customize the flows server to serve a specific list of flows, as shown below. You can also specify a custom port (it will use the `PORT` environment variable if set) or specify CORS settings.
