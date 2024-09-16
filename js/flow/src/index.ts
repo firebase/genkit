@@ -21,7 +21,7 @@ export {
   startFlowsServer,
   type CallableFlow,
   type FlowAuthPolicy,
-  type FlowFn as StepsFunction,
+  type FlowFn,
   type StreamableFlow,
   type __RequestWithAuth,
 } from './flow.js';
