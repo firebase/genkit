@@ -15,36 +15,16 @@
  */
 
 import { randomUUID } from 'crypto';
-import { readFile } from 'fs/promises';
-import { EvalFlowInput, EvalFlowInputSchema, getEvalStore } from '.';
+import { EvalFlowInput } from '.';
 import { Runner } from '../runner';
 import { Action, EvalInput, EvalRun, RunActionResponse } from '../types';
 import {
-  confirmLlmUse,
   evaluatorName,
   getEvalExtractors,
   isEvaluator,
   logger,
 } from '../utils';
-import { EvalExporter, getExporterForString } from './exporter';
 import { enrichResultsWithScoring, extractMetricsMetadata } from './parser';
-
-export interface EvalFlowRunOptions {
-  input?: string;
-  output?: string;
-  auth?: string;
-  evaluators?: string;
-  interactive?: boolean;
-  outputFormat: string;
-}
-
-interface EvalRunOptions {
-  output?: string;
-  evaluators?: string;
-  interactive?: boolean;
-  outputFormat: string;
-  auth?: string;
-}
 
 interface BulkRunResponse {
   traceId?: string;
@@ -52,155 +32,18 @@ interface BulkRunResponse {
   response: any;
 }
 
-interface EvaluationResponse {
-  evalRunId?: string;
-  success: boolean;
-  error?: string;
-}
-
-const EVAL_FLOW_SCHEMA = '{samples: Array<{input: any; reference?: any;}>}';
-export async function evalFlow(
-  runner: Runner,
-  flowName: string,
-  data: string,
-  options: EvalFlowRunOptions
-): Promise<EvaluationResponse> {
-  if (!data && !options.input) {
-    return {
-      success: false,
-      error:
-        'No input data passed. Specify input data using [data] argument or --input <filename> option',
-    };
-  }
-
-  let filteredEvaluatorActions: Action[];
-  try {
-    filteredEvaluatorActions = await getMatchingEvaluators(
-      runner,
-      options.evaluators
-    );
-  } catch (e) {
-    if (e instanceof Error) {
-      return { success: false, error: e.message };
-    }
-    return { success: false, error: 'Error during extracting evaluators' };
-  }
-  logger.debug(
-    `Using evaluators: ${filteredEvaluatorActions.map((action) => action.name).join(',')}`
-  );
-
-  if (options.interactive) {
-    const confirmed = await confirmLlmUse(filteredEvaluatorActions);
-    if (!confirmed) {
-      return {
-        success: false,
-        error: 'User declined using billed evaluators.',
-      };
-    }
-  }
-
-  const actionRef = `/flow/${flowName}`;
-  const parsedData = await readInputs(data, options.input!);
-  const evalDataset = await runInference(runner, actionRef, parsedData);
-
-  const evalRun = await runEvaluation(
-    runner,
-    filteredEvaluatorActions,
-    evalDataset,
-    options.auth,
-    `/flow/${flowName}`
-  );
-
-  const evalStore = getEvalStore();
-  await evalStore.save(evalRun);
-
-  if (options.output) {
-    const exportFn: EvalExporter = getExporterForString(options.outputFormat);
-    await exportFn(evalRun, options.output);
-  }
-
-  return { evalRunId: evalRun.key.evalRunId, success: true };
-}
-
-export async function evalRun(
-  runner: Runner,
-  dataset: string,
-  options: EvalRunOptions
-): Promise<EvaluationResponse> {
-  if (!dataset) {
-    return {
-      success: false,
-      error: 'No input data passed. Specify input data using [data] argument',
-    };
-  }
-
-  let filteredEvaluatorActions: Action[];
-  try {
-    filteredEvaluatorActions = await getMatchingEvaluators(
-      runner,
-      options.evaluators
-    );
-  } catch (e) {
-    if (e instanceof Error) {
-      return { success: false, error: e.message };
-    }
-    return { success: false, error: 'Error during extracting evaluators' };
-  }
-  logger.info(
-    `Using evaluators: ${filteredEvaluatorActions.map((action) => action.name).join(',')}`
-  );
-
-  if (options.interactive) {
-    const confirmed = await confirmLlmUse(filteredEvaluatorActions);
-    if (!confirmed) {
-      return {
-        success: false,
-        error: 'User declined using billed evaluators.',
-      };
-    }
-  }
-
-  const evalDataset: EvalInput[] = JSON.parse(
-    (await readFile(dataset)).toString('utf-8')
-  ).map((testCase: any) => ({
-    ...testCase,
-    testCaseId: testCase.testCaseId || randomUUID(),
-    traceIds: testCase.traceIds || [],
-  }));
-  const evalRun = await runEvaluation(
-    runner,
-    filteredEvaluatorActions,
-    evalDataset,
-    options.auth,
-    undefined
-  );
-
-  logger.info(`Writing results to EvalStore...`);
-  const evalStore = getEvalStore();
-  await evalStore.save(evalRun);
-
-  if (options.output) {
-    const exportFn: EvalExporter = getExporterForString(options.outputFormat);
-    await exportFn(evalRun, options.output);
-  }
-
-  return {
-    success: true,
-    evalRunId: evalRun.key.evalRunId,
-  };
-}
-
 /** Handles the Inference part of Inference-Evaluation cycle */
-async function runInference(
+export async function runInference(
   runner: Runner,
   actionRef: string,
-  evalFlowInput: EvalFlowInput
+  evalFlowInput: EvalFlowInput,
+  auth?: string
 ): Promise<EvalInput[]> {
   let inputs: any[] = Array.isArray(evalFlowInput)
     ? (evalFlowInput as any[])
     : evalFlowInput.samples.map((c) => c.input);
 
-  const runResponses = await bulkRunAction(runner, actionRef, inputs);
+  const runResponses = await bulkRunAction(runner, actionRef, inputs, auth);
   const runStates: BulkRunResponse[] = runResponses.map((r) => {
     return {
       traceId: r.telemetry?.traceId,
@@ -223,11 +66,10 @@ async function runInference(
 }
 
 /** Handles the Evaluation part of Inference-Evaluation cycle */
-async function runEvaluation(
+export async function runEvaluation(
   runner: Runner,
   filteredEvaluatorActions: Action[],
   evalDataset: EvalInput[],
-  auth?: string,
   actionRef?: string
 ): Promise<EvalRun> {
   const evalRunId = randomUUID();
@@ -239,7 +81,6 @@ async function runEvaluation(
       input: {
         dataset: evalDataset.filter((row) => !row.error),
         evalRunId,
-        auth: auth ? JSON.parse(auth) : undefined,
       },
     });
     scores[name] = response.result;
@@ -260,7 +101,7 @@ async function runEvaluation(
   return evalRun;
 }
 
-async function getMatchingEvaluators(
+export async function getMatchingEvaluators(
   runner: Runner,
   evaluators?: string
 ): Promise<Action[]> {
@@ -289,30 +130,11 @@ async function getMatchingEvaluators(
   return filteredEvaluatorActions;
 }
 
-async function readInputs(
-  data: string,
-  filePath: string
-): Promise<EvalFlowInput> {
-  const parsedData = JSON.parse(
-    data ? data : await readFile(filePath!, 'utf8')
-  );
-  if (Array.isArray(parsedData)) {
-    return parsedData as any[];
-  }
-
-  try {
-    return EvalFlowInputSchema.parse(parsedData);
-  } catch (e) {
-    throw new Error(
-      `Error parsing the input. Please provide an array of inputs for the flow or a ${EVAL_FLOW_SCHEMA} object. Error: ${e}`
-    );
-  }
-}
-
 async function bulkRunAction(
   runner: Runner,
   actionRef: string,
-  inputs: any[]
+  inputs: any[],
+  auth?: string
 ): Promise<RunActionResponse[]> {
   let responses: RunActionResponse[] = [];
   for (const d of inputs) {
@@ -323,6 +145,7 @@ async function bulkRunAction(
         start: {
           input: d,
         },
+        auth: auth ? JSON.parse(auth) : undefined,
       },
     });
     responses.push(response);

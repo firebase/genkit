@@ -14,9 +14,26 @@
  * limitations under the License.
  */
 
-import { evalFlow as evalFlowUtil } from '@genkit-ai/tools-common/eval';
-import { runInRunnerThenStop } from '@genkit-ai/tools-common/utils';
+import {
+  Action,
+  EvalFlowInput,
+  EvalFlowInputSchema,
+} from '@genkit-ai/tools-common';
+import {
+  EvalExporter,
+  getEvalStore,
+  getExporterForString,
+  getMatchingEvaluators,
+  runEvaluation,
+  runInference,
+} from '@genkit-ai/tools-common/eval';
+import {
+  confirmLlmUse,
+  logger,
+  runInRunnerThenStop,
+} from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
+import { readFile } from 'fs/promises';
 
 interface EvalFlowRunCliOptions {
   input?: string;
@@ -26,6 +43,8 @@ interface EvalFlowRunCliOptions {
   force?: boolean;
   outputFormat: string;
 }
+
+const EVAL_FLOW_SCHEMA = '{samples: Array<{input: any; reference?: any;}>}';
 
 /** Command to run a flow and evaluate the output */
 export const evalFlow = new Command('eval:flow')
@@ -58,10 +77,77 @@ export const evalFlow = new Command('eval:flow')
   .action(
     async (flowName: string, data: string, options: EvalFlowRunCliOptions) => {
       await runInRunnerThenStop(async (runner) => {
-        return await evalFlowUtil(runner, flowName, data, {
-          ...options,
-          interactive: !options.force,
-        });
+        if (!data && !options.input) {
+          throw new Error(
+            'No input data passed. Specify input data using [data] argument or --input <filename> option'
+          );
+        }
+
+        let filteredEvaluatorActions: Action[];
+        filteredEvaluatorActions = await getMatchingEvaluators(
+          runner,
+          options.evaluators
+        );
+        logger.debug(
+          `Using evaluators: ${filteredEvaluatorActions.map((action) => action.name).join(',')}`
+        );
+
+        if (!options.force) {
+          const confirmed = await confirmLlmUse(filteredEvaluatorActions);
+          if (!confirmed) {
+            throw new Error('User declined using billed evaluators.');
+          }
+        }
+
+        const actionRef = `/flow/${flowName}`;
+        const parsedData = await readInputs(data, options.input!);
+        const evalDataset = await runInference(
+          runner,
+          actionRef,
+          parsedData,
+          options.auth
+        );
+
+        const evalRun = await runEvaluation(
+          runner,
+          filteredEvaluatorActions,
+          evalDataset,
+          `/flow/${flowName}`
+        );
+
+        const evalStore = getEvalStore();
+        await evalStore.save(evalRun);
+
+        if (options.output) {
+          const exportFn: EvalExporter = getExporterForString(
+            options.outputFormat
+          );
+          await exportFn(evalRun, options.output);
+        }
+
+        console.log(
+          `Succesfully ran evaluation, with evalId: ${evalRun.key.evalRunId}`
+        );
       });
     }
   );
+
+async function readInputs(
+  data: string,
+  filePath: string
+): Promise<EvalFlowInput> {
+  const parsedData = JSON.parse(
+    data ? data : await readFile(filePath!, 'utf8')
+  );
+  if (Array.isArray(parsedData)) {
+    return parsedData as any[];
+  }
+
+  try {
+    return EvalFlowInputSchema.parse(parsedData);
+  } catch (e) {
+    throw new Error(
+      `Error parsing the input. Please provide an array of inputs for the flow or a ${EVAL_FLOW_SCHEMA} object. Error: ${e}`
+    );
+  }
+}

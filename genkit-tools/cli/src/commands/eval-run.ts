@@ -14,9 +14,22 @@
  * limitations under the License.
  */
 
-import { evalRun as evalRunUtil } from '@genkit-ai/tools-common/eval';
-import { runInRunnerThenStop } from '@genkit-ai/tools-common/utils';
+import { Action, EvalInput } from '@genkit-ai/tools-common';
+import {
+  EvalExporter,
+  getEvalStore,
+  getExporterForString,
+  getMatchingEvaluators,
+  runEvaluation,
+} from '@genkit-ai/tools-common/eval';
+import {
+  confirmLlmUse,
+  logger,
+  runInRunnerThenStop,
+} from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
+import { randomUUID } from 'crypto';
+import { readFile } from 'fs/promises';
 
 interface EvalRunCliOptions {
   output?: string;
@@ -48,9 +61,55 @@ export const evalRun = new Command('eval:run')
   .option('--force', 'Automatically accept all interactive prompts')
   .action(async (dataset: string, options: EvalRunCliOptions) => {
     await runInRunnerThenStop(async (runner) => {
-      return await evalRunUtil(runner, dataset, {
-        ...options,
-        interactive: !options.force,
-      });
+      if (!dataset) {
+        throw new Error(
+          'No input data passed. Specify input data using [data] argument'
+        );
+      }
+
+      let filteredEvaluatorActions: Action[];
+      filteredEvaluatorActions = await getMatchingEvaluators(
+        runner,
+        options.evaluators
+      );
+      logger.info(
+        `Using evaluators: ${filteredEvaluatorActions.map((action) => action.name).join(',')}`
+      );
+
+      if (!options.force) {
+        const confirmed = await confirmLlmUse(filteredEvaluatorActions);
+        if (!confirmed) {
+          if (!confirmed) {
+            throw new Error('User declined using billed evaluators.');
+          }
+        }
+      }
+
+      const evalDataset: EvalInput[] = JSON.parse(
+        (await readFile(dataset)).toString('utf-8')
+      ).map((testCase: any) => ({
+        ...testCase,
+        testCaseId: testCase.testCaseId || randomUUID(),
+        traceIds: testCase.traceIds || [],
+      }));
+      const evalRun = await runEvaluation(
+        runner,
+        filteredEvaluatorActions,
+        evalDataset
+      );
+
+      const evalStore = getEvalStore();
+      await evalStore.save(evalRun);
+
+      if (options.output) {
+        const exportFn: EvalExporter = getExporterForString(
+          options.outputFormat
+        );
+        await exportFn(evalRun, options.output);
+      }
+
+      console.log(
+        `Succesfully ran evaluation, with evalId: ${evalRun.key.evalRunId}`
+      );
     });
   });
