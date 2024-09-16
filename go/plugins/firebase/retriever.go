@@ -54,11 +54,11 @@ func DefineFirestoreRetriever(cfg RetrieverOptions) (ai.Retriever, error) {
 
 		if req.Options != nil {
 			// Ensure that the options are of the correct type
-			parsedOptions, ok := req.Options.(RetrieverRequestOptions)
+			parsedOptions, ok := req.Options.(*RetrieverRequestOptions)
 			if !ok {
 				return nil, fmt.Errorf("firebase.Retrieve options have type %T, want %T", req.Options, &RetrieverRequestOptions{})
 			}
-			options = parsedOptions
+			options = *parsedOptions
 		}
 
 		if cfg.Embedder == nil {
@@ -81,31 +81,35 @@ func DefineFirestoreRetriever(cfg RetrieverOptions) (ai.Retriever, error) {
 
 		coll := cfg.Client.Collection(cfg.Collection)
 		if coll == nil {
-			return nil, fmt.Errorf("collection is nil")
+			return nil, fmt.Errorf("collection path is invalid")
 		}
 
 		embedding := eres.Embeddings[0].Embedding
 
-		distanceMeasure := options.DistanceMeasure | cfg.DistanceMeasure
+		distanceMeasure := cfg.DistanceMeasure
+
+		if options.DistanceMeasure != 0 {
+			distanceMeasure = options.DistanceMeasure
+		}
 
 		query := coll.FindNearest(cfg.VectorField, embedding, options.Limit, distanceMeasure, nil)
 
 		// Execute the query
 		iter := query.Documents(ctx)
-		if iter == nil {
-			return nil, fmt.Errorf("document iterator is nil")
-		}
 
 		gotDocs, err := iter.GetAll()
 
 		if err != nil {
-			return nil, fmt.Errorf("failed to get documents: %v", err)
+			return nil, fmt.Errorf("getting documents: %v", err)
 		}
-
 		genkitDocs := make([]*ai.Document, len(gotDocs))
 
 		for i, doc := range gotDocs {
-			content, ok := doc.Data()[cfg.ContentField].(string)
+			// Call doc.Data() once and cache the result
+			data := doc.Data()
+
+			// Extract the content field
+			content, ok := data[cfg.ContentField].(string)
 			if !ok {
 				fmt.Printf("content field is missing or not a string in document %v", doc.Ref.ID)
 				continue
@@ -115,12 +119,13 @@ func DefineFirestoreRetriever(cfg RetrieverOptions) (ai.Retriever, error) {
 			out["content"] = content
 
 			metadata := make(map[string]any)
+			// Use the cached `data` to retrieve the metadata fields
 			if len(cfg.MetadataFields) > 0 {
 				for _, field := range cfg.MetadataFields {
-					metadata[field] = doc.Data()[field]
+					metadata[field] = data[field]
 				}
 			} else {
-				for k, v := range doc.Data() {
+				for k, v := range data {
 					if k != cfg.VectorField && k != cfg.ContentField {
 						metadata[k] = v
 					}
