@@ -49,6 +49,7 @@ describe('GoogleCloudTracing', () => {
       enableTracingAndMetrics: true,
       telemetry: {
         instrumentation: 'googleCloud',
+        logger: 'googleCloud',
       },
     });
     registerFlowStateStore('dev', async () => new NoOpFlowStateStore());
@@ -81,7 +82,7 @@ describe('GoogleCloudTracing', () => {
     // Ensure we have no attributes with ':' because these are awkward to use in
     // Cloud Trace.
     const spanAttrKeys = Object.entries(spans[0].attributes).map(([k, v]) => k);
-    for (key in spanAttrKeys) {
+    for (var key in spanAttrKeys) {
       assert.equal(key.indexOf(':'), -1);
     }
   });
@@ -121,7 +122,7 @@ describe('GoogleCloudTracing', () => {
   });
 
   /** Helper to create a flow with no inputs or outputs */
-  function createFlow(name: string, fn: () => Promise<void> = async () => {}) {
+  function createFlow(name: string, fn: () => Promise<any> = async () => {}) {
     return defineFlow(
       {
         name,
@@ -135,7 +136,7 @@ describe('GoogleCloudTracing', () => {
   /** Polls the in memory metric exporter until the genkit scope is found. */
   async function getExportedSpans(
     maxAttempts: number = 200
-  ): promise<ReadableSpan[]> {
+  ): Promise<ReadableSpan[]> {
     __forceFlushSpansForTesting();
     var attempts = 0;
     while (attempts++ < maxAttempts) {
@@ -163,6 +164,6 @@ class NoOpFlowStateStore implements FlowStateStore {
   async list(
     query?: FlowStateQuery | undefined
   ): Promise<FlowStateQueryResponse> {
-    return {};
+    return { flowStates: [] };
   }
 }

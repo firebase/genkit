@@ -80,7 +80,7 @@ describe('GoogleCloudLogs no I/O', () => {
   it('writes path logs', async () => {
     const testFlow = createFlow('testFlow');
 
-    await runFlow(testFlow);
+    await testFlow();
 
     await getExportedSpans();
 
@@ -96,7 +96,7 @@ describe('GoogleCloudLogs no I/O', () => {
     });
 
     assert.rejects(async () => {
-      await runFlow(testFlow);
+      await testFlow();
     });
 
     await getExportedSpans();
@@ -154,26 +154,26 @@ describe('GoogleCloudLogs no I/O', () => {
       });
     });
 
-    await runFlow(testFlow, 'test');
+    await testFlow('test');
 
     await getExportedSpans();
 
     const logMessages = await getLogs(1, 100, logLines);
     assert.equal(
       logMessages.includes(
-        '[info] Config[testFlow > sub1 > sub2 > testModel, testModel]'
+        '[info] Config[testFlow > sub1 > sub2 > generate > testModel, testModel]'
       ),
       true
     );
     assert.equal(
       logMessages.includes(
-        '[info] Input[testFlow > sub1 > sub2 > testModel, testModel]'
+        '[info] Input[testFlow > sub1 > sub2 > generate > testModel, testModel]'
       ),
       false
     );
     assert.equal(
       logMessages.includes(
-        '[info] Output[testFlow > sub1 > sub2 > testModel, testModel]'
+        '[info] Output[testFlow > sub1 > sub2 > generate > testModel, testModel]'
       ),
       false
     );
@@ -305,7 +305,7 @@ describe('GoogleCloudLogs', () => {
       });
     });
 
-    await runFlow(testFlow, 'test');
+    await testFlow('test');
 
     await getExportedSpans();
 
@@ -353,7 +353,7 @@ function createFlow(name: string, fn: () => Promise<any> = async () => {}) {
 
 function createFlowWithInput(
   name: string,
-  fn: (input: string) => Promise<void>
+  fn: (input: string) => Promise<any>
 ) {
   return defineFlow(
     {
@@ -379,7 +379,7 @@ function createModel(
 async function waitForLogsInit(logLines: any) {
   await import('winston');
   const testFlow = createFlow('testFlow');
-  await runFlow(testFlow);
+  await testFlow();
   await getLogs(1, 100, logLines);
 }
 
