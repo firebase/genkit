@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import { defineTool, generate, generateStream, retrieve } from '@genkit-ai/ai';
+import { generate, generateStream, retrieve } from '@genkit-ai/ai';
+import { defineTool } from '@genkit-ai/ai/tool';
 import { configureGenkit } from '@genkit-ai/core';
 import { dotprompt, prompt } from '@genkit-ai/dotprompt';
 import { defineFirestoreRetriever, firebase } from '@genkit-ai/firebase';
@@ -428,7 +429,6 @@ export const invalidOutput = defineFlow(
   }
 );
 
-import { MessageSchema } from '@genkit-ai/ai/model';
 import { GoogleAIFileManager } from '@google/generative-ai/server';
 const fileManager = new GoogleAIFileManager(
   process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY!
@@ -463,40 +463,5 @@ export const fileApi = defineFlow(
     });
 
     return result.text();
-  }
-);
-
-export const testTools = [
-  // test a tool with no input / output schema
-  defineTool(
-    { name: 'getColor', description: 'gets a random color' },
-    async () => {
-      const colors = [
-        'red',
-        'orange',
-        'yellow',
-        'blue',
-        'green',
-        'indigo',
-        'violet',
-      ];
-      return colors[Math.floor(Math.random() * colors.length)];
-    }
-  ),
-];
-
-export const toolTester = defineFlow(
-  {
-    name: 'toolTester',
-    inputSchema: z.string(),
-    outputSchema: z.array(MessageSchema),
-  },
-  async (query) => {
-    const result = await generate({
-      model: gemini15Flash,
-      prompt: query,
-      tools: testTools,
-    });
-    return result.toHistory();
   }
 );

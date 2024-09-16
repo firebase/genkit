@@ -17,7 +17,7 @@
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { z } from 'zod';
-import { GenerateResponseChunk, generate } from '../../src/generate';
+import { GenerateResponseChunk } from '../../src/generate';
 import {
   Candidate,
   GenerateOptions,
@@ -25,7 +25,7 @@ import {
   Message,
   toGenerateRequest,
 } from '../../src/generate.js';
-import { GenerateResponseChunkData, defineModel } from '../../src/model';
+import { GenerateResponseChunkData } from '../../src/model';
 import {
   CandidateData,
   GenerateRequest,
@@ -579,28 +579,5 @@ describe('GenerateResponseChunk', () => {
         });
       }
     }
-  });
-});
-
-const echo = defineModel(
-  { name: 'echo', supports: { tools: true } },
-  async (input) => ({
-    candidates: [
-      { index: 0, message: input.messages[0], finishReason: 'stop' },
-    ],
-  })
-);
-
-describe('generate', () => {
-  it('should preserve the request in the returned response, enabling toHistory()', async () => {
-    const response = await generate({
-      model: echo,
-      prompt: 'Testing toHistory',
-    });
-
-    assert.deepEqual(
-      response.toHistory().map((m) => m.content[0].text),
-      ['Testing toHistory', 'Testing toHistory']
-    );
   });
 });

@@ -75,7 +75,7 @@ function toOpenAiTool(tool: ToolDefinition): ChatCompletionTool {
     type: 'function',
     function: {
       name: tool.name,
-      parameters: tool.inputSchema || undefined,
+      parameters: tool.inputSchema,
     },
   };
 }

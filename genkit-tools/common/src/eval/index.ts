@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-import { DatasetStore, EvalStore } from '../types/eval';
-import { LocalFileDatasetStore } from './localFileDatasetStore';
+import { EvalStore } from '../types/eval';
 import { LocalFileEvalStore } from './localFileEvalStore';
 export { EvalFlowInput, EvalFlowInputSchema } from '../types/eval';
 export * from './exporter';
@@ -24,8 +23,4 @@ export * from './parser';
 export function getEvalStore(): EvalStore {
   // TODO: This should provide EvalStore, based on tools config.
   return LocalFileEvalStore.getEvalStore();
-}
-
-export function getDatasetStore(): DatasetStore {
-  return LocalFileDatasetStore.getDatasetStore();
 }
