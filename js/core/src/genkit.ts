@@ -338,10 +338,11 @@ export function initializeGenkit(options: GenkitOptions): Genkit {
 }
 
 process.on('SIGTERM', async () => {
-  logger.debug(
-    'Received SIGTERM. Shutting down all reflection servers and cleaning up tracing...'
-  );
-  await Promise.all([ReflectionServer.stopAll(), cleanUpTracing()]);
-  // TODO: Stop flow server.
+  logger.debug('Received SIGTERM. Shutting down all Genkit servers...');
+  await Promise.all([
+    ReflectionServer.stopAll(),
+    FlowServer.stopAll(),
+    cleanUpTracing(),
+  ]);
   process.exit(0);
 });
