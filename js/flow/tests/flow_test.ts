@@ -41,7 +41,25 @@ function createTestFlowWithAuth() {
       name: 'testFlowWithAuth',
       inputSchema: z.string(),
       outputSchema: z.string(),
-      authPolicy: (auth) => {
+      authPolicy: async (auth) => {
+        if (auth != 'open sesame') {
+          throw 'forty thieves!';
+        }
+      },
+    },
+    async (input) => {
+      return `foo ${input}, auth ${JSON.stringify(getFlowAuth())}`;
+    }
+  );
+}
+
+function createTestStreamingFlowWithAuth() {
+  return defineStreamingFlow(
+    {
+      name: 'testFlowWithAuth',
+      inputSchema: z.string(),
+      outputSchema: z.string(),
+      authPolicy: async (auth) => {
         if (auth != 'open sesame') {
           throw 'forty thieves!';
         }
@@ -185,6 +203,25 @@ describe('flow', () => {
         name: 'Error',
         message: 'stream bad happened: foo',
       });
+    });
+
+    it('should pass auth context all the way', async () => {
+      const testFlow = createTestStreamingFlowWithAuth();
+
+      const result = testFlow('bar', {
+        withLocalAuthContext: 'open sesame',
+      });
+
+      assert.equal(await result.output, 'foo bar, auth "open sesame"');
+    });
+
+    it('should fail auth', async () => {
+      const testFlow = createTestStreamingFlowWithAuth();
+      const response = testFlow('bar', {
+        withLocalAuthContext: 'yolo',
+      });
+
+      await assert.rejects(() => response.output, /forty thieves/);
     });
   });
 });

@@ -344,6 +344,7 @@ export class Flow<
             }) as S extends z.ZodVoid
               ? undefined
               : StreamingCallback<z.infer<S>>,
+            auth: opts?.withLocalAuthContext,
           }
         ).then((s) => s.result)
       )
