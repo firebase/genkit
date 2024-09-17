@@ -185,6 +185,18 @@ describe('GoogleCloudLogs no I/O', () => {
       logMessages.includes('[info] Output[testFlow, testModel]'),
       false
     );
+    assert.equal(
+      logMessages.includes(
+        '[info] Output Candidate[testFlow > sub1 > sub2 > testModel, testModel]'
+      ),
+      false
+    );
+    assert.equal(
+      logMessages.includes(
+        '[info] Usage[testFlow > sub1 > sub2 > testModel, testModel]'
+      ),
+      false
+    );
   });
 });
 
@@ -334,6 +346,18 @@ describe('GoogleCloudLogs', () => {
     );
     assert.equal(
       logMessages.includes('[info] Output[testFlow, testFlow]'),
+      true
+    );
+    assert.equal(
+      logMessages.includes(
+        '[info] Output Candidate[testFlow > sub1 > sub2 > testModel, testModel]'
+      ),
+      true
+    );
+    assert.equal(
+      logMessages.includes(
+        '[info] Usage[testFlow > sub1 > sub2 > testModel, testModel]'
+      ),
       true
     );
   });
