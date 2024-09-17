@@ -202,7 +202,6 @@ describe('GoogleCloudLogs', () => {
           },
         }),
       ],
-      enableTracingAndMetrics: true,
       telemetry: {
         instrumentation: 'googleCloud',
         logger: 'googleCloud',

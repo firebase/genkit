@@ -43,7 +43,6 @@ configureGenkit({
     }),
   ],
   logLevel: 'debug',
-  enableTracingAndMetrics: true,
 });
 const FAKE_DOCUMENT_CONTENT = [
   'pythagorean theorem',

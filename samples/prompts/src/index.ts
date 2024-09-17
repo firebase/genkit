@@ -31,7 +31,6 @@ configureGenkit({
     googleAI(), //Provide the key via the GOOGLE_GENAI_API_KEY environment variable or arg { apiKey: 'yourkey'}
   ],
   logLevel: 'debug',
-  enableTracingAndMetrics: true,
 });
 
 defineFlow(

@@ -42,7 +42,6 @@ configureGenkit({
     }),
     openAI(),
   ],
-  enableTracingAndMetrics: true,
   logLevel: 'debug',
 });
 
