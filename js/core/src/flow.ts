@@ -23,6 +23,7 @@ import {
   getStreamingCallback,
   StreamingCallback,
 } from './action.js';
+import { runWithAuthContext } from './auth.js';
 import { getErrorMessage, getErrorStack } from './error.js';
 import { FlowActionInputSchema } from './flowTypes.js';
 import { logger } from './logging.js';
@@ -40,7 +41,6 @@ import {
   setCustomMetadataAttributes,
   SPAN_TYPE_ATTR,
 } from './tracing.js';
-import { runWithAuthContext } from './utils.js';
 
 const streamDelimiter = '\n';
 
