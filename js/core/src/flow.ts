@@ -15,7 +15,11 @@
  */
 
 import { SpanStatusCode } from '@opentelemetry/api';
+import * as bodyParser from 'body-parser';
+import cors, { CorsOptions } from 'cors';
 import express from 'express';
+import getPort, { makeRange } from 'get-port';
+import { Server } from 'http';
 import * as z from 'zod';
 import {
   Action,
@@ -41,6 +45,7 @@ import {
   setCustomMetadataAttributes,
   SPAN_TYPE_ATTR,
 } from './tracing.js';
+import { flowMetadataPrefix, isDevEnv } from './utils.js';
 
 const streamDelimiter = '\n';
 
@@ -160,44 +165,6 @@ interface FlowResult<O> {
   traceId: string;
 }
 
-/**
- * Defines a non-streaming flow. This operates on the currently active registry.
- */
-export function defineFlow<
-  I extends z.ZodTypeAny = z.ZodTypeAny,
-  O extends z.ZodTypeAny = z.ZodTypeAny,
->(config: FlowConfig<I, O>, fn: FlowFn<I, O, z.ZodVoid>): CallableFlow<I, O> {
-  const flow = new Flow<I, O, z.ZodVoid>(config, fn);
-  registerFlowAction(flow);
-  const registry = getRegistryInstance();
-  const callableFlow: CallableFlow<I, O> = async (input, opts) => {
-    return runWithRegistry(registry, () => flow.run(input, opts));
-  };
-  callableFlow.flow = flow;
-  return callableFlow;
-}
-
-/**
- * Defines a streaming flow. This operates on the currently active registry.
- */
-export function defineStreamingFlow<
-  I extends z.ZodTypeAny = z.ZodTypeAny,
-  O extends z.ZodTypeAny = z.ZodTypeAny,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
->(
-  config: StreamingFlowConfig<I, O, S>,
-  fn: FlowFn<I, O, S>
-): StreamableFlow<I, O, S> {
-  const flow = new Flow(config, fn);
-  registerFlowAction(flow);
-  const registry = getRegistryInstance();
-  const streamableFlow: StreamableFlow<I, O, S> = (input, opts) => {
-    return runWithRegistry(registry, () => flow.stream(input, opts));
-  };
-  streamableFlow.flow = flow;
-  return streamableFlow;
-}
-
 export class Flow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
@@ -252,20 +219,20 @@ export class Flow<
             const labels = opts.labels;
             Object.keys(opts.labels).forEach((label) => {
               setCustomMetadataAttribute(
-                metadataPrefix(`label:${label}`),
+                flowMetadataPrefix(`label:${label}`),
                 labels[label]
               );
             });
           }
 
           setCustomMetadataAttributes({
-            [metadataPrefix('name')]: this.name,
+            [flowMetadataPrefix('name')]: this.name,
           });
           try {
             metadata.input = input;
             const output = await this.flowFn(input, opts.streamingCallback);
             metadata.output = JSON.stringify(output);
-            setCustomMetadataAttribute(metadataPrefix('state'), 'done');
+            setCustomMetadataAttribute(flowMetadataPrefix('state'), 'done');
             return {
               result: output,
               traceId: rootSpan.spanContext().traceId,
@@ -280,7 +247,7 @@ export class Flow<
               rootSpan.recordException(e);
             }
 
-            setCustomMetadataAttribute(metadataPrefix('state'), 'error');
+            setCustomMetadataAttribute(flowMetadataPrefix('state'), 'error');
             throw e;
           }
         }
@@ -446,6 +413,180 @@ export class Flow<
 }
 
 /**
+ * Options to configure the flow server.
+ */
+export interface FlowServerOptions {
+  /** Which environment(s) to run the flow server in. Defaults to `prod`. */
+  runInEnv?: 'all' | 'prod' | 'dev';
+  /** List of flows to expose via the flow server. If not specified, all registered flows will be exposed. */
+  flows?: Flow<any, any, any>[];
+  /** Port to run the server on. In `dev` environment, actual port may be different if chosen port is occupied. Defaults to 3400. */
+  port?: number;
+  /** CORS options for the server. */
+  cors?: CorsOptions;
+  /** HTTP method path prefix for the exposed flows. */
+  pathPrefix?: string;
+  /** JSON body parser options. */
+  jsonParserOptions?: bodyParser.OptionsJson;
+}
+
+/**
+ * Flow server exposes registered flows as HTTP endpoints.
+ *
+ * This is for use in production environments.
+ */
+export class FlowServer {
+  /** List of all running servers needed to be cleaned up on process exit. */
+  private static RUNNING_SERVERS: FlowServer[] = [];
+
+  /** Registry instance to be used for API calls. */
+  private registry: Registry;
+  /** Options for the flow server configured by the developer. */
+  private options: FlowServerOptions;
+  /** Port the server is actually running on. This may differ from `options.port` if the original was occupied. Null is server is not running. */
+  private port: number | null = null;
+  /** Express server instance. Null if server is not running. */
+  private server: Server | null = null;
+
+  constructor(registry: Registry, options?: FlowServerOptions) {
+    this.registry = registry;
+    this.options = {
+      port: 3400,
+      runInEnv: 'prod',
+      ...options,
+    };
+  }
+
+  /**
+   * Finds a free port to run the server on based on the original chosen port and environment.
+   */
+  async findPort(): Promise<number> {
+    const chosenPort = this.options.port!;
+    if (isDevEnv()) {
+      const freePort = await getPort({
+        port: makeRange(chosenPort, chosenPort + 100),
+      });
+      if (freePort !== chosenPort) {
+        logger.warn(
+          `Port ${chosenPort} is already in use, using next available port ${freePort} instead.`
+        );
+      }
+      return freePort;
+    }
+    return chosenPort;
+  }
+
+  /**
+   * Starts the server and adds it to the list of running servers to clean up on exit.
+   */
+  async start() {
+    const server = express();
+
+    server.use(bodyParser.json(this.options.jsonParserOptions));
+    server.use(cors(this.options.cors));
+
+    if (!!this.options.flows) {
+      logger.debug('Running flow server with flow paths:');
+      const pathPrefix = this.options.pathPrefix ?? '';
+      this.options.flows?.forEach((flow) => {
+        const flowPath = `/${pathPrefix}${flow.name}`;
+        logger.debug(` - ${flowPath}`);
+        flow.middleware?.forEach((middleware) =>
+          server.post(flowPath, middleware)
+        );
+        server.post(flowPath, (req, res) =>
+          flow.expressHandler(this.registry, req, res)
+        );
+      });
+    } else {
+      logger.warn('No flows registered in flow server.');
+    }
+
+    this.port = await this.findPort();
+    this.server = server.listen(this.port, () => {
+      logger.info(`Flow server running on http://localhost:${this.port}`);
+      FlowServer.RUNNING_SERVERS.push(this);
+    });
+  }
+
+  /**
+   * Stops the server and removes it from the list of running servers to clean up on exit.
+   */
+  async stop(): Promise<void> {
+    if (!this.server) {
+      return;
+    }
+    return new Promise<void>((resolve, reject) => {
+      this.server!.close((err) => {
+        if (err) {
+          logger.error(
+            `Error shutting down flow server on port ${this.port}: ${err}`
+          );
+          reject(err);
+        }
+        const index = FlowServer.RUNNING_SERVERS.indexOf(this);
+        if (index > -1) {
+          FlowServer.RUNNING_SERVERS.splice(index, 1);
+        }
+        this.port = null;
+        this.server = null;
+        logger.info(
+          `Flow server on port ${this.port} has successfully shut down.`
+        );
+        resolve();
+      });
+    });
+  }
+
+  /**
+   * Stops all running servers.
+   */
+  static async stopAll() {
+    await Promise.all(
+      FlowServer.RUNNING_SERVERS.map((server) => server.stop())
+    );
+  }
+}
+
+/**
+ * Defines a non-streaming flow. This operates on the currently active registry.
+ */
+export function defineFlow<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+>(config: FlowConfig<I, O>, fn: FlowFn<I, O, z.ZodVoid>): CallableFlow<I, O> {
+  const flow = new Flow<I, O, z.ZodVoid>(config, fn);
+  registerFlowAction(flow);
+  const registry = getRegistryInstance();
+  const callableFlow: CallableFlow<I, O> = async (input, opts) => {
+    return runWithRegistry(registry, () => flow.run(input, opts));
+  };
+  callableFlow.flow = flow;
+  return callableFlow;
+}
+
+/**
+ * Defines a streaming flow. This operates on the currently active registry.
+ */
+export function defineStreamingFlow<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  config: StreamingFlowConfig<I, O, S>,
+  fn: FlowFn<I, O, S>
+): StreamableFlow<I, O, S> {
+  const flow = new Flow(config, fn);
+  registerFlowAction(flow);
+  const registry = getRegistryInstance();
+  const streamableFlow: StreamableFlow<I, O, S> = (input, opts) => {
+    return runWithRegistry(registry, () => flow.stream(input, opts));
+  };
+  streamableFlow.flow = flow;
+  return streamableFlow;
+}
+
+/**
  * Registers a flow as an action in the registry.
  */
 function registerFlowAction<
@@ -470,7 +611,7 @@ function registerFlowAction<
         envelope.auth,
         envelope.start?.input as I | undefined
       );
-      setCustomMetadataAttribute(metadataPrefix('wrapperAction'), 'true');
+      setCustomMetadataAttribute(flowMetadataPrefix('wrapperAction'), 'true');
       const response = await flow.invoke(envelope.start?.input, {
         streamingCallback: getStreamingCallback() as S extends z.ZodVoid
           ? undefined
@@ -518,9 +659,11 @@ export function run<T>(
   );
 }
 
-/**
- * Adds flow-specific prefix for OpenTelemetry span attributes.
- */
-export function metadataPrefix(name: string) {
-  return `flow:${name}`;
+// TODO: Verify that this works.
+if (typeof module !== 'undefined' && 'hot' in module) {
+  (module as any).hot.accept();
+  (module as any).hot.dispose(async () => {
+    logger.debug('Cleaning up flow server(s) before module reload...');
+    await FlowServer.stopAll();
+  });
 }
