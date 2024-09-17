@@ -30,7 +30,6 @@ import {
   RunActionResponseSchema,
 } from '../types/action';
 import * as apis from '../types/apis';
-import { FlowState } from '../types/flow';
 import { TraceData } from '../types/trace';
 import { logger } from '../utils/logger';
 import { detectRuntime, getEntryPoint } from '../utils/utils';
@@ -438,6 +437,10 @@ export class Runner {
           responseType: 'stream',
         })
         .catch(this.httpErrorHandler);
+      let genkitVersion: string;
+      if (response.headers['x-genkit-version']) {
+        genkitVersion = response.headers['x-genkit-version'];
+      }
       const stream = response.data;
 
       let buffer = '';
@@ -464,7 +467,13 @@ export class Runner {
         rejecter = reject;
       });
       stream.on('end', () => {
-        resolver(RunActionResponseSchema.parse(JSON.parse(buffer)));
+        const actionResponse = RunActionResponseSchema.parse(
+          JSON.parse(buffer)
+        );
+        if (genkitVersion) {
+          actionResponse.genkitVersion = genkitVersion;
+        }
+        resolver(actionResponse);
       });
       stream.on('error', (err: Error) => {
         rejecter(err);
@@ -480,7 +489,11 @@ export class Runner {
         .catch((err) =>
           this.httpErrorHandler(err, `Error running action key='${input.key}'.`)
         );
-      return RunActionResponseSchema.parse(response.data);
+      const resp = RunActionResponseSchema.parse(response.data);
+      if (response.headers['x-genkit-version']) {
+        resp.genkitVersion = response.headers['x-genkit-version'];
+      }
+      return resp;
     }
   }
 
@@ -525,47 +538,5 @@ export class Runner {
       );
 
     return response.data as TraceData;
-  }
-
-  /** Retrieves all flow states for a given environment (e.g. dev or prod). */
-  async listFlowStates(
-    input: apis.ListFlowStatesRequest
-  ): Promise<apis.ListFlowStatesResponse> {
-    const { env, limit, continuationToken } = input;
-    let query = '';
-    if (limit) {
-      query += `limit=${limit}`;
-    }
-    if (continuationToken) {
-      if (query !== '') {
-        query += '&';
-      }
-      query += `continuationToken=${continuationToken}`;
-    }
-    const response = await axios
-      .get(`${this.reflectionApiUrl()}/envs/${env}/flowStates?${query}`)
-      .catch((err) =>
-        this.httpErrorHandler(
-          err,
-          `Error listing flowStates for env='${env}', query='${query}'.`
-        )
-      );
-
-    return apis.ListFlowStatesResponseSchema.parse(response.data);
-  }
-
-  /** Retrieves a flow state for a given ID. */
-  async getFlowState(input: apis.GetFlowStateRequest): Promise<FlowState> {
-    const { env, flowId } = input;
-    const response = await axios
-      .get(`${this.reflectionApiUrl()}/envs/${env}/flowStates/${flowId}`)
-      .catch((err) =>
-        this.httpErrorHandler(
-          err,
-          `Error getting flowState for flowId='${flowId}', env='${env}'.`
-        )
-      );
-
-    return response.data as FlowState;
   }
 }

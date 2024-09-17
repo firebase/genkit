@@ -14,22 +14,4 @@
  * limitations under the License.
  */
 
-import { z } from 'zod';
-
-/**
- * The message format used by the flow task queue and control interface.
- */
-export const FlowInvokeEnvelopeMessageSchema = z.object({
-  // Start new flow.
-  start: z.object({
-    input: z.unknown().optional(),
-    labels: z.record(z.string(), z.string()).optional(),
-  }),
-});
-export type FlowInvokeEnvelopeMessage = z.infer<
-  typeof FlowInvokeEnvelopeMessageSchema
->;
-
-export const FlowActionInputSchema = FlowInvokeEnvelopeMessageSchema.extend({
-  auth: z.unknown().optional(),
-});
+export { testModels } from './model-tester.js';

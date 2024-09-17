@@ -40,7 +40,6 @@ import {
 } from '@opentelemetry/sdk-metrics';
 import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 import {
-  AlwaysOnSampler,
   BatchSpanProcessor,
   InMemorySpanExporter,
   ReadableSpan,
@@ -50,10 +49,10 @@ import {
 import { extractErrorName } from './utils';
 
 import { PathMetadata } from '@genkit-ai/core/tracing';
-import { PluginOptions } from './index.js';
 import { actionTelemetry } from './telemetry/action.js';
 import { flowsTelemetry } from './telemetry/flow.js';
 import { generateTelemetry } from './telemetry/generate.js';
+import { GcpPluginConfig } from './types';
 
 let metricExporter: PushMetricExporter;
 let spanProcessor: BatchSpanProcessor;
@@ -64,8 +63,15 @@ let spanExporter: AdjustingTraceExporter;
  * Metrics, and Logs) to the Google Cloud Operations Suite.
  */
 export class GcpOpenTelemetry implements TelemetryConfig {
-  private readonly options: PluginOptions;
+  private readonly config: GcpPluginConfig;
   private readonly resource: Resource;
+
+  constructor(config: GcpPluginConfig) {
+    this.config = config;
+    this.resource = new Resource({ type: 'global' }).merge(
+      new GcpDetectorSync().detect()
+    );
+  }
 
   /**
    * Log hook for writing trace and span metadata to log messages in the format
@@ -74,7 +80,7 @@ export class GcpOpenTelemetry implements TelemetryConfig {
   private gcpTraceLogHook = (span: Span, record: any) => {
     const spanContext = span.spanContext();
     const isSampled = !!(spanContext.traceFlags & TraceFlags.SAMPLED);
-    const projectId = this.options.projectId;
+    const projectId = this.config.projectId;
 
     record['logging.googleapis.com/trace'] ??=
       `projects/${projectId}/traces/${spanContext.traceId}`;
@@ -82,19 +88,12 @@ export class GcpOpenTelemetry implements TelemetryConfig {
     record['logging.googleapis.com/spanId'] ??= spanContext.spanId;
   };
 
-  constructor(options?: PluginOptions) {
-    this.options = options || {};
-    this.resource = new Resource({ type: 'global' }).merge(
-      new GcpDetectorSync().detect()
-    );
-  }
-
   getConfig(): Partial<NodeSDKConfiguration> {
     spanProcessor = new BatchSpanProcessor(this.createSpanExporter());
     return {
       resource: this.resource,
       spanProcessor: spanProcessor,
-      sampler: this.options?.telemetryConfig?.sampler || new AlwaysOnSampler(),
+      sampler: this.config.telemetry.sampler,
       instrumentations: this.getInstrumentations(),
       metricReader: this.createMetricReader(),
     };
@@ -104,10 +103,11 @@ export class GcpOpenTelemetry implements TelemetryConfig {
     spanExporter = new AdjustingTraceExporter(
       this.shouldExportTraces()
         ? new TraceExporter({
-            credentials: this.options.credentials,
+            credentials: this.config.credentials,
           })
         : new InMemorySpanExporter(),
-      this.options.projectId
+      this.config.telemetry.exportIO,
+      this.config.projectId
     );
     return spanExporter;
   }
@@ -118,37 +118,29 @@ export class GcpOpenTelemetry implements TelemetryConfig {
   private createMetricReader(): PeriodicExportingMetricReader {
     metricExporter = this.buildMetricExporter();
     return new PeriodicExportingMetricReader({
-      exportIntervalMillis:
-        this.options?.telemetryConfig?.metricExportIntervalMillis || 300_000,
-      exportTimeoutMillis:
-        this.options?.telemetryConfig?.metricExportTimeoutMillis || 300_000,
+      exportIntervalMillis: this.config.telemetry.metricExportIntervalMillis,
+      exportTimeoutMillis: this.config.telemetry.metricExportTimeoutMillis,
       exporter: metricExporter,
     });
   }
 
   /** Gets all open telemetry instrumentations as configured by the plugin. */
   private getInstrumentations() {
-    if (this.options?.telemetryConfig?.autoInstrumentation) {
+    if (this.config.telemetry.autoInstrumentation) {
       return getNodeAutoInstrumentations(
-        this.options?.telemetryConfig?.autoInstrumentationConfig || {}
+        this.config.telemetry.autoInstrumentationConfig
       ).concat(this.getDefaultLoggingInstrumentations());
     }
     return this.getDefaultLoggingInstrumentations();
   }
 
   private shouldExportTraces(): boolean {
-    return (
-      (this.options.telemetryConfig?.forceDevExport ||
-        process.env.GENKIT_ENV !== 'dev') &&
-      !this.options.telemetryConfig?.disableTraces
-    );
+    return this.config.telemetry.export && !this.config.telemetry.disableTraces;
   }
 
   private shouldExportMetrics(): boolean {
     return (
-      (this.options.telemetryConfig?.forceDevExport ||
-        process.env.GENKIT_ENV !== 'dev') &&
-      !this.options.telemetryConfig?.disableMetrics
+      this.config.telemetry.export && !this.config.telemetry.disableMetrics
     );
   }
 
@@ -163,12 +155,12 @@ export class GcpOpenTelemetry implements TelemetryConfig {
   private buildMetricExporter(): PushMetricExporter {
     const exporter: PushMetricExporter = this.shouldExportMetrics()
       ? new MetricExporter({
-          projectId: this.options.projectId,
+          projectId: this.config.projectId,
           userAgent: {
             product: 'genkit',
             version: GENKIT_VERSION,
           },
-          credentials: this.options.credentials,
+          credentials: this.config.credentials,
         })
       : new InMemoryMetricExporter(AggregationTemporality.DELTA);
     exporter.selectAggregation = (instrumentType: InstrumentType) => {
@@ -194,6 +186,7 @@ export class GcpOpenTelemetry implements TelemetryConfig {
 class AdjustingTraceExporter implements SpanExporter {
   constructor(
     private exporter: SpanExporter,
+    private logIO: boolean,
     private projectId?: string
   ) {}
 
@@ -270,17 +263,17 @@ class AdjustingTraceExporter implements SpanExporter {
     const subtype = attributes['genkit:metadata:subtype'] as string;
 
     if (type === 'flow') {
-      flowsTelemetry.tick(span, paths, this.projectId);
+      flowsTelemetry.tick(span, paths, this.logIO, this.projectId);
       return;
     }
 
     if (type === 'action' && subtype === 'model') {
-      generateTelemetry.tick(span, paths, this.projectId);
+      generateTelemetry.tick(span, paths, this.logIO, this.projectId);
       return;
     }
 
     if (type === 'action' || type == 'flowStep') {
-      actionTelemetry.tick(span, paths, this.projectId);
+      actionTelemetry.tick(span, paths, this.logIO, this.projectId);
     }
   }
 

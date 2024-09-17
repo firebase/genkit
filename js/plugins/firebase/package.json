@@ -65,12 +65,6 @@
       "types": "./lib/functions.d.ts",
       "default": "./lib/functions.js"
     },
-    "./functions/experimental": {
-      "require": "./lib/experimental.js",
-      "import": "./lib/experimental.mjs",
-      "types": "./lib/experimental.d.ts",
-      "default": "./lib/experimental.js"
-    },
     "./auth": {
       "require": "./lib/auth.js",
       "import": "./lib/auth.mjs",
@@ -81,9 +75,6 @@
   "typesVersions": {
     "*": {
       "functions": [
-        "lib/functions"
-      ],
-      "functions/experimental": [
         "lib/functions"
       ],
       "auth": [

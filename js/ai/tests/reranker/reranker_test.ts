@@ -26,7 +26,7 @@ describe('reranker', () => {
     it('reranks documents based on custom logic', async () => {
       const customReranker = defineReranker(
         {
-          name: 'custom/reranker',
+          name: 'reranker',
           configSchema: z.object({
             k: z.number().optional(),
           }),
@@ -74,7 +74,7 @@ describe('reranker', () => {
     it('handles missing options gracefully', async () => {
       const customReranker = defineReranker(
         {
-          name: 'custom/reranker',
+          name: 'reranker',
           configSchema: z.object({
             k: z.number().optional(),
           }),
@@ -112,7 +112,7 @@ describe('reranker', () => {
     it('validates config schema and throws error on invalid input', async () => {
       const customReranker = defineReranker(
         {
-          name: 'custom/reranker',
+          name: 'reranker',
           configSchema: z.object({
             k: z.number().min(1),
           }),
@@ -152,7 +152,7 @@ describe('reranker', () => {
     it('preserves document metadata after reranking', async () => {
       const customReranker = defineReranker(
         {
-          name: 'custom/reranker',
+          name: 'reranker',
         },
         async (query, documents) => {
           const rerankedDocs = documents.map((doc, i) => ({
@@ -187,7 +187,7 @@ describe('reranker', () => {
     it('handles errors thrown by the reranker', async () => {
       const customReranker = defineReranker(
         {
-          name: 'custom/reranker',
+          name: 'reranker',
         },
         async (query, documents) => {
           // Simulate an error in the reranker logic

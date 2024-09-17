@@ -18,6 +18,7 @@ import express from 'express';
 import z from 'zod';
 import { runWithStreamingCallback, Status, StatusCodes } from './action.js';
 import { config } from './config.js';
+import { GENKIT_VERSION } from './index.js';
 import { logger } from './logging.js';
 import * as registry from './registry.js';
 import { toJsonSchema } from './schema.js';
@@ -63,6 +64,11 @@ export async function startReflectionApi(port?: number | undefined) {
   const api = express();
 
   api.use(express.json({ limit: '30mb' }));
+
+  api.use(function (req, res, next) {
+    res.header('x-genkit-version', GENKIT_VERSION);
+    next();
+  });
 
   api.get('/api/__health', async (_, response) => {
     await registry.listActions();
@@ -173,57 +179,6 @@ export async function startReflectionApi(port?: number | undefined) {
 
   api.get('/api/envs', async (_, response) => {
     response.json(config.configuredEnvs);
-  });
-
-  api.get(
-    '/api/envs/:env/flowStates/:flowId',
-    async (request, response, next) => {
-      const { env, flowId } = request.params;
-      logger.debug(`Fetching flow state \`${flowId}\` for env \`${env}\`.`);
-      const flowStateStore = await registry.lookupFlowStateStore(env);
-      if (!flowStateStore) {
-        return response.status(500).send({
-          code: StatusCodes.FAILED_PRECONDITION,
-          message: `${env} flow state store not found`,
-        });
-      }
-      // TODO: Remove try/catch when upgrading to Express 5; error is sent to `next` automatically
-      // in that version
-      try {
-        response.json(await flowStateStore?.load(flowId));
-      } catch (err) {
-        const { message, stack } = err as Error;
-        next({ message, stack });
-      }
-    }
-  );
-
-  api.get('/api/envs/:env/flowStates', async (request, response, next) => {
-    const { env } = request.params;
-    const { limit, continuationToken } = request.query;
-    logger.debug(`Fetching traces for env \`${env}\`.`);
-    const flowStateStore = await registry.lookupFlowStateStore(env);
-    if (!flowStateStore) {
-      return response.status(500).send({
-        code: StatusCodes.FAILED_PRECONDITION,
-        message: `${env} flow state store not found`,
-      });
-    }
-    // TODO: Remove try/catch when upgrading to Express 5; error is sent to `next` automatically
-    // in that version
-    try {
-      response.json(
-        await flowStateStore?.list({
-          limit: limit ? parseInt(limit.toString()) : undefined,
-          continuationToken: continuationToken
-            ? continuationToken.toString()
-            : undefined,
-        })
-      );
-    } catch (err) {
-      const { message, stack } = err as Error;
-      next({ message, stack });
-    }
   });
 
   api.use((err, req, res, next) => {
