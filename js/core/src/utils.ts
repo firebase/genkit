@@ -14,6 +14,26 @@
  * limitations under the License.
  */
 
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { runInActionRuntimeContext } from './action.js';
+
+const authAsyncLocalStorage = new AsyncLocalStorage<any>();
+
+/**
+ * Execute the provided function in the auth context. Call {@link getFlowAuth()} anywhere
+ * within the async call stack to retrieve the auth.
+ */
+export function runWithAuthContext<R>(auth: any, fn: () => R) {
+  return authAsyncLocalStorage.run(auth, () => runInActionRuntimeContext(fn));
+}
+
+/**
+ * Gets the auth object from the current context.
+ */
+export function getFlowAuth(): any {
+  return authAsyncLocalStorage.getStore();
+}
+
 /**
  * Deletes any properties with `undefined` values in the provided object.
  * Modifies the provided object.

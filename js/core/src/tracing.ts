@@ -21,7 +21,7 @@ import {
   SimpleSpanProcessor,
   SpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
-import { getCurrentEnv } from './config.js';
+import { getCurrentEnv } from './genkit.js';
 import { logger } from './logging.js';
 import { TelemetryConfig } from './telemetryTypes.js';
 import { TraceServerExporter } from './tracing/exporter.js';
