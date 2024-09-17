@@ -16,28 +16,28 @@
 
 import {
   Action,
-  defineAction,
   FlowError,
   FlowState,
   FlowStateSchema,
   FlowStateStore,
+  Operation,
+  StreamingCallback,
+  defineAction,
   getStreamingCallback,
   config as globalConfig,
   isDevEnv,
-  Operation,
-  StreamingCallback,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import {
+  SPAN_TYPE_ATTR,
   newTrace,
   setCustomMetadataAttribute,
   setCustomMetadataAttributes,
-  SPAN_TYPE_ATTR,
 } from '@genkit-ai/core/tracing';
 import { SpanStatusCode } from '@opentelemetry/api';
 import * as bodyParser from 'body-parser';
-import { default as cors, CorsOptions } from 'cors';
+import { CorsOptions, default as cors } from 'cors';
 import express from 'express';
 import { performance } from 'node:perf_hooks';
 import * as z from 'zod';
@@ -45,9 +45,9 @@ import { Context } from './context.js';
 import {
   FlowExecutionError,
   FlowStillRunningError,
+  InterruptError,
   getErrorMessage,
   getErrorStack,
-  InterruptError,
 } from './errors.js';
 import {
   FlowActionInputSchema,
@@ -638,11 +638,15 @@ export async function runFlow<
     );
   }
 
-  const state = await flow.runEnvelope({
-    start: {
-      input,
+  const state = await flow.runEnvelope(
+    {
+      start: {
+        input,
+      },
     },
-  });
+    undefined,
+    opts?.withLocalAuthContext
+  );
   if (!state.operation.done) {
     throw new FlowStillRunningError(
       `flow ${state.name} did not finish execution`
@@ -704,14 +708,14 @@ export function streamFlow<
         },
         (c) => {
           chunkStreamController.enqueue(c);
-        }
+        },
+        opts?.withLocalAuthContext
       )
     )
-    .then((s) => s.operation);
-  operationPromise.then((o) => {
-    chunkStreamController.close();
-    return o;
-  });
+    .then((s) => s.operation)
+    .finally(() => {
+      chunkStreamController.close();
+    });
 
   return {
     output() {

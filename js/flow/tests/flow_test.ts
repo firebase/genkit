@@ -20,6 +20,7 @@ import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
 import { defineFlow, runFlow, streamFlow } from '../src/flow.js';
+import { getFlowAuth } from '../src/utils.js';
 import { configureInMemoryStateStore } from './testUtil.js';
 
 function createTestFlow() {
@@ -31,6 +32,24 @@ function createTestFlow() {
     },
     async (input) => {
       return `bar ${input}`;
+    }
+  );
+}
+
+function createTestFlowWithAuth() {
+  return defineFlow(
+    {
+      name: 'testFlowWithAuth',
+      inputSchema: z.string(),
+      outputSchema: z.string(),
+      authPolicy: async (auth) => {
+        if (auth != 'open sesame') {
+          throw new Error('forty thieves!');
+        }
+      },
+    },
+    async (input) => {
+      return `foo ${input}, auth ${JSON.stringify(getFlowAuth())}`;
     }
   );
 }
@@ -115,6 +134,30 @@ describe('flow', () => {
         }
       );
     });
+
+    it('should pass auth context all the way', async () => {
+      configureInMemoryStateStore('prod');
+      const testFlow = createTestFlowWithAuth();
+
+      const result = await runFlow(testFlow, 'bar', {
+        withLocalAuthContext: 'open sesame',
+      });
+
+      assert.equal(result, 'foo bar, auth "open sesame"');
+    });
+
+    it('should fail auth', async () => {
+      configureInMemoryStateStore('prod');
+      const testFlow = createTestFlowWithAuth();
+
+      await assert.rejects(
+        () =>
+          runFlow(testFlow, 'bar', {
+            withLocalAuthContext: 'yolo',
+          }),
+        /forty thieves/
+      );
+    });
   });
 
   describe('streamFlow', () => {
@@ -150,6 +193,27 @@ describe('flow', () => {
         name: 'Error',
         message: 'bad happened: foo',
       });
+    });
+
+    it('should pass auth context all the way', async () => {
+      configureInMemoryStateStore('prod');
+      const testFlow = createTestFlowWithAuth();
+
+      const result = await streamFlow(testFlow, 'bar', {
+        withLocalAuthContext: 'open sesame',
+      });
+
+      assert.equal(await result.output(), 'foo bar, auth "open sesame"');
+    });
+
+    it('should fail auth', async () => {
+      configureInMemoryStateStore('prod');
+      const testFlow = createTestFlowWithAuth();
+      const response = streamFlow(testFlow, 'bar', {
+        withLocalAuthContext: 'yolo',
+      });
+
+      await assert.rejects(() => response.output(), /forty thieves/);
     });
   });
 
