@@ -20,6 +20,7 @@ export const GENKIT_VERSION = version;
 export const GENKIT_CLIENT_HEADER = `genkit-node/${GENKIT_VERSION} gl-node/${process.versions.node}`;
 
 export * from './action.js';
+export { getFlowAuth } from './auth.js';
 export { GenkitError } from './error.js';
 export {
   Flow,
@@ -39,4 +40,3 @@ export * from './genkit.js';
 export * from './plugin.js';
 export { defineJsonSchema, defineSchema } from './schema.js';
 export * from './telemetryTypes.js';
-export { getFlowAuth } from './utils.js';
