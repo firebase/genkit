@@ -23,13 +23,13 @@ import {
 import { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base';
 import { logger } from '../logging.js';
 import { deleteUndefinedProps } from '../utils.js';
-import { SpanData, TraceData, TraceStore } from './types.js';
+import { SpanData, TraceData } from './types.js';
 
 /**
- * Exports collected OpenTelemetetry spans to Firestore.
+ * Exports collected OpenTelemetetry spans to the telemetry server.
  */
-export class TraceStoreExporter implements SpanExporter {
-  constructor(private traceStore: TraceStore) {}
+export class TraceServerExporter implements SpanExporter {
+  constructor(private url: string) {}
 
   /**
    * Export spans.
@@ -144,7 +144,14 @@ export class TraceStoreExporter implements SpanExporter {
         data.endTime = convertedSpan.endTime;
       }
     }
-    await this.traceStore.save(traceId, data);
+    await fetch(`${this.url}/api/traces`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
   }
 }
 

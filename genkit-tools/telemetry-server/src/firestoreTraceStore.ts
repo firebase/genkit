@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import { logger } from '@genkit-ai/core/logging';
+import { Firestore } from '@google-cloud/firestore';
+import { randomUUID } from 'crypto';
 import {
   SpanData,
   SpanDataSchema,
@@ -23,9 +24,7 @@ import {
   TraceQuery,
   TraceQueryResponse,
   TraceStore,
-} from '@genkit-ai/core/tracing';
-import { Firestore } from '@google-cloud/firestore';
-import { randomUUID } from 'crypto';
+} from './types';
 
 const DOC_MAX_SIZE = 1_000_000;
 
@@ -95,7 +94,7 @@ export class FirestoreTraceStore implements TraceStore {
     });
     await batchWrite.commit();
 
-    logger.debug(
+    console.debug(
       `saved trace ${traceId}, ${Object.keys(traceData.spans).length} span(s) (${Date.now() - start}ms)`
     );
   }
@@ -155,7 +154,7 @@ export function rebatchSpans(traceData: TraceData): Record<string, SpanData>[] {
   for (const span of Object.values(traceData.spans)) {
     let estimatedSpanSize = estimateSpanSize(span);
     if (estimatedSpanSize >= DOC_MAX_SIZE) {
-      logger.warn(
+      console.warn(
         `Truncating data for trace ${traceData.traceId} span ${span.spanId}`
       );
       truncateSpanData(span);
@@ -186,7 +185,7 @@ function estimateSpanSize(span: SpanData) {
     return 0;
   }
   return Object.values(span.attributes)
-    .map((attr) => attr.toString().length)
+    .map((attr: any) => attr.toString().length)
     .reduce((a, b) => a + b);
 }
 

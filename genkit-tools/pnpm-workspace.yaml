@@ -16,4 +16,5 @@ packages:
   - '.'
   - 'cli'
   - 'common'
+  - 'telemetry-server'
   - 'plugins/*'

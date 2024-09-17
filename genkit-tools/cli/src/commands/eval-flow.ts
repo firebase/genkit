@@ -35,12 +35,14 @@ import {
   getEvalExtractors,
   isEvaluator,
   logger,
-  runInRunnerThenStop,
-  waitForFlowToComplete,
 } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { randomUUID } from 'crypto';
 import { readFile } from 'fs/promises';
+import {
+  runInRunnerThenStop,
+  waitForFlowToComplete,
+} from '../utils/runner-utils';
 
 // TODO: Support specifying waiting or streaming
 interface EvalFlowRunOptions {
