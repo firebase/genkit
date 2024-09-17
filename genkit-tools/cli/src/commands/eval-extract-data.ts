@@ -15,14 +15,11 @@
  */
 
 import { EnvTypes, EvalInput, TraceData } from '@genkit-ai/tools-common';
-import {
-  getEvalExtractors,
-  logger,
-  runInRunnerThenStop,
-} from '@genkit-ai/tools-common/utils';
+import { getEvalExtractors, logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { randomUUID } from 'crypto';
 import { writeFile } from 'fs/promises';
+import { runInRunnerThenStop } from '../utils/runner-utils';
 
 interface EvalDatasetOptions {
   env: EnvTypes;

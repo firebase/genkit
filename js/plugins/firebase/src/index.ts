@@ -24,7 +24,6 @@ import {
 } from '@genkit-ai/google-cloud';
 import { JWTInput } from 'google-auth-library';
 import { GcpPluginConfig } from '../../google-cloud/lib/types.js';
-import { FirestoreTraceStore } from './firestoreTraceStore.js';
 export { defineFirestoreRetriever } from './firestoreRetriever.js';
 
 export interface FirestorePluginParams {
@@ -65,10 +64,6 @@ export const firebase: Plugin<[FirestorePluginParams] | []> = genkitPlugin(
     };
 
     return {
-      traceStore: {
-        id: 'firestore',
-        value: new FirestoreTraceStore(traceStoreOptions),
-      },
       telemetry: {
         instrumentation: {
           id: 'firebase',

@@ -24,13 +24,11 @@ import {
 import { getCurrentEnv } from './config.js';
 import { logger } from './logging.js';
 import { TelemetryConfig } from './telemetryTypes.js';
-import { TraceStore } from './tracing.js';
-import { TraceStoreExporter } from './tracing/exporter.js';
+import { TraceServerExporter } from './tracing/exporter.js';
 import { MultiSpanProcessor } from './tracing/multiSpanProcessor.js';
 
 export * from './tracing/exporter.js';
 export * from './tracing/instrumentation.js';
-export * from './tracing/localFileTraceStore.js';
 export * from './tracing/processor.js';
 export * from './tracing/types.js';
 
@@ -39,21 +37,12 @@ let telemetrySDK: NodeSDK | null = null;
 let nodeOtelConfig: Partial<NodeSDKConfiguration> | null = null;
 
 /**
- * Enables trace spans to be written to the trace store.
+ * Enables tracing and metrics open telemetry configuration.
  */
-export function enableTracingAndMetrics(
-  telemetryConfig: TelemetryConfig,
-  traceStore?: TraceStore,
-  traceStoreOptions: {
-    processor?: 'batch' | 'simple';
-  } = {}
-) {
-  if (traceStore) {
+export function enableTracingAndMetrics(telemetryConfig: TelemetryConfig) {
+  if (process.env['GENKIT_TELEMETRY_SERVER']) {
     addProcessor(
-      createTraceStoreProcessor(
-        traceStore,
-        traceStoreOptions.processor || 'batch'
-      )
+      createTraceProcessor(process.env['GENKIT_TELEMETRY_SERVER'], 'batch')
     );
   }
 
@@ -88,15 +77,14 @@ export async function cleanUpTracing(): Promise<void> {
 }
 
 /**
- * Creates a new SpanProcessor for exporting data to the configured TraceStore.
- *
- * Returns `undefined` if no trace store implementation is configured.
+ * Creates a new SpanProcessor for exporting data to the telemetry server.
  */
-function createTraceStoreProcessor(
-  traceStore: TraceStore,
+function createTraceProcessor(
+  url: string,
   processor: 'batch' | 'simple'
 ): SpanProcessor {
-  const exporter = new TraceStoreExporter(traceStore);
+  logger.debug(`Sending telemetry to ${url}`);
+  const exporter = new TraceServerExporter(url);
   return processor === 'simple' || getCurrentEnv() === 'dev'
     ? new SimpleSpanProcessor(exporter)
     : new BatchSpanProcessor(exporter);

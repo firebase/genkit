@@ -15,18 +15,15 @@
  */
 
 import { Mutex } from 'async-mutex';
-import crypto from 'crypto';
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
-import { logger } from '../logging.js';
 import {
   TraceData,
   TraceDataSchema,
   TraceQuery,
   TraceQueryResponse,
   TraceStore,
-} from './types.js';
+} from './types';
 
 /**
  * Implementation of trace store that persists traces on local disk.
@@ -42,14 +39,10 @@ export class LocalFileTraceStore implements TraceStore {
   };
 
   constructor(filters = LocalFileTraceStore.defaultFilters) {
-    const rootHash = crypto
-      .createHash('md5')
-      .update(require?.main?.filename || 'unknown')
-      .digest('hex');
-    this.storeRoot = path.resolve(os.tmpdir(), `.genkit/${rootHash}/traces`);
+    this.storeRoot = path.resolve(process.cwd(), `.genkit/traces`);
     fs.mkdirSync(this.storeRoot, { recursive: true });
-    logger.info(
-      `Initialized local file trace store at root: ${this.storeRoot}`
+    console.info(
+      `[Telemetry Server] initialized local file trace store at root: ${this.storeRoot}`
     );
     this.filters = filters;
   }
