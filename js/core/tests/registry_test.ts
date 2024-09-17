@@ -17,6 +17,7 @@
 import assert from 'node:assert';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import { action } from '../src/action.js';
+import { PluginAbilityType } from '../src/config.js';
 import {
   Registry,
   __hardResetRegistryForTesting,
@@ -56,6 +57,9 @@ describe('global registry', () => {
           registerAction('model', fooSomethingAction);
           return {};
         },
+        provides() {
+          return PluginAbilityType.UNSPECIFIED;
+        },
       });
       const fooSomethingAction = action(
         {
@@ -71,6 +75,9 @@ describe('global registry', () => {
         async initializer() {
           registerAction('model', barSomethingAction);
           return {};
+        },
+        provides() {
+          return PluginAbilityType.UNSPECIFIED;
         },
       });
       const barSomethingAction = action(
@@ -99,6 +106,9 @@ describe('global registry', () => {
           fooInitialized = true;
           return {};
         },
+        provides() {
+          return PluginAbilityType.UNSPECIFIED;
+        },
       });
       let barInitialized = false;
       registerPluginProvider('bar', {
@@ -106,6 +116,9 @@ describe('global registry', () => {
         async initializer() {
           barInitialized = true;
           return {};
+        },
+        provides() {
+          return PluginAbilityType.UNSPECIFIED;
         },
       });
 
@@ -150,6 +163,9 @@ describe('global registry', () => {
         registerAction('model', somethingAction);
         return {};
       },
+      provides() {
+        return PluginAbilityType.UNSPECIFIED;
+      },
     });
     const somethingAction = action(
       {
@@ -178,6 +194,57 @@ describe('registry class', () => {
     registry = new Registry();
   });
 
+  describe('lookupPluginByAbility', () => {
+    it('returns all plugins by ability', async () => {
+      const fooSomethingAction = action(
+        {
+          name: {
+            pluginId: 'foo',
+            actionId: 'something',
+          },
+        },
+        async () => null
+      );
+      const foo = {
+        name: 'foo',
+        async initializer() {
+          registry.registerAction('model', fooSomethingAction);
+          return {};
+        },
+        provides() {
+          return (
+            PluginAbilityType.FLOW_STATE_STORE | PluginAbilityType.TELEMETRY
+          );
+        },
+      };
+      const bar = {
+        name: 'bar',
+        async initializer() {
+          registry.registerAction('model', fooSomethingAction);
+          return {};
+        },
+        provides() {
+          return PluginAbilityType.TRACE_STORE | PluginAbilityType.TELEMETRY;
+        },
+      };
+      registry.registerPluginProvider('foo', foo);
+      registry.registerPluginProvider('bar', bar);
+
+      assert.deepEqual(
+        registry.lookupPluginsByAbility(PluginAbilityType.TRACE_STORE),
+        [bar]
+      );
+      assert.deepEqual(
+        registry.lookupPluginsByAbility(PluginAbilityType.FLOW_STATE_STORE),
+        [foo]
+      );
+      assert.deepEqual(
+        registry.lookupPluginsByAbility(PluginAbilityType.TELEMETRY),
+        [foo, bar]
+      );
+    });
+  });
+
   describe('listActions', () => {
     it('returns all registered actions', async () => {
       const fooSomethingAction = action(
@@ -204,6 +271,9 @@ describe('registry class', () => {
           registry.registerAction('model', fooSomethingAction);
           return {};
         },
+        provides() {
+          return PluginAbilityType.UNSPECIFIED;
+        },
       });
       const fooSomethingAction = action(
         {
@@ -219,6 +289,9 @@ describe('registry class', () => {
         async initializer() {
           registry.registerAction('model', barSomethingAction);
           return {};
+        },
+        provides() {
+          return PluginAbilityType.UNSPECIFIED;
         },
       });
       const barSomethingAction = action(
@@ -270,6 +343,9 @@ describe('registry class', () => {
           fooInitialized = true;
           return {};
         },
+        provides() {
+          return PluginAbilityType.UNSPECIFIED;
+        },
       });
       let barInitialized = false;
       registry.registerPluginProvider('bar', {
@@ -277,6 +353,9 @@ describe('registry class', () => {
         async initializer() {
           barInitialized = true;
           return {};
+        },
+        provides() {
+          return PluginAbilityType.UNSPECIFIED;
         },
       });
 
@@ -319,6 +398,9 @@ describe('registry class', () => {
         async initializer() {
           registry.registerAction('model', somethingAction);
           return {};
+        },
+        provides() {
+          return PluginAbilityType.UNSPECIFIED;
         },
       });
       const somethingAction = action(

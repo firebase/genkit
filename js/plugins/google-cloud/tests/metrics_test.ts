@@ -19,11 +19,11 @@ import { defineModel } from '@genkit-ai/ai/model';
 import { configureGenkit, defineAction } from '@genkit-ai/core';
 import { defineFlow, run } from '@genkit-ai/flow';
 import {
-  GcpOpenTelemetry,
-  googleCloud,
   __forceFlushSpansForTesting,
   __getMetricExporterForTesting,
   __getSpanExporterForTesting,
+  GcpOpenTelemetry,
+  googleCloud,
 } from '@genkit-ai/google-cloud';
 import {
   DataPoint,

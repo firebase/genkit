@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { genkitPlugin, Plugin } from '@genkit-ai/core';
+import { genkitPlugin, Plugin, PluginAbilityType } from '@genkit-ai/core';
 import { credentialsFromEnvironment } from './auth.js';
 import { GcpLogger } from './gcpLogger.js';
 import { GcpOpenTelemetry } from './gcpOpenTelemetry.js';
@@ -26,7 +26,8 @@ import { GcpPluginConfig, GcpPluginOptions } from './types.js';
  */
 export const googleCloud: Plugin<[GcpPluginOptions] | []> = genkitPlugin(
   'googleCloud',
-  async (options?: GcpPluginOptions) => build(options)
+  async (options?: GcpPluginOptions) => build(options),
+  () => PluginAbilityType.TELEMETRY
 );
 
 /**

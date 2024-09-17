@@ -18,7 +18,7 @@ import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 import fs from 'fs';
 import path from 'path';
 import { logger } from './logging.js';
-import { PluginProvider } from './plugin.js';
+import { PluginAbilityType, PluginProvider } from './plugin.js';
 import * as registry from './registry.js';
 import { AsyncProvider } from './registry.js';
 import {
@@ -82,6 +82,32 @@ class Config {
   }
 
   /**
+   * Registers plugins that provide capabilities not explicitly specified in
+   * the config.
+   */
+  private registerImplicitPlugin(
+    ability: PluginAbilityType,
+    block: string,
+    registerFn: (name: string) => void
+  ): boolean {
+    const capablePlugins = registry.lookupPluginsByAbility(ability);
+    if (!capablePlugins) {
+      return false;
+    }
+
+    if (capablePlugins.length != 1) {
+      logger.error(`More than one plugin implicitly provides ${ability}`);
+      logger.error(
+        `Disambiguate by adding a ${block} block to your configuration and specifying one of ${capablePlugins.map((plugin) => plugin.name)}.`
+      );
+      return false;
+    }
+
+    registerFn(capablePlugins[0].name);
+    return true;
+  }
+
+  /**
    * Configures the system.
    */
   private configure() {
@@ -97,23 +123,46 @@ class Config {
           logger.info(`Initializing plugin ${plugin.name}:`);
           return await plugin.initializer();
         },
+        provides() {
+          return plugin.provides();
+        },
       });
     });
 
-    if (this.options.telemetry?.logger) {
-      const loggerPluginName = this.options.telemetry.logger;
+    const registerLogger = (name: string) => {
       logger.debug('Registering logging exporters...');
-      logger.debug(`  - all environments: ${loggerPluginName}`);
-      this.loggerConfig = async () =>
-        this.resolveLoggerConfig(loggerPluginName);
+      logger.debug(`  - all environments: ${name}`);
+      this.loggerConfig = async () => this.resolveLoggerConfig(name);
+    };
+
+    if (this.options.telemetry?.logger) {
+      registerLogger(this.options.telemetry.logger);
+    } else {
+      this.registerImplicitPlugin(
+        PluginAbilityType.TELEMETRY,
+        `telementry {}`,
+        (name: string) => {
+          registerLogger(name);
+        }
+      );
     }
 
-    if (this.options.telemetry?.instrumentation) {
-      const telemetryPluginName = this.options.telemetry.instrumentation;
+    const registerTelemetry = (name: string) => {
       logger.debug('Registering telemetry exporters...');
-      logger.debug(`  - all environments: ${telemetryPluginName}`);
-      this.telemetryConfig = async () =>
-        this.resolveTelemetryConfig(telemetryPluginName);
+      logger.debug(`  - all environments: ${name}`);
+      this.telemetryConfig = async () => this.resolveTelemetryConfig(name);
+    };
+
+    if (this.options.telemetry?.instrumentation) {
+      registerTelemetry(this.options.telemetry.instrumentation);
+    } else {
+      this.registerImplicitPlugin(
+        PluginAbilityType.TELEMETRY,
+        'telemetry {}',
+        (name: string) => {
+          registerTelemetry(name);
+        }
+      );
     }
 
     logger.debug('Registering trace stores...');
@@ -121,22 +170,34 @@ class Config {
       registry.registerTraceStore('dev', async () => new LocalFileTraceStore());
       logger.debug('Registered dev trace store.');
     }
-    if (this.options.traceStore) {
-      const traceStorePluginName = this.options.traceStore;
-      logger.debug(`  - prod: ${traceStorePluginName}`);
+
+    const registerTraceStore = (name: string) => {
+      logger.debug(`  - prod: ${name}`);
       this.configuredEnvs.add('prod');
-      registry.registerTraceStore('prod', () =>
-        this.resolveTraceStore(traceStorePluginName)
-      );
+      registry.registerTraceStore('prod', () => this.resolveTraceStore(name));
+    };
+
+    if (this.options.traceStore) {
+      registerTraceStore(this.options.traceStore);
       if (isDevEnv()) {
         logger.info(
           'In dev mode `traceStore` is defaulted to local file store.'
         );
       }
     } else {
-      logger.info(
-        '`traceStore` is not specified in the config; Traces are not going to be persisted in prod.'
-      );
+      if (
+        !this.registerImplicitPlugin(
+          PluginAbilityType.TRACE_STORE,
+          'traceStore',
+          (name: string) => {
+            registerTraceStore(name);
+          }
+        )
+      ) {
+        logger.info(
+          '`traceStore` is not specified in the config; Traces are not going to be persisted in prod.'
+        );
+      }
     }
   }
 

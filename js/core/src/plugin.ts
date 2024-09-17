@@ -24,12 +24,20 @@ export interface Provider<T> {
   value: T;
 }
 
+export enum PluginAbilityType {
+  UNSPECIFIED = 0,
+  FLOW_STATE_STORE = 1 << 0,
+  TRACE_STORE = 1 << 1,
+  TELEMETRY = 1 << 2,
+}
+
 export interface PluginProvider {
   name: string;
   initializer: () =>
     | InitializedPlugin
     | void
     | Promise<InitializedPlugin | void>;
+  provides: () => PluginAbilityType;
 }
 
 export interface InitializedPlugin {
@@ -58,7 +66,8 @@ export type Plugin<T extends any[]> = (...args: T) => PluginProvider;
  */
 export function genkitPlugin<T extends PluginInit>(
   pluginName: string,
-  initFn: T
+  initFn: T,
+  providesFn: () => PluginAbilityType = () => PluginAbilityType.UNSPECIFIED
 ): Plugin<Parameters<T>> {
   if (isInRuntimeContext()) {
     throw new Error(
@@ -73,6 +82,7 @@ export function genkitPlugin<T extends PluginInit>(
       validatePluginActions(pluginName, initializedPlugin);
       return initializedPlugin;
     },
+    provides: () => providesFn(),
   });
 }
 

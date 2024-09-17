@@ -17,7 +17,7 @@
 import * as z from 'zod';
 import { Action } from './action.js';
 import { logger } from './logging.js';
-import { PluginProvider } from './plugin.js';
+import { PluginAbilityType, PluginProvider } from './plugin.js';
 import { startReflectionApi } from './reflectionApi.js';
 import { JSONSchema } from './schema.js';
 import { TraceStore } from './tracing/types.js';
@@ -115,6 +115,10 @@ export function lookupPlugin(name: string) {
   return getRegistryInstance().lookupPlugin(name);
 }
 
+export function lookupPluginsByAbility(ability: PluginAbilityType) {
+  return getRegistryInstance().lookupPluginsByAbility(ability);
+}
+
 /**
  * Initialize plugin -- calls the plugin initialization function.
  */
@@ -149,6 +153,7 @@ export class Registry {
   private actionsById: Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>> = {};
   private traceStoresByEnv: Record<string, AsyncProvider<TraceStore>> = {};
   private pluginsByName: Record<string, PluginProvider> = {};
+  private pluginsByAbility: Record<PluginAbilityType, PluginProvider[]> = {};
   private schemasByName: Record<
     string,
     { schema?: z.ZodTypeAny; jsonSchema?: JSONSchema }
@@ -245,6 +250,14 @@ export class Registry {
     this.allPluginsInitialized = false;
     let cached;
     let isInitialized = false;
+
+    if (provider.provides() !== PluginAbilityType.UNSPECIFIED) {
+      getDiscreteAbilities(provider.provides()).forEach((ability) => {
+        const plugins = this.pluginsByAbility[ability] || [];
+        this.pluginsByAbility[ability] = [...plugins, provider];
+      });
+    }
+
     this.pluginsByName[name] = {
       name: provider.name,
       initializer: () => {
@@ -255,11 +268,16 @@ export class Registry {
         isInitialized = true;
         return cached;
       },
+      provides: () => provider.provides(),
     };
   }
 
   lookupPlugin(name: string) {
     return this.pluginsByName[name] || this.parent?.lookupPlugin(name);
+  }
+
+  lookupPluginsByAbility(ability: PluginAbilityType) {
+    return this.pluginsByAbility[ability];
   }
 
   async initializePlugin(name: string) {
@@ -292,4 +310,33 @@ export function getRegistryInstance(): Registry {
 /** Sets global registry instance. */
 export function setRegistryInstance(reg: Registry) {
   global[REGISTRY_KEY] = reg;
+}
+
+function getDiscreteAbilities(
+  provides: PluginAbilityType
+): PluginAbilityType[] {
+  let abilities: PluginAbilityType[] = [];
+
+  if (
+    (provides & PluginAbilityType.FLOW_STATE_STORE) ===
+    PluginAbilityType.FLOW_STATE_STORE
+  ) {
+    abilities.push(PluginAbilityType.FLOW_STATE_STORE);
+  }
+
+  if (
+    (provides & PluginAbilityType.TRACE_STORE) ===
+    PluginAbilityType.TRACE_STORE
+  ) {
+    abilities.push(PluginAbilityType.TRACE_STORE);
+  }
+
+  if (
+    (provides & PluginAbilityType.TELEMETRY) ===
+    PluginAbilityType.TELEMETRY
+  ) {
+    abilities.push(PluginAbilityType.TELEMETRY);
+  }
+
+  return abilities;
 }
