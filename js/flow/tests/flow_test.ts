@@ -20,6 +20,7 @@ import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
 import { defineFlow, defineStreamingFlow } from '../src/flow.js';
+import { getFlowAuth } from '../src/utils.js';
 
 function createTestFlow() {
   return defineFlow(
@@ -30,6 +31,24 @@ function createTestFlow() {
     },
     async (input) => {
       return `bar ${input}`;
+    }
+  );
+}
+
+function createTestFlowWithAuth() {
+  return defineFlow(
+    {
+      name: 'testFlowWithAuth',
+      inputSchema: z.string(),
+      outputSchema: z.string(),
+      authPolicy: (auth) => {
+        if (auth != 'open sesame') {
+          throw 'forty thieves!';
+        }
+      },
+    },
+    async (input) => {
+      return `foo ${input}, auth ${JSON.stringify(getFlowAuth())}`;
     }
   );
 }
@@ -109,6 +128,28 @@ describe('flow', () => {
           );
           return true;
         }
+      );
+    });
+
+    it('should pass auth context all the way', async () => {
+      const testFlow = createTestFlowWithAuth();
+
+      const result = await testFlow('bar', {
+        withLocalAuthContext: 'open sesame',
+      });
+
+      assert.equal(result, 'foo bar, auth "open sesame"');
+    });
+
+    it('should fail auth', async () => {
+      const testFlow = createTestFlowWithAuth();
+
+      await assert.rejects(
+        () =>
+          testFlow('bar', {
+            withLocalAuthContext: 'yolo',
+          }),
+        /forty thieves/
       );
     });
   });
