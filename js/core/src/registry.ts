@@ -14,17 +14,14 @@
  * limitations under the License.
  */
 
+import { AsyncLocalStorage } from 'async_hooks';
 import * as z from 'zod';
 import { Action } from './action.js';
-import { logger } from './logging.js';
 import { PluginProvider } from './plugin.js';
-import { startReflectionApi } from './reflectionApi.js';
 import { JSONSchema } from './schema.js';
 import { TraceStore } from './tracing/types.js';
 
 export type AsyncProvider<T> = () => Promise<T>;
-
-const REGISTRY_KEY = 'genkit__REGISTRY';
 
 /**
  * Type of a runnable action.
@@ -41,6 +38,14 @@ export type ActionType =
   | 'util'
   | 'tool'
   | 'reranker';
+
+/**
+ * A schema is either a Zod schema or a JSON schema.
+ */
+export interface Schema {
+  schema?: z.ZodTypeAny;
+  jsonSchema?: JSONSchema;
+}
 
 /**
  * Looks up a registry key (action type and key) in the registry.
@@ -89,6 +94,8 @@ export function listActions(): Promise<ActionsRecord> {
 
 /**
  * Registers a trace store provider for the given environment.
+ * @param env The environment to register the trace store for.
+ * @param traceStoreProvider The trace store provider.
  */
 export function registerTraceStore(
   env: string,
@@ -99,74 +106,115 @@ export function registerTraceStore(
 
 /**
  * Looks up the trace store for the given environment.
+ * @param env The environment to lookup the trace store for.
+ * @returns The trace store.
  */
 export function lookupTraceStore(env: string): Promise<TraceStore | undefined> {
   return getRegistryInstance().lookupTraceStore(env);
 }
 
 /**
- * Registers a flow state store for the given environment.
+ * Registers a plugin provider.
+ * @param name The name of the plugin to register.
+ * @param provider The plugin provider.
  */
 export function registerPluginProvider(name: string, provider: PluginProvider) {
   return getRegistryInstance().registerPluginProvider(name, provider);
 }
 
+/**
+ * Looks up a plugin.
+ * @param name The name of the plugin to lookup.
+ * @returns The plugin.
+ */
 export function lookupPlugin(name: string) {
   return getRegistryInstance().lookupPlugin(name);
 }
 
 /**
- * Initialize plugin -- calls the plugin initialization function.
+ * Initializes a plugin that has already been registered.
+ * @param name The name of the plugin to initialize.
+ * @returns The plugin.
  */
 export async function initializePlugin(name: string) {
   return getRegistryInstance().initializePlugin(name);
 }
 
-export function registerSchema(
-  name: string,
-  data: { schema?: z.ZodTypeAny; jsonSchema?: JSONSchema }
-) {
+/**
+ * Registers a schema.
+ * @param name The name of the schema to register.
+ * @param data The schema to register (either a Zod schema or a JSON schema).
+ */
+export function registerSchema(name: string, data: Schema) {
   return getRegistryInstance().registerSchema(name, data);
 }
 
+/**
+ * Looks up a schema.
+ * @param name The name of the schema to lookup.
+ * @returns The schema.
+ */
 export function lookupSchema(name: string) {
   return getRegistryInstance().lookupSchema(name);
 }
 
+const registryAls = new AsyncLocalStorage<Registry>();
+
 /**
- * Development mode only. Starts a Reflection API so that the actions can be called by the Runner.
+ * @returns The active registry instance.
  */
-if (process.env.GENKIT_ENV === 'dev') {
-  startReflectionApi();
+export function getRegistryInstance(): Registry {
+  const registry = registryAls.getStore();
+  if (!registry) {
+    throw new Error('getRegistryInstance() called before runWithRegistry()');
+  }
+  return registry;
 }
 
-export function __hardResetRegistryForTesting() {
-  delete global[REGISTRY_KEY];
-  global[REGISTRY_KEY] = new Registry();
+/**
+ * Runs a function with a specific registry instance.
+ * @param registry The registry instance to use.
+ * @param fn The function to run.
+ */
+export function runWithRegistry<R>(registry: Registry, fn: () => R) {
+  return registryAls.run(registry, fn);
 }
 
+/**
+ * The registry is used to store and lookup actions, trace stores, flow state stores, plugins, and schemas.
+ */
 export class Registry {
   private actionsById: Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>> = {};
   private traceStoresByEnv: Record<string, AsyncProvider<TraceStore>> = {};
   private pluginsByName: Record<string, PluginProvider> = {};
-  private schemasByName: Record<
-    string,
-    { schema?: z.ZodTypeAny; jsonSchema?: JSONSchema }
-  > = {};
-
+  private schemasByName: Record<string, Schema> = {};
   private traceStoresByEnvCache: Record<any, Promise<TraceStore>> = {};
   private allPluginsInitialized = false;
 
   constructor(public parent?: Registry) {}
 
+  /**
+   * Creates a new registry overlaid onto the currently active registry.
+   * @returns The new overlaid registry.
+   */
   static withCurrent() {
     return new Registry(getRegistryInstance());
   }
 
+  /**
+   * Creates a new registry overlaid onto the provided registry.
+   * @param parent The parent registry.
+   * @returns The new overlaid registry.
+   */
   static withParent(parent: Registry) {
     return new Registry(parent);
   }
 
+  /**
+   * Looks up an action in the registry.
+   * @param key The key of the action to lookup.
+   * @returns The action.
+   */
   async lookupAction<
     I extends z.ZodTypeAny,
     O extends z.ZodTypeAny,
@@ -180,20 +228,26 @@ export class Registry {
     return (this.actionsById[key] as R) || this.parent?.lookupAction(key);
   }
 
+  /**
+   * Registers an action in the registry.
+   * @param type The type of the action to register.
+   * @param action The action to register.
+   */
   registerAction<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
     type: ActionType,
     action: Action<I, O>
   ) {
-    logger.info(`Registering ${type}: ${action.__action.name}`);
     const key = `/${type}/${action.__action.name}`;
     if (this.actionsById.hasOwnProperty(key)) {
-      logger.warn(
-        `WARNING: ${key} already has an entry in the registry. Overwriting.`
-      );
+      throw new Error(`Action ${key} already registered`);
     }
     this.actionsById[key] = action;
   }
 
+  /**
+   * Returns all actions in the registry.
+   * @returns All actions in the registry.
+   */
   async listActions(): Promise<ActionsRecord> {
     await this.initializeAllPlugins();
     return {
@@ -202,6 +256,9 @@ export class Registry {
     };
   }
 
+  /**
+   * Initializes all plugins in the registry.
+   */
   async initializeAllPlugins() {
     if (this.allPluginsInitialized) {
       return;
@@ -212,13 +269,26 @@ export class Registry {
     this.allPluginsInitialized = true;
   }
 
+  /**
+   * Registers a trace store for the given environment.
+   * @param env The environment to register the trace store for.
+   * @param traceStoreProvider The trace store provider.
+   */
   registerTraceStore(
     env: string,
     traceStoreProvider: AsyncProvider<TraceStore>
   ) {
+    if (this.traceStoresByEnv[env]) {
+      throw new Error(`Trace store for environment ${env} already registered`);
+    }
     this.traceStoresByEnv[env] = traceStoreProvider;
   }
 
+  /**
+   * Looks up the trace store for the given environment.
+   * @param env The environment to lookup the trace store for.
+   * @returns The trace store.
+   */
   async lookupTraceStore(env: string): Promise<TraceStore | undefined> {
     return (
       (await this.lookupOverlaidTraceStore(env)) ||
@@ -226,6 +296,11 @@ export class Registry {
     );
   }
 
+  /**
+   * Looks up the trace store for the given environment.
+   * @param env The environment to lookup the trace store for.
+   * @returns The trace store.
+   */
   private async lookupOverlaidTraceStore(
     env: string
   ): Promise<TraceStore | undefined> {
@@ -241,55 +316,68 @@ export class Registry {
     return cached;
   }
 
+  /**
+   * Registers a plugin provider. This plugin must be initialized before it can be used by calling {@link initializePlugin} or {@link initializeAllPlugins}.
+   * @param name The name of the plugin to register.
+   * @param provider The plugin provider.
+   */
   registerPluginProvider(name: string, provider: PluginProvider) {
+    if (this.pluginsByName[name]) {
+      throw new Error(`Plugin ${name} already registered`);
+    }
     this.allPluginsInitialized = false;
     let cached;
     let isInitialized = false;
     this.pluginsByName[name] = {
       name: provider.name,
       initializer: () => {
-        if (isInitialized) {
-          return cached;
+        if (!isInitialized) {
+          cached = provider.initializer();
+          isInitialized = true;
         }
-        cached = provider.initializer();
-        isInitialized = true;
         return cached;
       },
     };
   }
 
-  lookupPlugin(name: string) {
+  /**
+   * Looks up a plugin.
+   * @param name The name of the plugin to lookup.
+   * @returns The plugin provider.
+   */
+  lookupPlugin(name: string): PluginProvider | undefined {
     return this.pluginsByName[name] || this.parent?.lookupPlugin(name);
   }
 
+  /**
+   * Initializes a plugin already registered with {@link registerPluginProvider}.
+   * @param name The name of the plugin to initialize.
+   * @returns The plugin.
+   */
   async initializePlugin(name: string) {
     if (this.pluginsByName[name]) {
       return await this.pluginsByName[name].initializer();
     }
-    return undefined;
   }
 
-  registerSchema(
-    name: string,
-    data: { schema?: z.ZodTypeAny; jsonSchema?: JSONSchema }
-  ) {
+  /**
+   * Registers a schema.
+   * @param name The name of the schema to register.
+   * @param data The schema to register (either a Zod schema or a JSON schema).
+   */
+  registerSchema(name: string, data: Schema) {
+    if (this.schemasByName[name]) {
+      throw new Error(`Schema ${name} already registered`);
+    }
     this.schemasByName[name] = data;
   }
 
-  lookupSchema(name: string) {
+  /**
+   * Looks up a schema.
+   * @param name The name of the schema to lookup.
+   * @returns The schema.
+   */
+  lookupSchema(name: string): Schema | undefined {
     return this.schemasByName[name] || this.parent?.lookupSchema(name);
   }
-}
-
-// global regustry instance
-global[REGISTRY_KEY] = new Registry();
-
-/** Returns the current registry instance. */
-export function getRegistryInstance(): Registry {
-  return global[REGISTRY_KEY];
-}
-
-/** Sets global registry instance. */
-export function setRegistryInstance(reg: Registry) {
-  global[REGISTRY_KEY] = reg;
 }

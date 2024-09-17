@@ -14,40 +14,35 @@
  * limitations under the License.
  */
 
+import { SpanStatusCode } from '@opentelemetry/api';
+import express from 'express';
+import * as z from 'zod';
 import {
   Action,
   defineAction,
   getStreamingCallback,
   StreamingCallback,
-} from '@genkit-ai/core';
-import { logger } from '@genkit-ai/core/logging';
-import { initializeAllPlugins } from '@genkit-ai/core/registry';
-import { toJsonSchema } from '@genkit-ai/core/schema';
+} from './action.js';
+import { getErrorMessage, getErrorStack } from './error.js';
+import { FlowActionInputSchema } from './flowTypes.js';
+import { logger } from './logging.js';
+import {
+  getRegistryInstance,
+  initializeAllPlugins,
+  Registry,
+  runWithRegistry,
+} from './registry.js';
+import { toJsonSchema } from './schema.js';
 import {
   newTrace,
+  runInNewSpan,
   setCustomMetadataAttribute,
   setCustomMetadataAttributes,
   SPAN_TYPE_ATTR,
-} from '@genkit-ai/core/tracing';
-import { SpanStatusCode } from '@opentelemetry/api';
-import * as bodyParser from 'body-parser';
-import { default as cors, CorsOptions } from 'cors';
-import express from 'express';
-import * as z from 'zod';
-import { getErrorMessage, getErrorStack } from './errors.js';
-import { FlowActionInputSchema } from './types.js';
-import { metadataPrefix, runWithAuthContext } from './utils.js';
+} from './tracing.js';
+import { runWithAuthContext } from './utils.js';
 
 const streamDelimiter = '\n';
-
-const CREATED_FLOWS = 'genkit__CREATED_FLOWS';
-
-function createdFlows(): Flow<any, any, any>[] {
-  if (global[CREATED_FLOWS] === undefined) {
-    global[CREATED_FLOWS] = [];
-  }
-  return global[CREATED_FLOWS];
-}
 
 /**
  * Flow Auth policy. Consumes the authorization context of the flow and
@@ -67,7 +62,7 @@ export interface __RequestWithAuth extends express.Request {
 }
 
 /**
- * Base configuration for a flow.
+ * Configuration for a flow.
  */
 export interface FlowConfig<
   I extends z.ZodTypeAny = z.ZodTypeAny,
@@ -155,30 +150,35 @@ export type FlowFn<
     : StreamingCallback<z.infer<S>>
 ) => Promise<z.infer<O>>;
 
+/**
+ * Represents the result of a flow execution.
+ */
 interface FlowResult<O> {
+  /** The result of the flow execution. */
   result: O;
+  /** The trace ID associated with the flow execution. */
   traceId: string;
 }
 
 /**
- * Defines a non-streaming flow.
+ * Defines a non-streaming flow. This operates on the currently active registry.
  */
 export function defineFlow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
 >(config: FlowConfig<I, O>, fn: FlowFn<I, O, z.ZodVoid>): CallableFlow<I, O> {
-  const f = new Flow<I, O, z.ZodVoid>(config, fn);
-  createdFlows().push(f);
-  wrapAsAction(f);
+  const flow = new Flow<I, O, z.ZodVoid>(config, fn);
+  registerFlowAction(flow);
+  const registry = getRegistryInstance();
   const callableFlow: CallableFlow<I, O> = async (input, opts) => {
-    return f.run(input, opts);
+    return runWithRegistry(registry, () => flow.run(input, opts));
   };
-  callableFlow.flow = f;
+  callableFlow.flow = flow;
   return callableFlow;
 }
 
 /**
- * Defines a streaming flow.
+ * Defines a streaming flow. This operates on the currently active registry.
  */
 export function defineStreamingFlow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
@@ -186,15 +186,15 @@ export function defineStreamingFlow<
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   config: StreamingFlowConfig<I, O, S>,
-  steps: FlowFn<I, O, S>
+  fn: FlowFn<I, O, S>
 ): StreamableFlow<I, O, S> {
-  const f = new Flow(config, steps);
-  createdFlows().push(f);
-  wrapAsAction(f);
+  const flow = new Flow(config, fn);
+  registerFlowAction(flow);
+  const registry = getRegistryInstance();
   const streamableFlow: StreamableFlow<I, O, S> = (input, opts) => {
-    return f.stream(input, opts);
+    return runWithRegistry(registry, () => flow.stream(input, opts));
   };
-  streamableFlow.flow = f;
+  streamableFlow.flow = flow;
   return streamableFlow;
 }
 
@@ -209,24 +209,20 @@ export class Flow<
   readonly streamSchema?: S;
   readonly authPolicy?: FlowAuthPolicy<I>;
   readonly middleware?: express.RequestHandler[];
+  readonly flowFn: FlowFn<I, O, S>;
 
   constructor(
-    config: {
-      name: string;
-      inputSchema?: I;
-      outputSchema?: O;
-      streamSchema?: S;
-      authPolicy?: FlowAuthPolicy<I>;
-      middleware?: express.RequestHandler[];
-    },
-    private flowFn: FlowFn<I, O, S>
+    config: FlowConfig<I, O> | StreamingFlowConfig<I, O, S>,
+    flowFn: FlowFn<I, O, S>
   ) {
     this.name = config.name;
     this.inputSchema = config.inputSchema;
     this.outputSchema = config.outputSchema;
-    this.streamSchema = config.streamSchema;
+    this.streamSchema =
+      'streamSchema' in config ? config.streamSchema : undefined;
     this.authPolicy = config.authPolicy;
     this.middleware = config.middleware;
+    this.flowFn = flowFn;
   }
 
   /**
@@ -370,81 +366,89 @@ export class Flow<
   }
 
   async expressHandler(
-    req: __RequestWithAuth,
-    res: express.Response
+    registry: Registry,
+    request: __RequestWithAuth,
+    response: express.Response
   ): Promise<void> {
-    const { stream } = req.query;
-    const auth = req.auth;
+    await runWithRegistry(registry, async () => {
+      const { stream } = request.query;
+      const auth = request.auth;
 
-    let input = req.body.data;
+      let input = request.body.data;
 
-    try {
-      await this.authPolicy?.(auth, input);
-    } catch (e: any) {
-      const respBody = {
-        error: {
-          status: 'PERMISSION_DENIED',
-          message: e.message || 'Permission denied to resource',
-        },
-      };
-      res.status(403).send(respBody).end();
-      return;
-    }
-
-    if (stream === 'true') {
-      res.writeHead(200, {
-        'Content-Type': 'text/plain',
-        'Transfer-Encoding': 'chunked',
-      });
       try {
-        const result = await this.invoke(input, {
-          streamingCallback: ((chunk: z.infer<S>) => {
-            res.write(JSON.stringify(chunk) + streamDelimiter);
-          }) as S extends z.ZodVoid ? undefined : StreamingCallback<z.infer<S>>,
-          auth,
-        });
-        res.write({
-          result: result.result, // Need more results!!!!
-        });
-        res.end();
-      } catch (e) {
-        res.write({
+        await this.authPolicy?.(auth, input);
+      } catch (e: any) {
+        const respBody = {
           error: {
-            status: 'INTERNAL',
-            message: getErrorMessage(e),
-            details: getErrorStack(e),
+            status: 'PERMISSION_DENIED',
+            message: e.message || 'Permission denied to resource',
           },
-        });
-        res.end();
+        };
+        response.status(403).send(respBody).end();
+        return;
       }
-    } else {
-      try {
-        const result = await this.invoke(input, { auth });
-        // Responses for non-streaming flows are passed back with the flow result stored in a field called "result."
-        res
-          .status(200)
-          .send({
-            result: result.result,
-          })
-          .end();
-      } catch (e) {
-        // Errors for non-streaming flows are passed back as standard API errors.
-        res
-          .status(500)
-          .send({
+
+      if (stream === 'true') {
+        response.writeHead(200, {
+          'Content-Type': 'text/plain',
+          'Transfer-Encoding': 'chunked',
+        });
+        try {
+          const result = await this.invoke(input, {
+            streamingCallback: ((chunk: z.infer<S>) => {
+              response.write(JSON.stringify(chunk) + streamDelimiter);
+            }) as S extends z.ZodVoid
+              ? undefined
+              : StreamingCallback<z.infer<S>>,
+            auth,
+          });
+          response.write({
+            result: result.result, // Need more results!!!!
+          });
+          response.end();
+        } catch (e) {
+          response.write({
             error: {
               status: 'INTERNAL',
               message: getErrorMessage(e),
               details: getErrorStack(e),
             },
-          })
-          .end();
+          });
+          response.end();
+        }
+      } else {
+        try {
+          const result = await this.invoke(input, { auth });
+          // Responses for non-streaming flows are passed back with the flow result stored in a field called "result."
+          response
+            .status(200)
+            .send({
+              result: result.result,
+            })
+            .end();
+        } catch (e) {
+          // Errors for non-streaming flows are passed back as standard API errors.
+          response
+            .status(500)
+            .send({
+              error: {
+                status: 'INTERNAL',
+                message: getErrorMessage(e),
+                details: getErrorStack(e),
+              },
+            })
+            .end();
+        }
       }
-    }
+    });
   }
 }
 
-function wrapAsAction<
+/**
+ * Registers a flow as an action in the registry.
+ */
+function registerFlowAction<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
@@ -478,36 +482,45 @@ function wrapAsAction<
   );
 }
 
+export function run<T>(name: string, func: () => Promise<T>): Promise<T>;
+export function run<T>(
+  name: string,
+  input: any,
+  func: (input?: any) => Promise<T>
+): Promise<T>;
+
 /**
- * Start the flows server.
+ * A flow step that executes the provided function. Each run step is recorded separately in the trace.
  */
-export function startFlowsServer(params?: {
-  flows?: Flow<any, any, any>[];
-  port?: number;
-  cors?: CorsOptions;
-  pathPrefix?: string;
-  jsonParserOptions?: bodyParser.OptionsJson;
-}) {
-  const port =
-    params?.port || (process.env.PORT ? parseInt(process.env.PORT) : 0) || 3400;
-  const pathPrefix = params?.pathPrefix ?? '';
-  const app = express();
-  app.use(bodyParser.json(params?.jsonParserOptions));
-  app.use(cors(params?.cors));
+export function run<T>(
+  name: string,
+  funcOrInput: () => Promise<T>,
+  fn?: (input?: any) => Promise<T>
+): Promise<T> {
+  const func = arguments.length === 3 ? fn : funcOrInput;
+  const input = arguments.length === 3 ? funcOrInput : undefined;
+  if (!func) {
+    throw new Error('unable to resolve run function');
+  }
+  return runInNewSpan(
+    {
+      metadata: { name },
+      labels: {
+        [SPAN_TYPE_ATTR]: 'flowStep',
+      },
+    },
+    async (meta) => {
+      meta.input = input;
+      const output = arguments.length === 3 ? await func(input) : await func();
+      meta.output = JSON.stringify(output);
+      return output;
+    }
+  );
+}
 
-  const flows = params?.flows || createdFlows();
-  logger.info(`Starting flows server on port ${port}`);
-  flows.forEach((f) => {
-    const flowPath = `/${pathPrefix}${f.name}`;
-    logger.info(` - ${flowPath}`);
-    // Add middlware
-    f.middleware?.forEach((m) => {
-      app.post(flowPath, m);
-    });
-    app.post(flowPath, f.expressHandler);
-  });
-
-  app.listen(port, () => {
-    console.log(`Flows server listening on port ${port}`);
-  });
+/**
+ * Adds flow-specific prefix for OpenTelemetry span attributes.
+ */
+export function metadataPrefix(name: string) {
+  return `flow:${name}`;
 }

@@ -15,23 +15,123 @@
  */
 
 import assert from 'node:assert';
-import { afterEach, beforeEach, describe, it } from 'node:test';
+import { beforeEach, describe, it } from 'node:test';
 import { action } from '../src/action.js';
 import {
   Registry,
-  __hardResetRegistryForTesting,
   listActions,
   lookupAction,
   registerAction,
   registerPluginProvider,
+  runWithRegistry,
 } from '../src/registry.js';
 
 describe('global registry', () => {
-  beforeEach(__hardResetRegistryForTesting);
-  afterEach(__hardResetRegistryForTesting);
+  let registry: Registry;
+
+  beforeEach(() => {
+    registry = new Registry();
+  });
 
   describe('listActions', () => {
     it('returns all registered actions', async () => {
+      await runWithRegistry(registry, async () => {
+        const fooSomethingAction = action(
+          { name: 'foo_something' },
+          async () => null
+        );
+        registerAction('model', fooSomethingAction);
+        const barSomethingAction = action(
+          { name: 'bar_something' },
+          async () => null
+        );
+        registerAction('model', barSomethingAction);
+
+        assert.deepEqual(await listActions(), {
+          '/model/foo_something': fooSomethingAction,
+          '/model/bar_something': barSomethingAction,
+        });
+      });
+    });
+
+    it('returns all registered actions by plugins', async () => {
+      await runWithRegistry(registry, async () => {
+        registerPluginProvider('foo', {
+          name: 'foo',
+          async initializer() {
+            registerAction('model', fooSomethingAction);
+            return {};
+          },
+        });
+        const fooSomethingAction = action(
+          {
+            name: {
+              pluginId: 'foo',
+              actionId: 'something',
+            },
+          },
+          async () => null
+        );
+        registerPluginProvider('bar', {
+          name: 'bar',
+          async initializer() {
+            registerAction('model', barSomethingAction);
+            return {};
+          },
+        });
+        const barSomethingAction = action(
+          {
+            name: {
+              pluginId: 'bar',
+              actionId: 'something',
+            },
+          },
+          async () => null
+        );
+
+        assert.deepEqual(await listActions(), {
+          '/model/foo/something': fooSomethingAction,
+          '/model/bar/something': barSomethingAction,
+        });
+      });
+    });
+  });
+
+  describe('lookupAction', () => {
+    it('initializes plugin for action first', async () => {
+      await runWithRegistry(registry, async () => {
+        let fooInitialized = false;
+        registerPluginProvider('foo', {
+          name: 'foo',
+          async initializer() {
+            fooInitialized = true;
+            return {};
+          },
+        });
+        let barInitialized = false;
+        registerPluginProvider('bar', {
+          name: 'bar',
+          async initializer() {
+            barInitialized = true;
+            return {};
+          },
+        });
+
+        await lookupAction('/model/foo/something');
+
+        assert.strictEqual(fooInitialized, true);
+        assert.strictEqual(barInitialized, false);
+
+        await lookupAction('/model/bar/something');
+
+        assert.strictEqual(fooInitialized, true);
+        assert.strictEqual(barInitialized, true);
+      });
+    });
+  });
+
+  it('returns registered action', async () => {
+    await runWithRegistry(registry, async () => {
       const fooSomethingAction = action(
         { name: 'foo_something' },
         async () => null
@@ -43,21 +143,27 @@ describe('global registry', () => {
       );
       registerAction('model', barSomethingAction);
 
-      assert.deepEqual(await listActions(), {
-        '/model/foo_something': fooSomethingAction,
-        '/model/bar_something': barSomethingAction,
-      });
+      assert.strictEqual(
+        await lookupAction('/model/foo_something'),
+        fooSomethingAction
+      );
+      assert.strictEqual(
+        await lookupAction('/model/bar_something'),
+        barSomethingAction
+      );
     });
+  });
 
-    it('returns all registered actions by plugins', async () => {
+  it('returns action registered by plugin', async () => {
+    await runWithRegistry(registry, async () => {
       registerPluginProvider('foo', {
         name: 'foo',
         async initializer() {
-          registerAction('model', fooSomethingAction);
+          registerAction('model', somethingAction);
           return {};
         },
       });
-      const fooSomethingAction = action(
+      const somethingAction = action(
         {
           name: {
             pluginId: 'foo',
@@ -66,109 +172,18 @@ describe('global registry', () => {
         },
         async () => null
       );
-      registerPluginProvider('bar', {
-        name: 'bar',
-        async initializer() {
-          registerAction('model', barSomethingAction);
-          return {};
-        },
-      });
-      const barSomethingAction = action(
-        {
-          name: {
-            pluginId: 'bar',
-            actionId: 'something',
-          },
-        },
-        async () => null
+
+      assert.strictEqual(
+        await lookupAction('/model/foo/something'),
+        somethingAction
       );
-
-      assert.deepEqual(await listActions(), {
-        '/model/foo/something': fooSomethingAction,
-        '/model/bar/something': barSomethingAction,
-      });
     });
-  });
-
-  describe('lookupAction', () => {
-    it('initializes plugin for action first', async () => {
-      let fooInitialized = false;
-      registerPluginProvider('foo', {
-        name: 'foo',
-        async initializer() {
-          fooInitialized = true;
-          return {};
-        },
-      });
-      let barInitialized = false;
-      registerPluginProvider('bar', {
-        name: 'bar',
-        async initializer() {
-          barInitialized = true;
-          return {};
-        },
-      });
-
-      await lookupAction('/model/foo/something');
-
-      assert.strictEqual(fooInitialized, true);
-      assert.strictEqual(barInitialized, false);
-
-      await lookupAction('/model/bar/something');
-
-      assert.strictEqual(fooInitialized, true);
-      assert.strictEqual(barInitialized, true);
-    });
-  });
-
-  it('returns registered action', async () => {
-    const fooSomethingAction = action(
-      { name: 'foo_something' },
-      async () => null
-    );
-    registerAction('model', fooSomethingAction);
-    const barSomethingAction = action(
-      { name: 'bar_something' },
-      async () => null
-    );
-    registerAction('model', barSomethingAction);
-
-    assert.strictEqual(
-      await lookupAction('/model/foo_something'),
-      fooSomethingAction
-    );
-    assert.strictEqual(
-      await lookupAction('/model/bar_something'),
-      barSomethingAction
-    );
-  });
-
-  it('returns action registered by plugin', async () => {
-    registerPluginProvider('foo', {
-      name: 'foo',
-      async initializer() {
-        registerAction('model', somethingAction);
-        return {};
-      },
-    });
-    const somethingAction = action(
-      {
-        name: {
-          pluginId: 'foo',
-          actionId: 'something',
-        },
-      },
-      async () => null
-    );
-
-    assert.strictEqual(
-      await lookupAction('/model/foo/something'),
-      somethingAction
-    );
   });
 
   it('returns undefined for unknown action', async () => {
-    assert.strictEqual(await lookupAction('/model/foo/something'), undefined);
+    await runWithRegistry(registry, async () => {
+      assert.strictEqual(await lookupAction('/model/foo/something'), undefined);
+    });
   });
 });
 

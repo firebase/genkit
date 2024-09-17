@@ -32,3 +32,27 @@ export const FlowErrorSchema = z.object({
 export type FlowError = z.infer<typeof FlowErrorSchema>;
 
 export const FlowResultSchema = FlowResponseSchema.and(FlowErrorSchema);
+
+/**
+ * Used for flow control.
+ */
+export const FlowInvokeEnvelopeMessageSchema = z.object({
+  // Start new flow.
+  start: z.object({
+    input: z.unknown().optional(),
+    labels: z.record(z.string(), z.string()).optional(),
+  }),
+});
+
+export type FlowInvokeEnvelopeMessage = z.infer<
+  typeof FlowInvokeEnvelopeMessageSchema
+>;
+
+/**
+ * Used by the flow action.
+ */
+export const FlowActionInputSchema = FlowInvokeEnvelopeMessageSchema.extend({
+  auth: z.unknown().optional(),
+});
+
+export type FlowActionInput = z.infer<typeof FlowActionInputSchema>;
