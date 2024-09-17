@@ -32,7 +32,7 @@ The `firebase` plugin provides a Cloud Firestore implementation.
 persisting traces. The `firebase` plugin provides a Cloud Firestore
 implementation.
 
-`disableTracingAndMetrics` instructs the framework to disable OpenTelemetry
+`disableTelemetry` instructs the framework to disable OpenTelemetry
 instrumentation and disable trace collection.
 
 `logLevel` specifies the verbosity of framework-level logging. Sometimes it's

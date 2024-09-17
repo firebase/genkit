@@ -38,7 +38,8 @@ export interface ConfigOptions {
   plugins?: PluginProvider[];
   traceStore?: string;
   flowStateStore?: string;
-  disableTracingAndMetrics?: boolean;
+  /** Instructs the framework to disable OpenTelemetry instrumentation and disable telemetry collection.  */
+  disableTelemetry?: boolean;
   logLevel?: 'error' | 'warn' | 'info' | 'debug';
   promptDir?: string;
   telemetry?: TelemetryOptions;
@@ -180,7 +181,7 @@ class Config {
    * https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-instrumentation#limitations
    */
   async setupTracingAndLogging() {
-    if (!this.options.disableTracingAndMetrics) {
+    if (!this.options.disableTelemetry) {
       enableTracingAndMetrics(
         await this.getTelemetryConfig(),
         await this.getTraceStore()
