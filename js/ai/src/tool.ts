@@ -55,6 +55,9 @@ export function asTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   return fn;
 }
 
+/**
+ * Takes one or more references to tools in various formats and resolves them to a list of tool actions.
+ */
 export async function resolveTools<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
@@ -80,6 +83,9 @@ export async function resolveTools<
   );
 }
 
+/**
+ * Converts an action to a tool definition.
+ */
 export function toToolDefinition(
   tool: Action<z.ZodTypeAny, z.ZodTypeAny>
 ): ToolDefinition {
@@ -97,36 +103,43 @@ export function toToolDefinition(
   };
 }
 
+/**
+ * Configuration for a tool to be used in a call to a model.
+ */
+export interface ToolConfig<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
+  /** Name of the tool. */
+  name: string;
+  /** Description. This is used to describe the tool's purpose to the model. */
+  description: string;
+  /** Input schema. */
+  inputSchema?: I;
+  /** Input schema as JSON Schema. */
+  inputJsonSchema?: JSONSchema7;
+  /** Output schema. */
+  outputSchema?: O;
+  /** Output schema as JSON Schema. */
+  outputJsonSchema?: JSONSchema7;
+  /** Metadata for the tool. */
+  metadata?: Record<string, any>;
+}
+
+/**
+ * Defines a tool to be used in a call to a model.
+ */
 export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
-  {
-    name,
-    description,
-    inputSchema,
-    inputJsonSchema,
-    outputSchema,
-    outputJsonSchema,
-    metadata,
-  }: {
-    name: string;
-    description: string;
-    inputSchema?: I;
-    inputJsonSchema?: JSONSchema7;
-    outputSchema?: O;
-    outputJsonSchema?: JSONSchema7;
-    metadata?: Record<string, any>;
-  },
+  config: ToolConfig<I, O>,
   fn: (input: z.infer<I>) => Promise<z.infer<O>>
 ): ToolAction<I, O> {
   const a = defineAction(
     {
       actionType: 'tool',
-      name,
-      description,
-      inputSchema,
-      inputJsonSchema,
-      outputSchema,
-      outputJsonSchema,
-      metadata: { ...(metadata || {}), type: 'tool' },
+      name: config.name,
+      description: config.description,
+      inputSchema: config.inputSchema,
+      inputJsonSchema: config.inputJsonSchema,
+      outputSchema: config.outputSchema,
+      outputJsonSchema: config.outputJsonSchema,
+      metadata: { ...(config.metadata || {}), type: 'tool' },
     },
     (i) => fn(i)
   );
