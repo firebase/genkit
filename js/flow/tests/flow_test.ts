@@ -42,9 +42,9 @@ function createTestFlowWithAuth() {
       name: 'testFlowWithAuth',
       inputSchema: z.string(),
       outputSchema: z.string(),
-      authPolicy: (auth) => {
+      authPolicy: async (auth) => {
         if (auth != 'open sesame') {
-          throw 'forty thieves!';
+          throw new Error('forty thieves!');
         }
       },
     },
@@ -193,6 +193,27 @@ describe('flow', () => {
         name: 'Error',
         message: 'bad happened: foo',
       });
+    });
+
+    it('should pass auth context all the way', async () => {
+      configureInMemoryStateStore('prod');
+      const testFlow = createTestFlowWithAuth();
+
+      const result = await streamFlow(testFlow, 'bar', {
+        withLocalAuthContext: 'open sesame',
+      });
+
+      assert.equal(await result.output(), 'foo bar, auth "open sesame"');
+    });
+
+    it('should fail auth', async () => {
+      configureInMemoryStateStore('prod');
+      const testFlow = createTestFlowWithAuth();
+      const response = streamFlow(testFlow, 'bar', {
+        withLocalAuthContext: 'yolo',
+      });
+
+      await assert.rejects(() => response.output(), /forty thieves/);
     });
   });
 

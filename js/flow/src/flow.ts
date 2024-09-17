@@ -708,14 +708,14 @@ export function streamFlow<
         },
         (c) => {
           chunkStreamController.enqueue(c);
-        }
+        },
+        opts?.withLocalAuthContext
       )
     )
-    .then((s) => s.operation);
-  operationPromise.then((o) => {
-    chunkStreamController.close();
-    return o;
-  });
+    .then((s) => s.operation)
+    .finally(() => {
+      chunkStreamController.close();
+    });
 
   return {
     output() {
