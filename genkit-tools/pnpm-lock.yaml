@@ -26,6 +26,9 @@ importers:
 
   cli:
     dependencies:
+      '@genkit-ai/telemetry-server':
+        specifier: workspace:*
+        version: link:../telemetry-server
       '@genkit-ai/tools-common':
         specifier: workspace:*
         version: link:../common
@@ -38,6 +41,9 @@ importers:
       extract-zip:
         specifier: ^2.0.1
         version: 2.0.1
+      get-port:
+        specifier: 5.1.1
+        version: 5.1.1
       inquirer:
         specifier: ^8.2.0
         version: 8.2.6
@@ -75,6 +81,9 @@ importers:
       '@asteasolutions/zod-to-openapi':
         specifier: ^7.0.0
         version: 7.0.0(zod@3.23.5)
+      '@genkit-ai/telemetry-server':
+        specifier: workspace:*
+        version: link:../telemetry-server
       '@trpc/server':
         specifier: 10.45.0
         version: 10.45.0

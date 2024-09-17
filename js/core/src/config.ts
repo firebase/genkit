@@ -28,8 +28,7 @@ import {
   TelemetryConfig,
   TelemetryOptions,
 } from './telemetryTypes.js';
-import { TraceStore, enableTracingAndMetrics } from './tracing.js';
-import { LocalFileTraceStore } from './tracing/localFileTraceStore.js';
+import { enableTracingAndMetrics } from './tracing.js';
 
 export * from './plugin.js';
 
@@ -77,14 +76,6 @@ class Config {
       throw new Error('No flow store is configured.');
     }
     return flowStateStore;
-  }
-
-  /**
-   * Returns a trace store instance for the running environment.
-   * If no store is configured, will return undefined.
-   */
-  public async getTraceStore(): Promise<TraceStore | undefined> {
-    return await registry.lookupTraceStore(getCurrentEnv());
   }
 
   /**
@@ -146,29 +137,6 @@ class Config {
         this.resolveFlowStateStore(flowStorePluginName)
       );
     }
-
-    logger.debug('Registering trace stores...');
-    if (isDevEnv()) {
-      registry.registerTraceStore('dev', async () => new LocalFileTraceStore());
-      logger.debug('Registered dev trace store.');
-    }
-    if (this.options.traceStore) {
-      const traceStorePluginName = this.options.traceStore;
-      logger.debug(`  - prod: ${traceStorePluginName}`);
-      this.configuredEnvs.add('prod');
-      registry.registerTraceStore('prod', () =>
-        this.resolveTraceStore(traceStorePluginName)
-      );
-      if (isDevEnv()) {
-        logger.info(
-          'In dev mode `traceStore` is defaulted to local file store.'
-        );
-      }
-    } else {
-      logger.info(
-        '`traceStore` is not specified in the config; Traces are not going to be persisted in prod.'
-      );
-    }
   }
 
   /**
@@ -181,10 +149,7 @@ class Config {
    */
   async setupTracingAndLogging() {
     if (this.options.enableTracingAndMetrics) {
-      enableTracingAndMetrics(
-        await this.getTelemetryConfig(),
-        await this.getTraceStore()
-      );
+      enableTracingAndMetrics(await this.getTelemetryConfig());
     }
     if (this.loggerConfig) {
       logger.init(await this.loggerConfig());
