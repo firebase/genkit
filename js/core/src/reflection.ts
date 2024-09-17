@@ -329,7 +329,7 @@ export class ReflectionServer {
    * Stops all running reflection servers.
    */
   static async stopAll() {
-    await Promise.all(
+    return Promise.all(
       ReflectionServer.RUNNING_SERVERS.map((server) => server.stop())
     );
   }

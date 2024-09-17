@@ -542,7 +542,7 @@ export class FlowServer {
    * Stops all running servers.
    */
   static async stopAll() {
-    await Promise.all(
+    return Promise.all(
       FlowServer.RUNNING_SERVERS.map((server) => server.stop())
     );
   }
