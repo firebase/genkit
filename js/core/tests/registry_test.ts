@@ -212,9 +212,7 @@ describe('registry class', () => {
           return {};
         },
         provides() {
-          return (
-            PluginAbilityType.FLOW_STATE_STORE | PluginAbilityType.TELEMETRY
-          );
+          return PluginAbilityType.TELEMETRY;
         },
       };
       const bar = {
@@ -233,10 +231,6 @@ describe('registry class', () => {
       assert.deepEqual(
         registry.lookupPluginsByAbility(PluginAbilityType.TRACE_STORE),
         [bar]
-      );
-      assert.deepEqual(
-        registry.lookupPluginsByAbility(PluginAbilityType.FLOW_STATE_STORE),
-        [foo]
       );
       assert.deepEqual(
         registry.lookupPluginsByAbility(PluginAbilityType.TELEMETRY),

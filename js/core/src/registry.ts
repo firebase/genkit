@@ -318,13 +318,6 @@ function getDiscreteAbilities(
   let abilities: PluginAbilityType[] = [];
 
   if (
-    (provides & PluginAbilityType.FLOW_STATE_STORE) ===
-    PluginAbilityType.FLOW_STATE_STORE
-  ) {
-    abilities.push(PluginAbilityType.FLOW_STATE_STORE);
-  }
-
-  if (
     (provides & PluginAbilityType.TRACE_STORE) ===
     PluginAbilityType.TRACE_STORE
   ) {

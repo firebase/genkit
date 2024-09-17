@@ -86,8 +86,5 @@ export const firebase: Plugin<[FirestorePluginParams] | []> = genkitPlugin(
       },
     };
   },
-  () =>
-    PluginAbilityType.FLOW_STATE_STORE |
-    PluginAbilityType.TRACE_STORE |
-    PluginAbilityType.TELEMETRY
+  () => PluginAbilityType.TRACE_STORE | PluginAbilityType.TELEMETRY
 );

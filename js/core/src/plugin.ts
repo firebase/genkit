@@ -26,9 +26,8 @@ export interface Provider<T> {
 
 export enum PluginAbilityType {
   UNSPECIFIED = 0,
-  FLOW_STATE_STORE = 1 << 0,
-  TRACE_STORE = 1 << 1,
-  TELEMETRY = 1 << 2,
+  TRACE_STORE = 1 << 0,
+  TELEMETRY = 1 << 1,
 }
 
 export interface PluginProvider {
