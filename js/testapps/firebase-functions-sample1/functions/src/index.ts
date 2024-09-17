@@ -19,7 +19,7 @@ import { configureGenkit } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import { firebaseAuth } from '@genkit-ai/firebase/auth';
 import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
-import { run, runFlow, streamFlow } from '@genkit-ai/flow';
+import { run } from '@genkit-ai/flow';
 import { geminiPro, vertexAI } from '@genkit-ai/vertexai';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as z from 'zod';
@@ -102,13 +102,13 @@ export const streamConsumer = onFlow(
     authPolicy: noAuth(),
   },
   async () => {
-    const response = streamFlow(streamer, 5);
+    const response = streamer(5);
 
-    for await (const chunk of response.stream()) {
+    for await (const chunk of response.stream) {
       console.log('chunk', chunk);
     }
 
-    console.log('streamConsumer done', await response.output());
+    console.log('streamConsumer done', await response.output);
   }
 );
 
@@ -117,7 +117,7 @@ export const triggerJokeFlow = onRequest(
   async (req, res) => {
     const { subject } = req.query;
     console.log('req.query', req.query);
-    const op = await runFlow(jokeFlow, String(subject), {
+    const op = await jokeFlow(String(subject), {
       withLocalAuthContext: { admin: true },
     });
     console.log('operation', op);

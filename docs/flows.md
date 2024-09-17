@@ -46,10 +46,10 @@ When schema is specified Genkit will validate the schema for inputs and outputs.
 
 ## Running flows
 
-Use the `runFlow` function to run the flow:
+Run the flow by calling it directly like a normal function:
 
 ```js
-const response = await runFlow(menuSuggestionFlow, 'French');
+const response = await menuSuggestionFlow('French');
 ```
 
 You can use the CLI to run flows as well:
@@ -63,35 +63,30 @@ genkit flow:run menuSuggestionFlow '"French"'
 Here's a simple example of a flow that can stream values from a flow:
 
 ```javascript
-export const menuSuggestionFlow = defineFlow(
+export const menuSuggestionFlow = defineStreamingFlow(
   {
     name: 'menuSuggestionFlow',
     streamSchema: z.string(),
   },
   async (restaurantTheme, streamingCallback) => {
-    if (streamingCallback) {
-      makeMenuItemSuggestionsAsync(restaurantTheme).subscribe((suggestion) => {
-        streamingCallback(suggestion);
-      });
-    }
+    makeMenuItemSuggestionsAsync(restaurantTheme).subscribe((suggestion) => {
+      streamingCallback(suggestion);
+    });
   }
 );
 ```
 
-Note that `streamingCallback` can be undefined. It's only defined if the
-invoking client is requesting streamed response.
-
-To invoke a flow in streaming mode use `streamFlow` function:
+To invoke a streaming flow, call it directly like a normal function and stream the results:
 
 ```javascript
-const response = streamFlow(menuSuggestionFlow, 'French');
+const { stream, output } = menuSuggestionFlow('French');
 
-for await (const suggestion of response.stream()) {
+for await (const suggestion of stream) {
   console.log('suggestion', suggestion);
 }
-```
 
-If the flow does not implement streaming `streamFlow` will behave identically to `runFlow`.
+console.log('output', await output);
+```
 
 You can use the CLI to stream flows as well:
 
@@ -150,9 +145,13 @@ export const menuSuggestionFlow = defineFlow(
 startFlowsServer();
 ```
 
-By default `startFlowsServer` will serve all the flows that you have defined in your codebase as HTTP endpoints (e.g. `http://localhost:3400/menuSuggestionFlow`).
+By default `startFlowsServer` will serve all the flows that you have defined in your codebase as HTTP endpoints (e.g. `http://localhost:3400/menuSuggestionFlow`). You can call a flow via a POST request as follows:
 
-You can choose which flows are exposed via the flows server. You can specify a custom port (it will use the `PORT` environment variable if set). You can also set CORS settings.
+```posix-terminal
+curl -X POST "http://localhost:3400/menuSuggestionFlow" -H "Content-Type: application/json"  -d '{"data": "banana"}'
+```
+
+If needed, you can customize the flows server to serve a specific list of flows, as shown below. You can also specify a custom port (it will use the `PORT` environment variable if set) or specify CORS settings.
 
 ```js
 import { defineFlow, startFlowsServer } from '@genkit-ai/flow';

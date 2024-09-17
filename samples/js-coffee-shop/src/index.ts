@@ -17,7 +17,7 @@
 import { configureGenkit } from '@genkit-ai/core';
 import { defineDotprompt, dotprompt } from '@genkit-ai/dotprompt';
 import { firebase } from '@genkit-ai/firebase';
-import { defineFlow, runFlow } from '@genkit-ai/flow';
+import { defineFlow } from '@genkit-ai/flow';
 import googleAI, { geminiPro } from '@genkit-ai/googleai';
 import * as z from 'zod';
 
@@ -124,8 +124,8 @@ export const testAllCoffeeFlows = defineFlow(
     }),
   },
   async () => {
-    const test1 = runFlow(simpleGreetingFlow, { customerName: 'Sam' });
-    const test2 = runFlow(greetingWithHistoryFlow, {
+    const test1 = simpleGreetingFlow({ customerName: 'Sam' });
+    const test2 = greetingWithHistoryFlow({
       customerName: 'Sam',
       currentTime: '09:45am',
       previousOrder: 'Caramel Macchiato',

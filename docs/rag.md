@@ -128,7 +128,7 @@ into a vector database and retrieve them for use in a flow that determines what 
 ### Install dependencies for processing PDFs
 
 ```posix-terminal
-npm install llm-chunk pdf-parse
+npm install llm-chunk pdf-parse @genkit-ai/dev-local-vectorstore
 
 npm i -D --save @types/pdf-parse
 ```
@@ -384,3 +384,89 @@ const docs = await retrieve({
   options: { preRerankK: 7, k: 3 },
 });
 ```
+
+### Rerankers and Two-Stage Retrieval
+
+A reranking model — also known as a cross-encoder — is a type of model that, given a query and document, will output a similarity score. We use this score to reorder the documents by relevance to our query. Reranker APIs take a list of documents (for example the output of a retriever) and reorders the documents based on their relevance to the query. This step can be useful for fine-tuning the results and ensuring that the most pertinent information is used in the prompt provided to a generative model.
+
+
+#### Reranker Example
+
+A reranker in Genkit is defined in a similar syntax to retrievers and indexers. Here is an example using a reranker in Genkit. This flow reranks a set of documents based on their relevance to the provided query using a predefined Vertex AI reranker.
+
+```ts
+import { rerank } from '@genkit-ai/ai/reranker';
+import { Document } from '@genkit-ai/ai/retriever';
+import { defineFlow } from '@genkit-ai/flow';
+import * as z from 'zod';
+
+const FAKE_DOCUMENT_CONTENT = [
+  'pythagorean theorem',
+  'e=mc^2',
+  'pi',
+  'dinosaurs',
+  'quantum mechanics',
+  'pizza',
+  'harry potter',
+];
+
+export const rerankFlow = defineFlow(
+  {
+    name: 'rerankFlow',
+    inputSchema: z.object({ query: z.string() }),
+    outputSchema: z.array(
+      z.object({
+        text: z.string(),
+        score: z.number(),
+      })
+    ),
+  },
+  async ({ query }) => {
+    const documents = FAKE_DOCUMENT_CONTENT.map((text) =>
+      Document.fromText(text)
+    );
+
+    const rerankedDocuments = await rerank({
+      reranker: 'vertexai/semantic-ranker-512',
+      query: Document.fromText(query),
+      documents,
+    });
+
+    return rerankedDocuments.map((doc) => ({
+      text: doc.text(),
+      score: doc.metadata.score,
+    }));
+  }
+);
+```
+This reranker uses the Vertex AI genkit plugin with `semantic-ranker-512` to score and rank documents. The higher the score, the more relevant the document is to the query.
+
+#### Custom Rerankers
+
+You can also define custom rerankers to suit your specific use case. This is helpful when you need to rerank documents using your own custom logic or a custom model. Here’s a simple example of defining a custom reranker:
+```typescript
+import { defineReranker } from '@genkit-ai/ai/reranker';
+import * as z from 'zod';
+
+export const customReranker = defineReranker(
+  {
+    name: 'custom/reranker',
+    configSchema: z.object({
+      k: z.number().optional(),
+    }),
+  },
+  async (query, documents, options) => {
+    // Your custom reranking logic here
+    const rerankedDocs = documents.map((doc) => {
+      const score = Math.random(); // Assign random scores for demonstration
+      return {
+        ...doc,
+        metadata: { ...doc.metadata, score },
+      };
+    });
+
+    return rerankedDocs.sort((a, b) => b.metadata.score - a.metadata.score).slice(0, options.k || 3);
+  }
+);
+```
+Once defined, this custom reranker can be used just like any other reranker in your RAG flows, giving you flexibility to implement advanced reranking strategies.

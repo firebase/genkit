@@ -1,5 +1,5 @@
 {
-  "name": "llm-human-in-the-loop",
+  "name": "model-tester",
   "version": "1.0.0",
   "description": "",
   "main": "lib/index.js",
@@ -18,8 +18,12 @@
     "@genkit-ai/ai": "workspace:*",
     "@genkit-ai/core": "workspace:^",
     "@genkit-ai/flow": "workspace:*",
-    "@genkit-ai/firebase": "workspace:^",
-    "@genkit-ai/googleai": "workspace:^",
+    "@genkit-ai/googleai": "workspace:*",
+    "@genkit-ai/vertexai": "workspace:*",
+    "@google/generative-ai": "^0.15.0",
+    "colorette": "^2.0.20",
+    "genkitx-ollama": "workspace:*",
+    "genkitx-openai": "^0.10.1",
     "zod": "^3.22.4"
   },
   "devDependencies": {

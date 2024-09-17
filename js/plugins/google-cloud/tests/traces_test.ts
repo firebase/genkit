@@ -14,15 +14,8 @@
  * limitations under the License.
  */
 
-import {
-  FlowState,
-  FlowStateQuery,
-  FlowStateQueryResponse,
-  FlowStateStore,
-  configureGenkit,
-} from '@genkit-ai/core';
-import { registerFlowStateStore } from '@genkit-ai/core/registry';
-import { defineFlow, run, runFlow } from '@genkit-ai/flow';
+import { configureGenkit } from '@genkit-ai/core';
+import { defineFlow, run } from '@genkit-ai/flow';
 import {
   __forceFlushSpansForTesting,
   __getSpanExporterForTesting,
@@ -48,9 +41,9 @@ describe('GoogleCloudTracing', () => {
       ],
       telemetry: {
         instrumentation: 'googleCloud',
+        logger: 'googleCloud',
       },
     });
-    registerFlowStateStore('dev', async () => new NoOpFlowStateStore());
     // Wait for the telemetry plugin to be initialized
     await config.getTelemetryConfig();
   });
@@ -61,7 +54,7 @@ describe('GoogleCloudTracing', () => {
   it('writes traces', async () => {
     const testFlow = createFlow('testFlow');
 
-    await runFlow(testFlow);
+    await testFlow();
 
     const spans = await getExportedSpans();
     assert.equal(spans.length, 1);
@@ -71,7 +64,7 @@ describe('GoogleCloudTracing', () => {
   it('Adjusts attributes to support GCP trace filtering', async () => {
     const testFlow = createFlow('testFlow');
 
-    await runFlow(testFlow);
+    await testFlow();
 
     const spans = await getExportedSpans();
     // Check some common attributes
@@ -80,7 +73,7 @@ describe('GoogleCloudTracing', () => {
     // Ensure we have no attributes with ':' because these are awkward to use in
     // Cloud Trace.
     const spanAttrKeys = Object.entries(spans[0].attributes).map(([k, v]) => k);
-    for (key in spanAttrKeys) {
+    for (const key in spanAttrKeys) {
       assert.equal(key.indexOf(':'), -1);
     }
   });
@@ -94,7 +87,7 @@ describe('GoogleCloudTracing', () => {
       });
     });
 
-    await runFlow(testFlow);
+    await testFlow();
 
     const spans = await getExportedSpans();
     assert.equal(spans.length, 3);
@@ -110,8 +103,8 @@ describe('GoogleCloudTracing', () => {
     const testFlow1 = createFlow('testFlow1');
     const testFlow2 = createFlow('testFlow2');
 
-    await runFlow(testFlow1);
-    await runFlow(testFlow2);
+    await testFlow1();
+    await testFlow2();
 
     const spans = await getExportedSpans();
     assert.equal(spans.length, 2);
@@ -120,7 +113,7 @@ describe('GoogleCloudTracing', () => {
   });
 
   /** Helper to create a flow with no inputs or outputs */
-  function createFlow(name: string, fn: () => Promise<void> = async () => {}) {
+  function createFlow(name: string, fn: () => Promise<any> = async () => {}) {
     return defineFlow(
       {
         name,
@@ -133,9 +126,8 @@ describe('GoogleCloudTracing', () => {
 
   /** Polls the in memory metric exporter until the genkit scope is found. */
   async function getExportedSpans(
-    name: string = 'genkit',
-    maxAttempts: number = 100
-  ): promise<ReadableSpan[]> {
+    maxAttempts: number = 200
+  ): Promise<ReadableSpan[]> {
     __forceFlushSpansForTesting();
     var attempts = 0;
     while (attempts++ < maxAttempts) {
@@ -145,24 +137,6 @@ describe('GoogleCloudTracing', () => {
         return found;
       }
     }
-    assert.fail(`Waiting for metric ${name} but it has not been written.`);
+    assert.fail(`Timed out while waiting for spans to be exported.`);
   }
 });
-
-class NoOpFlowStateStore implements FlowStateStore {
-  state: Record<string, string> = {};
-
-  load(id: string): Promise<FlowState | undefined> {
-    return Promise.resolve(undefined);
-  }
-
-  save(id: string, state: FlowState): Promise<void> {
-    return Promise.resolve();
-  }
-
-  async list(
-    query?: FlowStateQuery | undefined
-  ): Promise<FlowStateQueryResponse> {
-    return {};
-  }
-}

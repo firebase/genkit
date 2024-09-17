@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-import { OperationSchema } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import {
-  defineFlow,
+  CallableFlow,
+  defineStreamingFlow,
   Flow,
   FlowAuthPolicy,
-  FlowWrapper,
-  StepsFunction,
+  FlowFn,
+  StreamableFlow,
 } from '@genkit-ai/flow';
 import * as express from 'express';
 import { getAppCheck } from 'firebase-admin/app-check';
@@ -31,17 +31,18 @@ import {
   onRequest,
 } from 'firebase-functions/v2/https';
 import * as z from 'zod';
-import {
-  callHttpsFunction,
-  getLocation,
-  initializeAppIfNecessary,
-} from './helpers.js';
+import { initializeAppIfNecessary } from './helpers.js';
 
 export type FunctionFlow<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
+> = HttpsFunction & CallableFlow<I, O>;
+
+export type StreamingFunctionFlow<
+  I extends z.ZodTypeAny,
+  O extends z.ZodTypeAny,
   S extends z.ZodTypeAny,
-> = HttpsFunction & FlowWrapper<I, O, S>;
+> = HttpsFunction & StreamableFlow<I, O, S>;
 
 export interface FunctionFlowAuth<I extends z.ZodTypeAny> {
   provider: express.RequestHandler;
@@ -72,40 +73,19 @@ export function onFlow<
   S extends z.ZodTypeAny,
 >(
   config: FunctionFlowConfig<I, O, S>,
-  steps: StepsFunction<I, O, S>
-): FunctionFlow<I, O, S> {
-  const f = defineFlow(
+  steps: FlowFn<I, O, S>
+): StreamingFunctionFlow<I, O, S> {
+  const f = defineStreamingFlow(
     {
       ...config,
       authPolicy: config.authPolicy.policy,
-      invoker: async (flow, data, streamingCallback) => {
-        const responseJson = await callHttpsFunction(
-          flow.name,
-          await getLocation(),
-          data,
-          streamingCallback
-        );
-
-        const res = JSON.parse(responseJson);
-        if (streamingCallback) {
-          return OperationSchema.parse(res);
-        } else {
-          return {
-            name: '',
-            done: true,
-            result: {
-              response: res,
-            },
-          };
-        }
-      },
     },
     steps
-  );
+  ).flow;
 
   const wrapped = wrapHttpsFlow(f, config);
 
-  const funcFlow = wrapped as FunctionFlow<I, O, S>;
+  const funcFlow = wrapped as StreamingFunctionFlow<I, O, S>;
   funcFlow.flow = f;
 
   return funcFlow;

@@ -17,8 +17,6 @@
 import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 import fs from 'fs';
 import path from 'path';
-import { FlowStateStore } from './flowTypes.js';
-import { LocalFileFlowStateStore } from './localFileFlowStateStore.js';
 import { logger } from './logging.js';
 import { PluginProvider } from './plugin.js';
 import * as registry from './registry.js';
@@ -66,18 +64,6 @@ class Config {
         },
       };
     this.configure();
-  }
-
-  /**
-   * Returns a flow state store instance for the running environment.
-   * If no store is configured, will throw an error.
-   */
-  public async getFlowStateStore(): Promise<FlowStateStore> {
-    const flowStateStore = await registry.lookupFlowStateStore(getCurrentEnv());
-    if (!flowStateStore) {
-      throw new Error('No flow store is configured.');
-    }
-    return flowStateStore;
   }
 
   /**
@@ -129,23 +115,6 @@ class Config {
       logger.debug(`  - all environments: ${telemetryPluginName}`);
       this.telemetryConfig = async () =>
         this.resolveTelemetryConfig(telemetryPluginName);
-    }
-
-    logger.debug('Registering flow state stores...');
-    if (isDevEnv()) {
-      registry.registerFlowStateStore(
-        'dev',
-        async () => new LocalFileFlowStateStore()
-      );
-      logger.debug('Registered dev flow state store.');
-    }
-    if (this.options.flowStateStore) {
-      const flowStorePluginName = this.options.flowStateStore;
-      logger.debug(`  - prod: ${flowStorePluginName}`);
-      this.configuredEnvs.add('prod');
-      registry.registerFlowStateStore('prod', () =>
-        this.resolveFlowStateStore(flowStorePluginName)
-      );
     }
 
     logger.debug('Registering trace stores...');

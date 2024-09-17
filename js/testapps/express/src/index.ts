@@ -17,7 +17,7 @@
 import { generate } from '@genkit-ai/ai';
 import { configureGenkit } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
-import { defineFlow, run, runFlow } from '@genkit-ai/flow';
+import { defineFlow, run } from '@genkit-ai/flow';
 import { googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
 import express, { Request, Response } from 'express';
@@ -69,7 +69,7 @@ app.get('/jokeWithFlow', async (req: Request, res: Response) => {
     res.status(400).send('provide subject query param');
     return;
   }
-  res.send(await runFlow(jokeFlow, subject));
+  res.send(await jokeFlow(subject));
 });
 
 app.get('/jokeStream', async (req: Request, res: Response) => {

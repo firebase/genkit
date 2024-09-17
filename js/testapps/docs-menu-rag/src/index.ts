@@ -16,7 +16,7 @@
 
 import { configureGenkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
-import { defineFlow, runFlow } from '@genkit-ai/flow';
+import { defineFlow } from '@genkit-ai/flow';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 import * as z from 'zod';
 import { indexMenu } from './indexer';
@@ -55,7 +55,7 @@ export const setup = defineFlow(
     await Promise.all(
       documentArr.map(async (document) => {
         console.log(`Indexed ${document}`);
-        return runFlow(indexMenu, document);
+        return indexMenu(document);
       })
     );
   }

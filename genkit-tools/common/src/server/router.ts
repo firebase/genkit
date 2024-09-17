@@ -160,20 +160,6 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
         return runner.getTrace(input);
       }),
 
-    /** Retrieves all flow states for a given environment (e.g. dev or prod). */
-    listFlowStates: loggedProcedure
-      .input(apis.ListFlowStatesRequestSchema)
-      .query(async ({ input }) => {
-        return runner.listFlowStates(input);
-      }),
-
-    /** Retrieves a flow state for a given ID. */
-    getFlowState: loggedProcedure
-      .input(apis.GetFlowStateRequestSchema)
-      .query(async ({ input }) => {
-        return runner.getFlowState(input);
-      }),
-
     /** Retrieves all eval run keys */
     listEvalRunKeys: loggedProcedure
       .input(apis.ListEvalKeysRequestSchema)
@@ -204,7 +190,6 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
 
     /** Retrieves all eval datasets */
     listDatasets: loggedProcedure
-      .input(z.void())
       .output(z.array(evals.DatasetMetadataSchema))
       .query(async () => {
         const response = await getDatasetStore().listDatasets();
@@ -224,7 +209,7 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
     createDataset: loggedProcedure
       .input(apis.CreateDatasetRequestSchema)
       .output(evals.DatasetMetadataSchema)
-      .query(async ({ input }) => {
+      .mutation(async ({ input }) => {
         const response = await getDatasetStore().createDataset(input);
         return response;
       }),
@@ -233,7 +218,7 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
     updateDataset: loggedProcedure
       .input(apis.UpdateDatasetRequestSchema)
       .output(evals.DatasetMetadataSchema)
-      .query(async ({ input }) => {
+      .mutation(async ({ input }) => {
         const response = await getDatasetStore().updateDataset(input);
         return response;
       }),
@@ -242,7 +227,7 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
     deleteDataset: loggedProcedure
       .input(z.string())
       .output(z.void())
-      .query(async ({ input }) => {
+      .mutation(async ({ input }) => {
         const response = await getDatasetStore().deleteDataset(input);
         return response;
       }),

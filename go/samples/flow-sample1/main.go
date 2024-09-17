@@ -34,6 +34,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
@@ -65,6 +66,10 @@ func main() {
 			return "", err
 		}
 		return foo, nil
+	})
+
+	genkit.DefineFlow("throwy", func(ctx context.Context, err string) (string, error) {
+		return "", errors.New(err)
 	})
 
 	type chunk struct {

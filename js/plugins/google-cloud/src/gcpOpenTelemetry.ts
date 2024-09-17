@@ -20,7 +20,11 @@ import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter'
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
 import { Span, SpanStatusCode, TraceFlags } from '@opentelemetry/api';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
-import { ExportResult } from '@opentelemetry/core';
+import {
+  ExportResult,
+  hrTimeDuration,
+  hrTimeToMilliseconds,
+} from '@opentelemetry/core';
 import { Instrumentation } from '@opentelemetry/instrumentation';
 import { PinoInstrumentation } from '@opentelemetry/instrumentation-pino';
 import { WinstonInstrumentation } from '@opentelemetry/instrumentation-winston';
@@ -36,13 +40,19 @@ import {
 } from '@opentelemetry/sdk-metrics';
 import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 import {
-  AlwaysOnSampler,
   BatchSpanProcessor,
   InMemorySpanExporter,
   ReadableSpan,
   SpanExporter,
 } from '@opentelemetry/sdk-trace-base';
-import { PluginOptions } from './index.js';
+
+import { extractErrorName } from './utils';
+
+import { PathMetadata } from '@genkit-ai/core/tracing';
+import { actionTelemetry } from './telemetry/action.js';
+import { flowsTelemetry } from './telemetry/flow.js';
+import { generateTelemetry } from './telemetry/generate.js';
+import { GcpPluginConfig } from './types';
 
 let metricExporter: PushMetricExporter;
 let spanProcessor: BatchSpanProcessor;
@@ -53,35 +63,37 @@ let spanExporter: AdjustingTraceExporter;
  * Metrics, and Logs) to the Google Cloud Operations Suite.
  */
 export class GcpOpenTelemetry implements TelemetryConfig {
-  private readonly options: PluginOptions;
+  private readonly config: GcpPluginConfig;
   private readonly resource: Resource;
+
+  constructor(config: GcpPluginConfig) {
+    this.config = config;
+    this.resource = new Resource({ type: 'global' }).merge(
+      new GcpDetectorSync().detect()
+    );
+  }
 
   /**
    * Log hook for writing trace and span metadata to log messages in the format
    * required by GCP.
    */
   private gcpTraceLogHook = (span: Span, record: any) => {
-    const isSampled = !!(span.spanContext().traceFlags & TraceFlags.SAMPLED);
-    record['logging.googleapis.com/trace'] = `projects/${
-      this.options.projectId
-    }/traces/${span.spanContext().traceId}`;
-    record['logging.googleapis.com/spanId'] = span.spanContext().spanId;
-    record['logging.googleapis.com/trace_sampled'] = isSampled ? '1' : '0';
-  };
+    const spanContext = span.spanContext();
+    const isSampled = !!(spanContext.traceFlags & TraceFlags.SAMPLED);
+    const projectId = this.config.projectId;
 
-  constructor(options?: PluginOptions) {
-    this.options = options || {};
-    this.resource = new Resource({ type: 'global' }).merge(
-      new GcpDetectorSync().detect()
-    );
-  }
+    record['logging.googleapis.com/trace'] ??=
+      `projects/${projectId}/traces/${spanContext.traceId}`;
+    record['logging.googleapis.com/trace_sampled'] ??= isSampled ? '1' : '0';
+    record['logging.googleapis.com/spanId'] ??= spanContext.spanId;
+  };
 
   getConfig(): Partial<NodeSDKConfiguration> {
     spanProcessor = new BatchSpanProcessor(this.createSpanExporter());
     return {
       resource: this.resource,
       spanProcessor: spanProcessor,
-      sampler: this.options?.telemetryConfig?.sampler || new AlwaysOnSampler(),
+      sampler: this.config.telemetry.sampler,
       instrumentations: this.getInstrumentations(),
       metricReader: this.createMetricReader(),
     };
@@ -91,9 +103,11 @@ export class GcpOpenTelemetry implements TelemetryConfig {
     spanExporter = new AdjustingTraceExporter(
       this.shouldExportTraces()
         ? new TraceExporter({
-            credentials: this.options.credentials,
+            credentials: this.config.credentials,
           })
-        : new InMemorySpanExporter()
+        : new InMemorySpanExporter(),
+      this.config.telemetry.exportIO,
+      this.config.projectId
     );
     return spanExporter;
   }
@@ -104,37 +118,29 @@ export class GcpOpenTelemetry implements TelemetryConfig {
   private createMetricReader(): PeriodicExportingMetricReader {
     metricExporter = this.buildMetricExporter();
     return new PeriodicExportingMetricReader({
-      exportIntervalMillis:
-        this.options?.telemetryConfig?.metricExportIntervalMillis || 300_000,
-      exportTimeoutMillis:
-        this.options?.telemetryConfig?.metricExportTimeoutMillis || 300_000,
+      exportIntervalMillis: this.config.telemetry.metricExportIntervalMillis,
+      exportTimeoutMillis: this.config.telemetry.metricExportTimeoutMillis,
       exporter: metricExporter,
     });
   }
 
   /** Gets all open telemetry instrumentations as configured by the plugin. */
   private getInstrumentations() {
-    if (this.options?.telemetryConfig?.autoInstrumentation) {
+    if (this.config.telemetry.autoInstrumentation) {
       return getNodeAutoInstrumentations(
-        this.options?.telemetryConfig?.autoInstrumentationConfig || {}
+        this.config.telemetry.autoInstrumentationConfig
       ).concat(this.getDefaultLoggingInstrumentations());
     }
     return this.getDefaultLoggingInstrumentations();
   }
 
   private shouldExportTraces(): boolean {
-    return (
-      (this.options.telemetryConfig?.forceDevExport ||
-        process.env.GENKIT_ENV !== 'dev') &&
-      !this.options.telemetryConfig?.disableTraces
-    );
+    return this.config.telemetry.export && !this.config.telemetry.disableTraces;
   }
 
   private shouldExportMetrics(): boolean {
     return (
-      (this.options.telemetryConfig?.forceDevExport ||
-        process.env.GENKIT_ENV !== 'dev') &&
-      !this.options.telemetryConfig?.disableMetrics
+      this.config.telemetry.export && !this.config.telemetry.disableMetrics
     );
   }
 
@@ -149,12 +155,12 @@ export class GcpOpenTelemetry implements TelemetryConfig {
   private buildMetricExporter(): PushMetricExporter {
     const exporter: PushMetricExporter = this.shouldExportMetrics()
       ? new MetricExporter({
-          projectId: this.options.projectId,
+          projectId: this.config.projectId,
           userAgent: {
             product: 'genkit',
             version: GENKIT_VERSION,
           },
-          credentials: this.options.credentials,
+          credentials: this.config.credentials,
         })
       : new InMemoryMetricExporter(AggregationTemporality.DELTA);
     exporter.selectAggregation = (instrumentType: InstrumentType) => {
@@ -178,7 +184,11 @@ export class GcpOpenTelemetry implements TelemetryConfig {
  * error spans that marks them as error in GCP.
  */
 class AdjustingTraceExporter implements SpanExporter {
-  constructor(private exporter: SpanExporter) {}
+  constructor(
+    private exporter: SpanExporter,
+    private logIO: boolean,
+    private projectId?: string
+  ) {}
 
   export(
     spans: ReadableSpan[],
@@ -203,12 +213,68 @@ class AdjustingTraceExporter implements SpanExporter {
   }
 
   private adjust(spans: ReadableSpan[]): ReadableSpan[] {
+    const allPaths = spans
+      .filter((span) => span.attributes['genkit:path'])
+      .map(
+        (span) =>
+          ({
+            path: span.attributes['genkit:path'] as string,
+            status:
+              (span.attributes['genkit:state'] as string) === 'error'
+                ? 'failure'
+                : 'success',
+            error: extractErrorName(span.events),
+            latency: hrTimeToMilliseconds(
+              hrTimeDuration(span.startTime, span.endTime)
+            ),
+          }) as PathMetadata
+      );
+
+    const allLeafPaths = new Set<PathMetadata>(
+      allPaths.filter((leafPath) =>
+        allPaths.every(
+          (path) =>
+            path.path === leafPath.path ||
+            !path.path.startsWith(leafPath.path) ||
+            (path.path.startsWith(leafPath.path) &&
+              path.status !== leafPath.status)
+        )
+      )
+    );
+
     return spans.map((span) => {
+      this.tickTelemetry(span, allLeafPaths);
+
       span = this.redactPii(span);
       span = this.markErrorSpanAsError(span);
       span = this.normalizeLabels(span);
       return span;
     });
+  }
+
+  private tickTelemetry(span: ReadableSpan, paths: Set<PathMetadata>) {
+    const attributes = span.attributes;
+
+    if (!Object.keys(attributes).includes('genkit:type')) {
+      return;
+    }
+
+    const type = attributes['genkit:type'] as string;
+    const subtype = attributes['genkit:metadata:subtype'] as string;
+
+    if (type === 'flow') {
+      flowsTelemetry.tick(span, paths, this.logIO, this.projectId);
+      return;
+    }
+
+    if (type === 'action' && subtype === 'model') {
+      generateTelemetry.tick(span, paths, this.logIO, this.projectId);
+      return;
+    }
+
+    if (type === 'action' || type == 'flowStep') {
+      actionTelemetry.tick(span, paths, this.logIO, this.projectId);
+    }
   }
 
   private redactPii(span: ReadableSpan): ReadableSpan {

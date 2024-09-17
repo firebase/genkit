@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-import { FlowState, __hardResetConfigForTesting } from '@genkit-ai/core';
+import { __hardResetConfigForTesting } from '@genkit-ai/core';
 import { __hardResetRegistryForTesting } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
-import { defineFlow, runFlow, streamFlow } from '../src/flow.js';
-import { configureInMemoryStateStore } from './testUtil.js';
+import { defineFlow, defineStreamingFlow } from '../src/flow.js';
 
 function createTestFlow() {
   return defineFlow(
@@ -36,7 +35,7 @@ function createTestFlow() {
 }
 
 function createTestStreamingFlow() {
-  return defineFlow(
+  return defineStreamingFlow(
     {
       name: 'testFlow',
       inputSchema: z.number(),
@@ -63,16 +62,14 @@ describe('flow', () => {
 
   describe('runFlow', () => {
     it('should run the flow', async () => {
-      configureInMemoryStateStore('prod');
       const testFlow = createTestFlow();
 
-      const result = await runFlow(testFlow, 'foo');
+      const result = await testFlow('foo');
 
       assert.equal(result, 'bar foo');
     });
 
     it('should rethrow the error', async () => {
-      configureInMemoryStateStore('prod');
       const testFlow = defineFlow(
         {
           name: 'throwing',
@@ -84,14 +81,13 @@ describe('flow', () => {
         }
       );
 
-      await assert.rejects(async () => await runFlow(testFlow, 'foo'), {
+      await assert.rejects(() => testFlow('foo'), {
         name: 'Error',
         message: 'bad happened: foo',
       });
     });
 
     it('should validate input', async () => {
-      configureInMemoryStateStore('prod');
       const testFlow = defineFlow(
         {
           name: 'validating',
@@ -104,7 +100,7 @@ describe('flow', () => {
       );
 
       await assert.rejects(
-        async () => await runFlow(testFlow, { foo: 'foo', bar: 'bar' } as any),
+        async () => await testFlow({ foo: 'foo', bar: 'bar' } as any),
         (err: Error) => {
           assert.strictEqual(err.name, 'ZodError');
           assert.equal(
@@ -119,81 +115,34 @@ describe('flow', () => {
 
   describe('streamFlow', () => {
     it('should run the flow', async () => {
-      configureInMemoryStateStore('prod');
       const testFlow = createTestStreamingFlow();
 
-      const response = streamFlow(testFlow, 3);
+      const response = testFlow(3);
 
       const gotChunks: any[] = [];
-      for await (const chunk of response.stream()) {
+      for await (const chunk of response.stream) {
         gotChunks.push(chunk);
       }
 
-      assert.equal(await response.output(), 'bar 3 true');
+      assert.equal(await response.output, 'bar 3 true');
       assert.deepEqual(gotChunks, [{ count: 0 }, { count: 1 }, { count: 2 }]);
     });
 
     it('should rethrow the error', async () => {
-      configureInMemoryStateStore('prod');
-      const testFlow = defineFlow(
+      const testFlow = defineStreamingFlow(
         {
           name: 'throwing',
           inputSchema: z.string(),
         },
         async (input) => {
-          throw new Error(`bad happened: ${input}`);
+          throw new Error(`stream bad happened: ${input}`);
         }
       );
 
-      const response = streamFlow(testFlow, 'foo');
-      await assert.rejects(async () => await response.output(), {
+      const response = testFlow('foo');
+      await assert.rejects(() => response.output, {
         name: 'Error',
-        message: 'bad happened: foo',
-      });
-    });
-  });
-
-  describe('stateStore', () => {
-    describe('dev', () => {
-      beforeEach(() => {
-        process.env.GENKIT_ENV = 'dev';
-      });
-
-      it('should persist state in dev', async () => {
-        const stateStore = configureInMemoryStateStore('dev');
-        const testFlow = createTestFlow();
-
-        const result = await runFlow(testFlow, 'foo');
-
-        assert.equal(result, 'bar foo');
-        assert.equal(Object.keys(stateStore.state).length, 1);
-
-        // do some asserting on the state... TODO: make this better.
-        const state = JSON.parse(
-          Object.values(stateStore.state)[0]
-        ) as FlowState;
-        assert.equal(state.executions.length, 1);
-        assert.equal(state.operation.done, true);
-        assert.deepEqual(state.operation.result, {
-          response: 'bar foo',
-        });
-        assert.equal(state.blockedOnStep, null);
-        assert.deepEqual(state.eventsTriggered, {});
-        assert.deepEqual(state.cache, {});
-        assert.equal(state.input, 'foo');
-        assert.equal(state.name, 'testFlow');
-      });
-    });
-
-    describe('prod', () => {
-      it('should not persist the state for non-durable flow', async () => {
-        const stateStore = configureInMemoryStateStore('prod');
-        const testFlow = createTestFlow();
-
-        const result = await runFlow(testFlow, 'foo');
-
-        assert.equal(result, 'bar foo');
-        assert.equal(Object.keys(stateStore.state).length, 0);
+        message: 'stream bad happened: foo',
       });
     });
   });
