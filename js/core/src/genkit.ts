@@ -15,20 +15,18 @@
  */
 
 import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
-import * as bodyParser from 'body-parser';
-import { CorsOptions, default as cors } from 'cors';
-import express from 'express';
-import { Server } from 'http';
 import z from 'zod';
 import {
   CallableFlow,
+  defineFlow,
+  defineStreamingFlow,
   Flow,
   FlowConfig,
   FlowFn,
+  FlowServer,
+  FlowServerOptions,
   StreamableFlow,
   StreamingFlowConfig,
-  defineFlow,
-  defineStreamingFlow,
 } from './flow.js';
 import { logger } from './logging.js';
 import { PluginProvider } from './plugin.js';
@@ -41,11 +39,12 @@ import {
   TelemetryOptions,
 } from './telemetryTypes.js';
 import {
-  TraceStore,
   cleanUpTracing,
   enableTracingAndMetrics,
+  TraceStore,
 } from './tracing.js';
 import { LocalFileTraceStore } from './tracing/localFileTraceStore.js';
+import { getCurrentEnv, isDevEnv } from './utils.js';
 
 /**
  * Options for initializing Genkit.
@@ -77,25 +76,9 @@ export interface GenkitOptions {
 }
 
 /**
- * Flow server exposes defined flows as HTTP endpoints.
- */
-export interface FlowServerOptions {
-  /** Whether to automatically start the flow server. */
-  enabled: boolean;
-  /** List of flows to expose via the flow server. If not specified, all registered flows will be exposed. */
-  flows?: Flow<any, any, any>[];
-  /** Port to run the server on. */
-  port?: number;
-  /** CORS options for the server. */
-  cors?: CorsOptions;
-  /** HTTP method path prefix for the exposed flows. */
-  pathPrefix?: string;
-  /** JSON body parser options. */
-  jsonParserOptions?: bodyParser.OptionsJson;
-}
-
-/**
- * Genkit encapsulates a single Genkit instance including the registry, reflection server, flows server, and configuration.
+ * `Genkit` encapsulates a single Genkit instance including {@link Registry}, {@link ReflectionServer}, flow server, and configuration.
+ *
+ * Registry keeps track of actions, flows, tools, and many other components. Reflection server exposes an API to inspect the registry and trigger executions of actions in the registry. Flow server exposes flows as HTTP endpoints for production use.
  *
  * There may be multiple Genkit instances in a single codebase.
  */
@@ -114,7 +97,7 @@ export class Genkit {
   /** Reflection server for this registry. May be null if not started. */
   private reflectionServer: ReflectionServer | null = null;
   /** Flow server. May be null if the flow server is not enabled in configuration or not started. */
-  private flowServer: Server | null = null;
+  private flowServer: FlowServer | null = null;
   /** List of flows that have been registered in this instance. */
   private registeredFlows: Flow<any, any, any>[] = [];
 
@@ -133,9 +116,18 @@ export class Genkit {
       this.configure();
     });
     if (isDevEnv()) {
-      this.startReflectionServer();
+      this.reflectionServer = new ReflectionServer(this.registry, {
+        configuredEnvs: [...this.configuredEnvs],
+      });
+      this.reflectionServer.start();
     }
-    this.startFlowServer();
+    if (
+      this.options.flowServer?.runInEnv === 'all' ||
+      this.options.flowServer?.runInEnv === getCurrentEnv()
+    ) {
+      this.flowServer = new FlowServer(this.registry);
+      this.flowServer.start();
+    }
   }
 
   /**
@@ -182,45 +174,6 @@ export class Genkit {
    */
   public getTelemetryConfig(): Promise<TelemetryConfig> {
     return this.telemetryConfig();
-  }
-
-  /**
-   * Starts the reflection server.
-   */
-  private startReflectionServer() {
-    this.reflectionServer = new ReflectionServer({ registry: this.registry });
-    this.reflectionServer.start();
-  }
-
-  /**
-   * Starts the flow server.
-   */
-  private startFlowServer() {
-    if (!this.options.flowServer?.enabled) {
-      return;
-    }
-    const port =
-      this.options.flowServer?.port ||
-      (process.env.PORT ? parseInt(process.env.PORT) : 0) ||
-      3400;
-    const pathPrefix = this.options.flowServer?.pathPrefix ?? '';
-    const app = express();
-    app.use(bodyParser.json(this.options.flowServer?.jsonParserOptions));
-    app.use(cors(this.options.flowServer?.cors));
-
-    const flows = this.options.flowServer?.flows || this.registeredFlows;
-    flows.forEach((flow) => {
-      const flowPath = `/${pathPrefix}${flow.name}`;
-      logger.info(` - ${flowPath}`);
-      flow.middleware?.forEach((middleware) => app.post(flowPath, middleware));
-      app.post(flowPath, (req, res) =>
-        flow.expressHandler(this.registry, req, res)
-      );
-    });
-
-    this.flowServer = app.listen(port, () => {
-      logger.info(`Flow server listening on port ${port}`);
-    });
   }
 
   /**
@@ -382,18 +335,6 @@ export function initializeGenkit(options: GenkitOptions): Genkit {
   const genkit = new Genkit(options);
   genkit.setupTracingAndLogging();
   return genkit;
-}
-
-/**
- * @returns The current environment that the app code is running in.
- */
-export function getCurrentEnv(): string {
-  return process.env.GENKIT_ENV || 'prod';
-}
-
-/** Whether current env is `dev`. */
-export function isDevEnv(): boolean {
-  return getCurrentEnv() === 'dev';
 }
 
 process.on('SIGTERM', async () => {
