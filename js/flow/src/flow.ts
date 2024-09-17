@@ -16,13 +16,13 @@
 
 import {
   Action,
+  config as globalConfig,
   defineAction,
   FlowError,
   FlowState,
   FlowStateSchema,
   FlowStateStore,
   getStreamingCallback,
-  config as globalConfig,
   isDevEnv,
   Operation,
   StreamingCallback,
@@ -37,7 +37,7 @@ import {
 } from '@genkit-ai/core/tracing';
 import { SpanStatusCode } from '@opentelemetry/api';
 import * as bodyParser from 'body-parser';
-import { default as cors, CorsOptions } from 'cors';
+import { CorsOptions, default as cors } from 'cors';
 import express from 'express';
 import { performance } from 'node:perf_hooks';
 import * as z from 'zod';
@@ -638,11 +638,15 @@ export async function runFlow<
     );
   }
 
-  const state = await flow.runEnvelope({
-    start: {
-      input,
+  const state = await flow.runEnvelope(
+    {
+      start: {
+        input,
+      },
     },
-  });
+    undefined,
+    opts?.withLocalAuthContext
+  );
   if (!state.operation.done) {
     throw new FlowStillRunningError(
       `flow ${state.name} did not finish execution`
