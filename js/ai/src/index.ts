@@ -56,10 +56,5 @@ export {
   type RetrieverInfo,
   type RetrieverReference,
 } from './retriever.js';
-export {
-  asTool,
-  defineTool,
-  type ToolAction,
-  type ToolConfig,
-} from './tool.js';
+export { asTool, defineTool, type ToolAction } from './tool.js';
 export * from './types.js';
