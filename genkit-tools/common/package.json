@@ -1,6 +1,6 @@
 {
   "name": "@genkit-ai/tools-common",
-  "version": "0.6.0-dev.1",
+  "version": "0.6.0-dev.2",
   "scripts": {
     "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
     "build:clean": "rm -rf ./lib",
@@ -9,7 +9,6 @@
     "build:watch": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json --watch"
   },
   "dependencies": {
-    "@genkit-ai/telemetry-server": "workspace:*",
     "@asteasolutions/zod-to-openapi": "^7.0.0",
     "@trpc/server": "10.45.0",
     "adm-zip": "^0.5.12",
