@@ -22,10 +22,7 @@ import {
   getMatchingEvaluators,
   runEvaluation,
 } from '@genkit-ai/tools-common/eval';
-import {
-  confirmLlmUse,
-  logger,
-} from '@genkit-ai/tools-common/utils';
+import { confirmLlmUse, logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { randomUUID } from 'crypto';
 import { readFile } from 'fs/promises';
