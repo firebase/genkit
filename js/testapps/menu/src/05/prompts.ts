@@ -15,8 +15,8 @@
  */
 
 import { defineDotprompt } from '@genkit-ai/dotprompt';
+import { z } from '@genkit-ai/genkit';
 import { geminiPro, geminiProVision } from '@genkit-ai/vertexai';
-import * as z from 'zod';
 import { TextMenuQuestionInputSchema } from '../types.js';
 
 export const s05_readMenuPrompt = defineDotprompt(

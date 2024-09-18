@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { defineFlow, runFlow } from '@genkit-ai/flow';
+import { defineFlow, runFlow } from '@genkit-ai/genkit/flow';
 import fs from 'fs';
 import path from 'path';
 
-import * as z from 'zod';
+import { z } from '@genkit-ai/genkit';
 import {
   AnswerOutputSchema,
   MenuQuestionInputSchema,
