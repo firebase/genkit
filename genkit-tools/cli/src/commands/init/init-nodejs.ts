@@ -155,7 +155,6 @@ const internalPackages = [
   '@genkit-ai/core',
   '@genkit-ai/ai',
   '@genkit-ai/dotprompt',
-  '@genkit-ai/flow',
 ];
 
 const platformImportOptions: Record<Platform, ImportOptions> = {
