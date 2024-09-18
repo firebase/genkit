@@ -17,6 +17,7 @@
 import { AsyncLocalStorage } from 'async_hooks';
 import * as z from 'zod';
 import { Action } from './action.js';
+import { logger } from './logging.js';
 import { PluginProvider } from './plugin.js';
 import { JSONSchema } from './schema.js';
 
@@ -215,7 +216,10 @@ export class Registry {
   ) {
     const key = `/${type}/${action.__action.name}`;
     if (this.actionsById.hasOwnProperty(key)) {
-      throw new Error(`Action ${key} already registered`);
+      // TODO: Make this an error!
+      logger.warn(
+        `WARNING: ${key} already has an entry in the registry. Overwriting.`
+      );
     }
     this.actionsById[key] = action;
   }

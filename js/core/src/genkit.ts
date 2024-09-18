@@ -173,11 +173,12 @@ export class Genkit {
 
     this.options.plugins?.forEach((plugin) => {
       logger.debug(`Registering plugin ${plugin.name}...`);
+      const activeRegistry = this.registry;
       registry.registerPluginProvider(plugin.name, {
         name: plugin.name,
         async initializer() {
           logger.info(`Initializing plugin ${plugin.name}:`);
-          return await plugin.initializer();
+          return runWithRegistry(activeRegistry, () => plugin.initializer());
         },
       });
     });
@@ -187,7 +188,9 @@ export class Genkit {
       logger.debug('Registering logging exporters...');
       logger.debug(`  - all environments: ${loggerPluginName}`);
       this.loggerConfig = async () =>
-        this.resolveLoggerConfig(loggerPluginName);
+        runWithRegistry(this.registry, () =>
+          this.resolveLoggerConfig(loggerPluginName)
+        );
     }
 
     if (this.options.telemetry?.instrumentation) {
@@ -195,7 +198,9 @@ export class Genkit {
       logger.debug('Registering telemetry exporters...');
       logger.debug(`  - all environments: ${telemetryPluginName}`);
       this.telemetryConfig = async () =>
-        this.resolveTelemetryConfig(telemetryPluginName);
+        runWithRegistry(this.registry, () =>
+          this.resolveTelemetryConfig(telemetryPluginName)
+        );
     }
   }
 
@@ -214,43 +219,6 @@ export class Genkit {
     if (this.loggerConfig) {
       logger.init(await this.loggerConfig());
     }
-  }
-
-  /**
-   * Resolves trace store provided by the specified plugin.
-   */
-  private async resolveTraceStore(pluginName: string) {
-    let traceStoreId;
-    if (pluginName.includes('/')) {
-      const tokens = pluginName.split('/', 2);
-      pluginName = tokens[0];
-      traceStoreId = tokens[1];
-    }
-    const plugin = await registry.initializePlugin(pluginName);
-    let provider = plugin?.traceStore;
-    if (!provider) {
-      throw new Error(
-        'Unable to resolve provided `traceStore` for plugin: ' + pluginName
-      );
-    }
-    if (!Array.isArray(provider)) {
-      provider = [provider];
-    }
-    if (provider.length === 1 && !traceStoreId) {
-      return provider[0].value;
-    }
-    if (provider.length > 1 && !traceStoreId) {
-      throw new Error(
-        `Plugin ${pluginName} provides more than one trace store implementation (${provider.map((p) => p.id).join(', ')}), please specify the trace store id (e.g. "${pluginName}/${provider[0].id}")`
-      );
-    }
-    const p = provider.find((p) => p.id === traceStoreId);
-    if (!p) {
-      throw new Error(
-        `Plugin ${pluginName} does not provide trace store ${traceStoreId}`
-      );
-    }
-    return p.value;
   }
 
   /**

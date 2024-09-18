@@ -16,8 +16,7 @@
 
 import { generate } from '@genkit-ai/ai';
 import { defineModel, GenerateResponseData } from '@genkit-ai/ai/model';
-import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow, run } from '@genkit-ai/flow';
+import { Genkit, initializeGenkit, run } from '@genkit-ai/core';
 import {
   __addTransportStreamForTesting,
   __forceFlushSpansForTesting,
@@ -38,10 +37,12 @@ describe('GoogleCloudLogs no I/O', () => {
     next();
   };
 
+  let genkit: Genkit;
+
   before(async () => {
     process.env.GENKIT_ENV = 'dev';
     __addTransportStreamForTesting(logStream);
-    const config = configureGenkit({
+    genkit = initializeGenkit({
       // Force GCP Plugin to use in-memory metrics exporter
       plugins: [
         googleCloud({
@@ -61,8 +62,8 @@ describe('GoogleCloudLogs no I/O', () => {
       },
     });
     // Wait for the telemetry plugin to be initialized
-    await config.getTelemetryConfig();
-    await waitForLogsInit(logLines);
+    await genkit.getTelemetryConfig();
+    await waitForLogsInit(genkit, logLines);
   });
   beforeEach(async () => {
     logLines = '';
@@ -70,7 +71,7 @@ describe('GoogleCloudLogs no I/O', () => {
   });
 
   it('writes path logs', async () => {
-    const testFlow = createFlow('testFlow');
+    const testFlow = createFlow(genkit, 'testFlow');
 
     await testFlow();
 
@@ -81,7 +82,7 @@ describe('GoogleCloudLogs no I/O', () => {
   });
 
   it('writes error logs', async () => {
-    const testFlow = createFlow('testFlow', async () => {
+    const testFlow = createFlow(genkit, 'testFlow', async () => {
       const nothing: { missing?: any } = { missing: 1 };
       delete nothing.missing;
       return nothing.missing.explode;
@@ -129,7 +130,7 @@ describe('GoogleCloudLogs no I/O', () => {
         },
       };
     });
-    const testFlow = createFlowWithInput('testFlow', async (input) => {
+    const testFlow = createFlowWithInput(genkit, 'testFlow', async (input) => {
       return await run('sub1', async () => {
         return await run('sub2', async () => {
           return await generate({
@@ -188,10 +189,12 @@ describe('GoogleCloudLogs', () => {
     next();
   };
 
+  let genkit: Genkit;
+
   before(async () => {
     process.env.GENKIT_ENV = 'dev';
     __addTransportStreamForTesting(logStream);
-    const config = configureGenkit({
+    genkit = initializeGenkit({
       // Force GCP Plugin to use in-memory metrics exporter
       plugins: [
         googleCloud({
@@ -210,8 +213,8 @@ describe('GoogleCloudLogs', () => {
       },
     });
     // Wait for the telemetry plugin to be initialized
-    await config.getTelemetryConfig();
-    await waitForLogsInit(logLines);
+    await genkit.getTelemetryConfig();
+    await waitForLogsInit(genkit, logLines);
   });
   beforeEach(async () => {
     logLines = '';
@@ -219,7 +222,7 @@ describe('GoogleCloudLogs', () => {
   });
 
   it('writes path logs', async () => {
-    const testFlow = createFlow('testFlow');
+    const testFlow = createFlow(genkit, 'testFlow');
 
     await testFlow();
 
@@ -230,7 +233,7 @@ describe('GoogleCloudLogs', () => {
   });
 
   it('writes error logs', async () => {
-    const testFlow = createFlow('testFlow', async () => {
+    const testFlow = createFlow(genkit, 'testFlow', async () => {
       const nothing: { missing?: any } = { missing: 1 };
       delete nothing.missing;
       return nothing.missing.explode;
@@ -279,7 +282,7 @@ describe('GoogleCloudLogs', () => {
         },
       };
     });
-    const testFlow = createFlowWithInput('testFlow', async (input) => {
+    const testFlow = createFlowWithInput(genkit, 'testFlow', async (input) => {
       return await run('sub1', async () => {
         return await run('sub2', async () => {
           return await generate({
@@ -331,8 +334,12 @@ describe('GoogleCloudLogs', () => {
 });
 
 /** Helper to create a flow with no inputs or outputs */
-function createFlow(name: string, fn: () => Promise<any> = async () => {}) {
-  return defineFlow(
+function createFlow(
+  genkit: Genkit,
+  name: string,
+  fn: () => Promise<any> = async () => {}
+) {
+  return genkit.defineFlow(
     {
       name,
       inputSchema: z.void(),
@@ -343,10 +350,11 @@ function createFlow(name: string, fn: () => Promise<any> = async () => {}) {
 }
 
 function createFlowWithInput(
+  genkit: Genkit,
   name: string,
   fn: (input: string) => Promise<any>
 ) {
-  return defineFlow(
+  return genkit.defineFlow(
     {
       name,
       inputSchema: z.string(),
@@ -367,9 +375,9 @@ function createModel(
   return defineModel({ name }, (req) => respFn());
 }
 
-async function waitForLogsInit(logLines: any) {
+async function waitForLogsInit(genkit: Genkit, logLines: any) {
   await import('winston');
-  const testFlow = createFlow('testFlow');
+  const testFlow = createFlow(genkit, 'testFlow');
   await testFlow();
   await getLogs(1, 100, logLines);
 }

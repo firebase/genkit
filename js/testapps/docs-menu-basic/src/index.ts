@@ -17,18 +17,20 @@
 // This sample is referenced by the genkit docs. Changes should be made to
 // both.
 import { generate } from '@genkit-ai/ai';
-import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
+import { initializeGenkit } from '@genkit-ai/core';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import * as z from 'zod';
 
-configureGenkit({
+const genkit = initializeGenkit({
   plugins: [googleAI()],
   logLevel: 'debug',
   enableTracingAndMetrics: true,
+  flowServer: {
+    runInEnv: 'all',
+  },
 });
 
-export const menuSuggestionFlow = defineFlow(
+export const menuSuggestionFlow = genkit.defineFlow(
   {
     name: 'menuSuggestionFlow',
     inputSchema: z.string(),
@@ -46,5 +48,3 @@ export const menuSuggestionFlow = defineFlow(
     return llmResponse.text();
   }
 );
-
-startFlowsServer();

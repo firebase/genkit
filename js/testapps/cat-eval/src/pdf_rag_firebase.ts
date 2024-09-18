@@ -32,6 +32,8 @@ import { textEmbeddingGecko } from '@genkit-ai/vertexai';
 import { FieldValue } from '@google-cloud/firestore';
 import * as z from 'zod';
 
+import { genkit } from './index.js';
+
 const app = initializeApp();
 let firestore = getFirestore(app);
 
@@ -73,7 +75,7 @@ export const pdfChatRetrieverFirebase = defineFirestoreRetriever({
 });
 
 // Define a simple RAG flow, we will evaluate this flow
-export const pdfQAFirebase = defineFlow(
+export const pdfQAFirebase = genkit.defineFlow(
   {
     name: 'pdfQAFirebase',
     inputSchema: z.string(),

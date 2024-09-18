@@ -24,8 +24,6 @@ export { getFlowAuth } from './auth.js';
 export { GenkitError } from './error.js';
 export {
   Flow,
-  defineFlow,
-  defineStreamingFlow,
   run,
   type CallableFlow,
   type FlowAuthPolicy,
@@ -40,3 +38,4 @@ export * from './genkit.js';
 export * from './plugin.js';
 export { defineJsonSchema, defineSchema } from './schema.js';
 export * from './telemetryTypes.js';
+export * from './utils.js';

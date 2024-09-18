@@ -97,8 +97,8 @@ importers:
         specifier: ^4.19.2
         version: 4.19.2
       get-port:
-        specifier: ^7.0.0
-        version: 7.1.0
+        specifier: ^5.1.0
+        version: 5.1.0
       json-schema:
         specifier: ^0.4.0
         version: 0.4.0
@@ -126,64 +126,6 @@ importers:
         version: 8.0.2(typescript@4.9.5)
       tsx:
         specifier: ^4.7.0
-        version: 4.7.1
-      typescript:
-        specifier: ^4.9.0
-        version: 4.9.5
-
-  flow:
-    dependencies:
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../core
-      '@google-cloud/firestore':
-        specifier: ^7.6.0
-        version: 7.6.0(encoding@0.1.13)
-      '@opentelemetry/api':
-        specifier: ^1.9.0
-        version: 1.9.0
-      '@types/cors':
-        specifier: ^2.8.17
-        version: 2.8.17
-      body-parser:
-        specifier: ^1.20.2
-        version: 1.20.2
-      cors:
-        specifier: ^2.8.5
-        version: 2.8.5
-      express:
-        specifier: ^4.19.2
-        version: 4.19.2
-      firebase-admin:
-        specifier: ^12.1.0
-        version: 12.1.0(encoding@0.1.13)
-      firebase-functions:
-        specifier: ^4.8.0 || ^5.0.0
-        version: 5.0.1(firebase-admin@12.1.0(encoding@0.1.13))
-      uuid:
-        specifier: ^9.0.1
-        version: 9.0.1
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
-    devDependencies:
-      '@types/body-parser':
-        specifier: ^1.19.5
-        version: 1.19.5
-      '@types/express':
-        specifier: ^4.17.21
-        version: 4.17.21
-      '@types/uuid':
-        specifier: ^9.0.6
-        version: 9.0.8
-      npm-run-all:
-        specifier: ^4.1.5
-        version: 4.1.5
-      tsup:
-        specifier: ^8.0.2
-        version: 8.0.2(typescript@4.9.5)
-      tsx:
-        specifier: ^4.7.1
         version: 4.7.1
       typescript:
         specifier: ^4.9.0
@@ -345,9 +287,6 @@ importers:
       '@genkit-ai/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/google-cloud':
         specifier: workspace:*
         version: link:../google-cloud
@@ -452,9 +391,6 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@types/node':
         specifier: ^20.11.16
         version: 20.11.30
@@ -516,9 +452,6 @@ importers:
       '@genkit-ai/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@langchain/community':
         specifier: ^0.0.53
         version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
@@ -624,9 +557,6 @@ importers:
       '@genkit-ai/core':
         specifier: workspace:*
         version: link:../../core
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@google-cloud/aiplatform':
         specifier: ^3.23.0
         version: 3.25.0(encoding@0.1.13)
@@ -686,9 +616,6 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
@@ -723,9 +650,6 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
@@ -763,9 +687,6 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
@@ -827,9 +748,6 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
@@ -867,9 +785,6 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
@@ -898,9 +813,6 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
@@ -935,9 +847,6 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
@@ -966,9 +875,6 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
@@ -994,9 +900,6 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
@@ -1028,9 +931,6 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:^
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -1053,9 +953,6 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/google-cloud':
         specifier: workspace:*
         version: link:../../plugins/google-cloud
@@ -1096,9 +993,6 @@ importers:
       '@genkit-ai/dotprompt':
         specifier: workspace:*
         version: link:../../plugins/dotprompt
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/google-cloud':
         specifier: workspace:*
         version: link:../../plugins/google-cloud
@@ -1130,9 +1024,6 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
@@ -1194,9 +1085,6 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
@@ -1216,9 +1104,6 @@ importers:
       '@genkit-ai/core':
         specifier: workspace:^
         version: link:../../core
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
@@ -1256,9 +1141,6 @@ importers:
       '@genkit-ai/dotprompt':
         specifier: workspace:*
         version: link:../../plugins/dotprompt
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
@@ -1290,9 +1172,6 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
@@ -1354,9 +1233,6 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
@@ -1397,9 +1273,6 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
@@ -1455,9 +1328,6 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
@@ -1513,9 +1383,6 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
@@ -3467,13 +3334,6 @@ packages:
     peerDependencies:
       firebase-admin: ^10.0.0 || ^11.0.0 || ^12.0.0
 
-  firebase-functions@5.0.1:
-    resolution: {integrity: sha512-1m+crtgAR8Tl36gjpM02KCY5zduAejFmDSXvih/DB93apg39f0U/WwRgT7sitGIRqyCcIpktNUbXJv7Y9JOF4A==}
-    engines: {node: '>=14.10.0'}
-    hasBin: true
-    peerDependencies:
-      firebase-admin: ^11.10.0 || ^12.0.0
-
   flat@5.0.2:
     resolution: {integrity: sha512-b6suED+5/3rTpUBdG1gupIl8MPFCAMA0QXwmljLhvCUKcUvdE4gWky9zpuGCcXHOsz4J9wPGNWq6OKpmIzz3hQ==}
     hasBin: true
@@ -3594,9 +3454,9 @@ packages:
     resolution: {integrity: sha512-5uYhsJH8VJBTv7oslg4BznJYhDoRI6waYCxMmCdnTrcCrHA/fCFKoTFz2JKKE0HdDFUF7/oQuhzumXJK7paBRQ==}
     engines: {node: '>= 0.4'}
 
-  get-port@7.1.0:
-    resolution: {integrity: sha512-QB9NKEeDg3xxVwCCwJQ9+xycaz6pBB6iQ76wiWMl1927n0Kir6alPiP+yuiICLLU4jpMe08dXfpebuQppFA2zw==}
-    engines: {node: '>=16'}
+  get-port@5.1.0:
+    resolution: {integrity: sha512-bjioH1E9bTQUvgaB6VycVy1QVbTZI41yTnF9qkZz6ixgy/uhCH6D63bKeZ6Code/07JYA61MeI94jSdHss8PNA==}
+    engines: {node: '>=8'}
 
   get-stream@6.0.1:
     resolution: {integrity: sha512-ts6Wi+2j3jQjqi70w5AlN8DFnkSwC+MqmxEzdEALB2qXZYV3X/b1CTfgPLGJNMeAWxdPfU8FO1ms3NUfaHCPYg==}
@@ -7387,17 +7247,6 @@ snapshots:
       - encoding
       - supports-color
 
-  firebase-functions@5.0.1(firebase-admin@12.1.0(encoding@0.1.13)):
-    dependencies:
-      '@types/cors': 2.8.17
-      '@types/express': 4.17.3
-      cors: 2.8.5
-      express: 4.19.2
-      firebase-admin: 12.1.0(encoding@0.1.13)
-      protobufjs: 7.2.6
-    transitivePeerDependencies:
-      - supports-color
-
   flat@5.0.2: {}
 
   fn.name@1.1.0: {}
@@ -7561,7 +7410,7 @@ snapshots:
       has-symbols: 1.0.3
       hasown: 2.0.2
 
-  get-port@7.1.0: {}
+  get-port@5.1.0: {}
 
   get-stream@6.0.1: {}
 

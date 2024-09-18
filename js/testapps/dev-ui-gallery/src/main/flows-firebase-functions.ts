@@ -15,14 +15,15 @@
  */
 
 import { generate } from '@genkit-ai/ai';
+import { run } from '@genkit-ai/core';
 import { firebaseAuth } from '@genkit-ai/firebase/auth';
 import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
-import { defineFlow, run } from '@genkit-ai/flow';
 import { gemini15Flash } from '@genkit-ai/googleai';
 import { DecodedIdToken } from 'firebase-admin/auth';
 import * as z from 'zod';
+import { genkit } from '../index.js';
 
-export const flowBasicAuth = defineFlow(
+export const flowBasicAuth = genkit.defineFlow(
   {
     name: 'flowBasicAuth',
     inputSchema: z.object({ language: z.string(), uid: z.string() }),

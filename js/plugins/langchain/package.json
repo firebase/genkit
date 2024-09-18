@@ -34,7 +34,6 @@
   "peerDependencies": {
     "@genkit-ai/ai": "workspace:*",
     "@genkit-ai/core": "workspace:*",
-    "@genkit-ai/flow": "workspace:*",
     "langchain": "^0.1.36"
   },
   "devDependencies": {
