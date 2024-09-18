@@ -43,6 +43,8 @@ export async function newTrace<T>(
   },
   fn: (metadata: SpanMetadata, rootSpan: ApiSpan) => Promise<T>
 ) {
+  // This is the root node only if we haven't previously started a trace.
+  const isRoot = traceMetadataAls.getStore() ? false : true;
   const traceMetadata = traceMetadataAls.getStore() || {
     paths: new Set<PathMetadata>(),
     timestamp: performance.now(),
@@ -55,7 +57,7 @@ export async function newTrace<T>(
       {
         metadata: {
           name: opts.name,
-          isRoot: true,
+          isRoot,
         },
         labels: opts.labels,
         links: opts.links,
@@ -83,7 +85,7 @@ export async function runInNewSpan<T>(
   const isInRoot = parentStep?.isRoot === true;
   return await tracer.startActiveSpan(
     opts.metadata.name,
-    { links: opts.links },
+    { links: opts.links, root: opts.metadata.isRoot },
     async (otSpan) => {
       if (opts.labels) otSpan.setAttributes(opts.labels);
       try {

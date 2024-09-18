@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-import { FlowState, __hardResetConfigForTesting } from '@genkit-ai/core';
+import { __hardResetConfigForTesting } from '@genkit-ai/core';
 import { __hardResetRegistryForTesting } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
 import { defineFlow, defineStreamingFlow } from '../src/flow.js';
-import { configureInMemoryStateStore } from './testUtil.js';
 
 function createTestFlow() {
   return defineFlow(
@@ -63,7 +62,6 @@ describe('flow', () => {
 
   describe('runFlow', () => {
     it('should run the flow', async () => {
-      configureInMemoryStateStore('prod');
       const testFlow = createTestFlow();
 
       const result = await testFlow('foo');
@@ -72,7 +70,6 @@ describe('flow', () => {
     });
 
     it('should rethrow the error', async () => {
-      configureInMemoryStateStore('prod');
       const testFlow = defineFlow(
         {
           name: 'throwing',
@@ -84,14 +81,13 @@ describe('flow', () => {
         }
       );
 
-      await assert.rejects(async () => await testFlow('foo'), {
+      await assert.rejects(() => testFlow('foo'), {
         name: 'Error',
         message: 'bad happened: foo',
       });
     });
 
     it('should validate input', async () => {
-      configureInMemoryStateStore('prod');
       const testFlow = defineFlow(
         {
           name: 'validating',
@@ -119,7 +115,6 @@ describe('flow', () => {
 
   describe('streamFlow', () => {
     it('should run the flow', async () => {
-      configureInMemoryStateStore('prod');
       const testFlow = createTestStreamingFlow();
 
       const response = testFlow(3);
@@ -134,66 +129,20 @@ describe('flow', () => {
     });
 
     it('should rethrow the error', async () => {
-      configureInMemoryStateStore('prod');
       const testFlow = defineStreamingFlow(
         {
           name: 'throwing',
           inputSchema: z.string(),
         },
         async (input) => {
-          throw new Error(`bad happened: ${input}`);
+          throw new Error(`stream bad happened: ${input}`);
         }
       );
 
       const response = testFlow('foo');
-      await assert.rejects(async () => await response.output, {
+      await assert.rejects(() => response.output, {
         name: 'Error',
-        message: 'bad happened: foo',
-      });
-    });
-  });
-
-  describe('stateStore', () => {
-    describe('dev', () => {
-      beforeEach(() => {
-        process.env.GENKIT_ENV = 'dev';
-      });
-
-      it('should persist state in dev', async () => {
-        const stateStore = configureInMemoryStateStore('dev');
-        const testFlow = createTestFlow();
-
-        const result = await testFlow('foo');
-
-        assert.equal(result, 'bar foo');
-        assert.equal(Object.keys(stateStore.state).length, 1);
-
-        // do some asserting on the state... TODO: make this better.
-        const state = JSON.parse(
-          Object.values(stateStore.state)[0]
-        ) as FlowState;
-        assert.equal(state.executions.length, 1);
-        assert.equal(state.operation.done, true);
-        assert.deepEqual(state.operation.result, {
-          response: 'bar foo',
-        });
-        assert.equal(state.blockedOnStep, null);
-        assert.deepEqual(state.eventsTriggered, {});
-        assert.deepEqual(state.cache, {});
-        assert.equal(state.input, 'foo');
-        assert.equal(state.name, 'testFlow');
-      });
-    });
-
-    describe('prod', () => {
-      it('should not persist the state for non-durable flow', async () => {
-        const stateStore = configureInMemoryStateStore('prod');
-        const testFlow = createTestFlow();
-
-        const result = await testFlow('foo');
-
-        assert.equal(result, 'bar foo');
-        assert.equal(Object.keys(stateStore.state).length, 0);
+        message: 'stream bad happened: foo',
       });
     });
   });

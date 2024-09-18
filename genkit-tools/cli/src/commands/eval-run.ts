@@ -25,11 +25,11 @@ import {
 import {
   confirmLlmUse,
   logger,
-  runInRunnerThenStop,
 } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { randomUUID } from 'crypto';
 import { readFile } from 'fs/promises';
+import { runInRunnerThenStop } from '../utils/runner-utils';
 
 interface EvalRunCliOptions {
   output?: string;

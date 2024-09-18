@@ -30,7 +30,6 @@ import {
   RunActionResponseSchema,
 } from '../types/action';
 import * as apis from '../types/apis';
-import { FlowState } from '../types/flow';
 import { TraceData } from '../types/trace';
 import { logger } from '../utils/logger';
 import { detectRuntime, getEntryPoint } from '../utils/utils';
@@ -90,6 +89,8 @@ export class Runner {
   private reflectionApiUrl = () =>
     `http://localhost:${this.reflectionApiPort}/api`;
 
+  private telemetryServerUrl?;
+
   /**
    * Creates a Runner instance.
    *
@@ -102,11 +103,13 @@ export class Runner {
       directory?: string;
       autoReload?: boolean;
       buildOnStart?: boolean;
+      telemetryServer?: string;
     } = {}
   ) {
     this.directory = options.directory || process.cwd();
     this.autoReload = options.autoReload ?? true;
     this.buildOnStart = !!options.buildOnStart;
+    this.telemetryServerUrl = options.telemetryServer;
   }
 
   /**
@@ -253,6 +256,7 @@ export class Runner {
         ...process.env,
         GENKIT_ENV: 'dev',
         GENKIT_REFLECTION_PORT: `${this.reflectionApiPort}`,
+        GENKIT_TELEMETRY_SERVER: this.telemetryServerUrl,
       },
     });
 
@@ -433,6 +437,10 @@ export class Runner {
           responseType: 'stream',
         })
         .catch(this.httpErrorHandler);
+      let genkitVersion: string;
+      if (response.headers['x-genkit-version']) {
+        genkitVersion = response.headers['x-genkit-version'];
+      }
       const stream = response.data;
 
       let buffer = '';
@@ -459,7 +467,13 @@ export class Runner {
         rejecter = reject;
       });
       stream.on('end', () => {
-        resolver(RunActionResponseSchema.parse(JSON.parse(buffer)));
+        const actionResponse = RunActionResponseSchema.parse(
+          JSON.parse(buffer)
+        );
+        if (genkitVersion) {
+          actionResponse.genkitVersion = genkitVersion;
+        }
+        resolver(actionResponse);
       });
       stream.on('error', (err: Error) => {
         rejecter(err);
@@ -475,7 +489,11 @@ export class Runner {
         .catch((err) =>
           this.httpErrorHandler(err, `Error running action key='${input.key}'.`)
         );
-      return RunActionResponseSchema.parse(response.data);
+      const resp = RunActionResponseSchema.parse(response.data);
+      if (response.headers['x-genkit-version']) {
+        resp.genkitVersion = response.headers['x-genkit-version'];
+      }
+      return resp;
     }
   }
 
@@ -496,7 +514,7 @@ export class Runner {
     }
 
     const response = await axios
-      .get(`${this.reflectionApiUrl()}/envs/${env}/traces?${query}`)
+      .get(`${this.telemetryServerUrl}/api/traces?${query}`)
       .catch((err) =>
         this.httpErrorHandler(
           err,
@@ -511,7 +529,7 @@ export class Runner {
   async getTrace(input: apis.GetTraceRequest): Promise<TraceData> {
     const { env, traceId } = input;
     const response = await axios
-      .get(`${this.reflectionApiUrl()}/envs/${env}/traces/${traceId}`)
+      .get(`${this.telemetryServerUrl}/api/traces/${traceId}`)
       .catch((err) =>
         this.httpErrorHandler(
           err,
@@ -520,47 +538,5 @@ export class Runner {
       );
 
     return response.data as TraceData;
-  }
-
-  /** Retrieves all flow states for a given environment (e.g. dev or prod). */
-  async listFlowStates(
-    input: apis.ListFlowStatesRequest
-  ): Promise<apis.ListFlowStatesResponse> {
-    const { env, limit, continuationToken } = input;
-    let query = '';
-    if (limit) {
-      query += `limit=${limit}`;
-    }
-    if (continuationToken) {
-      if (query !== '') {
-        query += '&';
-      }
-      query += `continuationToken=${continuationToken}`;
-    }
-    const response = await axios
-      .get(`${this.reflectionApiUrl()}/envs/${env}/flowStates?${query}`)
-      .catch((err) =>
-        this.httpErrorHandler(
-          err,
-          `Error listing flowStates for env='${env}', query='${query}'.`
-        )
-      );
-
-    return apis.ListFlowStatesResponseSchema.parse(response.data);
-  }
-
-  /** Retrieves a flow state for a given ID. */
-  async getFlowState(input: apis.GetFlowStateRequest): Promise<FlowState> {
-    const { env, flowId } = input;
-    const response = await axios
-      .get(`${this.reflectionApiUrl()}/envs/${env}/flowStates/${flowId}`)
-      .catch((err) =>
-        this.httpErrorHandler(
-          err,
-          `Error getting flowState for flowId='${flowId}', env='${env}'.`
-        )
-      );
-
-    return response.data as FlowState;
   }
 }

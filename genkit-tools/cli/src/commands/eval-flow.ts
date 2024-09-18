@@ -30,10 +30,12 @@ import {
 import {
   confirmLlmUse,
   logger,
-  runInRunnerThenStop,
 } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { readFile } from 'fs/promises';
+import {
+  runInRunnerThenStop,
+} from '../utils/runner-utils';
 
 interface EvalFlowRunCliOptions {
   input?: string;

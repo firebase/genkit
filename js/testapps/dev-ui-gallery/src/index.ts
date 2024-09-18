@@ -142,7 +142,6 @@ export default configureGenkit({
   ],
 });
 
-export * from './main/flows-durable.js';
 export * from './main/flows-firebase-functions.js';
 export * from './main/flows.js';
 export * from './main/prompts.js';

@@ -96,6 +96,34 @@ const llmResponse = await generate({
 });
 ```
 
+This plugin also supports grounding Gemini text responses using
+[Google Search](https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/ground-gemini#web-ground-gemini)
+or [your own data](https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/ground-gemini#private-ground-gemini).
+
+Important: Vertex AI charges a fee for grounding requests in addition to the cost of making LLM requests.  See the [Vertex AI pricing](https://cloud.google.com/vertex-ai/generative-ai/pricing) page and be sure you understand grounding request pricing before you use this feature.
+
+Example:
+
+```js
+await generate({
+  model: gemini15Flash,
+  prompt: ...,
+  config: {
+    googleSearchRetrieval: {
+      disableAttribution: true,
+    }
+    vertexRetrieval: {
+      datastore: {
+        projectId: 'your-cloud-project',
+        location: 'us-central1',
+        collection: 'your-collection',
+      },
+      disableAttribution: true,
+    }
+  }
+})
+```
+
 This plugin also statically exports a reference to the Gecko text embedding
 model:
 

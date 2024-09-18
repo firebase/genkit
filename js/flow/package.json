@@ -66,19 +66,10 @@
       "require": "./lib/client/index.js",
       "import": "./lib/client/index.mjs",
       "default": "./lib/client/index.js"
-    },
-    "./experimental": {
-      "types": "./lib/experimental.d.ts",
-      "require": "./lib/experimental.js",
-      "import": "./lib/experimental.mjs",
-      "default": "./lib/experimental.js"
     }
   },
   "typesVersions": {
     "*": {
-      "experimental": [
-        "lib/experimental"
-      ],
       "client": [
         "lib/client"
       ]
