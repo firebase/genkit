@@ -14,17 +14,15 @@
  * limitations under the License.
  */
 
-import { Firestore } from '@google-cloud/firestore';
-import { randomUUID } from 'crypto';
 import {
   SpanData,
   SpanDataSchema,
   TraceData,
   TraceDataSchema,
-  TraceQuery,
-  TraceQueryResponse,
-  TraceStore,
-} from './types';
+} from '@genkit-ai/tools-common';
+import { Firestore } from '@google-cloud/firestore';
+import { randomUUID } from 'crypto';
+import { TraceQuery, TraceQueryResponse, TraceStore } from './types';
 
 const DOC_MAX_SIZE = 1_000_000;
 

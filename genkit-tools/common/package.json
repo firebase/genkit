@@ -9,7 +9,6 @@
     "build:watch": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json --watch"
   },
   "dependencies": {
-    "@genkit-ai/telemetry-server": "workspace:*",
     "@asteasolutions/zod-to-openapi": "^7.0.0",
     "@trpc/server": "10.45.0",
     "adm-zip": "^0.5.12",
