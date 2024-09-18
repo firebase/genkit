@@ -25,6 +25,7 @@ import {
   FlowStateStore,
 } from '@genkit-ai/core';
 import { registerFlowStateStore } from '@genkit-ai/core/registry';
+import { newTrace } from '@genkit-ai/core/tracing';
 import { defineFlow, run, runAction, runFlow } from '@genkit-ai/flow';
 import {
   __forceFlushSpansForTesting,
@@ -370,7 +371,9 @@ describe('GoogleCloudMetrics', () => {
       });
     });
 
-    await runFlow(flow);
+    await newTrace({ name: 'dev-run-action-wrapper' }, async (_, span) => {
+      await runFlow(flow);
+    });
 
     await getExportedSpans();
 

@@ -22,7 +22,7 @@ export function extractOuterFlowNameFromPath(path: string) {
     return '<unknown>';
   }
 
-  const flowName = path.match('/{(.+),t:flow}+');
+  const flowName = path.match('/{([^,}]+),t:flow}+');
   return flowName ? flowName[1] : '<unknown>';
 }
 
