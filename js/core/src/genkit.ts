@@ -38,10 +38,7 @@ import {
   TelemetryConfig,
   TelemetryOptions,
 } from './telemetryTypes.js';
-import {
-  cleanUpTracing,
-  enableTracingAndMetrics,
-} from './tracing.js';
+import { cleanUpTracing, enableTracingAndMetrics } from './tracing.js';
 import { getCurrentEnv, isDevEnv } from './utils.js';
 
 /**
@@ -69,7 +66,7 @@ export interface GenkitOptions {
     /** Configuration for the model. */
     config?: Record<string, any>;
   };
-  /** Configuration for the flow server. */
+  /** Configuration for the flow server. Server will not be started if `flowServer` is not configured. */
   flowServer?: FlowServerOptions;
 }
 

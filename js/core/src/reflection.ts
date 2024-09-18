@@ -15,6 +15,7 @@
  */
 
 import express, { NextFunction, Request, Response } from 'express';
+import getPort, { makeRange } from 'get-port';
 import { Server } from 'http';
 import z from 'zod';
 import { Status, StatusCodes, runWithStreamingCallback } from './action.js';
@@ -218,58 +219,6 @@ export class ReflectionServer {
 
     server.get('/api/envs', async (_, response) => {
       response.json(this.options.configuredEnvs);
-    });
-
-    server.get('/api/envs/:env/traces/:traceId', async (request, response) => {
-      const { env, traceId } = request.params;
-      logger.debug(`Fetching trace \`${traceId}\` for env \`${env}\`.`);
-      const tracestore = await this.registry.lookupTraceStore(env);
-      if (!tracestore) {
-        return response.status(500).send({
-          code: StatusCodes.FAILED_PRECONDITION,
-          message: `${env} trace store not found`,
-        });
-      }
-      try {
-        response.json(await tracestore?.load(traceId));
-      } catch (err) {
-        const error = err as Error;
-        const { message, stack } = error;
-        const errorResponse: Status = {
-          code: StatusCodes.INTERNAL,
-          message,
-          details: {
-            stack,
-          },
-        };
-        return response.status(500).json(errorResponse);
-      }
-    });
-
-    server.get('/api/envs/:env/traces', async (request, response, next) => {
-      const { env } = request.params;
-      const { limit, continuationToken } = request.query;
-      logger.debug(`Fetching traces for env \`${env}\`.`);
-      const tracestore = await this.registry.lookupTraceStore(env);
-      if (!tracestore) {
-        return response.status(500).send({
-          code: StatusCodes.FAILED_PRECONDITION,
-          message: `${env} trace store not found`,
-        });
-      }
-      try {
-        response.json(
-          await tracestore.list({
-            limit: limit ? parseInt(limit.toString()) : undefined,
-            continuationToken: continuationToken
-              ? continuationToken.toString()
-              : undefined,
-          })
-        );
-      } catch (err) {
-        const { message, stack } = err as Error;
-        next({ message, stack });
-      }
     });
 
     server.use((err, req, res, next) => {
