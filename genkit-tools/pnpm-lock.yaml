@@ -81,9 +81,6 @@ importers:
       '@asteasolutions/zod-to-openapi':
         specifier: ^7.0.0
         version: 7.0.0(zod@3.23.5)
-      '@genkit-ai/telemetry-server':
-        specifier: workspace:*
-        version: link:../telemetry-server
       '@trpc/server':
         specifier: 10.45.0
         version: 10.45.0
@@ -246,6 +243,9 @@ importers:
       '@asteasolutions/zod-to-openapi':
         specifier: ^7.0.0
         version: 7.0.0(zod@3.23.5)
+      '@genkit-ai/tools-common':
+        specifier: workspace:*
+        version: link:../common
       '@google-cloud/firestore':
         specifier: ^7.6.0
         version: 7.10.0

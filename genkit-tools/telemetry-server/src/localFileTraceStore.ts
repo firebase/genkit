@@ -14,16 +14,11 @@
  * limitations under the License.
  */
 
+import { TraceData, TraceDataSchema } from '@genkit-ai/tools-common';
 import { Mutex } from 'async-mutex';
 import fs from 'fs';
 import path from 'path';
-import {
-  TraceData,
-  TraceDataSchema,
-  TraceQuery,
-  TraceQueryResponse,
-  TraceStore,
-} from './types';
+import { TraceQuery, TraceQueryResponse, TraceStore } from './types';
 
 /**
  * Implementation of trace store that persists traces on local disk.

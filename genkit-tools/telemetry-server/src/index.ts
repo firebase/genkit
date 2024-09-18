@@ -14,26 +14,14 @@
  * limitations under the License.
  */
 
+import { TraceData } from '@genkit-ai/tools-common';
 import express from 'express';
 import * as http from 'http';
-import { TraceData, TraceStore } from './types';
+import { TraceStore } from './types';
 
 export { FirestoreTraceStore } from './firestoreTraceStore.js';
 export { LocalFileTraceStore } from './localFileTraceStore.js';
-export {
-  InstrumentationLibrarySchema,
-  LinkSchema,
-  SpanContextSchema,
-  SpanData,
-  SpanDataSchema,
-  SpanMetadata,
-  SpanMetadataSchema,
-  SpanStatusSchema,
-  TimeEventSchema,
-  TraceData,
-  TraceDataSchema,
-  TraceStore,
-} from './types';
+export { TraceStore } from './types';
 
 let server: http.Server;
 
