@@ -38,6 +38,19 @@ const templatePath = '../../../config/main.go.template';
 
 /** Model to plugin name. */
 const modelOptions: Record<ModelProvider, ModelOption> = {
+  openai: {
+    label: 'OpenAI',
+    package: 'github.com/yukinagae/genkit-go-plugins/plugins/openai',
+    init: `// Initialize the OpenAI plugin. When you pass an empty string for the
+\t// apiKey parameter, the OpenAI plugin will use the value from the
+\t// OPENAI_API_KEY environment variable, which is the recommended practice.
+\tif err := openai.Init(ctx, nil); err != nil {
+\t\tlog.Fatal(err)
+\t}`,
+    lookup: `// The OpenAI API provides access to several generative models. Here,
+\t\t// we specify the 4o mini model.
+\t\tm := openai.Model("gpt-4o-mini")`,
+  },
   googleai: {
     label: 'Google AI',
     package: 'github.com/firebase/genkit/go/plugins/googleai',
