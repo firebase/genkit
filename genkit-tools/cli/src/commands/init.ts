@@ -88,7 +88,7 @@ export const init = new Command('init')
       switch (runtime) {
         case 'nodejs':
           await initNodejs(options, isNew);
-          break;
+          break; 
         case 'go':
           await initGo(options, isNew);
           break;
