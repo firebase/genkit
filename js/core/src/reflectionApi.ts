@@ -181,68 +181,6 @@ export async function startReflectionApi(port?: number | undefined) {
     response.json(config.configuredEnvs);
   });
 
-  api.get('/api/envs/:env/traces/:traceId', async (request, response) => {
-    const { env, traceId } = request.params;
-    logger.debug(`Fetching trace \`${traceId}\` for env \`${env}\`.`);
-    const tracestore = await registry.lookupTraceStore(env);
-    if (!tracestore) {
-      return response.status(500).send({
-        code: StatusCodes.FAILED_PRECONDITION,
-        message: `${env} trace store not found`,
-      });
-    }
-    // TODO: Remove try/catch when upgrading to Express 5; error is sent to `next` automatically
-    // in that version
-    try {
-      const trace = await tracestore?.load(traceId);
-      return trace
-        ? response.json(trace)
-        : response.status(404).send({
-            code: StatusCodes.NOT_FOUND,
-            message: `Trace with traceId=${traceId} not found.`,
-          });
-    } catch (err) {
-      const error = err as Error;
-      const { message, stack } = error;
-      const errorResponse: Status = {
-        code: StatusCodes.INTERNAL,
-        message,
-        details: {
-          stack,
-        },
-      };
-      return response.status(500).json(errorResponse);
-    }
-  });
-
-  api.get('/api/envs/:env/traces', async (request, response, next) => {
-    const { env } = request.params;
-    const { limit, continuationToken } = request.query;
-    logger.debug(`Fetching traces for env \`${env}\`.`);
-    const tracestore = await registry.lookupTraceStore(env);
-    if (!tracestore) {
-      return response.status(500).send({
-        code: StatusCodes.FAILED_PRECONDITION,
-        message: `${env} trace store not found`,
-      });
-    }
-    // TODO: Remove try/catch when upgrading to Express 5; error is sent to `next` automatically
-    // in that version
-    try {
-      response.json(
-        await tracestore.list({
-          limit: limit ? parseInt(limit.toString()) : undefined,
-          continuationToken: continuationToken
-            ? continuationToken.toString()
-            : undefined,
-        })
-      );
-    } catch (err) {
-      const { message, stack } = err as Error;
-      next({ message, stack });
-    }
-  });
-
   api.use((err, req, res, next) => {
     logger.error(err.stack);
     const error = err as Error;

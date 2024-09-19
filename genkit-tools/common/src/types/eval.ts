@@ -152,7 +152,7 @@ export interface EvalStore {
  */
 export const DatasetMetadataSchema = z.object({
   /** unique. user-provided or auto-generated */
-  datasetId: z.string().optional(),
+  datasetId: z.string(),
   size: z.number(),
   /** 1 for v1, 2 for v2, etc */
   version: z.number(),
