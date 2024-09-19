@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-import { defineFlow } from '@genkit-ai/flow';
-import * as z from 'zod';
+import { defineFlow, z } from 'genkit';
 import { indexPdf } from './pdf_rag.js';
 import { indexPdfFirebase } from './pdf_rag_firebase.js';
 

@@ -20,7 +20,7 @@ import {
   EvaluatorAction,
   Score,
   defineEvaluator,
-} from '@genkit-ai/ai/evaluator';
+} from 'genkit/evaluator';
 import { ByoMetric } from '..';
 
 /** We allow multiple regex matchers to be defined. This is the prefix to use. */

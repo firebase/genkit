@@ -18,7 +18,7 @@ import { Action, defineAction } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { lookupAction } from '@genkit-ai/core/registry';
 import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
-import * as z from 'zod';
+import { z } from '@genkit-ai/core';
 
 export const ATTR_PREFIX = 'genkit';
 export const SPAN_STATE_ATTR = ATTR_PREFIX + ':state';

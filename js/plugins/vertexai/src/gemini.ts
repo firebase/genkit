@@ -28,12 +28,12 @@ import {
   ModelReference,
   Part,
   ToolDefinitionSchema,
-} from '@genkit-ai/ai/model';
+} from 'genkit/model';
 import {
   downloadRequestMedia,
   simulateSystemPrompt,
-} from '@genkit-ai/ai/model/middleware';
-import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
+} from 'genkit/model/middleware';
+import { GENKIT_CLIENT_HEADER, z } from 'genkit';
 import {
   Content,
   FunctionDeclaration,
@@ -47,7 +47,6 @@ import {
   StartChatParams,
   VertexAI,
 } from '@google-cloud/vertexai';
-import { z } from 'zod';
 import { PluginOptions } from './index.js';
 
 const SafetySettingsSchema = z.object({

@@ -14,10 +14,8 @@
  * limitations under the License.
  */
 
-import { defineDotprompt, prompt } from '@genkit-ai/dotprompt';
-import { defineFlow } from '@genkit-ai/flow';
 import { gemini15Flash } from '@genkit-ai/googleai';
-import * as z from 'zod';
+import { defineDotprompt, defineFlow, prompt, z } from 'genkit';
 import { HelloFullNameSchema, HelloSchema } from '../common/types.js';
 
 //
@@ -95,7 +93,6 @@ defineFlow(
     name: 'flowCodeDefinedPrompt',
     inputSchema: HelloSchema,
     outputSchema: z.string(),
-    streamSchema: z.string(),
   },
   async (input) => {
     const codeDefinedPrompt = await prompt('codeDefinedPrompt');

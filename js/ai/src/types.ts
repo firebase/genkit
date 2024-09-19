@@ -16,7 +16,7 @@
 
 import { Action } from '@genkit-ai/core';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import { z } from 'zod';
+import { z } from '@genkit-ai/core';
 
 export const ModelIdSchema = z.object({
   modelProvider: z.string().readonly(),

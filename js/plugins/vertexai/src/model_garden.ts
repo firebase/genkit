@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-import { GenerateRequest, ModelAction, modelRef } from '@genkit-ai/ai/model';
-import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
+import { GENKIT_CLIENT_HEADER, z } from 'genkit';
+import { GenerateRequest, ModelAction, modelRef } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import OpenAI from 'openai';
-
-import z from 'zod';
 import {
   openaiCompatibleModel,
   OpenAIConfigSchema,

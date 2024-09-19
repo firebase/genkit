@@ -35,7 +35,7 @@ import {
 } from '@genkit-ai/core/tracing';
 import { createHash } from 'crypto';
 import fm, { FrontMatterResult } from 'front-matter';
-import z from 'zod';
+import { z } from '@genkit-ai/core';
 import {
   PromptFrontmatter,
   PromptMetadata,

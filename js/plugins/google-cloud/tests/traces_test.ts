@@ -14,17 +14,15 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow, run } from '@genkit-ai/flow';
 import {
+  googleCloud,
   __forceFlushSpansForTesting,
   __getSpanExporterForTesting,
-  googleCloud,
 } from '@genkit-ai/google-cloud';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import { configureGenkit, defineFlow, run, z } from 'genkit';
 import assert from 'node:assert';
 import { before, beforeEach, describe, it } from 'node:test';
-import { z } from 'zod';
 
 describe('GoogleCloudTracing', () => {
   before(async () => {

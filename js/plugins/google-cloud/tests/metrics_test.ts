@@ -14,16 +14,12 @@
  * limitations under the License.
  */
 
-import { generate, GenerateResponseData } from '@genkit-ai/ai';
-import { defineModel } from '@genkit-ai/ai/model';
-import { configureGenkit, defineAction } from '@genkit-ai/core';
-import { defineFlow, run } from '@genkit-ai/flow';
 import {
+  GcpOpenTelemetry,
+  googleCloud,
   __forceFlushSpansForTesting,
   __getMetricExporterForTesting,
   __getSpanExporterForTesting,
-  GcpOpenTelemetry,
-  googleCloud,
 } from '@genkit-ai/google-cloud';
 import {
   DataPoint,
@@ -33,9 +29,18 @@ import {
   SumMetricData,
 } from '@opentelemetry/sdk-metrics';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import {
+  configureGenkit,
+  defineAction,
+  defineFlow,
+  generate,
+  GenerateResponseData,
+  run,
+  z,
+} from 'genkit';
+import { defineModel } from 'genkit/model';
 import assert from 'node:assert';
 import { before, beforeEach, describe, it } from 'node:test';
-import { z } from 'zod';
 
 describe('GoogleCloudMetrics', () => {
   before(async () => {

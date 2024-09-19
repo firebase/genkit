@@ -33,7 +33,7 @@ import { SpanStatusCode } from '@opentelemetry/api';
 import * as bodyParser from 'body-parser';
 import { default as cors, CorsOptions } from 'cors';
 import express from 'express';
-import * as z from 'zod';
+import { z } from '@genkit-ai/core';
 import { getErrorMessage, getErrorStack } from './errors.js';
 import { FlowActionInputSchema } from './types.js';
 import { metadataPrefix, runWithAuthContext } from './utils.js';

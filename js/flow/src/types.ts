@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { z } from 'zod';
+import { z } from '@genkit-ai/core';
 
 /**
  * The message format used by the flow task queue and control interface.

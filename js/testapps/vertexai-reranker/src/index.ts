@@ -16,14 +16,16 @@
 
 //  Sample app for using the proposed Vertex AI plugin retriever and indexer with a local file (just as a demo).
 
-import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
+import {
+  configureGenkit,
+  defineFlow,
+  Document,
+  rerank,
+  startFlowsServer,
+  z,
+} from 'genkit';
 // important imports for this sample:
-import { Document } from '@genkit-ai/ai/retriever';
 import { vertexAI } from '@genkit-ai/vertexai';
-// // Environment variables set with dotenv for simplicity of sample
-import { rerank } from '@genkit-ai/ai/reranker';
-import { z } from 'zod';
 import { LOCATION, PROJECT_ID } from './config';
 
 // Configure Genkit with Vertex AI plugin

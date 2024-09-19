@@ -27,8 +27,7 @@
   "author": "genkit",
   "license": "Apache-2.0",
   "peerDependencies": {
-    "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/core": "workspace:*"
+    "genkit": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.16",

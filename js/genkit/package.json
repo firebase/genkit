@@ -1,0 +1,186 @@
+{
+  "name": "genkit",
+  "description": "Genkit AI framework",
+  "keywords": [
+    "genkit",
+    "ai",
+    "genai",
+    "generative-ai"
+  ],
+  "version": "0.6.0-dev.1",
+  "type": "commonjs",
+  "main": "./lib/cjs/index.js",
+  "scripts": {
+    "check": "tsc",
+    "compile": "tsup-node",
+    "build:clean": "rm -rf ./lib",
+    "build": "npm-run-all build:clean check compile",
+    "build:watch": "tsup-node --watch",
+    "test": "node --import tsx --test tests/*_test.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/firebase/genkit.git",
+    "directory": "js/flow"
+  },
+  "author": "genkit",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@genkit-ai/core": "workspace:*",
+    "@genkit-ai/ai": "workspace:*",
+    "@genkit-ai/flow": "workspace:*",
+    "@genkit-ai/dotprompt": "workspace:*",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/uuid": "^9.0.6",
+    "npm-run-all": "^4.1.5",
+    "tsup": "^8.0.2",
+    "typescript": "^4.9.0",
+    "tsx": "^4.7.1",
+    "@types/body-parser": "^1.19.5"
+  },
+  "files": [
+    "genkit-ui",
+    "lib",
+    "src",
+    "*"
+  ],
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "require": "./lib/index.js",
+      "import": "./lib/index.mjs",
+      "default": "./lib/index.js"
+    },
+    "./registry": {
+      "types": "./lib/registry.d.ts",
+      "require": "./lib/registry.js",
+      "import": "./lib/registry.mjs",
+      "default": "./lib/registry.js"
+    },
+    "./tracing": {
+      "types": "./lib/tracing.d.ts",
+      "require": "./lib/tracing.js",
+      "import": "./lib/tracing.mjs",
+      "default": "./lib/tracing.js"
+    },
+    "./logging": {
+      "types": "./lib/logging.d.ts",
+      "require": "./lib/logging.js",
+      "import": "./lib/logging.mjs",
+      "default": "./lib/logging.js"
+    },
+    "./schema": {
+      "types": "./lib/schema.d.ts",
+      "require": "./lib/schema.js",
+      "import": "./lib/schema.mjs",
+      "default": "./lib/schema.js"
+    },
+    "./retriever": {
+      "types": "./lib/retriever.d.ts",
+      "require": "./lib/retriever.js",
+      "import": "./lib/retriever.mjs",
+      "default": "./lib/retriever.js"
+    },
+    "./reranker": {
+      "types": "./lib/reranker.d.ts",
+      "require": "./lib/reranker.js",
+      "import": "./lib/reranker.mjs",
+      "default": "./lib/reranker.js"
+    },
+    "./embedder": {
+      "types": "./lib/embedder.d.ts",
+      "require": "./lib/embedder.js",
+      "import": "./lib/embedder.mjs",
+      "default": "./lib/embedder.js"
+    },
+    "./evaluator": {
+      "types": "./lib/evaluator.d.ts",
+      "require": "./lib/evaluator.js",
+      "import": "./lib/evaluator.mjs",
+      "default": "./lib/evaluator.js"
+    },
+    "./model": {
+      "types": "./lib/model.d.ts",
+      "require": "./lib/model.js",
+      "import": "./lib/model.mjs",
+      "default": "./lib/model.js"
+    },
+    "./model/middleware": {
+      "types": "./lib/middleware.d.ts",
+      "require": "./lib/middleware.js",
+      "import": "./lib/middleware.mjs",
+      "default": "./lib/middleware.js"
+    },
+    "./extract": {
+      "types": "./lib/extract.d.ts",
+      "require": "./lib/extract.js",
+      "import": "./lib/extract.mjs",
+      "default": "./lib/extract.js"
+    },
+    "./testing": {
+      "types": "./lib/testing.d.ts",
+      "require": "./lib/testing.js",
+      "import": "./lib/testing.mjs",
+      "default": "./lib/testing.js"
+    },
+    "./tool": {
+      "types": "./lib/tool.d.ts",
+      "require": "./lib/tool.js",
+      "import": "./lib/tool.mjs",
+      "default": "./lib/tool.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "metrics": [
+        "lib/metrics"
+      ],
+      "registry": [
+        "lib/registry"
+      ],
+      "tracing": [
+        "lib/tracing"
+      ],
+      "logging": [
+        "lib/logging"
+      ],
+      "config": [
+        "lib/config"
+      ],
+      "runtime": [
+        "lib/runtime"
+      ],
+      "schema": [
+        "lib/schema"
+      ],
+      "retriever": [
+        "lib/retriever"
+      ],
+      "embedder": [
+        "lib/embedder"
+      ],
+      "evaluator": [
+        "lib/evaluator"
+      ],
+      "model": [
+        "lib/model"
+      ],
+      "model/middleware": [
+        "lib/middleware"
+      ],
+      "extract": [
+        "lib/extract"
+      ],
+      "testing": [
+        "lib/testing"
+      ],
+      "tool": [
+        "lib/tool"
+      ]
+    }
+  }
+}

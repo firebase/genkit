@@ -30,19 +30,21 @@ import {
 } from '@anthropic-ai/sdk/resources/messages';
 import { AnthropicVertex } from '@anthropic-ai/vertex-sdk';
 import {
-  CandidateData,
   GenerateRequest,
   GenerateResponseData,
-  GenerationCommonConfigSchema,
-  Part as GenkitPart,
+  GENKIT_CLIENT_HEADER,
   ModelReference,
+  Part as GenkitPart,
   Part,
+  z,
+} from 'genkit';
+import {
+  CandidateData,
   defineModel,
+  GenerationCommonConfigSchema,
   getBasicUsageStats,
   modelRef,
-} from '@genkit-ai/ai/model';
-import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
-import z from 'zod';
+} from 'genkit/model';
 
 export const AnthropicConfigSchema = GenerationCommonConfigSchema.extend({
   location: z.string().optional(),

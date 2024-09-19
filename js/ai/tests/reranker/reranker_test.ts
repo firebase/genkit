@@ -17,7 +17,7 @@
 import { GenkitError } from '@genkit-ai/core';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import * as z from 'zod';
+import { z } from '@genkit-ai/core';
 import { defineReranker, rerank } from '../../src/reranker';
 import { Document } from '../../src/retriever';
 

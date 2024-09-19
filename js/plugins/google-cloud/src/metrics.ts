@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { PathMetadata } from '@genkit-ai/core/tracing';
+import { PathMetadata } from 'genkit/tracing';
 import { Counter, Histogram, Meter, metrics } from '@opentelemetry/api';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 

@@ -16,7 +16,7 @@
 
 import { Action, defineAction, JSONSchema7 } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
-import z from 'zod';
+import { z } from '@genkit-ai/core';
 import { DocumentData } from './document.js';
 import { GenerateOptions } from './generate.js';
 import {

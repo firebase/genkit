@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
+import { GENKIT_CLIENT_HEADER } from 'genkit';
 import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from '.';
 

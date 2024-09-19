@@ -33,12 +33,10 @@
   "dependencies": {
     "@google/generative-ai": "^0.16.0",
     "google-auth-library": "^9.6.3",
-    "node-fetch": "^3.3.2",
-    "zod": "^3.22.4"
+    "node-fetch": "^3.3.2"
   },
   "peerDependencies": {
-    "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/core": "workspace:*"
+    "genkit": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.11.16",

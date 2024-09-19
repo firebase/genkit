@@ -14,28 +14,27 @@
  * limitations under the License.
  */
 
+import { ValueType } from '@opentelemetry/api';
+import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import { createHash } from 'crypto';
 import {
   GenerateRequestData,
   GenerateResponseData,
   GenerationUsage,
+  GENKIT_VERSION,
   MediaPart,
   Part,
   ToolRequestPart,
   ToolResponsePart,
-} from '@genkit-ai/ai';
-import { GENKIT_VERSION } from '@genkit-ai/core';
-import { logger } from '@genkit-ai/core/logging';
-import { PathMetadata, toDisplayPath } from '@genkit-ai/core/tracing';
-import { ValueType } from '@opentelemetry/api';
-import { createHash } from 'crypto';
+} from 'genkit';
+import { logger } from 'genkit/logging';
+import { PathMetadata, toDisplayPath } from 'genkit/tracing';
 import {
+  internalMetricNamespaceWrap,
   MetricCounter,
   MetricHistogram,
-  internalMetricNamespaceWrap,
+  Telemetry,
 } from '../metrics';
-
-import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
-import { Telemetry } from '../metrics';
 import {
   createCommonLogAttributes,
   extractErrorName,

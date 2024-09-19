@@ -14,21 +14,18 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
-import { defineModel, GenerateResponseData } from '@genkit-ai/ai/model';
-import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow, run } from '@genkit-ai/flow';
 import {
+  googleCloud,
   __addTransportStreamForTesting,
   __forceFlushSpansForTesting,
   __getSpanExporterForTesting,
-  googleCloud,
 } from '@genkit-ai/google-cloud';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import { configureGenkit, defineFlow, generate, run, z } from 'genkit';
+import { defineModel, GenerateResponseData } from 'genkit/model';
 import assert from 'node:assert';
 import { before, beforeEach, describe, it } from 'node:test';
 import { Writable } from 'stream';
-import { z } from 'zod';
 
 describe('GoogleCloudLogs no I/O', () => {
   let logLines = '';

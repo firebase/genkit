@@ -18,7 +18,7 @@ import { __hardResetConfigForTesting } from '@genkit-ai/core';
 import { __hardResetRegistryForTesting } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
-import { z } from 'zod';
+import { z } from '@genkit-ai/core';
 import { defineFlow, defineStreamingFlow } from '../src/flow.js';
 
 function createTestFlow() {

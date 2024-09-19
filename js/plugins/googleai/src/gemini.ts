@@ -15,6 +15,24 @@
  */
 
 import {
+  Content as GeminiMessage,
+  FileDataPart,
+  FunctionCallPart,
+  FunctionDeclaration,
+  FunctionDeclarationSchemaType,
+  FunctionResponsePart,
+  GenerateContentCandidate as GeminiCandidate,
+  GenerateContentResponse,
+  GenerationConfig,
+  GoogleGenerativeAI,
+  InlineDataPart,
+  Part as GeminiPart,
+  RequestOptions,
+  StartChatParams,
+  Tool,
+} from '@google/generative-ai';
+import { GENKIT_CLIENT_HEADER, z } from 'genkit';
+import {
   CandidateData,
   defineModel,
   GenerationCommonConfigSchema,
@@ -29,31 +47,12 @@ import {
   ToolDefinitionSchema,
   ToolRequestPart,
   ToolResponsePart,
-} from '@genkit-ai/ai/model';
+} from 'genkit/model';
 import {
   downloadRequestMedia,
   simulateSystemPrompt,
-} from '@genkit-ai/ai/model/middleware';
-import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
-import {
-  FileDataPart,
-  FunctionCallPart,
-  FunctionDeclaration,
-  FunctionDeclarationSchemaType,
-  FunctionResponsePart,
-  GenerateContentCandidate as GeminiCandidate,
-  Content as GeminiMessage,
-  Part as GeminiPart,
-  GenerateContentResponse,
-  GenerationConfig,
-  GoogleGenerativeAI,
-  InlineDataPart,
-  RequestOptions,
-  StartChatParams,
-  Tool,
-} from '@google/generative-ai';
+} from 'genkit/model/middleware';
 import process from 'process';
-import z from 'zod';
 
 const SafetySettingsSchema = z.object({
   category: z.enum([

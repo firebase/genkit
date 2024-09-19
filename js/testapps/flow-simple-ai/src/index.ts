@@ -14,16 +14,12 @@
  * limitations under the License.
  */
 
-import { defineTool, generate, generateStream, retrieve } from '@genkit-ai/ai';
-import { configureGenkit } from '@genkit-ai/core';
-import { dotprompt, prompt } from '@genkit-ai/dotprompt';
 import { defineFirestoreRetriever, firebase } from '@genkit-ai/firebase';
-import { defineFlow, run } from '@genkit-ai/flow';
 import { googleCloud } from '@genkit-ai/google-cloud';
 import {
   gemini15Flash,
-  googleAI,
   geminiPro as googleGeminiPro,
+  googleAI,
 } from '@genkit-ai/googleai';
 import {
   gemini15ProPreview,
@@ -31,11 +27,25 @@ import {
   textEmbeddingGecko,
   vertexAI,
 } from '@genkit-ai/vertexai';
+import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import {
+  configureGenkit,
+  defineFlow,
+  defineStreamingFlow,
+  defineTool,
+  dotprompt,
+  generate,
+  generateStream,
+  MessageSchema,
+  prompt,
+  retrieve,
+  run,
+  z,
+} from 'genkit';
 import { Allow, parse } from 'partial-json';
-import * as z from 'zod';
 
 configureGenkit({
   plugins: [
@@ -114,7 +124,7 @@ export const drawPictureFlow = defineFlow(
   }
 );
 
-export const streamFlow = defineFlow(
+export const streamFlow = defineStreamingFlow(
   {
     name: 'streamFlow',
     inputSchema: z.string(),
@@ -152,7 +162,7 @@ const GameCharactersSchema = z.object({
     .describe('Characters'),
 });
 
-export const streamJsonFlow = defineFlow(
+export const streamJsonFlow = defineStreamingFlow(
   {
     name: 'streamJsonFlow',
     inputSchema: z.number(),
@@ -378,10 +388,11 @@ const jokeSubjectGenerator = defineTool(
   }
 );
 
-export const toolCaller = defineFlow(
+export const toolCaller = defineStreamingFlow(
   {
     name: 'toolCaller',
     outputSchema: z.string(),
+    streamSchema: z.any(),
   },
   async (_, streamingCallback) => {
     if (!streamingCallback) {
@@ -428,8 +439,6 @@ export const invalidOutput = defineFlow(
   }
 );
 
-import { MessageSchema } from '@genkit-ai/ai/model';
-import { GoogleAIFileManager } from '@google/generative-ai/server';
 const fileManager = new GoogleAIFileManager(
   process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY!
 );

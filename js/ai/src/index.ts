@@ -14,6 +14,15 @@
  * limitations under the License.
  */
 
+export { Document, DocumentData, DocumentDataSchema } from './document.js';
+export {
+  embed,
+  embedderRef,
+  type EmbedderAction,
+  type EmbedderArgument,
+  type EmbedderInfo,
+  type EmbedderReference,
+} from './embedder.js';
 export {
   evaluate,
   evaluatorRef,
@@ -23,11 +32,11 @@ export {
 } from './evaluator.js';
 export {
   Candidate,
+  generate,
   GenerateResponse,
+  generateStream,
   Message,
   NoValidCandidatesError,
-  generate,
-  generateStream,
   toGenerateRequest,
   type GenerateOptions,
   type GenerateStreamOptions,
@@ -39,22 +48,44 @@ export {
   GenerateResponseData,
   GenerationUsage,
   MediaPart,
+  MessageData,
+  MessageSchema,
+  ModelArgument,
+  ModelReference,
   Part,
+  PartSchema,
+  Role,
+  RoleSchema,
   ToolRequestPart,
   ToolResponsePart,
 } from './model.js';
 export { definePrompt, renderPrompt, type PromptAction } from './prompt.js';
+export {
+  rerank,
+  rerankerRef,
+  type RerankerAction,
+  type RerankerArgument,
+  type RerankerInfo,
+  type RerankerReference,
+} from './reranker.js';
 export {
   index,
   indexerRef,
   retrieve,
   retrieverRef,
   type IndexerAction,
+  type IndexerArgument,
   type IndexerInfo,
   type IndexerReference,
   type RetrieverAction,
+  type RetrieverArgument,
   type RetrieverInfo,
   type RetrieverReference,
 } from './retriever.js';
-export { asTool, defineTool, type ToolAction } from './tool.js';
+export {
+  asTool,
+  defineTool,
+  type ToolAction,
+  type ToolArgument,
+} from './tool.js';
 export * from './types.js';

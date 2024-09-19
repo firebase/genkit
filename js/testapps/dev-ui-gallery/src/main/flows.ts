@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-import { defineFlow, defineStreamingFlow, run, runMap } from '@genkit-ai/flow';
-import * as z from 'zod';
+import { defineFlow, defineStreamingFlow, run, z } from 'genkit';
 import { generateString } from '../common/util';
 
 //
@@ -85,21 +84,6 @@ defineStreamingFlow(
     return `done: ${count}, streamed: ${i - 1} times`;
   }
 );
-
-//
-// Flow - runMap
-//
-
-defineFlow({ name: 'flowRunMap', outputSchema: z.string() }, async () => {
-  const originalValues = await run('generator', async () => {
-    return ['a', 'b', 'c', 'd'];
-  });
-  const newValues = await runMap('map', originalValues, async (f) => {
-    return 'mapped-' + f;
-  });
-
-  return newValues.join(', ');
-});
 
 //
 // Flow - throws

@@ -14,23 +14,17 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
-import { retrieve } from '@genkit-ai/ai/retriever';
 import { defineFirestoreRetriever } from '@genkit-ai/firebase';
-import { defineFlow, run } from '@genkit-ai/flow';
 import { geminiPro } from '@genkit-ai/googleai';
+import { textEmbeddingGecko } from '@genkit-ai/vertexai';
+import { FieldValue } from '@google-cloud/firestore';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { readFile } from 'fs/promises';
+import { defineFlow, embed, generate, retrieve, run, z } from 'genkit';
 import { chunk } from 'llm-chunk';
 import path from 'path';
-
 import pdf from 'pdf-parse';
-
-import { embed } from '@genkit-ai/ai/embedder';
-import { textEmbeddingGecko } from '@genkit-ai/vertexai';
-import { FieldValue } from '@google-cloud/firestore';
-import * as z from 'zod';
 
 const app = initializeApp();
 let firestore = getFirestore(app);

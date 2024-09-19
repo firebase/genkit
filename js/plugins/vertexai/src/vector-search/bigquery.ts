@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { Document, DocumentDataSchema } from '@genkit-ai/ai/retriever';
-import { logger } from '@genkit-ai/core/logging';
 import { BigQuery, QueryRowsResponse } from '@google-cloud/bigquery';
-import { ZodError } from 'zod';
+import { z } from 'genkit';
+import { Document, DocumentDataSchema } from 'genkit/retriever';
+import { logger } from 'genkit/logging';
 import { DocumentIndexer, DocumentRetriever, Neighbor } from './types';
 
 /**
@@ -80,7 +80,7 @@ export const getBigQueryDocumentRetriever = (
         const id = row.id;
         const errorPrefix = `Failed to parse document data for document with ID ${id}:`;
 
-        if (error instanceof ZodError || error instanceof Error) {
+        if (error instanceof z.ZodError || error instanceof Error) {
           logger.warn(`${errorPrefix} ${error.message}`);
         } else {
           logger.warn(errorPrefix);

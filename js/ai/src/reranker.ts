@@ -16,7 +16,7 @@
 
 import { Action, defineAction } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
-import * as z from 'zod';
+import { z } from '@genkit-ai/core';
 import { Part, PartSchema } from './document.js';
 import { Document, DocumentData, DocumentDataSchema } from './retriever.js';
 

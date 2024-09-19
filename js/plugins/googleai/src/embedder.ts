@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { defineEmbedder, embedderRef } from '@genkit-ai/ai/embedder';
+import { defineEmbedder, embedderRef } from 'genkit/embedder';
 import { EmbedContentRequest, GoogleGenerativeAI } from '@google/generative-ai';
-import { string, z } from 'zod';
+import { z } from 'genkit';
 import { PluginOptions } from './index.js';
 
 export const TaskTypeSchema = z.enum([
@@ -34,7 +34,7 @@ export const TextEmbeddingGeckoConfigSchema = z.object({
    * produce better quality embeddings.
    **/
   taskType: TaskTypeSchema.optional(),
-  title: string().optional(),
+  title: z.string().optional(),
 });
 
 export type TextEmbeddingGeckoConfig = z.infer<

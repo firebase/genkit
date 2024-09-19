@@ -14,11 +14,17 @@
  * limitations under the License.
  */
 
-import { configureGenkit, defineSchema } from '@genkit-ai/core';
-import { defineHelper, dotprompt, prompt } from '@genkit-ai/dotprompt';
-import { defineFlow } from '@genkit-ai/flow';
 import { googleAI } from '@genkit-ai/googleai';
-import * as z from 'zod';
+import {
+  configureGenkit,
+  defineFlow,
+  defineStreamingFlow,
+  defineHelper,
+  defineSchema,
+  dotprompt,
+  prompt,
+  z,
+} from 'genkit';
 
 configureGenkit({
   plugins: [googleAI(), dotprompt()],
@@ -88,7 +94,7 @@ prompt('recipe', { variant: 'robot' }).then((recipePrompt) => {
 // A variation that supports streaming, optionally
 
 prompt('story').then((storyPrompt) => {
-  defineFlow(
+  defineStreamingFlow(
     {
       name: 'tellStory',
       inputSchema: z.object({

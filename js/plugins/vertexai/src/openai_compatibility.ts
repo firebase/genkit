@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Message } from '@genkit-ai/ai';
+import { Message, StreamingCallback, z } from 'genkit';
 import {
   defineModel,
   GenerateResponseChunkData,
@@ -29,8 +29,7 @@ import {
   type Role,
   type ToolDefinition,
   type ToolRequestPart,
-} from '@genkit-ai/ai/model';
-import { StreamingCallback } from '@genkit-ai/core';
+} from 'genkit/model';
 import OpenAI from 'openai';
 import {
   type ChatCompletion,
@@ -43,7 +42,6 @@ import {
   type ChatCompletionTool,
   type CompletionChoice,
 } from 'openai/resources/index.mjs';
-import z from 'zod';
 
 export const OpenAIConfigSchema = GenerationCommonConfigSchema.extend({
   frequencyPenalty: z.number().min(-2).max(2).optional(),

@@ -18,7 +18,7 @@ import { Action, defineAction, JSONSchema7 } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
-import z from 'zod';
+import { z } from '@genkit-ai/core';
 import { ToolDefinition } from './model.js';
 
 export type ToolAction<

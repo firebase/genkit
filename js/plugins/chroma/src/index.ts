@@ -14,29 +14,33 @@
  * limitations under the License.
  */
 
-import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
-import {
-  CommonRetrieverOptionsSchema,
-  defineIndexer,
-  defineRetriever,
-  Document,
-  indexerRef,
-  retrieverRef,
-} from '@genkit-ai/ai/retriever';
-import { genkitPlugin, PluginProvider } from '@genkit-ai/core';
 import {
   ChromaClient,
+  ChromaClientParams as NativeChromaClientParams,
   Collection,
   CollectionMetadata,
   IEmbeddingFunction,
   IncludeEnum,
   Metadata,
-  ChromaClientParams as NativeChromaClientParams,
   Where,
   WhereDocument,
 } from 'chromadb';
+import {
+  Document,
+  embed,
+  EmbedderArgument,
+  genkitPlugin,
+  indexerRef,
+  PluginProvider,
+  retrieverRef,
+  z,
+} from 'genkit';
+import {
+  CommonRetrieverOptionsSchema,
+  defineIndexer,
+  defineRetriever,
+} from 'genkit/retriever';
 import { Md5 } from 'ts-md5';
-import * as z from 'zod';
 
 export { IncludeEnum };
 

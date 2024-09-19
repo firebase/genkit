@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-import { Action, defineAction } from '@genkit-ai/core';
+import { Action, defineAction, z } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
-import * as z from 'zod';
 import { Document, DocumentData, DocumentDataSchema } from './document.js';
 
 export type EmbeddingBatch = { embedding: number[] }[];

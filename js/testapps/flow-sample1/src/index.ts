@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import {
+  configureGenkit,
   defineFlow,
   defineStreamingFlow,
   run,
   startFlowsServer,
-} from '@genkit-ai/flow';
-import * as z from 'zod';
+  z,
+} from 'genkit';
 
 configureGenkit({
   plugins: [firebase()],

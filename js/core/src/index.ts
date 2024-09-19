@@ -25,3 +25,4 @@ export { GenkitError } from './error.js';
 export * from './flowTypes.js';
 export { defineJsonSchema, defineSchema } from './schema.js';
 export * from './telemetryTypes.js';
+export { z } from 'zod';

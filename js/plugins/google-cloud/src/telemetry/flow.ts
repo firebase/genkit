@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-import { GENKIT_VERSION } from '@genkit-ai/core';
-import { logger } from '@genkit-ai/core/logging';
-import { PathMetadata, toDisplayPath } from '@genkit-ai/core/tracing';
 import { ValueType } from '@opentelemetry/api';
 import { hrTimeDuration, hrTimeToMilliseconds } from '@opentelemetry/core';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import { GENKIT_VERSION } from 'genkit';
+import { logger } from 'genkit/logging';
+import { PathMetadata, toDisplayPath } from 'genkit/tracing';
 import {
+  internalMetricNamespaceWrap,
   MetricCounter,
   MetricHistogram,
   Telemetry,
-  internalMetricNamespaceWrap,
 } from '../metrics';
 import {
   createCommonLogAttributes,

@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-import { defineTool } from '@genkit-ai/ai';
-import * as z from 'zod';
+import { defineTool, z } from 'genkit';
 import { MenuItemSchema } from '../types.js';
 
 import menuData from '../../data/menu.json' assert { type: 'json' };
