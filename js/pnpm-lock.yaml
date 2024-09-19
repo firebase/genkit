@@ -433,6 +433,9 @@ importers:
       prettier-plugin-organize-imports:
         specifier: ^3.2.4
         version: 3.2.4(prettier@3.2.5)(typescript@4.9.5)
+      truncate-utf8-bytes:
+        specifier: ^1.0.2
+        version: 1.0.2
       winston:
         specifier: ^3.12.0
         version: 3.13.0
@@ -1732,8 +1735,8 @@ packages:
     peerDependencies:
       winston: '>=3.2.1'
 
-  '@google-cloud/logging@11.0.0':
-    resolution: {integrity: sha512-uQeReiVICoV5yt9J/cczNxHxqzTkLLG7yGHXCMAk/wQNVZGevT4Bi7CBWpt0aXxm044a76Aj6V08cCAlBj7UZw==}
+  '@google-cloud/logging@11.2.0':
+    resolution: {integrity: sha512-Ma94jvuoMpbgNniwtelOt8w82hxK62FuOXZonEv0Hyk3B+/YVuLG/SWNyY9yMso/RXnPEc1fP2qo9kDrjf/b2w==}
     engines: {node: '>=14.0.0'}
 
   '@google-cloud/opentelemetry-cloud-monitoring-exporter@0.19.0':
@@ -5025,6 +5028,9 @@ packages:
     resolution: {integrity: sha512-aZbgViZrg1QNcG+LULa7nhZpJTZSLm/mXnHXnbAbjmN5aSa0y7V+wvv6+4WaBtpISJzThKy+PIPxc1Nq1EJ9mg==}
     engines: {node: '>= 14.0.0'}
 
+  truncate-utf8-bytes@1.0.2:
+    resolution: {integrity: sha512-95Pu1QXQvruGEhv62XCMO3Mm90GscOCClvrIUwCM0PYOXK3kaF3l3sIHxx71ThJfcbM2O5Au6SO3AWCSEfW4mQ==}
+
   ts-interface-checker@0.1.13:
     resolution: {integrity: sha512-Y/arvbn+rrz3JCKl9C4kVNfTfSm2/mEp5FSz5EsZSANGPSlQrpRI5M4PKF+mJnE52jOO90PnPSc3Ur3bTQw0gA==}
 
@@ -5125,6 +5131,9 @@ packages:
 
   url-template@2.0.8:
     resolution: {integrity: sha512-XdVKMF4SJ0nP/O7XIPB0JwAEuT9lDIYnNsK8yGVe43y0AWoKeJNdv3ZNWh7ksJ6KqQFjOO6ox/VEitLnaVNufw==}
+
+  utf8-byte-length@1.0.5:
+    resolution: {integrity: sha512-Xn0w3MtiQ6zoz2vFyUVruaCL53O/DwUvkEeOvj+uulMm0BkUGYWmBYVyElqZaSLhY6ZD0ulfU3aBra2aVT4xfA==}
 
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
@@ -5514,7 +5523,7 @@ snapshots:
 
   '@google-cloud/logging-winston@6.0.0(encoding@0.1.13)(winston@3.13.0)':
     dependencies:
-      '@google-cloud/logging': 11.0.0(encoding@0.1.13)
+      '@google-cloud/logging': 11.2.0(encoding@0.1.13)
       google-auth-library: 9.7.0(encoding@0.1.13)
       lodash.mapvalues: 4.6.0
       winston: 3.13.0
@@ -5523,19 +5532,20 @@ snapshots:
       - encoding
       - supports-color
 
-  '@google-cloud/logging@11.0.0(encoding@0.1.13)':
+  '@google-cloud/logging@11.2.0(encoding@0.1.13)':
     dependencies:
       '@google-cloud/common': 5.0.1(encoding@0.1.13)
-      '@google-cloud/paginator': 5.0.0
+      '@google-cloud/paginator': 5.0.2
       '@google-cloud/projectify': 4.0.0
       '@google-cloud/promisify': 4.0.0
+      '@opentelemetry/api': 1.9.0
       arrify: 2.0.1
       dot-prop: 6.0.1
       eventid: 2.0.1
       extend: 3.0.2
       gcp-metadata: 6.1.0(encoding@0.1.13)
       google-auth-library: 9.11.0(encoding@0.1.13)
-      google-gax: 4.3.2(encoding@0.1.13)
+      google-gax: 4.3.7(encoding@0.1.13)
       on-finished: 2.4.1
       pumpify: 2.0.1
       stream-events: 1.0.5
@@ -5596,6 +5606,7 @@ snapshots:
     dependencies:
       arrify: 2.0.1
       extend: 3.0.2
+    optional: true
 
   '@google-cloud/paginator@5.0.2':
     dependencies:
@@ -9187,6 +9198,10 @@ snapshots:
 
   triple-beam@1.4.1: {}
 
+  truncate-utf8-bytes@1.0.2:
+    dependencies:
+      utf8-byte-length: 1.0.5
+
   ts-interface-checker@0.1.13: {}
 
   ts-md5@1.3.1: {}
@@ -9292,6 +9307,8 @@ snapshots:
       punycode: 2.3.1
 
   url-template@2.0.8: {}
+
+  utf8-byte-length@1.0.5: {}
 
   util-deprecate@1.0.2: {}
 

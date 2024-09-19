@@ -48,6 +48,7 @@
     "google-auth-library": "^9.6.3",
     "node-fetch": "^3.3.2",
     "prettier-plugin-organize-imports": "^3.2.4",
+    "truncate-utf8-bytes": "^1.0.2",
     "winston": "^3.12.0",
     "zod": "^3.22.4"
   },

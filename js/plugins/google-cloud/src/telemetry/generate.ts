@@ -35,6 +35,7 @@ import {
 } from '../metrics';
 
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import truncate from 'truncate-utf8-bytes';
 import { Telemetry } from '../metrics';
 import {
   createCommonLogAttributes,
@@ -60,8 +61,10 @@ class GenerateTelemetry implements Telemetry {
    */
   private _N = internalMetricNamespaceWrap.bind(null, 'ai');
 
-  /** The maximum length (in characters) of a logged prompt message. */
-  private MAX_LOG_CONTENT_CHARS = 128_000;
+  /** The maximum length (in bytes) of a logged prompt message. The maximum log
+   * size in GCP is 256kb, so using slightly lower for some buffer for the rest
+   * of the message*/
+  private MAX_LOG_CONTENT_BYTES = 200_000;
 
   private actionCounter = new MetricCounter(this._N('generate/requests'), {
     description: 'Counts calls to genkit generate actions.',
@@ -384,7 +387,7 @@ class GenerateTelemetry implements Telemetry {
   }
 
   private toPartLogText(text: string): string {
-    return text.substring(0, this.MAX_LOG_CONTENT_CHARS);
+    return truncate(text, this.MAX_LOG_CONTENT_BYTES);
   }
 
   private toPartLogMedia(part: MediaPart): string {
