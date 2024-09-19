@@ -15,10 +15,9 @@
  */
 
 import { defineTool, generate, generateStream, retrieve } from '@genkit-ai/ai';
-import { configureGenkit } from '@genkit-ai/core';
+import { initializeGenkit, run } from '@genkit-ai/core';
 import { dotprompt, prompt } from '@genkit-ai/dotprompt';
 import { defineFirestoreRetriever, firebase } from '@genkit-ai/firebase';
-import { defineFlow, run } from '@genkit-ai/flow';
 import { googleCloud } from '@genkit-ai/google-cloud';
 import {
   gemini15Flash,
@@ -37,7 +36,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { Allow, parse } from 'partial-json';
 import * as z from 'zod';
 
-configureGenkit({
+const genkit = initializeGenkit({
   plugins: [
     firebase(),
     googleAI(),
@@ -73,7 +72,7 @@ configureGenkit({
 
 const app = initializeApp();
 
-export const jokeFlow = defineFlow(
+export const jokeFlow = genkit.defineFlow(
   {
     name: 'jokeFlow',
     inputSchema: z.object({
@@ -95,7 +94,7 @@ export const jokeFlow = defineFlow(
   }
 );
 
-export const drawPictureFlow = defineFlow(
+export const drawPictureFlow = genkit.defineFlow(
   {
     name: 'drawPictureFlow',
     inputSchema: z.object({ modelName: z.string(), object: z.string() }),
@@ -114,7 +113,7 @@ export const drawPictureFlow = defineFlow(
   }
 );
 
-export const streamFlow = defineFlow(
+export const streamFlow = genkit.defineStreamingFlow(
   {
     name: 'streamFlow',
     inputSchema: z.string(),
@@ -152,7 +151,7 @@ const GameCharactersSchema = z.object({
     .describe('Characters'),
 });
 
-export const streamJsonFlow = defineFlow(
+export const streamJsonFlow = genkit.defineStreamingFlow(
   {
     name: 'streamJsonFlow',
     inputSchema: z.number(),
@@ -208,7 +207,7 @@ const tools = [
   ),
 ];
 
-export const jokeWithToolsFlow = defineFlow(
+export const jokeWithToolsFlow = genkit.defineFlow(
   {
     name: 'jokeWithToolsFlow',
     inputSchema: z.object({
@@ -232,7 +231,7 @@ const outputSchema = z.object({
   joke: z.string(),
 });
 
-export const jokeWithOutputFlow = defineFlow(
+export const jokeWithOutputFlow = genkit.defineFlow(
   {
     name: 'jokeWithOutputFlow',
     inputSchema: z.object({
@@ -254,7 +253,7 @@ export const jokeWithOutputFlow = defineFlow(
   }
 );
 
-export const vertexStreamer = defineFlow(
+export const vertexStreamer = genkit.defineFlow(
   {
     name: 'vertexStreamer',
     inputSchema: z.string(),
@@ -273,7 +272,7 @@ export const vertexStreamer = defineFlow(
   }
 );
 
-export const multimodalFlow = defineFlow(
+export const multimodalFlow = genkit.defineFlow(
   {
     name: 'multimodalFlow',
     inputSchema: z.object({ modelName: z.string(), imageUrl: z.string() }),
@@ -300,7 +299,7 @@ const destinationsRetriever = defineFirestoreRetriever({
   vectorField: 'embedding',
 });
 
-export const searchDestinations = defineFlow(
+export const searchDestinations = genkit.defineFlow(
   {
     name: 'searchDestinations',
     inputSchema: z.string(),
@@ -326,7 +325,7 @@ Available Options:\n- ${docs.map((d) => `${d.metadata!.name}: ${d.text()}`).join
   }
 );
 
-export const dotpromptContext = defineFlow(
+export const dotpromptContext = genkit.defineFlow(
   {
     name: 'dotpromptContext',
     inputSchema: z.string(),
@@ -378,10 +377,11 @@ const jokeSubjectGenerator = defineTool(
   }
 );
 
-export const toolCaller = defineFlow(
+export const toolCaller = genkit.defineStreamingFlow(
   {
     name: 'toolCaller',
     outputSchema: z.string(),
+    streamSchema: z.any(),
   },
   async (_, streamingCallback) => {
     if (!streamingCallback) {
@@ -405,7 +405,7 @@ export const toolCaller = defineFlow(
   }
 );
 
-export const invalidOutput = defineFlow(
+export const invalidOutput = genkit.defineFlow(
   {
     name: 'invalidOutput',
     inputSchema: z.string(),
@@ -433,7 +433,7 @@ import { GoogleAIFileManager } from '@google/generative-ai/server';
 const fileManager = new GoogleAIFileManager(
   process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY!
 );
-export const fileApi = defineFlow(
+export const fileApi = genkit.defineFlow(
   {
     name: 'fileApi',
     inputSchema: z.string(),
@@ -485,7 +485,7 @@ export const testTools = [
   ),
 ];
 
-export const toolTester = defineFlow(
+export const toolTester = genkit.defineFlow(
   {
     name: 'toolTester',
     inputSchema: z.string(),

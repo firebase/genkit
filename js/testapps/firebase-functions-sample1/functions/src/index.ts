@@ -15,7 +15,7 @@
  */
 
 import { generate } from '@genkit-ai/ai';
-import { configureGenkit } from '@genkit-ai/core';
+import { initializeGenkit } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import { firebaseAuth } from '@genkit-ai/firebase/auth';
 import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
@@ -24,7 +24,7 @@ import { geminiPro, vertexAI } from '@genkit-ai/vertexai';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as z from 'zod';
 
-configureGenkit({
+const genkit = initializeGenkit({
   plugins: [firebase(), vertexAI()],
   flowStateStore: 'firebase',
   traceStore: 'firebase',
@@ -33,6 +33,7 @@ configureGenkit({
 });
 
 export const jokeFlow = onFlow(
+  genkit,
   {
     name: 'jokeFlow',
     inputSchema: z.string(),

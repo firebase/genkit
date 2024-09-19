@@ -16,10 +16,10 @@
 
 import {
   CallableFlow,
-  defineStreamingFlow,
   Flow,
   FlowAuthPolicy,
   FlowFn,
+  Genkit,
   StreamableFlow,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
@@ -72,10 +72,11 @@ export function onFlow<
   O extends z.ZodTypeAny,
   S extends z.ZodTypeAny,
 >(
+  genkit: Genkit,
   config: FunctionFlowConfig<I, O, S>,
   steps: FlowFn<I, O, S>
 ): StreamingFunctionFlow<I, O, S> {
-  const f = defineStreamingFlow(
+  const f = genkit.defineStreamingFlow(
     {
       ...config,
       authPolicy: config.authPolicy.policy,
@@ -83,7 +84,7 @@ export function onFlow<
     steps
   ).flow;
 
-  const wrapped = wrapHttpsFlow(f, config);
+  const wrapped = wrapHttpsFlow(genkit, f, config);
 
   const funcFlow = wrapped as StreamingFunctionFlow<I, O, S>;
   funcFlow.flow = f;
@@ -95,7 +96,11 @@ function wrapHttpsFlow<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
   S extends z.ZodTypeAny,
->(flow: Flow<I, O, S>, config: FunctionFlowConfig<I, O, S>): HttpsFunction {
+>(
+  genkit: Genkit,
+  flow: Flow<I, O, S>,
+  config: FunctionFlowConfig<I, O, S>
+): HttpsFunction {
   return onRequest(
     {
       ...config.httpsOptions,
@@ -126,7 +131,7 @@ function wrapHttpsFlow<
       }
 
       await config.authPolicy.provider(req, res, () =>
-        flow.expressHandler(req, res)
+        flow.expressHandler(genkit.registry, req, res)
       );
     }
   );

@@ -15,14 +15,14 @@
  */
 
 import { testModels } from '@genkit-ai/ai/testing';
-import { configureGenkit } from '@genkit-ai/core';
+import { initializeGenkit } from '@genkit-ai/core';
 import { googleAI } from '@genkit-ai/googleai';
 import { claude3Sonnet, llama31, vertexAI } from '@genkit-ai/vertexai';
 import * as clc from 'colorette';
 import { ollama } from 'genkitx-ollama';
 import { openAI } from 'genkitx-openai';
 
-configureGenkit({
+initializeGenkit({
   plugins: [
     googleAI(),
     vertexAI({

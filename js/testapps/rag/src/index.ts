@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
+import { initializeGenkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { dotprompt } from '@genkit-ai/dotprompt';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
@@ -43,7 +43,7 @@ async function getCloudRunAuthClient(aud: string) {
   return authClient;
 }
 
-export default configureGenkit({
+export const genkit = initializeGenkit({
   plugins: [
     dotprompt(),
     firebase(),

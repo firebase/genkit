@@ -16,8 +16,7 @@
 
 //  Sample app for using the proposed Vertex AI plugin retriever and indexer with Firestore.
 
-import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
+import { initializeGenkit } from '@genkit-ai/core';
 import { initializeApp } from 'firebase-admin/app';
 // important imports for this sample:
 import {
@@ -75,7 +74,7 @@ const firestoreDocumentIndexer: DocumentIndexer = getFirestoreDocumentIndexer(
 );
 
 // Configure Genkit with Vertex AI plugin
-configureGenkit({
+const genkit = initializeGenkit({
   plugins: [
     vertexAI({
       projectId: PROJECT_ID,
@@ -97,10 +96,13 @@ configureGenkit({
   ],
   logLevel: 'debug',
   enableTracingAndMetrics: true,
+  flowServer: {
+    runInEnv: 'all',
+  },
 });
 
 // // Define indexing flow
-export const indexFlow = defineFlow(
+export const indexFlow = genkit.defineFlow(
   {
     name: 'indexFlow',
     inputSchema: z.object({
@@ -122,7 +124,7 @@ export const indexFlow = defineFlow(
 );
 
 // Define query flow
-export const queryFlow = defineFlow(
+export const queryFlow = genkit.defineFlow(
   {
     name: 'queryFlow',
     inputSchema: z.object({
@@ -164,5 +166,3 @@ export const queryFlow = defineFlow(
     };
   }
 );
-
-startFlowsServer();
