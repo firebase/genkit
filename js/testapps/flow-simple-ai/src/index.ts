@@ -18,8 +18,8 @@ import { defineFirestoreRetriever, firebase } from '@genkit-ai/firebase';
 import { googleCloud } from '@genkit-ai/google-cloud';
 import {
   gemini15Flash,
-  geminiPro as googleGeminiPro,
   googleAI,
+  geminiPro as googleGeminiPro,
 } from '@genkit-ai/googleai';
 import {
   gemini15ProPreview,
@@ -32,6 +32,7 @@ import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import {
+  MessageSchema,
   configureGenkit,
   defineFlow,
   defineStreamingFlow,
@@ -39,7 +40,6 @@ import {
   dotprompt,
   generate,
   generateStream,
-  MessageSchema,
   prompt,
   retrieve,
   run,

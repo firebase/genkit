@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
+import { ModelReference, z } from 'genkit';
 import {
   BaseDataPoint,
   EvaluatorAction,
   defineEvaluator,
 } from 'genkit/evaluator';
-import { ModelReference, z } from 'genkit';
 import { ByoMetric } from '..';
 import { funninessScore } from './funniness';
 

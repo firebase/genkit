@@ -20,13 +20,13 @@ import {
   PineconeConfiguration,
   RecordMetadata,
 } from '@pinecone-database/pinecone';
-import { genkitPlugin, PluginProvider, z } from 'genkit';
-import { embed, EmbedderArgument } from 'genkit/embedder';
+import { PluginProvider, genkitPlugin, z } from 'genkit';
+import { EmbedderArgument, embed } from 'genkit/embedder';
 import {
   CommonRetrieverOptionsSchema,
+  Document,
   defineIndexer,
   defineRetriever,
-  Document,
   indexerRef,
   retrieverRef,
 } from 'genkit/retriever';

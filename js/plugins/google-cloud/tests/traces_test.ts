@@ -15,9 +15,9 @@
  */
 
 import {
-  googleCloud,
   __forceFlushSpansForTesting,
   __getSpanExporterForTesting,
+  googleCloud,
 } from '@genkit-ai/google-cloud';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { configureGenkit, defineFlow, run, z } from 'genkit';

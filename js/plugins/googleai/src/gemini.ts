@@ -15,18 +15,18 @@
  */
 
 import {
-  Content as GeminiMessage,
   FileDataPart,
   FunctionCallPart,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
   FunctionResponsePart,
   GenerateContentCandidate as GeminiCandidate,
+  Content as GeminiMessage,
+  Part as GeminiPart,
   GenerateContentResponse,
   GenerationConfig,
   GoogleGenerativeAI,
   InlineDataPart,
-  Part as GeminiPart,
   RequestOptions,
   StartChatParams,
   Tool,
@@ -34,19 +34,19 @@ import {
 import { GENKIT_CLIENT_HEADER, z } from 'genkit';
 import {
   CandidateData,
-  defineModel,
   GenerationCommonConfigSchema,
-  getBasicUsageStats,
   MediaPart,
   MessageData,
   ModelAction,
   ModelMiddleware,
-  modelRef,
   ModelReference,
   Part,
   ToolDefinitionSchema,
   ToolRequestPart,
   ToolResponsePart,
+  defineModel,
+  getBasicUsageStats,
+  modelRef,
 } from 'genkit/model';
 import {
   downloadRequestMedia,

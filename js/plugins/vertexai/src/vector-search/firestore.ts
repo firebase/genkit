@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { Document, DocumentDataSchema } from 'genkit';
 import { Firestore } from 'firebase-admin/firestore';
+import { Document, DocumentDataSchema } from 'genkit';
 import { DocumentIndexer, DocumentRetriever, Neighbor } from './types';
 /**
  * Creates a Firestore Document Retriever.

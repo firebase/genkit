@@ -19,8 +19,8 @@ import { GenerateRequest, ModelAction, modelRef } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import OpenAI from 'openai';
 import {
-  openaiCompatibleModel,
   OpenAIConfigSchema,
+  openaiCompatibleModel,
 } from './openai_compatibility.js';
 
 export const ModelGardenModelConfigSchema = OpenAIConfigSchema.extend({

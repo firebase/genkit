@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-export * from '@genkit-ai/core';
 export * from '@genkit-ai/ai';
-export * from '@genkit-ai/flow';
+export * from '@genkit-ai/core';
 export * from '@genkit-ai/dotprompt';
+export * from '@genkit-ai/flow';

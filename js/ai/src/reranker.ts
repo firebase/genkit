@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-import { Action, defineAction } from '@genkit-ai/core';
+import { Action, defineAction, z } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
-import { z } from '@genkit-ai/core';
 import { Part, PartSchema } from './document.js';
 import { Document, DocumentData, DocumentDataSchema } from './retriever.js';
 

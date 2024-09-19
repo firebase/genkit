@@ -15,7 +15,7 @@
  */
 
 import { Action, GENKIT_CLIENT_HEADER, z } from 'genkit';
-import { BaseDataPoint, defineEvaluator, Score } from 'genkit/evaluator';
+import { BaseDataPoint, Score, defineEvaluator } from 'genkit/evaluator';
 import { runInNewSpan } from 'genkit/tracing';
 import { GoogleAuth } from 'google-auth-library';
 import { VertexAIEvaluationMetricType } from './evaluation.js';

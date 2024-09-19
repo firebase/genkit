@@ -18,8 +18,8 @@ import assert from 'node:assert';
 import { describe, it } from 'node:test';
 
 import { defineModel } from '@genkit-ai/ai/model';
-import { toJsonSchema, ValidationError } from '@genkit-ai/core/schema';
 import { z } from '@genkit-ai/core';
+import { toJsonSchema, ValidationError } from '@genkit-ai/core/schema';
 import { registerPluginProvider } from '../../../core/src/registry.js';
 import { defineJsonSchema, defineSchema } from '../../../core/src/schema.js';
 import { defineDotprompt, Dotprompt, prompt, promptRef } from '../src/index.js';

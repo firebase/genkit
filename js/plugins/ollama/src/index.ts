@@ -15,6 +15,7 @@
  */
 
 import { genkitPlugin, Plugin } from 'genkit';
+import { logger } from 'genkit/logging';
 import {
   CandidateData,
   defineModel,
@@ -24,7 +25,6 @@ import {
   getBasicUsageStats,
   MessageData,
 } from 'genkit/model';
-import { logger } from 'genkit/logging';
 
 type ApiType = 'chat' | 'generate';
 

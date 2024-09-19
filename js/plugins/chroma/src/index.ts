@@ -16,22 +16,22 @@
 
 import {
   ChromaClient,
-  ChromaClientParams as NativeChromaClientParams,
   Collection,
   CollectionMetadata,
   IEmbeddingFunction,
   IncludeEnum,
   Metadata,
+  ChromaClientParams as NativeChromaClientParams,
   Where,
   WhereDocument,
 } from 'chromadb';
 import {
   Document,
-  embed,
   EmbedderArgument,
+  PluginProvider,
+  embed,
   genkitPlugin,
   indexerRef,
-  PluginProvider,
   retrieverRef,
   z,
 } from 'genkit';

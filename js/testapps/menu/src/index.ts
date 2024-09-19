@@ -54,6 +54,6 @@ export { s04_ragDataMenuPrompt } from './04/prompts.js';
 export {
   s05_readMenuFlow,
   s05_textMenuQuestionFlow,
-  s05_visionMenuQuestionFlow
+  s05_visionMenuQuestionFlow,
 } from './05/flows.js';
 export { s05_readMenuPrompt, s05_textMenuPrompt } from './05/prompts.js';

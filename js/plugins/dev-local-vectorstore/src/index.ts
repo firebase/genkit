@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+import similarity from 'compute-cosine-similarity';
+import * as fs from 'fs';
+import { genkitPlugin, PluginProvider, z } from 'genkit';
 import { embed, EmbedderArgument } from 'genkit/embedder';
 import {
   CommonRetrieverOptionsSchema,
@@ -24,9 +27,6 @@ import {
   indexerRef,
   retrieverRef,
 } from 'genkit/retriever';
-import { genkitPlugin, PluginProvider, z } from 'genkit';
-import similarity from 'compute-cosine-similarity';
-import * as fs from 'fs';
 import { Md5 } from 'ts-md5';
 
 const _LOCAL_FILESTORE = '__db_{INDEX_NAME}.json';

@@ -20,6 +20,7 @@ import {
   getStreamingCallback,
   Middleware,
   runWithStreamingCallback,
+  z,
 } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
 import {
@@ -28,7 +29,6 @@ import {
   validateSchema,
 } from '@genkit-ai/core/schema';
 import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
-import { z } from '@genkit-ai/core';
 import { DocumentDataSchema } from './document.js';
 import {
   Candidate,

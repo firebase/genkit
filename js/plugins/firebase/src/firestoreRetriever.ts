@@ -20,8 +20,8 @@ import {
   QueryDocumentSnapshot,
   VectorQuerySnapshot,
 } from '@google-cloud/firestore';
-import { embed, EmbedderArgument, RetrieverAction, z } from 'genkit';
-import { defineRetriever, DocumentData, Part } from 'genkit/retriever';
+import { EmbedderArgument, RetrieverAction, embed, z } from 'genkit';
+import { DocumentData, Part, defineRetriever } from 'genkit/retriever';
 
 function toContent(
   d: QueryDocumentSnapshot,

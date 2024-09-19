@@ -30,18 +30,18 @@ import {
 } from '@anthropic-ai/sdk/resources/messages';
 import { AnthropicVertex } from '@anthropic-ai/vertex-sdk';
 import {
+  GENKIT_CLIENT_HEADER,
   GenerateRequest,
   GenerateResponseData,
-  GENKIT_CLIENT_HEADER,
-  ModelReference,
   Part as GenkitPart,
+  ModelReference,
   Part,
   z,
 } from 'genkit';
 import {
   CandidateData,
-  defineModel,
   GenerationCommonConfigSchema,
+  defineModel,
   getBasicUsageStats,
   modelRef,
 } from 'genkit/model';

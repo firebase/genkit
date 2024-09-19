@@ -21,10 +21,10 @@ import { GENKIT_VERSION } from 'genkit';
 import { logger } from 'genkit/logging';
 import { PathMetadata, toDisplayPath } from 'genkit/tracing';
 import {
-  internalMetricNamespaceWrap,
   MetricCounter,
   MetricHistogram,
   Telemetry,
+  internalMetricNamespaceWrap,
 } from '../metrics';
 import {
   createCommonLogAttributes,

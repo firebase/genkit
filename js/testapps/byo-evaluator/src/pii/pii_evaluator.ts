@@ -17,8 +17,8 @@
 import { ModelReference, z } from 'genkit';
 import {
   BaseDataPoint,
-  defineEvaluator,
   EvaluatorAction,
+  defineEvaluator,
 } from 'genkit/evaluator';
 import { ByoMetric } from '..';
 import { piiDetectionScore } from './pii_detection';

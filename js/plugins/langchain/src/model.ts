@@ -16,8 +16,8 @@
 
 import { LLMResult } from '@langchain/core/outputs';
 import { generate, ModelArgument } from 'genkit';
-import { ModelAction } from 'genkit/model';
 import { logger } from 'genkit/logging';
+import { ModelAction } from 'genkit/model';
 import { CallbackManagerForLLMRun } from 'langchain/callbacks';
 import { BaseLLM } from 'langchain/llms/base';
 

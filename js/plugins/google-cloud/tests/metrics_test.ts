@@ -16,10 +16,10 @@
 
 import {
   GcpOpenTelemetry,
-  googleCloud,
   __forceFlushSpansForTesting,
   __getMetricExporterForTesting,
   __getSpanExporterForTesting,
+  googleCloud,
 } from '@genkit-ai/google-cloud';
 import {
   DataPoint,
@@ -30,11 +30,11 @@ import {
 } from '@opentelemetry/sdk-metrics';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import {
+  GenerateResponseData,
   configureGenkit,
   defineAction,
   defineFlow,
   generate,
-  GenerateResponseData,
   run,
   z,
 } from 'genkit';

@@ -26,7 +26,7 @@ import {
 } from '@genkit-ai/ai';
 import { MessageData, ModelArgument } from '@genkit-ai/ai/model';
 import { DocumentData } from '@genkit-ai/ai/retriever';
-import { GenkitError } from '@genkit-ai/core';
+import { GenkitError, z } from '@genkit-ai/core';
 import { parseSchema } from '@genkit-ai/core/schema';
 import {
   runInNewSpan,
@@ -35,7 +35,6 @@ import {
 } from '@genkit-ai/core/tracing';
 import { createHash } from 'crypto';
 import fm, { FrontMatterResult } from 'front-matter';
-import { z } from '@genkit-ai/core';
 import {
   PromptFrontmatter,
   PromptMetadata,

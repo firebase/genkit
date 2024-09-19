@@ -16,12 +16,12 @@
 
 import { Message, StreamingCallback, z } from 'genkit';
 import {
-  defineModel,
   GenerateResponseChunkData,
   GenerateResponseData,
   GenerationCommonConfigSchema,
   ModelAction,
   ModelReference,
+  defineModel,
   type CandidateData,
   type GenerateRequest,
   type MessageData,

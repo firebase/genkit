@@ -19,6 +19,7 @@ import {
   defineAction,
   getStreamingCallback,
   StreamingCallback,
+  z,
 } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { initializeAllPlugins } from '@genkit-ai/core/registry';
@@ -33,7 +34,6 @@ import { SpanStatusCode } from '@opentelemetry/api';
 import * as bodyParser from 'body-parser';
 import { default as cors, CorsOptions } from 'cors';
 import express from 'express';
-import { z } from '@genkit-ai/core';
 import { getErrorMessage, getErrorStack } from './errors.js';
 import { FlowActionInputSchema } from './types.js';
 import { metadataPrefix, runWithAuthContext } from './utils.js';

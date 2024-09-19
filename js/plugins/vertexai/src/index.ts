@@ -88,7 +88,6 @@ export {
   vertexAiRetrievers,
 } from './vector-search';
 export {
-  VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
   claude35Sonnet,
   claude3Haiku,
   claude3Opus,
@@ -111,6 +110,7 @@ export {
   textEmbeddingGecko003,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
+  VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
 };
 
 export interface PluginOptions {

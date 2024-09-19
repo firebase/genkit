@@ -16,7 +16,7 @@
 
 import { Response } from 'express';
 import { DecodedIdToken, getAuth } from 'firebase-admin/auth';
-import { z, __RequestWithAuth } from 'genkit';
+import { __RequestWithAuth, z } from 'genkit';
 import { FunctionFlowAuth } from './functions.js';
 import { initializeAppIfNecessary } from './helpers.js';
 

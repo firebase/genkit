@@ -21,8 +21,8 @@ import {
 import { geminiPro } from '@genkit-ai/vertexai';
 import fs from 'fs';
 import {
-  defineFlow,
   Document,
+  defineFlow,
   generate,
   index,
   retrieve,

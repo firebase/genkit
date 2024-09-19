@@ -15,14 +15,14 @@
  */
 
 import {
-  googleCloud,
   __addTransportStreamForTesting,
   __forceFlushSpansForTesting,
   __getSpanExporterForTesting,
+  googleCloud,
 } from '@genkit-ai/google-cloud';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { configureGenkit, defineFlow, generate, run, z } from 'genkit';
-import { defineModel, GenerateResponseData } from 'genkit/model';
+import { GenerateResponseData, defineModel } from 'genkit/model';
 import assert from 'node:assert';
 import { before, beforeEach, describe, it } from 'node:test';
 import { Writable } from 'stream';

@@ -20,8 +20,8 @@ import {
 } from '@genkit-ai/dev-local-vectorstore';
 import { geminiPro } from '@genkit-ai/googleai';
 import {
-  defineFlow,
   Document,
+  defineFlow,
   generate,
   index,
   retrieve,

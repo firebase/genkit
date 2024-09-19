@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { defineEmbedder, embedderRef } from 'genkit/embedder';
 import { EmbedContentRequest, GoogleGenerativeAI } from '@google/generative-ai';
 import { z } from 'genkit';
+import { defineEmbedder, embedderRef } from 'genkit/embedder';
 import { PluginOptions } from './index.js';
 
 export const TaskTypeSchema = z.enum([

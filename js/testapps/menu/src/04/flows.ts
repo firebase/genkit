@@ -18,7 +18,7 @@ import {
   devLocalIndexerRef,
   devLocalRetrieverRef,
 } from '@genkit-ai/dev-local-vectorstore';
-import { defineFlow, Document, index, retrieve, z } from 'genkit';
+import { Document, defineFlow, index, retrieve, z } from 'genkit';
 import {
   AnswerOutputSchema,
   MenuItem,

@@ -15,6 +15,20 @@
  */
 
 import {
+  Content,
+  FunctionDeclaration,
+  FunctionDeclarationSchemaType,
+  Part as GeminiPart,
+  GenerateContentCandidate,
+  GenerateContentResponse,
+  GenerateContentResult,
+  HarmBlockThreshold,
+  HarmCategory,
+  StartChatParams,
+  VertexAI,
+} from '@google-cloud/vertexai';
+import { GENKIT_CLIENT_HEADER, z } from 'genkit';
+import {
   CandidateData,
   defineModel,
   GenerateRequest,
@@ -33,20 +47,6 @@ import {
   downloadRequestMedia,
   simulateSystemPrompt,
 } from 'genkit/model/middleware';
-import { GENKIT_CLIENT_HEADER, z } from 'genkit';
-import {
-  Content,
-  FunctionDeclaration,
-  FunctionDeclarationSchemaType,
-  Part as GeminiPart,
-  GenerateContentCandidate,
-  GenerateContentResponse,
-  GenerateContentResult,
-  HarmBlockThreshold,
-  HarmCategory,
-  StartChatParams,
-  VertexAI,
-} from '@google-cloud/vertexai';
 import { PluginOptions } from './index.js';
 
 const SafetySettingsSchema = z.object({
