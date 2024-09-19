@@ -39,19 +39,8 @@ function testPrompt(
 
 describe('Prompt', () => {
   let registry: Registry;
-  // let model: ModelAction;
   beforeEach(() => {
     registry = new Registry();
-    // model = runWithRegistry(registry, () =>
-    //   defineModel(
-    //     { name: 'echo', supports: { tools: true } },
-    //     async (input) => ({
-    //       candidates: [
-    //         { index: 0, message: input.messages[0], finishReason: 'stop' },
-    //       ],
-    //     })
-    //   )
-    // );
   });
 
   describe('#render', () => {
