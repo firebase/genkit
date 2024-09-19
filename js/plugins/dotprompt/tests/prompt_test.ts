@@ -25,19 +25,9 @@ import {
 } from '@genkit-ai/core/registry';
 import { toJsonSchema, ValidationError } from '@genkit-ai/core/schema';
 import z from 'zod';
-import { registerPluginProvider } from '../../../core/src/registry.js';
 import { defineJsonSchema, defineSchema } from '../../../core/src/schema.js';
 import { defineDotprompt, Dotprompt, prompt, promptRef } from '../src/index.js';
 import { PromptMetadata } from '../src/metadata.js';
-
-function registerDotprompt() {
-  registerPluginProvider('dotprompt', {
-    name: 'dotprompt',
-    async initializer() {
-      return {};
-    },
-  });
-}
 
 function testPrompt(
   model: ModelAction,
@@ -49,24 +39,32 @@ function testPrompt(
 
 describe('Prompt', () => {
   let registry: Registry;
-  let model: ModelAction;
+  // let model: ModelAction;
   beforeEach(() => {
     registry = new Registry();
-    model = runWithRegistry(registry, () =>
-      defineModel(
-        { name: 'echo', supports: { tools: true } },
-        async (input) => ({
-          candidates: [
-            { index: 0, message: input.messages[0], finishReason: 'stop' },
-          ],
-        })
-      )
-    );
+    // model = runWithRegistry(registry, () =>
+    //   defineModel(
+    //     { name: 'echo', supports: { tools: true } },
+    //     async (input) => ({
+    //       candidates: [
+    //         { index: 0, message: input.messages[0], finishReason: 'stop' },
+    //       ],
+    //     })
+    //   )
+    // );
   });
 
   describe('#render', () => {
     it('should render variables', async () => {
       await runWithRegistry(registry, async () => {
+        const model = defineModel(
+          { name: 'echo', supports: { tools: true } },
+          async (input) => ({
+            candidates: [
+              { index: 0, message: input.messages[0], finishReason: 'stop' },
+            ],
+          })
+        );
         const prompt = testPrompt(model, `Hello {{name}}, how are you?`);
 
         const rendered = await prompt.render({ input: { name: 'Michael' } });
@@ -78,6 +76,14 @@ describe('Prompt', () => {
 
     it('should render default variables', async () => {
       await runWithRegistry(registry, async () => {
+        const model = defineModel(
+          { name: 'echo', supports: { tools: true } },
+          async (input) => ({
+            candidates: [
+              { index: 0, message: input.messages[0], finishReason: 'stop' },
+            ],
+          })
+        );
         const prompt = testPrompt(model, `Hello {{name}}, how are you?`, {
           input: { default: { name: 'Fellow Human' } },
         });
@@ -93,7 +99,6 @@ describe('Prompt', () => {
 
     it('rejects input not matching the schema', async () => {
       await runWithRegistry(registry, async () => {
-        registerDotprompt();
         const invalidSchemaPrompt = defineDotprompt(
           {
             name: 'invalidInput',
@@ -116,6 +121,14 @@ describe('Prompt', () => {
 
     it('should render with overridden fields', async () => {
       await runWithRegistry(registry, async () => {
+        const model = defineModel(
+          { name: 'echo', supports: { tools: true } },
+          async (input) => ({
+            candidates: [
+              { index: 0, message: input.messages[0], finishReason: 'stop' },
+            ],
+          })
+        );
         const prompt = testPrompt(model, `Hello {{name}}, how are you?`);
 
         const streamingCallback = (c) => console.log(c);
@@ -135,6 +148,14 @@ describe('Prompt', () => {
 
     it('should support system prompt with history', async () => {
       await runWithRegistry(registry, async () => {
+        const model = defineModel(
+          { name: 'echo', supports: { tools: true } },
+          async (input) => ({
+            candidates: [
+              { index: 0, message: input.messages[0], finishReason: 'stop' },
+            ],
+          })
+        );
         const prompt = testPrompt(
           model,
           `{{ role "system" }}Testing system {{name}}`
@@ -161,6 +182,14 @@ describe('Prompt', () => {
   describe('#generate', () => {
     it('renders and calls the model', async () => {
       await runWithRegistry(registry, async () => {
+        const model = defineModel(
+          { name: 'echo', supports: { tools: true } },
+          async (input) => ({
+            candidates: [
+              { index: 0, message: input.messages[0], finishReason: 'stop' },
+            ],
+          })
+        );
         const prompt = testPrompt(model, `Hello {{name}}, how are you?`);
         const response = await prompt.generate({ input: { name: 'Bob' } });
         assert.equal(response.text(), `Hello Bob, how are you?`);
@@ -169,7 +198,6 @@ describe('Prompt', () => {
 
     it('rejects input not matching the schema', async () => {
       await runWithRegistry(registry, async () => {
-        registerDotprompt();
         const invalidSchemaPrompt = defineDotprompt(
           {
             name: 'invalidInput',
@@ -192,10 +220,17 @@ describe('Prompt', () => {
   });
 
   describe('#toJSON', () => {
-    runWithRegistry(registry, async () => {
-      it('should convert zod to json schema', () => {
+    it('should convert zod to json schema', () => {
+      runWithRegistry(registry, () => {
         const schema = z.object({ name: z.string() });
-
+        const model = defineModel(
+          { name: 'echo', supports: { tools: true } },
+          async (input) => ({
+            candidates: [
+              { index: 0, message: input.messages[0], finishReason: 'stop' },
+            ],
+          })
+        );
         const prompt = testPrompt(model, `hello {{name}}`, {
           input: { schema },
         });
@@ -260,7 +295,7 @@ output:
     });
 
     it('should use registered schemas', () => {
-      runWithRegistry(registry, async () => {
+      runWithRegistry(registry, () => {
         const MyInput = defineSchema('MyInput', z.number());
         defineJsonSchema('MyOutput', { type: 'boolean' });
 
@@ -283,7 +318,6 @@ output:
   describe('defineDotprompt', () => {
     it('registers a prompt and its variant', async () => {
       await runWithRegistry(registry, async () => {
-        registerDotprompt();
         defineDotprompt(
           {
             name: 'promptName',
@@ -322,7 +356,6 @@ describe('DotpromptRef', () => {
 
   it('Should load a prompt correctly', async () => {
     await runWithRegistry(registry, async () => {
-      registerDotprompt();
       defineDotprompt(
         {
           name: 'promptName',
@@ -344,7 +377,14 @@ describe('DotpromptRef', () => {
 
   it('Should generate output correctly using DotpromptRef', async () => {
     await runWithRegistry(registry, async () => {
-      registerDotprompt();
+      const model = defineModel(
+        { name: 'echo', supports: { tools: true } },
+        async (input) => ({
+          candidates: [
+            { index: 0, message: input.messages[0], finishReason: 'stop' },
+          ],
+        })
+      );
       defineDotprompt(
         {
           name: 'generatePrompt',
@@ -362,7 +402,6 @@ describe('DotpromptRef', () => {
 
   it('Should render correctly using DotpromptRef', async () => {
     await runWithRegistry(registry, async () => {
-      registerDotprompt();
       defineDotprompt(
         {
           name: 'renderPrompt',
@@ -382,7 +421,6 @@ describe('DotpromptRef', () => {
 
   it('Should handle invalid schema input in DotpromptRef', async () => {
     await runWithRegistry(registry, async () => {
-      registerDotprompt();
       defineDotprompt(
         {
           name: 'invalidSchemaPromptRef',
@@ -407,7 +445,6 @@ describe('DotpromptRef', () => {
 
   it('Should support streamingCallback in DotpromptRef', async () => {
     await runWithRegistry(registry, async () => {
-      registerDotprompt();
       defineDotprompt(
         {
           name: 'streamingCallbackPrompt',
@@ -434,7 +471,6 @@ describe('DotpromptRef', () => {
 
   it('Should cache loaded prompt in DotpromptRef', async () => {
     await runWithRegistry(registry, async () => {
-      registerDotprompt();
       defineDotprompt(
         {
           name: 'cacheTestPrompt',
