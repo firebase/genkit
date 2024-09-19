@@ -73,3 +73,36 @@ func TestExecute(t *testing.T) {
 		t.Errorf("fake model replied with %q, want %q", got, want)
 	}
 }
+
+func TestExecuteWithModelName(t *testing.T) {
+	ai.DefineModel("test", "test", nil, testGenerate)
+	p, err := New("TestExecute", "TestExecute", Config{ModelName: "test/test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := p.Generate(context.Background(), &PromptRequest{}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Candidates) != 1 {
+		t.Errorf("got %d candidates, want 1", len(resp.Candidates))
+		if len(resp.Candidates) < 1 {
+			t.FailNow()
+		}
+	}
+	msg := resp.Candidates[0].Message
+	if msg == nil {
+		t.Fatal("response has candidate with no message")
+	}
+	if len(msg.Content) != 1 {
+		t.Errorf("got %d message parts, want 1", len(msg.Content))
+		if len(msg.Content) < 1 {
+			t.FailNow()
+		}
+	}
+	got := msg.Content[0].Text
+	want := `AI reply to "TestExecute"`
+	if got != want {
+		t.Errorf("fake model replied with %q, want %q", got, want)
+	}
+}
