@@ -123,6 +123,7 @@ googleCloud({
       '@opentelemetry/instrumentation-net': { enabled: false },
     },
     metricExportIntervalMillis: 5_000,
+    metricExportTimeoutMillis: 5_000,
   },
 });
 ```
