@@ -2,7 +2,7 @@ import * as z from "zod";
 
 // Import the Genkit core libraries and plugins.
 import {generate} from "@genkit-ai/ai";
-import {initializeGenkit} from "@genkit-ai/core";
+import {genkit} from "@genkit-ai/core";
 $GENKIT_CONFIG_IMPORTS
 $GENKIT_MODEL_IMPORT
 
@@ -11,7 +11,7 @@ $GENKIT_MODEL_IMPORT
 import {firebaseAuth} from "@genkit-ai/firebase/auth";
 import {onFlow} from "@genkit-ai/firebase/functions";
  
-const genkit = initializeGenkit({
+const ai = genkit({
   plugins: [
 $GENKIT_CONFIG_PLUGINS
   ],
@@ -23,7 +23,7 @@ $GENKIT_CONFIG_PLUGINS
 
 // Define a simple flow that prompts an LLM to generate menu suggestions.
 export const menuSuggestionFlow = onFlow(
-  genkit,
+  ai,
   {
     name: "menuSuggestionFlow",
     inputSchema: z.string(),
