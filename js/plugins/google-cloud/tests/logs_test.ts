@@ -17,6 +17,7 @@
 import { generate } from '@genkit-ai/ai';
 import { defineModel, GenerateResponseData } from '@genkit-ai/ai/model';
 import { Genkit, initializeGenkit, run } from '@genkit-ai/core';
+import { runWithRegistry } from '@genkit-ai/core/registry';
 import {
   __addTransportStreamForTesting,
   __forceFlushSpansForTesting,
@@ -104,7 +105,7 @@ describe('GoogleCloudLogs no I/O', () => {
   });
 
   it('writes generate logs', async () => {
-    const testModel = createModel('testModel', async () => {
+    const testModel = createModel(genkit, 'testModel', async () => {
       return {
         candidates: [
           {
@@ -256,7 +257,7 @@ describe('GoogleCloudLogs', () => {
   });
 
   it('writes generate logs', async () => {
-    const testModel = createModel('testModel', async () => {
+    const testModel = createModel(genkit, 'testModel', async () => {
       return {
         candidates: [
           {
@@ -369,10 +370,13 @@ function createFlowWithInput(
  * response function.
  */
 function createModel(
+  genkit: Genkit,
   name: string,
   respFn: () => Promise<GenerateResponseData>
 ) {
-  return defineModel({ name }, (req) => respFn());
+  return runWithRegistry(genkit.registry, () =>
+    defineModel({ name }, (req) => respFn())
+  );
 }
 
 async function waitForLogsInit(genkit: Genkit, logLines: any) {
