@@ -16,7 +16,7 @@
 
 //  Sample app for using the proposed Vertex AI plugin retriever and indexer with Firestore.
 
-import { initializeGenkit } from '@genkit-ai/core';
+import { genkit } from '@genkit-ai/core';
 import { initializeApp } from 'firebase-admin/app';
 // important imports for this sample:
 import {
@@ -74,7 +74,7 @@ const firestoreDocumentIndexer: DocumentIndexer = getFirestoreDocumentIndexer(
 );
 
 // Configure Genkit with Vertex AI plugin
-const genkit = initializeGenkit({
+const ai = genkit({
   plugins: [
     vertexAI({
       projectId: PROJECT_ID,

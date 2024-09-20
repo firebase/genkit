@@ -15,16 +15,15 @@
  */
 
 import { generate } from '@genkit-ai/ai';
-import { initializeGenkit } from '@genkit-ai/core';
+import { genkit, run } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
-import { run } from '@genkit-ai/flow';
 import { googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
 import express, { Request, Response } from 'express';
 import { ollama } from 'genkitx-ollama';
 import * as z from 'zod';
 
-const genkit = initializeGenkit({
+const ai = genkit({
   plugins: [
     firebase(),
     googleAI(),

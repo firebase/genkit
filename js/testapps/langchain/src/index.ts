@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { initializeGenkit, run } from '@genkit-ai/core';
+import { genkit, run } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import { googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
@@ -33,7 +33,7 @@ import { formatDocumentsAsString } from 'langchain/util/document';
 import { MemoryVectorStore } from 'langchain/vectorstores/memory';
 import * as z from 'zod';
 
-const genkit = initializeGenkit({
+const ai = genkit({
   plugins: [
     firebase(),
     googleAI(),

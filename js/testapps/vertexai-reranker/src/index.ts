@@ -16,7 +16,7 @@
 
 //  Sample app for using the proposed Vertex AI plugin retriever and indexer with a local file (just as a demo).
 
-import { initializeGenkit } from '@genkit-ai/core';
+import { genkit } from '@genkit-ai/core';
 // important imports for this sample:
 import { Document } from '@genkit-ai/ai/retriever';
 import { vertexAI } from '@genkit-ai/vertexai';
@@ -26,7 +26,7 @@ import { z } from 'zod';
 import { LOCATION, PROJECT_ID } from './config';
 
 // Configure Genkit with Vertex AI plugin
-const genkit = initializeGenkit({
+const ai = genkit({
   plugins: [
     vertexAI({
       projectId: PROJECT_ID,

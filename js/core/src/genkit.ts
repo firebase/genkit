@@ -260,7 +260,7 @@ export class Genkit {
  * This will create a new Genkit registry, register the provided plugins, stores, and other configuration. This
  * should be called before any flows are registered.
  */
-export function initializeGenkit(options: GenkitOptions): Genkit {
+export function genkit(options: GenkitOptions): Genkit {
   const genkit = new Genkit(options);
   genkit.setupTracingAndLogging();
   return genkit;

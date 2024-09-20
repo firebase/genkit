@@ -16,7 +16,7 @@
 
 import { generate, GenerateResponseData } from '@genkit-ai/ai';
 import { defineModel } from '@genkit-ai/ai/model';
-import { defineAction, Genkit, initializeGenkit, run } from '@genkit-ai/core';
+import { defineAction, Genkit, run } from '@genkit-ai/core';
 import {
   __forceFlushSpansForTesting,
   __getMetricExporterForTesting,
@@ -41,7 +41,7 @@ describe('GoogleCloudMetrics', () => {
 
   before(async () => {
     process.env.GENKIT_ENV = 'dev';
-    genkit = initializeGenkit({
+    ai = genkit({
       // Force GCP Plugin to use in-memory metrics exporter
       plugins: [
         googleCloud({

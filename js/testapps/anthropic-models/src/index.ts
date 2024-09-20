@@ -18,13 +18,13 @@ import * as z from 'zod';
 
 // Import the Genkit core libraries and plugins.
 import { defineTool, generate } from '@genkit-ai/ai';
-import { initializeGenkit } from '@genkit-ai/core';
+import { genkit } from '@genkit-ai/core';
 import { claude35Sonnet, vertexAI } from '@genkit-ai/vertexai';
 
 // Import models from the Vertex AI plugin. The Vertex AI API provides access to
 // several generative models. Here, we import Gemini 1.5 Flash.
 
-const genkit = initializeGenkit({
+const ai = genkit({
   plugins: [
     // Load the Vertex AI plugin. You can optionally specify your project ID
     // by passing in a config object; if you don't, the Vertex AI plugin uses

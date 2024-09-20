@@ -14,23 +14,26 @@
  * limitations under the License.
  */
 
+import { runWithRegistry } from '@genkit-ai/core/registry';
 import { defineDotprompt } from '@genkit-ai/dotprompt';
 import { geminiPro } from '@genkit-ai/vertexai';
+import { genkit } from '../index.js';
 import { MenuQuestionInputSchema } from '../types.js';
 import { menuTool } from './tools.js';
 
 // The prompt uses a tool which will load the menu data,
 // if the user asks a reasonable question about the menu.
 
-export const s02_dataMenuPrompt = defineDotprompt(
-  {
-    name: 's02_dataMenu',
-    model: geminiPro,
-    input: { schema: MenuQuestionInputSchema },
-    output: { format: 'text' },
-    tools: [menuTool],
-  },
-  `
+export const s02_dataMenuPrompt = runWithRegistry(genkit.registry, () =>
+  defineDotprompt(
+    {
+      name: 's02_dataMenu',
+      model: geminiPro,
+      input: { schema: MenuQuestionInputSchema },
+      output: { format: 'text' },
+      tools: [menuTool],
+    },
+    `
 You are acting as a helpful AI assistant named Walt that can answer 
 questions about the food available on the menu at Walt's Burgers. 
 
@@ -42,4 +45,5 @@ DO NOT INVENT ITEMS NOT ON THE MENU.
 Question:
 {{question}} ?
 `
+  )
 );

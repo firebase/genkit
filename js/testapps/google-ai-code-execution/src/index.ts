@@ -19,10 +19,10 @@ import * as z from 'zod';
 config();
 // Import the Genkit core libraries and plugins.
 import { generate } from '@genkit-ai/ai';
-import { initializeGenkit } from '@genkit-ai/core';
+import { genkit } from '@genkit-ai/core';
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 
-const genkit = initializeGenkit({
+const ai = genkit({
   plugins: [googleAI()],
   logLevel: 'debug',
   enableTracingAndMetrics: true,

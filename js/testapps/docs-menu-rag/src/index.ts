@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { initializeGenkit } from '@genkit-ai/core';
+import { genkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 import * as z from 'zod';
 import { indexMenu } from './indexer';
 
-export const genkit = initializeGenkit({
+export const ai = genkit({
   plugins: [
     vertexAI(),
     devLocalVectorstore([

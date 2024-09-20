@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Genkit, initializeGenkit, run } from '@genkit-ai/core';
+import { Genkit, run } from '@genkit-ai/core';
 import {
   __forceFlushSpansForTesting,
   __getSpanExporterForTesting,
@@ -30,7 +30,7 @@ describe('GoogleCloudTracing', () => {
 
   before(async () => {
     process.env.GENKIT_ENV = 'dev';
-    genkit = initializeGenkit({
+    ai = genkit({
       // Force GCP Plugin to use in-memory metrics exporter
       plugins: [
         googleCloud({

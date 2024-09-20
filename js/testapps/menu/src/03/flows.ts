@@ -16,8 +16,9 @@
 
 import { generate } from '@genkit-ai/ai';
 import { MessageData } from '@genkit-ai/ai/model';
-import { defineFlow, run } from '@genkit-ai/flow';
+import { run } from '@genkit-ai/core';
 import { geminiPro } from '@genkit-ai/vertexai';
+import { genkit } from '../index.js';
 
 import {
   ChatHistoryStore,
@@ -41,7 +42,7 @@ const chatHistoryStore = new ChatHistoryStore(preamble);
 
 // Define a flow which generates a response to each question.
 
-export const s03_multiTurnChatFlow = defineFlow(
+export const s03_multiTurnChatFlow = genkit.defineFlow(
   {
     name: 's03_multiTurnChat',
     inputSchema: ChatSessionInputSchema,

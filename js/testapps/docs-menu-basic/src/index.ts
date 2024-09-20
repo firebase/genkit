@@ -17,11 +17,11 @@
 // This sample is referenced by the genkit docs. Changes should be made to
 // both.
 import { generate } from '@genkit-ai/ai';
-import { initializeGenkit } from '@genkit-ai/core';
+import { genkit } from '@genkit-ai/core';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import * as z from 'zod';
 
-const genkit = initializeGenkit({
+const ai = genkit({
   plugins: [googleAI()],
   logLevel: 'debug',
   enableTracingAndMetrics: true,

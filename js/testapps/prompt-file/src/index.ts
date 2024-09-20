@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { defineSchema, initializeGenkit } from '@genkit-ai/core';
+import { defineSchema, genkit } from '@genkit-ai/core';
 import { runWithRegistry } from '@genkit-ai/core/registry';
 import { defineHelper, dotprompt, prompt } from '@genkit-ai/dotprompt';
 import { googleAI } from '@genkit-ai/googleai';
 import * as z from 'zod';
 
-const genkit = initializeGenkit({
+const ai = genkit({
   plugins: [googleAI(), dotprompt()],
   enableTracingAndMetrics: true,
   logLevel: 'debug',

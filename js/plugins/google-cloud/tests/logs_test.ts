@@ -16,7 +16,7 @@
 
 import { generate } from '@genkit-ai/ai';
 import { defineModel, GenerateResponseData } from '@genkit-ai/ai/model';
-import { Genkit, initializeGenkit, run } from '@genkit-ai/core';
+import { Genkit, run } from '@genkit-ai/core';
 import { runWithRegistry } from '@genkit-ai/core/registry';
 import {
   __addTransportStreamForTesting,
@@ -43,7 +43,7 @@ describe('GoogleCloudLogs no I/O', () => {
   before(async () => {
     process.env.GENKIT_ENV = 'dev';
     __addTransportStreamForTesting(logStream);
-    genkit = initializeGenkit({
+    ai = genkit({
       // Force GCP Plugin to use in-memory metrics exporter
       plugins: [
         googleCloud({
@@ -195,7 +195,7 @@ describe('GoogleCloudLogs', () => {
   before(async () => {
     process.env.GENKIT_ENV = 'dev';
     __addTransportStreamForTesting(logStream);
-    genkit = initializeGenkit({
+    ai = genkit({
       // Force GCP Plugin to use in-memory metrics exporter
       plugins: [
         googleCloud({

@@ -52,6 +52,7 @@ export const flowBasicAuth = genkit.defineFlow(
 );
 
 export const flowAuth = onFlow(
+  genkit,
   {
     name: 'flowAuth',
     inputSchema: z.string(),
@@ -80,6 +81,7 @@ export const flowAuth = onFlow(
 );
 
 export const flowAuthNone = onFlow(
+  genkit,
   {
     name: 'flowAuthNone',
     inputSchema: z.string(),

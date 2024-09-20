@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { defineFlow } from '@genkit-ai/flow';
 import fs from 'fs';
 import path from 'path';
 
@@ -26,12 +25,14 @@ import {
 } from '../types.js';
 import { s05_readMenuPrompt, s05_textMenuPrompt } from './prompts.js';
 
+import { genkit } from '../index.js';
+
 // Define a flow that takes an image, passes it to Gemini Vision Pro,
 // and extracts all of the text from the photo of the menu.
 // Note that this example uses a hard-coded image file, as image input
 // is not currently available in the Development UI runners.
 
-export const s05_readMenuFlow = defineFlow(
+export const s05_readMenuFlow = genkit.defineFlow(
   {
     name: 's05_readMenuFlow',
     inputSchema: z.void(), // input is data/menu.jpeg
@@ -51,7 +52,7 @@ export const s05_readMenuFlow = defineFlow(
 // Define a flow which generates a response to the question.
 // Just returns the llm's text response to the question.
 
-export const s05_textMenuQuestionFlow = defineFlow(
+export const s05_textMenuQuestionFlow = genkit.defineFlow(
   {
     name: 's05_textMenuQuestion',
     inputSchema: TextMenuQuestionInputSchema,
@@ -70,7 +71,7 @@ export const s05_textMenuQuestionFlow = defineFlow(
 
 // Define a third composite flow which chains the first two flows
 
-export const s05_visionMenuQuestionFlow = defineFlow(
+export const s05_visionMenuQuestionFlow = genkit.defineFlow(
   {
     name: 's05_visionMenuQuestion',
     inputSchema: MenuQuestionInputSchema,

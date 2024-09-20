@@ -14,16 +14,18 @@
  * limitations under the License.
  */
 
-import { initializeGenkit } from '@genkit-ai/core';
+import { genkit, run } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
-import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
 import * as z from 'zod';
 
-const genkit = initializeGenkit({
+const ai = genkit({
   plugins: [firebase()],
   traceStore: 'firebase',
   enableTracingAndMetrics: true,
   logLevel: 'debug',
+  flowServer: {
+    runInEnv: 'all',
+  },
 });
 
 /**
@@ -175,21 +177,24 @@ export const multiSteps = genkit.defineFlow(
   }
 );
 
-export const largeSteps = defineFlow({ name: 'largeSteps' }, async () => {
-  await run('large-step1', async () => {
-    return generateString(100_000);
-  });
-  await run('large-step2', async () => {
-    return generateString(800_000);
-  });
-  await run('large-step3', async () => {
-    return generateString(900_000);
-  });
-  await run('large-step4', async () => {
-    return generateString(999_000);
-  });
-  return 'something...';
-});
+export const largeSteps = genkit.defineFlow(
+  { name: 'largeSteps' },
+  async () => {
+    await run('large-step1', async () => {
+      return generateString(100_000);
+    });
+    await run('large-step2', async () => {
+      return generateString(800_000);
+    });
+    await run('large-step3', async () => {
+      return generateString(900_000);
+    });
+    await run('large-step4', async () => {
+      return generateString(999_000);
+    });
+    return 'something...';
+  }
+);
 
 const loremIpsum = [
   'lorem',
@@ -208,5 +213,3 @@ function generateString(length: number) {
   }
   return str.substring(0, length);
 }
-
-startFlowsServer();

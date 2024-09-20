@@ -16,7 +16,7 @@
 
 //  Sample app for using the proposed Vertex AI plugin retriever and indexer with BigQuery.
 
-import { initializeGenkit } from '@genkit-ai/core';
+import { genkit } from '@genkit-ai/core';
 // important imports for this sample:
 import {
   getBigQueryDocumentIndexer,
@@ -75,7 +75,7 @@ const bigQueryDocumentIndexer: DocumentIndexer = getBigQueryDocumentIndexer(
 );
 
 // Configure Genkit with Vertex AI plugin
-const genkit = initializeGenkit({
+const ai = genkit({
   plugins: [
     vertexAI({
       projectId: PROJECT_ID,

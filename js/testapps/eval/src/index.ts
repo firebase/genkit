@@ -20,13 +20,13 @@ import {
   EvalResponseSchema,
   evaluate,
 } from '@genkit-ai/ai/evaluator';
-import { initializeGenkit } from '@genkit-ai/core';
+import { genkit } from '@genkit-ai/core';
 import { GenkitMetric, genkitEval, genkitEvalRef } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 import * as z from 'zod';
 
-const genkit = initializeGenkit({
+const ai = genkit({
   plugins: [
     firebase(),
     vertexAI(),

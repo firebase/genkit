@@ -15,11 +15,7 @@
  */
 import { EvaluatorAction } from '@genkit-ai/ai';
 import { ModelReference } from '@genkit-ai/ai/model';
-import {
-  PluginProvider,
-  genkitPlugin,
-  initializeGenkit,
-} from '@genkit-ai/core';
+import { PluginProvider, genkit, genkitPlugin } from '@genkit-ai/core';
 import { dotprompt } from '@genkit-ai/dotprompt';
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
@@ -45,7 +41,7 @@ import {
   regexMatcher,
 } from './regex/regex_evaluator.js';
 
-const genkit = initializeGenkit({
+const ai = genkit({
   plugins: [
     dotprompt(),
     firebase(),
