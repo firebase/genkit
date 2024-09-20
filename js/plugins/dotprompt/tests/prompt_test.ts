@@ -18,14 +18,14 @@ import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 
 import { defineModel, ModelAction } from '@genkit-ai/ai/model';
+import { Registry, runWithRegistry } from '@genkit-ai/core/registry';
 import {
-  __useRegistry,
-  Registry,
-  runWithRegistry,
-} from '@genkit-ai/core/registry';
-import { toJsonSchema, ValidationError } from '@genkit-ai/core/schema';
+  defineJsonSchema,
+  defineSchema,
+  toJsonSchema,
+  ValidationError,
+} from '@genkit-ai/core/schema';
 import z from 'zod';
-import { defineJsonSchema, defineSchema } from '../../../core/src/schema.js';
 import { defineDotprompt, Dotprompt, prompt, promptRef } from '../src/index.js';
 import { PromptMetadata } from '../src/metadata.js';
 
@@ -44,8 +44,8 @@ describe('Prompt', () => {
   });
 
   describe('#render', () => {
-    it('should render variables', async () => {
-      await runWithRegistry(registry, async () => {
+    it('should render variables', () => {
+      runWithRegistry(registry, () => {
         const model = defineModel(
           { name: 'echo', supports: { tools: true } },
           async (input) => ({
@@ -56,15 +56,15 @@ describe('Prompt', () => {
         );
         const prompt = testPrompt(model, `Hello {{name}}, how are you?`);
 
-        const rendered = await prompt.render({ input: { name: 'Michael' } });
+        const rendered = prompt.render({ input: { name: 'Michael' } });
         assert.deepStrictEqual(rendered.prompt, [
           { text: 'Hello Michael, how are you?' },
         ]);
       });
     });
 
-    it('should render default variables', async () => {
-      await runWithRegistry(registry, async () => {
+    it('should render default variables', () => {
+      runWithRegistry(registry, () => {
         const model = defineModel(
           { name: 'echo', supports: { tools: true } },
           async (input) => ({
@@ -77,7 +77,7 @@ describe('Prompt', () => {
           input: { default: { name: 'Fellow Human' } },
         });
 
-        const rendered = await prompt.render({ input: {} });
+        const rendered = prompt.render({ input: {} });
         assert.deepStrictEqual(rendered.prompt, [
           {
             text: 'Hello Fellow Human, how are you?',
@@ -103,13 +103,13 @@ describe('Prompt', () => {
         );
 
         await assert.rejects(async () => {
-          await invalidSchemaPrompt.render({ input: { foo: 'baz' } });
+          invalidSchemaPrompt.render({ input: { foo: 'baz' } });
         }, ValidationError);
       });
     });
 
-    it('should render with overridden fields', async () => {
-      await runWithRegistry(registry, async () => {
+    it('should render with overridden fields', () => {
+      runWithRegistry(registry, () => {
         const model = defineModel(
           { name: 'echo', supports: { tools: true } },
           async (input) => ({
@@ -123,7 +123,7 @@ describe('Prompt', () => {
         const streamingCallback = (c) => console.log(c);
         const middleware = [];
 
-        const rendered = await prompt.render({
+        const rendered = prompt.render({
           input: { name: 'Michael' },
           streamingCallback,
           returnToolRequests: true,
@@ -135,8 +135,8 @@ describe('Prompt', () => {
       });
     });
 
-    it('should support system prompt with history', async () => {
-      await runWithRegistry(registry, async () => {
+    it('should support system prompt with history', () => {
+      runWithRegistry(registry, () => {
         const model = defineModel(
           { name: 'echo', supports: { tools: true } },
           async (input) => ({
@@ -150,7 +150,7 @@ describe('Prompt', () => {
           `{{ role "system" }}Testing system {{name}}`
         );
 
-        const rendered = await prompt.render({
+        const rendered = prompt.render({
           input: { name: 'Michael' },
           history: [
             { role: 'user', content: [{ text: 'history 1' }] },
@@ -340,7 +340,6 @@ describe('DotpromptRef', () => {
   let registry: Registry;
   beforeEach(() => {
     registry = new Registry();
-    __useRegistry(registry);
   });
 
   it('Should load a prompt correctly', async () => {
