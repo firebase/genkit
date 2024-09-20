@@ -102,7 +102,7 @@ const ai = genkit({
 });
 
 // // Define indexing flow
-export const indexFlow = genkit.defineFlow(
+export const indexFlow = ai.defineFlow(
   {
     name: 'indexFlow',
     inputSchema: z.object({
@@ -124,7 +124,7 @@ export const indexFlow = genkit.defineFlow(
 );
 
 // Define query flow
-export const queryFlow = genkit.defineFlow(
+export const queryFlow = ai.defineFlow(
   {
     name: 'queryFlow',
     inputSchema: z.object({

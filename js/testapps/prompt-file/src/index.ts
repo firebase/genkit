@@ -33,7 +33,7 @@ title: string, recipe title
       quantity: string
     steps(array, the steps required to complete the recipe): string
     */
-const RecipeSchema = runWithRegistry(genkit.registry, () =>
+const RecipeSchema = runWithRegistry(ai.registry, () =>
   defineSchema(
     'Recipe',
     z.object({
@@ -61,7 +61,7 @@ defineHelper('list', (data: any) => {
 });
 
 prompt('recipe').then((recipePrompt) => {
-  genkit.defineFlow(
+  ai.defineFlow(
     {
       name: 'chefFlow',
       inputSchema: z.object({
@@ -77,7 +77,7 @@ prompt('recipe').then((recipePrompt) => {
 });
 
 prompt('recipe', { variant: 'robot' }).then((recipePrompt) => {
-  genkit.defineFlow(
+  ai.defineFlow(
     {
       name: 'robotChefFlow',
       inputSchema: z.object({
@@ -92,7 +92,7 @@ prompt('recipe', { variant: 'robot' }).then((recipePrompt) => {
 // A variation that supports streaming, optionally
 
 prompt('story').then((storyPrompt) => {
-  genkit.defineStreamingFlow(
+  ai.defineStreamingFlow(
     {
       name: 'tellStory',
       inputSchema: z.object({

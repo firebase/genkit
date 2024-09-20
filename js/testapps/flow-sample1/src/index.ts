@@ -32,7 +32,7 @@ const ai = genkit({
  * To run this flow;
  *   genkit flow:run basic "\"hello\""
  */
-export const basic = genkit.defineFlow({ name: 'basic' }, async (subject) => {
+export const basic = ai.defineFlow({ name: 'basic' }, async (subject) => {
   const foo = await run('call-llm', async () => {
     return `subject: ${subject}`;
   });
@@ -42,7 +42,7 @@ export const basic = genkit.defineFlow({ name: 'basic' }, async (subject) => {
   });
 });
 
-export const parent = genkit.defineFlow(
+export const parent = ai.defineFlow(
   { name: 'parent', outputSchema: z.string() },
   async () => {
     return JSON.stringify(await basic('foo'));
@@ -50,7 +50,7 @@ export const parent = genkit.defineFlow(
 );
 
 // genkit flow:run streamy 5 -s
-export const streamy = genkit.defineStreamingFlow(
+export const streamy = ai.defineStreamingFlow(
   {
     name: 'streamy',
     inputSchema: z.number(),
@@ -70,7 +70,7 @@ export const streamy = genkit.defineStreamingFlow(
 );
 
 // genkit flow:run streamy 5 -s
-export const streamyThrowy = genkit.defineStreamingFlow(
+export const streamyThrowy = ai.defineStreamingFlow(
   {
     name: 'streamyThrowy',
     inputSchema: z.number(),
@@ -96,7 +96,7 @@ export const streamyThrowy = genkit.defineStreamingFlow(
  * To run this flow;
  *   genkit flow:run throwy "\"hello\""
  */
-export const throwy = genkit.defineFlow(
+export const throwy = ai.defineFlow(
   { name: 'throwy', inputSchema: z.string(), outputSchema: z.string() },
   async (subject) => {
     const foo = await run('call-llm', async () => {
@@ -115,7 +115,7 @@ export const throwy = genkit.defineFlow(
  * To run this flow;
  *   genkit flow:run throwy2 "\"hello\""
  */
-export const throwy2 = genkit.defineFlow(
+export const throwy2 = ai.defineFlow(
   { name: 'throwy2', inputSchema: z.string(), outputSchema: z.string() },
   async (subject) => {
     const foo = await run('call-llm', async () => {
@@ -130,7 +130,7 @@ export const throwy2 = genkit.defineFlow(
   }
 );
 
-export const flowMultiStepCaughtError = genkit.defineFlow(
+export const flowMultiStepCaughtError = ai.defineFlow(
   { name: 'flowMultiStepCaughtError' },
   async (input) => {
     let i = 1;
@@ -155,7 +155,7 @@ export const flowMultiStepCaughtError = genkit.defineFlow(
   }
 );
 
-export const multiSteps = genkit.defineFlow(
+export const multiSteps = ai.defineFlow(
   { name: 'multiSteps', inputSchema: z.string(), outputSchema: z.number() },
   async (input) => {
     const out1 = await run('step1', async () => {
@@ -177,24 +177,21 @@ export const multiSteps = genkit.defineFlow(
   }
 );
 
-export const largeSteps = genkit.defineFlow(
-  { name: 'largeSteps' },
-  async () => {
-    await run('large-step1', async () => {
-      return generateString(100_000);
-    });
-    await run('large-step2', async () => {
-      return generateString(800_000);
-    });
-    await run('large-step3', async () => {
-      return generateString(900_000);
-    });
-    await run('large-step4', async () => {
-      return generateString(999_000);
-    });
-    return 'something...';
-  }
-);
+export const largeSteps = ai.defineFlow({ name: 'largeSteps' }, async () => {
+  await run('large-step1', async () => {
+    return generateString(100_000);
+  });
+  await run('large-step2', async () => {
+    return generateString(800_000);
+  });
+  await run('large-step3', async () => {
+    return generateString(900_000);
+  });
+  await run('large-step4', async () => {
+    return generateString(999_000);
+  });
+  return 'something...';
+});
 
 const loremIpsum = [
   'lorem',

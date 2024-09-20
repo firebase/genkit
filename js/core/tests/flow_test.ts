@@ -17,10 +17,10 @@
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
-import { Genkit } from '../src/genkit.js';
+import { Genkit, genkit } from '../src/genkit.js';
 
-function createTestFlow(genkit: Genkit) {
-  return genkit.defineFlow(
+function createTestFlow(ai: Genkit) {
+  return ai.defineFlow(
     {
       name: 'testFlow',
       inputSchema: z.string(),
@@ -32,8 +32,8 @@ function createTestFlow(genkit: Genkit) {
   );
 }
 
-function createTestStreamingFlow(genkit: Genkit) {
-  return genkit.defineStreamingFlow(
+function createTestStreamingFlow(ai: Genkit) {
+  return ai.defineStreamingFlow(
     {
       name: 'testFlow',
       inputSchema: z.number(),
@@ -52,17 +52,17 @@ function createTestStreamingFlow(genkit: Genkit) {
 }
 
 describe('flow', () => {
-  let genkit: Genkit;
+  let ai: Genkit;
 
   beforeEach(() => {
     // Skips starting reflection server.
     delete process.env.GENKIT_ENV;
-    genkit = new Genkit();
+    ai = genkit({});
   });
 
   describe('runFlow', () => {
     it('should run the flow', async () => {
-      const testFlow = createTestFlow(genkit);
+      const testFlow = createTestFlow(ai);
 
       const result = await testFlow('foo');
 
@@ -70,7 +70,7 @@ describe('flow', () => {
     });
 
     it('should rethrow the error', async () => {
-      const testFlow = genkit.defineFlow(
+      const testFlow = ai.defineFlow(
         {
           name: 'throwing',
           inputSchema: z.string(),
@@ -88,7 +88,7 @@ describe('flow', () => {
     });
 
     it('should validate input', async () => {
-      const testFlow = genkit.defineFlow(
+      const testFlow = ai.defineFlow(
         {
           name: 'validating',
           inputSchema: z.object({ foo: z.string(), bar: z.number() }),
@@ -115,7 +115,7 @@ describe('flow', () => {
 
   describe('streamFlow', () => {
     it('should run the flow', async () => {
-      const testFlow = createTestStreamingFlow(genkit);
+      const testFlow = createTestStreamingFlow(ai);
 
       const response = testFlow(3);
 
@@ -129,7 +129,7 @@ describe('flow', () => {
     });
 
     it('should rethrow the error', async () => {
-      const testFlow = genkit.defineStreamingFlow(
+      const testFlow = ai.defineStreamingFlow(
         {
           name: 'throwing',
           inputSchema: z.string(),

@@ -17,13 +17,13 @@
 import { runWithRegistry } from '@genkit-ai/core/registry';
 import { defineDotprompt } from '@genkit-ai/dotprompt';
 import { geminiPro } from '@genkit-ai/vertexai';
-import { genkit } from '../index.js';
+import { ai } from '../index.js';
 import { DataMenuQuestionInputSchema } from '../types.js';
 
 // This prompt will generate two messages when rendered.
 // These two messages will be used to seed the exchange with the model.
 
-export const s03_chatPreamblePrompt = runWithRegistry(genkit.registry, () =>
+export const s03_chatPreamblePrompt = runWithRegistry(ai.registry, () =>
   defineDotprompt(
     {
       name: 's03_chatPreamble',

@@ -18,13 +18,13 @@ import * as z from 'zod';
 import { indexPdf } from './pdf_rag.js';
 import { indexPdfFirebase } from './pdf_rag_firebase.js';
 
-import { genkit } from './index.js';
+import { ai } from './index.js';
 
 const catFacts = ['./docs/sfspca-cat-adoption-handbook-2023.pdf'];
 
 // genkit flow:run setup
 // genkit flow:run setup '[\"your_awesome_pdf.pdf\", \"your_other_awesome_pdf.pdf\""]'
-export const setup = genkit.defineFlow(
+export const setup = ai.defineFlow(
   {
     name: 'setup',
     inputSchema: z.array(z.string()).optional(),
@@ -45,7 +45,7 @@ export const setup = genkit.defineFlow(
   }
 );
 
-export const setupFirebase = genkit.defineFlow(
+export const setupFirebase = ai.defineFlow(
   {
     name: 'setupFirebase',
     inputSchema: z.array(z.string()).optional(),

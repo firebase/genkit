@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
+import { runWithRegistry } from '@genkit-ai/core/registry';
 import { defineDotprompt, prompt } from '@genkit-ai/dotprompt';
-import { defineFlow } from '@genkit-ai/flow';
 import { gemini15Flash } from '@genkit-ai/googleai';
 import * as z from 'zod';
 import { HelloFullNameSchema, HelloSchema } from '../common/types.js';
-
+import { ai } from '../index.js';
 //
 // Prompt defined in code, subsequently loaded into a flow, plus an additional variant.
 //
@@ -27,70 +27,74 @@ import { HelloFullNameSchema, HelloSchema } from '../common/types.js';
 const promptName = 'codeDefinedPrompt';
 const template = 'Say hello to {{name}} in the voice of a {{persona}}.';
 
-export const codeDefinedPrompt = defineDotprompt(
-  {
-    name: promptName,
-    model: gemini15Flash,
-    input: {
-      schema: HelloSchema,
-      default: {
-        persona: 'Space Pirate',
+export const codeDefinedPrompt = runWithRegistry(ai.registry, () =>
+  defineDotprompt(
+    {
+      name: promptName,
+      model: gemini15Flash,
+      input: {
+        schema: HelloSchema,
+        default: {
+          persona: 'Space Pirate',
+        },
+      },
+      output: {
+        format: 'text',
+      },
+      config: {
+        maxOutputTokens: 2048,
+        temperature: 0.6,
+        topK: 16,
+        topP: 0.95,
+        stopSequences: ['STAWP!'],
+        safetySettings: [
+          {
+            category: 'HARM_CATEGORY_HATE_SPEECH',
+            threshold: 'BLOCK_ONLY_HIGH',
+          },
+          {
+            category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+            threshold: 'BLOCK_ONLY_HIGH',
+          },
+          {
+            category: 'HARM_CATEGORY_HARASSMENT',
+            threshold: 'BLOCK_ONLY_HIGH',
+          },
+          {
+            category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            threshold: 'BLOCK_ONLY_HIGH',
+          },
+        ],
       },
     },
-    output: {
-      format: 'text',
-    },
-    config: {
-      maxOutputTokens: 2048,
-      temperature: 0.6,
-      topK: 16,
-      topP: 0.95,
-      stopSequences: ['STAWP!'],
-      safetySettings: [
-        {
-          category: 'HARM_CATEGORY_HATE_SPEECH',
-          threshold: 'BLOCK_ONLY_HIGH',
-        },
-        {
-          category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-          threshold: 'BLOCK_ONLY_HIGH',
-        },
-        {
-          category: 'HARM_CATEGORY_HARASSMENT',
-          threshold: 'BLOCK_ONLY_HIGH',
-        },
-        {
-          category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-          threshold: 'BLOCK_ONLY_HIGH',
-        },
-      ],
-    },
-  },
-  template
+    template
+  )
 );
 
-export const codeDefinedPromptVariant = defineDotprompt(
-  {
-    name: promptName,
-    variant: 'jsonOutput',
-    model: gemini15Flash,
-    input: {
-      schema: HelloSchema,
-      default: {
-        persona: 'Sportscaster',
+export const codeDefinedPromptVariant = runWithRegistry(ai.registry, () =>
+  defineDotprompt(
+    {
+      name: promptName,
+      variant: 'jsonOutput',
+      model: gemini15Flash,
+      input: {
+        schema: HelloSchema,
+        default: {
+          persona: 'Sportscaster',
+        },
+      },
+      output: {
+        schema: z.object({
+          greeting: z.string(),
+        }),
+        format: 'json',
       },
     },
-    output: {
-      schema: z.object({
-        greeting: z.string(),
-      }),
-      format: 'json',
-    },
-  },
-  template
+    template
+  )
 );
 
-defineFlow(
+ai.defineStreamingFlow(
   {
     name: 'flowCodeDefinedPrompt',
     inputSchema: HelloSchema,
@@ -112,7 +116,7 @@ defineFlow(
 //
 
 prompt('hello').then((prompt) => {
-  defineFlow(
+  ai.defineFlow(
     {
       name: 'flowDotPrompt',
       inputSchema: HelloSchema,
@@ -127,7 +131,7 @@ prompt('hello').then((prompt) => {
 //
 
 prompt('hello', { variant: 'first-last-name' }).then((prompt) => {
-  defineFlow(
+  ai.defineFlow(
     {
       name: 'flowDotPromptVariant',
       inputSchema: HelloFullNameSchema,
@@ -142,7 +146,7 @@ prompt('hello', { variant: 'first-last-name' }).then((prompt) => {
 //
 
 prompt('hello', { variant: 'json-output' }).then((prompt) => {
-  defineFlow(
+  ai.defineFlow(
     {
       name: 'flowDotPromptJsonOutput',
       inputSchema: HelloSchema,
@@ -153,7 +157,7 @@ prompt('hello', { variant: 'json-output' }).then((prompt) => {
 });
 
 prompt('hello', { variant: 'system' }).then((prompt) => {
-  defineFlow(
+  ai.defineFlow(
     {
       name: 'flowDotPromptSystemMessage',
       inputSchema: HelloSchema,
@@ -164,7 +168,7 @@ prompt('hello', { variant: 'system' }).then((prompt) => {
 });
 
 prompt('hello', { variant: 'history' }).then((prompt) => {
-  defineFlow(
+  ai.defineFlow(
     {
       name: 'flowDotPromptHistory',
       inputSchema: HelloSchema,

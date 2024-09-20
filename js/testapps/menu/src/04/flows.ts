@@ -21,7 +21,7 @@ import {
 } from '@genkit-ai/dev-local-vectorstore';
 import * as z from 'zod';
 
-import { genkit } from '../index.js';
+import { ai } from '../index.js';
 import {
   AnswerOutputSchema,
   MenuItem,
@@ -32,7 +32,7 @@ import { s04_ragDataMenuPrompt } from './prompts.js';
 
 // Define a flow which indexes items on the menu.
 
-export const s04_indexMenuItemsFlow = genkit.defineFlow(
+export const s04_indexMenuItemsFlow = ai.defineFlow(
   {
     name: 's04_indexMenuItems',
     inputSchema: z.array(MenuItemSchema),
@@ -58,7 +58,7 @@ export const s04_indexMenuItemsFlow = genkit.defineFlow(
 // View this flow's trace to see the context that was retrieved,
 // and how it was included in the prompt.
 
-export const s04_ragMenuQuestionFlow = genkit.defineFlow(
+export const s04_ragMenuQuestionFlow = ai.defineFlow(
   {
     name: 's04_ragMenuQuestion',
     inputSchema: MenuQuestionInputSchema,

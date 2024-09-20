@@ -65,7 +65,7 @@ const FAKE_DOCUMENT_CONTENT = [
   'movies',
 ];
 
-export const rerankFlow = genkit.defineFlow(
+export const rerankFlow = ai.defineFlow(
   {
     name: 'rerankFlow',
     inputSchema: z.object({ query: z.string() }),

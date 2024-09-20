@@ -22,7 +22,7 @@ import {
 import { chromaIndexerRef, chromaRetrieverRef } from 'genkitx-chromadb';
 import { pineconeIndexerRef, pineconeRetrieverRef } from 'genkitx-pinecone';
 import * as z from 'zod';
-import { genkit } from './index.js';
+import { ai } from './index.js';
 import { augmentedPrompt } from './prompt.js';
 
 // Setup the models, embedders and "vector store"
@@ -51,7 +51,7 @@ export const nfsDogFactsRetriever = devLocalRetrieverRef('dog-facts');
 export const nfsDogFactsIndexer = devLocalIndexerRef('dog-facts');
 
 // Define a simple RAG flow, we will evaluate this flow
-export const askQuestionsAboutCatsFlow = genkit.defineFlow(
+export const askQuestionsAboutCatsFlow = ai.defineFlow(
   {
     name: 'askQuestionsAboutCats',
     inputSchema: z.string(),
@@ -76,7 +76,7 @@ export const askQuestionsAboutCatsFlow = genkit.defineFlow(
 
 // Define a simple RAG flow, we will evaluate this flow
 // genkit flow:run askQuestionsAboutDogs '"How many dog breeds are there?"'
-export const askQuestionsAboutDogsFlow = genkit.defineFlow(
+export const askQuestionsAboutDogsFlow = ai.defineFlow(
   {
     name: 'askQuestionsAboutDogs',
     inputSchema: z.string(),
@@ -100,7 +100,7 @@ export const askQuestionsAboutDogsFlow = genkit.defineFlow(
 );
 
 // Define a simple RAG flow, we will evaluate this flow
-export const indexCatFactsDocumentsFlow = genkit.defineFlow(
+export const indexCatFactsDocumentsFlow = ai.defineFlow(
   {
     name: 'indexCatFactsDocuments',
     inputSchema: z.array(z.string()),
@@ -119,7 +119,7 @@ export const indexCatFactsDocumentsFlow = genkit.defineFlow(
 
 // Define a flow to index documents into the "vector store"
 // $ genkit flow:run indexDogFacts '["There are over 400 distinct dog breeds."]'
-export const indexDogFactsDocumentsFlow = genkit.defineFlow(
+export const indexDogFactsDocumentsFlow = ai.defineFlow(
   {
     name: 'indexDogFactsDocuments',
     inputSchema: z.array(z.string()),

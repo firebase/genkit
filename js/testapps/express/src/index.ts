@@ -42,7 +42,7 @@ const ai = genkit({
   logLevel: 'debug',
 });
 
-export const jokeFlow = genkit.defineFlow(
+export const jokeFlow = ai.defineFlow(
   { name: 'jokeFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (subject, streamingCallback) => {
     return await run('call-llm', async () => {

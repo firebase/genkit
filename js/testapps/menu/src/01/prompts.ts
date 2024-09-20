@@ -19,13 +19,13 @@ import { GenerateRequest } from '@genkit-ai/ai/model';
 import { runWithRegistry } from '@genkit-ai/core/registry';
 import { defineDotprompt } from '@genkit-ai/dotprompt';
 import { geminiPro } from '@genkit-ai/vertexai';
-import { genkit } from '../index.js';
+import { ai } from '../index.js';
 import { MenuQuestionInput, MenuQuestionInputSchema } from '../types.js';
 
 // Define a prompt to handle a customer question about the menu.
 // This prompt uses definePrompt directly.
 
-export const s01_vanillaPrompt = runWithRegistry(genkit.registry, () =>
+export const s01_vanillaPrompt = runWithRegistry(ai.registry, () =>
   definePrompt(
     {
       name: 's01_vanillaPrompt',
@@ -50,7 +50,7 @@ export const s01_vanillaPrompt = runWithRegistry(genkit.registry, () =>
 // that also gives us a type-safe handlebars template system,
 // and well-defined output schemas.
 
-export const s01_staticMenuDotPrompt = runWithRegistry(genkit.registry, () =>
+export const s01_staticMenuDotPrompt = runWithRegistry(ai.registry, () =>
   defineDotprompt(
     {
       name: 's01_staticMenuDotPrompt',

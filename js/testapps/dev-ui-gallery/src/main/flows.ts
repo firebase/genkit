@@ -17,13 +17,13 @@
 import { run } from '@genkit-ai/core';
 import * as z from 'zod';
 import { generateString } from '../common/util';
-import { genkit } from '../index.js';
+import { ai } from '../index.js';
 
 //
 // Flow - simple
 //
 
-const flowSingleStep = genkit.defineFlow(
+const flowSingleStep = ai.defineFlow(
   { name: 'flowSingleStep' },
   async (input) => {
     return await run('step1', async () => {
@@ -36,7 +36,7 @@ const flowSingleStep = genkit.defineFlow(
 // Flow - multiStep
 //
 
-const flowMultiStep = genkit.defineFlow(
+const flowMultiStep = ai.defineFlow(
   { name: 'flowMultiStep' },
   async (input) => {
     let i = 1;
@@ -59,7 +59,7 @@ const flowMultiStep = genkit.defineFlow(
 // Flow - nested
 //
 
-const flowNested = genkit.defineFlow(
+const flowNested = ai.defineFlow(
   { name: 'flowNested', outputSchema: z.string() },
   async () => {
     return JSON.stringify(
@@ -77,7 +77,7 @@ const flowNested = genkit.defineFlow(
 // Flow - streaming
 //
 
-genkit.defineStreamingFlow(
+ai.defineStreamingFlow(
   {
     name: 'flowStreaming',
     inputSchema: z.number(),
@@ -100,7 +100,7 @@ genkit.defineStreamingFlow(
 // Flow - throws
 //
 
-genkit.defineFlow({ name: 'flowSingleStepThrows' }, async (input) => {
+ai.defineFlow({ name: 'flowSingleStepThrows' }, async (input) => {
   return await run('step1', async () => {
     if (input) {
       throw new Error('Got an error!');
@@ -113,7 +113,7 @@ genkit.defineFlow({ name: 'flowSingleStepThrows' }, async (input) => {
 // Flow - multi-step throws
 //
 
-genkit.defineFlow({ name: 'flowMultiStepThrows' }, async (input) => {
+ai.defineFlow({ name: 'flowMultiStepThrows' }, async (input) => {
   let i = 1;
 
   const result1 = await run('step1', async () => {
@@ -136,7 +136,7 @@ genkit.defineFlow({ name: 'flowMultiStepThrows' }, async (input) => {
 // Flow - caught error multi-step
 //
 
-genkit.defineFlow({ name: 'flowMultiStepCaughtError' }, async (input) => {
+ai.defineFlow({ name: 'flowMultiStepCaughtError' }, async (input) => {
   let i = 1;
 
   const result1 = await run('step1', async () => {
@@ -162,7 +162,7 @@ genkit.defineFlow({ name: 'flowMultiStepCaughtError' }, async (input) => {
 // Flow - streamingThrows
 //
 
-genkit.defineStreamingFlow(
+ai.defineStreamingFlow(
   {
     name: 'flowStreamingThrows',
     inputSchema: z.number(),
@@ -191,7 +191,7 @@ genkit.defineStreamingFlow(
 // Flow - largeOutput
 //
 
-export const largeSteps = genkit.defineFlow(
+export const largeSteps = ai.defineFlow(
   { name: 'flowLargeOutput' },
   async () => {
     await run('step1', async () => {

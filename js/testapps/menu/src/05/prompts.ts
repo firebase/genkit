@@ -18,10 +18,10 @@ import { runWithRegistry } from '@genkit-ai/core/registry';
 import { defineDotprompt } from '@genkit-ai/dotprompt';
 import { geminiPro, geminiProVision } from '@genkit-ai/vertexai';
 import * as z from 'zod';
-import { genkit } from '../index.js';
+import { ai } from '../index.js';
 import { TextMenuQuestionInputSchema } from '../types.js';
 
-export const s05_readMenuPrompt = runWithRegistry(genkit.registry, () =>
+export const s05_readMenuPrompt = runWithRegistry(ai.registry, () =>
   defineDotprompt(
     {
       name: 's05_readMenu',
@@ -43,7 +43,7 @@ from the following image of a restaurant menu.
   )
 );
 
-export const s05_textMenuPrompt = runWithRegistry(genkit.registry, () =>
+export const s05_textMenuPrompt = runWithRegistry(ai.registry, () =>
   defineDotprompt(
     {
       name: 's05_textMenu',

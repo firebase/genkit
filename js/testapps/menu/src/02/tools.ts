@@ -20,9 +20,9 @@ import { MenuItemSchema } from '../types.js';
 
 import { runWithRegistry } from '@genkit-ai/core/registry';
 import menuData from '../../data/menu.json' assert { type: 'json' };
-import { genkit } from '../index.js';
+import { ai } from '../index.js';
 
-export const menuTool = runWithRegistry(genkit.registry, () =>
+export const menuTool = runWithRegistry(ai.registry, () =>
   defineTool(
     {
       name: 'todaysMenu',

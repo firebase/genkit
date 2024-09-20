@@ -58,7 +58,7 @@ const ai = genkit({
 const vectorStore = new MemoryVectorStore(new GoogleVertexAIEmbeddings());
 const model = new GoogleVertexAI();
 
-export const indexPdf = genkit.defineFlow(
+export const indexPdf = ai.defineFlow(
   { name: 'indexPdf', inputSchema: z.string(), outputSchema: z.void() },
   async (filePath) => {
     const docs = await run('load-pdf', async () => {
@@ -77,7 +77,7 @@ const prompt =
 Question: {question}`);
 const retriever = vectorStore.asRetriever();
 
-export const pdfQA = genkit.defineFlow(
+export const pdfQA = ai.defineFlow(
   { name: 'pdfQA', inputSchema: z.string(), outputSchema: z.string() },
   async (question) => {
     const chain = RunnableSequence.from([

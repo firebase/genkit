@@ -17,10 +17,10 @@
 import { runWithRegistry } from '@genkit-ai/core/registry';
 import { defineDotprompt } from '@genkit-ai/dotprompt';
 import { geminiPro } from '@genkit-ai/vertexai';
-import { genkit } from '../index.js';
+import { ai } from '../index.js';
 import { DataMenuQuestionInputSchema } from '../types.js';
 
-export const s04_ragDataMenuPrompt = runWithRegistry(genkit.registry, () =>
+export const s04_ragDataMenuPrompt = runWithRegistry(ai.registry, () =>
   defineDotprompt(
     {
       name: 's04_ragDataMenu',

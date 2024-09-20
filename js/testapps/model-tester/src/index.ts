@@ -22,7 +22,7 @@ import * as clc from 'colorette';
 import { ollama } from 'genkitx-ollama';
 import { openAI } from 'genkitx-openai';
 
-export const genkit = genkit({
+export const ai = genkit({
   plugins: [
     googleAI(),
     vertexAI({

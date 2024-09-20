@@ -75,7 +75,7 @@ const ai = genkit({
 
 const app = initializeApp();
 
-export const jokeFlow = genkit.defineFlow(
+export const jokeFlow = ai.defineFlow(
   {
     name: 'jokeFlow',
     inputSchema: z.object({
@@ -97,7 +97,7 @@ export const jokeFlow = genkit.defineFlow(
   }
 );
 
-export const drawPictureFlow = genkit.defineFlow(
+export const drawPictureFlow = ai.defineFlow(
   {
     name: 'drawPictureFlow',
     inputSchema: z.object({ modelName: z.string(), object: z.string() }),
@@ -116,7 +116,7 @@ export const drawPictureFlow = genkit.defineFlow(
   }
 );
 
-export const streamFlow = genkit.defineStreamingFlow(
+export const streamFlow = ai.defineStreamingFlow(
   {
     name: 'streamFlow',
     inputSchema: z.string(),
@@ -154,7 +154,7 @@ const GameCharactersSchema = z.object({
     .describe('Characters'),
 });
 
-export const streamJsonFlow = genkit.defineStreamingFlow(
+export const streamJsonFlow = ai.defineStreamingFlow(
   {
     name: 'streamJsonFlow',
     inputSchema: z.number(),
@@ -196,7 +196,7 @@ function maybeStripMarkdown(withMarkdown: string) {
 }
 
 const tools = [
-  runWithRegistry(genkit.registry, () =>
+  runWithRegistry(ai.registry, () =>
     defineTool(
       {
         name: 'tellAFunnyJoke',
@@ -212,7 +212,7 @@ const tools = [
   ),
 ];
 
-export const jokeWithToolsFlow = genkit.defineFlow(
+export const jokeWithToolsFlow = ai.defineFlow(
   {
     name: 'jokeWithToolsFlow',
     inputSchema: z.object({
@@ -236,7 +236,7 @@ const outputSchema = z.object({
   joke: z.string(),
 });
 
-export const jokeWithOutputFlow = genkit.defineFlow(
+export const jokeWithOutputFlow = ai.defineFlow(
   {
     name: 'jokeWithOutputFlow',
     inputSchema: z.object({
@@ -258,7 +258,7 @@ export const jokeWithOutputFlow = genkit.defineFlow(
   }
 );
 
-export const vertexStreamer = genkit.defineFlow(
+export const vertexStreamer = ai.defineFlow(
   {
     name: 'vertexStreamer',
     inputSchema: z.string(),
@@ -277,7 +277,7 @@ export const vertexStreamer = genkit.defineFlow(
   }
 );
 
-export const multimodalFlow = genkit.defineFlow(
+export const multimodalFlow = ai.defineFlow(
   {
     name: 'multimodalFlow',
     inputSchema: z.object({ modelName: z.string(), imageUrl: z.string() }),
@@ -295,7 +295,7 @@ export const multimodalFlow = genkit.defineFlow(
   }
 );
 
-const destinationsRetriever = runWithRegistry(genkit.registry, () =>
+const destinationsRetriever = runWithRegistry(ai.registry, () =>
   defineFirestoreRetriever({
     name: 'destinationsRetriever',
     firestore: getFirestore(app),
@@ -306,7 +306,7 @@ const destinationsRetriever = runWithRegistry(genkit.registry, () =>
   })
 );
 
-export const searchDestinations = genkit.defineFlow(
+export const searchDestinations = ai.defineFlow(
   {
     name: 'searchDestinations',
     inputSchema: z.string(),
@@ -332,7 +332,7 @@ Available Options:\n- ${docs.map((d) => `${d.metadata!.name}: ${d.text()}`).join
   }
 );
 
-export const dotpromptContext = genkit.defineFlow(
+export const dotpromptContext = ai.defineFlow(
   {
     name: 'dotpromptContext',
     inputSchema: z.string(),
@@ -374,7 +374,7 @@ export const dotpromptContext = genkit.defineFlow(
   }
 );
 
-const jokeSubjectGenerator = runWithRegistry(genkit.registry, () =>
+const jokeSubjectGenerator = runWithRegistry(ai.registry, () =>
   defineTool(
     {
       name: 'jokeSubjectGenerator',
@@ -386,7 +386,7 @@ const jokeSubjectGenerator = runWithRegistry(genkit.registry, () =>
   )
 );
 
-export const toolCaller = genkit.defineStreamingFlow(
+export const toolCaller = ai.defineStreamingFlow(
   {
     name: 'toolCaller',
     outputSchema: z.string(),
@@ -414,7 +414,7 @@ export const toolCaller = genkit.defineStreamingFlow(
   }
 );
 
-export const invalidOutput = genkit.defineFlow(
+export const invalidOutput = ai.defineFlow(
   {
     name: 'invalidOutput',
     inputSchema: z.string(),
@@ -440,7 +440,7 @@ export const invalidOutput = genkit.defineFlow(
 const fileManager = new GoogleAIFileManager(
   process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY!
 );
-export const fileApi = genkit.defineFlow(
+export const fileApi = ai.defineFlow(
   {
     name: 'fileApi',
     inputSchema: z.string(),
@@ -475,7 +475,7 @@ export const fileApi = genkit.defineFlow(
 
 export const testTools = [
   // test a tool with no input / output schema
-  runWithRegistry(genkit.registry, () =>
+  runWithRegistry(ai.registry, () =>
     defineTool(
       { name: 'getColor', description: 'gets a random color' },
       async () => {
@@ -494,7 +494,7 @@ export const testTools = [
   ),
 ];
 
-export const toolTester = genkit.defineFlow(
+export const toolTester = ai.defineFlow(
   {
     name: 'toolTester',
     inputSchema: z.string(),

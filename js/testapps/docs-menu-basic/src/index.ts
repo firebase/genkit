@@ -30,7 +30,7 @@ const ai = genkit({
   },
 });
 
-export const menuSuggestionFlow = genkit.defineFlow(
+export const menuSuggestionFlow = ai.defineFlow(
   {
     name: 'menuSuggestionFlow',
     inputSchema: z.string(),

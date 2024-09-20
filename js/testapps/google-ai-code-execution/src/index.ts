@@ -28,7 +28,7 @@ const ai = genkit({
   enableTracingAndMetrics: true,
 });
 
-export const codeExecutionFlow = genkit.defineFlow(
+export const codeExecutionFlow = ai.defineFlow(
   {
     name: 'codeExecutionFlow',
     inputSchema: z.string(),

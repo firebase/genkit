@@ -27,7 +27,7 @@ import { chunk } from 'llm-chunk';
 import path from 'path';
 import pdf from 'pdf-parse';
 import * as z from 'zod';
-import { genkit } from './index.js';
+import { ai } from './index.js';
 import { augmentedPrompt } from './prompt.js';
 
 export const pdfChatRetriever = devLocalRetrieverRef('pdfQA');
@@ -35,7 +35,7 @@ export const pdfChatRetriever = devLocalRetrieverRef('pdfQA');
 export const pdfChatIndexer = devLocalIndexerRef('pdfQA');
 
 // Define a simple RAG flow, we will evaluate this flow
-export const pdfQA = genkit.defineFlow(
+export const pdfQA = ai.defineFlow(
   {
     name: 'pdfQA',
     inputSchema: z.string(),
@@ -70,7 +70,7 @@ const chunkingConfig = {
 
 // Define a flow to index documents into the "vector store"
 // genkit flow:run indexPdf '"35650.pdf"'
-export const indexPdf = genkit.defineFlow(
+export const indexPdf = ai.defineFlow(
   {
     name: 'indexPdf',
     inputSchema: z.string().describe('PDF file path'),
@@ -103,7 +103,7 @@ async function extractText(filePath: string) {
 
 // genkit flow:run synthesizeQuestions '"35650.pdf"' --output synthesizedQuestions.json
 // genkit flow:batchRun pdfQA synthesizedQuestions.json --output batchinput_small_out.json
-export const synthesizeQuestions = genkit.defineFlow(
+export const synthesizeQuestions = ai.defineFlow(
   {
     name: 'synthesizeQuestions',
     inputSchema: z.string().describe('PDF file path'),

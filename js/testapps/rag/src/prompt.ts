@@ -17,11 +17,11 @@
 import { runWithRegistry } from '@genkit-ai/core/registry';
 import { defineDotprompt } from '@genkit-ai/dotprompt';
 import * as z from 'zod';
-import { genkit } from './index.js';
+import { ai } from './index.js';
 
 // Define a prompt that includes the retrieved context documents
 
-export const augmentedPrompt = runWithRegistry(genkit.registry, () =>
+export const augmentedPrompt = runWithRegistry(ai.registry, () =>
   defineDotprompt(
     {
       name: 'augmentedPrompt',

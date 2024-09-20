@@ -17,14 +17,14 @@
 import { runWithRegistry } from '@genkit-ai/core/registry';
 import { defineDotprompt } from '@genkit-ai/dotprompt';
 import { geminiPro } from '@genkit-ai/vertexai';
-import { genkit } from '../index.js';
+import { ai } from '../index.js';
 import { MenuQuestionInputSchema } from '../types.js';
 import { menuTool } from './tools.js';
 
 // The prompt uses a tool which will load the menu data,
 // if the user asks a reasonable question about the menu.
 
-export const s02_dataMenuPrompt = runWithRegistry(genkit.registry, () =>
+export const s02_dataMenuPrompt = runWithRegistry(ai.registry, () =>
   defineDotprompt(
     {
       name: 's02_dataMenu',

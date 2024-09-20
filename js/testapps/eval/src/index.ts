@@ -50,7 +50,7 @@ const ai = genkit({
 
 const samples: Dataset = require('../data/dogfacts.json');
 
-export const dogFactsEvalFlow = genkit.defineFlow(
+export const dogFactsEvalFlow = ai.defineFlow(
   {
     name: 'dogFactsEval',
     inputSchema: z.void(),

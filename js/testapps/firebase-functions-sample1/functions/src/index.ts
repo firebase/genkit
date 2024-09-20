@@ -32,7 +32,7 @@ const ai = genkit({
 });
 
 export const jokeFlow = onFlow(
-  genkit,
+  ai,
   {
     name: 'jokeFlow',
     inputSchema: z.string(),
@@ -61,7 +61,7 @@ export const jokeFlow = onFlow(
 );
 
 export const authFlow = onFlow(
-  genkit,
+  ai,
   {
     name: 'authFlow',
     inputSchema: z.object({ uid: z.string(), input: z.string() }),
@@ -76,7 +76,7 @@ export const authFlow = onFlow(
 );
 
 export const streamer = onFlow(
-  genkit,
+  ai,
   {
     name: 'streamer',
     inputSchema: z.number(),
@@ -99,7 +99,7 @@ export const streamer = onFlow(
 );
 
 export const streamConsumer = onFlow(
-  genkit,
+  ai,
   {
     name: 'streamConsumer',
     httpsOptions: { invoker: 'private' },

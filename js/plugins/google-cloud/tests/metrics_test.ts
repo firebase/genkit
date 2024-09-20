@@ -725,11 +725,11 @@ describe('GoogleCloudMetrics', () => {
 
   /** Helper to create a flow with no inputs or outputs */
   function createFlow(
-    genkit: Genkit,
+    ai: Genkit,
     name: string,
     fn: () => Promise<any> = async () => {}
   ) {
-    return genkit.defineFlow(
+    return ai.defineFlow(
       {
         name,
         inputSchema: z.void(),

@@ -23,7 +23,7 @@ import { chunk } from 'llm-chunk';
 import path from 'path';
 import pdf from 'pdf-parse';
 import * as z from 'zod';
-import { genkit } from './index.js';
+import { ai } from './index.js';
 
 // Create a reference to the configured local indexer.
 export const menuPdfIndexer = devLocalIndexerRef('menuQA');
@@ -40,7 +40,7 @@ const chunkingConfig = {
 
 // Define a flow to index documents into the "vector store"
 // genkit flow:run indexMenu '"./docs/.pdf"'
-export const indexMenu = genkit.defineFlow(
+export const indexMenu = ai.defineFlow(
   {
     name: 'indexMenu',
     inputSchema: z.string().describe('PDF file path'),

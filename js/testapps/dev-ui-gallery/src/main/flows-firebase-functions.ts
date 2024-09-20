@@ -21,9 +21,9 @@ import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
 import { gemini15Flash } from '@genkit-ai/googleai';
 import { DecodedIdToken } from 'firebase-admin/auth';
 import * as z from 'zod';
-import { genkit } from '../index.js';
+import { ai } from '../index.js';
 
-export const flowBasicAuth = genkit.defineFlow(
+export const flowBasicAuth = ai.defineFlow(
   {
     name: 'flowBasicAuth',
     inputSchema: z.object({ language: z.string(), uid: z.string() }),
@@ -52,7 +52,7 @@ export const flowBasicAuth = genkit.defineFlow(
 );
 
 export const flowAuth = onFlow(
-  genkit,
+  ai,
   {
     name: 'flowAuth',
     inputSchema: z.string(),
@@ -81,7 +81,7 @@ export const flowAuth = onFlow(
 );
 
 export const flowAuthNone = onFlow(
-  genkit,
+  ai,
   {
     name: 'flowAuthNone',
     inputSchema: z.string(),

@@ -40,7 +40,7 @@ const menus = ['./docs/GenkitGrubPub.pdf'];
 
 // genkit flow:run setup
 // genkit flow:run setup '[\"your_awesome_pdf.pdf\", \"your_other_awesome_pdf.pdf\""]'
-export const setup = genkit.defineFlow(
+export const setup = ai.defineFlow(
   {
     name: 'setup',
     inputSchema: z.array(z.string()).optional(),

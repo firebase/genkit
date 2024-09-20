@@ -33,7 +33,7 @@ import { FieldValue } from '@google-cloud/firestore';
 import * as z from 'zod';
 
 import { runWithRegistry } from '@genkit-ai/core/registry';
-import { genkit } from './index.js';
+import { ai } from './index.js';
 
 const app = initializeApp();
 let firestore = getFirestore(app);
@@ -65,7 +65,7 @@ Question: ${question}
 Helpful Answer:`;
 }
 
-export const pdfChatRetrieverFirebase = runWithRegistry(genkit.registry, () =>
+export const pdfChatRetrieverFirebase = runWithRegistry(ai.registry, () =>
   defineFirestoreRetriever({
     name: 'pdfChatRetrieverFirebase',
     firestore,
@@ -78,7 +78,7 @@ export const pdfChatRetrieverFirebase = runWithRegistry(genkit.registry, () =>
 );
 
 // Define a simple RAG flow, we will evaluate this flow
-export const pdfQAFirebase = genkit.defineFlow(
+export const pdfQAFirebase = ai.defineFlow(
   {
     name: 'pdfQAFirebase',
     inputSchema: z.string(),
@@ -122,7 +122,7 @@ const chunkingConfig = {
 
 // Define a flow to index documents into the "vector store"
 // genkit flow:run indexPdf '"./docs/sfspca-cat-adoption-handbook-2023.pdf"'
-export const indexPdfFirebase = genkit.defineFlow(
+export const indexPdfFirebase = ai.defineFlow(
   {
     name: 'indexPdfFirestore',
     inputSchema: z.string().describe('PDF file path'),
