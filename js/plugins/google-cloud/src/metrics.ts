@@ -114,5 +114,10 @@ function truncateDimensions(opts?: any) {
 }
 
 export interface Telemetry {
-  tick(span: ReadableSpan, paths?: Set<PathMetadata>, projectId?: string): void;
+  tick(
+    span: ReadableSpan,
+    paths: Set<PathMetadata>,
+    logIO: boolean,
+    projectId?: string
+  ): void;
 }

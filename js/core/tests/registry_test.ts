@@ -214,7 +214,6 @@ describe('registry class', () => {
         },
         async () => null
       );
-      registry.registerAction('custom', fooSomethingAction);
       registry.registerPluginProvider('bar', {
         name: 'bar',
         async initializer() {
@@ -231,11 +230,10 @@ describe('registry class', () => {
         },
         async () => null
       );
-      registry.registerAction('custom', barSomethingAction);
 
       assert.deepEqual(await registry.listActions(), {
-        '/custom/foo/something': fooSomethingAction,
-        '/custom/bar/something': barSomethingAction,
+        '/model/foo/something': fooSomethingAction,
+        '/model/bar/something': barSomethingAction,
       });
     });
 

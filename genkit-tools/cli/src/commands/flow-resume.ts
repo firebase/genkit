@@ -15,8 +15,9 @@
  */
 
 import { FlowInvokeEnvelopeMessage, FlowState } from '@genkit-ai/tools-common';
-import { logger, runInRunnerThenStop } from '@genkit-ai/tools-common/utils';
+import { logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
+import { runInRunnerThenStop } from '../utils/runner-utils';
 
 /** Command to start GenKit server, optionally without static file serving */
 export const flowResume = new Command('flow:resume')

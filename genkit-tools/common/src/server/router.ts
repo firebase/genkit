@@ -160,20 +160,6 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
         return runner.getTrace(input);
       }),
 
-    /** Retrieves all flow states for a given environment (e.g. dev or prod). */
-    listFlowStates: loggedProcedure
-      .input(apis.ListFlowStatesRequestSchema)
-      .query(async ({ input }) => {
-        return runner.listFlowStates(input);
-      }),
-
-    /** Retrieves a flow state for a given ID. */
-    getFlowState: loggedProcedure
-      .input(apis.GetFlowStateRequestSchema)
-      .query(async ({ input }) => {
-        return runner.getFlowState(input);
-      }),
-
     /** Retrieves all eval run keys */
     listEvalRunKeys: loggedProcedure
       .input(apis.ListEvalKeysRequestSchema)

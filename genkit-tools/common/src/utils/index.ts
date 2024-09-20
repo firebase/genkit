@@ -20,6 +20,5 @@ export * from './eval';
 export * from './logger';
 export * from './package';
 export * from './prompt';
-export * from './runner-utils';
 export * from './trace';
 export * from './utils';

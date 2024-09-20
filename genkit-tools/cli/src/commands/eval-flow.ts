@@ -27,13 +27,10 @@ import {
   runEvaluation,
   runInference,
 } from '@genkit-ai/tools-common/eval';
-import {
-  confirmLlmUse,
-  logger,
-  runInRunnerThenStop,
-} from '@genkit-ai/tools-common/utils';
+import { confirmLlmUse, logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { readFile } from 'fs/promises';
+import { runInRunnerThenStop } from '../utils/runner-utils';
 
 interface EvalFlowRunCliOptions {
   input?: string;

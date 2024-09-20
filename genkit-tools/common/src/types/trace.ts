@@ -90,14 +90,6 @@ export const SpanDataSchema = z
 
 export type SpanData = z.infer<typeof SpanDataSchema>;
 
-export const NestedSpanDataSchema = SpanDataSchema.extend({
-  spans: z.lazy(() => z.array(SpanDataSchema)),
-});
-
-export type NestedSpanData = z.infer<typeof SpanDataSchema> & {
-  spans?: SpanData[];
-};
-
 export const TraceDataSchema = z
   .object({
     traceId: z.string(),
@@ -109,3 +101,11 @@ export const TraceDataSchema = z
   .openapi('TraceData');
 
 export type TraceData = z.infer<typeof TraceDataSchema>;
+
+export const NestedSpanDataSchema = SpanDataSchema.extend({
+  spans: z.lazy(() => z.array(SpanDataSchema)),
+});
+
+export type NestedSpanData = z.infer<typeof SpanDataSchema> & {
+  spans?: SpanData[];
+};

@@ -16,12 +16,10 @@
 
 import * as z from 'zod';
 import { Action } from './action.js';
-import { FlowStateStore } from './flowTypes.js';
 import { logger } from './logging.js';
 import { PluginProvider } from './plugin.js';
 import { startReflectionApi } from './reflectionApi.js';
 import { JSONSchema } from './schema.js';
-import { TraceStore } from './tracing/types.js';
 
 export type AsyncProvider<T> = () => Promise<T>;
 
@@ -89,53 +87,14 @@ export function listActions(): Promise<ActionsRecord> {
 }
 
 /**
- * Registers a trace store provider for the given environment.
- */
-export function registerTraceStore(
-  env: string,
-  traceStoreProvider: AsyncProvider<TraceStore>
-) {
-  return getRegistryInstance().registerTraceStore(env, traceStoreProvider);
-}
-
-/**
- * Looks up the trace store for the given environment.
- */
-export function lookupTraceStore(env: string): Promise<TraceStore | undefined> {
-  return getRegistryInstance().lookupTraceStore(env);
-}
-
-/**
- * Registers a flow state store provider for the given environment.
- */
-export function registerFlowStateStore(
-  env: string,
-  flowStateStoreProvider: AsyncProvider<FlowStateStore>
-) {
-  return getRegistryInstance().registerFlowStateStore(
-    env,
-    flowStateStoreProvider
-  );
-}
-
-/**
- * Looks up the flow state store for the given environment.
- */
-export async function lookupFlowStateStore(
-  env: string
-): Promise<FlowStateStore | undefined> {
-  return getRegistryInstance().lookupFlowStateStore(env);
-}
-
-/**
- * Registers a flow state store for the given environment.
+ * Registers a plugin.
  */
 export function registerPluginProvider(name: string, provider: PluginProvider) {
   return getRegistryInstance().registerPluginProvider(name, provider);
 }
 
 export function lookupPlugin(name: string) {
-  return getRegistryInstance().lookupFlowStateStore(name);
+  return getRegistryInstance().lookupPlugin(name);
 }
 
 /**
@@ -170,17 +129,11 @@ export function __hardResetRegistryForTesting() {
 
 export class Registry {
   private actionsById: Record<string, Action<z.ZodTypeAny, z.ZodTypeAny>> = {};
-  private traceStoresByEnv: Record<string, AsyncProvider<TraceStore>> = {};
-  private flowStateStoresByEnv: Record<string, AsyncProvider<FlowStateStore>> =
-    {};
   private pluginsByName: Record<string, PluginProvider> = {};
   private schemasByName: Record<
     string,
     { schema?: z.ZodTypeAny; jsonSchema?: JSONSchema }
   > = {};
-
-  private traceStoresByEnvCache: Record<any, Promise<TraceStore>> = {};
-  private flowStateStoresByEnvCache: Record<any, Promise<FlowStateStore>> = {};
   private allPluginsInitialized = false;
 
   constructor(public parent?: Registry) {}
@@ -233,67 +186,9 @@ export class Registry {
       return;
     }
     for (const pluginName of Object.keys(this.pluginsByName)) {
-      await initializePlugin(pluginName);
+      await this.initializePlugin(pluginName);
     }
     this.allPluginsInitialized = true;
-  }
-
-  registerTraceStore(
-    env: string,
-    traceStoreProvider: AsyncProvider<TraceStore>
-  ) {
-    this.traceStoresByEnv[env] = traceStoreProvider;
-  }
-
-  async lookupTraceStore(env: string): Promise<TraceStore | undefined> {
-    return (
-      (await this.lookupOverlaidTraceStore(env)) ||
-      this.parent?.lookupTraceStore(env)
-    );
-  }
-
-  private async lookupOverlaidTraceStore(
-    env: string
-  ): Promise<TraceStore | undefined> {
-    if (!this.traceStoresByEnv[env]) {
-      return undefined;
-    }
-    const cached = this.traceStoresByEnvCache[env];
-    if (!cached) {
-      const newStore = this.traceStoresByEnv[env]();
-      this.traceStoresByEnvCache[env] = newStore;
-      return newStore;
-    }
-    return cached;
-  }
-
-  registerFlowStateStore(
-    env: string,
-    flowStateStoreProvider: AsyncProvider<FlowStateStore>
-  ) {
-    this.flowStateStoresByEnv[env] = flowStateStoreProvider;
-  }
-
-  async lookupFlowStateStore(env: string): Promise<FlowStateStore | undefined> {
-    return (
-      (await this.lookupOverlaidFlowStateStore(env)) ||
-      this.parent?.lookupFlowStateStore(env)
-    );
-  }
-
-  private async lookupOverlaidFlowStateStore(
-    env: string
-  ): Promise<FlowStateStore | undefined> {
-    if (!this.flowStateStoresByEnv[env]) {
-      return undefined;
-    }
-    const cached = this.flowStateStoresByEnvCache[env];
-    if (!cached) {
-      const newStore = this.flowStateStoresByEnv[env]();
-      this.flowStateStoresByEnvCache[env] = newStore;
-      return newStore;
-    }
-    return cached;
   }
 
   registerPluginProvider(name: string, provider: PluginProvider) {

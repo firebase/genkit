@@ -106,11 +106,6 @@ export const init = new Command('init')
  */
 export function showModelInfo(model: ModelProvider) {
   switch (model) {
-    case 'googleai':
-      logger.warn(
-        `Google AI is currently available in limited regions. For a complete list, see https://ai.google.dev/available_regions#available_regions`
-      );
-      break;
     case 'vertexai':
       logger.info(
         `Run the following command to enable Vertex AI in your Google Cloud project:\n\n  gcloud services enable aiplatform.googleapis.com\n`

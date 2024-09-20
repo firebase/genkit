@@ -17,8 +17,6 @@
 import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 import fs from 'fs';
 import path from 'path';
-import { FlowStateStore } from './flowTypes.js';
-import { LocalFileFlowStateStore } from './localFileFlowStateStore.js';
 import { logger } from './logging.js';
 import { PluginProvider } from './plugin.js';
 import * as registry from './registry.js';
@@ -28,8 +26,7 @@ import {
   TelemetryConfig,
   TelemetryOptions,
 } from './telemetryTypes.js';
-import { TraceStore, enableTracingAndMetrics } from './tracing.js';
-import { LocalFileTraceStore } from './tracing/localFileTraceStore.js';
+import { enableTracingAndMetrics } from './tracing.js';
 
 export * from './plugin.js';
 
@@ -65,26 +62,6 @@ class Config {
         },
       };
     this.configure();
-  }
-
-  /**
-   * Returns a flow state store instance for the running environment.
-   * If no store is configured, will throw an error.
-   */
-  public async getFlowStateStore(): Promise<FlowStateStore> {
-    const flowStateStore = await registry.lookupFlowStateStore(getCurrentEnv());
-    if (!flowStateStore) {
-      throw new Error('No flow store is configured.');
-    }
-    return flowStateStore;
-  }
-
-  /**
-   * Returns a trace store instance for the running environment.
-   * If no store is configured, will return undefined.
-   */
-  public async getTraceStore(): Promise<TraceStore | undefined> {
-    return await registry.lookupTraceStore(getCurrentEnv());
   }
 
   /**
@@ -129,46 +106,6 @@ class Config {
       this.telemetryConfig = async () =>
         this.resolveTelemetryConfig(telemetryPluginName);
     }
-
-    logger.debug('Registering flow state stores...');
-    if (isDevEnv()) {
-      registry.registerFlowStateStore(
-        'dev',
-        async () => new LocalFileFlowStateStore()
-      );
-      logger.debug('Registered dev flow state store.');
-    }
-    if (this.options.flowStateStore) {
-      const flowStorePluginName = this.options.flowStateStore;
-      logger.debug(`  - prod: ${flowStorePluginName}`);
-      this.configuredEnvs.add('prod');
-      registry.registerFlowStateStore('prod', () =>
-        this.resolveFlowStateStore(flowStorePluginName)
-      );
-    }
-
-    logger.debug('Registering trace stores...');
-    if (isDevEnv()) {
-      registry.registerTraceStore('dev', async () => new LocalFileTraceStore());
-      logger.debug('Registered dev trace store.');
-    }
-    if (this.options.traceStore) {
-      const traceStorePluginName = this.options.traceStore;
-      logger.debug(`  - prod: ${traceStorePluginName}`);
-      this.configuredEnvs.add('prod');
-      registry.registerTraceStore('prod', () =>
-        this.resolveTraceStore(traceStorePluginName)
-      );
-      if (isDevEnv()) {
-        logger.info(
-          'In dev mode `traceStore` is defaulted to local file store.'
-        );
-      }
-    } else {
-      logger.info(
-        '`traceStore` is not specified in the config; Traces are not going to be persisted in prod.'
-      );
-    }
   }
 
   /**
@@ -181,10 +118,7 @@ class Config {
    */
   async setupTracingAndLogging() {
     if (this.options.enableTracingAndMetrics) {
-      enableTracingAndMetrics(
-        await this.getTelemetryConfig(),
-        await this.getTraceStore()
-      );
+      enableTracingAndMetrics(await this.getTelemetryConfig());
     }
     if (this.loggerConfig) {
       logger.init(await this.loggerConfig());
