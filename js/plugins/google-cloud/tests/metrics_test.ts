@@ -16,7 +16,7 @@
 
 import { generate, GenerateResponseData } from '@genkit-ai/ai';
 import { defineModel } from '@genkit-ai/ai/model';
-import { defineAction, Genkit, run } from '@genkit-ai/core';
+import { defineAction, genkit, Genkit, run } from '@genkit-ai/core';
 import {
   __forceFlushSpansForTesting,
   __getMetricExporterForTesting,
@@ -37,7 +37,7 @@ import { before, beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
 
 describe('GoogleCloudMetrics', () => {
-  let genkit: Genkit;
+  let ai: Genkit;
 
   before(async () => {
     process.env.GENKIT_ENV = 'dev';
@@ -60,7 +60,7 @@ describe('GoogleCloudMetrics', () => {
       },
     });
     // Wait for the telemetry plugin to be initialized
-    await genkit.getTelemetryConfig();
+    await ai.getTelemetryConfig();
   });
   beforeEach(async () => {
     __getMetricExporterForTesting().reset();
@@ -68,7 +68,7 @@ describe('GoogleCloudMetrics', () => {
   });
 
   it('writes flow metrics', async () => {
-    const testFlow = createFlow(genkit, 'testFlow');
+    const testFlow = createFlow(ai, 'testFlow');
 
     await testFlow();
     await testFlow();
@@ -90,7 +90,7 @@ describe('GoogleCloudMetrics', () => {
   });
 
   it('writes flow failure metrics', async () => {
-    const testFlow = createFlow(genkit, 'testFlow', async () => {
+    const testFlow = createFlow(ai, 'testFlow', async () => {
       const nothing: { missing?: any } = { missing: 1 };
       delete nothing.missing;
       return nothing.missing.explode;
@@ -112,7 +112,7 @@ describe('GoogleCloudMetrics', () => {
 
   it('writes action metrics', async () => {
     const testAction = createAction('testAction');
-    const testFlow = createFlow(genkit, 'testFlowWithActions', async () => {
+    const testFlow = createFlow(ai, 'testFlowWithActions', async () => {
       await Promise.all([
         testAction(undefined),
         testAction(undefined),
@@ -140,7 +140,7 @@ describe('GoogleCloudMetrics', () => {
   });
 
   it('truncates metric dimensions', async () => {
-    const testFlow = createFlow(genkit, 'anExtremelyLongFlowNameThatIsTooBig');
+    const testFlow = createFlow(ai, 'anExtremelyLongFlowNameThatIsTooBig');
 
     await testFlow();
 
@@ -164,13 +164,9 @@ describe('GoogleCloudMetrics', () => {
       delete nothing.missing;
       return nothing.missing.explode;
     });
-    const testFlow = createFlow(
-      genkit,
-      'testFlowWithFailingActions',
-      async () => {
-        await testAction(undefined);
-      }
-    );
+    const testFlow = createFlow(ai, 'testFlowWithFailingActions', async () => {
+      await testAction(undefined);
+    });
 
     assert.rejects(async () => {
       await testFlow();
@@ -318,7 +314,7 @@ describe('GoogleCloudMetrics', () => {
 
   it('writes flow label to action metrics when running inside flow', async () => {
     const testAction = createAction('testAction');
-    const flow = createFlow(genkit, 'flowNameLabelTestFlow', async () => {
+    const flow = createFlow(ai, 'flowNameLabelTestFlow', async () => {
       return await testAction(undefined);
     });
 
@@ -359,7 +355,7 @@ describe('GoogleCloudMetrics', () => {
         },
       };
     });
-    const flow = createFlow(genkit, 'testFlow', async () => {
+    const flow = createFlow(ai, 'testFlow', async () => {
       return await generate({
         model: testModel,
         prompt: 'test prompt',
@@ -386,7 +382,7 @@ describe('GoogleCloudMetrics', () => {
   });
 
   it('writes flow paths metrics', async () => {
-    const flow = createFlow(genkit, 'pathTestFlow', async () => {
+    const flow = createFlow(ai, 'pathTestFlow', async () => {
       await run('step1', async () => {
         return await run('substep_a', async () => {
           return await run('substep_b', async () => 'res1');
@@ -431,7 +427,7 @@ describe('GoogleCloudMetrics', () => {
   });
 
   it('writes flow path failure metrics in root', async () => {
-    const flow = createFlow(genkit, 'testFlow', async () => {
+    const flow = createFlow(ai, 'testFlow', async () => {
       const subPath = await run('sub-action', async () => {
         return 'done';
       });
@@ -467,7 +463,7 @@ describe('GoogleCloudMetrics', () => {
   });
 
   it('writes flow path failure metrics in subaction', async () => {
-    const flow = createFlow(genkit, 'testFlow', async () => {
+    const flow = createFlow(ai, 'testFlow', async () => {
       const subPath1 = await run('sub-action-1', async () => {
         const subPath2 = await run('sub-action-2', async () => {
           return Promise.reject(new Error('failed'));
@@ -510,7 +506,7 @@ describe('GoogleCloudMetrics', () => {
   });
 
   it('writes flow path failure metrics in subaction', async () => {
-    const flow = createFlow(genkit, 'testFlow', async () => {
+    const flow = createFlow(ai, 'testFlow', async () => {
       const subPath1 = await run('sub-action-1', async () => {
         const subPath2 = await run('sub-action-2', async () => {
           return 'done';
@@ -555,7 +551,7 @@ describe('GoogleCloudMetrics', () => {
   });
 
   it('writes flow path failure in sub-action metrics', async () => {
-    const flow = createFlow(genkit, 'testFlow', async () => {
+    const flow = createFlow(ai, 'testFlow', async () => {
       const subPath1 = await run('sub-action-1', async () => {
         return 'done';
       });

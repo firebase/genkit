@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Genkit, run } from '@genkit-ai/core';
+import { genkit, Genkit, run } from '@genkit-ai/core';
 import {
   __forceFlushSpansForTesting,
   __getSpanExporterForTesting,
@@ -26,7 +26,7 @@ import { before, beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
 
 describe('GoogleCloudTracing', () => {
-  let genkit: Genkit;
+  let ai: Genkit;
 
   before(async () => {
     process.env.GENKIT_ENV = 'dev';
@@ -47,14 +47,14 @@ describe('GoogleCloudTracing', () => {
       },
     });
     // Wait for the telemetry plugin to be initialized
-    await genkit.getTelemetryConfig();
+    await ai.getTelemetryConfig();
   });
   beforeEach(async () => {
     __getSpanExporterForTesting().reset();
   });
 
   it('writes traces', async () => {
-    const testFlow = createFlow(genkit, 'testFlow');
+    const testFlow = createFlow(ai, 'testFlow');
 
     await testFlow();
 
@@ -64,7 +64,7 @@ describe('GoogleCloudTracing', () => {
   });
 
   it('Adjusts attributes to support GCP trace filtering', async () => {
-    const testFlow = createFlow(genkit, 'testFlow');
+    const testFlow = createFlow(ai, 'testFlow');
 
     await testFlow();
 
@@ -81,7 +81,7 @@ describe('GoogleCloudTracing', () => {
   });
 
   it('sub actions are contained within flows', async () => {
-    const testFlow = createFlow(genkit, 'testFlow', async () => {
+    const testFlow = createFlow(ai, 'testFlow', async () => {
       return await run('subAction', async () => {
         return await run('subAction2', async () => {
           return 'done';
@@ -102,8 +102,8 @@ describe('GoogleCloudTracing', () => {
   });
 
   it('different flows run independently', async () => {
-    const testFlow1 = createFlow(genkit, 'testFlow1');
-    const testFlow2 = createFlow(genkit, 'testFlow2');
+    const testFlow1 = createFlow(ai, 'testFlow1');
+    const testFlow2 = createFlow(ai, 'testFlow2');
 
     await testFlow1();
     await testFlow2();
