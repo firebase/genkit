@@ -39,7 +39,7 @@ import {
   TelemetryOptions,
 } from './telemetryTypes.js';
 import { cleanUpTracing, enableTracingAndMetrics } from './tracing.js';
-import { getCurrentEnv, isDevEnv } from './utils.js';
+import { isDevEnv } from './utils.js';
 
 /**
  * Options for initializing Genkit.
@@ -57,6 +57,7 @@ export interface GenkitOptions {
   logLevel?: 'error' | 'warn' | 'info' | 'debug';
   /** Directory where dotprompts are stored. */
   promptDir?: string;
+  // FIXME: Telemetry cannot be scoped to a single Genkit instance.
   /** Telemetry configuration. */
   telemetry?: TelemetryOptions;
   /** Default model to use if no model is specified. */
@@ -66,8 +67,9 @@ export interface GenkitOptions {
     /** Configuration for the model. */
     config?: Record<string, any>;
   };
-  /** Configuration for the flow server. Server will not be started if `flowServer` is not configured. */
-  flowServer?: FlowServerOptions;
+  // FIXME: This will not actually expose any flows. It needs a new mechanism for exposing endpoints.
+  /** Configuration for the flow server. Server will be started if value is true or a configured object. */
+  flowServer?: FlowServerOptions | boolean;
 }
 
 /**
@@ -105,22 +107,19 @@ export class Genkit {
         },
       };
     this.registry = new Registry();
-    // runWithRegistry is used instead of calling this.registry throughout this class for
-    // backwards-compatibility with existing plugins that operate on a global registry.
-    runWithRegistry(this.registry, () => {
-      this.configure();
-    });
+    this.configure();
     if (isDevEnv()) {
       this.reflectionServer = new ReflectionServer(this.registry, {
         configuredEnvs: [...this.configuredEnvs],
       });
       this.reflectionServer.start();
     }
-    if (
-      this.options.flowServer?.runInEnv === 'all' ||
-      this.options.flowServer?.runInEnv === getCurrentEnv()
-    ) {
-      this.flowServer = new FlowServer(this.registry);
+    if (this.options.flowServer) {
+      const flowServerOptions =
+        typeof this.options.flowServer === 'object'
+          ? this.options.flowServer
+          : undefined;
+      this.flowServer = new FlowServer(this.registry, flowServerOptions);
       this.flowServer.start();
     }
   }
@@ -174,7 +173,7 @@ export class Genkit {
     this.options.plugins?.forEach((plugin) => {
       logger.debug(`Registering plugin ${plugin.name}...`);
       const activeRegistry = this.registry;
-      registry.registerPluginProvider(plugin.name, {
+      activeRegistry.registerPluginProvider(plugin.name, {
         name: plugin.name,
         async initializer() {
           logger.info(`Initializing plugin ${plugin.name}:`);

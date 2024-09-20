@@ -43,9 +43,7 @@ const ai = genkit({
   ],
   logLevel: 'debug',
   enableTracingAndMetrics: true,
-  flowServer: {
-    runInEnv: 'all',
-  },
+  flowServer: true,
 });
 const FAKE_DOCUMENT_CONTENT = [
   'pythagorean theorem',

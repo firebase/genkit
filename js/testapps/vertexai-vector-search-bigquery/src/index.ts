@@ -97,9 +97,7 @@ const ai = genkit({
   ],
   logLevel: 'debug',
   enableTracingAndMetrics: true,
-  flowServer: {
-    runInEnv: 'all',
-  },
+  flowServer: true,
 });
 
 // // Define indexing flow

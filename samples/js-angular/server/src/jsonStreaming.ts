@@ -15,7 +15,6 @@
  */
 
 import { generateStream } from '@genkit-ai/ai';
-import { defineFlow } from '@genkit-ai/flow';
 import { gemini15ProPreview } from '@genkit-ai/vertexai';
 import { Allow, parse } from 'partial-json';
 import { z } from 'zod';
@@ -35,7 +34,7 @@ const GameCharactersSchema = z.object({
     .describe('Characters'),
 });
 
-export const streamCharacters = defineFlow(
+export const streamCharacters = ai.defineFlow(
   {
     name: 'streamCharacters',
     inputSchema: z.number(),

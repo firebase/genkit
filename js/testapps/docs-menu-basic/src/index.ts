@@ -25,9 +25,7 @@ const ai = genkit({
   plugins: [googleAI()],
   logLevel: 'debug',
   enableTracingAndMetrics: true,
-  flowServer: {
-    runInEnv: 'all',
-  },
+  flowServer: true,
 });
 
 export const menuSuggestionFlow = ai.defineFlow(

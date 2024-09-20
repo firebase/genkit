@@ -50,9 +50,7 @@ const ai = genkit({
   traceStore: 'firebase',
   enableTracingAndMetrics: true,
   logLevel: 'debug',
-  flowServer: {
-    runInEnv: 'all',
-  },
+  flowServer: true,
 });
 
 const vectorStore = new MemoryVectorStore(new GoogleVertexAIEmbeddings());

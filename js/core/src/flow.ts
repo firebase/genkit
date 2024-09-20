@@ -416,8 +416,6 @@ export class Flow<
  * Options to configure the flow server.
  */
 export interface FlowServerOptions {
-  /** Which environment(s) to run the flow server in. Defaults to `prod`. */
-  runInEnv?: 'all' | 'prod' | 'dev';
   /** List of flows to expose via the flow server. If not specified, all registered flows will be exposed. */
   flows?: Flow<any, any, any>[];
   /** Port to run the server on. In `dev` environment, actual port may be different if chosen port is occupied. Defaults to 3400. */
@@ -452,7 +450,6 @@ export class FlowServer {
     this.registry = registry;
     this.options = {
       port: 3400,
-      runInEnv: 'prod',
       ...options,
     };
   }
