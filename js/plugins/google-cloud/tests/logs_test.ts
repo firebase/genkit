@@ -16,7 +16,7 @@
 
 import { generate } from '@genkit-ai/ai';
 import { defineModel, GenerateResponseData } from '@genkit-ai/ai/model';
-import { Genkit, run } from '@genkit-ai/core';
+import { genkit, Genkit, run } from '@genkit-ai/core';
 import { runWithRegistry } from '@genkit-ai/core/registry';
 import {
   __addTransportStreamForTesting,
@@ -38,7 +38,7 @@ describe('GoogleCloudLogs no I/O', () => {
     next();
   };
 
-  let genkit: Genkit;
+  let ai: Genkit;
 
   before(async () => {
     process.env.GENKIT_ENV = 'dev';
@@ -63,8 +63,8 @@ describe('GoogleCloudLogs no I/O', () => {
       },
     });
     // Wait for the telemetry plugin to be initialized
-    await genkit.getTelemetryConfig();
-    await waitForLogsInit(genkit, logLines);
+    await ai.getTelemetryConfig();
+    await waitForLogsInit(ai, logLines);
   });
   beforeEach(async () => {
     logLines = '';
@@ -72,7 +72,7 @@ describe('GoogleCloudLogs no I/O', () => {
   });
 
   it('writes path logs', async () => {
-    const testFlow = createFlow(genkit, 'testFlow');
+    const testFlow = createFlow(ai, 'testFlow');
 
     await testFlow();
 
@@ -83,7 +83,7 @@ describe('GoogleCloudLogs no I/O', () => {
   });
 
   it('writes error logs', async () => {
-    const testFlow = createFlow(genkit, 'testFlow', async () => {
+    const testFlow = createFlow(ai, 'testFlow', async () => {
       const nothing: { missing?: any } = { missing: 1 };
       delete nothing.missing;
       return nothing.missing.explode;
@@ -105,7 +105,7 @@ describe('GoogleCloudLogs no I/O', () => {
   });
 
   it('writes generate logs', async () => {
-    const testModel = createModel(genkit, 'testModel', async () => {
+    const testModel = createModel(ai, 'testModel', async () => {
       return {
         candidates: [
           {
@@ -131,7 +131,7 @@ describe('GoogleCloudLogs no I/O', () => {
         },
       };
     });
-    const testFlow = createFlowWithInput(genkit, 'testFlow', async (input) => {
+    const testFlow = createFlowWithInput(ai, 'testFlow', async (input) => {
       return await run('sub1', async () => {
         return await run('sub2', async () => {
           return await generate({
@@ -190,7 +190,7 @@ describe('GoogleCloudLogs', () => {
     next();
   };
 
-  let genkit: Genkit;
+  let ai: Genkit;
 
   before(async () => {
     process.env.GENKIT_ENV = 'dev';
@@ -214,8 +214,8 @@ describe('GoogleCloudLogs', () => {
       },
     });
     // Wait for the telemetry plugin to be initialized
-    await genkit.getTelemetryConfig();
-    await waitForLogsInit(genkit, logLines);
+    await ai.getTelemetryConfig();
+    await waitForLogsInit(ai, logLines);
   });
   beforeEach(async () => {
     logLines = '';
@@ -223,7 +223,7 @@ describe('GoogleCloudLogs', () => {
   });
 
   it('writes path logs', async () => {
-    const testFlow = createFlow(genkit, 'testFlow');
+    const testFlow = createFlow(ai, 'testFlow');
 
     await testFlow();
 
@@ -234,7 +234,7 @@ describe('GoogleCloudLogs', () => {
   });
 
   it('writes error logs', async () => {
-    const testFlow = createFlow(genkit, 'testFlow', async () => {
+    const testFlow = createFlow(ai, 'testFlow', async () => {
       const nothing: { missing?: any } = { missing: 1 };
       delete nothing.missing;
       return nothing.missing.explode;
@@ -257,7 +257,7 @@ describe('GoogleCloudLogs', () => {
   });
 
   it('writes generate logs', async () => {
-    const testModel = createModel(genkit, 'testModel', async () => {
+    const testModel = createModel(ai, 'testModel', async () => {
       return {
         candidates: [
           {
@@ -283,7 +283,7 @@ describe('GoogleCloudLogs', () => {
         },
       };
     });
-    const testFlow = createFlowWithInput(genkit, 'testFlow', async (input) => {
+    const testFlow = createFlowWithInput(ai, 'testFlow', async (input) => {
       return await run('sub1', async () => {
         return await run('sub2', async () => {
           return await generate({
