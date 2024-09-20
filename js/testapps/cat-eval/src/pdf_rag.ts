@@ -59,7 +59,6 @@ export const pdfQA = defineFlow(
       query,
       options: { k: 3 },
     });
-    console.log(docs);
 
     const augmentedPrompt = ragTemplate({
       question: query,

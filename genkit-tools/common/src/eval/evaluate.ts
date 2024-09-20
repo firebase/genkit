@@ -15,9 +15,16 @@
  */
 
 import { randomUUID } from 'crypto';
-import { EvalFlowInput } from '.';
+import { EvalFlowInput, getDatasetStore, getEvalStore } from '.';
 import { Runner } from '../runner';
-import { Action, EvalInput, EvalRun, RunActionResponse } from '../types';
+import {
+  Action,
+  EvalInput,
+  EvalRun,
+  EvalRunKey,
+  RunActionResponse,
+  RunNewEvaluationRequest,
+} from '../types';
 import {
   evaluatorName,
   getEvalExtractors,
@@ -30,6 +37,43 @@ interface BulkRunResponse {
   traceId?: string;
   hasErrored: boolean;
   response: any;
+}
+
+export async function runNewEvaluation(
+  runner: Runner,
+  request: RunNewEvaluationRequest
+): Promise<EvalRunKey> {
+  const { datasetId, actionRef, evaluators } = request;
+  if (!datasetId || !actionRef) {
+    throw new Error('datasetId and actionRef are required to run evaluations');
+  }
+
+  const datasetStore = await getDatasetStore();
+  logger.info(`Fetching dataset ${datasetId}...`);
+  const dataset = await datasetStore.getDataset(datasetId);
+
+  logger.info('Running inference...');
+  // TODO: consider adding auth
+  const evalInput = await runInference(runner, actionRef, dataset);
+  let evaluatorAction: Action[] = [];
+  // TODO: Make no evaluators the common path.
+  if (evaluators) {
+    evaluatorAction = await getMatchingEvaluators(runner, evaluators);
+  }
+
+  logger.info('Running evaluation...');
+  const evalRun = await runEvaluation(
+    runner,
+    evaluatorAction,
+    evalInput,
+    actionRef,
+    datasetId
+  );
+  logger.info('Finished evaluation, returning key...');
+  const evalStore = getEvalStore();
+  await evalStore.save(evalRun);
+
+  return evalRun.key;
 }
 
 /** Handles the Inference part of Inference-Evaluation cycle */
@@ -70,7 +114,8 @@ export async function runEvaluation(
   runner: Runner,
   filteredEvaluatorActions: Action[],
   evalDataset: EvalInput[],
-  actionRef?: string
+  actionRef?: string,
+  datasetId?: string
 ): Promise<EvalRun> {
   const evalRunId = randomUUID();
   const scores: Record<string, any> = {};
@@ -93,6 +138,7 @@ export async function runEvaluation(
     key: {
       actionRef,
       evalRunId,
+      datasetId,
       createdAt: new Date().toISOString(),
     },
     results: scoredResults,
@@ -103,7 +149,7 @@ export async function runEvaluation(
 
 export async function getMatchingEvaluators(
   runner: Runner,
-  evaluators?: string
+  evaluators?: string | string[]
 ): Promise<Action[]> {
   const allActions = await runner.listActions();
   const allEvaluatorActions = [];
@@ -112,8 +158,13 @@ export async function getMatchingEvaluators(
       allEvaluatorActions.push(allActions[key]);
     }
   }
+  let evalatorRefs: string[] | undefined;
+  if (evaluators) {
+    evalatorRefs =
+      typeof evaluators === 'string' ? evaluators.split(',') : evaluators;
+  }
   const filteredEvaluatorActions = allEvaluatorActions.filter(
-    (action) => !evaluators || evaluators.split(',').includes(action.name)
+    (action) => !evalatorRefs || evalatorRefs.includes(action.name)
   );
   if (filteredEvaluatorActions.length === 0) {
     if (allEvaluatorActions.length == 0) {
@@ -139,15 +190,21 @@ async function bulkRunAction(
   let responses: RunActionResponse[] = [];
   for (const d of inputs) {
     logger.info(`Running '${actionRef}' ...`);
-    let response = await runner.runAction({
-      key: actionRef,
-      input: {
-        start: {
-          input: d,
+    let response;
+    try {
+      response = await runner.runAction({
+        key: actionRef,
+        input: {
+          start: {
+            input: d,
+          },
+          auth: auth ? JSON.parse(auth) : undefined,
         },
-        auth: auth ? JSON.parse(auth) : undefined,
-      },
-    });
+      });
+    } catch (e: any) {
+      const traceId = e?.data?.details?.traceId;
+      response = { telemetry: { traceId } };
+    }
     responses.push(response);
   }
 
