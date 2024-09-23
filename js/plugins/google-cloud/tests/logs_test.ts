@@ -26,7 +26,7 @@ import {
 } from '@genkit-ai/google-cloud';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import assert from 'node:assert';
-import { before, beforeEach, describe, it } from 'node:test';
+import { after, before, beforeEach, describe, it } from 'node:test';
 import { Writable } from 'stream';
 import { z } from 'zod';
 
@@ -69,6 +69,9 @@ describe('GoogleCloudLogs no I/O', () => {
   beforeEach(async () => {
     logLines = '';
     __getSpanExporterForTesting().reset();
+  });
+  after(async () => {
+    await ai.stopServers();
   });
 
   it('writes path logs', async () => {
@@ -220,6 +223,9 @@ describe('GoogleCloudLogs', () => {
   beforeEach(async () => {
     logLines = '';
     __getSpanExporterForTesting().reset();
+  });
+  after(async () => {
+    await ai.stopServers();
   });
 
   it('writes path logs', async () => {

@@ -22,7 +22,7 @@ import {
 } from '@genkit-ai/google-cloud';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import assert from 'node:assert';
-import { before, beforeEach, describe, it } from 'node:test';
+import { after, before, beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
 
 describe('GoogleCloudTracing', () => {
@@ -51,6 +51,9 @@ describe('GoogleCloudTracing', () => {
   });
   beforeEach(async () => {
     __getSpanExporterForTesting().reset();
+  });
+  after(async () => {
+    await ai.stopServers();
   });
 
   it('writes traces', async () => {

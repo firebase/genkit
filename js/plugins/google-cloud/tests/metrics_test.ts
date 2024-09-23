@@ -17,6 +17,7 @@
 import { generate, GenerateResponseData } from '@genkit-ai/ai';
 import { defineModel } from '@genkit-ai/ai/model';
 import { defineAction, genkit, Genkit, run } from '@genkit-ai/core';
+import { runWithRegistry } from '@genkit-ai/core/registry';
 import {
   __forceFlushSpansForTesting,
   __getMetricExporterForTesting,
@@ -33,7 +34,7 @@ import {
 } from '@opentelemetry/sdk-metrics';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import assert from 'node:assert';
-import { before, beforeEach, describe, it } from 'node:test';
+import { after, before, beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
 
 describe('GoogleCloudMetrics', () => {
@@ -65,6 +66,9 @@ describe('GoogleCloudMetrics', () => {
   beforeEach(async () => {
     __getMetricExporterForTesting().reset();
     __getSpanExporterForTesting().reset();
+  });
+  after(async () => {
+    await ai.stopServers();
   });
 
   it('writes flow metrics', async () => {
@@ -111,7 +115,7 @@ describe('GoogleCloudMetrics', () => {
   });
 
   it('writes action metrics', async () => {
-    const testAction = createAction('testAction');
+    const testAction = createAction(ai, 'testAction');
     const testFlow = createFlow(ai, 'testFlowWithActions', async () => {
       await Promise.all([
         testAction(undefined),
@@ -159,7 +163,7 @@ describe('GoogleCloudMetrics', () => {
   });
 
   it('writes action failure metrics', async () => {
-    const testAction = createAction('testActionWithFailure', async () => {
+    const testAction = createAction(ai, 'testActionWithFailure', async () => {
       const nothing: { missing?: any } = { missing: 1 };
       delete nothing.missing;
       return nothing.missing.explode;
@@ -183,7 +187,7 @@ describe('GoogleCloudMetrics', () => {
   });
 
   it('writes generate metrics', async () => {
-    const testModel = createModel('testModel', async () => {
+    const testModel = createModel(ai, 'testModel', async () => {
       return {
         candidates: [
           {
@@ -210,16 +214,18 @@ describe('GoogleCloudMetrics', () => {
       };
     });
 
-    const response = await generate({
-      model: testModel,
-      prompt: 'test prompt',
-      config: {
-        temperature: 1.0,
-        topK: 3,
-        topP: 5,
-        maxOutputTokens: 7,
-      },
-    });
+    const response = await runWithRegistry(ai.registry, async () =>
+      generate({
+        model: testModel,
+        prompt: 'test prompt',
+        config: {
+          temperature: 1.0,
+          topK: 3,
+          topP: 5,
+          maxOutputTokens: 7,
+        },
+      })
+    );
 
     await getExportedSpans();
 
@@ -277,23 +283,25 @@ describe('GoogleCloudMetrics', () => {
   });
 
   it('writes generate failure metrics', async () => {
-    const testModel = createModel('failingTestModel', async () => {
+    const testModel = createModel(ai, 'failingTestModel', async () => {
       const nothing: { missing?: any } = { missing: 1 };
       delete nothing.missing;
       return nothing.missing.explode;
     });
 
     assert.rejects(async () => {
-      return await generate({
-        model: testModel,
-        prompt: 'test prompt',
-        config: {
-          temperature: 1.0,
-          topK: 3,
-          topP: 5,
-          maxOutputTokens: 7,
-        },
-      });
+      return await runWithRegistry(ai.registry, async () =>
+        generate({
+          model: testModel,
+          prompt: 'test prompt',
+          config: {
+            temperature: 1.0,
+            topK: 3,
+            topP: 5,
+            maxOutputTokens: 7,
+          },
+        })
+      );
     });
 
     await getExportedSpans();
@@ -313,7 +321,7 @@ describe('GoogleCloudMetrics', () => {
   });
 
   it('writes flow label to action metrics when running inside flow', async () => {
-    const testAction = createAction('testAction');
+    const testAction = createAction(ai, 'testAction');
     const flow = createFlow(ai, 'flowNameLabelTestFlow', async () => {
       return await testAction(undefined);
     });
@@ -329,7 +337,7 @@ describe('GoogleCloudMetrics', () => {
   });
 
   it('writes flow label to generate metrics when running inside flow', async () => {
-    const testModel = createModel('testModel', async () => {
+    const testModel = createModel(ai, 'testModel', async () => {
       return {
         candidates: [
           {
@@ -741,24 +749,30 @@ describe('GoogleCloudMetrics', () => {
 
   /** Helper to create an action with no inputs or outputs */
   function createAction(
+    ai: Genkit,
     name: string,
     fn: () => Promise<void> = async () => {}
   ) {
-    return defineAction(
-      {
-        name,
-        actionType: 'custom',
-      },
-      fn
+    return runWithRegistry(ai.registry, () =>
+      defineAction(
+        {
+          name,
+          actionType: 'custom',
+        },
+        fn
+      )
     );
   }
 
   /** Helper to create a model that returns the value produced by the givne
    * response function. */
   function createModel(
+    ai: Genkit,
     name: string,
     respFn: () => Promise<GenerateResponseData>
   ) {
-    return defineModel({ name }, (req) => respFn());
+    return runWithRegistry(ai.registry, () =>
+      defineModel({ name }, (req) => respFn())
+    );
   }
 });

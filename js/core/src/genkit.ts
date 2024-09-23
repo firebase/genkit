@@ -158,7 +158,7 @@ export class Genkit {
    * Returns the configuration for exporting Telemetry data for the current
    * environment.
    */
-  public getTelemetryConfig(): Promise<TelemetryConfig> {
+  getTelemetryConfig(): Promise<TelemetryConfig> {
     return this.telemetryConfig();
   }
 
@@ -250,6 +250,15 @@ export class Genkit {
       );
     }
     return provider.value;
+  }
+
+  /**
+   * Stops all servers.
+   */
+  async stopServers() {
+    await Promise.all([this.reflectionServer?.stop(), this.flowServer?.stop()]);
+    this.reflectionServer = null;
+    this.flowServer = null;
   }
 }
 
