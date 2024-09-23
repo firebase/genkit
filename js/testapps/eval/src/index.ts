@@ -20,14 +20,13 @@ import {
   EvalResponseSchema,
   evaluate,
 } from '@genkit-ai/ai/evaluator';
-import { configureGenkit } from '@genkit-ai/core';
+import { genkit } from '@genkit-ai/core';
 import { GenkitMetric, genkitEval, genkitEvalRef } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
-import { defineFlow } from '@genkit-ai/flow';
 import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 import * as z from 'zod';
 
-export default configureGenkit({
+const ai = genkit({
   plugins: [
     firebase(),
     vertexAI(),
@@ -51,7 +50,7 @@ export default configureGenkit({
 
 const samples: Dataset = require('../data/dogfacts.json');
 
-export const dogFactsEvalFlow = defineFlow(
+export const dogFactsEvalFlow = ai.defineFlow(
   {
     name: 'dogFactsEval',
     inputSchema: z.void(),

@@ -47,8 +47,7 @@
   },
   "peerDependencies": {
     "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/core": "workspace:*",
-    "@genkit-ai/flow": "workspace:*"
+    "@genkit-ai/core": "workspace:*"
   },
   "optionalDependencies": {
     "firebase-admin": "^12.1.0",

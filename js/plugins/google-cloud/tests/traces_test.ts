@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow, run } from '@genkit-ai/flow';
+import { genkit, Genkit, run } from '@genkit-ai/core';
 import {
   __forceFlushSpansForTesting,
   __getSpanExporterForTesting,
@@ -23,13 +22,15 @@ import {
 } from '@genkit-ai/google-cloud';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import assert from 'node:assert';
-import { before, beforeEach, describe, it } from 'node:test';
+import { after, before, beforeEach, describe, it } from 'node:test';
 import { z } from 'zod';
 
 describe('GoogleCloudTracing', () => {
+  let ai: Genkit;
+
   before(async () => {
     process.env.GENKIT_ENV = 'dev';
-    const config = configureGenkit({
+    ai = genkit({
       // Force GCP Plugin to use in-memory metrics exporter
       plugins: [
         googleCloud({
@@ -46,14 +47,17 @@ describe('GoogleCloudTracing', () => {
       },
     });
     // Wait for the telemetry plugin to be initialized
-    await config.getTelemetryConfig();
+    await ai.getTelemetryConfig();
   });
   beforeEach(async () => {
     __getSpanExporterForTesting().reset();
   });
+  after(async () => {
+    await ai.stopServers();
+  });
 
   it('writes traces', async () => {
-    const testFlow = createFlow('testFlow');
+    const testFlow = createFlow(ai, 'testFlow');
 
     await testFlow();
 
@@ -63,7 +67,7 @@ describe('GoogleCloudTracing', () => {
   });
 
   it('Adjusts attributes to support GCP trace filtering', async () => {
-    const testFlow = createFlow('testFlow');
+    const testFlow = createFlow(ai, 'testFlow');
 
     await testFlow();
 
@@ -80,7 +84,7 @@ describe('GoogleCloudTracing', () => {
   });
 
   it('sub actions are contained within flows', async () => {
-    const testFlow = createFlow('testFlow', async () => {
+    const testFlow = createFlow(ai, 'testFlow', async () => {
       return await run('subAction', async () => {
         return await run('subAction2', async () => {
           return 'done';
@@ -101,8 +105,8 @@ describe('GoogleCloudTracing', () => {
   });
 
   it('different flows run independently', async () => {
-    const testFlow1 = createFlow('testFlow1');
-    const testFlow2 = createFlow('testFlow2');
+    const testFlow1 = createFlow(ai, 'testFlow1');
+    const testFlow2 = createFlow(ai, 'testFlow2');
 
     await testFlow1();
     await testFlow2();
@@ -114,8 +118,12 @@ describe('GoogleCloudTracing', () => {
   });
 
   /** Helper to create a flow with no inputs or outputs */
-  function createFlow(name: string, fn: () => Promise<any> = async () => {}) {
-    return defineFlow(
+  function createFlow(
+    ai: Genkit,
+    name: string,
+    fn: () => Promise<any> = async () => {}
+  ) {
+    return ai.defineFlow(
       {
         name,
         inputSchema: z.void(),

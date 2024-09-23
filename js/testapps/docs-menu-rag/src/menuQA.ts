@@ -17,14 +17,14 @@
 import { generate } from '@genkit-ai/ai';
 import { retrieve } from '@genkit-ai/ai/retriever';
 import { devLocalRetrieverRef } from '@genkit-ai/dev-local-vectorstore';
-import { defineFlow } from '@genkit-ai/flow';
 import { geminiPro } from '@genkit-ai/vertexai';
 import * as z from 'zod';
+import { ai } from './index.js';
 
 // Define the retriever reference
 export const menuRetriever = devLocalRetrieverRef('menuQA');
 
-export const menuQAFlow = defineFlow(
+export const menuQAFlow = ai.defineFlow(
   { name: 'menuQA', inputSchema: z.string(), outputSchema: z.string() },
   async (input: string) => {
     // retrieve relevant documents

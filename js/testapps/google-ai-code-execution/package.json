@@ -16,7 +16,6 @@
     "@genkit-ai/ai": "workspace:*",
     "@genkit-ai/core": "workspace:^",
     "@genkit-ai/dotprompt": "workspace:*",
-    "@genkit-ai/flow": "workspace:*",
     "@genkit-ai/google-cloud": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
     "dotenv": "^16.4.5",

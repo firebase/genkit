@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
+import { genkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
@@ -44,7 +44,7 @@ const PERMISSIVE_SAFETY_SETTINGS: any = {
   ],
 };
 
-configureGenkit({
+const ai = genkit({
   plugins: [
     firebase(),
     googleAI(),

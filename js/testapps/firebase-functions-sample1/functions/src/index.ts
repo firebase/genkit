@@ -15,16 +15,15 @@
  */
 
 import { generate } from '@genkit-ai/ai';
-import { configureGenkit } from '@genkit-ai/core';
+import { genkit, run } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import { firebaseAuth } from '@genkit-ai/firebase/auth';
 import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
-import { run } from '@genkit-ai/flow';
 import { geminiPro, vertexAI } from '@genkit-ai/vertexai';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as z from 'zod';
 
-configureGenkit({
+const ai = genkit({
   plugins: [firebase(), vertexAI()],
   flowStateStore: 'firebase',
   traceStore: 'firebase',
@@ -33,6 +32,7 @@ configureGenkit({
 });
 
 export const jokeFlow = onFlow(
+  ai,
   {
     name: 'jokeFlow',
     inputSchema: z.string(),
@@ -61,6 +61,7 @@ export const jokeFlow = onFlow(
 );
 
 export const authFlow = onFlow(
+  ai,
   {
     name: 'authFlow',
     inputSchema: z.object({ uid: z.string(), input: z.string() }),
@@ -75,6 +76,7 @@ export const authFlow = onFlow(
 );
 
 export const streamer = onFlow(
+  ai,
   {
     name: 'streamer',
     inputSchema: z.number(),
@@ -97,6 +99,7 @@ export const streamer = onFlow(
 );
 
 export const streamConsumer = onFlow(
+  ai,
   {
     name: 'streamConsumer',
     httpsOptions: { invoker: 'private' },

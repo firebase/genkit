@@ -15,16 +15,15 @@
  */
 
 import { generate } from '@genkit-ai/ai';
-import { configureGenkit } from '@genkit-ai/core';
+import { genkit, run } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
-import { defineFlow, run } from '@genkit-ai/flow';
 import { googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
 import express, { Request, Response } from 'express';
 import { ollama } from 'genkitx-ollama';
 import * as z from 'zod';
 
-configureGenkit({
+const ai = genkit({
   plugins: [
     firebase(),
     googleAI(),
@@ -43,7 +42,7 @@ configureGenkit({
   logLevel: 'debug',
 });
 
-export const jokeFlow = defineFlow(
+export const jokeFlow = ai.defineFlow(
   { name: 'jokeFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (subject, streamingCallback) => {
     return await run('call-llm', async () => {

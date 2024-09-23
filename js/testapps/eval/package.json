@@ -18,7 +18,6 @@
     "@genkit-ai/ai": "workspace:*",
     "@genkit-ai/core": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
-    "@genkit-ai/flow": "workspace:*",
     "@genkit-ai/evaluator": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
     "zod": "^3.22.4"

@@ -29,3 +29,24 @@ export function deleteUndefinedProps(obj: any) {
     }
   }
 }
+
+/**
+ * Returns the current environment that the app code is running in.
+ */
+export function getCurrentEnv(): string {
+  return process.env.GENKIT_ENV || 'prod';
+}
+
+/**
+ * Whether the current environment is `dev`.
+ */
+export function isDevEnv(): boolean {
+  return getCurrentEnv() === 'dev';
+}
+
+/**
+ * Adds flow-specific prefix for OpenTelemetry span attributes.
+ */
+export function flowMetadataPrefix(name: string) {
+  return `flow:${name}`;
+}

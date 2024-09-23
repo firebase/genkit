@@ -16,7 +16,6 @@
 
 import {
   Action,
-  defineAction,
   getStreamingCallback,
   Middleware,
   runWithStreamingCallback,
@@ -42,7 +41,6 @@ import {
   GenerateRequestSchema,
   GenerateResponseChunkData,
   GenerateResponseData,
-  GenerateResponseSchema,
   MessageData,
   MessageSchema,
   ModelAction,
@@ -81,16 +79,6 @@ export const GenerateUtilParamSchema = z.object({
   /** When true, return tool calls for manual processing instead of automatically resolving them. */
   returnToolRequests: z.boolean().optional(),
 });
-
-export const generateAction = defineAction(
-  {
-    actionType: 'util',
-    name: 'generate',
-    inputSchema: GenerateUtilParamSchema,
-    outputSchema: GenerateResponseSchema,
-  },
-  async (input) => generate(input)
-);
 
 /**
  * Encapsulates all generate logic. This is similar to `generateAction` except not an action and can take middleware.

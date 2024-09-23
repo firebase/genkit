@@ -20,7 +20,6 @@
     "@genkit-ai/dotprompt": "workspace:*",
     "@genkit-ai/evaluator": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
-    "@genkit-ai/flow": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",

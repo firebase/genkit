@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
+import { genkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { dotprompt } from '@genkit-ai/dotprompt';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
@@ -45,7 +45,7 @@ export const PERMISSIVE_SAFETY_SETTINGS: any = {
   ],
 };
 
-configureGenkit({
+export const ai = genkit({
   plugins: [
     dotprompt(),
     firebase(),

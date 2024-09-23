@@ -14,16 +14,17 @@
  * limitations under the License.
  */
 
-import { defineFlow } from '@genkit-ai/flow';
 import * as z from 'zod';
 import { indexPdf } from './pdf_rag.js';
 import { indexPdfFirebase } from './pdf_rag_firebase.js';
+
+import { ai } from './index.js';
 
 const catFacts = ['./docs/sfspca-cat-adoption-handbook-2023.pdf'];
 
 // genkit flow:run setup
 // genkit flow:run setup '[\"your_awesome_pdf.pdf\", \"your_other_awesome_pdf.pdf\""]'
-export const setup = defineFlow(
+export const setup = ai.defineFlow(
   {
     name: 'setup',
     inputSchema: z.array(z.string()).optional(),
@@ -44,7 +45,7 @@ export const setup = defineFlow(
   }
 );
 
-export const setupFirebase = defineFlow(
+export const setupFirebase = ai.defineFlow(
   {
     name: 'setupFirebase',
     inputSchema: z.array(z.string()).optional(),

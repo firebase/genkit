@@ -19,7 +19,6 @@
     "@genkit-ai/core": "workspace:^",
     "@genkit-ai/dotprompt": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
-    "@genkit-ai/flow": "workspace:*",
     "@genkit-ai/google-cloud": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",

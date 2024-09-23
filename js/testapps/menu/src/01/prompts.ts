@@ -16,44 +16,49 @@
 
 import { definePrompt } from '@genkit-ai/ai';
 import { GenerateRequest } from '@genkit-ai/ai/model';
+import { runWithRegistry } from '@genkit-ai/core/registry';
 import { defineDotprompt } from '@genkit-ai/dotprompt';
 import { geminiPro } from '@genkit-ai/vertexai';
+import { ai } from '../index.js';
 import { MenuQuestionInput, MenuQuestionInputSchema } from '../types.js';
 
 // Define a prompt to handle a customer question about the menu.
 // This prompt uses definePrompt directly.
 
-export const s01_vanillaPrompt = definePrompt(
-  {
-    name: 's01_vanillaPrompt',
-    inputSchema: MenuQuestionInputSchema,
-  },
-  async (input: MenuQuestionInput): Promise<GenerateRequest> => {
-    const promptText = `
+export const s01_vanillaPrompt = runWithRegistry(ai.registry, () =>
+  definePrompt(
+    {
+      name: 's01_vanillaPrompt',
+      inputSchema: MenuQuestionInputSchema,
+    },
+    async (input: MenuQuestionInput): Promise<GenerateRequest> => {
+      const promptText = `
     You are acting as a helpful AI assistant named "Walt" that can answer 
     questions about the food available on the menu at Walt's Burgers.
     Customer says: ${input.question}
     `;
 
-    return {
-      messages: [{ role: 'user', content: [{ text: promptText }] }],
-      config: { temperature: 0.3 },
-    };
-  }
+      return {
+        messages: [{ role: 'user', content: [{ text: promptText }] }],
+        config: { temperature: 0.3 },
+      };
+    }
+  )
 );
 
 // Define another prompt which uses the Dotprompt library
 // that also gives us a type-safe handlebars template system,
 // and well-defined output schemas.
 
-export const s01_staticMenuDotPrompt = defineDotprompt(
-  {
-    name: 's01_staticMenuDotPrompt',
-    model: geminiPro,
-    input: { schema: MenuQuestionInputSchema },
-    output: { format: 'text' },
-  },
-  `
+export const s01_staticMenuDotPrompt = runWithRegistry(ai.registry, () =>
+  defineDotprompt(
+    {
+      name: 's01_staticMenuDotPrompt',
+      model: geminiPro,
+      input: { schema: MenuQuestionInputSchema },
+      output: { format: 'text' },
+    },
+    `
 You are acting as a helpful AI assistant named "Walt" that can answer 
 questions about the food available on the menu at Walt's Burgers. 
 Here is today's menu:
@@ -85,4 +90,5 @@ as long as it is about food.
 Question:
 {{question}} ?
 `
+  )
 );

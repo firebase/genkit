@@ -19,17 +19,16 @@ import * as z from 'zod';
 config();
 // Import the Genkit core libraries and plugins.
 import { generate } from '@genkit-ai/ai';
-import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow } from '@genkit-ai/flow';
+import { genkit } from '@genkit-ai/core';
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 
-configureGenkit({
+const ai = genkit({
   plugins: [googleAI()],
   logLevel: 'debug',
   enableTracingAndMetrics: true,
 });
 
-export const codeExecutionFlow = defineFlow(
+export const codeExecutionFlow = ai.defineFlow(
   {
     name: 'codeExecutionFlow',
     inputSchema: z.string(),

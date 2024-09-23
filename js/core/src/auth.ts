@@ -14,22 +14,22 @@
  * limitations under the License.
  */
 
-import { z } from 'zod';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { runInActionRuntimeContext } from './action.js';
+
+const authAsyncLocalStorage = new AsyncLocalStorage<any>();
 
 /**
- * The message format used by the flow task queue and control interface.
+ * Execute the provided function in the auth context. Call {@link getFlowAuth()} anywhere
+ * within the async call stack to retrieve the auth.
  */
-export const FlowInvokeEnvelopeMessageSchema = z.object({
-  // Start new flow.
-  start: z.object({
-    input: z.unknown().optional(),
-    labels: z.record(z.string(), z.string()).optional(),
-  }),
-});
-export type FlowInvokeEnvelopeMessage = z.infer<
-  typeof FlowInvokeEnvelopeMessageSchema
->;
+export function runWithAuthContext<R>(auth: any, fn: () => R) {
+  return authAsyncLocalStorage.run(auth, () => runInActionRuntimeContext(fn));
+}
 
-export const FlowActionInputSchema = FlowInvokeEnvelopeMessageSchema.extend({
-  auth: z.unknown().optional(),
-});
+/**
+ * Gets the auth object from the current context.
+ */
+export function getFlowAuth(): any {
+  return authAsyncLocalStorage.getStore();
+}

@@ -13,17 +13,16 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@genkit-ai/ai": "^0.5.8",
-    "@genkit-ai/core": "^0.5.8",
-    "@genkit-ai/dotprompt": "^0.5.8",
-    "@genkit-ai/flow": "^0.5.8",
-    "@genkit-ai/vertexai": "^0.5.8",
+    "@genkit-ai/ai": "^0.6.0",
+    "@genkit-ai/core": "^0.6.0",
+    "@genkit-ai/dotprompt": "^0.6.0",
+    "@genkit-ai/vertexai": "^0.6.0",
     "express": "^4.19.2",
     "partial-json": "^0.1.7",
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "genkit": "^0.5.8",
+    "genkit": "^0.6.0",
     "typescript": "^5.4.5"
   }
 }

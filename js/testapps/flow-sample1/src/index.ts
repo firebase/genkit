@@ -14,28 +14,23 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
+import { genkit, run } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
-import {
-  defineFlow,
-  defineStreamingFlow,
-  run,
-  startFlowsServer,
-} from '@genkit-ai/flow';
 import * as z from 'zod';
 
-configureGenkit({
+const ai = genkit({
   plugins: [firebase()],
   traceStore: 'firebase',
   enableTracingAndMetrics: true,
   logLevel: 'debug',
+  flowServer: true,
 });
 
 /**
  * To run this flow;
  *   genkit flow:run basic "\"hello\""
  */
-export const basic = defineFlow({ name: 'basic' }, async (subject) => {
+export const basic = ai.defineFlow({ name: 'basic' }, async (subject) => {
   const foo = await run('call-llm', async () => {
     return `subject: ${subject}`;
   });
@@ -45,7 +40,7 @@ export const basic = defineFlow({ name: 'basic' }, async (subject) => {
   });
 });
 
-export const parent = defineFlow(
+export const parent = ai.defineFlow(
   { name: 'parent', outputSchema: z.string() },
   async () => {
     return JSON.stringify(await basic('foo'));
@@ -53,7 +48,7 @@ export const parent = defineFlow(
 );
 
 // genkit flow:run streamy 5 -s
-export const streamy = defineStreamingFlow(
+export const streamy = ai.defineStreamingFlow(
   {
     name: 'streamy',
     inputSchema: z.number(),
@@ -73,7 +68,7 @@ export const streamy = defineStreamingFlow(
 );
 
 // genkit flow:run streamy 5 -s
-export const streamyThrowy = defineStreamingFlow(
+export const streamyThrowy = ai.defineStreamingFlow(
   {
     name: 'streamyThrowy',
     inputSchema: z.number(),
@@ -99,7 +94,7 @@ export const streamyThrowy = defineStreamingFlow(
  * To run this flow;
  *   genkit flow:run throwy "\"hello\""
  */
-export const throwy = defineFlow(
+export const throwy = ai.defineFlow(
   { name: 'throwy', inputSchema: z.string(), outputSchema: z.string() },
   async (subject) => {
     const foo = await run('call-llm', async () => {
@@ -118,7 +113,7 @@ export const throwy = defineFlow(
  * To run this flow;
  *   genkit flow:run throwy2 "\"hello\""
  */
-export const throwy2 = defineFlow(
+export const throwy2 = ai.defineFlow(
   { name: 'throwy2', inputSchema: z.string(), outputSchema: z.string() },
   async (subject) => {
     const foo = await run('call-llm', async () => {
@@ -133,7 +128,7 @@ export const throwy2 = defineFlow(
   }
 );
 
-export const flowMultiStepCaughtError = defineFlow(
+export const flowMultiStepCaughtError = ai.defineFlow(
   { name: 'flowMultiStepCaughtError' },
   async (input) => {
     let i = 1;
@@ -158,7 +153,7 @@ export const flowMultiStepCaughtError = defineFlow(
   }
 );
 
-export const multiSteps = defineFlow(
+export const multiSteps = ai.defineFlow(
   { name: 'multiSteps', inputSchema: z.string(), outputSchema: z.number() },
   async (input) => {
     const out1 = await run('step1', async () => {
@@ -180,7 +175,7 @@ export const multiSteps = defineFlow(
   }
 );
 
-export const largeSteps = defineFlow({ name: 'largeSteps' }, async () => {
+export const largeSteps = ai.defineFlow({ name: 'largeSteps' }, async () => {
   await run('large-step1', async () => {
     return generateString(100_000);
   });
@@ -213,5 +208,3 @@ function generateString(length: number) {
   }
   return str.substring(0, length);
 }
-
-startFlowsServer();

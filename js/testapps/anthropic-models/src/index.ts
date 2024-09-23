@@ -18,17 +18,13 @@ import * as z from 'zod';
 
 // Import the Genkit core libraries and plugins.
 import { defineTool, generate } from '@genkit-ai/ai';
-import { configureGenkit } from '@genkit-ai/core';
+import { genkit } from '@genkit-ai/core';
 import { claude35Sonnet, vertexAI } from '@genkit-ai/vertexai';
 
 // Import models from the Vertex AI plugin. The Vertex AI API provides access to
 // several generative models. Here, we import Gemini 1.5 Flash.
 
-// From the Firebase plugin, import the functions needed to deploy flows using
-// Cloud Functions.
-import { defineFlow } from '@genkit-ai/flow';
-
-configureGenkit({
+const ai = genkit({
   plugins: [
     // Load the Vertex AI plugin. You can optionally specify your project ID
     // by passing in a config object; if you don't, the Vertex AI plugin uses
@@ -46,7 +42,7 @@ configureGenkit({
 });
 
 // Define a simple flow that prompts an LLM to generate menu suggestions.
-export const menuSuggestionFlow = defineFlow(
+export const menuSuggestionFlow = ai.defineFlow(
   {
     name: 'menuSuggestionFlow',
     inputSchema: z.string(),
@@ -64,7 +60,7 @@ export const menuSuggestionFlow = defineFlow(
           menuItems: z.array(z.string()),
         }),
       },
-      async (input) => {
+      async () => {
         return {
           menuItems: [`Appetizer: Meow Salad`],
         };
