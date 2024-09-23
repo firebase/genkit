@@ -15,11 +15,11 @@
  */
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
-import { configureGenkit } from 'genkit';
+import { configureGenkit, genkit } from 'genkit';
 
 // Initialize Genkit
 
-configureGenkit({
+export const ai = genkit({
   plugins: [
     // dotprompt(),
     vertexAI({ location: 'us-central1' }),

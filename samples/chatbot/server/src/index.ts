@@ -18,19 +18,17 @@ import { generate } from '@genkit-ai/ai';
 import {
   GenerateResponseChunkSchema,
   ModelReference,
+  PartSchema,
 } from '@genkit-ai/ai/model';
-import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
+import { genkit, run } from '@genkit-ai/core';
 import {
   VertexAIEvaluationMetricType,
   gemini15Flash,
   llama3,
   vertexAI,
 } from '@genkit-ai/vertexai';
-import { inMemoryStore } from './memory.js';
-
-import { PartSchema } from '@genkit-ai/ai/model';
 import { z } from 'zod';
+import { inMemoryStore } from './memory.js';
 
 export const AgentInput = z.object({
   conversationId: z.string(),
@@ -39,7 +37,7 @@ export const AgentInput = z.object({
   llmIndex: z.number(),
 });
 
-configureGenkit({
+const ai = genkit({
   plugins: [
     vertexAI({
       location: 'us-central1',
@@ -60,7 +58,7 @@ const llms: ModelReference<any>[] = [gemini15Flash, llama3];
 
 const historyStore = inMemoryStore();
 
-export const chatbotFlow = defineFlow(
+export const chatbotFlow = ai.defineStreamingFlow(
   {
     name: 'chatbotFlow',
     inputSchema: AgentInput,
@@ -99,5 +97,3 @@ export const chatbotFlow = defineFlow(
     return mainResp.text();
   }
 );
-
-startFlowsServer();

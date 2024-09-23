@@ -14,15 +14,8 @@
  * limitations under the License.
  */
 
-import { runInActionRuntimeContext } from '@genkit-ai/core';
 import { AsyncLocalStorage } from 'node:async_hooks';
-
-/**
- * Adds flows specific prefix for OpenTelemetry span attributes.
- */
-export function metadataPrefix(name: string) {
-  return `flow:${name}`;
-}
+import { runInActionRuntimeContext } from './action.js';
 
 const authAsyncLocalStorage = new AsyncLocalStorage<any>();
 

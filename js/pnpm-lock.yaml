@@ -84,9 +84,18 @@ importers:
       async-mutex:
         specifier: ^0.5.0
         version: 0.5.0
+      body-parser:
+        specifier: ^1.20.2
+        version: 1.20.2
+      cors:
+        specifier: ^2.8.5
+        version: 2.8.5
       express:
         specifier: ^4.19.2
         version: 4.19.2
+      get-port:
+        specifier: ^5.1.0
+        version: 5.1.0
       json-schema:
         specifier: ^0.4.0
         version: 0.4.0
@@ -3204,13 +3213,6 @@ packages:
     peerDependencies:
       firebase-admin: ^10.0.0 || ^11.0.0 || ^12.0.0
 
-  firebase-functions@5.0.1:
-    resolution: {integrity: sha512-1m+crtgAR8Tl36gjpM02KCY5zduAejFmDSXvih/DB93apg39f0U/WwRgT7sitGIRqyCcIpktNUbXJv7Y9JOF4A==}
-    engines: {node: '>=14.10.0'}
-    hasBin: true
-    peerDependencies:
-      firebase-admin: ^11.10.0 || ^12.0.0
-
   flat@5.0.2:
     resolution: {integrity: sha512-b6suED+5/3rTpUBdG1gupIl8MPFCAMA0QXwmljLhvCUKcUvdE4gWky9zpuGCcXHOsz4J9wPGNWq6OKpmIzz3hQ==}
     hasBin: true
@@ -3330,6 +3332,10 @@ packages:
   get-intrinsic@1.2.4:
     resolution: {integrity: sha512-5uYhsJH8VJBTv7oslg4BznJYhDoRI6waYCxMmCdnTrcCrHA/fCFKoTFz2JKKE0HdDFUF7/oQuhzumXJK7paBRQ==}
     engines: {node: '>= 0.4'}
+
+  get-port@5.1.0:
+    resolution: {integrity: sha512-bjioH1E9bTQUvgaB6VycVy1QVbTZI41yTnF9qkZz6ixgy/uhCH6D63bKeZ6Code/07JYA61MeI94jSdHss8PNA==}
+    engines: {node: '>=8'}
 
   get-stream@6.0.1:
     resolution: {integrity: sha512-ts6Wi+2j3jQjqi70w5AlN8DFnkSwC+MqmxEzdEALB2qXZYV3X/b1CTfgPLGJNMeAWxdPfU8FO1ms3NUfaHCPYg==}
@@ -7167,17 +7173,6 @@ snapshots:
       - encoding
       - supports-color
 
-  firebase-functions@5.0.1(firebase-admin@12.1.0(encoding@0.1.13)):
-    dependencies:
-      '@types/cors': 2.8.17
-      '@types/express': 4.17.3
-      cors: 2.8.5
-      express: 4.19.2
-      firebase-admin: 12.1.0(encoding@0.1.13)
-      protobufjs: 7.2.6
-    transitivePeerDependencies:
-      - supports-color
-
   flat@5.0.2: {}
 
   fn.name@1.1.0: {}
@@ -7340,6 +7335,8 @@ snapshots:
       has-proto: 1.0.3
       has-symbols: 1.0.3
       hasown: 2.0.2
+
+  get-port@5.1.0: {}
 
   get-stream@6.0.1: {}
 

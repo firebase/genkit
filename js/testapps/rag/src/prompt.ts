@@ -14,22 +14,25 @@
  * limitations under the License.
  */
 
+import { runWithRegistry } from '@genkit-ai/core/registry';
 import { defineDotprompt, z } from 'genkit';
+import { ai } from './index.js';
 
 // Define a prompt that includes the retrieved context documents
 
-export const augmentedPrompt = defineDotprompt(
-  {
-    name: 'augmentedPrompt',
-    input: z.object({
-      context: z.array(z.string()),
-      question: z.string(),
-    }),
-    output: {
-      format: 'text',
+export const augmentedPrompt = runWithRegistry(ai.registry, () =>
+  defineDotprompt(
+    {
+      name: 'augmentedPrompt',
+      input: z.object({
+        context: z.array(z.string()),
+        question: z.string(),
+      }),
+      output: {
+        format: 'text',
+      },
     },
-  },
-  `
+    `
 Use the following context to answer the question at the end.
 If you don't know the answer, just say that you don't know, don't try to make up an answer.
 {{#each context}}
@@ -39,4 +42,5 @@ If you don't know the answer, just say that you don't know, don't try to make up
 Question: {{question}}
 Helpful Answer:
 `
+  )
 );

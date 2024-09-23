@@ -21,8 +21,22 @@ export const GENKIT_CLIENT_HEADER = `genkit-node/${GENKIT_VERSION} gl-node/${pro
 
 export { z } from 'zod';
 export * from './action.js';
-export * from './config.js';
+export { getFlowAuth } from './auth.js';
 export { GenkitError } from './error.js';
+export {
+  Flow,
+  run,
+  type CallableFlow,
+  type FlowAuthPolicy,
+  type FlowConfig,
+  type FlowFn,
+  type StreamableFlow,
+  type StreamingFlowConfig,
+  type __RequestWithAuth,
+} from './flow.js';
 export * from './flowTypes.js';
+export * from './genkit.js';
+export * from './plugin.js';
 export { defineJsonSchema, defineSchema } from './schema.js';
 export * from './telemetryTypes.js';
+export * from './utils.js';

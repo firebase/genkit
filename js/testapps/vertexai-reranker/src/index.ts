@@ -16,20 +16,13 @@
 
 //  Sample app for using the proposed Vertex AI plugin retriever and indexer with a local file (just as a demo).
 
-import {
-  configureGenkit,
-  defineFlow,
-  Document,
-  rerank,
-  startFlowsServer,
-  z,
-} from 'genkit';
+import { Document, genkit, rerank, z } from 'genkit';
 // important imports for this sample:
 import { vertexAI } from '@genkit-ai/vertexai';
 import { LOCATION, PROJECT_ID } from './config';
 
 // Configure Genkit with Vertex AI plugin
-configureGenkit({
+const ai = genkit({
   plugins: [
     vertexAI({
       projectId: PROJECT_ID,
@@ -46,6 +39,7 @@ configureGenkit({
   ],
   logLevel: 'debug',
   enableTracingAndMetrics: true,
+  flowServer: true,
 });
 const FAKE_DOCUMENT_CONTENT = [
   'pythagorean theorem',
@@ -65,7 +59,7 @@ const FAKE_DOCUMENT_CONTENT = [
   'movies',
 ];
 
-export const rerankFlow = defineFlow(
+export const rerankFlow = ai.defineFlow(
   {
     name: 'rerankFlow',
     inputSchema: z.object({ query: z.string() }),
@@ -94,5 +88,3 @@ export const rerankFlow = defineFlow(
     }));
   }
 );
-
-startFlowsServer();

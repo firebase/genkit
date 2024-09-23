@@ -16,6 +16,9 @@
 
 import { StatusName } from './statusTypes.js';
 
+/**
+ * Base error class for Genkit errors.
+ */
 export class GenkitError extends Error {
   source?: string;
   status: StatusName;
@@ -36,4 +39,24 @@ export class GenkitError extends Error {
     this.status = status;
     this.detail = detail;
   }
+}
+
+/**
+ * Extracts error message from the given error object, or if input is not an error then just turn the error into a string.
+ */
+export function getErrorMessage(e: any): string {
+  if (e instanceof Error) {
+    return e.message;
+  }
+  return `${e}`;
+}
+
+/**
+ * Extracts stack trace from the given error object, or if input is not an error then returns undefined.
+ */
+export function getErrorStack(e: any): string | undefined {
+  if (e instanceof Error) {
+    return e.stack;
+  }
+  return undefined;
 }

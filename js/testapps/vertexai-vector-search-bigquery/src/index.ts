@@ -16,15 +16,7 @@
 
 //  Sample app for using the proposed Vertex AI plugin retriever and indexer with BigQuery.
 
-import {
-  configureGenkit,
-  defineFlow,
-  Document,
-  index,
-  retrieve,
-  startFlowsServer,
-  z,
-} from 'genkit';
+import { Document, genkit, index, retrieve, z } from 'genkit';
 // important imports for this sample:
 import {
   getBigQueryDocumentIndexer,
@@ -81,7 +73,7 @@ const bigQueryDocumentIndexer: DocumentIndexer = getBigQueryDocumentIndexer(
 );
 
 // Configure Genkit with Vertex AI plugin
-configureGenkit({
+const ai = genkit({
   plugins: [
     vertexAI({
       projectId: PROJECT_ID,
@@ -103,10 +95,11 @@ configureGenkit({
   ],
   logLevel: 'debug',
   enableTracingAndMetrics: true,
+  flowServer: true,
 });
 
 // // Define indexing flow
-export const indexFlow = defineFlow(
+export const indexFlow = ai.defineFlow(
   {
     name: 'indexFlow',
     inputSchema: z.object({
@@ -128,7 +121,7 @@ export const indexFlow = defineFlow(
 );
 
 // Define query flow
-export const queryFlow = defineFlow(
+export const queryFlow = ai.defineFlow(
   {
     name: 'queryFlow',
     inputSchema: z.object({
@@ -170,5 +163,3 @@ export const queryFlow = defineFlow(
     };
   }
 );
-
-startFlowsServer();

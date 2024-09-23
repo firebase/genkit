@@ -25,7 +25,7 @@ import {
   textEmbeddingGecko,
   vertexAI,
 } from '@genkit-ai/vertexai';
-import { configureGenkit, dotprompt } from 'genkit';
+import { dotprompt, genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';
 import { langchain } from 'genkitx-langchain';
 import { pinecone } from 'genkitx-pinecone';
@@ -42,7 +42,7 @@ async function getCloudRunAuthClient(aud: string) {
   return authClient;
 }
 
-export default configureGenkit({
+export const ai = genkit({
   plugins: [
     dotprompt(),
     firebase(),

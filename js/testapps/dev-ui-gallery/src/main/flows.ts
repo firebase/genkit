@@ -14,59 +14,69 @@
  * limitations under the License.
  */
 
-import { defineFlow, defineStreamingFlow, run, z } from 'genkit';
+import { run, z } from 'genkit';
 import { generateString } from '../common/util';
+import { ai } from '../index.js';
 
 //
 // Flow - simple
 //
 
-const flowSingleStep = defineFlow({ name: 'flowSingleStep' }, async (input) => {
-  return await run('step1', async () => {
-    return input;
-  });
-});
+const flowSingleStep = ai.defineFlow(
+  { name: 'flowSingleStep' },
+  async (input) => {
+    return await run('step1', async () => {
+      return input;
+    });
+  }
+);
 
 //
 // Flow - multiStep
 //
 
-const flowMultiStep = defineFlow({ name: 'flowMultiStep' }, async (input) => {
-  let i = 1;
+const flowMultiStep = ai.defineFlow(
+  { name: 'flowMultiStep' },
+  async (input) => {
+    let i = 1;
 
-  const result1 = await run('step1', async () => {
-    return `${input} ${i++},`;
-  });
+    const result1 = await run('step1', async () => {
+      return `${input} ${i++},`;
+    });
 
-  const result2 = await run('step2', async () => {
-    return `${result1} ${i++},`;
-  });
+    const result2 = await run('step2', async () => {
+      return `${result1} ${i++},`;
+    });
 
-  return await run('step3', async () => {
-    return `${result2} ${i++}`;
-  });
-});
+    return await run('step3', async () => {
+      return `${result2} ${i++}`;
+    });
+  }
+);
 
 //
 // Flow - nested
 //
 
-defineFlow({ name: 'flowNested', outputSchema: z.string() }, async () => {
-  return JSON.stringify(
-    {
-      firstResult: await flowSingleStep('hello, world!'),
-      secondResult: await flowMultiStep('hello, world!'),
-    },
-    null,
-    2
-  );
-});
+const flowNested = ai.defineFlow(
+  { name: 'flowNested', outputSchema: z.string() },
+  async () => {
+    return JSON.stringify(
+      {
+        firstResult: await flowSingleStep('hello, world!'),
+        secondResult: await flowMultiStep('hello, world!'),
+      },
+      null,
+      2
+    );
+  }
+);
 
 //
 // Flow - streaming
 //
 
-defineStreamingFlow(
+ai.defineStreamingFlow(
   {
     name: 'flowStreaming',
     inputSchema: z.number(),
@@ -89,7 +99,7 @@ defineStreamingFlow(
 // Flow - throws
 //
 
-defineFlow({ name: 'flowSingleStepThrows' }, async (input) => {
+ai.defineFlow({ name: 'flowSingleStepThrows' }, async (input) => {
   return await run('step1', async () => {
     if (input) {
       throw new Error('Got an error!');
@@ -102,7 +112,7 @@ defineFlow({ name: 'flowSingleStepThrows' }, async (input) => {
 // Flow - multi-step throws
 //
 
-defineFlow({ name: 'flowMultiStepThrows' }, async (input) => {
+ai.defineFlow({ name: 'flowMultiStepThrows' }, async (input) => {
   let i = 1;
 
   const result1 = await run('step1', async () => {
@@ -125,7 +135,7 @@ defineFlow({ name: 'flowMultiStepThrows' }, async (input) => {
 // Flow - caught error multi-step
 //
 
-defineFlow({ name: 'flowMultiStepCaughtError' }, async (input) => {
+ai.defineFlow({ name: 'flowMultiStepCaughtError' }, async (input) => {
   let i = 1;
 
   const result1 = await run('step1', async () => {
@@ -151,7 +161,7 @@ defineFlow({ name: 'flowMultiStepCaughtError' }, async (input) => {
 // Flow - streamingThrows
 //
 
-defineStreamingFlow(
+ai.defineStreamingFlow(
   {
     name: 'flowStreamingThrows',
     inputSchema: z.number(),
@@ -180,20 +190,23 @@ defineStreamingFlow(
 // Flow - largeOutput
 //
 
-export const largeSteps = defineFlow({ name: 'flowLargeOutput' }, async () => {
-  await run('step1', async () => {
-    return generateString(100_000);
-  });
-  await run('step2', async () => {
-    return generateString(800_000);
-  });
-  await run('step3', async () => {
-    return generateString(900_000);
-  });
-  await run('step4', async () => {
-    return generateString(999_000);
-  });
-  return 'something...';
-});
+export const largeSteps = ai.defineFlow(
+  { name: 'flowLargeOutput' },
+  async () => {
+    await run('step1', async () => {
+      return generateString(100_000);
+    });
+    await run('step2', async () => {
+      return generateString(800_000);
+    });
+    await run('step3', async () => {
+      return generateString(900_000);
+    });
+    await run('step4', async () => {
+      return generateString(999_000);
+    });
+    return 'something...';
+  }
+);
 
 // TODO(michaeldoyle): showcase advanced capabilities such as multimodal

@@ -14,12 +14,13 @@
  * limitations under the License.
  */
 
+import { genkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
-import { configureGenkit, defineFlow, z } from 'genkit';
+import { z } from 'genkit';
 import { indexMenu } from './indexer';
 
-configureGenkit({
+export const ai = genkit({
   plugins: [
     vertexAI(),
     devLocalVectorstore([
@@ -39,7 +40,7 @@ const menus = ['./docs/GenkitGrubPub.pdf'];
 
 // genkit flow:run setup
 // genkit flow:run setup '[\"your_awesome_pdf.pdf\", \"your_other_awesome_pdf.pdf\""]'
-export const setup = defineFlow(
+export const setup = ai.defineFlow(
   {
     name: 'setup',
     inputSchema: z.array(z.string()).optional(),

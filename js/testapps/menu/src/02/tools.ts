@@ -17,18 +17,22 @@
 import { defineTool, z } from 'genkit';
 import { MenuItemSchema } from '../types.js';
 
+import { runWithRegistry } from '@genkit-ai/core/registry';
 import menuData from '../../data/menu.json' assert { type: 'json' };
+import { ai } from '../index.js';
 
-export const menuTool = defineTool(
-  {
-    name: 'todaysMenu',
-    description: "Use this tool to retrieve all the items on today's menu",
-    inputSchema: z.object({}),
-    outputSchema: z.object({
-      menuData: z
-        .array(MenuItemSchema)
-        .describe('A list of all the items on the menu'),
-    }),
-  },
-  async () => Promise.resolve({ menuData: menuData })
+export const menuTool = runWithRegistry(ai.registry, () =>
+  defineTool(
+    {
+      name: 'todaysMenu',
+      description: "Use this tool to retrieve all the items on today's menu",
+      inputSchema: z.object({}),
+      outputSchema: z.object({
+        menuData: z
+          .array(MenuItemSchema)
+          .describe('A list of all the items on the menu'),
+      }),
+    },
+    async () => Promise.resolve({ menuData: menuData })
+  )
 );

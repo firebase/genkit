@@ -4,23 +4,22 @@ import * as z from 'zod';
 
 // Import the Genkit core libraries and plugins.
 import { generate } from '@genkit-ai/ai';
-import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow } from '@genkit-ai/flow';
+import { genkit } from '@genkit-ai/core';
 $GENKIT_CONFIG_IMPORTS
 $GENKIT_MODEL_IMPORT
 
-configureGenkit({
+const ai = genkit({
   plugins: [
 $GENKIT_CONFIG_PLUGINS
   ],
-  // Log debug output to tbe console.
+  // Log debug output to the console.
   logLevel: "debug",
   // Perform OpenTelemetry instrumentation and enable trace collection.
   enableTracingAndMetrics: true,
 });
 
 // Define a simple flow that prompts an LLM to generate menu suggestions.
-const menuSuggestionFlow = defineFlow(
+const menuSuggestionFlow = ai.defineFlow(
   {
     name: 'menuSuggestionFlow',
     inputSchema: z.string(),

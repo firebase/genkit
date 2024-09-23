@@ -26,7 +26,7 @@ import {
   vertexAI,
   VertexAIEvaluationMetricType,
 } from '@genkit-ai/vertexai';
-import { configureGenkit, dotprompt } from 'genkit';
+import { dotprompt, genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';
 import { ollama } from 'genkitx-ollama';
 import { pinecone } from 'genkitx-pinecone';
@@ -54,7 +54,7 @@ export const PERMISSIVE_SAFETY_SETTINGS: any = {
   ],
 };
 
-export default configureGenkit({
+export const ai = genkit({
   // settings
   enableTracingAndMetrics: true,
   flowStateStore: 'firebase',

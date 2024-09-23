@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
+import { genkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
-import { configureGenkit } from 'genkit';
 
 // Turn off safety checks for evaluation so that the LLM as an evaluator can
 // respond appropriately to potentially harmful content without error.
@@ -44,7 +44,7 @@ const PERMISSIVE_SAFETY_SETTINGS: any = {
   ],
 };
 
-configureGenkit({
+const ai = genkit({
   plugins: [
     firebase(),
     googleAI(),

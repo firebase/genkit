@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { defineFlow } from 'genkit';
+import { ai } from '../index.js';
 import { AnswerOutputSchema, MenuQuestionInputSchema } from '../types.js';
 import { s02_dataMenuPrompt } from './prompts.js';
 
 // Define a flow which generates a response from the prompt.
 
-export const s02_menuQuestionFlow = defineFlow(
+export const s02_menuQuestionFlow = ai.defineFlow(
   {
     name: 's02_menuQuestion',
     inputSchema: MenuQuestionInputSchema,

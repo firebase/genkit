@@ -15,8 +15,9 @@
  */
 
 import fs from 'fs';
-import { defineFlow, z } from 'genkit';
+import { z } from 'genkit';
 import path from 'path';
+import { ai } from '../index.js';
 import {
   AnswerOutputSchema,
   MenuQuestionInputSchema,
@@ -29,7 +30,7 @@ import { s05_readMenuPrompt, s05_textMenuPrompt } from './prompts.js';
 // Note that this example uses a hard-coded image file, as image input
 // is not currently available in the Development UI runners.
 
-export const s05_readMenuFlow = defineFlow(
+export const s05_readMenuFlow = ai.defineFlow(
   {
     name: 's05_readMenuFlow',
     inputSchema: z.void(), // input is data/menu.jpeg
@@ -49,7 +50,7 @@ export const s05_readMenuFlow = defineFlow(
 // Define a flow which generates a response to the question.
 // Just returns the llm's text response to the question.
 
-export const s05_textMenuQuestionFlow = defineFlow(
+export const s05_textMenuQuestionFlow = ai.defineFlow(
   {
     name: 's05_textMenuQuestion',
     inputSchema: TextMenuQuestionInputSchema,
@@ -68,7 +69,7 @@ export const s05_textMenuQuestionFlow = defineFlow(
 
 // Define a third composite flow which chains the first two flows
 
-export const s05_visionMenuQuestionFlow = defineFlow(
+export const s05_visionMenuQuestionFlow = ai.defineFlow(
   {
     name: 's05_visionMenuQuestion',
     inputSchema: MenuQuestionInputSchema,

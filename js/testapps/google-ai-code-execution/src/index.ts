@@ -18,15 +18,15 @@ import { config } from 'dotenv';
 config();
 // Import the Genkit core libraries and plugins.
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
-import { configureGenkit, defineFlow, generate, z } from 'genkit';
+import { generate, z } from 'genkit';
 
-configureGenkit({
+const ai = genkit({
   plugins: [googleAI()],
   logLevel: 'debug',
   enableTracingAndMetrics: true,
 });
 
-export const codeExecutionFlow = defineFlow(
+export const codeExecutionFlow = ai.defineFlow(
   {
     name: 'codeExecutionFlow',
     inputSchema: z.string(),

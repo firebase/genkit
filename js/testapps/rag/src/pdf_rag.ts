@@ -14,24 +14,20 @@
  * limitations under the License.
  */
 
+import { generate } from '@genkit-ai/ai';
+import { Document, index, retrieve } from '@genkit-ai/ai/retriever';
+import { run } from '@genkit-ai/core';
 import {
   devLocalIndexerRef,
   devLocalRetrieverRef,
 } from '@genkit-ai/dev-local-vectorstore';
 import { geminiPro } from '@genkit-ai/vertexai';
 import fs from 'fs';
-import {
-  Document,
-  defineFlow,
-  generate,
-  index,
-  retrieve,
-  run,
-  z,
-} from 'genkit';
+import { z } from 'genkit';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import pdf from 'pdf-parse';
+import { ai } from './index.js';
 import { augmentedPrompt } from './prompt.js';
 
 export const pdfChatRetriever = devLocalRetrieverRef('pdfQA');
@@ -39,7 +35,7 @@ export const pdfChatRetriever = devLocalRetrieverRef('pdfQA');
 export const pdfChatIndexer = devLocalIndexerRef('pdfQA');
 
 // Define a simple RAG flow, we will evaluate this flow
-export const pdfQA = defineFlow(
+export const pdfQA = ai.defineFlow(
   {
     name: 'pdfQA',
     inputSchema: z.string(),
@@ -74,7 +70,7 @@ const chunkingConfig = {
 
 // Define a flow to index documents into the "vector store"
 // genkit flow:run indexPdf '"35650.pdf"'
-export const indexPdf = defineFlow(
+export const indexPdf = ai.defineFlow(
   {
     name: 'indexPdf',
     inputSchema: z.string().describe('PDF file path'),
@@ -107,7 +103,7 @@ async function extractText(filePath: string) {
 
 // genkit flow:run synthesizeQuestions '"35650.pdf"' --output synthesizedQuestions.json
 // genkit flow:batchRun pdfQA synthesizedQuestions.json --output batchinput_small_out.json
-export const synthesizeQuestions = defineFlow(
+export const synthesizeQuestions = ai.defineFlow(
   {
     name: 'synthesizeQuestions',
     inputSchema: z.string().describe('PDF file path'),

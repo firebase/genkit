@@ -15,38 +15,45 @@
  */
 
 import { GenkitError, z } from '@genkit-ai/core';
+import { Registry, runWithRegistry } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
-import { describe, it } from 'node:test';
+import { beforeEach, describe, it } from 'node:test';
 import { defineReranker, rerank } from '../../src/reranker';
 import { Document } from '../../src/retriever';
 
 describe('reranker', () => {
   describe('defineReranker()', () => {
+    let registry: Registry;
+    beforeEach(() => {
+      registry = new Registry();
+    });
     it('reranks documents based on custom logic', async () => {
-      const customReranker = defineReranker(
-        {
-          name: 'reranker',
-          configSchema: z.object({
-            k: z.number().optional(),
-          }),
-        },
-        async (query, documents, options) => {
-          // Custom reranking logic: score based on string length similarity to query
-          const queryLength = query.text().length;
-          const rerankedDocs = documents.map((doc) => {
-            const score = Math.abs(queryLength - doc.text().length);
-            return {
-              ...doc,
-              metadata: { ...doc.metadata, score },
-            };
-          });
+      const customReranker = runWithRegistry(registry, () =>
+        defineReranker(
+          {
+            name: 'reranker',
+            configSchema: z.object({
+              k: z.number().optional(),
+            }),
+          },
+          async (query, documents, options) => {
+            // Custom reranking logic: score based on string length similarity to query
+            const queryLength = query.text().length;
+            const rerankedDocs = documents.map((doc) => {
+              const score = Math.abs(queryLength - doc.text().length);
+              return {
+                ...doc,
+                metadata: { ...doc.metadata, score },
+              };
+            });
 
-          return {
-            documents: rerankedDocs
-              .sort((a, b) => a.metadata.score - b.metadata.score)
-              .slice(0, options.k || 3),
-          };
-        }
+            return {
+              documents: rerankedDocs
+                .sort((a, b) => a.metadata.score - b.metadata.score)
+                .slice(0, options.k || 3),
+            };
+          }
+        )
       );
 
       // Sample documents for testing
@@ -57,12 +64,14 @@ describe('reranker', () => {
       ];
 
       const query = Document.fromText('medium length');
-      const rerankedDocuments = await rerank({
-        reranker: customReranker,
-        query,
-        documents,
-        options: { k: 2 },
-      });
+      const rerankedDocuments = await runWithRegistry(registry, () =>
+        rerank({
+          reranker: customReranker,
+          query,
+          documents,
+          options: { k: 2 },
+        })
+      );
 
       // Validate the reranked results
       assert.equal(rerankedDocuments.length, 2);
@@ -71,63 +80,70 @@ describe('reranker', () => {
     });
 
     it('handles missing options gracefully', async () => {
-      const customReranker = defineReranker(
-        {
-          name: 'reranker',
-          configSchema: z.object({
-            k: z.number().optional(),
-          }),
-        },
-        async (query, documents, options) => {
-          const rerankedDocs = documents.map((doc) => {
-            const score = Math.random(); // Simplified scoring for testing
-            return {
-              ...doc,
-              metadata: { ...doc.metadata, score },
-            };
-          });
+      const customReranker = runWithRegistry(registry, () =>
+        defineReranker(
+          {
+            name: 'reranker',
+            configSchema: z.object({
+              k: z.number().optional(),
+            }),
+          },
+          async (query, documents, options) => {
+            const rerankedDocs = documents.map((doc) => {
+              const score = Math.random(); // Simplified scoring for testing
+              return {
+                ...doc,
+                metadata: { ...doc.metadata, score },
+              };
+            });
 
-          return {
-            documents: rerankedDocs.sort(
-              (a, b) => b.metadata.score - a.metadata.score
-            ),
-          };
-        }
+            return {
+              documents: rerankedDocs.sort(
+                (a, b) => b.metadata.score - a.metadata.score
+              ),
+            };
+          }
+        )
       );
 
       const documents = [Document.fromText('doc1'), Document.fromText('doc2')];
 
       const query = Document.fromText('test query');
-      const rerankedDocuments = await rerank({
-        reranker: customReranker,
-        query,
-        documents,
-      });
+      const rerankedDocuments = await runWithRegistry(registry, () =>
+        rerank({
+          reranker: customReranker,
+          query,
+          documents,
+          options: { k: 2 },
+        })
+      );
 
       assert.equal(rerankedDocuments.length, 2);
       assert(typeof rerankedDocuments[0].metadata.score === 'number');
     });
 
     it('validates config schema and throws error on invalid input', async () => {
-      const customReranker = defineReranker(
-        {
-          name: 'reranker',
-          configSchema: z.object({
-            k: z.number().min(1),
-          }),
-        },
-        async (query, documents, options) => {
-          // Simplified scoring for testing
-          const rerankedDocs = documents.map((doc) => ({
-            ...doc,
-            metadata: { score: Math.random() },
-          }));
-          return {
-            documents: rerankedDocs.sort(
-              (a, b) => b.metadata.score - a.metadata.score
-            ),
-          };
-        }
+      const customReranker = runWithRegistry(registry, () =>
+        defineReranker(
+          {
+            name: 'reranker',
+            configSchema: z.object({
+              k: z.number().min(1),
+            }),
+          },
+          async (query, documents, options) => {
+            // Simplified scoring for testing
+            const rerankedDocs = documents.map((doc) => ({
+              ...doc,
+              metadata: { score: Math.random() },
+            }));
+            return {
+              documents: rerankedDocs.sort(
+                (a, b) => b.metadata.score - a.metadata.score
+              ),
+            };
+          }
+        )
       );
 
       const documents = [Document.fromText('doc1')];
@@ -135,12 +151,14 @@ describe('reranker', () => {
       const query = Document.fromText('test query');
 
       try {
-        await rerank({
-          reranker: customReranker,
-          query,
-          documents,
-          options: { k: 0 }, // Invalid input: k must be at least 1
-        });
+        await runWithRegistry(registry, () =>
+          rerank({
+            reranker: customReranker,
+            query,
+            documents,
+            options: { k: 0 }, // Invalid input: k must be at least 1
+          })
+        );
         assert.fail('Expected validation error');
       } catch (err) {
         assert(err instanceof GenkitError);
@@ -149,22 +167,24 @@ describe('reranker', () => {
     });
 
     it('preserves document metadata after reranking', async () => {
-      const customReranker = defineReranker(
-        {
-          name: 'reranker',
-        },
-        async (query, documents) => {
-          const rerankedDocs = documents.map((doc, i) => ({
-            ...doc,
-            metadata: { ...doc.metadata, score: 2 - i },
-          }));
+      const customReranker = runWithRegistry(registry, () =>
+        defineReranker(
+          {
+            name: 'reranker',
+          },
+          async (query, documents) => {
+            const rerankedDocs = documents.map((doc, i) => ({
+              ...doc,
+              metadata: { ...doc.metadata, score: 2 - i },
+            }));
 
-          return {
-            documents: rerankedDocs.sort(
-              (a, b) => b.metadata.score - a.metadata.score
-            ),
-          };
-        }
+            return {
+              documents: rerankedDocs.sort(
+                (a, b) => b.metadata.score - a.metadata.score
+              ),
+            };
+          }
+        )
       );
 
       const documents = [
@@ -173,39 +193,45 @@ describe('reranker', () => {
       ];
 
       const query = Document.fromText('test query');
-      const rerankedDocuments = await rerank({
-        reranker: customReranker,
-        query,
-        documents,
-      });
+      const rerankedDocuments = await runWithRegistry(registry, () =>
+        rerank({
+          reranker: customReranker,
+          query,
+          documents,
+        })
+      );
 
       assert.equal(rerankedDocuments[0].metadata.originalField, 'test1');
       assert.equal(rerankedDocuments[1].metadata.originalField, 'test2');
     });
 
     it('handles errors thrown by the reranker', async () => {
-      const customReranker = defineReranker(
-        {
-          name: 'reranker',
-        },
-        async (query, documents) => {
-          // Simulate an error in the reranker logic
-          throw new GenkitError({
-            message: 'Something went wrong during reranking',
-            status: 'INTERNAL',
-          });
-        }
+      const customReranker = runWithRegistry(registry, () =>
+        defineReranker(
+          {
+            name: 'reranker',
+          },
+          async (query, documents) => {
+            // Simulate an error in the reranker logic
+            throw new GenkitError({
+              message: 'Something went wrong during reranking',
+              status: 'INTERNAL',
+            });
+          }
+        )
       );
 
       const documents = [Document.fromText('doc1'), Document.fromText('doc2')];
       const query = Document.fromText('test query');
 
       try {
-        await rerank({
-          reranker: customReranker,
-          query,
-          documents,
-        });
+        await runWithRegistry(registry, () =>
+          rerank({
+            reranker: customReranker,
+            query,
+            documents,
+          })
+        );
         assert.fail('Expected an error to be thrown');
       } catch (err) {
         assert(err instanceof GenkitError);

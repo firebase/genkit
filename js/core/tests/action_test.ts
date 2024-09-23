@@ -15,14 +15,11 @@
  */
 
 import assert from 'node:assert';
-import { beforeEach, describe, it } from 'node:test';
+import { describe, it } from 'node:test';
 import { z } from 'zod';
 import { action } from '../src/action.js';
-import { __hardResetRegistryForTesting } from '../src/registry.js';
 
 describe('action', () => {
-  beforeEach(__hardResetRegistryForTesting);
-
   it('applies middleware', async () => {
     const act = action(
       {

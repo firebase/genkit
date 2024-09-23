@@ -14,6 +14,10 @@
  * limitations under the License.
  */
 
+import { generate } from '@genkit-ai/ai';
+import { retrieve } from '@genkit-ai/ai/retriever';
+import { run } from '@genkit-ai/core';
+import { runWithRegistry } from '@genkit-ai/core/registry';
 import { defineFirestoreRetriever } from '@genkit-ai/firebase';
 import { geminiPro } from '@genkit-ai/googleai';
 import { textEmbeddingGecko } from '@genkit-ai/vertexai';
@@ -21,10 +25,11 @@ import { FieldValue } from '@google-cloud/firestore';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { readFile } from 'fs/promises';
-import { defineFlow, embed, generate, retrieve, run, z } from 'genkit';
+import { embed, z } from 'genkit';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import pdf from 'pdf-parse';
+import { ai } from './index.js';
 
 const app = initializeApp();
 let firestore = getFirestore(app);
@@ -56,18 +61,20 @@ Question: ${question}
 Helpful Answer:`;
 }
 
-export const pdfChatRetrieverFirebase = defineFirestoreRetriever({
-  name: 'pdfChatRetrieverFirebase',
-  firestore,
-  collection: 'pdf-qa',
-  contentField: 'facts',
-  vectorField: 'embedding',
-  embedder: textEmbeddingGecko,
-  distanceMeasure: 'COSINE',
-});
+export const pdfChatRetrieverFirebase = runWithRegistry(ai.registry, () =>
+  defineFirestoreRetriever({
+    name: 'pdfChatRetrieverFirebase',
+    firestore,
+    collection: 'pdf-qa',
+    contentField: 'facts',
+    vectorField: 'embedding',
+    embedder: textEmbeddingGecko,
+    distanceMeasure: 'COSINE',
+  })
+);
 
 // Define a simple RAG flow, we will evaluate this flow
-export const pdfQAFirebase = defineFlow(
+export const pdfQAFirebase = ai.defineFlow(
   {
     name: 'pdfQAFirebase',
     inputSchema: z.string(),
@@ -111,7 +118,7 @@ const chunkingConfig = {
 
 // Define a flow to index documents into the "vector store"
 // genkit flow:run indexPdf '"./docs/sfspca-cat-adoption-handbook-2023.pdf"'
-export const indexPdfFirebase = defineFlow(
+export const indexPdfFirebase = ai.defineFlow(
   {
     name: 'indexPdfFirestore',
     inputSchema: z.string().describe('PDF file path'),

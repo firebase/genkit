@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
+import { genkit } from '@genkit-ai/core';
 import { genkitEval, genkitEvalRef, GenkitMetric } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
-import { configureGenkit, defineFlow, z } from 'genkit';
+import { z } from 'genkit';
 import {
   Dataset,
   EvalResponse,
@@ -25,7 +26,7 @@ import {
   evaluate,
 } from 'genkit/evaluator';
 
-export default configureGenkit({
+const ai = genkit({
   plugins: [
     firebase(),
     vertexAI(),
@@ -49,7 +50,7 @@ export default configureGenkit({
 
 const samples: Dataset = require('../data/dogfacts.json');
 
-export const dogFactsEvalFlow = defineFlow(
+export const dogFactsEvalFlow = ai.defineFlow(
   {
     name: 'dogFactsEval',
     inputSchema: z.void(),

@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { Registry, runWithRegistry } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { DocumentData } from '../../src/document.js';
@@ -147,27 +148,30 @@ describe('validateSupport', () => {
   });
 });
 
-const echoModel = defineModel({ name: 'echo' }, async (req) => {
-  return {
-    candidates: [
-      {
-        index: 0,
-        finishReason: 'stop',
-        message: {
-          role: 'model',
-          content: [{ data: req }],
+const registry = new Registry();
+const echoModel = runWithRegistry(registry, () =>
+  defineModel({ name: 'echo' }, async (req) => {
+    return {
+      candidates: [
+        {
+          index: 0,
+          finishReason: 'stop',
+          message: {
+            role: 'model',
+            content: [{ data: req }],
+          },
         },
-      },
-    ],
-  };
-});
+      ],
+    };
+  })
+);
 
 describe('conformOutput (default middleware)', () => {
   const schema = { type: 'object', properties: { test: { type: 'boolean' } } };
 
   // return the output tagged part from the request
   async function testRequest(req: GenerateRequest): Promise<Part> {
-    const response = await echoModel(req);
+    const response = await runWithRegistry(registry, () => echoModel(req));
     const treq = response.candidates[0].message.content[0]
       .data as GenerateRequest;
 

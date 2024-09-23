@@ -18,9 +18,10 @@ import {
   devLocalIndexerRef,
   devLocalRetrieverRef,
 } from '@genkit-ai/dev-local-vectorstore';
-import { Document, defineFlow, index, retrieve, z } from 'genkit';
+import { Document, index, retrieve, z } from 'genkit';
 import { chromaIndexerRef, chromaRetrieverRef } from 'genkitx-chromadb';
 import { pineconeIndexerRef, pineconeRetrieverRef } from 'genkitx-pinecone';
+import { ai } from './index.js';
 import { augmentedPrompt } from './prompt.js';
 
 // Setup the models, embedders and "vector store"
@@ -49,7 +50,7 @@ export const nfsDogFactsRetriever = devLocalRetrieverRef('dog-facts');
 export const nfsDogFactsIndexer = devLocalIndexerRef('dog-facts');
 
 // Define a simple RAG flow, we will evaluate this flow
-export const askQuestionsAboutCatsFlow = defineFlow(
+export const askQuestionsAboutCatsFlow = ai.defineFlow(
   {
     name: 'askQuestionsAboutCats',
     inputSchema: z.string(),
@@ -74,7 +75,7 @@ export const askQuestionsAboutCatsFlow = defineFlow(
 
 // Define a simple RAG flow, we will evaluate this flow
 // genkit flow:run askQuestionsAboutDogs '"How many dog breeds are there?"'
-export const askQuestionsAboutDogsFlow = defineFlow(
+export const askQuestionsAboutDogsFlow = ai.defineFlow(
   {
     name: 'askQuestionsAboutDogs',
     inputSchema: z.string(),
@@ -98,7 +99,7 @@ export const askQuestionsAboutDogsFlow = defineFlow(
 );
 
 // Define a simple RAG flow, we will evaluate this flow
-export const indexCatFactsDocumentsFlow = defineFlow(
+export const indexCatFactsDocumentsFlow = ai.defineFlow(
   {
     name: 'indexCatFactsDocuments',
     inputSchema: z.array(z.string()),
@@ -117,7 +118,7 @@ export const indexCatFactsDocumentsFlow = defineFlow(
 
 // Define a flow to index documents into the "vector store"
 // $ genkit flow:run indexDogFacts '["There are over 400 distinct dog breeds."]'
-export const indexDogFactsDocumentsFlow = defineFlow(
+export const indexDogFactsDocumentsFlow = ai.defineFlow(
   {
     name: 'indexDogFactsDocuments',
     inputSchema: z.array(z.string()),
