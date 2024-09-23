@@ -95,7 +95,12 @@ export async function runInference(params: {
     ? (evalFlowInput as any[])
     : evalFlowInput.samples.map((c) => c.input);
 
-  const runResponses: BulkRunResponse[] = await bulkRunAction({ runner, actionRef, inputs, auth });
+  const runResponses: BulkRunResponse[] = await bulkRunAction({
+    runner,
+    actionRef,
+    inputs,
+    auth,
+  });
 
   // TODO(ssbushi): Support model inference
   const evalDataset = await fetchDataSet({
@@ -210,7 +215,7 @@ async function bulkRunAction(params: {
       response = {
         traceId: runActionResponse.telemetry?.traceId,
         response: runActionResponse.result,
-      }
+      };
     } catch (e: any) {
       const traceId = e?.data?.details?.traceId;
       response = { traceId };
