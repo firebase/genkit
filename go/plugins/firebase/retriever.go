@@ -92,6 +92,8 @@ func DefineFirestoreRetriever(cfg RetrieverOptions) (ai.Retriever, error) {
 			distanceMeasure = options.DistanceMeasure
 		}
 
+		fmt.Printf("Retrieving nearest documents to embedding %v\n", embedding)
+
 		query := coll.FindNearest(cfg.VectorField, embedding, options.Limit, distanceMeasure, nil)
 		// Execute the query
 		iter := query.Documents(ctx)
