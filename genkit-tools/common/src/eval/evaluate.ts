@@ -54,7 +54,11 @@ export async function runNewEvaluation(
 
   logger.info('Running inference...');
   // TODO: consider adding auth
-  const evalInput = await runInference(runner, actionRef, dataset);
+  const evalDataset = await runInference({
+    runner,
+    actionRef,
+    evalFlowInput: dataset,
+  });
   let evaluatorAction: Action[] = [];
   // TODO: Make no evaluators the common path.
   if (evaluators) {
@@ -62,13 +66,13 @@ export async function runNewEvaluation(
   }
 
   logger.info('Running evaluation...');
-  const evalRun = await runEvaluation(
+  const evalRun = await runEvaluation({
     runner,
-    evaluatorAction,
-    evalInput,
+    filteredEvaluatorActions: evaluatorAction,
+    evalDataset,
     actionRef,
-    datasetId
-  );
+    datasetId,
+  });
   logger.info('Finished evaluation, returning key...');
   const evalStore = getEvalStore();
   await evalStore.save(evalRun);
@@ -77,17 +81,22 @@ export async function runNewEvaluation(
 }
 
 /** Handles the Inference part of Inference-Evaluation cycle */
-export async function runInference(
-  runner: Runner,
-  actionRef: string,
-  evalFlowInput: EvalFlowInput,
-  auth?: string
-): Promise<EvalInput[]> {
+export async function runInference(params: {
+  runner: Runner;
+  actionRef: string;
+  evalFlowInput: EvalFlowInput;
+  auth?: string;
+}): Promise<EvalInput[]> {
+  const { runner, actionRef, evalFlowInput, auth } = params;
+  if (!actionRef.startsWith('/flow')) {
+    // TODO(ssbushi): Support model inference
+    throw new Error('Inference is only supported on flows');
+  }
   let inputs: any[] = Array.isArray(evalFlowInput)
     ? (evalFlowInput as any[])
     : evalFlowInput.samples.map((c) => c.input);
 
-  const runResponses = await bulkRunAction(runner, actionRef, inputs, auth);
+  const runResponses = await bulkRunAction({ runner, actionRef, inputs, auth });
   const runStates: BulkRunResponse[] = runResponses.map((r) => {
     return {
       traceId: r.telemetry?.traceId,
@@ -100,23 +109,31 @@ export async function runInference(
     logger.debug('Some flows failed with errors');
   }
 
-  const evalDataset = await fetchDataSet(
+  // TODO(ssbushi): Support model inference
+  const evalDataset = await fetchDataSet({
     runner,
     actionRef,
-    runStates,
-    evalFlowInput
-  );
+    states: runStates,
+    parsedData: evalFlowInput,
+  });
   return evalDataset;
 }
 
 /** Handles the Evaluation part of Inference-Evaluation cycle */
-export async function runEvaluation(
-  runner: Runner,
-  filteredEvaluatorActions: Action[],
-  evalDataset: EvalInput[],
-  actionRef?: string,
-  datasetId?: string
-): Promise<EvalRun> {
+export async function runEvaluation(params: {
+  runner: Runner;
+  filteredEvaluatorActions: Action[];
+  evalDataset: EvalInput[];
+  actionRef?: string;
+  datasetId?: string;
+}): Promise<EvalRun> {
+  const {
+    runner,
+    filteredEvaluatorActions,
+    evalDataset,
+    actionRef,
+    datasetId,
+  } = params;
   const evalRunId = randomUUID();
   const scores: Record<string, any> = {};
   for (const action of filteredEvaluatorActions) {
@@ -181,12 +198,13 @@ export async function getMatchingEvaluators(
   return filteredEvaluatorActions;
 }
 
-async function bulkRunAction(
-  runner: Runner,
-  actionRef: string,
-  inputs: any[],
-  auth?: string
-): Promise<RunActionResponse[]> {
+async function bulkRunAction(params: {
+  runner: Runner;
+  actionRef: string;
+  inputs: any[];
+  auth?: string;
+}): Promise<RunActionResponse[]> {
+  const { runner, actionRef, inputs, auth } = params;
   let responses: RunActionResponse[] = [];
   for (const d of inputs) {
     logger.info(`Running '${actionRef}' ...`);
@@ -211,12 +229,15 @@ async function bulkRunAction(
   return responses;
 }
 
-async function fetchDataSet(
-  runner: Runner,
-  flowName: string,
-  states: BulkRunResponse[],
-  parsedData: EvalFlowInput
-): Promise<EvalInput[]> {
+async function fetchDataSet(params: {
+  runner: Runner;
+  actionRef: string;
+  states: BulkRunResponse[];
+  parsedData: EvalFlowInput;
+}): Promise<EvalInput[]> {
+  const { runner, actionRef, states, parsedData } = params;
+  const flowName = actionRef.split('/')[-1];
+
   let references: any[] | undefined = undefined;
   if (!Array.isArray(parsedData)) {
     const maybeReferences = parsedData.samples.map((c: any) => c.reference);

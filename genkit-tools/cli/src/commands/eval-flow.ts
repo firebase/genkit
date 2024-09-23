@@ -21,6 +21,7 @@ import {
 } from '@genkit-ai/tools-common';
 import {
   EvalExporter,
+  getDatasetStore,
   getEvalStore,
   getExporterForString,
   getMatchingEvaluators,
@@ -50,7 +51,10 @@ export const evalFlow = new Command('eval:flow')
   )
   .argument('<flowName>', 'Name of the flow to run')
   .argument('[data]', 'JSON data to use to start the flow')
-  .option('--input <filename>', 'JSON batch data to use to run the flow')
+  .option(
+    '--input <input>',
+    'Input dataset ID or JSON file to be used for evaluation'
+  )
   .option(
     '-a, --auth <JSON>',
     'JSON object passed to authPolicy and stored in local state as auth',
@@ -97,20 +101,23 @@ export const evalFlow = new Command('eval:flow')
         }
 
         const actionRef = `/flow/${flowName}`;
-        const parsedData = await readInputs(data, options.input!);
-        const evalDataset = await runInference(
+        const parsedData = await readInputs(data, options.input);
+        const evalDataset = await runInference({
           runner,
           actionRef,
-          parsedData,
-          options.auth
-        );
+          evalFlowInput: parsedData,
+          auth: options.auth,
+        });
 
-        const evalRun = await runEvaluation(
+        const evalRun = await runEvaluation({
           runner,
           filteredEvaluatorActions,
           evalDataset,
-          `/flow/${flowName}`
-        );
+          actionRef: `/flow/${flowName}`,
+          datasetId: !options.input?.endsWith('.json')
+            ? options.input
+            : undefined,
+        });
 
         const evalStore = getEvalStore();
         await evalStore.save(evalRun);
@@ -130,12 +137,26 @@ export const evalFlow = new Command('eval:flow')
   );
 
 async function readInputs(
-  data: string,
-  filePath: string
+  data?: string,
+  input?: string
 ): Promise<EvalFlowInput> {
-  const parsedData = JSON.parse(
-    data ? data : await readFile(filePath!, 'utf8')
-  );
+  let parsedData;
+  if (input) {
+    if (data) {
+      logger.warn('Both [data] and input provided, ignoring [data]...');
+    }
+    const isFile = input.endsWith('.json');
+    if (isFile) {
+      parsedData = JSON.parse(await readFile(input, 'utf8'));
+    } else {
+      const datasetStore = await getDatasetStore();
+      parsedData = await datasetStore.getDataset(input);
+    }
+  }
+
+  if (data) {
+    parsedData = JSON.parse(data);
+  }
   if (Array.isArray(parsedData)) {
     return parsedData as any[];
   }

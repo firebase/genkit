@@ -89,11 +89,11 @@ export const evalRun = new Command('eval:run')
         testCaseId: testCase.testCaseId || randomUUID(),
         traceIds: testCase.traceIds || [],
       }));
-      const evalRun = await runEvaluation(
+      const evalRun = await runEvaluation({
         runner,
         filteredEvaluatorActions,
-        evalDataset
-      );
+        evalDataset,
+      });
 
       const evalStore = getEvalStore();
       await evalStore.save(evalRun);
