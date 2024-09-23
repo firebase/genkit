@@ -18,6 +18,7 @@
     "@genkit-ai/dotprompt": "workspace:*",
     "@genkit-ai/flow": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
+    "@genkit-ai/vertexai": "workspace:*",
     "express": "^4.20.0",
     "zod": "^3.22.4"
   },
