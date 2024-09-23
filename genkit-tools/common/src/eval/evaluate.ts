@@ -36,7 +36,7 @@ import { enrichResultsWithScoring, extractMetricsMetadata } from './parser';
 interface BulkRunResponse {
   traceId?: string;
   hasErrored: boolean;
-  response: any;
+  response?: any;
 }
 
 export async function runNewEvaluation(
@@ -53,14 +53,13 @@ export async function runNewEvaluation(
   const dataset = await datasetStore.getDataset(datasetId);
 
   logger.info('Running inference...');
-  // TODO: consider adding auth
   const evalDataset = await runInference({
     runner,
     actionRef,
     evalFlowInput: dataset,
+    auth: request.options?.auth,
   });
   let evaluatorAction: Action[] = [];
-  // TODO: Make no evaluators the common path.
   if (evaluators) {
     evaluatorAction = await getMatchingEvaluators(runner, evaluators);
   }
@@ -96,18 +95,7 @@ export async function runInference(params: {
     ? (evalFlowInput as any[])
     : evalFlowInput.samples.map((c) => c.input);
 
-  const runResponses = await bulkRunAction({ runner, actionRef, inputs, auth });
-  const runStates: BulkRunResponse[] = runResponses.map((r) => {
-    return {
-      traceId: r.telemetry?.traceId,
-      // TODO(ssbushi): Track errors from the trace
-      hasErrored: !r.telemetry?.traceId,
-      response: r.result,
-    } as BulkRunResponse;
-  });
-  if (runStates.some((s) => s.hasErrored)) {
-    logger.debug('Some flows failed with errors');
-  }
+  const runResponses: BulkRunResponse[] = await bulkRunAction({ runner, actionRef, inputs, auth });
 
   // TODO(ssbushi): Support model inference
   const evalDataset = await fetchDataSet({
@@ -203,14 +191,14 @@ async function bulkRunAction(params: {
   actionRef: string;
   inputs: any[];
   auth?: string;
-}): Promise<RunActionResponse[]> {
+}): Promise<BulkRunResponse[]> {
   const { runner, actionRef, inputs, auth } = params;
-  let responses: RunActionResponse[] = [];
+  let responses: BulkRunResponse[] = [];
   for (const d of inputs) {
     logger.info(`Running '${actionRef}' ...`);
-    let response;
+    let response: BulkRunResponse;
     try {
-      response = await runner.runAction({
+      const runActionResponse = await runner.runAction({
         key: actionRef,
         input: {
           start: {
@@ -219,9 +207,14 @@ async function bulkRunAction(params: {
           auth: auth ? JSON.parse(auth) : undefined,
         },
       });
+      response = {
+        traceId: runActionResponse.telemetry?.traceId,
+        response: runActionResponse.result,
+        hasErrored: false,
+      }
     } catch (e: any) {
       const traceId = e?.data?.details?.traceId;
-      response = { telemetry: { traceId } };
+      response = { traceId, hasErrored: true};
     }
     responses.push(response);
   }

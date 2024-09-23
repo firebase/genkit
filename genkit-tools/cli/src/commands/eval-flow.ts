@@ -101,11 +101,11 @@ export const evalFlow = new Command('eval:flow')
         }
 
         const actionRef = `/flow/${flowName}`;
-        const parsedData = await readInputs(data, options.input);
+        const evalFlowInput = await readInputs(data, options.input);
         const evalDataset = await runInference({
           runner,
           actionRef,
-          evalFlowInput: parsedData,
+          evalFlowInput,
           auth: options.auth,
         });
 

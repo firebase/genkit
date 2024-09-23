@@ -150,6 +150,9 @@ export const RunNewEvaluationRequestSchema = z.object({
   datasetId: z.string(),
   actionRef: z.string(),
   evaluators: z.array(z.string()).optional(),
+  options: z.object({
+    auth: z.string().optional(),
+  }).optional(),
 });
 export type RunNewEvaluationRequest = z.infer<
   typeof RunNewEvaluationRequestSchema
