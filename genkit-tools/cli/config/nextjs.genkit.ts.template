@@ -4,7 +4,7 @@ import * as z from 'zod';
 
 // Import the Genkit core libraries and plugins.
 import { generate } from '@genkit-ai/ai';
-import { genkit } from '@genkit-ai/core';
+import { genkit } from 'genkit';
 $GENKIT_CONFIG_IMPORTS
 $GENKIT_MODEL_IMPORT
 

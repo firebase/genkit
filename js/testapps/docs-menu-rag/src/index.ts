@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-import { genkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
-import { z } from 'genkit';
+import { genkit, z } from 'genkit';
 import { indexMenu } from './indexer';
 
 export const ai = genkit({

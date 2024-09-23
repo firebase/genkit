@@ -15,8 +15,7 @@
  */
 
 import { geminiPro } from '@genkit-ai/vertexai';
-import { generate } from 'genkit/ai';
-import { run } from 'genkit/flow';
+import { generate, run } from 'genkit';
 import { MessageData } from 'genkit/model';
 import { ai } from '../index.js';
 

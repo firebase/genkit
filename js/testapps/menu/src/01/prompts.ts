@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import { runWithRegistry } from '@genkit-ai/core/registry';
 import { geminiPro } from '@genkit-ai/vertexai';
 import { defineDotprompt, definePrompt, GenerateRequest } from 'genkit';
+import { runWithRegistry } from 'genkit/registry';
 import { ai } from '../index.js';
 import { MenuQuestionInput, MenuQuestionInputSchema } from '../types.js';
 

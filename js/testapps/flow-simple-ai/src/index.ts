@@ -37,11 +37,13 @@ import {
   dotprompt,
   generate,
   generateStream,
+  genkit,
   prompt,
   retrieve,
   run,
   z,
 } from 'genkit';
+import { runWithRegistry } from 'genkit/registry';
 import { Allow, parse } from 'partial-json';
 
 const ai = genkit({
@@ -228,7 +230,7 @@ export const jokeWithToolsFlow = ai.defineFlow(
   },
   async (input) => {
     const llmResponse = await generate({
-      model: input.modelName,
+      model: input.modelName as string,
       tools,
       output: { schema: z.object({ joke: z.string() }) },
       prompt: `Tell a joke about ${input.subject}.`,

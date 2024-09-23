@@ -18,7 +18,7 @@ import { config } from 'dotenv';
 config();
 // Import the Genkit core libraries and plugins.
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
-import { generate, z } from 'genkit';
+import { generate, genkit, z } from 'genkit';
 
 const ai = genkit({
   plugins: [googleAI()],
