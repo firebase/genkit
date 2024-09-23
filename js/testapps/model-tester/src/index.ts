@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-import { testModels } from 'genkit/testing';
-import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
 import { claude3Sonnet, llama31, vertexAI } from '@genkit-ai/vertexai';
 import * as clc from 'colorette';
+import { genkit } from 'genkit';
+import { testModels } from 'genkit/testing';
 import { ollama } from 'genkitx-ollama';
 import { openAI } from 'genkitx-openai';
 
