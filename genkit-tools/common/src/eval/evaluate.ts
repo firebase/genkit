@@ -22,20 +22,20 @@ import {
   EvalInput,
   EvalRun,
   EvalRunKey,
-  RunActionResponse,
   RunNewEvaluationRequest,
+  SpanData,
 } from '../types';
 import {
   evaluatorName,
   getEvalExtractors,
   isEvaluator,
   logger,
+  stackTraceSpans,
 } from '../utils';
 import { enrichResultsWithScoring, extractMetricsMetadata } from './parser';
 
 interface BulkRunResponse {
   traceId?: string;
-  hasErrored: boolean;
   response?: any;
 }
 
@@ -101,7 +101,7 @@ export async function runInference(params: {
   const evalDataset = await fetchDataSet({
     runner,
     actionRef,
-    states: runStates,
+    states: runResponses,
     parsedData: evalFlowInput,
   });
   return evalDataset;
@@ -210,11 +210,10 @@ async function bulkRunAction(params: {
       response = {
         traceId: runActionResponse.telemetry?.traceId,
         response: runActionResponse.result,
-        hasErrored: false,
       }
     } catch (e: any) {
       const traceId = e?.data?.details?.traceId;
-      response = { traceId, hasErrored: true};
+      response = { traceId };
     }
     responses.push(response);
   }
@@ -268,18 +267,32 @@ async function fetchDataSet(params: {
       let contexts: string[] = [];
 
       inputs.push(extractors.input(trace));
-      outputs.push(extractors.output(trace));
-      contexts.push(extractors.context(trace));
 
-      if (s.hasErrored) {
+      const nestedSpan = stackTraceSpans(trace);
+      if (!nestedSpan) {
         return {
           testCaseId: randomUUID(),
           input: inputs[0],
-          error: 'Inference error',
+          error: `Unable to extract any spans from trace ${traceId}`,
           reference: references?.at(i),
           traceIds: [traceId],
         };
       }
+
+      if (nestedSpan.attributes['genkit:state'] === 'error') {
+        return {
+          testCaseId: randomUUID(),
+          input: inputs[0],
+          error:
+            getSpanErrorMessage(nestedSpan) ??
+            `Unknown error in trace${traceId}`,
+          reference: references?.at(i),
+          traceIds: [traceId],
+        };
+      }
+
+      outputs.push(extractors.output(trace));
+      contexts.push(extractors.context(trace));
 
       return {
         // TODO Replace this with unified trace class
@@ -292,4 +305,17 @@ async function fetchDataSet(params: {
       };
     })
   );
+}
+
+function getSpanErrorMessage(span: SpanData): string | undefined {
+  if (span && span.status?.code === 2 /* SpanStatusCode.ERROR */) {
+    // It's possible for a trace to have multiple exception events,
+    // however we currently only expect and display the first one.
+    const event = span.timeEvents?.timeEvent
+      ?.filter((e) => e.annotation.description === 'exception')
+      .shift();
+    return (
+      (event?.annotation?.attributes['exception.message'] as string) ?? 'Error'
+    );
+  }
 }
