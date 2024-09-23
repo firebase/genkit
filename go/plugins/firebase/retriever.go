@@ -45,6 +45,11 @@ type RetrieverRequestOptions struct {
 
 func DefineFirestoreRetriever(cfg RetrieverOptions) (ai.Retriever, error) {
 
+	coll := cfg.Client.Collection(cfg.Collection)
+	if coll == nil {
+		return nil, fmt.Errorf("DefineFirestoreRetriever: collection path %q is invalid", cfg.Collection)
+	}
+
 	Retrieve := func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
 		if req == nil {
 			return nil, fmt.Errorf("retriever request is nil")
@@ -79,11 +84,6 @@ func DefineFirestoreRetriever(cfg RetrieverOptions) (ai.Retriever, error) {
 			return nil, fmt.Errorf("embedding result is nil or empty")
 		}
 
-		coll := cfg.Client.Collection(cfg.Collection)
-		if coll == nil {
-			return nil, fmt.Errorf("collection path is invalid")
-		}
-
 		embedding := eres.Embeddings[0].Embedding
 
 		distanceMeasure := cfg.DistanceMeasure
@@ -93,10 +93,8 @@ func DefineFirestoreRetriever(cfg RetrieverOptions) (ai.Retriever, error) {
 		}
 
 		query := coll.FindNearest(cfg.VectorField, embedding, options.Limit, distanceMeasure, nil)
-
 		// Execute the query
 		iter := query.Documents(ctx)
-
 		gotDocs, err := iter.GetAll()
 
 		if err != nil {

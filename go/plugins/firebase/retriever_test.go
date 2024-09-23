@@ -102,6 +102,8 @@ func TestFirestoreRetriever(t *testing.T) {
 
 	resp, err := retriever.Retrieve(ctx, req)
 
+	t.Logf("Retrieved %d documents", len(resp.Documents))
+
 	if err != nil {
 		t.Fatal(err)
 	}
