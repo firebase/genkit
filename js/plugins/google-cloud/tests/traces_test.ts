@@ -117,6 +117,22 @@ describe('GoogleCloudTracing', () => {
     assert.equal(spans[1].parentSpanId, undefined);
   });
 
+  it('labels failed actions', async () => {
+    const testFlow = createFlow(ai, 'badFlow', async () => {
+      return await run('badAction', async () => {
+        throw new Error('oh no!');
+      });
+    });
+    try {
+      await testFlow();
+    } catch (e) {}
+
+    const spans = await getExportedSpans();
+    assert.equal(spans.length, 2);
+    assert.equal(spans[0].name, 'badAction');
+    assert.equal(spans[0].attributes['genkit/failedSpan'], 'badAction');
+  });
+
   /** Helper to create a flow with no inputs or outputs */
   function createFlow(
     ai: Genkit,

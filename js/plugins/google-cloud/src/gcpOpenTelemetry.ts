@@ -247,6 +247,7 @@ class AdjustingTraceExporter implements SpanExporter {
 
       span = this.redactPii(span);
       span = this.markErrorSpanAsError(span);
+      span = this.markFailedAction(span);
       span = this.normalizeLabels(span);
       return span;
     });
@@ -321,6 +322,18 @@ class AdjustingTraceExporter implements SpanExporter {
       spanContext: span.spanContext,
       attributes: normalized,
     };
+  }
+
+  private markFailedAction(span: ReadableSpan): ReadableSpan {
+    if (
+      span.attributes['genkit:state'] === 'error' &&
+      (span.attributes['genkit:type'] === 'action' ||
+        span.attributes['genkit:type'] === 'flowStep') &&
+      span.attributes['genkit:name']
+    ) {
+      span.attributes['genkit:failedSpan'] = span.attributes['genkit:name'];
+    }
+    return span;
   }
 }
 
