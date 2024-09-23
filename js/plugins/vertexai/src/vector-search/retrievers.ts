@@ -14,13 +14,8 @@
  * limitations under the License.
  */
 
-import { embed } from '@genkit-ai/ai/embedder';
-import {
-  defineRetriever,
-  RetrieverAction,
-  retrieverRef,
-} from '@genkit-ai/ai/retriever';
-import z from 'zod';
+import { embed, RetrieverAction, retrieverRef, z } from 'genkit';
+import { defineRetriever } from 'genkit/retriever';
 import { queryPublicEndpoint } from './query_public_endpoint';
 import {
   VertexAIVectorRetrieverOptionsSchema,

@@ -14,11 +14,6 @@
  * limitations under the License.
  */
 
-import { defineTool, generate, generateStream, retrieve } from '@genkit-ai/ai';
-import { MessageSchema } from '@genkit-ai/ai/model';
-import { genkit, run } from '@genkit-ai/core';
-import { runWithRegistry } from '@genkit-ai/core/registry';
-import { dotprompt, prompt } from '@genkit-ai/dotprompt';
 import { defineFirestoreRetriever, firebase } from '@genkit-ai/firebase';
 import { googleCloud } from '@genkit-ai/google-cloud';
 import {
@@ -36,8 +31,18 @@ import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import {
+  MessageSchema,
+  defineTool,
+  dotprompt,
+  generate,
+  generateStream,
+  prompt,
+  retrieve,
+  run,
+  z,
+} from 'genkit';
 import { Allow, parse } from 'partial-json';
-import * as z from 'zod';
 
 const ai = genkit({
   plugins: [

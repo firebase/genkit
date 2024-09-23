@@ -40,7 +40,7 @@
     "express": "^4.19.2",
     "get-port": "^5.1.0",
     "json-schema": "^0.4.0",
-    "zod": "^3.22.4",
+    "zod": "^3.23.8",
     "zod-to-json-schema": "^3.22.4"
   },
   "devDependencies": {
@@ -59,12 +59,6 @@
       "require": "./lib/index.js",
       "import": "./lib/index.mjs",
       "default": "./lib/index.js"
-    },
-    "./metrics": {
-      "types": "./lib/metrics.d.ts",
-      "require": "./lib/metrics.js",
-      "import": "./lib/metrics.mjs",
-      "default": "./lib/metrics.js"
     },
     "./registry": {
       "types": "./lib/registry.d.ts",

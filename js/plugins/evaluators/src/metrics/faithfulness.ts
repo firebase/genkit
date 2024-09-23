@@ -14,12 +14,9 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
-import { BaseDataPoint, Score } from '@genkit-ai/ai/evaluator';
-import { ModelArgument } from '@genkit-ai/ai/model';
-import { loadPromptFile } from '@genkit-ai/dotprompt';
+import { generate, loadPromptFile, ModelArgument, z } from 'genkit';
+import { BaseDataPoint, Score } from 'genkit/evaluator';
 import path from 'path';
-import * as z from 'zod';
 import { getDirName } from './helper.js';
 
 const LongFormResponseSchema = z.object({ statements: z.array(z.string()) });

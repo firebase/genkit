@@ -14,10 +14,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/core": "workspace:*",
+    "genkit": "workspace:*",
     "@genkit-ai/dev-local-vectorstore": "workspace:*",
-    "@genkit-ai/dotprompt": "workspace:*",
     "@genkit-ai/evaluator": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
@@ -27,8 +25,7 @@
     "genkitx-pinecone": "workspace:*",
     "google-auth-library": "^9.6.3",
     "llm-chunk": "^0.0.1",
-    "pdf-parse": "^1.1.1",
-    "zod": "^3.22.4"
+    "pdf-parse": "^1.1.1"
   },
   "devDependencies": {
     "@types/pdf-parse": "^1.1.4",

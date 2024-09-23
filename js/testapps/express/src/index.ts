@@ -20,8 +20,8 @@ import { firebase } from '@genkit-ai/firebase';
 import { googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
 import express, { Request, Response } from 'express';
+import { z } from 'genkit';
 import { ollama } from 'genkitx-ollama';
-import * as z from 'zod';
 
 const ai = genkit({
   plugins: [

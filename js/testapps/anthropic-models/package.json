@@ -13,9 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/core": "workspace:*",
-    "@genkit-ai/dotprompt": "workspace:*",
+    "genkit": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
     "express": "^4.19.2",

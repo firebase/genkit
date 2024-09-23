@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-import { defineTool } from '@genkit-ai/ai';
-import * as z from 'zod';
+import { defineTool, z } from 'genkit';
 import { MenuItemSchema } from '../types.js';
 
 import { runWithRegistry } from '@genkit-ai/core/registry';

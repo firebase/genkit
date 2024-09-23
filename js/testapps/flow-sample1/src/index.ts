@@ -14,9 +14,8 @@
  * limitations under the License.
  */
 
-import { genkit, run } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
-import * as z from 'zod';
+import { genkit, run, z } from 'genkit';
 
 const ai = genkit({
   plugins: [firebase()],

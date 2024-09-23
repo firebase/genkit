@@ -14,11 +14,10 @@
  * limitations under the License.
  */
 
-import { GenkitError } from '@genkit-ai/core';
+import { GenkitError, z } from '@genkit-ai/core';
 import { Registry, runWithRegistry } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
-import * as z from 'zod';
 import { defineReranker, rerank } from '../../src/reranker';
 import { Document } from '../../src/retriever';
 

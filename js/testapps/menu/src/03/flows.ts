@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
-import { MessageData } from '@genkit-ai/ai/model';
-import { run } from '@genkit-ai/core';
 import { geminiPro } from '@genkit-ai/vertexai';
+import { generate } from 'genkit/ai';
+import { run } from 'genkit/flow';
+import { MessageData } from 'genkit/model';
 import { ai } from '../index.js';
 
 import {

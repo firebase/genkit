@@ -15,9 +15,8 @@
  */
 
 import fs from 'fs';
+import { z } from 'genkit';
 import path from 'path';
-
-import * as z from 'zod';
 import { ai } from '../index.js';
 import {
   AnswerOutputSchema,

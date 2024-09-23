@@ -19,10 +19,10 @@ import { Document } from '@genkit-ai/ai/retriever';
 import { run } from '@genkit-ai/core';
 import { devLocalIndexerRef } from '@genkit-ai/dev-local-vectorstore';
 import { readFile } from 'fs/promises';
+import { z } from 'genkit';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import pdf from 'pdf-parse';
-import * as z from 'zod';
 import { ai } from './index.js';
 
 // Create a reference to the configured local indexer.

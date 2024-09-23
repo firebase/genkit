@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+import { z } from '@genkit-ai/core';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
-import { z } from 'zod';
 import { Genkit, genkit } from '../src/genkit.js';
 
 function createTestFlow(ai: Genkit) {

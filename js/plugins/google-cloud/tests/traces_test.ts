@@ -21,9 +21,9 @@ import {
   googleCloud,
 } from '@genkit-ai/google-cloud';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import { z } from 'genkit';
 import assert from 'node:assert';
 import { after, before, beforeEach, describe, it } from 'node:test';
-import { z } from 'zod';
 
 describe('GoogleCloudTracing', () => {
   let ai: Genkit;

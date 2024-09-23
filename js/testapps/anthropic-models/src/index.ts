@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
-import * as z from 'zod';
-
-// Import the Genkit core libraries and plugins.
-import { defineTool, generate } from '@genkit-ai/ai';
-import { genkit } from '@genkit-ai/core';
+// Import models from the Vertex AI plugin. The Vertex AI API provides access to
+// several generative models. Here, we import Gemini 1.5 Flash.
 import { claude35Sonnet, vertexAI } from '@genkit-ai/vertexai';
+// Import the Genkit core libraries and plugins.
+import { defineTool, generate, genkit, z } from 'genkit';
 
 // Import models from the Vertex AI plugin. The Vertex AI API provides access to
 // several generative models. Here, we import Gemini 1.5 Flash.

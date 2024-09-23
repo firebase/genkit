@@ -23,10 +23,10 @@ import {
 } from '@genkit-ai/dev-local-vectorstore';
 import { geminiPro } from '@genkit-ai/vertexai';
 import fs from 'fs';
+import { z } from 'genkit';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import pdf from 'pdf-parse';
-import * as z from 'zod';
 import { ai } from './index.js';
 import { augmentedPrompt } from './prompt.js';
 

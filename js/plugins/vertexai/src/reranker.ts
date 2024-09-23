@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
+import { z } from 'genkit';
 import {
   defineReranker,
   RankedDocument,
   RerankerAction,
   rerankerRef,
-} from '@genkit-ai/ai/reranker';
+} from 'genkit/reranker';
 import { GoogleAuth } from 'google-auth-library';
-import z from 'zod';
 import { PluginOptions } from '.';
 
 const DEFAULT_MODEL = 'semantic-ranker-512@latest';

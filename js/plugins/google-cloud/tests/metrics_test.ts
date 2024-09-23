@@ -33,9 +33,9 @@ import {
   SumMetricData,
 } from '@opentelemetry/sdk-metrics';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import { z } from 'genkit';
 import assert from 'node:assert';
 import { after, before, beforeEach, describe, it } from 'node:test';
-import { z } from 'zod';
 
 describe('GoogleCloudMetrics', () => {
   let ai: Genkit;

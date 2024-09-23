@@ -17,7 +17,7 @@
 import { runWithRegistry } from '@genkit-ai/core/registry';
 import { defineDotprompt, prompt } from '@genkit-ai/dotprompt';
 import { gemini15Flash } from '@genkit-ai/googleai';
-import * as z from 'zod';
+import { z } from 'genkit';
 import { HelloFullNameSchema, HelloSchema } from '../common/types.js';
 import { ai } from '../index.js';
 //
@@ -99,7 +99,6 @@ ai.defineStreamingFlow(
     name: 'flowCodeDefinedPrompt',
     inputSchema: HelloSchema,
     outputSchema: z.string(),
-    streamSchema: z.string(),
   },
   async (input) => {
     const codeDefinedPrompt = await prompt('codeDefinedPrompt');

@@ -19,7 +19,7 @@
 import { generate } from '@genkit-ai/ai';
 import { genkit } from '@genkit-ai/core';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
-import * as z from 'zod';
+import { z } from 'genkit';
 
 const ai = genkit({
   plugins: [googleAI()],

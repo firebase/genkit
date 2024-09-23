@@ -17,7 +17,7 @@
 import { genkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
-import * as z from 'zod';
+import { z } from 'genkit';
 import { indexMenu } from './indexer';
 
 export const ai = genkit({

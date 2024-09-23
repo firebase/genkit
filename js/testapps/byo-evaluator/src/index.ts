@@ -15,30 +15,30 @@
  */
 import { EvaluatorAction } from '@genkit-ai/ai';
 import { ModelReference } from '@genkit-ai/ai/model';
-import { PluginProvider, genkit, genkitPlugin } from '@genkit-ai/core';
+import { genkit, genkitPlugin, PluginProvider } from '@genkit-ai/core';
 import { dotprompt } from '@genkit-ai/dotprompt';
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
-import * as z from 'zod';
+import { z } from 'genkit';
 import {
   PERMISSIVE_SAFETY_SETTINGS,
   URL_REGEX,
   US_PHONE_REGEX,
 } from './constants.js';
 import {
-  DELICIOUSNESS,
   createDeliciousnessEvaluator,
+  DELICIOUSNESS,
 } from './deliciousness/deliciousness_evaluator.js';
 import {
-  FUNNINESS,
   createFunninessEvaluator,
+  FUNNINESS,
 } from './funniness/funniness_evaluator.js';
-import { PII_DETECTION, createPiiEvaluator } from './pii/pii_evaluator.js';
+import { createPiiEvaluator, PII_DETECTION } from './pii/pii_evaluator.js';
 import {
-  RegexMetric,
   createRegexEvaluators,
   isRegexMetric,
   regexMatcher,
+  RegexMetric,
 } from './regex/regex_evaluator.js';
 
 const ai = genkit({

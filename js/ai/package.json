@@ -32,8 +32,7 @@
     "colorette": "^2.0.20",
     "json5": "^2.2.3",
     "node-fetch": "^3.3.2",
-    "partial-json": "^0.1.7",
-    "zod": "^3.22.4"
+    "partial-json": "^0.1.7"
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5",

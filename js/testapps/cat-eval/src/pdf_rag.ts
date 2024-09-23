@@ -22,10 +22,10 @@ import {
   devLocalRetrieverRef,
 } from '@genkit-ai/dev-local-vectorstore';
 import { geminiPro } from '@genkit-ai/googleai';
+import { z } from 'genkit';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import { getDocument } from 'pdfjs-dist-legacy';
-import * as z from 'zod';
 import { ai } from './index.js';
 
 export const pdfChatRetriever = devLocalRetrieverRef('pdfQA');

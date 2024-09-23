@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-import { run } from '@genkit-ai/core';
-import * as z from 'zod';
+import { run, z } from 'genkit';
 import { generateString } from '../common/util';
 import { ai } from '../index.js';
 

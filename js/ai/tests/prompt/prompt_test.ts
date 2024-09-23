@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
+import { z } from '@genkit-ai/core';
 import { Registry, runWithRegistry } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import * as z from 'zod';
 import { definePrompt, renderPrompt } from '../../src/prompt.ts';
 
 describe('prompt', () => {

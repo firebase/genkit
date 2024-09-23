@@ -18,7 +18,7 @@ import { defineSchema, genkit } from '@genkit-ai/core';
 import { runWithRegistry } from '@genkit-ai/core/registry';
 import { defineHelper, dotprompt, prompt } from '@genkit-ai/dotprompt';
 import { googleAI } from '@genkit-ai/googleai';
-import * as z from 'zod';
+import { z } from 'genkit';
 
 const ai = genkit({
   plugins: [googleAI(), dotprompt()],

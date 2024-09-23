@@ -15,12 +15,10 @@
  */
 
 import { config } from 'dotenv';
-import * as z from 'zod';
 config();
 // Import the Genkit core libraries and plugins.
-import { generate } from '@genkit-ai/ai';
-import { genkit } from '@genkit-ai/core';
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
+import { generate, z } from 'genkit';
 
 const ai = genkit({
   plugins: [googleAI()],

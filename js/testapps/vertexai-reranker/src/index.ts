@@ -16,13 +16,9 @@
 
 //  Sample app for using the proposed Vertex AI plugin retriever and indexer with a local file (just as a demo).
 
-import { genkit } from '@genkit-ai/core';
+import { Document, genkit, rerank, z } from 'genkit';
 // important imports for this sample:
-import { Document } from '@genkit-ai/ai/retriever';
 import { vertexAI } from '@genkit-ai/vertexai';
-// // Environment variables set with dotenv for simplicity of sample
-import { rerank } from '@genkit-ai/ai/reranker';
-import { z } from 'zod';
 import { LOCATION, PROJECT_ID } from './config';
 
 // Configure Genkit with Vertex AI plugin

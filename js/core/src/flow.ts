@@ -20,7 +20,7 @@ import cors, { CorsOptions } from 'cors';
 import express from 'express';
 import getPort, { makeRange } from 'get-port';
 import { Server } from 'http';
-import * as z from 'zod';
+import { z } from 'zod';
 import {
   Action,
   defineAction,

@@ -16,7 +16,7 @@
 
 //  Sample app for using the proposed Vertex AI plugin retriever and indexer with a local file (just as a demo).
 
-import { genkit } from '@genkit-ai/core';
+import { Document, genkit, index, retrieve, z } from 'genkit';
 // important imports for this sample:
 import {
   vertexAI,
@@ -26,10 +26,8 @@ import {
   type DocumentRetriever,
   type Neighbor,
 } from '@genkit-ai/vertexai';
-import { z } from 'zod';
 
 // // Environment variables set with dotenv for simplicity of sample
-import { Document, index, retrieve } from '@genkit-ai/ai/retriever';
 import {
   LOCAL_DIR,
   LOCATION,

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { isDevEnv } from '@genkit-ai/core';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
+import { isDevEnv } from 'genkit';
 import { GcpTelemetryConfig, GcpTelemetryConfigOptions } from '../types';
 
 /** Consolidated defaults for telemetry configuration. */

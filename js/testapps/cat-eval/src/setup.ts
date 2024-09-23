@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import * as z from 'zod';
+import { z } from 'genkit';
 import { indexPdf } from './pdf_rag.js';
 import { indexPdfFirebase } from './pdf_rag_firebase.js';
 

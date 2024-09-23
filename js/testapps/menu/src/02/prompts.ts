@@ -15,8 +15,8 @@
  */
 
 import { runWithRegistry } from '@genkit-ai/core/registry';
-import { defineDotprompt } from '@genkit-ai/dotprompt';
 import { geminiPro } from '@genkit-ai/vertexai';
+import { defineDotprompt } from 'genkit';
 import { ai } from '../index.js';
 import { MenuQuestionInputSchema } from '../types.js';
 import { menuTool } from './tools.js';
