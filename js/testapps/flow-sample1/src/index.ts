@@ -15,7 +15,7 @@
  */
 
 import { firebase } from '@genkit-ai/firebase';
-import { run, z } from 'genkit';
+import { genkit, run, z } from 'genkit';
 
 const ai = genkit({
   plugins: [firebase()],

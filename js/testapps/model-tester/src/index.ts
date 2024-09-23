@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { testModels } from '@genkit-ai/ai/testing';
-import { genkit } from '@genkit-ai/core';
+import { testModels } from 'genkit/testing';
+import { genkit } from 'genkit';
 import { googleAI } from '@genkit-ai/googleai';
 import { claude3Sonnet, llama31, vertexAI } from '@genkit-ai/vertexai';
 import * as clc from 'colorette';

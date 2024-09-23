@@ -18,7 +18,8 @@ import express, { NextFunction, Request, Response } from 'express';
 import getPort, { makeRange } from 'get-port';
 import { Server } from 'http';
 import z from 'zod';
-import { Status, StatusCodes, runWithStreamingCallback } from './action.js';
+import { runWithStreamingCallback, Status, StatusCodes } from './action.js';
+import { GENKIT_VERSION } from './index.js';
 import { logger } from './logging.js';
 import { Registry, runWithRegistry } from './registry.js';
 import { toJsonSchema } from './schema.js';
@@ -102,6 +103,11 @@ export class ReflectionServer {
     const server = express();
 
     server.use(express.json({ limit: this.options.bodyLimit }));
+    server.use(function (req, res, next) {
+      res.header('x-genkit-version', GENKIT_VERSION);
+      next();
+    });
+
     server.use((req: Request, res: Response, next: NextFunction) => {
       runWithRegistry(this.registry, async () => {
         try {
