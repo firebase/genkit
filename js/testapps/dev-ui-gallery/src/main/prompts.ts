@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-import { runWithRegistry } from '@genkit-ai/core/registry';
-import { defineDotprompt, prompt } from '@genkit-ai/dotprompt';
 import { gemini15Flash } from '@genkit-ai/googleai';
-import { z } from 'genkit';
+import { defineDotprompt, prompt, z } from 'genkit';
+import { runWithRegistry } from 'genkit/registry';
 import { HelloFullNameSchema, HelloSchema } from '../common/types.js';
 import { ai } from '../index.js';
 //

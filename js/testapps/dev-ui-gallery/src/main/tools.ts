@@ -14,11 +14,9 @@
  * limitations under the License.
  */
 
-import { defineTool } from '@genkit-ai/ai/tool';
-import { runWithRegistry } from '@genkit-ai/core/registry';
-import { defineDotprompt } from '@genkit-ai/dotprompt';
 import { gemini15Flash } from '@genkit-ai/googleai';
-import { z } from 'genkit';
+import { defineDotprompt, defineTool, z } from 'genkit';
+import { runWithRegistry } from 'genkit/registry';
 import { WeatherSchema } from '../common/types';
 import { ai } from '../index.js';
 

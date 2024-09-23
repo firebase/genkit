@@ -15,11 +15,10 @@
  */
 
 import { defineTool, z } from 'genkit';
-import { MenuItemSchema } from '../types.js';
-
-import { runWithRegistry } from '@genkit-ai/core/registry';
+import { runWithRegistry } from 'genkit/registry';
 import menuData from '../../data/menu.json' assert { type: 'json' };
 import { ai } from '../index.js';
+import { MenuItemSchema } from '../types.js';
 
 export const menuTool = runWithRegistry(ai.registry, () =>
   defineTool(

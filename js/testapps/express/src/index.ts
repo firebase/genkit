@@ -14,13 +14,11 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
-import { genkit, run } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import { googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
 import express, { Request, Response } from 'express';
-import { z } from 'genkit';
+import { generate, genkit, run, z } from 'genkit';
 import { ollama } from 'genkitx-ollama';
 
 const ai = genkit({

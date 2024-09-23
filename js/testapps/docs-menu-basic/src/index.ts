@@ -16,10 +16,8 @@
 
 // This sample is referenced by the genkit docs. Changes should be made to
 // both.
-import { generate } from '@genkit-ai/ai';
-import { genkit } from '@genkit-ai/core';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
-import { z } from 'genkit';
+import { generate, genkit, z } from 'genkit';
 
 const ai = genkit({
   plugins: [googleAI()],

@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { runWithRegistry } from '@genkit-ai/core/registry';
 import { defineDotprompt, z } from 'genkit';
+import { runWithRegistry } from 'genkit/registry';
 import { ai } from './index.js';
 
 // Define a prompt that includes the retrieved context documents

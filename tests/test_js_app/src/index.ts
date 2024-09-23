@@ -16,7 +16,7 @@
 
 import { generate } from '@genkit-ai/ai';
 import { defineModel } from '@genkit-ai/ai/model';
-import { genkit } from '@genkit-ai/core';
+import { genkit } from 'genkit';
 import * as z from 'zod';
 
 defineModel(

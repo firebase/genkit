@@ -25,7 +25,7 @@ import {
   RunnablePassthrough,
   RunnableSequence,
 } from '@langchain/core/runnables';
-import { run, z } from 'genkit';
+import { genkit, run, z } from 'genkit';
 import { GenkitTracer } from 'genkitx-langchain';
 import { ollama } from 'genkitx-ollama';
 import { PDFLoader } from 'langchain/document_loaders/fs/pdf';
