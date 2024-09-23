@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-import { __RequestWithAuth } from '@genkit-ai/core';
 import { Response } from 'express';
 import { DecodedIdToken, getAuth } from 'firebase-admin/auth';
-import { z } from 'genkit';
+import { __RequestWithAuth, z } from 'genkit';
 import { FunctionFlowAuth } from './functions.js';
 import { initializeAppIfNecessary } from './helpers.js';
 

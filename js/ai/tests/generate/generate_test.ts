@@ -19,6 +19,7 @@ import { Registry, runWithRegistry } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { GenerateResponseChunk } from '../../lib/generate.js';
+import { GenerateResponseChunkData } from '../../lib/model.js';
 import {
   Candidate,
   GenerateOptions,
@@ -36,7 +37,6 @@ import {
   defineModel,
 } from '../../src/model.js';
 import { defineTool } from '../../src/tool.js';
-import { GenerateResponseChunkData } from '../../lib/model.js';
 
 describe('Candidate', () => {
   describe('#toJSON()', () => {

@@ -14,15 +14,6 @@
  * limitations under the License.
  */
 
-import {
-  CallableFlow,
-  Flow,
-  FlowAuthPolicy,
-  FlowFn,
-  Genkit,
-  StreamableFlow,
-} from '@genkit-ai/core';
-import { logger } from '@genkit-ai/core/logging';
 import * as express from 'express';
 import { getAppCheck } from 'firebase-admin/app-check';
 import {
@@ -31,8 +22,15 @@ import {
   onRequest,
 } from 'firebase-functions/v2/https';
 import {
-  z
+  CallableFlow,
+  Flow,
+  FlowAuthPolicy,
+  FlowFn,
+  Genkit,
+  StreamableFlow,
+  z,
 } from 'genkit';
+import { logger } from 'genkit/logging';
 import { initializeAppIfNecessary } from './helpers.js';
 
 export type FunctionFlow<

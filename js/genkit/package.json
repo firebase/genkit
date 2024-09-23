@@ -21,14 +21,13 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/firebase/genkit.git",
-    "directory": "js/flow"
+    "directory": "js/genkit"
   },
   "author": "genkit",
   "license": "Apache-2.0",
   "dependencies": {
     "@genkit-ai/core": "workspace:*",
     "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/flow": "workspace:*",
     "@genkit-ai/dotprompt": "workspace:*",
     "zod": "^3.22.4"
   },

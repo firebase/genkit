@@ -17,7 +17,7 @@
 import { runWithRegistry } from '@genkit-ai/core/registry';
 import { defineDotprompt, prompt } from '@genkit-ai/dotprompt';
 import { gemini15Flash } from '@genkit-ai/googleai';
-import { defineDotprompt, defineFlow, prompt, z } from 'genkit';
+import { z } from 'genkit';
 import { HelloFullNameSchema, HelloSchema } from '../common/types.js';
 import { ai } from '../index.js';
 //

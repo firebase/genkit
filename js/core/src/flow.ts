@@ -14,26 +14,19 @@
  * limitations under the License.
  */
 
-import {
-  Action,
-  defineAction,
-  getStreamingCallback,
-  StreamingCallback,
-  z,
-} from '@genkit-ai/core';
-import {
-  newTrace,
-  runInNewSpan,
-  setCustomMetadataAttribute,
-  setCustomMetadataAttributes,
-  SPAN_TYPE_ATTR,
-} from '@genkit-ai/core/tracing';
 import { SpanStatusCode } from '@opentelemetry/api';
 import * as bodyParser from 'body-parser';
 import cors, { CorsOptions } from 'cors';
 import express from 'express';
 import getPort, { makeRange } from 'get-port';
 import { Server } from 'http';
+import { z } from 'zod';
+import {
+  Action,
+  defineAction,
+  getStreamingCallback,
+  StreamingCallback,
+} from './action.js';
 import { runWithAuthContext } from './auth.js';
 import { getErrorMessage, getErrorStack } from './error.js';
 import { FlowActionInputSchema } from './flowTypes.js';
@@ -45,6 +38,13 @@ import {
   runWithRegistry,
 } from './registry.js';
 import { toJsonSchema } from './schema.js';
+import {
+  newTrace,
+  runInNewSpan,
+  setCustomMetadataAttribute,
+  setCustomMetadataAttributes,
+  SPAN_TYPE_ATTR,
+} from './tracing.js';
 import { flowMetadataPrefix, isDevEnv } from './utils.js';
 
 const streamDelimiter = '\n';

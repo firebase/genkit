@@ -18,7 +18,7 @@
 // several generative models. Here, we import Gemini 1.5 Flash.
 import { claude35Sonnet, vertexAI } from '@genkit-ai/vertexai';
 // Import the Genkit core libraries and plugins.
-import { genkit, defineTool, generate, z } from 'genkit';
+import { defineTool, generate, genkit, z } from 'genkit';
 
 // Import models from the Vertex AI plugin. The Vertex AI API provides access to
 // several generative models. Here, we import Gemini 1.5 Flash.

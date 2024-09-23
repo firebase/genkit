@@ -15,7 +15,7 @@
  */
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
-import { configureGenkit, genkit } from 'genkit';
+import { genkit } from 'genkit';
 
 // Initialize Genkit
 
