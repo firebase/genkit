@@ -31,7 +31,7 @@ want to enable TTL for the trace documents:
 https://firebase.google.com/docs/firestore/ttl
 
 ```ts
-import { firebase } from '@genkit-ai/plugin-firebase';
+import { firebase } from '@genkit-ai/firebase';
 
 configureGenkit({
   plugins: [firebase()],
