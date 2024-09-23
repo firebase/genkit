@@ -21,10 +21,11 @@ import {
 } from '@genkit-ai/tools-common';
 import {
   EvalExporter,
+  getAllEvaluatorActions,
   getDatasetStore,
   getEvalStore,
   getExporterForString,
-  getMatchingEvaluators,
+  getMatchingEvaluatorActions,
   runEvaluation,
   runInference,
 } from '@genkit-ai/tools-common/eval';
@@ -84,17 +85,21 @@ export const evalFlow = new Command('eval:flow')
           );
         }
 
-        let filteredEvaluatorActions: Action[];
-        filteredEvaluatorActions = await getMatchingEvaluators(
-          runner,
-          options.evaluators
-        );
+        let evaluatorActions: Action[];
+        if (!options.evaluators) {
+          evaluatorActions = await getAllEvaluatorActions(runner);
+        } else {
+          evaluatorActions = await getMatchingEvaluatorActions(
+            runner,
+            options.evaluators.split(',')
+          );
+        }
         logger.debug(
-          `Using evaluators: ${filteredEvaluatorActions.map((action) => action.name).join(',')}`
+          `Using evaluators: ${evaluatorActions.map((action) => action.name).join(',')}`
         );
 
         if (!options.force) {
-          const confirmed = await confirmLlmUse(filteredEvaluatorActions);
+          const confirmed = await confirmLlmUse(evaluatorActions);
           if (!confirmed) {
             throw new Error('User declined using billed evaluators.');
           }
@@ -111,12 +116,13 @@ export const evalFlow = new Command('eval:flow')
 
         const evalRun = await runEvaluation({
           runner,
-          filteredEvaluatorActions,
+          evaluatorActions,
           evalDataset,
           actionRef: `/flow/${flowName}`,
-          datasetId: !options.input?.endsWith('.json')
-            ? options.input
-            : undefined,
+          datasetId:
+            options.input && !options.input.endsWith('.json')
+              ? options.input
+              : undefined,
         });
 
         const evalStore = getEvalStore();
@@ -136,6 +142,10 @@ export const evalFlow = new Command('eval:flow')
     }
   );
 
+/**
+ * Reads EvalFlowInput dataset from data string or input identified.
+ * Only one of these parameters is expected to be provided.
+ **/
 async function readInputs(
   data?: string,
   input?: string
@@ -152,9 +162,7 @@ async function readInputs(
       const datasetStore = await getDatasetStore();
       parsedData = await datasetStore.getDataset(input);
     }
-  }
-
-  if (data) {
+  } else if (data) {
     parsedData = JSON.parse(data);
   }
   if (Array.isArray(parsedData)) {

@@ -39,15 +39,14 @@ interface BulkRunResponse {
   response?: any;
 }
 
+/**
+ * Starts a new evaluation run. Intended to be used via the reflection.
+ */
 export async function runNewEvaluation(
   runner: Runner,
   request: RunNewEvaluationRequest
 ): Promise<EvalRunKey> {
   const { datasetId, actionRef, evaluators } = request;
-  if (!datasetId || !actionRef) {
-    throw new Error('datasetId and actionRef are required to run evaluations');
-  }
-
   const datasetStore = await getDatasetStore();
   logger.info(`Fetching dataset ${datasetId}...`);
   const dataset = await datasetStore.getDataset(datasetId);
@@ -59,15 +58,12 @@ export async function runNewEvaluation(
     evalFlowInput: dataset,
     auth: request.options?.auth,
   });
-  let evaluatorAction: Action[] = [];
-  if (evaluators) {
-    evaluatorAction = await getMatchingEvaluators(runner, evaluators);
-  }
+  const evaluatorAction = await getMatchingEvaluatorActions(runner, evaluators);
 
   logger.info('Running evaluation...');
   const evalRun = await runEvaluation({
     runner,
-    filteredEvaluatorActions: evaluatorAction,
+    evaluatorActions: evaluatorAction,
     evalDataset,
     actionRef,
     datasetId,
@@ -115,21 +111,16 @@ export async function runInference(params: {
 /** Handles the Evaluation part of Inference-Evaluation cycle */
 export async function runEvaluation(params: {
   runner: Runner;
-  filteredEvaluatorActions: Action[];
+  evaluatorActions: Action[];
   evalDataset: EvalInput[];
   actionRef?: string;
   datasetId?: string;
 }): Promise<EvalRun> {
-  const {
-    runner,
-    filteredEvaluatorActions,
-    evalDataset,
-    actionRef,
-    datasetId,
-  } = params;
+  const { runner, evaluatorActions, evalDataset, actionRef, datasetId } =
+    params;
   const evalRunId = randomUUID();
   const scores: Record<string, any> = {};
-  for (const action of filteredEvaluatorActions) {
+  for (const action of evaluatorActions) {
     const name = evaluatorName(action);
     const response = await runner.runAction({
       key: name,
@@ -142,7 +133,7 @@ export async function runEvaluation(params: {
   }
 
   const scoredResults = enrichResultsWithScoring(scores, evalDataset);
-  const metadata = extractMetricsMetadata(filteredEvaluatorActions);
+  const metadata = extractMetricsMetadata(evaluatorActions);
 
   const evalRun = {
     key: {
@@ -157,9 +148,8 @@ export async function runEvaluation(params: {
   return evalRun;
 }
 
-export async function getMatchingEvaluators(
-  runner: Runner,
-  evaluators?: string | string[]
+export async function getAllEvaluatorActions(
+  runner: Runner
 ): Promise<Action[]> {
   const allActions = await runner.listActions();
   const allEvaluatorActions = [];
@@ -168,24 +158,23 @@ export async function getMatchingEvaluators(
       allEvaluatorActions.push(allActions[key]);
     }
   }
-  let evalatorRefs: string[] | undefined;
-  if (evaluators) {
-    evalatorRefs =
-      typeof evaluators === 'string' ? evaluators.split(',') : evaluators;
+  return allEvaluatorActions;
+}
+
+export async function getMatchingEvaluatorActions(
+  runner: Runner,
+  evaluators?: string[]
+): Promise<Action[]> {
+  if (!evaluators) {
+    return [];
   }
-  const filteredEvaluatorActions = allEvaluatorActions.filter(
-    (action) => !evalatorRefs || evalatorRefs.includes(action.name)
+  const allEvaluatorActions = await getAllEvaluatorActions(runner);
+  const filteredEvaluatorActions = allEvaluatorActions.filter((action) =>
+    evaluators.includes(action.name)
   );
   if (filteredEvaluatorActions.length === 0) {
     if (allEvaluatorActions.length == 0) {
       throw new Error('No evaluators installed');
-    } else {
-      const availableActions = allEvaluatorActions
-        .map((action) => action.name)
-        .join(',');
-      throw new Error(
-        `No evaluators matched your specifed filter: ${evaluators}. All available evaluators: '${availableActions}'`
-      );
     }
   }
   return filteredEvaluatorActions;
