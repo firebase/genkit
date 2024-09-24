@@ -29,6 +29,8 @@ import {
 import {
   gemini15ProPreview,
   geminiPro,
+  llama31,
+  llama32,
   textEmbeddingGecko,
   vertexAI,
 } from '@genkit-ai/vertexai';
@@ -37,12 +39,11 @@ import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { Allow, parse } from 'partial-json';
 import * as z from 'zod';
-
 configureGenkit({
   plugins: [
     firebase(),
     googleAI(),
-    vertexAI(),
+    vertexAI({ projectId: 'cloud-llm-preview1', location: 'us-central1', modelGarden: { models: [llama31, llama32] } }),
     googleCloud({
       // These are configured for demonstration purposes. Sensible defaults are
       // in place in the event that telemetryConfig is absent.
