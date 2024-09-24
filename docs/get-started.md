@@ -1,189 +1,77 @@
 # Get started
 
-To get started with Firebase Genkit, install the Genkit CLI and run
-`genkit init` in a Node.js project. The rest of this page shows you how.
+This guide shows you how to get started with Genkit in a Node.js app.
 
-## Requirements
+## Prerequisites
 
-Node.js 20 or later.
+This guide assumes that you're familiar with building applications with Node.js.
 
-Recommendation: The [`nvm`](https://github.com/nvm-sh/nvm) and
-[`nvm-windows`](https://github.com/coreybutler/nvm-windows) tools are a
-convenient way to install Node.
+To complete this quickstart, make sure that your development environment meets the following requirements:
 
-## Install Genkit {:#install}
+* Node.js v18+  
+* npm
 
-Install the Genkit CLI by running the following command:
+## Install Genkit dependencies
 
-```posix-terminal
-npm i -g genkit
+Install the following Genkit dependencies to use Genkit in your project:
+
+* `genkit` provides the Genkit CLI and tooling  
+* `@genkit-ai/ai` and `@genkit-ai/core` provide Genkit core capabilities  
+* `@genkit-ai/googleai` provide access to the Google AI Gemini models
+
+```
+npm install genkit @genkit-ai/ai @genkit-ai/core @genkit-ai/googleai
 ```
 
-This command installs the Genkit CLI into your Node installation directory
-so that it can be used outside of a Node project.
+## Configure your model API key
 
-## Create and explore a sample project {:#explore}
+For this tutorial, we’ll use the Gemini API which provides a generous free tier and does not require a credit card to get started. To use the Gemini API, you'll need an API key. If you don't already have one, create a key in Google AI Studio.
 
-1.  Create a new Node project:
+<a class="button" href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer">Get an API key from Google AI Studio</a>
 
-    ```posix-terminal
-    mkdir genkit-intro && cd genkit-intro
+After you’ve created an API key, set the `GOOGLE_GENAI_API_KEY` environment variable to your key with the following command:
 
-    npm init -y
-    ```
+```
+export GOOGLE_GENAI_API_KEY=<your API key>
+```
 
-    Look at package.json and make sure the `main` field is set to
-    `lib/index.js`.
+Note: While this tutorial uses the Gemini API from AI Studio, Genkit supports a wide variety of model providers including [Gemini from Vertex AI](https://firebase.google.com/docs/genkit/plugins/vertex-ai#generative_ai_models), Anthropic’s Claude 3 models and Llama 3.1 through the [Vertex AI Model Garden](https://firebase.google.com/docs/genkit/plugins/vertex-ai#anthropic_claude_3_on_vertex_ai_model_garden), open source models through [Ollama](https://firebase.google.com/docs/genkit/plugins/ollama), and several other [community-supported providers](https://firebase.google.com/docs/genkit/models#models-supported) like OpenAI and Cohere.
 
-1.  Initialize a Genkit project:
+## Import the library
 
-    ```posix-terminal
-    genkit init
-    ```
+Import the Genkit core libraries and the plugin for the Google AI Gemini APIs.
 
-    1. Select your model:
+```javascript
+import { generate } from '@genkit-ai/ai';
+import { configureGenkit } from '@genkit-ai/core';
+import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
+```
 
-       - {Gemini (Google AI)}
+## Make your first request
 
-         The simplest way to get started is with Google AI Gemini API. Make sure
-         it's
-         [available in your region](https://ai.google.dev/available_regions).
+Use the `generate` method to generate a text response.
 
-         [Generate an API key](https://aistudio.google.com/app/apikey) for the
-         Gemini API using Google AI Studio. Then, set the `GOOGLE_GENAI_API_KEY`
-         environment variable to your key:
+```javascript
+// Make sure to include these imports:
+// import { generate } from '@genkit-ai/ai';
+// import { configureGenkit } from '@genkit-ai/core';
+// import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
 
-         ```posix-terminal
-         export GOOGLE_GENAI_API_KEY=<your API key>
-         ```
+configureGenkit({ plugins: [googleAI()] });
 
-       - {Gemini (Vertex AI)}
+const result = await generate({
+    model: gemini15Flash,
+    prompt: 'Tell me a heroic story about a software developer.',
+});
 
-         If the Google AI Gemini API is not available in your region, consider
-         using the Vertex AI API which also offers Gemini and other models. You
-         will need to have a billing-enabled Google Cloud project, enable AI
-         Platform API, and set some additional environment variables:
-
-         ```posix-terminal
-         gcloud services enable aiplatform.googleapis.com
-
-         export GCLOUD_PROJECT=<your project ID>
-
-         export GCLOUD_LOCATION=us-central1
-         ```
-
-         See https://cloud.google.com/vertex-ai/generative-ai/pricing for Vertex AI pricing.
-
-    1. Choose default answers to the rest of the questions, which will
-       initialize your project folder with some sample code.
-
-    The `genkit init` command creates a sample source file, `index.ts`, which
-    defines a single flow, `menuSuggestionFlow`, that prompts an LLM to suggest
-    an item for a restaurant with a given theme.
-
-    This file looks something like the following (the plugin configuration steps
-    might look different if you selected Vertex AI):
-
-    ```ts
-    import * as z from 'zod';
-
-    // Import the Genkit core libraries and plugins.
-    import { generate } from '@genkit-ai/ai';
-    import { configureGenkit } from '@genkit-ai/core';
-    import { defineFlow, startFlowsServer } from '@genkit-ai/flow';
-    import { googleAI } from '@genkit-ai/googleai';
-
-    // Import models from the Google AI plugin. The Google AI API provides access to
-    // several generative models. Here, we import Gemini 1.5 Flash.
-    import { gemini15Flash } from '@genkit-ai/googleai';
-
-    configureGenkit({
-      plugins: [
-        // Load the Google AI plugin. You can optionally specify your API key
-        // by passing in a config object; if you don't, the Google AI plugin uses
-        // the value from the GOOGLE_GENAI_API_KEY environment variable, which is
-        // the recommended practice.
-        googleAI(),
-      ],
-      // Log debug output to tbe console.
-      logLevel: 'debug',
-      // Perform OpenTelemetry instrumentation and enable trace collection.
-      enableTracingAndMetrics: true,
-    });
-
-    // Define a simple flow that prompts an LLM to generate menu suggestions.
-    export const menuSuggestionFlow = defineFlow(
-      {
-        name: 'menuSuggestionFlow',
-        inputSchema: z.string(),
-        outputSchema: z.string(),
-      },
-      async (subject) => {
-        // Construct a request and send it to the model API.
-        const llmResponse = await generate({
-          prompt: `Suggest an item for the menu of a ${subject} themed restaurant`,
-          model: gemini15Flash,
-          config: {
-            temperature: 1,
-          },
-        });
-
-        // Handle the response from the model API. In this sample, we just convert
-        // it to a string, but more complicated flows might coerce the response into
-        // structured output or chain the response into another LLM call, etc.
-        return llmResponse.text();
-      }
-    );
-
-    // Start a flow server, which exposes your flows as HTTP endpoints. This call
-    // must come last, after all of your plug-in configuration and flow definitions.
-    // You can optionally specify a subset of flows to serve, and configure some
-    // HTTP server options, but by default, the flow server serves all defined flows.
-    startFlowsServer();
-    ```
-
-    As you build out your app's AI features with Genkit, you will likely
-    create flows with multiple steps such as input preprocessing, more
-    sophisticated prompt construction, integrating external information
-    sources for retrieval-augmented generation (RAG), and more.
-
-1.  Now you can run and explore Genkit features and the sample project locally
-    on your machine. Download and start the Genkit Developer UI:
-
-    ```posix-terminal
-    genkit start
-    ```
-
-    <img src="resources/welcome_to_genkit_developer_ui.png" alt="Welcome to Genkit Developer UI" class="screenshot attempt-right">
-
-    The Genkit Developer UI is now running on your machine. When you run models
-    or flows in the next step, your machine will perform the orchestration tasks
-    needed to get the steps of your flow working together; calls to external
-    services such as the Gemini API will continue to be made against live
-    servers.
-
-    Also, because you are in a dev environment, Genkit will store traces and
-    flow state in local files.
-
-1.  The Genkit Developer UI downloads and opens automatically when you run the
-    `genkit start` command.
-
-    The Developer UI lets you see which flows you have defined and models you
-    configured, run them, and examine traces of previous runs. Try out some of
-    these features:
-
-    - On the **Run** tab, you will see a list of all of the flows that you have
-      defined and any models that have been configured by plugins.
-
-      Click **menuSuggestionFlow** and try running it with some input text (for example,
-      `"cat"`). If all goes well, you'll be rewarded with a menu suggestion for a cat
-      themed restaurant.
-
-    - On the **Inspect** tab, you'll see a history of flow executions. For each
-      flow, you can see the parameters that were passed to the flow and a
-      trace of each step as they ran.
+console.log(result.text())
+```
 
 ## Next steps
 
-Check out how to build and deploy your Genkit app with [Firebase](firebase.md),
-[Cloud Run](cloud-run.md), or any [Node.js platform](deploy-node.md).
+Now that you’re set up to make model requests with Genkit, learn how to use more Genkit capabilities to build your AI-powered apps and workflows. To get started with additional Genkit capabilities, see the following guides:
+
+* [Developer tools](docs/genkit/devtools): Learn how to set up and use Genkit’s CLI and developer UI to help you locally test and debug your app.  
+* [Generating content](/docs/genkit/models): Learn how to use Genkit’s unified generation API to generate text and structured data from any supported model.  
+* [Creating flows](docs/genkit/flows): Learn how to use special Genkit functions, called flows, that provide end-to-end observability for workflows and rich debugging from Genkit tooling.  
+* [Prompting models](/docs/genkit/prompts): Learn how Genkit lets you treat prompt templates as functions, encapsulating model configurations and input/output schema.
