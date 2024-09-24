@@ -43,14 +43,31 @@ func testGenerate(ctx context.Context, req *ai.GenerateRequest, cb func(context.
 
 func TestExecute(t *testing.T) {
 	testModel := ai.DefineModel("test", "test", nil, testGenerate)
-	p, err := New("TestExecute", "TestExecute", Config{Model: testModel})
-	if err != nil {
-		t.Fatal(err)
-	}
-	resp, err := p.Generate(context.Background(), &PromptRequest{}, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Run("Model", func(t *testing.T) {
+		p, err := New("TestExecute", "TestExecute", Config{Model: testModel})
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := p.Generate(context.Background(), &PromptRequest{}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertResponse(t, resp)
+	})
+	t.Run("ModelName", func(t *testing.T) {
+		p, err := New("TestExecute", "TestExecute", Config{ModelName: "test/test"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp, err := p.Generate(context.Background(), &PromptRequest{}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertResponse(t, resp)
+	})
+}
+
+func assertResponse(t *testing.T, resp *ai.GenerateResponse) {
 	if len(resp.Candidates) != 1 {
 		t.Errorf("got %d candidates, want 1", len(resp.Candidates))
 		if len(resp.Candidates) < 1 {
