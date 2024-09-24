@@ -60,7 +60,6 @@ const SAMPLE_DATASET_1_V2 = {
   ],
 };
 
-const SAMPLE_DATASET_NAME_1 = 'dataset-1';
 const SAMPLE_DATASET_ID_1 = 'dataset-1-123456';
 
 const SAMPLE_DATASET_METADATA_1_V1 = {
@@ -74,6 +73,7 @@ const SAMPLE_DATASET_METADATA_1_V2 = {
   datasetId: SAMPLE_DATASET_ID_1,
   size: 3,
   version: 2,
+  targetAction: '/flow/myFlow',
   createTime: FAKE_TIME.toString(),
   updateTime: FAKE_TIME.toString(),
 };
@@ -85,10 +85,10 @@ const CREATE_DATASET_REQUEST = CreateDatasetRequestSchema.parse({
 const UPDATE_DATASET_REQUEST = UpdateDatasetRequestSchema.parse({
   data: SAMPLE_DATASET_1_V2,
   datasetId: SAMPLE_DATASET_ID_1,
+  targetAction: '/flow/myFlow',
 });
 
 const SAMPLE_DATASET_ID_2 = 'dataset-2-123456';
-const SAMPLE_DATASET_NAME_2 = 'dataset-2';
 
 const SAMPLE_DATASET_METADATA_2 = {
   datasetId: SAMPLE_DATASET_ID_2,
