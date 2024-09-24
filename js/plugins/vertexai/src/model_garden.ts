@@ -30,9 +30,9 @@ export const ModelGardenModelConfigSchema = OpenAIConfigSchema.extend({
 });
 
 export const llama32 = modelRef({
-  name: 'vertxai/llama-multimodal',
+  name: 'vertxai/llama-3.2',
   info: {
-    label: 'Llama Multimodal',
+    label: 'Llama 3.2',
     supports: {
       multiturn: true,
       tools: true,
