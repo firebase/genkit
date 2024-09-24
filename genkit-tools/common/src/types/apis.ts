@@ -145,3 +145,17 @@ export const UpdateDatasetRequestSchema = z.object({
   datasetId: z.string(),
 });
 export type UpdateDatasetRequest = z.infer<typeof UpdateDatasetRequestSchema>;
+
+export const RunNewEvaluationRequestSchema = z.object({
+  datasetId: z.string(),
+  actionRef: z.string(),
+  evaluators: z.array(z.string()).optional(),
+  options: z
+    .object({
+      auth: z.string().optional(),
+    })
+    .optional(),
+});
+export type RunNewEvaluationRequest = z.infer<
+  typeof RunNewEvaluationRequestSchema
+>;

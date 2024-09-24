@@ -21,9 +21,11 @@ import {
 } from '@genkit-ai/tools-common';
 import {
   EvalExporter,
+  getAllEvaluatorActions,
+  getDatasetStore,
   getEvalStore,
   getExporterForString,
-  getMatchingEvaluators,
+  getMatchingEvaluatorActions,
   runEvaluation,
   runInference,
 } from '@genkit-ai/tools-common/eval';
@@ -50,7 +52,10 @@ export const evalFlow = new Command('eval:flow')
   )
   .argument('<flowName>', 'Name of the flow to run')
   .argument('[data]', 'JSON data to use to start the flow')
-  .option('--input <filename>', 'JSON batch data to use to run the flow')
+  .option(
+    '--input <input>',
+    'Input dataset ID or JSON file to be used for evaluation'
+  )
   .option(
     '-a, --auth <JSON>',
     'JSON object passed to authPolicy and stored in local state as auth',
@@ -80,37 +85,45 @@ export const evalFlow = new Command('eval:flow')
           );
         }
 
-        let filteredEvaluatorActions: Action[];
-        filteredEvaluatorActions = await getMatchingEvaluators(
-          runner,
-          options.evaluators
-        );
+        let evaluatorActions: Action[];
+        if (!options.evaluators) {
+          evaluatorActions = await getAllEvaluatorActions(runner);
+        } else {
+          evaluatorActions = await getMatchingEvaluatorActions(
+            runner,
+            options.evaluators.split(',')
+          );
+        }
         logger.debug(
-          `Using evaluators: ${filteredEvaluatorActions.map((action) => action.name).join(',')}`
+          `Using evaluators: ${evaluatorActions.map((action) => action.name).join(',')}`
         );
 
         if (!options.force) {
-          const confirmed = await confirmLlmUse(filteredEvaluatorActions);
+          const confirmed = await confirmLlmUse(evaluatorActions);
           if (!confirmed) {
             throw new Error('User declined using billed evaluators.');
           }
         }
 
         const actionRef = `/flow/${flowName}`;
-        const parsedData = await readInputs(data, options.input!);
-        const evalDataset = await runInference(
+        const evalFlowInput = await readInputs(data, options.input);
+        const evalDataset = await runInference({
           runner,
           actionRef,
-          parsedData,
-          options.auth
-        );
+          evalFlowInput,
+          auth: options.auth,
+        });
 
-        const evalRun = await runEvaluation(
+        const evalRun = await runEvaluation({
           runner,
-          filteredEvaluatorActions,
+          evaluatorActions,
           evalDataset,
-          `/flow/${flowName}`
-        );
+          actionRef: `/flow/${flowName}`,
+          datasetId:
+            options.input && !options.input.endsWith('.json')
+              ? options.input
+              : undefined,
+        });
 
         const evalStore = getEvalStore();
         await evalStore.save(evalRun);
@@ -129,13 +142,29 @@ export const evalFlow = new Command('eval:flow')
     }
   );
 
+/**
+ * Reads EvalFlowInput dataset from data string or input identified.
+ * Only one of these parameters is expected to be provided.
+ **/
 async function readInputs(
-  data: string,
-  filePath: string
+  data?: string,
+  input?: string
 ): Promise<EvalFlowInput> {
-  const parsedData = JSON.parse(
-    data ? data : await readFile(filePath!, 'utf8')
-  );
+  let parsedData;
+  if (input) {
+    if (data) {
+      logger.warn('Both [data] and input provided, ignoring [data]...');
+    }
+    const isFile = input.endsWith('.json');
+    if (isFile) {
+      parsedData = JSON.parse(await readFile(input, 'utf8'));
+    } else {
+      const datasetStore = await getDatasetStore();
+      parsedData = await datasetStore.getDataset(input);
+    }
+  } else if (data) {
+    parsedData = JSON.parse(data);
+  }
   if (Array.isArray(parsedData)) {
     return parsedData as any[];
   }

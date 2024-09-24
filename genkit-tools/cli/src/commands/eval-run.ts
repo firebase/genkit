@@ -17,9 +17,10 @@
 import { Action, EvalInput } from '@genkit-ai/tools-common';
 import {
   EvalExporter,
+  getAllEvaluatorActions,
   getEvalStore,
   getExporterForString,
-  getMatchingEvaluators,
+  getMatchingEvaluatorActions,
   runEvaluation,
 } from '@genkit-ai/tools-common/eval';
 import { confirmLlmUse, logger } from '@genkit-ai/tools-common/utils';
@@ -64,17 +65,21 @@ export const evalRun = new Command('eval:run')
         );
       }
 
-      let filteredEvaluatorActions: Action[];
-      filteredEvaluatorActions = await getMatchingEvaluators(
-        runner,
-        options.evaluators
-      );
+      let evaluatorActions: Action[];
+      if (!options.evaluators) {
+        evaluatorActions = await getAllEvaluatorActions(runner);
+      } else {
+        evaluatorActions = await getMatchingEvaluatorActions(
+          runner,
+          options.evaluators.split(',')
+        );
+      }
       logger.info(
-        `Using evaluators: ${filteredEvaluatorActions.map((action) => action.name).join(',')}`
+        `Using evaluators: ${evaluatorActions.map((action) => action.name).join(',')}`
       );
 
       if (!options.force) {
-        const confirmed = await confirmLlmUse(filteredEvaluatorActions);
+        const confirmed = await confirmLlmUse(evaluatorActions);
         if (!confirmed) {
           if (!confirmed) {
             throw new Error('User declined using billed evaluators.');
@@ -89,11 +94,11 @@ export const evalRun = new Command('eval:run')
         testCaseId: testCase.testCaseId || randomUUID(),
         traceIds: testCase.traceIds || [],
       }));
-      const evalRun = await runEvaluation(
+      const evalRun = await runEvaluation({
         runner,
-        filteredEvaluatorActions,
-        evalDataset
-      );
+        evaluatorActions,
+        evalDataset,
+      });
 
       const evalStore = getEvalStore();
       await evalStore.save(evalRun);
