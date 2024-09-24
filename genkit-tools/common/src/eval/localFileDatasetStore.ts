@@ -64,12 +64,17 @@ export class LocalFileDatasetStore implements DatasetStore {
   }
 
   async createDataset(req: CreateDatasetRequest): Promise<DatasetMetadata> {
-    return this.createDatasetInternal(req.data, req.datasetId);
+    return this.createDatasetInternal(
+      req.data,
+      req.datasetId,
+      req.targetAction
+    );
   }
 
   private async createDatasetInternal(
     data: Dataset,
-    datasetId?: string
+    datasetId?: string,
+    targetAction?: string
   ): Promise<DatasetMetadata> {
     const id = await this.generateDatasetId(datasetId);
     const filePath = path.resolve(this.storeRoot, this.generateFileName(id));
@@ -89,6 +94,7 @@ export class LocalFileDatasetStore implements DatasetStore {
       datasetId: id,
       size: Array.isArray(data) ? data.length : data.samples.length,
       version: 1,
+      targetAction,
       createTime: now,
       updateTime: now,
     };
@@ -131,6 +137,7 @@ export class LocalFileDatasetStore implements DatasetStore {
       datasetId: datasetId,
       size: Array.isArray(req.data) ? req.data.length : req.data.samples.length,
       version: prevMetadata.version + 1,
+      targetAction: req.targetAction ?? prevMetadata.targetAction,
       createTime: prevMetadata.createTime,
       updateTime: now,
     };
