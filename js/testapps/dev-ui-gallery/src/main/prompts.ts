@@ -113,68 +113,78 @@ ai.defineStreamingFlow(
 // Dotprompt file - text output
 //
 
-prompt('hello').then((prompt) => {
-  ai.defineFlow(
-    {
-      name: 'flowDotPrompt',
-      inputSchema: HelloSchema,
-      outputSchema: z.string(),
-    },
-    async (input) => (await prompt.generate({ input })).text()
-  );
-});
+runWithRegistry(ai.registry, () =>
+  prompt('hello').then((prompt) => {
+    ai.defineFlow(
+      {
+        name: 'flowDotPrompt',
+        inputSchema: HelloSchema,
+        outputSchema: z.string(),
+      },
+      async (input) => (await prompt.generate({ input })).text()
+    );
+  })
+);
 
 //
 // Dotprompt file - variant, text output
 //
 
-prompt('hello', { variant: 'first-last-name' }).then((prompt) => {
-  ai.defineFlow(
-    {
-      name: 'flowDotPromptVariant',
-      inputSchema: HelloFullNameSchema,
-      outputSchema: z.string(),
-    },
-    async (input) => (await prompt.generate({ input })).text()
-  );
-});
+runWithRegistry(ai.registry, () =>
+  prompt('hello', { variant: 'first-last-name' }).then((prompt) => {
+    ai.defineFlow(
+      {
+        name: 'flowDotPromptVariant',
+        inputSchema: HelloFullNameSchema,
+        outputSchema: z.string(),
+      },
+      async (input) => (await prompt.generate({ input })).text()
+    );
+  })
+);
 
 //
 // Dotprompt file - json output
 //
 
-prompt('hello', { variant: 'json-output' }).then((prompt) => {
-  ai.defineFlow(
-    {
-      name: 'flowDotPromptJsonOutput',
-      inputSchema: HelloSchema,
-      outputSchema: z.any(),
-    },
-    async (input) => (await prompt.generate({ input })).output()
-  );
-});
+runWithRegistry(ai.registry, () =>
+  prompt('hello', { variant: 'json-output' }).then((prompt) => {
+    ai.defineFlow(
+      {
+        name: 'flowDotPromptJsonOutput',
+        inputSchema: HelloSchema,
+        outputSchema: z.any(),
+      },
+      async (input) => (await prompt.generate({ input })).output()
+    );
+  })
+);
 
-prompt('hello', { variant: 'system' }).then((prompt) => {
-  ai.defineFlow(
-    {
-      name: 'flowDotPromptSystemMessage',
-      inputSchema: HelloSchema,
-      outputSchema: z.any(),
-    },
-    async (input) => (await prompt.generate({ input })).output()
-  );
-});
+runWithRegistry(ai.registry, () =>
+  prompt('hello', { variant: 'system' }).then((prompt) => {
+    ai.defineFlow(
+      {
+        name: 'flowDotPromptSystemMessage',
+        inputSchema: HelloSchema,
+        outputSchema: z.any(),
+      },
+      async (input) => (await prompt.generate({ input })).output()
+    );
+  })
+);
 
-prompt('hello', { variant: 'history' }).then((prompt) => {
-  ai.defineFlow(
-    {
-      name: 'flowDotPromptHistory',
-      inputSchema: HelloSchema,
-      outputSchema: z.any(),
-    },
-    async (input) => (await prompt.generate({ input })).output()
-  );
-});
+runWithRegistry(ai.registry, () =>
+  prompt('hello', { variant: 'history' }).then((prompt) => {
+    ai.defineFlow(
+      {
+        name: 'flowDotPromptHistory',
+        inputSchema: HelloSchema,
+        outputSchema: z.any(),
+      },
+      async (input) => (await prompt.generate({ input })).output()
+    );
+  })
+);
 
 // TODO(michaeldoyle): showcase advanced capabilities of dotprompts
 //   chat, multi-modal, tools, history, etc
