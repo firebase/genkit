@@ -14,20 +14,14 @@
  * limitations under the License.
  */
 
-import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
-import {
-  defineRetriever,
-  DocumentData,
-  Part,
-  RetrieverAction,
-} from '@genkit-ai/ai/retriever';
 import {
   Firestore,
   Query,
   QueryDocumentSnapshot,
   VectorQuerySnapshot,
 } from '@google-cloud/firestore';
-import z from 'zod';
+import { EmbedderArgument, RetrieverAction, embed, z } from 'genkit';
+import { DocumentData, Part, defineRetriever } from 'genkit/retriever';
 
 function toContent(
   d: QueryDocumentSnapshot,

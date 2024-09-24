@@ -20,11 +20,11 @@ import {
   getStreamingCallback,
   Middleware,
   StreamingCallback,
+  z,
 } from '@genkit-ai/core';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import * as clc from 'colorette';
 import { performance } from 'node:perf_hooks';
-import { z } from 'zod';
 import { DocumentDataSchema } from './document.js';
 import {
   augmentWithContext,

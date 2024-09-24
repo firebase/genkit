@@ -14,20 +14,6 @@
  * limitations under the License.
  */
 
-export {
-  Flow,
-  defineFlow,
-  defineStreamingFlow,
-  startFlowsServer,
-  type CallableFlow,
-  type FlowAuthPolicy,
-  type FlowFn,
-  type StreamableFlow,
-  type __RequestWithAuth,
-} from './flow.js';
-export { run } from './steps.js';
-export {
-  FlowInvokeEnvelopeMessageSchema,
-  type FlowInvokeEnvelopeMessage,
-} from './types.js';
-export { getFlowAuth } from './utils.js';
+export * from '@genkit-ai/ai';
+export * from '@genkit-ai/core';
+export * from '@genkit-ai/dotprompt';

@@ -14,22 +14,25 @@
  * limitations under the License.
  */
 
-import { defineDotprompt } from '@genkit-ai/dotprompt';
 import { geminiPro } from '@genkit-ai/vertexai';
+import { defineDotprompt } from 'genkit';
+import { runWithRegistry } from 'genkit/registry';
+import { ai } from '../index.js';
 import { DataMenuQuestionInputSchema } from '../types.js';
 
 // This prompt will generate two messages when rendered.
 // These two messages will be used to seed the exchange with the model.
 
-export const s03_chatPreamblePrompt = defineDotprompt(
-  {
-    name: 's03_chatPreamble',
-    model: geminiPro,
-    input: { schema: DataMenuQuestionInputSchema },
-    output: { format: 'text' },
-    config: { temperature: 0.3 },
-  },
-  `
+export const s03_chatPreamblePrompt = runWithRegistry(ai.registry, () =>
+  defineDotprompt(
+    {
+      name: 's03_chatPreamble',
+      model: geminiPro,
+      input: { schema: DataMenuQuestionInputSchema },
+      output: { format: 'text' },
+      config: { temperature: 0.3 },
+    },
+    `
   {{ role "user" }}
   Hi. What's on the menu today?
   
@@ -44,4 +47,5 @@ export const s03_chatPreamblePrompt = defineDotprompt(
   {{~/each}}
   Do you have any questions about the menu?
 `
+  )
 );

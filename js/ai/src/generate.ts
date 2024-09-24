@@ -16,14 +16,13 @@
 
 import {
   Action,
-  config as genkitConfig,
   GenkitError,
   runWithStreamingCallback,
   StreamingCallback,
+  z,
 } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
 import { toJsonSchema, validateSchema } from '@genkit-ai/core/schema';
-import { z } from 'zod';
 import { DocumentData } from './document.js';
 import { extractJson } from './extract.js';
 import {
@@ -498,21 +497,22 @@ export interface GenerateOptions<
 async function resolveModel(options: GenerateOptions): Promise<ModelAction> {
   let model = options.model;
   if (!model) {
-    if (genkitConfig?.options?.defaultModel) {
-      model =
-        typeof genkitConfig.options.defaultModel.name === 'string'
-          ? genkitConfig.options.defaultModel.name
-          : genkitConfig.options.defaultModel.name.name;
-      if (
-        (!options.config || Object.keys(options.config).length === 0) &&
-        genkitConfig.options.defaultModel.config
-      ) {
-        // use configured global config
-        options.config = genkitConfig.options.defaultModel.config;
-      }
-    } else {
-      throw new Error('Unable to resolve model.');
-    }
+    // TODO: Fix this...
+    // if (genkitConfig?.options?.defaultModel) {
+    //   model =
+    //     typeof genkitConfig.options.defaultModel.name === 'string'
+    //       ? genkitConfig.options.defaultModel.name
+    //       : genkitConfig.options.defaultModel.name.name;
+    //   if (
+    //     (!options.config || Object.keys(options.config).length === 0) &&
+    //     genkitConfig.options.defaultModel.config
+    //   ) {
+    //     // use configured global config
+    //     options.config = genkitConfig.options.defaultModel.config;
+    //   }
+    // } else {
+    throw new Error('Unable to resolve model.');
+    // }
   }
   if (typeof model === 'string') {
     return (await lookupAction(`/model/${model}`)) as ModelAction;

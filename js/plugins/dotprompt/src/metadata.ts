@@ -24,9 +24,9 @@ import {
   ModelArgument,
 } from '@genkit-ai/ai/model';
 import { ToolArgument } from '@genkit-ai/ai/tool';
+import { z } from '@genkit-ai/core';
 import { lookupSchema } from '@genkit-ai/core/registry';
 import { JSONSchema, parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
-import z from 'zod';
 import { picoschema } from './picoschema.js';
 
 /**

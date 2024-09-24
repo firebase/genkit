@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { GENKIT_VERSION, TelemetryConfig } from '@genkit-ai/core';
 import { MetricExporter } from '@google-cloud/opentelemetry-cloud-monitoring-exporter';
 import { TraceExporter } from '@google-cloud/opentelemetry-cloud-trace-exporter';
 import { GcpDetectorSync } from '@google-cloud/opentelemetry-resource-util';
@@ -45,10 +44,11 @@ import {
   ReadableSpan,
   SpanExporter,
 } from '@opentelemetry/sdk-trace-base';
+import { GENKIT_VERSION, TelemetryConfig } from 'genkit';
+import { PathMetadata } from 'genkit/tracing';
 
 import { extractErrorName } from './utils';
 
-import { PathMetadata } from '@genkit-ai/core/tracing';
 import { actionTelemetry } from './telemetry/action.js';
 import { flowsTelemetry } from './telemetry/flow.js';
 import { generateTelemetry } from './telemetry/generate.js';
@@ -247,6 +247,7 @@ class AdjustingTraceExporter implements SpanExporter {
 
       span = this.redactPii(span);
       span = this.markErrorSpanAsError(span);
+      span = this.markFailedAction(span);
       span = this.normalizeLabels(span);
       return span;
     });
@@ -321,6 +322,18 @@ class AdjustingTraceExporter implements SpanExporter {
       spanContext: span.spanContext,
       attributes: normalized,
     };
+  }
+
+  private markFailedAction(span: ReadableSpan): ReadableSpan {
+    if (
+      span.attributes['genkit:state'] === 'error' &&
+      (span.attributes['genkit:type'] === 'action' ||
+        span.attributes['genkit:type'] === 'flowStep') &&
+      span.attributes['genkit:name']
+    ) {
+      span.attributes['genkit:failedSpan'] = span.attributes['genkit:name'];
+    }
+    return span;
   }
 }
 

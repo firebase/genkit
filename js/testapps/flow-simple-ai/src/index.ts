@@ -14,11 +14,7 @@
  * limitations under the License.
  */
 
-import { defineTool, generate, generateStream, retrieve } from '@genkit-ai/ai';
-import { configureGenkit } from '@genkit-ai/core';
-import { dotprompt, prompt } from '@genkit-ai/dotprompt';
 import { defineFirestoreRetriever, firebase } from '@genkit-ai/firebase';
-import { defineFlow, run } from '@genkit-ai/flow';
 import { googleCloud } from '@genkit-ai/google-cloud';
 import {
   gemini15Flash,
@@ -31,13 +27,26 @@ import {
   textEmbeddingGecko,
   vertexAI,
 } from '@genkit-ai/vertexai';
+import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import {
+  MessageSchema,
+  defineTool,
+  dotprompt,
+  generate,
+  generateStream,
+  genkit,
+  prompt,
+  retrieve,
+  run,
+  z,
+} from 'genkit';
+import { runWithRegistry } from 'genkit/registry';
 import { Allow, parse } from 'partial-json';
-import * as z from 'zod';
 
-configureGenkit({
+const ai = genkit({
   plugins: [
     firebase(),
     googleAI(),
@@ -73,7 +82,7 @@ configureGenkit({
 
 const app = initializeApp();
 
-export const jokeFlow = defineFlow(
+export const jokeFlow = ai.defineFlow(
   {
     name: 'jokeFlow',
     inputSchema: z.object({
@@ -95,7 +104,7 @@ export const jokeFlow = defineFlow(
   }
 );
 
-export const drawPictureFlow = defineFlow(
+export const drawPictureFlow = ai.defineFlow(
   {
     name: 'drawPictureFlow',
     inputSchema: z.object({ modelName: z.string(), object: z.string() }),
@@ -114,7 +123,7 @@ export const drawPictureFlow = defineFlow(
   }
 );
 
-export const streamFlow = defineFlow(
+export const streamFlow = ai.defineStreamingFlow(
   {
     name: 'streamFlow',
     inputSchema: z.string(),
@@ -152,7 +161,7 @@ const GameCharactersSchema = z.object({
     .describe('Characters'),
 });
 
-export const streamJsonFlow = defineFlow(
+export const streamJsonFlow = ai.defineStreamingFlow(
   {
     name: 'streamJsonFlow',
     inputSchema: z.number(),
@@ -194,21 +203,23 @@ function maybeStripMarkdown(withMarkdown: string) {
 }
 
 const tools = [
-  defineTool(
-    {
-      name: 'tellAFunnyJoke',
-      description:
-        'Tells jokes about an input topic. Use this tool whenever user asks you to tell a joke.',
-      inputSchema: z.object({ topic: z.string() }),
-      outputSchema: z.string(),
-    },
-    async (input) => {
-      return `Why did the ${input.topic} cross the road?`;
-    }
+  runWithRegistry(ai.registry, () =>
+    defineTool(
+      {
+        name: 'tellAFunnyJoke',
+        description:
+          'Tells jokes about an input topic. Use this tool whenever user asks you to tell a joke.',
+        inputSchema: z.object({ topic: z.string() }),
+        outputSchema: z.string(),
+      },
+      async (input) => {
+        return `Why did the ${input.topic} cross the road?`;
+      }
+    )
   ),
 ];
 
-export const jokeWithToolsFlow = defineFlow(
+export const jokeWithToolsFlow = ai.defineFlow(
   {
     name: 'jokeWithToolsFlow',
     inputSchema: z.object({
@@ -219,7 +230,7 @@ export const jokeWithToolsFlow = defineFlow(
   },
   async (input) => {
     const llmResponse = await generate({
-      model: input.modelName,
+      model: input.modelName as string,
       tools,
       output: { schema: z.object({ joke: z.string() }) },
       prompt: `Tell a joke about ${input.subject}.`,
@@ -232,7 +243,7 @@ const outputSchema = z.object({
   joke: z.string(),
 });
 
-export const jokeWithOutputFlow = defineFlow(
+export const jokeWithOutputFlow = ai.defineFlow(
   {
     name: 'jokeWithOutputFlow',
     inputSchema: z.object({
@@ -254,7 +265,7 @@ export const jokeWithOutputFlow = defineFlow(
   }
 );
 
-export const vertexStreamer = defineFlow(
+export const vertexStreamer = ai.defineFlow(
   {
     name: 'vertexStreamer',
     inputSchema: z.string(),
@@ -273,7 +284,7 @@ export const vertexStreamer = defineFlow(
   }
 );
 
-export const multimodalFlow = defineFlow(
+export const multimodalFlow = ai.defineFlow(
   {
     name: 'multimodalFlow',
     inputSchema: z.object({ modelName: z.string(), imageUrl: z.string() }),
@@ -291,16 +302,18 @@ export const multimodalFlow = defineFlow(
   }
 );
 
-const destinationsRetriever = defineFirestoreRetriever({
-  name: 'destinationsRetriever',
-  firestore: getFirestore(app),
-  collection: 'destinations',
-  contentField: 'knownFor',
-  embedder: textEmbeddingGecko,
-  vectorField: 'embedding',
-});
+const destinationsRetriever = runWithRegistry(ai.registry, () =>
+  defineFirestoreRetriever({
+    name: 'destinationsRetriever',
+    firestore: getFirestore(app),
+    collection: 'destinations',
+    contentField: 'knownFor',
+    embedder: textEmbeddingGecko,
+    vectorField: 'embedding',
+  })
+);
 
-export const searchDestinations = defineFlow(
+export const searchDestinations = ai.defineFlow(
   {
     name: 'searchDestinations',
     inputSchema: z.string(),
@@ -326,7 +339,7 @@ Available Options:\n- ${docs.map((d) => `${d.metadata!.name}: ${d.text()}`).join
   }
 );
 
-export const dotpromptContext = defineFlow(
+export const dotpromptContext = ai.defineFlow(
   {
     name: 'dotpromptContext',
     inputSchema: z.string(),
@@ -368,20 +381,23 @@ export const dotpromptContext = defineFlow(
   }
 );
 
-const jokeSubjectGenerator = defineTool(
-  {
-    name: 'jokeSubjectGenerator',
-    description: 'can be called to generate a subject for a joke',
-  },
-  async () => {
-    return 'banana';
-  }
+const jokeSubjectGenerator = runWithRegistry(ai.registry, () =>
+  defineTool(
+    {
+      name: 'jokeSubjectGenerator',
+      description: 'can be called to generate a subject for a joke',
+    },
+    async () => {
+      return 'banana';
+    }
+  )
 );
 
-export const toolCaller = defineFlow(
+export const toolCaller = ai.defineStreamingFlow(
   {
     name: 'toolCaller',
     outputSchema: z.string(),
+    streamSchema: z.any(),
   },
   async (_, streamingCallback) => {
     if (!streamingCallback) {
@@ -405,7 +421,7 @@ export const toolCaller = defineFlow(
   }
 );
 
-export const invalidOutput = defineFlow(
+export const invalidOutput = ai.defineFlow(
   {
     name: 'invalidOutput',
     inputSchema: z.string(),
@@ -428,12 +444,10 @@ export const invalidOutput = defineFlow(
   }
 );
 
-import { MessageSchema } from '@genkit-ai/ai/model';
-import { GoogleAIFileManager } from '@google/generative-ai/server';
 const fileManager = new GoogleAIFileManager(
   process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY!
 );
-export const fileApi = defineFlow(
+export const fileApi = ai.defineFlow(
   {
     name: 'fileApi',
     inputSchema: z.string(),
@@ -468,24 +482,26 @@ export const fileApi = defineFlow(
 
 export const testTools = [
   // test a tool with no input / output schema
-  defineTool(
-    { name: 'getColor', description: 'gets a random color' },
-    async () => {
-      const colors = [
-        'red',
-        'orange',
-        'yellow',
-        'blue',
-        'green',
-        'indigo',
-        'violet',
-      ];
-      return colors[Math.floor(Math.random() * colors.length)];
-    }
+  runWithRegistry(ai.registry, () =>
+    defineTool(
+      { name: 'getColor', description: 'gets a random color' },
+      async () => {
+        const colors = [
+          'red',
+          'orange',
+          'yellow',
+          'blue',
+          'green',
+          'indigo',
+          'violet',
+        ];
+        return colors[Math.floor(Math.random() * colors.length)];
+      }
+    )
   ),
 ];
 
-export const toolTester = defineFlow(
+export const toolTester = ai.defineFlow(
   {
     name: 'toolTester',
     inputSchema: z.string(),

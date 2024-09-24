@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
-import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
 import { googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
 import { GoogleVertexAIEmbeddings } from '@langchain/community/embeddings/googlevertexai';
@@ -27,14 +25,14 @@ import {
   RunnablePassthrough,
   RunnableSequence,
 } from '@langchain/core/runnables';
+import { genkit, run, z } from 'genkit';
 import { GenkitTracer } from 'genkitx-langchain';
 import { ollama } from 'genkitx-ollama';
 import { PDFLoader } from 'langchain/document_loaders/fs/pdf';
 import { formatDocumentsAsString } from 'langchain/util/document';
 import { MemoryVectorStore } from 'langchain/vectorstores/memory';
-import * as z from 'zod';
 
-configureGenkit({
+const ai = genkit({
   plugins: [
     firebase(),
     googleAI(),
@@ -51,12 +49,13 @@ configureGenkit({
   traceStore: 'firebase',
   enableTracingAndMetrics: true,
   logLevel: 'debug',
+  flowServer: true,
 });
 
 const vectorStore = new MemoryVectorStore(new GoogleVertexAIEmbeddings());
 const model = new GoogleVertexAI();
 
-export const indexPdf = defineFlow(
+export const indexPdf = ai.defineFlow(
   { name: 'indexPdf', inputSchema: z.string(), outputSchema: z.void() },
   async (filePath) => {
     const docs = await run('load-pdf', async () => {
@@ -75,7 +74,7 @@ const prompt =
 Question: {question}`);
 const retriever = vectorStore.asRetriever();
 
-export const pdfQA = defineFlow(
+export const pdfQA = ai.defineFlow(
   { name: 'pdfQA', inputSchema: z.string(), outputSchema: z.string() },
   async (question) => {
     const chain = RunnableSequence.from([
@@ -91,5 +90,3 @@ export const pdfQA = defineFlow(
     return await chain.invoke(question, { callbacks: [new GenkitTracer()] });
   }
 );
-
-startFlowsServer();

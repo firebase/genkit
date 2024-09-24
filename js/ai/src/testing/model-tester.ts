@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
+import { z } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
 import { runInNewSpan } from '@genkit-ai/core/tracing';
 import assert from 'node:assert';
-import z from 'zod';
 import { generate } from '../generate';
 import { ModelAction } from '../model';
 import { defineTool } from '../tool';
@@ -128,7 +128,7 @@ const tests: Record<string, TestCase> = {
     const response = await generate({
       model,
       prompt: 'what is a gablorken of 2? use provided tool',
-      tools: [gablorkenTool],
+      tools: ['gablorkenTool'],
     });
 
     const got = response.text().trim();
@@ -151,21 +151,21 @@ type TestReport = {
 
 type TestCase = (model: string) => Promise<void>;
 
-const gablorkenTool = defineTool(
-  {
-    name: 'gablorkenTool',
-    description: 'use when need to calculate a gablorken',
-    inputSchema: z.object({
-      value: z.number(),
-    }),
-    outputSchema: z.number(),
-  },
-  async (input) => {
-    return Math.pow(input.value, 3) + 1.407;
-  }
-);
-
 export async function testModels(models: string[]): Promise<TestReport> {
+  const gablorkenTool = defineTool(
+    {
+      name: 'gablorkenTool',
+      description: 'use when need to calculate a gablorken',
+      inputSchema: z.object({
+        value: z.number(),
+      }),
+      outputSchema: z.number(),
+    },
+    async (input) => {
+      return Math.pow(input.value, 3) + 1.407;
+    }
+  );
+
   return await runInNewSpan({ metadata: { name: 'testModels' } }, async () => {
     const report: TestReport = [];
     for (const test of Object.keys(tests)) {

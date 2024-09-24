@@ -16,8 +16,7 @@
 
 import { generate } from '@genkit-ai/ai';
 import { defineModel } from '@genkit-ai/ai/model';
-import { configureGenkit } from '@genkit-ai/core';
-import { defineFlow } from '@genkit-ai/flow';
+import { genkit } from 'genkit';
 import * as z from 'zod';
 
 defineModel(
@@ -49,13 +48,13 @@ defineModel(
   }
 );
 
-export default configureGenkit({
+const ai = genkit({
   plugins: [],
   enableTracingAndMetrics: true,
   logLevel: 'debug',
 });
 
-export const testFlow = defineFlow(
+export const testFlow = ai.defineFlow(
   { name: 'testFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (subject) => {
     const response = await generate({

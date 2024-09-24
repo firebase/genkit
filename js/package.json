@@ -3,21 +3,24 @@
   "version": "0.5.10",
   "scripts": {
     "preinstall": "npx only-allow pnpm",
-    "build": "pnpm install && pnpm build:core && pnpm build:noncore",
-    "build:core": "pnpm -r --workspace-concurrency 1 -F core -F ai -F flow build",
-    "build:noncore": "pnpm build:dotprompt && pnpm -r --workspace-concurrency 0 -F \"./(plugins|samples)/**\" build",
+    "build": "pnpm install && pnpm build:core && pnpm build:genkit && pnpm build:noncore && pnpm build:testapps",
+    "build:core": "pnpm -r --workspace-concurrency 1 -F core -F ai -F flow build && pnpm build:dotprompt",
+    "build:genkit": "pnpm -F genkit build",
+    "build:noncore": "pnpm -r --workspace-concurrency 0 -F \"./plugins/**\" -F \"!./plugins/dotprompt\" build",
+    "build:testapps": "pnpm -r --workspace-concurrency 0 -F \"./testapps/**\" build",
     "build:dotprompt": "cd plugins/dotprompt && pnpm build",
-    "pack:all": "(mkdir ../dist || true) && npm-run-all pack:core pack:flow pack:ai pack:plugins",
+    "pack:all": "(mkdir ../dist || true) && npm-run-all pack:core pack:flow pack:ai pack:genkit pack:plugins",
     "pack:core": "cd core && pnpm pack --pack-destination ../../dist",
     "pack:flow": "cd flow && pnpm pack --pack-destination ../../dist",
     "pack:ai": "cd ai && pnpm pack --pack-destination ../../dist",
+    "pack:genkit": "cd genkit && pnpm pack --pack-destination ../../dist",
     "pack:plugins": "for i in plugins/*/; do cd $i && pnpm pack --pack-destination ../../../dist && cd ../..; done",
-    "test:all": "pnpm -r --workspace-concurrency 0 -F \"./(ai|core|flow|plugins)/**\" test"
+    "test:all": "pnpm -r --workspace-concurrency 0 -F \"./(ai|core|plugins)/**\" test"
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5",
     "only-allow": "^1.2.1",
     "typescript": "^4.9.0"
   },
-  "packageManager": "pnpm@9.10.0+sha256.355a8ab8dbb6ad41befbef39bc4fd6b5df85e12761d2724bd01f13e878de4b13"
+  "packageManager": "pnpm@9.11.0+sha256.1c0e33f70e5df9eede84a357bdfa0b1f9dba6e58194628d48a1055756f553754"
 }

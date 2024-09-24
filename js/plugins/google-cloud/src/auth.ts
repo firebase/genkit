@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { logger } from '@genkit-ai/core/logging';
+import { logger } from 'genkit/logging';
 import { GoogleAuth } from 'google-auth-library';
 import { GcpPluginOptions } from './types';
 

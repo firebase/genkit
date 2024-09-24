@@ -14,24 +14,23 @@
  * limitations under the License.
  */
 
-import { embed, EmbedderArgument } from '@genkit-ai/ai/embedder';
-import {
-  CommonRetrieverOptionsSchema,
-  defineIndexer,
-  defineRetriever,
-  Document,
-  indexerRef,
-  retrieverRef,
-} from '@genkit-ai/ai/retriever';
-import { genkitPlugin, PluginProvider } from '@genkit-ai/core';
 import {
   CreateIndexOptions,
   Pinecone,
   PineconeConfiguration,
   RecordMetadata,
 } from '@pinecone-database/pinecone';
+import { PluginProvider, genkitPlugin, z } from 'genkit';
+import { EmbedderArgument, embed } from 'genkit/embedder';
+import {
+  CommonRetrieverOptionsSchema,
+  Document,
+  defineIndexer,
+  defineRetriever,
+  indexerRef,
+  retrieverRef,
+} from 'genkit/retriever';
 import { Md5 } from 'ts-md5';
-import * as z from 'zod';
 
 const SparseVectorSchema = z
   .object({

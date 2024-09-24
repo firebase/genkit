@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import * as z from 'zod';
+import { z } from 'genkit';
 
 export const HelloSchema = z.object({
   name: z.string(),

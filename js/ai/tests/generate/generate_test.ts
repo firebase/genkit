@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { __hardResetRegistryForTesting } from '@genkit-ai/core/registry';
+import { z } from '@genkit-ai/core';
+import { Registry, runWithRegistry } from '@genkit-ai/core/registry';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
-import { z } from 'zod';
 import { GenerateResponseChunk } from '../../lib/generate.js';
 import { GenerateResponseChunkData } from '../../lib/model.js';
 import {
@@ -322,18 +322,21 @@ describe('GenerateResponse', () => {
 });
 
 describe('toGenerateRequest', () => {
+  const registry = new Registry();
   // register tools
-  const tellAFunnyJoke = defineTool(
-    {
-      name: 'tellAFunnyJoke',
-      description:
-        'Tells jokes about an input topic. Use this tool whenever user asks you to tell a joke.',
-      inputSchema: z.object({ topic: z.string() }),
-      outputSchema: z.string(),
-    },
-    async (input) => {
-      return `Why did the ${input.topic} cross the road?`;
-    }
+  const tellAFunnyJoke = runWithRegistry(registry, () =>
+    defineTool(
+      {
+        name: 'tellAFunnyJoke',
+        description:
+          'Tells jokes about an input topic. Use this tool whenever user asks you to tell a joke.',
+        inputSchema: z.object({ topic: z.string() }),
+        outputSchema: z.string(),
+      },
+      async (input) => {
+        return `Why did the ${input.topic} cross the road?`;
+      }
+    )
   );
 
   const testCases = [
@@ -507,7 +510,9 @@ describe('toGenerateRequest', () => {
   for (const test of testCases) {
     it(test.should, async () => {
       assert.deepStrictEqual(
-        await toGenerateRequest(test.prompt as GenerateOptions),
+        await runWithRegistry(registry, () =>
+          toGenerateRequest(test.prompt as GenerateOptions)
+        ),
         test.expectedOutput
       );
     });
@@ -588,37 +593,39 @@ describe('GenerateResponseChunk', () => {
 });
 
 describe('generate', () => {
-  beforeEach(__hardResetRegistryForTesting);
-
+  let registry: Registry;
   var echoModel: ModelAction;
 
   beforeEach(() => {
-    echoModel = defineModel(
-      {
-        name: 'echoModel',
-      },
-      async (request) => {
-        return {
-          candidates: [
-            {
-              index: 0,
-              finishReason: 'stop',
-              message: {
-                role: 'model',
-                content: [
-                  {
-                    text:
-                      'Echo: ' +
-                      request.messages
-                        .map((m) => m.content.map((c) => c.text).join())
-                        .join(),
-                  },
-                ],
+    registry = new Registry();
+    echoModel = runWithRegistry(registry, () =>
+      defineModel(
+        {
+          name: 'echoModel',
+        },
+        async (request) => {
+          return {
+            candidates: [
+              {
+                index: 0,
+                finishReason: 'stop',
+                message: {
+                  role: 'model',
+                  content: [
+                    {
+                      text:
+                        'Echo: ' +
+                        request.messages
+                          .map((m) => m.content.map((c) => c.text).join())
+                          .join(),
+                    },
+                  ],
+                },
               },
-            },
-          ],
-        };
-      }
+            ],
+          };
+        }
+      )
     );
   });
 
@@ -668,11 +675,13 @@ describe('generate', () => {
       };
     };
 
-    const response = await generate({
-      prompt: 'banana',
-      model: echoModel,
-      use: [wrapRequest, wrapResponse],
-    });
+    const response = await runWithRegistry(registry, () =>
+      generate({
+        prompt: 'banana',
+        model: echoModel,
+        use: [wrapRequest, wrapResponse],
+      })
+    );
 
     const want = '[Echo: (banana)]';
     assert.deepStrictEqual(response.text(), want);
@@ -680,18 +689,27 @@ describe('generate', () => {
 });
 
 describe('generate', () => {
+  let registry: Registry;
   beforeEach(() => {
-    defineModel({ name: 'echo', supports: { tools: true } }, async (input) => ({
-      candidates: [
-        { index: 0, message: input.messages[0], finishReason: 'stop' },
-      ],
-    }));
+    registry = new Registry();
+    runWithRegistry(registry, () =>
+      defineModel(
+        { name: 'echo', supports: { tools: true } },
+        async (input) => ({
+          candidates: [
+            { index: 0, message: input.messages[0], finishReason: 'stop' },
+          ],
+        })
+      )
+    );
   });
   it('should preserve the request in the returned response, enabling toHistory()', async () => {
-    const response = await generate({
-      model: 'echo',
-      prompt: 'Testing toHistory',
-    });
+    const response = await runWithRegistry(registry, () =>
+      generate({
+        model: 'echo',
+        prompt: 'Testing toHistory',
+      })
+    );
 
     assert.deepEqual(
       response.toHistory().map((m) => m.content[0].text),

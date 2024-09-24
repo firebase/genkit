@@ -15,26 +15,6 @@
  */
 
 import {
-  CandidateData,
-  defineModel,
-  GenerateRequest,
-  GenerationCommonConfigSchema,
-  getBasicUsageStats,
-  MediaPart,
-  MessageData,
-  ModelAction,
-  ModelMiddleware,
-  modelRef,
-  ModelReference,
-  Part,
-  ToolDefinitionSchema,
-} from '@genkit-ai/ai/model';
-import {
-  downloadRequestMedia,
-  simulateSystemPrompt,
-} from '@genkit-ai/ai/model/middleware';
-import { GENKIT_CLIENT_HEADER } from '@genkit-ai/core';
-import {
   Content,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
@@ -47,7 +27,26 @@ import {
   StartChatParams,
   VertexAI,
 } from '@google-cloud/vertexai';
-import { z } from 'zod';
+import { GENKIT_CLIENT_HEADER, z } from 'genkit';
+import {
+  CandidateData,
+  GenerateRequest,
+  GenerationCommonConfigSchema,
+  MediaPart,
+  MessageData,
+  ModelAction,
+  ModelMiddleware,
+  ModelReference,
+  Part,
+  ToolDefinitionSchema,
+  defineModel,
+  getBasicUsageStats,
+  modelRef,
+} from 'genkit/model';
+import {
+  downloadRequestMedia,
+  simulateSystemPrompt,
+} from 'genkit/model/middleware';
 import { PluginOptions } from './index.js';
 
 const SafetySettingsSchema = z.object({

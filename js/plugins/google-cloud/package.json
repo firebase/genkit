@@ -48,21 +48,17 @@
     "google-auth-library": "^9.6.3",
     "node-fetch": "^3.3.2",
     "prettier-plugin-organize-imports": "^3.2.4",
-    "winston": "^3.12.0",
-    "zod": "^3.22.4"
+    "winston": "^3.12.0"
   },
   "peerDependencies": {
-    "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/core": "workspace:*"
+    "genkit": "workspace:*"
   },
   "devDependencies": {
-    "@genkit-ai/flow": "workspace:*",
     "@types/node": "^20.11.16",
     "npm-run-all": "^4.1.5",
     "tsup": "^8.0.2",
     "tsx": "^4.7.0",
-    "typescript": "^4.9.0",
-    "@genkit-ai/flow": "workspace:*"
+    "typescript": "^4.9.0"
   },
   "types": "./lib/index.d.ts",
   "exports": {

@@ -41,16 +41,13 @@ importers:
       partial-json:
         specifier: ^0.1.7
         version: 0.1.7
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
     devDependencies:
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
       tsup:
         specifier: ^8.0.2
-        version: 8.0.2(typescript@4.9.5)
+        version: 8.0.2(postcss@8.4.47)(typescript@4.9.5)
       tsx:
         specifier: ^4.7.1
         version: 4.7.1
@@ -87,18 +84,27 @@ importers:
       async-mutex:
         specifier: ^0.5.0
         version: 0.5.0
+      body-parser:
+        specifier: ^1.20.2
+        version: 1.20.2
+      cors:
+        specifier: ^2.8.5
+        version: 2.8.5
       express:
         specifier: ^4.19.2
         version: 4.19.2
+      get-port:
+        specifier: ^5.1.0
+        version: 5.1.0
       json-schema:
         specifier: ^0.4.0
         version: 0.4.0
       zod:
-        specifier: ^3.22.4
-        version: 3.22.4
+        specifier: ^3.23.8
+        version: 3.23.8
       zod-to-json-schema:
         specifier: ^3.22.4
-        version: 3.22.5(zod@3.22.4)
+        version: 3.22.5(zod@3.23.8)
     devDependencies:
       '@types/express':
         specifier: ^4.17.21
@@ -114,7 +120,7 @@ importers:
         version: 4.1.5
       tsup:
         specifier: ^8.0.2
-        version: 8.0.2(typescript@4.9.5)
+        version: 8.0.2(postcss@8.4.47)(typescript@4.9.5)
       tsx:
         specifier: ^4.7.0
         version: 4.7.1
@@ -122,38 +128,17 @@ importers:
         specifier: ^4.9.0
         version: 4.9.5
 
-  flow:
+  genkit:
     dependencies:
+      '@genkit-ai/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@genkit-ai/core':
         specifier: workspace:*
         version: link:../core
-      '@google-cloud/firestore':
-        specifier: ^7.6.0
-        version: 7.6.0(encoding@0.1.13)
-      '@opentelemetry/api':
-        specifier: ^1.9.0
-        version: 1.9.0
-      '@types/cors':
-        specifier: ^2.8.17
-        version: 2.8.17
-      body-parser:
-        specifier: ^1.20.2
-        version: 1.20.2
-      cors:
-        specifier: ^2.8.5
-        version: 2.8.5
-      express:
-        specifier: ^4.19.2
-        version: 4.19.2
-      firebase-admin:
-        specifier: ^12.1.0
-        version: 12.1.0(encoding@0.1.13)
-      firebase-functions:
-        specifier: ^4.8.0 || ^5.0.0
-        version: 5.0.1(firebase-admin@12.1.0(encoding@0.1.13))
-      uuid:
-        specifier: ^9.0.1
-        version: 9.0.1
+      '@genkit-ai/dotprompt':
+        specifier: workspace:*
+        version: link:../plugins/dotprompt
       zod:
         specifier: ^3.22.4
         version: 3.22.4
@@ -172,7 +157,7 @@ importers:
         version: 4.1.5
       tsup:
         specifier: ^8.0.2
-        version: 8.0.2(typescript@4.9.5)
+        version: 8.0.2(postcss@8.4.47)(typescript@4.9.5)
       tsx:
         specifier: ^4.7.1
         version: 4.7.1
@@ -182,21 +167,15 @@ importers:
 
   plugins/chroma:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       chromadb:
         specifier: ^1.7.3
         version: 1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13))
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       ts-md5:
         specifier: ^1.3.1
         version: 1.3.1
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
     devDependencies:
       '@types/node':
         specifier: ^20.11.16
@@ -206,7 +185,7 @@ importers:
         version: 4.1.5
       tsup:
         specifier: ^8.0.2
-        version: 8.0.2(typescript@4.9.5)
+        version: 8.0.2(postcss@8.4.47)(typescript@4.9.5)
       tsx:
         specifier: ^4.7.0
         version: 4.7.1
@@ -216,21 +195,15 @@ importers:
 
   plugins/dev-local-vectorstore:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       compute-cosine-similarity:
         specifier: ^1.1.0
         version: 1.1.0
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       ts-md5:
         specifier: ^1.3.1
         version: 1.3.1
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
     devDependencies:
       '@types/node':
         specifier: ^20.11.16
@@ -240,7 +213,7 @@ importers:
         version: 4.1.5
       tsup:
         specifier: ^8.0.2
-        version: 8.0.2(typescript@4.9.5)
+        version: 8.0.2(postcss@8.4.47)(typescript@4.9.5)
       tsx:
         specifier: ^4.7.0
         version: 4.7.1
@@ -265,9 +238,6 @@ importers:
       node-fetch:
         specifier: ^3.3.2
         version: 3.3.2
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
     devDependencies:
       '@types/node':
         specifier: ^20.11.16
@@ -277,7 +247,7 @@ importers:
         version: 4.1.5
       tsup:
         specifier: ^8.0.2
-        version: 8.0.2(typescript@4.9.5)
+        version: 8.0.2(postcss@8.4.47)(typescript@4.9.5)
       tsx:
         specifier: ^4.7.0
         version: 4.7.1
@@ -290,27 +260,18 @@ importers:
 
   plugins/evaluators:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
-      '@genkit-ai/dotprompt':
-        specifier: workspace:*
-        version: link:../dotprompt
       compute-cosine-similarity:
         specifier: ^1.1.0
         version: 1.1.0
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       node-fetch:
         specifier: ^3.3.2
         version: 3.3.2
       path:
         specifier: ^0.12.7
         version: 0.12.7
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
     devDependencies:
       '@types/node':
         specifier: ^20.11.16
@@ -320,7 +281,7 @@ importers:
         version: 4.1.5
       tsup:
         specifier: ^8.0.2
-        version: 8.0.2(typescript@4.9.5)
+        version: 8.0.2(postcss@8.4.47)(typescript@4.9.5)
       tsx:
         specifier: ^4.7.0
         version: 4.7.1
@@ -330,15 +291,6 @@ importers:
 
   plugins/firebase:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/google-cloud':
         specifier: workspace:*
         version: link:../google-cloud
@@ -354,12 +306,12 @@ importers:
       firebase-functions:
         specifier: ^4.8.0 || ^5.0.0
         version: 4.8.1(encoding@0.1.13)(firebase-admin@12.2.0(encoding@0.1.13))
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       google-auth-library:
         specifier: ^9.6.3
         version: 9.7.0(encoding@0.1.13)
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
     devDependencies:
       '@types/node':
         specifier: ^20.11.16
@@ -369,7 +321,7 @@ importers:
         version: 4.1.5
       tsup:
         specifier: ^8.0.2
-        version: 8.0.2(typescript@4.9.5)
+        version: 8.0.2(postcss@8.4.47)(typescript@4.9.5)
       tsx:
         specifier: ^4.7.0
         version: 4.7.1
@@ -379,12 +331,6 @@ importers:
 
   plugins/google-cloud:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@google-cloud/logging-winston':
         specifier: ^6.0.0
         version: 6.0.0(encoding@0.1.13)(winston@3.13.0)
@@ -427,6 +373,9 @@ importers:
       '@opentelemetry/sdk-trace-base':
         specifier: ^1.25.0
         version: 1.25.1(@opentelemetry/api@1.9.0)
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       google-auth-library:
         specifier: ^9.6.3
         version: 9.7.0(encoding@0.1.13)
@@ -439,13 +388,7 @@ importers:
       winston:
         specifier: ^3.12.0
         version: 3.13.0
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
     devDependencies:
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@types/node':
         specifier: ^20.11.16
         version: 20.11.30
@@ -454,7 +397,7 @@ importers:
         version: 4.1.5
       tsup:
         specifier: ^8.0.2
-        version: 8.0.2(typescript@4.9.5)
+        version: 8.0.2(postcss@8.4.47)(typescript@4.9.5)
       tsx:
         specifier: ^4.7.0
         version: 4.7.1
@@ -464,24 +407,18 @@ importers:
 
   plugins/googleai:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@google/generative-ai':
         specifier: ^0.16.0
         version: 0.16.0
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       google-auth-library:
         specifier: ^9.6.3
         version: 9.7.0(encoding@0.1.13)
       node-fetch:
         specifier: ^3.3.2
         version: 3.3.2
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
     devDependencies:
       '@types/node':
         specifier: ^20.11.16
@@ -491,7 +428,7 @@ importers:
         version: 4.1.5
       tsup:
         specifier: ^8.0.2
-        version: 8.0.2(typescript@4.9.5)
+        version: 8.0.2(postcss@8.4.47)(typescript@4.9.5)
       tsx:
         specifier: ^4.7.0
         version: 4.7.1
@@ -501,15 +438,6 @@ importers:
 
   plugins/langchain:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@langchain/community':
         specifier: ^0.0.53
         version: 0.0.53(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(jsonwebtoken@9.0.2)
@@ -519,12 +447,12 @@ importers:
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.0
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       langchain:
         specifier: ^0.1.36
         version: 0.1.36(@google-cloud/storage@7.10.1(encoding@0.1.13))(@pinecone-database/pinecone@2.2.0)(chromadb@1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13)))(encoding@0.1.13)(fast-xml-parser@4.3.6)(firebase-admin@12.3.1(encoding@0.1.13))(google-auth-library@8.9.0(encoding@0.1.13))(handlebars@4.7.8)(ignore@5.3.1)(jsonwebtoken@9.0.2)(pdf-parse@1.1.1)
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
     devDependencies:
       '@types/node':
         specifier: ^20.11.16
@@ -534,7 +462,7 @@ importers:
         version: 4.1.5
       tsup:
         specifier: ^8.0.2
-        version: 8.0.2(typescript@4.9.5)
+        version: 8.0.2(postcss@8.4.47)(typescript@4.9.5)
       tsx:
         specifier: ^4.7.0
         version: 4.7.1
@@ -544,12 +472,9 @@ importers:
 
   plugins/ollama:
     dependencies:
-      '@genkit-ai/ai':
+      genkit:
         specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
+        version: link:../../genkit
     devDependencies:
       '@types/node':
         specifier: ^20.11.16
@@ -559,7 +484,7 @@ importers:
         version: 4.1.5
       tsup:
         specifier: ^8.0.2
-        version: 8.0.2(typescript@4.9.5)
+        version: 8.0.2(postcss@8.4.47)(typescript@4.9.5)
       tsx:
         specifier: ^4.7.0
         version: 4.7.1
@@ -569,21 +494,15 @@ importers:
 
   plugins/pinecone:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@pinecone-database/pinecone':
         specifier: ^2.0.1
         version: 2.2.0
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       ts-md5:
         specifier: ^1.3.1
         version: 1.3.1
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
     devDependencies:
       '@types/node':
         specifier: ^20.11.16
@@ -593,7 +512,7 @@ importers:
         version: 4.1.5
       tsup:
         specifier: ^8.0.2
-        version: 8.0.2(typescript@4.9.5)
+        version: 8.0.2(postcss@8.4.47)(typescript@4.9.5)
       tsx:
         specifier: ^4.7.0
         version: 4.7.1
@@ -609,21 +528,15 @@ importers:
       '@anthropic-ai/vertex-sdk':
         specifier: ^0.4.0
         version: 0.4.0(encoding@0.1.13)
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@google-cloud/aiplatform':
         specifier: ^3.23.0
         version: 3.25.0(encoding@0.1.13)
       '@google-cloud/vertexai':
         specifier: ^1.1.0
         version: 1.1.0(encoding@0.1.13)
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       google-auth-library:
         specifier: ^9.6.3
         version: 9.7.0(encoding@0.1.13)
@@ -636,9 +549,6 @@ importers:
       openai:
         specifier: ^4.52.7
         version: 4.53.0(encoding@0.1.13)
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
     optionalDependencies:
       '@google-cloud/bigquery':
         specifier: ^7.8.0
@@ -655,7 +565,7 @@ importers:
         version: 4.1.5
       tsup:
         specifier: ^8.0.2
-        version: 8.0.2(typescript@4.9.5)
+        version: 8.0.2(postcss@8.4.47)(typescript@4.9.5)
       tsx:
         specifier: ^4.7.0
         version: 4.7.1
@@ -665,27 +575,18 @@ importers:
 
   testapps/anthropic-models:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
-      '@genkit-ai/dotprompt':
-        specifier: workspace:*
-        version: link:../../plugins/dotprompt
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
       express:
         specifier: ^4.19.2
         version: 4.19.2
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       zod:
         specifier: 3.22.4
         version: 3.22.4
@@ -696,39 +597,27 @@ importers:
 
   testapps/byo-evaluator:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@genkit-ai/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/dotprompt':
-        specifier: workspace:*
-        version: link:../../plugins/dotprompt
       '@genkit-ai/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       path:
         specifier: ^0.12.7
         version: 0.12.7
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
     devDependencies:
       typescript:
         specifier: ^5.3.3
@@ -736,27 +625,15 @@ importers:
 
   testapps/cat-eval:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@genkit-ai/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/dotprompt':
-        specifier: workspace:*
-        version: link:../../plugins/dotprompt
       '@genkit-ai/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
@@ -772,6 +649,9 @@ importers:
       firebase-admin:
         specifier: ^12.3.0
         version: 12.3.1(encoding@0.1.13)
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       genkitx-pinecone:
         specifier: workspace:*
         version: link:../../plugins/pinecone
@@ -787,9 +667,6 @@ importers:
       pdfjs-dist-legacy:
         specifier: ^1.0.1
         version: 1.0.1
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
     devDependencies:
       '@types/pdf-parse':
         specifier: ^1.1.4
@@ -800,27 +677,15 @@ importers:
 
   testapps/dev-ui-gallery:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@genkit-ai/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/dotprompt':
-        specifier: workspace:*
-        version: link:../../plugins/dotprompt
       '@genkit-ai/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
@@ -830,6 +695,9 @@ importers:
       firebase-admin:
         specifier: ^12.1.0
         version: 12.1.0(encoding@0.1.13)
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       genkitx-chromadb:
         specifier: workspace:*
         version: link:../../plugins/chroma
@@ -839,9 +707,6 @@ importers:
       genkitx-pinecone:
         specifier: workspace:*
         version: link:../../plugins/pinecone
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
     devDependencies:
       typescript:
         specifier: ^5.3.3
@@ -849,27 +714,18 @@ importers:
 
   testapps/docs-menu-basic:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
       express:
         specifier: ^4.19.2
         version: 4.19.2
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
     devDependencies:
       typescript:
         specifier: ^5.3.3
@@ -877,33 +733,24 @@ importers:
 
   testapps/docs-menu-rag:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@genkit-ai/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       llm-chunk:
         specifier: ^0.0.1
         version: 0.0.1
       pdf-parse:
         specifier: ^1.1.1
         version: 1.1.1
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
     devDependencies:
       '@types/pdf-parse':
         specifier: ^1.1.4
@@ -914,27 +761,18 @@ importers:
 
   testapps/eval:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@genkit-ai/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
     devDependencies:
       typescript:
         specifier: ^5.3.3
@@ -942,12 +780,6 @@ importers:
 
   testapps/evaluator-gut-check:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@genkit-ai/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
@@ -957,18 +789,15 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
     devDependencies:
       typescript:
         specifier: ^5.3.3
@@ -976,18 +805,9 @@ importers:
 
   testapps/express:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:^
-        version: link:../../core
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
@@ -997,12 +817,12 @@ importers:
       express:
         specifier: ~4.19.2
         version: 4.19.2
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       genkitx-ollama:
         specifier: workspace:*
         version: link:../../plugins/ollama
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
     devDependencies:
       '@types/express':
         specifier: ^4.17.21
@@ -1013,18 +833,12 @@ importers:
 
   testapps/flow-sample1:
     dependencies:
-      '@genkit-ai/core':
-        specifier: workspace:^
-        version: link:../../core
       '@genkit-ai/firebase':
         specifier: workspace:^
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
+      genkit:
+        specifier: workspace:^
+        version: link:../../genkit
     devDependencies:
       typescript:
         specifier: ^5.3.3
@@ -1032,21 +846,9 @@ importers:
 
   testapps/flow-simple-ai:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:^
-        version: link:../../core
-      '@genkit-ai/dotprompt':
-        specifier: workspace:*
-        version: link:../../plugins/dotprompt
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/google-cloud':
         specifier: workspace:*
         version: link:../../plugins/google-cloud
@@ -1065,12 +867,12 @@ importers:
       firebase-admin:
         specifier: ^12.1.0
         version: 12.1.0(encoding@0.1.13)
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       partial-json:
         specifier: ^0.1.7
         version: 0.1.7
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
     devDependencies:
       typescript:
         specifier: ^5.3.3
@@ -1078,18 +880,6 @@ importers:
 
   testapps/google-ai-code-execution:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:^
-        version: link:../../core
-      '@genkit-ai/dotprompt':
-        specifier: workspace:*
-        version: link:../../plugins/dotprompt
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/google-cloud':
         specifier: workspace:*
         version: link:../../plugins/google-cloud
@@ -1102,9 +892,9 @@ importers:
       express:
         specifier: ^4.19.2
         version: 4.19.2
-      zod:
-        specifier: 3.22.4
-        version: 3.22.4
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
     devDependencies:
       typescript:
         specifier: ^5.5.3
@@ -1112,18 +902,9 @@ importers:
 
   testapps/langchain:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:^
-        version: link:../../core
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
@@ -1142,6 +923,9 @@ importers:
       express:
         specifier: ~4.19.2
         version: 4.19.2
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       genkitx-langchain:
         specifier: workspace:*
         version: link:../../plugins/langchain
@@ -1154,9 +938,6 @@ importers:
       pdf-parse:
         specifier: ^1.1.1
         version: 1.1.1
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
     devDependencies:
       '@types/express':
         specifier: ^4.17.21
@@ -1167,12 +948,6 @@ importers:
 
   testapps/menu:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@genkit-ai/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
@@ -1185,15 +960,12 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
     devDependencies:
       typescript:
         specifier: ^5.3.3
@@ -1201,15 +973,6 @@ importers:
 
   testapps/model-tester:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:^
-        version: link:../../core
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
@@ -1222,15 +985,15 @@ importers:
       colorette:
         specifier: ^2.0.20
         version: 2.0.20
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       genkitx-ollama:
         specifier: workspace:*
         version: link:../../plugins/ollama
       genkitx-openai:
         specifier: ^0.10.1
-        version: 0.10.1(@genkit-ai/ai@ai)(@genkit-ai/core@core)
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
+        version: 0.10.1(@genkit-ai/ai@0.6.0-dev.1)(@genkit-ai/core@0.6.0-dev.1)
     devDependencies:
       typescript:
         specifier: ^5.3.3
@@ -1238,24 +1001,12 @@ importers:
 
   testapps/prompt-file:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:^
-        version: link:../../core
-      '@genkit-ai/dotprompt':
-        specifier: workspace:*
-        version: link:../../plugins/dotprompt
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
     devDependencies:
       typescript:
         specifier: ^5.3.3
@@ -1263,33 +1014,24 @@ importers:
 
   testapps/rag:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@genkit-ai/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/dotprompt':
-        specifier: workspace:*
-        version: link:../../plugins/dotprompt
       '@genkit-ai/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       genkitx-chromadb:
         specifier: workspace:*
         version: link:../../plugins/chroma
@@ -1308,9 +1050,6 @@ importers:
       pdf-parse:
         specifier: ^1.1.1
         version: 1.1.1
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
     devDependencies:
       '@types/pdf-parse':
         specifier: ^1.1.4
@@ -1327,27 +1066,15 @@ importers:
 
   testapps/vertexai-reranker:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@genkit-ai/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/dotprompt':
-        specifier: workspace:*
-        version: link:../../plugins/dotprompt
       '@genkit-ai/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/vertexai':
         specifier: workspace:*
         version: link:../../plugins/vertexai
@@ -1357,12 +1084,12 @@ importers:
       express:
         specifier: ^4.19.2
         version: 4.19.2
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       google-auth-library:
         specifier: ^9.11.0
         version: 9.11.0(encoding@0.1.13)
-      zod:
-        specifier: 3.22.4
-        version: 3.22.4
     devDependencies:
       typescript:
         specifier: ^5.5.2
@@ -1370,27 +1097,15 @@ importers:
 
   testapps/vertexai-vector-search-bigquery:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@genkit-ai/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/dotprompt':
-        specifier: workspace:*
-        version: link:../../plugins/dotprompt
       '@genkit-ai/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
@@ -1406,6 +1121,9 @@ importers:
       express:
         specifier: ^4.19.2
         version: 4.19.2
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       genkitx-chromadb:
         specifier: workspace:*
         version: link:../../plugins/chroma
@@ -1418,9 +1136,6 @@ importers:
       google-auth-library:
         specifier: ^9.11.0
         version: 9.11.0(encoding@0.1.13)
-      zod:
-        specifier: 3.22.4
-        version: 3.22.4
     devDependencies:
       typescript:
         specifier: ^5.5.2
@@ -1428,27 +1143,15 @@ importers:
 
   testapps/vertexai-vector-search-custom:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@genkit-ai/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/dotprompt':
-        specifier: workspace:*
-        version: link:../../plugins/dotprompt
       '@genkit-ai/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
@@ -1464,6 +1167,9 @@ importers:
       express:
         specifier: ^4.19.2
         version: 4.19.2
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       genkitx-chromadb:
         specifier: workspace:*
         version: link:../../plugins/chroma
@@ -1476,9 +1182,6 @@ importers:
       google-auth-library:
         specifier: ^9.11.0
         version: 9.11.0(encoding@0.1.13)
-      zod:
-        specifier: 3.22.4
-        version: 3.22.4
     devDependencies:
       typescript:
         specifier: ^5.5.2
@@ -1486,27 +1189,15 @@ importers:
 
   testapps/vertexai-vector-search-firestore:
     dependencies:
-      '@genkit-ai/ai':
-        specifier: workspace:*
-        version: link:../../ai
-      '@genkit-ai/core':
-        specifier: workspace:*
-        version: link:../../core
       '@genkit-ai/dev-local-vectorstore':
         specifier: workspace:*
         version: link:../../plugins/dev-local-vectorstore
-      '@genkit-ai/dotprompt':
-        specifier: workspace:*
-        version: link:../../plugins/dotprompt
       '@genkit-ai/evaluator':
         specifier: workspace:*
         version: link:../../plugins/evaluators
       '@genkit-ai/firebase':
         specifier: workspace:*
         version: link:../../plugins/firebase
-      '@genkit-ai/flow':
-        specifier: workspace:*
-        version: link:../../flow
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
@@ -1522,6 +1213,9 @@ importers:
       firebase-admin:
         specifier: ^12.1.0
         version: 12.2.0(encoding@0.1.13)
+      genkit:
+        specifier: workspace:*
+        version: link:../../genkit
       genkitx-chromadb:
         specifier: workspace:*
         version: link:../../plugins/chroma
@@ -1534,9 +1228,6 @@ importers:
       google-auth-library:
         specifier: ^9.11.0
         version: 9.11.0(encoding@0.1.13)
-      zod:
-        specifier: 3.22.4
-        version: 3.22.4
     devDependencies:
       typescript:
         specifier: ^5.5.2
@@ -1731,6 +1422,12 @@ packages:
 
   '@firebase/util@1.9.5':
     resolution: {integrity: sha512-PP4pAFISDxsf70l3pEy34Mf3GkkUcVQ3MdKp6aSVb7tcpfUQxnsdV7twDd8EkfB6zZylH6wpUAoangQDmCUMqw==}
+
+  '@genkit-ai/ai@0.6.0-dev.1':
+    resolution: {integrity: sha512-jKmNFIjSldBsOipZS9YUMRnpwX0uiCvFDPlb9D/fBa27zGmOWtaYwG6dhGnEEUli5b32fOywKwlvt1ORl8I8Lw==}
+
+  '@genkit-ai/core@0.6.0-dev.1':
+    resolution: {integrity: sha512-A/5h65cdMGMP+9DeefjZ5TsGIMHxQ7G16sqLuc6Rx2SDWUfv6p7jyEifcD3KuC1uBAMsRnhJWQkeY/I2bWC9ZA==}
 
   '@google-cloud/aiplatform@3.25.0':
     resolution: {integrity: sha512-qKnJgbyCENjed8e1G5zZGFTxxNKhhaKQN414W2KIVHrLxMFmlMuG+3QkXPOWwXBnT5zZ7aMxypt5og0jCirpHg==}
@@ -3458,13 +3155,6 @@ packages:
     peerDependencies:
       firebase-admin: ^10.0.0 || ^11.0.0 || ^12.0.0
 
-  firebase-functions@5.0.1:
-    resolution: {integrity: sha512-1m+crtgAR8Tl36gjpM02KCY5zduAejFmDSXvih/DB93apg39f0U/WwRgT7sitGIRqyCcIpktNUbXJv7Y9JOF4A==}
-    engines: {node: '>=14.10.0'}
-    hasBin: true
-    peerDependencies:
-      firebase-admin: ^11.10.0 || ^12.0.0
-
   flat@5.0.2:
     resolution: {integrity: sha512-b6suED+5/3rTpUBdG1gupIl8MPFCAMA0QXwmljLhvCUKcUvdE4gWky9zpuGCcXHOsz4J9wPGNWq6OKpmIzz3hQ==}
     hasBin: true
@@ -3584,6 +3274,10 @@ packages:
   get-intrinsic@1.2.4:
     resolution: {integrity: sha512-5uYhsJH8VJBTv7oslg4BznJYhDoRI6waYCxMmCdnTrcCrHA/fCFKoTFz2JKKE0HdDFUF7/oQuhzumXJK7paBRQ==}
     engines: {node: '>= 0.4'}
+
+  get-port@5.1.0:
+    resolution: {integrity: sha512-bjioH1E9bTQUvgaB6VycVy1QVbTZI41yTnF9qkZz6ixgy/uhCH6D63bKeZ6Code/07JYA61MeI94jSdHss8PNA==}
+    engines: {node: '>=8'}
 
   get-stream@6.0.1:
     resolution: {integrity: sha512-ts6Wi+2j3jQjqi70w5AlN8DFnkSwC+MqmxEzdEALB2qXZYV3X/b1CTfgPLGJNMeAWxdPfU8FO1ms3NUfaHCPYg==}
@@ -4364,6 +4058,11 @@ packages:
   nan@2.19.0:
     resolution: {integrity: sha512-nO1xXxfh/RWNxfd/XPfbIfFk5vgLsAxUR9y5O0cHMJu/AW9U95JLXqthYHjEp+8gQ5p96K9jUp8nbVOxCdRbtw==}
 
+  nanoid@3.3.7:
+    resolution: {integrity: sha512-eSRppjcPIatRIMC1U6UngP8XFcz8MQWGQdt1MTBQ7NaAmvXDfvNxbvWV3x2y6CdEUciCSsDHDQZbhYaB8QEo2g==}
+    engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
+    hasBin: true
+
   napi-build-utils@1.0.2:
     resolution: {integrity: sha512-ONmRUqK7zj7DWX0D9ADe03wbwOBZxNAfF20PlGfCWQcD3+/MakShIHrMqx9YwPTfxDdF1zLeL+RGZiR9kGMLdg==}
 
@@ -4578,6 +4277,9 @@ packages:
     resolution: {integrity: sha512-qTAAlrEsl8s4OiEQY69wDvcMIdQN6wdz5ojQiOy6YRMuynxenON0O5oCpJI6lshc6scgAY8qvJ2On/p+CXY0GA==}
     engines: {node: '>=4'}
 
+  picocolors@1.1.0:
+    resolution: {integrity: sha512-TQ92mBOW0l3LeMeyLV6mzy/kWr8lkd/hp3mTg7wYK7zJhuBStmGMBG0BdeDZS/dZx1IukaX6Bk11zcln25o1Aw==}
+
   picomatch@2.3.1:
     resolution: {integrity: sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA==}
     engines: {node: '>=8.6'}
@@ -4610,6 +4312,10 @@ packages:
         optional: true
       ts-node:
         optional: true
+
+  postcss@8.4.47:
+    resolution: {integrity: sha512-56rxCq7G/XfB4EkXq9Egn5GCqugWvDFjafDOThIdMBsI15iqPqR5r15TfSr1YPYeEI19YeaXMCbY6u88Y76GLQ==}
+    engines: {node: ^10 || ^12 || >=14}
 
   postgres-array@2.0.0:
     resolution: {integrity: sha512-VpZrUqU5A69eQyW2c5CA1jtLecCsN2U/bD6VilrFDWq5+5UIEVO7nazS3TEcHf1zuPYO/sqGvUvW62g86RXZuA==}
@@ -4878,6 +4584,10 @@ packages:
   slash@3.0.0:
     resolution: {integrity: sha512-g9Q1haeby36OSStwb4ntCGGGaKsaVSjQ68fBxoQcutl5fS1vuY18H3wSt3jFyFtrkx+Kz0V1G85A4MyAdDMi2Q==}
     engines: {node: '>=8'}
+
+  source-map-js@1.2.1:
+    resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
+    engines: {node: '>=0.10.0'}
 
   source-map@0.6.1:
     resolution: {integrity: sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g==}
@@ -5445,6 +5155,37 @@ snapshots:
     dependencies:
       tslib: 2.6.2
 
+  '@genkit-ai/ai@0.6.0-dev.1':
+    dependencies:
+      '@genkit-ai/core': 0.6.0-dev.1
+      '@opentelemetry/api': 1.9.0
+      '@types/node': 20.11.30
+      colorette: 2.0.20
+      json5: 2.2.3
+      node-fetch: 3.3.2
+      partial-json: 0.1.7
+      zod: 3.23.8
+    transitivePeerDependencies:
+      - supports-color
+
+  '@genkit-ai/core@0.6.0-dev.1':
+    dependencies:
+      '@opentelemetry/api': 1.9.0
+      '@opentelemetry/context-async-hooks': 1.25.1(@opentelemetry/api@1.9.0)
+      '@opentelemetry/core': 1.25.1(@opentelemetry/api@1.9.0)
+      '@opentelemetry/sdk-metrics': 1.25.1(@opentelemetry/api@1.9.0)
+      '@opentelemetry/sdk-node': 0.52.1(@opentelemetry/api@1.9.0)
+      '@opentelemetry/sdk-trace-base': 1.25.1(@opentelemetry/api@1.9.0)
+      ajv: 8.12.0
+      ajv-formats: 3.0.1(ajv@8.12.0)
+      async-mutex: 0.5.0
+      express: 4.19.2
+      json-schema: 0.4.0
+      zod: 3.23.8
+      zod-to-json-schema: 3.22.5(zod@3.23.8)
+    transitivePeerDependencies:
+      - supports-color
+
   '@google-cloud/aiplatform@3.25.0(encoding@0.1.13)':
     dependencies:
       google-gax: 4.3.7(encoding@0.1.13)
@@ -5705,8 +5446,8 @@ snapshots:
       flat: 5.0.2
       langsmith: 0.1.14
       uuid: 9.0.1
-      zod: 3.22.4
-      zod-to-json-schema: 3.22.5(zod@3.22.4)
+      zod: 3.23.8
+      zod-to-json-schema: 3.22.5(zod@3.23.8)
     optionalDependencies:
       '@pinecone-database/pinecone': 2.2.0
       chromadb: 1.8.1(encoding@0.1.13)(openai@4.53.0(encoding@0.1.13))
@@ -5728,16 +5469,16 @@ snapshots:
       p-queue: 6.6.2
       p-retry: 4.6.2
       uuid: 9.0.1
-      zod: 3.22.4
-      zod-to-json-schema: 3.22.5(zod@3.22.4)
+      zod: 3.23.8
+      zod-to-json-schema: 3.22.5(zod@3.23.8)
 
   '@langchain/openai@0.0.28(encoding@0.1.13)':
     dependencies:
       '@langchain/core': 0.1.61
       js-tiktoken: 1.0.11
       openai: 4.53.0(encoding@0.1.13)
-      zod: 3.22.4
-      zod-to-json-schema: 3.22.5(zod@3.22.4)
+      zod: 3.23.8
+      zod-to-json-schema: 3.22.5(zod@3.23.8)
     transitivePeerDependencies:
       - encoding
 
@@ -7374,17 +7115,6 @@ snapshots:
       - encoding
       - supports-color
 
-  firebase-functions@5.0.1(firebase-admin@12.1.0(encoding@0.1.13)):
-    dependencies:
-      '@types/cors': 2.8.17
-      '@types/express': 4.17.3
-      cors: 2.8.5
-      express: 4.19.2
-      firebase-admin: 12.1.0(encoding@0.1.13)
-      protobufjs: 7.2.6
-    transitivePeerDependencies:
-      - supports-color
-
   flat@5.0.2: {}
 
   fn.name@1.1.0: {}
@@ -7523,10 +7253,10 @@ snapshots:
       - encoding
       - supports-color
 
-  genkitx-openai@0.10.1(@genkit-ai/ai@ai)(@genkit-ai/core@core):
+  genkitx-openai@0.10.1(@genkit-ai/ai@0.6.0-dev.1)(@genkit-ai/core@0.6.0-dev.1):
     dependencies:
-      '@genkit-ai/ai': link:ai
-      '@genkit-ai/core': link:core
+      '@genkit-ai/ai': 0.6.0-dev.1
+      '@genkit-ai/core': 0.6.0-dev.1
       openai: 4.53.0(encoding@0.1.13)
       zod: 3.23.8
     transitivePeerDependencies:
@@ -7547,6 +7277,8 @@ snapshots:
       has-proto: 1.0.3
       has-symbols: 1.0.3
       hasown: 2.0.2
+
+  get-port@5.1.0: {}
 
   get-stream@6.0.1: {}
 
@@ -8084,8 +7816,8 @@ snapshots:
       p-retry: 4.6.2
       uuid: 9.0.1
       yaml: 2.4.1
-      zod: 3.22.4
-      zod-to-json-schema: 3.22.5(zod@3.22.4)
+      zod: 3.23.8
+      zod-to-json-schema: 3.22.5(zod@3.23.8)
     optionalDependencies:
       '@google-cloud/storage': 7.10.1(encoding@0.1.13)
       '@pinecone-database/pinecone': 2.2.0
@@ -8366,6 +8098,9 @@ snapshots:
   nan@2.19.0:
     optional: true
 
+  nanoid@3.3.7:
+    optional: true
+
   napi-build-utils@1.0.2: {}
 
   negotiator@0.6.3: {}
@@ -8586,6 +8321,9 @@ snapshots:
       postgres-date: 1.0.7
       postgres-interval: 1.2.0
 
+  picocolors@1.1.0:
+    optional: true
+
   picomatch@2.3.1: {}
 
   pidtree@0.3.1: {}
@@ -8596,10 +8334,19 @@ snapshots:
 
   possible-typed-array-names@1.0.0: {}
 
-  postcss-load-config@4.0.2:
+  postcss-load-config@4.0.2(postcss@8.4.47):
     dependencies:
       lilconfig: 3.1.1
       yaml: 2.4.1
+    optionalDependencies:
+      postcss: 8.4.47
+
+  postcss@8.4.47:
+    dependencies:
+      nanoid: 3.3.7
+      picocolors: 1.1.0
+      source-map-js: 1.2.1
+    optional: true
 
   postgres-array@2.0.0: {}
 
@@ -8935,6 +8682,9 @@ snapshots:
 
   slash@3.0.0: {}
 
+  source-map-js@1.2.1:
+    optional: true
+
   source-map@0.6.1: {}
 
   source-map@0.8.0-beta.0:
@@ -9116,7 +8866,7 @@ snapshots:
 
   tslib@2.6.2: {}
 
-  tsup@8.0.2(typescript@4.9.5):
+  tsup@8.0.2(postcss@8.4.47)(typescript@4.9.5):
     dependencies:
       bundle-require: 4.0.2(esbuild@0.19.12)
       cac: 6.7.14
@@ -9126,13 +8876,14 @@ snapshots:
       execa: 5.1.1
       globby: 11.1.0
       joycon: 3.1.1
-      postcss-load-config: 4.0.2
+      postcss-load-config: 4.0.2(postcss@8.4.47)
       resolve-from: 5.0.0
       rollup: 4.13.2
       source-map: 0.8.0-beta.0
       sucrase: 3.35.0
       tree-kill: 1.2.2
     optionalDependencies:
+      postcss: 8.4.47
       typescript: 4.9.5
     transitivePeerDependencies:
       - supports-color
@@ -9362,9 +9113,9 @@ snapshots:
   yocto-queue@0.1.0:
     optional: true
 
-  zod-to-json-schema@3.22.5(zod@3.22.4):
+  zod-to-json-schema@3.22.5(zod@3.23.8):
     dependencies:
-      zod: 3.22.4
+      zod: 3.23.8
 
   zod@3.22.4: {}
 

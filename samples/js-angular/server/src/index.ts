@@ -14,17 +14,15 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
-import { startFlowsServer } from '@genkit-ai/flow';
 import { vertexAI } from '@genkit-ai/vertexai';
+import { genkit } from 'genkit';
 
-configureGenkit({
+export const ai = genkit({
   plugins: [vertexAI()],
   logLevel: 'debug',
   enableTracingAndMetrics: true,
+  flowServer: true,
 });
 
 export * from './chatbot.js';
 export * from './jsonStreaming.js';
-
-startFlowsServer();

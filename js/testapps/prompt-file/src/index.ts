@@ -14,13 +14,18 @@
  * limitations under the License.
  */
 
-import { configureGenkit, defineSchema } from '@genkit-ai/core';
-import { defineHelper, dotprompt, prompt } from '@genkit-ai/dotprompt';
-import { defineFlow } from '@genkit-ai/flow';
 import { googleAI } from '@genkit-ai/googleai';
-import * as z from 'zod';
+import {
+  defineHelper,
+  defineSchema,
+  dotprompt,
+  genkit,
+  prompt,
+  z,
+} from 'genkit';
+import { runWithRegistry } from 'genkit/registry';
 
-configureGenkit({
+const ai = genkit({
   plugins: [googleAI(), dotprompt()],
   enableTracingAndMetrics: true,
   logLevel: 'debug',
@@ -33,15 +38,19 @@ title: string, recipe title
       quantity: string
     steps(array, the steps required to complete the recipe): string
     */
-const RecipeSchema = defineSchema(
-  'Recipe',
-  z.object({
-    title: z.string().describe('recipe title'),
-    ingredients: z.array(z.object({ name: z.string(), quantity: z.string() })),
-    steps: z
-      .array(z.string())
-      .describe('the steps required to complete the recipe'),
-  })
+const RecipeSchema = runWithRegistry(ai.registry, () =>
+  defineSchema(
+    'Recipe',
+    z.object({
+      title: z.string().describe('recipe title'),
+      ingredients: z.array(
+        z.object({ name: z.string(), quantity: z.string() })
+      ),
+      steps: z
+        .array(z.string())
+        .describe('the steps required to complete the recipe'),
+    })
+  )
 );
 
 // This example demonstrates using prompt files in a flow
@@ -57,7 +66,7 @@ defineHelper('list', (data: any) => {
 });
 
 prompt('recipe').then((recipePrompt) => {
-  defineFlow(
+  ai.defineFlow(
     {
       name: 'chefFlow',
       inputSchema: z.object({
@@ -73,7 +82,7 @@ prompt('recipe').then((recipePrompt) => {
 });
 
 prompt('recipe', { variant: 'robot' }).then((recipePrompt) => {
-  defineFlow(
+  ai.defineFlow(
     {
       name: 'robotChefFlow',
       inputSchema: z.object({
@@ -88,7 +97,7 @@ prompt('recipe', { variant: 'robot' }).then((recipePrompt) => {
 // A variation that supports streaming, optionally
 
 prompt('story').then((storyPrompt) => {
-  defineFlow(
+  ai.defineStreamingFlow(
     {
       name: 'tellStory',
       inputSchema: z.object({

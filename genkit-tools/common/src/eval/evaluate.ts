@@ -40,7 +40,7 @@ interface BulkRunResponse {
 }
 
 /**
- * Starts a new evaluation run. Intended to be used via the reflection.
+ * Starts a new evaluation run. Intended to be used via the reflection API.
  */
 export async function runNewEvaluation(
   runner: Runner,
@@ -99,7 +99,7 @@ export async function runInference(params: {
   });
 
   // TODO(ssbushi): Support model inference
-  const evalDataset = await fetchDataSet({
+  const evalDataset = await fetchEvalInput({
     runner,
     actionRef,
     states: runResponses,
@@ -215,7 +215,7 @@ async function bulkRunAction(params: {
   return responses;
 }
 
-async function fetchDataSet(params: {
+async function fetchEvalInput(params: {
   runner: Runner;
   actionRef: string;
   states: BulkRunResponse[];

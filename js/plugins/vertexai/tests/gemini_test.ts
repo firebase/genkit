@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { MessageData } from '@genkit-ai/ai/model';
 import { GenerateContentCandidate } from '@google-cloud/vertexai';
+import { MessageData } from 'genkit';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import {

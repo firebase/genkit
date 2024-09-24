@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-import { configureGenkit } from '@genkit-ai/core';
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
-import { dotprompt } from '@genkit-ai/dotprompt';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
@@ -28,6 +26,7 @@ import {
   vertexAI,
   VertexAIEvaluationMetricType,
 } from '@genkit-ai/vertexai';
+import { dotprompt, genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';
 import { ollama } from 'genkitx-ollama';
 import { pinecone } from 'genkitx-pinecone';
@@ -55,7 +54,7 @@ export const PERMISSIVE_SAFETY_SETTINGS: any = {
   ],
 };
 
-export default configureGenkit({
+export const ai = genkit({
   // settings
   enableTracingAndMetrics: true,
   flowStateStore: 'firebase',

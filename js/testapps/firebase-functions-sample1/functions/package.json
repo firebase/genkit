@@ -17,7 +17,6 @@
     "@genkit-ai/ai": "*",
     "@genkit-ai/core": "*",
     "@genkit-ai/firebase": "*",
-    "@genkit-ai/flow": "*",
     "@genkit-ai/vertexai": "*",
     "firebase-admin": "^11.8.0",
     "firebase-functions": "^4.8.0 || ^5.0.0",

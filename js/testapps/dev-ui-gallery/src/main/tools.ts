@@ -14,45 +14,48 @@
  * limitations under the License.
  */
 
-import { defineTool } from '@genkit-ai/ai/tool';
-import { defineDotprompt } from '@genkit-ai/dotprompt';
-import { defineFlow } from '@genkit-ai/flow';
 import { gemini15Flash } from '@genkit-ai/googleai';
-import * as z from 'zod';
+import { defineDotprompt, defineTool, z } from 'genkit';
+import { runWithRegistry } from 'genkit/registry';
 import { WeatherSchema } from '../common/types';
+import { ai } from '../index.js';
 
-const getWeather = defineTool(
-  {
-    name: 'getWeather',
-    description: 'Get the weather for the given location.',
-    inputSchema: z.object({ city: z.string() }),
-    outputSchema: z.object({
-      temperatureF: z.number(),
-      conditions: z.string(),
-    }),
-  },
-  async (input) => {
-    const conditions = ['Sunny', 'Cloudy', 'Partially Cloudy', 'Raining'];
-    const c = Math.floor(Math.random() * conditions.length);
-    const temp = Math.floor(Math.random() * (120 - 32) + 32);
+const getWeather = runWithRegistry(ai.registry, () =>
+  defineTool(
+    {
+      name: 'getWeather',
+      description: 'Get the weather for the given location.',
+      inputSchema: z.object({ city: z.string() }),
+      outputSchema: z.object({
+        temperatureF: z.number(),
+        conditions: z.string(),
+      }),
+    },
+    async (input) => {
+      const conditions = ['Sunny', 'Cloudy', 'Partially Cloudy', 'Raining'];
+      const c = Math.floor(Math.random() * conditions.length);
+      const temp = Math.floor(Math.random() * (120 - 32) + 32);
 
-    return {
-      temperatureF: temp,
-      conditions: conditions[c],
-    };
-  }
+      return {
+        temperatureF: temp,
+        conditions: conditions[c],
+      };
+    }
+  )
 );
 
-const getTime = defineTool(
-  {
-    name: 'getTime',
-    description: 'Get the current time',
-    inputSchema: z.object({ timezone: z.string().optional() }),
-    outputSchema: z.object({ time: z.number() }),
-  },
-  async (input) => {
-    return { time: Date.now() };
-  }
+const getTime = runWithRegistry(ai.registry, () =>
+  defineTool(
+    {
+      name: 'getTime',
+      description: 'Get the current time',
+      inputSchema: z.object({ timezone: z.string().optional() }),
+      outputSchema: z.object({ time: z.number() }),
+    },
+    async (input) => {
+      return { time: Date.now() };
+    }
+  )
 );
 
 const template = `
@@ -64,31 +67,33 @@ const template = `
   I want to be outside as much as possible. Here are the cities I am 
   considering:\n\n{{#each cities}}{{this}}\n{{/each}}`;
 
-export const weatherPrompt = defineDotprompt(
-  {
-    name: 'weatherPrompt',
-    model: gemini15Flash,
-    input: {
-      schema: WeatherSchema,
-      default: {
-        persona: 'Space Pirate',
+export const weatherPrompt = runWithRegistry(ai.registry, () =>
+  defineDotprompt(
+    {
+      name: 'weatherPrompt',
+      model: gemini15Flash,
+      input: {
+        schema: WeatherSchema,
+        default: {
+          persona: 'Space Pirate',
+        },
       },
+      output: {
+        format: 'text',
+      },
+      config: {
+        maxOutputTokens: 2048,
+        temperature: 0.6,
+        topK: 16,
+        topP: 0.95,
+      },
+      tools: [getWeather],
     },
-    output: {
-      format: 'text',
-    },
-    config: {
-      maxOutputTokens: 2048,
-      temperature: 0.6,
-      topK: 16,
-      topP: 0.95,
-    },
-    tools: [getWeather],
-  },
-  template
+    template
+  )
 );
 
-defineFlow(
+ai.defineFlow(
   {
     name: 'flowWeather',
     inputSchema: WeatherSchema,

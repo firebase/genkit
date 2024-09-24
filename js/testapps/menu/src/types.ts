@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import * as z from 'zod';
+import { z } from 'genkit';
 
 // The data model for a restaurant menu
 

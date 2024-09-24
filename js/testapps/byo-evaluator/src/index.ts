@@ -13,35 +13,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { EvaluatorAction } from '@genkit-ai/ai';
-import { ModelReference } from '@genkit-ai/ai/model';
-import { configureGenkit, genkitPlugin, PluginProvider } from '@genkit-ai/core';
-import { dotprompt } from '@genkit-ai/dotprompt';
 import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
-import * as z from 'zod';
+import {
+  EvaluatorAction,
+  ModelReference,
+  PluginProvider,
+  dotprompt,
+  genkit,
+  genkitPlugin,
+  z,
+} from 'genkit';
 import {
   PERMISSIVE_SAFETY_SETTINGS,
   URL_REGEX,
   US_PHONE_REGEX,
 } from './constants.js';
 import {
-  createDeliciousnessEvaluator,
   DELICIOUSNESS,
+  createDeliciousnessEvaluator,
 } from './deliciousness/deliciousness_evaluator.js';
 import {
-  createFunninessEvaluator,
   FUNNINESS,
+  createFunninessEvaluator,
 } from './funniness/funniness_evaluator.js';
-import { createPiiEvaluator, PII_DETECTION } from './pii/pii_evaluator.js';
+import { PII_DETECTION, createPiiEvaluator } from './pii/pii_evaluator.js';
 import {
+  RegexMetric,
   createRegexEvaluators,
   isRegexMetric,
   regexMatcher,
-  RegexMetric,
 } from './regex/regex_evaluator.js';
 
-configureGenkit({
+const ai = genkit({
   plugins: [
     dotprompt(),
     firebase(),

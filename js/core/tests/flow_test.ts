@@ -14,15 +14,13 @@
  * limitations under the License.
  */
 
-import { __hardResetConfigForTesting } from '@genkit-ai/core';
-import { __hardResetRegistryForTesting } from '@genkit-ai/core/registry';
+import { z } from '@genkit-ai/core';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
-import { z } from 'zod';
-import { defineFlow, defineStreamingFlow } from '../src/flow.js';
+import { Genkit, genkit } from '../src/genkit.js';
 
-function createTestFlow() {
-  return defineFlow(
+function createTestFlow(ai: Genkit) {
+  return ai.defineFlow(
     {
       name: 'testFlow',
       inputSchema: z.string(),
@@ -34,8 +32,8 @@ function createTestFlow() {
   );
 }
 
-function createTestStreamingFlow() {
-  return defineStreamingFlow(
+function createTestStreamingFlow(ai: Genkit) {
+  return ai.defineStreamingFlow(
     {
       name: 'testFlow',
       inputSchema: z.number(),
@@ -54,15 +52,17 @@ function createTestStreamingFlow() {
 }
 
 describe('flow', () => {
-  beforeEach(__hardResetRegistryForTesting);
+  let ai: Genkit;
+
   beforeEach(() => {
-    __hardResetConfigForTesting();
+    // Skips starting reflection server.
     delete process.env.GENKIT_ENV;
+    ai = genkit({});
   });
 
   describe('runFlow', () => {
     it('should run the flow', async () => {
-      const testFlow = createTestFlow();
+      const testFlow = createTestFlow(ai);
 
       const result = await testFlow('foo');
 
@@ -70,7 +70,7 @@ describe('flow', () => {
     });
 
     it('should rethrow the error', async () => {
-      const testFlow = defineFlow(
+      const testFlow = ai.defineFlow(
         {
           name: 'throwing',
           inputSchema: z.string(),
@@ -88,7 +88,7 @@ describe('flow', () => {
     });
 
     it('should validate input', async () => {
-      const testFlow = defineFlow(
+      const testFlow = ai.defineFlow(
         {
           name: 'validating',
           inputSchema: z.object({ foo: z.string(), bar: z.number() }),
@@ -115,7 +115,7 @@ describe('flow', () => {
 
   describe('streamFlow', () => {
     it('should run the flow', async () => {
-      const testFlow = createTestStreamingFlow();
+      const testFlow = createTestStreamingFlow(ai);
 
       const response = testFlow(3);
 
@@ -129,7 +129,7 @@ describe('flow', () => {
     });
 
     it('should rethrow the error', async () => {
-      const testFlow = defineStreamingFlow(
+      const testFlow = ai.defineStreamingFlow(
         {
           name: 'throwing',
           inputSchema: z.string(),
