@@ -40,13 +40,11 @@ export const llama32 = modelRef({
       systemRole: true,
       output: ['text', 'json'],
     },
-    versions: [
-      'meta/llama-3.2-11b-vision-instruct-maas',
-    ],
+    versions: ['meta/llama-3.2-11b-vision-instruct-maas'],
   },
   configSchema: ModelGardenModelConfigSchema,
   version: 'meta/llama-3.2-11b-vision-instruct-maas',
-})
+});
 
 export const llama31 = modelRef({
   name: 'vertexai/llama-3.1',
@@ -91,7 +89,7 @@ export const llama3 = modelRef({
 export const SUPPORTED_OPENAI_FORMAT_MODELS = {
   'llama3-405b': llama3,
   'llama-3.1': llama31,
-  'llama-3.2': llama32
+  'llama-3.2': llama32,
 };
 
 export function modelGardenOpenaiCompatibleModel(
