@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { z } from 'genkit';
-import { defineModel, ModelAction } from 'genkit/model';
-import { Registry, runWithRegistry } from 'genkit/registry';
+import { defineModel, ModelAction } from '@genkit-ai/ai/model';
+import { z } from '@genkit-ai/core';
+import { Registry, runWithRegistry } from '@genkit-ai/core/registry';
 import {
   defineJsonSchema,
   defineSchema,
   toJsonSchema,
   ValidationError,
-} from 'genkit/schema';
+} from '@genkit-ai/core/schema';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { defineDotprompt, Dotprompt, prompt, promptRef } from '../src/index.js';
