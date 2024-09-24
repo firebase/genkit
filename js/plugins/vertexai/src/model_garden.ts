@@ -30,7 +30,7 @@ export const ModelGardenModelConfigSchema = OpenAIConfigSchema.extend({
 });
 
 export const llama32 = modelRef({
-  name: 'vertxai/llama-3.2',
+  name: 'vertexai/llama-3.2',
   info: {
     label: 'Llama 3.2',
     supports: {
@@ -103,9 +103,9 @@ export function modelGardenOpenaiCompatibleModel(
   if (!model) throw new Error(`Unsupported model: ${name}`);
   if (!baseUrlTemplate) {
     baseUrlTemplate =
-      'https://{location}-aiplatform.googleapis.com/v1beta1/projects/{projectId}/locations/{location}/endpoints/openapi';
+      'https://{location}-autopush-aiplatform.sandbox.googleapis.com/v1beta1/projects/{projectId}/locations/{location}/endpoints/openapi/chat/completions';
   }
-
+  console.log(baseUrlTemplate);
   const clientFactory = async (
     request: GenerateRequest<typeof ModelGardenModelConfigSchema>
   ): Promise<OpenAI> => {
