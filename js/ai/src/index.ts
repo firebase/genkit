@@ -31,10 +31,10 @@ export {
   type EvaluatorReference,
 } from './evaluator.js';
 export {
-  Candidate,
   GenerateResponse,
+  GenerationBlockedError,
+  GenerationResponseError,
   Message,
-  NoValidCandidatesError,
   generate,
   generateStream,
   toGenerateRequest,
@@ -52,6 +52,10 @@ export {
   MessageSchema,
   ModelArgument,
   ModelReference,
+  ModelRequest,
+  ModelRequestSchema,
+  ModelResponseData,
+  ModelResponseSchema,
   Part,
   PartSchema,
   Role,

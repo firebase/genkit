@@ -54,7 +54,7 @@ export const codeExecutionFlow = ai.defineFlow(
       },
     });
 
-    const parts = llmResponse.candidates[0].message.content;
+    const parts = llmResponse.message!.content;
 
     const executableCodePart = parts.find(
       (part) => part.custom && part.custom.executableCode

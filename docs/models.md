@@ -346,18 +346,18 @@ const output: MenuItem | null = llmResponse.output();
 
 Note in the prior example that the output method can return `null`. This can
 happen when the model fails to generate output that conforms to the schema. You
-can also detect this condition by catching the `NoValidCandidatesError`
+can also detect this condition by catching the `ValidationError`
 exception thrown by generate:
 
 ```ts
-import { NoValidCandidatesError } from "@genkit-ai/ai";
+import { ValidationError } from "genkit/schema";
 ```
 
 ```ts
 try {
   llmResponse = await generate(/* ... */);
 } catch (e) {
-  if (e instanceof NoValidCandidatesError) {
+  if (e instanceof ValidationError) {
     // Output doesn't conform to schema.
   }
 }

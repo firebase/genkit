@@ -110,20 +110,15 @@ describe('GoogleCloudLogs no I/O', () => {
   it('writes generate logs', async () => {
     const testModel = createModel(ai, 'testModel', async () => {
       return {
-        candidates: [
-          {
-            index: 0,
-            finishReason: 'stop',
-            message: {
-              role: 'user',
-              content: [
-                {
-                  text: 'response',
-                },
-              ],
+        message: {
+          role: 'user',
+          content: [
+            {
+              text: 'response',
             },
-          },
-        ],
+          ],
+        },
+        finishReason: 'stop',
         usage: {
           inputTokens: 10,
           outputTokens: 14,
@@ -265,20 +260,15 @@ describe('GoogleCloudLogs', () => {
   it('writes generate logs', async () => {
     const testModel = createModel(ai, 'testModel', async () => {
       return {
-        candidates: [
-          {
-            index: 0,
-            finishReason: 'stop',
-            message: {
-              role: 'user',
-              content: [
-                {
-                  text: 'response',
-                },
-              ],
+        message: {
+          role: 'user',
+          content: [
+            {
+              text: 'response',
             },
-          },
-        ],
+          ],
+        },
+        finishReason: 'stop',
         usage: {
           inputTokens: 10,
           outputTokens: 14,
