@@ -207,7 +207,6 @@ describe('fromGeminiCandidate', () => {
         ],
       },
       expectedOutput: {
-        index: 0,
         message: {
           role: 'model',
           content: [
@@ -292,7 +291,6 @@ describe('fromGeminiCandidate', () => {
         ],
       },
       expectedOutput: {
-        index: 0,
         message: {
           role: 'model',
           content: [

@@ -31,9 +31,8 @@ import {
   StartChatParams,
   Tool,
 } from '@google/generative-ai';
-import { GENKIT_CLIENT_HEADER, z } from 'genkit';
+import { GENKIT_CLIENT_HEADER, ModelResponseData, z } from 'genkit';
 import {
-  CandidateData,
   GenerationCommonConfigSchema,
   MediaPart,
   MessageData,
@@ -417,7 +416,7 @@ export function toGeminiSystemInstruction(message: MessageData): GeminiMessage {
 
 function fromGeminiFinishReason(
   reason: GeminiCandidate['finishReason']
-): CandidateData['finishReason'] {
+): ModelResponseData['finishReason'] {
   if (!reason) return 'unknown';
   switch (reason) {
     case 'STOP':
@@ -435,9 +434,8 @@ function fromGeminiFinishReason(
 export function fromGeminiCandidate(
   candidate: GeminiCandidate,
   jsonMode: boolean = false
-): CandidateData {
+): ModelResponseData {
   return {
-    index: candidate.index || 0, // reasonable default?
     message: {
       role: 'model',
       content: (candidate.content?.parts || []).map((part) =>
