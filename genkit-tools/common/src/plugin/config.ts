@@ -55,7 +55,7 @@ export function isEvalField(input: string): input is EvalField {
 }
 
 const EvaluatorConfig = z.object({
-  flowName: z
+  actionRef: z
     .string()
     .describe('specify which flow this config is for')
     .optional(),

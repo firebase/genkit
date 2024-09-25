@@ -222,7 +222,6 @@ async function fetchEvalInput(params: {
   parsedData: EvalFlowInput;
 }): Promise<EvalInput[]> {
   const { runner, actionRef, states, parsedData } = params;
-  const flowName = actionRef.split('/')[-1];
 
   let references: any[] | undefined = undefined;
   if (!Array.isArray(parsedData)) {
@@ -235,7 +234,7 @@ async function fetchEvalInput(params: {
       );
     }
   }
-  const extractors = await getEvalExtractors(flowName);
+  const extractors = await getEvalExtractors(actionRef);
   return await Promise.all(
     states.map(async (s, i) => {
       const traceId = s.traceId;

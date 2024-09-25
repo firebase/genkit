@@ -40,7 +40,7 @@ describe('eval utils', () => {
       })
       .getTrace();
 
-    const extractors = await getEvalExtractors('multiSteps');
+    const extractors = await getEvalExtractors('/flow/multiSteps');
 
     expect(Object.keys(extractors).sort()).toEqual(
       ['input', 'output', 'context'].sort()
@@ -54,7 +54,7 @@ describe('eval utils', () => {
     const config: configModule.ToolsConfig = {
       evaluators: [
         {
-          flowName: 'multiSteps',
+          actionRef: '/flow/multiSteps',
           extractors: {
             output: 'step1',
           },
@@ -80,7 +80,7 @@ describe('eval utils', () => {
       })
       .getTrace();
 
-    const extractors = await getEvalExtractors('multiSteps');
+    const extractors = await getEvalExtractors('/flow/multiSteps');
 
     expect(extractors.input(trace)).toEqual(JSON.stringify('My input'));
     expect(extractors.output(trace)).toEqual(
@@ -93,7 +93,7 @@ describe('eval utils', () => {
     const config: configModule.ToolsConfig = {
       evaluators: [
         {
-          flowName: 'multiSteps',
+          actionRef: '/flow/multiSteps',
           extractors: {
             output: { inputOf: 'step2' },
             context: { outputOf: 'step3-array' },
@@ -126,7 +126,7 @@ describe('eval utils', () => {
       })
       .getTrace();
 
-    const extractors = await getEvalExtractors('multiSteps');
+    const extractors = await getEvalExtractors('/flow/multiSteps');
 
     expect(extractors.input(trace)).toEqual(JSON.stringify('My input'));
     expect(extractors.output(trace)).toEqual(JSON.stringify('step2-input'));
@@ -139,7 +139,7 @@ describe('eval utils', () => {
     const config: configModule.ToolsConfig = {
       evaluators: [
         {
-          flowName: 'multiSteps',
+          actionRef: '/flow/multiSteps',
           extractors: {
             input: (trace: TraceData) => {
               return JSON.stringify(
@@ -191,7 +191,7 @@ describe('eval utils', () => {
       })
       .getTrace();
 
-    const extractors = await getEvalExtractors('multiSteps');
+    const extractors = await getEvalExtractors('/flow/multiSteps');
 
     expect(extractors.input(trace)).toEqual(
       JSON.stringify(['My input TEST TEST TEST'])
@@ -205,7 +205,7 @@ describe('eval utils', () => {
   it('returns runs default extractors when trace fails', async () => {
     const spy = jest.spyOn(configModule, 'findToolsConfig');
     spy.mockReturnValue(Promise.resolve(null));
-    const trace = new MockTrace('My input', 'My output', 'error')
+    const trace = new MockTrace('My input', '', 'error')
       .addSpan({
         stepName: 'retrieverStep',
         spanType: 'action',
@@ -216,7 +216,7 @@ describe('eval utils', () => {
       })
       .getTrace();
 
-    const extractors = await getEvalExtractors('multiSteps');
+    const extractors = await getEvalExtractors('/flow/multiSteps');
 
     expect(Object.keys(extractors).sort()).toEqual(
       ['input', 'output', 'context'].sort()

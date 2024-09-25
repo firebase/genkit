@@ -36,7 +36,7 @@ module.exports = {
   ],
   evaluators: [
     {
-      flowName: 'myFlow',
+      actionRef: '/flow/myFlow',
       extractors: {
         output: { inputOf: 'my-step-name' },
         context: (t) => 'Hello',
