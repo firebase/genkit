@@ -103,7 +103,7 @@ export function modelGardenOpenaiCompatibleModel(
   if (!model) throw new Error(`Unsupported model: ${name}`);
   if (!baseUrlTemplate) {
     baseUrlTemplate =
-      'https://{location}-autopush-aiplatform.sandbox.googleapis.com/v1beta1/projects/{projectId}/locations/{location}/endpoints/openapi/chat/completions';
+      'https://{location}-aiplatform.sandbox.googleapis.com/v1beta1/projects/{projectId}/locations/{location}/endpoints/openapi/chat/completions';
   }
   console.log(baseUrlTemplate);
   const clientFactory = async (
