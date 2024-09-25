@@ -387,6 +387,9 @@ export class Flow<
       } else {
         try {
           const result = await this.invoke(input, { auth });
+          // TODO: encode the traceId and whatever other information we might
+          // want for context, OR have separate headers for each field
+          response.setHeader('genkit-context', result.traceId);
           // Responses for non-streaming flows are passed back with the flow result stored in a field called "result."
           response
             .status(200)
