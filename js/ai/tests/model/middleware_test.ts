@@ -19,16 +19,16 @@ import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { DocumentData } from '../../src/document.js';
 import {
-  defineModel,
   GenerateRequest,
   GenerateResponseData,
   MessageData,
   Part,
+  defineModel,
 } from '../../src/model.js';
 import {
-  augmentWithContext,
   AugmentWithContextOptions,
   CONTEXT_PREFACE,
+  augmentWithContext,
   simulateSystemPrompt,
   validateSupport,
 } from '../../src/model/middleware.js';

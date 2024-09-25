@@ -19,10 +19,10 @@ import { defineModel, GenerateResponseData } from '@genkit-ai/ai/model';
 import { genkit, Genkit, run } from '@genkit-ai/core';
 import { runWithRegistry } from '@genkit-ai/core/registry';
 import {
-  googleCloud,
   __addTransportStreamForTesting,
   __forceFlushSpansForTesting,
   __getSpanExporterForTesting,
+  googleCloud,
 } from '@genkit-ai/google-cloud';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { z } from 'genkit';

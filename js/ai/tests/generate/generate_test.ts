@@ -20,22 +20,22 @@ import { toJsonSchema } from '@genkit-ai/core/schema';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import {
-  generate,
   GenerateOptions,
   GenerateResponse,
   GenerateResponseChunk,
   GenerationBlockedError,
   GenerationResponseError,
   Message,
+  generate,
   toGenerateRequest,
 } from '../../src/generate.js';
 import {
-  defineModel,
   GenerateRequest,
   GenerateResponseChunkData,
   GenerateResponseData,
   ModelAction,
   ModelMiddleware,
+  defineModel,
 } from '../../src/model.js';
 import { defineTool } from '../../src/tool.js';
 
