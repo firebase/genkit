@@ -92,7 +92,11 @@ func IsDefinedModel(provider, name string) bool {
 // LookupModel looks up a [Model] registered by [DefineModel].
 // It returns nil if the model was not defined.
 func LookupModel(provider, name string) Model {
-	return (*modelActionDef)(core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](atype.Model, provider, name))
+	action := core.LookupActionFor[*GenerateRequest, *GenerateResponse, *GenerateResponseChunk](atype.Model, provider, name)
+	if action == nil {
+		return nil
+	}
+	return (*modelActionDef)(action)
 }
 
 // generateParams represents various params of the Generate call.
