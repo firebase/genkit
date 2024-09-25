@@ -18,7 +18,7 @@ import { config } from 'dotenv';
 config();
 // Import the Genkit core libraries and plugins.
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
-import { generate, genkit, z } from 'genkit';
+import { genkit, z } from 'genkit';
 
 const ai = genkit({
   plugins: [googleAI()],
@@ -45,7 +45,7 @@ export const codeExecutionFlow = ai.defineFlow(
   async (task: string) => {
     // Construct a request and send it to the model API.
     const prompt = `Write and execute some code for ${task}`;
-    const llmResponse = await generate({
+    const llmResponse = await ai.generate({
       model: gemini15Flash,
       prompt: prompt,
       config: {

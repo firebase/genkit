@@ -16,7 +16,7 @@
 
 import { devLocalRetrieverRef } from '@genkit-ai/dev-local-vectorstore';
 import { geminiPro } from '@genkit-ai/vertexai';
-import { generate, retrieve, z } from 'genkit';
+import { z } from 'genkit';
 import { ai } from './index.js';
 
 // Define the retriever reference
@@ -26,14 +26,14 @@ export const menuQAFlow = ai.defineFlow(
   { name: 'menuQA', inputSchema: z.string(), outputSchema: z.string() },
   async (input: string) => {
     // retrieve relevant documents
-    const docs = await retrieve({
+    const docs = await ai.retrieve({
       retriever: menuRetriever,
       query: input,
       options: { k: 3 },
     });
 
     // generate a response
-    const llmResponse = await generate({
+    const llmResponse = await ai.generate({
       model: geminiPro,
       prompt: `
     You are acting as a helpful AI assistant that can answer 

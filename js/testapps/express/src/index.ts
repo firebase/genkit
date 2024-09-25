@@ -18,7 +18,7 @@ import { firebase } from '@genkit-ai/firebase';
 import { googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
 import express, { Request, Response } from 'express';
-import { generate, genkit, run, z } from 'genkit';
+import { genkit, run, z } from 'genkit';
 import { ollama } from 'genkitx-ollama';
 
 const ai = genkit({
@@ -44,7 +44,7 @@ export const jokeFlow = ai.defineFlow(
   { name: 'jokeFlow', inputSchema: z.string(), outputSchema: z.string() },
   async (subject, streamingCallback) => {
     return await run('call-llm', async () => {
-      const llmResponse = await generate({
+      const llmResponse = await ai.generate({
         prompt: `${subject}`,
         model: 'ollama/gemma',
         config: {
@@ -81,7 +81,7 @@ app.get('/jokeStream', async (req: Request, res: Response) => {
     'Content-Type': 'text/plain',
     'Transfer-Encoding': 'chunked',
   });
-  await generate({
+  await ai.generate({
     prompt: `Tell me a joke about ${subject}`,
     model: 'ollama/llama2',
     config: {

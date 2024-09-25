@@ -214,18 +214,16 @@ describe('GoogleCloudMetrics', () => {
       };
     });
 
-    const response = await runWithRegistry(ai.registry, async () =>
-      generate({
-        model: testModel,
-        prompt: 'test prompt',
-        config: {
-          temperature: 1.0,
-          topK: 3,
-          topP: 5,
-          maxOutputTokens: 7,
-        },
-      })
-    );
+    await ai.generate({
+      model: testModel,
+      prompt: 'test prompt',
+      config: {
+        temperature: 1.0,
+        topK: 3,
+        topP: 5,
+        maxOutputTokens: 7,
+      },
+    });
 
     await getExportedSpans();
 
@@ -290,18 +288,16 @@ describe('GoogleCloudMetrics', () => {
     });
 
     assert.rejects(async () => {
-      return await runWithRegistry(ai.registry, async () =>
-        generate({
-          model: testModel,
-          prompt: 'test prompt',
-          config: {
-            temperature: 1.0,
-            topK: 3,
-            topP: 5,
-            maxOutputTokens: 7,
-          },
-        })
-      );
+      return ai.generate({
+        model: testModel,
+        prompt: 'test prompt',
+        config: {
+          temperature: 1.0,
+          topK: 3,
+          topP: 5,
+          maxOutputTokens: 7,
+        },
+      });
     });
 
     await getExportedSpans();

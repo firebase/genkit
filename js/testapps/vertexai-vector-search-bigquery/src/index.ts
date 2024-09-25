@@ -16,7 +16,7 @@
 
 //  Sample app for using the proposed Vertex AI plugin retriever and indexer with BigQuery.
 
-import { Document, genkit, index, retrieve, z } from 'genkit';
+import { Document, genkit, z } from 'genkit';
 // important imports for this sample:
 import {
   getBigQueryDocumentIndexer,
@@ -109,7 +109,7 @@ export const indexFlow = ai.defineFlow(
   },
   async ({ texts }) => {
     const documents = texts.map((text) => Document.fromText(text));
-    await index({
+    await ai.index({
       indexer: vertexAiIndexerRef({
         indexId: VECTOR_SEARCH_INDEX_ID,
         displayName: 'firestore_index',
@@ -142,7 +142,7 @@ export const queryFlow = ai.defineFlow(
   async ({ query, k }) => {
     const startTime = performance.now();
     const queryDocument = Document.fromText(query);
-    const res = await retrieve({
+    const res = await ai.retrieve({
       retriever: vertexAiRetrieverRef({
         indexId: VECTOR_SEARCH_INDEX_ID,
         displayName: 'firestore_index',

@@ -16,7 +16,7 @@
 
 import { devLocalIndexerRef } from '@genkit-ai/dev-local-vectorstore';
 import { readFile } from 'fs/promises';
-import { index, run, z } from 'genkit';
+import { run, z } from 'genkit';
 import { Document } from 'genkit/retriever';
 import { chunk } from 'llm-chunk';
 import path from 'path';
@@ -63,7 +63,7 @@ export const indexMenu = ai.defineFlow(
     });
 
     // Add documents to the index.
-    await index({
+    await ai.index({
       indexer: menuPdfIndexer,
       documents,
     });

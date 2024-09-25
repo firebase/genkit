@@ -181,6 +181,7 @@ export const GenerationCommonConfigSchema = z.object({
   topP: z.number().optional(),
   stopSequences: z.array(z.string()).optional(),
 });
+export type GenerationCommonConfig = typeof GenerationCommonConfigSchema;
 
 const OutputConfigSchema = z.object({
   format: OutputFormatSchema.optional(),
