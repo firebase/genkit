@@ -18,7 +18,7 @@
     "@genkit-ai/dotprompt": "^0.5.8",
     "@genkit-ai/flow": "^0.5.8",
     "@genkit-ai/vertexai": "^0.5.8",
-    "express": "^4.19.2",
+    "express": "^4.21.0",
     "partial-json": "^0.1.7",
     "zod": "^3.23.8"
   },

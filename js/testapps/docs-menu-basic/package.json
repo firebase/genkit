@@ -20,7 +20,7 @@
     "@genkit-ai/firebase": "workspace:*",
     "@genkit-ai/flow": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
-    "express": "^4.19.2",
+    "express": "^4.21.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {

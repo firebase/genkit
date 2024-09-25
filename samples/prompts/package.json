@@ -18,7 +18,7 @@
     "@genkit-ai/dotprompt": "^0.5.10",
     "@genkit-ai/flow": "^0.5.10",
     "@genkit-ai/googleai": "^0.5.10",
-    "express": "^4.19.2",
+    "express": "^4.21.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
