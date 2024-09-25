@@ -121,7 +121,6 @@ export async function renderPrompt<
     history: rendered.messages.slice(0, rendered.messages.length - 1),
     prompt: rendered.messages[rendered.messages.length - 1].content,
     context: params.context,
-    candidates: rendered.candidates || 1,
     output: {
       format: rendered.output?.format,
       schema: rendered.output?.schema,

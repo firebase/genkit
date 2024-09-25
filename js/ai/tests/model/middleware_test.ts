@@ -19,16 +19,16 @@ import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { DocumentData } from '../../src/document.js';
 import {
+  defineModel,
   GenerateRequest,
   GenerateResponseData,
   MessageData,
   Part,
-  defineModel,
 } from '../../src/model.js';
 import {
+  augmentWithContext,
   AugmentWithContextOptions,
   CONTEXT_PREFACE,
-  augmentWithContext,
   simulateSystemPrompt,
   validateSupport,
 } from '../../src/model/middleware.js';
@@ -81,9 +81,7 @@ describe('validateSupport', () => {
     req?: GenerateRequest
   ) => Promise<GenerateResponseData> = async () => {
     nextCalled = true;
-    return {
-      candidates: [],
-    };
+    return {};
   };
   beforeEach(() => (nextCalled = false));
 
@@ -152,16 +150,11 @@ const registry = new Registry();
 const echoModel = runWithRegistry(registry, () =>
   defineModel({ name: 'echo' }, async (req) => {
     return {
-      candidates: [
-        {
-          index: 0,
-          finishReason: 'stop',
-          message: {
-            role: 'model',
-            content: [{ data: req }],
-          },
-        },
-      ],
+      finishReason: 'stop',
+      message: {
+        role: 'model',
+        content: [{ data: req }],
+      },
     };
   })
 );
@@ -172,8 +165,7 @@ describe('conformOutput (default middleware)', () => {
   // return the output tagged part from the request
   async function testRequest(req: GenerateRequest): Promise<Part> {
     const response = await runWithRegistry(registry, () => echoModel(req));
-    const treq = response.candidates[0].message.content[0]
-      .data as GenerateRequest;
+    const treq = response.message!.content[0].data as GenerateRequest;
 
     const lastUserMessage = treq.messages
       .reverse()

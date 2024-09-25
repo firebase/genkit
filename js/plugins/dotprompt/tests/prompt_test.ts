@@ -48,9 +48,8 @@ describe('Prompt', () => {
         const model = defineModel(
           { name: 'echo', supports: { tools: true } },
           async (input) => ({
-            candidates: [
-              { index: 0, message: input.messages[0], finishReason: 'stop' },
-            ],
+            message: input.messages[0],
+            finishReason: 'stop',
           })
         );
         const prompt = testPrompt(model, `Hello {{name}}, how are you?`);
@@ -67,9 +66,8 @@ describe('Prompt', () => {
         const model = defineModel(
           { name: 'echo', supports: { tools: true } },
           async (input) => ({
-            candidates: [
-              { index: 0, message: input.messages[0], finishReason: 'stop' },
-            ],
+            message: input.messages[0],
+            finishReason: 'stop',
           })
         );
         const prompt = testPrompt(model, `Hello {{name}}, how are you?`, {
@@ -112,9 +110,8 @@ describe('Prompt', () => {
         const model = defineModel(
           { name: 'echo', supports: { tools: true } },
           async (input) => ({
-            candidates: [
-              { index: 0, message: input.messages[0], finishReason: 'stop' },
-            ],
+            message: input.messages[0],
+            finishReason: 'stop',
           })
         );
         const prompt = testPrompt(model, `Hello {{name}}, how are you?`);
@@ -139,9 +136,8 @@ describe('Prompt', () => {
         const model = defineModel(
           { name: 'echo', supports: { tools: true } },
           async (input) => ({
-            candidates: [
-              { index: 0, message: input.messages[0], finishReason: 'stop' },
-            ],
+            message: input.messages[0],
+            finishReason: 'stop',
           })
         );
         const prompt = testPrompt(
@@ -173,9 +169,8 @@ describe('Prompt', () => {
         const model = defineModel(
           { name: 'echo', supports: { tools: true } },
           async (input) => ({
-            candidates: [
-              { index: 0, message: input.messages[0], finishReason: 'stop' },
-            ],
+            message: input.messages[0],
+            finishReason: 'stop',
           })
         );
         const prompt = testPrompt(model, `Hello {{name}}, how are you?`);
@@ -214,9 +209,8 @@ describe('Prompt', () => {
         const model = defineModel(
           { name: 'echo', supports: { tools: true } },
           async (input) => ({
-            candidates: [
-              { index: 0, message: input.messages[0], finishReason: 'stop' },
-            ],
+            message: input.messages[0],
+            finishReason: 'stop',
           })
         );
         const prompt = testPrompt(model, `hello {{name}}`, {
@@ -367,9 +361,8 @@ describe('DotpromptRef', () => {
       const model = defineModel(
         { name: 'echo', supports: { tools: true } },
         async (input) => ({
-          candidates: [
-            { index: 0, message: input.messages[0], finishReason: 'stop' },
-          ],
+          message: input.messages[0],
+          finishReason: 'stop',
         })
       );
       defineDotprompt(

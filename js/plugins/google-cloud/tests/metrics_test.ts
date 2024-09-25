@@ -19,11 +19,11 @@ import { defineModel } from '@genkit-ai/ai/model';
 import { defineAction, genkit, Genkit, run } from '@genkit-ai/core';
 import { runWithRegistry } from '@genkit-ai/core/registry';
 import {
+  GcpOpenTelemetry,
+  googleCloud,
   __forceFlushSpansForTesting,
   __getMetricExporterForTesting,
   __getSpanExporterForTesting,
-  GcpOpenTelemetry,
-  googleCloud,
 } from '@genkit-ai/google-cloud';
 import {
   DataPoint,
@@ -189,20 +189,15 @@ describe('GoogleCloudMetrics', () => {
   it('writes generate metrics', async () => {
     const testModel = createModel(ai, 'testModel', async () => {
       return {
-        candidates: [
-          {
-            index: 0,
-            finishReason: 'stop',
-            message: {
-              role: 'user',
-              content: [
-                {
-                  text: 'response',
-                },
-              ],
+        message: {
+          role: 'user',
+          content: [
+            {
+              text: 'response',
             },
-          },
-        ],
+          ],
+        },
+        finishReason: 'stop',
         usage: {
           inputTokens: 10,
           outputTokens: 14,
@@ -339,20 +334,15 @@ describe('GoogleCloudMetrics', () => {
   it('writes flow label to generate metrics when running inside flow', async () => {
     const testModel = createModel(ai, 'testModel', async () => {
       return {
-        candidates: [
-          {
-            index: 0,
-            finishReason: 'stop',
-            message: {
-              role: 'user',
-              content: [
-                {
-                  text: 'response',
-                },
-              ],
+        message: {
+          role: 'user',
+          content: [
+            {
+              text: 'response',
             },
-          },
-        ],
+          ],
+        },
+        finishReason: 'stop',
         usage: {
           inputTokens: 10,
           outputTokens: 14,
@@ -764,7 +754,7 @@ describe('GoogleCloudMetrics', () => {
     );
   }
 
-  /** Helper to create a model that returns the value produced by the givne
+  /** Helper to create a model that returns the value produced by the given
    * response function. */
   function createModel(
     ai: Genkit,
