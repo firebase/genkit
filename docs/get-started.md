@@ -19,7 +19,7 @@ Install the following Genkit dependencies to use Genkit in your project:
 * `@genkit-ai/ai` and `@genkit-ai/core` provide Genkit core capabilities  
 * `@genkit-ai/googleai` provide access to the Google AI Gemini models
 
-```
+```posix-terminal
 npm install genkit @genkit-ai/ai @genkit-ai/core @genkit-ai/googleai
 ```
 
