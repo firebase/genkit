@@ -112,6 +112,20 @@ export interface CallableFlow<
 }
 
 /**
+ * Non-streaming flow that can be called directly like a function.
+ */
+export interface CallableFlowWithContext<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  (
+    input?: z.infer<I>,
+    opts?: { withLocalAuthContext?: unknown }
+  ): Promise<FlowResult<z.infer<O>>>;
+  flow: Flow<I, O, z.ZodVoid>;
+}
+
+/**
  * Streaming flow that can be called directly like a function.
  */
 export interface StreamableFlow<
@@ -156,13 +170,21 @@ export type FlowFn<
 ) => Promise<z.infer<O>>;
 
 /**
+ * Metadata associated with the flow execution.
+ */
+interface FlowContext {
+  /** The trace ID associated with the flow execution. */
+  traceId: string;
+}
+
+/**
  * Represents the result of a flow execution.
  */
 interface FlowResult<O> {
   /** The result of the flow execution. */
   result: O;
-  /** The trace ID associated with the flow execution. */
-  traceId: string;
+  /** Metadata associated with the flow execution. */
+  context: FlowContext;
 }
 
 export class Flow<
@@ -235,7 +257,9 @@ export class Flow<
             setCustomMetadataAttribute(flowMetadataPrefix('state'), 'done');
             return {
               result: output,
-              traceId: rootSpan.spanContext().traceId,
+              context: {
+                traceId: rootSpan.spanContext().traceId,
+              },
             };
           } catch (e) {
             metadata.state = 'error';
@@ -261,7 +285,7 @@ export class Flow<
   async run(
     payload?: z.infer<I>,
     opts?: { withLocalAuthContext?: unknown }
-  ): Promise<z.infer<O>> {
+  ): Promise<FlowResult<z.infer<O>>> {
     const input = this.inputSchema ? this.inputSchema.parse(payload) : payload;
     await this.authPolicy?.(opts?.withLocalAuthContext, payload);
 
@@ -271,10 +295,9 @@ export class Flow<
       );
     }
 
-    const result = await this.invoke(input, {
+    return await this.invoke(input, {
       auth: opts?.withLocalAuthContext,
     });
-    return result.result;
   }
 
   /**
@@ -552,6 +575,29 @@ export function defineFlow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
 >(config: FlowConfig<I, O>, fn: FlowFn<I, O, z.ZodVoid>): CallableFlow<I, O> {
+  const flow = new Flow<I, O, z.ZodVoid>(config, fn);
+  registerFlowAction(flow);
+  const registry = getRegistryInstance();
+  const callableFlow: CallableFlow<I, O> = async (input, opts) => {
+    return runWithRegistry(registry, async () => {
+      const result = await flow.run(input, opts);
+      return result.result;
+    });
+  };
+  callableFlow.flow = flow;
+  return callableFlow;
+}
+
+/**
+ * Defines a non-streaming flow. This operates on the currently active registry.
+ */
+export function defineFlowWithContext<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  config: FlowConfig<I, O>,
+  fn: FlowFn<I, O, z.ZodVoid>
+): CallableFlowWithContext<I, O> {
   const flow = new Flow<I, O, z.ZodVoid>(config, fn);
   registerFlowAction(flow);
   const registry = getRegistryInstance();

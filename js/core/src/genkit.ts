@@ -18,7 +18,9 @@ import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 import z from 'zod';
 import {
   CallableFlow,
+  CallableFlowWithContext,
   defineFlow,
+  defineFlowWithContext,
   defineStreamingFlow,
   Flow,
   FlowConfig,
@@ -132,6 +134,20 @@ export class Genkit {
     O extends z.ZodTypeAny = z.ZodTypeAny,
   >(config: FlowConfig<I, O>, fn: FlowFn<I, O>): CallableFlow<I, O> {
     const flow = runWithRegistry(this.registry, () => defineFlow(config, fn));
+    this.registeredFlows.push(flow.flow);
+    return flow;
+  }
+
+  /**
+   * Defines a flow.
+   */
+  defineFlowWithContext<
+    I extends z.ZodTypeAny = z.ZodTypeAny,
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+  >(config: FlowConfig<I, O>, fn: FlowFn<I, O>): CallableFlowWithContext<I, O> {
+    const flow = runWithRegistry(this.registry, () =>
+      defineFlowWithContext(config, fn)
+    );
     this.registeredFlows.push(flow.flow);
     return flow;
   }

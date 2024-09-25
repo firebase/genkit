@@ -32,6 +32,19 @@ function createTestFlow(ai: Genkit) {
   );
 }
 
+function createTestFlowWithContext(ai: Genkit) {
+  return ai.defineFlowWithContext(
+    {
+      name: 'testFlowWithContext',
+      inputSchema: z.string(),
+      outputSchema: z.string(),
+    },
+    async (input) => {
+      return `bar ${input}`;
+    }
+  );
+}
+
 function createTestStreamingFlow(ai: Genkit) {
   return ai.defineStreamingFlow(
     {
@@ -67,6 +80,15 @@ describe('flow', () => {
       const result = await testFlow('foo');
 
       assert.equal(result, 'bar foo');
+    });
+
+    it('should run the flow with context', async () => {
+      const testFlow = createTestFlowWithContext(ai);
+
+      const result = await testFlow('foo');
+
+      assert.equal(result.result, 'bar foo');
+      assert.equal(result.context.traceId, '00000000000000000000000000000000');
     });
 
     it('should rethrow the error', async () => {
