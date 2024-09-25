@@ -350,7 +350,7 @@ can also detect this condition by catching the `ValidationError`
 exception thrown by generate:
 
 ```ts
-import { ValidationError } from "@genkit-ai/core/schema";
+import { ValidationError } from "genkit/schema";
 ```
 
 ```ts
