@@ -23,7 +23,6 @@ import {
 } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
 import { parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
-import { StatusName } from '../../core/lib/statusTypes.js';
 import { DocumentData } from './document.js';
 import { extractJson } from './extract.js';
 import {
@@ -470,7 +469,7 @@ export class GenerationResponseError extends GenkitError {
   constructor(
     response: GenerateResponse,
     message: string,
-    status?: StatusName,
+    status?: GenkitError['status'],
     detail?: Record<string, any>
   ) {
     super({
@@ -480,6 +479,7 @@ export class GenerationResponseError extends GenkitError {
     this.detail = { response, ...detail };
   }
 }
+
 /** A GenerationBlockedError is thrown when a generation is blocked. */
 export class GenerationBlockedError extends GenerationResponseError {}
 
