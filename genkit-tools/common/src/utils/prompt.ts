@@ -40,11 +40,11 @@ function partToString(part: Part): string {
   if (part.text) {
     return part.text;
   } else if (part.media) {
-    return '<< media element omitted >>';
+    return `{{media url:${part.media.url}}}`;
   } else if (part.toolRequest) {
     return '<< tool request omitted >>';
   } else if (part.toolResponse) {
-    return '<<tool response omitted >>';
+    return '<< tool response omitted >>';
   } else {
     return '';
   }
