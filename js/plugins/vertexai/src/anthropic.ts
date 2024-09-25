@@ -32,9 +32,10 @@ import { AnthropicVertex } from '@anthropic-ai/vertex-sdk';
 import {
   GENKIT_CLIENT_HEADER,
   GenerateRequest,
-  GenerateResponseData,
   Part as GenkitPart,
+  MessageData,
   ModelReference,
+  ModelResponseData,
   Part,
   z,
 } from 'genkit';
@@ -269,17 +270,20 @@ function fromAnthropicPart(part: AnthropicContent): Part {
   );
 }
 
-// Converts an Anthropic candidate to a Genkit candidate.
-function fromAnthropicCandidate(candidate: Message): CandidateData {
-  const parts = candidate.content as AnthropicContent[];
-  const genkitCandidate: CandidateData = {
-    index: 0,
-    message: {
-      role: 'model',
-      content: parts.map(fromAnthropicPart),
-    },
+// Converts an Anthropic response to a Genkit response.
+export function fromAnthropicResponse(
+  input: GenerateRequest<typeof AnthropicConfigSchema>,
+  response: Message
+): ModelResponseData {
+  const parts = response.content as AnthropicContent[];
+  const message: MessageData = {
+    role: 'model',
+    content: parts.map(fromAnthropicPart),
+  };
+  return {
+    message,
     finishReason: toGenkitFinishReason(
-      candidate.stop_reason as
+      response.stop_reason as
         | 'end_turn'
         | 'max_tokens'
         | 'stop_sequence'
@@ -287,23 +291,12 @@ function fromAnthropicCandidate(candidate: Message): CandidateData {
         | null
     ),
     custom: {
-      id: candidate.id,
-      model: candidate.model,
-      type: candidate.type,
+      id: response.id,
+      model: response.model,
+      type: response.type,
     },
-  };
-  return genkitCandidate;
-}
-
-export function fromAnthropicResponse(
-  input: GenerateRequest<typeof AnthropicConfigSchema>,
-  response: Message
-): GenerateResponseData {
-  const candidates: CandidateData[] = [fromAnthropicCandidate(response)];
-  return {
-    candidates,
     usage: {
-      ...getBasicUsageStats(input.messages, candidates),
+      ...getBasicUsageStats(input.messages, message),
       inputTokens: response.usage.input_tokens,
       outputTokens: response.usage.output_tokens,
     },
@@ -337,8 +330,8 @@ function toAnthropicToolRequest(tool: Record<string, any>): ToolUseBlock {
   // https://docs.anthropic.com/en/docs/build-with-claude/tool-use#specifying-tools
   if (!/^[a-zA-Z0-9_-]{1,64}$/.test(tool.name)) {
     throw new Error(
-      `Tool name ${tool.name} contains invalid characters. 
-      Only letters, numbers, and underscores are allowed, 
+      `Tool name ${tool.name} contains invalid characters.
+      Only letters, numbers, and underscores are allowed,
       and the name must be between 1 and 64 characters long.`
     );
   }
