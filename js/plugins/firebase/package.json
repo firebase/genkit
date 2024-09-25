@@ -32,7 +32,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@genkit-ai/google-cloud": "workspace:*",
-    "express": "^4.19.2",
+    "express": "^4.21.0",
     "google-auth-library": "^9.6.3",
     "zod": "^3.22.4"
   },
