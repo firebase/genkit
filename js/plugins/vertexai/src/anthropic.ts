@@ -40,7 +40,6 @@ import {
   z,
 } from 'genkit';
 import {
-  CandidateData,
   GenerationCommonConfigSchema,
   defineModel,
   getBasicUsageStats,
@@ -305,7 +304,7 @@ export function fromAnthropicResponse(
 
 function toGenkitFinishReason(
   reason: 'end_turn' | 'max_tokens' | 'stop_sequence' | 'tool_use' | null
-): CandidateData['finishReason'] {
+): ModelResponseData['finishReason'] {
   switch (reason) {
     case 'end_turn':
       return 'stop';
