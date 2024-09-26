@@ -22,121 +22,103 @@ import (
 	"github.com/firebase/genkit/go/ai"
 )
 
+type VectorType int
+
+const (
+	Vector64 VectorType = iota
+)
+
 const provider = "firebase"
 
-// RetrieverOptions defines the configuration for the retriever.
 type RetrieverOptions struct {
 	Name            string
 	Label           string
 	Client          *firestore.Client
-	Embedder        ai.Embedder
-	EmbedderOptions ai.EmbedOption
 	Collection      string
+	Embedder        ai.Embedder
 	VectorField     string
-	MetadataFields  []string // Optional: if empty, metadata will not be retrieved
+	MetadataFields  []string
 	ContentField    string
+	Limit           int
 	DistanceMeasure firestore.DistanceMeasure
-}
-
-type RetrieverRequestOptions struct {
-	Limit           int `json:"limit,omitempty"` // maximum number of values to retrieve
-	DistanceMeasure firestore.DistanceMeasure
+	VectorType      VectorType
 }
 
 func DefineFirestoreRetriever(cfg RetrieverOptions) (ai.Retriever, error) {
-
-	coll := cfg.Client.Collection(cfg.Collection)
-	if coll == nil {
-		return nil, fmt.Errorf("DefineFirestoreRetriever: collection path %q is invalid", cfg.Collection)
+	if cfg.VectorType != Vector64 {
+		return nil, fmt.Errorf("DefineFirestoreRetriever: only Vector64 is supported")
+	}
+	if cfg.Client == nil {
+		return nil, fmt.Errorf("DefineFirestoreRetriever: Firestore client is not provided")
 	}
 
 	Retrieve := func(ctx context.Context, req *ai.RetrieverRequest) (*ai.RetrieverResponse, error) {
-		if req == nil {
-			return nil, fmt.Errorf("retriever request is nil")
+
+		if req.Document == nil {
+			return nil, fmt.Errorf("DefineFirestoreRetriever: Request document is nil")
 		}
 
-		options := RetrieverRequestOptions{Limit: 10, DistanceMeasure: cfg.DistanceMeasure}
-
-		if req.Options != nil {
-			// Ensure that the options are of the correct type
-			parsedOptions, ok := req.Options.(*RetrieverRequestOptions)
-			if !ok {
-				return nil, fmt.Errorf("firebase.Retrieve options have type %T, want %T", req.Options, &RetrieverRequestOptions{})
-			}
-			options = *parsedOptions
-		}
-
-		if cfg.Embedder == nil {
-			return nil, fmt.Errorf("embedder is nil in config")
-		}
-
-		// Use the embedder to convert the document we want to retrieve into a vector.
-		ereq := &ai.EmbedRequest{
-			Documents: []*ai.Document{req.Document},
-		}
-
-		eres, err := cfg.Embedder.Embed(ctx, ereq)
+		// Generate query embedding using the Embedder
+		embedRequest := &ai.EmbedRequest{Documents: []*ai.Document{req.Document}}
+		embedResponse, err := cfg.Embedder.Embed(ctx, embedRequest)
 		if err != nil {
-			return nil, fmt.Errorf("%s index embedding failed: %v", provider, err)
+			return nil, fmt.Errorf("DefineFirestoreRetriever: Embedding failed: %v", err)
 		}
 
-		if eres == nil || len(eres.Embeddings) == 0 {
-			return nil, fmt.Errorf("embedding result is nil or empty")
+		if len(embedResponse.Embeddings) == 0 {
+			return nil, fmt.Errorf("DefineFirestoreRetriever: No embeddings returned")
 		}
 
-		embedding := eres.Embeddings[0].Embedding
-
-		distanceMeasure := cfg.DistanceMeasure
-
-		if options.DistanceMeasure != 0 {
-			distanceMeasure = options.DistanceMeasure
+		queryEmbedding := embedResponse.Embeddings[0].Embedding
+		if len(queryEmbedding) == 0 {
+			return nil, fmt.Errorf("DefineFirestoreRetriever: Generated embedding is empty")
 		}
 
-		fmt.Printf("Retrieving nearest documents to embedding %v\n", embedding)
+		// Convert to []float64
+		queryEmbedding64 := make([]float64, len(queryEmbedding))
+		for i, val := range queryEmbedding {
+			queryEmbedding64[i] = float64(val)
+		}
+		// Perform the FindNearest query
+		vectorQuery := cfg.Client.Collection(cfg.Collection).FindNearest(
+			cfg.VectorField,
+			firestore.Vector64(queryEmbedding64),
+			cfg.Limit,
+			cfg.DistanceMeasure,
+			nil,
+		)
+		iter := vectorQuery.Documents(ctx)
 
-		query := coll.FindNearest(cfg.VectorField, embedding, options.Limit, distanceMeasure, nil)
-		// Execute the query
-		iter := query.Documents(ctx)
-		gotDocs, err := iter.GetAll()
-
+		results, err := iter.GetAll()
 		if err != nil {
-			return nil, fmt.Errorf("getting documents: %v", err)
+			return nil, fmt.Errorf("DefineFirestoreRetriever: FindNearest query failed: %v", err)
 		}
-		genkitDocs := make([]*ai.Document, len(gotDocs))
 
-		for i, doc := range gotDocs {
-			// Call doc.Data() once and cache the result
-			data := doc.Data()
+		// Prepare the documents to return in the response
+		var documents []*ai.Document
+		for _, result := range results {
+			data := result.Data()
 
-			// Extract the content field
+			// Ensure content field exists and is of type string
 			content, ok := data[cfg.ContentField].(string)
 			if !ok {
-				fmt.Printf("content field is missing or not a string in document %v", doc.Ref.ID)
+				fmt.Printf("Content field %s missing or not a string in document %s", cfg.ContentField, result.Ref.ID)
 				continue
 			}
 
-			out := make(map[string]any)
-			out["content"] = content
-
-			metadata := make(map[string]any)
-			// Use the cached `data` to retrieve the metadata fields
-			if len(cfg.MetadataFields) > 0 {
-				for _, field := range cfg.MetadataFields {
-					metadata[field] = data[field]
-				}
-			} else {
-				for k, v := range data {
-					if k != cfg.VectorField && k != cfg.ContentField {
-						metadata[k] = v
-					}
+			// Extract metadata fields
+			metadata := make(map[string]interface{})
+			for _, field := range cfg.MetadataFields {
+				if value, ok := data[field]; ok {
+					metadata[field] = value
 				}
 			}
 
-			out["metadata"] = metadata
-			genkitDocs[i] = ai.DocumentFromText(content, metadata)
+			doc := ai.DocumentFromText(content, metadata)
+			documents = append(documents, doc)
 		}
 
-		return &ai.RetrieverResponse{Documents: genkitDocs}, nil
+		return &ai.RetrieverResponse{Documents: documents}, nil
 	}
 
 	return ai.DefineRetriever(provider, cfg.Name, Retrieve), nil

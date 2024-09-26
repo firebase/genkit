@@ -1,179 +1,236 @@
+// Copyright 2024 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package firebase
 
 import (
 	"context"
 	"flag"
-	"fmt"
-	"os"
 	"testing"
 
 	"cloud.google.com/go/firestore"
+	firebasev4 "firebase.google.com/go/v4"
 	"github.com/firebase/genkit/go/ai"
-	vertexai "github.com/firebase/genkit/go/plugins/vertexai"
+	"google.golang.org/api/iterator"
 )
 
 var (
 	testProjectID   = flag.String("test-project-id", "", "GCP Project ID to use for tests")
-	testCollection  = flag.String("test-collection", "", "Firestore collection to use for tests")
-	testVectorField = flag.String("test-vector-field", "", "Firestore vector field to use for tests")
-	testLocation    = flag.String("test-location", "us-central1", "Firestore location to use for tests")
+	testCollection  = flag.String("test-collection", "testR2", "Firestore collection to use for tests")
+	testVectorField = flag.String("test-vector-field", "embedding", "Field name for vector embeddings")
 )
 
+// MockEmbedder implements the Embedder interface for testing purposes
+type MockEmbedder struct{}
+
+func (e *MockEmbedder) Name() string {
+	return "MockEmbedder"
+}
+
+func (e *MockEmbedder) Embed(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
+	var embeddings []*ai.DocumentEmbedding
+	for _, doc := range req.Documents {
+		var embedding []float32
+		switch doc.Content[0].Text {
+		case "This is document one":
+			// Embedding for document one is the closest to the query
+			embedding = []float32{0.9, 0.1, 0.0}
+		case "This is document two":
+			// Embedding for document two is less close to the query
+			embedding = []float32{0.7, 0.2, 0.1}
+		case "This is document three":
+			// Embedding for document three is even further from the query
+			embedding = []float32{0.4, 0.3, 0.3}
+		case "This is input query":
+			// Embedding for the input query
+			embedding = []float32{0.9, 0.1, 0.0}
+		default:
+			// Default embedding for any other documents
+			embedding = []float32{0.0, 0.0, 0.0}
+		}
+
+		embeddings = append(embeddings, &ai.DocumentEmbedding{Embedding: embedding})
+	}
+	return &ai.EmbedResponse{Embeddings: embeddings}, nil
+}
+
+// To run this test you must have a Firestore database initialized in a GCP project, with a vector indexed collection (of dimension 3).
+// Warning: This test will delete all documents in the collection in cleanup.
+
 func TestFirestoreRetriever(t *testing.T) {
-	// Check if the required flags are set, otherwise skip the test
+
+	//  skip if flags aren't defined
 	if *testProjectID == "" {
-		t.Skip("skipping test because -test-project-id flag not used")
+		t.Skip("Skipping test due to missing flags")
 	}
 	if *testCollection == "" {
-		t.Skip("skipping test because -test-collection flag not used")
+		t.Skip("Skipping test due to missing flags")
 	}
 	if *testVectorField == "" {
-		t.Skip("skipping test because -test-vector-field flag not used")
+		t.Skip("Skipping test due to missing flags")
 	}
 
-	// Set environment variables for Firebase emulators
-	os.Setenv("FIRESTORE_EMULATOR_HOST", "127.0.0.1:8080")
-	os.Setenv("FIREBASE_AUTH_EMULATOR_HOST", "127.0.0.1:9099")
-	os.Setenv("FIREBASE_STORAGE_EMULATOR_HOST", "127.0.0.1:9199")
-	os.Setenv("FIREBASE_DATABASE_EMULATOR_HOST", "127.0.0.1:9000")
-
-	// Use context for initializing Firebase app and Vertex AI embedder
 	ctx := context.Background()
 
-	// Initialize Vertex AI configuration
-	vertexAiConfig := vertexai.Config{
-		ProjectID: *testProjectID,
-		Location:  *testLocation,
-	}
-	err := vertexai.Init(ctx, &vertexAiConfig)
+	// Initialize Firebase app
+	conf := &firebasev4.Config{ProjectID: *testProjectID}
+	app, err := firebasev4.NewApp(ctx, conf)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("Failed to create Firebase app: %v", err)
 	}
 
-	// Get the embedder
-	testEmbedder := vertexai.Embedder("textembedding-gecko@003")
-
-	if testEmbedder == nil {
-		t.Fatal("embedder is nil")
-	}
-
-	// Initialize Firebase plugin configuration
-	pluginConfig := FirebasePluginConfig{
-		ProjectID: *testProjectID,
-	}
-
-	// Initialize Firebase
-	if err := Init(ctx, &pluginConfig); err != nil {
-		t.Fatal(err)
-	}
-	defer unInit()
-
-	// Create Firestore client
-	client, err := firestore.NewClient(ctx, *testProjectID)
+	// Initialize Firestore client
+	client, err := app.Firestore(ctx)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("Failed to create Firestore client: %v", err)
 	}
 	defer client.Close()
 
-	// Set up test data in Firestore
-	if err := setupTestCollection(ctx, client, *testCollection, *testVectorField, testEmbedder); err != nil {
-		t.Fatalf("failed to set up test collection: %v", err)
+	// Clean up the collection before the test
+	defer deleteCollection(ctx, client, *testCollection, t)
+
+	// Initialize the embedder
+	embedder := &MockEmbedder{}
+
+	// Insert test documents with embeddings generated by the embedder
+	testDocs := []struct {
+		ID   string
+		Text string
+		Data map[string]interface{}
+	}{
+		{"doc1", "This is document one", map[string]interface{}{"metadata": "meta1"}},
+		{"doc2", "This is document two", map[string]interface{}{"metadata": "meta2"}},
+		{"doc3", "This is document three", map[string]interface{}{"metadata": "meta3"}},
 	}
 
-	// Define retriever configuration
-	retrieverConfig := RetrieverOptions{
+	// Expected document text content in order of relevance for the query
+	expectedTexts := []string{
+		"This is document one",
+		"This is document two",
+	}
+
+	for _, doc := range testDocs {
+		// Create an ai.Document
+		aiDoc := ai.DocumentFromText(doc.Text, doc.Data)
+
+		// Generate embedding
+		embedRequest := &ai.EmbedRequest{Documents: []*ai.Document{aiDoc}}
+		embedResponse, err := embedder.Embed(ctx, embedRequest)
+		if err != nil {
+			t.Fatalf("Failed to generate embedding for document %s: %v", doc.ID, err)
+		}
+
+		if len(embedResponse.Embeddings) == 0 {
+			t.Fatalf("No embeddings returned for document %s", doc.ID)
+		}
+
+		embedding := embedResponse.Embeddings[0].Embedding
+		if len(embedding) == 0 {
+			t.Fatalf("Generated embedding is empty for document %s", doc.ID)
+		}
+
+		// Convert to []float64
+		embedding64 := make([]float64, len(embedding))
+		for i, val := range embedding {
+			embedding64[i] = float64(val)
+		}
+
+		// Store in Firestore
+		_, err = client.Collection(*testCollection).Doc(doc.ID).Set(ctx, map[string]interface{}{
+			"text":           doc.Text,
+			"metadata":       doc.Data["metadata"],
+			*testVectorField: firestore.Vector64(embedding64),
+		})
+		if err != nil {
+			t.Fatalf("Failed to insert document %s: %v", doc.ID, err)
+		}
+		t.Logf("Inserted document: %s with embedding: %v", doc.ID, embedding64)
+	}
+
+	// Define retriever options
+	retrieverOptions := RetrieverOptions{
 		Name:            "test-retriever",
 		Label:           "Test Retriever",
 		Client:          client,
-		Embedder:        testEmbedder,
 		Collection:      *testCollection,
+		Embedder:        embedder,
 		VectorField:     *testVectorField,
+		MetadataFields:  []string{"metadata"},
 		ContentField:    "text",
+		Limit:           2,
 		DistanceMeasure: firestore.DistanceMeasureEuclidean,
+		VectorType:      Vector64,
 	}
 
-	// Define the Firestore retriever
-	retriever, err := DefineFirestoreRetriever(retrieverConfig)
+	// Define the retriever
+	retriever, err := DefineFirestoreRetriever(retrieverOptions)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("Failed to define retriever: %v", err)
 	}
 
-	// Create a test document
-	testDocument := ai.DocumentFromText("Test document", map[string]any{"metadata": "test"})
+	// Create a retriever request with the input document
+	queryText := "This is input query"
+	inputDocument := ai.DocumentFromText(queryText, nil)
 
-	// Create a retriever request
 	req := &ai.RetrieverRequest{
-		Document: testDocument,
-		Options:  &RetrieverRequestOptions{Limit: 2, DistanceMeasure: firestore.DistanceMeasureEuclidean},
+		Document: inputDocument,
 	}
 
-	// Retrieve documents using the retriever
+	// Perform the retrieval
 	resp, err := retriever.Retrieve(ctx, req)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("Retriever failed: %v", err)
 	}
 
-	// Log and validate the response
-	if resp == nil {
-		t.Fatal("expected non-nil response, got nil")
-	}
-	t.Logf("Retrieved %d documents", len(resp.Documents))
-	if len(resp.Documents) != 2 {
-		t.Errorf("expected 2 documents, got %d", len(resp.Documents))
+	// Check the retrieved documents
+	if len(resp.Documents) == 0 {
+		t.Fatalf("No documents retrieved")
 	}
 
-	for _, doc := range resp.Documents {
-		if doc == nil {
-			t.Error("retrieved document is nil")
+	// Verify the content of all retrieved documents against the expected list
+	for i, doc := range resp.Documents {
+		if i >= len(expectedTexts) {
+			t.Errorf("More documents retrieved than expected. Retrieved: %d, Expected: %d", len(resp.Documents), len(expectedTexts))
+			break
+		}
+
+		if doc.Content[0].Text != expectedTexts[i] {
+			t.Errorf("Mismatch in document %d content. Expected: '%s', Got: '%s'", i+1, expectedTexts[i], doc.Content[0].Text)
+		} else {
+			t.Logf("Retrieved Document %d matches expected content: '%s'", i+1, expectedTexts[i])
 		}
 	}
-	t.Logf("Doc with content \n\n %s \n\n retrieved \n\n", resp.Documents[0].Content[0].Text)
-	t.Logf("Doc with content \n\n %s \n\n retrieved \n\n", resp.Documents[1].Content[0].Text)
 }
 
-// setupTestCollection initializes a Firestore collection with sample documents.
-func setupTestCollection(ctx context.Context, client *firestore.Client, collection string, vectorField string, embedder ai.Embedder) error {
-	// Delete existing documents in the collection
-	iter := client.Collection(collection).Documents(ctx)
-	docs, err := iter.GetAll()
-	if err != nil {
-		return fmt.Errorf("failed to list documents for deletion: %v", err)
-	}
-	for _, doc := range docs {
-		if _, err := doc.Ref.Delete(ctx); err != nil {
-			return fmt.Errorf("failed to delete document %s: %v", doc.Ref.ID, err)
+func deleteCollection(ctx context.Context, client *firestore.Client, collectionName string, t *testing.T) {
+	// Get all documents in the collection
+	iter := client.Collection(collectionName).Documents(ctx)
+	for {
+		doc, err := iter.Next()
+		if err == iterator.Done {
+			break // No more documents
 		}
-	}
-
-	// Add 10 sample documents with embeddings and text content
-	for i := 0; i < 10; i++ {
-		docID := fmt.Sprintf("doc-%d", i)
-		text := fmt.Sprintf("This is test document number %d", i)
-
-		doc := ai.DocumentFromText("Test document", map[string]any{"metadata": "test"}) // Create a document from text
-
-		docs := []*ai.Document{doc}
-
-		// Generate embedding for the text
-		embedReq := &ai.EmbedRequest{
-			Documents: docs,
-		}
-		embedResp, err := embedder.Embed(ctx, embedReq)
 		if err != nil {
-			return fmt.Errorf("failed to generate embedding for document %s: %v", docID, err)
+			t.Fatalf("Failed to iterate documents for deletion: %v", err)
 		}
 
-		data := map[string]interface{}{
-			"text":      text,
-			vectorField: embedResp.Embeddings[0].Embedding,
-			"metadata": map[string]interface{}{
-				"index": i,
-			},
-		}
-		_, err = client.Collection(collection).Doc(docID).Set(ctx, data)
+		// Delete each document
+		_, err = doc.Ref.Delete(ctx)
 		if err != nil {
-			return fmt.Errorf("failed to create document %s: %v", docID, err)
+			t.Errorf("Failed to delete document %s: %v", doc.Ref.ID, err)
+		} else {
+			t.Logf("Deleted document: %s", doc.Ref.ID)
 		}
 	}
-	return nil
 }
