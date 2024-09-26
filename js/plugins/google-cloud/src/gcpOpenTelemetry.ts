@@ -44,7 +44,7 @@ import {
   ReadableSpan,
   SpanExporter,
 } from '@opentelemetry/sdk-trace-base';
-import { GENKIT_VERSION, TelemetryConfig } from 'genkit';
+import { GENKIT_VERSION } from 'genkit';
 import { PathMetadata } from 'genkit/tracing';
 
 import { extractErrorName } from './utils';
@@ -139,9 +139,7 @@ export class GcpOpenTelemetry {
   }
 
   private shouldExportMetrics(): boolean {
-    return (
-      this.config.export && !this.config.disableMetrics
-    );
+    return this.config.export && !this.config.disableMetrics;
   }
 
   /** Always configure the Pino and Winston instrumentations */

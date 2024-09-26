@@ -16,10 +16,12 @@
 
 import {
   enableGoogleCloudTelemetry,
-  GcpTelemetryConfigOptions
+  GcpTelemetryConfigOptions,
 } from '@genkit-ai/google-cloud';
 export { defineFirestoreRetriever } from './firestoreRetriever.js';
 
-export async function enableFirebaseTelemetry(options?: GcpTelemetryConfigOptions) {
-  await enableGoogleCloudTelemetry(options)
+export async function enableFirebaseTelemetry(
+  options?: GcpTelemetryConfigOptions
+) {
+  await enableGoogleCloudTelemetry(options);
 }

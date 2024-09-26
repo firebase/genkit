@@ -16,7 +16,6 @@
 
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
-import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 import { genkit } from 'genkit';
@@ -46,7 +45,6 @@ const PERMISSIVE_SAFETY_SETTINGS: any = {
 
 const ai = genkit({
   plugins: [
-    firebase(),
     googleAI(),
     genkitEval({
       judge: geminiPro,

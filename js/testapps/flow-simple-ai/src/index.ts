@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { defineFirestoreRetriever, firebase } from '@genkit-ai/firebase';
+import { defineFirestoreRetriever } from '@genkit-ai/firebase';
 import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 import {
   gemini15Flash,
@@ -38,28 +38,22 @@ import { Allow, parse } from 'partial-json';
 enableGoogleCloudTelemetry({
   // These are configured for demonstration purposes. Sensible defaults are
   // in place in the event that telemetryConfig is absent.
-  telemetryConfig: {
-    // Forces telemetry export in 'dev'
-    forceDevExport: true,
-    sampler: new AlwaysOnSampler(),
-    autoInstrumentation: true,
-    autoInstrumentationConfig: {
-      '@opentelemetry/instrumentation-fs': { enabled: false },
-      '@opentelemetry/instrumentation-dns': { enabled: false },
-      '@opentelemetry/instrumentation-net': { enabled: false },
-    },
-    metricExportIntervalMillis: 5_000,
-    metricExportTimeoutMillis: 5_000,
+
+  // Forces telemetry export in 'dev'
+  forceDevExport: true,
+  sampler: new AlwaysOnSampler(),
+  autoInstrumentation: true,
+  autoInstrumentationConfig: {
+    '@opentelemetry/instrumentation-fs': { enabled: false },
+    '@opentelemetry/instrumentation-dns': { enabled: false },
+    '@opentelemetry/instrumentation-net': { enabled: false },
   },
+  metricExportIntervalMillis: 5_000,
+  metricExportTimeoutMillis: 5_000,
 });
 
 const ai = genkit({
-  plugins: [
-    firebase(),
-    googleAI(),
-    vertexAI(),
-    dotprompt(),
-  ],
+  plugins: [googleAI(), vertexAI(), dotprompt()],
 });
 
 const app = initializeApp();

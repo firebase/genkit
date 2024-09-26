@@ -15,14 +15,12 @@
  */
 
 import { genkitEval, genkitEvalRef, GenkitMetric } from '@genkit-ai/evaluator';
-import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 import { genkit, z } from 'genkit';
 import { Dataset, EvalResponse, EvalResponseSchema } from 'genkit/evaluator';
 
 const ai = genkit({
   plugins: [
-    firebase(),
     vertexAI(),
     genkitEval({
       judge: geminiPro,

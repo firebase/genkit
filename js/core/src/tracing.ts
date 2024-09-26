@@ -34,6 +34,16 @@ export * from './tracing/types.js';
 let telemetrySDK: NodeSDK | null = null;
 let nodeOtelConfig: TelemetryConfig | null = null;
 
+const instrumentationKey = '__GENKIT_TELEMETRY_INSTRUMENTED';
+
+export function ensureBasicTelemetryInstrumentation() {
+  if (global[instrumentationKey]) {
+    return;
+  }
+  enableTelemetry({});
+  global[instrumentationKey] = true;
+}
+
 /**
  * Enables tracing and metrics open telemetry configuration.
  */
@@ -42,7 +52,7 @@ export function enableTelemetry(telemetryConfig: TelemetryConfig) {
 
   const processors: SpanProcessor[] = [createTelemetryServerProcessor()];
   if (nodeOtelConfig.traceExporter) {
-    throw new Error('Please specify spanProcessors instead.')
+    throw new Error('Please specify spanProcessors instead.');
   }
   if (nodeOtelConfig.spanProcessors) {
     processors.push(...nodeOtelConfig.spanProcessors);

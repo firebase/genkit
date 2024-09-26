@@ -64,7 +64,6 @@ import {
   StreamingFlowConfig,
   z,
 } from '@genkit-ai/core';
-import * as registry from '@genkit-ai/core/registry';
 import {
   defineDotprompt,
   Dotprompt,
@@ -72,7 +71,7 @@ import {
   PromptMetadata,
 } from '@genkit-ai/dotprompt';
 import { logger } from './logging.js';
-import { AsyncProvider, Registry, runWithRegistry } from './registry.js';
+import { Registry, runWithRegistry } from './registry.js';
 
 /**
  * Options for initializing Genkit.
@@ -367,9 +366,6 @@ export function genkit(options: GenkitOptions): Genkit {
 
 process.on('SIGTERM', async () => {
   logger.debug('Received SIGTERM. Shutting down all Genkit servers...');
-  await Promise.all([
-    ReflectionServer.stopAll(),
-    FlowServer.stopAll(),
-  ]);
+  await Promise.all([ReflectionServer.stopAll(), FlowServer.stopAll()]);
   process.exit(0);
 });

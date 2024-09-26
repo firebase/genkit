@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { firebase } from '@genkit-ai/firebase';
 import { genkit, run, z } from 'genkit';
 
 const ai = genkit({

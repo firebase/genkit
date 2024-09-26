@@ -21,7 +21,9 @@ import { GcpTelemetryConfig } from './types';
  * Allow customers to pass in cloud credentials from environment variables
  * following: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
  */
-export async function credentialsFromEnvironment(): Promise<Partial<GcpTelemetryConfig>> {
+export async function credentialsFromEnvironment(): Promise<
+  Partial<GcpTelemetryConfig>
+> {
   let authClient: GoogleAuth;
   let options: Partial<GcpTelemetryConfig> = {};
 

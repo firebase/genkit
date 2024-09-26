@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import {
   EvaluatorAction,
@@ -48,7 +47,6 @@ import {
 export const ai = genkit({
   plugins: [
     dotprompt(),
-    firebase(),
     googleAI({ apiVersion: ['v1', 'v1beta'] }),
     byoEval({
       judge: geminiPro,

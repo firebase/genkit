@@ -14,20 +14,22 @@
  * limitations under the License.
  */
 
+import { getCurrentEnv } from 'genkit';
+import { logger } from 'genkit/logging';
+import { enableTelemetry } from 'genkit/tracing';
 import { credentialsFromEnvironment } from './auth.js';
 import { GcpLogger } from './gcpLogger.js';
 import { GcpOpenTelemetry } from './gcpOpenTelemetry.js';
 import { TelemetryConfigs } from './telemetry/defaults.js';
 import { GcpTelemetryConfig, GcpTelemetryConfigOptions } from './types.js';
-import { enableTelemetry } from 'genkit/tracing';
-import { logger } from 'genkit/logging';
-import { getCurrentEnv } from 'genkit';
 
-export async function enableGoogleCloudTelemetry(options?: GcpTelemetryConfigOptions) {
+export async function enableGoogleCloudTelemetry(
+  options?: GcpTelemetryConfigOptions
+) {
   const pluginConfig = await configureGcpPlugin(options);
 
-  enableTelemetry(new GcpOpenTelemetry(pluginConfig).getConfig())
-  logger.init(new GcpLogger(pluginConfig).getLogger(getCurrentEnv()))
+  enableTelemetry(new GcpOpenTelemetry(pluginConfig).getConfig());
+  logger.init(new GcpLogger(pluginConfig).getLogger(getCurrentEnv()));
 }
 
 /**
