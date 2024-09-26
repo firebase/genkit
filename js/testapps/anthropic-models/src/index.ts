@@ -18,7 +18,7 @@
 // several generative models. Here, we import Gemini 1.5 Flash.
 import { claude35Sonnet, vertexAI } from '@genkit-ai/vertexai';
 // Import the Genkit core libraries and plugins.
-import { defineTool, generate, genkit, z } from 'genkit';
+import { genkit, z } from 'genkit';
 
 // Import models from the Vertex AI plugin. The Vertex AI API provides access to
 // several generative models. Here, we import Gemini 1.5 Flash.
@@ -40,6 +40,24 @@ const ai = genkit({
   enableTracingAndMetrics: true,
 });
 
+ai.defineTool(
+  {
+    name: 'menu-suggestion',
+    description: 'Generate a menu suggestion for a themed restaurant',
+    inputSchema: z.object({
+      subject: z.string(),
+    }),
+    outputSchema: z.object({
+      menuItems: z.array(z.string()),
+    }),
+  },
+  async () => {
+    return {
+      menuItems: [`Appetizer: Meow Salad`],
+    };
+  }
+);
+
 // Define a simple flow that prompts an LLM to generate menu suggestions.
 export const menuSuggestionFlow = ai.defineFlow(
   {
@@ -48,26 +66,8 @@ export const menuSuggestionFlow = ai.defineFlow(
     outputSchema: z.array(z.any()),
   },
   async (subject) => {
-    defineTool(
-      {
-        name: 'menu-suggestion',
-        description: 'Generate a menu suggestion for a themed restaurant',
-        inputSchema: z.object({
-          subject: z.string(),
-        }),
-        outputSchema: z.object({
-          menuItems: z.array(z.string()),
-        }),
-      },
-      async () => {
-        return {
-          menuItems: [`Appetizer: Meow Salad`],
-        };
-      }
-    );
-
     const prompt = `Suggest an item for the menu of a ${subject} themed restaurant`;
-    const llmResponse = await generate({
+    const llmResponse = await ai.generate({
       model: claude35Sonnet,
       prompt: prompt,
       tools: ['menu-suggestion'],

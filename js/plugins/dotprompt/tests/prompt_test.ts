@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import { z } from 'genkit';
-import { defineModel, ModelAction } from 'genkit/model';
-import { Registry, runWithRegistry } from 'genkit/registry';
+import { defineModel, ModelAction } from '@genkit-ai/ai/model';
+import { z } from '@genkit-ai/core';
+import { Registry, runWithRegistry } from '@genkit-ai/core/registry';
 import {
   defineJsonSchema,
   defineSchema,
   toJsonSchema,
   ValidationError,
-} from 'genkit/schema';
+} from '@genkit-ai/core/schema';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { defineDotprompt, Dotprompt, prompt, promptRef } from '../src/index.js';
@@ -48,9 +48,8 @@ describe('Prompt', () => {
         const model = defineModel(
           { name: 'echo', supports: { tools: true } },
           async (input) => ({
-            candidates: [
-              { index: 0, message: input.messages[0], finishReason: 'stop' },
-            ],
+            message: input.messages[0],
+            finishReason: 'stop',
           })
         );
         const prompt = testPrompt(model, `Hello {{name}}, how are you?`);
@@ -67,9 +66,8 @@ describe('Prompt', () => {
         const model = defineModel(
           { name: 'echo', supports: { tools: true } },
           async (input) => ({
-            candidates: [
-              { index: 0, message: input.messages[0], finishReason: 'stop' },
-            ],
+            message: input.messages[0],
+            finishReason: 'stop',
           })
         );
         const prompt = testPrompt(model, `Hello {{name}}, how are you?`, {
@@ -112,9 +110,8 @@ describe('Prompt', () => {
         const model = defineModel(
           { name: 'echo', supports: { tools: true } },
           async (input) => ({
-            candidates: [
-              { index: 0, message: input.messages[0], finishReason: 'stop' },
-            ],
+            message: input.messages[0],
+            finishReason: 'stop',
           })
         );
         const prompt = testPrompt(model, `Hello {{name}}, how are you?`);
@@ -139,9 +136,8 @@ describe('Prompt', () => {
         const model = defineModel(
           { name: 'echo', supports: { tools: true } },
           async (input) => ({
-            candidates: [
-              { index: 0, message: input.messages[0], finishReason: 'stop' },
-            ],
+            message: input.messages[0],
+            finishReason: 'stop',
           })
         );
         const prompt = testPrompt(
@@ -173,9 +169,8 @@ describe('Prompt', () => {
         const model = defineModel(
           { name: 'echo', supports: { tools: true } },
           async (input) => ({
-            candidates: [
-              { index: 0, message: input.messages[0], finishReason: 'stop' },
-            ],
+            message: input.messages[0],
+            finishReason: 'stop',
           })
         );
         const prompt = testPrompt(model, `Hello {{name}}, how are you?`);
@@ -214,9 +209,8 @@ describe('Prompt', () => {
         const model = defineModel(
           { name: 'echo', supports: { tools: true } },
           async (input) => ({
-            candidates: [
-              { index: 0, message: input.messages[0], finishReason: 'stop' },
-            ],
+            message: input.messages[0],
+            finishReason: 'stop',
           })
         );
         const prompt = testPrompt(model, `hello {{name}}`, {
@@ -367,9 +361,8 @@ describe('DotpromptRef', () => {
       const model = defineModel(
         { name: 'echo', supports: { tools: true } },
         async (input) => ({
-          candidates: [
-            { index: 0, message: input.messages[0], finishReason: 'stop' },
-          ],
+          message: input.messages[0],
+          finishReason: 'stop',
         })
       );
       defineDotprompt(

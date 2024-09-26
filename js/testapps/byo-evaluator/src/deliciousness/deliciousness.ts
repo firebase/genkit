@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-import { generate, loadPromptFile, ModelArgument, z } from 'genkit';
 import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
+import { loadPromptFile, ModelArgument, z } from 'genkit';
 import path from 'path';
+import { ai } from '../index.js';
 
 const DELICIOUSNESS_VALUES = ['yes', 'no', 'maybe'] as const;
 
@@ -41,7 +42,7 @@ export async function deliciousnessScore<
     const finalPrompt = await loadPromptFile(
       path.resolve(__dirname, '../../prompts/deliciousness.prompt')
     );
-    const response = await generate({
+    const response = await ai.generate({
       model: judgeLlm,
       prompt: finalPrompt.renderText({
         output: d.output as string,

@@ -525,11 +525,11 @@ export class FlowServer {
         if (index > -1) {
           FlowServer.RUNNING_SERVERS.splice(index, 1);
         }
-        this.port = null;
-        this.server = null;
         logger.info(
           `Flow server on port ${this.port} has successfully shut down.`
         );
+        this.port = null;
+        this.server = null;
         resolve();
       });
     });

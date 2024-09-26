@@ -15,21 +15,18 @@
  */
 
 import { geminiPro } from '@genkit-ai/vertexai';
-import { defineDotprompt } from 'genkit';
-import { runWithRegistry } from 'genkit/registry';
 import { ai } from '../index.js';
 import { DataMenuQuestionInputSchema } from '../types.js';
 
-export const s04_ragDataMenuPrompt = runWithRegistry(ai.registry, () =>
-  defineDotprompt(
-    {
-      name: 's04_ragDataMenu',
-      model: geminiPro,
-      input: { schema: DataMenuQuestionInputSchema },
-      output: { format: 'text' },
-      config: { temperature: 0.3 },
-    },
-    `
+export const s04_ragDataMenuPrompt = ai.defineDotprompt(
+  {
+    name: 's04_ragDataMenu',
+    model: geminiPro,
+    input: { schema: DataMenuQuestionInputSchema },
+    output: { format: 'text' },
+    config: { temperature: 0.3 },
+  },
+  `
 You are acting as Walt, a helpful AI assistant here at the restaurant.
 You can answer questions about the food on the menu or any other questions
 customers have about food in general. 
@@ -44,5 +41,4 @@ helping you answer the customer's question:
 Answer this customer's question:
 {{question}}?
 `
-  )
 );

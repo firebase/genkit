@@ -109,6 +109,15 @@ const EvalRequestSchema = z.object({
   options: z.unknown(),
 });
 
+export interface EvaluatorParams<
+  DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  evaluator: EvaluatorArgument<DataPoint, CustomOptions>;
+  dataset: Dataset<DataPoint>;
+  options?: z.infer<CustomOptions>;
+}
+
 /**
  * Creates evaluator action for the provided {@link EvaluatorFn} implementation.
  */
@@ -229,22 +238,15 @@ export type EvaluatorArgument<
  */
 export async function evaluate<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
-  EvaluatorOptions extends z.ZodTypeAny = z.ZodTypeAny,
->(params: {
-  evaluator: EvaluatorArgument<DataPoint, EvaluatorOptions>;
-  dataset: Dataset<DataPoint>;
-  options?: z.infer<EvaluatorOptions>;
-}): Promise<EvalResponses> {
-  let evaluator: EvaluatorAction<DataPoint, EvaluatorOptions>;
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(params: EvaluatorParams<DataPoint, CustomOptions>): Promise<EvalResponses> {
+  let evaluator: EvaluatorAction<DataPoint, CustomOptions>;
   if (typeof params.evaluator === 'string') {
     evaluator = await lookupAction(`/evaluator/${params.evaluator}`);
   } else if (Object.hasOwnProperty.call(params.evaluator, 'info')) {
     evaluator = await lookupAction(`/evaluator/${params.evaluator.name}`);
   } else {
-    evaluator = params.evaluator as EvaluatorAction<
-      DataPoint,
-      EvaluatorOptions
-    >;
+    evaluator = params.evaluator as EvaluatorAction<DataPoint, CustomOptions>;
   }
   if (!evaluator) {
     throw new Error('Unable to utilize the provided evaluator');

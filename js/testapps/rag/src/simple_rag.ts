@@ -18,7 +18,7 @@ import {
   devLocalIndexerRef,
   devLocalRetrieverRef,
 } from '@genkit-ai/dev-local-vectorstore';
-import { Document, index, retrieve, z } from 'genkit';
+import { Document, z } from 'genkit';
 import { chromaIndexerRef, chromaRetrieverRef } from 'genkitx-chromadb';
 import { pineconeIndexerRef, pineconeRetrieverRef } from 'genkitx-pinecone';
 import { ai } from './index.js';
@@ -57,7 +57,7 @@ export const askQuestionsAboutCatsFlow = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (query) => {
-    const docs = await retrieve({
+    const docs = await ai.retrieve({
       retriever: catFactsRetriever,
       query,
       options: { k: 3 },
@@ -82,7 +82,7 @@ export const askQuestionsAboutDogsFlow = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (query) => {
-    const docs = await retrieve({
+    const docs = await ai.retrieve({
       retriever: dogFactsRetriever,
       query,
       options: { k: 3 },
@@ -109,7 +109,7 @@ export const indexCatFactsDocumentsFlow = ai.defineFlow(
     const documents = docs.map((text) => {
       return Document.fromText(text, { type: 'animal' });
     });
-    await index({
+    await ai.index({
       indexer: catFactsIndexer,
       documents,
     });
@@ -128,7 +128,7 @@ export const indexDogFactsDocumentsFlow = ai.defineFlow(
     const documents = docs.map((text) => {
       return Document.fromText(text, { type: 'animal' });
     });
-    await index({
+    await ai.index({
       indexer: dogFactsIndexer,
       documents,
     });

@@ -227,21 +227,27 @@ export async function retrieve<CustomOptions extends z.ZodTypeAny>(
 export type IndexerArgument<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> =
   IndexerReference<CustomOptions> | IndexerAction<CustomOptions> | string;
 
+export interface IndexerParams<
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  indexer: IndexerArgument<CustomOptions>;
+  documents: Array<DocumentData>;
+  options?: z.infer<CustomOptions>;
+}
+
 /**
  * Indexes documents using a {@link IndexerArgument}.
  */
-export async function index<IndexerOptions extends z.ZodTypeAny>(params: {
-  indexer: IndexerArgument<IndexerOptions>;
-  documents: Array<DocumentData>;
-  options?: z.infer<IndexerOptions>;
-}): Promise<void> {
-  let indexer: IndexerAction<IndexerOptions>;
+export async function index<CustomOptions extends z.ZodTypeAny>(
+  params: IndexerParams<CustomOptions>
+): Promise<void> {
+  let indexer: IndexerAction<CustomOptions>;
   if (typeof params.indexer === 'string') {
     indexer = await lookupAction(`/indexer/${params.indexer}`);
   } else if (Object.hasOwnProperty.call(params.indexer, 'info')) {
     indexer = await lookupAction(`/indexer/${params.indexer.name}`);
   } else {
-    indexer = params.indexer as IndexerAction<IndexerOptions>;
+    indexer = params.indexer as IndexerAction<CustomOptions>;
   }
   if (!indexer) {
     throw new Error('Unable to utilize the provided indexer');

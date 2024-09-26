@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-import { genkit, Genkit, run } from '@genkit-ai/core';
 import {
   __forceFlushSpansForTesting,
   __getSpanExporterForTesting,
   googleCloud,
 } from '@genkit-ai/google-cloud';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
-import { z } from 'genkit';
+import { Genkit, genkit, run, z } from 'genkit';
 import assert from 'node:assert';
 import { after, before, beforeEach, describe, it } from 'node:test';
 

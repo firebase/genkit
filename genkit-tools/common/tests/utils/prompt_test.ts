@@ -32,7 +32,10 @@ describe('fromMessages', () => {
       { role: 'user', content: [{ text: 'Who are you?' }] },
       {
         role: 'model',
-        content: [{ text: 'I am Oz -- the Great and Powerful.' }],
+        content: [
+          { text: 'I am Oz -- the Great and Powerful.' },
+          { media: { url: 'https://example.com/image.jpg' } },
+        ],
       },
     ];
     const expected =
@@ -48,7 +51,8 @@ describe('fromMessages', () => {
       'Who are you?\n' +
       '\n' +
       '{{role "model"}}\n' +
-      'I am Oz -- the Great and Powerful.\n' +
+      'I am Oz -- the Great and Powerful.,' +
+      '{{media url:https://example.com/image.jpg}}\n' +
       '\n';
     expect(fromMessages(frontmatter, messages)).toStrictEqual(expected);
   });

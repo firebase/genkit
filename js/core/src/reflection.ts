@@ -270,11 +270,11 @@ export class ReflectionServer {
         if (index > -1) {
           ReflectionServer.RUNNING_SERVERS.splice(index, 1);
         }
-        this.port = null;
-        this.server = null;
         logger.info(
           `Reflection server on port ${this.port} has successfully shut down.`
         );
+        this.port = null;
+        this.server = null;
         resolve();
       });
     });

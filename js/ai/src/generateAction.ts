@@ -22,19 +22,10 @@ import {
   z,
 } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
-import {
-  parseSchema,
-  toJsonSchema,
-  validateSchema,
-} from '@genkit-ai/core/schema';
+import { toJsonSchema, validateSchema } from '@genkit-ai/core/schema';
 import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
 import { DocumentDataSchema } from './document.js';
-import {
-  Candidate,
-  GenerateResponse,
-  GenerateResponseChunk,
-  NoValidCandidatesError,
-} from './generate.js';
+import { GenerateResponse, GenerateResponseChunk } from './generate.js';
 import {
   CandidateData,
   GenerateRequest,
@@ -63,8 +54,6 @@ export const GenerateUtilParamSchema = z.object({
   history: z.array(MessageSchema).optional(),
   /** List of registered tool names for this generation if supported by the underlying model. */
   tools: z.array(z.union([z.string(), ToolDefinitionSchema])).optional(),
-  /** Number of candidate messages to generate. */
-  candidates: z.number().optional(),
   /** Configuration for the generation request. */
   config: z.any().optional(),
   /** Configuration for the desired output of the request. Defaults to the model's default output if unspecified. */
@@ -108,23 +97,25 @@ export async function generateHelper(
 }
 
 async function generate(
-  input: z.infer<typeof GenerateUtilParamSchema>,
+  rawRequest: z.infer<typeof GenerateUtilParamSchema>,
   middleware?: Middleware[]
 ): Promise<GenerateResponseData> {
-  const model = (await lookupAction(`/model/${input.model}`)) as ModelAction;
+  const model = (await lookupAction(
+    `/model/${rawRequest.model}`
+  )) as ModelAction;
   if (!model) {
-    throw new Error(`Model ${input.model} not found`);
+    throw new Error(`Model ${rawRequest.model} not found`);
   }
 
   let tools: ToolAction[] | undefined;
-  if (input.tools?.length) {
+  if (rawRequest.tools?.length) {
     if (!model.__action.metadata?.model.supports?.tools) {
       throw new Error(
-        `Model ${input.model} does not support tools, but some tools were supplied to generate(). Please call generate() without tools if you would like to use this model.`
+        `Model ${rawRequest.model} does not support tools, but some tools were supplied to generate(). Please call generate() without tools if you would like to use this model.`
       );
     }
     tools = await Promise.all(
-      input.tools.map(async (toolRef) => {
+      rawRequest.tools.map(async (toolRef) => {
         if (typeof toolRef === 'string') {
           const tool = (await lookupAction(toolRef)) as ToolAction;
           if (!tool) {
@@ -137,7 +128,7 @@ async function generate(
     );
   }
 
-  const request = await actionToGenerateRequest(input, tools);
+  const request = await actionToGenerateRequest(rawRequest, tools);
 
   const accumulatedChunks: GenerateResponseChunkData[] = [];
 
@@ -174,65 +165,12 @@ async function generate(
     }
   );
 
-  // throw NoValidCandidates if all candidates are blocked or
-  if (
-    !response.candidates.some((c) =>
-      ['stop', 'length'].includes(c.finishReason)
-    )
-  ) {
-    throw new NoValidCandidatesError({
-      message: `All candidates returned finishReason issues: ${JSON.stringify(response.candidates.map((c) => c.finishReason))}`,
-      response,
-    });
-  }
+  // Throw an error if the response is not usable.
+  response.assertValid(request);
+  const message = response.message!; // would have thrown if no message
 
-  if (input.output?.jsonSchema && !response.toolRequests()?.length) {
-    // find a candidate with valid output schema
-    const candidateErrors = response.candidates.map((c) => {
-      // don't validate messages that have no text or data
-      if (c.text() === '' && c.data() === null) return null;
-
-      try {
-        parseSchema(c.output(), {
-          jsonSchema: input.output?.jsonSchema,
-        });
-        return null;
-      } catch (e) {
-        return e as Error;
-      }
-    });
-    // if all candidates have a non-null error...
-    if (candidateErrors.every((c) => !!c)) {
-      throw new NoValidCandidatesError({
-        message: `Generation resulted in no candidates matching provided output schema.${candidateErrors.map((e, i) => `\n\nCandidate[${i}] ${e!.toString()}`)}`,
-        response,
-        detail: {
-          candidateErrors: candidateErrors,
-        },
-      });
-    }
-  }
-
-  // Pick the first valid candidate.
-  let selected: Candidate<any> | undefined;
-  for (const candidate of response.candidates) {
-    if (isValidCandidate(candidate, tools || [])) {
-      selected = candidate;
-      break;
-    }
-  }
-
-  if (!selected) {
-    throw new NoValidCandidatesError({
-      message: 'No valid candidates found',
-      response,
-    });
-  }
-
-  const toolCalls = selected.message.content.filter(
-    (part) => !!part.toolRequest
-  );
-  if (input.returnToolRequests || toolCalls.length === 0) {
+  const toolCalls = message.content.filter((part) => !!part.toolRequest);
+  if (rawRequest.returnToolRequests || toolCalls.length === 0) {
     return response.toJSON();
   }
   const toolResponses: ToolResponsePart[] = await Promise.all(
@@ -258,8 +196,8 @@ async function generate(
     })
   );
   const nextRequest = {
-    ...input,
-    history: [...request.messages, selected.message],
+    ...rawRequest,
+    history: [...request.messages, message],
     prompt: toolResponses,
   };
   return await generateHelper(nextRequest, middleware);
@@ -283,7 +221,6 @@ async function actionToGenerateRequest(
 
   const out = {
     messages,
-    candidates: options.candidates,
     config: options.config,
     context: options.context,
     tools: resolvedTools?.map((tool) => toToolDefinition(tool)) || [],

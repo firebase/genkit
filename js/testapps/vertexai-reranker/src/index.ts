@@ -16,7 +16,7 @@
 
 //  Sample app for using the proposed Vertex AI plugin retriever and indexer with a local file (just as a demo).
 
-import { Document, genkit, rerank, z } from 'genkit';
+import { Document, genkit, z } from 'genkit';
 // important imports for this sample:
 import { vertexAI } from '@genkit-ai/vertexai';
 import { LOCATION, PROJECT_ID } from './config';
@@ -76,7 +76,7 @@ export const rerankFlow = ai.defineFlow(
     );
     const reranker = 'vertexai/reranker';
 
-    const rerankedDocuments = await rerank({
+    const rerankedDocuments = await ai.rerank({
       reranker,
       query: Document.fromText(query),
       documents,

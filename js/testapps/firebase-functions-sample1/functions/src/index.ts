@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { generate } from '@genkit-ai/ai';
 import { genkit, run } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import { firebaseAuth } from '@genkit-ai/firebase/auth';
@@ -50,7 +49,7 @@ export const jokeFlow = onFlow(
     const prompt = `Tell me a joke about ${subject}`;
 
     return await run('call-llm', async () => {
-      const llmResponse = await generate({
+      const llmResponse = await ai.generate({
         model: geminiPro,
         prompt: prompt,
       });

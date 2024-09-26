@@ -20,6 +20,9 @@ import { toJsonSchema } from '@genkit-ai/core/schema';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import { ToolDefinition } from './model.js';
 
+/**
+ * An action with a `tool` type.
+ */
 export type ToolAction<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
@@ -31,11 +34,37 @@ export type ToolAction<
   };
 };
 
+/**
+ * Configuration for a tool.
+ */
+export interface ToolConfig<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
+  /** Unique name of the tool to use as a key in the registry. */
+  name: string;
+  /** Description of the tool. This is passed to the model to help understand what the tool is used for. */
+  description: string;
+  /** Input Zod schema. Mutually exclusive with `inputJsonSchema`. */
+  inputSchema?: I;
+  /** Input JSON schema. Mutually exclusive with `inputSchema`. */
+  inputJsonSchema?: JSONSchema7;
+  /** Output Zod schema. Mutually exclusive with `outputJsonSchema`. */
+  outputSchema?: O;
+  /** Output JSON schema. Mutually exclusive with `outputSchema`. */
+  outputJsonSchema?: JSONSchema7;
+  /** Metadata to be passed to the tool. */
+  metadata?: Record<string, any>;
+}
+
+/**
+ * A reference to a tool in the form of a name, definition, or the action itself.
+ */
 export type ToolArgument<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
 > = string | ToolAction<I, O> | Action<I, O> | ToolDefinition;
 
+/**
+ * Converts an action to a tool action by setting the appropriate metadata.
+ */
 export function asTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   action: Action<I, O>
 ): ToolAction<I, O> {
@@ -54,6 +83,9 @@ export function asTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
   return fn;
 }
 
+/**
+ * Resolves a mix of various formats of tool references to a list of tool actions by looking them up in the registry.
+ */
 export async function resolveTools<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
@@ -79,6 +111,9 @@ export async function resolveTools<
   );
 }
 
+/**
+ * Converts a tool action to a definition of the tool to be passed to a model.
+ */
 export function toToolDefinition(
   tool: Action<z.ZodTypeAny, z.ZodTypeAny>
 ): ToolDefinition {
@@ -96,36 +131,20 @@ export function toToolDefinition(
   };
 }
 
+/**
+ * Defines a tool.
+ *
+ * A tool is an action that can be passed to a model to be called automatically if it so chooses.
+ */
 export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
-  {
-    name,
-    description,
-    inputSchema,
-    inputJsonSchema,
-    outputSchema,
-    outputJsonSchema,
-    metadata,
-  }: {
-    name: string;
-    description: string;
-    inputSchema?: I;
-    inputJsonSchema?: JSONSchema7;
-    outputSchema?: O;
-    outputJsonSchema?: JSONSchema7;
-    metadata?: Record<string, any>;
-  },
+  config: ToolConfig<I, O>,
   fn: (input: z.infer<I>) => Promise<z.infer<O>>
 ): ToolAction<I, O> {
   const a = defineAction(
     {
+      ...config,
       actionType: 'tool',
-      name,
-      description,
-      inputSchema,
-      inputJsonSchema,
-      outputSchema,
-      outputJsonSchema,
-      metadata: { ...(metadata || {}), type: 'tool' },
+      metadata: { ...(config.metadata || {}), type: 'tool' },
     },
     (i) => fn(i)
   );

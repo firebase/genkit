@@ -21,9 +21,8 @@ import { FieldValue } from '@google-cloud/firestore';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { readFile } from 'fs/promises';
-import { embed, generate, run, z } from 'genkit';
+import { run, z } from 'genkit';
 import { runWithRegistry } from 'genkit/registry';
-import { retrieve } from 'genkit/retriever';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import pdf from 'pdf-parse';
@@ -79,7 +78,7 @@ export const pdfQAFirebase = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (query) => {
-    const docs = await retrieve({
+    const docs = await ai.retrieve({
       retriever: pdfChatRetrieverFirebase,
       query,
       options: { limit: 3 },
@@ -90,7 +89,7 @@ export const pdfQAFirebase = ai.defineFlow(
       question: query,
       context: docs.map((d) => d.text()).join('\n\n'),
     });
-    const llmResponse = await generate({
+    const llmResponse = await ai.generate({
       model: geminiPro,
       prompt: augmentedPrompt,
     });
@@ -138,7 +137,7 @@ export const indexPdfFirebase = ai.defineFlow(
 
 async function indexToFirestore(data: string[]) {
   for (const text of data) {
-    const embedding = await embed({
+    const embedding = await ai.embed({
       embedder: indexConfig.embedder,
       content: text,
     });

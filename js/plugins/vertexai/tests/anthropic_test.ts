@@ -173,28 +173,23 @@ describe('fromAnthropicResponse', () => {
         ],
       },
       expectedOutput: {
-        candidates: [
-          {
-            custom: {
-              id: 'abcd1234',
-              model: MODEL_ID,
-              type: 'message',
+        custom: {
+          id: 'abcd1234',
+          model: MODEL_ID,
+          type: 'message',
+        },
+        finishReason: 'stop',
+        message: {
+          role: 'model',
+          content: [
+            {
+              text: 'part 1',
             },
-            finishReason: 'stop',
-            index: 0,
-            message: {
-              role: 'model',
-              content: [
-                {
-                  text: 'part 1',
-                },
-                {
-                  text: 'part 2',
-                },
-              ],
+            {
+              text: 'part 2',
             },
-          },
-        ],
+          ],
+        },
         usage: {
           inputAudioFiles: 0,
           inputCharacters: 23,
@@ -265,39 +260,33 @@ describe('fromAnthropicResponse', () => {
         ],
       },
       expectedOutput: {
-        candidates: [
-          {
-            custom: {
-              id: 'abcd1234',
-              model: MODEL_ID,
-              type: 'message',
-            },
-            finishReason: 'stop',
-            index: 0,
-            message: {
-              role: 'model',
-              content: [
-                {
-                  toolRequest: {
-                    name: 'get_weather',
-                    ref: 'toolu_get_weather',
-                    input: {
-                      type: 'object',
-                      properties: {
-                        location: {
-                          type: 'string',
-                          description:
-                            'The city and state, e.g. San Francisco, CA',
-                        },
-                      },
-                      required: ['location'],
+        custom: {
+          id: 'abcd1234',
+          model: MODEL_ID,
+          type: 'message',
+        },
+        finishReason: 'stop',
+        message: {
+          role: 'model',
+          content: [
+            {
+              toolRequest: {
+                name: 'get_weather',
+                ref: 'toolu_get_weather',
+                input: {
+                  type: 'object',
+                  properties: {
+                    location: {
+                      type: 'string',
+                      description: 'The city and state, e.g. San Francisco, CA',
                     },
                   },
+                  required: ['location'],
                 },
-              ],
+              },
             },
-          },
-        ],
+          ],
+        },
         usage: {
           inputAudioFiles: 0,
           inputCharacters: 30,
