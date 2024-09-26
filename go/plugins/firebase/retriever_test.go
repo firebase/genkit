@@ -52,6 +52,7 @@ func TestFirestoreRetriever(t *testing.T) {
 
 	// Get the embedder
 	testEmbedder := vertexai.Embedder("textembedding-gecko@003")
+
 	if testEmbedder == nil {
 		t.Fatal("embedder is nil")
 	}
@@ -75,7 +76,7 @@ func TestFirestoreRetriever(t *testing.T) {
 	defer client.Close()
 
 	// Set up test data in Firestore
-	if err := setupTestCollection(ctx, client, *testCollection, *testVectorField); err != nil {
+	if err := setupTestCollection(ctx, client, *testCollection, *testVectorField, testEmbedder); err != nil {
 		t.Fatalf("failed to set up test collection: %v", err)
 	}
 
@@ -131,7 +132,7 @@ func TestFirestoreRetriever(t *testing.T) {
 }
 
 // setupTestCollection initializes a Firestore collection with sample documents.
-func setupTestCollection(ctx context.Context, client *firestore.Client, collection string, vectorField string) error {
+func setupTestCollection(ctx context.Context, client *firestore.Client, collection string, vectorField string, embedder ai.Embedder) error {
 	// Delete existing documents in the collection
 	iter := client.Collection(collection).Documents(ctx)
 	docs, err := iter.GetAll()
@@ -147,16 +148,29 @@ func setupTestCollection(ctx context.Context, client *firestore.Client, collecti
 	// Add 10 sample documents with embeddings and text content
 	for i := 0; i < 10; i++ {
 		docID := fmt.Sprintf("doc-%d", i)
+		text := fmt.Sprintf("This is test document number %d", i)
+
+		doc := ai.DocumentFromText("Test document", map[string]any{"metadata": "test"}) // Create a document from text
+
+		docs := []*ai.Document{doc}
+
+		// Generate embedding for the text
+		embedReq := &ai.EmbedRequest{
+			Documents: docs,
+		}
+		embedResp, err := embedder.Embed(ctx, embedReq)
+		if err != nil {
+			return fmt.Errorf("failed to generate embedding for document %s: %v", docID, err)
+		}
+
 		data := map[string]interface{}{
-			"text": fmt.Sprintf("This is test document number %d", i),
-			vectorField: []float64{
-				float64(i), float64(i) + 0.1, float64(i) + 0.2, // Example embedding values
-			},
+			"text":      text,
+			vectorField: embedResp.Embeddings[0].Embedding,
 			"metadata": map[string]interface{}{
 				"index": i,
 			},
 		}
-		_, err := client.Collection(collection).Doc(docID).Set(ctx, data)
+		_, err = client.Collection(collection).Doc(docID).Set(ctx, data)
 		if err != nil {
 			return fmt.Errorf("failed to create document %s: %v", docID, err)
 		}
