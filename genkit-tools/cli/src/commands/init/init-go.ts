@@ -69,12 +69,15 @@ const modelOptions: Record<ModelProvider, ModelOption> = {
   ollama: {
     label: 'Ollama (e.g. Gemma)',
     package: 'github.com/firebase/genkit/go/plugins/ollama',
-    init: `// Initialize the Ollama plugin.
-\terr := ollama.Init(ctx,
+    init: `// Ollama plugin configuration.
+\tconfig := ollama.Config{
 \t\t// The address of your Ollama API server. This is often a different host
 \t\t// from your app backend (which runs Genkit), in order to run Ollama on
 \t\t// a GPU-accelerated machine.
-\t\t"http://127.0.0.1:11434")
+\t\tServerAddress: "http://127.0.0.1:11434",
+\t}
+\t// Initialize the Ollama plugin.
+\terr := ollama.Init(ctx, &config)
 \tif err != nil {
 \t\tlog.Fatal(err)
 \t}
