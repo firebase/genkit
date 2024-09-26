@@ -14,46 +14,27 @@
  * limitations under the License.
  */
 
-import { genkitPlugin, Plugin } from 'genkit';
 import { credentialsFromEnvironment } from './auth.js';
 import { GcpLogger } from './gcpLogger.js';
 import { GcpOpenTelemetry } from './gcpOpenTelemetry.js';
 import { TelemetryConfigs } from './telemetry/defaults.js';
 import { GcpPluginConfig, GcpPluginOptions } from './types.js';
+import { enableTelemetry } from 'genkit/tracing';
+import { logger } from 'genkit/logging';
+import { getCurrentEnv } from 'genkit';
 
-/**
- * Provides a plugin for using Genkit with GCP.
- */
-export const googleCloud: Plugin<[GcpPluginOptions] | []> = genkitPlugin(
-  'googleCloud',
-  async (options?: GcpPluginOptions) => build(options)
-);
+export function enableGoogleCloudTelemetry(options?: GcpPluginOptions) {
+  const pluginConfig = configureGcpPlugin(options);
 
-/**
- * Configures and builds the plugin.
- * Not normally needed, but exposed for use by the firebase plugin.
- */
-export async function build(options?: GcpPluginOptions) {
-  const pluginConfig = await configureGcpPlugin(options);
-  return {
-    telemetry: {
-      instrumentation: {
-        id: 'googleCloud',
-        value: new GcpOpenTelemetry(pluginConfig),
-      },
-      logger: {
-        id: 'googleCloud',
-        value: new GcpLogger(pluginConfig),
-      },
-    },
-  };
+  enableTelemetry(new GcpOpenTelemetry(pluginConfig).getConfig())
+  logger.init(new GcpLogger(pluginConfig).getLogger(getCurrentEnv()))
 }
 
 /**
  * Create a configuration object for the plugin.
  * Not normally needed, but exposed for use by the firebase plugin.
  */
-export async function configureGcpPlugin(
+async function configureGcpPlugin(
   options?: GcpPluginOptions
 ): Promise<GcpPluginConfig> {
   const envOptions = await credentialsFromEnvironment();
@@ -64,7 +45,6 @@ export async function configureGcpPlugin(
   };
 }
 
-export default googleCloud;
 export * from './gcpLogger.js';
 export * from './gcpOpenTelemetry.js';
 export { GcpPluginOptions, GcpTelemetryConfigOptions } from './types.js';

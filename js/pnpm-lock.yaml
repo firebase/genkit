@@ -836,6 +836,24 @@ importers:
       '@genkit-ai/firebase':
         specifier: workspace:^
         version: link:../../plugins/firebase
+      '@opentelemetry/api':
+        specifier: ^1.9.0
+        version: 1.9.0
+      '@opentelemetry/context-async-hooks':
+        specifier: ^1.25.0
+        version: 1.25.1(@opentelemetry/api@1.9.0)
+      '@opentelemetry/core':
+        specifier: ^1.25.0
+        version: 1.25.1(@opentelemetry/api@1.9.0)
+      '@opentelemetry/sdk-metrics':
+        specifier: ^1.25.0
+        version: 1.25.1(@opentelemetry/api@1.9.0)
+      '@opentelemetry/sdk-node':
+        specifier: ^0.52.0
+        version: 0.52.1(@opentelemetry/api@1.9.0)
+      '@opentelemetry/sdk-trace-base':
+        specifier: ^1.25.0
+        version: 1.25.1(@opentelemetry/api@1.9.0)
       genkit:
         specifier: workspace:^
         version: link:../../genkit

@@ -34,10 +34,6 @@ const ai = genkit({
       serverAddress: 'http://127.0.0.1:11434', // default local address
     }),
   ],
-  flowStateStore: 'firebase',
-  traceStore: 'firebase',
-  enableTracingAndMetrics: true,
-  logLevel: 'debug',
 });
 
 export const jokeFlow = ai.defineFlow(

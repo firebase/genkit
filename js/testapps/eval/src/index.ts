@@ -39,10 +39,6 @@ const ai = genkit({
       embedder: textEmbeddingGecko,
     }),
   ],
-  flowStateStore: 'firebase',
-  traceStore: 'firebase',
-  enableTracingAndMetrics: true,
-  logLevel: 'debug',
 });
 
 // Run this flow to execute the evaluator on the test dataset.

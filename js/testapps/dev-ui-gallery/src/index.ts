@@ -55,12 +55,6 @@ export const PERMISSIVE_SAFETY_SETTINGS: any = {
 };
 
 export const ai = genkit({
-  // settings
-  enableTracingAndMetrics: true,
-  flowStateStore: 'firebase',
-  logLevel: 'debug',
-  traceStore: 'firebase',
-
   // load at least one plugin representing each action type
   plugins: [
     // runtime

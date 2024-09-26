@@ -65,10 +65,6 @@ export const ai = genkit({
       },
     ]),
   ],
-  enableTracingAndMetrics: true,
-  flowStateStore: 'firebase',
-  traceStore: 'firebase',
-  logLevel: 'debug',
 });
 
 export * from './pdf_rag.js';

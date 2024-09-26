@@ -29,10 +29,6 @@ export const ai = genkit({
       },
     ]),
   ],
-  enableTracingAndMetrics: true,
-  flowStateStore: 'firebase',
-  logLevel: 'debug',
-  traceStore: 'firebase',
 });
 
 const menus = ['./docs/GenkitGrubPub.pdf'];

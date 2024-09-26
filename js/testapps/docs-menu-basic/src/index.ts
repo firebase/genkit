@@ -21,8 +21,6 @@ import { generate, genkit, z } from 'genkit';
 
 const ai = genkit({
   plugins: [googleAI()],
-  logLevel: 'debug',
-  enableTracingAndMetrics: true,
   flowServer: true,
 });
 

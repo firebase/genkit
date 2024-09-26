@@ -62,7 +62,7 @@ let spanExporter: AdjustingTraceExporter;
  * Provides a {TelemetryConfig} for exporting OpenTelemetry data (Traces,
  * Metrics, and Logs) to the Google Cloud Operations Suite.
  */
-export class GcpOpenTelemetry implements TelemetryConfig {
+export class GcpOpenTelemetry {
   private readonly config: GcpPluginConfig;
   private readonly resource: Resource;
 
@@ -155,7 +155,6 @@ export class GcpOpenTelemetry implements TelemetryConfig {
   private buildMetricExporter(): PushMetricExporter {
     const exporter: PushMetricExporter = this.shouldExportMetrics()
       ? new MetricExporter({
-          projectId: this.config.projectId,
           userAgent: {
             product: 'genkit',
             version: GENKIT_VERSION,

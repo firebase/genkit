@@ -15,7 +15,6 @@
  */
 
 import { LoggingWinston } from '@google-cloud/logging-winston';
-import { LoggerConfig } from 'genkit';
 import { Writable } from 'stream';
 import { GcpPluginConfig } from './types';
 
@@ -25,10 +24,10 @@ import { GcpPluginConfig } from './types';
 let additionalStream: Writable;
 
 /**
- * Provides a {LoggerConfig} for exporting Genkit debug logs to GCP Cloud
+ * Provides a logger for exporting Genkit debug logs to GCP Cloud
  * logs.
  */
-export class GcpLogger implements LoggerConfig {
+export class GcpLogger {
   constructor(private readonly config: GcpPluginConfig) {}
 
   async getLogger(env: string) {

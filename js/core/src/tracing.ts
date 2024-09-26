@@ -15,41 +15,43 @@
  */
 
 import { NodeSDK } from '@opentelemetry/sdk-node';
-import { NodeSDKConfiguration } from '@opentelemetry/sdk-node/build/src/types';
 import {
   BatchSpanProcessor,
+  NoopSpanProcessor,
   SimpleSpanProcessor,
   SpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
 import { logger } from './logging.js';
 import { TelemetryConfig } from './telemetryTypes.js';
 import { TraceServerExporter } from './tracing/exporter.js';
-import { MultiSpanProcessor } from './tracing/multiSpanProcessor.js';
-import { getCurrentEnv } from './utils.js';
+import { isDevEnv } from './utils.js';
 
 export * from './tracing/exporter.js';
 export * from './tracing/instrumentation.js';
 export * from './tracing/processor.js';
 export * from './tracing/types.js';
 
-const processors: SpanProcessor[] = [];
 let telemetrySDK: NodeSDK | null = null;
-let nodeOtelConfig: Partial<NodeSDKConfiguration> | null = null;
+let nodeOtelConfig: TelemetryConfig | null = null;
 
 /**
  * Enables tracing and metrics open telemetry configuration.
  */
-export function enableTracingAndMetrics(telemetryConfig: TelemetryConfig) {
-  if (process.env['GENKIT_TELEMETRY_SERVER']) {
-    addProcessor(
-      createTraceProcessor(process.env['GENKIT_TELEMETRY_SERVER'], 'batch')
-    );
+export function enableTelemetry(telemetryConfig: TelemetryConfig) {
+  nodeOtelConfig = telemetryConfig || {};
+
+  const processors: SpanProcessor[] = [createTelemetryServerProcessor()];
+  if (nodeOtelConfig.traceExporter) {
+    throw new Error('Please specify spanProcessors instead.')
   }
-
-  nodeOtelConfig = telemetryConfig.getConfig() || {};
-
-  addProcessor(nodeOtelConfig.spanProcessor);
-  nodeOtelConfig.spanProcessor = new MultiSpanProcessor(processors);
+  if (nodeOtelConfig.spanProcessors) {
+    processors.push(...nodeOtelConfig.spanProcessors);
+  }
+  if (nodeOtelConfig.spanProcessor) {
+    processors.push(nodeOtelConfig.spanProcessor);
+    delete nodeOtelConfig.spanProcessor;
+  }
+  nodeOtelConfig.spanProcessors = processors;
   telemetrySDK = new NodeSDK(nodeOtelConfig);
   telemetrySDK.start();
   process.on('SIGTERM', async () => await cleanUpTracing());
@@ -79,20 +81,16 @@ export async function cleanUpTracing(): Promise<void> {
 /**
  * Creates a new SpanProcessor for exporting data to the telemetry server.
  */
-function createTraceProcessor(
-  url: string,
-  processor: 'batch' | 'simple'
-): SpanProcessor {
+function createTelemetryServerProcessor(): SpanProcessor {
+  const url = process.env['GENKIT_TELEMETRY_SERVER'];
+  if (!url) {
+    return new NoopSpanProcessor();
+  }
   logger.debug(`Sending telemetry to ${url}`);
   const exporter = new TraceServerExporter(url);
-  return processor === 'simple' || getCurrentEnv() === 'dev'
+  return isDevEnv()
     ? new SimpleSpanProcessor(exporter)
     : new BatchSpanProcessor(exporter);
-}
-
-/** Adds the given {SpanProcessor} to the list of processors */
-function addProcessor(processor: SpanProcessor | undefined) {
-  if (processor) processors.push(processor);
 }
 
 /** Flush metrics if present. */
@@ -107,5 +105,7 @@ function maybeFlushMetrics(): Promise<void> {
  * Flushes all configured span processors
  */
 export async function flushTracing() {
-  await Promise.all(processors.map((p) => p.forceFlush()));
+  if (nodeOtelConfig?.spanProcessors) {
+    await Promise.all(nodeOtelConfig.spanProcessors.map((p) => p.forceFlush()));
+  }
 }
