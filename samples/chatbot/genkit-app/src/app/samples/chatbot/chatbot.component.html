@@ -23,6 +23,10 @@
   } @else {
     <h2>Chat with {{ llmNames[llmIndex] }}</h2>
 
+    <div class="image-container">
+      <img [src]="imageUrl" alt="Input image" class="input-image">
+    </div>
+
     <div *ngFor="let entry of history; let i = index">
       <div *ngIf="entry.role === 'user'" class="user-bubble">
         {{ entry.text }}

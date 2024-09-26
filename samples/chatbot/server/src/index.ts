@@ -25,6 +25,7 @@ import {
   VertexAIEvaluationMetricType,
   gemini15Flash,
   llama3,
+  llama31,
   vertexAI,
 } from '@genkit-ai/vertexai';
 import { inMemoryStore } from './memory.js';
@@ -37,13 +38,14 @@ export const AgentInput = z.object({
   prompt: z.union([z.string(), PartSchema, z.array(PartSchema)]),
   config: z.record(z.string(), z.any()).optional(),
   llmIndex: z.number(),
+  imageUrl: z.string().optional(),
 });
 
 configureGenkit({
   plugins: [
     vertexAI({
       location: 'us-central1',
-      modelGardenModels: [llama3],
+      modelGardenModels: [llama3, llama31],
       evaluation: {
         metrics: [
           VertexAIEvaluationMetricType.SAFETY,
@@ -56,7 +58,7 @@ configureGenkit({
   enableTracingAndMetrics: true,
 });
 
-const llms: ModelReference<any>[] = [gemini15Flash, llama3];
+const llms: ModelReference<any>[] = [gemini15Flash, llama3, llama31];
 
 const historyStore = inMemoryStore();
 
@@ -78,8 +80,25 @@ export const chatbotFlow = defineFlow(
     );
 
     // Run the user prompt (with history) through the primary LLM.
+    // Prepare the prompt with the image if provided
+    let promptWithImage;
+    if (typeof request.prompt === 'string') {
+      promptWithImage = request.imageUrl
+        ? [
+            { text: request.prompt },
+            { media: { url: request.imageUrl, contentType: 'image/jpeg' } },
+          ]
+        : request.prompt;
+    } else {
+      promptWithImage = request.imageUrl
+        ? [...(Array.isArray(request.prompt) ? request.prompt : [request.prompt]),
+            { media: { url: request.imageUrl, contentType: 'image/jpeg' } }]
+        : request.prompt;
+    }
+
+    // Run the user prompt (with history and image if provided) through the primary LLM. 
     const mainResp = await generate({
-      prompt: request.prompt,
+      prompt: promptWithImage,
       history: history,
       model: llms[request.llmIndex],
       streamingCallback,

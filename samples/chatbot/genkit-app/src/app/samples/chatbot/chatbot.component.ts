@@ -85,6 +85,7 @@ export class ChatbotComponent {
   loading = false;
   id = Date.now() + '' + Math.floor(Math.random() * 1000000000);
   llmIndex: number | undefined;
+  imageUrl = 'gs://...' // Replace with your gs URL
 
   llmNames = ['Gemini 1.5 Flash', 'Llama 3.1 405b'];
 
@@ -111,6 +112,7 @@ export class ChatbotComponent {
         url,
         payload: {
           prompt: input,
+          imageUrl: this.imageUrl,
           conversationId: this.id,
           llmIndex: this.llmIndex,
         },

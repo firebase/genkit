@@ -53,3 +53,15 @@
   vertical-align: top;
   width: 730px;
 }
+
+.image-container {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.input-image {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
