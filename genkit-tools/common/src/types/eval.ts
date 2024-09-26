@@ -164,7 +164,6 @@ export const DatasetMetadataSchema = z.object({
   size: z.number(),
   /** 1 for v1, 2 for v2, etc */
   version: z.number(),
-  targetAction: z.string().optional(),
   createTime: z.string(),
   updateTime: z.string(),
 });

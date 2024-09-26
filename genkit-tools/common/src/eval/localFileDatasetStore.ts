@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import crypto, { randomUUID } from 'crypto';
+import crypto from 'crypto';
 import fs from 'fs';
 import { readFile, rm, writeFile } from 'fs/promises';
 import path from 'path';
@@ -27,6 +27,7 @@ import {
   DatasetStore,
   EvalFlowInput,
 } from '../types/eval';
+import { generateTestCaseId } from '../utils';
 import { logger } from '../utils/logger';
 
 /**
@@ -65,17 +66,12 @@ export class LocalFileDatasetStore implements DatasetStore {
   }
 
   async createDataset(req: CreateDatasetRequest): Promise<DatasetMetadata> {
-    return this.createDatasetInternal(
-      req.data,
-      req.datasetId,
-      req.targetAction
-    );
+    return this.createDatasetInternal(req.data, req.datasetId);
   }
 
   private async createDatasetInternal(
     data: EvalFlowInput,
-    datasetId?: string,
-    targetAction?: string
+    datasetId?: string
   ): Promise<DatasetMetadata> {
     const id = await this.generateDatasetId(datasetId);
     const filePath = path.resolve(this.storeRoot, this.generateFileName(id));
@@ -95,7 +91,6 @@ export class LocalFileDatasetStore implements DatasetStore {
       datasetId: id,
       size: dataset.length,
       version: 1,
-      targetAction,
       createTime: now,
       updateTime: now,
     };
@@ -138,7 +133,6 @@ export class LocalFileDatasetStore implements DatasetStore {
       datasetId: datasetId,
       size: newSize,
       version: prevMetadata.version + 1,
-      targetAction: req.targetAction ?? prevMetadata.targetAction,
       createTime: prevMetadata.createTime,
       updateTime: now,
     };
@@ -162,9 +156,9 @@ export class LocalFileDatasetStore implements DatasetStore {
     if (!fs.existsSync(filePath)) {
       throw new Error(`Dataset not found for dataset ID {$id}`);
     }
-    return await readFile(filePath, 'utf8').then((data) =>
-      DatasetSchema.parse(JSON.parse(data))
-    );
+    return await readFile(filePath, 'utf8').then((data) => {
+      return DatasetSchema.parse(JSON.parse(data));
+    });
   }
 
   async listDatasets(): Promise<DatasetMetadata[]> {
@@ -248,12 +242,12 @@ export class LocalFileDatasetStore implements DatasetStore {
   private getDatasetFromEvalFlowInput(data: EvalFlowInput): Dataset {
     if (Array.isArray(data)) {
       return data.map((d) => ({
-        testCaseId: d.testCaseId ?? randomUUID(),
+        testCaseId: d.testCaseId ?? generateTestCaseId(),
         input: d,
       }));
     } else if (!!data.samples) {
       return data.samples.map((d) => ({
-        testCaseId: d.testCaseId ?? randomUUID(),
+        testCaseId: d.testCaseId ?? generateTestCaseId(),
         ...d,
       }));
     }
@@ -273,7 +267,7 @@ export class LocalFileDatasetStore implements DatasetStore {
       datasetMap.set(key, value);
     });
 
-    const newDataset = Object.values(patchMap) as Dataset;
+    const newDataset = Array.from(datasetMap.values()) as Dataset;
     await writeFile(filePath, JSON.stringify(newDataset));
     return newDataset.length;
   }

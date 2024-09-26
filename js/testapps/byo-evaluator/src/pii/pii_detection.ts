@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
+import { ModelArgument, loadPromptFile, z } from 'genkit';
 import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
-import { loadPromptFile, ModelArgument, z } from 'genkit';
 import path from 'path';
 import { ai } from '../index.js';
 

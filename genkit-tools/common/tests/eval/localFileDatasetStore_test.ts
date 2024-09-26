@@ -29,36 +29,44 @@ import {
   CreateDatasetRequestSchema,
   UpdateDatasetRequestSchema,
 } from '../../src/types/apis';
-import { DatasetStore } from '../../src/types/eval';
+import { Dataset, DatasetStore } from '../../src/types/eval';
 
 const FAKE_TIME = new Date('2024-02-03T12:05:33.243Z');
 
-const SAMPLE_DATASET_1_V1 = {
-  samples: [
-    {
-      input: 'Cats are evil',
-      reference: 'Sorry no reference',
-    },
-    {
-      input: 'Dogs are beautiful',
-    },
-  ],
-};
+const SAMPLE_DATASET_1_V1 = [
+  {
+    input: 'Cats are evil',
+    reference: 'Sorry no reference',
+  },
+  {
+    input: 'Dogs are beautiful',
+  },
+];
 
-const SAMPLE_DATASET_1_V2 = {
-  samples: [
-    {
-      input: 'Cats are evil',
-      reference: 'Sorry no reference',
-    },
-    {
-      input: 'Dogs are angels',
-    },
-    {
-      input: 'Dogs are also super cute',
-    },
-  ],
-};
+const SAMPLE_DATASET_1_WITH_IDS = [
+  {
+    testCaseId: '1',
+    input: 'Cats are evil',
+    reference: 'Sorry no reference',
+  },
+  {
+    testCaseId: '2',
+    input: 'Dogs are beautiful',
+  },
+];
+
+const SAMPLE_DATASET_1_V2 = [
+  {
+    input: 'Cats are evil',
+    reference: 'Sorry no reference',
+  },
+  {
+    input: 'Dogs are angels',
+  },
+  {
+    input: 'Dogs are also super cute',
+  },
+];
 
 const SAMPLE_DATASET_ID_1 = 'dataset-1-123456';
 
@@ -73,19 +81,17 @@ const SAMPLE_DATASET_METADATA_1_V2 = {
   datasetId: SAMPLE_DATASET_ID_1,
   size: 3,
   version: 2,
-  targetAction: '/flow/myFlow',
   createTime: FAKE_TIME.toString(),
   updateTime: FAKE_TIME.toString(),
 };
 
 const CREATE_DATASET_REQUEST = CreateDatasetRequestSchema.parse({
-  data: SAMPLE_DATASET_1_V1,
+  data: { samples: SAMPLE_DATASET_1_V1 },
 });
 
 const UPDATE_DATASET_REQUEST = UpdateDatasetRequestSchema.parse({
-  data: SAMPLE_DATASET_1_V2,
+  data: { samples: SAMPLE_DATASET_1_V2 },
   datasetId: SAMPLE_DATASET_ID_1,
-  targetAction: '/flow/myFlow',
 });
 
 const SAMPLE_DATASET_ID_2 = 'dataset-2-123456';
@@ -108,6 +114,11 @@ jest.mock('crypto', () => {
 
 jest.mock('uuid');
 const uuidSpy = jest.spyOn(uuid, 'v4');
+const TEST_CASE_ID = 'test-case-1234-1234-1234';
+jest.mock('../../src/utils', () => ({
+  generateTestCaseId: jest.fn(() => TEST_CASE_ID),
+}));
+// const generateTestCaseIdSpy = jest.spyOn(utils, 'generateTestCaseId');
 
 jest.useFakeTimers({ advanceTimers: true });
 jest.setSystemTime(FAKE_TIME);
@@ -119,6 +130,7 @@ describe('localFileDatasetStore', () => {
     // For storeRoot setup
     fs.existsSync = jest.fn(() => true);
     uuidSpy.mockReturnValueOnce('12345678');
+    // generateTestCaseIdSpy.mockReturnValueOnce('test-case-1234-1234-1234');
     LocalFileDatasetStore.reset();
     DatasetStore = LocalFileDatasetStore.getDatasetStore() as DatasetStore;
   });
@@ -136,6 +148,10 @@ describe('localFileDatasetStore', () => {
         Promise.resolve(JSON.stringify({}) as any)
       );
       fs.existsSync = jest.fn(() => false);
+      const dataset: Dataset = SAMPLE_DATASET_1_V1.map((s) => ({
+        testCaseId: TEST_CASE_ID,
+        ...s,
+      }));
 
       const datasetMetadata = await DatasetStore.createDataset({
         ...CREATE_DATASET_REQUEST,
@@ -146,7 +162,7 @@ describe('localFileDatasetStore', () => {
       expect(fs.promises.writeFile).toHaveBeenNthCalledWith(
         1,
         expect.stringContaining(`datasets/${SAMPLE_DATASET_ID_1}.json`),
-        JSON.stringify(CREATE_DATASET_REQUEST.data)
+        JSON.stringify(dataset)
       );
       const metadataMap = {
         [SAMPLE_DATASET_ID_1]: SAMPLE_DATASET_METADATA_1_V1,
@@ -195,21 +211,41 @@ describe('localFileDatasetStore', () => {
         [SAMPLE_DATASET_ID_2]: SAMPLE_DATASET_METADATA_2,
       };
       // For index file reads
-      fs.promises.readFile = jest.fn(async () =>
-        Promise.resolve(JSON.stringify(metadataMap) as any)
-      );
+
       fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
       fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
+      const dataset: Dataset = [...SAMPLE_DATASET_1_WITH_IDS];
+      fs.promises.readFile = jest
+        .fn()
+        .mockImplementationOnce(async () =>
+          Promise.resolve(Buffer.from(JSON.stringify(metadataMap)))
+        )
+        .mockImplementationOnce(async () =>
+          Promise.resolve(Buffer.from(JSON.stringify(dataset) as any))
+        ) as any;
 
-      const datasetMetadata = await DatasetStore.updateDataset(
-        UPDATE_DATASET_REQUEST
-      );
+      const datasetMetadata = await DatasetStore.updateDataset({
+        data: {
+          samples: [
+            {
+              input: 'A new information on cat dog',
+            },
+          ],
+        },
+        datasetId: SAMPLE_DATASET_ID_1,
+      });
 
       expect(fs.promises.writeFile).toHaveBeenCalledTimes(2);
       expect(fs.promises.writeFile).toHaveBeenNthCalledWith(
         1,
         expect.stringContaining(`datasets/${SAMPLE_DATASET_ID_1}.json`),
-        JSON.stringify(SAMPLE_DATASET_1_V2)
+        JSON.stringify([
+          ...dataset,
+          {
+            testCaseId: TEST_CASE_ID,
+            input: 'A new information on cat dog',
+          },
+        ])
       );
       const updatedMetadataMap = {
         [SAMPLE_DATASET_ID_1]: SAMPLE_DATASET_METADATA_1_V2,
@@ -221,20 +257,6 @@ describe('localFileDatasetStore', () => {
         JSON.stringify(updatedMetadataMap)
       );
       expect(datasetMetadata).toMatchObject(SAMPLE_DATASET_METADATA_1_V2);
-    });
-
-    it('fails if data is not passed', async () => {
-      fs.existsSync = jest.fn(() => true);
-
-      expect(async () => {
-        await DatasetStore.updateDataset({
-          datasetId: SAMPLE_DATASET_ID_1,
-        });
-      }).rejects.toThrow(
-        new Error('Error: `data` is required for updateDataset')
-      );
-
-      expect(fs.promises.writeFile).toBeCalledTimes(0);
     });
 
     it('fails for non existing dataset', async () => {
@@ -278,14 +300,18 @@ describe('localFileDatasetStore', () => {
 
   describe('getDataset', () => {
     it('succeeds for existing dataset', async () => {
+      const dataset: Dataset = SAMPLE_DATASET_1_V1.map((s) => ({
+        ...s,
+        testCaseId: 'id-x',
+      }));
       fs.existsSync = jest.fn(() => true);
       fs.promises.readFile = jest.fn(async () =>
-        Promise.resolve(JSON.stringify(SAMPLE_DATASET_1_V1) as any)
+        Promise.resolve(JSON.stringify(dataset) as any)
       );
 
       const fetchedDataset = await DatasetStore.getDataset(SAMPLE_DATASET_ID_1);
 
-      expect(fetchedDataset).toMatchObject(SAMPLE_DATASET_1_V1);
+      expect(fetchedDataset).toMatchObject(dataset);
     });
 
     it('fails for non existing dataset', async () => {
