@@ -40,10 +40,10 @@ export const llama32 = modelRef({
       systemRole: true,
       output: ['text', 'json'],
     },
-    versions: ['meta/llama-3.2-11b-vision-instruct-maas'],
+    versions: ['meta/llama-3.2-90b-vision-instruct-maas'],
   },
   configSchema: ModelGardenModelConfigSchema,
-  version: 'meta/llama-3.2-11b-vision-instruct-maas',
+  version: 'meta/llama-3.2-90b-vision-instruct-maas',
 });
 
 export const llama31 = modelRef({
