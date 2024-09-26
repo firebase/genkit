@@ -105,7 +105,6 @@ export function modelGardenOpenaiCompatibleModel(
     baseUrlTemplate =
       'https://{location}-aiplatform.googleapis.com/v1beta1/projects/{projectId}/locations/{location}/endpoints/openapi';
   }
-  console.log(baseUrlTemplate);
   const clientFactory = async (
     request: GenerateRequest<typeof ModelGardenModelConfigSchema>
   ): Promise<OpenAI> => {
