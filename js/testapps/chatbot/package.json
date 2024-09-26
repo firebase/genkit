@@ -1,0 +1,23 @@
+{
+  "scripts": {
+    "start": "concurrently npm:start:server npm:start:ng",
+    "setup": "pnpm i && cd server && pnpm i && cd ../genkit-app && npm i",
+    "start:server": "cd server && genkit start",
+    "start:ng": "cd genkit-app && pnpm run start",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "name": "js-angular",
+  "version": "1.0.0",
+  "description": "This is a simple UI for streaming RPG character generator.",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "genkit": "^0.5.8",
+    "@angular/cli": "^18.0.2",
+    "concurrently": "^8.2.2",
+    "typescript": "^5.4.5"
+  }
+}

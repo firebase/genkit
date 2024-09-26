@@ -1,0 +1,29 @@
+{
+  "main": "lib/index.js",
+  "scripts": {
+    "start": "npx genkit start",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "name": "js-angular",
+  "version": "1.0.0",
+  "description": "This is a simple UI for streaming RPG character generator.",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@genkit-ai/ai": "workspace:*",
+    "@genkit-ai/core": "workspace:*",
+    "@genkit-ai/dotprompt": "workspace:*",
+    "@genkit-ai/flow": "workspace:*",
+    "@genkit-ai/vertexai": "workspace:*",
+    "express": "^4.19.2",
+    "partial-json": "^0.1.7",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "genkit": "^0.5.8",
+    "typescript": "^5.4.5"
+  }
+}
