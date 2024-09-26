@@ -361,6 +361,19 @@ func TestIsDefinedModel(t *testing.T) {
 	})
 }
 
+func TestLookupModel(t *testing.T) {
+	t.Run("should return model", func(t *testing.T) {
+		if LookupModel("test", "echo") == nil {
+			t.Errorf("LookupModel did not return model")
+		}
+	})
+	t.Run("should return nil", func(t *testing.T) {
+		if LookupModel("foo", "bar") != nil {
+			t.Errorf("LookupModel did not return nil")
+		}
+	})
+}
+
 func JSONMarkdown(text string) string {
 	return "```json\n" + text + "\n```"
 }

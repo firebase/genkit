@@ -48,9 +48,6 @@ export interface PromptMetadata<
   /** Names of tools (registered separately) to allow use of in this prompt. */
   tools?: ToolArgument[];
 
-  /** Number of candidates to generate by default. */
-  candidates?: number;
-
   /** Model configuration. Not all models support all options. */
   config?: z.infer<Options>;
 
@@ -89,7 +86,6 @@ export const PromptFrontmatterSchema = z.object({
   variant: z.string().optional(),
   model: z.string().optional(),
   tools: z.array(z.string()).optional(),
-  candidates: z.number().optional(),
   config: GenerationCommonConfigSchema.passthrough().optional(),
   input: z
     .object({
@@ -156,7 +152,6 @@ export function toMetadata(attributes: unknown): Partial<PromptMetadata> {
     output,
     metadata: fm.metadata,
     tools: fm.tools,
-    candidates: fm.candidates,
   });
 }
 
@@ -188,6 +183,5 @@ export function toFrontmatter(md: PromptMetadata): PromptFrontmatter {
     tools: md.tools?.map((t) =>
       typeof t === 'string' ? t : (t as any).__action?.name || (t as any).name
     ),
-    candidates: md.candidates,
   });
 }

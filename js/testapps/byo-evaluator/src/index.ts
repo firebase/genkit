@@ -45,7 +45,7 @@ import {
   regexMatcher,
 } from './regex/regex_evaluator.js';
 
-const ai = genkit({
+export const ai = genkit({
   plugins: [
     dotprompt(),
     firebase(),

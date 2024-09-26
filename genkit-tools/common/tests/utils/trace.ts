@@ -16,12 +16,15 @@
 
 import { SpanData, TraceData } from '../../src/types/trace';
 
+export const TRACE_ID = '7c273c22b219d077c6731a10d46b7d40';
+export const BASE_FLOW_SPAN_ID = '22b219d077c67';
+export const WRAPPER_ACTION_SPAN_ID = 'eec307f9311c5617';
+
 /** Helper class to manage traces in tests */
 export class MockTrace {
   private BASE_FLOW_SPAN: SpanData = {
-    spanId: '30506fdf0beccc15',
-    traceId: '7c273c22b219d077c6731a10d46b7d40',
-    parentSpanId: 'eec307f9311c5617',
+    spanId: BASE_FLOW_SPAN_ID,
+    traceId: TRACE_ID,
     startTime: 1714059149481,
     endTime: 1714059149484.9653,
     attributes: {
@@ -55,11 +58,10 @@ export class MockTrace {
       timeEvent: [],
     },
   };
-
   private WRAPPER_ACTION_SPAN: SpanData = {
-    spanId: 'eec307f9311c5617',
+    spanId: WRAPPER_ACTION_SPAN_ID,
     traceId: '7c273c22b219d077c6731a10d46b7d40',
-    parentSpanId: '98e7d0c2f5e90f4e',
+    parentSpanId: BASE_FLOW_SPAN_ID,
     startTime: 1714059149480,
     endTime: 1714059149485.578,
     attributes: {
@@ -93,7 +95,7 @@ export class MockTrace {
   private BASE_SPAN: SpanData = {
     spanId: 'dfe3b782071ea308',
     traceId: '7c273c22b219d077c6731a10d46b7d40',
-    parentSpanId: '30506fdf0beccc15',
+    parentSpanId: WRAPPER_ACTION_SPAN_ID,
     startTime: 1714059149481,
     endTime: 1714059149481.1533,
     attributes: {},
@@ -121,8 +123,8 @@ export class MockTrace {
     startTime: 1714059149480,
     endTime: 1714059149486.6926,
     spans: {
-      '98e7d0c2f5e90f4e': {
-        spanId: '98e7d0c2f5e90f4e',
+      '30506fdf0beccc15': {
+        spanId: '30506fdf0beccc15',
         traceId: '7c273c22b219d077c6731a10d46b7d40',
         startTime: 1714059149480,
         endTime: 1714059149486.6926,

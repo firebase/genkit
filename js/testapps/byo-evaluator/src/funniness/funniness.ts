@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-import { generate, loadPromptFile, ModelArgument, z } from 'genkit';
+import { loadPromptFile, ModelArgument, z } from 'genkit';
 import { BaseDataPoint, Score } from 'genkit/evaluator';
 import path from 'path';
+import { ai } from '../index.js';
 
 const FUNNINESS_VALUES = [
   'FUNNY_JOKE',
@@ -44,7 +45,7 @@ export async function funninessScore<CustomModelOptions extends z.ZodTypeAny>(
       path.resolve(__dirname, '../../prompts/funniness.prompt')
     );
 
-    const response = await generate({
+    const response = await ai.generate({
       model: judgeLlm,
       prompt: finalPrompt.renderText({
         output: d.output as string,

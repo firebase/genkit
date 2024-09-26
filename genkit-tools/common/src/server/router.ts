@@ -15,7 +15,7 @@
  */
 import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { getDatasetStore, getEvalStore } from '../eval';
+import { getDatasetStore, getEvalStore, runNewEvaluation } from '../eval';
 import { Runner } from '../runner/runner';
 import { GenkitToolsError } from '../runner/types';
 import { Action } from '../types/action';
@@ -229,6 +229,15 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
       .output(z.void())
       .mutation(async ({ input }) => {
         const response = await getDatasetStore().deleteDataset(input);
+        return response;
+      }),
+
+    /** Start new evaluation run */
+    runNewEvaluation: loggedProcedure
+      .input(apis.RunNewEvaluationRequestSchema)
+      .output(evals.EvalRunKeySchema)
+      .mutation(async ({ input }) => {
+        const response = await runNewEvaluation(runner, input);
         return response;
       }),
 

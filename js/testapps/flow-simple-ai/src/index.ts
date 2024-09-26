@@ -31,18 +31,7 @@ import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import {
-  MessageSchema,
-  defineTool,
-  dotprompt,
-  generate,
-  generateStream,
-  genkit,
-  prompt,
-  retrieve,
-  run,
-  z,
-} from 'genkit';
+import { MessageSchema, dotprompt, genkit, prompt, run, z } from 'genkit';
 import { runWithRegistry } from 'genkit/registry';
 import { Allow, parse } from 'partial-json';
 
@@ -87,7 +76,7 @@ export const jokeFlow = ai.defineFlow(
   },
   async (input) => {
     return await run('call-llm', async () => {
-      const llmResponse = await generate({
+      const llmResponse = await ai.generate({
         model: input.modelName,
         config: { version: input.modelVersion },
         prompt: `Tell a joke about ${input.subject}.`,
@@ -105,7 +94,7 @@ export const drawPictureFlow = ai.defineFlow(
   },
   async (input) => {
     return await run('call-llm', async () => {
-      const llmResponse = await generate({
+      const llmResponse = await ai.generate({
         model: input.modelName,
         prompt: `Draw a picture of a ${input.object}.`,
       });
@@ -124,7 +113,7 @@ export const streamFlow = ai.defineStreamingFlow(
     streamSchema: z.string(),
   },
   async (prompt, streamingCallback) => {
-    const { response, stream } = await generateStream({
+    const { response, stream } = await ai.generateStream({
       model: geminiPro,
       prompt,
     });
@@ -166,7 +155,7 @@ export const streamJsonFlow = ai.defineStreamingFlow(
       throw new Error('this flow only works in streaming mode');
     }
 
-    const { response, stream } = await generateStream({
+    const { response, stream } = await ai.generateStream({
       model: geminiPro,
       output: {
         schema: GameCharactersSchema,
@@ -196,19 +185,17 @@ function maybeStripMarkdown(withMarkdown: string) {
 }
 
 const tools = [
-  runWithRegistry(ai.registry, () =>
-    defineTool(
-      {
-        name: 'tellAFunnyJoke',
-        description:
-          'Tells jokes about an input topic. Use this tool whenever user asks you to tell a joke.',
-        inputSchema: z.object({ topic: z.string() }),
-        outputSchema: z.string(),
-      },
-      async (input) => {
-        return `Why did the ${input.topic} cross the road?`;
-      }
-    )
+  ai.defineTool(
+    {
+      name: 'tellAFunnyJoke',
+      description:
+        'Tells jokes about an input topic. Use this tool whenever user asks you to tell a joke.',
+      inputSchema: z.object({ topic: z.string() }),
+      outputSchema: z.string(),
+    },
+    async (input) => {
+      return `Why did the ${input.topic} cross the road?`;
+    }
   ),
 ];
 
@@ -222,7 +209,7 @@ export const jokeWithToolsFlow = ai.defineFlow(
     outputSchema: z.object({ model: z.string(), joke: z.string() }),
   },
   async (input) => {
-    const llmResponse = await generate({
+    const llmResponse = await ai.generate({
       model: input.modelName as string,
       tools,
       output: { schema: z.object({ joke: z.string() }) },
@@ -246,7 +233,7 @@ export const jokeWithOutputFlow = ai.defineFlow(
     outputSchema,
   },
   async (input) => {
-    const llmResponse = await generate({
+    const llmResponse = await ai.generate({
       model: input.modelName,
       output: {
         format: 'json',
@@ -266,7 +253,7 @@ export const vertexStreamer = ai.defineFlow(
   },
   async (input, streamingCallback) => {
     return await run('call-llm', async () => {
-      const llmResponse = await generate({
+      const llmResponse = await ai.generate({
         model: geminiPro,
         prompt: `Tell me a very long joke about ${input}.`,
         streamingCallback,
@@ -284,7 +271,7 @@ export const multimodalFlow = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (input) => {
-    const result = await generate({
+    const result = await ai.generate({
       model: input.modelName,
       prompt: [
         { text: 'describe the following image:' },
@@ -313,13 +300,13 @@ export const searchDestinations = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (input) => {
-    const docs = await retrieve({
+    const docs = await ai.retrieve({
       retriever: destinationsRetriever,
       query: input,
       options: { limit: 5 },
     });
 
-    const result = await generate({
+    const result = await ai.generate({
       model: geminiPro,
       prompt: `Give me a list of vacation options based on the provided context. Use only the options provided below, and describe how it fits with my query.
 
@@ -374,16 +361,14 @@ export const dotpromptContext = ai.defineFlow(
   }
 );
 
-const jokeSubjectGenerator = runWithRegistry(ai.registry, () =>
-  defineTool(
-    {
-      name: 'jokeSubjectGenerator',
-      description: 'can be called to generate a subject for a joke',
-    },
-    async () => {
-      return 'banana';
-    }
-  )
+const jokeSubjectGenerator = ai.defineTool(
+  {
+    name: 'jokeSubjectGenerator',
+    description: 'can be called to generate a subject for a joke',
+  },
+  async () => {
+    return 'banana';
+  }
 );
 
 export const toolCaller = ai.defineStreamingFlow(
@@ -397,7 +382,7 @@ export const toolCaller = ai.defineStreamingFlow(
       throw new Error('this flow only works in streaming mode');
     }
 
-    const { response, stream } = await generateStream({
+    const { response, stream } = await ai.generateStream({
       model: gemini15ProPreview,
       config: {
         temperature: 1,
@@ -423,7 +408,7 @@ export const invalidOutput = ai.defineFlow(
     }),
   },
   async () => {
-    const result = await generate({
+    const result = await ai.generate({
       model: gemini15Flash,
       output: {
         schema: z.object({
@@ -456,7 +441,7 @@ export const fileApi = ai.defineFlow(
     );
     console.log(uploadResult.file);
 
-    const result = await generate({
+    const result = await ai.generate({
       model: gemini15Flash,
       prompt: [
         { text: 'Describe this image:' },
@@ -475,22 +460,20 @@ export const fileApi = ai.defineFlow(
 
 export const testTools = [
   // test a tool with no input / output schema
-  runWithRegistry(ai.registry, () =>
-    defineTool(
-      { name: 'getColor', description: 'gets a random color' },
-      async () => {
-        const colors = [
-          'red',
-          'orange',
-          'yellow',
-          'blue',
-          'green',
-          'indigo',
-          'violet',
-        ];
-        return colors[Math.floor(Math.random() * colors.length)];
-      }
-    )
+  ai.defineTool(
+    { name: 'getColor', description: 'gets a random color' },
+    async () => {
+      const colors = [
+        'red',
+        'orange',
+        'yellow',
+        'blue',
+        'green',
+        'indigo',
+        'violet',
+      ];
+      return colors[Math.floor(Math.random() * colors.length)];
+    }
   ),
 ];
 
@@ -501,7 +484,7 @@ export const toolTester = ai.defineFlow(
     outputSchema: z.array(MessageSchema),
   },
   async (query) => {
-    const result = await generate({
+    const result = await ai.generate({
       model: gemini15Flash,
       prompt: query,
       tools: testTools,

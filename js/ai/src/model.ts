@@ -181,6 +181,7 @@ export const GenerationCommonConfigSchema = z.object({
   topP: z.number().optional(),
   stopSequences: z.array(z.string()).optional(),
 });
+export type GenerationCommonConfig = typeof GenerationCommonConfigSchema;
 
 const OutputConfigSchema = z.object({
   format: OutputFormatSchema.optional(),
@@ -188,12 +189,25 @@ const OutputConfigSchema = z.object({
 });
 export type OutputConfig = z.infer<typeof OutputConfigSchema>;
 
-export const GenerateRequestSchema = z.object({
+/** ModelRequestSchema represents the parameters that are passed to a model when generating content. */
+export const ModelRequestSchema = z.object({
   messages: z.array(MessageSchema),
   config: z.any().optional(),
   tools: z.array(ToolDefinitionSchema).optional(),
   output: OutputConfigSchema.optional(),
   context: z.array(DocumentDataSchema).optional(),
+});
+/** ModelRequest represents the parameters that are passed to a model when generating content. */
+export interface ModelRequest<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+> extends z.infer<typeof ModelRequestSchema> {
+  config?: z.infer<CustomOptionsSchema>;
+}
+
+export const GenerateRequestSchema = ModelRequestSchema.extend({
+  /** @deprecated Use `docs` instead. */
+  context: z.array(DocumentDataSchema).optional(),
+  /** @deprecated All responses now return a single candidate. This will always be `undefined`. */
   candidates: z.number().optional(),
 });
 export type GenerateRequestData = z.infer<typeof GenerateRequestSchema>;
@@ -220,6 +234,7 @@ export const GenerationUsageSchema = z.object({
 });
 export type GenerationUsage = z.infer<typeof GenerationUsageSchema>;
 
+/** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. */
 export const CandidateSchema = z.object({
   index: z.number(),
   message: MessageSchema,
@@ -228,31 +243,52 @@ export const CandidateSchema = z.object({
   finishMessage: z.string().optional(),
   custom: z.unknown(),
 });
+/** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. */
 export type CandidateData = z.infer<typeof CandidateSchema>;
 
+/** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. */
 export const CandidateErrorSchema = z.object({
   index: z.number(),
   code: z.enum(['blocked', 'other', 'unknown']),
   message: z.string().optional(),
 });
+/** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. */
 export type CandidateError = z.infer<typeof CandidateErrorSchema>;
 
-export const GenerateResponseSchema = z.object({
-  candidates: z.array(CandidateSchema),
+export const ModelResponseSchema = z.object({
+  message: MessageSchema.optional(),
+  finishReason: z.enum(['stop', 'length', 'blocked', 'other', 'unknown']),
+  finishMessage: z.string().optional(),
   latencyMs: z.number().optional(),
   usage: GenerationUsageSchema.optional(),
   custom: z.unknown(),
   request: GenerateRequestSchema.optional(),
 });
+export type ModelResponseData = z.infer<typeof ModelResponseSchema>;
+
+export const GenerateResponseSchema = ModelResponseSchema.extend({
+  /** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. Return `message`, `finisheReason`, and `finishMessage` instead. */
+  candidates: z.array(CandidateSchema).optional(),
+  finishReason: z
+    .enum(['stop', 'length', 'blocked', 'other', 'unknown'])
+    .optional(),
+});
 export type GenerateResponseData = z.infer<typeof GenerateResponseSchema>;
 
-export const GenerateResponseChunkSchema = z.object({
-  /** The index of the candidate this chunk belongs to. */
-  index: z.number(),
+/** ModelResponseChunkSchema represents a chunk of content to stream to the client. */
+export const ModelResponseChunkSchema = z.object({
   /** The chunk of content to stream right now. */
   content: z.array(PartSchema),
   /** Model-specific extra information attached to this chunk. */
   custom: z.unknown().optional(),
+  /** If true, the chunk includes all data from previous chunks. Otherwise, considered to be incremental. */
+  aggregated: z.boolean().optional(),
+});
+export type ModelResponseChunkData = z.infer<typeof ModelResponseChunkSchema>;
+
+export const GenerateResponseChunkSchema = ModelResponseChunkSchema.extend({
+  /** @deprecated The index of the candidate this chunk belongs to. Always 0. */
+  index: z.number(),
 });
 export type GenerateResponseChunkData = z.infer<
   typeof GenerateResponseChunkSchema
@@ -385,11 +421,13 @@ type PartCounts = {
  */
 export function getBasicUsageStats(
   input: MessageData[],
-  candidates: CandidateData[]
+  response: MessageData | CandidateData[]
 ): GenerationUsage {
   const inputCounts = getPartCounts(input.flatMap((md) => md.content));
   const outputCounts = getPartCounts(
-    candidates.flatMap((c) => c.message.content)
+    Array.isArray(response)
+      ? response.flatMap((c) => c.message.content)
+      : response.content
   );
   return {
     inputCharacters: inputCounts.characters,

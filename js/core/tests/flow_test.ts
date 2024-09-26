@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-import { z } from '@genkit-ai/core';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
-import { Genkit, genkit } from '../src/genkit.js';
+import { defineFlow, defineStreamingFlow } from '../src/flow.js';
+import { z } from '../src/index.js';
+import { Registry, runWithRegistry } from '../src/registry.js';
 
-function createTestFlow(ai: Genkit) {
-  return ai.defineFlow(
+function createTestFlow() {
+  return defineFlow(
     {
       name: 'testFlow',
       inputSchema: z.string(),
@@ -32,8 +33,8 @@ function createTestFlow(ai: Genkit) {
   );
 }
 
-function createTestStreamingFlow(ai: Genkit) {
-  return ai.defineStreamingFlow(
+function createTestStreamingFlow() {
+  return defineStreamingFlow(
     {
       name: 'testFlow',
       inputSchema: z.number(),
@@ -52,17 +53,17 @@ function createTestStreamingFlow(ai: Genkit) {
 }
 
 describe('flow', () => {
-  let ai: Genkit;
+  let registry: Registry;
 
   beforeEach(() => {
     // Skips starting reflection server.
     delete process.env.GENKIT_ENV;
-    ai = genkit({});
+    registry = new Registry();
   });
 
   describe('runFlow', () => {
     it('should run the flow', async () => {
-      const testFlow = createTestFlow(ai);
+      const testFlow = runWithRegistry(registry, createTestFlow);
 
       const result = await testFlow('foo');
 
@@ -70,15 +71,17 @@ describe('flow', () => {
     });
 
     it('should rethrow the error', async () => {
-      const testFlow = ai.defineFlow(
-        {
-          name: 'throwing',
-          inputSchema: z.string(),
-          outputSchema: z.string(),
-        },
-        async (input) => {
-          throw new Error(`bad happened: ${input}`);
-        }
+      const testFlow = runWithRegistry(registry, () =>
+        defineFlow(
+          {
+            name: 'throwing',
+            inputSchema: z.string(),
+            outputSchema: z.string(),
+          },
+          async (input) => {
+            throw new Error(`bad happened: ${input}`);
+          }
+        )
       );
 
       await assert.rejects(() => testFlow('foo'), {
@@ -88,15 +91,17 @@ describe('flow', () => {
     });
 
     it('should validate input', async () => {
-      const testFlow = ai.defineFlow(
-        {
-          name: 'validating',
-          inputSchema: z.object({ foo: z.string(), bar: z.number() }),
-          outputSchema: z.string(),
-        },
-        async (input) => {
-          return `ok ${input}`;
-        }
+      const testFlow = runWithRegistry(registry, () =>
+        defineFlow(
+          {
+            name: 'validating',
+            inputSchema: z.object({ foo: z.string(), bar: z.number() }),
+            outputSchema: z.string(),
+          },
+          async (input) => {
+            return `ok ${input}`;
+          }
+        )
       );
 
       await assert.rejects(
@@ -115,7 +120,7 @@ describe('flow', () => {
 
   describe('streamFlow', () => {
     it('should run the flow', async () => {
-      const testFlow = createTestStreamingFlow(ai);
+      const testFlow = runWithRegistry(registry, createTestStreamingFlow);
 
       const response = testFlow(3);
 
@@ -129,14 +134,16 @@ describe('flow', () => {
     });
 
     it('should rethrow the error', async () => {
-      const testFlow = ai.defineStreamingFlow(
-        {
-          name: 'throwing',
-          inputSchema: z.string(),
-        },
-        async (input) => {
-          throw new Error(`stream bad happened: ${input}`);
-        }
+      const testFlow = runWithRegistry(registry, () =>
+        defineStreamingFlow(
+          {
+            name: 'throwing',
+            inputSchema: z.string(),
+          },
+          async (input) => {
+            throw new Error(`stream bad happened: ${input}`);
+          }
+        )
       );
 
       const response = testFlow('foo');

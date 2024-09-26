@@ -72,7 +72,6 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
   output?: PromptMetadata['output'];
   tools?: PromptMetadata['tools'];
   config?: PromptMetadata['config'];
-  candidates?: PromptMetadata['candidates'];
 
   private _render: (input: I, options?: RenderMetadata) => MessageData[];
 
@@ -117,7 +116,6 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
     this.output = options.output;
     this.tools = options.tools;
     this.config = options.config;
-    this.candidates = options.candidates;
     this.template = template;
     this.hash = createHash('sha256').update(JSON.stringify(this)).digest('hex');
 
@@ -197,7 +195,6 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
       history: messages.slice(0, messages.length - 1),
       prompt: messages[messages.length - 1].content,
       context: options.context,
-      candidates: options.candidates || this.candidates || 1,
       output: {
         format: options.output?.format || this.output?.format || undefined,
         schema: options.output?.schema || this.output?.schema,

@@ -294,31 +294,24 @@ class GenerateTelemetry implements Telemetry {
       qualifiedPath,
       flowName,
     };
-    const candidates = output.candidates.length;
+    const message = output.message || output.candidates?.[0]?.message!;
 
-    output.candidates.forEach((cand, candIdx) => {
-      const parts = cand.message.content.length;
-      cand.message.content.forEach((part, partIdx) => {
-        const partCounts = this.toPartCounts(
-          partIdx,
-          parts,
-          candIdx,
-          candidates
-        );
-        const initial = cand.finishMessage
-          ? { finishMessage: this.toPartLogText(cand.finishMessage) }
-          : {};
-        logger.logStructured(`Output[${path}, ${model}] ${partCounts}`, {
-          ...initial,
-          ...sharedMetadata,
-          content: this.toPartLogContent(part),
-          partIndex: partIdx,
-          totalParts: parts,
-          candidateIndex: candIdx,
-          totalCandidates: candidates,
-          messageIndex: cand.index,
-          finishReason: cand.finishReason,
-        });
+    const parts = message.content.length;
+    message.content.forEach((part, partIdx) => {
+      const partCounts = this.toPartCounts(partIdx, parts, 0, 1);
+      const initial = output.finishMessage
+        ? { finishMessage: this.toPartLogText(output.finishMessage) }
+        : {};
+      logger.logStructured(`Output[${path}, ${model}] ${partCounts}`, {
+        ...initial,
+        ...sharedMetadata,
+        content: this.toPartLogContent(part),
+        partIndex: partIdx,
+        totalParts: parts,
+        candidateIndex: 0,
+        totalCandidates: 1,
+        messageIndex: 0,
+        finishReason: output.finishReason,
       });
     });
   }

@@ -15,66 +15,112 @@
  */
 
 import { randomUUID } from 'crypto';
-import { EvalFlowInput } from '.';
+import { EvalFlowInput, getDatasetStore, getEvalStore } from '.';
 import { Runner } from '../runner';
-import { Action, EvalInput, EvalRun, RunActionResponse } from '../types';
+import {
+  Action,
+  EvalInput,
+  EvalRun,
+  EvalRunKey,
+  RunNewEvaluationRequest,
+  SpanData,
+} from '../types';
 import {
   evaluatorName,
   getEvalExtractors,
   isEvaluator,
   logger,
+  stackTraceSpans,
 } from '../utils';
 import { enrichResultsWithScoring, extractMetricsMetadata } from './parser';
 
 interface BulkRunResponse {
   traceId?: string;
-  hasErrored: boolean;
-  response: any;
+  response?: any;
+}
+
+/**
+ * Starts a new evaluation run. Intended to be used via the reflection API.
+ */
+export async function runNewEvaluation(
+  runner: Runner,
+  request: RunNewEvaluationRequest
+): Promise<EvalRunKey> {
+  const { datasetId, actionRef, evaluators } = request;
+  const datasetStore = await getDatasetStore();
+  logger.info(`Fetching dataset ${datasetId}...`);
+  const dataset = await datasetStore.getDataset(datasetId);
+
+  logger.info('Running inference...');
+  const evalDataset = await runInference({
+    runner,
+    actionRef,
+    evalFlowInput: dataset,
+    auth: request.options?.auth,
+  });
+  const evaluatorAction = await getMatchingEvaluatorActions(runner, evaluators);
+
+  logger.info('Running evaluation...');
+  const evalRun = await runEvaluation({
+    runner,
+    evaluatorActions: evaluatorAction,
+    evalDataset,
+    actionRef,
+    datasetId,
+  });
+  logger.info('Finished evaluation, returning key...');
+  const evalStore = getEvalStore();
+  await evalStore.save(evalRun);
+
+  return evalRun.key;
 }
 
 /** Handles the Inference part of Inference-Evaluation cycle */
-export async function runInference(
-  runner: Runner,
-  actionRef: string,
-  evalFlowInput: EvalFlowInput,
-  auth?: string
-): Promise<EvalInput[]> {
+export async function runInference(params: {
+  runner: Runner;
+  actionRef: string;
+  evalFlowInput: EvalFlowInput;
+  auth?: string;
+}): Promise<EvalInput[]> {
+  const { runner, actionRef, evalFlowInput, auth } = params;
+  if (!actionRef.startsWith('/flow')) {
+    // TODO(ssbushi): Support model inference
+    throw new Error('Inference is only supported on flows');
+  }
   let inputs: any[] = Array.isArray(evalFlowInput)
     ? (evalFlowInput as any[])
     : evalFlowInput.samples.map((c) => c.input);
 
-  const runResponses = await bulkRunAction(runner, actionRef, inputs, auth);
-  const runStates: BulkRunResponse[] = runResponses.map((r) => {
-    return {
-      traceId: r.telemetry?.traceId,
-      // TODO(ssbushi): Track errors from the trace
-      hasErrored: !r.telemetry?.traceId,
-      response: r.result,
-    } as BulkRunResponse;
-  });
-  if (runStates.some((s) => s.hasErrored)) {
-    logger.debug('Some flows failed with errors');
-  }
-
-  const evalDataset = await fetchDataSet(
+  const runResponses: BulkRunResponse[] = await bulkRunAction({
     runner,
     actionRef,
-    runStates,
-    evalFlowInput
-  );
+    inputs,
+    auth,
+  });
+
+  // TODO(ssbushi): Support model inference
+  const evalDataset = await fetchEvalInput({
+    runner,
+    actionRef,
+    states: runResponses,
+    parsedData: evalFlowInput,
+  });
   return evalDataset;
 }
 
 /** Handles the Evaluation part of Inference-Evaluation cycle */
-export async function runEvaluation(
-  runner: Runner,
-  filteredEvaluatorActions: Action[],
-  evalDataset: EvalInput[],
-  actionRef?: string
-): Promise<EvalRun> {
+export async function runEvaluation(params: {
+  runner: Runner;
+  evaluatorActions: Action[];
+  evalDataset: EvalInput[];
+  actionRef?: string;
+  datasetId?: string;
+}): Promise<EvalRun> {
+  const { runner, evaluatorActions, evalDataset, actionRef, datasetId } =
+    params;
   const evalRunId = randomUUID();
   const scores: Record<string, any> = {};
-  for (const action of filteredEvaluatorActions) {
+  for (const action of evaluatorActions) {
     const name = evaluatorName(action);
     const response = await runner.runAction({
       key: name,
@@ -87,12 +133,13 @@ export async function runEvaluation(
   }
 
   const scoredResults = enrichResultsWithScoring(scores, evalDataset);
-  const metadata = extractMetricsMetadata(filteredEvaluatorActions);
+  const metadata = extractMetricsMetadata(evaluatorActions);
 
   const evalRun = {
     key: {
       actionRef,
       evalRunId,
+      datasetId,
       createdAt: new Date().toISOString(),
     },
     results: scoredResults,
@@ -101,9 +148,8 @@ export async function runEvaluation(
   return evalRun;
 }
 
-export async function getMatchingEvaluators(
-  runner: Runner,
-  evaluators?: string
+export async function getAllEvaluatorActions(
+  runner: Runner
 ): Promise<Action[]> {
   const allActions = await runner.listActions();
   const allEvaluatorActions = [];
@@ -112,54 +158,72 @@ export async function getMatchingEvaluators(
       allEvaluatorActions.push(allActions[key]);
     }
   }
-  const filteredEvaluatorActions = allEvaluatorActions.filter(
-    (action) => !evaluators || evaluators.split(',').includes(action.name)
+  return allEvaluatorActions;
+}
+
+export async function getMatchingEvaluatorActions(
+  runner: Runner,
+  evaluators?: string[]
+): Promise<Action[]> {
+  if (!evaluators) {
+    return [];
+  }
+  const allEvaluatorActions = await getAllEvaluatorActions(runner);
+  const filteredEvaluatorActions = allEvaluatorActions.filter((action) =>
+    evaluators.includes(action.name)
   );
   if (filteredEvaluatorActions.length === 0) {
     if (allEvaluatorActions.length == 0) {
       throw new Error('No evaluators installed');
-    } else {
-      const availableActions = allEvaluatorActions
-        .map((action) => action.name)
-        .join(',');
-      throw new Error(
-        `No evaluators matched your specifed filter: ${evaluators}. All available evaluators: '${availableActions}'`
-      );
     }
   }
   return filteredEvaluatorActions;
 }
 
-async function bulkRunAction(
-  runner: Runner,
-  actionRef: string,
-  inputs: any[],
-  auth?: string
-): Promise<RunActionResponse[]> {
-  let responses: RunActionResponse[] = [];
+async function bulkRunAction(params: {
+  runner: Runner;
+  actionRef: string;
+  inputs: any[];
+  auth?: string;
+}): Promise<BulkRunResponse[]> {
+  const { runner, actionRef, inputs, auth } = params;
+  let responses: BulkRunResponse[] = [];
   for (const d of inputs) {
     logger.info(`Running '${actionRef}' ...`);
-    let response = await runner.runAction({
-      key: actionRef,
-      input: {
-        start: {
-          input: d,
+    let response: BulkRunResponse;
+    try {
+      const runActionResponse = await runner.runAction({
+        key: actionRef,
+        input: {
+          start: {
+            input: d,
+          },
+          auth: auth ? JSON.parse(auth) : undefined,
         },
-        auth: auth ? JSON.parse(auth) : undefined,
-      },
-    });
+      });
+      response = {
+        traceId: runActionResponse.telemetry?.traceId,
+        response: runActionResponse.result,
+      };
+    } catch (e: any) {
+      const traceId = e?.data?.details?.traceId;
+      response = { traceId };
+    }
     responses.push(response);
   }
 
   return responses;
 }
 
-async function fetchDataSet(
-  runner: Runner,
-  flowName: string,
-  states: BulkRunResponse[],
-  parsedData: EvalFlowInput
-): Promise<EvalInput[]> {
+async function fetchEvalInput(params: {
+  runner: Runner;
+  actionRef: string;
+  states: BulkRunResponse[];
+  parsedData: EvalFlowInput;
+}): Promise<EvalInput[]> {
+  const { runner, actionRef, states, parsedData } = params;
+  const flowName = actionRef.split('/')[-1];
+
   let references: any[] | undefined = undefined;
   if (!Array.isArray(parsedData)) {
     const maybeReferences = parsedData.samples.map((c: any) => c.reference);
@@ -197,18 +261,32 @@ async function fetchDataSet(
       let contexts: string[] = [];
 
       inputs.push(extractors.input(trace));
-      outputs.push(extractors.output(trace));
-      contexts.push(extractors.context(trace));
 
-      if (s.hasErrored) {
+      const nestedSpan = stackTraceSpans(trace);
+      if (!nestedSpan) {
         return {
           testCaseId: randomUUID(),
           input: inputs[0],
-          error: 'Inference error',
+          error: `Unable to extract any spans from trace ${traceId}`,
           reference: references?.at(i),
           traceIds: [traceId],
         };
       }
+
+      if (nestedSpan.attributes['genkit:state'] === 'error') {
+        return {
+          testCaseId: randomUUID(),
+          input: inputs[0],
+          error:
+            getSpanErrorMessage(nestedSpan) ??
+            `Unknown error in trace${traceId}`,
+          reference: references?.at(i),
+          traceIds: [traceId],
+        };
+      }
+
+      outputs.push(extractors.output(trace));
+      contexts.push(extractors.context(trace));
 
       return {
         // TODO Replace this with unified trace class
@@ -221,4 +299,17 @@ async function fetchDataSet(
       };
     })
   );
+}
+
+function getSpanErrorMessage(span: SpanData): string | undefined {
+  if (span && span.status?.code === 2 /* SpanStatusCode.ERROR */) {
+    // It's possible for a trace to have multiple exception events,
+    // however we currently only expect and display the first one.
+    const event = span.timeEvents?.timeEvent
+      ?.filter((e) => e.annotation.description === 'exception')
+      .shift();
+    return (
+      (event?.annotation?.attributes['exception.message'] as string) ?? 'Error'
+    );
+  }
 }
