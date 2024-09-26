@@ -22,11 +22,10 @@ import {
 import { configureGenkit } from '@genkit-ai/core';
 import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
 import {
-  VertexAIEvaluationMetricType,
-  gemini15Flash,
   llama3,
   llama32,
   vertexAI,
+  VertexAIEvaluationMetricType,
 } from '@genkit-ai/vertexai';
 import { inMemoryStore } from './memory.js';
 
@@ -45,7 +44,10 @@ configureGenkit({
     vertexAI({
       location: 'us-central1',
       projectId: 'cloud-llm-preview1',
-      modelGardenModels: [llama3, llama32],
+      modelGarden: {
+        models: [llama3, llama32],
+        openAiBaseUrlTemplate: 'https://{location}-autopush-aiplatform.sandbox.googleapis.com/v1beta1/projects/{projectId}/locations/{location}/endpoints/openapi',
+      },
       evaluation: {
         metrics: [
           VertexAIEvaluationMetricType.SAFETY,

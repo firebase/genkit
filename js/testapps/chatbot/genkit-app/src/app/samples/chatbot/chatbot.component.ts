@@ -108,7 +108,6 @@ export class ChatbotComponent {
     this.chatFormControl.disable();
     if (this.includeImage.value) {
       this.callFlow([
-        { role: 'user', text },
         {
           role: 'user',
           media: {
@@ -116,6 +115,7 @@ export class ChatbotComponent {
             contentType: 'image/png',
           },
         },
+        { role: 'user', text },
       ]);
     } else {
       this.callFlow({ role: 'user', text });
