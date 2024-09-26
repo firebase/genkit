@@ -22,7 +22,6 @@ import {
 import { configureGenkit } from '@genkit-ai/core';
 import { defineFlow, run, startFlowsServer } from '@genkit-ai/flow';
 import {
-  llama3,
   llama32,
   vertexAI,
   VertexAIEvaluationMetricType,
@@ -43,10 +42,8 @@ configureGenkit({
   plugins: [
     vertexAI({
       location: 'us-central1',
-      projectId: 'cloud-llm-preview1',
       modelGarden: {
-        models: [llama3, llama32],
-        openAiBaseUrlTemplate: 'https://{location}-autopush-aiplatform.sandbox.googleapis.com/v1beta1/projects/{projectId}/locations/{location}/endpoints/openapi',
+        models: [llama32],
       },
       evaluation: {
         metrics: [
