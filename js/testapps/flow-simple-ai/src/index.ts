@@ -24,8 +24,10 @@ import {
 import {
   gemini15ProPreview,
   geminiPro,
-  textEmbeddingGecko,
-  vertexAI,
+    llama31,
+    llama32,
+    textEmbeddingGecko,
+    vertexAI,
 } from '@genkit-ai/vertexai';
 import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
@@ -39,7 +41,7 @@ const ai = genkit({
   plugins: [
     firebase(),
     googleAI(),
-    vertexAI(),
+    vertexAI({location: 'us-central1', modelGarden: {models: [llama31, llama32]}}),
     googleCloud({
       // These are configured for demonstration purposes. Sensible defaults are
       // in place in the event that telemetryConfig is absent.
@@ -85,7 +87,7 @@ export const jokeFlow = ai.defineFlow(
     return await run('call-llm', async () => {
       const llmResponse = await ai.generate({
         model: input.modelName,
-        config: { version: input.modelVersion },
+        config: { version: input.modelVersion, topK: 5, maxOutputTokens: 100},
         prompt: `Tell a joke about ${input.subject}.`,
       });
       return `From ${input.modelName}: ${llmResponse.text()}`;

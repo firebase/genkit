@@ -293,6 +293,7 @@ export function toRequestBody(
     if (!body[key] || (Array.isArray(body[key]) && !body[key].length))
       delete body[key];
   }
+  console.log("the openai body", JSON.stringify(body));
   return body;
 }
 
