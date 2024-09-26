@@ -15,9 +15,12 @@
  */
 
 import { EnvTypes, EvalInput, TraceData } from '@genkit-ai/tools-common';
-import { getEvalExtractors, logger } from '@genkit-ai/tools-common/utils';
+import {
+  generateTestCaseId,
+  getEvalExtractors,
+  logger,
+} from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
-import { randomUUID } from 'crypto';
 import { writeFile } from 'fs/promises';
 import { runInRunnerThenStop } from '../utils/runner-utils';
 
@@ -75,7 +78,7 @@ export const evalExtractData = new Command('eval:extractData')
           .filter((t): t is TraceData => !!t)
           .map((trace) => {
             return {
-              testCaseId: randomUUID(),
+              testCaseId: generateTestCaseId(),
               input: extractors.input(trace),
               output: extractors.output(trace),
               context: JSON.parse(extractors.context(trace)) as string[],

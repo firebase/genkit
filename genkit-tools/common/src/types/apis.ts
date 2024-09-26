@@ -141,7 +141,6 @@ export const CreateDatasetRequestSchema = z.object({
 export type CreateDatasetRequest = z.infer<typeof CreateDatasetRequestSchema>;
 
 export const UpdateDatasetRequestSchema = z.object({
-  /** Only supports replacement, throws if data is absent */
   data: EvalFlowInputSchema.optional(),
   targetAction: z.string().optional(),
   datasetId: z.string(),

@@ -15,7 +15,7 @@
  */
 
 import { generate, loadPromptFile, ModelArgument, z } from 'genkit';
-import { BaseDataPoint, Score } from 'genkit/evaluator';
+import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import path from 'path';
 
 const PiiDetectionResponseSchema = z.object({
@@ -27,7 +27,7 @@ export async function piiDetectionScore<
   CustomModelOptions extends z.ZodTypeAny,
 >(
   judgeLlm: ModelArgument<CustomModelOptions>,
-  dataPoint: BaseDataPoint,
+  dataPoint: BaseEvalDataPoint,
   judgeConfig?: CustomModelOptions
 ): Promise<Score> {
   const d = dataPoint;

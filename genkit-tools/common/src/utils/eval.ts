@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { randomUUID } from 'crypto';
 import * as inquirer from 'inquirer';
 import {
   EvalField,
@@ -203,4 +204,9 @@ export async function getEvalExtractors(
     composedExtractors = { ...composedExtractors, ...extractorFunction };
   }
   return Promise.resolve(composedExtractors);
+}
+
+/**Global function to generate testCaseId */
+export function generateTestCaseId() {
+  return randomUUID();
 }

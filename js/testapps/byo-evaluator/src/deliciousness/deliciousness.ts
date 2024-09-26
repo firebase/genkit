@@ -15,7 +15,7 @@
  */
 
 import { generate, loadPromptFile, ModelArgument, z } from 'genkit';
-import { BaseDataPoint, Score } from 'genkit/evaluator';
+import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import path from 'path';
 
 const DELICIOUSNESS_VALUES = ['yes', 'no', 'maybe'] as const;
@@ -30,7 +30,7 @@ export async function deliciousnessScore<
   CustomModelOptions extends z.ZodTypeAny,
 >(
   judgeLlm: ModelArgument<CustomModelOptions>,
-  dataPoint: BaseDataPoint,
+  dataPoint: BaseEvalDataPoint,
   judgeConfig?: CustomModelOptions
 ): Promise<Score> {
   const d = dataPoint;

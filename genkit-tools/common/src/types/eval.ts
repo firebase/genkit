@@ -32,6 +32,7 @@ import {
 export const EvalFlowStructuredInputSchema = z.object({
   samples: z.array(
     z.object({
+      testCaseId: z.string().optional(),
       input: z.any(),
       reference: z.any().optional(),
     })
@@ -54,10 +55,16 @@ export const EvalFlowInputSchema = z.union([
 export type EvalFlowInput = z.infer<typeof EvalFlowInputSchema>;
 
 /**
- * Alias for EvalFlowInput to be used in the DatasetStore related APIs.
- * We may deprecate EvalFlowInput in favor of this in the future.
+ * Represents a Dataset, to be used for bulk-inference / evaluation
  */
-export type Dataset = z.infer<typeof EvalFlowInputSchema>;
+export const DatasetSchema = z.array(
+  z.object({
+    testCaseId: z.string(),
+    input: z.any(),
+    reference: z.any().optional(),
+  })
+);
+export type Dataset = z.infer<typeof DatasetSchema>;
 
 /**
  * A record that is ready for evaluation.
@@ -101,6 +108,7 @@ export type EvalResult = z.infer<typeof EvalResultSchema>;
 export const EvalRunKeySchema = z.object({
   actionRef: z.string().optional(),
   datasetId: z.string().optional(),
+  datasetVersion: z.number().optional(),
   evalRunId: z.string(),
   createdAt: z.string(),
 });

@@ -15,7 +15,7 @@
  */
 
 import { generate, loadPromptFile, ModelArgument, z } from 'genkit';
-import { BaseDataPoint, Score } from 'genkit/evaluator';
+import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import path from 'path';
 
 const FUNNINESS_VALUES = [
@@ -32,7 +32,7 @@ const FunninessResponseSchema = z.object({
 
 export async function funninessScore<CustomModelOptions extends z.ZodTypeAny>(
   judgeLlm: ModelArgument<CustomModelOptions>,
-  dataPoint: BaseDataPoint,
+  dataPoint: BaseEvalDataPoint,
   judgeConfig?: z.infer<CustomModelOptions>
 ): Promise<Score> {
   const d = dataPoint;

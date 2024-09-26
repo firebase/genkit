@@ -18,6 +18,7 @@ import { Action, defineAction, z } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
 import { lookupAction } from '@genkit-ai/core/registry';
 import { SPAN_TYPE_ATTR, runInNewSpan } from '@genkit-ai/core/tracing';
+import { randomUUID } from 'crypto';
 
 export const ATTR_PREFIX = 'genkit';
 export const SPAN_STATE_ATTR = ATTR_PREFIX + ':state';
@@ -30,6 +31,12 @@ export const BaseDataPointSchema = z.object({
   testCaseId: z.string().optional(),
   traceIds: z.array(z.string()).optional(),
 });
+
+// DataPoint that is to be used for actions. This needs testCaseId to be present.
+export const BaseEvalDataPointSchema = BaseDataPointSchema.extend({
+  testCaseId: z.string(),
+});
+export type BaseEvalDataPoint = z.infer<typeof BaseEvalDataPointSchema>;
 
 export const ScoreSchema = z.object({
   score: z.union([z.number(), z.string(), z.boolean()]).optional(),
@@ -56,7 +63,7 @@ export type Dataset<
 
 export const EvalResponseSchema = z.object({
   sampleIndex: z.number().optional(),
-  testCaseId: z.string().optional(),
+  testCaseId: z.string(),
   traceId: z.string().optional(),
   spanId: z.string().optional(),
   evaluation: ScoreSchema,
@@ -67,10 +74,11 @@ export const EvalResponsesSchema = z.array(EvalResponseSchema);
 export type EvalResponses = z.infer<typeof EvalResponsesSchema>;
 
 type EvaluatorFn<
-  DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
+  EvalDataPoint extends
+    typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > = (
-  input: z.infer<DataPoint>,
+  input: z.infer<EvalDataPoint>,
   evaluatorOptions?: z.infer<CustomOptions>
 ) => Promise<EvalResponse>;
 
@@ -106,6 +114,8 @@ const EvalRequestSchema = z.object({
  */
 export function defineEvaluator<
   DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
+  EvalDataPoint extends
+    typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
   EvaluatorOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(
   options: {
@@ -116,7 +126,7 @@ export function defineEvaluator<
     configSchema?: EvaluatorOptions;
     isBilled?: boolean;
   },
-  runner: EvaluatorFn<DataPoint, EvaluatorOptions>
+  runner: EvaluatorFn<EvalDataPoint, EvaluatorOptions>
 ) {
   const metadata = {};
   metadata[EVALUATOR_METADATA_KEY_IS_BILLED] =
@@ -140,7 +150,10 @@ export function defineEvaluator<
     async (i) => {
       let evalResponses: EvalResponses = [];
       for (let index = 0; index < i.dataset.length; index++) {
-        const datapoint = i.dataset[index];
+        const datapoint: BaseEvalDataPoint = {
+          ...i.dataset[index],
+          testCaseId: i.dataset[index].testCaseId ?? randomUUID(),
+        };
         try {
           await runInNewSpan(
             {
