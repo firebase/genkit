@@ -17,7 +17,7 @@
 // This sample is referenced by the genkit docs. Changes should be made to
 // both.
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
-import { generate, genkit, z } from 'genkit';
+import { genkit, z } from 'genkit';
 
 const ai = genkit({
   plugins: [googleAI()],
@@ -33,7 +33,7 @@ export const menuSuggestionFlow = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (subject) => {
-    const llmResponse = await generate({
+    const llmResponse = await ai.generate({
       prompt: `Suggest an item for the menu of a ${subject} themed restaurant`,
       model: geminiPro,
       config: {

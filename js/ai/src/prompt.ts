@@ -40,6 +40,17 @@ export type PromptAction<I extends z.ZodTypeAny = z.ZodTypeAny> = Action<
   };
 };
 
+/**
+ * Configuration for a prompt action.
+ */
+export interface PromptConfig<I extends z.ZodTypeAny = z.ZodTypeAny> {
+  name: string;
+  description?: string;
+  inputSchema?: I;
+  inputJsonSchema?: JSONSchema7;
+  metadata?: Record<string, any>;
+}
+
 export function isPrompt(arg: any): boolean {
   return (
     typeof arg === 'function' &&
@@ -55,31 +66,15 @@ export function isPrompt(arg: any): boolean {
  *
  * @returns The new `PromptAction`.
  */
-
 export function definePrompt<I extends z.ZodTypeAny>(
-  {
-    name,
-    description,
-    inputSchema,
-    inputJsonSchema,
-    metadata,
-  }: {
-    name: string;
-    description?: string;
-    inputSchema?: I;
-    inputJsonSchema?: JSONSchema7;
-    metadata?: Record<string, any>;
-  },
+  config: PromptConfig<I>,
   fn: PromptFn<I>
 ): PromptAction<I> {
   const a = defineAction(
     {
+      ...config,
       actionType: 'prompt',
-      name,
-      description,
-      inputSchema,
-      inputJsonSchema,
-      metadata: { ...(metadata || { prompt: {} }), type: 'prompt' },
+      metadata: { ...(config.metadata || { prompt: {} }), type: 'prompt' },
     },
     fn
   );

@@ -15,7 +15,7 @@
  */
 
 import { geminiPro } from '@genkit-ai/vertexai';
-import { generate, run } from 'genkit';
+import { run } from 'genkit';
 import { MessageData } from 'genkit/model';
 import { ai } from '../index.js';
 
@@ -56,7 +56,7 @@ export const s03_multiTurnChatFlow = ai.defineFlow(
     );
 
     // Generate the response
-    const llmResponse = await generate({
+    const llmResponse = await ai.generate({
       model: geminiPro,
       history: history,
       prompt: {

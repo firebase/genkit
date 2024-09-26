@@ -21,7 +21,7 @@ import { Document, DocumentData, DocumentDataSchema } from './document.js';
 export type EmbeddingBatch = { embedding: number[] }[];
 
 export const EmbeddingSchema = z.array(z.number());
-type Embedding = z.infer<typeof EmbeddingSchema>;
+export type Embedding = z.infer<typeof EmbeddingSchema>;
 
 type EmbedderFn<EmbedderOptions extends z.ZodTypeAny> = (
   input: Document[],
@@ -43,6 +43,15 @@ export type EmbedderAction<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> =
   Action<typeof EmbedRequestSchema, typeof EmbedResponseSchema> & {
     __configSchema?: CustomOptions;
   };
+
+export interface EmbedderParams<
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  embedder: EmbedderArgument<CustomOptions>;
+  content: string | DocumentData;
+  metadata?: Record<string, unknown>;
+  options?: z.infer<CustomOptions>;
+}
 
 function withMetadata<CustomOptions extends z.ZodTypeAny>(
   embedder: Action<typeof EmbedRequestSchema, typeof EmbedResponseSchema>,
@@ -101,15 +110,10 @@ export type EmbedderArgument<
 /**
  * A veneer for interacting with embedder models.
  */
-export async function embed<
-  ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny,
->(params: {
-  embedder: EmbedderArgument<ConfigSchema>;
-  content: string | DocumentData;
-  metadata?: Record<string, unknown>;
-  options?: z.infer<ConfigSchema>;
-}): Promise<Embedding> {
-  let embedder: EmbedderAction<ConfigSchema>;
+export async function embed<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny>(
+  params: EmbedderParams<CustomOptions>
+): Promise<Embedding> {
+  let embedder: EmbedderAction<CustomOptions>;
   if (typeof params.embedder === 'string') {
     embedder = await lookupAction(`/embedder/${params.embedder}`);
   } else if (Object.hasOwnProperty.call(params.embedder, 'info')) {
@@ -117,7 +121,7 @@ export async function embed<
       `/embedder/${(params.embedder as EmbedderReference).name}`
     );
   } else {
-    embedder = params.embedder as EmbedderAction<ConfigSchema>;
+    embedder = params.embedder as EmbedderAction<CustomOptions>;
   }
   if (!embedder) {
     throw new Error('Unable to utilize the provided embedder');

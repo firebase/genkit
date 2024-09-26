@@ -14,15 +14,11 @@
  * limitations under the License.
  */
 
-import { generate, GenerateResponseData } from '@genkit-ai/ai';
-import { defineModel } from '@genkit-ai/ai/model';
-import { defineAction, genkit, Genkit, run } from '@genkit-ai/core';
-import { runWithRegistry } from '@genkit-ai/core/registry';
 import {
+  GcpOpenTelemetry,
   __forceFlushSpansForTesting,
   __getMetricExporterForTesting,
   __getSpanExporterForTesting,
-  GcpOpenTelemetry,
   googleCloud,
 } from '@genkit-ai/google-cloud';
 import {
@@ -33,7 +29,17 @@ import {
   SumMetricData,
 } from '@opentelemetry/sdk-metrics';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
-import { z } from 'genkit';
+import {
+  GenerateResponseData,
+  Genkit,
+  defineAction,
+  generate,
+  genkit,
+  run,
+  z,
+} from 'genkit';
+import { defineModel } from 'genkit/model';
+import { runWithRegistry } from 'genkit/registry';
 import assert from 'node:assert';
 import { after, before, beforeEach, describe, it } from 'node:test';
 
@@ -209,18 +215,16 @@ describe('GoogleCloudMetrics', () => {
       };
     });
 
-    const response = await runWithRegistry(ai.registry, async () =>
-      generate({
-        model: testModel,
-        prompt: 'test prompt',
-        config: {
-          temperature: 1.0,
-          topK: 3,
-          topP: 5,
-          maxOutputTokens: 7,
-        },
-      })
-    );
+    await ai.generate({
+      model: testModel,
+      prompt: 'test prompt',
+      config: {
+        temperature: 1.0,
+        topK: 3,
+        topP: 5,
+        maxOutputTokens: 7,
+      },
+    });
 
     await getExportedSpans();
 
@@ -285,18 +289,16 @@ describe('GoogleCloudMetrics', () => {
     });
 
     assert.rejects(async () => {
-      return await runWithRegistry(ai.registry, async () =>
-        generate({
-          model: testModel,
-          prompt: 'test prompt',
-          config: {
-            temperature: 1.0,
-            topK: 3,
-            topP: 5,
-            maxOutputTokens: 7,
-          },
-        })
-      );
+      return ai.generate({
+        model: testModel,
+        prompt: 'test prompt',
+        config: {
+          temperature: 1.0,
+          topK: 3,
+          topP: 5,
+          maxOutputTokens: 7,
+        },
+      });
     });
 
     await getExportedSpans();

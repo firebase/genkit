@@ -21,13 +21,18 @@ export {
   type EmbedderAction,
   type EmbedderArgument,
   type EmbedderInfo,
+  type EmbedderParams,
   type EmbedderReference,
+  type Embedding,
 } from './embedder.js';
 export {
+  BaseDataPointSchema,
   evaluate,
   evaluatorRef,
+  type EvalResponses,
   type EvaluatorAction,
   type EvaluatorInfo,
+  type EvaluatorParams,
   type EvaluatorReference,
 } from './evaluator.js';
 export {
@@ -46,6 +51,7 @@ export {
   GenerateRequest,
   GenerateRequestData,
   GenerateResponseData,
+  GenerationCommonConfigSchema,
   GenerationUsage,
   MediaPart,
   MessageData,
@@ -63,13 +69,21 @@ export {
   ToolRequestPart,
   ToolResponsePart,
 } from './model.js';
-export { definePrompt, renderPrompt, type PromptAction } from './prompt.js';
+export {
+  definePrompt,
+  renderPrompt,
+  type PromptAction,
+  type PromptConfig,
+  type PromptFn,
+} from './prompt.js';
 export {
   rerank,
   rerankerRef,
+  type RankedDocument,
   type RerankerAction,
   type RerankerArgument,
   type RerankerInfo,
+  type RerankerParams,
   type RerankerReference,
 } from './reranker.js';
 export {
@@ -80,10 +94,12 @@ export {
   type IndexerAction,
   type IndexerArgument,
   type IndexerInfo,
+  type IndexerParams,
   type IndexerReference,
   type RetrieverAction,
   type RetrieverArgument,
   type RetrieverInfo,
+  type RetrieverParams,
   type RetrieverReference,
 } from './retriever.js';
 export {
@@ -91,5 +107,6 @@ export {
   defineTool,
   type ToolAction,
   type ToolArgument,
+  type ToolConfig,
 } from './tool.js';
 export * from './types.js';

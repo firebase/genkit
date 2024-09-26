@@ -139,9 +139,9 @@ importers:
       '@genkit-ai/dotprompt':
         specifier: workspace:*
         version: link:../plugins/dotprompt
-      zod:
-        specifier: ^3.22.4
-        version: 3.22.4
+      '@opentelemetry/sdk-node':
+        specifier: ^0.52.0
+        version: 0.52.1(@opentelemetry/api@1.9.0)
     devDependencies:
       '@types/body-parser':
         specifier: ^1.19.5

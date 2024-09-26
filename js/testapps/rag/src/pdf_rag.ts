@@ -20,7 +20,7 @@ import {
 } from '@genkit-ai/dev-local-vectorstore';
 import { geminiPro } from '@genkit-ai/vertexai';
 import fs from 'fs';
-import { Document, generate, index, retrieve, run, z } from 'genkit';
+import { Document, run, z } from 'genkit';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import pdf from 'pdf-parse';
@@ -39,7 +39,7 @@ export const pdfQA = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (query, streamingCallback) => {
-    const docs = await retrieve({
+    const docs = await ai.retrieve({
       retriever: pdfChatRetriever,
       query,
       options: { k: 3 },
@@ -84,7 +84,7 @@ export const indexPdf = ai.defineFlow(
       return Document.fromText(text, { filePath });
     });
 
-    await index({
+    await ai.index({
       indexer: pdfChatIndexer,
       documents,
     });
@@ -116,7 +116,7 @@ export const synthesizeQuestions = ai.defineFlow(
 
     const questions: string[] = [];
     for (let i = 0; i < chunks.length; i++) {
-      const qResponse = await generate({
+      const qResponse = await ai.generate({
         model: geminiPro,
         prompt: {
           text: `Generate one question about the text below: ${chunks[i]}`,
