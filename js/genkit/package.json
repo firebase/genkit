@@ -28,8 +28,7 @@
   "dependencies": {
     "@genkit-ai/core": "workspace:*",
     "@genkit-ai/ai": "workspace:*",
-    "@genkit-ai/dotprompt": "workspace:*",
-    "@opentelemetry/sdk-node": "^0.52.0"
+    "@genkit-ai/dotprompt": "workspace:*"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",

@@ -18,13 +18,13 @@ import { credentialsFromEnvironment } from './auth.js';
 import { GcpLogger } from './gcpLogger.js';
 import { GcpOpenTelemetry } from './gcpOpenTelemetry.js';
 import { TelemetryConfigs } from './telemetry/defaults.js';
-import { GcpPluginConfig, GcpPluginOptions } from './types.js';
+import { GcpTelemetryConfig, GcpTelemetryConfigOptions } from './types.js';
 import { enableTelemetry } from 'genkit/tracing';
 import { logger } from 'genkit/logging';
 import { getCurrentEnv } from 'genkit';
 
-export function enableGoogleCloudTelemetry(options?: GcpPluginOptions) {
-  const pluginConfig = configureGcpPlugin(options);
+export async function enableGoogleCloudTelemetry(options?: GcpTelemetryConfigOptions) {
+  const pluginConfig = await configureGcpPlugin(options);
 
   enableTelemetry(new GcpOpenTelemetry(pluginConfig).getConfig())
   logger.init(new GcpLogger(pluginConfig).getLogger(getCurrentEnv()))
@@ -35,16 +35,16 @@ export function enableGoogleCloudTelemetry(options?: GcpPluginOptions) {
  * Not normally needed, but exposed for use by the firebase plugin.
  */
 async function configureGcpPlugin(
-  options?: GcpPluginOptions
-): Promise<GcpPluginConfig> {
+  options?: GcpTelemetryConfigOptions
+): Promise<GcpTelemetryConfig> {
   const envOptions = await credentialsFromEnvironment();
   return {
     projectId: options?.projectId || envOptions.projectId,
     credentials: options?.credentials || envOptions.credentials,
-    telemetry: TelemetryConfigs.defaults(options?.telemetryConfig),
+    ...TelemetryConfigs.defaults(options),
   };
 }
 
 export * from './gcpLogger.js';
 export * from './gcpOpenTelemetry.js';
-export { GcpPluginOptions, GcpTelemetryConfigOptions } from './types.js';
+export { GcpTelemetryConfigOptions } from './types.js';

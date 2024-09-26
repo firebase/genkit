@@ -16,7 +16,7 @@
 
 import { LoggingWinston } from '@google-cloud/logging-winston';
 import { Writable } from 'stream';
-import { GcpPluginConfig } from './types';
+import { GcpTelemetryConfig } from './types';
 
 /**
  * Additional streams for writing log data to. Useful for unit testing.
@@ -28,7 +28,7 @@ let additionalStream: Writable;
  * logs.
  */
 export class GcpLogger {
-  constructor(private readonly config: GcpPluginConfig) {}
+  constructor(private readonly config: GcpTelemetryConfig) {}
 
   async getLogger(env: string) {
     // Dynamically importing winston here more strictly controls
@@ -69,7 +69,7 @@ export class GcpLogger {
   }
 
   private shouldExport(env?: string) {
-    return this.config.telemetry.export;
+    return this.config.export;
   }
 }
 

@@ -58,13 +58,10 @@ import {
   FlowServerOptions,
   isDevEnv,
   JSONSchema,
-  LoggerConfig,
   PluginProvider,
   ReflectionServer,
   StreamableFlow,
   StreamingFlowConfig,
-  TelemetryConfig,
-  TelemetryOptions,
   z,
 } from '@genkit-ai/core';
 import * as registry from '@genkit-ai/core/registry';
@@ -74,10 +71,9 @@ import {
   prompt,
   PromptMetadata,
 } from '@genkit-ai/dotprompt';
-import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 import { logger } from './logging.js';
 import { AsyncProvider, Registry, runWithRegistry } from './registry.js';
-import { cleanUpTracing, enableTracingAndMetrics } from './tracing.js';
+
 /**
  * Options for initializing Genkit.
  */
@@ -333,14 +329,6 @@ export class Genkit {
   }
 
   /**
-   * Returns the configuration for exporting Telemetry data for the current
-   * environment.
-   */
-  getTelemetryConfig(): Promise<TelemetryConfig> {
-    return this.telemetryConfig();
-  }
-
-  /**
    * Configures the Genkit instance.
    */
   private configure() {
@@ -382,7 +370,6 @@ process.on('SIGTERM', async () => {
   await Promise.all([
     ReflectionServer.stopAll(),
     FlowServer.stopAll(),
-    cleanUpTracing(),
   ]);
   process.exit(0);
 });

@@ -52,7 +52,7 @@ import { extractErrorName } from './utils';
 import { actionTelemetry } from './telemetry/action.js';
 import { flowsTelemetry } from './telemetry/flow.js';
 import { generateTelemetry } from './telemetry/generate.js';
-import { GcpPluginConfig } from './types';
+import { GcpTelemetryConfig } from './types';
 
 let metricExporter: PushMetricExporter;
 let spanProcessor: BatchSpanProcessor;
@@ -63,10 +63,10 @@ let spanExporter: AdjustingTraceExporter;
  * Metrics, and Logs) to the Google Cloud Operations Suite.
  */
 export class GcpOpenTelemetry {
-  private readonly config: GcpPluginConfig;
+  private readonly config: GcpTelemetryConfig;
   private readonly resource: Resource;
 
-  constructor(config: GcpPluginConfig) {
+  constructor(config: GcpTelemetryConfig) {
     this.config = config;
     this.resource = new Resource({ type: 'global' }).merge(
       new GcpDetectorSync().detect()
@@ -93,7 +93,7 @@ export class GcpOpenTelemetry {
     return {
       resource: this.resource,
       spanProcessor: spanProcessor,
-      sampler: this.config.telemetry.sampler,
+      sampler: this.config.sampler,
       instrumentations: this.getInstrumentations(),
       metricReader: this.createMetricReader(),
     };
@@ -106,7 +106,7 @@ export class GcpOpenTelemetry {
             credentials: this.config.credentials,
           })
         : new InMemorySpanExporter(),
-      this.config.telemetry.exportIO,
+      this.config.exportIO,
       this.config.projectId
     );
     return spanExporter;
@@ -118,29 +118,29 @@ export class GcpOpenTelemetry {
   private createMetricReader(): PeriodicExportingMetricReader {
     metricExporter = this.buildMetricExporter();
     return new PeriodicExportingMetricReader({
-      exportIntervalMillis: this.config.telemetry.metricExportIntervalMillis,
-      exportTimeoutMillis: this.config.telemetry.metricExportTimeoutMillis,
+      exportIntervalMillis: this.config.metricExportIntervalMillis,
+      exportTimeoutMillis: this.config.metricExportTimeoutMillis,
       exporter: metricExporter,
     });
   }
 
   /** Gets all open telemetry instrumentations as configured by the plugin. */
   private getInstrumentations() {
-    if (this.config.telemetry.autoInstrumentation) {
+    if (this.config.autoInstrumentation) {
       return getNodeAutoInstrumentations(
-        this.config.telemetry.autoInstrumentationConfig
+        this.config.autoInstrumentationConfig
       ).concat(this.getDefaultLoggingInstrumentations());
     }
     return this.getDefaultLoggingInstrumentations();
   }
 
   private shouldExportTraces(): boolean {
-    return this.config.telemetry.export && !this.config.telemetry.disableTraces;
+    return this.config.export && !this.config.disableTraces;
   }
 
   private shouldExportMetrics(): boolean {
     return (
-      this.config.telemetry.export && !this.config.telemetry.disableMetrics
+      this.config.export && !this.config.disableMetrics
     );
   }
 
