@@ -14,12 +14,6 @@
  * limitations under the License.
  */
 
-import {
-  __addTransportStreamForTesting,
-  __forceFlushSpansForTesting,
-  __getSpanExporterForTesting,
-  googleCloud,
-} from '@genkit-ai/google-cloud';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { Genkit, generate, genkit, run, z } from 'genkit';
 import { GenerateResponseData, defineModel } from 'genkit/model';
@@ -27,6 +21,12 @@ import { runWithRegistry } from 'genkit/registry';
 import assert from 'node:assert';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { Writable } from 'stream';
+import {
+  __addTransportStreamForTesting,
+  __forceFlushSpansForTesting,
+  __getSpanExporterForTesting,
+  enableGoogleCloudTelemetry,
+} from '../src/index.js';
 
 describe('GoogleCloudLogs no I/O', () => {
   let logLines = '';
@@ -41,27 +41,15 @@ describe('GoogleCloudLogs no I/O', () => {
   before(async () => {
     process.env.GENKIT_ENV = 'dev';
     __addTransportStreamForTesting(logStream);
-    ai = genkit({
-      // Force GCP Plugin to use in-memory metrics exporter
-      plugins: [
-        googleCloud({
-          projectId: 'test',
-          telemetryConfig: {
-            forceDevExport: false,
-            metricExportIntervalMillis: 100,
-            metricExportTimeoutMillis: 100,
-            disableLoggingIO: true,
-          },
-        }),
-      ],
-      enableTracingAndMetrics: true,
-      telemetry: {
-        instrumentation: 'googleCloud',
-        logger: 'googleCloud',
-      },
+    await enableGoogleCloudTelemetry({
+      projectId: 'test',
+      forceDevExport: false,
+      metricExportIntervalMillis: 100,
+      metricExportTimeoutMillis: 100,
+      disableLoggingIO: true,
     });
+    ai = genkit({});
     // Wait for the telemetry plugin to be initialized
-    await ai.getTelemetryConfig();
     await waitForLogsInit(ai, logLines);
   });
   beforeEach(async () => {
@@ -191,26 +179,16 @@ describe('GoogleCloudLogs', () => {
   before(async () => {
     process.env.GENKIT_ENV = 'dev';
     __addTransportStreamForTesting(logStream);
+    await enableGoogleCloudTelemetry({
+      projectId: 'test',
+      forceDevExport: false,
+      metricExportIntervalMillis: 100,
+      metricExportTimeoutMillis: 100,
+    });
     ai = genkit({
       // Force GCP Plugin to use in-memory metrics exporter
-      plugins: [
-        googleCloud({
-          projectId: 'test',
-          telemetryConfig: {
-            forceDevExport: false,
-            metricExportIntervalMillis: 100,
-            metricExportTimeoutMillis: 100,
-          },
-        }),
-      ],
-      enableTracingAndMetrics: true,
-      telemetry: {
-        instrumentation: 'googleCloud',
-        logger: 'googleCloud',
-      },
+      plugins: [],
     });
-    // Wait for the telemetry plugin to be initialized
-    await ai.getTelemetryConfig();
     await waitForLogsInit(ai, logLines);
   });
   beforeEach(async () => {

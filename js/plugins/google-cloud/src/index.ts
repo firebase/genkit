@@ -29,7 +29,7 @@ export async function enableGoogleCloudTelemetry(
   const pluginConfig = await configureGcpPlugin(options);
 
   enableTelemetry(new GcpOpenTelemetry(pluginConfig).getConfig());
-  logger.init(new GcpLogger(pluginConfig).getLogger(getCurrentEnv()));
+  logger.init(await new GcpLogger(pluginConfig).getLogger(getCurrentEnv()));
 }
 
 /**
