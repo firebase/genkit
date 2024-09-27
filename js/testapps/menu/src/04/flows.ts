@@ -18,7 +18,7 @@ import {
   devLocalIndexerRef,
   devLocalRetrieverRef,
 } from '@genkit-ai/dev-local-vectorstore';
-import { Document, index, retrieve, z } from 'genkit';
+import { Document, z } from 'genkit';
 import { ai } from '../index.js';
 import {
   AnswerOutputSchema,
@@ -43,7 +43,7 @@ export const s04_indexMenuItemsFlow = ai.defineFlow(
       const text = `${menuItem.title} ${menuItem.price} \n ${menuItem.description}`;
       return Document.fromText(text, menuItem);
     });
-    await index({
+    await ai.index({
       indexer: devLocalIndexerRef('menu-items'),
       documents,
     });
@@ -64,7 +64,7 @@ export const s04_ragMenuQuestionFlow = ai.defineFlow(
   },
   async (input) => {
     // Retrieve the 3 most relevant menu items for the question
-    const docs = await retrieve({
+    const docs = await ai.retrieve({
       retriever: devLocalRetrieverRef('menu-items'),
       query: input.question,
       options: { k: 3 },

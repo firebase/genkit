@@ -21,7 +21,7 @@
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
     "dotenv": "^16.4.5",
-    "express": "^4.19.2",
+    "express": "^4.21.0",
     "firebase-admin": "^12.1.0",
     "genkitx-chromadb": "workspace:*",
     "genkitx-langchain": "workspace:*",

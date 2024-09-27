@@ -14,33 +14,70 @@
  * limitations under the License.
  */
 
-import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
-import z from 'zod';
+import {
+  BaseDataPointSchema,
+  definePrompt,
+  defineTool,
+  Document,
+  embed,
+  EmbedderParams,
+  Embedding,
+  EvalResponses,
+  evaluate,
+  EvaluatorParams,
+  generate,
+  GenerateOptions,
+  GenerateResponse,
+  generateStream,
+  GenerateStreamOptions,
+  GenerateStreamResponse,
+  GenerationCommonConfigSchema,
+  index,
+  IndexerParams,
+  PromptAction,
+  PromptConfig,
+  PromptFn,
+  RankedDocument,
+  rerank,
+  RerankerParams,
+  retrieve,
+  RetrieverParams,
+  ToolAction,
+  ToolConfig,
+} from '@genkit-ai/ai';
 import {
   CallableFlow,
   defineFlow,
+  defineJsonSchema,
+  defineSchema,
   defineStreamingFlow,
   Flow,
   FlowConfig,
   FlowFn,
   FlowServer,
   FlowServerOptions,
+  isDevEnv,
+  JSONSchema,
+  LoggerConfig,
+  PluginProvider,
+  ReflectionServer,
   StreamableFlow,
   StreamingFlowConfig,
-} from './flow.js';
-import { logger } from './logging.js';
-import { PluginProvider } from './plugin.js';
-import { ReflectionServer } from './reflection.js';
-import * as registry from './registry.js';
-import { AsyncProvider, Registry, runWithRegistry } from './registry.js';
-import {
-  LoggerConfig,
   TelemetryConfig,
   TelemetryOptions,
-} from './telemetryTypes.js';
+  z,
+} from '@genkit-ai/core';
+import * as registry from '@genkit-ai/core/registry';
+import {
+  defineDotprompt,
+  Dotprompt,
+  prompt,
+  PromptMetadata,
+} from '@genkit-ai/dotprompt';
+import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
+import { logger } from './logging.js';
+import { AsyncProvider, Registry, runWithRegistry } from './registry.js';
 import { cleanUpTracing, enableTracingAndMetrics } from './tracing.js';
-import { isDevEnv } from './utils.js';
-
 /**
  * Options for initializing Genkit.
  */
@@ -60,6 +97,7 @@ export interface GenkitOptions {
   // FIXME: Telemetry cannot be scoped to a single Genkit instance.
   /** Telemetry configuration. */
   telemetry?: TelemetryOptions;
+  // FIXME: Default model is not currently supported since the switch to non-global registry.
   /** Default model to use if no model is specified. */
   defaultModel?: {
     /** Name of the model to use. */
@@ -73,7 +111,7 @@ export interface GenkitOptions {
 }
 
 /**
- * `Genkit` encapsulates a single Genkit instance including {@link Registry}, {@link ReflectionServer}, flow server, and configuration.
+ * `Genkit` encapsulates a single Genkit instance including the {@link Registry}, {@link ReflectionServer}, {@link FlowServer}, and configuration.
  *
  * Registry keeps track of actions, flows, tools, and many other components. Reflection server exposes an API to inspect the registry and trigger executions of actions in the registry. Flow server exposes flows as HTTP endpoints for production use.
  *
@@ -125,7 +163,9 @@ export class Genkit {
   }
 
   /**
-   * Defines a flow.
+   * Defines and registers a non-streaming flow.
+   *
+   * @todo TODO: Improve this documentation (show snippets, etc).
    */
   defineFlow<
     I extends z.ZodTypeAny = z.ZodTypeAny,
@@ -137,7 +177,9 @@ export class Genkit {
   }
 
   /**
-   * Defines a streaming flow.
+   * Defines and registers a streaming flow.
+   *
+   * @todo TODO: Improve this documentation (show snippetss, etc).
    */
   defineStreamingFlow<
     I extends z.ZodTypeAny = z.ZodTypeAny,
@@ -152,6 +194,164 @@ export class Genkit {
     );
     this.registeredFlows.push(flow.flow);
     return flow;
+  }
+
+  /**
+   * Defines and registers a tool.
+   *
+   * Tools can be passed to models by name or value during `generate` calls to be called automatically based on the prompt and situation.
+   */
+  defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+    config: ToolConfig<I, O>,
+    fn: (input: z.infer<I>) => Promise<z.infer<O>>
+  ): ToolAction<I, O> {
+    return runWithRegistry(this.registry, () => defineTool(config, fn));
+  }
+
+  /**
+   * Defines and registers a schema from a Zod schema.
+   *
+   * Defined schemas can be referenced by `name` in prompts in place of inline schemas.
+   */
+  defineSchema<T extends z.ZodTypeAny>(name: string, schema: T): T {
+    runWithRegistry(this.registry, () => defineSchema(name, schema));
+    return schema;
+  }
+
+  /**
+   * Defines and registers a schema from a JSON schema.
+   *
+   * Defined schemas can be referenced by `name` in prompts in place of inline schemas.
+   */
+  defineJsonSchema(name: string, jsonSchema: JSONSchema) {
+    runWithRegistry(this.registry, () => defineJsonSchema(name, jsonSchema));
+    return jsonSchema;
+  }
+
+  /**
+   * Looks up a prompt by `name` and optional `variant`.
+   *
+   * @todo TODO: Show an example of a name and variant.
+   */
+  prompt<Variables = unknown>(
+    name: string,
+    options?: { variant?: string }
+  ): Promise<Dotprompt<Variables>> {
+    return runWithRegistry(this.registry, () => prompt(name, options));
+  }
+
+  /**
+   * Defines and registers a dotprompt.
+   *
+   * This replaces defining and importing a .dotprompt file.
+   *
+   * @todo TODO: Improve this documentation (show an example, etc).
+   */
+  defineDotprompt<
+    I extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    options: PromptMetadata<I, CustomOptions>,
+    template: string
+  ): Dotprompt<z.infer<I>> {
+    return runWithRegistry(this.registry, () =>
+      defineDotprompt(options, template)
+    );
+  }
+
+  /**
+   * Defines and registers a prompt action.
+   */
+  definePrompt<I extends z.ZodTypeAny = z.ZodTypeAny>(
+    config: PromptConfig<I>,
+    fn: PromptFn<I>
+  ): PromptAction<I> {
+    return runWithRegistry(this.registry, () => definePrompt(config, fn));
+  }
+
+  /**
+   * Embeds the given `content` using the specified `embedder`.
+   */
+  embed<CustomOptions extends z.ZodTypeAny>(
+    params: EmbedderParams<CustomOptions>
+  ): Promise<Embedding> {
+    return runWithRegistry(this.registry, () => embed(params));
+  }
+
+  /**
+   * Evaluates the given `dataset` using the specified `evaluator`.
+   */
+  evaluate<
+    DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
+    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+  >(params: EvaluatorParams<DataPoint, CustomOptions>): Promise<EvalResponses> {
+    return runWithRegistry(this.registry, () => evaluate(params));
+  }
+
+  /**
+   * Reranks documents from a {@link RerankerArgument} based on the provided query.
+   */
+  rerank<CustomOptions extends z.ZodTypeAny>(
+    params: RerankerParams<CustomOptions>
+  ): Promise<Array<RankedDocument>> {
+    return runWithRegistry(this.registry, () => rerank(params));
+  }
+
+  /**
+   * Indexes `documents` using the provided `indexer`.
+   */
+  index<CustomOptions extends z.ZodTypeAny>(
+    params: IndexerParams<CustomOptions>
+  ): Promise<void> {
+    return runWithRegistry(this.registry, () => index(params));
+  }
+
+  /**
+   * Retrieves documents from the `retriever` based on the provided `query`.
+   */
+  retrieve<CustomOptions extends z.ZodTypeAny>(
+    params: RetrieverParams<CustomOptions>
+  ): Promise<Array<Document>> {
+    return runWithRegistry(this.registry, () => retrieve(params));
+  }
+
+  /**
+   * Generate calls a generative model based on the provided prompt and configuration. If
+   * `history` is provided, the generation will include a conversation history in its
+   * request. If `tools` are provided, the generate method will automatically resolve
+   * tool calls returned from the model unless `returnToolRequests` is set to `true`.
+   *
+   * See {@link GenerateOptions} for detailed information about available options.
+   */
+  generate<
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+  >(
+    options:
+      | GenerateOptions<O, CustomOptions>
+      | PromiseLike<GenerateOptions<O, CustomOptions>>
+  ): Promise<GenerateResponse<z.infer<O>>> {
+    return runWithRegistry(this.registry, () => generate(options));
+  }
+
+  /**
+   * Generates a stream of responses from a generative model based on the provided prompt
+   * and configuration. If `history` is provided, the generation will include a conversation
+   * history in its request. If `tools` are provided, the generate method will automatically
+   * resolve tool calls returned from the model unless `returnToolRequests` is set to `true`.
+   * tool calls returned from the model unless `returnToolRequests` is set to `true`.
+   *
+   * See {@link GenerateStreamOptions} for detailed information about available options.
+   */
+  generateStream<
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+  >(
+    options:
+      | GenerateStreamOptions<O, CustomOptions>
+      | PromiseLike<GenerateStreamOptions<O, CustomOptions>>
+  ): Promise<GenerateStreamResponse<z.infer<O>>> {
+    return runWithRegistry(this.registry, () => generateStream(options));
   }
 
   /**

@@ -16,59 +16,59 @@
 
 import { z } from '@genkit-ai/core';
 import { Registry, runWithRegistry } from '@genkit-ai/core/registry';
+import { toJsonSchema } from '@genkit-ai/core/schema';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
-import { GenerateResponseChunk } from '../../lib/generate.js';
-import { GenerateResponseChunkData } from '../../lib/model.js';
 import {
-  Candidate,
   GenerateOptions,
   GenerateResponse,
+  GenerateResponseChunk,
+  GenerationBlockedError,
+  GenerationResponseError,
   Message,
   generate,
   toGenerateRequest,
 } from '../../src/generate.js';
 import {
-  CandidateData,
   GenerateRequest,
-  MessageData,
+  GenerateResponseChunkData,
+  GenerateResponseData,
   ModelAction,
   ModelMiddleware,
   defineModel,
 } from '../../src/model.js';
 import { defineTool } from '../../src/tool.js';
 
-describe('Candidate', () => {
+describe('GenerateResponse', () => {
   describe('#toJSON()', () => {
     const testCases = [
       {
         should: 'serialize correctly when custom is undefined',
-        candidateData: {
-          message: new Message({
+        responseData: {
+          message: {
             role: 'model',
             content: [{ text: '{"name": "Bob"}' }],
-          }),
-          index: 0,
-          usage: {},
+          },
           finishReason: 'stop',
           finishMessage: '',
+          usage: {},
           // No 'custom' property
         },
         expectedOutput: {
-          message: { content: [{ text: '{"name": "Bob"}' }], role: 'model' }, // NOTE THIS IS WRONG??
-          index: 0,
-          usage: {},
+          message: { content: [{ text: '{"name": "Bob"}' }], role: 'model' },
           finishReason: 'stop',
-          finishMessage: '',
-          custom: undefined, // Or omit this if appropriate
+          usage: {},
+          custom: {},
         },
       },
     ];
 
     for (const test of testCases) {
       it(test.should, () => {
-        const candidate = new Candidate(test.candidateData as Candidate);
-        assert.deepStrictEqual(candidate.toJSON(), test.expectedOutput);
+        const response = new GenerateResponse(
+          test.responseData as GenerateResponseData
+        );
+        assert.deepStrictEqual(response.toJSON(), test.expectedOutput);
       });
     }
   });
@@ -77,31 +77,27 @@ describe('Candidate', () => {
     const testCases = [
       {
         should: 'return structured data from the data part',
-        candidateData: {
+        responseData: {
           message: new Message({
             role: 'model',
             content: [{ data: { name: 'Alice', age: 30 } }],
           }),
-          index: 0,
-          usage: {},
           finishReason: 'stop',
           finishMessage: '',
-          custom: {},
+          usage: {},
         },
         expectedOutput: { name: 'Alice', age: 30 },
       },
       {
         should: 'parse JSON from text when the data part is absent',
-        candidateData: {
+        responseData: {
           message: new Message({
             role: 'model',
             content: [{ text: '{"name": "Bob"}' }],
           }),
-          index: 0,
-          usage: {},
           finishReason: 'stop',
           finishMessage: '',
-          custom: {},
+          usage: {},
         },
         expectedOutput: { name: 'Bob' },
       },
@@ -109,154 +105,117 @@ describe('Candidate', () => {
 
     for (const test of testCases) {
       it(test.should, () => {
-        const candidate = new Candidate(test.candidateData as CandidateData);
-        assert.deepStrictEqual(candidate.output(), test.expectedOutput);
+        const response = new GenerateResponse(
+          test.responseData as GenerateResponseData
+        );
+        assert.deepStrictEqual(response.output(), test.expectedOutput);
       });
     }
   });
 
-  describe('#hasValidOutput()', () => {
-    const good: MessageData = {
-      role: 'model',
-      content: [{ text: '{"abc": 123}' }],
-    };
-    const bad: MessageData = {
-      role: 'model',
-      content: [{ text: '{"abc": "123"}' }],
-    };
-    const goodData: MessageData = {
-      role: 'model',
-      content: [{ data: { abc: 123 } }],
-    };
-    const badData: MessageData = {
-      role: 'model',
-      content: [{ data: { abc: '123' } }],
-    };
-    const schemaRequest = {
-      output: {
-        schema: { type: 'object', properties: { abc: { type: 'number' } } },
-      },
-    } as unknown as GenerateRequest;
+  describe('#assertValid()', () => {
+    it('throws GenerationBlockedError if finishReason is blocked', () => {
+      const response = new GenerateResponse({
+        finishReason: 'blocked',
+        finishMessage: 'Content was blocked',
+      });
 
-    it('returns true if no schema', () => {
-      assert(
-        new Candidate<any>({
-          index: 0,
-          message: bad,
-          finishReason: 'stop',
-        }).hasValidOutput()
+      assert.throws(
+        () => {
+          response.assertValid();
+        },
+        (err: unknown) => {
+          return err instanceof GenerationBlockedError;
+        }
       );
     });
 
-    it('returns correctly based on validation from data', () => {
-      assert(
-        !new Candidate<any>({
-          index: 0,
-          message: badData,
-          finishReason: 'stop',
-        }).hasValidOutput(schemaRequest)
-      );
-      assert(
-        !new Candidate<any>(
-          { index: 0, message: badData, finishReason: 'stop' },
-          schemaRequest
-        ).hasValidOutput()
-      );
-      assert(
-        new Candidate<any>({
-          index: 0,
-          message: goodData,
-          finishReason: 'stop',
-        }).hasValidOutput(schemaRequest)
-      );
-      assert(
-        new Candidate<any>(
-          { index: 0, message: goodData, finishReason: 'stop' },
-          schemaRequest
-        ).hasValidOutput()
+    it('throws GenerationResponseError if no message is generated', () => {
+      const response = new GenerateResponse({
+        finishReason: 'length',
+        finishMessage: 'Reached max tokens',
+      });
+
+      assert.throws(
+        () => {
+          response.assertValid();
+        },
+        (err: unknown) => {
+          return err instanceof GenerationResponseError;
+        }
       );
     });
 
-    it('returns correctly based on validation from output', () => {
-      assert(
-        !new Candidate<any>({
-          index: 0,
-          message: bad,
-          finishReason: 'stop',
-        }).hasValidOutput(schemaRequest)
-      );
-      assert(
-        !new Candidate<any>(
-          { index: 0, message: bad, finishReason: 'stop' },
-          schemaRequest
-        ).hasValidOutput()
-      );
-      assert(
-        new Candidate<any>({
-          index: 0,
-          message: good,
-          finishReason: 'stop',
-        }).hasValidOutput(schemaRequest)
-      );
-      assert(
-        new Candidate<any>(
-          { index: 0, message: good, finishReason: 'stop' },
-          schemaRequest
-        ).hasValidOutput()
-      );
-    });
-  });
-});
+    it('throws error if output does not conform to schema', () => {
+      const schema = z.object({
+        name: z.string(),
+        age: z.number(),
+      });
 
-describe('GenerateResponse', () => {
-  describe('#output()', () => {
-    it('picks the first candidate with valid output if no index provided', () => {
-      const schemaRequest = {
+      const response = new GenerateResponse({
+        message: {
+          role: 'model',
+          content: [{ text: '{"name": "John", "age": "30"}' }],
+        },
+        finishReason: 'stop',
+      });
+
+      const request: GenerateRequest = {
+        messages: [],
         output: {
-          schema: { type: 'object', properties: { abc: { type: 'number' } } },
+          schema: toJsonSchema({ schema }),
         },
-      } as unknown as GenerateRequest;
-      const response = new GenerateResponse(
-        {
-          candidates: [
-            {
-              index: 0,
-              finishReason: 'stop',
-              message: { role: 'model', content: [{ text: '{"abc":"123"}' }] },
-            },
-            {
-              index: 0,
-              finishReason: 'stop',
-              message: { role: 'model', content: [{ text: '{"abc":123}' }] },
-            },
-          ],
+      };
+
+      assert.throws(
+        () => {
+          response.assertValid(request);
         },
-        schemaRequest
+        (err: unknown) => {
+          return err instanceof Error && err.message.includes('must be number');
+        }
       );
-      assert.deepStrictEqual(response.output(), { abc: 123 });
-      assert.deepStrictEqual(response.output(0), { abc: '123' });
+    });
+
+    it('does not throw if output conforms to schema', () => {
+      const schema = z.object({
+        name: z.string(),
+        age: z.number(),
+      });
+
+      const response = new GenerateResponse({
+        message: {
+          role: 'model',
+          content: [{ text: '{"name": "John", "age": 30}' }],
+        },
+        finishReason: 'stop',
+      });
+
+      const request: GenerateRequest = {
+        messages: [],
+        output: {
+          schema: toJsonSchema({ schema }),
+        },
+      };
+
+      assert.doesNotThrow(() => {
+        response.assertValid(request);
+      });
     });
   });
+
   describe('#toolRequests()', () => {
     it('returns empty array if no tools requests found', () => {
       const response = new GenerateResponse({
-        candidates: [
-          {
-            index: 0,
-            finishReason: 'stop',
-            message: { role: 'model', content: [{ text: '{"abc":"123"}' }] },
-          },
-          {
-            index: 0,
-            finishReason: 'stop',
-            message: { role: 'model', content: [{ text: '{"abc":123}' }] },
-          },
-        ],
+        message: new Message({
+          role: 'model',
+          content: [{ text: '{"abc":"123"}' }],
+        }),
+        finishReason: 'stop',
       });
       assert.deepStrictEqual(response.toolRequests(), []);
-      assert.deepStrictEqual(response.toolRequests(0), []);
     });
-    it('picks the first candidate if no index provided', () => {
+    it('returns tool call if present', () => {
       const toolCall = {
         toolRequest: {
           name: 'foo',
@@ -265,26 +224,15 @@ describe('GenerateResponse', () => {
         },
       };
       const response = new GenerateResponse({
-        candidates: [
-          {
-            index: 0,
-            finishReason: 'stop',
-            message: {
-              role: 'model',
-              content: [toolCall],
-            },
-          },
-          {
-            index: 0,
-            finishReason: 'stop',
-            message: { role: 'model', content: [{ text: '{"abc":123}' }] },
-          },
-        ],
+        message: new Message({
+          role: 'model',
+          content: [toolCall],
+        }),
+        finishReason: 'stop',
       });
       assert.deepStrictEqual(response.toolRequests(), [toolCall]);
-      assert.deepStrictEqual(response.toolRequests(0), [toolCall]);
     });
-    it('returns all tool call', () => {
+    it('returns all tool calls', () => {
       const toolCall1 = {
         toolRequest: {
           name: 'foo',
@@ -300,21 +248,11 @@ describe('GenerateResponse', () => {
         },
       };
       const response = new GenerateResponse({
-        candidates: [
-          {
-            index: 0,
-            finishReason: 'stop',
-            message: {
-              role: 'model',
-              content: [toolCall1, toolCall2],
-            },
-          },
-          {
-            index: 0,
-            finishReason: 'stop',
-            message: { role: 'model', content: [{ text: '{"abc":123}' }] },
-          },
-        ],
+        message: new Message({
+          role: 'model',
+          content: [toolCall1, toolCall2],
+        }),
+        finishReason: 'stop',
       });
       assert.deepStrictEqual(response.toolRequests(), [toolCall1, toolCall2]);
     });
@@ -350,7 +288,6 @@ describe('toGenerateRequest', () => {
         messages: [
           { role: 'user', content: [{ text: 'Tell a joke about dogs.' }] },
         ],
-        candidates: undefined,
         config: undefined,
         context: undefined,
         tools: [],
@@ -369,7 +306,6 @@ describe('toGenerateRequest', () => {
         messages: [
           { role: 'user', content: [{ text: 'Tell a joke about dogs.' }] },
         ],
-        candidates: undefined,
         config: undefined,
         context: undefined,
         tools: [
@@ -405,7 +341,6 @@ describe('toGenerateRequest', () => {
         messages: [
           { role: 'user', content: [{ text: 'Tell a joke about dogs.' }] },
         ],
-        candidates: undefined,
         config: undefined,
         context: undefined,
         tools: [
@@ -458,7 +393,6 @@ describe('toGenerateRequest', () => {
             ],
           },
         ],
-        candidates: undefined,
         config: undefined,
         context: undefined,
         tools: [],
@@ -481,7 +415,6 @@ describe('toGenerateRequest', () => {
           { content: [{ text: 'how can I help you' }], role: 'model' },
           { role: 'user', content: [{ text: 'Tell a joke about dogs.' }] },
         ],
-        candidates: undefined,
         config: undefined,
         context: undefined,
         tools: [],
@@ -499,7 +432,6 @@ describe('toGenerateRequest', () => {
         messages: [
           { content: [{ text: 'Tell a joke with context.' }], role: 'user' },
         ],
-        candidates: undefined,
         config: undefined,
         context: [{ content: [{ text: 'context here' }] }],
         tools: [],
@@ -605,24 +537,19 @@ describe('generate', () => {
         },
         async (request) => {
           return {
-            candidates: [
-              {
-                index: 0,
-                finishReason: 'stop',
-                message: {
-                  role: 'model',
-                  content: [
-                    {
-                      text:
-                        'Echo: ' +
-                        request.messages
-                          .map((m) => m.content.map((c) => c.text).join())
-                          .join(),
-                    },
-                  ],
+            message: {
+              role: 'model',
+              content: [
+                {
+                  text:
+                    'Echo: ' +
+                    request.messages
+                      .map((m) => m.content.map((c) => c.text).join())
+                      .join(),
                 },
-              },
-            ],
+              ],
+            },
+            finishReason: 'stop',
           };
         }
       )
@@ -653,25 +580,15 @@ describe('generate', () => {
     const wrapResponse: ModelMiddleware = async (req, next) => {
       const res = await next(req);
       return {
-        candidates: [
-          {
-            index: 0,
-            finishReason: 'stop',
-            message: {
-              role: 'model',
-              content: [
-                {
-                  text:
-                    '[' +
-                    res.candidates[0].message.content
-                      .map((c) => c.text)
-                      .join() +
-                    ']',
-                },
-              ],
+        message: {
+          role: 'model',
+          content: [
+            {
+              text: '[' + res.message!.content.map((c) => c.text).join() + ']',
             },
-          },
-        ],
+          ],
+        },
+        finishReason: res.finishReason,
       };
     };
 
@@ -696,9 +613,8 @@ describe('generate', () => {
       defineModel(
         { name: 'echo', supports: { tools: true } },
         async (input) => ({
-          candidates: [
-            { index: 0, message: input.messages[0], finishReason: 'stop' },
-          ],
+          message: input.messages[0],
+          finishReason: 'stop',
         })
       )
     );

@@ -18,7 +18,7 @@ import { firebaseAuth } from '@genkit-ai/firebase/auth';
 import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
 import { gemini15Flash } from '@genkit-ai/googleai';
 import { DecodedIdToken } from 'firebase-admin/auth';
-import { generate, run, z } from 'genkit';
+import { run, z } from 'genkit';
 import { ai } from '../index.js';
 
 export const flowBasicAuth = ai.defineFlow(
@@ -39,7 +39,7 @@ export const flowBasicAuth = ai.defineFlow(
     const prompt = `Say hello in language ${input.language}`;
 
     return await run('call-llm', async () => {
-      const llmResponse = await generate({
+      const llmResponse = await ai.generate({
         model: gemini15Flash,
         prompt: prompt,
       });
@@ -68,7 +68,7 @@ export const flowAuth = onFlow(
     const prompt = `Say hello in language ${language}`;
 
     return await run('call-llm', async () => {
-      const llmResponse = await generate({
+      const llmResponse = await ai.generate({
         model: gemini15Flash,
         prompt: prompt,
       });
@@ -93,7 +93,7 @@ export const flowAuthNone = onFlow(
     const prompt = `Say hello in language ${language}`;
 
     return await run('call-llm', async () => {
-      const llmResponse = await generate({
+      const llmResponse = await ai.generate({
         model: gemini15Flash,
         prompt: prompt,
       });

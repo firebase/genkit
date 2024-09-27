@@ -15,43 +15,39 @@
  */
 
 import { geminiPro, geminiProVision } from '@genkit-ai/vertexai';
-import { defineDotprompt, z } from 'genkit';
-import { runWithRegistry } from 'genkit/registry';
+import { z } from 'genkit';
 import { ai } from '../index.js';
 import { TextMenuQuestionInputSchema } from '../types.js';
 
-export const s05_readMenuPrompt = runWithRegistry(ai.registry, () =>
-  defineDotprompt(
-    {
-      name: 's05_readMenu',
-      model: geminiProVision,
-      input: {
-        schema: z.object({
-          imageUrl: z.string(),
-        }),
-      },
-      output: { format: 'text' },
-      config: { temperature: 0.1 },
+export const s05_readMenuPrompt = ai.defineDotprompt(
+  {
+    name: 's05_readMenu',
+    model: geminiProVision,
+    input: {
+      schema: z.object({
+        imageUrl: z.string(),
+      }),
     },
-    `
+    output: { format: 'text' },
+    config: { temperature: 0.1 },
+  },
+  `
 Extract _all_ of the text, in order, 
 from the following image of a restaurant menu.
 
 {{media url=imageUrl}} 
 `
-  )
 );
 
-export const s05_textMenuPrompt = runWithRegistry(ai.registry, () =>
-  defineDotprompt(
-    {
-      name: 's05_textMenu',
-      model: geminiPro,
-      input: { schema: TextMenuQuestionInputSchema },
-      output: { format: 'text' },
-      config: { temperature: 0.3 },
-    },
-    `
+export const s05_textMenuPrompt = ai.defineDotprompt(
+  {
+    name: 's05_textMenu',
+    model: geminiPro,
+    input: { schema: TextMenuQuestionInputSchema },
+    output: { format: 'text' },
+    config: { temperature: 0.3 },
+  },
+  `
 You are acting as Walt, a helpful AI assistant here at the restaurant.
 You can answer questions about the food on the menu or any other questions
 customers have about food in general. 
@@ -62,5 +58,4 @@ Here is the text of today's menu to help you answer the customer's question:
 Answer this customer's question:
 {{question}}?
 `
-  )
 );

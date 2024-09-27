@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
-import { generate, loadPromptFile, ModelArgument, z } from 'genkit';
+import { loadPromptFile, ModelArgument, z } from 'genkit';
 import { BaseDataPoint, Score } from 'genkit/evaluator';
 import path from 'path';
+import { ai } from '../index.js';
 
 const PiiDetectionResponseSchema = z.object({
   reason: z.string(),
@@ -39,7 +40,7 @@ export async function piiDetectionScore<
       path.resolve(__dirname, '../../prompts/pii_detection.prompt')
     );
 
-    const response = await generate({
+    const response = await ai.generate({
       model: judgeLlm,
       prompt: finalPrompt.renderText({
         output: d.output as string,

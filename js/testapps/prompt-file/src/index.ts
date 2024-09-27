@@ -15,15 +15,7 @@
  */
 
 import { googleAI } from '@genkit-ai/googleai';
-import {
-  defineHelper,
-  defineSchema,
-  dotprompt,
-  genkit,
-  prompt,
-  z,
-} from 'genkit';
-import { runWithRegistry } from 'genkit/registry';
+import { defineHelper, dotprompt, genkit, z } from 'genkit';
 
 const ai = genkit({
   plugins: [googleAI(), dotprompt()],
@@ -38,19 +30,15 @@ title: string, recipe title
       quantity: string
     steps(array, the steps required to complete the recipe): string
     */
-const RecipeSchema = runWithRegistry(ai.registry, () =>
-  defineSchema(
-    'Recipe',
-    z.object({
-      title: z.string().describe('recipe title'),
-      ingredients: z.array(
-        z.object({ name: z.string(), quantity: z.string() })
-      ),
-      steps: z
-        .array(z.string())
-        .describe('the steps required to complete the recipe'),
-    })
-  )
+const RecipeSchema = ai.defineSchema(
+  'Recipe',
+  z.object({
+    title: z.string().describe('recipe title'),
+    ingredients: z.array(z.object({ name: z.string(), quantity: z.string() })),
+    steps: z
+      .array(z.string())
+      .describe('the steps required to complete the recipe'),
+  })
 );
 
 // This example demonstrates using prompt files in a flow
@@ -65,7 +53,7 @@ defineHelper('list', (data: any) => {
   return data.map((item) => `- ${item}`).join('\n');
 });
 
-prompt('recipe').then((recipePrompt) => {
+ai.prompt('recipe').then((recipePrompt) => {
   ai.defineFlow(
     {
       name: 'chefFlow',
@@ -81,7 +69,7 @@ prompt('recipe').then((recipePrompt) => {
   );
 });
 
-prompt('recipe', { variant: 'robot' }).then((recipePrompt) => {
+ai.prompt('recipe', { variant: 'robot' }).then((recipePrompt) => {
   ai.defineFlow(
     {
       name: 'robotChefFlow',
@@ -96,7 +84,7 @@ prompt('recipe', { variant: 'robot' }).then((recipePrompt) => {
 
 // A variation that supports streaming, optionally
 
-prompt('story').then((storyPrompt) => {
+ai.prompt('story').then((storyPrompt) => {
   ai.defineStreamingFlow(
     {
       name: 'tellStory',

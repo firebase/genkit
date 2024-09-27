@@ -17,7 +17,6 @@
 import { genkitPlugin, Plugin } from 'genkit';
 import { logger } from 'genkit/logging';
 import {
-  CandidateData,
   defineModel,
   GenerateRequest,
   GenerateResponseData,
@@ -143,7 +142,7 @@ function ollamaModel(
         throw new Error('Response has no body');
       }
 
-      const responseCandidates: CandidateData[] = [];
+      let message: MessageData;
 
       if (streamingCallback) {
         const reader = res.body.getReader();
@@ -159,33 +158,26 @@ function ollamaModel(
           });
           textResponse += message.content[0].text;
         }
-        responseCandidates.push({
-          index: 0,
-          finishReason: 'stop',
-          message: {
-            role: 'model',
-            content: [
-              {
-                text: textResponse,
-              },
-            ],
-          },
-        } as CandidateData);
+        message = {
+          role: 'model',
+          content: [
+            {
+              text: textResponse,
+            },
+          ],
+        };
       } else {
         const txtBody = await res.text();
         const json = JSON.parse(txtBody);
         logger.debug(txtBody, 'ollama raw response');
 
-        responseCandidates.push({
-          index: 0,
-          finishReason: 'stop',
-          message: parseMessage(json, type),
-        } as CandidateData);
+        message = parseMessage(json, type);
       }
 
       return {
-        candidates: responseCandidates,
-        usage: getBasicUsageStats(input.messages, responseCandidates),
+        message,
+        usage: getBasicUsageStats(input.messages, message),
+        finishReason: 'stop',
       } as GenerateResponseData;
     }
   );
