@@ -26,6 +26,55 @@ const CONTEXT_TEXTS = [
 ];
 
 describe('eval utils', () => {
+  describe('models', () => {
+    it('works with default extractors', async () => {
+      const spy = jest.spyOn(configModule, 'findToolsConfig');
+      spy.mockReturnValue(Promise.resolve(null));
+      // Mock trace mocks flows, but the logic of extractors should be unaffected.
+      const trace = new MockTrace('My input', 'My output').getTrace();
+
+      const extractors = await getEvalExtractors('/action/googleai/gemini-pro');
+
+      expect(Object.keys(extractors).sort()).toEqual(
+        ['input', 'output', 'context'].sort()
+      );
+      expect(extractors.input(trace)).toEqual(JSON.stringify('My input'));
+      expect(extractors.output(trace)).toEqual(JSON.stringify('My output'));
+      expect(extractors.context(trace)).toEqual(JSON.stringify([]));
+    });
+
+    it('returns custom extractors by stepName', async () => {
+      const config: configModule.ToolsConfig = {
+        evaluators: [
+          {
+            actionRef: '/action/googleai/gemini-pro',
+            extractors: {
+              output: 'step1',
+            },
+          },
+        ],
+      };
+      const spy = jest.spyOn(configModule, 'findToolsConfig');
+      spy.mockReturnValue(Promise.resolve(config));
+      const trace = new MockTrace('My input', 42)
+        .addSpan({
+          stepName: 'step1',
+          spanType: 'action',
+          input: 'step-input',
+          output: { out: 'my-object-output' },
+        })
+        .getTrace();
+
+      const extractors = await getEvalExtractors('/action/googleai/gemini-pro');
+
+      expect(extractors.input(trace)).toEqual(JSON.stringify('My input'));
+      expect(extractors.output(trace)).toEqual(
+        JSON.stringify({ out: 'my-object-output' })
+      );
+      expect(extractors.context(trace)).toEqual(JSON.stringify([]));
+    });
+  });
+
   it('returns default extractors when no config provided', async () => {
     const spy = jest.spyOn(configModule, 'findToolsConfig');
     spy.mockReturnValue(Promise.resolve(null));
