@@ -14,13 +14,8 @@
  * limitations under the License.
  */
 
-import { generate, generateStream, retrieve } from '@genkit-ai/ai';
-import { defineTool } from '@genkit-ai/ai/tool';
-import { configureGenkit } from '@genkit-ai/core';
-import { dotprompt, prompt } from '@genkit-ai/dotprompt';
-import { defineFirestoreRetriever, firebase } from '@genkit-ai/firebase';
-import { defineFlow, run } from '@genkit-ai/flow';
-import { googleCloud } from '@genkit-ai/google-cloud';
+import { defineFirestoreRetriever } from '@genkit-ai/firebase';
+import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 import {
   gemini15Flash,
   googleAI,
@@ -32,49 +27,38 @@ import {
   textEmbeddingGecko,
   vertexAI,
 } from '@genkit-ai/vertexai';
+import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
+import { MessageSchema, dotprompt, genkit, prompt, run, z } from 'genkit';
+import { runWithRegistry } from 'genkit/registry';
 import { Allow, parse } from 'partial-json';
-import * as z from 'zod';
 
-configureGenkit({
-  plugins: [
-    firebase(),
-    googleAI(),
-    vertexAI(),
-    googleCloud({
-      // These are configured for demonstration purposes. Sensible defaults are
-      // in place in the event that telemetryConfig is absent.
-      telemetryConfig: {
-        // Forces telemetry export in 'dev'
-        forceDevExport: true,
-        sampler: new AlwaysOnSampler(),
-        autoInstrumentation: true,
-        autoInstrumentationConfig: {
-          '@opentelemetry/instrumentation-fs': { enabled: false },
-          '@opentelemetry/instrumentation-dns': { enabled: false },
-          '@opentelemetry/instrumentation-net': { enabled: false },
-        },
-        metricExportIntervalMillis: 5_000,
-        metricExportTimeoutMillis: 5_000,
-      },
-    }),
-    dotprompt(),
-  ],
-  flowStateStore: 'firebase',
-  traceStore: 'firebase',
-  enableTracingAndMetrics: true,
-  logLevel: 'debug',
-  telemetry: {
-    instrumentation: 'googleCloud',
-    logger: 'googleCloud',
+enableGoogleCloudTelemetry({
+  // These are configured for demonstration purposes. Sensible defaults are
+  // in place in the event that telemetryConfig is absent.
+
+  // Forces telemetry export in 'dev'
+  forceDevExport: true,
+  sampler: new AlwaysOnSampler(),
+  autoInstrumentation: true,
+  autoInstrumentationConfig: {
+    '@opentelemetry/instrumentation-fs': { enabled: false },
+    '@opentelemetry/instrumentation-dns': { enabled: false },
+    '@opentelemetry/instrumentation-net': { enabled: false },
   },
+  metricExportIntervalMillis: 5_000,
+  metricExportTimeoutMillis: 5_000,
+});
+
+const ai = genkit({
+  plugins: [googleAI(), vertexAI(), dotprompt()],
 });
 
 const app = initializeApp();
 
-export const jokeFlow = defineFlow(
+export const jokeFlow = ai.defineFlow(
   {
     name: 'jokeFlow',
     inputSchema: z.object({
@@ -86,7 +70,7 @@ export const jokeFlow = defineFlow(
   },
   async (input) => {
     return await run('call-llm', async () => {
-      const llmResponse = await generate({
+      const llmResponse = await ai.generate({
         model: input.modelName,
         config: { version: input.modelVersion },
         prompt: `Tell a joke about ${input.subject}.`,
@@ -96,7 +80,7 @@ export const jokeFlow = defineFlow(
   }
 );
 
-export const drawPictureFlow = defineFlow(
+export const drawPictureFlow = ai.defineFlow(
   {
     name: 'drawPictureFlow',
     inputSchema: z.object({ modelName: z.string(), object: z.string() }),
@@ -104,7 +88,7 @@ export const drawPictureFlow = defineFlow(
   },
   async (input) => {
     return await run('call-llm', async () => {
-      const llmResponse = await generate({
+      const llmResponse = await ai.generate({
         model: input.modelName,
         prompt: `Draw a picture of a ${input.object}.`,
       });
@@ -115,7 +99,7 @@ export const drawPictureFlow = defineFlow(
   }
 );
 
-export const streamFlow = defineFlow(
+export const streamFlow = ai.defineStreamingFlow(
   {
     name: 'streamFlow',
     inputSchema: z.string(),
@@ -123,7 +107,7 @@ export const streamFlow = defineFlow(
     streamSchema: z.string(),
   },
   async (prompt, streamingCallback) => {
-    const { response, stream } = await generateStream({
+    const { response, stream } = await ai.generateStream({
       model: geminiPro,
       prompt,
     });
@@ -153,7 +137,7 @@ const GameCharactersSchema = z.object({
     .describe('Characters'),
 });
 
-export const streamJsonFlow = defineFlow(
+export const streamJsonFlow = ai.defineStreamingFlow(
   {
     name: 'streamJsonFlow',
     inputSchema: z.number(),
@@ -165,7 +149,7 @@ export const streamJsonFlow = defineFlow(
       throw new Error('this flow only works in streaming mode');
     }
 
-    const { response, stream } = await generateStream({
+    const { response, stream } = await ai.generateStream({
       model: geminiPro,
       output: {
         schema: GameCharactersSchema,
@@ -195,7 +179,7 @@ function maybeStripMarkdown(withMarkdown: string) {
 }
 
 const tools = [
-  defineTool(
+  ai.defineTool(
     {
       name: 'tellAFunnyJoke',
       description:
@@ -209,7 +193,7 @@ const tools = [
   ),
 ];
 
-export const jokeWithToolsFlow = defineFlow(
+export const jokeWithToolsFlow = ai.defineFlow(
   {
     name: 'jokeWithToolsFlow',
     inputSchema: z.object({
@@ -219,8 +203,8 @@ export const jokeWithToolsFlow = defineFlow(
     outputSchema: z.object({ model: z.string(), joke: z.string() }),
   },
   async (input) => {
-    const llmResponse = await generate({
-      model: input.modelName,
+    const llmResponse = await ai.generate({
+      model: input.modelName as string,
       tools,
       output: { schema: z.object({ joke: z.string() }) },
       prompt: `Tell a joke about ${input.subject}.`,
@@ -233,7 +217,7 @@ const outputSchema = z.object({
   joke: z.string(),
 });
 
-export const jokeWithOutputFlow = defineFlow(
+export const jokeWithOutputFlow = ai.defineFlow(
   {
     name: 'jokeWithOutputFlow',
     inputSchema: z.object({
@@ -243,7 +227,7 @@ export const jokeWithOutputFlow = defineFlow(
     outputSchema,
   },
   async (input) => {
-    const llmResponse = await generate({
+    const llmResponse = await ai.generate({
       model: input.modelName,
       output: {
         format: 'json',
@@ -255,7 +239,7 @@ export const jokeWithOutputFlow = defineFlow(
   }
 );
 
-export const vertexStreamer = defineFlow(
+export const vertexStreamer = ai.defineFlow(
   {
     name: 'vertexStreamer',
     inputSchema: z.string(),
@@ -263,7 +247,7 @@ export const vertexStreamer = defineFlow(
   },
   async (input, streamingCallback) => {
     return await run('call-llm', async () => {
-      const llmResponse = await generate({
+      const llmResponse = await ai.generate({
         model: geminiPro,
         prompt: `Tell me a very long joke about ${input}.`,
         streamingCallback,
@@ -274,14 +258,14 @@ export const vertexStreamer = defineFlow(
   }
 );
 
-export const multimodalFlow = defineFlow(
+export const multimodalFlow = ai.defineFlow(
   {
     name: 'multimodalFlow',
     inputSchema: z.object({ modelName: z.string(), imageUrl: z.string() }),
     outputSchema: z.string(),
   },
   async (input) => {
-    const result = await generate({
+    const result = await ai.generate({
       model: input.modelName,
       prompt: [
         { text: 'describe the following image:' },
@@ -292,29 +276,31 @@ export const multimodalFlow = defineFlow(
   }
 );
 
-const destinationsRetriever = defineFirestoreRetriever({
-  name: 'destinationsRetriever',
-  firestore: getFirestore(app),
-  collection: 'destinations',
-  contentField: 'knownFor',
-  embedder: textEmbeddingGecko,
-  vectorField: 'embedding',
-});
+const destinationsRetriever = runWithRegistry(ai.registry, () =>
+  defineFirestoreRetriever({
+    name: 'destinationsRetriever',
+    firestore: getFirestore(app),
+    collection: 'destinations',
+    contentField: 'knownFor',
+    embedder: textEmbeddingGecko,
+    vectorField: 'embedding',
+  })
+);
 
-export const searchDestinations = defineFlow(
+export const searchDestinations = ai.defineFlow(
   {
     name: 'searchDestinations',
     inputSchema: z.string(),
     outputSchema: z.string(),
   },
   async (input) => {
-    const docs = await retrieve({
+    const docs = await ai.retrieve({
       retriever: destinationsRetriever,
       query: input,
       options: { limit: 5 },
     });
 
-    const result = await generate({
+    const result = await ai.generate({
       model: geminiPro,
       prompt: `Give me a list of vacation options based on the provided context. Use only the options provided below, and describe how it fits with my query.
 
@@ -327,7 +313,7 @@ Available Options:\n- ${docs.map((d) => `${d.metadata!.name}: ${d.text()}`).join
   }
 );
 
-export const dotpromptContext = defineFlow(
+export const dotpromptContext = ai.defineFlow(
   {
     name: 'dotpromptContext',
     inputSchema: z.string(),
@@ -369,7 +355,7 @@ export const dotpromptContext = defineFlow(
   }
 );
 
-const jokeSubjectGenerator = defineTool(
+const jokeSubjectGenerator = ai.defineTool(
   {
     name: 'jokeSubjectGenerator',
     description: 'can be called to generate a subject for a joke',
@@ -379,17 +365,18 @@ const jokeSubjectGenerator = defineTool(
   }
 );
 
-export const toolCaller = defineFlow(
+export const toolCaller = ai.defineStreamingFlow(
   {
     name: 'toolCaller',
     outputSchema: z.string(),
+    streamSchema: z.any(),
   },
   async (_, streamingCallback) => {
     if (!streamingCallback) {
       throw new Error('this flow only works in streaming mode');
     }
 
-    const { response, stream } = await generateStream({
+    const { response, stream } = await ai.generateStream({
       model: gemini15ProPreview,
       config: {
         temperature: 1,
@@ -406,7 +393,7 @@ export const toolCaller = defineFlow(
   }
 );
 
-export const invalidOutput = defineFlow(
+export const invalidOutput = ai.defineFlow(
   {
     name: 'invalidOutput',
     inputSchema: z.string(),
@@ -415,7 +402,7 @@ export const invalidOutput = defineFlow(
     }),
   },
   async () => {
-    const result = await generate({
+    const result = await ai.generate({
       model: gemini15Flash,
       output: {
         schema: z.object({
@@ -429,11 +416,10 @@ export const invalidOutput = defineFlow(
   }
 );
 
-import { GoogleAIFileManager } from '@google/generative-ai/server';
 const fileManager = new GoogleAIFileManager(
   process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY!
 );
-export const fileApi = defineFlow(
+export const fileApi = ai.defineFlow(
   {
     name: 'fileApi',
     inputSchema: z.string(),
@@ -449,7 +435,7 @@ export const fileApi = defineFlow(
     );
     console.log(uploadResult.file);
 
-    const result = await generate({
+    const result = await ai.generate({
       model: gemini15Flash,
       prompt: [
         { text: 'Describe this image:' },
@@ -463,5 +449,40 @@ export const fileApi = defineFlow(
     });
 
     return result.text();
+  }
+);
+
+export const testTools = [
+  // test a tool with no input / output schema
+  ai.defineTool(
+    { name: 'getColor', description: 'gets a random color' },
+    async () => {
+      const colors = [
+        'red',
+        'orange',
+        'yellow',
+        'blue',
+        'green',
+        'indigo',
+        'violet',
+      ];
+      return colors[Math.floor(Math.random() * colors.length)];
+    }
+  ),
+];
+
+export const toolTester = ai.defineFlow(
+  {
+    name: 'toolTester',
+    inputSchema: z.string(),
+    outputSchema: z.array(MessageSchema),
+  },
+  async (query) => {
+    const result = await ai.generate({
+      model: gemini15Flash,
+      prompt: query,
+      tools: testTools,
+    });
+    return result.toHistory();
   }
 );
