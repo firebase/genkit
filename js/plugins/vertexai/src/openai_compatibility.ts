@@ -14,14 +14,14 @@
  * limitations under the License.
  */
 
-import { Message, StreamingCallback, z } from 'genkit';
+import { Message } from '@genkit-ai/ai';
 import {
+  defineModel,
   GenerateResponseChunkData,
   GenerateResponseData,
   GenerationCommonConfigSchema,
   ModelAction,
   ModelReference,
-  defineModel,
   type CandidateData,
   type GenerateRequest,
   type MessageData,
@@ -29,7 +29,8 @@ import {
   type Role,
   type ToolDefinition,
   type ToolRequestPart,
-} from 'genkit/model';
+} from '@genkit-ai/ai/model';
+import { StreamingCallback } from '@genkit-ai/core';
 import OpenAI from 'openai';
 import {
   type ChatCompletion,
@@ -42,6 +43,7 @@ import {
   type ChatCompletionTool,
   type CompletionChoice,
 } from 'openai/resources/index.mjs';
+import z from 'zod';
 
 export const OpenAIConfigSchema = GenerationCommonConfigSchema.extend({
   frequencyPenalty: z.number().min(-2).max(2).optional(),
@@ -73,7 +75,7 @@ function toOpenAiTool(tool: ToolDefinition): ChatCompletionTool {
     type: 'function',
     function: {
       name: tool.name,
-      parameters: tool.inputSchema || undefined,
+      parameters: tool.inputSchema,
     },
   };
 }
@@ -293,7 +295,6 @@ export function toRequestBody(
     if (!body[key] || (Array.isArray(body[key]) && !body[key].length))
       delete body[key];
   }
-  console.log("the openai body", JSON.stringify(body));
   return body;
 }
 
