@@ -25,7 +25,7 @@ import {
   DatasetMetadata,
   DatasetSchema,
   DatasetStore,
-  EvalFlowInput,
+  EvalInferenceInput,
 } from '../types/eval';
 import { generateTestCaseId } from '../utils';
 import { logger } from '../utils/logger';
@@ -70,7 +70,7 @@ export class LocalFileDatasetStore implements DatasetStore {
   }
 
   private async createDatasetInternal(
-    data: EvalFlowInput,
+    data: EvalInferenceInput,
     datasetId?: string
   ): Promise<DatasetMetadata> {
     const id = await this.generateDatasetId(datasetId);
@@ -239,7 +239,7 @@ export class LocalFileDatasetStore implements DatasetStore {
     );
   }
 
-  private getDatasetFromEvalFlowInput(data: EvalFlowInput): Dataset {
+  private getDatasetFromEvalFlowInput(data: EvalInferenceInput): Dataset {
     if (Array.isArray(data)) {
       return data.map((d) => ({
         testCaseId: d.testCaseId ?? generateTestCaseId(),

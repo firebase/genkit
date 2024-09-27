@@ -94,8 +94,8 @@ export const evalRun = new Command('eval:run')
         (await readFile(dataset)).toString('utf-8')
       ).map((testCase: any) => ({
         ...testCase,
-        testCaseId: testCase.testCaseId || generateTestCaseId(),
-        traceIds: testCase.traceIds || [],
+        testCaseId: testCase.testCaseId ?? generateTestCaseId(),
+        traceIds: testCase.traceIds ?? [],
       }));
       const evalRun = await runEvaluation({
         runner,

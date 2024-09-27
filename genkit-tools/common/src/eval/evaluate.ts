@@ -73,10 +73,14 @@ export async function runNewEvaluation(
     evaluatorActions,
     evalDataset,
     actionRef,
-    datasetId,
-    datasetVersion: targetDataset!.version,
   });
-  logger.info('Finished evaluation, returning key...');
+  // Augment metadata in evalKey
+  evalRun.key = {
+    ...evalRun.key,
+    datasetId,
+    datasetVersion: targetDataset?.version,
+  };
+  logger.info('Finished evaluation, writing key...');
   const evalStore = getEvalStore();
   await evalStore.save(evalRun);
 
@@ -119,17 +123,8 @@ export async function runEvaluation(params: {
   evaluatorActions: Action[];
   evalDataset: EvalInput[];
   actionRef?: string;
-  datasetId?: string;
-  datasetVersion?: number;
 }): Promise<EvalRun> {
-  const {
-    runner,
-    evaluatorActions,
-    evalDataset,
-    actionRef,
-    datasetVersion,
-    datasetId,
-  } = params;
+  const { runner, evaluatorActions, evalDataset, actionRef } = params;
   const evalRunId = randomUUID();
   const scores: Record<string, any> = {};
   for (const action of evaluatorActions) {
@@ -151,8 +146,6 @@ export async function runEvaluation(params: {
     key: {
       actionRef,
       evalRunId,
-      datasetId,
-      datasetVersion,
       createdAt: new Date().toISOString(),
     },
     results: scoredResults,

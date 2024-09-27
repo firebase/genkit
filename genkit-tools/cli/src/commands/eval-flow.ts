@@ -16,8 +16,8 @@
 
 import {
   Action,
-  EvalFlowInput,
-  EvalFlowInputSchema,
+  EvalInferenceInput,
+  EvalInferenceInputSchema,
 } from '@genkit-ai/tools-common';
 import {
   EvalExporter,
@@ -105,8 +105,18 @@ export const evalFlow = new Command('eval:flow')
           }
         }
 
+        const sourceType = getSourceType(data, options.input);
+        let targetDataset;
+        if (sourceType === 'dataset') {
+          const datasetStore = await getDatasetStore();
+          const datasetMetadatas = await datasetStore.listDatasets();
+          targetDataset = datasetMetadatas.find(
+            (d) => d.datasetId === options.input
+          );
+        }
+
         const actionRef = `/flow/${flowName}`;
-        const evalFlowInput = await readInputs(data, options.input);
+        const evalFlowInput = await readInputs(sourceType, data, options.input);
         const evalDataset = await runInference({
           runner,
           actionRef,
@@ -119,12 +129,13 @@ export const evalFlow = new Command('eval:flow')
           evaluatorActions,
           evalDataset,
           actionRef: `/flow/${flowName}`,
-          datasetId:
-            options.input && !options.input.endsWith('.json')
-              ? options.input
-              : undefined,
         });
-
+        // Augment metadata in evalKey
+        evalRun.key = {
+          ...evalRun.key,
+          datasetId: sourceType === 'dataset' ? options.input : undefined,
+          datasetVersion: targetDataset?.version,
+        };
         const evalStore = getEvalStore();
         await evalStore.save(evalRun);
 
@@ -147,33 +158,45 @@ export const evalFlow = new Command('eval:flow')
  * Only one of these parameters is expected to be provided.
  **/
 async function readInputs(
-  data?: string,
+  sourceType: 'data' | 'file' | 'dataset',
+  dataField?: string,
   input?: string
-): Promise<EvalFlowInput> {
+): Promise<EvalInferenceInput> {
   let parsedData;
-  if (input) {
-    if (data) {
-      logger.warn('Both [data] and input provided, ignoring [data]...');
-    }
-    const isFile = input.endsWith('.json');
-    if (isFile) {
-      parsedData = JSON.parse(await readFile(input, 'utf8'));
-    } else {
+  switch (sourceType) {
+    case 'data':
+      parsedData = JSON.parse(dataField!);
+      break;
+    case 'file':
+      parsedData = JSON.parse(await readFile(input!, 'utf8'));
+      break;
+    case 'dataset':
       const datasetStore = await getDatasetStore();
-      parsedData = await datasetStore.getDataset(input);
-    }
-  } else if (data) {
-    parsedData = JSON.parse(data);
-  }
-  if (Array.isArray(parsedData)) {
-    return parsedData as any[];
+      const data = await datasetStore.getDataset(input!);
+      parsedData = { samples: data };
+      break;
   }
 
   try {
-    return EvalFlowInputSchema.parse(parsedData);
+    return EvalInferenceInputSchema.parse(parsedData);
   } catch (e) {
     throw new Error(
       `Error parsing the input. Please provide an array of inputs for the flow or a ${EVAL_FLOW_SCHEMA} object. Error: ${e}`
     );
   }
+}
+
+function getSourceType(
+  data?: string,
+  input?: string
+): 'data' | 'file' | 'dataset' {
+  if (input) {
+    if (data) {
+      logger.warn('Both [data] and input provided, ignoring [data]...');
+    }
+    return input.endsWith('.json') ? 'file' : 'dataset';
+  } else if (data) {
+    return 'data';
+  }
+  throw new Error('Must provide either data or input');
 }

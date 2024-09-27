@@ -17,7 +17,10 @@
 import { DatasetStore, EvalStore } from '../types/eval';
 import { LocalFileDatasetStore } from './localFileDatasetStore';
 import { LocalFileEvalStore } from './localFileEvalStore';
-export { EvalFlowInput, EvalFlowInputSchema } from '../types/eval';
+export {
+  EvalInferenceInput as EvalFlowInput,
+  EvalInferenceInputSchema as EvalFlowInputSchema,
+} from '../types/eval';
 export * from './evaluate';
 export * from './exporter';
 export * from './parser';

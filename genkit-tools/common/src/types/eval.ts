@@ -27,9 +27,9 @@ import {
  */
 
 /**
- * Structured input for eval:flow
+ * Structured input for inference part of evaluation
  */
-export const EvalFlowStructuredInputSchema = z.object({
+export const EvalInferenceStructuredInputSchema = z.object({
   samples: z.array(
     z.object({
       testCaseId: z.string().optional(),
@@ -38,21 +38,21 @@ export const EvalFlowStructuredInputSchema = z.object({
     })
   ),
 });
-export type EvalFlowStructuredInput = z.infer<
-  typeof EvalFlowStructuredInputSchema
+export type EvalInferenceStructuredInput = z.infer<
+  typeof EvalInferenceStructuredInputSchema
 >;
 
 /**
- * A dataset that is ready for eval:flow.
+ * A dataset that is ready for inference
  *
  * This could be an array of input objects to the target flow, or
  * It could be a JSON object as specified, with support for references.
  */
-export const EvalFlowInputSchema = z.union([
+export const EvalInferenceInputSchema = z.union([
   z.array(z.any()),
-  EvalFlowStructuredInputSchema,
+  EvalInferenceStructuredInputSchema,
 ]);
-export type EvalFlowInput = z.infer<typeof EvalFlowInputSchema>;
+export type EvalInferenceInput = z.infer<typeof EvalInferenceInputSchema>;
 
 /**
  * Represents a Dataset, to be used for bulk-inference / evaluation
