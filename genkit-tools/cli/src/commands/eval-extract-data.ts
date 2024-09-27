@@ -42,7 +42,7 @@ export const evalExtractData = new Command('eval:extractData')
   .action(async (flowName: string, options: EvalDatasetOptions) => {
     await runInRunnerThenStop(async (runner) => {
       const extractors = await getEvalExtractors(`/flow/${flowName}`);
-      
+
       logger.info(`Extracting trace data '/flow/${flowName}'...`);
       let dataset: EvalInput[] = [];
       let continuationToken = undefined;
