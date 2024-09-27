@@ -8,7 +8,7 @@ This guide assumes that you're familiar with building applications with Node.js.
 
 To complete this quickstart, make sure that your development environment meets the following requirements:
 
-* Node.js v18+  
+* Node.js v20+  
 * npm
 
 ## Install Genkit dependencies
