@@ -85,7 +85,7 @@ export async function runInference(params: {
   auth?: string;
 }): Promise<EvalInput[]> {
   const { runner, actionRef, evalFlowInput, auth } = params;
-  if (isSupportedActionRef(actionRef)) {
+  if (!isSupportedActionRef(actionRef)) {
     throw new Error('Inference is only supported on flows and models');
   }
   let inputs: any[] = Array.isArray(evalFlowInput)
