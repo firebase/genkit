@@ -26,13 +26,13 @@ export { GenkitError } from './error.js';
 export {
   Flow,
   run,
-  type __RequestWithAuth,
   type CallableFlow,
   type FlowAuthPolicy,
   type FlowConfig,
   type FlowFn,
   type StreamableFlow,
   type StreamingFlowConfig,
+  type __RequestWithAuth,
 } from './flow.js';
 export * from './flowTypes.js';
 export * from './genkit.js';
