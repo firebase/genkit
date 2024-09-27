@@ -33,11 +33,6 @@ const ai = genkit({
       modelGardenModels: [claude35Sonnet],
     }),
   ],
-
-  // Log debug output to tbe console.
-  logLevel: 'debug',
-  // Perform OpenTelemetry instrumentation and enable trace collection.
-  enableTracingAndMetrics: true,
 });
 
 ai.defineTool(

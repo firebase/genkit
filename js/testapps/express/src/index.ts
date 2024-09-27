@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import { firebase } from '@genkit-ai/firebase';
 import { googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
 import express, { Request, Response } from 'express';
@@ -23,7 +22,6 @@ import { ollama } from 'genkitx-ollama';
 
 const ai = genkit({
   plugins: [
-    firebase(),
     googleAI(),
     vertexAI(),
     ollama({
@@ -34,10 +32,6 @@ const ai = genkit({
       serverAddress: 'http://127.0.0.1:11434', // default local address
     }),
   ],
-  flowStateStore: 'firebase',
-  traceStore: 'firebase',
-  enableTracingAndMetrics: true,
-  logLevel: 'debug',
 });
 
 export const jokeFlow = ai.defineFlow(
