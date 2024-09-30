@@ -52,11 +52,6 @@ import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
 Use the `generate` method to generate a text response.
 
 ```javascript
-// Make sure to include these imports:
-// import { generate } from '@genkit-ai/ai';
-// import { configureGenkit } from '@genkit-ai/core';
-// import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
-
 configureGenkit({ plugins: [googleAI()] });
 
 const result = await generate({
