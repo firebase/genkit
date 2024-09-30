@@ -337,7 +337,7 @@ export class Genkit {
       activeRegistry.registerPluginProvider(plugin.name, {
         name: plugin.name,
         async initializer() {
-          logger.info(`Initializing plugin ${plugin.name}:`);
+          logger.debug(`Initializing plugin ${plugin.name}:`);
           return runWithRegistry(activeRegistry, () => plugin.initializer());
         },
       });

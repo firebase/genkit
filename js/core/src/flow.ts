@@ -501,7 +501,7 @@ export class FlowServer {
 
     this.port = await this.findPort();
     this.server = server.listen(this.port, () => {
-      logger.info(`Flow server running on http://localhost:${this.port}`);
+      logger.debug(`Flow server running on http://localhost:${this.port}`);
       FlowServer.RUNNING_SERVERS.push(this);
     });
   }
@@ -525,7 +525,7 @@ export class FlowServer {
         if (index > -1) {
           FlowServer.RUNNING_SERVERS.splice(index, 1);
         }
-        logger.info(
+        logger.debug(
           `Flow server on port ${this.port} has successfully shut down.`
         );
         this.port = null;
