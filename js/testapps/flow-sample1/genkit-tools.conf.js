@@ -19,7 +19,7 @@
 module.exports = {
   evaluators: [
     {
-      flowName: 'multiSteps',
+      actionRef: '/flow/multiSteps',
       extractors: {
         input: (trace) => {
           return JSON.stringify(
