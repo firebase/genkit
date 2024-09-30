@@ -15,9 +15,8 @@
  */
 
 import { LoggingWinston } from '@google-cloud/logging-winston';
-import { LoggerConfig } from 'genkit';
 import { Writable } from 'stream';
-import { GcpPluginConfig } from './types';
+import { GcpTelemetryConfig } from './types';
 
 /**
  * Additional streams for writing log data to. Useful for unit testing.
@@ -25,11 +24,11 @@ import { GcpPluginConfig } from './types';
 let additionalStream: Writable;
 
 /**
- * Provides a {LoggerConfig} for exporting Genkit debug logs to GCP Cloud
+ * Provides a logger for exporting Genkit debug logs to GCP Cloud
  * logs.
  */
-export class GcpLogger implements LoggerConfig {
-  constructor(private readonly config: GcpPluginConfig) {}
+export class GcpLogger {
+  constructor(private readonly config: GcpTelemetryConfig) {}
 
   async getLogger(env: string) {
     // Dynamically importing winston here more strictly controls
@@ -70,7 +69,7 @@ export class GcpLogger implements LoggerConfig {
   }
 
   private shouldExport(env?: string) {
-    return this.config.telemetry.export;
+    return this.config.export;
   }
 }
 

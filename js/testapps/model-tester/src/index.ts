@@ -42,8 +42,6 @@ export const ai = genkit({
     }),
     openAI(),
   ],
-  enableTracingAndMetrics: true,
-  logLevel: 'debug',
 });
 
 testModels([

@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-import { LoggerConfig } from './telemetryTypes.js';
-
 const LOG_LEVELS = ['debug', 'info', 'warn', 'error'];
 
 class Logger {
@@ -50,8 +48,8 @@ class Logger {
     this.logger = this.defaultLogger;
   }
 
-  async init(config: LoggerConfig) {
-    this.logger = await config.getLogger(process.env.GENKIT_ENV || 'prod');
+  async init(fn: any) {
+    this.logger = fn;
   }
 
   info(...args: any) {

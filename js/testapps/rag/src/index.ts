@@ -16,7 +16,6 @@
 
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
-import { firebase } from '@genkit-ai/firebase';
 import { googleAI } from '@genkit-ai/googleai';
 import {
   claude3Sonnet,
@@ -45,7 +44,6 @@ async function getCloudRunAuthClient(aud: string) {
 export const ai = genkit({
   plugins: [
     dotprompt(),
-    firebase(),
     googleAI({ apiVersion: ['v1'] }),
     genkitEval({
       judge: geminiPro,
@@ -132,10 +130,6 @@ export const ai = genkit({
       temperature: 0.6,
     },
   },
-  flowStateStore: 'firebase',
-  traceStore: 'firebase',
-  enableTracingAndMetrics: true,
-  logLevel: 'debug',
 });
 
 export * from './pdf_rag.js';

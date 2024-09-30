@@ -17,7 +17,7 @@
 import {
   __forceFlushSpansForTesting,
   __getSpanExporterForTesting,
-  googleCloud,
+  enableGoogleCloudTelemetry,
 } from '@genkit-ai/google-cloud';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { Genkit, genkit, run, z } from 'genkit';
@@ -29,24 +29,11 @@ describe('GoogleCloudTracing', () => {
 
   before(async () => {
     process.env.GENKIT_ENV = 'dev';
-    ai = genkit({
-      // Force GCP Plugin to use in-memory metrics exporter
-      plugins: [
-        googleCloud({
-          projectId: 'test',
-          telemetryConfig: {
-            forceDevExport: false,
-          },
-        }),
-      ],
-      enableTracingAndMetrics: true,
-      telemetry: {
-        instrumentation: 'googleCloud',
-        logger: 'googleCloud',
-      },
+    await enableGoogleCloudTelemetry({
+      projectId: 'test',
+      forceDevExport: false,
     });
-    // Wait for the telemetry plugin to be initialized
-    await ai.getTelemetryConfig();
+    ai = genkit({});
   });
   beforeEach(async () => {
     __getSpanExporterForTesting().reset();
@@ -130,6 +117,19 @@ describe('GoogleCloudTracing', () => {
     assert.equal(spans.length, 2);
     assert.equal(spans[0].name, 'badAction');
     assert.equal(spans[0].attributes['genkit/failedSpan'], 'badAction');
+  });
+
+  it('labels the root feature', async () => {
+    const testFlow = createFlow(ai, 'niceFlow', async () => {
+      return run('niceStep', async () => {});
+    });
+    await testFlow();
+
+    const spans = await getExportedSpans();
+    assert.equal(spans[0].name, 'niceStep');
+    assert.equal(spans[0].attributes['genkit/feature'], undefined);
+    assert.equal(spans[1].name, 'niceFlow');
+    assert.equal(spans[1].attributes['genkit/feature'], 'niceFlow');
   });
 
   /** Helper to create a flow with no inputs or outputs */
