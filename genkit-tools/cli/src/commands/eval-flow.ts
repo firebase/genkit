@@ -23,7 +23,6 @@ import {
   EvalExporter,
   getAllEvaluatorActions,
   getDatasetStore,
-  getEvalStore,
   getExporterForString,
   getMatchingEvaluatorActions,
   runEvaluation,
@@ -44,6 +43,11 @@ interface EvalFlowRunCliOptions {
 }
 
 const EVAL_FLOW_SCHEMA = '{samples: Array<{input: any; reference?: any;}>}';
+enum SourceType {
+  DATA = 'data',
+  FILE = 'file',
+  DATASET = 'dataset',
+}
 
 /** Command to run a flow and evaluate the output */
 export const evalFlow = new Command('eval:flow')
@@ -106,11 +110,11 @@ export const evalFlow = new Command('eval:flow')
         }
 
         const sourceType = getSourceType(data, options.input);
-        let targetDataset;
-        if (sourceType === 'dataset') {
+        let targetDatasetMetadata;
+        if (sourceType === SourceType.DATASET) {
           const datasetStore = await getDatasetStore();
           const datasetMetadatas = await datasetStore.listDatasets();
-          targetDataset = datasetMetadatas.find(
+          targetDatasetMetadata = datasetMetadatas.find(
             (d) => d.datasetId === options.input
           );
         }
@@ -128,16 +132,13 @@ export const evalFlow = new Command('eval:flow')
           runner,
           evaluatorActions,
           evalDataset,
-          actionRef: `/flow/${flowName}`,
+          augments: {
+            actionRef: `/flow/${flowName}`,
+            datasetId:
+              sourceType === SourceType.DATASET ? options.input : undefined,
+            datasetVersion: targetDatasetMetadata?.version,
+          },
         });
-        // Augment metadata in evalKey
-        evalRun.key = {
-          ...evalRun.key,
-          datasetId: sourceType === 'dataset' ? options.input : undefined,
-          datasetVersion: targetDataset?.version,
-        };
-        const evalStore = getEvalStore();
-        await evalStore.save(evalRun);
 
         if (options.output) {
           const exportFn: EvalExporter = getExporterForString(
@@ -158,21 +159,22 @@ export const evalFlow = new Command('eval:flow')
  * Only one of these parameters is expected to be provided.
  **/
 async function readInputs(
-  sourceType: 'data' | 'file' | 'dataset',
+  sourceType: SourceType,
   dataField?: string,
   input?: string
 ): Promise<EvalInferenceInput> {
   let parsedData;
   switch (sourceType) {
-    case 'data':
+    case SourceType.DATA:
       parsedData = JSON.parse(dataField!);
       break;
-    case 'file':
+    case SourceType.FILE:
       parsedData = JSON.parse(await readFile(input!, 'utf8'));
       break;
-    case 'dataset':
+    case SourceType.DATASET:
       const datasetStore = await getDatasetStore();
       const data = await datasetStore.getDataset(input!);
+      // Format to match EvalInferenceInputSchema
       parsedData = { samples: data };
       break;
   }
@@ -186,17 +188,14 @@ async function readInputs(
   }
 }
 
-function getSourceType(
-  data?: string,
-  input?: string
-): 'data' | 'file' | 'dataset' {
+function getSourceType(data?: string, input?: string): SourceType {
   if (input) {
     if (data) {
       logger.warn('Both [data] and input provided, ignoring [data]...');
     }
-    return input.endsWith('.json') ? 'file' : 'dataset';
+    return input.endsWith('.json') ? SourceType.FILE : SourceType.DATASET;
   } else if (data) {
-    return 'data';
+    return SourceType.DATA;
   }
   throw new Error('Must provide either data or input');
 }

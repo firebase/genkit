@@ -43,10 +43,9 @@ export type EvalInferenceStructuredInput = z.infer<
 >;
 
 /**
- * A dataset that is ready for inference
+ * A set of samples that is ready for inference.
  *
- * This could be an array of input objects to the target flow, or
- * It could be a JSON object as specified, with support for references.
+ * This should be used in user-facing surfaces (CLI/API inputs) to accommodate various user input formats. For internal wire-transfer/storage, prefer {@link Dataset}.
  */
 export const EvalInferenceInputSchema = z.union([
   z.array(z.any()),
@@ -55,7 +54,7 @@ export const EvalInferenceInputSchema = z.union([
 export type EvalInferenceInput = z.infer<typeof EvalInferenceInputSchema>;
 
 /**
- * Represents a Dataset, to be used for bulk-inference / evaluation
+ * Represents a Dataset, to be used for bulk-inference / evaluation. This is a more optionated form of EvalInferenceInput, which guarantees testCaseId for each test sample.
  */
 export const DatasetSchema = z.array(
   z.object({
@@ -113,6 +112,12 @@ export const EvalRunKeySchema = z.object({
   createdAt: z.string(),
 });
 export type EvalRunKey = z.infer<typeof EvalRunKeySchema>;
+export const EvalKeyAugmentsSchema = EvalRunKeySchema.pick({
+  datasetId: true,
+  datasetVersion: true,
+  actionRef: true,
+});
+export type EvalKeyAugments = z.infer<typeof EvalKeyAugmentsSchema>;
 
 /**
  * A container for the results of evaluation over a batch of test cases.

@@ -18,7 +18,6 @@ import { Action, EvalInput } from '@genkit-ai/tools-common';
 import {
   EvalExporter,
   getAllEvaluatorActions,
-  getEvalStore,
   getExporterForString,
   getMatchingEvaluatorActions,
   runEvaluation,
@@ -94,17 +93,14 @@ export const evalRun = new Command('eval:run')
         (await readFile(dataset)).toString('utf-8')
       ).map((testCase: any) => ({
         ...testCase,
-        testCaseId: testCase.testCaseId ?? generateTestCaseId(),
-        traceIds: testCase.traceIds ?? [],
+        testCaseId: testCase.testCaseId || generateTestCaseId(),
+        traceIds: testCase.traceIds || [],
       }));
       const evalRun = await runEvaluation({
         runner,
         evaluatorActions,
         evalDataset,
       });
-
-      const evalStore = getEvalStore();
-      await evalStore.save(evalRun);
 
       if (options.output) {
         const exportFn: EvalExporter = getExporterForString(

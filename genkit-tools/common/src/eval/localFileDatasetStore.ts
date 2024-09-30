@@ -82,7 +82,7 @@ export class LocalFileDatasetStore implements DatasetStore {
         `Create dataset failed: file already exists at {$filePath}`
       );
     }
-    const dataset = this.getDatasetFromEvalFlowInput(data);
+    const dataset = this.getDatasetFromInferenceInput(data);
     logger.info(`Saving Dataset to ` + filePath);
     await writeFile(filePath, JSON.stringify(dataset));
 
@@ -121,7 +121,7 @@ export class LocalFileDatasetStore implements DatasetStore {
     if (!prevMetadata) {
       throw new Error(`Update dataset failed: dataset metadata not found`);
     }
-    const patch = this.getDatasetFromEvalFlowInput(req.data ?? []);
+    const patch = this.getDatasetFromInferenceInput(req.data ?? []);
     let newSize = prevMetadata.size;
     if (patch.length > 0) {
       logger.info(`Updating Dataset at ` + filePath);
@@ -239,7 +239,7 @@ export class LocalFileDatasetStore implements DatasetStore {
     );
   }
 
-  private getDatasetFromEvalFlowInput(data: EvalInferenceInput): Dataset {
+  private getDatasetFromInferenceInput(data: EvalInferenceInput): Dataset {
     if (Array.isArray(data)) {
       return data.map((d) => ({
         testCaseId: d.testCaseId ?? generateTestCaseId(),

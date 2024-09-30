@@ -15,11 +15,12 @@
  */
 
 import { randomUUID } from 'crypto';
-import { EvalFlowInput, getDatasetStore, getEvalStore } from '.';
+import { EvalInferenceInput, getDatasetStore, getEvalStore } from '.';
 import { Runner } from '../runner';
 import {
   Action,
   EvalInput,
+  EvalKeyAugments,
   EvalRun,
   EvalRunKey,
   RunNewEvaluationRequest,
@@ -55,7 +56,10 @@ export async function runNewEvaluation(
   logger.info(`Fetching dataset ${datasetId}...`);
   const dataset = await datasetStore.getDataset(datasetId);
   const datasetMetadatas = await datasetStore.listDatasets();
-  const targetDataset = datasetMetadatas.find((d) => d.datasetId === datasetId);
+  const targetDatasetMetadata = datasetMetadatas.find(
+    (d) => d.datasetId === datasetId
+  );
+  const datasetVersion = targetDatasetMetadata?.version;
 
   logger.info('Running inference...');
   const evalDataset = await runInference({
@@ -69,23 +73,12 @@ export async function runNewEvaluation(
     evaluators
   );
 
-  logger.info('Running evaluation...');
   const evalRun = await runEvaluation({
     runner,
     evaluatorActions,
     evalDataset,
-    actionRef,
+    augments: { actionRef, datasetId, datasetVersion },
   });
-  // Augment metadata in evalKey
-  evalRun.key = {
-    ...evalRun.key,
-    datasetId,
-    datasetVersion: targetDataset?.version,
-  };
-  logger.info('Finished evaluation, writing key...');
-  const evalStore = getEvalStore();
-  await evalStore.save(evalRun);
-
   return evalRun.key;
 }
 
@@ -93,7 +86,7 @@ export async function runNewEvaluation(
 export async function runInference(params: {
   runner: Runner;
   actionRef: string;
-  evalFlowInput: EvalFlowInput;
+  evalFlowInput: EvalInferenceInput;
   auth?: string;
 }): Promise<EvalInput[]> {
   const { runner, actionRef, evalFlowInput, auth } = params;
@@ -122,11 +115,12 @@ export async function runEvaluation(params: {
   runner: Runner;
   evaluatorActions: Action[];
   evalDataset: EvalInput[];
-  actionRef?: string;
+  augments?: EvalKeyAugments;
 }): Promise<EvalRun> {
-  const { runner, evaluatorActions, evalDataset, actionRef } = params;
+  const { runner, evaluatorActions, evalDataset, augments } = params;
   const evalRunId = randomUUID();
   const scores: Record<string, any> = {};
+  logger.info('Running evaluation...');
   for (const action of evaluatorActions) {
     const name = evaluatorName(action);
     const response = await runner.runAction({
@@ -144,13 +138,17 @@ export async function runEvaluation(params: {
 
   const evalRun = {
     key: {
-      actionRef,
       evalRunId,
       createdAt: new Date().toISOString(),
+      ...augments,
     },
     results: scoredResults,
     metricsMetadata: metadata,
   };
+
+  logger.info('Finished evaluation, writing key...');
+  const evalStore = getEvalStore();
+  await evalStore.save(evalRun);
   return evalRun;
 }
 
@@ -189,7 +187,7 @@ export async function getMatchingEvaluatorActions(
 async function bulkRunAction(params: {
   runner: Runner;
   actionRef: string;
-  evalFlowInput: EvalFlowInput;
+  evalFlowInput: EvalInferenceInput;
   auth?: string;
 }): Promise<BulkRunResponse[]> {
   const { runner, actionRef, evalFlowInput, auth } = params;
@@ -238,7 +236,7 @@ async function fetchEvalInput(params: {
   runner: Runner;
   actionRef: string;
   states: BulkRunResponse[];
-  parsedData: EvalFlowInput;
+  parsedData: EvalInferenceInput;
 }): Promise<EvalInput[]> {
   const { runner, actionRef, states, parsedData } = params;
 

@@ -53,7 +53,6 @@ export const pdfQA = ai.defineFlow(
     outputSchema: z.string(),
   },
   async (query) => {
-    console.log(query);
     const docs = await ai.retrieve({
       retriever: pdfChatRetriever,
       query,
