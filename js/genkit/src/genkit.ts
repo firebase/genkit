@@ -123,7 +123,7 @@ export class Genkit {
       this.reflectionServer = new ReflectionServer(this.registry, {
         configuredEnvs: [...this.configuredEnvs],
       });
-      this.reflectionServer.start();
+      this.reflectionServer.start().catch((e) => logger.error);
     }
     if (this.options.flowServer) {
       const flowServerOptions =
