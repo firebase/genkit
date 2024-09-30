@@ -360,7 +360,7 @@ This will run your code in the emulator and run the Genkit framework in developm
 Then, launch the Genkit Dev UI with the `--attach` option to connect it to your code running inside the Firebase Emulator:
 
 ```bash
-genkit start --attach http://localhost:3100 --port 4001
+npx genkit start --attach http://localhost:3100 --port 4001
 ```
 
 To see traces from Firestore in the Dev UI you can navigate to the Inspect tab and toggle the "Dev/Prod" switch. When toggled to "prod" it will be loading traces from firestore.

@@ -41,13 +41,13 @@ You can then use the `eval:flow` command to evaluate your flow against the test
 cases provided in `testInputs.json`.
 
 ```posix-terminal
-genkit eval:flow menuSuggestionFlow --input testInputs.json
+npx genkit eval:flow menuSuggestionFlow --input testInputs.json
 ```
 
 You can then see evaluation results in the Developer UI by running:
 
 ```posix-terminal
-genkit start
+npx genkit start
 ```
 
 Then navigate to `localhost:4000/evaluate`.
@@ -55,7 +55,7 @@ Then navigate to `localhost:4000/evaluate`.
 Alternatively, you can provide an output file to inspect the output in a json file.
 
 ```posix-terminal
-genkit eval:flow menuSuggestionFlow --input testInputs.json --output eval-result.json
+npx genkit eval:flow menuSuggestionFlow --input testInputs.json --output eval-result.json
 ```
 
 Note: Below you can see an example of how an LLM can help you generate the test
@@ -91,13 +91,13 @@ then will be used to extract an evaluation dataset (a set of inputs, outputs, an
 Run the flow over your test inputs:
 
 ```posix-terminal
-genkit flow:batchRun myRagFlow test_inputs.json --output flow_outputs.json --label customLabel
+npx genkit flow:batchRun myRagFlow test_inputs.json --output flow_outputs.json --label customLabel
 ```
 
 Extract the evaluation data:
 
 ```posix-terminal
-genkit eval:extractData myRagFlow --label customLabel --output customLabel_dataset.json
+npx genkit eval:extractData myRagFlow --label customLabel --output customLabel_dataset.json
 ```
 
 The exported data will be output as a json file with each testCase in the following format:
@@ -161,19 +161,19 @@ Note: The extracted data for all these steps will be a JSON string. The tooling 
 To run evaluation over an already extracted dataset:
 
 ```posix-terminal
-genkit eval:run customLabel_dataset.json
+npx genkit eval:run customLabel_dataset.json
 ```
 
 To output to a different location, use the `--output` flag.
 
 ```posix-terminal
-genkit eval:flow menuSuggestionFlow --input testInputs.json --output customLabel_evalresult.json
+npx genkit eval:flow menuSuggestionFlow --input testInputs.json --output customLabel_evalresult.json
 ```
 
 To run on a subset of the configured evaluators, use the `--evaluators` flag and provide a comma separated list of evaluators by name:
 
 ```posix-terminal
-genkit eval:run customLabel_dataset.json --evaluators=genkit/faithfulness,genkit/answer_relevancy
+npx genkit eval:run customLabel_dataset.json --evaluators=genkit/faithfulness,genkit/answer_relevancy
 ```
 
 ### Synthesizing test data using an LLM
@@ -215,5 +215,5 @@ You can then use this command to export the data into a file and use for
 evaluation.
 
 ```posix-terminal
-genkit flow:run synthesizeQuestions '"my_input.pdf"' --output synthesizedQuestions.json
+npx genkit flow:run synthesizeQuestions '"my_input.pdf"' --output synthesizedQuestions.json
 ```

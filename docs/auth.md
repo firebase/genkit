@@ -100,7 +100,7 @@ When testing flows with Genkit dev tools, you are able to specify this auth
 object in the UI, or on the command line with the `--auth` flag:
 
 ```posix-terminal
-genkit flow:run selfSummaryFlow '{"uid": "abc-def"}' --auth '{"uid": "abc-def"}'
+npx genkit flow:run selfSummaryFlow '{"uid": "abc-def"}' --auth '{"uid": "abc-def"}'
 ```
 
 ## Cloud Functions for Firebase integration
@@ -143,7 +143,7 @@ above. When running this flow during development, you would pass the user object
 in the same way:
 
 ```posix-terminal
-genkit flow:run selfSummaryFlow '{"uid": "abc-def"}' --auth '{"admin": true}'
+npx genkit flow:run selfSummaryFlow '{"uid": "abc-def"}' --auth '{"admin": true}'
 ```
 
 By default the Firebase Auth plugin requires the auth header to be sent by the

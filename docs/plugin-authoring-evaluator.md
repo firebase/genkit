@@ -362,13 +362,13 @@ These examples can be human generated or you can ask an LLM to help create a set
 Then use the Genkit CLI to run the evaluator against these test cases.
 
 ```bash
-genkit eval:run deliciousness_dataset.json
+npx genkit eval:run deliciousness_dataset.json
 ```
 
 View your results in the Genkit UI.
 
 ```bash
-genkit start
+npx genkit start
 ```
 
 Navigate to `localhost:4000/evaluate`.

@@ -248,7 +248,7 @@ async function extractTextFromPdf(filePath: string) {
 #### Run the indexer flow
 
 ```posix-terminal
-genkit flow:run indexMenu "'../pdfs'"
+npx genkit flow:run indexMenu "'../pdfs'"
 ```
 
 After running the `indexMenu` flow, the vector database will be seeded with documents and ready to be used in Genkit flows with retrieval steps.

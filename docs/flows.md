@@ -55,7 +55,7 @@ const response = await menuSuggestionFlow('French');
 You can use the CLI to run flows as well:
 
 ```posix-terminal
-genkit flow:run menuSuggestionFlow '"French"'
+npx genkit flow:run menuSuggestionFlow '"French"'
 ```
 
 ### Streamed
@@ -91,7 +91,7 @@ console.log('output', await output);
 You can use the CLI to stream flows as well:
 
 ```posix-terminal
-genkit flow:run menuSuggestionFlow '"French"' -s
+npx genkit flow:run menuSuggestionFlow '"French"' -s
 ```
 
 ## Deploying flows

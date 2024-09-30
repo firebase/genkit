@@ -54,11 +54,11 @@ to deliver and enhance the quality of its services and to analyze usage.
 To opt-out of analytics, you can run the following command:
 
 ```posix-terminal
-genkit config set analyticsOptOut true
+npx genkit config set analyticsOptOut true
 ```
 
 You can view the current setting by running:
 
 ```posix-terminal
-genkit config get analyticsOptOut
+npx genkit config get analyticsOptOut
 ```
