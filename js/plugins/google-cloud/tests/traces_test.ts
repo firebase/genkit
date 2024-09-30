@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-import {
-  __forceFlushSpansForTesting,
-  __getSpanExporterForTesting,
-  enableGoogleCloudTelemetry,
-} from '@genkit-ai/google-cloud';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { Genkit, genkit, run, z } from 'genkit';
 import assert from 'node:assert';
 import { after, before, beforeEach, describe, it } from 'node:test';
+import {
+  __forceFlushSpansForTesting,
+  __getSpanExporterForTesting,
+} from '../src/gcpOpenTelemetry.js';
+import { enableGoogleCloudTelemetry } from '../src/index.js';
 
 describe('GoogleCloudTracing', () => {
   let ai: Genkit;
