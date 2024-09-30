@@ -118,7 +118,6 @@ const TEST_CASE_ID = 'test-case-1234-1234-1234';
 jest.mock('../../src/utils', () => ({
   generateTestCaseId: jest.fn(() => TEST_CASE_ID),
 }));
-// const generateTestCaseIdSpy = jest.spyOn(utils, 'generateTestCaseId');
 
 jest.useFakeTimers({ advanceTimers: true });
 jest.setSystemTime(FAKE_TIME);
@@ -130,7 +129,6 @@ describe('localFileDatasetStore', () => {
     // For storeRoot setup
     fs.existsSync = jest.fn(() => true);
     uuidSpy.mockReturnValueOnce('12345678');
-    // generateTestCaseIdSpy.mockReturnValueOnce('test-case-1234-1234-1234');
     LocalFileDatasetStore.reset();
     DatasetStore = LocalFileDatasetStore.getDatasetStore() as DatasetStore;
   });
@@ -155,6 +153,42 @@ describe('localFileDatasetStore', () => {
 
       const datasetMetadata = await DatasetStore.createDataset({
         ...CREATE_DATASET_REQUEST,
+        datasetId: SAMPLE_DATASET_ID_1,
+      });
+
+      expect(fs.promises.writeFile).toHaveBeenCalledTimes(2);
+      expect(fs.promises.writeFile).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining(`datasets/${SAMPLE_DATASET_ID_1}.json`),
+        JSON.stringify(dataset)
+      );
+      const metadataMap = {
+        [SAMPLE_DATASET_ID_1]: SAMPLE_DATASET_METADATA_1_V1,
+      };
+      expect(fs.promises.writeFile).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining('datasets/index.json'),
+        JSON.stringify(metadataMap)
+      );
+      expect(datasetMetadata).toMatchObject(SAMPLE_DATASET_METADATA_1_V1);
+    });
+
+    it('writes and updates index for new dataset, testCaseIds are provided', async () => {
+      fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
+      fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
+      // For index file reads
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify({}) as any)
+      );
+      fs.existsSync = jest.fn(() => false);
+      const dataset: Dataset = SAMPLE_DATASET_1_V1.map((s, i) => ({
+        testCaseId: TEST_CASE_ID + `index${i}`,
+        ...s,
+      }));
+
+      const datasetMetadata = await DatasetStore.createDataset({
+        ...CREATE_DATASET_REQUEST,
+        data: { samples: dataset },
         datasetId: SAMPLE_DATASET_ID_1,
       });
 
@@ -204,25 +238,22 @@ describe('localFileDatasetStore', () => {
   });
 
   describe('updateDataset', () => {
-    it('succeeds for existing dataset', async () => {
+    it('succeeds for existing dataset -- append', async () => {
       fs.existsSync = jest.fn(() => true);
       let metadataMap = {
         [SAMPLE_DATASET_ID_1]: SAMPLE_DATASET_METADATA_1_V1,
         [SAMPLE_DATASET_ID_2]: SAMPLE_DATASET_METADATA_2,
       };
       // For index file reads
-
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify(metadataMap) as any)
+      );
       fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
       fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
       const dataset: Dataset = [...SAMPLE_DATASET_1_WITH_IDS];
-      fs.promises.readFile = jest
-        .fn()
-        .mockImplementationOnce(async () =>
-          Promise.resolve(Buffer.from(JSON.stringify(metadataMap)))
-        )
-        .mockImplementationOnce(async () =>
-          Promise.resolve(Buffer.from(JSON.stringify(dataset) as any))
-        ) as any;
+      const getDatasetSpy = jest
+        .spyOn(DatasetStore, 'getDataset')
+        .mockImplementation(() => Promise.resolve(dataset));
 
       const datasetMetadata = await DatasetStore.updateDataset({
         data: {
@@ -256,6 +287,71 @@ describe('localFileDatasetStore', () => {
         expect.stringContaining('datasets/index.json'),
         JSON.stringify(updatedMetadataMap)
       );
+      expect(getDatasetSpy).toHaveBeenCalledTimes(1);
+      expect(datasetMetadata).toMatchObject(SAMPLE_DATASET_METADATA_1_V2);
+    });
+
+    it('succeeds for existing dataset -- append and replace', async () => {
+      fs.existsSync = jest.fn(() => true);
+      let metadataMap = {
+        [SAMPLE_DATASET_ID_1]: SAMPLE_DATASET_METADATA_1_V1,
+        [SAMPLE_DATASET_ID_2]: SAMPLE_DATASET_METADATA_2,
+      };
+      // For index file reads
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify(metadataMap) as any)
+      );
+      fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
+      fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
+      const dataset: Dataset = [...SAMPLE_DATASET_1_WITH_IDS];
+      const getDatasetSpy = jest
+        .spyOn(DatasetStore, 'getDataset')
+        .mockImplementation(() => Promise.resolve(dataset));
+
+      const datasetMetadata = await DatasetStore.updateDataset({
+        data: {
+          samples: [
+            {
+              input: 'A new information on cat dog',
+            },
+            {
+              testCaseId: '1',
+              input: 'Other information on hot dog',
+            },
+          ],
+        },
+        datasetId: SAMPLE_DATASET_ID_1,
+      });
+
+      expect(fs.promises.writeFile).toHaveBeenCalledTimes(2);
+      expect(fs.promises.writeFile).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining(`datasets/${SAMPLE_DATASET_ID_1}.json`),
+        JSON.stringify([
+          {
+            testCaseId: '1',
+            input: 'Other information on hot dog',
+          },
+          {
+            testCaseId: '2',
+            input: 'Dogs are beautiful',
+          },
+          {
+            testCaseId: TEST_CASE_ID,
+            input: 'A new information on cat dog',
+          },
+        ])
+      );
+      const updatedMetadataMap = {
+        [SAMPLE_DATASET_ID_1]: SAMPLE_DATASET_METADATA_1_V2,
+        [SAMPLE_DATASET_ID_2]: SAMPLE_DATASET_METADATA_2,
+      };
+      expect(fs.promises.writeFile).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining('datasets/index.json'),
+        JSON.stringify(updatedMetadataMap)
+      );
+      expect(getDatasetSpy).toHaveBeenCalledTimes(1);
       expect(datasetMetadata).toMatchObject(SAMPLE_DATASET_METADATA_1_V2);
     });
 
