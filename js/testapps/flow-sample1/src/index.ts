@@ -14,14 +14,9 @@
  * limitations under the License.
  */
 
-import { firebase } from '@genkit-ai/firebase';
 import { genkit, run, z } from 'genkit';
 
 const ai = genkit({
-  plugins: [firebase()],
-  traceStore: 'firebase',
-  enableTracingAndMetrics: true,
-  logLevel: 'debug',
   flowServer: true,
 });
 

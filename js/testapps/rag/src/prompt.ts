@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { gemini15Flash } from '@genkit-ai/googleai';
 import { z } from 'genkit';
 import { ai } from './index.js';
 
@@ -21,6 +22,7 @@ import { ai } from './index.js';
 
 export const augmentedPrompt = ai.defineDotprompt(
   {
+    model: gemini15Flash,
     name: 'augmentedPrompt',
     input: z.object({
       context: z.array(z.string()),

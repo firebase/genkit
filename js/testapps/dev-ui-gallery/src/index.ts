@@ -16,7 +16,6 @@
 
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
-import { firebase } from '@genkit-ai/firebase';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import {
   claude3Haiku,
@@ -55,17 +54,8 @@ export const PERMISSIVE_SAFETY_SETTINGS: any = {
 };
 
 export const ai = genkit({
-  // settings
-  enableTracingAndMetrics: true,
-  flowStateStore: 'firebase',
-  logLevel: 'debug',
-  traceStore: 'firebase',
-
   // load at least one plugin representing each action type
   plugins: [
-    // runtime
-    firebase(),
-
     // model providers
     googleAI({
       apiVersion: ['v1', 'v1beta'],

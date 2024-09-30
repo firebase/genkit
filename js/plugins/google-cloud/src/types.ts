@@ -20,19 +20,13 @@ import { Sampler } from '@opentelemetry/sdk-trace-base';
 import { JWTInput } from 'google-auth-library';
 
 /** Configuration options for the Google Cloud plugin. */
-export interface GcpPluginOptions {
+export interface GcpTelemetryConfigOptions {
   /** Cloud projectId is required, either passed here, through GCLOUD_PROJECT or application default credentials. */
   projectId?: string;
 
-  /** Telemetry configuration overrides. Defaults will be provided depending on the Genkit environment. */
-  telemetryConfig?: GcpTelemetryConfigOptions;
-
   /** Credentials must be provided to export telemetry, if not available through the environment. */
   credentials?: JWTInput;
-}
 
-/** Telemetry configuration options. */
-export interface GcpTelemetryConfigOptions {
   /** Trace sampler, defaults to always on which exports all traces. */
   sampler?: Sampler;
 
@@ -62,6 +56,9 @@ export interface GcpTelemetryConfigOptions {
  * Internal telemetry configuration.
  */
 export interface GcpTelemetryConfig {
+  projectId?: string;
+  credentials?: JWTInput;
+
   sampler: Sampler;
   autoInstrumentation: boolean;
   autoInstrumentationConfig: InstrumentationConfigMap;
@@ -72,13 +69,4 @@ export interface GcpTelemetryConfig {
   disableTraces: boolean;
   exportIO: boolean;
   export: boolean;
-}
-
-/**
- * Internal configuration for the plugin.
- */
-export interface GcpPluginConfig {
-  projectId?: string;
-  telemetry: GcpTelemetryConfig;
-  credentials?: JWTInput;
 }

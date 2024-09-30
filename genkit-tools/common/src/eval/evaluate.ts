@@ -41,6 +41,8 @@ interface BulkRunResponse {
   response?: any;
 }
 
+const SUPPORTED_ACTION_TYPES = ['flow', 'model'] as const;
+
 /**
  * Starts a new evaluation run. Intended to be used via the reflection API.
  */
@@ -95,9 +97,8 @@ export async function runInference(params: {
   auth?: string;
 }): Promise<EvalInput[]> {
   const { runner, actionRef, evalFlowInput, auth } = params;
-  if (!actionRef.startsWith('/flow')) {
-    // TODO(ssbushi): Support model inference
-    throw new Error('Inference is only supported on flows');
+  if (!isSupportedActionRef(actionRef)) {
+    throw new Error('Inference is only supported on flows and models');
   }
 
   const runResponses: BulkRunResponse[] = await bulkRunAction({
@@ -107,7 +108,6 @@ export async function runInference(params: {
     auth,
   });
 
-  // TODO(ssbushi): Support model inference
   const evalDataset = await fetchEvalInput({
     runner,
     actionRef,
@@ -241,7 +241,6 @@ async function fetchEvalInput(params: {
   parsedData: EvalFlowInput;
 }): Promise<EvalInput[]> {
   const { runner, actionRef, states, parsedData } = params;
-  const flowName = actionRef.split('/')[-1];
 
   let references: any[] | undefined = undefined;
   if (!Array.isArray(parsedData)) {
@@ -254,7 +253,7 @@ async function fetchEvalInput(params: {
       );
     }
   }
-  const extractors = await getEvalExtractors(flowName);
+  const extractors = await getEvalExtractors(actionRef);
   return await Promise.all(
     states.map(async (s, i) => {
       const traceId = s.traceId;
@@ -331,4 +330,10 @@ function getSpanErrorMessage(span: SpanData): string | undefined {
       (event?.annotation?.attributes['exception.message'] as string) ?? 'Error'
     );
   }
+}
+
+function isSupportedActionRef(actionRef: string) {
+  return SUPPORTED_ACTION_TYPES.some((supportedType) =>
+    actionRef.startsWith(`/${supportedType}`)
+  );
 }

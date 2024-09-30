@@ -72,14 +72,14 @@ jobs:
           preid: ${{ inputs.preid }}
           commit-message: 'chore: bump @genkit-ai/ai version to {{version}}'
           tag-prefix:  '@genkit-ai/ai@'
-      - name: 'js/flow version bump'
+      - name: 'js/genkit version bump'
         uses: 'phips28/gh-action-bump-version@master'
         env:
           GITHUB_TOKEN: ${{ secrets.GENKIT_RELEASER_GITHUB_TOKEN }}
-          PACKAGEJSON_DIR: js/flow
+          PACKAGEJSON_DIR: js/genkit
         with:
           default: ${{ inputs.releaseType }}
           version-type: ${{ inputs.releaseType }}
           preid: ${{ inputs.preid }}
-          commit-message: 'chore: bump @genkit-ai/flow version to {{version}}'
-          tag-prefix:  '@genkit-ai/flow@'
+          commit-message: 'chore: bump genkit version to {{version}}'
+          tag-prefix:  'genkit@'

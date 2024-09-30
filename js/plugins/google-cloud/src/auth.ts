@@ -15,15 +15,17 @@
  */
 import { logger } from 'genkit/logging';
 import { GoogleAuth } from 'google-auth-library';
-import { GcpPluginOptions } from './types';
+import { GcpTelemetryConfig } from './types';
 
 /**
  * Allow customers to pass in cloud credentials from environment variables
  * following: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
  */
-export async function credentialsFromEnvironment(): Promise<GcpPluginOptions> {
+export async function credentialsFromEnvironment(): Promise<
+  Partial<GcpTelemetryConfig>
+> {
   let authClient: GoogleAuth;
-  let options: GcpPluginOptions = {};
+  let options: Partial<GcpTelemetryConfig> = {};
 
   if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
     const serviceAccountCreds = JSON.parse(

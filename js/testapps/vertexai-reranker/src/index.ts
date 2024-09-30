@@ -37,8 +37,6 @@ const ai = genkit({
       ],
     }),
   ],
-  logLevel: 'debug',
-  enableTracingAndMetrics: true,
   flowServer: true,
 });
 const FAKE_DOCUMENT_CONTENT = [

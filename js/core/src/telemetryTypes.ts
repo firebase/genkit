@@ -21,36 +21,4 @@ import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
  * Open-Telemetry SDK. This configuration allows plugins to specify how and
  * where open telemetry data will be exported.
  */
-export interface TelemetryConfig {
-  getConfig(): Partial<NodeSDKConfiguration>;
-}
-
-/**
- * Provides a Winston {LoggerOptions} configuration for building a Winston
- * logger. This logger will be used to write genkit debug logs.
- */
-export interface LoggerConfig {
-  /** Gets the logger used for writing generic log statements */
-  getLogger(env: string): any;
-}
-
-/**
- * Options for configuring the Open-Telemetry export configuration as part of a
- * Genkit config file.
- */
-export interface TelemetryOptions {
-  /**
-   * Specifies which telemetry export provider to use. The value specified here
-   * must match the id of a {TelemetryConfig} provided by an installed plugin.
-   *
-   * Note: Telemetry data is only exported when running in the `prod`
-   * environment.
-   * */
-  instrumentation: string;
-
-  /**
-   * Specifies which winston logging provider to use. The value specified here
-   * must match the id of a {TelemetryConfig} provided by an installed plugin.
-   */
-  logger: string;
-}
+export type TelemetryConfig = Partial<NodeSDKConfiguration>;

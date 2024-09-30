@@ -27,8 +27,9 @@ import {
 } from '../plugin';
 import { Action } from '../types/action';
 import { DocumentData, RetrieverResponse } from '../types/retrievers';
-import { SpanData, TraceData } from '../types/trace';
+import { NestedSpanData, TraceData } from '../types/trace';
 import { logger } from './logger';
+import { stackTraceSpans } from './trace';
 
 export type EvalExtractorFn = (t: TraceData) => string;
 const JSON_EMPTY_STRING = '""';
@@ -73,21 +74,12 @@ export async function confirmLlmUse(
   return answers.confirm;
 }
 
-function getRootSpan(
-  trace: TraceData,
-  shouldSucceed: boolean = true
-): SpanData | undefined {
-  return Object.values(trace.spans).find(
-    (s) =>
-      s.attributes['genkit:type'] === 'flow' &&
-      (shouldSucceed
-        ? s.attributes['genkit:metadata:flow:state'] === 'done'
-        : true)
-  );
+function getRootSpan(trace: TraceData): NestedSpanData | undefined {
+  return stackTraceSpans(trace);
 }
 
 const DEFAULT_INPUT_EXTRACTOR: EvalExtractorFn = (trace: TraceData) => {
-  const rootSpan = getRootSpan(trace, /* shouldSucceed= */ false);
+  const rootSpan = getRootSpan(trace);
   return (rootSpan?.attributes['genkit:input'] as string) || JSON_EMPTY_STRING;
 };
 const DEFAULT_OUTPUT_EXTRACTOR: EvalExtractorFn = (trace: TraceData) => {
@@ -188,12 +180,12 @@ function getExtractorMap(extractor: EvaluationExtractor) {
 }
 
 export async function getEvalExtractors(
-  flowName: string
+  actionRef: string
 ): Promise<Record<string, EvalExtractorFn>> {
   const config = await findToolsConfig();
   logger.info(`Found tools config... ${JSON.stringify(config)}`);
   const extractors = config?.evaluators
-    ?.filter((e) => e.flowName === flowName)
+    ?.filter((e) => e.actionRef === actionRef)
     .map((e) => e.extractors);
   if (!extractors) {
     return Promise.resolve(DEFAULT_EXTRACTORS);
