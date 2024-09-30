@@ -32,6 +32,7 @@
   "license": "Apache-2.0",
   "dependencies": {
     "@genkit-ai/google-cloud": "workspace:*",
+    "@opentelemetry/api": "^1.9.0",
     "express": "^4.21.0",
     "google-auth-library": "^9.6.3"
   },
@@ -67,6 +68,12 @@
       "import": "./lib/auth.mjs",
       "types": "./lib/auth.d.ts",
       "default": "./lib/auth.js"
+    },
+    "./user_engagement": {
+      "require": "./lib/user_engagement.js",
+      "import": "./lib/user_engagement.mjs",
+      "types": "./lib/user_engagement.d.ts",
+      "default": "./lib/user_engagement.js"
     }
   },
   "typesVersions": {
@@ -76,6 +83,9 @@
       ],
       "auth": [
         "lib/auth"
+      ],
+      "engagement": [
+        "lib/user_engagement"
       ]
     }
   }

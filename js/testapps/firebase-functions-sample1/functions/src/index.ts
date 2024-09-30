@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 
-import { genkit, run } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import { firebaseAuth } from '@genkit-ai/firebase/auth';
+import {
+  collectUserEngagement,
+  FirebaseUserEngagementSchema,
+} from '@genkit-ai/firebase/user_engagement';
 import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
 import { geminiPro, vertexAI } from '@genkit-ai/vertexai';
 import { onRequest } from 'firebase-functions/v2/https';
-import * as z from 'zod';
+import { genkit, run, z } from 'genkit';
 
 const ai = genkit({
   plugins: [firebase(), vertexAI()],
@@ -127,3 +130,9 @@ export const triggerJokeFlow = onRequest(
     res.send(op);
   }
 );
+
+// TODO: move to Firebase plugin
+export const collectFeedback = onRequest(async (req, res) => {
+  await collectUserEngagement(FirebaseUserEngagementSchema.parse(req.body));
+  res.send('thanks!');
+});
