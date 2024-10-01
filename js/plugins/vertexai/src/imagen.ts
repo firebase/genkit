@@ -262,9 +262,10 @@ export function imagenModel(
       if (baseImage) {
         instance.image = { bytesBase64Encoded: baseImage };
       }
-      if (extractMaskImage(request)) {
+      const maskImage = extractMaskImage(request);
+      if (maskImage) {
         instance.mask = {
-          image: { bytesBase64Encoded: extractBaseImage(request)! },
+          image: { bytesBase64Encoded: maskImage },
         };
       }
 
