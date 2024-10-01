@@ -29,9 +29,7 @@ toc:
     path: /docs/genkit/models
   - title: Creating flows
     path: /docs/genkit/flows
-  - title: Prompting models
-    path: /docs/genkit/prompts
-  - title: Managing prompts
+  - title: Managing prompts with Dotprompt
     path: /docs/genkit/dotprompt
   - title: Tool calling
     path: /docs/genkit/tool-calling
