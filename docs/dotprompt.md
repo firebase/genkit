@@ -65,7 +65,7 @@ have already installed Genkit as a dependency in your project.
 ## Installing the dotprompt plugin
 
 Dotprompt Is an optional component of Genkit, so you must install the plugin
-Into your project before you can use it:
+into your project before you can use it:
 
 ```posix-terminal
 npm i –save @genkit-ai/dotprompt
@@ -155,7 +155,8 @@ The portion in the dashes is YAML front matter, similar to the front matter
 format used by GitHub markdown and Jekyll; the rest of the file is the prompt,
 which can optionally use Handlebars templates. The front matter section is
 optional, but most prompt files will at least contain metadata specifying a
-model.
+model. The remainder of this page shows you how to go beyond this, and make use
+of Dotprompt's features in your prompt files.
 
 #### Using the developer UI
 
@@ -494,8 +495,9 @@ input:
 ```
 
 In this example, the Handlebars expression, {% verbatim %}`{{theme}}`{% endverbatim
-%}, resolves to the value of the input's theme property when you run the prompt.
-To pass input to the prompt, call generate as in the following example:
+%}, resolves to the value of the input's `theme` property when you run the
+prompt. To pass input to the prompt, call `generate()` as in the following
+example:
 
 ```ts
 const menuPrompt = promptRef("menu");
@@ -504,9 +506,9 @@ const response = await menuPrompt.generate({
 });
 ```
 
-Note that because the input schema declared the theme property to be optional
-and provided a default, you could have passed an empty object to generate, and
-the prompt would have resolved using the default value.
+Note that because the input schema declared the `theme` property to be optional
+and provided a default, you could have passed an empty object to `generate()`,
+and the prompt would have resolved using the default value.
 
 Handlebars templates also support some limited logical constructs. For example,
 as an alternative to providing a default, you could define the prompt using
@@ -523,7 +525,7 @@ input:
 ```
 
 In this example, the prompt renders as "Invent a menu item for a restaurant"
-when the theme property is unspecified.
+when the `theme` property is unspecified.
 
 See the [Handlebars
 documentation](https://handlebarsjs.com/guide/builtin-helpers.html){:.external}
@@ -560,7 +562,7 @@ food items into all of your conversations.
 
 ### Multi-turn prompts and history
 
-Dotprompt supports multi-turn prompts by passing the history option into the
+Dotprompt supports multi-turn prompts by passing the `history` option into the
 `generate()` method:
 
 ```ts
@@ -722,9 +724,6 @@ input:
 
 {% verbatim %}HELLO, {{shout name}}!!!{% endverbatim %}
 ```
-
-For more information about the arguments passed into helpers, see the Handlebars
-documentation on creating custom helpers.
 
 ## Prompt variants
 
