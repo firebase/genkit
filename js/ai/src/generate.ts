@@ -506,7 +506,15 @@ export async function generate<
     await Promise.resolve(options);
   const model = await resolveModel(resolvedOptions);
   if (!model) {
-    throw new Error(`Model ${JSON.stringify(resolvedOptions.model)} not found`);
+    let modelId: string;
+    if (typeof resolvedOptions.model === 'string') {
+      modelId = resolvedOptions.model;
+    } else if ((resolvedOptions.model as ModelReference<any>).name) {
+      modelId = (resolvedOptions.model as ModelReference<any>).name;
+    } else {
+      modelId = (resolvedOptions.model as ModelAction).__action.name;
+    }
+    throw new Error(`Model ${modelId} not found`);
   }
 
   // convert tools to action refs (strings).
