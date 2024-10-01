@@ -123,7 +123,7 @@ export class Genkit {
       this.reflectionServer = new ReflectionServer(this.registry, {
         configuredEnvs: [...this.configuredEnvs],
       });
-      this.reflectionServer.start();
+      this.reflectionServer.start().catch((e) => logger.error);
     }
     if (this.options.flowServer) {
       const flowServerOptions =
@@ -337,7 +337,7 @@ export class Genkit {
       activeRegistry.registerPluginProvider(plugin.name, {
         name: plugin.name,
         async initializer() {
-          logger.info(`Initializing plugin ${plugin.name}:`);
+          logger.debug(`Initializing plugin ${plugin.name}:`);
           return runWithRegistry(activeRegistry, () => plugin.initializer());
         },
       });

@@ -46,13 +46,11 @@ import {
 } from '@opentelemetry/sdk-trace-base';
 import { GENKIT_VERSION } from 'genkit';
 import { PathMetadata } from 'genkit/tracing';
-
-import { extractErrorName } from './utils';
-
 import { actionTelemetry } from './telemetry/action.js';
 import { flowsTelemetry } from './telemetry/flow.js';
 import { generateTelemetry } from './telemetry/generate.js';
 import { GcpTelemetryConfig } from './types';
+import { extractErrorName } from './utils';
 
 let metricExporter: PushMetricExporter;
 let spanProcessor: BatchSpanProcessor;

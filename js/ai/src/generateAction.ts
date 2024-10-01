@@ -24,6 +24,7 @@ import {
 import { lookupAction } from '@genkit-ai/core/registry';
 import { toJsonSchema, validateSchema } from '@genkit-ai/core/schema';
 import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
+import * as clc from 'colorette';
 import { DocumentDataSchema } from './document.js';
 import { GenerateResponse, GenerateResponseChunk } from './generate.js';
 import {
@@ -105,6 +106,12 @@ async function generate(
   )) as ModelAction;
   if (!model) {
     throw new Error(`Model ${rawRequest.model} not found`);
+  }
+  if (model.__action.metadata?.model.stage === 'deprecated') {
+    console.warn(
+      `${clc.bold(clc.yellow('Warning:'))} ` +
+        `Model '${model.__action.name}' is deprecated and may be removed in a future release.`
+    );
   }
 
   let tools: ToolAction[] | undefined;
