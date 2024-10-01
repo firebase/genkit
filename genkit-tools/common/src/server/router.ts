@@ -199,7 +199,7 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
     /** Retrieves an existing dataset */
     getDataset: loggedProcedure
       .input(z.string())
-      .output(evals.EvalFlowInputSchema)
+      .output(evals.EvalInferenceInputSchema)
       .query(async ({ input }) => {
         const response = await getDatasetStore().getDataset(input);
         return response;

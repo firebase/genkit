@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { loadPromptFile, ModelArgument, z } from 'genkit';
-import { BaseDataPoint, Score } from 'genkit/evaluator';
+import { ModelArgument, loadPromptFile, z } from 'genkit';
+import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import path from 'path';
 import { ai } from '../index.js';
 
@@ -31,7 +31,7 @@ export async function deliciousnessScore<
   CustomModelOptions extends z.ZodTypeAny,
 >(
   judgeLlm: ModelArgument<CustomModelOptions>,
-  dataPoint: BaseDataPoint,
+  dataPoint: BaseEvalDataPoint,
   judgeConfig?: CustomModelOptions
 ): Promise<Score> {
   const d = dataPoint;

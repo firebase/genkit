@@ -15,11 +15,12 @@
  */
 
 import { randomUUID } from 'crypto';
-import { EvalFlowInput, getDatasetStore, getEvalStore } from '.';
+import { EvalInferenceInput, getDatasetStore, getEvalStore } from '.';
 import { Runner } from '../runner';
 import {
   Action,
   EvalInput,
+  EvalKeyAugments,
   EvalRun,
   EvalRunKey,
   RunNewEvaluationRequest,
@@ -27,6 +28,7 @@ import {
 } from '../types';
 import {
   evaluatorName,
+  generateTestCaseId,
   getEvalExtractors,
   isEvaluator,
   logger,
@@ -36,6 +38,7 @@ import { enrichResultsWithScoring, extractMetricsMetadata } from './parser';
 
 interface BulkRunResponse {
   traceId?: string;
+  testCaseId: string;
   response?: any;
 }
 
@@ -52,6 +55,11 @@ export async function runNewEvaluation(
   const datasetStore = await getDatasetStore();
   logger.info(`Fetching dataset ${datasetId}...`);
   const dataset = await datasetStore.getDataset(datasetId);
+  const datasetMetadatas = await datasetStore.listDatasets();
+  const targetDatasetMetadata = datasetMetadatas.find(
+    (d) => d.datasetId === datasetId
+  );
+  const datasetVersion = targetDatasetMetadata?.version;
 
   logger.info('Running inference...');
   const evalDataset = await runInference({
@@ -60,20 +68,17 @@ export async function runNewEvaluation(
     evalFlowInput: dataset,
     auth: request.options?.auth,
   });
-  const evaluatorAction = await getMatchingEvaluatorActions(runner, evaluators);
+  const evaluatorActions = await getMatchingEvaluatorActions(
+    runner,
+    evaluators
+  );
 
-  logger.info('Running evaluation...');
   const evalRun = await runEvaluation({
     runner,
-    evaluatorActions: evaluatorAction,
+    evaluatorActions,
     evalDataset,
-    actionRef,
-    datasetId,
+    augments: { actionRef, datasetId, datasetVersion },
   });
-  logger.info('Finished evaluation, returning key...');
-  const evalStore = getEvalStore();
-  await evalStore.save(evalRun);
-
   return evalRun.key;
 }
 
@@ -81,21 +86,18 @@ export async function runNewEvaluation(
 export async function runInference(params: {
   runner: Runner;
   actionRef: string;
-  evalFlowInput: EvalFlowInput;
+  evalFlowInput: EvalInferenceInput;
   auth?: string;
 }): Promise<EvalInput[]> {
   const { runner, actionRef, evalFlowInput, auth } = params;
   if (!isSupportedActionRef(actionRef)) {
     throw new Error('Inference is only supported on flows and models');
   }
-  let inputs: any[] = Array.isArray(evalFlowInput)
-    ? (evalFlowInput as any[])
-    : evalFlowInput.samples.map((c) => c.input);
 
   const runResponses: BulkRunResponse[] = await bulkRunAction({
     runner,
     actionRef,
-    inputs,
+    evalFlowInput,
     auth,
   });
 
@@ -113,13 +115,12 @@ export async function runEvaluation(params: {
   runner: Runner;
   evaluatorActions: Action[];
   evalDataset: EvalInput[];
-  actionRef?: string;
-  datasetId?: string;
+  augments?: EvalKeyAugments;
 }): Promise<EvalRun> {
-  const { runner, evaluatorActions, evalDataset, actionRef, datasetId } =
-    params;
+  const { runner, evaluatorActions, evalDataset, augments } = params;
   const evalRunId = randomUUID();
   const scores: Record<string, any> = {};
+  logger.info('Running evaluation...');
   for (const action of evaluatorActions) {
     const name = evaluatorName(action);
     const response = await runner.runAction({
@@ -137,14 +138,17 @@ export async function runEvaluation(params: {
 
   const evalRun = {
     key: {
-      actionRef,
       evalRunId,
-      datasetId,
       createdAt: new Date().toISOString(),
+      ...augments,
     },
     results: scoredResults,
     metricsMetadata: metadata,
   };
+
+  logger.info('Finished evaluation, writing key...');
+  const evalStore = getEvalStore();
+  await evalStore.save(evalRun);
   return evalRun;
 }
 
@@ -183,10 +187,22 @@ export async function getMatchingEvaluatorActions(
 async function bulkRunAction(params: {
   runner: Runner;
   actionRef: string;
-  inputs: any[];
+  evalFlowInput: EvalInferenceInput;
   auth?: string;
 }): Promise<BulkRunResponse[]> {
-  const { runner, actionRef, inputs, auth } = params;
+  const { runner, actionRef, evalFlowInput, auth } = params;
+  let inputs: { input?: any; testCaseId: string }[] = Array.isArray(
+    evalFlowInput
+  )
+    ? (evalFlowInput as any[]).map((i) => ({
+        input: i,
+        testCaseId: generateTestCaseId(),
+      }))
+    : evalFlowInput.samples.map((c) => ({
+        ...c,
+        testCaseId: c.testCaseId ?? generateTestCaseId(),
+      }));
+
   let responses: BulkRunResponse[] = [];
   for (const d of inputs) {
     logger.info(`Running '${actionRef}' ...`);
@@ -196,18 +212,19 @@ async function bulkRunAction(params: {
         key: actionRef,
         input: {
           start: {
-            input: d,
+            input: d.input,
           },
           auth: auth ? JSON.parse(auth) : undefined,
         },
       });
       response = {
+        testCaseId: d.testCaseId,
         traceId: runActionResponse.telemetry?.traceId,
         response: runActionResponse.result,
       };
     } catch (e: any) {
       const traceId = e?.data?.details?.traceId;
-      response = { traceId };
+      response = { testCaseId: d.testCaseId, traceId };
     }
     responses.push(response);
   }
@@ -219,7 +236,7 @@ async function fetchEvalInput(params: {
   runner: Runner;
   actionRef: string;
   states: BulkRunResponse[];
-  parsedData: EvalFlowInput;
+  parsedData: EvalInferenceInput;
 }): Promise<EvalInput[]> {
   const { runner, actionRef, states, parsedData } = params;
 
@@ -242,7 +259,7 @@ async function fetchEvalInput(params: {
         logger.warn('No traceId available...');
         return {
           // TODO Replace this with unified trace class
-          testCaseId: randomUUID(),
+          testCaseId: s.testCaseId,
           traceIds: [],
         };
       }
@@ -264,7 +281,7 @@ async function fetchEvalInput(params: {
       const nestedSpan = stackTraceSpans(trace);
       if (!nestedSpan) {
         return {
-          testCaseId: randomUUID(),
+          testCaseId: s.testCaseId,
           input: inputs[0],
           error: `Unable to extract any spans from trace ${traceId}`,
           reference: references?.at(i),
@@ -274,7 +291,7 @@ async function fetchEvalInput(params: {
 
       if (nestedSpan.attributes['genkit:state'] === 'error') {
         return {
-          testCaseId: randomUUID(),
+          testCaseId: s.testCaseId,
           input: inputs[0],
           error:
             getSpanErrorMessage(nestedSpan) ??
@@ -289,7 +306,7 @@ async function fetchEvalInput(params: {
 
       return {
         // TODO Replace this with unified trace class
-        testCaseId: randomUUID(),
+        testCaseId: s.testCaseId,
         input: inputs[0],
         output: outputs[0],
         context: JSON.parse(contexts[0]) as string[],

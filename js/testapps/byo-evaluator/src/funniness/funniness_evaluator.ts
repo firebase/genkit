@@ -16,7 +16,7 @@
 
 import { ModelReference, z } from 'genkit';
 import {
-  BaseDataPoint,
+  BaseEvalDataPoint,
   EvaluatorAction,
   defineEvaluator,
 } from 'genkit/evaluator';
@@ -43,7 +43,7 @@ export function createFunninessEvaluator<
       definition:
         'Judges whether a statement is a joke and whether that joke is funny.',
     },
-    async (datapoint: BaseDataPoint) => {
+    async (datapoint: BaseEvalDataPoint) => {
       const score = await funninessScore(judge, datapoint, judgeConfig);
       return {
         testCaseId: datapoint.testCaseId,

@@ -16,7 +16,7 @@
 
 import { ModelReference, z } from 'genkit';
 import {
-  BaseDataPoint,
+  BaseEvalDataPoint,
   EvaluatorAction,
   defineEvaluator,
 } from 'genkit/evaluator';
@@ -40,7 +40,7 @@ export function createPiiEvaluator<ModelCustomOptions extends z.ZodTypeAny>(
       displayName: 'PII Detection',
       definition: 'Detects whether PII is present in the output.',
     },
-    async (datapoint: BaseDataPoint) => {
+    async (datapoint: BaseEvalDataPoint) => {
       const score = await piiDetectionScore(judge, datapoint, judgeConfig);
       return {
         testCaseId: datapoint.testCaseId,

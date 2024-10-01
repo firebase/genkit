@@ -15,7 +15,7 @@
  */
 
 import { ModelArgument } from 'genkit';
-import { BaseDataPointSchema, defineEvaluator } from 'genkit/evaluator';
+import { BaseEvalDataPoint, defineEvaluator } from 'genkit/evaluator';
 import { Criteria, loadEvaluator } from 'langchain/evaluation';
 import { genkitModel } from './model.js';
 import { GenkitTracer } from './tracing.js';
@@ -31,9 +31,8 @@ export function langchainEvaluator(
       name: `langchain/${criteria}`,
       displayName: `${criteria}`,
       definition: `${criteria}: refer to https://js.langchain.com/docs/guides/evaluation`,
-      dataPointType: BaseDataPointSchema,
     },
-    async (datapoint) => {
+    async (datapoint: BaseEvalDataPoint) => {
       try {
         switch (type) {
           case 'labeled_criteria':

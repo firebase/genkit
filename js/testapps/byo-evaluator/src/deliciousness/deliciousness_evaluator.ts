@@ -16,7 +16,7 @@
 
 import { ModelReference, z } from 'genkit';
 import {
-  BaseDataPoint,
+  BaseEvalDataPoint,
   EvaluatorAction,
   defineEvaluator,
 } from 'genkit/evaluator';
@@ -42,7 +42,7 @@ export function createDeliciousnessEvaluator<
       displayName: 'Deliciousness',
       definition: 'Determines if output is considered delicous.',
     },
-    async (datapoint: BaseDataPoint) => {
+    async (datapoint: BaseEvalDataPoint) => {
       const score = await deliciousnessScore(judge, datapoint, judgeConfig);
       return {
         testCaseId: datapoint.testCaseId,

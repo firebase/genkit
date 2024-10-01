@@ -17,7 +17,7 @@
 import similarity from 'compute-cosine-similarity';
 import { generate, loadPromptFile, ModelArgument, z } from 'genkit';
 import { embed, EmbedderArgument } from 'genkit/embedder';
-import { BaseDataPoint, Score } from 'genkit/evaluator';
+import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import path from 'path';
 import { getDirName } from './helper.js';
 
@@ -32,7 +32,7 @@ export async function answerRelevancyScore<
   CustomEmbedderOptions extends z.ZodTypeAny,
 >(
   judgeLlm: ModelArgument<CustomModelOptions>,
-  dataPoint: BaseDataPoint,
+  dataPoint: BaseEvalDataPoint,
   embedder: EmbedderArgument<CustomEmbedderOptions>,
   judgeConfig?: CustomModelOptions,
   embedderOptions?: z.infer<CustomEmbedderOptions>

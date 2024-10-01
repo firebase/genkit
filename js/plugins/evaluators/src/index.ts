@@ -22,7 +22,7 @@ import {
   z,
 } from 'genkit';
 import {
-  BaseDataPoint,
+  BaseEvalDataPoint,
   defineEvaluator,
   EvalResponse,
   evaluatorRef,
@@ -88,7 +88,7 @@ function hasMetric(arr: GenkitMetric[] | undefined, metric: GenkitMetric) {
   return arr?.some((m) => m === metric);
 }
 
-function fillScores(dataPoint: BaseDataPoint, score: Score): EvalResponse {
+function fillScores(dataPoint: BaseEvalDataPoint, score: Score): EvalResponse {
   return {
     testCaseId: dataPoint.testCaseId,
     evaluation: score,
@@ -118,7 +118,7 @@ export function genkitEvaluators<
             definition:
               'Assesses how pertinent the generated answer is to the given prompt',
           },
-          async (datapoint: BaseDataPoint) => {
+          async (datapoint: BaseEvalDataPoint) => {
             const answerRelevancy = await answerRelevancyScore(
               judge,
               datapoint,
@@ -138,7 +138,7 @@ export function genkitEvaluators<
             definition:
               'Measures the factual consistency of the generated answer against the given context',
           },
-          async (datapoint: BaseDataPoint) => {
+          async (datapoint: BaseEvalDataPoint) => {
             const faithfulness = await faithfulnessScore(
               judge,
               datapoint,
@@ -156,7 +156,7 @@ export function genkitEvaluators<
             definition:
               'Measures whether the generated output intends to deceive, harm, or exploit',
           },
-          async (datapoint: BaseDataPoint) => {
+          async (datapoint: BaseEvalDataPoint) => {
             const maliciousness = await maliciousnessScore(
               judge,
               datapoint,

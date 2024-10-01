@@ -18,14 +18,16 @@ import { Action, EvalInput } from '@genkit-ai/tools-common';
 import {
   EvalExporter,
   getAllEvaluatorActions,
-  getEvalStore,
   getExporterForString,
   getMatchingEvaluatorActions,
   runEvaluation,
 } from '@genkit-ai/tools-common/eval';
-import { confirmLlmUse, logger } from '@genkit-ai/tools-common/utils';
+import {
+  confirmLlmUse,
+  generateTestCaseId,
+  logger,
+} from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
-import { randomUUID } from 'crypto';
 import { readFile } from 'fs/promises';
 import { runInRunnerThenStop } from '../utils/runner-utils';
 
@@ -91,7 +93,7 @@ export const evalRun = new Command('eval:run')
         (await readFile(dataset)).toString('utf-8')
       ).map((testCase: any) => ({
         ...testCase,
-        testCaseId: testCase.testCaseId || randomUUID(),
+        testCaseId: testCase.testCaseId || generateTestCaseId(),
         traceIds: testCase.traceIds || [],
       }));
       const evalRun = await runEvaluation({
@@ -99,9 +101,6 @@ export const evalRun = new Command('eval:run')
         evaluatorActions,
         evalDataset,
       });
-
-      const evalStore = getEvalStore();
-      await evalStore.save(evalRun);
 
       if (options.output) {
         const exportFn: EvalExporter = getExporterForString(

@@ -15,7 +15,7 @@
  */
 
 import {
-  BaseDataPoint,
+  BaseEvalDataPoint,
   EvalResponse,
   EvaluatorAction,
   Score,
@@ -29,7 +29,7 @@ const REGEX_MATCH_NAME_PREFIX = 'REGEX_MATCH';
 /**
  * Create an EvalResponse from an individual scored datapoint.
  */
-function fillScores(dataPoint: BaseDataPoint, score: Score): EvalResponse {
+function fillScores(dataPoint: BaseEvalDataPoint, score: Score): EvalResponse {
   return {
     testCaseId: dataPoint.testCaseId,
     evaluation: score,
@@ -70,7 +70,7 @@ export function createRegexEvaluators(
           'Runs the output against a regex and responds with 1 if a match is found and 0 otherwise.',
         isBilled: false,
       },
-      async (datapoint: BaseDataPoint) => {
+      async (datapoint: BaseEvalDataPoint) => {
         const score = await regexMatchScore(datapoint, regexMetric.regex);
         return fillScores(datapoint, score);
       }
@@ -82,7 +82,7 @@ export function createRegexEvaluators(
  * Score an individual datapoint.
  */
 export async function regexMatchScore(
-  dataPoint: BaseDataPoint,
+  dataPoint: BaseEvalDataPoint,
   regex: RegExp
 ): Promise<Score> {
   const d = dataPoint;
