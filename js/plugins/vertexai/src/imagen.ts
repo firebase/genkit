@@ -61,7 +61,40 @@ const ImagenConfigSchema = GenerationCommonConfigSchema.extend({
   addWatermark: z.boolean().optional(),
   /** Cloud Storage URI to store the generated images. **/
   storageUri: z.string().optional(),
-});
+  /** Mode must be set for upscaling requests. */
+  mode: z.enum(['upscale']).optional(),
+  /**
+   * Describes the editing intention for the request.
+   *
+   * Refer to https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api#edit_images_2 for details.
+   */
+  editConfig: z
+    .object({
+      /** Describes the editing intention for the request. */
+      editMode: z
+        .enum([
+          'inpainting-insert',
+          'inpainting-remove',
+          'outpainting',
+          'product-image',
+        ])
+        .optional(),
+      /** Prompts the model to generate a mask instead of you needing to provide one. Consequently, when you provide this parameter you can omit a mask object. */
+      maskMode: z
+        .object({
+          maskType: z.enum(['background', 'foreground', 'semantic']),
+          classes: z.array(z.number()).optional(),
+        })
+        .optional(),
+      maskDilation: z.number().optional(),
+      guidanceScale: z.number().optional(),
+      productPosition: z.enum(['reposition', 'fixed']).optional(),
+    })
+    .passthrough()
+    .optional(),
+  /** Upscale config object. */
+  upscaleConfig: z.object({ upscaleFactor: z.enum(['x2', 'x4']) }).optional(),
+}).passthrough();
 
 export const imagen2 = modelRef({
   name: 'vertexai/imagen2',
@@ -86,7 +119,7 @@ export const imagen3 = modelRef({
     label: 'Vertex AI - Imagen3',
     versions: ['imagen-3.0-generate-001'],
     supports: {
-      media: false,
+      media: true,
       multiturn: false,
       tools: false,
       systemRole: false,
@@ -144,14 +177,7 @@ function toParameters(
 ): ImagenParameters {
   const out = {
     sampleCount: request.candidates ?? 1,
-    aspectRatio: request.config?.aspectRatio,
-    negativePrompt: request.config?.negativePrompt,
-    seed: request.config?.seed,
-    language: request.config?.language,
-    personGeneration: request.config?.personGeneration,
-    safetySetting: request.config?.safetySetting,
-    addWatermark: request.config?.addWatermark,
-    storageUri: request.config?.storageUri,
+    ...request?.config,
   };
 
   for (const k in out) {
@@ -161,10 +187,19 @@ function toParameters(
   return out;
 }
 
-function extractPromptImage(request: GenerateRequest): string | undefined {
+function extractMaskImage(request: GenerateRequest): string | undefined {
   return request.messages
     .at(-1)
-    ?.content.find((p) => !!p.media)
+    ?.content.find((p) => !!p.media && p.metadata?.type === 'mask')
+    ?.media?.url.split(',')[1];
+}
+
+function extractBaseImage(request: GenerateRequest): string | undefined {
+  return request.messages
+    .at(-1)
+    ?.content.find(
+      (p) => !!p.media && (!p.metadata?.type || p.metadata?.type === 'base')
+    )
     ?.media?.url.split(',')[1];
 }
 
@@ -176,6 +211,7 @@ interface ImagenPrediction {
 interface ImagenInstance {
   prompt: string;
   image?: { bytesBase64Encoded: string };
+  mask?: { image?: { bytesBase64Encoded: string } };
 }
 
 export function imagenModel(
@@ -222,8 +258,15 @@ export function imagenModel(
       const instance: ImagenInstance = {
         prompt: extractText(request),
       };
-      if (extractPromptImage(request))
-        instance.image = { bytesBase64Encoded: extractPromptImage(request)! };
+      const baseImage = extractBaseImage(request);
+      if (baseImage) {
+        instance.image = { bytesBase64Encoded: baseImage };
+      }
+      if (extractMaskImage(request)) {
+        instance.mask = {
+          image: { bytesBase64Encoded: extractBaseImage(request)! },
+        };
+      }
 
       const req: any = {
         instances: [instance],
