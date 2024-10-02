@@ -124,7 +124,10 @@ export async function runInNewSpan<T>(
   );
 }
 
-/** Creates a new child span and attaches it to a previously created trace. This is useful, for example, for adding deferred user engagement metadata. */
+/**
+ * Creates a new child span and attaches it to a previously created trace. This
+ * is useful, for example, for adding deferred user engagement metadata.
+ */
 export function appendSpan(
   traceId: string,
   parentSpanId: string,

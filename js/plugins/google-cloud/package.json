@@ -67,12 +67,6 @@
       "import": "./lib/index.mjs",
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
-    },
-    "./metrics": {
-      "require": "./lib/metrics.js",
-      "import": "./lib/metrics.mjs",
-      "types": "./lib/metrics.d.ts",
-      "default": "./lib/metrics.js"
     }
   }
 }

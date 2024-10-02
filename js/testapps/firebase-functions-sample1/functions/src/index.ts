@@ -21,28 +21,12 @@ import {
   collectUserEngagement,
   FirebaseUserEngagementSchema,
 } from '@genkit-ai/firebase/user_engagement';
-import { geminiPro /*, vertexAI*/ } from '@genkit-ai/vertexai';
-import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
+import { geminiPro, vertexAI } from '@genkit-ai/vertexai';
 import { onRequest } from 'firebase-functions/v2/https';
 import { genkit, run, z } from 'genkit';
 
 const ai = genkit({
-  plugins: [
-    firebase({
-      telemetryConfig: {
-        forceDevExport: true, // do not deploy with this value
-        sampler: new AlwaysOnSampler(),
-        autoInstrumentation: true,
-        autoInstrumentationConfig: {
-          '@opentelemetry/instrumentation-fs': { enabled: false },
-          '@opentelemetry/instrumentation-dns': { enabled: false },
-          '@opentelemetry/instrumentation-net': { enabled: false },
-        },
-        metricExportIntervalMillis: 5_000, // do not deploy with this value
-        metricExportTimeoutMillis: 5_000, // do not deploy with this value
-      },
-    }),
-  ], //, vertexAI()],
+  plugins: [firebase(), vertexAI()],
   flowStateStore: 'firebase',
   traceStore: 'firebase',
   enableTracingAndMetrics: true,
