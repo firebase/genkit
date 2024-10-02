@@ -44,6 +44,7 @@ import {
   setCustomMetadataAttribute,
   setCustomMetadataAttributes,
   SPAN_TYPE_ATTR,
+  SpanMetadata,
 } from './tracing.js';
 import { flowMetadataPrefix, isDevEnv } from './utils.js';
 
@@ -141,6 +142,8 @@ interface StreamingResponse<
 
 /**
  * Function to be executed in the flow.
+ * TODO: this doesn't quite work because the default flow requires input/options/output
+ * We don't necessarily know or need to know that at this point
  */
 export type FlowFn<
   I extends z.ZodTypeAny = z.ZodTypeAny,
@@ -417,6 +420,92 @@ export class Flow<
   }
 }
 
+// TODO: I don't think we need this to register input and output, 
+// we really just want this for trace management
+export class DefaultFlow<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  readonly name: string;
+  readonly inputSchema?: I;
+  readonly outputSchema?: O;
+  readonly streamSchema?: S;
+  readonly authPolicy?: FlowAuthPolicy<I>;
+  readonly middleware?: express.RequestHandler[];
+
+  constructor(
+    config: FlowConfig<I, O> | StreamingFlowConfig<I, O, S>
+  ) {
+    this.name = config.name || "default";
+    this.inputSchema = config.inputSchema;
+    this.outputSchema = config.outputSchema;
+    this.streamSchema =
+      'streamSchema' in config ? config.streamSchema : undefined;
+    this.authPolicy = config.authPolicy;
+    this.middleware = config.middleware;
+  }
+
+  // TODO: I don't think we want to use FlowFn here - it's not really the right encapsulation. 
+  // I think we just want this thing to be a function with no args that you can do what you want with.
+  async invoke(
+    opts: {
+      labels?: Record<string, string>;
+      auth?: unknown;
+    }, fn: FlowFn<I, O, S>) : Promise<FlowResult<z.infer<O>>> {
+      await initializeAllPlugins();
+    return await runWithAuthContext(opts.auth, () =>
+      // TODO (cleoschneider): Not sure if we can invoke this multiple times, but we need to either
+      // do something to initialize this when you create the default flow or we need to separate these functions
+      newTrace(
+        {
+          name: this.name,
+          labels: {
+            [SPAN_TYPE_ATTR]: 'flow',
+          },
+        },
+        async (metadata, rootSpan) => {
+          if (opts.labels) {
+            const labels = opts.labels;
+            Object.keys(opts.labels).forEach((label) => {
+              setCustomMetadataAttribute(
+                flowMetadataPrefix(`label:${label}`),
+                labels[label]
+              );
+            });
+          }
+
+          setCustomMetadataAttributes({
+            [flowMetadataPrefix('name')]: this.name,
+          });
+          try {
+            const output = await fn()
+            metadata.output = JSON.stringify(output);
+            setCustomMetadataAttribute(flowMetadataPrefix('state'), 'done');
+            return {
+              result: output,
+              traceId: rootSpan.spanContext().traceId,
+              spanId: rootSpan.spanContext().spanId,
+            };
+          } catch (e) {
+            metadata.state = 'error';
+            rootSpan.setStatus({
+              code: SpanStatusCode.ERROR,
+              message: getErrorMessage(e),
+            });
+            if (e instanceof Error) {
+              rootSpan.recordException(e);
+            }
+
+            setCustomMetadataAttribute(flowMetadataPrefix('state'), 'error');
+            throw e;
+          }
+        }
+      )
+    );
+  }
+}
+
 /**
  * Options to configure the flow server.
  */
@@ -565,6 +654,14 @@ export function defineFlow<
   };
   callableFlow.flow = flow;
   return callableFlow;
+}
+
+export function defineDefaultFlow<
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+>(config: FlowConfig<I, O>, fn: FlowFn<I, O, z.ZodVoid>): DefaultFlow<I, O> {
+  const flow = new DefaultFlow<I, O, z.ZodVoid>(config);
+  return flow;
 }
 
 /**

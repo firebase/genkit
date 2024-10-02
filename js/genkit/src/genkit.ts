@@ -47,6 +47,8 @@ import {
 } from '@genkit-ai/ai';
 import {
   CallableFlow,
+  DefaultFlow,
+  defineDefaultFlow,
   defineFlow,
   defineJsonSchema,
   defineSchema,
@@ -147,6 +149,14 @@ export class Genkit {
     const flow = runWithRegistry(this.registry, () => defineFlow(config, fn));
     this.registeredFlows.push(flow.flow);
     return flow;
+  }
+
+  /**
+   * Allows direct invocation of genkit functions but will chain all subsequent calls 
+   * made with this instance in a single trace.
+   */
+  inFlow() : GenkitFunctions {
+    return new GenkitFunctions(this.registry);
   }
 
   /**
@@ -306,6 +316,38 @@ export class Genkit {
   ): Promise<GenerateResponse<z.infer<O>>> {
     return runWithRegistry(this.registry, () => generate(options));
   }
+  
+  // export class Genkit {
+  // defineFlow() : CallableFlow{genkitFunctions: GenkitFunctions}
+  // inFlow() : CallableFlow{genkitFunctions}
+  //}
+  
+  // class GenkitFunctions {
+  // embed
+  // generate
+//}
+
+  // inlineFlow = this.defineFlow({
+  //     name: "generate",
+  //     inputSchema: z.string(),
+  //     outputSchema: z.string(),
+  //   }, (options:
+  //     | GenerateOptions<O, CustomOptions>
+  //     | PromiseLike<GenerateOptions<O, CustomOptions>>) => {
+  //     return generate(options);
+  //   });
+
+  // generateInFlow<
+  //   O extends z.ZodTypeAny = z.ZodTypeAny,
+  //   CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+  // >(
+  //   options:
+  //     | GenerateOptions<O, CustomOptions>
+  //     | PromiseLike<GenerateOptions<O, CustomOptions>>
+  // ): Promise<GenerateResponse<z.infer<O>>> {
+    
+  //   return this.inlineFlow(options);
+  // }
 
   /**
    * Generates a stream of responses from a generative model based on the provided prompt
@@ -351,6 +393,107 @@ export class Genkit {
     await Promise.all([this.reflectionServer?.stop(), this.flowServer?.stop()]);
     this.reflectionServer = null;
     this.flowServer = null;
+  }
+}
+
+/**
+ * Genkit direct functions
+ */
+class GenkitFunctions {
+  /** Registry instance that is exclusively modified by this Genkit instance. */
+  readonly registry: Registry;
+  readonly defaultFlow: DefaultFlow;
+
+  constructor(registry?: Registry) {
+    this.registry = registry || new Registry();
+    this.defaultFlow = runWithRegistry(this.registry, () => defineDefaultFlow());
+  }
+
+  /**
+   * Embeds the given `content` using the specified `embedder`.
+   */
+  embed<CustomOptions extends z.ZodTypeAny>(
+    params: EmbedderParams<CustomOptions>
+  ): Promise<Embedding> {
+    // TODO: this doesn't quite work because the default flow requires input/options/output
+    // We don't necessarily know or need to know that at this point
+    return runWithRegistry(this.registry, () => this.defaultFlow.invoke(embed(params)));
+  }
+
+  /**
+   * Evaluates the given `dataset` using the specified `evaluator`.
+   */
+  evaluate<
+    DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
+    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+  >(params: EvaluatorParams<DataPoint, CustomOptions>): Promise<EvalResponses> {
+    return runWithRegistry(this.registry, () => evaluate(params));
+  }
+
+  /**
+   * Reranks documents from a {@link RerankerArgument} based on the provided query.
+   */
+  rerank<CustomOptions extends z.ZodTypeAny>(
+    params: RerankerParams<CustomOptions>
+  ): Promise<Array<RankedDocument>> {
+    return runWithRegistry(this.registry, () => rerank(params));
+  }
+
+  /**
+   * Indexes `documents` using the provided `indexer`.
+   */
+  index<CustomOptions extends z.ZodTypeAny>(
+    params: IndexerParams<CustomOptions>
+  ): Promise<void> {
+    return runWithRegistry(this.registry, () => index(params));
+  }
+
+  /**
+   * Retrieves documents from the `retriever` based on the provided `query`.
+   */
+  retrieve<CustomOptions extends z.ZodTypeAny>(
+    params: RetrieverParams<CustomOptions>
+  ): Promise<Array<Document>> {
+    return runWithRegistry(this.registry, () => retrieve(params));
+  }
+
+  /**
+   * Generate calls a generative model based on the provided prompt and configuration. If
+   * `history` is provided, the generation will include a conversation history in its
+   * request. If `tools` are provided, the generate method will automatically resolve
+   * tool calls returned from the model unless `returnToolRequests` is set to `true`.
+   *
+   * See {@link GenerateOptions} for detailed information about available options.
+   */
+  generate<
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+  >(
+    options:
+      | GenerateOptions<O, CustomOptions>
+      | PromiseLike<GenerateOptions<O, CustomOptions>>
+  ): Promise<GenerateResponse<z.infer<O>>> {
+    return runWithRegistry(this.registry, () => generate(options));
+  }
+
+  /**
+   * Generates a stream of responses from a generative model based on the provided prompt
+   * and configuration. If `history` is provided, the generation will include a conversation
+   * history in its request. If `tools` are provided, the generate method will automatically
+   * resolve tool calls returned from the model unless `returnToolRequests` is set to `true`.
+   * tool calls returned from the model unless `returnToolRequests` is set to `true`.
+   *
+   * See {@link GenerateStreamOptions} for detailed information about available options.
+   */
+  generateStream<
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+  >(
+    options:
+      | GenerateStreamOptions<O, CustomOptions>
+      | PromiseLike<GenerateStreamOptions<O, CustomOptions>>
+  ): Promise<GenerateStreamResponse<z.infer<O>>> {
+    return runWithRegistry(this.registry, () => generateStream(options));
   }
 }
 
