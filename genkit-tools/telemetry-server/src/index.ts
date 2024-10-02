@@ -42,7 +42,7 @@ export function startTelemetryServer(params: {
 }) {
   const api = express();
 
-  api.use(express.json({ limit: params.maxRequestBodySize ?? '5mb' }));
+  api.use(express.json({ limit: params.maxRequestBodySize ?? '30mb' }));
 
   api.get('/api/__health', async (_, response) => {
     response.status(200).send('OK');
@@ -50,22 +50,17 @@ export function startTelemetryServer(params: {
 
   api.get('/api/traces/:traceId', async (request, response) => {
     const { traceId } = request.params;
-    console.debug(`Fetching trace \`${traceId}\`.`);
     response.json(await params.traceStore.load(traceId));
   });
 
   api.post('/api/traces', async (request, response) => {
     const traceData = request.body as TraceData;
-
-    console.debug(`Writing trace ${traceData.traceId}.`);
-
     await params.traceStore.save(traceData.traceId, traceData);
     response.status(200).send('OK');
   });
 
   api.get('/api/traces', async (request, response) => {
     const { limit, continuationToken } = request.query;
-    console.debug(`Fetching traces.`);
     response.json(
       await params.traceStore.list({
         limit: limit ? parseInt(limit.toString()) : undefined,

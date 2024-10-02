@@ -163,6 +163,8 @@ interface FlowResult<O> {
   result: O;
   /** The trace ID associated with the flow execution. */
   traceId: string;
+  /** The root span ID of the associated trace. */
+  spanId: string;
 }
 
 export class Flow<
@@ -236,6 +238,7 @@ export class Flow<
             return {
               result: output,
               traceId: rootSpan.spanContext().traceId,
+              spanId: rootSpan.spanContext().spanId,
             };
           } catch (e) {
             metadata.state = 'error';
@@ -387,6 +390,8 @@ export class Flow<
       } else {
         try {
           const result = await this.invoke(input, { auth });
+          response.setHeader('x-genkit-trace-id', result.traceId);
+          response.setHeader('x-genkit-span-id', result.spanId);
           // Responses for non-streaming flows are passed back with the flow result stored in a field called "result."
           response
             .status(200)
@@ -501,7 +506,7 @@ export class FlowServer {
 
     this.port = await this.findPort();
     this.server = server.listen(this.port, () => {
-      logger.info(`Flow server running on http://localhost:${this.port}`);
+      logger.debug(`Flow server running on http://localhost:${this.port}`);
       FlowServer.RUNNING_SERVERS.push(this);
     });
   }
@@ -525,7 +530,7 @@ export class FlowServer {
         if (index > -1) {
           FlowServer.RUNNING_SERVERS.splice(index, 1);
         }
-        logger.info(
+        logger.debug(
           `Flow server on port ${this.port} has successfully shut down.`
         );
         this.port = null;

@@ -58,45 +58,29 @@ import {
   FlowServerOptions,
   isDevEnv,
   JSONSchema,
-  LoggerConfig,
   PluginProvider,
   ReflectionServer,
   StreamableFlow,
   StreamingFlowConfig,
-  TelemetryConfig,
-  TelemetryOptions,
   z,
 } from '@genkit-ai/core';
-import * as registry from '@genkit-ai/core/registry';
 import {
   defineDotprompt,
   Dotprompt,
   prompt,
   PromptMetadata,
 } from '@genkit-ai/dotprompt';
-import { NodeSDKConfiguration } from '@opentelemetry/sdk-node';
 import { logger } from './logging.js';
-import { AsyncProvider, Registry, runWithRegistry } from './registry.js';
-import { cleanUpTracing, enableTracingAndMetrics } from './tracing.js';
+import { Registry, runWithRegistry } from './registry.js';
+
 /**
  * Options for initializing Genkit.
  */
 export interface GenkitOptions {
   /** List of plugins to load. */
   plugins?: PluginProvider[];
-  /** Name of the trace store to use. If not specified, a dev trace store will be used. The trace store must be registered in the config. */
-  traceStore?: string;
-  /** Name of the flow state store to use. If not specified, a dev flow state store will be used. The flow state store must be registered in the config. */
-  flowStateStore?: string;
-  /** Whether to enable tracing and metrics. */
-  enableTracingAndMetrics?: boolean;
-  /** Level at which to log messages.*/
-  logLevel?: 'error' | 'warn' | 'info' | 'debug';
   /** Directory where dotprompts are stored. */
   promptDir?: string;
-  // FIXME: Telemetry cannot be scoped to a single Genkit instance.
-  /** Telemetry configuration. */
-  telemetry?: TelemetryOptions;
   // FIXME: Default model is not currently supported since the switch to non-global registry.
   /** Default model to use if no model is specified. */
   defaultModel?: {
@@ -124,11 +108,6 @@ export class Genkit {
   readonly configuredEnvs = new Set<string>(['dev']);
   /** Registry instance that is exclusively modified by this Genkit instance. */
   readonly registry: Registry;
-
-  /** Async provider for the telemtry configuration. */
-  private telemetryConfig: AsyncProvider<TelemetryConfig>;
-  /** Async provider for the logger configuration. */
-  private loggerConfig?: AsyncProvider<LoggerConfig>;
   /** Reflection server for this registry. May be null if not started. */
   private reflectionServer: ReflectionServer | null = null;
   /** Flow server. May be null if the flow server is not enabled in configuration or not started. */
@@ -138,19 +117,13 @@ export class Genkit {
 
   constructor(options?: GenkitOptions) {
     this.options = options || {};
-    this.telemetryConfig = async () =>
-      <TelemetryConfig>{
-        getConfig() {
-          return {} as Partial<NodeSDKConfiguration>;
-        },
-      };
     this.registry = new Registry();
     this.configure();
     if (isDevEnv()) {
       this.reflectionServer = new ReflectionServer(this.registry, {
         configuredEnvs: [...this.configuredEnvs],
       });
-      this.reflectionServer.start();
+      this.reflectionServer.start().catch((e) => logger.error);
     }
     if (this.options.flowServer) {
       const flowServerOptions =
@@ -355,101 +328,20 @@ export class Genkit {
   }
 
   /**
-   * Returns the configuration for exporting Telemetry data for the current
-   * environment.
-   */
-  getTelemetryConfig(): Promise<TelemetryConfig> {
-    return this.telemetryConfig();
-  }
-
-  /**
    * Configures the Genkit instance.
    */
   private configure() {
-    if (this.options.logLevel) {
-      logger.setLogLevel(this.options.logLevel);
-    }
-
     this.options.plugins?.forEach((plugin) => {
       logger.debug(`Registering plugin ${plugin.name}...`);
       const activeRegistry = this.registry;
       activeRegistry.registerPluginProvider(plugin.name, {
         name: plugin.name,
         async initializer() {
-          logger.info(`Initializing plugin ${plugin.name}:`);
+          logger.debug(`Initializing plugin ${plugin.name}:`);
           return runWithRegistry(activeRegistry, () => plugin.initializer());
         },
       });
     });
-
-    if (this.options.telemetry?.logger) {
-      const loggerPluginName = this.options.telemetry.logger;
-      logger.debug('Registering logging exporters...');
-      logger.debug(`  - all environments: ${loggerPluginName}`);
-      this.loggerConfig = async () =>
-        runWithRegistry(this.registry, () =>
-          this.resolveLoggerConfig(loggerPluginName)
-        );
-    }
-
-    if (this.options.telemetry?.instrumentation) {
-      const telemetryPluginName = this.options.telemetry.instrumentation;
-      logger.debug('Registering telemetry exporters...');
-      logger.debug(`  - all environments: ${telemetryPluginName}`);
-      this.telemetryConfig = async () =>
-        runWithRegistry(this.registry, () =>
-          this.resolveTelemetryConfig(telemetryPluginName)
-        );
-    }
-  }
-
-  /**
-   * Sets up the tracing and logging as configured.
-   *
-   * Note: the logging configuration must come after tracing has been enabled to
-   * ensure that all tracing instrumentations are applied.
-   * See limitations described here:
-   * https://github.com/open-telemetry/opentelemetry-js/tree/main/experimental/packages/opentelemetry-instrumentation#limitations
-   */
-  async setupTracingAndLogging() {
-    if (this.options.enableTracingAndMetrics) {
-      enableTracingAndMetrics(await this.getTelemetryConfig());
-    }
-    if (this.loggerConfig) {
-      logger.init(await this.loggerConfig());
-    }
-  }
-
-  /**
-   * Resolves the telemetry configuration provided by the specified plugin.
-   */
-  private async resolveTelemetryConfig(pluginName: string) {
-    const plugin = await registry.initializePlugin(pluginName);
-    const provider = plugin?.telemetry?.instrumentation;
-
-    if (!provider) {
-      throw new Error(
-        'Unable to resolve provider `telemetry.instrumentation` for plugin: ' +
-          pluginName
-      );
-    }
-    return provider.value;
-  }
-
-  /**
-   * Resolves the logging configuration provided by the specified plugin.
-   */
-  private async resolveLoggerConfig(pluginName: string) {
-    const plugin = await registry.initializePlugin(pluginName);
-    const provider = plugin?.telemetry?.logger;
-
-    if (!provider) {
-      throw new Error(
-        'Unable to resolve provider `telemetry.logger` for plugin: ' +
-          pluginName
-      );
-    }
-    return provider.value;
   }
 
   /**
@@ -469,17 +361,11 @@ export class Genkit {
  * should be called before any flows are registered.
  */
 export function genkit(options: GenkitOptions): Genkit {
-  const genkit = new Genkit(options);
-  genkit.setupTracingAndLogging();
-  return genkit;
+  return new Genkit(options);
 }
 
 process.on('SIGTERM', async () => {
   logger.debug('Received SIGTERM. Shutting down all Genkit servers...');
-  await Promise.all([
-    ReflectionServer.stopAll(),
-    FlowServer.stopAll(),
-    cleanUpTracing(),
-  ]);
+  await Promise.all([ReflectionServer.stopAll(), FlowServer.stopAll()]);
   process.exit(0);
 });

@@ -64,6 +64,7 @@ import {
 import {
   llama3,
   llama31,
+  llama32,
   modelGardenOpenaiCompatibleModel,
   SUPPORTED_OPENAI_FORMAT_MODELS,
 } from './model_garden.js';
@@ -103,6 +104,7 @@ export {
   imagen3Fast,
   llama3,
   llama31,
+  llama32,
   textEmbedding004,
   textEmbeddingGecko,
   textEmbeddingGecko001,

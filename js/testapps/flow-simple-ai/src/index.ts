@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { defineFirestoreRetriever, firebase } from '@genkit-ai/firebase';
-import { googleCloud } from '@genkit-ai/google-cloud';
+import { defineFirestoreRetriever } from '@genkit-ai/firebase';
+import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 import {
   gemini15Flash,
   googleAI,
@@ -35,38 +35,25 @@ import { MessageSchema, dotprompt, genkit, prompt, run, z } from 'genkit';
 import { runWithRegistry } from 'genkit/registry';
 import { Allow, parse } from 'partial-json';
 
-const ai = genkit({
-  plugins: [
-    firebase(),
-    googleAI(),
-    vertexAI(),
-    googleCloud({
-      // These are configured for demonstration purposes. Sensible defaults are
-      // in place in the event that telemetryConfig is absent.
-      telemetryConfig: {
-        // Forces telemetry export in 'dev'
-        forceDevExport: true,
-        sampler: new AlwaysOnSampler(),
-        autoInstrumentation: true,
-        autoInstrumentationConfig: {
-          '@opentelemetry/instrumentation-fs': { enabled: false },
-          '@opentelemetry/instrumentation-dns': { enabled: false },
-          '@opentelemetry/instrumentation-net': { enabled: false },
-        },
-        metricExportIntervalMillis: 5_000,
-        metricExportTimeoutMillis: 5_000,
-      },
-    }),
-    dotprompt(),
-  ],
-  flowStateStore: 'firebase',
-  traceStore: 'firebase',
-  enableTracingAndMetrics: true,
-  logLevel: 'debug',
-  telemetry: {
-    instrumentation: 'googleCloud',
-    logger: 'googleCloud',
+enableGoogleCloudTelemetry({
+  // These are configured for demonstration purposes. Sensible defaults are
+  // in place in the event that telemetryConfig is absent.
+
+  // Forces telemetry export in 'dev'
+  forceDevExport: true,
+  sampler: new AlwaysOnSampler(),
+  autoInstrumentation: true,
+  autoInstrumentationConfig: {
+    '@opentelemetry/instrumentation-fs': { enabled: false },
+    '@opentelemetry/instrumentation-dns': { enabled: false },
+    '@opentelemetry/instrumentation-net': { enabled: false },
   },
+  metricExportIntervalMillis: 5_000,
+  metricExportTimeoutMillis: 5_000,
+});
+
+const ai = genkit({
+  plugins: [googleAI(), vertexAI(), dotprompt()],
 });
 
 const app = initializeApp();

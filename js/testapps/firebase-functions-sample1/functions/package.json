@@ -14,13 +14,11 @@
   },
   "main": "lib/index.js",
   "dependencies": {
-    "@genkit-ai/ai": "*",
-    "@genkit-ai/core": "*",
+    "genkit": "*",
     "@genkit-ai/firebase": "*",
     "@genkit-ai/vertexai": "*",
     "firebase-admin": "^11.8.0",
-    "firebase-functions": "^4.8.0 || ^5.0.0",
-    "zod": "^3.22.4"
+    "firebase-functions": "^4.8.0 || ^5.0.0"
   },
   "devDependencies": {
     "firebase-functions-test": "^3.1.0",

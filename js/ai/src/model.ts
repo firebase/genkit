@@ -23,7 +23,6 @@ import {
   z,
 } from '@genkit-ai/core';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import * as clc from 'colorette';
 import { performance } from 'node:perf_hooks';
 import { DocumentDataSchema } from './document.js';
 import {
@@ -392,20 +391,7 @@ export function modelRef<
 >(
   options: ModelReference<CustomOptionsSchema>
 ): ModelReference<CustomOptionsSchema> {
-  if (options.info?.stage === 'deprecated') {
-    deprecateModel({ name: options.name });
-  }
   return { ...options };
-}
-
-/**
- * Warns when a model is deprecated.
- */
-function deprecateModel(options: { name: string }) {
-  console.warn(
-    `${clc.bold(clc.yellow('Warning:'))} ` +
-      `Model '${options.name}' is deprecated and may be removed in a future release.`
-  );
 }
 
 /** Container for counting usage stats for a single input/output {Part} */

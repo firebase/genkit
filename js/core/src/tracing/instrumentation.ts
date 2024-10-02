@@ -23,6 +23,7 @@ import {
 } from '@opentelemetry/api';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { performance } from 'node:perf_hooks';
+import { ensureBasicTelemetryInstrumentation } from '../tracing.js';
 import { PathMetadata, SpanMetadata, TraceMetadata } from './types.js';
 
 export const spanMetadataAls = new AsyncLocalStorage<SpanMetadata>();
@@ -44,6 +45,7 @@ export async function newTrace<T>(
   },
   fn: (metadata: SpanMetadata, rootSpan: ApiSpan) => Promise<T>
 ) {
+  ensureBasicTelemetryInstrumentation();
   // This is the root node only if we haven't previously started a trace.
   const isRoot = traceMetadataAls.getStore() ? false : true;
   const traceMetadata = traceMetadataAls.getStore() || {
@@ -81,6 +83,8 @@ export async function runInNewSpan<T>(
   },
   fn: (metadata: SpanMetadata, otSpan: ApiSpan, isRoot: boolean) => Promise<T>
 ): Promise<T> {
+  ensureBasicTelemetryInstrumentation();
+
   const tracer = trace.getTracer(TRACER_NAME, TRACER_VERSION);
   const parentStep = spanMetadataAls.getStore();
   const isInRoot = parentStep?.isRoot === true;

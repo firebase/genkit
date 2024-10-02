@@ -19,8 +19,6 @@ import { defineHelper, dotprompt, genkit, z } from 'genkit';
 
 const ai = genkit({
   plugins: [googleAI(), dotprompt()],
-  enableTracingAndMetrics: true,
-  logLevel: 'debug',
 });
 
 /*

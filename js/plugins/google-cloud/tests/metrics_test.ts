@@ -19,7 +19,7 @@ import {
   __forceFlushSpansForTesting,
   __getMetricExporterForTesting,
   __getSpanExporterForTesting,
-  googleCloud,
+  enableGoogleCloudTelemetry,
 } from '@genkit-ai/google-cloud';
 import {
   DataPoint,
@@ -49,26 +49,13 @@ describe('GoogleCloudMetrics', () => {
 
   before(async () => {
     process.env.GENKIT_ENV = 'dev';
-    ai = genkit({
-      // Force GCP Plugin to use in-memory metrics exporter
-      plugins: [
-        googleCloud({
-          projectId: 'test',
-          telemetryConfig: {
-            forceDevExport: false,
-            metricExportIntervalMillis: 100,
-            metricExportTimeoutMillis: 100,
-          },
-        }),
-      ],
-      enableTracingAndMetrics: true,
-      telemetry: {
-        logger: '',
-        instrumentation: 'googleCloud',
-      },
+    await enableGoogleCloudTelemetry({
+      projectId: 'test',
+      forceDevExport: false,
+      metricExportIntervalMillis: 100,
+      metricExportTimeoutMillis: 100,
     });
-    // Wait for the telemetry plugin to be initialized
-    await ai.getTelemetryConfig();
+    ai = genkit({});
   });
   beforeEach(async () => {
     __getMetricExporterForTesting().reset();
@@ -644,24 +631,20 @@ describe('GoogleCloudMetrics', () => {
   describe('Configuration', () => {
     it('should export only traces', async () => {
       const telemetry = new GcpOpenTelemetry({
-        telemetry: {
-          export: true,
-          disableMetrics: true,
-          disableTraces: false,
-        },
-      });
+        export: true,
+        disableMetrics: true,
+        disableTraces: false,
+      } as any);
       assert.equal(telemetry['shouldExportTraces'](), true);
       assert.equal(telemetry['shouldExportMetrics'](), false);
     });
 
     it('should export only metrics', async () => {
       const telemetry = new GcpOpenTelemetry({
-        telemetry: {
-          export: true,
-          disableTraces: true,
-          disableMetrics: false,
-        },
-      });
+        export: true,
+        disableTraces: true,
+        disableMetrics: false,
+      } as any);
       assert.equal(telemetry['shouldExportTraces'](), false);
       assert.equal(telemetry['shouldExportMetrics'](), true);
     });
