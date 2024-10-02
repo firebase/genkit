@@ -17,8 +17,8 @@
 import { Response } from 'express';
 import { DecodedIdToken, getAuth } from 'firebase-admin/auth';
 import { __RequestWithAuth, z } from 'genkit';
-import { FunctionFlowAuth } from './functions.js';
-import { initializeAppIfNecessary } from './helpers.js';
+import { FunctionFlowAuth } from './functions';
+import { initializeAppIfNecessary } from './helpers';
 
 export function firebaseAuth<I extends z.ZodTypeAny>(
   policy: (user: DecodedIdToken, input: z.infer<I>) => void | Promise<void>

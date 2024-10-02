@@ -14,11 +14,8 @@
  * limitations under the License.
  */
 
-import { ValueType } from '@opentelemetry/api';
-import { GENKIT_VERSION, z } from 'genkit';
-import {internalMetricNamespaceWrap, MetricCounter} from '@genkit-ai/google-cloud/metrics';
-import { logger } from 'genkit/logging';
-
+import { z } from 'genkit';
+import { appendSpan, SPAN_TYPE_ATTR } from 'genkit/tracing';
 
 /** Explicit user sentiment of response. */
 export enum FirebaseUserFeedbackEnum {
@@ -65,66 +62,52 @@ export const FirebaseUserEngagementSchema = z.object({
   /** Implicit user acceptance of response. */
   acceptance: z.optional(FirebaseUserAcceptanceSchema),
 });
+export type FirebaseUserEngagement = z.infer<
+  typeof FirebaseUserEngagementSchema
+>;
 
 /** Associates user engagement metadata with the specified flow execution. */
-export async function collectUserEngagement(
-  userEngagement: z.infer<typeof FirebaseUserEngagementSchema>
-) {
-  if (userEngagement.feedback) {
-    console.log('COLLECTING USER FEEDBACK');
-
-    // TODO: include trace id somehow?
-    const dimensions = {
-      feedback_value: userEngagement.feedback.value,
+export function collectUserEngagement(userEngagement: FirebaseUserEngagement) {
+  // Collect user feedback, if provided
+  if (userEngagement.feedback?.value) {
+    const metadata = {
+      feedbackValue: userEngagement.feedback.value,
+      subtype: 'userFeedback',
     };
     if (userEngagement.feedback.text) {
-      dimensions['feedback_text'] = userEngagement.feedback.text;
+      metadata['textFeedback'] = userEngagement.feedback.text;
     }
-    logger.logStructured(`Feedback[/${userEngagement.name}]`, dimensions);
 
-    // const dimensions = {
-    //   value: userEngagement.feedback.value,
-    //   name: userEngagement.name,
-    //   source: 'ts',
-    //   sourceVersion: GENKIT_VERSION
-    // }
-    // feedbackCounter.add(1, dimensions);
+    appendSpan(
+      userEngagement.traceId,
+      userEngagement.spanId,
+      {
+        name: 'user-feedback',
+        path: `/{${userEngagement.name}}`,
+        metadata: metadata,
+      },
+      {
+        [SPAN_TYPE_ATTR]: 'userEngagement',
+      }
+    );
   }
 
-  if (userEngagement.acceptance) {
-    console.log('COLLECTING USER ACCEPTANCE');
-
-    // TODO: include trace id somehow?
-    const dimensions = {
-      acceptance_value: userEngagement.acceptance.value,
-    };
-    logger.logStructured(`Acceptance[/${userEngagement.name}]`, dimensions);
-
-    // TODO
-    // const dimensions = {
-    //   value: userEngagement.acceptance.value,
-    //   name: userEngagement.name,
-    //   source: 'ts',
-    //   sourceVersion: GENKIT_VERSION
-    // }
-    // acceptanceCounter.add(1, dimensions);
+  // Collect user acceptance, if provided
+  if (userEngagement.acceptance?.value) {
+    appendSpan(
+      userEngagement.traceId,
+      userEngagement.spanId,
+      {
+        name: 'user-acceptance',
+        path: `/{${userEngagement.name}}`,
+        metadata: {
+          acceptanceValue: userEngagement.acceptance.value,
+          subtype: 'userAcceptance',
+        },
+      },
+      {
+        [SPAN_TYPE_ATTR]: 'userEngagement',
+      }
+    );
   }
-
-  console.log(`COLLECTED: ${JSON.stringify(userEngagement)}`);
 }
-
-// /**
-//  * Wraps the declared metrics in a Genkit-specific, internal namespace.
-//  */
-// const _N = internalMetricNamespaceWrap.bind(null, 'engagement');
-//
-// // TODO: Move counters into CLoud plugin, tick when it sees a feedback span
-// const feedbackCounter = new MetricCounter(_N('feedback'), {
-//   description: 'Counts feedback received for Genkit features.',
-//   valueType: ValueType.INT,
-// });
-//
-// const acceptanceCounter = new MetricCounter(_N('acceptance'), {
-//   description: 'Counts feedback received for Genkit features.',
-//   valueType: ValueType.INT,
-// });

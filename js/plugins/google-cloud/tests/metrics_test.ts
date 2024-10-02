@@ -40,6 +40,7 @@ import {
 } from 'genkit';
 import { defineModel } from 'genkit/model';
 import { runWithRegistry } from 'genkit/registry';
+import { SPAN_TYPE_ATTR, appendSpan } from 'genkit/tracing';
 import assert from 'node:assert';
 import { after, before, beforeEach, describe, it } from 'node:test';
 
@@ -587,6 +588,57 @@ describe('GoogleCloudMetrics', () => {
       ['/{testFlow,t:flow}/{sub-action-1,t:flowStep}', 'success'],
       ['/{testFlow,t:flow}/{sub-action-2,t:flowStep}', 'failure'],
     ]);
+  });
+
+  it('writes user feedback metrics', async () => {
+    appendSpan(
+      'trace1',
+      'parent1',
+      {
+        name: 'user-feedback',
+        path: '/{flowName}',
+        metadata: {
+          subtype: 'userFeedback',
+          feedbackValue: 'negative',
+          textFeedback: 'terrible',
+        },
+      },
+      { [SPAN_TYPE_ATTR]: 'userEngagement' }
+    );
+
+    await getExportedSpans();
+    const dataPoints = await getCounterDataPoints('genkit/engagement/feedback');
+
+    const points = dataPoints.map((p) => [
+      p.attributes.name,
+      p.attributes.value,
+      p.attributes.hasText,
+    ]);
+    assert.deepEqual(points, [['flowName', 'negative', true]]);
+  });
+
+  it('writes user acceptance metrics', async () => {
+    appendSpan(
+      'trace1',
+      'parent1',
+      {
+        name: 'user-acceptance',
+        path: '/{flowName}',
+        metadata: { subtype: 'userAcceptance', acceptanceValue: 'rejected' },
+      },
+      { [SPAN_TYPE_ATTR]: 'userEngagement' }
+    );
+
+    await getExportedSpans();
+    const dataPoints = await getCounterDataPoints(
+      'genkit/engagement/acceptance'
+    );
+
+    const points = dataPoints.map((p) => [
+      p.attributes.name,
+      p.attributes.value,
+    ]);
+    assert.deepEqual(points, [['flowName', 'rejected']]);
   });
 
   describe('Configuration', () => {

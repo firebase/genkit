@@ -16,22 +16,58 @@
 
 import { firebase } from '@genkit-ai/firebase';
 import { firebaseAuth } from '@genkit-ai/firebase/auth';
+import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
 import {
   collectUserEngagement,
   FirebaseUserEngagementSchema,
 } from '@genkit-ai/firebase/user_engagement';
-import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
-import { geminiPro, vertexAI } from '@genkit-ai/vertexai';
+import { geminiPro /*, vertexAI*/ } from '@genkit-ai/vertexai';
+import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { onRequest } from 'firebase-functions/v2/https';
 import { genkit, run, z } from 'genkit';
 
 const ai = genkit({
-  plugins: [firebase(), vertexAI()],
+  plugins: [
+    firebase({
+      telemetryConfig: {
+        forceDevExport: true, // do not deploy with this value
+        sampler: new AlwaysOnSampler(),
+        autoInstrumentation: true,
+        autoInstrumentationConfig: {
+          '@opentelemetry/instrumentation-fs': { enabled: false },
+          '@opentelemetry/instrumentation-dns': { enabled: false },
+          '@opentelemetry/instrumentation-net': { enabled: false },
+        },
+        metricExportIntervalMillis: 5_000, // do not deploy with this value
+        metricExportTimeoutMillis: 5_000, // do not deploy with this value
+      },
+    }),
+  ], //, vertexAI()],
   flowStateStore: 'firebase',
   traceStore: 'firebase',
   enableTracingAndMetrics: true,
   logLevel: 'debug',
+  telemetry: {
+    instrumentation: 'firebase',
+    logger: 'firebase',
+  },
 });
+
+export const simpleFlow = onFlow(
+  ai,
+  {
+    name: 'simpleFlow',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+    httpsOptions: {
+      cors: '*',
+    },
+    authPolicy: noAuth(),
+  },
+  async (subject) => {
+    return 'hello world!';
+  }
+);
 
 export const jokeFlow = onFlow(
   ai,
@@ -131,8 +167,7 @@ export const triggerJokeFlow = onRequest(
   }
 );
 
-// TODO: move to Firebase plugin
 export const collectFeedback = onRequest(async (req, res) => {
-  await collectUserEngagement(FirebaseUserEngagementSchema.parse(req.body));
+  collectUserEngagement(FirebaseUserEngagementSchema.parse(req.body));
   res.send('thanks!');
 });

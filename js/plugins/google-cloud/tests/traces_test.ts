@@ -21,6 +21,7 @@ import {
 } from '@genkit-ai/google-cloud';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { Genkit, genkit, run, z } from 'genkit';
+import { appendSpan } from 'genkit/tracing';
 import assert from 'node:assert';
 import { after, before, beforeEach, describe, it } from 'node:test';
 
@@ -130,6 +131,26 @@ describe('GoogleCloudTracing', () => {
     assert.equal(spans.length, 2);
     assert.equal(spans[0].name, 'badAction');
     assert.equal(spans[0].attributes['genkit/failedSpan'], 'badAction');
+  });
+
+  it('attaches additional span', async () => {
+    appendSpan(
+      'trace1',
+      'parent1',
+      { name: 'span-name', metadata: { metadata_key: 'metadata_value' } },
+      { ['label_key']: 'label_value' }
+    );
+
+    const spans = await getExportedSpans();
+    assert.equal(spans.length, 1);
+    assert.equal(spans[0].name, 'span-name');
+    assert.equal(Object.keys(spans[0].attributes).length, 3);
+    assert.equal(spans[0].attributes['genkit/name'], 'span-name');
+    assert.equal(spans[0].attributes['label_key'], 'label_value');
+    assert.equal(
+      spans[0].attributes['genkit/metadata/metadata_key'],
+      'metadata_value'
+    );
   });
 
   /** Helper to create a flow with no inputs or outputs */

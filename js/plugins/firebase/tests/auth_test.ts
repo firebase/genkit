@@ -14,48 +14,41 @@
  * limitations under the License.
  */
 
-import assert from 'node:assert';
-import { describe, it } from 'node:test';
+import { describe, expect, it } from '@jest/globals';
 import { firebaseAuth } from '../src/auth';
 
 describe('firebaseAuth', () => {
   it('config unset throws', async () => {
     const auth = firebaseAuth((user, input) => {});
 
-    await assert.rejects(async () => {
-      await auth.policy(undefined, undefined);
-    }, new Error('Auth is required'));
+    expect(auth.policy(undefined, undefined)).rejects.toThrow(
+      'Auth is required'
+    );
   });
 
   it('not required ok', async () => {
     const auth = firebaseAuth((user, input) => {}, { required: false });
 
-    await assert.doesNotReject(async () => {
-      await auth.policy(undefined, undefined);
-    });
+    expect(auth.policy(undefined, undefined)).resolves.not.toThrow();
   });
 
   it('required throws', async () => {
     const auth = firebaseAuth((user, input) => {}, { required: true });
 
-    await assert.rejects(async () => {
-      await auth.policy(undefined, undefined);
-    }, new Error('Auth is required'));
+    expect(auth.policy(undefined, undefined)).rejects.toThrow(
+      'Auth is required'
+    );
   });
 
   it('config unset present ok', async () => {
     const auth = firebaseAuth((user, input) => {});
 
-    await assert.doesNotReject(async () => {
-      await auth.policy({}, undefined);
-    });
+    expect(auth.policy({}, undefined)).resolves.not.toThrow();
   });
 
   it('required present ok', async () => {
     const auth = firebaseAuth((user, input) => {}, { required: true });
 
-    await assert.doesNotReject(async () => {
-      await auth.policy({}, undefined);
-    });
+    expect(auth.policy({}, undefined)).resolves.not.toThrow();
   });
 });

@@ -17,6 +17,7 @@
 import {
   Span as ApiSpan,
   Link,
+  ROOT_CONTEXT,
   SpanStatusCode,
   trace,
 } from '@opentelemetry/api';
@@ -121,6 +122,30 @@ export async function runInNewSpan<T>(
       }
     }
   );
+}
+
+/** Creates a new child span and attaches it to a previously created trace. This is useful, for example, for adding deferred user engagement metadata. */
+export function appendSpan(
+  traceId: string,
+  parentSpanId: string,
+  metadata: SpanMetadata,
+  labels?: Record<string, string>
+) {
+  const tracer = trace.getTracer(TRACER_NAME, TRACER_VERSION);
+
+  const spanContext = trace.setSpanContext(ROOT_CONTEXT, {
+    traceId: traceId,
+    traceFlags: 1, // sampled
+    spanId: parentSpanId,
+  });
+
+  // TODO(abrook): add explicit start time to align with parent
+  const span = tracer.startSpan(metadata.name, {}, spanContext);
+  span.setAttributes(metadataToAttributes(metadata));
+  if (labels) {
+    span.setAttributes(labels);
+  }
+  span.end();
 }
 
 function getErrorMessage(e: any): string {
