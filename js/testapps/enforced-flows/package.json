@@ -1,0 +1,27 @@
+{
+  "name": "cat-eval",
+  "version": "1.0.0",
+  "description": "",
+  "main": "lib/index.js",
+  "scripts": {
+    "start": "node lib/index.js",
+    "compile": "tsc",
+    "build": "pnpm build:clean && pnpm compile",
+    "build:clean": "rimraf ./lib",
+    "build:watch": "tsc --watch"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "genkit": "workspace:*",
+    "@genkit-ai/googleai": "workspace:*",
+    "@google-cloud/firestore": "^7.9.0",
+    "@opentelemetry/sdk-trace-base": "^1.22.0"
+  },
+  "devDependencies": {
+    "rimraf": "^6.0.1",
+    "@types/pdf-parse": "^1.1.4",
+    "typescript": "^5.3.3"
+  }
+}

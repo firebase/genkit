@@ -86,6 +86,18 @@ export interface FlowConfig<
 }
 
 /**
+ * Internal version of flow config that helps pass around
+ * an instance of the primitive functions class.
+ */
+export interface InternalFlowConfig<
+  P,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+> extends FlowConfig<I, O> {
+  primitiveFunctions: P;
+}
+
+/**
  * Configuration for a streaming flow.
  */
 export interface StreamingFlowConfig<
@@ -98,9 +110,23 @@ export interface StreamingFlowConfig<
 }
 
 /**
+ * Internal version of flow config that helps pass around
+ * an instance of the primitive functions class.
+ */
+export interface InternalStreamingFlowConfig<
+  P,
+  I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> extends StreamingFlowConfig<I, O, S> {
+  primitiveFunctions: P;
+}
+
+/**
  * Non-streaming flow that can be called directly like a function.
  */
 export interface CallableFlow<
+  P,
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
 > {
@@ -108,13 +134,14 @@ export interface CallableFlow<
     input?: z.infer<I>,
     opts?: { withLocalAuthContext?: unknown }
   ): Promise<z.infer<O>>;
-  flow: Flow<I, O, z.ZodVoid>;
+  flow: Flow<P, I, O, z.ZodVoid>;
 }
 
 /**
  * Streaming flow that can be called directly like a function.
  */
 export interface StreamableFlow<
+  P, // primitive functions that will be passed along
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
@@ -123,7 +150,7 @@ export interface StreamableFlow<
     input?: z.infer<I>,
     opts?: { withLocalAuthContext?: unknown }
   ): StreamingResponse<O, S>;
-  flow: Flow<I, O, S>;
+  flow: Flow<P, I, O, S>;
 }
 
 /**
@@ -141,12 +168,16 @@ interface StreamingResponse<
 
 /**
  * Function to be executed in the flow.
+ * TODO: this doesn't quite work because the default flow requires input/options/output
+ * We don't necessarily know or need to know that at this point
  */
 export type FlowFn<
+  P, // The set of primitive functions that a customer can invoke
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 > = (
+  primitiveFunctions: P,
   /** Input to the flow. */
   input: z.infer<I>,
   /** Callback for streaming functions only. */
@@ -168,6 +199,7 @@ interface FlowResult<O> {
 }
 
 export class Flow<
+  P, // the set of primitive functions to pass through to the flow function
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
@@ -178,11 +210,14 @@ export class Flow<
   readonly streamSchema?: S;
   readonly authPolicy?: FlowAuthPolicy<I>;
   readonly middleware?: express.RequestHandler[];
-  readonly flowFn: FlowFn<I, O, S>;
+  readonly flowFn: FlowFn<P, I, O, S>;
+  readonly primitiveFunctions: P;
 
   constructor(
-    config: FlowConfig<I, O> | StreamingFlowConfig<I, O, S>,
-    flowFn: FlowFn<I, O, S>
+    config:
+      | InternalFlowConfig<P, I, O>
+      | InternalStreamingFlowConfig<P, I, O, S>,
+    flowFn: FlowFn<P, I, O, S>
   ) {
     this.name = config.name;
     this.inputSchema = config.inputSchema;
@@ -191,6 +226,7 @@ export class Flow<
       'streamSchema' in config ? config.streamSchema : undefined;
     this.authPolicy = config.authPolicy;
     this.middleware = config.middleware;
+    this.primitiveFunctions = config.primitiveFunctions;
     this.flowFn = flowFn;
   }
 
@@ -232,7 +268,11 @@ export class Flow<
           });
           try {
             metadata.input = input;
-            const output = await this.flowFn(input, opts.streamingCallback);
+            const output = await this.flowFn(
+              this.primitiveFunctions,
+              input,
+              opts.streamingCallback
+            );
             metadata.output = JSON.stringify(output);
             setCustomMetadataAttribute(flowMetadataPrefix('state'), 'done');
             return {
@@ -554,19 +594,19 @@ export class FlowServer {
  * Defines a non-streaming flow. This operates on the currently active registry.
  */
 export function defineFlow<
+  P,
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  config: FlowConfig<I, O> | string,
-  fn: FlowFn<I, O, z.ZodVoid>
-): CallableFlow<I, O> {
-  const resolvedConfig: FlowConfig<I, O> =
-    typeof config === 'string' ? { name: config } : config;
+  config: InternalFlowConfig<P, I, O>,
+  fn: FlowFn<P, I, O, z.ZodVoid>
+): CallableFlow<P, I, O> {
+  const resolvedConfig: InternalFlowConfig<P, I, O> = config;
 
-  const flow = new Flow<I, O, z.ZodVoid>(resolvedConfig, fn);
+  const flow = new Flow<P, I, O, z.ZodVoid>(resolvedConfig, fn);
   registerFlowAction(flow);
   const registry = getRegistryInstance();
-  const callableFlow: CallableFlow<I, O> = async (input, opts) => {
+  const callableFlow: CallableFlow<P, I, O> = async (input, opts) => {
     return runWithRegistry(registry, () => flow.run(input, opts));
   };
   callableFlow.flow = flow;
@@ -577,17 +617,18 @@ export function defineFlow<
  * Defines a streaming flow. This operates on the currently active registry.
  */
 export function defineStreamingFlow<
+  P,
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  config: StreamingFlowConfig<I, O, S>,
-  fn: FlowFn<I, O, S>
-): StreamableFlow<I, O, S> {
+  config: InternalStreamingFlowConfig<P, I, O, S>,
+  fn: FlowFn<P, I, O, S>
+): StreamableFlow<P, I, O, S> {
   const flow = new Flow(config, fn);
   registerFlowAction(flow);
   const registry = getRegistryInstance();
-  const streamableFlow: StreamableFlow<I, O, S> = (input, opts) => {
+  const streamableFlow: StreamableFlow<P, I, O, S> = (input, opts) => {
     return runWithRegistry(registry, () => flow.stream(input, opts));
   };
   streamableFlow.flow = flow;
@@ -598,10 +639,11 @@ export function defineStreamingFlow<
  * Registers a flow as an action in the registry.
  */
 function registerFlowAction<
+  P,
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
->(flow: Flow<I, O, S>): Action<typeof FlowActionInputSchema, O> {
+>(flow: Flow<P, I, O, S>): Action<typeof FlowActionInputSchema, O> {
   return defineAction(
     {
       actionType: 'flow',
