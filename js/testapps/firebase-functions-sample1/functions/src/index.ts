@@ -18,8 +18,8 @@ import { firebase } from '@genkit-ai/firebase';
 import { firebaseAuth } from '@genkit-ai/firebase/auth';
 import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
 import {
-  collectUserEngagement,
   FirebaseUserEngagementSchema,
+  collectUserEngagement,
 } from '@genkit-ai/firebase/user_engagement';
 import { geminiPro, vertexAI } from '@genkit-ai/vertexai';
 import { onRequest } from 'firebase-functions/v2/https';

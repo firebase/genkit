@@ -15,12 +15,12 @@
  */
 
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { appendSpan, SPAN_TYPE_ATTR } from 'genkit/tracing';
+import { SPAN_TYPE_ATTR, appendSpan } from 'genkit/tracing';
 import {
-  collectUserEngagement,
   FirebaseUserAcceptanceEnum,
   FirebaseUserEngagementSchema,
   FirebaseUserFeedbackEnum,
+  collectUserEngagement,
 } from '../src/user_engagement';
 
 jest.mock('genkit/tracing');
