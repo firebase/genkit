@@ -15,7 +15,6 @@
  */
 
 import { defineFirestoreRetriever } from '@genkit-ai/firebase';
-import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 import {
   gemini15Flash,
   googleAI,
@@ -28,29 +27,13 @@ import {
   vertexAI,
 } from '@genkit-ai/vertexai';
 import { GoogleAIFileManager } from '@google/generative-ai/server';
-import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { MessageSchema, dotprompt, genkit, prompt, run, z } from 'genkit';
 import { runWithRegistry } from 'genkit/registry';
 import { Allow, parse } from 'partial-json';
-
-enableGoogleCloudTelemetry({
-  // These are configured for demonstration purposes. Sensible defaults are
-  // in place in the event that telemetryConfig is absent.
-
-  // Forces telemetry export in 'dev'
-  forceDevExport: true,
-  sampler: new AlwaysOnSampler(),
-  autoInstrumentation: true,
-  autoInstrumentationConfig: {
-    '@opentelemetry/instrumentation-fs': { enabled: false },
-    '@opentelemetry/instrumentation-dns': { enabled: false },
-    '@opentelemetry/instrumentation-net': { enabled: false },
-  },
-  metricExportIntervalMillis: 5_000,
-  metricExportTimeoutMillis: 5_000,
-});
+import { auth0Auth } from '@genkit-ai/auth0/auth';
+//import { firebaseAuth } from '@genkit-ai/firebase/auth';
 
 const ai = genkit({
   plugins: [googleAI(), vertexAI(), dotprompt()],
@@ -78,6 +61,21 @@ export const jokeFlow = ai.defineFlow(
       return `From ${input.modelName}: ${llmResponse.text()}`;
     });
   }
+);
+
+export const yourAuthFlow = ai.defineFlow({
+    name: 'yourAuth0Flow',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+    authPolicy: auth0Auth((user) => {
+      if (!user.email_verified && !user.app_metadata?.admin) {
+        throw new Error("Email not verified or user is not an admin");
+      }
+    }),
+   }, async (input) => {
+      // Your flow logic here
+      return `Processed input: ${input}`;
+    }
 );
 
 export const drawPictureFlow = ai.defineFlow(

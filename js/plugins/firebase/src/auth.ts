@@ -16,65 +16,28 @@
 
 import { Response } from 'express';
 import { DecodedIdToken, getAuth } from 'firebase-admin/auth';
-import { __RequestWithAuth, z } from 'genkit';
+import { __RequestWithAuth, z, FlowAuthPolicy } from 'genkit';
 import { FunctionFlowAuth } from './functions.js';
 import { initializeAppIfNecessary } from './helpers.js';
 
 export function firebaseAuth<I extends z.ZodTypeAny>(
   policy: (user: DecodedIdToken, input: z.infer<I>) => void | Promise<void>
-): FunctionFlowAuth<I>;
+): FlowAuthPolicy<I>;
 export function firebaseAuth<I extends z.ZodTypeAny>(
   policy: (user: DecodedIdToken, input: z.infer<I>) => void | Promise<void>,
   config: { required: true }
-): FunctionFlowAuth<I>;
-export function firebaseAuth<I extends z.ZodTypeAny>(
-  policy: (
-    user: DecodedIdToken | undefined,
-    input: z.infer<I>
-  ) => void | Promise<void>,
-  config: { required: false }
-): FunctionFlowAuth<I>;
+): FlowAuthPolicy<I>;
 export function firebaseAuth<I extends z.ZodTypeAny>(
   policy: (user: DecodedIdToken, input: z.infer<I>) => void | Promise<void>,
   config?: { required: boolean }
-): FunctionFlowAuth<I> {
+): FlowAuthPolicy<I> {
   initializeAppIfNecessary();
   const required = config?.required ?? true;
-  return {
-    async policy(auth: unknown | undefined, input: z.infer<I>) {
-      // If required is true, then auth will always be set when called from
-      // an HTTP context. However, we need to wrap the user-provided policy
-      // to check for presence of auth when the flow is executed from runFlow
-      // or an action context.
-      if (required && !auth) {
-        throw new Error('Auth is required');
-      }
-
-      return policy(auth as DecodedIdToken, input);
-    },
-    async provider(req, res, next) {
-      const token = req.headers['authorization']?.split(/[Bb]earer /)[1];
-      let decoded: DecodedIdToken;
-
-      if (!token) {
-        if (required) {
-          unauthorized(res);
-        } else {
-          next();
-        }
-        return;
-      }
-      try {
-        decoded = await getAuth().verifyIdToken(token);
-      } catch (e) {
-        unauthorized(res);
-        return;
-      }
-
-      (req as __RequestWithAuth).auth = decoded;
-
-      next();
-    },
+  return async (auth: DecodedIdToken | undefined, input: z.infer<I>) => {
+    if (required && !auth) {
+      throw new Error('Auth is required');
+    }
+    return policy(auth as DecodedIdToken, input);
   };
 }
 

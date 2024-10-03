@@ -17,6 +17,7 @@
   "dependencies": {
     "genkit": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
+    "@genkit-ai/auth0": "workspace:*",
     "@genkit-ai/google-cloud": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
