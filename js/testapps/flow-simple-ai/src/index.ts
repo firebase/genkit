@@ -64,6 +64,10 @@ export const jokeFlow = ai.defineFlow(
   }
 );
 
+
+// Auth0 plugin works even with defineFlow 
+// 
+
 export const yourAuthFlow = ai.defineFlow({
     name: 'yourAuth0Flow',
     inputSchema: z.string(),
