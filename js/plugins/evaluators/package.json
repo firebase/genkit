@@ -16,7 +16,7 @@
   "scripts": {
     "check": "tsc",
     "compile": "tsup-node",
-    "build:clean": "rm -rf ./lib",
+    "build:clean": "rimraf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
     "lint": "eslint --config ../../.eslintrc.js --ext .ts src",

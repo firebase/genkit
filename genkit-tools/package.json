@@ -18,6 +18,7 @@
   "devDependencies": {
     "json-schema": "^0.4.0",
     "only-allow": "^1.2.1",
+    "rimraf": "^6.0.1",
     "tsx": "^4.9.3",
     "zod": "^3.22.4",
     "zod-to-json-schema": "^3.22.4"
