@@ -32,6 +32,7 @@ import {
   Tool,
 } from '@google/generative-ai';
 import { GENKIT_CLIENT_HEADER, z } from 'genkit';
+import { extractJson } from 'genkit/extract';
 import {
   CandidateData,
   GenerationCommonConfigSchema,
@@ -387,7 +388,7 @@ function toGeminiPart(part: Part): GeminiPart {
 
 function fromGeminiPart(part: GeminiPart, jsonMode: boolean): Part {
   if (jsonMode && part.text !== undefined) {
-    return { data: JSON.parse(part.text) };
+    return { data: extractJson(part.text) };
   }
   if (part.text !== undefined) return { text: part.text };
   if (part.inlineData) return fromInlineData(part);
