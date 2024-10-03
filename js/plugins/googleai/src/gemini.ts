@@ -81,19 +81,19 @@ export const geminiPro = modelRef({
   name: 'googleai/gemini-pro',
   info: {
     label: 'Google AI - Gemini Pro',
-    versions: ['gemini-1.0-pro', 'gemini-1.0-pro-latest', 'gemini-1.0-pro-001'],
     supports: {
       multiturn: true,
       media: false,
       tools: true,
       systemRole: true,
     },
+    versions: ['gemini-1.0-pro', 'gemini-1.0-pro-latest', 'gemini-1.0-pro-001'],
   },
   configSchema: GeminiConfigSchema,
 });
 
 /**
- * @deprecated Use `gemini15Pro` or `gemini15Flash` instead.
+ * @deprecated Use `gemini15Pro`, `gemini15Flash`, or `gemini15flash8B` instead.
  */
 export const geminiProVision = modelRef({
   name: 'googleai/gemini-pro-vision',
@@ -113,7 +113,7 @@ export const geminiProVision = modelRef({
 });
 
 export const gemini15Pro = modelRef({
-  name: 'googleai/gemini-1.5-pro-latest',
+  name: 'googleai/gemini-1.5-pro',
   info: {
     label: 'Google AI - Gemini 1.5 Pro',
     supports: {
@@ -123,13 +123,18 @@ export const gemini15Pro = modelRef({
       systemRole: true,
       output: ['text', 'json'],
     },
-    versions: ['gemini-1.5-pro-001'],
+    versions: [
+      'gemini-1.5-pro-latest',
+      'gemini-1.5-pro-001',
+      'gemini-1.5-pro-002',
+      'gemini-1.5-pro-exp-0827',
+    ],
   },
   configSchema: GeminiConfigSchema,
 });
 
 export const gemini15Flash = modelRef({
-  name: 'googleai/gemini-1.5-flash-latest',
+  name: 'googleai/gemini-1.5-flash',
   info: {
     label: 'Google AI - Gemini 1.5 Flash',
     supports: {
@@ -139,7 +144,30 @@ export const gemini15Flash = modelRef({
       systemRole: true,
       output: ['text', 'json'],
     },
-    versions: ['gemini-1.5-flash-001'],
+    versions: [
+      'gemini-1.5-flash-latest',
+      'gemini-1.5-flash-001',
+      'gemini-1.5-flash-002',
+      'gemini-1.5-flash-8b-exp-0924',
+      'gemini-1.5-flash-8b-exp-0827',
+      'gemini-1.5-flash-exp-0827',
+    ],
+  },
+  configSchema: GeminiConfigSchema,
+});
+
+export const gemini15Flash8B = modelRef({
+  name: 'googleai/gemini-1.5-flash-8b',
+  info: {
+    label: 'Google AI - Gemini 1.5 Flash-8B',
+    supports: {
+      multiturn: true,
+      media: true,
+      tools: true,
+      systemRole: true,
+      output: ['text', 'json'],
+    },
+    versions: ['gemini-1.5-flash-8b-latest', 'gemini-1.5-flash-8b-001'],
   },
   configSchema: GeminiConfigSchema,
 });
@@ -172,8 +200,9 @@ export const SUPPORTED_V15_MODELS: Record<
   string,
   ModelReference<z.ZodTypeAny>
 > = {
-  'gemini-1.5-pro-latest': gemini15Pro,
-  'gemini-1.5-flash-latest': gemini15Flash,
+  'gemini-1.5-pro': gemini15Pro,
+  'gemini-1.5-flash': gemini15Flash,
+  'gemini-1.5-flash-8b': gemini15Flash8B,
 };
 
 const SUPPORTED_MODELS = {
