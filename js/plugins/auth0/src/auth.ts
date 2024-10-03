@@ -55,9 +55,3 @@ export function auth0Auth<I extends z.ZodTypeAny>(
     }
   };
 }
-
-function unauthorized(res: Response) {
-  res.status(401);
-  res.send('Unauthorized');
-  res.end();
-}
