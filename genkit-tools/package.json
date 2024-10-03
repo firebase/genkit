@@ -20,5 +20,5 @@
     "zod": "^3.22.4",
     "zod-to-json-schema": "^3.22.4"
   },
-  "packageManager": "pnpm@9.11.0+sha256.1c0e33f70e5df9eede84a357bdfa0b1f9dba6e58194628d48a1055756f553754"
+  "packageManager": "pnpm@9.12.0+sha256.a61b67ff6cc97af864564f4442556c22a04f2e5a7714fbee76a1011361d9b726"
 }
