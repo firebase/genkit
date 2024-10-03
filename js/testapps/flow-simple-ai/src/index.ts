@@ -33,6 +33,7 @@ import { MessageSchema, dotprompt, genkit, prompt, run, z } from 'genkit';
 import { runWithRegistry } from 'genkit/registry';
 import { Allow, parse } from 'partial-json';
 import { auth0Auth } from '@genkit-ai/auth0/auth';
+import { firebaseAuth } from '@genkit-ai/firebase/auth';
 //import { firebaseAuth } from '@genkit-ai/firebase/auth';
 
 const ai = genkit({
@@ -67,16 +68,24 @@ export const yourAuthFlow = ai.defineFlow({
     name: 'yourAuth0Flow',
     inputSchema: z.string(),
     outputSchema: z.string(),
-    authPolicy: auth0Auth((user) => {
-      if (!user.email_verified && !user.app_metadata?.admin) {
-        throw new Error("Email not verified or user is not an admin");
+    authPolicy: auth0Auth(
+      (user, input) => {
+        if (!user.email_verified && !user.app_metadata?.admin) {
+          throw new Error("Email not verified or user is not an admin");
+        }
+      },
+      {
+        required: true, // Add this line
+        audience: 'YOUR_AUTH0_AUDIENCE',
+        issuerBaseURL: 'YOUR_AUTH0_ISSUER_BASE_URL'
       }
-    }),
+    ),
    }, async (input) => {
       // Your flow logic here
       return `Processed input: ${input}`;
     }
 );
+
 
 export const drawPictureFlow = ai.defineFlow(
   {

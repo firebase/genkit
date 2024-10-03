@@ -20,13 +20,7 @@ import { __RequestWithAuth, z, FlowAuthPolicy } from 'genkit';
 import { FunctionFlowAuth } from './functions.js';
 import { initializeAppIfNecessary } from './helpers.js';
 
-export function firebaseAuth<I extends z.ZodTypeAny>(
-  policy: (user: DecodedIdToken, input: z.infer<I>) => void | Promise<void>
-): FlowAuthPolicy<I>;
-export function firebaseAuth<I extends z.ZodTypeAny>(
-  policy: (user: DecodedIdToken, input: z.infer<I>) => void | Promise<void>,
-  config: { required: true }
-): FlowAuthPolicy<I>;
+
 export function firebaseAuth<I extends z.ZodTypeAny>(
   policy: (user: DecodedIdToken, input: z.infer<I>) => void | Promise<void>,
   config?: { required: boolean }

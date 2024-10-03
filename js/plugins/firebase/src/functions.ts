@@ -67,7 +67,7 @@ interface FunctionFlowConfig<
 /**
  * Creates a flow backed by Cloud Functions for Firebase gen2 HTTPS function.
  */
-export function onFlow<
+  export function onFlow<
   I extends z.ZodTypeAny,
   O extends z.ZodTypeAny,
   S extends z.ZodTypeAny,
