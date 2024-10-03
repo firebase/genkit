@@ -15,38 +15,39 @@
  */
 
 import {
+  Content as GeminiMessage,
   FileDataPart,
   FunctionCallPart,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
   FunctionResponsePart,
   GenerateContentCandidate as GeminiCandidate,
-  Content as GeminiMessage,
-  Part as GeminiPart,
   GenerateContentResponse,
   GenerationConfig,
   GoogleGenerativeAI,
   InlineDataPart,
+  Part as GeminiPart,
   RequestOptions,
   StartChatParams,
   Tool,
 } from '@google/generative-ai';
 import { GENKIT_CLIENT_HEADER, z } from 'genkit';
+import { extractJson } from 'genkit/extract';
 import {
   CandidateData,
+  defineModel,
   GenerationCommonConfigSchema,
+  getBasicUsageStats,
   MediaPart,
   MessageData,
   ModelAction,
   ModelMiddleware,
+  modelRef,
   ModelReference,
   Part,
   ToolDefinitionSchema,
   ToolRequestPart,
   ToolResponsePart,
-  defineModel,
-  getBasicUsageStats,
-  modelRef,
 } from 'genkit/model';
 import {
   downloadRequestMedia,
@@ -387,7 +388,7 @@ function toGeminiPart(part: Part): GeminiPart {
 
 function fromGeminiPart(part: GeminiPart, jsonMode: boolean): Part {
   if (jsonMode && part.text !== undefined) {
-    return { data: JSON.parse(part.text) };
+    return { data: extractJson(part.text) };
   }
   if (part.text !== undefined) return { text: part.text };
   if (part.inlineData) return fromInlineData(part);
