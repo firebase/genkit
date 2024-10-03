@@ -3,7 +3,7 @@
   "version": "0.5.14",
   "scripts": {
     "compile": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json",
-    "build:clean": "rm -rf ./lib",
+    "build:clean": "rimraf ./lib",
     "build": "npm-run-all build:clean compile",
     "test": "jest --verbose",
     "build:watch": "tsc -b ./tsconfig.cjs.json ./tsconfig.esm.json ./tsconfig.types.json --watch"
