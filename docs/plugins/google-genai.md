@@ -65,6 +65,7 @@ import {
   gemini15Flash,
   gemini15Pro,
   textEmbeddingGecko001,
+  textEmbedding004,
 } from '@genkit-ai/googleai';
 ```
 
@@ -77,11 +78,11 @@ const llmResponse = await generate({
 });
 ```
 
-or use embedders (ex. `textEmbeddingGecko001`) with `embed` or retrievers:
+or use embedders (ex. `textEmbedding004`) with `embed` or retrievers:
 
 ```js
 const embedding = await embed({
-  embedder: textEmbeddingGecko001,
+  embedder: textEmbedding004,
   content: input,
 });
 ```

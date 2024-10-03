@@ -17,6 +17,7 @@
 import { genkitPlugin, Plugin } from '@genkit-ai/core';
 import {
   SUPPORTED_MODELS as EMBEDDER_MODELS,
+  textEmbedding004,
   textEmbeddingGecko001,
   textEmbeddingGeckoEmbedder,
 } from './embedder.js';
@@ -34,6 +35,7 @@ export {
   gemini15Pro,
   geminiPro,
   geminiProVision,
+  textEmbedding004,
   textEmbeddingGecko001,
 };
 
