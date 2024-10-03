@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import { extractJson } from '@genkit-ai/ai/extract';
 import {
   CandidateData,
   defineModel,
@@ -388,7 +389,7 @@ function toGeminiPart(part: Part): GeminiPart {
 
 function fromGeminiPart(part: GeminiPart, jsonMode: boolean): Part {
   if (jsonMode && part.text !== undefined) {
-    return { data: JSON.parse(part.text) };
+    return { data: extractJson(part.text) };
   }
   if (part.text !== undefined) return { text: part.text };
   if (part.inlineData) return fromInlineData(part);

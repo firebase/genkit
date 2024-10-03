@@ -34,10 +34,8 @@ import {
 
 const provider = process.env.PROVIDER || 'vertexai';
 
-const plugin = provider === 'vertexai' ? vertexAI : googleAI;
-
 configureGenkit({
-  plugins: [plugin()],
+  plugins: [vertexAI(), googleAI()],
   // Log debug output to tbe console.
   logLevel: 'debug',
   // Perform OpenTelemetry instrumentation and enable trace collection.
@@ -61,10 +59,10 @@ const jokeSubjectGenerator = defineTool(
 export const jokeFlow = defineFlow(
   {
     name: 'jokeFlow',
-    inputSchema: z.void(),
+    inputSchema: z.object({ provider: z.enum(['vertexai', 'googleai']) }),
     outputSchema: z.any(),
   },
-  async () => {
+  async ({ provider }) => {
     // Construct a request and send it to the model API.
     if (provider === 'vertexai') {
       const llmResponse = await generate({
@@ -97,6 +95,73 @@ export const jokeFlow = defineFlow(
 
     // Handle the response from the model API. In this sample, we just convert
     // it to a string, but more complicated flows might coerce the response into
+  }
+);
+
+export const streamingFlow = defineFlow(
+  {
+    name: 'streamingFlow',
+    inputSchema: z.object({ provider: z.enum(['vertexai', 'googleai']) }),
+    outputSchema: z.any(),
+  },
+  async ({ provider }) => {
+    let count = 0;
+
+    if (provider === 'vertexai') {
+      // Construct a request and send it to the model API.
+      const llmResponse = await generate({
+        model: gemini15FlashVertexAi,
+        config: {
+          temperature: 2,
+        },
+        output: {
+          schema: z.array(
+            z.object({
+              name: z.string(),
+              age: z.number(),
+              description: z.string(),
+              personal_statement: z.string(),
+            })
+          ),
+        },
+        tools: [jokeSubjectGenerator],
+        prompt: `come up with some test user data. 10 users long`,
+        streamingCallback: (chunk) => {
+          count++;
+          const output = chunk.text();
+          console.log(`chunk ${count}`, output);
+          return output;
+        },
+      });
+
+      return llmResponse.output()!;
+    } else {
+      const llmResponse = await generate({
+        model: gemini15FlashGoogleAi,
+        config: {
+          temperature: 2,
+        },
+        output: {
+          schema: z.array(
+            z.object({
+              name: z.string(),
+              age: z.number(),
+              description: z.string(),
+              personal_statement: z.string(),
+            })
+          ),
+        },
+        tools: [jokeSubjectGenerator],
+        prompt: `come up with some test user data. 10 users long`,
+        streamingCallback: (chunk) => {
+          count++;
+          const output = chunk.text();
+          console.log(`chunk ${count}`, output);
+          return output;
+        },
+      });
+      return llmResponse.output()!;
+    }
   }
 );
 
