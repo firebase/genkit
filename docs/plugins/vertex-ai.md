@@ -4,7 +4,7 @@ The Vertex AI plugin provides interfaces to several AI services:
 
 - [Google generative AI models](https://cloud.google.com/vertex-ai/generative-ai/docs/):
   - Gemini text generation
-  - Imagen2 image generation
+  - Imagen2 and Imagen3 image generation
   - Text embedding generation
 - A subset of evaluation metrics through the Vertex AI [Rapid Evaluation API](https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/evaluation):
   - [BLEU](https://cloud.google.com/vertex-ai/docs/reference/rest/v1beta1/projects.locations/evaluateInstances#bleuinput)
@@ -156,6 +156,49 @@ const embedding = await embed({
   content: 'How many widgets do you have in stock?',
 });
 ```
+
+Imagen3 model allows generating images from user prompt:
+
+```js
+import { imagen3 } from '@genkit-ai/vertexai';
+
+const response = await generate({
+  model: imagen3,
+  output: { format: 'media' },
+  prompt: 'a banana riding a bicycle',
+});
+
+return response.media();
+```
+
+and even advanced editing of existing images:
+
+```js
+const baseImg = fs.readFileSync('base.png', { encoding: 'base64' });
+const maskImg = fs.readFileSync('mask.png', { encoding: 'base64' });
+
+const response = await generate({
+  model: imagen3,
+  output: { format: 'media' },
+  prompt: [
+    { media: { url: `data:image/png;base64,${baseImg}` }},
+    {
+      media: { url: `data:image/png;base64,${maskImg}` },
+      metadata: { type: 'mask' },
+    },
+    { text: 'replace the background with foo bar baz' },
+  ],
+  config: {
+    editConfig: {
+      editMode: 'outpainting',
+    },
+  },
+});
+
+return response.media();
+```
+
+Refer to (Imagen model documentation)[https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api#edit_images_2] for more detailed options.
 
 #### Anthropic Claude 3 on Vertex AI Model Garden
 
