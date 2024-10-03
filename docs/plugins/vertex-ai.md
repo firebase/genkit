@@ -157,6 +157,49 @@ const embedding = await embed({
 });
 ```
 
+Imagen3 model allows generating images from user prompt:
+
+```js
+import { imagen3 } from '@genkit-ai/vertexai';
+
+const response = await ai.generate({
+  model: imagen3,
+  output: { format: 'media' },
+  prompt: 'a banana riding a bicycle',
+});
+
+return response.media();
+```
+
+and even advanved editing of exising images:
+
+```js
+const baseImg = fs.readFileSync('base.png', { encoding: 'base64' });
+const maskImg = fs.readFileSync('mask.png', { encoding: 'base64' });
+
+const response = await ai.generate({
+  model: imagen3,
+  output: { format: 'media' },
+  prompt: [
+    { media: { url: `data:image/png;base64,${baseImg}` }},
+    {
+      media: { url: `data:image/png;base64,${maskImg}` },
+      metadata: { type: 'mask' },
+    },
+    { text: 'replace the background with foo bar baz' },
+  ],
+  config: {
+    editConfig: {
+      editMode: 'outpainting',
+    },
+  },
+});
+
+return response.media();
+```
+
+Refer to (Imagen model documentation)[https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api#edit_images_2] for more detailed options.
+
 #### Anthropic Claude 3 on Vertex AI Model Garden
 
 If you have access to Claude 3 models ([haiku](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden/claude-3-haiku), [sonnet](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden/claude-3-sonnet) or [opus](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden/claude-3-opus)) in Vertex AI Model Garden you can use them with Genkit.
