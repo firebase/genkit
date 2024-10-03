@@ -7,7 +7,7 @@
     "start": "node lib/index.js",
     "compile": "tsc",
     "build": "npm run build:clean && npm run compile",
-    "build:clean": "rm -rf ./lib",
+    "build:clean": "rimraf ./lib",
     "build:watch": "tsc --watch",
     "build-and-run": "npm run build && node lib/index.js"
   },

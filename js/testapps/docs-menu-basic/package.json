@@ -4,7 +4,7 @@
     "start": "node lib/index.js",
     "compile": "tsc",
     "build": "npm run build:clean && npm run compile",
-    "build:clean": "rm -rf ./lib",
+    "build:clean": "rimraf ./lib",
     "build:watch": "tsc --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

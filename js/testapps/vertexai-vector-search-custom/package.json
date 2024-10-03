@@ -7,7 +7,7 @@
     "start": "node lib/index.js",
     "compile": "tsc",
     "build": "pnpm build:clean && pnpm compile",
-    "build:clean": "rm -rf ./lib",
+    "build:clean": "rimraf ./lib",
     "build:watch": "tsc --watch"
   },
   "keywords": [],
