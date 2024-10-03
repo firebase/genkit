@@ -171,7 +171,7 @@ const response = await generate({
 return response.media();
 ```
 
-and even advanved editing of exising images:
+and even advanced editing of existing images:
 
 ```js
 const baseImg = fs.readFileSync('base.png', { encoding: 'base64' });
