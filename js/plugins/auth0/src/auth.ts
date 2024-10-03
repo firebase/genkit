@@ -1,7 +1,7 @@
 import { Response } from 'express';
-import { auth } from 'express-oauth2-jwt-bearer';
 import { __RequestWithAuth, z, FlowAuthPolicy } from 'genkit';
-import * as express from 'express';
+import jwt from 'jsonwebtoken';
+import jwksRsa from 'jwks-rsa';
 
 interface Auth0User {
   sub: string;
@@ -11,31 +11,48 @@ interface Auth0User {
 }
 
 export function auth0Auth<I extends z.ZodTypeAny>(
-  policy: (user: Auth0User, input: z.infer<I>) => void | Promise<void>
-): FlowAuthPolicy<I>;
-export function auth0Auth<I extends z.ZodTypeAny>(
-  policy: (user: Auth0User, input: z.infer<I>) => void | Promise<void>,
-  config: { required: true; audience: string; issuerBaseURL: string }
-): FlowAuthPolicy<I>;
-export function auth0Auth<I extends z.ZodTypeAny>(
-  policy: (user: Auth0User | undefined, input: z.infer<I>) => void | Promise<void>,
-  config: { required: false; audience: string; issuerBaseURL: string }
-): FlowAuthPolicy<I>;
-export function auth0Auth<I extends z.ZodTypeAny>(
-  policy: (user: Auth0User, input: z.infer<I>) => void | Promise<void>,
-  config?: { required?: boolean; audience: string; issuerBaseURL: string }
+  policy: ( user: Auth0User, input: z.infer<I>) => void | Promise<void>,
+  config: { audience: string; issuerBaseURL: string }
 ): FlowAuthPolicy<I> {
-  const required = config?.required ?? true;
-  const checkJwt = auth({
-    audience: config?.audience,
-    issuerBaseURL: config?.issuerBaseURL,
+  const jwksClient = jwksRsa({
+    jwksUri: `${config.issuerBaseURL}/.well-known/jwks.json`,
   });
 
-  return async (auth: Auth0User | undefined, input: z.infer<I>) => {
-    if (required && !auth) {
-      throw new Error('Auth is required');
+  const getSigningKey = (header: jwt.JwtHeader, callback: jwt.SigningKeyCallback) => {
+    jwksClient.getSigningKey(header.kid, (err, key) => {
+      const signingKey = key?.getPublicKey();
+      callback(err, signingKey);
+    });
+  };
+
+  return async (token: string | undefined, input: z.infer<I>) => {
+    if (!token) {
+      throw new Error('Authorization token is required');
     }
-    return policy(auth as Auth0User, input);
+
+    try {
+      // Verify and decode the token
+      const user = await new Promise<Auth0User>((resolve, reject) => {
+        jwt.verify(
+          token,
+          getSigningKey,
+          {
+            audience: config.audience,
+            issuer: config.issuerBaseURL,
+            algorithms: ['RS256'],
+          },
+          (err, decoded) => {
+            if (err) reject(err);
+            else resolve(decoded as Auth0User);
+          }
+        );
+      });
+
+      // Apply the custom policy with the user and input
+      await policy(user, input);
+    } catch (error) {
+      throw new Error('Invalid or expired token');
+    }
   };
 }
 
