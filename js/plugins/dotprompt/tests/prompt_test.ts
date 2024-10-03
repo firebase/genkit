@@ -18,6 +18,7 @@ import assert from 'node:assert';
 import { describe, it } from 'node:test';
 
 import { defineModel } from '@genkit-ai/ai/model';
+import { PluginAbilityType } from '@genkit-ai/core';
 import { toJsonSchema, ValidationError } from '@genkit-ai/core/schema';
 import z from 'zod';
 import { registerPluginProvider } from '../../../core/src/registry.js';
@@ -30,6 +31,9 @@ function registerDotprompt() {
     name: 'dotprompt',
     async initializer() {
       return {};
+    },
+    provides() {
+      return PluginAbilityType.UNSPECIFIED;
     },
   });
 }
