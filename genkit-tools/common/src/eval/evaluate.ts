@@ -22,6 +22,10 @@ import {
   EvalInput,
   EvalRun,
   EvalRunKey,
+  FlowActionInputSchema,
+  GenerateRequest,
+  MessageData,
+  MessageSchema,
   RunNewEvaluationRequest,
   SpanData,
 } from '../types';
@@ -59,6 +63,7 @@ export async function runNewEvaluation(
     actionRef,
     evalFlowInput: dataset,
     auth: request.options?.auth,
+    actionConfig: request.options?.actionConfig,
   });
   const evaluatorAction = await getMatchingEvaluatorActions(runner, evaluators);
 
@@ -83,8 +88,9 @@ export async function runInference(params: {
   actionRef: string;
   evalFlowInput: EvalFlowInput;
   auth?: string;
+  actionConfig?: any;
 }): Promise<EvalInput[]> {
-  const { runner, actionRef, evalFlowInput, auth } = params;
+  const { runner, actionRef, evalFlowInput, auth, actionConfig } = params;
   if (!isSupportedActionRef(actionRef)) {
     throw new Error('Inference is only supported on flows and models');
   }
@@ -97,6 +103,7 @@ export async function runInference(params: {
     actionRef,
     inputs,
     auth,
+    actionConfig,
   });
 
   const evalDataset = await fetchEvalInput({
@@ -185,21 +192,26 @@ async function bulkRunAction(params: {
   actionRef: string;
   inputs: any[];
   auth?: string;
+  actionConfig?: any;
 }): Promise<BulkRunResponse[]> {
-  const { runner, actionRef, inputs, auth } = params;
+  const { runner, actionRef, inputs, auth, actionConfig } = params;
+  const isModelAction = actionRef.startsWith('/model');
   let responses: BulkRunResponse[] = [];
-  for (const d of inputs) {
+  for (const sample of inputs) {
     logger.info(`Running '${actionRef}' ...`);
     let response: BulkRunResponse;
     try {
+      const input = isModelAction
+        ? getModelInput(sample, actionConfig)
+        : FlowActionInputSchema.parse({
+            start: {
+              input: sample,
+            },
+            auth: auth ? JSON.parse(auth) : undefined,
+          });
       const runActionResponse = await runner.runAction({
         key: actionRef,
-        input: {
-          start: {
-            input: d,
-          },
-          auth: auth ? JSON.parse(auth) : undefined,
-        },
+        input,
       });
       response = {
         traceId: runActionResponse.telemetry?.traceId,
@@ -213,6 +225,34 @@ async function bulkRunAction(params: {
   }
 
   return responses;
+}
+
+async function runFlowAction(params: {
+  runner: Runner;
+  actionRef: string;
+  sample: any;
+  auth?: any;
+}): Promise<EvalInput> {
+  const { runner, actionRef, sample, auth } = { ...params };
+  try {
+    const input = FlowActionInputSchema.parse({
+      start: {
+        input: sample,
+      },
+      auth: auth ? JSON.parse(auth) : undefined,
+    });
+    const runActionResponse = await runner.runAction({
+      key: actionRef,
+      input,
+    });
+    return {
+      traceId: runActionResponse.telemetry?.traceId,
+      response: runActionResponse.result,
+    };
+  } catch (e: any) {
+    const traceId = e?.data?.details?.traceId;
+    return { traceId };
+  }
 }
 
 async function fetchEvalInput(params: {
@@ -317,4 +357,38 @@ function isSupportedActionRef(actionRef: string) {
   return SUPPORTED_ACTION_TYPES.some((supportedType) =>
     actionRef.startsWith(`/${supportedType}`)
   );
+}
+
+function getModelInput(d: any, actionConfig: any): GenerateRequest {
+  console.log(d);
+  console.log('=====================================================');
+  let message: MessageData;
+  if (typeof d === 'string') {
+    message = {
+      role: 'user',
+      content: [
+        {
+          text: d,
+        },
+      ],
+    } as MessageData;
+  } else {
+    const maybeMessage = MessageSchema.safeParse(d);
+    if (maybeMessage.success) {
+      message = maybeMessage.data;
+    } else {
+      console.log(maybeMessage.error);
+      throw new Error(
+        `Unable to parse model input as MessageSchema as input. Details: ${maybeMessage.error}`
+      );
+    }
+  }
+  console.log({
+    messages: message ? [message] : [],
+    config: actionConfig,
+  });
+  return {
+    messages: message ? [message] : [],
+    config: actionConfig,
+  };
 }
