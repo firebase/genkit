@@ -24,6 +24,7 @@
     "google-auth-library": "^9.11.0"
   },
   "devDependencies": {
+    "rimraf": "^6.0.1",
     "typescript": "^5.5.2"
   }
 }
