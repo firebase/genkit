@@ -171,8 +171,6 @@ const response = await generate({
 return response.media();
 ```
 
-Refer to (Imagen model documentation)[https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api#edit_images_2] for more detailed options.
-
 #### Anthropic Claude 3 on Vertex AI Model Garden
 
 If you have access to Claude 3 models ([haiku](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden/claude-3-haiku), [sonnet](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden/claude-3-sonnet) or [opus](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden/claude-3-opus)) in Vertex AI Model Garden you can use them with Genkit.
