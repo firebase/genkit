@@ -87,7 +87,11 @@ export const geminiPro = modelRef({
       tools: true,
       systemRole: true,
     },
-    versions: ['gemini-1.0-pro', 'gemini-1.0-pro-latest', 'gemini-1.0-pro-001'],
+    versions: [
+      'gemini-1.0-pro',
+      'gemini-1.0-pro-latest',
+      'gemini-1.0-pro-001'
+    ],
   },
   configSchema: GeminiConfigSchema,
 });
@@ -113,7 +117,7 @@ export const geminiProVision = modelRef({
 });
 
 export const gemini15Pro = modelRef({
-  name: 'googleai/gemini-1.5-pro',
+  name: 'googleai/gemini-1.5-pro-latest',
   info: {
     label: 'Google AI - Gemini 1.5 Pro',
     supports: {
@@ -124,7 +128,7 @@ export const gemini15Pro = modelRef({
       output: ['text', 'json'],
     },
     versions: [
-      'gemini-1.5-pro-latest',
+      'gemini-1.5-pro',
       'gemini-1.5-pro-001',
       'gemini-1.5-pro-002',
       'gemini-1.5-pro-exp-0827',
@@ -134,7 +138,7 @@ export const gemini15Pro = modelRef({
 });
 
 export const gemini15Flash = modelRef({
-  name: 'googleai/gemini-1.5-flash',
+  name: 'googleai/gemini-1.5-flash-latest',
   info: {
     label: 'Google AI - Gemini 1.5 Flash',
     supports: {
@@ -145,7 +149,7 @@ export const gemini15Flash = modelRef({
       output: ['text', 'json'],
     },
     versions: [
-      'gemini-1.5-flash-latest',
+      'gemini-1.5-flash',
       'gemini-1.5-flash-001',
       'gemini-1.5-flash-002',
       'gemini-1.5-flash-8b-exp-0924',
@@ -157,7 +161,7 @@ export const gemini15Flash = modelRef({
 });
 
 export const gemini15Flash8B = modelRef({
-  name: 'googleai/gemini-1.5-flash-8b',
+  name: 'googleai/gemini-1.5-flash-8b-latest',
   info: {
     label: 'Google AI - Gemini 1.5 Flash-8B',
     supports: {
@@ -167,7 +171,7 @@ export const gemini15Flash8B = modelRef({
       systemRole: true,
       output: ['text', 'json'],
     },
-    versions: ['gemini-1.5-flash-8b-latest', 'gemini-1.5-flash-8b-001'],
+    versions: ['gemini-1.5-flash-8b', 'gemini-1.5-flash-8b-001'],
   },
   configSchema: GeminiConfigSchema,
 });
@@ -200,9 +204,9 @@ export const SUPPORTED_V15_MODELS: Record<
   string,
   ModelReference<z.ZodTypeAny>
 > = {
-  'gemini-1.5-pro': gemini15Pro,
-  'gemini-1.5-flash': gemini15Flash,
-  'gemini-1.5-flash-8b': gemini15Flash8B,
+  'gemini-1.5-pro-latest': gemini15Pro,
+  'gemini-1.5-flash-latest': gemini15Flash,
+  'gemini-1.5-flash-8b-latest': gemini15Flash8B,
 };
 
 const SUPPORTED_MODELS = {
