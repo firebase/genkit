@@ -171,33 +171,6 @@ const response = await generate({
 return response.media();
 ```
 
-and even advanced editing of existing images:
-
-```js
-const baseImg = fs.readFileSync('base.png', { encoding: 'base64' });
-const maskImg = fs.readFileSync('mask.png', { encoding: 'base64' });
-
-const response = await generate({
-  model: imagen3,
-  output: { format: 'media' },
-  prompt: [
-    { media: { url: `data:image/png;base64,${baseImg}` }},
-    {
-      media: { url: `data:image/png;base64,${maskImg}` },
-      metadata: { type: 'mask' },
-    },
-    { text: 'replace the background with foo bar baz' },
-  ],
-  config: {
-    editConfig: {
-      editMode: 'outpainting',
-    },
-  },
-});
-
-return response.media();
-```
-
 Refer to (Imagen model documentation)[https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/imagen-api#edit_images_2] for more detailed options.
 
 #### Anthropic Claude 3 on Vertex AI Model Garden
