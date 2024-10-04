@@ -22,6 +22,7 @@ import {
 } from './embedder.js';
 import {
   gemini15Flash,
+  gemini15Flash8B,
   gemini15Pro,
   geminiPro,
   geminiProVision,
@@ -31,6 +32,7 @@ import {
 } from './gemini.js';
 export {
   gemini15Flash,
+  gemini15Flash8B,
   gemini15Pro,
   geminiPro,
   geminiProVision,

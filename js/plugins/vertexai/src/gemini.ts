@@ -80,7 +80,7 @@ export const geminiPro = modelRef({
   name: 'vertexai/gemini-1.0-pro',
   info: {
     label: 'Vertex AI - Gemini Pro',
-    versions: ['gemini-1.0-pro', 'gemini-1.0-pro-001'],
+    versions: ['gemini-1.0-pro', 'gemini-1.0-pro-001', 'gemini-1.0-pro-002'],
     supports: {
       multiturn: true,
       media: false,
@@ -113,7 +113,11 @@ export const gemini15Pro = modelRef({
   name: 'vertexai/gemini-1.5-pro',
   info: {
     label: 'Vertex AI - Gemini 1.5 Pro',
-    versions: ['gemini-1.5-pro-001'],
+    versions: [
+      'gemini-1.5-pro-001',
+      'gemini-1.5-pro-002',
+      'gemini-pro-experimental',
+    ],
     supports: {
       multiturn: true,
       media: true,
@@ -160,7 +164,11 @@ export const gemini15Flash = modelRef({
   name: 'vertexai/gemini-1.5-flash',
   info: {
     label: 'Vertex AI - Gemini 1.5 Flash',
-    versions: ['gemini-1.5-flash-001'],
+    versions: [
+      'gemini-1.5-flash-001',
+      'gemini-1.5-flash-002',
+      'gemini-flash-experimental',
+    ],
     supports: {
       multiturn: true,
       media: true,
