@@ -24,6 +24,7 @@
     "genkitx-openai": "^0.10.1"
   },
   "devDependencies": {
+    "rimraf": "^6.0.1",
     "typescript": "^5.3.3"
   }
 }
