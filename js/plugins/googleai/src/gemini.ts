@@ -87,11 +87,7 @@ export const geminiPro = modelRef({
       tools: true,
       systemRole: true,
     },
-    versions: [
-      'gemini-1.0-pro',
-      'gemini-1.0-pro-latest',
-      'gemini-1.0-pro-001'
-    ],
+    versions: ['gemini-1.0-pro', 'gemini-1.0-pro-latest', 'gemini-1.0-pro-001'],
   },
   configSchema: GeminiConfigSchema,
 });
