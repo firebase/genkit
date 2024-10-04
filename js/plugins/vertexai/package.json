@@ -66,6 +66,12 @@
       "import": "./lib/index.mjs",
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
+    },
+    "./modelgarden": {
+      "require": "./lib/model-garden/index.js",
+      "import": "./lib/model-garden/index.mjs",
+      "types": "./lib/model-garden/index.d.ts",
+      "default": "./lib/model-garden/index.js"
     }
   }
 }
