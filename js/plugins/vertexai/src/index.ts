@@ -16,17 +16,8 @@
 
 import { VertexAI } from '@google-cloud/vertexai';
 import { genkitPlugin, Plugin, z } from 'genkit';
-import { GenerateRequest, ModelReference } from 'genkit/model';
+import { GenerateRequest } from 'genkit/model';
 import { IndexerAction, RetrieverAction } from 'genkit/retriever';
-import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
-import {
-  anthropicModel,
-  claude35Sonnet,
-  claude3Haiku,
-  claude3Opus,
-  claude3Sonnet,
-  SUPPORTED_ANTHROPIC_MODELS,
-} from './anthropic.js';
 import {
   SUPPORTED_EMBEDDER_MODELS,
   textEmbedding004,
@@ -61,19 +52,15 @@ import {
   imagenModel,
   SUPPORTED_IMAGEN_MODELS,
 } from './imagen.js';
-import {
-  llama3,
-  llama31,
-  llama32,
-  modelGardenOpenaiCompatibleModel,
-  SUPPORTED_OPENAI_FORMAT_MODELS,
-} from './model_garden.js';
 import { vertexAiRerankers, VertexRerankerConfig } from './reranker.js';
 import {
   VectorSearchOptions,
   vertexAiIndexers,
   vertexAiRetrievers,
 } from './vector-search';
+import { authenticate } from './common/auth.js';
+import { BasePluginOptions } from './common/types.js';
+import { confError, DEFAULT_LOCATION } from './common/global.js';
 export {
   DocumentIndexer,
   DocumentRetriever,
@@ -88,11 +75,8 @@ export {
   vertexAiRetrieverRef,
   vertexAiRetrievers,
 } from './vector-search';
+
 export {
-  claude35Sonnet,
-  claude3Haiku,
-  claude3Opus,
-  claude3Sonnet,
   gemini15Flash,
   gemini15FlashPreview,
   gemini15Pro,
@@ -102,9 +86,6 @@ export {
   imagen2,
   imagen3,
   imagen3Fast,
-  llama3,
-  llama31,
-  llama32,
   textEmbedding004,
   textEmbeddingGecko,
   textEmbeddingGecko001,
@@ -115,24 +96,10 @@ export {
   VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
 };
 
-export interface PluginOptions {
-  /** The Google Cloud project id to call. */
-  projectId?: string;
-  /** The Google Cloud region to call. */
-  location: string;
-  /** Provide custom authentication configuration for connecting to Vertex AI. */
-  googleAuth?: GoogleAuthOptions;
+export interface PluginOptions extends BasePluginOptions {
   /** Configure Vertex AI evaluators */
   evaluation?: {
     metrics: VertexAIEvaluationMetric[];
-  };
-  /**
-   * @deprecated use `modelGarden.models`
-   */
-  modelGardenModels?: ModelReference<any>[];
-  modelGarden?: {
-    models: ModelReference<any>[];
-    openAiBaseUrlTemplate?: string;
   };
   /** Configure Vertex AI vector search index options */
   vectorSearchOptions?: VectorSearchOptions<z.ZodTypeAny, any, any>[];
@@ -140,43 +107,21 @@ export interface PluginOptions {
   rerankOptions?: VertexRerankerConfig[];
 }
 
-const CLOUD_PLATFROM_OAUTH_SCOPE =
-  'https://www.googleapis.com/auth/cloud-platform';
+const PLUGIN_NAME = 'vertexai';
 
 /**
  * Add Google Cloud Vertex AI to Genkit. Includes Gemini and Imagen models and text embedder.
  */
 export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
-  'vertexai',
+  PLUGIN_NAME,
   async (options?: PluginOptions) => {
-    let authClient;
-    let authOptions = options?.googleAuth;
-
-    // Allow customers to pass in cloud credentials from environment variables
-    // following: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
-    if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
-      const serviceAccountCreds = JSON.parse(
-        process.env.GCLOUD_SERVICE_ACCOUNT_CREDS
-      );
-      authOptions = {
-        credentials: serviceAccountCreds,
-        scopes: [CLOUD_PLATFROM_OAUTH_SCOPE],
-      };
-      authClient = new GoogleAuth(authOptions);
-    } else {
-      authClient = new GoogleAuth(
-        authOptions ?? { scopes: [CLOUD_PLATFROM_OAUTH_SCOPE] }
-      );
-    }
+    // Authenticate with Google Cloud
+    const authOptions = options?.googleAuth;
+    const authClient = authenticate(authOptions);
 
     const projectId = options?.projectId || (await authClient.getProjectId());
+    const location = options?.location || DEFAULT_LOCATION;
 
-    const location = options?.location || 'us-central1';
-    const confError = (parameter: string, envVariableName: string) => {
-      return new Error(
-        `VertexAI Plugin is missing the '${parameter}' configuration. Please set the '${envVariableName}' environment variable or explicitly pass '${parameter}' into genkit config.`
-      );
-    };
     if (!location) {
       throw confError('location', 'GCLOUD_LOCATION');
     }
@@ -211,36 +156,6 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
         geminiModel(name, vertexClientFactory, { projectId, location })
       ),
     ];
-
-    if (options?.modelGardenModels || options?.modelGarden?.models) {
-      const mgModels =
-        options?.modelGardenModels || options?.modelGarden?.models;
-      mgModels!.forEach((m) => {
-        const anthropicEntry = Object.entries(SUPPORTED_ANTHROPIC_MODELS).find(
-          ([_, value]) => value.name === m.name
-        );
-        if (anthropicEntry) {
-          models.push(anthropicModel(anthropicEntry[0], projectId, location));
-          return;
-        }
-        const openaiModel = Object.entries(SUPPORTED_OPENAI_FORMAT_MODELS).find(
-          ([_, value]) => value.name === m.name
-        );
-        if (openaiModel) {
-          models.push(
-            modelGardenOpenaiCompatibleModel(
-              openaiModel[0],
-              projectId,
-              location,
-              authClient,
-              options.modelGarden?.openAiBaseUrlTemplate
-            )
-          );
-          return;
-        }
-        throw new Error(`Unsupported model garden model: ${m.name}`);
-      });
-    }
 
     const embedders = Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
       textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
