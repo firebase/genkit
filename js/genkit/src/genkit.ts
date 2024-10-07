@@ -38,6 +38,9 @@ import {
   IndexerParams,
   ModelArgument,
   ModelReference,
+  Part,
+  PromptAction,
+  PromptConfig,
   PromptFn,
   RankedDocument,
   rerank,
@@ -82,6 +85,16 @@ import {
   ModelAction,
 } from './model.js';
 import { lookupAction, Registry, runWithRegistry } from './registry.js';
+import { Registry, runWithRegistry } from './registry.js';
+import {
+  BaseGenerateOptions,
+  Environment,
+  getCurrentSession,
+  Session,
+  SessionError,
+  SessionOptions,
+  SessionStore,
+} from './session.js';
 
 /**
  * Options for initializing Genkit.
@@ -536,6 +549,8 @@ export class Genkit {
     CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
   >(
     options:
+      | string
+      | Part[]
       | GenerateOptions<O, CustomOptions>
       | PromiseLike<GenerateOptions<O, CustomOptions>>
   ): Promise<GenerateResponse<z.infer<O>>> {
@@ -552,7 +567,7 @@ export class Genkit {
     if (!resolvedOptions.model) {
       resolvedOptions.model = this.options.model;
     }
-    return runWithRegistry(this.registry, () => generate(options));
+    return runWithRegistry(this.registry, () => generate(resolvedOptions));
   }
 
   /**
@@ -569,6 +584,8 @@ export class Genkit {
     CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
   >(
     options:
+      | string
+      | Part[]
       | GenerateStreamOptions<O, CustomOptions>
       | PromiseLike<GenerateStreamOptions<O, CustomOptions>>
   ): Promise<GenerateStreamResponse<z.infer<O>>> {
@@ -585,7 +602,72 @@ export class Genkit {
     if (!resolvedOptions.model) {
       resolvedOptions.model = this.options.model;
     }
-    return runWithRegistry(this.registry, () => generateStream(options));
+    return runWithRegistry(this.registry, () =>
+      generateStream(resolvedOptions)
+    );
+  }
+
+  defineEnvironment<S extends z.ZodTypeAny = z.ZodTypeAny>(config: {
+    name: string;
+    stateSchema?: S;
+    store?: SessionStore<S>;
+  }): Environment<S> {
+    return new Environment(this, {
+      name: config.name,
+      stateSchema: config.stateSchema,
+      store: config.store,
+    });
+  }
+
+  createSession<S extends z.ZodTypeAny = z.ZodTypeAny>(
+    options?: SessionOptions<S>
+  ): Session<S>;
+
+  createSession<S extends z.ZodTypeAny = z.ZodTypeAny>(
+    requestBase: BaseGenerateOptions,
+    options?: SessionOptions<S>
+  ): Session<S>;
+
+  createSession<S extends z.ZodTypeAny = z.ZodTypeAny>(
+    requestBaseOrOpts?: SessionOptions<S> | BaseGenerateOptions,
+    maybeOptions?: SessionOptions<S>
+  ): Session<S> {
+    // parse overloaded args
+    let baseGenerateOptions: BaseGenerateOptions | undefined = undefined;
+    let options: SessionOptions<S> | undefined = undefined;
+    if (maybeOptions !== undefined) {
+      options = maybeOptions;
+      baseGenerateOptions = requestBaseOrOpts as BaseGenerateOptions;
+    } else if (requestBaseOrOpts !== undefined) {
+      if (
+        (requestBaseOrOpts as SessionOptions<S>).state ||
+        (requestBaseOrOpts as SessionOptions<S>).schema
+      ) {
+        options = requestBaseOrOpts as SessionOptions<S>;
+      } else {
+        baseGenerateOptions = requestBaseOrOpts as BaseGenerateOptions;
+      }
+    }
+
+    return new Session(
+      this,
+      {
+        ...baseGenerateOptions,
+      },
+      {
+        state: options?.state,
+        schema: options?.schema,
+        store: options?.store,
+      }
+    );
+  }
+
+  get currentSession() {
+    const currentSession = getCurrentSession();
+    if (!currentSession) {
+      throw new SessionError('not running within a session');
+    }
+    return currentSession;
   }
 
   /**

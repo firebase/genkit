@@ -416,7 +416,7 @@ export interface GenerateOptions<
   prompt?: string | Part | Part[];
   /** Retrieved documents to be used as context for this generation. */
   context?: DocumentData[];
-  /** Conversation history for multi-turn prompting when supported by the underlying model. */
+  /** Conversation messages (history) for multi-turn prompting when supported by the underlying model. */
   messages?: MessageData[];
   /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
   tools?: ToolArgument[];
@@ -436,18 +436,32 @@ export interface GenerateOptions<
   use?: ModelMiddleware[];
 }
 
-async function resolveModel(options: GenerateOptions): Promise<ModelAction> {
+interface ResolvedModel<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> {
+  modelAction: ModelAction;
+  config?: z.infer<CustomOptions>;
+  version?: string;
+}
+
+async function resolveModel(options: GenerateOptions): Promise<ResolvedModel> {
   let model = options.model;
   if (!model) {
-    throw new Error('Unable to resolve model.');
+    throw new Error('Model is required.');
   }
   if (typeof model === 'string') {
-    return (await lookupAction(`/model/${model}`)) as ModelAction;
-  } else if (model.hasOwnProperty('info')) {
+    return {
+      modelAction: (await lookupAction(`/model/${model}`)) as ModelAction,
+    };
+  } else if (model.hasOwnProperty('name')) {
     const ref = model as ModelReference<any>;
-    return (await lookupAction(`/model/${ref.name}`)) as ModelAction;
+    return {
+      modelAction: (await lookupAction(`/model/${ref.name}`)) as ModelAction,
+      config: {
+        ...ref.config,
+      },
+      version: ref.version,
+    };
   } else {
-    return model as ModelAction;
+    return { modelAction: model as ModelAction };
   }
 }
 
@@ -495,7 +509,8 @@ export async function generate<
 ): Promise<GenerateResponse<z.infer<O>>> {
   const resolvedOptions: GenerateOptions<O, CustomOptions> =
     await Promise.resolve(options);
-  const model = await resolveModel(resolvedOptions);
+  const resolvedModel = await resolveModel(resolvedOptions);
+  const model = resolvedModel.modelAction;
   if (!model) {
     let modelId: string;
     if (typeof resolvedOptions.model === 'string') {
@@ -531,7 +546,11 @@ export async function generate<
     context: resolvedOptions.context,
     messages: resolvedOptions.messages,
     tools,
-    config: resolvedOptions.config,
+    config: {
+      ...resolvedModel.config,
+      version: resolvedModel.version,
+      ...resolvedOptions.config
+    },
     output: resolvedOptions.output && {
       format: resolvedOptions.output.format,
       jsonSchema: resolvedOptions.output.schema

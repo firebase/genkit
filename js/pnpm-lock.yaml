@@ -170,6 +170,9 @@ importers:
       typescript:
         specifier: ^4.9.0
         version: 4.9.5
+      uuid:
+        specifier: ^10.0.0
+        version: 10.0.0
 
   plugins/chroma:
     dependencies:
