@@ -152,7 +152,15 @@ export const triggerJokeFlow = onRequest(
 );
 
 /** Example of user engagement collection using Firebase Functions. */
-export const collectFeedback = onRequest(async (req, res) => {
-  collectUserEngagement(FirebaseUserEngagementSchema.parse(req.body));
-  res.send('thanks!');
-});
+export const collectEngagementFlow = onFlow(
+  ai,
+  {
+    name: 'collectEngagementFlow',
+    inputSchema: FirebaseUserEngagementSchema,
+    outputSchema: z.void(),
+    authPolicy: noAuth(),
+  },
+  async (userEngagement) => {
+    collectUserEngagement(userEngagement);
+  }
+);
