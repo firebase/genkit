@@ -39,8 +39,10 @@ import {
 import { enrichResultsWithScoring, extractMetricsMetadata } from './parser';
 
 interface BulkRunResponse {
+  reference?: any;
   traceId?: string;
   response?: any;
+  evalError?: string;
 }
 
 const SUPPORTED_ACTION_TYPES = ['flow', 'model'] as const;
@@ -65,12 +67,14 @@ export async function runNewEvaluation(
     auth: request.options?.auth,
     actionConfig: request.options?.actionConfig,
   });
-  const evaluatorAction = await getMatchingEvaluatorActions(runner, evaluators);
+  const evaluatorActions = await getMatchingEvaluatorActions(
+    runner,
+    evaluators
+  );
 
-  logger.info('Running evaluation...');
   const evalRun = await runEvaluation({
     runner,
-    evaluatorActions: evaluatorAction,
+    evaluatorActions,
     evalDataset,
     actionRef,
     datasetId,
@@ -94,23 +98,13 @@ export async function runInference(params: {
   if (!isSupportedActionRef(actionRef)) {
     throw new Error('Inference is only supported on flows and models');
   }
-  let inputs: any[] = Array.isArray(evalFlowInput)
-    ? (evalFlowInput as any[])
-    : evalFlowInput.samples.map((c) => c.input);
 
-  const runResponses: BulkRunResponse[] = await bulkRunAction({
+  const evalDataset: EvalInput[] = await bulkRunAction({
     runner,
     actionRef,
-    inputs,
+    evalFlowInput,
     auth,
     actionConfig,
-  });
-
-  const evalDataset = await fetchEvalInput({
-    runner,
-    actionRef,
-    states: runResponses,
-    parsedData: evalFlowInput,
   });
   return evalDataset;
 }
@@ -190,50 +184,53 @@ export async function getMatchingEvaluatorActions(
 async function bulkRunAction(params: {
   runner: Runner;
   actionRef: string;
-  inputs: any[];
+  evalFlowInput: EvalFlowInput;
   auth?: string;
   actionConfig?: any;
-}): Promise<BulkRunResponse[]> {
-  const { runner, actionRef, inputs, auth, actionConfig } = params;
+}): Promise<EvalInput[]> {
+  const { runner, actionRef, evalFlowInput, auth, actionConfig } = params;
   const isModelAction = actionRef.startsWith('/model');
-  let responses: BulkRunResponse[] = [];
+  let inputs: any[] = Array.isArray(evalFlowInput)
+    ? (evalFlowInput as any[])
+    : evalFlowInput.samples.map((c) => c);
+
+  let evalInputs: EvalInput[] = [];
   for (const sample of inputs) {
     logger.info(`Running '${actionRef}' ...`);
-    let response: BulkRunResponse;
-    try {
-      const input = isModelAction
-        ? getModelInput(sample, actionConfig)
-        : FlowActionInputSchema.parse({
-            start: {
-              input: sample,
-            },
-            auth: auth ? JSON.parse(auth) : undefined,
-          });
-      const runActionResponse = await runner.runAction({
-        key: actionRef,
-        input,
-      });
-      response = {
-        traceId: runActionResponse.telemetry?.traceId,
-        response: runActionResponse.result,
-      };
-    } catch (e: any) {
-      const traceId = e?.data?.details?.traceId;
-      response = { traceId };
+    if (isModelAction) {
+      evalInputs.push(
+        await runModelAction({
+          runner,
+          actionRef,
+          sample,
+          reference: sample.reference,
+          actionConfig,
+        })
+      );
+    } else {
+      evalInputs.push(
+        await runFlowAction({
+          runner,
+          actionRef,
+          sample,
+          reference: sample.reference,
+          auth,
+        })
+      );
     }
-    responses.push(response);
   }
-
-  return responses;
+  return evalInputs;
 }
 
 async function runFlowAction(params: {
   runner: Runner;
   actionRef: string;
   sample: any;
+  reference?: any;
   auth?: any;
 }): Promise<EvalInput> {
-  const { runner, actionRef, sample, auth } = { ...params };
+  const { runner, actionRef, sample, auth, reference } = { ...params };
+  let runResponse: BulkRunResponse;
   try {
     const input = FlowActionInputSchema.parse({
       start: {
@@ -245,99 +242,115 @@ async function runFlowAction(params: {
       key: actionRef,
       input,
     });
-    return {
+    runResponse = {
+      reference,
       traceId: runActionResponse.telemetry?.traceId,
       response: runActionResponse.result,
     };
   } catch (e: any) {
     const traceId = e?.data?.details?.traceId;
-    return { traceId };
+    runResponse = {
+      reference,
+      traceId,
+      evalError: 'Error when running inference',
+    };
   }
+  return gatherOutputs({ runner, actionRef, state: runResponse });
 }
 
-async function fetchEvalInput(params: {
+async function runModelAction(params: {
   runner: Runner;
   actionRef: string;
-  states: BulkRunResponse[];
-  parsedData: EvalFlowInput;
-}): Promise<EvalInput[]> {
-  const { runner, actionRef, states, parsedData } = params;
-
-  let references: any[] | undefined = undefined;
-  if (!Array.isArray(parsedData)) {
-    const maybeReferences = parsedData.samples.map((c: any) => c.reference);
-    if (maybeReferences.length === states.length) {
-      references = maybeReferences;
-    } else {
-      logger.warn(
-        'The input size does not match the flow states generated. Ignoring reference mapping...'
-      );
-    }
+  sample: any;
+  reference?: any;
+  actionConfig?: any;
+}): Promise<EvalInput> {
+  const { runner, actionRef, sample, actionConfig, reference } = { ...params };
+  let runResponse: BulkRunResponse;
+  try {
+    const input = getModelInput(sample, actionConfig);
+    const runActionResponse = await runner.runAction({
+      key: actionRef,
+      input,
+    });
+    runResponse = {
+      reference,
+      traceId: runActionResponse.telemetry?.traceId,
+      response: runActionResponse.result,
+    };
+  } catch (e: any) {
+    const traceId = e?.data?.details?.traceId;
+    runResponse = {
+      reference,
+      traceId,
+      evalError: 'Error when running inference',
+    };
   }
+  return gatherOutputs({ runner, actionRef, state: runResponse });
+}
+
+async function gatherOutputs(params: {
+  runner: Runner;
+  actionRef: string;
+  state: BulkRunResponse;
+}): Promise<EvalInput> {
+  const { runner, actionRef, state } = params;
+
   const extractors = await getEvalExtractors(actionRef);
-  return await Promise.all(
-    states.map(async (s, i) => {
-      const traceId = s.traceId;
-      if (!traceId) {
-        logger.warn('No traceId available...');
-        return {
-          // TODO Replace this with unified trace class
-          testCaseId: randomUUID(),
-          traceIds: [],
-        };
-      }
+  const traceId = state.traceId;
+  if (!traceId) {
+    logger.warn('No traceId available...');
+    return {
+      ...state,
+      testCaseId: randomUUID(),
+      traceIds: [],
+    };
+  }
 
-      const trace = await runner.getTrace({
-        // TODO: We should consider making this a argument and using it to
-        // to control which tracestore environment is being used when
-        // running a flow.
-        env: 'dev',
-        traceId,
-      });
+  const trace = await runner.getTrace({
+    // TODO: We should consider making this a argument and using it to
+    // to control which tracestore environment is being used when
+    // running a flow.
+    env: 'dev',
+    traceId,
+  });
 
-      let inputs: string[] = [];
-      let outputs: string[] = [];
-      let contexts: string[] = [];
+  const input = extractors.input(trace);
 
-      inputs.push(extractors.input(trace));
+  const nestedSpan = stackTraceSpans(trace);
+  if (!nestedSpan) {
+    return {
+      testCaseId: randomUUID(),
+      input,
+      error: `Unable to extract any spans from trace ${traceId}`,
+      reference: state.reference,
+      traceIds: [traceId],
+    };
+  }
 
-      const nestedSpan = stackTraceSpans(trace);
-      if (!nestedSpan) {
-        return {
-          testCaseId: randomUUID(),
-          input: inputs[0],
-          error: `Unable to extract any spans from trace ${traceId}`,
-          reference: references?.at(i),
-          traceIds: [traceId],
-        };
-      }
+  if (nestedSpan.attributes['genkit:state'] === 'error') {
+    return {
+      testCaseId: randomUUID(),
+      input,
+      error:
+        getSpanErrorMessage(nestedSpan) ?? `Unknown error in trace${traceId}`,
+      reference: state.reference,
+      traceIds: [traceId],
+    };
+  }
 
-      if (nestedSpan.attributes['genkit:state'] === 'error') {
-        return {
-          testCaseId: randomUUID(),
-          input: inputs[0],
-          error:
-            getSpanErrorMessage(nestedSpan) ??
-            `Unknown error in trace${traceId}`,
-          reference: references?.at(i),
-          traceIds: [traceId],
-        };
-      }
+  const output = extractors.output(trace);
+  const context = extractors.context(trace);
 
-      outputs.push(extractors.output(trace));
-      contexts.push(extractors.context(trace));
-
-      return {
-        // TODO Replace this with unified trace class
-        testCaseId: randomUUID(),
-        input: inputs[0],
-        output: outputs[0],
-        context: JSON.parse(contexts[0]) as string[],
-        reference: references?.at(i),
-        traceIds: [traceId],
-      };
-    })
-  );
+  return {
+    // TODO Replace this with unified trace class
+    testCaseId: randomUUID(),
+    input,
+    output,
+    context: JSON.parse(context) as string[],
+    reference: state.reference,
+    traceIds: [traceId],
+  };
 }
 
 function getSpanErrorMessage(span: SpanData): string | undefined {
@@ -360,8 +373,6 @@ function isSupportedActionRef(actionRef: string) {
 }
 
 function getModelInput(d: any, actionConfig: any): GenerateRequest {
-  console.log(d);
-  console.log('=====================================================');
   let message: MessageData;
   if (typeof d === 'string') {
     message = {
@@ -377,16 +388,11 @@ function getModelInput(d: any, actionConfig: any): GenerateRequest {
     if (maybeMessage.success) {
       message = maybeMessage.data;
     } else {
-      console.log(maybeMessage.error);
       throw new Error(
         `Unable to parse model input as MessageSchema as input. Details: ${maybeMessage.error}`
       );
     }
   }
-  console.log({
-    messages: message ? [message] : [],
-    config: actionConfig,
-  });
   return {
     messages: message ? [message] : [],
     config: actionConfig,
