@@ -21,6 +21,7 @@ Install the following Genkit dependencies to use Genkit in your project:
 
 ```posix-terminal
 npm install @genkit-ai/ai @genkit-ai/core @genkit-ai/googleai
+
 npm install -g genkit
 ```
 
