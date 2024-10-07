@@ -341,7 +341,10 @@ class AdjustingTraceExporter implements SpanExporter {
   }
 
   private markGenkitModel(span: ReadableSpan): ReadableSpan {
-    if (span.attributes['genkit:metadata:subtype'] === 'model') {
+    if (
+      span.attributes['genkit:metadata:subtype'] === 'model' &&
+      span.attributes['genkit:name']
+    ) {
       span.attributes['genkit:model'] = span.attributes['genkit:name'];
     }
     return span;

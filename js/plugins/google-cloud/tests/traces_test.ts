@@ -16,11 +16,10 @@
 
 import { runWithRegistry } from '@genkit-ai/core/registry';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
-import { Genkit, genkit, run, z } from 'genkit';
+import { Genkit, generate, genkit, run, z } from 'genkit';
+import { defineModel } from 'genkit/model';
 import assert from 'node:assert';
 import { after, before, beforeEach, describe, it } from 'node:test';
-import { generate } from '../../../ai/src/generate.js';
-import { defineModel } from '../../../ai/src/model.js';
 import {
   __forceFlushSpansForTesting,
   __getSpanExporterForTesting,
