@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
+import { runWithRegistry } from '@genkit-ai/core/registry';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { Genkit, genkit, run, z } from 'genkit';
 import assert from 'node:assert';
 import { after, before, beforeEach, describe, it } from 'node:test';
+import { generate } from '../../../ai/src/generate.js';
+import { defineModel } from '../../../ai/src/model.js';
 import {
   __forceFlushSpansForTesting,
   __getSpanExporterForTesting,
@@ -130,6 +133,50 @@ describe('GoogleCloudTracing', () => {
     assert.equal(spans[0].attributes['genkit/feature'], undefined);
     assert.equal(spans[1].name, 'niceFlow');
     assert.equal(spans[1].attributes['genkit/feature'], 'niceFlow');
+  });
+
+  it('adds the genkit/model label for model actions', async () => {
+    const echoModel = runWithRegistry(ai.registry, () =>
+      defineModel(
+        {
+          name: 'echoModel',
+        },
+        async (request) => {
+          return {
+            message: {
+              role: 'model',
+              content: [
+                {
+                  text:
+                    'Echo: ' +
+                    request.messages
+                      .map((m) => m.content.map((c) => c.text).join())
+                      .join(),
+                },
+              ],
+            },
+            finishReason: 'stop',
+          };
+        }
+      )
+    );
+    const testFlow = createFlow(ai, 'modelFlow', async () => {
+      return run('runFlow', async () => {
+        generate({
+          model: echoModel,
+          prompt: 'Testing model telemetry',
+        });
+      });
+    });
+
+    await testFlow();
+
+    const spans = await getExportedSpans();
+
+    assert.equal(spans[0].name, 'runFlow');
+    assert.equal(spans[1].name, 'modelFlow');
+    assert.equal(spans[2].name, 'echoModel');
+    assert.equal(spans[2].attributes['genkit/model'], 'echoModel');
   });
 
   /** Helper to create a flow with no inputs or outputs */
