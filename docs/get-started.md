@@ -15,12 +15,13 @@ To complete this quickstart, make sure that your development environment meets t
 
 Install the following Genkit dependencies to use Genkit in your project:
 
-* `genkit` provides the Genkit CLI and tooling  
-* `@genkit-ai/ai` and `@genkit-ai/core` provide Genkit core capabilities  
-* `@genkit-ai/googleai` provide access to the Google AI Gemini models
+* `@genkit-ai/ai` and `@genkit-ai/core` provide Genkit core capabilities. 
+* `@genkit-ai/googleai` provide access to the Google AI Gemini models.
+* `genkit` provides the Genkit CLI and tooling to help you test and debug your solution later.
 
 ```posix-terminal
-npm install genkit @genkit-ai/ai @genkit-ai/core @genkit-ai/googleai
+npm install @genkit-ai/ai @genkit-ai/core @genkit-ai/googleai
+npm install -g genkit
 ```
 
 ## Configure your model API key
