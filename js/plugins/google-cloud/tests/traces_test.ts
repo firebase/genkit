@@ -189,11 +189,11 @@ describe('GoogleCloudTracing', () => {
 
     const spans = await getExportedSpans();
     const span = spans.find((it) => it.name === 'span-name');
-    assert.equal(Object.keys(span.attributes).length, 3);
-    assert.equal(span.attributes['genkit/name'], 'span-name');
-    assert.equal(span.attributes['label_key'], 'label_value');
+    assert.equal(Object.keys(span?.attributes || {}).length, 3);
+    assert.equal(span?.attributes['genkit/name'], 'span-name');
+    assert.equal(span?.attributes['label_key'], 'label_value');
     assert.equal(
-      span.attributes['genkit/metadata/metadata_key'],
+      span?.attributes['genkit/metadata/metadata_key'],
       'metadata_value'
     );
   });

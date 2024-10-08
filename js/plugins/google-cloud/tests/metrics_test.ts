@@ -108,6 +108,49 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(requestCounter.attributes.status, 'failure');
   });
 
+  it('writes feature metrics for a flow', async () => {
+    const testFlow = createFlow(ai, 'testFlow');
+
+    await testFlow();
+    await testFlow();
+
+    await getExportedSpans();
+
+    const requestCounter = await getCounterMetric('genkit/feature/requests');
+    const latencyHistogram = await getHistogramMetric('genkit/feature/latency');
+    assert.equal(requestCounter.value, 2);
+    assert.equal(requestCounter.attributes.name, 'testFlow');
+    assert.equal(requestCounter.attributes.source, 'ts');
+    assert.equal(requestCounter.attributes.status, 'success');
+    assert.ok(requestCounter.attributes.sourceVersion);
+    assert.equal(latencyHistogram.value.count, 2);
+    assert.equal(latencyHistogram.attributes.name, 'testFlow');
+    assert.equal(latencyHistogram.attributes.source, 'ts');
+    assert.equal(latencyHistogram.attributes.status, 'success');
+    assert.ok(latencyHistogram.attributes.sourceVersion);
+  });
+
+  it('writes feature failure metrics', async () => {
+    const testFlow = createFlow(ai, 'testFlow', async () => {
+      const nothing: { missing?: any } = { missing: 1 };
+      delete nothing.missing;
+      return nothing.missing.explode;
+    });
+
+    assert.rejects(async () => {
+      await testFlow();
+    });
+
+    await getExportedSpans();
+
+    const requestCounter = await getCounterMetric('genkit/feature/requests');
+    assert.equal(requestCounter.value, 1);
+    assert.equal(requestCounter.attributes.name, 'testFlow');
+    assert.equal(requestCounter.attributes.source, 'ts');
+    assert.equal(requestCounter.attributes.error, 'TypeError');
+    assert.equal(requestCounter.attributes.status, 'failure');
+  });
+
   it('writes action metrics', async () => {
     const testAction = createAction(ai, 'testAction');
     const testFlow = createFlow(ai, 'testFlowWithActions', async () => {
@@ -132,6 +175,56 @@ describe('GoogleCloudMetrics', () => {
     assert.ok(requestCounter.attributes.sourceVersion);
     assert.equal(latencyHistogram.value.count, 6);
     assert.equal(latencyHistogram.attributes.name, 'testAction');
+    assert.equal(latencyHistogram.attributes.source, 'ts');
+    assert.equal(latencyHistogram.attributes.status, 'success');
+    assert.ok(latencyHistogram.attributes.sourceVersion);
+  });
+
+  it('writes feature metrics for an action', async () => {
+    const testAction = createAction(ai, 'featureAction');
+
+    await runWithRegistry(ai.registry, async () => {
+      await testAction(null);
+      await testAction(null);
+    });
+
+    await getExportedSpans();
+
+    const requestCounter = await getCounterMetric('genkit/feature/requests');
+    const latencyHistogram = await getHistogramMetric('genkit/feature/latency');
+    assert.equal(requestCounter.value, 2);
+    assert.equal(requestCounter.attributes.name, 'featureAction');
+    assert.equal(requestCounter.attributes.source, 'ts');
+    assert.equal(requestCounter.attributes.status, 'success');
+    assert.ok(requestCounter.attributes.sourceVersion);
+    assert.equal(latencyHistogram.value.count, 2);
+    assert.equal(latencyHistogram.attributes.name, 'featureAction');
+    assert.equal(latencyHistogram.attributes.source, 'ts');
+    assert.equal(latencyHistogram.attributes.status, 'success');
+    assert.ok(latencyHistogram.attributes.sourceVersion);
+  });
+
+  // it('writes feature metrics for prompts')
+  // after PR #1029
+
+  it('writes feature metrics for generate', async () => {
+    await runWithRegistry(ai.registry, async () => {
+      const testModel = createTestModel(ai, 'helloModel');
+      await generate({ model: testModel, prompt: 'Hi' });
+      await generate({ model: testModel, prompt: 'Yo' });
+    });
+
+    const spans = await getExportedSpans();
+
+    const requestCounter = await getCounterMetric('genkit/feature/requests');
+    const latencyHistogram = await getHistogramMetric('genkit/feature/latency');
+    assert.equal(requestCounter.value, 2);
+    assert.equal(requestCounter.attributes.name, 'generate');
+    assert.equal(requestCounter.attributes.source, 'ts');
+    assert.equal(requestCounter.attributes.status, 'success');
+    assert.ok(requestCounter.attributes.sourceVersion);
+    assert.equal(latencyHistogram.value.count, 2);
+    assert.equal(latencyHistogram.attributes.name, 'generate');
     assert.equal(latencyHistogram.attributes.source, 'ts');
     assert.equal(latencyHistogram.attributes.status, 'success');
     assert.ok(latencyHistogram.attributes.sourceVersion);
@@ -181,27 +274,7 @@ describe('GoogleCloudMetrics', () => {
   });
 
   it('writes generate metrics', async () => {
-    const testModel = createModel(ai, 'testModel', async () => {
-      return {
-        message: {
-          role: 'user',
-          content: [
-            {
-              text: 'response',
-            },
-          ],
-        },
-        finishReason: 'stop',
-        usage: {
-          inputTokens: 10,
-          outputTokens: 14,
-          inputCharacters: 8,
-          outputCharacters: 16,
-          inputImages: 1,
-          outputImages: 3,
-        },
-      };
-    });
+    const testModel = createTestModel(ai, 'testModel');
 
     await ai.generate({
       model: testModel,
@@ -801,5 +874,29 @@ describe('GoogleCloudMetrics', () => {
     return runWithRegistry(ai.registry, () =>
       defineModel({ name }, (req) => respFn())
     );
+  }
+
+  function createTestModel(ai: Genkit, name: string) {
+    return createModel(ai, name, async () => {
+      return {
+        message: {
+          role: 'model',
+          content: [
+            {
+              text: 'Oh hello',
+            },
+          ],
+        },
+        finishReason: 'stop',
+        usage: {
+          inputTokens: 10,
+          outputTokens: 14,
+          inputCharacters: 8,
+          outputCharacters: 16,
+          inputImages: 1,
+          outputImages: 3,
+        },
+      };
+    });
   }
 });

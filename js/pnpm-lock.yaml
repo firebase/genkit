@@ -364,6 +364,9 @@ importers:
 
   plugins/google-cloud:
     dependencies:
+      '@genkit-ai/core':
+        specifier: workspace:*
+        version: link:../../core
       '@google-cloud/logging-winston':
         specifier: ^6.0.0
         version: 6.0.0(encoding@0.1.13)(winston@3.13.0)
