@@ -6,8 +6,6 @@ import {
   GenerationCommonConfigSchema,
   MessageData,
   Part,
-  PromptAction,
-  PromptConfig,
   PromptFn,
   ToolAction,
   ToolConfig,
@@ -20,10 +18,10 @@ import {
   StreamingFlowConfig,
   z,
 } from '@genkit-ai/core';
-import { Dotprompt, PromptMetadata } from '@genkit-ai/dotprompt';
+import { PromptMetadata } from '@genkit-ai/dotprompt';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { v4 as uuidv4 } from 'uuid';
-import { Genkit } from './genkit';
+import { ExecutablePrompt, Genkit } from './genkit';
 
 export type BaseGenerateOptions = Omit<GenerateOptions, 'prompt'>;
 
@@ -38,7 +36,6 @@ type EnvironmentType = Pick<
   | 'defineFlow'
   | 'defineStreamingFlow'
   | 'defineTool'
-  | 'defineDotprompt'
   | 'definePrompt'
 >;
 
@@ -104,30 +101,17 @@ export class Environment<S extends z.ZodTypeAny> implements EnvironmentType {
   }
 
   /**
-   * Defines and registers a dotprompt.
-   *
-   * This replaces defining and importing a .dotprompt file.
-   *
-   * @todo TODO: Improve this documentation (show an example, etc).
+   * Defines and registers a prompt action.
    */
-  defineDotprompt<
+  definePrompt<
     I extends z.ZodTypeAny = z.ZodTypeAny,
+    O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
     options: PromptMetadata<I, CustomOptions>,
-    template: string
-  ): Dotprompt<z.infer<I>> {
-    return this.genkit.defineDotprompt(options, template);
-  }
-
-  /**
-   * Defines and registers a prompt action.
-   */
-  definePrompt<I extends z.ZodTypeAny = z.ZodTypeAny>(
-    config: PromptConfig<I>,
-    fn: PromptFn<I>
-  ): PromptAction<I> {
-    return this.genkit.definePrompt(config, fn);
+    templateOrFn: string | PromptFn<I>
+  ): ExecutablePrompt<I, O, CustomOptions> {
+    return this.genkit.definePrompt(options, templateOrFn as PromptFn<I>);
   }
 
   createSession(options?: EnvironmentSessionOptions<S>): Session<S>;
@@ -208,7 +192,7 @@ export class Environment<S extends z.ZodTypeAny> implements EnvironmentType {
 
     return this.createSession(baseGenerateOptions!, {
       ...options,
-      state
+      state,
     });
   }
 
@@ -242,7 +226,7 @@ export class Session<S extends z.ZodTypeAny> {
       state: options?.state ?? {},
       messages: requestBase?.messages ?? [],
     };
-    this.store = options?.store ?? new InMemorySessionStore()
+    this.store = options?.store ?? new InMemorySessionStore();
   }
 
   async send<
@@ -298,7 +282,7 @@ export class Session<S extends z.ZodTypeAny> {
     try {
       return response;
     } finally {
-      await this.updateMessages((await response.response()).toHistory());
+      await this.updateMessages((await response.response).toHistory());
     }
   }
 

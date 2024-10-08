@@ -39,8 +39,6 @@ import {
   ModelArgument,
   ModelReference,
   Part,
-  PromptAction,
-  PromptConfig,
   PromptFn,
   RankedDocument,
   rerank,
@@ -48,7 +46,7 @@ import {
   retrieve,
   RetrieverParams,
   ToolAction,
-  ToolConfig,
+  ToolConfig
 } from '@genkit-ai/ai';
 import {
   CallableFlow,
@@ -85,7 +83,6 @@ import {
   ModelAction,
 } from './model.js';
 import { lookupAction, Registry, runWithRegistry } from './registry.js';
-import { Registry, runWithRegistry } from './registry.js';
 import {
   BaseGenerateOptions,
   Environment,
