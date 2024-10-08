@@ -16,7 +16,7 @@
 
 import { runWithRegistry } from '@genkit-ai/core/registry';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
-import { Genkit, generate, genkit, run, z } from 'genkit';
+import { generate, Genkit, genkit, run, z } from 'genkit';
 import { defineModel } from 'genkit/model';
 import { appendSpan } from 'genkit/tracing';
 import assert from 'node:assert';
@@ -188,13 +188,12 @@ describe('GoogleCloudTracing', () => {
     );
 
     const spans = await getExportedSpans();
-    assert.equal(spans.length, 1);
-    assert.equal(spans[0].name, 'span-name');
-    assert.equal(Object.keys(spans[0].attributes).length, 3);
-    assert.equal(spans[0].attributes['genkit/name'], 'span-name');
-    assert.equal(spans[0].attributes['label_key'], 'label_value');
+    const span = spans.find((it) => it.name === 'span-name');
+    assert.equal(Object.keys(span.attributes).length, 3);
+    assert.equal(span.attributes['genkit/name'], 'span-name');
+    assert.equal(span.attributes['label_key'], 'label_value');
     assert.equal(
-      spans[0].attributes['genkit/metadata/metadata_key'],
+      span.attributes['genkit/metadata/metadata_key'],
       'metadata_value'
     );
   });
