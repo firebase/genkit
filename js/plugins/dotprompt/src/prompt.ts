@@ -152,7 +152,6 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
    * @param options optional context and/or history for the prompt template.
    * @returns an array of messages representing an exchange between a user and a model.
    */
-
   renderMessages(input?: I, options?: RenderMetadata): MessageData[] {
     input = parseSchema(input, {
       schema: this.input?.schema,
