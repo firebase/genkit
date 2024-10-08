@@ -27,7 +27,7 @@ export const s01_vanillaPrompt = ai.definePrompt(
     name: 's01_vanillaPrompt',
     input: {
       schema: MenuQuestionInputSchema,
-    }
+    },
   },
   async (input: MenuQuestionInput): Promise<GenerateRequest> => {
     const promptText = `
