@@ -51,7 +51,7 @@ export const AnthropicConfigSchema = GenerationCommonConfigSchema.extend({
 });
 
 export const claude35Sonnet = modelRef({
-  name: 'vertexai/claude-3-5-sonnet',
+  name: 'vertexAiModelGarden/claude-3-5-sonnet',
   info: {
     label: 'Vertex AI Model Garden - Claude 3.5 Sonnet',
     versions: ['claude-3-5-sonnet@20240620'],
@@ -67,7 +67,7 @@ export const claude35Sonnet = modelRef({
 });
 
 export const claude3Sonnet = modelRef({
-  name: 'vertexai/claude-3-sonnet',
+  name: 'vertexAiModelGarden/claude-3-sonnet',
   info: {
     label: 'Vertex AI Model Garden - Claude 3 Sonnet',
     versions: ['claude-3-sonnet@20240229'],
@@ -83,7 +83,7 @@ export const claude3Sonnet = modelRef({
 });
 
 export const claude3Haiku = modelRef({
-  name: 'vertexai/claude-3-haiku',
+  name: 'vertexAiModelGarden/claude-3-haiku',
   info: {
     label: 'Vertex AI Model Garden - Claude 3 Haiku',
     versions: ['claude-3-haiku@20240307'],
@@ -99,7 +99,7 @@ export const claude3Haiku = modelRef({
 });
 
 export const claude3Opus = modelRef({
-  name: 'vertexai/claude-3-opus',
+  name: 'vertexAiModelGarden/claude-3-opus',
   info: {
     label: 'Vertex AI Model Garden - Claude 3 Opus',
     versions: ['claude-3-opus@20240229'],

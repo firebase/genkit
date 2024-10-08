@@ -18,13 +18,15 @@ import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
 import { geminiPro, googleAI } from '@genkit-ai/googleai';
 import {
-  claude3Haiku,
-  claude3Opus,
-  claude3Sonnet,
   textEmbeddingGecko,
   vertexAI,
   VertexAIEvaluationMetricType,
 } from '@genkit-ai/vertexai';
+import vertexAIModelGarden, {
+  claude3Haiku,
+  claude3Opus,
+  claude3Sonnet,
+} from '@genkit-ai/vertexai/modelgarden';
 import { dotprompt, genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';
 import { ollama } from 'genkitx-ollama';
@@ -71,9 +73,12 @@ export const ai = genkit({
       ],
       serverAddress: 'http://127.0.0.1:11434', // default local address
     }),
+    vertexAIModelGarden({
+      location: 'europe-west1',
+      models: [claude3Haiku, claude3Sonnet, claude3Opus],
+    }),
     vertexAI({
       location: 'us-central1',
-      modelGardenModels: [claude3Haiku, claude3Sonnet, claude3Opus],
       evaluation: {
         metrics: [
           VertexAIEvaluationMetricType.BLEU,
