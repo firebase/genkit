@@ -346,7 +346,7 @@ async function gatherEvalInput(params: {
       testCaseId: randomUUID(),
       input,
       error:
-        getSpanErrorMessage(nestedSpan) ?? `Unknown error in trace${traceId}`,
+        getSpanErrorMessage(nestedSpan) ?? `Unknown error in trace ${traceId}`,
       reference: state.reference,
       traceIds: [traceId],
     };
