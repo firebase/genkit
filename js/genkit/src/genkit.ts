@@ -71,6 +71,7 @@ import {
   defineDotprompt,
   Dotprompt,
   prompt,
+  PromptGenerateOptions,
   PromptMetadata,
 } from '@genkit-ai/dotprompt';
 import { logger } from './logging.js';
@@ -99,6 +100,7 @@ export interface GenkitOptions {
 
 export interface ExecutablePrompt<
   I extends z.ZodTypeAny = z.ZodTypeAny,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > {
   (
@@ -111,30 +113,25 @@ export interface ExecutablePrompt<
     opts?: z.infer<CustomOptions>
   ): Promise<GenerateStreamResponse>;
 
-  // FIXME -- Do we need/want these??
+  /**
+   * Generates a response by rendering the prompt template with given user input and then calling the model.
+   *
+   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
+   * @returns the model response as a promise of `GenerateResponse`.
+   */
+  generate(
+    opt: PromptGenerateOptions<z.infer<I>, CustomOptions>
+  ): Promise<GenerateResponse<O>>;
 
-  // /**
-  //  * Generates a response by rendering the prompt template with given user input and then calling the model.
-  //  *
-  //  * @param opt Options for the prompt template, including user input variables and custom model configuration options.
-  //  * @returns the model response as a promise of `GenerateResponse`.
-  //  */
-  // generate<
-  //   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-  //   O extends z.ZodTypeAny = z.ZodTypeAny,
-  // >(
-  //   opt: PromptGenerateOptions<I, CustomOptions>
-  // ): Promise<GenerateResponse<z.infer<O>>>;
-
-  // /**
-  //  * Generates a streaming response by rendering the prompt template with given user input and then calling the model.
-  //  *
-  //  * @param opt Options for the prompt template, including user input variables and custom model configuration options.
-  //  * @returns the model response as a promise of `GenerateStreamResponse`.
-  //  */
-  // generateStream<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny>(
-  //   opt: PromptGenerateOptions<I, CustomOptions>
-  // ): Promise<GenerateStreamResponse>;
+  /**
+   * Generates a streaming response by rendering the prompt template with given user input and then calling the model.
+   *
+   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
+   * @returns the model response as a promise of `GenerateStreamResponse`.
+   */
+  generateStream(
+    opt: PromptGenerateOptions<z.infer<I>, CustomOptions>
+  ): Promise<GenerateStreamResponse<O>>;
 }
 
 /**
@@ -278,27 +275,30 @@ export class Genkit {
    */
   definePrompt<
     I extends z.ZodTypeAny = z.ZodTypeAny,
+    O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
     options: PromptMetadata<I, CustomOptions>,
     template: string
-  ): ExecutablePrompt<I, CustomOptions>;
+  ): ExecutablePrompt<I, O, CustomOptions>;
 
   definePrompt<
     I extends z.ZodTypeAny = z.ZodTypeAny,
+    O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
     options: PromptMetadata<I, CustomOptions>,
     fn: PromptFn<I>
-  ): ExecutablePrompt<I, CustomOptions>;
+  ): ExecutablePrompt<I, O, CustomOptions>;
 
   definePrompt<
     I extends z.ZodTypeAny = z.ZodTypeAny,
+    O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
     options: PromptMetadata<I, CustomOptions>,
     templateOrFn: string | PromptFn<I>
-  ): ExecutablePrompt<I, CustomOptions> {
+  ): ExecutablePrompt<I, O, CustomOptions> {
     if (!options.name) {
       throw new Error('options.name is required');
     }
@@ -318,7 +318,7 @@ export class Genkit {
             });
           });
         };
-        (executablePrompt as ExecutablePrompt<I, CustomOptions>).stream = (
+        (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).stream = (
           input?: z.infer<I>,
           opts?: z.infer<CustomOptions>
         ): Promise<GenerateStreamResponse> => {
@@ -331,7 +331,35 @@ export class Genkit {
             });
           });
         };
-        return executablePrompt as ExecutablePrompt<I, CustomOptions>;
+        (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generate = (
+          opt: PromptGenerateOptions<I, CustomOptions>
+        ): Promise<GenerateResponse<O>> => {
+          return runWithRegistry(this.registry, async () => {
+            const model = !opt.model
+              ? await this.resolveModel(options.model)
+              : undefined;
+            return p.generate({
+              model,
+              ...opt,
+            });
+          });
+        };
+        (
+          executablePrompt as ExecutablePrompt<I, O, CustomOptions>
+        ).generateStream = (
+          opt: PromptGenerateOptions<I, CustomOptions>
+        ): Promise<GenerateStreamResponse<O>> => {
+          return runWithRegistry(this.registry, async () => {
+            const model = !opt.model
+              ? await this.resolveModel(options.model)
+              : undefined;
+            return p.generateStream<CustomOptions>({
+              model,
+              ...opt,
+            }) as Promise<GenerateStreamResponse<O>>;
+          });
+        };
+        return executablePrompt as ExecutablePrompt<I, O, CustomOptions>;
       } else {
         const p = definePrompt(
           {
@@ -366,7 +394,7 @@ export class Genkit {
             });
           });
         };
-        (executablePrompt as ExecutablePrompt<I, CustomOptions>).stream = (
+        (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).stream = (
           input?: z.infer<I>,
           opts?: z.infer<CustomOptions>
         ): Promise<GenerateStreamResponse> => {
@@ -390,7 +418,61 @@ export class Genkit {
             });
           });
         };
-        return executablePrompt as ExecutablePrompt<I, CustomOptions>;
+        (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generate = (
+          opt: PromptGenerateOptions<I, CustomOptions>
+        ): Promise<GenerateResponse<O>> => {
+          return runWithRegistry(this.registry, async () => {
+            const model = !opt.model
+              ? await this.resolveModel(options.model)
+              : undefined;
+            const promptResult = await p(opt.input);
+            return this.generate({
+              model,
+              messages: promptResult.messages,
+              context: promptResult.context,
+              tools: promptResult.tools,
+              output: {
+                format: promptResult.output?.format,
+                jsonSchema: promptResult.output?.schema,
+              },
+              ...opt,
+              config: {
+                ...options.config,
+                ...promptResult.config,
+                ...opt.config,
+              },
+            });
+          });
+        };
+        (
+          executablePrompt as ExecutablePrompt<I, O, CustomOptions>
+        ).generateStream = (
+          opt: PromptGenerateOptions<I, CustomOptions>
+        ): Promise<GenerateStreamResponse<O>> => {
+          return runWithRegistry(this.registry, async () => {
+            const model = !opt.model
+              ? await this.resolveModel(options.model)
+              : undefined;
+            const promptResult = await p(opt.input);
+            return this.generateStream<O, CustomOptions>({
+              model,
+              messages: promptResult.messages,
+              context: promptResult.context,
+              tools: promptResult.tools,
+              output: {
+                format: promptResult.output?.format,
+                jsonSchema: promptResult.output?.schema,
+              } as any /* FIXME - schema type inference is borken */,
+              ...opt,
+              config: {
+                ...options.config,
+                ...promptResult.config,
+                ...opt.config,
+              },
+            });
+          });
+        };
+        return executablePrompt as ExecutablePrompt<I, O, CustomOptions>;
       }
     });
   }
