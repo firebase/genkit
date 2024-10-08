@@ -234,7 +234,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
           input: opt,
         },
         labels: {
-          [SPAN_TYPE_ATTR]: 'dotprompt',
+          [SPAN_TYPE_ATTR]: 'prompt',
         },
       },
       async (metadata) => {
