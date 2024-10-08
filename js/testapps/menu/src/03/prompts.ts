@@ -21,7 +21,7 @@ import { DataMenuQuestionInputSchema } from '../types.js';
 // This prompt will generate two messages when rendered.
 // These two messages will be used to seed the exchange with the model.
 
-export const s03_chatPreamblePrompt = ai.defineDotprompt(
+export const s03_chatPreamblePrompt = ai.definePrompt(
   {
     name: 's03_chatPreamble',
     model: geminiPro,

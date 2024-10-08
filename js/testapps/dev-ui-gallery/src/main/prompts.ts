@@ -25,7 +25,7 @@ import { ai } from '../index.js';
 const promptName = 'codeDefinedPrompt';
 const template = 'Say hello to {{name}} in the voice of a {{persona}}.';
 
-export const codeDefinedPrompt = ai.defineDotprompt(
+export const codeDefinedPrompt = ai.definePrompt(
   {
     name: promptName,
     model: gemini15Flash,
@@ -67,7 +67,7 @@ export const codeDefinedPrompt = ai.defineDotprompt(
   template
 );
 
-export const codeDefinedPromptVariant = ai.defineDotprompt(
+export const codeDefinedPromptVariant = ai.definePrompt(
   {
     name: promptName,
     variant: 'jsonOutput',
