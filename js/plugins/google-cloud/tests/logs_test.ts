@@ -18,6 +18,7 @@ import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { Genkit, generate, genkit, run, z } from 'genkit';
 import { GenerateResponseData, defineModel } from 'genkit/model';
 import { runWithRegistry } from 'genkit/registry';
+import { SPAN_TYPE_ATTR, appendSpan } from 'genkit/tracing';
 import assert from 'node:assert';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { Writable } from 'stream';
@@ -165,6 +166,44 @@ describe('GoogleCloudLogs', () => {
       logMessages.includes('[info] Output[testFlow, testFlow]'),
       true
     );
+  });
+
+  it('writes user feedback log', async () => {
+    appendSpan(
+      'trace1',
+      'parent1',
+      {
+        name: 'user-feedback',
+        path: '/{flowName}',
+        metadata: {
+          subtype: 'userFeedback',
+          feedbackValue: 'negative',
+          textFeedback: 'terrible',
+        },
+      },
+      { [SPAN_TYPE_ATTR]: 'userEngagement' }
+    );
+
+    await getExportedSpans();
+    const logMessages = await getLogs(1, 100, logLines);
+    assert.equal(logMessages.includes('[info] UserFeedback[flowName]'), true);
+  });
+
+  it('writes user acceptance log', async () => {
+    appendSpan(
+      'trace1',
+      'parent1',
+      {
+        name: 'user-acceptance',
+        path: '/{flowName}',
+        metadata: { subtype: 'userAcceptance', acceptanceValue: 'rejected' },
+      },
+      { [SPAN_TYPE_ATTR]: 'userEngagement' }
+    );
+
+    await getExportedSpans();
+    const logMessages = await getLogs(1, 100, logLines);
+    assert.equal(logMessages.includes('[info] UserAcceptance[flowName]'), true);
   });
 });
 

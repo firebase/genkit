@@ -47,6 +47,7 @@ import {
 import { GENKIT_VERSION } from 'genkit';
 import { PathMetadata } from 'genkit/tracing';
 import { actionTelemetry } from './telemetry/action.js';
+import { engagementTelemetry } from './telemetry/engagement.js';
 import { flowsTelemetry } from './telemetry/flow.js';
 import { generateTelemetry } from './telemetry/generate.js';
 import { GcpTelemetryConfig } from './types';
@@ -272,6 +273,10 @@ class AdjustingTraceExporter implements SpanExporter {
 
     if (type === 'action' || type == 'flowStep') {
       actionTelemetry.tick(span, paths, this.logIO, this.projectId);
+    }
+
+    if (type === 'userEngagement') {
+      engagementTelemetry.tick(span, paths, this.logIO, this.projectId);
     }
   }
 
