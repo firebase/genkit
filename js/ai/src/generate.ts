@@ -375,7 +375,7 @@ export async function toGenerateRequest(
       promptMessage.role = inferRoleFromParts([options.prompt]);
       promptMessage.content.push(options.prompt);
     }
-    messages.push(promptMessage)
+    messages.push(promptMessage);
   }
   if (messages.length === 0) {
     throw new Error('at least one message is required in generate request');

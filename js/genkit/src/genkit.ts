@@ -71,7 +71,6 @@ import {
   defineDotprompt,
   Dotprompt,
   prompt,
-  PromptGenerateOptions,
   PromptMetadata,
 } from '@genkit-ai/dotprompt';
 import { logger } from './logging.js';
@@ -354,10 +353,10 @@ export class Genkit {
               model,
               messages: promptResult.messages,
               context: promptResult.context,
-              tools:  promptResult.tools,
-              output:  {
+              tools: promptResult.tools,
+              output: {
                 format: promptResult.output?.format,
-                jsonSchema:  promptResult.output?.schema,
+                jsonSchema: promptResult.output?.schema,
               },
               config: {
                 ...options.config,
@@ -378,10 +377,10 @@ export class Genkit {
               model,
               messages: promptResult.messages,
               context: promptResult.context,
-              tools:  promptResult.tools,
-              output:  {
+              tools: promptResult.tools,
+              output: {
                 format: promptResult.output?.format,
-                jsonSchema:  promptResult.output?.schema,
+                jsonSchema: promptResult.output?.schema,
               },
               config: {
                 ...options.config,

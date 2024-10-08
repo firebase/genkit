@@ -17,7 +17,7 @@
 import { modelRef } from '@genkit-ai/ai/model';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
-import { genkit, Genkit } from '../src/genkit';
+import { Genkit, genkit } from '../src/genkit';
 import { z } from '../src/index';
 import { defineEchoModel } from './helpers';
 
@@ -406,9 +406,12 @@ describe('definePrompt', () => {
         }
       );
 
-      const response = await hi({ name: 'Genkit' }, {
-        version: 'abc'
-      });
+      const response = await hi(
+        { name: 'Genkit' },
+        {
+          version: 'abc',
+        }
+      );
       assert.strictEqual(
         response.text(),
         'Echo: hi Genkit; config: {"temperature":11,"version":"abc"}'

@@ -272,7 +272,7 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
     opt: PromptGenerateOptions<I, CustomOptions>
   ): Promise<GenerateStreamResponse> {
     const renderedOpts = await this.renderInNewSpan<CustomOptions>(opt);
-    return generateStream(renderedOpts)
+    return generateStream(renderedOpts);
   }
 }
 

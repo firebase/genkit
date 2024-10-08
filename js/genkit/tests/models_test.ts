@@ -16,7 +16,7 @@
 
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
-import { genkit, Genkit } from '../src/genkit';
+import { Genkit, genkit } from '../src/genkit';
 import { defineEchoModel } from './helpers';
 
 describe('models', () => {
@@ -47,7 +47,10 @@ describe('models', () => {
         for await (const chunk of stream) {
           chunks.push(chunk.text());
         }
-        assert.strictEqual((await response).text(), 'Echo: hi; config: undefined');
+        assert.strictEqual(
+          (await response).text(),
+          'Echo: hi; config: undefined'
+        );
         assert.deepStrictEqual(chunks, ['3', '2', '1']);
       });
     });

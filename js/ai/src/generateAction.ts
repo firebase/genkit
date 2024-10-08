@@ -229,7 +229,7 @@ async function actionToGenerateRequest(
     messages.push(promptMessage);
   }
   if (messages.length === 0) {
-    throw new Error('at least one message is required in generate request')
+    throw new Error('at least one message is required in generate request');
   }
 
   const out = {
