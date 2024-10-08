@@ -38,7 +38,8 @@ import {
 } from '../utils';
 import { enrichResultsWithScoring, extractMetricsMetadata } from './parser';
 
-interface BulkRunResponse {
+interface InferenceRunState {
+  input: any;
   reference?: any;
   traceId?: string;
   response?: any;
@@ -190,9 +191,14 @@ async function bulkRunAction(params: {
 }): Promise<EvalInput[]> {
   const { runner, actionRef, evalFlowInput, auth, actionConfig } = params;
   const isModelAction = actionRef.startsWith('/model');
-  let inputs: any[] = Array.isArray(evalFlowInput)
-    ? (evalFlowInput as any[])
-    : evalFlowInput.samples.map((c) => c);
+  let inputs: { input: string; reference?: string }[] = Array.isArray(
+    evalFlowInput
+  )
+    ? evalFlowInput.map((i) => ({ input: i }))
+    : evalFlowInput.samples.map((c) => ({
+        input: c.input,
+        reference: c.reference,
+      }));
 
   let evalInputs: EvalInput[] = [];
   for (const sample of inputs) {
@@ -202,9 +208,9 @@ async function bulkRunAction(params: {
         await runModelAction({
           runner,
           actionRef,
-          sample,
+          input: sample.input,
           reference: sample.reference,
-          actionConfig,
+          modelConfig: actionConfig,
         })
       );
     } else {
@@ -212,7 +218,7 @@ async function bulkRunAction(params: {
         await runFlowAction({
           runner,
           actionRef,
-          sample,
+          input: sample.input,
           reference: sample.reference,
           auth,
         })
@@ -225,74 +231,78 @@ async function bulkRunAction(params: {
 async function runFlowAction(params: {
   runner: Runner;
   actionRef: string;
-  sample: any;
+  input: any;
   reference?: any;
   auth?: any;
 }): Promise<EvalInput> {
-  const { runner, actionRef, sample, auth, reference } = { ...params };
-  let runResponse: BulkRunResponse;
+  const { runner, actionRef, input, auth, reference } = { ...params };
+  let state: InferenceRunState;
   try {
-    const input = FlowActionInputSchema.parse({
+    const flowInput = FlowActionInputSchema.parse({
       start: {
-        input: sample,
+        input,
       },
       auth: auth ? JSON.parse(auth) : undefined,
     });
     const runActionResponse = await runner.runAction({
       key: actionRef,
-      input,
+      input: flowInput,
     });
-    runResponse = {
+    state = {
       reference,
+      input,
       traceId: runActionResponse.telemetry?.traceId,
       response: runActionResponse.result,
     };
   } catch (e: any) {
     const traceId = e?.data?.details?.traceId;
-    runResponse = {
+    state = {
+      input,
       reference,
       traceId,
-      evalError: 'Error when running inference',
+      evalError: `Error when running inference. Details: ${e?.message ?? e}`,
     };
   }
-  return gatherOutputs({ runner, actionRef, state: runResponse });
+  return gatherEvalInput({ runner, actionRef, state });
 }
 
 async function runModelAction(params: {
   runner: Runner;
   actionRef: string;
-  sample: any;
+  input: any;
   reference?: any;
-  actionConfig?: any;
+  modelConfig?: any;
 }): Promise<EvalInput> {
-  const { runner, actionRef, sample, actionConfig, reference } = { ...params };
-  let runResponse: BulkRunResponse;
+  const { runner, actionRef, input, modelConfig, reference } = { ...params };
+  let state: InferenceRunState;
   try {
-    const input = getModelInput(sample, actionConfig);
+    const modelInput = getModelInput(input, modelConfig);
     const runActionResponse = await runner.runAction({
       key: actionRef,
-      input,
+      input: modelInput,
     });
-    runResponse = {
+    state = {
+      input,
       reference,
       traceId: runActionResponse.telemetry?.traceId,
       response: runActionResponse.result,
     };
   } catch (e: any) {
     const traceId = e?.data?.details?.traceId;
-    runResponse = {
+    state = {
+      input,
       reference,
       traceId,
-      evalError: 'Error when running inference',
+      evalError: `Error when running inference. Details: ${e?.message ?? e}`,
     };
   }
-  return gatherOutputs({ runner, actionRef, state: runResponse });
+  return gatherEvalInput({ runner, actionRef, state });
 }
 
-async function gatherOutputs(params: {
+async function gatherEvalInput(params: {
   runner: Runner;
   actionRef: string;
-  state: BulkRunResponse;
+  state: InferenceRunState;
 }): Promise<EvalInput> {
   const { runner, actionRef, state } = params;
 
@@ -302,6 +312,7 @@ async function gatherOutputs(params: {
     logger.warn('No traceId available...');
     return {
       ...state,
+      error: state.evalError,
       testCaseId: randomUUID(),
       traceIds: [],
     };
@@ -315,7 +326,9 @@ async function gatherOutputs(params: {
     traceId,
   });
 
-  const input = extractors.input(trace);
+  const isModelAction = actionRef.startsWith('/model');
+  // Always use original input for models.
+  const input = isModelAction ? state.input : extractors.input(trace);
 
   const nestedSpan = stackTraceSpans(trace);
   if (!nestedSpan) {
@@ -372,7 +385,7 @@ function isSupportedActionRef(actionRef: string) {
   );
 }
 
-function getModelInput(d: any, actionConfig: any): GenerateRequest {
+function getModelInput(d: any, modelConfig: any): GenerateRequest {
   let message: MessageData;
   if (typeof d === 'string') {
     message = {
@@ -395,6 +408,6 @@ function getModelInput(d: any, actionConfig: any): GenerateRequest {
   }
   return {
     messages: message ? [message] : [],
-    config: actionConfig,
+    config: modelConfig,
   };
 }

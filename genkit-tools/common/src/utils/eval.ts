@@ -24,11 +24,6 @@ import {
   findToolsConfig,
   isEvalField,
 } from '../plugin';
-import {
-  GenerateRequestSchema,
-  GenerateResponseSchema,
-  MessageData,
-} from '../types';
 import { Action } from '../types/action';
 import { DocumentData, RetrieverResponse } from '../types/retrievers';
 import { NestedSpanData, TraceData } from '../types/trace';
@@ -114,61 +109,11 @@ const DEFAULT_FLOW_EXTRACTORS: Record<EvalField, EvalExtractorFn> = {
   context: DEFAULT_CONTEXT_EXTRACTOR,
 };
 
-const DEFAULT_MODEL_INPUT_EXTRACTOR: EvalExtractorFn = (trace: TraceData) => {
-  const rootSpan = getRootSpan(trace);
-  const modelInput = rootSpan?.attributes['genkit:input'] as string;
-  if (!modelInput) {
-    return JSON_EMPTY_STRING;
-  }
-  try {
-    const generateRequest = GenerateRequestSchema.parse(JSON.parse(modelInput));
-    // TODO(ssbushi): Better input handling.
-    let texts = [];
-    for (const message of generateRequest.messages) {
-      texts.push(renderMessageParts(message));
-    }
-    return JSON.stringify(texts);
-  } catch (e) {
-    return JSON_EMPTY_STRING;
-  }
-};
-
-const DEFAULT_MODEL_OUTPUT_EXTRACTOR: EvalExtractorFn = (trace: TraceData) => {
-  const rootSpan = getRootSpan(trace);
-  const modelOutput = rootSpan?.attributes['genkit:output'] as string;
-  if (!modelOutput) {
-    return JSON_EMPTY_STRING;
-  }
-  try {
-    const generateResponse = GenerateResponseSchema.parse(
-      JSON.parse(modelOutput)
-    );
-    const candidate = generateResponse.candidates[0]; // only use the first candidate
-    const text = renderMessageParts(candidate.message);
-    return JSON.stringify(text);
-  } catch (e) {
-    return JSON_EMPTY_STRING;
-  }
-};
-
 const DEFAULT_MODEL_EXTRACTORS: Record<EvalField, EvalExtractorFn> = {
-  input: DEFAULT_MODEL_INPUT_EXTRACTOR,
-  output: DEFAULT_MODEL_OUTPUT_EXTRACTOR,
+  input: DEFAULT_INPUT_EXTRACTOR,
+  output: DEFAULT_OUTPUT_EXTRACTOR,
   context: () => JSON.stringify([]),
 };
-
-function renderMessageParts(message: MessageData): string {
-  let responses: string[] = [];
-  for (let part of message.content) {
-    if (part.text) {
-      responses.push(part.text);
-    } else {
-      // Support more types as needed
-      continue;
-    }
-  }
-  return responses.join('\n');
-}
 
 function getStepAttribute(
   trace: TraceData,
@@ -242,17 +187,20 @@ function getExtractorMap(extractor: EvaluationExtractor) {
 export async function getEvalExtractors(
   actionRef: string
 ): Promise<Record<string, EvalExtractorFn>> {
+  if (actionRef.startsWith('/model')) {
+    // Always use defaults for model extraction.
+    logger.debug(
+      'getEvalExtractors - modelRef provided, using default extractors'
+    );
+    return Promise.resolve(DEFAULT_MODEL_EXTRACTORS);
+  }
   const config = await findToolsConfig();
   logger.info(`Found tools config... ${JSON.stringify(config)}`);
   const extractors = config?.evaluators
     ?.filter((e) => e.actionRef === actionRef)
     .map((e) => e.extractors);
   if (!extractors) {
-    if (actionRef.startsWith('/model')) {
-      return Promise.resolve(DEFAULT_MODEL_EXTRACTORS);
-    } else {
-      return Promise.resolve(DEFAULT_FLOW_EXTRACTORS);
-    }
+    return Promise.resolve(DEFAULT_FLOW_EXTRACTORS);
   }
   let composedExtractors = DEFAULT_FLOW_EXTRACTORS;
   for (const extractor of extractors) {
