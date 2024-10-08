@@ -108,6 +108,12 @@ export interface ExecutablePrompt<
     opts?: z.infer<CustomOptions>
   ): Promise<GenerateResponse>;
 
+  /**
+   * Generates a streaming response by rendering the prompt template with given user input and then calling the model.
+   *
+   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
+   * @returns the model response as a promise of `GenerateStreamResponse`.
+   */
   stream(
     input?: z.infer<I>,
     opts?: z.infer<CustomOptions>
@@ -132,6 +138,16 @@ export interface ExecutablePrompt<
   generateStream(
     opt: PromptGenerateOptions<z.infer<I>, CustomOptions>
   ): Promise<GenerateStreamResponse<O>>;
+
+  /**
+   * Renders the prompt template based on user input.
+   *
+   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
+   * @returns a `GenerateOptions` object to be used with the `generate()` function from @genkit-ai/ai.
+   */
+  render(
+    opt: PromptGenerateOptions<z.infer<I>, CustomOptions>
+  ): Promise<GenerateOptions<CustomOptions, O>>;
 }
 
 /**
@@ -359,6 +375,17 @@ export class Genkit {
             }) as Promise<GenerateStreamResponse<O>>;
           });
         };
+        (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).render = (
+          opt: PromptGenerateOptions<I, CustomOptions>
+        ): Promise<GenerateOptions<CustomOptions, O>> => {
+          return runWithRegistry(
+            this.registry,
+            async () =>
+              p.render({
+                ...opt,
+              }) as GenerateOptions<CustomOptions, O>
+          );
+        };
         return executablePrompt as ExecutablePrompt<I, O, CustomOptions>;
       } else {
         const p = definePrompt(
@@ -470,6 +497,32 @@ export class Genkit {
                 ...opt.config,
               },
             });
+          });
+        };
+        (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).render = (
+          opt: PromptGenerateOptions<I, CustomOptions>
+        ): Promise<GenerateOptions<CustomOptions, O>> => {
+          return runWithRegistry(this.registry, async () => {
+            const model = !opt.model
+              ? await this.resolveModel(options.model)
+              : undefined;
+            const promptResult = await p(opt.input);
+            return {
+              model,
+              messages: promptResult.messages,
+              context: promptResult.context,
+              tools: promptResult.tools,
+              output: {
+                format: promptResult.output?.format,
+                jsonSchema: promptResult.output?.schema,
+              },
+              ...opt,
+              config: {
+                ...options.config,
+                ...promptResult.config,
+                ...opt.config,
+              },
+            } as GenerateOptions<CustomOptions, O>;
           });
         };
         return executablePrompt as ExecutablePrompt<I, O, CustomOptions>;

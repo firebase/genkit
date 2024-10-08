@@ -242,6 +242,51 @@ describe('definePrompt - dotprompt', () => {
       );
     });
   });
+
+  describe('render', () => {
+    let ai: Genkit;
+
+    beforeEach(() => {
+      ai = genkit({});
+      defineEchoModel(ai);
+    });
+
+    it('renderes dotprompt messages', async () => {
+      const hi = ai.definePrompt(
+        {
+          name: 'hi',
+          input: {
+            schema: z.object({
+              name: z.string(),
+            }),
+          },
+        },
+        'hi {{ name }}'
+      );
+
+      const response = await hi.render({ input: { name: 'Genkit' } });
+      delete response.model; // ignore
+      assert.deepStrictEqual(response, {
+        config: {},
+        context: undefined,
+        messages: [],
+        prompt: [
+          {
+            text: 'hi Genkit',
+          },
+        ],
+        output: {
+          format: undefined,
+          jsonSchema: undefined,
+          schema: undefined,
+        },
+        returnToolRequests: undefined,
+        streamingCallback: undefined,
+        tools: [],
+        use: undefined,
+      });
+    });
+  });
 });
 
 describe('definePrompt', () => {
@@ -539,6 +584,61 @@ describe('definePrompt', () => {
         'Echo: hi Genkit; config: {"temperature":11,"version":"abc"}'
       );
       assert.deepStrictEqual(chunks, ['3', '2', '1']);
+    });
+  });
+
+  describe('render', () => {
+    let ai: Genkit;
+
+    beforeEach(() => {
+      ai = genkit({});
+      defineEchoModel(ai);
+    });
+
+    it('renders prompt', async () => {
+      const hi = ai.definePrompt(
+        {
+          name: 'hi',
+          model: 'echoModel',
+          input: {
+            schema: z.object({
+              name: z.string(),
+            }),
+          },
+        },
+        async (input) => {
+          return {
+            messages: [
+              { role: 'user', content: [{ text: `hi ${input.name}` }] },
+            ],
+          };
+        }
+      );
+
+      const response = await hi.render({ input: { name: 'Genkit' } });
+      delete response.model; // ignore
+      assert.deepStrictEqual(response, {
+        config: {},
+        context: undefined,
+        input: {
+          name: 'Genkit',
+        },
+        messages: [
+          {
+            content: [
+              {
+                text: 'hi Genkit',
+              },
+            ],
+            role: 'user',
+          },
+        ],
+        output: {
+          format: undefined,
+          jsonSchema: undefined,
+        },
+        tools: undefined,
+      });
     });
   });
 });
