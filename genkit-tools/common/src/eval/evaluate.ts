@@ -385,19 +385,19 @@ function isSupportedActionRef(actionRef: string) {
   );
 }
 
-function getModelInput(d: any, modelConfig: any): GenerateRequest {
+function getModelInput(data: any, modelConfig: any): GenerateRequest {
   let message: MessageData;
-  if (typeof d === 'string') {
+  if (typeof data === 'string') {
     message = {
       role: 'user',
       content: [
         {
-          text: d,
+          text: data,
         },
       ],
     } as MessageData;
   } else {
-    const maybeMessage = MessageSchema.safeParse(d);
+    const maybeMessage = MessageSchema.safeParse(data);
     if (maybeMessage.success) {
       message = maybeMessage.data;
     } else {
