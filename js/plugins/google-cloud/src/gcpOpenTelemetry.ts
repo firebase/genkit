@@ -50,6 +50,7 @@ import { extractErrorName } from './utils';
 
 import { PathMetadata } from '@genkit-ai/core/tracing';
 import { actionTelemetry } from './telemetry/action.js';
+import { engagementTelemetry } from './telemetry/engagement.js';
 import { flowsTelemetry } from './telemetry/flow.js';
 import { generateTelemetry } from './telemetry/generate.js';
 import { GcpPluginConfig } from './types';
@@ -274,6 +275,10 @@ class AdjustingTraceExporter implements SpanExporter {
 
     if (type === 'action' || type == 'flowStep') {
       actionTelemetry.tick(span, paths, this.logIO, this.projectId);
+    }
+
+    if (type === 'userEngagement') {
+      engagementTelemetry.tick(span, paths, this.logIO, this.projectId);
     }
   }
 

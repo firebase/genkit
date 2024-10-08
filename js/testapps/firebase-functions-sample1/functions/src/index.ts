@@ -22,7 +22,7 @@ import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
 import { run, runFlow, streamFlow } from '@genkit-ai/flow';
 import { geminiPro, vertexAI } from '@genkit-ai/vertexai';
 import { onRequest } from 'firebase-functions/v2/https';
-import * as z from 'zod';
+import { genkit, run, z } from 'genkit';
 
 configureGenkit({
   plugins: [firebase(), vertexAI()],
@@ -30,7 +30,27 @@ configureGenkit({
   traceStore: 'firebase',
   enableTracingAndMetrics: true,
   logLevel: 'debug',
+  telemetry: {
+    instrumentation: 'firebase',
+    logger: 'firebase',
+  },
 });
+
+export const simpleFlow = onFlow(
+  ai,
+  {
+    name: 'simpleFlow',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+    httpsOptions: {
+      cors: '*',
+    },
+    authPolicy: noAuth(),
+  },
+  async (subject) => {
+    return 'hello world!';
+  }
+);
 
 export const jokeFlow = onFlow(
   {
@@ -123,5 +143,14 @@ export const triggerJokeFlow = onRequest(
     });
     console.log('operation', op);
     res.send(op);
+  }
+);
+
+/** Example of user engagement collection using Firebase Functions. */
+export const collectEngagement = onRequest(
+  { memory: '512MiB' },
+  async (req, res) => {
+    collectUserEngagement(FirebaseUserEngagementSchema.parse(req.body));
+    res.send({});
   }
 );

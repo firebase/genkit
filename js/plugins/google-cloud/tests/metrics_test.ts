@@ -600,6 +600,57 @@ describe('GoogleCloudMetrics', () => {
     ]);
   });
 
+  it('writes user feedback metrics', async () => {
+    appendSpan(
+      'trace1',
+      'parent1',
+      {
+        name: 'user-feedback',
+        path: '/{flowName}',
+        metadata: {
+          subtype: 'userFeedback',
+          feedbackValue: 'negative',
+          textFeedback: 'terrible',
+        },
+      },
+      { [SPAN_TYPE_ATTR]: 'userEngagement' }
+    );
+
+    await getExportedSpans();
+    const dataPoints = await getCounterDataPoints('genkit/engagement/feedback');
+
+    const points = dataPoints.map((p) => [
+      p.attributes.name,
+      p.attributes.value,
+      p.attributes.hasText,
+    ]);
+    assert.deepEqual(points, [['flowName', 'negative', true]]);
+  });
+
+  it('writes user acceptance metrics', async () => {
+    appendSpan(
+      'trace1',
+      'parent1',
+      {
+        name: 'user-acceptance',
+        path: '/{flowName}',
+        metadata: { subtype: 'userAcceptance', acceptanceValue: 'rejected' },
+      },
+      { [SPAN_TYPE_ATTR]: 'userEngagement' }
+    );
+
+    await getExportedSpans();
+    const dataPoints = await getCounterDataPoints(
+      'genkit/engagement/acceptance'
+    );
+
+    const points = dataPoints.map((p) => [
+      p.attributes.name,
+      p.attributes.value,
+    ]);
+    assert.deepEqual(points, [['flowName', 'rejected']]);
+  });
+
   describe('Configuration', () => {
     it('should export only traces', async () => {
       const plug = await build({
