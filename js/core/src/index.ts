@@ -24,10 +24,10 @@ export * from './action.js';
 export { getFlowAuth } from './auth.js';
 export { GenkitError } from './error.js';
 export {
-  Flow,
-  FlowServer,
   defineFlow,
   defineStreamingFlow,
+  Flow,
+  FlowServer,
   run,
   type CallableFlow,
   type FlowAuthPolicy,
@@ -41,6 +41,6 @@ export {
 export * from './flowTypes.js';
 export * from './plugin.js';
 export * from './reflection.js';
-export { JSONSchema, defineJsonSchema, defineSchema } from './schema.js';
+export { defineJsonSchema, defineSchema, type JSONSchema } from './schema.js';
 export * from './telemetryTypes.js';
 export * from './utils.js';
