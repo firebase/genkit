@@ -245,6 +245,7 @@ class AdjustingTraceExporter implements SpanExporter {
       span = this.markErrorSpanAsError(span);
       span = this.markFailedAction(span);
       span = this.markGenkitFeature(span);
+      span = this.markGenkitModel(span);
       span = this.normalizeLabels(span);
       return span;
     });
@@ -340,6 +341,16 @@ class AdjustingTraceExporter implements SpanExporter {
   private markGenkitFeature(span: ReadableSpan): ReadableSpan {
     if (span.attributes['genkit:isRoot'] && span.attributes['genkit:name']) {
       span.attributes['genkit:feature'] = span.attributes['genkit:name'];
+    }
+    return span;
+  }
+
+  private markGenkitModel(span: ReadableSpan): ReadableSpan {
+    if (
+      span.attributes['genkit:metadata:subtype'] === 'model' &&
+      span.attributes['genkit:name']
+    ) {
+      span.attributes['genkit:model'] = span.attributes['genkit:name'];
     }
     return span;
   }

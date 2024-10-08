@@ -7,7 +7,7 @@
     "start": "node lib/index.js",
     "compile": "tsc",
     "build": "pnpm build:clean && pnpm compile",
-    "build:clean": "rm -rf ./lib",
+    "build:clean": "rimraf ./lib",
     "build:watch": "tsc --watch"
   },
   "keywords": [],
@@ -22,6 +22,7 @@
     "@genkit-ai/vertexai": "workspace:*"
   },
   "devDependencies": {
+    "rimraf": "^6.0.1",
     "typescript": "^5.3.3"
   }
 }
