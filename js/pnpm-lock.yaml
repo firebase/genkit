@@ -1157,6 +1157,9 @@ importers:
       '@types/pdf-parse':
         specifier: ^1.1.4
         version: 1.1.4
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       typescript:
         specifier: ^5.3.3
         version: 5.4.5
