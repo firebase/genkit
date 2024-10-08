@@ -14,18 +14,19 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "genkit": "workspace:*",
     "@genkit-ai/dev-local-vectorstore": "workspace:*",
     "@genkit-ai/evaluator": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
+    "genkit": "workspace:*",
     "genkitx-chromadb": "workspace:*",
     "genkitx-langchain": "workspace:*",
     "genkitx-pinecone": "workspace:*",
     "google-auth-library": "^9.6.3",
     "llm-chunk": "^0.0.1",
-    "pdf-parse": "^1.1.1"
+    "pdf-parse": "^1.1.1",
+    "rimraf": "^6.0.1"
   },
   "devDependencies": {
     "@types/pdf-parse": "^1.1.4",
