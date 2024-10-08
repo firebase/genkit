@@ -22,12 +22,12 @@ import {
 
 import { readFileSync } from 'fs';
 import { basename } from 'path';
-import { defineDotprompt, Dotprompt, DotpromptRef } from './prompt.js';
+import { defineDotprompt, Dotprompt, DotpromptRef, PromptGenerateOptions } from './prompt.js';
 import { loadPromptFolder, lookupPrompt } from './registry.js';
 
 export { type PromptMetadata } from './metadata.js';
 export { defineHelper, definePartial } from './template.js';
-export { defineDotprompt, Dotprompt };
+export { defineDotprompt, Dotprompt, PromptGenerateOptions };
 
 export interface DotpromptPluginOptions {
   // Directory to look for .prompt files.

@@ -290,7 +290,7 @@ export class GenerateResponseChunk<T = unknown>
   implements GenerateResponseChunkData
 {
   /** The index of the candidate this chunk corresponds to. */
-  index: number;
+  index?: number;
   /** The content generated in this chunk. */
   content: Part[];
   /** Custom model-specific data for this chunk. */
@@ -363,17 +363,23 @@ export class GenerateResponseChunk<T = unknown>
 export async function toGenerateRequest(
   options: GenerateOptions
 ): Promise<GenerateRequest> {
-  const promptMessage: MessageData = { role: 'user', content: [] };
-  if (typeof options.prompt === 'string') {
-    promptMessage.content.push({ text: options.prompt });
-  } else if (Array.isArray(options.prompt)) {
-    promptMessage.role = inferRoleFromParts(options.prompt);
-    promptMessage.content.push(...options.prompt);
-  } else {
-    promptMessage.role = inferRoleFromParts([options.prompt]);
-    promptMessage.content.push(options.prompt);
+  const messages: MessageData[] = [...(options.messages || [])];
+  if (options.prompt) {
+    const promptMessage: MessageData = { role: 'user', content: [] };
+    if (typeof options.prompt === 'string') {
+      promptMessage.content.push({ text: options.prompt });
+    } else if (Array.isArray(options.prompt)) {
+      promptMessage.role = inferRoleFromParts(options.prompt);
+      promptMessage.content.push(...options.prompt);
+    } else {
+      promptMessage.role = inferRoleFromParts([options.prompt]);
+      promptMessage.content.push(options.prompt);
+    }
+    messages.push(promptMessage)
   }
-  const messages: MessageData[] = [...(options.history || []), promptMessage];
+  if (messages.length === 0) {
+    throw new Error('at least one message is required in generate request');
+  }
   let tools: Action<any, any>[] | undefined;
   if (options.tools) {
     tools = await resolveTools(options.tools);
@@ -407,11 +413,11 @@ export interface GenerateOptions<
   /** A model name (e.g. `vertexai/gemini-1.0-pro`) or reference. */
   model?: ModelArgument<CustomOptions>;
   /** The prompt for which to generate a response. Can be a string for a simple text prompt or one or more parts for multi-modal prompts. */
-  prompt: string | Part | Part[];
+  prompt?: string | Part | Part[];
   /** Retrieved documents to be used as context for this generation. */
   context?: DocumentData[];
   /** Conversation history for multi-turn prompting when supported by the underlying model. */
-  history?: MessageData[];
+  messages?: MessageData[];
   /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
   tools?: ToolArgument[];
   /** Configuration for the generation request. */
@@ -433,22 +439,7 @@ export interface GenerateOptions<
 async function resolveModel(options: GenerateOptions): Promise<ModelAction> {
   let model = options.model;
   if (!model) {
-    // TODO: Fix this...
-    // if (genkitConfig?.options?.defaultModel) {
-    //   model =
-    //     typeof genkitConfig.options.defaultModel.name === 'string'
-    //       ? genkitConfig.options.defaultModel.name
-    //       : genkitConfig.options.defaultModel.name.name;
-    //   if (
-    //     (!options.config || Object.keys(options.config).length === 0) &&
-    //     genkitConfig.options.defaultModel.config
-    //   ) {
-    //     // use configured global config
-    //     options.config = genkitConfig.options.defaultModel.config;
-    //   }
-    // } else {
     throw new Error('Unable to resolve model.');
-    // }
   }
   if (typeof model === 'string') {
     return (await lookupAction(`/model/${model}`)) as ModelAction;
@@ -538,7 +529,7 @@ export async function generate<
     model: model.__action.name,
     prompt: resolvedOptions.prompt,
     context: resolvedOptions.context,
-    history: resolvedOptions.history,
+    messages: resolvedOptions.messages,
     tools,
     config: resolvedOptions.config,
     output: resolvedOptions.output && {
@@ -569,8 +560,8 @@ export type GenerateStreamOptions<
 > = Omit<GenerateOptions<O, CustomOptions>, 'streamingCallback'>;
 
 export interface GenerateStreamResponse<O extends z.ZodTypeAny = z.ZodTypeAny> {
-  stream: () => AsyncIterable<GenerateResponseChunkData>;
-  response: () => Promise<GenerateResponse<O>>;
+  get stream(): AsyncIterable<GenerateResponseChunk>;
+  get response(): Promise<GenerateResponse<O>>;
 }
 
 function createPromise<T>(): {
@@ -602,8 +593,8 @@ export async function generateStream<
 
       let provideNextChunk, nextChunk;
       ({ resolve: provideNextChunk, promise: nextChunk } =
-        createPromise<GenerateResponseChunkData | null>());
-      async function* chunkStream(): AsyncIterable<GenerateResponseChunkData> {
+        createPromise<GenerateResponseChunk | null>());
+      async function* chunkStream(): AsyncIterable<GenerateResponseChunk> {
         while (true) {
           const next = await nextChunk;
           if (!next) break;
@@ -618,7 +609,7 @@ export async function generateStream<
             firstChunkSent = true;
             provideNextChunk(chunk);
             ({ resolve: provideNextChunk, promise: nextChunk } =
-              createPromise<GenerateResponseChunkData | null>());
+              createPromise<GenerateResponseChunk | null>());
           },
         }).then((result) => {
           provideNextChunk(null);
@@ -634,8 +625,12 @@ export async function generateStream<
       }
 
       initialResolve({
-        response: () => finalPromise,
-        stream: chunkStream,
+        get response() {
+          return finalPromise;
+        },
+        get stream() {
+          return chunkStream();
+        },
       });
     }
   );

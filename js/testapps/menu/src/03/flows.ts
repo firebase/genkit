@@ -58,7 +58,7 @@ export const s03_multiTurnChatFlow = ai.defineFlow(
     // Generate the response
     const llmResponse = await ai.generate({
       model: geminiPro,
-      history: history,
+      messages: history,
       prompt: {
         text: input.question,
       },
