@@ -56,7 +56,7 @@ See the following code samples for a concrete idea of how to use these capabilit
 - {Basic generation}
 
   ```javascript
-  import { generate } from `@genkit-ai/ai`;
+  import { generate } from '@genkit-ai/ai';
   import { gemini15Flash, claude3Sonnet, llama31 } from '@genkit-ai/vertexai';
   import { gpt4o } from 'genkitx-openai';
 
@@ -70,9 +70,9 @@ See the following code samples for a concrete idea of how to use these capabilit
 - {Structured generation}
 
   ```javascript
-  import { generate } from `@genkit-ai/ai`;
-  import { gemini15Flash } from `@genkit-ai/googleai`;
-  import { z } from `zod`;
+  import { generate } from '@genkit-ai/ai';
+  import { gemini15Flash } from '@genkit-ai/googleai';
+  import { z } from 'zod';
 
   const result = await generate({
       model: gemini15Flash,
@@ -95,9 +95,9 @@ See the following code samples for a concrete idea of how to use these capabilit
 - {Tool calling}
 
   ```javascript
-  import { generate, defineTool } from `@genkit-ai/ai`;
-  import { gemini15Flash } from `@genkit-ai/googleai`;
-  import { z } from `zod`;
+  import { generate, defineTool } from '@genkit-ai/ai';
+  import { gemini15Flash } from '@genkit-ai/googleai';
+  import { z } from 'zod';
 
   // Define tool to get weather data for a given location
   const lookupWeather = defineTool({
@@ -126,9 +126,9 @@ See the following code samples for a concrete idea of how to use these capabilit
 - {Retrieval}
 
   ```javascript
-  import { generate, retrieve } from `@genkit-ai/ai`;
+  import { generate, retrieve } from '@genkit-ai/ai';
   import { devLocalRetrieverRef } from '@genkit-ai/dev-local-vectorstore';
-  import { gemini15Flash } from `@genkit-ai/googleai`;
+  import { gemini15Flash } from '@genkit-ai/googleai';
 
   // Sample assumes Genkit documentation has been chunked, stored, and indexed in 
   // local vectorstore in previous step.
