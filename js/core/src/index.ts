@@ -24,10 +24,10 @@ export * from './action.js';
 export { getFlowAuth } from './auth.js';
 export { GenkitError } from './error.js';
 export {
-  defineFlow,
-  defineStreamingFlow,
   Flow,
   FlowServer,
+  defineFlow,
+  defineStreamingFlow,
   run,
   type CallableFlow,
   type FlowAuthPolicy,

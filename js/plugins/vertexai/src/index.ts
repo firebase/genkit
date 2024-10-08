@@ -18,6 +18,9 @@ import { VertexAI } from '@google-cloud/vertexai';
 import { genkitPlugin, Plugin, z } from 'genkit';
 import { GenerateRequest } from 'genkit/model';
 import { IndexerAction, RetrieverAction } from 'genkit/retriever';
+import { authenticate } from './common/auth.js';
+import { confError, DEFAULT_LOCATION } from './common/global.js';
+import { BasePluginOptions } from './common/types.js';
 import {
   SUPPORTED_EMBEDDER_MODELS,
   textEmbedding004,
@@ -58,9 +61,6 @@ import {
   vertexAiIndexers,
   vertexAiRetrievers,
 } from './vector-search';
-import { authenticate } from './common/auth.js';
-import { BasePluginOptions } from './common/types.js';
-import { confError, DEFAULT_LOCATION } from './common/global.js';
 export {
   DocumentIndexer,
   DocumentRetriever,
