@@ -22,12 +22,7 @@ import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
 import { VertexAIEvaluationMetric } from './evaluation.js';
 import { GeminiConfigSchema } from './gemini.js';
 import { VertexRerankerConfig } from './reranker.js';
-import {
-  VectorSearchOptions,
-  DocumentIndexer,
-  DocumentRetriever,
-  Neighbor
-} from './vector-search';
+import { VectorSearchOptions } from './vector-search';
 
 let DocumentIndexerExport;
 let DocumentRetrieverExport;
@@ -321,9 +316,7 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
         vertexAiIndexers,
         vertexAiRetrieverRef,
         vertexAiRetrievers,
-      } = await import(
-        './vector-search/index.js'
-      );
+      } = await import('./vector-search/index.js');
 
       getBigQueryDocumentIndexerExport = getBigQueryDocumentIndexer;
       getBigQueryDocumentRetrieverExport = getBigQueryDocumentRetriever;
@@ -377,35 +370,29 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
 );
 
 export {
-  VectorSearchOptions,
-  DocumentIndexerExport as DocumentIndexer,
-  DocumentRetrieverExport as DocumentRetriever,
-  getBigQueryDocumentIndexerExport as getBigQueryDocumentIndexer,
-  getBigQueryDocumentRetrieverExport as getBigQueryDocumentRetriever,
-  getFirestoreDocumentIndexerExport as getFirestoreDocumentIndexer,
-  getFirestoreDocumentRetrieverExport as getFirestoreDocumentRetriever,
-  NeighborExport as Neighbor,
-  vertexAiIndexerRefExport as vertexAiIndexerRef,
-  vertexAiIndexersExport as vertexAiIndexers,
-  vertexAiRetrieverRefExport as vertexAiRetrieverRef,
-  vertexAiRetrieversExport as vertexAiRetrievers,
-
   claude35SonnetExport as claude35Sonnet,
   claude3HaikuExport as claude3Haiku,
   claude3OpusExport as claude3Opus,
   claude3SonnetExport as claude3Sonnet,
+  DocumentIndexerExport as DocumentIndexer,
+  DocumentRetrieverExport as DocumentRetriever,
   gemini15FlashExport as gemini15Flash,
   gemini15FlashPreviewExport as gemini15FlashPreview,
   gemini15ProExport as gemini15Pro,
   gemini15ProPreviewExport as gemini15ProPreview,
   geminiProExport as geminiPro,
   geminiProVisionExport as geminiProVision,
+  getBigQueryDocumentIndexerExport as getBigQueryDocumentIndexer,
+  getBigQueryDocumentRetrieverExport as getBigQueryDocumentRetriever,
+  getFirestoreDocumentIndexerExport as getFirestoreDocumentIndexer,
+  getFirestoreDocumentRetrieverExport as getFirestoreDocumentRetriever,
   imagen2Export as imagen2,
   imagen3Export as imagen3,
   imagen3FastExport as imagen3Fast,
   llama3Export as llama3,
   llama31Export as llama31,
   llama32Export as llama32,
+  NeighborExport as Neighbor,
   textEmbedding004Export as textEmbedding004,
   textEmbeddingGeckoExport as textEmbeddingGecko,
   textEmbeddingGecko001Export as textEmbeddingGecko001,
@@ -413,7 +400,12 @@ export {
   textEmbeddingGecko003Export as textEmbeddingGecko003,
   textEmbeddingGeckoMultilingual001Export as textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002Export as textMultilingualEmbedding002,
+  VectorSearchOptions,
   VertexAIEvaluationMetricTypeExport as VertexAIEvaluationMetricType,
+  vertexAiIndexerRefExport as vertexAiIndexerRef,
+  vertexAiIndexersExport as vertexAiIndexers,
+  vertexAiRetrieverRefExport as vertexAiRetrieverRef,
+  vertexAiRetrieversExport as vertexAiRetrievers,
 };
 
 export default vertexAI;
