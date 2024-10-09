@@ -18,7 +18,7 @@ import { GenerateRequest, ModelReference } from '@genkit-ai/ai/model';
 import { IndexerAction, RetrieverAction } from '@genkit-ai/ai/retriever';
 import { Plugin, genkitPlugin } from '@genkit-ai/core';
 import { VertexAI } from '@google-cloud/vertexai';
-import { embed, GenkitError, genkitPlugin, Plugin, z } from 'genkit';
+import { GenkitError, genkitPlugin, Plugin, z } from 'genkit';
 import { GenerateRequest, ModelReference } from 'genkit/model';
 import { IndexerAction, RetrieverAction } from 'genkit/retriever';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
@@ -131,11 +131,38 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       return vertexClientFactoryCache[requestLocation];
     };
 
-    const models = await loadModels(projectId, location, options, authClient, vertexClientFactory);
-    const embedders = await loadEmbedders(projectId, location, options, authClient);
-    const evaluators = await loadEvaluators(projectId, location, options, authClient);
-    const { indexers, retrievers } = await loadVectorSearch(projectId, location, options, authClient, embedders);
-    const rerankers = await loadRerankers(projectId, location, options, authClient);
+    const models = await loadModels(
+      projectId,
+      location,
+      options,
+      authClient,
+      vertexClientFactory
+    );
+    const embedders = await loadEmbedders(
+      projectId,
+      location,
+      options,
+      authClient
+    );
+    const evaluators = await loadEvaluators(
+      projectId,
+      location,
+      options,
+      authClient
+    );
+    const { indexers, retrievers } = await loadVectorSearch(
+      projectId,
+      location,
+      options,
+      authClient,
+      embedders
+    );
+    const rerankers = await loadRerankers(
+      projectId,
+      location,
+      options,
+      authClient
+    );
 
     return {
       models,
@@ -267,8 +294,7 @@ async function loadModels(
     claude3OpusExport = claude3Opus;
     claude3SonnetExport = claude3Sonnet;
 
-    const mgModels =
-      options?.modelGardenModels || options?.modelGarden?.models;
+    const mgModels = options?.modelGardenModels || options?.modelGarden?.models;
     mgModels!.forEach((m) => {
       const anthropicEntry = Object.entries(SUPPORTED_ANTHROPIC_MODELS).find(
         ([_, value]) => value.name === m.name
@@ -303,7 +329,7 @@ async function loadEmbedders(
   projectId: string,
   location: string,
   options: PluginOptions | undefined,
-  authClient: GoogleAuth,
+  authClient: GoogleAuth
 ) {
   let embedders: any[] = [];
 
@@ -325,8 +351,7 @@ async function loadEmbedders(
     textEmbeddingGecko001Export = textEmbeddingGecko001;
     textEmbeddingGecko002Export = textEmbeddingGecko002;
     textEmbeddingGecko003Export = textEmbeddingGecko003;
-    textEmbeddingGeckoMultilingual001Export =
-      textEmbeddingGeckoMultilingual001;
+    textEmbeddingGeckoMultilingual001Export = textEmbeddingGeckoMultilingual001;
     textMultilingualEmbedding002Export = textMultilingualEmbedding002;
 
     embedders.push(
@@ -339,11 +364,16 @@ async function loadEmbedders(
   return embedders;
 }
 
-async function loadEvaluators(projectId: string, location: string, options: PluginOptions | undefined, authClient: GoogleAuth) {
+async function loadEvaluators(
+  projectId: string,
+  location: string,
+  options: PluginOptions | undefined,
+  authClient: GoogleAuth
+) {
   const metrics =
-  options?.evaluation && options.evaluation.metrics.length > 0
-    ? options.evaluation.metrics
-    : [];
+    options?.evaluation && options.evaluation.metrics.length > 0
+      ? options.evaluation.metrics
+      : [];
   let evaluators: any = null;
 
   if (options?.excludeEvaluators && metrics.length > 0) {
@@ -377,8 +407,9 @@ async function loadVectorSearch(
     if (options?.excludeEmbedders !== true) {
       throw new GenkitError({
         status: 'INVALID_ARGUMENT',
-        message: "Vector search requires embedders. Please disable the exclusion of embedders."
-      })
+        message:
+          'Vector search requires embedders. Please disable the exclusion of embedders.',
+      });
     }
 
     const {
@@ -419,7 +450,12 @@ async function loadVectorSearch(
   return { indexers, retrievers };
 }
 
-async function loadRerankers(projectId: string, location: string, options: PluginOptions | undefined, authClient: GoogleAuth) {
+async function loadRerankers(
+  projectId: string,
+  location: string,
+  options: PluginOptions | undefined,
+  authClient: GoogleAuth
+) {
   let rerankers: any = null;
 
   if (
