@@ -147,7 +147,7 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       return vertexClientFactoryCache[requestLocation];
     };
 
-    const models = await loadModels(
+    const models: ModelAction<any>[] = await loadModels(
       projectId,
       location,
       options,
@@ -155,7 +155,7 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       vertexClientFactory
     );
 
-    const embedders: EmbedderAction[] = [];
+    const embedders: EmbedderAction<any>[] = [];
     if (options?.excludeEmbedders !== true) {
       const temp = await vertexAiEmbedders(
         projectId,
@@ -171,7 +171,7 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       options?.evaluation && options.evaluation.metrics.length > 0
         ? options.evaluation.metrics
         : [];
-    const evaluators: Action[] = [];
+    const evaluators: Action<any>[] = [];
     if (options?.excludeEvaluators && metrics.length > 0) {
       const temp = await vertexAiEvaluators(
         projectId,
@@ -203,7 +203,7 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       retrievers = temp.retrievers;
     }
 
-    const rerankers: RerankerAction[] = [];
+    const rerankers: RerankerAction<any>[] = [];
     if (
       options?.excludeRerankers !== true &&
       options?.rerankOptions &&
