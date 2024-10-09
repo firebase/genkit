@@ -15,31 +15,29 @@
  */
 
 import { VertexAI } from '@google-cloud/vertexai';
-import { Action, EmbedderAction, GenkitError, genkitPlugin, IndexerAction, Plugin, RerankerAction, RetrieverAction, z } from 'genkit';
+import {
+  Action,
+  EmbedderAction,
+  genkitPlugin,
+  IndexerAction,
+  Plugin,
+  RerankerAction,
+  RetrieverAction,
+  z,
+} from 'genkit';
 import { GenerateRequest, ModelAction, ModelReference } from 'genkit/model';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
+import vertexAiEmbedders from './embedders/index.js';
 import { VertexAIEvaluationMetric } from './evaluators/evaluation.js';
+import vertexAiEvaluators from './evaluators/index.js';
 import { GeminiConfigSchema } from './gemini/gemini.js';
-import { VertexRerankerConfig } from './rerankers/reranker.js';
-import vertexAiVectorSearch, {
-  VectorSearchOptions,
-} from './vector-search';
 import vertexAiGemini from './gemini/index.js';
 import vertexAiImagen from './imagen/index.js';
 import vertexAiModelGarden from './modelgarden';
-import vertexAiEmbedders from './embedders/index.js';
-import vertexAiEvaluators from './evaluators/index.js';
 import vertexAiRerankers from './rerankers/index.js';
+import { VertexRerankerConfig } from './rerankers/reranker.js';
+import vertexAiVectorSearch, { VectorSearchOptions } from './vector-search';
 
-export {
-  llama3,
-  llama31,
-  llama32,
-  claude35Sonnet,
-  claude3Haiku,
-  claude3Opus,
-  claude3Sonnet,
-} from './modelgarden'
 export {
   textEmbedding004,
   textEmbeddingGecko,
@@ -49,10 +47,8 @@ export {
   textEmbeddingGeckoEmbedder,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
-} from './embedders'
-export {
-  VertexAIEvaluationMetricType,
-} from './evaluators'
+} from './embedders';
+export { VertexAIEvaluationMetricType } from './evaluators';
 export {
   gemini15Flash,
   gemini15FlashPreview,
@@ -60,26 +56,31 @@ export {
   gemini15ProPreview,
   geminiPro,
   geminiProVision,
-} from './gemini'
+} from './gemini';
+export { imagen2, imagen3, imagen3Fast } from './imagen';
 export {
-  imagen2,
-  imagen3,
-  imagen3Fast,
-} from './imagen'
+  claude35Sonnet,
+  claude3Haiku,
+  claude3Opus,
+  claude3Sonnet,
+  llama3,
+  llama31,
+  llama32,
+} from './modelgarden';
 export {
+  DocumentIndexer,
+  DocumentRetriever,
   getBigQueryDocumentIndexer,
   getBigQueryDocumentRetriever,
   getFirestoreDocumentIndexer,
   getFirestoreDocumentRetriever,
+  Neighbor,
+  VectorSearchOptions,
   vertexAiIndexerRef,
   vertexAiIndexers,
   vertexAiRetrieverRef,
   vertexAiRetrievers,
-  DocumentIndexer,
-  DocumentRetriever,
-  Neighbor,
-  VectorSearchOptions,
-} from './vector-search'
+} from './vector-search';
 
 export interface PluginOptions {
   /** The Google Cloud project id to call. */
@@ -160,16 +161,16 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
         projectId,
         location,
         options,
-        authClient,
+        authClient
       );
 
       embedders.push(...temp);
     }
 
     const metrics =
-    options?.evaluation && options.evaluation.metrics.length > 0
-      ? options.evaluation.metrics
-      : [];
+      options?.evaluation && options.evaluation.metrics.length > 0
+        ? options.evaluation.metrics
+        : [];
     const evaluators: Action[] = [];
     if (options?.excludeEvaluators && metrics.length > 0) {
       const temp = await vertexAiEvaluators(

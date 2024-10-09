@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+import { ModelAction, ModelReference } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from '../index.js';
-import { ModelAction, ModelReference } from 'genkit/model';
 
 let modelGardenOpenaiCompatibleModel;
 let SUPPORTED_OPENAI_FORMAT_MODELS: Record<string, { name: string }> = {};
@@ -24,7 +24,7 @@ let anthropicModel;
 let SUPPORTED_ANTHROPIC_MODELS: Record<string, { name: string }> = {};
 
 let llama3: ModelReference<any> | undefined;
-let llama31:  ModelReference<any> | undefined;
+let llama31: ModelReference<any> | undefined;
 let llama32: ModelReference<any> | undefined;
 let claude35Sonnet: ModelReference<any> | undefined;
 let claude3Haiku: ModelReference<any> | undefined;
@@ -32,41 +32,41 @@ let claude3Opus: ModelReference<any> | undefined;
 let claude3Sonnet: ModelReference<any> | undefined;
 
 export default async function vertexAiModelGarden(
-    projectId: string,
-    location: string,
-    options: PluginOptions | undefined,
-    authClient: GoogleAuth,
+  projectId: string,
+  location: string,
+  options: PluginOptions | undefined,
+  authClient: GoogleAuth
 ): Promise<ModelAction<any>[]> {
-    await initalizeDependencies();
+  await initalizeDependencies();
 
-    const models: ModelAction<any>[] = [];
-    const mgModels = options?.modelGardenModels || options?.modelGarden?.models;
-    mgModels!.forEach((m) => {
-      const anthropicEntry = Object.entries(SUPPORTED_ANTHROPIC_MODELS).find(
-        ([_, value]) => value.name === m.name
+  const models: ModelAction<any>[] = [];
+  const mgModels = options?.modelGardenModels || options?.modelGarden?.models;
+  mgModels!.forEach((m) => {
+    const anthropicEntry = Object.entries(SUPPORTED_ANTHROPIC_MODELS).find(
+      ([_, value]) => value.name === m.name
+    );
+    if (anthropicEntry) {
+      models.push(anthropicModel(anthropicEntry[0], projectId, location));
+      return;
+    }
+    const openaiModel = Object.entries(SUPPORTED_OPENAI_FORMAT_MODELS).find(
+      ([_, value]) => value.name === m.name
+    );
+    if (openaiModel) {
+      models.push(
+        modelGardenOpenaiCompatibleModel(
+          openaiModel[0],
+          projectId,
+          location,
+          authClient,
+          options?.modelGarden?.openAiBaseUrlTemplate
+        )
       );
-      if (anthropicEntry) {
-        models.push(anthropicModel(anthropicEntry[0], projectId, location));
-        return;
-      }
-      const openaiModel = Object.entries(SUPPORTED_OPENAI_FORMAT_MODELS).find(
-        ([_, value]) => value.name === m.name
-      );
-      if (openaiModel) {
-        models.push(
-          modelGardenOpenaiCompatibleModel(
-            openaiModel[0],
-            projectId,
-            location,
-            authClient,
-            options?.modelGarden?.openAiBaseUrlTemplate
-          )
-        );
-        return;
-      }
-      throw new Error(`Unsupported model garden model: ${m.name}`);
-    });
-    return models;
+      return;
+    }
+    throw new Error(`Unsupported model garden model: ${m.name}`);
+  });
+  return models;
 }
 
 async function initalizeDependencies() {
@@ -90,7 +90,7 @@ async function initalizeDependencies() {
   modelGardenOpenaiCompatibleModel = modelGardenOpenaiCompatibleModelImport;
   SUPPORTED_OPENAI_FORMAT_MODELS = SUPPORTED_OPENAI_FORMAT_MODELS_IMPORT;
   anthropicModel = anthropicModelImport;
-  SUPPORTED_ANTHROPIC_MODELS = SUPPORTED_ANTHROPIC_MODELS_IMPORT
+  SUPPORTED_ANTHROPIC_MODELS = SUPPORTED_ANTHROPIC_MODELS_IMPORT;
 
   // llama3Export = llama3;
   llama3 = llama3import;
@@ -103,11 +103,11 @@ async function initalizeDependencies() {
 }
 
 export {
-  llama3,
-  llama31,
-  llama32,
   claude35Sonnet,
   claude3Haiku,
   claude3Opus,
-  claude3Sonnet
-}
+  claude3Sonnet,
+  llama3,
+  llama31,
+  llama32,
+};

@@ -14,23 +14,23 @@
  * limitations under the License.
  */
 
+import { Action } from 'genkit';
 import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from '..';
-import { Action } from 'genkit';
 
 let vertexEvaluators;
 
 let VertexAIEvaluationMetricType;
 
 export default async function vertexAiEvaluators(
-    projectId: string,
-    location: string,
-    options: PluginOptions | undefined,
-    authClient: GoogleAuth,
-    metrics: any,
+  projectId: string,
+  location: string,
+  options: PluginOptions | undefined,
+  authClient: GoogleAuth,
+  metrics: any
 ): Promise<Action<any>[]> {
   await initalizeDependencies();
-  return vertexEvaluators(authClient, metrics, projectId, location);;
+  return vertexEvaluators(authClient, metrics, projectId, location);
 }
 
 async function initalizeDependencies() {
@@ -43,6 +43,4 @@ async function initalizeDependencies() {
   VertexAIEvaluationMetricType = VertexAIEvaluationMetricTypeImport;
 }
 
-export {
-  VertexAIEvaluationMetricType,
-}
+export { VertexAIEvaluationMetricType };

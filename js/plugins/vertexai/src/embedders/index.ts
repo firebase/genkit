@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+import { EmbedderAction } from 'genkit';
 import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from '..';
-import { EmbedderAction } from 'genkit';
 
 let SUPPORTED_EMBEDDER_MODELS: Record<string, { name: string }> = {};
 let textEmbeddingGeckoEmbedder;
@@ -30,10 +30,10 @@ let textEmbeddingGeckoMultilingual001;
 let textMultilingualEmbedding002;
 
 export default async function vertexAiEmbedders(
-    projectId: string,
-    location: string,
-    options: PluginOptions | undefined,
-    authClient: GoogleAuth,
+  projectId: string,
+  location: string,
+  options: PluginOptions | undefined,
+  authClient: GoogleAuth
 ): Promise<EmbedderAction<any>[]> {
   await initalizeDependencies();
 
@@ -81,4 +81,4 @@ export {
   textEmbeddingGeckoEmbedder,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
-}
+};

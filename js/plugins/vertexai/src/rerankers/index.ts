@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
+import { RerankerAction } from 'genkit';
 import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from '..';
-import { RerankerAction } from 'genkit';
 
 let vertexAiRerankersFunc;
 
 export default async function vertexAiRerankers(
-    projectId: string,
-    location: string,
-    options: PluginOptions | undefined,
-    authClient: GoogleAuth,
+  projectId: string,
+  location: string,
+  options: PluginOptions | undefined,
+  authClient: GoogleAuth
 ): Promise<RerankerAction<any>[]> {
   await initalizeDependencies();
 
@@ -38,9 +38,9 @@ export default async function vertexAiRerankers(
 }
 
 async function initalizeDependencies() {
-  const {
-    vertexAiRerankers: vertexAiRerankersImport,
-  } = await import('./reranker.js');
+  const { vertexAiRerankers: vertexAiRerankersImport } = await import(
+    './reranker.js'
+  );
 
   vertexAiRerankersFunc = vertexAiRerankersImport;
 }
