@@ -22,15 +22,17 @@ import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
 import { VertexAIEvaluationMetric } from './evaluation.js';
 import { GeminiConfigSchema } from './gemini.js';
 import { VertexRerankerConfig } from './reranker.js';
-import { VectorSearchOptions } from './vector-search';
+import {
+  DocumentIndexer,
+  DocumentRetriever,
+  Neighbor,
+  VectorSearchOptions,
+} from './vector-search';
 
-let DocumentIndexerExport;
-let DocumentRetrieverExport;
 let getBigQueryDocumentIndexerExport;
 let getBigQueryDocumentRetrieverExport;
 let getFirestoreDocumentIndexerExport;
 let getFirestoreDocumentRetrieverExport;
-let NeighborExport;
 let vertexAiIndexerRefExport;
 let vertexAiIndexersExport;
 let vertexAiRetrieverRefExport;
@@ -374,8 +376,8 @@ export {
   claude3HaikuExport as claude3Haiku,
   claude3OpusExport as claude3Opus,
   claude3SonnetExport as claude3Sonnet,
-  DocumentIndexerExport as DocumentIndexer,
-  DocumentRetrieverExport as DocumentRetriever,
+  DocumentIndexer,
+  DocumentRetriever,
   gemini15FlashExport as gemini15Flash,
   gemini15FlashPreviewExport as gemini15FlashPreview,
   gemini15ProExport as gemini15Pro,
@@ -392,7 +394,7 @@ export {
   llama3Export as llama3,
   llama31Export as llama31,
   llama32Export as llama32,
-  NeighborExport as Neighbor,
+  Neighbor,
   textEmbedding004Export as textEmbedding004,
   textEmbeddingGeckoExport as textEmbeddingGecko,
   textEmbeddingGecko001Export as textEmbeddingGecko001,
