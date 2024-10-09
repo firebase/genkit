@@ -451,7 +451,9 @@ async function resolveModel(options: GenerateOptions): Promise<ResolvedModel> {
     return {
       modelAction: (await lookupAction(`/model/${model}`)) as ModelAction,
     };
-  } else if (model.hasOwnProperty('name')) {
+  } else if (model.hasOwnProperty('__action')) {
+    return { modelAction: model as ModelAction };
+  } else {
     const ref = model as ModelReference<any>;
     return {
       modelAction: (await lookupAction(`/model/${ref.name}`)) as ModelAction,
@@ -460,8 +462,6 @@ async function resolveModel(options: GenerateOptions): Promise<ResolvedModel> {
       },
       version: ref.version,
     };
-  } else {
-    return { modelAction: model as ModelAction };
   }
 }
 
@@ -515,10 +515,10 @@ export async function generate<
     let modelId: string;
     if (typeof resolvedOptions.model === 'string') {
       modelId = resolvedOptions.model;
-    } else if ((resolvedOptions.model as ModelReference<any>).name) {
-      modelId = (resolvedOptions.model as ModelReference<any>).name;
-    } else {
+    } else if ((resolvedOptions.model as ModelAction)?.__action?.name) {
       modelId = (resolvedOptions.model as ModelAction).__action.name;
+    } else {
+      modelId = (resolvedOptions.model as ModelReference<any>).name;
     }
     throw new Error(`Model ${modelId} not found`);
   }

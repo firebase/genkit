@@ -698,16 +698,16 @@ export class Genkit {
     });
   }
 
-  createSession<S extends z.ZodTypeAny = z.ZodTypeAny>(
+  chat<S extends z.ZodTypeAny = z.ZodTypeAny>(
     options?: SessionOptions<S>
   ): Session<S>;
 
-  createSession<S extends z.ZodTypeAny = z.ZodTypeAny>(
+  chat<S extends z.ZodTypeAny = z.ZodTypeAny>(
     requestBase: BaseGenerateOptions,
     options?: SessionOptions<S>
   ): Session<S>;
 
-  createSession<S extends z.ZodTypeAny = z.ZodTypeAny>(
+  chat<S extends z.ZodTypeAny = z.ZodTypeAny>(
     requestBaseOrOpts?: SessionOptions<S> | BaseGenerateOptions,
     maybeOptions?: SessionOptions<S>
   ): Session<S> {
@@ -720,6 +720,7 @@ export class Genkit {
     } else if (requestBaseOrOpts !== undefined) {
       if (
         (requestBaseOrOpts as SessionOptions<S>).state ||
+        (requestBaseOrOpts as SessionOptions<S>).store ||
         (requestBaseOrOpts as SessionOptions<S>).schema
       ) {
         options = requestBaseOrOpts as SessionOptions<S>;

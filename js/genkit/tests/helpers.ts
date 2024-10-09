@@ -15,6 +15,8 @@
  */
 
 import { Genkit } from '../src/genkit';
+import { z } from '../src/index';
+import { SessionData, SessionStore } from '../src/session';
 
 export function defineEchoModel(ai: Genkit) {
   ai.defineModel(
@@ -75,4 +77,18 @@ export function defineEchoModel(ai: Genkit) {
 
 async function runAsync<O>(fn: () => O): Promise<O> {
   return Promise.resolve(fn());
+}
+
+export class TestMemorySessionStore<S extends z.ZodTypeAny>
+  implements SessionStore<S>
+{
+  data: Record<string, SessionData<S>> = {};
+
+  async get(sessionId: string): Promise<SessionData<S> | undefined> {
+    return this.data[sessionId];
+  }
+
+  async save(sessionId: string, sessionData: SessionData<S>): Promise<void> {
+    this.data[sessionId] = sessionData;
+  }
 }

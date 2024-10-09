@@ -33,10 +33,7 @@ export interface SessionOptions<S extends z.ZodTypeAny> {
 
 type EnvironmentType = Pick<
   Genkit,
-  | 'defineFlow'
-  | 'defineStreamingFlow'
-  | 'defineTool'
-  | 'definePrompt'
+  'defineFlow' | 'defineStreamingFlow' | 'defineTool' | 'definePrompt'
 >;
 
 type EnvironmentSessionOptions<S extends z.ZodTypeAny> = Omit<
@@ -274,16 +271,18 @@ export class Session<S extends z.ZodTypeAny> {
         prompt: options,
       } as GenerateOptions<O, CustomOptions>;
     }
-    const response = await this.environment.generateStream({
+    const { response, stream } = await this.environment.generateStream({
       ...this.requestBase,
+      messages: this.sessionData.messages,
       ...options,
     });
 
-    try {
-      return response;
-    } finally {
-      await this.updateMessages((await response.response).toHistory());
-    }
+    return {
+      response: response.finally(async () => {
+        this.updateMessages((await response).toHistory());
+      }),
+      stream,
+    };
   }
 
   runFlow<
@@ -370,7 +369,7 @@ class InMemorySessionStore<S extends z.ZodTypeAny> implements SessionStore<S> {
     return this.data[sessionId];
   }
 
-  async save(sessionId: string, data: SessionData<S>): Promise<void> {
-    data[sessionId] = data;
+  async save(sessionId: string, sessionData: SessionData<S>): Promise<void> {
+    this.data[sessionId] = sessionData;
   }
 }

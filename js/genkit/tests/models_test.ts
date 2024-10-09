@@ -35,7 +35,7 @@ describe('models', () => {
         const response = await ai.generate({
           prompt: 'hi',
         });
-        assert.strictEqual(response.text(), 'Echo: hi; config: undefined');
+        assert.strictEqual(response.text(), 'Echo: hi; config: {}');
       });
 
       it('streams the default model', async () => {
@@ -49,7 +49,7 @@ describe('models', () => {
         }
         assert.strictEqual(
           (await response).text(),
-          'Echo: hi; config: undefined'
+          'Echo: hi; config: {}'
         );
         assert.deepStrictEqual(chunks, ['3', '2', '1']);
       });
@@ -68,7 +68,7 @@ describe('models', () => {
           model: 'echoModel',
           prompt: 'hi',
         });
-        assert.strictEqual(response.text(), 'Echo: hi; config: undefined');
+        assert.strictEqual(response.text(), 'Echo: hi; config: {}');
       });
     });
   });

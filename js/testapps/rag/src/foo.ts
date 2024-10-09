@@ -39,7 +39,7 @@ const Character = z.object({
   });
 
   // text chat
-  let chatbotSession = ai.createSession();
+  let chatbotSession = ai.chat();
   response = await chatbotSession.send('hi my name is John');
   console.log(response.text());
   response = await chatbotSession.send('who am I?');
@@ -47,7 +47,7 @@ const Character = z.object({
 
 
   // json chat 
-  chatbotSession = ai.createSession({
+  chatbotSession = ai.chat({
     output: {
       schema: z.object({
         answer: z.string(),
