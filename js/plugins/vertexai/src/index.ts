@@ -19,101 +19,36 @@ import { IndexerAction, RetrieverAction } from '@genkit-ai/ai/retriever';
 import { Plugin, genkitPlugin } from '@genkit-ai/core';
 import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
-import z from 'zod';
-import {
-  SUPPORTED_ANTHROPIC_MODELS,
-  anthropicModel,
-  claude35Sonnet,
-  claude3Haiku,
-  claude3Opus,
-  claude3Sonnet,
-} from './anthropic.js';
-import {
-  SUPPORTED_EMBEDDER_MODELS,
-  textEmbedding004,
-  textEmbeddingGecko,
-  textEmbeddingGecko001,
-  textEmbeddingGecko002,
-  textEmbeddingGecko003,
-  textEmbeddingGeckoEmbedder,
-  textEmbeddingGeckoMultilingual001,
-  textMultilingualEmbedding002,
-} from './embedder.js';
-import {
-  VertexAIEvaluationMetric,
-  VertexAIEvaluationMetricType,
-  vertexEvaluators,
-} from './evaluation.js';
-import {
-  GeminiConfigSchema,
-  SUPPORTED_GEMINI_MODELS,
-  gemini15Flash,
-  gemini15FlashPreview,
-  gemini15Pro,
-  gemini15ProPreview,
-  geminiModel,
-  geminiPro,
-  geminiProVision,
-} from './gemini.js';
-import {
-  SUPPORTED_IMAGEN_MODELS,
-  imagen2,
-  imagen3,
-  imagen3Fast,
-  imagenModel,
-} from './imagen.js';
-import {
-  SUPPORTED_OPENAI_FORMAT_MODELS,
-  llama3,
-  llama31,
-  llama32,
-  modelGardenOpenaiCompatibleModel,
-} from './model_garden.js';
-import {
-  VectorSearchOptions,
-  vertexAiIndexers,
-  vertexAiRetrievers,
-} from './vector-search';
-export {
-  DocumentIndexer,
-  DocumentRetriever,
-  Neighbor,
-  VectorSearchOptions,
-  getBigQueryDocumentIndexer,
-  getBigQueryDocumentRetriever,
-  getFirestoreDocumentIndexer,
-  getFirestoreDocumentRetriever,
-  vertexAiIndexerRef,
-  vertexAiIndexers,
-  vertexAiRetrieverRef,
-  vertexAiRetrievers,
-} from './vector-search';
-export {
-  VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
-  claude35Sonnet,
-  claude3Haiku,
-  claude3Opus,
-  claude3Sonnet,
-  gemini15Flash,
-  gemini15FlashPreview,
-  gemini15Pro,
-  gemini15ProPreview,
-  geminiPro,
-  geminiProVision,
-  imagen2,
-  imagen3,
-  imagen3Fast,
-  llama3,
-  llama31,
-  llama32,
-  textEmbedding004,
-  textEmbeddingGecko,
-  textEmbeddingGecko001,
-  textEmbeddingGecko002,
-  textEmbeddingGecko003,
-  textEmbeddingGeckoMultilingual001,
-  textMultilingualEmbedding002,
-};
+import { GeminiConfigSchema } from './gemini.js';
+import { VertexAIEvaluationMetric } from './evaluation.js';
+import { VectorSearchOptions } from './vector-search';
+import { VertexRerankerConfig } from './reranker.js';
+
+
+let claude35SonnetExport;
+let claude3HaikuExport;
+let claude3OpusExport;
+let claude3SonnetExport;
+let gemini15FlashExport;
+let gemini15FlashPreviewExport;
+let gemini15ProExport;
+let gemini15ProPreviewExport;
+let geminiProExport;
+let geminiProVisionExport;
+let imagen2Export;
+let imagen3Export;
+let imagen3FastExport;
+let llama3Export;
+let llama31Export;
+let llama32Export;
+let textEmbedding004Export;
+let textEmbeddingGeckoExport;
+let textEmbeddingGecko001Export;
+let textEmbeddingGecko002Export;
+let textEmbeddingGecko003Export;
+let textEmbeddingGeckoMultilingual001Export;
+let textMultilingualEmbedding002Export;
+let VertexAIEvaluationMetricTypeExport;
 
 export interface PluginOptions {
   /** The Google Cloud project id to call. */
@@ -136,6 +71,15 @@ export interface PluginOptions {
   };
   /** Configure Vertex AI vector search index options */
   vectorSearchOptions?: VectorSearchOptions<z.ZodTypeAny, any, any>[];
+  /** Configure reranker options */
+  rerankOptions?: VertexRerankerConfig[];
+  excludeModelGarden?: boolean;
+  excludeGemini?: boolean;
+  excludeImagen?: boolean;
+  excludeEmbedders?: boolean;
+  excludeRerankers?: boolean;
+  excludeVectorSearch?: boolean;
+  excludeEvaluators?: boolean;
 }
 
 const CLOUD_PLATFROM_OAUTH_SCOPE =
@@ -196,21 +140,100 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       }
       return vertexClientFactoryCache[requestLocation];
     };
+
     const metrics =
       options?.evaluation && options.evaluation.metrics.length > 0
         ? options.evaluation.metrics
         : [];
+    let evaluators: any = null;
+    if (
+      options?.excludeEvaluators &&
+      metrics.length > 0
+    ) {
+      const {
+        vertexEvaluators,
+        VertexAIEvaluationMetricType
+      } = await import('./evaluation.js');
 
-    const models = [
-      ...Object.keys(SUPPORTED_IMAGEN_MODELS).map((name) =>
+      VertexAIEvaluationMetricTypeExport = VertexAIEvaluationMetricType;
+      evaluators = vertexEvaluators(authClient, metrics, projectId, location);
+    }
+
+    const models: any[] = [];
+
+    if (options?.excludeImagen !== true) {
+      const {
+        imagen2,
+        imagen3,
+        imagen3Fast,
+        imagenModel,
+        SUPPORTED_IMAGEN_MODELS,
+      } = await import('./imagen.js');
+
+      imagen2Export = imagen2;
+      imagen3Export = imagen3;
+      imagen3FastExport = imagen3Fast
+
+      const imagenModels = Object.keys(SUPPORTED_IMAGEN_MODELS).map((name) =>
         imagenModel(name, authClient, { projectId, location })
-      ),
-      ...Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
-        geminiModel(name, vertexClientFactory, { projectId, location })
-      ),
-    ];
+      );
+      models.push(...imagenModels);
+    }
 
-    if (options?.modelGardenModels || options?.modelGarden?.models) {
+    if (options?.excludeGemini !== true) {
+      const {
+        gemini15Flash,
+        gemini15FlashPreview,
+        gemini15Pro,
+        gemini15ProPreview,
+        geminiModel,
+        geminiPro,
+        geminiProVision,
+        SUPPORTED_GEMINI_MODELS,
+      } = await import('./gemini.js');
+
+      gemini15FlashExport = gemini15Flash;
+      gemini15FlashPreviewExport = gemini15FlashPreview;
+      gemini15ProExport = gemini15Pro;
+      gemini15ProPreviewExport = gemini15ProPreview;
+      geminiProExport = geminiPro;
+      geminiProVisionExport = geminiProVision;
+
+      const geminiModels = Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
+        geminiModel(name, vertexClientFactory, { projectId, location })
+      );
+      models.push(...geminiModels);
+    }
+
+    if (
+      options?.excludeModelGarden !== true &&
+      (options?.modelGardenModels || options?.modelGarden?.models)
+    ) {
+      const {
+        llama3,
+        llama31,
+        llama32,
+        modelGardenOpenaiCompatibleModel,
+        SUPPORTED_OPENAI_FORMAT_MODELS,
+      } = await import('./model_garden.js');
+
+      const {
+        anthropicModel,
+        claude35Sonnet,
+        claude3Haiku,
+        claude3Opus,
+        claude3Sonnet,
+        SUPPORTED_ANTHROPIC_MODELS,
+      } = await import('./anthropic.js');
+
+      llama3Export = llama3;
+      llama31Export = llama31;
+      llama32Export = llama32;
+      claude35SonnetExport = claude35Sonnet;
+      claude3HaikuExport = claude3Haiku;
+      claude3OpusExport = claude3Opus;
+      claude3SonnetExport = claude3Sonnet;
+
       const mgModels =
         options?.modelGardenModels || options?.modelGarden?.models;
       mgModels!.forEach((m) => {
@@ -240,17 +263,45 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       });
     }
 
-    const embedders = Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
-      textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
-    );
+    let embedders: any[] = [];
+    if (options?.excludeEmbedders !== true) {
+      const {
+        SUPPORTED_EMBEDDER_MODELS,
+        textEmbedding004,
+        textEmbeddingGecko,
+        textEmbeddingGecko001,
+        textEmbeddingGecko002,
+        textEmbeddingGecko003,
+        textEmbeddingGeckoEmbedder,
+        textEmbeddingGeckoMultilingual001,
+        textMultilingualEmbedding002,
+      } = await import('./embedder.js');
+
+      textEmbedding004Export = textEmbedding004;
+      textEmbeddingGeckoExport = textEmbeddingGecko;
+      textEmbeddingGecko001Export = textEmbeddingGecko001;
+      textEmbeddingGecko002Export = textEmbeddingGecko002;
+      textEmbeddingGecko003Export = textEmbeddingGecko003;
+      textEmbeddingGeckoMultilingual001Export = textEmbeddingGeckoMultilingual001;
+      textMultilingualEmbedding002Export = textMultilingualEmbedding002;
+
+      embedders.push(Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
+        textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
+      ));
+    }
 
     let indexers: IndexerAction<z.ZodTypeAny>[] = [];
     let retrievers: RetrieverAction<z.ZodTypeAny>[] = [];
-
     if (
+      options?.excludeVectorSearch !== true &&
       options?.vectorSearchOptions &&
       options.vectorSearchOptions.length > 0
     ) {
+      const {
+        vertexAiIndexers,
+        vertexAiRetrievers,
+      } = await import('./vector-search/index.js');
+
       const defaultEmbedder = embedders[0];
 
       indexers = vertexAiIndexers({
@@ -266,14 +317,58 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       });
     }
 
+    let rerankers: any = null;
+    if (
+      options?.excludeRerankers !== true &&
+      options?.rerankOptions &&
+      options.rerankOptions.length > 0
+    ) {
+      const { vertexAiRerankers } = await import('./reranker.js');
+
+      const rerankOptions = {
+        pluginOptions: options,
+        authClient,
+        projectId,
+      };
+
+      rerankers = await vertexAiRerankers(rerankOptions);
+    }
+
     return {
       models,
       embedders,
-      evaluators: vertexEvaluators(authClient, metrics, projectId, location),
+      evaluators,
       retrievers,
       indexers,
     };
   }
 );
+
+export {
+  claude35SonnetExport as claude35Sonnet,
+  claude3HaikuExport as claude3Haiku,
+  claude3OpusExport as claude3Opus,
+  claude3SonnetExport as claude3Sonnet,
+  gemini15FlashExport as gemini15Flash,
+  gemini15FlashPreviewExport as gemini15FlashPreview,
+  gemini15ProExport as gemini15Pro,
+  gemini15ProPreviewExport as gemini15ProPreview,
+  geminiProExport as geminiPro,
+  geminiProVisionExport as geminiProVision,
+  imagen2Export as imagen2,
+  imagen3Export as imagen3,
+  imagen3FastExport as imagen3Fast,
+  llama3Export as llama3,
+  llama31Export as llama31,
+  llama32Export as llama32,
+  textEmbedding004Export as textEmbedding004,
+  textEmbeddingGeckoExport as textEmbeddingGecko,
+  textEmbeddingGecko001Export as textEmbeddingGecko001,
+  textEmbeddingGecko002Export as textEmbeddingGecko002,
+  textEmbeddingGecko003Export as textEmbeddingGecko003,
+  textEmbeddingGeckoMultilingual001Export as textEmbeddingGeckoMultilingual001,
+  textMultilingualEmbedding002Export as textMultilingualEmbedding002,
+  VertexAIEvaluationMetricTypeExport as VertexAIEvaluationMetricType,
+}
 
 export default vertexAI;
