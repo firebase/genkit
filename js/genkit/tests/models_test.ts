@@ -47,10 +47,7 @@ describe('models', () => {
         for await (const chunk of stream) {
           chunks.push(chunk.text());
         }
-        assert.strictEqual(
-          (await response).text(),
-          'Echo: hi; config: {}'
-        );
+        assert.strictEqual((await response).text(), 'Echo: hi; config: {}');
         assert.deepStrictEqual(chunks, ['3', '2', '1']);
       });
     });

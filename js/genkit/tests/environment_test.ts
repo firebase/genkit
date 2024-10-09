@@ -17,8 +17,8 @@
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Genkit, genkit } from '../src/genkit';
-import { defineEchoModel, TestMemorySessionStore } from './helpers';
 import { z } from '../src/index';
+import { TestMemorySessionStore, defineEchoModel } from './helpers';
 
 describe('environment', () => {
   let ai: Genkit;
@@ -35,7 +35,7 @@ describe('environment', () => {
       name: 'agent',
       stateSchema: z.object({
         name: z.string(),
-      })
+      }),
     });
 
     const session = env.createSession();
@@ -50,41 +50,16 @@ describe('environment', () => {
       'Echo: hi,Echo: hi,; config: {},bye; config: {}'
     );
     assert.deepStrictEqual(response.toHistory(), [
+      { content: [{ text: 'hi' }], role: 'user' },
       {
-        content: [
-          {
-            text: 'hi',
-          },
-        ],
-        role: 'user',
-      },
-      {
-        content: [
-          {
-            text: 'Echo: hi',
-          },
-          {
-            text: '; config: {}',
-          },
-        ],
+        content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
         role: 'model',
       },
+      { content: [{ text: 'bye' }], role: 'user' },
       {
         content: [
-          {
-            text: 'bye',
-          },
-        ],
-        role: 'user',
-      },
-      {
-        content: [
-          {
-            text: 'Echo: hi,Echo: hi,; config: {},bye',
-          },
-          {
-            text: '; config: {}',
-          },
+          { text: 'Echo: hi,Echo: hi,; config: {},bye' },
+          { text: '; config: {}' },
         ],
         role: 'model',
       },
@@ -96,11 +71,11 @@ describe('environment', () => {
       name: 'agent',
       stateSchema: z.object({
         name: z.string(),
-      })
+      }),
     });
     const session = env.createSession();
 
-    let {response, stream} = await session.sendStream('hi');
+    let { response, stream } = await session.sendStream('hi');
 
     let chunks: string[] = [];
     for await (const chunk of stream) {
@@ -109,7 +84,7 @@ describe('environment', () => {
     assert.strictEqual((await response).text(), 'Echo: hi; config: {}');
     assert.deepStrictEqual(chunks, ['3', '2', '1']);
 
-    ({response, stream} = await session.sendStream('bye'));
+    ({ response, stream } = await session.sendStream('bye'));
 
     chunks = [];
     for await (const chunk of stream) {
@@ -122,43 +97,18 @@ describe('environment', () => {
       'Echo: hi,Echo: hi,; config: {},bye; config: {}'
     );
     assert.deepStrictEqual((await response).toHistory(), [
+      { content: [{ text: 'hi' }], role: 'user' },
       {
-        content: [
-          {
-            text: 'hi',
-          },
-        ],
-        role: 'user',
-      },
-      {
-        content: [
-          {
-            text: 'Echo: hi',
-          },
-          {
-            text: '; config: {}',
-          },
-        ],
         role: 'model',
+        content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
       },
+      { content: [{ text: 'bye' }], role: 'user' },
       {
-        content: [
-          {
-            text: 'bye',
-          },
-        ],
-        role: 'user',
-      },
-      {
-        content: [
-          {
-            text: 'Echo: hi,Echo: hi,; config: {},bye',
-          },
-          {
-            text: '; config: {}',
-          },
-        ],
         role: 'model',
+        content: [
+          { text: 'Echo: hi,Echo: hi,; config: {},bye' },
+          { text: '; config: {}' },
+        ],
       },
     ]);
   });
@@ -170,7 +120,7 @@ describe('environment', () => {
       store,
       stateSchema: z.object({
         name: z.string(),
-      })
+      }),
     });
     const session = env.createSession();
     await session.send('hi');
@@ -178,45 +128,22 @@ describe('environment', () => {
 
     const state = await store.get(session.id);
 
-    assert.deepStrictEqual(state?.messages, [
-      {
-        content: [
-          {
-            text: 'hi',
-          },
-        ],
-        role: 'user',
-      },
-      {
-        content: [
-          {
-            text: 'Echo: hi',
-          },
-          {
-            text: '; config: {}',
-          },
-        ],
-        role: 'model',
-      },
-      {
-        content: [
-          {
-            text: 'bye',
-          },
-        ],
-        role: 'user',
-      },
-      {
-        content: [
-          {
-            text: 'Echo: hi,Echo: hi,; config: {},bye',
-          },
-          {
-            text: '; config: {}',
-          },
-        ],
-        role: 'model',
-      },
-    ]);
+    assert.deepStrictEqual(state?.threads, {
+      __main: [
+        { content: [{ text: 'hi' }], role: 'user' },
+        {
+          content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
+          role: 'model',
+        },
+        { content: [{ text: 'bye' }], role: 'user' },
+        {
+          content: [
+            { text: 'Echo: hi,Echo: hi,; config: {},bye' },
+            { text: '; config: {}' },
+          ],
+          role: 'model',
+        },
+      ],
+    });
   });
 });

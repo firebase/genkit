@@ -82,7 +82,7 @@ async function runAsync<O>(fn: () => O): Promise<O> {
 export class TestMemorySessionStore<S extends z.ZodTypeAny>
   implements SessionStore<S>
 {
-  data: Record<string, SessionData<S>> = {};
+  private data: Record<string, SessionData<S>> = {};
 
   async get(sessionId: string): Promise<SessionData<S> | undefined> {
     return this.data[sessionId];

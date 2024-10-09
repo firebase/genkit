@@ -385,7 +385,7 @@ export interface ModelReference<CustomOptions extends z.ZodTypeAny> {
   configSchema?: CustomOptions;
   info?: ModelInfo;
   version?: string;
-  config?: z.infer<CustomOptions>,
+  config?: z.infer<CustomOptions>;
 }
 
 /** Cretes a model reference. */

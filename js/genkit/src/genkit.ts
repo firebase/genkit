@@ -46,7 +46,7 @@ import {
   retrieve,
   RetrieverParams,
   ToolAction,
-  ToolConfig
+  ToolConfig,
 } from '@genkit-ai/ai';
 import {
   CallableFlow,
@@ -84,7 +84,6 @@ import {
 } from './model.js';
 import { lookupAction, Registry, runWithRegistry } from './registry.js';
 import {
-  BaseGenerateOptions,
   Environment,
   getCurrentSession,
   Session,
@@ -700,43 +699,42 @@ export class Genkit {
 
   chat<S extends z.ZodTypeAny = z.ZodTypeAny>(
     options?: SessionOptions<S>
-  ): Session<S>;
-
-  chat<S extends z.ZodTypeAny = z.ZodTypeAny>(
-    requestBase: BaseGenerateOptions,
-    options?: SessionOptions<S>
-  ): Session<S>;
-
-  chat<S extends z.ZodTypeAny = z.ZodTypeAny>(
-    requestBaseOrOpts?: SessionOptions<S> | BaseGenerateOptions,
-    maybeOptions?: SessionOptions<S>
   ): Session<S> {
-    // parse overloaded args
-    let baseGenerateOptions: BaseGenerateOptions | undefined = undefined;
-    let options: SessionOptions<S> | undefined = undefined;
-    if (maybeOptions !== undefined) {
-      options = maybeOptions;
-      baseGenerateOptions = requestBaseOrOpts as BaseGenerateOptions;
-    } else if (requestBaseOrOpts !== undefined) {
-      if (
-        (requestBaseOrOpts as SessionOptions<S>).state ||
-        (requestBaseOrOpts as SessionOptions<S>).store ||
-        (requestBaseOrOpts as SessionOptions<S>).schema
-      ) {
-        options = requestBaseOrOpts as SessionOptions<S>;
-      } else {
-        baseGenerateOptions = requestBaseOrOpts as BaseGenerateOptions;
-      }
-    }
-
     return new Session(
       this,
       {
-        ...baseGenerateOptions,
+        ...options,
       },
       {
-        state: options?.state,
-        schema: options?.schema,
+        sessionData: {
+          state: options?.state,
+        },
+        stateSchema: options?.stateSchema,
+        store: options?.store,
+      }
+    );
+  }
+
+  async loadChat<S extends z.ZodTypeAny = z.ZodTypeAny>(
+    sessionId: string,
+    options: SessionOptions<S>
+  ): Promise<Session<S>> {
+    if (!options.store) {
+      throw new Error('options.store is required for loading chat sessions');
+    }
+    const sessionData = await options.store.get(sessionId);
+    if (!sessionData) {
+      throw new Error(`chat session ${sessionId} not found`);
+    }
+    return new Session(
+      this,
+      {
+        ...options,
+      },
+      {
+        id: sessionId,
+        sessionData,
+        stateSchema: options?.stateSchema,
         store: options?.store,
       }
     );

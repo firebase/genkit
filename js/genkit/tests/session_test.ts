@@ -17,9 +17,7 @@
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Genkit, genkit } from '../src/genkit';
-import { z } from '../src/index';
-import { SessionData, SessionStore } from '../src/session';
-import { defineEchoModel, TestMemorySessionStore } from './helpers';
+import { TestMemorySessionStore, defineEchoModel } from './helpers';
 
 describe('session', () => {
   let ai: Genkit;
@@ -44,41 +42,16 @@ describe('session', () => {
       'Echo: hi,Echo: hi,; config: {},bye; config: {}'
     );
     assert.deepStrictEqual(response.toHistory(), [
+      { content: [{ text: 'hi' }], role: 'user' },
       {
-        content: [
-          {
-            text: 'hi',
-          },
-        ],
-        role: 'user',
-      },
-      {
-        content: [
-          {
-            text: 'Echo: hi',
-          },
-          {
-            text: '; config: {}',
-          },
-        ],
+        content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
         role: 'model',
       },
+      { content: [{ text: 'bye' }], role: 'user' },
       {
         content: [
-          {
-            text: 'bye',
-          },
-        ],
-        role: 'user',
-      },
-      {
-        content: [
-          {
-            text: 'Echo: hi,Echo: hi,; config: {},bye',
-          },
-          {
-            text: '; config: {}',
-          },
+          { text: 'Echo: hi,Echo: hi,; config: {},bye' },
+          { text: '; config: {}' },
         ],
         role: 'model',
       },
@@ -109,41 +82,16 @@ describe('session', () => {
       'Echo: hi,Echo: hi,; config: {},bye; config: {}'
     );
     assert.deepStrictEqual((await response).toHistory(), [
+      { content: [{ text: 'hi' }], role: 'user' },
       {
-        content: [
-          {
-            text: 'hi',
-          },
-        ],
-        role: 'user',
-      },
-      {
-        content: [
-          {
-            text: 'Echo: hi',
-          },
-          {
-            text: '; config: {}',
-          },
-        ],
+        content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
         role: 'model',
       },
+      { content: [{ text: 'bye' }], role: 'user' },
       {
         content: [
-          {
-            text: 'bye',
-          },
-        ],
-        role: 'user',
-      },
-      {
-        content: [
-          {
-            text: 'Echo: hi,Echo: hi,; config: {},bye',
-          },
-          {
-            text: '; config: {}',
-          },
+          { text: 'Echo: hi,Echo: hi,; config: {},bye' },
+          { text: '; config: {}' },
         ],
         role: 'model',
       },
@@ -158,45 +106,269 @@ describe('session', () => {
 
     const state = await store.get(session.id);
 
-    assert.deepStrictEqual(state?.messages, [
-      {
-        content: [
+    assert.deepStrictEqual(state?.threads, {
+      __main: [
+        { content: [{ text: 'hi' }], role: 'user' },
+        {
+          content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
+          role: 'model',
+        },
+        { content: [{ text: 'bye' }], role: 'user' },
+        {
+          content: [
+            { text: 'Echo: hi,Echo: hi,; config: {},bye' },
+            { text: '; config: {}' },
+          ],
+          role: 'model',
+        },
+      ],
+    });
+  });
+
+  it('can init a session with a prompt', async () => {
+    const prompt = ai.definePrompt({ name: 'hi' }, 'hi {{ name }}');
+    const session = ai.chat(
+      await prompt.render({
+        input: { name: 'Genkit' },
+        config: { temperature: 11 },
+      })
+    );
+    const response = await session.send('hi');
+
+    assert.strictEqual(
+      response.text(),
+      'Echo: hi Genkit,hi; config: {"temperature":11}'
+    );
+  });
+
+  it('can send a prompt session to a session', async () => {
+    const prompt = ai.definePrompt(
+      { name: 'hi', config: { version: 'abc' } },
+      'hi {{ name }}'
+    );
+    const session = ai.chat();
+    const response = await session.send(
+      await prompt.render({
+        input: { name: 'Genkit' },
+        config: { temperature: 11 },
+      })
+    );
+
+    assert.strictEqual(
+      response.text(),
+      'Echo: hi Genkit; config: {"version":"abc","temperature":11}'
+    );
+  });
+
+  describe('loadChat', () => {
+    it('inherits history from parent session', async () => {
+      const store = new TestMemorySessionStore();
+      // init the store
+      const originalMainChat = ai.chat({ store });
+      await originalMainChat.send('hi');
+      const originalSideChat = originalMainChat.thread('sideChat');
+      await originalSideChat.send('bye');
+
+      const sessionId = originalMainChat.id;
+
+      // load
+      const mainChat = await ai.loadChat(sessionId, { store });
+      assert.deepStrictEqual(mainChat.messages, [
+        { content: [{ text: 'hi' }], role: 'user' },
+        {
+          role: 'model',
+          content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
+        },
+      ]);
+      let response = await mainChat.send('hi again');
+      assert.strictEqual(
+        response.text(),
+        'Echo: hi,Echo: hi,; config: {},hi again; config: {}'
+      );
+      assert.deepStrictEqual(mainChat.messages, [
+        { role: 'user', content: [{ text: 'hi' }] },
+        {
+          role: 'model',
+          content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
+        },
+        { content: [{ text: 'hi again' }], role: 'user' },
+        {
+          role: 'model',
+          content: [
+            { text: 'Echo: hi,Echo: hi,; config: {},hi again' },
+            { text: '; config: {}' },
+          ],
+        },
+      ]);
+
+      // make sure we can load the thread
+      const sideChat = mainChat.thread('sideChat');
+      assert.deepStrictEqual(sideChat.messages, [
+        { role: 'user', content: [{ text: 'hi' }] },
+        {
+          role: 'model',
+          content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
+        },
+        { role: 'user', content: [{ text: 'bye' }] },
+        {
+          role: 'model',
+          content: [
+            { text: 'Echo: hi,Echo: hi,; config: {},bye' },
+            { text: '; config: {}' },
+          ],
+        },
+      ]);
+
+      response = await sideChat.send('bye again');
+      assert.strictEqual(
+        response.text(),
+        'Echo: hi,Echo: hi,; config: {},bye,Echo: hi,Echo: hi,; config: {},bye,; config: {},bye again; config: {}'
+      );
+      assert.deepStrictEqual(sideChat.messages, [
+        { role: 'user', content: [{ text: 'hi' }] },
+        {
+          role: 'model',
+          content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
+        },
+        { role: 'user', content: [{ text: 'bye' }] },
+        {
+          role: 'model',
+          content: [
+            { text: 'Echo: hi,Echo: hi,; config: {},bye' },
+            { text: '; config: {}' },
+          ],
+        },
+        { content: [{ text: 'bye again' }], role: 'user' },
+        {
+          content: [
+            {
+              text: 'Echo: hi,Echo: hi,; config: {},bye,Echo: hi,Echo: hi,; config: {},bye,; config: {},bye again',
+            },
+            { text: '; config: {}' },
+          ],
+          role: 'model',
+        },
+      ]);
+
+      const state = await store.get(sessionId);
+      assert.deepStrictEqual(state?.threads, {
+        __main: [
+          { content: [{ text: 'hi' }], role: 'user' },
           {
-            text: 'hi',
+            content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
+            role: 'model',
+          },
+          { content: [{ text: 'hi again' }], role: 'user' },
+          {
+            content: [
+              { text: 'Echo: hi,Echo: hi,; config: {},hi again' },
+              { text: '; config: {}' },
+            ],
+            role: 'model',
           },
         ],
-        role: 'user',
-      },
-      {
-        content: [
+        sideChat: [
+          { role: 'user', content: [{ text: 'hi' }] },
           {
-            text: 'Echo: hi',
+            role: 'model',
+            content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
           },
+          { role: 'user', content: [{ text: 'bye' }] },
           {
-            text: '; config: {}',
+            role: 'model',
+            content: [
+              { text: 'Echo: hi,Echo: hi,; config: {},bye' },
+              { text: '; config: {}' },
+            ],
           },
-        ],
-        role: 'model',
-      },
-      {
-        content: [
+          { content: [{ text: 'bye again' }], role: 'user' },
           {
-            text: 'bye',
-          },
-        ],
-        role: 'user',
-      },
-      {
-        content: [
-          {
-            text: 'Echo: hi,Echo: hi,; config: {},bye',
-          },
-          {
-            text: '; config: {}',
+            content: [
+              {
+                text: 'Echo: hi,Echo: hi,; config: {},bye,Echo: hi,Echo: hi,; config: {},bye,; config: {},bye again',
+              },
+              { text: '; config: {}' },
+            ],
+            role: 'model',
           },
         ],
-        role: 'model',
-      },
-    ]);
+      });
+    });
+  });
+
+  describe('threads', () => {
+    it('inherits history from parent session', async () => {
+      const store = new TestMemorySessionStore();
+      const mainChat = ai.chat({ store });
+      await mainChat.send('hi');
+
+      const sideChat = mainChat.thread('sideChat');
+      await sideChat.send('bye');
+
+      const state = await store.get(mainChat.id);
+
+      assert.deepStrictEqual(state?.threads, {
+        __main: [
+          { content: [{ text: 'hi' }], role: 'user' },
+          {
+            content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
+            role: 'model',
+          },
+        ],
+        sideChat: [
+          { role: 'user', content: [{ text: 'hi' }] },
+          {
+            role: 'model',
+            content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
+          },
+          { role: 'user', content: [{ text: 'bye' }] },
+          {
+            role: 'model',
+            content: [
+              { text: 'Echo: hi,Echo: hi,; config: {},bye' },
+              { text: '; config: {}' },
+            ],
+          },
+        ],
+      });
+
+      // continue main thread
+      await mainChat.send('hi again');
+
+      assert.deepStrictEqual(state?.threads, {
+        __main: [
+          { content: [{ text: 'hi' }], role: 'user' },
+          {
+            content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
+            role: 'model',
+          },
+          // new lines
+          { content: [{ text: 'hi again' }], role: 'user' },
+          {
+            content: [
+              { text: 'Echo: hi,Echo: hi,; config: {},hi again' },
+              { text: '; config: {}' },
+            ],
+            role: 'model',
+          },
+        ],
+        sideChat: [
+          // <---- sideChat unchanged from previous iteration
+          { role: 'user', content: [{ text: 'hi' }] },
+          {
+            role: 'model',
+            content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
+          },
+          { role: 'user', content: [{ text: 'bye' }] },
+          {
+            role: 'model',
+            content: [
+              { text: 'Echo: hi,Echo: hi,; config: {},bye' },
+              { text: '; config: {}' },
+            ],
+          },
+        ],
+      });
+    });
   });
 });

@@ -549,7 +549,7 @@ export async function generate<
     config: {
       ...resolvedModel.config,
       version: resolvedModel.version,
-      ...resolvedOptions.config
+      ...resolvedOptions.config,
     },
     output: resolvedOptions.output && {
       format: resolvedOptions.output.format,

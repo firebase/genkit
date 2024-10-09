@@ -1,3 +1,19 @@
+/**
+ * Copyright 2024 Google LLC
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import {
   GenerateOptions,
   GenerateResponse,
@@ -23,13 +39,16 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { v4 as uuidv4 } from 'uuid';
 import { ExecutablePrompt, Genkit } from './genkit';
 
+const MAIN_THREAD = '__main';
+
 export type BaseGenerateOptions = Omit<GenerateOptions, 'prompt'>;
 
-export interface SessionOptions<S extends z.ZodTypeAny> {
-  state?: z.infer<S>;
-  schema?: S;
+export type SessionOptions<S extends z.ZodTypeAny> = BaseGenerateOptions & {
+  stateSchema?: S;
   store?: SessionStore<S>;
-}
+  state?: z.infer<S>;
+  sessionId?: string;
+};
 
 type EnvironmentType = Pick<
   Genkit,
@@ -46,7 +65,7 @@ export class Environment<S extends z.ZodTypeAny> implements EnvironmentType {
   private name: string;
 
   constructor(
-    private genkit: Genkit,
+    readonly genkit: Genkit,
     config: {
       name: string;
       stateSchema?: S;
@@ -111,83 +130,31 @@ export class Environment<S extends z.ZodTypeAny> implements EnvironmentType {
     return this.genkit.definePrompt(options, templateOrFn as PromptFn<I>);
   }
 
-  createSession(options?: EnvironmentSessionOptions<S>): Session<S>;
-
-  createSession(
-    requestBase: BaseGenerateOptions,
-    options?: EnvironmentSessionOptions<S>
-  ): Session<S>;
-
-  createSession(
-    requestBaseOrOpts?: EnvironmentSessionOptions<S> | BaseGenerateOptions,
-    maybeOptions?: EnvironmentSessionOptions<S>
-  ): Session<S> {
-    // parse overloaded args
-    let baseGenerateOptions: BaseGenerateOptions | undefined = undefined;
-    let options: EnvironmentSessionOptions<S> | undefined = undefined;
-    if (maybeOptions !== undefined) {
-      options = maybeOptions;
-      baseGenerateOptions = requestBaseOrOpts as BaseGenerateOptions;
-    } else if (requestBaseOrOpts !== undefined) {
-      if (
-        (requestBaseOrOpts as EnvironmentSessionOptions<S>).state ||
-        (requestBaseOrOpts as EnvironmentSessionOptions<S>).schema
-      ) {
-        options = requestBaseOrOpts as EnvironmentSessionOptions<S>;
-      } else {
-        baseGenerateOptions = requestBaseOrOpts as BaseGenerateOptions;
-      }
-    }
-
+  createSession(options?: EnvironmentSessionOptions<S>): Session<S> {
     return new Session(
       this.genkit,
       {
-        ...baseGenerateOptions,
+        ...options,
       },
       {
-        state: options?.state,
-        schema: options?.schema,
+        id: options?.sessionId,
+        sessionData: {
+          state: options?.state,
+        },
+        stateSchema: options?.stateSchema,
         store: this.store,
       }
     );
   }
 
-  loadSession(
-    sessionId: string,
-    options?: EnvironmentSessionOptions<S>
-  ): Promise<Session<S>>;
-
-  loadSession(
-    sessionId: string,
-    requestBase: BaseGenerateOptions,
-    options?: EnvironmentSessionOptions<S>
-  ): Promise<Session<S>>;
-
   async loadSession(
     sessionId: string,
-    requestBaseOrOpts?: EnvironmentSessionOptions<S> | BaseGenerateOptions,
-    maybeOptions?: EnvironmentSessionOptions<S>
+    options?: EnvironmentSessionOptions<S>
   ): Promise<Session<S>> {
-    // parse overloaded args
-    let baseGenerateOptions: BaseGenerateOptions | undefined = undefined;
-    let options: EnvironmentSessionOptions<S> | undefined = undefined;
-    if (maybeOptions !== undefined) {
-      options = maybeOptions;
-      baseGenerateOptions = requestBaseOrOpts as BaseGenerateOptions;
-    } else if (requestBaseOrOpts !== undefined) {
-      if (
-        (requestBaseOrOpts as EnvironmentSessionOptions<S>).state ||
-        (requestBaseOrOpts as EnvironmentSessionOptions<S>).schema
-      ) {
-        options = requestBaseOrOpts as EnvironmentSessionOptions<S>;
-      } else {
-        baseGenerateOptions = requestBaseOrOpts as BaseGenerateOptions;
-      }
-    }
+    const state = await this.store.get(sessionId);
 
-    const state = this.store.get(sessionId);
-
-    return this.createSession(baseGenerateOptions!, {
+    return this.createSession({
+      sessionId,
       ...options,
       state,
     });
@@ -205,25 +172,83 @@ export class Environment<S extends z.ZodTypeAny> implements EnvironmentType {
 export class Session<S extends z.ZodTypeAny> {
   readonly id: string;
   readonly schema?: S;
-  readonly sessionData: SessionData<S>;
+  private sessionData?: SessionData<S>;
   private store: SessionStore<S>;
+  private threadName: string;
 
   constructor(
-    readonly environment: Genkit,
+    readonly parent: Genkit | Environment<S> | Session<S>,
     readonly requestBase?: BaseGenerateOptions,
     options?: {
-      schema?: S;
-      state: z.infer<S>;
+      id?: string;
+      stateSchema?: S;
+      sessionData?: SessionData<S>;
       store?: SessionStore<S>;
+      threadName?: string;
     }
   ) {
-    this.id = uuidv4();
-    this.schema = options?.schema;
-    this.sessionData = {
-      state: options?.state ?? {},
-      messages: requestBase?.messages ?? [],
-    };
+    this.id = options?.id ?? uuidv4();
+    this.schema = options?.stateSchema;
+    this.threadName = options?.threadName ?? MAIN_THREAD;
+    this.sessionData = options?.sessionData;
+    if (!this.sessionData) {
+      this.sessionData = {};
+    }
+    if (!this.sessionData.threads) {
+      this.sessionData!.threads = {};
+    }
+    // this is handling dotprompt render case
+    if (requestBase && requestBase['prompt']) {
+      const basePrompt = requestBase['prompt'] as string | Part | Part[];
+      let promptMessage: MessageData;
+      if (typeof basePrompt === 'string') {
+        promptMessage = {
+          role: 'user',
+          content: [{ text: basePrompt }],
+        };
+      } else if (Array.isArray(basePrompt)) {
+        promptMessage = {
+          role: 'user',
+          content: basePrompt,
+        };
+      } else {
+        promptMessage = {
+          role: 'user',
+          content: [basePrompt],
+        };
+      }
+      requestBase.messages = [...(requestBase.messages ?? []), promptMessage];
+    }
+    if (parent instanceof Session) {
+      if (!this.sessionData.threads[this.threadName]) {
+        this!.sessionData.threads[this.threadName] = [
+          ...(parent.messages ?? []),
+          ...(requestBase?.messages ?? []),
+        ];
+      }
+    } else {
+      if (!this.sessionData.threads[this.threadName]) {
+        this.sessionData.threads[this.threadName] = [
+          ...(requestBase?.messages ?? []),
+        ];
+      }
+    }
     this.store = options?.store ?? new InMemorySessionStore();
+  }
+
+  thread(threadName: string): Session<S> {
+    const requestBase = {
+      ...this.requestBase,
+    };
+    delete requestBase.messages;
+    const parent = this.parent instanceof Session ? this.parent : this;
+    return new Session(parent, requestBase, {
+      id: this.id,
+      stateSchema: this.schema,
+      store: this.store,
+      threadName,
+      sessionData: this.sessionData,
+    });
   }
 
   async send<
@@ -244,9 +269,9 @@ export class Session<S extends z.ZodTypeAny> {
         prompt: options,
       } as GenerateOptions<O, CustomOptions>;
     }
-    const response = await this.environment.generate({
+    const response = await this.genkit.generate({
       ...this.requestBase,
-      messages: this.sessionData.messages,
+      messages: this.messages,
       ...options,
     });
     await this.updateMessages(response.toHistory());
@@ -271,9 +296,9 @@ export class Session<S extends z.ZodTypeAny> {
         prompt: options,
       } as GenerateOptions<O, CustomOptions>;
     }
-    const { response, stream } = await this.environment.generateStream({
+    const { response, stream } = await this.genkit.generateStream({
       ...this.requestBase,
-      messages: this.sessionData.messages,
+      messages: this.messages,
       ...options,
     });
 
@@ -285,6 +310,16 @@ export class Session<S extends z.ZodTypeAny> {
     };
   }
 
+  private get genkit(): Genkit {
+    if (this.parent instanceof Session) {
+      return this.parent.genkit;
+    }
+    if (this.parent instanceof Environment) {
+      return this.parent.genkit;
+    }
+    return this.parent;
+  }
+
   runFlow<
     I extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
@@ -293,30 +328,52 @@ export class Session<S extends z.ZodTypeAny> {
   }
 
   get state(): z.infer<S> {
-    return this.sessionData.state;
+    // We always get state from the parent. Parent session is the source of truth.
+    if (this.parent instanceof Session) {
+      return this.parent.state;
+    }
+    return this.sessionData!.state;
   }
 
   async updateState(data: z.infer<S>): Promise<void> {
-    this.sessionData.state = data;
-    await this.store.save(this.id, {
-      state: this.state,
-      messages: this.messages,
-    });
+    // We always update the state on the parent. Parent session is the source of truth.
+    if (this.parent instanceof Session) {
+      return this.parent.updateState(data);
+    }
+    let sessionData = await this.store.get(this.id);
+    if (!sessionData) {
+      sessionData = {} as SessionData<S>;
+    }
+    sessionData.state = data;
+    this.sessionData = sessionData;
+
+    await this.store.save(this.id, sessionData);
   }
 
   get messages(): MessageData[] | undefined {
-    return this.sessionData.messages;
+    if (!this.sessionData?.threads) {
+      return undefined;
+    }
+    return this.sessionData?.threads[this.threadName];
   }
 
   async updateMessages(messages: MessageData[]): Promise<void> {
-    this.sessionData.messages = messages;
-    await this.store.save(this.id, {
-      state: this.state,
-      messages: this.messages,
-    });
+    let sessionData = await this.store.get(this.id);
+    if (!sessionData) {
+      sessionData = { threads: {} };
+    }
+    if (!sessionData.threads) {
+      sessionData.threads = {};
+    }
+    sessionData.threads[this.threadName] = messages;
+    this.sessionData = sessionData;
+    await this.store.save(this.id, sessionData);
   }
 
   toJSON() {
+    if (this.parent instanceof Session) {
+      return this.parent.toJSON();
+    }
     return this.sessionData;
   }
 
@@ -327,7 +384,7 @@ export class Session<S extends z.ZodTypeAny> {
 
 export interface SessionData<S extends z.ZodTypeAny> {
   state?: z.infer<S>;
-  messages?: MessageData[];
+  threads?: Record<string, MessageData[]>;
 }
 
 const sessionAls = new AsyncLocalStorage<Session<any>>();
@@ -356,6 +413,7 @@ export class SessionError extends Error {
   }
 }
 
+/** Session store persists session data such as state and chat messages. */
 export interface SessionStore<S extends z.ZodTypeAny> {
   get(sessionId: string): Promise<SessionData<S> | undefined>;
 
