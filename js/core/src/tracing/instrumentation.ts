@@ -58,7 +58,6 @@ export async function newTrace<T>(
       {
         metadata: {
           name: opts.name,
-          isRoot,
         },
         labels: opts.labels,
         links: opts.links,
@@ -84,6 +83,7 @@ export async function runInNewSpan<T>(
   const tracer = trace.getTracer(TRACER_NAME, TRACER_VERSION);
   const parentStep = spanMetadataAls.getStore();
   const isInRoot = parentStep?.isRoot === true;
+  if (!parentStep) opts.metadata.isRoot ||= true;
   return await tracer.startActiveSpan(
     opts.metadata.name,
     { links: opts.links, root: opts.metadata.isRoot },

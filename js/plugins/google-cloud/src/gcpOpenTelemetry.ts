@@ -51,6 +51,7 @@ import { extractErrorName } from './utils';
 import { PathMetadata } from '@genkit-ai/core/tracing';
 import { actionTelemetry } from './telemetry/action.js';
 import { engagementTelemetry } from './telemetry/engagement.js';
+import { featuresTelemetry } from './telemetry/feature.js';
 import { flowsTelemetry } from './telemetry/flow.js';
 import { generateTelemetry } from './telemetry/generate.js';
 import { GcpPluginConfig } from './types';
@@ -180,9 +181,8 @@ export class GcpOpenTelemetry implements TelemetryConfig {
 }
 
 /**
- * Adjusts spans before exporting to GCP. In particular, redacts PII
- * (input prompts and outputs), and adds a workaround attribute to
- * error spans that marks them as error in GCP.
+ * Adjusts spans before exporting to GCP. Redacts model input
+ * and output content, and augments span attributes before sending to GCP.
  */
 class AdjustingTraceExporter implements SpanExporter {
   constructor(
@@ -255,30 +255,25 @@ class AdjustingTraceExporter implements SpanExporter {
 
   private tickTelemetry(span: ReadableSpan, paths: Set<PathMetadata>) {
     const attributes = span.attributes;
-
     if (!Object.keys(attributes).includes('genkit:type')) {
       return;
     }
 
     const type = attributes['genkit:type'] as string;
     const subtype = attributes['genkit:metadata:subtype'] as string;
+    const isRoot = !!span.attributes['genkit:isRoot'];
 
     if (type === 'flow') {
       flowsTelemetry.tick(span, paths, this.logIO, this.projectId);
-      return;
-    }
-
-    if (type === 'action' && subtype === 'model') {
+    } else if (type === 'action' && subtype === 'model') {
       generateTelemetry.tick(span, paths, this.logIO, this.projectId);
-      return;
-    }
-
-    if (type === 'action' || type == 'flowStep') {
+    } else if (type === 'action' || type == 'flowStep') {
       actionTelemetry.tick(span, paths, this.logIO, this.projectId);
-    }
-
-    if (type === 'userEngagement') {
+    } else if (type === 'userEngagement') {
       engagementTelemetry.tick(span, paths, this.logIO, this.projectId);
+    }
+    if (isRoot) {
+      featuresTelemetry.tick(span, paths, this.logIO, this.projectId);
     }
   }
 

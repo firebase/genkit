@@ -111,7 +111,7 @@ describe('GoogleCloudMetrics', () => {
 
     await getExportedSpans();
 
-    const requestCounter = await getCounterMetric('genkit/flow/requests');
+    const requestCounter = await getCounterMetric('genkit/feature/requests');
     assert.equal(requestCounter.value, 1);
     assert.equal(requestCounter.attributes.name, 'testFlow');
     assert.equal(requestCounter.attributes.source, 'ts');
@@ -143,6 +143,56 @@ describe('GoogleCloudMetrics', () => {
     assert.ok(requestCounter.attributes.sourceVersion);
     assert.equal(latencyHistogram.value.count, 6);
     assert.equal(latencyHistogram.attributes.name, 'testAction');
+    assert.equal(latencyHistogram.attributes.source, 'ts');
+    assert.equal(latencyHistogram.attributes.status, 'success');
+    assert.ok(latencyHistogram.attributes.sourceVersion);
+  });
+
+  it('writes feature metrics for an action', async () => {
+    const testAction = createAction(ai, 'featureAction');
+
+    await runWithRegistry(ai.registry, async () => {
+      await testAction(null);
+      await testAction(null);
+    });
+
+    await getExportedSpans();
+
+    const requestCounter = await getCounterMetric('genkit/feature/requests');
+    const latencyHistogram = await getHistogramMetric('genkit/feature/latency');
+    assert.equal(requestCounter.value, 2);
+    assert.equal(requestCounter.attributes.name, 'featureAction');
+    assert.equal(requestCounter.attributes.source, 'ts');
+    assert.equal(requestCounter.attributes.status, 'success');
+    assert.ok(requestCounter.attributes.sourceVersion);
+    assert.equal(latencyHistogram.value.count, 2);
+    assert.equal(latencyHistogram.attributes.name, 'featureAction');
+    assert.equal(latencyHistogram.attributes.source, 'ts');
+    assert.equal(latencyHistogram.attributes.status, 'success');
+    assert.ok(latencyHistogram.attributes.sourceVersion);
+  });
+
+  // it('writes feature metrics for prompts')
+  // after PR #1029
+
+  it('writes feature metrics for generate', async () => {
+    await runWithRegistry(ai.registry, async () => {
+      const testModel = createTestModel(ai, 'helloModel');
+      await generate({ model: testModel, prompt: 'Hi' });
+      await generate({ model: testModel, prompt: 'Yo' });
+    });
+
+    const spans = await getExportedSpans();
+
+    const requestCounter = await getCounterMetric('genkit/feature/requests');
+    const latencyHistogram = await getHistogramMetric('genkit/feature/latency');
+    assert.equal(requestCounter.value, 2);
+    assert.equal(requestCounter.attributes.name, 'generate');
+    assert.equal(requestCounter.attributes.source, 'ts');
+    assert.equal(requestCounter.attributes.status, 'success');
+    assert.ok(requestCounter.attributes.sourceVersion);
+    assert.equal(latencyHistogram.value.count, 2);
+    assert.equal(latencyHistogram.attributes.name, 'generate');
     assert.equal(latencyHistogram.attributes.source, 'ts');
     assert.equal(latencyHistogram.attributes.status, 'success');
     assert.ok(latencyHistogram.attributes.sourceVersion);
