@@ -15,7 +15,7 @@
  */
 
 import { VertexAI } from '@google-cloud/vertexai';
-import { genkitPlugin, Plugin, z } from 'genkit';
+import { GenkitError, genkitPlugin, Plugin, z } from 'genkit';
 import { GenerateRequest, ModelReference } from 'genkit/model';
 import { IndexerAction, RetrieverAction } from 'genkit/retriever';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
@@ -309,6 +309,14 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       options?.vectorSearchOptions &&
       options.vectorSearchOptions.length > 0
     ) {
+      // Embedders are required for vector search
+      if (options?.excludeEmbedders !== true) {
+        throw new GenkitError({
+          status: 'INVALID_ARGUMENT',
+          message: "Vector search requires embedders. Please disable the exclusion of embedders."
+        })
+      }
+
       const {
         getBigQueryDocumentIndexer,
         getBigQueryDocumentRetriever,
