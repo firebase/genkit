@@ -22,7 +22,24 @@ import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
 import { VertexAIEvaluationMetric } from './evaluation.js';
 import { GeminiConfigSchema } from './gemini.js';
 import { VertexRerankerConfig } from './reranker.js';
-import { VectorSearchOptions } from './vector-search';
+import {
+  VectorSearchOptions,
+  DocumentIndexer,
+  DocumentRetriever,
+  Neighbor
+} from './vector-search';
+
+let DocumentIndexerExport;
+let DocumentRetrieverExport;
+let getBigQueryDocumentIndexerExport;
+let getBigQueryDocumentRetrieverExport;
+let getFirestoreDocumentIndexerExport;
+let getFirestoreDocumentRetrieverExport;
+let NeighborExport;
+let vertexAiIndexerRefExport;
+let vertexAiIndexersExport;
+let vertexAiRetrieverRefExport;
+let vertexAiRetrieversExport;
 
 let claude35SonnetExport;
 let claude3HaikuExport;
@@ -295,9 +312,27 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       options?.vectorSearchOptions &&
       options.vectorSearchOptions.length > 0
     ) {
-      const { vertexAiIndexers, vertexAiRetrievers } = await import(
+      const {
+        getBigQueryDocumentIndexer,
+        getBigQueryDocumentRetriever,
+        getFirestoreDocumentIndexer,
+        getFirestoreDocumentRetriever,
+        vertexAiIndexerRef,
+        vertexAiIndexers,
+        vertexAiRetrieverRef,
+        vertexAiRetrievers,
+      } = await import(
         './vector-search/index.js'
       );
+
+      getBigQueryDocumentIndexerExport = getBigQueryDocumentIndexer;
+      getBigQueryDocumentRetrieverExport = getBigQueryDocumentRetriever;
+      getFirestoreDocumentIndexerExport = getFirestoreDocumentIndexer;
+      getFirestoreDocumentRetrieverExport = getFirestoreDocumentRetriever;
+      vertexAiIndexerRefExport = vertexAiIndexerRef;
+      vertexAiIndexersExport = vertexAiIndexers;
+      vertexAiRetrieverRefExport = vertexAiRetrieverRef;
+      vertexAiRetrieversExport = vertexAiRetrievers;
 
       const defaultEmbedder = embedders[0];
 
@@ -342,6 +377,19 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
 );
 
 export {
+  VectorSearchOptions,
+  DocumentIndexerExport as DocumentIndexer,
+  DocumentRetrieverExport as DocumentRetriever,
+  getBigQueryDocumentIndexerExport as getBigQueryDocumentIndexer,
+  getBigQueryDocumentRetrieverExport as getBigQueryDocumentRetriever,
+  getFirestoreDocumentIndexerExport as getFirestoreDocumentIndexer,
+  getFirestoreDocumentRetrieverExport as getFirestoreDocumentRetriever,
+  NeighborExport as Neighbor,
+  vertexAiIndexerRefExport as vertexAiIndexerRef,
+  vertexAiIndexersExport as vertexAiIndexers,
+  vertexAiRetrieverRefExport as vertexAiRetrieverRef,
+  vertexAiRetrieversExport as vertexAiRetrievers,
+
   claude35SonnetExport as claude35Sonnet,
   claude3HaikuExport as claude3Haiku,
   claude3OpusExport as claude3Opus,
