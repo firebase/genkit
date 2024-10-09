@@ -16,8 +16,9 @@
 
 import { runWithRegistry } from '@genkit-ai/core/registry';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
-import { Genkit, generate, genkit, run, z } from 'genkit';
+import { generate, Genkit, genkit, run, z } from 'genkit';
 import { defineModel } from 'genkit/model';
+import { appendSpan } from 'genkit/tracing';
 import assert from 'node:assert';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import {
@@ -176,6 +177,25 @@ describe('GoogleCloudTracing', () => {
     assert.equal(spans[1].name, 'modelFlow');
     assert.equal(spans[2].name, 'echoModel');
     assert.equal(spans[2].attributes['genkit/model'], 'echoModel');
+  });
+
+  it('attaches additional span', async () => {
+    appendSpan(
+      'trace1',
+      'parent1',
+      { name: 'span-name', metadata: { metadata_key: 'metadata_value' } },
+      { ['label_key']: 'label_value' }
+    );
+
+    const spans = await getExportedSpans();
+    const span = spans.find((it) => it.name === 'span-name');
+    assert.equal(Object.keys(span?.attributes || {}).length, 3);
+    assert.equal(span?.attributes['genkit/name'], 'span-name');
+    assert.equal(span?.attributes['label_key'], 'label_value');
+    assert.equal(
+      span?.attributes['genkit/metadata/metadata_key'],
+      'metadata_value'
+    );
   });
 
   /** Helper to create a flow with no inputs or outputs */
