@@ -47,12 +47,10 @@ import { ToolAction, toToolDefinition } from './tool.js';
 export const GenerateUtilParamSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
   model: z.string(),
-  /** The prompt for which to generate a response. Can be a string for a simple text prompt or one or more parts for multi-modal prompts. */
-  prompt: z.union([z.string(), PartSchema, z.array(PartSchema)]).optional(),
   /** Retrieved documents to be used as context for this generation. */
   context: z.array(DocumentDataSchema).optional(),
   /** Conversation history for multi-turn prompting when supported by the underlying model. */
-  messages: z.array(MessageSchema).optional(),
+  messages: z.array(MessageSchema),
   /** List of registered tool names for this generation if supported by the underlying model. */
   tools: z.array(z.union([z.string(), ToolDefinitionSchema])).optional(),
   /** Configuration for the generation request. */
@@ -214,26 +212,8 @@ async function actionToGenerateRequest(
   options: z.infer<typeof GenerateUtilParamSchema>,
   resolvedTools?: ToolAction[]
 ): Promise<GenerateRequest> {
-  const messages: MessageData[] = [...(options.messages || [])];
-  if (options.prompt) {
-    const promptMessage: MessageData = { role: 'user', content: [] };
-    if (typeof options.prompt === 'string') {
-      promptMessage.content.push({ text: options.prompt });
-    } else if (Array.isArray(options.prompt)) {
-      promptMessage.role = inferRoleFromParts(options.prompt);
-      promptMessage.content.push(...(options.prompt as Part[]));
-    } else {
-      promptMessage.role = inferRoleFromParts([options.prompt]);
-      promptMessage.content.push(options.prompt);
-    }
-    messages.push(promptMessage);
-  }
-  if (messages.length === 0) {
-    throw new Error('at least one message is required in generate request');
-  }
-
   const out = {
-    messages,
+    messages: options.messages,
     config: options.config,
     context: options.context,
     tools: resolvedTools?.map((tool) => toToolDefinition(tool)) || [],

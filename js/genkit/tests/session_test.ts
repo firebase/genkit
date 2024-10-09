@@ -41,7 +41,7 @@ describe('session', () => {
       response.text(),
       'Echo: hi,Echo: hi,; config: {},bye; config: {}'
     );
-    assert.deepStrictEqual(response.toHistory(), [
+    assert.deepStrictEqual(response.messages, [
       { content: [{ text: 'hi' }], role: 'user' },
       {
         content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
@@ -81,7 +81,7 @@ describe('session', () => {
       (await response).text(),
       'Echo: hi,Echo: hi,; config: {},bye; config: {}'
     );
-    assert.deepStrictEqual((await response).toHistory(), [
+    assert.deepStrictEqual((await response).messages, [
       { content: [{ text: 'hi' }], role: 'user' },
       {
         content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],

@@ -483,6 +483,6 @@ export const toolTester = ai.defineFlow(
       prompt: query,
       tools: testTools,
     });
-    return result.toHistory();
+    return result.messages;
   }
 );

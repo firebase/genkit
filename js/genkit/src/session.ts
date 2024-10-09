@@ -274,7 +274,7 @@ export class Session<S extends z.ZodTypeAny> {
       messages: this.messages,
       ...options,
     });
-    await this.updateMessages(response.toHistory());
+    await this.updateMessages(response.messages);
     return response;
   }
 
@@ -304,7 +304,7 @@ export class Session<S extends z.ZodTypeAny> {
 
     return {
       response: response.finally(async () => {
-        this.updateMessages((await response).toHistory());
+        this.updateMessages((await response).messages);
       }),
       stream,
     };

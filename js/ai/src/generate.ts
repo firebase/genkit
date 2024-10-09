@@ -259,7 +259,7 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
    * @param index The candidate index to utilize during conversion, defaults to first candidate.
    * @returns A serializable list of messages compatible with `generate({history})`.
    */
-  toHistory(): MessageData[] {
+  get messages(): MessageData[] {
     if (!this.request)
       throw new Error(
         "Can't construct history for response without request reference."
@@ -269,6 +269,10 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
         "Can't construct history for response without generated message."
       );
     return [...this.request?.messages, this.message.toJSON()];
+  }
+
+  get raw(): unknown {
+    return this.raw ?? this.custom;
   }
 
   toJSON(): ModelResponseData {
@@ -412,6 +416,8 @@ export interface GenerateOptions<
 > {
   /** A model name (e.g. `vertexai/gemini-1.0-pro`) or reference. */
   model?: ModelArgument<CustomOptions>;
+  /** The system prompt to be included in the generate request. Can be a string for a simple text prompt or one or more parts for multi-modal prompts (subject to model support). */
+  system?: string | Part | Part[];
   /** The prompt for which to generate a response. Can be a string for a simple text prompt or one or more parts for multi-modal prompts. */
   prompt?: string | Part | Part[];
   /** Retrieved documents to be used as context for this generation. */
@@ -540,11 +546,45 @@ export async function generate<
     });
   }
 
+  const messages: MessageData[] = [];
+  if (resolvedOptions.system) {
+    const systemMessage: MessageData = { role: 'user', content: [] };
+    if (typeof resolvedOptions.system === 'string') {
+      systemMessage.content.push({ text: resolvedOptions.system });
+    } else if (Array.isArray(resolvedOptions.system)) {
+      systemMessage.role = inferRoleFromParts(resolvedOptions.system);
+      systemMessage.content.push(...(resolvedOptions.system as Part[]));
+    } else {
+      systemMessage.role = inferRoleFromParts([resolvedOptions.system]);
+      systemMessage.content.push(resolvedOptions.system);
+    }
+    messages.push(systemMessage);
+  }
+  if (resolvedOptions.messages) {
+    messages.push(...resolvedOptions.messages);
+  }
+  if (resolvedOptions.prompt) {
+    const promptMessage: MessageData = { role: 'user', content: [] };
+    if (typeof resolvedOptions.prompt === 'string') {
+      promptMessage.content.push({ text: resolvedOptions.prompt });
+    } else if (Array.isArray(resolvedOptions.prompt)) {
+      promptMessage.role = inferRoleFromParts(resolvedOptions.prompt);
+      promptMessage.content.push(...(resolvedOptions.prompt as Part[]));
+    } else {
+      promptMessage.role = inferRoleFromParts([resolvedOptions.prompt]);
+      promptMessage.content.push(resolvedOptions.prompt);
+    }
+    messages.push(promptMessage);
+  }
+
+  if (messages.length === 0) {
+    throw new Error('at least one message is required in generate request');
+  }
+
   const params: z.infer<typeof GenerateUtilParamSchema> = {
     model: model.__action.name,
-    prompt: resolvedOptions.prompt,
     context: resolvedOptions.context,
-    messages: resolvedOptions.messages,
+    messages,
     tools,
     config: {
       ...resolvedModel.config,
