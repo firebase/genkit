@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { GoogleAuth } from 'google-auth-library';
-import { PluginOptions } from '..';
 import { GenkitError, z } from 'genkit';
 import { IndexerAction, RetrieverAction } from 'genkit/retriever';
+import { GoogleAuth } from 'google-auth-library';
+import { PluginOptions } from '..';
 
 export {
   DocumentIndexer,
@@ -83,22 +83,22 @@ export default async function vertexAiVectorSearch(
 async function initalizeDependencies() {
   const {
     getBigQueryDocumentIndexer: getBigQueryDocumentIndexerImport,
-    getBigQueryDocumentRetriever: getBigQueryDocumentRetrieverImport
+    getBigQueryDocumentRetriever: getBigQueryDocumentRetrieverImport,
   } = await import('./bigquery.js');
 
   const {
     getFirestoreDocumentIndexer: getFirestoreDocumentIndexerImport,
-    getFirestoreDocumentRetriever: getFirestoreDocumentRetrieverImport
+    getFirestoreDocumentRetriever: getFirestoreDocumentRetrieverImport,
   } = await import('./firestore.js');
 
   const {
     vertexAiIndexerRef: vertexAiIndexerRefImport,
-    vertexAiIndexers: vertexAiIndexersImport
+    vertexAiIndexers: vertexAiIndexersImport,
   } = await import('./indexers.js');
 
   const {
     vertexAiRetrieverRef: vertexAiRetrieverRefImport,
-    vertexAiRetrievers: vertexAiRetrieversImport
+    vertexAiRetrievers: vertexAiRetrieversImport,
   } = await import('./retrievers.js');
 
   getBigQueryDocumentIndexer = getBigQueryDocumentIndexerImport;

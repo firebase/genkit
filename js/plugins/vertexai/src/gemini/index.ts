@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+import { ModelAction } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from '..';
-import { ModelAction } from 'genkit/model';
 
 let SUPPORTED_GEMINI_MODELS: Record<string, { name: string }> = {};
 let geminiModel;
@@ -29,11 +29,11 @@ let geminiPro;
 let geminiProVision;
 
 export default async function vertexAiGemini(
-    projectId: string,
-    location: string,
-    options: PluginOptions | undefined,
-    authClient: GoogleAuth,
-    vertexClientFactory: any
+  projectId: string,
+  location: string,
+  options: PluginOptions | undefined,
+  authClient: GoogleAuth,
+  vertexClientFactory: any
 ): Promise<ModelAction<any>[]> {
   await initalizeDependencies();
 
@@ -73,4 +73,4 @@ export {
   gemini15ProPreview,
   geminiPro,
   geminiProVision,
-}
+};

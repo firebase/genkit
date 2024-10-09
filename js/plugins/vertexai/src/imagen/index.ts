@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
+import { ModelAction } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from '..';
-import { ModelAction } from 'genkit/model';
 
 let imagenModel;
 let SUPPORTED_IMAGEN_MODELS: Record<string, { name: string }> = {};
@@ -26,15 +26,15 @@ let imagen3;
 let imagen3Fast;
 
 export default async function vertexAiImagen(
-    projectId: string,
-    location: string,
-    options: PluginOptions | undefined,
-    authClient: GoogleAuth,
+  projectId: string,
+  location: string,
+  options: PluginOptions | undefined,
+  authClient: GoogleAuth
 ): Promise<ModelAction<any>[]> {
   await initalizeDependencies();
 
   const imagenModels = Object.keys(SUPPORTED_IMAGEN_MODELS).map((name) =>
-      imagenModel(name, authClient, { projectId, location })
+    imagenModel(name, authClient, { projectId, location })
   );
 
   return imagenModels;
@@ -56,8 +56,4 @@ async function initalizeDependencies() {
   SUPPORTED_IMAGEN_MODELS = SUPPORTED_IMAGEN_MODELS_IMPORT;
 }
 
-export {
-  imagen2,
-  imagen3,
-  imagen3Fast
-};
+export { imagen2, imagen3, imagen3Fast };
