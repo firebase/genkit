@@ -22,7 +22,7 @@ import {
   rerankerRef,
 } from 'genkit/reranker';
 import { GoogleAuth } from 'google-auth-library';
-import { PluginOptions } from '.';
+import { PluginOptions } from '..';
 
 const DEFAULT_MODEL = 'semantic-ranker-512@latest';
 

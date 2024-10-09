@@ -25,8 +25,8 @@ import {
   ModelReference,
 } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
-import { PluginOptions } from './index.js';
-import { PredictClient, predictModel } from './predict.js';
+import { PluginOptions } from '../index.js';
+import { PredictClient, predictModel } from '../predict.js';
 
 const ImagenConfigSchema = GenerationCommonConfigSchema.extend({
   /** Language of the prompt text. */

@@ -14,16 +14,11 @@
  * limitations under the License.
  */
 
-export {
-  getBigQueryDocumentIndexer,
-  getBigQueryDocumentRetriever,
-} from './bigquery';
-export {
-  getFirestoreDocumentIndexer,
-  getFirestoreDocumentRetriever,
-} from './firestore';
-export { vertexAiIndexerRef, vertexAiIndexers } from './indexers';
-export { vertexAiRetrieverRef, vertexAiRetrievers } from './retrievers';
+import { GoogleAuth } from 'google-auth-library';
+import { PluginOptions } from '..';
+import { GenkitError, z } from 'genkit';
+import { IndexerAction, RetrieverAction } from 'genkit/retriever';
+
 export {
   DocumentIndexer,
   DocumentRetriever,
@@ -34,3 +29,95 @@ export {
   VertexAIVectorRetrieverOptions,
   VertexAIVectorRetrieverOptionsSchema,
 } from './types';
+
+let getBigQueryDocumentIndexer;
+let getBigQueryDocumentRetriever;
+let getFirestoreDocumentIndexer;
+let getFirestoreDocumentRetriever;
+let vertexAiIndexerRef;
+let vertexAiIndexers;
+let vertexAiRetrieverRef;
+let vertexAiRetrievers;
+
+export default async function vertexAiVectorSearch(
+  projectId: string,
+  location: string,
+  options: PluginOptions | undefined,
+  authClient: GoogleAuth,
+  embedders: any[]
+): Promise<{
+  indexers: IndexerAction<any>[];
+  retrievers: RetrieverAction<any>[];
+}> {
+  // Embedders are required for vector search
+  if (options?.excludeEmbedders !== true) {
+    throw new GenkitError({
+      status: 'INVALID_ARGUMENT',
+      message:
+        'Vector search requires embedders. Please disable the exclusion of embedders.',
+    });
+  }
+
+  await initalizeDependencies();
+
+  let indexers: IndexerAction<z.ZodTypeAny>[] = [];
+  let retrievers: RetrieverAction<z.ZodTypeAny>[] = [];
+
+  const defaultEmbedder = embedders[0];
+
+  indexers = vertexAiIndexers({
+    pluginOptions: options,
+    authClient,
+    defaultEmbedder,
+  });
+
+  retrievers = vertexAiRetrievers({
+    pluginOptions: options,
+    authClient,
+    defaultEmbedder,
+  });
+
+  return { indexers, retrievers };
+}
+
+async function initalizeDependencies() {
+  const {
+    getBigQueryDocumentIndexer: getBigQueryDocumentIndexerImport,
+    getBigQueryDocumentRetriever: getBigQueryDocumentRetrieverImport
+  } = await import('./bigquery.js');
+
+  const {
+    getFirestoreDocumentIndexer: getFirestoreDocumentIndexerImport,
+    getFirestoreDocumentRetriever: getFirestoreDocumentRetrieverImport
+  } = await import('./firestore.js');
+
+  const {
+    vertexAiIndexerRef: vertexAiIndexerRefImport,
+    vertexAiIndexers: vertexAiIndexersImport
+  } = await import('./indexers.js');
+
+  const {
+    vertexAiRetrieverRef: vertexAiRetrieverRefImport,
+    vertexAiRetrievers: vertexAiRetrieversImport
+  } = await import('./retrievers.js');
+
+  getBigQueryDocumentIndexer = getBigQueryDocumentIndexerImport;
+  getBigQueryDocumentRetriever = getBigQueryDocumentRetrieverImport;
+  getFirestoreDocumentIndexer = getFirestoreDocumentIndexerImport;
+  getFirestoreDocumentRetriever = getFirestoreDocumentRetrieverImport;
+  vertexAiIndexerRef = vertexAiIndexerRefImport;
+  vertexAiIndexers = vertexAiIndexersImport;
+  vertexAiRetrieverRef = vertexAiRetrieverRefImport;
+  vertexAiRetrievers = vertexAiRetrieversImport;
+}
+
+export {
+  getBigQueryDocumentIndexer,
+  getBigQueryDocumentRetriever,
+  getFirestoreDocumentIndexer,
+  getFirestoreDocumentRetriever,
+  vertexAiIndexerRef,
+  vertexAiIndexers,
+  vertexAiRetrieverRef,
+  vertexAiRetrievers,
+};
