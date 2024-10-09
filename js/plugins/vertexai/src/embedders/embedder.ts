@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
+import { z } from 'genkit';
 import {
   defineEmbedder,
   embedderRef,
   EmbedderReference,
-} from '@genkit-ai/ai/embedder';
+} from 'genkit/embedder';
 import { GoogleAuth } from 'google-auth-library';
-import { z } from 'zod';
-import { PluginOptions } from './index.js';
-import { PredictClient, predictModel } from './predict.js';
+import { PluginOptions } from '../index.js';
+import { PredictClient, predictModel } from '../predict.js';
 
 export const TaskTypeSchema = z.enum([
   'RETRIEVAL_DOCUMENT',
