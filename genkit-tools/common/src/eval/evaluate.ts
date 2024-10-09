@@ -19,11 +19,13 @@ import { EvalFlowInput, getDatasetStore, getEvalStore } from '.';
 import { Runner } from '../runner';
 import {
   Action,
+  CandidateData,
   EvalInput,
   EvalRun,
   EvalRunKey,
   FlowActionInputSchema,
   GenerateRequest,
+  GenerateResponseSchema,
   MessageData,
   MessageSchema,
   RunNewEvaluationRequest,
@@ -354,12 +356,14 @@ async function gatherEvalInput(params: {
 
   const output = extractors.output(trace);
   const context = extractors.context(trace);
+  const error = isModelAction ? getErrorFromModelResponse(output) : undefined;
 
   return {
     // TODO Replace this with unified trace class
     testCaseId: randomUUID(),
     input,
     output,
+    error,
     context: JSON.parse(context) as string[],
     reference: state.reference,
     traceIds: [traceId],
@@ -376,6 +380,17 @@ function getSpanErrorMessage(span: SpanData): string | undefined {
     return (
       (event?.annotation?.attributes['exception.message'] as string) ?? 'Error'
     );
+  }
+}
+
+function getErrorFromModelResponse(output: string): string | undefined {
+  const obj = JSON.parse(output);
+  const response = GenerateResponseSchema.parse(obj);
+
+  // We currently only support the first candidate
+  const candidate = response?.candidates[0] as CandidateData;
+  if (candidate.finishReason === 'blocked') {
+    return candidate.finishMessage || `Generation was blocked by the model.`;
   }
 }
 
