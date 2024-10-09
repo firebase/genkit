@@ -367,22 +367,35 @@ export class GenerateResponseChunk<T = unknown>
 export async function toGenerateRequest(
   options: GenerateOptions
 ): Promise<GenerateRequest> {
-  const messages: MessageData[] = [...(options.messages || [])];
+  const messages: MessageData[] = [];
+  if (options.system) {
+    const systemMessage: MessageData = { role: 'system', content: [] };
+    if (typeof options.system === 'string') {
+      systemMessage.content.push({ text: options.system });
+    } else if (Array.isArray(options.system)) {
+      systemMessage.role = inferRoleFromParts(options.system);
+      systemMessage.content.push(...(options.system as Part[]));
+    } else {
+      systemMessage.role = inferRoleFromParts([options.system]);
+      systemMessage.content.push(options.system);
+    }
+    messages.push(systemMessage);
+  }
+  if (options.messages) {
+    messages.push(...options.messages);
+  }
   if (options.prompt) {
     const promptMessage: MessageData = { role: 'user', content: [] };
     if (typeof options.prompt === 'string') {
       promptMessage.content.push({ text: options.prompt });
     } else if (Array.isArray(options.prompt)) {
       promptMessage.role = inferRoleFromParts(options.prompt);
-      promptMessage.content.push(...options.prompt);
+      promptMessage.content.push(...(options.prompt as Part[]));
     } else {
       promptMessage.role = inferRoleFromParts([options.prompt]);
       promptMessage.content.push(options.prompt);
     }
     messages.push(promptMessage);
-  }
-  if (messages.length === 0) {
-    throw new Error('at least one message is required in generate request');
   }
   let tools: Action<any, any>[] | undefined;
   if (options.tools) {
@@ -548,7 +561,7 @@ export async function generate<
 
   const messages: MessageData[] = [];
   if (resolvedOptions.system) {
-    const systemMessage: MessageData = { role: 'user', content: [] };
+    const systemMessage: MessageData = { role: 'system', content: [] };
     if (typeof resolvedOptions.system === 'string') {
       systemMessage.content.push({ text: resolvedOptions.system });
     } else if (Array.isArray(resolvedOptions.system)) {

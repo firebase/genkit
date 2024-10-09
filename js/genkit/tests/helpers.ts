@@ -61,7 +61,11 @@ export function defineEchoModel(ai: Genkit) {
               text:
                 'Echo: ' +
                 request.messages
-                  .map((m) => m.content.map((c) => c.text).join())
+                  .map(
+                    (m) =>
+                      (m.role === 'user' ? '' : `${m.role}: `) +
+                      m.content.map((c) => c.text).join()
+                  )
                   .join(),
             },
             {
