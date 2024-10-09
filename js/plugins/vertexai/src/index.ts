@@ -19,11 +19,10 @@ import { IndexerAction, RetrieverAction } from '@genkit-ai/ai/retriever';
 import { Plugin, genkitPlugin } from '@genkit-ai/core';
 import { VertexAI } from '@google-cloud/vertexai';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
-import { GeminiConfigSchema } from './gemini.js';
 import { VertexAIEvaluationMetric } from './evaluation.js';
-import { VectorSearchOptions } from './vector-search';
+import { GeminiConfigSchema } from './gemini.js';
 import { VertexRerankerConfig } from './reranker.js';
-
+import { VectorSearchOptions } from './vector-search';
 
 let claude35SonnetExport;
 let claude3HaikuExport;
@@ -146,14 +145,10 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
         ? options.evaluation.metrics
         : [];
     let evaluators: any = null;
-    if (
-      options?.excludeEvaluators &&
-      metrics.length > 0
-    ) {
-      const {
-        vertexEvaluators,
-        VertexAIEvaluationMetricType
-      } = await import('./evaluation.js');
+    if (options?.excludeEvaluators && metrics.length > 0) {
+      const { vertexEvaluators, VertexAIEvaluationMetricType } = await import(
+        './evaluation.js'
+      );
 
       VertexAIEvaluationMetricTypeExport = VertexAIEvaluationMetricType;
       evaluators = vertexEvaluators(authClient, metrics, projectId, location);
@@ -172,7 +167,7 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
 
       imagen2Export = imagen2;
       imagen3Export = imagen3;
-      imagen3FastExport = imagen3Fast
+      imagen3FastExport = imagen3Fast;
 
       const imagenModels = Object.keys(SUPPORTED_IMAGEN_MODELS).map((name) =>
         imagenModel(name, authClient, { projectId, location })
@@ -282,12 +277,15 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       textEmbeddingGecko001Export = textEmbeddingGecko001;
       textEmbeddingGecko002Export = textEmbeddingGecko002;
       textEmbeddingGecko003Export = textEmbeddingGecko003;
-      textEmbeddingGeckoMultilingual001Export = textEmbeddingGeckoMultilingual001;
+      textEmbeddingGeckoMultilingual001Export =
+        textEmbeddingGeckoMultilingual001;
       textMultilingualEmbedding002Export = textMultilingualEmbedding002;
 
-      embedders.push(Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
-        textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
-      ));
+      embedders.push(
+        Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
+          textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
+        )
+      );
     }
 
     let indexers: IndexerAction<z.ZodTypeAny>[] = [];
@@ -297,10 +295,9 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       options?.vectorSearchOptions &&
       options.vectorSearchOptions.length > 0
     ) {
-      const {
-        vertexAiIndexers,
-        vertexAiRetrievers,
-      } = await import('./vector-search/index.js');
+      const { vertexAiIndexers, vertexAiRetrievers } = await import(
+        './vector-search/index.js'
+      );
 
       const defaultEmbedder = embedders[0];
 
@@ -369,6 +366,6 @@ export {
   textEmbeddingGeckoMultilingual001Export as textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002Export as textMultilingualEmbedding002,
   VertexAIEvaluationMetricTypeExport as VertexAIEvaluationMetricType,
-}
+};
 
 export default vertexAI;
