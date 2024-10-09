@@ -18,7 +18,7 @@ import { GenerateRequest, ModelReference } from '@genkit-ai/ai/model';
 import { IndexerAction, RetrieverAction } from '@genkit-ai/ai/retriever';
 import { Plugin, genkitPlugin } from '@genkit-ai/core';
 import { VertexAI } from '@google-cloud/vertexai';
-import { GenkitError, genkitPlugin, Plugin, z } from 'genkit';
+import { embed, GenkitError, genkitPlugin, Plugin, z } from 'genkit';
 import { GenerateRequest, ModelReference } from 'genkit/model';
 import { IndexerAction, RetrieverAction } from 'genkit/retriever';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
@@ -110,37 +110,11 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
     let authClient;
     let authOptions = options?.googleAuth;
 
-    // Allow customers to pass in cloud credentials from environment variables
-    // following: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
-    if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
-      const serviceAccountCreds = JSON.parse(
-        process.env.GCLOUD_SERVICE_ACCOUNT_CREDS
-      );
-      authOptions = {
-        credentials: serviceAccountCreds,
-        scopes: [CLOUD_PLATFROM_OAUTH_SCOPE],
-      };
-      authClient = new GoogleAuth(authOptions);
-    } else {
-      authClient = new GoogleAuth(
-        authOptions ?? { scopes: [CLOUD_PLATFROM_OAUTH_SCOPE] }
-      );
-    }
+    authClient = authenticate(authOptions);
 
     const projectId = options?.projectId || (await authClient.getProjectId());
-
     const location = options?.location || 'us-central1';
-    const confError = (parameter: string, envVariableName: string) => {
-      return new Error(
-        `VertexAI Plugin is missing the '${parameter}' configuration. Please set the '${envVariableName}' environment variable or explicitly pass '${parameter}' into genkit config.`
-      );
-    };
-    if (!location) {
-      throw confError('location', 'GCLOUD_LOCATION');
-    }
-    if (!projectId) {
-      throw confError('project', 'GCLOUD_PROJECT');
-    }
+    validate(projectId, location);
 
     const vertexClientFactoryCache: Record<string, VertexAI> = {};
     const vertexClientFactory = (
@@ -157,220 +131,11 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       return vertexClientFactoryCache[requestLocation];
     };
 
-    const metrics =
-      options?.evaluation && options.evaluation.metrics.length > 0
-        ? options.evaluation.metrics
-        : [];
-    let evaluators: any = null;
-    if (options?.excludeEvaluators && metrics.length > 0) {
-      const { vertexEvaluators, VertexAIEvaluationMetricType } = await import(
-        './evaluation.js'
-      );
-
-      VertexAIEvaluationMetricTypeExport = VertexAIEvaluationMetricType;
-      evaluators = vertexEvaluators(authClient, metrics, projectId, location);
-    }
-
-    const models: any[] = [];
-
-    if (options?.excludeImagen !== true) {
-      const {
-        imagen2,
-        imagen3,
-        imagen3Fast,
-        imagenModel,
-        SUPPORTED_IMAGEN_MODELS,
-      } = await import('./imagen.js');
-
-      imagen2Export = imagen2;
-      imagen3Export = imagen3;
-      imagen3FastExport = imagen3Fast;
-
-      const imagenModels = Object.keys(SUPPORTED_IMAGEN_MODELS).map((name) =>
-        imagenModel(name, authClient, { projectId, location })
-      );
-      models.push(...imagenModels);
-    }
-
-    if (options?.excludeGemini !== true) {
-      const {
-        gemini15Flash,
-        gemini15FlashPreview,
-        gemini15Pro,
-        gemini15ProPreview,
-        geminiModel,
-        geminiPro,
-        geminiProVision,
-        SUPPORTED_GEMINI_MODELS,
-      } = await import('./gemini.js');
-
-      gemini15FlashExport = gemini15Flash;
-      gemini15FlashPreviewExport = gemini15FlashPreview;
-      gemini15ProExport = gemini15Pro;
-      gemini15ProPreviewExport = gemini15ProPreview;
-      geminiProExport = geminiPro;
-      geminiProVisionExport = geminiProVision;
-
-      const geminiModels = Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
-        geminiModel(name, vertexClientFactory, { projectId, location })
-      );
-      models.push(...geminiModels);
-    }
-
-    if (
-      options?.excludeModelGarden !== true &&
-      (options?.modelGardenModels || options?.modelGarden?.models)
-    ) {
-      const {
-        llama3,
-        llama31,
-        llama32,
-        modelGardenOpenaiCompatibleModel,
-        SUPPORTED_OPENAI_FORMAT_MODELS,
-      } = await import('./model_garden.js');
-
-      const {
-        anthropicModel,
-        claude35Sonnet,
-        claude3Haiku,
-        claude3Opus,
-        claude3Sonnet,
-        SUPPORTED_ANTHROPIC_MODELS,
-      } = await import('./anthropic.js');
-
-      llama3Export = llama3;
-      llama31Export = llama31;
-      llama32Export = llama32;
-      claude35SonnetExport = claude35Sonnet;
-      claude3HaikuExport = claude3Haiku;
-      claude3OpusExport = claude3Opus;
-      claude3SonnetExport = claude3Sonnet;
-
-      const mgModels =
-        options?.modelGardenModels || options?.modelGarden?.models;
-      mgModels!.forEach((m) => {
-        const anthropicEntry = Object.entries(SUPPORTED_ANTHROPIC_MODELS).find(
-          ([_, value]) => value.name === m.name
-        );
-        if (anthropicEntry) {
-          models.push(anthropicModel(anthropicEntry[0], projectId, location));
-          return;
-        }
-        const openaiModel = Object.entries(SUPPORTED_OPENAI_FORMAT_MODELS).find(
-          ([_, value]) => value.name === m.name
-        );
-        if (openaiModel) {
-          models.push(
-            modelGardenOpenaiCompatibleModel(
-              openaiModel[0],
-              projectId,
-              location,
-              authClient,
-              options.modelGarden?.openAiBaseUrlTemplate
-            )
-          );
-          return;
-        }
-        throw new Error(`Unsupported model garden model: ${m.name}`);
-      });
-    }
-
-    let embedders: any[] = [];
-    if (options?.excludeEmbedders !== true) {
-      const {
-        SUPPORTED_EMBEDDER_MODELS,
-        textEmbedding004,
-        textEmbeddingGecko,
-        textEmbeddingGecko001,
-        textEmbeddingGecko002,
-        textEmbeddingGecko003,
-        textEmbeddingGeckoEmbedder,
-        textEmbeddingGeckoMultilingual001,
-        textMultilingualEmbedding002,
-      } = await import('./embedder.js');
-
-      textEmbedding004Export = textEmbedding004;
-      textEmbeddingGeckoExport = textEmbeddingGecko;
-      textEmbeddingGecko001Export = textEmbeddingGecko001;
-      textEmbeddingGecko002Export = textEmbeddingGecko002;
-      textEmbeddingGecko003Export = textEmbeddingGecko003;
-      textEmbeddingGeckoMultilingual001Export =
-        textEmbeddingGeckoMultilingual001;
-      textMultilingualEmbedding002Export = textMultilingualEmbedding002;
-
-      embedders.push(
-        Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
-          textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
-        )
-      );
-    }
-
-    let indexers: IndexerAction<z.ZodTypeAny>[] = [];
-    let retrievers: RetrieverAction<z.ZodTypeAny>[] = [];
-    if (
-      options?.excludeVectorSearch !== true &&
-      options?.vectorSearchOptions &&
-      options.vectorSearchOptions.length > 0
-    ) {
-      // Embedders are required for vector search
-      if (options?.excludeEmbedders !== true) {
-        throw new GenkitError({
-          status: 'INVALID_ARGUMENT',
-          message: "Vector search requires embedders. Please disable the exclusion of embedders."
-        })
-      }
-
-      const {
-        getBigQueryDocumentIndexer,
-        getBigQueryDocumentRetriever,
-        getFirestoreDocumentIndexer,
-        getFirestoreDocumentRetriever,
-        vertexAiIndexerRef,
-        vertexAiIndexers,
-        vertexAiRetrieverRef,
-        vertexAiRetrievers,
-      } = await import('./vector-search/index.js');
-
-      getBigQueryDocumentIndexerExport = getBigQueryDocumentIndexer;
-      getBigQueryDocumentRetrieverExport = getBigQueryDocumentRetriever;
-      getFirestoreDocumentIndexerExport = getFirestoreDocumentIndexer;
-      getFirestoreDocumentRetrieverExport = getFirestoreDocumentRetriever;
-      vertexAiIndexerRefExport = vertexAiIndexerRef;
-      vertexAiIndexersExport = vertexAiIndexers;
-      vertexAiRetrieverRefExport = vertexAiRetrieverRef;
-      vertexAiRetrieversExport = vertexAiRetrievers;
-
-      const defaultEmbedder = embedders[0];
-
-      indexers = vertexAiIndexers({
-        pluginOptions: options,
-        authClient,
-        defaultEmbedder,
-      });
-
-      retrievers = vertexAiRetrievers({
-        pluginOptions: options,
-        authClient,
-        defaultEmbedder,
-      });
-    }
-
-    let rerankers: any = null;
-    if (
-      options?.excludeRerankers !== true &&
-      options?.rerankOptions &&
-      options.rerankOptions.length > 0
-    ) {
-      const { vertexAiRerankers } = await import('./reranker.js');
-
-      const rerankOptions = {
-        pluginOptions: options,
-        authClient,
-        projectId,
-      };
-
-      rerankers = await vertexAiRerankers(rerankOptions);
-    }
+    const models = await loadModels(projectId, location, options, authClient, vertexClientFactory);
+    const embedders = await loadEmbedders(projectId, location, options, authClient);
+    const evaluators = await loadEvaluators(projectId, location, options, authClient);
+    const { indexers, retrievers } = await loadVectorSearch(projectId, location, options, authClient, embedders);
+    const rerankers = await loadRerankers(projectId, location, options, authClient);
 
     return {
       models,
@@ -378,9 +143,303 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       evaluators,
       retrievers,
       indexers,
+      rerankers,
     };
   }
 );
+
+function authenticate(authOptions: GoogleAuthOptions | undefined): GoogleAuth {
+  let authClient;
+
+  // Allow customers to pass in cloud credentials from environment variables
+  // following: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
+  if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
+    const serviceAccountCreds = JSON.parse(
+      process.env.GCLOUD_SERVICE_ACCOUNT_CREDS
+    );
+    authOptions = {
+      credentials: serviceAccountCreds,
+      scopes: [CLOUD_PLATFROM_OAUTH_SCOPE],
+    };
+    authClient = new GoogleAuth(authOptions);
+  } else {
+    authClient = new GoogleAuth(
+      authOptions ?? { scopes: [CLOUD_PLATFROM_OAUTH_SCOPE] }
+    );
+  }
+
+  return authClient;
+}
+
+function validate(projectId: string, location: string) {
+  const confError = (parameter: string, envVariableName: string) => {
+    return new Error(
+      `VertexAI Plugin is missing the '${parameter}' configuration. Please set the '${envVariableName}' environment variable or explicitly pass '${parameter}' into genkit config.`
+    );
+  };
+  if (!location) {
+    throw confError('location', 'GCLOUD_LOCATION');
+  }
+  if (!projectId) {
+    throw confError('project', 'GCLOUD_PROJECT');
+  }
+}
+
+async function loadModels(
+  projectId: string,
+  location: string,
+  options: PluginOptions | undefined,
+  authClient: GoogleAuth,
+  vertexClientFactory: any
+) {
+  const models: any[] = [];
+
+  if (options?.excludeImagen !== true) {
+    const {
+      imagen2,
+      imagen3,
+      imagen3Fast,
+      imagenModel,
+      SUPPORTED_IMAGEN_MODELS,
+    } = await import('./imagen.js');
+
+    imagen2Export = imagen2;
+    imagen3Export = imagen3;
+    imagen3FastExport = imagen3Fast;
+
+    const imagenModels = Object.keys(SUPPORTED_IMAGEN_MODELS).map((name) =>
+      imagenModel(name, authClient, { projectId, location })
+    );
+    models.push(...imagenModels);
+  }
+
+  if (options?.excludeGemini !== true) {
+    const {
+      gemini15Flash,
+      gemini15FlashPreview,
+      gemini15Pro,
+      gemini15ProPreview,
+      geminiModel,
+      geminiPro,
+      geminiProVision,
+      SUPPORTED_GEMINI_MODELS,
+    } = await import('./gemini.js');
+
+    gemini15FlashExport = gemini15Flash;
+    gemini15FlashPreviewExport = gemini15FlashPreview;
+    gemini15ProExport = gemini15Pro;
+    gemini15ProPreviewExport = gemini15ProPreview;
+    geminiProExport = geminiPro;
+    geminiProVisionExport = geminiProVision;
+
+    const geminiModels = Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
+      geminiModel(name, vertexClientFactory, { projectId, location })
+    );
+    models.push(...geminiModels);
+  }
+
+  if (
+    options?.excludeModelGarden !== true &&
+    (options?.modelGardenModels || options?.modelGarden?.models)
+  ) {
+    const {
+      llama3,
+      llama31,
+      llama32,
+      modelGardenOpenaiCompatibleModel,
+      SUPPORTED_OPENAI_FORMAT_MODELS,
+    } = await import('./model_garden.js');
+
+    const {
+      anthropicModel,
+      claude35Sonnet,
+      claude3Haiku,
+      claude3Opus,
+      claude3Sonnet,
+      SUPPORTED_ANTHROPIC_MODELS,
+    } = await import('./anthropic.js');
+
+    llama3Export = llama3;
+    llama31Export = llama31;
+    llama32Export = llama32;
+    claude35SonnetExport = claude35Sonnet;
+    claude3HaikuExport = claude3Haiku;
+    claude3OpusExport = claude3Opus;
+    claude3SonnetExport = claude3Sonnet;
+
+    const mgModels =
+      options?.modelGardenModels || options?.modelGarden?.models;
+    mgModels!.forEach((m) => {
+      const anthropicEntry = Object.entries(SUPPORTED_ANTHROPIC_MODELS).find(
+        ([_, value]) => value.name === m.name
+      );
+      if (anthropicEntry) {
+        models.push(anthropicModel(anthropicEntry[0], projectId, location));
+        return;
+      }
+      const openaiModel = Object.entries(SUPPORTED_OPENAI_FORMAT_MODELS).find(
+        ([_, value]) => value.name === m.name
+      );
+      if (openaiModel) {
+        models.push(
+          modelGardenOpenaiCompatibleModel(
+            openaiModel[0],
+            projectId,
+            location,
+            authClient,
+            options.modelGarden?.openAiBaseUrlTemplate
+          )
+        );
+        return;
+      }
+      throw new Error(`Unsupported model garden model: ${m.name}`);
+    });
+  }
+
+  return models;
+}
+
+async function loadEmbedders(
+  projectId: string,
+  location: string,
+  options: PluginOptions | undefined,
+  authClient: GoogleAuth,
+) {
+  let embedders: any[] = [];
+
+  if (options?.excludeEmbedders !== true) {
+    const {
+      SUPPORTED_EMBEDDER_MODELS,
+      textEmbedding004,
+      textEmbeddingGecko,
+      textEmbeddingGecko001,
+      textEmbeddingGecko002,
+      textEmbeddingGecko003,
+      textEmbeddingGeckoEmbedder,
+      textEmbeddingGeckoMultilingual001,
+      textMultilingualEmbedding002,
+    } = await import('./embedder.js');
+
+    textEmbedding004Export = textEmbedding004;
+    textEmbeddingGeckoExport = textEmbeddingGecko;
+    textEmbeddingGecko001Export = textEmbeddingGecko001;
+    textEmbeddingGecko002Export = textEmbeddingGecko002;
+    textEmbeddingGecko003Export = textEmbeddingGecko003;
+    textEmbeddingGeckoMultilingual001Export =
+      textEmbeddingGeckoMultilingual001;
+    textMultilingualEmbedding002Export = textMultilingualEmbedding002;
+
+    embedders.push(
+      Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
+        textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
+      )
+    );
+  }
+
+  return embedders;
+}
+
+async function loadEvaluators(projectId: string, location: string, options: PluginOptions | undefined, authClient: GoogleAuth) {
+  const metrics =
+  options?.evaluation && options.evaluation.metrics.length > 0
+    ? options.evaluation.metrics
+    : [];
+  let evaluators: any = null;
+
+  if (options?.excludeEvaluators && metrics.length > 0) {
+    const { vertexEvaluators, VertexAIEvaluationMetricType } = await import(
+      './evaluation.js'
+    );
+
+    VertexAIEvaluationMetricTypeExport = VertexAIEvaluationMetricType;
+    evaluators = vertexEvaluators(authClient, metrics, projectId, location);
+  }
+
+  return evaluators;
+}
+
+async function loadVectorSearch(
+  projectId: string,
+  location: string,
+  options: PluginOptions | undefined,
+  authClient: GoogleAuth,
+  embedders: any[]
+) {
+  let indexers: IndexerAction<z.ZodTypeAny>[] = [];
+  let retrievers: RetrieverAction<z.ZodTypeAny>[] = [];
+
+  if (
+    options?.excludeVectorSearch !== true &&
+    options?.vectorSearchOptions &&
+    options.vectorSearchOptions.length > 0
+  ) {
+    // Embedders are required for vector search
+    if (options?.excludeEmbedders !== true) {
+      throw new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message: "Vector search requires embedders. Please disable the exclusion of embedders."
+      })
+    }
+
+    const {
+      getBigQueryDocumentIndexer,
+      getBigQueryDocumentRetriever,
+      getFirestoreDocumentIndexer,
+      getFirestoreDocumentRetriever,
+      vertexAiIndexerRef,
+      vertexAiIndexers,
+      vertexAiRetrieverRef,
+      vertexAiRetrievers,
+    } = await import('./vector-search/index.js');
+
+    getBigQueryDocumentIndexerExport = getBigQueryDocumentIndexer;
+    getBigQueryDocumentRetrieverExport = getBigQueryDocumentRetriever;
+    getFirestoreDocumentIndexerExport = getFirestoreDocumentIndexer;
+    getFirestoreDocumentRetrieverExport = getFirestoreDocumentRetriever;
+    vertexAiIndexerRefExport = vertexAiIndexerRef;
+    vertexAiIndexersExport = vertexAiIndexers;
+    vertexAiRetrieverRefExport = vertexAiRetrieverRef;
+    vertexAiRetrieversExport = vertexAiRetrievers;
+
+    const defaultEmbedder = embedders[0];
+
+    indexers = vertexAiIndexers({
+      pluginOptions: options,
+      authClient,
+      defaultEmbedder,
+    });
+
+    retrievers = vertexAiRetrievers({
+      pluginOptions: options,
+      authClient,
+      defaultEmbedder,
+    });
+  }
+
+  return { indexers, retrievers };
+}
+
+async function loadRerankers(projectId: string, location: string, options: PluginOptions | undefined, authClient: GoogleAuth) {
+  let rerankers: any = null;
+
+  if (
+    options?.excludeRerankers !== true &&
+    options?.rerankOptions &&
+    options.rerankOptions.length > 0
+  ) {
+    const { vertexAiRerankers } = await import('./reranker.js');
+
+    const rerankOptions = {
+      pluginOptions: options,
+      authClient,
+      projectId,
+    };
+
+    rerankers = await vertexAiRerankers(rerankOptions);
+  }
+
+  return rerankers;
+}
 
 export {
   claude35SonnetExport as claude35Sonnet,
