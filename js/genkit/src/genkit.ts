@@ -143,7 +143,7 @@ export class Genkit {
   defineFlow<
     I extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
-  >(config: FlowConfig<I, O>, fn: FlowFn<I, O>): CallableFlow<I, O> {
+  >(config: FlowConfig<I, O> | string, fn: FlowFn<I, O>): CallableFlow<I, O> {
     const flow = runWithRegistry(this.registry, () => defineFlow(config, fn));
     this.registeredFlows.push(flow.flow);
     return flow;
