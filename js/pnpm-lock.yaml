@@ -48,6 +48,9 @@ importers:
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       tsup:
         specifier: ^8.0.2
         version: 8.0.2(typescript@4.9.5)
@@ -109,6 +112,9 @@ importers:
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       tsup:
         specifier: ^8.0.2
         version: 8.0.2(typescript@4.9.5)
@@ -167,6 +173,9 @@ importers:
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       tsup:
         specifier: ^8.0.2
         version: 8.0.2(typescript@4.9.5)
@@ -201,6 +210,9 @@ importers:
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       tsup:
         specifier: ^8.0.2
         version: 8.0.2(typescript@4.9.5)
@@ -235,6 +247,9 @@ importers:
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       tsup:
         specifier: ^8.0.2
         version: 8.0.2(typescript@4.9.5)
@@ -272,6 +287,9 @@ importers:
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       tsup:
         specifier: ^8.0.2
         version: 8.0.2(typescript@4.9.5)
@@ -315,6 +333,9 @@ importers:
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       tsup:
         specifier: ^8.0.2
         version: 8.0.2(typescript@4.9.5)
@@ -364,6 +385,9 @@ importers:
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       tsup:
         specifier: ^8.0.2
         version: 8.0.2(typescript@4.9.5)
@@ -452,6 +476,9 @@ importers:
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       tsup:
         specifier: ^8.0.2
         version: 8.0.2(typescript@4.9.5)
@@ -489,6 +516,9 @@ importers:
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       tsup:
         specifier: ^8.0.2
         version: 8.0.2(typescript@4.9.5)
@@ -532,6 +562,9 @@ importers:
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       tsup:
         specifier: ^8.0.2
         version: 8.0.2(typescript@4.9.5)
@@ -557,6 +590,9 @@ importers:
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       tsup:
         specifier: ^8.0.2
         version: 8.0.2(typescript@4.9.5)
@@ -591,6 +627,9 @@ importers:
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       tsup:
         specifier: ^8.0.2
         version: 8.0.2(typescript@4.9.5)
@@ -653,6 +692,9 @@ importers:
       npm-run-all:
         specifier: ^4.1.5
         version: 4.1.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       tsup:
         specifier: ^8.0.2
         version: 8.0.2(typescript@4.9.5)
@@ -761,6 +803,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       typescript:
         specifier: ^5.3.3
         version: 5.4.5
@@ -825,6 +870,9 @@ importers:
       '@types/pdf-parse':
         specifier: ^1.1.4
         version: 1.1.4
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       typescript:
         specifier: ^5.3.3
         version: 5.4.5
@@ -874,6 +922,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       typescript:
         specifier: ^5.3.3
         version: 5.4.5
@@ -902,6 +953,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       typescript:
         specifier: ^5.3.3
         version: 5.4.5
@@ -939,6 +993,9 @@ importers:
       '@types/pdf-parse':
         specifier: ^1.1.4
         version: 1.1.4
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       typescript:
         specifier: ^5.3.3
         version: 5.4.5
@@ -967,6 +1024,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       typescript:
         specifier: ^5.3.3
         version: 5.4.5
@@ -1001,6 +1061,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       typescript:
         specifier: ^5.3.3
         version: 5.4.5
@@ -1038,6 +1101,9 @@ importers:
       '@types/express':
         specifier: ^4.17.21
         version: 4.17.21
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       typescript:
         specifier: ^5.3.3
         version: 5.4.5
@@ -1057,6 +1123,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       typescript:
         specifier: ^5.3.3
         version: 5.4.5
@@ -1103,6 +1172,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       typescript:
         specifier: ^5.3.3
         version: 5.4.5
@@ -1192,6 +1264,9 @@ importers:
       '@types/express':
         specifier: ^4.17.21
         version: 4.17.21
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       typescript:
         specifier: ^5.3.3
         version: 5.4.5
@@ -1217,6 +1292,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       typescript:
         specifier: ^5.3.3
         version: 5.4.5
@@ -1251,6 +1329,9 @@ importers:
         specifier: ^3.22.4
         version: 3.22.4
     devDependencies:
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       typescript:
         specifier: ^5.3.3
         version: 5.4.5
@@ -1398,6 +1479,9 @@ importers:
         specifier: 3.22.4
         version: 3.22.4
     devDependencies:
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       typescript:
         specifier: ^5.5.2
         version: 5.5.3
@@ -1456,6 +1540,9 @@ importers:
         specifier: 3.22.4
         version: 3.22.4
     devDependencies:
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       typescript:
         specifier: ^5.5.2
         version: 5.5.3
@@ -1514,6 +1601,9 @@ importers:
         specifier: 3.22.4
         version: 3.22.4
     devDependencies:
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
       typescript:
         specifier: ^5.5.2
         version: 5.5.3
@@ -3579,6 +3669,11 @@ packages:
     engines: {node: '>=16 || 14 >=14.17'}
     hasBin: true
 
+  glob@11.0.0:
+    resolution: {integrity: sha512-9UiX/Bl6J2yaBbxKoEBRm4Cipxgok8kQYcOPEhScPwebu2I0HoQOuYdIO6S3hLuWoZgpDpwQZMzTFxgpkyT76g==}
+    engines: {node: 20 || >=22}
+    hasBin: true
+
   glob@7.2.3:
     resolution: {integrity: sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==}
     deprecated: Glob versions prior to v9 are no longer supported
@@ -3865,6 +3960,10 @@ packages:
   jackspeak@2.3.6:
     resolution: {integrity: sha512-N3yCS/NegsOBokc8GAdM8UcmfsKiSS8cipheD/nivzr700H+nsMOxJjQnvwOcRYVuFkdH0wGUvW2WbXGmrZGbQ==}
     engines: {node: '>=14'}
+
+  jackspeak@4.0.2:
+    resolution: {integrity: sha512-bZsjR/iRjl1Nk1UkjGpAzLNfQtzuijhn2g+pbZb98HQ1Gk8vM9hfbxeMBP+M2/UUdwj0RqGG3mlvk2MsAqwvEw==}
+    engines: {node: 20 || >=22}
 
   jake@10.9.1:
     resolution: {integrity: sha512-61btcOHNnLnsOdtLgA5efqQWjnSi/vow5HbI7HMdKKWqvrKR1bLK3BPlJn9gcSaP2ewuamUSMB5XEy76KUIS2w==}
@@ -4173,6 +4272,10 @@ packages:
     resolution: {integrity: sha512-2bIM8x+VAf6JT4bKAljS1qUWgMsqZRPGJS6FSahIMPVvctcNhyVp7AJu7quxOW9jwkryBReKZY5tY5JYv2n/7Q==}
     engines: {node: 14 || >=16.14}
 
+  lru-cache@11.0.1:
+    resolution: {integrity: sha512-CgeuL5uom6j/ZVrg7G/+1IXqRY8JXX4Hghfy5YE0EhoYQWvndP1kufu58cmZLNIDKnRhZrXfdS9urVWx98AipQ==}
+    engines: {node: 20 || >=22}
+
   lru-cache@4.0.2:
     resolution: {integrity: sha512-uQw9OqphAGiZhkuPlpFGmdTU2tEuhxTourM/19qGJrxBPHAr/f8BT1a0i/lOclESnGatdJG/UCkP9kZB/Lh1iw==}
 
@@ -4246,6 +4349,10 @@ packages:
     resolution: {integrity: sha512-z0yWI+4FDrrweS8Zmt4Ej5HdJmky15+L2e6Wgn3+iK5fWzb6T3fhNFq2+MeTRb064c6Wr4N/wv0DzQTjNzHNGQ==}
     engines: {node: '>=10'}
 
+  minimatch@10.0.1:
+    resolution: {integrity: sha512-ethXTt3SGGR+95gudmqJ1eNhRO7eGEGIgYA9vnPatK4/etz2MEVDno5GMCibdMTuBMyElzIlgxMna3K94XDIDQ==}
+    engines: {node: 20 || >=22}
+
   minimatch@3.1.2:
     resolution: {integrity: sha512-J7p63hRiAjw1NDEww1W7i37+ByIrOWO5XQQAzZ3VOcL0PNybwpfmV/N05zFAzwQ9USyEcX6t3UO+K5aqBQOIHw==}
 
@@ -4270,6 +4377,10 @@ packages:
 
   minipass@7.0.4:
     resolution: {integrity: sha512-jYofLM5Dam9279rdkWzqHozUo4ybjdZmCsDHePy5V/PbBcVMiSZR97gmAy45aqi8CK1lG2ECd356FU86avfwUQ==}
+    engines: {node: '>=16 || 14 >=14.17'}
+
+  minipass@7.1.2:
+    resolution: {integrity: sha512-qOOzS1cBTWYF4BH8fVePDBOO9iptMnGUEZwNc/cMWnTV2nVLZ7VoNWEPHkYczZA0pdoA7dl6e7FL659nX9S2aw==}
     engines: {node: '>=16 || 14 >=14.17'}
 
   minizlib@2.1.2:
@@ -4458,6 +4569,9 @@ packages:
     resolution: {integrity: sha512-rhIwUycgwwKcP9yTOOFK/AKsAopjjCakVqLHePO3CC6Mir1Z99xT+R63jZxAT5lFZLa2inS5h+ZS2GvR99/FBg==}
     engines: {node: '>=8'}
 
+  package-json-from-dist@1.0.1:
+    resolution: {integrity: sha512-UEZIS3/by4OC8vL3P2dTXRETpebLI2NiI5vIrjaD/5UtrkFX/tNbwjTSRAGC/+7CAo2pIcBaRgWmcBBHcsaCIw==}
+
   parents@1.0.1:
     resolution: {integrity: sha512-mXKF3xkoUt5td2DoxpLmtOmZvko9VfFpwRwkKDHSNvgmpLAeBo18YDhcPbBzJq+QLCHMbGOfzia2cX4U+0v9Mg==}
 
@@ -4494,6 +4608,10 @@ packages:
   path-scurry@1.10.2:
     resolution: {integrity: sha512-7xTavNy5RQXnsjANvVvMkEjvloOinkAjv/Z6Ildz9v2RinZ4SBKTWFOVRbaF8p0vpHnyjV/UwNDdKuUv6M5qcA==}
     engines: {node: '>=16 || 14 >=14.17'}
+
+  path-scurry@2.0.0:
+    resolution: {integrity: sha512-ypGJsmGtdXUOeM5u93TyeIEfEhM6s+ljAhrk5vAvSx8uyY/02OvrZnA0YNGUrPXfpJMgI1ODd3nwz8Npx4O4cg==}
+    engines: {node: 20 || >=22}
 
   path-to-regexp@0.1.10:
     resolution: {integrity: sha512-7lf7qcQidTku0Gu3YDPc8DJ1q7OOucfa/BSsIwjuh56VU7katFvuM8hULfkwB3Fns/rsVF7PwPKVw1sl5KQS9w==}
@@ -4724,6 +4842,11 @@ packages:
   rimraf@3.0.2:
     resolution: {integrity: sha512-JZkJMZkAGFFPP2YqXZXPbMlMBgsxzE8ILs4lMIX/2o0L9UBw9O/Y3o6wFw/i9YLapcUJWwqbi3kdxIPdC62TIA==}
     deprecated: Rimraf versions prior to v4 are no longer supported
+    hasBin: true
+
+  rimraf@6.0.1:
+    resolution: {integrity: sha512-9dkvaxAsk/xNXSJzMgFqqMCuFgt2+KsOFek3TMLfo8NCPfWpBmqwyNn5Y+NX56QUYfCtsyhF3ayiboEoUmJk/A==}
+    engines: {node: 20 || >=22}
     hasBin: true
 
   rollup@4.13.2:
@@ -7576,6 +7699,15 @@ snapshots:
       minipass: 7.0.4
       path-scurry: 1.10.2
 
+  glob@11.0.0:
+    dependencies:
+      foreground-child: 3.1.1
+      jackspeak: 4.0.2
+      minimatch: 10.0.1
+      minipass: 7.1.2
+      package-json-from-dist: 1.0.1
+      path-scurry: 2.0.0
+
   glob@7.2.3:
     dependencies:
       fs.realpath: 1.0.0
@@ -7961,6 +8093,10 @@ snapshots:
     optionalDependencies:
       '@pkgjs/parseargs': 0.11.0
 
+  jackspeak@4.0.2:
+    dependencies:
+      '@isaacs/cliui': 8.0.2
+
   jake@10.9.1:
     dependencies:
       async: 3.2.5
@@ -8212,6 +8348,8 @@ snapshots:
 
   lru-cache@10.2.0: {}
 
+  lru-cache@11.0.1: {}
+
   lru-cache@4.0.2:
     dependencies:
       pseudomap: 1.0.2
@@ -8272,6 +8410,10 @@ snapshots:
 
   mimic-response@3.1.0: {}
 
+  minimatch@10.0.1:
+    dependencies:
+      brace-expansion: 2.0.1
+
   minimatch@3.1.2:
     dependencies:
       brace-expansion: 1.1.11
@@ -8295,6 +8437,8 @@ snapshots:
     optional: true
 
   minipass@7.0.4: {}
+
+  minipass@7.1.2: {}
 
   minizlib@2.1.2:
     dependencies:
@@ -8490,6 +8634,8 @@ snapshots:
     dependencies:
       p-finally: 1.0.0
 
+  package-json-from-dist@1.0.1: {}
+
   parents@1.0.1:
     dependencies:
       path-platform: 0.11.15
@@ -8518,6 +8664,11 @@ snapshots:
     dependencies:
       lru-cache: 10.2.0
       minipass: 7.0.4
+
+  path-scurry@2.0.0:
+    dependencies:
+      lru-cache: 11.0.1
+      minipass: 7.1.2
 
   path-to-regexp@0.1.10: {}
 
@@ -8766,6 +8917,11 @@ snapshots:
     dependencies:
       glob: 7.2.3
     optional: true
+
+  rimraf@6.0.1:
+    dependencies:
+      glob: 11.0.0
+      package-json-from-dist: 1.0.1
 
   rollup@4.13.2:
     dependencies:

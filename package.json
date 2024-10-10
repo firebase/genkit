@@ -13,7 +13,7 @@
     "link-genkit-cli": "cd genkit-tools/cli && npm link",
     "pnpm-install-js": "cd js && pnpm i",
     "pnpm-install-genkit-tools": "cd genkit-tools && pnpm i",
-    "pack:all": "rm -r dist || true && mkdir dist && pnpm run pack:tools && pnpm run pack:js && pnpm dist:zip",
+    "pack:all": "rimraf dist || true && mkdir dist && pnpm run pack:tools && pnpm run pack:js && pnpm dist:zip",
     "pack:tools": "cd genkit-tools && pnpm pack:all",
     "pack:js": "cd js && pnpm pack:all",
     "dist:zip": "cd dist && zip genkit-dist.zip *.tgz",
@@ -37,7 +37,8 @@
     "prettier-plugin-css-order": "2.0.1",
     "prettier-plugin-organize-imports": "^3.2.4",
     "ts-node": "^10.9.2",
-    "tsx": "^4.7.1"
+    "tsx": "^4.7.1",
+    "rimraf": "^6.0.1"
   },
   "packageManager": "pnpm@9.12.0+sha256.a61b67ff6cc97af864564f4442556c22a04f2e5a7714fbee76a1011361d9b726"
 }
