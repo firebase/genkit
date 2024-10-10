@@ -94,6 +94,6 @@ export const chatbotFlow = ai.defineStreamingFlow(
         await historyStore?.save(request.conversationId, mainResp.messages);
       }
     );
-    return mainResp.text();
+    return mainResp.text;
   }
 );

@@ -59,7 +59,7 @@ export async function answerRelevancyScore<
         schema: AnswerRelevancyResponseSchema,
       },
     });
-    const genQuestion = response.output()?.question;
+    const genQuestion = response.output?.question;
     if (!genQuestion)
       throw new Error('Error generating question for answer relevancy');
 
@@ -74,8 +74,8 @@ export async function answerRelevancyScore<
       options: embedderOptions,
     });
     const score = cosineSimilarity(questionEmbed, genQuestionEmbed);
-    const answered = response.output()?.answered === 1;
-    const isNonCommittal = response.output()?.noncommittal === 1;
+    const answered = response.output?.answered === 1;
+    const isNonCommittal = response.output?.noncommittal === 1;
     const answeredPenalty = !answered ? 0.5 : 0;
     const adjustedScore =
       score - answeredPenalty < 0 ? 0 : score - answeredPenalty;

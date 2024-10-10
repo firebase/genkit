@@ -109,7 +109,7 @@ configureGenkit(/* ... */);
     prompt: 'Invent a menu item for a pirate themed restaurant.',
   });
 
-  console.log(await llmResponse.text());
+  console.log(await llmResponse.text);
 })();
 ```
 
@@ -339,7 +339,7 @@ object's `output()` method:
 ```ts
 type MenuItem = z.infer<typeof MenuItemSchema>;
 
-const output: MenuItem | null = llmResponse.output();
+const output: MenuItem | null = llmResponse.output;
 ```
 
 #### Handling errors
@@ -425,7 +425,7 @@ Handle each of these chunks as they become available:
 ```ts
 for await (const responseChunkData of llmResponseStream.stream()) {
   const responseChunk = responseChunkData as GenerateResponseChunk;
-  console.log(responseChunk.text());
+  console.log(responseChunk.text);
 }
 ```
 
@@ -454,7 +454,7 @@ const llmResponseStream = await generateStream({
 for await (const responseChunkData of llmResponseStream.stream()) {
   const responseChunk = responseChunkData as GenerateResponseChunk<Menu>;
   // output() returns an object representing the entire output so far
-  const output: Menu | null = responseChunk.output();
+  const output: Menu | null = responseChunk.output;
   console.log(output);
 }
 ```

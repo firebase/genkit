@@ -63,7 +63,7 @@ ai.prompt('recipe').then((recipePrompt) => {
     async (input) =>
       (
         await recipePrompt.generate<typeof RecipeSchema>({ input: input })
-      ).output()!
+      ).output!
   );
 });
 
@@ -76,7 +76,7 @@ ai.prompt('recipe', { variant: 'robot' }).then((recipePrompt) => {
       }),
       outputSchema: z.any(),
     },
-    async (input) => (await recipePrompt.generate({ input: input })).output()
+    async (input) => (await recipePrompt.generate({ input: input })).output
   );
 });
 
@@ -101,10 +101,10 @@ ai.prompt('story').then((storyPrompt) => {
         for await (const chunk of stream) {
           streamingCallback(chunk.content[0]?.text!);
         }
-        return (await response).text();
+        return (await response).text;
       } else {
         const response = await storyPrompt.generate({ input: { subject } });
-        return response.text();
+        return response.text;
       }
     }
   );

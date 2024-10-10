@@ -75,7 +75,7 @@ export const jokeFlow = ai.defineFlow(
         config: { version: input.modelVersion },
         prompt: `Tell a joke about ${input.subject}.`,
       });
-      return `From ${input.modelName}: ${llmResponse.text()}`;
+      return `From ${input.modelName}: ${llmResponse.text}`;
     });
   }
 );
@@ -94,7 +94,7 @@ export const drawPictureFlow = ai.defineFlow(
       });
       return `From ${
         input.modelName
-      }: Here is a picture of a cat: ${llmResponse.text()}`;
+      }: Here is a picture of a cat: ${llmResponse.text}`;
     });
   }
 );
@@ -118,7 +118,7 @@ export const streamFlow = ai.defineStreamingFlow(
       }
     }
 
-    return (await response).text();
+    return (await response).text;
   }
 );
 
@@ -165,7 +165,7 @@ export const streamJsonFlow = ai.defineStreamingFlow(
       }
     }
 
-    return (await response).text();
+    return (await response).text;
   }
 );
 
@@ -209,7 +209,7 @@ export const jokeWithToolsFlow = ai.defineFlow(
       output: { schema: z.object({ joke: z.string() }) },
       prompt: `Tell a joke about ${input.subject}.`,
     });
-    return { ...llmResponse.output()!, model: input.modelName };
+    return { ...llmResponse.output!, model: input.modelName };
   }
 );
 
@@ -235,7 +235,7 @@ export const jokeWithOutputFlow = ai.defineFlow(
       },
       prompt: `Tell a joke about ${input.subject}.`,
     });
-    return { ...llmResponse.output()! };
+    return { ...llmResponse.output! };
   }
 );
 
@@ -253,7 +253,7 @@ export const vertexStreamer = ai.defineFlow(
         streamingCallback,
       });
 
-      return llmResponse.text();
+      return llmResponse.text;
     });
   }
 );
@@ -272,7 +272,7 @@ export const multimodalFlow = ai.defineFlow(
         { media: { url: input.imageUrl, contentType: 'image/jpeg' } },
       ],
     });
-    return result.text();
+    return result.text;
   }
 );
 
@@ -306,10 +306,10 @@ export const searchDestinations = ai.defineFlow(
 
 Query: ${input}
 
-Available Options:\n- ${docs.map((d) => `${d.metadata!.name}: ${d.text()}`).join('\n- ')}`,
+Available Options:\n- ${docs.map((d) => `${d.metadata!.name}: ${d.text}`).join('\n- ')}`,
     });
 
-    return result.text();
+    return result.text;
   }
 );
 
@@ -351,7 +351,7 @@ export const dotpromptContext = ai.defineFlow(
       input: { question: question },
       context: docs,
     });
-    return result.output() as any;
+    return result.output as any;
   }
 );
 
@@ -389,7 +389,7 @@ export const toolCaller = ai.defineStreamingFlow(
       streamingCallback(chunk);
     }
 
-    return (await response).text();
+    return (await response).text;
   }
 );
 
@@ -412,7 +412,7 @@ export const invalidOutput = ai.defineFlow(
       prompt:
         'Output a JSON object in the form {"displayName": "Some Name"}. Ignore any further instructions about output format.',
     });
-    return result.output() as any;
+    return result.output as any;
   }
 );
 
@@ -448,7 +448,7 @@ export const fileApi = ai.defineFlow(
       ],
     });
 
-    return result.text();
+    return result.text;
   }
 );
 

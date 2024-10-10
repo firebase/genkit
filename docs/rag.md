@@ -296,7 +296,7 @@ export const menuQAFlow = defineFlow(
       context: docs,
     });
 
-    const output = llmResponse.text();
+    const output = llmResponse.text;
     return output;
   }
 );
@@ -333,7 +333,7 @@ defineSimpleRetriever({
   // and several keys to use as metadata
   metadata: ['from', 'to', 'subject'],
 } async (query, config) => {
-  const result = await searchEmails(query.text(), {limit: config.limit});
+  const result = await searchEmails(query.text, {limit: config.limit});
   return result.data.emails;
 });
 ```
@@ -433,7 +433,7 @@ export const rerankFlow = defineFlow(
     });
 
     return rerankedDocuments.map((doc) => ({
-      text: doc.text(),
+      text: doc.text,
       score: doc.metadata.score,
     }));
   }

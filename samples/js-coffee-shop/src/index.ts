@@ -65,7 +65,7 @@ export const simpleGreetingFlow = defineFlow(
     outputSchema: z.string(),
   },
   async (input) =>
-    (await simpleGreetingPrompt.generate({ input: input })).text()
+    (await simpleGreetingPrompt.generate({ input: input })).text
 );
 
 // Another flow to recommend a drink based on the time of day and a previous order.
@@ -109,7 +109,7 @@ export const greetingWithHistoryFlow = defineFlow(
     outputSchema: z.string(),
   },
   async (input) =>
-    (await greetingWithHistoryPrompt.generate({ input: input })).text()
+    (await greetingWithHistoryPrompt.generate({ input: input })).text
 );
 
 // A flow to quickly test all the above flows

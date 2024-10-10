@@ -93,8 +93,7 @@ ai.defineFlow(
     outputSchema: z.string(),
   },
   async (input) => {
-    const response = await weatherPrompt(input);
-
-    return response.text();
+    const {text} = await weatherPrompt(input);
+    return text;
   }
 );

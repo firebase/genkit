@@ -100,7 +100,7 @@ ai.defineStreamingFlow(
       input,
     });
 
-    return response.text();
+    return response.text;
   }
 );
 
@@ -115,7 +115,7 @@ ai.prompt('hello').then((prompt) => {
       inputSchema: HelloSchema,
       outputSchema: z.string(),
     },
-    async (input) => (await prompt.generate({ input })).text()
+    async (input) => (await prompt.generate({ input })).text
   );
 });
 
@@ -130,7 +130,7 @@ ai.prompt('hello', { variant: 'first-last-name' }).then((prompt) => {
       inputSchema: HelloFullNameSchema,
       outputSchema: z.string(),
     },
-    async (input) => (await prompt.generate({ input })).text()
+    async (input) => (await prompt.generate({ input })).text
   );
 });
 
@@ -145,7 +145,7 @@ ai.prompt('hello', { variant: 'json-output' }).then((prompt) => {
       inputSchema: HelloSchema,
       outputSchema: z.any(),
     },
-    async (input) => (await prompt.generate({ input })).output()
+    async (input) => (await prompt.generate({ input })).output
   );
 });
 
@@ -156,7 +156,7 @@ ai.prompt('hello', { variant: 'system' }).then((prompt) => {
       inputSchema: HelloSchema,
       outputSchema: z.any(),
     },
-    async (input) => (await prompt.generate({ input })).output()
+    async (input) => (await prompt.generate({ input })).output
   );
 });
 
@@ -167,7 +167,7 @@ ai.prompt('hello', { variant: 'history' }).then((prompt) => {
       inputSchema: HelloSchema,
       outputSchema: z.any(),
     },
-    async (input) => (await prompt.generate({ input })).output()
+    async (input) => (await prompt.generate({ input })).output
   );
 });
 
