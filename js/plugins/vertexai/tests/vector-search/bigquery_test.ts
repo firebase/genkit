@@ -18,7 +18,7 @@ import { Document } from '@genkit-ai/ai/retriever';
 import { BigQuery } from '@google-cloud/bigquery';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
-import { getBigQueryDocumentRetriever } from '../../src/vector-search';
+import { getBigQueryDocumentRetriever } from '../../src/vector-search/bigquery';
 
 class MockBigQuery {
   query: Function;
