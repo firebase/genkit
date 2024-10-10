@@ -64,11 +64,10 @@ export default async function vertexAiVectorSearch(
   retrievers: RetrieverAction<any>[];
 }> {
   // Embedders are required for vector search
-  if (options?.excludeEmbedders !== true) {
+  if (options?.embedders?.enabled !== true) {
     throw new GenkitError({
       status: 'INVALID_ARGUMENT',
-      message:
-        'Vector search requires embedders. Please disable the exclusion of embedders.',
+      message: 'Vector search requires embedders. Please enable embedders.',
     });
   }
 

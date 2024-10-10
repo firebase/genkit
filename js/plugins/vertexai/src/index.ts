@@ -93,6 +93,8 @@ export interface PluginOptions {
   evaluation?: {
     metrics: VertexAIEvaluationMetric[];
   };
+  rerankOptions?: VertexRerankerConfig[];
+  vectorSearchOptions?: VectorSearchOptions<z.ZodTypeAny, any, any>[];
   /**
    * @deprecated use `modelGarden.models`
    */
@@ -101,17 +103,18 @@ export interface PluginOptions {
     models: ModelReference<any>[];
     openAiBaseUrlTemplate?: string;
   };
-  /** Configure Vertex AI vector search index options */
-  vectorSearchOptions?: VectorSearchOptions<z.ZodTypeAny, any, any>[];
-  /** Configure reranker options */
-  rerankOptions?: VertexRerankerConfig[];
-  excludeModelGarden?: boolean;
-  excludeGemini?: boolean;
-  excludeImagen?: boolean;
-  excludeEmbedders?: boolean;
-  excludeRerankers?: boolean;
-  excludeVectorSearch?: boolean;
-  excludeEvaluators?: boolean;
+  gemini?: {
+    /** Enabled by default */
+    enabled?: boolean;
+  };
+  imagen?: {
+    /** Enabled by default */
+    enabled?: boolean;
+  };
+  embedders?: {
+    /** Enabled by default */
+    enabled?: boolean;
+  };
 }
 
 const CLOUD_PLATFROM_OAUTH_SCOPE =
@@ -156,7 +159,8 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
     );
 
     const embedders: EmbedderAction<any>[] = [];
-    if (options?.excludeEmbedders !== true) {
+    if (options?.embedders?.enabled !== false) {
+      // On by default
       const temp = await vertexAiEmbedders(
         projectId,
         location,
@@ -172,7 +176,7 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
         ? options.evaluation.metrics
         : [];
     const evaluators: Action<any>[] = [];
-    if (options?.excludeEvaluators && metrics.length > 0) {
+    if (metrics.length > 0) {
       const temp = await vertexAiEvaluators(
         projectId,
         location,
@@ -187,7 +191,6 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
     let indexers: IndexerAction<any>[] = [];
     let retrievers: RetrieverAction<any>[] = [];
     if (
-      options?.excludeVectorSearch !== true &&
       options?.vectorSearchOptions &&
       options.vectorSearchOptions.length > 0
     ) {
@@ -204,11 +207,7 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
     }
 
     const rerankers: RerankerAction<any>[] = [];
-    if (
-      options?.excludeRerankers !== true &&
-      options?.rerankOptions &&
-      options.rerankOptions.length > 0
-    ) {
+    if (options?.rerankOptions && options.rerankOptions.length > 0) {
       const temp = await vertexAiRerankers(
         projectId,
         location,
@@ -276,7 +275,8 @@ async function loadModels(
 ) {
   const models: ModelAction<any>[] = [];
 
-  if (options?.excludeGemini !== true) {
+  if (options?.gemini?.enabled !== false) {
+    // On by default
     const geminiModels = await vertexAiGemini(
       projectId,
       location,
@@ -287,7 +287,8 @@ async function loadModels(
     models.push(...geminiModels);
   }
 
-  if (options?.excludeImagen !== true) {
+  if (options?.imagen?.enabled !== false) {
+    // On by default
     const imagenModels = await vertexAiImagen(
       projectId,
       location,
@@ -298,8 +299,8 @@ async function loadModels(
   }
 
   if (
-    options?.excludeModelGarden !== true &&
-    (options?.modelGardenModels || options?.modelGarden?.models)
+    (options?.modelGardenModels && options.modelGardenModels.length > 0) ||
+    (options?.modelGarden?.models && options.modelGarden.models.length > 0)
   ) {
     const modelGardenModels = await vertexAiModelGarden(
       projectId,
