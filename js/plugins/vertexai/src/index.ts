@@ -18,7 +18,9 @@ import { VertexAI } from '@google-cloud/vertexai';
 import { genkitPlugin, Plugin, z } from 'genkit';
 import { GenerateRequest, ModelReference } from 'genkit/model';
 import { IndexerAction, RetrieverAction } from 'genkit/retriever';
-import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
+import { GoogleAuthOptions } from 'google-auth-library';
+import { authenticate } from './common/auth.js';
+import { confError, DEFAULT_LOCATION } from './common/global.js';
 import {
   anthropicModel,
   claude35Sonnet,
@@ -140,43 +142,19 @@ export interface PluginOptions {
   rerankOptions?: VertexRerankerConfig[];
 }
 
-const CLOUD_PLATFROM_OAUTH_SCOPE =
-  'https://www.googleapis.com/auth/cloud-platform';
-
 /**
  * Add Google Cloud Vertex AI to Genkit. Includes Gemini and Imagen models and text embedder.
  */
 export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
   'vertexai',
   async (options?: PluginOptions) => {
-    let authClient;
-    let authOptions = options?.googleAuth;
-
-    // Allow customers to pass in cloud credentials from environment variables
-    // following: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
-    if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
-      const serviceAccountCreds = JSON.parse(
-        process.env.GCLOUD_SERVICE_ACCOUNT_CREDS
-      );
-      authOptions = {
-        credentials: serviceAccountCreds,
-        scopes: [CLOUD_PLATFROM_OAUTH_SCOPE],
-      };
-      authClient = new GoogleAuth(authOptions);
-    } else {
-      authClient = new GoogleAuth(
-        authOptions ?? { scopes: [CLOUD_PLATFROM_OAUTH_SCOPE] }
-      );
-    }
+    // Authenticate with Google Cloud
+    const authOptions = options?.googleAuth;
+    const authClient = authenticate(authOptions);
 
     const projectId = options?.projectId || (await authClient.getProjectId());
+    const location = options?.location || DEFAULT_LOCATION;
 
-    const location = options?.location || 'us-central1';
-    const confError = (parameter: string, envVariableName: string) => {
-      return new Error(
-        `VertexAI Plugin is missing the '${parameter}' configuration. Please set the '${envVariableName}' environment variable or explicitly pass '${parameter}' into genkit config.`
-      );
-    };
     if (!location) {
       throw confError('location', 'GCLOUD_LOCATION');
     }
