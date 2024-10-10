@@ -96,10 +96,10 @@ export function defineAgent(
           });
       await run(
         'save-history',
-        { conversationId: request.conversationId, history: resp.toHistory() },
+        { conversationId: request.conversationId, history: resp.messages },
         async () => {
           request.conversationId
-            ? await historyStore?.save(request.conversationId, resp.toHistory())
+            ? await historyStore?.save(request.conversationId, resp.messages)
             : undefined;
         }
       );

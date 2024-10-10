@@ -38,7 +38,8 @@
     "tsup": "^8.0.2",
     "typescript": "^4.9.0",
     "tsx": "^4.7.1",
-    "@types/body-parser": "^1.19.5"
+    "@types/body-parser": "^1.19.5",
+    "uuid": "^10.0.0"
   },
   "files": [
     "genkit-ui",

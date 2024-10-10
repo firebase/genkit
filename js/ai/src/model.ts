@@ -260,7 +260,9 @@ export const ModelResponseSchema = z.object({
   finishMessage: z.string().optional(),
   latencyMs: z.number().optional(),
   usage: GenerationUsageSchema.optional(),
+  /** @deprecated use `raw` instead */
   custom: z.unknown(),
+  raw: z.unknown(),
   request: GenerateRequestSchema.optional(),
 });
 export type ModelResponseData = z.infer<typeof ModelResponseSchema>;
@@ -385,11 +387,10 @@ export interface ModelReference<CustomOptions extends z.ZodTypeAny> {
   configSchema?: CustomOptions;
   info?: ModelInfo;
   version?: string;
+  config?: z.infer<CustomOptions>;
 }
 
-/**
- *
- */
+/** Cretes a model reference. */
 export function modelRef<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(

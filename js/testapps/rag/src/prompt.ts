@@ -24,10 +24,12 @@ export const augmentedPrompt = ai.definePrompt(
   {
     model: gemini15Flash,
     name: 'augmentedPrompt',
-    input: z.object({
-      context: z.array(z.string()),
-      question: z.string(),
-    }),
+    input: {
+      schema: z.object({
+        context: z.array(z.string()),
+        question: z.string(),
+      }),
+    },
     output: {
       format: 'text',
     },

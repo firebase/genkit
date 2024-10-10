@@ -619,17 +619,17 @@ describe('generate', () => {
       )
     );
   });
-  it('should preserve the request in the returned response, enabling toHistory()', async () => {
+  it('should preserve the request in the returned response, enabling .messages', async () => {
     const response = await runWithRegistry(registry, () =>
       generate({
         model: 'echo',
-        prompt: 'Testing toHistory',
+        prompt: 'Testing messages',
       })
     );
 
     assert.deepEqual(
-      response.toHistory().map((m) => m.content[0].text),
-      ['Testing toHistory', 'Testing toHistory']
+      response.messages.map((m) => m.content[0].text),
+      ['Testing messages', 'Testing messages']
     );
   });
 });

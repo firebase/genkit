@@ -88,10 +88,10 @@ export const chatbotFlow = ai.defineStreamingFlow(
       'save-history',
       {
         conversationId: request.conversationId,
-        history: mainResp.toHistory(),
+        history: mainResp.messages,
       },
       async () => {
-        await historyStore?.save(request.conversationId, mainResp.toHistory());
+        await historyStore?.save(request.conversationId, mainResp.messages);
       }
     );
     return mainResp.text();
