@@ -103,10 +103,16 @@ const DEFAULT_CONTEXT_EXTRACTOR: EvalExtractorFn = (trace: TraceData) => {
   );
 };
 
-const DEFAULT_EXTRACTORS: Record<EvalField, EvalExtractorFn> = {
+const DEFAULT_FLOW_EXTRACTORS: Record<EvalField, EvalExtractorFn> = {
   input: DEFAULT_INPUT_EXTRACTOR,
   output: DEFAULT_OUTPUT_EXTRACTOR,
   context: DEFAULT_CONTEXT_EXTRACTOR,
+};
+
+const DEFAULT_MODEL_EXTRACTORS: Record<EvalField, EvalExtractorFn> = {
+  input: DEFAULT_INPUT_EXTRACTOR,
+  output: DEFAULT_OUTPUT_EXTRACTOR,
+  context: () => JSON.stringify([]),
 };
 
 function getStepAttribute(
@@ -181,15 +187,22 @@ function getExtractorMap(extractor: EvaluationExtractor) {
 export async function getEvalExtractors(
   actionRef: string
 ): Promise<Record<string, EvalExtractorFn>> {
+  if (actionRef.startsWith('/model')) {
+    // Always use defaults for model extraction.
+    logger.debug(
+      'getEvalExtractors - modelRef provided, using default extractors'
+    );
+    return Promise.resolve(DEFAULT_MODEL_EXTRACTORS);
+  }
   const config = await findToolsConfig();
   logger.info(`Found tools config... ${JSON.stringify(config)}`);
   const extractors = config?.evaluators
     ?.filter((e) => e.actionRef === actionRef)
     .map((e) => e.extractors);
   if (!extractors) {
-    return Promise.resolve(DEFAULT_EXTRACTORS);
+    return Promise.resolve(DEFAULT_FLOW_EXTRACTORS);
   }
-  let composedExtractors = DEFAULT_EXTRACTORS;
+  let composedExtractors = DEFAULT_FLOW_EXTRACTORS;
   for (const extractor of extractors) {
     const extractorFunction = getExtractorMap(extractor);
     composedExtractors = { ...composedExtractors, ...extractorFunction };

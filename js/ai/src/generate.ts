@@ -390,12 +390,15 @@ export async function toGenerateRequest(
       promptMessage.content.push({ text: options.prompt });
     } else if (Array.isArray(options.prompt)) {
       promptMessage.role = inferRoleFromParts(options.prompt);
-      promptMessage.content.push(...(options.prompt as Part[]));
+      promptMessage.content.push(...options.prompt);
     } else {
       promptMessage.role = inferRoleFromParts([options.prompt]);
       promptMessage.content.push(options.prompt);
     }
     messages.push(promptMessage);
+  }
+  if (messages.length === 0) {
+    throw new Error('at least one message is required in generate request');
   }
   let tools: Action<any, any>[] | undefined;
   if (options.tools) {

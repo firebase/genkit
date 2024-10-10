@@ -452,31 +452,44 @@
     "GenerateResponseChunk": {
       "type": "object",
       "properties": {
-        "index": {
-          "type": "number"
-        },
         "content": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/Part"
           }
         },
-        "custom": {}
+        "custom": {},
+        "aggregated": {
+          "type": "boolean"
+        },
+        "index": {
+          "type": "number"
+        }
       },
       "required": [
-        "index",
-        "content"
+        "content",
+        "index"
       ],
       "additionalProperties": false
     },
     "GenerateResponse": {
       "type": "object",
       "properties": {
-        "candidates": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/Candidate"
-          }
+        "message": {
+          "$ref": "#/$defs/Message"
+        },
+        "finishReason": {
+          "type": "string",
+          "enum": [
+            "stop",
+            "length",
+            "blocked",
+            "other",
+            "unknown"
+          ]
+        },
+        "finishMessage": {
+          "type": "string"
         },
         "latencyMs": {
           "type": "number"
@@ -487,11 +500,14 @@
         "custom": {},
         "request": {
           "$ref": "#/$defs/GenerateRequest"
+        },
+        "candidates": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Candidate"
+          }
         }
       },
-      "required": [
-        "candidates"
-      ],
       "additionalProperties": false
     },
     "GenerationCommonConfig": {
@@ -543,6 +559,18 @@
           "type": "number"
         },
         "outputImages": {
+          "type": "number"
+        },
+        "inputVideos": {
+          "type": "number"
+        },
+        "outputVideos": {
+          "type": "number"
+        },
+        "inputAudioFiles": {
+          "type": "number"
+        },
+        "outputAudioFiles": {
           "type": "number"
         },
         "custom": {
@@ -654,6 +682,88 @@
           "additionalProperties": false
         }
       },
+      "additionalProperties": false
+    },
+    "ModelRequest": {
+      "type": "object",
+      "properties": {
+        "messages": {
+          "$ref": "#/$defs/GenerateRequest/properties/messages"
+        },
+        "config": {
+          "$ref": "#/$defs/GenerateRequest/properties/config"
+        },
+        "tools": {
+          "$ref": "#/$defs/GenerateRequest/properties/tools"
+        },
+        "output": {
+          "$ref": "#/$defs/GenerateRequest/properties/output"
+        },
+        "context": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/GenerateRequest/properties/context/items"
+          }
+        }
+      },
+      "required": [
+        "messages"
+      ],
+      "additionalProperties": false
+    },
+    "ModelResponseChunk": {
+      "type": "object",
+      "properties": {
+        "content": {
+          "$ref": "#/$defs/GenerateResponseChunk/properties/content"
+        },
+        "custom": {
+          "$ref": "#/$defs/GenerateResponseChunk/properties/custom"
+        },
+        "aggregated": {
+          "$ref": "#/$defs/GenerateResponseChunk/properties/aggregated"
+        }
+      },
+      "required": [
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "ModelResponse": {
+      "type": "object",
+      "properties": {
+        "message": {
+          "$ref": "#/$defs/GenerateResponse/properties/message"
+        },
+        "finishReason": {
+          "type": "string",
+          "enum": [
+            "stop",
+            "length",
+            "blocked",
+            "other",
+            "unknown"
+          ]
+        },
+        "finishMessage": {
+          "$ref": "#/$defs/GenerateResponse/properties/finishMessage"
+        },
+        "latencyMs": {
+          "$ref": "#/$defs/GenerateResponse/properties/latencyMs"
+        },
+        "usage": {
+          "$ref": "#/$defs/GenerateResponse/properties/usage"
+        },
+        "custom": {
+          "$ref": "#/$defs/GenerateResponse/properties/custom"
+        },
+        "request": {
+          "$ref": "#/$defs/GenerateResponse/properties/request"
+        }
+      },
+      "required": [
+        "finishReason"
+      ],
       "additionalProperties": false
     },
     "Part": {
@@ -818,19 +928,7 @@
       ],
       "additionalProperties": false
     },
-    "FlowError": {
-      "type": "object",
-      "properties": {
-        "error": {
-          "type": "string"
-        },
-        "stacktrace": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false
-    },
-    "FlowInvokeEnvelopeMessage": {
+    "FlowActionInput": {
       "type": "object",
       "properties": {
         "start": {
@@ -904,6 +1002,43 @@
             "flowId"
           ],
           "additionalProperties": false
+        },
+        "auth": {}
+      },
+      "additionalProperties": false
+    },
+    "FlowError": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "stacktrace": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "FlowInvokeEnvelopeMessage": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "$ref": "#/$defs/FlowActionInput/properties/start"
+        },
+        "schedule": {
+          "$ref": "#/$defs/FlowActionInput/properties/schedule"
+        },
+        "runScheduled": {
+          "$ref": "#/$defs/FlowActionInput/properties/runScheduled"
+        },
+        "retry": {
+          "$ref": "#/$defs/FlowActionInput/properties/retry"
+        },
+        "resume": {
+          "$ref": "#/$defs/FlowActionInput/properties/resume"
+        },
+        "state": {
+          "$ref": "#/$defs/FlowActionInput/properties/state"
         }
       },
       "additionalProperties": false
