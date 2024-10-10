@@ -403,7 +403,7 @@ describe('toGenerateRequest', () => {
       should: 'translate a prompt with history correctly',
       prompt: {
         model: 'vertexai/gemini-1.0-pro',
-        history: [
+        messages: [
           { content: [{ text: 'hi' }], role: 'user' },
           { content: [{ text: 'how can I help you' }], role: 'model' },
         ],

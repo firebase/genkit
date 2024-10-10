@@ -190,7 +190,7 @@ describe('compile', () => {
     it(test.should, () => {
       assert.deepEqual(
         compile(test.template, { model: 'test/example' })(test.input, {
-          history: test.options?.history as MessageData[],
+          messages: test.options?.history as MessageData[],
           context: test.options?.context as DocumentData[],
         }),
         test.want

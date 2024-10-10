@@ -113,7 +113,7 @@ export async function renderPrompt<
   return {
     model: params.model,
     config: { ...(rendered.config || {}), ...params.config },
-    history: rendered.messages.slice(0, rendered.messages.length - 1),
+    messages: rendered.messages.slice(0, rendered.messages.length - 1),
     prompt: rendered.messages[rendered.messages.length - 1].content,
     context: params.context,
     output: {

@@ -19,7 +19,7 @@ import { z } from 'genkit';
 import { WeatherSchema } from '../common/types';
 import { ai } from '../index.js';
 
-const getWeather = ai.defineTool(
+ai.defineTool(
   {
     name: 'getWeather',
     description: 'Get the weather for the given location.',
@@ -62,7 +62,7 @@ const template = `
   I want to be outside as much as possible. Here are the cities I am 
   considering:\n\n{{#each cities}}{{this}}\n{{/each}}`;
 
-export const weatherPrompt = ai.defineDotprompt(
+const weatherPrompt = ai.definePrompt(
   {
     name: 'weatherPrompt',
     model: gemini15Flash,
@@ -81,7 +81,7 @@ export const weatherPrompt = ai.defineDotprompt(
       topK: 16,
       topP: 0.95,
     },
-    tools: [getWeather],
+    tools: ['getWeather'],
   },
   template
 );
@@ -93,9 +93,7 @@ ai.defineFlow(
     outputSchema: z.string(),
   },
   async (input) => {
-    const response = await weatherPrompt.generate({
-      input,
-    });
+    const response = await weatherPrompt(input);
 
     return response.text();
   }
