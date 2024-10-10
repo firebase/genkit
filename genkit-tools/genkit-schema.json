@@ -928,19 +928,7 @@
       ],
       "additionalProperties": false
     },
-    "FlowError": {
-      "type": "object",
-      "properties": {
-        "error": {
-          "type": "string"
-        },
-        "stacktrace": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false
-    },
-    "FlowInvokeEnvelopeMessage": {
+    "FlowActionInput": {
       "type": "object",
       "properties": {
         "start": {
@@ -1014,6 +1002,43 @@
             "flowId"
           ],
           "additionalProperties": false
+        },
+        "auth": {}
+      },
+      "additionalProperties": false
+    },
+    "FlowError": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "stacktrace": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "FlowInvokeEnvelopeMessage": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "$ref": "#/$defs/FlowActionInput/properties/start"
+        },
+        "schedule": {
+          "$ref": "#/$defs/FlowActionInput/properties/schedule"
+        },
+        "runScheduled": {
+          "$ref": "#/$defs/FlowActionInput/properties/runScheduled"
+        },
+        "retry": {
+          "$ref": "#/$defs/FlowActionInput/properties/retry"
+        },
+        "resume": {
+          "$ref": "#/$defs/FlowActionInput/properties/resume"
+        },
+        "state": {
+          "$ref": "#/$defs/FlowActionInput/properties/state"
         }
       },
       "additionalProperties": false
