@@ -123,7 +123,6 @@ export interface ExecutablePrompt<
     opts?: z.infer<CustomOptions>
   ): Promise<GenerateResponse<z.infer<Out>>>;
 
-  
   /**
    * Generates a response by rendering the prompt template with given user input and then calling the model.
    * @param input Prompt inputs.

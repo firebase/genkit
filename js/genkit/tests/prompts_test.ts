@@ -94,7 +94,7 @@ describe('definePrompt - dotprompt', () => {
       });
       assert.strictEqual(
         response.text(),
-        'Echo: hi Genkit; config: {"temperature":11,"version":"abc"}'
+        'Echo: hi Genkit; config: {"version":"abc","temperature":11}'
       );
     });
 
@@ -238,7 +238,7 @@ describe('definePrompt - dotprompt', () => {
 
       assert.strictEqual(
         responseText,
-        'Echo: hi Genkit; config: {"temperature":11,"version":"abc"}'
+        'Echo: hi Genkit; config: {"version":"abc","temperature":11}'
       );
       assert.deepStrictEqual(chunks, ['3', '2', '1']);
     });
@@ -614,7 +614,7 @@ describe('definePrompt', () => {
       );
       assert.strictEqual(
         response.text(),
-        'Echo: hi Genkit; config: {"temperature":11,"version":"abc"}'
+        'Echo: hi Genkit; config: {"version":"abc","temperature":11}'
       );
     });
 
@@ -677,7 +677,7 @@ describe('definePrompt', () => {
 
       assert.strictEqual(
         responseText,
-        'Echo: hi Genkit; config: {"temperature":11,"version":"abc"}'
+        'Echo: hi Genkit; config: {"version":"abc","temperature":11}'
       );
       assert.deepStrictEqual(chunks, ['3', '2', '1']);
     });
