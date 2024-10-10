@@ -103,6 +103,13 @@ export interface ExecutablePrompt<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > {
+  /**
+   * Generates a response by rendering the prompt template with given user input and then calling the model.
+   *
+   * @param input Prompt inputs.
+   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
+   * @returns the model response as a promise of `GenerateStreamResponse`.
+   */
   (
     input?: z.infer<I>,
     opts?: z.infer<CustomOptions>
@@ -111,6 +118,7 @@ export interface ExecutablePrompt<
   /**
    * Generates a streaming response by rendering the prompt template with given user input and then calling the model.
    *
+   * @param input Prompt inputs.
    * @param opt Options for the prompt template, including user input variables and custom model configuration options.
    * @returns the model response as a promise of `GenerateStreamResponse`.
    */
@@ -120,7 +128,7 @@ export interface ExecutablePrompt<
   ): Promise<GenerateStreamResponse>;
 
   /**
-   * Generates a response by rendering the prompt template with given user input and then calling the model.
+   * Generates a response by rendering the prompt template with given user input and additional generate options and then calling the model.
    *
    * @param opt Options for the prompt template, including user input variables and custom model configuration options.
    * @returns the model response as a promise of `GenerateResponse`.
@@ -130,7 +138,7 @@ export interface ExecutablePrompt<
   ): Promise<GenerateResponse<O>>;
 
   /**
-   * Generates a streaming response by rendering the prompt template with given user input and then calling the model.
+   * Generates a streaming response by rendering the prompt template with given user input and additional generate options and then calling the model.
    *
    * @param opt Options for the prompt template, including user input variables and custom model configuration options.
    * @returns the model response as a promise of `GenerateStreamResponse`.
