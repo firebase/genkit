@@ -628,7 +628,7 @@ export function googleAIModel(
 
         const cacheKey = generateCacheKey(cachedContent);
         // need to add the name to the cached content
-        cachedContent.name = `cachedContent/${cacheKey}`;
+        // cachedContent.name = `cachedContent/${cacheKey}`;
         cachedContent.displayName = cacheKey;
         logger.info(`Generated cache key: ${cacheKey}`);
         cache = await lookupContextCache(cacheManager, cacheKey);

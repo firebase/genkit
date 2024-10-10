@@ -31,9 +31,15 @@ export const lotrFlow = ai.defineFlow(
     outputSchema: z.string(),
   },
   async ({ preprocess, query }) => {
+    const defaultProcess =
+      'Extract all the quotes by Gandalf to Frodo into a list.';
+
+    const defaultQuery =
+      "Describe Gandalf's relationship with Frodo, referencing Gandalf quotes from the text.";
+
     const extractQuotesResponse = await generate({
       history: [
-        // CachedContent can not be used with GenerateContent request setting system_instruction, tools or tool_config.
+        // NOTE: CachedContent can not be used with GenerateContent request setting system_instruction, tools or tool_config.
         // {
         //   role: 'system',
         //   content: [
@@ -50,46 +56,47 @@ export const lotrFlow = ai.defineFlow(
           role: 'model',
           content: [
             {
-              text:
-                preprocess ||
-                'This is the first three chapters of Lord of the Rings. Can I help in any way?',
+              text: 'This is the first three chapters of Lord of the Rings. Can I help in any way?',
             },
           ],
           // @ts-ignore
-          contextCache: true,
+          contextCache: true, // this is on the LAST message that you want in the cache.
         },
       ],
+      config: {
+        version: 'gemini-1.5-flash-001', // only works with the stable version 001
+        // @ts-ignore
+        useContextCache: true, // perhaps we allow it to be turned on and off here as well
+      },
+      model: gemini15Flash,
+      prompt: preprocess || defaultProcess,
+    });
+
+    const history = extractQuotesResponse.toHistory();
+
+    // return extractQuotesResponse.text();
+
+    // // set contextCache to true for the last message in the history
+    // // @ts-ignore
+    // @ts-ignore
+    history[history.length - 1].contextCache = true;
+
+    const llmResponse = await generate({
+      history,
       config: {
         version: 'gemini-1.5-flash-001',
         // @ts-ignore
         useContextCache: true,
       },
       model: gemini15Flash,
-      prompt: `Extract all the quotes by Gandalf to Frodo into a list.`,
+      // prompt: query,
+      prompt:
+        `You will now act as a literature expert. answer the users query provided below:\n` +
+        (query || defaultQuery),
     });
 
-    const history = extractQuotesResponse.toHistory();
+    const response = llmResponse.text();
 
-    return extractQuotesResponse.text();
-
-    // // set contextCache to true for the last message in the history
-    // // @ts-ignore
-    // history[history.length - 1].contextCache = true;
-
-    // const llmResponse = await generate({
-    //   history,
-    //   config: {
-    //     version: 'gemini-1.5-flash-001',
-    //     // @ts-ignore
-    //     useContextCache: true,
-    //   },
-    //   model: gemini15Flash,
-    //   // prompt: query,
-    //   prompt: query || `What was the first thing Gandalf says to Frodo?`,
-    // });
-
-    // const response = llmResponse.text();
-
-    // return response;
+    return response;
   }
 );

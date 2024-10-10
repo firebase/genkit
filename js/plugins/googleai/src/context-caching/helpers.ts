@@ -59,7 +59,7 @@ export function getContentForCache(
 export async function lookupContextCache(
   cacheManager: GoogleAICacheManager,
   cacheKey,
-  maxPages = 3,
+  maxPages = 100,
   pageSize?: number
 ) {
   let currentPage = 0;
@@ -70,14 +70,13 @@ export async function lookupContextCache(
 
     const list = await cacheManager.list(listParams);
 
-    if (list.nextPageToken) {
-      pageToken = list.nextPageToken;
-    } else {
-      break;
-    }
     const cachedContents = list.cachedContents;
 
     logger.info('cachedContents', cachedContents);
+
+    // for (const content of cachedContents) {
+    //   await cacheManager.delete(content.name!);
+    // }
 
     const found = cachedContents?.find(
       (content) => content.displayName === cacheKey
@@ -85,6 +84,9 @@ export async function lookupContextCache(
 
     if (found) {
       return found;
+    }
+    if (list.nextPageToken) {
+      pageToken = list.nextPageToken;
     }
 
     currentPage++;
