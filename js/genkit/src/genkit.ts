@@ -85,9 +85,7 @@ import {
 import { lookupAction, Registry, runWithRegistry } from './registry.js';
 import {
   Environment,
-  getCurrentSession,
   Session,
-  SessionError,
   SessionOptions,
   SessionStore,
 } from './session.js';
@@ -294,9 +292,22 @@ export class Genkit {
   /**
    * Defines and registers a dotprompt.
    *
-   * This replaces defining and importing a .dotprompt file.
+   * This is an alternative to defining and importing a .prompt file.
    *
-   * @todo TODO: Improve this documentation (show an example, etc).
+   * ```ts
+   * const hi = ai.definePrompt(
+   *   {
+   *     name: 'hi',
+   *     input: {
+   *       schema: z.object({
+   *         name: z.string(),
+   *       }),
+   *     },
+   *   },
+   *   'hi {{ name }}'
+   * );
+   * const { text } = await hi({ name: 'Genkit' });
+   * ```
    */
   definePrompt<
     I extends z.ZodTypeAny = z.ZodTypeAny,
@@ -307,6 +318,31 @@ export class Genkit {
     template: string
   ): ExecutablePrompt<I, O, CustomOptions>;
 
+  /**
+   * Defines and registers a function-based prompt.
+   *
+   * ```ts
+   * const hi = ai.definePrompt(
+   *   {
+   *     name: 'hi',
+   *     input: {
+   *       schema: z.object({
+   *         name: z.string(),
+   *       }),
+   *     },
+   *     config: {
+   *       temperature: 1,
+   *     },
+   *   },
+   *   async (input) => {
+   *     return {
+   *       messages: [ { role: 'user', content: [{ text: `hi ${input.name}` }] } ],
+   *     };
+   *   }
+   * );
+   * const { text } = await hi({ name: 'Genkit' });
+   * ```
+   */
   definePrompt<
     I extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
@@ -685,10 +721,13 @@ export class Genkit {
     );
   }
 
+  /**
+   * Creates a new environment which allows stateful execution of chat session, flows and prompts.
+   */
   defineEnvironment<S extends z.ZodTypeAny = z.ZodTypeAny>(config: {
     name: string;
     stateSchema?: S;
-    store?: SessionStore<S>;
+    store?: SessionStore<any>;
   }): Environment<S> {
     return new Environment(this, {
       name: config.name,
@@ -738,14 +777,6 @@ export class Genkit {
         store: options?.store,
       }
     );
-  }
-
-  get currentSession() {
-    const currentSession = getCurrentSession();
-    if (!currentSession) {
-      throw new SessionError('not running within a session');
-    }
-    return currentSession;
   }
 
   /**

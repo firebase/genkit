@@ -160,12 +160,12 @@ export class Environment<S extends z.ZodTypeAny> implements EnvironmentType {
     });
   }
 
-  get currentSession() {
+  get currentSession(): Session<S> {
     const currentSession = getCurrentSession();
     if (!currentSession) {
       throw new SessionError('not running within a session');
     }
-    return currentSession;
+    return currentSession as Session<S>;
   }
 }
 
