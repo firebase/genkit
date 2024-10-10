@@ -15,7 +15,7 @@
  */
 
 import { gemini15Flash } from '@genkit-ai/googleai';
-import { promptRef, z } from 'genkit';
+import { z } from 'genkit';
 import { WeatherSchema } from '../common/types';
 import { ai } from '../index.js';
 

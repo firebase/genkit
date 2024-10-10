@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
+import { MessageData } from '@genkit-ai/ai';
+import { ModelAction } from '@genkit-ai/ai/model';
 import { Genkit } from '../src/genkit';
 
-export function defineEchoModel(ai: Genkit) {
-  ai.defineModel(
+export function defineEchoModel(ai: Genkit): ModelAction {
+  return ai.defineModel(
     {
       name: 'echoModel',
     },
@@ -68,6 +70,22 @@ export function defineEchoModel(ai: Genkit) {
           ],
         },
         finishReason: 'stop',
+      }));
+    }
+  );
+}
+
+export function defineStaticResponseModel(
+  ai: Genkit,
+  message: MessageData
+): ModelAction {
+  return ai.defineModel(
+    {
+      name: 'staticResponseModel',
+    },
+    async () => {
+      return await runAsync(() => ({
+        message,
       }));
     }
   );

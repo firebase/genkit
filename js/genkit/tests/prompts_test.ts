@@ -19,7 +19,7 @@ import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Genkit, genkit } from '../src/genkit';
 import { z } from '../src/index';
-import { defineEchoModel } from './helpers';
+import { defineEchoModel, defineStaticResponseModel } from './helpers';
 
 describe('definePrompt - dotprompt', () => {
   describe('default model', () => {
@@ -97,6 +97,25 @@ describe('definePrompt - dotprompt', () => {
         'Echo: hi Genkit; config: {"temperature":11,"version":"abc"}'
       );
     });
+
+    it('calls dotprompt with default model via retrieved prompt', async () => {
+      ai.definePrompt(
+        {
+          name: 'hi',
+          input: {
+            schema: z.object({
+              name: z.string(),
+            }),
+          },
+        },
+        'hi {{ name }}'
+      );
+
+      const hi = await ai.prompt('hi');
+
+      const response = await hi({ name: 'Genkit' });
+      assert.strictEqual(response.text(), 'Echo: hi Genkit; config: {}');
+    });
   });
 
   describe('default model ref', () => {
@@ -126,6 +145,39 @@ describe('definePrompt - dotprompt', () => {
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(response.text(), 'Echo: hi Genkit; config: {}');
+    });
+
+    it('infers output schema', async () => {
+      const Foo = z.object({
+        bar: z.string(),
+      });
+      const model = defineStaticResponseModel(ai, {
+        role: 'model',
+        content: [
+          {
+            text: '```json\n{bar: "baz"}\n```',
+          },
+        ],
+      });
+      const hi = ai.definePrompt(
+        {
+          name: 'hi',
+          model,
+          input: {
+            schema: z.object({
+              name: z.string(),
+            }),
+          },
+          output: {
+            schema: Foo,
+          },
+        },
+        'hi {{ name }}'
+      );
+
+      const response = await hi({ name: 'Genkit' });
+      const foo: z.infer<typeof Foo> = response.output();
+      assert.deepStrictEqual(foo, { bar: 'baz' });
     });
 
     it('streams dotprompt with default model', async () => {
@@ -189,6 +241,25 @@ describe('definePrompt - dotprompt', () => {
         'Echo: hi Genkit; config: {"temperature":11,"version":"abc"}'
       );
       assert.deepStrictEqual(chunks, ['3', '2', '1']);
+    });
+
+    it('calls dotprompt with default model via retrieved prompt', async () => {
+      ai.definePrompt(
+        {
+          name: 'hi',
+          input: {
+            schema: z.object({
+              name: z.string(),
+            }),
+          },
+        },
+        'hi {{ name }}'
+      );
+
+      const hi = await ai.prompt('hi');
+
+      const response = await hi({ name: 'Genkit' });
+      assert.strictEqual(response.text(), 'Echo: hi Genkit; config: {}');
     });
   });
 
@@ -350,6 +421,31 @@ describe('definePrompt', () => {
         response.text(),
         'Echo: hi Genkit; config: {"temperature":11}'
       );
+    });
+
+    it('calls dotprompt with default model via retrieved prompt', async () => {
+      ai.definePrompt(
+        {
+          name: 'hi',
+          input: {
+            schema: z.object({
+              name: z.string(),
+            }),
+          },
+        },
+        async (input) => {
+          return {
+            messages: [
+              { role: 'user', content: [{ text: `hi ${input.name}` }] },
+            ],
+          };
+        }
+      );
+
+      const hi = await ai.prompt('hi');
+
+      const response = await hi({ name: 'Genkit' });
+      assert.strictEqual(response.text(), 'Echo: hi Genkit; config: {}');
     });
   });
 
