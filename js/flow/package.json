@@ -13,7 +13,7 @@
   "scripts": {
     "check": "tsc",
     "compile": "tsup-node",
-    "build:clean": "rm -rf ./lib",
+    "build:clean": "rimraf ./lib",
     "build": "npm-run-all build:clean check compile",
     "build:watch": "tsup-node --watch",
     "test": "node --import tsx --test tests/*_test.ts"
@@ -45,7 +45,8 @@
     "tsup": "^8.0.2",
     "typescript": "^4.9.0",
     "tsx": "^4.7.1",
-    "@types/body-parser": "^1.19.5"
+    "@types/body-parser": "^1.19.5",
+    "rimraf": "^6.0.1"
   },
   "files": [
     "genkit-ui",

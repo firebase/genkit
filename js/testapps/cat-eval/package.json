@@ -7,7 +7,7 @@
     "start": "node lib/index.js",
     "compile": "tsc",
     "build": "pnpm build:clean && pnpm compile",
-    "build:clean": "rm -rf ./lib",
+    "build:clean": "rimraf ./lib",
     "build:watch": "tsc --watch"
   },
   "keywords": [],
@@ -35,6 +35,7 @@
   },
   "devDependencies": {
     "@types/pdf-parse": "^1.1.4",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "rimraf": "^6.0.1"
   }
 }
