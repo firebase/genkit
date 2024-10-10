@@ -170,7 +170,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	genkit.DefineStreamingFlow("simpleStructuredGreeting", func(ctx context.Context, input *simpleGreetingInput, cb func(context.Context, string) error) (string, error) {
+	simpleStructuredGreetingFlow := genkit.DefineStreamingFlow("simpleStructuredGreeting", func(ctx context.Context, input *simpleGreetingInput, cb func(context.Context, string) error) (string, error) {
 		var callback func(context.Context, *ai.GenerateResponseChunk) error
 		if cb != nil {
 			callback = func(ctx context.Context, c *ai.GenerateResponseChunk) error {
@@ -187,6 +187,24 @@ func main() {
 			return "", err
 		}
 		return resp.Text(), nil
+	})
+
+	genkit.DefineStreamingFlow("nestedStreaming", func(ctx context.Context, input *simpleGreetingInput, cb func(context.Context, string) error) (string, error) {
+		iter := simpleStructuredGreetingFlow.Stream(ctx, input)
+		for {
+			stream, done := iter.Next()
+			if done {
+				break
+			}
+			if cb != nil {
+				cb(ctx, *stream)
+			}
+		}
+		finalOutput, err := iter.FinalOutput()
+		if err != nil {
+			return "", err
+		}
+		return *finalOutput, nil
 	})
 
 	genkit.DefineFlow("testAllCoffeeFlows", func(ctx context.Context, _ struct{}) (*testAllCoffeeFlowsOutput, error) {
