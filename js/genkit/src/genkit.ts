@@ -892,6 +892,23 @@ export class Genkit {
 
   /**
    * Creates a new environment which allows stateful execution of chat session, flows and prompts.
+   *
+   * ```ts
+   * const ai = genkit({...});
+   * const agent = ai.defineEnvironment({
+   *   name: 'agent',
+   *   stateSchema: z.object({
+   *     myState: z.object(),
+   *   }),
+   *   store: firestoreStateStore(),
+   * });
+   * const flow = agent.defineFlow({...})
+   * agent.definePrompt({...})
+   * agent.defineTool({...})
+   * const session = agent.createSession(); // create a session
+   * let response = await session.send('hi'); // session state aware conversation
+   * await session.runFlow(flow, {...})
+   * ```
    */
   defineEnvironment<S extends z.ZodTypeAny = z.ZodTypeAny>(config: {
     name: string;
