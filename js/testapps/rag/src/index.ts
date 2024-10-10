@@ -124,12 +124,7 @@ export const ai = genkit({
       },
     ]),
   ],
-  defaultModel: {
-    name: geminiPro,
-    config: {
-      temperature: 0.6,
-    },
-  },
+  model: geminiPro,
 });
 
 export * from './pdf_rag.js';

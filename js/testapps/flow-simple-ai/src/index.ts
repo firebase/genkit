@@ -113,12 +113,12 @@ export const streamFlow = ai.defineStreamingFlow(
     });
 
     if (streamingCallback) {
-      for await (const chunk of stream()) {
+      for await (const chunk of stream) {
         streamingCallback(chunk.content[0].text!);
       }
     }
 
-    return (await response()).text();
+    return (await response).text();
   }
 );
 
@@ -158,14 +158,14 @@ export const streamJsonFlow = ai.defineStreamingFlow(
     });
 
     let buffer = '';
-    for await (const chunk of stream()) {
+    for await (const chunk of stream) {
       buffer += chunk.content[0].text!;
       if (buffer.length > 10) {
         streamingCallback(parse(maybeStripMarkdown(buffer), Allow.ALL));
       }
     }
 
-    return (await response()).text();
+    return (await response).text();
   }
 );
 
@@ -385,11 +385,11 @@ export const toolCaller = ai.defineStreamingFlow(
       prompt: `tell me a joke`,
     });
 
-    for await (const chunk of stream()) {
+    for await (const chunk of stream) {
       streamingCallback(chunk);
     }
 
-    return (await response()).text();
+    return (await response).text();
   }
 );
 

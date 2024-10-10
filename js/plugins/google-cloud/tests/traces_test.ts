@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-import { runWithRegistry } from '@genkit-ai/core/registry';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { generate, Genkit, genkit, run, z } from 'genkit';
 import { defineModel } from 'genkit/model';
+import { runWithRegistry } from 'genkit/registry';
 import { appendSpan } from 'genkit/tracing';
 import assert from 'node:assert';
 import { after, before, beforeEach, describe, it } from 'node:test';

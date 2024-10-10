@@ -19,7 +19,7 @@ import { z } from 'genkit';
 import { ai } from '../index.js';
 import { TextMenuQuestionInputSchema } from '../types.js';
 
-export const s05_readMenuPrompt = ai.defineDotprompt(
+export const s05_readMenuPrompt = ai.definePrompt(
   {
     name: 's05_readMenu',
     model: geminiProVision,
@@ -39,7 +39,7 @@ from the following image of a restaurant menu.
 `
 );
 
-export const s05_textMenuPrompt = ai.defineDotprompt(
+export const s05_textMenuPrompt = ai.definePrompt(
   {
     name: 's05_textMenu',
     model: geminiPro,

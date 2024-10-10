@@ -15,7 +15,7 @@
  */
 
 import { gemini15Flash } from '@genkit-ai/googleai';
-import { promptRef, z } from 'genkit';
+import { z } from 'genkit';
 import { WeatherSchema } from '../common/types';
 import { ai } from '../index.js';
 
@@ -62,7 +62,7 @@ const template = `
   I want to be outside as much as possible. Here are the cities I am 
   considering:\n\n{{#each cities}}{{this}}\n{{/each}}`;
 
-ai.defineDotprompt(
+const weatherPrompt = ai.definePrompt(
   {
     name: 'weatherPrompt',
     model: gemini15Flash,
@@ -93,10 +93,7 @@ ai.defineFlow(
     outputSchema: z.string(),
   },
   async (input) => {
-    const prompt = promptRef('weatherPrompt');
-    const response = await prompt.generate({
-      input,
-    });
+    const response = await weatherPrompt(input);
 
     return response.text();
   }

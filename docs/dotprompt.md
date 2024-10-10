@@ -287,7 +287,7 @@ Dotprompt supports multi-turn prompts by passing the `history` option into the
 
 ```ts
 const result = await multiTurnPrompt.generate({
-  history: [
+  messages: [
     { role: 'user', content: [{ text: 'Hello.' }] },
     { role: 'model', content: [{ text: 'Hi there!' }] },
   ],
