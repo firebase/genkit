@@ -39,6 +39,6 @@ export const menuSuggestionFlow = ai.defineFlow(
       },
     });
 
-    return llmResponse.text();
+    return llmResponse.text;
   }
 );

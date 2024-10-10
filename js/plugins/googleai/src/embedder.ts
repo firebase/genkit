@@ -88,7 +88,7 @@ export function textEmbeddingGeckoEmbedder(
             title: options?.title,
             content: {
               role: '',
-              parts: [{ text: doc.text() }],
+              parts: [{ text: doc.text }],
             },
           } as EmbedContentRequest);
           const values = response.embedding.values;

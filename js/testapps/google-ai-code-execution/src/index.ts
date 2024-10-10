@@ -79,7 +79,7 @@ export const codeExecutionFlow = ai.defineFlow(
         outcome,
         output,
       },
-      text: llmResponse.text(),
+      text: llmResponse.text,
     };
   }
 );

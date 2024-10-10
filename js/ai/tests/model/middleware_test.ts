@@ -521,7 +521,7 @@ describe('augmentWithContext', () => {
           metadata: { uid: 'second' },
         },
       ],
-      { itemTemplate: (d) => `* (${d.metadata!.uid}) -- ${d.text()}\n` }
+      { itemTemplate: (d) => `* (${d.metadata!.uid}) -- ${d.text}\n` }
     );
     assert.deepEqual(result[0].content.at(-1), {
       text: `${CONTEXT_PREFACE}* (first) -- i am context\n* (second) -- i am more context\n\n`,

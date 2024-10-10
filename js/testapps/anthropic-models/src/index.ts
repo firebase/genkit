@@ -72,6 +72,6 @@ export const menuSuggestionFlow = ai.defineFlow(
       returnToolRequests: true,
     });
 
-    return llmResponse.toolRequests();
+    return llmResponse.toolRequests;
   }
 );

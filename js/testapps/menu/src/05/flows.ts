@@ -43,7 +43,7 @@ export const s05_readMenuFlow = ai.defineFlow(
         imageUrl: imageDataUrl,
       },
     });
-    return { menuText: response.text() };
+    return { menuText: response.text };
   }
 );
 
@@ -63,7 +63,7 @@ export const s05_textMenuQuestionFlow = ai.defineFlow(
         question: input.question,
       },
     });
-    return { answer: response.text() };
+    return { answer: response.text };
   }
 );
 

@@ -56,7 +56,7 @@ class ModelAdapter extends BaseLLM {
     );
 
     return {
-      generations: ress.map((r) => [{ text: r.text() }]),
+      generations: ress.map((r) => [{ text: r.text }]),
     };
   }
 

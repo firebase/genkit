@@ -44,7 +44,7 @@ export const flowBasicAuth = ai.defineFlow(
         prompt: prompt,
       });
 
-      return llmResponse.text();
+      return llmResponse.text;
     });
   }
 );
@@ -73,7 +73,7 @@ export const flowAuth = onFlow(
         prompt: prompt,
       });
 
-      return llmResponse.text();
+      return llmResponse.text;
     });
   }
 );
@@ -98,7 +98,7 @@ export const flowAuthNone = onFlow(
         prompt: prompt,
       });
 
-      return llmResponse.text();
+      return llmResponse.text;
     });
   }
 );

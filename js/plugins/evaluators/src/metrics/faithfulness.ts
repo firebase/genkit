@@ -65,7 +65,7 @@ export async function faithfulnessScore<
         schema: LongFormResponseSchema,
       },
     });
-    const parsedLongFormResponse = longFormResponse.output();
+    const parsedLongFormResponse = longFormResponse.output;
     let statements = parsedLongFormResponse?.statements ?? [];
     if (statements.length === 0) {
       throw new Error('No statements returned');
@@ -85,7 +85,7 @@ export async function faithfulnessScore<
         schema: NliResponseSchema,
       },
     });
-    const parsedResponse = response.output();
+    const parsedResponse = response.output;
     return nliResponseToScore(parsedResponse);
   } catch (err) {
     console.debug(

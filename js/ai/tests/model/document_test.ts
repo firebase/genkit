@@ -23,13 +23,13 @@ describe('document', () => {
     it('retuns single text part', () => {
       const doc = new Document({ content: [{ text: 'foo' }] });
 
-      assert.equal(doc.text(), 'foo');
+      assert.equal(doc.text, 'foo');
     });
 
     it('retuns concatenated text part', () => {
       const doc = new Document({ content: [{ text: 'foo' }, { text: 'bar' }] });
 
-      assert.equal(doc.text(), 'foobar');
+      assert.equal(doc.text, 'foobar');
     });
   });
 
@@ -42,7 +42,7 @@ describe('document', () => {
         ],
       });
 
-      assert.deepEqual(doc.media(), { url: 'data:foo' });
+      assert.deepEqual(doc.media, { url: 'data:foo' });
     });
   });
 

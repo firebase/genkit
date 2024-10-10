@@ -100,7 +100,7 @@ const response = await (threeGreetingsPrompt.generate<typeof outputSchema>(
   { input: { name: 'Fred' } }
 ));
 
-response.output()?.likeAPirate
+response.output?.likeAPirate
 // "Ahoy there, Fred!  May the winds be ever in your favor!"
 ```
 

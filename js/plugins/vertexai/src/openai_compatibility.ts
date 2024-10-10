@@ -114,7 +114,7 @@ export function toOpenAiMessages(
       case 'system':
         openAiMsgs.push({
           role: role,
-          content: msg.text(),
+          content: msg.text,
         });
         break;
       case 'assistant': {
@@ -142,7 +142,7 @@ export function toOpenAiMessages(
         } else {
           openAiMsgs.push({
             role: role,
-            content: msg.text(),
+            content: msg.text,
           });
         }
         break;

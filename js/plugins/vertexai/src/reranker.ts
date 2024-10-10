@@ -111,10 +111,10 @@ export async function vertexAiRerankers(
           ),
           data: {
             model: rerankOption.model || DEFAULT_MODEL, // Use model from config or default
-            query: query.text(),
+            query: query.text,
             records: documents.map((doc, idx) => ({
               id: `${idx}`,
-              content: doc.text(),
+              content: doc.text,
             })),
           },
         });

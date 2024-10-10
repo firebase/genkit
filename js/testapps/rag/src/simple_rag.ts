@@ -66,10 +66,10 @@ export const askQuestionsAboutCatsFlow = ai.defineFlow(
       .generate({
         input: {
           question: query,
-          context: docs.map((d) => d.text()),
+          context: docs.map((d) => d.text),
         },
       })
-      .then((r) => r.text());
+      .then((r) => r.text);
   }
 );
 
@@ -91,10 +91,10 @@ export const askQuestionsAboutDogsFlow = ai.defineFlow(
       .generate({
         input: {
           question: query,
-          context: docs.map((d) => d.text()),
+          context: docs.map((d) => d.text),
         },
       })
-      .then((r) => r.text());
+      .then((r) => r.text);
   }
 );
 

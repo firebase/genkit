@@ -65,7 +65,7 @@ export const streamCharacters = ai.defineFlow(
       }
     }
 
-    return (await response()).text();
+    return (await response()).text;
   }
 );
 

@@ -48,7 +48,7 @@ export const menuQAFlow = ai.defineFlow(
       context: docs,
     });
 
-    const output = llmResponse.text();
+    const output = llmResponse.text;
     return output;
   }
 );

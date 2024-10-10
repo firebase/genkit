@@ -53,6 +53,6 @@ export const jokeFlow = ai.defineFlow(
       tools: [jokeSubjectGenerator],
       prompt: `come up with a subject to joke about (using the function provided)`,
     });
-    return llmResponse.output();
+    return llmResponse.output;
   }
 );

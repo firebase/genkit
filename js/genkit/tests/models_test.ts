@@ -35,17 +35,17 @@ describe('models', () => {
         const response = await ai.generate({
           prompt: 'hi',
         });
-        assert.strictEqual(response.text(), 'Echo: hi; config: {}');
+        assert.strictEqual(response.text, 'Echo: hi; config: {}');
       });
 
       it('calls the default model with just a string prompt', async () => {
         const response = await ai.generate('hi');
-        assert.strictEqual(response.text(), 'Echo: hi; config: {}');
+        assert.strictEqual(response.text, 'Echo: hi; config: {}');
       });
 
       it('calls the default model with just parts prompt', async () => {
         const response = await ai.generate([{ text: 'hi' }]);
-        assert.strictEqual(response.text(), 'Echo: hi; config: {}');
+        assert.strictEqual(response.text, 'Echo: hi; config: {}');
       });
 
       it('calls the default model system', async () => {
@@ -54,7 +54,7 @@ describe('models', () => {
           system: 'talk like a pirate',
         });
         assert.strictEqual(
-          response.text(),
+          response.text,
           'Echo: system: talk like a pirate,hi; config: {}'
         );
         assert.deepStrictEqual(response.request, {
@@ -84,9 +84,9 @@ describe('models', () => {
 
         const chunks: string[] = [];
         for await (const chunk of stream) {
-          chunks.push(chunk.text());
+          chunks.push(chunk.text);
         }
-        assert.strictEqual((await response).text(), 'Echo: hi; config: {}');
+        assert.strictEqual((await response).text, 'Echo: hi; config: {}');
         assert.deepStrictEqual(chunks, ['3', '2', '1']);
       });
     });
@@ -104,7 +104,7 @@ describe('models', () => {
           model: 'echoModel',
           prompt: 'hi',
         });
-        assert.strictEqual(response.text(), 'Echo: hi; config: {}');
+        assert.strictEqual(response.text, 'Echo: hi; config: {}');
       });
     });
   });

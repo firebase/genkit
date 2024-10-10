@@ -204,7 +204,7 @@ export const synthesizeQuestions = defineFlow(
           text: `Generate one question about the text below: ${chunks[i]}`,
         },
       });
-      questions.push(qResponse.text());
+      questions.push(qResponse.text);
     }
     return questions;
   }

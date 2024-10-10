@@ -292,7 +292,7 @@ async function recordInternal(
       if (!response.ok) {
         logger.warn(`Analytics validation HTTP error: ${response.status}`);
       }
-      const respBody = await response.text();
+      const respBody = await response.text;
       logger.info(`Analytics validation result: ${respBody}`);
     }
     // response.ok / response.status intentionally ignored, see comment below.

@@ -82,6 +82,6 @@ export const s04_ragMenuQuestionFlow = defineFlow(
         question: input.question,
       },
     });
-    return { answer: response.text() };
+    return { answer: response.text };
   }
 );

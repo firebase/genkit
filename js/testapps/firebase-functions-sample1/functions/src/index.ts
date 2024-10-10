@@ -77,7 +77,7 @@ export const jokeFlow = onFlow(
         prompt: prompt,
       });
 
-      return llmResponse.text();
+      return llmResponse.text;
     });
   }
 );

@@ -63,8 +63,8 @@ export const testFlow = ai.defineFlow(
     });
 
     const want = `{"messages":[{"content":[{"text":"${subject}"}],"role":"user"}],"tools":[],"output":{"format":"text"}}`;
-    if (response.text() !== want) {
-      throw new Error(`Expected ${want} but got ${response.text()}`);
+    if (response.text !== want) {
+      throw new Error(`Expected ${want} but got ${response.text}`);
     }
 
     return 'Test flow passed';

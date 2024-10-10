@@ -53,7 +53,7 @@ const result = await greetingPrompt.generate({
   },
 });
 
-console.log(result.text());
+console.log(result.text);
 ```
 
 Dotprompt's syntax is based on the [Handlebars](https://handlebarsjs.com/guide/)
@@ -183,7 +183,7 @@ const myPrompt = promptRef("myPrompt");
 const result = await myPrompt.generate<typeof MySchema>({...});
 
 // now strongly typed as MySchema
-result.output();
+result.output;
 ```
 
 ## Overriding Prompt Metadata
@@ -237,7 +237,7 @@ const menu = await createMenuPrompt.generate({
   },
 });
 
-console.log(menu.output());
+console.log(menu.output);
 ```
 
 Output conformance is achieved by inserting additional instructions into the
@@ -340,7 +340,7 @@ const result = await describeImagePrompt.generate({
   },
 });
 
-console.log(result.text());
+console.log(result.text);
 ```
 
 ## Partials
