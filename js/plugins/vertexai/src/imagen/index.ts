@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-import { ModelAction } from 'genkit/model';
+import { ModelAction, ModelReference } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from '..';
 
 let imagenModel;
 let SUPPORTED_IMAGEN_MODELS: Record<string, { name: string }> = {};
 
-let imagen2;
-let imagen3;
-let imagen3Fast;
+let imagen2: ModelReference<any>;
+let imagen3: ModelReference<any>;
+let imagen3Fast: ModelReference<any>;
 
 export default async function vertexAiImagen(
   projectId: string,

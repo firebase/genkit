@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-import { GenkitError, z } from 'genkit';
+import { BigQuery } from '@google-cloud/bigquery';
+import { GenkitError, RetrieverReference, z } from 'genkit';
 import { IndexerAction, RetrieverAction } from 'genkit/retriever';
 import { GoogleAuth } from 'google-auth-library';
-import { PluginOptions } from '..';
+import { DocumentRetriever, PluginOptions } from '..';
+import { VertexVectorSearchOptions } from './types';
 
 export {
   DocumentIndexer,
@@ -31,13 +33,25 @@ export {
 } from './types';
 
 let getBigQueryDocumentIndexer;
-let getBigQueryDocumentRetriever;
+let getBigQueryDocumentRetriever: (
+  bq: BigQuery,
+  tableId: string,
+  datasetId: string
+) => DocumentRetriever;
 let getFirestoreDocumentIndexer;
-let getFirestoreDocumentRetriever;
+let getFirestoreDocumentRetriever: (
+  db: FirebaseFirestore.Firestore,
+  collectionName: string
+) => DocumentRetriever;
 let vertexAiIndexerRef;
 let vertexAiIndexers;
-let vertexAiRetrieverRef;
-let vertexAiRetrievers;
+let vertexAiRetrieverRef: (params: {
+  indexId: string;
+  displayName?: string;
+}) => RetrieverReference<any>;
+let vertexAiRetrievers: <EmbedderCustomOptions extends z.ZodTypeAny>(
+  params: VertexVectorSearchOptions<EmbedderCustomOptions>
+) => RetrieverAction<z.ZodTypeAny>[];
 
 export default async function vertexAiVectorSearch(
   projectId: string,
