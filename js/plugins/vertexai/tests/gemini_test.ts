@@ -22,7 +22,7 @@ import {
   fromGeminiCandidate,
   toGeminiMessage,
   toGeminiSystemInstruction,
-} from '../src/gemini.js';
+} from '../src/gemini/gemini.js';
 
 describe('toGeminiMessages', () => {
   const testCases = [
