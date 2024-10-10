@@ -92,9 +92,7 @@ export const drawPictureFlow = ai.defineFlow(
         model: input.modelName,
         prompt: `Draw a picture of a ${input.object}.`,
       });
-      return `From ${
-        input.modelName
-      }: Here is a picture of a cat: ${llmResponse.text}`;
+      return `From ${input.modelName}: Here is a picture of a cat: ${llmResponse.text}`;
     });
   }
 );

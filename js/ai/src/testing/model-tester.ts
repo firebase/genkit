@@ -78,7 +78,7 @@ const tests: Record<string, TestCase> = {
     assert.match(got, /Glorb/);
   },
   'system prompt': async (model: string) => {
-    const {text} = await generate({
+    const { text } = await generate({
       model,
       prompt: 'Hi',
       messages: [
@@ -125,7 +125,7 @@ const tests: Record<string, TestCase> = {
       skip();
     }
 
-    const {text} = await generate({
+    const { text } = await generate({
       model,
       prompt: 'what is a gablorken of 2? use provided tool',
       tools: ['gablorkenTool'],

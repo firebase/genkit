@@ -61,9 +61,8 @@ ai.prompt('recipe').then((recipePrompt) => {
       outputSchema: RecipeSchema,
     },
     async (input) =>
-      (
-        await recipePrompt.generate<typeof RecipeSchema>({ input: input })
-      ).output!
+      (await recipePrompt.generate<typeof RecipeSchema>({ input: input }))
+        .output!
   );
 });
 

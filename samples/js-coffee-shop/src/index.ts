@@ -64,8 +64,7 @@ export const simpleGreetingFlow = defineFlow(
     inputSchema: CustomerNameSchema,
     outputSchema: z.string(),
   },
-  async (input) =>
-    (await simpleGreetingPrompt.generate({ input: input })).text
+  async (input) => (await simpleGreetingPrompt.generate({ input: input })).text
 );
 
 // Another flow to recommend a drink based on the time of day and a previous order.
