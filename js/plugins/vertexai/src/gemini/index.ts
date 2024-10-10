@@ -14,19 +14,19 @@
  * limitations under the License.
  */
 
-import { ModelAction } from 'genkit/model';
+import { ModelAction, ModelReference } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from '..';
 
 let SUPPORTED_GEMINI_MODELS: Record<string, { name: string }> = {};
 let geminiModel;
 
-let gemini15Flash;
-let gemini15FlashPreview;
-let gemini15Pro;
-let gemini15ProPreview;
-let geminiPro;
-let geminiProVision;
+let gemini15Flash: ModelReference<any>;
+let gemini15FlashPreview: ModelReference<any>;
+let gemini15Pro: ModelReference<any>;
+let gemini15ProPreview: ModelReference<any>;
+let geminiPro: ModelReference<any>;
+let geminiProVision: ModelReference<any>;
 
 export default async function vertexAiGemini(
   projectId: string,

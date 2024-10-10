@@ -23,13 +23,13 @@ let SUPPORTED_OPENAI_FORMAT_MODELS: Record<string, { name: string }> = {};
 let anthropicModel;
 let SUPPORTED_ANTHROPIC_MODELS: Record<string, { name: string }> = {};
 
-let llama3: ModelReference<any> | undefined;
-let llama31: ModelReference<any> | undefined;
-let llama32: ModelReference<any> | undefined;
-let claude35Sonnet: ModelReference<any> | undefined;
-let claude3Haiku: ModelReference<any> | undefined;
-let claude3Opus: ModelReference<any> | undefined;
-let claude3Sonnet: ModelReference<any> | undefined;
+let llama3: ModelReference<any>;
+let llama31: ModelReference<any>;
+let llama32: ModelReference<any>;
+let claude35Sonnet: ModelReference<any>;
+let claude3Haiku: ModelReference<any>;
+let claude3Opus: ModelReference<any>;
+let claude3Sonnet: ModelReference<any>;
 
 export default async function vertexAiModelGarden(
   projectId: string,

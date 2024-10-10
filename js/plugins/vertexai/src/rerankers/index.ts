@@ -17,8 +17,11 @@
 import { RerankerAction } from 'genkit';
 import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from '..';
+import { VertexRerankOptions } from './reranker';
 
-let vertexAiRerankersFunc;
+let vertexAiRerankersFunc: (
+  params: VertexRerankOptions
+) => Promise<RerankerAction[]>;
 
 export default async function vertexAiRerankers(
   projectId: string,
