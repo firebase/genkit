@@ -60,6 +60,24 @@ type EnvironmentSessionOptions<S extends z.ZodTypeAny> = Omit<
   'store'
 >;
 
+/**
+ * FIXME: THIS IS WORK IN PROGRESS
+ *
+ * Environment encapsulates a statful execution environment for chat sessions, flows and prompts.
+ * Flows, prompts, chat session executed within a session in this environment will have acesss to
+ * session state data which includes custom state objects and session convesation history.
+ *
+ * ```ts
+ * const ai = genkit({...});
+ * const agent = ai.defineEnvironment();
+ * const flow = agent.defineFlow({...})
+ * agent.definePrompt({...})
+ * agent.defineTool({...})
+ * const session = agent.createSession(); // create a Session
+ * let response = await session.send('hi'); // session state aware conversation
+ * await session.runFlow(flow, {...})
+ * ```
+ */
 export class Environment<S extends z.ZodTypeAny> implements EnvironmentType {
   private store: SessionStore<S>;
 
@@ -245,6 +263,18 @@ export class Environment<S extends z.ZodTypeAny> implements EnvironmentType {
   }
 }
 
+/**
+ * Session encapsulates a statful execution environment for chat.
+ * Chat session executed within a session in this environment will have acesss to
+ * session session convesation history.
+ *
+ * ```ts
+ * const ai = genkit({...});
+ * const chat = ai.chat(); // create a Session
+ * let response = await chat.send('hi'); // session/history aware conversation
+ * response = await chat.send('tell me a story');
+ * ```
+ */
 export class Session<S extends z.ZodTypeAny> {
   readonly id: string;
   readonly schema?: S;
