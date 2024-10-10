@@ -687,13 +687,74 @@ export class Genkit {
   }
 
   /**
+   * Make a generate call to the default model with a simple text prompt.
+   *
+   * ```ts
+   * const ai = genkit({
+   *   plugins: [googleAI()],
+   *   model: gemini15Flash, // default model
+   * })
+   *
+   * const { text } = await ai.generate('hi');
+   * ```
+   */
+  generate<O extends z.ZodTypeAny = z.ZodTypeAny>(
+    strPrompt: string
+  ): Promise<GenerateResponse<z.infer<O>>>;
+
+  /**
+   * Make a generate call to the default model with a multipart request.
+   *
+   * ```ts
+   * const ai = genkit({
+   *   plugins: [googleAI()],
+   *   model: gemini15Flash, // default model
+   * })
+   *
+   * const { text } = await ai.generate([
+   *   { media: {url: 'http://....'} },
+   *   { text: 'describe this image' }
+   * ]);
+   * ```
+   */
+  generate<O extends z.ZodTypeAny = z.ZodTypeAny>(
+    parts: Part[]
+  ): Promise<GenerateResponse<z.infer<O>>>;
+
+  /**
    * Generate calls a generative model based on the provided prompt and configuration. If
    * `messages` is provided, the generation will include a conversation history in its
    * request. If `tools` are provided, the generate method will automatically resolve
    * tool calls returned from the model unless `returnToolRequests` is set to `true`.
    *
    * See {@link GenerateOptions} for detailed information about available options.
+   *
+   * ```ts
+   * const ai = genkit({
+   *   plugins: [googleAI()],
+   * })
+   *
+   * const { text } = await ai.generate({
+   *   system: 'talk like a pirate',
+   *   prompt: [
+   *     { media: { url: 'http://....' } },
+   *     { text: 'describe this image' }
+   *   ],
+   *   messages: conversationHistory,
+   *   tools: [ userInfoLookup ],
+   *   model: gemini15Flash,
+   * });
+   * ```
    */
+  generate<
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+  >(
+    parts:
+      | GenerateOptions<O, CustomOptions>
+      | PromiseLike<GenerateOptions<O, CustomOptions>>
+  ): Promise<GenerateResponse<z.infer<O>>>;
+
   async generate<
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
@@ -721,14 +782,86 @@ export class Genkit {
   }
 
   /**
-   * Generates a stream of responses from a generative model based on the provided prompt
-   * and configuration. If `history` is provided, the generation will include a conversation
-   * history in its request. If `tools` are provided, the generate method will automatically
-   * resolve tool calls returned from the model unless `returnToolRequests` is set to `true`.
+   * Make a streaming generate call to the default model with a simple text prompt.
+   *
+   * ```ts
+   * const ai = genkit({
+   *   plugins: [googleAI()],
+   *   model: gemini15Flash, // default model
+   * })
+   *
+   * const { response, stream } = await ai.generateStream('hi');
+   * for await (const chunk of stream) {
+   *   console.log(chunk.text);
+   * }
+   * console.log((await response).text);
+   * ```
+   */
+  generateStream<O extends z.ZodTypeAny = z.ZodTypeAny>(
+    strPrompt: string
+  ): Promise<GenerateStreamResponse<z.infer<O>>>;
+
+  /**
+   * Make a streaming generate call to the default model with a multipart request.
+   *
+   * ```ts
+   * const ai = genkit({
+   *   plugins: [googleAI()],
+   *   model: gemini15Flash, // default model
+   * })
+   *
+   * const { response, stream } = await ai.generateStream([
+   *   { media: {url: 'http://....'} },
+   *   { text: 'describe this image' }
+   * ]);
+   * for await (const chunk of stream) {
+   *   console.log(chunk.text);
+   * }
+   * console.log((await response).text);
+   * ```
+   */
+  generateStream<O extends z.ZodTypeAny = z.ZodTypeAny>(
+    parts: Part[]
+  ): Promise<GenerateStreamResponse<z.infer<O>>>;
+
+  /**
+   * Streaming generate calls a generative model based on the provided prompt and configuration. If
+   * `messages` is provided, the generation will include a conversation history in its
+   * request. If `tools` are provided, the generate method will automatically resolve
    * tool calls returned from the model unless `returnToolRequests` is set to `true`.
    *
-   * See {@link GenerateStreamOptions} for detailed information about available options.
+   * See {@link GenerateOptions} for detailed information about available options.
+   *
+   * ```ts
+   * const ai = genkit({
+   *   plugins: [googleAI()],
+   * })
+   *
+   * const { response, stream } = await ai.generateStream({
+   *   system: 'talk like a pirate',
+   *   prompt: [
+   *     { media: { url: 'http://....' } },
+   *     { text: 'describe this image' }
+   *   ],
+   *   messages: conversationHistory,
+   *   tools: [ userInfoLookup ],
+   *   model: gemini15Flash,
+   * });
+   * for await (const chunk of stream) {
+   *   console.log(chunk.text);
+   * }
+   * console.log((await response).text);
+   * ```
    */
+  generateStream<
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+  >(
+    parts:
+      | GenerateOptions<O, CustomOptions>
+      | PromiseLike<GenerateOptions<O, CustomOptions>>
+  ): Promise<GenerateStreamResponse<z.infer<O>>>;
+
   async generateStream<
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
@@ -765,13 +898,23 @@ export class Genkit {
     stateSchema?: S;
     store?: SessionStore<any>;
   }): Environment<S> {
-    return new Environment(this, {
-      name: config.name,
+    return new Environment(config.name, this, {
       stateSchema: config.stateSchema,
       store: config.store,
     });
   }
 
+  /**
+   * Create a chat session with the provided options.
+   *
+   * ```ts
+   * const chat = ai.chat({
+   *   system: 'talk like a pirate',
+   * })
+   * let response = await chat.send('tell me a joke')
+   * response = await chat.send('another one')
+   * ```
+   */
   chat<S extends z.ZodTypeAny = z.ZodTypeAny>(
     options?: SessionOptions<S>
   ): Session<S> {
@@ -790,6 +933,9 @@ export class Genkit {
     );
   }
 
+  /**
+   * Load a chat session from the provided store.
+   */
   async loadChat<S extends z.ZodTypeAny = z.ZodTypeAny>(
     sessionId: string,
     options: SessionOptions<S>

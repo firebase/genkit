@@ -78,9 +78,7 @@ describe('models', () => {
       });
 
       it('streams the default model', async () => {
-        const { response, stream } = await ai.generateStream({
-          prompt: 'hi',
-        });
+        const { response, stream } = await ai.generateStream('hi');
 
         const chunks: string[] = [];
         for await (const chunk of stream) {
