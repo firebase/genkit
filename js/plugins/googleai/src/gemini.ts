@@ -15,44 +15,53 @@
  */
 
 import {
+  CachedContent,
+  Content as GeminiMessage,
   FileDataPart,
   FunctionCallPart,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
   FunctionResponsePart,
   GenerateContentCandidate as GeminiCandidate,
-  Content as GeminiMessage,
-  Part as GeminiPart,
   GenerateContentResponse,
   GenerationConfig,
+  GenerativeModel,
   GoogleGenerativeAI,
   InlineDataPart,
+  Part as GeminiPart,
   RequestOptions,
   StartChatParams,
   Tool,
 } from '@google/generative-ai';
-import { GENKIT_CLIENT_HEADER, z } from 'genkit';
+import { GoogleAICacheManager } from '@google/generative-ai/server';
+import { GenkitError, GENKIT_CLIENT_HEADER, z } from 'genkit';
+import { logger } from 'genkit/logging';
 import {
   CandidateData,
+  defineModel,
   GenerationCommonConfigSchema,
+  getBasicUsageStats,
   MediaPart,
   MessageData,
   ModelAction,
   ModelMiddleware,
+  modelRef,
   ModelReference,
   Part,
   ToolDefinitionSchema,
   ToolRequestPart,
   ToolResponsePart,
-  defineModel,
-  getBasicUsageStats,
-  modelRef,
 } from 'genkit/model';
 import {
   downloadRequestMedia,
   simulateSystemPrompt,
 } from 'genkit/model/middleware';
 import process from 'process';
+import { generateCacheKey } from './context-caching/generate_hash_key';
+import {
+  getContentForCache,
+  lookupContextCache,
+} from './context-caching/helpers';
 
 const SafetySettingsSchema = z.object({
   category: z.enum([
@@ -73,6 +82,12 @@ const SafetySettingsSchema = z.object({
 const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   safetySettings: z.array(SafetySettingsSchema).optional(),
   codeExecution: z.union([z.boolean(), z.object({}).strict()]).optional(),
+  contextCache: z
+    .object({
+      context: z.string().optional(),
+      content: z.array(z.any()).optional(),
+    })
+    .optional(),
 });
 
 export const geminiPro = modelRef({
@@ -136,6 +151,8 @@ export const gemini15Flash = modelRef({
       tools: true,
       systemRole: true,
       output: ['text', 'json'],
+      // @ts-ignore
+      contextCache: true,
     },
     versions: ['gemini-1.5-flash-001'],
   },
@@ -510,12 +527,6 @@ export function googleAIModel(
       if (apiVersion) {
         options.baseUrl = baseUrl;
       }
-      const client = new GoogleGenerativeAI(apiKey!).getGenerativeModel(
-        {
-          model: request.config?.version || model.version || name,
-        },
-        options
-      );
 
       // make a copy so that modifying the request will not produce side-effects
       const messages = [...request.messages];
@@ -566,7 +577,7 @@ export function googleAIModel(
         responseMimeType: jsonMode ? 'application/json' : undefined,
       };
 
-      const chatRequest = {
+      let chatRequest = {
         systemInstruction,
         generationConfig,
         tools,
@@ -581,8 +592,84 @@ export function googleAIModel(
       ) => {
         return fromGeminiCandidate(candidate, jsonMode);
       };
+
+      /**
+       * This function is used to determine if the request should be cached. If bad configuration, then it will error (instead of costing them tokens)
+       */
+      function shouldContentCache(request, model) {
+        return (
+          request.config?.contextCache &&
+          model?.info?.supports?.contextCache &&
+          request.config?.contextCache?.content
+        );
+      }
+
+      let cache: CachedContent | null = null;
+
+      // if (shouldContentCache(request, model)) {
+      if (true) {
+        logger.info('Using context cache feature');
+        const cacheManager = new GoogleAICacheManager(apiKey!);
+
+        // const version = model.version;
+
+        const version = 'gemini-1.5-flash-001';
+
+        if (!version) {
+          throw new GenkitError({
+            status: 'INTERNAL',
+            message:
+              'Model version is required for context caching, only on 001 models',
+          });
+        }
+
+        const { cachedContent, chatRequest: newChatRequest } =
+          getContentForCache(request, chatRequest, version);
+
+        const cacheKey = generateCacheKey(cachedContent);
+        // need to add the name to the cached content
+        cachedContent.name = `cachedContent/${cacheKey}`;
+        cachedContent.displayName = cacheKey;
+        logger.info(`Generated cache key: ${cacheKey}`);
+        cache = await lookupContextCache(cacheManager, cacheKey);
+        logger.info(`Found cache: ${cache ? 'true' : 'false'}`);
+        if (!cache) {
+          try {
+            logger.debug('No cache found, creating one.');
+            cache = await cacheManager.create(cachedContent);
+            logger.info(`Created new cache entry with key: ${cacheKey}`);
+          } catch (cacheError) {
+            throw new Error('Failed to create cache: ' + cacheError);
+          }
+        }
+        if (!cache) {
+          throw new GenkitError({
+            status: 'INTERNAL',
+            message: 'Failed to use context cache feature',
+          });
+        }
+        chatRequest = newChatRequest;
+      }
+
+      let genModel: GenerativeModel | null = null;
+
+      const client = new GoogleGenerativeAI(apiKey!);
+
+      if (cache) {
+        logger.info('Using cached content');
+        genModel = client.getGenerativeModelFromCachedContent(cache, options);
+      } else {
+        genModel = client.getGenerativeModel(
+          {
+            model: request.config?.version || model.version || name,
+          },
+          options
+        );
+      }
+      logger.info('created generative model client');
+
       if (streamingCallback) {
-        const result = await client
+        const result = await genModel
           .startChat(chatRequest)
           .sendMessageStream(msg.parts, options);
         for await (const item of result.stream) {
@@ -604,7 +691,8 @@ export function googleAIModel(
           custom: response,
         };
       } else {
-        const result = await client
+        logger.info(chatRequest!.history![0].role);
+        const result = await genModel
           .startChat(chatRequest)
           .sendMessage(msg.parts, options);
         if (!result.response.candidates?.length)

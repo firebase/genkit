@@ -15,44 +15,81 @@
  */
 
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
-import { vertexAI } from '@genkit-ai/vertexai';
-import { defineTool, generate, genkit, z } from 'genkit';
-import { runWithRegistry } from 'genkit/registry';
-
+import { generate, genkit, z } from 'genkit';
+import { lotr } from './content';
 const ai = genkit({
-  plugins: [googleAI(), vertexAI()],
+  plugins: [googleAI()],
 });
 
-const jokeSubjectGenerator = runWithRegistry(ai.registry, () =>
-  defineTool(
-    {
-      name: 'jokeSubjectGenerator',
-      description: 'Can be called to generate a subject for a joke',
-    },
-    async () => {
-      return 'banana';
-    }
-  )
-);
-
-export const jokeFlow = ai.defineFlow(
+export const lotrFlow = ai.defineFlow(
   {
-    name: 'jokeFlow',
-    inputSchema: z.void(),
-    outputSchema: z.any(),
+    name: 'lotrFlow',
+    inputSchema: z.object({
+      preprocess: z.string().optional(),
+      query: z.string().optional(),
+    }),
+    outputSchema: z.string(),
   },
-  async () => {
-    const llmResponse = await generate({
-      model: gemini15Flash,
+  async ({ preprocess, query }) => {
+    const extractQuotesResponse = await generate({
+      history: [
+        // CachedContent can not be used with GenerateContent request setting system_instruction, tools or tool_config.
+        // {
+        //   role: 'system',
+        //   content: [
+        //     {
+        //       text: "You are an literature expert, and your job is to answer the user's query based on the text provided.",
+        //     },
+        //   ],
+        // },
+        {
+          role: 'user',
+          content: [{ text: lotr }],
+        },
+        {
+          role: 'model',
+          content: [
+            {
+              text:
+                preprocess ||
+                'This is the first three chapters of Lord of the Rings. Can I help in any way?',
+            },
+          ],
+          // @ts-ignore
+          contextCache: true,
+        },
+      ],
       config: {
-        temperature: 2,
+        version: 'gemini-1.5-flash-001',
+        // @ts-ignore
+        useContextCache: true,
       },
-      output: {
-        schema: z.object({ jokeSubject: z.string() }),
-      },
-      tools: [jokeSubjectGenerator],
-      prompt: `come up with a subject to joke about (using the function provided)`,
+      model: gemini15Flash,
+      prompt: `Extract all the quotes by Gandalf to Frodo into a list.`,
     });
-    return llmResponse.output();
+
+    const history = extractQuotesResponse.toHistory();
+
+    return extractQuotesResponse.text();
+
+    // // set contextCache to true for the last message in the history
+    // // @ts-ignore
+    // history[history.length - 1].contextCache = true;
+
+    // const llmResponse = await generate({
+    //   history,
+    //   config: {
+    //     version: 'gemini-1.5-flash-001',
+    //     // @ts-ignore
+    //     useContextCache: true,
+    //   },
+    //   model: gemini15Flash,
+    //   // prompt: query,
+    //   prompt: query || `What was the first thing Gandalf says to Frodo?`,
+    // });
+
+    // const response = llmResponse.text();
+
+    // return response;
   }
 );

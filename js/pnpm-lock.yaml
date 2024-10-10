@@ -660,12 +660,6 @@ importers:
       '@genkit-ai/googleai':
         specifier: workspace:*
         version: link:../../plugins/googleai
-      '@genkit-ai/vertexai':
-        specifier: workspace:*
-        version: link:../../plugins/vertexai
-      express:
-        specifier: ^4.20.0
-        version: 4.21.0
       genkit:
         specifier: workspace:*
         version: link:../../genkit
