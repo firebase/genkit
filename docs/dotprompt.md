@@ -151,11 +151,19 @@ a schema registered with `defineSchema` by name. To register a schema:
 import { defineSchema } from '@genkit-ai/core';
 import { z } from 'zod';
 
-const MySchema = defineSchema(
-  'MySchema',
+const MyOutputSchema = defineSchema(
+  'MyOutputSchema',
   z.object({
     field1: z.string(),
     field2: z.number(),
+  })
+);
+
+const MyInputSchema = defineSchema(
+  'MyInputSchema',
+  z.object({
+    field3: z.string(),
+    field4: z.number(),
   })
 );
 ```
@@ -167,7 +175,9 @@ Within your prompt, you can provide the name of the registered schema:
 ---
 model: vertexai/gemini-1.5-flash
 output:
-  schema: MySchema
+  schema: MyOutputSchema
+input:
+  schema: MyInputSchema
 ---
 ```
 
@@ -180,9 +190,9 @@ import { promptRef } from "@genkit-ai/dotprompt";
 
 const myPrompt = promptRef("myPrompt");
 
-const result = await myPrompt.generate<typeof MySchema>({...});
+const result = await myPrompt.generate<typeof MyInputSchema, typeof MyOutputSchema>({...});
 
-// now strongly typed as MySchema
+// now strongly typed as MyOutputSchema
 result.output();
 ```
 
