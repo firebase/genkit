@@ -388,7 +388,7 @@ function getErrorFromModelResponse(output: string): string | undefined {
   const response = GenerateResponseSchema.parse(obj);
 
   // We currently only support the first candidate
-  const candidate = response?.candidates[0] as CandidateData;
+  const candidate = response.candidates[0] as CandidateData;
   if (candidate.finishReason === 'blocked') {
     return candidate.finishMessage || `Generation was blocked by the model.`;
   }
