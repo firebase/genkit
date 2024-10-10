@@ -25,9 +25,9 @@ import {
   EvalRunKey,
   FlowActionInputSchema,
   GenerateRequest,
+  GenerateRequestSchema,
   GenerateResponseSchema,
   MessageData,
-  MessageSchema,
   RunNewEvaluationRequest,
   SpanData,
 } from '../types';
@@ -411,18 +411,18 @@ function getModelInput(data: any, modelConfig: any): GenerateRequest {
         },
       ],
     } as MessageData;
+    return {
+      messages: message ? [message] : [],
+      config: modelConfig,
+    };
   } else {
-    const maybeMessage = MessageSchema.safeParse(data);
-    if (maybeMessage.success) {
-      message = maybeMessage.data;
+    const maybeRequest = GenerateRequestSchema.safeParse(data);
+    if (maybeRequest.success) {
+      return maybeRequest.data;
     } else {
       throw new Error(
-        `Unable to parse model input as MessageSchema as input. Details: ${maybeMessage.error}`
+        `Unable to parse model input as MessageSchema as input. Details: ${maybeRequest.error}`
       );
     }
   }
-  return {
-    messages: message ? [message] : [],
-    config: modelConfig,
-  };
 }
