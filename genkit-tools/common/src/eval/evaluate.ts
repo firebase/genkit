@@ -387,6 +387,10 @@ function getErrorFromModelResponse(output: string): string | undefined {
   const obj = JSON.parse(output);
   const response = GenerateResponseSchema.parse(obj);
 
+  if (!response || !response.candidates || response.candidates.length === 0) {
+    return `No response was extracted from the output. '${output}'`;
+  }
+
   // We currently only support the first candidate
   const candidate = response.candidates[0] as CandidateData;
   if (candidate.finishReason === 'blocked') {
