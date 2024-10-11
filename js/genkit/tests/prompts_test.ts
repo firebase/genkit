@@ -114,7 +114,7 @@ describe('definePrompt - dotprompt', () => {
       const hi = await ai.prompt('hi');
 
       const response = await hi({ name: 'Genkit' });
-      assert.strictEqual(response.text(), 'Echo: hi Genkit; config: {}');
+      assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
   });
 
@@ -259,7 +259,7 @@ describe('definePrompt - dotprompt', () => {
       const hi = await ai.prompt('hi');
 
       const response = await hi({ name: 'Genkit' });
-      assert.strictEqual(response.text(), 'Echo: hi Genkit; config: {}');
+      assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
   });
 
@@ -445,7 +445,7 @@ describe('definePrompt', () => {
       const hi = await ai.prompt('hi');
 
       const response = await hi({ name: 'Genkit' });
-      assert.strictEqual(response.text(), 'Echo: hi Genkit; config: {}');
+      assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
   });
 
