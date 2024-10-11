@@ -72,7 +72,7 @@ export interface PluginOptions extends BasePluginOptions {
  *  Plugin for Vertex AI Vector Search
  */
 export const vertexAIVectorSearch: Plugin<[PluginOptions] | []> = genkitPlugin(
-  'vertexAiVectorSearch',
+  'vertexaiVectorSearch',
   async (options?: PluginOptions) => {
     // Authenticate with Google Cloud
     const authOptions = options?.googleAuth;

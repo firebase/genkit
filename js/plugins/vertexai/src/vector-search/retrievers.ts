@@ -53,7 +53,7 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
 
     const retriever = defineRetriever(
       {
-        name: `vertexai/${indexId}`,
+        name: `vertexaiVectorSearch/${indexId}`,
         configSchema: VertexAIVectorRetrieverOptionsSchema.optional(),
       },
       async (content, options) => {
@@ -127,7 +127,7 @@ export const vertexAiRetrieverRef = (params: {
   displayName?: string;
 }) => {
   return retrieverRef({
-    name: `vertexai/${params.indexId}`,
+    name: `vertexaiVectorSearch/${params.indexId}`,
     info: {
       label: params.displayName ?? `ertex AI - ${params.indexId}`,
     },
