@@ -16,7 +16,7 @@
 
 import { randomUUID } from 'crypto';
 import { EvalFlowInput, getDatasetStore, getEvalStore } from '.';
-import { Runner } from '../runner';
+import { RuntimeManager } from '../manager/manager';
 import {
   Action,
   EvalInput,
@@ -45,7 +45,7 @@ const SUPPORTED_ACTION_TYPES = ['flow', 'model'] as const;
  * Starts a new evaluation run. Intended to be used via the reflection API.
  */
 export async function runNewEvaluation(
-  runner: Runner,
+  manager: RuntimeManager,
   request: RunNewEvaluationRequest
 ): Promise<EvalRunKey> {
   const { datasetId, actionRef, evaluators } = request;
@@ -55,16 +55,19 @@ export async function runNewEvaluation(
 
   logger.info('Running inference...');
   const evalDataset = await runInference({
-    runner,
+    manager,
     actionRef,
     evalFlowInput: dataset,
     auth: request.options?.auth,
   });
-  const evaluatorAction = await getMatchingEvaluatorActions(runner, evaluators);
+  const evaluatorAction = await getMatchingEvaluatorActions(
+    manager,
+    evaluators
+  );
 
   logger.info('Running evaluation...');
   const evalRun = await runEvaluation({
-    runner,
+    manager,
     evaluatorActions: evaluatorAction,
     evalDataset,
     actionRef,
@@ -79,12 +82,12 @@ export async function runNewEvaluation(
 
 /** Handles the Inference part of Inference-Evaluation cycle */
 export async function runInference(params: {
-  runner: Runner;
+  manager: RuntimeManager;
   actionRef: string;
   evalFlowInput: EvalFlowInput;
   auth?: string;
 }): Promise<EvalInput[]> {
-  const { runner, actionRef, evalFlowInput, auth } = params;
+  const { manager, actionRef, evalFlowInput, auth } = params;
   if (!isSupportedActionRef(actionRef)) {
     throw new Error('Inference is only supported on flows and models');
   }
@@ -93,14 +96,14 @@ export async function runInference(params: {
     : evalFlowInput.samples.map((c) => c.input);
 
   const runResponses: BulkRunResponse[] = await bulkRunAction({
-    runner,
+    manager,
     actionRef,
     inputs,
     auth,
   });
 
   const evalDataset = await fetchEvalInput({
-    runner,
+    manager,
     actionRef,
     states: runResponses,
     parsedData: evalFlowInput,
@@ -110,19 +113,19 @@ export async function runInference(params: {
 
 /** Handles the Evaluation part of Inference-Evaluation cycle */
 export async function runEvaluation(params: {
-  runner: Runner;
+  manager: RuntimeManager;
   evaluatorActions: Action[];
   evalDataset: EvalInput[];
   actionRef?: string;
   datasetId?: string;
 }): Promise<EvalRun> {
-  const { runner, evaluatorActions, evalDataset, actionRef, datasetId } =
+  const { manager, evaluatorActions, evalDataset, actionRef, datasetId } =
     params;
   const evalRunId = randomUUID();
   const scores: Record<string, any> = {};
   for (const action of evaluatorActions) {
     const name = evaluatorName(action);
-    const response = await runner.runAction({
+    const response = await manager.runAction({
       key: name,
       input: {
         dataset: evalDataset.filter((row) => !row.error),
@@ -149,9 +152,9 @@ export async function runEvaluation(params: {
 }
 
 export async function getAllEvaluatorActions(
-  runner: Runner
+  manager: RuntimeManager
 ): Promise<Action[]> {
-  const allActions = await runner.listActions();
+  const allActions = await manager.listActions();
   const allEvaluatorActions = [];
   for (const key in allActions) {
     if (isEvaluator(key)) {
@@ -162,13 +165,13 @@ export async function getAllEvaluatorActions(
 }
 
 export async function getMatchingEvaluatorActions(
-  runner: Runner,
+  manager: RuntimeManager,
   evaluators?: string[]
 ): Promise<Action[]> {
   if (!evaluators) {
     return [];
   }
-  const allEvaluatorActions = await getAllEvaluatorActions(runner);
+  const allEvaluatorActions = await getAllEvaluatorActions(manager);
   const filteredEvaluatorActions = allEvaluatorActions.filter((action) =>
     evaluators.includes(action.name)
   );
@@ -181,18 +184,18 @@ export async function getMatchingEvaluatorActions(
 }
 
 async function bulkRunAction(params: {
-  runner: Runner;
+  manager: RuntimeManager;
   actionRef: string;
   inputs: any[];
   auth?: string;
 }): Promise<BulkRunResponse[]> {
-  const { runner, actionRef, inputs, auth } = params;
+  const { manager, actionRef, inputs, auth } = params;
   let responses: BulkRunResponse[] = [];
   for (const d of inputs) {
     logger.info(`Running '${actionRef}' ...`);
     let response: BulkRunResponse;
     try {
-      const runActionResponse = await runner.runAction({
+      const runActionResponse = await manager.runAction({
         key: actionRef,
         input: {
           start: {
@@ -216,12 +219,12 @@ async function bulkRunAction(params: {
 }
 
 async function fetchEvalInput(params: {
-  runner: Runner;
+  manager: RuntimeManager;
   actionRef: string;
   states: BulkRunResponse[];
   parsedData: EvalFlowInput;
 }): Promise<EvalInput[]> {
-  const { runner, actionRef, states, parsedData } = params;
+  const { manager, actionRef, states, parsedData } = params;
 
   let references: any[] | undefined = undefined;
   if (!Array.isArray(parsedData)) {
@@ -247,7 +250,7 @@ async function fetchEvalInput(params: {
         };
       }
 
-      const trace = await runner.getTrace({
+      const trace = await manager.getTrace({
         // TODO: We should consider making this a argument and using it to
         // to control which tracestore environment is being used when
         // running a flow.

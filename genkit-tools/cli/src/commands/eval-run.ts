@@ -27,7 +27,7 @@ import { confirmLlmUse, logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { randomUUID } from 'crypto';
 import { readFile } from 'fs/promises';
-import { runInRunnerThenStop } from '../utils/runner-utils';
+import { runWithManager } from '../utils/manager-utils';
 
 interface EvalRunCliOptions {
   output?: string;
@@ -58,7 +58,7 @@ export const evalRun = new Command('eval:run')
   )
   .option('--force', 'Automatically accept all interactive prompts')
   .action(async (dataset: string, options: EvalRunCliOptions) => {
-    await runInRunnerThenStop(async (runner) => {
+    await runWithManager(async (manager) => {
       if (!dataset) {
         throw new Error(
           'No input data passed. Specify input data using [data] argument'
@@ -67,10 +67,10 @@ export const evalRun = new Command('eval:run')
 
       let evaluatorActions: Action[];
       if (!options.evaluators) {
-        evaluatorActions = await getAllEvaluatorActions(runner);
+        evaluatorActions = await getAllEvaluatorActions(manager);
       } else {
         evaluatorActions = await getMatchingEvaluatorActions(
-          runner,
+          manager,
           options.evaluators.split(',')
         );
       }
@@ -95,7 +95,7 @@ export const evalRun = new Command('eval:run')
         traceIds: testCase.traceIds || [],
       }));
       const evalRun = await runEvaluation({
-        runner,
+        manager,
         evaluatorActions,
         evalDataset,
       });

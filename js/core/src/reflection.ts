@@ -15,8 +15,10 @@
  */
 
 import express, { NextFunction, Request, Response } from 'express';
+import fs from 'fs/promises';
 import getPort, { makeRange } from 'get-port';
 import { Server } from 'http';
+import path from 'path';
 import z from 'zod';
 import { Status, StatusCodes, runWithStreamingCallback } from './action.js';
 import { GENKIT_VERSION } from './index.js';
@@ -27,6 +29,7 @@ import {
   flushTracing,
   newTrace,
   setCustomMetadataAttribute,
+  telemetryServerUrlAls,
 } from './tracing.js';
 
 // TODO: Move this to common location for schemas.
@@ -67,6 +70,8 @@ export class ReflectionServer {
   private port: number | null = null;
   /** Express server instance. Null if server is not running. */
   private server: Server | null = null;
+  /** Path to the runtime file. Null if server is not running. */
+  private runtimeFilePath: string | null = null;
 
   constructor(registry: Registry, options?: ReflectionServerOptions) {
     this.registry = registry;
@@ -227,6 +232,15 @@ export class ReflectionServer {
       response.json(this.options.configuredEnvs);
     });
 
+    server.post('/api/notify', async (request, response) => {
+      const { telemetryServerUrl } = request.body;
+      if (typeof telemetryServerUrl === 'string') {
+        telemetryServerUrlAls.enterWith(telemetryServerUrl);
+        logger.info(`Set telemetry server URL to: ${telemetryServerUrl}`);
+      }
+      response.status(200).send('OK');
+    });
+
     server.use((err, req, res, next) => {
       logger.error(err.stack);
       const error = err as Error;
@@ -245,9 +259,12 @@ export class ReflectionServer {
     });
 
     this.port = await this.findPort();
-    this.server = server.listen(this.port, () => {
-      logger.info(`Reflection server running on http://localhost:${this.port}`);
+    this.server = server.listen(this.port, async () => {
+      logger.info(
+        `Reflection server (${process.pid}) running on http://localhost:${this.port}`
+      );
       ReflectionServer.RUNNING_SERVERS.push(this);
+      await this.writeRuntimeFile();
     });
   }
 
@@ -259,7 +276,7 @@ export class ReflectionServer {
       return;
     }
     return new Promise<void>((resolve, reject) => {
-      this.server!.close((err) => {
+      this.server?.close(async (err) => {
         if (err) {
           logger.error(
             `Error shutting down reflection server on port ${this.port}: ${err}`
@@ -273,11 +290,61 @@ export class ReflectionServer {
         logger.info(
           `Reflection server on port ${this.port} has successfully shut down.`
         );
+        await this.cleanupRuntimeFile();
         this.port = null;
         this.server = null;
         resolve();
       });
     });
+  }
+
+  /**
+   * Writes the runtime file to the project root.
+   */
+  private async writeRuntimeFile() {
+    try {
+      const rootDir = await findProjectRoot();
+      const runtimesDir = path.join(rootDir, '.genkit', 'runtimes');
+      const timestamp = new Date().toISOString();
+      this.runtimeFilePath = path.join(
+        runtimesDir,
+        `${process.pid}-${timestamp}.json`
+      );
+      const fileContent = JSON.stringify(
+        {
+          id: process.env.GENKIT_RUNTIME_ID || process.pid.toString(),
+          pid: process.pid,
+          reflectionServerUrl: `http://localhost:${this.port}`,
+          timestamp,
+        },
+        null,
+        2
+      );
+      await fs.mkdir(runtimesDir, { recursive: true });
+      await fs.writeFile(this.runtimeFilePath, fileContent, 'utf8');
+      logger.debug(`Runtime file written: ${this.runtimeFilePath}`);
+    } catch (error) {
+      logger.error(`Error writing runtime file: ${error}`);
+    }
+  }
+
+  /**
+   * Cleans up the port file.
+   */
+  private async cleanupRuntimeFile() {
+    if (!this.runtimeFilePath) {
+      return;
+    }
+    try {
+      const fileContent = await fs.readFile(this.runtimeFilePath, 'utf8');
+      const data = JSON.parse(fileContent);
+      if (data.pid === process.pid) {
+        await fs.unlink(this.runtimeFilePath);
+        logger.debug(`Runtime file cleaned up: ${this.runtimeFilePath}`);
+      }
+    } catch (error) {
+      logger.error(`Error cleaning up runtime file: ${error}`);
+    }
   }
 
   /**
@@ -288,6 +355,23 @@ export class ReflectionServer {
       ReflectionServer.RUNNING_SERVERS.map((server) => server.stop())
     );
   }
+}
+
+/**
+ * Finds the project root by looking for a `package.json` file.
+ */
+async function findProjectRoot(): Promise<string> {
+  let currentDir = process.cwd();
+  while (currentDir !== path.parse(currentDir).root) {
+    const packageJsonPath = path.join(currentDir, 'package.json');
+    try {
+      await fs.access(packageJsonPath);
+      return currentDir;
+    } catch {
+      currentDir = path.dirname(currentDir);
+    }
+  }
+  throw new Error('Could not find project root (package.json not found)');
 }
 
 // TODO: Verify that this works.

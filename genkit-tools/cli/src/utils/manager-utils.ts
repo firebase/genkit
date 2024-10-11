@@ -23,17 +23,20 @@ import {
   FlowState,
   Status,
 } from '@genkit-ai/tools-common';
-import { GenkitToolsError, Runner } from '@genkit-ai/tools-common/runner';
+import {
+  GenkitToolsError,
+  RuntimeManager,
+} from '@genkit-ai/tools-common/manager';
 import { logger } from '@genkit-ai/tools-common/utils';
 import getPort, { makeRange } from 'get-port';
 
 /**
  * Returns the telemetry server address either based on environment setup or starts one.
  *
- * This function is not idempotent. Typicall you want to make sure it's called only once per cli instance.
+ * This function is not idempotent. Typically you want to make sure it's called only once per cli instance.
  */
 export async function resolveTelemetryServer(): Promise<string> {
-  let telemetryServerUrl = process.env['GENKIT_TELEMETRY_SERVER'];
+  let telemetryServerUrl = process.env.GENKIT_TELEMETRY_SERVER;
   if (!telemetryServerUrl) {
     const telemetryPort = await getPort({ port: makeRange(4033, 4999) });
     telemetryServerUrl = `http://localhost:${telemetryPort}`;
@@ -46,33 +49,30 @@ export async function resolveTelemetryServer(): Promise<string> {
 }
 
 /**
- * Start the runner and waits for it to fully load -- reflection API to become avaialble.
+ * Starts the runtime manager and its dependencies.
  */
-export async function startRunner(): Promise<Runner> {
+export async function startManager(
+  manageHealth?: boolean
+): Promise<RuntimeManager> {
   const telemetryServerUrl = await resolveTelemetryServer();
-  const runner = new Runner({
-    autoReload: false,
-    buildOnStart: true,
-    telemetryServer: telemetryServerUrl,
-  });
-  if (!(await runner.start())) {
-    throw new Error('Failed to load app code.');
-  }
-  await runner.waitUntilHealthy();
-  return runner;
+  const manager = RuntimeManager.create({ telemetryServerUrl, manageHealth });
+  return manager;
 }
 
-export async function runInRunnerThenStop(
-  fn: (runner: Runner) => Promise<void>
+/**
+ * Runs the given function with a runtime manager.
+ */
+export async function runWithManager(
+  fn: (manager: RuntimeManager) => Promise<void>
 ) {
-  let runner: Runner;
+  let manager: RuntimeManager;
   try {
-    runner = await startRunner();
+    manager = await startManager(false); // Don't manage health in this case.
   } catch (e) {
     process.exit(1);
   }
   try {
-    await fn(runner);
+    await fn(manager);
   } catch (err) {
     logger.info('Command exited with an Error:');
     const error = err as GenkitToolsError;
@@ -85,11 +85,8 @@ export async function runInRunnerThenStop(
     } else {
       logger.info(`\tMessage: ${error.data}\n`);
     }
-    logger.error('Stacktrace:');
+    logger.error('Stack trace:');
     logger.error(`${error.stack}`);
-  } finally {
-    await runner.sendQuit();
-    await runner.stop();
   }
 }
 
@@ -97,14 +94,14 @@ export async function runInRunnerThenStop(
  * Poll and wait for the flow to fully complete.
  */
 export async function waitForFlowToComplete(
-  runner: Runner,
+  manager: RuntimeManager,
   flowName: string,
   flowId: string
 ): Promise<FlowState> {
   let state;
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    state = await getFlowState(runner, flowName, flowId);
+    state = await getFlowState(manager, flowName, flowId);
     if (state.operation.done) {
       break;
     }
@@ -117,12 +114,12 @@ export async function waitForFlowToComplete(
  * Retrieve the flow state.
  */
 export async function getFlowState(
-  runner: Runner,
+  manager: RuntimeManager,
   flowName: string,
   flowId: string
 ): Promise<FlowState> {
   return (
-    await runner.runAction({
+    await manager.runAction({
       key: `/flow/${flowName}`,
       input: {
         state: {

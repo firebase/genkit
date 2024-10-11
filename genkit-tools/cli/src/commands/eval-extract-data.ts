@@ -19,7 +19,7 @@ import { getEvalExtractors, logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { randomUUID } from 'crypto';
 import { writeFile } from 'fs/promises';
-import { runInRunnerThenStop } from '../utils/runner-utils';
+import { runWithManager } from '../utils/manager-utils';
 
 interface EvalDatasetOptions {
   env: EnvTypes;
@@ -40,14 +40,14 @@ export const evalExtractData = new Command('eval:extractData')
   .option('--maxRows <maxRows>', 'maximum number of rows', '100')
   .option('--label [label]', 'label flow run in this batch')
   .action(async (flowName: string, options: EvalDatasetOptions) => {
-    await runInRunnerThenStop(async (runner) => {
+    await runWithManager(async (manager) => {
       const extractors = await getEvalExtractors(`/flow/${flowName}`);
 
       logger.info(`Extracting trace data '/flow/${flowName}'...`);
       let dataset: EvalInput[] = [];
       let continuationToken = undefined;
       while (dataset.length < parseInt(options.maxRows)) {
-        const response = await runner.listTraces({
+        const response = await manager.listTraces({
           env: options.env,
           limit: parseInt(options.maxRows),
           continuationToken,

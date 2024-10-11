@@ -22,10 +22,7 @@ import {
 import { logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { readFile, writeFile } from 'fs/promises';
-import {
-  runInRunnerThenStop,
-  waitForFlowToComplete,
-} from '../utils/runner-utils';
+import { runWithManager, waitForFlowToComplete } from '../utils/manager-utils';
 
 interface FlowBatchRunOptions {
   wait?: boolean;
@@ -55,7 +52,7 @@ export const flowBatchRun = new Command('flow:batchRun')
       fileName: string,
       options: FlowBatchRunOptions
     ) => {
-      await runInRunnerThenStop(async (runner) => {
+      await runWithManager(async (manager) => {
         const inputData = JSON.parse(await readFile(fileName, 'utf8')) as any[];
         if (!Array.isArray(inputData)) {
           throw new Error('batch input data must be an array');
@@ -65,7 +62,7 @@ export const flowBatchRun = new Command('flow:batchRun')
         for (const data of inputData) {
           logger.info(`Running '/flow/${flowName}'...`);
           let state = (
-            await runner.runAction({
+            await manager.runAction({
               key: `/flow/${flowName}`,
               input: {
                 start: {
@@ -81,7 +78,11 @@ export const flowBatchRun = new Command('flow:batchRun')
 
           if (!state.operation.done && options.wait) {
             logger.info('Started flow run, waiting for it to complete...');
-            state = await waitForFlowToComplete(runner, flowName, state.flowId);
+            state = await waitForFlowToComplete(
+              manager,
+              flowName,
+              state.flowId
+            );
           }
           logger.info(
             'Flow operation:\n' +
