@@ -48,13 +48,11 @@ export interface PluginOptions extends BasePluginOptions {
   openAiBaseUrlTemplate?: string;
 }
 
-const PLUGIN_NAME = 'vertexAiModelGarden';
-
 /**
  *  Plugin for Vertex AI Model Garden
  */
 export const vertexAIModelGarden: Plugin<[PluginOptions] | []> = genkitPlugin(
-  PLUGIN_NAME,
+  'vertexaiModelGarden',
   async (options?: PluginOptions) => {
     // Authenticate with Google Cloud
     const authOptions = options?.googleAuth;
