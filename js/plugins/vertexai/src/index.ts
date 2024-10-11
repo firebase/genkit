@@ -17,7 +17,6 @@
 import { VertexAI } from '@google-cloud/vertexai';
 import { genkitPlugin, Plugin, z } from 'genkit';
 import { GenerateRequest, ModelReference } from 'genkit/model';
-import { IndexerAction, RetrieverAction } from 'genkit/retriever';
 import { GoogleAuthOptions } from 'google-auth-library';
 import {
   anthropicModel,
@@ -71,25 +70,6 @@ import {
   SUPPORTED_OPENAI_FORMAT_MODELS,
 } from './model_garden.js';
 import { vertexAiRerankers, VertexRerankerConfig } from './reranker.js';
-import {
-  VectorSearchOptions,
-  vertexAiIndexers,
-  vertexAiRetrievers,
-} from './vector-search';
-export {
-  DocumentIndexer,
-  DocumentRetriever,
-  getBigQueryDocumentIndexer,
-  getBigQueryDocumentRetriever,
-  getFirestoreDocumentIndexer,
-  getFirestoreDocumentRetriever,
-  Neighbor,
-  VectorSearchOptions,
-  vertexAiIndexerRef,
-  vertexAiIndexers,
-  vertexAiRetrieverRef,
-  vertexAiRetrievers,
-} from './vector-search';
 export {
   claude35Sonnet,
   claude3Haiku,
@@ -136,8 +116,6 @@ export interface PluginOptions {
     models: ModelReference<any>[];
     openAiBaseUrlTemplate?: string;
   };
-  /** Configure Vertex AI vector search index options */
-  vectorSearchOptions?: VectorSearchOptions<z.ZodTypeAny, any, any>[];
   /** Configure reranker options */
   rerankOptions?: VertexRerankerConfig[];
 }
@@ -224,28 +202,6 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
     );
 
-    let indexers: IndexerAction<z.ZodTypeAny>[] = [];
-    let retrievers: RetrieverAction<z.ZodTypeAny>[] = [];
-
-    if (
-      options?.vectorSearchOptions &&
-      options.vectorSearchOptions.length > 0
-    ) {
-      const defaultEmbedder = embedders[0];
-
-      indexers = vertexAiIndexers({
-        pluginOptions: options,
-        authClient,
-        defaultEmbedder,
-      });
-
-      retrievers = vertexAiRetrievers({
-        pluginOptions: options,
-        authClient,
-        defaultEmbedder,
-      });
-    }
-
     const rerankOptions = {
       pluginOptions: options,
       authClient,
@@ -258,8 +214,6 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       models,
       embedders,
       evaluators: vertexEvaluators(authClient, metrics, projectId, location),
-      retrievers,
-      indexers,
       rerankers,
     };
   }

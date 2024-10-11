@@ -37,7 +37,7 @@ const DEFAULT_K = 10;
 export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
   params: VertexVectorSearchOptions<EmbedderCustomOptions>
 ): RetrieverAction<z.ZodTypeAny>[] {
-  const vectorSearchOptions = params.pluginOptions.vectorSearchOptions;
+  const vectorSearchOptions = params.pluginOptions.options
   const defaultEmbedder = params.defaultEmbedder;
 
   const retrievers: RetrieverAction<z.ZodTypeAny>[] = [];
