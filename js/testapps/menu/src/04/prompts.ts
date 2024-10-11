@@ -18,7 +18,7 @@ import { geminiPro } from '@genkit-ai/vertexai';
 import { ai } from '../index.js';
 import { DataMenuQuestionInputSchema } from '../types.js';
 
-export const s04_ragDataMenuPrompt = ai.defineDotprompt(
+export const s04_ragDataMenuPrompt = ai.definePrompt(
   {
     name: 's04_ragDataMenu',
     model: geminiPro,

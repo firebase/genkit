@@ -56,7 +56,7 @@ export type PromptGenerateOptions<
 
 interface RenderMetadata {
   context?: DocumentData[];
-  history?: MessageData[];
+  messages?: MessageData[];
 }
 
 export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
@@ -152,7 +152,6 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
    * @param options optional context and/or history for the prompt template.
    * @returns an array of messages representing an exchange between a user and a model.
    */
-
   renderMessages(input?: I, options?: RenderMetadata): MessageData[] {
     input = parseSchema(input, {
       schema: this.input?.schema,
@@ -186,13 +185,13 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(options: PromptGenerateOptions<I>): GenerateOptions<O, CustomOptions> {
     const messages = this.renderMessages(options.input, {
-      history: options.history,
+      messages: options.messages,
       context: options.context,
     });
     return {
       model: options.model || this.model!,
       config: { ...this.config, ...options.config },
-      history: messages.slice(0, messages.length - 1),
+      messages: messages.slice(0, messages.length - 1),
       prompt: messages[messages.length - 1].content,
       context: options.context,
       output: {
@@ -258,9 +257,8 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
   >(
     opt: PromptGenerateOptions<I, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> {
-    return this.renderInNewSpan<CustomOptions, O>(opt).then((generateOptions) =>
-      generate<CustomOptions, O>(generateOptions)
-    );
+    const renderedOpts = this.renderInNewSpan<CustomOptions, O>(opt);
+    return generate<CustomOptions, O>(renderedOpts);
   }
 
   /**
@@ -272,9 +270,8 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
   async generateStream<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny>(
     opt: PromptGenerateOptions<I, CustomOptions>
   ): Promise<GenerateStreamResponse> {
-    return this.renderInNewSpan<CustomOptions>(opt).then((generateOptions) =>
-      generateStream(generateOptions)
-    );
+    const renderedOpts = await this.renderInNewSpan<CustomOptions>(opt);
+    return generateStream(renderedOpts);
   }
 }
 

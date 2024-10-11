@@ -42,7 +42,7 @@ export function startTelemetryServer(params: {
 }) {
   const api = express();
 
-  api.use(express.json({ limit: params.maxRequestBodySize ?? '5mb' }));
+  api.use(express.json({ limit: params.maxRequestBodySize ?? '30mb' }));
 
   api.get('/api/__health', async (_, response) => {
     response.status(200).send('OK');

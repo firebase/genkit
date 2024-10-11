@@ -288,7 +288,7 @@ export class ReflectionServer {
         if (index > -1) {
           ReflectionServer.RUNNING_SERVERS.splice(index, 1);
         }
-        logger.info(
+        logger.debug(
           `Reflection server on port ${this.port} has successfully shut down.`
         );
         this.port = null;

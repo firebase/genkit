@@ -14,15 +14,18 @@
  * limitations under the License.
  */
 
+import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import { generate, Genkit, genkit, run, z } from 'genkit';
+import { defineModel } from 'genkit/model';
+import { runWithRegistry } from 'genkit/registry';
+import { appendSpan } from 'genkit/tracing';
+import assert from 'node:assert';
+import { after, before, beforeEach, describe, it } from 'node:test';
 import {
   __forceFlushSpansForTesting,
   __getSpanExporterForTesting,
-  enableGoogleCloudTelemetry,
-} from '@genkit-ai/google-cloud';
-import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
-import { Genkit, genkit, run, z } from 'genkit';
-import assert from 'node:assert';
-import { after, before, beforeEach, describe, it } from 'node:test';
+} from '../src/gcpOpenTelemetry.js';
+import { enableGoogleCloudTelemetry } from '../src/index.js';
 
 describe('GoogleCloudTracing', () => {
   let ai: Genkit;
@@ -130,6 +133,69 @@ describe('GoogleCloudTracing', () => {
     assert.equal(spans[0].attributes['genkit/feature'], undefined);
     assert.equal(spans[1].name, 'niceFlow');
     assert.equal(spans[1].attributes['genkit/feature'], 'niceFlow');
+  });
+
+  it('adds the genkit/model label for model actions', async () => {
+    const echoModel = runWithRegistry(ai.registry, () =>
+      defineModel(
+        {
+          name: 'echoModel',
+        },
+        async (request) => {
+          return {
+            message: {
+              role: 'model',
+              content: [
+                {
+                  text:
+                    'Echo: ' +
+                    request.messages
+                      .map((m) => m.content.map((c) => c.text).join())
+                      .join(),
+                },
+              ],
+            },
+            finishReason: 'stop',
+          };
+        }
+      )
+    );
+    const testFlow = createFlow(ai, 'modelFlow', async () => {
+      return run('runFlow', async () => {
+        generate({
+          model: echoModel,
+          prompt: 'Testing model telemetry',
+        });
+      });
+    });
+
+    await testFlow();
+
+    const spans = await getExportedSpans();
+
+    assert.equal(spans[0].name, 'runFlow');
+    assert.equal(spans[1].name, 'modelFlow');
+    assert.equal(spans[2].name, 'echoModel');
+    assert.equal(spans[2].attributes['genkit/model'], 'echoModel');
+  });
+
+  it('attaches additional span', async () => {
+    appendSpan(
+      'trace1',
+      'parent1',
+      { name: 'span-name', metadata: { metadata_key: 'metadata_value' } },
+      { ['label_key']: 'label_value' }
+    );
+
+    const spans = await getExportedSpans();
+    const span = spans.find((it) => it.name === 'span-name');
+    assert.equal(Object.keys(span?.attributes || {}).length, 3);
+    assert.equal(span?.attributes['genkit/name'], 'span-name');
+    assert.equal(span?.attributes['label_key'], 'label_value');
+    assert.equal(
+      span?.attributes['genkit/metadata/metadata_key'],
+      'metadata_value'
+    );
   });
 
   /** Helper to create a flow with no inputs or outputs */

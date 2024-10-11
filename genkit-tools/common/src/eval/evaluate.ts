@@ -15,18 +15,27 @@
  */
 
 import { randomUUID } from 'crypto';
-import { EvalFlowInput, getDatasetStore, getEvalStore } from '.';
+import { EvalInferenceInput, getDatasetStore, getEvalStore } from '.';
 import { RuntimeManager } from '../manager/manager';
 import {
   Action,
+  CandidateData,
+  EvalInferenceInputSchema,
   EvalInput,
+  EvalKeyAugments,
   EvalRun,
   EvalRunKey,
+  FlowActionInputSchema,
+  GenerateRequest,
+  GenerateRequestSchema,
+  GenerateResponseSchema,
+  MessageData,
   RunNewEvaluationRequest,
   SpanData,
 } from '../types';
 import {
   evaluatorName,
+  generateTestCaseId,
   getEvalExtractors,
   isEvaluator,
   logger,
@@ -34,9 +43,19 @@ import {
 } from '../utils';
 import { enrichResultsWithScoring, extractMetricsMetadata } from './parser';
 
-interface BulkRunResponse {
+interface InferenceRunState {
+  testCaseId: string;
+  input: any;
+  reference?: any;
   traceId?: string;
   response?: any;
+  evalError?: string;
+}
+
+interface TestCase {
+  testCaseId: string;
+  input: any;
+  reference?: any;
 }
 
 const SUPPORTED_ACTION_TYPES = ['flow', 'model'] as const;
@@ -52,31 +71,31 @@ export async function runNewEvaluation(
   const datasetStore = await getDatasetStore();
   logger.info(`Fetching dataset ${datasetId}...`);
   const dataset = await datasetStore.getDataset(datasetId);
+  const datasetMetadatas = await datasetStore.listDatasets();
+  const targetDatasetMetadata = datasetMetadatas.find(
+    (d) => d.datasetId === datasetId
+  );
+  const datasetVersion = targetDatasetMetadata?.version;
 
   logger.info('Running inference...');
   const evalDataset = await runInference({
     manager,
     actionRef,
-    evalFlowInput: dataset,
+    evalFlowInput: EvalInferenceInputSchema.parse({ samples: dataset }),
     auth: request.options?.auth,
+    actionConfig: request.options?.actionConfig,
   });
-  const evaluatorAction = await getMatchingEvaluatorActions(
+  const evaluatorActions = await getMatchingEvaluatorActions(
     manager,
     evaluators
   );
 
-  logger.info('Running evaluation...');
   const evalRun = await runEvaluation({
     manager,
-    evaluatorActions: evaluatorAction,
+    evaluatorActions,
     evalDataset,
-    actionRef,
-    datasetId,
+    augments: { actionRef, datasetId, datasetVersion },
   });
-  logger.info('Finished evaluation, returning key...');
-  const evalStore = getEvalStore();
-  await evalStore.save(evalRun);
-
   return evalRun.key;
 }
 
@@ -84,29 +103,21 @@ export async function runNewEvaluation(
 export async function runInference(params: {
   manager: RuntimeManager;
   actionRef: string;
-  evalFlowInput: EvalFlowInput;
+  evalFlowInput: EvalInferenceInput;
   auth?: string;
+  actionConfig?: any;
 }): Promise<EvalInput[]> {
-  const { manager, actionRef, evalFlowInput, auth } = params;
+  const { manager, actionRef, evalFlowInput, auth, actionConfig } = params;
   if (!isSupportedActionRef(actionRef)) {
     throw new Error('Inference is only supported on flows and models');
   }
-  let inputs: any[] = Array.isArray(evalFlowInput)
-    ? (evalFlowInput as any[])
-    : evalFlowInput.samples.map((c) => c.input);
 
-  const runResponses: BulkRunResponse[] = await bulkRunAction({
+  const evalDataset: EvalInput[] = await bulkRunAction({
     manager,
     actionRef,
-    inputs,
+    evalFlowInput,
     auth,
-  });
-
-  const evalDataset = await fetchEvalInput({
-    manager,
-    actionRef,
-    states: runResponses,
-    parsedData: evalFlowInput,
+    actionConfig,
   });
   return evalDataset;
 }
@@ -116,13 +127,12 @@ export async function runEvaluation(params: {
   manager: RuntimeManager;
   evaluatorActions: Action[];
   evalDataset: EvalInput[];
-  actionRef?: string;
-  datasetId?: string;
+  augments?: EvalKeyAugments;
 }): Promise<EvalRun> {
-  const { manager, evaluatorActions, evalDataset, actionRef, datasetId } =
-    params;
+  const { manager, evaluatorActions, evalDataset, augments } = params;
   const evalRunId = randomUUID();
   const scores: Record<string, any> = {};
+  logger.info('Running evaluation...');
   for (const action of evaluatorActions) {
     const name = evaluatorName(action);
     const response = await manager.runAction({
@@ -140,14 +150,17 @@ export async function runEvaluation(params: {
 
   const evalRun = {
     key: {
-      actionRef,
       evalRunId,
-      datasetId,
       createdAt: new Date().toISOString(),
+      ...augments,
     },
     results: scoredResults,
     metricsMetadata: metadata,
   };
+
+  logger.info('Finished evaluation, writing key...');
+  const evalStore = getEvalStore();
+  await evalStore.save(evalRun);
   return evalRun;
 }
 
@@ -186,121 +199,181 @@ export async function getMatchingEvaluatorActions(
 async function bulkRunAction(params: {
   manager: RuntimeManager;
   actionRef: string;
-  inputs: any[];
+  evalFlowInput: EvalInferenceInput;
   auth?: string;
-}): Promise<BulkRunResponse[]> {
-  const { manager, actionRef, inputs, auth } = params;
-  let responses: BulkRunResponse[] = [];
-  for (const d of inputs) {
-    logger.info(`Running '${actionRef}' ...`);
-    let response: BulkRunResponse;
-    try {
-      const runActionResponse = await manager.runAction({
-        key: actionRef,
-        input: {
-          start: {
-            input: d,
-          },
-          auth: auth ? JSON.parse(auth) : undefined,
-        },
-      });
-      response = {
-        traceId: runActionResponse.telemetry?.traceId,
-        response: runActionResponse.result,
-      };
-    } catch (e: any) {
-      const traceId = e?.data?.details?.traceId;
-      response = { traceId };
-    }
-    responses.push(response);
-  }
-
-  return responses;
-}
-
-async function fetchEvalInput(params: {
-  manager: RuntimeManager;
-  actionRef: string;
-  states: BulkRunResponse[];
-  parsedData: EvalFlowInput;
+  actionConfig?: any;
 }): Promise<EvalInput[]> {
-  const { manager, actionRef, states, parsedData } = params;
+  const { manager, actionRef, evalFlowInput, auth, actionConfig } = params;
+  const isModelAction = actionRef.startsWith('/model');
+  let testCases: TestCase[] = Array.isArray(evalFlowInput)
+    ? (evalFlowInput as any[]).map((i) => ({
+        input: i,
+        testCaseId: generateTestCaseId(),
+      }))
+    : evalFlowInput.samples.map((c) => ({
+        input: c.input,
+        reference: c.reference,
+        testCaseId: c.testCaseId ?? generateTestCaseId(),
+      }));
 
-  let references: any[] | undefined = undefined;
-  if (!Array.isArray(parsedData)) {
-    const maybeReferences = parsedData.samples.map((c: any) => c.reference);
-    if (maybeReferences.length === states.length) {
-      references = maybeReferences;
+  let evalInputs: EvalInput[] = [];
+  for (const testCase of testCases) {
+    logger.info(`Running '${actionRef}' ...`);
+    if (isModelAction) {
+      evalInputs.push(
+        await runModelAction({
+          manager,
+          actionRef,
+          testCase,
+          modelConfig: actionConfig,
+        })
+      );
     } else {
-      logger.warn(
-        'The input size does not match the flow states generated. Ignoring reference mapping...'
+      evalInputs.push(
+        await runFlowAction({
+          manager,
+          actionRef,
+          testCase,
+          auth,
+        })
       );
     }
   }
+  return evalInputs;
+}
+
+async function runFlowAction(params: {
+  manager: RuntimeManager;
+  actionRef: string;
+  testCase: TestCase;
+  auth?: any;
+}): Promise<EvalInput> {
+  const { manager, actionRef, testCase, auth } = { ...params };
+  let state: InferenceRunState;
+  try {
+    const flowInput = FlowActionInputSchema.parse({
+      start: {
+        input: testCase.input,
+      },
+      auth: auth ? JSON.parse(auth) : undefined,
+    });
+    const runActionResponse = await runner.runAction({
+      key: actionRef,
+      input: flowInput,
+    });
+    state = {
+      ...testCase,
+      traceId: runActionResponse.telemetry?.traceId,
+      response: runActionResponse.result,
+    };
+  } catch (e: any) {
+    const traceId = e?.data?.details?.traceId;
+    state = {
+      ...testCase,
+      traceId,
+      evalError: `Error when running inference. Details: ${e?.message ?? e}`,
+    };
+  }
+  return gatherEvalInput({ runner, actionRef, state });
+}
+
+async function runModelAction(params: {
+  manager: RuntimeManager;
+  actionRef: string;
+  testCase: TestCase;
+  modelConfig?: any;
+}): Promise<EvalInput> {
+  const { manager, actionRef, modelConfig, testCase } = { ...params };
+  let state: InferenceRunState;
+  try {
+    const modelInput = getModelInput(testCase.input, modelConfig);
+    const runActionResponse = await manager.runAction({
+      key: actionRef,
+      input: modelInput,
+    });
+    state = {
+      ...testCase,
+      traceId: runActionResponse.telemetry?.traceId,
+      response: runActionResponse.result,
+    };
+  } catch (e: any) {
+    const traceId = e?.data?.details?.traceId;
+    state = {
+      ...testCase,
+      traceId,
+      evalError: `Error when running inference. Details: ${e?.message ?? e}`,
+    };
+  }
+  return gatherEvalInput({ manager, actionRef, state });
+}
+
+async function gatherEvalInput(params: {
+  manager: RuntimeManager;
+  actionRef: string;
+  state: InferenceRunState;
+}): Promise<EvalInput> {
+  const { manager, actionRef, state } = params;
+
   const extractors = await getEvalExtractors(actionRef);
-  return await Promise.all(
-    states.map(async (s, i) => {
-      const traceId = s.traceId;
-      if (!traceId) {
-        logger.warn('No traceId available...');
-        return {
-          // TODO Replace this with unified trace class
-          testCaseId: randomUUID(),
-          traceIds: [],
-        };
-      }
+  const traceId = state.traceId;
+  if (!traceId) {
+    logger.warn('No traceId available...');
+    return {
+      ...state,
+      error: state.evalError,
+      testCaseId: randomUUID(),
+      traceIds: [],
+    };
+  }
 
-      const trace = await manager.getTrace({
-        // TODO: We should consider making this a argument and using it to
-        // to control which tracestore environment is being used when
-        // running a flow.
-        env: 'dev',
-        traceId,
-      });
+  const trace = await manager.getTrace({
+    // TODO: We should consider making this a argument and using it to
+    // to control which tracestore environment is being used when
+    // running a flow.
+    env: 'dev',
+    traceId,
+  });
 
-      let inputs: string[] = [];
-      let outputs: string[] = [];
-      let contexts: string[] = [];
+  const isModelAction = actionRef.startsWith('/model');
+  // Always use original input for models.
+  const input = isModelAction ? state.input : extractors.input(trace);
 
-      inputs.push(extractors.input(trace));
+  const nestedSpan = stackTraceSpans(trace);
+  if (!nestedSpan) {
+    return {
+      testCaseId: state.testCaseId,
+      input,
+      error: `Unable to extract any spans from trace ${traceId}`,
+      reference: state.reference,
+      traceIds: [traceId],
+    };
+  }
 
-      const nestedSpan = stackTraceSpans(trace);
-      if (!nestedSpan) {
-        return {
-          testCaseId: randomUUID(),
-          input: inputs[0],
-          error: `Unable to extract any spans from trace ${traceId}`,
-          reference: references?.at(i),
-          traceIds: [traceId],
-        };
-      }
+  if (nestedSpan.attributes['genkit:state'] === 'error') {
+    return {
+      testCaseId: state.testCaseId,
+      input,
+      error:
+        getSpanErrorMessage(nestedSpan) ?? `Unknown error in trace ${traceId}`,
+      reference: state.reference,
+      traceIds: [traceId],
+    };
+  }
 
-      if (nestedSpan.attributes['genkit:state'] === 'error') {
-        return {
-          testCaseId: randomUUID(),
-          input: inputs[0],
-          error:
-            getSpanErrorMessage(nestedSpan) ??
-            `Unknown error in trace${traceId}`,
-          reference: references?.at(i),
-          traceIds: [traceId],
-        };
-      }
+  const output = extractors.output(trace);
+  const context = extractors.context(trace);
+  const error = isModelAction ? getErrorFromModelResponse(output) : undefined;
 
-      outputs.push(extractors.output(trace));
-      contexts.push(extractors.context(trace));
-
-      return {
-        // TODO Replace this with unified trace class
-        testCaseId: randomUUID(),
-        input: inputs[0],
-        output: outputs[0],
-        context: JSON.parse(contexts[0]) as string[],
-        reference: references?.at(i),
-        traceIds: [traceId],
-      };
-    })
-  );
+  return {
+    // TODO Replace this with unified trace class
+    testCaseId: state.testCaseId,
+    input,
+    output,
+    error,
+    context: JSON.parse(context) as string[],
+    reference: state.reference,
+    traceIds: [traceId],
+  };
 }
 
 function getSpanErrorMessage(span: SpanData): string | undefined {
@@ -316,8 +389,50 @@ function getSpanErrorMessage(span: SpanData): string | undefined {
   }
 }
 
+function getErrorFromModelResponse(output: string): string | undefined {
+  const obj = JSON.parse(output);
+  const response = GenerateResponseSchema.parse(obj);
+
+  if (!response || !response.candidates || response.candidates.length === 0) {
+    return `No response was extracted from the output. '${output}'`;
+  }
+
+  // We currently only support the first candidate
+  const candidate = response.candidates[0] as CandidateData;
+  if (candidate.finishReason === 'blocked') {
+    return candidate.finishMessage || `Generation was blocked by the model.`;
+  }
+}
+
 function isSupportedActionRef(actionRef: string) {
   return SUPPORTED_ACTION_TYPES.some((supportedType) =>
     actionRef.startsWith(`/${supportedType}`)
   );
+}
+
+function getModelInput(data: any, modelConfig: any): GenerateRequest {
+  let message: MessageData;
+  if (typeof data === 'string') {
+    message = {
+      role: 'user',
+      content: [
+        {
+          text: data,
+        },
+      ],
+    } as MessageData;
+    return {
+      messages: message ? [message] : [],
+      config: modelConfig,
+    };
+  } else {
+    const maybeRequest = GenerateRequestSchema.safeParse(data);
+    if (maybeRequest.success) {
+      return maybeRequest.data;
+    } else {
+      throw new Error(
+        `Unable to parse model input as MessageSchema as input. Details: ${maybeRequest.error}`
+      );
+    }
+  }
 }

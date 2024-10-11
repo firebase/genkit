@@ -215,6 +215,7 @@ export class Registry {
     action: Action<I, O>
   ) {
     const key = `/${type}/${action.__action.name}`;
+    logger.debug(`registering ${key}`);
     if (this.actionsById.hasOwnProperty(key)) {
       // TODO: Make this an error!
       logger.warn(

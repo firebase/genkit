@@ -16,14 +16,13 @@
 
 import {
   Action,
-  EvalFlowInput,
-  EvalFlowInputSchema,
+  EvalInferenceInput,
+  EvalInferenceInputSchema,
 } from '@genkit-ai/tools-common';
 import {
   EvalExporter,
   getAllEvaluatorActions,
   getDatasetStore,
-  getEvalStore,
   getExporterForString,
   getMatchingEvaluatorActions,
   runEvaluation,
@@ -44,6 +43,11 @@ interface EvalFlowRunCliOptions {
 }
 
 const EVAL_FLOW_SCHEMA = '{samples: Array<{input: any; reference?: any;}>}';
+enum SourceType {
+  DATA = 'data',
+  FILE = 'file',
+  DATASET = 'dataset',
+}
 
 /** Command to run a flow and evaluate the output */
 export const evalFlow = new Command('eval:flow')
@@ -105,8 +109,18 @@ export const evalFlow = new Command('eval:flow')
           }
         }
 
+        const sourceType = getSourceType(data, options.input);
+        let targetDatasetMetadata;
+        if (sourceType === SourceType.DATASET) {
+          const datasetStore = await getDatasetStore();
+          const datasetMetadatas = await datasetStore.listDatasets();
+          targetDatasetMetadata = datasetMetadatas.find(
+            (d) => d.datasetId === options.input
+          );
+        }
+
         const actionRef = `/flow/${flowName}`;
-        const evalFlowInput = await readInputs(data, options.input);
+        const evalFlowInput = await readInputs(sourceType, data, options.input);
         const evalDataset = await runInference({
           manager,
           actionRef,
@@ -118,15 +132,13 @@ export const evalFlow = new Command('eval:flow')
           manager,
           evaluatorActions,
           evalDataset,
-          actionRef: `/flow/${flowName}`,
-          datasetId:
-            options.input && !options.input.endsWith('.json')
-              ? options.input
-              : undefined,
+          augments: {
+            actionRef: `/flow/${flowName}`,
+            datasetId:
+              sourceType === SourceType.DATASET ? options.input : undefined,
+            datasetVersion: targetDatasetMetadata?.version,
+          },
         });
-
-        const evalStore = getEvalStore();
-        await evalStore.save(evalRun);
 
         if (options.output) {
           const exportFn: EvalExporter = getExporterForString(
@@ -147,33 +159,43 @@ export const evalFlow = new Command('eval:flow')
  * Only one of these parameters is expected to be provided.
  **/
 async function readInputs(
-  data?: string,
+  sourceType: SourceType,
+  dataField?: string,
   input?: string
-): Promise<EvalFlowInput> {
+): Promise<EvalInferenceInput> {
   let parsedData;
-  if (input) {
-    if (data) {
-      logger.warn('Both [data] and input provided, ignoring [data]...');
-    }
-    const isFile = input.endsWith('.json');
-    if (isFile) {
-      parsedData = JSON.parse(await readFile(input, 'utf8'));
-    } else {
+  switch (sourceType) {
+    case SourceType.DATA:
+      parsedData = JSON.parse(dataField!);
+      break;
+    case SourceType.FILE:
+      parsedData = JSON.parse(await readFile(input!, 'utf8'));
+      break;
+    case SourceType.DATASET:
       const datasetStore = await getDatasetStore();
-      parsedData = await datasetStore.getDataset(input);
-    }
-  } else if (data) {
-    parsedData = JSON.parse(data);
-  }
-  if (Array.isArray(parsedData)) {
-    return parsedData as any[];
+      const data = await datasetStore.getDataset(input!);
+      // Format to match EvalInferenceInputSchema
+      parsedData = { samples: data };
+      break;
   }
 
   try {
-    return EvalFlowInputSchema.parse(parsedData);
+    return EvalInferenceInputSchema.parse(parsedData);
   } catch (e) {
     throw new Error(
       `Error parsing the input. Please provide an array of inputs for the flow or a ${EVAL_FLOW_SCHEMA} object. Error: ${e}`
     );
   }
+}
+
+function getSourceType(data?: string, input?: string): SourceType {
+  if (input) {
+    if (data) {
+      logger.warn('Both [data] and input provided, ignoring [data]...');
+    }
+    return input.endsWith('.json') ? SourceType.FILE : SourceType.DATASET;
+  } else if (data) {
+    return SourceType.DATA;
+  }
+  throw new Error('Must provide either data or input');
 }

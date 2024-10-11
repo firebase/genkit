@@ -636,13 +636,13 @@ import { MessageData } from "@genkit-ai/ai/model";
 ```
 
 ```ts
-let history: MessageData[] = [
+let messages: MessageData[] = [
   { role: 'system', content: [{ text: 'Talk like a pirate.' }] },
 ];
 let response = await generate({
   model: gemini15Flash,
   prompt: "How do you say 'dog' in French?",
-  history,
+  messages,
 });
 ```
 

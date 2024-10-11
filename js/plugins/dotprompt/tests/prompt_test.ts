@@ -147,13 +147,13 @@ describe('Prompt', () => {
 
         const rendered = prompt.render({
           input: { name: 'Michael' },
-          history: [
+          messages: [
             { role: 'user', content: [{ text: 'history 1' }] },
             { role: 'model', content: [{ text: 'history 2' }] },
             { role: 'user', content: [{ text: 'history 3' }] },
           ],
         });
-        assert.deepStrictEqual(rendered.history, [
+        assert.deepStrictEqual(rendered.messages, [
           { role: 'system', content: [{ text: 'Testing system Michael' }] },
           { role: 'user', content: [{ text: 'history 1' }] },
           { role: 'model', content: [{ text: 'history 2' }] },

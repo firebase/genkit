@@ -70,6 +70,18 @@ describe('flow', () => {
       assert.equal(result, 'bar foo');
     });
 
+    it('should run simple sync flow', async () => {
+      const testFlow = runWithRegistry(registry, () => {
+        return defineFlow('testFlow', (input) => {
+          return `bar ${input}`;
+        });
+      });
+
+      const result = await testFlow('foo');
+
+      assert.equal(result, 'bar foo');
+    });
+
     it('should rethrow the error', async () => {
       const testFlow = runWithRegistry(registry, () =>
         defineFlow(
