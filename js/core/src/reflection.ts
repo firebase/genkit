@@ -236,7 +236,7 @@ export class ReflectionServer {
       const { telemetryServerUrl } = request.body;
       if (typeof telemetryServerUrl === 'string') {
         setTelemetryServerUrl(telemetryServerUrl);
-        logger.info(`Set telemetry server URL to: ${telemetryServerUrl}`);
+        logger.info(`Connected to telemetry server on ${telemetryServerUrl}`);
       }
       response.status(200).send('OK');
     });
