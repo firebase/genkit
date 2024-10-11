@@ -20,6 +20,7 @@ import { Runner } from '../runner';
 import {
   Action,
   CandidateData,
+  EvalInferenceInputSchema,
   EvalInput,
   EvalKeyAugments,
   EvalRun,
@@ -80,7 +81,7 @@ export async function runNewEvaluation(
   const evalDataset = await runInference({
     runner,
     actionRef,
-    evalFlowInput: dataset,
+    evalFlowInput: EvalInferenceInputSchema.parse({ samples: dataset }),
     auth: request.options?.auth,
     actionConfig: request.options?.actionConfig,
   });
