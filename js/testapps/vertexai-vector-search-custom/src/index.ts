@@ -19,13 +19,13 @@
 import { Document, genkit, z } from 'genkit';
 // important imports for this sample:
 import {
-  vertexAI,
+  vertexAIVectorSearch,
   vertexAiIndexerRef,
   vertexAiRetrieverRef,
   type DocumentIndexer,
   type DocumentRetriever,
   type Neighbor,
-} from '@genkit-ai/vertexai';
+} from '@genkit-ai/vertexai/vectorsearch';
 
 // // Environment variables set with dotenv for simplicity of sample
 import {
@@ -142,13 +142,13 @@ const localDocumentRetriever: DocumentRetriever = async (
 // Configure Genkit with Vertex AI plugin
 const ai = genkit({
   plugins: [
-    vertexAI({
+    vertexAIVectorSearch({
       projectId: PROJECT_ID,
       location: LOCATION,
       googleAuth: {
         scopes: ['https://www.googleapis.com/auth/cloud-platform'],
       },
-      vectorSearchOptions: [
+      options: [
         {
           publicDomainName: VECTOR_SEARCH_PUBLIC_DOMAIN_NAME,
           indexEndpointId: VECTOR_SEARCH_INDEX_ENDPOINT_ID,
