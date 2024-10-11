@@ -15,10 +15,9 @@
  */
 
 import { VertexAI } from '@google-cloud/vertexai';
-import { genkitPlugin, Plugin, z } from 'genkit';
+import { genkitPlugin, Plugin } from 'genkit';
 import { GenerateRequest, ModelReference } from 'genkit/model';
-import { IndexerAction, RetrieverAction } from 'genkit/retriever';
-import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
+import { GoogleAuthOptions } from 'google-auth-library';
 import {
   anthropicModel,
   claude35Sonnet,
@@ -27,6 +26,8 @@ import {
   claude3Sonnet,
   SUPPORTED_ANTHROPIC_MODELS,
 } from './anthropic.js';
+import { authenticate } from './common/auth.js';
+import { confError, DEFAULT_LOCATION } from './common/global.js';
 import {
   SUPPORTED_EMBEDDER_MODELS,
   textEmbedding004,
@@ -69,25 +70,6 @@ import {
   SUPPORTED_OPENAI_FORMAT_MODELS,
 } from './model_garden.js';
 import { vertexAiRerankers, VertexRerankerConfig } from './reranker.js';
-import {
-  VectorSearchOptions,
-  vertexAiIndexers,
-  vertexAiRetrievers,
-} from './vector-search';
-export {
-  DocumentIndexer,
-  DocumentRetriever,
-  getBigQueryDocumentIndexer,
-  getBigQueryDocumentRetriever,
-  getFirestoreDocumentIndexer,
-  getFirestoreDocumentRetriever,
-  Neighbor,
-  VectorSearchOptions,
-  vertexAiIndexerRef,
-  vertexAiIndexers,
-  vertexAiRetrieverRef,
-  vertexAiRetrievers,
-} from './vector-search';
 export {
   claude35Sonnet,
   claude3Haiku,
@@ -134,14 +116,9 @@ export interface PluginOptions {
     models: ModelReference<any>[];
     openAiBaseUrlTemplate?: string;
   };
-  /** Configure Vertex AI vector search index options */
-  vectorSearchOptions?: VectorSearchOptions<z.ZodTypeAny, any, any>[];
   /** Configure reranker options */
   rerankOptions?: VertexRerankerConfig[];
 }
-
-const CLOUD_PLATFROM_OAUTH_SCOPE =
-  'https://www.googleapis.com/auth/cloud-platform';
 
 /**
  * Add Google Cloud Vertex AI to Genkit. Includes Gemini and Imagen models and text embedder.
@@ -149,34 +126,13 @@ const CLOUD_PLATFROM_OAUTH_SCOPE =
 export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
   'vertexai',
   async (options?: PluginOptions) => {
-    let authClient;
-    let authOptions = options?.googleAuth;
-
-    // Allow customers to pass in cloud credentials from environment variables
-    // following: https://github.com/googleapis/google-auth-library-nodejs?tab=readme-ov-file#loading-credentials-from-environment-variables
-    if (process.env.GCLOUD_SERVICE_ACCOUNT_CREDS) {
-      const serviceAccountCreds = JSON.parse(
-        process.env.GCLOUD_SERVICE_ACCOUNT_CREDS
-      );
-      authOptions = {
-        credentials: serviceAccountCreds,
-        scopes: [CLOUD_PLATFROM_OAUTH_SCOPE],
-      };
-      authClient = new GoogleAuth(authOptions);
-    } else {
-      authClient = new GoogleAuth(
-        authOptions ?? { scopes: [CLOUD_PLATFROM_OAUTH_SCOPE] }
-      );
-    }
+    // Authenticate with Google Cloud
+    const authOptions = options?.googleAuth;
+    const authClient = authenticate(authOptions);
 
     const projectId = options?.projectId || (await authClient.getProjectId());
+    const location = options?.location || DEFAULT_LOCATION;
 
-    const location = options?.location || 'us-central1';
-    const confError = (parameter: string, envVariableName: string) => {
-      return new Error(
-        `VertexAI Plugin is missing the '${parameter}' configuration. Please set the '${envVariableName}' environment variable or explicitly pass '${parameter}' into genkit config.`
-      );
-    };
     if (!location) {
       throw confError('location', 'GCLOUD_LOCATION');
     }
@@ -246,28 +202,6 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
     );
 
-    let indexers: IndexerAction<z.ZodTypeAny>[] = [];
-    let retrievers: RetrieverAction<z.ZodTypeAny>[] = [];
-
-    if (
-      options?.vectorSearchOptions &&
-      options.vectorSearchOptions.length > 0
-    ) {
-      const defaultEmbedder = embedders[0];
-
-      indexers = vertexAiIndexers({
-        pluginOptions: options,
-        authClient,
-        defaultEmbedder,
-      });
-
-      retrievers = vertexAiRetrievers({
-        pluginOptions: options,
-        authClient,
-        defaultEmbedder,
-      });
-    }
-
     const rerankOptions = {
       pluginOptions: options,
       authClient,
@@ -280,8 +214,6 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       models,
       embedders,
       evaluators: vertexEvaluators(authClient, metrics, projectId, location),
-      retrievers,
-      indexers,
       rerankers,
     };
   }

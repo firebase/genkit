@@ -37,7 +37,7 @@ const DEFAULT_K = 10;
 export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
   params: VertexVectorSearchOptions<EmbedderCustomOptions>
 ): RetrieverAction<z.ZodTypeAny>[] {
-  const vectorSearchOptions = params.pluginOptions.vectorSearchOptions;
+  const vectorSearchOptions = params.pluginOptions.options;
   const defaultEmbedder = params.defaultEmbedder;
 
   const retrievers: RetrieverAction<z.ZodTypeAny>[] = [];
@@ -53,7 +53,7 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
 
     const retriever = defineRetriever(
       {
-        name: `vertexai/${indexId}`,
+        name: `vertexaiVectorSearch/${indexId}`,
         configSchema: VertexAIVectorRetrieverOptionsSchema.optional(),
       },
       async (content, options) => {
@@ -127,7 +127,7 @@ export const vertexAiRetrieverRef = (params: {
   displayName?: string;
 }) => {
   return retrieverRef({
-    name: `vertexai/${params.indexId}`,
+    name: `vertexaiVectorSearch/${params.indexId}`,
     info: {
       label: params.displayName ?? `ertex AI - ${params.indexId}`,
     },
