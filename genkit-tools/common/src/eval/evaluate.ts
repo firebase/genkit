@@ -15,12 +15,14 @@
  */
 
 import { randomUUID } from 'crypto';
-import { EvalFlowInput, getDatasetStore, getEvalStore } from '.';
+import { EvalInferenceInput, getDatasetStore, getEvalStore } from '.';
 import { Runner } from '../runner';
 import {
   Action,
   CandidateData,
+  EvalInferenceInputSchema,
   EvalInput,
+  EvalKeyAugments,
   EvalRun,
   EvalRunKey,
   FlowActionInputSchema,
@@ -33,6 +35,7 @@ import {
 } from '../types';
 import {
   evaluatorName,
+  generateTestCaseId,
   getEvalExtractors,
   isEvaluator,
   logger,
@@ -41,11 +44,18 @@ import {
 import { enrichResultsWithScoring, extractMetricsMetadata } from './parser';
 
 interface InferenceRunState {
+  testCaseId: string;
   input: any;
   reference?: any;
   traceId?: string;
   response?: any;
   evalError?: string;
+}
+
+interface TestCase {
+  testCaseId: string;
+  input: any;
+  reference?: any;
 }
 
 const SUPPORTED_ACTION_TYPES = ['flow', 'model'] as const;
@@ -61,12 +71,17 @@ export async function runNewEvaluation(
   const datasetStore = await getDatasetStore();
   logger.info(`Fetching dataset ${datasetId}...`);
   const dataset = await datasetStore.getDataset(datasetId);
+  const datasetMetadatas = await datasetStore.listDatasets();
+  const targetDatasetMetadata = datasetMetadatas.find(
+    (d) => d.datasetId === datasetId
+  );
+  const datasetVersion = targetDatasetMetadata?.version;
 
   logger.info('Running inference...');
   const evalDataset = await runInference({
     runner,
     actionRef,
-    evalFlowInput: dataset,
+    evalFlowInput: EvalInferenceInputSchema.parse({ samples: dataset }),
     auth: request.options?.auth,
     actionConfig: request.options?.actionConfig,
   });
@@ -79,13 +94,8 @@ export async function runNewEvaluation(
     runner,
     evaluatorActions,
     evalDataset,
-    actionRef,
-    datasetId,
+    augments: { actionRef, datasetId, datasetVersion },
   });
-  logger.info('Finished evaluation, returning key...');
-  const evalStore = getEvalStore();
-  await evalStore.save(evalRun);
-
   return evalRun.key;
 }
 
@@ -93,7 +103,7 @@ export async function runNewEvaluation(
 export async function runInference(params: {
   runner: Runner;
   actionRef: string;
-  evalFlowInput: EvalFlowInput;
+  evalFlowInput: EvalInferenceInput;
   auth?: string;
   actionConfig?: any;
 }): Promise<EvalInput[]> {
@@ -117,13 +127,12 @@ export async function runEvaluation(params: {
   runner: Runner;
   evaluatorActions: Action[];
   evalDataset: EvalInput[];
-  actionRef?: string;
-  datasetId?: string;
+  augments?: EvalKeyAugments;
 }): Promise<EvalRun> {
-  const { runner, evaluatorActions, evalDataset, actionRef, datasetId } =
-    params;
+  const { runner, evaluatorActions, evalDataset, augments } = params;
   const evalRunId = randomUUID();
   const scores: Record<string, any> = {};
+  logger.info('Running evaluation...');
   for (const action of evaluatorActions) {
     const name = evaluatorName(action);
     const response = await runner.runAction({
@@ -141,14 +150,17 @@ export async function runEvaluation(params: {
 
   const evalRun = {
     key: {
-      actionRef,
       evalRunId,
-      datasetId,
       createdAt: new Date().toISOString(),
+      ...augments,
     },
     results: scoredResults,
     metricsMetadata: metadata,
   };
+
+  logger.info('Finished evaluation, writing key...');
+  const evalStore = getEvalStore();
+  await evalStore.save(evalRun);
   return evalRun;
 }
 
@@ -187,31 +199,32 @@ export async function getMatchingEvaluatorActions(
 async function bulkRunAction(params: {
   runner: Runner;
   actionRef: string;
-  evalFlowInput: EvalFlowInput;
+  evalFlowInput: EvalInferenceInput;
   auth?: string;
   actionConfig?: any;
 }): Promise<EvalInput[]> {
   const { runner, actionRef, evalFlowInput, auth, actionConfig } = params;
   const isModelAction = actionRef.startsWith('/model');
-  let inputs: { input: string; reference?: string }[] = Array.isArray(
-    evalFlowInput
-  )
-    ? evalFlowInput.map((i) => ({ input: i }))
+  let testCases: TestCase[] = Array.isArray(evalFlowInput)
+    ? (evalFlowInput as any[]).map((i) => ({
+        input: i,
+        testCaseId: generateTestCaseId(),
+      }))
     : evalFlowInput.samples.map((c) => ({
         input: c.input,
         reference: c.reference,
+        testCaseId: c.testCaseId ?? generateTestCaseId(),
       }));
 
   let evalInputs: EvalInput[] = [];
-  for (const sample of inputs) {
+  for (const testCase of testCases) {
     logger.info(`Running '${actionRef}' ...`);
     if (isModelAction) {
       evalInputs.push(
         await runModelAction({
           runner,
           actionRef,
-          input: sample.input,
-          reference: sample.reference,
+          testCase,
           modelConfig: actionConfig,
         })
       );
@@ -220,8 +233,7 @@ async function bulkRunAction(params: {
         await runFlowAction({
           runner,
           actionRef,
-          input: sample.input,
-          reference: sample.reference,
+          testCase,
           auth,
         })
       );
@@ -233,16 +245,15 @@ async function bulkRunAction(params: {
 async function runFlowAction(params: {
   runner: Runner;
   actionRef: string;
-  input: any;
-  reference?: any;
+  testCase: TestCase;
   auth?: any;
 }): Promise<EvalInput> {
-  const { runner, actionRef, input, auth, reference } = { ...params };
+  const { runner, actionRef, testCase, auth } = { ...params };
   let state: InferenceRunState;
   try {
     const flowInput = FlowActionInputSchema.parse({
       start: {
-        input,
+        input: testCase.input,
       },
       auth: auth ? JSON.parse(auth) : undefined,
     });
@@ -251,16 +262,14 @@ async function runFlowAction(params: {
       input: flowInput,
     });
     state = {
-      reference,
-      input,
+      ...testCase,
       traceId: runActionResponse.telemetry?.traceId,
       response: runActionResponse.result,
     };
   } catch (e: any) {
     const traceId = e?.data?.details?.traceId;
     state = {
-      input,
-      reference,
+      ...testCase,
       traceId,
       evalError: `Error when running inference. Details: ${e?.message ?? e}`,
     };
@@ -271,29 +280,26 @@ async function runFlowAction(params: {
 async function runModelAction(params: {
   runner: Runner;
   actionRef: string;
-  input: any;
-  reference?: any;
+  testCase: TestCase;
   modelConfig?: any;
 }): Promise<EvalInput> {
-  const { runner, actionRef, input, modelConfig, reference } = { ...params };
+  const { runner, actionRef, modelConfig, testCase } = { ...params };
   let state: InferenceRunState;
   try {
-    const modelInput = getModelInput(input, modelConfig);
+    const modelInput = getModelInput(testCase.input, modelConfig);
     const runActionResponse = await runner.runAction({
       key: actionRef,
       input: modelInput,
     });
     state = {
-      input,
-      reference,
+      ...testCase,
       traceId: runActionResponse.telemetry?.traceId,
       response: runActionResponse.result,
     };
   } catch (e: any) {
     const traceId = e?.data?.details?.traceId;
     state = {
-      input,
-      reference,
+      ...testCase,
       traceId,
       evalError: `Error when running inference. Details: ${e?.message ?? e}`,
     };
@@ -335,7 +341,7 @@ async function gatherEvalInput(params: {
   const nestedSpan = stackTraceSpans(trace);
   if (!nestedSpan) {
     return {
-      testCaseId: randomUUID(),
+      testCaseId: state.testCaseId,
       input,
       error: `Unable to extract any spans from trace ${traceId}`,
       reference: state.reference,
@@ -345,7 +351,7 @@ async function gatherEvalInput(params: {
 
   if (nestedSpan.attributes['genkit:state'] === 'error') {
     return {
-      testCaseId: randomUUID(),
+      testCaseId: state.testCaseId,
       input,
       error:
         getSpanErrorMessage(nestedSpan) ?? `Unknown error in trace ${traceId}`,
@@ -360,7 +366,7 @@ async function gatherEvalInput(params: {
 
   return {
     // TODO Replace this with unified trace class
-    testCaseId: randomUUID(),
+    testCaseId: state.testCaseId,
     input,
     output,
     error,
