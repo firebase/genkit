@@ -24,10 +24,10 @@ import {
   DocumentRetriever,
   getFirestoreDocumentIndexer,
   getFirestoreDocumentRetriever,
-  vertexAI,
+  vertexAIVectorSearch,
   vertexAiIndexerRef,
   vertexAiRetrieverRef,
-} from '@genkit-ai/vertexai';
+} from '@genkit-ai/vertexai/vectorsearch';
 
 // // Environment variables set with dotenv for simplicity of sample
 import { getFirestore } from 'firebase-admin/firestore';
@@ -74,13 +74,13 @@ const firestoreDocumentIndexer: DocumentIndexer = getFirestoreDocumentIndexer(
 // Configure Genkit with Vertex AI plugin
 const ai = genkit({
   plugins: [
-    vertexAI({
+    vertexAIVectorSearch({
       projectId: PROJECT_ID,
       location: LOCATION,
       googleAuth: {
         scopes: ['https://www.googleapis.com/auth/cloud-platform'],
       },
-      vectorSearchOptions: [
+      options: [
         {
           publicDomainName: VECTOR_SEARCH_PUBLIC_DOMAIN_NAME,
           indexEndpointId: VECTOR_SEARCH_INDEX_ENDPOINT_ID,
