@@ -20,7 +20,7 @@ import { ai } from './index.js';
 
 // Define a prompt that includes the retrieved context documents
 
-export const augmentedPrompt = ai.defineDotprompt(
+export const augmentedPrompt = ai.definePrompt(
   {
     model: gemini15Flash,
     name: 'augmentedPrompt',

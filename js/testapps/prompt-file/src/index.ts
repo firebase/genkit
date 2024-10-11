@@ -98,10 +98,10 @@ ai.prompt('story').then((storyPrompt) => {
         const { response, stream } = await storyPrompt.generateStream({
           input: { subject, personality },
         });
-        for await (const chunk of stream()) {
+        for await (const chunk of stream) {
           streamingCallback(chunk.content[0]?.text!);
         }
-        return (await response()).text();
+        return (await response).text();
       } else {
         const response = await storyPrompt.generate({ input: { subject } });
         return response.text();

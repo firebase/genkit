@@ -58,7 +58,7 @@ const ROLE_REGEX = /(<<<dotprompt:(?:role:[a-z]+|history))>>>/g;
 
 function toMessages(
   renderedString: string,
-  options?: { context?: DocumentData[]; history?: MessageData[] }
+  options?: { context?: DocumentData[]; messages?: MessageData[] }
 ): MessageData[] {
   let currentMessage: { role: string; source: string } = {
     role: 'user',
@@ -84,7 +84,7 @@ function toMessages(
       }
     } else if (piece.startsWith('<<<dotprompt:history')) {
       messageSources.push(
-        ...(options?.history?.map((m) => {
+        ...(options?.messages?.map((m) => {
           return {
             ...m,
             metadata: { ...(m.metadata || {}), purpose: 'history' },
@@ -110,7 +110,7 @@ function toMessages(
     });
 
   if (
-    !options?.history ||
+    !options?.messages ||
     messages.find((m) => m.metadata?.purpose === 'history')
   )
     return messages;
@@ -118,12 +118,12 @@ function toMessages(
   if (messages.at(-1)?.role === 'user') {
     return [
       ...messages.slice(0, -1),
-      ...options.history,
+      ...options.messages,
       messages.at(-1),
     ] as MessageData[];
   }
 
-  return [...messages, ...options.history] as MessageData[];
+  return [...messages, ...options.messages] as MessageData[];
 }
 
 const PART_REGEX = /(<<<dotprompt:(?:media:url|section).*?)>>>/g;
@@ -166,7 +166,7 @@ export function compile<Variables = any>(
 
   return (
     input: Variables,
-    options?: { context?: DocumentData[]; history?: MessageData[] }
+    options?: { context?: DocumentData[]; messages?: MessageData[] }
   ) => {
     const renderedString = renderString(input, {
       data: {

@@ -66,38 +66,48 @@ import { GoogleAuth } from 'google-auth-library';
 import { ollama, OllamaPluginParams } from 'genkitx-ollama';
 import { configureGenkit, isDevEnv } from '@genkit-ai/core';
 
-const ollamaCommon = {models: [{name: "gemma:2b"}]};
+const ollamaCommon = { models: [{ name: 'gemma:2b' }] };
+
 const ollamaDev = {
   ...ollamaCommon,
   serverAddress: 'http://127.0.0.1:11434',
 } as OllamaPluginParams;
+
 const ollamaProd = {
   ...ollamaCommon,
   serverAddress: 'https://my-deployment',
-  requestHeaders: async (params) => ({
-    Authorization: `Bearer ${await getIdToken(params.serverAddress)}`,
-  }),
+  requestHeaders: async (params) => {
+    const headers = await fetchWithAuthHeader(params.serverAddress);
+    return { Authorization: headers['Authorization'] };
+  },
 } as OllamaPluginParams;
 
 export default configureGenkit({
   plugins: [
-    ollama(isDevEnv() ? ollamaDev: ollamaProd),
+    ollama(isDevEnv() ? ollamaDev : ollamaProd),
   ],
 });
 
-export async function getIdToken(url: string): Promise<string> {
-  const auth = getAuthClient();
-  const client = await auth.getIdTokenClient(url);
-  return client.idTokenProvider.fetchIdToken(url);
-}
-
+// Function to lazily load GoogleAuth client
 let auth: GoogleAuth;
 function getAuthClient() {
-  // Lazy load GoogleAuth client.
   if (!auth) {
     auth = new GoogleAuth();
   }
   return auth;
+}
+
+// Function to fetch headers, reusing tokens when possible
+async function fetchWithAuthHeader(url: string) {
+  const client = await getIdTokenClient(url);
+  const headers = await client.getRequestHeaders(url); // Auto-manages token refresh
+  return headers;
+}
+
+async function getIdTokenClient(url: string) {
+  const auth = getAuthClient();
+  const client = await auth.getIdTokenClient(url);
+  return client;
 }
 ```
 

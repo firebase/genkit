@@ -71,7 +71,7 @@ const tests: Record<string, TestCase> = {
     const response = await generate({
       model,
       prompt: "What's my name?",
-      history: response1.toHistory(),
+      messages: response1.toHistory(),
     });
 
     const got = response.text().trim();
@@ -81,7 +81,7 @@ const tests: Record<string, TestCase> = {
     const response = await generate({
       model,
       prompt: 'Hi',
-      history: [
+      messages: [
         {
           role: 'system',
           content: [

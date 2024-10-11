@@ -533,18 +533,6 @@ export function googleAIModel(
           systemInstruction = toGeminiSystemInstruction(systemMessage);
         }
       }
-      const generationConfig: GenerationConfig = {
-        candidateCount: request.candidates || undefined,
-        temperature: request.config?.temperature,
-        maxOutputTokens: request.config?.maxOutputTokens,
-        topK: request.config?.topK,
-        topP: request.config?.topP,
-        stopSequences: request.config?.stopSequences,
-        responseMimeType:
-          request.output?.format === 'json' || request.output?.schema
-            ? 'application/json'
-            : undefined,
-      };
 
       const tools: Tool[] = [];
 
@@ -563,6 +551,21 @@ export function googleAIModel(
         });
       }
 
+      //  cannot use tools with json mode
+      const jsonMode =
+        (request.output?.format === 'json' || !!request.output?.schema) &&
+        tools.length === 0;
+
+      const generationConfig: GenerationConfig = {
+        candidateCount: request.candidates || undefined,
+        temperature: request.config?.temperature,
+        maxOutputTokens: request.config?.maxOutputTokens,
+        topK: request.config?.topK,
+        topP: request.config?.topP,
+        stopSequences: request.config?.stopSequences,
+        responseMimeType: jsonMode ? 'application/json' : undefined,
+      };
+
       const chatRequest = {
         systemInstruction,
         generationConfig,
@@ -573,8 +576,6 @@ export function googleAIModel(
         safetySettings: request.config?.safetySettings,
       } as StartChatParams;
       const msg = toGeminiMessage(messages[messages.length - 1], model);
-      const jsonMode =
-        request.output?.format === 'json' || !!request.output?.schema;
       const fromJSONModeScopedGeminiCandidate = (
         candidate: GeminiCandidate
       ) => {

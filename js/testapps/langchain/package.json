@@ -7,7 +7,7 @@
     "start": "node lib/index.js",
     "compile": "tsc",
     "build": "pnpm build:clean && pnpm compile",
-    "build:clean": "rm -rf ./lib",
+    "build:clean": "rimraf ./lib",
     "build:watch": "tsc --watch",
     "build-and-run": "pnpm build && node lib/index.js"
   },
@@ -30,6 +30,7 @@
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
+    "rimraf": "^6.0.1",
     "typescript": "^5.3.3"
   }
 }

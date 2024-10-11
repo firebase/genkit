@@ -18,7 +18,7 @@ import { NestedSpanData, TraceData } from '../types';
 
 /** Transforms flat spans from the trace data into a tree of spans. */
 export function stackTraceSpans(trace: TraceData): NestedSpanData | undefined {
-  if (Object.keys(trace.spans).length === 0) return undefined;
+  if (!trace.spans || Object.keys(trace.spans).length === 0) return undefined;
   let rootSpan: NestedSpanData | undefined = undefined;
 
   const treeSpans: Map<string, NestedSpanData> = new Map();

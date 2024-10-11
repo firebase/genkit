@@ -23,7 +23,6 @@ import {
   z,
 } from '@genkit-ai/core';
 import { toJsonSchema } from '@genkit-ai/core/schema';
-import * as clc from 'colorette';
 import { performance } from 'node:perf_hooks';
 import { DocumentDataSchema } from './document.js';
 import {
@@ -267,7 +266,7 @@ export const ModelResponseSchema = z.object({
 export type ModelResponseData = z.infer<typeof ModelResponseSchema>;
 
 export const GenerateResponseSchema = ModelResponseSchema.extend({
-  /** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. Return `message`, `finisheReason`, and `finishMessage` instead. */
+  /** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. Return `message`, `finishReason`, and `finishMessage` instead. */
   candidates: z.array(CandidateSchema).optional(),
   finishReason: z
     .enum(['stop', 'length', 'blocked', 'other', 'unknown'])
@@ -288,7 +287,7 @@ export type ModelResponseChunkData = z.infer<typeof ModelResponseChunkSchema>;
 
 export const GenerateResponseChunkSchema = ModelResponseChunkSchema.extend({
   /** @deprecated The index of the candidate this chunk belongs to. Always 0. */
-  index: z.number(),
+  index: z.number().optional(),
 });
 export type GenerateResponseChunkData = z.infer<
   typeof GenerateResponseChunkSchema
@@ -309,25 +308,29 @@ export type ModelMiddleware = Middleware<
   z.infer<typeof GenerateResponseSchema>
 >;
 
+export type DefineModelOptions<
+  CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
+> = {
+  name: string;
+  /** Known version names for this model, e.g. `gemini-1.0-pro-001`. */
+  versions?: string[];
+  /** Capabilities this model supports. */
+  supports?: ModelInfo['supports'];
+  /** Custom options schema for this model. */
+  configSchema?: CustomOptionsSchema;
+  /** Descriptive name for this model e.g. 'Google AI - Gemini Pro'. */
+  label?: string;
+  /** Middleware to be used with this model. */
+  use?: ModelMiddleware[];
+};
+
 /**
  * Defines a new model and adds it to the registry.
  */
 export function defineModel<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  options: {
-    name: string;
-    /** Known version names for this model, e.g. `gemini-1.0-pro-001`. */
-    versions?: string[];
-    /** Capabilities this model supports. */
-    supports?: ModelInfo['supports'];
-    /** Custom options schema for this model. */
-    configSchema?: CustomOptionsSchema;
-    /** Descriptive name for this model e.g. 'Google AI - Gemini Pro'. */
-    label?: string;
-    /** Middleware to be used with this model. */
-    use?: ModelMiddleware[];
-  },
+  options: DefineModelOptions<CustomOptionsSchema>,
   runner: (
     request: GenerateRequest<CustomOptionsSchema>,
     streamingCallback?: StreamingCallback<GenerateResponseChunkData>
@@ -392,20 +395,7 @@ export function modelRef<
 >(
   options: ModelReference<CustomOptionsSchema>
 ): ModelReference<CustomOptionsSchema> {
-  if (options.info?.stage === 'deprecated') {
-    deprecateModel({ name: options.name });
-  }
   return { ...options };
-}
-
-/**
- * Warns when a model is deprecated.
- */
-function deprecateModel(options: { name: string }) {
-  console.warn(
-    `${clc.bold(clc.yellow('Warning:'))} ` +
-      `Model '${options.name}' is deprecated and may be removed in a future release.`
-  );
 }
 
 /** Container for counting usage stats for a single input/output {Part} */

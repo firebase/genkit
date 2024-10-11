@@ -246,7 +246,9 @@ export class ReflectionServer {
 
     this.port = await this.findPort();
     this.server = server.listen(this.port, () => {
-      logger.info(`Reflection server running on http://localhost:${this.port}`);
+      logger.debug(
+        `Reflection server running on http://localhost:${this.port}`
+      );
       ReflectionServer.RUNNING_SERVERS.push(this);
     });
   }
@@ -270,7 +272,7 @@ export class ReflectionServer {
         if (index > -1) {
           ReflectionServer.RUNNING_SERVERS.splice(index, 1);
         }
-        logger.info(
+        logger.debug(
           `Reflection server on port ${this.port} has successfully shut down.`
         );
         this.port = null;

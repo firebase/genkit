@@ -79,9 +79,7 @@ export async function vertexAiRerankers(
   params: VertexRerankOptions
 ): Promise<RerankerAction<z.ZodTypeAny>[]> {
   if (!params.pluginOptions) {
-    throw new Error(
-      'Plugin options are required to create Vertex AI rerankers'
-    );
+    return [];
   }
   const pluginOptions = params.pluginOptions;
   if (!params.pluginOptions.rerankOptions) {

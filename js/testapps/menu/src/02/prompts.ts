@@ -22,7 +22,7 @@ import { menuTool } from './tools.js';
 // The prompt uses a tool which will load the menu data,
 // if the user asks a reasonable question about the menu.
 
-export const s02_dataMenuPrompt = ai.defineDotprompt(
+export const s02_dataMenuPrompt = ai.definePrompt(
   {
     name: 's02_dataMenu',
     model: geminiPro,

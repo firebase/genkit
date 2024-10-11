@@ -152,6 +152,10 @@ export const RunNewEvaluationRequestSchema = z.object({
   options: z
     .object({
       auth: z.string().optional(),
+      actionConfig: z
+        .any()
+        .describe('addition parameters required for inference')
+        .optional(),
     })
     .optional(),
 });
