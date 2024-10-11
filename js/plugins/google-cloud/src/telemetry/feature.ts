@@ -19,14 +19,14 @@ import { hrTimeDuration, hrTimeToMilliseconds } from '@opentelemetry/core';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { GENKIT_VERSION, GenkitError } from 'genkit';
 import { logger } from 'genkit/logging';
-import { PathMetadata } from 'genkit/tracing';
+import { PathMetadata, toDisplayPath } from 'genkit/tracing';
 import {
   MetricCounter,
   MetricHistogram,
   Telemetry,
   internalMetricNamespaceWrap,
 } from '../metrics';
-import { extractErrorName } from '../utils';
+import { createCommonLogAttributes, extractErrorName } from '../utils';
 
 class FeaturesTelemetry implements Telemetry {
   /**
@@ -53,6 +53,7 @@ class FeaturesTelemetry implements Telemetry {
   ): void {
     const attributes = span.attributes;
     const name = attributes['genkit:name'] as string;
+    const path = attributes['genkit:path'] as string;
     const latencyMs = hrTimeToMilliseconds(
       hrTimeDuration(span.startTime, span.endTime)
     );
@@ -67,17 +68,24 @@ class FeaturesTelemetry implements Telemetry {
 
     if (state === 'success') {
       this.writeFeatureSuccess(name, latencyMs);
-      return;
-    }
-
-    if (state === 'error') {
+    } else if (state === 'error') {
       const errorName = extractErrorName(span.events) || '<unknown>';
-
       this.writeFeatureFailure(name, latencyMs, errorName);
+    } else {
+      logger.warn(`Unknown state; ${state}`);
       return;
     }
 
-    logger.warn(`Unknown state; ${state}`);
+    if (logIO) {
+      const input = attributes['genkit:input'] as string;
+      const output = attributes['genkit:output'] as string;
+      if (input) {
+        this.recordIO(span, 'Input', name, path, input, projectId);
+      }
+      if (output) {
+        this.recordIO(span, 'Output', name, path, output, projectId);
+      }
+    }
   }
 
   private writeFeatureSuccess(featureName: string, latencyMs: number) {
@@ -105,6 +113,27 @@ class FeaturesTelemetry implements Telemetry {
     };
     this.featureCounter.add(1, dimensions);
     this.featureLatencies.record(latencyMs, dimensions);
+  }
+
+  private recordIO(
+    span: ReadableSpan,
+    tag: string,
+    featureName: string,
+    qualifiedPath: string,
+    input: string,
+    projectId?: string
+  ) {
+    const path = toDisplayPath(qualifiedPath);
+    const sharedMetadata = {
+      ...createCommonLogAttributes(span, projectId),
+      path,
+      qualifiedPath,
+      featureName,
+    };
+    logger.logStructured(`${tag}[${path}, ${featureName}]`, {
+      ...sharedMetadata,
+      content: input,
+    });
   }
 }
 

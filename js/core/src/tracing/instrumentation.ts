@@ -46,13 +46,11 @@ export async function newTrace<T>(
   fn: (metadata: SpanMetadata, rootSpan: ApiSpan) => Promise<T>
 ) {
   ensureBasicTelemetryInstrumentation();
-  const traceMetadata = traceMetadataAls.getStore() || {
+  const traceMetadata: TraceMetadata = traceMetadataAls.getStore() || {
     paths: new Set<PathMetadata>(),
     timestamp: performance.now(),
+    featureName: opts.name,
   };
-  if (opts.labels && opts.labels[SPAN_TYPE_ATTR] === 'flow') {
-    traceMetadata.flowName = opts.name;
-  }
   return await traceMetadataAls.run(traceMetadata, () =>
     runInNewSpan(
       {

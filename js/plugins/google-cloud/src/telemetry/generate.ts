@@ -38,12 +38,12 @@ import {
 import {
   createCommonLogAttributes,
   extractErrorName,
-  extractOuterFlowNameFromPath,
+  extractOuterFeatureNameFromPath,
 } from '../utils';
 
 type SharedDimensions = {
   modelName?: string;
-  flowName?: string;
+  featureName?: string;
   path?: string;
   temperature?: number;
   topK?: number;
@@ -152,17 +152,21 @@ class GenerateTelemetry implements Telemetry {
         : undefined;
 
     const errName = extractErrorName(span.events);
-    const flowName = extractOuterFlowNameFromPath(path);
+    let featureName = (attributes['genkit:metadata:flow:name'] ||
+      extractOuterFeatureNameFromPath(path)) as string;
+    if (!featureName || featureName === '<unknown>') {
+      featureName = 'generate';
+    }
 
     if (input) {
-      this.recordGenerateActionMetrics(modelName, flowName, path, input, {
+      this.recordGenerateActionMetrics(modelName, featureName, path, input, {
         response: output,
         errName,
       });
       this.recordGenerateActionConfigLogs(
         span,
         modelName,
-        flowName,
+        featureName,
         path,
         input,
         projectId
@@ -172,7 +176,7 @@ class GenerateTelemetry implements Telemetry {
         this.recordGenerateActionInputLogs(
           span,
           modelName,
-          flowName,
+          featureName,
           path,
           input,
           projectId
@@ -184,7 +188,7 @@ class GenerateTelemetry implements Telemetry {
       this.recordGenerateActionOutputLogs(
         span,
         modelName,
-        flowName,
+        featureName,
         path,
         output,
         projectId
@@ -194,7 +198,7 @@ class GenerateTelemetry implements Telemetry {
 
   private recordGenerateActionMetrics(
     modelName: string,
-    flowName: string | undefined,
+    featureName: string,
     path: string,
     input: GenerateRequestData,
     opts: {
@@ -207,7 +211,7 @@ class GenerateTelemetry implements Telemetry {
       topK: input.config?.topK,
       topP: input.config?.topP,
       maxOutputTokens: input.config?.maxOutputTokens,
-      flowName,
+      featureName,
       path,
       latencyMs: opts.response?.latencyMs,
       errName: opts.errName,
@@ -219,7 +223,7 @@ class GenerateTelemetry implements Telemetry {
   private recordGenerateActionConfigLogs(
     span: ReadableSpan,
     model: string,
-    flowName: string | undefined,
+    featureName: string,
     qualifiedPath: string,
     input: GenerateRequestData,
     projectId?: string
@@ -230,7 +234,7 @@ class GenerateTelemetry implements Telemetry {
       model,
       path,
       qualifiedPath,
-      flowName,
+      featureName,
     };
     logger.logStructured(`Config[${path}, ${model}]`, {
       ...sharedMetadata,
@@ -247,7 +251,7 @@ class GenerateTelemetry implements Telemetry {
   private recordGenerateActionInputLogs(
     span: ReadableSpan,
     model: string,
-    flowName: string | undefined,
+    featureName: string,
     qualifiedPath: string,
     input: GenerateRequestData,
     projectId?: string
@@ -258,7 +262,7 @@ class GenerateTelemetry implements Telemetry {
       model,
       path,
       qualifiedPath,
-      flowName,
+      featureName,
     };
 
     const messages = input.messages.length;
@@ -281,7 +285,7 @@ class GenerateTelemetry implements Telemetry {
   private recordGenerateActionOutputLogs(
     span: ReadableSpan,
     model: string,
-    flowName: string | undefined,
+    featureName: string,
     qualifiedPath: string,
     output: GenerateResponseData,
     projectId?: string
@@ -292,7 +296,7 @@ class GenerateTelemetry implements Telemetry {
       model,
       path,
       qualifiedPath,
-      flowName,
+      featureName,
     };
     const message = output.message || output.candidates?.[0]?.message!;
 
@@ -403,7 +407,7 @@ class GenerateTelemetry implements Telemetry {
     modelName: string,
     usage: GenerationUsage,
     dimensions: {
-      flowName?: string;
+      featureName?: string;
       path?: string;
       temperature?: number;
       maxOutputTokens?: number;
@@ -417,7 +421,7 @@ class GenerateTelemetry implements Telemetry {
   ) {
     const shared: SharedDimensions = {
       modelName: modelName,
-      flowName: dimensions.flowName,
+      featureName: dimensions.featureName,
       path: dimensions.path,
       temperature: dimensions.temperature,
       topK: dimensions.topK,

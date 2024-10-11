@@ -15,10 +15,10 @@
  */
 
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
-import { Genkit, generate, genkit, run, z } from 'genkit';
-import { GenerateResponseData, defineModel } from 'genkit/model';
+import { generate, Genkit, genkit, run, z } from 'genkit';
+import { defineModel, GenerateResponseData } from 'genkit/model';
 import { runWithRegistry } from 'genkit/registry';
-import { SPAN_TYPE_ATTR, appendSpan } from 'genkit/tracing';
+import { appendSpan, SPAN_TYPE_ATTR } from 'genkit/tracing';
 import assert from 'node:assert';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import { Writable } from 'stream';

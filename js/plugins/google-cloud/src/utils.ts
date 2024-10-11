@@ -26,6 +26,20 @@ export function extractOuterFlowNameFromPath(path: string) {
   return flowName ? flowName[1] : '<unknown>';
 }
 
+/**
+ * Extract first feature name from a path
+ * e.g. for /{myFlow,t:flow}/{myStep,t:flowStep}/{googleai/gemini-pro,t:action,s:model}
+ * returns "myFlow"
+ */
+export function extractOuterFeatureNameFromPath(path: string) {
+  if (!path || path === '<unknown>') {
+    return '<unknown>';
+  }
+  const first = path.split('/')[1];
+  const featureName = first?.match('{(.+),t:(flow|action|prompt|helper)');
+  return featureName ? featureName[1] : '<unknown>';
+}
+
 export function extractErrorName(events: TimedEvent[]): string | undefined {
   return events
     .filter((event) => event.name === 'exception')
