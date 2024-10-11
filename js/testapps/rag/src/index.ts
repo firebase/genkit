@@ -17,13 +17,12 @@
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
 import { googleAI } from '@genkit-ai/googleai';
+import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
 import {
   claude3Sonnet,
-  geminiPro,
   llama31,
-  textEmbeddingGecko,
-  vertexAI,
-} from '@genkit-ai/vertexai';
+  vertexAIModelGarden,
+} from '@genkit-ai/vertexai/modelgarden';
 import { dotprompt, genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';
 import { langchain } from 'genkitx-langchain';
@@ -78,9 +77,10 @@ export const ai = genkit({
     }),
     vertexAI({
       location: 'us-central1',
-      modelGarden: {
-        models: [claude3Sonnet, llama31],
-      },
+    }),
+    vertexAIModelGarden({
+      location: 'us-central1',
+      models: [claude3Sonnet, llama31],
     }),
     pinecone([
       {
