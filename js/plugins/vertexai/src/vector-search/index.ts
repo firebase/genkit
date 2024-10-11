@@ -16,9 +16,13 @@
 
 import { genkitPlugin, Plugin, z } from 'genkit';
 import { IndexerAction, RetrieverAction } from 'genkit/retriever';
-import { BasePluginOptions } from '../common/types';
 import { authenticate } from '../common/auth.js';
 import { confError, DEFAULT_LOCATION } from '../common/global.js';
+import { BasePluginOptions } from '../common/types';
+import {
+  SUPPORTED_EMBEDDER_MODELS,
+  textEmbeddingGeckoEmbedder,
+} from '../embedder.js';
 import {
   getBigQueryDocumentIndexer,
   getBigQueryDocumentRetriever,
@@ -39,10 +43,6 @@ import {
   VertexAIVectorRetrieverOptions,
   VertexAIVectorRetrieverOptionsSchema,
 } from './types';
-import {
-  SUPPORTED_EMBEDDER_MODELS,
-  textEmbeddingGeckoEmbedder,
-} from '../embedder.js';
 
 export {
   DocumentIndexer,
@@ -95,10 +95,7 @@ export const vertexAIVectorSearch: Plugin<[PluginOptions] | []> = genkitPlugin(
     let indexers: IndexerAction<z.ZodTypeAny>[] = [];
     let retrievers: RetrieverAction<z.ZodTypeAny>[] = [];
 
-    if (
-      options?.options &&
-      options.options.length > 0
-    ) {
+    if (options?.options && options.options.length > 0) {
       const defaultEmbedder = embedders[0];
 
       indexers = vertexAiIndexers({

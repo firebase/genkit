@@ -15,11 +15,9 @@
  */
 
 import { VertexAI } from '@google-cloud/vertexai';
-import { genkitPlugin, Plugin, z } from 'genkit';
+import { genkitPlugin, Plugin } from 'genkit';
 import { GenerateRequest, ModelReference } from 'genkit/model';
 import { GoogleAuthOptions } from 'google-auth-library';
-import { authenticate } from './common/auth.js';
-import { confError, DEFAULT_LOCATION } from './common/global.js';
 import {
   anthropicModel,
   claude35Sonnet,
@@ -28,6 +26,8 @@ import {
   claude3Sonnet,
   SUPPORTED_ANTHROPIC_MODELS,
 } from './anthropic.js';
+import { authenticate } from './common/auth.js';
+import { confError, DEFAULT_LOCATION } from './common/global.js';
 import {
   SUPPORTED_EMBEDDER_MODELS,
   textEmbedding004,
