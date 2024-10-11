@@ -66,9 +66,19 @@
       "import": "./lib/index.mjs",
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
+    },
+    "./evaluation": {
+      "require": "./lib/evaluation/index.js",
+      "import": "./lib/evaluation/index.mjs",
+      "types": "./lib/evaluation/index.d.ts",
+      "default": "./lib/evaluation/index.js"
     }
   },
   "typesVersions": {
-    "*": {}
+    "*": {
+      "evaluation": [
+        "./lib/evaluation/index"
+      ]
+    }
   }
 }
