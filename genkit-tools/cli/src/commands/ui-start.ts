@@ -20,7 +20,7 @@ import {
   waitUntilHealthy,
 } from '@genkit-ai/tools-common/utils';
 import axios from 'axios';
-import { spawn } from 'child_process';
+import { ChildProcess, spawn } from 'child_process';
 import * as clc from 'colorette';
 import { Command } from 'commander';
 import fs from 'fs/promises';
@@ -121,7 +121,7 @@ export const uiStart = new Command('ui:start')
 /**
  * Starts the UI server in a child process and waits until it is healthy. Once it's healthy, the child process is detached.
  */
-async function startAndWaitUntilHealthy(port: number): Promise<void> {
+async function startAndWaitUntilHealthy(port: number): Promise<ChildProcess> {
   return new Promise((resolve, reject) => {
     const serverPath = path.join(__dirname, '../utils/server-harness.js');
     const child = spawn('node', [serverPath, port.toString()], {
@@ -137,8 +137,8 @@ async function startAndWaitUntilHealthy(port: number): Promise<void> {
     waitUntilHealthy(`http://localhost:${port}`, 10000 /* 10 seconds */)
       .then((isHealthy) => {
         if (isHealthy) {
-          // child.unref();
-          resolve();
+          child.unref();
+          resolve(child);
         } else {
           reject(
             new Error(

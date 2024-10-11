@@ -21,12 +21,15 @@ import {
   hrTimeToMilliseconds,
 } from '@opentelemetry/core';
 import { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base';
-import { AsyncLocalStorage } from 'async_hooks';
 import { logger } from '../logging.js';
 import { deleteUndefinedProps } from '../utils.js';
 import { SpanData, TraceData } from './types.js';
 
-export const telemetryServerUrlAls = new AsyncLocalStorage<string>();
+export let telemetryServerUrl: string | undefined;
+
+export function setTelemetryServerUrl(url: string) {
+  telemetryServerUrl = url;
+}
 
 /**
  * Exports collected OpenTelemetetry spans to the telemetry server.
@@ -131,9 +134,7 @@ export class TraceServerExporter implements SpanExporter {
   }
 
   private async save(traceId, spans: ReadableSpan[]): Promise<void> {
-    const telemetryServerUrl = telemetryServerUrlAls.getStore();
     if (!telemetryServerUrl) {
-      logger.warn('No telemetry server URL set. Skipping exporting of spans.');
       return;
     }
     // TODO: add interface for Firestore doc

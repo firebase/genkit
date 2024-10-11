@@ -76,16 +76,16 @@ export async function detectRuntime(directory: string): Promise<Runtime> {
 /**
  * Checks the health of a server with a /api/__health endpoint.
  */
-export async function checkServerHealth(
-  url: string,
-  timeout = 1000
-): Promise<boolean> {
+export async function checkServerHealth(url: string): Promise<boolean> {
   try {
-    const response = await axios.get(`${url}/api/__health`, { timeout });
+    const response = await axios.get(`${url}/api/__health`);
     return response.status === 200;
   } catch (error) {
-    return false;
+    if (axios.isAxiosError(error) && error.code === 'ECONNREFUSED') {
+      return false;
+    }
   }
+  return true;
 }
 
 /**
@@ -98,9 +98,7 @@ export async function waitUntilHealthy(
   const startTime = Date.now();
   while (Date.now() - startTime < maxTimeout) {
     try {
-      const response = await axios.get(`${url}/api/__health`, {
-        timeout: 1000,
-      });
+      const response = await axios.get(`${url}/api/__health`);
       if (response.status === 200) {
         return true;
       }
@@ -122,7 +120,7 @@ export async function waitUntilUnresponsive(
   const startTime = Date.now();
   while (Date.now() - startTime < maxTimeout) {
     try {
-      await axios.get(`${url}/api/__health`, { timeout: 1000 });
+      await axios.get(`${url}/api/__health`);
     } catch (error) {
       if (axios.isAxiosError(error) && error.code === 'ECONNREFUSED') {
         return true;

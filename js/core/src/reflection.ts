@@ -29,7 +29,7 @@ import {
   flushTracing,
   newTrace,
   setCustomMetadataAttribute,
-  telemetryServerUrlAls,
+  setTelemetryServerUrl,
 } from './tracing.js';
 
 // TODO: Move this to common location for schemas.
@@ -235,7 +235,7 @@ export class ReflectionServer {
     server.post('/api/notify', async (request, response) => {
       const { telemetryServerUrl } = request.body;
       if (typeof telemetryServerUrl === 'string') {
-        telemetryServerUrlAls.enterWith(telemetryServerUrl);
+        setTelemetryServerUrl(telemetryServerUrl);
         logger.info(`Set telemetry server URL to: ${telemetryServerUrl}`);
       }
       response.status(200).send('OK');
@@ -275,8 +275,9 @@ export class ReflectionServer {
     if (!this.server) {
       return;
     }
-    return new Promise<void>((resolve, reject) => {
-      this.server?.close(async (err) => {
+    return new Promise<void>(async (resolve, reject) => {
+      await this.cleanupRuntimeFile();
+      this.server!.close(async (err) => {
         if (err) {
           logger.error(
             `Error shutting down reflection server on port ${this.port}: ${err}`
@@ -290,7 +291,6 @@ export class ReflectionServer {
         logger.info(
           `Reflection server on port ${this.port} has successfully shut down.`
         );
-        await this.cleanupRuntimeFile();
         this.port = null;
         this.server = null;
         resolve();

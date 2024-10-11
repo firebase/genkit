@@ -69,7 +69,6 @@ export class RuntimeManager {
       options.manageHealth ?? true
     );
     await manager.setupRuntimesWatcher();
-    await manager.notifyRuntimes();
     if (manager.manageHealth) {
       setInterval(
         async () => await manager.performHealthChecks(),
@@ -259,21 +258,16 @@ export class RuntimeManager {
   }
 
   /**
-   * Notifies runtimes of dependencies they may need (e.g. telemetry server URL).
+   * Notifies the runtime of dependencies it may need (e.g. telemetry server URL).
    */
-  private async notifyRuntimes() {
-    const notifyPromises = Object.values(this.filenameToRuntimeMap).map(
-      async (runtime) => {
-        try {
-          await axios.post(`${runtime.reflectionServerUrl}/api/notify`, {
-            telemetryServerUrl: this.telemetryServerUrl,
-          });
-        } catch (error) {
-          logger.debug(`Failed to notify runtime ${runtime.id}: ${error}`);
-        }
-      }
-    );
-    return Promise.all(notifyPromises);
+  private async notifyRuntime(runtime: RuntimeInfo) {
+    try {
+      await axios.post(`${runtime.reflectionServerUrl}/api/notify`, {
+        telemetryServerUrl: this.telemetryServerUrl,
+      });
+    } catch (error) {
+      logger.error(`Failed to notify runtime ${runtime.id}: ${error}`);
+    }
   }
 
   /**
@@ -307,6 +301,7 @@ export class RuntimeManager {
         if (await checkServerHealth(runtimeInfo.reflectionServerUrl)) {
           this.filenameToRuntimeMap[fileName] = runtimeInfo;
           this.idToFileMap[runtimeInfo.id] = fileName;
+          await this.notifyRuntime(runtimeInfo);
           logger.debug(
             `Added runtime with ID ${runtimeInfo.id} at URL: ${runtimeInfo.reflectionServerUrl}`
           );
@@ -370,24 +365,23 @@ export class RuntimeManager {
   }
 
   /**
-   * Removes a runtime from the maps and tries to delete the file.
+   * Removes a runtime from the maps and tries to delete the file (best effort).
    */
   private async removeRuntime(fileName: string) {
     const runtime = this.filenameToRuntimeMap[fileName];
     if (runtime) {
       delete this.filenameToRuntimeMap[fileName];
       delete this.idToFileMap[runtime.id];
-      logger.debug(
-        `Removed unhealthy runtime with ID ${runtime.id} from manager.`
-      );
       try {
         const runtimesDir = await findRuntimesDir();
         const runtimeFilePath = path.join(runtimesDir, fileName);
         await fs.unlink(runtimeFilePath);
-        logger.debug(`Deleted runtime file: ${runtimeFilePath}`);
       } catch (error) {
         logger.debug(`Failed to delete runtime file: ${error}`);
       }
+      logger.debug(
+        `Removed unhealthy runtime with ID ${runtime.id} from manager.`
+      );
     }
   }
 }
