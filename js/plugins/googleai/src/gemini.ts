@@ -16,52 +16,48 @@
 
 import {
   CachedContent,
-  Content as GeminiMessage,
   FileDataPart,
   FunctionCallPart,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
   FunctionResponsePart,
   GenerateContentCandidate as GeminiCandidate,
+  Content as GeminiMessage,
+  Part as GeminiPart,
   GenerateContentResponse,
   GenerationConfig,
   GenerativeModel,
   GoogleGenerativeAI,
   InlineDataPart,
-  Part as GeminiPart,
   RequestOptions,
   StartChatParams,
   Tool,
 } from '@google/generative-ai';
-import { GoogleAICacheManager } from '@google/generative-ai/server';
-import { GenkitError, GENKIT_CLIENT_HEADER, z } from 'genkit';
+import { GENKIT_CLIENT_HEADER, z } from 'genkit';
 import { logger } from 'genkit/logging';
 import {
   CandidateData,
-  defineModel,
   GenerationCommonConfigSchema,
-  getBasicUsageStats,
   MediaPart,
   MessageData,
   ModelAction,
   ModelMiddleware,
-  modelRef,
   ModelReference,
   Part,
   ToolDefinitionSchema,
   ToolRequestPart,
   ToolResponsePart,
+  defineModel,
+  getBasicUsageStats,
+  modelRef,
 } from 'genkit/model';
 import {
   downloadRequestMedia,
   simulateSystemPrompt,
 } from 'genkit/model/middleware';
 import process from 'process';
-import { generateCacheKey } from './context-caching/generate_hash_key';
-import {
-  getContentForCache,
-  lookupContextCache,
-} from './context-caching/helpers';
+import { handleContextCache } from './context-caching';
+import { validateContextCacheRequest } from './context-caching/helpers';
 
 const SafetySettingsSchema = z.object({
   category: z.enum([
@@ -577,6 +573,15 @@ export function googleAIModel(
         responseMimeType: jsonMode ? 'application/json' : undefined,
       };
 
+      const msg = toGeminiMessage(messages[messages.length - 1], model);
+      const fromJSONModeScopedGeminiCandidate = (
+        candidate: GeminiCandidate
+      ) => {
+        return fromGeminiCandidate(candidate, jsonMode);
+      };
+
+      logger.info('request config', request.config);
+
       let chatRequest = {
         systemInstruction,
         generationConfig,
@@ -586,69 +591,26 @@ export function googleAIModel(
           .map((message) => toGeminiMessage(message, model)),
         safetySettings: request.config?.safetySettings,
       } as StartChatParams;
-      const msg = toGeminiMessage(messages[messages.length - 1], model);
-      const fromJSONModeScopedGeminiCandidate = (
-        candidate: GeminiCandidate
-      ) => {
-        return fromGeminiCandidate(candidate, jsonMode);
-      };
-
       /**
        * This function is used to determine if the request should be cached. If bad configuration, then it will error (instead of costing them tokens)
        */
-      function shouldContentCache(request, model) {
-        return (
-          request.config?.contextCache &&
-          model?.info?.supports?.contextCache &&
-          request.config?.contextCache?.content
-        );
-      }
 
       let cache: CachedContent | null = null;
 
-      // if (shouldContentCache(request, model)) {
-      if (true) {
-        logger.info('Using context cache feature');
-        const cacheManager = new GoogleAICacheManager(apiKey!);
+      // TODO: fix casting
+      const modelVersion = (request.config?.version ||
+        model.version ||
+        name) as string;
 
-        // const version = model.version;
-
-        const version = 'gemini-1.5-flash-001';
-
-        if (!version) {
-          throw new GenkitError({
-            status: 'INTERNAL',
-            message:
-              'Model version is required for context caching, only on 001 models',
-          });
-        }
-
-        const { cachedContent, chatRequest: newChatRequest } =
-          getContentForCache(request, chatRequest, version);
-
-        const cacheKey = generateCacheKey(cachedContent);
-        // need to add the name to the cached content
-        // cachedContent.name = `cachedContent/${cacheKey}`;
-        cachedContent.displayName = cacheKey;
-        logger.info(`Generated cache key: ${cacheKey}`);
-        cache = await lookupContextCache(cacheManager, cacheKey);
-        logger.info(`Found cache: ${cache ? 'true' : 'false'}`);
-        if (!cache) {
-          try {
-            logger.debug('No cache found, creating one.');
-            cache = await cacheManager.create(cachedContent);
-            logger.info(`Created new cache entry with key: ${cacheKey}`);
-          } catch (cacheError) {
-            throw new Error('Failed to create cache: ' + cacheError);
-          }
-        }
-        if (!cache) {
-          throw new GenkitError({
-            status: 'INTERNAL',
-            message: 'Failed to use context cache feature',
-          });
-        }
-        chatRequest = newChatRequest;
+      if (validateContextCacheRequest(request, model, modelVersion)) {
+        const handleContextCacheResponse = await handleContextCache(
+          apiKey!,
+          request,
+          chatRequest,
+          modelVersion
+        );
+        chatRequest = handleContextCacheResponse.newChatRequest;
+        cache = handleContextCacheResponse.cache;
       }
 
       let genModel: GenerativeModel | null = null;

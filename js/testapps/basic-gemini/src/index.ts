@@ -50,23 +50,24 @@ export const lotrFlow = ai.defineFlow(
         // },
         {
           role: 'user',
-          content: [{ text: lotr }],
+          content: [{ text: lotr }], // for example, the first 10 chapters of fellowship of the ring
         },
         {
           role: 'model',
           content: [
             {
-              text: 'This is the first three chapters of Lord of the Rings. Can I help in any way?',
+              text: 'This is the first few chapters of Lord of the Rings. Can I help in any way?',
             },
           ],
           // @ts-ignore
           contextCache: true, // this is on the LAST message that you want in the cache.
+          // Everything up to (including) this message will be cached.
         },
       ],
       config: {
         version: 'gemini-1.5-flash-001', // only works with the stable version 001
         // @ts-ignore
-        useContextCache: true, // perhaps we allow it to be turned on and off here as well
+        contextCache: true, // perhaps we allow it to be turned on and off here as well
       },
       model: gemini15Flash,
       prompt: preprocess || defaultProcess,
@@ -82,16 +83,15 @@ export const lotrFlow = ai.defineFlow(
     history[history.length - 1].contextCache = true;
 
     const llmResponse = await generate({
+      model: gemini15Flash,
       history,
       config: {
         version: 'gemini-1.5-flash-001',
         // @ts-ignore
-        useContextCache: true,
+        contextCache: true,
       },
-      model: gemini15Flash,
-      // prompt: query,
       prompt:
-        `You will now act as a literature expert. answer the users query provided below:\n` +
+        `You will now act as a literature expert. Answer the customers query provided below:\n` +
         (query || defaultQuery),
     });
 
