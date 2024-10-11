@@ -27,7 +27,7 @@ export interface PluginOptions extends BasePluginOptions {
  *  Plugin for Vertex AI Reranker
  */
 export const vertexAIReranker: Plugin<[PluginOptions]> = genkitPlugin(
-  'vertexAiReranker',
+  'vertexaiReranker',
   async (options: PluginOptions) => {
     // Authenticate with Google Cloud
     const authOptions = options?.googleAuth;

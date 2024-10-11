@@ -99,7 +99,7 @@ export async function vertexAiRerankers(
   for (const rerankOption of rerankOptions) {
     const reranker = defineReranker(
       {
-        name: `vertexai/${rerankOption.name || rerankOption.model}`,
+        name: `vertexaiReranker/${rerankOption.name || rerankOption.model}`,
         configSchema: VertexAIRerankerOptionsSchema.optional(),
       },
       async (query, documents, _options) => {
@@ -154,7 +154,7 @@ export const vertexAiRerankerRef = (params: {
   displayName?: string;
 }) => {
   return rerankerRef({
-    name: `vertexai/${name}`,
+    name: `vertexaiReranker/${name}`,
     info: {
       label: params.displayName ?? `Vertex AI Reranker`,
     },
