@@ -268,7 +268,7 @@ export const ModelResponseSchema = z.object({
 export type ModelResponseData = z.infer<typeof ModelResponseSchema>;
 
 export const GenerateResponseSchema = ModelResponseSchema.extend({
-  /** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. Return `message`, `finisheReason`, and `finishMessage` instead. */
+  /** @deprecated All responses now return a single candidate. Only the first candidate will be used if supplied. Return `message`, `finishReason`, and `finishMessage` instead. */
   candidates: z.array(CandidateSchema).optional(),
   finishReason: z
     .enum(['stop', 'length', 'blocked', 'other', 'unknown'])

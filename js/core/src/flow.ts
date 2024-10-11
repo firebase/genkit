@@ -153,7 +153,7 @@ export type FlowFn<
   streamingCallback?: S extends z.ZodVoid
     ? undefined
     : StreamingCallback<z.infer<S>>
-) => Promise<z.infer<O>>;
+) => Promise<z.infer<O>> | z.infer<O>;
 
 /**
  * Represents the result of a flow execution.
@@ -556,8 +556,14 @@ export class FlowServer {
 export function defineFlow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
->(config: FlowConfig<I, O>, fn: FlowFn<I, O, z.ZodVoid>): CallableFlow<I, O> {
-  const flow = new Flow<I, O, z.ZodVoid>(config, fn);
+>(
+  config: FlowConfig<I, O> | string,
+  fn: FlowFn<I, O, z.ZodVoid>
+): CallableFlow<I, O> {
+  const resolvedConfig: FlowConfig<I, O> =
+    typeof config === 'string' ? { name: config } : config;
+
+  const flow = new Flow<I, O, z.ZodVoid>(resolvedConfig, fn);
   registerFlowAction(flow);
   const registry = getRegistryInstance();
   const callableFlow: CallableFlow<I, O> = async (input, opts) => {

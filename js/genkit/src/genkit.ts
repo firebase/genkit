@@ -39,6 +39,7 @@ import {
   ModelArgument,
   ModelReference,
   Part,
+  PromptAction,
   PromptFn,
   RankedDocument,
   rerank,
@@ -85,9 +86,7 @@ import {
 import { lookupAction, Registry, runWithRegistry } from './registry.js';
 import {
   Environment,
-  getCurrentSession,
   Session,
-  SessionError,
   SessionOptions,
   SessionStore,
 } from './session.js';
@@ -112,41 +111,48 @@ export interface ExecutablePrompt<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 > {
-  (
-    input?: z.infer<I>,
-    opts?: z.infer<CustomOptions>
-  ): Promise<GenerateResponse>;
-
   /**
-   * Generates a streaming response by rendering the prompt template with given user input and then calling the model.
+   * Generates a response by rendering the prompt template with given user input and then calling the model.
    *
+   * @param input Prompt inputs.
    * @param opt Options for the prompt template, including user input variables and custom model configuration options.
    * @returns the model response as a promise of `GenerateStreamResponse`.
    */
-  stream(
+  <Out extends O>(
     input?: z.infer<I>,
     opts?: z.infer<CustomOptions>
-  ): Promise<GenerateStreamResponse>;
+  ): Promise<GenerateResponse<z.infer<Out>>>;
 
   /**
    * Generates a response by rendering the prompt template with given user input and then calling the model.
+   * @param input Prompt inputs.
+   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
+   * @returns the model response as a promise of `GenerateStreamResponse`.
+   */
+  stream<Out extends O>(
+    input?: z.infer<I>,
+    opts?: z.infer<CustomOptions>
+  ): Promise<GenerateStreamResponse<z.infer<Out>>>;
+
+  /**
+   * Generates a response by rendering the prompt template with given user input and additional generate options and then calling the model.
    *
    * @param opt Options for the prompt template, including user input variables and custom model configuration options.
    * @returns the model response as a promise of `GenerateResponse`.
    */
-  generate(
+  generate<Out extends O>(
     opt: PromptGenerateOptions<z.infer<I>, CustomOptions>
-  ): Promise<GenerateResponse<O>>;
+  ): Promise<GenerateResponse<z.infer<Out>>>;
 
   /**
-   * Generates a streaming response by rendering the prompt template with given user input and then calling the model.
+   * Generates a streaming response by rendering the prompt template with given user input and additional generate options and then calling the model.
    *
    * @param opt Options for the prompt template, including user input variables and custom model configuration options.
    * @returns the model response as a promise of `GenerateStreamResponse`.
    */
-  generateStream(
+  generateStream<Out extends O>(
     opt: PromptGenerateOptions<z.infer<I>, CustomOptions>
-  ): Promise<GenerateStreamResponse<O>>;
+  ): Promise<GenerateStreamResponse<z.infer<Out>>>;
 
   /**
    * Renders the prompt template based on user input.
@@ -154,9 +160,9 @@ export interface ExecutablePrompt<
    * @param opt Options for the prompt template, including user input variables and custom model configuration options.
    * @returns a `GenerateOptions` object to be used with the `generate()` function from @genkit-ai/ai.
    */
-  render(
+  render<Out extends O>(
     opt: PromptGenerateOptions<z.infer<I>, CustomOptions>
-  ): Promise<GenerateOptions<CustomOptions, O>>;
+  ): Promise<GenerateOptions<CustomOptions, Out>>;
 }
 
 /**
@@ -208,7 +214,7 @@ export class Genkit {
   defineFlow<
     I extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
-  >(config: FlowConfig<I, O>, fn: FlowFn<I, O>): CallableFlow<I, O> {
+  >(config: FlowConfig<I, O> | string, fn: FlowFn<I, O>): CallableFlow<I, O> {
     const flow = runWithRegistry(this.registry, () => defineFlow(config, fn));
     this.registeredFlows.push(flow.flow);
     return flow;
@@ -284,35 +290,101 @@ export class Genkit {
    *
    * @todo TODO: Show an example of a name and variant.
    */
-  prompt<Variables = unknown>(
+  prompt<
+    I extends z.ZodTypeAny = z.ZodTypeAny,
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
     name: string,
     options?: { variant?: string }
-  ): Promise<Dotprompt<Variables>> {
-    return runWithRegistry(this.registry, () => prompt(name, options));
+  ): Promise<ExecutablePrompt<I, O, CustomOptions>> {
+    return runWithRegistry(this.registry, async () => {
+      const action = (await lookupAction(`/prompt/${name}`)) as PromptAction;
+      if (
+        action.__action?.metadata?.prompt &&
+        Object.keys(action.__action.metadata.prompt).length > 0
+      ) {
+        const p = await prompt(name, options);
+        return this.wrapDotpromptInExecutablePrompt(p, {}) as ExecutablePrompt<
+          I,
+          O,
+          CustomOptions
+        >;
+      } else {
+        return this.wrapPromptActionInExecutablePrompt(
+          action,
+          {}
+        ) as ExecutablePrompt<I, O, CustomOptions>;
+      }
+    });
   }
 
   /**
    * Defines and registers a dotprompt.
    *
-   * This replaces defining and importing a .dotprompt file.
+   * This is an alternative to defining and importing a .prompt file.
    *
-   * @todo TODO: Improve this documentation (show an example, etc).
+   * ```ts
+   * const hi = ai.definePrompt(
+   *   {
+   *     name: 'hi',
+   *     input: {
+   *       schema: z.object({
+   *         name: z.string(),
+   *       }),
+   *     },
+   *   },
+   *   'hi {{ name }}'
+   * );
+   * const { text } = await hi({ name: 'Genkit' });
+   * ```
    */
   definePrompt<
     I extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
-    options: PromptMetadata<I, CustomOptions>,
+    options: PromptMetadata<I, CustomOptions> & {
+      /** The name of the prompt. */
+      name: string;
+    },
     template: string
   ): ExecutablePrompt<I, O, CustomOptions>;
 
+  /**
+   * Defines and registers a function-based prompt.
+   *
+   * ```ts
+   * const hi = ai.definePrompt(
+   *   {
+   *     name: 'hi',
+   *     input: {
+   *       schema: z.object({
+   *         name: z.string(),
+   *       }),
+   *     },
+   *     config: {
+   *       temperature: 1,
+   *     },
+   *   },
+   *   async (input) => {
+   *     return {
+   *       messages: [ { role: 'user', content: [{ text: `hi ${input.name}` }] } ],
+   *     };
+   *   }
+   * );
+   * const { text } = await hi({ name: 'Genkit' });
+   * ```
+   */
   definePrompt<
     I extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
-    options: PromptMetadata<I, CustomOptions>,
+    options: PromptMetadata<I, CustomOptions> & {
+      /** The name of the prompt. */
+      name: string;
+    },
     fn: PromptFn<I>
   ): ExecutablePrompt<I, O, CustomOptions>;
 
@@ -321,198 +393,197 @@ export class Genkit {
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
-    options: PromptMetadata<I, CustomOptions>,
+    options: PromptMetadata<I, CustomOptions> & {
+      /** The name of the prompt. */
+      name: string;
+    },
     templateOrFn: string | PromptFn<I>
   ): ExecutablePrompt<I, O, CustomOptions> {
     if (!options.name) {
       throw new Error('options.name is required');
     }
     return runWithRegistry(this.registry, () => {
-      return typeof templateOrFn === 'string'
-        ? this.defineDotprompt(options, templateOrFn as string)
-        : this.defineFnPrompt(options, templateOrFn as PromptFn<I>);
+      if (!options.name) {
+        throw new Error('options.name is required');
+      }
+      if (typeof templateOrFn === 'string') {
+        const dotprompt = defineDotprompt(options, templateOrFn as string);
+        return this.wrapDotpromptInExecutablePrompt(dotprompt, options);
+      } else {
+        const p = definePrompt(
+          {
+            name: options.name!,
+            inputJsonSchema: options.input?.jsonSchema,
+            inputSchema: options.input?.schema,
+          },
+          templateOrFn as PromptFn<I>
+        );
+        return this.wrapPromptActionInExecutablePrompt(p, options);
+      }
     });
   }
 
-  private defineDotprompt<
+  private wrapDotpromptInExecutablePrompt<
     I extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
-    options: PromptMetadata<I, CustomOptions>,
-    template: string
+    dotprompt: Dotprompt<z.infer<I>>,
+    options: PromptMetadata<I, CustomOptions>
   ): ExecutablePrompt<I, O, CustomOptions> {
-    if (!options.name) {
-      throw new Error('options.name is required');
-    }
-    return runWithRegistry(this.registry, () => {
-      const p = defineDotprompt(options, template);
-      const executablePrompt = (
-        input?: z.infer<I>,
-        opts?: z.infer<CustomOptions>
-      ): Promise<GenerateResponse> => {
-        return runWithRegistry(this.registry, async () => {
-          const model = await this.resolveModel(options.model);
-          return p.generate({
-            model,
-            input,
-            config: opts,
-          });
+    const executablePrompt = (
+      input?: z.infer<I>,
+      opts?: z.infer<CustomOptions>
+    ): Promise<GenerateResponse<O>> => {
+      return runWithRegistry(this.registry, async () => {
+        const model = await this.resolveModel(options.model);
+        return dotprompt.generate({
+          model,
+          input,
+          config: opts,
         });
-      };
-      (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).stream = (
-        input?: z.infer<I>,
-        opts?: z.infer<CustomOptions>
-      ): Promise<GenerateStreamResponse> => {
-        return runWithRegistry(this.registry, async () => {
-          const model = await this.resolveModel(options.model);
-          return p.generateStream({
-            model,
-            input,
-            config: opts,
-          });
+      });
+    };
+    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).stream = (
+      input?: z.infer<I>,
+      opts?: z.infer<CustomOptions>
+    ): Promise<GenerateStreamResponse<O>> => {
+      return runWithRegistry(this.registry, async () => {
+        const model = await this.resolveModel(options.model);
+        return dotprompt.generateStream({
+          model,
+          input,
+          config: opts,
+        }) as Promise<GenerateStreamResponse<O>>;
+      });
+    };
+    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generate = (
+      opt: PromptGenerateOptions<I, CustomOptions>
+    ): Promise<GenerateResponse<O>> => {
+      return runWithRegistry(this.registry, async () => {
+        const model = !opt.model
+          ? await this.resolveModel(options.model)
+          : undefined;
+        return dotprompt.generate({
+          model,
+          ...opt,
         });
-      };
-      (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generate = (
-        opt: PromptGenerateOptions<I, CustomOptions>
-      ): Promise<GenerateResponse<O>> => {
-        return runWithRegistry(this.registry, async () => {
-          const model = !opt.model
-            ? await this.resolveModel(options.model)
-            : undefined;
-          return p.generate({
-            model,
-            ...opt,
-          });
-        });
-      };
+      });
+    };
+    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generateStream =
       (
-        executablePrompt as ExecutablePrompt<I, O, CustomOptions>
-      ).generateStream = (
         opt: PromptGenerateOptions<I, CustomOptions>
       ): Promise<GenerateStreamResponse<O>> => {
         return runWithRegistry(this.registry, async () => {
           const model = !opt.model
             ? await this.resolveModel(options.model)
             : undefined;
-          return p.generateStream<CustomOptions>({
+          return dotprompt.generateStream<CustomOptions>({
             model,
             ...opt,
           }) as Promise<GenerateStreamResponse<O>>;
         });
       };
-      (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).render = (
-        opt: PromptGenerateOptions<I, CustomOptions>
-      ): Promise<GenerateOptions<CustomOptions, O>> => {
-        return runWithRegistry(
-          this.registry,
-          async () =>
-            p.render({
-              ...opt,
-            }) as GenerateOptions<CustomOptions, O>
-        );
-      };
-      return executablePrompt as ExecutablePrompt<I, O, CustomOptions>;
-    });
+    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).render = <
+      Out extends O,
+    >(
+      opt: PromptGenerateOptions<I, CustomOptions>
+    ): Promise<GenerateOptions<CustomOptions, Out>> => {
+      return runWithRegistry(
+        this.registry,
+        async () =>
+          dotprompt.render({
+            ...opt,
+          }) as GenerateOptions<CustomOptions, Out>
+      );
+    };
+    return executablePrompt as ExecutablePrompt<I, O, CustomOptions>;
   }
-  private defineFnPrompt<
+
+  private wrapPromptActionInExecutablePrompt<
     I extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
-    options: PromptMetadata<I, CustomOptions>,
-    fn: PromptFn<I>
+    p: PromptAction<I>,
+    options: PromptMetadata<I, CustomOptions>
   ): ExecutablePrompt<I, O, CustomOptions> {
-    if (!options.name) {
-      throw new Error('options.name is required');
-    }
-    return runWithRegistry(this.registry, () => {
-      const p = definePrompt(
-        {
-          name: options.name!,
-          inputJsonSchema: options.input?.jsonSchema,
-          inputSchema: options.input?.schema,
-        },
-        fn
-      );
-
-      const executablePrompt = (
-        input?: z.infer<I>,
-        opts?: z.infer<CustomOptions>
-      ): Promise<GenerateResponse> => {
-        return runWithRegistry(this.registry, async () => {
-          const model = await this.resolveModel(options.model);
-          const promptResult = await p(input);
-          return this.generate({
-            model,
-            messages: promptResult.messages,
-            context: promptResult.context,
-            tools: promptResult.tools,
-            output: {
-              format: promptResult.output?.format,
-              jsonSchema: promptResult.output?.schema,
-            },
-            config: {
-              ...options.config,
-              ...opts,
-              ...promptResult.config,
-            },
-          });
+    const executablePrompt = (
+      input?: z.infer<I>,
+      opts?: z.infer<CustomOptions>
+    ): Promise<GenerateResponse> => {
+      return runWithRegistry(this.registry, async () => {
+        const model = await this.resolveModel(options.model);
+        const promptResult = await p(input);
+        return this.generate({
+          model,
+          messages: promptResult.messages,
+          context: promptResult.context,
+          tools: promptResult.tools,
+          output: {
+            format: promptResult.output?.format,
+            jsonSchema: promptResult.output?.schema,
+          },
+          config: {
+            ...options.config,
+            ...opts,
+            ...promptResult.config,
+          },
         });
-      };
-      (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).stream = (
-        input?: z.infer<I>,
-        opts?: z.infer<CustomOptions>
-      ): Promise<GenerateStreamResponse> => {
-        return runWithRegistry(this.registry, async () => {
-          const model = await this.resolveModel(options.model);
-          const promptResult = await p(input);
-          return this.generateStream({
-            model,
-            messages: promptResult.messages,
-            context: promptResult.context,
-            tools: promptResult.tools,
-            output: {
-              format: promptResult.output?.format,
-              jsonSchema: promptResult.output?.schema,
-            },
-            config: {
-              ...options.config,
-              ...promptResult.config,
-              ...opts,
-            },
-          });
+      });
+    };
+    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).stream = (
+      input?: z.infer<I>,
+      opts?: z.infer<CustomOptions>
+    ): Promise<GenerateStreamResponse<O>> => {
+      return runWithRegistry(this.registry, async () => {
+        const model = await this.resolveModel(options.model);
+        const promptResult = await p(input);
+        return this.generateStream({
+          model,
+          messages: promptResult.messages,
+          context: promptResult.context,
+          tools: promptResult.tools,
+          output: {
+            format: promptResult.output?.format,
+            jsonSchema: promptResult.output?.schema,
+          },
+          config: {
+            ...options.config,
+            ...promptResult.config,
+            ...opts,
+          },
         });
-      };
-      (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generate = (
-        opt: PromptGenerateOptions<I, CustomOptions>
-      ): Promise<GenerateResponse<O>> => {
-        return runWithRegistry(this.registry, async () => {
-          const model = !opt.model
-            ? await this.resolveModel(options.model)
-            : undefined;
-          const promptResult = await p(opt.input);
-          return this.generate({
-            model,
-            messages: promptResult.messages,
-            context: promptResult.context,
-            tools: promptResult.tools,
-            output: {
-              format: promptResult.output?.format,
-              jsonSchema: promptResult.output?.schema,
-            },
-            ...opt,
-            config: {
-              ...options.config,
-              ...promptResult.config,
-              ...opt.config,
-            },
-          });
+      });
+    };
+    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generate = (
+      opt: PromptGenerateOptions<I, CustomOptions>
+    ): Promise<GenerateResponse<O>> => {
+      return runWithRegistry(this.registry, async () => {
+        const model = !opt.model
+          ? await this.resolveModel(options.model)
+          : undefined;
+        const promptResult = await p(opt.input);
+        return this.generate({
+          model,
+          messages: promptResult.messages,
+          context: promptResult.context,
+          tools: promptResult.tools,
+          output: {
+            format: promptResult.output?.format,
+            jsonSchema: promptResult.output?.schema,
+          },
+          ...opt,
+          config: {
+            ...options.config,
+            ...promptResult.config,
+            ...opt.config,
+          },
         });
-      };
+      });
+    };
+    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generateStream =
       (
-        executablePrompt as ExecutablePrompt<I, O, CustomOptions>
-      ).generateStream = (
         opt: PromptGenerateOptions<I, CustomOptions>
       ): Promise<GenerateStreamResponse<O>> => {
         return runWithRegistry(this.registry, async () => {
@@ -538,34 +609,35 @@ export class Genkit {
           });
         });
       };
-      (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).render = (
-        opt: PromptGenerateOptions<I, CustomOptions>
-      ): Promise<GenerateOptions<CustomOptions, O>> => {
-        return runWithRegistry(this.registry, async () => {
-          const model = !opt.model
-            ? await this.resolveModel(options.model)
-            : undefined;
-          const promptResult = await p(opt.input);
-          return {
-            model,
-            messages: promptResult.messages,
-            context: promptResult.context,
-            tools: promptResult.tools,
-            output: {
-              format: promptResult.output?.format,
-              jsonSchema: promptResult.output?.schema,
-            },
-            ...opt,
-            config: {
-              ...options.config,
-              ...promptResult.config,
-              ...opt.config,
-            },
-          } as GenerateOptions<CustomOptions, O>;
-        });
-      };
-      return executablePrompt as ExecutablePrompt<I, O, CustomOptions>;
-    });
+    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).render = <
+      Out extends O,
+    >(
+      opt: PromptGenerateOptions<I, CustomOptions>
+    ): Promise<GenerateOptions<CustomOptions, Out>> => {
+      return runWithRegistry(this.registry, async () => {
+        const model = !opt.model
+          ? await this.resolveModel(options.model)
+          : undefined;
+        const promptResult = await p(opt.input);
+        return {
+          model,
+          messages: promptResult.messages,
+          context: promptResult.context,
+          tools: promptResult.tools,
+          output: {
+            format: promptResult.output?.format,
+            jsonSchema: promptResult.output?.schema,
+          },
+          ...opt,
+          config: {
+            ...options.config,
+            ...promptResult.config,
+            ...opt.config,
+          },
+        } as GenerateOptions<CustomOptions, Out>;
+      });
+    };
+    return executablePrompt as ExecutablePrompt<I, O, CustomOptions>;
   }
 
   /**
@@ -615,13 +687,74 @@ export class Genkit {
   }
 
   /**
+   * Make a generate call to the default model with a simple text prompt.
+   *
+   * ```ts
+   * const ai = genkit({
+   *   plugins: [googleAI()],
+   *   model: gemini15Flash, // default model
+   * })
+   *
+   * const { text } = await ai.generate('hi');
+   * ```
+   */
+  generate<O extends z.ZodTypeAny = z.ZodTypeAny>(
+    strPrompt: string
+  ): Promise<GenerateResponse<z.infer<O>>>;
+
+  /**
+   * Make a generate call to the default model with a multipart request.
+   *
+   * ```ts
+   * const ai = genkit({
+   *   plugins: [googleAI()],
+   *   model: gemini15Flash, // default model
+   * })
+   *
+   * const { text } = await ai.generate([
+   *   { media: {url: 'http://....'} },
+   *   { text: 'describe this image' }
+   * ]);
+   * ```
+   */
+  generate<O extends z.ZodTypeAny = z.ZodTypeAny>(
+    parts: Part[]
+  ): Promise<GenerateResponse<z.infer<O>>>;
+
+  /**
    * Generate calls a generative model based on the provided prompt and configuration. If
    * `messages` is provided, the generation will include a conversation history in its
    * request. If `tools` are provided, the generate method will automatically resolve
    * tool calls returned from the model unless `returnToolRequests` is set to `true`.
    *
    * See {@link GenerateOptions} for detailed information about available options.
+   *
+   * ```ts
+   * const ai = genkit({
+   *   plugins: [googleAI()],
+   * })
+   *
+   * const { text } = await ai.generate({
+   *   system: 'talk like a pirate',
+   *   prompt: [
+   *     { media: { url: 'http://....' } },
+   *     { text: 'describe this image' }
+   *   ],
+   *   messages: conversationHistory,
+   *   tools: [ userInfoLookup ],
+   *   model: gemini15Flash,
+   * });
+   * ```
    */
+  generate<
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+  >(
+    parts:
+      | GenerateOptions<O, CustomOptions>
+      | PromiseLike<GenerateOptions<O, CustomOptions>>
+  ): Promise<GenerateResponse<z.infer<O>>>;
+
   async generate<
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
@@ -649,14 +782,86 @@ export class Genkit {
   }
 
   /**
-   * Generates a stream of responses from a generative model based on the provided prompt
-   * and configuration. If `history` is provided, the generation will include a conversation
-   * history in its request. If `tools` are provided, the generate method will automatically
-   * resolve tool calls returned from the model unless `returnToolRequests` is set to `true`.
+   * Make a streaming generate call to the default model with a simple text prompt.
+   *
+   * ```ts
+   * const ai = genkit({
+   *   plugins: [googleAI()],
+   *   model: gemini15Flash, // default model
+   * })
+   *
+   * const { response, stream } = await ai.generateStream('hi');
+   * for await (const chunk of stream) {
+   *   console.log(chunk.text);
+   * }
+   * console.log((await response).text);
+   * ```
+   */
+  generateStream<O extends z.ZodTypeAny = z.ZodTypeAny>(
+    strPrompt: string
+  ): Promise<GenerateStreamResponse<z.infer<O>>>;
+
+  /**
+   * Make a streaming generate call to the default model with a multipart request.
+   *
+   * ```ts
+   * const ai = genkit({
+   *   plugins: [googleAI()],
+   *   model: gemini15Flash, // default model
+   * })
+   *
+   * const { response, stream } = await ai.generateStream([
+   *   { media: {url: 'http://....'} },
+   *   { text: 'describe this image' }
+   * ]);
+   * for await (const chunk of stream) {
+   *   console.log(chunk.text);
+   * }
+   * console.log((await response).text);
+   * ```
+   */
+  generateStream<O extends z.ZodTypeAny = z.ZodTypeAny>(
+    parts: Part[]
+  ): Promise<GenerateStreamResponse<z.infer<O>>>;
+
+  /**
+   * Streaming generate calls a generative model based on the provided prompt and configuration. If
+   * `messages` is provided, the generation will include a conversation history in its
+   * request. If `tools` are provided, the generate method will automatically resolve
    * tool calls returned from the model unless `returnToolRequests` is set to `true`.
    *
-   * See {@link GenerateStreamOptions} for detailed information about available options.
+   * See {@link GenerateOptions} for detailed information about available options.
+   *
+   * ```ts
+   * const ai = genkit({
+   *   plugins: [googleAI()],
+   * })
+   *
+   * const { response, stream } = await ai.generateStream({
+   *   system: 'talk like a pirate',
+   *   prompt: [
+   *     { media: { url: 'http://....' } },
+   *     { text: 'describe this image' }
+   *   ],
+   *   messages: conversationHistory,
+   *   tools: [ userInfoLookup ],
+   *   model: gemini15Flash,
+   * });
+   * for await (const chunk of stream) {
+   *   console.log(chunk.text);
+   * }
+   * console.log((await response).text);
+   * ```
    */
+  generateStream<
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
+  >(
+    parts:
+      | GenerateOptions<O, CustomOptions>
+      | PromiseLike<GenerateOptions<O, CustomOptions>>
+  ): Promise<GenerateStreamResponse<z.infer<O>>>;
+
   async generateStream<
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
@@ -685,18 +890,48 @@ export class Genkit {
     );
   }
 
+  /**
+   * Creates a new environment which allows stateful execution of chat session, flows and prompts.
+   *
+   * ```ts
+   * const ai = genkit({...});
+   * const agent = ai.defineEnvironment({
+   *   name: 'agent',
+   *   stateSchema: z.object({
+   *     myState: z.object(),
+   *   }),
+   *   store: firestoreStateStore(),
+   * });
+   * const flow = agent.defineFlow({...})
+   * agent.definePrompt({...})
+   * agent.defineTool({...})
+   * const session = agent.createSession(); // create a session
+   * let response = await session.send('hi'); // session state aware conversation
+   * await session.runFlow(flow, {...})
+   * ```
+   */
   defineEnvironment<S extends z.ZodTypeAny = z.ZodTypeAny>(config: {
     name: string;
     stateSchema?: S;
-    store?: SessionStore<S>;
+    store?: SessionStore<any>;
   }): Environment<S> {
-    return new Environment(this, {
-      name: config.name,
+    return new Environment(config.name, this, {
       stateSchema: config.stateSchema,
       store: config.store,
     });
   }
 
+  /**
+   * Create a chat session with the provided options.
+   *
+   * ```ts
+   * const chat = ai.chat({
+   *   system: 'talk like a pirate',
+   * })
+   * let response = await chat.send('tell me a joke')
+   * response = await chat.send('another one')
+   * ```
+   */
   chat<S extends z.ZodTypeAny = z.ZodTypeAny>(
     options?: SessionOptions<S>
   ): Session<S> {
@@ -715,6 +950,9 @@ export class Genkit {
     );
   }
 
+  /**
+   * Load a chat session from the provided store.
+   */
   async loadChat<S extends z.ZodTypeAny = z.ZodTypeAny>(
     sessionId: string,
     options: SessionOptions<S>
@@ -738,14 +976,6 @@ export class Genkit {
         store: options?.store,
       }
     );
-  }
-
-  get currentSession() {
-    const currentSession = getCurrentSession();
-    if (!currentSession) {
-      throw new SessionError('not running within a session');
-    }
-    return currentSession;
   }
 
   /**

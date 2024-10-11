@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
+import { MessageData } from '@genkit-ai/ai';
+import { ModelAction } from '@genkit-ai/ai/model';
+import { z } from '@genkit-ai/core';
 import { Genkit } from '../src/genkit';
-import { z } from '../src/index';
 import { SessionData, SessionStore } from '../src/session';
 
-export function defineEchoModel(ai: Genkit) {
-  ai.defineModel(
+export function defineEchoModel(ai: Genkit): ModelAction {
+  return ai.defineModel(
     {
       name: 'echoModel',
     },
@@ -96,4 +98,19 @@ export class TestMemorySessionStore<S extends z.ZodTypeAny>
   async save(sessionId: string, sessionData: SessionData<S>): Promise<void> {
     this.data[sessionId] = sessionData;
   }
+}
+export function defineStaticResponseModel(
+  ai: Genkit,
+  message: MessageData
+): ModelAction {
+  return ai.defineModel(
+    {
+      name: 'staticResponseModel',
+    },
+    async () => {
+      return await runAsync(() => ({
+        message,
+      }));
+    }
+  );
 }

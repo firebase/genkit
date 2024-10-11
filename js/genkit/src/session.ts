@@ -60,19 +60,35 @@ type EnvironmentSessionOptions<S extends z.ZodTypeAny> = Omit<
   'store'
 >;
 
+/**
+ * FIXME: THIS IS WORK IN PROGRESS
+ *
+ * Environment encapsulates a statful execution environment for chat sessions, flows and prompts.
+ * Flows, prompts, chat session executed within a session in this environment will have acesss to
+ * session state data which includes custom state objects and session convesation history.
+ *
+ * ```ts
+ * const ai = genkit({...});
+ * const agent = ai.defineEnvironment();
+ * const flow = agent.defineFlow({...})
+ * agent.definePrompt({...})
+ * agent.defineTool({...})
+ * const session = agent.createSession(); // create a Session
+ * let response = await session.send('hi'); // session state aware conversation
+ * await session.runFlow(flow, {...})
+ * ```
+ */
 export class Environment<S extends z.ZodTypeAny> implements EnvironmentType {
   private store: SessionStore<S>;
-  private name: string;
 
   constructor(
+    readonly name: string,
     readonly genkit: Genkit,
     config: {
-      name: string;
       stateSchema?: S;
       store?: SessionStore<S>;
     }
   ) {
-    this.name = config.name;
     this.store = config.store ?? new InMemorySessionStore();
   }
 
@@ -117,19 +133,91 @@ export class Environment<S extends z.ZodTypeAny> implements EnvironmentType {
   }
 
   /**
-   * Defines and registers a prompt action.
+   * Defines and registers a dotprompt.
+   *
+   * This is an alternative to defining and importing a .prompt file.
+   *
+   * ```ts
+   * const hi = ai.definePrompt(
+   *   {
+   *     name: 'hi',
+   *     input: {
+   *       schema: z.object({
+   *         name: z.string(),
+   *       }),
+   *     },
+   *   },
+   *   'hi {{ name }}'
+   * );
+   * const { text } = await hi({ name: 'Genkit' });
+   * ```
    */
   definePrompt<
     I extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
-    options: PromptMetadata<I, CustomOptions>,
+    options: PromptMetadata<I, CustomOptions> & {
+      /** The name of the prompt. */
+      name: string;
+    },
+    template: string
+  ): ExecutablePrompt<I, O, CustomOptions>;
+
+  /**
+   * Defines and registers a function-based prompt.
+   *
+   * ```ts
+   * const hi = ai.definePrompt(
+   *   {
+   *     name: 'hi',
+   *     input: {
+   *       schema: z.object({
+   *         name: z.string(),
+   *       }),
+   *     },
+   *     config: {
+   *       temperature: 1,
+   *     },
+   *   },
+   *   async (input) => {
+   *     return {
+   *       messages: [ { role: 'user', content: [{ text: `hi ${input.name}` }] } ],
+   *     };
+   *   }
+   * );
+   * const { text } = await hi({ name: 'Genkit' });
+   * ```
+   */
+  definePrompt<
+    I extends z.ZodTypeAny = z.ZodTypeAny,
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    options: PromptMetadata<I, CustomOptions> & {
+      /** The name of the prompt. */
+      name: string;
+    },
+    fn: PromptFn<I>
+  ): ExecutablePrompt<I, O, CustomOptions>;
+
+  definePrompt<
+    I extends z.ZodTypeAny = z.ZodTypeAny,
+    O extends z.ZodTypeAny = z.ZodTypeAny,
+    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    options: PromptMetadata<I, CustomOptions> & {
+      /** The name of the prompt. */
+      name: string;
+    },
     templateOrFn: string | PromptFn<I>
   ): ExecutablePrompt<I, O, CustomOptions> {
     return this.genkit.definePrompt(options, templateOrFn as PromptFn<I>);
   }
 
+  /**
+   * Create a session for this environment.
+   */
   createSession(options?: EnvironmentSessionOptions<S>): Session<S> {
     return new Session(
       this.genkit,
@@ -147,6 +235,9 @@ export class Environment<S extends z.ZodTypeAny> implements EnvironmentType {
     );
   }
 
+  /**
+   * Loads a session from the store.
+   */
   async loadSession(
     sessionId: string,
     options?: EnvironmentSessionOptions<S>
@@ -160,15 +251,30 @@ export class Environment<S extends z.ZodTypeAny> implements EnvironmentType {
     });
   }
 
-  get currentSession() {
+  /**
+   * Gets the current session from async local storage.
+   */
+  get currentSession(): Session<S> {
     const currentSession = getCurrentSession();
     if (!currentSession) {
       throw new SessionError('not running within a session');
     }
-    return currentSession;
+    return currentSession as Session<S>;
   }
 }
 
+/**
+ * Session encapsulates a statful execution environment for chat.
+ * Chat session executed within a session in this environment will have acesss to
+ * session session convesation history.
+ *
+ * ```ts
+ * const ai = genkit({...});
+ * const chat = ai.chat(); // create a Session
+ * let response = await chat.send('hi'); // session/history aware conversation
+ * response = await chat.send('tell me a story');
+ * ```
+ */
 export class Session<S extends z.ZodTypeAny> {
   readonly id: string;
   readonly schema?: S;
