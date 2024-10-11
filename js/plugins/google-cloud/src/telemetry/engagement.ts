@@ -16,6 +16,7 @@
 
 import { Attributes, ValueType } from '@opentelemetry/api';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
+import { GENKIT_VERSION } from 'genkit';
 import { logger } from 'genkit/logging';
 import { PathMetadata } from 'genkit/tracing';
 import {
@@ -70,6 +71,8 @@ class EngagementTelemetry implements Telemetry {
       name,
       value: attributes['genkit:metadata:feedbackValue'],
       hasText: !!attributes['genkit:metadata:textFeedback'],
+      source: 'ts',
+      sourceVersion: GENKIT_VERSION,
     };
     this.feedbackCounter.add(1, dimensions);
 
@@ -90,6 +93,8 @@ class EngagementTelemetry implements Telemetry {
     const dimensions = {
       name,
       value: attributes['genkit:metadata:acceptanceValue'],
+      source: 'ts',
+      sourceVersion: GENKIT_VERSION,
     };
     this.acceptanceCounter.add(1, dimensions);
 
