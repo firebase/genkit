@@ -257,7 +257,7 @@ async function runFlowAction(params: {
       },
       auth: auth ? JSON.parse(auth) : undefined,
     });
-    const runActionResponse = await runner.runAction({
+    const runActionResponse = await manager.runAction({
       key: actionRef,
       input: flowInput,
     });
@@ -274,7 +274,7 @@ async function runFlowAction(params: {
       evalError: `Error when running inference. Details: ${e?.message ?? e}`,
     };
   }
-  return gatherEvalInput({ runner, actionRef, state });
+  return gatherEvalInput({ manager, actionRef, state });
 }
 
 async function runModelAction(params: {
