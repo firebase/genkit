@@ -57,7 +57,7 @@ export const vertexAiIndexerRef = (params: {
 export function vertexAiIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
   params: VertexVectorSearchOptions<EmbedderCustomOptions>
 ): IndexerAction<z.ZodTypeAny>[] {
-  const vectorSearchOptions = params.pluginOptions.vectorSearchOptions;
+  const vectorSearchOptions = params.pluginOptions.options;
   const defaultEmbedder = params.defaultEmbedder;
   const indexers: IndexerAction<z.ZodTypeAny>[] = [];
 

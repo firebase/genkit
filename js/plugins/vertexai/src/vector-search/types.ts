@@ -19,7 +19,7 @@ import { z } from 'genkit';
 import { EmbedderArgument } from 'genkit/embedder';
 import { CommonRetrieverOptionsSchema, Document } from 'genkit/retriever';
 import { GoogleAuth } from 'google-auth-library';
-import { PluginOptions } from '..';
+import { PluginOptions } from '../vector-search/';
 
 // This internal interface will be passed to the vertexIndexers and vertexRetrievers functions
 export interface VertexVectorSearchOptions<
