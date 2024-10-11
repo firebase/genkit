@@ -15,7 +15,7 @@
 export const DEFAULT_LOCATION = 'us-central1';
 
 export const confError = (parameter: string, envVariableName: string) => {
-    return new Error(
-      `VertexAI Plugin is missing the '${parameter}' configuration. Please set the '${envVariableName}' environment variable or explicitly pass '${parameter}' into genkit config.`
-    );
+  return new Error(
+    `VertexAI Plugin is missing the '${parameter}' configuration. Please set the '${envVariableName}' environment variable or explicitly pass '${parameter}' into genkit config.`
+  );
 };

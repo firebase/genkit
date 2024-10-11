@@ -12,40 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { ModelReference } from 'genkit/model';
 import { genkitPlugin, Plugin } from 'genkit';
-import {
-    llama3,
-    llama31,
-    llama32,
-    modelGardenOpenaiCompatibleModel,
-    SUPPORTED_OPENAI_FORMAT_MODELS,
-} from './model_garden.js';
-import {
-    anthropicModel,
-    claude35Sonnet,
-    claude3Haiku,
-    claude3Opus,
-    claude3Sonnet,
-    SUPPORTED_ANTHROPIC_MODELS,
-} from './anthropic.js';
+import { ModelReference } from 'genkit/model';
 import { authenticate } from '../common/auth.js';
-import { BasePluginOptions } from '../common/types.js';
 import { confError, DEFAULT_LOCATION } from '../common/global.js';
+import { BasePluginOptions } from '../common/types.js';
+import {
+  anthropicModel,
+  claude35Sonnet,
+  claude3Haiku,
+  claude3Opus,
+  claude3Sonnet,
+  SUPPORTED_ANTHROPIC_MODELS,
+} from './anthropic.js';
+import {
+  llama3,
+  llama31,
+  llama32,
+  modelGardenOpenaiCompatibleModel,
+  SUPPORTED_OPENAI_FORMAT_MODELS,
+} from './model_garden.js';
 
 export {
-    llama3,
-    llama31,
-    llama32,
-    claude35Sonnet,
-    claude3Haiku,
-    claude3Opus,
-    claude3Sonnet,
-}
+  claude35Sonnet,
+  claude3Haiku,
+  claude3Opus,
+  claude3Sonnet,
+  llama3,
+  llama31,
+  llama32,
+};
 
 export interface PluginOptions extends BasePluginOptions {
-    models: ModelReference<any>[];
-    openAiBaseUrlTemplate?: string;
+  models: ModelReference<any>[];
+  openAiBaseUrlTemplate?: string;
 }
 
 const PLUGIN_NAME = 'vertexAiModelGarden';
@@ -54,61 +54,61 @@ const PLUGIN_NAME = 'vertexAiModelGarden';
  *  Plugin for Vertex AI Model Garden
  */
 export const vertexAIModelGarden: Plugin<[PluginOptions] | []> = genkitPlugin(
-    PLUGIN_NAME,
-    async (options?: PluginOptions) => {
-        // Authenticate with Google Cloud
-        const authOptions = options?.googleAuth;
-        const authClient = authenticate(authOptions);
+  PLUGIN_NAME,
+  async (options?: PluginOptions) => {
+    // Authenticate with Google Cloud
+    const authOptions = options?.googleAuth;
+    const authClient = authenticate(authOptions);
 
-        const projectId = options?.projectId || (await authClient.getProjectId());
-        const location = options?.location || DEFAULT_LOCATION;
+    const projectId = options?.projectId || (await authClient.getProjectId());
+    const location = options?.location || DEFAULT_LOCATION;
 
-        if (!location) {
-            throw confError('location', 'GCLOUD_LOCATION');
-        }
-        if (!projectId) {
-            throw confError('project', 'GCLOUD_PROJECT');
-        }
-
-        const models: any = [];
-
-        if (options?.models) {
-            const mgModels = options?.models;
-            mgModels!.forEach((m) => {
-                const anthropicEntry = Object.entries(SUPPORTED_ANTHROPIC_MODELS).find(
-                    ([_, value]) => value.name === m.name
-                );
-
-                if (anthropicEntry) {
-                    models.push(anthropicModel(anthropicEntry[0], projectId, location));
-                    return;
-                }
-
-                const openaiModel = Object.entries(SUPPORTED_OPENAI_FORMAT_MODELS).find(
-                    ([_, value]) => value.name === m.name
-                );
-
-                if (openaiModel) {
-                    models.push(
-                        modelGardenOpenaiCompatibleModel(
-                            openaiModel[0],
-                            projectId,
-                            location,
-                            authClient,
-                            options.openAiBaseUrlTemplate
-                        )
-                    );
-                    return;
-                }
-
-                throw new Error(`Unsupported model garden model: ${m.name}`);
-            });
-        }
-
-        return {
-            models
-        };
+    if (!location) {
+      throw confError('location', 'GCLOUD_LOCATION');
     }
+    if (!projectId) {
+      throw confError('project', 'GCLOUD_PROJECT');
+    }
+
+    const models: any = [];
+
+    if (options?.models) {
+      const mgModels = options?.models;
+      mgModels!.forEach((m) => {
+        const anthropicEntry = Object.entries(SUPPORTED_ANTHROPIC_MODELS).find(
+          ([_, value]) => value.name === m.name
+        );
+
+        if (anthropicEntry) {
+          models.push(anthropicModel(anthropicEntry[0], projectId, location));
+          return;
+        }
+
+        const openaiModel = Object.entries(SUPPORTED_OPENAI_FORMAT_MODELS).find(
+          ([_, value]) => value.name === m.name
+        );
+
+        if (openaiModel) {
+          models.push(
+            modelGardenOpenaiCompatibleModel(
+              openaiModel[0],
+              projectId,
+              location,
+              authClient,
+              options.openAiBaseUrlTemplate
+            )
+          );
+          return;
+        }
+
+        throw new Error(`Unsupported model garden model: ${m.name}`);
+      });
+    }
+
+    return {
+      models,
+    };
+  }
 );
 
 export default vertexAIModelGarden;
