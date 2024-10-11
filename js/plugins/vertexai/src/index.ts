@@ -15,7 +15,7 @@
  */
 
 import { VertexAI } from '@google-cloud/vertexai';
-import { genkitPlugin, Plugin, z } from 'genkit';
+import { genkitPlugin, Plugin } from 'genkit';
 import { GenerateRequest, ModelReference } from 'genkit/model';
 import { GoogleAuthOptions } from 'google-auth-library';
 import {
