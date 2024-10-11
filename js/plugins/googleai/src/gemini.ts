@@ -580,8 +580,6 @@ export function googleAIModel(
         return fromGeminiCandidate(candidate, jsonMode);
       };
 
-      logger.info('request config', request.config);
-
       let chatRequest = {
         systemInstruction,
         generationConfig,
@@ -618,7 +616,7 @@ export function googleAIModel(
       const client = new GoogleGenerativeAI(apiKey!);
 
       if (cache) {
-        logger.info('Using cached content');
+        logger.debug('Using Context Cache');
         genModel = client.getGenerativeModelFromCachedContent(cache, options);
       } else {
         genModel = client.getGenerativeModel(
@@ -628,7 +626,6 @@ export function googleAIModel(
           options
         );
       }
-      logger.info('created generative model client');
 
       if (streamingCallback) {
         const result = await genModel
@@ -653,7 +650,6 @@ export function googleAIModel(
           custom: response,
         };
       } else {
-        logger.info(chatRequest!.history![0].role);
         const result = await genModel
           .startChat(chatRequest)
           .sendMessage(msg.parts, options);

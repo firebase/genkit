@@ -41,8 +41,6 @@ export function getContentForCache(
     throw new Error('No history provided for context caching');
   }
 
-  logger.info('model version', modelVersion);
-
   const cachedContent: CachedContent = {
     model: modelVersion,
     contents: [],
@@ -55,10 +53,7 @@ export function getContentForCache(
 
   // We split history into two parts: the part that should be cached and the part that should not
   const slicedHistory = chatRequest.history.slice(0, endOfCachedContents);
-  logger.info(
-    'last of cached contents',
-    JSON.stringify(slicedHistory.map((m) => m.role))
-  );
+
   cachedContent.contents = slicedHistory;
 
   let newHistory;
@@ -69,8 +64,6 @@ export function getContentForCache(
     newHistory = chatRequest.history.slice(endOfCachedContents + 1);
   }
   chatRequest.history = newHistory;
-
-  logger.info('new history', JSON.stringify(newHistory.map((m) => m.role)));
 
   if (request.config?.contextCache?.context) {
     cachedContent.systemInstruction = toGeminiSystemInstruction({
@@ -140,7 +133,7 @@ export function validateContextCacheRequest(
 ): boolean {
   // Check if contextCache is requested in the config
   if (!request.config?.contextCache) {
-    logger.info('Context caching is not requested');
+    logger.debug('Context caching is not requested');
     return false;
   }
 
@@ -183,13 +176,13 @@ export function validateContextCacheRequest(
     });
   }
 
-  logger.info('Context caching is valid for this request');
+  logger.debug('Context caching is valid for this request');
   // If all checks pass, content should be cached
   return true;
 }
 
 /**
- * Clears ALL
+ * Utility to clear ALL Caches
  * @param cacheManager
  * @param maxPages
  * @param pageSize

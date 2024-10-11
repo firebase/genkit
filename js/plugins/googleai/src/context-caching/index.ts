@@ -38,7 +38,6 @@ export async function handleContextCache(
   chatRequest: StartChatParams,
   modelVersion: string
 ): Promise<{ cache: CachedContent; newChatRequest: StartChatParams }> {
-  logger.info('Using context cache feature');
   const cacheManager = new GoogleAICacheManager(apiKey);
 
   const { cachedContent, chatRequest: newChatRequest } = getContentForCache(
@@ -46,21 +45,19 @@ export async function handleContextCache(
     chatRequest,
     modelVersion
   );
-
-  logger.info('Cached content:', cachedContent);
   cachedContent.model = modelVersion;
   const cacheKey = generateCacheKey(cachedContent);
 
   cachedContent.displayName = cacheKey;
-  logger.info(`Generated cache key: ${cacheKey}`);
+  logger.debug(`Generated cache key: ${cacheKey}`);
   let cache = await lookupContextCache(cacheManager, cacheKey);
-  logger.info(`Found cache: ${cache ? 'true' : 'false'}`);
+  logger.debug(`Cache hit: ${cache ? 'true' : 'false'}`);
 
   if (!cache) {
     try {
       logger.debug('No cache found, creating one.');
       cache = await cacheManager.create(cachedContent);
-      logger.info(`Created new cache entry with key: ${cacheKey}`);
+      logger.debug(`Created new cache entry with key: ${cacheKey}`);
     } catch (cacheError) {
       throw new GenkitError({
         status: 'INTERNAL',
