@@ -23,10 +23,10 @@ import {
   VertexAIEvaluationMetricType,
 } from '@genkit-ai/vertexai';
 import {
-  vertexAIModelGarden,
   claude3Haiku,
   claude3Opus,
   claude3Sonnet,
+  vertexAIModelGarden,
 } from '@genkit-ai/vertexai/modelgarden';
 import { dotprompt, genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';

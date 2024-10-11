@@ -17,9 +17,9 @@
 import { googleAI } from '@genkit-ai/googleai';
 import { vertexAI } from '@genkit-ai/vertexai';
 import {
-  vertexAIModelGarden,
   claude3Sonnet,
-  llama31
+  llama31,
+  vertexAIModelGarden,
 } from '@genkit-ai/vertexai/modelgarden';
 import * as clc from 'colorette';
 import { genkit } from 'genkit';
