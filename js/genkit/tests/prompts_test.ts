@@ -176,7 +176,7 @@ describe('definePrompt - dotprompt', () => {
       );
 
       const response = await hi({ name: 'Genkit' });
-      const foo: z.infer<typeof Foo> = response.output();
+      const foo: z.infer<typeof Foo> = response.output;
       assert.deepStrictEqual(foo, { bar: 'baz' });
     });
 
