@@ -23,8 +23,11 @@ import {
   claude3Sonnet,
   textEmbeddingGecko,
   vertexAI,
-  VertexAIEvaluationMetricType,
 } from '@genkit-ai/vertexai';
+import {
+  vertexAIEvaluation,
+  VertexAIEvaluationMetricType,
+} from '@genkit-ai/vertexai/evaluation';
 import { dotprompt, genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';
 import { ollama } from 'genkitx-ollama';
@@ -74,21 +77,22 @@ export const ai = genkit({
     vertexAI({
       location: 'us-central1',
       modelGardenModels: [claude3Haiku, claude3Sonnet, claude3Opus],
-      evaluation: {
-        metrics: [
-          VertexAIEvaluationMetricType.BLEU,
-          VertexAIEvaluationMetricType.GROUNDEDNESS,
-          VertexAIEvaluationMetricType.SAFETY,
-          {
-            type: VertexAIEvaluationMetricType.ROUGE,
-            metricSpec: {
-              rougeType: 'rougeLsum',
-              useStemmer: true,
-              splitSummaries: 'true',
-            },
+    }),
+    vertexAIEvaluation({
+      location: 'us-central1',
+      metrics: [
+        VertexAIEvaluationMetricType.BLEU,
+        VertexAIEvaluationMetricType.GROUNDEDNESS,
+        VertexAIEvaluationMetricType.SAFETY,
+        {
+          type: VertexAIEvaluationMetricType.ROUGE,
+          metricSpec: {
+            rougeType: 'rougeLsum',
+            useStemmer: true,
+            splitSummaries: 'true',
           },
-        ],
-      },
+        },
+      ],
     }),
 
     // vector stores
