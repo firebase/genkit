@@ -17,17 +17,15 @@ import { authenticate } from '../common/auth.js';
 import { confError, DEFAULT_LOCATION } from '../common/global.js';
 import { BasePluginOptions } from '../common/types.js';
 import {
-    VertexAIEvaluationMetric,
-    VertexAIEvaluationMetricType,
-    vertexEvaluators,
+  VertexAIEvaluationMetric,
+  VertexAIEvaluationMetricType,
+  vertexEvaluators,
 } from './evaluation.js';
 
-export {
-    VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
-};
+export { VertexAIEvaluationMetricType as VertexAIEvaluationMetricType };
 
 export interface PluginOptions extends BasePluginOptions {
-    metrics: VertexAIEvaluationMetric[];
+  metrics: VertexAIEvaluationMetric[];
 }
 
 /**
@@ -51,12 +49,10 @@ export const vertexAIEvaluation: Plugin<[PluginOptions] | []> = genkitPlugin(
     }
 
     const metrics =
-        options && options?.metrics.length > 0
-        ? options?.metrics
-        : [];
+      options && options?.metrics.length > 0 ? options?.metrics : [];
 
     return {
-        evaluators: vertexEvaluators(authClient, metrics, projectId, location),
+      evaluators: vertexEvaluators(authClient, metrics, projectId, location),
     };
   }
 );

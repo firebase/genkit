@@ -15,10 +15,10 @@
 import { GoogleAuthOptions } from 'google-auth-library';
 
 export interface BasePluginOptions {
-    /** The Google Cloud project id to call. */
-    projectId?: string;
-    /** The Google Cloud region to call. */
-    location: string;
-    /** Provide custom authentication configuration for connecting to Vertex AI. */
-    googleAuth?: GoogleAuthOptions;
+  /** The Google Cloud project id to call. */
+  projectId?: string;
+  /** The Google Cloud region to call. */
+  location: string;
+  /** Provide custom authentication configuration for connecting to Vertex AI. */
+  googleAuth?: GoogleAuthOptions;
 }
