@@ -32,7 +32,7 @@ export interface PluginOptions extends BasePluginOptions {
  *  Plugin for Vertex AI Model Garden
  */
 export const vertexAIEvaluation: Plugin<[PluginOptions] | []> = genkitPlugin(
-  'vertexAiEvaluation',
+  'vertexaiEvaluation',
   async (options?: PluginOptions) => {
     // Authenticate with Google Cloud
     const authOptions = options?.googleAuth;
