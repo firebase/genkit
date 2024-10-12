@@ -16,8 +16,8 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { getDatasetStore, getEvalStore, runNewEvaluation } from '../eval';
-import { Runner } from '../runner/runner';
-import { GenkitToolsError } from '../runner/types';
+import { RuntimeManager } from '../manager/manager';
+import { GenkitToolsError } from '../manager/types';
 import { Action } from '../types/action';
 import * as apis from '../types/apis';
 import { EnvironmentVariable } from '../types/env';
@@ -118,12 +118,12 @@ const loggedProcedure = t.procedure.use(async (opts) => {
 });
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
+export const TOOLS_SERVER_ROUTER = (manager: RuntimeManager) =>
   t.router({
     /** Retrieves all runnable actions. */
     listActions: loggedProcedure.query(
       async (): Promise<Record<string, Action>> => {
-        return runner.listActions();
+        return manager.listActions();
       }
     ),
 
@@ -131,7 +131,7 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
     runAction: loggedProcedure
       .input(apis.RunActionRequestSchema)
       .mutation(async ({ input }) => {
-        return runner.runAction(input);
+        return manager.runAction(input);
       }),
 
     /** Generate a .prompt file from messages and model config. */
@@ -150,14 +150,14 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
     listTraces: loggedProcedure
       .input(apis.ListTracesRequestSchema)
       .query(async ({ input }) => {
-        return runner.listTraces(input);
+        return manager.listTraces(input);
       }),
 
     /** Retrieves a trace for a given ID. */
     getTrace: loggedProcedure
       .input(apis.GetTraceRequestSchema)
       .query(async ({ input }) => {
-        return runner.getTrace(input);
+        return manager.getTrace(input);
       }),
 
     /** Retrieves all eval run keys */
@@ -237,7 +237,7 @@ export const TOOLS_SERVER_ROUTER = (runner: Runner) =>
       .input(apis.RunNewEvaluationRequestSchema)
       .output(evals.EvalRunKeySchema)
       .mutation(async ({ input }) => {
-        const response = await runNewEvaluation(runner, input);
+        const response = await runNewEvaluation(manager, input);
         return response;
       }),
 

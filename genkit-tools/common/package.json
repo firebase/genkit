@@ -24,7 +24,6 @@
     "inquirer": "^8.2.0",
     "js-yaml": "^4.1.0",
     "json-2-csv": "^5.5.1",
-    "open": "^6.3.0",
     "terminate": "^2.6.1",
     "tsx": "^4.9.3",
     "uuid": "^9.0.1",
@@ -80,11 +79,11 @@
       "import": "./lib/esm/plugin/index.js",
       "default": "./lib/esm/plugin/index.js"
     },
-    "./runner": {
-      "types": "./lib/runner/index.d.ts",
-      "require": "./lib/cjs/runner/index.js",
-      "import": "./lib/esm/runner/index.js",
-      "default": "./lib/esm/runner/index.js"
+    "./manager": {
+      "types": "./lib/manager/index.d.ts",
+      "require": "./lib/cjs/manager/index.js",
+      "import": "./lib/esm/manager/index.js",
+      "default": "./lib/esm/manager/index.js"
     },
     "./server": {
       "types": "./lib/server/index.d.ts",
@@ -107,8 +106,8 @@
       "plugin": [
         "lib/types/plugin"
       ],
-      "runner": [
-        "lib/types/runner"
+      "manager": [
+        "lib/types/manager"
       ],
       "server": [
         "lib/types/server"

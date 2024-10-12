@@ -31,7 +31,7 @@ import {
 import { confirmLlmUse, logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { readFile } from 'fs/promises';
-import { runInRunnerThenStop } from '../utils/runner-utils';
+import { runWithManager } from '../utils/manager-utils';
 
 interface EvalFlowRunCliOptions {
   input?: string;
@@ -82,7 +82,7 @@ export const evalFlow = new Command('eval:flow')
   .option('-f, --force', 'Automatically accept all interactive prompts')
   .action(
     async (flowName: string, data: string, options: EvalFlowRunCliOptions) => {
-      await runInRunnerThenStop(async (runner) => {
+      await runWithManager(async (manager) => {
         if (!data && !options.input) {
           throw new Error(
             'No input data passed. Specify input data using [data] argument or --input <filename> option'
@@ -91,10 +91,10 @@ export const evalFlow = new Command('eval:flow')
 
         let evaluatorActions: Action[];
         if (!options.evaluators) {
-          evaluatorActions = await getAllEvaluatorActions(runner);
+          evaluatorActions = await getAllEvaluatorActions(manager);
         } else {
           evaluatorActions = await getMatchingEvaluatorActions(
-            runner,
+            manager,
             options.evaluators.split(',')
           );
         }
@@ -122,14 +122,14 @@ export const evalFlow = new Command('eval:flow')
         const actionRef = `/flow/${flowName}`;
         const evalFlowInput = await readInputs(sourceType, data, options.input);
         const evalDataset = await runInference({
-          runner,
+          manager,
           actionRef,
           evalFlowInput,
           auth: options.auth,
         });
 
         const evalRun = await runEvaluation({
-          runner,
+          manager,
           evaluatorActions,
           evalDataset,
           augments: {

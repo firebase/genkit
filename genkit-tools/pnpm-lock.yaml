@@ -35,6 +35,9 @@ importers:
       '@genkit-ai/tools-common':
         specifier: workspace:*
         version: link:../common
+      axios:
+        specifier: ^1.6.7
+        version: 1.6.8
       colorette:
         specifier: ^2.0.20
         version: 2.0.20
@@ -50,6 +53,9 @@ importers:
       inquirer:
         specifier: ^8.2.0
         version: 8.2.6
+      open:
+        specifier: ^6.3.0
+        version: 6.4.0
       ora:
         specifier: ^5.4.1
         version: 5.4.1
@@ -126,9 +132,6 @@ importers:
       json-2-csv:
         specifier: ^5.5.1
         version: 5.5.1
-      open:
-        specifier: ^6.3.0
-        version: 6.4.0
       terminate:
         specifier: ^2.6.1
         version: 2.6.1
