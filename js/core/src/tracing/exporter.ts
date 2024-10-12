@@ -135,6 +135,9 @@ export class TraceServerExporter implements SpanExporter {
 
   private async save(traceId, spans: ReadableSpan[]): Promise<void> {
     if (!telemetryServerUrl) {
+      logger.debug(
+        `Telemetry server is not configured, trace ${traceId} not saved!`
+      );
       return;
     }
     // TODO: add interface for Firestore doc

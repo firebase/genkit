@@ -236,7 +236,7 @@ export class ReflectionServer {
       const { telemetryServerUrl } = request.body;
       if (typeof telemetryServerUrl === 'string') {
         setTelemetryServerUrl(telemetryServerUrl);
-        logger.info(`Connected to telemetry server on ${telemetryServerUrl}`);
+        logger.debug(`Connected to telemetry server on ${telemetryServerUrl}`);
       }
       response.status(200).send('OK');
     });
@@ -260,7 +260,7 @@ export class ReflectionServer {
 
     this.port = await this.findPort();
     this.server = server.listen(this.port, async () => {
-      logger.info(
+      logger.debug(
         `Reflection server (${process.pid}) running on http://localhost:${this.port}`
       );
       ReflectionServer.RUNNING_SERVERS.push(this);
