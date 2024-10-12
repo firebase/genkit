@@ -1,0 +1,54 @@
+{
+  "name": "genkitx-milvus",
+  "version": "0.0.1",
+  "type": "commonjs",
+  "description": "Genkit AI framework plugin for Milvus vector database.",
+  "scripts": {
+    "check": "tsc",
+    "compile": "tsup-node",
+    "build:clean": "rm -rf ./lib",
+    "build": "npm-run-all build:clean check compile",
+    "build:watch": "tsup-node --watch",
+    "test": "tsx --test ./tests/*_test.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/firebase/genkit.git",
+    "directory": "js/plugins/milvus"
+  },
+  "keywords": [
+    "genkit",
+    "genkit-plugin",
+    "milvus",
+    "vector",
+    "embedding",
+    "ai",
+    "genai",
+    "generative-ai"
+  ],
+  "author": "genkit",
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@genkit-ai/ai": "workspace:*",
+    "@genkit-ai/core": "workspace:*"
+  },
+  "dependencies": {
+    "@zilliz/milvus2-sdk-node": "^2.4.9",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@genkit-ai/vertexai": "workspace:*",
+    "tsup": "^8.0.2",
+    "tsx": "^4.7.0",
+    "typescript": "^5.6.3"
+  },
+  "types": "./lib/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./lib/index.js",
+      "import": "./lib/index.mjs",
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    }
+  }
+}
