@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node lib/index.js",
     "dev": "tsx --watch src/index.ts",
-    "genkit:dev": "GENKIT_ENV=dev pnpm dev",
+    "genkit:dev": "cross-env GENKIT_ENV=dev pnpm dev",
     "compile": "tsc",
     "build": "pnpm build:clean && pnpm compile",
     "build:clean": "rimraf ./lib",
