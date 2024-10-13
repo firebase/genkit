@@ -5,6 +5,8 @@
   "main": "lib/index.js",
   "scripts": {
     "start": "node lib/index.js",
+    "dev": "tsx --watch src/index.ts",
+    "genkit:dev": "GENKIT_ENV=dev pnpm dev",
     "compile": "tsc",
     "build": "pnpm build:clean && pnpm compile",
     "build:clean": "rimraf ./lib",
@@ -29,6 +31,7 @@
   },
   "devDependencies": {
     "@types/pdf-parse": "^1.1.4",
+    "cross-env": "^7.0.3",
     "rimraf": "^6.0.1",
     "typescript": "^5.3.3"
   }

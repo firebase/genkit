@@ -16,7 +16,7 @@
 
 import { gemini15Flash } from '@genkit-ai/googleai';
 import { z } from 'genkit';
-import { ai } from './index.js';
+import { ai } from './genkit.js';
 
 // Define a prompt that includes the retrieved context documents
 
