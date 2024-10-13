@@ -20,7 +20,7 @@ import { Genkit, genkit } from '../src/genkit';
 import { z } from '../src/index';
 import { TestMemorySessionStore, defineEchoModel } from './helpers';
 
-describe('environment', () => {
+describe('session', () => {
   let ai: Genkit;
 
   beforeEach(() => {

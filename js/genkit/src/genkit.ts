@@ -77,7 +77,7 @@ import {
   PromptMetadata,
 } from '@genkit-ai/dotprompt';
 import { Chat, ChatOptions } from './chat.js';
-import { Environment, SessionStore } from './environment.js';
+import { Environment } from './environment.js';
 import { logger } from './logging.js';
 import {
   defineModel,
@@ -86,6 +86,7 @@ import {
   ModelAction,
 } from './model.js';
 import { lookupAction, Registry, runWithRegistry } from './registry.js';
+import { SessionStore } from './session.js';
 
 /**
  * Options for initializing Genkit.

@@ -25,13 +25,13 @@ import {
 } from '@genkit-ai/ai';
 import { z } from '@genkit-ai/core';
 import { v4 as uuidv4 } from 'uuid';
+import { Genkit } from './genkit';
 import {
   Session,
   SessionData,
   SessionStore,
   inMemorySessionStore,
-} from './environment.js';
-import { Genkit } from './genkit';
+} from './session';
 
 export const MAIN_THREAD = '__main';
 
@@ -47,13 +47,13 @@ export type ChatOptions<S extends z.ZodTypeAny> = BaseGenerateOptions & {
 /**
  * Chat encapsulates a statful execution environment for chat.
  * Chat session executed within a session in this environment will have acesss to
- * session session convesation history.
+ * session convesation history.
  *
  * ```ts
  * const ai = genkit({...});
- * const chat = ai.chat(); // create a Session
- * let response = await chat.send('hi'); // session/history aware conversation
- * response = await chat.send('tell me a story');
+ * const chat = ai.chat(); // create a Chat
+ * let response = await chat.send('hi, my name is Genkit');
+ * response = await chat.send('what is my name?'); // chat history aware conversation
  * ```
  */
 export class Chat<S extends z.ZodTypeAny> {
@@ -128,21 +128,6 @@ export class Chat<S extends z.ZodTypeAny> {
       }
     }
     this.store = options?.store ?? (inMemorySessionStore() as SessionStore<S>);
-  }
-
-  thread(threadName: string): Chat<S> {
-    const requestBase = {
-      ...this.requestBase,
-    };
-    delete requestBase.messages;
-    const parent = this.parent instanceof Chat ? this.parent : this;
-    return new Chat(parent, requestBase, {
-      id: this.id,
-      stateSchema: this.schema,
-      store: this.store,
-      threadName,
-      sessionData: this.sessionData,
-    });
   }
 
   async send<
