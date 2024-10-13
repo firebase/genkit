@@ -515,7 +515,7 @@ export class Genkit {
         return this.generate({
           model,
           messages: promptResult.messages,
-          context: promptResult.context,
+          docs: promptResult.docs,
           tools: promptResult.tools,
           output: {
             format: promptResult.output?.format,
@@ -539,7 +539,7 @@ export class Genkit {
         return this.generateStream({
           model,
           messages: promptResult.messages,
-          context: promptResult.context,
+          docs: promptResult.docs,
           tools: promptResult.tools,
           output: {
             format: promptResult.output?.format,
@@ -564,7 +564,7 @@ export class Genkit {
         return this.generate({
           model,
           messages: promptResult.messages,
-          context: promptResult.context,
+          docs: promptResult.docs,
           tools: promptResult.tools,
           output: {
             format: promptResult.output?.format,
@@ -591,7 +591,7 @@ export class Genkit {
           return this.generateStream<O, CustomOptions>({
             model,
             messages: promptResult.messages,
-            context: promptResult.context,
+            docs: promptResult.docs,
             tools: promptResult.tools,
             output: {
               format: promptResult.output?.format,
@@ -619,7 +619,7 @@ export class Genkit {
         return {
           model,
           messages: promptResult.messages,
-          context: promptResult.context,
+          docs: promptResult.docs,
           tools: promptResult.tools,
           output: {
             format: promptResult.output?.format,

@@ -55,7 +55,7 @@ export type PromptGenerateOptions<
 };
 
 interface RenderMetadata {
-  context?: DocumentData[];
+  docs?: DocumentData[];
   messages?: MessageData[];
 }
 
@@ -186,14 +186,14 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
   >(options: PromptGenerateOptions<I>): GenerateOptions<O, CustomOptions> {
     const messages = this.renderMessages(options.input, {
       messages: options.messages,
-      context: options.context,
+      docs: options.docs,
     });
     return {
       model: options.model || this.model!,
       config: { ...this.config, ...options.config },
       messages: messages.slice(0, messages.length - 1),
       prompt: messages[messages.length - 1].content,
-      context: options.context,
+      docs: options.docs,
       output: {
         format: options.output?.format || this.output?.format || undefined,
         schema: options.output?.schema || this.output?.schema,
