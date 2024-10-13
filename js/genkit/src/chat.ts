@@ -25,13 +25,13 @@ import {
 } from '@genkit-ai/ai';
 import { z } from '@genkit-ai/core';
 import { v4 as uuidv4 } from 'uuid';
-import { Genkit } from './genkit';
 import {
-  inMemorySessionStore,
   Session,
   SessionData,
   SessionStore,
+  inMemorySessionStore,
 } from './environment.js';
+import { Genkit } from './genkit';
 
 export const MAIN_THREAD = '__main';
 
@@ -119,7 +119,8 @@ export class Chat<S extends z.ZodTypeAny> {
           ...(requestBase?.messages ?? []),
         ];
       }
-    } else { // Genkit
+    } else {
+      // Genkit
       if (!this.sessionData.threads[this.threadName]) {
         this.sessionData.threads[this.threadName] = [
           ...(requestBase?.messages ?? []),
