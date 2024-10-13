@@ -18,7 +18,7 @@ import { MessageData } from '@genkit-ai/ai';
 import { ModelAction } from '@genkit-ai/ai/model';
 import { z } from '@genkit-ai/core';
 import { Genkit } from '../src/genkit';
-import { SessionData, SessionStore } from '../src/session';
+import { SessionData, SessionStore } from '../src/environment';
 
 export function defineEchoModel(ai: Genkit): ModelAction {
   return ai.defineModel(

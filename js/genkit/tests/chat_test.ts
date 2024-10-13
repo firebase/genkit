@@ -161,10 +161,10 @@ describe('session', () => {
   });
 
   describe('loadChat', () => {
-    it('inherits history from parent session', async () => {
+    it('loads chat from store', async () => {
       const store = new TestMemorySessionStore();
       // init the store
-      const originalMainChat = ai.chat({ store });
+      const originalMainChat = await ai.chat({ store, system: '', tools: [] });
       await originalMainChat.send('hi');
       const originalSideChat = originalMainChat.thread('sideChat');
       await originalSideChat.send('bye');

@@ -76,6 +76,8 @@ import {
   PromptGenerateOptions,
   PromptMetadata,
 } from '@genkit-ai/dotprompt';
+import { Chat, ChatOptions } from './chat.js';
+import { Environment, SessionStore } from './environment.js';
 import { logger } from './logging.js';
 import {
   defineModel,
@@ -84,12 +86,6 @@ import {
   ModelAction,
 } from './model.js';
 import { lookupAction, Registry, runWithRegistry } from './registry.js';
-import {
-  Environment,
-  Session,
-  SessionOptions,
-  SessionStore,
-} from './session.js';
 
 /**
  * Options for initializing Genkit.
@@ -933,9 +929,9 @@ export class Genkit {
    * ```
    */
   chat<S extends z.ZodTypeAny = z.ZodTypeAny>(
-    options?: SessionOptions<S>
-  ): Session<S> {
-    return new Session(
+    options?: ChatOptions<S>
+  ): Chat<S> {
+    return new Chat(
       this,
       {
         ...options,
@@ -955,8 +951,8 @@ export class Genkit {
    */
   async loadChat<S extends z.ZodTypeAny = z.ZodTypeAny>(
     sessionId: string,
-    options: SessionOptions<S>
-  ): Promise<Session<S>> {
+    options: ChatOptions<S>
+  ): Promise<Chat<S>> {
     if (!options.store) {
       throw new Error('options.store is required for loading chat sessions');
     }
@@ -964,7 +960,7 @@ export class Genkit {
     if (!sessionData) {
       throw new Error(`chat session ${sessionId} not found`);
     }
-    return new Session(
+    return new Chat(
       this,
       {
         ...options,
