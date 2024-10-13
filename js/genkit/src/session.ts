@@ -14,254 +14,26 @@
  * limitations under the License.
  */
 
-import {
-  GenerateOptions,
-  GenerateResponse,
-  GenerateStreamOptions,
-  GenerateStreamResponse,
-  GenerationCommonConfigSchema,
-  MessageData,
-  Part,
-  PromptFn,
-  ToolAction,
-  ToolConfig,
-} from '@genkit-ai/ai';
-import {
-  CallableFlow,
-  FlowConfig,
-  FlowFn,
-  StreamableFlow,
-  StreamingFlowConfig,
-  z,
-} from '@genkit-ai/core';
-import { PromptMetadata } from '@genkit-ai/dotprompt';
+import { GenerateOptions, MessageData } from '@genkit-ai/ai';
+import { z } from '@genkit-ai/core';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { v4 as uuidv4 } from 'uuid';
-import { ExecutablePrompt, Genkit } from './genkit';
-
-const MAIN_THREAD = '__main';
+import { Chat, ChatOptions } from './chat';
+import { Environment } from './environment';
+import { Genkit } from './genkit';
 
 export type BaseGenerateOptions = Omit<GenerateOptions, 'prompt'>;
 
 export type SessionOptions<S extends z.ZodTypeAny> = BaseGenerateOptions & {
+  /** Schema describing the state. */
   stateSchema?: S;
+  /** Session store implementation for persisting the session state. */
   store?: SessionStore<S>;
+  /** Initial state of the session.  */
   state?: z.infer<S>;
+  /** Custom session Id. */
   sessionId?: string;
 };
-
-type EnvironmentType = Pick<
-  Genkit,
-  'defineFlow' | 'defineStreamingFlow' | 'defineTool' | 'definePrompt'
->;
-
-type EnvironmentSessionOptions<S extends z.ZodTypeAny> = Omit<
-  SessionOptions<S>,
-  'store'
->;
-
-/**
- * FIXME: THIS IS WORK IN PROGRESS
- *
- * Environment encapsulates a statful execution environment for chat sessions, flows and prompts.
- * Flows, prompts, chat session executed within a session in this environment will have acesss to
- * session state data which includes custom state objects and session convesation history.
- *
- * ```ts
- * const ai = genkit({...});
- * const agent = ai.defineEnvironment();
- * const flow = agent.defineFlow({...})
- * agent.definePrompt({...})
- * agent.defineTool({...})
- * const session = agent.createSession(); // create a Session
- * let response = await session.send('hi'); // session state aware conversation
- * await session.runFlow(flow, {...})
- * ```
- */
-export class Environment<S extends z.ZodTypeAny> implements EnvironmentType {
-  private store: SessionStore<S>;
-
-  constructor(
-    readonly name: string,
-    readonly genkit: Genkit,
-    config: {
-      stateSchema?: S;
-      store?: SessionStore<S>;
-    }
-  ) {
-    this.store = config.store ?? new InMemorySessionStore();
-  }
-
-  /**
-   * Defines and registers a non-streaming flow.
-   *
-   * @todo TODO: Improve this documentation (show snippets, etc).
-   */
-  defineFlow<
-    I extends z.ZodTypeAny = z.ZodTypeAny,
-    O extends z.ZodTypeAny = z.ZodTypeAny,
-  >(config: FlowConfig<I, O>, fn: FlowFn<I, O>): CallableFlow<I, O> {
-    return this.genkit.defineFlow(config, fn);
-  }
-
-  /**
-   * Defines and registers a streaming flow.
-   *
-   * @todo TODO: Improve this documentation (show snippetss, etc).
-   */
-  defineStreamingFlow<
-    I extends z.ZodTypeAny = z.ZodTypeAny,
-    O extends z.ZodTypeAny = z.ZodTypeAny,
-    S extends z.ZodTypeAny = z.ZodTypeAny,
-  >(
-    config: StreamingFlowConfig<I, O, S>,
-    fn: FlowFn<I, O, S>
-  ): StreamableFlow<I, O, S> {
-    return this.genkit.defineStreamingFlow(config, fn);
-  }
-
-  /**
-   * Defines and registers a tool.
-   *
-   * Tools can be passed to models by name or value during `generate` calls to be called automatically based on the prompt and situation.
-   */
-  defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
-    config: ToolConfig<I, O>,
-    fn: (input: z.infer<I>) => Promise<z.infer<O>>
-  ): ToolAction<I, O> {
-    return this.genkit.defineTool(config, fn);
-  }
-
-  /**
-   * Defines and registers a dotprompt.
-   *
-   * This is an alternative to defining and importing a .prompt file.
-   *
-   * ```ts
-   * const hi = ai.definePrompt(
-   *   {
-   *     name: 'hi',
-   *     input: {
-   *       schema: z.object({
-   *         name: z.string(),
-   *       }),
-   *     },
-   *   },
-   *   'hi {{ name }}'
-   * );
-   * const { text } = await hi({ name: 'Genkit' });
-   * ```
-   */
-  definePrompt<
-    I extends z.ZodTypeAny = z.ZodTypeAny,
-    O extends z.ZodTypeAny = z.ZodTypeAny,
-    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-  >(
-    options: PromptMetadata<I, CustomOptions> & {
-      /** The name of the prompt. */
-      name: string;
-    },
-    template: string
-  ): ExecutablePrompt<I, O, CustomOptions>;
-
-  /**
-   * Defines and registers a function-based prompt.
-   *
-   * ```ts
-   * const hi = ai.definePrompt(
-   *   {
-   *     name: 'hi',
-   *     input: {
-   *       schema: z.object({
-   *         name: z.string(),
-   *       }),
-   *     },
-   *     config: {
-   *       temperature: 1,
-   *     },
-   *   },
-   *   async (input) => {
-   *     return {
-   *       messages: [ { role: 'user', content: [{ text: `hi ${input.name}` }] } ],
-   *     };
-   *   }
-   * );
-   * const { text } = await hi({ name: 'Genkit' });
-   * ```
-   */
-  definePrompt<
-    I extends z.ZodTypeAny = z.ZodTypeAny,
-    O extends z.ZodTypeAny = z.ZodTypeAny,
-    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-  >(
-    options: PromptMetadata<I, CustomOptions> & {
-      /** The name of the prompt. */
-      name: string;
-    },
-    fn: PromptFn<I>
-  ): ExecutablePrompt<I, O, CustomOptions>;
-
-  definePrompt<
-    I extends z.ZodTypeAny = z.ZodTypeAny,
-    O extends z.ZodTypeAny = z.ZodTypeAny,
-    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-  >(
-    options: PromptMetadata<I, CustomOptions> & {
-      /** The name of the prompt. */
-      name: string;
-    },
-    templateOrFn: string | PromptFn<I>
-  ): ExecutablePrompt<I, O, CustomOptions> {
-    return this.genkit.definePrompt(options, templateOrFn as PromptFn<I>);
-  }
-
-  /**
-   * Create a session for this environment.
-   */
-  createSession(options?: EnvironmentSessionOptions<S>): Session<S> {
-    return new Session(
-      this.genkit,
-      {
-        ...options,
-      },
-      {
-        id: options?.sessionId,
-        sessionData: {
-          state: options?.state,
-        },
-        stateSchema: options?.stateSchema,
-        store: this.store,
-      }
-    );
-  }
-
-  /**
-   * Loads a session from the store.
-   */
-  async loadSession(
-    sessionId: string,
-    options?: EnvironmentSessionOptions<S>
-  ): Promise<Session<S>> {
-    const state = await this.store.get(sessionId);
-
-    return this.createSession({
-      sessionId,
-      ...options,
-      state,
-    });
-  }
-
-  /**
-   * Gets the current session from async local storage.
-   */
-  get currentSession(): Session<S> {
-    const currentSession = getCurrentSession();
-    if (!currentSession) {
-      throw new SessionError('not running within a session');
-    }
-    return currentSession as Session<S>;
-  }
-}
 
 /**
  * Session encapsulates a statful execution environment for chat.
@@ -280,22 +52,19 @@ export class Session<S extends z.ZodTypeAny> {
   readonly schema?: S;
   private sessionData?: SessionData<S>;
   private store: SessionStore<S>;
-  private threadName: string;
 
   constructor(
-    readonly parent: Genkit | Environment<S> | Session<S>,
-    readonly requestBase?: BaseGenerateOptions,
+    readonly parent: Genkit | Environment<S>,
+    private requestBase?: BaseGenerateOptions,
     options?: {
       id?: string;
       stateSchema?: S;
       sessionData?: SessionData<S>;
       store?: SessionStore<S>;
-      threadName?: string;
     }
   ) {
     this.id = options?.id ?? uuidv4();
     this.schema = options?.stateSchema;
-    this.threadName = options?.threadName ?? MAIN_THREAD;
     this.sessionData = options?.sessionData;
     if (!this.sessionData) {
       this.sessionData = {};
@@ -303,120 +72,10 @@ export class Session<S extends z.ZodTypeAny> {
     if (!this.sessionData.threads) {
       this.sessionData!.threads = {};
     }
-    // this is handling dotprompt render case
-    if (requestBase && requestBase['prompt']) {
-      const basePrompt = requestBase['prompt'] as string | Part | Part[];
-      let promptMessage: MessageData;
-      if (typeof basePrompt === 'string') {
-        promptMessage = {
-          role: 'user',
-          content: [{ text: basePrompt }],
-        };
-      } else if (Array.isArray(basePrompt)) {
-        promptMessage = {
-          role: 'user',
-          content: basePrompt,
-        };
-      } else {
-        promptMessage = {
-          role: 'user',
-          content: [basePrompt],
-        };
-      }
-      requestBase.messages = [...(requestBase.messages ?? []), promptMessage];
-    }
-    if (parent instanceof Session) {
-      if (!this.sessionData.threads[this.threadName]) {
-        this!.sessionData.threads[this.threadName] = [
-          ...(parent.messages ?? []),
-          ...(requestBase?.messages ?? []),
-        ];
-      }
-    } else {
-      if (!this.sessionData.threads[this.threadName]) {
-        this.sessionData.threads[this.threadName] = [
-          ...(requestBase?.messages ?? []),
-        ];
-      }
-    }
     this.store = options?.store ?? new InMemorySessionStore();
   }
 
-  thread(threadName: string): Session<S> {
-    const requestBase = {
-      ...this.requestBase,
-    };
-    delete requestBase.messages;
-    const parent = this.parent instanceof Session ? this.parent : this;
-    return new Session(parent, requestBase, {
-      id: this.id,
-      stateSchema: this.schema,
-      store: this.store,
-      threadName,
-      sessionData: this.sessionData,
-    });
-  }
-
-  async send<
-    O extends z.ZodTypeAny = z.ZodTypeAny,
-    CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
-  >(
-    options: string | Part[] | GenerateOptions<O, CustomOptions>
-  ): Promise<GenerateResponse<z.infer<O>>> {
-    // string
-    if (typeof options === 'string') {
-      options = {
-        prompt: options,
-      } as GenerateOptions<O, CustomOptions>;
-    }
-    // Part[]
-    if (Array.isArray(options)) {
-      options = {
-        prompt: options,
-      } as GenerateOptions<O, CustomOptions>;
-    }
-    const response = await this.genkit.generate({
-      ...this.requestBase,
-      messages: this.messages,
-      ...options,
-    });
-    await this.updateMessages(response.messages);
-    return response;
-  }
-
-  async sendStream<
-    O extends z.ZodTypeAny = z.ZodTypeAny,
-    CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
-  >(
-    options: string | Part[] | GenerateStreamOptions<O, CustomOptions>
-  ): Promise<GenerateStreamResponse<z.infer<O>>> {
-    // string
-    if (typeof options === 'string') {
-      options = {
-        prompt: options,
-      } as GenerateOptions<O, CustomOptions>;
-    }
-    // Part[]
-    if (Array.isArray(options)) {
-      options = {
-        prompt: options,
-      } as GenerateOptions<O, CustomOptions>;
-    }
-    const { response, stream } = await this.genkit.generateStream({
-      ...this.requestBase,
-      messages: this.messages,
-      ...options,
-    });
-
-    return {
-      response: response.finally(async () => {
-        this.updateMessages((await response).messages);
-      }),
-      stream,
-    };
-  }
-
-  private get genkit(): Genkit {
+  get genkit(): Genkit {
     if (this.parent instanceof Session) {
       return this.parent.genkit;
     }
@@ -424,13 +83,6 @@ export class Session<S extends z.ZodTypeAny> {
       return this.parent.genkit;
     }
     return this.parent;
-  }
-
-  runFlow<
-    I extends z.ZodTypeAny = z.ZodTypeAny,
-    O extends z.ZodTypeAny = z.ZodTypeAny,
-  >(flow: CallableFlow<I, O>, input: z.infer<I>): Promise<z.infer<O>> {
-    return runWithSession(this, () => flow(input));
   }
 
   get state(): z.infer<S> {
@@ -456,35 +108,76 @@ export class Session<S extends z.ZodTypeAny> {
     await this.store.save(this.id, sessionData);
   }
 
-  get messages(): MessageData[] | undefined {
-    if (!this.sessionData?.threads) {
-      return undefined;
-    }
-    return this.sessionData?.threads[this.threadName];
-  }
+  /**
+   * Create a chat session with the provided options.
+   *
+   * ```ts
+   * const chat = ai.chat({
+   *   system: 'talk like a pirate',
+   * })
+   * let response = await chat.send('tell me a joke')
+   * response = await chat.send('another one')
+   * ```
+   */
+  chat<S extends z.ZodTypeAny = z.ZodTypeAny>(
+    options?: ChatOptions<S>
+  ): Chat<S>;
 
-  async updateMessages(messages: MessageData[]): Promise<void> {
-    let sessionData = await this.store.get(this.id);
-    if (!sessionData) {
-      sessionData = { threads: {} };
+  /**
+   * Craete a separaete chat conversation ("thread") within the same session state.
+   *
+   * ```ts
+   * const lawyerChat = ai.chat('lawyerThread', {
+   *   system: 'talk like a lawyer',
+   * })
+   * const pirateChat = ai.chat('pirateThread', {
+   *   system: 'talk like a pirate',
+   * })
+   * await lawyerChat.send('tell me a joke')
+   * await pirateChat.send('tell me a joke')
+   * ```
+   */
+  chat<S extends z.ZodTypeAny = z.ZodTypeAny>(
+    threadName: string,
+    options?: ChatOptions<S>
+  ): Chat<S>;
+
+  chat(
+    optionsOrThreadName?: ChatOptions<S> | string,
+    maybeOptions?: ChatOptions<S>
+  ): Chat<S> {
+    let options: ChatOptions<S> | undefined;
+    let threadName = '__main';
+    if (maybeOptions) {
+      threadName = optionsOrThreadName as string;
+      options = maybeOptions as ChatOptions<S>;
+    } else if (optionsOrThreadName) {
+      if (typeof optionsOrThreadName === 'string') {
+        threadName = optionsOrThreadName as string;
+      } else {
+        options = optionsOrThreadName as ChatOptions<S>;
+      }
     }
-    if (!sessionData.threads) {
-      sessionData.threads = {};
-    }
-    sessionData.threads[this.threadName] = messages;
-    this.sessionData = sessionData;
-    await this.store.save(this.id, sessionData);
+    return new Chat<S>(
+      this,
+      {
+        ...this.requestBase,
+        ...options,
+      },
+      {
+        threadName,
+        id: this.id,
+        sessionData: {
+          state: options?.state,
+        },
+        stateSchema: options?.stateSchema,
+        store: this.store ?? options?.store,
+      }
+    );
   }
 
   toJSON() {
-    if (this.parent instanceof Session) {
-      return this.parent.toJSON();
-    }
     return this.sessionData;
-  }
-
-  static fromJSON<S extends z.ZodTypeAny>(data: SessionData<S>) {
-    //return new Session();
   }
 }
 
@@ -524,6 +217,10 @@ export interface SessionStore<S extends z.ZodTypeAny> {
   get(sessionId: string): Promise<SessionData<S> | undefined>;
 
   save(sessionId: string, data: SessionData<S>): Promise<void>;
+}
+
+export function inMemorySessionStore() {
+  return new InMemorySessionStore();
 }
 
 class InMemorySessionStore<S extends z.ZodTypeAny> implements SessionStore<S> {

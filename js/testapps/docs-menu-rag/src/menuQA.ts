@@ -45,7 +45,7 @@ export const menuQAFlow = ai.defineFlow(
 
     Question: ${input}
     `,
-      context: docs,
+      docs,
     });
 
     const output = llmResponse.text;

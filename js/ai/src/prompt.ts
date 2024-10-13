@@ -97,7 +97,7 @@ export async function renderPrompt<
 >(params: {
   prompt: PromptArgument<I>;
   input: z.infer<I>;
-  context?: DocumentData[];
+  docs?: DocumentData[];
   model: ModelArgument<CustomOptions>;
   config?: z.infer<CustomOptions>;
 }): Promise<GenerateOptions<O, CustomOptions>> {
@@ -115,7 +115,7 @@ export async function renderPrompt<
     config: { ...(rendered.config || {}), ...params.config },
     messages: rendered.messages.slice(0, rendered.messages.length - 1),
     prompt: rendered.messages[rendered.messages.length - 1].content,
-    context: params.context,
+    docs: params.docs,
     output: {
       format: rendered.output?.format,
       schema: rendered.output?.schema,

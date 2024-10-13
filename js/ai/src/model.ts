@@ -194,7 +194,7 @@ export const ModelRequestSchema = z.object({
   config: z.any().optional(),
   tools: z.array(ToolDefinitionSchema).optional(),
   output: OutputConfigSchema.optional(),
-  context: z.array(DocumentDataSchema).optional(),
+  docs: z.array(DocumentDataSchema).optional(),
 });
 /** ModelRequest represents the parameters that are passed to a model when generating content. */
 export interface ModelRequest<
@@ -204,8 +204,6 @@ export interface ModelRequest<
 }
 
 export const GenerateRequestSchema = ModelRequestSchema.extend({
-  /** @deprecated Use `docs` instead. */
-  context: z.array(DocumentDataSchema).optional(),
   /** @deprecated All responses now return a single candidate. This will always be `undefined`. */
   candidates: z.number().optional(),
 });

@@ -242,7 +242,7 @@ export function augmentWithContext(
   const itemTemplate = options?.itemTemplate || CONTEXT_ITEM_TEMPLATE;
   return (req, next) => {
     // if there is no context in the request, no-op
-    if (!req.context?.length) return next(req);
+    if (!req.docs?.length) return next(req);
     const userMessage = lastUserMessage(req.messages);
     // if there are no messages, no-op
     if (!userMessage) return next(req);
@@ -257,7 +257,7 @@ export function augmentWithContext(
       return next(req);
     }
     let out = `${preface || ''}`;
-    req.context?.forEach((d, i) => {
+    req.docs?.forEach((d, i) => {
       out += itemTemplate(new Document(d), i, options);
     });
     out += '\n';

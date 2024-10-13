@@ -191,7 +191,7 @@ describe('conformOutput (default middleware)', () => {
         { role: 'user', content: [{ text: 'hello again' }] },
       ],
       output: { format: 'json', schema },
-      context: [{ content: [{ text: 'hi' }] }],
+      docs: [{ content: [{ text: 'hi' }] }],
     });
     assert(
       part?.text?.includes(JSON.stringify(schema)),

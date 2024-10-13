@@ -38,12 +38,17 @@ describe('environment', () => {
       }),
     });
 
-    const session = env.createSession();
-    let response = await session.send('hi');
+    const session = await env.createSession({
+      state: {
+        name: 'banana',
+      },
+    });
+    const chat = session.chat();
+    let response = await chat.send('hi');
 
     assert.strictEqual(response.text, 'Echo: hi; config: {}');
 
-    response = await session.send('bye');
+    response = await chat.send('bye');
 
     assert.strictEqual(
       response.text,
@@ -66,6 +71,82 @@ describe('environment', () => {
     ]);
   });
 
+  it('maintains multithreaded history in the session', async () => {
+    const store = new TestMemorySessionStore();
+
+    const env = await ai.defineEnvironment({
+      name: 'agent',
+      store,
+      stateSchema: z.object({
+        name: z.string(),
+      }),
+    });
+
+    const session = await env.createSession({
+      state: {
+        name: 'Genkit',
+      },
+    });
+
+    let response = await session.chat().send('hi main');
+    assert.strictEqual(response.text(), 'Echo: hi main; config: {}');
+
+    const lawyerChat = session.chat('lawyerChat', {
+      system: 'talk like a lawyer',
+    });
+    response = await lawyerChat.send('hi lawyerChat');
+    assert.strictEqual(
+      response.text(),
+      'Echo: system: talk like a lawyer,hi lawyerChat; config: {}'
+    );
+
+    const pirateChat = session.chat('pirateChat', {
+      system: 'talk like a pirate',
+    });
+    response = await pirateChat.send('hi pirateChat');
+    assert.strictEqual(
+      response.text(),
+      'Echo: system: talk like a pirate,hi pirateChat; config: {}'
+    );
+
+    assert.deepStrictEqual(await store.get(session.id), {
+      state: {
+        name: 'Genkit',
+      },
+      threads: {
+        __main: [
+          { content: [{ text: 'hi main' }], role: 'user' },
+          {
+            content: [{ text: 'Echo: hi main' }, { text: '; config: {}' }],
+            role: 'model',
+          },
+        ],
+        lawyerChat: [
+          { content: [{ text: 'talk like a lawyer' }], role: 'system' },
+          { content: [{ text: 'hi lawyerChat' }], role: 'user' },
+          {
+            content: [
+              { text: 'Echo: system: talk like a lawyer,hi lawyerChat' },
+              { text: '; config: {}' },
+            ],
+            role: 'model',
+          },
+        ],
+        pirateChat: [
+          { content: [{ text: 'talk like a pirate' }], role: 'system' },
+          { content: [{ text: 'hi pirateChat' }], role: 'user' },
+          {
+            content: [
+              { text: 'Echo: system: talk like a pirate,hi pirateChat' },
+              { text: '; config: {}' },
+            ],
+            role: 'model',
+          },
+        ],
+      },
+    });
+  });
+
   it('maintains history in the session with streaming', async () => {
     const env = await ai.defineEnvironment({
       name: 'agent',
@@ -73,9 +154,10 @@ describe('environment', () => {
         name: z.string(),
       }),
     });
-    const session = env.createSession();
+    const session = await env.createSession();
+    const chat = session.chat();
 
-    let { response, stream } = await session.sendStream('hi');
+    let { response, stream } = await chat.sendStream('hi');
 
     let chunks: string[] = [];
     for await (const chunk of stream) {
@@ -84,7 +166,7 @@ describe('environment', () => {
     assert.strictEqual((await response).text, 'Echo: hi; config: {}');
     assert.deepStrictEqual(chunks, ['3', '2', '1']);
 
-    ({ response, stream } = await session.sendStream('bye'));
+    ({ response, stream } = await chat.sendStream('bye'));
 
     chunks = [];
     for await (const chunk of stream) {
@@ -115,16 +197,33 @@ describe('environment', () => {
 
   it('stores state and messages in the store', async () => {
     const store = new TestMemorySessionStore();
-    const env = await ai.defineEnvironment({
+    const env = ai.defineEnvironment({
       name: 'agent',
       store,
       stateSchema: z.object({
         name: z.string(),
       }),
     });
-    const session = env.createSession();
-    await session.send('hi');
-    await session.send('bye');
+    const session = await env.createSession({
+      state: {
+        name: 'Genkit',
+      },
+    });
+    const initialState = await store.get(session.id);
+
+    assert.deepStrictEqual(initialState, {
+      state: {
+        name: 'Genkit',
+      },
+      threads: {
+        __main: [],
+      },
+    });
+
+    const chat = session.chat();
+
+    await chat.send('hi');
+    await chat.send('bye');
 
     const state = await store.get(session.id);
 

@@ -408,7 +408,7 @@ export async function toGenerateRequest(
   const out = {
     messages,
     config: options.config,
-    context: options.context,
+    context: options.docs,
     tools: tools?.map((tool) => toToolDefinition(tool)) || [],
     output: {
       format:
@@ -437,7 +437,7 @@ export interface GenerateOptions<
   /** The prompt for which to generate a response. Can be a string for a simple text prompt or one or more parts for multi-modal prompts. */
   prompt?: string | Part | Part[];
   /** Retrieved documents to be used as context for this generation. */
-  context?: DocumentData[];
+  docs?: DocumentData[];
   /** Conversation messages (history) for multi-turn prompting when supported by the underlying model. */
   messages?: MessageData[];
   /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
@@ -599,7 +599,7 @@ export async function generate<
 
   const params: z.infer<typeof GenerateUtilParamSchema> = {
     model: model.__action.name,
-    context: resolvedOptions.context,
+    docs: resolvedOptions.docs,
     messages,
     tools,
     config: {

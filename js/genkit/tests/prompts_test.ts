@@ -715,7 +715,7 @@ describe('definePrompt', () => {
       delete response.model; // ignore
       assert.deepStrictEqual(response, {
         config: {},
-        context: undefined,
+        docs: undefined,
         input: {
           name: 'Genkit',
         },

@@ -46,7 +46,7 @@ export const GenerateUtilParamSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
   model: z.string(),
   /** Retrieved documents to be used as context for this generation. */
-  context: z.array(DocumentDataSchema).optional(),
+  docs: z.array(DocumentDataSchema).optional(),
   /** Conversation history for multi-turn prompting when supported by the underlying model. */
   messages: z.array(MessageSchema),
   /** List of registered tool names for this generation if supported by the underlying model. */
@@ -213,7 +213,7 @@ async function actionToGenerateRequest(
   const out = {
     messages: options.messages,
     config: options.config,
-    context: options.context,
+    docs: options.docs,
     tools: resolvedTools?.map((tool) => toToolDefinition(tool)) || [],
     output: {
       format:
