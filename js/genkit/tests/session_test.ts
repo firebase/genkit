@@ -89,14 +89,14 @@ describe('session', () => {
     });
 
     let response = await session.chat().send('hi main');
-    assert.strictEqual(response.text(), 'Echo: hi main; config: {}');
+    assert.strictEqual(response.text, 'Echo: hi main; config: {}');
 
     const lawyerChat = session.chat('lawyerChat', {
       system: 'talk like a lawyer',
     });
     response = await lawyerChat.send('hi lawyerChat');
     assert.strictEqual(
-      response.text(),
+      response.text,
       'Echo: system: talk like a lawyer,hi lawyerChat; config: {}'
     );
 
@@ -105,7 +105,7 @@ describe('session', () => {
     });
     response = await pirateChat.send('hi pirateChat');
     assert.strictEqual(
-      response.text(),
+      response.text,
       'Echo: system: talk like a pirate,hi pirateChat; config: {}'
     );
 
