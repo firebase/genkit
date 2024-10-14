@@ -18,10 +18,7 @@ import { FlowInvokeEnvelopeMessage, FlowState } from '@genkit-ai/tools-common';
 import { logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { writeFile } from 'fs/promises';
-import {
-  runInRunnerThenStop,
-  waitForFlowToComplete,
-} from '../utils/runner-utils';
+import { runWithManager, waitForFlowToComplete } from '../utils/manager-utils';
 
 interface FlowRunOptions {
   wait?: boolean;
@@ -30,7 +27,7 @@ interface FlowRunOptions {
   auth?: string;
 }
 
-/** Command to start GenKit server, optionally without static file serving */
+/** Command to run a flow. */
 export const flowRun = new Command('flow:run')
   .description('run a flow using provided data as input')
   .argument('<flowName>', 'name of the flow to run')
@@ -47,10 +44,10 @@ export const flowRun = new Command('flow:run')
     'name of the output file to store the extracted data'
   )
   .action(async (flowName: string, data: string, options: FlowRunOptions) => {
-    await runInRunnerThenStop(async (runner) => {
+    await runWithManager(async (manager) => {
       logger.info(`Running '/flow/${flowName}' (stream=${options.stream})...`);
       let state = (
-        await runner.runAction(
+        await manager.runAction(
           {
             key: `/flow/${flowName}`,
             input: {
@@ -68,7 +65,7 @@ export const flowRun = new Command('flow:run')
 
       if (!state.operation.done && options.wait) {
         logger.info('Started flow run, waiting for it to complete...');
-        state = await waitForFlowToComplete(runner, flowName, state.flowId);
+        state = await waitForFlowToComplete(manager, flowName, state.flowId);
       }
       logger.info(
         'Flow operation:\n' + JSON.stringify(state.operation, undefined, '  ')

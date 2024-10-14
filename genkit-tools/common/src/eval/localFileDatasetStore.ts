@@ -23,9 +23,11 @@ import { CreateDatasetRequest, UpdateDatasetRequest } from '../types/apis';
 import {
   Dataset,
   DatasetMetadata,
+  DatasetSchema,
   DatasetStore,
-  EvalFlowInputSchema,
+  EvalInferenceInput,
 } from '../types/eval';
+import { generateTestCaseId } from '../utils';
 import { logger } from '../utils/logger';
 
 /**
@@ -68,7 +70,7 @@ export class LocalFileDatasetStore implements DatasetStore {
   }
 
   private async createDatasetInternal(
-    data: Dataset,
+    data: EvalInferenceInput,
     datasetId?: string
   ): Promise<DatasetMetadata> {
     const id = await this.generateDatasetId(datasetId);
@@ -80,14 +82,14 @@ export class LocalFileDatasetStore implements DatasetStore {
         `Create dataset failed: file already exists at {$filePath}`
       );
     }
-
+    const dataset = this.getDatasetFromInferenceInput(data);
     logger.info(`Saving Dataset to ` + filePath);
-    await writeFile(filePath, JSON.stringify(data));
+    await writeFile(filePath, JSON.stringify(dataset));
 
     const now = new Date().toString();
     const metadata = {
       datasetId: id,
-      size: Array.isArray(data) ? data.length : data.samples.length,
+      size: dataset.length,
       version: 1,
       createTime: now,
       updateTime: now,
@@ -106,9 +108,6 @@ export class LocalFileDatasetStore implements DatasetStore {
 
   async updateDataset(req: UpdateDatasetRequest): Promise<DatasetMetadata> {
     const datasetId = req.datasetId;
-    if (!req.data) {
-      throw new Error('Error: `data` is required for updateDataset');
-    }
     const filePath = path.resolve(
       this.storeRoot,
       this.generateFileName(datasetId)
@@ -122,14 +121,17 @@ export class LocalFileDatasetStore implements DatasetStore {
     if (!prevMetadata) {
       throw new Error(`Update dataset failed: dataset metadata not found`);
     }
-
-    logger.info(`Updating Dataset at ` + filePath);
-    await writeFile(filePath, JSON.stringify(req.data));
+    const patch = this.getDatasetFromInferenceInput(req.data ?? []);
+    let newSize = prevMetadata.size;
+    if (patch.length > 0) {
+      logger.info(`Updating Dataset at ` + filePath);
+      newSize = await this.patchDataset(datasetId, patch, filePath);
+    }
 
     const now = new Date().toString();
     const newMetadata = {
       datasetId: datasetId,
-      size: Array.isArray(req.data) ? req.data.length : req.data.samples.length,
+      size: newSize,
       version: prevMetadata.version + 1,
       createTime: prevMetadata.createTime,
       updateTime: now,
@@ -154,9 +156,9 @@ export class LocalFileDatasetStore implements DatasetStore {
     if (!fs.existsSync(filePath)) {
       throw new Error(`Dataset not found for dataset ID {$id}`);
     }
-    return await readFile(filePath, 'utf8').then((data) =>
-      EvalFlowInputSchema.parse(JSON.parse(data))
-    );
+    return await readFile(filePath, 'utf8').then((data) => {
+      return DatasetSchema.parse(JSON.parse(data));
+    });
   }
 
   async listDatasets(): Promise<DatasetMetadata[]> {
@@ -235,5 +237,38 @@ export class LocalFileDatasetStore implements DatasetStore {
     return await readFile(path.resolve(this.indexFile), 'utf8').then((data) =>
       JSON.parse(data)
     );
+  }
+
+  private getDatasetFromInferenceInput(data: EvalInferenceInput): Dataset {
+    if (Array.isArray(data)) {
+      return data.map((d) => ({
+        testCaseId: d.testCaseId ?? generateTestCaseId(),
+        input: d,
+      }));
+    } else if (!!data.samples) {
+      return data.samples.map((d) => ({
+        testCaseId: d.testCaseId ?? generateTestCaseId(),
+        ...d,
+      }));
+    }
+    return [];
+  }
+
+  private async patchDataset(
+    datasetId: string,
+    patch: Dataset,
+    filePath: string
+  ): Promise<number> {
+    const existingDataset = await this.getDataset(datasetId);
+    const datasetMap = new Map(existingDataset.map((d) => [d.testCaseId, d]));
+    const patchMap = new Map(patch.map((d) => [d.testCaseId, d]));
+
+    patchMap.forEach((value, key) => {
+      datasetMap.set(key, value);
+    });
+
+    const newDataset = Array.from(datasetMap.values()) as Dataset;
+    await writeFile(filePath, JSON.stringify(newDataset));
+    return newDataset.length;
   }
 }

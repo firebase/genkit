@@ -15,7 +15,7 @@
  */
 
 import { Action, GENKIT_CLIENT_HEADER, z } from 'genkit';
-import { BaseDataPoint, Score, defineEvaluator } from 'genkit/evaluator';
+import { BaseEvalDataPoint, Score, defineEvaluator } from 'genkit/evaluator';
 import { runInNewSpan } from 'genkit/tracing';
 import { GoogleAuth } from 'google-auth-library';
 import { VertexAIEvaluationMetricType } from './evaluation.js';
@@ -34,7 +34,7 @@ export class EvaluatorFactory {
       definition: string;
       responseSchema: ResponseType;
     },
-    toRequest: (datapoint: BaseDataPoint) => any,
+    toRequest: (datapoint: BaseEvalDataPoint) => any,
     responseHandler: (response: z.infer<ResponseType>) => Score
   ): Action {
     return defineEvaluator(
@@ -43,7 +43,7 @@ export class EvaluatorFactory {
         displayName: config.displayName,
         definition: config.definition,
       },
-      async (datapoint: BaseDataPoint) => {
+      async (datapoint: BaseEvalDataPoint) => {
         const responseSchema = config.responseSchema;
         const response = await this.evaluateInstances(
           toRequest(datapoint),

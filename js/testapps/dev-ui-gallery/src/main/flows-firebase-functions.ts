@@ -19,7 +19,7 @@ import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
 import { gemini15Flash } from '@genkit-ai/googleai';
 import { DecodedIdToken } from 'firebase-admin/auth';
 import { run, z } from 'genkit';
-import { ai } from '../index.js';
+import { ai } from '../genkit.js';
 
 export const flowBasicAuth = ai.defineFlow(
   {
