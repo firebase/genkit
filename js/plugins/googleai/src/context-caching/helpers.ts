@@ -41,18 +41,26 @@ export function getContentForCache(
     throw new Error('No history provided for context caching');
   }
 
+  if (chatRequest.history.length !== request.messages.length) {
+    throw new GenkitError({
+      status: 'INTERNAL',
+      message:
+        'Genkit request history and Gemini chat request history length do not match',
+    });
+  }
+
   const cachedContent: CachedContent = {
     model: modelVersion,
     contents: [],
   };
 
-  const endOfCachedContents = chatRequest.history.findIndex(
+  const endOfCachedContents = request.messages.findIndex(
     // @ts-ignore
     (message) => message.contextCache
   );
 
   // We split history into two parts: the part that should be cached and the part that should not
-  const slicedHistory = chatRequest.history.slice(0, endOfCachedContents);
+  const slicedHistory = chatRequest.history.slice(0, endOfCachedContents + 1);
 
   cachedContent.contents = slicedHistory;
 
@@ -63,6 +71,7 @@ export function getContentForCache(
   } else {
     newHistory = chatRequest.history.slice(endOfCachedContents + 1);
   }
+
   chatRequest.history = newHistory;
 
   if (request.config?.contextCache?.context) {
@@ -201,7 +210,7 @@ export async function clearAllCaches(
 
     try {
       const list = await cacheManager.list(listParams);
-      const cachedContents = list.cachedContents || [];
+      const cachedContents = list.cachedContents;
 
       for (const content of cachedContents) {
         if (content.name) {
@@ -221,8 +230,10 @@ export async function clearAllCaches(
         break; // No more pages to process
       }
     } catch (error) {
-      logger.error(`Error clearing caches on page ${currentPage + 1}:`, error);
-      throw error;
+      throw new GenkitError({
+        status: 'INTERNAL',
+        message: `Error clearing caches on page ${currentPage + 1}: ${error}`,
+      });
     }
   }
 
