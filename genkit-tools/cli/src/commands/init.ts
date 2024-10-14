@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Runtime } from '@genkit-ai/tools-common/runner';
+import { Runtime } from '@genkit-ai/tools-common/manager';
 import { detectRuntime, logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import * as inquirer from 'inquirer';
@@ -62,7 +62,7 @@ export const init = new Command('init')
   )
   .action(async (options: InitOptions) => {
     var isNew = false;
-    var runtime = detectRuntime(process.cwd());
+    var runtime = await detectRuntime(process.cwd());
     if (!runtime) {
       logger.info('No runtime was detected in the current directory.');
       const answer = await inquirer.prompt<{ runtime: Runtime }>([

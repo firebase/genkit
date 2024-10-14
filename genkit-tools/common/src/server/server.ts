@@ -18,10 +18,10 @@ import * as trpcExpress from '@trpc/server/adapters/express';
 import * as bodyParser from 'body-parser';
 import * as clc from 'colorette';
 import express, { ErrorRequestHandler } from 'express';
-import open from 'open';
+import { Server } from 'http';
 import os from 'os';
 import path from 'path';
-import { Runner } from '../runner/runner';
+import { RuntimeManager } from '../manager/manager';
 import { logger } from '../utils/logger';
 import { toolsPackage } from '../utils/package';
 import { downloadAndExtractUiAssets } from '../utils/ui-assets';
@@ -42,28 +42,17 @@ const API_BASE_PATH = '/api';
 /**
  * Starts up the Genkit Tools server which includes static files for the UI and the Tools API.
  */
-export function startServer(
-  runner: Runner,
-  headless: boolean,
-  port: number,
-  openBrowser: boolean
-): Promise<void> {
-  let serverEnder: (() => void) | undefined = undefined;
-  const enderPromise = new Promise<void>((resolver) => {
-    serverEnder = resolver;
-  });
-
+export async function startServer(manager: RuntimeManager, port: number) {
+  let server: Server;
   const app = express();
 
-  if (!headless) {
-    // Download UI assets from public GCS bucket and serve locally
-    downloadAndExtractUiAssets({
-      fileUrl: UI_ASSETS_ZIP_GCS_PATH,
-      extractPath: UI_ASSETS_ROOT,
-      zipFileName: UI_ASSETS_ZIP_FILE_NAME,
-    });
-    app.use(express.static(UI_ASSETS_SERVE_PATH));
-  }
+  // Download UI assets from public GCS bucket and serve locally
+  downloadAndExtractUiAssets({
+    fileUrl: UI_ASSETS_ZIP_GCS_PATH,
+    extractPath: UI_ASSETS_ROOT,
+    zipFileName: UI_ASSETS_ZIP_FILE_NAME,
+  });
+  app.use(express.static(UI_ASSETS_SERVE_PATH));
 
   // tRPC doesn't support simple streaming mutations (https://github.com/trpc/trpc/issues/4477).
   // Don't want a separate WebSocket server for subscriptions - https://trpc.io/docs/subscriptions.
@@ -83,11 +72,22 @@ export function startServer(
       'Transfer-Encoding': 'chunked',
     });
 
-    const result = await runner.runAction({ key, input }, (chunk) => {
+    const result = await manager.runAction({ key, input }, (chunk) => {
       res.write(JSON.stringify(chunk) + '\n');
     });
     res.write(JSON.stringify(result));
     res.end();
+  });
+
+  app.get('/api/__health', (_, res) => {
+    res.status(200).send('');
+  });
+
+  app.post('/api/__quitquitquit', (_, res) => {
+    res.status(200).send('Server is shutting down');
+    server.close(() => {
+      process.exit(0);
+    });
   });
 
   // Endpoints for CLI control
@@ -100,7 +100,7 @@ export function startServer(
       else next();
     },
     trpcExpress.createExpressMiddleware({
-      router: TOOLS_SERVER_ROUTER(runner),
+      router: TOOLS_SERVER_ROUTER(manager),
     })
   );
 
@@ -119,29 +119,12 @@ export function startServer(
   };
   app.use(errorHandler);
 
-  // serve angular paths
-  app.all('*', (req, res) => {
+  app.all('*', (_, res) => {
     res.status(200).sendFile('/', { root: UI_ASSETS_SERVE_PATH });
   });
 
   app.listen(port, () => {
-    logger.info(`Genkit Tools API: http://localhost:${port}/api`);
-    if (!headless) {
-      const uiUrl = 'http://localhost:' + port;
-      runner
-        .waitUntilHealthy()
-        .then(() => {
-          logger.info(`${clc.green(clc.bold('Genkit Tools UI:'))} ${uiUrl}`);
-          if (openBrowser) {
-            open(uiUrl);
-          }
-        })
-        .catch((e) => {
-          logger.error(e.message);
-          if (serverEnder) serverEnder();
-        });
-    }
+    const uiUrl = 'http://localhost:' + port;
+    logger.info(`${clc.green(clc.bold('Genkit Developer UI:'))} ${uiUrl}`);
   });
-
-  return enderPromise;
 }

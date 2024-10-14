@@ -673,8 +673,10 @@ describe('GoogleCloudMetrics', () => {
       p.attributes.name,
       p.attributes.value,
       p.attributes.hasText,
+      p.attributes.source,
     ]);
-    assert.deepEqual(points, [['flowName', 'negative', true]]);
+    assert.deepEqual(points, [['flowName', 'negative', true, 'ts']]);
+    assert.ok(dataPoints[0].attributes.sourceVersion);
   });
 
   it('writes user acceptance metrics', async () => {
@@ -697,8 +699,10 @@ describe('GoogleCloudMetrics', () => {
     const points = dataPoints.map((p) => [
       p.attributes.name,
       p.attributes.value,
+      p.attributes.source,
     ]);
-    assert.deepEqual(points, [['flowName', 'rejected']]);
+    assert.deepEqual(points, [['flowName', 'rejected', 'ts']]);
+    assert.ok(dataPoints[0].attributes.sourceVersion);
   });
 
   describe('Configuration', () => {

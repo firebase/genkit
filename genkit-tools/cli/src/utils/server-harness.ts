@@ -14,5 +14,15 @@
  * limitations under the License.
  */
 
-export { Runner } from './runner';
-export * from './types';
+import { startServer } from '@genkit-ai/tools-common/server';
+import { startManager } from './manager-utils';
+
+const args = process.argv.slice(2);
+const port = parseInt(args[0]) || 4100;
+
+async function start() {
+  const manager = await startManager(true);
+  await startServer(manager, port);
+}
+
+start();

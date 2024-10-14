@@ -17,7 +17,6 @@
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import {
   BatchSpanProcessor,
-  NoopSpanProcessor,
   SimpleSpanProcessor,
   SpanProcessor,
 } from '@opentelemetry/sdk-trace-base';
@@ -92,12 +91,7 @@ export async function cleanUpTracing(): Promise<void> {
  * Creates a new SpanProcessor for exporting data to the telemetry server.
  */
 function createTelemetryServerProcessor(): SpanProcessor {
-  const url = process.env['GENKIT_TELEMETRY_SERVER'];
-  if (!url) {
-    return new NoopSpanProcessor();
-  }
-  logger.debug(`Sending telemetry to ${url}`);
-  const exporter = new TraceServerExporter(url);
+  const exporter = new TraceServerExporter();
   return isDevEnv()
     ? new SimpleSpanProcessor(exporter)
     : new BatchSpanProcessor(exporter);

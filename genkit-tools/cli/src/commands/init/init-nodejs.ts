@@ -468,6 +468,7 @@ async function updatePackageJson(nonInteractive: boolean) {
       start: 'node lib/index.js',
       build: 'tsc',
       'build:watch': 'tsc --watch',
+      dev: 'export GENKIT_RUNTIME_ID=$(openssl rand -hex 8) && npm start',
     },
   };
   const spinner = ora('Updating package.json').start();

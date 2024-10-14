@@ -17,7 +17,7 @@
 import { gemini15Flash } from '@genkit-ai/googleai';
 import { promptRef, z } from 'genkit';
 import { HelloFullNameSchema, HelloSchema } from '../common/types.js';
-import { ai } from '../index.js';
+import { ai } from '../genkit.js';
 
 //
 // Prompt defined in code, subsequently loaded into a flow, plus an additional variant.

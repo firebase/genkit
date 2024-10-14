@@ -27,11 +27,11 @@ import { evalExtractData } from './commands/eval-extract-data';
 import { evalFlow } from './commands/eval-flow';
 import { evalRun } from './commands/eval-run';
 import { flowBatchRun } from './commands/flow-batch-run';
-import { flowResume } from './commands/flow-resume';
 import { flowRun } from './commands/flow-run';
 import { init } from './commands/init';
 import { getPluginCommands, getPluginSubCommand } from './commands/plugins';
-import { start } from './commands/start';
+import { uiStart } from './commands/ui-start';
+import { uiStop } from './commands/ui-stop';
 import { version } from './utils/version';
 
 /**
@@ -41,10 +41,10 @@ import { version } from './utils/version';
  * exports a Command constant, then add it to the list below
  */
 const commands: Command[] = [
-  start,
+  uiStart,
+  uiStop,
   flowRun,
   flowBatchRun,
-  flowResume,
   evalExtractData,
   evalRun,
   evalFlow,

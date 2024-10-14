@@ -1031,11 +1031,14 @@ export function genkit(options: GenkitOptions): Genkit {
   return new Genkit(options);
 }
 
-process.on('SIGTERM', async () => {
-  logger.debug('Received SIGTERM. Shutting down all Genkit servers...');
+const shutdown = async () => {
+  logger.info('Shutting down all Genkit servers...');
   await Promise.all([ReflectionServer.stopAll(), FlowServer.stopAll()]);
   process.exit(0);
-});
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 let disableReflectionApi = false;
 
