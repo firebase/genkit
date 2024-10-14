@@ -33,6 +33,7 @@
     "@types/pdf-parse": "^1.1.4",
     "cross-env": "^7.0.3",
     "rimraf": "^6.0.1",
+    "tsx": "^4.19.1",
     "typescript": "^5.3.3"
   }
 }
