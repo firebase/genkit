@@ -5,6 +5,8 @@
   "main": "lib/index.js",
   "scripts": {
     "start": "node lib/index.js",
+    "dev": "tsx --watch src/index.ts",
+    "genkit:dev": "cross-env GENKIT_ENV=dev pnpm dev",
     "compile": "tsc",
     "build": "pnpm build:clean && pnpm compile",
     "build:clean": "rimraf ./lib",
@@ -15,17 +17,19 @@
   "author": "Google, LLC",
   "license": "ISC",
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "rimraf": "^6.0.1",
+    "tsx": "^4.7.0",
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "genkit": "workspace:*",
     "@genkit-ai/dev-local-vectorstore": "workspace:*",
     "@genkit-ai/evaluator": "workspace:*",
     "@genkit-ai/firebase": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
     "firebase-admin": "^12.1.0",
+    "genkit": "workspace:*",
     "genkitx-chromadb": "workspace:*",
     "genkitx-ollama": "workspace:*",
     "genkitx-pinecone": "workspace:*"
