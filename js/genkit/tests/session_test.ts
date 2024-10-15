@@ -17,7 +17,7 @@
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Genkit, genkit } from '../src/genkit';
-import { TestMemorySessionStore, defineEchoModel } from './helpers';
+import { defineEchoModel, TestMemorySessionStore } from './helpers';
 
 describe('session', () => {
   let ai: Genkit;
@@ -95,7 +95,7 @@ describe('session', () => {
         name: 'Genkit',
       },
       threads: {
-        __main: [
+        main: [
           { content: [{ text: 'hi main' }], role: 'user' },
           {
             content: [{ text: 'Echo: hi main' }, { text: '; config: {}' }],
@@ -179,9 +179,7 @@ describe('session', () => {
 
     assert.deepStrictEqual(initialState, {
       state: undefined,
-      threads: {
-        __main: [],
-      },
+      threads: {},
     });
 
     const chat = session.chat();
@@ -192,7 +190,7 @@ describe('session', () => {
     const state = await store.get(session.id);
 
     assert.deepStrictEqual(state?.threads, {
-      __main: [
+      main: [
         { content: [{ text: 'hi' }], role: 'user' },
         {
           content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
@@ -207,6 +205,110 @@ describe('session', () => {
           role: 'model',
         },
       ],
+    });
+  });
+
+  describe('loadChat', () => {
+    it('loads session from store', async () => {
+      const store = new TestMemorySessionStore();
+      // init the store
+      const originalSession = await ai.createSession({store})
+      const originalMainChat = await originalSession.chat({
+        config: {
+          temperature: 1,
+        }
+      });
+      await originalMainChat.send('hi');
+      await originalMainChat.send('bye');
+
+      const sessionId = originalSession.id;
+
+      // load
+      const session = await ai.loadSession(sessionId, { store });
+      const mainChat = await session.chat();
+      assert.deepStrictEqual(mainChat.messages, [
+        { content: [{ text: 'hi' }], role: 'user' },
+        {
+          role: 'model',
+          content: [{ text: 'Echo: hi' }, { text: '; config: {"temperature":1}' }],
+        },
+        {
+          content: [{ text: 'bye' }],
+          role: 'user',
+        },
+        {
+          content: [
+            { text: 'Echo: hi,Echo: hi,; config: {"temperature":1},bye' },
+            { text: '; config: {"temperature":1}' },
+          ],
+          role: 'model',
+        },
+      ]);
+      let response = await mainChat.send('hi again');
+      assert.strictEqual(
+        response.text(),
+        'Echo: hi,Echo: hi,; config: {"temperature":1},bye,Echo: hi,Echo: hi,; config: {"temperature":1},bye,; config: {"temperature":1},hi again; config: {}'
+      );
+      assert.deepStrictEqual(mainChat.messages, [
+        { content: [{ text: 'hi' }], role: 'user' },
+        {
+          role: 'model',
+          content: [{ text: 'Echo: hi' }, { text: '; config: {"temperature":1}' }],
+        },
+        {
+          content: [{ text: 'bye' }],
+          role: 'user',
+        },
+        {
+          content: [
+            { text: 'Echo: hi,Echo: hi,; config: {"temperature":1},bye' },
+            { text: '; config: {"temperature":1}' },
+          ],
+          role: 'model',
+        },
+        { content: [{ text: 'hi again' }], role: 'user' },
+        {
+          role: 'model',
+          content: [
+            {
+              text: 'Echo: hi,Echo: hi,; config: {"temperature":1},bye,Echo: hi,Echo: hi,; config: {"temperature":1},bye,; config: {"temperature":1},hi again',
+            },
+            { text: '; config: {}' },
+          ],
+        },
+      ]);
+
+      const state = await store.get(sessionId);
+      assert.deepStrictEqual(state?.threads, {
+        main: [
+          { content: [{ text: 'hi' }], role: 'user' },
+          {
+            role: 'model',
+            content: [{ text: 'Echo: hi' }, { text: '; config: {"temperature":1}' }],
+          },
+          {
+            content: [{ text: 'bye' }],
+            role: 'user',
+          },
+          {
+            content: [
+              { text: 'Echo: hi,Echo: hi,; config: {"temperature":1},bye' },
+              { text: '; config: {"temperature":1}' },
+            ],
+            role: 'model',
+          },
+          { content: [{ text: 'hi again' }], role: 'user' },
+          {
+            role: 'model',
+            content: [
+              {
+                text: 'Echo: hi,Echo: hi,; config: {"temperature":1},bye,Echo: hi,Echo: hi,; config: {"temperature":1},bye,; config: {"temperature":1},hi again',
+              },
+              { text: '; config: {}' },
+            ],
+          },
+        ],
+      });
     });
   });
 });

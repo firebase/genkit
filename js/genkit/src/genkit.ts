@@ -905,34 +905,8 @@ export class Genkit {
    * ```
    */
   async chat(options?: ChatOptions): Promise<Chat> {
-    const session = await this.createSession({
-      store: options?.store,
-    });
+    const session = await this.createSession();
     return session.chat(options);
-  }
-
-  /**
-   * Load a chat session from the provided store.
-   */
-  async loadChat(sessionId: string, options: ChatOptions): Promise<Chat> {
-    if (!options.store) {
-      throw new Error('options.store is required for loading chat sessions');
-    }
-    const sessionData = await options.store.get(sessionId);
-    if (!sessionData) {
-      throw new Error(`chat session ${sessionId} not found`);
-    }
-    return new Chat(
-      this,
-      {
-        ...options,
-      },
-      {
-        id: sessionId,
-        sessionData,
-        store: options?.store,
-      }
-    );
   }
 
   /**
@@ -942,18 +916,12 @@ export class Genkit {
     const sessionId = uuidv4();
     const sessionData: SessionData = {
       state: options?.state,
-      threads: {
-        [MAIN_THREAD]: options?.messages ?? [],
-      },
     };
     if (options?.store) {
       await options.store.save(sessionId, sessionData);
     }
     return new Session(
       this,
-      {
-        ...options,
-      },
       {
         id: sessionId,
         sessionData,
@@ -977,9 +945,6 @@ export class Genkit {
 
     return new Session(
       this,
-      {
-        ...options,
-      },
       {
         id: sessionId,
         sessionData,

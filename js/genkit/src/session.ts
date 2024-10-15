@@ -23,8 +23,7 @@ import { Genkit } from './genkit';
 
 export type BaseGenerateOptions = Omit<GenerateOptions, 'prompt'>;
 
-export type SessionOptions<S extends z.ZodTypeAny = z.ZodTypeAny> =
-  BaseGenerateOptions & {
+export interface SessionOptions<S extends z.ZodTypeAny = z.ZodTypeAny> {
     /** Schema describing the state. */
     stateSchema?: S;
     /** Session store implementation for persisting the session state. */
@@ -55,7 +54,6 @@ export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
 
   constructor(
     readonly parent: Genkit,
-    private requestBase?: BaseGenerateOptions,
     options?: {
       id?: string;
       stateSchema?: S;
@@ -155,12 +153,12 @@ export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
     return new Chat<S>(
       this,
       {
-        ...this.requestBase,
         ...options,
       },
       {
         thread: threadName,
         id: this.id,
+        sessionData: this.sessionData,
         store: this.store ?? options?.store,
       }
     );

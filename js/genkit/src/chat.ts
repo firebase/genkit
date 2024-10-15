@@ -56,7 +56,7 @@ export type ChatOptions<S extends z.ZodTypeAny = z.ZodTypeAny> =
  * ```
  */
 export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
-  readonly id: string;
+  readonly sessionId: string;
   readonly schema?: S;
   private sessionData?: SessionData<S>;
   private store: SessionStore<S>;
@@ -72,7 +72,7 @@ export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
       thread?: string;
     }
   ) {
-    this.id = options?.id ?? uuidv4();
+    this.sessionId = options?.id ?? uuidv4();
     this.threadName = options?.thread ?? MAIN_THREAD;
     this.sessionData = options?.sessionData;
     if (!this.sessionData) {
@@ -209,14 +209,14 @@ export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
     if (this.parent instanceof Session) {
       return this.parent.updateState(data);
     }
-    let sessionData = await this.store.get(this.id);
+    let sessionData = await this.store.get(this.sessionId);
     if (!sessionData) {
       sessionData = {} as SessionData<S>;
     }
     sessionData.state = data;
     this.sessionData = sessionData;
 
-    await this.store.save(this.id, sessionData);
+    await this.store.save(this.sessionId, sessionData);
   }
 
   get messages(): MessageData[] | undefined {
@@ -227,7 +227,7 @@ export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
   }
 
   async updateMessages(messages: MessageData[]): Promise<void> {
-    let sessionData = await this.store.get(this.id);
+    let sessionData = await this.store.get(this.sessionId);
     if (!sessionData) {
       sessionData = { threads: {} };
     }
@@ -236,7 +236,7 @@ export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
     }
     sessionData.threads[this.threadName] = messages;
     this.sessionData = sessionData;
-    await this.store.save(this.id, sessionData);
+    await this.store.save(this.sessionId, sessionData);
   }
 
   toJSON() {
