@@ -33,7 +33,7 @@ import {
   inMemorySessionStore,
 } from './session';
 
-export const MAIN_THREAD = '__main';
+export const MAIN_THREAD = 'main';
 
 export type BaseGenerateOptions = Omit<GenerateOptions, 'prompt'>;
 

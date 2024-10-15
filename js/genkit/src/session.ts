@@ -18,7 +18,7 @@ import { GenerateOptions, MessageData } from '@genkit-ai/ai';
 import { z } from '@genkit-ai/core';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { v4 as uuidv4 } from 'uuid';
-import { Chat, ChatOptions } from './chat';
+import { Chat, ChatOptions, MAIN_THREAD } from './chat';
 import { Genkit } from './genkit';
 
 export type BaseGenerateOptions = Omit<GenerateOptions, 'prompt'>;
@@ -141,7 +141,7 @@ export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
     maybeOptions?: ChatOptions<S>
   ): Chat<S> {
     let options: ChatOptions<S> | undefined;
-    let threadName = '__main';
+    let threadName = MAIN_THREAD;
     if (maybeOptions) {
       threadName = optionsOrThreadName as string;
       options = maybeOptions as ChatOptions<S>;
