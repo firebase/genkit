@@ -919,10 +919,7 @@ export class Genkit {
       state: options?.state,
     };
     if (options?.store) {
-      await options.store.save(sessionId, {
-        state: sessionData.state,
-        threads: sessionData.threads,
-      });
+      await options.store.save(sessionId, sessionData);
     }
     return new Session(this, {
       id: sessionId,

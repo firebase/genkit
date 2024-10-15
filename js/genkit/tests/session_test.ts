@@ -90,7 +90,9 @@ describe('session', () => {
       'Echo: system: talk like a pirate,hi pirateChat; config: {}'
     );
 
-    assert.deepStrictEqual(await store.get(session.id), {
+    const gotState = await store.get(session.id);
+    delete gotState.id; // ignore
+    assert.deepStrictEqual(gotState, {
       state: {
         name: 'Genkit',
       },
@@ -176,9 +178,10 @@ describe('session', () => {
       store,
     });
     const initialState = await store.get(session.id);
+    delete initialState.id; // ignore
     assert.deepStrictEqual(initialState, {
       state: undefined,
-      threads: undefined,
+      threads: {},
     });
 
     const chat = session.chat();
