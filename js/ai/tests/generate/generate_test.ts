@@ -289,7 +289,7 @@ describe('toGenerateRequest', () => {
           { role: 'user', content: [{ text: 'Tell a joke about dogs.' }] },
         ],
         config: undefined,
-        context: undefined,
+        docs: undefined,
         tools: [],
         output: { format: 'text' },
       },
@@ -307,7 +307,7 @@ describe('toGenerateRequest', () => {
           { role: 'user', content: [{ text: 'Tell a joke about dogs.' }] },
         ],
         config: undefined,
-        context: undefined,
+        docs: undefined,
         tools: [
           {
             name: 'tellAFunnyJoke',
@@ -342,7 +342,7 @@ describe('toGenerateRequest', () => {
           { role: 'user', content: [{ text: 'Tell a joke about dogs.' }] },
         ],
         config: undefined,
-        context: undefined,
+        docs: undefined,
         tools: [
           {
             name: 'tellAFunnyJoke',
@@ -394,7 +394,7 @@ describe('toGenerateRequest', () => {
           },
         ],
         config: undefined,
-        context: undefined,
+        docs: undefined,
         tools: [],
         output: { format: 'text' },
       },
@@ -416,7 +416,7 @@ describe('toGenerateRequest', () => {
           { role: 'user', content: [{ text: 'Tell a joke about dogs.' }] },
         ],
         config: undefined,
-        context: undefined,
+        docs: undefined,
         tools: [],
         output: { format: 'text' },
       },
@@ -426,14 +426,14 @@ describe('toGenerateRequest', () => {
       prompt: {
         model: 'vertexai/gemini-1.0-pro',
         prompt: 'Tell a joke with context.',
-        context: [{ content: [{ text: 'context here' }] }],
+        docs: [{ content: [{ text: 'context here' }] }],
       },
       expectedOutput: {
         messages: [
           { content: [{ text: 'Tell a joke with context.' }], role: 'user' },
         ],
         config: undefined,
-        context: [{ content: [{ text: 'context here' }] }],
+        docs: [{ content: [{ text: 'context here' }] }],
         tools: [],
         output: { format: 'text' },
       },

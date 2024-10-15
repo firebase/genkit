@@ -408,7 +408,7 @@ export async function toGenerateRequest(
   const out = {
     messages,
     config: options.config,
-    context: options.docs,
+    docs: options.docs,
     tools: tools?.map((tool) => toToolDefinition(tool)) || [],
     output: {
       format:

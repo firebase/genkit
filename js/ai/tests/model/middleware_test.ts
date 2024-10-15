@@ -341,7 +341,7 @@ describe('augmentWithContext', () => {
         augmentWithContext(options)(
           {
             messages,
-            context,
+            docs: context,
           },
           resolve as any
         );
