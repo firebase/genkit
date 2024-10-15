@@ -38,19 +38,10 @@ export const lotrFlow = ai.defineFlow(
       "Describe Gandalf's relationship with Frodo, referencing Gandalf quotes from the text.";
 
     const extractQuotesResponse = await generate({
-      history: [
-        // NOTE: CachedContent can not be used with GenerateContent request setting system_instruction, tools or tool_config.
-        // {
-        //   role: 'system',
-        //   content: [
-        //     {
-        //       text: "You are an literature expert, and your job is to answer the user's query based on the text provided.",
-        //     },
-        //   ],
-        // },
+      messages: [
         {
           role: 'user',
-          content: [{ text: lotr }], // for example, the first 10 chapters of fellowship of the ring
+          content: [{ text: lotr }], // for example, the first 10 chapters of Fellowship of the Ring
         },
         {
           role: 'model',
@@ -60,43 +51,35 @@ export const lotrFlow = ai.defineFlow(
             },
           ],
           // @ts-ignore
-          contextCache: true, // this is on the LAST message that you want in the cache.
-          // Everything up to (including) this message will be cached.
+          contextCache: true, // This marks the point where caching starts
         },
       ],
       config: {
-        version: 'gemini-1.5-flash-001', // only works with the stable version 001
-        // @ts-ignore
-        contextCache: true, // perhaps we allow it to be turned on and off here as well
+        version: 'gemini-1.5-flash-001', // Adjust for model version
+        contextCache: true,
       },
       model: gemini15Flash,
       prompt: preprocess || defaultProcess,
     });
 
-    const history = extractQuotesResponse.toHistory();
+    const messages = extractQuotesResponse.toHistory(); // Ensure the context history is preserved
 
-    // return extractQuotesResponse.text();
-
-    // // set contextCache to true for the last message in the history
-    // // @ts-ignore
+    // Set contextCache to true for the last message in the history
     // @ts-ignore
-    history[history.length - 1].contextCache = true;
+    messages[messages.length - 1].contextCache = true;
 
     const llmResponse = await generate({
+      messages,
       model: gemini15Flash,
-      history,
       config: {
         version: 'gemini-1.5-flash-001',
-        // @ts-ignore
         contextCache: true,
       },
       prompt:
-        `You will now act as a literature expert. Answer the customers query provided below:\n` +
+        `You will now act as a literature expert. Answer the customer's query provided below:\n` +
         (query || defaultQuery),
     });
 
-    const response = llmResponse.text();
-
-    return response;
+    return llmResponse.text();
   }
 );

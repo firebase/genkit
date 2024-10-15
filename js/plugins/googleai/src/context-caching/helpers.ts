@@ -41,7 +41,8 @@ export function getContentForCache(
     throw new Error('No history provided for context caching');
   }
 
-  if (chatRequest.history.length !== request.messages.length) {
+  // TODO: We probably don't need to pass in the whole request to this function?
+  if (chatRequest.history.length !== request.messages.length - 1) {
     throw new GenkitError({
       status: 'INTERNAL',
       message:
@@ -185,7 +186,6 @@ export function validateContextCacheRequest(
     });
   }
 
-  logger.debug('Context caching is valid for this request');
   // If all checks pass, content should be cached
   return true;
 }
