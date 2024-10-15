@@ -16,19 +16,19 @@
 
 import {
   CachedContent,
+  Content as GeminiMessage,
   FileDataPart,
   FunctionCallPart,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
   FunctionResponsePart,
   GenerateContentCandidate as GeminiCandidate,
-  Content as GeminiMessage,
-  Part as GeminiPart,
   GenerateContentResponse,
   GenerationConfig,
   GenerativeModel,
   GoogleGenerativeAI,
   InlineDataPart,
+  Part as GeminiPart,
   RequestOptions,
   StartChatParams,
   Tool,
@@ -37,19 +37,19 @@ import { GENKIT_CLIENT_HEADER, z } from 'genkit';
 import { logger } from 'genkit/logging';
 import {
   CandidateData,
+  defineModel,
   GenerationCommonConfigSchema,
+  getBasicUsageStats,
   MediaPart,
   MessageData,
   ModelAction,
   ModelMiddleware,
+  modelRef,
   ModelReference,
   Part,
   ToolDefinitionSchema,
   ToolRequestPart,
   ToolResponsePart,
-  defineModel,
-  getBasicUsageStats,
-  modelRef,
 } from 'genkit/model';
 import {
   downloadRequestMedia,
@@ -78,12 +78,7 @@ const SafetySettingsSchema = z.object({
 const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   safetySettings: z.array(SafetySettingsSchema).optional(),
   codeExecution: z.union([z.boolean(), z.object({}).strict()]).optional(),
-  contextCache: z
-    .object({
-      context: z.string().optional(),
-      content: z.array(z.any()).optional(),
-    })
-    .optional(),
+  contextCache: z.boolean().optional(),
 });
 
 export const geminiPro = modelRef({
@@ -526,6 +521,7 @@ export function googleAIModel(
 
       // make a copy so that modifying the request will not produce side-effects
       const messages = [...request.messages];
+
       if (messages.length === 0) throw new Error('No messages provided.');
 
       // Gemini does not support messages with role system and instead expects
@@ -616,7 +612,7 @@ export function googleAIModel(
       const client = new GoogleGenerativeAI(apiKey!);
 
       if (cache) {
-        logger.debug('Using Context Cache');
+        logger.info('Using Context Cache');
         genModel = client.getGenerativeModelFromCachedContent(cache, options);
       } else {
         genModel = client.getGenerativeModel(

@@ -49,7 +49,7 @@ export async function handleContextCache(
   const cacheKey = generateCacheKey(cachedContent);
 
   cachedContent.displayName = cacheKey;
-  logger.debug(`Generated cache key: ${cacheKey}`);
+
   let cache = await lookupContextCache(cacheManager, cacheKey);
   logger.debug(`Cache hit: ${cache ? 'true' : 'false'}`);
 
