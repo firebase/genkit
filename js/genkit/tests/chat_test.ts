@@ -30,7 +30,7 @@ describe('session', () => {
   });
 
   it('maintains history in the session', async () => {
-    const session = ai.chat();
+    const session = await ai.chat();
     let response = await session.send('hi');
 
     assert.strictEqual(response.text(), 'Echo: hi; config: {}');
@@ -100,7 +100,7 @@ describe('session', () => {
 
   it('stores state and messages in the store', async () => {
     const store = new TestMemorySessionStore();
-    const session = ai.chat({ store });
+    const session = await ai.chat({ store });
     await session.send('hi');
     await session.send('bye');
 
@@ -127,7 +127,7 @@ describe('session', () => {
 
   it('can init a session with a prompt', async () => {
     const prompt = ai.definePrompt({ name: 'hi' }, 'hi {{ name }}');
-    const session = ai.chat(
+    const session = await ai.chat(
       await prompt.render({
         input: { name: 'Genkit' },
         config: { temperature: 11 },
@@ -146,7 +146,7 @@ describe('session', () => {
       { name: 'hi', config: { version: 'abc' } },
       'hi {{ name }}'
     );
-    const session = ai.chat();
+    const session = await ai.chat();
     const response = await session.send(
       await prompt.render({
         input: { name: 'Genkit' },

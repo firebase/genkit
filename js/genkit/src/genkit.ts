@@ -904,17 +904,11 @@ export class Genkit {
    * response = await chat.send('another one')
    * ```
    */
-  chat(options?: ChatOptions): Promise<Chat> {
-    this.createSession();
-    return new Chat(
-      this,
-      {
-        ...options,
-      },
-      {
-        store: options?.store,
-      }
-    );
+  async chat(options?: ChatOptions): Promise<Chat> {
+    const session = await this.createSession({
+      store: options?.store,
+    });
+    return session.chat(options);
   }
 
   /**
@@ -936,7 +930,6 @@ export class Genkit {
       {
         id: sessionId,
         sessionData,
-        stateSchema: options?.stateSchema,
         store: options?.store,
       }
     );

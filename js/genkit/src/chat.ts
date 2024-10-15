@@ -67,14 +67,12 @@ export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
     readonly requestBase?: BaseGenerateOptions,
     options?: {
       id?: string;
-      stateSchema?: S;
       sessionData?: SessionData<S>;
       store?: SessionStore<S>;
       threadName?: string;
     }
   ) {
     this.id = options?.id ?? uuidv4();
-    this.schema = options?.stateSchema;
     this.threadName = options?.threadName ?? MAIN_THREAD;
     this.sessionData = options?.sessionData;
     if (!this.sessionData) {
