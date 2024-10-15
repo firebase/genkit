@@ -90,6 +90,27 @@ export function startServer(
     res.end();
   });
 
+  app.get('/api/sse', async(_,res) => {
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders(); // flush the headers to establish SSE with client
+
+    console.log('Got outside connection request outside');
+
+    let counter = 0;
+    let interValID = setInterval(() => {
+        counter++;
+        if (counter >= 10) {
+            clearInterval(interValID);
+            res.end(); // terminates SSE session
+            return;
+        }
+        res.write(`data: ${JSON.stringify({num: counter})}\n\n`); // res.write() instead of res.send()
+    }, 1000);
+});
+
   // Endpoints for CLI control
   app.use(
     API_BASE_PATH,
