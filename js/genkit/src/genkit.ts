@@ -77,7 +77,7 @@ import {
   PromptMetadata,
 } from '@genkit-ai/dotprompt';
 import { v4 as uuidv4 } from 'uuid';
-import { Chat, ChatOptions, MAIN_THREAD } from './chat.js';
+import { Chat, ChatOptions } from './chat.js';
 import { logger } from './logging.js';
 import {
   defineModel,
@@ -920,15 +920,12 @@ export class Genkit {
     if (options?.store) {
       await options.store.save(sessionId, sessionData);
     }
-    return new Session(
-      this,
-      {
-        id: sessionId,
-        sessionData,
-        stateSchema: options?.stateSchema,
-        store: options?.store,
-      }
-    );
+    return new Session(this, {
+      id: sessionId,
+      sessionData,
+      stateSchema: options?.stateSchema,
+      store: options?.store,
+    });
   }
 
   /**
@@ -943,15 +940,12 @@ export class Genkit {
     }
     const sessionData = await options.store.get(sessionId);
 
-    return new Session(
-      this,
-      {
-        id: sessionId,
-        sessionData,
-        stateSchema: options?.stateSchema,
-        store: options.store,
-      }
-    );
+    return new Session(this, {
+      id: sessionId,
+      sessionData,
+      stateSchema: options?.stateSchema,
+      store: options.store,
+    });
   }
 
   /**

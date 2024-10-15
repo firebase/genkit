@@ -24,15 +24,15 @@ import { Genkit } from './genkit';
 export type BaseGenerateOptions = Omit<GenerateOptions, 'prompt'>;
 
 export interface SessionOptions<S extends z.ZodTypeAny = z.ZodTypeAny> {
-    /** Schema describing the state. */
-    stateSchema?: S;
-    /** Session store implementation for persisting the session state. */
-    store?: SessionStore<S>;
-    /** Initial state of the session.  */
-    state?: z.infer<S>;
-    /** Custom session Id. */
-    sessionId?: string;
-  };
+  /** Schema describing the state. */
+  stateSchema?: S;
+  /** Session store implementation for persisting the session state. */
+  store?: SessionStore<S>;
+  /** Initial state of the session.  */
+  state?: z.infer<S>;
+  /** Custom session Id. */
+  sessionId?: string;
+}
 
 /**
  * Session encapsulates a statful execution environment for chat.

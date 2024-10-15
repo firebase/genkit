@@ -17,7 +17,7 @@
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Genkit, genkit } from '../src/genkit';
-import { defineEchoModel, TestMemorySessionStore } from './helpers';
+import { TestMemorySessionStore, defineEchoModel } from './helpers';
 
 describe('session', () => {
   let ai: Genkit;
@@ -212,11 +212,11 @@ describe('session', () => {
     it('loads session from store', async () => {
       const store = new TestMemorySessionStore();
       // init the store
-      const originalSession = await ai.createSession({store})
+      const originalSession = await ai.createSession({ store });
       const originalMainChat = await originalSession.chat({
         config: {
           temperature: 1,
-        }
+        },
       });
       await originalMainChat.send('hi');
       await originalMainChat.send('bye');
@@ -230,7 +230,10 @@ describe('session', () => {
         { content: [{ text: 'hi' }], role: 'user' },
         {
           role: 'model',
-          content: [{ text: 'Echo: hi' }, { text: '; config: {"temperature":1}' }],
+          content: [
+            { text: 'Echo: hi' },
+            { text: '; config: {"temperature":1}' },
+          ],
         },
         {
           content: [{ text: 'bye' }],
@@ -253,7 +256,10 @@ describe('session', () => {
         { content: [{ text: 'hi' }], role: 'user' },
         {
           role: 'model',
-          content: [{ text: 'Echo: hi' }, { text: '; config: {"temperature":1}' }],
+          content: [
+            { text: 'Echo: hi' },
+            { text: '; config: {"temperature":1}' },
+          ],
         },
         {
           content: [{ text: 'bye' }],
@@ -284,7 +290,10 @@ describe('session', () => {
           { content: [{ text: 'hi' }], role: 'user' },
           {
             role: 'model',
-            content: [{ text: 'Echo: hi' }, { text: '; config: {"temperature":1}' }],
+            content: [
+              { text: 'Echo: hi' },
+              { text: '; config: {"temperature":1}' },
+            ],
           },
           {
             content: [{ text: 'bye' }],
