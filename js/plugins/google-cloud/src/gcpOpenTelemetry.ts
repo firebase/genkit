@@ -49,8 +49,8 @@ import { PathMetadata } from 'genkit/tracing';
 import { actionTelemetry } from './telemetry/action.js';
 import { engagementTelemetry } from './telemetry/engagement.js';
 import { featuresTelemetry } from './telemetry/feature.js';
-import { flowsTelemetry } from './telemetry/flow.js';
 import { generateTelemetry } from './telemetry/generate.js';
+import { pathsTelemetry } from './telemetry/path.js';
 import { GcpTelemetryConfig } from './types';
 import { extractErrorName } from './utils';
 
@@ -241,7 +241,7 @@ class AdjustingTraceExporter implements SpanExporter {
     return spans.map((span) => {
       this.tickTelemetry(span, allLeafPaths);
 
-      span = this.redactPii(span);
+      span = this.redactInputOutput(span);
       span = this.markErrorSpanAsError(span);
       span = this.markFailedAction(span);
       span = this.markGenkitFeature(span);
@@ -260,22 +260,33 @@ class AdjustingTraceExporter implements SpanExporter {
     const type = attributes['genkit:type'] as string;
     const subtype = attributes['genkit:metadata:subtype'] as string;
     const isRoot = !!span.attributes['genkit:isRoot'];
+    const unused: Set<PathMetadata> = new Set();
 
-    if (type === 'flow') {
-      flowsTelemetry.tick(span, paths, this.logIO, this.projectId);
-    } else if (type === 'action' && subtype === 'model') {
-      generateTelemetry.tick(span, paths, this.logIO, this.projectId);
-    } else if (type === 'action' || type == 'flowStep') {
-      actionTelemetry.tick(span, paths, this.logIO, this.projectId);
-    } else if (type === 'userEngagement') {
-      engagementTelemetry.tick(span, paths, this.logIO, this.projectId);
-    }
     if (isRoot) {
-      featuresTelemetry.tick(span, paths, this.logIO, this.projectId);
+      // Report top level feature request and latency only for root spans
+      // Log input to and output from to the feature
+      featuresTelemetry.tick(span, unused, this.logIO, this.projectId);
+      // Report executions and latency for all flow paths only on the root span
+      pathsTelemetry.tick(span, paths, this.logIO, this.projectId);
+    }
+    if (type === 'action' && subtype === 'model') {
+      // Report generate metrics () for all model actions
+      generateTelemetry.tick(span, unused, this.logIO, this.projectId);
+    }
+    if (type === 'action' && subtype === 'tool') {
+      // TODO: Report input and output for tool actions
+    }
+    if (type === 'action' || type === 'flow' || type == 'flowStep') {
+      // Report request and latency metrics for all actions
+      actionTelemetry.tick(span, unused, this.logIO, this.projectId);
+    }
+    if (type === 'userEngagement') {
+      // Report user acceptance and feedback metrics
+      engagementTelemetry.tick(span, unused, this.logIO, this.projectId);
     }
   }
 
-  private redactPii(span: ReadableSpan): ReadableSpan {
+  private redactInputOutput(span: ReadableSpan): ReadableSpan {
     const hasInput = 'genkit:input' in span.attributes;
     const hasOutput = 'genkit:output' in span.attributes;
 

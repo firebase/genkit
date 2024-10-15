@@ -26,7 +26,7 @@ import {
 import { parseSchema } from './schema.js';
 import {
   SPAN_TYPE_ATTR,
-  runInNewSpan,
+  newTrace,
   setCustomMetadataAttributes,
 } from './tracing.js';
 
@@ -129,11 +129,9 @@ export function action<
       schema: config.inputSchema,
       jsonSchema: config.inputJsonSchema,
     });
-    let output = await runInNewSpan(
+    let output = await newTrace(
       {
-        metadata: {
-          name: actionName,
-        },
+        name: actionName,
         labels: {
           [SPAN_TYPE_ATTR]: 'action',
         },
