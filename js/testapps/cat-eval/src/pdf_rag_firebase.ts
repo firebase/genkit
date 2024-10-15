@@ -26,7 +26,7 @@ import { runWithRegistry } from 'genkit/registry';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import pdf from 'pdf-parse';
-import { ai } from './index.js';
+import { ai } from './genkit.js';
 
 const app = initializeApp();
 let firestore = getFirestore(app);
