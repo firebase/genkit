@@ -17,7 +17,6 @@
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Genkit, genkit } from '../src/genkit';
-import { z } from '../src/index';
 import { TestMemorySessionStore, defineEchoModel } from './helpers';
 
 describe('session', () => {
@@ -31,18 +30,7 @@ describe('session', () => {
   });
 
   it('maintains history in the session', async () => {
-    const env = await ai.defineEnvironment({
-      name: 'agent',
-      stateSchema: z.object({
-        name: z.string(),
-      }),
-    });
-
-    const session = await env.createSession({
-      state: {
-        name: 'banana',
-      },
-    });
+    const session = await ai.createSession();
     const chat = session.chat();
     let response = await chat.send('hi');
 
@@ -73,16 +61,9 @@ describe('session', () => {
 
   it('maintains multithreaded history in the session', async () => {
     const store = new TestMemorySessionStore();
-
-    const env = await ai.defineEnvironment({
-      name: 'agent',
+    const session = await ai.createSession({
       store,
-      stateSchema: z.object({
-        name: z.string(),
-      }),
-    });
 
-    const session = await env.createSession({
       state: {
         name: 'Genkit',
       },
@@ -148,13 +129,7 @@ describe('session', () => {
   });
 
   it('maintains history in the session with streaming', async () => {
-    const env = await ai.defineEnvironment({
-      name: 'agent',
-      stateSchema: z.object({
-        name: z.string(),
-      }),
-    });
-    const session = await env.createSession();
+    const session = await ai.createSession();
     const chat = session.chat();
 
     let { response, stream } = await chat.sendStream('hi');
@@ -197,24 +172,13 @@ describe('session', () => {
 
   it('stores state and messages in the store', async () => {
     const store = new TestMemorySessionStore();
-    const env = ai.defineEnvironment({
-      name: 'agent',
+    const session = await ai.createSession({
       store,
-      stateSchema: z.object({
-        name: z.string(),
-      }),
-    });
-    const session = await env.createSession({
-      state: {
-        name: 'Genkit',
-      },
     });
     const initialState = await store.get(session.id);
 
     assert.deepStrictEqual(initialState, {
-      state: {
-        name: 'Genkit',
-      },
+      state: undefined,
       threads: {
         __main: [],
       },

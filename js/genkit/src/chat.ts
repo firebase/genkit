@@ -37,12 +37,11 @@ export const MAIN_THREAD = '__main';
 
 export type BaseGenerateOptions = Omit<GenerateOptions, 'prompt'>;
 
-export type ChatOptions<S extends z.ZodTypeAny> = BaseGenerateOptions & {
-  stateSchema?: S;
-  store?: SessionStore<S>;
-  state?: z.infer<S>;
-  sessionId?: string;
-};
+export type ChatOptions<S extends z.ZodTypeAny = z.ZodTypeAny> =
+  BaseGenerateOptions & {
+    store?: SessionStore<S>;
+    sessionId?: string;
+  };
 
 /**
  * Chat encapsulates a statful execution environment for chat.
@@ -56,7 +55,7 @@ export type ChatOptions<S extends z.ZodTypeAny> = BaseGenerateOptions & {
  * response = await chat.send('what is my name?'); // chat history aware conversation
  * ```
  */
-export class Chat<S extends z.ZodTypeAny> {
+export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
   readonly id: string;
   readonly schema?: S;
   private sessionData?: SessionData<S>;

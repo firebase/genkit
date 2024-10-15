@@ -19,21 +19,21 @@ import { z } from '@genkit-ai/core';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { v4 as uuidv4 } from 'uuid';
 import { Chat, ChatOptions } from './chat';
-import { Environment } from './environment';
 import { Genkit } from './genkit';
 
 export type BaseGenerateOptions = Omit<GenerateOptions, 'prompt'>;
 
-export type SessionOptions<S extends z.ZodTypeAny> = BaseGenerateOptions & {
-  /** Schema describing the state. */
-  stateSchema?: S;
-  /** Session store implementation for persisting the session state. */
-  store?: SessionStore<S>;
-  /** Initial state of the session.  */
-  state?: z.infer<S>;
-  /** Custom session Id. */
-  sessionId?: string;
-};
+export type SessionOptions<S extends z.ZodTypeAny = z.ZodTypeAny> =
+  BaseGenerateOptions & {
+    /** Schema describing the state. */
+    stateSchema?: S;
+    /** Session store implementation for persisting the session state. */
+    store?: SessionStore<S>;
+    /** Initial state of the session.  */
+    state?: z.infer<S>;
+    /** Custom session Id. */
+    sessionId?: string;
+  };
 
 /**
  * Session encapsulates a statful execution environment for chat.
@@ -47,14 +47,14 @@ export type SessionOptions<S extends z.ZodTypeAny> = BaseGenerateOptions & {
  * response = await chat.send('tell me a story');
  * ```
  */
-export class Session<S extends z.ZodTypeAny> {
+export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
   readonly id: string;
   readonly schema?: S;
   private sessionData?: SessionData<S>;
   private store: SessionStore<S>;
 
   constructor(
-    readonly parent: Genkit | Environment<S>,
+    readonly parent: Genkit,
     private requestBase?: BaseGenerateOptions,
     options?: {
       id?: string;
@@ -76,12 +76,6 @@ export class Session<S extends z.ZodTypeAny> {
   }
 
   get genkit(): Genkit {
-    if (this.parent instanceof Session) {
-      return this.parent.genkit;
-    }
-    if (this.parent instanceof Environment) {
-      return this.parent.genkit;
-    }
     return this.parent;
   }
 
@@ -167,10 +161,6 @@ export class Session<S extends z.ZodTypeAny> {
       {
         threadName,
         id: this.id,
-        sessionData: {
-          state: options?.state,
-        },
-        stateSchema: options?.stateSchema,
         store: this.store ?? options?.store,
       }
     );
@@ -181,7 +171,7 @@ export class Session<S extends z.ZodTypeAny> {
   }
 }
 
-export interface SessionData<S extends z.ZodTypeAny> {
+export interface SessionData<S extends z.ZodTypeAny = z.ZodTypeAny> {
   state?: z.infer<S>;
   threads?: Record<string, MessageData[]>;
 }
