@@ -65,7 +65,7 @@ export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
     this.schema = options?.stateSchema;
     this.sessionData = options?.sessionData;
     if (!this.sessionData) {
-      this.sessionData = {};
+      this.sessionData = { id: this.id };
     }
     if (!this.sessionData.threads) {
       this.sessionData!.threads = {};
@@ -170,6 +170,7 @@ export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
 }
 
 export interface SessionData<S extends z.ZodTypeAny = z.ZodTypeAny> {
+  id: string;
   state?: z.infer<S>;
   threads?: Record<string, MessageData[]>;
 }
@@ -204,7 +205,7 @@ export class SessionError extends Error {
 export interface SessionStore<S extends z.ZodTypeAny> {
   get(sessionId: string): Promise<SessionData<S> | undefined>;
 
-  save(sessionId: string, data: SessionData<S>): Promise<void>;
+  save(sessionId: string, data: Omit<SessionData<S>, 'id'>): Promise<void>;
 }
 
 export function inMemorySessionStore() {

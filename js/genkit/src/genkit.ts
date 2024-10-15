@@ -915,10 +915,14 @@ export class Genkit {
   async createSession(options?: SessionOptions): Promise<Session> {
     const sessionId = uuidv4();
     const sessionData: SessionData = {
+      id: sessionId,
       state: options?.state,
     };
     if (options?.store) {
-      await options.store.save(sessionId, sessionData);
+      await options.store.save(sessionId, {
+        state: sessionData.state,
+        threads: sessionData.threads,
+      });
     }
     return new Session(this, {
       id: sessionId,

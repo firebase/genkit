@@ -176,10 +176,9 @@ describe('session', () => {
       store,
     });
     const initialState = await store.get(session.id);
-
     assert.deepStrictEqual(initialState, {
       state: undefined,
-      threads: {},
+      threads: undefined,
     });
 
     const chat = session.chat();
