@@ -159,7 +159,7 @@ export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
         ...options,
       },
       {
-        threadName,
+        thread: threadName,
         id: this.id,
         store: this.store ?? options?.store,
       }

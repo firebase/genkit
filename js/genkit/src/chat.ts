@@ -69,11 +69,11 @@ export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
       id?: string;
       sessionData?: SessionData<S>;
       store?: SessionStore<S>;
-      threadName?: string;
+      thread?: string;
     }
   ) {
     this.id = options?.id ?? uuidv4();
-    this.threadName = options?.threadName ?? MAIN_THREAD;
+    this.threadName = options?.thread ?? MAIN_THREAD;
     this.sessionData = options?.sessionData;
     if (!this.sessionData) {
       this.sessionData = {};
