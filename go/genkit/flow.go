@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"reflect"
 	"strconv"
 	"sync"
 	"time"
@@ -510,7 +511,14 @@ func (f *Flow[In, Out, Stream]) execute(ctx context.Context, state *flowState[In
 		traceID := rootSpanContext.TraceID().String()
 		exec.TraceIDs = append(exec.TraceIDs, traceID)
 		// TODO: Save rootSpanContext in the state.
-		// TODO: If input is missing, get it from state.input and overwrite metadata.input.
+		if reflect.ValueOf(input).IsZero() {
+			if state == nil || reflect.ValueOf(state.Input).IsZero() {
+				return base.Zero[Out](), fmt.Errorf("input is missing and cannot be retrieved from state")
+			}
+			input = state.Input
+			// TODO: convert input to string
+			//tracing.SetCustomMetadataAttr(ctx, "flow:input", string(input))
+		}
 		start := time.Now()
 		var err error
 		if err = base.ValidateValue(input, f.inputSchema); err != nil {
