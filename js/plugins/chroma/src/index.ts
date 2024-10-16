@@ -243,7 +243,7 @@ export function chromaIndexer<
         return {
           id,
           value,
-          document: docs[i].text(),
+          document: docs[i].text,
           metadata,
         };
       });

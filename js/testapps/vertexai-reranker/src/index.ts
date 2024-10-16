@@ -81,7 +81,7 @@ export const rerankFlow = ai.defineFlow(
     });
 
     return rerankedDocuments.map((doc) => ({
-      text: doc.text(),
+      text: doc.text,
       score: doc.metadata.score,
     }));
   }

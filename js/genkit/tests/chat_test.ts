@@ -33,12 +33,12 @@ describe('session', () => {
     const session = await ai.chat();
     let response = await session.send('hi');
 
-    assert.strictEqual(response.text(), 'Echo: hi; config: {}');
+    assert.strictEqual(response.text, 'Echo: hi; config: {}');
 
     response = await session.send('bye');
 
     assert.strictEqual(
-      response.text(),
+      response.text,
       'Echo: hi,Echo: hi,; config: {},bye; config: {}'
     );
     assert.deepStrictEqual(response.messages, [
@@ -64,21 +64,21 @@ describe('session', () => {
 
     let chunks: string[] = [];
     for await (const chunk of stream) {
-      chunks.push(chunk.text());
+      chunks.push(chunk.text);
     }
-    assert.strictEqual((await response).text(), 'Echo: hi; config: {}');
+    assert.strictEqual((await response).text, 'Echo: hi; config: {}');
     assert.deepStrictEqual(chunks, ['3', '2', '1']);
 
     ({ response, stream } = await session.sendStream('bye'));
 
     chunks = [];
     for await (const chunk of stream) {
-      chunks.push(chunk.text());
+      chunks.push(chunk.text);
     }
 
     assert.deepStrictEqual(chunks, ['3', '2', '1']);
     assert.strictEqual(
-      (await response).text(),
+      (await response).text,
       'Echo: hi,Echo: hi,; config: {},bye; config: {}'
     );
     assert.deepStrictEqual((await response).messages, [
@@ -109,7 +109,7 @@ describe('session', () => {
     const response = await session.send('hi');
 
     assert.strictEqual(
-      response.text(),
+      response.text,
       'Echo: hi Genkit,hi; config: {"temperature":11}'
     );
   });
@@ -128,7 +128,7 @@ describe('session', () => {
     );
 
     assert.strictEqual(
-      response.text(),
+      response.text,
       'Echo: hi Genkit; config: {"version":"abc","temperature":11}'
     );
   });

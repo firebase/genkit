@@ -34,12 +34,12 @@ describe('session', () => {
     const chat = session.chat();
     let response = await chat.send('hi');
 
-    assert.strictEqual(response.text(), 'Echo: hi; config: {}');
+    assert.strictEqual(response.text, 'Echo: hi; config: {}');
 
     response = await chat.send('bye');
 
     assert.strictEqual(
-      response.text(),
+      response.text,
       'Echo: hi,Echo: hi,; config: {},bye; config: {}'
     );
     assert.deepStrictEqual(response.messages, [
@@ -70,14 +70,14 @@ describe('session', () => {
     });
 
     let response = await session.chat().send('hi main');
-    assert.strictEqual(response.text(), 'Echo: hi main; config: {}');
+    assert.strictEqual(response.text, 'Echo: hi main; config: {}');
 
     const lawyerChat = session.chat('lawyerChat', {
       system: 'talk like a lawyer',
     });
     response = await lawyerChat.send('hi lawyerChat');
     assert.strictEqual(
-      response.text(),
+      response.text,
       'Echo: system: talk like a lawyer,hi lawyerChat; config: {}'
     );
 
@@ -86,7 +86,7 @@ describe('session', () => {
     });
     response = await pirateChat.send('hi pirateChat');
     assert.strictEqual(
-      response.text(),
+      response.text,
       'Echo: system: talk like a pirate,hi pirateChat; config: {}'
     );
 
@@ -138,21 +138,21 @@ describe('session', () => {
 
     let chunks: string[] = [];
     for await (const chunk of stream) {
-      chunks.push(chunk.text());
+      chunks.push(chunk.text);
     }
-    assert.strictEqual((await response).text(), 'Echo: hi; config: {}');
+    assert.strictEqual((await response).text, 'Echo: hi; config: {}');
     assert.deepStrictEqual(chunks, ['3', '2', '1']);
 
     ({ response, stream } = await chat.sendStream('bye'));
 
     chunks = [];
     for await (const chunk of stream) {
-      chunks.push(chunk.text());
+      chunks.push(chunk.text);
     }
 
     assert.deepStrictEqual(chunks, ['3', '2', '1']);
     assert.strictEqual(
-      (await response).text(),
+      (await response).text,
       'Echo: hi,Echo: hi,; config: {},bye; config: {}'
     );
     assert.deepStrictEqual((await response).messages, [
@@ -251,7 +251,7 @@ describe('session', () => {
       ]);
       let response = await mainChat.send('hi again');
       assert.strictEqual(
-        response.text(),
+        response.text,
         'Echo: hi,Echo: hi,; config: {"temperature":1},bye,Echo: hi,Echo: hi,; config: {"temperature":1},bye,; config: {"temperature":1},hi again; config: {}'
       );
       assert.deepStrictEqual(mainChat.messages, [

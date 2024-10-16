@@ -15,7 +15,7 @@
  */
 
 import { gemini15Flash } from '@genkit-ai/googleai';
-import { promptRef, z } from 'genkit';
+import { z } from 'genkit';
 import { HelloFullNameSchema, HelloSchema } from '../common/types.js';
 import { ai } from '../genkit.js';
 
@@ -96,12 +96,12 @@ ai.defineStreamingFlow(
     outputSchema: z.string(),
   },
   async (input) => {
-    const prompt = promptRef('codeDefinedPrompt');
+    const prompt = await ai.prompt('codeDefinedPrompt');
     const response = await prompt.generate({
       input,
     });
 
-    return response.text();
+    return response.text;
   }
 );
 
@@ -116,8 +116,8 @@ ai.defineFlow(
     outputSchema: z.string(),
   },
   async (input) => {
-    const prompt = promptRef('hello');
-    return (await prompt.generate({ input })).text();
+    const prompt = await ai.prompt('hello');
+    return (await prompt.generate({ input })).text;
   }
 );
 
@@ -132,8 +132,8 @@ ai.defineFlow(
     outputSchema: z.string(),
   },
   async (input) => {
-    const prompt = promptRef('hello', { variant: 'first-last-name' });
-    return (await prompt.generate({ input })).text();
+    const prompt = await ai.prompt('hello', { variant: 'first-last-name' });
+    return (await prompt.generate({ input })).text;
   }
 );
 
@@ -148,8 +148,8 @@ ai.defineFlow(
     outputSchema: z.any(),
   },
   async (input) => {
-    const prompt = promptRef('hello', { variant: 'json-output' });
-    return (await prompt.generate({ input })).output();
+    const prompt = await ai.prompt('hello', { variant: 'json-output' });
+    return (await prompt.generate({ input })).output;
   }
 );
 
@@ -164,8 +164,8 @@ ai.defineFlow(
     outputSchema: z.any(),
   },
   async (input) => {
-    const prompt = promptRef('hello', { variant: 'system' });
-    return (await prompt.generate({ input })).text();
+    const prompt = await ai.prompt('hello', { variant: 'system' });
+    return (await prompt.generate({ input })).text;
   }
 );
 
@@ -180,8 +180,8 @@ ai.defineFlow(
     outputSchema: z.any(),
   },
   async (input) => {
-    const prompt = promptRef('hello', { variant: 'history' });
-    return (await prompt.generate({ input })).text();
+    const prompt = await ai.prompt('hello', { variant: 'history' });
+    return (await prompt.generate({ input })).text;
   }
 );
 

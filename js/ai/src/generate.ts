@@ -70,8 +70,8 @@ export class Message<T = unknown> implements MessageData {
    *
    * @returns The structured output contained in the message.
    */
-  output(): T {
-    return this.data() || extractJson<T>(this.text());
+  get output(): T {
+    return this.data || extractJson<T>(this.text);
   }
 
   toolResponseParts(): ToolResponsePart[] {
@@ -83,7 +83,7 @@ export class Message<T = unknown> implements MessageData {
    * Concatenates all `text` parts present in the message with no delimiter.
    * @returns A string of all concatenated text parts.
    */
-  text(): string {
+  get text(): string {
     return this.content.map((part) => part.text || '').join('');
   }
 
@@ -92,7 +92,7 @@ export class Message<T = unknown> implements MessageData {
    * (for example) an image from a generation expected to create one.
    * @returns The first detected `media` part in the message.
    */
-  media(): { url: string; contentType?: string } | null {
+  get media(): { url: string; contentType?: string } | null {
     return this.content.find((part) => part.media)?.media || null;
   }
 
@@ -100,7 +100,7 @@ export class Message<T = unknown> implements MessageData {
    * Returns the first detected `data` part of a message.
    * @returns The first `data` part detected in the message (if any).
    */
-  data(): T | null {
+  get data(): T | null {
     return this.content.find((part) => part.data)?.data as T | null;
   }
 
@@ -108,7 +108,7 @@ export class Message<T = unknown> implements MessageData {
    * Returns all tool request found in this message.
    * @returns Array of all tool request found in this message.
    */
-  toolRequests(): ToolRequestPart[] {
+  get toolRequests(): ToolRequestPart[] {
     return this.content.filter(
       (part) => !!part.toolRequest
     ) as ToolRequestPart[];
@@ -187,7 +187,7 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
     }
 
     if (request?.output?.schema || this.request?.output?.schema) {
-      const o = this.output();
+      const o = this.output;
       parseSchema(o, {
         jsonSchema: request?.output?.schema || this.request?.output?.schema,
       });
@@ -211,8 +211,8 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
    * @param index The candidate index from which to extract output. If not provided, finds first candidate that conforms to output schema.
    * @returns The structured output contained in the selected candidate.
    */
-  output(): O | null {
-    return this.message?.output() || null;
+  get output(): O | null {
+    return this.message?.output || null;
   }
 
   /**
@@ -220,8 +220,8 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
    * @param index The candidate index from which to extract text, defaults to first candidate.
    * @returns A string of all concatenated text parts.
    */
-  text(): string {
-    return this.message?.text() || '';
+  get text(): string {
+    return this.message?.text || '';
   }
 
   /**
@@ -230,8 +230,8 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
    * @param index The candidate index from which to extract media, defaults to first candidate.
    * @returns The first detected `media` part in the candidate.
    */
-  media(): { url: string; contentType?: string } | null {
-    return this.message?.media() || null;
+  get media(): { url: string; contentType?: string } | null {
+    return this.message?.media || null;
   }
 
   /**
@@ -239,8 +239,8 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
    * @param index The candidate index from which to extract data, defaults to first candidate.
    * @returns The first `data` part detected in the candidate (if any).
    */
-  data(): O | null {
-    return this.message?.data() || null;
+  get data(): O | null {
+    return this.message?.data || null;
   }
 
   /**
@@ -248,8 +248,8 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
    * @param index The candidate index from which to extract tool requests, defaults to first candidate.
    * @returns Array of all tool request found in the candidate.
    */
-  toolRequests(): ToolRequestPart[] {
-    return this.message?.toolRequests() || [];
+  get toolRequests(): ToolRequestPart[] {
+    return this.message?.toolRequests || [];
   }
 
   /**
@@ -316,7 +316,7 @@ export class GenerateResponseChunk<T = unknown>
    * Concatenates all `text` parts present in the chunk with no delimiter.
    * @returns A string of all concatenated text parts.
    */
-  text(): string {
+  get text(): string {
     return this.content.map((part) => part.text || '').join('');
   }
 
@@ -325,7 +325,7 @@ export class GenerateResponseChunk<T = unknown>
    * (for example) an image from a generation expected to create one.
    * @returns The first detected `media` part in the chunk.
    */
-  media(): { url: string; contentType?: string } | null {
+  get media(): { url: string; contentType?: string } | null {
     return this.content.find((part) => part.media)?.media || null;
   }
 
@@ -333,7 +333,7 @@ export class GenerateResponseChunk<T = unknown>
    * Returns the first detected `data` part of a chunk.
    * @returns The first `data` part detected in the chunk (if any).
    */
-  data(): T | null {
+  get data(): T | null {
     return this.content.find((part) => part.data)?.data as T | null;
   }
 
@@ -341,7 +341,7 @@ export class GenerateResponseChunk<T = unknown>
    * Returns all tool request found in this chunk.
    * @returns Array of all tool request found in this chunk.
    */
-  toolRequests(): ToolRequestPart[] {
+  get toolRequests(): ToolRequestPart[] {
     return this.content.filter(
       (part) => !!part.toolRequest
     ) as ToolRequestPart[];
@@ -351,7 +351,7 @@ export class GenerateResponseChunk<T = unknown>
    * Attempts to extract the longest valid JSON substring from the accumulated chunks.
    * @returns The longest valid JSON substring found in the accumulated chunks.
    */
-  output(): T | null {
+  get output(): T | null {
     if (!this.accumulatedChunks) return null;
     const accumulatedText = this.accumulatedChunks
       .map((chunk) => chunk.content.map((part) => part.text || '').join(''))

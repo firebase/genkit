@@ -29,7 +29,7 @@ const tests: Record<string, TestCase> = {
       prompt: 'just say "Hi", literally',
     });
 
-    const got = response.text().trim();
+    const got = response.text.trim();
     assert.match(got, /Hi/i);
   },
   multimodal: async (model: string) => {
@@ -54,7 +54,7 @@ const tests: Record<string, TestCase> = {
     });
 
     const want = '';
-    const got = response.text().trim();
+    const got = response.text.trim();
     assert.match(got, /plus/i);
   },
   history: async (model: string) => {
@@ -74,11 +74,11 @@ const tests: Record<string, TestCase> = {
       messages: response1.messages,
     });
 
-    const got = response.text().trim();
+    const got = response.text.trim();
     assert.match(got, /Glorb/);
   },
   'system prompt': async (model: string) => {
-    const response = await generate({
+    const { text } = await generate({
       model,
       prompt: 'Hi',
       messages: [
@@ -94,7 +94,7 @@ const tests: Record<string, TestCase> = {
     });
 
     const want = 'Bye';
-    const got = response.text().trim();
+    const got = text.trim();
     assert.equal(got, want);
   },
   'structured output': async (model: string) => {
@@ -114,7 +114,7 @@ const tests: Record<string, TestCase> = {
       name: 'Jack',
       occupation: 'Lumberjack',
     };
-    const got = response.output();
+    const got = response.output;
     assert.deepEqual(want, got);
   },
   'tool calling': async (model: string) => {
@@ -125,13 +125,13 @@ const tests: Record<string, TestCase> = {
       skip();
     }
 
-    const response = await generate({
+    const { text } = await generate({
       model,
       prompt: 'what is a gablorken of 2? use provided tool',
       tools: ['gablorkenTool'],
     });
 
-    const got = response.text().trim();
+    const got = text.trim();
     assert.match(got, /9.407/);
   },
 };

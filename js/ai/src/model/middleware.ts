@@ -230,7 +230,7 @@ const CONTEXT_ITEM_TEMPLATE = (
   } else if (options?.citationKey === undefined) {
     out += `[${d.metadata?.['ref'] || d.metadata?.['id'] || index}]: `;
   }
-  out += d.text() + '\n';
+  out += d.text + '\n';
   return out;
 };
 

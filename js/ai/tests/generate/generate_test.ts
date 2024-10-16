@@ -108,7 +108,7 @@ describe('GenerateResponse', () => {
         const response = new GenerateResponse(
           test.responseData as GenerateResponseData
         );
-        assert.deepStrictEqual(response.output(), test.expectedOutput);
+        assert.deepStrictEqual(response.output, test.expectedOutput);
       });
     }
   });
@@ -213,7 +213,7 @@ describe('GenerateResponse', () => {
         }),
         finishReason: 'stop',
       });
-      assert.deepStrictEqual(response.toolRequests(), []);
+      assert.deepStrictEqual(response.toolRequests, []);
     });
     it('returns tool call if present', () => {
       const toolCall = {
@@ -230,7 +230,7 @@ describe('GenerateResponse', () => {
         }),
         finishReason: 'stop',
       });
-      assert.deepStrictEqual(response.toolRequests(), [toolCall]);
+      assert.deepStrictEqual(response.toolRequests, [toolCall]);
     });
     it('returns all tool calls', () => {
       const toolCall1 = {
@@ -254,7 +254,7 @@ describe('GenerateResponse', () => {
         }),
         finishReason: 'stop',
       });
-      assert.deepStrictEqual(response.toolRequests(), [toolCall1, toolCall2]);
+      assert.deepStrictEqual(response.toolRequests, [toolCall1, toolCall2]);
     });
   });
 });
@@ -515,7 +515,7 @@ describe('GenerateResponseChunk', () => {
           const responseChunk: GenerateResponseChunk =
             new GenerateResponseChunk(chunkData, accumulatedChunks);
 
-          const output = responseChunk.output();
+          const output = responseChunk.output;
 
           assert.deepStrictEqual(output, test.correctJson);
         });
@@ -601,7 +601,7 @@ describe('generate', () => {
     );
 
     const want = '[Echo: (banana)]';
-    assert.deepStrictEqual(response.text(), want);
+    assert.deepStrictEqual(response.text, want);
   });
 });
 

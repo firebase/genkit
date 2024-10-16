@@ -175,7 +175,7 @@ describe('Prompt', () => {
         );
         const prompt = testPrompt(model, `Hello {{name}}, how are you?`);
         const response = await prompt.generate({ input: { name: 'Bob' } });
-        assert.equal(response.text(), `Hello Bob, how are you?`);
+        assert.equal(response.text, `Hello Bob, how are you?`);
       });
     });
 
@@ -376,7 +376,7 @@ describe('DotpromptRef', () => {
       const ref = promptRef('generatePrompt');
       const response = await ref.generate({ input: { name: 'Alice' } });
 
-      assert.equal(response.text(), 'Hello Alice, this is a test prompt.');
+      assert.equal(response.text, 'Hello Alice, this is a test prompt.');
     });
   });
 

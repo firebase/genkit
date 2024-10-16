@@ -218,7 +218,7 @@ export function configurePineconeIndexer<
             ...docs[i].metadata,
           };
 
-          metadata[textKey] = docs[i].text();
+          metadata[textKey] = docs[i].text;
           const id = Md5.hashStr(JSON.stringify(docs[i]));
           return {
             id,

@@ -107,7 +107,7 @@ defineFlow(
     const response = await threeGreetingsPrompt.generate<typeof outputSchema>({
       input: { name: 'Fred' },
     });
-    return response.output()?.likeAPirate;
+    return response.output?.likeAPirate;
   }
 );
 

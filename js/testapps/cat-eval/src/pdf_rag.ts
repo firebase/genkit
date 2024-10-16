@@ -61,13 +61,13 @@ export const pdfQA = ai.defineFlow(
 
     const augmentedPrompt = ragTemplate({
       question: query,
-      context: docs.map((d) => d.text()).join('\n\n'),
+      context: docs.map((d) => d.text).join('\n\n'),
     });
     const llmResponse = await ai.generate({
       model: geminiPro,
       prompt: augmentedPrompt,
     });
-    return llmResponse.text();
+    return llmResponse.text;
   }
 );
 
@@ -146,7 +146,7 @@ export const synthesizeQuestions = ai.defineFlow(
           text: `Generate one question about the text below: ${chunks[i]}`,
         },
       });
-      questions.push(qResponse.text());
+      questions.push(qResponse.text);
     }
     return questions;
   }

@@ -186,7 +186,7 @@ export function textEmbeddingGeckoEmbedder(
       const response = await predictClient(
         input.map((i) => {
           return {
-            content: i.text(),
+            content: i.text,
             task_type: options?.taskType,
             title: options?.title,
           };
