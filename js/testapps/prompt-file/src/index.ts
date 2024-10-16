@@ -15,10 +15,10 @@
  */
 
 import { googleAI } from '@genkit-ai/googleai';
-import { defineHelper, dotprompt, genkit, z } from 'genkit';
+import { genkit, z } from 'genkit';
 
 const ai = genkit({
-  plugins: [googleAI(), dotprompt()],
+  plugins: [googleAI()],
 });
 
 /*
@@ -44,7 +44,7 @@ const RecipeSchema = ai.defineSchema(
 // If it fails, due to the prompt file being invalid, the process will crash,
 // instead of us getting a more mysterious failure later when the flow runs.
 
-defineHelper('list', (data: any) => {
+ai.defineHelper('list', (data: any) => {
   if (!Array.isArray(data)) {
     return '';
   }

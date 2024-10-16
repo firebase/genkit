@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
+import { Genkit } from 'genkit';
 import {
   BaseEvalDataPoint,
   EvalResponse,
   EvaluatorAction,
   Score,
-  defineEvaluator,
 } from 'genkit/evaluator';
 import { ByoMetric } from '..';
 
@@ -58,11 +58,12 @@ export function isRegexMetric(metric: ByoMetric) {
  * Configures regex evaluators.
  */
 export function createRegexEvaluators(
+  ai: Genkit,
   metrics: RegexMetric[]
 ): EvaluatorAction[] {
   return metrics.map((metric) => {
     const regexMetric = metric as RegexMetric;
-    return defineEvaluator(
+    return ai.defineEvaluator(
       {
         name: `byo/${metric.name.toLocaleLowerCase()}`,
         displayName: 'Regex Match',

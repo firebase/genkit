@@ -31,7 +31,7 @@ import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { MessageSchema, dotprompt, genkit, prompt, run, z } from 'genkit';
+import { MessageSchema, genkit, run, z } from 'genkit';
 import { runWithRegistry } from 'genkit/registry';
 import { Allow, parse } from 'partial-json';
 
@@ -53,7 +53,7 @@ enableGoogleCloudTelemetry({
 });
 
 const ai = genkit({
-  plugins: [googleAI(), vertexAI(), dotprompt()],
+  plugins: [googleAI(), vertexAI()],
 });
 
 const app = initializeApp();
@@ -275,7 +275,7 @@ export const multimodalFlow = ai.defineFlow(
 );
 
 const destinationsRetriever = runWithRegistry(ai.registry, () =>
-  defineFirestoreRetriever({
+  defineFirestoreRetriever(ai, {
     name: 'destinationsRetriever',
     firestore: getFirestore(app),
     collection: 'destinations',
@@ -344,7 +344,7 @@ export const dotpromptContext = ai.defineFlow(
     ];
 
     const result = await (
-      await prompt('dotpromptContext')
+      await ai.prompt('dotpromptContext')
     ).generate({
       input: { question: question },
       docs,

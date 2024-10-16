@@ -15,8 +15,7 @@
  */
 
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
-import { generate, Genkit, genkit, run, z } from 'genkit';
-import { defineModel } from 'genkit/model';
+import { Genkit, genkit, run, z } from 'genkit';
 import { runWithRegistry } from 'genkit/registry';
 import { appendSpan } from 'genkit/tracing';
 import assert from 'node:assert';
@@ -137,7 +136,7 @@ describe('GoogleCloudTracing', () => {
 
   it('adds the genkit/model label for model actions', async () => {
     const echoModel = runWithRegistry(ai.registry, () =>
-      defineModel(
+      ai.defineModel(
         {
           name: 'echoModel',
         },
@@ -162,7 +161,7 @@ describe('GoogleCloudTracing', () => {
     );
     const testFlow = createFlow(ai, 'modelFlow', async () => {
       return run('runFlow', async () => {
-        generate({
+        ai.generate({
           model: echoModel,
           prompt: 'Testing model telemetry',
         });

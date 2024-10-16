@@ -14,4 +14,16 @@
  * limitations under the License.
  */
 
-export * from '@genkit-ai/ai/reranker';
+export {
+  CommonRerankerOptionsSchema,
+  RankedDocument,
+  RankedDocumentDataSchema,
+  RerankerInfoSchema,
+  rerankerRef,
+  type RankedDocumentData,
+  type RerankerAction,
+  type RerankerArgument,
+  type RerankerInfo,
+  type RerankerParams,
+  type RerankerReference,
+} from '@genkit-ai/ai/reranker';

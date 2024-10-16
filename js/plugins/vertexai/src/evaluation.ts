@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Action, z } from 'genkit';
+import { Action, Genkit, z } from 'genkit';
 import { GoogleAuth } from 'google-auth-library';
 import { EvaluatorFactory } from './evaluator_factory.js';
 
@@ -50,6 +50,7 @@ export type VertexAIEvaluationMetric =
   | VertexAIEvaluationMetricConfig;
 
 export function vertexEvaluators(
+  ai: Genkit,
   auth: GoogleAuth,
   metrics: VertexAIEvaluationMetric[],
   projectId: string,
@@ -62,28 +63,28 @@ export function vertexEvaluators(
 
     switch (metricType) {
       case VertexAIEvaluationMetricType.BLEU: {
-        return createBleuEvaluator(factory, metricSpec);
+        return createBleuEvaluator(ai, factory, metricSpec);
       }
       case VertexAIEvaluationMetricType.ROUGE: {
-        return createRougeEvaluator(factory, metricSpec);
+        return createRougeEvaluator(ai, factory, metricSpec);
       }
       case VertexAIEvaluationMetricType.FLUENCY: {
-        return createFluencyEvaluator(factory, metricSpec);
+        return createFluencyEvaluator(ai, factory, metricSpec);
       }
       case VertexAIEvaluationMetricType.SAFETY: {
-        return createSafetyEvaluator(factory, metricSpec);
+        return createSafetyEvaluator(ai, factory, metricSpec);
       }
       case VertexAIEvaluationMetricType.GROUNDEDNESS: {
-        return createGroundednessEvaluator(factory, metricSpec);
+        return createGroundednessEvaluator(ai, factory, metricSpec);
       }
       case VertexAIEvaluationMetricType.SUMMARIZATION_QUALITY: {
-        return createSummarizationQualityEvaluator(factory, metricSpec);
+        return createSummarizationQualityEvaluator(ai, factory, metricSpec);
       }
       case VertexAIEvaluationMetricType.SUMMARIZATION_HELPFULNESS: {
-        return createSummarizationHelpfulnessEvaluator(factory, metricSpec);
+        return createSummarizationHelpfulnessEvaluator(ai, factory, metricSpec);
       }
       case VertexAIEvaluationMetricType.SUMMARIZATION_VERBOSITY: {
-        return createSummarizationVerbosityEvaluator(factory, metricSpec);
+        return createSummarizationVerbosityEvaluator(ai, factory, metricSpec);
       }
     }
   });
@@ -103,10 +104,12 @@ const BleuResponseSchema = z.object({
 
 // TODO: Add support for batch inputs
 function createBleuEvaluator(
+  ai: Genkit,
   factory: EvaluatorFactory,
   metricSpec: any
 ): Action {
   return factory.create(
+    ai,
     {
       metric: VertexAIEvaluationMetricType.BLEU,
       displayName: 'BLEU',
@@ -143,10 +146,12 @@ const RougeResponseSchema = z.object({
 
 // TODO: Add support for batch inputs
 function createRougeEvaluator(
+  ai: Genkit,
   factory: EvaluatorFactory,
   metricSpec: any
 ): Action {
   return factory.create(
+    ai,
     {
       metric: VertexAIEvaluationMetricType.ROUGE,
       displayName: 'ROUGE',
@@ -182,10 +187,12 @@ const FluencyResponseSchema = z.object({
 });
 
 function createFluencyEvaluator(
+  ai: Genkit,
   factory: EvaluatorFactory,
   metricSpec: any
 ): Action {
   return factory.create(
+    ai,
     {
       metric: VertexAIEvaluationMetricType.FLUENCY,
       displayName: 'Fluency',
@@ -222,10 +229,12 @@ const SafetyResponseSchema = z.object({
 });
 
 function createSafetyEvaluator(
+  ai: Genkit,
   factory: EvaluatorFactory,
   metricSpec: any
 ): Action {
   return factory.create(
+    ai,
     {
       metric: VertexAIEvaluationMetricType.SAFETY,
       displayName: 'Safety',
@@ -262,10 +271,12 @@ const GroundednessResponseSchema = z.object({
 });
 
 function createGroundednessEvaluator(
+  ai: Genkit,
   factory: EvaluatorFactory,
   metricSpec: any
 ): Action {
   return factory.create(
+    ai,
     {
       metric: VertexAIEvaluationMetricType.GROUNDEDNESS,
       displayName: 'Groundedness',
@@ -304,10 +315,12 @@ const SummarizationQualityResponseSchema = z.object({
 });
 
 function createSummarizationQualityEvaluator(
+  ai: Genkit,
   factory: EvaluatorFactory,
   metricSpec: any
 ): Action {
   return factory.create(
+    ai,
     {
       metric: VertexAIEvaluationMetricType.SUMMARIZATION_QUALITY,
       displayName: 'Summarization quality',
@@ -346,10 +359,12 @@ const SummarizationHelpfulnessResponseSchema = z.object({
 });
 
 function createSummarizationHelpfulnessEvaluator(
+  ai: Genkit,
   factory: EvaluatorFactory,
   metricSpec: any
 ): Action {
   return factory.create(
+    ai,
     {
       metric: VertexAIEvaluationMetricType.SUMMARIZATION_HELPFULNESS,
       displayName: 'Summarization helpfulness',
@@ -389,10 +404,12 @@ const SummarizationVerbositySchema = z.object({
 });
 
 function createSummarizationVerbosityEvaluator(
+  ai: Genkit,
   factory: EvaluatorFactory,
   metricSpec: any
 ): Action {
   return factory.create(
+    ai,
     {
       metric: VertexAIEvaluationMetricType.SUMMARIZATION_VERBOSITY,
       displayName: 'Summarization verbosity',

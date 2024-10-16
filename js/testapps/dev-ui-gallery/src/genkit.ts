@@ -25,7 +25,7 @@ import {
   vertexAI,
   VertexAIEvaluationMetricType,
 } from '@genkit-ai/vertexai';
-import { dotprompt, genkit } from 'genkit';
+import { genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';
 import { ollama } from 'genkitx-ollama';
 import { pinecone } from 'genkitx-pinecone';
@@ -125,8 +125,5 @@ export const ai = genkit({
         GenkitMetric.MALICIOUSNESS,
       ],
     }),
-
-    // prompt files
-    dotprompt({ dir: './prompts' }),
   ],
 });

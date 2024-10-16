@@ -21,7 +21,8 @@ import { IIndexDatapoint } from '../../src/vector-search/types';
 import { upsertDatapoints } from '../../src/vector-search/upsert_datapoints';
 
 describe('upsertDatapoints', () => {
-  it('upsertDatapoints sends the correct request and handles response', async (t) => {
+  // FIXME -- t.mock.method is not supported node above 20
+  it.skip('upsertDatapoints sends the correct request and handles response', async (t) => {
     // Mocking the fetch method within the test scope
     t.mock.method(global, 'fetch', async (url, options) => {
       return {

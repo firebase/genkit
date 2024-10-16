@@ -59,7 +59,7 @@ Helpful Answer:`;
 }
 
 export const pdfChatRetrieverFirebase = runWithRegistry(ai.registry, () =>
-  defineFirestoreRetriever({
+  defineFirestoreRetriever(ai, {
     name: 'pdfChatRetrieverFirebase',
     firestore,
     collection: 'pdf-qa',

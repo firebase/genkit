@@ -14,12 +14,8 @@
  * limitations under the License.
  */
 
-import { z } from 'genkit';
-import {
-  defineEmbedder,
-  embedderRef,
-  EmbedderReference,
-} from 'genkit/embedder';
+import { Genkit, z } from 'genkit';
+import { EmbedderReference, embedderRef } from 'genkit/embedder';
 import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from './index.js';
 import { PredictClient, predictModel } from './predict.js';
@@ -145,6 +141,7 @@ interface EmbeddingPrediction {
 }
 
 export function textEmbeddingGeckoEmbedder(
+  ai: Genkit,
   name: string,
   client: GoogleAuth,
   options: PluginOptions
@@ -175,7 +172,7 @@ export function textEmbeddingGeckoEmbedder(
     return predictClients[requestLocation];
   };
 
-  return defineEmbedder(
+  return ai.defineEmbedder(
     {
       name: embedder.name,
       configSchema: embedder.configSchema,

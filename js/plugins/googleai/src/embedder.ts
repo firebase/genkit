@@ -15,8 +15,8 @@
  */
 
 import { EmbedContentRequest, GoogleGenerativeAI } from '@google/generative-ai';
-import { z } from 'genkit';
-import { defineEmbedder, embedderRef } from 'genkit/embedder';
+import { Genkit, z } from 'genkit';
+import { embedderRef } from 'genkit/embedder';
 import { PluginOptions } from './index.js';
 
 export const TaskTypeSchema = z.enum([
@@ -58,6 +58,7 @@ export const SUPPORTED_MODELS = {
 };
 
 export function textEmbeddingGeckoEmbedder(
+  ai: Genkit,
   name: string,
   options: PluginOptions
 ) {
@@ -74,7 +75,7 @@ export function textEmbeddingGeckoEmbedder(
     model: name,
   });
   const embedder = SUPPORTED_MODELS[name];
-  return defineEmbedder(
+  return ai.defineEmbedder(
     {
       name: embedder.name,
       configSchema: TextEmbeddingGeckoConfigSchema,

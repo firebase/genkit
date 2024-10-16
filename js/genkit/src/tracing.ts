@@ -14,4 +14,36 @@
  * limitations under the License.
  */
 
-export * from '@genkit-ai/core/tracing';
+export {
+  GenkitSpanProcessorWrapper,
+  InstrumentationLibrarySchema,
+  LinkSchema,
+  PathMetadata,
+  PathMetadataSchema,
+  SPAN_TYPE_ATTR,
+  SpanContextSchema,
+  SpanData,
+  SpanDataSchema,
+  SpanMetadata,
+  SpanMetadataSchema,
+  SpanStatusSchema,
+  TimeEventSchema,
+  TraceData,
+  TraceDataSchema,
+  TraceMetadata,
+  TraceMetadataSchema,
+  TraceServerExporter,
+  appendSpan,
+  cleanUpTracing,
+  enableTelemetry,
+  ensureBasicTelemetryInstrumentation,
+  flushTracing,
+  newTrace,
+  runInNewSpan,
+  setCustomMetadataAttribute,
+  setCustomMetadataAttributes,
+  setTelemetryServerUrl,
+  spanMetadataAls,
+  toDisplayPath,
+  traceMetadataAls,
+} from '@genkit-ai/core/tracing';

@@ -14,4 +14,23 @@
  * limitations under the License.
  */
 
-export * from '@genkit-ai/ai/evaluator';
+export {
+  BaseDataPointSchema,
+  BaseEvalDataPointSchema,
+  EvalResponseSchema,
+  EvalResponsesSchema,
+  EvaluatorInfoSchema,
+  ScoreSchema,
+  evaluatorRef,
+  type BaseDataPoint,
+  type BaseEvalDataPoint,
+  type Dataset,
+  type EvalResponse,
+  type EvalResponses,
+  type EvaluatorAction,
+  type EvaluatorArgument,
+  type EvaluatorInfo,
+  type EvaluatorParams,
+  type EvaluatorReference,
+  type Score,
+} from '@genkit-ai/ai/evaluator';

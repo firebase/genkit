@@ -32,6 +32,7 @@ import { AnthropicVertex } from '@anthropic-ai/vertex-sdk';
 import {
   GENKIT_CLIENT_HEADER,
   GenerateRequest,
+  Genkit,
   Part as GenkitPart,
   MessageData,
   ModelReference,
@@ -41,7 +42,6 @@ import {
 } from 'genkit';
 import {
   GenerationCommonConfigSchema,
-  defineModel,
   getBasicUsageStats,
   modelRef,
 } from 'genkit/model';
@@ -360,6 +360,7 @@ function toAnthropicToolResponse(part: Part): ToolResultBlockParam {
 }
 
 export function anthropicModel(
+  ai: Genkit,
   modelName: string,
   projectId: string,
   region: string
@@ -382,7 +383,7 @@ export function anthropicModel(
     throw new Error(`unsupported Anthropic model name ${modelName}`);
   }
 
-  return defineModel(
+  return ai.defineModel(
     {
       name: model.name,
       label: model.info?.label,

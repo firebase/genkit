@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-import { GENKIT_CLIENT_HEADER, z } from 'genkit';
+import { Genkit, GENKIT_CLIENT_HEADER, z } from 'genkit';
 import { GenerateRequest, ModelAction, modelRef } from 'genkit/model';
 import { GoogleAuth } from 'google-auth-library';
 import OpenAI from 'openai';
 import {
-  OpenAIConfigSchema,
   openaiCompatibleModel,
+  OpenAIConfigSchema,
 } from './openai_compatibility.js';
 
 export const ModelGardenModelConfigSchema = OpenAIConfigSchema.extend({
@@ -91,6 +91,7 @@ export const SUPPORTED_OPENAI_FORMAT_MODELS = {
 };
 
 export function modelGardenOpenaiCompatibleModel(
+  ai: Genkit,
   name: string,
   projectId: string,
   location: string,
@@ -118,5 +119,5 @@ export function modelGardenOpenaiCompatibleModel(
       },
     });
   };
-  return openaiCompatibleModel(model, clientFactory);
+  return openaiCompatibleModel(ai, model, clientFactory);
 }

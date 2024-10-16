@@ -16,10 +16,9 @@
 
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
-import { googleAI } from '@genkit-ai/googleai';
+import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import {
   claude3Sonnet,
-  geminiPro,
   llama31,
   textEmbeddingGecko,
   vertexAI,
@@ -45,7 +44,7 @@ export const ai = genkit({
   plugins: [
     googleAI({ apiVersion: ['v1'] }),
     genkitEval({
-      judge: geminiPro,
+      judge: gemini15Flash,
       judgeConfig: {
         safetySettings: [
           {
@@ -72,7 +71,7 @@ export const ai = genkit({
       evaluators: {
         criteria: ['coherence'],
         labeledCriteria: ['correctness'],
-        judge: geminiPro,
+        judge: gemini15Flash,
       },
     }),
     vertexAI({
@@ -123,5 +122,5 @@ export const ai = genkit({
       },
     ]),
   ],
-  model: geminiPro,
+  model: gemini15Flash,
 });

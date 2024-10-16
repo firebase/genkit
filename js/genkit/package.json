@@ -132,6 +132,12 @@
       "require": "./lib/tool.js",
       "import": "./lib/tool.mjs",
       "default": "./lib/tool.js"
+    },
+    "./plugin": {
+      "types": "./lib/plugin.d.ts",
+      "require": "./lib/plugin.js",
+      "import": "./lib/plugin.mjs",
+      "default": "./lib/plugin.js"
     }
   },
   "typesVersions": {
@@ -180,6 +186,9 @@
       ],
       "tool": [
         "lib/tool"
+      ],
+      "plugin": [
+        "lib/plugin"
       ]
     }
   }

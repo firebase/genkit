@@ -14,4 +14,29 @@
  * limitations under the License.
  */
 
-export * from '@genkit-ai/ai/retriever';
+export {
+  CommonRetrieverOptionsSchema,
+  Document,
+  DocumentData,
+  DocumentDataSchema,
+  IndexerInfoSchema,
+  MediaPart,
+  Part,
+  RetrieverInfoSchema,
+  TextPart,
+  indexerRef,
+  retrieverRef,
+  type IndexerAction,
+  type IndexerArgument,
+  type IndexerFn,
+  type IndexerInfo,
+  type IndexerParams,
+  type IndexerReference,
+  type RetrieverAction,
+  type RetrieverArgument,
+  type RetrieverFn,
+  type RetrieverInfo,
+  type RetrieverParams,
+  type RetrieverReference,
+  type SimpleRetrieverOptions,
+} from '@genkit-ai/ai/retriever';
