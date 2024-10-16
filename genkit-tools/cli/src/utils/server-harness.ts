@@ -15,14 +15,39 @@
  */
 
 import { startServer } from '@genkit-ai/tools-common/server';
+import fs from 'fs';
 import { startManager } from './manager-utils';
 
 const args = process.argv.slice(2);
 const port = parseInt(args[0]) || 4100;
+redirectStdoutToFile(args[1]);
 
 async function start() {
   const manager = await startManager(true);
   await startServer(manager, port);
 }
+
+function redirectStdoutToFile(logFile: string) {
+  var myLogFileStream = fs.createWriteStream(logFile);
+
+  var originalStdout = process.stdout.write;
+  function writeStdout() {
+    originalStdout.apply(process.stdout, arguments as any);
+    myLogFileStream.write.apply(myLogFileStream, arguments as any);
+  }
+
+  process.stdout.write = writeStdout as any;
+  process.stderr.write = process.stdout.write;
+}
+
+process.on('error', (error): void => {
+  console.log(`Error in tools process: ${error}`);
+});
+process.on('uncaughtException', (err, somethingelse) => {
+  console.log(`Uncaught error in tools process: ${err} ${somethingelse}`);
+});
+process.on('unhandledRejection', function (reason, p) {
+  console.log(`Unhandled rejection in tools process: ${reason}`);
+});
 
 start();

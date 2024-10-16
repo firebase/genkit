@@ -84,6 +84,7 @@ export async function startServer(manager: RuntimeManager, port: number) {
   });
 
   app.post('/api/__quitquitquit', (_, res) => {
+    logger.info('Shutting down tools API');
     res.status(200).send('Server is shutting down');
     server.close(() => {
       process.exit(0);
@@ -104,6 +105,10 @@ export async function startServer(manager: RuntimeManager, port: number) {
     })
   );
 
+  app.all('*', (_, res) => {
+    res.status(200).sendFile('/', { root: UI_ASSETS_SERVE_PATH });
+  });
+
   const errorHandler: ErrorRequestHandler = (
     error,
     request,
@@ -119,11 +124,7 @@ export async function startServer(manager: RuntimeManager, port: number) {
   };
   app.use(errorHandler);
 
-  app.all('*', (_, res) => {
-    res.status(200).sendFile('/', { root: UI_ASSETS_SERVE_PATH });
-  });
-
-  app.listen(port, () => {
+  server = app.listen(port, () => {
     const uiUrl = 'http://localhost:' + port;
     logger.info(`${clc.green(clc.bold('Genkit Developer UI:'))} ${uiUrl}`);
   });
