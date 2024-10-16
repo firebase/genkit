@@ -18,7 +18,7 @@ import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
 import { gemini15Pro, googleAI } from '@genkit-ai/googleai';
 import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
-import { dotprompt, genkit } from 'genkit';
+import { genkit } from 'genkit';
 
 // Turn off safety checks for evaluation so that the LLM as an evaluator can
 // respond appropriately to potentially harmful content without error.
@@ -45,7 +45,6 @@ export const PERMISSIVE_SAFETY_SETTINGS: any = {
 
 export const ai = genkit({
   plugins: [
-    dotprompt(),
     googleAI(),
     genkitEval({
       judge: gemini15Pro,

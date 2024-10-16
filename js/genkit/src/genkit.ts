@@ -55,7 +55,10 @@ import {
 import {
   defineEmbedder,
   EmbedderAction,
+  EmbedderArgument,
   EmbedderFn,
+  EmbeddingBatch,
+  embedMany,
 } from '@genkit-ai/ai/embedder';
 import {
   defineEvaluator,
@@ -69,9 +72,15 @@ import {
   ModelAction,
 } from '@genkit-ai/ai/model';
 import {
+  defineReranker,
+  RerankerFn,
+  RerankerInfo,
+} from '@genkit-ai/ai/reranker';
+import {
   defineIndexer,
   defineRetriever,
   defineSimpleRetriever,
+  DocumentData,
   IndexerAction,
   IndexerFn,
   RetrieverFn,
@@ -90,7 +99,6 @@ import {
   FlowServerOptions,
   isDevEnv,
   JSONSchema,
-  PluginProvider,
   ReflectionServer,
   StreamableFlow,
   StreamingCallback,
@@ -99,6 +107,8 @@ import {
 } from '@genkit-ai/core';
 import {
   defineDotprompt,
+  defineHelper,
+  definePartial,
   Dotprompt,
   loadPromptFolder,
   prompt,
@@ -109,7 +119,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Chat, ChatOptions } from './chat.js';
 import { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
-import { genkitPlugin } from './plugin.js';
+import { GenkitPlugin, genkitPlugin } from './plugin.js';
 import { lookupAction, Registry, runWithRegistry } from './registry.js';
 import {
   getCurrentSession,
@@ -124,7 +134,7 @@ import {
  */
 export interface GenkitOptions {
   /** List of plugins to load. */
-  plugins?: PluginProvider[];
+  plugins?: GenkitPlugin[];
   /** Directory where dotprompts are stored. */
   promptDir?: string;
   /** Default model to use if no model is specified. */
@@ -756,12 +766,54 @@ export class Genkit {
   }
 
   /**
+   * create a handlebards helper (https://handlebarsjs.com/guide/block-helpers.html) to be used in dotpormpt templates.
+   */
+  defineHelper(name: string, fn: Handlebars.HelperDelegate) {
+    return runWithRegistry(this.registry, () => defineHelper(name, fn));
+  }
+
+  /**
+   * Creates a handlebars partial (https://handlebarsjs.com/guide/partials.html) to be used in dotpormpt templates.
+   */
+  definePartial(name: string, source: string) {
+    return runWithRegistry(this.registry, () => definePartial(name, source));
+  }
+
+  /**
+   *  Creates a reranker action for the provided {@link RerankerFn} implementation.
+   */
+  defineReranker<OptionsType extends z.ZodTypeAny = z.ZodTypeAny>(
+    options: {
+      name: string;
+      configSchema?: OptionsType;
+      info?: RerankerInfo;
+    },
+    runner: RerankerFn<OptionsType>
+  ) {
+    return runWithRegistry(this.registry, () =>
+      defineReranker(options, runner)
+    );
+  }
+
+  /**
    * Embeds the given `content` using the specified `embedder`.
    */
   embed<CustomOptions extends z.ZodTypeAny>(
     params: EmbedderParams<CustomOptions>
   ): Promise<Embedding> {
     return runWithRegistry(this.registry, () => embed(params));
+  }
+
+  /**
+   * A veneer for interacting with embedder models in bulk.
+   */
+  embedMany<ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny>(params: {
+    embedder: EmbedderArgument<ConfigSchema>;
+    content: string[] | DocumentData[];
+    metadata?: Record<string, unknown>;
+    options?: z.infer<ConfigSchema>;
+  }): Promise<EmbeddingBatch> {
+    return runWithRegistry(this.registry, () => embedMany(params));
   }
 
   /**
@@ -1084,15 +1136,18 @@ export class Genkit {
           loadPromptFolder(this.options.promptDir ?? './prompts')
         );
       });
-      plugins.push(dotprompt(this));
+      plugins.push(dotprompt);
     }
     plugins.forEach((plugin) => {
-      logger.debug(`Registering plugin ${plugin.name}...`);
-      activeRegistry.registerPluginProvider(plugin.name, {
-        name: plugin.name,
+      const loadedPlugin = plugin(this);
+      logger.debug(`Registering plugin ${loadedPlugin.name}...`);
+      activeRegistry.registerPluginProvider(loadedPlugin.name, {
+        name: loadedPlugin.name,
         async initializer() {
-          logger.debug(`Initializing plugin ${plugin.name}:`);
-          return runWithRegistry(activeRegistry, () => plugin.initializer());
+          logger.debug(`Initializing plugin ${loadedPlugin.name}:`);
+          return runWithRegistry(activeRegistry, () =>
+            loadedPlugin.initializer()
+          );
         },
       });
     });

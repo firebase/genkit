@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-import { Message, StreamingCallback, z } from 'genkit';
+import { Genkit, Message, StreamingCallback, z } from 'genkit';
 import {
   GenerateResponseChunkData,
   GenerateResponseData,
   GenerationCommonConfigSchema,
   ModelAction,
   ModelReference,
-  defineModel,
   type CandidateData,
   type GenerateRequest,
   type MessageData,
@@ -297,13 +296,14 @@ export function toRequestBody(
 }
 
 export function openaiCompatibleModel<C extends typeof OpenAIConfigSchema>(
+  ai: Genkit,
   model: ModelReference<any>,
   clientFactory: (request: GenerateRequest<C>) => Promise<OpenAI>
 ): ModelAction<C> {
   const modelId = model.name;
   if (!model) throw new Error(`Unsupported model: ${name}`);
 
-  return defineModel(
+  return ai.defineModel(
     {
       name: modelId,
       ...model.info,

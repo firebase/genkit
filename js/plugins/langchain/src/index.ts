@@ -14,16 +14,11 @@
  * limitations under the License.
  */
 
-import {
-  EvaluatorAction,
-  Genkit,
-  ModelArgument,
-  z,
-} from 'genkit';
+import { EvaluatorAction, Genkit, ModelArgument, z } from 'genkit';
 import { GenerationCommonConfigSchema } from 'genkit/model';
+import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { Criteria } from 'langchain/evaluation';
 import { langchainEvaluator } from './evaluators';
-import { genkitPlugin } from 'genkit/plugin';
 
 export { GenkitTracer } from './tracing.js';
 
@@ -38,35 +33,32 @@ interface LangchainPluginParams<
   };
 }
 
-export function langchain(params: LangchainPluginParams) {
-  genkitPlugin(
-    'langchain',
-    async (ai: Genkit) => {
-      const evaluators: EvaluatorAction[] = [];
-      if (params.evaluators) {
-        for (const criteria of params.evaluators.criteria ?? []) {
-          evaluators.push(
-            langchainEvaluator(
-              ai,
-              'criteria',
-              criteria,
-              params.evaluators.judge,
-              params.evaluators?.judgeConfig
-            )
-          );
-        }
-        for (const criteria of params.evaluators.labeledCriteria ?? []) {
-          evaluators.push(
-            langchainEvaluator(
-              ai,
-              'labeled_criteria',
-              criteria,
-              params.evaluators.judge,
-              params.evaluators?.judgeConfig
-            )
-          );
-        }
+export function langchain(params: LangchainPluginParams): GenkitPlugin {
+  return genkitPlugin('langchain', async (ai: Genkit) => {
+    const evaluators: EvaluatorAction[] = [];
+    if (params.evaluators) {
+      for (const criteria of params.evaluators.criteria ?? []) {
+        evaluators.push(
+          langchainEvaluator(
+            ai,
+            'criteria',
+            criteria,
+            params.evaluators.judge,
+            params.evaluators?.judgeConfig
+          )
+        );
+      }
+      for (const criteria of params.evaluators.labeledCriteria ?? []) {
+        evaluators.push(
+          langchainEvaluator(
+            ai,
+            'labeled_criteria',
+            criteria,
+            params.evaluators.judge,
+            params.evaluators?.judgeConfig
+          )
+        );
       }
     }
-  )
+  });
 }

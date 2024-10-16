@@ -20,7 +20,7 @@ import * as clc from 'colorette';
 import { genkit } from 'genkit';
 import { testModels } from 'genkit/testing';
 import { ollama } from 'genkitx-ollama';
-import { openAI } from 'genkitx-openai';
+//import { openAI } from 'genkitx-openai';
 
 export const ai = genkit({
   plugins: [
@@ -40,7 +40,7 @@ export const ai = genkit({
       ],
       serverAddress: 'http://127.0.0.1:11434', // default local address
     }),
-    openAI(),
+    //openAI(),
   ],
 });
 
@@ -52,8 +52,8 @@ testModels([
   'vertexai/claude-3-sonnet',
   'vertexai/llama-3.1',
   'ollama/gemma2',
-  'openai/gpt-4o',
-  'openai/gpt-4o-mini',
+  // 'openai/gpt-4o',
+  // 'openai/gpt-4o-mini',
 ]).then((r) => {
   let failed = false;
   for (const test of r) {

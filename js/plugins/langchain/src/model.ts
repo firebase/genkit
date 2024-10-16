@@ -15,20 +15,25 @@
  */
 
 import { LLMResult } from '@langchain/core/outputs';
-import { generate, ModelArgument } from 'genkit';
+import { Genkit, ModelArgument } from 'genkit';
 import { logger } from 'genkit/logging';
 import { ModelAction } from 'genkit/model';
 import { CallbackManagerForLLMRun } from 'langchain/callbacks';
 import { BaseLLM } from 'langchain/llms/base';
 
-export function genkitModel(model: ModelArgument, config?: any): BaseLLM {
-  return new ModelAdapter(model, config);
+export function genkitModel(
+  ai: Genkit,
+  model: ModelArgument,
+  config?: any
+): BaseLLM {
+  return new ModelAdapter(ai, model, config);
 }
 
 class ModelAdapter extends BaseLLM {
   resolvedModel?: ModelAction;
 
   constructor(
+    private ai: Genkit,
     private model: ModelArgument,
     private config?: any
   ) {
@@ -47,7 +52,7 @@ class ModelAdapter extends BaseLLM {
     //options
     const ress = await Promise.all(
       prompts.map((p) =>
-        generate({
+        this.ai.generate({
           model: this.model,
           prompt: p,
           config: this.config,

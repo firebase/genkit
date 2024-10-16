@@ -19,7 +19,7 @@ import { lookupAction } from '@genkit-ai/core/registry';
 import { Part, PartSchema } from './document.js';
 import { Document, DocumentData, DocumentDataSchema } from './retriever.js';
 
-type RerankerFn<RerankerOptions extends z.ZodTypeAny> = (
+export type RerankerFn<RerankerOptions extends z.ZodTypeAny> = (
   query: Document,
   documents: Document[],
   queryOpts: z.infer<RerankerOptions>

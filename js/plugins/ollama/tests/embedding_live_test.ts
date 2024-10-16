@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { embed } from 'genkit';
+import { genkit } from 'genkit';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { defineOllamaEmbedder } from '../src/embeddings.js'; // Adjust the import path as necessary
@@ -36,13 +36,14 @@ describe('defineOllamaEmbedder - Live Tests', () => {
     serverAddress,
   };
   it('should successfully return embeddings', async () => {
-    const embedder = defineOllamaEmbedder({
+    const ai = genkit({});
+    const embedder = defineOllamaEmbedder(ai, {
       name: 'live-test-embedder',
       modelName: 'nomic-embed-text',
       dimensions: 768,
       options,
     });
-    const result = await embed({
+    const result = await ai.embed({
       embedder,
       content: 'Hello, world!',
     });

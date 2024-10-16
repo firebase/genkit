@@ -42,7 +42,7 @@ export function langchainEvaluator(
               type as 'labeled_criteria' | 'criteria',
               {
                 criteria,
-                llm: genkitModel(judgeLlm, judgeConfig),
+                llm: genkitModel(ai, judgeLlm, judgeConfig),
                 chainOptions: {
                   callbacks: [new GenkitTracer()],
                 },

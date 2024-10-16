@@ -15,20 +15,20 @@
  */
 
 import { Genkit } from 'genkit';
-import { genkitPlugin } from 'genkit/plugin';
+import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import {
   SUPPORTED_MODELS as EMBEDDER_MODELS,
   textEmbeddingGecko001,
   textEmbeddingGeckoEmbedder,
 } from './embedder.js';
 import {
+  SUPPORTED_V15_MODELS,
+  SUPPORTED_V1_MODELS,
   gemini15Flash,
   gemini15Pro,
   geminiPro,
   geminiProVision,
   googleAIModel,
-  SUPPORTED_V15_MODELS,
-  SUPPORTED_V1_MODELS,
 } from './gemini.js';
 export {
   gemini15Flash,
@@ -44,7 +44,7 @@ export interface PluginOptions {
   baseUrl?: string;
 }
 
-export function googleAI(options?: PluginOptions) {
+export function googleAI(options?: PluginOptions): GenkitPlugin {
   return genkitPlugin('googleai', async (ai: Genkit) => {
     let apiVersions = ['v1'];
 

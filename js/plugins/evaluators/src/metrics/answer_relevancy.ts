@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
+import { loadPromptFile } from '@genkit-ai/dotprompt';
 import similarity from 'compute-cosine-similarity';
 import { Genkit, ModelArgument, z } from 'genkit';
-import { embed, EmbedderArgument } from 'genkit/embedder';
+import { EmbedderArgument } from 'genkit/embedder';
 import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import path from 'path';
 import { getDirName } from './helper.js';
-import { loadPromptFile } from '@genkit-ai/dotprompt';
 
 const AnswerRelevancyResponseSchema = z.object({
   question: z.string(),
@@ -65,12 +65,12 @@ export async function answerRelevancyScore<
     if (!genQuestion)
       throw new Error('Error generating question for answer relevancy');
 
-    const questionEmbed = await embed({
+    const questionEmbed = await ai.embed({
       embedder,
       content: dataPoint.input as string,
       options: embedderOptions,
     });
-    const genQuestionEmbed = await embed({
+    const genQuestionEmbed = await ai.embed({
       embedder,
       content: genQuestion,
       options: embedderOptions,

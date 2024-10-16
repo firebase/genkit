@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-export * from '@genkit-ai/ai/testing';
+export { testModels } from '@genkit-ai/ai/testing';

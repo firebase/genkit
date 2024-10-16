@@ -18,8 +18,8 @@ import { EmbedderReference, Genkit, ModelReference, z } from 'genkit';
 import {
   BaseEvalDataPoint,
   EvalResponse,
-  evaluatorRef,
   Score,
+  evaluatorRef,
 } from 'genkit/evaluator';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import {
@@ -102,7 +102,7 @@ export function genkitEvaluators<
   return metrics.map((metric) => {
     switch (metric) {
       case GenkitMetric.ANSWER_RELEVANCY: {
-        ai.defineIndexer
+        ai.defineIndexer;
         return ai.defineEvaluator(
           {
             name: `${PLUGIN_NAME}/${metric.toLocaleLowerCase()}`,

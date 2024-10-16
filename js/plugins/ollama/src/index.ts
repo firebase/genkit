@@ -23,7 +23,7 @@ import {
   getBasicUsageStats,
   MessageData,
 } from 'genkit/model';
-import { genkitPlugin } from 'genkit/plugin';
+import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import { defineOllamaEmbedder } from './embeddings';
 
 type ApiType = 'chat' | 'generate';
@@ -50,7 +50,7 @@ export interface OllamaPluginParams {
   requestHeaders?: RequestHeaders;
 }
 
-export function ollama(params: OllamaPluginParams) {
+export function ollama(params: OllamaPluginParams): GenkitPlugin {
   return genkitPlugin('ollama', async (ai: Genkit) => {
     const serverAddress = params?.serverAddress;
     params.models.map((model) =>

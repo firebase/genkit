@@ -14,4 +14,20 @@
  * limitations under the License.
  */
 
-export * from '@genkit-ai/core/registry';
+export {
+  ActionType,
+  AsyncProvider,
+  Registry,
+  Schema,
+  getRegistryInstance,
+  initializeAllPlugins,
+  initializePlugin,
+  listActions,
+  lookupAction,
+  lookupPlugin,
+  lookupSchema,
+  registerAction,
+  registerPluginProvider,
+  registerSchema,
+  runWithRegistry,
+} from '@genkit-ai/core/registry';

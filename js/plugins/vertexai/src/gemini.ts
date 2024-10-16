@@ -27,7 +27,7 @@ import {
   StartChatParams,
   VertexAI,
 } from '@google-cloud/vertexai';
-import { GENKIT_CLIENT_HEADER, z } from 'genkit';
+import { GENKIT_CLIENT_HEADER, Genkit, z } from 'genkit';
 import {
   CandidateData,
   GenerateRequest,
@@ -39,7 +39,6 @@ import {
   ModelReference,
   Part,
   ToolDefinitionSchema,
-  defineModel,
   getBasicUsageStats,
   modelRef,
 } from 'genkit/model';
@@ -462,6 +461,7 @@ const convertSchemaProperty = (property) => {
  *
  */
 export function geminiModel(
+  ai: Genkit,
   name: string,
   vertexClientFactory: (
     request: GenerateRequest<typeof GeminiConfigSchema>
@@ -482,7 +482,7 @@ export function geminiModel(
     middlewares.push(downloadRequestMedia({ maxBytes: 1024 * 1024 * 20 }));
   }
 
-  return defineModel(
+  return ai.defineModel(
     {
       name: modelName,
       ...model.info,

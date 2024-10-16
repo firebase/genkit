@@ -17,7 +17,7 @@
 import similarity from 'compute-cosine-similarity';
 import * as fs from 'fs';
 import { Genkit, z } from 'genkit';
-import { embed, EmbedderArgument } from 'genkit/embedder';
+import { EmbedderArgument } from 'genkit/embedder';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import {
   CommonRetrieverOptionsSchema,
@@ -108,18 +108,21 @@ export function devLocalIndexerRef(indexName: string) {
 
 async function importDocumentsToLocalVectorstore<
   EmbedderCustomOptions extends z.ZodTypeAny,
->(params: {
-  indexName: string;
-  docs: Array<Document>;
-  embedder: EmbedderArgument<EmbedderCustomOptions>;
-  embedderOptions?: z.infer<EmbedderCustomOptions>;
-}) {
+>(
+  ai: Genkit,
+  params: {
+    indexName: string;
+    docs: Array<Document>;
+    embedder: EmbedderArgument<EmbedderCustomOptions>;
+    embedderOptions?: z.infer<EmbedderCustomOptions>;
+  }
+) {
   const { docs, embedder, embedderOptions } = { ...params };
   const data = loadFilestore(params.indexName);
 
   await Promise.all(
     docs.map(async (doc) => {
-      const embedding = await embed({
+      const embedding = await ai.embed({
         embedder,
         content: doc,
         options: embedderOptions,
@@ -180,7 +183,7 @@ export function configureDevLocalRetriever<
     async (content, options) => {
       const db = loadFilestore(params.indexName);
 
-      const embedding = await embed({
+      const embedding = await ai.embed({
         embedder,
         content,
         options: embedderOptions,
@@ -214,7 +217,7 @@ export function configureDevLocalIndexer<
   const vectorstore = ai.defineIndexer(
     { name: `devLocalVectorstore/${params.indexName}` },
     async (docs) => {
-      await importDocumentsToLocalVectorstore({
+      await importDocumentsToLocalVectorstore(ai, {
         indexName: params.indexName,
         docs,
         embedder,

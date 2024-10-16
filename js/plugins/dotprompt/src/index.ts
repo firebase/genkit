@@ -26,7 +26,7 @@ import { loadPromptFolder, lookupPrompt } from './registry.js';
 
 export { type PromptMetadata } from './metadata.js';
 export { defineHelper, definePartial } from './template.js';
-export { defineDotprompt, Dotprompt, PromptGenerateOptions, loadPromptFolder };
+export { defineDotprompt, Dotprompt, loadPromptFolder, PromptGenerateOptions };
 
 export interface DotpromptPluginOptions {
   // Directory to look for .prompt files.
