@@ -29,7 +29,7 @@ export const PathMetadataSchema = z.object({
 export type PathMetadata = z.infer<typeof PathMetadataSchema>;
 
 export const TraceMetadataSchema = z.object({
-  flowName: z.string().optional(),
+  featureName: z.string().optional(),
   paths: z.set(PathMetadataSchema).optional(),
   timestamp: z.number(),
 });
