@@ -290,3 +290,4 @@ async function getExportedSpans(
   }
   assert.fail(`Timed out while waiting for spans to be exported.`);
 }
+
