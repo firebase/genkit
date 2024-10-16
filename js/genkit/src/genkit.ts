@@ -20,6 +20,7 @@ import {
   defineTool,
   Document,
   embed,
+  EmbedderInfo,
   EmbedderParams,
   Embedding,
   EvalResponses,
@@ -45,10 +46,37 @@ import {
   rerank,
   RerankerParams,
   retrieve,
+  RetrieverAction,
+  RetrieverInfo,
   RetrieverParams,
   ToolAction,
   ToolConfig,
 } from '@genkit-ai/ai';
+import {
+  defineEmbedder,
+  EmbedderAction,
+  EmbedderFn,
+} from '@genkit-ai/ai/embedder';
+import {
+  defineEvaluator,
+  EvaluatorAction,
+  EvaluatorFn,
+} from '@genkit-ai/ai/evaluator';
+import {
+  defineModel,
+  DefineModelOptions,
+  GenerateResponseChunkData,
+  ModelAction,
+} from '@genkit-ai/ai/model';
+import {
+  defineIndexer,
+  defineRetriever,
+  defineSimpleRetriever,
+  IndexerAction,
+  IndexerFn,
+  RetrieverFn,
+  SimpleRetrieverOptions,
+} from '@genkit-ai/ai/retriever';
 import {
   CallableFlow,
   defineFlow,
@@ -72,19 +100,16 @@ import {
 import {
   defineDotprompt,
   Dotprompt,
+  loadPromptFolder,
   prompt,
   PromptGenerateOptions,
   PromptMetadata,
 } from '@genkit-ai/dotprompt';
 import { v4 as uuidv4 } from 'uuid';
 import { Chat, ChatOptions } from './chat.js';
+import { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
-import {
-  defineModel,
-  DefineModelOptions,
-  GenerateResponseChunkData,
-  ModelAction,
-} from './model.js';
+import { genkitPlugin } from './plugin.js';
 import { lookupAction, Registry, runWithRegistry } from './registry.js';
 import {
   getCurrentSession,
@@ -644,6 +669,93 @@ export class Genkit {
   }
 
   /**
+   * Creates a retriever action for the provided {@link RetrieverFn} implementation.
+   */
+  defineRetriever<OptionsType extends z.ZodTypeAny = z.ZodTypeAny>(
+    options: {
+      name: string;
+      configSchema?: OptionsType;
+      info?: RetrieverInfo;
+    },
+    runner: RetrieverFn<OptionsType>
+  ): RetrieverAction<OptionsType> {
+    return runWithRegistry(this.registry, () =>
+      defineRetriever(options, runner)
+    );
+  }
+
+  /**
+   * defineSimpleRetriever makes it easy to map existing data into documents that
+   * can be used for prompt augmentation.
+   *
+   * @param options Configuration options for the retriever.
+   * @param handler A function that queries a datastore and returns items from which to extract documents.
+   * @returns A Genkit retriever.
+   */
+  defineSimpleRetriever<C extends z.ZodTypeAny = z.ZodTypeAny, R = any>(
+    options: SimpleRetrieverOptions<C, R>,
+    handler: (query: Document, config: z.infer<C>) => Promise<R[]>
+  ): RetrieverAction<C> {
+    return runWithRegistry(this.registry, () =>
+      defineSimpleRetriever(options, handler)
+    );
+  }
+
+  /**
+   * Creates an indexer action for the provided {@link IndexerFn} implementation.
+   */
+  defineIndexer<IndexerOptions extends z.ZodTypeAny>(
+    options: {
+      name: string;
+      embedderInfo?: EmbedderInfo;
+      configSchema?: IndexerOptions;
+    },
+    runner: IndexerFn<IndexerOptions>
+  ): IndexerAction<IndexerOptions> {
+    return runWithRegistry(this.registry, () => defineIndexer(options, runner));
+  }
+
+  /**
+   * Creates evaluator action for the provided {@link EvaluatorFn} implementation.
+   */
+  defineEvaluator<
+    DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
+    EvalDataPoint extends
+      typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
+    EvaluatorOptions extends z.ZodTypeAny = z.ZodTypeAny,
+  >(
+    options: {
+      name: string;
+      displayName: string;
+      definition: string;
+      dataPointType?: DataPoint;
+      configSchema?: EvaluatorOptions;
+      isBilled?: boolean;
+    },
+    runner: EvaluatorFn<EvalDataPoint, EvaluatorOptions>
+  ): EvaluatorAction {
+    return runWithRegistry(this.registry, () =>
+      defineEvaluator(options, runner)
+    );
+  }
+
+  /**
+   * Creates embedder model for the provided {@link EmbedderFn} model implementation.
+   */
+  defineEmbedder<ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny>(
+    options: {
+      name: string;
+      configSchema?: ConfigSchema;
+      info?: EmbedderInfo;
+    },
+    runner: EmbedderFn<ConfigSchema>
+  ): EmbedderAction<ConfigSchema> {
+    return runWithRegistry(this.registry, () =>
+      defineEmbedder(options, runner)
+    );
+  }
+
+  /**
    * Embeds the given `content` using the specified `embedder`.
    */
   embed<CustomOptions extends z.ZodTypeAny>(
@@ -964,9 +1076,18 @@ export class Genkit {
    * Configures the Genkit instance.
    */
   private configure() {
-    this.options.plugins?.forEach((plugin) => {
+    const activeRegistry = this.registry;
+    const plugins = [...(this.options.plugins ?? [])];
+    if (this.options.promptDir !== null) {
+      const dotprompt = genkitPlugin('dotprompt', async (ai) => {
+        runWithRegistry(ai.registry, async () =>
+          loadPromptFolder(this.options.promptDir ?? './prompts')
+        );
+      });
+      plugins.push(dotprompt(this));
+    }
+    plugins.forEach((plugin) => {
       logger.debug(`Registering plugin ${plugin.name}...`);
-      const activeRegistry = this.registry;
       activeRegistry.registerPluginProvider(plugin.name, {
         name: plugin.name,
         async initializer() {

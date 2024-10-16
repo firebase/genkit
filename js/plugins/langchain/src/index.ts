@@ -16,14 +16,14 @@
 
 import {
   EvaluatorAction,
-  genkitPlugin,
+  Genkit,
   ModelArgument,
-  Plugin,
   z,
 } from 'genkit';
 import { GenerationCommonConfigSchema } from 'genkit/model';
 import { Criteria } from 'langchain/evaluation';
 import { langchainEvaluator } from './evaluators';
+import { genkitPlugin } from 'genkit/plugin';
 
 export { GenkitTracer } from './tracing.js';
 
@@ -38,34 +38,35 @@ interface LangchainPluginParams<
   };
 }
 
-export const langchain: Plugin<[LangchainPluginParams]> = genkitPlugin(
-  'langchain',
-  async (params: LangchainPluginParams) => {
-    const evaluators: EvaluatorAction[] = [];
-    if (params.evaluators) {
-      for (const criteria of params.evaluators.criteria ?? []) {
-        evaluators.push(
-          langchainEvaluator(
-            'criteria',
-            criteria,
-            params.evaluators.judge,
-            params.evaluators?.judgeConfig
-          )
-        );
-      }
-      for (const criteria of params.evaluators.labeledCriteria ?? []) {
-        evaluators.push(
-          langchainEvaluator(
-            'labeled_criteria',
-            criteria,
-            params.evaluators.judge,
-            params.evaluators?.judgeConfig
-          )
-        );
+export function langchain(params: LangchainPluginParams) {
+  genkitPlugin(
+    'langchain',
+    async (ai: Genkit) => {
+      const evaluators: EvaluatorAction[] = [];
+      if (params.evaluators) {
+        for (const criteria of params.evaluators.criteria ?? []) {
+          evaluators.push(
+            langchainEvaluator(
+              ai,
+              'criteria',
+              criteria,
+              params.evaluators.judge,
+              params.evaluators?.judgeConfig
+            )
+          );
+        }
+        for (const criteria of params.evaluators.labeledCriteria ?? []) {
+          evaluators.push(
+            langchainEvaluator(
+              ai,
+              'labeled_criteria',
+              criteria,
+              params.evaluators.judge,
+              params.evaluators?.judgeConfig
+            )
+          );
+        }
       }
     }
-    return {
-      evaluators,
-    };
-  }
-);
+  )
+}

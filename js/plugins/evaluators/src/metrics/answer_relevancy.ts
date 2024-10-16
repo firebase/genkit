@@ -15,11 +15,12 @@
  */
 
 import similarity from 'compute-cosine-similarity';
-import { generate, loadPromptFile, ModelArgument, z } from 'genkit';
+import { Genkit, ModelArgument, z } from 'genkit';
 import { embed, EmbedderArgument } from 'genkit/embedder';
 import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import path from 'path';
 import { getDirName } from './helper.js';
+import { loadPromptFile } from '@genkit-ai/dotprompt';
 
 const AnswerRelevancyResponseSchema = z.object({
   question: z.string(),
@@ -31,6 +32,7 @@ export async function answerRelevancyScore<
   CustomModelOptions extends z.ZodTypeAny,
   CustomEmbedderOptions extends z.ZodTypeAny,
 >(
+  ai: Genkit,
   judgeLlm: ModelArgument<CustomModelOptions>,
   dataPoint: BaseEvalDataPoint,
   embedder: EmbedderArgument<CustomEmbedderOptions>,
@@ -47,7 +49,7 @@ export async function answerRelevancyScore<
     const prompt = await loadPromptFile(
       path.resolve(getDirName(), '../../prompts/answer_relevancy.prompt')
     );
-    const response = await generate({
+    const response = await ai.generate({
       model: judgeLlm,
       config: judgeConfig,
       prompt: prompt.renderText({

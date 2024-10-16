@@ -14,4 +14,15 @@
  * limitations under the License.
  */
 
-export * from '@genkit-ai/ai/embedder';
+export {
+  EmbedderInfoSchema,
+  embedderRef,
+  EmbeddingSchema,
+  type EmbedderAction,
+  type EmbedderArgument,
+  type EmbedderInfo,
+  type EmbedderParams,
+  type EmbedderReference,
+  type Embedding,
+  type EmbeddingBatch,
+} from '@genkit-ai/ai/embedder';

@@ -16,14 +16,14 @@
 
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
-import { googleAI } from '@genkit-ai/googleai';
-import {
-  claude3Sonnet,
-  geminiPro,
-  llama31,
-  textEmbeddingGecko,
-  vertexAI,
-} from '@genkit-ai/vertexai';
+import { googleAI, gemini15Flash } from '@genkit-ai/googleai';
+// import {
+//   claude3Sonnet,
+//   geminiPro,
+//   llama31,
+//   textEmbeddingGecko,
+//   vertexAI,
+// } from '@genkit-ai/vertexai';
 import { genkit } from 'genkit';
 import { chroma } from 'genkitx-chromadb';
 import { langchain } from 'genkitx-langchain';
@@ -45,7 +45,7 @@ export const ai = genkit({
   plugins: [
     googleAI({ apiVersion: ['v1'] }),
     genkitEval({
-      judge: geminiPro,
+      judge: gemini15Flash,
       judgeConfig: {
         safetySettings: [
           {
@@ -75,12 +75,12 @@ export const ai = genkit({
         judge: geminiPro,
       },
     }),
-    vertexAI({
-      location: 'us-central1',
-      modelGarden: {
-        models: [claude3Sonnet, llama31],
-      },
-    }),
+    // vertexAI({
+    //   location: 'us-central1',
+    //   modelGarden: {
+    //     models: [claude3Sonnet, llama31],
+    //   },
+    // }),
     pinecone([
       {
         indexId: 'cat-facts',
@@ -123,5 +123,5 @@ export const ai = genkit({
       },
     ]),
   ],
-  model: geminiPro,
+  model: gemini15Flash,
 });

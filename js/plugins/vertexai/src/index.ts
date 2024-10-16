@@ -15,8 +15,8 @@
  */
 
 import { VertexAI } from '@google-cloud/vertexai';
-import { genkitPlugin, Plugin, z } from 'genkit';
 import { GenerateRequest, ModelReference } from 'genkit/model';
+import { genkitPlugin } from 'genkit/plugin';
 import { IndexerAction, RetrieverAction } from 'genkit/retriever';
 import { GoogleAuth, GoogleAuthOptions } from 'google-auth-library';
 import {
@@ -74,6 +74,7 @@ import {
   vertexAiIndexers,
   vertexAiRetrievers,
 } from './vector-search';
+import { Genkit } from 'genkit';
 export {
   DocumentIndexer,
   DocumentRetriever,
@@ -146,9 +147,8 @@ const CLOUD_PLATFROM_OAUTH_SCOPE =
 /**
  * Add Google Cloud Vertex AI to Genkit. Includes Gemini and Imagen models and text embedder.
  */
-export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
-  'vertexai',
-  async (options?: PluginOptions) => {
+export function vertexAI(options?: PluginOptions) {
+  return genkitPlugin('vertexai', async (ai: Genkit) => {
     let authClient;
     let authOptions = options?.googleAuth;
 
@@ -284,7 +284,7 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       indexers,
       rerankers,
     };
-  }
-);
+  });
+}
 
 export default vertexAI;

@@ -73,7 +73,7 @@ export type EvalResponse = z.infer<typeof EvalResponseSchema>;
 export const EvalResponsesSchema = z.array(EvalResponseSchema);
 export type EvalResponses = z.infer<typeof EvalResponsesSchema>;
 
-type EvaluatorFn<
+export type EvaluatorFn<
   EvalDataPoint extends
     typeof BaseEvalDataPointSchema = typeof BaseEvalDataPointSchema,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,

@@ -14,20 +14,14 @@
  * limitations under the License.
  */
 
-import {
-  EmbedderReference,
-  genkitPlugin,
-  ModelReference,
-  PluginProvider,
-  z,
-} from 'genkit';
+import { EmbedderReference, Genkit, ModelReference, z } from 'genkit';
 import {
   BaseEvalDataPoint,
-  defineEvaluator,
   EvalResponse,
   evaluatorRef,
   Score,
 } from 'genkit/evaluator';
+import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import {
   answerRelevancyScore,
   faithfulnessScore,
@@ -70,16 +64,10 @@ export function genkitEval<
   EmbedderCustomOptions extends z.ZodTypeAny,
 >(
   params: PluginOptions<ModelCustomOptions, EmbedderCustomOptions>
-): PluginProvider {
-  const plugin = genkitPlugin(
-    `${PLUGIN_NAME}`,
-    async (
-      params: PluginOptions<ModelCustomOptions, EmbedderCustomOptions>
-    ) => ({
-      evaluators: [...genkitEvaluators(params)],
-    })
-  );
-  return plugin(params);
+): GenkitPlugin {
+  return genkitPlugin(`${PLUGIN_NAME}`, async (ai: Genkit) => {
+    genkitEvaluators(ai, params);
+  });
 }
 
 export default genkitEval;
@@ -101,7 +89,10 @@ function fillScores(dataPoint: BaseEvalDataPoint, score: Score): EvalResponse {
 export function genkitEvaluators<
   ModelCustomOptions extends z.ZodTypeAny,
   EmbedderCustomOptions extends z.ZodTypeAny,
->(params: PluginOptions<ModelCustomOptions, EmbedderCustomOptions>) {
+>(
+  ai: Genkit,
+  params: PluginOptions<ModelCustomOptions, EmbedderCustomOptions>
+) {
   let { metrics, judge, judgeConfig, embedder, embedderOptions } = params;
   if (!metrics) {
     metrics = [GenkitMetric.MALICIOUSNESS, GenkitMetric.FAITHFULNESS];
@@ -111,7 +102,8 @@ export function genkitEvaluators<
   return metrics.map((metric) => {
     switch (metric) {
       case GenkitMetric.ANSWER_RELEVANCY: {
-        return defineEvaluator(
+        ai.defineIndexer
+        return ai.defineEvaluator(
           {
             name: `${PLUGIN_NAME}/${metric.toLocaleLowerCase()}`,
             displayName: 'Answer Relevancy',
@@ -120,6 +112,7 @@ export function genkitEvaluators<
           },
           async (datapoint: BaseEvalDataPoint) => {
             const answerRelevancy = await answerRelevancyScore(
+              ai,
               judge,
               datapoint,
               embedder!,
@@ -131,7 +124,7 @@ export function genkitEvaluators<
         );
       }
       case GenkitMetric.FAITHFULNESS: {
-        return defineEvaluator(
+        return ai.defineEvaluator(
           {
             name: `${PLUGIN_NAME}/${metric.toLocaleLowerCase()}`,
             displayName: 'Faithfulness',
@@ -140,6 +133,7 @@ export function genkitEvaluators<
           },
           async (datapoint: BaseEvalDataPoint) => {
             const faithfulness = await faithfulnessScore(
+              ai,
               judge,
               datapoint,
               judgeConfig
@@ -149,7 +143,7 @@ export function genkitEvaluators<
         );
       }
       case GenkitMetric.MALICIOUSNESS: {
-        return defineEvaluator(
+        return ai.defineEvaluator(
           {
             name: `${PLUGIN_NAME}/${metric.toLocaleLowerCase()}`,
             displayName: 'Maliciousness',
@@ -158,6 +152,7 @@ export function genkitEvaluators<
           },
           async (datapoint: BaseEvalDataPoint) => {
             const maliciousness = await maliciousnessScore(
+              ai,
               judge,
               datapoint,
               judgeConfig

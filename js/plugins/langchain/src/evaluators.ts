@@ -14,19 +14,20 @@
  * limitations under the License.
  */
 
-import { ModelArgument } from 'genkit';
-import { BaseEvalDataPoint, defineEvaluator } from 'genkit/evaluator';
+import { Genkit, ModelArgument } from 'genkit';
+import { BaseEvalDataPoint } from 'genkit/evaluator';
 import { Criteria, loadEvaluator } from 'langchain/evaluation';
 import { genkitModel } from './model.js';
 import { GenkitTracer } from './tracing.js';
 
 export function langchainEvaluator(
+  ai: Genkit,
   type: 'labeled_criteria' | 'criteria',
   criteria: Criteria,
   judgeLlm: ModelArgument,
   judgeConfig?: any
 ) {
-  return defineEvaluator(
+  return ai.defineEvaluator(
     {
       name: `langchain/${criteria}`,
       displayName: `${criteria}`,

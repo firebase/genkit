@@ -14,23 +14,28 @@
  * limitations under the License.
  */
 
-export {
-  BaseDataPointSchema,
-  BaseEvalDataPointSchema,
-  EvalResponseSchema,
-  EvalResponsesSchema,
-  EvaluatorInfoSchema,
-  evaluatorRef,
-  ScoreSchema,
-  type BaseDataPoint,
-  type BaseEvalDataPoint,
-  type Dataset,
-  type EvalResponse,
-  type EvalResponses,
-  type EvaluatorAction,
-  type EvaluatorArgument,
-  type EvaluatorInfo,
-  type EvaluatorParams,
-  type EvaluatorReference,
-  type Score,
-} from '@genkit-ai/ai/evaluator';
+import { Genkit } from './genkit.js';
+
+export interface PluginProvider {
+  name: string;
+  initializer: () => void | Promise<void>;
+}
+
+type PluginInit = (genkit: Genkit) => void | Promise<void>;
+
+export type GenkitPlugin = (genkit: Genkit) => PluginProvider;
+
+/**
+ * Defines a Genkit plugin.
+ */
+export function genkitPlugin<T extends PluginInit>(
+  pluginName: string,
+  initFn: T
+): GenkitPlugin {
+  return (genkit: Genkit) => ({
+    name: pluginName,
+    initializer: async () => {
+      await initFn(genkit);
+    },
+  });
+}

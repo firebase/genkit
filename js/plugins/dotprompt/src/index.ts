@@ -14,12 +14,6 @@
  * limitations under the License.
  */
 
-import {
-  genkitPlugin,
-  InitializedPlugin,
-  PluginProvider,
-} from '@genkit-ai/core';
-
 import { readFileSync } from 'fs';
 import { basename } from 'path';
 import {
@@ -32,7 +26,7 @@ import { loadPromptFolder, lookupPrompt } from './registry.js';
 
 export { type PromptMetadata } from './metadata.js';
 export { defineHelper, definePartial } from './template.js';
-export { defineDotprompt, Dotprompt, PromptGenerateOptions };
+export { defineDotprompt, Dotprompt, PromptGenerateOptions, loadPromptFolder };
 
 export interface DotpromptPluginOptions {
   // Directory to look for .prompt files.
@@ -41,19 +35,6 @@ export interface DotpromptPluginOptions {
   // paths will be included in the prompt name. E.g. - if a prompt file is
   // located at `<dir>/foo/bar.prompt`, the prompt name will be `foo-bar`.
   dir: string;
-}
-
-export function dotprompt(
-  params: DotpromptPluginOptions = { dir: './prompts' }
-): PluginProvider {
-  const plugin = genkitPlugin(
-    'dotprompt',
-    async (options: DotpromptPluginOptions): Promise<InitializedPlugin> => {
-      await loadPromptFolder(options.dir);
-      return {};
-    }
-  );
-  return plugin(params);
 }
 
 export async function prompt<Variables = unknown>(
