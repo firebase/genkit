@@ -251,7 +251,7 @@ describe('session', () => {
       ]);
       let response = await mainChat.send('hi again');
       assert.strictEqual(
-        response.text(),
+        response.text,
         'Echo: hi,Echo: hi,; config: {"temperature":1},bye,Echo: hi,Echo: hi,; config: {"temperature":1},bye,; config: {"temperature":1},hi again; config: {}'
       );
       assert.deepStrictEqual(mainChat.messages, [
