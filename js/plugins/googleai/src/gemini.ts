@@ -15,6 +15,7 @@
  */
 
 import {
+  CachedContent,
   FileDataPart,
   FunctionCallPart,
   FunctionDeclaration,
@@ -25,6 +26,7 @@ import {
   Part as GeminiPart,
   GenerateContentResponse,
   GenerationConfig,
+  GenerativeModel,
   GoogleGenerativeAI,
   InlineDataPart,
   RequestOptions,
@@ -32,6 +34,7 @@ import {
   Tool,
 } from '@google/generative-ai';
 import { GENKIT_CLIENT_HEADER, z } from 'genkit';
+import { logger } from 'genkit/logging';
 import {
   CandidateData,
   GenerationCommonConfigSchema,
@@ -53,6 +56,8 @@ import {
   simulateSystemPrompt,
 } from 'genkit/model/middleware';
 import process from 'process';
+import { handleContextCache } from './context-caching';
+import { validateContextCacheRequest } from './context-caching/helpers';
 
 const SafetySettingsSchema = z.object({
   category: z.enum([
@@ -73,6 +78,7 @@ const SafetySettingsSchema = z.object({
 const GeminiConfigSchema = GenerationCommonConfigSchema.extend({
   safetySettings: z.array(SafetySettingsSchema).optional(),
   codeExecution: z.union([z.boolean(), z.object({}).strict()]).optional(),
+  contextCache: z.boolean().optional(),
 });
 
 export const geminiPro = modelRef({
@@ -136,6 +142,8 @@ export const gemini15Flash = modelRef({
       tools: true,
       systemRole: true,
       output: ['text', 'json'],
+      // @ts-ignore
+      contextCache: true,
     },
     versions: ['gemini-1.5-flash-001'],
   },
@@ -510,15 +518,10 @@ export function googleAIModel(
       if (apiVersion) {
         options.baseUrl = baseUrl;
       }
-      const client = new GoogleGenerativeAI(apiKey!).getGenerativeModel(
-        {
-          model: request.config?.version || model.version || name,
-        },
-        options
-      );
 
       // make a copy so that modifying the request will not produce side-effects
       const messages = [...request.messages];
+
       if (messages.length === 0) throw new Error('No messages provided.');
 
       // Gemini does not support messages with role system and instead expects
@@ -566,7 +569,14 @@ export function googleAIModel(
         responseMimeType: jsonMode ? 'application/json' : undefined,
       };
 
-      const chatRequest = {
+      const msg = toGeminiMessage(messages[messages.length - 1], model);
+      const fromJSONModeScopedGeminiCandidate = (
+        candidate: GeminiCandidate
+      ) => {
+        return fromGeminiCandidate(candidate, jsonMode);
+      };
+
+      let chatRequest = {
         systemInstruction,
         generationConfig,
         tools,
@@ -575,14 +585,46 @@ export function googleAIModel(
           .map((message) => toGeminiMessage(message, model)),
         safetySettings: request.config?.safetySettings,
       } as StartChatParams;
-      const msg = toGeminiMessage(messages[messages.length - 1], model);
-      const fromJSONModeScopedGeminiCandidate = (
-        candidate: GeminiCandidate
-      ) => {
-        return fromGeminiCandidate(candidate, jsonMode);
-      };
+      /**
+       * This function is used to determine if the request should be cached. If bad configuration, then it will error (instead of costing them tokens)
+       */
+
+      let cache: CachedContent | null = null;
+
+      // TODO: fix casting
+      const modelVersion = (request.config?.version ||
+        model.version ||
+        name) as string;
+
+      if (validateContextCacheRequest(request, model, modelVersion)) {
+        const handleContextCacheResponse = await handleContextCache(
+          apiKey!,
+          request,
+          chatRequest,
+          modelVersion
+        );
+        chatRequest = handleContextCacheResponse.newChatRequest;
+        cache = handleContextCacheResponse.cache;
+      }
+
+      let genModel: GenerativeModel | null = null;
+
+      const client = new GoogleGenerativeAI(apiKey!);
+
+      if (cache) {
+        logger.info('Using Context Cache');
+        genModel = client.getGenerativeModelFromCachedContent(cache, options);
+      } else {
+        genModel = client.getGenerativeModel(
+          {
+            model: request.config?.version || model.version || name,
+          },
+          options
+        );
+      }
+
       if (streamingCallback) {
-        const result = await client
+        const result = await genModel
           .startChat(chatRequest)
           .sendMessageStream(msg.parts, options);
         for await (const item of result.stream) {
@@ -604,7 +646,7 @@ export function googleAIModel(
           custom: response,
         };
       } else {
-        const result = await client
+        const result = await genModel
           .startChat(chatRequest)
           .sendMessage(msg.parts, options);
         if (!result.response.candidates?.length)
