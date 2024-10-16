@@ -259,7 +259,7 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
    * @param index The candidate index to utilize during conversion, defaults to first candidate.
    * @returns A serializable list of messages compatible with `generate({history})`.
    */
-  toHistory(): MessageData[] {
+  get messages(): MessageData[] {
     if (!this.request)
       throw new Error(
         "Can't construct history for response without request reference."
@@ -269,6 +269,10 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
         "Can't construct history for response without generated message."
       );
     return [...this.request?.messages, this.message.toJSON()];
+  }
+
+  get raw(): unknown {
+    return this.raw ?? this.custom;
   }
 
   toJSON(): ModelResponseData {
@@ -363,7 +367,23 @@ export class GenerateResponseChunk<T = unknown>
 export async function toGenerateRequest(
   options: GenerateOptions
 ): Promise<GenerateRequest> {
-  const messages: MessageData[] = [...(options.messages || [])];
+  const messages: MessageData[] = [];
+  if (options.system) {
+    const systemMessage: MessageData = { role: 'system', content: [] };
+    if (typeof options.system === 'string') {
+      systemMessage.content.push({ text: options.system });
+    } else if (Array.isArray(options.system)) {
+      systemMessage.role = inferRoleFromParts(options.system);
+      systemMessage.content.push(...(options.system as Part[]));
+    } else {
+      systemMessage.role = inferRoleFromParts([options.system]);
+      systemMessage.content.push(options.system);
+    }
+    messages.push(systemMessage);
+  }
+  if (options.messages) {
+    messages.push(...options.messages);
+  }
   if (options.prompt) {
     const promptMessage: MessageData = { role: 'user', content: [] };
     if (typeof options.prompt === 'string') {
@@ -388,7 +408,7 @@ export async function toGenerateRequest(
   const out = {
     messages,
     config: options.config,
-    context: options.context,
+    docs: options.docs,
     tools: tools?.map((tool) => toToolDefinition(tool)) || [],
     output: {
       format:
@@ -412,11 +432,13 @@ export interface GenerateOptions<
 > {
   /** A model name (e.g. `vertexai/gemini-1.0-pro`) or reference. */
   model?: ModelArgument<CustomOptions>;
+  /** The system prompt to be included in the generate request. Can be a string for a simple text prompt or one or more parts for multi-modal prompts (subject to model support). */
+  system?: string | Part | Part[];
   /** The prompt for which to generate a response. Can be a string for a simple text prompt or one or more parts for multi-modal prompts. */
   prompt?: string | Part | Part[];
   /** Retrieved documents to be used as context for this generation. */
-  context?: DocumentData[];
-  /** Conversation history for multi-turn prompting when supported by the underlying model. */
+  docs?: DocumentData[];
+  /** Conversation messages (history) for multi-turn prompting when supported by the underlying model. */
   messages?: MessageData[];
   /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
   tools?: ToolArgument[];
@@ -436,18 +458,32 @@ export interface GenerateOptions<
   use?: ModelMiddleware[];
 }
 
-async function resolveModel(options: GenerateOptions): Promise<ModelAction> {
+interface ResolvedModel<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> {
+  modelAction: ModelAction;
+  config?: z.infer<CustomOptions>;
+  version?: string;
+}
+
+async function resolveModel(options: GenerateOptions): Promise<ResolvedModel> {
   let model = options.model;
   if (!model) {
-    throw new Error('Unable to resolve model.');
+    throw new Error('Model is required.');
   }
   if (typeof model === 'string') {
-    return (await lookupAction(`/model/${model}`)) as ModelAction;
-  } else if (model.hasOwnProperty('info')) {
-    const ref = model as ModelReference<any>;
-    return (await lookupAction(`/model/${ref.name}`)) as ModelAction;
+    return {
+      modelAction: (await lookupAction(`/model/${model}`)) as ModelAction,
+    };
+  } else if (model.hasOwnProperty('__action')) {
+    return { modelAction: model as ModelAction };
   } else {
-    return model as ModelAction;
+    const ref = model as ModelReference<any>;
+    return {
+      modelAction: (await lookupAction(`/model/${ref.name}`)) as ModelAction,
+      config: {
+        ...ref.config,
+      },
+      version: ref.version,
+    };
   }
 }
 
@@ -495,15 +531,16 @@ export async function generate<
 ): Promise<GenerateResponse<z.infer<O>>> {
   const resolvedOptions: GenerateOptions<O, CustomOptions> =
     await Promise.resolve(options);
-  const model = await resolveModel(resolvedOptions);
+  const resolvedModel = await resolveModel(resolvedOptions);
+  const model = resolvedModel.modelAction;
   if (!model) {
     let modelId: string;
     if (typeof resolvedOptions.model === 'string') {
       modelId = resolvedOptions.model;
-    } else if ((resolvedOptions.model as ModelReference<any>).name) {
-      modelId = (resolvedOptions.model as ModelReference<any>).name;
-    } else {
+    } else if ((resolvedOptions.model as ModelAction)?.__action?.name) {
       modelId = (resolvedOptions.model as ModelAction).__action.name;
+    } else {
+      modelId = (resolvedOptions.model as ModelReference<any>).name;
     }
     throw new Error(`Model ${modelId} not found`);
   }
@@ -525,13 +562,51 @@ export async function generate<
     });
   }
 
+  const messages: MessageData[] = [];
+  if (resolvedOptions.system) {
+    const systemMessage: MessageData = { role: 'system', content: [] };
+    if (typeof resolvedOptions.system === 'string') {
+      systemMessage.content.push({ text: resolvedOptions.system });
+    } else if (Array.isArray(resolvedOptions.system)) {
+      systemMessage.role = inferRoleFromParts(resolvedOptions.system);
+      systemMessage.content.push(...(resolvedOptions.system as Part[]));
+    } else {
+      systemMessage.role = inferRoleFromParts([resolvedOptions.system]);
+      systemMessage.content.push(resolvedOptions.system);
+    }
+    messages.push(systemMessage);
+  }
+  if (resolvedOptions.messages) {
+    messages.push(...resolvedOptions.messages);
+  }
+  if (resolvedOptions.prompt) {
+    const promptMessage: MessageData = { role: 'user', content: [] };
+    if (typeof resolvedOptions.prompt === 'string') {
+      promptMessage.content.push({ text: resolvedOptions.prompt });
+    } else if (Array.isArray(resolvedOptions.prompt)) {
+      promptMessage.role = inferRoleFromParts(resolvedOptions.prompt);
+      promptMessage.content.push(...(resolvedOptions.prompt as Part[]));
+    } else {
+      promptMessage.role = inferRoleFromParts([resolvedOptions.prompt]);
+      promptMessage.content.push(resolvedOptions.prompt);
+    }
+    messages.push(promptMessage);
+  }
+
+  if (messages.length === 0) {
+    throw new Error('at least one message is required in generate request');
+  }
+
   const params: z.infer<typeof GenerateUtilParamSchema> = {
     model: model.__action.name,
-    prompt: resolvedOptions.prompt,
-    context: resolvedOptions.context,
-    messages: resolvedOptions.messages,
+    docs: resolvedOptions.docs,
+    messages,
     tools,
-    config: resolvedOptions.config,
+    config: {
+      ...resolvedModel.config,
+      version: resolvedModel.version,
+      ...resolvedOptions.config,
+    },
     output: resolvedOptions.output && {
       format: resolvedOptions.output.format,
       jsonSchema: resolvedOptions.output.schema

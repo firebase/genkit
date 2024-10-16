@@ -194,7 +194,7 @@ export const ModelRequestSchema = z.object({
   config: z.any().optional(),
   tools: z.array(ToolDefinitionSchema).optional(),
   output: OutputConfigSchema.optional(),
-  context: z.array(DocumentDataSchema).optional(),
+  docs: z.array(DocumentDataSchema).optional(),
 });
 /** ModelRequest represents the parameters that are passed to a model when generating content. */
 export interface ModelRequest<
@@ -204,8 +204,6 @@ export interface ModelRequest<
 }
 
 export const GenerateRequestSchema = ModelRequestSchema.extend({
-  /** @deprecated Use `docs` instead. */
-  context: z.array(DocumentDataSchema).optional(),
   /** @deprecated All responses now return a single candidate. This will always be `undefined`. */
   candidates: z.number().optional(),
 });
@@ -260,7 +258,9 @@ export const ModelResponseSchema = z.object({
   finishMessage: z.string().optional(),
   latencyMs: z.number().optional(),
   usage: GenerationUsageSchema.optional(),
+  /** @deprecated use `raw` instead */
   custom: z.unknown(),
+  raw: z.unknown(),
   request: GenerateRequestSchema.optional(),
 });
 export type ModelResponseData = z.infer<typeof ModelResponseSchema>;
@@ -385,11 +385,10 @@ export interface ModelReference<CustomOptions extends z.ZodTypeAny> {
   configSchema?: CustomOptions;
   info?: ModelInfo;
   version?: string;
+  config?: z.infer<CustomOptions>;
 }
 
-/**
- *
- */
+/** Cretes a model reference. */
 export function modelRef<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(

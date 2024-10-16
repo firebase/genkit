@@ -62,7 +62,7 @@ const template = `
   I want to be outside as much as possible. Here are the cities I am
   considering:\n\n{{#each cities}}{{this}}\n{{/each}}`;
 
-const weatherPrompt = ai.definePrompt(
+export const weatherPrompt = ai.definePrompt(
   {
     name: 'weatherPrompt',
     model: gemini15Flash,

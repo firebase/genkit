@@ -349,7 +349,7 @@ export const dotpromptContext = ai.defineFlow(
       await prompt('dotpromptContext')
     ).generate({
       input: { question: question },
-      context: docs,
+      docs,
     });
     return result.output() as any;
   }
@@ -483,6 +483,6 @@ export const toolTester = ai.defineFlow(
       prompt: query,
       tools: testTools,
     });
-    return result.toHistory();
+    return result.messages;
   }
 );

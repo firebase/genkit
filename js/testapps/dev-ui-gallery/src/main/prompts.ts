@@ -26,7 +26,7 @@ import { ai } from '../genkit.js';
 const promptName = 'codeDefinedPrompt';
 const template = 'Say hello to {{name}} in the voice of a {{persona}}.';
 
-ai.definePrompt(
+export const codeDefinedPrompt = ai.definePrompt(
   {
     name: promptName,
     model: gemini15Flash,
@@ -68,7 +68,7 @@ ai.definePrompt(
   template
 );
 
-ai.definePrompt(
+export const codeDefinedPromptVariant = ai.definePrompt(
   {
     name: promptName,
     variant: 'jsonOutput',
