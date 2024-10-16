@@ -33,16 +33,15 @@ import {
   inMemorySessionStore,
 } from './session';
 
-export const MAIN_THREAD = '__main';
+export const MAIN_THREAD = 'main';
 
 export type BaseGenerateOptions = Omit<GenerateOptions, 'prompt'>;
 
-export type ChatOptions<S extends z.ZodTypeAny> = BaseGenerateOptions & {
-  stateSchema?: S;
-  store?: SessionStore<S>;
-  state?: z.infer<S>;
-  sessionId?: string;
-};
+export type ChatOptions<S extends z.ZodTypeAny = z.ZodTypeAny> =
+  BaseGenerateOptions & {
+    store?: SessionStore<S>;
+    sessionId?: string;
+  };
 
 /**
  * Chat encapsulates a statful execution environment for chat.
@@ -56,8 +55,8 @@ export type ChatOptions<S extends z.ZodTypeAny> = BaseGenerateOptions & {
  * response = await chat.send('what is my name?'); // chat history aware conversation
  * ```
  */
-export class Chat<S extends z.ZodTypeAny> {
-  readonly id: string;
+export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
+  readonly sessionId: string;
   readonly schema?: S;
   private sessionData?: SessionData<S>;
   private store: SessionStore<S>;
@@ -68,18 +67,16 @@ export class Chat<S extends z.ZodTypeAny> {
     readonly requestBase?: BaseGenerateOptions,
     options?: {
       id?: string;
-      stateSchema?: S;
       sessionData?: SessionData<S>;
       store?: SessionStore<S>;
-      threadName?: string;
+      thread?: string;
     }
   ) {
-    this.id = options?.id ?? uuidv4();
-    this.schema = options?.stateSchema;
-    this.threadName = options?.threadName ?? MAIN_THREAD;
+    this.sessionId = options?.id ?? uuidv4();
+    this.threadName = options?.thread ?? MAIN_THREAD;
     this.sessionData = options?.sessionData;
     if (!this.sessionData) {
-      this.sessionData = {};
+      this.sessionData = { id: this.sessionId };
     }
     if (!this.sessionData.threads) {
       this.sessionData!.threads = {};
@@ -212,14 +209,14 @@ export class Chat<S extends z.ZodTypeAny> {
     if (this.parent instanceof Session) {
       return this.parent.updateState(data);
     }
-    let sessionData = await this.store.get(this.id);
+    let sessionData = await this.store.get(this.sessionId);
     if (!sessionData) {
       sessionData = {} as SessionData<S>;
     }
     sessionData.state = data;
     this.sessionData = sessionData;
 
-    await this.store.save(this.id, sessionData);
+    await this.store.save(this.sessionId, sessionData);
   }
 
   get messages(): MessageData[] | undefined {
@@ -230,16 +227,16 @@ export class Chat<S extends z.ZodTypeAny> {
   }
 
   async updateMessages(messages: MessageData[]): Promise<void> {
-    let sessionData = await this.store.get(this.id);
+    let sessionData = await this.store.get(this.sessionId);
     if (!sessionData) {
-      sessionData = { threads: {} };
+      sessionData = { id: this.sessionId, threads: {} };
     }
     if (!sessionData.threads) {
       sessionData.threads = {};
     }
     sessionData.threads[this.threadName] = messages;
     this.sessionData = sessionData;
-    await this.store.save(this.id, sessionData);
+    await this.store.save(this.sessionId, sessionData);
   }
 
   toJSON() {

@@ -76,8 +76,8 @@ import {
   PromptGenerateOptions,
   PromptMetadata,
 } from '@genkit-ai/dotprompt';
+import { v4 as uuidv4 } from 'uuid';
 import { Chat, ChatOptions } from './chat.js';
-import { Environment } from './environment.js';
 import { logger } from './logging.js';
 import {
   defineModel,
@@ -86,7 +86,13 @@ import {
   ModelAction,
 } from './model.js';
 import { lookupAction, Registry, runWithRegistry } from './registry.js';
-import { SessionStore } from './session.js';
+import {
+  getCurrentSession,
+  Session,
+  SessionData,
+  SessionError,
+  SessionOptions,
+} from './session.js';
 
 /**
  * Options for initializing Genkit.
@@ -888,37 +894,6 @@ export class Genkit {
   }
 
   /**
-   * Creates a new environment which allows stateful execution of chat session, flows and prompts.
-   *
-   * ```ts
-   * const ai = genkit({...});
-   * const agent = ai.defineEnvironment({
-   *   name: 'agent',
-   *   stateSchema: z.object({
-   *     myState: z.object(),
-   *   }),
-   *   store: firestoreStateStore(),
-   * });
-   * const flow = agent.defineFlow({...})
-   * agent.definePrompt({...})
-   * agent.defineTool({...})
-   * const session = agent.createSession(); // create a session
-   * let response = await session.send('hi'); // session state aware conversation
-   * await session.runFlow(flow, {...})
-   * ```
-   */
-  defineEnvironment<S extends z.ZodTypeAny = z.ZodTypeAny>(config: {
-    name: string;
-    stateSchema?: S;
-    store?: SessionStore<any>;
-  }): Environment<S> {
-    return new Environment(config.name, this, {
-      stateSchema: config.stateSchema,
-      store: config.store,
-    });
-  }
-
-  /**
    * Create a chat session with the provided options.
    *
    * ```ts
@@ -929,50 +904,60 @@ export class Genkit {
    * response = await chat.send('another one')
    * ```
    */
-  chat<S extends z.ZodTypeAny = z.ZodTypeAny>(
-    options?: ChatOptions<S>
-  ): Chat<S> {
-    return new Chat(
-      this,
-      {
-        ...options,
-      },
-      {
-        sessionData: {
-          state: options?.state,
-        },
-        stateSchema: options?.stateSchema,
-        store: options?.store,
-      }
-    );
+  async chat(options?: ChatOptions): Promise<Chat> {
+    const session = await this.createSession();
+    return session.chat(options);
   }
 
   /**
-   * Load a chat session from the provided store.
+   * Create a session for this environment.
    */
-  async loadChat<S extends z.ZodTypeAny = z.ZodTypeAny>(
+  async createSession(options?: SessionOptions): Promise<Session> {
+    const sessionId = uuidv4();
+    const sessionData: SessionData = {
+      id: sessionId,
+      state: options?.state,
+    };
+    if (options?.store) {
+      await options.store.save(sessionId, sessionData);
+    }
+    return new Session(this, {
+      id: sessionId,
+      sessionData,
+      stateSchema: options?.stateSchema,
+      store: options?.store,
+    });
+  }
+
+  /**
+   * Loads a session from the store.
+   */
+  async loadSession(
     sessionId: string,
-    options: ChatOptions<S>
-  ): Promise<Chat<S>> {
+    options: SessionOptions
+  ): Promise<Session> {
     if (!options.store) {
-      throw new Error('options.store is required for loading chat sessions');
+      throw new Error('options.store is required');
     }
     const sessionData = await options.store.get(sessionId);
-    if (!sessionData) {
-      throw new Error(`chat session ${sessionId} not found`);
+
+    return new Session(this, {
+      id: sessionId,
+      sessionData,
+      stateSchema: options?.stateSchema,
+      store: options.store,
+    });
+  }
+
+  /**
+   * Gets the current session from async local storage.
+   */
+  get currentSession(): Session {
+    const currentSession = getCurrentSession();
+    if (!currentSession) {
+      throw new SessionError('not running within a session');
     }
-    return new Chat(
-      this,
-      {
-        ...options,
-      },
-      {
-        id: sessionId,
-        sessionData,
-        stateSchema: options?.stateSchema,
-        store: options?.store,
-      }
-    );
+    return currentSession as Session;
   }
 
   /**

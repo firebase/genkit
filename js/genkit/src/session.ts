@@ -18,13 +18,12 @@ import { GenerateOptions, MessageData } from '@genkit-ai/ai';
 import { z } from '@genkit-ai/core';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { v4 as uuidv4 } from 'uuid';
-import { Chat, ChatOptions } from './chat';
-import { Environment } from './environment';
+import { Chat, ChatOptions, MAIN_THREAD } from './chat';
 import { Genkit } from './genkit';
 
 export type BaseGenerateOptions = Omit<GenerateOptions, 'prompt'>;
 
-export type SessionOptions<S extends z.ZodTypeAny> = BaseGenerateOptions & {
+export interface SessionOptions<S extends z.ZodTypeAny = z.ZodTypeAny> {
   /** Schema describing the state. */
   stateSchema?: S;
   /** Session store implementation for persisting the session state. */
@@ -33,7 +32,7 @@ export type SessionOptions<S extends z.ZodTypeAny> = BaseGenerateOptions & {
   state?: z.infer<S>;
   /** Custom session Id. */
   sessionId?: string;
-};
+}
 
 /**
  * Session encapsulates a statful execution environment for chat.
@@ -47,15 +46,14 @@ export type SessionOptions<S extends z.ZodTypeAny> = BaseGenerateOptions & {
  * response = await chat.send('tell me a story');
  * ```
  */
-export class Session<S extends z.ZodTypeAny> {
+export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
   readonly id: string;
   readonly schema?: S;
   private sessionData?: SessionData<S>;
   private store: SessionStore<S>;
 
   constructor(
-    readonly parent: Genkit | Environment<S>,
-    private requestBase?: BaseGenerateOptions,
+    readonly parent: Genkit,
     options?: {
       id?: string;
       stateSchema?: S;
@@ -67,7 +65,7 @@ export class Session<S extends z.ZodTypeAny> {
     this.schema = options?.stateSchema;
     this.sessionData = options?.sessionData;
     if (!this.sessionData) {
-      this.sessionData = {};
+      this.sessionData = { id: this.id };
     }
     if (!this.sessionData.threads) {
       this.sessionData!.threads = {};
@@ -76,12 +74,6 @@ export class Session<S extends z.ZodTypeAny> {
   }
 
   get genkit(): Genkit {
-    if (this.parent instanceof Session) {
-      return this.parent.genkit;
-    }
-    if (this.parent instanceof Environment) {
-      return this.parent.genkit;
-    }
     return this.parent;
   }
 
@@ -147,7 +139,7 @@ export class Session<S extends z.ZodTypeAny> {
     maybeOptions?: ChatOptions<S>
   ): Chat<S> {
     let options: ChatOptions<S> | undefined;
-    let threadName = '__main';
+    let threadName = MAIN_THREAD;
     if (maybeOptions) {
       threadName = optionsOrThreadName as string;
       options = maybeOptions as ChatOptions<S>;
@@ -161,16 +153,12 @@ export class Session<S extends z.ZodTypeAny> {
     return new Chat<S>(
       this,
       {
-        ...this.requestBase,
         ...options,
       },
       {
-        threadName,
+        thread: threadName,
         id: this.id,
-        sessionData: {
-          state: options?.state,
-        },
-        stateSchema: options?.stateSchema,
+        sessionData: this.sessionData,
         store: this.store ?? options?.store,
       }
     );
@@ -181,7 +169,8 @@ export class Session<S extends z.ZodTypeAny> {
   }
 }
 
-export interface SessionData<S extends z.ZodTypeAny> {
+export interface SessionData<S extends z.ZodTypeAny = z.ZodTypeAny> {
+  id: string;
   state?: z.infer<S>;
   threads?: Record<string, MessageData[]>;
 }
@@ -216,7 +205,7 @@ export class SessionError extends Error {
 export interface SessionStore<S extends z.ZodTypeAny> {
   get(sessionId: string): Promise<SessionData<S> | undefined>;
 
-  save(sessionId: string, data: SessionData<S>): Promise<void>;
+  save(sessionId: string, data: Omit<SessionData<S>, 'id'>): Promise<void>;
 }
 
 export function inMemorySessionStore() {
