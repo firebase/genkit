@@ -30,7 +30,7 @@ describe('session', () => {
   });
 
   it('maintains history in the session', async () => {
-    const session = await ai.createSession();
+    const session = ai.createSession();
     const chat = session.chat();
     let response = await chat.send('hi');
 
@@ -61,15 +61,15 @@ describe('session', () => {
 
   it('maintains multithreaded history in the session', async () => {
     const store = new TestMemorySessionStore();
-    const session = await ai.createSession({
+    const session = ai.createSession({
       store,
-
-      state: {
+      initialState: {
         name: 'Genkit',
       },
     });
 
-    let response = await session.chat().send('hi main');
+    let mainChat = session.chat();
+    let response = await mainChat.send('hi main');
     assert.strictEqual(response.text, 'Echo: hi main; config: {}');
 
     const lawyerChat = session.chat('lawyerChat', {
@@ -131,7 +131,7 @@ describe('session', () => {
   });
 
   it('maintains history in the session with streaming', async () => {
-    const session = await ai.createSession();
+    const session = ai.createSession();
     const chat = session.chat();
 
     let { response, stream } = await chat.sendStream('hi');
@@ -174,39 +174,40 @@ describe('session', () => {
 
   it('stores state and messages in the store', async () => {
     const store = new TestMemorySessionStore();
-    const session = await ai.createSession({
+    const session = ai.createSession({
       store,
+      initialState: {
+        foo: 'bar',
+      },
     });
-    const initialState = await store.get(session.id);
-    delete initialState.id; // ignore
-    assert.deepStrictEqual(initialState, {
-      state: undefined,
-      threads: {},
-    });
-
     const chat = session.chat();
 
     await chat.send('hi');
     await chat.send('bye');
 
     const state = await store.get(session.id);
-
-    assert.deepStrictEqual(state?.threads, {
-      main: [
-        { content: [{ text: 'hi' }], role: 'user' },
-        {
-          content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
-          role: 'model',
-        },
-        { content: [{ text: 'bye' }], role: 'user' },
-        {
-          content: [
-            { text: 'Echo: hi,Echo: hi,; config: {},bye' },
-            { text: '; config: {}' },
-          ],
-          role: 'model',
-        },
-      ],
+    delete state.id;
+    assert.deepStrictEqual(state, {
+      state: {
+        foo: 'bar',
+      },
+      threads: {
+        main: [
+          { content: [{ text: 'hi' }], role: 'user' },
+          {
+            content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
+            role: 'model',
+          },
+          { content: [{ text: 'bye' }], role: 'user' },
+          {
+            content: [
+              { text: 'Echo: hi,Echo: hi,; config: {},bye' },
+              { text: '; config: {}' },
+            ],
+            role: 'model',
+          },
+        ],
+      },
     });
   });
 
@@ -214,8 +215,8 @@ describe('session', () => {
     it('loads session from store', async () => {
       const store = new TestMemorySessionStore();
       // init the store
-      const originalSession = await ai.createSession({ store });
-      const originalMainChat = await originalSession.chat({
+      const originalSession = ai.createSession({ store });
+      const originalMainChat = originalSession.chat({
         config: {
           temperature: 1,
         },
@@ -227,7 +228,7 @@ describe('session', () => {
 
       // load
       const session = await ai.loadSession(sessionId, { store });
-      const mainChat = await session.chat();
+      const mainChat = session.chat();
       assert.deepStrictEqual(mainChat.messages, [
         { content: [{ text: 'hi' }], role: 'user' },
         {

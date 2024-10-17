@@ -17,12 +17,17 @@
 import { Action, defineAction, JSONSchema7, z } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
 import { DocumentData } from './document.js';
-import { GenerateOptions } from './generate.js';
+import {
+  GenerateOptions,
+  GenerateResponse,
+  GenerateStreamResponse,
+} from './generate.js';
 import {
   GenerateRequest,
   GenerateRequestSchema,
   ModelArgument,
 } from './model.js';
+import { ToolAction } from './tool.js';
 
 export type PromptFn<
   I extends z.ZodTypeAny = z.ZodTypeAny,
@@ -56,6 +61,84 @@ export function isPrompt(arg: any): boolean {
     typeof arg === 'function' &&
     (arg as any).__action?.metadata?.type === 'prompt'
   );
+}
+
+export type PromptGenerateOptions<
+  I = undefined,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+> = Omit<
+  GenerateOptions<z.ZodTypeAny, CustomOptions>,
+  'prompt' | 'input' | 'model'
+> & {
+  model?: ModelArgument<CustomOptions>;
+  input?: I;
+};
+
+/**
+ * A prompt that can be executed as a function.
+ */
+export interface ExecutablePrompt<
+  I = undefined,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  /**
+   * Generates a response by rendering the prompt template with given user input and then calling the model.
+   *
+   * @param input Prompt inputs.
+   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
+   * @returns the model response as a promise of `GenerateStreamResponse`.
+   */
+  <Out extends O>(
+    input?: I,
+    opts?: PromptGenerateOptions<I, CustomOptions>
+  ): Promise<GenerateResponse<z.infer<Out>>>;
+
+  /**
+   * Generates a response by rendering the prompt template with given user input and then calling the model.
+   * @param input Prompt inputs.
+   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
+   * @returns the model response as a promise of `GenerateStreamResponse`.
+   */
+  stream<Out extends O>(
+    input?: I,
+    opts?: PromptGenerateOptions<I, CustomOptions>
+  ): Promise<GenerateStreamResponse<z.infer<Out>>>;
+
+  /**
+   * Generates a response by rendering the prompt template with given user input and additional generate options and then calling the model.
+   *
+   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
+   * @returns the model response as a promise of `GenerateResponse`.
+   */
+  generate<Out extends O>(
+    opt: PromptGenerateOptions<I, CustomOptions>
+  ): Promise<GenerateResponse<z.infer<Out>>>;
+
+  /**
+   * Generates a streaming response by rendering the prompt template with given user input and additional generate options and then calling the model.
+   *
+   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
+   * @returns the model response as a promise of `GenerateStreamResponse`.
+   */
+  generateStream<Out extends O>(
+    opt: PromptGenerateOptions<I, CustomOptions>
+  ): Promise<GenerateStreamResponse<z.infer<Out>>>;
+
+  /**
+   * Renders the prompt template based on user input.
+   *
+   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
+   * @returns a `GenerateOptions` object to be used with the `generate()` function from @genkit-ai/ai.
+   */
+  render<Out extends O>(
+    opt: PromptGenerateOptions<I, CustomOptions>
+  ): Promise<GenerateOptions<CustomOptions, Out>>;
+
+  /**
+   * Returns the prompt usable as a tool.
+   */
+  asTool(): ToolAction;
 }
 
 /**
