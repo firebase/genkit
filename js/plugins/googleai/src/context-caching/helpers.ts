@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-import { CachedContent, StartChatParams } from '@google/generative-ai';
+import { CachedContent, Content, StartChatParams } from '@google/generative-ai';
 import { GoogleAICacheManager } from '@google/generative-ai/server';
 import crypto from 'crypto';
-import { GenkitError, ModelReference, z } from 'genkit';
+import { GenkitError, z } from 'genkit';
 import { logger } from 'genkit/logging';
 import { GenerateRequest } from 'genkit/model';
-import { toGeminiSystemInstruction } from '../gemini';
 
 export function generateCacheKey(request: CachedContent): string {
   // Select relevant parts of the request to generate a hash (e.g., messages, config)
@@ -32,16 +31,17 @@ export function generateCacheKey(request: CachedContent): string {
 export function getContentForCache(
   request: GenerateRequest<z.ZodTypeAny>,
   chatRequest: StartChatParams,
-  modelVersion: string
+  modelVersion: string,
+  cacheConfigDetails: CacheConfigDetails
 ): {
   cachedContent: CachedContent;
   chatRequest: StartChatParams;
+  cacheConfig?: CacheConfig;
 } {
   if (!chatRequest.history || chatRequest.history.length === 0) {
     throw new Error('No history provided for context caching');
   }
 
-  // TODO: We probably don't need to pass in the whole request to this function?
   if (chatRequest.history.length !== request.messages.length - 1) {
     throw new GenkitError({
       status: 'INTERNAL',
@@ -55,17 +55,14 @@ export function getContentForCache(
     contents: [],
   };
 
-  const endOfCachedContents = request.messages.findIndex(
-    // @ts-ignore
-    (message) => message.contextCache
-  );
+  const { endOfCachedContents, cacheConfig } = cacheConfigDetails;
 
   // We split history into two parts: the part that should be cached and the part that should not
   const slicedHistory = chatRequest.history.slice(0, endOfCachedContents + 1);
 
   cachedContent.contents = slicedHistory;
 
-  let newHistory;
+  let newHistory: Content[];
 
   if (endOfCachedContents >= chatRequest.history.length - 1) {
     newHistory = [];
@@ -73,16 +70,10 @@ export function getContentForCache(
     newHistory = chatRequest.history.slice(endOfCachedContents + 1);
   }
 
+  debugger;
   chatRequest.history = newHistory;
 
-  if (request.config?.contextCache?.context) {
-    cachedContent.systemInstruction = toGeminiSystemInstruction({
-      role: 'system',
-      content: [{ text: request.config.contextCache.context }],
-    });
-  }
-
-  return { cachedContent, chatRequest };
+  return { cachedContent, chatRequest, cacheConfig };
 }
 
 /**
@@ -129,8 +120,65 @@ export async function lookupContextCache(
   return null;
 }
 
+const CONTEXT_CACHE_SUPPORTED_MODELS = [
+  'gemini-1.5-flash-001',
+  'gemini-1.5-pro-001',
+];
+
+export const cacheConfigSchema = z.union([
+  z.boolean(),
+  z.object({ ttlSeconds: z.number().optional() }).passthrough(),
+]);
+
+export type CacheConfig = z.infer<typeof cacheConfigSchema>;
+
+export const cacheConfigDetailsSchema = z.object({
+  cacheConfig: cacheConfigSchema,
+  endOfCachedContents: z.number(),
+});
+
+export type CacheConfigDetails = z.infer<typeof cacheConfigDetailsSchema>;
+
 /**
- * Function to validate request and model to determine if content should be cached.
+ * Determines if the user wants to use a cache.
+ * Extracts cache config and index of the last cache config from the request if present. Otherwise, returns null.
+ * @param request
+ * @returns
+ */
+export const extractCacheConfig = (
+  request: GenerateRequest<z.ZodTypeAny>
+): {
+  cacheConfig: { ttlSeconds?: number } | boolean;
+  endOfCachedContents: number;
+} | null => {
+  const endOfCachedContents = request.messages.findLastIndex(
+    (message) => message.metadata && message.metadata.cache
+  );
+
+  if (endOfCachedContents === -1) {
+    return null;
+  }
+
+  const cacheConfig = cacheConfigSchema.parse(
+    request.messages[endOfCachedContents].metadata?.cache
+  );
+
+  return {
+    endOfCachedContents,
+    cacheConfig,
+  };
+};
+
+const INVALID_ARGUMENT_MESSAGES = {
+  modelVersion: `Model version is required for context caching, which is only supported in ${CONTEXT_CACHE_SUPPORTED_MODELS.join(',')} models.`,
+  tools: 'Context caching cannot be used simultaneously with tools.',
+  codeExecution:
+    'Context caching cannot be used simultaneously with code execution.',
+};
+
+/**
+ * Once intent to use cache is established, this fuunction is used to validate the caching request.
+ * This stops us making an API call to the cache manager if the request is invalid for some reason.
  * If config for caching is present but conflicting features are present, it will throw a 400 GenkitError.
  * @param request
  * @param model
@@ -138,51 +186,26 @@ export async function lookupContextCache(
  */
 export function validateContextCacheRequest(
   request: any,
-  model: ModelReference<z.ZodTypeAny>,
   modelVersion: string
 ): boolean {
-  // Check if contextCache is requested in the config
-  if (!request.config?.contextCache) {
-    logger.debug('Context caching is not requested');
-    return false;
-  }
-
-  if (
-    !modelVersion ||
-    !['gemini-1.5-flash-001', 'gemini-1.5-pro-001'].includes(modelVersion)
-  ) {
+  if (!modelVersion || !CONTEXT_CACHE_SUPPORTED_MODELS.includes(modelVersion)) {
     throw new GenkitError({
       status: 'INVALID_ARGUMENT',
-      message:
-        'Model version is required for context caching, only on 001 models',
-    });
-  }
-
-  // Check if the model supports contextCache
-  // @ts-ignore
-  if (!model?.info?.supports?.contextCache) {
-    return false;
-  }
-
-  // Check for conflicting features
-  if (request.config?.systemInstruction) {
-    throw new GenkitError({
-      status: 'INVALID_ARGUMENT',
-      message: 'Context caching cannot be used with system instructions',
+      message: INVALID_ARGUMENT_MESSAGES.modelVersion,
     });
   }
 
   if (request.tools && request.tools.length > 0) {
     throw new GenkitError({
       status: 'INVALID_ARGUMENT',
-      message: 'Context caching cannot be used with tools',
+      message: INVALID_ARGUMENT_MESSAGES.tools,
     });
   }
 
   if (request.config?.codeExecution) {
     throw new GenkitError({
       status: 'INVALID_ARGUMENT',
-      message: 'Context caching cannot be used with code execution',
+      message: INVALID_ARGUMENT_MESSAGES.codeExecution,
     });
   }
 

@@ -16,40 +16,39 @@
 
 import {
   CachedContent,
+  Content as GeminiMessage,
   FileDataPart,
   FunctionCallPart,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
   FunctionResponsePart,
   GenerateContentCandidate as GeminiCandidate,
-  Content as GeminiMessage,
-  Part as GeminiPart,
   GenerateContentResponse,
   GenerationConfig,
   GenerativeModel,
   GoogleGenerativeAI,
   InlineDataPart,
+  Part as GeminiPart,
   RequestOptions,
   StartChatParams,
   Tool,
 } from '@google/generative-ai';
 import { GENKIT_CLIENT_HEADER, z } from 'genkit';
-import { logger } from 'genkit/logging';
 import {
   CandidateData,
+  defineModel,
   GenerationCommonConfigSchema,
+  getBasicUsageStats,
   MediaPart,
   MessageData,
   ModelAction,
   ModelMiddleware,
+  modelRef,
   ModelReference,
   Part,
   ToolDefinitionSchema,
   ToolRequestPart,
   ToolResponsePart,
-  defineModel,
-  getBasicUsageStats,
-  modelRef,
 } from 'genkit/model';
 import {
   downloadRequestMedia,
@@ -57,7 +56,10 @@ import {
 } from 'genkit/model/middleware';
 import process from 'process';
 import { handleContextCache } from './context-caching';
-import { validateContextCacheRequest } from './context-caching/helpers';
+import {
+  extractCacheConfig,
+  validateContextCacheRequest,
+} from './context-caching/helpers';
 
 const SafetySettingsSchema = z.object({
   category: z.enum([
@@ -585,10 +587,6 @@ export function googleAIModel(
           .map((message) => toGeminiMessage(message, model)),
         safetySettings: request.config?.safetySettings,
       } as StartChatParams;
-      /**
-       * This function is used to determine if the request should be cached. If bad configuration, then it will error (instead of costing them tokens)
-       */
-
       let cache: CachedContent | null = null;
 
       // TODO: fix casting
@@ -596,12 +594,18 @@ export function googleAIModel(
         model.version ||
         name) as string;
 
-      if (validateContextCacheRequest(request, model, modelVersion)) {
+      const cacheConfigDetails = extractCacheConfig(request);
+
+      if (
+        cacheConfigDetails &&
+        validateContextCacheRequest(request, modelVersion)
+      ) {
         const handleContextCacheResponse = await handleContextCache(
           apiKey!,
           request,
           chatRequest,
-          modelVersion
+          modelVersion,
+          cacheConfigDetails
         );
         chatRequest = handleContextCacheResponse.newChatRequest;
         cache = handleContextCacheResponse.cache;
@@ -612,7 +616,6 @@ export function googleAIModel(
       const client = new GoogleGenerativeAI(apiKey!);
 
       if (cache) {
-        logger.info('Using Context Cache');
         genModel = client.getGenerativeModelFromCachedContent(cache, options);
       } else {
         genModel = client.getGenerativeModel(

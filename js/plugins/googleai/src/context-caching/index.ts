@@ -15,15 +15,18 @@
  */
 
 import { CachedContent, StartChatParams } from '@google/generative-ai';
-import { GoogleAICacheManager } from '@google/generative-ai/server';
+import {
+  CachedContentCreateParams,
+  GoogleAICacheManager,
+} from '@google/generative-ai/server';
 import { GenerateRequest, GenkitError, z } from 'genkit';
 import { logger } from 'genkit/logging';
 import {
   generateCacheKey,
   getContentForCache,
   lookupContextCache,
+  type CacheConfigDetails,
 } from './helpers';
-
 /**
  * Handles context caching and transforms the chatRequest
  * @param apiKey
@@ -36,15 +39,18 @@ export async function handleContextCache(
   apiKey: string,
   request: GenerateRequest<z.ZodTypeAny>,
   chatRequest: StartChatParams,
-  modelVersion: string
+  modelVersion: string,
+  cacheConfigDetails: CacheConfigDetails
 ): Promise<{ cache: CachedContent; newChatRequest: StartChatParams }> {
   const cacheManager = new GoogleAICacheManager(apiKey);
 
   const { cachedContent, chatRequest: newChatRequest } = getContentForCache(
     request,
     chatRequest,
-    modelVersion
+    modelVersion,
+    cacheConfigDetails
   );
+  debugger;
   cachedContent.model = modelVersion;
   const cacheKey = generateCacheKey(cachedContent);
 
@@ -56,7 +62,11 @@ export async function handleContextCache(
   if (!cache) {
     try {
       logger.debug('No cache found, creating one.');
-      cache = await cacheManager.create(cachedContent);
+      const createParams: CachedContentCreateParams = {
+        ...cachedContent,
+        ttlSeconds: cacheConfigDetails.cacheConfig === true ? 500 : 0,
+      };
+      cache = await cacheManager.create(createParams);
       logger.debug(`Created new cache entry with key: ${cacheKey}`);
     } catch (cacheError) {
       throw new GenkitError({

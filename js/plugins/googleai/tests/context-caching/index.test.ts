@@ -84,6 +84,7 @@ describe('handleContextCache', () => {
         { role: 'model', parts: [{ text: 'I am a chatbot' }] },
       ],
       displayName: 'cacheKey123',
+      ttlSeconds: 500,
     } as CachedContent;
 
     // Mocking helper functions with proper typing
@@ -109,14 +110,16 @@ describe('handleContextCache', () => {
       apiKey,
       mockRequest,
       mockChatRequest,
-      modelVersion
+      modelVersion,
+      { endOfCachedContents: 1, cacheConfig: true }
     );
 
     // Assertions to verify correct function calls and behavior
     expect(getContentForCache).toHaveBeenCalledWith(
       mockRequest,
       mockChatRequest,
-      modelVersion
+      modelVersion,
+      { endOfCachedContents: 1, cacheConfig: true }
     );
     expect(generateCacheKey).toHaveBeenCalledWith(mockCachedContent);
     expect(lookupContextCache).toHaveBeenCalledWith(
@@ -138,7 +141,8 @@ describe('handleContextCache', () => {
       apiKey,
       mockRequest,
       mockChatRequest,
-      modelVersion
+      modelVersion,
+      { endOfCachedContents: 1, cacheConfig: true }
     );
 
     expect(lookupContextCache).toHaveBeenCalledWith(
@@ -154,7 +158,10 @@ describe('handleContextCache', () => {
     mockCreate.mockRejectedValueOnce(new Error('Cache creation failed'));
 
     await expect(
-      handleContextCache(apiKey, mockRequest, mockChatRequest, modelVersion)
+      handleContextCache(apiKey, mockRequest, mockChatRequest, modelVersion, {
+        endOfCachedContents: 1,
+        cacheConfig: true,
+      })
     ).rejects.toThrowError(
       new GenkitError({
         status: 'INTERNAL',
@@ -170,7 +177,10 @@ describe('handleContextCache', () => {
     mockCreate.mockResolvedValueOnce(null);
 
     await expect(
-      handleContextCache(apiKey, mockRequest, mockChatRequest, modelVersion)
+      handleContextCache(apiKey, mockRequest, mockChatRequest, modelVersion, {
+        endOfCachedContents: 1,
+        cacheConfig: true,
+      })
     ).rejects.toThrowError(
       new GenkitError({
         status: 'INTERNAL',

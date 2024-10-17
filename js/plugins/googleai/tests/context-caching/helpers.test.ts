@@ -14,25 +14,41 @@
  * limitations under the License.
  */
 
+import { CachedContent, StartChatParams } from '@google/generative-ai';
+import { GoogleAICacheManager } from '@google/generative-ai/server';
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
+import crypto from 'crypto';
 import { GenkitError, ModelReference, z } from 'genkit';
 import { logger } from 'genkit/logging';
-import { validateContextCacheRequest } from '../../src/context-caching/helpers';
+import { GenerateRequest } from 'genkit/model';
+import {
+  clearAllCaches,
+  extractCacheConfig,
+  generateCacheKey,
+  getContentForCache,
+  lookupContextCache,
+  validateContextCacheRequest,
+} from '../../src/context-caching/helpers';
 
 // Mocks for logger (if you want to test logs)
 jest.mock('genkit/logging', () => ({
   logger: {
     debug: jest.fn(),
     error: jest.fn(),
+    info: jest.fn(),
   },
 }));
 
+// Mock dependencies
+const mockCacheManager = {
+  list: jest.fn() as jest.Mock<() => Promise<any>>,
+  delete: jest.fn() as jest.Mock<() => Promise<void>>,
+};
+
 const mockRequest = (overrides: any = {}) => ({
-  config: {
-    contextCache: true,
-    ...overrides.config,
-  },
-  tools: overrides.tools || [],
+  messages: [],
+  tools: [],
+  ...overrides,
 });
 
 const mockModel = (overrides: any = {}) =>
@@ -45,131 +61,6 @@ const mockModel = (overrides: any = {}) =>
     },
   }) as ModelReference<z.ZodTypeAny>;
 
-describe('validateContextCacheRequest', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  test('should return false when context caching is not requested', () => {
-    const request = mockRequest({ config: { contextCache: false } });
-    const model = mockModel();
-
-    const result = validateContextCacheRequest(
-      request,
-      model,
-      'gemini-1.5-pro-001'
-    );
-    expect(result).toBe(false);
-    expect(logger.debug).toHaveBeenCalledWith(
-      'Context caching is not requested'
-    );
-  });
-
-  test('should throw error if model version is not provided', () => {
-    const request = mockRequest();
-    const model = mockModel();
-
-    expect(() => {
-      validateContextCacheRequest(request, model, '');
-    }).toThrowError(
-      new GenkitError({
-        status: 'INVALID_ARGUMENT',
-        message:
-          'Model version is required for context caching, only on 001 models',
-      })
-    );
-    expect(logger.error).not.toHaveBeenCalled();
-  });
-
-  test('should throw error if model version is unsupported', () => {
-    const request = mockRequest();
-    const model = mockModel();
-
-    expect(() => {
-      validateContextCacheRequest(request, model, 'unsupported-version');
-    }).toThrowError(
-      new GenkitError({
-        status: 'INVALID_ARGUMENT',
-        message:
-          'Model version is required for context caching, only on 001 models',
-      })
-    );
-  });
-
-  test('should return false if model does not support context caching', () => {
-    const request = mockRequest();
-    const model = mockModel({ info: { supports: { contextCache: false } } });
-
-    const result = validateContextCacheRequest(
-      request,
-      model,
-      'gemini-1.5-pro-001'
-    );
-    expect(result).toBe(false);
-  });
-
-  test('should throw error if conflicting features (systemInstruction) are present', () => {
-    const request = mockRequest({ config: { systemInstruction: true } });
-    const model = mockModel();
-
-    expect(() => {
-      validateContextCacheRequest(request, model, 'gemini-1.5-pro-001');
-    }).toThrowError(
-      new GenkitError({
-        status: 'INVALID_ARGUMENT',
-        message: 'Context caching cannot be used with system instructions',
-      })
-    );
-  });
-
-  test('should throw error if conflicting features (tools) are present', () => {
-    const request = mockRequest({ tools: ['someTool'] });
-    const model = mockModel();
-
-    expect(() => {
-      validateContextCacheRequest(request, model, 'gemini-1.5-pro-001');
-    }).toThrowError(
-      new GenkitError({
-        status: 'INVALID_ARGUMENT',
-        message: 'Context caching cannot be used with tools',
-      })
-    );
-  });
-
-  test('should throw error if conflicting features (codeExecution) are present', () => {
-    const request = mockRequest({ config: { codeExecution: true } });
-    const model = mockModel();
-
-    expect(() => {
-      validateContextCacheRequest(request, model, 'gemini-1.5-pro-001');
-    }).toThrowError(
-      new GenkitError({
-        status: 'INVALID_ARGUMENT',
-        message: 'Context caching cannot be used with code execution',
-      })
-    );
-  });
-
-  test('should return true when context caching is valid', () => {
-    const request = mockRequest();
-    const model = mockModel();
-
-    const result = validateContextCacheRequest(
-      request,
-      model,
-      'gemini-1.5-pro-001'
-    );
-    expect(result).toBe(true);
-    expect(logger.debug).toHaveBeenCalledWith(
-      'Context caching is valid for this request'
-    );
-  });
-});
-
-import { CachedContent } from '@google/generative-ai';
-import crypto from 'crypto';
-import { generateCacheKey } from '../../src/context-caching/helpers';
-
 // Mock data
 const mockCachedContent: CachedContent = {
   model: 'gemini-1.5-pro-001',
@@ -180,6 +71,196 @@ const mockCachedContent: CachedContent = {
     },
   ],
 };
+
+describe('extractCacheConfig', () => {
+  const mockRequest = (messages: any[]) => ({
+    messages,
+  });
+
+  test('should return null if no cache metadata is present', () => {
+    const request = mockRequest([
+      { role: 'user', content: [{ text: 'Hello' }] },
+      { role: 'model', content: [{ text: 'How can I help?' }] },
+    ]);
+
+    const result = extractCacheConfig(request);
+    expect(result).toBeNull();
+  });
+
+  test('should return cache config with TTL and correct endOfCachedContents', () => {
+    const request = mockRequest([
+      { role: 'user', content: [{ text: 'Hello' }] },
+      {
+        role: 'model',
+        content: [{ text: 'How can I help?' }],
+        metadata: { cache: { ttlSeconds: 3600 } },
+      },
+    ]);
+
+    const result = extractCacheConfig(request);
+    expect(result).toEqual({
+      cacheConfig: { ttlSeconds: 3600 },
+      endOfCachedContents: 1, // The index of the message with cache metadata
+    });
+  });
+
+  test('should return cache config without TTL and correct endOfCachedContents', () => {
+    const request = mockRequest([
+      { role: 'user', content: [{ text: 'Hello' }] },
+      {
+        role: 'model',
+        content: [{ text: 'How can I help?' }],
+        metadata: { cache: true },
+      },
+    ]);
+
+    const result = extractCacheConfig(request);
+    expect(result).toEqual({
+      cacheConfig: true,
+      endOfCachedContents: 1, // The index of the message with cache metadata
+    });
+  });
+
+  test('should handle cache config at the first message', () => {
+    const request = mockRequest([
+      {
+        role: 'model',
+        content: [{ text: 'Cached response' }],
+        metadata: { cache: { ttlSeconds: 7200 } },
+      },
+      { role: 'user', content: [{ text: 'What is your name?' }] },
+    ]);
+
+    const result = extractCacheConfig(request);
+    expect(result).toEqual({
+      cacheConfig: { ttlSeconds: 7200 },
+      endOfCachedContents: 0, // The index of the message with cache metadata
+    });
+  });
+
+  test('should handle cache config at the last message', () => {
+    const request = mockRequest([
+      { role: 'user', content: [{ text: 'Who are you?' }] },
+      {
+        role: 'model',
+        content: [{ text: 'I am an AI' }],
+        metadata: { cache: true },
+      },
+    ]);
+
+    const result = extractCacheConfig(request);
+    expect(result).toEqual({
+      cacheConfig: true,
+      endOfCachedContents: 1, // The index of the message with cache metadata
+    });
+  });
+
+  test('should return null when metadata exists but no cache field', () => {
+    const request = mockRequest([
+      {
+        role: 'model',
+        content: [{ text: 'Response' }],
+        metadata: { otherField: 'otherValue' },
+      },
+      { role: 'user', content: [{ text: 'What is your purpose?' }] },
+    ]);
+
+    const result = extractCacheConfig(request);
+    expect(result).toBeNull();
+  });
+
+  test('should correctly parse cacheConfig with ttlSeconds and additional properties', () => {
+    const request = mockRequest([
+      { role: 'user', content: [{ text: 'Hello' }] },
+      {
+        role: 'model',
+        content: [{ text: 'Response' }],
+        metadata: { cache: { ttlSeconds: 3600, otherProperty: 'extraValue' } },
+      },
+    ]);
+
+    const result = extractCacheConfig(request);
+
+    expect(result).toEqual({
+      cacheConfig: { ttlSeconds: 3600, otherProperty: 'extraValue' },
+      endOfCachedContents: 1,
+    });
+  });
+
+  test('should correctly parse cacheConfig as boolean', () => {
+    const request = mockRequest([
+      { role: 'user', content: [{ text: 'Hello' }] },
+      {
+        role: 'model',
+        content: [{ text: 'Response' }],
+        metadata: { cache: true },
+      },
+    ]);
+
+    const result = extractCacheConfig(request);
+
+    expect(result).toEqual({
+      cacheConfig: true,
+      endOfCachedContents: 1,
+    });
+  });
+});
+
+describe('validateContextCacheRequest', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('should throw error if model version is not provided', () => {
+    const request = mockRequest();
+
+    expect(() => {
+      validateContextCacheRequest(request, '');
+    }).toThrowError(
+      new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message:
+          'Model version is required for context caching, which is only supported in gemini-1.5-flash-001,gemini-1.5-pro-001 models.',
+      })
+    );
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  test('should throw error if conflicting features (tools) are present', () => {
+    const request = mockRequest({ tools: ['someTool'] });
+
+    expect(() => {
+      validateContextCacheRequest(request, 'gemini-1.5-pro-001');
+    }).toThrowError(
+      new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message: 'Context caching cannot be used simultaneously with tools.',
+      })
+    );
+  });
+
+  test('should throw error if conflicting features (codeExecution) are present', () => {
+    const request = mockRequest({ config: { codeExecution: true } });
+    const model = mockModel();
+
+    expect(() => {
+      validateContextCacheRequest(request, 'gemini-1.5-pro-001');
+    }).toThrowError(
+      new GenkitError({
+        status: 'INVALID_ARGUMENT',
+        message:
+          'Context caching cannot be used simultaneously with code execution.',
+      })
+    );
+  });
+
+  test('should return true when context caching is valid', () => {
+    const request = mockRequest();
+
+    const result = validateContextCacheRequest(request, 'gemini-1.5-pro-001');
+    expect(result).toBe(true);
+  });
+});
 
 describe('generateCacheKey', () => {
   test('should generate a valid SHA-256 hash for a valid request', () => {
@@ -238,35 +319,8 @@ describe('generateCacheKey', () => {
   });
 });
 
-import { StartChatParams } from '@google/generative-ai';
-import { GoogleAICacheManager } from '@google/generative-ai/server';
-import { GenerateRequest } from 'genkit/model';
-import {
-  clearAllCaches,
-  getContentForCache,
-  lookupContextCache,
-} from '../../src/context-caching/helpers';
-
-// Mock logger
-jest.mock('genkit/logging', () => ({
-  logger: {
-    debug: jest.fn(),
-    info: jest.fn(),
-    error: jest.fn(),
-  },
-}));
-
-// Mock dependencies
-const mockCacheManager = {
-  list: jest.fn() as jest.Mock<() => Promise<any>>,
-  delete: jest.fn() as jest.Mock<() => Promise<void>>,
-};
-
 describe('getContentForCache', () => {
   const mockRequest: GenerateRequest<z.ZodTypeAny> = {
-    config: {
-      contextCache: true,
-    },
     messages: [
       {
         role: 'user',
@@ -289,13 +343,15 @@ describe('getContentForCache', () => {
     history: [
       { role: 'user', parts: [{ text: 'Hello world' }] },
       { role: 'model', parts: [{ text: 'I am a chatbot' }] },
-      { role: 'user', parts: [{ text: 'Goodbye' }] },
     ],
   };
 
   test('should throw error if no history is provided', () => {
     expect(() => {
-      getContentForCache(mockRequest, { history: [] }, 'gemini-1.5-pro-001');
+      getContentForCache(mockRequest, { history: [] }, 'gemini-1.5-pro-001', {
+        endOfCachedContents: 1,
+        cacheConfig: true,
+      });
     }).toThrowError('No history provided for context caching');
   });
 
@@ -307,7 +363,11 @@ describe('getContentForCache', () => {
       getContentForCache(
         mockRequest,
         mismatchedChatRequest,
-        'gemini-1.5-pro-001'
+        'gemini-1.5-pro-001',
+        {
+          endOfCachedContents: 1,
+          cacheConfig: true,
+        }
       );
     }).toThrowError(
       new GenkitError({
@@ -320,9 +380,6 @@ describe('getContentForCache', () => {
 
   test('should set newHistory to an empty array when endOfCachedContents is the last message', () => {
     const mockRequest: GenerateRequest<z.ZodTypeAny> = {
-      config: {
-        contextCache: true,
-      },
       messages: [
         {
           role: 'user',
@@ -332,7 +389,11 @@ describe('getContentForCache', () => {
           role: 'model',
           content: [{ text: 'I am a chatbot' }],
           // @ts-ignore
-          contextCache: true,
+          cache: true,
+        },
+        {
+          role: 'user',
+          content: [{ text: 'Goodbye' }],
         },
       ],
     };
@@ -347,7 +408,11 @@ describe('getContentForCache', () => {
     const { chatRequest } = getContentForCache(
       mockRequest,
       mockChatRequest,
-      'gemini-1.5-pro-001'
+      'gemini-1.5-pro-001',
+      {
+        endOfCachedContents: 1,
+        cacheConfig: true,
+      }
     );
 
     expect(chatRequest.history).toEqual([]); // Test that newHistory is set to an empty array
@@ -357,55 +422,14 @@ describe('getContentForCache', () => {
     const { cachedContent, chatRequest } = getContentForCache(
       mockRequest,
       mockChatRequest,
-      'gemini-1.5-pro-001'
+      'gemini-1.5-pro-001',
+      {
+        endOfCachedContents: 1,
+        cacheConfig: true,
+      }
     );
     expect(cachedContent.contents).toHaveLength(2); // First two messages are cached
-    expect(chatRequest.history).toHaveLength(1); // Only the last message remains in history
-  });
-
-  test('should add system instructions if provided in the request', () => {
-    const requestWithContext = {
-      config: {
-        contextCache: {
-          context: 'System instruction content',
-        },
-      },
-      messages: [
-        {
-          role: 'user',
-          content: [{ text: 'Hello world' }],
-        },
-        {
-          role: 'model',
-          content: [{ text: 'I am a chatbot' }],
-          contextCache: true,
-        },
-        {
-          role: 'user',
-          content: [{ text: 'Goodbye' }],
-        },
-      ],
-    } as GenerateRequest<z.ZodTypeAny>;
-
-    const chatRequestWithHistory: StartChatParams = {
-      history: [
-        { role: 'user', parts: [{ text: 'Hello world' }] },
-        { role: 'system', parts: [{ text: 'I am a chatbot' }] },
-        // @ts-ignore
-        { role: 'user', parts: [{ text: 'Goodbye' }] },
-      ],
-    };
-
-    const { cachedContent } = getContentForCache(
-      requestWithContext,
-      chatRequestWithHistory,
-      'gemini-1.5-pro-001'
-    );
-
-    expect(cachedContent.systemInstruction).toEqual({
-      role: 'user',
-      parts: [{ text: 'System instruction content' }],
-    });
+    expect(chatRequest.history).toHaveLength(0); // No last message in history
   });
 });
 
