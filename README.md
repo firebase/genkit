@@ -88,9 +88,14 @@ Find excellent examples of community-built plugins for OpenAI, Anthropic, Cohere
 
 ## Try Genkit on IDX
 
-<img src="docs/resources/idx-logo.png" width="50" alt="Project IDX logo">
+Want to skip the local setup? Click below to try out Genkit using [Project IDX](https://idx.dev), Google's AI-assisted workspace for full-stack app development in the cloud.
 
-Want to try Genkit without a local setup? [Explore it on Project IDX](https://idx.google.com/new/genkit), Google's AI-assisted workspace for full-stack app development in the cloud.
+<a href="https://idx.google.com/import?url=">
+  <img
+    height="32"
+    alt="Try in IDX"
+    src="https://cdn.idx.dev/btn/try_purple_32.svg">
+</a>
 
 ## Sample apps
 
