@@ -10,11 +10,12 @@
     "sourceMap": true,
     "esModuleInterop": true,
     "strict": true,
-    "target": "es2015",
+    "target": "esnext",
     "allowSyntheticDefaultImports": true,
     "skipLibCheck": true,
     "typeRoots": ["./node_modules/@types"],
-    "noEmit": true
+    "noEmit": true,
+    "lib": ["esnext", "dom", "dom.iterable"]
   },
   "compileOnSave": true
 }
