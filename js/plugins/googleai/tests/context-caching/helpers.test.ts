@@ -18,7 +18,7 @@ import { CachedContent, StartChatParams } from '@google/generative-ai';
 import { GoogleAICacheManager } from '@google/generative-ai/server';
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 import crypto from 'crypto';
-import { GenkitError, ModelReference, z } from 'genkit';
+import { GenkitError, z } from 'genkit';
 import { logger } from 'genkit/logging';
 import { GenerateRequest } from 'genkit/model';
 import {
@@ -39,27 +39,11 @@ jest.mock('genkit/logging', () => ({
   },
 }));
 
-// Mock dependencies
-const mockCacheManager = {
-  list: jest.fn() as jest.Mock<() => Promise<any>>,
-  delete: jest.fn() as jest.Mock<() => Promise<void>>,
-};
-
 const mockRequest = (overrides: any = {}) => ({
   messages: [],
   tools: [],
   ...overrides, // Ensuring overrides are properly applied
 });
-
-const mockModel = (overrides: any = {}) =>
-  ({
-    info: {
-      supports: {
-        contextCache: true,
-      },
-      ...overrides.info,
-    },
-  }) as ModelReference<z.ZodTypeAny>;
 
 const mockCachedContent: CachedContent = {
   model: 'gemini-1.5-pro-001',
@@ -71,7 +55,25 @@ const mockCachedContent: CachedContent = {
   ],
 };
 
+let mockCacheManager: {
+  list: jest.Mock<
+    () => Promise<{
+      cachedContents: Partial<CachedContent>[];
+      nextPageToken?: string;
+    }>
+  >;
+  delete: jest.Mock<() => Promise<void>>;
+};
+
+// Test Suite for extractCacheConfig
 describe('extractCacheConfig', () => {
+  beforeEach(() => {
+    mockCacheManager = {
+      list: jest.fn() as jest.Mock<() => Promise<any>>,
+      delete: jest.fn() as jest.Mock<() => Promise<void>>,
+    };
+  });
+
   test('should return null if no cache metadata is present', () => {
     const request = mockRequest({
       messages: [
@@ -217,8 +219,13 @@ describe('extractCacheConfig', () => {
   });
 });
 
+// Test Suite for validateContextCacheRequest
 describe('validateContextCacheRequest', () => {
   beforeEach(() => {
+    mockCacheManager = {
+      list: jest.fn() as jest.Mock<() => Promise<any>>,
+      delete: jest.fn() as jest.Mock<() => Promise<void>>,
+    };
     jest.clearAllMocks();
   });
 
@@ -272,7 +279,15 @@ describe('validateContextCacheRequest', () => {
   });
 });
 
+// Test Suite for generateCacheKey
 describe('generateCacheKey', () => {
+  beforeEach(() => {
+    mockCacheManager = {
+      list: jest.fn() as jest.Mock<() => Promise<any>>,
+      delete: jest.fn() as jest.Mock<() => Promise<void>>,
+    };
+  });
+
   test('should generate a valid SHA-256 hash for a valid request', () => {
     const result = generateCacheKey(mockCachedContent);
     const expectedHash = crypto
@@ -329,11 +344,17 @@ describe('generateCacheKey', () => {
   });
 });
 
+// Test Suite for getContentForCache
 describe('getContentForCache', () => {
   let mockRequest: GenerateRequest<z.ZodTypeAny>;
   let mockChatRequest: StartChatParams;
 
   beforeEach(() => {
+    mockCacheManager = {
+      list: jest.fn() as jest.Mock<() => Promise<any>>,
+      delete: jest.fn() as jest.Mock<() => Promise<void>>,
+    };
+
     mockRequest = {
       messages: [
         {
@@ -507,8 +528,18 @@ describe('getContentForCache', () => {
   });
 });
 
+// Test Suite for lookupContextCache
 describe('lookupContextCache', () => {
   beforeEach(() => {
+    mockCacheManager = {
+      list: jest.fn() as jest.Mock<
+        () => Promise<{
+          cachedContents: Partial<CachedContent>[];
+          nextPageToken?: string;
+        }>
+      >,
+      delete: jest.fn() as jest.Mock<() => Promise<void>>,
+    };
     jest.clearAllMocks();
   });
 
@@ -564,10 +595,113 @@ describe('lookupContextCache', () => {
     expect(result).toEqual({ displayName: 'cacheKey123' });
     expect(mockCacheManager.list).toHaveBeenCalledTimes(2);
   });
+
+  test('should stop after reaching the maxPages limit when cache is not found', async () => {
+    mockCacheManager.list
+      .mockResolvedValueOnce({
+        cachedContents: [],
+        nextPageToken: 'nextPage1',
+      })
+      .mockResolvedValueOnce({
+        cachedContents: [],
+        nextPageToken: 'nextPage2',
+      })
+      .mockResolvedValueOnce({
+        cachedContents: [],
+      });
+
+    const maxPages = 2;
+
+    const result = await lookupContextCache(
+      mockCacheManager as unknown as GoogleAICacheManager,
+      'cacheKey123',
+      maxPages
+    );
+
+    // Expect null as no matching cache is found
+    expect(result).toBeNull();
+
+    // Ensure list was called exactly maxPages times (2 in this case)
+    expect(mockCacheManager.list).toHaveBeenCalledTimes(maxPages);
+
+    // Ensure that nextPageToken is passed correctly
+    expect(mockCacheManager.list).toHaveBeenNthCalledWith(1, {
+      pageSize: undefined,
+      pageToken: undefined,
+    });
+    expect(mockCacheManager.list).toHaveBeenNthCalledWith(2, {
+      pageSize: undefined,
+      pageToken: 'nextPage1',
+    });
+  });
+
+  test('should return cache content if found within maxPages limit', async () => {
+    mockCacheManager.list
+      .mockResolvedValueOnce({
+        cachedContents: [],
+        nextPageToken: 'nextPage1',
+      })
+      .mockResolvedValueOnce({
+        cachedContents: [{ displayName: 'cacheKey123' }],
+      });
+
+    const maxPages = 3;
+
+    const result = await lookupContextCache(
+      mockCacheManager as unknown as GoogleAICacheManager,
+      'cacheKey123',
+      maxPages
+    );
+
+    // Expect the matching cache to be found and returned
+    expect(result).toEqual({ displayName: 'cacheKey123' });
+
+    // Ensure list was called only twice, as cache was found on the second page
+    expect(mockCacheManager.list).toHaveBeenCalledTimes(2);
+  });
+
+  test('should stop if maxPages is exceeded, even if there are more pages', async () => {
+    mockCacheManager.list
+      .mockResolvedValueOnce({
+        cachedContents: [],
+        nextPageToken: 'nextPage1',
+      })
+      .mockResolvedValueOnce({
+        cachedContents: [],
+        nextPageToken: 'nextPage2',
+      })
+      .mockResolvedValueOnce({
+        cachedContents: [{ displayName: 'cacheKey123' }],
+      });
+
+    const maxPages = 2;
+
+    const result = await lookupContextCache(
+      mockCacheManager as unknown as GoogleAICacheManager,
+      'cacheKey123',
+      maxPages
+    );
+
+    // Expect null as the maxPages limit is reached before finding the cache
+    expect(result).toBeNull();
+
+    // Ensure list was called exactly maxPages times
+    expect(mockCacheManager.list).toHaveBeenCalledTimes(maxPages);
+  });
 });
 
+// Test Suite for clearAllCaches
 describe('clearAllCaches', () => {
   beforeEach(() => {
+    mockCacheManager = {
+      list: jest.fn() as jest.Mock<
+        () => Promise<{
+          cachedContents: Partial<CachedContent>[];
+          nextPageToken?: string;
+        }>
+      >,
+      delete: jest.fn() as jest.Mock<() => Promise<void>>,
+    };
     jest.clearAllMocks();
   });
 
