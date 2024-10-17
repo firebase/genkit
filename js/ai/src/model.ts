@@ -449,7 +449,7 @@ function getPartCounts(parts: Part[]): PartCounts {
         audio: counts.audio + (isAudio ? 1 : 0),
       };
     },
-    {characters: 0, images: 0, videos: 0, audio: 0},
+    { characters: 0, images: 0, videos: 0, audio: 0 }
   );
 }
 
