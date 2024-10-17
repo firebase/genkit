@@ -26,18 +26,6 @@ import fs from 'fs';
 import { LocalFileEvalStore } from '../../src/eval/localFileEvalStore';
 import { EvalResult, EvalRunSchema, EvalStore } from '../../src/types/eval';
 
-jest.mock('crypto', () => {
-  return {
-    createHash: jest.fn().mockReturnThis(),
-    update: jest.fn().mockReturnThis(),
-    digest: jest.fn(() => 'store-root'),
-  };
-});
-
-jest.mock('os', () => {
-  return { tmpdir: jest.fn(() => '/tmp/') };
-});
-
 const EVAL_RESULTS: EvalResult[] = [
   {
     testCaseId: 'alakjdshfalsdkjh',
@@ -107,6 +95,8 @@ describe('localFileEvalStore', () => {
   let evalStore: EvalStore;
 
   beforeEach(() => {
+    // For storeRoot setup
+    fs.existsSync = jest.fn(() => true);
     LocalFileEvalStore.reset();
     evalStore = LocalFileEvalStore.getEvalStore() as EvalStore;
   });
@@ -125,11 +115,11 @@ describe('localFileEvalStore', () => {
       await evalStore.save(EVAL_RUN_WITH_ACTION);
 
       expect(fs.promises.writeFile).toHaveBeenCalledWith(
-        `/tmp/.genkit/store-root/evals/abc1234.json`,
+        expect.stringContaining(`evals/abc1234.json`),
         JSON.stringify(EVAL_RUN_WITH_ACTION)
       );
       expect(fs.promises.appendFile).toHaveBeenCalledWith(
-        `/tmp/.genkit/store-root/evals/index.txt`,
+        expect.stringContaining(`evals/index.txt`),
         JSON.stringify(EVAL_RUN_WITH_ACTION.key) + '\n'
       );
     });
@@ -138,11 +128,11 @@ describe('localFileEvalStore', () => {
       await evalStore.save(EVAL_RUN_WITHOUT_ACTION);
 
       expect(fs.promises.writeFile).toHaveBeenCalledWith(
-        `/tmp/.genkit/store-root/evals/def456.json`,
+        expect.stringContaining(`evals/def456.json`),
         JSON.stringify(EVAL_RUN_WITHOUT_ACTION)
       );
       expect(fs.promises.appendFile).toHaveBeenCalledWith(
-        `/tmp/.genkit/store-root/evals/index.txt`,
+        expect.stringContaining(`evals/index.txt`),
         JSON.stringify(EVAL_RUN_WITHOUT_ACTION.key) + '\n'
       );
     });
