@@ -73,7 +73,7 @@ describe('session', () => {
     let response = await mainChat.send('hi main');
     assert.strictEqual(response.text, 'Echo: hi main; config: {}');
 
-    const lawyerChat = await session.chat('lawyerChat', {
+    const lawyerChat = session.chat('lawyerChat', {
       system: 'talk like a lawyer',
     });
     response = await lawyerChat.send('hi lawyerChat');
