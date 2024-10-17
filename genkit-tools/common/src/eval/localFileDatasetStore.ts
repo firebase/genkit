@@ -71,10 +71,9 @@ export class LocalFileDatasetStore implements DatasetStore {
   private async createDatasetInternal(
     req: CreateDatasetRequest
   ): Promise<DatasetMetadata> {
-    const {data, datasetId, schema, targetAction} = req;
+    const { data, datasetId, schema, targetAction } = req;
     const id = await this.generateDatasetId(datasetId);
     const filePath = path.resolve(this.storeRoot, this.generateFileName(id));
-    
 
     if (fs.existsSync(filePath)) {
       logger.error(`Dataset already exists at ` + filePath);
@@ -109,7 +108,7 @@ export class LocalFileDatasetStore implements DatasetStore {
   }
 
   async updateDataset(req: UpdateDatasetRequest): Promise<DatasetMetadata> {
-    const {datasetId, data, schema, targetAction} = req;
+    const { datasetId, data, schema, targetAction } = req;
     const filePath = path.resolve(
       this.storeRoot,
       this.generateFileName(datasetId)
@@ -134,8 +133,8 @@ export class LocalFileDatasetStore implements DatasetStore {
     const newMetadata = {
       datasetId: datasetId,
       size: newSize,
-      schema: schema ? schema : prevMetadata.schema, 
-      targetAction: targetAction ? targetAction : prevMetadata.targetAction, 
+      schema: schema ? schema : prevMetadata.schema,
+      targetAction: targetAction ? targetAction : prevMetadata.targetAction,
       version: data ? prevMetadata.version + 1 : prevMetadata.version,
       createTime: prevMetadata.createTime,
       updateTime: now,
