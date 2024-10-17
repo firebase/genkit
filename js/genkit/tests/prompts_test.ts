@@ -46,7 +46,7 @@ describe('definePrompt - dotprompt', () => {
       );
 
       const response = await hi({ name: 'Genkit' });
-      assert.strictEqual(response.text(), 'Echo: hi Genkit; config: {}');
+      assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
     it('calls dotprompt with default model with config', async () => {
@@ -67,7 +67,7 @@ describe('definePrompt - dotprompt', () => {
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(
-        response.text(),
+        response.text,
         'Echo: hi Genkit; config: {"temperature":11}'
       );
     });
@@ -93,8 +93,8 @@ describe('definePrompt - dotprompt', () => {
         config: { version: 'abc' },
       });
       assert.strictEqual(
-        response.text(),
-        'Echo: hi Genkit; config: {"temperature":11,"version":"abc"}'
+        response.text,
+        'Echo: hi Genkit; config: {"version":"abc","temperature":11}'
       );
     });
 
@@ -114,7 +114,7 @@ describe('definePrompt - dotprompt', () => {
       const hi = await ai.prompt('hi');
 
       const response = await hi({ name: 'Genkit' });
-      assert.strictEqual(response.text(), 'Echo: hi Genkit; config: {}');
+      assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
   });
 
@@ -144,7 +144,7 @@ describe('definePrompt - dotprompt', () => {
       );
 
       const response = await hi({ name: 'Genkit' });
-      assert.strictEqual(response.text(), 'Echo: hi Genkit; config: {}');
+      assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
     it('infers output schema', async () => {
@@ -176,7 +176,7 @@ describe('definePrompt - dotprompt', () => {
       );
 
       const response = await hi({ name: 'Genkit' });
-      const foo: z.infer<typeof Foo> = response.output();
+      const foo: z.infer<typeof Foo> = response.output;
       assert.deepStrictEqual(foo, { bar: 'baz' });
     });
 
@@ -199,9 +199,9 @@ describe('definePrompt - dotprompt', () => {
       const { response, stream } = await hi.stream({ name: 'Genkit' });
       const chunks: string[] = [];
       for await (const chunk of stream) {
-        chunks.push(chunk.text());
+        chunks.push(chunk.text);
       }
-      const responseText = (await response).text();
+      const responseText = (await response).text;
 
       assert.strictEqual(
         responseText,
@@ -232,13 +232,13 @@ describe('definePrompt - dotprompt', () => {
       });
       const chunks: string[] = [];
       for await (const chunk of stream) {
-        chunks.push(chunk.text());
+        chunks.push(chunk.text);
       }
-      const responseText = (await response).text();
+      const responseText = (await response).text;
 
       assert.strictEqual(
         responseText,
-        'Echo: hi Genkit; config: {"temperature":11,"version":"abc"}'
+        'Echo: hi Genkit; config: {"version":"abc","temperature":11}'
       );
       assert.deepStrictEqual(chunks, ['3', '2', '1']);
     });
@@ -259,7 +259,7 @@ describe('definePrompt - dotprompt', () => {
       const hi = await ai.prompt('hi');
 
       const response = await hi({ name: 'Genkit' });
-      assert.strictEqual(response.text(), 'Echo: hi Genkit; config: {}');
+      assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
   });
 
@@ -286,7 +286,7 @@ describe('definePrompt - dotprompt', () => {
       );
 
       const response = await hi({ name: 'Genkit' });
-      assert.strictEqual(response.text(), 'Echo: hi Genkit; config: {}');
+      assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
     it('calls dotprompt with default model with config', async () => {
@@ -308,7 +308,7 @@ describe('definePrompt - dotprompt', () => {
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(
-        response.text(),
+        response.text,
         'Echo: hi Genkit; config: {"temperature":11}'
       );
     });
@@ -339,7 +339,7 @@ describe('definePrompt - dotprompt', () => {
       delete response.model; // ignore
       assert.deepStrictEqual(response, {
         config: {},
-        context: undefined,
+        docs: undefined,
         messages: [],
         prompt: [
           {
@@ -391,7 +391,7 @@ describe('definePrompt', () => {
       );
 
       const response = await hi({ name: 'Genkit' });
-      assert.strictEqual(response.text(), 'Echo: hi Genkit; config: {}');
+      assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
     it('calls dotprompt with default model with config', async () => {
@@ -418,7 +418,7 @@ describe('definePrompt', () => {
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(
-        response.text(),
+        response.text,
         'Echo: hi Genkit; config: {"temperature":11}'
       );
     });
@@ -445,7 +445,7 @@ describe('definePrompt', () => {
       const hi = await ai.prompt('hi');
 
       const response = await hi({ name: 'Genkit' });
-      assert.strictEqual(response.text(), 'Echo: hi Genkit; config: {}');
+      assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
   });
 
@@ -481,7 +481,7 @@ describe('definePrompt', () => {
       );
 
       const response = await hi({ name: 'Genkit' });
-      assert.strictEqual(response.text(), 'Echo: hi Genkit; config: {}');
+      assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
     it('streams dotprompt with default model', async () => {
@@ -509,9 +509,9 @@ describe('definePrompt', () => {
       const { response, stream } = await hi.stream({ name: 'Genkit' });
       const chunks: string[] = [];
       for await (const chunk of stream) {
-        chunks.push(chunk.text());
+        chunks.push(chunk.text);
       }
-      const responseText = (await response).text();
+      const responseText = (await response).text;
 
       assert.strictEqual(
         responseText,
@@ -550,7 +550,7 @@ describe('definePrompt', () => {
       );
 
       const response = await hi({ name: 'Genkit' });
-      assert.strictEqual(response.text(), 'Echo: hi Genkit; config: {}');
+      assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
     it('calls dotprompt with default model with config', async () => {
@@ -578,7 +578,7 @@ describe('definePrompt', () => {
 
       const response = await hi({ name: 'Genkit' });
       assert.strictEqual(
-        response.text(),
+        response.text,
         'Echo: hi Genkit; config: {"temperature":11}'
       );
     });
@@ -613,8 +613,8 @@ describe('definePrompt', () => {
         }
       );
       assert.strictEqual(
-        response.text(),
-        'Echo: hi Genkit; config: {"temperature":11,"version":"abc"}'
+        response.text,
+        'Echo: hi Genkit; config: {"version":"abc","temperature":11}'
       );
     });
 
@@ -639,7 +639,7 @@ describe('definePrompt', () => {
       );
 
       const response = await hi.generate({ input: { name: 'Genkit' } });
-      assert.strictEqual(response.text(), 'Echo: hi Genkit; config: {}');
+      assert.strictEqual(response.text, 'Echo: hi Genkit; config: {}');
     });
 
     it('streams dotprompt with .generateStream', async () => {
@@ -671,13 +671,13 @@ describe('definePrompt', () => {
       });
       const chunks: string[] = [];
       for await (const chunk of stream) {
-        chunks.push(chunk.text());
+        chunks.push(chunk.text);
       }
-      const responseText = (await response).text();
+      const responseText = (await response).text;
 
       assert.strictEqual(
         responseText,
-        'Echo: hi Genkit; config: {"temperature":11,"version":"abc"}'
+        'Echo: hi Genkit; config: {"version":"abc","temperature":11}'
       );
       assert.deepStrictEqual(chunks, ['3', '2', '1']);
     });
@@ -715,7 +715,7 @@ describe('definePrompt', () => {
       delete response.model; // ignore
       assert.deepStrictEqual(response, {
         config: {},
-        context: undefined,
+        docs: undefined,
         input: {
           name: 'Genkit',
         },

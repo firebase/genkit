@@ -44,7 +44,7 @@ export const s05_readMenuFlow = defineFlow(
         imageUrl: imageDataUrl,
       },
     });
-    return { menuText: response.text() };
+    return { menuText: response.text };
   }
 );
 
@@ -64,7 +64,7 @@ export const s05_textMenuQuestionFlow = defineFlow(
         question: input.question,
       },
     });
-    return { answer: response.text() };
+    return { answer: response.text };
   }
 );
 

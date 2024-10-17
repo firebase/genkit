@@ -108,7 +108,7 @@ describe('GenerateResponse', () => {
         const response = new GenerateResponse(
           test.responseData as GenerateResponseData
         );
-        assert.deepStrictEqual(response.output(), test.expectedOutput);
+        assert.deepStrictEqual(response.output, test.expectedOutput);
       });
     }
   });
@@ -213,7 +213,7 @@ describe('GenerateResponse', () => {
         }),
         finishReason: 'stop',
       });
-      assert.deepStrictEqual(response.toolRequests(), []);
+      assert.deepStrictEqual(response.toolRequests, []);
     });
     it('returns tool call if present', () => {
       const toolCall = {
@@ -230,7 +230,7 @@ describe('GenerateResponse', () => {
         }),
         finishReason: 'stop',
       });
-      assert.deepStrictEqual(response.toolRequests(), [toolCall]);
+      assert.deepStrictEqual(response.toolRequests, [toolCall]);
     });
     it('returns all tool calls', () => {
       const toolCall1 = {
@@ -254,7 +254,7 @@ describe('GenerateResponse', () => {
         }),
         finishReason: 'stop',
       });
-      assert.deepStrictEqual(response.toolRequests(), [toolCall1, toolCall2]);
+      assert.deepStrictEqual(response.toolRequests, [toolCall1, toolCall2]);
     });
   });
 });
@@ -289,7 +289,7 @@ describe('toGenerateRequest', () => {
           { role: 'user', content: [{ text: 'Tell a joke about dogs.' }] },
         ],
         config: undefined,
-        context: undefined,
+        docs: undefined,
         tools: [],
         output: { format: 'text' },
       },
@@ -307,7 +307,7 @@ describe('toGenerateRequest', () => {
           { role: 'user', content: [{ text: 'Tell a joke about dogs.' }] },
         ],
         config: undefined,
-        context: undefined,
+        docs: undefined,
         tools: [
           {
             name: 'tellAFunnyJoke',
@@ -342,7 +342,7 @@ describe('toGenerateRequest', () => {
           { role: 'user', content: [{ text: 'Tell a joke about dogs.' }] },
         ],
         config: undefined,
-        context: undefined,
+        docs: undefined,
         tools: [
           {
             name: 'tellAFunnyJoke',
@@ -394,7 +394,7 @@ describe('toGenerateRequest', () => {
           },
         ],
         config: undefined,
-        context: undefined,
+        docs: undefined,
         tools: [],
         output: { format: 'text' },
       },
@@ -416,7 +416,7 @@ describe('toGenerateRequest', () => {
           { role: 'user', content: [{ text: 'Tell a joke about dogs.' }] },
         ],
         config: undefined,
-        context: undefined,
+        docs: undefined,
         tools: [],
         output: { format: 'text' },
       },
@@ -426,14 +426,14 @@ describe('toGenerateRequest', () => {
       prompt: {
         model: 'vertexai/gemini-1.0-pro',
         prompt: 'Tell a joke with context.',
-        context: [{ content: [{ text: 'context here' }] }],
+        docs: [{ content: [{ text: 'context here' }] }],
       },
       expectedOutput: {
         messages: [
           { content: [{ text: 'Tell a joke with context.' }], role: 'user' },
         ],
         config: undefined,
-        context: [{ content: [{ text: 'context here' }] }],
+        docs: [{ content: [{ text: 'context here' }] }],
         tools: [],
         output: { format: 'text' },
       },
@@ -515,7 +515,7 @@ describe('GenerateResponseChunk', () => {
           const responseChunk: GenerateResponseChunk =
             new GenerateResponseChunk(chunkData, accumulatedChunks);
 
-          const output = responseChunk.output();
+          const output = responseChunk.output;
 
           assert.deepStrictEqual(output, test.correctJson);
         });
@@ -601,7 +601,7 @@ describe('generate', () => {
     );
 
     const want = '[Echo: (banana)]';
-    assert.deepStrictEqual(response.text(), want);
+    assert.deepStrictEqual(response.text, want);
   });
 });
 
@@ -619,17 +619,17 @@ describe('generate', () => {
       )
     );
   });
-  it('should preserve the request in the returned response, enabling toHistory()', async () => {
+  it('should preserve the request in the returned response, enabling .messages', async () => {
     const response = await runWithRegistry(registry, () =>
       generate({
         model: 'echo',
-        prompt: 'Testing toHistory',
+        prompt: 'Testing messages',
       })
     );
 
     assert.deepEqual(
-      response.toHistory().map((m) => m.content[0].text),
-      ['Testing toHistory', 'Testing toHistory']
+      response.messages.map((m) => m.content[0].text),
+      ['Testing messages', 'Testing messages']
     );
   });
 });

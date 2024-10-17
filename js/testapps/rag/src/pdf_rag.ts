@@ -49,11 +49,11 @@ export const pdfQA = ai.defineFlow(
       .generate({
         input: {
           question: query,
-          context: docs.map((d) => d.text()),
+          context: docs.map((d) => d.text),
         },
         streamingCallback,
       })
-      .then((r) => r.text());
+      .then((r) => r.text);
   }
 );
 
@@ -122,7 +122,7 @@ export const synthesizeQuestions = ai.defineFlow(
           text: `Generate one question about the text below: ${chunks[i]}`,
         },
       });
-      questions.push(qResponse.text());
+      questions.push(qResponse.text);
     }
     return questions;
   }

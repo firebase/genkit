@@ -16,6 +16,8 @@
 
 import { MessageData } from '@genkit-ai/ai';
 import { ModelAction } from '@genkit-ai/ai/model';
+import { z } from '@genkit-ai/core';
+import { SessionData, SessionStore } from '../src/environment';
 import { Genkit } from '../src/genkit';
 
 export function defineEchoModel(ai: Genkit): ModelAction {
@@ -61,7 +63,12 @@ export function defineEchoModel(ai: Genkit): ModelAction {
               text:
                 'Echo: ' +
                 request.messages
-                  .map((m) => m.content.map((c) => c.text).join())
+                  .map(
+                    (m) =>
+                      (m.role === 'user' || m.role === 'model'
+                        ? ''
+                        : `${m.role}: `) + m.content.map((c) => c.text).join()
+                  )
                   .join(),
             },
             {
@@ -75,6 +82,23 @@ export function defineEchoModel(ai: Genkit): ModelAction {
   );
 }
 
+async function runAsync<O>(fn: () => O): Promise<O> {
+  return Promise.resolve(fn());
+}
+
+export class TestMemorySessionStore<S extends z.ZodTypeAny>
+  implements SessionStore<S>
+{
+  private data: Record<string, SessionData<S>> = {};
+
+  async get(sessionId: string): Promise<SessionData<S> | undefined> {
+    return this.data[sessionId];
+  }
+
+  async save(sessionId: string, sessionData: SessionData<S>): Promise<void> {
+    this.data[sessionId] = sessionData;
+  }
+}
 export function defineStaticResponseModel(
   ai: Genkit,
   message: MessageData
@@ -89,8 +113,4 @@ export function defineStaticResponseModel(
       }));
     }
   );
-}
-
-async function runAsync<O>(fn: () => O): Promise<O> {
-  return Promise.resolve(fn());
 }

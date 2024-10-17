@@ -382,7 +382,7 @@ function toGeminiPart(part: Part): GeminiPart {
   if (part.toolRequest) return toFunctionCall(part);
   if (part.toolResponse) return toFunctionResponse(part);
   if (part.custom) return toCustomPart(part);
-  throw new Error('Unsupported Part type');
+  throw new Error('Unsupported Part type' + JSON.stringify(part));
 }
 
 function fromGeminiPart(part: GeminiPart, jsonMode: boolean): Part {

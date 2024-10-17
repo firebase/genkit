@@ -191,7 +191,7 @@ describe('conformOutput (default middleware)', () => {
         { role: 'user', content: [{ text: 'hello again' }] },
       ],
       output: { format: 'json', schema },
-      context: [{ content: [{ text: 'hi' }] }],
+      docs: [{ content: [{ text: 'hi' }] }],
     });
     assert(
       part?.text?.includes(JSON.stringify(schema)),
@@ -341,7 +341,7 @@ describe('augmentWithContext', () => {
         augmentWithContext(options)(
           {
             messages,
-            context,
+            docs: context,
           },
           resolve as any
         );
@@ -521,7 +521,7 @@ describe('augmentWithContext', () => {
           metadata: { uid: 'second' },
         },
       ],
-      { itemTemplate: (d) => `* (${d.metadata!.uid}) -- ${d.text()}\n` }
+      { itemTemplate: (d) => `* (${d.metadata!.uid}) -- ${d.text}\n` }
     );
     assert.deepEqual(result[0].content.at(-1), {
       text: `${CONTEXT_PREFACE}* (first) -- i am context\n* (second) -- i am more context\n\n`,

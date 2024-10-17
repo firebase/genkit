@@ -35,22 +35,56 @@ describe('models', () => {
         const response = await ai.generate({
           prompt: 'hi',
         });
-        assert.strictEqual(response.text(), 'Echo: hi; config: undefined');
+        assert.strictEqual(response.text, 'Echo: hi; config: {}');
+      });
+
+      it('calls the default model with just a string prompt', async () => {
+        const response = await ai.generate('hi');
+        assert.strictEqual(response.text, 'Echo: hi; config: {}');
+      });
+
+      it('calls the default model with just parts prompt', async () => {
+        const response = await ai.generate([{ text: 'hi' }]);
+        assert.strictEqual(response.text, 'Echo: hi; config: {}');
+      });
+
+      it('calls the default model system', async () => {
+        const response = await ai.generate({
+          prompt: 'hi',
+          system: 'talk like a pirate',
+        });
+        assert.strictEqual(
+          response.text,
+          'Echo: system: talk like a pirate,hi; config: {}'
+        );
+        assert.deepStrictEqual(response.request, {
+          config: undefined,
+          context: undefined,
+          messages: [
+            {
+              role: 'system',
+              content: [{ text: 'talk like a pirate' }],
+            },
+            {
+              role: 'user',
+              content: [{ text: 'hi' }],
+            },
+          ],
+          output: {
+            format: 'text',
+          },
+          tools: [],
+        });
       });
 
       it('streams the default model', async () => {
-        const { response, stream } = await ai.generateStream({
-          prompt: 'hi',
-        });
+        const { response, stream } = await ai.generateStream('hi');
 
         const chunks: string[] = [];
         for await (const chunk of stream) {
-          chunks.push(chunk.text());
+          chunks.push(chunk.text);
         }
-        assert.strictEqual(
-          (await response).text(),
-          'Echo: hi; config: undefined'
-        );
+        assert.strictEqual((await response).text, 'Echo: hi; config: {}');
         assert.deepStrictEqual(chunks, ['3', '2', '1']);
       });
     });
@@ -68,7 +102,7 @@ describe('models', () => {
           model: 'echoModel',
           prompt: 'hi',
         });
-        assert.strictEqual(response.text(), 'Echo: hi; config: undefined');
+        assert.strictEqual(response.text, 'Echo: hi; config: {}');
       });
     });
   });

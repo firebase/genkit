@@ -45,10 +45,10 @@ export const menuQAFlow = ai.defineFlow(
 
     Question: ${input}
     `,
-      context: docs,
+      docs,
     });
 
-    const output = llmResponse.text();
+    const output = llmResponse.text;
     return output;
   }
 );

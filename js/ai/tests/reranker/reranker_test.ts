@@ -38,9 +38,9 @@ describe('reranker', () => {
           },
           async (query, documents, options) => {
             // Custom reranking logic: score based on string length similarity to query
-            const queryLength = query.text().length;
+            const queryLength = query.text.length;
             const rerankedDocs = documents.map((doc) => {
-              const score = Math.abs(queryLength - doc.text().length);
+              const score = Math.abs(queryLength - doc.text.length);
               return {
                 ...doc,
                 metadata: { ...doc.metadata, score },
@@ -75,8 +75,8 @@ describe('reranker', () => {
 
       // Validate the reranked results
       assert.equal(rerankedDocuments.length, 2);
-      assert(rerankedDocuments[0].text().includes('a bit longer'));
-      assert(rerankedDocuments[1].text().includes('short'));
+      assert(rerankedDocuments[0].text.includes('a bit longer'));
+      assert(rerankedDocuments[1].text.includes('short'));
     });
 
     it('handles missing options gracefully', async () => {

@@ -62,7 +62,7 @@ export function defineOllamaEmbedder({
         input.map(async (i) => {
           const requestPayload = {
             model: modelName,
-            prompt: i.text(),
+            prompt: i.text,
           };
           let res: Response;
           try {
