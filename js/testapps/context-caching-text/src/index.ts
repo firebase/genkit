@@ -51,13 +51,14 @@ export const lotrFlow = ai.defineFlow(
             },
           ],
           metadata: {
-            contextCache: true, // This marks the point where caching starts
+            cache: {
+              ttlSeconds: 1000,
+            }, // this message is the last one to be cached.
           },
         },
       ],
       config: {
         version: 'gemini-1.5-flash-001', // Adjust for model version
-        contextCache: true,
       },
       model: gemini15Flash,
       prompt: preprocess || defaultProcess,
@@ -68,7 +69,7 @@ export const lotrFlow = ai.defineFlow(
     // Set contextCache to true for the last message in the history
     messages[messages.length - 1].metadata = {
       ...messages[messages.length - 1].metadata,
-      contextCache: true,
+      cache: true,
     };
 
     const llmResponse = await generate({
@@ -76,7 +77,6 @@ export const lotrFlow = ai.defineFlow(
       model: gemini15Flash,
       config: {
         version: 'gemini-1.5-flash-001',
-        contextCache: true,
       },
       prompt:
         `You will now act as a literature expert. Answer the customer's query provided below:\n` +

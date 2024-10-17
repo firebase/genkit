@@ -103,13 +103,12 @@ export const videoAnalysisFlow = ai.defineFlow(
           ],
           // MessageSchema has no generics for extension, is it possible to add one, like we do for generate config?
           metadata: {
-            contextCache: true,
+            cache: true,
           },
         },
       ],
       config: {
         version: 'gemini-1.5-flash-001', // Adjust based on the correct model version
-        contextCache: true,
       },
       model: gemini15Flash,
       prompt: query,
