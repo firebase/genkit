@@ -39,6 +39,9 @@ export interface PromptMetadata<
   /** The name of the prompt. */
   name?: string;
 
+  /** Description (intent) of the prompt, used when prompt passed as tool to an LLM. */
+  description?: string;
+
   /** The variant name for the prompt. */
   variant?: string;
 

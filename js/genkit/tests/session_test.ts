@@ -31,7 +31,7 @@ describe('session', () => {
 
   it('maintains history in the session', async () => {
     const session = await ai.createSession();
-    const chat = session.chat();
+    const chat = await session.chat();
     let response = await chat.send('hi');
 
     assert.strictEqual(response.text, 'Echo: hi; config: {}');
@@ -69,10 +69,11 @@ describe('session', () => {
       },
     });
 
-    let response = await session.chat().send('hi main');
+    let mainChat = await session.chat();
+    let response = await mainChat.send('hi main');
     assert.strictEqual(response.text, 'Echo: hi main; config: {}');
 
-    const lawyerChat = session.chat('lawyerChat', {
+    const lawyerChat = await session.chat('lawyerChat', {
       system: 'talk like a lawyer',
     });
     response = await lawyerChat.send('hi lawyerChat');
@@ -81,7 +82,7 @@ describe('session', () => {
       'Echo: system: talk like a lawyer,hi lawyerChat; config: {}'
     );
 
-    const pirateChat = session.chat('pirateChat', {
+    const pirateChat = await session.chat('pirateChat', {
       system: 'talk like a pirate',
     });
     response = await pirateChat.send('hi pirateChat');
@@ -132,7 +133,7 @@ describe('session', () => {
 
   it('maintains history in the session with streaming', async () => {
     const session = await ai.createSession();
-    const chat = session.chat();
+    const chat = await session.chat();
 
     let { response, stream } = await chat.sendStream('hi');
 
@@ -184,7 +185,7 @@ describe('session', () => {
       threads: {},
     });
 
-    const chat = session.chat();
+    const chat = await session.chat();
 
     await chat.send('hi');
     await chat.send('bye');

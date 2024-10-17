@@ -15,6 +15,7 @@
  */
 
 import {
+  ExecutablePrompt,
   GenerateOptions,
   GenerateResponse,
   GenerateStreamOptions,
@@ -27,21 +28,28 @@ import { z } from '@genkit-ai/core';
 import { v4 as uuidv4 } from 'uuid';
 import { Genkit } from './genkit';
 import {
+  inMemorySessionStore,
   Session,
   SessionData,
   SessionStore,
-  inMemorySessionStore,
 } from './session';
 
 export const MAIN_THREAD = 'main';
 
 export type BaseGenerateOptions = Omit<GenerateOptions, 'prompt'>;
 
-export type ChatOptions<S extends z.ZodTypeAny = z.ZodTypeAny> =
-  BaseGenerateOptions & {
-    store?: SessionStore<S>;
-    sessionId?: string;
-  };
+export interface PromptRenderOptions<I> {
+  prompt: ExecutablePrompt<I>;
+  input?: I;
+}
+
+export type ChatOptions<
+  I = undefined,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> = (PromptRenderOptions<I> | BaseGenerateOptions) & {
+  store?: SessionStore<S>;
+  sessionId?: string;
+};
 
 /**
  * Chat encapsulates a statful execution environment for chat.

@@ -18,7 +18,7 @@ import { GenerateOptions, MessageData } from '@genkit-ai/ai';
 import { z } from '@genkit-ai/core';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { v4 as uuidv4 } from 'uuid';
-import { Chat, ChatOptions, MAIN_THREAD } from './chat';
+import { Chat, ChatOptions, MAIN_THREAD, PromptRenderOptions } from './chat';
 import { Genkit } from './genkit';
 
 export type BaseGenerateOptions = Omit<GenerateOptions, 'prompt'>;
@@ -111,9 +111,9 @@ export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
    * response = await chat.send('another one')
    * ```
    */
-  chat<S extends z.ZodTypeAny = z.ZodTypeAny>(
-    options?: ChatOptions<S>
-  ): Chat<S>;
+  chat<I>(
+    options?: ChatOptions<I, S>
+  ): Promise<Chat<S>>;
 
   /**
    * Craete a separaete chat conversation ("thread") within the same session state.
@@ -129,15 +129,15 @@ export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
    * await pirateChat.send('tell me a joke')
    * ```
    */
-  chat<S extends z.ZodTypeAny = z.ZodTypeAny>(
+  chat<I>(
     threadName: string,
-    options?: ChatOptions<S>
-  ): Chat<S>;
+    options?: ChatOptions<I, S>
+  ): Promise<Chat<S>>;
 
-  chat(
-    optionsOrThreadName?: ChatOptions<S> | string,
-    maybeOptions?: ChatOptions<S>
-  ): Chat<S> {
+  async chat<I>(
+    optionsOrThreadName?: ChatOptions<I, S> | string,
+    maybeOptions?: ChatOptions<I, S>
+  ): Promise<Chat<S>> {
     let options: ChatOptions<S> | undefined;
     let threadName = MAIN_THREAD;
     if (maybeOptions) {
@@ -150,11 +150,18 @@ export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
         options = optionsOrThreadName as ChatOptions<S>;
       }
     }
+    let requestBase: BaseGenerateOptions;
+    if (!!(options as PromptRenderOptions<I>).prompt.render) {
+      const renderOptions = (options as PromptRenderOptions<I>);
+      requestBase = await renderOptions.prompt.render({
+        input: renderOptions.input
+      });
+    } else {
+      requestBase = (options as BaseGenerateOptions);
+    }
     return new Chat<S>(
       this,
-      {
-        ...options,
-      },
+      requestBase,
       {
         thread: threadName,
         id: this.id,

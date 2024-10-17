@@ -49,7 +49,10 @@ export type PromptData = PromptFrontmatter & { template: string };
 export type PromptGenerateOptions<
   V = unknown,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-> = Omit<GenerateOptions<z.ZodTypeAny, CustomOptions>, 'prompt' | 'model'> & {
+> = Omit<
+  GenerateOptions<z.ZodTypeAny, CustomOptions>,
+  'prompt' | 'input' | 'model'
+> & {
   model?: ModelArgument<CustomOptions>;
   input?: V;
 };
@@ -72,6 +75,8 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
   output?: PromptMetadata['output'];
   tools?: PromptMetadata['tools'];
   config?: PromptMetadata['config'];
+
+  private _promptAction?: PromptAction;
 
   private _render: (input: I, options?: RenderMetadata) => MessageData[];
 
@@ -164,11 +169,11 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
     return { ...toFrontmatter(this), template: this.template };
   }
 
-  define(options?: { ns: string }): void {
-    definePrompt(
+  define(options?: { ns?: string; description?: string }): void {
+    this._promptAction = definePrompt(
       {
         name: registryDefinitionKey(this.name, this.variant, options?.ns),
-        description: 'Defined by Dotprompt',
+        description: options?.description ?? 'Defined by Dotprompt',
         inputSchema: this.input?.schema,
         inputJsonSchema: this.input?.jsonSchema,
         metadata: {
@@ -178,6 +183,10 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
       },
       async (input?: I) => toGenerateRequest(this.render({ input }))
     );
+  }
+
+  get promptAction(): PromptAction | undefined {
+    return this._promptAction;
   }
 
   private _generateOptions<
@@ -353,6 +362,6 @@ export function defineDotprompt<
   template: string
 ): Dotprompt<z.infer<I>> {
   const prompt = new Dotprompt(options, template);
-  prompt.define();
+  prompt.define({ description: options.description });
   return prompt;
 }
