@@ -104,11 +104,9 @@ const SAMPLE_DATASET_METADATA_2 = {
   updateTime: FAKE_TIME.toString(),
 };
 
-jest.mock('crypto', () => {
+jest.mock('process', () => {
   return {
-    createHash: jest.fn().mockReturnThis(),
-    update: jest.fn().mockReturnThis(),
-    digest: jest.fn(() => 'store-root'),
+    cwd: jest.fn(() => 'store-root'),
   };
 });
 

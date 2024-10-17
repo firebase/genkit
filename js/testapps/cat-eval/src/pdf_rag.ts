@@ -24,7 +24,7 @@ import { Document } from 'genkit/retriever';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import { getDocument } from 'pdfjs-dist-legacy';
-import { ai } from './index.js';
+import { ai } from './genkit.js';
 
 export const pdfChatRetriever = devLocalRetrieverRef('pdfQA');
 

@@ -213,6 +213,7 @@ export class ReflectionServer {
               return await action(input);
             }
           );
+          await flushTracing();
           response.send({
             result,
             telemetry: traceId
