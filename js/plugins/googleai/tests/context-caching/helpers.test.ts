@@ -30,7 +30,7 @@ import {
   validateContextCacheRequest,
 } from '../../src/context-caching/helpers';
 
-// Mocks for logger (if you want to test logs)
+// Mocks for logger
 jest.mock('genkit/logging', () => ({
   logger: {
     debug: jest.fn(),
@@ -48,7 +48,7 @@ const mockCacheManager = {
 const mockRequest = (overrides: any = {}) => ({
   messages: [],
   tools: [],
-  ...overrides,
+  ...overrides, // Ensuring overrides are properly applied
 });
 
 const mockModel = (overrides: any = {}) =>
@@ -61,7 +61,6 @@ const mockModel = (overrides: any = {}) =>
     },
   }) as ModelReference<z.ZodTypeAny>;
 
-// Mock data
 const mockCachedContent: CachedContent = {
   model: 'gemini-1.5-pro-001',
   contents: [
@@ -73,114 +72,125 @@ const mockCachedContent: CachedContent = {
 };
 
 describe('extractCacheConfig', () => {
-  const mockRequest = (messages: any[]) => ({
-    messages,
-  });
-
   test('should return null if no cache metadata is present', () => {
-    const request = mockRequest([
-      { role: 'user', content: [{ text: 'Hello' }] },
-      { role: 'model', content: [{ text: 'How can I help?' }] },
-    ]);
+    const request = mockRequest({
+      messages: [
+        { role: 'user', content: [{ text: 'Hello' }] },
+        { role: 'model', content: [{ text: 'How can I help?' }] },
+      ],
+    });
 
     const result = extractCacheConfig(request);
     expect(result).toBeNull();
   });
 
   test('should return cache config with TTL and correct endOfCachedContents', () => {
-    const request = mockRequest([
-      { role: 'user', content: [{ text: 'Hello' }] },
-      {
-        role: 'model',
-        content: [{ text: 'How can I help?' }],
-        metadata: { cache: { ttlSeconds: 3600 } },
-      },
-    ]);
+    const request = mockRequest({
+      messages: [
+        { role: 'user', content: [{ text: 'Hello' }] },
+        {
+          role: 'model',
+          content: [{ text: 'How can I help?' }],
+          metadata: { cache: { ttlSeconds: 3600 } },
+        },
+      ],
+    });
 
     const result = extractCacheConfig(request);
     expect(result).toEqual({
       cacheConfig: { ttlSeconds: 3600 },
-      endOfCachedContents: 1, // The index of the message with cache metadata
+      endOfCachedContents: 1,
     });
   });
 
   test('should return cache config without TTL and correct endOfCachedContents', () => {
-    const request = mockRequest([
-      { role: 'user', content: [{ text: 'Hello' }] },
-      {
-        role: 'model',
-        content: [{ text: 'How can I help?' }],
-        metadata: { cache: true },
-      },
-    ]);
+    const request = mockRequest({
+      messages: [
+        { role: 'user', content: [{ text: 'Hello' }] },
+        {
+          role: 'model',
+          content: [{ text: 'How can I help?' }],
+          metadata: { cache: true },
+        },
+      ],
+    });
 
     const result = extractCacheConfig(request);
     expect(result).toEqual({
       cacheConfig: true,
-      endOfCachedContents: 1, // The index of the message with cache metadata
+      endOfCachedContents: 1,
     });
   });
 
   test('should handle cache config at the first message', () => {
-    const request = mockRequest([
-      {
-        role: 'model',
-        content: [{ text: 'Cached response' }],
-        metadata: { cache: { ttlSeconds: 7200 } },
-      },
-      { role: 'user', content: [{ text: 'What is your name?' }] },
-    ]);
+    const request = mockRequest({
+      messages: [
+        {
+          role: 'model',
+          content: [{ text: 'Cached response' }],
+          metadata: { cache: { ttlSeconds: 7200 } },
+        },
+        { role: 'user', content: [{ text: 'What is your name?' }] },
+      ],
+    });
 
     const result = extractCacheConfig(request);
     expect(result).toEqual({
       cacheConfig: { ttlSeconds: 7200 },
-      endOfCachedContents: 0, // The index of the message with cache metadata
+      endOfCachedContents: 0,
     });
   });
 
   test('should handle cache config at the last message', () => {
-    const request = mockRequest([
-      { role: 'user', content: [{ text: 'Who are you?' }] },
-      {
-        role: 'model',
-        content: [{ text: 'I am an AI' }],
-        metadata: { cache: true },
-      },
-    ]);
+    const request = mockRequest({
+      messages: [
+        { role: 'user', content: [{ text: 'Who are you?' }] },
+        {
+          role: 'model',
+          content: [{ text: 'I am an AI' }],
+          metadata: { cache: true },
+        },
+      ],
+    });
 
     const result = extractCacheConfig(request);
     expect(result).toEqual({
       cacheConfig: true,
-      endOfCachedContents: 1, // The index of the message with cache metadata
+      endOfCachedContents: 1,
     });
   });
 
   test('should return null when metadata exists but no cache field', () => {
-    const request = mockRequest([
-      {
-        role: 'model',
-        content: [{ text: 'Response' }],
-        metadata: { otherField: 'otherValue' },
-      },
-      { role: 'user', content: [{ text: 'What is your purpose?' }] },
-    ]);
+    const request = mockRequest({
+      messages: [
+        {
+          role: 'model',
+          content: [{ text: 'Response' }],
+          metadata: { otherField: 'otherValue' },
+        },
+        { role: 'user', content: [{ text: 'What is your purpose?' }] },
+      ],
+    });
 
     const result = extractCacheConfig(request);
     expect(result).toBeNull();
   });
 
   test('should correctly parse cacheConfig with ttlSeconds and additional properties', () => {
-    const request = mockRequest([
-      { role: 'user', content: [{ text: 'Hello' }] },
-      {
-        role: 'model',
-        content: [{ text: 'Response' }],
-        metadata: { cache: { ttlSeconds: 3600, otherProperty: 'extraValue' } },
-      },
-    ]);
+    const request = mockRequest({
+      messages: [
+        { role: 'user', content: [{ text: 'Hello' }] },
+        {
+          role: 'model',
+          content: [{ text: 'Response' }],
+          metadata: {
+            cache: { ttlSeconds: 3600, otherProperty: 'extraValue' },
+          },
+        },
+      ],
+    });
 
     const result = extractCacheConfig(request);
-
     expect(result).toEqual({
       cacheConfig: { ttlSeconds: 3600, otherProperty: 'extraValue' },
       endOfCachedContents: 1,
@@ -188,17 +198,18 @@ describe('extractCacheConfig', () => {
   });
 
   test('should correctly parse cacheConfig as boolean', () => {
-    const request = mockRequest([
-      { role: 'user', content: [{ text: 'Hello' }] },
-      {
-        role: 'model',
-        content: [{ text: 'Response' }],
-        metadata: { cache: true },
-      },
-    ]);
+    const request = mockRequest({
+      messages: [
+        { role: 'user', content: [{ text: 'Hello' }] },
+        {
+          role: 'model',
+          content: [{ text: 'Response' }],
+          metadata: { cache: true },
+        },
+      ],
+    });
 
     const result = extractCacheConfig(request);
-
     expect(result).toEqual({
       cacheConfig: true,
       endOfCachedContents: 1,
@@ -241,7 +252,6 @@ describe('validateContextCacheRequest', () => {
 
   test('should throw error if conflicting features (codeExecution) are present', () => {
     const request = mockRequest({ config: { codeExecution: true } });
-    const model = mockModel();
 
     expect(() => {
       validateContextCacheRequest(request, 'gemini-1.5-pro-001');
@@ -415,7 +425,7 @@ describe('getContentForCache', () => {
       }
     );
 
-    expect(chatRequest.history).toEqual([]); // Test that newHistory is set to an empty array
+    expect(chatRequest.history).toEqual([]);
   });
 
   test('should split history into cached content and new history', () => {
@@ -428,8 +438,8 @@ describe('getContentForCache', () => {
         cacheConfig: true,
       }
     );
-    expect(cachedContent.contents).toHaveLength(2); // First two messages are cached
-    expect(chatRequest.history).toHaveLength(0); // No last message in history
+    expect(cachedContent.contents).toHaveLength(2);
+    expect(chatRequest.history).toHaveLength(0);
   });
 });
 

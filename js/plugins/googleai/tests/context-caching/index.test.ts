@@ -25,11 +25,10 @@ import {
 } from '../../src/context-caching/helpers';
 import { handleContextCache } from '../../src/context-caching/index';
 
-// Mocking GoogleAICacheManager methods, including create, list
+// Mocking GoogleAICacheManager methods
 const mockCreate = jest.fn() as jest.Mock<() => Promise<CachedContent | null>>;
-const mockList = jest.fn();
+const mockList = jest.fn() as jest.Mock<() => Promise<CachedContent[]>>;
 
-// Mocking the GoogleAICacheManager class
 jest.mock('@google/generative-ai/server', () => ({
   GoogleAICacheManager: jest.fn().mockImplementation(() => ({
     create: mockCreate,
@@ -60,7 +59,6 @@ describe('handleContextCache', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Mock request and chat request objects
     mockRequest = {
       config: { contextCache: true },
       messages: [
@@ -76,7 +74,6 @@ describe('handleContextCache', () => {
       ],
     };
 
-    // Mock CachedContent
     mockCachedContent = {
       model: modelVersion,
       contents: [
@@ -87,7 +84,6 @@ describe('handleContextCache', () => {
       ttlSeconds: 500,
     } as CachedContent;
 
-    // Mocking helper functions with proper typing
     (
       getContentForCache as jest.Mock<typeof getContentForCache>
     ).mockReturnValue({
@@ -99,11 +95,10 @@ describe('handleContextCache', () => {
     );
     (
       lookupContextCache as jest.Mock<typeof lookupContextCache>
-    ).mockResolvedValue(null); // Simulate cache miss
+    ).mockResolvedValue(null);
   });
 
   test('should return cache and transformed chat request if cache is created', async () => {
-    // Mocking the `create` method to resolve with `mockCachedContent`
     mockCreate.mockResolvedValue(mockCachedContent);
 
     const result = await handleContextCache(
@@ -114,7 +109,6 @@ describe('handleContextCache', () => {
       { endOfCachedContents: 1, cacheConfig: true }
     );
 
-    // Assertions to verify correct function calls and behavior
     expect(getContentForCache).toHaveBeenCalledWith(
       mockRequest,
       mockChatRequest,
@@ -123,7 +117,7 @@ describe('handleContextCache', () => {
     );
     expect(generateCacheKey).toHaveBeenCalledWith(mockCachedContent);
     expect(lookupContextCache).toHaveBeenCalledWith(
-      expect.anything(), // Ensure the correct cache manager instance
+      expect.anything(),
       'cacheKey123'
     );
     expect(mockCreate).toHaveBeenCalledWith(mockCachedContent);
@@ -132,7 +126,6 @@ describe('handleContextCache', () => {
   });
 
   test('should return cache and transformed chat request if cache is found', async () => {
-    // Simulating cache hit by resolving with `mockCachedContent`
     (
       lookupContextCache as jest.Mock<typeof lookupContextCache>
     ).mockResolvedValueOnce(mockCachedContent);
@@ -146,7 +139,7 @@ describe('handleContextCache', () => {
     );
 
     expect(lookupContextCache).toHaveBeenCalledWith(
-      expect.anything(), // Ensure the correct cache manager instance
+      expect.anything(),
       'cacheKey123'
     );
     expect(result.cache).toEqual(mockCachedContent);
@@ -154,7 +147,6 @@ describe('handleContextCache', () => {
   });
 
   test('should throw GenkitError if cache creation fails', async () => {
-    // Simulating a cache creation failure
     mockCreate.mockRejectedValueOnce(new Error('Cache creation failed'));
 
     await expect(
@@ -173,7 +165,6 @@ describe('handleContextCache', () => {
   });
 
   test('should throw GenkitError if cache lookup and creation both fail', async () => {
-    // Simulate cache creation returning null, which triggers an error
     mockCreate.mockResolvedValueOnce(null);
 
     await expect(
