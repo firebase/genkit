@@ -42,7 +42,9 @@ export function getContentForCache(
     throw new Error('No history provided for context caching');
   }
 
-  if (chatRequest.history.length !== request.messages.length - 1) {
+  const originalChatRequestHistoryLength = chatRequest.history.length;
+  const originalRequestMessagesLength = request.messages.length;
+  if (originalChatRequestHistoryLength !== originalRequestMessagesLength - 1) {
     throw new GenkitError({
       status: 'INTERNAL',
       message:
@@ -64,7 +66,7 @@ export function getContentForCache(
 
   let newHistory: Content[];
 
-  if (endOfCachedContents >= chatRequest.history.length - 1) {
+  if (endOfCachedContents >= originalChatRequestHistoryLength - 1) {
     newHistory = [];
   } else {
     newHistory = chatRequest.history.slice(endOfCachedContents + 1);

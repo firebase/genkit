@@ -98,6 +98,42 @@ describe('handleContextCache', () => {
     ).mockResolvedValue(null);
   });
 
+  test('should create cache with ttlSeconds 500 when cacheConfig is true', async () => {
+    mockCreate.mockResolvedValue(mockCachedContent);
+
+    await handleContextCache(
+      apiKey,
+      mockRequest,
+      mockChatRequest,
+      modelVersion,
+      { endOfCachedContents: 1, cacheConfig: true }
+    );
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ttlSeconds: 500,
+      })
+    );
+  });
+
+  test('should create cache with ttlSeconds 0 when cacheConfig is not true', async () => {
+    mockCreate.mockResolvedValue(mockCachedContent);
+
+    await handleContextCache(
+      apiKey,
+      mockRequest,
+      mockChatRequest,
+      modelVersion,
+      { endOfCachedContents: 1, cacheConfig: false }
+    );
+
+    expect(mockCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ttlSeconds: 0,
+      })
+    );
+  });
+
   test('should return cache and transformed chat request if cache is created', async () => {
     mockCreate.mockResolvedValue(mockCachedContent);
 

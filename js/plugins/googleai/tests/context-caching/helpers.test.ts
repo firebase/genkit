@@ -330,31 +330,34 @@ describe('generateCacheKey', () => {
 });
 
 describe('getContentForCache', () => {
-  const mockRequest: GenerateRequest<z.ZodTypeAny> = {
-    messages: [
-      {
-        role: 'user',
-        content: [{ text: 'Hello world' }],
-      },
-      {
-        role: 'model',
-        content: [{ text: 'I am a chatbot' }],
-        // @ts-ignore
-        contextCache: true,
-      },
-      {
-        role: 'user',
-        content: [{ text: 'Goodbye' }],
-      },
-    ],
-  };
+  let mockRequest: GenerateRequest<z.ZodTypeAny>;
+  let mockChatRequest: StartChatParams;
 
-  const mockChatRequest: StartChatParams = {
-    history: [
-      { role: 'user', parts: [{ text: 'Hello world' }] },
-      { role: 'model', parts: [{ text: 'I am a chatbot' }] },
-    ],
-  };
+  beforeEach(() => {
+    mockRequest = {
+      messages: [
+        {
+          role: 'user',
+          content: [{ text: 'Hello world' }],
+        },
+        {
+          role: 'model',
+          content: [{ text: 'I am a chatbot' }],
+          metadata: { cache: true },
+        },
+        {
+          role: 'user',
+          content: [{ text: 'Goodbye' }],
+        },
+      ],
+    };
+    mockChatRequest = {
+      history: [
+        { role: 'user', parts: [{ text: 'Hello world' }] },
+        { role: 'model', parts: [{ text: 'I am a chatbot' }] },
+      ],
+    };
+  });
 
   test('should throw error if no history is provided', () => {
     expect(() => {
@@ -440,6 +443,67 @@ describe('getContentForCache', () => {
     );
     expect(cachedContent.contents).toHaveLength(2);
     expect(chatRequest.history).toHaveLength(0);
+  });
+
+  test('should correctly split history when endOfCachedContents is not the last message', () => {
+    const { cachedContent, chatRequest } = getContentForCache(
+      mockRequest,
+      mockChatRequest,
+      'gemini-1.5-pro-001',
+      {
+        endOfCachedContents: 0,
+        cacheConfig: true,
+      }
+    );
+    expect(cachedContent.contents).toHaveLength(1);
+    expect(chatRequest.history).toHaveLength(1);
+  });
+
+  test('should correctly split history when endOfCachedContents is the last message', () => {
+    const mockRequest: GenerateRequest<z.ZodTypeAny> = {
+      messages: [
+        { role: 'user', content: [{ text: 'Hello world' }] },
+        { role: 'model', content: [{ text: 'I am a chatbot' }] },
+        { role: 'user', content: [{ text: 'How are you?' }] },
+        {
+          role: 'model',
+          content: [{ text: 'I am doing well, thank you!' }],
+          metadata: { cache: true },
+        },
+        { role: 'user', content: [{ text: 'Goodbye' }] },
+      ],
+    };
+
+    const mockChatRequest: StartChatParams = {
+      history: [
+        { role: 'user', parts: [{ text: 'Hello world' }] },
+        { role: 'model', parts: [{ text: 'I am a chatbot' }] },
+        { role: 'user', parts: [{ text: 'How are you?' }] },
+        { role: 'model', parts: [{ text: 'I am doing well, thank you!' }] },
+      ],
+    };
+
+    const cacheConfigDetails = {
+      endOfCachedContents: 3,
+      cacheConfig: true,
+    };
+
+    const result = getContentForCache(
+      mockRequest,
+      mockChatRequest,
+      'gemini-1.5-pro-001',
+      cacheConfigDetails
+    );
+
+    expect(result.cachedContent.contents).toHaveLength(4);
+    expect(result.chatRequest.history).toHaveLength(0);
+
+    expect(result.cachedContent.contents).toEqual([
+      { role: 'user', parts: [{ text: 'Hello world' }] },
+      { role: 'model', parts: [{ text: 'I am a chatbot' }] },
+      { role: 'user', parts: [{ text: 'How are you?' }] },
+      { role: 'model', parts: [{ text: 'I am doing well, thank you!' }] },
+    ]);
   });
 });
 
