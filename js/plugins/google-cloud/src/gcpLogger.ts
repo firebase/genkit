@@ -15,8 +15,15 @@
  */
 
 import { LoggingWinston } from '@google-cloud/logging-winston';
+import { logger } from 'genkit/logging';
 import { Writable } from 'stream';
+import { resolveCurrentPrincipal } from './auth';
 import { GcpTelemetryConfig } from './types';
+
+type GrpcError = Error & {
+  code?: number;
+  statusDetails?: Record<string, any>[];
+};
 
 /**
  * Additional streams for writing log data to. Useful for unit testing.
@@ -46,6 +53,7 @@ export class GcpLogger {
         };
 
     let transports: any[] = [];
+    let instructionsLogged = false; // only log the first time
     transports.push(
       this.shouldExport(env)
         ? new LoggingWinston({
@@ -54,6 +62,24 @@ export class GcpLogger {
             prefix: 'genkit',
             logName: 'genkit_log',
             credentials: this.config.credentials,
+            defaultCallback: async (err) => {
+              // Use the defaultLogger so that logs don't get swallowed by
+              // the open telemetry exporter
+              const defaultLogger = logger.defaultLogger;
+              const grpcError = err as GrpcError;
+              if (err && this.loggingDenied(grpcError)) {
+                if (!instructionsLogged) {
+                  instructionsLogged = true;
+                  defaultLogger.error(
+                    `Unable to send logs to Google Cloud: ${grpcError.message}\n\n${await this.loggingDeniedHelpMessage()}\n`
+                  );
+                }
+              } else if (err) {
+                defaultLogger.error(
+                  `Unable to send logs to Google Cloud: ${err}`
+                );
+              }
+            },
           })
         : new winston.transports.Console()
     );
@@ -66,6 +92,20 @@ export class GcpLogger {
       transports: transports,
       ...format,
     });
+  }
+
+  private loggingDenied(err: GrpcError) {
+    return (
+      err.code === 7 &&
+      err.statusDetails?.some((details) => {
+        return details?.metadata?.permission === 'logging.logEntries.create';
+      })
+    );
+  }
+
+  private async loggingDeniedHelpMessage() {
+    const principal = await resolveCurrentPrincipal();
+    return `Add the role 'roles/logging.logWriter' to your Service Account in the IAM & Admin page on the Google Cloud console, or use the following command:\n\ngcloud projects add-iam-policy-binding ${principal.projectId ?? '${PROJECT_ID}'} \\\n    --member=serviceAccount:${principal.serviceAccountEmail || '${SERVICE_ACCT}'} \\\n    --role=roles/logging.logWriter`;
   }
 
   private shouldExport(env?: string) {

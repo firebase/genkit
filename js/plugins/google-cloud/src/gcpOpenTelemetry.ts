@@ -103,6 +103,8 @@ export class GcpOpenTelemetry {
     spanExporter = new AdjustingTraceExporter(
       this.shouldExportTraces()
         ? new TraceExporter({
+            // Creds for non-GCP environments; otherwise credentials will be
+            // automatically detected via ADC
             credentials: this.config.credentials,
           })
         : new InMemorySpanExporter(),
@@ -157,6 +159,8 @@ export class GcpOpenTelemetry {
             product: 'genkit',
             version: GENKIT_VERSION,
           },
+          // Creds for non-GCP environments; otherwise credentials will be
+          // automatically detected via ADC
           credentials: this.config.credentials,
         })
       : new InMemoryMetricExporter(AggregationTemporality.DELTA);
