@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import crypto from 'crypto';
 import fs from 'fs';
 import { readFile, rm, writeFile } from 'fs/promises';
 import path from 'path';
@@ -195,11 +194,7 @@ export class LocalFileDatasetStore implements DatasetStore {
   }
 
   private static generateRootPath(): string {
-    const rootHash = crypto
-      .createHash('md5')
-      .update(process.cwd() || 'unknown')
-      .digest('hex');
-    return path.resolve(process.cwd(), `.genkit/${rootHash}/datasets`);
+    return path.resolve(process.cwd(), `.genkit/datasets`);
   }
 
   /** Visible for testing */

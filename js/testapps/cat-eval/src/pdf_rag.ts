@@ -24,7 +24,7 @@ import { Document } from 'genkit/retriever';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import { getDocument } from 'pdfjs-dist-legacy';
-import { ai } from './index.js';
+import { ai } from './genkit.js';
 
 export const pdfChatRetriever = devLocalRetrieverRef('pdfQA');
 
@@ -61,13 +61,13 @@ export const pdfQA = ai.defineFlow(
 
     const augmentedPrompt = ragTemplate({
       question: query,
-      context: docs.map((d) => d.text).join('\n\n'),
+      context: docs.map((d) => d.text()).join('\n\n'),
     });
     const llmResponse = await ai.generate({
       model: geminiPro,
       prompt: augmentedPrompt,
     });
-    return llmResponse.text;
+    return llmResponse.text();
   }
 );
 
