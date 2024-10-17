@@ -30,8 +30,8 @@ describe('session', () => {
   });
 
   it('maintains history in the session', async () => {
-    const session = await ai.createSession();
-    const chat = await session.chat();
+    const session = ai.createSession();
+    const chat = session.chat();
     let response = await chat.send('hi');
 
     assert.strictEqual(response.text, 'Echo: hi; config: {}');
@@ -61,7 +61,7 @@ describe('session', () => {
 
   it('maintains multithreaded history in the session', async () => {
     const store = new TestMemorySessionStore();
-    const session = await ai.createSession({
+    const session = ai.createSession({
       store,
 
       state: {
@@ -69,7 +69,7 @@ describe('session', () => {
       },
     });
 
-    let mainChat = await session.chat();
+    let mainChat = session.chat();
     let response = await mainChat.send('hi main');
     assert.strictEqual(response.text, 'Echo: hi main; config: {}');
 
@@ -82,7 +82,7 @@ describe('session', () => {
       'Echo: system: talk like a lawyer,hi lawyerChat; config: {}'
     );
 
-    const pirateChat = await session.chat('pirateChat', {
+    const pirateChat = session.chat('pirateChat', {
       system: 'talk like a pirate',
     });
     response = await pirateChat.send('hi pirateChat');
@@ -132,8 +132,8 @@ describe('session', () => {
   });
 
   it('maintains history in the session with streaming', async () => {
-    const session = await ai.createSession();
-    const chat = await session.chat();
+    const session = ai.createSession();
+    const chat = session.chat();
 
     let { response, stream } = await chat.sendStream('hi');
 
@@ -175,7 +175,7 @@ describe('session', () => {
 
   it('stores state and messages in the store', async () => {
     const store = new TestMemorySessionStore();
-    const session = await ai.createSession({
+    const session = ai.createSession({
       store,
     });
     const initialState = await store.get(session.id);
@@ -185,7 +185,7 @@ describe('session', () => {
       threads: {},
     });
 
-    const chat = await session.chat();
+    const chat = session.chat();
 
     await chat.send('hi');
     await chat.send('bye');
@@ -215,8 +215,8 @@ describe('session', () => {
     it('loads session from store', async () => {
       const store = new TestMemorySessionStore();
       // init the store
-      const originalSession = await ai.createSession({ store });
-      const originalMainChat = await originalSession.chat({
+      const originalSession = ai.createSession({ store });
+      const originalMainChat = originalSession.chat({
         config: {
           temperature: 1,
         },
@@ -228,7 +228,7 @@ describe('session', () => {
 
       // load
       const session = await ai.loadSession(sessionId, { store });
-      const mainChat = await session.chat();
+      const mainChat = session.chat();
       assert.deepStrictEqual(mainChat.messages, [
         { content: [{ text: 'hi' }], role: 'user' },
         {

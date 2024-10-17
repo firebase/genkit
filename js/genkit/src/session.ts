@@ -53,7 +53,7 @@ export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
   private store: SessionStore<S>;
 
   constructor(
-    readonly parent: Genkit,
+    readonly genkit: Genkit,
     options?: {
       id?: string;
       stateSchema?: S;
@@ -73,28 +73,47 @@ export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
     this.store = options?.store ?? new InMemorySessionStore();
   }
 
-  get genkit(): Genkit {
-    return this.parent;
-  }
-
   get state(): z.infer<S> {
     // We always get state from the parent. Parent session is the source of truth.
-    if (this.parent instanceof Session) {
-      return this.parent.state;
+    if (this.genkit instanceof Session) {
+      return this.genkit.state;
     }
     return this.sessionData!.state;
   }
 
+  /**
+   * Update session state data.
+   */
   async updateState(data: z.infer<S>): Promise<void> {
     // We always update the state on the parent. Parent session is the source of truth.
-    if (this.parent instanceof Session) {
-      return this.parent.updateState(data);
+    if (this.genkit instanceof Session) {
+      return this.genkit.updateState(data);
     }
     let sessionData = await this.store.get(this.id);
     if (!sessionData) {
       sessionData = {} as SessionData<S>;
     }
     sessionData.state = data;
+    this.sessionData = sessionData;
+
+    await this.store.save(this.id, sessionData);
+  }
+
+  /**
+   * Update messages for a given thread.
+   */
+  async updateMessages(
+    thread: string,
+    messasges: MessageData[]
+  ): Promise<void> {
+    let sessionData = await this.store.get(this.id);
+    if (!sessionData) {
+      sessionData = {} as SessionData<S>;
+    }
+    if (!sessionData.threads) {
+      sessionData.threads = {};
+    }
+    sessionData.threads[thread] = messasges;
     this.sessionData = sessionData;
 
     await this.store.save(this.id, sessionData);
@@ -111,9 +130,7 @@ export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
    * response = await chat.send('another one')
    * ```
    */
-  chat<I>(
-    options?: ChatOptions<I, S>
-  ): Promise<Chat<S>>;
+  chat<I>(options?: ChatOptions<I, S>): Chat<S>;
 
   /**
    * Craete a separaete chat conversation ("thread") within the same session state.
@@ -129,15 +146,12 @@ export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
    * await pirateChat.send('tell me a joke')
    * ```
    */
-  chat<I>(
-    threadName: string,
-    options?: ChatOptions<I, S>
-  ): Promise<Chat<S>>;
+  chat<I>(threadName: string, options?: ChatOptions<I, S>): Chat<S>;
 
-  async chat<I>(
+  chat<I>(
     optionsOrThreadName?: ChatOptions<I, S> | string,
     maybeOptions?: ChatOptions<I, S>
-  ): Promise<Chat<S>> {
+  ): Chat<S> {
     let options: ChatOptions<S> | undefined;
     let threadName = MAIN_THREAD;
     if (maybeOptions) {
@@ -150,25 +164,23 @@ export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
         options = optionsOrThreadName as ChatOptions<S>;
       }
     }
-    let requestBase: BaseGenerateOptions;
-    if (!!(options as PromptRenderOptions<I>).prompt.render) {
-      const renderOptions = (options as PromptRenderOptions<I>);
-      requestBase = await renderOptions.prompt.render({
-        input: renderOptions.input
+    let requestBase: Promise<BaseGenerateOptions>;
+    if (!!(options as PromptRenderOptions<I>)?.prompt?.render) {
+      console.log('yeah, prompt, render....');
+      const renderOptions = options as PromptRenderOptions<I>;
+      requestBase = renderOptions.prompt.render({
+        input: renderOptions.input,
       });
     } else {
-      requestBase = (options as BaseGenerateOptions);
+      requestBase = Promise.resolve(options as BaseGenerateOptions);
     }
-    return new Chat<S>(
-      this,
-      requestBase,
-      {
-        thread: threadName,
-        id: this.id,
-        sessionData: this.sessionData,
-        store: this.store ?? options?.store,
-      }
-    );
+    return new Chat<S>(this, requestBase, {
+      thread: threadName,
+      id: this.id,
+      messages:
+        (this.sessionData?.threads && this.sessionData?.threads[threadName]) ??
+        [],
+    });
   }
 
   toJSON() {

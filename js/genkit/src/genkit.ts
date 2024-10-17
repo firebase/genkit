@@ -275,7 +275,7 @@ export class Genkit {
   >(
     name: string,
     options?: { variant?: string }
-  ): Promise<ExecutablePrompt<I, O, CustomOptions>> {
+  ): Promise<ExecutablePrompt<z.infer<I>, O, CustomOptions>> {
     return runWithRegistry(this.registry, async () => {
       const action = (await lookupAction(`/prompt/${name}`)) as PromptAction<I>;
       return this.wrapPromptActionInExecutablePrompt(
@@ -315,7 +315,7 @@ export class Genkit {
       name: string;
     },
     template: string
-  ): ExecutablePrompt<I, O, CustomOptions>;
+  ): ExecutablePrompt<z.infer<I>, O, CustomOptions>;
 
   /**
    * Defines and registers a function-based prompt.
@@ -352,7 +352,7 @@ export class Genkit {
       name: string;
     },
     fn: PromptFn<I>
-  ): ExecutablePrompt<I, O, CustomOptions>;
+  ): ExecutablePrompt<z.infer<I>, O, CustomOptions>;
 
   definePrompt<
     I extends z.ZodTypeAny = z.ZodTypeAny,
@@ -364,7 +364,7 @@ export class Genkit {
       name: string;
     },
     templateOrFn: string | PromptFn<I>
-  ): ExecutablePrompt<I, O, CustomOptions> {
+  ): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
     if (!options.name) {
       throw new Error('options.name is required');
     }
@@ -879,23 +879,20 @@ export class Genkit {
    * response = await chat.send('another one')
    * ```
    */
-  async chat<I>(options?: ChatOptions<I>): Promise<Chat> {
-    const session = await this.createSession();
+  chat<I>(options?: ChatOptions<I>): Chat {
+    const session = this.createSession();
     return session.chat(options);
   }
 
   /**
    * Create a session for this environment.
    */
-  async createSession(options?: SessionOptions): Promise<Session> {
+  createSession(options?: SessionOptions): Session {
     const sessionId = uuidv4();
     const sessionData: SessionData = {
       id: sessionId,
       state: options?.state,
     };
-    if (options?.store) {
-      await options.store.save(sessionId, sessionData);
-    }
     return new Session(this, {
       id: sessionId,
       sessionData,
