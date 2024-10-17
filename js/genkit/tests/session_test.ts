@@ -17,7 +17,7 @@
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Genkit, genkit } from '../src/genkit';
-import { TestMemorySessionStore, defineEchoModel } from './helpers';
+import { defineEchoModel, TestMemorySessionStore } from './helpers';
 
 describe('session', () => {
   let ai: Genkit;
@@ -63,8 +63,7 @@ describe('session', () => {
     const store = new TestMemorySessionStore();
     const session = ai.createSession({
       store,
-
-      state: {
+      initialState: {
         name: 'Genkit',
       },
     });
@@ -177,37 +176,38 @@ describe('session', () => {
     const store = new TestMemorySessionStore();
     const session = ai.createSession({
       store,
+      initialState: {
+        foo: 'bar',
+      },
     });
-    const initialState = await store.get(session.id);
-    delete initialState.id; // ignore
-    assert.deepStrictEqual(initialState, {
-      state: undefined,
-      threads: {},
-    });
-
     const chat = session.chat();
 
     await chat.send('hi');
     await chat.send('bye');
 
     const state = await store.get(session.id);
-
-    assert.deepStrictEqual(state?.threads, {
-      main: [
-        { content: [{ text: 'hi' }], role: 'user' },
-        {
-          content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
-          role: 'model',
-        },
-        { content: [{ text: 'bye' }], role: 'user' },
-        {
-          content: [
-            { text: 'Echo: hi,Echo: hi,; config: {},bye' },
-            { text: '; config: {}' },
-          ],
-          role: 'model',
-        },
-      ],
+    delete state.id;
+    assert.deepStrictEqual(state, {
+      state: {
+        foo: 'bar',
+      },
+      threads: {
+        main: [
+          { content: [{ text: 'hi' }], role: 'user' },
+          {
+            content: [{ text: 'Echo: hi' }, { text: '; config: {}' }],
+            role: 'model',
+          },
+          { content: [{ text: 'bye' }], role: 'user' },
+          {
+            content: [
+              { text: 'Echo: hi,Echo: hi,; config: {},bye' },
+              { text: '; config: {}' },
+            ],
+            role: 'model',
+          },
+        ],
+      },
     });
   });
 

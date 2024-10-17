@@ -29,7 +29,7 @@ export interface SessionOptions<S extends z.ZodTypeAny = z.ZodTypeAny> {
   /** Session store implementation for persisting the session state. */
   store?: SessionStore<S>;
   /** Initial state of the session.  */
-  state?: z.infer<S>;
+  initialState?: z.infer<S>;
   /** Custom session Id. */
   sessionId?: string;
 }
@@ -63,7 +63,9 @@ export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
   ) {
     this.id = options?.id ?? uuidv4();
     this.schema = options?.stateSchema;
-    this.sessionData = options?.sessionData;
+    this.sessionData = options?.sessionData ?? {
+      id: this.id,
+    };
     if (!this.sessionData) {
       this.sessionData = { id: this.id };
     }
@@ -85,11 +87,7 @@ export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
    * Update session state data.
    */
   async updateState(data: z.infer<S>): Promise<void> {
-    // We always update the state on the parent. Parent session is the source of truth.
-    if (this.genkit instanceof Session) {
-      return this.genkit.updateState(data);
-    }
-    let sessionData = await this.store.get(this.id);
+    let sessionData = this.sessionData;
     if (!sessionData) {
       sessionData = {} as SessionData<S>;
     }
@@ -106,7 +104,7 @@ export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
     thread: string,
     messasges: MessageData[]
   ): Promise<void> {
-    let sessionData = await this.store.get(this.id);
+    let sessionData = this.sessionData;
     if (!sessionData) {
       sessionData = {} as SessionData<S>;
     }
@@ -166,7 +164,6 @@ export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
     }
     let requestBase: Promise<BaseGenerateOptions>;
     if (!!(options as PromptRenderOptions<I>)?.prompt?.render) {
-      console.log('yeah, prompt, render....');
       const renderOptions = options as PromptRenderOptions<I>;
       requestBase = renderOptions.prompt.render({
         input: renderOptions.input,

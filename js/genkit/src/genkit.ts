@@ -891,7 +891,7 @@ export class Genkit {
     const sessionId = uuidv4();
     const sessionData: SessionData = {
       id: sessionId,
-      state: options?.state,
+      state: options?.initialState,
     };
     return new Session(this, {
       id: sessionId,
