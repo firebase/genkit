@@ -15,7 +15,7 @@
  */
 
 import { z } from 'zod';
-import { EvalInferenceInputSchema, EvalRunKeySchema } from './eval';
+import { DatasetSchemaSchema, EvalInferenceInputSchema, EvalRunKeySchema } from './eval';
 import { FlowStateSchema } from './flow';
 import {
   GenerationCommonConfigSchema,
@@ -135,13 +135,17 @@ export type GetEvalRunRequest = z.infer<typeof GetEvalRunRequestSchema>;
 export const CreateDatasetRequestSchema = z.object({
   data: EvalInferenceInputSchema,
   datasetId: z.string().optional(),
+  schema: DatasetSchemaSchema.optional(),
+  targetAction: z.string().optional(),
 });
 
 export type CreateDatasetRequest = z.infer<typeof CreateDatasetRequestSchema>;
 
 export const UpdateDatasetRequestSchema = z.object({
-  data: EvalInferenceInputSchema.optional(),
   datasetId: z.string(),
+  data: EvalInferenceInputSchema.optional(),
+  schema: DatasetSchemaSchema.optional(),
+  targetAction: z.string().optional(),
 });
 export type UpdateDatasetRequest = z.infer<typeof UpdateDatasetRequestSchema>;
 
