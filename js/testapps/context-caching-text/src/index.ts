@@ -50,8 +50,9 @@ export const lotrFlow = ai.defineFlow(
               text: 'This is the first few chapters of Lord of the Rings. Can I help in any way?',
             },
           ],
-          // @ts-ignore
-          contextCache: true, // This marks the point where caching starts
+          metadata: {
+            contextCache: true, // This marks the point where caching starts
+          },
         },
       ],
       config: {
@@ -65,8 +66,10 @@ export const lotrFlow = ai.defineFlow(
     const messages = extractQuotesResponse.toHistory(); // Ensure the context history is preserved
 
     // Set contextCache to true for the last message in the history
-    // @ts-ignore
-    messages[messages.length - 1].contextCache = true;
+    messages[messages.length - 1].metadata = {
+      ...messages[messages.length - 1].metadata,
+      contextCache: true,
+    };
 
     const llmResponse = await generate({
       messages,

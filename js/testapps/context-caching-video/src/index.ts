@@ -102,8 +102,9 @@ export const videoAnalysisFlow = ai.defineFlow(
             },
           ],
           // MessageSchema has no generics for extension, is it possible to add one, like we do for generate config?
-          // @ts-ignore - This marks the point where the caching ends, inclusive.
-          contextCache: true,
+          metadata: {
+            contextCache: true,
+          },
         },
       ],
       config: {
