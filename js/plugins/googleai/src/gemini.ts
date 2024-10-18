@@ -205,7 +205,7 @@ function toGeminiRole(
 }
 
 function convertSchemaProperty(property) {
-  if (!property) {
+  if (!property || !property.type) {
     return null;
   }
   if (property.type === 'object') {

@@ -43,6 +43,7 @@ export {
   generate,
   generateStream,
   toGenerateRequest,
+  normalizePart,
   type GenerateOptions,
   type GenerateStreamOptions,
   type GenerateStreamResponse,

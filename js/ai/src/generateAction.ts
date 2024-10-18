@@ -176,28 +176,30 @@ async function generate(
   if (rawRequest.returnToolRequests || toolCalls.length === 0) {
     return response.toJSON();
   }
-  const toolResponses: ToolResponsePart[] = await Promise.all(
-    toolCalls.map(async (part) => {
-      if (!part.toolRequest) {
-        throw Error(
-          'Tool request expected but not provided in tool request part'
-        );
-      }
-      const tool = tools?.find(
-        (tool) => tool.__action.name === part.toolRequest?.name
+  const toolResponses: ToolResponsePart[] = [];
+  for (const part of toolCalls) {
+    if (!part.toolRequest) {
+      throw Error(
+        'Tool request expected but not provided in tool request part'
       );
-      if (!tool) {
-        throw Error('Tool not found');
-      }
-      return {
-        toolResponse: {
-          name: part.toolRequest.name,
-          ref: part.toolRequest.ref,
-          output: await tool(part.toolRequest?.input),
-        },
-      };
-    })
-  );
+    }
+    const tool = tools?.find(
+      (tool) => tool.__action.name === part.toolRequest?.name
+    );
+    if (!tool) {
+      throw Error(`Tool ${part.toolRequest?.name} not found`);
+    }
+    if (tool.__action.metadata.type !== 'tool' || tool.__action.metadata.interrupt) {
+      return response.toJSON();
+    }
+    toolResponses.push({
+      toolResponse: {
+        name: part.toolRequest.name,
+        ref: part.toolRequest.ref,
+        output: await tool(part.toolRequest?.input),
+      },
+    });
+  }
   const nextRequest = {
     ...rawRequest,
     messages: [...request.messages, message],
@@ -227,29 +229,6 @@ async function actionToGenerateRequest(
   if (!out.output.schema) delete out.output.schema;
   return out;
 }
-
-const isValidCandidate = (
-  candidate: CandidateData,
-  tools: Action<any, any>[]
-): boolean => {
-  // Check if tool calls are vlaid
-  const toolCalls = candidate.message.content.filter(
-    (part) => !!part.toolRequest
-  );
-
-  // make sure every tool called exists and has valid input
-  return toolCalls.every((toolCall) => {
-    const tool = tools?.find(
-      (tool) => tool.__action.name === toolCall.toolRequest?.name
-    );
-    if (!tool) return false;
-    const { valid } = validateSchema(toolCall.toolRequest?.input, {
-      schema: tool.__action.inputSchema,
-      jsonSchema: tool.__action.inputJsonSchema,
-    });
-    return valid;
-  });
-};
 
 export function inferRoleFromParts(parts: Part[]): Role {
   const uniqueRoles = new Set<Role>();

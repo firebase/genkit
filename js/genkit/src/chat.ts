@@ -23,14 +23,25 @@ import {
   GenerationCommonConfigSchema,
   MessageData,
   Part,
+  ToolArgument,
 } from '@genkit-ai/ai';
+import { resolveTools } from '@genkit-ai/ai/tool';
 import { z } from '@genkit-ai/core';
 import { Genkit } from './genkit';
-import { Session, SessionStore } from './session';
+import { runWithRegistry } from './registry';
+import { BaseGenerateOptions, Session, SessionStore } from './session';
+import { runInNewSpan } from './tracing';
 
 export const MAIN_THREAD = 'main';
 
-export type BaseGenerateOptions = Omit<GenerateOptions, 'prompt'>;
+export type ExtendedToolArgument = ToolArgument | ExecutablePrompt;
+
+export type ChatGenerateOptions<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+> = Omit<BaseGenerateOptions<O, CustomOptions>, 'tools'> & {
+  tools?: ExtendedToolArgument[];
+};
 
 export interface PromptRenderOptions<I> {
   prompt: ExecutablePrompt<I>;
@@ -58,7 +69,7 @@ export type ChatOptions<
  * ```
  */
 export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
-  readonly requestBase?: Promise<BaseGenerateOptions>;
+  private requestBase?: Promise<BaseGenerateOptions>;
   readonly sessionId: string;
   readonly schema?: S;
   private _messages?: MessageData[];
@@ -113,27 +124,85 @@ export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
   >(
-    options: string | Part[] | GenerateOptions<O, CustomOptions>
+    options: string | Part[] | ChatGenerateOptions<O, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> {
-    // string
-    if (typeof options === 'string') {
-      options = {
-        prompt: options,
-      } as GenerateOptions<O, CustomOptions>;
-    }
-    // Part[]
-    if (Array.isArray(options)) {
-      options = {
-        prompt: options,
-      } as GenerateOptions<O, CustomOptions>;
-    }
-    const response = await this.genkit.generate({
-      ...(await this.requestBase),
-      messages: this.messages,
-      ...options,
+    return runInNewSpan({ metadata: { name: 'send' } }, async () => {
+      let resolvedOptions;
+      // string
+      if (typeof options === 'string') {
+        resolvedOptions = {
+          prompt: options,
+        } as ChatGenerateOptions<O, CustomOptions>;
+      } else if (Array.isArray(options)) { // Part[]
+        resolvedOptions = {
+          prompt: options,
+        } as ChatGenerateOptions<O, CustomOptions>;
+      } else {
+        resolvedOptions = options;
+      }
+      let request: GenerateOptions = {
+        ...(await this.requestBase),
+        messages: this.messages,
+        ...resolvedOptions,
+      };
+      request.tools = resolveExecutablePromptTools(
+        request.tools as ExtendedToolArgument[]
+      );
+      let response = await this.genkit.generate(request);
+      while (response.toolRequests.length > 0) {
+        request = await this.handlePromptToolCalling(response, request.tools!);
+        response = await this.genkit.generate(request);
+      }
+      await this.updateMessages(response.messages);
+      return response;
     });
-    await this.updateMessages(response.messages);
-    return response;
+  }
+
+  private async handlePromptToolCalling(
+    response: GenerateResponse,
+    tools: ToolArgument[]
+  ): Promise<GenerateOptions> {
+    // TODO: refactor resolveTools to not rely on runWithRegistry
+    return await runWithRegistry(this.genkit.registry, async () => {
+      const toolRequest = response.toolRequests[0];
+      const resolvedTools = await resolveTools(tools);
+
+      const tool = resolvedTools.find(
+        (tool) => tool.__action.name === toolRequest.toolRequest?.name
+      );
+      if (!tool) {
+        throw new Error(`Tool ${toolRequest.toolRequest?.name} not found`);
+      }
+      const newPreamble = (await tool(
+        toolRequest.toolRequest?.input
+      )) as GenerateOptions;
+
+      this._messages = [
+        ...(tagAsPreamble(newPreamble.messages) ?? []),
+        ...(response.messages?.filter((m) => !m?.metadata?.preamble) ?? []),
+        {
+          role: 'tool',
+          content: [
+            {
+              toolResponse: {
+                name: toolRequest.toolRequest.name,
+                ref: toolRequest.toolRequest.ref,
+                output: `transferred to agent ${toolRequest.toolRequest.name}`,
+              },
+            },
+          ],
+        },
+      ];
+      this.requestBase = Promise.resolve({
+        ...(await this.requestBase),
+        messages: newPreamble.messages,
+        tools: resolveExecutablePromptTools(newPreamble.tools),
+      });
+      return {
+        ...(await this.requestBase),
+        messages: this.messages,
+      };
+    });
   }
 
   async sendStream<
@@ -180,4 +249,28 @@ export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
     this._messages = messages;
     await this.session.updateMessages(this.threadName, messages);
   }
+}
+
+export function resolveExecutablePromptTools(
+  tools?: ExtendedToolArgument[]
+): ToolArgument[] | undefined {
+  return tools?.map((et) => {
+    if ((et as ExecutablePrompt).render) {
+      return (et as ExecutablePrompt).asTool();
+    }
+    return et as ToolArgument;
+  });
+}
+
+export function tagAsPreamble(msgs?: MessageData[]): MessageData[] | undefined {
+  if (!msgs) {
+    return undefined;
+  }
+  return msgs.map((m) => ({
+    ...m,
+    metadata: {
+      ...m.metadata,
+      preamble: true,
+    },
+  }));
 }

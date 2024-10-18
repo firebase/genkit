@@ -14,14 +14,23 @@
  * limitations under the License.
  */
 
-import { GenerateOptions, MessageData } from '@genkit-ai/ai';
+import { GenerateOptions, MessageData, normalizePart } from '@genkit-ai/ai';
 import { z } from '@genkit-ai/core';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { v4 as uuidv4 } from 'uuid';
-import { Chat, ChatOptions, MAIN_THREAD, PromptRenderOptions } from './chat';
+import {
+  Chat,
+  ChatOptions,
+  MAIN_THREAD,
+  PromptRenderOptions,
+  tagAsPreamble,
+} from './chat';
 import { Genkit } from './genkit';
 
-export type BaseGenerateOptions = Omit<GenerateOptions, 'prompt'>;
+export type BaseGenerateOptions<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+> = Omit<GenerateOptions<O, CustomOptions>, 'prompt'>;
 
 export interface SessionOptions<S extends z.ZodTypeAny = z.ZodTypeAny> {
   /** Schema describing the state. */
@@ -165,11 +174,32 @@ export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
     let requestBase: Promise<BaseGenerateOptions>;
     if (!!(options as PromptRenderOptions<I>)?.prompt?.render) {
       const renderOptions = options as PromptRenderOptions<I>;
-      requestBase = renderOptions.prompt.render({
-        input: renderOptions.input,
-      });
+      requestBase = renderOptions.prompt
+        .render({
+          input: renderOptions.input,
+        })
+        .then((rb) => {
+          return {
+            ...rb,
+            messages: tagAsPreamble(rb?.messages),
+          };
+        });
     } else {
-      requestBase = Promise.resolve(options as BaseGenerateOptions);
+      const baseOptions = { ...(options as BaseGenerateOptions) };
+      const messages: MessageData[] = [];
+      if (baseOptions.system) {
+        messages.push({
+          role: 'system',
+          content: normalizePart(baseOptions.system),
+        });
+      }
+      delete baseOptions.system;
+      if (baseOptions.messages) {
+        messages.push(...baseOptions.messages);
+      }
+      baseOptions.messages = tagAsPreamble(messages);
+
+      requestBase = Promise.resolve(baseOptions);
     }
     return new Chat<S>(this, requestBase, {
       thread: threadName,
