@@ -433,16 +433,20 @@ export function getBasicUsageStats(
 function getPartCounts(parts: Part[]): PartCounts {
   return parts.reduce(
     (counts, part) => {
+      const isImage =
+        part.media?.contentType?.startsWith('image') ||
+        part.media?.url?.startsWith('data:image');
+      const isVideo =
+        part.media?.contentType?.startsWith('video') ||
+        part.media?.url?.startsWith('data:video');
+      const isAudio =
+        part.media?.contentType?.startsWith('audio') ||
+        part.media?.url?.startsWith('data:audio');
       return {
         characters: counts.characters + (part.text?.length || 0),
-        images:
-          counts.images +
-          (part.media?.contentType?.startsWith('image') ? 1 : 0),
-        videos:
-          counts.videos +
-          (part.media?.contentType?.startsWith('video') ? 1 : 0),
-        audio:
-          counts.audio + (part.media?.contentType?.startsWith('audio') ? 1 : 0),
+        images: counts.images + (isImage ? 1 : 0),
+        videos: counts.videos + (isVideo ? 1 : 0),
+        audio: counts.audio + (isAudio ? 1 : 0),
       };
     },
     { characters: 0, images: 0, videos: 0, audio: 0 }
