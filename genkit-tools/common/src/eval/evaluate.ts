@@ -186,7 +186,7 @@ export async function getMatchingEvaluatorActions(
   }
   const allEvaluatorActions = await getAllEvaluatorActions(manager);
   const filteredEvaluatorActions = allEvaluatorActions.filter((action) =>
-    evaluators.includes(action.name)
+    evaluators.includes(action.key)
   );
   if (filteredEvaluatorActions.length === 0) {
     if (allEvaluatorActions.length == 0) {

@@ -284,6 +284,10 @@ export class RuntimeManager {
       if (this.manageHealth) {
         watcher.on('unlink', (filePath) => this.handleRemovedRuntime(filePath));
       }
+      // eagerly check existing runtimes on first load.
+      for (const runtime of await fs.readdir(runtimesDir)) {
+        await this.handleNewRuntime(path.resolve(runtimesDir, runtime));
+      }
     } catch (error) {
       logger.error('Failed to set up runtimes watcher:', error);
     }
