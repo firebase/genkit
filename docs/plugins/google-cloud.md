@@ -227,19 +227,19 @@ Features are the top-level entry-point to your Genkit code. In most cases, this
 will be a Genkit flow, but if you do not use flows this will be the top-most
 span in a Genkit trace.
 
-Name                    | Description
------------------------ | ---------------------------------------------------
-genkit/feature/requests | Counter for number of requests by feature.
-genkit/feature/latency  | Histogram tracking feature execution latency in ms.
+| Name                    | Type      | Description             |
+| ----------------------- | --------- | ----------------------- |
+| genkit/feature/requests | Counter   | Number of requests      |
+| genkit/feature/latency  | Histogram | Execution latency in ms |
 
 Each feature-level metric contains the following dimensions:
 
 | Name          | Description                                                  |
 | ------------- | ------------------------------------------------------------ |
-| name          | The name of the feature. In most cases, this is the top-level genkit flow. |
-| status        | 'success' or 'failure' depending on whether or not the feature request succeeded. |
-| error         | Only set when `status=failure`. Contains the error type that caused the failure. |
-| source        | The genkit source language. Eg. 'ts'.                        |
+| name          | The name of the feature. In most cases, this is the top-level genkit flow  |
+| status        | 'success' or 'failure' depending on whether or not the feature request succeeded  |
+| error         | Only set when `status=failure`. Contains the error type that caused the failure  |
+| source        | The genkit source language. Eg. 'ts'                         |
 | sourceVersion | The version of the genkit framework used                     |
 
 
@@ -248,22 +248,21 @@ Each feature-level metric contains the following dimensions:
 Actions represent a generic step of execution within Genkit. Each of these steps
 will have the following metrics tracked:
 
-
-| Name                   | Description                                        |
-| ---------------------- | -------------------------------------------------- |
-| genkit/action/requests | Counter for the number of times this an action has been executed |
-| genkit/action/latency  | Histogram tracking action execution latency in ms. |
+| Name                    | Type      | Description                                   |
+| ----------------------- | --------- | --------------------------------------------- |
+| genkit/action/requests  | Counter   | Number of times this action has been executed |
+| genkit/action/latency   | Histogram | Execution latency in ms                       |
 
 Each action-level metric contains the following dimensions:
 
 | Name          | Description                                                  |
 | ------------- | ------------------------------------------------------------ |
-| name          | The name of the action being tracked.                        |
-| featureName   | The name of the parent feature being executed.               |
+| name          | The name of the action being tracked                         |
+| featureName   | The name of the parent feature being executed                |
 | path          | The path of execution from the feature root to this action. eg. '/myFeature/parentAction/thisAction' |
-| status        | 'success' or 'failure' depending on whether or not the action succeeded. |
-| error         | Only set when `status=failure`. Contains the error type that caused the failure. |
-| source        | The genkit source language. Eg. 'ts'.                        |
+| status        | 'success' or 'failure' depending on whether or not the action succeeded  |
+| error         | Only set when `status=failure`. Contains the error type that caused the failure  |
+| source        | The genkit source language. Eg. 'ts'                         |
 | sourceVersion | The version of the genkit framework used                     |
 
 ### Generate-level metrics
@@ -272,25 +271,25 @@ These are special action metrics relating to actions that interact with a model.
 In addition to requests and latency, input and output are also tracked, with model
 specific dimensions that make debugging and configuration tuning easier.
 
-| Name                                 | Description                          |
-| ------------------------------------ | ------------------------------------ |
-| genkit/ai/generate/requests          | Counter for the number of times this model has been called. |
-| genkit/ai/generate/latency           | Histogram tracking execution latency in ms. |
-| genkit/ai/generate/input/tokens      | Counter tracking input tokens        |
-| genkit/ai/generate/output/tokens     | Counter tracking output tokens       |
-| genkit/ai/generate/input/characters  | Counter tracking input characters    |
-| genkit/ai/generate/output/characters | Counter tracking output characters   |
-| genkit/ai/generate/input/images      | Counter tracking input images        |
-| genkit/ai/generate/output/images     | Counter tracking output images       |
-| genkit/ai/generate/input/audio       | Counter tracking input audio files   |
-| genkit/ai/generate/output/audio      | Counter tracking output audio files  |
+| Name                                 | Type      | Description                                |
+| ------------------------------------ | --------- | ------------------------------------------ |
+| genkit/ai/generate/requests          | Counter   | Number of times this model has been called |
+| genkit/ai/generate/latency           | Histogram | Execution latency in ms                    |
+| genkit/ai/generate/input/tokens      | Counter   | Input tokens                               |
+| genkit/ai/generate/output/tokens     | Counter   | Output tokens                              |
+| genkit/ai/generate/input/characters  | Counter   | Input characters                           |
+| genkit/ai/generate/output/characters | Counter   | Output characters                          |
+| genkit/ai/generate/input/images      | Counter   | Input images                               |
+| genkit/ai/generate/output/images     | Counter   | Output images                              |
+| genkit/ai/generate/input/audio       | Counter   | Input audio files                          |
+| genkit/ai/generate/output/audio      | Counter   | Output audio files                         |
 
 Each generate-level metric contains the following dimensions:
 
 | Name            | Description                                              |
 | --------------- | -------------------------------------------------------- |
-| modelName       | The name of the model.                                   |
-| featureName     | The name of the feature being executed that lead to this model being called. |
+| modelName       | The name of the model                                    |
+| featureName     | The name of the feature being executed that lead to this model being called |
 | path            | The path of execution from the feature root to this action. eg. '/myFeature/parentAction/thisAction' |
 | temperature     | The temperature parameter passed to the model            |
 | maxOutputTokens | The maxOutputTokens parameter passed to the model        |
