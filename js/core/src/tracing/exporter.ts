@@ -123,7 +123,7 @@ export class TraceServerExporter implements SpanExporter {
         await this.save(traceId, traces[traceId]);
       } catch (e) {
         error = true;
-        logger.error('Failed to save trace ${traceId}', e);
+        logger.error(`Failed to save trace ${traceId}`, e);
       }
       if (done) {
         return done({
