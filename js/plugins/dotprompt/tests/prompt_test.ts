@@ -485,11 +485,7 @@ describe('DotpromptRef', () => {
       const rendered = prompt.render({ input: {} });
       assert.deepStrictEqual(rendered.messages, [
         {
-          content: [
-            {
-              text: ' hi',
-            },
-          ],
+          content: [{ text: ' hi' }],
           role: 'system',
         },
       ]);
