@@ -41,11 +41,6 @@ import {
   textMultilingualEmbedding002,
 } from './embedder.js';
 import {
-  VertexAIEvaluationMetric,
-  VertexAIEvaluationMetricType,
-  vertexEvaluators,
-} from './evaluation.js';
-import {
   gemini15Flash,
   gemini15FlashPreview,
   gemini15Pro,
@@ -114,7 +109,6 @@ export {
   textEmbeddingGecko003,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
-  VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
 };
 
 export interface PluginOptions {
@@ -124,10 +118,6 @@ export interface PluginOptions {
   location: string;
   /** Provide custom authentication configuration for connecting to Vertex AI. */
   googleAuth?: GoogleAuthOptions;
-  /** Configure Vertex AI evaluators */
-  evaluation?: {
-    metrics: VertexAIEvaluationMetric[];
-  };
   /**
    * @deprecated use `modelGarden.models`
    */
@@ -176,10 +166,6 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       }
       return vertexClientFactoryCache[requestLocation];
     };
-    const metrics =
-      options?.evaluation && options.evaluation.metrics.length > 0
-        ? options.evaluation.metrics
-        : [];
 
     const models = [
       ...Object.keys(SUPPORTED_IMAGEN_MODELS).map((name) =>
@@ -257,7 +243,6 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
     return {
       models,
       embedders,
-      evaluators: vertexEvaluators(authClient, metrics, projectId, location),
       retrievers,
       indexers,
       rerankers,

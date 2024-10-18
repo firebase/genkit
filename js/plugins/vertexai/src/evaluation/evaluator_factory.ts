@@ -39,7 +39,7 @@ export class EvaluatorFactory {
   ): Action {
     return defineEvaluator(
       {
-        name: `vertexai/${config.metric.toLocaleLowerCase()}`,
+        name: `vertexaiEvaluation/${config.metric.toLocaleLowerCase()}`,
         displayName: config.displayName,
         definition: config.definition,
       },
