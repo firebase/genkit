@@ -112,7 +112,6 @@ import {
   defineHelper,
   definePartial,
   loadPromptFolder,
-  PromptGenerateOptions,
   PromptMetadata,
 } from '@genkit-ai/dotprompt';
 import { v4 as uuidv4 } from 'uuid';
