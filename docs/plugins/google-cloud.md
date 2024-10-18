@@ -263,8 +263,7 @@ Each action-level metric contains the following dimensions:
 | Name          | Description                                                  |
 | ------------- | ------------------------------------------------------------ |
 | name          | The name of the action being tracked.                        |
-| featureName   | The name of the feature being executed that lead to this     |
-:               : action being executed.                                       :
+| featureName   | The name of the parent feature being executed     |
 | path          | The path of execution from the feature root to this action.  |
 :               : eg. '/myFeature/parentAction/thisAction'                     :
 | status        | 'success' or 'failure' depending on whether or not the       |
