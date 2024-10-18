@@ -1596,6 +1596,12 @@ packages:
     cpu: [arm64]
     os: [android]
 
+  '@esbuild/android-arm@0.15.18':
+    resolution: {integrity: sha512-5GT+kcs2WVGjVs7+boataCkO5Fg0y4kCjzkB5bAip7H4jfnOS3dA6KPiww9W1OEKTKeAcUVhdZGvgI65OXmUnw==}
+    engines: {node: '>=12'}
+    cpu: [arm]
+    os: [android]
+
   '@esbuild/android-arm@0.19.12':
     resolution: {integrity: sha512-qg/Lj1mu3CdQlDEEiWrlC4eaPZ1KztwGJ9B6J+/6G+/4ewxJg7gqj8eVYWvao1bXrqGiW2rsBZFSX3q2lcW05w==}
     engines: {node: '>=12'}
@@ -1698,17 +1704,16 @@ packages:
     cpu: [ia32]
     os: [linux]
 
-<<<<<<< HEAD
   '@esbuild/linux-ia32@0.23.1':
     resolution: {integrity: sha512-VTN4EuOHwXEkXzX5nTvVY4s7E/Krz7COC8xkftbbKRYAl96vPiUssGkeMELQMOnLOJ8k3BY1+ZY52tttZnHcXQ==}
     engines: {node: '>=18'}
     cpu: [ia32]
-=======
+    os: [linux]
+
   '@esbuild/linux-loong64@0.15.18':
     resolution: {integrity: sha512-L4jVKS82XVhw2nvzLg/19ClLWg0y27ulRwuP7lcyL6AbUWB5aPglXY3M21mauDQMDfRLs8cQmeT03r/+X3cZYQ==}
     engines: {node: '>=12'}
     cpu: [loong64]
->>>>>>> db454d08 (refactor(js/plugins/vertexai): separated common stuff)
     os: [linux]
 
   '@esbuild/linux-loong64@0.19.12':
@@ -6778,6 +6783,9 @@ snapshots:
   '@esbuild/android-arm64@0.23.1':
     optional: true
 
+  '@esbuild/android-arm@0.15.18':
+    optional: true
+
   '@esbuild/android-arm@0.19.12':
     optional: true
 
@@ -6829,11 +6837,10 @@ snapshots:
   '@esbuild/linux-ia32@0.19.12':
     optional: true
 
-<<<<<<< HEAD
   '@esbuild/linux-ia32@0.23.1':
-=======
+    optional: true
+
   '@esbuild/linux-loong64@0.15.18':
->>>>>>> db454d08 (refactor(js/plugins/vertexai): separated common stuff)
     optional: true
 
   '@esbuild/linux-loong64@0.19.12':
