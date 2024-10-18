@@ -20,13 +20,13 @@ import {
   PineconeConfiguration,
   RecordMetadata,
 } from '@pinecone-database/pinecone';
-import { PluginProvider, genkitPlugin, z } from 'genkit';
-import { EmbedderArgument, embed } from 'genkit/embedder';
+import { Genkit, z } from 'genkit';
+import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
+
+import { EmbedderArgument } from 'genkit/embedder';
 import {
   CommonRetrieverOptionsSchema,
   Document,
-  defineIndexer,
-  defineRetriever,
   indexerRef,
   retrieverRef,
 } from 'genkit/retriever';
@@ -97,23 +97,11 @@ export function pinecone<EmbedderCustomOptions extends z.ZodTypeAny>(
     embedder: EmbedderArgument<EmbedderCustomOptions>;
     embedderOptions?: z.infer<EmbedderCustomOptions>;
   }[]
-): PluginProvider {
-  const plugin = genkitPlugin(
-    'pinecone',
-    async (
-      params: {
-        clientParams?: PineconeConfiguration;
-        indexId: string;
-        textKey?: string;
-        embedder: EmbedderArgument<EmbedderCustomOptions>;
-        embedderOptions?: z.infer<EmbedderCustomOptions>;
-      }[]
-    ) => ({
-      retrievers: params.map((i) => configurePineconeRetriever(i)),
-      indexers: params.map((i) => configurePineconeIndexer(i)),
-    })
-  );
-  return plugin(params);
+): GenkitPlugin {
+  return genkitPlugin('pinecone', async (ai: Genkit) => {
+    params.map((i) => configurePineconeRetriever(ai, i));
+    params.map((i) => configurePineconeIndexer(ai, i));
+  });
 }
 
 export default pinecone;
@@ -123,13 +111,16 @@ export default pinecone;
  */
 export function configurePineconeRetriever<
   EmbedderCustomOptions extends z.ZodTypeAny,
->(params: {
-  indexId: string;
-  clientParams?: PineconeConfiguration;
-  textKey?: string;
-  embedder: EmbedderArgument<EmbedderCustomOptions>;
-  embedderOptions?: z.infer<EmbedderCustomOptions>;
-}) {
+>(
+  ai: Genkit,
+  params: {
+    indexId: string;
+    clientParams?: PineconeConfiguration;
+    textKey?: string;
+    embedder: EmbedderArgument<EmbedderCustomOptions>;
+    embedderOptions?: z.infer<EmbedderCustomOptions>;
+  }
+) {
   const { indexId, embedder, embedderOptions } = {
     ...params,
   };
@@ -138,13 +129,13 @@ export function configurePineconeRetriever<
   const pinecone = new Pinecone(pineconeConfig);
   const index = pinecone.index(indexId);
 
-  return defineRetriever(
+  return ai.defineRetriever(
     {
       name: `pinecone/${params.indexId}`,
       configSchema: PineconeRetrieverOptionsSchema,
     },
     async (content, options) => {
-      const queryEmbeddings = await embed({
+      const queryEmbeddings = await ai.embed({
         embedder,
         content,
         options: embedderOptions,
@@ -178,13 +169,16 @@ export function configurePineconeRetriever<
  */
 export function configurePineconeIndexer<
   EmbedderCustomOptions extends z.ZodTypeAny,
->(params: {
-  indexId: string;
-  clientParams?: PineconeConfiguration;
-  textKey?: string;
-  embedder: EmbedderArgument<EmbedderCustomOptions>;
-  embedderOptions?: z.infer<EmbedderCustomOptions>;
-}) {
+>(
+  ai: Genkit,
+  params: {
+    indexId: string;
+    clientParams?: PineconeConfiguration;
+    textKey?: string;
+    embedder: EmbedderArgument<EmbedderCustomOptions>;
+    embedderOptions?: z.infer<EmbedderCustomOptions>;
+  }
+) {
   const { indexId, embedder, embedderOptions } = {
     ...params,
   };
@@ -193,7 +187,7 @@ export function configurePineconeIndexer<
   const pinecone = new Pinecone(pineconeConfig);
   const index = pinecone.index(indexId);
 
-  return defineIndexer(
+  return ai.defineIndexer(
     {
       name: `pinecone/${params.indexId}`,
       configSchema: PineconeIndexerOptionsSchema.optional(),
@@ -205,7 +199,7 @@ export function configurePineconeIndexer<
 
       const embeddings = await Promise.all(
         docs.map((doc) =>
-          embed({
+          ai.embed({
             embedder,
             content: doc,
             options: embedderOptions,

@@ -14,20 +14,28 @@
  * limitations under the License.
  */
 
-export {
-  ActionType,
-  AsyncProvider,
-  Registry,
-  Schema,
-  getRegistryInstance,
-  initializeAllPlugins,
-  initializePlugin,
-  listActions,
-  lookupAction,
-  lookupPlugin,
-  lookupSchema,
-  registerAction,
-  registerPluginProvider,
-  registerSchema,
-  runWithRegistry,
-} from '@genkit-ai/core/registry';
+import { Genkit } from './genkit.js';
+
+export interface PluginProvider {
+  name: string;
+  initializer: () => void | Promise<void>;
+}
+
+type PluginInit = (genkit: Genkit) => void | Promise<void>;
+
+export type GenkitPlugin = (genkit: Genkit) => PluginProvider;
+
+/**
+ * Defines a Genkit plugin.
+ */
+export function genkitPlugin<T extends PluginInit>(
+  pluginName: string,
+  initFn: T
+): GenkitPlugin {
+  return (genkit: Genkit) => ({
+    name: pluginName,
+    initializer: async () => {
+      await initFn(genkit);
+    },
+  });
+}

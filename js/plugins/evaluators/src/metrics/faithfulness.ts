@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-import { generate, loadPromptFile, ModelArgument, z } from 'genkit';
+import { loadPromptFile } from '@genkit-ai/dotprompt';
+import { Genkit, ModelArgument, z } from 'genkit';
 import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import path from 'path';
 import { getDirName } from './helper.js';
@@ -39,6 +40,7 @@ const NliResponseSchema = z.union([
 export async function faithfulnessScore<
   CustomModelOptions extends z.ZodTypeAny,
 >(
+  ai: Genkit,
   judgeLlm: ModelArgument<CustomModelOptions>,
   dataPoint: BaseEvalDataPoint,
   judgeConfig?: CustomModelOptions
@@ -54,7 +56,7 @@ export async function faithfulnessScore<
     const longFormPrompt = await loadPromptFile(
       path.resolve(getDirName(), '../../prompts/faithfulness_long_form.prompt')
     );
-    const longFormResponse = await generate({
+    const longFormResponse = await ai.generate({
       model: judgeLlm,
       config: judgeConfig,
       prompt: longFormPrompt.renderText({
@@ -75,7 +77,7 @@ export async function faithfulnessScore<
     const nliPrompt = await loadPromptFile(
       path.resolve(getDirName(), '../../prompts/faithfulness_nli.prompt')
     );
-    const response = await generate({
+    const response = await ai.generate({
       model: judgeLlm,
       prompt: nliPrompt.renderText({
         context: allContext,

@@ -31,7 +31,7 @@ import {
   StartChatParams,
   Tool,
 } from '@google/generative-ai';
-import { GENKIT_CLIENT_HEADER, z } from 'genkit';
+import { GENKIT_CLIENT_HEADER, Genkit, z } from 'genkit';
 import {
   CandidateData,
   GenerationCommonConfigSchema,
@@ -44,7 +44,6 @@ import {
   ToolDefinitionSchema,
   ToolRequestPart,
   ToolResponsePart,
-  defineModel,
   getBasicUsageStats,
   modelRef,
 } from 'genkit/model';
@@ -457,6 +456,7 @@ export function fromGeminiCandidate(
  *
  */
 export function googleAIModel(
+  ai: Genkit,
   name: string,
   apiKey?: string,
   apiVersion?: string,
@@ -495,7 +495,7 @@ export function googleAIModel(
     );
   }
 
-  return defineModel(
+  return ai.defineModel(
     {
       name: modelName,
       ...model.info,

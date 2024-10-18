@@ -13,8 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { embed } from 'genkit';
-import { Registry, runWithRegistry } from 'genkit/registry';
+import { Genkit, genkit } from 'genkit';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import {
@@ -48,52 +47,48 @@ describe('defineOllamaEmbedder', () => {
     serverAddress: 'http://localhost:3000',
   };
 
-  let registry: Registry;
+  let ai: Genkit;
   beforeEach(() => {
-    registry = new Registry();
+    ai = genkit({});
   });
 
   it('should successfully return embeddings', async () => {
-    await runWithRegistry(registry, async () => {
-      const embedder = defineOllamaEmbedder({
-        name: 'test-embedder',
-        modelName: 'test-model',
-        dimensions: 123,
-        options,
-      });
-      const result = await embed({
-        embedder,
-        content: 'Hello, world!',
-      });
-      assert.deepStrictEqual(result, [0.1, 0.2, 0.3]);
+    const embedder = defineOllamaEmbedder(ai, {
+      name: 'test-embedder',
+      modelName: 'test-model',
+      dimensions: 123,
+      options,
     });
+    const result = await ai.embed({
+      embedder,
+      content: 'Hello, world!',
+    });
+    assert.deepStrictEqual(result, [0.1, 0.2, 0.3]);
   });
 
   it('should handle API errors correctly', async () => {
-    await runWithRegistry(registry, async () => {
-      const embedder = defineOllamaEmbedder({
-        name: 'test-embedder',
-        modelName: 'test-model',
-        dimensions: 123,
-        options,
-      });
-      await assert.rejects(
-        async () => {
-          await embed({
-            embedder,
-            content: 'fail',
-          });
-        },
-        (error) => {
-          assert(error instanceof Error);
-          assert.strictEqual(
-            error.message,
-            'Error fetching embedding from Ollama: Internal Server Error'
-          );
-          return true;
-        }
-      );
+    const embedder = defineOllamaEmbedder(ai, {
+      name: 'test-embedder',
+      modelName: 'test-model',
+      dimensions: 123,
+      options,
     });
+    await assert.rejects(
+      async () => {
+        await ai.embed({
+          embedder,
+          content: 'fail',
+        });
+      },
+      (error) => {
+        assert(error instanceof Error);
+        assert.strictEqual(
+          error.message,
+          'Error fetching embedding from Ollama: Internal Server Error'
+        );
+        return true;
+      }
+    );
   });
 
   it('should validate the embedding configuration schema', async () => {
@@ -115,20 +110,18 @@ describe('defineOllamaEmbedder', () => {
     });
   });
   it('should throw an error if the fetch response is not ok', async () => {
-    await runWithRegistry(registry, async () => {
-      const embedder = defineOllamaEmbedder({
-        name: 'test-embedder',
-        modelName: 'test-model',
-        dimensions: 123,
-        options,
-      });
-
-      await assert.rejects(async () => {
-        await embed({
-          embedder,
-          content: 'fail',
-        });
-      }, new Error('Error fetching embedding from Ollama: Internal Server Error'));
+    const embedder = defineOllamaEmbedder(ai, {
+      name: 'test-embedder',
+      modelName: 'test-model',
+      dimensions: 123,
+      options,
     });
+
+    await assert.rejects(async () => {
+      await ai.embed({
+        embedder,
+        content: 'fail',
+      });
+    }, new Error('Error fetching embedding from Ollama: Internal Server Error'));
   });
 });

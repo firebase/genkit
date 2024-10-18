@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-export * from '@genkit-ai/ai/extract';
+export { extractJson, parsePartialJson } from '@genkit-ai/ai/extract';

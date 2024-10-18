@@ -23,7 +23,7 @@ export type EmbeddingBatch = { embedding: number[] }[];
 export const EmbeddingSchema = z.array(z.number());
 export type Embedding = z.infer<typeof EmbeddingSchema>;
 
-type EmbedderFn<EmbedderOptions extends z.ZodTypeAny> = (
+export type EmbedderFn<EmbedderOptions extends z.ZodTypeAny> = (
   input: Document[],
   embedderOpts?: z.infer<EmbedderOptions>
 ) => Promise<EmbedResponse>;

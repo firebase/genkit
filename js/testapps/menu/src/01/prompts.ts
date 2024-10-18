@@ -15,7 +15,7 @@
  */
 
 import { geminiPro } from '@genkit-ai/vertexai';
-import { defineDotprompt, GenerateRequest } from 'genkit';
+import { GenerateRequest } from 'genkit';
 import { ai } from '../index.js';
 import { MenuQuestionInput, MenuQuestionInputSchema } from '../types.js';
 
@@ -47,7 +47,7 @@ export const s01_vanillaPrompt = ai.definePrompt(
 // that also gives us a type-safe handlebars template system,
 // and well-defined output schemas.
 
-export const s01_staticMenuDotPrompt = defineDotprompt(
+export const s01_staticMenuDotPrompt = ai.definePrompt(
   {
     name: 's01_staticMenuDotPrompt',
     model: geminiPro,

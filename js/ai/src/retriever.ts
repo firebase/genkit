@@ -28,12 +28,12 @@ export {
   type TextPart,
 } from './document.js';
 
-type RetrieverFn<RetrieverOptions extends z.ZodTypeAny> = (
+export type RetrieverFn<RetrieverOptions extends z.ZodTypeAny> = (
   query: Document,
   queryOpts: z.infer<RetrieverOptions>
 ) => Promise<RetrieverResponse>;
 
-type IndexerFn<IndexerOptions extends z.ZodTypeAny> = (
+export type IndexerFn<IndexerOptions extends z.ZodTypeAny> = (
   docs: Array<Document>,
   indexerOpts: z.infer<IndexerOptions>
 ) => Promise<void>;

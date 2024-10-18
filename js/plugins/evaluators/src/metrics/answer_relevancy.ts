@@ -14,9 +14,10 @@
  * limitations under the License.
  */
 
+import { loadPromptFile } from '@genkit-ai/dotprompt';
 import similarity from 'compute-cosine-similarity';
-import { generate, loadPromptFile, ModelArgument, z } from 'genkit';
-import { embed, EmbedderArgument } from 'genkit/embedder';
+import { Genkit, ModelArgument, z } from 'genkit';
+import { EmbedderArgument } from 'genkit/embedder';
 import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import path from 'path';
 import { getDirName } from './helper.js';
@@ -31,6 +32,7 @@ export async function answerRelevancyScore<
   CustomModelOptions extends z.ZodTypeAny,
   CustomEmbedderOptions extends z.ZodTypeAny,
 >(
+  ai: Genkit,
   judgeLlm: ModelArgument<CustomModelOptions>,
   dataPoint: BaseEvalDataPoint,
   embedder: EmbedderArgument<CustomEmbedderOptions>,
@@ -47,7 +49,7 @@ export async function answerRelevancyScore<
     const prompt = await loadPromptFile(
       path.resolve(getDirName(), '../../prompts/answer_relevancy.prompt')
     );
-    const response = await generate({
+    const response = await ai.generate({
       model: judgeLlm,
       config: judgeConfig,
       prompt: prompt.renderText({
@@ -63,12 +65,12 @@ export async function answerRelevancyScore<
     if (!genQuestion)
       throw new Error('Error generating question for answer relevancy');
 
-    const questionEmbed = await embed({
+    const questionEmbed = await ai.embed({
       embedder,
       content: dataPoint.input as string,
       options: embedderOptions,
     });
-    const genQuestionEmbed = await embed({
+    const genQuestionEmbed = await ai.embed({
       embedder,
       content: genQuestion,
       options: embedderOptions,
