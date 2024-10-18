@@ -234,13 +234,13 @@ span in a Genkit trace.
 
 Each feature-level metric contains the following dimensions:
 
-| Name          | Description                                                  |
-| ------------- | ------------------------------------------------------------ |
-| name          | The name of the feature. In most cases, this is the top-level genkit flow  |
-| status        | 'success' or 'failure' depending on whether or not the feature request succeeded  |
+| Name          | Description                                                                      |
+| ------------- | -------------------------------------------------------------------------------- |
+| name          | The name of the feature. In most cases, this is the top-level genkit flow        |
+| status        | 'success' or 'failure' depending on whether or not the feature request succeeded |
 | error         | Only set when `status=failure`. Contains the error type that caused the failure  |
-| source        | The genkit source language. Eg. 'ts'                         |
-| sourceVersion | The version of the genkit framework used                     |
+| source        | The genkit source language. Eg. 'ts'                                             |
+| sourceVersion | The version of the genkit framework used                                         |
 
 
 ### Action-level metrics
@@ -255,15 +255,15 @@ will have the following metrics tracked:
 
 Each action-level metric contains the following dimensions:
 
-| Name          | Description                                                  |
-| ------------- | ------------------------------------------------------------ |
-| name          | The name of the action being tracked                         |
-| featureName   | The name of the parent feature being executed                |
+| Name          | Description                                                                                          |
+| ------------- | ---------------------------------------------------------------------------------------------------- |
+| name          | The name of the action being tracked                                                                 |
+| featureName   | The name of the parent feature being executed                                                        |
 | path          | The path of execution from the feature root to this action. eg. '/myFeature/parentAction/thisAction' |
-| status        | 'success' or 'failure' depending on whether or not the action succeeded  |
-| error         | Only set when `status=failure`. Contains the error type that caused the failure  |
-| source        | The genkit source language. Eg. 'ts'                         |
-| sourceVersion | The version of the genkit framework used                     |
+| status        | 'success' or 'failure' depending on whether or not the action succeeded                              |
+| error         | Only set when `status=failure`. Contains the error type that caused the failure                      |
+| source        | The genkit source language. Eg. 'ts'                                                                 |
+| sourceVersion | The version of the genkit framework used                                                             |
 
 ### Generate-level metrics
 
@@ -286,20 +286,20 @@ specific dimensions that make debugging and configuration tuning easier.
 
 Each generate-level metric contains the following dimensions:
 
-| Name            | Description                                              |
-| --------------- | -------------------------------------------------------- |
-| modelName       | The name of the model                                    |
-| featureName     | The name of the feature being executed that lead to this model being called |
+| Name            | Description                                                                                          |
+| --------------- | ---------------------------------------------------------------------------------------------------- |
+| modelName       | The name of the model                                                                                |
+| featureName     | The name of the feature being executed that lead to this model being called                          |
 | path            | The path of execution from the feature root to this action. eg. '/myFeature/parentAction/thisAction' |
-| temperature     | The temperature parameter passed to the model            |
-| maxOutputTokens | The maxOutputTokens parameter passed to the model        |
-| topK            | The topK parameter passed to the model                   |
-| topP            | The topP parameter passed to the model                   |
-| latencyMs       | The response time taken by the model                     |
-| status          | 'success' or 'failure' depending on whether or not the feature request succeeded. |
-| error           | Only set when `status=failure`. Contains the error type that caused the failure. |
-| source          | The Genkit source language. Eg. 'ts'.                    |
-| sourceVersion   | The Genkit framework version                             |
+| temperature     | The temperature parameter passed to the model                                                        |
+| maxOutputTokens | The maxOutputTokens parameter passed to the model                                                    |
+| topK            | The topK parameter passed to the model                                                               |
+| topP            | The topP parameter passed to the model                                                               |
+| latencyMs       | The response time taken by the model                                                                 |
+| status          | 'success' or 'failure' depending on whether or not the feature request succeeded                     |
+| error           | Only set when `status=failure`. Contains the error type that caused the failure                      |
+| source          | The Genkit source language. Eg. 'ts'                                                                 |
+| sourceVersion   | The Genkit framework version                                                                         |
 
 Visualizing metrics can be done through the Metrics Explorer. Using the side menu, select 'Logging' and click 'Metrics explorer'
 
