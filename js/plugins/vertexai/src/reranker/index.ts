@@ -53,6 +53,9 @@ export const vertexAIReranker: Plugin<[PluginOptions]> = genkitPlugin(
 
     return {
       rerankers,
+      // We add this here just to satisfy the types. The plugin return types will soon be removed, there
+      // is no need to add rerankers to that return type.
+      models: [],
     };
   }
 );
