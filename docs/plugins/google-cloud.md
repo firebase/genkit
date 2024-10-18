@@ -289,7 +289,7 @@ Each generate-level metric contains the following dimensions:
 
 | Name            | Description                                              |
 | --------------- | -------------------------------------------------------- |
-| modelName       | The name of the model being called.                      |
+| modelName       | The name of the model.                                   |
 | featureName     | The name of the feature being executed that lead to this model being called. |
 | path            | The path of execution from the feature root to this action. eg. '/myFeature/parentAction/thisAction' |
 | temperature     | The temperature parameter passed to the model            |
