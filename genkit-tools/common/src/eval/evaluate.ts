@@ -241,6 +241,7 @@ async function bulkRunAction(params: {
     }
   }
 
+  logger.info(`Gathering evalInputs...`);
   for (const state of states) {
     evalInputs.push(await gatherEvalInput({ manager, actionRef, state }));
   }
