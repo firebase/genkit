@@ -157,8 +157,8 @@ describe('Prompt', () => {
           { role: 'system', content: [{ text: 'Testing system Michael' }] },
           { role: 'user', content: [{ text: 'history 1' }] },
           { role: 'model', content: [{ text: 'history 2' }] },
+          { role: 'user', content: [{ text: 'history 3' }] },
         ]);
-        assert.deepStrictEqual(rendered.prompt, [{ text: 'history 3' }]);
       });
     });
   });
@@ -468,6 +468,31 @@ describe('DotpromptRef', () => {
         secondLoad,
         'Loaded prompts should be identical (cached).'
       );
+    });
+  });
+
+  it('should render system prompt', () => {
+    runWithRegistry(registry, () => {
+      const model = defineModel(
+        { name: 'echo', supports: { tools: true } },
+        async (input) => ({
+          message: input.messages[0],
+          finishReason: 'stop',
+        })
+      );
+      const prompt = testPrompt(model, `{{ role "system"}} hi`);
+
+      const rendered = prompt.render({ input: {} });
+      assert.deepStrictEqual(rendered.messages, [
+        {
+          content: [
+            {
+              text: ' hi',
+            },
+          ],
+          role: 'system',
+        },
+      ]);
     });
   });
 });
