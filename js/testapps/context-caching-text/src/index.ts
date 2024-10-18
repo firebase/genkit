@@ -15,8 +15,8 @@
  */
 
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
+import * as fs from 'fs/promises'; // Import fs to read text files
 import { generate, genkit, z } from 'genkit';
-import { lotr } from './content';
 const ai = genkit({
   plugins: [googleAI()],
 });
@@ -27,21 +27,25 @@ export const lotrFlow = ai.defineFlow(
     inputSchema: z.object({
       preprocess: z.string().optional(),
       query: z.string().optional(),
+      textFilePath: z.string(), // Add the file path to input schema
     }),
     outputSchema: z.string(),
   },
-  async ({ preprocess, query }) => {
+  async ({ preprocess, query, textFilePath }) => {
     const defaultProcess =
       'Extract all the quotes by Gandalf to Frodo into a list.';
 
     const defaultQuery =
       "Describe Gandalf's relationship with Frodo, referencing Gandalf quotes from the text.";
 
+    // Read the content from the file if the path is provided
+    const textContent = await fs.readFile(textFilePath, 'utf-8');
+
     const extractQuotesResponse = await generate({
       messages: [
         {
           role: 'user',
-          content: [{ text: lotr }], // for example, the first 10 chapters of Fellowship of the Ring
+          content: [{ text: textContent }], // Use the loaded file content here
         },
         {
           role: 'model',
