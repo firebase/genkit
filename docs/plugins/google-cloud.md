@@ -299,8 +299,8 @@ Each generate-level metric contains the following dimensions:
 | latencyMs       | The response time taken by the model                     |
 | status          | 'success' or 'failure' depending on whether or not the feature request succeeded. |
 | error           | Only set when `status=failure`. Contains the error type that caused the failure. |
-| source          | The genkit source language. Eg. 'ts'.                    |
-| sourceVersion   | The version of the genkit framework used                 |
+| source          | The Genkit source language. Eg. 'ts'.                    |
+| sourceVersion   | The Genkit framework version                             |
 
 Visualizing metrics can be done through the Metrics Explorer. Using the side menu, select 'Logging' and click 'Metrics explorer'
 
