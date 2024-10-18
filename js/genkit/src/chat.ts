@@ -15,6 +15,7 @@
  */
 
 import {
+  ExecutablePrompt,
   GenerateOptions,
   GenerateResponse,
   GenerateStreamOptions,
@@ -24,24 +25,25 @@ import {
   Part,
 } from '@genkit-ai/ai';
 import { z } from '@genkit-ai/core';
-import { v4 as uuidv4 } from 'uuid';
 import { Genkit } from './genkit';
-import {
-  Session,
-  SessionData,
-  SessionStore,
-  inMemorySessionStore,
-} from './session';
+import { Session, SessionStore } from './session';
 
 export const MAIN_THREAD = 'main';
 
 export type BaseGenerateOptions = Omit<GenerateOptions, 'prompt'>;
 
-export type ChatOptions<S extends z.ZodTypeAny = z.ZodTypeAny> =
-  BaseGenerateOptions & {
-    store?: SessionStore<S>;
-    sessionId?: string;
-  };
+export interface PromptRenderOptions<I> {
+  prompt: ExecutablePrompt<I>;
+  input?: I;
+}
+
+export type ChatOptions<
+  I = undefined,
+  S extends z.ZodTypeAny = z.ZodTypeAny,
+> = (PromptRenderOptions<I> | BaseGenerateOptions) & {
+  store?: SessionStore<S>;
+  sessionId?: string;
+};
 
 /**
  * Chat encapsulates a statful execution environment for chat.
@@ -56,75 +58,55 @@ export type ChatOptions<S extends z.ZodTypeAny = z.ZodTypeAny> =
  * ```
  */
 export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
+  readonly requestBase?: Promise<BaseGenerateOptions>;
   readonly sessionId: string;
   readonly schema?: S;
-  private sessionData?: SessionData<S>;
-  private store: SessionStore<S>;
+  private _messages?: MessageData[];
   private threadName: string;
 
   constructor(
-    readonly parent: Genkit | Session<S> | Chat<S>,
-    readonly requestBase?: BaseGenerateOptions,
-    options?: {
-      id?: string;
-      sessionData?: SessionData<S>;
-      store?: SessionStore<S>;
-      thread?: string;
+    readonly session: Session<S>,
+    requestBase: Promise<BaseGenerateOptions>,
+    options: {
+      id: string;
+      thread: string;
+      messages?: MessageData[];
     }
   ) {
-    this.sessionId = options?.id ?? uuidv4();
-    this.threadName = options?.thread ?? MAIN_THREAD;
-    this.sessionData = options?.sessionData;
-    if (!this.sessionData) {
-      this.sessionData = { id: this.sessionId };
-    }
-    if (!this.sessionData.threads) {
-      this.sessionData!.threads = {};
-    }
-    // this is handling dotprompt render case
-    if (requestBase && requestBase['prompt']) {
-      const basePrompt = requestBase['prompt'] as string | Part | Part[];
-      let promptMessage: MessageData;
-      if (typeof basePrompt === 'string') {
-        promptMessage = {
-          role: 'user',
-          content: [{ text: basePrompt }],
-        };
-      } else if (Array.isArray(basePrompt)) {
-        promptMessage = {
-          role: 'user',
-          content: basePrompt,
-        };
-      } else {
-        promptMessage = {
-          role: 'user',
-          content: [basePrompt],
-        };
+    this.sessionId = options.id;
+    this.threadName = options.thread;
+    this.requestBase = requestBase?.then((rb) => {
+      const requestBase = { ...rb };
+      // this is handling dotprompt render case
+      if (requestBase && requestBase['prompt']) {
+        const basePrompt = requestBase['prompt'] as string | Part | Part[];
+        let promptMessage: MessageData;
+        if (typeof basePrompt === 'string') {
+          promptMessage = {
+            role: 'user',
+            content: [{ text: basePrompt }],
+          };
+        } else if (Array.isArray(basePrompt)) {
+          promptMessage = {
+            role: 'user',
+            content: basePrompt,
+          };
+        } else {
+          promptMessage = {
+            role: 'user',
+            content: [basePrompt],
+          };
+        }
+        requestBase.messages = [...(requestBase.messages ?? []), promptMessage];
       }
-      requestBase.messages = [...(requestBase.messages ?? []), promptMessage];
-    }
-    if (parent instanceof Chat) {
-      if (!this.sessionData.threads[this.threadName]) {
-        this!.sessionData.threads[this.threadName] = [
-          ...(parent.messages ?? []),
-          ...(requestBase?.messages ?? []),
-        ];
-      }
-    } else if (parent instanceof Session) {
-      if (!this.sessionData.threads[this.threadName]) {
-        this!.sessionData.threads[this.threadName] = [
-          ...(requestBase?.messages ?? []),
-        ];
-      }
-    } else {
-      // Genkit
-      if (!this.sessionData.threads[this.threadName]) {
-        this.sessionData.threads[this.threadName] = [
-          ...(requestBase?.messages ?? []),
-        ];
-      }
-    }
-    this.store = options?.store ?? (inMemorySessionStore() as SessionStore<S>);
+      requestBase.messages = [
+        ...(options.messages ?? []),
+        ...(requestBase.messages ?? []),
+      ];
+      this._messages = requestBase.messages;
+      return requestBase;
+    });
+    this._messages = options.messages;
   }
 
   async send<
@@ -146,7 +128,7 @@ export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
       } as GenerateOptions<O, CustomOptions>;
     }
     const response = await this.genkit.generate({
-      ...this.requestBase,
+      ...(await this.requestBase),
       messages: this.messages,
       ...options,
     });
@@ -173,7 +155,7 @@ export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
       } as GenerateOptions<O, CustomOptions>;
     }
     const { response, stream } = await this.genkit.generateStream({
-      ...this.requestBase,
+      ...(await this.requestBase),
       messages: this.messages,
       ...options,
     });
@@ -187,66 +169,15 @@ export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
   }
 
   private get genkit(): Genkit {
-    if (this.parent instanceof Genkit) {
-      return this.parent;
-    }
-    if (this.parent instanceof Session) {
-      return this.parent.genkit;
-    }
-    return this.parent.genkit;
+    return this.session.genkit;
   }
 
-  get state(): z.infer<S> {
-    // We always get state from the parent. Parent session is the source of truth.
-    if (this.parent instanceof Session) {
-      return this.parent.state;
-    }
-    return this.sessionData!.state;
-  }
-
-  async updateState(data: z.infer<S>): Promise<void> {
-    // We always update the state on the parent. Parent session is the source of truth.
-    if (this.parent instanceof Session) {
-      return this.parent.updateState(data);
-    }
-    let sessionData = await this.store.get(this.sessionId);
-    if (!sessionData) {
-      sessionData = {} as SessionData<S>;
-    }
-    sessionData.state = data;
-    this.sessionData = sessionData;
-
-    await this.store.save(this.sessionId, sessionData);
-  }
-
-  get messages(): MessageData[] | undefined {
-    if (!this.sessionData?.threads) {
-      return undefined;
-    }
-    return this.sessionData?.threads[this.threadName];
+  get messages(): MessageData[] {
+    return this._messages ?? [];
   }
 
   async updateMessages(messages: MessageData[]): Promise<void> {
-    let sessionData = await this.store.get(this.sessionId);
-    if (!sessionData) {
-      sessionData = { id: this.sessionId, threads: {} };
-    }
-    if (!sessionData.threads) {
-      sessionData.threads = {};
-    }
-    sessionData.threads[this.threadName] = messages;
-    this.sessionData = sessionData;
-    await this.store.save(this.sessionId, sessionData);
-  }
-
-  toJSON() {
-    if (this.parent instanceof Session) {
-      return this.parent.toJSON();
-    }
-    return this.sessionData;
-  }
-
-  static fromJSON<S extends z.ZodTypeAny>(data: SessionData<S>) {
-    //return new Session();
+    this._messages = messages;
+    await this.session.updateMessages(this.threadName, messages);
   }
 }

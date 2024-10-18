@@ -340,21 +340,21 @@ describe('definePrompt - dotprompt', () => {
       assert.deepStrictEqual(response, {
         config: {},
         docs: undefined,
-        messages: [],
-        prompt: [
+        messages: [
           {
-            text: 'hi Genkit',
+            content: [
+              {
+                text: 'hi Genkit',
+              },
+            ],
+            role: 'user',
           },
         ],
         output: {
-          format: undefined,
+          format: 'text',
           jsonSchema: undefined,
-          schema: undefined,
         },
-        returnToolRequests: undefined,
-        streamingCallback: undefined,
         tools: [],
-        use: undefined,
       });
     });
   });
@@ -609,7 +609,9 @@ describe('definePrompt', () => {
       const response = await hi(
         { name: 'Genkit' },
         {
-          version: 'abc',
+          config: {
+            version: 'abc',
+          },
         }
       );
       assert.strictEqual(
@@ -716,9 +718,6 @@ describe('definePrompt', () => {
       assert.deepStrictEqual(response, {
         config: {},
         docs: undefined,
-        input: {
-          name: 'Genkit',
-        },
         messages: [
           {
             content: [

@@ -30,7 +30,7 @@ describe('session', () => {
   });
 
   it('maintains history in the session', async () => {
-    const session = await ai.chat();
+    const session = ai.chat();
     let response = await session.send('hi');
 
     assert.strictEqual(response.text, 'Echo: hi; config: {}');
@@ -59,8 +59,8 @@ describe('session', () => {
   });
 
   it('maintains history in the session with streaming', async () => {
-    const session = await ai.chat();
-    let { response, stream } = await session.sendStream('hi');
+    const chat = ai.chat();
+    let { response, stream } = await chat.sendStream('hi');
 
     let chunks: string[] = [];
     for await (const chunk of stream) {
@@ -69,7 +69,7 @@ describe('session', () => {
     assert.strictEqual((await response).text, 'Echo: hi; config: {}');
     assert.deepStrictEqual(chunks, ['3', '2', '1']);
 
-    ({ response, stream } = await session.sendStream('bye'));
+    ({ response, stream } = await chat.sendStream('bye'));
 
     chunks = [];
     for await (const chunk of stream) {
@@ -100,6 +100,7 @@ describe('session', () => {
 
   it('can init a session with a prompt', async () => {
     const prompt = ai.definePrompt({ name: 'hi' }, 'hi {{ name }}');
+
     const session = await ai.chat(
       await prompt.render({
         input: { name: 'Genkit' },
@@ -114,12 +115,29 @@ describe('session', () => {
     );
   });
 
-  it('can send a prompt session to a session', async () => {
+  it('can start chat from a prompt', async () => {
+    const prompt = ai.definePrompt(
+      { name: 'hi', config: { version: 'abc' } },
+      'hi {{ name }} from template'
+    );
+    const session = await ai.chat({
+      prompt,
+      input: { name: 'Genkit' },
+    });
+    const response = await session.send('send it');
+
+    assert.strictEqual(
+      response.text,
+      'Echo: hi Genkit from template,send it; config: {"version":"abc"}'
+    );
+  });
+
+  it('can send a rendered prompt to chat', async () => {
     const prompt = ai.definePrompt(
       { name: 'hi', config: { version: 'abc' } },
       'hi {{ name }}'
     );
-    const session = await ai.chat();
+    const session = ai.chat();
     const response = await session.send(
       await prompt.render({
         input: { name: 'Genkit' },

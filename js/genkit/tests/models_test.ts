@@ -59,7 +59,7 @@ describe('models', () => {
         );
         assert.deepStrictEqual(response.request, {
           config: undefined,
-          context: undefined,
+          docs: undefined,
           messages: [
             {
               role: 'system',
