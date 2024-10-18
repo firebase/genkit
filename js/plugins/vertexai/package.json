@@ -66,9 +66,19 @@
       "import": "./lib/index.mjs",
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
+    },
+    "./vectorsearch": {
+      "require": "./lib/vector-search/index.js",
+      "import": "./lib/vector-search/index.mjs",
+      "types": "./lib/vector-search/index.d.ts",
+      "default": "./lib/vector-search/index.js"
     }
   },
   "typesVersions": {
-    "*": {}
+    "*": {
+      "vectorsearch": [
+        "./lib/vector-search/index"
+      ]
+    }
   }
 }

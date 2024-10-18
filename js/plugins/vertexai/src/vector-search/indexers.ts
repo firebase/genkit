@@ -37,7 +37,7 @@ export const vertexAiIndexerRef = (params: {
   displayName?: string;
 }) => {
   return indexerRef({
-    name: `vertexai/${params.indexId}`,
+    name: `vertexaiVectorSearch/${params.indexId}`,
     info: {
       label: params.displayName ?? `Vertex AI - ${params.indexId}`,
     },
@@ -57,7 +57,7 @@ export const vertexAiIndexerRef = (params: {
 export function vertexAiIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
   params: VertexVectorSearchOptions<EmbedderCustomOptions>
 ): IndexerAction<z.ZodTypeAny>[] {
-  const vectorSearchOptions = params.pluginOptions.vectorSearchOptions;
+  const vectorSearchOptions = params.pluginOptions.options;
   const defaultEmbedder = params.defaultEmbedder;
   const indexers: IndexerAction<z.ZodTypeAny>[] = [];
 
@@ -72,7 +72,7 @@ export function vertexAiIndexers<EmbedderCustomOptions extends z.ZodTypeAny>(
 
     const indexer = defineIndexer(
       {
-        name: `vertexai/${indexId}`,
+        name: `vertexaiVectorSearch/${indexId}`,
         configSchema: VertexAIVectorIndexerOptionsSchema.optional(),
       },
       async (docs, options) => {
