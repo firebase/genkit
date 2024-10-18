@@ -293,7 +293,7 @@ Each generate-level metric contains the following dimensions:
 | featureName     | The name of the feature being executed that lead to this model being called. |
 | path            | The path of execution from the feature root to this action. eg. '/myFeature/parentAction/thisAction' |
 | temperature     | The temperature parameter passed to the model            |
-| maxOutputTokens | The max output tokens parameter passed to the model      |
+| maxOutputTokens | The maxOutputTokens parameter passed to the model        |
 | topK            | The topK parameter passed to the model                   |
 | topP            | The topP parameter passed to the model                   |
 | latencyMs       | The response time taken by the model                     |
