@@ -18,7 +18,7 @@ import { FlowInvokeEnvelopeMessage, FlowState } from '@genkit-ai/tools-common';
 import { logger } from '@genkit-ai/tools-common/utils';
 import { Command } from 'commander';
 import { writeFile } from 'fs/promises';
-import { runWithManager, waitForFlowToComplete } from '../utils/manager-utils';
+import { runWithManager } from '../utils/manager-utils';
 
 interface FlowRunOptions {
   wait?: boolean;
@@ -63,9 +63,7 @@ export const flowRun = new Command('flow:run')
         )
       ).result as FlowState;
 
-      logger.info(
-        'Flow response:\n' + JSON.stringify(state, undefined, '  ')
-      );
+      logger.info('Flow response:\n' + JSON.stringify(state, undefined, '  '));
 
       if (options.output && state.operation.result?.response) {
         await writeFile(
