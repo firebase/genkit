@@ -44,9 +44,9 @@ export const vertexAIReranker: Plugin<[PluginOptions]> = genkitPlugin(
     }
 
     const rerankOptions = {
-        pluginOptions: options,
-        authClient,
-        projectId,
+      pluginOptions: options,
+      authClient,
+      projectId,
     };
 
     const rerankers = await vertexAiRerankers(rerankOptions);
