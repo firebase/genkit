@@ -157,8 +157,8 @@ describe('Prompt', () => {
           { role: 'system', content: [{ text: 'Testing system Michael' }] },
           { role: 'user', content: [{ text: 'history 1' }] },
           { role: 'model', content: [{ text: 'history 2' }] },
-          { role: 'user', content: [{ text: 'history 3' }] },
         ]);
+        assert.deepStrictEqual(rendered.prompt, [{ text: 'history 3' }]);
       });
     });
   });
