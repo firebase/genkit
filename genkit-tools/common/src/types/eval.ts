@@ -160,6 +160,17 @@ export interface EvalStore {
   list(query?: ListEvalKeysRequest): Promise<ListEvalKeysResponse>;
 }
 
+export const DatasetSchemaSchema = z.object({
+  inputSchema: z
+    .record(z.any())
+    .describe('Valid JSON Schema for the `input` field of dataset entry.')
+    .optional(),
+  referenceSchema: z
+    .record(z.any())
+    .describe('Valid JSON Schema for the `reference` field of dataset entry.')
+    .optional(),
+});
+
 /**
  * Metadata for Dataset objects containing version, create and update time, etc.
  */
@@ -167,6 +178,8 @@ export const DatasetMetadataSchema = z.object({
   /** unique. user-provided or auto-generated */
   datasetId: z.string(),
   size: z.number(),
+  schema: DatasetSchemaSchema.optional(),
+  targetAction: z.string().optional(),
   /** 1 for v1, 2 for v2, etc */
   version: z.number(),
   createTime: z.string(),

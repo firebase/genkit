@@ -89,6 +89,21 @@ const CREATE_DATASET_REQUEST = CreateDatasetRequestSchema.parse({
   data: { samples: SAMPLE_DATASET_1_V1 },
 });
 
+const CREATE_DATASET_REQUEST_WITH_SCHEMA = CreateDatasetRequestSchema.parse({
+  data: { samples: SAMPLE_DATASET_1_V1 },
+  schema: {
+    inputSchema: {
+      type: 'string',
+      $schema: 'http://json-schema.org/draft-07/schema#',
+    },
+    referenceSchema: {
+      type: 'number',
+      $schema: 'http://json-schema.org/draft-07/schema#',
+    },
+  },
+  targetAction: '/flow/my-flow',
+});
+
 const UPDATE_DATASET_REQUEST = UpdateDatasetRequestSchema.parse({
   data: { samples: SAMPLE_DATASET_1_V2 },
   datasetId: SAMPLE_DATASET_ID_1,
@@ -104,11 +119,9 @@ const SAMPLE_DATASET_METADATA_2 = {
   updateTime: FAKE_TIME.toString(),
 };
 
-jest.mock('crypto', () => {
+jest.mock('process', () => {
   return {
-    createHash: jest.fn().mockReturnThis(),
-    update: jest.fn().mockReturnThis(),
-    digest: jest.fn(() => 'store-root'),
+    cwd: jest.fn(() => 'store-root'),
   };
 });
 
@@ -207,6 +220,37 @@ describe('localFileDatasetStore', () => {
         JSON.stringify(metadataMap)
       );
       expect(datasetMetadata).toMatchObject(SAMPLE_DATASET_METADATA_1_V1);
+    });
+
+    it('creates new dataset, with schema', async () => {
+      fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
+      fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
+      // For index file reads
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify({}) as any)
+      );
+      fs.existsSync = jest.fn(() => false);
+      const dataset: Dataset = SAMPLE_DATASET_1_V1.map((s) => ({
+        testCaseId: TEST_CASE_ID,
+        ...s,
+      }));
+
+      const datasetMetadata = await DatasetStore.createDataset({
+        ...CREATE_DATASET_REQUEST_WITH_SCHEMA,
+        datasetId: SAMPLE_DATASET_ID_1,
+      });
+
+      expect(datasetMetadata.schema).toMatchObject({
+        inputSchema: {
+          type: 'string',
+          $schema: 'http://json-schema.org/draft-07/schema#',
+        },
+        referenceSchema: {
+          type: 'number',
+          $schema: 'http://json-schema.org/draft-07/schema#',
+        },
+      });
+      expect(datasetMetadata.targetAction).toEqual('/flow/my-flow');
     });
 
     it('fails request if dataset already exists', async () => {
@@ -353,6 +397,39 @@ describe('localFileDatasetStore', () => {
       );
       expect(getDatasetSpy).toHaveBeenCalledTimes(1);
       expect(datasetMetadata).toMatchObject(SAMPLE_DATASET_METADATA_1_V2);
+    });
+
+    it('succeeds for existing dataset -- with schema', async () => {
+      fs.existsSync = jest.fn(() => true);
+      let metadataMap = {
+        [SAMPLE_DATASET_ID_1]: SAMPLE_DATASET_METADATA_1_V1,
+        [SAMPLE_DATASET_ID_2]: SAMPLE_DATASET_METADATA_2,
+      };
+      // For index file reads
+      fs.promises.readFile = jest.fn(async () =>
+        Promise.resolve(JSON.stringify(metadataMap) as any)
+      );
+      fs.promises.writeFile = jest.fn(async () => Promise.resolve(undefined));
+      fs.promises.appendFile = jest.fn(async () => Promise.resolve(undefined));
+
+      const datasetMetadata = await DatasetStore.updateDataset({
+        datasetId: SAMPLE_DATASET_ID_1,
+        schema: {
+          inputSchema: {
+            type: 'string',
+            $schema: 'http://json-schema.org/draft-07/schema#',
+          },
+        },
+        targetAction: '/flow/my-flow-2',
+      });
+
+      expect(datasetMetadata.schema).toMatchObject({
+        inputSchema: {
+          type: 'string',
+          $schema: 'http://json-schema.org/draft-07/schema#',
+        },
+      });
+      expect(datasetMetadata.targetAction).toEqual('/flow/my-flow-2');
     });
 
     it('fails for non existing dataset', async () => {
