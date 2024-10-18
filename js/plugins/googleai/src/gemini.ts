@@ -205,7 +205,7 @@ function toGeminiRole(
 }
 
 function convertSchemaProperty(property) {
-  if (!property) {
+  if (!property || !property.type) {
     return null;
   }
   if (property.type === 'object') {
@@ -503,6 +503,7 @@ export function googleAIModel(
       use: middleware,
     },
     async (request, streamingCallback) => {
+      console.log(JSON.stringify(request))
       const options: RequestOptions = { apiClient: GENKIT_CLIENT_HEADER };
       if (apiVersion) {
         options.apiVersion = apiVersion;
