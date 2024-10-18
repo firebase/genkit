@@ -63,12 +63,8 @@ export const flowRun = new Command('flow:run')
         )
       ).result as FlowState;
 
-      if (!state.operation.done && options.wait) {
-        logger.info('Started flow run, waiting for it to complete...');
-        state = await waitForFlowToComplete(manager, flowName, state.flowId);
-      }
       logger.info(
-        'Flow operation:\n' + JSON.stringify(state.operation, undefined, '  ')
+        'Flow response:\n' + JSON.stringify(state, undefined, '  ')
       );
 
       if (options.output && state.operation.result?.response) {
