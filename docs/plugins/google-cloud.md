@@ -268,7 +268,7 @@ Each action-level metric contains the following dimensions:
 
 ### Generate-level metrics
 
-These are special acion metrics relating to actions that interact with a model.
+These are special action metrics relating to actions that interact with a model.
 In addition to requests and latency, input and output are also tracked, with model
 specific dimensions that make debugging and tuning configurations easier.
 
