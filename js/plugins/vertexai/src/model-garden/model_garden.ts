@@ -28,7 +28,7 @@ export const ModelGardenModelConfigSchema = OpenAIConfigSchema.extend({
 });
 
 export const llama31 = modelRef({
-  name: 'vertexai/llama-3.1',
+  name: 'vertexaiModelGarden/llama-3.1',
   info: {
     label: 'Llama 3.1',
     supports: {
@@ -48,7 +48,7 @@ export const llama31 = modelRef({
 });
 
 export const llama32 = modelRef({
-  name: 'vertexai/llama-3.2',
+  name: 'vertexaiModelGarden/llama-3.2',
   info: {
     label: 'Llama 3.2',
     supports: {
@@ -68,7 +68,7 @@ export const llama32 = modelRef({
  * @deprecated use `llama31` instead
  */
 export const llama3 = modelRef({
-  name: 'vertexai/llama3-405b',
+  name: 'vertexaiModelGarden/llama3-405b',
   info: {
     label: 'Llama 3.1 405b',
     supports: {

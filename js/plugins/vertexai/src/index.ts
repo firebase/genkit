@@ -16,19 +16,11 @@
 
 import { VertexAI } from '@google-cloud/vertexai';
 import { genkitPlugin, Plugin, z } from 'genkit';
-import { GenerateRequest, ModelReference } from 'genkit/model';
+import { GenerateRequest } from 'genkit/model';
 import { IndexerAction, RetrieverAction } from 'genkit/retriever';
-import { GoogleAuthOptions } from 'google-auth-library';
-import {
-  anthropicModel,
-  claude35Sonnet,
-  claude3Haiku,
-  claude3Opus,
-  claude3Sonnet,
-  SUPPORTED_ANTHROPIC_MODELS,
-} from './anthropic.js';
 import { authenticate } from './common/auth.js';
 import { confError, DEFAULT_LOCATION } from './common/global.js';
+import { BasePluginOptions } from './common/types.js';
 import {
   SUPPORTED_EMBEDDER_MODELS,
   textEmbedding004,
@@ -63,13 +55,6 @@ import {
   imagenModel,
   SUPPORTED_IMAGEN_MODELS,
 } from './imagen.js';
-import {
-  llama3,
-  llama31,
-  llama32,
-  modelGardenOpenaiCompatibleModel,
-  SUPPORTED_OPENAI_FORMAT_MODELS,
-} from './model_garden.js';
 import { vertexAiRerankers, VertexRerankerConfig } from './reranker.js';
 import {
   VectorSearchOptions,
@@ -91,10 +76,6 @@ export {
   vertexAiRetrievers,
 } from './vector-search';
 export {
-  claude35Sonnet,
-  claude3Haiku,
-  claude3Opus,
-  claude3Sonnet,
   gemini15Flash,
   gemini15FlashPreview,
   gemini15Pro,
@@ -104,9 +85,6 @@ export {
   imagen2,
   imagen3,
   imagen3Fast,
-  llama3,
-  llama31,
-  llama32,
   textEmbedding004,
   textEmbeddingGecko,
   textEmbeddingGecko001,
@@ -117,24 +95,10 @@ export {
   VertexAIEvaluationMetricType as VertexAIEvaluationMetricType,
 };
 
-export interface PluginOptions {
-  /** The Google Cloud project id to call. */
-  projectId?: string;
-  /** The Google Cloud region to call. */
-  location: string;
-  /** Provide custom authentication configuration for connecting to Vertex AI. */
-  googleAuth?: GoogleAuthOptions;
+export interface PluginOptions extends BasePluginOptions {
   /** Configure Vertex AI evaluators */
   evaluation?: {
     metrics: VertexAIEvaluationMetric[];
-  };
-  /**
-   * @deprecated use `modelGarden.models`
-   */
-  modelGardenModels?: ModelReference<any>[];
-  modelGarden?: {
-    models: ModelReference<any>[];
-    openAiBaseUrlTemplate?: string;
   };
   /** Configure Vertex AI vector search index options */
   vectorSearchOptions?: VectorSearchOptions<z.ZodTypeAny, any, any>[];
@@ -142,11 +106,13 @@ export interface PluginOptions {
   rerankOptions?: VertexRerankerConfig[];
 }
 
+const PLUGIN_NAME = 'vertexai';
+
 /**
  * Add Google Cloud Vertex AI to Genkit. Includes Gemini and Imagen models and text embedder.
  */
 export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
-  'vertexai',
+  PLUGIN_NAME,
   async (options?: PluginOptions) => {
     // Authenticate with Google Cloud
     const authOptions = options?.googleAuth;
@@ -189,36 +155,6 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
         geminiModel(name, vertexClientFactory, { projectId, location })
       ),
     ];
-
-    if (options?.modelGardenModels || options?.modelGarden?.models) {
-      const mgModels =
-        options?.modelGardenModels || options?.modelGarden?.models;
-      mgModels!.forEach((m) => {
-        const anthropicEntry = Object.entries(SUPPORTED_ANTHROPIC_MODELS).find(
-          ([_, value]) => value.name === m.name
-        );
-        if (anthropicEntry) {
-          models.push(anthropicModel(anthropicEntry[0], projectId, location));
-          return;
-        }
-        const openaiModel = Object.entries(SUPPORTED_OPENAI_FORMAT_MODELS).find(
-          ([_, value]) => value.name === m.name
-        );
-        if (openaiModel) {
-          models.push(
-            modelGardenOpenaiCompatibleModel(
-              openaiModel[0],
-              projectId,
-              location,
-              authClient,
-              options.modelGarden?.openAiBaseUrlTemplate
-            )
-          );
-          return;
-        }
-        throw new Error(`Unsupported model garden model: ${m.name}`);
-      });
-    }
 
     const embedders = Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
       textEmbeddingGeckoEmbedder(name, authClient, { projectId, location })
