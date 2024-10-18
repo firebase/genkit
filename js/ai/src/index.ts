@@ -42,6 +42,7 @@ export {
   Message,
   generate,
   generateStream,
+  normalizePart,
   toGenerateRequest,
   type GenerateOptions,
   type GenerateStreamOptions,

@@ -93,7 +93,10 @@ export async function resolveTools<
   return await Promise.all(
     tools.map(async (ref): Promise<ToolAction> => {
       if (typeof ref === 'string') {
-        const tool = await lookupAction(`/tool/${ref}`);
+        let tool = await lookupAction(`/tool/${ref}`);
+        if (!tool) {
+          tool = await lookupAction(`/prompt/${ref}`);
+        }
         if (!tool) {
           throw new Error(`Tool ${ref} not found`);
         }
@@ -101,10 +104,14 @@ export async function resolveTools<
       } else if ((ref as Action).__action) {
         return asTool(ref as Action);
       } else if (ref.name) {
-        const tool = await lookupAction(`/tool/${ref.name}`);
+        let tool = await lookupAction(`/tool/${ref.name}`);
+        if (!tool) {
+          tool = await lookupAction(`/prompt/${ref.name}`);
+        }
         if (!tool) {
           throw new Error(`Tool ${ref} not found`);
         }
+        return tool as ToolAction;
       }
       throw new Error('Tools must be strings, tool definitions, or actions.');
     })
@@ -121,11 +128,11 @@ export function toToolDefinition(
     name: tool.__action.name,
     description: tool.__action.description || '',
     outputSchema: toJsonSchema({
-      schema: tool.__action.outputSchema,
+      schema: tool.__action.outputSchema ?? z.void(),
       jsonSchema: tool.__action.outputJsonSchema,
     })!,
     inputSchema: toJsonSchema({
-      schema: tool.__action.inputSchema,
+      schema: tool.__action.inputSchema ?? z.void(),
       jsonSchema: tool.__action.inputJsonSchema,
     })!,
   };
