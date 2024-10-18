@@ -15,20 +15,18 @@
  */
 
 import {
-  Action,
   getStreamingCallback,
   Middleware,
   runWithStreamingCallback,
   z,
 } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
-import { toJsonSchema, validateSchema } from '@genkit-ai/core/schema';
+import { toJsonSchema } from '@genkit-ai/core/schema';
 import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
 import * as clc from 'colorette';
 import { DocumentDataSchema } from './document.js';
 import { GenerateResponse, GenerateResponseChunk } from './generate.js';
 import {
-  CandidateData,
   GenerateRequest,
   GenerateRequestSchema,
   GenerateResponseChunkData,
@@ -189,7 +187,10 @@ async function generate(
     if (!tool) {
       throw Error(`Tool ${part.toolRequest?.name} not found`);
     }
-    if (tool.__action.metadata.type !== 'tool' || tool.__action.metadata.interrupt) {
+    if (
+      tool.__action.metadata.type !== 'tool' ||
+      tool.__action.metadata.interrupt
+    ) {
       return response.toJSON();
     }
     toolResponses.push({

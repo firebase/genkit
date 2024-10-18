@@ -133,7 +133,8 @@ export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
         resolvedOptions = {
           prompt: options,
         } as ChatGenerateOptions<O, CustomOptions>;
-      } else if (Array.isArray(options)) { // Part[]
+      } else if (Array.isArray(options)) {
+        // Part[]
         resolvedOptions = {
           prompt: options,
         } as ChatGenerateOptions<O, CustomOptions>;
