@@ -67,5 +67,8 @@
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
     }
+  },
+  "typesVersions": {
+    "*": {}
   }
 }

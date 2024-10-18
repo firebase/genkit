@@ -622,7 +622,7 @@ importers:
         version: 6.0.1
       tsup:
         specifier: ^8.0.2
-        version: 8.0.2(postcss@8.4.47)(typescript@4.9.5)
+        version: 8.3.0(postcss@8.4.47)(tsx@4.7.1)(typescript@4.9.5)
       tsx:
         specifier: ^4.7.0
         version: 4.7.1
@@ -5116,10 +5116,6 @@ packages:
     resolution: {integrity: sha512-3FnjYuehv9k6ovOEbyOswadCDPX1piCfhV8ncmYtHOjuPwylVWsghTLo7rabjC3Rx5xD4HDx8Wm1xnMF7S5qFQ==}
     engines: {node: '>=8'}
 
-  minipass@7.0.4:
-    resolution: {integrity: sha512-jYofLM5Dam9279rdkWzqHozUo4ybjdZmCsDHePy5V/PbBcVMiSZR97gmAy45aqi8CK1lG2ECd356FU86avfwUQ==}
-    engines: {node: '>=16 || 14 >=14.17'}
-
   minipass@7.1.2:
     resolution: {integrity: sha512-qOOzS1cBTWYF4BH8fVePDBOO9iptMnGUEZwNc/cMWnTV2nVLZ7VoNWEPHkYczZA0pdoA7dl6e7FL659nX9S2aw==}
     engines: {node: '>=16 || 14 >=14.17'}
@@ -9497,7 +9493,7 @@ snapshots:
       foreground-child: 3.1.1
       jackspeak: 2.3.6
       minimatch: 9.0.4
-      minipass: 7.0.4
+      minipass: 7.1.2
       path-scurry: 1.10.2
 
   glob@11.0.0:
@@ -10619,8 +10615,6 @@ snapshots:
   minipass@5.0.0:
     optional: true
 
-  minipass@7.0.4: {}
-
   minipass@7.1.2: {}
 
   minizlib@2.1.2:
@@ -10872,7 +10866,7 @@ snapshots:
   path-scurry@1.10.2:
     dependencies:
       lru-cache: 10.2.0
-      minipass: 7.0.4
+      minipass: 7.1.2
 
   path-scurry@2.0.0:
     dependencies:
@@ -10960,6 +10954,13 @@ snapshots:
     optionalDependencies:
       postcss: 8.4.47
       tsx: 4.19.1
+
+  postcss-load-config@6.0.1(postcss@8.4.47)(tsx@4.7.1):
+    dependencies:
+      lilconfig: 3.1.2
+    optionalDependencies:
+      postcss: 8.4.47
+      tsx: 4.7.1
 
   postcss@8.4.47:
     dependencies:
@@ -11659,6 +11660,33 @@ snapshots:
       joycon: 3.1.1
       picocolors: 1.1.0
       postcss-load-config: 6.0.1(postcss@8.4.47)(tsx@4.19.1)
+      resolve-from: 5.0.0
+      rollup: 4.22.4
+      source-map: 0.8.0-beta.0
+      sucrase: 3.35.0
+      tinyglobby: 0.2.6
+      tree-kill: 1.2.2
+    optionalDependencies:
+      postcss: 8.4.47
+      typescript: 4.9.5
+    transitivePeerDependencies:
+      - jiti
+      - supports-color
+      - tsx
+      - yaml
+
+  tsup@8.3.0(postcss@8.4.47)(tsx@4.7.1)(typescript@4.9.5):
+    dependencies:
+      bundle-require: 5.0.0(esbuild@0.23.1)
+      cac: 6.7.14
+      chokidar: 3.6.0
+      consola: 3.2.3
+      debug: 4.3.7
+      esbuild: 0.23.1
+      execa: 5.1.1
+      joycon: 3.1.1
+      picocolors: 1.1.0
+      postcss-load-config: 6.0.1(postcss@8.4.47)(tsx@4.7.1)
       resolve-from: 5.0.0
       rollup: 4.22.4
       source-map: 0.8.0-beta.0
