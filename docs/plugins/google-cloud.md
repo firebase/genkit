@@ -270,7 +270,7 @@ Each action-level metric contains the following dimensions:
 
 These are special action metrics relating to actions that interact with a model.
 In addition to requests and latency, input and output are also tracked, with model
-specific dimensions that make debugging and tuning configurations easier.
+specific dimensions that make debugging and configuration tuning easier.
 
 | Name                                 | Description                          |
 | ------------------------------------ | ------------------------------------ |
