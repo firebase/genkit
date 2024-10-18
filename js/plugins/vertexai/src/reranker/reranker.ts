@@ -22,7 +22,7 @@ import {
   rerankerRef,
 } from 'genkit/reranker';
 import { GoogleAuth } from 'google-auth-library';
-import { PluginOptions } from '.';
+import { PluginOptions } from './';
 
 const DEFAULT_MODEL = 'semantic-ranker-512@latest';
 
@@ -63,7 +63,7 @@ export interface VertexRerankPluginOptions {
 
 export interface VertexRerankOptions {
   authClient: GoogleAuth;
-  pluginOptions?: PluginOptions;
+  pluginOptions: PluginOptions;
 }
 
 /**
@@ -82,11 +82,11 @@ export async function vertexAiRerankers(
     return [];
   }
   const pluginOptions = params.pluginOptions;
-  if (!params.pluginOptions.rerankOptions) {
+  if (!params.pluginOptions.options) {
     return [];
   }
 
-  const rerankOptions = params.pluginOptions.rerankOptions;
+  const rerankOptions = params.pluginOptions.options;
   const rerankers: RerankerAction<z.ZodTypeAny>[] = [];
 
   if (!rerankOptions || rerankOptions.length === 0) {
@@ -99,7 +99,7 @@ export async function vertexAiRerankers(
   for (const rerankOption of rerankOptions) {
     const reranker = defineReranker(
       {
-        name: `vertexai/${rerankOption.name || rerankOption.model}`,
+        name: `vertexaiReranker/${rerankOption.name || rerankOption.model}`,
         configSchema: VertexAIRerankerOptionsSchema.optional(),
       },
       async (query, documents, _options) => {
@@ -154,7 +154,7 @@ export const vertexAiRerankerRef = (params: {
   displayName?: string;
 }) => {
   return rerankerRef({
-    name: `vertexai/${name}`,
+    name: `vertexaiReranker/${name}`,
     info: {
       label: params.displayName ?? `Vertex AI Reranker`,
     },
