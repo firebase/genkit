@@ -470,4 +470,25 @@ describe('DotpromptRef', () => {
       );
     });
   });
+
+  it('should render system prompt', () => {
+    runWithRegistry(registry, () => {
+      const model = defineModel(
+        { name: 'echo', supports: { tools: true } },
+        async (input) => ({
+          message: input.messages[0],
+          finishReason: 'stop',
+        })
+      );
+      const prompt = testPrompt(model, `{{ role "system"}} hi`);
+
+      const rendered = prompt.render({ input: {} });
+      assert.deepStrictEqual(rendered.messages, [
+        {
+          content: [{ text: ' hi' }],
+          role: 'system',
+        },
+      ]);
+    });
+  });
 });
