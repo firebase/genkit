@@ -16,9 +16,14 @@
 
 import { MessageData } from '@genkit-ai/ai';
 import { ModelAction } from '@genkit-ai/ai/model';
-import { z } from '@genkit-ai/core';
-import { SessionData, SessionStore } from '../src/environment';
+import { StreamingCallback, z } from '@genkit-ai/core';
 import { Genkit } from '../src/genkit';
+import {
+  GenerateRequest,
+  GenerateResponseChunkData,
+  GenerateResponseData,
+} from '../src/model';
+import { SessionData, SessionStore } from '../src/session';
 
 export function defineEchoModel(ai: Genkit): ModelAction {
   return ai.defineModel(
@@ -82,7 +87,7 @@ export function defineEchoModel(ai: Genkit): ModelAction {
   );
 }
 
-async function runAsync<O>(fn: () => O): Promise<O> {
+export async function runAsync<O>(fn: () => O): Promise<O> {
   return Promise.resolve(fn());
 }
 
@@ -113,4 +118,30 @@ export function defineStaticResponseModel(
       }));
     }
   );
+}
+
+export type ProgrammableModel = ModelAction & {
+  handleResponse: (
+    req: GenerateRequest,
+    streamingCallback?: StreamingCallback<GenerateResponseChunkData>
+  ) => Promise<GenerateResponseData>;
+
+  lastRequest?: GenerateRequest;
+};
+
+export function defineProgrammableModel(ai: Genkit): ProgrammableModel {
+  const pm = ai.defineModel(
+    {
+      name: 'programmableModel',
+      supports: {
+        tools: true,
+      },
+    },
+    async (request, streamingCallback) => {
+      pm.lastRequest = request;
+      return pm.handleResponse(request, streamingCallback);
+    }
+  ) as ProgrammableModel;
+
+  return pm;
 }

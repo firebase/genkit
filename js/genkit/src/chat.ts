@@ -39,7 +39,7 @@ export type ExtendedToolArgument = ToolArgument | ExecutablePrompt;
 export type ChatGenerateOptions<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-> = Omit<BaseGenerateOptions<O, CustomOptions>, 'tools'> & {
+> = Omit<GenerateOptions<O, CustomOptions>, 'tools'> & {
   tools?: ExtendedToolArgument[];
 };
 
@@ -128,6 +128,8 @@ export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
   ): Promise<GenerateResponse<z.infer<O>>> {
     return runInNewSpan({ metadata: { name: 'send' } }, async () => {
       let resolvedOptions;
+      let streamingCallback = undefined;
+
       // string
       if (typeof options === 'string') {
         resolvedOptions = {
@@ -139,7 +141,8 @@ export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
           prompt: options,
         } as ChatGenerateOptions<O, CustomOptions>;
       } else {
-        resolvedOptions = options;
+        resolvedOptions = options as ChatGenerateOptions<O, CustomOptions>;
+        streamingCallback = resolvedOptions.streamingCallback;
       }
       let request: GenerateOptions = {
         ...(await this.requestBase),
@@ -149,10 +152,16 @@ export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
       request.tools = resolveExecutablePromptTools(
         request.tools as ExtendedToolArgument[]
       );
-      let response = await this.genkit.generate(request);
+      let response = await this.genkit.generate({
+        ...request,
+        streamingCallback,
+      });
       while (response.toolRequests.length > 0) {
         request = await this.handlePromptToolCalling(response, request.tools!);
-        response = await this.genkit.generate(request);
+        response = await this.genkit.generate({
+          ...request,
+          streamingCallback,
+        });
       }
       await this.updateMessages(response.messages);
       return response;
@@ -188,7 +197,7 @@ export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
               toolResponse: {
                 name: toolRequest.toolRequest.name,
                 ref: toolRequest.toolRequest.ref,
-                output: `transferred to agent ${toolRequest.toolRequest.name}`,
+                output: `transferred to ${toolRequest.toolRequest.name}`,
               },
             },
           ],

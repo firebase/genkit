@@ -17,9 +17,13 @@
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Genkit, genkit } from '../src/genkit';
-import { defineEchoModel } from './helpers';
+import {
+  ProgrammableModel,
+  defineEchoModel,
+  defineProgrammableModel,
+} from './helpers';
 
-describe('session', () => {
+describe('chat', () => {
   let ai: Genkit;
 
   beforeEach(() => {
@@ -149,5 +153,300 @@ describe('session', () => {
       response.text,
       'Echo: hi Genkit; config: {"version":"abc","temperature":11}'
     );
+  });
+});
+
+describe('preabmle', () => {
+  let ai: Genkit;
+  let pm: ProgrammableModel;
+
+  beforeEach(() => {
+    ai = genkit({
+      model: 'programmableModel',
+    });
+    pm = defineProgrammableModel(ai);
+  });
+
+  it('something', async () => {
+    const agentB = ai.definePrompt(
+      {
+        name: 'agentB',
+        config: { temperature: 1 },
+        description: 'Agent B description',
+        tools: ['agentA'],
+      },
+      '{{role "system"}} agent b'
+    );
+
+    const agentA = ai.definePrompt(
+      {
+        name: 'agentA',
+        config: { temperature: 2 },
+        description: 'Agent A description',
+        tools: [agentB],
+      },
+      '{{role "system"}} agent a'
+    );
+
+    // simple hi, nothing interesting...
+
+    pm.handleResponse = async (req, sc) => {
+      return {
+        message: {
+          role: 'model',
+          content: [{ text: 'hi from agent a' }],
+        },
+      };
+    };
+
+    const session = ai.chat({
+      prompt: agentA,
+    });
+    let { text } = await session.send('hi');
+    assert.strictEqual(text, 'hi from agent a');
+    assert.deepStrictEqual(pm.lastRequest, {
+      config: {
+        temperature: 2,
+        version: undefined,
+      },
+      docs: undefined,
+      messages: [
+        {
+          content: [{ text: ' agent a' }],
+          metadata: { preamble: true },
+          role: 'system',
+        },
+        {
+          content: [{ text: 'hi' }],
+          role: 'user',
+        },
+      ],
+      output: { format: 'text' },
+      tools: [
+        {
+          name: 'agentB',
+          description: 'Agent B description',
+          inputSchema: {
+            $schema: 'http://json-schema.org/draft-07/schema#',
+          },
+          outputSchema: {
+            $schema: 'http://json-schema.org/draft-07/schema#',
+          },
+        },
+      ],
+    });
+
+    // transfer to agent B...
+
+    // first response be tools call, the subsequent just text response from agent b.
+    let reqCounter = 0;
+    pm.handleResponse = async (req, sc) => {
+      return {
+        message: {
+          role: 'model',
+          content: [
+            reqCounter++ === 0
+              ? {
+                  toolRequest: {
+                    name: 'agentB',
+                    input: {},
+                    ref: 'ref123',
+                  },
+                }
+              : { text: 'hi from agent b' },
+          ],
+        },
+      };
+    };
+
+    ({ text } = await session.send('pls transfer to b'));
+
+    assert.deepStrictEqual(text, 'hi from agent b');
+    assert.deepStrictEqual(pm.lastRequest, {
+      config: {
+        // TODO: figure out if config should be swapped out as well...
+        temperature: 2,
+        version: undefined,
+      },
+      docs: undefined,
+      messages: [
+        {
+          role: 'system',
+          content: [{ text: ' agent b' }], // <--- NOTE: swapped out the preamble
+          metadata: { preamble: true },
+        },
+        {
+          role: 'user',
+          content: [{ text: 'hi' }],
+        },
+        {
+          role: 'model',
+          content: [{ text: 'hi from agent a' }],
+        },
+        {
+          role: 'user',
+          content: [{ text: 'pls transfer to b' }],
+        },
+        {
+          role: 'model',
+          content: [
+            {
+              toolRequest: {
+                input: {},
+                name: 'agentB',
+                ref: 'ref123',
+              },
+            },
+          ],
+        },
+        {
+          role: 'tool',
+          content: [
+            {
+              toolResponse: {
+                name: 'agentB',
+                output: 'transferred to agentB',
+                ref: 'ref123',
+              },
+            },
+          ],
+        },
+      ],
+      output: { format: 'text' },
+      tools: [
+        {
+          description: 'Agent A description',
+          inputSchema: {
+            $schema: 'http://json-schema.org/draft-07/schema#',
+          },
+          name: 'agentA',
+          outputSchema: {
+            $schema: 'http://json-schema.org/draft-07/schema#',
+          },
+        },
+      ],
+    });
+
+    // transfer back to to agent A...
+
+    // first response be tools call, the subsequent just text response from agent a.
+    reqCounter = 0;
+    pm.handleResponse = async (req, sc) => {
+      return {
+        message: {
+          role: 'model',
+          content: [
+            reqCounter++ === 0
+              ? {
+                  toolRequest: {
+                    name: 'agentA',
+                    input: {},
+                    ref: 'ref123',
+                  },
+                }
+              : { text: 'hi from agent a' },
+          ],
+        },
+      };
+    };
+
+    ({ text } = await session.send('pls transfer to a'));
+
+    assert.deepStrictEqual(text, 'hi from agent a');
+    assert.deepStrictEqual(pm.lastRequest, {
+      config: {
+        temperature: 2,
+        version: undefined,
+      },
+      docs: undefined,
+      messages: [
+        {
+          role: 'system',
+          content: [{ text: ' agent a' }], // <--- NOTE: swapped out the preamble
+          metadata: { preamble: true },
+        },
+        {
+          role: 'user',
+          content: [{ text: 'hi' }],
+        },
+        {
+          role: 'model',
+          content: [{ text: 'hi from agent a' }],
+        },
+        {
+          role: 'user',
+          content: [{ text: 'pls transfer to b' }],
+        },
+        {
+          role: 'model',
+          content: [
+            {
+              toolRequest: {
+                input: {},
+                name: 'agentB',
+                ref: 'ref123',
+              },
+            },
+          ],
+        },
+        {
+          role: 'tool',
+          content: [
+            {
+              toolResponse: {
+                name: 'agentB',
+                output: 'transferred to agentB',
+                ref: 'ref123',
+              },
+            },
+          ],
+        },
+        {
+          role: 'model',
+          content: [{ text: 'hi from agent b' }],
+        },
+        {
+          role: 'user',
+          content: [{ text: 'pls transfer to a' }],
+        },
+        {
+          role: 'model',
+          content: [
+            {
+              toolRequest: {
+                input: {},
+                name: 'agentA',
+                ref: 'ref123',
+              },
+            },
+          ],
+        },
+        {
+          role: 'tool',
+          content: [
+            {
+              toolResponse: {
+                name: 'agentA',
+                output: 'transferred to agentA',
+                ref: 'ref123',
+              },
+            },
+          ],
+        },
+      ],
+      output: { format: 'text' },
+      tools: [
+        {
+          description: 'Agent B description',
+          inputSchema: {
+            $schema: 'http://json-schema.org/draft-07/schema#',
+          },
+          name: 'agentB',
+          outputSchema: {
+            $schema: 'http://json-schema.org/draft-07/schema#',
+          },
+        },
+      ],
+    });
   });
 });
