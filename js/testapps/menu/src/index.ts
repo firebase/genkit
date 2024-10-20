@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
-import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
 import { genkit } from 'genkit';
 
 // Initialize Genkit
@@ -26,7 +26,7 @@ export const ai = genkit({
     devLocalVectorstore([
       {
         indexName: 'menu-items',
-        embedder: textEmbeddingGecko,
+        embedder: textEmbedding004,
         embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
       },
     ]),

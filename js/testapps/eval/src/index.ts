@@ -15,7 +15,7 @@
  */
 
 import { genkitEval, genkitEvalRef, GenkitMetric } from '@genkit-ai/evaluator';
-import { geminiPro, textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+import { gemini15Flash, textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
 import { genkit, z } from 'genkit';
 import { Dataset, EvalResponse, EvalResponseSchema } from 'genkit/evaluator';
 
@@ -23,13 +23,13 @@ const ai = genkit({
   plugins: [
     vertexAI(),
     genkitEval({
-      judge: geminiPro,
+      judge: gemini15Flash,
       metrics: [
         GenkitMetric.FAITHFULNESS,
         GenkitMetric.ANSWER_RELEVANCY,
         GenkitMetric.MALICIOUSNESS,
       ],
-      embedder: textEmbeddingGecko,
+      embedder: textEmbedding004,
     }),
   ],
 });

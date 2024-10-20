@@ -19,14 +19,9 @@ import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 import {
   gemini15Flash,
   googleAI,
-  geminiPro as googleGeminiPro,
+  gemini10Pro as googleGemini10Pro,
 } from '@genkit-ai/googleai';
-import {
-  gemini15ProPreview,
-  geminiPro,
-  textEmbeddingGecko,
-  vertexAI,
-} from '@genkit-ai/vertexai';
+import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
 import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
@@ -106,7 +101,7 @@ export const streamFlow = ai.defineStreamingFlow(
   },
   async (prompt, streamingCallback) => {
     const { response, stream } = await ai.generateStream({
-      model: geminiPro,
+      model: gemini15Flash,
       prompt,
     });
 
@@ -148,7 +143,7 @@ export const streamJsonFlow = ai.defineStreamingFlow(
     }
 
     const { response, stream } = await ai.generateStream({
-      model: geminiPro,
+      model: gemini15Flash,
       output: {
         schema: GameCharactersSchema,
       },
@@ -195,7 +190,7 @@ export const jokeWithToolsFlow = ai.defineFlow(
   {
     name: 'jokeWithToolsFlow',
     inputSchema: z.object({
-      modelName: z.enum([geminiPro.name, googleGeminiPro.name]),
+      modelName: z.enum([gemini15Flash.name, googleGemini10Pro.name]),
       subject: z.string(),
     }),
     outputSchema: z.object({ model: z.string(), joke: z.string() }),
@@ -246,7 +241,7 @@ export const vertexStreamer = ai.defineFlow(
   async (input, streamingCallback) => {
     return await run('call-llm', async () => {
       const llmResponse = await ai.generate({
-        model: geminiPro,
+        model: gemini15Flash,
         prompt: `Tell me a very long joke about ${input}.`,
         streamingCallback,
       });
@@ -280,7 +275,7 @@ const destinationsRetriever = runWithRegistry(ai.registry, () =>
     firestore: getFirestore(app),
     collection: 'destinations',
     contentField: 'knownFor',
-    embedder: textEmbeddingGecko,
+    embedder: textEmbedding004,
     vectorField: 'embedding',
   })
 );
@@ -299,7 +294,7 @@ export const searchDestinations = ai.defineFlow(
     });
 
     const result = await ai.generate({
-      model: geminiPro,
+      model: gemini15Flash,
       prompt: `Give me a list of vacation options based on the provided context. Use only the options provided below, and describe how it fits with my query.
 
 Query: ${input}
@@ -375,7 +370,7 @@ export const toolCaller = ai.defineStreamingFlow(
     }
 
     const { response, stream } = await ai.generateStream({
-      model: gemini15ProPreview,
+      model: gemini15Flash,
       config: {
         temperature: 1,
       },
