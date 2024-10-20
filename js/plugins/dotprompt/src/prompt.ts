@@ -197,11 +197,20 @@ export class Dotprompt<I = unknown> implements PromptMetadata<z.ZodTypeAny> {
       messages: options.messages,
       docs: options.docs,
     });
+    let renderedPrompt;
+    let renderedMessages;
+    if (messages.length > 0 && messages[messages.length - 1].role === 'user') {
+      renderedPrompt = messages[messages.length - 1].content;
+      renderedMessages = messages.slice(0, messages.length - 1);
+    } else {
+      renderedPrompt = undefined;
+      renderedMessages = messages;
+    }
     return {
       model: options.model || this.model!,
       config: { ...this.config, ...options.config },
-      messages: messages.slice(0, messages.length - 1),
-      prompt: messages[messages.length - 1].content,
+      messages: renderedMessages,
+      prompt: renderedPrompt,
       docs: options.docs,
       output: {
         format: options.output?.format || this.output?.format || undefined,
