@@ -404,7 +404,7 @@ const convertSchemaProperty = (property) => {
 };
 
 /**
- *
+ * Define a Vertex AI Gemini model.
  */
 export function defineGeminiModel(
   ai: Genkit,
