@@ -111,8 +111,8 @@ import {
   defineDotprompt,
   defineHelper,
   definePartial,
-  PromptMetadata as DotpromptPromptMetadata,
   loadPromptFolder,
+  PromptMetadata as DotpromptPromptMetadata,
 } from '@genkit-ai/dotprompt';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -456,6 +456,27 @@ export class Genkit {
         });
       });
     };
+    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generate = (
+      opt: PromptGenerateOptions<I, CustomOptions>
+    ): Promise<GenerateResponse<O>> => {
+      return runWithRegistry(this.registry, async () => {
+        const renderedOpts = await (
+          executablePrompt as ExecutablePrompt<I, O, CustomOptions>
+        ).render(opt);
+        return this.generate(renderedOpts);
+      });
+    };
+    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generateStream =
+      (
+        opt: PromptGenerateOptions<I, CustomOptions>
+      ): Promise<GenerateStreamResponse<O>> => {
+        return runWithRegistry(this.registry, async () => {
+          const renderedOpts = await (
+            executablePrompt as ExecutablePrompt<I, O, CustomOptions>
+          ).render(opt);
+          return this.generateStream(renderedOpts);
+        });
+      };
     (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).asTool =
       (): ToolAction<I, O> => {
         // FIXME: we need a better concept of a tool loop interrupting tool.

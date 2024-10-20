@@ -17,7 +17,7 @@
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Genkit, genkit } from '../src/genkit';
-import { TestMemorySessionStore, defineEchoModel } from './helpers';
+import { defineEchoModel, TestMemorySessionStore } from './helpers';
 
 describe('session', () => {
   let ai: Genkit;
@@ -91,7 +91,7 @@ describe('session', () => {
     );
 
     const gotState = await store.get(session.id);
-    delete gotState.id; // ignore
+    delete (gotState as any).id; // ignore
     assert.deepStrictEqual(gotState, {
       state: {
         name: 'Genkit',
@@ -105,7 +105,11 @@ describe('session', () => {
           },
         ],
         lawyerChat: [
-          { content: [{ text: 'talk like a lawyer' }], role: 'system' },
+          {
+            content: [{ text: 'talk like a lawyer' }],
+            role: 'system',
+            metadata: { preamble: true },
+          },
           { content: [{ text: 'hi lawyerChat' }], role: 'user' },
           {
             content: [
@@ -116,7 +120,11 @@ describe('session', () => {
           },
         ],
         pirateChat: [
-          { content: [{ text: 'talk like a pirate' }], role: 'system' },
+          {
+            content: [{ text: 'talk like a pirate' }],
+            role: 'system',
+            metadata: { preamble: true },
+          },
           { content: [{ text: 'hi pirateChat' }], role: 'user' },
           {
             content: [
