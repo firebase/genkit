@@ -17,7 +17,7 @@
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { Genkit, genkit } from '../src/genkit';
-import { defineEchoModel, TestMemorySessionStore } from './helpers';
+import { TestMemorySessionStore, defineEchoModel } from './helpers';
 
 describe('session', () => {
   let ai: Genkit;
