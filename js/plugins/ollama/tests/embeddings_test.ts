@@ -16,11 +16,12 @@
 import { embed } from '@genkit-ai/ai/embedder';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
+import { configureGenkit } from '../../../core/src/config.js';
 import {
   OllamaEmbeddingConfigSchema,
   defineOllamaEmbedder,
 } from '../src/embeddings.js'; // Adjust the import path as necessary
-import { OllamaPluginParams } from '../src/index.js'; // Adjust the import path as necessary
+import { OllamaPluginParams, ollama } from '../src/index.js'; // Adjust the import path as necessary
 // Mock fetch to simulate API responses
 global.fetch = async (input: RequestInfo | URL, options?: RequestInit) => {
   const url = typeof input === 'string' ? input : input.toString();
@@ -47,9 +48,16 @@ describe('defineOllamaEmbedder', () => {
     serverAddress: 'http://localhost:3000',
   };
   it('should successfully return embeddings', async () => {
+    configureGenkit({
+      plugins: [
+        ollama({
+          serverAddress: 'http://127.0.0.1:11434', // default local address
+        }),
+      ],
+    });
     const embedder = defineOllamaEmbedder({
       name: 'test-embedder',
-      modelName: 'test-model',
+      modelName: 'fake-model',
       dimensions: 123,
       options,
     });
@@ -60,9 +68,16 @@ describe('defineOllamaEmbedder', () => {
     assert.deepStrictEqual(result, [0.1, 0.2, 0.3]);
   });
   it('should handle API errors correctly', async () => {
+    configureGenkit({
+      plugins: [
+        ollama({
+          serverAddress: 'http://127.0.0.1:11434', // default local address
+        }),
+      ],
+    });
     const embedder = defineOllamaEmbedder({
       name: 'test-embedder',
-      modelName: 'test-model',
+      modelName: 'fake-model',
       dimensions: 123,
       options,
     });
@@ -86,12 +101,10 @@ describe('defineOllamaEmbedder', () => {
   });
   it('should validate the embedding configuration schema', async () => {
     const validConfig = {
-      modelName: 'test-model',
       serverAddress: 'http://localhost:3000',
     };
     const invalidConfig = {
-      modelName: 123, // Invalid type
-      serverAddress: 'http://localhost:3000',
+      serverAddress: 123,
     };
     // Valid configuration should pass
     assert.doesNotThrow(() => {
@@ -103,9 +116,16 @@ describe('defineOllamaEmbedder', () => {
     });
   });
   it('should throw an error if the fetch response is not ok', async () => {
+    configureGenkit({
+      plugins: [
+        ollama({
+          serverAddress: 'http://127.0.0.1:11434', // default local address
+        }),
+      ],
+    });
     const embedder = defineOllamaEmbedder({
       name: 'test-embedder',
-      modelName: 'test-model',
+      modelName: 'fake-model',
       dimensions: 123,
       options,
     });

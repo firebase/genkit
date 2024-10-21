@@ -122,3 +122,50 @@ const llmResponse = await generate({
   prompt: 'Tell me a joke.',
 });
 ```
+
+
+### Embeddings
+
+The Ollama plugin supports embeddings, allowing you to obtain vector representations of text content. To use embeddings, configure the plugin with an appropriate model that supports embeddings, and specify the `embedder` in your code.
+
+Example configuration:
+
+```js
+import { ollama } from 'genkitx-ollama';
+
+export default configureGenkit({
+  plugins: [
+    ollama({
+      embedders: [
+        {
+          name: 'nomic-embed-text', // specify the embedding model
+          dimensions: 768, // number of dimensions for the embedding
+        },
+      ],
+      serverAddress: 'http://127.0.0.1:11434', // default local address
+    }),
+  ],
+});
+```
+
+### Using Embeddings
+
+This example demonstrates generating a 768-dimensional embedding using the `nomic-embed-text` model.
+
+Make sure to run `ollama pull nomic-embed-text` to obtain this model, and `ollama serve` to serve the embedding model.
+
+Once configured, you can generate embeddings for your content using the `embed` function:
+
+```js
+import { embed } from '@genkit-ai/ai/embedder';
+
+// ....
+
+const result = await embed({
+  embedder: 'ollama/nomic-embed-text', // use the configured embedder
+  content: 'Hello, world!',
+  options: {
+    truncate: true, // optional: truncate content if necessary
+  },
+});
+```
