@@ -56,8 +56,8 @@ describe('defineOllamaEmbedder', () => {
       ],
     });
     const embedder = defineOllamaEmbedder({
-      name: 'ollama/test-embedder',
-      modelName: 'test-model',
+      name: 'test-embedder',
+      modelName: 'fake-model',
       dimensions: 123,
       options,
     });
@@ -76,8 +76,8 @@ describe('defineOllamaEmbedder', () => {
       ],
     });
     const embedder = defineOllamaEmbedder({
-      name: 'ollama/test-embedder',
-      modelName: 'test-model',
+      name: 'test-embedder',
+      modelName: 'fake-model',
       dimensions: 123,
       options,
     });
@@ -101,12 +101,10 @@ describe('defineOllamaEmbedder', () => {
   });
   it('should validate the embedding configuration schema', async () => {
     const validConfig = {
-      modelName: 'test-model',
       serverAddress: 'http://localhost:3000',
     };
     const invalidConfig = {
-      modelName: 123, // Invalid type
-      serverAddress: 'http://localhost:3000',
+      serverAddress: 123,
     };
     // Valid configuration should pass
     assert.doesNotThrow(() => {
@@ -126,8 +124,8 @@ describe('defineOllamaEmbedder', () => {
       ],
     });
     const embedder = defineOllamaEmbedder({
-      name: 'ollama/test-embedder',
-      modelName: 'test-model',
+      name: 'test-embedder',
+      modelName: 'fake-model',
       dimensions: 123,
       options,
     });

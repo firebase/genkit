@@ -46,7 +46,7 @@ if (process.env.LIVE_TEST) {
         ],
       });
       const embedder = defineOllamaEmbedder({
-        name: 'ollama/live-test-embedder',
+        name: 'live test embedder',
         modelName: 'nomic-embed-text',
         dimensions: 768,
         options,

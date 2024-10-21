@@ -66,7 +66,7 @@ export const ollama: Plugin<[OllamaPluginParams]> = genkitPlugin(
       ),
       embedders: params.embedders?.map((model) =>
         defineOllamaEmbedder({
-          name: `ollama/${model.name}`,
+          name: model.name,
           modelName: model.name,
           dimensions: model.dimensions,
           options: params,

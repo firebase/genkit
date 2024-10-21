@@ -20,8 +20,7 @@ import { OllamaPluginParams } from './index.js';
 // Define the schema for Ollama embedding configuration
 export const OllamaEmbeddingConfigSchema = z
   .object({
-    modelName: z.string(),
-    serverAddress: z.string(),
+    serverAddress: z.string().optional(),
   })
   .passthrough();
 export type OllamaEmbeddingConfig = z.infer<typeof OllamaEmbeddingConfigSchema>;
@@ -35,6 +34,7 @@ interface DefineOllamaEmbeddingParams {
   dimensions: number;
   options: OllamaPluginParams;
 }
+
 export function defineOllamaEmbedder({
   name,
   modelName,
@@ -43,7 +43,7 @@ export function defineOllamaEmbedder({
 }: DefineOllamaEmbeddingParams) {
   return defineEmbedder(
     {
-      name,
+      name: `ollama/${modelName}`,
       configSchema: OllamaEmbeddingConfigSchema, // Use the Zod schema directly here
       info: {
         label: 'Ollama Embedding - ' + modelName,
@@ -53,8 +53,8 @@ export function defineOllamaEmbedder({
         },
       },
     },
-    async (input, _config) => {
-      const serverAddress = options.serverAddress;
+    async (input, config) => {
+      const serverAddress = config?.serverAddress || options.serverAddress;
       const responses = await Promise.all(
         input.map(async (i) => {
           const requestPayload = {
@@ -63,7 +63,6 @@ export function defineOllamaEmbedder({
           };
           let res: Response;
           try {
-            console.log('MODEL NAME: ', modelName);
             res = await fetch(`${serverAddress}/api/embeddings`, {
               method: 'POST',
               headers: {
