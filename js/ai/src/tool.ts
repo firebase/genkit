@@ -19,6 +19,7 @@ import { lookupAction } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import { ToolDefinition } from './model.js';
+import { ExecutablePrompt } from './prompt.js';
 
 /**
  * An action with a `tool` type.
@@ -60,7 +61,12 @@ export interface ToolConfig<I extends z.ZodTypeAny, O extends z.ZodTypeAny> {
 export type ToolArgument<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
-> = string | ToolAction<I, O> | Action<I, O> | ToolDefinition;
+> =
+  | string
+  | ToolAction<I, O>
+  | Action<I, O>
+  | ToolDefinition
+  | ExecutablePrompt<any, any, any>;
 
 /**
  * Converts an action to a tool action by setting the appropriate metadata.
@@ -93,22 +99,28 @@ export async function resolveTools<
   return await Promise.all(
     tools.map(async (ref): Promise<ToolAction> => {
       if (typeof ref === 'string') {
-        const tool = await lookupAction(`/tool/${ref}`);
-        if (!tool) {
-          throw new Error(`Tool ${ref} not found`);
-        }
-        return tool as ToolAction;
+        return await lookupToolByName(ref);
       } else if ((ref as Action).__action) {
         return asTool(ref as Action);
+      } else if (typeof (ref as ExecutablePrompt).asTool === 'function') {
+        return (ref as ExecutablePrompt).asTool();
       } else if (ref.name) {
-        const tool = await lookupAction(`/tool/${ref.name}`);
-        if (!tool) {
-          throw new Error(`Tool ${ref} not found`);
-        }
+        return await lookupToolByName(ref.name);
       }
       throw new Error('Tools must be strings, tool definitions, or actions.');
     })
   );
+}
+
+export async function lookupToolByName(name: string): Promise<ToolAction> {
+  let tool =
+    (await lookupAction(name)) ||
+    (await lookupAction(`/tool/${name}`)) ||
+    (await lookupAction(`/prompt/${name}`));
+  if (!tool) {
+    throw new Error(`Tool ${name} not found`);
+  }
+  return tool as ToolAction;
 }
 
 /**
@@ -121,11 +133,11 @@ export function toToolDefinition(
     name: tool.__action.name,
     description: tool.__action.description || '',
     outputSchema: toJsonSchema({
-      schema: tool.__action.outputSchema,
+      schema: tool.__action.outputSchema ?? z.void(),
       jsonSchema: tool.__action.outputJsonSchema,
     })!,
     inputSchema: toJsonSchema({
-      schema: tool.__action.inputSchema,
+      schema: tool.__action.inputSchema ?? z.void(),
       jsonSchema: tool.__action.inputJsonSchema,
     })!,
   };

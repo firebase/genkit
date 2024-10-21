@@ -111,8 +111,8 @@ import {
   defineDotprompt,
   defineHelper,
   definePartial,
+  PromptMetadata as DotpromptPromptMetadata,
   loadPromptFolder,
-  PromptMetadata,
 } from '@genkit-ai/dotprompt';
 import { v4 as uuidv4 } from 'uuid';
 import { Chat, ChatOptions } from './chat.js';
@@ -142,6 +142,17 @@ export interface GenkitOptions {
   /** Configuration for the flow server. Server will be started if value is true or a configured object. */
   flowServer?: FlowServerOptions | boolean;
 }
+
+/**
+ * Metadata for a prompt.
+ */
+export type PromptMetadata<
+  Input extends z.ZodTypeAny = z.ZodTypeAny,
+  Options extends z.ZodTypeAny = z.ZodTypeAny,
+> = Omit<DotpromptPromptMetadata<Input, Options>, 'name'> & {
+  /** The name of the prompt. */
+  name: string;
+};
 
 /**
  * `Genkit` encapsulates a single Genkit instance including the {@link Registry}, {@link ReflectionServer}, {@link FlowServer}, and configuration.
@@ -310,10 +321,7 @@ export class Genkit {
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
-    options: PromptMetadata<I, CustomOptions> & {
-      /** The name of the prompt. */
-      name: string;
-    },
+    options: PromptMetadata<I, CustomOptions>,
     template: string
   ): ExecutablePrompt<z.infer<I>, O, CustomOptions>;
 
@@ -347,10 +355,7 @@ export class Genkit {
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
-    options: PromptMetadata<I, CustomOptions> & {
-      /** The name of the prompt. */
-      name: string;
-    },
+    options: PromptMetadata<I, CustomOptions>,
     fn: PromptFn<I>
   ): ExecutablePrompt<z.infer<I>, O, CustomOptions>;
 
@@ -373,7 +378,13 @@ export class Genkit {
         throw new Error('options.name is required');
       }
       if (typeof templateOrFn === 'string') {
-        const dotprompt = defineDotprompt(options, templateOrFn as string);
+        const dotprompt = defineDotprompt(
+          {
+            ...options,
+            tools: options.tools,
+          },
+          templateOrFn as string
+        );
         return this.wrapPromptActionInExecutablePrompt(
           dotprompt.promptAction! as PromptAction<I>,
           options
@@ -384,6 +395,7 @@ export class Genkit {
             name: options.name!,
             inputJsonSchema: options.input?.jsonSchema,
             inputSchema: options.input?.schema,
+            description: options.description,
           },
           templateOrFn as PromptFn<I>
         );
@@ -398,7 +410,7 @@ export class Genkit {
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
     p: PromptAction<I>,
-    options: PromptMetadata<I, CustomOptions>
+    options: Partial<PromptMetadata<I, CustomOptions>>
   ): ExecutablePrompt<I, O, CustomOptions> {
     const executablePrompt = (
       input?: z.infer<I>,
@@ -419,13 +431,23 @@ export class Genkit {
       opts?: z.infer<CustomOptions>
     ): Promise<GenerateStreamResponse<O>> => {
       return runWithRegistry(this.registry, async () => {
-        const renderedOpts = await (
-          executablePrompt as ExecutablePrompt<I, O, CustomOptions>
-        ).render({
-          ...opts,
-          input,
+        const model = await this.resolveModel(options.model);
+        const promptResult = await p(input);
+        return this.generateStream({
+          model,
+          messages: promptResult.messages,
+          docs: promptResult.docs,
+          tools: promptResult.tools,
+          output: {
+            format: promptResult.output?.format,
+            jsonSchema: promptResult.output?.schema,
+          },
+          config: {
+            ...options.config,
+            ...promptResult.config,
+            ...opts,
+          },
         });
-        return this.generateStream(renderedOpts);
       });
     };
     (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generate = (
@@ -459,7 +481,7 @@ export class Genkit {
         try {
           model = await this.resolveModel(opt?.model ?? options.model);
         } catch (e) {
-          // ignore, no model on a render is OK.
+          // ignore, no model on a render is OK?
         }
 
         const promptResult = await p(opt.input);

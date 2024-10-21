@@ -26,11 +26,15 @@ import {
 } from '@genkit-ai/ai';
 import { z } from '@genkit-ai/core';
 import { Genkit } from './genkit';
-import { Session, SessionStore } from './session';
+import { BaseGenerateOptions, Session, SessionStore } from './session';
+import { runInNewSpan } from './tracing';
 
 export const MAIN_THREAD = 'main';
 
-export type BaseGenerateOptions = Omit<GenerateOptions, 'prompt'>;
+export type ChatGenerateOptions<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+> = GenerateOptions<O, CustomOptions>;
 
 export interface PromptRenderOptions<I> {
   prompt: ExecutablePrompt<I>;
@@ -58,7 +62,7 @@ export type ChatOptions<
  * ```
  */
 export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
-  readonly requestBase?: Promise<BaseGenerateOptions>;
+  private requestBase?: Promise<BaseGenerateOptions>;
   readonly sessionId: string;
   readonly schema?: S;
   private _messages?: MessageData[];
@@ -113,27 +117,44 @@ export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
   >(
-    options: string | Part[] | GenerateOptions<O, CustomOptions>
+    options: string | Part[] | ChatGenerateOptions<O, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> {
-    // string
-    if (typeof options === 'string') {
-      options = {
-        prompt: options,
-      } as GenerateOptions<O, CustomOptions>;
-    }
-    // Part[]
-    if (Array.isArray(options)) {
-      options = {
-        prompt: options,
-      } as GenerateOptions<O, CustomOptions>;
-    }
-    const response = await this.genkit.generate({
-      ...(await this.requestBase),
-      messages: this.messages,
-      ...options,
+    return runInNewSpan({ metadata: { name: 'send' } }, async () => {
+      let resolvedOptions;
+      let streamingCallback = undefined;
+
+      // string
+      if (typeof options === 'string') {
+        resolvedOptions = {
+          prompt: options,
+        } as ChatGenerateOptions<O, CustomOptions>;
+      } else if (Array.isArray(options)) {
+        // Part[]
+        resolvedOptions = {
+          prompt: options,
+        } as ChatGenerateOptions<O, CustomOptions>;
+      } else {
+        resolvedOptions = options as ChatGenerateOptions<O, CustomOptions>;
+        streamingCallback = resolvedOptions.streamingCallback;
+      }
+      let request: GenerateOptions = {
+        ...(await this.requestBase),
+        messages: this.messages,
+        ...resolvedOptions,
+      };
+      let response = await this.genkit.generate({
+        ...request,
+        streamingCallback,
+      });
+      this.requestBase = Promise.resolve({
+        ...(await this.requestBase),
+        // these things may get changed by tools calling within generate.
+        tools: response?.request?.tools,
+        config: response?.request?.config,
+      });
+      await this.updateMessages(response.messages);
+      return response;
     });
-    await this.updateMessages(response.messages);
-    return response;
   }
 
   async sendStream<
@@ -142,27 +163,38 @@ export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
   >(
     options: string | Part[] | GenerateStreamOptions<O, CustomOptions>
   ): Promise<GenerateStreamResponse<z.infer<O>>> {
+    let resolvedOptions;
+
     // string
     if (typeof options === 'string') {
-      options = {
+      resolvedOptions = {
         prompt: options,
-      } as GenerateOptions<O, CustomOptions>;
-    }
-    // Part[]
-    if (Array.isArray(options)) {
-      options = {
+      } as GenerateStreamOptions<O, CustomOptions>;
+    } else if (Array.isArray(options)) {
+      // Part[]
+      resolvedOptions = {
         prompt: options,
-      } as GenerateOptions<O, CustomOptions>;
+      } as GenerateStreamOptions<O, CustomOptions>;
+    } else {
+      resolvedOptions = options as GenerateStreamOptions<O, CustomOptions>;
     }
+
     const { response, stream } = await this.genkit.generateStream({
       ...(await this.requestBase),
       messages: this.messages,
-      ...options,
+      ...resolvedOptions,
     });
 
     return {
       response: response.finally(async () => {
-        this.updateMessages((await response).messages);
+        const resolvedResponse = await response;
+        this.requestBase = Promise.resolve({
+          ...(await this.requestBase),
+          // these things may get changed by tools calling within generate.
+          tools: resolvedResponse?.request?.tools,
+          config: resolvedResponse?.request?.config,
+        });
+        this.updateMessages(resolvedResponse.messages);
       }),
       stream,
     };
