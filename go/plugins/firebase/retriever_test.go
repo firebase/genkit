@@ -31,6 +31,62 @@ var (
 	testVectorField = flag.String("test-vector-field", "embedding", "Field name for vector embeddings")
 )
 
+/*
+ * Pre-requisites to run this test:
+ *
+ * 1. **Set Up Firebase Project and Firestore:**
+ *    You must create a Firebase project and ensure Firestore is enabled for that project. To do so:
+ *
+ *    - Visit the Firebase Console: https://console.firebase.google.com/
+ *    - Create a new project (or use an existing one).
+ *    - Enable Firestore in your project from the "Build" section > "Firestore Database".
+ *
+ * 2. **Create a Firestore Collection and Composite Index:**
+ *    This test assumes you have a Firestore collection set up for storing documents with vector embeddings.
+ *    Additionally, you need to create a vector index for the embedding field. You can do this via the Firestore API with the following `curl` command:
+ *
+ *    ```bash
+ *    curl -X POST \
+ *      "https://firestore.googleapis.com/v1/projects/<YOUR_PROJECT_ID>/databases/(default)/collectionGroups/<YOUR_COLLECTION>/indexes" \
+ *      -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+ *      -H "Content-Type: application/json" \
+ *      -d '{
+ *        "fields": [
+ *          {
+ *            "fieldPath": "embedding",
+ *            "vectorConfig": {
+ *              "dimension": 3,
+ *              "flat": {}
+ *            }
+ *          }
+ *        ],
+ *        "queryScope": "COLLECTION"
+ *      }'
+ *    ```
+ *    Replace `<YOUR_PROJECT_ID>` and `<YOUR_COLLECTION>` with your project and collection names.
+ *
+ * 3. **Authentication & Credentials:**
+ *    Ensure you have access to the project and Firestore using Google Cloud CLI. You can authenticate using the following commands:
+ *
+ *    ```bash
+ *    gcloud auth login
+ *    gcloud config set project <YOUR_PROJECT_ID>
+ *    gcloud auth application-default login
+ *    ```
+ *
+ *    This authenticates your local environment with your GCP project and ensures the Go SDK can access Firestore.
+ *
+ * 4. **Running the Test:**
+ *    After setting up Firestore and the index, you can run the test by passing in the required flags for the project, collection, and vector field:
+ *
+ *    ```bash
+ *    go test \
+ *      -test-project-id=<YOUR_PROJECT_ID> \
+ *      -test-collection=<YOUR_COLLECTION> \
+ *      -test-vector-field=embedding
+ *    ```
+ */
+
 // MockEmbedder implements the Embedder interface for testing purposes
 type MockEmbedder struct{}
 
