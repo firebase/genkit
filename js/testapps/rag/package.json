@@ -21,6 +21,7 @@
     "@genkit-ai/firebase": "workspace:*",
     "@genkit-ai/googleai": "workspace:*",
     "@genkit-ai/vertexai": "workspace:*",
+    "@types/node": "^22.7.7",
     "genkit": "workspace:*",
     "genkitx-chromadb": "workspace:*",
     "genkitx-langchain": "workspace:*",
