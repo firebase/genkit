@@ -60,13 +60,13 @@ export class Environment<S extends z.ZodTypeAny> {
   /**
    * Create a session for this environment.
    */
-  createSession(options?: SessionOptions): Session {
+  createSession(options?: SessionOptions<S>): Session<S> {
     const sessionId = uuidv4();
-    const sessionData: SessionData = {
+    const sessionData: SessionData<S> = {
       id: sessionId,
       state: options?.initialState,
     };
-    return new Session(this.genkit, {
+    return new Session<S>(this.genkit, {
       id: sessionId,
       sessionData,
       stateSchema: options?.stateSchema,

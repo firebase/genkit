@@ -26,7 +26,12 @@ import {
 } from '@genkit-ai/ai';
 import { z } from '@genkit-ai/core';
 import { Genkit } from './genkit';
-import { BaseGenerateOptions, Session, SessionStore } from './session';
+import {
+  BaseGenerateOptions,
+  runWithSession,
+  Session,
+  SessionStore,
+} from './session';
 import { runInNewSpan } from './tracing';
 
 export const MAIN_THREAD = 'main';
@@ -119,42 +124,44 @@ export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
   >(
     options: string | Part[] | ChatGenerateOptions<O, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> {
-    return runInNewSpan({ metadata: { name: 'send' } }, async () => {
-      let resolvedOptions;
-      let streamingCallback = undefined;
+    return runWithSession(this.session, () =>
+      runInNewSpan({ metadata: { name: 'send' } }, async () => {
+        let resolvedOptions;
+        let streamingCallback = undefined;
 
-      // string
-      if (typeof options === 'string') {
-        resolvedOptions = {
-          prompt: options,
-        } as ChatGenerateOptions<O, CustomOptions>;
-      } else if (Array.isArray(options)) {
-        // Part[]
-        resolvedOptions = {
-          prompt: options,
-        } as ChatGenerateOptions<O, CustomOptions>;
-      } else {
-        resolvedOptions = options as ChatGenerateOptions<O, CustomOptions>;
-        streamingCallback = resolvedOptions.streamingCallback;
-      }
-      let request: GenerateOptions = {
-        ...(await this.requestBase),
-        messages: this.messages,
-        ...resolvedOptions,
-      };
-      let response = await this.genkit.generate({
-        ...request,
-        streamingCallback,
-      });
-      this.requestBase = Promise.resolve({
-        ...(await this.requestBase),
-        // these things may get changed by tools calling within generate.
-        tools: response?.request?.tools,
-        config: response?.request?.config,
-      });
-      await this.updateMessages(response.messages);
-      return response;
-    });
+        // string
+        if (typeof options === 'string') {
+          resolvedOptions = {
+            prompt: options,
+          } as ChatGenerateOptions<O, CustomOptions>;
+        } else if (Array.isArray(options)) {
+          // Part[]
+          resolvedOptions = {
+            prompt: options,
+          } as ChatGenerateOptions<O, CustomOptions>;
+        } else {
+          resolvedOptions = options as ChatGenerateOptions<O, CustomOptions>;
+          streamingCallback = resolvedOptions.streamingCallback;
+        }
+        let request: GenerateOptions = {
+          ...(await this.requestBase),
+          messages: this.messages,
+          ...resolvedOptions,
+        };
+        let response = await this.genkit.generate({
+          ...request,
+          streamingCallback,
+        });
+        this.requestBase = Promise.resolve({
+          ...(await this.requestBase),
+          // these things may get changed by tools calling within generate.
+          tools: response?.request?.tools,
+          config: response?.request?.config,
+        });
+        await this.updateMessages(response.messages);
+        return response;
+      })
+    );
   }
 
   async sendStream<

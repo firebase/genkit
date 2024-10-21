@@ -1,24 +1,34 @@
 import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
-import { genkit } from 'genkit';
+import { genkit, z } from 'genkit';
 
 const ai = genkit({
   plugins: [googleAI()],
   model: gemini15Flash,
 });
 
+const agents = ai.defineEnvironment({
+  name: 'agentEnv',
+  stateSchema: z.object({
+    foo: z.string().optional(),
+  }),
+});
 
 const delegate = ai.defineFlow({
   name: 'delegate',
   description: 'useful to delegate',
 }, async () => {
-  console.log('delegated')
+  console.log(agents.currentSession.state)
 });
 
-
 (async () => {
-  const chat = await ai.generate({
-    prompt: 'call the delegate tool just once',
-    tools: [delegate]
+  const session = agents.createSession({
+    initialState: {
+      foo: 'bar'
+    }
+  });
+
+  await session.chat().send({
+    prompt: 'call the delegate tool',
+    tools: [delegate],
   })
-  console.log(JSON.stringify(chat.text, undefined, '  '))
 })();

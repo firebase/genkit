@@ -111,8 +111,8 @@ import {
   defineDotprompt,
   defineHelper,
   definePartial,
-  PromptMetadata as DotpromptPromptMetadata,
   loadPromptFolder,
+  PromptMetadata as DotpromptPromptMetadata,
 } from '@genkit-ai/dotprompt';
 import { v4 as uuidv4 } from 'uuid';
 import { Chat, ChatOptions } from './chat.js';
@@ -126,7 +126,9 @@ import {
   SessionData,
   SessionError,
   SessionOptions,
+  SessionStore,
 } from './session.js';
+import { Environment } from './environment.js';
 
 /**
  * Options for initializing Genkit.
@@ -952,6 +954,37 @@ export class Genkit {
       throw new SessionError('not running within a session');
     }
     return currentSession as Session;
+  }
+
+  /**
+   * Creates a new environment which allows stateful execution of chat session, flows and prompts.
+   *
+   * ```ts
+   * const ai = genkit({...});
+   * const agent = ai.defineEnvironment({
+   *   name: 'agent',
+   *   stateSchema: z.object({
+   *     myState: z.object(),
+   *   }),
+   *   store: firestoreStateStore(),
+   * });
+   * const flow = agent.defineFlow({...})
+   * agent.definePrompt({...})
+   * agent.defineTool({...})
+   * const session = agent.createSession(); // create a session
+   * let response = await session.send('hi'); // session state aware conversation
+   * await session.runFlow(flow, {...})
+   * ```
+   */
+  defineEnvironment<S extends z.ZodTypeAny = z.ZodTypeAny>(config: {
+    name: string;
+    stateSchema?: S;
+    store?: SessionStore<any>;
+  }): Environment<S> {
+    return new Environment(config.name, this, {
+      stateSchema: config.stateSchema,
+      store: config.store,
+    });
   }
 
   /**
