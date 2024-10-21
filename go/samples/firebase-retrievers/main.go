@@ -16,53 +16,93 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
+	"os"
 
 	"cloud.google.com/go/firestore"
 	"github.com/firebase/genkit/go/ai"
 	"github.com/firebase/genkit/go/genkit"
 	"github.com/firebase/genkit/go/plugins/firebase"
+	"google.golang.org/api/option"
 )
 
 func main() {
 	ctx := context.Background()
 
-	// Firebase configuration
-	firebaseConfig := &firebase.FirebasePluginConfig{
-		ProjectID:        "your-project-id",
-		DatabaseURL:      "https://your-project-id.firebaseio.com",
-		ServiceAccountID: "your-service-account-id",
-		StorageBucket:    "your-bucket.appspot.com",
+	// Load project ID and Firestore collection from environment variables
+	projectID := os.Getenv("FIREBASE_PROJECT_ID")
+	if projectID == "" {
+		log.Fatal("Environment variable FIREBASE_PROJECT_ID is not set")
 	}
 
-	// Initialize Firebase
+	collectionName := os.Getenv("FIRESTORE_COLLECTION")
+	if collectionName == "" {
+		log.Fatal("Environment variable FIRESTORE_COLLECTION is not set")
+	}
+
+	// Firebase configuration
+	firebaseConfig := &firebase.FirebasePluginConfig{
+		ProjectID: projectID,
+	}
+
+	// Initialize Firebase using Application Default Credentials (ADC)
 	if err := firebase.Init(ctx, firebaseConfig); err != nil {
 		log.Fatalf("Error initializing Firebase: %v", err)
 	}
 
 	// Initialize Firestore client
-	app, err := firebase.App(ctx)
-	if err != nil {
-		log.Fatalf("Error getting Firebase app: %v", err)
-	}
-	firestoreClient, err := app.Firestore(ctx)
+	firestoreClient, err := firestore.NewClient(ctx, projectID, option.WithCredentialsFile(""))
 	if err != nil {
 		log.Fatalf("Error creating Firestore client: %v", err)
 	}
 	defer firestoreClient.Close()
 
-	// Firestore Retriever Configuration
+	// Mock embedder
 	embedder := &MockEmbedder{}
+
+	// Famous films text
+	films := []string{
+		"The Godfather is a 1972 crime film directed by Francis Ford Coppola.",
+		"The Dark Knight is a 2008 superhero film directed by Christopher Nolan.",
+		"Pulp Fiction is a 1994 crime film directed by Quentin Tarantino.",
+		"Schindler's List is a 1993 historical drama directed by Steven Spielberg.",
+		"Inception is a 2010 sci-fi film directed by Christopher Nolan.",
+		"The Matrix is a 1999 sci-fi film directed by the Wachowskis.",
+		"Fight Club is a 1999 film directed by David Fincher.",
+		"Forrest Gump is a 1994 drama directed by Robert Zemeckis.",
+		"Star Wars is a 1977 sci-fi film directed by George Lucas.",
+		"The Shawshank Redemption is a 1994 drama directed by Frank Darabont.",
+	}
+
+	// Define the index flow: Insert 10 documents about famous films
+	genkit.DefineFlow("flow-index-documents", func(ctx context.Context, _ struct{}) (string, error) {
+		for i, filmText := range films {
+			docID := fmt.Sprintf("doc-%d", i+1)
+			embedding := []float64{float64(i+1) * 0.1, float64(i+1) * 0.2, float64(i+1) * 0.3}
+
+			_, err := firestoreClient.Collection(collectionName).Doc(docID).Set(ctx, map[string]interface{}{
+				"text":      filmText,
+				"embedding": firestore.Vector64(embedding),
+				"metadata":  fmt.Sprintf("metadata for doc %d", i+1),
+			})
+			if err != nil {
+				return "", fmt.Errorf("failed to index document %d: %w", i+1, err)
+			}
+			log.Printf("Indexed document %d with text: %s", i+1, filmText)
+		}
+		return "10 film documents indexed successfully", nil
+	})
+
+	// Firestore Retriever Configuration
 	retrieverOptions := firebase.RetrieverOptions{
 		Name:            "example-retriever",
 		Client:          firestoreClient,
-		Collection:      "documents",
+		Collection:      collectionName,
 		Embedder:        embedder,
 		VectorField:     "embedding",
 		ContentField:    "text",
-		MetadataFields:  []string{"author", "date"},
+		MetadataFields:  []string{"metadata"},
 		Limit:           10,
 		DistanceMeasure: firestore.DistanceMeasureEuclidean,
 		VectorType:      firebase.Vector64,
@@ -74,69 +114,31 @@ func main() {
 		log.Fatalf("Error defining Firestore retriever: %v", err)
 	}
 
-	// Policy for Firebase Authentication
-	policy := func(authContext genkit.AuthContext, input any) error {
-		user := input.(string)
-		if authContext == nil || authContext["UID"] != user {
-			return errors.New("user ID does not match")
-		}
-		return nil
-	}
-
-	// Create Firebase Auth with required authentication
-	firebaseAuth, err := firebase.NewAuth(ctx, policy, true)
-	if err != nil {
-		log.Fatalf("Error setting up Firebase auth: %v", err)
-	}
-
-	// Flow that requires authentication
-	flowWithRequiredAuth := genkit.DefineFlow("flow-with-required-auth", func(ctx context.Context, user string) (string, error) {
+	// Define the retrieval flow: Retrieve documents based on user query
+	genkit.DefineFlow("flow-retrieve-documents", func(ctx context.Context, query string) (string, error) {
 		// Perform Firestore retrieval based on user input
 		req := &ai.RetrieverRequest{
-			Document: ai.DocumentFromText("Query for user: "+user, nil),
+			Document: ai.DocumentFromText(query, nil),
 		}
+		log.Println("Starting retrieval with query:", query)
 		resp, err := retriever.Retrieve(ctx, req)
 		if err != nil {
 			return "", fmt.Errorf("retriever error: %w", err)
 		}
+
+		// Check if documents were retrieved
 		if len(resp.Documents) == 0 {
+			log.Println("No documents retrieved, response:", resp)
 			return "", fmt.Errorf("no documents retrieved")
 		}
+
+		// Log the retrieved documents for debugging
+		for _, doc := range resp.Documents {
+			log.Printf("Retrieved document: %s", doc.Content[0].Text)
+		}
+
 		return fmt.Sprintf("Retrieved document: %s", resp.Documents[0].Content[0].Text), nil
-	}, genkit.WithFlowAuth(firebaseAuth))
-
-	// Flow that does not require authentication
-	flowWithoutAuth := genkit.DefineFlow("flow-without-required-auth", func(ctx context.Context, user string) (string, error) {
-		// Firestore retrieval for unauthenticated users
-		req := &ai.RetrieverRequest{
-			Document: ai.DocumentFromText("Query for user: "+user, nil),
-		}
-		resp, err := retriever.Retrieve(ctx, req)
-		if err != nil {
-			return "", fmt.Errorf("retriever error: %w", err)
-		}
-		if len(resp.Documents) == 0 {
-			return "", fmt.Errorf("no documents retrieved")
-		}
-		return fmt.Sprintf("Retrieved document for unauthenticated user: %s", resp.Documents[0].Content[0].Text), nil
-	}, genkit.WithFlowAuth(nil))
-
-	// Define a super-caller flow that calls both flows
-	genkit.DefineFlow("super-caller", func(ctx context.Context, _ struct{}) (string, error) {
-		// Run flow with required auth
-		resp1, err := flowWithRequiredAuth.Run(ctx, "admin-user", genkit.WithLocalAuth(map[string]any{"UID": "admin-user"}))
-		if err != nil {
-			return "", fmt.Errorf("flowWithRequiredAuth: %w", err)
-		}
-
-		// Run flow without required auth
-		resp2, err := flowWithoutAuth.Run(ctx, "guest-user")
-		if err != nil {
-			return "", fmt.Errorf("flowWithoutAuth: %w", err)
-		}
-
-		return resp1 + ", " + resp2, nil
-	})
+	}, genkit.WithFlowAuth(nil)) // Removed the Firebase Auth requirement
 
 	// Initialize Genkit
 	if err := genkit.Init(ctx, nil); err != nil {
@@ -153,13 +155,14 @@ func (e *MockEmbedder) Name() string {
 
 func (e *MockEmbedder) Embed(ctx context.Context, req *ai.EmbedRequest) (*ai.EmbedResponse, error) {
 	var embeddings []*ai.DocumentEmbedding
+
+	// Generate a simple uniform embedding for each document
 	for _, doc := range req.Documents {
-		var embedding []float32
-		switch doc.Content[0].Text {
-		case "Query for user: admin-user":
-			embedding = []float32{0.9, 0.1, 0.0}
-		default:
-			embedding = []float32{0.0, 0.0, 0.0}
+		// Example: Use the length of the document text to generate embeddings
+		embedding := []float32{
+			float32(len(doc.Content[0].Text)) * 0.1, // Scale based on text length
+			0.5,                                     // Static value
+			0.3,                                     // Static value
 		}
 		embeddings = append(embeddings, &ai.DocumentEmbedding{Embedding: embedding})
 	}
