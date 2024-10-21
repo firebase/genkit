@@ -18,15 +18,14 @@ import { logger } from '@genkit-ai/core/logging';
 import z from 'zod';
 import { OllamaPluginParams } from './index.js';
 // Define the schema for Ollama embedding configuration
-export const OllamaEmbeddingConfigSchema = z.object({
-  modelName: z.string(),
-  serverAddress: z.string(),
-});
+export const OllamaEmbeddingConfigSchema = z
+  .object({
+    modelName: z.string(),
+    serverAddress: z.string(),
+  })
+  .passthrough();
 export type OllamaEmbeddingConfig = z.infer<typeof OllamaEmbeddingConfigSchema>;
 // Define the structure of the request and response for embedding
-interface OllamaEmbeddingInstance {
-  content: string;
-}
 interface OllamaEmbeddingPrediction {
   embedding: number[];
 }
@@ -47,11 +46,9 @@ export function defineOllamaEmbedder({
       name,
       configSchema: OllamaEmbeddingConfigSchema, // Use the Zod schema directly here
       info: {
-        // TODO: do we want users to be able to specify the label when they call this method directly?
         label: 'Ollama Embedding - ' + modelName,
         dimensions,
         supports: {
-          //  TODO: do any ollama models support other modalities?
           input: ['text'],
         },
       },

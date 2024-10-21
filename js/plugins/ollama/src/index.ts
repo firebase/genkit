@@ -38,9 +38,16 @@ type RequestHeaders =
 
 type ModelDefinition = { name: string; type?: ApiType };
 type EmbeddingModelDefinition = { name: string; dimensions: number };
+
 export interface OllamaPluginParams {
-  models: ModelDefinition[];
-  embeddingModels?: EmbeddingModelDefinition[];
+  /*
+   * Models to be defined.
+   */
+  models?: ModelDefinition[];
+  /**
+   * Embedding models to be defined.
+   */
+  embedders?: EmbeddingModelDefinition[];
   /**
    *  ollama server address.
    */
@@ -54,12 +61,12 @@ export const ollama: Plugin<[OllamaPluginParams]> = genkitPlugin(
   async (params: OllamaPluginParams) => {
     const serverAddress = params?.serverAddress;
     return {
-      models: params.models.map((model) =>
+      models: params.models?.map((model) =>
         ollamaModel(model, serverAddress, params.requestHeaders)
       ),
-      embedders: params.embeddingModels?.map((model) =>
+      embedders: params.embedders?.map((model) =>
         defineOllamaEmbedder({
-          name: `${ollama}/model.name`,
+          name: `ollama/${model.name}`,
           modelName: model.name,
           dimensions: model.dimensions,
           options: params,

@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 import { embed } from '@genkit-ai/ai/embedder';
+import { configureGenkit } from '@genkit-ai/core';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { defineOllamaEmbedder } from '../src/embeddings.js'; // Adjust the import path as necessary
-import { OllamaPluginParams } from '../src/index.js'; // Adjust the import path as necessary
+import { OllamaPluginParams, ollama } from '../src/index.js'; // Adjust the import path as necessary
 // Utility function to parse command-line arguments
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -30,22 +31,56 @@ function parseArgs() {
   return { serverAddress, modelName };
 }
 const { serverAddress, modelName } = parseArgs();
-describe('defineOllamaEmbedder - Live Tests', () => {
-  const options: OllamaPluginParams = {
-    models: [{ name: modelName }],
-    serverAddress,
-  };
-  it('should successfully return embeddings', async () => {
-    const embedder = defineOllamaEmbedder({
-      name: 'live-test-embedder',
-      modelName: 'nomic-embed-text',
-      dimensions: 768,
-      options,
+if (process.env.LIVE_TEST) {
+  describe('Live Test: defineOllamaEmbedder', () => {
+    const options: OllamaPluginParams = {
+      models: [{ name: modelName }],
+      serverAddress,
+    };
+    it('live: should successfully return embeddings', async () => {
+      configureGenkit({
+        plugins: [
+          ollama({
+            serverAddress: 'http://127.0.0.1:11434', // default local address
+          }),
+        ],
+      });
+      const embedder = defineOllamaEmbedder({
+        name: 'ollama/live-test-embedder',
+        modelName: 'nomic-embed-text',
+        dimensions: 768,
+        options,
+      });
+      const result = await embed({
+        embedder,
+        content: 'Hello, world!',
+      });
+      assert.strictEqual(result.length, 768);
     });
-    const result = await embed({
-      embedder,
-      content: 'Hello, world!',
-    });
-    assert.strictEqual(result.length, 768);
   });
-});
+
+  describe('E2E Test: Ollama Embedder', () => {
+    it('e2e: should successfully return embeddings using configureGenkit', async () => {
+      configureGenkit({
+        plugins: [
+          ollama({
+            embedders: [
+              { name: 'nomic-embed-text', dimensions: 768 }, // Use the existing embedder
+            ],
+            serverAddress: 'http://127.0.0.1:11434', // default local address
+          }),
+        ],
+      });
+
+      const result = await embed({
+        embedder: 'ollama/nomic-embed-text',
+        content: 'foo',
+        options: {
+          truncate: true,
+        },
+      });
+
+      assert.strictEqual(result.length, 768); // Assuming the embeddings should have 768 dimensions
+    });
+  });
+}
