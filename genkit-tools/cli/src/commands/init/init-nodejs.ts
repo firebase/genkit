@@ -240,8 +240,8 @@ export async function initNodejs(options: InitOptions, isNew: boolean) {
   // Compile NPM packages list.
   const packages = [...externalPackages];
   if (!distArchive) {
-    packages.push(...internalPackages);
-    packages.push(...plugins);
+    packages.push(...internalPackages.map((p) => `${p}@^0.5`));
+    packages.push(...plugins.map((p) => `${p}@^0.5`));
   }
 
   // Initialize and configure.
