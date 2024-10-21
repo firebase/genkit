@@ -138,9 +138,6 @@ export interface GenkitOptions {
   promptDir?: string;
   /** Default model to use if no model is specified. */
   model?: ModelArgument<any>;
-  // FIXME: This will not actually expose any flows. It needs a new mechanism for exposing endpoints.
-  /** Configuration for the flow server. Server will be started if value is true or a configured object. */
-  flowServer?: FlowServerOptions | boolean;
 }
 
 /**
@@ -174,14 +171,6 @@ export class Genkit {
       });
       this.reflectionServer.start().catch((e) => logger.error);
     }
-    if (this.options.flowServer) {
-      const flowServerOptions =
-        typeof this.options.flowServer === 'object'
-          ? this.options.flowServer
-          : undefined;
-      this.flowServer = new FlowServer(this.registry, flowServerOptions);
-      this.flowServer.start();
-    }
   }
 
   /**
@@ -208,11 +197,14 @@ export class Genkit {
     O extends z.ZodTypeAny = z.ZodTypeAny,
     S extends z.ZodTypeAny = z.ZodTypeAny,
   >(
-    config: StreamingFlowConfig<I, O, S>,
+    config: StreamingFlowConfig<I, O, S> | string,
     fn: FlowFn<I, O, S>
   ): StreamableFlow<I, O, S> {
     const flow = runWithRegistry(this.registry, () =>
-      defineStreamingFlow(config, fn)
+      defineStreamingFlow(
+        typeof config === 'string' ? { name: config } : config,
+        fn
+      )
     );
     this.registeredFlows.push(flow.flow);
     return flow;
@@ -987,6 +979,12 @@ export class Genkit {
       const ref = modelArg as ModelReference<any>;
       return (await lookupAction(`/model/${ref.name}`)) as ModelAction;
     }
+  }
+
+  startFlowServer(options?: FlowServerOptions): FlowServer {
+    const flowServer = new FlowServer(this.registry, options);
+    flowServer.start();
+    return flowServer;
   }
 }
 

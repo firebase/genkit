@@ -43,7 +43,6 @@ const ai = genkit({
       serverAddress: 'http://127.0.0.1:11434', // default local address
     }),
   ],
-  flowServer: true,
 });
 
 const vectorStore = new MemoryVectorStore(new GoogleVertexAIEmbeddings());
@@ -84,3 +83,7 @@ export const pdfQA = ai.defineFlow(
     return await chain.invoke(question, { callbacks: [new GenkitTracer()] });
   }
 );
+
+ai.startFlowServer({
+  flows: [pdfQA],
+});

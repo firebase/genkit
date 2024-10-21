@@ -47,7 +47,7 @@ import {
 } from './tracing.js';
 import { flowMetadataPrefix, isDevEnv } from './utils.js';
 
-const streamDelimiter = '\n';
+const streamDelimiter = '\n\n';
 
 /**
  * Flow Auth policy. Consumes the authorization context of the flow and
@@ -150,9 +150,7 @@ export type FlowFn<
   /** Input to the flow. */
   input: z.infer<I>,
   /** Callback for streaming functions only. */
-  streamingCallback?: S extends z.ZodVoid
-    ? undefined
-    : StreamingCallback<z.infer<S>>
+  streamingCallback?: StreamingCallback<z.infer<S>>
 ) => Promise<z.infer<O>> | z.infer<O>;
 
 /**
@@ -200,9 +198,7 @@ export class Flow<
   async invoke(
     input: unknown,
     opts: {
-      streamingCallback?: S extends z.ZodVoid
-        ? undefined
-        : StreamingCallback<z.infer<S>>;
+      streamingCallback?: StreamingCallback<z.infer<S>>;
       labels?: Record<string, string>;
       auth?: unknown;
     }
@@ -359,32 +355,39 @@ export class Flow<
         return;
       }
 
-      if (stream === 'true') {
+      if (request.get('Accept') === 'text/event-stream' || stream === 'true') {
         response.writeHead(200, {
           'Content-Type': 'text/plain',
           'Transfer-Encoding': 'chunked',
         });
         try {
           const result = await this.invoke(input, {
-            streamingCallback: ((chunk: z.infer<S>) => {
-              response.write(JSON.stringify(chunk) + streamDelimiter);
-            }) as S extends z.ZodVoid
-              ? undefined
-              : StreamingCallback<z.infer<S>>,
+            streamingCallback: (chunk: z.infer<S>) => {
+              response.write(
+                'data: ' + JSON.stringify({ message: chunk }) + streamDelimiter
+              );
+            },
             auth,
           });
-          response.write({
-            result: result.result, // Need more results!!!!
-          });
+          response.write(
+            'data: ' +
+              JSON.stringify({ result: result.result }) +
+              streamDelimiter
+          );
           response.end();
         } catch (e) {
-          response.write({
-            error: {
-              status: 'INTERNAL',
-              message: getErrorMessage(e),
-              details: getErrorStack(e),
-            },
-          });
+          console.log(e);
+          response.write(
+            'data: ' +
+              JSON.stringify({
+                error: {
+                  status: 'INTERNAL',
+                  message: getErrorMessage(e),
+                  details: getErrorStack(e),
+                },
+              }) +
+              streamDelimiter
+          );
           response.end();
         }
       } else {
@@ -422,7 +425,7 @@ export class Flow<
  */
 export interface FlowServerOptions {
   /** List of flows to expose via the flow server. If not specified, all registered flows will be exposed. */
-  flows?: Flow<any, any, any>[];
+  flows?: (CallableFlow<any, any> | StreamableFlow<any, any>)[];
   /** Port to run the server on. In `dev` environment, actual port may be different if chosen port is occupied. Defaults to 3400. */
   port?: number;
   /** CORS options for the server. */
@@ -491,13 +494,13 @@ export class FlowServer {
       logger.debug('Running flow server with flow paths:');
       const pathPrefix = this.options.pathPrefix ?? '';
       this.options.flows?.forEach((flow) => {
-        const flowPath = `/${pathPrefix}${flow.name}`;
+        const flowPath = `/${pathPrefix}${flow.flow.name}`;
         logger.debug(` - ${flowPath}`);
-        flow.middleware?.forEach((middleware) =>
+        flow.flow.middleware?.forEach((middleware) =>
           server.post(flowPath, middleware)
         );
         server.post(flowPath, (req, res) =>
-          flow.expressHandler(this.registry, req, res)
+          flow.flow.expressHandler(this.registry, req, res)
         );
       });
     } else {
