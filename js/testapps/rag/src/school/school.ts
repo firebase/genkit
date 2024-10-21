@@ -36,16 +36,16 @@ function systemMessage(state: z.infer<typeof StateSchema>): string {
 
 === User Context
 
-- The current parent user is '${state.parentName}'
+- The current parent user is '${state?.parentName}'
 - The current date and time is: ${new Date().toString()}
 
 === Registered students of the current user
 
-${JSON.stringify(state.students)}
+${JSON.stringify(state?.students)}
 
 === Upcoming School Holidays
 
-${JSON.stringify(state.holidays)}
+${JSON.stringify(state?.holidays)}
 `;
 }
 
