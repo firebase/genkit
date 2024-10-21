@@ -150,6 +150,10 @@ export default configureGenkit({
 
 ### Using Embeddings
 
+This example demonstrates generating a 768-dimensional embedding using the `nomic-embed-text` model.
+
+Make sure to run `ollama pull nomic-embed-text` to obtain this model, and `ollama serve` to serve the embedding model.
+
 Once configured, you can generate embeddings for your content using the `embed` function:
 
 ```js
@@ -165,5 +169,3 @@ const result = await embed({
   },
 });
 ```
-
-This example demonstrates generating a 768-dimensional embedding using the `nomic-embed-text` model.

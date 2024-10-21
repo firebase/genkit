@@ -36,6 +36,14 @@ if (process.env.LIVE_TEST) {
     const options: OllamaPluginParams = {
       models: [{ name: modelName }],
       serverAddress,
+      requestHeaders: async () => {
+        // mock some async operation
+        await new Promise((resolve) => setTimeout(resolve, 200));
+
+        return {
+          'X-Custom-Header': 'custom-value',
+        };
+      },
     };
     it('live: should successfully return embeddings', async () => {
       configureGenkit({

@@ -25,7 +25,7 @@ import {
 } from '@genkit-ai/ai/model';
 import { genkitPlugin, Plugin } from '@genkit-ai/core';
 import { logger } from '@genkit-ai/core/logging';
-import { defineOllamaEmbedder } from './embeddings';
+import { defineOllamaEmbedder, EmbeddingModelDefinition } from './embeddings';
 
 type ApiType = 'chat' | 'generate';
 
@@ -37,7 +37,6 @@ type RequestHeaders =
     ) => Promise<Record<string, string> | void>);
 
 type ModelDefinition = { name: string; type?: ApiType };
-type EmbeddingModelDefinition = { name: string; dimensions: number };
 
 export interface OllamaPluginParams {
   /*
