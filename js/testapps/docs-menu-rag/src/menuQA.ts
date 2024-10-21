@@ -15,7 +15,7 @@
  */
 
 import { devLocalRetrieverRef } from '@genkit-ai/dev-local-vectorstore';
-import { geminiPro } from '@genkit-ai/vertexai';
+import { gemini15Flash } from '@genkit-ai/vertexai';
 import { z } from 'genkit';
 import { ai } from './index.js';
 
@@ -34,7 +34,7 @@ export const menuQAFlow = ai.defineFlow(
 
     // generate a response
     const llmResponse = await ai.generate({
-      model: geminiPro,
+      model: gemini15Flash,
       prompt: `
     You are acting as a helpful AI assistant that can answer 
     questions about the food available on the menu at Genkit Grub Pub.

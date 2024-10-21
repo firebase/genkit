@@ -603,9 +603,9 @@ export async function generate<
     messages,
     tools,
     config: {
-      ...resolvedModel.config,
       version: resolvedModel.version,
-      ...resolvedOptions.config,
+      ...stripUndefinedOptions(resolvedModel.config),
+      ...stripUndefinedOptions(resolvedOptions.config),
     },
     output: resolvedOptions.output && {
       format: resolvedOptions.output.format,
@@ -627,6 +627,17 @@ export async function generate<
         await toGenerateRequest(resolvedOptions)
       )
   );
+}
+
+function stripUndefinedOptions(input?: any): any {
+  if (!input) return input;
+  const copy = { ...input };
+  Object.keys(input).forEach((key) => {
+    if (copy[key] === undefined) {
+      delete copy[key];
+    }
+  });
+  return copy;
 }
 
 export type GenerateStreamOptions<

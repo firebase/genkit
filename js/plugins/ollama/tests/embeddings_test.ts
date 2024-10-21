@@ -16,11 +16,9 @@
 import { Genkit, genkit } from 'genkit';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
-import {
-  OllamaEmbeddingConfigSchema,
-  defineOllamaEmbedder,
-} from '../src/embeddings.js'; // Adjust the import path as necessary
-import { OllamaPluginParams } from '../src/index.js'; // Adjust the import path as necessary
+import { defineOllamaEmbedder } from '../src/embeddings.js';
+import { OllamaPluginParams } from '../src/index.js';
+
 // Mock fetch to simulate API responses
 global.fetch = async (input: RequestInfo | URL, options?: RequestInit) => {
   const url = typeof input === 'string' ? input : input.toString();
@@ -41,6 +39,7 @@ global.fetch = async (input: RequestInfo | URL, options?: RequestInit) => {
   }
   throw new Error('Unknown API endpoint');
 };
+
 describe('defineOllamaEmbedder', () => {
   const options: OllamaPluginParams = {
     models: [{ name: 'test-model' }],
@@ -91,24 +90,6 @@ describe('defineOllamaEmbedder', () => {
     );
   });
 
-  it('should validate the embedding configuration schema', async () => {
-    const validConfig = {
-      modelName: 'test-model',
-      serverAddress: 'http://localhost:3000',
-    };
-    const invalidConfig = {
-      modelName: 123, // Invalid type
-      serverAddress: 'http://localhost:3000',
-    };
-    // Valid configuration should pass
-    assert.doesNotThrow(() => {
-      OllamaEmbeddingConfigSchema.parse(validConfig);
-    });
-    // Invalid configuration should throw
-    assert.throws(() => {
-      OllamaEmbeddingConfigSchema.parse(invalidConfig);
-    });
-  });
   it('should throw an error if the fetch response is not ok', async () => {
     const embedder = defineOllamaEmbedder(ai, {
       name: 'test-embedder',

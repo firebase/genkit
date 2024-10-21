@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { geminiPro } from '@genkit-ai/vertexai';
+import { gemini15Flash } from '@genkit-ai/vertexai';
 import { GenerateRequest } from 'genkit';
 import { ai } from '../index.js';
 import { MenuQuestionInput, MenuQuestionInputSchema } from '../types.js';
@@ -50,7 +50,7 @@ export const s01_vanillaPrompt = ai.definePrompt(
 export const s01_staticMenuDotPrompt = ai.definePrompt(
   {
     name: 's01_staticMenuDotPrompt',
-    model: geminiPro,
+    model: gemini15Flash,
     input: { schema: MenuQuestionInputSchema },
     output: { format: 'text' },
   },

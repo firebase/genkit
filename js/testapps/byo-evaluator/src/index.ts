@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { geminiPro, googleAI } from '@genkit-ai/googleai';
+import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import { Genkit, ModelReference, genkit, z } from 'genkit';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import {
@@ -41,7 +41,7 @@ export const ai = genkit({
   plugins: [
     googleAI({ apiVersion: ['v1', 'v1beta'] }),
     byoEval({
-      judge: geminiPro,
+      judge: gemini15Flash,
       judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
       metrics: [
         // regexMatcher will register an evaluator with a name in the format

@@ -16,12 +16,12 @@
 
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
-import { geminiPro, googleAI } from '@genkit-ai/googleai';
+import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import {
   claude3Haiku,
   claude3Opus,
   claude3Sonnet,
-  textEmbeddingGecko,
+  textEmbedding004,
   vertexAI,
   VertexAIEvaluationMetricType,
 } from '@genkit-ai/vertexai';
@@ -95,30 +95,30 @@ export const ai = genkit({
     chroma([
       {
         collectionName: 'chroma-collection',
-        embedder: textEmbeddingGecko,
+        embedder: textEmbedding004,
         embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
       },
     ]),
     devLocalVectorstore([
       {
         indexName: 'naive-index',
-        embedder: textEmbeddingGecko,
+        embedder: textEmbedding004,
         embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
       },
     ]),
     pinecone([
       {
         indexId: 'pinecone-index',
-        embedder: textEmbeddingGecko,
+        embedder: textEmbedding004,
         embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
       },
     ]),
 
     // evaluation
     genkitEval({
-      judge: geminiPro,
+      judge: gemini15Flash,
       judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
-      embedder: textEmbeddingGecko,
+      embedder: textEmbedding004,
       metrics: [
         GenkitMetric.ANSWER_RELEVANCY,
         GenkitMetric.FAITHFULNESS,
