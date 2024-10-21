@@ -184,11 +184,13 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(requestCounter.attributes.source, 'ts');
     assert.equal(requestCounter.attributes.status, 'success');
     assert.ok(requestCounter.attributes.sourceVersion);
+    assert.equal(requestCounter.attributes.featureName, 'testFlowWithActions');
     assert.equal(latencyHistogram.value.count, 6);
     assert.equal(latencyHistogram.attributes.name, 'testAction');
     assert.equal(latencyHistogram.attributes.source, 'ts');
     assert.equal(latencyHistogram.attributes.status, 'success');
     assert.ok(latencyHistogram.attributes.sourceVersion);
+    assert.equal(requestCounter.attributes.featureName, 'testFlowWithActions');
   });
 
   it('writes feature metrics for an action', async () => {
