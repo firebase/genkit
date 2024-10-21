@@ -40,9 +40,10 @@ const (
 
 var (
 	knownCaps = map[string]ai.ModelCapabilities{
-		"gemini-1.0-pro":   gemini.BasicText,
-		"gemini-1.5-pro":   gemini.Multimodal,
-		"gemini-1.5-flash": gemini.Multimodal,
+		"gemini-1.0-pro":    gemini.BasicText,
+		"gemini-1.5-pro":    gemini.Multimodal,
+		"gemini-1.5-flash":  gemini.Multimodal,
+		"gemini-pro-vision": gemini.Multimodal,
 	}
 
 	knownEmbedders = []string{
