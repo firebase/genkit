@@ -116,6 +116,7 @@ import {
 } from '@genkit-ai/dotprompt';
 import { v4 as uuidv4 } from 'uuid';
 import { Chat, ChatOptions } from './chat.js';
+import { Environment } from './environment.js';
 import { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
 import { GenkitPlugin, genkitPlugin } from './plugin.js';
@@ -128,7 +129,6 @@ import {
   SessionOptions,
   SessionStore,
 } from './session.js';
-import { Environment } from './environment.js';
 
 /**
  * Options for initializing Genkit.
@@ -490,11 +490,14 @@ export class Genkit {
         const resultOptions = {
           messages: promptResult.messages,
           docs: promptResult.docs,
-          tools: promptResult.tools,
-          output: {
-            format: promptResult.output?.format,
-            jsonSchema: promptResult.output?.schema,
-          },
+          tools: promptResult.tools ?? options.tools,
+          output:
+            promptResult.output?.format || promptResult.output?.schema
+              ? {
+                  format: promptResult.output?.format,
+                  jsonSchema: promptResult.output?.schema,
+                }
+              : options.output,
           config: {
             ...options.config,
             ...promptResult.config,
