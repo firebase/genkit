@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { Action, defineAction, JSONSchema7, z } from '@genkit-ai/core';
+import { Action, CallableFlow, defineAction, JSONSchema7, z } from '@genkit-ai/core';
 import { lookupAction } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
@@ -66,7 +66,8 @@ export type ToolArgument<
   | ToolAction<I, O>
   | Action<I, O>
   | ToolDefinition
-  | ExecutablePrompt<any, any, any>;
+  | ExecutablePrompt<any, any, any>
+  | CallableFlow<any, any>;
 
 /**
  * Converts an action to a tool action by setting the appropriate metadata.

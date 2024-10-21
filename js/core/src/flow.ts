@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { SpanStatusCode } from '@opentelemetry/api';
+import { SpanStatusCode, trace } from '@opentelemetry/api';
 import * as bodyParser from 'body-parser';
 import cors, { CorsOptions } from 'cors';
 import express from 'express';
@@ -25,9 +25,10 @@ import {
   Action,
   defineAction,
   getStreamingCallback,
+  runWithStreamingCallback,
   StreamingCallback,
 } from './action.js';
-import { runWithAuthContext } from './auth.js';
+import { getFlowAuth, runWithAuthContext } from './auth.js';
 import { getErrorMessage, getErrorStack } from './error.js';
 import { FlowActionInputSchema } from './flowTypes.js';
 import { logger } from './logging.js';
@@ -39,14 +40,12 @@ import {
 } from './registry.js';
 import { toJsonSchema } from './schema.js';
 import {
-  newTrace,
   runInNewSpan,
   setCustomMetadataAttribute,
   setCustomMetadataAttributes,
   SPAN_TYPE_ATTR,
 } from './tracing.js';
 import { flowMetadataPrefix, isDevEnv } from './utils.js';
-
 const streamDelimiter = '\n';
 
 /**
@@ -75,6 +74,8 @@ export interface FlowConfig<
 > {
   /** Name of the flow. */
   name: string;
+  /** Description of the flow, useful when using flow as a tool. */
+  description?: string;
   /** Schema of the input to the flow. */
   inputSchema?: I;
   /** Schema of the output from the flow. */
@@ -179,6 +180,7 @@ export class Flow<
   readonly authPolicy?: FlowAuthPolicy<I>;
   readonly middleware?: express.RequestHandler[];
   readonly flowFn: FlowFn<I, O, S>;
+  readonly action: Action<I, O>;
 
   constructor(
     config: FlowConfig<I, O> | StreamingFlowConfig<I, O, S>,
@@ -192,6 +194,64 @@ export class Flow<
     this.authPolicy = config.authPolicy;
     this.middleware = config.middleware;
     this.flowFn = flowFn;
+    this.action = defineAction(
+      {
+        actionType: 'flow',
+        name: this.name,
+        inputSchema: this.inputSchema,
+        outputSchema: this.outputSchema,
+        metadata: {
+          type: 'flow',
+          inputSchema: toJsonSchema({ schema: this.inputSchema }),
+          outputSchema: toJsonSchema({ schema: this.outputSchema }),
+          requiresAuth: !!this.authPolicy,
+        },
+      },
+      async (input) => {
+        await this.authPolicy?.(getFlowAuth(), input);
+
+        const streamingCallback = getStreamingCallback() as
+          | StreamingCallback<z.infer<S>>
+          | undefined;
+
+        const rootSpan = trace.getActiveSpan();
+        if (!rootSpan) {
+          throw new Error('Failed to getActiveSpan -- returned undefined');
+        }
+
+        setCustomMetadataAttributes({
+          [SPAN_TYPE_ATTR]: 'flow',
+          input,
+          [flowMetadataPrefix('name')]: this.name,
+        });
+        try {
+          const output = await this.flowFn(input, streamingCallback as any);
+          setCustomMetadataAttributes({
+            output: JSON.stringify(output),
+            [flowMetadataPrefix('state')]: 'done',
+          });
+          return {
+            result: output,
+            traceId: rootSpan.spanContext().traceId,
+            spanId: rootSpan.spanContext().spanId,
+          };
+        } catch (e) {
+          setCustomMetadataAttributes({
+            state: 'error',
+          });
+          rootSpan.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: getErrorMessage(e),
+          });
+          if (e instanceof Error) {
+            rootSpan.recordException(e);
+          }
+
+          setCustomMetadataAttribute(flowMetadataPrefix('state'), 'error');
+          throw e;
+        }
+      }
+    );
   }
 
   /**
@@ -208,53 +268,8 @@ export class Flow<
     }
   ): Promise<FlowResult<z.infer<O>>> {
     await initializeAllPlugins();
-    return await runWithAuthContext(opts.auth, () =>
-      newTrace(
-        {
-          name: this.name,
-          labels: {
-            [SPAN_TYPE_ATTR]: 'flow',
-          },
-        },
-        async (metadata, rootSpan) => {
-          if (opts.labels) {
-            const labels = opts.labels;
-            Object.keys(opts.labels).forEach((label) => {
-              setCustomMetadataAttribute(
-                flowMetadataPrefix(`label:${label}`),
-                labels[label]
-              );
-            });
-          }
-
-          setCustomMetadataAttributes({
-            [flowMetadataPrefix('name')]: this.name,
-          });
-          try {
-            metadata.input = input;
-            const output = await this.flowFn(input, opts.streamingCallback);
-            metadata.output = JSON.stringify(output);
-            setCustomMetadataAttribute(flowMetadataPrefix('state'), 'done');
-            return {
-              result: output,
-              traceId: rootSpan.spanContext().traceId,
-              spanId: rootSpan.spanContext().spanId,
-            };
-          } catch (e) {
-            metadata.state = 'error';
-            rootSpan.setStatus({
-              code: SpanStatusCode.ERROR,
-              message: getErrorMessage(e),
-            });
-            if (e instanceof Error) {
-              rootSpan.recordException(e);
-            }
-
-            setCustomMetadataAttribute(flowMetadataPrefix('state'), 'error');
-            throw e;
-          }
-        }
-      )
+    return await runWithStreamingCallback(opts.streamingCallback, () =>
+      runWithAuthContext(opts.auth ?? getFlowAuth(), () => this.action(input))
     );
   }
 
@@ -564,7 +579,6 @@ export function defineFlow<
     typeof config === 'string' ? { name: config } : config;
 
   const flow = new Flow<I, O, z.ZodVoid>(resolvedConfig, fn);
-  registerFlowAction(flow);
   const registry = getRegistryInstance();
   const callableFlow: CallableFlow<I, O> = async (input, opts) => {
     return runWithRegistry(registry, () => flow.run(input, opts));
@@ -585,7 +599,7 @@ export function defineStreamingFlow<
   fn: FlowFn<I, O, S>
 ): StreamableFlow<I, O, S> {
   const flow = new Flow(config, fn);
-  registerFlowAction(flow);
+  //registerFlowAction(flow);
   const registry = getRegistryInstance();
   const streamableFlow: StreamableFlow<I, O, S> = (input, opts) => {
     return runWithRegistry(registry, () => flow.stream(input, opts));
@@ -605,7 +619,7 @@ function registerFlowAction<
   return defineAction(
     {
       actionType: 'flow',
-      name: flow.name,
+      name: flow.name + '_zz',
       inputSchema: FlowActionInputSchema,
       outputSchema: flow.outputSchema,
       metadata: {

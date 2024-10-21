@@ -16,6 +16,7 @@
 
 import {
   Action,
+  CallableFlow,
   GenkitError,
   runWithStreamingCallback,
   StreamingCallback,
@@ -550,6 +551,9 @@ export async function generate<
       } else if (typeof (t as ExecutablePrompt).asTool === 'function') {
         const promptToolAction = (t as ExecutablePrompt).asTool();
         tools.push(`/prompt/${promptToolAction.__action.name}`);
+      } else if ((t as CallableFlow).flow) {
+        const promptToolAction = (t as CallableFlow).flow.action;
+        tools.push(`/flow/${promptToolAction.__action.name}`);
       } else if (t.name) {
         tools.push(await resolveFullToolName(t.name));
       } else {

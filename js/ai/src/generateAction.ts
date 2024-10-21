@@ -191,6 +191,7 @@ async function generate(
     if (!tool) {
       throw Error(`Tool ${part.toolRequest?.name} not found`);
     }
+    console.log();
     if ((tool.__action.metadata.type as string) === 'prompt') {
       const newPreamble = await tool(part.toolRequest?.input);
       toolResponses.push({
@@ -206,6 +207,9 @@ async function generate(
         ...messages.filter((m) => !m?.metadata?.preamble),
       ];
       newTools = newPreamble.tools;
+    } else if (tool.__action.actionType === 'flow') {
+      await tool(part.toolRequest?.input);
+      return new GenerateResponse({ message: { role: 'model', content: [] } });
     } else {
       toolResponses.push({
         toolResponse: {
