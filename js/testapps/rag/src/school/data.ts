@@ -1,3 +1,5 @@
+import { AgentState } from './types';
+
 export async function getUpcomingHolidays() {
   return [
     { date: '2024-11-28', holiday: 'Thanksgiving Break' },
@@ -46,3 +48,14 @@ export const EXAMPLE_EVENTS = [
     grades: [9, 10, 11, 12],
   },
 ];
+
+export function userContext(state: AgentState) {
+  return `=== User Context
+
+- The current parent user is '${state?.parentName}'
+- The current date and time is: ${new Date().toString()}
+
+=== Registered students of the current user
+
+${JSON.stringify(state?.students)}`;
+}

@@ -18,29 +18,29 @@ import {
   Content,
   FunctionDeclaration,
   FunctionDeclarationSchemaType,
-  Part as GeminiPart,
   GenerateContentCandidate,
   GenerateContentResponse,
   GenerateContentResult,
   HarmBlockThreshold,
   HarmCategory,
+  Part as GeminiPart,
   StartChatParams,
   VertexAI,
 } from '@google-cloud/vertexai';
-import { GENKIT_CLIENT_HEADER, Genkit, z } from 'genkit';
+import { Genkit, GENKIT_CLIENT_HEADER, z } from 'genkit';
 import {
   CandidateData,
   GenerateRequest,
   GenerationCommonConfigSchema,
+  getBasicUsageStats,
   MediaPart,
   MessageData,
   ModelAction,
   ModelMiddleware,
+  modelRef,
   ModelReference,
   Part,
   ToolDefinitionSchema,
-  getBasicUsageStats,
-  modelRef,
 } from 'genkit/model';
 import {
   downloadRequestMedia,
@@ -432,7 +432,7 @@ export function fromGeminiCandidate(
 // Since JSON schemas can include nested arrays/objects, we have to recursively map the type field
 // in all nested fields.
 const convertSchemaProperty = (property) => {
-  if (!property) {
+  if (!property || !property.type) {
     return null;
   }
   if (property.type === 'object') {
@@ -451,6 +451,9 @@ const convertSchemaProperty = (property) => {
       items: convertSchemaProperty(property.items),
     };
   } else {
+    if (typeof property.type !== 'string') {
+      console.log('NON STRING TYPE:', property.type);
+    }
     return {
       type: FunctionDeclarationSchemaType[property.type.toUpperCase()],
     };

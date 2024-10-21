@@ -1,6 +1,7 @@
 import devLocalVectorstore from '@genkit-ai/dev-local-vectorstore';
-import { textEmbedding004, vertexAI, gemini15Flash } from '@genkit-ai/vertexai';
+import { gemini15Flash, textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
 import { genkit } from 'genkit';
+import { AgentStateSchema } from './types';
 
 export const ai = genkit({
   plugins: [
@@ -9,7 +10,12 @@ export const ai = genkit({
       { indexName: 'school-handbook', embedder: textEmbedding004 },
     ]),
   ],
-  model: gemini15Flash
+  model: gemini15Flash,
+});
+
+export const env = ai.defineEnvironment({
+  name: 'agentEnv',
+  stateSchema: AgentStateSchema,
 });
 
 export { z } from 'genkit';
