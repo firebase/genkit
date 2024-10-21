@@ -167,7 +167,7 @@ describe('preabmle', () => {
     pm = defineProgrammableModel(ai);
   });
 
-  it('something', async () => {
+  it('swaps out preamble on prompt tool invocation', async () => {
     const agentB = ai.definePrompt(
       {
         name: 'agentB',
@@ -189,7 +189,6 @@ describe('preabmle', () => {
     );
 
     // simple hi, nothing interesting...
-
     pm.handleResponse = async (req, sc) => {
       return {
         message: {
@@ -207,9 +206,7 @@ describe('preabmle', () => {
     assert.deepStrictEqual(pm.lastRequest, {
       config: {
         temperature: 2,
-        version: undefined,
       },
-      docs: undefined,
       messages: [
         {
           content: [{ text: ' agent a' }],
@@ -266,9 +263,7 @@ describe('preabmle', () => {
       config: {
         // TODO: figure out if config should be swapped out as well...
         temperature: 2,
-        version: undefined,
       },
-      docs: undefined,
       messages: [
         {
           role: 'system',
@@ -356,9 +351,7 @@ describe('preabmle', () => {
     assert.deepStrictEqual(pm.lastRequest, {
       config: {
         temperature: 2,
-        version: undefined,
       },
-      docs: undefined,
       messages: [
         {
           role: 'system',

@@ -43,6 +43,7 @@ import {
   ToolRequestPart,
   ToolResponsePart,
 } from './model.js';
+import { ExecutablePrompt } from './prompt.js';
 import { resolveTools, ToolArgument, toToolDefinition } from './tool.js';
 
 /**
@@ -546,6 +547,9 @@ export async function generate<
         tools.push(
           `/${(t as Action).__action.metadata?.type}/${(t as Action).__action.name}`
         );
+      } else if (typeof (t as ExecutablePrompt).asTool === 'function') {
+        const promptToolAction = (t as ExecutablePrompt).asTool();
+        tools.push(`/prompt/${promptToolAction.__action.name}`);
       } else if (t.name) {
         tools.push(await resolveFullToolName(t.name));
       } else {
@@ -601,11 +605,14 @@ export async function generate<
 
   return await runWithStreamingCallback(
     resolvedOptions.streamingCallback,
-    async () =>
-      new GenerateResponse<O>(
-        await generateHelper(params, resolvedOptions.use),
-        await toGenerateRequest(resolvedOptions)
-      )
+    async () => {
+      const response = await generateHelper(params, resolvedOptions.use);
+      return new GenerateResponse<O>(
+        response,
+        response.request ??
+          (await toGenerateRequest({ ...resolvedOptions, tools }))
+      );
+    }
   );
 }
 
@@ -699,4 +706,17 @@ export async function generateStream<
       });
     }
   );
+}
+
+export function tagAsPreamble(msgs?: MessageData[]): MessageData[] | undefined {
+  if (!msgs) {
+    return undefined;
+  }
+  return msgs.map((m) => ({
+    ...m,
+    metadata: {
+      ...m.metadata,
+      preamble: true,
+    },
+  }));
 }

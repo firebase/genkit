@@ -25,12 +25,17 @@ import { toJsonSchema } from '@genkit-ai/core/schema';
 import { runInNewSpan, SPAN_TYPE_ATTR } from '@genkit-ai/core/tracing';
 import * as clc from 'colorette';
 import { DocumentDataSchema } from './document.js';
-import { GenerateResponse, GenerateResponseChunk } from './generate.js';
+import {
+  GenerateResponse,
+  GenerateResponseChunk,
+  tagAsPreamble,
+} from './generate.js';
 import {
   GenerateRequest,
   GenerateRequestSchema,
   GenerateResponseChunkData,
   GenerateResponseData,
+  MessageData,
   MessageSchema,
   ModelAction,
   Part,
@@ -38,7 +43,7 @@ import {
   ToolDefinitionSchema,
   ToolResponsePart,
 } from './model.js';
-import { ToolAction, toToolDefinition } from './tool.js';
+import { lookupToolByName, ToolAction, toToolDefinition } from './tool.js';
 
 export const GenerateUtilParamSchema = z.object({
   /** A model name (e.g. `vertexai/gemini-1.0-pro`). */
@@ -118,17 +123,14 @@ async function generate(
     tools = await Promise.all(
       rawRequest.tools.map(async (toolRef) => {
         if (typeof toolRef === 'string') {
-          const tool = (await lookupAction(toolRef)) as ToolAction;
-          if (!tool) {
-            throw new Error(`Tool ${toolRef} not found`);
-          }
-          return tool;
+          return lookupToolByName(toolRef as string);
+        } else if (toolRef.name) {
+          return lookupToolByName(toolRef.name);
         }
-        throw '';
+        throw `Unable to resolve tool ${JSON.stringify(toolRef)}`;
       })
     );
   }
-
   const request = await actionToGenerateRequest(rawRequest, tools);
 
   const accumulatedChunks: GenerateResponseChunkData[] = [];
@@ -162,7 +164,7 @@ async function generate(
         );
       };
 
-      return new GenerateResponse(await dispatch(0, request));
+      return new GenerateResponse(await dispatch(0, request), request);
     }
   );
 
@@ -175,6 +177,8 @@ async function generate(
     return response.toJSON();
   }
   const toolResponses: ToolResponsePart[] = [];
+  let messages: MessageData[] = [...request.messages, message];
+  let newTools = rawRequest.tools;
   for (const part of toolCalls) {
     if (!part.toolRequest) {
       throw Error(
@@ -187,24 +191,41 @@ async function generate(
     if (!tool) {
       throw Error(`Tool ${part.toolRequest?.name} not found`);
     }
-    if (
-      tool.__action.metadata.type !== 'tool' ||
-      tool.__action.metadata.interrupt
-    ) {
-      return response.toJSON();
+    if ((tool.__action.metadata.type as string) === 'prompt') {
+      const newPreamble = await tool(part.toolRequest?.input);
+      toolResponses.push({
+        toolResponse: {
+          name: part.toolRequest.name,
+          ref: part.toolRequest.ref,
+          output: `transferred to ${part.toolRequest.name}`,
+        },
+      });
+      // swap out the preamble
+      messages = [
+        ...tagAsPreamble(newPreamble.messages)!,
+        ...messages.filter((m) => !m?.metadata?.preamble),
+      ];
+      newTools = newPreamble.tools;
+    } else {
+      toolResponses.push({
+        toolResponse: {
+          name: part.toolRequest.name,
+          ref: part.toolRequest.ref,
+          output: await tool(part.toolRequest?.input),
+        },
+      });
     }
-    toolResponses.push({
-      toolResponse: {
-        name: part.toolRequest.name,
-        ref: part.toolRequest.ref,
-        output: await tool(part.toolRequest?.input),
-      },
-    });
   }
   const nextRequest = {
     ...rawRequest,
-    messages: [...request.messages, message],
-    prompt: toolResponses,
+    messages: [
+      ...messages,
+      {
+        role: 'tool',
+        content: toolResponses,
+      },
+    ] as MessageData[],
+    tools: newTools,
   };
   return await generateHelper(nextRequest, middleware);
 }

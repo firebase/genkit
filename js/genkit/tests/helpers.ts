@@ -138,7 +138,7 @@ export function defineProgrammableModel(ai: Genkit): ProgrammableModel {
       },
     },
     async (request, streamingCallback) => {
-      pm.lastRequest = request;
+      pm.lastRequest = JSON.parse(JSON.stringify(request));
       return pm.handleResponse(request, streamingCallback);
     }
   ) as ProgrammableModel;

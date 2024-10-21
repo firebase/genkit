@@ -43,6 +43,7 @@ export {
   generate,
   generateStream,
   normalizePart,
+  tagAsPreamble,
   toGenerateRequest,
   type GenerateOptions,
   type GenerateStreamOptions,

@@ -115,12 +115,7 @@ import {
   loadPromptFolder,
 } from '@genkit-ai/dotprompt';
 import { v4 as uuidv4 } from 'uuid';
-import {
-  Chat,
-  ChatOptions,
-  ExtendedToolArgument,
-  resolveExecutablePromptTools,
-} from './chat.js';
+import { Chat, ChatOptions } from './chat.js';
 import { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
 import { GenkitPlugin, genkitPlugin } from './plugin.js';
@@ -154,10 +149,9 @@ export interface GenkitOptions {
 export type PromptMetadata<
   Input extends z.ZodTypeAny = z.ZodTypeAny,
   Options extends z.ZodTypeAny = z.ZodTypeAny,
-> = Omit<DotpromptPromptMetadata<Input, Options>, 'name' | 'tools'> & {
+> = Omit<DotpromptPromptMetadata<Input, Options>, 'name'> & {
   /** The name of the prompt. */
   name: string;
-  tools?: ExtendedToolArgument[];
 };
 
 /**
@@ -387,7 +381,7 @@ export class Genkit {
         const dotprompt = defineDotprompt(
           {
             ...options,
-            tools: resolveExecutablePromptTools(options.tools),
+            tools: options.tools,
           },
           templateOrFn as string
         );
@@ -443,7 +437,7 @@ export class Genkit {
           model,
           messages: promptResult.messages,
           docs: promptResult.docs,
-          tools: resolveExecutablePromptTools(promptResult.tools),
+          tools: promptResult.tools,
           output: {
             format: promptResult.output?.format,
             jsonSchema: promptResult.output?.schema,
@@ -477,12 +471,6 @@ export class Genkit {
           return this.generateStream(renderedOpts);
         });
       };
-    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).asTool =
-      (): ToolAction<I, O> => {
-        // FIXME: we need a better concept of a tool loop interrupting tool.
-        p.__action.metadata.interrupt = true;
-        return p as unknown as ToolAction<I, O>;
-      };
     (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).render = <
       Out extends O,
     >(
@@ -493,7 +481,7 @@ export class Genkit {
         try {
           model = await this.resolveModel(opt?.model ?? options.model);
         } catch (e) {
-          // ignore, no model on a render is OK.
+          // ignore, no model on a render is OK?
         }
 
         const promptResult = await p(opt.input);

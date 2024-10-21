@@ -14,17 +14,16 @@
  * limitations under the License.
  */
 
-import { GenerateOptions, MessageData, normalizePart } from '@genkit-ai/ai';
+import {
+  GenerateOptions,
+  MessageData,
+  normalizePart,
+  tagAsPreamble,
+} from '@genkit-ai/ai';
 import { z } from '@genkit-ai/core';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { v4 as uuidv4 } from 'uuid';
-import {
-  Chat,
-  ChatOptions,
-  MAIN_THREAD,
-  PromptRenderOptions,
-  tagAsPreamble,
-} from './chat';
+import { Chat, ChatOptions, MAIN_THREAD, PromptRenderOptions } from './chat';
 import { Genkit } from './genkit';
 
 export type BaseGenerateOptions<
