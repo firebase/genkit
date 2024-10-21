@@ -488,11 +488,14 @@ export class Genkit {
         const resultOptions = {
           messages: promptResult.messages,
           docs: promptResult.docs,
-          tools: promptResult.tools,
-          output: {
-            format: promptResult.output?.format,
-            jsonSchema: promptResult.output?.schema,
-          },
+          tools: promptResult.tools ?? options.tools,
+          output:
+            promptResult.output?.format || promptResult.output?.schema
+              ? {
+                  format: promptResult.output?.format,
+                  jsonSchema: promptResult.output?.schema,
+                }
+              : options.output,
           config: {
             ...options.config,
             ...promptResult.config,
