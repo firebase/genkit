@@ -1,9 +1,9 @@
 
 # Firebase Genkit Plugin
 
-The Firebase plugin for Genkit allows flows to integrate with Firebase services, such as Firestore, Authentication in a streamlined way.
+The Firebase plugin for Genkit allows flows to integrate seamlessly with Firebase services, such as Firestore and Firebase Authentication.
 
-This plugin includes initialization for Firebase, a retriever for Firestore, and Firebase Authentication integration for flow security.
+This plugin includes initialization for Firebase, a retriever for Firestore, and Firebase Authentication integration for enhanced flow security.
 
 ## Prerequisites
 
@@ -35,23 +35,31 @@ import "github.com/firebase/genkit/go/plugins/firebase"
 
 ### Configuration
 
-You need to provide the Firebase configuration in the form of a `FirebasePluginConfig` struct:
+You need to provide the Firebase configuration in the form of a `FirebasePluginConfig` struct. This example assumes that you are loading the project ID and Firestore collection from environment variables:
 
 ```go
+// Load project ID and Firestore collection from environment variables
+projectID := os.Getenv("FIREBASE_PROJECT_ID")
+collectionName := os.Getenv("FIRESTORE_COLLECTION")
+
 firebaseConfig := &firebase.FirebasePluginConfig{
-    ProjectID:        "your-project-id",
-    DatabaseURL:      "https://your-project-id.firebaseio.com",
-    ServiceAccountID: "your-service-account-id",
-    StorageBucket:    "your-bucket.appspot.com",
+    App: firebaseApp, // Pass the pre-initialized Firebase app
+    Retrievers: []firebase.RetrieverOptions{
+        {
+            Name:           "example-retriever",
+            Client:         firestoreClient,
+            Collection:     collectionName,
+            Embedder:       embedder,
+            VectorField:    "embedding",
+            ContentField:   "text",
+            MetadataFields: []string{"metadata"},
+            Limit:          10,
+            DistanceMeasure: firestore.DistanceMeasureEuclidean,
+            VectorType:      firebase.Vector64,
+        },
+    },
 }
 ```
-
-The configuration parameters include:
-
-- **ProjectID**: Your Firebase project ID.
-- **DatabaseURL**: The URL of your Firebase database.
-- **ServiceAccountID**: The service account ID for your Firebase project.
-- **StorageBucket**: The Firebase storage bucket for your project.
 
 ### Initialize Firebase
 
@@ -74,19 +82,13 @@ if err != nil {
 }
 ```
 
-If `Init` is called more than once, a message will be logged indicating that Firebase has already been initialized.
-
 ### Firestore Retriever
 
-The Firebase plugin provides a Firestore retriever that can be used to query documents in a Firestore collection based on vector similarity. To use this, you will need to import Firestore from the Google Cloud SDK:
-
-```go
-import "cloud.google.com/go/firestore"
-```
+The Firebase plugin provides a Firestore retriever that can be used to query documents in a Firestore collection based on vector similarity.
 
 1. **Options Configuration**:
-   You need to configure `RetrieverOptions` which include:
-   
+   You need to configure `RetrieverOptions`, which include:
+
    - **Client**: The Firestore client.
    - **Collection**: The Firestore collection you want to query.
    - **Embedder**: The AI embedder to convert documents into embeddings.
@@ -98,11 +100,11 @@ import "cloud.google.com/go/firestore"
 retrieverOptions := firebase.RetrieverOptions{
     Name:           "example-retriever",
     Client:         firestoreClient,
-    Collection:     "documents",
+    Collection:     collectionName,
     Embedder:       embedder,
     VectorField:    "embedding",
     ContentField:   "text",
-    MetadataFields: []string{"author", "date"},
+    MetadataFields: []string{"metadata"},
     Limit:          10,
     DistanceMeasure: firestore.DistanceMeasureEuclidean,
     VectorType:      firebase.Vector64,
@@ -173,7 +175,7 @@ if err != nil {
 
 ## Local Testing
 
-When testing flows locally, you need to ensure the Google Cloud credentials are available to the Firebase SDK. Use the following command to authenticate:
+When testing flows locally, ensure that the Google Cloud credentials are available to the Firebase SDK. Use the following command to authenticate:
 
 ```bash
 gcloud auth application-default login
@@ -184,5 +186,3 @@ This will provide your local environment with the necessary credentials to inter
 ## Conclusion
 
 The Firebase Genkit Plugin simplifies the integration of Firebase services, including Firestore and Firebase Authentication, into your Genkit flows. With features like Firestore vector queries and flow-level authentication, it provides powerful tools for building intelligent, secure applications.
-
- 
