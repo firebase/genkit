@@ -17,6 +17,8 @@ package firebase
 import (
 	"context"
 	"testing"
+
+	firebase "firebase.google.com/go/v4"
 )
 
 func TestApp(t *testing.T) {
@@ -40,9 +42,9 @@ func TestApp(t *testing.T) {
 		{
 			name: "Get App after successful initialization",
 			setup: func() error {
-				// Properly initialize the app
+				// Properly initialize the app by passing it in the config
 				config := &FirebasePluginConfig{
-					ProjectID: *firebaseProjectID,
+					App: &firebase.App{}, // Pass a mock Firebase app instance
 				}
 				return Init(ctx, config)
 			},

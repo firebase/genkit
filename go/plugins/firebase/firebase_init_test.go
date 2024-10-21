@@ -16,12 +16,10 @@ package firebase
 
 import (
 	"context"
-	"flag"
 	"testing"
-)
 
-// Define the flag with a default value of "demo-test"
-var firebaseProjectID = flag.String("firebase-project-id", "demo-test", "Firebase project ID")
+	firebase "firebase.google.com/go/v4"
+)
 
 func TestInit(t *testing.T) {
 	t.Parallel()
@@ -37,7 +35,7 @@ func TestInit(t *testing.T) {
 		{
 			name: "Successful initialization",
 			config: &FirebasePluginConfig{
-				ProjectID: *firebaseProjectID,
+				App: &firebase.App{}, // Mock Firebase app
 			},
 			expectedError: "",
 			setup: func() error {
@@ -47,19 +45,22 @@ func TestInit(t *testing.T) {
 		{
 			name: "Initialization when already initialized",
 			config: &FirebasePluginConfig{
-				ProjectID: *firebaseProjectID,
+				App: &firebase.App{}, // Mock Firebase app
 			},
 			expectedError: "",
 			setup: func() error {
-				return Init(ctx, &FirebasePluginConfig{ProjectID: *firebaseProjectID}) // Initialize once
+				// Initialize once
+				return Init(ctx, &FirebasePluginConfig{
+					App: &firebase.App{}, // Mock Firebase app
+				})
 			},
 		},
 		{
-			name: "Initialization with missing ProjectID",
+			name: "Initialization with missing App",
 			config: &FirebasePluginConfig{
-				ProjectID: "",
+				App: nil, // No app provided
 			},
-			expectedError: "", // No error expected, as ProjectID can be inferred
+			expectedError: "firebase.Init: no Firebase app provided", // Expecting an error when no app is passed
 			setup: func() error {
 				return nil // No setup required
 			},

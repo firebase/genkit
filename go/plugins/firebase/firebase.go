@@ -22,70 +22,75 @@ import (
 
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/auth"
+	"github.com/firebase/genkit/go/ai"
 )
 
-// state is a singleton-like structure that holds the Firebase app instance
-// and a flag to indicate if it has been initialized.
 var state struct {
-	mu      sync.Mutex    // Ensures thread-safe access to state
-	initted bool          // Tracks if Firebase has been initialized
-	app     *firebase.App // Holds the Firebase app instance
+	mu         sync.Mutex     // Ensures thread-safe access to state
+	initted    bool           // Tracks if the plugin has been initialized
+	app        *firebase.App  // Holds the Firebase app instance
+	retrievers []ai.Retriever // Holds the list of initialized retrievers
 }
 
+// FirebaseApp is an interface to represent the Firebase App object
 type FirebaseApp interface {
 	Auth(ctx context.Context) (*auth.Client, error)
 }
 
 // FirebasePluginConfig is the configuration for the Firebase plugin.
+// It passes an already initialized Firebase app and retriever options.
 type FirebasePluginConfig struct {
-	AuthOverride     *map[string]interface{} `json:"databaseAuthVariableOverride"`
-	DatabaseURL      string                  `json:"databaseURL"`
-	ProjectID        string                  `json:"projectId"`
-	ServiceAccountID string                  `json:"serviceAccountId"`
-	StorageBucket    string                  `json:"storageBucket"`
+	App        *firebase.App      // Pre-initialized Firebase app
+	Retrievers []RetrieverOptions // Array of retriever options
 }
 
-// Init initializes the Firebase app with the provided configuration.
-// If called more than once, it logs a message and returns nil.
+// Init initializes the plugin with the provided configuration.
+// It caches the provided Firebase app and initializes retrievers.
 func Init(ctx context.Context, cfg *FirebasePluginConfig) error {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 
 	if state.initted {
-		log.Println("firebase.Init: already called, returning without reinitializing")
+		log.Println("firebase.Init: plugin already initialized, returning without reinitializing")
 		return nil
 	}
 
-	// Prepare the Firebase config
-	firebaseConfig := &firebase.Config{
-		AuthOverride:     cfg.AuthOverride,
-		DatabaseURL:      cfg.DatabaseURL,
-		ProjectID:        cfg.ProjectID, // Allow ProjectID to be empty
-		ServiceAccountID: cfg.ServiceAccountID,
-		StorageBucket:    cfg.StorageBucket,
+	// Ensure an app is provided
+	if cfg.App == nil {
+		return fmt.Errorf("firebase.Init: no Firebase app provided")
 	}
 
-	// Initialize Firebase app with service account key if provided
-	app, err := firebase.NewApp(ctx, firebaseConfig)
-	if err != nil {
-		return fmt.Errorf("firebase.Init: %w", err)
+	// Cache the provided app
+	state.app = cfg.App
+
+	// Initialize retrievers
+	var retrievers []ai.Retriever
+	for _, retrieverCfg := range cfg.Retrievers {
+		retriever, err := DefineFirestoreRetriever(retrieverCfg)
+		if err != nil {
+			return fmt.Errorf("firebase.Init: failed to initialize retriever %s: %v", retrieverCfg.Name, err)
+		}
+		retrievers = append(retrievers, retriever)
 	}
 
-	state.app = app
+	// Cache the initialized retrievers
+	state.retrievers = retrievers
 	state.initted = true
 
 	return nil
 }
 
+// unInit clears the initialized plugin state.
 func unInit() {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 
 	state.initted = false
 	state.app = nil
+	state.retrievers = nil
 }
 
-// App returns a cached Firebase app.
+// App returns the cached Firebase app.
 // If the app is not initialized, it returns an error.
 func App(ctx context.Context) (*firebase.App, error) {
 	state.mu.Lock()
@@ -96,4 +101,17 @@ func App(ctx context.Context) (*firebase.App, error) {
 	}
 
 	return state.app, nil
+}
+
+// Retrievers returns the cached list of retrievers.
+// If retrievers are not initialized, it returns an error.
+func Retrievers(ctx context.Context) ([]ai.Retriever, error) {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+
+	if !state.initted {
+		return nil, fmt.Errorf("firebase.Retrievers: Plugin not initialized. Call Init first")
+	}
+
+	return state.retrievers, nil
 }
