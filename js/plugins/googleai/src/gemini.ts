@@ -15,37 +15,35 @@
  */
 
 import {
+  Content as GeminiMessage,
   FileDataPart,
   FunctionCallPart,
   FunctionDeclaration,
-  FunctionDeclarationSchemaType,
   FunctionResponsePart,
   GenerateContentCandidate as GeminiCandidate,
-  Content as GeminiMessage,
-  Part as GeminiPart,
-  GenerateContentResponse,
   GenerationConfig,
   GoogleGenerativeAI,
   InlineDataPart,
+  Part as GeminiPart,
   RequestOptions,
   StartChatParams,
   Tool,
 } from '@google/generative-ai';
-import { GENKIT_CLIENT_HEADER, Genkit, z } from 'genkit';
+import { Genkit, GENKIT_CLIENT_HEADER, z } from 'genkit';
 import {
   CandidateData,
   GenerationCommonConfigSchema,
+  getBasicUsageStats,
   MediaPart,
   MessageData,
   ModelAction,
   ModelMiddleware,
+  modelRef,
   ModelReference,
   Part,
   ToolDefinitionSchema,
   ToolRequestPart,
   ToolResponsePart,
-  getBasicUsageStats,
-  modelRef,
 } from 'genkit/model';
 import {
   downloadRequestMedia,
@@ -214,18 +212,18 @@ function convertSchemaProperty(property) {
       nestedProperties[key] = convertSchemaProperty(property.properties[key]);
     });
     return {
-      type: FunctionDeclarationSchemaType.OBJECT,
+      type: 'OBJECT',
       properties: nestedProperties,
       required: property.required,
     };
   } else if (property.type === 'array') {
     return {
-      type: FunctionDeclarationSchemaType.ARRAY,
+      type: 'ARRAY',
       items: convertSchemaProperty(property.items),
     };
   } else {
     return {
-      type: FunctionDeclarationSchemaType[property.type.toUpperCase()],
+      type: property.type.toUpperCase(),
     };
   }
 }
@@ -586,7 +584,7 @@ export function googleAIModel(
           .startChat(chatRequest)
           .sendMessageStream(msg.parts, options);
         for await (const item of result.stream) {
-          (item as GenerateContentResponse).candidates?.forEach((candidate) => {
+          item.candidates?.forEach((candidate) => {
             const c = fromJSONModeScopedGeminiCandidate(candidate);
             streamingCallback({
               index: c.index,
@@ -595,9 +593,6 @@ export function googleAIModel(
           });
         }
         const response = await result.response;
-        if (!response.candidates?.length) {
-          throw new Error('No valid candidates returned.');
-        }
         return {
           candidates:
             response.candidates?.map(fromJSONModeScopedGeminiCandidate) || [],

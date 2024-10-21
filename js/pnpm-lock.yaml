@@ -453,8 +453,8 @@ importers:
   plugins/googleai:
     dependencies:
       '@google/generative-ai':
-        specifier: ^0.16.0
-        version: 0.16.0
+        specifier: ^0.21.0
+        version: 0.21.0
       genkit:
         specifier: workspace:*
         version: link:../../genkit
@@ -1993,8 +1993,8 @@ packages:
     resolution: {integrity: sha512-zs37judcTYFJf1U7tnuqnh7gdzF6dcWj9pNRxjA5JTONRoiQ0htrRdbefRFiewOIfXwhun5t9hbd2ray7812eQ==}
     engines: {node: '>=18.0.0'}
 
-  '@google/generative-ai@0.16.0':
-    resolution: {integrity: sha512-doB5ZNxS6m+jUZqaLCeYXfBZCdq6Ho0ibkq5/17xe1qAUZpCLWlvCDGtqFPqqO+yezNmvGatS0KhV22yiOT3DA==}
+  '@google/generative-ai@0.21.0':
+    resolution: {integrity: sha512-7XhUbtnlkSEZK15kN3t+tzIMxsbKm/dSkKBFalj+20NvPKe1kBY7mR2P7vuijEn+f06z5+A8bVGKO0v39cr6Wg==}
     engines: {node: '>=18.0.0'}
 
   '@grpc/grpc-js@1.10.10':
@@ -7008,7 +7008,7 @@ snapshots:
 
   '@google/generative-ai@0.15.0': {}
 
-  '@google/generative-ai@0.16.0': {}
+  '@google/generative-ai@0.21.0': {}
 
   '@grpc/grpc-js@1.10.10':
     dependencies:
