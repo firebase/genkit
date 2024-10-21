@@ -158,54 +158,57 @@ export class Session<S extends z.ZodTypeAny = z.ZodTypeAny> {
     optionsOrThreadName?: ChatOptions<I, S> | string,
     maybeOptions?: ChatOptions<I, S>
   ): Chat<S> {
-    let options: ChatOptions<S> | undefined;
-    let threadName = MAIN_THREAD;
-    if (maybeOptions) {
-      threadName = optionsOrThreadName as string;
-      options = maybeOptions as ChatOptions<S>;
-    } else if (optionsOrThreadName) {
-      if (typeof optionsOrThreadName === 'string') {
+    return runWithSession(this, () => {
+      let options: ChatOptions<S> | undefined;
+      let threadName = MAIN_THREAD;
+      if (maybeOptions) {
         threadName = optionsOrThreadName as string;
+        options = maybeOptions as ChatOptions<S>;
+      } else if (optionsOrThreadName) {
+        if (typeof optionsOrThreadName === 'string') {
+          threadName = optionsOrThreadName as string;
+        } else {
+          options = optionsOrThreadName as ChatOptions<S>;
+        }
+      }
+      let requestBase: Promise<BaseGenerateOptions>;
+      if (!!(options as PromptRenderOptions<I>)?.prompt?.render) {
+        const renderOptions = options as PromptRenderOptions<I>;
+        requestBase = renderOptions.prompt
+          .render({
+            input: renderOptions.input,
+          })
+          .then((rb) => {
+            return {
+              ...rb,
+              messages: tagAsPreamble(rb?.messages),
+            };
+          });
       } else {
-        options = optionsOrThreadName as ChatOptions<S>;
-      }
-    }
-    let requestBase: Promise<BaseGenerateOptions>;
-    if (!!(options as PromptRenderOptions<I>)?.prompt?.render) {
-      const renderOptions = options as PromptRenderOptions<I>;
-      requestBase = renderOptions.prompt
-        .render({
-          input: renderOptions.input,
-        })
-        .then((rb) => {
-          return {
-            ...rb,
-            messages: tagAsPreamble(rb?.messages),
-          };
-        });
-    } else {
-      const baseOptions = { ...(options as BaseGenerateOptions) };
-      const messages: MessageData[] = [];
-      if (baseOptions.system) {
-        messages.push({
-          role: 'system',
-          content: normalizePart(baseOptions.system),
-        });
-      }
-      delete baseOptions.system;
-      if (baseOptions.messages) {
-        messages.push(...baseOptions.messages);
-      }
-      baseOptions.messages = tagAsPreamble(messages);
+        const baseOptions = { ...(options as BaseGenerateOptions) };
+        const messages: MessageData[] = [];
+        if (baseOptions.system) {
+          messages.push({
+            role: 'system',
+            content: normalizePart(baseOptions.system),
+          });
+        }
+        delete baseOptions.system;
+        if (baseOptions.messages) {
+          messages.push(...baseOptions.messages);
+        }
+        baseOptions.messages = tagAsPreamble(messages);
 
-      requestBase = Promise.resolve(baseOptions);
-    }
-    return new Chat<S>(this, requestBase, {
-      thread: threadName,
-      id: this.id,
-      messages:
-        (this.sessionData?.threads && this.sessionData?.threads[threadName]) ??
-        [],
+        requestBase = Promise.resolve(baseOptions);
+      }
+      return new Chat<S>(this, requestBase, {
+        thread: threadName,
+        id: this.id,
+        messages:
+          (this.sessionData?.threads &&
+            this.sessionData?.threads[threadName]) ??
+          [],
+      });
     });
   }
 

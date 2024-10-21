@@ -1,5 +1,5 @@
 import devLocalVectorstore from '@genkit-ai/dev-local-vectorstore';
-import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
+import { textEmbedding004, vertexAI, gemini15Flash } from '@genkit-ai/vertexai';
 import { genkit } from 'genkit';
 
 export const ai = genkit({
@@ -9,6 +9,7 @@ export const ai = genkit({
       { indexName: 'school-handbook', embedder: textEmbedding004 },
     ]),
   ],
+  model: gemini15Flash
 });
 
 export { z } from 'genkit';
