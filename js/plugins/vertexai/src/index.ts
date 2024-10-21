@@ -70,7 +70,6 @@ import {
   modelGardenOpenaiCompatibleModel,
   SUPPORTED_OPENAI_FORMAT_MODELS,
 } from './model_garden.js';
-import { vertexAiRerankers, VertexRerankerConfig } from './reranker.js';
 import {
   VectorSearchOptions,
   vertexAiIndexers,
@@ -138,8 +137,6 @@ export interface PluginOptions {
   };
   /** Configure Vertex AI vector search index options */
   vectorSearchOptions?: VectorSearchOptions<z.ZodTypeAny, any, any>[];
-  /** Configure reranker options */
-  rerankOptions?: VertexRerankerConfig[];
 }
 
 /**
@@ -246,21 +243,12 @@ export const vertexAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       });
     }
 
-    const rerankOptions = {
-      pluginOptions: options,
-      authClient,
-      projectId,
-    };
-
-    const rerankers = await vertexAiRerankers(rerankOptions);
-
     return {
       models,
       embedders,
       evaluators: vertexEvaluators(authClient, metrics, projectId, location),
       retrievers,
       indexers,
-      rerankers,
     };
   }
 );

@@ -66,9 +66,22 @@
       "import": "./lib/index.mjs",
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
+    },
+    "./reranker": {
+      "require": "./lib/reranker/index.js",
+      "import": "./lib/reranker/index.mjs",
+      "types": "./lib/reranker/index.d.ts",
+      "default": "./lib/reranker/index.js"
     }
   },
   "typesVersions": {
-    "*": {}
+    "*": {
+      ".": [
+        "./lib/index.d.ts"
+      ],
+      "./reranker": [
+        "./lib/reranker/index.d.ts"
+      ]
+    }
   }
 }
