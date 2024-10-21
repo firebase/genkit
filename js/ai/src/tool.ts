@@ -103,6 +103,8 @@ export async function resolveTools<
         return await lookupToolByName(ref);
       } else if ((ref as Action).__action) {
         return asTool(ref as Action);
+      } else if ((ref as CallableFlow).flow) {
+        return (ref as CallableFlow).flow.action as ToolAction;
       } else if (typeof (ref as ExecutablePrompt).asTool === 'function') {
         return (ref as ExecutablePrompt).asTool();
       } else if (ref.name) {
@@ -117,6 +119,7 @@ export async function lookupToolByName(name: string): Promise<ToolAction> {
   let tool =
     (await lookupAction(name)) ||
     (await lookupAction(`/tool/${name}`)) ||
+    (await lookupAction(`/flow/${name}`)) ||
     (await lookupAction(`/prompt/${name}`));
   if (!tool) {
     throw new Error(`Tool ${name} not found`);

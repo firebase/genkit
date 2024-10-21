@@ -625,6 +625,8 @@ async function resolveFullToolName(name: string): Promise<string> {
     return `/tool/${name}`;
   } else if (await lookupAction(`/prompt/${name}`)) {
     return `/prompt/${name}`;
+  } else if (await lookupAction(`/flow/${name}`)) {
+    return `/flow/${name}`;
   } else {
     throw new Error(`Unable to determine type of of tool: ${name}`);
   }

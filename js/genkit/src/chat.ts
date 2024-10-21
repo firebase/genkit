@@ -170,41 +170,43 @@ export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
   >(
     options: string | Part[] | GenerateStreamOptions<O, CustomOptions>
   ): Promise<GenerateStreamResponse<z.infer<O>>> {
-    let resolvedOptions;
+    return await runWithSession(this.session, async () => {
+      let resolvedOptions;
 
-    // string
-    if (typeof options === 'string') {
-      resolvedOptions = {
-        prompt: options,
-      } as GenerateStreamOptions<O, CustomOptions>;
-    } else if (Array.isArray(options)) {
-      // Part[]
-      resolvedOptions = {
-        prompt: options,
-      } as GenerateStreamOptions<O, CustomOptions>;
-    } else {
-      resolvedOptions = options as GenerateStreamOptions<O, CustomOptions>;
-    }
+      // string
+      if (typeof options === 'string') {
+        resolvedOptions = {
+          prompt: options,
+        } as GenerateStreamOptions<O, CustomOptions>;
+      } else if (Array.isArray(options)) {
+        // Part[]
+        resolvedOptions = {
+          prompt: options,
+        } as GenerateStreamOptions<O, CustomOptions>;
+      } else {
+        resolvedOptions = options as GenerateStreamOptions<O, CustomOptions>;
+      }
 
-    const { response, stream } = await this.genkit.generateStream({
-      ...(await this.requestBase),
-      messages: this.messages,
-      ...resolvedOptions,
+      const { response, stream } = await this.genkit.generateStream({
+        ...(await this.requestBase),
+        messages: this.messages,
+        ...resolvedOptions,
+      });
+
+      return {
+        response: response.finally(async () => {
+          const resolvedResponse = await response;
+          this.requestBase = Promise.resolve({
+            ...(await this.requestBase),
+            // these things may get changed by tools calling within generate.
+            tools: resolvedResponse?.request?.tools,
+            config: resolvedResponse?.request?.config,
+          });
+          this.updateMessages(resolvedResponse.messages);
+        }),
+        stream,
+      };
     });
-
-    return {
-      response: response.finally(async () => {
-        const resolvedResponse = await response;
-        this.requestBase = Promise.resolve({
-          ...(await this.requestBase),
-          // these things may get changed by tools calling within generate.
-          tools: resolvedResponse?.request?.tools,
-          config: resolvedResponse?.request?.config,
-        });
-        this.updateMessages(resolvedResponse.messages);
-      }),
-      stream,
-    };
   }
 
   private get genkit(): Genkit {
