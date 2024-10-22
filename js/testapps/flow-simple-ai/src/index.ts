@@ -17,16 +17,16 @@
 import { defineFirestoreRetriever } from '@genkit-ai/firebase';
 import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 import {
-  gemini10Pro as googleGemini10Pro,
   gemini15Flash,
   googleAI,
+  gemini10Pro as googleGemini10Pro,
 } from '@genkit-ai/googleai';
 import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
 import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { genkit, MessageSchema, run, z } from 'genkit';
+import { MessageSchema, genkit, run, z } from 'genkit';
 import { Allow, parse } from 'partial-json';
 
 enableGoogleCloudTelemetry({

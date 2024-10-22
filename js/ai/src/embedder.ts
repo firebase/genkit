@@ -156,7 +156,9 @@ async function resolveEmbedder<
 ): Promise<ResolvedEmbedder<CustomOptions>> {
   if (typeof params.embedder === 'string') {
     return {
-      embedderAction: await registry.lookupAction(`/embedder/${params.embedder}`),
+      embedderAction: await registry.lookupAction(
+        `/embedder/${params.embedder}`
+      ),
     };
   } else if (Object.hasOwnProperty.call(params.embedder, '__action')) {
     return {
