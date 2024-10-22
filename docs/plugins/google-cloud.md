@@ -224,8 +224,7 @@ Common dimensions include:
 ### Feature-level metrics
 
 Features are the top-level entry-point to your Genkit code. In most cases, this
-will be a Genkit flow, but if you do not use flows this will be the top-most
-span in a Genkit trace.
+will be a flow, but if you do not use flows, this will be the top-most span in a trace.
 
 | Name                    | Type      | Description             |
 | ----------------------- | --------- | ----------------------- |
@@ -236,11 +235,11 @@ Each feature-level metric contains the following dimensions:
 
 | Name          | Description                                                                      |
 | ------------- | -------------------------------------------------------------------------------- |
-| name          | The name of the feature. In most cases, this is the top-level genkit flow        |
+| name          | The name of the feature. In most cases, this is the top-level Genkit flow        |
 | status        | 'success' or 'failure' depending on whether or not the feature request succeeded |
 | error         | Only set when `status=failure`. Contains the error type that caused the failure  |
 | source        | The Genkit source language. Eg. 'ts'                                             |
-| sourceVersion | The Genkit framework version                                         |
+| sourceVersion | The Genkit framework version                                                     |
 
 
 ### Action-level metrics
@@ -257,13 +256,13 @@ Each action-level metric contains the following dimensions:
 
 | Name          | Description                                                                                          |
 | ------------- | ---------------------------------------------------------------------------------------------------- |
-| name          | The name of the action being tracked                                                                 |
+| name          | The name of the action                                                                               |
 | featureName   | The name of the parent feature being executed                                                        |
 | path          | The path of execution from the feature root to this action. eg. '/myFeature/parentAction/thisAction' |
 | status        | 'success' or 'failure' depending on whether or not the action succeeded                              |
 | error         | Only set when `status=failure`. Contains the error type that caused the failure                      |
 | source        | The Genkit source language. Eg. 'ts'                                                                 |
-| sourceVersion | The Genkit framework version                                                             |
+| sourceVersion | The Genkit framework version                                                                         |
 
 ### Generate-level metrics
 
@@ -289,7 +288,7 @@ Each generate-level metric contains the following dimensions:
 | Name            | Description                                                                                          |
 | --------------- | ---------------------------------------------------------------------------------------------------- |
 | modelName       | The name of the model                                                                                |
-| featureName     | The name of the parent feature being executed                          |
+| featureName     | The name of the parent feature being executed                                                        |
 | path            | The path of execution from the feature root to this action. eg. '/myFeature/parentAction/thisAction' |
 | temperature     | The temperature parameter passed to the model                                                        |
 | maxOutputTokens | The maxOutputTokens parameter passed to the model                                                    |
