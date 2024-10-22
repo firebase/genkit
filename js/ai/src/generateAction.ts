@@ -191,7 +191,6 @@ async function generate(
     if (!tool) {
       throw Error(`Tool ${part.toolRequest?.name} not found`);
     }
-    console.log();
     if ((tool.__action.metadata.type as string) === 'prompt') {
       const newPreamble = await tool(part.toolRequest?.input);
       toolResponses.push({
