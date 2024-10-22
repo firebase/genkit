@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# git clone git@github.com:firebase/genkit.git
+# cd genkit
+# pnpm i
+# pnpm build
+# pnpm test:all
 # Run from root: scripts/release_main.sh
 
 pnpm login --registry https://wombat-dressing-room.appspot.com
