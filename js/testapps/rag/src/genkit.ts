@@ -20,7 +20,7 @@ import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
 import {
   claude3Sonnet,
   llama31,
-  textEmbeddingGecko,
+  textEmbedding004,
   vertexAI,
 } from '@genkit-ai/vertexai';
 import { genkit } from 'genkit';
@@ -83,17 +83,17 @@ export const ai = genkit({
     pinecone([
       {
         indexId: 'cat-facts',
-        embedder: textEmbeddingGecko,
+        embedder: textEmbedding004,
       },
       {
         indexId: 'pdf-chat',
-        embedder: textEmbeddingGecko,
+        embedder: textEmbedding004,
       },
     ]),
     chroma([
       {
         collectionName: 'dogfacts_collection',
-        embedder: textEmbeddingGecko,
+        embedder: textEmbedding004,
         createCollectionIfMissing: true,
         clientParams: async () => {
           // Replace this with your Cloud Run Instance URL
@@ -114,11 +114,11 @@ export const ai = genkit({
     devLocalVectorstore([
       {
         indexName: 'dog-facts',
-        embedder: textEmbeddingGecko,
+        embedder: textEmbedding004,
       },
       {
         indexName: 'pdfQA',
-        embedder: textEmbeddingGecko,
+        embedder: textEmbedding004,
       },
     ]),
   ],

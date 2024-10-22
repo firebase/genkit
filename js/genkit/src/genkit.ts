@@ -26,6 +26,7 @@ import {
   EvalResponses,
   evaluate,
   EvaluatorParams,
+  ExecutablePrompt,
   generate,
   GenerateOptions,
   GenerateRequest,
@@ -35,13 +36,13 @@ import {
   GenerateStreamOptions,
   GenerateStreamResponse,
   GenerationCommonConfigSchema,
-  index,
   IndexerParams,
   ModelArgument,
   ModelReference,
   Part,
   PromptAction,
   PromptFn,
+  PromptGenerateOptions,
   RankedDocument,
   rerank,
   RerankerParams,
@@ -81,6 +82,7 @@ import {
   defineRetriever,
   defineSimpleRetriever,
   DocumentData,
+  index,
   IndexerAction,
   IndexerFn,
   RetrieverFn,
@@ -109,10 +111,7 @@ import {
   defineDotprompt,
   defineHelper,
   definePartial,
-  Dotprompt,
   loadPromptFolder,
-  prompt,
-  PromptGenerateOptions,
   PromptMetadata,
 } from '@genkit-ai/dotprompt';
 import { v4 as uuidv4 } from 'uuid';
@@ -120,7 +119,7 @@ import { Chat, ChatOptions } from './chat.js';
 import { BaseEvalDataPointSchema } from './evaluator.js';
 import { logger } from './logging.js';
 import { GenkitPlugin, genkitPlugin } from './plugin.js';
-import { lookupAction, Registry, runWithRegistry } from './registry.js';
+import { Registry } from './registry.js';
 import {
   getCurrentSession,
   Session,
@@ -142,65 +141,6 @@ export interface GenkitOptions {
   // FIXME: This will not actually expose any flows. It needs a new mechanism for exposing endpoints.
   /** Configuration for the flow server. Server will be started if value is true or a configured object. */
   flowServer?: FlowServerOptions | boolean;
-}
-
-export interface ExecutablePrompt<
-  I extends z.ZodTypeAny = z.ZodTypeAny,
-  O extends z.ZodTypeAny = z.ZodTypeAny,
-  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-> {
-  /**
-   * Generates a response by rendering the prompt template with given user input and then calling the model.
-   *
-   * @param input Prompt inputs.
-   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
-   * @returns the model response as a promise of `GenerateStreamResponse`.
-   */
-  <Out extends O>(
-    input?: z.infer<I>,
-    opts?: z.infer<CustomOptions>
-  ): Promise<GenerateResponse<z.infer<Out>>>;
-
-  /**
-   * Generates a response by rendering the prompt template with given user input and then calling the model.
-   * @param input Prompt inputs.
-   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
-   * @returns the model response as a promise of `GenerateStreamResponse`.
-   */
-  stream<Out extends O>(
-    input?: z.infer<I>,
-    opts?: z.infer<CustomOptions>
-  ): Promise<GenerateStreamResponse<z.infer<Out>>>;
-
-  /**
-   * Generates a response by rendering the prompt template with given user input and additional generate options and then calling the model.
-   *
-   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
-   * @returns the model response as a promise of `GenerateResponse`.
-   */
-  generate<Out extends O>(
-    opt: PromptGenerateOptions<z.infer<I>, CustomOptions>
-  ): Promise<GenerateResponse<z.infer<Out>>>;
-
-  /**
-   * Generates a streaming response by rendering the prompt template with given user input and additional generate options and then calling the model.
-   *
-   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
-   * @returns the model response as a promise of `GenerateStreamResponse`.
-   */
-  generateStream<Out extends O>(
-    opt: PromptGenerateOptions<z.infer<I>, CustomOptions>
-  ): Promise<GenerateStreamResponse<z.infer<Out>>>;
-
-  /**
-   * Renders the prompt template based on user input.
-   *
-   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
-   * @returns a `GenerateOptions` object to be used with the `generate()` function from @genkit-ai/ai.
-   */
-  render<Out extends O>(
-    opt: PromptGenerateOptions<z.infer<I>, CustomOptions>
-  ): Promise<GenerateOptions<CustomOptions, Out>>;
 }
 
 /**
@@ -253,7 +193,7 @@ export class Genkit {
     I extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
   >(config: FlowConfig<I, O> | string, fn: FlowFn<I, O>): CallableFlow<I, O> {
-    const flow = runWithRegistry(this.registry, () => defineFlow(config, fn));
+    const flow = defineFlow(this.registry, config, fn);
     this.registeredFlows.push(flow.flow);
     return flow;
   }
@@ -271,9 +211,7 @@ export class Genkit {
     config: StreamingFlowConfig<I, O, S>,
     fn: FlowFn<I, O, S>
   ): StreamableFlow<I, O, S> {
-    const flow = runWithRegistry(this.registry, () =>
-      defineStreamingFlow(config, fn)
-    );
+    const flow = defineStreamingFlow(this.registry, config, fn);
     this.registeredFlows.push(flow.flow);
     return flow;
   }
@@ -287,7 +225,7 @@ export class Genkit {
     config: ToolConfig<I, O>,
     fn: (input: z.infer<I>) => Promise<z.infer<O>>
   ): ToolAction<I, O> {
-    return runWithRegistry(this.registry, () => defineTool(config, fn));
+    return defineTool(this.registry, config, fn);
   }
 
   /**
@@ -296,7 +234,7 @@ export class Genkit {
    * Defined schemas can be referenced by `name` in prompts in place of inline schemas.
    */
   defineSchema<T extends z.ZodTypeAny>(name: string, schema: T): T {
-    return runWithRegistry(this.registry, () => defineSchema(name, schema));
+    return defineSchema(this.registry, name, schema);
   }
 
   /**
@@ -305,9 +243,7 @@ export class Genkit {
    * Defined schemas can be referenced by `name` in prompts in place of inline schemas.
    */
   defineJsonSchema(name: string, jsonSchema: JSONSchema) {
-    return runWithRegistry(this.registry, () =>
-      defineJsonSchema(name, jsonSchema)
-    );
+    return defineJsonSchema(this.registry, name, jsonSchema);
   }
 
   /**
@@ -320,7 +256,7 @@ export class Genkit {
       streamingCallback?: StreamingCallback<GenerateResponseChunkData>
     ) => Promise<GenerateResponseData>
   ): ModelAction<CustomOptionsSchema> {
-    return runWithRegistry(this.registry, () => defineModel(options, runner));
+    return defineModel(this.registry, options, runner);
   }
 
   /**
@@ -328,33 +264,21 @@ export class Genkit {
    *
    * @todo TODO: Show an example of a name and variant.
    */
-  prompt<
+  async prompt<
     I extends z.ZodTypeAny = z.ZodTypeAny,
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
     name: string,
     options?: { variant?: string }
-  ): Promise<ExecutablePrompt<I, O, CustomOptions>> {
-    return runWithRegistry(this.registry, async () => {
-      const action = (await lookupAction(`/prompt/${name}`)) as PromptAction;
-      if (
-        action.__action?.metadata?.prompt &&
-        Object.keys(action.__action.metadata.prompt).length > 0
-      ) {
-        const p = await prompt(name, options);
-        return this.wrapDotpromptInExecutablePrompt(p, {}) as ExecutablePrompt<
-          I,
-          O,
-          CustomOptions
-        >;
-      } else {
-        return this.wrapPromptActionInExecutablePrompt(
-          action,
-          {}
-        ) as ExecutablePrompt<I, O, CustomOptions>;
-      }
-    });
+  ): Promise<ExecutablePrompt<z.infer<I>, O, CustomOptions>> {
+    const action = (await this.registry.lookupAction(
+      `/prompt/${name}`
+    )) as PromptAction<I>;
+    return this.wrapPromptActionInExecutablePrompt(
+      action,
+      {}
+    ) as ExecutablePrompt<I, O, CustomOptions>;
   }
 
   /**
@@ -387,7 +311,7 @@ export class Genkit {
       name: string;
     },
     template: string
-  ): ExecutablePrompt<I, O, CustomOptions>;
+  ): ExecutablePrompt<z.infer<I>, O, CustomOptions>;
 
   /**
    * Defines and registers a function-based prompt.
@@ -424,7 +348,7 @@ export class Genkit {
       name: string;
     },
     fn: PromptFn<I>
-  ): ExecutablePrompt<I, O, CustomOptions>;
+  ): ExecutablePrompt<z.infer<I>, O, CustomOptions>;
 
   definePrompt<
     I extends z.ZodTypeAny = z.ZodTypeAny,
@@ -436,106 +360,35 @@ export class Genkit {
       name: string;
     },
     templateOrFn: string | PromptFn<I>
-  ): ExecutablePrompt<I, O, CustomOptions> {
+  ): ExecutablePrompt<z.infer<I>, O, CustomOptions> {
     if (!options.name) {
       throw new Error('options.name is required');
     }
-    return runWithRegistry(this.registry, () => {
-      if (!options.name) {
-        throw new Error('options.name is required');
-      }
-      if (typeof templateOrFn === 'string') {
-        const dotprompt = defineDotprompt(options, templateOrFn as string);
-        return this.wrapDotpromptInExecutablePrompt(dotprompt, options);
-      } else {
-        const p = definePrompt(
-          {
-            name: options.name!,
-            inputJsonSchema: options.input?.jsonSchema,
-            inputSchema: options.input?.schema,
-          },
-          templateOrFn as PromptFn<I>
-        );
-        return this.wrapPromptActionInExecutablePrompt(p, options);
-      }
-    });
-  }
-
-  private wrapDotpromptInExecutablePrompt<
-    I extends z.ZodTypeAny = z.ZodTypeAny,
-    O extends z.ZodTypeAny = z.ZodTypeAny,
-    CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
-  >(
-    dotprompt: Dotprompt<z.infer<I>>,
-    options: PromptMetadata<I, CustomOptions>
-  ): ExecutablePrompt<I, O, CustomOptions> {
-    const executablePrompt = (
-      input?: z.infer<I>,
-      opts?: z.infer<CustomOptions>
-    ): Promise<GenerateResponse<O>> => {
-      return runWithRegistry(this.registry, async () => {
-        const model = await this.resolveModel(options.model);
-        return dotprompt.generate({
-          model,
-          input,
-          config: opts,
-        });
-      });
-    };
-    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).stream = (
-      input?: z.infer<I>,
-      opts?: z.infer<CustomOptions>
-    ): Promise<GenerateStreamResponse<O>> => {
-      return runWithRegistry(this.registry, async () => {
-        const model = await this.resolveModel(options.model);
-        return dotprompt.generateStream({
-          model,
-          input,
-          config: opts,
-        }) as Promise<GenerateStreamResponse<O>>;
-      });
-    };
-    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generate = (
-      opt: PromptGenerateOptions<I, CustomOptions>
-    ): Promise<GenerateResponse<O>> => {
-      return runWithRegistry(this.registry, async () => {
-        const model = !opt.model
-          ? await this.resolveModel(options.model)
-          : undefined;
-        return dotprompt.generate({
-          model,
-          ...opt,
-        });
-      });
-    };
-    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generateStream =
-      (
-        opt: PromptGenerateOptions<I, CustomOptions>
-      ): Promise<GenerateStreamResponse<O>> => {
-        return runWithRegistry(this.registry, async () => {
-          const model = !opt.model
-            ? await this.resolveModel(options.model)
-            : undefined;
-          return dotprompt.generateStream<CustomOptions>({
-            model,
-            ...opt,
-          }) as Promise<GenerateStreamResponse<O>>;
-        });
-      };
-    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).render = <
-      Out extends O,
-    >(
-      opt: PromptGenerateOptions<I, CustomOptions>
-    ): Promise<GenerateOptions<CustomOptions, Out>> => {
-      return runWithRegistry(
+    if (!options.name) {
+      throw new Error('options.name is required');
+    }
+    if (typeof templateOrFn === 'string') {
+      const dotprompt = defineDotprompt(
         this.registry,
-        async () =>
-          dotprompt.render({
-            ...opt,
-          }) as GenerateOptions<CustomOptions, Out>
+        options,
+        templateOrFn as string
       );
-    };
-    return executablePrompt as ExecutablePrompt<I, O, CustomOptions>;
+      return this.wrapPromptActionInExecutablePrompt(
+        dotprompt.promptAction! as PromptAction<I>,
+        options
+      );
+    } else {
+      const p = definePrompt(
+        this.registry,
+        {
+          name: options.name!,
+          inputJsonSchema: options.input?.jsonSchema,
+          inputSchema: options.input?.schema,
+        },
+        templateOrFn as PromptFn<I>
+      );
+      return this.wrapPromptActionInExecutablePrompt(p, options);
+    }
   }
 
   private wrapPromptActionInExecutablePrompt<
@@ -546,135 +399,83 @@ export class Genkit {
     p: PromptAction<I>,
     options: PromptMetadata<I, CustomOptions>
   ): ExecutablePrompt<I, O, CustomOptions> {
-    const executablePrompt = (
+    const executablePrompt = async (
       input?: z.infer<I>,
-      opts?: z.infer<CustomOptions>
+      opts?: PromptGenerateOptions<I, CustomOptions>
     ): Promise<GenerateResponse> => {
-      return runWithRegistry(this.registry, async () => {
-        const model = await this.resolveModel(options.model);
-        const promptResult = await p(input);
-        return this.generate({
-          model,
-          messages: promptResult.messages,
-          docs: promptResult.docs,
-          tools: promptResult.tools,
-          output: {
-            format: promptResult.output?.format,
-            jsonSchema: promptResult.output?.schema,
-          },
-          config: {
-            ...options.config,
-            ...opts,
-            ...promptResult.config,
-          },
-        });
+      const renderedOpts = await (
+        executablePrompt as ExecutablePrompt<I, O, CustomOptions>
+      ).render({
+        ...opts,
+        input,
       });
+      return this.generate(renderedOpts);
     };
-    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).stream = (
+    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).stream = async (
       input?: z.infer<I>,
       opts?: z.infer<CustomOptions>
     ): Promise<GenerateStreamResponse<O>> => {
-      return runWithRegistry(this.registry, async () => {
-        const model = await this.resolveModel(options.model);
-        const promptResult = await p(input);
-        return this.generateStream({
-          model,
-          messages: promptResult.messages,
-          docs: promptResult.docs,
-          tools: promptResult.tools,
-          output: {
-            format: promptResult.output?.format,
-            jsonSchema: promptResult.output?.schema,
-          },
-          config: {
-            ...options.config,
-            ...promptResult.config,
-            ...opts,
-          },
-        });
+      const renderedOpts = await (
+        executablePrompt as ExecutablePrompt<I, O, CustomOptions>
+      ).render({
+        ...opts,
+        input,
       });
+      return this.generateStream(renderedOpts);
     };
-    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generate = (
-      opt: PromptGenerateOptions<I, CustomOptions>
-    ): Promise<GenerateResponse<O>> => {
-      return runWithRegistry(this.registry, async () => {
-        const model = !opt.model
-          ? await this.resolveModel(options.model)
-          : undefined;
-        const promptResult = await p(opt.input);
-        return this.generate({
-          model,
-          messages: promptResult.messages,
-          docs: promptResult.docs,
-          tools: promptResult.tools,
-          output: {
-            format: promptResult.output?.format,
-            jsonSchema: promptResult.output?.schema,
-          },
-          ...opt,
-          config: {
-            ...options.config,
-            ...promptResult.config,
-            ...opt.config,
-          },
-        });
-      });
-    };
+    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generate =
+      async (
+        opt: PromptGenerateOptions<I, CustomOptions>
+      ): Promise<GenerateResponse<O>> => {
+        const renderedOpts = await (
+          executablePrompt as ExecutablePrompt<I, O, CustomOptions>
+        ).render(opt);
+        return this.generate(renderedOpts);
+      };
     (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generateStream =
-      (
+      async (
         opt: PromptGenerateOptions<I, CustomOptions>
       ): Promise<GenerateStreamResponse<O>> => {
-        return runWithRegistry(this.registry, async () => {
-          const model = !opt.model
-            ? await this.resolveModel(options.model)
-            : undefined;
-          const promptResult = await p(opt.input);
-          return this.generateStream<O, CustomOptions>({
-            model,
-            messages: promptResult.messages,
-            docs: promptResult.docs,
-            tools: promptResult.tools,
-            output: {
-              format: promptResult.output?.format,
-              jsonSchema: promptResult.output?.schema,
-            } as any /* FIXME - schema type inference is borken */,
-            ...opt,
-            config: {
-              ...options.config,
-              ...promptResult.config,
-              ...opt.config,
-            },
-          });
-        });
+        const renderedOpts = await (
+          executablePrompt as ExecutablePrompt<I, O, CustomOptions>
+        ).render(opt);
+        return this.generateStream(renderedOpts);
       };
-    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).render = <
+    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).render = async <
       Out extends O,
     >(
       opt: PromptGenerateOptions<I, CustomOptions>
     ): Promise<GenerateOptions<CustomOptions, Out>> => {
-      return runWithRegistry(this.registry, async () => {
-        const model = !opt.model
-          ? await this.resolveModel(options.model)
-          : undefined;
-        const promptResult = await p(opt.input);
-        return {
-          model,
-          messages: promptResult.messages,
-          docs: promptResult.docs,
-          tools: promptResult.tools,
-          output: {
-            format: promptResult.output?.format,
-            jsonSchema: promptResult.output?.schema,
-          },
-          ...opt,
-          config: {
-            ...options.config,
-            ...promptResult.config,
-            ...opt.config,
-          },
-        } as GenerateOptions<CustomOptions, Out>;
-      });
+      let model: ModelAction | undefined;
+      try {
+        model = await this.resolveModel(opt?.model ?? options.model);
+      } catch (e) {
+        // ignore, no model on a render is OK.
+      }
+
+      const promptResult = await p(opt.input);
+      const resultOptions = {
+        messages: promptResult.messages,
+        docs: promptResult.docs,
+        tools: promptResult.tools,
+        output: {
+          format: promptResult.output?.format,
+          jsonSchema: promptResult.output?.schema,
+        },
+        config: {
+          ...options.config,
+          ...promptResult.config,
+          ...opt.config,
+        },
+        model,
+      } as GenerateOptions<CustomOptions, Out>;
+      delete (resultOptions as PromptGenerateOptions<I, CustomOptions>).input;
+      return resultOptions;
     };
+    (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).asTool =
+      (): ToolAction<I, O> => {
+        return p as unknown as ToolAction<I, O>;
+      };
     return executablePrompt as ExecutablePrompt<I, O, CustomOptions>;
   }
 
@@ -689,9 +490,7 @@ export class Genkit {
     },
     runner: RetrieverFn<OptionsType>
   ): RetrieverAction<OptionsType> {
-    return runWithRegistry(this.registry, () =>
-      defineRetriever(options, runner)
-    );
+    return defineRetriever(this.registry, options, runner);
   }
 
   /**
@@ -706,9 +505,7 @@ export class Genkit {
     options: SimpleRetrieverOptions<C, R>,
     handler: (query: Document, config: z.infer<C>) => Promise<R[]>
   ): RetrieverAction<C> {
-    return runWithRegistry(this.registry, () =>
-      defineSimpleRetriever(options, handler)
-    );
+    return defineSimpleRetriever(this.registry, options, handler);
   }
 
   /**
@@ -722,7 +519,7 @@ export class Genkit {
     },
     runner: IndexerFn<IndexerOptions>
   ): IndexerAction<IndexerOptions> {
-    return runWithRegistry(this.registry, () => defineIndexer(options, runner));
+    return defineIndexer(this.registry, options, runner);
   }
 
   /**
@@ -744,9 +541,7 @@ export class Genkit {
     },
     runner: EvaluatorFn<EvalDataPoint, EvaluatorOptions>
   ): EvaluatorAction {
-    return runWithRegistry(this.registry, () =>
-      defineEvaluator(options, runner)
-    );
+    return defineEvaluator(this.registry, options, runner);
   }
 
   /**
@@ -760,23 +555,21 @@ export class Genkit {
     },
     runner: EmbedderFn<ConfigSchema>
   ): EmbedderAction<ConfigSchema> {
-    return runWithRegistry(this.registry, () =>
-      defineEmbedder(options, runner)
-    );
+    return defineEmbedder(this.registry, options, runner);
   }
 
   /**
    * create a handlebards helper (https://handlebarsjs.com/guide/block-helpers.html) to be used in dotpormpt templates.
    */
   defineHelper(name: string, fn: Handlebars.HelperDelegate) {
-    return runWithRegistry(this.registry, () => defineHelper(name, fn));
+    return defineHelper(name, fn);
   }
 
   /**
    * Creates a handlebars partial (https://handlebarsjs.com/guide/partials.html) to be used in dotpormpt templates.
    */
   definePartial(name: string, source: string) {
-    return runWithRegistry(this.registry, () => definePartial(name, source));
+    return definePartial(name, source);
   }
 
   /**
@@ -790,9 +583,7 @@ export class Genkit {
     },
     runner: RerankerFn<OptionsType>
   ) {
-    return runWithRegistry(this.registry, () =>
-      defineReranker(options, runner)
-    );
+    return defineReranker(this.registry, options, runner);
   }
 
   /**
@@ -801,7 +592,7 @@ export class Genkit {
   embed<CustomOptions extends z.ZodTypeAny>(
     params: EmbedderParams<CustomOptions>
   ): Promise<Embedding> {
-    return runWithRegistry(this.registry, () => embed(params));
+    return embed(this.registry, params);
   }
 
   /**
@@ -813,7 +604,7 @@ export class Genkit {
     metadata?: Record<string, unknown>;
     options?: z.infer<ConfigSchema>;
   }): Promise<EmbeddingBatch> {
-    return runWithRegistry(this.registry, () => embedMany(params));
+    return embedMany(this.registry, params);
   }
 
   /**
@@ -823,7 +614,7 @@ export class Genkit {
     DataPoint extends typeof BaseDataPointSchema = typeof BaseDataPointSchema,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(params: EvaluatorParams<DataPoint, CustomOptions>): Promise<EvalResponses> {
-    return runWithRegistry(this.registry, () => evaluate(params));
+    return evaluate(this.registry, params);
   }
 
   /**
@@ -832,7 +623,7 @@ export class Genkit {
   rerank<CustomOptions extends z.ZodTypeAny>(
     params: RerankerParams<CustomOptions>
   ): Promise<Array<RankedDocument>> {
-    return runWithRegistry(this.registry, () => rerank(params));
+    return rerank(this.registry, params);
   }
 
   /**
@@ -841,7 +632,7 @@ export class Genkit {
   index<CustomOptions extends z.ZodTypeAny>(
     params: IndexerParams<CustomOptions>
   ): Promise<void> {
-    return runWithRegistry(this.registry, () => index(params));
+    return index(this.registry, params);
   }
 
   /**
@@ -850,7 +641,7 @@ export class Genkit {
   retrieve<CustomOptions extends z.ZodTypeAny>(
     params: RetrieverParams<CustomOptions>
   ): Promise<Array<Document>> {
-    return runWithRegistry(this.registry, () => retrieve(params));
+    return retrieve(this.registry, params);
   }
 
   /**
@@ -917,7 +708,7 @@ export class Genkit {
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
   >(
-    parts:
+    opts:
       | GenerateOptions<O, CustomOptions>
       | PromiseLike<GenerateOptions<O, CustomOptions>>
   ): Promise<GenerateResponse<z.infer<O>>>;
@@ -945,7 +736,7 @@ export class Genkit {
     if (!resolvedOptions.model) {
       resolvedOptions.model = this.options.model;
     }
-    return runWithRegistry(this.registry, () => generate(resolvedOptions));
+    return generate(this.registry, resolvedOptions);
   }
 
   /**
@@ -1052,9 +843,7 @@ export class Genkit {
     if (!resolvedOptions.model) {
       resolvedOptions.model = this.options.model;
     }
-    return runWithRegistry(this.registry, () =>
-      generateStream(resolvedOptions)
-    );
+    return generateStream(this.registry, resolvedOptions);
   }
 
   /**
@@ -1068,23 +857,20 @@ export class Genkit {
    * response = await chat.send('another one')
    * ```
    */
-  async chat(options?: ChatOptions): Promise<Chat> {
-    const session = await this.createSession();
+  chat<I>(options?: ChatOptions<I>): Chat {
+    const session = this.createSession();
     return session.chat(options);
   }
 
   /**
    * Create a session for this environment.
    */
-  async createSession(options?: SessionOptions): Promise<Session> {
+  createSession(options?: SessionOptions): Session {
     const sessionId = uuidv4();
     const sessionData: SessionData = {
       id: sessionId,
-      state: options?.state,
+      state: options?.initialState,
     };
-    if (options?.store) {
-      await options.store.save(sessionId, sessionData);
-    }
     return new Session(this, {
       id: sessionId,
       sessionData,
@@ -1132,9 +918,7 @@ export class Genkit {
     const plugins = [...(this.options.plugins ?? [])];
     if (this.options.promptDir !== null) {
       const dotprompt = genkitPlugin('dotprompt', async (ai) => {
-        runWithRegistry(ai.registry, async () =>
-          loadPromptFolder(this.options.promptDir ?? './prompts')
-        );
+        loadPromptFolder(this.registry, this.options.promptDir ?? './prompts');
       });
       plugins.push(dotprompt);
     }
@@ -1145,9 +929,7 @@ export class Genkit {
         name: loadedPlugin.name,
         async initializer() {
           logger.debug(`Initializing plugin ${loadedPlugin.name}:`);
-          return runWithRegistry(activeRegistry, () =>
-            loadedPlugin.initializer()
-          );
+          loadedPlugin.initializer();
         },
       });
     });
@@ -1172,12 +954,16 @@ export class Genkit {
       return this.resolveModel(this.options.model);
     }
     if (typeof modelArg === 'string') {
-      return (await lookupAction(`/model/${modelArg}`)) as ModelAction;
-    } else if (modelArg.hasOwnProperty('name')) {
-      const ref = modelArg as ModelReference<any>;
-      return (await lookupAction(`/model/${ref.name}`)) as ModelAction;
-    } else {
+      return (await this.registry.lookupAction(
+        `/model/${modelArg}`
+      )) as ModelAction;
+    } else if ((modelArg as ModelAction).__action) {
       return modelArg as ModelAction;
+    } else {
+      const ref = modelArg as ModelReference<any>;
+      return (await this.registry.lookupAction(
+        `/model/${ref.name}`
+      )) as ModelAction;
     }
   }
 }

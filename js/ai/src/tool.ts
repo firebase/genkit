@@ -15,7 +15,7 @@
  */
 
 import { Action, defineAction, JSONSchema7, z } from '@genkit-ai/core';
-import { lookupAction } from '@genkit-ai/core/registry';
+import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { setCustomMetadataAttributes } from '@genkit-ai/core/tracing';
 import { ToolDefinition } from './model.js';
@@ -89,11 +89,11 @@ export function asTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
 export async function resolveTools<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
->(tools: ToolArgument[] = []): Promise<ToolAction[]> {
+>(registry: Registry, tools: ToolArgument[] = []): Promise<ToolAction[]> {
   return await Promise.all(
     tools.map(async (ref): Promise<ToolAction> => {
       if (typeof ref === 'string') {
-        const tool = await lookupAction(`/tool/${ref}`);
+        const tool = await registry.lookupAction(`/tool/${ref}`);
         if (!tool) {
           throw new Error(`Tool ${ref} not found`);
         }
@@ -101,7 +101,7 @@ export async function resolveTools<
       } else if ((ref as Action).__action) {
         return asTool(ref as Action);
       } else if (ref.name) {
-        const tool = await lookupAction(`/tool/${ref.name}`);
+        const tool = await registry.lookupAction(`/tool/${ref.name}`);
         if (!tool) {
           throw new Error(`Tool ${ref} not found`);
         }
@@ -137,10 +137,12 @@ export function toToolDefinition(
  * A tool is an action that can be passed to a model to be called automatically if it so chooses.
  */
 export function defineTool<I extends z.ZodTypeAny, O extends z.ZodTypeAny>(
+  registry: Registry,
   config: ToolConfig<I, O>,
   fn: (input: z.infer<I>) => Promise<z.infer<O>>
 ): ToolAction<I, O> {
   const a = defineAction(
+    registry,
     {
       ...config,
       actionType: 'tool',

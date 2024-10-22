@@ -15,14 +15,19 @@
  */
 
 import { Action, defineAction, JSONSchema7, z } from '@genkit-ai/core';
-import { lookupAction } from '@genkit-ai/core/registry';
+import { Registry } from '@genkit-ai/core/registry';
 import { DocumentData } from './document.js';
-import { GenerateOptions } from './generate.js';
+import {
+  GenerateOptions,
+  GenerateResponse,
+  GenerateStreamResponse,
+} from './generate.js';
 import {
   GenerateRequest,
   GenerateRequestSchema,
   ModelArgument,
 } from './model.js';
+import { ToolAction } from './tool.js';
 
 export type PromptFn<
   I extends z.ZodTypeAny = z.ZodTypeAny,
@@ -58,6 +63,84 @@ export function isPrompt(arg: any): boolean {
   );
 }
 
+export type PromptGenerateOptions<
+  I = undefined,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+> = Omit<
+  GenerateOptions<z.ZodTypeAny, CustomOptions>,
+  'prompt' | 'input' | 'model'
+> & {
+  model?: ModelArgument<CustomOptions>;
+  input?: I;
+};
+
+/**
+ * A prompt that can be executed as a function.
+ */
+export interface ExecutablePrompt<
+  I = undefined,
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+> {
+  /**
+   * Generates a response by rendering the prompt template with given user input and then calling the model.
+   *
+   * @param input Prompt inputs.
+   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
+   * @returns the model response as a promise of `GenerateStreamResponse`.
+   */
+  <Out extends O>(
+    input?: I,
+    opts?: PromptGenerateOptions<I, CustomOptions>
+  ): Promise<GenerateResponse<z.infer<Out>>>;
+
+  /**
+   * Generates a response by rendering the prompt template with given user input and then calling the model.
+   * @param input Prompt inputs.
+   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
+   * @returns the model response as a promise of `GenerateStreamResponse`.
+   */
+  stream<Out extends O>(
+    input?: I,
+    opts?: PromptGenerateOptions<I, CustomOptions>
+  ): Promise<GenerateStreamResponse<z.infer<Out>>>;
+
+  /**
+   * Generates a response by rendering the prompt template with given user input and additional generate options and then calling the model.
+   *
+   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
+   * @returns the model response as a promise of `GenerateResponse`.
+   */
+  generate<Out extends O>(
+    opt: PromptGenerateOptions<I, CustomOptions>
+  ): Promise<GenerateResponse<z.infer<Out>>>;
+
+  /**
+   * Generates a streaming response by rendering the prompt template with given user input and additional generate options and then calling the model.
+   *
+   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
+   * @returns the model response as a promise of `GenerateStreamResponse`.
+   */
+  generateStream<Out extends O>(
+    opt: PromptGenerateOptions<I, CustomOptions>
+  ): Promise<GenerateStreamResponse<z.infer<Out>>>;
+
+  /**
+   * Renders the prompt template based on user input.
+   *
+   * @param opt Options for the prompt template, including user input variables and custom model configuration options.
+   * @returns a `GenerateOptions` object to be used with the `generate()` function from @genkit-ai/ai.
+   */
+  render<Out extends O>(
+    opt: PromptGenerateOptions<I, CustomOptions>
+  ): Promise<GenerateOptions<CustomOptions, Out>>;
+
+  /**
+   * Returns the prompt usable as a tool.
+   */
+  asTool(): ToolAction;
+}
+
 /**
  * Defines and registers a prompt action. The action can be called to obtain
  * a `GenerateRequest` which can be passed to a model action. The given
@@ -67,10 +150,12 @@ export function isPrompt(arg: any): boolean {
  * @returns The new `PromptAction`.
  */
 export function definePrompt<I extends z.ZodTypeAny>(
+  registry: Registry,
   config: PromptConfig<I>,
   fn: PromptFn<I>
 ): PromptAction<I> {
   const a = defineAction(
+    registry,
     {
       ...config,
       actionType: 'prompt',
@@ -94,16 +179,19 @@ export async function renderPrompt<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
->(params: {
-  prompt: PromptArgument<I>;
-  input: z.infer<I>;
-  docs?: DocumentData[];
-  model: ModelArgument<CustomOptions>;
-  config?: z.infer<CustomOptions>;
-}): Promise<GenerateOptions<O, CustomOptions>> {
+>(
+  registry: Registry,
+  params: {
+    prompt: PromptArgument<I>;
+    input: z.infer<I>;
+    docs?: DocumentData[];
+    model: ModelArgument<CustomOptions>;
+    config?: z.infer<CustomOptions>;
+  }
+): Promise<GenerateOptions<O, CustomOptions>> {
   let prompt: PromptAction<I>;
   if (typeof params.prompt === 'string') {
-    prompt = await lookupAction(`/prompt/${params.prompt}`);
+    prompt = await registry.lookupAction(`/prompt/${params.prompt}`);
   } else {
     prompt = params.prompt as PromptAction<I>;
   }

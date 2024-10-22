@@ -37,6 +37,7 @@ export async function piiDetectionScore<
       throw new Error('Output is required for PII detection');
     }
     const finalPrompt = await loadPromptFile(
+      ai.registry,
       path.resolve(__dirname, '../../prompts/pii_detection.prompt')
     );
 

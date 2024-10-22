@@ -42,6 +42,7 @@ export async function funninessScore<CustomModelOptions extends z.ZodTypeAny>(
       throw new Error('Output is required for Funniness detection');
     }
     const finalPrompt = await loadPromptFile(
+      ai.registry,
       path.resolve(__dirname, '../../prompts/funniness.prompt')
     );
 

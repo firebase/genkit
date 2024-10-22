@@ -131,7 +131,7 @@ function wrapHttpsFlow<
       }
 
       await config.authPolicy.provider(req, res, () =>
-        flow.expressHandler(genkit.registry, req, res)
+        flow.expressHandler(req, res)
       );
     }
   );

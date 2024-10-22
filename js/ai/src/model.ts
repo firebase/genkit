@@ -22,6 +22,7 @@ import {
   StreamingCallback,
   z,
 } from '@genkit-ai/core';
+import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { performance } from 'node:perf_hooks';
 import { DocumentDataSchema } from './document.js';
@@ -330,6 +331,7 @@ export type DefineModelOptions<
 export function defineModel<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
+  registry: Registry,
   options: DefineModelOptions<CustomOptionsSchema>,
   runner: (
     request: GenerateRequest<CustomOptionsSchema>,
@@ -344,6 +346,7 @@ export function defineModel<
   if (!options?.supports?.context) middleware.push(augmentWithContext());
   middleware.push(conformOutput());
   const act = defineAction(
+    registry,
     {
       actionType: 'model',
       name: options.name,
@@ -386,15 +389,36 @@ export interface ModelReference<CustomOptions extends z.ZodTypeAny> {
   info?: ModelInfo;
   version?: string;
   config?: z.infer<CustomOptions>;
+
+  withConfig(cfg: z.infer<CustomOptions>): ModelReference<CustomOptions>;
+  withVersion(version: string): ModelReference<CustomOptions>;
 }
 
 /** Cretes a model reference. */
 export function modelRef<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  options: ModelReference<CustomOptionsSchema>
+  options: Omit<
+    ModelReference<CustomOptionsSchema>,
+    'withConfig' | 'withVersion'
+  >
 ): ModelReference<CustomOptionsSchema> {
-  return { ...options };
+  const ref: Partial<ModelReference<CustomOptionsSchema>> = { ...options };
+  ref.withConfig = (
+    cfg: z.infer<CustomOptionsSchema>
+  ): ModelReference<CustomOptionsSchema> => {
+    return modelRef({
+      ...options,
+      config: cfg,
+    });
+  };
+  ref.withVersion = (version: string): ModelReference<CustomOptionsSchema> => {
+    return modelRef({
+      ...options,
+      version,
+    });
+  };
+  return ref as ModelReference<CustomOptionsSchema>;
 }
 
 /** Container for counting usage stats for a single input/output {Part} */
@@ -433,16 +457,20 @@ export function getBasicUsageStats(
 function getPartCounts(parts: Part[]): PartCounts {
   return parts.reduce(
     (counts, part) => {
+      const isImage =
+        part.media?.contentType?.startsWith('image') ||
+        part.media?.url?.startsWith('data:image');
+      const isVideo =
+        part.media?.contentType?.startsWith('video') ||
+        part.media?.url?.startsWith('data:video');
+      const isAudio =
+        part.media?.contentType?.startsWith('audio') ||
+        part.media?.url?.startsWith('data:audio');
       return {
         characters: counts.characters + (part.text?.length || 0),
-        images:
-          counts.images +
-          (part.media?.contentType?.startsWith('image') ? 1 : 0),
-        videos:
-          counts.videos +
-          (part.media?.contentType?.startsWith('video') ? 1 : 0),
-        audio:
-          counts.audio + (part.media?.contentType?.startsWith('audio') ? 1 : 0),
+        images: counts.images + (isImage ? 1 : 0),
+        videos: counts.videos + (isVideo ? 1 : 0),
+        audio: counts.audio + (isAudio ? 1 : 0),
       };
     },
     { characters: 0, images: 0, videos: 0, audio: 0 }
