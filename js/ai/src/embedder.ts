@@ -116,27 +116,67 @@ export async function embed<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny>(
   registry: Registry,
   params: EmbedderParams<CustomOptions>
 ): Promise<Embedding> {
-  let embedder: EmbedderAction<CustomOptions>;
-  if (typeof params.embedder === 'string') {
-    embedder = await registry.lookupAction(`/embedder/${params.embedder}`);
-  } else if (Object.hasOwnProperty.call(params.embedder, 'info')) {
-    embedder = await registry.lookupAction(
-      `/embedder/${(params.embedder as EmbedderReference).name}`
-    );
-  } else {
-    embedder = params.embedder as EmbedderAction<CustomOptions>;
+  let embedder = await resolveEmbedder(registry, params);
+  if (!embedder.embedderAction) {
+    let embedderId: string;
+    if (typeof params.embedder === 'string') {
+      embedderId = params.embedder;
+    } else if ((params.embedder as EmbedderAction)?.__action?.name) {
+      embedderId = (params.embedder as EmbedderAction).__action.name;
+    } else {
+      embedderId = (params.embedder as EmbedderReference<any>).name;
+    }
+    throw new Error(`Unable to resolve embedder ${embedderId}`);
   }
-  if (!embedder) {
-    throw new Error('Unable to utilize the provided embedder');
-  }
-  const response = await embedder({
+  const response = await embedder.embedderAction({
     input:
       typeof params.content === 'string'
         ? [Document.fromText(params.content, params.metadata)]
         : [params.content],
-    options: params.options,
+    options: {
+      version: embedder.version,
+      ...embedder.config,
+      ...params.options,
+    },
   });
   return response.embeddings[0].embedding;
+}
+
+interface ResolvedEmbedder<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> {
+  embedderAction: EmbedderAction<CustomOptions>;
+  config?: z.infer<CustomOptions>;
+  version?: string;
+}
+
+async function resolveEmbedder<
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+>(
+  registry: Registry,
+  params: EmbedderParams<CustomOptions>
+): Promise<ResolvedEmbedder<CustomOptions>> {
+  if (typeof params.embedder === 'string') {
+    return {
+      embedderAction: await registry.lookupAction(
+        `/embedder/${params.embedder}`
+      ),
+    };
+  } else if (Object.hasOwnProperty.call(params.embedder, '__action')) {
+    return {
+      embedderAction: params.embedder as EmbedderAction<CustomOptions>,
+    };
+  } else if (Object.hasOwnProperty.call(params.embedder, 'name')) {
+    const ref = params.embedder as EmbedderReference<any>;
+    return {
+      embedderAction: await registry.lookupAction(
+        `/embedder/${(params.embedder as EmbedderReference).name}`
+      ),
+      config: {
+        ...ref.config,
+      },
+      version: ref.version,
+    };
+  }
+  throw new Error(`failed to resolve embedder ${params.embedder}`);
 }
 
 /**
@@ -198,6 +238,8 @@ export interface EmbedderReference<
   name: string;
   configSchema?: CustomOptions;
   info?: EmbedderInfo;
+  config?: z.infer<CustomOptions>;
+  version?: string;
 }
 
 /**

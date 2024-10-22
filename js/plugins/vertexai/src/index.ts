@@ -29,12 +29,9 @@ import {
 } from './anthropic.js';
 import {
   SUPPORTED_EMBEDDER_MODELS,
+  defineVertexAIEmbedder,
   textEmbedding004,
-  textEmbeddingGecko,
-  textEmbeddingGecko001,
-  textEmbeddingGecko002,
   textEmbeddingGecko003,
-  textEmbeddingGeckoEmbedder,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
 } from './embedder.js';
@@ -46,13 +43,10 @@ import {
 import {
   GeminiConfigSchema,
   SUPPORTED_GEMINI_MODELS,
+  defineGeminiModel,
+  gemini10Pro,
   gemini15Flash,
-  gemini15FlashPreview,
   gemini15Pro,
-  gemini15ProPreview,
-  geminiModel,
-  geminiPro,
-  geminiProVision,
 } from './gemini.js';
 import {
   SUPPORTED_IMAGEN_MODELS,
@@ -94,12 +88,9 @@ export {
   claude3Haiku,
   claude3Opus,
   claude3Sonnet,
+  gemini10Pro,
   gemini15Flash,
-  gemini15FlashPreview,
   gemini15Pro,
-  gemini15ProPreview,
-  geminiPro,
-  geminiProVision,
   imagen2,
   imagen3,
   imagen3Fast,
@@ -107,9 +98,6 @@ export {
   llama31,
   llama32,
   textEmbedding004,
-  textEmbeddingGecko,
-  textEmbeddingGecko001,
-  textEmbeddingGecko002,
   textEmbeddingGecko003,
   textEmbeddingGeckoMultilingual001,
   textMultilingualEmbedding002,
@@ -206,7 +194,7 @@ export function vertexAI(options?: PluginOptions): GenkitPlugin {
       imagenModel(ai, name, authClient, { projectId, location })
     );
     Object.keys(SUPPORTED_GEMINI_MODELS).map((name) =>
-      geminiModel(ai, name, vertexClientFactory, { projectId, location })
+      defineGeminiModel(ai, name, vertexClientFactory, { projectId, location })
     );
 
     if (options?.modelGardenModels || options?.modelGarden?.models) {
@@ -239,7 +227,7 @@ export function vertexAI(options?: PluginOptions): GenkitPlugin {
     }
 
     const embedders = Object.keys(SUPPORTED_EMBEDDER_MODELS).map((name) =>
-      textEmbeddingGeckoEmbedder(ai, name, authClient, { projectId, location })
+      defineVertexAIEmbedder(ai, name, authClient, { projectId, location })
     );
 
     if (

@@ -389,15 +389,36 @@ export interface ModelReference<CustomOptions extends z.ZodTypeAny> {
   info?: ModelInfo;
   version?: string;
   config?: z.infer<CustomOptions>;
+
+  withConfig(cfg: z.infer<CustomOptions>): ModelReference<CustomOptions>;
+  withVersion(version: string): ModelReference<CustomOptions>;
 }
 
 /** Cretes a model reference. */
 export function modelRef<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
-  options: ModelReference<CustomOptionsSchema>
+  options: Omit<
+    ModelReference<CustomOptionsSchema>,
+    'withConfig' | 'withVersion'
+  >
 ): ModelReference<CustomOptionsSchema> {
-  return { ...options };
+  const ref: Partial<ModelReference<CustomOptionsSchema>> = { ...options };
+  ref.withConfig = (
+    cfg: z.infer<CustomOptionsSchema>
+  ): ModelReference<CustomOptionsSchema> => {
+    return modelRef({
+      ...options,
+      config: cfg,
+    });
+  };
+  ref.withVersion = (version: string): ModelReference<CustomOptionsSchema> => {
+    return modelRef({
+      ...options,
+      version,
+    });
+  };
+  return ref as ModelReference<CustomOptionsSchema>;
 }
 
 /** Container for counting usage stats for a single input/output {Part} */
