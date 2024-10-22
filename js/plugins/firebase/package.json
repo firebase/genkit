@@ -37,8 +37,8 @@
   },
   "peerDependencies": {
     "@google-cloud/firestore": "^7.6.0",
-    "firebase-admin": "^12.2.0",
-    "firebase-functions": "^4.8.0 || ^5.0.0",
+    "firebase-admin": ">=12.2",
+    "firebase-functions": ">=4.8",
     "genkit": "workspace:*"
   },
   "devDependencies": {

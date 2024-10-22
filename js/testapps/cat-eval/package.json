@@ -24,7 +24,7 @@
     "@genkit-ai/vertexai": "workspace:*",
     "@google-cloud/firestore": "^7.9.0",
     "@opentelemetry/sdk-trace-base": "^1.22.0",
-    "firebase-admin": "^12.3.0",
+    "firebase-admin": ">=12.2",
     "genkitx-pinecone": "workspace:*",
     "llm-chunk": "^0.0.1",
     "pdf-parse": "^1.1.1",
