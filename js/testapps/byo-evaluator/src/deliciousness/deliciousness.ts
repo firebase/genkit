@@ -40,6 +40,7 @@ export async function deliciousnessScore<
       throw new Error('Output is required for Funniness detection');
     }
     const finalPrompt = await loadPromptFile(
+      ai.registry,
       path.resolve(__dirname, '../../prompts/deliciousness.prompt')
     );
     const response = await ai.generate({

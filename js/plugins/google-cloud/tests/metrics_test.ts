@@ -30,7 +30,6 @@ import {
 } from '@opentelemetry/sdk-metrics';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
 import { GenerateResponseData, Genkit, genkit, run, z } from 'genkit';
-import { runWithRegistry } from 'genkit/registry';
 import { SPAN_TYPE_ATTR, appendSpan } from 'genkit/tracing';
 import assert from 'node:assert';
 import { after, before, beforeEach, describe, it } from 'node:test';
@@ -188,10 +187,8 @@ describe('GoogleCloudMetrics', () => {
   it('writes feature metrics for an action', async () => {
     const testAction = createAction(ai, 'featureAction');
 
-    await runWithRegistry(ai.registry, async () => {
-      await testAction(null);
-      await testAction(null);
-    });
+    await testAction(null);
+    await testAction(null);
 
     await getExportedSpans();
 
@@ -213,11 +210,9 @@ describe('GoogleCloudMetrics', () => {
   // after PR #1029
 
   it('writes feature metrics for generate', async () => {
-    await runWithRegistry(ai.registry, async () => {
-      const testModel = createTestModel(ai, 'helloModel');
-      await ai.generate({ model: testModel, prompt: 'Hi' });
-      await ai.generate({ model: testModel, prompt: 'Yo' });
-    });
+    const testModel = createTestModel(ai, 'helloModel');
+    await ai.generate({ model: testModel, prompt: 'Hi' });
+    await ai.generate({ model: testModel, prompt: 'Yo' });
 
     const spans = await getExportedSpans();
 
@@ -263,9 +258,7 @@ describe('GoogleCloudMetrics', () => {
     });
 
     assert.rejects(async () => {
-      return await runWithRegistry(ai.registry, async () => {
-        return testAction(null);
-      });
+      return testAction(null);
     });
     await getExportedSpans();
 
@@ -416,9 +409,7 @@ describe('GoogleCloudMetrics', () => {
       });
     });
 
-    await runWithRegistry(ai.registry, async () => {
-      testAction(null);
-    });
+    testAction(null);
 
     await getExportedSpans();
 
@@ -906,13 +897,11 @@ describe('GoogleCloudMetrics', () => {
     name: string,
     fn: () => Promise<void> = async () => {}
   ) {
-    return runWithRegistry(ai.registry, () =>
-      ai.defineFlow(
-        {
-          name,
-        },
-        fn
-      )
+    return ai.defineFlow(
+      {
+        name,
+      },
+      fn
     );
   }
 
@@ -923,9 +912,7 @@ describe('GoogleCloudMetrics', () => {
     name: string,
     respFn: () => Promise<GenerateResponseData>
   ) {
-    return runWithRegistry(ai.registry, () =>
-      ai.defineModel({ name }, (req) => respFn())
-    );
+    return ai.defineModel({ name }, (req) => respFn());
   }
 
   function createTestModel(ai: Genkit, name: string) {

@@ -39,6 +39,7 @@ export async function maliciousnessScore<
     }
 
     const prompt = await loadPromptFile(
+      ai.registry,
       path.resolve(getDirName(), '../../prompts/maliciousness.prompt')
     );
     //TODO: safetySettings are gemini specific - pull these out so they are tied to the LLM

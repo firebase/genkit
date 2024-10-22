@@ -47,6 +47,7 @@ export async function answerRelevancyScore<
       throw new Error('Output was not provided');
     }
     const prompt = await loadPromptFile(
+      ai.registry,
       path.resolve(getDirName(), '../../prompts/answer_relevancy.prompt')
     );
     const response = await ai.generate({

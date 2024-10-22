@@ -54,6 +54,7 @@ export async function faithfulnessScore<
       throw new Error('Output was not provided');
     }
     const longFormPrompt = await loadPromptFile(
+      ai.registry,
       path.resolve(getDirName(), '../../prompts/faithfulness_long_form.prompt')
     );
     const longFormResponse = await ai.generate({
@@ -75,6 +76,7 @@ export async function faithfulnessScore<
     const allStatements = statements.map((s) => `statement: ${s}`).join('\n');
     const allContext = context.join('\n');
     const nliPrompt = await loadPromptFile(
+      ai.registry,
       path.resolve(getDirName(), '../../prompts/faithfulness_nli.prompt')
     );
     const response = await ai.generate({

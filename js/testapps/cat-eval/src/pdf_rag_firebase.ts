@@ -22,7 +22,6 @@ import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { readFile } from 'fs/promises';
 import { run, z } from 'genkit';
-import { runWithRegistry } from 'genkit/registry';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import pdf from 'pdf-parse';
@@ -58,17 +57,15 @@ Question: ${question}
 Helpful Answer:`;
 }
 
-export const pdfChatRetrieverFirebase = runWithRegistry(ai.registry, () =>
-  defineFirestoreRetriever(ai, {
-    name: 'pdfChatRetrieverFirebase',
-    firestore,
-    collection: 'pdf-qa',
-    contentField: 'facts',
-    vectorField: 'embedding',
-    embedder: textEmbeddingGecko,
-    distanceMeasure: 'COSINE',
-  })
-);
+export const pdfChatRetrieverFirebase = defineFirestoreRetriever(ai, {
+  name: 'pdfChatRetrieverFirebase',
+  firestore,
+  collection: 'pdf-qa',
+  contentField: 'facts',
+  vectorField: 'embedding',
+  embedder: textEmbeddingGecko,
+  distanceMeasure: 'COSINE',
+});
 
 // Define a simple RAG flow, we will evaluate this flow
 export const pdfQAFirebase = ai.defineFlow(

@@ -15,7 +15,7 @@
  */
 
 import { z } from '@genkit-ai/core';
-import { Registry, runWithRegistry } from '@genkit-ai/core/registry';
+import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
@@ -262,19 +262,18 @@ describe('GenerateResponse', () => {
 describe('toGenerateRequest', () => {
   const registry = new Registry();
   // register tools
-  const tellAFunnyJoke = runWithRegistry(registry, () =>
-    defineTool(
-      {
-        name: 'tellAFunnyJoke',
-        description:
-          'Tells jokes about an input topic. Use this tool whenever user asks you to tell a joke.',
-        inputSchema: z.object({ topic: z.string() }),
-        outputSchema: z.string(),
-      },
-      async (input) => {
-        return `Why did the ${input.topic} cross the road?`;
-      }
-    )
+  const tellAFunnyJoke = defineTool(
+    registry,
+    {
+      name: 'tellAFunnyJoke',
+      description:
+        'Tells jokes about an input topic. Use this tool whenever user asks you to tell a joke.',
+      inputSchema: z.object({ topic: z.string() }),
+      outputSchema: z.string(),
+    },
+    async (input) => {
+      return `Why did the ${input.topic} cross the road?`;
+    }
   );
 
   const testCases = [
@@ -442,9 +441,7 @@ describe('toGenerateRequest', () => {
   for (const test of testCases) {
     it(test.should, async () => {
       assert.deepStrictEqual(
-        await runWithRegistry(registry, () =>
-          toGenerateRequest(test.prompt as GenerateOptions)
-        ),
+        await toGenerateRequest(registry, test.prompt as GenerateOptions),
         test.expectedOutput
       );
     });
@@ -530,29 +527,28 @@ describe('generate', () => {
 
   beforeEach(() => {
     registry = new Registry();
-    echoModel = runWithRegistry(registry, () =>
-      defineModel(
-        {
-          name: 'echoModel',
-        },
-        async (request) => {
-          return {
-            message: {
-              role: 'model',
-              content: [
-                {
-                  text:
-                    'Echo: ' +
-                    request.messages
-                      .map((m) => m.content.map((c) => c.text).join())
-                      .join(),
-                },
-              ],
-            },
-            finishReason: 'stop',
-          };
-        }
-      )
+    echoModel = defineModel(
+      registry,
+      {
+        name: 'echoModel',
+      },
+      async (request) => {
+        return {
+          message: {
+            role: 'model',
+            content: [
+              {
+                text:
+                  'Echo: ' +
+                  request.messages
+                    .map((m) => m.content.map((c) => c.text).join())
+                    .join(),
+              },
+            ],
+          },
+          finishReason: 'stop',
+        };
+      }
     );
   });
 
@@ -592,14 +588,11 @@ describe('generate', () => {
       };
     };
 
-    const response = await runWithRegistry(registry, () =>
-      generate({
-        prompt: 'banana',
-        model: echoModel,
-        use: [wrapRequest, wrapResponse],
-      })
-    );
-
+    const response = await generate(registry, {
+      prompt: 'banana',
+      model: echoModel,
+      use: [wrapRequest, wrapResponse],
+    });
     const want = '[Echo: (banana)]';
     assert.deepStrictEqual(response.text, want);
   });
@@ -609,24 +602,21 @@ describe('generate', () => {
   let registry: Registry;
   beforeEach(() => {
     registry = new Registry();
-    runWithRegistry(registry, () =>
-      defineModel(
-        { name: 'echo', supports: { tools: true } },
-        async (input) => ({
-          message: input.messages[0],
-          finishReason: 'stop',
-        })
-      )
+
+    defineModel(
+      registry,
+      { name: 'echo', supports: { tools: true } },
+      async (input) => ({
+        message: input.messages[0],
+        finishReason: 'stop',
+      })
     );
   });
   it('should preserve the request in the returned response, enabling .messages', async () => {
-    const response = await runWithRegistry(registry, () =>
-      generate({
-        model: 'echo',
-        prompt: 'Testing messages',
-      })
-    );
-
+    const response = await generate(registry, {
+      model: 'echo',
+      prompt: 'Testing messages',
+    });
     assert.deepEqual(
       response.messages.map((m) => m.content[0].text),
       ['Testing messages', 'Testing messages']

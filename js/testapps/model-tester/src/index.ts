@@ -44,7 +44,7 @@ export const ai = genkit({
   ],
 });
 
-testModels([
+testModels(ai.registry, [
   'googleai/gemini-1.5-pro-latest',
   'googleai/gemini-1.5-flash-latest',
   'vertexai/gemini-1.5-pro',
