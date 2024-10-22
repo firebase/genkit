@@ -21,7 +21,7 @@ import {
   StreamingCallback,
   z,
 } from '@genkit-ai/core';
-import { lookupAction } from '@genkit-ai/core/registry';
+import { Registry } from '@genkit-ai/core/registry';
 import { parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
 import { DocumentData } from './document.js';
 import { extractJson } from './extract.js';
@@ -365,6 +365,7 @@ export class GenerateResponseChunk<T = unknown>
 }
 
 export async function toGenerateRequest(
+  registry: Registry,
   options: GenerateOptions
 ): Promise<GenerateRequest> {
   const messages: MessageData[] = [];
@@ -402,7 +403,7 @@ export async function toGenerateRequest(
   }
   let tools: Action<any, any>[] | undefined;
   if (options.tools) {
-    tools = await resolveTools(options.tools);
+    tools = await resolveTools(registry, options.tools);
   }
 
   const out = {
@@ -464,21 +465,28 @@ interface ResolvedModel<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> {
   version?: string;
 }
 
-async function resolveModel(options: GenerateOptions): Promise<ResolvedModel> {
+async function resolveModel(
+  registry: Registry,
+  options: GenerateOptions
+): Promise<ResolvedModel> {
   let model = options.model;
   if (!model) {
     throw new Error('Model is required.');
   }
   if (typeof model === 'string') {
     return {
-      modelAction: (await lookupAction(`/model/${model}`)) as ModelAction,
+      modelAction: (await registry.lookupAction(
+        `/model/${model}`
+      )) as ModelAction,
     };
   } else if (model.hasOwnProperty('__action')) {
     return { modelAction: model as ModelAction };
   } else {
     const ref = model as ModelReference<any>;
     return {
-      modelAction: (await lookupAction(`/model/${ref.name}`)) as ModelAction,
+      modelAction: (await registry.lookupAction(
+        `/model/${ref.name}`
+      )) as ModelAction,
       config: {
         ...ref.config,
       },
@@ -525,13 +533,14 @@ export async function generate<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
 >(
+  registry: Registry,
   options:
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
 ): Promise<GenerateResponse<z.infer<O>>> {
   const resolvedOptions: GenerateOptions<O, CustomOptions> =
     await Promise.resolve(options);
-  const resolvedModel = await resolveModel(resolvedOptions);
+  const resolvedModel = await resolveModel(registry, resolvedOptions);
   const model = resolvedModel.modelAction;
   if (!model) {
     let modelId: string;
@@ -623,8 +632,8 @@ export async function generate<
     resolvedOptions.streamingCallback,
     async () =>
       new GenerateResponse<O>(
-        await generateHelper(params, resolvedOptions.use),
-        await toGenerateRequest(resolvedOptions)
+        await generateHelper(registry, params, resolvedOptions.use),
+        await toGenerateRequest(registry, resolvedOptions)
       )
   );
 }
@@ -653,6 +662,7 @@ export async function generateStream<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
 >(
+  registry: Registry,
   options:
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
@@ -678,7 +688,7 @@ export async function generateStream<
       }
 
       try {
-        generate<O, CustomOptions>({
+        generate<O, CustomOptions>(registry, {
           ...options,
           streamingCallback: (chunk) => {
             firstChunkSent = true;

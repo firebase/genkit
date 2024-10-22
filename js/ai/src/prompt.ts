@@ -15,7 +15,7 @@
  */
 
 import { Action, defineAction, JSONSchema7, z } from '@genkit-ai/core';
-import { lookupAction } from '@genkit-ai/core/registry';
+import { Registry } from '@genkit-ai/core/registry';
 import { DocumentData } from './document.js';
 import {
   GenerateOptions,
@@ -150,10 +150,12 @@ export interface ExecutablePrompt<
  * @returns The new `PromptAction`.
  */
 export function definePrompt<I extends z.ZodTypeAny>(
+  registry: Registry,
   config: PromptConfig<I>,
   fn: PromptFn<I>
 ): PromptAction<I> {
   const a = defineAction(
+    registry,
     {
       ...config,
       actionType: 'prompt',
@@ -177,16 +179,19 @@ export async function renderPrompt<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
->(params: {
-  prompt: PromptArgument<I>;
-  input: z.infer<I>;
-  docs?: DocumentData[];
-  model: ModelArgument<CustomOptions>;
-  config?: z.infer<CustomOptions>;
-}): Promise<GenerateOptions<O, CustomOptions>> {
+>(
+  registry: Registry,
+  params: {
+    prompt: PromptArgument<I>;
+    input: z.infer<I>;
+    docs?: DocumentData[];
+    model: ModelArgument<CustomOptions>;
+    config?: z.infer<CustomOptions>;
+  }
+): Promise<GenerateOptions<O, CustomOptions>> {
   let prompt: PromptAction<I>;
   if (typeof params.prompt === 'string') {
-    prompt = await lookupAction(`/prompt/${params.prompt}`);
+    prompt = await registry.lookupAction(`/prompt/${params.prompt}`);
   } else {
     prompt = params.prompt as PromptAction<I>;
   }

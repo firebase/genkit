@@ -15,7 +15,7 @@
  */
 
 import { z } from '@genkit-ai/core';
-import { lookupAction } from '@genkit-ai/core/registry';
+import { Registry } from '@genkit-ai/core/registry';
 import { runInNewSpan } from '@genkit-ai/core/tracing';
 import assert from 'node:assert';
 import { generate } from '../generate';
@@ -23,8 +23,8 @@ import { ModelAction } from '../model';
 import { defineTool } from '../tool';
 
 const tests: Record<string, TestCase> = {
-  'basic hi': async (model: string) => {
-    const response = await generate({
+  'basic hi': async (registry: Registry, model: string) => {
+    const response = await generate(registry, {
       model,
       prompt: 'just say "Hi", literally',
     });
@@ -32,14 +32,14 @@ const tests: Record<string, TestCase> = {
     const got = response.text.trim();
     assert.match(got, /Hi/i);
   },
-  multimodal: async (model: string) => {
-    const resolvedModel = (await lookupAction(
+  multimodal: async (registry: Registry, model: string) => {
+    const resolvedModel = (await registry.lookupAction(
       `/model/${model}`
     )) as ModelAction;
     if (!resolvedModel.__action.metadata?.model.supports?.media) {
       skip();
     }
-    const response = await generate({
+    const response = await generate(registry, {
       model,
       prompt: [
         {
@@ -57,18 +57,18 @@ const tests: Record<string, TestCase> = {
     const got = response.text.trim();
     assert.match(got, /plus/i);
   },
-  history: async (model: string) => {
-    const resolvedModel = (await lookupAction(
+  history: async (registry: Registry, model: string) => {
+    const resolvedModel = (await registry.lookupAction(
       `/model/${model}`
     )) as ModelAction;
     if (!resolvedModel.__action.metadata?.model.supports?.multiturn) {
       skip();
     }
-    const response1 = await generate({
+    const response1 = await generate(registry, {
       model,
       prompt: 'My name is Glorb',
     });
-    const response = await generate({
+    const response = await generate(registry, {
       model,
       prompt: "What's my name?",
       messages: response1.messages,
@@ -77,8 +77,8 @@ const tests: Record<string, TestCase> = {
     const got = response.text.trim();
     assert.match(got, /Glorb/);
   },
-  'system prompt': async (model: string) => {
-    const { text } = await generate({
+  'system prompt': async (registry: Registry, model: string) => {
+    const { text } = await generate(registry, {
       model,
       prompt: 'Hi',
       messages: [
@@ -97,8 +97,8 @@ const tests: Record<string, TestCase> = {
     const got = text.trim();
     assert.equal(got, want);
   },
-  'structured output': async (model: string) => {
-    const response = await generate({
+  'structured output': async (registry: Registry, model: string) => {
+    const response = await generate(registry, {
       model,
       prompt: 'extract data as json from: Jack was a Lumberjack',
       output: {
@@ -117,15 +117,15 @@ const tests: Record<string, TestCase> = {
     const got = response.output;
     assert.deepEqual(want, got);
   },
-  'tool calling': async (model: string) => {
-    const resolvedModel = (await lookupAction(
+  'tool calling': async (registry: Registry, model: string) => {
+    const resolvedModel = (await registry.lookupAction(
       `/model/${model}`
     )) as ModelAction;
     if (!resolvedModel.__action.metadata?.model.supports?.tools) {
       skip();
     }
 
-    const { text } = await generate({
+    const { text } = await generate(registry, {
       model,
       prompt: 'what is a gablorken of 2? use provided tool',
       tools: ['gablorkenTool'],
@@ -149,10 +149,14 @@ type TestReport = {
   }[];
 }[];
 
-type TestCase = (model: string) => Promise<void>;
+type TestCase = (ai: Registry, model: string) => Promise<void>;
 
-export async function testModels(models: string[]): Promise<TestReport> {
+export async function testModels(
+  registry: Registry,
+  models: string[]
+): Promise<TestReport> {
   const gablorkenTool = defineTool(
+    registry,
     {
       name: 'gablorkenTool',
       description: 'use when need to calculate a gablorken',
@@ -182,7 +186,7 @@ export async function testModels(models: string[]): Promise<TestReport> {
           });
           const modelReport = caseReport.models[caseReport.models.length - 1];
           try {
-            await tests[test](model);
+            await tests[test](registry, model);
           } catch (e) {
             modelReport.passed = false;
             if (e instanceof SkipTestError) {
