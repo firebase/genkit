@@ -61,7 +61,6 @@ function commonRef(
 }
 
 export const textEmbeddingGecko001 = commonRef('textembedding-gecko@001');
-export const textEmbeddingGecko002 = commonRef('textembedding-gecko@002');
 export const textEmbeddingGecko003 = commonRef('textembedding-gecko@003');
 export const textEmbedding004 = commonRef('text-embedding-004');
 export const textEmbeddingGeckoMultilingual001 = commonRef(
@@ -73,7 +72,6 @@ export const textMultilingualEmbedding002 = commonRef(
 
 export const SUPPORTED_EMBEDDER_MODELS: Record<string, EmbedderReference> = {
   'textembedding-gecko@001': textEmbeddingGecko001,
-  'textembedding-gecko@002': textEmbeddingGecko002,
   'textembedding-gecko@003': textEmbeddingGecko003,
   'text-embedding-004': textEmbedding004,
   'textembedding-gecko-multilingual@001': textEmbeddingGeckoMultilingual001,
