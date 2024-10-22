@@ -58,7 +58,9 @@ describe('models', () => {
           'Echo: system: talk like a pirate,hi; config: {}'
         );
         assert.deepStrictEqual(response.request, {
-          config: undefined,
+          config: {
+            version: undefined,
+          },
           docs: undefined,
           messages: [
             {

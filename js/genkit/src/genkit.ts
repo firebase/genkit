@@ -88,6 +88,7 @@ import {
   RetrieverFn,
   SimpleRetrieverOptions,
 } from '@genkit-ai/ai/retriever';
+import { resolveTools } from '@genkit-ai/ai/tool';
 import {
   CallableFlow,
   defineFlow,
@@ -127,6 +128,7 @@ import {
   SessionError,
   SessionOptions,
 } from './session.js';
+import { toToolDefinition } from './tool.js';
 
 /**
  * Options for initializing Genkit.
@@ -397,7 +399,18 @@ export class Genkit {
             inputSchema: options.input?.schema,
             description: options.description,
           },
-          templateOrFn as PromptFn<I>
+          async (input: z.infer<I>) => {
+            const response = await (templateOrFn as PromptFn<I>)(input);
+            if (!response.tools && options.tools) {
+              response.tools = (await resolveTools(options.tools)).map(
+                toToolDefinition
+              );
+            }
+            if (!response.output && options.output) {
+              response.output = options.output;
+            }
+            return response;
+          }
         );
         return this.wrapPromptActionInExecutablePrompt(p, options);
       }
@@ -431,23 +444,13 @@ export class Genkit {
       opts?: z.infer<CustomOptions>
     ): Promise<GenerateStreamResponse<O>> => {
       return runWithRegistry(this.registry, async () => {
-        const model = await this.resolveModel(options.model);
-        const promptResult = await p(input);
-        return this.generateStream({
-          model,
-          messages: promptResult.messages,
-          docs: promptResult.docs,
-          tools: promptResult.tools,
-          output: {
-            format: promptResult.output?.format,
-            jsonSchema: promptResult.output?.schema,
-          },
-          config: {
-            ...options.config,
-            ...promptResult.config,
-            ...opts,
-          },
+        const renderedOpts = await (
+          executablePrompt as ExecutablePrompt<I, O, CustomOptions>
+        ).render({
+          ...opts,
+          input,
         });
+        return this.generateStream(renderedOpts);
       });
     };
     (executablePrompt as ExecutablePrompt<I, O, CustomOptions>).generate = (

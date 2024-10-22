@@ -728,10 +728,7 @@ describe('definePrompt', () => {
             role: 'user',
           },
         ],
-        output: {
-          format: undefined,
-          jsonSchema: undefined,
-        },
+        output: undefined,
         tools: undefined,
       });
     });
