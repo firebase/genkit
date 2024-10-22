@@ -262,8 +262,8 @@ Each action-level metric contains the following dimensions:
 | path          | The path of execution from the feature root to this action. eg. '/myFeature/parentAction/thisAction' |
 | status        | 'success' or 'failure' depending on whether or not the action succeeded                              |
 | error         | Only set when `status=failure`. Contains the error type that caused the failure                      |
-| source        | The genkit source language. Eg. 'ts'                                                                 |
-| sourceVersion | The version of the genkit framework used                                                             |
+| source        | The Genkit source language. Eg. 'ts'                                                                 |
+| sourceVersion | The Genkit framework version                                                             |
 
 ### Generate-level metrics
 
