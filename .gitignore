@@ -23,6 +23,7 @@ js/testapps/firebase-functions-sample1/public/config.js
 ui-debug.log
 firebase-debug.log
 **/*.env
+.genkit
 # RAG sample files
 !js/testapps/rag/package.json
 js/testapps/rag/*.json
