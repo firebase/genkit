@@ -18,18 +18,25 @@ import { Genkit } from 'genkit';
 import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import {
   SUPPORTED_MODELS as EMBEDDER_MODELS,
-  defineGoogleAIEmbedder,
   textEmbeddingGecko001,
+  textEmbeddingGeckoEmbedder,
 } from './embedder.js';
 import {
   SUPPORTED_V15_MODELS,
   SUPPORTED_V1_MODELS,
-  defineGoogleAIModel,
-  gemini10Pro,
   gemini15Flash,
   gemini15Pro,
+  geminiPro,
+  geminiProVision,
+  googleAIModel,
 } from './gemini.js';
-export { gemini10Pro, gemini15Flash, gemini15Pro, textEmbeddingGecko001 };
+export {
+  gemini15Flash,
+  gemini15Pro,
+  geminiPro,
+  geminiProVision,
+  textEmbeddingGecko001,
+};
 
 export interface PluginOptions {
   apiKey?: string;
@@ -49,40 +56,21 @@ export function googleAI(options?: PluginOptions): GenkitPlugin {
       }
     }
     if (apiVersions.includes('v1beta')) {
-      Object.keys(SUPPORTED_V15_MODELS).forEach((name) =>
-        defineGoogleAIModel(
-          ai,
-          name,
-          options?.apiKey,
-          'v1beta',
-          options?.baseUrl
-        )
+      Object.keys(SUPPORTED_V15_MODELS).map((name) =>
+        googleAIModel(ai, name, options?.apiKey, 'v1beta', options?.baseUrl)
       );
     }
     if (apiVersions.includes('v1')) {
-      Object.keys(SUPPORTED_V1_MODELS).forEach((name) =>
-        defineGoogleAIModel(
-          ai,
-          name,
-          options?.apiKey,
-          undefined,
-          options?.baseUrl
-        )
+      Object.keys(SUPPORTED_V1_MODELS).map((name) =>
+        googleAIModel(ai, name, options?.apiKey, undefined, options?.baseUrl)
       );
-      Object.keys(SUPPORTED_V15_MODELS).forEach((name) =>
-        defineGoogleAIModel(
-          ai,
-          name,
-          options?.apiKey,
-          undefined,
-          options?.baseUrl
-        )
+      Object.keys(SUPPORTED_V15_MODELS).map((name) =>
+        googleAIModel(ai, name, options?.apiKey, undefined, options?.baseUrl)
       );
-      Object.keys(EMBEDDER_MODELS).forEach((name) =>
-        defineGoogleAIEmbedder(ai, name, { apiKey: options?.apiKey })
+      Object.keys(EMBEDDER_MODELS).map((name) =>
+        textEmbeddingGeckoEmbedder(ai, name, { apiKey: options?.apiKey })
       );
     }
   });
 }
-
 export default googleAI;
