@@ -367,10 +367,10 @@ importers:
         specifier: ^4.21.0
         version: 4.21.0
       firebase-admin:
-        specifier: '>12.2'
+        specifier: '>=12.2'
         version: 12.3.1(encoding@0.1.13)
       firebase-functions:
-        specifier: '>4.8'
+        specifier: '>=4.8'
         version: 5.0.1(firebase-admin@12.3.1(encoding@0.1.13))
       google-auth-library:
         specifier: ^9.6.3
