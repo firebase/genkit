@@ -239,8 +239,8 @@ Each feature-level metric contains the following dimensions:
 | name          | The name of the feature. In most cases, this is the top-level genkit flow        |
 | status        | 'success' or 'failure' depending on whether or not the feature request succeeded |
 | error         | Only set when `status=failure`. Contains the error type that caused the failure  |
-| source        | The genkit source language. Eg. 'ts'                                             |
-| sourceVersion | The version of the genkit framework used                                         |
+| source        | The Genkit source language. Eg. 'ts'                                             |
+| sourceVersion | The Genkit framework version                                         |
 
 
 ### Action-level metrics
