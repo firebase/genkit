@@ -7,67 +7,67 @@ pnpm login --registry https://wombat-dressing-room.appspot.com
 
 CURRENT=`pwd`
 
-cd genkit/genkit-tools/common
+cd genkit-tools/common
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
-cd genkit/genkit-tools/cli
+cd genkit-tools/cli
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
-cd genkit/js/core
+cd js/core
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
-cd genkit/js/ai
+cd js/ai
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
-cd genkit/js/flow
+cd js/flow
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
-cd genkit/js/plugins/dotprompt
+cd js/plugins/dotprompt
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
-cd genkit/js/plugins/chroma
+cd js/plugins/chroma
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
-cd genkit/js/plugins/dev-local-vectorstore
+cd js/plugins/dev-local-vectorstore
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
-cd genkit/js/plugins/firebase
+cd js/plugins/firebase
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
-cd genkit/js/plugins/google-cloud
+cd js/plugins/google-cloud
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
-cd genkit/js/plugins/googleai
+cd js/plugins/googleai
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
-cd genkit/js/plugins/ollama
+cd js/plugins/ollama
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
-cd genkit/js/plugins/pinecone
+cd js/plugins/pinecone
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
-cd genkit/js/plugins/vertexai
+cd js/plugins/vertexai
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
-cd  genkit/js/plugins/evaluators
+cd  js/plugins/evaluators
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
-cd  genkit/js/plugins/langchain
+cd  js/plugins/langchain
 pnpm publish --registry https://wombat-dressing-room.appspot.com
 cd $CURRENT
 
