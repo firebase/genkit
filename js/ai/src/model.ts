@@ -22,6 +22,7 @@ import {
   StreamingCallback,
   z,
 } from '@genkit-ai/core';
+import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import { performance } from 'node:perf_hooks';
 import { DocumentDataSchema } from './document.js';
@@ -330,6 +331,7 @@ export type DefineModelOptions<
 export function defineModel<
   CustomOptionsSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
+  registry: Registry,
   options: DefineModelOptions<CustomOptionsSchema>,
   runner: (
     request: GenerateRequest<CustomOptionsSchema>,
@@ -344,6 +346,7 @@ export function defineModel<
   if (!options?.supports?.context) middleware.push(augmentWithContext());
   middleware.push(conformOutput());
   const act = defineAction(
+    registry,
     {
       actionType: 'model',
       name: options.name,

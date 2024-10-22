@@ -15,7 +15,7 @@
  */
 
 import { Action, defineAction, z } from '@genkit-ai/core';
-import { lookupAction } from '@genkit-ai/core/registry';
+import { Registry } from '@genkit-ai/core/registry';
 import { Document, DocumentData, DocumentDataSchema } from './document.js';
 
 export type EmbeddingBatch = { embedding: number[] }[];
@@ -68,6 +68,7 @@ function withMetadata<CustomOptions extends z.ZodTypeAny>(
 export function defineEmbedder<
   ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny,
 >(
+  registry: Registry,
   options: {
     name: string;
     configSchema?: ConfigSchema;
@@ -76,6 +77,7 @@ export function defineEmbedder<
   runner: EmbedderFn<ConfigSchema>
 ) {
   const embedder = defineAction(
+    registry,
     {
       actionType: 'embedder',
       name: options.name,
@@ -111,9 +113,10 @@ export type EmbedderArgument<
  * A veneer for interacting with embedder models.
  */
 export async function embed<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny>(
+  registry: Registry,
   params: EmbedderParams<CustomOptions>
 ): Promise<Embedding> {
-  let embedder = await resolveEmbedder(params);
+  let embedder = await resolveEmbedder(registry, params);
   if (!embedder.embedderAction) {
     let embedderId: string;
     if (typeof params.embedder === 'string') {
@@ -148,11 +151,12 @@ interface ResolvedEmbedder<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> {
 async function resolveEmbedder<
   CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
 >(
+  registry: Registry,
   params: EmbedderParams<CustomOptions>
 ): Promise<ResolvedEmbedder<CustomOptions>> {
   if (typeof params.embedder === 'string') {
     return {
-      embedderAction: await lookupAction(`/embedder/${params.embedder}`),
+      embedderAction: await registry.lookupAction(`/embedder/${params.embedder}`),
     };
   } else if (Object.hasOwnProperty.call(params.embedder, '__action')) {
     return {
@@ -161,7 +165,7 @@ async function resolveEmbedder<
   } else if (Object.hasOwnProperty.call(params.embedder, 'name')) {
     const ref = params.embedder as EmbedderReference<any>;
     return {
-      embedderAction: await lookupAction(
+      embedderAction: await registry.lookupAction(
         `/embedder/${(params.embedder as EmbedderReference).name}`
       ),
       config: {
@@ -178,17 +182,20 @@ async function resolveEmbedder<
  */
 export async function embedMany<
   ConfigSchema extends z.ZodTypeAny = z.ZodTypeAny,
->(params: {
-  embedder: EmbedderArgument<ConfigSchema>;
-  content: string[] | DocumentData[];
-  metadata?: Record<string, unknown>;
-  options?: z.infer<ConfigSchema>;
-}): Promise<EmbeddingBatch> {
+>(
+  registry: Registry,
+  params: {
+    embedder: EmbedderArgument<ConfigSchema>;
+    content: string[] | DocumentData[];
+    metadata?: Record<string, unknown>;
+    options?: z.infer<ConfigSchema>;
+  }
+): Promise<EmbeddingBatch> {
   let embedder: EmbedderAction<ConfigSchema>;
   if (typeof params.embedder === 'string') {
-    embedder = await lookupAction(`/embedder/${params.embedder}`);
+    embedder = await registry.lookupAction(`/embedder/${params.embedder}`);
   } else if (Object.hasOwnProperty.call(params.embedder, 'info')) {
-    embedder = await lookupAction(
+    embedder = await registry.lookupAction(
       `/embedder/${(params.embedder as EmbedderReference).name}`
     );
   } else {

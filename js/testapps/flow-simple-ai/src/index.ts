@@ -17,17 +17,16 @@
 import { defineFirestoreRetriever } from '@genkit-ai/firebase';
 import { enableGoogleCloudTelemetry } from '@genkit-ai/google-cloud';
 import {
+  gemini10Pro as googleGemini10Pro,
   gemini15Flash,
   googleAI,
-  gemini10Pro as googleGemini10Pro,
 } from '@genkit-ai/googleai';
 import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
 import { GoogleAIFileManager } from '@google/generative-ai/server';
 import { AlwaysOnSampler } from '@opentelemetry/sdk-trace-base';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
-import { MessageSchema, genkit, run, z } from 'genkit';
-import { runWithRegistry } from 'genkit/registry';
+import { genkit, MessageSchema, run, z } from 'genkit';
 import { Allow, parse } from 'partial-json';
 
 enableGoogleCloudTelemetry({
@@ -269,16 +268,14 @@ export const multimodalFlow = ai.defineFlow(
   }
 );
 
-const destinationsRetriever = runWithRegistry(ai.registry, () =>
-  defineFirestoreRetriever(ai, {
-    name: 'destinationsRetriever',
-    firestore: getFirestore(app),
-    collection: 'destinations',
-    contentField: 'knownFor',
-    embedder: textEmbedding004,
-    vectorField: 'embedding',
-  })
-);
+const destinationsRetriever = defineFirestoreRetriever(ai, {
+  name: 'destinationsRetriever',
+  firestore: getFirestore(app),
+  collection: 'destinations',
+  contentField: 'knownFor',
+  embedder: textEmbedding004,
+  vectorField: 'embedding',
+});
 
 export const searchDestinations = ai.defineFlow(
   {
