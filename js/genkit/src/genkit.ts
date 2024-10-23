@@ -963,7 +963,7 @@ export class Genkit {
         name: loadedPlugin.name,
         async initializer() {
           logger.debug(`Initializing plugin ${loadedPlugin.name}:`);
-          loadedPlugin.initializer();
+          await loadedPlugin.initializer();
         },
       });
     });
