@@ -413,7 +413,7 @@ export class Flow<
  */
 export interface FlowServerOptions {
   /** List of flows to expose via the flow server. If not specified, all registered flows will be exposed. */
-  flows?: Flow<any, any, any>[];
+  flows?: CallableFlow<any, any>[];
   /** Port to run the server on. In `dev` environment, actual port may be different if chosen port is occupied. Defaults to 3400. */
   port?: number;
   /** CORS options for the server. */
@@ -482,12 +482,12 @@ export class FlowServer {
       logger.debug('Running flow server with flow paths:');
       const pathPrefix = this.options.pathPrefix ?? '';
       this.options.flows?.forEach((flow) => {
-        const flowPath = `/${pathPrefix}${flow.name}`;
+        const flowPath = `/${pathPrefix}${flow.flow.name}`;
         logger.debug(` - ${flowPath}`);
-        flow.middleware?.forEach((middleware) =>
+        flow.flow.middleware?.forEach((middleware) =>
           server.post(flowPath, middleware)
         );
-        server.post(flowPath, (req, res) => flow.expressHandler(req, res));
+        server.post(flowPath, (req, res) => flow.flow.expressHandler(req, res));
       });
     } else {
       logger.warn('No flows registered in flow server.');

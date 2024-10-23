@@ -21,7 +21,6 @@ import { genkit, z } from 'genkit';
 
 const ai = genkit({
   plugins: [googleAI()],
-  flowServer: true,
 });
 
 export const menuSuggestionFlow = ai.defineFlow(
@@ -42,3 +41,7 @@ export const menuSuggestionFlow = ai.defineFlow(
     return llmResponse.text;
   }
 );
+
+ai.startFlowServer({
+  flows: [menuSuggestionFlow],
+});

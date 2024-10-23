@@ -127,3 +127,7 @@ export const synthesizeQuestions = ai.defineFlow(
     return questions;
   }
 );
+
+ai.startFlowServer({
+  flows: [pdfQA],
+});
