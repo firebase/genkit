@@ -26,21 +26,30 @@ import {
 } from '@genkit-ai/ai';
 import { z } from '@genkit-ai/core';
 import { Genkit } from './genkit';
-import { Session, SessionStore } from './session';
+import {
+  BaseGenerateOptions,
+  Session,
+  SessionStore,
+  runWithSession,
+} from './session';
+import { runInNewSpan } from './tracing';
 
 export const MAIN_THREAD = 'main';
 
-export type BaseGenerateOptions = Omit<GenerateOptions, 'prompt'>;
+export type ChatGenerateOptions<
+  O extends z.ZodTypeAny = z.ZodTypeAny,
+  CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
+> = GenerateOptions<O, CustomOptions>;
 
 export interface PromptRenderOptions<I> {
   prompt: ExecutablePrompt<I>;
   input?: I;
 }
 
-export type ChatOptions<
-  I = undefined,
-  S extends z.ZodTypeAny = z.ZodTypeAny,
-> = (PromptRenderOptions<I> | BaseGenerateOptions) & {
+export type ChatOptions<I = undefined, S = any> = (
+  | PromptRenderOptions<I>
+  | BaseGenerateOptions
+) & {
   store?: SessionStore<S>;
   sessionId?: string;
 };
@@ -57,15 +66,14 @@ export type ChatOptions<
  * response = await chat.send('what is my name?'); // chat history aware conversation
  * ```
  */
-export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
-  readonly requestBase?: Promise<BaseGenerateOptions>;
+export class Chat {
+  private requestBase?: Promise<BaseGenerateOptions>;
   readonly sessionId: string;
-  readonly schema?: S;
   private _messages?: MessageData[];
   private threadName: string;
 
   constructor(
-    readonly session: Session<S>,
+    readonly session: Session,
     requestBase: Promise<BaseGenerateOptions>,
     options: {
       id: string;
@@ -113,59 +121,93 @@ export class Chat<S extends z.ZodTypeAny = z.ZodTypeAny> {
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
   >(
-    options: string | Part[] | GenerateOptions<O, CustomOptions>
+    options: string | Part[] | ChatGenerateOptions<O, CustomOptions>
   ): Promise<GenerateResponse<z.infer<O>>> {
-    // string
-    if (typeof options === 'string') {
-      options = {
-        prompt: options,
-      } as GenerateOptions<O, CustomOptions>;
-    }
-    // Part[]
-    if (Array.isArray(options)) {
-      options = {
-        prompt: options,
-      } as GenerateOptions<O, CustomOptions>;
-    }
-    const response = await this.genkit.generate({
-      ...(await this.requestBase),
-      messages: this.messages,
-      ...options,
-    });
-    await this.updateMessages(response.messages);
-    return response;
+    return runWithSession(this.session, () =>
+      runInNewSpan({ metadata: { name: 'send' } }, async () => {
+        let resolvedOptions;
+        let streamingCallback = undefined;
+
+        // string
+        if (typeof options === 'string') {
+          resolvedOptions = {
+            prompt: options,
+          } as ChatGenerateOptions<O, CustomOptions>;
+        } else if (Array.isArray(options)) {
+          // Part[]
+          resolvedOptions = {
+            prompt: options,
+          } as ChatGenerateOptions<O, CustomOptions>;
+        } else {
+          resolvedOptions = options as ChatGenerateOptions<O, CustomOptions>;
+          streamingCallback = resolvedOptions.streamingCallback;
+        }
+        let request: GenerateOptions = {
+          ...(await this.requestBase),
+          messages: this.messages,
+          ...resolvedOptions,
+        };
+        let response = await this.genkit.generate({
+          ...request,
+          streamingCallback,
+        });
+        this.requestBase = Promise.resolve({
+          ...(await this.requestBase),
+          // these things may get changed by tools calling within generate.
+          tools: response?.request?.tools,
+          config: response?.request?.config,
+        });
+        await this.updateMessages(response.messages);
+        return response;
+      })
+    );
   }
 
-  async sendStream<
+  sendStream<
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
   >(
     options: string | Part[] | GenerateStreamOptions<O, CustomOptions>
   ): Promise<GenerateStreamResponse<z.infer<O>>> {
-    // string
-    if (typeof options === 'string') {
-      options = {
-        prompt: options,
-      } as GenerateOptions<O, CustomOptions>;
-    }
-    // Part[]
-    if (Array.isArray(options)) {
-      options = {
-        prompt: options,
-      } as GenerateOptions<O, CustomOptions>;
-    }
-    const { response, stream } = await this.genkit.generateStream({
-      ...(await this.requestBase),
-      messages: this.messages,
-      ...options,
-    });
+    return runWithSession(this.session, () =>
+      runInNewSpan({ metadata: { name: 'send' } }, async () => {
+        let resolvedOptions;
 
-    return {
-      response: response.finally(async () => {
-        this.updateMessages((await response).messages);
-      }),
-      stream,
-    };
+        // string
+        if (typeof options === 'string') {
+          resolvedOptions = {
+            prompt: options,
+          } as GenerateStreamOptions<O, CustomOptions>;
+        } else if (Array.isArray(options)) {
+          // Part[]
+          resolvedOptions = {
+            prompt: options,
+          } as GenerateStreamOptions<O, CustomOptions>;
+        } else {
+          resolvedOptions = options as GenerateStreamOptions<O, CustomOptions>;
+        }
+
+        const { response, stream } = await this.genkit.generateStream({
+          ...(await this.requestBase),
+          messages: this.messages,
+          ...resolvedOptions,
+        });
+
+        return {
+          response: response.finally(async () => {
+            const resolvedResponse = await response;
+            this.requestBase = Promise.resolve({
+              ...(await this.requestBase),
+              // these things may get changed by tools calling within generate.
+              tools: resolvedResponse?.request?.tools,
+              config: resolvedResponse?.request?.config,
+            });
+            this.updateMessages(resolvedResponse.messages);
+          }),
+          stream,
+        };
+      })
+    );
   }
 
   private get genkit(): Genkit {

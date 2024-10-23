@@ -378,7 +378,7 @@ export function fromGeminiCandidate(
 // Since JSON schemas can include nested arrays/objects, we have to recursively map the type field
 // in all nested fields.
 const convertSchemaProperty = (property) => {
-  if (!property) {
+  if (!property || !property.type) {
     return null;
   }
   if (property.type === 'object') {

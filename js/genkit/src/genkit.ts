@@ -88,6 +88,7 @@ import {
   RetrieverFn,
   SimpleRetrieverOptions,
 } from '@genkit-ai/ai/retriever';
+import { resolveTools } from '@genkit-ai/ai/tool';
 import {
   CallableFlow,
   defineFlow,
@@ -111,8 +112,9 @@ import {
   defineDotprompt,
   defineHelper,
   definePartial,
+  PromptMetadata as DotpromptPromptMetadata,
   loadPromptFolder,
-  PromptMetadata,
+  prompt,
 } from '@genkit-ai/dotprompt';
 import { v4 as uuidv4 } from 'uuid';
 import { Chat, ChatOptions } from './chat.js';
@@ -127,6 +129,7 @@ import {
   SessionError,
   SessionOptions,
 } from './session.js';
+import { toToolDefinition } from './tool.js';
 
 /**
  * Options for initializing Genkit.
@@ -142,6 +145,17 @@ export interface GenkitOptions {
   /** Configuration for the flow server. Server will be started if value is true or a configured object. */
   flowServer?: FlowServerOptions | boolean;
 }
+
+/**
+ * Metadata for a prompt.
+ */
+export type PromptMetadata<
+  Input extends z.ZodTypeAny = z.ZodTypeAny,
+  Options extends z.ZodTypeAny = z.ZodTypeAny,
+> = Omit<DotpromptPromptMetadata<Input, Options>, 'name'> & {
+  /** The name of the prompt. */
+  name: string;
+};
 
 /**
  * `Genkit` encapsulates a single Genkit instance including the {@link Registry}, {@link ReflectionServer}, {@link FlowServer}, and configuration.
@@ -272,11 +286,17 @@ export class Genkit {
     name: string,
     options?: { variant?: string }
   ): Promise<ExecutablePrompt<z.infer<I>, O, CustomOptions>> {
-    const action = (await this.registry.lookupAction(
+    // check if functional prompt exists.
+    let action = (await this.registry.lookupAction(
       `/prompt/${name}`
     )) as PromptAction<I>;
+    // if not, lookup with dotprompt.
+    if (!action) {
+      action = (await prompt(this.registry, name, options))
+        .promptAction as PromptAction<I>;
+    }
     return this.wrapPromptActionInExecutablePrompt(
-      action,
+      action as PromptAction<I>,
       {}
     ) as ExecutablePrompt<I, O, CustomOptions>;
   }
@@ -306,10 +326,7 @@ export class Genkit {
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
-    options: PromptMetadata<I, CustomOptions> & {
-      /** The name of the prompt. */
-      name: string;
-    },
+    options: PromptMetadata<I, CustomOptions>,
     template: string
   ): ExecutablePrompt<z.infer<I>, O, CustomOptions>;
 
@@ -343,10 +360,7 @@ export class Genkit {
     O extends z.ZodTypeAny = z.ZodTypeAny,
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
-    options: PromptMetadata<I, CustomOptions> & {
-      /** The name of the prompt. */
-      name: string;
-    },
+    options: PromptMetadata<I, CustomOptions>,
     fn: PromptFn<I>
   ): ExecutablePrompt<z.infer<I>, O, CustomOptions>;
 
@@ -370,7 +384,10 @@ export class Genkit {
     if (typeof templateOrFn === 'string') {
       const dotprompt = defineDotprompt(
         this.registry,
-        options,
+        {
+          ...options,
+          tools: options.tools,
+        },
         templateOrFn as string
       );
       return this.wrapPromptActionInExecutablePrompt(
@@ -384,8 +401,20 @@ export class Genkit {
           name: options.name!,
           inputJsonSchema: options.input?.jsonSchema,
           inputSchema: options.input?.schema,
+          description: options.description,
         },
-        templateOrFn as PromptFn<I>
+        async (input: z.infer<I>) => {
+          const response = await (templateOrFn as PromptFn<I>)(input);
+          if (!response.tools && options.tools) {
+            response.tools = (
+              await resolveTools(this.registry, options.tools)
+            ).map(toToolDefinition);
+          }
+          if (!response.output && options.output) {
+            response.output = options.output;
+          }
+          return response;
+        }
       );
       return this.wrapPromptActionInExecutablePrompt(p, options);
     }
@@ -397,7 +426,7 @@ export class Genkit {
     CustomOptions extends z.ZodTypeAny = z.ZodTypeAny,
   >(
     p: PromptAction<I>,
-    options: PromptMetadata<I, CustomOptions>
+    options: Partial<PromptMetadata<I, CustomOptions>>
   ): ExecutablePrompt<I, O, CustomOptions> {
     const executablePrompt = async (
       input?: z.infer<I>,
@@ -450,18 +479,25 @@ export class Genkit {
       try {
         model = await this.resolveModel(opt?.model ?? options.model);
       } catch (e) {
-        // ignore, no model on a render is OK.
+        // ignore, no model on a render is OK?
       }
-
-      const promptResult = await p(opt.input);
+      const promptResult = await p({
+        // this feels a litte hacky, but we need to pass session state as action input
+        // to make it replayable from trace view in the dev ui.
+        __genkit__sessionState: { state: getCurrentSession()?.state },
+        ...opt.input,
+      });
       const resultOptions = {
         messages: promptResult.messages,
         docs: promptResult.docs,
-        tools: promptResult.tools,
-        output: {
-          format: promptResult.output?.format,
-          jsonSchema: promptResult.output?.schema,
-        },
+        tools: promptResult.tools ?? options.tools,
+        output:
+          promptResult.output?.format || promptResult.output?.schema
+            ? {
+                format: promptResult.output?.format,
+                jsonSchema: promptResult.output?.schema,
+              }
+            : options.output,
         config: {
           ...options.config,
           ...promptResult.config,
@@ -865,7 +901,7 @@ export class Genkit {
   /**
    * Create a session for this environment.
    */
-  createSession(options?: SessionOptions): Session {
+  createSession<S = any>(options?: SessionOptions<S>): Session<S> {
     const sessionId = uuidv4();
     const sessionData: SessionData = {
       id: sessionId,
@@ -874,7 +910,6 @@ export class Genkit {
     return new Session(this, {
       id: sessionId,
       sessionData,
-      stateSchema: options?.stateSchema,
       store: options?.store,
     });
   }
@@ -894,7 +929,6 @@ export class Genkit {
     return new Session(this, {
       id: sessionId,
       sessionData,
-      stateSchema: options?.stateSchema,
       store: options.store,
     });
   }
@@ -902,7 +936,7 @@ export class Genkit {
   /**
    * Gets the current session from async local storage.
    */
-  get currentSession(): Session {
+  currentSession<S = any>(): Session<S> {
     const currentSession = getCurrentSession();
     if (!currentSession) {
       throw new SessionError('not running within a session');

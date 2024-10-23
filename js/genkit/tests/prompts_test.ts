@@ -728,12 +728,58 @@ describe('definePrompt', () => {
             role: 'user',
           },
         ],
-        output: {
-          format: undefined,
-          jsonSchema: undefined,
-        },
+        output: undefined,
         tools: undefined,
       });
     });
+  });
+});
+
+describe('prompt', () => {
+  let ai: Genkit;
+
+  beforeEach(() => {
+    ai = genkit({
+      model: 'echoModel',
+      promptDir: './tests/prompts',
+    });
+    defineEchoModel(ai);
+  });
+
+  it('loads from from the folder', async () => {
+    const testPrompt = await ai.prompt('test'); // see tests/prompts folder
+
+    const { text } = await testPrompt();
+
+    assert.strictEqual(
+      text,
+      'Echo: Hello from the prompt file; config: {"temperature":11}'
+    );
+  });
+
+  it('returns a ref to functional prompts', async () => {
+    ai.definePrompt(
+      {
+        name: 'hi',
+        model: 'echoModel',
+        input: {
+          schema: z.object({
+            name: z.string(),
+          }),
+        },
+      },
+      async (input) => {
+        return {
+          messages: [{ role: 'user', content: [{ text: `hi ${input.name}` }] }],
+          config: {
+            temperature: 11,
+          },
+        };
+      }
+    );
+    const testPrompt = await ai.prompt('hi');
+    const { text } = await testPrompt({ name: 'banana' });
+
+    assert.strictEqual(text, 'Echo: hi banana; config: {"temperature":11}');
   });
 });
