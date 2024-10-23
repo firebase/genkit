@@ -47,7 +47,7 @@ const findCandidate = (candidates: Candidate[], index?: number): Candidate => {
 };
 
 const isValidCandidate = (candidate: Candidate): boolean => {
-  const jsonOutput = extractJson(candidate.text(), false);
+  const jsonOutput = candidate.data() || extractJson(candidate.text(), false);
   if (!jsonOutput) return false;
 
   const schema = candidate.request?.output?.schema;
@@ -80,7 +80,7 @@ const formatRegistry: Record<string, FormatParser> = {
     name: 'json',
     parseResponse: (res, candidateIdx) => {
       const candidate = findCandidate(res.candidates, candidateIdx);
-      return extractJson(candidate.text(), true);
+      return candidate.data() || extractJson(candidate.text(), true);
     },
     parseChunk: (chunk) => {
       const accumulatedText = getAccumulatedChunksText(chunk.accumulatedChunks);
@@ -93,7 +93,7 @@ const formatRegistry: Record<string, FormatParser> = {
         jsonSchema: req.output?.jsonSchema,
       });
 
-      return `Output should be in JSON format with the following schema:
+      return `The output should be in JSON format and must exactly match the following schema:
 ${JSON.stringify(jsonSchema, null, 0)}`;
     },
   },
