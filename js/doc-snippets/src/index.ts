@@ -14,17 +14,15 @@
  * limitations under the License.
  */
 
-import { glob } from 'glob';
-import * as path from 'path';
-import { logger } from '../utils';
+import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
+import { genkit } from 'genkit';
 
-async function main() {
-  logger.info(`Loading file paths: ${process.argv[2]}`);
-  const files = await glob(process.argv[2].split(','));
-  for (const file of files) {
-    logger.info(`Loading \`${file}\`...`);
-    await import(path.join(process.cwd(), file));
-  }
-}
+const ai = genkit({
+  plugins: [googleAI()],
+  model: gemini15Flash,
+});
 
-main();
+(async () => {
+  const { text } = await ai.generate('hi');
+  console.log(text);
+})();

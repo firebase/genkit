@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { geminiPro } from '@genkit-ai/vertexai';
-import { defineDotprompt, GenerateRequest } from 'genkit';
+import { gemini15Flash } from '@genkit-ai/vertexai';
+import { GenerateRequest } from 'genkit';
 import { ai } from '../index.js';
 import { MenuQuestionInput, MenuQuestionInputSchema } from '../types.js';
 
@@ -25,7 +25,9 @@ import { MenuQuestionInput, MenuQuestionInputSchema } from '../types.js';
 export const s01_vanillaPrompt = ai.definePrompt(
   {
     name: 's01_vanillaPrompt',
-    inputSchema: MenuQuestionInputSchema,
+    input: {
+      schema: MenuQuestionInputSchema,
+    },
   },
   async (input: MenuQuestionInput): Promise<GenerateRequest> => {
     const promptText = `
@@ -45,10 +47,10 @@ export const s01_vanillaPrompt = ai.definePrompt(
 // that also gives us a type-safe handlebars template system,
 // and well-defined output schemas.
 
-export const s01_staticMenuDotPrompt = defineDotprompt(
+export const s01_staticMenuDotPrompt = ai.definePrompt(
   {
     name: 's01_staticMenuDotPrompt',
-    model: geminiPro,
+    model: gemini15Flash,
     input: { schema: MenuQuestionInputSchema },
     output: { format: 'text' },
   },

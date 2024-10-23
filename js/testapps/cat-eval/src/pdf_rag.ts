@@ -18,13 +18,13 @@ import {
   devLocalIndexerRef,
   devLocalRetrieverRef,
 } from '@genkit-ai/dev-local-vectorstore';
-import { geminiPro } from '@genkit-ai/googleai';
+import { gemini15Flash } from '@genkit-ai/googleai';
 import { run, z } from 'genkit';
 import { Document } from 'genkit/retriever';
 import { chunk } from 'llm-chunk';
 import path from 'path';
 import { getDocument } from 'pdfjs-dist-legacy';
-import { ai } from './index.js';
+import { ai } from './genkit.js';
 
 export const pdfChatRetriever = devLocalRetrieverRef('pdfQA');
 
@@ -61,13 +61,13 @@ export const pdfQA = ai.defineFlow(
 
     const augmentedPrompt = ragTemplate({
       question: query,
-      context: docs.map((d) => d.text()).join('\n\n'),
+      context: docs.map((d) => d.text).join('\n\n'),
     });
     const llmResponse = await ai.generate({
-      model: geminiPro,
+      model: gemini15Flash,
       prompt: augmentedPrompt,
     });
-    return llmResponse.text();
+    return llmResponse.text;
   }
 );
 
@@ -141,12 +141,12 @@ export const synthesizeQuestions = ai.defineFlow(
     const questions: string[] = [];
     for (let i = 0; i < chunks.length; i++) {
       const qResponse = await ai.generate({
-        model: geminiPro,
+        model: gemini15Flash,
         prompt: {
           text: `Generate one question about the text below: ${chunks[i]}`,
         },
       });
-      questions.push(qResponse.text());
+      questions.push(qResponse.text);
     }
     return questions;
   }

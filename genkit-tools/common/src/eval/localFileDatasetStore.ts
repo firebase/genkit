@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import crypto from 'crypto';
 import fs from 'fs';
 import { readFile, rm, writeFile } from 'fs/promises';
 import path from 'path';
@@ -23,9 +22,11 @@ import { CreateDatasetRequest, UpdateDatasetRequest } from '../types/apis';
 import {
   Dataset,
   DatasetMetadata,
+  DatasetSchema,
   DatasetStore,
-  EvalFlowInputSchema,
+  EvalInferenceInput,
 } from '../types/eval';
+import { generateTestCaseId } from '../utils';
 import { logger } from '../utils/logger';
 
 /**
@@ -64,13 +65,13 @@ export class LocalFileDatasetStore implements DatasetStore {
   }
 
   async createDataset(req: CreateDatasetRequest): Promise<DatasetMetadata> {
-    return this.createDatasetInternal(req.data, req.datasetId);
+    return this.createDatasetInternal(req);
   }
 
   private async createDatasetInternal(
-    data: Dataset,
-    datasetId?: string
+    req: CreateDatasetRequest
   ): Promise<DatasetMetadata> {
+    const { data, datasetId, schema, targetAction } = req;
     const id = await this.generateDatasetId(datasetId);
     const filePath = path.resolve(this.storeRoot, this.generateFileName(id));
 
@@ -80,14 +81,16 @@ export class LocalFileDatasetStore implements DatasetStore {
         `Create dataset failed: file already exists at {$filePath}`
       );
     }
-
+    const dataset = this.getDatasetFromInferenceInput(data);
     logger.info(`Saving Dataset to ` + filePath);
-    await writeFile(filePath, JSON.stringify(data));
+    await writeFile(filePath, JSON.stringify(dataset));
 
     const now = new Date().toString();
-    const metadata = {
+    const metadata: DatasetMetadata = {
       datasetId: id,
-      size: Array.isArray(data) ? data.length : data.samples.length,
+      schema,
+      targetAction,
+      size: dataset.length,
       version: 1,
       createTime: now,
       updateTime: now,
@@ -105,10 +108,7 @@ export class LocalFileDatasetStore implements DatasetStore {
   }
 
   async updateDataset(req: UpdateDatasetRequest): Promise<DatasetMetadata> {
-    const datasetId = req.datasetId;
-    if (!req.data) {
-      throw new Error('Error: `data` is required for updateDataset');
-    }
+    const { datasetId, data, schema, targetAction } = req;
     const filePath = path.resolve(
       this.storeRoot,
       this.generateFileName(datasetId)
@@ -122,15 +122,20 @@ export class LocalFileDatasetStore implements DatasetStore {
     if (!prevMetadata) {
       throw new Error(`Update dataset failed: dataset metadata not found`);
     }
-
-    logger.info(`Updating Dataset at ` + filePath);
-    await writeFile(filePath, JSON.stringify(req.data));
+    const patch = this.getDatasetFromInferenceInput(data ?? []);
+    let newSize = prevMetadata.size;
+    if (patch.length > 0) {
+      logger.info(`Updating Dataset at ` + filePath);
+      newSize = await this.patchDataset(datasetId, patch, filePath);
+    }
 
     const now = new Date().toString();
     const newMetadata = {
       datasetId: datasetId,
-      size: Array.isArray(req.data) ? req.data.length : req.data.samples.length,
-      version: prevMetadata.version + 1,
+      size: newSize,
+      schema: schema ? schema : prevMetadata.schema,
+      targetAction: targetAction ? targetAction : prevMetadata.targetAction,
+      version: data ? prevMetadata.version + 1 : prevMetadata.version,
       createTime: prevMetadata.createTime,
       updateTime: now,
     };
@@ -154,9 +159,9 @@ export class LocalFileDatasetStore implements DatasetStore {
     if (!fs.existsSync(filePath)) {
       throw new Error(`Dataset not found for dataset ID {$id}`);
     }
-    return await readFile(filePath, 'utf8').then((data) =>
-      EvalFlowInputSchema.parse(JSON.parse(data))
-    );
+    return await readFile(filePath, 'utf8').then((data) => {
+      return DatasetSchema.parse(JSON.parse(data));
+    });
   }
 
   async listDatasets(): Promise<DatasetMetadata[]> {
@@ -188,11 +193,7 @@ export class LocalFileDatasetStore implements DatasetStore {
   }
 
   private static generateRootPath(): string {
-    const rootHash = crypto
-      .createHash('md5')
-      .update(process.cwd() || 'unknown')
-      .digest('hex');
-    return path.resolve(process.cwd(), `.genkit/${rootHash}/datasets`);
+    return path.resolve(process.cwd(), `.genkit/datasets`);
   }
 
   /** Visible for testing */
@@ -228,12 +229,45 @@ export class LocalFileDatasetStore implements DatasetStore {
     return path.resolve(this.storeRoot, 'index.json');
   }
 
-  private async getMetadataMap(): Promise<any> {
+  private async getMetadataMap(): Promise<Record<string, DatasetMetadata>> {
     if (!fs.existsSync(this.indexFile)) {
       return Promise.resolve({} as any);
     }
     return await readFile(path.resolve(this.indexFile), 'utf8').then((data) =>
       JSON.parse(data)
     );
+  }
+
+  private getDatasetFromInferenceInput(data: EvalInferenceInput): Dataset {
+    if (Array.isArray(data)) {
+      return data.map((d) => ({
+        testCaseId: d.testCaseId ?? generateTestCaseId(),
+        input: d,
+      }));
+    } else if (!!data.samples) {
+      return data.samples.map((d) => ({
+        testCaseId: d.testCaseId ?? generateTestCaseId(),
+        ...d,
+      }));
+    }
+    return [];
+  }
+
+  private async patchDataset(
+    datasetId: string,
+    patch: Dataset,
+    filePath: string
+  ): Promise<number> {
+    const existingDataset = await this.getDataset(datasetId);
+    const datasetMap = new Map(existingDataset.map((d) => [d.testCaseId, d]));
+    const patchMap = new Map(patch.map((d) => [d.testCaseId, d]));
+
+    patchMap.forEach((value, key) => {
+      datasetMap.set(key, value);
+    });
+
+    const newDataset = Array.from(datasetMap.values()) as Dataset;
+    await writeFile(filePath, JSON.stringify(newDataset));
+    return newDataset.length;
   }
 }

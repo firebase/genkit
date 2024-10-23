@@ -27,37 +27,43 @@ import {
  */
 
 /**
- * Structured input for eval:flow
+ * Structured input for inference part of evaluation
  */
-export const EvalFlowStructuredInputSchema = z.object({
+export const EvalInferenceStructuredInputSchema = z.object({
   samples: z.array(
     z.object({
+      testCaseId: z.string().optional(),
       input: z.any(),
       reference: z.any().optional(),
     })
   ),
 });
-export type EvalFlowStructuredInput = z.infer<
-  typeof EvalFlowStructuredInputSchema
+export type EvalInferenceStructuredInput = z.infer<
+  typeof EvalInferenceStructuredInputSchema
 >;
 
 /**
- * A dataset that is ready for eval:flow.
+ * A set of samples that is ready for inference.
  *
- * This could be an array of input objects to the target flow, or
- * It could be a JSON object as specified, with support for references.
+ * This should be used in user-facing surfaces (CLI/API inputs) to accommodate various user input formats. For internal wire-transfer/storage, prefer {@link Dataset}.
  */
-export const EvalFlowInputSchema = z.union([
+export const EvalInferenceInputSchema = z.union([
   z.array(z.any()),
-  EvalFlowStructuredInputSchema,
+  EvalInferenceStructuredInputSchema,
 ]);
-export type EvalFlowInput = z.infer<typeof EvalFlowInputSchema>;
+export type EvalInferenceInput = z.infer<typeof EvalInferenceInputSchema>;
 
 /**
- * Alias for EvalFlowInput to be used in the DatasetStore related APIs.
- * We may deprecate EvalFlowInput in favor of this in the future.
+ * Represents a Dataset, to be used for bulk-inference / evaluation. This is a more optionated form of EvalInferenceInput, which guarantees testCaseId for each test sample.
  */
-export type Dataset = z.infer<typeof EvalFlowInputSchema>;
+export const DatasetSchema = z.array(
+  z.object({
+    testCaseId: z.string(),
+    input: z.any(),
+    reference: z.any().optional(),
+  })
+);
+export type Dataset = z.infer<typeof DatasetSchema>;
 
 /**
  * A record that is ready for evaluation.
@@ -101,10 +107,17 @@ export type EvalResult = z.infer<typeof EvalResultSchema>;
 export const EvalRunKeySchema = z.object({
   actionRef: z.string().optional(),
   datasetId: z.string().optional(),
+  datasetVersion: z.number().optional(),
   evalRunId: z.string(),
   createdAt: z.string(),
 });
 export type EvalRunKey = z.infer<typeof EvalRunKeySchema>;
+export const EvalKeyAugmentsSchema = EvalRunKeySchema.pick({
+  datasetId: true,
+  datasetVersion: true,
+  actionRef: true,
+});
+export type EvalKeyAugments = z.infer<typeof EvalKeyAugmentsSchema>;
 
 /**
  * A container for the results of evaluation over a batch of test cases.
@@ -147,6 +160,17 @@ export interface EvalStore {
   list(query?: ListEvalKeysRequest): Promise<ListEvalKeysResponse>;
 }
 
+export const DatasetSchemaSchema = z.object({
+  inputSchema: z
+    .record(z.any())
+    .describe('Valid JSON Schema for the `input` field of dataset entry.')
+    .optional(),
+  referenceSchema: z
+    .record(z.any())
+    .describe('Valid JSON Schema for the `reference` field of dataset entry.')
+    .optional(),
+});
+
 /**
  * Metadata for Dataset objects containing version, create and update time, etc.
  */
@@ -154,6 +178,8 @@ export const DatasetMetadataSchema = z.object({
   /** unique. user-provided or auto-generated */
   datasetId: z.string(),
   size: z.number(),
+  schema: DatasetSchemaSchema.optional(),
+  targetAction: z.string().optional(),
   /** 1 for v1, 2 for v2, etc */
   version: z.number(),
   createTime: z.string(),

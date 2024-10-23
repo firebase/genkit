@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { Action, GENKIT_CLIENT_HEADER, z } from 'genkit';
-import { BaseDataPoint, Score, defineEvaluator } from 'genkit/evaluator';
+import { Action, Genkit, GENKIT_CLIENT_HEADER, z } from 'genkit';
+import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import { runInNewSpan } from 'genkit/tracing';
 import { GoogleAuth } from 'google-auth-library';
 import { VertexAIEvaluationMetricType } from './evaluation.js';
@@ -28,22 +28,23 @@ export class EvaluatorFactory {
   ) {}
 
   create<ResponseType extends z.ZodTypeAny>(
+    ai: Genkit,
     config: {
       metric: VertexAIEvaluationMetricType;
       displayName: string;
       definition: string;
       responseSchema: ResponseType;
     },
-    toRequest: (datapoint: BaseDataPoint) => any,
+    toRequest: (datapoint: BaseEvalDataPoint) => any,
     responseHandler: (response: z.infer<ResponseType>) => Score
   ): Action {
-    return defineEvaluator(
+    return ai.defineEvaluator(
       {
         name: `vertexai/${config.metric.toLocaleLowerCase()}`,
         displayName: config.displayName,
         definition: config.definition,
       },
-      async (datapoint: BaseDataPoint) => {
+      async (datapoint: BaseEvalDataPoint) => {
         const responseSchema = config.responseSchema;
         const response = await this.evaluateInstances(
           toRequest(datapoint),

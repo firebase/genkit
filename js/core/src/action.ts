@@ -17,16 +17,11 @@
 import { JSONSchema7 } from 'json-schema';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import * as z from 'zod';
-import {
-  ActionType,
-  initializeAllPlugins,
-  lookupPlugin,
-  registerAction,
-} from './registry.js';
+import { ActionType, Registry } from './registry.js';
 import { parseSchema } from './schema.js';
 import {
   SPAN_TYPE_ATTR,
-  runInNewSpan,
+  newTrace,
   setCustomMetadataAttributes,
 } from './tracing.js';
 
@@ -122,18 +117,16 @@ export function action<
 ): Action<I, O> {
   const actionName =
     typeof config.name === 'string'
-      ? validateActionName(config.name)
-      : `${config.name.pluginId}/${validateActionId(config.name.actionId)}`;
+      ? config.name
+      : `${config.name.pluginId}/${config.name.actionId}`;
   const actionFn = async (input: I) => {
     input = parseSchema(input, {
       schema: config.inputSchema,
       jsonSchema: config.inputJsonSchema,
     });
-    let output = await runInNewSpan(
+    let output = await newTrace(
       {
-        metadata: {
-          name: actionName,
-        },
+        name: actionName,
         labels: {
           [SPAN_TYPE_ATTR]: 'action',
         },
@@ -170,16 +163,16 @@ export function action<
   return actionFn;
 }
 
-function validateActionName(name: string) {
+function validateActionName(registry: Registry, name: string) {
   if (name.includes('/')) {
-    validatePluginName(name.split('/', 1)[0]);
+    validatePluginName(registry, name.split('/', 1)[0]);
     validateActionId(name.substring(name.indexOf('/') + 1));
   }
   return name;
 }
 
-function validatePluginName(pluginId: string) {
-  if (!lookupPlugin(pluginId)) {
+function validatePluginName(registry: Registry, pluginId: string) {
+  if (!registry.lookupPlugin(pluginId)) {
     throw new Error(
       `Unable to find plugin name used in the action name: ${pluginId}`
     );
@@ -202,6 +195,7 @@ export function defineAction<
   O extends z.ZodTypeAny,
   M extends Record<string, any> = Record<string, any>,
 >(
+  registry: Registry,
   config: ActionParams<I, O, M> & {
     actionType: ActionType;
   },
@@ -213,13 +207,18 @@ export function defineAction<
         'See: https://github.com/firebase/genkit/blob/main/docs/errors/no_new_actions_at_runtime.md'
     );
   }
+  if (typeof config.name === 'string') {
+    validateActionName(registry, config.name);
+  } else {
+    validateActionId(config.name.actionId);
+  }
   const act = action(config, async (i: I): Promise<z.infer<O>> => {
     setCustomMetadataAttributes({ subtype: config.actionType });
-    await initializeAllPlugins();
+    await registry.initializeAllPlugins();
     return await runInActionRuntimeContext(() => fn(i));
   });
   act.__action.actionType = config.actionType;
-  registerAction(config.actionType, act);
+  registry.registerAction(config.actionType, act);
   return act;
 }
 

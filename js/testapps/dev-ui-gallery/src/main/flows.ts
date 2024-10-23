@@ -16,7 +16,7 @@
 
 import { run, z } from 'genkit';
 import { generateString } from '../common/util';
-import { ai } from '../index.js';
+import { ai } from '../genkit.js';
 
 //
 // Flow - simple

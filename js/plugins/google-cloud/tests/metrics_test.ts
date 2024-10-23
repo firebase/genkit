@@ -15,12 +15,13 @@
  */
 
 import {
-  GcpOpenTelemetry,
-  __forceFlushSpansForTesting,
-  __getMetricExporterForTesting,
-  __getSpanExporterForTesting,
-  enableGoogleCloudTelemetry,
-} from '@genkit-ai/google-cloud';
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  it,
+  jest,
+} from '@jest/globals';
 import {
   DataPoint,
   Histogram,
@@ -29,24 +30,44 @@ import {
   SumMetricData,
 } from '@opentelemetry/sdk-metrics';
 import { ReadableSpan } from '@opentelemetry/sdk-trace-base';
-import {
-  GenerateResponseData,
-  Genkit,
-  defineAction,
-  generate,
-  genkit,
-  run,
-  z,
-} from 'genkit';
-import { defineModel } from 'genkit/model';
-import { runWithRegistry } from 'genkit/registry';
+import { GenerateResponseData, Genkit, genkit, run, z } from 'genkit';
+import { SPAN_TYPE_ATTR, appendSpan } from 'genkit/tracing';
 import assert from 'node:assert';
-import { after, before, beforeEach, describe, it } from 'node:test';
+import {
+  GcpOpenTelemetry,
+  __forceFlushSpansForTesting,
+  __getMetricExporterForTesting,
+  __getSpanExporterForTesting,
+  enableGoogleCloudTelemetry,
+} from '../src/index.js';
+
+jest.mock('../src/auth.js', () => {
+  const original = jest.requireActual('../src/auth.js');
+  return {
+    ...(original || {}),
+    resolveCurrentPrincipal: jest.fn().mockImplementation(() => {
+      return Promise.resolve({
+        projectId: 'test',
+        serviceAccountEmail: 'test@test.com',
+      });
+    }),
+    credentialsFromEnvironment: jest.fn().mockImplementation(() => {
+      return Promise.resolve({
+        projectId: 'test',
+        credentials: {
+          client_email: 'test@genkit.com',
+          private_key: '-----BEGIN PRIVATE KEY-----',
+        },
+      });
+    }),
+  };
+});
 
 describe('GoogleCloudMetrics', () => {
   let ai: Genkit;
 
-  before(async () => {
+  beforeAll(async () => {
+    process.env.GCLOUD_PROJECT = 'test';
     process.env.GENKIT_ENV = 'dev';
     await enableGoogleCloudTelemetry({
       projectId: 'test',
@@ -60,11 +81,11 @@ describe('GoogleCloudMetrics', () => {
     __getMetricExporterForTesting().reset();
     __getSpanExporterForTesting().reset();
   });
-  after(async () => {
+  afterAll(async () => {
     await ai.stopServers();
   });
 
-  it('writes flow metrics', async () => {
+  it('writes action metrics for a successful flow', async () => {
     const testFlow = createFlow(ai, 'testFlow');
 
     await testFlow();
@@ -72,21 +93,25 @@ describe('GoogleCloudMetrics', () => {
 
     await getExportedSpans();
 
-    const requestCounter = await getCounterMetric('genkit/flow/requests');
-    const latencyHistogram = await getHistogramMetric('genkit/flow/latency');
-    assert.equal(requestCounter.value, 2);
-    assert.equal(requestCounter.attributes.name, 'testFlow');
-    assert.equal(requestCounter.attributes.source, 'ts');
-    assert.equal(requestCounter.attributes.status, 'success');
-    assert.ok(requestCounter.attributes.sourceVersion);
-    assert.equal(latencyHistogram.value.count, 2);
-    assert.equal(latencyHistogram.attributes.name, 'testFlow');
-    assert.equal(latencyHistogram.attributes.source, 'ts');
-    assert.equal(latencyHistogram.attributes.status, 'success');
-    assert.ok(latencyHistogram.attributes.sourceVersion);
-  });
+    const actionRequestCounter = await getCounterMetric(
+      'genkit/action/requests'
+    );
+    const actionLatencyHistogram = await getHistogramMetric(
+      'genkit/action/latency'
+    );
+    assert.equal(actionRequestCounter.value, 2);
+    assert.equal(actionRequestCounter.attributes.name, 'testFlow');
+    assert.equal(actionRequestCounter.attributes.source, 'ts');
+    assert.equal(actionRequestCounter.attributes.status, 'success');
+    assert.ok(actionRequestCounter.attributes.sourceVersion);
+    assert.equal(actionLatencyHistogram.value.count, 2);
+    assert.equal(actionLatencyHistogram.attributes.name, 'testFlow');
+    assert.equal(actionLatencyHistogram.attributes.source, 'ts');
+    assert.equal(actionLatencyHistogram.attributes.status, 'success');
+    assert.ok(actionLatencyHistogram.attributes.sourceVersion);
+  }, 10000); //timeout
 
-  it('writes flow failure metrics', async () => {
+  it('writes action metrics for a failing flow', async () => {
     const testFlow = createFlow(ai, 'testFlow', async () => {
       const nothing: { missing?: any } = { missing: 1 };
       delete nothing.missing;
@@ -99,15 +124,59 @@ describe('GoogleCloudMetrics', () => {
 
     await getExportedSpans();
 
-    const requestCounter = await getCounterMetric('genkit/flow/requests');
+    const requestCounter = await getCounterMetric('genkit/action/requests');
     assert.equal(requestCounter.value, 1);
     assert.equal(requestCounter.attributes.name, 'testFlow');
     assert.equal(requestCounter.attributes.source, 'ts');
     assert.equal(requestCounter.attributes.error, 'TypeError');
     assert.equal(requestCounter.attributes.status, 'failure');
+  }, 10000); //timeout
+
+  it('writes feature metrics for a successful flow', async () => {
+    const testFlow = createFlow(ai, 'testFlow');
+
+    await testFlow();
+    await testFlow();
+
+    await getExportedSpans();
+
+    const requestCounter = await getCounterMetric('genkit/feature/requests');
+    const latencyHistogram = await getHistogramMetric('genkit/feature/latency');
+    assert.equal(requestCounter.value, 2);
+    assert.equal(requestCounter.attributes.name, 'testFlow');
+    assert.equal(requestCounter.attributes.source, 'ts');
+    assert.equal(requestCounter.attributes.status, 'success');
+    assert.ok(requestCounter.attributes.sourceVersion);
+    assert.equal(latencyHistogram.value.count, 2);
+    assert.equal(latencyHistogram.attributes.name, 'testFlow');
+    assert.equal(latencyHistogram.attributes.source, 'ts');
+    assert.equal(latencyHistogram.attributes.status, 'success');
+    assert.ok(latencyHistogram.attributes.sourceVersion);
   });
 
-  it('writes action metrics', async () => {
+  it('writes feature metrics for a failing flow', async () => {
+    const testFlow = createFlow(ai, 'testFlow', async () => {
+      const nothing: { missing?: any } = { missing: 1 };
+      delete nothing.missing;
+      return nothing.missing.explode;
+    });
+
+    assert.rejects(async () => {
+      await testFlow();
+    });
+
+    await getExportedSpans();
+
+    const requestCounter = await getCounterMetric('genkit/feature/requests');
+    assert.equal(requestCounter.value, 1);
+    assert.equal(requestCounter.attributes.name, 'testFlow');
+    assert.equal(requestCounter.attributes.source, 'ts');
+    assert.equal(requestCounter.attributes.error, 'TypeError');
+    assert.equal(requestCounter.attributes.status, 'failure');
+  }, 10000); //timeout
+
+  // SKIPPED -- we don't allow defining arbitrary actions anymore....
+  it.skip('writes action metrics', async () => {
     const testAction = createAction(ai, 'testAction');
     const testFlow = createFlow(ai, 'testFlowWithActions', async () => {
       await Promise.all([
@@ -122,15 +191,70 @@ describe('GoogleCloudMetrics', () => {
 
     await getExportedSpans();
 
-    const requestCounter = await getCounterMetric('genkit/action/requests');
-    const latencyHistogram = await getHistogramMetric('genkit/action/latency');
+    const requestCounters = await getCounterDataPoints(
+      'genkit/action/requests'
+    );
+    const latencyHistograms = await getHistogramDataPoints(
+      'genkit/action/latency'
+    );
+    const requestCounter = requestCounters[0]; // the action
+    const latencyHistogram = latencyHistograms[0];
+
     assert.equal(requestCounter.value, 6);
     assert.equal(requestCounter.attributes.name, 'testAction');
     assert.equal(requestCounter.attributes.source, 'ts');
     assert.equal(requestCounter.attributes.status, 'success');
     assert.ok(requestCounter.attributes.sourceVersion);
+    assert.equal(requestCounter.attributes.featureName, 'testFlowWithActions');
     assert.equal(latencyHistogram.value.count, 6);
     assert.equal(latencyHistogram.attributes.name, 'testAction');
+    assert.equal(latencyHistogram.attributes.source, 'ts');
+    assert.equal(latencyHistogram.attributes.status, 'success');
+    assert.ok(latencyHistogram.attributes.sourceVersion);
+    assert.equal(requestCounter.attributes.featureName, 'testFlowWithActions');
+  });
+
+  it('writes feature metrics for an action', async () => {
+    const testAction = createAction(ai, 'featureAction');
+
+    await testAction(null);
+    await testAction(null);
+
+    await getExportedSpans();
+
+    const requestCounter = await getCounterMetric('genkit/feature/requests');
+    const latencyHistogram = await getHistogramMetric('genkit/feature/latency');
+    assert.equal(requestCounter.value, 2);
+    assert.equal(requestCounter.attributes.name, 'featureAction');
+    assert.equal(requestCounter.attributes.source, 'ts');
+    assert.equal(requestCounter.attributes.status, 'success');
+    assert.ok(requestCounter.attributes.sourceVersion);
+    assert.equal(latencyHistogram.value.count, 2);
+    assert.equal(latencyHistogram.attributes.name, 'featureAction');
+    assert.equal(latencyHistogram.attributes.source, 'ts');
+    assert.equal(latencyHistogram.attributes.status, 'success');
+    assert.ok(latencyHistogram.attributes.sourceVersion);
+  });
+
+  // it('writes feature metrics for prompts')
+  // after PR #1029
+
+  it('writes feature metrics for generate', async () => {
+    const testModel = createTestModel(ai, 'helloModel');
+    await ai.generate({ model: testModel, prompt: 'Hi' });
+    await ai.generate({ model: testModel, prompt: 'Yo' });
+
+    const spans = await getExportedSpans();
+
+    const requestCounter = await getCounterMetric('genkit/feature/requests');
+    const latencyHistogram = await getHistogramMetric('genkit/feature/latency');
+    assert.equal(requestCounter.value, 2);
+    assert.equal(requestCounter.attributes.name, 'generate');
+    assert.equal(requestCounter.attributes.source, 'ts');
+    assert.equal(requestCounter.attributes.status, 'success');
+    assert.ok(requestCounter.attributes.sourceVersion);
+    assert.equal(latencyHistogram.value.count, 2);
+    assert.equal(latencyHistogram.attributes.name, 'generate');
     assert.equal(latencyHistogram.attributes.source, 'ts');
     assert.equal(latencyHistogram.attributes.status, 'success');
     assert.ok(latencyHistogram.attributes.sourceVersion);
@@ -143,8 +267,8 @@ describe('GoogleCloudMetrics', () => {
 
     await getExportedSpans();
 
-    const requestCounter = await getCounterMetric('genkit/flow/requests');
-    const latencyHistogram = await getHistogramMetric('genkit/flow/latency');
+    const requestCounter = await getCounterMetric('genkit/feature/requests');
+    const latencyHistogram = await getHistogramMetric('genkit/feature/latency');
     assert.equal(
       requestCounter.attributes.name,
       'anExtremelyLongFlowNameThatIsToo'
@@ -155,20 +279,17 @@ describe('GoogleCloudMetrics', () => {
     );
   });
 
-  it('writes action failure metrics', async () => {
+  // SKIPPED -- we don't allow defining arbitrary actions anymore....
+  it.skip('writes action failure metrics', async () => {
     const testAction = createAction(ai, 'testActionWithFailure', async () => {
       const nothing: { missing?: any } = { missing: 1 };
       delete nothing.missing;
       return nothing.missing.explode;
     });
-    const testFlow = createFlow(ai, 'testFlowWithFailingActions', async () => {
-      await testAction(undefined);
-    });
 
     assert.rejects(async () => {
-      await testFlow();
+      return testAction(null);
     });
-
     await getExportedSpans();
 
     const requestCounter = await getCounterMetric('genkit/action/requests');
@@ -177,30 +298,10 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(requestCounter.attributes.source, 'ts');
     assert.equal(requestCounter.attributes.status, 'failure');
     assert.equal(requestCounter.attributes.error, 'TypeError');
-  });
+  }, 10000); //timeout
 
-  it('writes generate metrics', async () => {
-    const testModel = createModel(ai, 'testModel', async () => {
-      return {
-        message: {
-          role: 'user',
-          content: [
-            {
-              text: 'response',
-            },
-          ],
-        },
-        finishReason: 'stop',
-        usage: {
-          inputTokens: 10,
-          outputTokens: 14,
-          inputCharacters: 8,
-          outputCharacters: 16,
-          inputImages: 1,
-          outputImages: 3,
-        },
-      };
-    });
+  it('writes generate metrics for a successful model action', async () => {
+    const testModel = createTestModel(ai, 'testModel');
 
     await ai.generate({
       model: testModel,
@@ -264,11 +365,12 @@ describe('GoogleCloudMetrics', () => {
       assert.equal(metric.attributes.topP, 5);
       assert.equal(metric.attributes.source, 'ts');
       assert.equal(metric.attributes.status, 'success');
+      assert.equal(metric.attributes.featureName, 'generate');
       assert.ok(metric.attributes.sourceVersion);
     }
   });
 
-  it('writes generate failure metrics', async () => {
+  it('writes generate metrics for a failing model action', async () => {
     const testModel = createModel(ai, 'failingTestModel', async () => {
       const nothing: { missing?: any } = { missing: 1 };
       delete nothing.missing;
@@ -302,9 +404,10 @@ describe('GoogleCloudMetrics', () => {
     assert.equal(requestCounter.attributes.status, 'failure');
     assert.equal(requestCounter.attributes.error, 'TypeError');
     assert.ok(requestCounter.attributes.sourceVersion);
-  });
+  }, 10000); //timeout
 
-  it('writes flow label to action metrics when running inside flow', async () => {
+  // SKIPPED -- we don't allow defining arbitrary actions anymore....
+  it.skip('writes flow label to action metrics when running inside flow', async () => {
     const testAction = createAction(ai, 'testAction');
     const flow = createFlow(ai, 'flowNameLabelTestFlow', async () => {
       return await testAction(undefined);
@@ -316,11 +419,44 @@ describe('GoogleCloudMetrics', () => {
 
     const requestCounter = await getCounterMetric('genkit/action/requests');
     const latencyHistogram = await getHistogramMetric('genkit/action/latency');
-    assert.equal(requestCounter.attributes.flowName, 'flowNameLabelTestFlow');
-    assert.equal(latencyHistogram.attributes.flowName, 'flowNameLabelTestFlow');
+    assert.equal(
+      requestCounter.attributes.featureName,
+      'flowNameLabelTestFlow'
+    );
+    assert.equal(
+      latencyHistogram.attributes.featureName,
+      'flowNameLabelTestFlow'
+    );
   });
 
-  it('writes flow label to generate metrics when running inside flow', async () => {
+  it('writes feature label to generate and action metrics when running inside an action', async () => {
+    const testModel = createTestModel(ai, 'testModel');
+
+    const testAction = createAction(ai, 'testGenerateAction', async () => {
+      await ai.generate({
+        model: testModel,
+        prompt: 'helllloooooooo',
+      });
+    });
+
+    testAction(null);
+
+    await getExportedSpans();
+
+    const requestCounter = await getCounterMetric('genkit/action/requests');
+    const latencyHistogram = await getHistogramMetric('genkit/action/latency');
+    const generateRequestCounter = await getCounterMetric(
+      'genkit/ai/generate/requests'
+    );
+    assert.equal(requestCounter.attributes.featureName, 'testGenerateAction');
+    assert.equal(latencyHistogram.attributes.featureName, 'testGenerateAction');
+    assert.equal(
+      generateRequestCounter.attributes.featureName,
+      'testGenerateAction'
+    );
+  }, 10000); //timeout
+
+  it('writes feature label to generate metrics when running inside a flow', async () => {
     const testModel = createModel(ai, 'testModel', async () => {
       return {
         message: {
@@ -343,7 +479,7 @@ describe('GoogleCloudMetrics', () => {
       };
     });
     const flow = createFlow(ai, 'testFlow', async () => {
-      return await generate({
+      return await ai.generate({
         model: testModel,
         prompt: 'test prompt',
       });
@@ -364,11 +500,11 @@ describe('GoogleCloudMetrics', () => {
       await getHistogramMetric('genkit/ai/generate/latency'),
     ];
     for (const metric of metrics) {
-      assert.equal(metric.attributes.flowName, 'testFlow');
+      assert.equal(metric.attributes.featureName, 'testFlow');
     }
   });
 
-  it('writes flow paths metrics', async () => {
+  it('writes path metrics for a successful flow', async () => {
     const flow = createFlow(ai, 'pathTestFlow', async () => {
       await run('step1', async () => {
         return await run('substep_a', async () => {
@@ -388,10 +524,10 @@ describe('GoogleCloudMetrics', () => {
       '/{pathTestFlow,t:flow}/{step1,t:flowStep}/{substep_a,t:flowStep}/{substep_b,t:flowStep}',
     ]);
     const pathCounterPoints = await getCounterDataPoints(
-      'genkit/flow/path/requests'
+      'genkit/feature/path/requests'
     );
     const pathLatencyPoints = await getHistogramDataPoints(
-      'genkit/flow/path/latency'
+      'genkit/feature/path/latency'
     );
     const paths = new Set(
       pathCounterPoints.map((point) => point.attributes.path)
@@ -399,21 +535,21 @@ describe('GoogleCloudMetrics', () => {
     assert.deepEqual(paths, expectedPaths);
     pathCounterPoints.forEach((point) => {
       assert.equal(point.value, 1);
-      assert.equal(point.attributes.flowName, 'pathTestFlow');
+      assert.equal(point.attributes.featureName, 'pathTestFlow');
       assert.equal(point.attributes.source, 'ts');
       assert.equal(point.attributes.status, 'success');
       assert.ok(point.attributes.sourceVersion);
     });
     pathLatencyPoints.forEach((point) => {
       assert.equal(point.value.count, 1);
-      assert.equal(point.attributes.flowName, 'pathTestFlow');
+      assert.equal(point.attributes.featureName, 'pathTestFlow');
       assert.equal(point.attributes.source, 'ts');
       assert.equal(point.attributes.status, 'success');
       assert.ok(point.attributes.sourceVersion);
     });
   });
 
-  it('writes flow path failure metrics in root', async () => {
+  it('writes path metrics for a failing flow with exception in root', async () => {
     const flow = createFlow(ai, 'testFlow', async () => {
       const subPath = await run('sub-action', async () => {
         return 'done';
@@ -427,7 +563,9 @@ describe('GoogleCloudMetrics', () => {
 
     await getExportedSpans();
 
-    const reqPoints = await getCounterDataPoints('genkit/flow/path/requests');
+    const reqPoints = await getCounterDataPoints(
+      'genkit/feature/path/requests'
+    );
     const reqStatuses = reqPoints.map((p) => [
       p.attributes.path,
       p.attributes.status,
@@ -437,7 +575,7 @@ describe('GoogleCloudMetrics', () => {
       ['/{testFlow,t:flow}', 'failure'],
     ]);
     const latencyPoints = await getHistogramDataPoints(
-      'genkit/flow/path/latency'
+      'genkit/feature/path/latency'
     );
     const latencyStatuses = latencyPoints.map((p) => [
       p.attributes.path,
@@ -447,9 +585,9 @@ describe('GoogleCloudMetrics', () => {
       ['/{testFlow,t:flow}/{sub-action,t:flowStep}', 'success'],
       ['/{testFlow,t:flow}', 'failure'],
     ]);
-  });
+  }, 10000); //timeout
 
-  it('writes flow path failure metrics in subaction', async () => {
+  it('writes path metrics for a failing flow with exception in subaction', async () => {
     const flow = createFlow(ai, 'testFlow', async () => {
       const subPath1 = await run('sub-action-1', async () => {
         const subPath2 = await run('sub-action-2', async () => {
@@ -466,7 +604,9 @@ describe('GoogleCloudMetrics', () => {
 
     await getExportedSpans();
 
-    const reqPoints = await getCounterDataPoints('genkit/flow/path/requests');
+    const reqPoints = await getCounterDataPoints(
+      'genkit/feature/path/requests'
+    );
     const reqStatuses = reqPoints.map((p) => [
       p.attributes.path,
       p.attributes.status,
@@ -478,7 +618,7 @@ describe('GoogleCloudMetrics', () => {
       ],
     ]);
     const latencyPoints = await getHistogramDataPoints(
-      'genkit/flow/path/latency'
+      'genkit/feature/path/latency'
     );
     const latencyStatuses = latencyPoints.map((p) => [
       p.attributes.path,
@@ -490,9 +630,9 @@ describe('GoogleCloudMetrics', () => {
         'failure',
       ],
     ]);
-  });
+  }, 10000); //timeout
 
-  it('writes flow path failure metrics in subaction', async () => {
+  it('writes path metrics for a flow with exception in action', async () => {
     const flow = createFlow(ai, 'testFlow', async () => {
       const subPath1 = await run('sub-action-1', async () => {
         const subPath2 = await run('sub-action-2', async () => {
@@ -509,7 +649,9 @@ describe('GoogleCloudMetrics', () => {
 
     await getExportedSpans();
 
-    const reqPoints = await getCounterDataPoints('genkit/flow/path/requests');
+    const reqPoints = await getCounterDataPoints(
+      'genkit/feature/path/requests'
+    );
     const reqStatuses = reqPoints.map((p) => [
       p.attributes.path,
       p.attributes.status,
@@ -522,7 +664,7 @@ describe('GoogleCloudMetrics', () => {
       ['/{testFlow,t:flow}/{sub-action-1,t:flowStep}', 'failure'],
     ]);
     const latencyPoints = await getHistogramDataPoints(
-      'genkit/flow/path/latency'
+      'genkit/feature/path/latency'
     );
     const latencyStatuses = latencyPoints.map((p) => [
       p.attributes.path,
@@ -535,9 +677,9 @@ describe('GoogleCloudMetrics', () => {
       ],
       ['/{testFlow,t:flow}/{sub-action-1,t:flowStep}', 'failure'],
     ]);
-  });
+  }, 10000); //timeout
 
-  it('writes flow path failure in sub-action metrics', async () => {
+  it('writes path metrics for a flow with an exception in a serial action', async () => {
     const flow = createFlow(ai, 'testFlow', async () => {
       const subPath1 = await run('sub-action-1', async () => {
         return 'done';
@@ -554,7 +696,9 @@ describe('GoogleCloudMetrics', () => {
 
     await getExportedSpans();
 
-    const reqPoints = await getCounterDataPoints('genkit/flow/path/requests');
+    const reqPoints = await getCounterDataPoints(
+      'genkit/feature/path/requests'
+    );
     const reqStatuses = reqPoints.map((p) => [
       p.attributes.path,
       p.attributes.status,
@@ -564,7 +708,7 @@ describe('GoogleCloudMetrics', () => {
       ['/{testFlow,t:flow}/{sub-action-2,t:flowStep}', 'failure'],
     ]);
     const latencyPoints = await getHistogramDataPoints(
-      'genkit/flow/path/latency'
+      'genkit/feature/path/latency'
     );
     const latencyStatuses = latencyPoints.map((p) => [
       p.attributes.path,
@@ -574,6 +718,61 @@ describe('GoogleCloudMetrics', () => {
       ['/{testFlow,t:flow}/{sub-action-1,t:flowStep}', 'success'],
       ['/{testFlow,t:flow}/{sub-action-2,t:flowStep}', 'failure'],
     ]);
+  }, 10000); //timeout
+
+  it('writes user feedback metrics', async () => {
+    appendSpan(
+      'trace1',
+      'parent1',
+      {
+        name: 'user-feedback',
+        path: '/{flowName}',
+        metadata: {
+          subtype: 'userFeedback',
+          feedbackValue: 'negative',
+          textFeedback: 'terrible',
+        },
+      },
+      { [SPAN_TYPE_ATTR]: 'userEngagement' }
+    );
+
+    await getExportedSpans();
+    const dataPoints = await getCounterDataPoints('genkit/engagement/feedback');
+
+    const points = dataPoints.map((p) => [
+      p.attributes.name,
+      p.attributes.value,
+      p.attributes.hasText,
+      p.attributes.source,
+    ]);
+    assert.deepEqual(points, [['flowName', 'negative', true, 'ts']]);
+    assert.ok(dataPoints[0].attributes.sourceVersion);
+  });
+
+  it('writes user acceptance metrics', async () => {
+    appendSpan(
+      'trace1',
+      'parent1',
+      {
+        name: 'user-acceptance',
+        path: '/{flowName}',
+        metadata: { subtype: 'userAcceptance', acceptanceValue: 'rejected' },
+      },
+      { [SPAN_TYPE_ATTR]: 'userEngagement' }
+    );
+
+    await getExportedSpans();
+    const dataPoints = await getCounterDataPoints(
+      'genkit/engagement/acceptance'
+    );
+
+    const points = dataPoints.map((p) => [
+      p.attributes.name,
+      p.attributes.value,
+      p.attributes.source,
+    ]);
+    assert.deepEqual(points, [['flowName', 'rejected', 'ts']]);
+    assert.ok(dataPoints[0].attributes.sourceVersion);
   });
 
   describe('Configuration', () => {
@@ -728,14 +927,11 @@ describe('GoogleCloudMetrics', () => {
     name: string,
     fn: () => Promise<void> = async () => {}
   ) {
-    return runWithRegistry(ai.registry, () =>
-      defineAction(
-        {
-          name,
-          actionType: 'custom',
-        },
-        fn
-      )
+    return ai.defineFlow(
+      {
+        name,
+      },
+      fn
     );
   }
 
@@ -746,8 +942,30 @@ describe('GoogleCloudMetrics', () => {
     name: string,
     respFn: () => Promise<GenerateResponseData>
   ) {
-    return runWithRegistry(ai.registry, () =>
-      defineModel({ name }, (req) => respFn())
-    );
+    return ai.defineModel({ name }, (req) => respFn());
+  }
+
+  function createTestModel(ai: Genkit, name: string) {
+    return createModel(ai, name, async () => {
+      return {
+        message: {
+          role: 'model',
+          content: [
+            {
+              text: 'Oh hello',
+            },
+          ],
+        },
+        finishReason: 'stop',
+        usage: {
+          inputTokens: 10,
+          outputTokens: 14,
+          inputCharacters: 8,
+          outputCharacters: 16,
+          inputImages: 1,
+          outputImages: 3,
+        },
+      };
+    });
   }
 });

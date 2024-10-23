@@ -31,12 +31,7 @@ import { runWithAuthContext } from './auth.js';
 import { getErrorMessage, getErrorStack } from './error.js';
 import { FlowActionInputSchema } from './flowTypes.js';
 import { logger } from './logging.js';
-import {
-  getRegistryInstance,
-  initializeAllPlugins,
-  Registry,
-  runWithRegistry,
-} from './registry.js';
+import { Registry } from './registry.js';
 import { toJsonSchema } from './schema.js';
 import {
   newTrace,
@@ -153,7 +148,7 @@ export type FlowFn<
   streamingCallback?: S extends z.ZodVoid
     ? undefined
     : StreamingCallback<z.infer<S>>
-) => Promise<z.infer<O>>;
+) => Promise<z.infer<O>> | z.infer<O>;
 
 /**
  * Represents the result of a flow execution.
@@ -181,6 +176,7 @@ export class Flow<
   readonly flowFn: FlowFn<I, O, S>;
 
   constructor(
+    private registry: Registry,
     config: FlowConfig<I, O> | StreamingFlowConfig<I, O, S>,
     flowFn: FlowFn<I, O, S>
   ) {
@@ -207,7 +203,7 @@ export class Flow<
       auth?: unknown;
     }
   ): Promise<FlowResult<z.infer<O>>> {
-    await initializeAllPlugins();
+    await this.registry.initializeAllPlugins();
     return await runWithAuthContext(opts.auth, () =>
       newTrace(
         {
@@ -336,84 +332,79 @@ export class Flow<
   }
 
   async expressHandler(
-    registry: Registry,
     request: __RequestWithAuth,
     response: express.Response
   ): Promise<void> {
-    await runWithRegistry(registry, async () => {
-      const { stream } = request.query;
-      const auth = request.auth;
+    const { stream } = request.query;
+    const auth = request.auth;
 
-      let input = request.body.data;
+    let input = request.body.data;
 
+    try {
+      await this.authPolicy?.(auth, input);
+    } catch (e: any) {
+      const respBody = {
+        error: {
+          status: 'PERMISSION_DENIED',
+          message: e.message || 'Permission denied to resource',
+        },
+      };
+      response.status(403).send(respBody).end();
+      return;
+    }
+
+    if (stream === 'true') {
+      response.writeHead(200, {
+        'Content-Type': 'text/plain',
+        'Transfer-Encoding': 'chunked',
+      });
       try {
-        await this.authPolicy?.(auth, input);
-      } catch (e: any) {
-        const respBody = {
-          error: {
-            status: 'PERMISSION_DENIED',
-            message: e.message || 'Permission denied to resource',
-          },
-        };
-        response.status(403).send(respBody).end();
-        return;
-      }
-
-      if (stream === 'true') {
-        response.writeHead(200, {
-          'Content-Type': 'text/plain',
-          'Transfer-Encoding': 'chunked',
+        const result = await this.invoke(input, {
+          streamingCallback: ((chunk: z.infer<S>) => {
+            response.write(JSON.stringify(chunk) + streamDelimiter);
+          }) as S extends z.ZodVoid ? undefined : StreamingCallback<z.infer<S>>,
+          auth,
         });
-        try {
-          const result = await this.invoke(input, {
-            streamingCallback: ((chunk: z.infer<S>) => {
-              response.write(JSON.stringify(chunk) + streamDelimiter);
-            }) as S extends z.ZodVoid
-              ? undefined
-              : StreamingCallback<z.infer<S>>,
-            auth,
-          });
-          response.write({
-            result: result.result, // Need more results!!!!
-          });
-          response.end();
-        } catch (e) {
-          response.write({
+        response.write({
+          result: result.result, // Need more results!!!!
+        });
+        response.end();
+      } catch (e) {
+        response.write({
+          error: {
+            status: 'INTERNAL',
+            message: getErrorMessage(e),
+            details: getErrorStack(e),
+          },
+        });
+        response.end();
+      }
+    } else {
+      try {
+        const result = await this.invoke(input, { auth });
+        response.setHeader('x-genkit-trace-id', result.traceId);
+        response.setHeader('x-genkit-span-id', result.spanId);
+        // Responses for non-streaming flows are passed back with the flow result stored in a field called "result."
+        response
+          .status(200)
+          .send({
+            result: result.result,
+          })
+          .end();
+      } catch (e) {
+        // Errors for non-streaming flows are passed back as standard API errors.
+        response
+          .status(500)
+          .send({
             error: {
               status: 'INTERNAL',
               message: getErrorMessage(e),
               details: getErrorStack(e),
             },
-          });
-          response.end();
-        }
-      } else {
-        try {
-          const result = await this.invoke(input, { auth });
-          response.setHeader('x-genkit-trace-id', result.traceId);
-          response.setHeader('x-genkit-span-id', result.spanId);
-          // Responses for non-streaming flows are passed back with the flow result stored in a field called "result."
-          response
-            .status(200)
-            .send({
-              result: result.result,
-            })
-            .end();
-        } catch (e) {
-          // Errors for non-streaming flows are passed back as standard API errors.
-          response
-            .status(500)
-            .send({
-              error: {
-                status: 'INTERNAL',
-                message: getErrorMessage(e),
-                details: getErrorStack(e),
-              },
-            })
-            .end();
-        }
+          })
+          .end();
       }
-    });
+    }
   }
 }
 
@@ -496,9 +487,7 @@ export class FlowServer {
         flow.middleware?.forEach((middleware) =>
           server.post(flowPath, middleware)
         );
-        server.post(flowPath, (req, res) =>
-          flow.expressHandler(this.registry, req, res)
-        );
+        server.post(flowPath, (req, res) => flow.expressHandler(req, res));
       });
     } else {
       logger.warn('No flows registered in flow server.');
@@ -556,12 +545,18 @@ export class FlowServer {
 export function defineFlow<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
->(config: FlowConfig<I, O>, fn: FlowFn<I, O, z.ZodVoid>): CallableFlow<I, O> {
-  const flow = new Flow<I, O, z.ZodVoid>(config, fn);
-  registerFlowAction(flow);
-  const registry = getRegistryInstance();
+>(
+  registry: Registry,
+  config: FlowConfig<I, O> | string,
+  fn: FlowFn<I, O, z.ZodVoid>
+): CallableFlow<I, O> {
+  const resolvedConfig: FlowConfig<I, O> =
+    typeof config === 'string' ? { name: config } : config;
+
+  const flow = new Flow<I, O, z.ZodVoid>(registry, resolvedConfig, fn);
+  registerFlowAction(registry, flow);
   const callableFlow: CallableFlow<I, O> = async (input, opts) => {
-    return runWithRegistry(registry, () => flow.run(input, opts));
+    return flow.run(input, opts);
   };
   callableFlow.flow = flow;
   return callableFlow;
@@ -575,14 +570,14 @@ export function defineStreamingFlow<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
 >(
+  registry: Registry,
   config: StreamingFlowConfig<I, O, S>,
   fn: FlowFn<I, O, S>
 ): StreamableFlow<I, O, S> {
-  const flow = new Flow(config, fn);
-  registerFlowAction(flow);
-  const registry = getRegistryInstance();
+  const flow = new Flow(registry, config, fn);
+  registerFlowAction(registry, flow);
   const streamableFlow: StreamableFlow<I, O, S> = (input, opts) => {
-    return runWithRegistry(registry, () => flow.stream(input, opts));
+    return flow.stream(input, opts);
   };
   streamableFlow.flow = flow;
   return streamableFlow;
@@ -595,8 +590,12 @@ function registerFlowAction<
   I extends z.ZodTypeAny = z.ZodTypeAny,
   O extends z.ZodTypeAny = z.ZodTypeAny,
   S extends z.ZodTypeAny = z.ZodTypeAny,
->(flow: Flow<I, O, S>): Action<typeof FlowActionInputSchema, O> {
+>(
+  registry: Registry,
+  flow: Flow<I, O, S>
+): Action<typeof FlowActionInputSchema, O> {
   return defineAction(
+    registry,
     {
       actionType: 'flow',
       name: flow.name,

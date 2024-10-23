@@ -14,12 +14,8 @@
  * limitations under the License.
  */
 
-import { ModelReference, z } from 'genkit';
-import {
-  BaseDataPoint,
-  EvaluatorAction,
-  defineEvaluator,
-} from 'genkit/evaluator';
+import { Genkit, ModelReference, z } from 'genkit';
+import { BaseEvalDataPoint, EvaluatorAction } from 'genkit/evaluator';
 import { ByoMetric } from '..';
 import { piiDetectionScore } from './pii_detection';
 
@@ -31,16 +27,17 @@ export const PII_DETECTION: ByoMetric = {
  * Create the PII detection evaluator.
  */
 export function createPiiEvaluator<ModelCustomOptions extends z.ZodTypeAny>(
+  ai: Genkit,
   judge: ModelReference<ModelCustomOptions>,
   judgeConfig: z.infer<ModelCustomOptions>
 ): EvaluatorAction {
-  return defineEvaluator(
+  return ai.defineEvaluator(
     {
       name: `byo/${PII_DETECTION.name}`,
       displayName: 'PII Detection',
       definition: 'Detects whether PII is present in the output.',
     },
-    async (datapoint: BaseDataPoint) => {
+    async (datapoint: BaseEvalDataPoint) => {
       const score = await piiDetectionScore(judge, datapoint, judgeConfig);
       return {
         testCaseId: datapoint.testCaseId,

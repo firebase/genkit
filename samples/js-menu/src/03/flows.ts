@@ -66,7 +66,7 @@ export const s03_multiTurnChatFlow = defineFlow(
     });
 
     // Add the exchange to the history store and return it
-    history = llmResponse.toHistory();
+    history = llmResponse.messages;
     chatHistoryStore.write(input.sessionId, history);
     return {
       sessionId: input.sessionId,

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
-import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
 import { genkit } from 'genkit';
 
 // Initialize Genkit
@@ -26,7 +26,7 @@ export const ai = genkit({
     devLocalVectorstore([
       {
         indexName: 'menu-items',
-        embedder: textEmbeddingGecko,
+        embedder: textEmbedding004,
         embedderOptions: { taskType: 'RETRIEVAL_DOCUMENT' },
       },
     ]),
@@ -42,7 +42,6 @@ export { s02_menuQuestionFlow } from './02/flows.js';
 export { s02_dataMenuPrompt } from './02/prompts.js';
 // 03
 export { s03_multiTurnChatFlow } from './03/flows.js';
-export { s03_chatPreamblePrompt } from './03/prompts.js';
 // 04
 export { s04_indexMenuItemsFlow, s04_ragMenuQuestionFlow } from './04/flows.js';
 export { s04_ragDataMenuPrompt } from './04/prompts.js';

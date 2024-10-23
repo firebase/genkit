@@ -14,10 +14,8 @@
  * limitations under the License.
  */
 
-import crypto from 'crypto';
 import fs from 'fs';
 import { appendFile, readFile, writeFile } from 'fs/promises';
-import os from 'os';
 import path from 'path';
 import { logger } from '../utils/logger';
 
@@ -134,10 +132,6 @@ export class LocalFileEvalStore implements EvalStore {
   }
 
   private generateRootPath(): string {
-    const rootHash = crypto
-      .createHash('md5')
-      .update(process.cwd() || 'unknown')
-      .digest('hex');
-    return path.resolve(os.tmpdir(), `.genkit/${rootHash}/evals`);
+    return path.resolve(process.cwd(), `.genkit/evals`);
   }
 }

@@ -18,10 +18,11 @@ import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
 import { defineFlow, defineStreamingFlow } from '../src/flow.js';
 import { z } from '../src/index.js';
-import { Registry, runWithRegistry } from '../src/registry.js';
+import { Registry } from '../src/registry.js';
 
-function createTestFlow() {
+function createTestFlow(registry: Registry) {
   return defineFlow(
+    registry,
     {
       name: 'testFlow',
       inputSchema: z.string(),
@@ -33,8 +34,9 @@ function createTestFlow() {
   );
 }
 
-function createTestStreamingFlow() {
+function createTestStreamingFlow(registry: Registry) {
   return defineStreamingFlow(
+    registry,
     {
       name: 'testFlow',
       inputSchema: z.number(),
@@ -63,7 +65,17 @@ describe('flow', () => {
 
   describe('runFlow', () => {
     it('should run the flow', async () => {
-      const testFlow = runWithRegistry(registry, createTestFlow);
+      const testFlow = createTestFlow(registry);
+
+      const result = await testFlow('foo');
+
+      assert.equal(result, 'bar foo');
+    });
+
+    it('should run simple sync flow', async () => {
+      const testFlow = defineFlow(registry, 'testFlow', (input) => {
+        return `bar ${input}`;
+      });
 
       const result = await testFlow('foo');
 
@@ -71,17 +83,16 @@ describe('flow', () => {
     });
 
     it('should rethrow the error', async () => {
-      const testFlow = runWithRegistry(registry, () =>
-        defineFlow(
-          {
-            name: 'throwing',
-            inputSchema: z.string(),
-            outputSchema: z.string(),
-          },
-          async (input) => {
-            throw new Error(`bad happened: ${input}`);
-          }
-        )
+      const testFlow = defineFlow(
+        registry,
+        {
+          name: 'throwing',
+          inputSchema: z.string(),
+          outputSchema: z.string(),
+        },
+        async (input) => {
+          throw new Error(`bad happened: ${input}`);
+        }
       );
 
       await assert.rejects(() => testFlow('foo'), {
@@ -91,17 +102,16 @@ describe('flow', () => {
     });
 
     it('should validate input', async () => {
-      const testFlow = runWithRegistry(registry, () =>
-        defineFlow(
-          {
-            name: 'validating',
-            inputSchema: z.object({ foo: z.string(), bar: z.number() }),
-            outputSchema: z.string(),
-          },
-          async (input) => {
-            return `ok ${input}`;
-          }
-        )
+      const testFlow = defineFlow(
+        registry,
+        {
+          name: 'validating',
+          inputSchema: z.object({ foo: z.string(), bar: z.number() }),
+          outputSchema: z.string(),
+        },
+        async (input) => {
+          return `ok ${input}`;
+        }
       );
 
       await assert.rejects(
@@ -120,7 +130,7 @@ describe('flow', () => {
 
   describe('streamFlow', () => {
     it('should run the flow', async () => {
-      const testFlow = runWithRegistry(registry, createTestStreamingFlow);
+      const testFlow = createTestStreamingFlow(registry);
 
       const response = testFlow(3);
 
@@ -134,16 +144,15 @@ describe('flow', () => {
     });
 
     it('should rethrow the error', async () => {
-      const testFlow = runWithRegistry(registry, () =>
-        defineStreamingFlow(
-          {
-            name: 'throwing',
-            inputSchema: z.string(),
-          },
-          async (input) => {
-            throw new Error(`stream bad happened: ${input}`);
-          }
-        )
+      const testFlow = defineStreamingFlow(
+        registry,
+        {
+          name: 'throwing',
+          inputSchema: z.string(),
+        },
+        async (input) => {
+          throw new Error(`stream bad happened: ${input}`);
+        }
       );
 
       const response = testFlow('foo');

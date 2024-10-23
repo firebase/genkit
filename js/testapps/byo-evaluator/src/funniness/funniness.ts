@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { loadPromptFile, ModelArgument, z } from 'genkit';
-import { BaseDataPoint, Score } from 'genkit/evaluator';
+import { ModelArgument, loadPromptFile, z } from 'genkit';
+import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import path from 'path';
 import { ai } from '../index.js';
 
@@ -33,7 +33,7 @@ const FunninessResponseSchema = z.object({
 
 export async function funninessScore<CustomModelOptions extends z.ZodTypeAny>(
   judgeLlm: ModelArgument<CustomModelOptions>,
-  dataPoint: BaseDataPoint,
+  dataPoint: BaseEvalDataPoint,
   judgeConfig?: z.infer<CustomModelOptions>
 ): Promise<Score> {
   const d = dataPoint;
@@ -42,6 +42,7 @@ export async function funninessScore<CustomModelOptions extends z.ZodTypeAny>(
       throw new Error('Output is required for Funniness detection');
     }
     const finalPrompt = await loadPromptFile(
+      ai.registry,
       path.resolve(__dirname, '../../prompts/funniness.prompt')
     );
 
@@ -55,9 +56,9 @@ export async function funninessScore<CustomModelOptions extends z.ZodTypeAny>(
         schema: FunninessResponseSchema,
       },
     });
-    const parsedResponse = response.output();
+    const parsedResponse = response.output;
     if (!parsedResponse) {
-      throw new Error(`Unable to parse evaluator response: ${response.text()}`);
+      throw new Error(`Unable to parse evaluator response: ${response.text}`);
     }
     return {
       score: parsedResponse.verdict,

@@ -17,6 +17,7 @@
 import {
   Span as ApiSpan,
   Link,
+  ROOT_CONTEXT,
   SpanStatusCode,
   trace,
 } from '@opentelemetry/api';
@@ -45,21 +46,16 @@ export async function newTrace<T>(
   fn: (metadata: SpanMetadata, rootSpan: ApiSpan) => Promise<T>
 ) {
   ensureBasicTelemetryInstrumentation();
-  // This is the root node only if we haven't previously started a trace.
-  const isRoot = traceMetadataAls.getStore() ? false : true;
-  const traceMetadata = traceMetadataAls.getStore() || {
+  const traceMetadata: TraceMetadata = traceMetadataAls.getStore() || {
     paths: new Set<PathMetadata>(),
     timestamp: performance.now(),
+    featureName: opts.name,
   };
-  if (opts.labels && opts.labels[SPAN_TYPE_ATTR] === 'flow') {
-    traceMetadata.flowName = opts.name;
-  }
   return await traceMetadataAls.run(traceMetadata, () =>
     runInNewSpan(
       {
         metadata: {
           name: opts.name,
-          isRoot,
         },
         labels: opts.labels,
         links: opts.links,
@@ -87,6 +83,7 @@ export async function runInNewSpan<T>(
   const tracer = trace.getTracer(TRACER_NAME, TRACER_VERSION);
   const parentStep = spanMetadataAls.getStore();
   const isInRoot = parentStep?.isRoot === true;
+  if (!parentStep) opts.metadata.isRoot ||= true;
   return await tracer.startActiveSpan(
     opts.metadata.name,
     { links: opts.links, root: opts.metadata.isRoot },
@@ -125,6 +122,33 @@ export async function runInNewSpan<T>(
       }
     }
   );
+}
+
+/**
+ * Creates a new child span and attaches it to a previously created trace. This
+ * is useful, for example, for adding deferred user engagement metadata.
+ */
+export function appendSpan(
+  traceId: string,
+  parentSpanId: string,
+  metadata: SpanMetadata,
+  labels?: Record<string, string>
+) {
+  const tracer = trace.getTracer(TRACER_NAME, TRACER_VERSION);
+
+  const spanContext = trace.setSpanContext(ROOT_CONTEXT, {
+    traceId: traceId,
+    traceFlags: 1, // sampled
+    spanId: parentSpanId,
+  });
+
+  // TODO(abrook): add explicit start time to align with parent
+  const span = tracer.startSpan(metadata.name, {}, spanContext);
+  span.setAttributes(metadataToAttributes(metadata));
+  if (labels) {
+    span.setAttributes(labels);
+  }
+  span.end();
 }
 
 function getErrorMessage(e: any): string {

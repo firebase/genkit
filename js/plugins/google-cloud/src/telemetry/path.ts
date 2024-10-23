@@ -33,16 +33,11 @@ import {
   extractErrorStack,
 } from '../utils';
 
-class FlowsTelemetry implements Telemetry {
+class PathsTelemetry implements Telemetry {
   /**
    * Wraps the declared metrics in a Genkit-specific, internal namespace.
    */
-  private _N = internalMetricNamespaceWrap.bind(null, 'flow');
-
-  private flowCounter = new MetricCounter(this._N('requests'), {
-    description: 'Counts calls to genkit flows.',
-    valueType: ValueType.INT,
-  });
+  private _N = internalMetricNamespaceWrap.bind(null, 'feature');
 
   private pathCounter = new MetricCounter(this._N('path/requests'), {
     description: 'Tracks unique flow paths per flow.',
@@ -52,12 +47,6 @@ class FlowsTelemetry implements Telemetry {
   private pathLatencies = new MetricHistogram(this._N('path/latency'), {
     description: 'Latencies per flow path.',
     ValueType: ValueType.DOUBLE,
-    unit: 'ms',
-  });
-
-  private flowLatencies = new MetricHistogram(this._N('latency'), {
-    description: 'Latencies when calling Genkit flows.',
-    valueType: ValueType.DOUBLE,
     unit: 'ms',
   });
 
@@ -73,30 +62,10 @@ class FlowsTelemetry implements Telemetry {
     const latencyMs = hrTimeToMilliseconds(
       hrTimeDuration(span.startTime, span.endTime)
     );
-    const isRoot = (attributes['genkit:isRoot'] as boolean) || false;
     const state = attributes['genkit:state'] as string;
 
-    const input = attributes['genkit:input'] as string;
-    const output = attributes['genkit:output'] as string;
-
-    if (input && logIO) {
-      this.recordIO(span, 'Input', name, path, input, projectId);
-    }
-
-    if (output && logIO) {
-      this.recordIO(span, 'Output', name, path, output, projectId);
-    }
-
     if (state === 'success') {
-      this.writeFlowSuccess(
-        span,
-        paths!,
-        name,
-        path,
-        latencyMs,
-        isRoot,
-        projectId
-      );
+      this.writePathSuccess(span, paths!, name, path, latencyMs, projectId);
       return;
     }
 
@@ -105,14 +74,13 @@ class FlowsTelemetry implements Telemetry {
       const errorMessage = extractErrorMessage(span.events) || '<unknown>';
       const errorStack = extractErrorStack(span.events) || '';
 
-      this.writeFlowFailure(
+      this.writePathFailure(
         span,
         paths!,
         name,
         path,
         latencyMs,
         errorName,
-        isRoot,
         projectId
       );
       this.recordError(
@@ -126,28 +94,7 @@ class FlowsTelemetry implements Telemetry {
       return;
     }
 
-    logger.warn(`Unknown flow state; ${state}`);
-  }
-
-  private recordIO(
-    span: ReadableSpan,
-    tag: string,
-    flowName: string,
-    qualifiedPath: string,
-    input: string,
-    projectId?: string
-  ) {
-    const path = toDisplayPath(qualifiedPath);
-    const sharedMetadata = {
-      ...createCommonLogAttributes(span, projectId),
-      path,
-      qualifiedPath,
-      flowName,
-    };
-    logger.logStructured(`${tag}[${path}, ${flowName}]`, {
-      ...sharedMetadata,
-      content: input,
-    });
+    logger.warn(`Unknown state; ${state}`);
   }
 
   private recordError(
@@ -171,68 +118,43 @@ class FlowsTelemetry implements Telemetry {
     });
   }
 
-  private writeFlowSuccess(
+  private writePathSuccess(
     span: ReadableSpan,
     paths: Set<PathMetadata>,
-    flowName: string,
+    featureName: string,
     path: string,
     latencyMs: number,
-    isRoot: boolean,
     projectId?: string
   ) {
-    const dimensions = {
-      name: flowName,
-      status: 'success',
-      source: 'ts',
-      sourceVersion: GENKIT_VERSION,
-    };
-    this.flowCounter.add(1, dimensions);
-    this.flowLatencies.record(latencyMs, dimensions);
-
-    if (isRoot) {
-      this.writePathMetrics(
-        span,
-        path,
-        paths,
-        flowName,
-        latencyMs,
-        undefined,
-        projectId
-      );
-    }
+    this.writePathMetrics(
+      span,
+      path,
+      paths,
+      featureName,
+      latencyMs,
+      undefined,
+      projectId
+    );
   }
 
-  private writeFlowFailure(
+  private writePathFailure(
     span: ReadableSpan,
     paths: Set<PathMetadata>,
-    flowName: string,
+    featureName: string,
     path: string,
     latencyMs: number,
     errorName: string,
-    isRoot: boolean,
     projectId?: string
   ) {
-    const dimensions = {
-      name: flowName,
-      status: 'failure',
-      source: 'ts',
-      sourceVersion: GENKIT_VERSION,
-      error: errorName,
-    };
-    this.flowCounter.add(1, dimensions);
-    this.flowLatencies.record(latencyMs, dimensions);
-
-    if (isRoot) {
-      this.writePathMetrics(
-        span,
-        path,
-        paths,
-        flowName,
-        latencyMs,
-        errorName,
-        projectId
-      );
-    }
+    this.writePathMetrics(
+      span,
+      path,
+      paths,
+      featureName,
+      latencyMs,
+      errorName,
+      projectId
+    );
   }
 
   /** Writes all path-level metrics stored in the current flow execution. */
@@ -240,27 +162,27 @@ class FlowsTelemetry implements Telemetry {
     span: ReadableSpan,
     rootPath: string,
     paths: Set<PathMetadata>,
-    flowName: string,
+    featureName: string,
     latencyMs: number,
     err?: string,
     projectId?: string
   ) {
     const flowPaths = Array.from(paths).filter((meta) =>
-      meta.path.includes(flowName)
+      meta.path.includes(featureName)
     );
 
     if (flowPaths) {
-      logger.logStructured(`Paths[${flowName}]`, {
+      logger.logStructured(`Paths[${featureName}]`, {
         ...createCommonLogAttributes(span, projectId),
-        flowName: flowName,
+        flowName: featureName,
         paths: flowPaths.map((p) => toDisplayPath(p.path)),
       });
 
-      flowPaths.forEach((p) => this.writePathMetric(flowName, p));
+      flowPaths.forEach((p) => this.writePathMetric(featureName, p));
       // If we're writing a failure, but none of the stored paths have failed,
       // this means the root flow threw the error.
       if (err && !flowPaths.some((p) => p.status === 'failure')) {
-        this.writePathMetric(flowName, {
+        this.writePathMetric(featureName, {
           status: 'failure',
           path: rootPath,
           error: err,
@@ -271,9 +193,9 @@ class FlowsTelemetry implements Telemetry {
   }
 
   /** Writes metrics for a single PathMetadata */
-  private writePathMetric(flowName: string, meta: PathMetadata) {
+  private writePathMetric(featureName: string, meta: PathMetadata) {
     const pathDimensions = {
-      flowName: flowName,
+      featureName: featureName,
       status: meta.status,
       error: meta.error,
       path: meta.path,
@@ -285,5 +207,5 @@ class FlowsTelemetry implements Telemetry {
   }
 }
 
-const flowsTelemetry = new FlowsTelemetry();
-export { flowsTelemetry };
+const pathsTelemetry = new PathsTelemetry();
+export { pathsTelemetry };

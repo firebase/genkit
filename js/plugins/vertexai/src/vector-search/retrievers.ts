@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-import { embed, RetrieverAction, retrieverRef, z } from 'genkit';
-import { defineRetriever } from 'genkit/retriever';
+import { Genkit, RetrieverAction, retrieverRef, z } from 'genkit';
 import { queryPublicEndpoint } from './query_public_endpoint';
 import {
   VertexAIVectorRetrieverOptionsSchema,
@@ -35,6 +34,7 @@ const DEFAULT_K = 10;
  * @returns {RetrieverAction<z.ZodTypeAny>[]} - An array of retriever actions.
  */
 export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
+  ai: Genkit,
   params: VertexVectorSearchOptions<EmbedderCustomOptions>
 ): RetrieverAction<z.ZodTypeAny>[] {
   const vectorSearchOptions = params.pluginOptions.vectorSearchOptions;
@@ -51,13 +51,13 @@ export function vertexAiRetrievers<EmbedderCustomOptions extends z.ZodTypeAny>(
     const embedder = vectorSearchOption.embedder ?? defaultEmbedder;
     const embedderOptions = vectorSearchOption.embedderOptions;
 
-    const retriever = defineRetriever(
+    const retriever = ai.defineRetriever(
       {
         name: `vertexai/${indexId}`,
         configSchema: VertexAIVectorRetrieverOptionsSchema.optional(),
       },
       async (content, options) => {
-        const queryEmbeddings = await embed({
+        const queryEmbeddings = await ai.embed({
           embedder,
           options: embedderOptions,
           content,

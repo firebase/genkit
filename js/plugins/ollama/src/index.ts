@@ -14,16 +14,17 @@
  * limitations under the License.
  */
 
-import { genkitPlugin, Plugin } from 'genkit';
+import { Genkit } from 'genkit';
 import { logger } from 'genkit/logging';
 import {
-  defineModel,
   GenerateRequest,
   GenerateResponseData,
   GenerationCommonConfigSchema,
   getBasicUsageStats,
   MessageData,
 } from 'genkit/model';
+import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
+import { defineOllamaEmbedder } from './embeddings';
 
 type ApiType = 'chat' | 'generate';
 
@@ -35,9 +36,12 @@ type RequestHeaders =
     ) => Promise<Record<string, string> | void>);
 
 type ModelDefinition = { name: string; type?: ApiType };
+type EmbeddingModelDefinition = { name: string; dimensions: number };
 
 export interface OllamaPluginParams {
   models: ModelDefinition[];
+  embeddingModels?: EmbeddingModelDefinition[];
+
   /**
    *  ollama server address.
    */
@@ -46,24 +50,30 @@ export interface OllamaPluginParams {
   requestHeaders?: RequestHeaders;
 }
 
-export const ollama: Plugin<[OllamaPluginParams]> = genkitPlugin(
-  'ollama',
-  async (params: OllamaPluginParams) => {
+export function ollama(params: OllamaPluginParams): GenkitPlugin {
+  return genkitPlugin('ollama', async (ai: Genkit) => {
     const serverAddress = params?.serverAddress;
-    return {
-      models: params.models.map((model) =>
-        ollamaModel(model, serverAddress, params.requestHeaders)
-      ),
-    };
-  }
-);
+    params.models.map((model) =>
+      ollamaModel(ai, model, serverAddress, params.requestHeaders)
+    );
+    params.embeddingModels?.map((model) =>
+      defineOllamaEmbedder(ai, {
+        name: `${ollama}/model.name`,
+        modelName: model.name,
+        dimensions: model.dimensions,
+        options: params,
+      })
+    );
+  });
+}
 
 function ollamaModel(
+  ai: Genkit,
   model: ModelDefinition,
   serverAddress: string,
   requestHeaders?: RequestHeaders
 ) {
-  return defineModel(
+  return ai.defineModel(
     {
       name: `ollama/${model.name}`,
       label: `Ollama - ${model.name}`,

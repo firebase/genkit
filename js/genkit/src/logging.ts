@@ -14,4 +14,4 @@
  * limitations under the License.
  */
 
-export * from '@genkit-ai/core/logging';
+export { logger } from '@genkit-ai/core/logging';

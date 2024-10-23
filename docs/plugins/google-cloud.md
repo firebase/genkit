@@ -221,32 +221,84 @@ Common dimensions include:
 - `topK` - the inference topK [value](https://ai.google.dev/docs/concepts#model-parameters).
 - `topP` - the inference topP [value](https://ai.google.dev/docs/concepts#model-parameters).
 
-### Flow-level metrics
+### Feature-level metrics
 
-| Name                 | Dimensions                           |
-| -------------------- | ------------------------------------ |
-| genkit/flow/requests | flow_name, error_code, error_message |
-| genkit/flow/latency  | flow_name                            |
+Features are the top-level entry-point to your Genkit code. In most cases, this
+will be a flow, but if you do not use flows, this will be the top-most span in a trace.
+
+| Name                    | Type      | Description             |
+| ----------------------- | --------- | ----------------------- |
+| genkit/feature/requests | Counter   | Number of requests      |
+| genkit/feature/latency  | Histogram | Execution latency in ms |
+
+Each feature-level metric contains the following dimensions:
+
+| Name          | Description                                                                      |
+| ------------- | -------------------------------------------------------------------------------- |
+| name          | The name of the feature. In most cases, this is the top-level Genkit flow        |
+| status        | 'success' or 'failure' depending on whether or not the feature request succeeded |
+| error         | Only set when `status=failure`. Contains the error type that caused the failure  |
+| source        | The Genkit source language. Eg. 'ts'                                             |
+| sourceVersion | The Genkit framework version                                                     |
+
 
 ### Action-level metrics
 
-| Name                   | Dimensions                           |
-| ---------------------- | ------------------------------------ |
-| genkit/action/requests | flow_name, error_code, error_message |
-| genkit/action/latency  | flow_name                            |
+Actions represent a generic step of execution within Genkit. Each of these steps
+will have the following metrics tracked:
+
+| Name                    | Type      | Description                                   |
+| ----------------------- | --------- | --------------------------------------------- |
+| genkit/action/requests  | Counter   | Number of times this action has been executed |
+| genkit/action/latency   | Histogram | Execution latency in ms                       |
+
+Each action-level metric contains the following dimensions:
+
+| Name          | Description                                                                                          |
+| ------------- | ---------------------------------------------------------------------------------------------------- |
+| name          | The name of the action                                                                               |
+| featureName   | The name of the parent feature being executed                                                        |
+| path          | The path of execution from the feature root to this action. eg. '/myFeature/parentAction/thisAction' |
+| status        | 'success' or 'failure' depending on whether or not the action succeeded                              |
+| error         | Only set when `status=failure`. Contains the error type that caused the failure                      |
+| source        | The Genkit source language. Eg. 'ts'                                                                 |
+| sourceVersion | The Genkit framework version                                                                         |
 
 ### Generate-level metrics
 
-| Name                                 | Dimensions                                                           |
-| ------------------------------------ | -------------------------------------------------------------------- |
-| genkit/ai/generate                   | flow_path, model, temperature, topK, topP, error_code, error_message |
-| genkit/ai/generate/input_tokens      | flow_path, model, temperature, topK, topP                            |
-| genkit/ai/generate/output_tokens     | flow_path, model, temperature, topK, topP                            |
-| genkit/ai/generate/input_characters  | flow_path, model, temperature, topK, topP                            |
-| genkit/ai/generate/output_characters | flow_path, model, temperature, topK, topP                            |
-| genkit/ai/generate/input_images      | flow_path, model, temperature, topK, topP                            |
-| genkit/ai/generate/output_images     | flow_path, model, temperature, topK, topP                            |
-| genkit/ai/generate/latency           | flow_path, model, temperature, topK, topP, error_code, error_message |
+These are special action metrics relating to actions that interact with a model.
+In addition to requests and latency, input and output are also tracked, with model
+specific dimensions that make debugging and configuration tuning easier.
+
+| Name                                 | Type      | Description                                |
+| ------------------------------------ | --------- | ------------------------------------------ |
+| genkit/ai/generate/requests          | Counter   | Number of times this model has been called |
+| genkit/ai/generate/latency           | Histogram | Execution latency in ms                    |
+| genkit/ai/generate/input/tokens      | Counter   | Input tokens                               |
+| genkit/ai/generate/output/tokens     | Counter   | Output tokens                              |
+| genkit/ai/generate/input/characters  | Counter   | Input characters                           |
+| genkit/ai/generate/output/characters | Counter   | Output characters                          |
+| genkit/ai/generate/input/images      | Counter   | Input images                               |
+| genkit/ai/generate/output/images     | Counter   | Output images                              |
+| genkit/ai/generate/input/audio       | Counter   | Input audio files                          |
+| genkit/ai/generate/output/audio      | Counter   | Output audio files                         |
+
+Each generate-level metric contains the following dimensions:
+
+| Name            | Description                                                                                          |
+| --------------- | ---------------------------------------------------------------------------------------------------- |
+| modelName       | The name of the model                                                                                |
+| featureName     | The name of the parent feature being executed                                                        |
+| path            | The path of execution from the feature root to this action. eg. '/myFeature/parentAction/thisAction' |
+| temperature     | The temperature parameter passed to the model                                                        |
+| maxOutputTokens | The maxOutputTokens parameter passed to the model                                                    |
+| topK            | The topK parameter passed to the model                                                               |
+| topP            | The topP parameter passed to the model                                                               |
+| latencyMs       | The response time taken by the model                                                                 |
+| status          | 'success' or 'failure' depending on whether or not the feature request succeeded                     |
+| error           | Only set when `status=failure`. Contains the error type that caused the failure                      |
+| source          | The Genkit source language. Eg. 'ts'                                                                 |
+| sourceVersion   | The Genkit framework version                                                                         |
 
 Visualizing metrics can be done through the Metrics Explorer. Using the side menu, select 'Logging' and click 'Metrics explorer'
 

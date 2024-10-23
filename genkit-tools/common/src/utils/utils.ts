@@ -14,59 +14,124 @@
  * limitations under the License.
  */
 
-import * as fs from 'fs';
+import * as fs from 'fs/promises';
 import * as path from 'path';
-import { Runtime } from '../runner/types';
+import { Runtime } from '../manager/types';
 
-interface PackageJson {
-  main: string;
+/**
+ * Finds the project root by looking for a `package.json` file.
+ */
+export async function findProjectRoot(): Promise<string> {
+  let currentDir = process.cwd();
+  while (currentDir !== path.parse(currentDir).root) {
+    const packageJsonPath = path.join(currentDir, 'package.json');
+    try {
+      await fs.access(packageJsonPath);
+      return currentDir;
+    } catch {
+      currentDir = path.dirname(currentDir);
+    }
+  }
+  throw new Error('Could not find project root (package.json not found)');
 }
 
 /**
- * Returns the entry point of a Node.js app.
+ * Finds the Genkit hidden directory containing runtime state files.
  */
-export function getNodeEntryPoint(directory: string): string {
-  const packageJsonPath = path.join(directory, 'package.json');
-  let entryPoint = 'lib/index.js';
-  if (fs.existsSync(packageJsonPath)) {
-    const packageJson = JSON.parse(
-      fs.readFileSync(packageJsonPath, 'utf8')
-    ) as PackageJson;
-    entryPoint = packageJson.main;
-  }
-  return entryPoint;
+export async function findRuntimesDir(projectRoot?: string): Promise<string> {
+  const root = projectRoot ?? (await findProjectRoot());
+  return path.join(root, '.genkit', 'runtimes');
 }
 
 /**
- * Returns the entry point of any supported runtime.
+ * Finds the Genkit hidden directory containing server (UI server, telemetry server, etc) state files.
  */
-export function getEntryPoint(directory: string): string | undefined {
-  const runtime = detectRuntime(directory);
-  switch (runtime) {
-    case 'nodejs':
-      return getNodeEntryPoint(directory);
-    case 'go':
-      return '.';
-    default:
-      return;
-  }
+export async function findServersDir(projectRoot?: string): Promise<string> {
+  const root = projectRoot ?? (await findProjectRoot());
+  return path.join(root, '.genkit', 'servers');
 }
 
 /**
  * Detects what runtime is used in the current directory.
  * @returns Runtime of the project directory.
  */
-export function detectRuntime(directory: string): Runtime {
-  const files = fs.readdirSync(directory);
+export async function detectRuntime(directory: string): Promise<Runtime> {
+  const files = await fs.readdir(directory);
   for (const file of files) {
     const filePath = path.join(directory, file);
-    const stat = fs.statSync(filePath);
+    const stat = await fs.stat(filePath);
     if (stat.isFile() && (path.extname(file) === '.go' || file === 'go.mod')) {
       return 'go';
     }
   }
-  if (fs.existsSync(path.join(directory, 'package.json'))) {
+  try {
+    await fs.access(path.join(directory, 'package.json'));
     return 'nodejs';
+  } catch {
+    return undefined;
   }
-  return undefined;
+}
+
+/**
+ * Checks the health of a server with a /api/__health endpoint.
+ */
+export async function checkServerHealth(url: string): Promise<boolean> {
+  try {
+    const response = await fetch(`${url}/api/__health`);
+    return response.status === 200;
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.cause as any).code === 'ECONNREFUSED'
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Waits until the server is healthy or the timeout is reached.
+ */
+export async function waitUntilHealthy(
+  url: string,
+  maxTimeout = 10000
+): Promise<boolean> {
+  const startTime = Date.now();
+  while (Date.now() - startTime < maxTimeout) {
+    try {
+      const response = await fetch(`${url}/api/__health`);
+      if (response.status === 200) {
+        return true;
+      }
+    } catch (error) {
+      // Ignore errors and continue retrying
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  return false;
+}
+
+/**
+ * Waits until the server becomes unresponsive or the timeout is reached.
+ */
+export async function waitUntilUnresponsive(
+  url: string,
+  maxTimeout = 10000
+): Promise<boolean> {
+  const startTime = Date.now();
+  while (Date.now() - startTime < maxTimeout) {
+    try {
+      const health = await fetch(`${url}/api/__health`);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.cause as any).code === 'ECONNREFUSED'
+      ) {
+        return true;
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  return false;
 }

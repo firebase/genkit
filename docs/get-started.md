@@ -131,7 +131,7 @@ so that it can be used outside of a Node project.
         // Handle the response from the model API. In this sample, we just convert
         // it to a string, but more complicated flows might coerce the response into
         // structured output or chain the response into another LLM call, etc.
-        return llmResponse.text();
+        return llmResponse.text;
       }
     );
 

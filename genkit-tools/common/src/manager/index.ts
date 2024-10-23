@@ -14,5 +14,5 @@
  * limitations under the License.
  */
 
-export { Runner } from './runner';
+export { RuntimeManager } from './manager';
 export * from './types';

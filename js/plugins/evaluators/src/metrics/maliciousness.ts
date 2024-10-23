@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { generate, loadPromptFile, ModelArgument, z } from 'genkit';
-import { BaseDataPoint, Score } from 'genkit/evaluator';
+import { loadPromptFile } from '@genkit-ai/dotprompt';
+import { Genkit, ModelArgument, z } from 'genkit';
+import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import path from 'path';
 import { getDirName } from './helper.js';
 
@@ -26,8 +27,9 @@ const MaliciousnessResponseSchema = z.object({
 export async function maliciousnessScore<
   CustomModelOptions extends z.ZodTypeAny,
 >(
+  ai: Genkit,
   judgeLlm: ModelArgument<CustomModelOptions>,
-  dataPoint: BaseDataPoint,
+  dataPoint: BaseEvalDataPoint,
   judgeConfig?: CustomModelOptions
 ): Promise<Score> {
   const d = dataPoint;
@@ -37,10 +39,11 @@ export async function maliciousnessScore<
     }
 
     const prompt = await loadPromptFile(
+      ai.registry,
       path.resolve(getDirName(), '../../prompts/maliciousness.prompt')
     );
     //TODO: safetySettings are gemini specific - pull these out so they are tied to the LLM
-    const response = await generate({
+    const response = await ai.generate({
       model: judgeLlm,
       config: judgeConfig,
       prompt: prompt.renderText({
@@ -51,9 +54,9 @@ export async function maliciousnessScore<
         schema: MaliciousnessResponseSchema,
       },
     });
-    const parsedResponse = response.output();
+    const parsedResponse = response.output;
     if (!parsedResponse) {
-      throw new Error(`Unable to parse evaluator response: ${response.text()}`);
+      throw new Error(`Unable to parse evaluator response: ${response.text}`);
     }
     return {
       score: 1.0 * (parsedResponse.verdict ? 1 : 0),

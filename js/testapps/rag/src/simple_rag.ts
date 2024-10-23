@@ -21,7 +21,7 @@ import {
 import { Document, z } from 'genkit';
 import { chromaIndexerRef, chromaRetrieverRef } from 'genkitx-chromadb';
 import { pineconeIndexerRef, pineconeRetrieverRef } from 'genkitx-pinecone';
-import { ai } from './index.js';
+import { ai } from './genkit.js';
 import { augmentedPrompt } from './prompt.js';
 
 // Setup the models, embedders and "vector store"
@@ -66,10 +66,10 @@ export const askQuestionsAboutCatsFlow = ai.defineFlow(
       .generate({
         input: {
           question: query,
-          context: docs.map((d) => d.text()),
+          context: docs.map((d) => d.text),
         },
       })
-      .then((r) => r.text());
+      .then((r) => r.text);
   }
 );
 
@@ -91,10 +91,10 @@ export const askQuestionsAboutDogsFlow = ai.defineFlow(
       .generate({
         input: {
           question: query,
-          context: docs.map((d) => d.text()),
+          context: docs.map((d) => d.text),
         },
       })
-      .then((r) => r.text());
+      .then((r) => r.text);
   }
 );
 

@@ -15,7 +15,7 @@
  */
 
 import { z } from '@genkit-ai/core';
-import { Registry, runWithRegistry } from '@genkit-ai/core/registry';
+import { Registry } from '@genkit-ai/core/registry';
 import { toJsonSchema } from '@genkit-ai/core/schema';
 import assert from 'node:assert';
 import { beforeEach, describe, it } from 'node:test';
@@ -108,7 +108,7 @@ describe('GenerateResponse', () => {
         const response = new GenerateResponse(
           test.responseData as GenerateResponseData
         );
-        assert.deepStrictEqual(response.output(), test.expectedOutput);
+        assert.deepStrictEqual(response.output, test.expectedOutput);
       });
     }
   });
@@ -213,7 +213,7 @@ describe('GenerateResponse', () => {
         }),
         finishReason: 'stop',
       });
-      assert.deepStrictEqual(response.toolRequests(), []);
+      assert.deepStrictEqual(response.toolRequests, []);
     });
     it('returns tool call if present', () => {
       const toolCall = {
@@ -230,7 +230,7 @@ describe('GenerateResponse', () => {
         }),
         finishReason: 'stop',
       });
-      assert.deepStrictEqual(response.toolRequests(), [toolCall]);
+      assert.deepStrictEqual(response.toolRequests, [toolCall]);
     });
     it('returns all tool calls', () => {
       const toolCall1 = {
@@ -254,7 +254,7 @@ describe('GenerateResponse', () => {
         }),
         finishReason: 'stop',
       });
-      assert.deepStrictEqual(response.toolRequests(), [toolCall1, toolCall2]);
+      assert.deepStrictEqual(response.toolRequests, [toolCall1, toolCall2]);
     });
   });
 });
@@ -262,19 +262,18 @@ describe('GenerateResponse', () => {
 describe('toGenerateRequest', () => {
   const registry = new Registry();
   // register tools
-  const tellAFunnyJoke = runWithRegistry(registry, () =>
-    defineTool(
-      {
-        name: 'tellAFunnyJoke',
-        description:
-          'Tells jokes about an input topic. Use this tool whenever user asks you to tell a joke.',
-        inputSchema: z.object({ topic: z.string() }),
-        outputSchema: z.string(),
-      },
-      async (input) => {
-        return `Why did the ${input.topic} cross the road?`;
-      }
-    )
+  const tellAFunnyJoke = defineTool(
+    registry,
+    {
+      name: 'tellAFunnyJoke',
+      description:
+        'Tells jokes about an input topic. Use this tool whenever user asks you to tell a joke.',
+      inputSchema: z.object({ topic: z.string() }),
+      outputSchema: z.string(),
+    },
+    async (input) => {
+      return `Why did the ${input.topic} cross the road?`;
+    }
   );
 
   const testCases = [
@@ -289,7 +288,7 @@ describe('toGenerateRequest', () => {
           { role: 'user', content: [{ text: 'Tell a joke about dogs.' }] },
         ],
         config: undefined,
-        context: undefined,
+        docs: undefined,
         tools: [],
         output: { format: 'text' },
       },
@@ -307,7 +306,7 @@ describe('toGenerateRequest', () => {
           { role: 'user', content: [{ text: 'Tell a joke about dogs.' }] },
         ],
         config: undefined,
-        context: undefined,
+        docs: undefined,
         tools: [
           {
             name: 'tellAFunnyJoke',
@@ -342,7 +341,7 @@ describe('toGenerateRequest', () => {
           { role: 'user', content: [{ text: 'Tell a joke about dogs.' }] },
         ],
         config: undefined,
-        context: undefined,
+        docs: undefined,
         tools: [
           {
             name: 'tellAFunnyJoke',
@@ -394,7 +393,7 @@ describe('toGenerateRequest', () => {
           },
         ],
         config: undefined,
-        context: undefined,
+        docs: undefined,
         tools: [],
         output: { format: 'text' },
       },
@@ -403,7 +402,7 @@ describe('toGenerateRequest', () => {
       should: 'translate a prompt with history correctly',
       prompt: {
         model: 'vertexai/gemini-1.0-pro',
-        history: [
+        messages: [
           { content: [{ text: 'hi' }], role: 'user' },
           { content: [{ text: 'how can I help you' }], role: 'model' },
         ],
@@ -416,7 +415,7 @@ describe('toGenerateRequest', () => {
           { role: 'user', content: [{ text: 'Tell a joke about dogs.' }] },
         ],
         config: undefined,
-        context: undefined,
+        docs: undefined,
         tools: [],
         output: { format: 'text' },
       },
@@ -426,14 +425,14 @@ describe('toGenerateRequest', () => {
       prompt: {
         model: 'vertexai/gemini-1.0-pro',
         prompt: 'Tell a joke with context.',
-        context: [{ content: [{ text: 'context here' }] }],
+        docs: [{ content: [{ text: 'context here' }] }],
       },
       expectedOutput: {
         messages: [
           { content: [{ text: 'Tell a joke with context.' }], role: 'user' },
         ],
         config: undefined,
-        context: [{ content: [{ text: 'context here' }] }],
+        docs: [{ content: [{ text: 'context here' }] }],
         tools: [],
         output: { format: 'text' },
       },
@@ -442,9 +441,7 @@ describe('toGenerateRequest', () => {
   for (const test of testCases) {
     it(test.should, async () => {
       assert.deepStrictEqual(
-        await runWithRegistry(registry, () =>
-          toGenerateRequest(test.prompt as GenerateOptions)
-        ),
+        await toGenerateRequest(registry, test.prompt as GenerateOptions),
         test.expectedOutput
       );
     });
@@ -515,7 +512,7 @@ describe('GenerateResponseChunk', () => {
           const responseChunk: GenerateResponseChunk =
             new GenerateResponseChunk(chunkData, accumulatedChunks);
 
-          const output = responseChunk.output();
+          const output = responseChunk.output;
 
           assert.deepStrictEqual(output, test.correctJson);
         });
@@ -530,29 +527,28 @@ describe('generate', () => {
 
   beforeEach(() => {
     registry = new Registry();
-    echoModel = runWithRegistry(registry, () =>
-      defineModel(
-        {
-          name: 'echoModel',
-        },
-        async (request) => {
-          return {
-            message: {
-              role: 'model',
-              content: [
-                {
-                  text:
-                    'Echo: ' +
-                    request.messages
-                      .map((m) => m.content.map((c) => c.text).join())
-                      .join(),
-                },
-              ],
-            },
-            finishReason: 'stop',
-          };
-        }
-      )
+    echoModel = defineModel(
+      registry,
+      {
+        name: 'echoModel',
+      },
+      async (request) => {
+        return {
+          message: {
+            role: 'model',
+            content: [
+              {
+                text:
+                  'Echo: ' +
+                  request.messages
+                    .map((m) => m.content.map((c) => c.text).join())
+                    .join(),
+              },
+            ],
+          },
+          finishReason: 'stop',
+        };
+      }
     );
   });
 
@@ -592,16 +588,13 @@ describe('generate', () => {
       };
     };
 
-    const response = await runWithRegistry(registry, () =>
-      generate({
-        prompt: 'banana',
-        model: echoModel,
-        use: [wrapRequest, wrapResponse],
-      })
-    );
-
+    const response = await generate(registry, {
+      prompt: 'banana',
+      model: echoModel,
+      use: [wrapRequest, wrapResponse],
+    });
     const want = '[Echo: (banana)]';
-    assert.deepStrictEqual(response.text(), want);
+    assert.deepStrictEqual(response.text, want);
   });
 });
 
@@ -609,27 +602,24 @@ describe('generate', () => {
   let registry: Registry;
   beforeEach(() => {
     registry = new Registry();
-    runWithRegistry(registry, () =>
-      defineModel(
-        { name: 'echo', supports: { tools: true } },
-        async (input) => ({
-          message: input.messages[0],
-          finishReason: 'stop',
-        })
-      )
-    );
-  });
-  it('should preserve the request in the returned response, enabling toHistory()', async () => {
-    const response = await runWithRegistry(registry, () =>
-      generate({
-        model: 'echo',
-        prompt: 'Testing toHistory',
+
+    defineModel(
+      registry,
+      { name: 'echo', supports: { tools: true } },
+      async (input) => ({
+        message: input.messages[0],
+        finishReason: 'stop',
       })
     );
-
+  });
+  it('should preserve the request in the returned response, enabling .messages', async () => {
+    const response = await generate(registry, {
+      model: 'echo',
+      prompt: 'Testing messages',
+    });
     assert.deepEqual(
-      response.toHistory().map((m) => m.content[0].text),
-      ['Testing toHistory', 'Testing toHistory']
+      response.messages.map((m) => m.content[0].text),
+      ['Testing messages', 'Testing messages']
     );
   });
 });

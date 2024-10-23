@@ -21,15 +21,11 @@ import {
   StreamingCallback,
   z,
 } from '@genkit-ai/core';
-import { lookupAction } from '@genkit-ai/core/registry';
+import { Registry } from '@genkit-ai/core/registry';
 import { parseSchema, toJsonSchema } from '@genkit-ai/core/schema';
 import { DocumentData } from './document.js';
 import { extractJson } from './extract.js';
-import {
-  generateHelper,
-  GenerateUtilParamSchema,
-  inferRoleFromParts,
-} from './generateAction.js';
+import { generateHelper, GenerateUtilParamSchema } from './generateAction.js';
 import {
   GenerateRequest,
   GenerateResponseChunkData,
@@ -47,6 +43,7 @@ import {
   ToolRequestPart,
   ToolResponsePart,
 } from './model.js';
+import { ExecutablePrompt } from './prompt.js';
 import { resolveTools, ToolArgument, toToolDefinition } from './tool.js';
 
 /**
@@ -70,8 +67,8 @@ export class Message<T = unknown> implements MessageData {
    *
    * @returns The structured output contained in the message.
    */
-  output(): T {
-    return this.data() || extractJson<T>(this.text());
+  get output(): T {
+    return this.data || extractJson<T>(this.text);
   }
 
   toolResponseParts(): ToolResponsePart[] {
@@ -83,7 +80,7 @@ export class Message<T = unknown> implements MessageData {
    * Concatenates all `text` parts present in the message with no delimiter.
    * @returns A string of all concatenated text parts.
    */
-  text(): string {
+  get text(): string {
     return this.content.map((part) => part.text || '').join('');
   }
 
@@ -92,7 +89,7 @@ export class Message<T = unknown> implements MessageData {
    * (for example) an image from a generation expected to create one.
    * @returns The first detected `media` part in the message.
    */
-  media(): { url: string; contentType?: string } | null {
+  get media(): { url: string; contentType?: string } | null {
     return this.content.find((part) => part.media)?.media || null;
   }
 
@@ -100,7 +97,7 @@ export class Message<T = unknown> implements MessageData {
    * Returns the first detected `data` part of a message.
    * @returns The first `data` part detected in the message (if any).
    */
-  data(): T | null {
+  get data(): T | null {
     return this.content.find((part) => part.data)?.data as T | null;
   }
 
@@ -108,7 +105,7 @@ export class Message<T = unknown> implements MessageData {
    * Returns all tool request found in this message.
    * @returns Array of all tool request found in this message.
    */
-  toolRequests(): ToolRequestPart[] {
+  get toolRequests(): ToolRequestPart[] {
     return this.content.filter(
       (part) => !!part.toolRequest
     ) as ToolRequestPart[];
@@ -187,7 +184,7 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
     }
 
     if (request?.output?.schema || this.request?.output?.schema) {
-      const o = this.output();
+      const o = this.output;
       parseSchema(o, {
         jsonSchema: request?.output?.schema || this.request?.output?.schema,
       });
@@ -211,8 +208,8 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
    * @param index The candidate index from which to extract output. If not provided, finds first candidate that conforms to output schema.
    * @returns The structured output contained in the selected candidate.
    */
-  output(): O | null {
-    return this.message?.output() || null;
+  get output(): O | null {
+    return this.message?.output || null;
   }
 
   /**
@@ -220,8 +217,8 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
    * @param index The candidate index from which to extract text, defaults to first candidate.
    * @returns A string of all concatenated text parts.
    */
-  text(): string {
-    return this.message?.text() || '';
+  get text(): string {
+    return this.message?.text || '';
   }
 
   /**
@@ -230,8 +227,8 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
    * @param index The candidate index from which to extract media, defaults to first candidate.
    * @returns The first detected `media` part in the candidate.
    */
-  media(): { url: string; contentType?: string } | null {
-    return this.message?.media() || null;
+  get media(): { url: string; contentType?: string } | null {
+    return this.message?.media || null;
   }
 
   /**
@@ -239,8 +236,8 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
    * @param index The candidate index from which to extract data, defaults to first candidate.
    * @returns The first `data` part detected in the candidate (if any).
    */
-  data(): O | null {
-    return this.message?.data() || null;
+  get data(): O | null {
+    return this.message?.data || null;
   }
 
   /**
@@ -248,8 +245,8 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
    * @param index The candidate index from which to extract tool requests, defaults to first candidate.
    * @returns Array of all tool request found in the candidate.
    */
-  toolRequests(): ToolRequestPart[] {
-    return this.message?.toolRequests() || [];
+  get toolRequests(): ToolRequestPart[] {
+    return this.message?.toolRequests || [];
   }
 
   /**
@@ -259,7 +256,7 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
    * @param index The candidate index to utilize during conversion, defaults to first candidate.
    * @returns A serializable list of messages compatible with `generate({history})`.
    */
-  toHistory(): MessageData[] {
+  get messages(): MessageData[] {
     if (!this.request)
       throw new Error(
         "Can't construct history for response without request reference."
@@ -269,6 +266,10 @@ export class GenerateResponse<O = unknown> implements ModelResponseData {
         "Can't construct history for response without generated message."
       );
     return [...this.request?.messages, this.message.toJSON()];
+  }
+
+  get raw(): unknown {
+    return this.raw ?? this.custom;
   }
 
   toJSON(): ModelResponseData {
@@ -290,7 +291,7 @@ export class GenerateResponseChunk<T = unknown>
   implements GenerateResponseChunkData
 {
   /** The index of the candidate this chunk corresponds to. */
-  index: number;
+  index?: number;
   /** The content generated in this chunk. */
   content: Part[];
   /** Custom model-specific data for this chunk. */
@@ -312,7 +313,7 @@ export class GenerateResponseChunk<T = unknown>
    * Concatenates all `text` parts present in the chunk with no delimiter.
    * @returns A string of all concatenated text parts.
    */
-  text(): string {
+  get text(): string {
     return this.content.map((part) => part.text || '').join('');
   }
 
@@ -321,7 +322,7 @@ export class GenerateResponseChunk<T = unknown>
    * (for example) an image from a generation expected to create one.
    * @returns The first detected `media` part in the chunk.
    */
-  media(): { url: string; contentType?: string } | null {
+  get media(): { url: string; contentType?: string } | null {
     return this.content.find((part) => part.media)?.media || null;
   }
 
@@ -329,7 +330,7 @@ export class GenerateResponseChunk<T = unknown>
    * Returns the first detected `data` part of a chunk.
    * @returns The first `data` part detected in the chunk (if any).
    */
-  data(): T | null {
+  get data(): T | null {
     return this.content.find((part) => part.data)?.data as T | null;
   }
 
@@ -337,7 +338,7 @@ export class GenerateResponseChunk<T = unknown>
    * Returns all tool request found in this chunk.
    * @returns Array of all tool request found in this chunk.
    */
-  toolRequests(): ToolRequestPart[] {
+  get toolRequests(): ToolRequestPart[] {
     return this.content.filter(
       (part) => !!part.toolRequest
     ) as ToolRequestPart[];
@@ -347,7 +348,7 @@ export class GenerateResponseChunk<T = unknown>
    * Attempts to extract the longest valid JSON substring from the accumulated chunks.
    * @returns The longest valid JSON substring found in the accumulated chunks.
    */
-  output(): T | null {
+  get output(): T | null {
     if (!this.accumulatedChunks) return null;
     const accumulatedText = this.accumulatedChunks
       .map((chunk) => chunk.content.map((part) => part.text || '').join(''))
@@ -360,29 +361,42 @@ export class GenerateResponseChunk<T = unknown>
   }
 }
 
+export function normalizePart(input: string | Part | Part[]): Part[] {
+  if (typeof input === 'string') {
+    return [{ text: input }];
+  } else if (Array.isArray(input)) {
+    return input;
+  } else {
+    return [input];
+  }
+}
+
 export async function toGenerateRequest(
+  registry: Registry,
   options: GenerateOptions
 ): Promise<GenerateRequest> {
-  const promptMessage: MessageData = { role: 'user', content: [] };
-  if (typeof options.prompt === 'string') {
-    promptMessage.content.push({ text: options.prompt });
-  } else if (Array.isArray(options.prompt)) {
-    promptMessage.role = inferRoleFromParts(options.prompt);
-    promptMessage.content.push(...options.prompt);
-  } else {
-    promptMessage.role = inferRoleFromParts([options.prompt]);
-    promptMessage.content.push(options.prompt);
+  const messages: MessageData[] = [];
+  if (options.system) {
+    messages.push({ role: 'system', content: normalizePart(options.system) });
   }
-  const messages: MessageData[] = [...(options.history || []), promptMessage];
+  if (options.messages) {
+    messages.push(...options.messages);
+  }
+  if (options.prompt) {
+    messages.push({ role: 'user', content: normalizePart(options.prompt) });
+  }
+  if (messages.length === 0) {
+    throw new Error('at least one message is required in generate request');
+  }
   let tools: Action<any, any>[] | undefined;
   if (options.tools) {
-    tools = await resolveTools(options.tools);
+    tools = await resolveTools(registry, options.tools);
   }
 
   const out = {
     messages,
     config: options.config,
-    context: options.context,
+    docs: options.docs,
     tools: tools?.map((tool) => toToolDefinition(tool)) || [],
     output: {
       format:
@@ -406,12 +420,14 @@ export interface GenerateOptions<
 > {
   /** A model name (e.g. `vertexai/gemini-1.0-pro`) or reference. */
   model?: ModelArgument<CustomOptions>;
+  /** The system prompt to be included in the generate request. Can be a string for a simple text prompt or one or more parts for multi-modal prompts (subject to model support). */
+  system?: string | Part | Part[];
   /** The prompt for which to generate a response. Can be a string for a simple text prompt or one or more parts for multi-modal prompts. */
-  prompt: string | Part | Part[];
+  prompt?: string | Part | Part[];
   /** Retrieved documents to be used as context for this generation. */
-  context?: DocumentData[];
-  /** Conversation history for multi-turn prompting when supported by the underlying model. */
-  history?: MessageData[];
+  docs?: DocumentData[];
+  /** Conversation messages (history) for multi-turn prompting when supported by the underlying model. */
+  messages?: MessageData[];
   /** List of registered tool names or actions to treat as a tool for this generation if supported by the underlying model. */
   tools?: ToolArgument[];
   /** Configuration for the generation request. */
@@ -430,33 +446,39 @@ export interface GenerateOptions<
   use?: ModelMiddleware[];
 }
 
-async function resolveModel(options: GenerateOptions): Promise<ModelAction> {
+interface ResolvedModel<CustomOptions extends z.ZodTypeAny = z.ZodTypeAny> {
+  modelAction: ModelAction;
+  config?: z.infer<CustomOptions>;
+  version?: string;
+}
+
+async function resolveModel(
+  registry: Registry,
+  options: GenerateOptions
+): Promise<ResolvedModel> {
   let model = options.model;
   if (!model) {
-    // TODO: Fix this...
-    // if (genkitConfig?.options?.defaultModel) {
-    //   model =
-    //     typeof genkitConfig.options.defaultModel.name === 'string'
-    //       ? genkitConfig.options.defaultModel.name
-    //       : genkitConfig.options.defaultModel.name.name;
-    //   if (
-    //     (!options.config || Object.keys(options.config).length === 0) &&
-    //     genkitConfig.options.defaultModel.config
-    //   ) {
-    //     // use configured global config
-    //     options.config = genkitConfig.options.defaultModel.config;
-    //   }
-    // } else {
-    throw new Error('Unable to resolve model.');
-    // }
+    throw new Error('Model is required.');
   }
   if (typeof model === 'string') {
-    return (await lookupAction(`/model/${model}`)) as ModelAction;
-  } else if (model.hasOwnProperty('info')) {
-    const ref = model as ModelReference<any>;
-    return (await lookupAction(`/model/${ref.name}`)) as ModelAction;
+    return {
+      modelAction: (await registry.lookupAction(
+        `/model/${model}`
+      )) as ModelAction,
+    };
+  } else if (model.hasOwnProperty('__action')) {
+    return { modelAction: model as ModelAction };
   } else {
-    return model as ModelAction;
+    const ref = model as ModelReference<any>;
+    return {
+      modelAction: (await registry.lookupAction(
+        `/model/${ref.name}`
+      )) as ModelAction,
+      config: {
+        ...ref.config,
+      },
+      version: ref.version,
+    };
   }
 }
 
@@ -498,21 +520,23 @@ export async function generate<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
 >(
+  registry: Registry,
   options:
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
 ): Promise<GenerateResponse<z.infer<O>>> {
   const resolvedOptions: GenerateOptions<O, CustomOptions> =
     await Promise.resolve(options);
-  const model = await resolveModel(resolvedOptions);
+  const resolvedModel = await resolveModel(registry, resolvedOptions);
+  const model = resolvedModel.modelAction;
   if (!model) {
     let modelId: string;
     if (typeof resolvedOptions.model === 'string') {
       modelId = resolvedOptions.model;
-    } else if ((resolvedOptions.model as ModelReference<any>).name) {
-      modelId = (resolvedOptions.model as ModelReference<any>).name;
-    } else {
+    } else if ((resolvedOptions.model as ModelAction)?.__action?.name) {
       modelId = (resolvedOptions.model as ModelAction).__action.name;
+    } else {
+      modelId = (resolvedOptions.model as ModelReference<any>).name;
     }
     throw new Error(`Model ${modelId} not found`);
   }
@@ -520,27 +544,58 @@ export async function generate<
   // convert tools to action refs (strings).
   let tools: (string | ToolDefinition)[] | undefined;
   if (resolvedOptions.tools) {
-    tools = resolvedOptions.tools.map((t) => {
+    tools = [];
+    for (const t of resolvedOptions.tools) {
       if (typeof t === 'string') {
-        return `/tool/${t}`;
+        tools.push(await resolveFullToolName(registry, t));
       } else if ((t as Action).__action) {
-        return `/${(t as Action).__action.metadata?.type}/${(t as Action).__action.name}`;
+        tools.push(
+          `/${(t as Action).__action.metadata?.type}/${(t as Action).__action.name}`
+        );
+      } else if (typeof (t as ExecutablePrompt).asTool === 'function') {
+        const promptToolAction = (t as ExecutablePrompt).asTool();
+        tools.push(`/prompt/${promptToolAction.__action.name}`);
       } else if (t.name) {
-        return `/tool/${t.name}`;
+        tools.push(await resolveFullToolName(registry, t.name));
+      } else {
+        throw new Error(
+          `Unable to determine type of of tool: ${JSON.stringify(t)}`
+        );
       }
-      throw new Error(
-        `Unable to determine type of of tool: ${JSON.stringify(t)}`
-      );
+    }
+  }
+
+  const messages: MessageData[] = [];
+  if (resolvedOptions.system) {
+    messages.push({
+      role: 'system',
+      content: normalizePart(resolvedOptions.system),
     });
+  }
+  if (resolvedOptions.messages) {
+    messages.push(...resolvedOptions.messages);
+  }
+  if (resolvedOptions.prompt) {
+    messages.push({
+      role: 'user',
+      content: normalizePart(resolvedOptions.prompt),
+    });
+  }
+
+  if (messages.length === 0) {
+    throw new Error('at least one message is required in generate request');
   }
 
   const params: z.infer<typeof GenerateUtilParamSchema> = {
     model: model.__action.name,
-    prompt: resolvedOptions.prompt,
-    context: resolvedOptions.context,
-    history: resolvedOptions.history,
+    docs: resolvedOptions.docs,
+    messages,
     tools,
-    config: resolvedOptions.config,
+    config: {
+      version: resolvedModel.version,
+      ...stripUndefinedOptions(resolvedModel.config),
+      ...stripUndefinedOptions(resolvedOptions.config),
+    },
     output: resolvedOptions.output && {
       format: resolvedOptions.output.format,
       jsonSchema: resolvedOptions.output.schema
@@ -555,12 +610,43 @@ export async function generate<
 
   return await runWithStreamingCallback(
     resolvedOptions.streamingCallback,
-    async () =>
-      new GenerateResponse<O>(
-        await generateHelper(params, resolvedOptions.use),
-        await toGenerateRequest(resolvedOptions)
-      )
+    async () => {
+      const response = await generateHelper(
+        registry,
+        params,
+        resolvedOptions.use
+      );
+      return new GenerateResponse<O>(
+        response,
+        response.request ??
+          (await toGenerateRequest(registry, { ...resolvedOptions, tools }))
+      );
+    }
   );
+}
+
+function stripUndefinedOptions(input?: any): any {
+  if (!input) return input;
+  const copy = { ...input };
+  Object.keys(input).forEach((key) => {
+    if (copy[key] === undefined) {
+      delete copy[key];
+    }
+  });
+  return copy;
+}
+
+async function resolveFullToolName(
+  registry: Registry,
+  name: string
+): Promise<string> {
+  if (await registry.lookupAction(`/tool/${name}`)) {
+    return `/tool/${name}`;
+  } else if (await registry.lookupAction(`/prompt/${name}`)) {
+    return `/prompt/${name}`;
+  } else {
+    throw new Error(`Unable to determine type of of tool: ${name}`);
+  }
 }
 
 export type GenerateStreamOptions<
@@ -569,8 +655,8 @@ export type GenerateStreamOptions<
 > = Omit<GenerateOptions<O, CustomOptions>, 'streamingCallback'>;
 
 export interface GenerateStreamResponse<O extends z.ZodTypeAny = z.ZodTypeAny> {
-  stream: () => AsyncIterable<GenerateResponseChunkData>;
-  response: () => Promise<GenerateResponse<O>>;
+  get stream(): AsyncIterable<GenerateResponseChunk>;
+  get response(): Promise<GenerateResponse<O>>;
 }
 
 function createPromise<T>(): {
@@ -587,6 +673,7 @@ export async function generateStream<
   O extends z.ZodTypeAny = z.ZodTypeAny,
   CustomOptions extends z.ZodTypeAny = typeof GenerationCommonConfigSchema,
 >(
+  registry: Registry,
   options:
     | GenerateOptions<O, CustomOptions>
     | PromiseLike<GenerateOptions<O, CustomOptions>>
@@ -602,8 +689,8 @@ export async function generateStream<
 
       let provideNextChunk, nextChunk;
       ({ resolve: provideNextChunk, promise: nextChunk } =
-        createPromise<GenerateResponseChunkData | null>());
-      async function* chunkStream(): AsyncIterable<GenerateResponseChunkData> {
+        createPromise<GenerateResponseChunk | null>());
+      async function* chunkStream(): AsyncIterable<GenerateResponseChunk> {
         while (true) {
           const next = await nextChunk;
           if (!next) break;
@@ -612,13 +699,13 @@ export async function generateStream<
       }
 
       try {
-        generate<O, CustomOptions>({
+        generate<O, CustomOptions>(registry, {
           ...options,
           streamingCallback: (chunk) => {
             firstChunkSent = true;
             provideNextChunk(chunk);
             ({ resolve: provideNextChunk, promise: nextChunk } =
-              createPromise<GenerateResponseChunkData | null>());
+              createPromise<GenerateResponseChunk | null>());
           },
         }).then((result) => {
           provideNextChunk(null);
@@ -634,9 +721,26 @@ export async function generateStream<
       }
 
       initialResolve({
-        response: () => finalPromise,
-        stream: chunkStream,
+        get response() {
+          return finalPromise;
+        },
+        get stream() {
+          return chunkStream();
+        },
       });
     }
   );
+}
+
+export function tagAsPreamble(msgs?: MessageData[]): MessageData[] | undefined {
+  if (!msgs) {
+    return undefined;
+  }
+  return msgs.map((m) => ({
+    ...m,
+    metadata: {
+      ...m.metadata,
+      preamble: true,
+    },
+  }));
 }

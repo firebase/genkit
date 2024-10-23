@@ -14,13 +14,16 @@
  * limitations under the License.
  */
 
-import { genkit, run } from '@genkit-ai/core';
 import { firebase } from '@genkit-ai/firebase';
 import { firebaseAuth } from '@genkit-ai/firebase/auth';
 import { noAuth, onFlow } from '@genkit-ai/firebase/functions';
+import {
+  FirebaseUserEngagementSchema,
+  collectUserEngagement,
+} from '@genkit-ai/firebase/user_engagement';
 import { geminiPro, vertexAI } from '@genkit-ai/vertexai';
 import { onRequest } from 'firebase-functions/v2/https';
-import * as z from 'zod';
+import { genkit, run, z } from 'genkit';
 
 const ai = genkit({
   plugins: [firebase(), vertexAI()],
@@ -28,7 +31,27 @@ const ai = genkit({
   traceStore: 'firebase',
   enableTracingAndMetrics: true,
   logLevel: 'debug',
+  telemetry: {
+    instrumentation: 'firebase',
+    logger: 'firebase',
+  },
 });
+
+export const simpleFlow = onFlow(
+  ai,
+  {
+    name: 'simpleFlow',
+    inputSchema: z.string(),
+    outputSchema: z.string(),
+    httpsOptions: {
+      cors: '*',
+    },
+    authPolicy: noAuth(),
+  },
+  async (subject) => {
+    return 'hello world!';
+  }
+);
 
 export const jokeFlow = onFlow(
   ai,
@@ -54,7 +77,7 @@ export const jokeFlow = onFlow(
         prompt: prompt,
       });
 
-      return llmResponse.text();
+      return llmResponse.text;
     });
   }
 );
@@ -125,5 +148,14 @@ export const triggerJokeFlow = onRequest(
     });
     console.log('operation', op);
     res.send(op);
+  }
+);
+
+/** Example of user engagement collection using Firebase Functions. */
+export const collectEngagement = onRequest(
+  { memory: '512MiB' },
+  async (req, res) => {
+    collectUserEngagement(FirebaseUserEngagementSchema.parse(req.body));
+    res.send({});
   }
 );

@@ -14,13 +14,8 @@
  * limitations under the License.
  */
 
-import { z } from 'genkit';
-import {
-  defineReranker,
-  RankedDocument,
-  RerankerAction,
-  rerankerRef,
-} from 'genkit/reranker';
+import { Genkit, z } from 'genkit';
+import { RankedDocument, RerankerAction, rerankerRef } from 'genkit/reranker';
 import { GoogleAuth } from 'google-auth-library';
 import { PluginOptions } from '.';
 
@@ -76,12 +71,11 @@ export interface VertexRerankOptions {
  * @returns {RerankerAction<z.ZodTypeAny>[]} - An array of reranker actions.
  */
 export async function vertexAiRerankers(
+  ai: Genkit,
   params: VertexRerankOptions
 ): Promise<RerankerAction<z.ZodTypeAny>[]> {
   if (!params.pluginOptions) {
-    throw new Error(
-      'Plugin options are required to create Vertex AI rerankers'
-    );
+    return [];
   }
   const pluginOptions = params.pluginOptions;
   if (!params.pluginOptions.rerankOptions) {
@@ -99,7 +93,7 @@ export async function vertexAiRerankers(
   const projectId = await auth.getProjectId();
 
   for (const rerankOption of rerankOptions) {
-    const reranker = defineReranker(
+    const reranker = ai.defineReranker(
       {
         name: `vertexai/${rerankOption.name || rerankOption.model}`,
         configSchema: VertexAIRerankerOptionsSchema.optional(),
@@ -113,10 +107,10 @@ export async function vertexAiRerankers(
           ),
           data: {
             model: rerankOption.model || DEFAULT_MODEL, // Use model from config or default
-            query: query.text(),
+            query: query.text,
             records: documents.map((doc, idx) => ({
               id: `${idx}`,
-              content: doc.text(),
+              content: doc.text,
             })),
           },
         });

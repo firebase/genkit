@@ -14,4 +14,11 @@
  * limitations under the License.
  */
 
-export * from '@genkit-ai/ai/model/middleware';
+export {
+  augmentWithContext,
+  conformOutput,
+  downloadRequestMedia,
+  simulateSystemPrompt,
+  validateSupport,
+  type AugmentWithContextOptions,
+} from '@genkit-ai/ai/model/middleware';

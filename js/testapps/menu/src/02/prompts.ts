@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { geminiPro } from '@genkit-ai/vertexai';
+import { gemini15Flash } from '@genkit-ai/vertexai';
 import { ai } from '../index.js';
 import { MenuQuestionInputSchema } from '../types.js';
 import { menuTool } from './tools.js';
@@ -22,10 +22,10 @@ import { menuTool } from './tools.js';
 // The prompt uses a tool which will load the menu data,
 // if the user asks a reasonable question about the menu.
 
-export const s02_dataMenuPrompt = ai.defineDotprompt(
+export const s02_dataMenuPrompt = ai.definePrompt(
   {
     name: 's02_dataMenu',
-    model: geminiPro,
+    model: gemini15Flash,
     input: { schema: MenuQuestionInputSchema },
     output: { format: 'text' },
     tools: [menuTool],

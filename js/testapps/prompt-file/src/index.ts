@@ -15,10 +15,10 @@
  */
 
 import { googleAI } from '@genkit-ai/googleai';
-import { defineHelper, dotprompt, genkit, z } from 'genkit';
+import { genkit, z } from 'genkit';
 
 const ai = genkit({
-  plugins: [googleAI(), dotprompt()],
+  plugins: [googleAI()],
 });
 
 /*
@@ -44,7 +44,7 @@ const RecipeSchema = ai.defineSchema(
 // If it fails, due to the prompt file being invalid, the process will crash,
 // instead of us getting a more mysterious failure later when the flow runs.
 
-defineHelper('list', (data: any) => {
+ai.defineHelper('list', (data: any) => {
   if (!Array.isArray(data)) {
     return '';
   }
@@ -61,9 +61,8 @@ ai.prompt('recipe').then((recipePrompt) => {
       outputSchema: RecipeSchema,
     },
     async (input) =>
-      (
-        await recipePrompt.generate<typeof RecipeSchema>({ input: input })
-      ).output()!
+      (await recipePrompt.generate<typeof RecipeSchema>({ input: input }))
+        .output!
   );
 });
 
@@ -76,7 +75,7 @@ ai.prompt('recipe', { variant: 'robot' }).then((recipePrompt) => {
       }),
       outputSchema: z.any(),
     },
-    async (input) => (await recipePrompt.generate({ input: input })).output()
+    async (input) => (await recipePrompt.generate({ input: input })).output
   );
 });
 
@@ -98,13 +97,13 @@ ai.prompt('story').then((storyPrompt) => {
         const { response, stream } = await storyPrompt.generateStream({
           input: { subject, personality },
         });
-        for await (const chunk of stream()) {
+        for await (const chunk of stream) {
           streamingCallback(chunk.content[0]?.text!);
         }
-        return (await response()).text();
+        return (await response).text;
       } else {
         const response = await storyPrompt.generate({ input: { subject } });
-        return response.text();
+        return response.text;
       }
     }
   );

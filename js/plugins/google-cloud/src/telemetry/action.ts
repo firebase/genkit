@@ -26,7 +26,7 @@ import {
   Telemetry,
   internalMetricNamespaceWrap,
 } from '../metrics.js';
-import { extractErrorName, extractOuterFlowNameFromPath } from '../utils';
+import { extractErrorName, extractOuterFeatureNameFromPath } from '../utils';
 
 class ActionTelemetry implements Telemetry {
   /**
@@ -55,9 +55,10 @@ class ActionTelemetry implements Telemetry {
 
     const actionName = (attributes['genkit:name'] as string) || '<unknown>';
     const path = (attributes['genkit:path'] as string) || '<unknown>';
-    const flowName =
-      (attributes['genkit:metadata:flow:name'] as string) ||
-      extractOuterFlowNameFromPath(path);
+    let featureName = extractOuterFeatureNameFromPath(path);
+    if (!featureName || featureName === '<unknown>') {
+      featureName = actionName;
+    }
     const state = attributes['genkit:state'] || 'success';
     const latencyMs = hrTimeToMilliseconds(
       hrTimeDuration(span.startTime, span.endTime)
@@ -65,25 +66,23 @@ class ActionTelemetry implements Telemetry {
     const errorName = extractErrorName(span.events);
 
     if (state === 'success') {
-      this.writeSuccess(actionName, flowName, path, latencyMs);
-      return;
+      this.writeSuccess(actionName, featureName, path, latencyMs);
+    } else if (state === 'error') {
+      this.writeFailure(actionName, featureName, path, latencyMs, errorName);
+    } else {
+      logger.warn(`Unknown action state; ${state}`);
     }
-    if (state === 'error') {
-      this.writeFailure(actionName, flowName, path, latencyMs, errorName);
-    }
-
-    logger.warn(`Unknown action state; ${state}`);
   }
 
   private writeSuccess(
     actionName: string,
-    flowName: string,
+    featureName: string,
     path: string,
     latencyMs: number
   ) {
     const dimensions = {
       name: actionName,
-      flowName,
+      featureName,
       path,
       status: 'success',
       source: 'ts',
@@ -95,14 +94,14 @@ class ActionTelemetry implements Telemetry {
 
   private writeFailure(
     actionName: string,
-    flowName: string,
+    featureName: string,
     path: string,
     latencyMs: number,
     errorName?: string
   ) {
     const dimensions = {
       name: actionName,
-      flowName,
+      featureName,
       path,
       source: 'ts',
       sourceVersion: GENKIT_VERSION,

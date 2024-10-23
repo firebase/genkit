@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-import { loadPromptFile, ModelArgument, z } from 'genkit';
-import { BaseDataPoint, Score } from 'genkit/evaluator';
+import { ModelArgument, loadPromptFile, z } from 'genkit';
+import { BaseEvalDataPoint, Score } from 'genkit/evaluator';
 import path from 'path';
 import { ai } from '../index.js';
 
@@ -28,7 +28,7 @@ export async function piiDetectionScore<
   CustomModelOptions extends z.ZodTypeAny,
 >(
   judgeLlm: ModelArgument<CustomModelOptions>,
-  dataPoint: BaseDataPoint,
+  dataPoint: BaseEvalDataPoint,
   judgeConfig?: CustomModelOptions
 ): Promise<Score> {
   const d = dataPoint;
@@ -37,6 +37,7 @@ export async function piiDetectionScore<
       throw new Error('Output is required for PII detection');
     }
     const finalPrompt = await loadPromptFile(
+      ai.registry,
       path.resolve(__dirname, '../../prompts/pii_detection.prompt')
     );
 
@@ -50,9 +51,9 @@ export async function piiDetectionScore<
         schema: PiiDetectionResponseSchema,
       },
     });
-    const parsedResponse = response.output();
+    const parsedResponse = response.output;
     if (!parsedResponse) {
-      throw new Error(`Unable to parse evaluator response: ${response.text()}`);
+      throw new Error(`Unable to parse evaluator response: ${response.text}`);
     }
     return {
       score: parsedResponse.verdict,

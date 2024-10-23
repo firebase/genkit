@@ -16,8 +16,8 @@
 
 import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
 import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
-import { geminiPro, googleAI } from '@genkit-ai/googleai';
-import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
+import { gemini15Flash, googleAI } from '@genkit-ai/googleai';
+import { textEmbedding004, vertexAI } from '@genkit-ai/vertexai';
 import { genkit } from 'genkit';
 
 // Turn off safety checks for evaluation so that the LLM as an evaluator can
@@ -47,20 +47,20 @@ const ai = genkit({
   plugins: [
     googleAI(),
     genkitEval({
-      judge: geminiPro,
+      judge: gemini15Flash,
       judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
       metrics: [
         GenkitMetric.ANSWER_RELEVANCY,
         GenkitMetric.FAITHFULNESS,
         GenkitMetric.MALICIOUSNESS,
       ],
-      embedder: textEmbeddingGecko,
+      embedder: textEmbedding004,
     }),
     vertexAI(),
     devLocalVectorstore([
       {
         indexName: 'evaluating-evaluators',
-        embedder: textEmbeddingGecko,
+        embedder: textEmbedding004,
       },
     ]),
   ],

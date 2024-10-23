@@ -71,6 +71,10 @@ export type FlowInvokeEnvelopeMessage = z.infer<
   typeof FlowInvokeEnvelopeMessageSchema
 >;
 
+export const FlowActionInputSchema = FlowInvokeEnvelopeMessageSchema.extend({
+  auth: z.unknown().optional(),
+});
+
 export const FlowStateExecutionSchema = z.object({
   startTime: z
     .number()

@@ -28,10 +28,10 @@ const __flowStreamDelimiter = '\n';
  *   url: 'https://my-flow-deployed-url',
  *   input: 'foo',
  * });
- * for await (const chunk of response.stream()) {
+ * for await (const chunk of response.stream) {
  *   console.log(chunk);
  * }
- * console.log(await response.output());
+ * console.log(await response.output);
  * ```
  */
 export function streamFlow({

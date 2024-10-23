@@ -14,28 +14,22 @@
  * limitations under the License.
  */
 
-import { genkitPlugin, Plugin } from 'genkit';
+import { Genkit } from 'genkit';
+import { GenkitPlugin, genkitPlugin } from 'genkit/plugin';
 import {
   SUPPORTED_MODELS as EMBEDDER_MODELS,
+  defineGoogleAIEmbedder,
   textEmbeddingGecko001,
-  textEmbeddingGeckoEmbedder,
 } from './embedder.js';
 import {
-  gemini15Flash,
-  gemini15Pro,
-  geminiPro,
-  geminiProVision,
-  googleAIModel,
   SUPPORTED_V15_MODELS,
   SUPPORTED_V1_MODELS,
-} from './gemini.js';
-export {
+  defineGoogleAIModel,
+  gemini10Pro,
   gemini15Flash,
   gemini15Pro,
-  geminiPro,
-  geminiProVision,
-  textEmbeddingGecko001,
-};
+} from './gemini.js';
+export { gemini10Pro, gemini15Flash, gemini15Pro, textEmbeddingGecko001 };
 
 export interface PluginOptions {
   apiKey?: string;
@@ -43,11 +37,8 @@ export interface PluginOptions {
   baseUrl?: string;
 }
 
-export const googleAI: Plugin<[PluginOptions] | []> = genkitPlugin(
-  'googleai',
-  async (options?: PluginOptions) => {
-    let models;
-    let embedders;
+export function googleAI(options?: PluginOptions): GenkitPlugin {
+  return genkitPlugin('googleai', async (ai: Genkit) => {
     let apiVersions = ['v1'];
 
     if (options?.apiVersion) {
@@ -58,33 +49,40 @@ export const googleAI: Plugin<[PluginOptions] | []> = genkitPlugin(
       }
     }
     if (apiVersions.includes('v1beta')) {
-      (embedders = []),
-        (models = [
-          ...Object.keys(SUPPORTED_V15_MODELS).map((name) =>
-            googleAIModel(name, options?.apiKey, 'v1beta', options?.baseUrl)
-          ),
-        ]);
+      Object.keys(SUPPORTED_V15_MODELS).forEach((name) =>
+        defineGoogleAIModel(
+          ai,
+          name,
+          options?.apiKey,
+          'v1beta',
+          options?.baseUrl
+        )
+      );
     }
     if (apiVersions.includes('v1')) {
-      models = [
-        ...Object.keys(SUPPORTED_V1_MODELS).map((name) =>
-          googleAIModel(name, options?.apiKey, undefined, options?.baseUrl)
-        ),
-        ...Object.keys(SUPPORTED_V15_MODELS).map((name) =>
-          googleAIModel(name, options?.apiKey, undefined, options?.baseUrl)
-        ),
-      ];
-      embedders = [
-        ...Object.keys(EMBEDDER_MODELS).map((name) =>
-          textEmbeddingGeckoEmbedder(name, { apiKey: options?.apiKey })
-        ),
-      ];
+      Object.keys(SUPPORTED_V1_MODELS).forEach((name) =>
+        defineGoogleAIModel(
+          ai,
+          name,
+          options?.apiKey,
+          undefined,
+          options?.baseUrl
+        )
+      );
+      Object.keys(SUPPORTED_V15_MODELS).forEach((name) =>
+        defineGoogleAIModel(
+          ai,
+          name,
+          options?.apiKey,
+          undefined,
+          options?.baseUrl
+        )
+      );
+      Object.keys(EMBEDDER_MODELS).forEach((name) =>
+        defineGoogleAIEmbedder(ai, name, { apiKey: options?.apiKey })
+      );
     }
-    return {
-      models,
-      embedders,
-    };
-  }
-);
+  });
+}
 
 export default googleAI;

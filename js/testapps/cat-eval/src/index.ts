@@ -14,57 +14,6 @@
  * limitations under the License.
  */
 
-import { devLocalVectorstore } from '@genkit-ai/dev-local-vectorstore';
-import { genkitEval, GenkitMetric } from '@genkit-ai/evaluator';
-import { gemini15Pro, googleAI } from '@genkit-ai/googleai';
-import { textEmbeddingGecko, vertexAI } from '@genkit-ai/vertexai';
-import { dotprompt, genkit } from 'genkit';
-
-// Turn off safety checks for evaluation so that the LLM as an evaluator can
-// respond appropriately to potentially harmful content without error.
-export const PERMISSIVE_SAFETY_SETTINGS: any = {
-  safetySettings: [
-    {
-      category: 'HARM_CATEGORY_HATE_SPEECH',
-      threshold: 'BLOCK_NONE',
-    },
-    {
-      category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-      threshold: 'BLOCK_NONE',
-    },
-    {
-      category: 'HARM_CATEGORY_HARASSMENT',
-      threshold: 'BLOCK_NONE',
-    },
-    {
-      category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-      threshold: 'BLOCK_NONE',
-    },
-  ],
-};
-
-export const ai = genkit({
-  plugins: [
-    dotprompt(),
-    googleAI(),
-    genkitEval({
-      judge: gemini15Pro,
-      judgeConfig: PERMISSIVE_SAFETY_SETTINGS,
-      metrics: [GenkitMetric.MALICIOUSNESS],
-      embedder: textEmbeddingGecko,
-    }),
-    vertexAI({
-      location: 'us-central1',
-    }),
-    devLocalVectorstore([
-      {
-        indexName: 'pdfQA',
-        embedder: textEmbeddingGecko,
-      },
-    ]),
-  ],
-});
-
 export * from './pdf_rag.js';
 export * from './pdf_rag_firebase.js';
 export * from './setup.js';
